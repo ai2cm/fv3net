@@ -1,0 +1,25 @@
+plugins:
+  source:
+    - module: intake_xarray
+sources:
+  2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute_2d:
+    description: Initial data sample provided by Lucas Harris. 1 day of 2D fields sampled every 15 minutes.
+    driver: zarr
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        token: anon
+        access: read_only
+      urlpath: 'gcs://vcm-ml-data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/2d.zarr'
+      consolidated: True
+
+  2019-07-17-GFDL_FV3_DYAMOND_0.25deg_3hr_3d:
+    description: Initial data sample provided by Lucas Harris. 1 day of 3D fields sampled every 3 hours.
+    driver: zarr
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        token: anon
+        access: read_only
+      urlpath: 'gcs://vcm-ml-data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/2d.zarr'
+      consolidated: True

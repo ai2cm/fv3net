@@ -1,0 +1,44 @@
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+  - bioconda
+dependencies:
+  - python=3.7
+  - numpy=1.16
+  - seaborn
+  - dask=1.1
+  - xarray=0.12
+  - matplotlib=3.0
+  - netcdf4=1.4
+  - h5netcdf
+  - ipython
+  - jupyterlab
+  - cython
+  - torchvision-cpu
+  - pytorch-cpu=1.0
+  - attrs
+  - scikit-learn=0.20
+  - sphinx=1.7
+  - snakemake-minimal
+  - intake-xarray
+  - gcsfs
+  - pytest
+  - xgcm
+  - pip
+  - pip:
+      - -e .
+      - git+https://github.com/nbren12/gnl@master#subdirectory=python
+      - tqdm
+      - metpy
+      - flake8
+      - f90nml
+      - pymongo
+      - click
+      - zarr
+      - f90nml
+      - sacred
+      - recommonmark
+      - pytorch-ignite
+      - sphinx_rtd_theme
+
