@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 from numba import jit
+import xarray as xr
 
 
 def interpolate_1d_scipy(x, xp, arg):
@@ -64,3 +65,19 @@ def interpolate_1d_nd_target(x, xp, arr, axis=-1):
     matrix = _interpolate_1d_2d(xreshaped, xp, arrreshaped)
     reshaped = matrix.reshape(x.shape)
     return reshaped.swapaxes(axis, -1)
+
+
+def interpolate_onto_coords_of_coords(
+    coords, arg, output_dim='pfull', input_dim='plev'):
+    coord_1d = arg[input_dim]
+    return xr.apply_ufunc(
+        interpolate_1d_nd_target,
+        coords, coord_1d, arg,
+        input_core_dims=[[output_dim], [input_dim], [input_dim]],
+        output_core_dims=[[output_dim]]          
+    )
+
+
+def height_on_model_levels(data_3d):
+    return interpolate_onto_coords_of_coords(
+        data_3d.pres/100, data_3d.h_plev, input_dim='plev', output_dim='pfull')
