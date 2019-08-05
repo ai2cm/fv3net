@@ -2,8 +2,10 @@ import numpy as np
 from scipy.interpolate import interp1d
 from numba import jit
 import xarray as xr
+import xesmf as xe
 
 
+### Vertical interpolation
 def interpolate_1d_scipy(x, xp, arg):
     """simple test case"""
     return interp1d(xp, arg)(x)
@@ -81,3 +83,30 @@ def interpolate_onto_coords_of_coords(
 def height_on_model_levels(data_3d):
     return interpolate_onto_coords_of_coords(
         data_3d.pres/100, data_3d.h_plev, input_dim='plev', output_dim='pfull')
+
+
+### Horizontal interpolation
+def regrid_horizontal(data_in, ddeg_out):
+    """Interpolate horizontally from one rectangular grid to another
+    Args:
+      data_3d: Raw dataset to be regridded
+      ddeg_out: Grid spacing of target grid in degrees
+    """
+    data_in = data_in.rename({'grid_xt': 'lon', 'grid_yt': 'lat'})
+
+    # Create output dataset with appropriate lat-lon
+    ds_out = xr.Dataset({
+        'lon': (['lon'], np.arange(ddeg_out/2, 360, ddeg_out)),
+        'lat': (['lat'], np.arange(-90+ddeg_out/2, 90, ddeg_out))
+    })
+
+    regridder = xe.Regridder(data_in, ds_out, 'bilinear', reuse_weights=True)
+    
+    # Regrid each variable in original dataset
+    regridded_das = []
+    for var in tqdm.tqdm(data_in):
+        da = data_in[var]
+        if 'lon' in da.coords and 'lat' in da.coords:
+            regridded_das.append(regridder(da))
+    return xr.Dataset({da.name: da for da in regridded_das})
+
