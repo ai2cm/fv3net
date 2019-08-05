@@ -3,6 +3,7 @@ from scipy.interpolate import interp1d
 from numba import jit
 import xarray as xr
 import xesmf as xe
+from tqdm import tqdm
 
 
 ### Vertical interpolation
@@ -104,7 +105,7 @@ def regrid_horizontal(data_in, ddeg_out):
     
     # Regrid each variable in original dataset
     regridded_das = []
-    for var in tqdm.tqdm(data_in):
+    for var in data_in:
         da = data_in[var]
         if 'lon' in da.coords and 'lat' in da.coords:
             regridded_das.append(regridder(da))
