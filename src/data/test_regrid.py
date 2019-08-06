@@ -28,6 +28,8 @@ def test_semi_lagrangian():
 
     x = np.r_[:nx]
     y = np.r_[:ny]
+
+    x, y = np.meshgrid(x, y)
     z = np.broadcast_to(np.r_[:nz].reshape((1, -1, 1, 1)), (nt, nz, ny, nx))
 
     u = np.ones_like(z)
@@ -36,13 +38,13 @@ def test_semi_lagrangian():
 
     ans = lagrangian_origin_coordinates(x, y, z, u, v, w, h=1)
 
-    assert ans.shape == (nt, nx, ny, nz, ndim), ans.shape
+    assert ans.shape == (ndim, nt, nx, ny, nz), ans.shape
 
-    test_point = ans[0, 2, 2, 2, :]
+    test_point = ans[:, 0, 2, 2, 2]
     assert test_point.tolist() == [0, 1, 1, 1]
 
-    test_point = ans[0, 1, 1, 1, :]
+    test_point = ans[:, 0, 1, 1, 1]
     assert test_point.tolist() == [0, 0, 0, 0]
 
-    test_point = ans[0, 0, 1, 1, :]
+    test_point = ans[:, 0, 0, 1, 1]
     assert test_point.tolist() == [0, -1, 0, 0]

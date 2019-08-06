@@ -104,11 +104,12 @@ def height_on_model_levels(data_3d):
         data_3d.pres/100, data_3d.h_plev, input_dim='plev', output_dim='pfull')
 
 
+@jit
 def lagrangian_origin_coordinates(x, y, z, u, v, w, h=1):
     """Semi-lagrangian advection term for data on (time, level, x, y) grid"""
     nt, nz, ny, nx = u.shape
 
-    output = np.empty(u.shape + (4,))
+    output = np.empty((u.ndim,) + u.shape)
 
     for t in range(nt):
         for k in range(nz):
@@ -119,18 +120,18 @@ def lagrangian_origin_coordinates(x, y, z, u, v, w, h=1):
                     alpha_z = - w[t, k, j, i] * h
 
                     if i == 0:
-                        dx = (x[1] - x[0])
+                        dx = (x[j, 1] - x[j, 0])
                     elif i == nx - 1:
-                        dx = (x[-1] - x[-2])
+                        dx = (x[j, -1] - x[j, -2])
                     else:
-                        dx = (x[i + 1] - x[i - 1]) / 2
+                        dx = (x[j, i + 1] - x[j, i - 1]) / 2
 
                     if j == 0:
-                        dy = (y[1] - y[0])
+                        dy = (y[1, i] - y[0, i])
                     elif j == ny - 1:
-                        dy = (y[-1] - y[-2])
+                        dy = (y[-1, i] - y[-2, i])
                     else:
-                        dy = (y[j + 1] - y[j - 1]) / 2
+                        dy = (y[j + 1, i] - y[j - 1, i]) / 2
 
                     if k == 0:
                         dz = (z[t, 1, j, i] - z[t, 0, j, i])
@@ -143,9 +144,9 @@ def lagrangian_origin_coordinates(x, y, z, u, v, w, h=1):
                     dgrid_y = alpha_y / dy
                     dgrid_z = alpha_z / dz
 
-                    output[t, k, j, i, 0] = t
-                    output[t, k, j, i, 1] = k + dgrid_z
-                    output[t, k, j, i, 2] = j + dgrid_y
-                    output[t, k, j, i, 3] = i + dgrid_x
+                    output[0, t, k, j, i] = t
+                    output[1, t, k, j, i] = k + dgrid_z
+                    output[2, t, k, j, i] = j + dgrid_y
+                    output[3, t, k, j, i] = i + dgrid_x
 
     return output
