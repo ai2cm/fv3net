@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
+from metpy.interpolate import interpolate_1d as metpy_interpolate
 from numba import jit
 import xarray as xr
 
@@ -74,10 +75,77 @@ def interpolate_onto_coords_of_coords(
         interpolate_1d_nd_target,
         coords, coord_1d, arg,
         input_core_dims=[[output_dim], [input_dim], [input_dim]],
-        output_core_dims=[[output_dim]]          
+        output_core_dims=[[output_dim]],
+        output_dtypes=[arg.dtype],
+        dask='parallelized'
+    )
+
+
+def interpolate_1d(x, xp, *args, dim='pfull'):
+    """Interpolate onto desired coordinate grid"""
+
+    assert len(x.dims) == 1
+    output_dim = x.dims[0]
+
+    first_arg = args[0]
+
+    return xr.apply_ufunc(
+        metpy_interpolate, x, xp, *args,
+        kwargs={'axis': -1},
+        input_core_dims=[[output_dim]] + [[dim]] * (len(args) + 1),
+        output_core_dims=[[output_dim]],
+        output_dtypes=[arg.dtype for arg in args],
+        dask='parallelized'
     )
 
 
 def height_on_model_levels(data_3d):
     return interpolate_onto_coords_of_coords(
         data_3d.pres/100, data_3d.h_plev, input_dim='plev', output_dim='pfull')
+
+
+def lagrangian_origin_coordinates(x, y, z, u, v, w, h=1):
+    """Semi-lagrangian advection term for data on (time, level, x, y) grid"""
+    nt, nz, ny, nx = u.shape
+
+    output = np.empty(u.shape + (4,))
+
+    for t in range(nt):
+        for k in range(nz):
+            for j in range(ny):
+                for i in range(nx):
+                    alpha_x = - u[t, k, j, i] * h
+                    alpha_y = - v[t, k, j, i] * h
+                    alpha_z = - w[t, k, j, i] * h
+
+                    if i == 0:
+                        dx = (x[1] - x[0])
+                    elif i == nx - 1:
+                        dx = (x[-1] - x[-2])
+                    else:
+                        dx = (x[i + 1] - x[i - 1]) / 2
+
+                    if j == 0:
+                        dy = (y[1] - y[0])
+                    elif j == ny - 1:
+                        dy = (y[-1] - y[-2])
+                    else:
+                        dy = (y[j + 1] - y[j - 1]) / 2
+
+                    if k == 0:
+                        dz = (z[t, 1, j, i] - z[t, 0, j, i])
+                    elif k == nz - 1:
+                        dz = (z[t, -1, j, i] - z[t, -2, j, i])
+                    else:
+                        dz = (z[t, k + 1, j, i] - z[t, k - 1, j, i]) / 2
+
+                    dgrid_x = alpha_x / dx
+                    dgrid_y = alpha_y / dy
+                    dgrid_z = alpha_z / dz
+
+                    output[t, k, j, i, 0] = t
+                    output[t, k, j, i, 1] = k + dgrid_z
+                    output[t, k, j, i, 2] = j + dgrid_y
+                    output[t, k, j, i, 3] = i + dgrid_x
+
+    return output
