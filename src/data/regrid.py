@@ -111,3 +111,23 @@ def regrid_horizontal(data_in, ddeg_out):
             regridded_das.append(regridder(da))
     return xr.Dataset({da.name: da for da in regridded_das})
 
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('data_3d')
+    parser.add_argument('output_zarr')
+    parser.add_argument('--ddeg_output', default=0.9375)
+
+    args = parser.parse_args()
+
+    data_3d = xr.open_zarr(args.data_3d)
+    
+    data_out = regrid_horizontal(data_3d, args.ddeg_output)
+
+    data_out.to_zarr(args.output_zarr)
+
+    
+if __name__ == '__main__':
+    main()
+
