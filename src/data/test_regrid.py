@@ -30,13 +30,15 @@ def test_semi_lagrangian():
     y = np.r_[:ny]
 
     x, y = np.meshgrid(x, y)
-    z = np.broadcast_to(np.r_[:nz].reshape((1, -1, 1, 1)), (nt, nz, ny, nx))
+    dx = np.ones((ny, nx))
+    dy = np.ones((ny, nx))
+    dz = np.ones((nt, nx, ny, nz))
 
-    u = np.ones_like(z)
-    v = np.ones_like(z)
-    w = np.ones_like(z)
+    u = np.ones_like(dz)
+    v = np.ones_like(dz)
+    w = np.ones_like(dz)
 
-    ans = lagrangian_origin_coordinates(x, y, z, u, v, w, h=1)
+    ans = lagrangian_origin_coordinates(dx, dy, dz, u, v, w, h=1)
 
     assert ans.shape == (ndim, nt, nx, ny, nz), ans.shape
 
