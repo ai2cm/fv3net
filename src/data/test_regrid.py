@@ -1,5 +1,5 @@
 import numpy as np
-from .regrid import interpolate_1d_nd_target, lagrangian_origin_coordinates
+from .regrid import interpolate_1d_nd_target, lagrangian_origin_coordinates, compute_dz
 
 
 def test_interpolate_1d_nd_target_1d_input():
@@ -50,3 +50,15 @@ def test_semi_lagrangian():
 
     test_point = ans[:, 0, 0, 1, 1]
     assert test_point.tolist() == [0, -1, 0, 0]
+
+
+def test_compute_dz():
+    spacing = 2
+    shape = (1, 3, 2, 2)
+    expected = np.ones(shape) * spacing
+
+    nz = shape[1]
+    z = np.arange(nz).reshape((1, -1, 1, 1)) * spacing
+    z = np.broadcast_to(z, shape)
+    dz = compute_dz(z)
+    np.testing.assert_almost_equal(dz, expected)

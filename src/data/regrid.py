@@ -1,8 +1,10 @@
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.ndimage import map_coordinates
 from metpy.interpolate import interpolate_1d as metpy_interpolate
 from numba import jit
 import xarray as xr
+import dask.array as da
 
 from math import floor
 
@@ -166,42 +168,102 @@ def compute_dx_dy(lat, lon):
     return dx, dy
 
 
-@jit
-def lagrangian_update(dx, dy, dz, u, v, w, phi, h=1):
-    """Semi-lagrangian advection term for data on (time, level, x, y) grid"""
-    nt, nz, ny, nx = u.shape
+def lagrangian_update(phi, *args, **kwargs):
+    origin = lagrangian_origin_coordinates(*args, **kwargs)
+    return map_coordinates(phi, origin)
 
-    output = np.zeros_like(phi)
 
-    for t in range(nt):
-        for k in range(1, nz - 1):
-            for j in range(1, ny - 1):
-                for i in range(1, nx - 1):
-                    alpha_x = - u[t, k, j, i] * h
-                    alpha_y = - v[t, k, j, i] * h
-                    alpha_z = - w[t, k, j, i] * h
+## Dask wrapper
 
-                    dgrid_x = alpha_x / dx[j, i]
-                    dgrid_y = alpha_y / dy[j, i]
-                    dgrid_z = alpha_z / dz[t, k, j, i]
+ghost_cells_depth = {1: 2, 2: 2, 3: 2}
+boundaries = {1: 'nearest', 2: 'reflect', 3: 'nearest'}
 
-                    # new coordinates
-                    k1 = k + dgrid_z
-                    j1 = j + dgrid_y
-                    i1 = i + dgrid_x
 
-                    # bounding inds
-                    k_left = floor(k1)
-                    j_left = floor(j1)
-                    i_left = floor(i1)
+def ghost_2d(x):
+    return da.overlap.overlap(x, depth={0: 2, 1: 2}, boundary={0: 'nearest', 1: 'nearest'})
 
-                    alpha_k = k1 - k_left
-                    alpha_j = j1 - j_left
-                    alpha_i = i1 - i_left
 
-                    # linear interpolation
-                    output[t, k, j, i] = (phi[t, k_left, j_left, i_left] * (1 - alpha_k - alpha_j - alpha_i)
-                                          + phi[t, k_left + 1, j_left, i_left] * alpha_k
-                                          + phi[t, k_left, j_left + 1, i_left] * alpha_j
-                                          + phi[t, k_left, j_left, i_left + 1] * alpha_i)
-    return output
+def ghosted_array(x, time_axis=0):
+    depth = {key + time_axis: val for key, val in ghost_cells_depth.items()}
+    boundary = {key + time_axis: val for key, val in boundaries.items()}
+    return da.overlap.overlap(
+        x, depth=depth, boundary=boundary)
+
+
+def remove_ghost_cells(x, time_axis=0):
+    depth = {key + time_axis: val for key, val in ghost_cells_depth.items()}
+    return da.overlap.trim_internal(x, depth)
+
+
+def lagrangian_update_dask(phi, lat, lon, z, u, v, w, **kwargs):
+    """Compute semi-lagrangian update of a variable
+
+    :param phi: dask
+    :param lat: numpy
+    :param lon: numpy
+    :param z: dask
+    :param u: dask
+    :param v: dask
+    :param w: dask
+    :return: dask
+    """
+    dx, dy = compute_dx_dy(np.asarray(lat), np.asarray(lon))
+    dz = da.map_blocks(compute_dz, z, dtype=z.dtype)
+
+    horz_chunks = z.chunks[-2:]
+    ghosted_2d = [ghost_2d(da.from_array(arg, horz_chunks)) for arg in [dx, dy]]
+    ghosted_3d = [ghosted_array(arg) for arg in [dz, u, v, w]]
+    ghosted_phi = ghosted_array(phi)
+
+    # construct argument list for blockwise
+    arg_inds_lagrangian_update = ['tkji'] + ['ji'] * 2 + ['tkji'] * 4
+    ghosted_args = [ghosted_phi] + ghosted_2d + ghosted_3d
+
+    blockwise_args = []
+    for arr, ind in zip(ghosted_args, arg_inds_lagrangian_update):
+        blockwise_args.append(arr)
+        blockwise_args.append(ind)
+
+    # call blockwise
+    output_ghosted = da.blockwise(
+        lagrangian_update, 'tkji', *blockwise_args, dtype=ghosted_phi.dtype,
+        **kwargs)
+    return remove_ghost_cells(output_ghosted)
+
+
+def lagrangian_update_xarray(data_3d, advect_var='temp', **kwargs):
+    dim_order = ['time', 'pfull', 'grid_yt', 'grid_xt']
+    ds = data_3d.assign(z=height_on_model_levels(data_3d).transpose(*dim_order))
+    args = [ds[key].data for key in [advect_var, 'grid_yt', 'grid_xt', 'z', 'u', 'v', 'w']]
+    dask = lagrangian_update_dask(*args, **kwargs)
+    return xr.DataArray(dask, coords=data_3d[advect_var].coords, dims=data_3d[advect_var].dims)
+
+
+def total_derivative(data_3d, advect_var='temp', h=30):
+    advected = lagrangian_update_xarray(data_3d, advect_var, h=h)
+    return (advected - data_3d[advect_var]) / h
+
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('data_3d')
+    parser.add_argument('output_zarr')
+
+    advect_variables = ['qv', 'temp']
+
+    args = parser.parse_args()
+
+    data_3d = xr.open_zarr(args.data_3d)
+    data_3d = data_3d.chunk({'time': 1, 'grid_xt': 256, 'grid_yt': 256})
+
+    apparent_source = xr.Dataset({
+        'd' + key: total_derivative(data_3d, key)
+        for key in advect_variables
+    })
+
+    apparent_source.to_zarr(args.output_zarr)
+
+
+if __name__ == '__main__':
+    main()
