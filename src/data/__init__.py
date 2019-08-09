@@ -7,4 +7,6 @@ def open_data(sources=False):
 
     if sources:
         src = xr.open_zarr(root + "data/interim/apparent_sources.zarr")
-    return ds.merge(src)
+        return ds.merge(src)
+    else:
+        return ds

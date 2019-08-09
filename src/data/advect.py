@@ -305,4 +305,4 @@ def apparent_heating(temp, z, w, dtemp):
 
 
 def apparent_source(scalar, z, dscalar):
-    return storage_fixed_height(scalar, z) - dscalar
+    return storage_fixed_height(scalar, z) - average_end_points(dscalar)
