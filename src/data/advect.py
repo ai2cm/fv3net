@@ -8,6 +8,9 @@ import dask.array as da
 
 from math import floor
 
+gravity = 9.81
+specific_heat = 1004
+
 def interpolate_1d_scipy(x, xp, arg):
     """simple test case"""
     return interp1d(xp, arg)(x)
@@ -239,9 +242,21 @@ def lagrangian_update_xarray(data_3d, advect_var='temp', **kwargs):
     return xr.DataArray(dask, coords=data_3d[advect_var].coords, dims=data_3d[advect_var].dims)
 
 
-def total_derivative(data_3d, advect_var='temp', h=30):
+def advection_fixed_height(data_3d, advect_var='temp', h=30):
     advected = lagrangian_update_xarray(data_3d, advect_var, h=h)
     return (advected - data_3d[advect_var]) / h
+
+
+def storage_fixed_height(phi, z, dt=3*3600):
+    pfull = phi['pfull']
+    phi = phi.drop('pfull')
+    z = z.drop('pfull')
+    
+    dphi_dz = phi.differentiate('pfull')/z.differentiate('pfull')
+    dphi_dt = (phi.shift(time=-1)-phi)/dt
+    dz_dt = (z.shift(time=-1)-z)/dt
+    ans = dphi_dt - dphi_dz * dz_dt
+    return ans.assign_coords(pfull=pfull)
 
 
 def main():
@@ -267,3 +282,27 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
+    
+def storage_fixed_height(phi: xr.DataArray, z: xr.DataArray, dt: float=3*3600) -> xr.DataArray:
+    pfull = phi['pfull']
+    phi = phi.drop('pfull')
+    z = z.drop('pfull')
+    
+    dphi_dz = phi.differentiate('pfull')/z.differentiate('pfull')
+    dphi_dt = (phi.shift(time=-1)-phi)/dt
+    dz_dt = (z.shift(time=-1)-z)/dt
+    ans = dphi_dt - dphi_dz * dz_dt
+    return ans.assign_coords(pfull=pfull)
+
+
+def average_end_points(phi: xr.DataArray):
+    return (phi.shift(time=-1) + phi)/2
+
+
+def apparent_heating(temp, z, w, dtemp):
+    return apparent_source(temp, z, dtemp) + w * gravity / specific_heat
+
+
+def apparent_source(scalar, z, dscalar):
+    return storage_fixed_height(scalar, z) - dscalar
