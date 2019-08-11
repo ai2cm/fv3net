@@ -236,10 +236,10 @@ def lagrangian_update_dask(phi, lat, lon, z, u, v, w, **kwargs):
 
 def lagrangian_update_xarray(data_3d, advect_var='temp', **kwargs):
     dim_order = ['time', 'pfull', 'grid_yt', 'grid_xt']
-    ds = data_3d.assign(z=height_on_model_levels(data_3d).transpose(*dim_order))
+    ds = data_3d.assign(z=data_3d.z.transpose(*dim_order))
     args = [ds[key].data for key in [advect_var, 'grid_yt', 'grid_xt', 'z', 'u', 'v', 'w']]
     dask = lagrangian_update_dask(*args, **kwargs)
-    return xr.DataArray(dask, coords=data_3d[advect_var].coords, dims=data_3d[advect_var].dims)
+    return xr.DataArray(dask, coords=ds[advect_var].coords, dims=ds[advect_var].dims)
 
 
 def advection_fixed_height(data_3d, advect_var='temp', h=30):
