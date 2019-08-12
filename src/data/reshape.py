@@ -12,18 +12,19 @@ import numpy as np
 import argparse
 from src.data import open_data
 
-chunk_size = 100000
+chunk_size = 1000
 output_file = "data/interim/flattened.zarr"
 shuffle = False
 ds = open_data(sources=True)
 
 variables = 'u v w temp q1 q2 qv pres z'.split()
-sample_dims = ['grid_yt', 'grid_xt']
+sample_dims = ['time', 'grid_yt', 'grid_xt']
 
 # stack data
 variables = list(variables) # needs to be a list for xarray
 stacked = (ds[variables]
            .stack(sample=sample_dims)
+           .transpose('sample', 'pfull')
            .drop('sample'))
 
 
