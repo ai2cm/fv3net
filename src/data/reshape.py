@@ -12,8 +12,9 @@ import numpy as np
 import argparse
 from src.data import open_data
 
-output_file = "data/processed/shuffled.zarr"
-shuffle = True
+chunk_size = 100000
+output_file = "data/interim/flattened.zarr"
+shuffle = False
 ds = open_data(sources=True)
 
 variables = 'u v w temp q1 q2 qv pres z'.split()
@@ -25,13 +26,8 @@ stacked = (ds[variables]
            .stack(sample=sample_dims)
            .drop('sample'))
 
-# shuffle samples
-if shuffle:
-    n = len(stacked.sample)
-    indices = np.random.choice(n, n, replace=False)
-    stacked = stacked.isel(sample=indices)
 
 chunked = stacked.chunk({'sample': chunk_size})
 
 # save to disk
-chunked.to_zarr(output_file)
+chunked.to_zarr(output_file, mode='w')
