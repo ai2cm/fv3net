@@ -35,11 +35,11 @@ def shuffled(dataset, dim):
 
 if __name__ == '__main__':
     chunk_size = 500_000
-    output_file = "data/interim/flattened.zarr"
+    output_file = "data/processed/flattened.zarr"
     shuffle = True
     ds = open_data(sources=True)
 
-    variables = 'u v w temp q1 q2 qv pres z'.split()
+    variables = 'u v w temp q1 q2 qv pres z fsdt lhflx shflx'.split()
     sample_dims = ['time', 'grid_yt', 'grid_xt']
 
     # stack data
