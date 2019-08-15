@@ -15,7 +15,6 @@ def test__flatten():
 
     ans = _flatten(ds, sample_dim)
     assert ans.shape == (nz, 2*nx*ny)
-    assert isinstance(ans, np.ndarray)
     
 
 def test__flatten_1d_input():
@@ -31,7 +30,6 @@ def test__flatten_1d_input():
 
     ans = _flatten(ds, sample_dim)
     assert ans.shape == (nz, nx*ny + 1)
-    assert isinstance(ans, np.ndarray)
 
 
 def test__flatten_same_order():
