@@ -1,16 +1,15 @@
 channels:
   - pytorch
   - conda-forge
-  - defaults
   - bioconda
 dependencies:
   - python=3.7
   - numpy=1.16
   - seaborn
-  - dask=1.1
-  - xarray=0.12
+  - dask>=2.3.0
+  - xarray>=0.12
   - matplotlib=3.0
-  - netcdf4=1.4
+  - netcdf4>=1.4
   - h5netcdf
   - ipython
   - jupyterlab

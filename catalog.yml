@@ -8,10 +8,18 @@ sources:
     args:
       storage_options:
         project: 'vcm-ml'
-        token: anon
         access: read_only
       urlpath: 'gcs://vcm-ml-data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/2d.zarr'
-      consolidated: True
+
+  2019-08-12-james-huff-additional-gfdl-fields:
+    description: Vertical coordinate information provided on 2019-08-12 by James Huff.
+    driver: zarr
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: 'gcs://vcm-ml-data/2019-08-12-james-huff-additional-gfdl-fields.zarr'
+
 
   2019-07-17-GFDL_FV3_DYAMOND_0.25deg_3hr_3d:
     description: Initial data sample provided by Lucas Harris. 1 day of 3D fields sampled every 3 hours.
@@ -19,7 +27,14 @@ sources:
     args:
       storage_options:
         project: 'vcm-ml'
-        token: anon
         access: read_only
-      urlpath: 'gcs://vcm-ml-data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/2d.zarr'
-      consolidated: True
+      urlpath: 'gcs://vcm-ml-data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/3d.zarr'
+      
+  marat_sam_tend:
+    description: Initial data sample provided by Lucas Harris. 1 day of 3D fields sampled every 3 hours.
+    driver: netcdf
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: 'gcs://vcm-ml-data/2019-08-02-MaratGlobalSAM/TEND/*.nc'
