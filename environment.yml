@@ -18,6 +18,8 @@ dependencies:
   - pytorch-cpu=1.0
   - attrs
   - scikit-learn=0.20
+  - numba
+  - xesmf
   - sphinx=1.7
   - snakemake-minimal
   - intake-xarray

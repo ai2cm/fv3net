@@ -86,22 +86,43 @@ def height_on_model_levels(data_3d):
         data_3d.pres/100, data_3d.h_plev, input_dim='plev', output_dim='pfull')
 
 
+def fregrid_bnds_to_esmf(grid_xt_bnds):
+    """Convert GFDL fregrid bounds variables to ESMF compatible vector"""
+    return np.hstack([grid_xt_bnds[:,0], grid_xt_bnds[-1,1]])
+    
+    
+def fregrid_to_esmf_compatible_coords(data: xr.Dataset) -> xr.Dataset:
+    """Add ESMF-compatible grid information
+    
+    GFDL's fregrid stores metadata about the coordinates in a different way than ESMF.
+    This function adds lon, and lat coordinates as well as the bounding information 
+    lon_b and lat_b.
+    """
+    data = data.rename({'grid_xt': 'lon', 'grid_yt': 'lat'})
+    
+    lon_b = xr.DataArray(fregrid_bnds_to_esmf(data.grid_xt_bnds), dims=['lon_b'])
+    lat_b = xr.DataArray(fregrid_bnds_to_esmf(data.grid_yt_bnds), dims=['lat_b'])
+    
+    return data.assign_coords(lon_b=lon_b, lat_b=lat_b)
+    
+
 ### Horizontal interpolation
-def regrid_horizontal(data_in, ddeg_out):
+def regrid_horizontal(data_in, ddeg_out, d_lon_out=1.0, d_lat_out=1.0, method='conservative'):
     """Interpolate horizontally from one rectangular grid to another
+    
     Args:
       data_3d: Raw dataset to be regridded
       ddeg_out: Grid spacing of target grid in degrees
     """
-    data_in = data_in.rename({'grid_xt': 'lon', 'grid_yt': 'lat'})
-
+    
+    data_in = fregrid_to_esmf_compatible_coords(data_in)
+    
+    continguous_space = data_in.chunk({'lon': -1, 'lat': -1, 'time': 1})
+    
     # Create output dataset with appropriate lat-lon
-    ds_out = xr.Dataset({
-        'lon': (['lon'], np.arange(ddeg_out/2, 360, ddeg_out)),
-        'lat': (['lat'], np.arange(-90+ddeg_out/2, 90, ddeg_out))
-    })
-
-    regridder = xe.Regridder(data_in, ds_out, 'bilinear', reuse_weights=True)
+    grid_out = xe.util.grid_global(d_lon_out, d_lat_out)
+    
+    regridder = xe.Regridder(continguous_space, grid_out, method, reuse_weights=True)
     
     # Regrid each variable in original dataset
     regridded_das = []
@@ -125,7 +146,7 @@ def main():
     
     data_out = regrid_horizontal(data_3d, args.ddeg_output)
 
-    data_out.to_zarr(args.output_zarr)
+    data_out.to_zarr(args.output_zarr, mode='w')
 
     
 if __name__ == '__main__':

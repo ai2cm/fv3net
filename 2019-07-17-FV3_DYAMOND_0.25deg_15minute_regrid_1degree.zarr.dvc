@@ -1,0 +1,13 @@
+md5: 3b6c5c2a30ff1d03d92507102406c18f
+cmd: python -m src.data.regrid /home/noahb/data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/3d.zarr
+  data/interim/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr
+wdir: .
+deps:
+- md5: 210196055fd67e995686a2b9c16f63b2
+  path: src/data/regrid.py
+outs:
+- md5: 1f2a610bdbce05d6f0bbe1e4a6264a2d.dir
+  path: data/interim/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr
+  cache: true
+  metric: false
+  persist: false
