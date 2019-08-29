@@ -198,22 +198,20 @@ def remove_ghost_cells(x, time_axis=0):
     return da.overlap.trim_internal(x, depth)
 
 
-def lagrangian_update_dask(phi, lat, lon, z, u, v, w, **kwargs):
+def lagrangian_update_dask(phi, lat, lon, dz, u, v, w, **kwargs):
     """Compute semi-lagrangian update of a variable
 
     :param phi: dask
     :param lat: numpy
     :param lon: numpy
-    :param z: dask
+    :param dz: dask
     :param u: dask
     :param v: dask
     :param w: dask
     :return: dask
     """
     dx, dy = compute_dx_dy(np.asarray(lat), np.asarray(lon))
-    dz = da.map_blocks(compute_dz, z, dtype=z.dtype)
-
-    horz_chunks = z.chunks[-2:]
+    horz_chunks = u.chunks[-2:]
     ghosted_2d = [ghost_2d(da.from_array(arg, horz_chunks)) for arg in [dx, dy]]
     ghosted_3d = [ghosted_array(arg) for arg in [dz, u, v, w]]
     ghosted_phi = ghosted_array(phi)
@@ -236,13 +234,18 @@ def lagrangian_update_dask(phi, lat, lon, z, u, v, w, **kwargs):
 
 def lagrangian_update_xarray(data_3d, advect_var='temp', **kwargs):
     dim_order = ['time', 'pfull', 'lat', 'lon']
-    ds = data_3d.assign(z=data_3d.z.transpose(*dim_order))
-    args = [ds[key].data for key in [advect_var, 'lat', 'lon', 'z', 'u', 'v', 'w']]
+    ds = data_3d.assign(dz=data_3d.dz.transpose(*dim_order))
+    args = [ds[key].data for key in [advect_var, 'lat', 'lon', 'dz', 'u', 'v', 'w']]
     dask = lagrangian_update_dask(*args, **kwargs)
     return xr.DataArray(dask, coords=ds[advect_var].coords, dims=ds[advect_var].dims)
 
 
 def advection_fixed_height(data_3d, advect_var='temp', h=30):
+    """Compute the advection tendency at a fixed heights with a semi-lagrangian scheme
+    
+    Add to the output of storage_fixed_height to compute the total derivative
+    
+    """
     advected = lagrangian_update_xarray(data_3d, advect_var, h=h)
     return (advected - data_3d[advect_var]) / h
 
