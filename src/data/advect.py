@@ -235,9 +235,9 @@ def lagrangian_update_dask(phi, lat, lon, z, u, v, w, **kwargs):
 
 
 def lagrangian_update_xarray(data_3d, advect_var='temp', **kwargs):
-    dim_order = ['time', 'pfull', 'grid_yt', 'grid_xt']
+    dim_order = ['time', 'pfull', 'lat', 'lon']
     ds = data_3d.assign(z=data_3d.z.transpose(*dim_order))
-    args = [ds[key].data for key in [advect_var, 'grid_yt', 'grid_xt', 'z', 'u', 'v', 'w']]
+    args = [ds[key].data for key in [advect_var, 'lat', 'lon', 'z', 'u', 'v', 'w']]
     dask = lagrangian_update_dask(*args, **kwargs)
     return xr.DataArray(dask, coords=ds[advect_var].coords, dims=ds[advect_var].dims)
 
@@ -247,43 +247,6 @@ def advection_fixed_height(data_3d, advect_var='temp', h=30):
     return (advected - data_3d[advect_var]) / h
 
 
-def storage_fixed_height(phi, z, dt=3*3600):
-    pfull = phi['pfull']
-    phi = phi.drop('pfull')
-    z = z.drop('pfull')
-    
-    dphi_dz = phi.differentiate('pfull')/z.differentiate('pfull')
-    dphi_dt = (phi.shift(time=-1)-phi)/dt
-    dz_dt = (z.shift(time=-1)-z)/dt
-    ans = dphi_dt - dphi_dz * dz_dt
-    return ans.assign_coords(pfull=pfull)
-
-
-def main():
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('data_3d')
-    parser.add_argument('output_zarr')
-
-    advect_variables = ['qv', 'temp']
-
-    args = parser.parse_args()
-
-    data_3d = xr.open_zarr(args.data_3d)
-    data_3d = data_3d.chunk({'time': 1, 'grid_xt': 256, 'grid_yt': 256})
-
-    apparent_source = xr.Dataset({
-        'd' + key: total_derivative(data_3d, key)
-        for key in advect_variables
-    })
-
-    apparent_source.to_zarr(args.output_zarr)
-
-
-if __name__ == '__main__':
-    main()
-    
-    
 def storage_fixed_height(phi: xr.DataArray, z: xr.DataArray, dt: float=3*3600) -> xr.DataArray:
     pfull = phi['pfull']
     phi = phi.drop('pfull')
@@ -306,3 +269,29 @@ def apparent_heating(temp, z, w, dtemp):
 
 def apparent_source(scalar, z, dscalar):
     return storage_fixed_height(scalar, z) - average_end_points(dscalar)
+
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('data_3d')
+    parser.add_argument('output_zarr')
+
+    advect_variables = ['qv', 'temp']
+
+    args = parser.parse_args()
+
+    data_3d = xr.open_zarr(args.data_3d)
+
+    apparent_source = xr.Dataset({
+        'advection_' + key: advection_fixed_height(data_3d, key)
+        for key in advect_variables
+    })
+
+    apparent_source.to_zarr(args.output_zarr)
+
+
+if __name__ == '__main__':
+    main()
+    
+    

@@ -107,7 +107,7 @@ def fregrid_to_esmf_compatible_coords(data: xr.Dataset) -> xr.Dataset:
     
 
 ### Horizontal interpolation
-def regrid_horizontal(data_in, ddeg_out, d_lon_out=1.0, d_lat_out=1.0, method='conservative'):
+def regrid_horizontal(data_in, d_lon_out=1.0, d_lat_out=1.0, method='conservative'):
     """Interpolate horizontally from one rectangular grid to another
     
     Args:
@@ -117,35 +117,39 @@ def regrid_horizontal(data_in, ddeg_out, d_lon_out=1.0, d_lat_out=1.0, method='c
     
     data_in = fregrid_to_esmf_compatible_coords(data_in)
     
-    continguous_space = data_in.chunk({'lon': -1, 'lat': -1, 'time': 1})
+    contiguous_space = data_in.chunk({'lon': -1, 'lat': -1, 'time': 1})
     
     # Create output dataset with appropriate lat-lon
     grid_out = xe.util.grid_global(d_lon_out, d_lat_out)
     
-    regridder = xe.Regridder(continguous_space, grid_out, method, reuse_weights=True)
+    regridder = xe.Regridder(contiguous_space, grid_out, method, reuse_weights=True)
     
     # Regrid each variable in original dataset
     regridded_das = []
-    for var in data_in:
-        da = data_in[var]
+    for var in contiguous_space:
+        da = contiguous_space[var]
         if 'lon' in da.coords and 'lat' in da.coords:
             regridded_das.append(regridder(da))
     return xr.Dataset({da.name: da for da in regridded_das})
 
 
 def main():
+    from src.data import open_dataset
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('data_3d')
+    parser.add_argument('--data-3d', default=None)
     parser.add_argument('output_zarr')
-    parser.add_argument('--ddeg_output', default=0.9375)
-
     args = parser.parse_args()
 
-    data_3d = xr.open_zarr(args.data_3d)
-    
-    data_out = regrid_horizontal(data_3d, args.ddeg_output)
-
+    print("Opening data")
+    if args.data_3d:
+        data_3d = xr.open_zarr(args.data_3d)
+    else:
+        data_3d = open_dataset('gfdl')
+        
+    data_out = regrid_horizontal(data_3d)
+    print("Output data:")
+    print(data_out)
     data_out.to_zarr(args.output_zarr, mode='w')
 
     

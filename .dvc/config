@@ -1,0 +1,4 @@
+['remote "gcs"']
+url = gs://vcm-ml-data/dvc-storage
+[core]
+remote = gcs
