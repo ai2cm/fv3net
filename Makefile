@@ -9,6 +9,7 @@ BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
 PROFILE = default
 PROJECT_NAME = fv3net
 PYTHON_INTERPRETER = python3
+DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -28,7 +29,7 @@ requirements: test_environment
 ## Make Dataset
 .PHONY: data
 data:
-	dvc repro 2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
+	dvc repro $(DATA)
     
 ## Delete all compiled Python files
 clean:

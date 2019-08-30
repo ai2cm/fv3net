@@ -5,6 +5,7 @@ from metpy.interpolate import interpolate_1d as metpy_interpolate
 from numba import jit
 import xarray as xr
 import dask.array as da
+from src.data import open_dataset
 
 from math import floor
 
@@ -273,14 +274,14 @@ def reverse_dim(ds, dim="pfull"):
 
 def height_interfaces(dz: xr.DataArray, zs: xr.DataArray = 0) -> xr.DataArray:
     """Compute the height from the surface elevation and thickness
-    
+
     Args:
         dz: thickness of layers. assumes that top of atmosphere is index 0 in the pfull dimension
         zs: surface elevation
-    
+
     Returns:
         height: height of the vertical levels
-        
+
     """
     pfull = dz["pfull"]
     dz = dz.drop("pfull")
@@ -311,11 +312,11 @@ def storage_fixed_height(
     phi: xr.DataArray, z_centered, dz: xr.DataArray, dt: float = 3 * 3600
 ) -> xr.DataArray:
     """Compute the storage at fixed height using the chain rule
-    
+
     (f_t)_z = (f_t)_sigma - f_z (z_t)_sigma
-        
+
     where the second sub-script denotes constant sigma or height.
-    
+
     """
     pfull = phi["pfull"]
     phi = phi.drop("pfull")
@@ -343,27 +344,37 @@ def apparent_source(scalar, z_centered, dz, advection_tendency):
     )
 
 
+def compute_storage_and_advection(data_3d, tracers, time_step):
+    data_vars = {}
+    z_c = height_centered(data_3d.dz, data_3d.zs)
+    for key in tracers:
+        data_vars["advection_" + key] = advection_fixed_height(data_3d, key)
+        storage = storage_fixed_height(data_3d[key], z_c, data_3d.dz, dt=time_step)
+        data_vars["storage_" + key] = storage
+
+    return xr.Dataset(data_vars)
+
+
 def main():
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("data_3d")
+    parser.add_argument("input_key")
     parser.add_argument("output_zarr")
+    parser.add_argument("--time-step", type=float, default=3 * 3600)
 
     advect_variables = ["qv", "temp"]
 
     args = parser.parse_args()
 
-    data_3d = xr.open_zarr(args.data_3d)
-
-    apparent_source = xr.Dataset(
-        {
-            "advection_" + key: advection_fixed_height(data_3d, key)
-            for key in advect_variables
-        }
+    data_3d = open_dataset(args.input_key)
+    print("Processing this 3D dataset:")
+    print()
+    print(data_3d)
+    sources = compute_storage_and_advection(
+        data_3d, tracers=advect_variables, time_step=args.time_step
     )
-
-    apparent_source.to_zarr(args.output_zarr)
+    sources.to_zarr(args.output_zarr, mode="w")
 
 
 if __name__ == "__main__":

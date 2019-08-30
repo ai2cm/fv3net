@@ -6,14 +6,15 @@ from pathlib import Path
 
 def get_root():
     """Returns the absolute path to the root directory for any machine"""
-    return str(Path(__file__).parent.parent.parent.absolute())
+    return str(Path(__file__).absolute().parent.parent.parent)
 
 
 root = get_root()
 fv3_data_root = "/home/noahb/data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/"
 
 paths = {
-    "1deg": f"{root}/data/interim/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr/"
+    "1deg": f"{root}/data/interim/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr/",
+    "1deg_src": f"{root}/data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr",
 }
 
 
@@ -26,6 +27,8 @@ def open_dataset(tag) -> xr.Dataset:
         return open_gfdl_data(open_catalog())
     elif tag == "1deg":
         return xr.open_zarr(paths["1deg"]).pipe(_replace_esmf_coords)
+    elif tag == "1degTrain":
+        return open_dataset("1deg").merge(xr.open_zarr(paths["1deg_src"]))
     else:
         raise NotImplementedError
 
