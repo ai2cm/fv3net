@@ -250,12 +250,60 @@ def advection_fixed_height(data_3d, advect_var='temp', h=30):
     return (advected - data_3d[advect_var]) / h
 
 
-def storage_fixed_height(phi: xr.DataArray, z: xr.DataArray, dt: float=3*3600) -> xr.DataArray:
+def reverse_dim(ds, dim='pfull'):
+    return ds.isel({dim: slice(None, None, -1)})
+
+
+def height_interfaces(dz: xr.DataArray, zs: xr.DataArray=0) -> xr.DataArray:
+    """Compute the height from the surface elevation and thickness
+    
+    Args:
+        dz: thickness of layers. assumes that top of atmosphere is index 0 in the pfull dimension
+        zs: surface elevation
+    
+    Returns:
+        height: height of the vertical levels
+        
+    """
+    pfull = dz['pfull']
+    dz = dz.drop('pfull')
+    zero = xr.zeros_like(dz.isel(pfull=0))
+    dz = xr.concat([dz, zero], dim='pfull')
+    zint = reverse_dim(reverse_dim(dz).cumsum('pfull')) + zs
+    
+    return zint.rename({'pfull': 'pfull_b'})
+    
+    
+def vertical_interfaces_to_centers(phi):
+    try:
+        phi = phi.drop('pfull_b')
+    except ValueError:
+        pass
+    avg = (phi.isel(pfull_b=slice(1,None)) + phi.isel(pfull_b=slice(0, -1)))/2
+    return avg.rename({'pfull_b': 'pfull'})
+
+
+def height_centered(dz: xr.DataArray, zs: xr.DataArray=0) -> xr.DataArray:
+    zint = height_interfaces(dz, zs)
+    z = vertical_interfaces_to_centers(zint)
+    # these functions drop the pfull coordinate
+    return z.assign_coords(pfull=dz.pfull)
+
+
+def storage_fixed_height(phi: xr.DataArray, z_centered, dz: xr.DataArray, dt: float=3*3600) -> xr.DataArray:
+    """Compute the storage at fixed height using the chain rule
+    
+    (f_t)_z = (f_t)_sigma - f_z (z_t)_sigma
+        
+    where the second sub-script denotes constant sigma or height.
+    
+    """
     pfull = phi['pfull']
     phi = phi.drop('pfull')
-    z = z.drop('pfull')
+    dz = dz.drop('pfull')
+    z = z_centered.drop('pfull')
     
-    dphi_dz = phi.differentiate('pfull')/z.differentiate('pfull')
+    dphi_dz = phi.differentiate('pfull')/dz
     dphi_dt = (phi.shift(time=-1)-phi)/dt
     dz_dt = (z.shift(time=-1)-z)/dt
     ans = dphi_dt - dphi_dz * dz_dt
@@ -270,8 +318,8 @@ def apparent_heating(temp, z, w, dtemp):
     return apparent_source(temp, z, dtemp) + w * gravity / specific_heat
 
 
-def apparent_source(scalar, z, dscalar):
-    return storage_fixed_height(scalar, z) - average_end_points(dscalar)
+def apparent_source(scalar, z_centered, dz, advection_tendency):
+    return storage_fixed_height(scalar, z_centered, dz) - average_end_points(advection_tendency)
 
 
 def main():
