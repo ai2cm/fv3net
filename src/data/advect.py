@@ -240,11 +240,17 @@ def lagrangian_update_xarray(data_3d, advect_var='temp', **kwargs):
     return xr.DataArray(dask, coords=ds[advect_var].coords, dims=ds[advect_var].dims)
 
 
-def advection_fixed_height(data_3d, advect_var='temp', h=30):
-    """Compute the advection tendency at a fixed heights with a semi-lagrangian scheme
-    
-    Add to the output of storage_fixed_height to compute the total derivative
-    
+def advection_fixed_height(data_3d: xr.Dataset, advect_var: str='temp', h: float=30.0) -> xr.DataArray:
+    """Compute the advection terms at a fixed heights
+
+    This estimates the advection terms
+
+        v.grad(phi)
+
+    using a semi-Lagrangian scheme.
+
+    Note:
+      Add to the output of storage_fixed_height to compute the total derivative
     """
     advected = lagrangian_update_xarray(data_3d, advect_var, h=h)
     return (advected - data_3d[advect_var]) / h
