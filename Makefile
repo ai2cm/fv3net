@@ -26,9 +26,10 @@ requirements: test_environment
 	$(PYTHON_INTERPRETER) -m pip install -r requirements.txt
 
 ## Make Dataset
-data: requirements
-	$(PYTHON_INTERPRETER) src/data/make_dataset.py data/raw data/processed
-
+.PHONY: data
+data:
+	dvc repro 2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
+    
 ## Delete all compiled Python files
 clean:
 	find . -type f -name "*.py[co]" -delete
