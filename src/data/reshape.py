@@ -33,35 +33,39 @@ def shuffled(dataset, dim):
     return dataset.isel({dim: shuffled_inds})
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     chunk_size = 500_000
     output_file = "data/processed/flattened.zarr"
     shuffle = True
     valid_latitudes = slice(-80, 80)
-    
+
     ds = open_data(sources=True)
 
-    variables = 'u v w temp q1 q2 qv pres z fsdt lhflx shflx test_case'.split()
-    sample_dims = ['time', 'grid_yt', 'grid_xt']
-    
+    variables = "u v w temp q1 q2 qv pres z fsdt lhflx shflx test_case".split()
+    sample_dims = ["time", "grid_yt", "grid_xt"]
+
     # compute a simple test case which can be reproduced by ML
-    test_case = (ds.qv + ds.temp).assign_attrs(formula='QV + TEMP', description='Test for machine learning')
-    ds['test_case'] = test_case
+    test_case = (ds.qv + ds.temp).assign_attrs(
+        formula="QV + TEMP", description="Test for machine learning"
+    )
+    ds["test_case"] = test_case
 
     # stack data
-    variables = list(variables) # needs to be a list for xarray
-    stacked = (ds[variables]
-               .sel(grid_yt=valid_latitudes)
-               .stack(sample=sample_dims)
-               .transpose('sample', 'pfull')
-               .drop('sample')
-               .dropna('sample'))
+    variables = list(variables)  # needs to be a list for xarray
+    stacked = (
+        ds[variables]
+        .sel(grid_yt=valid_latitudes)
+        .stack(sample=sample_dims)
+        .transpose("sample", "pfull")
+        .drop("sample")
+        .dropna("sample")
+    )
 
     # Chunk the data
-    chunked = stacked.chunk({'sample': chunk_size})
-    
+    chunked = stacked.chunk({"sample": chunk_size})
+
     # Shuffle the indices
     if shuffle:
-        chunked = shuffled(chunked, 'sample')
-        
-    chunked.to_zarr(output_file, mode='w')
+        chunked = shuffled(chunked, "sample")
+
+    chunked.to_zarr(output_file, mode="w")

@@ -69,11 +69,11 @@ def open_files(files, **kwargs):
 
 def main():
     ds_3d = open_files(files_3d)
-    ds_3d.to_zarr(output_3d, mode='w')
+    ds_3d.to_zarr(output_3d, mode="w")
 
     ds_2d = open_files(files_2d)
-    ds_2d.to_zarr(output_2d, mode='w')
+    ds_2d.to_zarr(output_2d, mode="w")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
-
