@@ -1,9 +1,20 @@
 import xarray as xr
 import intake
 from .remote_data import open_gfdl_data
+from pathlib import Path
 
-root = "/home/noahb/fv3net/"
+
+def get_root():
+    """Returns the absolute path to the root directory for any machine"""
+    return str(Path(__file__).parent.parent.parent.absolute())
+
+
+root = get_root()
 fv3_data_root = "/home/noahb/data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/"
+
+paths = {
+    "1deg": f"{root}/data/interim/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr/"
+}
 
 
 def open_catalog():
@@ -13,6 +24,8 @@ def open_catalog():
 def open_dataset(tag) -> xr.Dataset:
     if tag == "gfdl":
         return open_gfdl_data(open_catalog())
+    elif tag == "1deg":
+        return xr.open_zarr(paths["1deg"]).pipe(_replace_esmf_coords)
     else:
         raise NotImplementedError
 
@@ -32,3 +45,11 @@ def open_data(sources=False, two_dimensional=True):
         ds = xr.merge([ds, data_2d], join="left")
 
     return ds
+
+
+def _replace_esmf_coords(ds):
+    return (
+        ds.assign_coords(x=ds.lon.isel(y=0), y=ds.lat.isel(x=0))
+        .drop(["lat", "lon"])
+        .rename({"x": "lon", "y": "lat"})
+    )
