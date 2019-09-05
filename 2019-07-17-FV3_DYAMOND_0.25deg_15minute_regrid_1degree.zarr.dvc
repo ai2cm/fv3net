@@ -1,11 +1,11 @@
-md5: 23c69d9980c2725800890a8428652901
+md5: 0f7bb49c8ae3fb83c2369c7c0b28b94f
 cmd: python -m src.data.regrid data/interim/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr
 wdir: .
 deps:
-- md5: 178620e207d70996fdefd928ab9b5390
-  path: src/data/regrid.py
+- md5: 6e340545e15ea54a2e6a63026e7973ea.dir
+  path: src
 outs:
-- md5: 28e89e540bb6ae9e71a124a76da9398f.dir
+- md5: f2d1f8c19e129b31f797132c52f13a72.dir
   path: data/interim/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr
   cache: true
   metric: false
