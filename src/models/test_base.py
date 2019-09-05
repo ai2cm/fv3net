@@ -35,7 +35,9 @@ def test__flatten_1d_input():
 
 def test__flatten_same_order():
     nx, ny = 10, 4
-    x = xr.DataArray(np.arange(nx * ny).reshape((nx, ny)), dims=["sample", "feature"])
+    x = xr.DataArray(
+        np.arange(nx * ny).reshape((nx, ny)), dims=["sample", "feature"]
+    )
 
     ds = xr.Dataset({"a": x, "b": x.T})
     sample_dim = "sample"

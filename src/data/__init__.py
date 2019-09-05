@@ -10,7 +10,9 @@ def get_root():
 
 
 root = get_root()
-fv3_data_root = "/home/noahb/data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/"
+fv3_data_root = (
+    "/home/noahb/data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/"
+)
 
 paths = {
     "1deg": f"{root}/data/interim/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr/",

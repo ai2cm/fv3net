@@ -86,7 +86,10 @@ def interpolate_onto_coords_of_coords(
 
 def height_on_model_levels(data_3d):
     return interpolate_onto_coords_of_coords(
-        data_3d.pres / 100, data_3d.h_plev, input_dim="plev", output_dim="pfull"
+        data_3d.pres / 100,
+        data_3d.h_plev,
+        input_dim="plev",
+        output_dim="pfull",
     )
 
 
@@ -104,14 +107,20 @@ def fregrid_to_esmf_compatible_coords(data: xr.Dataset) -> xr.Dataset:
     """
     data = data.rename({"grid_xt": "lon", "grid_yt": "lat"})
 
-    lon_b = xr.DataArray(fregrid_bnds_to_esmf(data.grid_xt_bnds), dims=["lon_b"])
-    lat_b = xr.DataArray(fregrid_bnds_to_esmf(data.grid_yt_bnds), dims=["lat_b"])
+    lon_b = xr.DataArray(
+        fregrid_bnds_to_esmf(data.grid_xt_bnds), dims=["lon_b"]
+    )
+    lat_b = xr.DataArray(
+        fregrid_bnds_to_esmf(data.grid_yt_bnds), dims=["lat_b"]
+    )
 
     return data.assign_coords(lon_b=lon_b, lat_b=lat_b)
 
 
 ### Horizontal interpolation
-def regrid_horizontal(data_in, d_lon_out=1.0, d_lat_out=1.0, method="conservative"):
+def regrid_horizontal(
+    data_in, d_lon_out=1.0, d_lat_out=1.0, method="conservative"
+):
     """Interpolate horizontally from one rectangular grid to another
     
     Args:
@@ -126,7 +135,9 @@ def regrid_horizontal(data_in, d_lon_out=1.0, d_lat_out=1.0, method="conservativ
     # Create output dataset with appropriate lat-lon
     grid_out = xe.util.grid_global(d_lon_out, d_lat_out)
 
-    regridder = xe.Regridder(contiguous_space, grid_out, method, reuse_weights=True)
+    regridder = xe.Regridder(
+        contiguous_space, grid_out, method, reuse_weights=True
+    )
 
     # Regrid each variable in original dataset
     regridded_das = []
