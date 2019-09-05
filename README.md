@@ -54,4 +54,15 @@ Project Organization
 
 --------
 
+# Opening Data
+
+After downloading the data and pre-processing, it can be opened from python
+by running
+```python
+from src.data import open_dataset
+ds = open_dataset('1degTrain')
+```
+This dataset contains the apparent heating (Q1) and moistening (Q2) and many potential input variables.
+
+
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>

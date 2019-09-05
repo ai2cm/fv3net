@@ -7,11 +7,6 @@ import xarray as xr
 import dask.array as da
 from src.data import open_dataset
 
-from math import floor
-
-gravity = 9.81
-specific_heat = 1004
-
 
 def interpolate_1d_scipy(x, xp, arg):
     """simple test case"""
@@ -332,10 +327,6 @@ def storage_fixed_height(
 
 def average_end_points(phi: xr.DataArray):
     return (phi.shift(time=-1) + phi) / 2
-
-
-def apparent_heating(temp, z, w, dtemp):
-    return apparent_source(temp, z, dtemp) + w * gravity / specific_heat
 
 
 def apparent_source(scalar, z_centered, dz, advection_tendency):

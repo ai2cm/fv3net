@@ -28,7 +28,11 @@ def open_dataset(tag) -> xr.Dataset:
     elif tag == "1deg":
         return xr.open_zarr(paths["1deg"]).pipe(_replace_esmf_coords)
     elif tag == "1degTrain":
-        return open_dataset("1deg").merge(xr.open_zarr(paths["1deg_src"]))
+        return (
+            open_dataset("1deg")
+            .merge(xr.open_zarr(paths["1deg_src"]))
+            .pipe(_insert_apparent_heating)
+        )
     else:
         raise NotImplementedError
 
@@ -56,3 +60,11 @@ def _replace_esmf_coords(ds):
         .drop(["lat", "lon"])
         .rename({"x": "lon", "y": "lat"})
     )
+
+
+def _insert_apparent_heating(ds: xr.Dataset) -> xr.Dataset:
+    from .calc import apparent_heating
+
+    dqt_dt = ds.advection_qv + ds.storage_qv
+    dtemp_dt = ds.advection_temp + ds.storage_temp
+    return ds.assign(q1=apparent_heating(dtemp_dt, ds.w), q2=dqt_dt)
