@@ -26,6 +26,7 @@ dependencies:
   - gcsfs
   - pytest
   - xgcm
+  - fire=0.2
   - pip
   - pip:
       - -e .

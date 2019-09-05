@@ -62,7 +62,24 @@ by running
 from src.data import open_dataset
 ds = open_dataset('1degTrain')
 ```
-This dataset contains the apparent heating (Q1) and moistening (Q2) and many potential input variables.
+This dataset contains the apparent heating (Q1) and moistening (Q2** and many potential input variables.
 
+# Extending this code
+
+## Adding new model types
+
+*This interface is a work in progress. It might be better to define a class
+based interface. Let's defer that to when we have more than one model type*
+
+To add a new model type one needs to create two new files
+```
+src.models.{model_type}/train.py
+src.models.{model_type}/test.py
+```
+
+The training script should take in a yaml file of options with this command line interface
+```
+python -m src.models.{model_type}.train --options options.yaml output.pkl
+```
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
