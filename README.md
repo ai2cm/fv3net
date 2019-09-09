@@ -54,6 +54,35 @@ Project Organization
 
 --------
 
+# Setting up the environment
+
+This project uses an anaconda environment file to specify the computational environment. To build this environment run
+	
+    conda env create -n fv3net environment.yml
+
+Then, in the future this will need to be loaded with
+	
+    conda activate fv3net
+
+
+To make sure that `src` is in the python path, you can run
+
+    python setup.py develop
+
+or possible add it to the `PYTHONPATH` environmental variable.
+
+# Pre-processing
+
+To run the pre-processing---regridding to 1 degree and computing advection
+using semi-lagrangian scheme---run 
+	
+    make data
+
+This command operates with data in the Vulcan google cloud storage bucket
+`vcm-ml-data`. You should already have access if you are using a VM that we
+provisioned for you. Otherwise you will need to login with [`gcloud auth
+application-default`](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/).
+
 # Opening Data
 
 After downloading the data and pre-processing, it can be opened from python
