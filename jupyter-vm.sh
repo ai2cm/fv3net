@@ -17,10 +17,10 @@
 #        establishes port-forwarding on the port specified by <port_number>; not needed if the remote jupyter instance was started using 'start'
 #        but useful if it was started in another manner, or for port-forwarding remote docker containers
 # NOTES
+#    assumes MacOS local machine
 #    requires an existing gcloud compute instance set up with conda, jupyter lab, and tmux
-#    requires gcloud account credentials to be set (gcloud auth login)
+#    requires local gcloud account credentials to be set (gcloud auth login)
 #    requires the following macos packages:
-#         -coreutils, i.e., brew install coreutils
 #         -gnu grep, i.e., brew install grep
 #    also requires that the following environment variables be set on the user's local machine:
 #         -GCLOUD_COMPUTE_USER: username on remote server
