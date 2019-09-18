@@ -56,16 +56,16 @@ if [ "$1" == 'start' ]; then
     HOST=$(gcloud compute instances list --filter="name~${INSTANCE_NAME}" | grep -e ${INSTANCE_NAME} | grep -o '\d*\.\d*\.\d*\.\d*' | tail -n1)
 
     # check to see if there are already instances running on the server
-    servers=$(ssh -i "${KEYFILE}" ${USER}@${HOST} 'eval "$('\${HOME}/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"; conda activate '${ENV_NAME}'; jupyter notebook list')
+    servers=$(ssh -i "${KEYFILE}" -o "StrictHostKeyChecking no" ${USER}@${HOST} 'eval "$('\${HOME}/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"; conda activate '${ENV_NAME}'; jupyter notebook list')
     if [[ $servers == *http* ]]; then
         echo "At least one jupyter server already running, try 'reconnect' option."
         exit
     fi
 
     # ssh to the instance, start the jupyter-lab server, and get the url
-    echo "Running command \"ssh -i "${KEYFILE}" -fL 9999:localhost:9999 "${USER}"@"${HOST} \
+    echo "Running command \"ssh -i "${KEYFILE}" -o \"StrictHostKeyChecking no\" -fL 9999:localhost:9999 "${USER}"@"${HOST} \
         "eval \"\$('\${HOME}/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)\"; conda activate "${ENV_NAME}"; tmux; jupyter-lab --no-browser --port=9999 --notebook-dir='/'\"" 
-    output=$(ssh -i "${KEYFILE}" -fL 9999:localhost:9999 ${USER}@${HOST} \
+    output=$(ssh -i "${KEYFILE}" -o "StrictHostKeyChecking no" -fL 9999:localhost:9999 ${USER}@${HOST} \
         'eval "$('/home/brianh/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"; conda activate '${ENV_NAME}'; tmux 2> /dev/null; jupyter-lab --no-browser --port=9999 --notebook-dir=\"/\"' > tmp.txt 2>&1)
     sleep 10s
     url=$(cat tmp.txt | grep -o 'http://localhost\S*' | tail -n1)
@@ -85,7 +85,7 @@ elif [ "$1" == 'reconnect' ]; then
     HOST=$(gcloud compute instances list --filter="name~${INSTANCE_NAME}" | grep -e ${INSTANCE_NAME} | grep -o '\d*\.\d*\.\d*\.\d*' | tail -n1)
    
     # check to see if there are already instances running on the server
-    servers=$(ssh -i "${KEYFILE}" ${USER}@${HOST} 'eval "$('\${HOME}/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"; conda activate '${ENV_NAME}'; jupyter notebook list')
+    servers=$(ssh -i "${KEYFILE}" -o "StrictHostKeyChecking no" ${USER}@${HOST} 'eval "$('\${HOME}/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"; conda activate '${ENV_NAME}'; jupyter notebook list')
     if [[ ! $servers == *http* ]]; then
         echo "No jupyter servers already running, try 'start' option."
         exit
@@ -108,11 +108,12 @@ elif [ "$1" == 'stop' ]; then
 
     echo "Stopping Jupyter notebook instances..."
     # get running instances and stop them
-    ports=$(ssh -i "${KEYFILE}" ${USER}@${HOST} \
+    ports=$(ssh -i "${KEYFILE}" -o "StrictHostKeyChecking no" ${USER}@${HOST} \
         'eval "$('\${HOME}/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"; conda activate '${ENV_NAME}'; jupyter notebook list' | ggrep -oP '(?<=:)[0-9]+' | uniq)
     echo $ports
     for port in $ports; do
-        ssh -i "${KEYFILE}" ${USER}@${HOST} 'eval "$('\${HOME}/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"; conda activate '${ENV_NAME}'; jupyter notebook stop '${port}
+        ssh -i "${KEYFILE}" -o "StrictHostKeyChecking no" ${USER}@${HOST} \
+            'eval "$('\${HOME}/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"; conda activate '${ENV_NAME}'; jupyter notebook stop '${port}
     done
    
     # kill open ports left by ssh tunnels
@@ -154,7 +155,7 @@ elif [ "$1" == 'port-forward' ]; then
     # ssh with port forwarding
     PORT=$ENV_NAME
     echo "Connecting to compute instance..."
-    ssh -i ${KEYFILE} -A -NfL ${PORT}:localhost:${PORT} ${USER}@${HOST}
+    ssh -i ${KEYFILE} -A -NfL ${PORT}:localhost:${PORT} -o "StrictHostKeyChecking no" ${USER}@${HOST}
 
 else
     
