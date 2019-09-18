@@ -1,6 +1,5 @@
 md5: 4d1c4c507309baa3d9db9a787f4cc6b4
 cmd: python -m src.data.advect 1deg 2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr/
-wdir: .
 deps:
 - md5: adcf689694b6ad137b9113d896825dbb.dir
   path: ../2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr

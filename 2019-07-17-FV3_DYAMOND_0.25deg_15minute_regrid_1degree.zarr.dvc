@@ -1,8 +1,7 @@
-md5: 7a0b78d425440283453c708171fc4217
+md5: 02f309b5a6c525bad98e9ea163157bc1
 cmd: python -m src.data.regrid data/interim/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr
-wdir: .
 deps:
-- md5: 542c48fd78e130e6a2da2b30baf2e078.dir
+- md5: 476468d53a51de2bb2e9be057188a2ae.dir
   path: src
 outs:
 - md5: adcf689694b6ad137b9113d896825dbb.dir
