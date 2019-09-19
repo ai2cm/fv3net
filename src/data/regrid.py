@@ -161,7 +161,8 @@ def main():
     if args.data_3d:
         data_3d = xr.open_zarr(args.data_3d)
     else:
-        data_3d = open_dataset("gfdl")
+        # TODO generalize to different dataset names
+        data_3d = open_dataset("gfdl_15_minute")
 
     data_out = regrid_horizontal(data_3d)
     print("Output data:")

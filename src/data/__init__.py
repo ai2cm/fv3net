@@ -1,6 +1,6 @@
 import xarray as xr
 import intake
-from .remote_data import open_gfdl_data_with_2d
+from .remote_data import open_gfdl_data_with_2d, open_gfdl_15_minute_data_with_2d
 from pathlib import Path
 
 
@@ -25,8 +25,11 @@ def open_catalog():
 
 
 def open_dataset(tag) -> xr.Dataset:
+    # TODO: add dataset name argument for these cases
     if tag == "gfdl":
         return open_gfdl_data_with_2d(open_catalog())
+    elif tag == "gfdl_15_minute":
+        return open_gfdl_15_minute_data_with_2d(open_catalog(), dataset_name = '2019-09-10-GFDL-SHiELD-15-minute-2-days')
     elif tag == "1deg":
         return xr.open_zarr(paths["1deg"]).pipe(_replace_esmf_coords)
     elif tag == "1degTrain":
