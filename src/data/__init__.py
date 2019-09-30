@@ -1,21 +1,32 @@
 import xarray as xr
 import intake
-from .remote_data import open_gfdl_data_with_2d, open_gfdl_15_minute_data_with_2d
+import yaml
+from src import TOP_LEVEL_DIR
+from .remote_data import open_gfdl_data_with_2d, open_gfdl_15_minute_SHiELD
 from pathlib import Path
 
 
 def get_root():
     """Returns the absolute path to the root directory for any machine"""
-    return str(Path(__file__).absolute().parent.parent.parent)
+    return str(TOP_LEVEL_DIR)
+
+
+def get_shortened_dataset_tags():
+    """"Return a dictionary mapping short dataset definitions to the full names"""
+    short_dset_yaml = Path(TOP_LEVEL_DIR) / 'short_datatag_defs.yml'
+    return yaml.load(short_dset_yaml.open(), Loader=yaml.SafeLoader)
 
 
 root = get_root()
+short_dset_tags = get_shortened_dataset_tags()
+
+
+# TODO: I believe fv3_data_root and paths are legacy
 fv3_data_root = (
     "/home/noahb/data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/"
 )
 
 paths = {
-    "1deg": f"{root}/data/interim/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr/",
     "1deg_src": f"{root}/data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr",
 }
 
@@ -25,13 +36,8 @@ def open_catalog():
 
 
 def open_dataset(tag) -> xr.Dataset:
-    # TODO: add dataset name argument for these cases
     if tag == "gfdl":
         return open_gfdl_data_with_2d(open_catalog())
-    elif tag == "gfdl_15_minute":
-        return open_gfdl_15_minute_data_with_2d(open_catalog(), dataset_name = '2019-09-10-GFDL-SHiELD-15-minute-2-days')
-    elif tag == "1deg":
-        return xr.open_zarr(paths["1deg"]).pipe(_replace_esmf_coords)
     elif tag == "1degTrain":
         return (
             open_dataset("1deg")
@@ -39,7 +45,13 @@ def open_dataset(tag) -> xr.Dataset:
             .pipe(_insert_apparent_heating)
         )
     else:
-        raise NotImplementedError
+        if tag in short_dset_tags:
+            # TODO: Debug logging about tag transformation
+            tag = short_dset_tags[tag]
+        
+        # TODO: Come up with generic way to specify data transforms in function call
+        curr_catalog = open_catalog()
+        return curr_catalog[tag].to_dask()
 
 
 def open_data(sources=False, two_dimensional=True):
@@ -60,10 +72,13 @@ def open_data(sources=False, two_dimensional=True):
 
 
 def _replace_esmf_coords(ds):
+    # TODO, is this general or only for high-res -> coarsened? -AP
     return (
-        ds.assign_coords(x=ds.lon.isel(y=0), y=ds.lat.isel(x=0))
-        .drop(["lat", "lon"])
-        .rename({"x": "lon", "y": "lat"})
+        ds.rename({"x": 'lon', 'y': 'lat'})
+        # DYAMOND data
+        # ds.assign_coords(x=ds.lon.isel(y=0), y=ds.lat.isel(x=0))
+        # .drop(["lat", "lon"])
+        # .rename({"x": "lon", "y": "lat"})
     )
 
 
