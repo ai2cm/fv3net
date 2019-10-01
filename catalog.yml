@@ -42,6 +42,9 @@ sources:
   2019-09-10-GFDL-SHiELD-15-minute-2-days:
     description: 2D and 3D data sampled every 15 minutes from a 2-day 3-km simulation, regridded to a roughly 0.25 degree x 0.25 degree regular lat-lon grid.
     driver: zarr
+    metadata:
+      data_transforms: 
+        - _rename_SHiELD_varnames_to_orig
     args:
       storage_options:
         project: 'vcm-ml'

@@ -49,9 +49,16 @@ def open_dataset(tag) -> xr.Dataset:
             # TODO: Debug logging about tag transformation
             tag = short_dset_tags[tag]
         
-        # TODO: Come up with generic way to specify data transforms in function call
         curr_catalog = open_catalog()
-        return curr_catalog[tag].to_dask()
+        source = curr_catalog[tag]
+        dataset = source.to_dask()
+
+        for transform in source.metadata.get('data_transforms', ()):
+            print(f'Applying data transform: {transform}')
+            transform_function = globals()[transform]
+            dataset = transform_function(dataset)
+
+        return dataset
 
 
 def open_data(sources=False, two_dimensional=True):
@@ -71,14 +78,44 @@ def open_data(sources=False, two_dimensional=True):
     return ds
 
 
+## Data Adjustments ## 
+def _rename_SHiELD_varnames_to_orig(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Replace varnames from new dataset to match original style 
+    from initial DYAMOND data.
+    """
+
+    rename_list = {
+        'ucomp': 'u',
+        'vcomp': 'v',
+        'sphum': 'qv',
+        'HGTsfc': 'zs',
+        'delz': 'dz',
+        'delp': 'dp'
+    }
+    return ds.rename(rename_list)
+
+
+def replace_esmf_coords_reg_latlon(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Replace ESMF coordinates from regridding to a regular lat/lon grid
+    """
+
+    lat_1d = ds.lat.isel(x=0).values
+    lon_1d = ds.lon.isel(y=0).values
+    ds = ds.assign_coords({'x': lon_1d, 'y': lat_1d})
+    ds = ds.rename({'lat': 'lat_grid', 'lon': 'lon_grid'})
+
+    return ds
+
+
 def _replace_esmf_coords(ds):
-    # TODO, is this general or only for high-res -> coarsened? -AP
+    #  Older version using DYAMOND data -AP Oct 2019
     return (
-        ds.rename({"x": 'lon', 'y': 'lat'})
         # DYAMOND data
-        # ds.assign_coords(x=ds.lon.isel(y=0), y=ds.lat.isel(x=0))
-        # .drop(["lat", "lon"])
-        # .rename({"x": "lon", "y": "lat"})
+        ds.assign_coords(x=ds.lon.isel(y=0), y=ds.lat.isel(x=0))
+        .drop(["lat", "lon"])
+        .rename({"x": "lon", "y": "lat"})
     )
 
 
