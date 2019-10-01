@@ -6,6 +6,8 @@ import zarr as zr
 import xesmf as xe
 from tqdm import tqdm
 
+from src.data import replace_esmf_coords_reg_latlon
+
 
 ### Vertical interpolation
 def interpolate_1d_scipy(x, xp, arg):
@@ -147,13 +149,11 @@ def regrid_horizontal(
         contiguous_space, grid_out, method, reuse_weights=True
     )
 
-
-
     # Regrid each variable in original dataset
     regridded_das = []
     for var in contiguous_space:
         
-        if prev_regrid_dataset is not None:
+        if prev_regrid_dataset is not None and var not in contiguous_space.coords:
             var_finished = _var_finished_regridding(prev_regrid_dataset, var)
             if var_finished:
                 continue
@@ -182,17 +182,17 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-3d", default=None)
+    parser.add_argument('dataset_tag')
     parser.add_argument("output_zarr")
     parser.add_argument('-f', '--force_regrid', action='store_true')
+    parser.add_argument("--data-3d", default=None)
     args = parser.parse_args()
 
     print("Opening data")
     if args.data_3d:
         data_3d = xr.open_zarr(args.data_3d)
     else:
-        # TODO generalize to different dataset names
-        data_3d = open_dataset("gfdl_15_minute")
+        data_3d = open_dataset(args.dataset_tag)
 
     if args.force_regrid:
         print("Regridding all variables from target dataset.")
@@ -208,6 +208,10 @@ def main():
             partial_zarr_output = None
 
     data_out = regrid_horizontal(data_3d, prev_regrid_dataset=partial_zarr_output)
+
+    # TODO: Probably should put the coordinate change somewhere in regrid_horizontal
+    data_out = replace_esmf_coords_reg_latlon(data_out)
+    
     print("Output data:")
     print(data_out)
     data_out.to_zarr(args.output_zarr, mode=open_mode)
