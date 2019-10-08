@@ -2,25 +2,29 @@ import os
 import sys
 from subprocess import call
 from os.path import abspath, join
-from shutil import copytree, copy
+from shutil import copytree, copy, rmtree
+import logging
 
 
-def make_experiment(name, sfc_data, namelist_path, template_dir):
-    dir=f"experiments/{name}"
-    if os.path.exists(dir):
-        return dir
+def make_experiment(dir,  args, namelist_path='', template_dir=''):
+    rmtree(dir)
     rundir=f"{dir}/rundir"
     input_dir=f"{dir}/rundir/INPUT"
     copytree(template_dir, dir)
-    save_surface_data(sfc_data, output_directory=input_dir)
+
+    for prefix, combined_tile_data in args:
+        save_tiles_separately(
+            combined_tile_data, prefix, output_directory=input_dir)
+
     copy(namelist_path, join(rundir, 'input.nml'))
 
     return dir
 
 
-def save_surface_data(sfc_data, output_directory):
+def save_tiles_separately(sfc_data, prefix, output_directory):
     for i in range(6):
-        output_path = join(output_directory, f"sfc_data.tile{i+1}.nc")
+        output_path = join(output_directory, f"{prefix}.tile{i+1}.nc")
+        logging.info(f"saving data to {output_path}")
         sfc_data.isel(tiles=i).to_netcdf(output_path)
 
 

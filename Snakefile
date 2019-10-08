@@ -8,6 +8,10 @@ TAR="data/raw/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/{timest
 EXTRACTED="data/extracted/{timestep}/"
 c3072_grid_spec_pattern = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/grid_spec.tile{tile}.nc.{subtile:04d}"
 coarsened_sfc_data_wildcard="data/coarsened/c3072/{timestep}.sfc_data.nc"
+restart_dir_wildcard="data/restart/c96/{timestep}/"
+fv_srf_wnd_prefix = "data/extracted/{timestep}/{timestep}.fv_srf_wnd_coarse.res"
+fv_tracer_prefix = "data/extracted/{timestep}/{timestep}.fv_tracer_coarse.res"
+fv_core_prefix = "data/extracted/{timestep}/{timestep}.fv_core_coarse.res"
 
 trained_models = [
     "models/random_forest/default.pkl"
@@ -23,7 +27,34 @@ subtiles = list(range(16))
 c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
 
 rule all:
-    input: expand(coarsened_sfc_data_wildcard, timestep=timesteps)
+    input: expand(restart_dir_wildcard, timestep=timesteps)
+
+rule prepare_c96_restart_directory:
+    input: sfc_data=coarsened_sfc_data_wildcard,
+           extracted=EXTRACTED
+    params: srf_wnd=fv_srf_wnd_prefix, core=fv_core_prefix,
+            tracer=fv_tracer_prefix
+    output: directory(restart_dir_wildcard)
+    run:
+        import xarray as xr
+        from src.data.cubedsphere import open_cubed_sphere
+        from src.fv3 import make_experiment
+        import logging
+        logging.basicConfig(level=logging.INFO)
+
+        tiles_to_save = [
+            ('fv_tracer.res', open_cubed_sphere(params.tracer)),
+            ('fv_core.res', open_cubed_sphere(params.core)),
+            ('fv_srf_wnd.res', open_cubed_sphere(params.srf_wnd)),
+            ('sfc_data.res', xr.open_dataset(input.sfc_data))
+        ]
+
+        make_experiment(
+            output[0], tiles_to_save,
+            namelist_path='assets/restart_c48.nml',
+            template_dir = 'experiments/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/'
+        )
+
 
 rule coarsen_sfc_data:
     input: grid="data/raw/grid_specs/c3072",
