@@ -45,6 +45,7 @@ from src.fv3 import *
 import xarray as xr
 from itertools import product
 import logging
+import click
 
 logging.basicConfig(level=logging.INFO)
 
@@ -54,14 +55,27 @@ def grid_and_sfc_data_paths(tile, subtile, time):
     sfc_path = f"data/extracted/{time}/{time}.sfc_data.tile{tile:d}.nc.{subtile:04d}"
     return tile, subtile, sfc_path, grid_path
 
-num_tiles = 6
-num_subtiles = 16
-time = '20160805.170000'
-tiles = list(range(1, num_tiles + 1))
-subtiles = list(range(num_subtiles))
 
-files = [grid_and_sfc_data_paths(tile, proc, time)
-         for tile, proc in product(tiles, subtiles)]
+@click.command()
+@click.option('--num-tiles', default=6)
+@click.option('--num-subtiles', default=16)
+@click.option('--method', default='median')
+@click.option('--factor', default=32)
+@click.argument('time')
+@click.argument('output')
+def main(factor, num_tiles = 6, num_subtiles = 16, time = '20160805.170000', output=
+         'output.nc', method = 'median'):
 
-sfc_data = coarsen_sfc_data_in_directory(files, method='median')
-sfc_data.to_netcdf("output.nc")
+
+    tiles = list(range(1, num_tiles + 1))
+    subtiles = list(range(num_subtiles))
+
+    files = [grid_and_sfc_data_paths(tile, proc, time)
+            for tile, proc in product(tiles, subtiles)]
+
+    sfc_data = coarsen_sfc_data_in_directory(files, method=method, factor=factor)
+    sfc_data.to_netcdf(output)
+
+
+if __name__ == '__main__':
+    main()

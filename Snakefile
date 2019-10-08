@@ -7,6 +7,7 @@ bucket = "gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart
 TAR="data/raw/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/{timestep}.tar"
 EXTRACTED="data/extracted/{timestep}/"
 c3072_grid_spec_pattern = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/grid_spec.tile{tile}.nc.{subtile:04d}"
+coarsened_sfc_data_wildcard="data/coarsened/c3072/{timestep}.sfc_data.nc"
 
 trained_models = [
     "models/random_forest/default.pkl"
@@ -22,12 +23,20 @@ subtiles = list(range(16))
 c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
 
 rule all:
-    input: expand(EXTRACTED, timestep=timesteps)
-
+    input: expand(coarsened_sfc_data_wildcard, timestep=timesteps)
 
 rule coarsen_sfc_data:
-    input: grid_spec=c3072_grid_spec
-    shell: "echo {input}"
+    input: grid="data/raw/grid_specs/c3072",
+           time=EXTRACTED
+    output: coarsened_sfc_data_wildcard
+    shell: """
+    python src/data/raw_step_directory_to_restart.py \
+      --num-tiles 6 \
+      --num-subtiles 16 \
+      --method median \
+      --factor 32 \
+      {wildcards.timestep} {output}
+    """
 
 rule download_grid_spec:
     output: directory("data/raw/grid_specs/c3072")

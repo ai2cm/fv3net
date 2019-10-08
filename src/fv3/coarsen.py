@@ -8,25 +8,22 @@ import numpy as np
 import logging
 
 
-
-
 def integerize(x):
     return np.round(x).astype(x.dtype)
 
 
-def coarsen_c3072_to_c48(data, method="sum"):
-    """Coarsen a tile of surface data from C3072 to C96
+def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Dataset:
+    """Coarsen a tile of surface data
 
     The data is weighted by the area.
 
     Args:
         data: surface data with area included
-
+        factor: coarsening factor. For example, C3072 to C96 is a factor of 32.
     Returns:
         coarsened: coarse data without area
 
     """
-    factor = int(3072 / 48)
     area = data["area"]
     data_no_area = data.drop("area")
 
@@ -102,7 +99,7 @@ def coarsen_sfc_data_in_directory(files, **kwargs):
     def process(args):
         logging.info(f"Coarsening {args}")
         data = load_tile_proc(*args)
-        coarsened = coarsen_c3072_to_c48(data, **kwargs)
+        coarsened = coarsen_sfc_data(data, **kwargs)
         return args, coarsened
 
     bag = db.from_sequence(files)
