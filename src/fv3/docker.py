@@ -2,11 +2,12 @@ import os
 import sys
 from subprocess import call
 from os.path import abspath, join
+import os
 from shutil import copytree, copy, rmtree
 import logging
 
 
-def make_experiment(dir,  args, namelist_path='', template_dir=''):
+def make_experiment(dir,  args, namelist_path='', template_dir='', oro_path=""):
     rmtree(dir)
     rundir=f"{dir}/rundir"
     input_dir=f"{dir}/rundir/INPUT"
@@ -17,6 +18,7 @@ def make_experiment(dir,  args, namelist_path='', template_dir=''):
             combined_tile_data, prefix, output_directory=input_dir)
 
     copy(namelist_path, join(rundir, 'input.nml'))
+    os.system("cp {oro_path}/*.nc {dir}/INPUT")
 
     return dir
 

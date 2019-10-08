@@ -12,6 +12,8 @@ restart_dir_wildcard="data/restart/c96/{timestep}/"
 fv_srf_wnd_prefix = "data/extracted/{timestep}/{timestep}.fv_srf_wnd_coarse.res"
 fv_tracer_prefix = "data/extracted/{timestep}/{timestep}.fv_tracer_coarse.res"
 fv_core_prefix = "data/extracted/{timestep}/{timestep}.fv_core_coarse.res"
+c96_orographic_data_gcs = "gs://vcm-ml-data/2019-10-01-C96-oro-data.tar.gz"
+c96_orographic_data = "data/oro_data/c96/"
 
 trained_models = [
     "models/random_forest/default.pkl"
@@ -31,7 +33,7 @@ rule all:
 
 rule prepare_c96_restart_directory:
     input: sfc_data=coarsened_sfc_data_wildcard,
-           extracted=EXTRACTED
+           extracted=EXTRACTED, oro_data=c96_orographic_data
     params: srf_wnd=fv_srf_wnd_prefix, core=fv_core_prefix,
             tracer=fv_tracer_prefix
     output: directory(restart_dir_wildcard)
@@ -39,6 +41,7 @@ rule prepare_c96_restart_directory:
         import xarray as xr
         from src.data.cubedsphere import open_cubed_sphere
         from src.fv3 import make_experiment
+        import os
         import logging
         logging.basicConfig(level=logging.INFO)
 
@@ -52,7 +55,8 @@ rule prepare_c96_restart_directory:
         make_experiment(
             output[0], tiles_to_save,
             namelist_path='assets/restart_c48.nml',
-            template_dir = 'experiments/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/'
+            template_dir = 'experiments/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/',
+            oro_path="input.oro_data"
         )
 
 
@@ -84,6 +88,15 @@ rule download_timestep:
           cp  {bucket}/{wildcards.timestep}.tar {output}
     """
 
+rule download_c96_orographic_data:
+    input: GS.remote(c96_orographic_data_gcs)
+    output: directory(c96_orographic_data)
+    shell: """
+    tar --strip-components 1 -xzf {input}
+    mkdir -p {output}
+    mv oro_data* {output}
+    """
+
 rule extract_timestep:
     output: directory(EXTRACTED)
     input: TAR
@@ -92,7 +105,6 @@ rule extract_timestep:
 rule convert_to_zarr:
     output: directory(save_zarr.output_2d), directory(save_zarr.output_3d)
     shell: "python -m src.data.save_zarr"
-
 
 rule train_model:
     input: config="configurations/{model_type}/{options}.yaml"
