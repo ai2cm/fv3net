@@ -14,6 +14,7 @@ fv_tracer_prefix = "data/extracted/{timestep}/{timestep}.fv_tracer_coarse.res"
 fv_core_prefix = "data/extracted/{timestep}/{timestep}.fv_core_coarse.res"
 c96_orographic_data_gcs = "gs://vcm-ml-data/2019-10-01-C96-oro-data.tar.gz"
 c384_grid_spec_url_gcs = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/grid_spec_coarse.tile?.nc.*"
+c384_grid_spec = "data/grid_spec/c384.nc"
 c96_orographic_data = "data/oro_data/c96/"
 
 trained_models = [
@@ -34,7 +35,8 @@ rule all:
 
 rule prepare_c96_restart_directory:
     input: sfc_data=coarsened_sfc_data_wildcard,
-           extracted=EXTRACTED, oro_data=c96_orographic_data
+           extracted=EXTRACTED, oro_data=c96_orographic_data,
+           grid_spec=c384_grid_spec
     params: srf_wnd=fv_srf_wnd_prefix, core=fv_core_prefix,
             tracer=fv_tracer_prefix
     output: directory(restart_dir_wildcard)
@@ -50,7 +52,8 @@ rule prepare_c96_restart_directory:
             ('fv_tracer.res', open_cubed_sphere(params.tracer)),
             ('fv_core.res', open_cubed_sphere(params.core)),
             ('fv_srf_wnd.res', open_cubed_sphere(params.srf_wnd)),
-            ('sfc_data.res', xr.open_dataset(input.sfc_data))
+            ('sfc_data.res', xr.open_dataset(input.sfc_data)),
+            ('grid_spec', xr.open_dataset(input.grid_spec))
         ]
 
         make_experiment(
@@ -90,6 +93,14 @@ rule download_c384_grid_spec:
     gsutil -m cp {c384_grid_spec_url_gcs} {output}/
     rename 's/_coarse//' {output}/*.nc.*
     """
+
+rule combine_grid_spec:
+    input: "data/raw/grid_specs/c384"
+    output: c384_grid_spec
+    run:
+        from src.data.cubedsphere import open_cubed_sphere
+        grid_spec = open_cubed_sphere(input[0] + '/grid_spec')
+        grid_spec.to_netcdf(output[0])
 
 rule download_timestep:
     output: TAR
