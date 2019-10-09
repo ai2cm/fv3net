@@ -12,6 +12,7 @@ def integerize(x):
     return np.round(x).astype(x.dtype)
 
 
+#TODO: rename this to coarsen_by_area. It is not specific to surface data
 def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Dataset:
     """Coarsen a tile of surface data
 
@@ -43,6 +44,7 @@ def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Datase
     )
 
 
+#TODO: fix this name. it loads the data with area
 def load_tile_proc(tile, subtile, path, grid_path):
     grid_spec_to_data_renaming = {"grid_xt": "xaxis_1", "grid_yt": "yaxis_1"}
     grid = xr.open_dataset(grid_path)
@@ -62,6 +64,7 @@ def coarsen_coords(factor, tile):
     }
 
 
+#TODO use src.data.cubedsphere for this
 def _combine_subtiles(tiles):
     combined = xr.concat(tiles, dim="io").sum("io")
     return combined.assign_attrs(tiles[0].attrs)

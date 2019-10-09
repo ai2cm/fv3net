@@ -3,19 +3,31 @@ from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 from os.path import join
 GS = GSRemoteProvider(keep_local=True)
 
-bucket = "gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data"
-TAR="data/raw/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/{timestep}.tar"
-EXTRACTED="data/extracted/{timestep}/"
+# Remote files
+bucket                  = "gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data"
 c3072_grid_spec_pattern = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/grid_spec.tile{tile}.nc.{subtile:04d}"
-coarsened_sfc_data_wildcard="data/coarsened/c3072/{timestep}.sfc_data.nc"
-restart_dir_wildcard="data/restart/c96/{timestep}/"
-fv_srf_wnd_prefix = "data/extracted/{timestep}/{timestep}.fv_srf_wnd_coarse.res"
-fv_tracer_prefix = "data/extracted/{timestep}/{timestep}.fv_tracer_coarse.res"
-fv_core_prefix = "data/extracted/{timestep}/{timestep}.fv_core_coarse.res"
 c96_orographic_data_gcs = "gs://vcm-ml-data/2019-10-01-C96-oro-data.tar.gz"
-c384_grid_spec_url_gcs = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/grid_spec_coarse.tile?.nc.*"
-c384_grid_spec = "data/grid_spec/c384.nc"
-c96_orographic_data = "data/oro_data/c96/"
+c384_grid_spec_url_gcs  = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/grid_spec_coarse.tile?.nc.*"
+
+# Wildcards for tarball and extracted data
+TAR                         = "data/raw/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/{timestep}.tar"
+EXTRACTED                   = "data/extracted/{timestep}/"
+
+# Paths in the extracted tarballs
+fv_srf_wnd_prefix           = "data/extracted/{timestep}/{timestep}.fv_srf_wnd_coarse.res"
+fv_tracer_prefix            = "data/extracted/{timestep}/{timestep}.fv_tracer_coarse.res"
+fv_core_prefix              = "data/extracted/{timestep}/{timestep}.fv_core_coarse.res"
+
+# Grid and land surface information
+c384_grid_spec              = "data/grid_spec/c384.nc"
+c96_orographic_data         = "data/oro_data/c96/"
+
+# Intermediate steps
+coarsened_sfc_data_wildcard = "data/coarsened/c3072/{timestep}.sfc_data.nc"
+restart_dir_wildcard        = "data/restart/c96/{timestep}/"
+
+
+# Wildcard values
 
 trained_models = [
     "models/random_forest/default.pkl"

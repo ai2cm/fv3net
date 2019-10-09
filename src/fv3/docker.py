@@ -24,6 +24,7 @@ def make_experiment(dir,  args, namelist_path='', template_dir='', oro_path=""):
 
 
 def save_tiles_separately(sfc_data, prefix, output_directory):
+    #TODO: move to src.data.cubedsphere
     for i in range(6):
         output_path = join(output_directory, f"{prefix}.tile{i+1}.nc")
         logging.info(f"saving data to {output_path}")

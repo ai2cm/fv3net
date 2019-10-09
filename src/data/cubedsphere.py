@@ -5,6 +5,7 @@ from toolz import groupby
 import numpy as np
 
 
+#TODO write a test for this method
 def combine_subtiles(tiles):
     """Combine subtiles of a cubed-sphere dataset
 
@@ -32,7 +33,7 @@ def file_names(prefix, num_tiles=6, num_subtiles=16):
         filename = prefix + f'.tile{tile:d}.nc.{proc:04d}'
         yield tile, proc, filename
 
-
+#TODO test this
 def remove_duplicate_coords(ds):
     deduped_indices = {}
     for dim in ds.dims:
