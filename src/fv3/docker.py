@@ -18,7 +18,7 @@ def make_experiment(dir,  args, namelist_path='', template_dir='', oro_path=""):
             combined_tile_data, prefix, output_directory=input_dir)
 
     copy(namelist_path, join(rundir, 'input.nml'))
-    os.system("cp {oro_path}/*.nc {dir}/INPUT")
+    os.system(f"cp {oro_path}/*.nc {dir}/rundir/INPUT")
 
     return dir
 

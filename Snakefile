@@ -13,6 +13,7 @@ fv_srf_wnd_prefix = "data/extracted/{timestep}/{timestep}.fv_srf_wnd_coarse.res"
 fv_tracer_prefix = "data/extracted/{timestep}/{timestep}.fv_tracer_coarse.res"
 fv_core_prefix = "data/extracted/{timestep}/{timestep}.fv_core_coarse.res"
 c96_orographic_data_gcs = "gs://vcm-ml-data/2019-10-01-C96-oro-data.tar.gz"
+c384_grid_spec_url_gcs = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/grid_spec_coarse.tile?.nc.*"
 c96_orographic_data = "data/oro_data/c96/"
 
 trained_models = [
@@ -56,7 +57,7 @@ rule prepare_c96_restart_directory:
             output[0], tiles_to_save,
             namelist_path='assets/restart_c48.nml',
             template_dir = 'experiments/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/',
-            oro_path="input.oro_data"
+            oro_path=input.oro_data
         )
 
 
@@ -73,12 +74,21 @@ rule coarsen_sfc_data:
       {wildcards.timestep} {output}
     """
 
-rule download_grid_spec:
+rule download_c3072_grid_spec:
     output: directory("data/raw/grid_specs/c3072")
     shell: """
     rm -rf {output}
     mkdir -p {output}
     gsutil -m cp {c3072_grid_spec} {output}/
+    """
+
+rule download_c384_grid_spec:
+    output: directory("data/raw/grid_specs/c384")
+    shell: """
+    rm -rf {output}
+    mkdir -p {output}
+    gsutil -m cp {c384_grid_spec_url_gcs} {output}/
+    rename 's/_coarse//' {output}/*.nc.*
     """
 
 rule download_timestep:
