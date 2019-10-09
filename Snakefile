@@ -39,6 +39,10 @@ fv_core_prefix              = "data/extracted/{timestep}/{timestep}.fv_core_coar
 # Grid Specifications
 c3072_grid_spec_tiled       = "data/raw/grid_specs/C3072"
 
+# vertical grid
+vertical_grid = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/fv_core.res.nc")
+
+
 # Orographic Data
 oro_and_grid_data = "data/raw/coarse-grid-and-orography-data"
 oro_manifest = "assets/coarse-grid-and-orography-data-manifest.txt"
@@ -63,7 +67,8 @@ rule prepare_restart_directory:
     input: sfc_data=coarsened_sfc_data_wildcard,
            extracted=EXTRACTED,
            oro_data=oro_data,
-           grid_spec=grid_spec
+           grid_spec=grid_spec,
+           vertical_grid=vertical_grid
     params: srf_wnd=fv_srf_wnd_prefix,
             core=fv_core_prefix,
             tracer=fv_tracer_prefix
@@ -81,7 +86,7 @@ rule prepare_restart_directory:
             ('fv_core.res', open_cubed_sphere(params.core)),
             ('fv_srf_wnd.res', open_cubed_sphere(params.srf_wnd)),
             ('sfc_data.res', xr.open_dataset(input.sfc_data)),
-            ('grid_spec', xr.open_dataset(input.grid_spec))
+            ('grid_spec', xr.open_mfdataset(sorted(input.grid_spec), concat_dim='tiles'))
         ]
 
         make_experiment(
@@ -89,7 +94,8 @@ rule prepare_restart_directory:
             # TODO move these hardcoded strings to the top
             namelist_path='assets/restart_c48.nml',
             template_dir = 'experiments/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/',
-            oro_path=input.oro_data
+            oro_paths=input.oro_data,
+	    vertical_grid=vertical_grid
         )
 
 

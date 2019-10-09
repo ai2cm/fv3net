@@ -1,24 +1,36 @@
 import os
 import sys
 from subprocess import call
-from os.path import abspath, join
+from os.path import abspath, join, basename
 import os
 from shutil import copytree, copy, rmtree
 import logging
+from src import utils
 
 
-def make_experiment(dir,  args, namelist_path='', template_dir='', oro_path=""):
+def copy_files_into_directory(files, directory):
+    for file in files:
+        dest = join(directory, basename(file))
+        copy(file, dest)
+
+
+def make_experiment(dir,  args, namelist_path='', template_dir='', oro_paths=(),
+                    vertical_grid=None):
     rmtree(dir)
     rundir=f"{dir}/rundir"
     input_dir=f"{dir}/rundir/INPUT"
     copytree(template_dir, dir)
 
     for prefix, combined_tile_data in args:
+        float_data = utils.cast_doubles_to_floats(combined_tile_data)
         save_tiles_separately(
-            combined_tile_data, prefix, output_directory=input_dir)
+            float_data, prefix, output_directory=input_dir)
 
     copy(namelist_path, join(rundir, 'input.nml'))
-    os.system(f"cp {oro_path}/*.nc {dir}/rundir/INPUT")
+    copy_files_into_directory(oro_paths, input_dir)
+
+    if vertical_grid is not None:
+        copy(vertical_grid, join(rundir, 'fv_core.res.nc'))
 
     return dir
 
@@ -37,7 +49,7 @@ def rundir(directory):
 
 def run_experiment(directory):
     return call([
-        'docker', 'run', '-d',
+        'docker', 'run', #'-d',
         '-v', rundir(directory) + ':/FV3/rundir',
         '-v', '/home/noahb/fv3gfs/inputdata/fv3gfs-data-docker/fix.v201702:/inputdata/fix.v201702',
         'fv3gfs-compiled'
