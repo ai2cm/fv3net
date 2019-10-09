@@ -1,6 +1,6 @@
 import os
 import sys
-from subprocess import call
+from subprocess import call, check_call
 from os.path import abspath, join, basename
 import os
 from shutil import copytree, copy, rmtree
@@ -48,7 +48,7 @@ def rundir(directory):
 
 
 def run_experiment(directory):
-    return call([
+    return check_call([
         'docker', 'run', #'-d',
         '-v', rundir(directory) + ':/FV3/rundir',
         '-v', '/home/noahb/fv3gfs/inputdata/fv3gfs-data-docker/fix.v201702:/inputdata/fix.v201702',

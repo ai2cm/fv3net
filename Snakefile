@@ -55,13 +55,14 @@ oro_data          = expand("data/raw/coarse-grid-and-orography-data/{{grid}}/oro
 # Intermediate steps
 coarsened_sfc_data_wildcard = "data/coarsened/{grid}/{timestep}.sfc_data.nc"
 restart_dir_wildcard        = "data/restart/{grid}/{timestep}/"
+restart_dir_done        = "data/restart/{grid}/{timestep}.done"
 
 
 
 c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
 
 rule all:
-    input: expand(restart_dir_wildcard, timestep=timesteps, grid=grids)
+    input: expand(restart_dir_done, timestep=timesteps, grid=grids)
 
 rule prepare_restart_directory:
     input: sfc_data=coarsened_sfc_data_wildcard,
@@ -85,7 +86,7 @@ rule prepare_restart_directory:
             ('fv_tracer.res', open_cubed_sphere(params.tracer)),
             ('fv_core.res', open_cubed_sphere(params.core)),
             ('fv_srf_wnd.res', open_cubed_sphere(params.srf_wnd)),
-            ('sfc_data.res', xr.open_dataset(input.sfc_data)),
+            ('sfc_data', xr.open_dataset(input.sfc_data)),
             ('grid_spec', xr.open_mfdataset(sorted(input.grid_spec), concat_dim='tiles'))
         ]
 
@@ -98,6 +99,12 @@ rule prepare_restart_directory:
 	    vertical_grid=vertical_grid
         )
 
+rule run_restart:
+    input: restart_dir_wildcard
+    output: touch(restart_dir_done)
+    run:
+        from src.fv3 import run_experiment
+        run_experiment(input[0])
 
 rule coarsen_sfc_data:
     input: grid=c3072_grid_spec_tiled,
