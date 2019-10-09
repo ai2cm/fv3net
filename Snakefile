@@ -18,9 +18,13 @@ fv_srf_wnd_prefix           = "data/extracted/{timestep}/{timestep}.fv_srf_wnd_c
 fv_tracer_prefix            = "data/extracted/{timestep}/{timestep}.fv_tracer_coarse.res"
 fv_core_prefix              = "data/extracted/{timestep}/{timestep}.fv_core_coarse.res"
 
-# Grid and land surface information
-c384_grid_spec              = "data/grid_spec/c384.nc"
-c96_orographic_data         = "data/oro_data/c96/"
+# Grid Specifications
+c3072_grid_spec_tiled = "data/raw/grid_specs/c3072"
+c384_grid_spec_tiled  = "data/raw/grid_specs/c384"
+c384_grid_spec        = "data/grid_spec/c384.nc"
+
+# Orographic Data
+c96_orographic_data   = "data/oro_data/c96/"
 
 # Intermediate steps
 coarsened_sfc_data_wildcard = "data/coarsened/c3072/{timestep}.sfc_data.nc"
@@ -77,7 +81,7 @@ rule prepare_c96_restart_directory:
 
 
 rule coarsen_sfc_data:
-    input: grid="data/raw/grid_specs/c3072",
+    input: grid=c3072_grid_spec_tiled,
            time=EXTRACTED
     output: coarsened_sfc_data_wildcard
     shell: """
@@ -90,15 +94,16 @@ rule coarsen_sfc_data:
     """
 
 rule download_c3072_grid_spec:
-    output: directory("data/raw/grid_specs/c3072")
+    output: directory(c3072_grid_spec_tiled)
     shell: """
     rm -rf {output}
     mkdir -p {output}
     gsutil -m cp {c3072_grid_spec} {output}/
     """
 
+
 rule download_c384_grid_spec:
-    output: directory("data/raw/grid_specs/c384")
+    output: directory(c384_grid_spec_tiled)
     shell: """
     rm -rf {output}
     mkdir -p {output}
@@ -107,7 +112,7 @@ rule download_c384_grid_spec:
     """
 
 rule combine_grid_spec:
-    input: "data/raw/grid_specs/c384"
+    input: c384_grid_spec_tiled
     output: c384_grid_spec
     run:
         from src.data.cubedsphere import open_cubed_sphere
