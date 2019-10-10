@@ -47,3 +47,12 @@ sources:
         project: 'vcm-ml'
         access: read_only
       urlpath: 'gcs://vcm-ml-data/2019-09-10-GFDL-SHiELD-15-minute-2-days.zarr'
+
+  2019-10-09-SAM-SOCRATES_tend_9216x4608x74_7.5s_4km_nudge24h:
+    description: 5 day forecast for SOCRATES with 24 hour nudging to ERA5, with bug fixes for tendency calculations, from Marat Khairoutdinov.
+    driver: zarr
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: 'gcs://vcm-ml-data/2019-10-09-SAM-SOCRATES_tend_9216x4608x74_7.5s_4km_nudge24h.zarr'
