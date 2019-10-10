@@ -16,14 +16,17 @@ def remove_duplicate_coords(ds):
 
 
 # TODO(Spencer): write a test of this function
-def read_tile(prefix, tile, num_subtiles=16):
+def read_tile(prefix, tile, pattern='{prefix}.tile{tile:d}.nc.{subtile:04d}',
+              num_subtiles=16):
     subtiles = range(num_subtiles)
-    filenames = [f'{prefix}.tile{tile:d}.nc.{proc:04d}' for proc in subtiles]
-    return xr.open_mfdataset(
+    filenames = [pattern.format(prefix=prefix, tile=tile, subtile=subtile) 
+                 for subtile in subtiles]
+    ds = xr.open_mfdataset(
         filenames,
         data_vars='minimal',
         combine='by_coords'
     )
+    return remove_duplicate_coords(ds)
 
 
 # TODO(Spencer): write a test of this function
@@ -34,7 +37,6 @@ def open_cubed_sphere(prefix: str, **kwargs):
         prefix: the beginning part of the filename before the `.tile1.nc.0001`
           part
     """
-    tile_index = pd.Index(range(1, NUM_TILES + 1), name='tiles')
+    tile_index = pd.Index(range(1, NUM_TILES + 1), name='tile')
     tiles = [read_tile(prefix, tile, **kwargs) for tile in tile_index]
-    combined = xr.concat(tiles, dim=tile_index)
-    return remove_duplicate_coords(combined)
+    return xr.concat(tiles, dim=tile_index)

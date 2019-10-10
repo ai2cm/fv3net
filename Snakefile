@@ -87,7 +87,7 @@ rule prepare_restart_directory:
             ('fv_core.res', open_cubed_sphere(params.core)),
             ('fv_srf_wnd.res', open_cubed_sphere(params.srf_wnd)),
             ('sfc_data', xr.open_dataset(input.sfc_data)),
-            ('grid_spec', xr.open_mfdataset(sorted(input.grid_spec), concat_dim='tiles'))
+            ('grid_spec', xr.open_mfdataset(sorted(input.grid_spec), concat_dim='tile'))
         ]
 
         make_experiment(

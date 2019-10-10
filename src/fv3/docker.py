@@ -40,7 +40,7 @@ def save_tiles_separately(sfc_data, prefix, output_directory):
     for i in range(6):
         output_path = join(output_directory, f"{prefix}.tile{i+1}.nc")
         logging.info(f"saving data to {output_path}")
-        sfc_data.isel(tiles=i).to_netcdf(output_path)
+        sfc_data.isel(tile=i).to_netcdf(output_path)
 
 
 def rundir(directory):
