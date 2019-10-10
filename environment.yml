@@ -44,4 +44,5 @@ dependencies:
       - recommonmark
       - pytorch-ignite
       - sphinx_rtd_theme
+      - google-cloud-storage
 

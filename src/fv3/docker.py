@@ -1,26 +1,45 @@
 import os
 import sys
-from subprocess import call
-from os.path import abspath, join
-from shutil import copytree, copy
+from subprocess import call, check_call
+from os.path import abspath, join, basename
+import os
+from shutil import copytree, copy, rmtree
+import logging
+from src import utils
 
 
-def make_experiment(name, sfc_data, namelist_path, template_dir):
-    dir=f"experiments/{name}"
-    if os.path.exists(dir):
-        return dir
+def copy_files_into_directory(files, directory):
+    for file in files:
+        dest = join(directory, basename(file))
+        copy(file, dest)
+
+
+def make_experiment(dir,  args, namelist_path='', template_dir='', oro_paths=(),
+                    vertical_grid=None):
+    rmtree(dir)
     rundir=f"{dir}/rundir"
     input_dir=f"{dir}/rundir/INPUT"
     copytree(template_dir, dir)
-    save_surface_data(sfc_data, output_directory=input_dir)
+
+    for prefix, combined_tile_data in args:
+        float_data = utils.cast_doubles_to_floats(combined_tile_data)
+        save_tiles_separately(
+            float_data, prefix, output_directory=input_dir)
+
     copy(namelist_path, join(rundir, 'input.nml'))
+    copy_files_into_directory(oro_paths, input_dir)
+
+    if vertical_grid is not None:
+        copy(vertical_grid, join(rundir, 'fv_core.res.nc'))
 
     return dir
 
 
-def save_surface_data(sfc_data, output_directory):
+def save_tiles_separately(sfc_data, prefix, output_directory):
+    #TODO: move to src.data.cubedsphere
     for i in range(6):
-        output_path = join(output_directory, f"sfc_data.tile{i+1}.nc")
+        output_path = join(output_directory, f"{prefix}.tile{i+1}.nc")
+        logging.info(f"saving data to {output_path}")
         sfc_data.isel(tiles=i).to_netcdf(output_path)
 
 
@@ -29,8 +48,8 @@ def rundir(directory):
 
 
 def run_experiment(directory):
-    return call([
-        'docker', 'run', '-d',
+    return check_call([
+        'docker', 'run', #'-d',
         '-v', rundir(directory) + ':/FV3/rundir',
         '-v', '/home/noahb/fv3gfs/inputdata/fv3gfs-data-docker/fix.v201702:/inputdata/fix.v201702',
         'fv3gfs-compiled'

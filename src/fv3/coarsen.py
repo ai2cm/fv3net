@@ -5,28 +5,26 @@ import dask.bag as db
 from os.path import join
 from toolz import curry
 import numpy as np
-
-
-sfc_data_pattern = "sfc_data.tile{tile}.nc.{proc:04d}"
+import logging
 
 
 def integerize(x):
     return np.round(x).astype(x.dtype)
 
 
-def coarsen_c3072_to_c48(data, method="sum"):
-    """Coarsen a tile of surface data from C3072 to C96
+#TODO: rename this to coarsen_by_area. It is not specific to surface data
+def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Dataset:
+    """Coarsen a tile of surface data
 
     The data is weighted by the area.
 
     Args:
         data: surface data with area included
-
+        factor: coarsening factor. For example, C3072 to C96 is a factor of 32.
     Returns:
         coarsened: coarse data without area
 
     """
-    factor = int(3072 / 48)
     area = data["area"]
     data_no_area = data.drop("area")
 
@@ -46,13 +44,12 @@ def coarsen_c3072_to_c48(data, method="sum"):
     )
 
 
-def load_tile_proc(tile, proc, prefix):
+#TODO: fix this name. it loads the data with area
+def load_tile_proc(tile, subtile, path, grid_path):
     grid_spec_to_data_renaming = {"grid_xt": "xaxis_1", "grid_yt": "yaxis_1"}
-    grid_path = join(prefix, f"grid_spec.tile{tile}.nc.{proc:04d}")
     grid = xr.open_dataset(grid_path)
 
     area = grid.area.rename(grid_spec_to_data_renaming)
-    path = join(prefix, sfc_data_pattern.format(tile=tile, proc=proc))
     pane = xr.open_dataset(path)
 
     data = xr.merge([pane, area])
@@ -67,6 +64,7 @@ def coarsen_coords(factor, tile):
     }
 
 
+#TODO use src.data.cubedsphere for this
 def _combine_subtiles(tiles):
     combined = xr.concat(tiles, dim="io").sum("io")
     return combined.assign_attrs(tiles[0].attrs)
@@ -74,12 +72,12 @@ def _combine_subtiles(tiles):
 
 def combine_subtiles(args_list):
     tile, args_list = args_list
-    tiles = [arg[1] for arg in args_list]
-    return tile, _combine_subtiles(tiles)
+    subtiles = [arg[1] for arg in args_list]
+    return tile, _combine_subtiles(subtiles).assign(tiles=tile)
 
 
 def tile(args):
-    return args[0][1]
+    return args[0][0]
 
 
 @curry
@@ -91,29 +89,27 @@ def save_tile_to_disk(output_dir, args):
     return output_path
 
 
-def coarsen_sfc_data_in_directory(
-    input_directory,
-    num_processors_per_tile=16,
-    num_tiles=6,
-    **kwargs,
-):
+def coarsen_sfc_data_in_directory(files, **kwargs):
+    """Process surface data in directory
 
-    procs = list(range(num_processors_per_tile))
-    tiles = list(range(1, num_tiles + 1))
+    Args:
+        files: list of (tile, subtile, sfc_data_path, grid_spec_path) tuples
 
-    args_list = product(procs, tiles)
+    Returns:
+        xarray of concatenated data
+    """
 
     def process(args):
-        proc, tile = args
-        data = load_tile_proc(tile, proc, input_directory)
-        coarsened = coarsen_c3072_to_c48(data, **kwargs)
-        return coarsened
+        logging.info(f"Coarsening {args}")
+        data = load_tile_proc(*args)
+        coarsened = coarsen_sfc_data(data, **kwargs)
+        return args, coarsened
 
-    bag = db.from_sequence(args_list)
-    coarse_tiles = bag.map(process)
+    bag = db.from_sequence(files)
 
     procs = (
-        db.zip(bag, coarse_tiles)
+        bag
+        .map(process)
         .groupby(tile)
         .map(combine_subtiles)
         .map(lambda x: x[1])
