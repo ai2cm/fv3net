@@ -14,8 +14,13 @@ def copy_files_into_directory(files, directory):
         copy(file, dest)
 
 
+def add_if_present(path, destination):
+    if path is not None:
+        copy(path, destination)
+
+
 def make_experiment(dir,  args, namelist_path='', template_dir='', oro_paths=(),
-                    vertical_grid=None):
+                    vertical_grid=None, diag_table=None):
     rmtree(dir)
     rundir=f"{dir}/rundir"
     input_dir=f"{dir}/rundir/INPUT"
@@ -28,10 +33,8 @@ def make_experiment(dir,  args, namelist_path='', template_dir='', oro_paths=(),
 
     copy(namelist_path, join(rundir, 'input.nml'))
     copy_files_into_directory(oro_paths, input_dir)
-
-    if vertical_grid is not None:
-        copy(vertical_grid, join(rundir, 'fv_core.res.nc'))
-
+    add_if_present(diag_table, join(rundir, 'diag_table'))
+    add_if_present(vertical_grid, join(input_dir, 'fv_core.res.nc'))
     return dir
 
 

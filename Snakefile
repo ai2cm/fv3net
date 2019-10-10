@@ -55,8 +55,7 @@ oro_data          = expand("data/raw/coarse-grid-and-orography-data/{{grid}}/oro
 # Intermediate steps
 coarsened_sfc_data_wildcard = "data/coarsened/{grid}/{timestep}.sfc_data.nc"
 restart_dir_wildcard        = "data/restart/{grid}/{timestep}/"
-restart_dir_done        = "data/restart/{grid}/{timestep}.done"
-
+restart_dir_done            = "data/restart/{grid}/{timestep}.done"
 
 
 c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
@@ -93,10 +92,11 @@ rule prepare_restart_directory:
         make_experiment(
             output[0], tiles_to_save,
             # TODO move these hardcoded strings to the top
-            namelist_path='assets/restart_c48.nml',
+            namelist_path='assets/restart_1_step.nml',
+            #diag_table='assets/restart_1_step_diag_table',
             template_dir = 'experiments/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/',
             oro_paths=input.oro_data,
-	    vertical_grid=vertical_grid
+	    vertical_grid=vertical_grid,
         )
 
 rule run_restart:
@@ -106,16 +106,26 @@ rule run_restart:
         from src.fv3 import run_experiment
         run_experiment(input[0])
 
+
+def coarsen_factor_from_grid(wildcards):
+    target_n = int(wildcards.grid[1:])
+    base_n = 3072
+    if base_n % target_n != 0:
+        raise ValueError("Target grid size must be a factor of 3072")
+    return base_n // target_n
+    
+
 rule coarsen_sfc_data:
     input: grid=c3072_grid_spec_tiled,
            time=EXTRACTED
     output: coarsened_sfc_data_wildcard
+    params: factor=coarsen_factor_from_grid
     shell: """
     python src/data/raw_step_directory_to_restart.py \
       --num-tiles 6 \
       --num-subtiles 16 \
       --method median \
-      --factor 32 \
+      --factor {params.factor} \
       {wildcards.timestep} {output}
     """
 
