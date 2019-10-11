@@ -92,8 +92,8 @@ rule prepare_restart_directory:
         make_experiment(
             output[0], tiles_to_save,
             # TODO move these hardcoded strings to the top
-            namelist_path='assets/restart_1_step.nml',
-            #diag_table='assets/restart_1_step_diag_table',
+            namelist_path='assets/c384_input.nml',
+            diag_table='assets/restart_1_step_diag_table',
             template_dir = 'experiments/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/',
             oro_paths=input.oro_data,
 	    vertical_grid=vertical_grid,
