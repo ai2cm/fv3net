@@ -14,8 +14,13 @@ def copy_files_into_directory(files, directory):
         copy(file, dest)
 
 
-def make_experiment(dir,  args, namelist_path='', template_dir='', oro_paths=(),
-                    vertical_grid=None):
+def add_if_present(path, destination):
+    if path is not None:
+        copy(path, destination)
+
+
+def make_experiment(dir,  args, template_dir='', oro_paths=(),
+                    vertical_grid=None, files_to_copy=()):
     rmtree(dir)
     rundir=f"{dir}/rundir"
     input_dir=f"{dir}/rundir/INPUT"
@@ -26,12 +31,12 @@ def make_experiment(dir,  args, namelist_path='', template_dir='', oro_paths=(),
         save_tiles_separately(
             float_data, prefix, output_directory=input_dir)
 
-    copy(namelist_path, join(rundir, 'input.nml'))
     copy_files_into_directory(oro_paths, input_dir)
+    
+    for (src, dst) in files_to_copy:
+        add_if_present(src, join(rundir, dst))
 
-    if vertical_grid is not None:
-        copy(vertical_grid, join(rundir, 'fv_core.res.nc'))
-
+    add_if_present(vertical_grid, join(input_dir, 'fv_core.res.nc'))
     return dir
 
 
