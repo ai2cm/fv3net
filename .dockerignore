@@ -1,0 +1,9 @@
+.snakemake/*
+.vscode/*
+data/*
+notebooks/*
+
+**/*.zarr
+**/*.nc
+**/*.pdf
+**/*.png
