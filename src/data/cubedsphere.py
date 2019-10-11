@@ -14,7 +14,8 @@ def combine_subtiles(subtiles):
     broadcasts all the variables to a common set of dimensions, dramatically
     increasing the size of the dataset.  In some cases this can be avoided by
     using data_vars='minimal'; however it then fails for combining data
-    variables that contain missing values.
+    variables that contain missing values and is also slow due to the fact that
+    it does equality checks between variables it combines.
 
     To work around this issue, we combine the data variables of the dataset one
     at a time with the default data_vars='all', and then merge them back
@@ -46,6 +47,12 @@ def remove_duplicate_coords(ds):
 
 
 def open_cubed_sphere(prefix: str, **kwargs):
+    """Open cubed-sphere data
+
+     Args:
+         prefix: the beginning part of the filename before the `.tile1.nc.0001`
+           part
+     """
     tiles = []
     for tile in range(1, NUM_TILES + 1):
         files = subtile_filenames(prefix, tile, **kwargs)
