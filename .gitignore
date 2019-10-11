@@ -100,4 +100,7 @@ bilinear*
 *.nc
 scratch/*
 
+# snakemake
+.snakemake/*
+
 
