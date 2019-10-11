@@ -1,10 +1,40 @@
 """Tools for working with cubedsphere data"""
-import pandas as pd
 import xarray as xr
 import numpy as np
 
 
 NUM_TILES = 6
+SUBTILE_FILE_PATTERN = '{prefix}.tile{tile:d}.nc.{subtile:04d}'
+
+
+# TODO: write a test for this method
+def combine_subtiles(subtiles):
+    """Combine subtiles of a cubed-sphere dataset
+    In v.12 of xarray, with data_vars='all' by default, combined_by_coords
+    broadcasts all the variables to a common set of dimensions, dramatically
+    increasing the size of the dataset.  In some cases this can be avoided by
+    using data_vars='minimal'; however it then fails for combining data
+    variables that contain missing values.
+
+    To work around this issue, we combine the data variables of the dataset one
+    at a time with the default data_vars='all', and then merge them back
+    together.
+    """
+    sample_subtile = subtiles[0]
+    output_vars = []
+    for key in sample_subtile:
+        # combine_by_coords currently does not work on DataArrays; see
+        # https://github.com/pydata/xarray/issues/3248.
+        subtiles_for_var = [subtile[key].to_dataset() for subtile in subtiles]
+        combined = xr.combine_by_coords(subtiles_for_var)
+        output_vars.append(combined)
+    return xr.merge(output_vars)
+
+
+def subtile_filenames(prefix, tile, pattern=SUBTILE_FILE_PATTERN,
+                      num_subtiles=16):
+    for subtile in range(num_subtiles):
+        yield pattern.format(prefix=prefix, tile=tile, subtile=subtile)
 
 
 def remove_duplicate_coords(ds):
@@ -15,28 +45,11 @@ def remove_duplicate_coords(ds):
     return ds.isel(deduped_indices)
 
 
-# TODO(Spencer): write a test of this function
-def read_tile(prefix, tile, pattern='{prefix}.tile{tile:d}.nc.{subtile:04d}',
-              num_subtiles=16):
-    subtiles = range(num_subtiles)
-    filenames = [pattern.format(prefix=prefix, tile=tile, subtile=subtile) 
-                 for subtile in subtiles]
-    ds = xr.open_mfdataset(
-        filenames,
-        data_vars='minimal',
-        combine='by_coords'
-    )
-    return remove_duplicate_coords(ds)
-
-
-# TODO(Spencer): write a test of this function
 def open_cubed_sphere(prefix: str, **kwargs):
-    """Open cubed-sphere data
-
-    Args:
-        prefix: the beginning part of the filename before the `.tile1.nc.0001`
-          part
-    """
-    tile_index = pd.Index(range(1, NUM_TILES + 1), name='tile')
-    tiles = [read_tile(prefix, tile, **kwargs) for tile in tile_index]
-    return xr.concat(tiles, dim=tile_index)
+    tiles = []
+    for tile in range(1, NUM_TILES + 1):
+        files = subtile_filenames(prefix, tile, **kwargs)
+        subtiles = [xr.open_dataset(file, chunks={}) for file in files]
+        combined = combine_subtiles(subtiles).assign_coords(tile=tile)
+        tiles.append(remove_duplicate_coords(combined))
+    return xr.concat(tiles, dim='tile')
