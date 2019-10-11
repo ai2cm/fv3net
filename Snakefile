@@ -92,14 +92,14 @@ rule prepare_restart_directory:
 
         make_experiment(
             output[0], tiles_to_save,
-            # TODO move these hardcoded strings to the top
-            namelist_path='assets/c384_input.nml',
-            diag_table='assets/restart_1_step_diag_table',
             template_dir = template_dir,
             oro_paths=input.oro_data,
 	    vertical_grid=vertical_grid,
             files_to_copy=[
-                ('assets/c384_submit_job.sh', 'submit_job.sh')
+                # TODO move these hardcoded strings to the top
+                ('assets/c384_submit_job.sh', 'submit_job.sh'),
+                ('assets/c384_input.nml', 'input.nml'),
+                ('assets/restart_1_step_diag_table', 'diag_table')
             ]
         )
 
