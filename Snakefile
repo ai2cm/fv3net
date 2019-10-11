@@ -97,6 +97,9 @@ rule prepare_restart_directory:
             template_dir = 'experiments/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/',
             oro_paths=input.oro_data,
 	    vertical_grid=vertical_grid,
+            files_to_copy=[
+                ('assets/c384_submit_job.sh', 'submit_job.sh')
+            ]
         )
 
 rule run_restart:
