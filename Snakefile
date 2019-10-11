@@ -21,11 +21,15 @@ tiles = [1, 2, 3, 4, 5, 6]
 subtiles = list(range(16))
 
 # Remote files
-bucket                  = "gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data"
-c3072_grid_spec_pattern = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/grid_spec.tile{tile}.nc.{subtile:04d}"
-c96_orographic_data_gcs = "gs://vcm-ml-data/2019-10-01-C96-oro-data.tar.gz"
-c384_grid_spec_url_gcs  = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/grid_spec_coarse.tile?.nc.*"
-grid_and_orography_data = "gs://vcm-ml-data/2019-10-05-coarse-grid-and-orography-data.tar"
+bucket                      = "gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data"
+c3072_grid_spec_pattern     = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/grid_spec.tile{tile}.nc.{subtile:04d}"
+c96_orographic_data_gcs     = "gs://vcm-ml-data/2019-10-01-C96-oro-data.tar.gz"
+c384_grid_spec_url_gcs      = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/grid_spec_coarse.tile?.nc.*"
+grid_and_orography_data     = "gs://vcm-ml-data/2019-10-05-coarse-grid-and-orography-data.tar"
+vertical_grid               = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/fv_core.res.nc")
+
+# Local Assets (under version control)
+oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.txt"
 
 # Wildcards for tarball and extracted data
 TAR                         = "data/raw/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/{timestep}.tar"
@@ -39,20 +43,16 @@ fv_core_prefix              = "data/extracted/{timestep}/{timestep}.fv_core_coar
 # Grid Specifications
 c3072_grid_spec_tiled       = "data/raw/grid_specs/C3072"
 
-# vertical grid
-vertical_grid = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/fv_core.res.nc")
-
 # template directory
-template_dir='data/raw/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/'
+template_dir                = 'data/raw/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/'
 
 # Orographic Data
-oro_and_grid_data = "data/raw/coarse-grid-and-orography-data"
-oro_manifest = "assets/coarse-grid-and-orography-data-manifest.txt"
+oro_and_grid_data           = "data/raw/coarse-grid-and-orography-data"
 with open(oro_manifest) as f:
-    oro_files = [line.strip() for line in f]
+    oro_files               = [line.strip() for line in f]
 
-grid_spec         = expand("data/raw/coarse-grid-and-orography-data/{{grid}}/{{grid}}_grid.tile{tile:d}.nc", tile=tiles)
-oro_data          = expand("data/raw/coarse-grid-and-orography-data/{{grid}}/oro_data.tile{tile:d}.nc", tile=tiles)
+grid_spec                   = expand("data/raw/coarse-grid-and-orography-data/{{grid}}/{{grid}}_grid.tile{tile:d}.nc", tile=tiles)
+oro_data                    = expand("data/raw/coarse-grid-and-orography-data/{{grid}}/oro_data.tile{tile:d}.nc", tile=tiles)
 
 # Intermediate steps
 coarsened_sfc_data_wildcard = "data/coarsened/{grid}/{timestep}.sfc_data.nc"
