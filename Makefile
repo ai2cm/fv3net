@@ -55,7 +55,7 @@ test_environment:
 
 
 snakemake:
-	snakemake 2> >(tee snakemake_log.txt)
+	bash -c 'snakemake 2> >(tee snakemake_log.txt)'
 
 #################################################################################
 # Self Documenting Commands                                                     #

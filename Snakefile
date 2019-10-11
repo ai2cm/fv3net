@@ -42,6 +42,8 @@ c3072_grid_spec_tiled       = "data/raw/grid_specs/C3072"
 # vertical grid
 vertical_grid = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/fv_core.res.nc")
 
+# template directory
+template_dir='data/raw/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/'
 
 # Orographic Data
 oro_and_grid_data = "data/raw/coarse-grid-and-orography-data"
@@ -68,7 +70,8 @@ rule prepare_restart_directory:
            extracted=EXTRACTED,
            oro_data=oro_data,
            grid_spec=grid_spec,
-           vertical_grid=vertical_grid
+           vertical_grid=vertical_grid,
+	   template_dir = template_dir
     params: srf_wnd=fv_srf_wnd_prefix,
             core=fv_core_prefix,
             tracer=fv_tracer_prefix
@@ -94,7 +97,7 @@ rule prepare_restart_directory:
             # TODO move these hardcoded strings to the top
             namelist_path='assets/c384_input.nml',
             diag_table='assets/restart_1_step_diag_table',
-            template_dir = 'experiments/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/',
+            template_dir = template_dir,
             oro_paths=input.oro_data,
 	    vertical_grid=vertical_grid,
             files_to_copy=[
@@ -131,6 +134,18 @@ rule coarsen_sfc_data:
       --factor {params.factor} \
       {wildcards.timestep} {output}
     """
+
+rule download_template_rundir:
+    output: directory(template_dir)
+    shell:"""
+    file=2019-10-02-restart_C48_from_C3072_rundir.tar
+    gsutil cp gs://vcm-ml-data/$file .
+    mkdir -p data/raw
+    tar -xf $file -C data/raw
+    rm -f $file
+    """
+        
+
 
 rule download_c3072_grid_spec:
     output: directory(c3072_grid_spec_tiled)

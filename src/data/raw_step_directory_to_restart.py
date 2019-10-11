@@ -51,7 +51,8 @@ logging.basicConfig(level=logging.INFO)
 
 
 def grid_and_sfc_data_paths(tile, subtile, time):
-    grid_path = f"data/raw/grid_specs/c3072/grid_spec.tile{tile:d}.nc.{subtile:04d}"
+    # TODO: remove these harcoded strings
+    grid_path = f"data/raw/grid_specs/C3072/grid_spec.tile{tile:d}.nc.{subtile:04d}"
     sfc_path = f"data/extracted/{time}/{time}.sfc_data.tile{tile:d}.nc.{subtile:04d}"
     return tile, subtile, sfc_path, grid_path
 
