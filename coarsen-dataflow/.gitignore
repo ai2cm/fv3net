@@ -1,0 +1,5 @@
+**.idea/
+**.mypy_cache
+**.pyc
+**MANIFEST
+**.egg-info/
