@@ -57,7 +57,7 @@ def run_experiment(directory):
         'docker', 'run', #'-d',
         '-v', rundir(directory) + ':/FV3/rundir',
         '-v', '/home/noahb/fv3gfs/inputdata/fv3gfs-data-docker/fix.v201702:/inputdata/fix.v201702',
-        'fv3gfs-compiled'
+        'us.gcr.io/vcm-ml/fv3gfs-compiled'
     ])
 
 
