@@ -73,7 +73,7 @@ def _combine_subtiles(tiles):
 def combine_subtiles(args_list):
     tile, args_list = args_list
     subtiles = [arg[1] for arg in args_list]
-    return tile, _combine_subtiles(subtiles).assign(tiles=tile)
+    return tile, _combine_subtiles(subtiles).assign(tile=tile)
 
 
 def tile(args):
@@ -115,4 +115,4 @@ def coarsen_sfc_data_in_directory(files, **kwargs):
         .map(lambda x: x[1])
     )
 
-    return xr.concat(procs.compute(), dim='tiles')
+    return xr.concat(procs.compute(), dim='tile')
