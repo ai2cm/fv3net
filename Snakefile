@@ -25,6 +25,8 @@ bucket                      = "gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C38
 c3072_grid_spec_pattern     = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics/grid_spec.tile{tile}.nc.{subtile:04d}"
 grid_and_orography_data     = "gs://vcm-ml-data/2019-10-05-coarse-grid-and-orography-data.tar"
 vertical_grid               = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/fv_core.res.nc")
+input_data                  = "gs://vcm-ml-public/2019-09-27-FV3GFS-docker-input-c48-LH-nml/fv3gfs-data-docker_2019-09-27.tar.gz"
+image_name                  = "us.gcr.io/vcm-ml/fv3gfs-compiled:latest"
 
 # Local Assets (under version control)
 oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.txt"
@@ -44,6 +46,9 @@ c3072_grid_spec_tiled       = "data/raw/grid_specs/C3072"
 # template directory
 template_dir                = 'data/raw/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/'
 
+# input directory
+input_data_dir              = "data/inputdata/"
+
 # Orographic Data
 oro_and_grid_data           = "data/raw/coarse-grid-and-orography-data"
 with open(oro_manifest) as f:
@@ -54,6 +59,7 @@ oro_data                    = expand("data/raw/coarse-grid-and-orography-data/{{
 
 # Intermediate steps
 coarsened_sfc_data_wildcard = "data/coarsened/{grid}/{timestep}.sfc_data.nc"
+fv3_image_pulled_done       = "fv3gfs-compiled.done"
 restart_dir_wildcard        = "data/restart/{grid}/{timestep}/"
 restart_dir_done            = "data/restart/{grid}/{timestep}.done"
 
@@ -69,6 +75,7 @@ rule prepare_restart_directory:
            oro_data=oro_data,
            grid_spec=grid_spec,
            vertical_grid=vertical_grid,
+           input_data_dir=input_data_dir,
 	   template_dir = template_dir
     params: srf_wnd=fv_srf_wnd_prefix,
             core=fv_core_prefix,
@@ -102,14 +109,18 @@ rule prepare_restart_directory:
                 ('assets/restart_1_step_diag_table', 'diag_table')
             ]
         )
+        
+rule pull_fv3_image:
+    output: touch(fv3_image_pulled_done)
+    shell: "docker pull {image_name}"
 
 rule run_restart:
-    input: restart_dir_wildcard
+    input: restart_dir_wildcard,
+           fv3_image_pulled_done
     output: touch(restart_dir_done)
     run:
         from src.fv3 import run_experiment
         run_experiment(input[0])
-
 
 def coarsen_factor_from_grid(wildcards):
     target_n = int(wildcards.grid[1:])
@@ -117,7 +128,6 @@ def coarsen_factor_from_grid(wildcards):
     if base_n % target_n != 0:
         raise ValueError("Target grid size must be a factor of 3072")
     return base_n // target_n
-    
 
 rule coarsen_sfc_data:
     input: grid=c3072_grid_spec_tiled,
@@ -142,8 +152,16 @@ rule download_template_rundir:
     tar -xf $file -C data/raw
     rm -f $file
     """
-        
 
+rule download_input_data:
+    output: directory(input_data_dir)
+    shell:"""
+    filename=fv3gfs-data-docker_2019-09-27.tar.gz
+    gsutil cp {input_data} .
+    mkdir -p {input_data_dir}
+    tar xzf $filename -C {input_data_dir}
+    rm -f $filename
+    """
 
 rule download_c3072_grid_spec:
     output: directory(c3072_grid_spec_tiled)
