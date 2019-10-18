@@ -6,12 +6,15 @@ import pytest
 from coarseflow.file_lister import GCSLister
 
 class FakeFileListerClient(Client):
-    def __init__(self, bucket_name: str, object_keys: Iterable[str]):
-        self.bucket = Bucket(self, name=bucket_name)
+    def __init__(self, object_keys: Iterable[str]):
         self.object_keys = object_keys
+
+    def get_bucket(self, name):
+        return self.bucket
 
     def list_blobs(
             self,
+            bucket_or_name,
             max_results=None,
             page_token=None,
             prefix=None,
@@ -20,7 +23,7 @@ class FakeFileListerClient(Client):
             projection="noAcl",
             fields=None,
     ) -> Iterator[Blob]:
-        bucket = self.bucket
+        bucket = Bucket(self, name=bucket_or_name)
         for key in self.object_keys:
 
             # check that blob starts with correct prefix
@@ -38,7 +41,7 @@ def test_gcs_lister_all_items():
                   'diff_subdir/new_blob.xyz',
                   'middle_blob.tar']
 
-    fake_client = FakeFileListerClient(bucket_name, blob_names)
+    fake_client = FakeFileListerClient(blob_names)
     expected = [f'gs://{bucket_name}/{bname}' for bname in blob_names]
 
     result = list(GCSLister(fake_client, bucket_name).list())
@@ -57,7 +60,7 @@ def test_gcs_lister_use_prefix():
                          'subdir/blob2.nc']
     prefix = 'subdir/'
 
-    fake_client = FakeFileListerClient(bucket_name, blob_names)
+    fake_client = FakeFileListerClient(blob_names)
     expected = [f'gs://{bucket_name}/{bname}' for bname in subdir_blob_names]
 
     result = list(GCSLister(fake_client, bucket_name).list(prefix=prefix))
@@ -76,7 +79,7 @@ def test_gcs_lister_file_ext():
                            'middle_blob.tar']
     file_ext = '.tar'
 
-    fake_client = FakeFileListerClient(bucket_name, blob_names)
+    fake_client = FakeFileListerClient(blob_names)
     expected = [f'gs://{bucket_name}/{bname}' for bname in file_ext_blob_names]
 
     result = list(GCSLister(fake_client, bucket_name).list(file_extension=file_ext))
@@ -97,7 +100,7 @@ def test_gcs_lister_file_ext_and_prefix():
     file_ext = '.nc'
     prefix = 'subdir/'
 
-    fake_client = FakeFileListerClient(bucket_name, blob_names)
+    fake_client = FakeFileListerClient(blob_names)
     expected = [f'gs://{bucket_name}/{bname}' for bname in file_ext_blob_names]
 
     result = list(GCSLister(fake_client, bucket_name).list(file_extension=file_ext,

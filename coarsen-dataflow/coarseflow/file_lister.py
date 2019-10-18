@@ -6,7 +6,7 @@ from google.cloud.storage import Client  # type: ignore
 
 class FileLister(ABC):
     @abstractmethod
-    def list(self) -> Iterable[str]:
+    def list(self, prefix=None, file_extension=None) -> Iterable[str]:
         pass
 
 
@@ -25,4 +25,5 @@ class GCSLister(FileLister):
                 if file_extension.strip('.') != blob_ext_name:
                     continue
             
+            # TODO: Should pass the blob not the GS filename....
             yield f"gs://{blob.bucket.name}/{blob.name}"
