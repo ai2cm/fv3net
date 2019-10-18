@@ -1,10 +1,12 @@
 from src.data import save_zarr
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 from os.path import join
+from src.data import cubedsphere
+
+
 GS = GSRemoteProvider(keep_local=True)
 
 # Wildcard values
-
 trained_models = [
     "models/random_forest/default.pkl"
 ]
@@ -14,11 +16,45 @@ timesteps = [
 ]
 
 grids = [
-    "C384"
+    "C48", "C384"
 ]
 
 tiles = [1, 2, 3, 4, 5, 6]
 subtiles = list(range(16))
+
+
+def raw_restart_filenames(wildcards):
+    timestep = wildcards['timestep']
+    category = wildcards['category']
+    return cubedsphere.all_filenames(join(
+        'data/extracted',
+        f'{timestep}',
+        f'{timestep}.{category}')
+    )
+
+
+def coarsened_restart_filenames(wildcards):
+    timestep = wildcards['timestep']
+    grid = wildcards['grid']
+    category = wildcards['category']
+    return [f'data/coarsened/{grid}/{timestep}/{category}.tile{tile}.nc' for
+            tile in tiles]
+
+
+RESTART_CATEGORIES = [
+    'fv_core.res',
+    'fv_srf_wnd.res',
+    'fv_tracer.res',
+    'sfc_data'
+]
+
+OUTPUT_CATEGORY_NAMES = {
+    'fv_core.res': 'fv_core_coarse.res',
+    'fv_srf_wnd.res': 'fv_srf_wnd_coarse.res',
+    'fv_tracer.res': 'fv_tracer_coarse.res',
+    'sfc_data': 'sfc_data'
+}
+
 
 # Remote files
 bucket                      = "gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data"
@@ -42,6 +78,8 @@ fv_core_prefix              = "data/extracted/{timestep}/{timestep}.fv_core_coar
 
 # Grid Specifications
 c3072_grid_spec_tiled       = "data/raw/grid_specs/C3072"
+native_grid_spec            = [GS.remote(f'gs://vcm-ml-data/2019-10-16-C3072-grid-spec/grid_spec.tile{tile:d}.nc')
+                               for tile in tiles]
 
 # template directory
 template_dir                = 'data/raw/2019-10-02-restart_C48_from_C3072_rundir/restart_C48_from_C3072_nosfc/'
@@ -63,12 +101,12 @@ fv3_image_pulled_done       = "fv3gfs-compiled.done"
 restart_dir_wildcard        = "data/restart/{grid}/{timestep}/"
 restart_dir_done            = "data/restart/{grid}/{timestep}.done"
 
-
 c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
+
 
 rule all:
     input: expand(restart_dir_done, timestep=timesteps, grid=grids)
-
+        
 rule prepare_restart_directory:
     input: sfc_data=coarsened_sfc_data_wildcard,
            extracted=EXTRACTED,
@@ -113,7 +151,7 @@ rule prepare_restart_directory:
 rule pull_fv3_image:
     output: touch(fv3_image_pulled_done)
     shell: "docker pull {image_name}"
-
+           
 rule run_restart:
     input: restart_dir_wildcard,
            fv3_image_pulled_done
@@ -189,9 +227,18 @@ rule download_oro_and_grid:
     """
 
 rule extract_timestep:
-    output: directory(EXTRACTED)
-    input: TAR
-    shell: "path=$(pwd)/{input};  mkdir -p {output} && cd {output} && tar xf $path"
+    output:
+        raw_restart_filenames({'timestep': '{timestep}', 'category': 'fv_core_coarse.res'}),
+        raw_restart_filenames({'timestep': '{timestep}', 'category': 'fv_srf_wnd_coarse.res'}),
+        raw_restart_filenames({'timestep': '{timestep}', 'category': 'fv_tracer_coarse.res'}),
+        raw_restart_filenames({'timestep': '{timestep}', 'category': 'sfc_data'}),
+        'data/extracted/{timestep}/{timestep}.coupler.res'
+    params:
+        target_directory='data/extracted/{timestep}'
+    input:
+        TAR
+    shell:
+        "tar -xvf {input} -C {params.target_directory}"
 
 rule convert_to_zarr:
     output: directory(save_zarr.output_2d), directory(save_zarr.output_3d)
@@ -201,3 +248,121 @@ rule train_model:
     input: config="configurations/{model_type}/{options}.yaml"
     output: "models/{model_type}/{options}.pkl"
     shell: "python -m src.models.{wildcards.model_type}.train --options {input.config} {output}"
+
+
+rule coarsen_grid_spec:
+    input:
+        native_grid_spec
+    output:
+        coarsened_grid_spec='data/coarsened/coarsened_grid_spec.nc'
+    run:
+        import pandas as pd
+        import xarray as xr
+        
+        from src.data.cubedsphere import open_cubed_sphere
+        from src.fv3.coarsen import block_edge_sum, block_sum        
+
+        tile = pd.Index(tiles, name='tile')
+        native_grid_spec = xr.open_mfdataset(input, concat_dim=tile)
+
+        coarse_dx = block_edge_sum(native_grid_spec.dx, 384, 'grid_xt', 'grid_y', 'x')
+        coarse_dy = block_edge_sum(native_grid_spec.dy, 384, 'grid_x', 'grid_yt', 'y')
+        coarse_area = block_sum(native_grid_spec.area, 384, 'grid_xt', 'grid_yt')
+        result = xr.merge([
+            coarse_dx.rename(native_grid_spec.dx.name),
+            coarse_dy.rename(native_grid_spec.dy.name),
+            coarse_area.rename(native_grid_spec.area.name)
+        ])
+
+        result.to_netcdf(output.coarsened_grid_spec)
+
+
+def sync_dimension_order(a, b):
+    for var in a:
+        a[var] = a[var].transpose(*b[var].dims)
+    return a
+        
+
+rule coarsen_restart_category:
+    input:
+        restart_files=rules.extract_timestep.output,
+        coarse_grid_spec=rules.coarsen_grid_spec.output.coarsened_grid_spec,
+        native_grid_spec=native_grid_spec
+    output:
+        coarsened_restart_filenames(
+            {'timestep': '{timestep}',
+             'grid': '{grid}',
+             'category': '{category}'}
+        )
+    run:
+        import pandas as pd
+        import xarray as xr
+
+        from src.data.cubedsphere import open_cubed_sphere
+        from src.fv3.coarsen import (
+            coarse_grain_fv_core,
+            coarse_grain_fv_srf_wnd,
+            coarse_grain_fv_tracer,
+            coarse_grain_sfc_data
+        )
+
+        timestep = wildcards['timestep']
+        native_category_name = wildcards['category']
+        target_resolution = int(wildcards['grid'][1:])
+
+        category = OUTPUT_CATEGORY_NAMES[native_category_name]
+        
+        grid_spec = xr.open_dataset(input.coarse_grid_spec, chunks={'tile': 1})
+        tile = pd.Index(tiles, name='tile')
+        native_grid_spec = xr.open_mfdataset(input.native_grid_spec, concat_dim=tile)
+        source = open_cubed_sphere(f'data/extracted/{timestep}/{timestep}.{category}')
+
+        if category == 'fv_core_coarse.res':
+            coarsened = coarse_grain_fv_core(
+                source,
+                source.delp,
+                grid_spec.area.rename({'grid_xt': 'xaxis_1', 'grid_yt': 'yaxis_2'}),
+                grid_spec.dx.rename({'grid_xt': 'xaxis_1', 'grid_y': 'yaxis_1'}),
+                grid_spec.dy.rename({'grid_x': 'xaxis_2', 'grid_yt': 'yaxis_2'}), 
+                target_resolution
+            )
+        elif category == 'fv_srf_wnd_coarse.res':
+            coarsened = coarse_grain_fv_srf_wnd(
+                source, 
+                grid_spec.area.rename({'grid_xt': 'xaxis_1', 'grid_yt': 'yaxis_1'}),
+                target_resolution
+            )
+        elif category == 'fv_tracer_coarse.res':
+            fv_core = open_cubed_sphere(f'data/extracted/{timestep}/{timestep}.fv_core_coarse.res')
+            coarsened = coarse_grain_fv_tracer(
+                source,
+                fv_core.delp.rename({'yaxis_2': 'yaxis_1'}),
+                grid_spec.area.rename({'grid_xt': 'xaxis_1', 'grid_yt': 'yaxis_1'}),
+                target_resolution
+            )
+        elif category == 'sfc_data':
+            coarsened = coarse_grain_sfc_data(
+                source, 
+                native_grid_spec.area.rename({'grid_xt': 'xaxis_1', 'grid_yt': 'yaxis_1'}),
+                target_resolution
+            )
+        else:
+            raise ValueError(
+                f"Cannot coarse grain files for unknown 'category',"
+                "{category}."
+            )
+
+        coarsened = sync_dimension_order(coarsened, source)
+        for tile, file in zip(tiles, output):
+            coarsened.sel(tile=tile).drop('tile').to_netcdf(file)
+
+
+rule coarsen_all_restart_data:
+    input:
+        expand(
+            ['data/coarsened/{{grid}}/{{timestep}}/{{category}}.tile{tile}.nc'.format(tile=tile) for
+             tile in tiles],
+            timestep=timesteps,
+            grid=grids,
+            category=RESTART_CATEGORIES
+        )

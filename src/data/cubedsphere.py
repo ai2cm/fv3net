@@ -38,6 +38,16 @@ def subtile_filenames(prefix, tile, pattern=SUBTILE_FILE_PATTERN,
         yield pattern.format(prefix=prefix, tile=tile, subtile=subtile)
 
 
+def all_filenames(prefix, pattern=SUBTILE_FILE_PATTERN,
+                  num_subtiles=16):
+    filenames = []
+    for tile in range(1, NUM_TILES + 1):
+        filenames.extend(subtile_filenames(prefix, tile, pattern,
+                                           num_subtiles)
+        )
+    return filenames
+
+
 def remove_duplicate_coords(ds):
     deduped_indices = {}
     for dim in ds.dims:
