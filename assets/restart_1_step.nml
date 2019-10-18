@@ -38,14 +38,12 @@
  &fv_core_nml
        layout   = 1,1
        io_layout = 1,1
-       npx      = 49
-       npy      = 49
+       npx      = 385
+       npy      = 385
        ntiles   = 6,
        !npz_rst    = 79
        external_eta=.true.
        npz    = 79
-       npz_rst    = 79
-       npz    = 63
        !grid_type = -1
        make_nh = .F.
        fv_debug = .F.
@@ -110,12 +108,12 @@
  &coupler_nml
        months = 0
        days  = 0
-       hours = 2
+       hours = 0
        minutes = 0
-       seconds = 0
-       dt_atmos = 450
-       dt_ocean = 450
-       current_date =  2016,08,02,00,0,0
+       seconds = 900
+       dt_atmos = 900
+       dt_ocean = 900
+       !current_date =  2016,08,02,00,0,0
        calendar = 'julian'
        memuse_verbose = .T.
        atmos_nthreads = 1
