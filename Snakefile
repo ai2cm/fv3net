@@ -106,7 +106,7 @@ c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
 
 rule all:
     input: expand(restart_dir_done, timestep=timesteps, grid=grids)
-        
+
 rule prepare_restart_directory:
     input: sfc_data=coarsened_sfc_data_wildcard,
            extracted=EXTRACTED,
@@ -151,7 +151,7 @@ rule prepare_restart_directory:
 rule pull_fv3_image:
     output: touch(fv3_image_pulled_done)
     shell: "docker pull {image_name}"
-           
+
 rule run_restart:
     input: restart_dir_wildcard,
            fv3_image_pulled_done
