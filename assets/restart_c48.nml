@@ -44,6 +44,8 @@
        !npz_rst    = 79
        external_eta=.true.
        npz    = 79
+       npz_rst    = 79
+       npz    = 63
        !grid_type = -1
        make_nh = .F.
        fv_debug = .F.
