@@ -27,6 +27,7 @@ dependencies:
   - pytest
   - xgcm
   - fire=0.2
+  - dvc
   - pip
   - pip:
       - -e .

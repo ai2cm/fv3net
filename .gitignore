@@ -91,3 +91,7 @@ jupyterhub*
 
 # Interpolation weight files
 bilinear*
+
+# MISC
+*.nc
+scratch/*

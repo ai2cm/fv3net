@@ -2,8 +2,11 @@ import numpy as np
 from scipy.interpolate import interp1d
 from numba import jit
 import xarray as xr
+import zarr as zr
 import xesmf as xe
 from tqdm import tqdm
+
+from src.data import replace_esmf_coords_reg_latlon
 
 
 ### Vertical interpolation
@@ -119,13 +122,20 @@ def fregrid_to_esmf_compatible_coords(data: xr.Dataset) -> xr.Dataset:
 
 ### Horizontal interpolation
 def regrid_horizontal(
-    data_in, d_lon_out=1.0, d_lat_out=1.0, method="conservative"
+    data_in, d_lon_out=1.0, d_lat_out=1.0, method="conservative",
+    prev_regrid_dataset=None
 ):
     """Interpolate horizontally from one rectangular grid to another
     
     Args:
-      data_3d: Raw dataset to be regridded
-      ddeg_out: Grid spacing of target grid in degrees
+      data_in: Raw dataset to be regridded
+      d_lon_out: longitude grid spacing (in degrees)
+      d_lat_out: latitude grid spacing (in degrees)
+      method: ESMF regridding method to use
+      prev_regrid_dataset: Dataset from previous regridding operation
+        to compare with source data in.  If variables in source are
+        not present in prev_regrid_dataset, then they will be regridded
+        and added to the output.
     """
 
     data_in = fregrid_to_esmf_compatible_coords(data_in)
@@ -142,31 +152,69 @@ def regrid_horizontal(
     # Regrid each variable in original dataset
     regridded_das = []
     for var in contiguous_space:
+        
+        if prev_regrid_dataset is not None and var not in contiguous_space.coords:
+            var_finished = _var_finished_regridding(prev_regrid_dataset, var)
+            if var_finished:
+                continue
+        
         da = contiguous_space[var]
         if "lon" in da.coords and "lat" in da.coords:
             regridded_das.append(regridder(da))
     return xr.Dataset({da.name: da for da in regridded_das})
 
+def _var_finished_regridding(prev_regrid_dataset: zr.hierarchy.Group, var: str):
+    """ Checks if variable is present in output zarr and if it finished regridding."""
+    if var in prev_regrid_dataset:
+        prev_var = prev_regrid_dataset[var]
+        is_finished_regrid = prev_var.nchunks == prev_var.nchunks_initialized
+
+        if not is_finished_regrid:
+            print(f'Removing partially regridded variable: {var}')
+            prev_regrid_dataset.store.rmdir('/' + var)
+    else:
+        is_finished_regrid = False
+    
+    return is_finished_regrid
 
 def main():
     from src.data import open_dataset
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-3d", default=None)
+    parser.add_argument('dataset_tag')
     parser.add_argument("output_zarr")
+    parser.add_argument('-f', '--force_regrid', action='store_true')
+    parser.add_argument("--data-3d", default=None)
     args = parser.parse_args()
 
     print("Opening data")
     if args.data_3d:
         data_3d = xr.open_zarr(args.data_3d)
     else:
-        data_3d = open_dataset("gfdl")
+        data_3d = open_dataset(args.dataset_tag)
 
-    data_out = regrid_horizontal(data_3d)
+    if args.force_regrid:
+        print("Regridding all variables from target dataset.")
+        partial_zarr_output = None
+        open_mode = 'w'
+    else:
+        open_mode = 'a'
+        try:
+            partial_zarr_output = zr.open(args.output_zarr, mode='a')
+            print(f"Regridding variables not already present in: {args.output_zarr}")
+        except ValueError:
+            # TODO: debug statement about not finding previous partial regrid output
+            partial_zarr_output = None
+
+    data_out = regrid_horizontal(data_3d, prev_regrid_dataset=partial_zarr_output)
+
+    # TODO: Probably should put the coordinate change somewhere in regrid_horizontal
+    data_out = replace_esmf_coords_reg_latlon(data_out)
+    
     print("Output data:")
     print(data_out)
-    data_out.to_zarr(args.output_zarr, mode="w")
+    data_out.to_zarr(args.output_zarr, mode=open_mode)
 
 
 if __name__ == "__main__":

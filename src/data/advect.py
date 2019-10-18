@@ -93,7 +93,8 @@ def interpolate_1d(x, xp, *args, dim="pfull"):
     assert len(x.dims) == 1
     output_dim = x.dims[0]
 
-    first_arg = args[0]
+    # Unused, TODO: Remove
+    # first_arg = args[0]
 
     return xr.apply_ufunc(
         metpy_interpolate,
@@ -251,10 +252,10 @@ def lagrangian_update_dask(phi, lat, lon, dz, u, v, w, **kwargs):
 
 
 def lagrangian_update_xarray(data_3d, advect_var="temp", **kwargs):
-    dim_order = ["time", "pfull", "lat", "lon"]
+    dim_order = ["time", "pfull", "y", "x"]
     ds = data_3d.assign(dz=data_3d.dz.transpose(*dim_order))
     args = [
-        ds[key].data for key in [advect_var, "lat", "lon", "dz", "u", "v", "w"]
+        ds[key].data for key in [advect_var, "y", "x", "dz", "u", "v", "w"]
     ]
     dask = lagrangian_update_dask(*args, **kwargs)
     return xr.DataArray(
@@ -295,9 +296,11 @@ def height_interfaces(dz: xr.DataArray, zs: xr.DataArray = 0) -> xr.DataArray:
         height: height of the vertical levels
 
     """
-    pfull = dz["pfull"]
+    # TODO: Unused, probably remove -- AP
+    # pfull = dz["pfull"]
+
     dz = dz.drop("pfull")
-    zero = xr.zeros_like(dz.isel(pfull=0))
+    zero = xr.zeros_like(dz.isel(pfull=slice(0, 1)))
     dz = xr.concat([dz, zero], dim="pfull")
     zint = reverse_dim(reverse_dim(dz).cumsum("pfull")) + zs
 
@@ -356,7 +359,7 @@ def apparent_source(scalar, z_centered, dz, advection_tendency):
 
 def compute_storage_and_advection(data_3d, tracers, time_step):
     data_vars = {}
-    z_c = height_centered(data_3d.dz, data_3d.zs)
+    z_c = height_centered(data_3d['dz'], data_3d['zs'])
     for key in tracers:
         data_vars["advection_" + key] = advection_fixed_height(data_3d, key)
         storage = storage_fixed_height(
@@ -386,7 +389,7 @@ def main():
     sources = compute_storage_and_advection(
         data_3d, tracers=advect_variables, time_step=args.time_step
     )
-    sources.to_zarr(args.output_zarr, mode="w")
+    sources.to_zarr(args.output_zarr, mode="a")
 
 
 if __name__ == "__main__":
