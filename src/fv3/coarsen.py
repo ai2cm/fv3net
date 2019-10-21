@@ -656,5 +656,5 @@ def coarse_grain_sfc_data(ds, area, target_resolution):
         y_dim='yaxis_1'
     )
 
-    result['slmsk'] = np.round(result.slmsk).astype(result.slmsk.dtype)
+    result['slmsk'] = integerize(result.slmsk)
     return result
