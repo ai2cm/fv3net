@@ -11,13 +11,13 @@ trained_models = [
 ]
 
 timesteps = [
-    '20160801.151500'
+    "20160805.170000"
 ]
 
 ORIGINAL_COARSE_RESOLUTION = 384
 
 grids = [
-    "C48"#, "C384"
+    "C48", "C384"
 ]
 
 tiles = [1, 2, 3, 4, 5, 6]
@@ -220,7 +220,7 @@ rule pull_fv3_image:
 rule run_restart:
     input:
         experiment=restart_dir_wildcard,
-        # docker_image=fv3_image_pulled_done
+        docker_image=fv3_image_pulled_done
     output:
         touch(restart_dir_done)
     run:
