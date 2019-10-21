@@ -35,7 +35,8 @@ def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Datase
         coarsened = getattr(coarsen_obj, method)()
         return coarsened
 
-    coarsened = coarsen_sum(data_no_area * area) / coarsen_sum(area)
+    # coarsened = coarsen_sum(data_no_area * area) / coarsen_sum(area)
+    coarsened = coarsen_sum(data_no_area)
     coarse_coords = coarsen_coords(factor, data)
 
     # special hack for SLMASK (should be integer quantity)
@@ -351,13 +352,14 @@ def block_median(ds, target_resolution, x_dim='xaxis_1', y_dim='yaxis_1'):
     return add_coordinates(result, x_dim, y_dim)
 
 
-def block_sum(
+def block_coarsen(
     da,
     target_resolution,
     x_dim='xaxis_1',
     y_dim='yaxis_1',
+    method='sum'
 ):
-    """Coarsen a DataArray or Dataset by summing over blocks.
+    """Coarsen a DataArray or Dataset by performing an operation over blocks.
 
     Mainly meant for coarse-graining the area variable from the original
     grid_spec.
@@ -372,6 +374,8 @@ def block_sum(
         x dimension name
     y_dim : str
         y dimension name
+    method : str
+        Coarsening method
 
     Returns
     -------
@@ -388,7 +392,8 @@ def block_sum(
 
     coarsening_factor = da.sizes[x_dim] // target_resolution
     coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-    result = da.coarsen(**coarsen_kwargs).sum()
+    coarsen_object = da.coarsen(**coarsen_kwargs)
+    result = getattr(coarsen_object, method)()
 
     return add_coordinates(result, x_dim, y_dim)
 
@@ -450,6 +455,41 @@ def block_edge_sum(
 
     return add_coordinates(result, coarsen_dim, downsample_dim)
 
+
+def coarse_grain_grid_spec(
+        ds,
+        target_resolution,
+        x_dim_unstaggered='grid_xt',
+        y_dim_unstaggered='grid_yt',
+        x_dim_staggered='grid_x',
+        y_dim_staggered='grid_y'
+):
+    coarse_dx = block_edge_sum(
+        ds.dx,
+        target_resolution,
+        x_dim_unstaggered,
+        y_dim_staggered,
+        'x'
+    )
+    coarse_dy = block_edge_sum(
+        ds.dy,
+        target_resolution,
+        x_dim_staggered,
+        y_dim_unstaggered,
+        'y'
+    )
+    coarse_area = block_coarsen(
+        ds.area,
+        target_resolution,
+        x_dim_unstaggered,
+        y_dim_unstaggered
+    )
+
+    return xr.merge([
+        coarse_dx.rename(ds.dx.name),
+        coarse_dy.rename(ds.dy.name),
+        coarse_area.rename(ds.area.name)
+    ])
 
 
 def coarse_grain_fv_core(ds, delp, area, dx, dy, target_resolution):
