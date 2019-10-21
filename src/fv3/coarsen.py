@@ -40,7 +40,7 @@ def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Datase
     coarsened['slmsk'] = integerize(coarsened.slmsk)
 
     return coarsened.assign_coords(**coarse_coords).assign_attrs(
-        {'coarsening_factor': 32, 'coarsening_method': method}
+        {'coarsening_factor': factor, 'coarsening_method': method}
     )
 
 
@@ -107,6 +107,9 @@ def coarsen_sfc_data_in_directory(files, **kwargs):
 
     bag = db.from_sequence(files)
 
+    # res = bag.map(process)
+    # res = res.compute(scheduler='single-threaded')
+
     procs = (
         bag
         .map(process)
@@ -115,4 +118,4 @@ def coarsen_sfc_data_in_directory(files, **kwargs):
         .map(lambda x: x[1])
     )
 
-    return xr.concat(procs.compute(), dim='tiles')
+    return xr.concat(procs.compute(scheduler='single-threaded'), dim='tiles')
