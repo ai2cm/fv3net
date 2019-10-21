@@ -79,6 +79,7 @@ notebooks/dask-worker-space/*
 notebooks/*.npy
 notebooks/html_out/*
 notebooks/figs/*
+notebooks/*
 
 # exclude data from source control by default
 /data/
