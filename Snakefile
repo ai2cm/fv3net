@@ -63,7 +63,6 @@ c3072_grid_spec_pattern     = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C38
 grid_and_orography_data     = "gs://vcm-ml-data/2019-10-05-coarse-grid-and-orography-data.tar"
 vertical_grid               = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/fv_core.res.nc")
 input_data                  = "gs://vcm-ml-public/2019-09-27-FV3GFS-docker-input-c48-LH-nml/fv3gfs-data-docker_2019-09-27.tar.gz"
-image_name                  = "us.gcr.io/vcm-ml/fv3gfs-compiled:latest"
 
 # Local Assets (under version control)
 oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.txt"
@@ -145,7 +144,6 @@ all_coarsened_restart_files = expand(
 
 restart_dir_wildcard        = "data/restart/{grid}/{timestep}/"
 restart_dir_done            = "data/restart/{grid}/{timestep}.done"
-fv3_image_pulled_done       = "fv3gfs-compiled.done"
 
 c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
 
@@ -212,15 +210,10 @@ rule prepare_restart_directory:
             file.write(f'20160801.00Z.C48.32bit.non-mono\n{date_string}')
 
 
-rule pull_fv3_image:
-    output: touch(fv3_image_pulled_done)
-    shell: "docker pull {image_name}"
-
             
 rule run_restart:
     input:
         experiment=restart_dir_wildcard,
-        docker_image=fv3_image_pulled_done
     output:
         touch(restart_dir_done)
     run:
@@ -277,18 +270,11 @@ rule download_c3072_grid_spec:
     gsutil -m cp {c3072_grid_spec} {output}/
     """
 
-rule download_timestep:
-    output: TAR
-    shell: """
-    gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_component=32' \
-          cp  {bucket}/{wildcards.timestep}.tar {output}
-    """
-
 rule download_oro_and_grid:
+    input: GS.remote(grid_and_orography_data)
     output: oro_files
     shell:"""
-    file=2019-10-05-coarse-grid-and-orography-data.tar 
-    gsutil cp gs://vcm-ml-data/$file .
+    file={input}
     mkdir -p {oro_and_grid_data}
     tar --strip-components=1 -xf $file -C {oro_and_grid_data}
     rm -f $file
@@ -298,11 +284,17 @@ rule extract_timestep:
     output:
         extracted
     params:
-        extraction_directory=extraction_directory
-    input:
-        TAR
-    shell:
-        "tar -xvf {input} -C {params.extraction_directory}"
+        extraction_directory=extraction_directory,
+        TAR=TAR
+    shell:"""
+    tarfile={params.TAR}
+
+    gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_component=32' \
+          cp  {bucket}/{wildcards.timestep}.tar $tarfile
+    
+    tar -xvf $tarfile -C {params.extraction_directory}
+    rm -f $tarfile
+    """
 
 rule convert_to_zarr:
     output: directory(save_zarr.output_2d), directory(save_zarr.output_3d)
