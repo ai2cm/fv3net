@@ -16,4 +16,5 @@ click
 zarr
 f90nml
 google-cloud-storage
-
+toolz
+cloudpickle

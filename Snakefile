@@ -17,7 +17,7 @@ timesteps = [
 ORIGINAL_COARSE_RESOLUTION = 384
 
 grids = [
-    "C48", "C384"
+    "C48"
 ]
 
 tiles = [1, 2, 3, 4, 5, 6]

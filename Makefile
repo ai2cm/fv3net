@@ -10,6 +10,7 @@ PROFILE = default
 PROJECT_NAME = fv3net
 PYTHON_INTERPRETER = python3
 DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
+IMAGE = fv3net
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -20,6 +21,11 @@ endif
 #################################################################################
 # COMMANDS                                                                      #
 #################################################################################
+build_image:
+	docker build . -t $(IMAGE)
+
+enter: build_image
+	docker run -it -v $(shell pwd):/code -w /code $(IMAGE)  bash
 
 ## Install Python Dependencies
 requirements: test_environment
