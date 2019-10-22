@@ -6,6 +6,7 @@ jobs:
     - image: continuumio/miniconda3:4.7.12
     steps:
     - checkout
+    - run: conda init bash
     - run: conda env create --name test environment.yml
     - run: conda activate test
     - run: snakemake -n -p .
