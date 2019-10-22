@@ -3,7 +3,7 @@ from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 from os.path import join
 from src.data import cubedsphere
 
-GS = GSRemoteProvider(keep_local=True)
+GS = GSRemoteProvider()
 
 # Wildcard values
 trained_models = [
