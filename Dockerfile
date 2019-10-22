@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     python3-netcdf4 \
     cython3
 
-RUN pip3 install -y \
-    f90nml google-cloud-storage snakemake gcsfs intake-xarray
+ADD requirements.txt /requirements.txt
+
+RUN pip3 install -r requirements.txt
 
