@@ -7,6 +7,7 @@ jobs:
     steps:
     - checkout
     - run: conda init bash
+    - run: source /root/.bashrc
     - run: conda env create --name test environment.yml
     - run: conda activate test
     - run: snakemake -n -p .
