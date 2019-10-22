@@ -320,7 +320,7 @@ rule coarsen_grid_spec:
     output:
         coarsened_grid_spec=coarsened_grid_spec
     run:
-        from src.fv3.coarsen_io import coarsen_grid_spec
+        from src.fv3.coarsen import coarsen_grid_spec
 
         coarsen_grid_spec(
             input,
@@ -337,7 +337,7 @@ rule coarsen_restart_category:
     output:
         coarsened_restart_filenames_wildcard
     run:
-        from src.fv3.coarsen_io import coarsen_restart_file_category
+        from src.fv3.coarsen import coarsen_restart_file_category
 
         timestep = wildcards['timestep']
         native_category_name = wildcards['category']
