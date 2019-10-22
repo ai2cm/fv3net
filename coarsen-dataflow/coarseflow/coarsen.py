@@ -19,6 +19,7 @@ from src.fv3.docker import save_tiles_separately
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+logger.addFilter(logging.Filter(__name__))
 
 """
 Full scaling would involve sending the netCDF files workers individually to coarsen
@@ -36,7 +37,6 @@ and combining there.  Then reupload to google cloud.
 class CoarsenTimestep(apache_beam.DoFn):
     def __init__(self):
         super().__init__()
-        self.client = Client()
 
     def process(self, element):
 
@@ -93,12 +93,12 @@ class CoarsenTimestep(apache_beam.DoFn):
             # coarse_out_dir = Path('/home/andrep/repos/fv3net/data/coarse_output/20160801.003000')
 
             # TODO: For now data has already been coarsened to 384, save all other variables
-            components = ['fv_core', 'fv_srf_wnd', 'fv_tracer']
-            for component in components:
-                curr_prefix_fname = f'{extracted_path.name}.{component}_coarse.res'
-                curr_prefix = extracted_path.joinpath(curr_prefix_fname)
-                ds = cubedsphere.open_cubed_sphere(curr_prefix.as_posix())
-                save_tiles_separately(ds, curr_prefix_fname, coarse_out_dir.as_posix())
+            # components = ['fv_core', 'fv_srf_wnd', 'fv_tracer']
+            # for component in components:
+            #     curr_prefix_fname = f'{extracted_path.name}.{component}_coarse.res'
+            #     curr_prefix = extracted_path.joinpath(curr_prefix_fname)
+            #     ds = cubedsphere.open_cubed_sphere(curr_prefix.as_posix())
+            #     save_tiles_separately(ds, curr_prefix_fname, coarse_out_dir.as_posix())
 
             # tar coarsened data and put file on cloud storage
             coarse_out_tar_path = self._tar_coarsened_timestep(coarse_out_dir)
@@ -110,7 +110,7 @@ class CoarsenTimestep(apache_beam.DoFn):
 
     def _init_blob(self, bucket_name: str, blob_name: str) -> Blob:
         logger.debug(f'Initializing GCS Blob.  bucket={bucket_name}, blob={blob_name}')
-        bucket = Bucket(self.client, bucket_name)
+        bucket = Bucket(Client(), bucket_name)
         return Blob(blob_name, bucket)
 
     
@@ -165,6 +165,7 @@ class CoarsenTimestep(apache_beam.DoFn):
         download_path.parent.mkdir(parents=True, exist_ok=True)
         logger.debug(f'Tarfile download path: {download_path}')
 
+        source_blob.chunk_size = 128 * 2**20 # 128 MB chunks
         with open(download_path.as_posix(), mode='wb') as f:
             source_blob.download_to_file(f)
         return download_path
@@ -199,10 +200,8 @@ class CoarsenTimestep(apache_beam.DoFn):
         return tar_out
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 
-    coarse_op = CoarsenTimestep()
-    coarse_op.process('gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/20160801.004500.tar')
-
-
+#     coarse_op = CoarsenTimestep()
+#     coarse_op.process('gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/20160801.003000.tar')
     
