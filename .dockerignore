@@ -5,3 +5,6 @@ vcm-ml-data/
 inputdata/
 .dvc
 experiments/
+.git/
+*.ipynb
+workflow-status/

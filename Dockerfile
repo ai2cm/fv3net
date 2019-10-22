@@ -15,3 +15,6 @@ RUN bash install_gcloud.sh
 
 ADD download_inputdata.sh download_inputdata.sh
 RUN bash download_inputdata.sh
+
+COPY . /code
+WORKDIR /code
