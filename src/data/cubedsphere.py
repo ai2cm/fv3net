@@ -1,7 +1,9 @@
 """Tools for working with cubedsphere data"""
-import xarray as xr
+import dask
 import numpy as np
+import xarray as xr
 
+from skimage.measure import block_reduce
 
 NUM_TILES = 6
 SUBTILE_FILE_PATTERN = '{prefix}.tile{tile:d}.nc.{subtile:04d}'
@@ -38,6 +40,16 @@ def subtile_filenames(prefix, tile, pattern=SUBTILE_FILE_PATTERN,
         yield pattern.format(prefix=prefix, tile=tile, subtile=subtile)
 
 
+def all_filenames(prefix, pattern=SUBTILE_FILE_PATTERN,
+                  num_subtiles=16):
+    filenames = []
+    for tile in range(1, NUM_TILES + 1):
+        filenames.extend(subtile_filenames(prefix, tile, pattern,
+                                           num_subtiles)
+        )
+    return filenames
+
+
 def remove_duplicate_coords(ds):
     deduped_indices = {}
     for dim in ds.dims:
@@ -60,3 +72,338 @@ def open_cubed_sphere(prefix: str, **kwargs):
         combined = combine_subtiles(subtiles).assign_coords(tile=tile)
         tiles.append(remove_duplicate_coords(combined))
     return xr.concat(tiles, dim='tile')
+
+
+def add_coordinates(ds, x_dim, y_dim):
+    new_coordinates = {
+        x_dim: np.arange(1., ds.sizes[x_dim] + 1.).astype(np.float32),
+        y_dim: np.arange(1., ds.sizes[y_dim] + 1.).astype(np.float32)
+    }
+
+    if isinstance(ds, xr.DataArray):
+        result = ds.assign_coords(**new_coordinates).rename(ds.name)
+    else:
+        result = ds.assign_coords(**new_coordinates)
+    return result
+
+
+def weighted_block_average(
+    da,
+    weights,
+    target_resolution,
+    x_dim='xaxis_1',
+    y_dim='yaxis_2'
+):
+    """Coarsen a DataArray or Dataset through weighted block averaging.
+
+    Parameters
+    ----------
+    da : xr.DataArray or xr.Dataset
+        Input DataArray or Dataset
+    weights : xr.DataArray
+        Weights (e.g. area or pressure thickness)
+    target_resolution : int
+        Target resolution to coarsen data to
+    x_dim : str
+        x dimension name
+    y_dim : str
+        y dimension name
+
+    Returns
+    -------
+    xr.DataArray
+
+    Warnings
+    --------
+    Note that this function assumes that the x and y dimension names of the
+    input DataArray and weights are the same.
+    """
+    if da.sizes[x_dim] % target_resolution != 0:
+        raise ValueError(f"'target_resolution' {target_resolution} specified "
+                         "does not evenly divide the data resolution")
+
+    coarsening_factor = da.sizes[x_dim] // target_resolution
+    coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
+    result = ((da * weights).coarsen(**coarsen_kwargs).sum() /
+              weights.coarsen(**coarsen_kwargs).sum())
+
+    return add_coordinates(result, x_dim, y_dim)
+
+
+def edge_weighted_block_average(
+    da,
+    spacing,
+    target_resolution,
+    x_dim='xaxis_1',
+    y_dim='yaxis_1',
+    edge='x'
+):
+    """Coarsen a DataArray or Dataset along a block edge.
+
+    Parameters
+    ----------
+    da : xr.DataArray or xr.Dataset
+        Input DataArray or Dataset
+    spacing : xr.DataArray
+        Spacing of grid cells in the coarsening dimension
+    target_resolution : int
+        Target resolution to coarsen data to
+    x_dim : str
+        x dimension name
+    y_dim : str
+        y dimension name
+    edge : str {'x', 'y'}
+        Dimension to coarse-grain along
+
+    Returns
+    -------
+    xr.DataArray
+
+    Warnings
+    --------
+    Note that this function assumes that the x and y dimension names of the
+    input DataArray and weights are the same.
+    """
+    if edge == 'x':
+        coarsen_dim = x_dim
+        downsample_dim = y_dim
+    elif edge == 'y':
+        coarsen_dim = y_dim
+        downsample_dim = x_dim
+    else:
+        raise ValueError(f"'edge' most be either 'x' or 'y'; got {edge}.")
+
+    if da.sizes[coarsen_dim] % target_resolution != 0:
+        raise ValueError(
+            f"'target_resolution' {target_resolution} specified "
+            "does not evenly divide the data resolution."
+        )
+
+    coarsening_factor = da.sizes[coarsen_dim] // target_resolution
+    coarsen_kwargs = {coarsen_dim: coarsening_factor}
+    coarsened = (
+        (spacing * da).coarsen(coarsen_kwargs).sum() /
+        spacing.coarsen(coarsen_kwargs).sum()
+    )
+    downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
+    result = coarsened.isel(downsample_kwargs)
+
+    return add_coordinates(result, coarsen_dim, downsample_dim)
+
+
+def _general_block_median(da, block_sizes):
+    """A dask compatible block median function that works on
+    DataArrays.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        Input DataArray
+    block_sizes : dict
+        Dictionary of dimension names mapping to block sizes
+
+    Returns
+    -------
+    xr.DataArray
+    """
+    def func(data, ordered_block_sizes, chunks):
+        if isinstance(data, dask.array.Array):
+            return dask.array.map_blocks(
+                block_reduce,
+                data,
+                ordered_block_sizes,
+                np.median,
+                dtype=np.float32,
+                chunks=chunks
+            )
+        else:
+            return block_reduce(data, ordered_block_sizes, np.median)
+
+    # TODO: add some error checking to assert that block_sizes[dim] evenly
+    # divides each chunk in the original array.
+    chunks = []
+    for dim in da.dims:
+        new_chunks = tuple(
+            np.array(da.chunks[da.get_axis_num(dim)]) // block_sizes[dim]
+        )
+        chunks.append(new_chunks)
+    chunks = tuple(chunks)
+
+    ordered_block_sizes = tuple(block_sizes[dim] for dim in da.dims)
+
+    result = xr.apply_ufunc(
+        func,
+        da,
+        ordered_block_sizes,
+        chunks,
+        input_core_dims=[da.dims, [], []],
+        output_core_dims=[da.dims],
+        dask='allowed',
+        exclude_dims=set(da.dims)
+    )
+
+    # Restore coordinates for dimensions that did not change size
+    for dim, size in block_sizes.items():
+        if size == 1:
+            result[dim] = da[dim]
+
+    return result
+
+
+def block_median(ds, target_resolution, x_dim='xaxis_1', y_dim='yaxis_1'):
+    """Coarsen a DataArray or Dataset by taking the median over blocks.
+
+    Mainly meant for coarse-graining sfc_data variables.
+
+    Parameters
+    ----------
+    ds : xr.DataArray or xr.Dataset
+        Input DataArray or Dataset
+    target_resolution : int
+        Target resolution to coarsen data to
+    x_dim : str
+        x dimension name
+    y_dim : str
+        y dimension name
+
+    Returns
+    -------
+    xr.DataArray
+    """
+    def _block_median_da(da, target_resolution, x_dim, y_dim):
+        factor = da.sizes[x_dim] // target_resolution
+        block_sizes = {}
+        for dim in da.dims:
+            if dim in [x_dim, y_dim]:
+                block_sizes[dim] = factor
+            else:
+                block_sizes[dim] = 1
+
+        return _general_block_median(da, block_sizes)
+
+    if ds.sizes[x_dim] % target_resolution != 0:
+        raise ValueError(f"'target_resolution' {target_resolution} specified "
+                         "does not evenly divide the data resolution")
+
+    if isinstance(ds, xr.Dataset):
+        results = []
+        for da in ds.values():
+            if x_dim in da.dims and y_dim in da.dims:
+                results.append(_block_median_da(
+                    da,
+                    target_resolution,
+                    x_dim,
+                    y_dim)
+                )
+            else:
+                results.append(da)
+
+        result = xr.merge(results)
+    else:
+        result = _block_median_da(da, target_resolution, x_dim, y_dim)
+
+    return add_coordinates(result, x_dim, y_dim)
+
+
+def block_coarsen(
+    da,
+    target_resolution,
+    x_dim='xaxis_1',
+    y_dim='yaxis_1',
+    method='sum'
+):
+    """Coarsen a DataArray or Dataset by performing an operation over blocks.
+
+    Mainly meant for coarse-graining the area variable from the original
+    grid_spec.
+
+    Parameters
+    ----------
+    da : xr.DataArray or xr.Dataset
+        Input DataArray or Dataset
+    target_resolution : int
+        Target resolution to coarsen data to
+    x_dim : str
+        x dimension name
+    y_dim : str
+        y dimension name
+    method : str
+        Coarsening method
+
+    Returns
+    -------
+    xr.DataArray
+
+    Warnings
+    --------
+    Note that this function assumes that the x and y dimension names of the
+    input DataArray and weights are the same.
+    """
+    if da.sizes[x_dim] % target_resolution != 0:
+        raise ValueError(f"'target_resolution' {target_resolution} specified "
+                         "does not evenly divide the data resolution")
+
+    coarsening_factor = da.sizes[x_dim] // target_resolution
+    coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
+    coarsen_object = da.coarsen(**coarsen_kwargs)
+    result = getattr(coarsen_object, method)()
+
+    return add_coordinates(result, x_dim, y_dim)
+
+
+def block_edge_sum(
+    da,
+    target_resolution,
+    x_dim='xaxis_1',
+    y_dim='yaxis_1',
+    edge='x'
+):
+    """Coarsen a DataArray or Dataset by summing along a block edge.
+
+    Mainly meant for coarse-graining the dx and dy variables from the original
+    grid_spec.
+
+    Parameters
+    ----------
+    da : xr.DataArray or xr.Dataset
+        Input DataArray or Dataset
+    target_resolution : int
+        Target resolution to coarsen data to
+    x_dim : str
+        x dimension name
+    y_dim : str
+        y dimension name
+    edge : str {'x', 'y'}
+        Dimension to coarse-grain along
+
+    Returns
+    -------
+    xr.DataArray
+
+    Warnings
+    --------
+    Note that this function assumes that the x and y dimension names of the
+    input DataArray and weights are the same.
+    """
+    if edge == 'x':
+        coarsen_dim = x_dim
+        downsample_dim = y_dim
+    elif edge == 'y':
+        coarsen_dim = y_dim
+        downsample_dim = x_dim
+    else:
+        raise ValueError(f"'edge' most be either 'x' or 'y'; got {edge}.")
+
+    if da.sizes[coarsen_dim] % target_resolution != 0:
+        raise ValueError(
+            f"'target_resolution' {target_resolution} specified "
+            "does not evenly divide the data resolution."
+        )
+
+    coarsening_factor = da.sizes[coarsen_dim] // target_resolution
+    coarsen_kwargs = {coarsen_dim: coarsening_factor}
+    coarsened = da.coarsen(coarsen_kwargs).sum()
+    downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
+    result = coarsened.isel(downsample_kwargs)
+
+    return add_coordinates(result, coarsen_dim, downsample_dim)

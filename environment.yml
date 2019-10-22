@@ -28,6 +28,7 @@ dependencies:
   - xgcm
   - fire=0.2
   - dvc
+  - scikit-image
   - pip
   - pip:
       - -e .
