@@ -65,7 +65,7 @@ vertical_grid               = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3
 input_data                  = "gs://vcm-ml-public/2019-09-27-FV3GFS-docker-input-c48-LH-nml/fv3gfs-data-docker_2019-09-27.tar.gz"
 
 # Remote outputs
-restart_uploaded            = "gs://vcm-ml-data/2019-10-22/restart/{grid}/{timestep}/"
+restart_uploaded            = "gs://vcm-ml-data/2019-10-22-restart-workflow/restart/{grid}/{timestep}/"
 restart_uploaded_status     = "workflow-status/restart_{grid}_{timestep}.done"
 
 # Local Assets (under version control)
