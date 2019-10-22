@@ -3,7 +3,7 @@ orbs:
 jobs:
   build:
     docker:
-    - image: miniconda3:4.6.14
+    - image: continuumio/miniconda3:4.6.14
     steps:
     - run: make create_environment
     - run: conda activate fv3net
