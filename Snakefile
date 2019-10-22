@@ -64,6 +64,10 @@ grid_and_orography_data     = "gs://vcm-ml-data/2019-10-05-coarse-grid-and-orogr
 vertical_grid               = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/fv_core.res.nc")
 input_data                  = "gs://vcm-ml-public/2019-09-27-FV3GFS-docker-input-c48-LH-nml/fv3gfs-data-docker_2019-09-27.tar.gz"
 
+# Remote outputs
+restart_uploaded            = "gs://vcm-ml-data/2019-10-22/restart/{grid}/{timestep}/"
+restart_uploaded_status     = "workflow-status/restart_{grid}_{timestep}.done"
+
 # Local Assets (under version control)
 oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.txt"
 
@@ -149,7 +153,7 @@ c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
 
 
 rule all:
-    input: expand(restart_dir_done, timestep=timesteps, grid=grids)
+    input: GS.remote(expand(restart_uploaded_status, timestep=timesteps, grid=grids))
 
 
 rule prepare_restart_directory:
@@ -219,6 +223,12 @@ rule run_restart:
     run:
         from src.fv3 import run_experiment
         run_experiment(input.experiment)
+
+rule upload_restart:
+    input: restart_dir_done
+    output: touch(restart_uploaded_status)
+    params: restart=restart_dir_wildcard, gs_path=restart_uploaded
+    shell: "gsutil -m rsync -r {params.restart}  {params.gs_path}"
 
 
 def coarsen_factor_from_grid(wildcards):
