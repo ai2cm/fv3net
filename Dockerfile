@@ -1,0 +1,11 @@
+FROM us.gcr.io/vcm-ml/fv3gfs-compiled-default:latest
+
+
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-netcdf4 \
+    cython3
+
+RUN pip3 install -y \
+    f90nml google-cloud-storage snakemake gcsfs intake-xarray
+
