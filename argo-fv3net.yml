@@ -1,0 +1,12 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: list-time-steps
+spec:
+  entrypoint: list-restarts
+  templates:
+  - name: list-restarts
+    container:
+      image: us.gcr.io/vcm-ml/fv3net
+      command: [snakemake]
+      args: []
