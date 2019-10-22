@@ -113,6 +113,9 @@ python -m src.models.{model_type}.train --options options.yaml output.pkl
 
 # Deploying on k8s
 
+Make docker image for this workflow and push it to GCR
+
+    make push_image
 
 Create a K8S cluster:
 
