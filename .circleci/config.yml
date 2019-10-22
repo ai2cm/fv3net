@@ -3,9 +3,10 @@ orbs:
 jobs:
   build:
     docker:
-    - image: continuumio/miniconda3:4.6.14
+    - image: continuumio/miniconda3:4.7.12
     steps:
-    - run: conda env create --name circle/test environment.yml
-    - run: conda activate circle/test
+    - checkout
+    - run: conda env create --name test environment.yml
+    - run: conda activate test
     - run: snakemake -n -p .
     - run: pytest
