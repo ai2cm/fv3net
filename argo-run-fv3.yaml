@@ -9,6 +9,9 @@ spec:
     script:
       image: us.gcr.io/vcm-ml/fv3net
       command: [python3]
+      resources:
+        limits:
+          memory: 3Gi
       source: |
         import sys, os
         sys.path.insert(0, '.')
@@ -20,3 +23,4 @@ spec:
         subprocess.check_call(['gsutil', 'cp', '-r', bucket, '.'])
         print(os.listdir('20160805.170000'))
         src.fv3.run_experiment('20160805.170000')
+
