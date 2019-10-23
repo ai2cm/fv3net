@@ -17,4 +17,5 @@ ADD download_inputdata.sh download_inputdata.sh
 RUN bash download_inputdata.sh
 
 COPY . /code
+ENV PYTHONPATH=/code:$PYTHONPATH
 WORKDIR /code

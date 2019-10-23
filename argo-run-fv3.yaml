@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: fv3-run-
+spec:
+  entrypoint: run-fv3
+  templates:
+  - name: run-fv3
+    script:
+      image: us.gcr.io/vcm-ml/fv3net
+      command: [python3]
+      source: |
+        import sys, os
+        sys.path.insert(0, '.')
+        print(os.getcwd())
+        print(sys.path)
+        import src.fv3
+        import subprocess
+        bucket = "gs://vcm-ml-data/2019-10-22/restart/C48/20160805.170000/"
+        subprocess.check_call(['gsutil', 'cp', '-r', bucket, '.'])
+        print(os.listdir('20160805.170000'))
+        src.fv3.run_experiment('20160805.170000')
