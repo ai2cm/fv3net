@@ -121,6 +121,9 @@ Create a K8S cluster:
 
     bash provision_cluster.sh
 
+This cluster has some big-mem nodes for doing the FV3 run, which requires at least a n1-standard-2 VM for 
+C48.
+
 Install argo following [these instructions](https://github.com/argoproj/argo/blob/master/demo.md).
 
 Submit an argo job using
