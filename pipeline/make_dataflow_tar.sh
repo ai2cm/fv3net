@@ -11,5 +11,3 @@ cp -fr $CFLOW/setup.py $DST/.
 cp -fr $CFLOW/coarseflow_main.py $DST/.
 cp -fr $FV3NET $DST/.
 cp -fr short_datatag_defs.yml $DST/.
-
-tar -cf $DST.tar $DST
