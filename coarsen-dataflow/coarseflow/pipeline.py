@@ -1,10 +1,13 @@
-import apache_beam  # type: ignore
-from apache_beam.options.pipeline_options import PipelineOptions  # type: ignore
-from apache_beam.pvalue import PCollection  # type: ignore
-from google.cloud.storage import Client  # type: ignore
+import apache_beam  
+import logging 
+from apache_beam.options.pipeline_options import PipelineOptions  
+from apache_beam.pvalue import PCollection  
+from google.cloud.storage import Client  
 
-from coarseflow.file_lister import FileLister, GCSLister
-from coarseflow.transformer import Transformer
+from coarseflow.file_lister import FileLister, GCSLister 
+from coarseflow.coarsen import CoarsenTimestep
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def run(file_lister: FileLister, prefix: str, file_extension: str) -> None:
@@ -32,11 +35,7 @@ def run(file_lister: FileLister, prefix: str, file_extension: str) -> None:
         )
     ).with_output_types(str)
 
-    # _ = matches | apache_beam.ParDo(Transformer('vcm-ml-'))
+    _ = matches | apache_beam.ParDo(CoarsenTimestep())
 
     result = pipeline.run()
     result.wait_until_finish()
-
-
-if __name__ == '__main__':
-    run(GCSLister(Client(), 'vcm-ml-data'))

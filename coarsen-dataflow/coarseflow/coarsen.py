@@ -175,16 +175,13 @@ class CoarsenTimestep(apache_beam.DoFn):
 
         logger.info('Extracting tar file...')
 
-        # timestep_tarfile = tarfile.open(downloaded_tar_path.as_posix())
+        
         # with suffix [blank] removes file_ext and uses filename as untar dir
-
         extract_dir = downloaded_tar_path.with_suffix('')
         extract_dir.mkdir(parents=True, exist_ok=True)
         logger.debug(f'Destination directory for tar extraction: {extract_dir}')
         subprocess.call(['tar', '-xf', downloaded_tar_path.as_posix(), 
                          '-C', extract_dir.as_posix()])
-
-        # timestep_tarfile.extractall(path=extract_dir.as_posix())
 
         return extract_dir
 
@@ -194,8 +191,7 @@ class CoarsenTimestep(apache_beam.DoFn):
         tar_out = dir_to_tar.with_suffix(dir_to_tar.suffix + '.tar')
         logger.debug(f'Coarsened data tarfile: {tar_out}')
         subprocess.call(['tar', '-cf', tar_out.as_posix(), dir_to_tar.as_posix()])
-        # coarse_out_tar = tarfile.open(coarse_out_tar_path.as_posix(), mode='x')
-        # coarse_out_tar.add(coarse_out_dir.as_posix())
+        
 
         return tar_out
 

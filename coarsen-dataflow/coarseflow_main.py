@@ -14,11 +14,12 @@ python coarseflow_main.py \
     --region us-central1 \
     --runner DataflowRunner \
     --setup_file ./setup.py \
-    --temp_location gs://vcm-ml-data/test_dataflow \
+    --temp_location gs://vcm-ml-data/tmp_dataflow \
+    --num_workers 1 \
     --max_num_workers 4 \
-    --disk_size_gb 80 \
-    --extra_package /home/andrep/repos/fv3net/scratch/coarsen-dataflow.tar \
-    --type_check_strictness 'ALL_REQUIRED'
+    --disk_size_gb 128 \
+    --type_check_strictness 'ALL_REQUIRED' \
+    --service_account_email andre-vm-sa@vcm-ml.iam.gserviceaccount.com
 """
 
 if __name__ == "__main__":
