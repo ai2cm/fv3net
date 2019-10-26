@@ -13,6 +13,7 @@ from apache_beam.pvalue import PCollection  # type: ignore
 
 from google.cloud.storage import Client, Bucket, Blob
 
+import coarseflow.utils as cflutils
 from src.fv3 import coarsen as fv3net_coarsen
 from src.data import cubedsphere
 from src.fv3.docker import save_tiles_separately
@@ -43,16 +44,14 @@ class CoarsenTimestep(apache_beam.DoFn):
         logger.info(f'Processing timestep tar: {element}')
 
         # TODO: Just pass the blob as the element, unless it's not picklable?
-        parsed_gs_path = parse.urlsplit(element)
-        bucket_name = parsed_gs_path.netloc
-        blob_name = parsed_gs_path.path.lstrip('/')
+        bucket_name, blob_name = cflutils.parse_gcs_url(element)
 
         source_blob = self._init_blob(bucket_name, blob_name)
         with tempfile.TemporaryDirectory() as tmpdir:
             
             logger.debug(f'Using temporary directory {tmpdir}')
-            tarball_path = self._download_tar(source_blob, tmpdir, blob_name)
-            extracted_path = self._extract_timestep_tar(tarball_path)
+            src_tarball = cflutils.download_blob_to_file(source_blob, tmpdir, blob_name)
+            extracted_path = cflutils.extract_tarball_to_path(src_tarball)
 
             # Temp for runthrough
             # extracted_path = Path(tmpdir, '20160801.003000')
@@ -154,36 +153,6 @@ class CoarsenTimestep(apache_beam.DoFn):
             args.append((tile, subtile, sfc_data_path, spec_paths[tile][subtile]))
 
         return args
-
-    @staticmethod
-    def _download_tar(source_blob: Blob, out_dir: str, filename: str) -> Path:
-        logger.info(f'Downloading tar ({filename}) from remote storage.')
-
-        out_dir = Path(out_dir)
-        filename = Path(filename)
-        download_path = out_dir.joinpath(filename)
-        download_path.parent.mkdir(parents=True, exist_ok=True)
-        logger.debug(f'Tarfile download path: {download_path}')
-
-        source_blob.chunk_size = 128 * 2**20 # 128 MB chunks
-        with open(download_path.as_posix(), mode='wb') as f:
-            source_blob.download_to_file(f)
-        return download_path
-
-    @staticmethod
-    def _extract_timestep_tar(downloaded_tar_path: Path) -> Path:
-
-        logger.info('Extracting tar file...')
-
-        
-        # with suffix [blank] removes file_ext and uses filename as untar dir
-        extract_dir = downloaded_tar_path.with_suffix('')
-        extract_dir.mkdir(parents=True, exist_ok=True)
-        logger.debug(f'Destination directory for tar extraction: {extract_dir}')
-        subprocess.call(['tar', '-xf', downloaded_tar_path.as_posix(), 
-                         '-C', extract_dir.as_posix()])
-
-        return extract_dir
 
     @staticmethod
     def _tar_coarsened_timestep(dir_to_tar: Path) -> Path:

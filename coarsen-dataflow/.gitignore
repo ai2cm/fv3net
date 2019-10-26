@@ -3,3 +3,5 @@
 **.pyc
 **MANIFEST
 **.egg-info/
+
+tests/test_data/
