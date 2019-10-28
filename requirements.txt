@@ -15,3 +15,5 @@ snakemake
 intake
 intake_xarray
 pytest
+scikit-learn
+hypothesis
