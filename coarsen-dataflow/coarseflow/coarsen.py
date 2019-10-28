@@ -31,13 +31,15 @@ Simple way is since we are downloading to local instance.  Just do all the coars
 and combining there.  Then reupload to google cloud.
 """
 
-# TODO: Figure out how to specify tile inputs? Hard-coded currently
+# TODO: Need to change coarsening operation now that we have pre-extracted data
+# This was an initial implementation.  Many pieces have been moved to utils.
 
 @apache_beam.typehints.with_input_types(str)
 @apache_beam.typehints.with_output_types(None)
 class CoarsenTimestep(apache_beam.DoFn):
     def __init__(self):
         super().__init__()
+        raise NotImplementedError('No longer using this due to changes in process')
 
     def process(self, element):
 

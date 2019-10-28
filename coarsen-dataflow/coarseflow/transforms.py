@@ -38,7 +38,7 @@ class ExtractAndUploadTimestepWithC3072SurfaceData(apache_beam.DoFn):
             c3702_path = Path(tmpdir, 'coarsened', 'C3702', current_timestep)
             c3702_path.mkdir(parents=True, exist_ok=True)
 
-            # move highres sfc data to
+            # move highres sfc data to separate dir
             for sfc_file in untarred_timestep.glob('*.sfc_data.*'):
 
                 destination = c3702_path.joinpath(sfc_file.name)
@@ -49,8 +49,7 @@ class ExtractAndUploadTimestepWithC3072SurfaceData(apache_beam.DoFn):
             c3702_blob_prefix = str(Path(output_prefix, c3702_blob_prefix))
             cfutils.upload_dir_to_gcs('vcm-ml-data', c3702_blob_prefix, c3702_path)
 
-            # coarsen sfc data
-            # upload coarsened files to timestep
+            # upload pre-coarsened files to timestep
             c384_blob_prefix = c384_path.relative_to(c384_path.parent.parent)
             c384_blob_prefix = str(Path(output_prefix, c384_blob_prefix))
             cfutils.upload_dir_to_gcs('vcm-ml-data', c384_blob_prefix, untarred_timestep)
