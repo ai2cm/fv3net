@@ -17,3 +17,5 @@ intake_xarray
 pytest
 scikit-learn
 hypothesis
+metpy
+numba
