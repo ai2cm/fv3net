@@ -3,10 +3,9 @@ orbs:
 jobs:
   build:
     docker:
-    - image: continuumio/miniconda3:4.7.12
+    - image: circleci/python:3.7
     steps:
     - checkout
-    - run: conda env create --name test environment.yml
-    - run: export PATH=/opt/conda/envs/test/bin:$PATH
+    - run: pip install -r requirements.txt
     - run: snakemake -n -p .
     - run: pytest
