@@ -19,3 +19,4 @@ scikit-learn
 hypothesis
 metpy
 numba
+scikit-image
