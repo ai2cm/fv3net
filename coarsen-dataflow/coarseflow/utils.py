@@ -53,19 +53,16 @@ def extract_tarball_to_path(
     logger.info('Extracting tar file...')
 
     # with suffix [blank] removes file_ext and uses filename as untar dir
-    src_tar_no_file_ext = source_tar_path.with_suffix('')
     if extract_to_dir is None:
-        # Untar creates folder with tar filename by default so use parent
-        extract_to_dir = source_tar_path.parent
+        extract_to_dir = source_tar_path.with_suffix('')
     
     extract_to_dir.mkdir(parents=True, exist_ok=True)
-    destination_tar_dir = extract_to_dir.joinpath(src_tar_no_file_ext.name)
 
     logger.debug(f'Destination directory for tar extraction: {extract_to_dir}')
     tar_commands = ['tar', '-xf', source_tar_path, '-C', extract_to_dir]
     subprocess.call(tar_commands)
 
-    return destination_tar_dir
+    return extract_to_dir
 
 
 def upload_dir_to_gcs(bucket_name: str, blob_prefix: str, source_dir: Path) -> None:

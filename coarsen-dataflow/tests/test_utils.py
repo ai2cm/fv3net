@@ -87,8 +87,7 @@ def test_extract_tarball_specified_dir():
             test_tarball_path, extract_to_dir=target_path
         )
         assert tarball_extracted_path.exists()
-        assert tarball_extracted_path.name == 'test_data'
-        assert tarball_extracted_path.parent.name == target_output_dirname
+        assert tarball_extracted_path.name == target_output_dirname
 
 def test_extract_tarball_check_files_exist():
 
