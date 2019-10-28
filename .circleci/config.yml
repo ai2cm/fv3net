@@ -4,11 +4,11 @@ jobs:
   build:
     docker:
     - image: circleci/python:3.7
+      environment:
+          GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
     - checkout
     - run: sudo pip install -r requirements.txt
-    - run: |
-        echo $GCLOUD_SERVICE_KEY > key.json
-        export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/key.json
+    - run: echo $GCLOUD_SERVICE_KEY > key.json
     - run: snakemake -n -p .
     - run: pytest
