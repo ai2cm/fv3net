@@ -17,5 +17,6 @@ mkdir -p $datadir_local
 tar xzf $filename -C $datadir_local
 
 rm $filename
-mv /inputdata/fv3gfs-data-docker/fix.v201702 /inputdata/fix.v201702  
+mkdir -p /inputdata/
+mv inputdata/fv3gfs-data-docker/fix.v201702 /inputdata/fix.v201702  
 
