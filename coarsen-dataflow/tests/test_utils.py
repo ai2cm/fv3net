@@ -3,11 +3,23 @@ import coarseflow.utils as cfutils
 import hashlib
 import tempfile
 import os
+import shutil
 
 from pathlib import Path
 from google.cloud.storage import Blob
 
 TEST_DIR = Path(os.path.abspath(__file__)).parent
+
+def _compare_checksums(file_path1: Path, file_path2: Path) -> None:
+
+    with open(file_path1, 'rb') as file1:
+        with open(file_path2, 'rb') as file2:
+            file1 = file1.read()
+            file2 = file2.read()
+            downloaded_checksum = hashlib.md5(file1).hexdigest()
+            local_checksum = hashlib.md5(file2).hexdigest()
+            assert downloaded_checksum == local_checksum
+
 
 def test_init_blob_is_blob():
     result = cfutils.init_blob('test_bucket', 'test_blobdir/test_blob.nc')
@@ -45,10 +57,72 @@ def test_download_blob_to_file():
         assert outfile_path.exists()
         assert local_filepath.exists()
 
-        with open(outfile_path, 'rb') as downloaded_file:
-            with open(local_filepath, 'rb') as local_file:
-                downloaded_file = downloaded_file.read()
-                local_file = local_file.read()
-                downloaded_checksum = hashlib.md5(downloaded_file).hexdigest()
-                local_checksum = hashlib.md5(local_file).hexdigest()
-                assert downloaded_checksum == local_checksum
+        _compare_checksums(outfile_path, local_filepath)
+
+def test_extract_tarball_default_dir():
+
+    tar_filename = 'test_data.tar'
+    test_tarball_path = Path(__file__).parent.joinpath('test_data', tar_filename)    
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        shutil.copyfile(test_tarball_path, Path(tmpdir, tar_filename))
+        working_path = Path(tmpdir, tar_filename)
+        
+        tarball_extracted_path = cfutils.extract_tarball_to_path(working_path)
+        assert tarball_extracted_path.exists()
+        assert tarball_extracted_path.name == 'test_data'
+
+def test_extract_tarball_specified_dir():
+
+    # TODO: could probably create fixture for tar file setup/cleanup
+    tar_filename = 'test_data.tar'
+    test_tarball_path = Path(__file__).parent.joinpath('test_data', tar_filename)    
+    target_output_dirname = 'specified'
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        shutil.copyfile(test_tarball_path, Path(tmpdir, tar_filename))
+        target_path = Path(tmpdir, target_output_dirname)
+        
+        tarball_extracted_path = cfutils.extract_tarball_to_path(
+            test_tarball_path, extract_to_dir=target_path
+        )
+        assert tarball_extracted_path.exists()
+        assert tarball_extracted_path.name == 'test_data'
+        assert tarball_extracted_path.parent.name == target_output_dirname
+
+def test_extract_tarball_check_files_exist():
+
+    # TODO: could probably create fixture for tar file setup/cleanup
+    tar_filename = 'test_data.tar'
+    test_tarball_path = Path(__file__).parent.joinpath('test_data', tar_filename)    
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        shutil.copyfile(test_tarball_path, Path(tmpdir, tar_filename))
+        working_path = Path(tmpdir, tar_filename)
+        tarball_extracted_path = cfutils.extract_tarball_to_path(working_path)
+
+        test_data_files = ['test_data_array.nc', 'test_datafile.txt']
+        for current_file in test_data_files:
+            assert tarball_extracted_path.joinpath(current_file).exists()
+
+def test_upload_dir_to_gcs():
+    src_dir_to_upload = Path(__file__).parent.joinpath('test_data')
+    cfutils.upload_dir_to_gcs('vcm-ml-data', 'tmp_dataflow/test_upload',
+                              src_dir_to_upload)
+
+    test_files = ['test_data_array.nc', 'test_datafile.txt', 'test_data.tar']
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for filename in test_files:
+            gcs_url = f'gs://vcm-ml-data/tmp_dataflow/test_upload/{filename}'
+            file_blob = cfutils.init_blob_from_gcs_url(gcs_url)
+            assert file_blob.exists()
+
+            downloaded_path = cfutils.download_blob_to_file(
+                file_blob, 
+                Path(tmpdir, 'test_uploaded'),
+                filename)
+            local_file = src_dir_to_upload.joinpath(filename)
+            _compare_checksums(local_file, downloaded_path)
+            file_blob.delete()
+
+

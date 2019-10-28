@@ -1,7 +1,7 @@
 from urllib import parse
 from typing import Tuple, Optional, List
 from pathlib import Path
-from multiprocessing import Pool
+import dask.bag as db
 import subprocess
 import logging
 
@@ -46,42 +46,46 @@ def download_blob_to_file(source_blob: Blob, out_dir: str, filename: str) -> Pat
 
 
 def extract_tarball_to_path(
-    downloaded_tar_path: Path,
+    source_tar_path: Path,
     extract_to_dir: Optional[Path] = None,
     ) -> Path:
 
     logger.info('Extracting tar file...')
 
     # with suffix [blank] removes file_ext and uses filename as untar dir
+    src_tar_no_file_ext = source_tar_path.with_suffix('')
     if extract_to_dir is None:
-        extract_to_dir = downloaded_tar_path.with_suffix('')
-
+        # Untar creates folder with tar filename by default so use parent
+        extract_to_dir = source_tar_path.parent
+    
     extract_to_dir.mkdir(parents=True, exist_ok=True)
+    destination_tar_dir = extract_to_dir.joinpath(src_tar_no_file_ext.name)
 
     logger.debug(f'Destination directory for tar extraction: {extract_to_dir}')
-    subprocess.call(['tar', 
-                     '-xf', downloaded_tar_path, 
-                     '-C', extract_to_dir])
+    tar_commands = ['tar', '-xf', source_tar_path, '-C', extract_to_dir]
+    subprocess.call(tar_commands)
 
-    return extract_to_dir
+    return destination_tar_dir
 
 
-def upload_dir_to_gcs(bucket_name: str, blob_prefix: str, src_dir: Path) -> None:
+def upload_dir_to_gcs(bucket_name: str, blob_prefix: str, source_dir: Path) -> None:
     """
     Uploads all files in specified directory to GCS directory
     """
 
-    src_dir_paths = [filepath for filepath in src_dir.glob('*')
-                     if filepath.is_file()]
+    upload_args = [(bucket_name, blob_prefix, filepath)
+                   for filepath in source_dir.glob('*')
+                   if filepath.is_file()]
+    upload_args_bag = db.from_sequence(upload_args)
+    upload_args_bag.map(_upload_process).compute()
 
-    def _upload_process(filepath: Path) -> None:
-        filename = filepath.name
-        blob_name = blob_prefix + '/' + filename
-        destination_blob = init_blob(bucket_name, blob_name)
-        destination_blob.upload_from_filename(filepath)
+def _upload_process(args):
+    bucket_name, blob_prefix, filepath = args
 
-    pool = Pool(processes=4)
-    pool.map(_upload_process, src_dir_paths)
+    filename = filepath.name
+    blob_name = blob_prefix + '/' + filename
+    destination_blob = init_blob(bucket_name, blob_name)
+    destination_blob.upload_from_filename(str(filepath))
 
-    pool.close()
-    pool.join()
+
+
