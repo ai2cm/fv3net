@@ -5,9 +5,9 @@ from apache_beam.pvalue import PCollection
 from google.cloud.storage import Client  
 
 from coarseflow.file_lister import FileLister, GCSLister 
-from coarseflow.coarsen import CoarsenTimestep
+from coarseflow.transforms import ExtractAndUploadTimestepWithC3072SurfaceData
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 def run(file_lister: FileLister, prefix: str, file_extension: str) -> None:
@@ -35,7 +35,8 @@ def run(file_lister: FileLister, prefix: str, file_extension: str) -> None:
         )
     ).with_output_types(str)
 
-    _ = matches | apache_beam.ParDo(CoarsenTimestep())
+    transform_dofn = ExtractAndUploadTimestepWithC3072SurfaceData() 
+    _ = matches | apache_beam.ParDo(transform_dofn)
 
     result = pipeline.run()
     result.wait_until_finish()
