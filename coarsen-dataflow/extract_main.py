@@ -16,14 +16,14 @@ max_num_workers: autoscaling limit
 Running defaults to the 1-core 3.75 GB memory workers
 
 python extract_main.py \
-    --job_name coarseflow-test-andrep \
+    --job_name diggin-out-the-tar-pit-andrep \
     --project vcm-ml \
     --region us-central1 \
     --runner DataflowRunner \
     --setup_file ./setup.py \
     --temp_location gs://vcm-ml-data/tmp_dataflow \
-    --num_workers 4 \
-    --max_num_workers 4 \
+    --num_workers 60 \
+    --max_num_workers 60 \
     --disk_size_gb 80 \
     --type_check_strictness 'ALL_REQUIRED' \
     --service_account_email andre-vm-sa@vcm-ml.iam.gserviceaccount.com
@@ -32,7 +32,8 @@ python extract_main.py \
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     run(GCSLister(Client(), 'vcm-ml-data'),
-        prefix='test_dataflow',
-        file_extension='tar')
+        prefix='2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data',
+        file_extension='tar',
+        output_prefix='2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted')
 
     
