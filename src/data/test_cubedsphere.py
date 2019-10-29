@@ -55,7 +55,7 @@ def test_block_weighted_average():
     weights = _test_weights_array(n=10)
     dataarray = expected * weights
 
-    ans = weighted_block_average(dataarray, weights, 2, x_dim='x', y_dim='y')
+    ans = weighted_block_average(dataarray, weights, 5, x_dim='x', y_dim='y')
     assert ans.shape == (2, 2)
     assert np.all(np.isclose(ans, expected))
 
@@ -78,7 +78,7 @@ def test_block_weighted_average_coords(start_coord, expected_start):
     for dim in weights.dims:
         assert weights[dim].values[0] == pytest.approx(start_coord)
 
-    ans = weighted_block_average(weights, weights, target_n, x_dim='x', y_dim='y')
+    ans = weighted_block_average(weights, weights, factor, x_dim='x', y_dim='y')
 
     for dim in ans.dims:
         assert weights[dim].values[0] == pytest.approx(start_coord)
