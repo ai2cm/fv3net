@@ -2,25 +2,35 @@ import apache_beam as beam
 from src.data.coarsen_surface_data import coarsen_and_upload_surface
 from apache_beam.options.pipeline_options import PipelineOptions  
 import logging
+import subprocess
+import os
+from src import utils
+import re
+from apache_beam.utils import retry
 logging.basicConfig(level=logging.INFO)
 
-timestep = '20160805.064500'
+bucket = 'gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/C384/'
 
-timesteps = [timestep]
+def time_step(file):
+    pattern = re.compile(r'(........\.......)')
+    return pattern.search(file).group(1)
+
+
+def get_completed_time_steps():
+    files = utils.gslist(bucket)
+    return set([time_step(file) for file in files])
 
 
 def run(beam_options):
-
+    timesteps = get_completed_time_steps()
+    print(f"Processing {len(timesteps)} points")
+    coarse_fn = retry.with_exponential_backoff(initial_delay_secs=30)(coarsen_and_upload_surface)
     with beam.Pipeline(options=beam_options) as p:
         (p | beam.Create(timesteps)
-           | 'DownloadCoarsen' >> beam.ParDo(coarsen_and_upload_surface))
-
+           | 'DownloadCoarsen' >> beam.ParDo(coarse_fn))
 
 if __name__ == '__main__':
   """Main function"""
   import argparse
-  parser = argparse.ArgumentParser(
-      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-  args, pipeline_args = parser.parse_known_args()
-  beam_options = PipelineOptions(pipeline_args, save_main_session=True)
+  beam_options = PipelineOptions(save_main_session=True)
   run(beam_options=beam_options)

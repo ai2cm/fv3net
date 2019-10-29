@@ -68,6 +68,9 @@ test_environment:
 #################################################################################
 
 
+coarse_grain_surface:
+	bash submit_job.sh
+
 snakemake:
 	bash -c 'snakemake 2> >(tee snakemake_log.txt)'
 

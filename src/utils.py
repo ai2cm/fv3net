@@ -42,14 +42,17 @@ def _open_remote_nc(url):
         subprocess.check_call((['gsutil', '-q', 'cp', url, fp.name]))
         return xr.open_dataset(fp.name).load()
 
+def gslist(pattern):
+    files = subprocess.check_output(
+        ['gsutil', 'ls', pattern]
+    )
+    return [arg.decode('UTF-8') for arg in files.split()]
+
 
 def file_names_for_time_step(timestep, category, resolution=3072):
     #TODO remove this hardcode
     bucket = f'gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/C{resolution}/{timestep}/{timestep}.{category}*'
-    files = subprocess.check_output(
-        ['gsutil', 'ls', bucket]
-    )
-    return [arg.decode('UTF-8') for arg in files.split()]
+    return gslist(bucket)
 
 
 def tile_num(name):
