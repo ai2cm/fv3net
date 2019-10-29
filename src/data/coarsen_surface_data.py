@@ -48,5 +48,5 @@ def coarsen_and_upload_surface(timestep):
     with tempfile.NamedTemporaryFile() as fp:
         save_op = ds.to_netcdf(fp.name)
         upload_op = upload_to_gcs(fp.name, output_file_name, save_op)
-        upload_op.compute()
+        upload_op.compute(scheduler="single-threaded")
         logging.info("uploading %s done" % output_file_name)
