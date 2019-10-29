@@ -22,7 +22,7 @@ def get_completed_time_steps():
 
 
 def run(beam_options):
-    timesteps = get_completed_time_steps(t)
+    timesteps = get_completed_time_steps()
     print(f"Processing {len(timesteps)} points")
     coarse_fn = retry.with_exponential_backoff(initial_delay_secs=30)(coarsen_and_upload_surface)
     with beam.Pipeline(options=beam_options) as p:
