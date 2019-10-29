@@ -64,6 +64,7 @@ grid_and_orography_data     = "gs://vcm-ml-data/2019-10-05-coarse-grid-and-orogr
 vertical_grid               = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/fv_core.res.nc")
 input_data                  = "gs://vcm-ml-public/2019-09-27-FV3GFS-docker-input-c48-LH-nml/fv3gfs-data-docker_2019-09-27.tar.gz"
 image_name                  = "us.gcr.io/vcm-ml/fv3gfs-compiled:latest"
+output_zarr_dir             = 'fv3_timestepped_output'
 
 # Local Assets (under version control)
 oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.txt"
@@ -146,12 +147,13 @@ all_coarsened_restart_files = expand(
 restart_dir_wildcard        = "data/restart/{grid}/{timestep}/"
 restart_dir_done            = "data/restart/{grid}/{timestep}.done"
 fv3_image_pulled_done       = "fv3gfs-compiled.done"
+output_zarr_done            = 'gs://vcm-ml-data/' + output_zarr_dir + '/{grid}/restarted_{timestep}.zarr'
 
 c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
 
 
 rule all:
-    input: expand(restart_dir_done, timestep=timesteps, grid=grids)
+    input: GS.remote(expand(output_zarr_done, timestep=timesteps, grid=grids))
 
 
 rule prepare_restart_directory:
@@ -209,8 +211,23 @@ rule prepare_restart_directory:
         with open(join(output.restart_dir, 'rundir', 'diag_table'), 'w') as file:
             date = datetime.strptime(wildcards['timestep'], '%Y%m%d.%H%M%S')
             date_string = date.strftime('%Y %m %d %H %M %S')
-            file.write(f'20160801.00Z.C48.32bit.non-mono\n{date_string}')
-
+            file.write(f"wildcards['timestep'].wildcards['grid'].32bit.non-mono\n{date_string}")
+            # add output of the grid spec for post-processing purposes (TODO replace all this with fv3config)
+            file.write(
+'''
+#output files
+"grid_spec",              -1,  "months",   1, "days",  "time"
+###
+# grid_spec
+###
+"dynamics", "grid_lon", "grid_lon", "grid_spec", "all", .false.,  "none", 2,
+"dynamics", "grid_lat", "grid_lat", "grid_spec", "all", .false.,  "none", 2,
+"dynamics", "grid_lont", "grid_lont", "grid_spec", "all", .false.,  "none", 2,
+"dynamics", "grid_latt", "grid_latt", "grid_spec", "all", .false.,  "none", 2,
+"dynamics", "area",     "area",     "grid_spec", "all", .false.,  "none", 2,
+'''
+            )
+            
 
 rule pull_fv3_image:
     output: touch(fv3_image_pulled_done)
@@ -304,16 +321,6 @@ rule extract_timestep:
     shell:
         "tar -xvf {input} -C {params.extraction_directory}"
 
-rule convert_to_zarr:
-    output: directory(save_zarr.output_2d), directory(save_zarr.output_3d)
-    shell: "python -m src.data.save_zarr"
-
-rule train_model:
-    input: config="configurations/{model_type}/{options}.yaml"
-    output: "models/{model_type}/{options}.pkl"
-    shell: "python -m src.models.{wildcards.model_type}.train --options {input.config} {output}"
-
-
 rule coarsen_grid_spec:
     input:
         native_grid_spec
@@ -327,7 +334,6 @@ rule coarsen_grid_spec:
             ORIGINAL_COARSE_RESOLUTION,
             output.coarsened_grid_spec
         )        
-
 
 rule coarsen_restart_category:
     input:
@@ -357,3 +363,15 @@ rule coarsen_restart_category:
 rule coarsen_all_restart_data:
     input:
         all_coarsened_restart_files
+
+rule convert_to_zarr:
+    input: restart_dir_done
+    output: directory(GS.remote(output_zarr_done))
+    run: 
+        from src.data.save_zarr import save_timestep_to_zarr
+        save_timestep_to_zarr(wildcards['timestep'], wildcards['grid'], output_zarr_dir)
+
+rule train_model:
+    input: config="configurations/{model_type}/{options}.yaml"
+    output: "models/{model_type}/{options}.pkl"
+    shell: "python -m src.models.{wildcards.model_type}.train --options {input.config} {output}"
