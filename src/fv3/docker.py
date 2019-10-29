@@ -45,7 +45,7 @@ def save_tiles_separately(sfc_data, prefix, output_directory):
     for i in range(6):
         output_path = join(output_directory, f"{prefix}.tile{i+1}.nc")
         logging.info(f"saving data to {output_path}")
-        sfc_data.isel(tiles=i).to_netcdf(output_path)
+        sfc_data.isel(tile=i).to_netcdf(output_path)
 
 
 def rundir(directory):
@@ -56,8 +56,8 @@ def run_experiment(directory):
     return check_call([
         'docker', 'run', #'-d',
         '-v', rundir(directory) + ':/FV3/rundir',
-        '-v', '/home/noahb/fv3gfs/inputdata/fv3gfs-data-docker/fix.v201702:/inputdata/fix.v201702',
-        'fv3gfs-compiled'
+        '-v', os.getcwd() + '/data/inputdata/fv3gfs-data-docker/fix.v201702:/inputdata/fix.v201702',
+        'us.gcr.io/vcm-ml/fv3gfs-compiled'
     ])
 
 
