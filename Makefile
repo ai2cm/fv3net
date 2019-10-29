@@ -10,6 +10,8 @@ PROFILE = default
 PROJECT_NAME = fv3net
 PYTHON_INTERPRETER = python3
 DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
+IMAGE = fv3net
+GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -20,6 +22,18 @@ endif
 #################################################################################
 # COMMANDS                                                                      #
 #################################################################################
+build_image:
+	docker build . -t $(IMAGE) -t $(GCR_IMAGE)
+
+enter: build_image
+	docker run -it -v $(shell pwd):/code \
+		-e GOOGLE_CLOUD_PROJECT=vcm-ml \
+		-e GOOGLE_APPLICATION_CREDENTIALS=/google_creds.json \
+		-v $(HOME)/.config/gcloud/application_default_credentials.json:/google_creds.json \
+		-w /code $(IMAGE)  bash
+
+push_image: build_image
+	docker push $(GCR_IMAGE)
 
 ## Install Python Dependencies
 requirements: test_environment

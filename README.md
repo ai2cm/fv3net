@@ -112,4 +112,25 @@ The training script should take in a yaml file of options with this command line
 python -m src.models.{model_type}.train --options options.yaml output.pkl
 ```
 
+# Deploying on k8s
+
+Make docker image for this workflow and push it to GCR
+
+    make push_image
+
+Create a K8S cluster:
+
+    bash provision_cluster.sh
+
+This cluster has some big-mem nodes for doing the FV3 run, which requires at least a n1-standard-2 VM for 
+C48.
+
+Install argo following [these instructions](https://github.com/argoproj/argo/blob/master/demo.md).
+
+Submit an argo job using
+
+    argo submit --watch argo-fv3net.yml
+
+
+
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>

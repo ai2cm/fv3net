@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: process-restart-
+spec:
+  entrypoint: process-all
+  templates:
+  - name: process-all
+    steps:
+    - - name: run-restarts
+        template: process-restart
+        arguments:
+          parameters:
+          - name: time
+            value: "{{item}}"
+          - name: grid
+            value: C48
+        withItems:
+        - "20160804.023000"
+        - "20160804.024500"
+        - "20160804.030000"
+
+  - name: process-restart
+    inputs:
+      parameters:
+      - name: time
+      - name: grid
+    container:
+      image: us.gcr.io/vcm-ml/fv3net
+      command: [snakemake]
+      args: ["workflow-status/restart_{{inputs.parameters.grid}}_{{inputs.parameters.time}}.done"]
