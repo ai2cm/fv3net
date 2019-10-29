@@ -1,8 +1,9 @@
 import pytest
+import numpy as np
 import xarray as xr
 
 
-from .cubedsphere import remove_duplicate_coords
+from .cubedsphere import remove_duplicate_coords, weighted_block_average
 
 
 @pytest.mark.parametrize(
@@ -40,3 +41,46 @@ def test_remove_duplicate_coords(
     expected = expected.to_dataset()
     result = remove_duplicate_coords(data)
     xr.testing.assert_identical(result, expected)
+
+
+def _test_weights_array(n=10):
+    coords = {'x': np.arange(n)+1.0, 'y': np.arange(n) + 1.0}
+    arr = np.ones((n, n))
+    weights = xr.DataArray(arr, dims=['x', 'y'], coords=coords)
+    return weights
+
+
+def test_block_weighted_average():
+    expected = 2.0
+    weights = _test_weights_array(n=10)
+    dataarray = expected * weights
+
+    ans = weighted_block_average(dataarray, weights, 2, x_dim='x', y_dim='y')
+    assert ans.shape == (2, 2)
+    assert np.all(np.isclose(ans, expected))
+
+
+@pytest.mark.parametrize('start_coord, expected_start', [
+    # expected_start = (start - 1) / factor + 1
+    (1, 1),
+    (11, 3)
+])
+def test_block_weighted_average_coords(start_coord, expected_start):
+    n = 10
+    target_n = 2
+    factor = n // target_n
+
+    weights = _test_weights_array(n)
+    coords = {dim: np.arange(start_coord, start_coord + n) for dim in weights.dims}
+    weights = weights.assign_coords(coords)
+
+    # ensure the coords are correct
+    for dim in weights.dims:
+        assert weights[dim].values[0] == pytest.approx(start_coord)
+
+    ans = weighted_block_average(weights, weights, target_n, x_dim='x', y_dim='y')
+
+    for dim in ans.dims:
+        assert weights[dim].values[0] == pytest.approx(start_coord)
+        expected = np.arange(expected_start, expected_start + target_n)
+        np.testing.assert_allclose(ans[dim].values, expected)

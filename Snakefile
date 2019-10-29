@@ -3,7 +3,7 @@ from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 from os.path import join
 from src.data import cubedsphere
 
-GS = GSRemoteProvider(keep_local=True)
+GS = GSRemoteProvider()
 
 # Wildcard values
 trained_models = [
@@ -17,7 +17,7 @@ timesteps = [
 ORIGINAL_COARSE_RESOLUTION = 384
 
 grids = [
-    "C48", "C384"
+    "C48"
 ]
 
 tiles = [1, 2, 3, 4, 5, 6]
@@ -63,8 +63,15 @@ c3072_grid_spec_pattern     = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C38
 grid_and_orography_data     = "gs://vcm-ml-data/2019-10-05-coarse-grid-and-orography-data.tar"
 vertical_grid               = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/fv_core.res.nc")
 input_data                  = "gs://vcm-ml-public/2019-09-27-FV3GFS-docker-input-c48-LH-nml/fv3gfs-data-docker_2019-09-27.tar.gz"
+<<<<<<< HEAD
 image_name                  = "us.gcr.io/vcm-ml/fv3gfs-compiled:latest"
 output_zarr_dir             = 'fv3_timestepped_output'
+=======
+
+# Remote outputs
+restart_uploaded            = "gs://vcm-ml-data/2019-10-22-restart-workflow/restart/{grid}/{timestep}/"
+restart_uploaded_status     = "workflow-status/restart_{grid}_{timestep}.done"
+>>>>>>> master
 
 # Local Assets (under version control)
 oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.txt"
@@ -146,14 +153,21 @@ all_coarsened_restart_files = expand(
 
 restart_dir_wildcard        = "data/restart/{grid}/{timestep}/"
 restart_dir_done            = "data/restart/{grid}/{timestep}.done"
+<<<<<<< HEAD
 fv3_image_pulled_done       = "fv3gfs-compiled.done"
 output_zarr_done            = 'gs://vcm-ml-data/' + output_zarr_dir + '/{grid}/restarted_{timestep}.zarr'
+=======
+>>>>>>> master
 
 c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
 
 
 rule all:
+<<<<<<< HEAD
     input: GS.remote(expand(output_zarr_done, timestep=timesteps, grid=grids))
+=======
+    input: GS.remote(expand(restart_uploaded_status, timestep=timesteps, grid=grids))
+>>>>>>> master
 
 
 rule prepare_restart_directory:
@@ -229,20 +243,21 @@ rule prepare_restart_directory:
             )
             
 
-rule pull_fv3_image:
-    output: touch(fv3_image_pulled_done)
-    shell: "docker pull {image_name}"
-
             
 rule run_restart:
     input:
         experiment=restart_dir_wildcard,
-        docker_image=fv3_image_pulled_done
     output:
         touch(restart_dir_done)
     run:
         from src.fv3 import run_experiment
         run_experiment(input.experiment)
+
+rule upload_restart:
+    input: restart_dir_done
+    output: touch(restart_uploaded_status)
+    params: restart=restart_dir_wildcard, gs_path=restart_uploaded
+    shell: "gsutil -m rsync -r {params.restart}  {params.gs_path}"
 
 
 def coarsen_factor_from_grid(wildcards):
@@ -294,18 +309,11 @@ rule download_c3072_grid_spec:
     gsutil -m cp {c3072_grid_spec} {output}/
     """
 
-rule download_timestep:
-    output: TAR
-    shell: """
-    gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_component=32' \
-          cp  {bucket}/{wildcards.timestep}.tar {output}
-    """
-
 rule download_oro_and_grid:
+    input: GS.remote(grid_and_orography_data)
     output: oro_files
     shell:"""
-    file=2019-10-05-coarse-grid-and-orography-data.tar 
-    gsutil cp gs://vcm-ml-data/$file .
+    file={input}
     mkdir -p {oro_and_grid_data}
     tar --strip-components=1 -xf $file -C {oro_and_grid_data}
     rm -f $file
@@ -315,11 +323,17 @@ rule extract_timestep:
     output:
         extracted
     params:
-        extraction_directory=extraction_directory
-    input:
-        TAR
-    shell:
-        "tar -xvf {input} -C {params.extraction_directory}"
+        extraction_directory=extraction_directory,
+        TAR=TAR
+    shell:"""
+    tarfile={params.TAR}
+
+    gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_component=32' \
+          cp  {bucket}/{wildcards.timestep}.tar $tarfile
+    
+    tar -xvf $tarfile -C {params.extraction_directory}
+    rm -f $tarfile
+    """
 
 rule coarsen_grid_spec:
     input:

@@ -7,6 +7,12 @@ from shutil import copytree, copy, rmtree
 import logging
 from src import utils
 
+from .common import write_submit_job_script
+
+
+DOCKER_IMAGE = os.environ.get('FV3NET_IMAGE', 'us.gcr.io/vcm-ml/fv3gfs-compiled-default')
+
+
 
 def copy_files_into_directory(files, directory):
     for file in files:
@@ -53,11 +59,13 @@ def rundir(directory):
 
 
 def run_experiment(directory):
+    script_path = write_submit_job_script(rundir(directory))
+    print("Using Docker image", DOCKER_IMAGE)
     return check_call([
         'docker', 'run', #'-d',
-        '-v', rundir(directory) + ':/FV3/rundir',
-        '-v', os.getcwd() + '/data/inputdata/fv3gfs-data-docker/fix.v201702:/inputdata/fix.v201702',
-        'us.gcr.io/vcm-ml/fv3gfs-compiled'
+        '-v', rundir(directory) + ':' + rundir(directory),
+        #'-v', os.getcwd() + '/data/inputdata/fv3gfs-data-docker/fix.v201702:/inputdata/fix.v201702',
+        DOCKER_IMAGE, 'bash', script_path
     ])
 
 
