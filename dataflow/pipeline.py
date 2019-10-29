@@ -18,11 +18,11 @@ def time_step(file):
 
 def get_completed_time_steps():
     files = utils.gslist(bucket)
-    return set([time_step(file) for file in files])
+    return [time_step(file) for file in files]
 
 
 def run(beam_options):
-    timesteps = get_completed_time_steps()
+    timesteps = get_completed_time_steps()[10:14]
     print(f"Processing {len(timesteps)} points")
     coarse_fn = retry.with_exponential_backoff(initial_delay_secs=30)(coarsen_and_upload_surface)
     with beam.Pipeline(options=beam_options) as p:

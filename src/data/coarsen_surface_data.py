@@ -5,6 +5,7 @@ from dask.delayed import delayed
 from src.data import cubedsphere
 import subprocess
 import logging
+import tempfile
 
 combine_subtiles = delayed(cubedsphere.combine_subtiles)
 
@@ -43,6 +44,9 @@ def coarsen_and_upload_surface(timestep):
     tiles = {key: combine_subtiles(val)
             for key, val in coarse.items()}
     ds = concat_files(tiles)
-    save_op = ds.to_netcdf('out.nc')
-    upload_op = upload_to_gcs('out.nc', output_file_name, save_op)
-    upload_op.compute()
+
+    with tempfile.NamedTemporaryFile() as fp:
+        save_op = ds.to_netcdf(fp.name)
+        upload_op = upload_to_gcs(fp.name, output_file_name, save_op)
+        upload_op.compute()
+        logging.info("uploading %s done" % output_file_name)
