@@ -8,6 +8,13 @@ from coarseflow.file_lister import GCSLister
 """
 Run command used for Dataflow
 
+Likely adjustments
+------------------
+num_workers: number of workers to start with
+max_num_workers: autoscaling limit
+
+Running defaults to the 1-core 3.75 GB memory workers
+
 python extract_main.py \
     --job_name coarseflow-test-andrep \
     --project vcm-ml \
