@@ -15,7 +15,10 @@ class GCSLister(FileLister):
         self.client = client
         self.bucket = bucket
 
-    def list(self, prefix=None, file_extension=None) -> Iterable[str]:
+    def list(self, 
+        prefix: str = None, 
+        file_extension: str = None
+    ) -> Iterable[str]:
         blobs = self.client.list_blobs(self.bucket, prefix=prefix)
         for blob in blobs:
             
@@ -25,5 +28,4 @@ class GCSLister(FileLister):
                 if file_extension.strip('.') != blob_ext_name:
                     continue
             
-            # TODO: Should pass the blob not the GS filename....
             yield f"gs://{blob.bucket.name}/{blob.name}"
