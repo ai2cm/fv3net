@@ -75,16 +75,22 @@ def open_cubed_sphere(prefix: str, **kwargs):
     return xr.concat(tiles, dim='tile')
 
 
-def add_coordinates(ds, x_dim, y_dim):
-    new_coordinates = {
-        x_dim: np.arange(1., ds.sizes[x_dim] + 1.).astype(np.float32),
-        y_dim: np.arange(1., ds.sizes[y_dim] + 1.).astype(np.float32)
+def coarsen_coords(factor, tile, dims):
+    return {
+        key: ((tile[key][::factor] - 1) // factor + 1).astype(int).astype(np.float32)
+        for key in dims
     }
 
-    if isinstance(ds, xr.DataArray):
-        result = ds.assign_coords(**new_coordinates).rename(ds.name)
+
+def add_coordinates(reference_ds, coarsened_ds, factor, x_dim, y_dim):
+    new_coordinates = coarsen_coords(factor, reference_ds, [x_dim, y_dim])
+
+    if isinstance(coarsened_ds, xr.DataArray):
+        result = coarsened_ds.assign_coords(
+            **new_coordinates
+        ).rename(coarsened_ds.name)
     else:
-        result = ds.assign_coords(**new_coordinates)
+        result = coarsened_ds.assign_coords(**new_coordinates)
     return result
 
 
@@ -128,7 +134,7 @@ def weighted_block_average(
     result = ((da * weights).coarsen(**coarsen_kwargs).sum() /
               weights.coarsen(**coarsen_kwargs).sum())
 
-    return add_coordinates(result, x_dim, y_dim)
+    return add_coordinates(da, result, coarsening_factor, x_dim, y_dim)
 
 
 def edge_weighted_block_average(
@@ -189,7 +195,9 @@ def edge_weighted_block_average(
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
-    return add_coordinates(result, coarsen_dim, downsample_dim)
+    return add_coordinates(
+        da, result, coarsening_factor, coarsen_dim, downsample_dim
+    )
 
 
 def _general_block_median(da, block_sizes):
@@ -271,12 +279,11 @@ def block_median(ds, target_resolution, x_dim='xaxis_1', y_dim='yaxis_1'):
     -------
     xr.DataArray
     """
-    def _block_median_da(da, target_resolution, x_dim, y_dim):
-        factor = da.sizes[x_dim] // target_resolution
+    def _block_median_da(da, coarsening_factor, x_dim, y_dim):
         block_sizes = {}
         for dim in da.dims:
             if dim in [x_dim, y_dim]:
-                block_sizes[dim] = factor
+                block_sizes[dim] = coarsening_factor
             else:
                 block_sizes[dim] = 1
 
@@ -286,13 +293,15 @@ def block_median(ds, target_resolution, x_dim='xaxis_1', y_dim='yaxis_1'):
         raise ValueError(f"'target_resolution' {target_resolution} specified "
                          "does not evenly divide the data resolution")
 
+    coarsening_factor = ds.sizes[x_dim] // target_resolution
+
     if isinstance(ds, xr.Dataset):
         results = []
         for da in ds.values():
             if x_dim in da.dims and y_dim in da.dims:
                 results.append(_block_median_da(
                     da,
-                    target_resolution,
+                    coarsening_factor,
                     x_dim,
                     y_dim)
                 )
@@ -301,9 +310,9 @@ def block_median(ds, target_resolution, x_dim='xaxis_1', y_dim='yaxis_1'):
 
         result = xr.merge(results)
     else:
-        result = _block_median_da(da, target_resolution, x_dim, y_dim)
+        result = _block_median_da(da, coarsening_factor, x_dim, y_dim)
 
-    return add_coordinates(result, x_dim, y_dim)
+    return add_coordinates(da, result, coarsening_factor, x_dim, y_dim)
 
 
 def block_coarsen(
@@ -349,7 +358,7 @@ def block_coarsen(
     coarsen_object = da.coarsen(**coarsen_kwargs)
     result = getattr(coarsen_object, method)()
 
-    return add_coordinates(result, x_dim, y_dim)
+    return add_coordinates(da, result, coarsening_factor, x_dim, y_dim)
 
 
 def block_edge_sum(
@@ -407,4 +416,6 @@ def block_edge_sum(
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
-    return add_coordinates(result, coarsen_dim, downsample_dim)
+    return add_coordinates(
+        da, result, coarsening_factor, coarsen_dim, downsample_dim
+    )
