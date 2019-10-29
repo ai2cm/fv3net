@@ -76,7 +76,7 @@ def open_cubed_sphere(prefix: str, **kwargs):
 
 def coarsen_coords(factor, tile, dims):
     return {
-        key: ((tile[key][::factor] - 1) // factor + 1).astype(int).astype(float)
+        key: ((tile[key][::factor] - 1) // factor + 1).astype(int).astype(np.float32)
         for key in dims
     }
 
