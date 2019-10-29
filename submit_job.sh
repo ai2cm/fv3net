@@ -1,5 +1,5 @@
 python dataflow/pipeline.py \
-    --job_name coarsen-sfc-data-test \
+    --job_name coarsen-sfc-data-production \
     --project vcm-ml \
     --region us-central1 \
     --runner DataFlow \
