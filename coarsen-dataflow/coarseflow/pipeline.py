@@ -5,38 +5,40 @@ from apache_beam.pvalue import PCollection
 from google.cloud.storage import Client  
 
 from coarseflow.file_lister import FileLister, GCSLister 
-from coarseflow.transforms import ExtractAndUploadTimestepWithC3072SurfaceData
+import coarseflow.transforms as cftransforms
 
 logging.basicConfig(level=logging.INFO)
 
 
-def run(file_lister: FileLister, prefix: str, file_extension: str) -> None:
-    # Run pipeline stuff here
+def run(file_lister: FileLister, prefix: str, file_extension: str,
+        output_prefix: str) -> None:
     """
-    Current workflow taken from snakemake
+    Pipeline currently specified for tar extraction processing.
 
-    Get data extracted from tar
-    Place in restart directory
-    Coarsen surface data place in restart directory
-    get the C3702 gridspec place in restart directory?
-    get grid/oro files and place in restart directory
-    prepare the restart directory
-
-    final step is a restart directory with all of the correct files in import
-    could place a finished file 
-    
+    Downloads timestep tarfile and extracts high-res surface data
+    into a directory and coarsened atmosphere files into another.
     """
     pipeline = apache_beam.Pipeline(options=PipelineOptions(pipeline_type_check=True))
 
-    matches: PCollection[str] = pipeline | apache_beam.Create(
+    to_extract: PCollection[str] = apache_beam.Create(
         file_lister.list(
             prefix=prefix,
             file_extension=file_extension
         )
-    ).with_output_types(str)
+    )
 
-    transform_dofn = ExtractAndUploadTimestepWithC3072SurfaceData() 
-    _ = matches | apache_beam.ParDo(transform_dofn)
+    filter_finished: PCollection[str] = apache_beam.Filter(
+        cftransforms.not_finished_with_tar_extract,
+        output_prefix
+    )
+
+    extract_fn = apache_beam.ParDo(
+        cftransforms.ExtractAndUploadTimestepWithC3072SurfaceData(
+            output_prefix
+        )
+    )
+
+    _ = pipeline | to_extract | filter_finished | extract_fn
 
     result = pipeline.run()
     result.wait_until_finish()
