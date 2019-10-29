@@ -63,15 +63,11 @@ c3072_grid_spec_pattern     = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C38
 grid_and_orography_data     = "gs://vcm-ml-data/2019-10-05-coarse-grid-and-orography-data.tar"
 vertical_grid               = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/fv_core.res.nc")
 input_data                  = "gs://vcm-ml-public/2019-09-27-FV3GFS-docker-input-c48-LH-nml/fv3gfs-data-docker_2019-09-27.tar.gz"
-<<<<<<< HEAD
-image_name                  = "us.gcr.io/vcm-ml/fv3gfs-compiled:latest"
 output_zarr_dir             = 'fv3_timestepped_output'
-=======
 
 # Remote outputs
 restart_uploaded            = "gs://vcm-ml-data/2019-10-22-restart-workflow/restart/{grid}/{timestep}/"
 restart_uploaded_status     = "workflow-status/restart_{grid}_{timestep}.done"
->>>>>>> master
 
 # Local Assets (under version control)
 oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.txt"
@@ -153,21 +149,14 @@ all_coarsened_restart_files = expand(
 
 restart_dir_wildcard        = "data/restart/{grid}/{timestep}/"
 restart_dir_done            = "data/restart/{grid}/{timestep}.done"
-<<<<<<< HEAD
-fv3_image_pulled_done       = "fv3gfs-compiled.done"
 output_zarr_done            = 'gs://vcm-ml-data/' + output_zarr_dir + '/{grid}/restarted_{timestep}.zarr'
-=======
->>>>>>> master
 
 c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
 
 
 rule all:
-<<<<<<< HEAD
     input: GS.remote(expand(output_zarr_done, timestep=timesteps, grid=grids))
-=======
-    input: GS.remote(expand(restart_uploaded_status, timestep=timesteps, grid=grids))
->>>>>>> master
+    #input: GS.remote(expand(restart_uploaded_status, timestep=timesteps, grid=grids))
 
 
 rule prepare_restart_directory:
