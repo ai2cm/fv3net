@@ -59,7 +59,7 @@ def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Datase
         return coarsened
 
     coarsened = coarsen_sum(data_no_area * area) / coarsen_sum(area)
-    coarse_coords = coarsen_coords(factor, data, ["xaxis_1", "y_axis_1"])
+    coarse_coords = coarsen_coords(factor, data, ["xaxis_1", "yaxis_1"])
 
     # special hack for SLMASK (should be integer quantity)
     coarsened['slmsk'] = integerize(coarsened.slmsk)
