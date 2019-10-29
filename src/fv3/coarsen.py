@@ -13,6 +13,7 @@ from toolz import curry
 
 
 from ..data.cubedsphere import (
+    coarsen_coords,
     weighted_block_average,
     edge_weighted_block_average,
     block_median,
@@ -58,7 +59,7 @@ def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Datase
         return coarsened
 
     coarsened = coarsen_sum(data_no_area * area) / coarsen_sum(area)
-    coarse_coords = coarsen_coords(factor, data)
+    coarse_coords = coarsen_coords(factor, data, ["xaxis_1", "y_axis_1"])
 
     # special hack for SLMASK (should be integer quantity)
     coarsened['slmsk'] = integerize(coarsened.slmsk)
@@ -79,13 +80,6 @@ def load_tile_proc(tile, subtile, path, grid_path):
     data = xr.merge([pane, area])
 
     return data
-
-
-def coarsen_coords(factor, tile):
-    return {
-        key: ((tile[key][::factor] - 1) // factor + 1).astype(int).astype(float)
-        for key in ["xaxis_1", "yaxis_1"]
-    }
 
 
 #TODO use src.data.cubedsphere for this
