@@ -42,7 +42,7 @@ def coarsened_restart_filenames(wildcards):
             tile in tiles]
 
 
-NATIVE_RESOLUTIONS = {
+ORIGINAL_RESOLUTIONS = {
     'fv_core.res': 384,
     'fv_tracer.res': 384,
     'fv_srf_wnd.res': 384,
@@ -332,7 +332,7 @@ rule coarsen_grid_spec:
     run:
         from src.fv3.coarsen import coarsen_grid_spec
 
-        coarsening_factor = NATIVE_RESOLUTIONS['grid_spec'] // ORIGINAL_COARSE_RESOLUTION
+        coarsening_factor = ORIGINAL_RESOLUTIONS['grid_spec'] // ORIGINAL_COARSE_RESOLUTION
         coarsen_grid_spec(
             input,
             coarsening_factor,
@@ -353,7 +353,7 @@ rule coarsen_restart_category:
         timestep = wildcards['timestep']
         native_category_name = wildcards['category']
         target_resolution = int(wildcards['grid'][1:])
-        coarsening_factor = NATIVE_RESOLUTIONS[native_category_name] // target_resolution
+        coarsening_factor = ORIGINAL_RESOLUTIONS[native_category_name] // target_resolution
         
         coarsen_restart_file_category(
             timestep,
