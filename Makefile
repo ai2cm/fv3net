@@ -28,8 +28,6 @@ build_image:
 enter: build_image
 	docker run -it -v $(shell pwd):/code \
 		-e GOOGLE_CLOUD_PROJECT=vcm-ml \
-		-e GOOGLE_APPLICATION_CREDENTIALS=/google_creds.json \
-		-v $(HOME)/.config/gcloud/application_default_credentials.json:/google_creds.json \
 		-w /code $(IMAGE)  bash
 
 push_image: build_image
