@@ -8,6 +8,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
     - checkout
+    - setup_remote_docker
     - run: make build_image
     - run: sudo pip install -r requirements.txt
     - run: echo $GCLOUD_SERVICE_KEY > key.json
