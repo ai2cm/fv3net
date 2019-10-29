@@ -1,5 +1,5 @@
-from src.metrics import r2_score
-from src.data.calc import mass_integrate
+from fv3net.metrics import r2_score
+from fv3net.data.calc import mass_integrate
 
 # evaluate
 y = model.predict(test, "sample")

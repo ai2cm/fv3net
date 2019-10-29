@@ -5,7 +5,7 @@ from os.path import abspath, join, basename
 import os
 from shutil import copytree, copy, rmtree
 import logging
-from src import utils
+from fv3net import utils
 
 from .common import write_submit_job_script
 

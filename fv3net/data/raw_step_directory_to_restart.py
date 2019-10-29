@@ -41,7 +41,7 @@ fv_core.res.tile4.nc  fv_srf_wnd.res.tile5.nc  fv_tracer.res.tile6.nc  oro_data.
 fv_core.res.tile5.nc  fv_srf_wnd.res.tile6.nc  sfc_data.tile1....
 
 """
-from src.fv3 import *
+from fv3net.fv3 import *
 import xarray as xr
 from itertools import product
 import logging

@@ -6,7 +6,7 @@ import zarr as zr
 import xesmf as xe
 from tqdm import tqdm
 
-from src.data import replace_esmf_coords_reg_latlon
+from fv3net.data import replace_esmf_coords_reg_latlon
 
 
 ### Vertical interpolation
@@ -178,7 +178,7 @@ def _var_finished_regridding(prev_regrid_dataset: zr.hierarchy.Group, var: str):
     return is_finished_regrid
 
 def main():
-    from src.data import open_dataset
+    from fv3net.data import open_dataset
     import argparse
 
     parser = argparse.ArgumentParser()

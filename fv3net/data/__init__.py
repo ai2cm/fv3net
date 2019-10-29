@@ -1,7 +1,7 @@
 import xarray as xr
 import intake
 import yaml
-from src import TOP_LEVEL_DIR
+from fv3net import TOP_LEVEL_DIR
 from .remote_data import open_gfdl_data_with_2d, open_gfdl_15_minute_SHiELD
 from pathlib import Path
 

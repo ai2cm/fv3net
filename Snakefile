@@ -1,7 +1,7 @@
-from src.data import save_zarr
+from fv3net.data import save_zarr
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 from os.path import join
-from src.data import cubedsphere
+from fv3net.data import cubedsphere
 
 GS = GSRemoteProvider()
 
@@ -178,8 +178,8 @@ rule prepare_restart_directory:
         
         from datetime import datetime
         
-        from src.data.cubedsphere import open_cubed_sphere
-        from src.fv3 import make_experiment
+        from fv3net.data.cubedsphere import open_cubed_sphere
+        from fv3net.fv3 import make_experiment
         
         logging.basicConfig(level=logging.INFO)
 
@@ -221,7 +221,7 @@ rule run_restart:
     output:
         touch(restart_dir_done)
     run:
-        from src.fv3 import run_experiment
+        from fv3net.fv3 import run_experiment
         run_experiment(input.experiment)
 
 rule upload_restart:
@@ -244,7 +244,7 @@ rule coarsen_sfc_data:
     output: coarsened_sfc_data_wildcard
     params: factor=coarsen_factor_from_grid
     shell: """
-    python src/data/raw_step_directory_to_restart.py \
+    python fv3net/data/raw_step_directory_to_restart.py \
       --num-tiles 6 \
       --num-subtiles 16 \
       --method median \
@@ -308,12 +308,12 @@ rule extract_timestep:
 
 rule convert_to_zarr:
     output: directory(save_zarr.output_2d), directory(save_zarr.output_3d)
-    shell: "python -m src.data.save_zarr"
+    shell: "python -m fv3net.data.save_zarr"
 
 rule train_model:
     input: config="configurations/{model_type}/{options}.yaml"
     output: "models/{model_type}/{options}.pkl"
-    shell: "python -m src.models.{wildcards.model_type}.train --options {input.config} {output}"
+    shell: "python -m fv3net.models.{wildcards.model_type}.train --options {input.config} {output}"
 
 
 rule coarsen_grid_spec:
@@ -322,7 +322,7 @@ rule coarsen_grid_spec:
     output:
         coarsened_grid_spec=coarsened_grid_spec
     run:
-        from src.fv3.coarsen import coarsen_grid_spec
+        from fv3net.fv3.coarsen import coarsen_grid_spec
 
         coarsen_grid_spec(
             input,
@@ -339,7 +339,7 @@ rule coarsen_restart_category:
     output:
         coarsened_restart_filenames_wildcard
     run:
-        from src.fv3.coarsen import coarsen_restart_file_category
+        from fv3net.fv3.coarsen import coarsen_restart_file_category
 
         timestep = wildcards['timestep']
         native_category_name = wildcards['category']

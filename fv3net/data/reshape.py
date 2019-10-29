@@ -10,7 +10,7 @@ The saved archive is suitable to use with uwnet.train
 import xarray as xr
 import numpy as np
 import argparse
-from src.data import open_data
+from fv3net.data import open_data
 
 
 def chunk_indices(chunks):
