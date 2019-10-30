@@ -28,30 +28,56 @@ def _median_no_dask(x, coarsening):
 def upload_to_gcs(src, dest, save_op):
     logging.info("uploading %s to %s" % (src, dest))
     subprocess.check_call(['gsutil', '-q', 'cp',  src, dest])
+    logging.info("uploading %s done" % dest)
+
+@delayed
+def fuse(*args):
+    pass
 
 
-def output_name(timestep):
-    category = 'sfc_data'
-    output_file_name = f'gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/coarsened/C384/{timestep}/{category}.nc'
-    return output_file_name
+def output_names(key) -> dict:
+    timestep, coarsenings = key
+    urls = {}
+    for coarsening in coarsenings:
+        res = int(3072 // coarsening)
+        category = 'sfc_data'
+        output_file_name = f'gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/coarsened/C{res}/{timestep}/{category}.nc'
+        urls[coarsening] = output_file_name
+    return urls
 
 
-def coarsen_and_upload_surface(timestep):
-    output_file_name = output_name(timestep)
-    logging.info("Saving file to %s"%output_file_name)
+def coarsen_and_upload_surface(key):
+    timestep, coarsenings= key
+    output_file_names = output_names(key)
+
+    ops = []
+
+    # data downloading ops
     category = 'sfc_data'
     stored_resolution = 3702
-    coarsening = 8
     files = utils.file_names_for_time_step(timestep, category, resolution=stored_resolution)
     grouped_files = utils.group_file_names(files)
     opened = utils.map_ops(utils._open_remote_nc, grouped_files) 
-    coarse = utils.map_ops(_median_no_dask, opened, coarsening) 
-    tiles = {key: combine_subtiles(val)
-            for key, val in coarse.items()}
-    ds = concat_files(tiles)
 
-    with tempfile.NamedTemporaryFile() as fp:
-        save_op = ds.to_netcdf(fp.name)
-        upload_op = upload_to_gcs(fp.name, output_file_name, save_op)
-        upload_op.compute(scheduler="single-threaded")
-        logging.info("uploading %s done" % output_file_name)
+    # coarse-graining
+    with tempfile.TemporaryDirectory() as d:
+        for coarsening in coarsenings:
+            output_file_name = output_file_names[coarsening]
+            logging.info("beggining processing job to %s" % output_file_name)
+            coarse = utils.map_ops(_median_no_dask, opened, coarsening) 
+            tiles = {key: combine_subtiles(val)
+                    for key, val in coarse.items()}
+            ds = concat_files(tiles)
+            name = f"{d}/{coarsening}.name"
+            save_op = ds.to_netcdf(name)
+            upload_op = upload_to_gcs(name, output_file_name, save_op)
+            ops.append(upload_op)
+
+        all_ops = fuse(*ops)
+        all_ops.compute(scheduler="single-threaded")
+        #all_ops.compute()
+
+if __name__ == '__main__':
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    coarsen_and_upload_surface(timestep='20160805.114500', coarsenings=(8, 16, 32, 64))

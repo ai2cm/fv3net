@@ -1,5 +1,5 @@
 import apache_beam as beam
-from src.data.coarsen_surface_data import coarsen_and_upload_surface, output_name
+from src.data.coarsen_surface_data import coarsen_and_upload_surface, output_names
 from apache_beam.options.pipeline_options import PipelineOptions  
 import logging
 import subprocess
@@ -10,6 +10,7 @@ from apache_beam.utils import retry
 logging.basicConfig(level=logging.INFO)
 
 bucket = 'gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/C384/'
+coarsenings = (8, 16, 32, 64)
 
 def time_step(file):
     pattern = re.compile(r'(........\.......)')
@@ -18,7 +19,7 @@ def time_step(file):
 
 def get_completed_time_steps():
     files = utils.gslist(bucket)
-    return [time_step(file) for file in files]
+    return [(time_step(file), coarsenings) for file in files]
 
 
 def exists(url):
@@ -26,8 +27,8 @@ def exists(url):
     return proc == 0
 
 
-def is_not_done(timestep):
-    return not exists(output_name(timestep))
+def is_not_done(key):
+    return any(not exists(url) for url in output_names(key).values())
      
 
 def run(beam_options):
