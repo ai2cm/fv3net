@@ -60,7 +60,7 @@ def extract_tarball_to_path(
 
     logger.debug(f'Destination directory for tar extraction: {extract_to_dir}')
     tar_commands = ['tar', '-xf', source_tar_path, '-C', extract_to_dir]
-    subprocess.call(tar_commands)
+    subprocess.check_call(tar_commands)
 
     return extract_to_dir
 
