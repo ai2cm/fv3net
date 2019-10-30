@@ -1,4 +1,4 @@
-python dataflow/pipeline.py \
+python main.py \
     --job_name coarsen-sfc-data-test \
     --runner direct \
     --setup_file ./setup.py \

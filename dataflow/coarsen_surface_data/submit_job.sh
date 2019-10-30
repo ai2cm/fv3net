@@ -1,4 +1,4 @@
-python dataflow/pipeline.py \
+python main.py \
     --job_name coarsen-sfc-data-production \
     --project vcm-ml \
     --region us-central1 \
