@@ -50,7 +50,7 @@ def extract_tarball_to_path(
     extract_to_dir: Optional[Path] = None,
     ) -> Path:
 
-    logger.info('Extracting tar file...')
+    logger.info(f'Extracting tar file {source_tar_path.name}')
 
     # with suffix [blank] removes file_ext and uses filename as untar dir
     if extract_to_dir is None:
