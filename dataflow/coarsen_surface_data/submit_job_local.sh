@@ -1,4 +1,4 @@
-python main.py \
+python -m coarsen_surface_data  \
     --job_name coarsen-sfc-data-test \
     --runner direct \
     --setup_file ./setup.py \
