@@ -30,8 +30,9 @@ def upload_to_gcs(src, dest, save_op):
     subprocess.check_call(['gsutil', '-q', 'cp',  src, dest])
     logging.info("uploading %s done" % dest)
 
+
 @delayed
-def fuse(*args):
+def run_all_delayeds(*args):
     pass
 
 
@@ -73,9 +74,8 @@ def coarsen_and_upload_surface(key):
             upload_op = upload_to_gcs(name, output_file_name, save_op)
             ops.append(upload_op)
 
-        all_ops = fuse(*ops)
+        all_ops = run_all_delayeds(*ops)
         all_ops.compute(scheduler="single-threaded")
-        #all_ops.compute()
 
 if __name__ == '__main__':
     import logging
