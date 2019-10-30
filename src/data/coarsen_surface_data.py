@@ -30,13 +30,18 @@ def upload_to_gcs(src, dest, save_op):
     subprocess.check_call(['gsutil', '-q', 'cp',  src, dest])
 
 
+def output_name(timestep):
+    category = 'sfc_data'
+    output_file_name = f'gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/coarsened/C384/{timestep}/{category}.nc'
+    return output_file_name
+
+
 def coarsen_and_upload_surface(timestep):
+    output_file_name = output_name(timestep)
+    logging.info("Saving file to %s"%output_file_name)
     category = 'sfc_data'
     stored_resolution = 3702
     coarsening = 8
-    output_file_name = f'gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/coarsened/C384/{timestep}/{category}.nc'
-    logging.info("Saving file to %s"%output_file_name)
-    
     files = utils.file_names_for_time_step(timestep, category, resolution=stored_resolution)
     grouped_files = utils.group_file_names(files)
     opened = utils.map_ops(utils._open_remote_nc, grouped_files) 
