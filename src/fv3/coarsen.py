@@ -139,7 +139,7 @@ def coarsen_sfc_data_in_directory(files, **kwargs):
     return xr.concat(procs.compute(), dim='tile')
 
 
-def coarse_grain_fv_core(ds, delp, area, dx, dy, target_resolution):
+def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
     """Coarse grain a set of fv_core restart files.
 
     Parameters
@@ -152,8 +152,8 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, target_resolution):
         x edge lengths
     dy : xr.DataArray
         y edge lengths
-    target_resolution : int
-        Target resolution to coarsen to
+    coarsening_factor : int
+        Coarsening factor to use
 
     Returns
     -------
@@ -167,7 +167,7 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, target_resolution):
     area_weighted = weighted_block_average(
         ds[area_weighted_vars],
         area,
-        target_resolution,
+        coarsening_factor,
         x_dim='xaxis_1',
         y_dim='yaxis_2'
     )
@@ -176,7 +176,7 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, target_resolution):
     mass_weighted = weighted_block_average(
         ds[mass_weighted_vars],
         mass,
-        target_resolution,
+        coarsening_factor,
         x_dim='xaxis_1',
         y_dim='yaxis_2'
     )
@@ -184,7 +184,7 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, target_resolution):
     edge_weighted_x = edge_weighted_block_average(
         ds[dx_edge_weighted_vars],
         dx,
-        target_resolution,
+        coarsening_factor,
         x_dim='xaxis_1',
         y_dim='yaxis_1',
         edge='x'
@@ -193,7 +193,7 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, target_resolution):
     edge_weighted_y = edge_weighted_block_average(
         ds[dy_edge_weighted_vars],
         dy,
-        target_resolution,
+        coarsening_factor,
         x_dim='xaxis_2',
         y_dim='yaxis_2',
         edge='y'
@@ -204,7 +204,7 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, target_resolution):
     )
 
 
-def coarse_grain_fv_tracer(ds, delp, area, target_resolution):
+def coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
     """Coarse grain a set of fv_tracer restart files.
 
     Parameters
@@ -215,8 +215,8 @@ def coarse_grain_fv_tracer(ds, delp, area, target_resolution):
         Pressure thicknesses
     area : xr.DataArray
         Area weights
-    target_resolution : int
-        Target resolution to coarsen to
+    coarsening_factor : int
+        Coarsening factor to use
 
     Returns
     -------
@@ -237,7 +237,7 @@ def coarse_grain_fv_tracer(ds, delp, area, target_resolution):
     area_weighted = weighted_block_average(
         ds[area_weighted_vars],
         area,
-        target_resolution,
+        coarsening_factor,
         x_dim='xaxis_1',
         y_dim='yaxis_1'
     )
@@ -246,7 +246,7 @@ def coarse_grain_fv_tracer(ds, delp, area, target_resolution):
     mass_weighted = weighted_block_average(
         ds[mass_weighted_vars],
         mass,
-        target_resolution,
+        coarsening_factor,
         x_dim='xaxis_1',
         y_dim='yaxis_1'
     )
@@ -254,7 +254,7 @@ def coarse_grain_fv_tracer(ds, delp, area, target_resolution):
     return xr.merge([area_weighted, mass_weighted])
 
 
-def coarse_grain_fv_srf_wnd(ds, area, target_resolution):
+def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
     """Coarse grain a set of fv_srf_wnd restart files.
 
     Parameters
@@ -263,8 +263,8 @@ def coarse_grain_fv_srf_wnd(ds, area, target_resolution):
         Input Dataset; assumed to be from a set of fv_srf_wnd restart files
     area : xr.DataArray
         Area weights
-    target_resolution : int
-        Target resolution to coarsen to
+    coarsening_factor : int
+        Coarsening factor to use
 
     Returns
     -------
@@ -274,13 +274,13 @@ def coarse_grain_fv_srf_wnd(ds, area, target_resolution):
     return weighted_block_average(
         ds[area_weighted_vars],
         area,
-        target_resolution,
+        coarsening_factor,
         x_dim='xaxis_1',
         y_dim='yaxis_1'
     )
 
 
-def coarse_grain_sfc_data(ds, area, target_resolution):
+def coarse_grain_sfc_data(ds, area, coarsening_factor):
     """Coarse grain a set of sfc_data restart files.
 
     Parameters
@@ -289,8 +289,8 @@ def coarse_grain_sfc_data(ds, area, target_resolution):
         Input Dataset; assumed to be from a set of sfc_data restart files
     area : xr.DataArray
         Area weights
-    target_resolution : int
-        Target resolution to coarsen to
+    coarsening_factor : int
+        Coarsening factor to use
 
     Returns
     -------
@@ -298,7 +298,7 @@ def coarse_grain_sfc_data(ds, area, target_resolution):
     """
     result = block_median(
         ds,
-        target_resolution,
+        coarsening_factor,
         x_dim='xaxis_1',
         y_dim='yaxis_1'
     )
@@ -309,7 +309,7 @@ def coarse_grain_sfc_data(ds, area, target_resolution):
 
 def coarse_grain_grid_spec(
         ds,
-        target_resolution,
+        coarsening_factor,
         x_dim_unstaggered='grid_xt',
         y_dim_unstaggered='grid_yt',
         x_dim_staggered='grid_x',
@@ -317,21 +317,21 @@ def coarse_grain_grid_spec(
 ):
     coarse_dx = block_edge_sum(
         ds.dx,
-        target_resolution,
+        coarsening_factor,
         x_dim_unstaggered,
         y_dim_staggered,
         'x'
     )
     coarse_dy = block_edge_sum(
         ds.dy,
-        target_resolution,
+        coarsening_factor,
         x_dim_staggered,
         y_dim_unstaggered,
         'y'
     )
     coarse_area = block_coarsen(
         ds.area,
-        target_resolution,
+        coarsening_factor,
         x_dim_unstaggered,
         y_dim_unstaggered
     )
@@ -351,7 +351,7 @@ def sync_dimension_order(a, b):
 
 def coarsen_grid_spec(
     input_grid_spec,
-    target_resolution,
+    coarsening_factor,
     output_filename,
     x_dim_unstaggered='grid_xt',
     y_dim_unstaggered='grid_yt',
@@ -362,7 +362,7 @@ def coarsen_grid_spec(
     native_grid_spec = xr.open_mfdataset(input_grid_spec, concat_dim=tile)
     result = coarse_grain_grid_spec(
         native_grid_spec,
-        target_resolution,
+        coarsening_factor,
         x_dim_unstaggered,
         y_dim_unstaggered,
         x_dim_staggered,
@@ -374,7 +374,7 @@ def coarsen_grid_spec(
 def coarsen_restart_file_category(
         timestep,
         native_category_name,
-        target_resolution,
+        coarsening_factor,
         coarse_grid_spec,
         native_grid_spec,
         source_data_prefix,
@@ -398,13 +398,13 @@ def coarsen_restart_file_category(
             grid_spec.area.rename({'grid_xt': 'xaxis_1', 'grid_yt': 'yaxis_2'}),
             grid_spec.dx.rename({'grid_xt': 'xaxis_1', 'grid_y': 'yaxis_1'}),
             grid_spec.dy.rename({'grid_x': 'xaxis_2', 'grid_yt': 'yaxis_2'}),
-            target_resolution
+            coarsening_factor
         )
     elif category == 'fv_srf_wnd_coarse.res':
         coarsened = coarse_grain_fv_srf_wnd(
             source,
             grid_spec.area.rename({'grid_xt': 'xaxis_1', 'grid_yt': 'yaxis_1'}),
-            target_resolution
+            coarsening_factor
         )
     elif category == 'fv_tracer_coarse.res':
         fv_core = open_cubed_sphere(
@@ -417,14 +417,14 @@ def coarsen_restart_file_category(
             source,
             fv_core.delp.rename({'yaxis_2': 'yaxis_1'}),
             grid_spec.area.rename({'grid_xt': 'xaxis_1', 'grid_yt': 'yaxis_1'}),
-            target_resolution
+            coarsening_factor
         )
     elif category == 'sfc_data':
         native_grid_spec = xr.open_mfdataset(native_grid_spec, concat_dim=tile)
         coarsened = coarse_grain_sfc_data(
             source,
             native_grid_spec.area.rename({'grid_xt': 'xaxis_1', 'grid_yt': 'yaxis_1'}),
-            target_resolution
+            coarsening_factor
         )
     else:
         raise ValueError(
