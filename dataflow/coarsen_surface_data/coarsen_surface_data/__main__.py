@@ -32,7 +32,7 @@ def is_not_done(key):
      
 
 def run(beam_options):
-    timesteps = get_completed_time_steps()[:4]
+    timesteps = get_completed_time_steps()
     print(f"Processing {len(timesteps)} points")
     coarse_fn = retry.with_exponential_backoff(initial_delay_secs=30)(coarsen_and_upload_surface)
     with beam.Pipeline(options=beam_options) as p:
