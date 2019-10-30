@@ -20,8 +20,7 @@ def concat_files(tiles):
 @delayed
 def _median_no_dask(x, coarsening):
     n = len(x['xaxis_1'])
-    target_res = n // coarsening
-    return cubedsphere.block_median(x.chunk(), target_res).compute()
+    return cubedsphere.block_median(x.chunk(), coarsening).compute()
 
 
 @delayed
@@ -75,7 +74,8 @@ def coarsen_and_upload_surface(key):
             ops.append(upload_op)
 
         all_ops = run_all_delayeds(*ops)
-        all_ops.compute(scheduler="single-threaded")
+        #all_ops.compute(scheduler="single-threaded")
+        all_ops.compute()
 
 if __name__ == '__main__':
     import logging
