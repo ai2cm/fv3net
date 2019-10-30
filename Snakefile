@@ -40,6 +40,12 @@ def coarsened_restart_filenames(wildcards):
     category = wildcards['category']
     return [f'data/coarsened/{grid}/{timestep}/{category}.tile{tile}.nc' for
             tile in tiles]
+            
+def coarsened_sfc_filename(wildcards):
+    timestep = wildcards['timestep']
+    grid = wildcards['grid']
+    #category = wildcards['category']
+    return f"gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/coarsened/{grid}/{timestep}.sfc_data.nc"
 
 
 ORIGINAL_RESOLUTIONS = {
@@ -120,7 +126,8 @@ grid_spec                   = expand("data/raw/coarse-grid-and-orography-data/{{
 oro_data                    = expand("data/raw/coarse-grid-and-orography-data/{{grid}}/oro_data.tile{tile:d}.nc", tile=tiles)
 
 # Intermediate steps
-coarsened_sfc_data_wildcard = "data/coarsened/{grid}/{timestep}.sfc_data.nc"
+
+coarsened_sfc_data_wildcard = 
 coarsened_restart_filenames_wildcard = coarsened_restart_filenames(
     {'timestep': '{timestep}', 'grid': '{grid}', 'category': '{category}'}
 )
@@ -139,10 +146,15 @@ tracer = coarsened_restart_filenames(
      'grid': '{grid}',
      'category': 'fv_tracer.res'}
 )
-sfc_data = coarsened_restart_filenames(
-    {'timestep': '{timestep}',
-     'grid': '{grid}',
-     'category': 'sfc_data'}
+#sfc_data = coarsened_restart_filenames(
+#    {'timestep': '{timestep}',
+#     'grid': '{grid}',
+#     'category': 'sfc_data'}
+#)
+sfc_data = coarsened_sfc_filename(
+    {'timestep' : '{timestep}',
+    'grid' : {'grid'}
+    }
 )
 coupler = 'data/extracted/{timestep}/{timestep}.coupler.res'
 all_coarsened_restart_files = expand(
@@ -197,7 +209,8 @@ rule prepare_restart_directory:
             ('fv_tracer.res', xr.open_mfdataset(input.tracer, concat_dim='tile')),
             ('fv_core.res', xr.open_mfdataset(input.core, concat_dim='tile')),
             ('fv_srf_wnd.res', xr.open_mfdataset(input.srf_wnd, concat_dim='tile')),
-            ('sfc_data', xr.open_mfdataset(input.sfc_data, concat_dim='tile')),
+            # TODO should surface data and other input data have the same 6-tile format?
+            ('sfc_data', xr.open_dataset(input.sfc_data),
             ('grid_spec', xr.open_mfdataset(sorted(input.grid_spec), concat_dim='tile'))
         ]
 
