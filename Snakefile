@@ -44,7 +44,7 @@ def coarsened_restart_filenames(wildcards):
 def coarsened_sfc_filename(wildcards):
     timestep = wildcards['timestep']
     grid = wildcards['grid']
-    return f"gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/coarsened/{grid}/{timestep}.sfc_data.nc"
+    return f"{DATAFLOW_OUTPUT_DIR}/coarsened/{grid}/{timestep}/sfc_data.nc"
 
 
 ORIGINAL_RESOLUTIONS = {
@@ -58,15 +58,15 @@ ORIGINAL_RESOLUTIONS = {
 RESTART_CATEGORIES = [
     'fv_core.res',
     'fv_srf_wnd.res',
-    'fv_tracer.res',
-    'sfc_data'
+    'fv_tracer.res'
+    #'sfc_data'
 ]
 
 OUTPUT_CATEGORY_NAMES = {
     'fv_core.res': 'fv_core_coarse.res',
     'fv_srf_wnd.res': 'fv_srf_wnd_coarse.res',
-    'fv_tracer.res': 'fv_tracer_coarse.res',
-    'sfc_data': 'sfc_data'
+    'fv_tracer.res': 'fv_tracer_coarse.res'
+    #'sfc_data': 'sfc_data'
 }
 
 
@@ -76,6 +76,9 @@ c3072_grid_spec_pattern     = "gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C38
 grid_and_orography_data     = "gs://vcm-ml-data/2019-10-05-coarse-grid-and-orography-data.tar"
 vertical_grid               = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/fv_core.res.nc")
 input_data                  = "gs://vcm-ml-public/2019-09-27-FV3GFS-docker-input-c48-LH-nml/fv3gfs-data-docker_2019-09-27.tar.gz"
+
+# Dataflow outputs
+DATAFLOW_OUTPUT_DIR         = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted"
 
 # Remote outputs
 restart_uploaded            = "gs://vcm-ml-data/2019-10-22-restart-workflow/restart/{grid}/{timestep}/"
@@ -184,7 +187,7 @@ rule prepare_restart_directory:
         srf_wnd=srf_wnd,
         core=core,
         tracer=tracer,
-        sfc_data=sfc_data,
+        sfc_data=GS.remote(sfc_data),
         coupler=coupler
     output:
         restart_dir=directory(restart_dir_wildcard)
