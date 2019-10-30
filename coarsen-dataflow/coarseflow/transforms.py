@@ -111,7 +111,7 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
 
     # Filter transform removes false values. Pass thru if files are not ok
     do_extract = not files_ok
-    logger.debug(f'Continue extracting timestep? {do_extract}')
+    logger.info(f'Continue extracting timestep ({timestep})? {do_extract}')
 
     return do_extract
 
