@@ -44,7 +44,6 @@ def coarsened_restart_filenames(wildcards):
 def coarsened_sfc_filename(wildcards):
     timestep = wildcards['timestep']
     grid = wildcards['grid']
-    #category = wildcards['category']
     return f"gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/coarsened/{grid}/{timestep}.sfc_data.nc"
 
 
@@ -127,7 +126,6 @@ oro_data                    = expand("data/raw/coarse-grid-and-orography-data/{{
 
 # Intermediate steps
 
-coarsened_sfc_data_wildcard = 
 coarsened_restart_filenames_wildcard = coarsened_restart_filenames(
     {'timestep': '{timestep}', 'grid': '{grid}', 'category': '{category}'}
 )
@@ -153,7 +151,7 @@ tracer = coarsened_restart_filenames(
 #)
 sfc_data = coarsened_sfc_filename(
     {'timestep' : '{timestep}',
-    'grid' : {'grid'}
+    'grid' : '{grid}'
     }
 )
 coupler = 'data/extracted/{timestep}/{timestep}.coupler.res'
@@ -182,7 +180,7 @@ rule prepare_restart_directory:
         grid_spec=grid_spec,
         vertical_grid=vertical_grid,
         input_data_dir=input_data_dir,
-	template_dir=template_dir,
+        template_dir=template_dir,
         srf_wnd=srf_wnd,
         core=core,
         tracer=tracer,
@@ -210,7 +208,7 @@ rule prepare_restart_directory:
             ('fv_core.res', xr.open_mfdataset(input.core, concat_dim='tile')),
             ('fv_srf_wnd.res', xr.open_mfdataset(input.srf_wnd, concat_dim='tile')),
             # TODO should surface data and other input data have the same 6-tile format?
-            ('sfc_data', xr.open_dataset(input.sfc_data),
+            ('sfc_data', xr.open_dataset(input.sfc_data)),
             ('grid_spec', xr.open_mfdataset(sorted(input.grid_spec), concat_dim='tile'))
         ]
 
@@ -259,19 +257,19 @@ def coarsen_factor_from_grid(wildcards):
         raise ValueError("Target grid size must be a factor of 3072")
     return base_n // target_n
 
-rule coarsen_sfc_data:
-    input: grid=c3072_grid_spec_tiled,
-           time=EXTRACTED
-    output: coarsened_sfc_data_wildcard
-    params: factor=coarsen_factor_from_grid
-    shell: """
-    python src/data/raw_step_directory_to_restart.py \
-      --num-tiles 6 \
-      --num-subtiles 16 \
-      --method median \
-      --factor {params.factor} \
-      {wildcards.timestep} {output}
-    """
+#rule coarsen_sfc_data:
+#    input: grid=c3072_grid_spec_tiled,
+#           time=EXTRACTED
+#    output: coarsened_sfc_data_wildcard
+#    params: factor=coarsen_factor_from_grid
+#    shell: """
+#    python src/data/raw_step_directory_to_restart.py \
+#      --num-tiles 6 \
+#      --num-subtiles 16 \
+#      --method median \
+#      --factor {params.factor} \
+#      {wildcards.timestep} {output}
+#    """
 
 rule download_template_rundir:
     output: directory(template_dir)
