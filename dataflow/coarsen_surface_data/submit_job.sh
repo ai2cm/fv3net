@@ -1,5 +1,5 @@
 python -m coarsen_surface_data  \
-    --job_name coarsen-sfc-data-production \
+    --job_name coarsen-sfc-data-testing-$(uuid) \
     --project vcm-ml \
     --region us-central1 \
     --runner DataFlow \
