@@ -7,7 +7,10 @@ from google.cloud.storage import Client
 from coarseflow.file_lister import FileLister, GCSLister 
 import coarseflow.transforms as cftransforms
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler()
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 
 def run(file_lister: FileLister, prefix: str, file_extension: str,
@@ -25,12 +28,12 @@ def run(file_lister: FileLister, prefix: str, file_extension: str,
             prefix=prefix,
             file_extension=file_extension
         )
-    )
+    ).with_output_types(str)
 
     filter_finished: PCollection[str] = apache_beam.Filter(
         cftransforms.not_finished_with_tar_extract,
         output_prefix
-    )
+    ).with_output_types(str)
 
     extract_fn = apache_beam.ParDo(
         cftransforms.ExtractAndUploadTimestepWithC3072SurfaceData(

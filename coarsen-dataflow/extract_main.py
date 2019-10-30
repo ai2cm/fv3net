@@ -8,15 +8,15 @@ from coarseflow.file_lister import GCSLister
 """
 Run command used for Dataflow
 
-Likely adjustments
+Adjust the following to meet job needs
 ------------------
 num_workers: number of workers to start with
 max_num_workers: autoscaling limit
 
-Running defaults to the 1-core 3.75 GB memory workers
+Running defaults machine-type the 1-core 3.75 GB memory workers
 
 python extract_main.py \
-    --job_name diggin-out-the-tar-pit-andrep \
+    --job_name continue-extract-all-tars-andrep \
     --project vcm-ml \
     --region us-central1 \
     --runner DataflowRunner \
@@ -25,8 +25,7 @@ python extract_main.py \
     --num_workers 60 \
     --max_num_workers 60 \
     --disk_size_gb 80 \
-    --type_check_strictness 'ALL_REQUIRED' \
-    --service_account_email andre-vm-sa@vcm-ml.iam.gserviceaccount.com
+    --type_check_strictness 'ALL_REQUIRED' 
 """
 
 if __name__ == "__main__":
