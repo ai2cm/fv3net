@@ -1,7 +1,10 @@
 from src.data import save_zarr
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
-from os.path import join
+from os.path import join, dirname
 from src.data import cubedsphere
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 GS = GSRemoteProvider()
 
@@ -324,28 +327,41 @@ rule coarsen_grid_spec:
 
 rule coarsen_restart_category:
     input:
-        restart_files=extracted_categories,
+        #restart_files=extracted_categories,
         coarse_grid_spec=rules.coarsen_grid_spec.output.coarsened_grid_spec,
         native_grid_spec=native_grid_spec
     output:
         coarsened_restart_filenames_wildcard
     run:
         from src.fv3.coarsen import coarsen_restart_file_category
+        import subprocess
+        import tempfile
+        import os, shutil
+
+        download_dir = tempfile.mkdtemp()
+
+        src_bucket = join(DATAFLOW_OUTPUT_DIR, 'C384', wildcards.timestep)
+        logging.info("Downloading %s to %s" % (src_bucket, download_dir))
+
+        subprocess.check_call(['gsutil', '-m', 'cp', '-r', src_bucket, download_dir])
 
         timestep = wildcards['timestep']
         native_category_name = wildcards['category']
         target_resolution = int(wildcards['grid'][1:])
         coarsening_factor = ORIGINAL_RESOLUTIONS[native_category_name] // target_resolution
-        
+
         coarsen_restart_file_category(
             timestep,
             native_category_name,
             coarsening_factor,
             input.coarse_grid_spec,
             input.native_grid_spec,
-            extraction_directory_root,
+            download_dir,
             output
         )
+
+        logging.info("Ran succesfully. Cleaning up temporary directory")
+        shutil.rmtree(download_dir)
 
 
 rule coarsen_all_restart_data:
