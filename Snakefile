@@ -90,7 +90,7 @@ DATAFLOW_OUTPUT_DIR         = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-m
 
 # Remote outputs
 restart_uploaded            = "gs://vcm-ml-data/2019-10-22-restart-workflow/restart/{grid}/{timestep}/"
-restart_uploaded_status     = "workflow-status/restart_{grid}_{timestep}.done"
+restart_uploaded_status     = "gs://vcm-ml-data/2019-09-27-FV3GFS-docker-input-c48-LH-nml/workflow-status/restart_{grid}_{timestep}.done"
 
 # Local Assets (under version control)
 oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.txt"
@@ -246,7 +246,7 @@ rule run_restart:
 
 rule upload_restart:
     input: restart_dir_done
-    output: touch(restart_uploaded_status)
+    output: touch(GS.remote(restart_uploaded_status))
     params: restart=restart_dir_wildcard, gs_path=restart_uploaded
     shell: "gsutil -m rsync -r {params.restart}  {params.gs_path}"
 
@@ -358,8 +358,3 @@ rule coarsen_restart_category:
             input.download_dir,
             output
         )
-
-
-rule coarsen_all_restart_data:
-    input:
-        all_coarsened_restart_files
