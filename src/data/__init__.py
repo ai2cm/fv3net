@@ -19,7 +19,6 @@ def get_shortened_dataset_tags():
 
 
 root = get_root()
-short_dset_tags = get_shortened_dataset_tags()
 
 
 # TODO: I believe fv3_data_root and paths are legacy
@@ -37,6 +36,7 @@ def open_catalog():
 
 
 def open_dataset(tag) -> xr.Dataset:
+    short_dset_tags = get_shortened_dataset_tags()
     if tag == "gfdl":
         return open_gfdl_data_with_2d(open_catalog())
     elif tag == "1degTrain":
