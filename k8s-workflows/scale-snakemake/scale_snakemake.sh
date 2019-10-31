@@ -1,6 +1,7 @@
 #! /usr/bin/env sh
 
-timesteps=$(bash list_timesteps_to_run.sh)
+#timesteps=$(bash list_timesteps_to_run.sh)
+timesteps="20160801.003000 20160801.004500"
 
 ITERATION="$(date +%s)"
 printf "iteration: %s\n" "$ITERATION" >&2
@@ -10,8 +11,7 @@ export ITERATION
 for time in $timesteps; do
   export timeForJobName=$(echo $time | sed 's/\.//g')
   export JOBNAME=snakemake-$timeForJobName
-
-  export TIMESTEP="$time" && envsubst < job.yaml  | kubectl apply -f -
+  export TIMESTEP="$time" && envsubst < job.yaml  | tee job.$time.yaml | kubectl apply -f -
   sleep 1
 done
 
