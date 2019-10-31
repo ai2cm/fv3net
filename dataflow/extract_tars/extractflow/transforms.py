@@ -74,12 +74,6 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
     output_c384_blob_prefix = Path(output_prefix, 'C384', timestep)
     filename_template = f'{timestep}.{{data_domain}}.tile{{tile:d}}.nc.{{subtile:04d}}'
 
-    # TODO: Request limiter
-    # Simpler way to check for all tiles without the request.
-    # Use GCS file lister to generate a list of files in timestep subdir
-    #  Then check against those files.  Still oesn't ensure anything is in those
-    # files but it does make sure they exist as is done now
-
     def _check_for_all_tiles(data_domain: str, output_prefix: Path):
         # If number of tiles is less than 1 there's nothing to check
         if num_tiles < 1 or num_subtiles < 1:
