@@ -27,17 +27,13 @@ subtiles = list(range(16))
 def raw_restart_filenames(datastore, wildcards):
     timestep = wildcards['timestep']
     category = wildcards['category']
-    print(category)
     grid = f"C{ORIGINAL_RESOLUTIONS[category.replace('_coarse', '')]}"
-    print(grid)
     file_list = cubedsphere.all_filenames(join(
         datastore,
         grid,
         f'{timestep}',
         f'{timestep}.{category}')
     )
-    print(wildcards)
-    print(file_list)
     return [GS.remote(file) for file in file_list]
 
 
@@ -66,14 +62,12 @@ RESTART_CATEGORIES = [
     'fv_core.res',
     'fv_srf_wnd.res',
     'fv_tracer.res'
-    #'sfc_data'
 ]
 
 OUTPUT_CATEGORY_NAMES = {
     'fv_core.res': 'fv_core_coarse.res',
     'fv_srf_wnd.res': 'fv_srf_wnd_coarse.res',
     'fv_tracer.res': 'fv_tracer_coarse.res'
-    #'sfc_data': 'sfc_data'
 }
 
 
@@ -94,10 +88,6 @@ restart_uploaded_status     = "workflow-status/restart_{grid}_{timestep}.done"
 # Local Assets (under version control)
 oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.txt"
 
-# Wildcards for tarball and extracted data
-TAR                         = "data/raw/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/{timestep}.tar"
-#EXTRACTED                   = "data/extracted/{timestep}/"
-
 extracted_categories = [
     raw_restart_filenames(
         datastore = DATAFLOW_OUTPUT_DIR,
@@ -111,17 +101,8 @@ extracted_categories = [
         datastore = DATAFLOW_OUTPUT_DIR,
         wildcards = {'timestep': '{timestep}', 'category': 'fv_tracer_coarse.res'}
         ),
-    #raw_restart_filenames({'timestep': '{timestep}', 'category': 'sfc_data'}),
     'data/extracted/{timestep}/{timestep}.coupler.res'
 ]
-extraction_directory = 'data/extracted/{timestep}'
-extraction_directory_root = 'data/extracted'
-
-
-# Paths in the extracted tarballs
-fv_srf_wnd_prefix           = "data/extracted/{timestep}/{timestep}.fv_srf_wnd_coarse.res"
-fv_tracer_prefix            = "data/extracted/{timestep}/{timestep}.fv_tracer_coarse.res"
-fv_core_prefix              = "data/extracted/{timestep}/{timestep}.fv_core_coarse.res"
 
 # Grid Specifications
 c3072_grid_spec_tiled       = "data/raw/grid_specs/C3072"
@@ -163,11 +144,6 @@ tracer = coarsened_restart_filenames(
      'grid': '{grid}',
      'category': 'fv_tracer.res'}
 )
-#sfc_data = coarsened_restart_filenames(
-#    {'timestep': '{timestep}',
-#     'grid': '{grid}',
-#     'category': 'sfc_data'}
-#)
 sfc_data = coarsened_sfc_filename(
     {'timestep' : '{timestep}',
     'grid' : '{grid}'
@@ -278,19 +254,6 @@ def coarsen_factor_from_grid(wildcards):
         raise ValueError("Target grid size must be a factor of 3072")
     return base_n // target_n
 
-#rule coarsen_sfc_data:
-#    input: grid=c3072_grid_spec_tiled,
-#           time=EXTRACTED
-#    output: coarsened_sfc_data_wildcard
-#    params: factor=coarsen_factor_from_grid
-#    shell: """
-#    python src/data/raw_step_directory_to_restart.py \
-#      --num-tiles 6 \
-#      --num-subtiles 16 \
-#      --method median \
-#      --factor {params.factor} \
-#      {wildcards.timestep} {output}
-#    """
 
 rule download_template_rundir:
     output: directory(template_dir)
@@ -329,22 +292,6 @@ rule download_oro_and_grid:
     tar --strip-components=1 -xf $file -C {oro_and_grid_data}
     rm -f $file
     """
-
-#rule extract_timestep:
-#    output:
-#        extracted
-#    params:
-#        extraction_directory=extraction_directory,
-#        TAR=TAR
-#    shell:"""
-#    tarfile={params.TAR}
-#
-#    gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_component=32' \
-#          cp  {bucket}/{wildcards.timestep}.tar $tarfile
-#    
-#    tar -xvf $tarfile -C {params.extraction_directory}
-#    rm -f $tarfile
-#    """
 
 rule convert_to_zarr:
     output: directory(save_zarr.output_2d), directory(save_zarr.output_3d)
