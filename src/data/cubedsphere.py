@@ -58,6 +58,7 @@ def remove_duplicate_coords(ds):
     return ds.isel(deduped_indices)
 
 
+# TODO: this expects prefix as a path prefix to the coarsened tiles
 def open_cubed_sphere(prefix: str, **kwargs):
     """Open cubed-sphere data
 
