@@ -3,8 +3,9 @@ import logging
 import subprocess
 import shutil
 import logging
-from pathlib import Path
 import apache_beam
+from pathlib import Path
+from itertools import product
 from apache_beam.pvalue import PCollection  # type: ignore
 
 import coarseflow.utils as cfutils
@@ -53,6 +54,8 @@ class ExtractAndUploadTimestepWithC3072SurfaceData(apache_beam.DoFn):
             c384_blob_prefix = str(Path(self.output_prefix, c384_blob_prefix))
             cfutils.upload_dir_to_gcs('vcm-ml-data', c384_blob_prefix, untarred_timestep)
 
+            logging.info(f'Upload of untarred timestep successful ({current_timestep})')
+
 
 def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
                                   num_tiles: int = 6, num_subtiles: int = 16):
@@ -70,22 +73,37 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
     output_c384_blob_prefix = Path(output_prefix, 'C384', timestep)
     filename_template = f'{timestep}.{{data_domain}}.tile{{tile:d}}.nc.{{subtile:04d}}'
 
+    # TODO: Request limiter
+    # Simpler way to check for all tiles without the request.
+    # Use GCS file lister to generate a list of files in timestep subdir
+    #  Then check against those files.  Still oesn't ensure anything is in those
+    # files but it does make sure they exist as is done now
+
     def _check_for_all_tiles(data_domain: str, output_prefix: Path):
         # If number of tiles is less than 1 there's nothing to check
         if num_tiles < 1 or num_subtiles < 1:
-            all_exist = False
-        else:
-            all_exist = True
+            raise ValueError('Tile check requires a positive number of tiles and'
+                             ' subtiles to perform file existence checks.')
 
-        for tile in range(1, num_tiles + 1):
-            for subtile in range(num_subtiles):
-                filename = filename_template.format(data_domain=data_domain,
-                                                    tile=tile,
-                                                    subtile=subtile)
-                to_check_blob_name = str(output_prefix.joinpath(filename))
-                blob = cfutils.init_blob(bucket_name, to_check_blob_name)
-                all_exist &= blob.exists()
+        lister = GCSLister(Client(), bucket_name)
+        existing_blob_names = [cfutils.parse_gcs_url(gcs_url)[1]  # 2nd element is blob name
+                               for gcs_url in lister.list(prefix=output_prefix)]
 
+        tiles = range(1, num_tiles + 1)
+        subtiles = range(num_subtiles)
+        all_exist = True
+        for tile, subtile in product(tiles, subtiles):
+            filename = filename_template.format(data_domain=data_domain,
+                                                tile=tile,
+                                                subtile=subtile)
+            to_check_blob_name = str(output_prefix.joinpath(filename))
+            does_blob_exist = to_check_blob_name in existing_blob_names
+            all_exist &= does_blob_exist
+            
+            if not does_blob_exist:
+                logger.debug(f'Missing blob detected in timestep {timestep}: '
+                             f'{to_check_blob_name}')
+            
         return all_exist
     
     sfc_files_ok = _check_for_all_tiles('sfc_data', output_c3702_blob_prefix)

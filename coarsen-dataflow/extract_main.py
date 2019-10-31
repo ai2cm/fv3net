@@ -22,8 +22,8 @@ python extract_main.py \
     --runner DataflowRunner \
     --setup_file ./setup.py \
     --temp_location gs://vcm-ml-data/tmp_dataflow \
-    --num_workers 60 \
-    --max_num_workers 60 \
+    --num_workers 40 \
+    --max_num_workers 40 \
     --disk_size_gb 80 \
     --type_check_strictness 'ALL_REQUIRED' 
 """
