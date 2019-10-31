@@ -50,7 +50,7 @@ def coarsened_restart_filenames(wildcards):
     category = wildcards['category']
     return [f'data/coarsened/{grid}/{timestep}/{category}.tile{tile}.nc' for
             tile in tiles]
-            
+
 def coarsened_sfc_filename(wildcards):
     timestep = wildcards['timestep']
     grid = wildcards['grid']
@@ -192,20 +192,18 @@ rule prepare_restart_directory:
     run:
         import os
         import logging
-        
-        print(os.path.isfile(srf_wind[0]))
-        
+
         import xarray as xr
-        
+
         from datetime import datetime
-        
+
         from src.data.cubedsphere import open_cubed_sphere
         from src.fv3 import make_experiment
-        
+
         logging.basicConfig(level=logging.INFO)
 
         grid = wildcards['grid']
-        
+
         tiles_to_save = [
             ('fv_tracer.res', xr.open_mfdataset(input.tracer, concat_dim='tile')),
             ('fv_core.res', xr.open_mfdataset(input.core, concat_dim='tile')),
@@ -236,7 +234,7 @@ rule prepare_restart_directory:
             file.write(f'20160801.00Z.C48.32bit.non-mono\n{date_string}')
 
 
-            
+
 rule run_restart:
     input:
         experiment=restart_dir_wildcard,
@@ -322,12 +320,19 @@ rule coarsen_grid_spec:
             input,
             coarsening_factor,
             output.coarsened_grid_spec
-        )        
+        )
 
+rule download_timestep:
+    output: directory("data/extracted/{timestep}/")
+    run:
+        download_dir = output[0]
+        src_bucket = join(DATAFLOW_OUTPUT_DIR, 'C384', wildcards.timestep)
+        logging.info("Downloading %s to %s" % (src_bucket, download_dir))
+        subprocess.check_call(['gsutil', '-m', 'cp', '-r', src_bucket, download_dir])
 
 rule coarsen_restart_category:
     input:
-        #restart_files=extracted_categories,
+        download_dir="data/extracted/{timestep}/",
         coarse_grid_spec=rules.coarsen_grid_spec.output.coarsened_grid_spec,
         native_grid_spec=native_grid_spec
     output:
@@ -338,12 +343,6 @@ rule coarsen_restart_category:
         import tempfile
         import os, shutil
 
-        download_dir = tempfile.mkdtemp()
-
-        src_bucket = join(DATAFLOW_OUTPUT_DIR, 'C384', wildcards.timestep)
-        logging.info("Downloading %s to %s" % (src_bucket, download_dir))
-
-        subprocess.check_call(['gsutil', '-m', 'cp', '-r', src_bucket, download_dir])
 
         timestep = wildcards['timestep']
         native_category_name = wildcards['category']
@@ -356,12 +355,9 @@ rule coarsen_restart_category:
             coarsening_factor,
             input.coarse_grid_spec,
             input.native_grid_spec,
-            download_dir,
+            input.download_dir,
             output
         )
-
-        logging.info("Ran succesfully. Cleaning up temporary directory")
-        shutil.rmtree(download_dir)
 
 
 rule coarsen_all_restart_data:
