@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 logger.addFilter(logging.Filter(__name__))
 
 """
+*********NOTE THIS ENTIRE FILE IS DEPRECATED************
+Just saving incase we need to use anything for now.
+
 Full scaling would involve sending the netCDF files workers individually to coarsen
 and then regathering files to combine in another stage of the pipeline.  Then output
 them.
@@ -53,14 +56,7 @@ class CoarsenTimestep(apache_beam.DoFn):
             
             logger.debug(f'Using temporary directory {tmpdir}')
             src_tarball = cflutils.download_blob_to_file(source_blob, tmpdir, blob_name)
-            extracted_path = cflutils.extract_tarball_to_path(src_tarball)
-
-            # Temp for runthrough
-            # extracted_path = Path(tmpdir, '20160801.003000')
-            # import os
-            # os.symlink('/home/andrep/repos/fv3net/data/tarball/20160801.003000', 
-            #            extracted_path.as_posix())
-        
+            extracted_path = cflutils.extract_tarball_to_path(src_tarball)        
 
             # Download all the gridspecs for C3072
             # TODO: Hardcoded for now, gridspecs should have res-specific dirs
@@ -90,16 +86,14 @@ class CoarsenTimestep(apache_beam.DoFn):
                                   f'{extracted_path.name}.sfc_data_coarse.res', 
                                   coarse_out_dir.as_posix())
 
-            # TODO: tmp for testing
-            # coarse_out_dir = Path('/home/andrep/repos/fv3net/data/coarse_output/20160801.003000')
 
             # TODO: For now data has already been coarsened to 384, save all other variables
-            # components = ['fv_core', 'fv_srf_wnd', 'fv_tracer']
-            # for component in components:
-            #     curr_prefix_fname = f'{extracted_path.name}.{component}_coarse.res'
-            #     curr_prefix = extracted_path.joinpath(curr_prefix_fname)
-            #     ds = cubedsphere.open_cubed_sphere(curr_prefix.as_posix())
-            #     save_tiles_separately(ds, curr_prefix_fname, coarse_out_dir.as_posix())
+            components = ['fv_core', 'fv_srf_wnd', 'fv_tracer']
+            for component in components:
+                curr_prefix_fname = f'{extracted_path.name}.{component}_coarse.res'
+                curr_prefix = extracted_path.joinpath(curr_prefix_fname)
+                ds = cubedsphere.open_cubed_sphere(curr_prefix.as_posix())
+                save_tiles_separately(ds, curr_prefix_fname, coarse_out_dir.as_posix())
 
             # tar coarsened data and put file on cloud storage
             coarse_out_tar_path = self._tar_coarsened_timestep(coarse_out_dir)
