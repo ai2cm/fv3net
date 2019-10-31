@@ -7,6 +7,7 @@ import apache_beam
 from pathlib import Path
 from itertools import product
 from apache_beam.pvalue import PCollection  # type: ignore
+from apache_beam.utils import retry
 
 import dataflow_utils.utils as utils
 import dataflow_utils.gcs_utils as gcs_utils
@@ -14,8 +15,12 @@ from dataflow_utils.gcs_utils import GCSLister
 
 from google.cloud.storage import Client, Bucket, Blob
 
+delay_kwargs = dict(initial_delay_secs=30, num_retries=8)
 logger = logging.getLogger(__name__)
 
+# wrap sensitive functions with retry decorator
+download_blob_to_file = retry.with_exponential_backoff(**delay_kwargs)(gcs_utils.download_blob_to_file)
+upload_dir_to_gcs = retry.with_exponential_backoff(**delay_kwargs)(gcs_utils.upload_dir_to_gcs)
 
 @apache_beam.typehints.with_input_types(str)
 @apache_beam.typehints.with_output_types(None)
@@ -30,7 +35,7 @@ class ExtractAndUploadTimestepWithC3072SurfaceData(apache_beam.DoFn):
 
             timestep_blob = gcs_utils.init_blob_from_gcs_url(element)
             filename = Path(timestep_blob.name).name
-            downloaded_timestep = gcs_utils.download_blob_to_file(timestep_blob, tmpdir, filename)
+            downloaded_timestep = download_blob_to_file(timestep_blob, tmpdir, filename)
             untarred_timestep = utils.extract_tarball_to_path(downloaded_timestep)
 
             current_timestep = untarred_timestep.name
@@ -48,16 +53,20 @@ class ExtractAndUploadTimestepWithC3072SurfaceData(apache_beam.DoFn):
             # upload highres sfc data
             c3702_blob_prefix = c3702_path.relative_to(c3702_path.parent.parent)
             c3702_blob_prefix = str(Path(self.output_prefix, c3702_blob_prefix))
-            gcs_utils.upload_dir_to_gcs('vcm-ml-data', c3702_blob_prefix, c3702_path)
+            upload_dir_to_gcs('vcm-ml-data', c3702_blob_prefix, c3702_path)
 
             # upload pre-coarsened files to timestep
             c384_blob_prefix = c384_path.relative_to(c384_path.parent.parent)
             c384_blob_prefix = str(Path(self.output_prefix, c384_blob_prefix))
-            gcs_utils.upload_dir_to_gcs('vcm-ml-data', c384_blob_prefix, untarred_timestep)
+            upload_dir_to_gcs('vcm-ml-data', c384_blob_prefix, untarred_timestep)
 
             logging.info(f'Upload of untarred timestep successful ({current_timestep})')
 
+class InvalidArgumentError(retry.PermanentException, ValueError):
+    """Error Class that bypasses the retry operation"""
+    pass
 
+@retry.with_exponential_backoff(**delay_kwargs)
 def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
                                   num_tiles: int = 6, num_subtiles: int = 16):
     """
@@ -77,8 +86,10 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
     def _check_for_all_tiles(data_domain: str, output_prefix: Path):
         # If number of tiles is less than 1 there's nothing to check
         if num_tiles < 1 or num_subtiles < 1:
-            raise ValueError('Tile check requires a positive number of tiles and'
-                             ' subtiles to perform file existence checks.')
+            raise InvalidArgumentError(
+                'Tile check requires a positive number of tiles and'
+                ' subtiles to perform file existence checks.'
+            )
 
         lister = GCSLister(Client(), bucket_name)
         existing_blob_names = [gcs_utils.parse_gcs_url(gcs_url)[1]  # 2nd element is blob name
