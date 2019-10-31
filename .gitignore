@@ -75,6 +75,11 @@ target/
 # Jupyter NB Checkpoints
 .ipynb_checkpoints/
 jupyterhub*
+notebooks/dask-worker-space/*
+notebooks/*.npy
+notebooks/html_out/*
+notebooks/figs/*
+notebooks/*
 
 # exclude data from source control by default
 /data/
@@ -95,3 +100,8 @@ bilinear*
 # MISC
 *.nc
 scratch/*
+
+# snakemake
+.snakemake/*
+
+
