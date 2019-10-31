@@ -1,7 +1,7 @@
 import pytest
 import logging
 
-from coarseflow.transforms import not_finished_with_tar_extract
+from extractflow.transforms import not_finished_with_tar_extract
 
 @pytest.mark.parametrize(
     'timestep, result',

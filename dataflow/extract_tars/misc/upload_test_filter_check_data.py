@@ -1,6 +1,6 @@
 import subprocess
 from itertools import product
-from coarseflow.utils import init_blob
+from extractflow.utils import init_blob
 
 timesteps = ['20160801.003000',
              '20160801.004500',

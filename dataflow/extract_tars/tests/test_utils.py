@@ -1,5 +1,5 @@
 import pytest
-import coarseflow.utils as cfutils
+import extractflow.utils as cfutils
 import hashlib
 import tempfile
 import os

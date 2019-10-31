@@ -8,8 +8,8 @@ from pathlib import Path
 from itertools import product
 from apache_beam.pvalue import PCollection  # type: ignore
 
-import coarseflow.utils as cfutils
-from coarseflow.file_lister import GCSLister
+import extractflow.utils as cfutils
+from extractflow.file_lister import GCSLister
 
 from google.cloud.storage import Client, Bucket, Blob
 

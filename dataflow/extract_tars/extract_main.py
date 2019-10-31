@@ -2,8 +2,8 @@ import logging
 
 from google.cloud.storage import Client
 
-from coarseflow.pipeline import run
-from coarseflow.file_lister import GCSLister
+from extractflow.pipeline import run
+from extractflow.file_lister import GCSLister
 
 """
 Run command used for Dataflow
