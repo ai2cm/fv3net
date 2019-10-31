@@ -10,8 +10,12 @@ dependencies = [
     "netCDF4==1.4.2",
     "partd"
 ]
-setup(name='extract_tars',
-      version='0.0.1',
-      packages=find_packages(),
-      install_requires=dependencies
-      )
+setup(
+    name='extract_tars',
+    packages=find_packages(),
+    install_requires=dependencies,
+    version='0.1.0',
+    description="Dataflow operation for batch untarring timesteps",
+    author="Vulcan Inc.",
+    license="MIT"
+)

@@ -8,8 +8,8 @@ from pathlib import Path
 from itertools import product
 from apache_beam.pvalue import PCollection  # type: ignore
 
-import extractflow.utils as ef_utils
-import src.gcs_utils as gcs_utils
+import dataflow_utils.utils as utils
+import dataflow_utils.gcs_utils as gcs_utils
 from extractflow.file_lister import GCSLister
 
 from google.cloud.storage import Client, Bucket, Blob
@@ -31,7 +31,7 @@ class ExtractAndUploadTimestepWithC3072SurfaceData(apache_beam.DoFn):
             timestep_blob = gcs_utils.init_blob_from_gcs_url(element)
             filename = Path(timestep_blob.name).name
             downloaded_timestep = gcs_utils.download_blob_to_file(timestep_blob, tmpdir, filename)
-            untarred_timestep = ef_utils.extract_tarball_to_path(downloaded_timestep)
+            untarred_timestep = utils.extract_tarball_to_path(downloaded_timestep)
 
             current_timestep = untarred_timestep.name
             c384_path = Path(tmpdir, 'coarsened', 'C384', current_timestep)

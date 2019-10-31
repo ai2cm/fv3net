@@ -1,6 +1,6 @@
 import pytest
-import extractflow.utils as ef_utils
-import src.gcs_utils as gcs_utils
+import dataflow_utils.utils as utils
+import dataflow_utils.gcs_utils as gcs_utils
 import hashlib
 import tempfile
 import os
@@ -69,7 +69,7 @@ def test_extract_tarball_default_dir():
         shutil.copyfile(test_tarball_path, Path(tmpdir, tar_filename))
         working_path = Path(tmpdir, tar_filename)
         
-        tarball_extracted_path = ef_utils.extract_tarball_to_path(working_path)
+        tarball_extracted_path = utils.extract_tarball_to_path(working_path)
         assert tarball_extracted_path.exists()
         assert tarball_extracted_path.name == 'test_data'
 
@@ -84,7 +84,7 @@ def test_extract_tarball_specified_dir():
         shutil.copyfile(test_tarball_path, Path(tmpdir, tar_filename))
         target_path = Path(tmpdir, target_output_dirname)
         
-        tarball_extracted_path = ef_utils.extract_tarball_to_path(
+        tarball_extracted_path = utils.extract_tarball_to_path(
             test_tarball_path, extract_to_dir=target_path
         )
         assert tarball_extracted_path.exists()
@@ -99,7 +99,7 @@ def test_extract_tarball_check_files_exist():
     with tempfile.TemporaryDirectory() as tmpdir:
         shutil.copyfile(test_tarball_path, Path(tmpdir, tar_filename))
         working_path = Path(tmpdir, tar_filename)
-        tarball_extracted_path = ef_utils.extract_tarball_to_path(working_path)
+        tarball_extracted_path = utils.extract_tarball_to_path(working_path)
 
         test_data_files = ['test_data_array.nc', 'test_datafile.txt']
         for current_file in test_data_files:
