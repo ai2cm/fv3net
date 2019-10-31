@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: big-snakemake-
+spec:
+  entrypoint: process-restart
+  templates:
+  - name: process-restart
+    inputs:
+    container:
+      image: us.gcr.io/vcm-ml/fv3net
+      command: ["python3",  "k8s-workflows/scale-snakemake/run_snakemake_for_timestep.py", "$TIMESTEP"]
+      resources:
+        limits:
+          memory: 3Gi
