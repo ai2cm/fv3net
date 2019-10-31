@@ -10,15 +10,19 @@ trained_models = [
     "models/random_forest/default.pkl"
 ]
 
-timesteps = [
+default_timesteps = [
     "20160805.170000"
 ]
 
+
 ORIGINAL_COARSE_RESOLUTION = 384
 
-grids = [
+default_grids = [
     "C48"
 ]
+
+timesteps = config.get('timesteps', default_timesteps)
+grids = config.get('grids', default_grids)
 
 tiles = [1, 2, 3, 4, 5, 6]
 subtiles = list(range(16))
@@ -101,7 +105,10 @@ extracted_categories = [
         datastore = DATAFLOW_OUTPUT_DIR,
         wildcards = {'timestep': '{timestep}', 'category': 'fv_tracer_coarse.res'}
         ),
-    'data/extracted/{timestep}/{timestep}.coupler.res'
+    raw_restart_filenames(
+        datastore = DATAFLOW_OUTPUT_DIR,
+        wildcards = {'timestep': '{timestep}', 'category': 'coupler.res'}
+        )
 ]
 
 # Grid Specifications
