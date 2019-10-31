@@ -10,7 +10,7 @@ from apache_beam.pvalue import PCollection  # type: ignore
 
 import dataflow_utils.utils as utils
 import dataflow_utils.gcs_utils as gcs_utils
-from extractflow.file_lister import GCSLister
+from dataflow_utils.gcs_utils import GCSLister
 
 from google.cloud.storage import Client, Bucket, Blob
 

@@ -4,7 +4,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pvalue import PCollection  
 from google.cloud.storage import Client  
 
-from extractflow.file_lister import FileLister, GCSLister 
+from dataflow_utils.gcs_utils import FileLister, GCSLister 
 import extractflow.transforms as cftransforms
 
 logger = logging.getLogger(__name__)
