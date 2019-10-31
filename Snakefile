@@ -10,15 +10,19 @@ trained_models = [
     "models/random_forest/default.pkl"
 ]
 
-timesteps = [
+default_timesteps = [
     "20160805.170000"
 ]
 
+
 ORIGINAL_COARSE_RESOLUTION = 384
 
-grids = [
+default_grids = [
     "C48"
 ]
+
+timesteps = config.get('timesteps', default_timesteps)
+grids = config.get('grids', default_grids)
 
 tiles = [1, 2, 3, 4, 5, 6]
 subtiles = list(range(16))
