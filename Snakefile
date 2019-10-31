@@ -116,7 +116,10 @@ extracted_categories = [
         wildcards = {'timestep': '{timestep}', 'category': 'fv_tracer_coarse.res'}
         ),
     #raw_restart_filenames({'timestep': '{timestep}', 'category': 'sfc_data'}),
-    'data/extracted/{timestep}/{timestep}.coupler.res'
+    raw_restart_filenames(
+        datastore = DATAFLOW_OUTPUT_DIR,
+        wildcards = {'timestep': '{timestep}', 'category': 'coupler.res'}
+        )
 ]
 extraction_directory = 'data/extracted/{timestep}'
 extraction_directory_root = 'data/extracted'
