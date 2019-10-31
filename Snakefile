@@ -105,10 +105,6 @@ extracted_categories = [
         datastore = DATAFLOW_OUTPUT_DIR,
         wildcards = {'timestep': '{timestep}', 'category': 'fv_tracer_coarse.res'}
         ),
-    raw_restart_filenames(
-        datastore = DATAFLOW_OUTPUT_DIR,
-        wildcards = {'timestep': '{timestep}', 'category': 'coupler.res'}
-        )
 ]
 
 # Grid Specifications
@@ -156,7 +152,7 @@ sfc_data = coarsened_sfc_filename(
     'grid' : '{grid}'
     }
 )
-coupler = 'data/extracted/{timestep}/{timestep}.coupler.res'
+coupler = GS.remote(join(DATAFLOW_OUTPUT_DIR, 'C384/{timestep}/{timestep}.coupler.res'))
 all_coarsened_restart_files = expand(
     ['data/coarsened/{{grid}}/{{timestep}}/{{category}}.tile{tile}.nc'.format(tile=tile) for
      tile in tiles],
