@@ -68,6 +68,8 @@ test_environment:
 # PROJECT RULES                                                                 #
 #################################################################################
 
+snakemake_k8s:
+	make -C k8s-workflows/scale-snakemake/
 
 snakemake:
 	bash -c 'snakemake 2> >(tee snakemake_log.txt)'
