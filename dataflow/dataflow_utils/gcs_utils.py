@@ -57,7 +57,7 @@ def upload_dir_to_gcs(bucket_name: str, blob_prefix: str, source_dir: Path) -> N
                    for filepath in source_dir.glob('*')
                    if filepath.is_file()]
     upload_args_bag = db.from_sequence(upload_args)
-    upload_args_bag.map(_upload_process).compute(scheduler='single-threaded')
+    upload_args_bag.map(_upload_process).compute(scheduler='threads', num_workers=2)
 
 
 def _upload_process(args):
