@@ -8,7 +8,8 @@ from pathlib import Path
 from itertools import product
 from apache_beam.pvalue import PCollection  # type: ignore
 
-import extractflow.utils as cfutils
+import extractflow.utils as ef_utils
+import src.gcs_utils as gcs_utils
 from extractflow.file_lister import GCSLister
 
 from google.cloud.storage import Client, Bucket, Blob
@@ -27,10 +28,10 @@ class ExtractAndUploadTimestepWithC3072SurfaceData(apache_beam.DoFn):
         
         with tempfile.TemporaryDirectory() as tmpdir:
 
-            timestep_blob = cfutils.init_blob_from_gcs_url(element)
+            timestep_blob = gcs_utils.init_blob_from_gcs_url(element)
             filename = Path(timestep_blob.name).name
-            downloaded_timestep = cfutils.download_blob_to_file(timestep_blob, tmpdir, filename)
-            untarred_timestep = cfutils.extract_tarball_to_path(downloaded_timestep)
+            downloaded_timestep = gcs_utils.download_blob_to_file(timestep_blob, tmpdir, filename)
+            untarred_timestep = ef_utils.extract_tarball_to_path(downloaded_timestep)
 
             current_timestep = untarred_timestep.name
             c384_path = Path(tmpdir, 'coarsened', 'C384', current_timestep)
@@ -47,12 +48,12 @@ class ExtractAndUploadTimestepWithC3072SurfaceData(apache_beam.DoFn):
             # upload highres sfc data
             c3702_blob_prefix = c3702_path.relative_to(c3702_path.parent.parent)
             c3702_blob_prefix = str(Path(self.output_prefix, c3702_blob_prefix))
-            cfutils.upload_dir_to_gcs('vcm-ml-data', c3702_blob_prefix, c3702_path)
+            gcs_utils.upload_dir_to_gcs('vcm-ml-data', c3702_blob_prefix, c3702_path)
 
             # upload pre-coarsened files to timestep
             c384_blob_prefix = c384_path.relative_to(c384_path.parent.parent)
             c384_blob_prefix = str(Path(self.output_prefix, c384_blob_prefix))
-            cfutils.upload_dir_to_gcs('vcm-ml-data', c384_blob_prefix, untarred_timestep)
+            gcs_utils.upload_dir_to_gcs('vcm-ml-data', c384_blob_prefix, untarred_timestep)
 
             logging.info(f'Upload of untarred timestep successful ({current_timestep})')
 
@@ -67,7 +68,7 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
     """
     # TODO: Should probably make sure test includes missing cases for all domains
     logger.info(f'Checking for successful extraction of {timestep_gcs_url}')
-    bucket_name, blob_name = cfutils.parse_gcs_url(timestep_gcs_url)
+    bucket_name, blob_name = gcs_utils.parse_gcs_url(timestep_gcs_url)
     timestep = Path(blob_name).with_suffix('').name
     output_c3702_blob_prefix = Path(output_prefix, 'C3702', timestep)
     output_c384_blob_prefix = Path(output_prefix, 'C384', timestep)
@@ -86,7 +87,7 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
                              ' subtiles to perform file existence checks.')
 
         lister = GCSLister(Client(), bucket_name)
-        existing_blob_names = [cfutils.parse_gcs_url(gcs_url)[1]  # 2nd element is blob name
+        existing_blob_names = [gcs_utils.parse_gcs_url(gcs_url)[1]  # 2nd element is blob name
                                for gcs_url in lister.list(prefix=output_prefix)]
 
         tiles = range(1, num_tiles + 1)
@@ -116,7 +117,7 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
 
     coupler_filename = f'{timestep}.coupler.res'
     coupler_blob_name = output_c384_blob_prefix.joinpath(coupler_filename)
-    coupler_blob = cfutils.init_blob(bucket_name, str(coupler_blob_name))
+    coupler_blob = gcs_utils.init_blob(bucket_name, str(coupler_blob_name))
     coupler_ok = coupler_blob.exists()
 
     domain_ok['sfc_data'] = sfc_files_ok
