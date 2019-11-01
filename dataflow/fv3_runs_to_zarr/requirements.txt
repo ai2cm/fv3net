@@ -1,0 +1,2 @@
+-e .
+apache_beam[gcp]

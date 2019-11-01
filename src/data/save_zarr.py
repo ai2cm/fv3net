@@ -187,6 +187,12 @@ def write_cloud_zarr(ds, gcs_path):
     return ds
 
 
+def open_cloud_zarr(gcs_path):
+    fs = gcsfs.GCSFileSystem(project='vcm-ml')
+    mapping = fs.get_mapper(gcs_path)
+    return xr.open_zarr(fs)
+
+
 def save_timestep_to_zarr(timestep, grid, bucket_dir):
     run_dir = f"./data/restart/{grid}/{timestep}/rundir"
     tile = pd.Index(range(1, N_TILES + 1), name='tile')
