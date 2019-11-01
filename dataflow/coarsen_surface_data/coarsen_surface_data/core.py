@@ -66,8 +66,7 @@ def coarsen_and_upload_surface(key):
             ops.append(upload_op)
 
         all_ops = run_all_delayeds(*ops)
-        #all_ops.compute(scheduler="single-threaded")
-        all_ops.compute()
+        all_ops.compute(scheduler="single-threaded")
 
 if __name__ == '__main__':
     import logging
