@@ -53,6 +53,14 @@ def upload_dir_to_gcs(bucket_name: str, blob_prefix: str, source_dir: Path) -> N
     logger.info(f'Uploading timestep to gcs (blob_prefix={blob_prefix})')
     logger.debug(f'GCS bucket = {bucket_name}')
     logger.debug(f'Source local dir = {source_dir}')
+
+    # function would not upload anything but should fail noticeably
+    if not source_dir.exists():
+        raise FileNotFoundError('Provided directory to upload does not exist.')
+    
+    if not source_dir.is_dir():
+        raise ValueError('Provided source is not a directory.')
+
     upload_args = [(bucket_name, blob_prefix, filepath)
                    for filepath in source_dir.glob('*')
                    if filepath.is_file()]
