@@ -4,12 +4,21 @@ metadata:
   generateName: big-snakemake-
 spec:
   entrypoint: process-restart
+  volumes:
+  - name: my-secret-vol
+    secret:
+      secretName: my-secret
   templates:
   - name: process-restart
-    inputs:
-    container:
-      image: us.gcr.io/vcm-ml/fv3net
-      command: ["python3",  "k8s-workflows/scale-snakemake/run_snakemake_for_timestep.py", "$TIMESTEP"]
+    script:
       resources:
         limits:
           memory: 3Gi
+      image: us.gcr.io/vcm-ml/fv3net
+      command: [bash]
+      source: |
+        gcloud auth activate-service-account --key-file /secret/key.json
+        python3 k8s-workflows/scale-snakemake/run_snakemake_for_timestep.py $TIMESTEP
+      volumeMounts:
+      - name: my-secret-vol
+        mountPath: "/secret/"
