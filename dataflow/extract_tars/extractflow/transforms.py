@@ -101,20 +101,20 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
 
         tiles = range(1, num_tiles + 1)
         subtiles = range(num_subtiles)
-        all_exist = True
+        all_blobs_exist = True
         for tile, subtile in product(tiles, subtiles):
             filename = filename_template.format(data_domain=data_domain,
                                                 tile=tile,
                                                 subtile=subtile)
-            to_check_blob_name = str(output_prefix.joinpath(filename))
-            does_blob_exist = to_check_blob_name in existing_blob_names
-            all_exist &= does_blob_exist
+            blob_name_to_check = str(output_prefix.joinpath(filename))
+            blob_exists = blob_name_to_check in existing_blob_names
+            all_blobs_exist &= blob_exists
             
-            if not does_blob_exist:
+            if not blob_exists:
                 logger.debug(f'Missing blob detected in timestep {timestep}: '
-                             f'{to_check_blob_name}')
+                             f'{blob_name_to_check}')
             
-        return all_exist
+        return all_blobs_exist
     
     sfc_files_ok = _check_for_all_tiles('sfc_data', output_c3702_blob_prefix)
 
