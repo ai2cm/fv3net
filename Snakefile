@@ -140,14 +140,12 @@ all_coarsened_restart_files = expand(
 
 restart_dir_wildcard        = "data/restart/{grid}/{timestep}/"
 restart_dir_done            = "data/restart/{grid}/{timestep}.done"
-output_zarr_done            = 'gs://vcm-ml-data/' + output_zarr_dir + '/{grid}/restarted_{timestep}.zarr'
 
 c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
 
 
 rule all:
-    input: GS.remote(expand(output_zarr_done, timestep=timesteps, grid=grids))
-    #input: GS.remote(expand(restart_uploaded_status, timestep=timesteps, grid=grids))
+    input: GS.remote(expand(restart_uploaded_status, timestep=timesteps, grid=grids))
 
 
 rule prepare_restart_directory:
