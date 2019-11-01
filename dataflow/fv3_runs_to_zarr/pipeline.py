@@ -24,9 +24,9 @@ def time_step(file):
     return pattern.search(file).group(1)
 
 
-def get_completed_time_steps():
+def get_time_steps(bucket):
     files = gcs.list(bucket)
-    return [(time_step(file), coarsenings) for file in files]
+    return [time_step(file) for file in files]
 
 
 def url(time):
@@ -45,7 +45,7 @@ def convert_to_zarr(time: str) -> Iterator[xr.Dataset]:
 
 def run(beam_options):
 
-    timesteps = ["20160805.223000", "20160805.234500"]
+    timesteps = get_time_steps(bucket)
     print(f"Processing {len(timesteps)} points")
     with beam.Pipeline(options=beam_options) as p:
         (p | beam.Create(timesteps)

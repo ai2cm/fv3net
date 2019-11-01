@@ -9,6 +9,7 @@ dependencies = [
     "intake==0.5.3",
     "scikit-image", 
     "intake-xarray==0.3.1",
+    "gcsfs",
     "netCDF4==1.4.2",
     # "toolz==0.10.0",
     "xarray==0.13.0",
