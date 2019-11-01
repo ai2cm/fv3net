@@ -3,7 +3,7 @@ from typing import Iterator, Iterable
 from google.cloud.storage import Client, Blob, Bucket  # type: ignore
 import pytest
 
-from dataflow_utils.gcs_utils import GCSLister
+from dataflow_utils.gcs import GCSLister
 
 class FakeFileListerClient(Client):
     def __init__(self, object_keys: Iterable[str]):

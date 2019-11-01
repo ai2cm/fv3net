@@ -1,6 +1,6 @@
 import pytest
-import dataflow_utils.utils as utils
-import dataflow_utils.gcs_utils as gcs_utils
+import dataflow_utils as utils
+import dataflow_utils.gcs as gcs_utils
 import hashlib
 import tempfile
 import os

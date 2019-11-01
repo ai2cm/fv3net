@@ -9,9 +9,9 @@ from itertools import product
 from apache_beam.pvalue import PCollection  # type: ignore
 from apache_beam.utils import retry
 
-import dataflow_utils.utils as utils
-import dataflow_utils.gcs_utils as gcs_utils
-from dataflow_utils.gcs_utils import GCSLister
+import dataflow_utils as utils
+import dataflow_utils.gcs as gcs_utils
+from dataflow_utils.gcs import GCSLister
 
 from google.cloud.storage import Client, Bucket, Blob
 

@@ -3,7 +3,7 @@ import logging
 from google.cloud.storage import Client
 
 from extractflow.pipeline import run
-from dataflow_utils.gcs_utils import GCSLister
+from dataflow_utils.gcs import GCSLister
 
 # tar_file_source = '2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data'
 tar_file_source = 'test_dataflow'
