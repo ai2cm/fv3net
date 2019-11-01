@@ -232,6 +232,21 @@ rule prepare_restart_directory:
             date = datetime.strptime(wildcards['timestep'], '%Y%m%d.%H%M%S')
             date_string = date.strftime('%Y %m %d %H %M %S')
             file.write(f'20160801.00Z.C48.32bit.non-mono\n{date_string}')
+            # add output of the grid spec for post-processing purposes (TODO replace all this with fv3config)
+            file.write(
+'''
+#output files
+"grid_spec",              -1,  "months",   1, "days",  "time"
+###
+# grid_spec
+###
+"dynamics", "grid_lon", "grid_lon", "grid_spec", "all", .false.,  "none", 2,
+"dynamics", "grid_lat", "grid_lat", "grid_spec", "all", .false.,  "none", 2,
+"dynamics", "grid_lont", "grid_lont", "grid_spec", "all", .false.,  "none", 2,
+"dynamics", "grid_latt", "grid_latt", "grid_spec", "all", .false.,  "none", 2,
+"dynamics", "area",     "area",     "grid_spec", "all", .false.,  "none", 2,
+'''
+            )
 
 
 
