@@ -68,7 +68,7 @@ test_environment:
 # PROJECT RULES                                                                 #
 #################################################################################
 
-snakemake_k8s:
+snakemake_k8s: push_image
 	make -C k8s-workflows/scale-snakemake/
 
 snakemake:

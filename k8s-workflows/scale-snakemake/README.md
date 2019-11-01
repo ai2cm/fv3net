@@ -60,12 +60,7 @@ In the root of fv3net run
 
 # Run the argo workflow
 
-Generate the yaml file describing all the jobs
-      
-    cd k8s-workflows/scale-snakemake/
-    bash scale_snakemake_argo.sh
+There is a makefile target for submitting the workflow. It depends on the push_image rule, so that it doesn't use a stale workflow.
 
-This generates a file `argo_jobs.yml`, which can be submitted like this:
-
-    argo submit argo_jobs.yml 
+    make snakemake_k8s
 
