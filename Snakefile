@@ -222,7 +222,7 @@ rule prepare_restart_directory:
         with open(join(output.restart_dir, 'rundir', 'diag_table'), 'w') as file:
             date = datetime.strptime(wildcards['timestep'], '%Y%m%d.%H%M%S')
             date_string = date.strftime('%Y %m %d %H %M %S')
-            file.write(f"wildcards['timestep'].wildcards['grid'].32bit.non-mono\n{date_string}")
+            file.write(f"{wildcards['timestep']}.{wildcards['grid']}.32bit.non-mono\n{date_string}")
             # add output of the grid spec for post-processing purposes (TODO replace all this with fv3config)
             file.write(
 '''
@@ -377,12 +377,6 @@ rule coarsen_all_restart_data:
     input:
         all_coarsened_restart_files
 
-rule convert_to_zarr:
-    input: restart_dir_done
-    output: directory(GS.remote(output_zarr_done))
-    run: 
-        from src.data.save_zarr import save_timestep_to_zarr
-        save_timestep_to_zarr(wildcards['timestep'], wildcards['grid'], output_zarr_dir)
 
 rule train_model:
     input: config="configurations/{model_type}/{options}.yaml"
