@@ -1,7 +1,10 @@
 import xarray as xr
 from os.path import join
+from datetime import datetime, timedelta
+import cftime
 import pandas as pd
 import gcsfs
+
 
 data_id = "data/raw/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute"
 output_2d = "data/interim/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute_2d.zarr"
@@ -63,7 +66,7 @@ files_2d = [
     "vstrs_C3072_1536x768.fre.nc",
 ]
 
-BOTH_DIRS = ['RESTART', 'INPUT']
+BOTH_DIRS = ['INPUT', 'RESTART']
 CATEGORY_DIR_MAPPING = {
     'grid_spec' : ['.'],
     'oro_data' : ['INPUT'],
@@ -96,39 +99,48 @@ def open_files(files, **kwargs):
     return xr.open_mfdataset(paths, **kwargs)
 
 
-def cubed_sphere_tile_paths(
+def run_dir_cubed_sphere_filepaths(
     run_dir,
     category,
     tile_suffixes,
-    target_dirs = ['RESTART', 'INPUT']
+    target_dirs
 ):
-    return [
+    return [[
         [join(join(run_dir, target_dir), category + tile_suffix) for tile_suffix in tile_suffixes]
-        for target_dir in target_dirs]
+        for target_dir in target_dirs]]
 
 
-def assign_time_dim(ds, dirs, time_coords):
-    if len(dirs) > 1:
-        ds = ds.assign_coords(Time=time_coords)
+def assign_time_dims(ds, dirs, dims):
+    if dirs == BOTH_DIRS:
+        ds = ds.assign_coords(initialization_time=dims['initialization_time'], forecast_time=dims['forecast_time'])
     elif dirs == ['RESTART']:
-        ds = ds.assign_coords(Time=[time_coords[0]])
-    elif dirs == ['INPUT']:
-        ds = ds.assign_coords(Time=[time_coords[1]])
+        ds = ds.assign_coords(initialization_time=dims['initialization_time'], forecast_time=[dims['forecast_time'][-1]])
+    if 'Time' in ds.dims:
+        ds = ds.squeeze(dim = 'Time')
+    if 'Time' in ds.coords:
+        ds = ds.drop(labels = 'Time')
+    if 'time' in ds.coords:
+        ds = ds.drop(labels = 'time')
     return ds
 
 
 def open_oro_data(paths, oro_data_mapping):
     ds = xr.concat(
-        objs=[xr.open_dataset(path).drop(labels=['lat', 'lon']) for path in paths[0]],
+        objs=[xr.open_dataset(path).drop(labels=['lat', 'lon']) for path in paths[0][0]],
         dim='tile'
     )
     ds = ds.rename(oro_data_mapping)
     return ds.drop(labels='slmsk')
 
 
-def add_vertical_coords(ds, run_dir, time_coords):
-    vertical_coords_ds = xr.open_dataset(join(run_dir, 'INPUT/fv_core.res.nc')).rename({'xaxis_1' : 'zaxis_2'})
-    vertical_coords_ds = vertical_coords_ds.assign_coords(Time=[time_coords[1]])
+def open_fv_tracer(paths):
+    input_ds = xr.open_mfdataset(paths=paths[0][0], concat_dim = ['tile'], combine='nested').drop(labels='sgs_tke')
+    restart_ds = xr.open_mfdataset(paths=paths[0][1], concat_dim = ['tile'], combine='nested')
+    return xr.concat([input_ds, restart_ds], dim='forecast_time').expand_dims(dim='initialization_time')
+
+
+def add_vertical_coords(ds, run_dir, dims):
+    vertical_coords_ds = xr.open_dataset(join(run_dir, 'INPUT/fv_core.res.nc')).rename({'xaxis_1' : 'zaxis_2'}).squeeze().drop(labels='Time')
     return xr.merge([ds, vertical_coords_ds])
 
 
@@ -136,42 +148,43 @@ def combine_file_categories(
     run_dir,
     category_mapping,
     tile_suffixes,
-    new_dims={},
-    grid_spec_mapping={},
-    oro_data_mapping={}
+    new_dims,
+    grid_spec_mapping,
+    oro_data_mapping
 ):
     ds_dict = {}
-    for (category, dirs) in category_mapping.items():
-        paths = cubed_sphere_tile_paths(
+    for category, dirs in category_mapping.items():
+        paths = run_dir_cubed_sphere_filepaths(
             run_dir=run_dir,
             category=category,
             tile_suffixes=tile_suffixes,
             target_dirs=dirs
         )
-        if category != 'oro_data':
+        if category == 'oro_data':
+            ds = open_oro_data(paths, oro_data_mapping)
+        elif category == 'fv_tracer.res':
+            ds = open_fv_tracer(paths)
+        else:
             ds = xr.open_mfdataset(
                 paths=paths,
-                concat_dim=['Time', 'tile'],
+                concat_dim=['initialization_time', 'forecast_time', 'tile'],
                 combine='nested'
             )
-        else:
-            ds = open_oro_data(paths, oro_data_mapping)
-        if new_dims and 'tile' in new_dims.keys():
+        if new_dims and 'tile' in new_dims:
             ds = ds.assign_coords(tile=new_dims['tile'])
         if category == 'grid_spec' and grid_spec_mapping:
-            ds = ds.squeeze(dim='Time').drop(labels='time').rename(grid_spec_mapping)
-        ds = assign_time_dim(ds, dirs, new_dims['Time'])
+            ds = ds.squeeze().rename(grid_spec_mapping)
+        ds = assign_time_dims(ds, dirs, new_dims)
         ds_dict[category] = ds
     ds_merged = xr.merge([ds for ds in ds_dict.values()])
-    return add_vertical_coords(ds=ds_merged, run_dir=run_dir, time_coords=new_dims['Time'])
+    return add_vertical_coords(ds=ds_merged, run_dir=run_dir, dims=new_dims)
 
 
-def write_cloud_zarr(ds, timestep, grid, bucket_dir):
+def write_cloud_zarr(ds, gcs_path):
     fs = gcsfs.GCSFileSystem(project='vcm-ml')
-    path = f'/vcm-ml-data/{bucket_dir}/{grid}/restarted_at_{timestep}.zarr'
-    print(path)
-    mapping = fs.get_mapper(path)
+    mapping = fs.get_mapper(gcs_path)
     ds.to_zarr(store=mapping, mode='w')
+    return ds
 
 
 def save_timestep_to_zarr(timestep, grid, bucket_dir):
@@ -189,8 +202,33 @@ def save_timestep_to_zarr(timestep, grid, bucket_dir):
         oro_data_mapping=ORO_DATA_AXES_MAP,
         tile_suffixes=TILE_SUFFIXES
     )
-    print(ds)
     write_cloud_zarr(ds, timestep, grid, bucket_dir)
+    
+    
+def rundir_to_dataset(rundir: str, initial_timestep: str) -> xr.Dataset:
+    tile = pd.Index(range(1, N_TILES + 1), name='tile')
+    t = datetime.strptime(initial_timestep, TIME_FMT)
+    initialization_time = [cftime.DatetimeJulian(
+        t.year,
+        t.month,
+        t.day,
+        t.hour,
+        t.minute,
+        t.second)]
+    # TODO: add functionality for passing timestep length and number of restart timesteps
+    timestep_length_minutes = 15
+    forecast_time = [timedelta(minutes = 0), timedelta(minutes = timestep_length_minutes)]
+    new_dims = {'initialization_time' : initialization_time, 'forecast_time' : forecast_time, 'tile' : tile}
+    ds = combine_file_categories(
+        run_dir=rundir,
+        category_mapping=CATEGORY_DIR_MAPPING,
+        new_dims=new_dims,
+        grid_spec_mapping=GRID_SPEC_AXES_MAP,
+        oro_data_mapping=ORO_DATA_AXES_MAP,
+        tile_suffixes=TILE_SUFFIXES
+    )
+    return ds
+    
 
 
 def main():
