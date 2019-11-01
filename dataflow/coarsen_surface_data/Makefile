@@ -1,4 +1,4 @@
-submit:
+submit: env
 	source env/bin/activate && sh submit_job.sh
 
 env:
