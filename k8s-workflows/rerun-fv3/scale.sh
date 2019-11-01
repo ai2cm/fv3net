@@ -9,12 +9,12 @@ printf "iteration: %s\n" "$ITERATION" >&2
 
 export ITERATION
 
-for time in $timesteps; do
+while read time; do
   export timeForJobName=$(echo $time | sed 's/\.//g')
   export JOBNAME=$jobPrefix-$timeForJobName-$(uuid)
   export TIMESTEP="$time" && envsubst < job.yaml  | tee job.$time.yaml | kubectl apply -f -
   sleep 1
-done
+done < /dev/stdin
 
 while true; do
   active_jobs="$(kubectl get jobs --selector "run=$ITERATION" --output=json | jq --raw-output '[.items[] | select (.status.active == 1)] | .[].metadata.name')" || exit 1
