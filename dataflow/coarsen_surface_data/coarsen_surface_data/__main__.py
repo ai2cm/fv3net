@@ -1,6 +1,6 @@
 import apache_beam as beam
 
-import gcs
+import src.gcs
 from .core import coarsen_and_upload_surface, output_names
 from apache_beam.options.pipeline_options import PipelineOptions  
 import logging
