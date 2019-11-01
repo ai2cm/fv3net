@@ -21,3 +21,21 @@ def list(pattern):
         ['gsutil', 'ls', pattern]
     )
     return [arg.decode('UTF-8') for arg in files.split()]
+
+
+def copy(src, dest):
+    logging.debug(f"copying {src} to {dest}")
+    command = ['gsutil', '-m', 'cp', '-r', src, dest]
+    subprocess.check_call(command)
+    logging.debug(f"copying {src} to {dest} done")
+
+
+def strip_trailing_slash(src: str) -> str:
+    if src.endswith('/'):
+        return src[:-1]
+    else:
+        return src
+
+
+def copy_into(src: str, dest):
+    return copy(strip_trailing_slash(src) + "/*", dest)

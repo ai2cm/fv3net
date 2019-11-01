@@ -1,9 +1,9 @@
 import apache_beam as beam
+
+import gcs
 from .core import coarsen_and_upload_surface, output_names
 from apache_beam.options.pipeline_options import PipelineOptions  
 import logging
-import subprocess
-import os
 from src import utils
 import re
 from apache_beam.utils import retry
@@ -18,17 +18,12 @@ def time_step(file):
 
 
 def get_completed_time_steps():
-    files = utils.gslist(bucket)
+    files = gcs.list(bucket)
     return [(time_step(file), coarsenings) for file in files]
 
 
-def exists(url):
-    proc = subprocess.call(['gsutil', 'ls', url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return proc == 0
-
-
 def is_not_done(key):
-    return any(not exists(url) for url in output_names(key).values())
+    return any(not gcs.exists(url) for url in output_names(key).values())
      
 
 def run(beam_options):
@@ -43,6 +38,5 @@ def run(beam_options):
 
 if __name__ == '__main__':
   """Main function"""
-  import argparse
   beam_options = PipelineOptions(save_main_session=True)
   run(beam_options=beam_options)
