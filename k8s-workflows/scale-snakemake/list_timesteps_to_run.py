@@ -26,7 +26,7 @@ def timesteps_to_process() -> Set:
     to_do = list_time_steps(INPUT_BUCKET)
     done = list_time_steps(OUTPUT_BUCKET)
     logging.info('Number of input times: %s' % len(to_do))
-    logging.info('Number of completed times: %s' % len(done))
+    logger.info(f'Number of completed times: {len(done)}')
     logging.info('Number of times to process: %d' %  (len(to_do) - len(done)))
 
     return to_do - done
