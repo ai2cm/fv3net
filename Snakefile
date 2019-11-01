@@ -246,7 +246,7 @@ rule run_restart:
 
 rule upload_restart:
     input: restart_dir_done
-    output: touch(GS.remote(restart_uploaded_status))
+    output: touch(restart_uploaded_status)
     params: restart=restart_dir_wildcard, gs_path=restart_uploaded
     shell: "gsutil -m rsync -r {params.restart}  {params.gs_path}"
 
