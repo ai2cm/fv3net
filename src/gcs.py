@@ -4,6 +4,16 @@ import subprocess
 from dask import delayed
 
 
+def authenticate(key):
+    logging.debug("authenticating with key at {key}")
+    ret = subprocess.call(['gcloud', 'auth', 'activate-service-account', '--key-file', key])
+    if ret == 0:
+        logging.warning("Authentication failed. could lead to "
+                        "errors if no other authentication has been configured")
+    else:
+        logging.debug("authentication succeeded.")
+
+
 @delayed
 def upload_to_gcs(src, dest, save_op):
     logging.info("uploading %s to %s" % (src, dest))

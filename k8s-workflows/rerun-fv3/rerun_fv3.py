@@ -45,7 +45,18 @@ def patch_diag_table(dir, time):
             ''')
 
 
-def main(time, rundir_transformations=()):
+def main(time, rundir_transformations=(), key=None):
+    if key is None:
+        try:
+            key = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+        except KeyError:
+            pass
+        else:
+            gcs.authenticate(key)
+
+    elif key:
+        gcs.authenticate(key)
+
     with tempfile.TemporaryDirectory() as localdir:
         gcs.copy(dir(time), localdir)
         logging.info("running experiment")
