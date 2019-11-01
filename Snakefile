@@ -40,20 +40,6 @@ grids = config.get('grids', default_grids)
 tiles = [1, 2, 3, 4, 5, 6]
 subtiles = list(range(16))
 
-# TODO: rm in seperate cleanup commit (deprecated by rule download_timestep)
-def raw_restart_filenames(datastore, wildcards):
-    timestep = wildcards['timestep']
-    category = wildcards['category']
-    # TODO: Make sure this gets fixed along with the rest of the tidying
-    grid = f"C{ORIGINAL_RESOLUTIONS[category.replace('_coarse', '')]}"
-    file_list = cubedsphere.all_filenames(join(
-        datastore,
-        grid,
-        f'{timestep}',
-        f'{timestep}.{category}')
-    )
-    return [GS.remote(file) for file in file_list]
-
 
 def coarsened_restart_filenames(wildcards):
     timestep = wildcards['timestep']
@@ -66,8 +52,6 @@ def coarsened_sfc_filename(wildcards):
     timestep = wildcards['timestep']
     grid = wildcards['grid']
     return f"{DATAFLOW_OUTPUT_DIR}/coarsened/{grid}/{timestep}/sfc_data.nc"
-
-
 
 
 RESTART_CATEGORIES = [
