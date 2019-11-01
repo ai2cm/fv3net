@@ -110,7 +110,7 @@ def test_upload_dir_to_gcs():
     gcs_utils.upload_dir_to_gcs('vcm-ml-data', 'tmp_dataflow/test_upload',
                               src_dir_to_upload)
 
-    test_files = ['test_data_array.nc', 'test_datafile.txt', 'test_data.tar']
+    test_files = ['test_datafile.txt', 'test_data.tar']
     with tempfile.TemporaryDirectory() as tmpdir:
         for filename in test_files:
             gcs_url = f'gs://vcm-ml-data/tmp_dataflow/test_upload/{filename}'
