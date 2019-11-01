@@ -10,7 +10,7 @@ from src import utils
 from .common import write_submit_job_script
 
 
-DOCKER_IMAGE = os.environ.get('FV3NET_IMAGE', 'us.gcr.io/vcm-ml/fv3gfs-compiled-default')
+DOCKER_IMAGE = os.environ.get('FV3NET_IMAGE', 'us.gcr.io/vcm-ml/fv3net')
 
 
 
