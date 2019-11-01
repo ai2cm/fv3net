@@ -356,7 +356,7 @@ rule coarsen_all_restart_data:
     input:
         all_coarsened_restart_files
 
-rule convert_to_zarr:
+rule convert_rundir_to_zarr:
     input: restart_dir_done
     output: directory(GS.remote(output_zarr_done))
     run: 
