@@ -77,28 +77,20 @@ def _upload_process(args):
     destination_blob.upload_from_filename(str(filepath))
 
 
-class FileLister(ABC):
-    @abstractmethod
-    def list(self, prefix=None, file_extension=None) -> Iterable[str]:
-        pass
-
-
-class GCSLister(FileLister):
-    def __init__(self, client: Client, bucket: str):
-        self.client = client
-        self.bucket = bucket
-
-    def list(self, 
-        prefix: str = None, 
-        file_extension: str = None
-    ) -> Iterable[str]:
-        blobs = self.client.list_blobs(self.bucket, prefix=prefix)
-        for blob in blobs:
-            
-            # filter specific extensions
-            if file_extension is not None:
-                blob_ext_name = blob.name.split('.')[-1]
-                if file_extension.strip('.') != blob_ext_name:
-                    continue
-            
-            yield f"gs://{blob.bucket.name}/{blob.name}"
+def list_gcs_bucket_files(
+    client: Client, 
+    bucket_name: str, 
+    prefix=None, 
+    file_extension=None
+) -> Iterable[str]:
+    
+    blob_list = client.list_blobs(bucket_name, prefix=prefix)
+    for blob in blob_list:
+        
+        # filter specific extensions
+        if file_extension is not None:
+            blob_extension_name = blob.name.split('.')[-1]
+            if file_extension.strip('.') != blob_extension_name:
+                continue
+        
+        yield f"gs://{blob.bucket.name}/{blob.name}"

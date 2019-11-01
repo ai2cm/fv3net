@@ -1,10 +1,11 @@
 import apache_beam  
 import logging 
+from typing import Generator
 from apache_beam.options.pipeline_options import PipelineOptions  
 from apache_beam.pvalue import PCollection  
 from google.cloud.storage import Client  
 
-from dataflow_utils.gcs import FileLister, GCSLister 
+from dataflow_utils.gcs import list_gcs_bucket_files
 import extractflow.transforms as cftransforms
 
 logger = logging.getLogger(__name__)
@@ -13,8 +14,7 @@ logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
 
-def run(file_lister: FileLister, prefix: str, file_extension: str,
-        output_prefix: str) -> None:
+def run(file_lister: Generator[str], output_prefix: str) -> None:
     """
     Pipeline currently specified for tar extraction processing.
 
@@ -24,10 +24,7 @@ def run(file_lister: FileLister, prefix: str, file_extension: str,
     pipeline = apache_beam.Pipeline(options=PipelineOptions(pipeline_type_check=True))
 
     to_extract: PCollection[str] = apache_beam.Create(
-        file_lister.list(
-            prefix=prefix,
-            file_extension=file_extension
-        )
+        file_lister
     ).with_output_types(str)
 
     filter_finished: PCollection[str] = apache_beam.Filter(

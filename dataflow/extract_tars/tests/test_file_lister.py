@@ -3,7 +3,7 @@ from typing import Iterator, Iterable
 from google.cloud.storage import Client, Blob, Bucket  # type: ignore
 import pytest
 
-from dataflow_utils.gcs import GCSLister
+from dataflow_utils.gcs import list_gcs_bucket_files
 
 class FakeFileListerClient(Client):
     def __init__(self, object_keys: Iterable[str]):
@@ -44,7 +44,7 @@ def test_gcs_lister_all_items():
     fake_client = FakeFileListerClient(blob_names)
     expected = [f'gs://{bucket_name}/{bname}' for bname in blob_names]
 
-    result = list(GCSLister(fake_client, bucket_name).list())
+    result = list(list_gcs_bucket_files(fake_client, bucket_name))
     assert result == expected
 
 
@@ -63,8 +63,8 @@ def test_gcs_lister_use_prefix():
     fake_client = FakeFileListerClient(blob_names)
     expected = [f'gs://{bucket_name}/{bname}' for bname in subdir_blob_names]
 
-    result = list(GCSLister(fake_client, bucket_name).list(prefix=prefix))
-    assert result == expected
+    result = list_gcs_bucket_files(fake_client, bucket_name, prefix=prefix)
+    assert list(result) == expected
 
 
 def test_gcs_lister_file_ext():
@@ -82,8 +82,8 @@ def test_gcs_lister_file_ext():
     fake_client = FakeFileListerClient(blob_names)
     expected = [f'gs://{bucket_name}/{bname}' for bname in file_ext_blob_names]
 
-    result = list(GCSLister(fake_client, bucket_name).list(file_extension=file_ext))
-    assert result == expected
+    result = list_gcs_bucket_files(fake_client, bucket_name, file_extension=file_ext)
+    assert list(result) == expected
 
 
 def test_gcs_lister_file_ext_and_prefix():
@@ -103,7 +103,8 @@ def test_gcs_lister_file_ext_and_prefix():
     fake_client = FakeFileListerClient(blob_names)
     expected = [f'gs://{bucket_name}/{bname}' for bname in file_ext_blob_names]
 
-    result = list(GCSLister(fake_client, bucket_name).list(file_extension=file_ext,
-                                                           prefix=prefix))
-    assert result == expected
+    result = list_gcs_bucket_files(fake_client, bucket_name, 
+                                   file_extension=file_ext,
+                                   prefix=prefix)
+    assert list(result) == expected
 

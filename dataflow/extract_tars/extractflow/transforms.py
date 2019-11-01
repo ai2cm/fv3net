@@ -11,7 +11,7 @@ from apache_beam.utils import retry
 
 import dataflow_utils as utils
 import dataflow_utils.gcs as gcs_utils
-from dataflow_utils.gcs import GCSLister
+from dataflow_utils.gcs import list_gcs_bucket_files
 
 from google.cloud.storage import Client, Bucket, Blob
 
@@ -91,9 +91,13 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
                 ' subtiles to perform file existence checks.'
             )
 
-        lister = GCSLister(Client(), bucket_name)
+        lister = list_gcs_bucket_files(
+            Client(), 
+            bucket_name,
+            prefix=output_prefix
+        )
         existing_blob_names = [gcs_utils.parse_gcs_url(gcs_url)[1]  # 2nd element is blob name
-                               for gcs_url in lister.list(prefix=output_prefix)]
+                               for gcs_url in lister]
 
         tiles = range(1, num_tiles + 1)
         subtiles = range(num_subtiles)
