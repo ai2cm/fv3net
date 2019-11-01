@@ -1,7 +1,6 @@
 #! /usr/bin/env sh
 
 timesteps=$(bash list_timesteps_to_run.sh)
-timesteps=20160803.021500
 
 ITERATION="$(date +%s)"
 printf "iteration: %s\n" "$ITERATION" >&2
