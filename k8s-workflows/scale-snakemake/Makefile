@@ -1,3 +1,3 @@
 all:
-	bash scale_snakemake_argo.sh
-	argo submit argo_jobs.yml
+	python list_timesteps_to_run.py | bash scale_snakemake_argo.sh > _jobs.yml
+	argo submit _jobs.yml

@@ -8,7 +8,7 @@ printf "iteration: %s\n" "$ITERATION" >&2
 export ITERATION
 
 rm -f argo_jobs.yml
-for time in $timesteps; do
-  export TIMESTEP="$time" && envsubst < argo.yml >> argo_jobs.yml
-  echo "---" >> argo_jobs.yml
-done
+while read time; do
+  export TIMESTEP="$time" && envsubst < argo.yml
+  echo "---"
+done < /dev/stdin
