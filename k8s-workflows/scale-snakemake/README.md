@@ -51,3 +51,21 @@ spec:
 TODO: I don't think the `gcloud auth` command should be necessary, but only setting the environmental variable GOOGLE_APPLICATION_CREDENTIALS does not seem to work.
 
 In principle, this won't be necessary if we set up the service account for the cluster in the right way, potentially using terraform.
+
+# Build and push the fv3net image to GCR
+
+In the root of fv3net run 
+
+    make push_image
+
+# Run the argo workflow
+
+Generate the yaml file describing all the jobs
+      
+    cd k8s-workflows/scale-snakemake/
+    bash scale_snakemake_argo.sh
+
+This generates a file `argo_jobs.yml`, which can be submitted like this:
+
+    argo submit argo_jobs.yml 
+

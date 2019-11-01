@@ -89,8 +89,8 @@ input_data                  = "gs://vcm-ml-public/2019-09-27-FV3GFS-docker-input
 DATAFLOW_OUTPUT_DIR         = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted"
 
 # Remote outputs
-restart_uploaded            = "gs://vcm-ml-data/2019-10-22-restart-workflow/restart/{grid}/{timestep}/"
-restart_uploaded_status     = "gs://vcm-ml-data/2019-09-27-FV3GFS-docker-input-c48-LH-nml/workflow-status/restart_{grid}_{timestep}.done"
+restart_uploaded            = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/restart/{grid}/{timestep}/"
+restart_uploaded_status     = "workflow-status/restart_{grid}_{timestep}.done"
 
 # Local Assets (under version control)
 oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.txt"
@@ -172,7 +172,7 @@ c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
 
 
 rule all:
-    input: GS.remote(expand(restart_uploaded_status, timestep=timesteps, grid=grids))
+    input: expand(restart_uploaded_status, timestep=timesteps, grid=grids)
 
 
 rule prepare_restart_directory:
