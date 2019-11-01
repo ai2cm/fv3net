@@ -18,14 +18,11 @@ default_timesteps = [
 ]
 
 # Define resolutions at various stages
-
-# TODO: rm temp comment
-# Check- if core, tracer, srf_wnd are always the 'intermediate' resolution after initial pre-pipeline coarsening
-INTERMEDIATE_RESOLUTION = 384
-ORIGINAL_RESOLUTIONS = {
-    'fv_core.res': INTERMEDIATE_RESOLUTION,
-    'fv_tracer.res': INTERMEDIATE_RESOLUTION,
-    'fv_srf_wnd.res': INTERMEDIATE_RESOLUTION,
+intermediate_resolution = 384
+original_resolutions = {
+    'fv_core.res': intermediate_resolution,
+    'fv_tracer.res': intermediate_resolution,
+    'fv_srf_wnd.res': intermediate_resolution,
     'sfc_data': 3072,
     'grid_spec': 3072
 }
@@ -51,21 +48,14 @@ def coarsened_restart_filenames(wildcards):
 def coarsened_sfc_filename(wildcards):
     timestep = wildcards['timestep']
     grid = wildcards['grid']
-    return f"{DATAFLOW_OUTPUT_DIR}/coarsened/{grid}/{timestep}/sfc_data.nc"
+    return f"{dataflow_output_dir}/coarsened/{grid}/{timestep}/sfc_data.nc"
 
 
-RESTART_CATEGORIES = [
+restart_categories = [
     'fv_core.res',
     'fv_srf_wnd.res',
     'fv_tracer.res'
 ]
-
-OUTPUT_CATEGORY_NAMES = {
-    'fv_core.res': 'fv_core_coarse.res',
-    'fv_srf_wnd.res': 'fv_srf_wnd_coarse.res',
-    'fv_tracer.res': 'fv_tracer_coarse.res'
-}
-
 
 # Remote files
 bucket                      = "gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data"
@@ -75,7 +65,7 @@ vertical_grid               = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3
 input_data                  = "gs://vcm-ml-public/2019-09-27-FV3GFS-docker-input-c48-LH-nml/fv3gfs-data-docker_2019-09-27.tar.gz"
 
 # Dataflow outputs
-DATAFLOW_OUTPUT_DIR         = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted"
+dataflow_output_dir        = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted"
 
 # Remote outputs
 restart_uploaded            = "gs://vcm-ml-data/2019-10-22-restart-workflow/restart/{grid}/{timestep}/"
@@ -89,8 +79,6 @@ oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.tx
 c3072_grid_spec_tiled       = "data/raw/grid_specs/C3072"
 native_grid_spec            = [GS.remote(f'gs://vcm-ml-data/2019-10-16-C3072-grid-spec/grid_spec.tile{tile:d}.nc')
                                for tile in tiles]
-# TODO: rm temp comment
-# this is the intermediate resolution grid spec not final resolution
 intermediate_res_grid_spec = 'data/coarsened/intermediate_res_grid_spec.nc'
 
 # template directory
@@ -109,8 +97,6 @@ oro_data                    = expand("data/raw/coarse-grid-and-orography-data/{{
 
 
 # Intermediate steps
-# TODO: rm temp comment
-# 'coarsened' in filenames here refers to final target resolution
 coarsened_restart_filenames_wildcard = coarsened_restart_filenames(
     {'timestep': '{timestep}',
      'grid': '{grid}',
@@ -136,13 +122,13 @@ sfc_data_restart_files_final_res = coarsened_sfc_filename(
     'grid' : '{grid}'
     }
 )
-coupler = GS.remote(join(DATAFLOW_OUTPUT_DIR, 'C384/{timestep}/{timestep}.coupler.res'))
+coupler = GS.remote(join(dataflow_output_dir, 'C{intermediate_resolution}/{timestep}/{timestep}.coupler.res'))
 all_coarsened_restart_files = expand(
     ['data/coarsened/{{grid}}/{{timestep}}/{{category}}.tile{tile}.nc'.format(tile=tile) for
      tile in tiles],
     timestep=timesteps,
     grid=grids,
-    category=RESTART_CATEGORIES
+    category=restart_categories
 )
 
 
@@ -189,7 +175,6 @@ rule prepare_restart_directory:
             ('fv_tracer.res', xr.open_mfdataset(input.tracer, concat_dim='tile')),
             ('fv_core.res', xr.open_mfdataset(input.core, concat_dim='tile')),
             ('fv_srf_wnd.res', xr.open_mfdataset(input.srf_wnd, concat_dim='tile')),
-            # TODO should surface data and other input data have the same 6-tile format?
             ('sfc_data', xr.open_dataset(input.sfc_data)),
             ('grid_spec', xr.open_mfdataset(sorted(input.grid_spec), concat_dim='tile'))
         ]
@@ -296,7 +281,7 @@ rule coarsen_grid_spec:
     run:
         from src.fv3.coarsen import coarsen_grid_spec
 
-        coarsening_factor = ORIGINAL_RESOLUTIONS['grid_spec'] // INTERMEDIATE_RESOLUTION
+        coarsening_factor = original_resolutions['grid_spec'] // intermediate_resolution
         coarsen_grid_spec(
             input,
             coarsening_factor,
@@ -307,7 +292,7 @@ rule download_timestep:
     output: directory("data/extracted/{timestep}/")
     run:
         download_dir = output[0]
-        src_bucket = join(DATAFLOW_OUTPUT_DIR, f'C{INTERMEDIATE_RESOLUTION}', wildcards.timestep)
+        src_bucket = join(dataflow_output_dir, f'C{intermediate_resolution}', wildcards.timestep)
         logging.info("Downloading %s to %s" % (src_bucket, download_dir))
         subprocess.check_call(['gsutil', '-m', 'cp', '-r', src_bucket, download_dir])
 
@@ -327,7 +312,7 @@ rule coarsen_restart_category:
         timestep = wildcards['timestep']
         native_category_name = wildcards['category']
         target_resolution = int(wildcards['grid'][1:])
-        coarsening_factor = ORIGINAL_RESOLUTIONS[native_category_name] // target_resolution
+        coarsening_factor = original_resolutions[native_category_name] // target_resolution
 
         coarsen_restart_file_category(
             timestep,
