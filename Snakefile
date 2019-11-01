@@ -292,11 +292,6 @@ rule convert_to_zarr:
     output: directory(save_zarr.output_2d), directory(save_zarr.output_3d)
     shell: "python -m src.data.save_zarr"
 
-rule train_model:
-    input: config="configurations/{model_type}/{options}.yaml"
-    output: "models/{model_type}/{options}.pkl"
-    shell: "python -m src.models.{wildcards.model_type}.train --options {input.config} {output}"
-
 rule coarsen_grid_spec:
     input:
         native_grid_spec
@@ -355,6 +350,7 @@ rule coarsen_restart_category:
 rule coarsen_all_restart_data:
     input:
         all_coarsened_restart_files
+
 
 rule convert_rundir_to_zarr:
     input: restart_dir_done
