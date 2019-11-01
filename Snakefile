@@ -122,7 +122,7 @@ sfc_data_restart_files_final_res = coarsened_sfc_filename(
     'grid' : '{grid}'
     }
 )
-coupler = GS.remote(join(dataflow_output_dir, 'C{intermediate_resolution}/{timestep}/{timestep}.coupler.res'))
+coupler = GS.remote(join(dataflow_output_dir, f'C{intermediate_resolution}','{timestep}/{timestep}.coupler.res'))
 all_coarsened_restart_files = expand(
     ['data/coarsened/{{grid}}/{{timestep}}/{{category}}.tile{tile}.nc'.format(tile=tile) for
      tile in tiles],
