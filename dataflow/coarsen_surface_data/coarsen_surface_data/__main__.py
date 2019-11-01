@@ -9,7 +9,7 @@ import re
 from apache_beam.utils import retry
 logging.basicConfig(level=logging.INFO)
 
-bucket = 'gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/C384/'
+bucket = 'gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/C3702/'
 coarsenings = (8, 16, 32, 64)
 
 def time_step(file):
@@ -23,6 +23,7 @@ def get_completed_time_steps():
 
 
 def exists(url):
+    logging.info("checking for %s" % url)
     proc = subprocess.call(['gsutil', 'ls', url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return proc == 0
 
