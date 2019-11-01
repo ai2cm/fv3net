@@ -40,9 +40,9 @@ def test_not_finished_extract_non_positive_tiles(num_tiles, num_subtiles):
     output_prefix = 'tmp_dataflow/test_data_extract_check'
     fake_tstep_gcs_tar_url = f'gs://vcm-ml-data/{timestep}.tar'
     with pytest.raises(ValueError):
-        _ = not_finished_with_tar_extract(fake_tstep_gcs_tar_url, output_prefix,
-                                          num_tiles=num_tiles,
-                                          num_subtiles=num_subtiles)
+        not_finished_with_tar_extract(fake_tstep_gcs_tar_url, output_prefix,
+                                      num_tiles=num_tiles,
+                                      num_subtiles=num_subtiles)
 
 
     
