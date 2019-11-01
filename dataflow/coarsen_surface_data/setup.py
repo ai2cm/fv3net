@@ -13,7 +13,7 @@ dependencies = [
     # "toolz==0.10.0",
     "xarray==0.13.0",
     # "zarr==2.3.2",
-    "partd"
+    "partd",
     "apache_beam[gcp]"
 ]
 
