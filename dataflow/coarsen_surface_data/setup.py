@@ -14,7 +14,6 @@ dependencies = [
     "xarray==0.13.0",
     # "zarr==2.3.2",
     "partd",
-    "apache_beam[gcp]"
 ]
 
 setup(
