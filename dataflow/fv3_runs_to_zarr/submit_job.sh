@@ -1,4 +1,4 @@
-python pipeline  \
+python pipeline.py  \
     --job_name convert-rundirs-to-zarr-$(uuid) \
     --project vcm-ml \
     --region us-central1 \
