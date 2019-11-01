@@ -31,19 +31,6 @@ tiles = [1, 2, 3, 4, 5, 6]
 subtiles = list(range(16))
 
 
-def raw_restart_filenames(datastore, wildcards):
-    timestep = wildcards['timestep']
-    category = wildcards['category']
-    grid = f"C{ORIGINAL_RESOLUTIONS[category.replace('_coarse', '')]}"
-    file_list = cubedsphere.all_filenames(join(
-        datastore,
-        grid,
-        f'{timestep}',
-        f'{timestep}.{category}')
-    )
-    return [GS.remote(file) for file in file_list]
-
-
 def coarsened_restart_filenames(wildcards):
     timestep = wildcards['timestep']
     grid = wildcards['grid']
@@ -94,21 +81,6 @@ restart_uploaded_status     = "workflow-status/restart_{grid}_{timestep}.done"
 
 # Local Assets (under version control)
 oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.txt"
-
-extracted_categories = [
-    raw_restart_filenames(
-        datastore = DATAFLOW_OUTPUT_DIR,
-        wildcards = {'timestep': '{timestep}', 'category': 'fv_core_coarse.res'}
-        ),
-    raw_restart_filenames(
-        datastore = DATAFLOW_OUTPUT_DIR,
-        wildcards = {'timestep': '{timestep}', 'category': 'fv_srf_wnd_coarse.res'}
-        ),
-    raw_restart_filenames(
-        datastore = DATAFLOW_OUTPUT_DIR,
-        wildcards = {'timestep': '{timestep}', 'category': 'fv_tracer_coarse.res'}
-        ),
-]
 
 # Grid Specifications
 c3072_grid_spec_tiled       = "data/raw/grid_specs/C3072"
