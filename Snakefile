@@ -1,7 +1,10 @@
 from src.data import save_zarr
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
-from os.path import join
+from os.path import join, dirname
 from src.data import cubedsphere
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 GS = GSRemoteProvider()
 
@@ -10,28 +13,22 @@ trained_models = [
     "models/random_forest/default.pkl"
 ]
 
-timesteps = [
+default_timesteps = [
     "20160805.170000"
 ]
 
+
 ORIGINAL_COARSE_RESOLUTION = 384
 
-grids = [
+default_grids = [
     "C48"
 ]
 
+timesteps = config.get('timesteps', default_timesteps)
+grids = config.get('grids', default_grids)
+
 tiles = [1, 2, 3, 4, 5, 6]
 subtiles = list(range(16))
-
-
-def raw_restart_filenames(wildcards):
-    timestep = wildcards['timestep']
-    category = wildcards['category']
-    return cubedsphere.all_filenames(join(
-        'data/extracted',
-        f'{timestep}',
-        f'{timestep}.{category}')
-    )
 
 
 def coarsened_restart_filenames(wildcards):
@@ -40,6 +37,11 @@ def coarsened_restart_filenames(wildcards):
     category = wildcards['category']
     return [f'data/coarsened/{grid}/{timestep}/{category}.tile{tile}.nc' for
             tile in tiles]
+
+def coarsened_sfc_filename(wildcards):
+    timestep = wildcards['timestep']
+    grid = wildcards['grid']
+    return f"{DATAFLOW_OUTPUT_DIR}/coarsened/{grid}/{timestep}/sfc_data.nc"
 
 
 ORIGINAL_RESOLUTIONS = {
@@ -53,15 +55,13 @@ ORIGINAL_RESOLUTIONS = {
 RESTART_CATEGORIES = [
     'fv_core.res',
     'fv_srf_wnd.res',
-    'fv_tracer.res',
-    'sfc_data'
+    'fv_tracer.res'
 ]
 
 OUTPUT_CATEGORY_NAMES = {
     'fv_core.res': 'fv_core_coarse.res',
     'fv_srf_wnd.res': 'fv_srf_wnd_coarse.res',
-    'fv_tracer.res': 'fv_tracer_coarse.res',
-    'sfc_data': 'sfc_data'
+    'fv_tracer.res': 'fv_tracer_coarse.res'
 }
 
 
@@ -72,32 +72,15 @@ grid_and_orography_data     = "gs://vcm-ml-data/2019-10-05-coarse-grid-and-orogr
 vertical_grid               = GS.remote("gs://vcm-ml-data/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/fv_core.res.nc")
 input_data                  = "gs://vcm-ml-public/2019-09-27-FV3GFS-docker-input-c48-LH-nml/fv3gfs-data-docker_2019-09-27.tar.gz"
 
+# Dataflow outputs
+DATAFLOW_OUTPUT_DIR         = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted"
+
 # Remote outputs
 restart_uploaded            = "gs://vcm-ml-data/2019-10-22-restart-workflow/restart/{grid}/{timestep}/"
 restart_uploaded_status     = "workflow-status/restart_{grid}_{timestep}.done"
 
 # Local Assets (under version control)
 oro_manifest                = "assets/coarse-grid-and-orography-data-manifest.txt"
-
-# Wildcards for tarball and extracted data
-TAR                         = "data/raw/2019-10-05-X-SHiELD-C3072-to-C384-re-uploaded-restart-data/{timestep}.tar"
-EXTRACTED                   = "data/extracted/{timestep}/"
-
-extracted = [
-    raw_restart_filenames({'timestep': '{timestep}', 'category': 'fv_core_coarse.res'}),
-    raw_restart_filenames({'timestep': '{timestep}', 'category': 'fv_srf_wnd_coarse.res'}),
-    raw_restart_filenames({'timestep': '{timestep}', 'category': 'fv_tracer_coarse.res'}),
-    raw_restart_filenames({'timestep': '{timestep}', 'category': 'sfc_data'}),
-    'data/extracted/{timestep}/{timestep}.coupler.res'
-]
-extraction_directory = 'data/extracted/{timestep}'
-extraction_directory_root = 'data/extracted'
-
-
-# Paths in the extracted tarballs
-fv_srf_wnd_prefix           = "data/extracted/{timestep}/{timestep}.fv_srf_wnd_coarse.res"
-fv_tracer_prefix            = "data/extracted/{timestep}/{timestep}.fv_tracer_coarse.res"
-fv_core_prefix              = "data/extracted/{timestep}/{timestep}.fv_core_coarse.res"
 
 # Grid Specifications
 c3072_grid_spec_tiled       = "data/raw/grid_specs/C3072"
@@ -120,7 +103,7 @@ grid_spec                   = expand("data/raw/coarse-grid-and-orography-data/{{
 oro_data                    = expand("data/raw/coarse-grid-and-orography-data/{{grid}}/oro_data.tile{tile:d}.nc", tile=tiles)
 
 # Intermediate steps
-coarsened_sfc_data_wildcard = "data/coarsened/{grid}/{timestep}.sfc_data.nc"
+
 coarsened_restart_filenames_wildcard = coarsened_restart_filenames(
     {'timestep': '{timestep}', 'grid': '{grid}', 'category': '{category}'}
 )
@@ -139,12 +122,12 @@ tracer = coarsened_restart_filenames(
      'grid': '{grid}',
      'category': 'fv_tracer.res'}
 )
-sfc_data = coarsened_restart_filenames(
-    {'timestep': '{timestep}',
-     'grid': '{grid}',
-     'category': 'sfc_data'}
+sfc_data = coarsened_sfc_filename(
+    {'timestep' : '{timestep}',
+    'grid' : '{grid}'
+    }
 )
-coupler = 'data/extracted/{timestep}/{timestep}.coupler.res'
+coupler = GS.remote(join(DATAFLOW_OUTPUT_DIR, 'C384/{timestep}/{timestep}.coupler.res'))
 all_coarsened_restart_files = expand(
     ['data/coarsened/{{grid}}/{{timestep}}/{{category}}.tile{tile}.nc'.format(tile=tile) for
      tile in tiles],
@@ -170,34 +153,35 @@ rule prepare_restart_directory:
         grid_spec=grid_spec,
         vertical_grid=vertical_grid,
         input_data_dir=input_data_dir,
-	template_dir=template_dir,
+        template_dir=template_dir,
         srf_wnd=srf_wnd,
         core=core,
         tracer=tracer,
-        sfc_data=sfc_data,
+        sfc_data=GS.remote(sfc_data),
         coupler=coupler
     output:
         restart_dir=directory(restart_dir_wildcard)
     run:
         import os
         import logging
-        
+
         import xarray as xr
-        
+
         from datetime import datetime
-        
+
         from src.data.cubedsphere import open_cubed_sphere
         from src.fv3 import make_experiment
-        
+
         logging.basicConfig(level=logging.INFO)
 
         grid = wildcards['grid']
-        
+
         tiles_to_save = [
             ('fv_tracer.res', xr.open_mfdataset(input.tracer, concat_dim='tile')),
             ('fv_core.res', xr.open_mfdataset(input.core, concat_dim='tile')),
             ('fv_srf_wnd.res', xr.open_mfdataset(input.srf_wnd, concat_dim='tile')),
-            ('sfc_data', xr.open_mfdataset(input.sfc_data, concat_dim='tile')),
+            # TODO should surface data and other input data have the same 6-tile format?
+            ('sfc_data', xr.open_dataset(input.sfc_data)),
             ('grid_spec', xr.open_mfdataset(sorted(input.grid_spec), concat_dim='tile'))
         ]
 
@@ -222,7 +206,7 @@ rule prepare_restart_directory:
             file.write(f'20160801.00Z.C48.32bit.non-mono\n{date_string}')
 
 
-            
+
 rule run_restart:
     input:
         experiment=restart_dir_wildcard,
@@ -246,19 +230,6 @@ def coarsen_factor_from_grid(wildcards):
         raise ValueError("Target grid size must be a factor of 3072")
     return base_n // target_n
 
-rule coarsen_sfc_data:
-    input: grid=c3072_grid_spec_tiled,
-           time=EXTRACTED
-    output: coarsened_sfc_data_wildcard
-    params: factor=coarsen_factor_from_grid
-    shell: """
-    python src/data/raw_step_directory_to_restart.py \
-      --num-tiles 6 \
-      --num-subtiles 16 \
-      --method median \
-      --factor {params.factor} \
-      {wildcards.timestep} {output}
-    """
 
 rule download_template_rundir:
     output: directory(template_dir)
@@ -298,22 +269,6 @@ rule download_oro_and_grid:
     rm -f $file
     """
 
-rule extract_timestep:
-    output:
-        extracted
-    params:
-        extraction_directory=extraction_directory,
-        TAR=TAR
-    shell:"""
-    tarfile={params.TAR}
-
-    gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_component=32' \
-          cp  {bucket}/{wildcards.timestep}.tar $tarfile
-    
-    tar -xvf $tarfile -C {params.extraction_directory}
-    rm -f $tarfile
-    """
-
 rule convert_to_zarr:
     output: directory(save_zarr.output_2d), directory(save_zarr.output_3d)
     shell: "python -m src.data.save_zarr"
@@ -337,31 +292,42 @@ rule coarsen_grid_spec:
             input,
             coarsening_factor,
             output.coarsened_grid_spec
-        )        
+        )
 
+rule download_timestep:
+    output: directory("data/extracted/{timestep}/")
+    run:
+        download_dir = output[0]
+        src_bucket = join(DATAFLOW_OUTPUT_DIR, 'C384', wildcards.timestep)
+        logging.info("Downloading %s to %s" % (src_bucket, download_dir))
+        subprocess.check_call(['gsutil', '-m', 'cp', '-r', src_bucket, download_dir])
 
 rule coarsen_restart_category:
     input:
-        restart_files=rules.extract_timestep.output,
+        download_dir="data/extracted/{timestep}/",
         coarse_grid_spec=rules.coarsen_grid_spec.output.coarsened_grid_spec,
         native_grid_spec=native_grid_spec
     output:
         coarsened_restart_filenames_wildcard
     run:
         from src.fv3.coarsen import coarsen_restart_file_category
+        import subprocess
+        import tempfile
+        import os, shutil
+
 
         timestep = wildcards['timestep']
         native_category_name = wildcards['category']
         target_resolution = int(wildcards['grid'][1:])
         coarsening_factor = ORIGINAL_RESOLUTIONS[native_category_name] // target_resolution
-        
+
         coarsen_restart_file_category(
             timestep,
             native_category_name,
             coarsening_factor,
             input.coarse_grid_spec,
             input.native_grid_spec,
-            extraction_directory_root,
+            input.download_dir,
             output
         )
 
