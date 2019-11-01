@@ -23,6 +23,7 @@ def get_completed_time_steps():
 
 
 def exists(url):
+    logging.info("checking for %s" % url)
     proc = subprocess.call(['gsutil', 'ls', url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return proc == 0
 
