@@ -1,25 +1,27 @@
 from typing import Set
+from pathlib import Path
 import subprocess
 from os.path import basename
 import logging
+
+logger = logging.getLogger('list_timesteps_to_run')
 
 logging.basicConfig(level=logging.INFO)
 
 INPUT_BUCKET = 'gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/coarsened/C48'
 OUTPUT_BUCKET = 'gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/restart/C48'
 
-def timestep(path):
-    if path.endswith('/'):
-        return timestep(path[:-1])
-    else:
-        return basename(path)
+
+def timestep_from_url(url):
+    return str(Path(url).name)
 
 
 def list_time_steps(bucket: str) -> Set:
-    bytes = subprocess.check_output(['gsutil', 'ls', bucket])
-    string = bytes.decode('UTF-8')
-    files = string.strip().split()
-    return set(map(timestep, files))
+    """Returns the unique timesteps in a bucket"""
+    ls_output = subprocess.check_output(['gsutil', 'ls', bucket])
+    file_list = ls_output.decode('UTF-8').strip().split()
+    timesteps = map(timestep_from_url, file_list)
+    return set(timesteps)
     
 
 def timesteps_to_process() -> Set:
