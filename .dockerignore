@@ -1,3 +1,7 @@
+**/*.zarr
+**/*.nc
+**/*.pdf
+**/*.png
 argo-fv3net
 .cache
 conservative_768x1536_180x360.nc
@@ -11,6 +15,7 @@ experiments
 .git
 .gitignore
 .idea
+.vscode
 models
 my_mod.mod
 notebooks

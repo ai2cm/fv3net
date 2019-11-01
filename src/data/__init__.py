@@ -5,6 +5,7 @@ from src import TOP_LEVEL_DIR
 from .remote_data import open_gfdl_data_with_2d, open_gfdl_15_minute_SHiELD
 from pathlib import Path
 
+# TODO Fix short tag yaml file get for fv3 installed as package
 
 def get_root():
     """Returns the absolute path to the root directory for any machine"""
@@ -18,7 +19,6 @@ def get_shortened_dataset_tags():
 
 
 root = get_root()
-short_dset_tags = get_shortened_dataset_tags()
 
 
 # TODO: I believe fv3_data_root and paths are legacy
@@ -36,6 +36,7 @@ def open_catalog():
 
 
 def open_dataset(tag) -> xr.Dataset:
+    short_dset_tags = get_shortened_dataset_tags()
     if tag == "gfdl":
         return open_gfdl_data_with_2d(open_catalog())
     elif tag == "1degTrain":

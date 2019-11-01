@@ -68,7 +68,6 @@ test_environment:
 # PROJECT RULES                                                                 #
 #################################################################################
 
-
 snakemake:
 	bash -c 'snakemake 2> >(tee snakemake_log.txt)'
 

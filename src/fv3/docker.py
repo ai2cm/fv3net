@@ -45,7 +45,7 @@ def make_experiment(dir,  args, template_dir='', oro_paths=(),
     add_if_present(vertical_grid, join(input_dir, 'fv_core.res.nc'))
     return dir
 
-
+# In other locations the prefix includes the path, which is kinda confusing
 def save_tiles_separately(sfc_data, prefix, output_directory):
     #TODO: move to src.data.cubedsphere
     for i in range(6):
