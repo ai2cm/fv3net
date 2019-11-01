@@ -18,7 +18,7 @@ spec:
       command: [bash]
       source: |
         gcloud auth activate-service-account --key-file /secret/key.json
-        python3 k8s-workflows/scale-snakemake/run_snakemake_for_timestep.py $TIMESTEP
+        snakemake workflow-status/restart_C48_$TIMESTEP.done
       volumeMounts:
       - name: my-secret-vol
         mountPath: "/secret/"
