@@ -307,7 +307,7 @@ rule download_timestep:
     output: directory("data/extracted/{timestep}/")
     run:
         download_dir = output[0]
-        src_bucket = join(DATAFLOW_OUTPUT_DIR, 'C{INTERMEDIATE_RESOLUTION}', wildcards.timestep)
+        src_bucket = join(DATAFLOW_OUTPUT_DIR, f'C{INTERMEDIATE_RESOLUTION}', wildcards.timestep)
         logging.info("Downloading %s to %s" % (src_bucket, download_dir))
         subprocess.check_call(['gsutil', '-m', 'cp', '-r', src_bucket, download_dir])
 
