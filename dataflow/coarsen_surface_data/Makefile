@@ -1,0 +1,8 @@
+submit:
+	source env/bin/activate && sh submit_job.sh
+
+env:
+	python -m venv env
+	source env/bin/activate && pip install -e .
+
+
