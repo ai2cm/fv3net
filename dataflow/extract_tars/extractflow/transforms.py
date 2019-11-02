@@ -1,26 +1,26 @@
 import tempfile
 import logging
-import subprocess
 import shutil
-import logging
 import apache_beam
 from pathlib import Path
 from itertools import product
-from apache_beam.pvalue import PCollection  # type: ignore
 from apache_beam.utils import retry
 
 import dataflow_utils as utils
 import dataflow_utils.gcs as gcs_utils
 from dataflow_utils.gcs import list_gcs_bucket_files
 
-from google.cloud.storage import Client, Bucket, Blob
+from google.cloud.storage import Client
 
 delay_kwargs = dict(initial_delay_secs=30, num_retries=8)
 logger = logging.getLogger(__name__)
 
 # wrap sensitive functions with retry decorator
-download_blob_to_file = retry.with_exponential_backoff(**delay_kwargs)(gcs_utils.download_blob_to_file)
-upload_dir_to_gcs = retry.with_exponential_backoff(**delay_kwargs)(gcs_utils.upload_dir_to_gcs)
+download_blob_to_file = \
+    retry.with_exponential_backoff(**delay_kwargs)(gcs_utils.download_blob_to_file)
+upload_dir_to_gcs = \
+    retry.with_exponential_backoff(**delay_kwargs)(gcs_utils.upload_dir_to_gcs)
+
 
 @apache_beam.typehints.with_input_types(str)
 @apache_beam.typehints.with_output_types(None)
@@ -30,7 +30,7 @@ class ExtractAndUploadTimestepWithC3072SurfaceData(apache_beam.DoFn):
         self.output_prefix = output_prefix
 
     def process(self, element):
-        
+
         with tempfile.TemporaryDirectory() as tmpdir:
 
             timestep_blob = gcs_utils.init_blob_from_gcs_url(element)
@@ -62,9 +62,11 @@ class ExtractAndUploadTimestepWithC3072SurfaceData(apache_beam.DoFn):
 
             logging.info(f'Upload of untarred timestep successful ({current_timestep})')
 
+
 class InvalidArgumentError(retry.PermanentException, ValueError):
     """Error Class that bypasses the retry operation"""
     pass
+
 
 @retry.with_exponential_backoff(**delay_kwargs)
 def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
@@ -92,7 +94,7 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
             )
 
         lister = list_gcs_bucket_files(
-            Client(), 
+            Client(),
             bucket_name,
             prefix=output_prefix
         )
@@ -109,13 +111,13 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
             blob_name_to_check = str(output_prefix.joinpath(filename))
             blob_exists = blob_name_to_check in existing_blob_names
             all_blobs_exist &= blob_exists
-            
+
             if not blob_exists:
                 logger.debug(f'Missing blob detected in timestep {timestep}: '
                              f'{blob_name_to_check}')
-            
+
         return all_blobs_exist
-    
+
     sfc_files_ok = _check_for_all_tiles('sfc_data', output_c3702_blob_prefix)
 
     domain_list = ['fv_core_coarse.res', 'fv_srf_wnd_coarse.res',
@@ -142,4 +144,3 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
     logger.info(f'Continue extracting timestep ({timestep})? {do_extract}')
 
     return do_extract
-

@@ -20,5 +20,3 @@ if __name__ == "__main__":
             file_extension='tar'),
         output_prefix=extracted_destination
     )
-
-    

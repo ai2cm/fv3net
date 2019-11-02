@@ -1,9 +1,7 @@
 from urllib import parse
-from abc import ABC, abstractmethod
-from typing import Tuple, Optional, List, Iterable
+from typing import Tuple, Iterable
 from pathlib import Path
 import dask.bag as db
-import subprocess
 import logging
 
 from google.cloud.storage import Client, Bucket, Blob
@@ -40,7 +38,7 @@ def download_blob_to_file(source_blob: Blob, out_dir: str, filename: str) -> Pat
     download_path.parent.mkdir(parents=True, exist_ok=True)
     logger.debug(f'Tarfile download path: {download_path}')
 
-    source_blob.chunk_size = 128 * 2**20 # 128 MB chunks
+    source_blob.chunk_size = 128 * 2**20  # 128 MB chunks
     with open(download_path, mode='wb') as f:
         source_blob.download_to_file(f)
     return download_path
@@ -57,7 +55,7 @@ def upload_dir_to_gcs(bucket_name: str, blob_prefix: str, source_dir: Path) -> N
     # function would not upload anything but should fail noticeably
     if not source_dir.exists():
         raise FileNotFoundError('Provided directory to upload does not exist.')
-    
+
     if not source_dir.is_dir():
         raise ValueError('Provided source is not a directory.')
 
@@ -78,19 +76,19 @@ def _upload_process(args):
 
 
 def list_gcs_bucket_files(
-    client: Client, 
-    bucket_name: str, 
-    prefix=None, 
+    client: Client,
+    bucket_name: str,
+    prefix=None,
     file_extension=None
 ) -> Iterable[str]:
-    
+
     blob_list = client.list_blobs(bucket_name, prefix=prefix)
     for blob in blob_list:
-        
+
         # filter specific extensions
         if file_extension is not None:
             blob_extension_name = blob.name.split('.')[-1]
             if file_extension.strip('.') != blob_extension_name:
                 continue
-        
+
         yield f"gs://{blob.bucket.name}/{blob.name}"

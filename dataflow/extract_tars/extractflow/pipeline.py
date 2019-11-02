@@ -1,11 +1,9 @@
-import apache_beam  
-import logging 
+import apache_beam
+import logging
 from typing import Generator
-from apache_beam.options.pipeline_options import PipelineOptions  
-from apache_beam.pvalue import PCollection  
-from google.cloud.storage import Client  
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.pvalue import PCollection
 
-from dataflow_utils.gcs import list_gcs_bucket_files
 import extractflow.transforms as cftransforms
 
 logger = logging.getLogger(__name__)
