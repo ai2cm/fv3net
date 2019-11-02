@@ -69,7 +69,7 @@ output_zarr_dir             = 'fv3_timestepped_output'
 dataflow_output_dir        = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted"
 
 # Remote outputs
-restart_uploaded            = "gs://vcm-ml-data/2019-10-22-restart-workflow/restart/{grid}/{timestep}/"
+restart_uploaded            = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/restart/{grid}/{timestep}/"
 restart_uploaded_status     = "workflow-status/restart_{grid}_{timestep}.done"
 
 # Local Assets (under version control)
@@ -140,7 +140,7 @@ c3072_grid_spec = expand(c3072_grid_spec_pattern, tile=tiles, subtile=subtiles)
 
 
 rule all:
-    input: GS.remote(expand(restart_uploaded_status, timestep=timesteps, grid=grids))
+    input: expand(restart_uploaded_status, timestep=timesteps, grid=grids)
 
 
 rule prepare_restart_directory:
@@ -336,7 +336,6 @@ rule coarsen_restart_category:
             input.download_dir,
             output
         )
-
 
 rule coarsen_all_restart_data:
     input:

@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: big-snakemake-
+spec:
+  entrypoint: process-restart
+  volumes:
+  - name: my-secret-vol
+    secret:
+      secretName: my-secret
+  templates:
+  - name: process-restart
+    script:
+      resources:
+        limits:
+          memory: 3Gi
+      image: us.gcr.io/vcm-ml/fv3net
+      command: [bash]
+      source: |
+        gcloud auth activate-service-account --key-file /secret/key.json
+        snakemake workflow-status/restart_C48_$TIMESTEP.done
+      volumeMounts:
+      - name: my-secret-vol
+        mountPath: "/secret/"
