@@ -2,8 +2,8 @@ gravity = 9.81
 specific_heat = 1004
 
 
-def mass_integrate(phi, dp):
-    return (phi * dp / gravity).sum("pfull")
+def mass_integrate(phi, dp, dim='pfull'):
+    return (phi * dp / gravity).sum(dim)
 
 
 def apparent_heating(dtemp_dt, w):

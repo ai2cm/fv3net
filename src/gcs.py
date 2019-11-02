@@ -49,3 +49,8 @@ def strip_trailing_slash(src: str) -> str:
 
 def copy_into(src: str, dest):
     return copy(strip_trailing_slash(src) + "/*", dest)
+
+
+def copy_many(urls, dest):
+    command = ['gsutil', '-m', 'cp', '-r'] + urls + [dest]
+    subprocess.check_call(command)
