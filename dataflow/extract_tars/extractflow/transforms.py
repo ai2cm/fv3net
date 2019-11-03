@@ -7,8 +7,7 @@ from itertools import product
 from apache_beam.utils import retry
 
 import dataflow_utils as utils
-import dataflow_utils.gcs as gcs_utils
-from dataflow_utils.gcs import list_gcs_bucket_files
+from dataflow_utils import gcs
 
 from google.cloud.storage import Client
 
@@ -17,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 # wrap sensitive functions with retry decorator
 download_blob_to_file = \
-    retry.with_exponential_backoff(**delay_kwargs)(gcs_utils.download_blob_to_file)
+    retry.with_exponential_backoff(**delay_kwargs)(gcs.download_blob_to_file)
 upload_dir_to_gcs = \
-    retry.with_exponential_backoff(**delay_kwargs)(gcs_utils.upload_dir_to_gcs)
+    retry.with_exponential_backoff(**delay_kwargs)(gcs.upload_dir_to_gcs)
 
 
 @apache_beam.typehints.with_input_types(str)
@@ -33,7 +32,7 @@ class ExtractAndUploadTimestepWithC3072SurfaceData(apache_beam.DoFn):
 
         with tempfile.TemporaryDirectory() as tmpdir:
 
-            timestep_blob = gcs_utils.init_blob_from_gcs_url(element)
+            timestep_blob = gcs.init_blob_from_gcs_url(element)
             filename = Path(timestep_blob.name).name
             downloaded_timestep = download_blob_to_file(timestep_blob, tmpdir, filename)
             untarred_timestep = utils.extract_tarball_to_path(downloaded_timestep)
@@ -79,7 +78,7 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
     """
     # TODO: Should probably make sure test includes missing cases for all domains
     logger.info(f'Checking for successful extraction of {timestep_gcs_url}')
-    bucket_name, blob_name = gcs_utils.parse_gcs_url(timestep_gcs_url)
+    bucket_name, blob_name = gcs.parse_gcs_url(timestep_gcs_url)
     timestep = Path(blob_name).with_suffix('').name
     output_c3702_blob_prefix = Path(output_prefix, 'C3702', timestep)
     output_c384_blob_prefix = Path(output_prefix, 'C384', timestep)
@@ -93,12 +92,12 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
                 ' subtiles to perform file existence checks.'
             )
 
-        lister = list_gcs_bucket_files(
+        lister = gcs.list_bucket_files(
             Client(),
             bucket_name,
             prefix=output_prefix
         )
-        existing_blob_names = [gcs_utils.parse_gcs_url(gcs_url)[1]  # 2nd element is blob name
+        existing_blob_names = [gcs.parse_gcs_url(gcs_url)[1]  # 2nd element is blob name
                                for gcs_url in lister]
 
         tiles = range(1, num_tiles + 1)
@@ -128,7 +127,7 @@ def not_finished_with_tar_extract(timestep_gcs_url: str, output_prefix: str,
 
     coupler_filename = f'{timestep}.coupler.res'
     coupler_blob_name = output_c384_blob_prefix.joinpath(coupler_filename)
-    coupler_blob = gcs_utils.init_blob(bucket_name, str(coupler_blob_name))
+    coupler_blob = gcs.init_blob(bucket_name, str(coupler_blob_name))
     coupler_ok = coupler_blob.exists()
 
     domain_ok['sfc_data'] = sfc_files_ok

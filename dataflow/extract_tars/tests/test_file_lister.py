@@ -2,7 +2,7 @@ from typing import Iterator, Iterable
 
 from google.cloud.storage import Client, Blob, Bucket  # type: ignore
 
-from dataflow_utils.gcs import list_gcs_bucket_files
+from dataflow_utils import gcs
 
 
 class FakeFileListerClient(Client):
@@ -44,7 +44,7 @@ def test_gcs_lister_all_items():
     fake_client = FakeFileListerClient(blob_names)
     expected = [f'gs://{bucket_name}/{bname}' for bname in blob_names]
 
-    result = list(list_gcs_bucket_files(fake_client, bucket_name))
+    result = list(gcs.list_bucket_files(fake_client, bucket_name))
     assert result == expected
 
 
@@ -63,7 +63,7 @@ def test_gcs_lister_use_prefix():
     fake_client = FakeFileListerClient(blob_names)
     expected = [f'gs://{bucket_name}/{bname}' for bname in subdir_blob_names]
 
-    result = list_gcs_bucket_files(fake_client, bucket_name, prefix=prefix)
+    result = gcs.list_bucket_files(fake_client, bucket_name, prefix=prefix)
     assert list(result) == expected
 
 
@@ -82,7 +82,7 @@ def test_gcs_lister_file_ext():
     fake_client = FakeFileListerClient(blob_names)
     expected = [f'gs://{bucket_name}/{bname}' for bname in file_ext_blob_names]
 
-    result = list_gcs_bucket_files(fake_client, bucket_name, file_extension=file_ext)
+    result = gcs.list_bucket_files(fake_client, bucket_name, file_extension=file_ext)
     assert list(result) == expected
 
 
@@ -103,7 +103,7 @@ def test_gcs_lister_file_ext_and_prefix():
     fake_client = FakeFileListerClient(blob_names)
     expected = [f'gs://{bucket_name}/{bname}' for bname in file_ext_blob_names]
 
-    result = list_gcs_bucket_files(fake_client, bucket_name,
+    result = gcs.list_bucket_files(fake_client, bucket_name,
                                    file_extension=file_ext,
                                    prefix=prefix)
     assert list(result) == expected

@@ -75,7 +75,7 @@ def _upload_process(args):
     destination_blob.upload_from_filename(str(filepath))
 
 
-def list_gcs_bucket_files(
+def list_bucket_files(
     client: Client,
     bucket_name: str,
     prefix=None,
