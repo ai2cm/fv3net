@@ -13,8 +13,8 @@ def extract_tarball_to_path(
 
     logger.info(f'Extracting tar file {source_tar_path.name}')
 
-    # with suffix [blank] removes file_ext and uses filename as untar dir
     if extract_to_dir is None:
+        # remove file extension and use filename as untar dir
         extract_to_dir = source_tar_path.with_suffix('')
 
     extract_to_dir.mkdir(parents=True, exist_ok=True)
