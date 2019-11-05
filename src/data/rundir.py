@@ -76,24 +76,32 @@ CATEGORY_DIR_MAPPING = {
     'phy_data' : ['RESTART']
 }
 
-GRID_SPEC_AXES_MAP = {
-    'grid_x' : 'xaxis_2',
-    'grid_y' : 'yaxis_1',
-    'grid_xt' : 'xaxis_1',
-    'grid_yt' : 'yaxis_2'
-}
+# GRID_SPEC_AXES_MAP = {
+#     'grid_x' : 'xaxis_2',
+#     'grid_y' : 'yaxis_1',
+#     'grid_xt' : 'xaxis_1',
+#     'grid_yt' : 'yaxis_2'
+# }
 
 ORO_DATA_AXES_MAP = {
-    'lon' : 'xaxis_1',
-    'lat' : 'yaxis_2'
+    'lon' : 'grid_xt',
+    'lat' : 'grid_yt'
 }
 
-# TODO rename dimensions according to diagnostics conventions
-OUTPUT_AXES_MAP = {}
+# rename restart file dimensions according to diagnostics conventions
+OUTPUT_AXES_MAP = {
+    'xaxis_1' : 'grid_xt',
+    'xaxis_2' : 'grid_x',
+    'yaxis_1' : 'grid_y',
+    'yaxis_2' : 'grid_yt',
+    'zaxis_1' : 'pfull',
+    'zaxis_2' : 'phalf'
+}
 
 N_TILES = 6
 TILE_SUFFIXES = [f".tile{tile}.nc" for tile in range(1, N_TILES + 1)]
 TIME_FMT='%Y%m%d.%H%M%S'
+TIMESTEP_LENGTH_MINUTES = 15
 
 
 def open_files(files, **kwargs):
@@ -136,14 +144,26 @@ def open_oro_data(paths, oro_data_mapping):
 
 
 def open_fv_tracer(paths):
+    '''
+    This file type needs to be handled differently than the others 
+    because its input and ouput variable lists are currently not the same -
+    sgs_tke shows up in outputs but not inputs
+    '''
     input_ds = xr.open_mfdataset(paths=paths[0][0], concat_dim = ['tile'], combine='nested').drop(labels='sgs_tke')
     restart_ds = xr.open_mfdataset(paths=paths[0][1], concat_dim = ['tile'], combine='nested')
     return xr.concat([input_ds, restart_ds], dim='forecast_time').expand_dims(dim='initialization_time')
 
 
 def add_vertical_coords(ds, run_dir, dims):
-    vertical_coords_ds = xr.open_dataset(join(run_dir, 'INPUT/fv_core.res.nc')).rename({'xaxis_1' : 'zaxis_2'}).squeeze().drop(labels='Time')
+    vertical_coords_ds = xr.open_dataset(join(run_dir, 'INPUT/fv_core.res.nc')).rename({'xaxis_1' : 'phalf'}).squeeze().drop(labels='Time')
     return xr.merge([ds, vertical_coords_ds])
+
+
+def use_diagnostic_coordinates(ds, output_mapping):
+    for coord in ds.coords:
+        if coord in output_mapping:
+            ds = ds.rename({coord: output_mapping[coord]})
+    return ds
 
 
 def combine_file_categories(
@@ -151,8 +171,8 @@ def combine_file_categories(
     category_mapping,
     tile_suffixes,
     new_dims,
-    grid_spec_mapping,
-    oro_data_mapping
+    oro_data_mapping,
+    output_mapping
 ):
     ds_dict = {}
     for category, dirs in category_mapping.items():
@@ -174,12 +194,13 @@ def combine_file_categories(
             )
         if new_dims and 'tile' in new_dims:
             ds = ds.assign_coords(tile=new_dims['tile'])
-        if category == 'grid_spec' and grid_spec_mapping:
-            ds = ds.squeeze().rename(grid_spec_mapping)
+        if category == 'grid_spec':# and grid_spec_mapping:
+            ds = ds.squeeze()#.rename(grid_spec_mapping)
         ds = assign_time_dims(ds, dirs, new_dims)
-        ds_dict[category] = ds
-    ds_merged = xr.merge([ds for ds in ds_dict.values()])
-    return add_vertical_coords(ds=ds_merged, run_dir=run_dir, dims=new_dims)
+        print(ds)
+        ds_dict[category] = use_diagnostic_coordinates(ds, output_mapping)
+    ds_merged = add_vertical_coords(ds=xr.merge([ds for ds in ds_dict.values()]), run_dir=run_dir, dims=new_dims)
+    return ds_merged
 
 
 def rundir_to_dataset(rundir: str, initial_timestep: str) -> xr.Dataset:
@@ -193,14 +214,13 @@ def rundir_to_dataset(rundir: str, initial_timestep: str) -> xr.Dataset:
         t.minute,
         t.second)]
     # TODO: add functionality for passing timestep length and number of restart timesteps
-    timestep_length_minutes = 15
-    forecast_time = [timedelta(minutes = 0), timedelta(minutes = timestep_length_minutes)]
+    forecast_time = [timedelta(minutes = 0), timedelta(minutes = TIMESTEP_LENGTH_MINUTES)]
     new_dims = {'initialization_time' : initialization_time, 'forecast_time' : forecast_time, 'tile' : tile}
     ds = combine_file_categories(
         run_dir=rundir,
         category_mapping=CATEGORY_DIR_MAPPING,
         new_dims=new_dims,
-        grid_spec_mapping=GRID_SPEC_AXES_MAP,
+        output_mapping=OUTPUT_AXES_MAP,
         oro_data_mapping=ORO_DATA_AXES_MAP,
         tile_suffixes=TILE_SUFFIXES
     )
