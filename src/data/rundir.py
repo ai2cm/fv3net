@@ -88,6 +88,9 @@ ORO_DATA_AXES_MAP = {
     'lat' : 'yaxis_2'
 }
 
+# TODO rename dimensions according to diagnostics conventions
+OUTPUT_AXES_MAP = {}
+
 N_TILES = 6
 TILE_SUFFIXES = [f".tile{tile}.nc" for tile in range(1, N_TILES + 1)]
 TIME_FMT='%Y%m%d.%H%M%S'
