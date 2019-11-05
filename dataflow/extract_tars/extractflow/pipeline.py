@@ -1,6 +1,6 @@
 import apache_beam
 import logging
-from typing import Generator
+from typing import Iterable, List
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pvalue import PCollection
 
@@ -12,14 +12,16 @@ logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
 
-def run(file_lister: Generator[str], output_prefix: str) -> None:
+def run(file_lister: Iterable[str], output_prefix: str, pipeline_args: List) -> None:
     """
     Pipeline currently specified for tar extraction processing.
 
     Downloads timestep tarfile and extracts high-res surface data
     into a directory and coarsened atmosphere files into another.
     """
-    pipeline = apache_beam.Pipeline(options=PipelineOptions(pipeline_type_check=True))
+
+    options = PipelineOptions(flags=pipeline_args, pipeline_type_check=True)
+    pipeline = apache_beam.Pipeline(options=options)
 
     to_extract: PCollection[str] = apache_beam.Create(
         file_lister
