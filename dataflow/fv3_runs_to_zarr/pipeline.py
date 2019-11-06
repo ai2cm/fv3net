@@ -36,7 +36,7 @@ def convert_to_zarr(time: str) -> Iterator[xr.Dataset]:
         gcs.copy_into(url(time), dir)
         ds = rundir.rundir_to_dataset(dir, time)
         ds.to_zarr(f"{time}.zarr", mode="w")
-        remote_path = f"{OUTPUT}/{time}.zarr"
+        remote_path = f"{OUTPUT}/{time}.zarr/"
         gcs.copy(f"{time}.zarr", remote_path)
 
 

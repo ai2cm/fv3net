@@ -92,8 +92,8 @@ ORO_DATA_AXES_MAP = {
 OUTPUT_AXES_MAP = {
     'xaxis_1' : 'grid_xt',
     'xaxis_2' : 'grid_x',
-    'yaxis_1' : 'grid_y',
-    'yaxis_2' : 'grid_yt',
+    'yaxis_1' : 'grid_yt',
+    'yaxis_2' : 'grid_y',
     'zaxis_1' : 'pfull',
     'zaxis_2' : 'phalf'
 }
@@ -135,6 +135,9 @@ def assign_time_dims(ds, dirs, dims):
 
 
 def open_oro_data(paths, oro_data_mapping):
+    '''
+    orograph files need to be opened via xr.concat since they are indexed differently than other files
+    '''
     ds = xr.concat(
         objs=[xr.open_dataset(path).drop(labels=['lat', 'lon']) for path in paths[0][0]],
         dim='tile'
@@ -159,10 +162,20 @@ def add_vertical_coords(ds, run_dir, dims):
     return xr.merge([ds, vertical_coords_ds])
 
 
-def use_diagnostic_coordinates(ds, output_mapping):
+def use_diagnostic_coordinates(ds, category, output_mapping):
+    '''
+    Map the coordinate names to diagnostic standards
+    Note that a special fix is required since the dimension names are not consistent across file categories
+    '''
     for coord in ds.coords:
         if coord in output_mapping:
-            ds = ds.rename({coord: output_mapping[coord]})
+            if not (category == 'fv_core.res' and coord.startswith('y')):
+                ds = ds.rename({coord : output_mapping[coord]})
+            else:
+                if coord == 'yaxis_1':
+                    ds = ds.rename({coord : 'grid_y'})
+                if coord == 'yaxis_2':
+                    ds = ds.rename({coord : 'grid_yt'})
     return ds
 
 
@@ -192,13 +205,16 @@ def combine_file_categories(
                 concat_dim=['initialization_time', 'forecast_time', 'tile'],
                 combine='nested'
             )
-        if new_dims and 'tile' in new_dims:
+        if 'tile' in new_dims:
             ds = ds.assign_coords(tile=new_dims['tile'])
-        if category == 'grid_spec':# and grid_spec_mapping:
-            ds = ds.squeeze()#.rename(grid_spec_mapping)
+        if category == 'grid_spec':
+            # remove time dim from grid spec
+            ds = ds.squeeze()
+        if category == 'sfc_data':
+            # give LSM soil layers their own dimension so as not to confuse them with the atmosphere
+            ds = ds.rename({'zaxis_1' : 'soil_layers'})
         ds = assign_time_dims(ds, dirs, new_dims)
-        print(ds)
-        ds_dict[category] = use_diagnostic_coordinates(ds, output_mapping)
+        ds_dict[category] = use_diagnostic_coordinates(ds, category, output_mapping)
     ds_merged = add_vertical_coords(ds=xr.merge([ds for ds in ds_dict.values()]), run_dir=run_dir, dims=new_dims)
     return ds_merged
 

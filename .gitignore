@@ -104,4 +104,5 @@ scratch/*
 # snakemake
 .snakemake/*
 
-
+# zarr
+*.zarr/
