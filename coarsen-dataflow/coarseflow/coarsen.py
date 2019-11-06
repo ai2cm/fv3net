@@ -16,7 +16,7 @@ from google.cloud.storage import Client, Bucket, Blob
 import coarseflow.utils as cflutils
 from src.fv3 import coarsen as fv3net_coarsen
 from src.data import cubedsphere
-from src.fv3.docker import save_tiles_separately
+from data.cubedsphere import save_tiles_separately
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
