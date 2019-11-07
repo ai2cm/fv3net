@@ -1,4 +1,3 @@
-from src.data import save_zarr
 from snakemake.remote.GS import RemoteProvider as GSRemoteProvider
 from os.path import join, dirname
 from src.data import cubedsphere
@@ -280,10 +279,6 @@ rule download_oro_and_grid:
     """
 
 
-rule convert_to_zarr:
-    output: directory(save_zarr.output_2d), directory(save_zarr.output_3d)
-    shell: "python -m src.data.save_zarr"
-
 rule coarsen_grid_spec:
     input:
         native_grid_spec
@@ -340,6 +335,7 @@ rule coarsen_restart_category:
 rule coarsen_all_restart_data:
     input:
         all_coarsened_restart_files
+
 
 rule train_model:
     input: config="configurations/{model_type}/{options}.yaml"

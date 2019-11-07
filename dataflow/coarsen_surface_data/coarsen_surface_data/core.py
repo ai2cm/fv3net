@@ -1,10 +1,9 @@
+from gcs import upload_to_gcs
 from src import utils
 import pandas as pd
 import xarray as xr
 from dask.delayed import delayed
 from src.data import cubedsphere
-import subprocess
-import logging
 import tempfile
 
 combine_subtiles = delayed(cubedsphere.combine_subtiles)
@@ -21,13 +20,6 @@ def concat_files(tiles):
 def _median_no_dask(x, coarsening):
     n = len(x['xaxis_1'])
     return cubedsphere.block_median(x.chunk(), coarsening).compute()
-
-
-@delayed
-def upload_to_gcs(src, dest, save_op):
-    logging.info("uploading %s to %s" % (src, dest))
-    subprocess.check_call(['gsutil', '-q', 'cp',  src, dest])
-    logging.info("uploading %s done" % dest)
 
 
 @delayed

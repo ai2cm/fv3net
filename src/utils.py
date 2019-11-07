@@ -5,7 +5,7 @@ import tempfile
 from dask.delayed import delayed
 import dask.array as da
 from collections import defaultdict
-from src.data import cubedsphere
+
 import logging
 
 
@@ -41,12 +41,6 @@ def _open_remote_nc(url):
         logging.info("downloading %s to disk"%url)
         subprocess.check_call((['gsutil', '-q', 'cp', url, fp.name]))
         return xr.open_dataset(fp.name).load()
-
-def gslist(pattern):
-    files = subprocess.check_output(
-        ['gsutil', 'ls', pattern]
-    )
-    return [arg.decode('UTF-8') for arg in files.split()]
 
 
 def file_names_for_time_step(timestep, category, resolution=3072):
