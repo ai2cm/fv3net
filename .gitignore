@@ -103,5 +103,3 @@ scratch/*
 
 # snakemake
 .snakemake/*
-
-
