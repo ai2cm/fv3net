@@ -33,7 +33,7 @@ def url(time):
 
 def convert_to_zarr(time: str) -> Iterator[xr.Dataset]:
     with tempfile.TemporaryDirectory() as dir:
-        gcs.copy_into(url(time), dir)
+        gcs.copy_directory_contents(url(time), dir)
         ds = rundir.rundir_to_dataset(dir, time)
         ds.to_zarr(f"{time}.zarr", mode="w")
         remote_path = f"{OUTPUT}/{time}.zarr"

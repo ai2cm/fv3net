@@ -18,7 +18,11 @@ def timestep_from_url(url):
 
 def list_time_steps(bucket: str) -> Set:
     """Returns the unique timesteps in a bucket"""
-    ls_output = subprocess.check_output(['gsutil', 'ls', bucket])
+    try:
+        ls_output = subprocess.check_output(['gsutil', 'ls', bucket])
+    except subprocess.CalledProcessError:
+        return set()
+
     file_list = ls_output.decode('UTF-8').strip().split()
     timesteps = map(timestep_from_url, file_list)
     return set(timesteps)

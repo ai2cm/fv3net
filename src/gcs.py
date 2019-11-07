@@ -41,13 +41,10 @@ def copy(src, dest):
 
 
 def strip_trailing_slash(src: str) -> str:
-    if src.endswith('/'):
-        return src[:-1]
-    else:
-        return src
+    return src.rstrip("/")
 
 
-def copy_into(src: str, dest):
+def copy_directory_contents(src: str, dest):
     return copy(strip_trailing_slash(src) + "/*", dest)
 
 

@@ -9,4 +9,3 @@ python -m coarsen_surface_data  \
     --max_num_workers 128 \
     --disk_size_gb 50 \
     --worker_machine_type n1-standard-2
-    #--service_account_email noah-vm-sa@vcm-ml.iam.gserviceaccount.com

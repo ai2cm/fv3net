@@ -1,8 +1,6 @@
 #! /usr/bin/env sh
 
-#timesteps=$(bash list_timesteps_to_run.sh)
 jobPrefix=rerun-fv3
-timesteps="20160801.003000"
 
 ITERATION="$(date +%s)"
 printf "iteration: %s\n" "$ITERATION" >&2

@@ -11,7 +11,7 @@ RESTART_DIR_PATTERN = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multireso
 OUTPUT_DIR_PATTERN = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/one-step-run/C48/{time}/rundir"
 
 
-def dir(time):
+def restart_dir(time):
     return RESTART_DIR_PATTERN.format(time=time)
 
 
@@ -19,7 +19,7 @@ def output(time):
     return OUTPUT_DIR_PATTERN.format(time=time)
 
 
-def diag_table_time(time: str) -> str:
+def convert_timestamp_to_diag_table_time(time: str) -> str:
     date = datetime.strptime(time, '%Y%m%d.%H%M%S')
     date_string = date.strftime('%Y %m %d %H %M %S')
     return date_string
@@ -27,7 +27,7 @@ def diag_table_time(time: str) -> str:
 
 def patch_diag_table(dir, time):
     with open(join(dir, 'rundir', 'diag_table'), 'w') as file:
-        date_string = diag_table_time(time)
+        date_string = convert_timestamp_to_diag_table_time(time)
         file.write(f'20160801.00Z.C48.32bit.non-mono\n{date_string}')
         # add output of the grid spec for post-processing purposes (TODO replace all this with fv3config)
         file.write(
@@ -58,7 +58,7 @@ def main(time, rundir_transformations=(), key=None):
         gcs.authenticate(key)
 
     with tempfile.TemporaryDirectory() as localdir:
-        gcs.copy(dir(time), localdir)
+        gcs.copy(restart_dir(time), localdir)
         logging.info("running experiment")
         for transform in rundir_transformations:
             transform(localdir)
