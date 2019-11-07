@@ -1,10 +1,10 @@
-import os
 import sys
-from subprocess import call, check_call
+from subprocess import check_call
 from os.path import abspath, join, basename
 import os
 from shutil import copytree, copy, rmtree
-import logging
+
+from src.data.cubedsphere import save_tiles_separately
 from src import utils
 
 from .common import write_submit_job_script
@@ -44,14 +44,6 @@ def make_experiment(dir,  args, template_dir='', oro_paths=(),
 
     add_if_present(vertical_grid, join(input_dir, 'fv_core.res.nc'))
     return dir
-
-# In other locations the prefix includes the path, which is kinda confusing
-def save_tiles_separately(sfc_data, prefix, output_directory):
-    #TODO: move to src.data.cubedsphere
-    for i in range(6):
-        output_path = join(output_directory, f"{prefix}.tile{i+1}.nc")
-        logging.info(f"saving data to {output_path}")
-        sfc_data.isel(tile=i).to_netcdf(output_path)
 
 
 def rundir(directory):

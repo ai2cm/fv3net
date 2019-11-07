@@ -1,4 +1,7 @@
 """Tools for working with cubedsphere data"""
+import logging
+from os.path import join
+
 import dask
 import numpy as np
 import xarray as xr
@@ -389,3 +392,12 @@ def block_edge_sum(
     return add_coordinates(
         da, result, coarsening_factor, coarsen_dim, downsample_dim
     )
+
+
+def save_tiles_separately(sfc_data, prefix, output_directory):
+
+    #TODO: move to src.data.cubedsphere
+    for i in range(6):
+        output_path = join(output_directory, f"{prefix}.tile{i+1}.nc")
+        logging.info(f"saving data to {output_path}")
+        sfc_data.isel(tile=i).to_netcdf(output_path)
