@@ -1,3 +1,6 @@
+"""
+Utilities for coarse-graining restart data and directories
+"""
 import logging
 import os
 

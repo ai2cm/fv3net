@@ -1,6 +1,5 @@
 from .docker import make_experiment
 import os
-from .coarsen import coarsen_sfc_data_in_directory
 
 
 def inside_docker():

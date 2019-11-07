@@ -1,7 +1,7 @@
 import dask.array as da
 import numpy as np
 import xarray as xr
-from .reshape import *
+from vcm.reshape import *
 
 
 def test_chunk_indices():

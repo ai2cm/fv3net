@@ -5,7 +5,7 @@ from metpy.interpolate import interpolate_1d as metpy_interpolate
 from numba import jit
 import xarray as xr
 import dask.array as da
-from src.data import open_dataset
+from vcm.convenience import open_dataset
 
 
 def interpolate_1d_scipy(x, xp, arg):

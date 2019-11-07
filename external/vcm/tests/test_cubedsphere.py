@@ -3,7 +3,7 @@ import numpy as np
 import xarray as xr
 
 
-from .cubedsphere import remove_duplicate_coords, weighted_block_average
+from vcm.cubedsphere import remove_duplicate_coords, weighted_block_average
 
 
 @pytest.mark.parametrize(

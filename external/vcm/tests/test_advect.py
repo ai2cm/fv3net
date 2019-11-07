@@ -1,5 +1,5 @@
 import numpy as np
-from .advect import (
+from vcm.advect import (
     interpolate_1d_nd_target,
     lagrangian_origin_coordinates,
     compute_dz,

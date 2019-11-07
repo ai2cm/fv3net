@@ -1,8 +1,8 @@
 import xarray as xr
 import intake
 import yaml
-from src import TOP_LEVEL_DIR
-from .remote_data import open_gfdl_data_with_2d, open_gfdl_15_minute_SHiELD
+from vcm import TOP_LEVEL_DIR
+from vcm.remote_data import open_gfdl_data_with_2d, open_gfdl_15_minute_SHiELD
 from pathlib import Path
 
 # TODO Fix short tag yaml file get for fv3 installed as package

@@ -4,7 +4,7 @@ from os.path import abspath, join, basename
 import os
 from shutil import copytree, copy, rmtree
 
-from src.data.cubedsphere import save_tiles_separately
+from vcm.cubedsphere import save_tiles_separately
 from vcm import utils
 
 from .common import write_submit_job_script
