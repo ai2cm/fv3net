@@ -1,5 +1,4 @@
-from src.metrics import r2_score
-from src.data.calc import mass_integrate
+from vcm.metrics import r2_score
 
 # evaluate
 y = model.predict(test, "sample")

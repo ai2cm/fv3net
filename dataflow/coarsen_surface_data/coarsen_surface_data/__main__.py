@@ -3,7 +3,6 @@ from src import gcs
 from .core import coarsen_and_upload_surface, output_names
 from apache_beam.options.pipeline_options import PipelineOptions  
 import logging
-from src import utils
 import re
 from apache_beam.utils import retry
 logging.basicConfig(level=logging.INFO)
