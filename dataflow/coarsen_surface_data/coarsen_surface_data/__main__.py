@@ -17,7 +17,7 @@ def time_step(file):
 
 
 def get_completed_time_steps():
-    files = gcs.ls(bucket)
+    files = gcs.list_matches(bucket)
     return [(time_step(file), coarsenings) for file in files]
 
 

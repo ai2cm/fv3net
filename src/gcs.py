@@ -26,7 +26,7 @@ def exists(url):
     return proc == 0
 
 
-def ls(pattern):
+def list_matches(pattern):
     """Call `gsutil ls <pattern>`"""
     files = subprocess.check_output(
         ['gsutil', 'ls', pattern]

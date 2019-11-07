@@ -23,7 +23,7 @@ def time_step(file):
 
 
 def get_time_steps(bucket):
-    files = gcs.ls(bucket)
+    files = gcs.list_matches(bucket)
     return [time_step(file) for file in files]
 
 
