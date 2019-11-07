@@ -1,4 +1,3 @@
-
 from setuptools import setup, find_packages
 
 dependencies = [
@@ -8,14 +7,14 @@ dependencies = [
     "fsspec==0.5.2",
     "google-cloud-storage==1.20.0",
     "netCDF4==1.4.2",
-    "partd"
+    "partd",
 ]
 setup(
-    name='extract_tars',
+    name="extract_tars",
     packages=find_packages(),
     install_requires=dependencies,
-    version='0.1.0',
+    version="0.1.0",
     description="Dataflow operation for batch untarring timesteps",
     author="Vulcan Inc.",
-    license="MIT"
+    license="MIT",
 )

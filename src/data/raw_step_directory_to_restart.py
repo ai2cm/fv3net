@@ -58,25 +58,32 @@ def grid_and_sfc_data_paths(tile, subtile, time):
 
 
 @click.command()
-@click.option('--num-tiles', default=6)
-@click.option('--num-subtiles', default=16)
-@click.option('--method', default='median')
-@click.option('--factor', default=32)
-@click.argument('time')
-@click.argument('output')
-def main(factor, num_tiles = 6, num_subtiles = 16, time = '20160805.170000', output=
-         'output.nc', method = 'median'):
-
+@click.option("--num-tiles", default=6)
+@click.option("--num-subtiles", default=16)
+@click.option("--method", default="median")
+@click.option("--factor", default=32)
+@click.argument("time")
+@click.argument("output")
+def main(
+    factor,
+    num_tiles=6,
+    num_subtiles=16,
+    time="20160805.170000",
+    output="output.nc",
+    method="median",
+):
 
     tiles = list(range(1, num_tiles + 1))
     subtiles = list(range(num_subtiles))
 
-    files = [grid_and_sfc_data_paths(tile, proc, time)
-            for tile, proc in product(tiles, subtiles)]
+    files = [
+        grid_and_sfc_data_paths(tile, proc, time)
+        for tile, proc in product(tiles, subtiles)
+    ]
 
     sfc_data = coarsen_sfc_data_in_directory(files, method=method, factor=factor)
     sfc_data.to_netcdf(output)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

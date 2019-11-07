@@ -2,7 +2,7 @@ import os
 from subprocess import check_call
 
 
-submit_job_script =  """
+submit_job_script = """
 #!/bin/bash
 
 ulimit -s unlimited
@@ -13,8 +13,9 @@ mpirun -np 6 --allow-run-as-root  \
 
 """
 
+
 def write_submit_job_script(directory):
-    submit_job_path = os.path.join(directory, 'submit_job.sh')
+    submit_job_path = os.path.join(directory, "submit_job.sh")
     with open(submit_job_path, "w") as f:
         f.write(submit_job_script.format(rundir=directory))
     return submit_job_path

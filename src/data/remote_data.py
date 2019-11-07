@@ -31,7 +31,9 @@ def open_gfdl_data_with_2d(catalog: intake.Catalog) -> xr.Dataset:
     return xr.merge([data_3d, data_2d], join="left")
 
 
-def open_gfdl_15_minute_SHiELD(catalog: intake.Catalog, dataset_name: str) -> xr.Dataset:
+def open_gfdl_15_minute_SHiELD(
+    catalog: intake.Catalog, dataset_name: str
+) -> xr.Dataset:
     """Open the initial SHiELD prototype data."""
 
     # TODO: combine with function above and generalize
@@ -39,12 +41,12 @@ def open_gfdl_15_minute_SHiELD(catalog: intake.Catalog, dataset_name: str) -> xr
 
     # Change names in SHiELD to names used from DYAMOND
     rename_list = {
-        'ucomp': 'u',
-        'vcomp': 'v',
-        'sphum': 'qv',
-        'HGTsfc': 'zs',
-        'delz': 'dz',
-        'delp': 'dp'
+        "ucomp": "u",
+        "vcomp": "v",
+        "sphum": "qv",
+        "HGTsfc": "zs",
+        "delz": "dz",
+        "delp": "dp",
     }
 
     for old_varname, new_varname in rename_list.items():
@@ -60,7 +62,7 @@ def remove_pressure_level_variables(ds):
 
 
 def write_cloud_zarr(ds, gcs_path):
-    fs = gcsfs.GCSFileSystem(project='vcm-ml')
+    fs = gcsfs.GCSFileSystem(project="vcm-ml")
     mapping = fs.get_mapper(gcs_path)
-    ds.to_zarr(store=mapping, mode='w')
+    ds.to_zarr(store=mapping, mode="w")
     return ds

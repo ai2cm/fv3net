@@ -20,18 +20,18 @@ def output(time):
 
 
 def convert_timestamp_to_diag_table_time(time: str) -> str:
-    date = datetime.strptime(time, '%Y%m%d.%H%M%S')
-    date_string = date.strftime('%Y %m %d %H %M %S')
+    date = datetime.strptime(time, "%Y%m%d.%H%M%S")
+    date_string = date.strftime("%Y %m %d %H %M %S")
     return date_string
 
 
 def patch_diag_table(dir, time):
-    with open(join(dir, 'rundir', 'diag_table'), 'w') as file:
+    with open(join(dir, "rundir", "diag_table"), "w") as file:
         date_string = convert_timestamp_to_diag_table_time(time)
-        file.write(f'20160801.00Z.C48.32bit.non-mono\n{date_string}')
+        file.write(f"20160801.00Z.C48.32bit.non-mono\n{date_string}")
         # add output of the grid spec for post-processing purposes (TODO replace all this with fv3config)
         file.write(
-            '''
+            """
             #output files
             "grid_spec",              -1,  "months",   1, "days",  "time"
             ###
@@ -42,7 +42,8 @@ def patch_diag_table(dir, time):
             "dynamics", "grid_lont", "grid_lont", "grid_spec", "all", .false.,  "none", 2,
             "dynamics", "grid_latt", "grid_latt", "grid_spec", "all", .false.,  "none", 2,
             "dynamics", "area",     "area",     "grid_spec", "all", .false.,  "none", 2,
-            ''')
+            """
+        )
 
 
 def main(time: str, rundir_transformations=(), key=None):
@@ -56,7 +57,7 @@ def main(time: str, rundir_transformations=(), key=None):
     """
     if key is None:
         try:
-            key = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
+            key = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
         except KeyError:
             pass
         else:
@@ -73,20 +74,19 @@ def main(time: str, rundir_transformations=(), key=None):
         try:
             fv3.run_experiment(localdir)
         except Exception as e:
-            logging.critical(f"Experiment failed. Listing rundir for debugging purposes: {os.listdir(localdir)}")
+            logging.critical(
+                f"Experiment failed. Listing rundir for debugging purposes: {os.listdir(localdir)}"
+            )
             raise e
-        gcs.copy(localdir + '/*', output(time))
+        gcs.copy(localdir + "/*", output(time))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('time')
+    parser.add_argument("time")
     args = parser.parse_args()
     time = args.time
 
-    main(args.time,
-         rundir_transformations=[
-             partial(patch_diag_table, time=time)
-         ])
+    main(args.time, rundir_transformations=[partial(patch_diag_table, time=time)])

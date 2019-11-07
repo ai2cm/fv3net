@@ -3,6 +3,7 @@ click
 cloudpickle
 dask>=2.3.0
 f90nml
+black
 flake8
 gcsfs
 google-cloud-storage

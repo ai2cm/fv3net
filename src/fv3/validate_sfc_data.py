@@ -4,10 +4,10 @@ import sys
 
 
 def binarize(x):
-    return (x > .5).astype(x.dtype)
+    return (x > 0.5).astype(x.dtype)
 
 
-ds = xr.open_mfdataset(sys.argv[1:], concat_dim='tile')
+ds = xr.open_mfdataset(sys.argv[1:], concat_dim="tile")
 
 np.testing.assert_array_equal(binarize(ds.slmsk), ds.slmsk)
 

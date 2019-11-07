@@ -7,7 +7,7 @@ dependencies = [
     "fsspec==0.5.2",
     "google-cloud-storage==1.20.0",
     "intake==0.5.3",
-    "scikit-image", 
+    "scikit-image",
     # "intake-xarray==0.3.1",
     "netCDF4==1.4.2",
     # "toolz==0.10.0",

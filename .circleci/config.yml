@@ -15,3 +15,8 @@ jobs:
     - run: echo $GCLOUD_SERVICE_KEY > key.json
     - run: snakemake -n -p
     - run: pytest
+    - run:
+        name: Code style checks
+        command: |
+          black --check .
+          flake8 .

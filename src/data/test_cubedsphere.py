@@ -7,29 +7,24 @@ from .cubedsphere import remove_duplicate_coords, weighted_block_average
 
 
 @pytest.mark.parametrize(
-    ('x', 'y', 'data', 'expected_x', 'expected_y', 'expected_data'),
+    ("x", "y", "data", "expected_x", "expected_y", "expected_data"),
     [
         ([1, 1], [3, 4], [[1, 2], [3, 4]], [1], [3, 4], [[1, 2]]),
         ([1, 2], [3, 3], [[1, 2], [3, 4]], [1, 2], [3], [[1], [3]]),
         ([1, 1], [3, 3], [[1, 2], [3, 4]], [1], [3], [[1]]),
-        ([1, 2], [3, 4], [[1, 2], [3, 4]], [1, 2], [3, 4], [[1, 2], [3, 4]])
+        ([1, 2], [3, 4], [[1, 2], [3, 4]], [1, 2], [3, 4], [[1, 2], [3, 4]]),
     ],
-    ids=['duplicate x', 'duplicate y', 'duplicate x and y', 'no duplicates']
+    ids=["duplicate x", "duplicate y", "duplicate x and y", "no duplicates"],
 )
-def test_remove_duplicate_coords(
-    x, y, data, expected_x, expected_y, expected_data
-):
-    x = xr.DataArray(x, coords=[x], dims=['x'])
-    y = xr.DataArray(y, coords=[y], dims=['y'])
-    data = xr.DataArray(data, coords=[x, y], dims=['x', 'y'], name='foo')
+def test_remove_duplicate_coords(x, y, data, expected_x, expected_y, expected_data):
+    x = xr.DataArray(x, coords=[x], dims=["x"])
+    y = xr.DataArray(y, coords=[y], dims=["y"])
+    data = xr.DataArray(data, coords=[x, y], dims=["x", "y"], name="foo")
 
-    expected_x = xr.DataArray(expected_x, coords=[expected_x], dims=['x'])
-    expected_y = xr.DataArray(expected_y, coords=[expected_y], dims=['y'])
+    expected_x = xr.DataArray(expected_x, coords=[expected_x], dims=["x"])
+    expected_y = xr.DataArray(expected_y, coords=[expected_y], dims=["y"])
     expected = xr.DataArray(
-        expected_data,
-        coords=[expected_x, expected_y],
-        dims=['x', 'y'],
-        name='foo'
+        expected_data, coords=[expected_x, expected_y], dims=["x", "y"], name="foo"
     )
 
     # Test the DataArray case
@@ -44,9 +39,9 @@ def test_remove_duplicate_coords(
 
 
 def _test_weights_array(n=10):
-    coords = {'x': np.arange(n)+1.0, 'y': np.arange(n) + 1.0}
+    coords = {"x": np.arange(n) + 1.0, "y": np.arange(n) + 1.0}
     arr = np.ones((n, n))
-    weights = xr.DataArray(arr, dims=['x', 'y'], coords=coords)
+    weights = xr.DataArray(arr, dims=["x", "y"], coords=coords)
     return weights
 
 
@@ -55,16 +50,19 @@ def test_block_weighted_average():
     weights = _test_weights_array(n=10)
     dataarray = expected * weights
 
-    ans = weighted_block_average(dataarray, weights, 5, x_dim='x', y_dim='y')
+    ans = weighted_block_average(dataarray, weights, 5, x_dim="x", y_dim="y")
     assert ans.shape == (2, 2)
     assert np.all(np.isclose(ans, expected))
 
 
-@pytest.mark.parametrize('start_coord, expected_start', [
-    # expected_start = (start - 1) / factor + 1
-    (1, 1),
-    (11, 3)
-])
+@pytest.mark.parametrize(
+    "start_coord, expected_start",
+    [
+        # expected_start = (start - 1) / factor + 1
+        (1, 1),
+        (11, 3),
+    ],
+)
 def test_block_weighted_average_coords(start_coord, expected_start):
     n = 10
     target_n = 2
@@ -78,7 +76,7 @@ def test_block_weighted_average_coords(start_coord, expected_start):
     for dim in weights.dims:
         assert weights[dim].values[0] == pytest.approx(start_coord)
 
-    ans = weighted_block_average(weights, weights, factor, x_dim='x', y_dim='y')
+    ans = weighted_block_average(weights, weights, factor, x_dim="x", y_dim="y")
 
     for dim in ans.dims:
         assert weights[dim].values[0] == pytest.approx(start_coord)
