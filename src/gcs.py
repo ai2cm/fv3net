@@ -1,7 +1,8 @@
 import logging
 import subprocess
-
+import xarray as xr
 from dask import delayed
+import gcsfs
 
 
 def authenticate(key):
@@ -54,7 +55,7 @@ def copy_many(urls, dest):
     subprocess.check_call(command)
     
     
-def open_gcs_zarr(zarr_path: str, project: str = 'vcm-ml') -> xr.Dataset:
+def open_remote_zarr(zarr_path: str, project: str = 'vcm-ml') -> xr.Dataset:
     """Open a zarr dataset on GCS
     
     Args:
@@ -67,4 +68,16 @@ def open_gcs_zarr(zarr_path: str, project: str = 'vcm-ml') -> xr.Dataset:
     """
     fs = gcsfs.GCSFileSystem(project, token=None)
     gcsmap = fs.get_mapper(zarr_path)
-    return xr.open_zarr(gcsmap)
+    return xr.open_zarr(store=gcsmap)
+
+def write_remote_zarr(ds: xr.Dataset, gcs_path: str) -> None:
+    """Writes an xarray dataset to a zarr on GCS
+    
+    Args:
+        ds: xarray dataset
+        gcs_path: the GCS path to the zarr to be written, beginning with tbe bucket name
+    
+    """
+    fs = gcsfs.GCSFileSystem(project='vcm-ml')
+    gcsmap = fs.get_mapper(gcs_path)
+    ds.to_zarr(store=gcsmap, mode='w')
