@@ -1,6 +1,6 @@
 import subprocess
 from itertools import product
-from coarseflow.utils import init_blob
+from extractflow.utils import init_blob
 
 timesteps = ['20160801.003000',
              '20160801.004500',
@@ -13,12 +13,12 @@ prefix_src = ('gs://vcm-ml-data/'
 prefix_dst = 'gs://vcm-ml-data/tmp_dataflow/test_data_extract_check/'
 
 src_template = (prefix_src +
-                 '{res}/{timestep}/'
-                 '{timestep}.{domain}.tile{tile:d}.nc.{subtile:04d}')
+                '{res}/{timestep}/'
+                '{timestep}.{domain}.tile{tile:d}.nc.{subtile:04d}')
 
 dst_template = (prefix_dst +
-                 '{res}/{timestep}/'
-                 '{timestep}.{domain}.tile{tile:d}.nc.{subtile:04d}')
+                '{res}/{timestep}/'
+                '{timestep}.{domain}.tile{tile:d}.nc.{subtile:04d}')
 
 
 items = product(timesteps, range(1, num_tiles+1), range(num_subtiles))
@@ -46,10 +46,10 @@ for tstep, tile, subtile in items:
 
 # remove one from second timestep surface data
 rm_sfc_file = dst_template.format(res='C3702', timestep=timesteps[1],
-                                   domain='sfc_data', tile=1, subtile=0)
+                                  domain='sfc_data', tile=1, subtile=0)
 rm_atm_file = dst_template.format(res='C384', timestep=timesteps[2],
-                                   domain='fv_srf_wnd_coarse.res',
-                                   tile=1, subtile=0)
+                                  domain='fv_srf_wnd_coarse.res',
+                                  tile=1, subtile=0)
 
 for rm_file in [rm_sfc_file, rm_atm_file]:
     subprocess.call(['gsutil', 'rm', rm_file])
@@ -65,8 +65,3 @@ for res in res_list:
                                       res=res)
     blob = init_blob(bucket, curr_blob_name)
     blob.upload_from_string('')
-
-
-
-                                   
-

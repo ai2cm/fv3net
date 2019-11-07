@@ -1,5 +1,6 @@
 import xarray as xr
 import intake
+import gcsfs
 
 
 def merge_intake_xarray_sets(catalog, entries):
@@ -50,10 +51,16 @@ def open_gfdl_15_minute_SHiELD(catalog: intake.Catalog, dataset_name: str) -> xr
         if old_varname in dset:
             # TODO: debug statment about variable renaming taking place
             dset = dset.rename({old_varname: new_varname})
-        
     return dset
 
 
 def remove_pressure_level_variables(ds):
     variables = [field for field in ds.data_vars if not field.endswith("plev")]
     return ds[variables]
+
+
+def write_cloud_zarr(ds, gcs_path):
+    fs = gcsfs.GCSFileSystem(project='vcm-ml')
+    mapping = fs.get_mapper(gcs_path)
+    ds.to_zarr(store=mapping, mode='w')
+    return ds
