@@ -45,7 +45,15 @@ def patch_diag_table(dir, time):
             ''')
 
 
-def main(time, rundir_transformations=(), key=None):
+def main(time: str, rundir_transformations=(), key=None):
+    """Run the FV3 C48 model one step forward for the run-directory for a specific time
+
+    Args:
+        time: the timestep YYYYMMDD.HHMMSS to run the model for
+        rundir_transformations: a sequence of transformations (e.g. modifying the diag_table) to
+           apply to the downloaded run directory before the FV3 simulation.
+
+    """
     if key is None:
         try:
             key = os.environ['GOOGLE_APPLICATION_CREDENTIALS']
