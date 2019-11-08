@@ -9,6 +9,8 @@ import logging
 import os
 import tempfile
 
+logger = logging.getLogger(__name__)
+
 logging.basicConfig(level=logging.DEBUG)
 
 INPUT = 'gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics'
@@ -56,9 +58,11 @@ def coarsen_file(suffix) -> Iterator[xr.Dataset]:
         download_to_file(url(INPUT, PREFIX_DATA, suffix), fdata.name)
         download_to_file(url(INPUT, PREFIX_GRID_SPEC, suffix), fgrid.name)
 
+        logger.info(f"{suffix}: opening xarray file")
         ds = xr.open_dataset(fdata.name)
         weights = xr.open_dataset(fgrid.name)[AREA]
         for var in ds:
+            logger.info(f"Processing {var} for {suffix}")
             coarse_var_filename = filename(f'{PREFIX_DATA}_{var}', suffix)
             remote_path = os.path.join(output_subdir, var, coarse_var_filename)
             ds_var_coarse = cubedsphere.weighted_block_average(ds[[var]],

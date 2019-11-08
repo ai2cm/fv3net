@@ -132,5 +132,11 @@ Submit an argo job using
     argo submit --watch argo-fv3net.yml
 
 
+# Pipelines
+
+## Coarse-grain surface data
+
+| Pipeline | Inputs | Outputs|
+| coarse-grain diagnostics | |gs://vcm-ml-data/2019-11-06-X-SHiELD-gfsphysics-diagnostics-coarsened/C384/ |
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
