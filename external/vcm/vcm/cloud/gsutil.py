@@ -15,7 +15,6 @@ def check_call_with_err(cmd):
         subprocess.check_output(cmd, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         logger.exception(e.output.decode('UTF-8'))
-        logger.error(f"Authentication info: {auth_info()}")
         raise e
 
 

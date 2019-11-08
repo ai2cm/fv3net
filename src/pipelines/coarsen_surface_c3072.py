@@ -4,11 +4,12 @@ from vcm import cubedsphere
 from vcm.cloud import gsutil, gcs
 import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.io import fileio
 import logging
 import os
 import tempfile
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 INPUT = 'gs://vcm-ml-data/2019-10-03-X-SHiELD-C3072-to-C384-diagnostics'
 OUTPUT = 'gs://vcm-ml-data/2019-11-06-X-SHiELD-gfsphysics-diagnostics-coarsened'
@@ -43,10 +44,17 @@ def url(bucket, prefix, suffix):
     return os.path.join(bucket, filename(prefix, suffix))
 
 
+def download_to_file(url: str, dest: str):
+    logging.info(f"Downloading from {url} to {dest}")
+    blob = gcs.init_blob_from_gcs_url(url)
+    blob.download_to_filename(dest)
+    logging.info(f"Done downloading to {dest}")
+
+
 def coarsen_file(suffix) -> Iterator[xr.Dataset]:
     with tempfile.NamedTemporaryFile() as fdata, tempfile.NamedTemporaryFile() as fgrid:
-        gsutil.copy(url(INPUT, PREFIX_DATA, suffix), fdata.name, check_hashes=False)
-        gsutil.copy(url(INPUT, PREFIX_GRID_SPEC, suffix), fgrid.name, check_hashes=False)
+        download_to_file(url(INPUT, PREFIX_DATA, suffix), fdata.name)
+        download_to_file(url(INPUT, PREFIX_GRID_SPEC, suffix), fgrid.name)
 
         ds = xr.open_dataset(fdata.name)
         weights = xr.open_dataset(fgrid.name)[AREA]
