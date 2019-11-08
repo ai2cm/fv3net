@@ -2,8 +2,8 @@ import logging
 import argparse
 from google.cloud.storage import Client
 
-from extractflow.pipeline import run
-from dataflow_utils import gcs
+from src.pipelines.extract_tars.pipeline import run
+from vcm.cloud import gcs
 
 
 if __name__ == "__main__":

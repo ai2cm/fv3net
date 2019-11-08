@@ -6,8 +6,8 @@ from pathlib import Path
 from itertools import product
 from apache_beam.utils import retry
 
-import dataflow_utils as utils
-from dataflow_utils import gcs
+import vcm.extract as extract
+from vcm.cloud import gcs
 
 from google.cloud.storage import Client
 
@@ -35,7 +35,7 @@ class ExtractAndUploadTimestepWithC3072SurfaceData(apache_beam.DoFn):
             timestep_blob = gcs.init_blob_from_gcs_url(element)
             filename = Path(timestep_blob.name).name
             downloaded_timestep = download_blob_to_file(timestep_blob, tmpdir, filename)
-            untarred_timestep = utils.extract_tarball_to_path(downloaded_timestep)
+            untarred_timestep = extract.extract_tarball_to_path(downloaded_timestep)
 
             current_timestep = untarred_timestep.name
             c384_path = Path(tmpdir, 'coarsened', 'C384', current_timestep)

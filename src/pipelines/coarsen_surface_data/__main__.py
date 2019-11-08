@@ -16,13 +16,13 @@ def time_step(file):
 
 
 def get_completed_time_steps():
-    files = gcs.list_matches(bucket)
+    files = gsutils.list_matches(bucket)
     return [(time_step(file), coarsenings) for file in files]
 
 
 def is_not_done(key):
-    return any(not gcs.exists(url) for url in output_names(key).values())
-     
+    return any(not gsutils.exists(url) for url in output_names(key).values())
+
 
 def run(beam_options):
     timesteps = get_completed_time_steps()

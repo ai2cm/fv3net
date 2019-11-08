@@ -1,6 +1,6 @@
 import apache_beam as beam
 from typing import Iterator
-from src import gcs
+from vcm.cloud import gsutil
 from src.data import rundir
 import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -23,7 +23,7 @@ def time_step(file):
 
 
 def get_time_steps(bucket):
-    files = gcs.list_matches(bucket)
+    files = gsutils.list_matches(bucket)
     return [time_step(file) for file in files]
 
 
@@ -33,11 +33,11 @@ def url(time):
 
 def convert_to_zarr(time: str) -> Iterator[xr.Dataset]:
     with tempfile.TemporaryDirectory() as dir:
-        gcs.copy_directory_contents(url(time), dir)
+        gsutils.copy_directory_contents(url(time), dir)
         ds = rundir.rundir_to_dataset(dir, time)
         ds.to_zarr(f"{time}.zarr", mode="w")
         remote_path = f"{OUTPUT}/{time}.zarr"
-        gcs.copy(f"{time}.zarr", remote_path)
+        gsutils.copy(f"{time}.zarr", remote_path)
 
 
 

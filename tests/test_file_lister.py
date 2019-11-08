@@ -2,7 +2,7 @@ from typing import Iterator, Iterable
 
 from google.cloud.storage import Client, Blob, Bucket  # type: ignore
 
-from dataflow_utils import gcs
+from vcm.cloud import gcs
 
 
 class FakeFileListerClient(Client):
