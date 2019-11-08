@@ -68,6 +68,10 @@ test_environment:
 compile_vcm:
 	cd external/vcm && python setup.py sdist
 
+
+submit_%: compile_vcm
+	./submit_job.sh src.pipelines.$*
+
 #################################################################################
 # PROJECT RULES                                                                 #
 #################################################################################
