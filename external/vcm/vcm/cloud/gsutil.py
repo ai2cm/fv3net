@@ -3,6 +3,21 @@ import subprocess
 
 from dask import delayed
 
+logger = logging.getLogger("gsutil")
+
+
+def auth_info():
+    return subprocess.check_output(['gcloud', 'auth', 'list'])
+
+
+def check_call_with_err(cmd):
+    try:
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        logger.exception(e.output.decode('UTF-8'))
+        logger.error(f"Authentication info: {auth_info()}")
+        raise e
+
 
 def authenticate(key):
     logging.debug("authenticating with key at {key}")
@@ -37,7 +52,7 @@ def list_matches(pattern):
 def copy(src, dest):
     logging.debug(f"copying {src} to {dest}")
     command = ['gsutil', '-m', 'cp', '-r', src, dest]
-    subprocess.check_call(command)
+    check_call_with_err(command)
     logging.debug(f"copying {src} to {dest} done")
 
 
