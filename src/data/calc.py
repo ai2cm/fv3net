@@ -5,7 +5,7 @@ gravity = 9.81
 specific_heat = 1004
 
 
-def mass_integrate(phi, dp, dim='pfull'):
+def mass_integrate(phi, dp, dim="pfull"):
     return (phi * dp / gravity).sum(dim)
 
 
@@ -65,14 +65,14 @@ def compute_tendency(q: xr.DataArray, t_dim: str) -> xr.DataArray:
         The tendency source of q in the time dimension. Has units [q]/s
     
     """
-    
+
     t = q[t_dim]
     q = q.drop([t_dim])
     dq = q.diff(t_dim)
     dt = timedelta_to_seconds(t.diff(t_dim))
     tend = dq / dt
-    
+
     # restore coords
-    tend = tend.assign_coords(**{t_dim: t[:-1]}).isel({'forecast_time': 0})
-    
+    tend = tend.assign_coords(**{t_dim: t[:-1]}).isel({"forecast_time": 0})
+
     return tend

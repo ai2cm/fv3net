@@ -3,7 +3,6 @@ from os.path import join
 from datetime import datetime, timedelta
 import cftime
 import pandas as pd
-from src import gcs
 from collections import defaultdict
 
 
