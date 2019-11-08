@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 setup(
-    name="src",
+    name="fv3net",
     packages=find_packages(),
     install_requires=dependencies,
     version="0.1.0",

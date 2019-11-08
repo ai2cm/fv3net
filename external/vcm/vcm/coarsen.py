@@ -85,7 +85,7 @@ def load_tile_proc(tile, subtile, path, grid_path):
     return data
 
 
-#TODO use src.data.cubedsphere for this
+#TODO use vcm.cubedsphere for this
 def _combine_subtiles(tiles):
     combined = xr.concat(tiles, dim="io").sum("io")
     return combined.assign_attrs(tiles[0].attrs)

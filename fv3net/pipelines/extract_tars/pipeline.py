@@ -4,7 +4,7 @@ from typing import Iterable, List
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pvalue import PCollection
 
-import src.pipelines.extract_tars.transforms as cftransforms
+import fv3net.pipelines.extract_tars.transforms as cftransforms
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()

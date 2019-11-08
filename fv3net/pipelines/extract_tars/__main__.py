@@ -2,7 +2,7 @@ import logging
 import argparse
 from google.cloud.storage import Client
 
-from src.pipelines.extract_tars.pipeline import run
+from fv3net.pipelines.extract_tars.pipeline import run
 from vcm.cloud import gcs
 
 

@@ -3,7 +3,7 @@ from vcm import utils
 import pandas as pd
 import xarray as xr
 from dask.delayed import delayed
-from src.data import cubedsphere
+from vcm.cubedsphere import cubedsphere
 import tempfile
 
 combine_subtiles = delayed(cubedsphere.combine_subtiles)
