@@ -1,5 +1,5 @@
-from src import gcs
-from vcm import fv3run as fv3
+from vcm.cloud import gsutils
+from vcm import fv3run
 import sys
 import tempfile
 from datetime import datetime
@@ -61,13 +61,13 @@ def main(time: str, rundir_transformations=(), key=None):
         except KeyError:
             pass
         else:
-            gcs.authenticate(key)
+            gsutils.authenticate(key)
 
     elif key:
-        gcs.authenticate(key)
+        gsutils.authenticate(key)
 
     with tempfile.TemporaryDirectory() as localdir:
-        gcs.copy(restart_dir(time), localdir)
+        gsutils.copy(restart_dir(time), localdir)
         logging.info("running experiment")
         for transform in rundir_transformations:
             transform(localdir)
@@ -76,7 +76,7 @@ def main(time: str, rundir_transformations=(), key=None):
         except Exception as e:
             logging.critical(f"Experiment failed. Listing rundir for debugging purposes: {os.listdir(localdir)}")
             raise e
-        gcs.copy(localdir + '/*', output(time))
+        gsutils.copy(localdir + '/*', output(time))
 
 
 if __name__ == '__main__':

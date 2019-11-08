@@ -1,5 +1,5 @@
 import apache_beam as beam
-from src import gcs
+from vcm.cloud import gsutils
 from .core import coarsen_and_upload_surface, output_names
 from apache_beam.options.pipeline_options import PipelineOptions  
 import logging
