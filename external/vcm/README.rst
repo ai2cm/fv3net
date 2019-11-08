@@ -1,8 +1,7 @@
-FV3Config
+VCM Tools
 =========
 
-
-FV3Config is used to configure and manipulate run directories for FV3GFS.
+VCM Tools is a collection of routines used by the Vulcan Climate Modeling group.
 
 * Free software: BSD license
 
@@ -11,12 +10,8 @@ Basic usage
 
 .. code-block:: python
 
-    from fv3config import get_default_config, write_run_directory
+    from vcm import something
 
-    config = get_default_config()
-    write_run_directory(config, './rundir')
-
-:code:`config` is a configuration dictionary which contains namelists, input data specifications,
-and other options. It can be edited just like any dictionary.
+    do_something()
 
 For more in-depth usage, please refer to the documentation. This can be generated with :code:`make docs`.
