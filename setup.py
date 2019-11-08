@@ -1,4 +1,4 @@
-from setuptools import find_packages, setup
+from setuptools import setup, find_packages
 
 dependencies = [
     "apache-beam==2.16.0",
@@ -10,7 +10,8 @@ dependencies = [
     "scikit-image",
     "netCDF4==1.4.2",
     "xarray==0.13.0",
-    "partd"
+    "partd",
+    "pyyaml==3.13",
 ]
 
 setup(

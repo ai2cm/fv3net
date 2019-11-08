@@ -4,7 +4,7 @@ from typing import Iterable, List
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pvalue import PCollection
 
-import extractflow.transforms as cftransforms
+import src.pipelines.extract_tars.transforms as cftransforms
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
@@ -20,7 +20,9 @@ def run(file_lister: Iterable[str], output_prefix: str, pipeline_args: List) -> 
     into a directory and coarsened atmosphere files into another.
     """
 
-    options = PipelineOptions(flags=pipeline_args, pipeline_type_check=True)
+    options = PipelineOptions(
+        flags=pipeline_args, pipeline_type_check=True, save_main_session=True
+    )
     pipeline = apache_beam.Pipeline(options=options)
 
     to_extract: PCollection[str] = apache_beam.Create(

@@ -9,7 +9,7 @@ from vcm.cloud import gcs
 if __name__ == "__main__":
 
     """
-    extractflow __main__ expects two provided commandline arguments to run:
+    extract_tars __main__ expects two provided commandline arguments to run:
 
     tarfile_source_prefix: GCS bucket prefix to grab list of tarfiles from
     extracted_destination_prefix: GCS bucket prefix to place
