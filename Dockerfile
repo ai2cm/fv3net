@@ -7,10 +7,10 @@ RUN apt-get update && apt-get install -y \
     cython3
 
 
-ADD install_gcloud.sh install_gcloud.sh
+ADD docker/install_gcloud.sh install_gcloud.sh
 RUN bash install_gcloud.sh
 
-ADD download_inputdata.sh download_inputdata.sh
+ADD docker/download_inputdata.sh download_inputdata.sh
 RUN bash download_inputdata.sh
 
 ADD requirements.txt requirements.txt

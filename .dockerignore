@@ -32,4 +32,4 @@ tmp
 tox.ini
 vcm-ml-data
 dataflow/*/env
-
+external/vcm/venv
