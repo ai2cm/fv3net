@@ -1,3 +1,5 @@
+# TODO: Cleaned up with what's actually needed if used for tests
+
 channels:
   - pytorch
   - conda-forge
