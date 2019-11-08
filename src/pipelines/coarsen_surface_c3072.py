@@ -67,7 +67,7 @@ def coarsen_file(suffix) -> Iterator[xr.Dataset]:
                                                                **DIM_KWARGS)
             ds_var_coarse.attrs = ds[var].attrs
             ds_var_coarse.to_netcdf(coarse_var_filename)
-            gcs.copy(coarse_var_filename, remote_path)
+            gsutil.copy(coarse_var_filename, remote_path)
             os.remove(coarse_var_filename)
 
     yield
