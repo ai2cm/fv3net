@@ -51,3 +51,28 @@ def apparent_source(
     )
 
     return tend - tend_c48
+
+
+def compute_tendency(q: xr.DataArray, t_dim: str) -> xr.DataArray:
+    """Compute tendency of a variable along a time dimension
+    This has been factored out of the apparent source function to allow for computing tendencies separately
+    
+    Args:
+        q: The variable to tendency the source of
+        t_dim: the dimension corresponding to the time along which to compute the tendency
+
+    Returns:
+        The tendency source of q in the time dimension. Has units [q]/s
+    
+    """
+    
+    t = q[t_dim]
+    q = q.drop([t_dim])
+    dq = q.diff(t_dim)
+    dt = timedelta_to_seconds(t.diff(t_dim))
+    tend = dq / dt
+    
+    # restore coords
+    tend = tend.assign_coords(**{t_dim: t[:-1]}).isel({'forecast_time': 0})
+    
+    return tend
