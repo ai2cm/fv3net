@@ -49,9 +49,15 @@ def list_matches(pattern):
     return [arg.decode('UTF-8') for arg in files.split()]
 
 
-def copy(src, dest):
+def copy(src, dest, check_hashes=True):
     logging.debug(f"copying {src} to {dest}")
-    command = ['gsutil', '-m', 'cp', '-r', src, dest]
+
+    option_args = ['-m']
+
+    if not check_hashes:
+        option_args += ['-o', 'GSUtil:check_hashes=if_fast_else_skip']
+
+    command = ['gsutil'] + option_args + ['cp', '-r', src, dest]
     check_call_with_err(command)
     logging.debug(f"copying {src} to {dest} done")
 

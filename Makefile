@@ -64,6 +64,10 @@ create_environment:
 test_environment:
 	$(PYTHON_INTERPRETER) test_environment.py
 
+
+compile_vcm:
+	cd external/vcm && python setup.py sdist
+
 #################################################################################
 # PROJECT RULES                                                                 #
 #################################################################################
