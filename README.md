@@ -7,32 +7,31 @@ Improving the GFDL FV3 model physics with machine learning
 Project Organization
 ------------
 
-├── assets              <-- Useful files for restart directory creation? 
-├── configurations      <-- Files for ML model configuration and general configuration
-├── data                <-- Intermediate data store
-├── docker 
-├── external            <-- Package dependencies that will be spun off into their own repo
-│   └── vcm                 <-- General VCM tools package 
-├── fv3net              <-- Main package source for ML pipelines and model code
-│   ├── models
-│   ├── pipelines           <-- Cloud data pipelines
-│   ├── visualization
-├── tests               
-├── workflows           <-- Job submission scripts and description for pieces of data pipeline
-│   ├── extract_tars        <-- Dig yourself out of a tarpit using Dataflow
-│   ├── rerun-fv3           <-- Perform a single step run of FV3 for available timesteps
-│   └── scale-snakemake     <-- Coarsening operation with kubernetes and snakemake (Deprecated)
-├── Dockerfile
-├── LICENSE
-├── Makefile
-├── README.md
-├── catalog.yml         <-- Intake list of datasets 
-├── environment.yml
-├── pytest.ini
-├── regression_tests.sh
-├── requirements.txt
-└── setup.py
-
+    ├── assets              <-- Useful files for restart directory creation? 
+    ├── configurations      <-- Files for ML model configuration and general configuration
+    ├── data                <-- Intermediate data store
+    ├── docker 
+    ├── external            <-- Package dependencies that will be spun off into their own repo
+    │   └── vcm                 <-- General VCM tools package 
+    ├── fv3net              <-- Main package source for ML pipelines and model code
+    │   ├── models
+    │   ├── pipelines           <-- Cloud data pipelines
+    │   ├── visualization
+    ├── tests               
+    ├── workflows           <-- Job submission scripts and description for pieces of data pipeline
+    │   ├── extract_tars        <-- Dig yourself out of a tarpit using Dataflow
+    │   ├── rerun-fv3           <-- Perform a single step run of FV3 for available timesteps
+    │   └── scale-snakemake     <-- Coarsening operation with kubernetes and snakemake (Deprecated)
+    ├── Dockerfile
+    ├── LICENSE
+    ├── Makefile
+    ├── README.md
+    ├── catalog.yml         <-- Intake list of datasets 
+    ├── environment.yml
+    ├── pytest.ini
+    ├── regression_tests.sh
+    ├── requirements.txt
+    └── setup.py
 
 --------
 
