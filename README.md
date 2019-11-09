@@ -54,7 +54,8 @@ Currently VCM Tools , which is used by the pipeline resides within this reposito
 in the external folder.  This will be eventually spun off into its own repo.  To 
 make sure that `vcm` is in the Python path, you can run
 
-    $ python external/vcm/setup.py develop    
+    $ cd external/vcm
+    $ python setup.py install    
 
 
 # Deploying cloud data pipelines
