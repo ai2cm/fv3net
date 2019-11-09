@@ -281,7 +281,7 @@ def _horizontal_block_reduce_dataarray(
     x_dim: Hashable = 'xaxis_1',
     y_dim: Hashable = 'yaxis_1'
 ) -> xr.DataArray:
-    """A generic horizontal block reduce function DataArrays.
+    """A generic horizontal block reduce function for DataArrays.
 
     If neither x_dim or y_dim are in the DataArray, no reduction operation is
     performed.
@@ -316,7 +316,7 @@ def horizontal_block_reduce(
         x_dim: Hashable = 'xaxis_1',
         y_dim: Hashable = 'yaxis_1'
 ) -> Union[xr.Dataset, xr.DataArray]:
-    """A generic horizontal block reduce function xarray data structures.
+    """A generic horizontal block reduce function for xarray data structures.
 
     This is a wrapper around skimage.measure.block_reduce, which
     enables functionality similar to xarray's built-in coarsen method, but
