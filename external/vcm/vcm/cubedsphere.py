@@ -47,7 +47,7 @@ def combine_subtiles(subtiles):
         subtiles_for_var = [subtile[key].to_dataset() for subtile in subtiles]
         combined = xr.combine_by_coords(subtiles_for_var)
         output_vars.append(combined)
-    return xr.merge(output_vars)
+    return xr.merge(output_vars).rename(sample_subtile.name)
 
 
 def subtile_filenames(prefix, tile, pattern=SUBTILE_FILE_PATTERN,

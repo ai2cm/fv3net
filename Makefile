@@ -70,7 +70,7 @@ compile_vcm:
 
 
 submit_%: compile_vcm
-	bash -c 'source env/bin/activate && ./submit_job.sh src.pipelines.$*'
+	./submit_job.sh src.pipelines.$*
 
 #################################################################################
 # PROJECT RULES                                                                 #

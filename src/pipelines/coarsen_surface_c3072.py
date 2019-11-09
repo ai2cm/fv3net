@@ -1,5 +1,6 @@
 import apache_beam as beam
-from typing import Iterator
+from typing import Iterator, Tuple
+import io
 from vcm import cubedsphere
 from vcm.cloud import gsutil, gcs
 import xarray as xr
@@ -53,7 +54,7 @@ def download_to_file(url: str, dest: str):
     logging.info(f"Done downloading to {dest}")
 
 
-def coarsen_file(suffix) -> Iterator[xr.Dataset]:
+def download_subtile(suffix: str) -> Iterator[Tuple[xr.DataArray, xr.DataArray]]:
     with tempfile.NamedTemporaryFile() as fdata, tempfile.NamedTemporaryFile() as fgrid:
         download_to_file(url(INPUT, PREFIX_DATA, suffix), fdata.name)
         download_to_file(url(INPUT, PREFIX_GRID_SPEC, suffix), fgrid.name)
@@ -61,20 +62,32 @@ def coarsen_file(suffix) -> Iterator[xr.Dataset]:
         logger.info(f"{suffix}: opening xarray file")
         ds = xr.open_dataset(fdata.name)
         weights = xr.open_dataset(fgrid.name)[AREA]
-        for var in ds:
-            logger.info(f"Processing {var} for {suffix}")
-            coarse_var_filename = filename(f'{PREFIX_DATA}_{var}', suffix)
-            remote_path = os.path.join(output_subdir, var, coarse_var_filename)
-            ds_var_coarse = cubedsphere.weighted_block_average(ds[[var]],
-                                                               weights,
-                                                               COARSENING,
-                                                               **DIM_KWARGS)
-            ds_var_coarse.attrs = ds[var].attrs
-            ds_var_coarse.to_netcdf(coarse_var_filename)
-            gsutil.copy(coarse_var_filename, remote_path)
-            os.remove(coarse_var_filename)
+        ds = ds.assign_coords(tile=int(suffix[4]))
 
-    yield
+    for var in ds:
+        yield weights, ds[var]
+
+
+def coarsen(args: Tuple[xr.DataArray, xr.DataArray]) -> Tuple[str, xr.DataArray]:
+    weights, da = args
+    ds_var_coarse = cubedsphere.weighted_block_average(
+        da, weights, COARSENING, **DIM_KWARGS)
+    return da.name, ds_var_coarse.rename(da.name)
+
+
+def upload_nc(ds: xr.Dataset, upload_path):
+    with tempfile.NamedTemporaryFile() as f:
+        blob = gcs.init_blob_from_gcs_url(upload_path)
+        logger.info(f"Saving {ds.name} to disk")
+        ds.to_netcdf(f.name)
+        logger.info(f"Start Uploading {ds.name} to {upload_path}")
+        blob.upload_from_filename(f.name)
+        logger.info(f"Done Uploading {ds.name} to {upload_path}")
+
+
+def upload(ds: xr.Dataset):
+    upload_path = os.path.join(OUTPUT, ds.name + '.nc')
+    upload_nc(ds, upload_path)
 
 
 def run(beam_options):
@@ -82,7 +95,11 @@ def run(beam_options):
     print(f"Processing {len(suffixes)} files")
     with beam.Pipeline(options=beam_options) as p:
         (p | beam.Create(suffixes)
-         | 'CoarsenFile' >> beam.ParDo(coarsen_file)
+         | "Download Data" >> beam.ParDo(download_subtile)
+         | "Coarsen" >> beam.Map(coarsen)
+         | "Combine Subtiles" >> beam.CombinePerKey(cubedsphere.combine_subtiles)
+         | beam.Values()
+         | "Upload" >> beam.Map(upload)
          )
 
 
