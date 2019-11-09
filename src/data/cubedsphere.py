@@ -78,22 +78,41 @@ def open_cubed_sphere(prefix: str, **kwargs):
     return xr.concat(tiles, dim='tile')
 
 
-def coarsen_coords(factor, tile, dims):
+def coarsen_coords(factor, tile, dims) -> Mapping[Hashable, xr.DataArray]:
     return {
         key: ((tile[key][::factor] - 1) // factor + 1).astype(int).astype(np.float32)
         for key in dims
     }
 
 
-def add_coordinates(reference_ds, coarsened_ds, factor, x_dim, y_dim):
-    new_coordinates = coarsen_coords(factor, reference_ds, [x_dim, y_dim])
+def add_coordinates(
+        reference_obj: Union[xr.Dataset, xr.DataArray],
+        coarsened_obj: Union[xr.Dataset, xr.DataArray],
+        factor: int,
+        x_dim: Hashable,
+        y_dim: Hashable
+) -> Union[xr.Dataset, xr.DataArray]:
+    """Add appropriate subtile coordinates to the coarsened xarray data
+    structure.
 
-    if isinstance(coarsened_ds, xr.DataArray):
-        result = coarsened_ds.assign_coords(
-            **new_coordinates
-        ).rename(coarsened_ds.name)
+    Args:
+        reference_obj: Reference Dataset or DataArray.
+        coarsened_obj: Coarsened Dataset or DataArray.
+        factor: Integer coarsening factor used.
+        x_dim: x dimension name.
+        y_dim: y dimension name.
+
+    Returns:
+        xr.Dataset or xr.DataArray
+    """
+    new_coordinates = coarsen_coords(factor, reference_obj, [x_dim, y_dim])
+
+    if isinstance(coarsened_obj, xr.DataArray):
+        result = coarsened_obj.assign_coords(
+            new_coordinates
+        ).rename(coarsened_obj.name)
     else:
-        result = coarsened_ds.assign_coords(**new_coordinates)
+        result = coarsened_obj.assign_coords(new_coordinates)
     return result
 
 
@@ -120,8 +139,8 @@ def weighted_block_average(
         xr.Dataset or xr.DataArray
     """
     coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-    result = ((obj * weights).coarsen(**coarsen_kwargs).sum() /
-              weights.coarsen(**coarsen_kwargs).sum())
+    result = ((obj * weights).coarsen(coarsen_kwargs).sum() /
+              weights.coarsen(coarsen_kwargs).sum())
 
     return add_coordinates(obj, result, coarsening_factor, x_dim, y_dim)
 
@@ -224,15 +243,15 @@ def _block_reduce_dataarray(
     # first occurence.
     new_chunks = []
     if da.chunks is not None:
-        for dim in da.dims:
-            dimension_chunks = np.array(da.chunks[da.get_axis_num(dim)])
+        for axis, dim in enumerate(da.dims):
+            dimension_chunks = np.array(da.chunks[axis])
             if not np.all(dimension_chunks % block_sizes[dim] == 0):
                 raise ValueError(
                     f'All chunks along dimension {dim} of DataArray must be '
                     f'divisible by the block_size, {block_sizes[dim]}.')
             else:
                 new_chunks.append(tuple(dimension_chunks // block_sizes[dim]))
-    new_chunks = tuple(new_chunks)
+    new_chunks_tuple = tuple(new_chunks)
 
     ordered_block_sizes = tuple(block_sizes[dim] for dim in da.dims)
 
@@ -244,7 +263,7 @@ def _block_reduce_dataarray(
         dask='allowed',
         exclude_dims=set(da.dims),
         kwargs={'ordered_block_sizes': ordered_block_sizes,
-                'new_chunks': new_chunks}
+                'new_chunks': new_chunks_tuple}
     )
 
     # Restore coordinates for dimensions that did not change size
@@ -324,6 +343,8 @@ def horizontal_block_reduce(
     Returns:
         xr.Dataset or xr.DataArray.
     """
+    result: Union[xr.Dataset, xr.DataArray]
+
     if isinstance(obj, xr.Dataset):
         result = obj.apply(
             _horizontal_block_reduce_dataarray,
@@ -390,7 +411,7 @@ def block_coarsen(
         xr.Dataset or xr.DataArray.
     """
     coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-    coarsen_object = obj.coarsen(**coarsen_kwargs)
+    coarsen_object = obj.coarsen(coarsen_kwargs)
     result = getattr(coarsen_object, method)()
 
     return add_coordinates(obj, result, coarsening_factor, x_dim, y_dim)
