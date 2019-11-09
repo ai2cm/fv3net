@@ -12,7 +12,7 @@ MAX_NUM_WORKERS='40'
 python -m fv3net.pipelines.extract_tars \
     $SOURCE_TAR_PREFIX \
     $OUTPUT_DESTINATION \
-    --job_name test-work1-$(whoami) \
+    --job_name test-extract-$(whoami) \
     --project vcm-ml \
     --region us-central1 \
     --runner DataflowRunner \
