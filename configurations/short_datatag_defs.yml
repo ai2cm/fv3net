@@ -1,4 +1,4 @@
-# Save shortened tags for common datasets used in src.data.__init__.open_dataset
+# Save shortened tags for common datasets used in vcm.convenience.open_dataset
 # intended to reduce code editing required
 
 gfdl_15_minute_2day: 2019-09-10-GFDL-SHiELD-15-minute-2-days

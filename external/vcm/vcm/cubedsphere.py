@@ -396,7 +396,7 @@ def block_edge_sum(
 
 def save_tiles_separately(sfc_data, prefix, output_directory):
 
-    #TODO: move to src.data.cubedsphere
+    #TODO: move to vcm.cubedsphere
     for i in range(6):
         output_path = join(output_directory, f"{prefix}.tile{i+1}.nc")
         logging.info(f"saving data to {output_path}")

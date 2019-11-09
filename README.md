@@ -89,7 +89,7 @@ application-default`](https://cloud.google.com/sdk/gcloud/reference/auth/applica
 After downloading the data and pre-processing, it can be opened from python
 by running
 ```python
-from src.data import open_dataset
+from vcm.convenience import open_dataset
 ds = open_dataset('1degTrain')
 ```
 This dataset contains the apparent heating (Q1) and moistening (Q2** and many potential input variables.
@@ -103,13 +103,13 @@ based interface. Let's defer that to when we have more than one model type*
 
 To add a new model type one needs to create two new files
 ```
-src.models.{model_type}/train.py
-src.models.{model_type}/test.py
+fv3net.models.{model_type}/train.py
+fv3net.models.{model_type}/test.py
 ```
 
 The training script should take in a yaml file of options with this command line interface
 ```
-python -m src.models.{model_type}.train --options options.yaml output.pkl
+python -m fv3net.models.{model_type}.train --options options.yaml output.pkl
 ```
 
 # Deploying on k8s

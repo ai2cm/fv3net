@@ -2,7 +2,7 @@ from fv3net.models.base import SklearnWrapper
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.compose import TransformedTargetRegressor
-# from src.data import open_dataset
+from vcm.convenience import open_dataset
 import numpy as np
 import fire
 from sklearn.externals import joblib

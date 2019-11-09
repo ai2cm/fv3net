@@ -9,7 +9,7 @@ OUTPUT_DESTINATION='2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted'
 NUM_WORKERS='4'
 MAX_NUM_WORKERS='40'
 
-python -m src.pipelines.extract_tars \
+python -m fv3net.pipelines.extract_tars \
     $SOURCE_TAR_PREFIX \
     $OUTPUT_DESTINATION \
     --job_name test-work1-$(whoami) \

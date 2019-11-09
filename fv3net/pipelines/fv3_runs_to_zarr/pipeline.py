@@ -1,7 +1,7 @@
 import apache_beam as beam
 from typing import Iterator
 from vcm.cloud import gsutil
-from src.data import rundir
+from vcm.convenience import rundir 
 import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
 import logging

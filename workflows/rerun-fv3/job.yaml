@@ -23,7 +23,7 @@ spec:
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
             value: /secret/key.json
-        command: ["python3",  "-m", "src.pipelines.rerun-fv3", "$TIMESTEP"]
+        command: ["python3",  "-m", "fv3net.pipelines.rerun-fv3", "$TIMESTEP"]
         resources:
           requests:
             memory: "3.6G"
