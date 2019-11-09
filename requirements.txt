@@ -1,7 +1,21 @@
 # external
+
+    "apache-beam==2.16.0",
+    "cloudpickle==1.2.2",
+    "dask==2.6.0",
+    "fsspec==0.5.2",
+    "google-cloud-storage==1.20.0",
+    "intake==0.5.3",
+    "scikit-image",
+    "netCDF4==1.4.2",
+    "xarray==0.13.0",
+    "partd",
+    "pyyaml==3.13",
+apache-beam==2.16.0
 click
 cloudpickle
 dask>=2.3.0
+fsspec
 f90nml
 flake8
 gcsfs
@@ -15,6 +29,8 @@ metpy
 netcdf4>=1.4
 numba
 numpy==1.16
+partd
+pyyaml==3.13
 pytest
 scikit-image
 scikit-learn==0.20
