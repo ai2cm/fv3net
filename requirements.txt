@@ -6,6 +6,7 @@ f90nml
 flake8
 gcsfs
 google-cloud-storage
+gsutil
 h5netcdf
 hypothesis
 intake
