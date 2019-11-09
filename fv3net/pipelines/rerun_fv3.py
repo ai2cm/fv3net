@@ -1,4 +1,4 @@
-from vcm.cloud import gsutils
+from vcm.cloud import gsutil
 from vcm import fv3run
 import sys
 import tempfile
