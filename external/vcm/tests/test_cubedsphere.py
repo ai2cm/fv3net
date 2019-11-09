@@ -8,7 +8,24 @@ from vcm.cubedsphere import (
     weighted_block_average,
     subtile_filenames,
     all_filenames,
+    keep_attrs
 )
+
+
+def test_keep_attrs():
+
+    def fun(x):
+        # this will destroy the metadata
+        return x * 1.0
+
+    x = xr.DataArray([1.0], dims=['x'], attrs={'units': 'm'})
+    a = xr.DataArray([1.0], dims=['x'], attrs={'hello': 'world'}, coords={'x': x})
+
+    fun = keep_attrs(fun)
+    b = fun(a)
+
+    assert b.hello == 'world'
+    assert b.x.units == 'm'
 
 
 def test_subtile_filenames():

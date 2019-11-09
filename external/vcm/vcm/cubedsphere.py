@@ -5,11 +5,24 @@ from os.path import join
 import dask
 import numpy as np
 import xarray as xr
+import functools
 
 from skimage.measure import block_reduce
 
 NUM_TILES = 6
 SUBTILE_FILE_PATTERN = '{prefix}.tile{tile:d}.nc.{subtile:04d}'
+
+
+def keep_attrs(fun):
+    @functools.wraps(fun)
+    def fun_with_attrs(da, *args, **kwargs):
+        output = fun(da, *args, **kwargs)
+        variables = output.assign_attrs(da.attrs)
+        new_coords = {key: output[key].assign_attrs(da[key].attrs)
+                      for key in da.coords}
+        return variables.assign_coords(new_coords)
+
+    return fun_with_attrs
 
 
 # TODO: write a test for this method
@@ -97,12 +110,14 @@ def add_coordinates(reference_ds, coarsened_ds, factor, x_dim, y_dim):
     return result
 
 
+@keep_attrs
 def weighted_block_average(
     da,
     weights,
     coarsening_factor,
     x_dim='xaxis_1',
-    y_dim='yaxis_2'
+    y_dim='yaxis_2',
+
 ):
     """Coarsen a DataArray or Dataset through weighted block averaging.
 
