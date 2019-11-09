@@ -21,6 +21,10 @@ def test_keep_attrs():
     x = xr.DataArray([1.0], dims=['x'], attrs={'units': 'm'})
     a = xr.DataArray([1.0], dims=['x'], attrs={'hello': 'world'}, coords={'x': x})
 
+    # make sure fun removes the metadata
+    # or this test does nothing
+    assert fun(a).attrs != a.attrs
+
     fun = keep_attrs(fun)
     b = fun(a)
 
