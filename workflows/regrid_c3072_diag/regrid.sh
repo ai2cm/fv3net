@@ -26,14 +26,14 @@ do
 done
 
 # download orographic data
-if [ ! -d 2019-10-05-coarse-grids-and-orography-data/ ]
+mosaic=2019-10-05-coarse-grids-and-orography-data/C384/grid_spec.nc
+if [ ! -f $mosaic ]
 then
        gsutil cp gs://vcm-ml-data/2019-10-05-coarse-grid-and-orography-data.tar grid.tar
        tar xf grid.tar
        rm grid.tar
 fi
 
-mosaic=2019-10-05-coarse-grids-and-orography-data/C384/grid_spec.nc
 
 fregrid \
  --input_mosaic $mosaic \
@@ -42,7 +42,5 @@ fregrid \
  --input_file  $field \
  --output_file $field.nc  \
  --scalar_field $field
- #--scalar_field areat
-
 
 gsutil cp $field.nc $output_bucket/nLat${nlat}_nLon${nlon}/$field.nc
