@@ -6,9 +6,12 @@ set -x
 nlat=180
 nlon=180
 
-field="$1"
-input_bucket=gs://vcm-ml-data/2019-11-06-X-SHiELD-gfsphysics-diagnostics-coarsened/C384
-output_bucket=gs://vcm-ml-data/2019-11-06-X-SHiELD-gfsphysics-diagnostics-coarsened
+
+src_prefix="$1"; shift;
+outputBucket="$1"; shift;
+resolution="$1"; shift;
+scalarFields="$1"; shift;
+
 
 # authenticate with gcloud
 if [ -f $GOOGLE_APPLICATION_CREDENTIALS ]
@@ -17,30 +20,31 @@ then
 fi
 
 # download the tile data
+localPrefix=data
 for tile in {1..6}
 do
-    fileName=${field}.tile${tile}.nc
-    inputUrl=$input_bucket/$fileName
+    inputUrl=$src_prefix.tile${tile}.nc
+    fileName=$localPrefix.tile${tile}.nc
 
     [ -f $fileName ] || gsutil cp $inputUrl $fileName
 done
 
 # download orographic data
-mosaic=2019-10-05-coarse-grids-and-orography-data/C384/grid_spec.nc
+mosaic=2019-10-05-coarse-grids-and-orography-data/$resolution/grid_spec.nc
 if [ ! -f $mosaic ]
 then
        gsutil cp gs://vcm-ml-data/2019-10-05-coarse-grid-and-orography-data.tar grid.tar
        tar xf grid.tar
        rm grid.tar
 fi
+remapFile=${resolution}_to_${nlat}x${nlon}.nc
 
 
-fregrid \
- --input_mosaic $mosaic \
+fregrid  --input_mosaic $mosaic \
+ --remap_file $remapFile \
  --nlat $nlat --nlon $nlon \
- --remap_file c34_to_${nlat}x${nlon}.nc \
- --input_file  $field \
- --output_file $field.nc  \
- --scalar_field $field
+ --input_file  $localPrefix \
+ --output_file $localPrefix.nc \
+ --scalar_field $scalarFields
 
-gsutil cp $field.nc $output_bucket/nLat${nlat}_nLon${nlon}/$field.nc
+gsutil cp $localPrefix.nc $outputBucket
