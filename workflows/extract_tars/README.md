@@ -1,13 +1,12 @@
-extractflow
-===========
+fv3net.pipelines.extract_tars
+=============================
 
-This package is used to deploy our tar extraction workflow through Apache Beam
-using Google's Dataflow system.
+This portion of the pipeline is used to deploy our tar extraction workflow 
+through Apache Beam using Google's Dataflow system.
 
 # Installation
 
-Install `extractflow` and the required packages for deployment from the 
-`extract_tars` directory using:
+Install `fv3net` and the required packages for deployment using:
 
 ```shell
 $ pip install -r requirements.txt
@@ -17,11 +16,13 @@ This package also requires authentication with google cloud
 (e.g., see [gcloud auth application-default](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/))
 before you can initializ Dataflow jobs.
 
-You can verify that the package is working correctly by running the test suite:
+Additionally you will need to generate a distributable version of the `vcm` package
+using
 
-```shell
-$ py.test
-```
+    python external/vcm/setup.py sdist
+
+which will be used by the `submit_job.sh` script.
+
 
 # Usage
 
@@ -47,5 +48,5 @@ MAX_NUM_WORKERS='40'
 The extraction Apache Beam operation can be tested locally using the `DirectRunner` flag
 
 ```shell
-$ pythom -m extractflow test_tar_dir test_output_dir --DirectRunner
+$ pythom -m fv3net.pipelines.extract_tars test_tar_dir test_output_dir --runner DirectRunner
 ```

@@ -1,9 +1,9 @@
 import numpy as np
-from vcm.advect import (
-    interpolate_1d_nd_target,
+from vcm.calc.advect import (
     lagrangian_origin_coordinates,
     compute_dz,
 )
+from vcm.regrid import interpolate_1d_nd_target
 
 
 def test_interpolate_1d_nd_target_1d_input():

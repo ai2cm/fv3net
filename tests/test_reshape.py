@@ -1,7 +1,4 @@
-import dask.array as da
-import numpy as np
-import xarray as xr
-from vcm.reshape import *
+from fv3net.models.reshape import chunk_indices
 
 
 def test_chunk_indices():

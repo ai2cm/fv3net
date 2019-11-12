@@ -15,7 +15,7 @@ def open_gfdl_data(catalog):
         "2019-07-17-GFDL_FV3_DYAMOND_0.25deg_3hr_3d",
     ]
     return merge_intake_xarray_sets(catalog, entries_to_merge).pipe(
-        remove_pressure_level_variables
+        _remove_pressure_level_variables
     )
 
 
@@ -54,7 +54,7 @@ def open_gfdl_15_minute_SHiELD(catalog: intake.Catalog, dataset_name: str) -> xr
     return dset
 
 
-def remove_pressure_level_variables(ds):
+def _remove_pressure_level_variables(ds):
     variables = [field for field in ds.data_vars if not field.endswith("plev")]
     return ds[variables]
 

@@ -12,7 +12,7 @@ MAX_NUM_WORKERS='40'
 python -m fv3net.pipelines.extract_tars \
     $SOURCE_TAR_PREFIX \
     $OUTPUT_DESTINATION \
-    --job_name test-work1-$(whoami) \
+    --job_name test-extract-$(whoami) \
     --project vcm-ml \
     --region us-central1 \
     --runner DataflowRunner \
@@ -23,5 +23,5 @@ python -m fv3net.pipelines.extract_tars \
     --type_check_strictness 'ALL_REQUIRED' \
     --worker_machine_type n1-standard-1 \
     --setup_file ./setup.py \
-    --extra_package external/vcm/dist/vcm-0.1.0.tar.gz
+    --extra_package dist/vcm-0.1.0.tar.gz
 

@@ -6,7 +6,7 @@ from dask import delayed
 logger = logging.getLogger("gsutil")
 
 
-def auth_info():
+def _auth_info():
     return subprocess.check_output(['gcloud', 'auth', 'list'])
 
 
@@ -15,7 +15,7 @@ def check_call_with_err(cmd):
         subprocess.check_output(cmd, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         logger.exception(e.output.decode('UTF-8'))
-        logger.error(f"Authentication info: {auth_info()}")
+        logger.error(f"Authentication info: {_auth_info()}")
         raise e
 
 
@@ -56,12 +56,12 @@ def copy(src, dest):
     logging.debug(f"copying {src} to {dest} done")
 
 
-def strip_trailing_slash(src: str) -> str:
+def _strip_trailing_slash(src: str) -> str:
     return src.rstrip("/")
 
 
 def copy_directory_contents(src: str, dest):
-    return copy(strip_trailing_slash(src) + "/*", dest)
+    return copy(_strip_trailing_slash(src) + "/*", dest)
 
 
 def copy_many(urls, dest):

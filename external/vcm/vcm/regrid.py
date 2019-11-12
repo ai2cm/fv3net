@@ -3,8 +3,7 @@ from scipy.interpolate import interp1d
 from numba import jit
 import xarray as xr
 import zarr as zr
-import xesmf as xe
-from tqdm import tqdm
+# import xesmf as xe
 
 from vcm.convenience import replace_esmf_coords_reg_latlon, open_dataset
 
@@ -137,17 +136,19 @@ def regrid_horizontal(
         not present in prev_regrid_dataset, then they will be regridded
         and added to the output.
     """
+    raise NotImplementedError('No longer using ESMF and this function is broken'
+                              ' without a proper pip installer for esmpy.')
 
     data_in = fregrid_to_esmf_compatible_coords(data_in)
 
     contiguous_space = data_in.chunk({"lon": -1, "lat": -1, "time": 1})
 
     # Create output dataset with appropriate lat-lon
-    grid_out = xe.util.grid_global(d_lon_out, d_lat_out)
+    # grid_out = xe.util.grid_global(d_lon_out, d_lat_out)
 
-    regridder = xe.Regridder(
-        contiguous_space, grid_out, method, reuse_weights=True
-    )
+    # regridder = xe.Regridder(
+    #     contiguous_space, grid_out, method, reuse_weights=True
+    # )
 
     # Regrid each variable in original dataset
     regridded_das = []
