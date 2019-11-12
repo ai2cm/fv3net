@@ -5,7 +5,7 @@ import os
 from shutil import copytree, copy, rmtree
 
 from vcm.cubedsphere import save_tiles_separately
-from vcm import utils
+from vcm import casting
 
 from .common import write_submit_job_script
 
@@ -33,7 +33,7 @@ def make_experiment(dir,  args, template_dir='', oro_paths=(),
     copytree(template_dir, dir)
 
     for prefix, combined_tile_data in args:
-        float_data = utils.cast_doubles_to_floats(combined_tile_data)
+        float_data = casting.doubles_to_floats(combined_tile_data)
         save_tiles_separately(
             float_data, prefix, output_directory=input_dir)
 

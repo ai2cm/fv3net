@@ -1,9 +1,9 @@
 from gcs import upload_to_gcs
-from vcm import utils
+from vcm import convenience
 import pandas as pd
 import xarray as xr
 from dask.delayed import delayed
-from vcm.cubedsphere import cubedsphere
+from vcm import cubedsphere
 import tempfile
 
 combine_subtiles = delayed(cubedsphere.combine_subtiles)
@@ -47,16 +47,16 @@ def coarsen_and_upload_surface(key):
     # data downloading ops
     category = 'sfc_data'
     stored_resolution = 3702
-    files = utils.file_names_for_time_step(timestep, category, resolution=stored_resolution)
-    grouped_files = utils.group_file_names(files)
-    opened = utils.map_ops(utils._open_remote_nc, grouped_files) 
+    files = convenience.file_names_for_time_step(timestep, category, resolution=stored_resolution)
+    grouped_files = convenience.group_file_names(files)
+    opened = convenience.map_ops(convenience._open_remote_nc, grouped_files)
 
     # coarse-graining
     with tempfile.TemporaryDirectory() as d:
         for coarsening in coarsenings:
             output_file_name = output_file_names[coarsening]
             logging.info("beggining processing job to %s" % output_file_name)
-            coarse = utils.map_ops(_median_no_dask, opened, coarsening) 
+            coarse = convenience.map_ops(_median_no_dask, opened, coarsening)
             tiles = {key: combine_subtiles(val)
                     for key, val in coarse.items()}
             ds = concat_files(tiles)
