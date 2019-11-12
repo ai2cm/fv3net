@@ -83,6 +83,16 @@ def coarsen_subtile_coordinates(
     reference_subtile: Union[xr.Dataset, xr.DataArray],
     dims: List[Hashable]
 ) -> Mapping[Hashable, xr.DataArray]:
+    """Coarsen subtile coordinates found on restart files or diagnostics.
+
+    Args:
+        coarsening_factor: Integer coarsening factor to use.
+        reference_subtile: Reference Dataset or DataArray.
+        dims: List of dimension names to coarsen coordinates for.
+
+    Returns:
+        Dictionary mapping dimension names to xr.DataArray objects.
+    """
     result = {}
     for dim in dims:
         result[dim] = ((reference_subtile[dim][::coarsening_factor] - 1) // coarsening_factor + 1).astype(int).astype(np.float32)
@@ -94,8 +104,7 @@ def add_coarsened_subtile_coordinates(
     reference_obj: Union[xr.Dataset, xr.DataArray],
     coarsened_obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
-    x_dim: Hashable,
-    y_dim: Hashable
+    dims: List[Hashable]
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Add coarsened subtile coordinates to the coarsened xarray data
     structure.
@@ -104,8 +113,7 @@ def add_coarsened_subtile_coordinates(
         reference_obj: Reference Dataset or DataArray.
         coarsened_obj: Coarsened Dataset or DataArray.
         coarsening_factor: Integer coarsening factor used.
-        x_dim: x dimension name.
-        y_dim: y dimension name.
+        dims: List of dimension names to coarsen coordinates for.
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -113,7 +121,7 @@ def add_coarsened_subtile_coordinates(
     coarsened_coordinates = coarsen_subtile_coordinates(
         coarsening_factor,
         reference_obj,
-        [x_dim, y_dim]
+        dims
     )
 
     if isinstance(coarsened_obj, xr.DataArray):

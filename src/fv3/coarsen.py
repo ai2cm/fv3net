@@ -13,7 +13,8 @@ from toolz import curry
 
 
 from ..data.cubedsphere import (
-    coarsen_coords,
+    add_coarsened_subtile_coordinates,
+    coarsen_subtile_coordinates,
     weighted_block_average,
     edge_weighted_block_average,
     block_median,
@@ -59,7 +60,11 @@ def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Datase
         return coarsened
 
     coarsened = coarsen_sum(data_no_area * area) / coarsen_sum(area)
-    coarse_coords = coarsen_coords(factor, data, ["xaxis_1", "yaxis_1"])
+    coarse_coords = coarsen_subtile_coordinates(
+        factor,
+        data,
+        ["xaxis_1", "yaxis_1"]
+    )
 
     # special hack for SLMASK (should be integer quantity)
     coarsened['slmsk'] = integerize(coarsened.slmsk)
@@ -199,8 +204,14 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
         edge='y'
     )
 
-    return xr.merge(
+    result = xr.merge(
         [area_weighted, mass_weighted, edge_weighted_x, edge_weighted_y]
+    )
+    return add_coarsened_subtile_coordinates(
+        ds,
+        result,
+        coarsening_factor,
+        ['xaxis_1', 'yaxis_1', 'xaxis_2', 'yaxis_2']
     )
 
 
@@ -251,7 +262,13 @@ def coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
         y_dim='yaxis_1'
     )
 
-    return xr.merge([area_weighted, mass_weighted])
+    result = xr.merge([area_weighted, mass_weighted])
+    return add_coarsened_subtile_coordinates(
+        ds,
+        result,
+        coarsening_factor,
+        ['xaxis_1', 'yaxis_1']
+    )
 
 
 def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
@@ -271,12 +288,18 @@ def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
     xr.Dataset
     """
     area_weighted_vars = ['u_srf', 'v_srf']
-    return weighted_block_average(
+    result = weighted_block_average(
         ds[area_weighted_vars],
         area,
         coarsening_factor,
         x_dim='xaxis_1',
         y_dim='yaxis_1'
+    )
+    return add_coarsened_subtile_coordinates(
+        ds,
+        result,
+        coarsening_factor,
+        ['xaxis_1', 'yaxis_1']
     )
 
 
@@ -304,7 +327,12 @@ def coarse_grain_sfc_data(ds, area, coarsening_factor):
     )
 
     result['slmsk'] = integerize(result.slmsk)
-    return result
+    return add_coarsened_subtile_coordinates(
+        ds,
+        result,
+        coarsening_factor,
+        ['xaxis_1', 'yaxis_1']
+    )
 
 
 def coarse_grain_grid_spec(
@@ -336,11 +364,17 @@ def coarse_grain_grid_spec(
         y_dim_unstaggered
     )
 
-    return xr.merge([
+    result = xr.merge([
         coarse_dx.rename(ds.dx.name),
         coarse_dy.rename(ds.dy.name),
         coarse_area.rename(ds.area.name)
     ])
+    return add_coarsened_subtile_coordinates(
+        ds,
+        result,
+        coarsening_factor,
+        ['grid_xt', 'grid_yt', 'grid_x', 'grid_y']
+    )
 
 
 def sync_dimension_order(a, b):
