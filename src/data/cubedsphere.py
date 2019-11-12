@@ -95,7 +95,10 @@ def coarsen_subtile_coordinates(
     """
     result = {}
     for dim in dims:
-        result[dim] = ((reference_subtile[dim][::coarsening_factor] - 1) // coarsening_factor + 1).astype(int).astype(np.float32)
+        result[dim] = (
+            (reference_subtile[dim][::coarsening_factor] - 1)
+            // coarsening_factor + 1
+        ).astype(int).astype(np.float32)
         result[dim] = result[dim].assign_coords({dim: result[dim]})
     return result
 
@@ -219,16 +222,20 @@ def _block_reduce_dataarray(
 
     This is a wrapper around skimage.measure.block_reduce, which
     enables functionality similar to xarray's built-in coarsen method, but
-    allows for arbitrary custom reduction functions.  Note that coordinate
-    values are currently dropped along the reduced dimensions.  Flexibility
-    in the reduction function comes at the cost of more restrictive chunking
-    requirements for dask arrays.
+    allows for arbitrary custom reduction functions.  As is default in xarray's
+    coarsen method, coordinate values along the coarse-grained dimensions are
+    coarsened using a mean aggregation method.  Flexibility in the reduction
+    function comes at the cost of more restrictive chunking requirements for
+    dask arrays.
 
     Args:
         da: Input DataArray.
         block_sizes: Dictionary of dimension names mapping to block sizes.
             If the DataArray is chunked, all chunks along a given dimension
-            must be divisible by the block size along that dimension.
+            must be divisible by the block size along that dimension.  All
+            dimensions must be present in block_sizes (if no coarsening is to
+            be done along a dimension, the block size should be specified as
+            1).
         reduction_function: A function which reduces the array to a scalar.
 
     Returns:
@@ -342,18 +349,19 @@ def horizontal_block_reduce(
 
     This is a wrapper around skimage.measure.block_reduce, which
     enables functionality similar to xarray's built-in coarsen method, but
-    allows for arbitrary custom reduction functions.  Note that coordinate
-    values are currently dropped along the reduced dimensions.  Flexibility
-    in the reduction function comes at the cost of more restrictive chunking
-    requirements for dask arrays.
+    allows for arbitrary custom reduction functions.  As is default in xarray's
+    coarsen method, coordinate values along the coarse-grained dimensions are
+    coarsened using  mean aggregation method.  Flexibility in the reduction
+    function comes at the cost of more restrictive chunking requirements for
+    dask arrays.
 
     This is needed for multiple reasons:
         1. xarray's implementation of coarsen does not support using dask
            arrays for some coarsening operations (e.g. median).
         2. xarray's implementation of coarsen supports a limited set of
            reduction functions; this implementation supports arbitrary
-           functions which take an array as input and return a scalar (e.g. we
-           could use it for a mode reduction).
+           functions which take an array as input and reduce along a tuple of
+           dimensions (e.g. we could use it for a mode reduction).
 
     Args:
         obj: Input DataArray or Dataset.
