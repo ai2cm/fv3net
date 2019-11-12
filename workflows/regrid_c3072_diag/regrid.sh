@@ -4,7 +4,7 @@ set -e
 set -x
 
 nlat=180
-nlon=180
+nlon=360
 
 
 src_prefix="$1"; shift;
