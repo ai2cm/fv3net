@@ -135,8 +135,7 @@ def test_add_coarsened_subtile_coordinates(coarsened_object_type):
         reference_obj,
         coarsened_obj,
         coarsening_factor,
-        'x',
-        'y'
+        ['x', 'y']
     )
 
     xr.testing.assert_identical(result, expected)
