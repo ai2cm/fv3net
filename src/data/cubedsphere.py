@@ -3,7 +3,7 @@ import dask
 import numpy as np
 import xarray as xr
 
-from typing import Callable, Hashable, Mapping, Union
+from typing import Callable, Hashable, List, Mapping, Union
 
 from skimage.measure import block_reduce as skimage_block_reduce
 
@@ -78,41 +78,50 @@ def open_cubed_sphere(prefix: str, **kwargs):
     return xr.concat(tiles, dim='tile')
 
 
-def coarsen_coords(factor, tile, dims) -> Mapping[Hashable, xr.DataArray]:
-    return {
-        key: ((tile[key][::factor] - 1) // factor + 1).astype(int).astype(np.float32)
-        for key in dims
-    }
+def coarsen_subtile_coordinates(
+    coarsening_factor: int,
+    reference_subtile: Union[xr.Dataset, xr.DataArray],
+    dims: List[Hashable]
+) -> Mapping[Hashable, xr.DataArray]:
+    result = {}
+    for dim in dims:
+        result[dim] = ((reference_subtile[dim][::coarsening_factor] - 1) // coarsening_factor + 1).astype(int).astype(np.float32)
+        result[dim] = result[dim].assign_coords({dim: result[dim]})
+    return result
 
 
-def add_coordinates(
-        reference_obj: Union[xr.Dataset, xr.DataArray],
-        coarsened_obj: Union[xr.Dataset, xr.DataArray],
-        factor: int,
-        x_dim: Hashable,
-        y_dim: Hashable
+def add_coarsened_subtile_coordinates(
+    reference_obj: Union[xr.Dataset, xr.DataArray],
+    coarsened_obj: Union[xr.Dataset, xr.DataArray],
+    coarsening_factor: int,
+    x_dim: Hashable,
+    y_dim: Hashable
 ) -> Union[xr.Dataset, xr.DataArray]:
-    """Add appropriate subtile coordinates to the coarsened xarray data
+    """Add coarsened subtile coordinates to the coarsened xarray data
     structure.
 
     Args:
         reference_obj: Reference Dataset or DataArray.
         coarsened_obj: Coarsened Dataset or DataArray.
-        factor: Integer coarsening factor used.
+        coarsening_factor: Integer coarsening factor used.
         x_dim: x dimension name.
         y_dim: y dimension name.
 
     Returns:
-        xr.Dataset or xr.DataArray
+        xr.Dataset or xr.DataArray.
     """
-    new_coordinates = coarsen_coords(factor, reference_obj, [x_dim, y_dim])
+    coarsened_coordinates = coarsen_subtile_coordinates(
+        coarsening_factor,
+        reference_obj,
+        [x_dim, y_dim]
+    )
 
     if isinstance(coarsened_obj, xr.DataArray):
         result = coarsened_obj.assign_coords(
-            new_coordinates
+            coarsened_coordinates
         ).rename(coarsened_obj.name)
     else:
-        result = coarsened_obj.assign_coords(new_coordinates)
+        result = coarsened_obj.assign_coords(coarsened_coordinates)
     return result
 
 
@@ -129,20 +138,23 @@ def weighted_block_average(
     input DataArray and weights are the same.
 
     Args:
-        obj: Input DataArray or Dataset
-        weights: Weights (e.g. area or pressure thickness)
-        coarsening_factor: Integer coarsening factor to use
-        x_dim: x dimension name (default 'xaxis_1')
-        y_dim: y dimension name (default 'yaxis_1')
+        obj: Input DataArray or Dataset.
+        weights: Weights (e.g. area or pressure thickness).
+        coarsening_factor: Integer coarsening factor to use.
+        x_dim: x dimension name (default 'xaxis_1').
+        y_dim: y dimension name (default 'yaxis_1').
 
     Returns:
-        xr.Dataset or xr.DataArray
+        xr.Dataset or xr.DataArray.
     """
     coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
     result = ((obj * weights).coarsen(coarsen_kwargs).sum() /
               weights.coarsen(coarsen_kwargs).sum())
 
-    return add_coordinates(obj, result, coarsening_factor, x_dim, y_dim)
+    if isinstance(obj, xr.DataArray):
+        return result.rename(obj.name)
+    else:
+        return result
 
 
 def edge_weighted_block_average(
@@ -159,15 +171,15 @@ def edge_weighted_block_average(
     input DataArray and weights are the same.
 
     Args:
-        obj: Input DataArray or Dataset
-        spacing: Spacing of grid cells in the coarsening dimension
-        coarsening_factor: Integer coarsening factor to use
-        x_dim: x dimension name (default 'xaxis_1')
-        y_dim: y dimension name (default 'yaxis_1')
-        edge: Grid cell side to coarse-grain along {'x', 'y'}
+        obj: Input DataArray or Dataset.
+        spacing: Spacing of grid cells in the coarsening dimension.
+        coarsening_factor: Integer coarsening factor to use.
+        x_dim: x dimension name (default 'xaxis_1').
+        y_dim: y dimension name (default 'yaxis_1').
+        edge: Grid cell side to coarse-grain along {'x', 'y'}.
 
     Returns:
-        xr.DataArray
+        xr.DataArray.
     """
     if edge == 'x':
         coarsen_dim = x_dim
@@ -186,15 +198,13 @@ def edge_weighted_block_average(
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
-    return add_coordinates(
-        obj, result, coarsening_factor, coarsen_dim, downsample_dim
-    )
+    return result
 
 
 def _block_reduce_dataarray(
-        da: xr.DataArray,
-        block_sizes: Mapping[Hashable, int],
-        reduction_function: Callable
+    da: xr.DataArray,
+    block_sizes: Mapping[Hashable, int],
+    reduction_function: Callable
 ) -> xr.DataArray:
     """An xarray and dask compatible block_reduce function designed for
     DataArrays.
@@ -251,7 +261,6 @@ def _block_reduce_dataarray(
                     f'divisible by the block_size, {block_sizes[dim]}.')
             else:
                 new_chunks.append(tuple(dimension_chunks // block_sizes[dim]))
-    new_chunks_tuple = tuple(new_chunks)
 
     ordered_block_sizes = tuple(block_sizes[dim] for dim in da.dims)
 
@@ -263,13 +272,18 @@ def _block_reduce_dataarray(
         dask='allowed',
         exclude_dims=set(da.dims),
         kwargs={'ordered_block_sizes': ordered_block_sizes,
-                'new_chunks': new_chunks_tuple}
+                'new_chunks': tuple(new_chunks)}
     )
 
-    # Restore coordinates for dimensions that did not change size
+    # Restore coordinates for dimensions that did not change size; for
+    # coordinates that did change size, use a mean coarsen reduction (as is
+    # default for xarray's coarsen method).
     for dim, size in block_sizes.items():
-        if size == 1:
-            result[dim] = da[dim]
+        if dim in da.coords:
+            if size == 1:
+                result[dim] = da[dim]
+            else:
+                result[dim] = da[dim].coarsen({dim: size}).mean()
 
     return result
 
@@ -310,11 +324,11 @@ def _horizontal_block_reduce_dataarray(
 
 
 def horizontal_block_reduce(
-        obj: Union[xr.Dataset, xr.DataArray],
-        coarsening_factor: int,
-        reduction_function: Callable,
-        x_dim: Hashable = 'xaxis_1',
-        y_dim: Hashable = 'yaxis_1'
+    obj: Union[xr.Dataset, xr.DataArray],
+    coarsening_factor: int,
+    reduction_function: Callable,
+    x_dim: Hashable = 'xaxis_1',
+    y_dim: Hashable = 'yaxis_1'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """A generic horizontal block reduce function for xarray data structures.
 
@@ -343,16 +357,14 @@ def horizontal_block_reduce(
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    result: Union[xr.Dataset, xr.DataArray]
-
     if isinstance(obj, xr.Dataset):
-        result = obj.apply(
+        return obj.apply(
             _horizontal_block_reduce_dataarray,
             args=(coarsening_factor, reduction_function),
             x_dim=x_dim, y_dim=y_dim
         )
     else:
-        result = _horizontal_block_reduce_dataarray(
+        return _horizontal_block_reduce_dataarray(
             obj,
             coarsening_factor,
             reduction_function,
@@ -360,14 +372,12 @@ def horizontal_block_reduce(
             y_dim=y_dim
         )
 
-    return add_coordinates(obj, result, coarsening_factor, x_dim, y_dim)
-
 
 def block_median(
-        obj: Union[xr.Dataset, xr.DataArray],
-        coarsening_factor: int,
-        x_dim: Hashable = 'xaxis_1',
-        y_dim: Hashable = 'yaxis_1'
+    obj: Union[xr.Dataset, xr.DataArray],
+    coarsening_factor: int,
+    x_dim: Hashable = 'xaxis_1',
+    y_dim: Hashable = 'yaxis_1'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by taking the median over blocks.
 
@@ -414,7 +424,7 @@ def block_coarsen(
     coarsen_object = obj.coarsen(coarsen_kwargs)
     result = getattr(coarsen_object, method)()
 
-    return add_coordinates(obj, result, coarsening_factor, x_dim, y_dim)
+    return result
 
 
 def block_edge_sum(
@@ -453,6 +463,4 @@ def block_edge_sum(
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
-    return add_coordinates(
-        obj, result, coarsening_factor, coarsen_dim, downsample_dim
-    )
+    return result

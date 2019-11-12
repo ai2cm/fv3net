@@ -5,6 +5,8 @@ import xarray as xr
 from skimage.measure import block_reduce as skimage_block_reduce
 
 from .cubedsphere import (
+    add_coarsened_subtile_coordinates,
+    coarsen_subtile_coordinates,
     _block_reduce_dataarray,
     horizontal_block_reduce,
     block_median,
@@ -53,47 +55,131 @@ def test_remove_duplicate_coords(
     xr.testing.assert_identical(result, expected)
 
 
-def _test_weights_array(n=10):
-    coords = {'x': np.arange(n)+1.0, 'y': np.arange(n) + 1.0}
-    arr = np.ones((n, n))
-    weights = xr.DataArray(arr, dims=['x', 'y'], coords=coords)
-    return weights
+@pytest.mark.parametrize(
+    ('coarsening_factor', 'input_coordinate', 'expected_coordinate'),
+    [
+        (2, [1., 2., 3., 4.], [1., 2.]),
+        (2, [5., 6., 7., 8.], [3., 4.]),
+        (2, [1., 2., 3.], [1., 2.]),
+        (2, [3., 4., 5.], [2., 3.])
+    ],
+    ids=[
+        'cell centers; first subtile',
+        'cell centers; second subtile',
+        'cell interfaces; first subtile',
+        'cell interfaces; second subtile'
+    ]
+)
+def test_coarsen_subtile_coordinates(
+    coarsening_factor,
+    input_coordinate,
+    expected_coordinate
+):
+    input_coordinate = xr.DataArray(
+        input_coordinate,
+        dims=['x'],
+        coords=[input_coordinate],
+        name='x'
+    )
+    expected_coordinate = np.array(expected_coordinate).astype(np.float32)
+    expected_coordinate = xr.DataArray(
+        expected_coordinate,
+        dims=['x'],
+        coords=[expected_coordinate],
+        name='x'
+    )
+    expected = {'x': expected_coordinate}
+
+    result = coarsen_subtile_coordinates(
+        coarsening_factor,
+        input_coordinate,
+        ['x']
+    )
+    xr.testing.assert_identical(result['x'], expected['x'])
 
 
-def test_block_weighted_average():
-    expected = 2.0
-    weights = _test_weights_array(n=10)
-    dataarray = expected * weights
+@pytest.mark.parametrize('coarsened_object_type', ['DataArray', 'Dataset'])
+def test_add_coarsened_subtile_coordinates(coarsened_object_type):
+    coarsening_factor = 2
 
-    ans = weighted_block_average(dataarray, weights, 5, x_dim='x', y_dim='y')
-    assert ans.shape == (2, 2)
-    assert np.all(np.isclose(ans, expected))
+    x = np.array([1., 2.]).astype(np.float32)
+    y = np.array([3., 4.]).astype(np.float32)
+    reference_obj = xr.DataArray(
+        [[1, 1], [1, 1]],
+        dims=['x', 'y'],
+        coords=[x, y],
+        name='foo'
+    )
+
+    coarsened_obj = xr.DataArray(
+        [[1]],
+        dims=['x', 'y'],
+        coords=None,
+        name='foo'
+    )
+    if coarsened_object_type == 'Dataset':
+        coarsened_obj = coarsened_obj.to_dataset()
+
+    coarse_x = np.array([1.]).astype(np.float32)
+    coarse_y = np.array([2.]).astype(np.float32)
+    expected = xr.DataArray(
+        [[1]],
+        dims=['x', 'y'],
+        coords=[coarse_x, coarse_y],
+        name='foo'
+    )
+    if coarsened_object_type == 'Dataset':
+        expected = expected.to_dataset()
+
+    result = add_coarsened_subtile_coordinates(
+        reference_obj,
+        coarsened_obj,
+        coarsening_factor,
+        'x',
+        'y'
+    )
+
+    xr.testing.assert_identical(result, expected)
 
 
-@pytest.mark.parametrize('start_coord, expected_start', [
-    # expected_start = (start - 1) / factor + 1
-    (1, 1),
-    (11, 3)
-])
-def test_block_weighted_average_coords(start_coord, expected_start):
-    n = 10
-    target_n = 2
-    factor = n // target_n
+@pytest.mark.parametrize('object_type', ['DataArray', 'Dataset'])
+def test_weighted_block_average(object_type):
+    coarsening_factor = 2
+    dims = ['x', 'y']
+    data = xr.DataArray(
+        np.array([[2., 6.], [6., 2.]]),
+        dims=dims,
+        coords=None,
+        name='foo'
+    )
 
-    weights = _test_weights_array(n)
-    coords = {dim: np.arange(start_coord, start_coord + n) for dim in weights.dims}
-    weights = weights.assign_coords(coords)
+    if object_type == 'Dataset':
+        data = data.to_dataset()
 
-    # ensure the coords are correct
-    for dim in weights.dims:
-        assert weights[dim].values[0] == pytest.approx(start_coord)
+    weights = xr.DataArray(
+        np.array([[6., 2.], [2., 6.]]),
+        dims=dims,
+        coords=None
+    )
 
-    ans = weighted_block_average(weights, weights, factor, x_dim='x', y_dim='y')
+    expected = xr.DataArray(
+        np.array([[3.]]),
+        dims=dims,
+        coords=None,
+        name='foo'
+    )
 
-    for dim in ans.dims:
-        assert weights[dim].values[0] == pytest.approx(start_coord)
-        expected = np.arange(expected_start, expected_start + target_n)
-        np.testing.assert_allclose(ans[dim].values, expected)
+    if object_type == 'Dataset':
+        expected = expected.to_dataset()
+
+    result = weighted_block_average(
+        data,
+        weights,
+        coarsening_factor,
+        x_dim='x',
+        y_dim='y'
+    )
+    xr.testing.assert_identical(result, expected)
 
 
 @pytest.mark.parametrize(
@@ -112,22 +198,16 @@ def test_edge_weighted_block_average(
     expected_data
 ):
     nx, ny = np.array(data).shape
-    x_coord = np.arange(1., nx + 1.)
-    y_coord = np.arange(1., ny + 1.)
-    da = xr.DataArray(data, dims=['x_dim', 'y_dim'], coords=[x_coord, y_coord])
-    weights = xr.DataArray(
-        spacing,
-        dims=['x_dim', 'y_dim'],
-        coords=[x_coord, y_coord]
-    )
+    dims = ['x_dim', 'y_dim']
+    da = xr.DataArray(data, dims=dims, coords=None)
+    weights = xr.DataArray(spacing, dims=dims, coords=None)
 
     nx_expected, ny_expected = np.array(expected_data).shape
-    x_coord_expected = np.arange(1., nx_expected + 1.)
-    y_coord_expected = np.arange(1., ny_expected + 1.)
     expected = xr.DataArray(
         expected_data,
-        dims=['x_dim', 'y_dim'],
-        coords=[x_coord_expected, y_coord_expected])
+        dims=dims,
+        coords=None
+    )
     result = edge_weighted_block_average(
         da,
         weights,
@@ -139,113 +219,107 @@ def test_edge_weighted_block_average(
     xr.testing.assert_identical(result, expected)
 
 
-@pytest.mark.parametrize('reduction_function', [np.mean, np.median])
-@pytest.mark.parametrize('use_dask', [False, True])
-def test_block_reduce_dataarray(reduction_function, use_dask):
-    shape = (2, 4, 8)
-    nx, ny, nz = shape
-    data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
-    x_coord = np.arange(nx)
-    y_coord = np.arange(ny)
-    z_coord = np.arange(nz)
-
-    dims = ['x', 'y', 'z']
-    coords = [x_coord, y_coord, z_coord]
-    da = xr.DataArray(data, dims=dims, coords=coords)
-
-    if use_dask:
-        da = da.chunk({'x': -1, 'y': -1, 'z': 4})
-
-    expected_data = skimage_block_reduce(
-        data,
-        block_size=(1, 2, 4),
-        func=reduction_function
-    )
-    expected_dims = ['x', 'y', 'z']
-    expected_coords = {'x': x_coord}
-    expected = xr.DataArray(
-        expected_data,
-        dims=expected_dims,
-        coords=expected_coords
-    )
-
-    block_sizes = {'x': 1, 'y': 2, 'z': 4}
-    result = _block_reduce_dataarray(da, block_sizes, reduction_function)
-    xr.testing.assert_identical(result, expected)
-
-
-def test_block_reduce_dataarray_bad_chunk_size():
-    shape = (2, 8)
-    nx, ny = shape
-    data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
-    x_coord = np.arange(nx)
-    y_coord = np.arange(ny)
-
-    dims = ['x', 'y']
-    coords = [x_coord, y_coord]
-    da = xr.DataArray(data, dims=dims, coords=coords)
-    da = da.chunk({'x': -1, 'y': 3})
-
-    block_sizes = {'x': 1, 'y': 2}
-    with pytest.raises(ValueError, match='All chunks along dimension'):
-        _block_reduce_dataarray(da, block_sizes, np.median)
-
-
-def test_horizontal_block_reduce_dataarray():
+@pytest.fixture()
+def input_dataarray():
     shape = (4, 4, 2)
     nx, ny, nz = shape
     data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
-    x_coord = np.arange(nx)
-    y_coord = np.arange(ny)
-    z_coord = np.arange(nz)
-
     dims = ['x', 'y', 'z']
-    coords = [x_coord, y_coord, z_coord]
-    da = xr.DataArray(data, dims=dims, coords=coords)
+    return xr.DataArray(data, dims=dims, coords=None, name='foo')
 
+
+@pytest.fixture()
+def input_dataset(input_dataarray):
+    bar = xr.DataArray([1, 2, 3], dims=['t'], name='bar')
+    return xr.merge([input_dataarray, bar])
+
+
+@pytest.mark.parametrize('reduction_function', [np.mean, np.median])
+@pytest.mark.parametrize('use_dask', [False, True])
+def test_block_reduce_dataarray(reduction_function, use_dask, input_dataarray):
+    block_size = (2, 2, 1)
+    expected_data = skimage_block_reduce(
+        input_dataarray.values,
+        block_size=block_size,
+        func=reduction_function
+    )
+    expected = xr.DataArray(
+        expected_data,
+        dims=input_dataarray.dims,
+        coords=None,
+        name='foo'
+    )
+
+    if use_dask:
+        input_dataarray = input_dataarray.chunk({'x': 2, 'y': 2, 'z': -1})
+
+    block_sizes = dict(zip(input_dataarray.dims, block_size))
+    result = _block_reduce_dataarray(
+        input_dataarray,
+        block_sizes,
+        reduction_function
+    )
+    xr.testing.assert_identical(result, expected)
+
+
+def test_block_reduce_dataarray_bad_chunk_size(input_dataarray):
+    input_dataarray = input_dataarray.chunk({'x': -1, 'y': 3, 'z': -1})
+    block_sizes = {'x': 1, 'y': 2, 'z': 1}
+    with pytest.raises(ValueError, match='All chunks along dimension'):
+        _block_reduce_dataarray(input_dataarray, block_sizes, np.median)
+
+
+def test_block_reduce_dataarray_coordinate_behavior(input_dataarray):
+    # Add coordinates to the input_dataarray; make sure coordinate behavior
+    # matches xarray's default for coarsen.  This ensures that the default
+    # coordinate transformation behavior for any function that depends on
+    # _block_reduce_dataarray matches that for xarray's coarsen.
+    for dim, size in input_dataarray.sizes.items():
+        input_dataarray[dim] = np.arange(size)
+
+    block_sizes = {'x': 2, 'y': 2, 'z': 1}
+    result = _block_reduce_dataarray(
+        input_dataarray,
+        block_sizes,
+        np.median
+    )
+    expected = input_dataarray.coarsen(x=2, y=2).median().rename(
+        input_dataarray.name
+    )
+    xr.testing.assert_identical(result, expected)
+
+
+def test_horizontal_block_reduce_dataarray(input_dataarray):
     coarsening_factor = 2
     block_sizes = {'x': coarsening_factor, 'y': coarsening_factor, 'z': 1}
 
-    expected = _block_reduce_dataarray(da, block_sizes, np.median)
-    expected['x'] = np.arange(nx / coarsening_factor)
-    expected['y'] = np.arange(ny / coarsening_factor)
-
+    expected = _block_reduce_dataarray(input_dataarray, block_sizes, np.median)
     result = horizontal_block_reduce(
-        da,
+        input_dataarray,
         coarsening_factor,
         np.median,
         'x',
         'y'
     )
-
     xr.testing.assert_identical(result, expected)
 
 
-def test_horizontal_block_reduce_dataset():
-    shape = (4, 4, 2)
-    nx, ny, nz = shape
-    data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
-    x_coord = np.arange(nx)
-    y_coord = np.arange(ny)
-    z_coord = np.arange(nz)
-
-    dims = ['x', 'y', 'z']
-    coords = [x_coord, y_coord, z_coord]
-    foo = xr.DataArray(data, dims=dims, coords=coords, name='foo')
-    bar = xr.DataArray([1, 2, 3], dims=['t'], name='bar')
-    ds = xr.merge([foo, bar])
-
+def test_horizontal_block_reduce_dataset(input_dataset):
     coarsening_factor = 2
     block_sizes = {'x': coarsening_factor, 'y': coarsening_factor, 'z': 1}
 
-    expected_foo = _block_reduce_dataarray(foo, block_sizes, np.median)
-    expected_foo['x'] = np.arange(nx / coarsening_factor)
-    expected_foo['y'] = np.arange(ny / coarsening_factor)
-    expected_bar = bar
+    expected_foo = _block_reduce_dataarray(
+        input_dataset.foo,
+        block_sizes,
+        np.median
+    )
+
+    # No change expected to bar, because it contains no horizontal dimensions.
+    expected_bar = input_dataset.bar
     expected = xr.merge([expected_foo, expected_bar])
 
     result = horizontal_block_reduce(
-        ds,
+        input_dataset,
         coarsening_factor,
         np.median,
         'x',
@@ -255,27 +329,18 @@ def test_horizontal_block_reduce_dataset():
     xr.testing.assert_identical(result, expected)
 
 
-def test_block_median():
-    shape = (4, 4, 2)
-    nx, ny, nz = shape
-    data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
-    x_coord = np.arange(nx)
-    y_coord = np.arange(ny)
-    z_coord = np.arange(nz)
-
-    dims = ['x', 'y', 'z']
-    coords = [x_coord, y_coord, z_coord]
-    da = xr.DataArray(data, dims=dims, coords=coords)
-
+def test_block_median(input_dataarray):
     coarsening_factor = 2
     block_sizes = {'x': coarsening_factor, 'y': coarsening_factor, 'z': 1}
 
-    expected = _block_reduce_dataarray(da, block_sizes, np.median)
-    expected['x'] = np.arange(nx / coarsening_factor)
-    expected['y'] = np.arange(ny / coarsening_factor)
+    expected = _block_reduce_dataarray(
+        input_dataarray,
+        block_sizes,
+        np.median
+    )
 
     result = block_median(
-        da,
+        input_dataarray,
         coarsening_factor,
         'x',
         'y'
@@ -284,27 +349,17 @@ def test_block_median():
     xr.testing.assert_identical(result, expected)
 
 
-def test_block_coarsen():
-    shape = (4, 4, 2)
-    nx, ny, nz = shape
-    data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
-    x_coord = np.arange(nx)
-    y_coord = np.arange(ny)
-    z_coord = np.arange(nz)
-
-    dims = ['x', 'y', 'z']
-    coords = [x_coord, y_coord, z_coord]
-    da = xr.DataArray(data, dims=dims, coords=coords)
-
+def test_block_coarsen(input_dataarray):
     coarsening_factor = 2
     method = 'min'
 
-    expected = da.coarsen(x=coarsening_factor, y=coarsening_factor).min()
-    expected['x'] = np.arange(nx / coarsening_factor)
-    expected['y'] = np.arange(ny / coarsening_factor)
+    expected = input_dataarray.coarsen(
+        x=coarsening_factor,
+        y=coarsening_factor
+    ).min()
 
     result = block_coarsen(
-        da,
+        input_dataarray,
         coarsening_factor,
         'x',
         'y',
@@ -329,17 +384,12 @@ def test_block_edge_sum(
     expected_data
 ):
     nx, ny = np.array(data).shape
-    x_coord = np.arange(1., nx + 1.)
-    y_coord = np.arange(1., ny + 1.)
-    da = xr.DataArray(data, dims=['x_dim', 'y_dim'], coords=[x_coord, y_coord])
+    dims = ['x_dim', 'y_dim']
+    da = xr.DataArray(data, dims=dims, coords=None)
 
     nx_expected, ny_expected = np.array(expected_data).shape
-    x_coord_expected = np.arange(1., nx_expected + 1.)
-    y_coord_expected = np.arange(1., ny_expected + 1.)
-    expected = xr.DataArray(
-        expected_data,
-        dims=['x_dim', 'y_dim'],
-        coords=[x_coord_expected, y_coord_expected])
+    expected = xr.DataArray(expected_data, dims=dims, coords=None)
+
     result = block_edge_sum(
         da,
         factor,
