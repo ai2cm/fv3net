@@ -141,7 +141,8 @@ def weighted_block_average(
     weights: xr.DataArray,
     coarsening_factor: int,
     x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_2'
+    y_dim: Hashable = 'yaxis_2',
+    coord_func: str = 'mean'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset through weighted block averaging.
 
@@ -154,13 +155,20 @@ def weighted_block_average(
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
+        coord_func: function name applied to the coordinates (e.g. 'mean').
 
     Returns:
         xr.Dataset or xr.DataArray.
     """
     coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-    result = ((obj * weights).coarsen(coarsen_kwargs).sum() /
-              weights.coarsen(coarsen_kwargs).sum())
+    result = ((obj * weights).coarsen(
+        coarsen_kwargs,
+        coord_func=coord_func).sum() /
+              weights.coarsen(
+                  coarsen_kwargs,
+                  coord_func=coord_func
+              ).sum()
+    )
 
     if isinstance(obj, xr.DataArray):
         return result.rename(obj.name)
@@ -174,7 +182,8 @@ def edge_weighted_block_average(
     coarsening_factor: int,
     x_dim: Hashable = 'xaxis_1',
     y_dim: Hashable = 'yaxis_1',
-    edge: str = 'x'
+    edge: str = 'x',
+    coord_func: str = 'mean'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset along a block edge.
 
@@ -188,6 +197,7 @@ def edge_weighted_block_average(
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
         edge: Grid cell side to coarse-grain along {'x', 'y'}.
+        coord_func: function name applied to the coordinates (e.g. 'mean').
 
     Returns:
         xr.DataArray.
@@ -203,8 +213,14 @@ def edge_weighted_block_average(
 
     coarsen_kwargs = {coarsen_dim: coarsening_factor}
     coarsened = (
-        (spacing * obj).coarsen(coarsen_kwargs).sum() /
-        spacing.coarsen(coarsen_kwargs).sum()
+        (spacing * obj).coarsen(
+            coarsen_kwargs,
+            coord_func=coord_func
+        ).sum() /
+        spacing.coarsen(
+            coarsen_kwargs,
+            coord_func=coord_func
+        ).sum()
     )
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
@@ -215,7 +231,8 @@ def edge_weighted_block_average(
 def _block_reduce_dataarray(
     da: xr.DataArray,
     block_sizes: Mapping[Hashable, int],
-    reduction_function: Callable
+    reduction_function: Callable,
+    coord_func: str = 'mean'
 ) -> xr.DataArray:
     """An xarray and dask compatible block_reduce function designed for
     DataArrays.
@@ -237,6 +254,7 @@ def _block_reduce_dataarray(
             be done along a dimension, the block size should be specified as
             1).
         reduction_function: A function which reduces the array to a scalar.
+        coord_func: function name applied to the coordinates (e.g. 'mean').
 
     Returns:
         xr.DataArray.
@@ -298,7 +316,8 @@ def _block_reduce_dataarray(
             if size == 1:
                 result[dim] = da[dim]
             else:
-                result[dim] = da[dim].coarsen({dim: size}).mean()
+                coarsen_obj = da[dim].coarsen({dim: size})
+                result[dim] = getattr(coarsen_obj, coord_func)()
 
     return result
 
@@ -308,7 +327,8 @@ def _horizontal_block_reduce_dataarray(
     coarsening_factor: int,
     reduction_function: Callable,
     x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1'
+    y_dim: Hashable = 'yaxis_1',
+    coord_func: str = 'mean'
 ) -> xr.DataArray:
     """A generic horizontal block reduce function for DataArrays.
 
@@ -321,6 +341,7 @@ def _horizontal_block_reduce_dataarray(
         reduction_function: Function which reduces an array to a scalar.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
+        coord_func: function name applied to the coordinates (e.g. 'mean').
 
     Returns:
         xr.DataArray.
@@ -335,7 +356,12 @@ def _horizontal_block_reduce_dataarray(
             else:
                 block_sizes[dim] = 1
 
-        return _block_reduce_dataarray(da, block_sizes, reduction_function)
+        return _block_reduce_dataarray(
+            da,
+            block_sizes,
+            reduction_function,
+            coord_func=coord_func
+        )
 
 
 def horizontal_block_reduce(
@@ -343,7 +369,8 @@ def horizontal_block_reduce(
     coarsening_factor: int,
     reduction_function: Callable,
     x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1'
+    y_dim: Hashable = 'yaxis_1',
+    coord_func: str = 'mean'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """A generic horizontal block reduce function for xarray data structures.
 
@@ -369,6 +396,7 @@ def horizontal_block_reduce(
         reduction_function: Function which reduces an array to a scalar.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
+        coord_func: function name applied to the coordinates (e.g. 'mean').
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -377,7 +405,9 @@ def horizontal_block_reduce(
         return obj.apply(
             _horizontal_block_reduce_dataarray,
             args=(coarsening_factor, reduction_function),
-            x_dim=x_dim, y_dim=y_dim
+            x_dim=x_dim,
+            y_dim=y_dim,
+            coord_func=coord_func
         )
     else:
         return _horizontal_block_reduce_dataarray(
@@ -385,7 +415,8 @@ def horizontal_block_reduce(
             coarsening_factor,
             reduction_function,
             x_dim=x_dim,
-            y_dim=y_dim
+            y_dim=y_dim,
+            coord_func=coord_func
         )
 
 
@@ -393,7 +424,8 @@ def block_median(
     obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
     x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1'
+    y_dim: Hashable = 'yaxis_1',
+    coord_func: str = 'mean'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by taking the median over blocks.
 
@@ -404,6 +436,7 @@ def block_median(
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
+        coord_func: function name applied to the coordinates (e.g. 'mean').
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -413,7 +446,8 @@ def block_median(
         coarsening_factor,
         np.median,
         x_dim=x_dim,
-        y_dim=y_dim
+        y_dim=y_dim,
+        coord_func=coord_func
     )
 
 
@@ -422,7 +456,8 @@ def block_coarsen(
     coarsening_factor: int,
     x_dim: Hashable = 'xaxis_1',
     y_dim: Hashable = 'yaxis_1',
-    method: str = 'sum'
+    method: str = 'sum',
+    coord_func: str = 'mean'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by performing an operation over blocks.
 
@@ -432,12 +467,13 @@ def block_coarsen(
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
         method: Name of coarsening method to use.
+        coord_func: function name applied to the coordinates (e.g. 'mean').
 
     Returns:
         xr.Dataset or xr.DataArray.
     """
     coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-    coarsen_object = obj.coarsen(coarsen_kwargs)
+    coarsen_object = obj.coarsen(coarsen_kwargs, coord_func=coord_func)
     result = getattr(coarsen_object, method)()
 
     return result
@@ -448,7 +484,8 @@ def block_edge_sum(
     coarsening_factor: int,
     x_dim: Hashable = 'xaxis_1',
     y_dim: Hashable = 'yaxis_1',
-    edge: str = 'x'
+    edge: str = 'x',
+    coord_func: str = 'mean'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by summing along a block edge.
 
@@ -461,6 +498,7 @@ def block_edge_sum(
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
         edge: Grid cell side to coarse-grain along {'x', 'y'}.
+        coord_func: function name applied to the coordinates (e.g. 'mean').
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -475,7 +513,7 @@ def block_edge_sum(
         raise ValueError(f"'edge' most be either 'x' or 'y'; got {edge}.")
 
     coarsen_kwargs = {coarsen_dim: coarsening_factor}
-    coarsened = obj.coarsen(coarsen_kwargs).sum()
+    coarsened = obj.coarsen(coarsen_kwargs, coord_func=coord_func).sum()
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
