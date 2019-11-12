@@ -1,176 +1,57 @@
-Skip
-to
-content
-Search or jump
-to…
-
-Pull
-requests
-Issues
-Marketplace
-Explore
-
-
-@nbren12
-
-
-79
-1.2
-k364kubeflow / pipelines
-Code
-Issues
-293
-Pull
-requests
-60
-Actions
-Projects
-0
-Wiki
-Security
-Insights
-pipelines / sdk / python / tests / compiler / testdata / compose.py
-
-
-@qimingj
-
-
-qimingj
-Now
-pipeline
-function
-takes
-direct
-default
-values
-rather
-than
-dsp.Pip…
-0
-b7120c
-on
-Nov
-26, 2018
-
-
-@qimingj @kubeflow
-
-
--pipeline - bot
-101
-lines(84
-sloc)  3.45
-KB
-
-Code
-navigation is still
-being
-calculated
-for this commit.Check back in a bit.Beta
-
-Learn
-more or give
-us
-feedback
-# Copyright 2018 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
 import kfp.dsl as dsl
+from kfp import gcp
+
+input_bucket="gs://vcm-ml-data/2019-11-06-X-SHiELD-gfsphysics-diagnostics-coarsened/C384"
+
+def gcs_download_op(field):
+    return dsl.ContainerOp(
+        name='GCS - Download',
+        image='google/cloud-sdk:216.0.0',
+        command=['sh', '-c'],
+        arguments=[f'mkdir $0; gsutil cp {input_bucket}/$0.tile?.nc $0/', field],
+        file_outputs={
+            'data': f'/{field}/',
+        }
+    ).apply(gcp.use_gcp_secret('user-sa'))
+
+
+def get_regrid_command(field):
+   return ['/usr/bin/regrid.sh', field]
 
 
 class RegridOp(dsl.ContainerOp):
-    """A get frequent word class representing a component in ML Pipelines.
-    The class provides a nice interface to users by hiding details such as container,
-    command, arguments.
+    """Regrid a set of netcdf files using fregrid
     """
 
-    def __init__(self, name, message):
+    def __init__(self, field):
         """Args:
-             name: An identifier of the step which needs to be unique within a pipeline.
              message: a dsl.PipelineParam object representing an input message.
         """
-        super(GetFrequentWordOp, self).__init__(
-            name=name,
-            image='',
-            command=['sh', '-c'],
-            arguments=['python -c "from collections import Counter; '
-                       'words = Counter(\'%s\'.split()); print(max(words, key=words.get))" '
-                       '| tee /tmp/message.txt' % message],
-            file_outputs={'word': '/tmp/message.txt'})
+        super(RegridOp , self).__init__(
+            name='regrid-'+ field,
+            image='us.gcr.io/vcm-ml/regrid_c3072_diag',
+            command=get_regrid_command(field))
 
 
-class SaveMessageOp(dsl.ContainerOp):
-    """A class representing a component in ML Pipelines.
-    It saves a message to a given output_path.
-    """
+def list_op(tiles):
+    return dsl.ContainerOp(name=f'ls', image='google/cloud-sdk',
+                           command=['sh', '-c'],
+                           arguments=['ls', tiles])
 
-    def __init__(self, name, message, output_path):
-        """Args:
-             name: An identifier of the step which needs to be unique within a pipeline.
-             message: a dsl.PipelineParam object representing the message to be saved.
-             output_path: a dsl.PipelineParam object representing the GCS path for output file.
-        """
-        super(SaveMessageOp, self).__init__(
-            name=name,
-            image='google/cloud-sdk',
-            command=['sh', '-c'],
-            arguments=['echo %s | tee /tmp/results.txt | gsutil cp /tmp/results.txt %s'
-                       % (message, output_path)])
 
 
 @dsl.pipeline(
-    name='Save Most Frequent',
-    description='Get Most Frequent Word and Save to GCS'
+    name='Regrid the input data',
 )
-def save_most_frequent_word(message: dsl.PipelineParam, outputpath: dsl.PipelineParam):
-    """A pipeline function describing the orchestration of the workflow."""
+def download_save_most_frequent_word():
+    input_data = [
+        'DLWRFsfc', 'DSWRFsfc', 'DSWRFtoa', 'HPBLsfc', 'LHTFLsfc', 'PRATEsfc', 'SHTFLsfc',
+        'UGRD10m', 'ULWRFsfc', 'ULWRFtoa', 'USWRFsfc', 'USWRFtoa', 'VGRD10m', 'uflx', 'vflx'
+    ][0:1]
 
-    counter = GetFrequentWordOp(
-        name='get-Frequent',
-        message=message)
+    for field in input_data:
+        tiles = gcs_download_op(field)
+        list_op(tiles.outputs['data'])
+        # downloader = RegridOp(field).apply(gcp.use_gcp_secret('user-gcp-sa'))
 
-    saver = SaveMessageOp(
-        name='save',
-        message=counter.output,
-        output_path=outputpath)
-
-
-class DownloadMessageOp(dsl.ContainerOp):
-    """A class representing a component in ML Pipelines.
-    It downloads a message and outputs it.
-    """
-
-    def __init__(self, name, url):
-        """Args:
-             name: An identifier of the step which needs to be unique within a pipeline.
-             usl: the gcs url to download the message from.
-        """
-        super(DownloadMessageOp, self).__init__(
-            name=name,
-            image='google/cloud-sdk',
-            command=['sh', '-c'],
-            arguments=['gsutil cat %s | tee /tmp/results.txt' % url],
-            file_outputs={'downloaded': '/tmp/results.txt'}
-        )
-
-
-@dsl.pipeline(
-    name='Download and Save Most Frequent',
-    description='Download and Get Most Frequent Word and Save to GCS'
-)
-def download_save_most_frequent_word(url: str, outputpath: str):
-    downloader = DownloadMessageOp('download', url)
-    save_most_frequent_word(downloader.output, outputpath)
 
