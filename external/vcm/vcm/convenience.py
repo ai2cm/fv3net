@@ -2,7 +2,7 @@ import xarray as xr
 import intake
 import yaml
 from vcm import TOP_LEVEL_DIR
-from vcm.remote_data import open_gfdl_data_with_2d, open_gfdl_15_minute_SHiELD
+from vcm.cloud.remote_data import open_gfdl_data_with_2d
 from pathlib import Path
 
 # TODO Fix short tag yaml file get for fv3 installed as package
@@ -121,7 +121,7 @@ def _replace_esmf_coords(ds):
 
 
 def _insert_apparent_heating(ds: xr.Dataset) -> xr.Dataset:
-    from .calc import apparent_heating
+    from vcm.calc.calc import apparent_heating
 
     dqt_dt = ds.advection_qv + ds.storage_qv
     dtemp_dt = ds.advection_temp + ds.storage_temp

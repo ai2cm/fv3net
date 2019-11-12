@@ -357,7 +357,7 @@ def apparent_source(scalar, z_centered, dz, advection_tendency):
     )
 
 
-def compute_storage_and_advection(data_3d, tracers, time_step):
+def storage_and_advection(data_3d, tracers, time_step):
     data_vars = {}
     z_c = height_centered(data_3d['dz'], data_3d['zs'])
     for key in tracers:
@@ -386,7 +386,7 @@ def main():
     print("Processing this 3D dataset:")
     print()
     print(data_3d)
-    sources = compute_storage_and_advection(
+    sources = storage_and_advection(
         data_3d, tracers=advect_variables, time_step=args.time_step
     )
     sources.to_zarr(args.output_zarr, mode="a")
