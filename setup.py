@@ -1,4 +1,4 @@
-from setuptools import find_packages, setup
+from setuptools import setup, find_packages
 
 dependencies = [
     "apache-beam==2.16.0",
@@ -7,17 +7,15 @@ dependencies = [
     "fsspec==0.5.2",
     "google-cloud-storage==1.20.0",
     "intake==0.5.3",
-    "scikit-image", 
-    # "intake-xarray==0.3.1",
+    "scikit-image",
     "netCDF4==1.4.2",
-    # "toolz==0.10.0",
     "xarray==0.13.0",
-    # "zarr==2.3.2",
-    "partd"
+    "partd",
+    "pyyaml==3.13",
 ]
 
 setup(
-    name="src",
+    name="fv3net",
     packages=find_packages(),
     install_requires=dependencies,
     version="0.1.0",

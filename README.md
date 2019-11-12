@@ -7,112 +7,101 @@ Improving the GFDL FV3 model physics with machine learning
 Project Organization
 ------------
 
+    ├── assets              <-- Useful files for restart directory creation? 
+    ├── configurations      <-- Files for ML model configuration and general configuration
+    ├── data                <-- Intermediate data store
+    ├── docker 
+    ├── external            <-- Package dependencies that will be spun off into their own repo
+    │   └── vcm                 <-- General VCM tools package 
+    ├── fv3net              <-- Main package source for ML pipelines and model code
+    │   ├── models
+    │   ├── pipelines           <-- Cloud data pipelines
+    │   ├── visualization
+    ├── tests               
+    ├── workflows           <-- Job submission scripts and description for pieces of data pipeline
+    │   ├── extract_tars        <-- Dig yourself out of a tarpit using Dataflow
+    │   ├── rerun-fv3           <-- Perform a single step run of FV3 for available timesteps
+    │   └── scale-snakemake     <-- Coarsening operation with kubernetes and snakemake (Deprecated)
+    ├── Dockerfile
     ├── LICENSE
-    ├── Makefile           <- Makefile with commands like `make data` or `make train`
-    ├── README.md          <- The top-level README for developers using this project.
-    ├── data
-    │   ├── external       <- Data from third party sources.
-    │   ├── interim        <- Intermediate data that has been transformed.
-    │   ├── processed      <- The final, canonical data sets for modeling.
-    │   └── raw            <- The original, immutable data dump.
-    │
-    ├── docs               <- A default Sphinx project; see sphinx-doc.org for details
-    │
-    ├── models             <- Trained and serialized models, model predictions, or model summaries
-    │
-    ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-    │                         the creator's initials, and a short `-` delimited description, e.g.
-    │                         `2019-07-10-jqp-initial-data-exploration`.
-    │
-    ├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-    │
-    ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-    │   └── figures        <- Generated graphics and figures to be used in reporting
-    │
-    ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-    │                         generated with `pip freeze > requirements.txt`
-    │
-    ├── setup.py           <- makes project pip installable (pip install -e .) so src can be imported
-    ├── src                <- Source code for use in this project.
-    │   ├── __init__.py    <- Makes src a Python module
-    │   │
-    │   ├── data           <- Scripts to download or generate data
-    │   │   └── make_dataset.py
-    │   │
-    │   ├── features       <- Scripts to turn raw data into features for modeling
-    │   │   └── build_features.py
-    │   │
-    │   ├── models         <- Scripts to train models and then use trained models to make
-    │   │   │                 predictions
-    │   │   ├── predict_model.py
-    │   │   └── train_model.py
-    │   │
-    │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-    │       └── visualize.py
-    │
-    └── tox.ini            <- tox file with settings for running tox; see tox.testrun.org
-
+    ├── Makefile
+    ├── README.md
+    ├── catalog.yml         <-- Intake list of datasets 
+    ├── environment.yml
+    ├── pytest.ini
+    ├── regression_tests.sh
+    ├── requirements.txt
+    └── setup.py
 
 --------
 
 # Setting up the environment
 
-This project uses an anaconda environment file to specify the computational environment. To build this environment run
-	
-    conda env create -n fv3net environment.yml
+To install requirements for development and running of this package, run
 
-Then, in the future this will need to be loaded with
-	
-    conda activate fv3net
+    pip install -r requirements.txt
 
 
-To make sure that `src` is in the python path, you can run
+To make sure that `fv3net` is in the python path, you can run
 
     python setup.py develop
 
 or possible add it to the `PYTHONPATH` environmental variable.
 
-# Pre-processing
+## Adding VCM Tools
 
-To run the pre-processing---regridding to 1 degree and computing advection
-using semi-lagrangian scheme---run 
-	
-    make data
+Currently VCM Tools , which is used by the pipeline resides within this repository 
+in the external folder.  This will be eventually spun off into its own repo.  To 
+make sure that `vcm` is in the Python path, you can run
 
-This command operates with data in the Vulcan google cloud storage bucket
-`vcm-ml-data`. You should already have access if you are using a VM that we
-provisioned for you. Otherwise you will need to login with [`gcloud auth
-application-default`](https://cloud.google.com/sdk/gcloud/reference/auth/application-default/).
+    $ cd external/vcm
+    $ python setup.py install    
 
-# Opening Data
 
-After downloading the data and pre-processing, it can be opened from python
-by running
-```python
-from src.data import open_dataset
-ds = open_dataset('1degTrain')
-```
-This dataset contains the apparent heating (Q1) and moistening (Q2** and many potential input variables.
+# Deploying cloud data pipelines
 
-# Extending this code
+The main data processing pipelines for this project currently utilize Google Cloud
+Dataflow and Kubernetes with Docker images.  Run scripts to deploy these workflows
+along with information can be found under the `workflows` directory.
 
-## Adding new model types
+## Dataflow
 
-*This interface is a work in progress. It might be better to define a class
-based interface. Let's defer that to when we have more than one model type*
+Dataflow jobs run in a "serverless" style where data is piped between workers who
+execute a single function.  This workflow type is good for pure python operations
+that are easily parallelizable.  Dataflow handles resource provision and worker
+scaling making it a somewhat straightforward option.
 
-To add a new model type one needs to create two new files
-```
-src.models.{model_type}/train.py
-src.models.{model_type}/test.py
-```
+For a dataflow pipeline, jobs can be tested locally using a DirectRunner, e.g., 
 
-The training script should take in a yaml file of options with this command line interface
-```
-python -m src.models.{model_type}.train --options options.yaml output.pkl
-```
+    python -m fv3net.pipelines.extract_tars test_tars test_output_dir --runner DirectRunner
 
-# Deploying on k8s
+To submit a Dataflow job to the cloud involves a few steps, including packaging 
+our external package `vcm` to be uploaded.
+
+    python external/vcm/setup.py sdist
+
+    python -m fv3net.pipelines.extract_tars \
+        test_tars \
+        test_outputs \
+        --job_name test-job \   
+        --project vcm-ml \
+        --region us-central1 \
+        --runner DataflowRunner \
+        --temp_location gs://vcm-ml-data/tmp_dataflow \
+        --num_workers 4 \
+        --max_num_workers 20 \
+        --disk_size_gb 50 \
+        --type_check_strictness 'ALL_REQUIRED' \
+        --worker_machine_type n1-standard-1 \
+        --setup_file ./setup.py \
+        --extra_package dist/vcm-0.1.0.tar.gz
+
+We provide configurable job submission scripts under workflows to expedite this process. E.g.,
+
+    workflows/extract_tars/submit_job.sh
+
+
+## Deploying on k8s  (likely outdated?)
 
 Make docker image for this workflow and push it to GCR
 
@@ -132,5 +121,22 @@ Submit an argo job using
     argo submit --watch argo-fv3net.yml
 
 
+# Extending this code
+
+## Adding new model types
+
+*This interface is a work in progress. It might be better to define a class
+based interface. Let's defer that to when we have more than one model type*
+
+To add a new model type one needs to create two new files
+```
+fv3net.models.{model_type}/train.py
+fv3net.models.{model_type}/test.py
+```
+
+The training script should take in a yaml file of options with this command line interface
+```
+python -m fv3net.models.{model_type}.train --options options.yaml output.pkl
+```
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>

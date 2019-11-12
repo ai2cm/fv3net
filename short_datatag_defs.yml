@@ -1,6 +1,0 @@
-# Save shortened tags for common datasets used in src.data.__init__.open_dataset
-# intended to reduce code editing required
-
-gfdl_15_minute_2day: 2019-09-10-GFDL-SHiELD-15-minute-2-days
-gfdl_15_minute_2day_1degree: 2019-09-24-GFDL-SHiELD-15-minute-2-days_regrid_1degree
-1deg_local: local_2019-09-24-GFDL-SHiELD-15-minute-2-days_regrid_1degree
