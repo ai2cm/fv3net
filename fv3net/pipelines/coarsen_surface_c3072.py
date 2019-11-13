@@ -1,7 +1,7 @@
 import apache_beam as beam
 from vcm import cubedsphere
 from vcm.cloud import gcs
-from src.pipelines import common
+from fv3net.pipelines import common
 import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
 import logging
