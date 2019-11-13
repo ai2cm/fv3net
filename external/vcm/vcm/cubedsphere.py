@@ -12,7 +12,7 @@ from skimage.measure import block_reduce as skimage_block_reduce
 
 
 NUM_TILES = 6
-SUBTILE_FILE_PATTERN = '{prefix}.tile{tile:d}.nc.{subtile:04d}'
+SUBTILE_FILE_PATTERN = "{prefix}.tile{tile:d}.nc.{subtile:04d}"
 
 
 # TODO: write a test for this method
@@ -40,19 +40,15 @@ def combine_subtiles(subtiles):
     return xr.merge(output_vars)
 
 
-def subtile_filenames(prefix, tile, pattern=SUBTILE_FILE_PATTERN,
-                      num_subtiles=16):
+def subtile_filenames(prefix, tile, pattern=SUBTILE_FILE_PATTERN, num_subtiles=16):
     for subtile in range(num_subtiles):
         yield pattern.format(prefix=prefix, tile=tile, subtile=subtile)
 
 
-def all_filenames(prefix, pattern=SUBTILE_FILE_PATTERN,
-                  num_subtiles=16):
+def all_filenames(prefix, pattern=SUBTILE_FILE_PATTERN, num_subtiles=16):
     filenames = []
     for tile in range(1, NUM_TILES + 1):
-        filenames.extend(subtile_filenames(prefix, tile, pattern,
-                                           num_subtiles)
-        )
+        filenames.extend(subtile_filenames(prefix, tile, pattern, num_subtiles))
     return filenames
 
 
@@ -78,13 +74,13 @@ def open_cubed_sphere(prefix: str, **kwargs):
         subtiles = [xr.open_dataset(file, chunks={}) for file in files]
         combined = combine_subtiles(subtiles).assign_coords(tile=tile)
         tiles.append(remove_duplicate_coords(combined))
-    return xr.concat(tiles, dim='tile')
+    return xr.concat(tiles, dim="tile")
 
 
 def coarsen_subtile_coordinates(
     coarsening_factor: int,
     reference_subtile: Union[xr.Dataset, xr.DataArray],
-    dims: List[Hashable]
+    dims: List[Hashable],
 ) -> Mapping[Hashable, xr.DataArray]:
     """Coarsen subtile coordinates found on restart files or diagnostics.
 
@@ -99,9 +95,10 @@ def coarsen_subtile_coordinates(
     result = {}
     for dim in dims:
         result[dim] = (
-            (reference_subtile[dim][::coarsening_factor] - 1)
-            // coarsening_factor + 1
-        ).astype(int).astype(np.float32)
+            ((reference_subtile[dim][::coarsening_factor] - 1) // coarsening_factor + 1)
+            .astype(int)
+            .astype(np.float32)
+        )
         result[dim] = result[dim].assign_coords({dim: result[dim]})
     return result
 
@@ -110,7 +107,7 @@ def add_coarsened_subtile_coordinates(
     reference_obj: Union[xr.Dataset, xr.DataArray],
     coarsened_obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
-    dims: List[Hashable]
+    dims: List[Hashable],
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Add coarsened subtile coordinates to the coarsened xarray data
     structure.
@@ -125,15 +122,13 @@ def add_coarsened_subtile_coordinates(
         xr.Dataset or xr.DataArray.
     """
     coarsened_coordinates = coarsen_subtile_coordinates(
-        coarsening_factor,
-        reference_obj,
-        dims
+        coarsening_factor, reference_obj, dims
     )
 
     if isinstance(coarsened_obj, xr.DataArray):
-        result = coarsened_obj.assign_coords(
-            coarsened_coordinates
-        ).rename(coarsened_obj.name)
+        result = coarsened_obj.assign_coords(coarsened_coordinates).rename(
+            coarsened_obj.name
+        )
     else:
         result = coarsened_obj.assign_coords(coarsened_coordinates)
     return result
@@ -143,9 +138,9 @@ def weighted_block_average(
     obj: Union[xr.Dataset, xr.DataArray],
     weights: xr.DataArray,
     coarsening_factor: int,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_2',
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_2",
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset through weighted block averaging.
 
@@ -167,14 +162,9 @@ def weighted_block_average(
         xr.Dataset or xr.DataArray.
     """
     coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-    result = ((obj * weights).coarsen(
-        coarsen_kwargs,
-        coord_func=coord_func).sum() /
-              weights.coarsen(
-                  coarsen_kwargs,
-                  coord_func=coord_func
-              ).sum()
-    )
+    result = (obj * weights).coarsen(
+        coarsen_kwargs, coord_func=coord_func
+    ).sum() / weights.coarsen(coarsen_kwargs, coord_func=coord_func).sum()
 
     if isinstance(obj, xr.DataArray):
         return result.rename(obj.name)
@@ -186,10 +176,10 @@ def edge_weighted_block_average(
     obj: Union[xr.Dataset, xr.DataArray],
     spacing: xr.DataArray,
     coarsening_factor: int,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1',
-    edge: str = 'x',
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    edge: str = "x",
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset along a block edge.
 
@@ -211,26 +201,19 @@ def edge_weighted_block_average(
     Returns:
         xr.DataArray.
     """
-    if edge == 'x':
+    if edge == "x":
         coarsen_dim = x_dim
         downsample_dim = y_dim
-    elif edge == 'y':
+    elif edge == "y":
         coarsen_dim = y_dim
         downsample_dim = x_dim
     else:
         raise ValueError(f"'edge' most be either 'x' or 'y'; got {edge}.")
 
     coarsen_kwargs = {coarsen_dim: coarsening_factor}
-    coarsened = (
-        (spacing * obj).coarsen(
-            coarsen_kwargs,
-            coord_func=coord_func
-        ).sum() /
-        spacing.coarsen(
-            coarsen_kwargs,
-            coord_func=coord_func
-        ).sum()
-    )
+    coarsened = (spacing * obj).coarsen(
+        coarsen_kwargs, coord_func=coord_func
+    ).sum() / spacing.coarsen(coarsen_kwargs, coord_func=coord_func).sum()
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
@@ -257,15 +240,13 @@ def _block_reduce_dataarray_coordinates(reference_da, da, block_sizes, coord_fun
 
     for dim, size in block_sizes.items():
         if dim in reference_da.coords:
-            function = coord_func.get(dim, 'mean')
+            function = coord_func.get(dim, "mean")
             if isinstance(function, str):
                 coarsen_obj = reference_da[dim].coarsen({dim: size})
                 da[dim] = getattr(coarsen_obj, function)()
             else:
                 da[dim] = _block_reduce_dataarray(
-                    reference_da[dim].drop(dim),
-                    {dim: size},
-                    function
+                    reference_da[dim].drop(dim), {dim: size}, function
                 )
 
     # For any dimension we do not reduce, restore the original coordinate if it
@@ -289,18 +270,16 @@ def _compute_block_reduced_dataarray_chunks(da, block_sizes):
             dimension_chunks = np.array(da.chunks[axis])
             if not np.all(dimension_chunks % block_sizes[dim] == 0):
                 raise ValueError(
-                    f'All chunks along dimension {dim} of DataArray must be '
-                    f'divisible by the block_size, {block_sizes[dim]}.')
+                    f"All chunks along dimension {dim} of DataArray must be "
+                    f"divisible by the block_size, {block_sizes[dim]}."
+                )
             else:
                 new_chunks.append(tuple(dimension_chunks // block_sizes[dim]))
     return new_chunks
 
 
 def _skimage_block_reduce_wrapper(
-    data,
-    reduction_function=None,
-    ordered_block_sizes=None,
-    new_chunks=None
+    data, reduction_function=None, ordered_block_sizes=None, new_chunks=None
 ):
     """A thin wrapper around skimage.measure.block_reduce for use only in
     xr.apply_ufunc in _block_reduce_dataarray."""
@@ -311,21 +290,17 @@ def _skimage_block_reduce_wrapper(
             ordered_block_sizes,
             reduction_function,
             dtype=data.dtype,
-            chunks=new_chunks
+            chunks=new_chunks,
         )
     else:
-        return skimage_block_reduce(
-            data,
-            ordered_block_sizes,
-            reduction_function
-        )
+        return skimage_block_reduce(data, ordered_block_sizes, reduction_function)
 
 
 def _block_reduce_dataarray(
     da: xr.DataArray,
     block_sizes: Mapping[Hashable, int],
     reduction_function: Callable,
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> xr.DataArray:
     """An xarray and dask compatible block_reduce function designed for
     DataArrays.
@@ -375,13 +350,13 @@ def _block_reduce_dataarray(
         da,
         input_core_dims=[da.dims],
         output_core_dims=[da.dims],
-        dask='allowed',
+        dask="allowed",
         exclude_dims=set(da.dims),
         kwargs={
-            'reduction_function': reduction_function,
-            'ordered_block_sizes': ordered_block_sizes,
-            'new_chunks': tuple(new_chunks)
-        }
+            "reduction_function": reduction_function,
+            "ordered_block_sizes": ordered_block_sizes,
+            "new_chunks": tuple(new_chunks),
+        },
     )
 
     return _block_reduce_dataarray_coordinates(da, result, block_sizes, coord_func)
@@ -391,7 +366,7 @@ def block_reduce(
     obj: Union[xr.Dataset, xr.DataArray],
     block_sizes: Mapping[Hashable, int],
     reduction_function: Callable,
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """A generic block reduce function for xarray data structures.
 
@@ -428,14 +403,11 @@ def block_reduce(
         return obj.apply(
             _block_reduce_dataarray,
             args=(block_sizes, reduction_function),
-            coord_func=coord_func
+            coord_func=coord_func,
         )
     else:
         return _block_reduce_dataarray(
-            obj,
-            block_sizes,
-            reduction_function,
-            coord_func=coord_func
+            obj, block_sizes, reduction_function, coord_func=coord_func
         )
 
 
@@ -443,9 +415,9 @@ def horizontal_block_reduce(
     obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
     reduction_function: Callable,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1',
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """A generic horizontal block reduce function for xarray data structures.
 
@@ -468,20 +440,15 @@ def horizontal_block_reduce(
         xr.Dataset or xr.DataArray.
     """
     block_sizes = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-    return block_reduce(
-        obj,
-        block_sizes,
-        reduction_function,
-        coord_func=coord_func
-    )
+    return block_reduce(obj, block_sizes, reduction_function, coord_func=coord_func)
 
 
 def block_median(
     obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1',
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by taking the median over blocks.
 
@@ -506,17 +473,17 @@ def block_median(
         np.median,
         x_dim=x_dim,
         y_dim=y_dim,
-        coord_func=coord_func
+        coord_func=coord_func,
     )
 
 
 def block_coarsen(
     obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1',
-    method: str = 'sum',
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    method: str = "sum",
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by performing an operation over blocks.
 
@@ -544,10 +511,10 @@ def block_coarsen(
 def block_edge_sum(
     obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1',
-    edge: str = 'x',
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    edge: str = "x",
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by summing along a block edge.
 
@@ -568,10 +535,10 @@ def block_edge_sum(
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    if edge == 'x':
+    if edge == "x":
         coarsen_dim = x_dim
         downsample_dim = y_dim
-    elif edge == 'y':
+    elif edge == "y":
         coarsen_dim = y_dim
         downsample_dim = x_dim
     else:
@@ -589,9 +556,9 @@ def weighted_block_average_and_add_coarsened_subtile_coordinates(
     obj: Union[xr.Dataset, xr.DataArray],
     weights: xr.DataArray,
     coarsening_factor: int,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_2',
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_2",
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset through weighted block averaging and add
     coarsened subtile coordinates.
@@ -614,24 +581,21 @@ def weighted_block_average_and_add_coarsened_subtile_coordinates(
         xr.Dataset or xr.DataArray.
     """
     result = weighted_block_average(
-        obj,
-        weights,
-        coarsening_factor,
-        x_dim,
-        y_dim,
-        coord_func
+        obj, weights, coarsening_factor, x_dim, y_dim, coord_func
     )
-    return add_coarsened_subtile_coordinates(obj, result, coarsening_factor, [x_dim, y_dim])
+    return add_coarsened_subtile_coordinates(
+        obj, result, coarsening_factor, [x_dim, y_dim]
+    )
 
 
 def edge_weighted_block_average_and_add_coarsened_subtile_coordinates(
     obj: Union[xr.Dataset, xr.DataArray],
     spacing: xr.DataArray,
     coarsening_factor: int,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1',
-    edge: str = 'x',
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    edge: str = "x",
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset along a block edge and add coarsened
     subtile coordinates.
@@ -655,24 +619,20 @@ def edge_weighted_block_average_and_add_coarsened_subtile_coordinates(
         xr.DataArray.
     """
     result = edge_weighted_block_average(
-        obj,
-        spacing,
-        coarsening_factor,
-        x_dim,
-        y_dim,
-        edge,
-        coord_func
+        obj, spacing, coarsening_factor, x_dim, y_dim, edge, coord_func
     )
-    return add_coarsened_subtile_coordinates(obj, result, coarsening_factor, [x_dim, y_dim])
+    return add_coarsened_subtile_coordinates(
+        obj, result, coarsening_factor, [x_dim, y_dim]
+    )
 
 
 def horizontal_block_reduce_and_add_coarsened_subtile_coordinates(
     obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
     reduction_function: Callable,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1',
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """A generic horizontal block reduce function for xarray data structures
     that also adds coarsened subtile coordinates.
@@ -696,22 +656,19 @@ def horizontal_block_reduce_and_add_coarsened_subtile_coordinates(
         xr.Dataset or xr.DataArray.
     """
     result = horizontal_block_reduce(
-        obj,
-        coarsening_factor,
-        reduction_function,
-        x_dim,
-        y_dim,
-        coord_func
+        obj, coarsening_factor, reduction_function, x_dim, y_dim, coord_func
     )
-    return add_coarsened_subtile_coordinates(obj, result, coarsening_factor, [x_dim, y_dim])
+    return add_coarsened_subtile_coordinates(
+        obj, result, coarsening_factor, [x_dim, y_dim]
+    )
 
 
 def block_median_and_add_coarsened_subtile_coordinates(
     obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1',
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by taking the median over blocks and add
     coarsened subtile coordinates.
@@ -732,22 +689,20 @@ def block_median_and_add_coarsened_subtile_coordinates(
         xr.Dataset or xr.DataArray.
     """
     result = block_median(
-        obj,
-        coarsening_factor,
-        x_dim=x_dim,
-        y_dim=y_dim,
-        coord_func=coord_func
+        obj, coarsening_factor, x_dim=x_dim, y_dim=y_dim, coord_func=coord_func
     )
-    return add_coarsened_subtile_coordinates(obj, result, coarsening_factor, [x_dim, y_dim])
+    return add_coarsened_subtile_coordinates(
+        obj, result, coarsening_factor, [x_dim, y_dim]
+    )
 
 
 def block_coarsen_and_add_coarsened_subtile_coordinates(
     obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1',
-    method: str = 'sum',
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    method: str = "sum",
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by performing an operation over blocks
     and add coarsened subtile coordinates.
@@ -766,24 +721,19 @@ def block_coarsen_and_add_coarsened_subtile_coordinates(
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    result = block_coarsen(
-        obj,
-        coarsening_factor,
-        x_dim,
-        y_dim,
-        method,
-        coord_func
+    result = block_coarsen(obj, coarsening_factor, x_dim, y_dim, method, coord_func)
+    return add_coarsened_subtile_coordinates(
+        obj, result, coarsening_factor, [x_dim, y_dim]
     )
-    return add_coarsened_subtile_coordinates(obj, result, coarsening_factor, [x_dim, y_dim])
 
 
 def block_edge_sum_and_add_coarsened_subtile_coordinates(
     obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1',
-    edge: str = 'x',
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    edge: str = "x",
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by summing along a block edge and add
     coarsened subtile coordinates.
@@ -805,14 +755,7 @@ def block_edge_sum_and_add_coarsened_subtile_coordinates(
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    result = block_edge_sum(
-        obj,
-        coarsening_factor,
-        x_dim,
-        y_dim,
-        edge,
-        coord_func
-    )
+    result = block_edge_sum(obj, coarsening_factor, x_dim, y_dim, edge, coord_func)
     return add_coarsened_subtile_coordinates(
         obj, result, coarsening_factor, [x_dim, y_dim]
     )
@@ -820,7 +763,7 @@ def block_edge_sum_and_add_coarsened_subtile_coordinates(
 
 def save_tiles_separately(sfc_data, prefix, output_directory):
 
-    #TODO: move to vcm.cubedsphere
+    # TODO: move to vcm.cubedsphere
     for i in range(6):
         output_path = join(output_directory, f"{prefix}.tile{i+1}.nc")
         logging.info(f"saving data to {output_path}")
