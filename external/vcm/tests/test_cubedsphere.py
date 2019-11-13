@@ -145,7 +145,6 @@ def test_weighted_block_average(object_type):
     weights = xr.DataArray(np.array([[6.0, 2.0], [2.0, 6.0]]), dims=dims, coords=None)
 
     expected = xr.DataArray(np.array([[3.0]]), dims=dims, coords=None, name="foo")
-
     if object_type == "Dataset":
         expected = expected.to_dataset()
 
