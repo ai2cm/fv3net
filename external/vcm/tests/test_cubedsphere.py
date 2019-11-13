@@ -4,7 +4,7 @@ import xarray as xr
 
 from skimage.measure import block_reduce as skimage_block_reduce
 
-from .cubedsphere import (
+from vcm.cubedsphere import (
     add_coarsened_subtile_coordinates,
     coarsen_subtile_coordinates,
     _block_reduce_dataarray,
@@ -206,17 +206,16 @@ def test_edge_weighted_block_average(
     edge,
     expected_data
 ):
-    nx, ny = np.array(data).shape
     dims = ['x_dim', 'y_dim']
     da = xr.DataArray(data, dims=dims, coords=None)
     weights = xr.DataArray(spacing, dims=dims, coords=None)
 
-    nx_expected, ny_expected = np.array(expected_data).shape
     expected = xr.DataArray(
         expected_data,
         dims=dims,
         coords=None
     )
+
     result = edge_weighted_block_average(
         da,
         weights,
@@ -231,7 +230,6 @@ def test_edge_weighted_block_average(
 @pytest.fixture()
 def input_dataarray():
     shape = (4, 4, 2)
-    nx, ny, nz = shape
     data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
     dims = ['x', 'y', 'z']
     return xr.DataArray(data, dims=dims, coords=None, name='foo')
@@ -392,11 +390,9 @@ def test_block_edge_sum(
     edge,
     expected_data
 ):
-    nx, ny = np.array(data).shape
     dims = ['x_dim', 'y_dim']
     da = xr.DataArray(data, dims=dims, coords=None)
 
-    nx_expected, ny_expected = np.array(expected_data).shape
     expected = xr.DataArray(expected_data, dims=dims, coords=None)
 
     result = block_edge_sum(
