@@ -148,7 +148,7 @@ def weighted_block_average(
     input DataArray and weights are the same.
 
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         weights: Weights (e.g. area or pressure thickness).
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
@@ -187,7 +187,7 @@ def edge_weighted_block_average(
     input DataArray and weights are the same.
 
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         spacing: Spacing of grid cells in the coarsening dimension.
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
@@ -245,7 +245,7 @@ def _block_reduce_dataarray_coordinates(reference_da, da, block_sizes, coord_fun
                 coarsen_obj = reference_da[dim].coarsen({dim: size})
                 da[dim] = getattr(coarsen_obj, function)()
             else:
-                da[dim] = _block_reduce_dataarray(
+                da[dim] = _xarray_block_reduce_dataarray(
                     reference_da[dim].drop(dim), {dim: size}, function
                 )
 
@@ -296,7 +296,7 @@ def _skimage_block_reduce_wrapper(
         return skimage_block_reduce(data, ordered_block_sizes, reduction_function)
 
 
-def _block_reduce_dataarray(
+def _xarray_block_reduce_dataarray(
     da: xr.DataArray,
     block_sizes: Mapping[Hashable, int],
     reduction_function: Callable,
@@ -362,7 +362,7 @@ def _block_reduce_dataarray(
     return _block_reduce_dataarray_coordinates(da, result, block_sizes, coord_func)
 
 
-def block_reduce(
+def xarray_block_reduce(
     obj: Union[xr.Dataset, xr.DataArray],
     block_sizes: Mapping[Hashable, int],
     reduction_function: Callable,
@@ -386,8 +386,11 @@ def block_reduce(
            functions which take an array as input and reduce along a tuple of
            dimensions (e.g. we could use it for a mode reduction).
 
+    This function should only be used if one of those two reasons applies;
+    otherwise use xarray's coarsen method.
+
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         block_sizes: Dictionary mapping dimension names to integer block sizes.
         reduction_function: Array reduction function which accepts a tuple of
             axes to reduce along.
@@ -401,12 +404,12 @@ def block_reduce(
     """
     if isinstance(obj, xr.Dataset):
         return obj.apply(
-            _block_reduce_dataarray,
+            _xarray_block_reduce_dataarray,
             args=(block_sizes, reduction_function),
             coord_func=coord_func,
         )
     else:
-        return _block_reduce_dataarray(
+        return _xarray_block_reduce_dataarray(
             obj, block_sizes, reduction_function, coord_func=coord_func
         )
 
@@ -422,10 +425,13 @@ def horizontal_block_reduce(
     """A generic horizontal block reduce function for xarray data structures.
 
     This is a convenience wrapper around block_reduce for applying coarsening
-    over n x n patches of array elements.
+    over n x n patches of array elements.  It should only be used if a dask
+    implementation of the reduction method has not been implemented (e.g. for
+    median) or if a custom reduction method is used that is not implemented in
+    xarray.  Otherwise, block_coarsen should be used.
 
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         coarsening_factor: Integer coarsening factor to use.
         reduction_function: Array reduction function which accepts a tuple of
             axes to reduce along.
@@ -440,7 +446,7 @@ def horizontal_block_reduce(
         xr.Dataset or xr.DataArray.
     """
     block_sizes = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-    return block_reduce(obj, block_sizes, reduction_function, coord_func=coord_func)
+    return xarray_block_reduce(obj, block_sizes, reduction_function, coord_func=coord_func)
 
 
 def block_median(
@@ -455,7 +461,7 @@ def block_median(
     Mainly meant for coarse-graining sfc_data variables.
 
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
@@ -488,7 +494,7 @@ def block_coarsen(
     """Coarsen a DataArray or Dataset by performing an operation over blocks.
 
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
@@ -522,7 +528,7 @@ def block_edge_sum(
     grid_spec.
 
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
@@ -558,7 +564,6 @@ def weighted_block_average_and_add_coarsened_subtile_coordinates(
     coarsening_factor: int,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_2",
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset through weighted block averaging and add
     coarsened subtile coordinates.
@@ -567,21 +572,17 @@ def weighted_block_average_and_add_coarsened_subtile_coordinates(
     input DataArray and weights are the same.
 
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         weights: Weights (e.g. area or pressure thickness).
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
-        coord_func: function that is applied to the coordinates, or a
-            mapping from coordinate name to function.  See `xarray's coarsen
-            method for details
-            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.Dataset or xr.DataArray.
     """
     result = weighted_block_average(
-        obj, weights, coarsening_factor, x_dim, y_dim, coord_func
+        obj, weights, coarsening_factor, x_dim, y_dim
     )
     return add_coarsened_subtile_coordinates(
         obj, result, coarsening_factor, [x_dim, y_dim]
@@ -604,22 +605,18 @@ def edge_weighted_block_average_and_add_coarsened_subtile_coordinates(
     input DataArray and weights are the same.
 
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         spacing: Spacing of grid cells in the coarsening dimension.
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
         edge: Grid cell side to coarse-grain along {'x', 'y'}.
-        coord_func: function that is applied to the coordinates, or a
-            mapping from coordinate name to function.  See `xarray's coarsen
-            method for details
-            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.DataArray.
     """
     result = edge_weighted_block_average(
-        obj, spacing, coarsening_factor, x_dim, y_dim, edge, coord_func
+        obj, spacing, coarsening_factor, x_dim, y_dim, edge
     )
     return add_coarsened_subtile_coordinates(
         obj, result, coarsening_factor, [x_dim, y_dim]
@@ -632,7 +629,6 @@ def horizontal_block_reduce_and_add_coarsened_subtile_coordinates(
     reduction_function: Callable,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """A generic horizontal block reduce function for xarray data structures
     that also adds coarsened subtile coordinates.
@@ -641,22 +637,18 @@ def horizontal_block_reduce_and_add_coarsened_subtile_coordinates(
     over n x n patches of array elements.
 
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         coarsening_factor: Integer coarsening factor to use.
         reduction_function: Array reduction function which accepts a tuple of
             axes to reduce along.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
-        coord_func: function that is applied to the coordinates, or a
-            mapping from coordinate name to function.  See `xarray's coarsen
-            method for details
-            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.Dataset or xr.DataArray.
     """
     result = horizontal_block_reduce(
-        obj, coarsening_factor, reduction_function, x_dim, y_dim, coord_func
+        obj, coarsening_factor, reduction_function, x_dim, y_dim
     )
     return add_coarsened_subtile_coordinates(
         obj, result, coarsening_factor, [x_dim, y_dim]
@@ -668,7 +660,6 @@ def block_median_and_add_coarsened_subtile_coordinates(
     coarsening_factor: int,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by taking the median over blocks and add
     coarsened subtile coordinates.
@@ -676,20 +667,16 @@ def block_median_and_add_coarsened_subtile_coordinates(
     Mainly meant for coarse-graining sfc_data variables.
 
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
-        coord_func: function that is applied to the coordinates, or a
-            mapping from coordinate name to function.  See `xarray's coarsen
-            method for details
-            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.Dataset or xr.DataArray.
     """
     result = block_median(
-        obj, coarsening_factor, x_dim=x_dim, y_dim=y_dim, coord_func=coord_func
+        obj, coarsening_factor, x_dim=x_dim, y_dim=y_dim
     )
     return add_coarsened_subtile_coordinates(
         obj, result, coarsening_factor, [x_dim, y_dim]
@@ -702,26 +689,21 @@ def block_coarsen_and_add_coarsened_subtile_coordinates(
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     method: str = "sum",
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by performing an operation over blocks
     and add coarsened subtile coordinates.
 
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
         method: Name of coarsening method to use.
-        coord_func: function that is applied to the coordinates, or a
-            mapping from coordinate name to function.  See `xarray's coarsen
-            method for details
-            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    result = block_coarsen(obj, coarsening_factor, x_dim, y_dim, method, coord_func)
+    result = block_coarsen(obj, coarsening_factor, x_dim, y_dim, method)
     return add_coarsened_subtile_coordinates(
         obj, result, coarsening_factor, [x_dim, y_dim]
     )
@@ -733,7 +715,6 @@ def block_edge_sum_and_add_coarsened_subtile_coordinates(
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     edge: str = "x",
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = "mean",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by summing along a block edge and add
     coarsened subtile coordinates.
@@ -742,20 +723,16 @@ def block_edge_sum_and_add_coarsened_subtile_coordinates(
     grid_spec.
 
     Args:
-        obj: Input DataArray or Dataset.
+        obj: Input Dataset or DataArray.
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
         edge: Grid cell side to coarse-grain along {'x', 'y'}.
-        coord_func: function that is applied to the coordinates, or a
-            mapping from coordinate name to function.  See `xarray's coarsen
-            method for details
-            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    result = block_edge_sum(obj, coarsening_factor, x_dim, y_dim, edge, coord_func)
+    result = block_edge_sum(obj, coarsening_factor, x_dim, y_dim, edge)
     return add_coarsened_subtile_coordinates(
         obj, result, coarsening_factor, [x_dim, y_dim]
     )

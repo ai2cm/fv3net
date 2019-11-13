@@ -7,7 +7,7 @@ from skimage.measure import block_reduce as skimage_block_reduce
 from vcm.cubedsphere import (
     add_coarsened_subtile_coordinates,
     coarsen_subtile_coordinates,
-    _block_reduce_dataarray,
+    _xarray_block_reduce_dataarray,
     horizontal_block_reduce,
     block_median,
     remove_duplicate_coords,
@@ -191,7 +191,7 @@ def input_dataset(input_dataarray):
 
 @pytest.mark.parametrize("reduction_function", [np.mean, np.median])
 @pytest.mark.parametrize("use_dask", [False, True])
-def test_block_reduce_dataarray(reduction_function, use_dask, input_dataarray):
+def test_xarray_block_reduce_dataarray(reduction_function, use_dask, input_dataarray):
     block_size = (2, 2, 1)
     expected_data = skimage_block_reduce(
         input_dataarray.values, block_size=block_size, func=reduction_function
@@ -204,15 +204,15 @@ def test_block_reduce_dataarray(reduction_function, use_dask, input_dataarray):
         input_dataarray = input_dataarray.chunk({"x": 2, "y": 2, "z": -1})
 
     block_sizes = dict(zip(input_dataarray.dims, block_size))
-    result = _block_reduce_dataarray(input_dataarray, block_sizes, reduction_function)
+    result = _xarray_block_reduce_dataarray(input_dataarray, block_sizes, reduction_function)
     xr.testing.assert_identical(result, expected)
 
 
-def test_block_reduce_dataarray_bad_chunk_size(input_dataarray):
+def test_xarray_block_reduce_dataarray_bad_chunk_size(input_dataarray):
     input_dataarray = input_dataarray.chunk({"x": -1, "y": 3, "z": -1})
     block_sizes = {"x": 1, "y": 2, "z": 1}
     with pytest.raises(ValueError, match="All chunks along dimension"):
-        _block_reduce_dataarray(input_dataarray, block_sizes, np.median)
+        _xarray_block_reduce_dataarray(input_dataarray, block_sizes, np.median)
 
 
 @pytest.mark.parametrize(
@@ -234,7 +234,7 @@ def test_block_reduce_dataarray_coordinates(input_dataarray, coord_func):
         input_dataarray[dim] = np.arange(size)
 
     block_sizes = {"x": 2, "y": 2}
-    result = _block_reduce_dataarray(
+    result = _xarray_block_reduce_dataarray(
         input_dataarray, block_sizes, np.median, coord_func
     )
     expected = (
@@ -248,8 +248,7 @@ def test_block_reduce_dataarray_coordinates(input_dataarray, coord_func):
 def test_horizontal_block_reduce_dataarray(input_dataarray):
     coarsening_factor = 2
     block_sizes = {"x": coarsening_factor, "y": coarsening_factor, "z": 1}
-
-    expected = _block_reduce_dataarray(input_dataarray, block_sizes, np.median)
+    expected = _xarray_block_reduce_dataarray(input_dataarray, block_sizes, np.median)
     result = horizontal_block_reduce(
         input_dataarray, coarsening_factor, np.median, "x", "y"
     )
@@ -260,7 +259,7 @@ def test_horizontal_block_reduce_dataset(input_dataset):
     coarsening_factor = 2
     block_sizes = {"x": coarsening_factor, "y": coarsening_factor, "z": 1}
 
-    expected_foo = _block_reduce_dataarray(input_dataset.foo, block_sizes, np.median)
+    expected_foo = _xarray_block_reduce_dataarray(input_dataset.foo, block_sizes, np.median)
 
     # No change expected to bar, because it contains no horizontal dimensions.
     expected_bar = input_dataset.bar
@@ -276,22 +275,16 @@ def test_horizontal_block_reduce_dataset(input_dataset):
 def test_block_median(input_dataarray):
     coarsening_factor = 2
     block_sizes = {"x": coarsening_factor, "y": coarsening_factor, "z": 1}
-
-    expected = _block_reduce_dataarray(input_dataarray, block_sizes, np.median)
-
+    expected = _xarray_block_reduce_dataarray(input_dataarray, block_sizes, np.median)
     result = block_median(input_dataarray, coarsening_factor, "x", "y")
-
     xr.testing.assert_identical(result, expected)
 
 
 def test_block_coarsen(input_dataarray):
     coarsening_factor = 2
     method = "min"
-
     expected = input_dataarray.coarsen(x=coarsening_factor, y=coarsening_factor).min()
-
     result = block_coarsen(input_dataarray, coarsening_factor, "x", "y", method)
-
     xr.testing.assert_identical(result, expected)
 
 
@@ -306,9 +299,7 @@ def test_block_coarsen(input_dataarray):
 def test_block_edge_sum(data, factor, edge, expected_data):
     dims = ["x_dim", "y_dim"]
     da = xr.DataArray(data, dims=dims, coords=None)
-
     expected = xr.DataArray(expected_data, dims=dims, coords=None)
-
     result = block_edge_sum(da, factor, x_dim="x_dim", y_dim="y_dim", edge=edge)
     xr.testing.assert_identical(result, expected)
 
