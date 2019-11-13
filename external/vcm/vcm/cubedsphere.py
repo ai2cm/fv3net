@@ -6,7 +6,7 @@ import dask
 import numpy as np
 import xarray as xr
 
-from typing import Callable, Hashable, List, Mapping, Union
+from typing import Any, Callable, Hashable, List, Mapping, Union
 
 from skimage.measure import block_reduce as skimage_block_reduce
 
@@ -145,7 +145,7 @@ def weighted_block_average(
     coarsening_factor: int,
     x_dim: Hashable = 'xaxis_1',
     y_dim: Hashable = 'yaxis_2',
-    coord_func: str = 'mean'
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset through weighted block averaging.
 
@@ -158,7 +158,10 @@ def weighted_block_average(
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
-        coord_func: function name applied to the coordinates (e.g. 'mean').
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -186,7 +189,7 @@ def edge_weighted_block_average(
     x_dim: Hashable = 'xaxis_1',
     y_dim: Hashable = 'yaxis_1',
     edge: str = 'x',
-    coord_func: str = 'mean'
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset along a block edge.
 
@@ -200,7 +203,10 @@ def edge_weighted_block_average(
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
         edge: Grid cell side to coarse-grain along {'x', 'y'}.
-        coord_func: function name applied to the coordinates (e.g. 'mean').
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.DataArray.
@@ -231,11 +237,95 @@ def edge_weighted_block_average(
     return result
 
 
+def is_dict_like(value: Any) -> bool:
+    return hasattr(value, "keys") and hasattr(value, "__getitem__")
+
+
+def _block_reduce_dataarray_coordinates(reference_da, da, block_sizes, coord_func):
+    """Coarsen the coordinates of a DataArray.
+
+    This function coarsens the coordinates of a reference DataArray and adds
+    them to a coarsened DataArray following the specification in the coord_func
+    argument.
+
+    This is a private method intended for use only in _block_reduce_dataaray;
+    it is meant to allow for block_reduce to enable the same coordinate
+    transformation behavior as xarray's coarsen method.
+    """
+    if not is_dict_like(coord_func):
+        coord_func = {d: coord_func for d in da.dims}
+
+    for dim, size in block_sizes.items():
+        if dim in reference_da.coords:
+            function = coord_func.get(dim, 'mean')
+            if isinstance(function, str):
+                coarsen_obj = reference_da[dim].coarsen({dim: size})
+                da[dim] = getattr(coarsen_obj, function)()
+            else:
+                da[dim] = _block_reduce_dataarray(
+                    reference_da[dim].drop(dim),
+                    {dim: size},
+                    function
+                )
+
+    # For any dimension we do not reduce, restore the original coordinate if it
+    # exists.
+    for dim in reference_da.dims:
+        if dim not in block_sizes and dim in reference_da.coords:
+            da[dim] = reference_da[dim]
+
+    return da
+
+
+def _compute_block_reduced_dataarray_chunks(da, block_sizes):
+    """Compute chunk sizes of the block reduced array."""
+    # TODO: we could make the error checking more user-friendly by checking all
+    # dimensions for compatible chunk sizes first and displaying all invalid
+    # chunks / dimension combinations in the error message rather than just the
+    # first occurence.
+    new_chunks = []
+    if da.chunks is not None:
+        for axis, dim in enumerate(da.dims):
+            dimension_chunks = np.array(da.chunks[axis])
+            if not np.all(dimension_chunks % block_sizes[dim] == 0):
+                raise ValueError(
+                    f'All chunks along dimension {dim} of DataArray must be '
+                    f'divisible by the block_size, {block_sizes[dim]}.')
+            else:
+                new_chunks.append(tuple(dimension_chunks // block_sizes[dim]))
+    return new_chunks
+
+
+def _skimage_block_reduce_wrapper(
+    data,
+    reduction_function=None,
+    ordered_block_sizes=None,
+    new_chunks=None
+):
+    """A thin wrapper around skimage.measure.block_reduce for use only in
+    xr.apply_ufunc in _block_reduce_dataarray."""
+    if isinstance(data, dask.array.Array):
+        return dask.array.map_blocks(
+            skimage_block_reduce,
+            data,
+            ordered_block_sizes,
+            reduction_function,
+            dtype=data.dtype,
+            chunks=new_chunks
+        )
+    else:
+        return skimage_block_reduce(
+            data,
+            ordered_block_sizes,
+            reduction_function
+        )
+
+
 def _block_reduce_dataarray(
     da: xr.DataArray,
     block_sizes: Mapping[Hashable, int],
     reduction_function: Callable,
-    coord_func: str = 'mean'
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
 ) -> xr.DataArray:
     """An xarray and dask compatible block_reduce function designed for
     DataArrays.
@@ -252,12 +342,13 @@ def _block_reduce_dataarray(
         da: Input DataArray.
         block_sizes: Dictionary of dimension names mapping to block sizes.
             If the DataArray is chunked, all chunks along a given dimension
-            must be divisible by the block size along that dimension.  All
-            dimensions must be present in block_sizes (if no coarsening is to
-            be done along a dimension, the block size should be specified as
-            1).
-        reduction_function: A function which reduces the array to a scalar.
-        coord_func: function name applied to the coordinates (e.g. 'mean').
+            must be divisible by the block size along that dimension.
+        reduction_function: Array reduction function which accepts a tuple of
+            axes to reduce along.
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.DataArray.
@@ -266,122 +357,49 @@ def _block_reduce_dataarray(
         ValueError: If chunks along a dimension are not divisible by the block
             size for that dimension.
     """
-    def func(data, ordered_block_sizes=None, new_chunks=None):
-        if isinstance(data, dask.array.Array):
-            return dask.array.map_blocks(
-                skimage_block_reduce,
-                data,
-                ordered_block_sizes,
-                reduction_function,
-                dtype=data.dtype,
-                chunks=new_chunks
-            )
-        else:
-            return skimage_block_reduce(
-                data,
-                ordered_block_sizes,
-                reduction_function
-            )
+    # If none of the dimensions in block_sizes exist in the DataArray, return
+    # the DataArray unchanged; this is consistent with xarray's coarsen method.
+    reduction_dimensions = set(block_sizes.keys()).intersection(set(da.dims))
+    if not reduction_dimensions:
+        return da
 
-    # TODO: we could make the error checking more user-friendly by checking all
-    # dimensions for compatible chunk sizes first and displaying all invalid
-    # chunks / dimension combinations in the error message rather than just the
-    # first occurence.
-    new_chunks = []
-    if da.chunks is not None:
-        for axis, dim in enumerate(da.dims):
-            dimension_chunks = np.array(da.chunks[axis])
-            if not np.all(dimension_chunks % block_sizes[dim] == 0):
-                raise ValueError(
-                    f'All chunks along dimension {dim} of DataArray must be '
-                    f'divisible by the block_size, {block_sizes[dim]}.')
-            else:
-                new_chunks.append(tuple(dimension_chunks // block_sizes[dim]))
+    new_chunks = _compute_block_reduced_dataarray_chunks(da, block_sizes)
 
-    ordered_block_sizes = tuple(block_sizes[dim] for dim in da.dims)
+    # skimage.measure.block_reduce requires an ordered tuple of block sizes
+    # with a length corresponding to the rank of the array. Non-reduced
+    # dimensions must be filled with a block size of 1.
+    ordered_block_sizes = tuple(block_sizes.get(dim, 1) for dim in da.dims)
 
     result = xr.apply_ufunc(
-        func,
+        _skimage_block_reduce_wrapper,
         da,
         input_core_dims=[da.dims],
         output_core_dims=[da.dims],
         dask='allowed',
         exclude_dims=set(da.dims),
-        kwargs={'ordered_block_sizes': ordered_block_sizes,
-                'new_chunks': tuple(new_chunks)}
+        kwargs={
+            'reduction_function': reduction_function,
+            'ordered_block_sizes': ordered_block_sizes,
+            'new_chunks': tuple(new_chunks)
+        }
     )
 
-    # Restore coordinates for dimensions that did not change size; for
-    # coordinates that did change size, use a mean coarsen reduction (as is
-    # default for xarray's coarsen method).
-    for dim, size in block_sizes.items():
-        if dim in da.coords:
-            if size == 1:
-                result[dim] = da[dim]
-            else:
-                coarsen_obj = da[dim].coarsen({dim: size})
-                result[dim] = getattr(coarsen_obj, coord_func)()
-
-    return result
+    return _block_reduce_dataarray_coordinates(da, result, block_sizes, coord_func)
 
 
-def _horizontal_block_reduce_dataarray(
-    da: xr.DataArray,
-    coarsening_factor: int,
-    reduction_function: Callable,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1',
-    coord_func: str = 'mean'
-) -> xr.DataArray:
-    """A generic horizontal block reduce function for DataArrays.
-
-    If neither x_dim or y_dim are in the DataArray, no reduction operation is
-    performed.
-
-    Args:
-        da: Input DataArray.
-        coarsening_factor: Integer coarsening factor to use.
-        reduction_function: Function which reduces an array to a scalar.
-        x_dim: x dimension name (default 'xaxis_1').
-        y_dim: y dimension name (default 'yaxis_1').
-        coord_func: function name applied to the coordinates (e.g. 'mean').
-
-    Returns:
-        xr.DataArray.
-    """
-    if x_dim not in da.dims and y_dim not in da.dims:
-        return da
-    else:
-        block_sizes = {}
-        for dim in da.dims:
-            if dim in [x_dim, y_dim]:
-                block_sizes[dim] = coarsening_factor
-            else:
-                block_sizes[dim] = 1
-
-        return _block_reduce_dataarray(
-            da,
-            block_sizes,
-            reduction_function,
-            coord_func=coord_func
-        )
-
-
-def horizontal_block_reduce(
+def block_reduce(
     obj: Union[xr.Dataset, xr.DataArray],
-    coarsening_factor: int,
+    block_sizes: Mapping[Hashable, int],
     reduction_function: Callable,
-    x_dim: Hashable = 'xaxis_1',
-    y_dim: Hashable = 'yaxis_1',
-    coord_func: str = 'mean'
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
 ) -> Union[xr.Dataset, xr.DataArray]:
-    """A generic horizontal block reduce function for xarray data structures.
+    """A generic block reduce function for xarray data structures.
 
     This is a wrapper around skimage.measure.block_reduce, which
     enables functionality similar to xarray's built-in coarsen method, but
     allows for arbitrary custom reduction functions.  As is default in xarray's
     coarsen method, coordinate values along the coarse-grained dimensions are
-    coarsened using  mean aggregation method.  Flexibility in the reduction
+    coarsened using a mean aggregation method.  Flexibility in the reduction
     function comes at the cost of more restrictive chunking requirements for
     dask arrays.
 
@@ -395,32 +413,67 @@ def horizontal_block_reduce(
 
     Args:
         obj: Input DataArray or Dataset.
-        coarsening_factor: Integer coarsening factor to use.
-        reduction_function: Function which reduces an array to a scalar.
-        x_dim: x dimension name (default 'xaxis_1').
-        y_dim: y dimension name (default 'yaxis_1').
-        coord_func: function name applied to the coordinates (e.g. 'mean').
+        block_sizes: Dictionary mapping dimension names to integer block sizes.
+        reduction_function: Array reduction function which accepts a tuple of
+            axes to reduce along.
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.Dataset or xr.DataArray.
     """
     if isinstance(obj, xr.Dataset):
         return obj.apply(
-            _horizontal_block_reduce_dataarray,
-            args=(coarsening_factor, reduction_function),
-            x_dim=x_dim,
-            y_dim=y_dim,
+            _block_reduce_dataarray,
+            args=(block_sizes, reduction_function),
             coord_func=coord_func
         )
     else:
-        return _horizontal_block_reduce_dataarray(
+        return _block_reduce_dataarray(
             obj,
-            coarsening_factor,
+            block_sizes,
             reduction_function,
-            x_dim=x_dim,
-            y_dim=y_dim,
             coord_func=coord_func
         )
+
+
+def horizontal_block_reduce(
+    obj: Union[xr.Dataset, xr.DataArray],
+    coarsening_factor: int,
+    reduction_function: Callable,
+    x_dim: Hashable = 'xaxis_1',
+    y_dim: Hashable = 'yaxis_1',
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
+) -> Union[xr.Dataset, xr.DataArray]:
+    """A generic horizontal block reduce function for xarray data structures.
+
+    This is a convenience wrapper around block_reduce for applying coarsening
+    over n x n patches of array elements.
+
+    Args:
+        obj: Input DataArray or Dataset.
+        coarsening_factor: Integer coarsening factor to use.
+        reduction_function: Array reduction function which accepts a tuple of
+            axes to reduce along.
+        x_dim: x dimension name (default 'xaxis_1').
+        y_dim: y dimension name (default 'yaxis_1').
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
+
+    Returns:
+        xr.Dataset or xr.DataArray.
+    """
+    block_sizes = {x_dim: coarsening_factor, y_dim: coarsening_factor}
+    return block_reduce(
+        obj,
+        block_sizes,
+        reduction_function,
+        coord_func=coord_func
+    )
 
 
 def block_median(
@@ -428,7 +481,7 @@ def block_median(
     coarsening_factor: int,
     x_dim: Hashable = 'xaxis_1',
     y_dim: Hashable = 'yaxis_1',
-    coord_func: str = 'mean'
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by taking the median over blocks.
 
@@ -439,7 +492,10 @@ def block_median(
         coarsening_factor: Integer coarsening factor to use.
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
-        coord_func: function name applied to the coordinates (e.g. 'mean').
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -460,7 +516,7 @@ def block_coarsen(
     x_dim: Hashable = 'xaxis_1',
     y_dim: Hashable = 'yaxis_1',
     method: str = 'sum',
-    coord_func: str = 'mean'
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by performing an operation over blocks.
 
@@ -470,7 +526,10 @@ def block_coarsen(
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
         method: Name of coarsening method to use.
-        coord_func: function name applied to the coordinates (e.g. 'mean').
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -488,7 +547,7 @@ def block_edge_sum(
     x_dim: Hashable = 'xaxis_1',
     y_dim: Hashable = 'yaxis_1',
     edge: str = 'x',
-    coord_func: str = 'mean'
+    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by summing along a block edge.
 
@@ -501,7 +560,10 @@ def block_edge_sum(
         x_dim: x dimension name (default 'xaxis_1').
         y_dim: y dimension name (default 'yaxis_1').
         edge: Grid cell side to coarse-grain along {'x', 'y'}.
-        coord_func: function name applied to the coordinates (e.g. 'mean').
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
 
     Returns:
         xr.Dataset or xr.DataArray.

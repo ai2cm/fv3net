@@ -276,23 +276,36 @@ def test_block_reduce_dataarray_bad_chunk_size(input_dataarray):
         _block_reduce_dataarray(input_dataarray, block_sizes, np.median)
 
 
-def test_block_reduce_dataarray_coordinate_behavior(input_dataarray):
+@pytest.mark.parametrize(
+    'coord_func',
+    ['mean', np.mean, {'x': np.max, 'y': 'median'}, {'x': np.min}],
+    ids=[
+        'single str',
+        'single function',
+        'dict mapping coord name to str or function',
+        'dict with a dimension missing'
+    ]
+)
+def test_block_reduce_dataarray_coordinates(input_dataarray, coord_func):
     # Add coordinates to the input_dataarray; make sure coordinate behavior
-    # matches xarray's default for coarsen.  This ensures that the default
+    # matches xarray's default for coarsen.  This ensures that the
     # coordinate transformation behavior for any function that depends on
     # _block_reduce_dataarray matches that for xarray's coarsen.
     for dim, size in input_dataarray.sizes.items():
         input_dataarray[dim] = np.arange(size)
 
-    block_sizes = {'x': 2, 'y': 2, 'z': 1}
+    block_sizes = {'x': 2, 'y': 2}
     result = _block_reduce_dataarray(
         input_dataarray,
         block_sizes,
-        np.median
+        np.median,
+        coord_func
     )
-    expected = input_dataarray.coarsen(x=2, y=2).median().rename(
-        input_dataarray.name
-    )
+    expected = input_dataarray.coarsen(
+        x=2,
+        y=2,
+        coord_func=coord_func
+    ).median().rename(input_dataarray.name)
     xr.testing.assert_identical(result, expected)
 
 
