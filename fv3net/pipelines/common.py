@@ -1,3 +1,4 @@
+from typing import Callable, Any
 import apache_beam as beam
 from apache_beam import io
 import xarray as xr
@@ -7,6 +8,14 @@ import os
 
 
 class CombineSubtilesByKey(beam.PTransform):
+    """Transform for combining subtiles of cubed-sphere data in a beam PCollection.
+
+    This transform operates on a PCollection of `(key, xarray dataarray)`
+    tuples. For most instances, the tile number should be in the `key`.
+
+    See the tests for an example.
+    """
+
     def expand(self, pcoll):
         return pcoll | beam.GroupByKey() | beam.MapTuple(self._combine)
 
@@ -24,7 +33,50 @@ class _NetCDFSink(io.FileBasedSink):
 
 
 class WriteToNetCDFs(beam.PTransform):
-    def __init__(self, name_fn):
+    """Transform for writing xarray Datasets to netCDF either remote or local
+netCDF files.
+
+    Saves a collection of `(key, dataset)` based on a naming function
+
+    Attributes:
+
+        name_fn: the function to used to translate the `key` to a local
+            or remote url. Let an element of the input PCollection be given by `(key,
+            ds)`, where ds is an xr.Dataset, then this transform will save `ds` as a
+            netCDF file at the URL given by `name_fn(key)`. If this functions returns
+            a string beginning with `gs://`, this transform will save the netCDF
+            using Google Cloud Storage, otherwise it will be local file.
+
+    Example:
+
+        >>> from fv3net.pipelines import common
+        >>> import os
+        >>> import xarray as xr
+        >>> input_data = [('a', xr.DataArray([1.0], name='name').to_dataset())]
+        >>> input_data
+        [('a', <xarray.Dataset>
+        Dimensions:  (dim_0: 1)
+        Dimensions without coordinates: dim_0
+        Data variables:
+            name     (dim_0) float64 1.0)]
+        >>> import apache_beam as beam
+        >>> with beam.Pipeline() as p:
+        ...     (p | beam.Create(input_data)
+        ...        | common.WriteToNetCDFs(lambda letter: f'{letter}.nc'))
+        ...
+        >>> os.system('ncdump -h a.nc')
+        netcdf a {
+        dimensions:
+            dim_0 = 1 ;
+        variables:
+            double name(dim_0) ;
+                name:_FillValue = NaN ;
+        }
+        0
+
+    """
+
+    def __init__(self, name_fn: Callable[[Any], str]):
         self._sink = _NetCDFSink()
         self.name_fn = name_fn
 
