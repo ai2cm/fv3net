@@ -1,7 +1,8 @@
 #!/bin/bash
 
+SETUP_PY=../../setup.py
 VCM_PATH=../../external/vcm
-NUM_WORKERS=1
+NUM_WORKERS=96
 BEAM_MAIN_MODULE=fv3net.pipelines.coarsen_surface_c3072
 
 # build the sdist for vcm
@@ -14,7 +15,7 @@ python -m $BEAM_MAIN_MODULE  \
     --project vcm-ml \
     --region us-central1 \
     --runner DataFlow \
-    --setup_file ./setup.py \
+    --setup_file $SETUP_PY \
     --temp_location gs://vcm-ml-data/tmp_dataflow \
     --num_workers $NUM_WORKERS \
     --max_num_workers $NUM_WORKERS \
