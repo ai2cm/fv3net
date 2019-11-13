@@ -1,4 +1,0 @@
--e .
-
-# install developer requirements
-pytest

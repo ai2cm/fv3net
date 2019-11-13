@@ -1,49 +1,35 @@
 channels:
-  - pytorch
+  - defaults
   - conda-forge
-  - bioconda
-dependencies:
-  - python=3.7
-  - numpy=1.16
-  - seaborn
-  - dask>=2.3.0
-  - xarray>=0.12
-  - matplotlib=3.0
-  - netcdf4>=1.4
-  - h5netcdf
-  - ipython
-  - jupyterlab
-  - cython
-  - torchvision-cpu
-  - pytorch-cpu=1.0
-  - attrs
-  - scikit-learn=0.20
-  - numba
-  - xesmf
-  - sphinx=1.7
-  - snakemake-minimal
-  - intake-xarray
-  - gcsfs
-  - pytest
-  - xgcm
-  - fire=0.2
-  - dvc
-  - scikit-image
-  - pip
-  - pip:
-      - -e .
-      - git+https://github.com/nbren12/gnl@master#subdirectory=python
-      - tqdm
-      - metpy
-      - flake8
-      - f90nml
-      - pymongo
-      - click
-      - zarr
-      - f90nml
-      - sacred
-      - recommonmark
-      - pytorch-ignite
-      - sphinx_rtd_theme
-      - google-cloud-storage
 
+dependencies:
+  - click
+  - cloudpickle
+  - crcmod
+  - dask>=2.3.0
+  - fsspec
+  - f90nml
+  - flake8
+  - gcsfs
+  - google-cloud-storage
+  - h5netcdf
+  - hypothesis
+  - intake
+  - intake-xarray
+  - metpy
+  - netcdf4>=1.4
+  - numba
+  - numpy
+  - partd
+  - pyyaml==3.13
+  - pytest
+  - scikit-image
+  - scikit-learn==0.20
+  - toolz
+  - xarray>=0.12
+  - zarr
+
+  - pip:
+    - gsutil
+    - apache-beam==2.16.0
+    - snakemake

@@ -1,6 +1,7 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*$py.class
 
 # C extensions
 *.so
@@ -19,6 +20,7 @@ lib64/
 parts/
 sdist/
 var/
+wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -42,6 +44,8 @@ htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
+.hypothesis/
+.pytest_cache/
 
 # Translations
 *.mo
@@ -49,6 +53,14 @@ coverage.xml
 
 # Django stuff:
 *.log
+local_settings.py
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
 
 # Sphinx documentation
 docs/_build/
@@ -56,50 +68,38 @@ docs/_build/
 # PyBuilder
 target/
 
-# DotEnv configuration
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# dotenv
 .env
 
-# Database
-*.db
-*.rdb
+# virtualenv
+.venv
+venv/
+ENV/
 
-# Pycharm
-.idea
+# Spyder project settings
+.spyderproject
+.spyproject
 
-# VS Code
-.vscode/
+# Rope project settings
+.ropeproject
 
-# Spyder
-.spyproject/
+# mkdocs documentation
+/site
 
-# Jupyter NB Checkpoints
-.ipynb_checkpoints/
-jupyterhub*
-notebooks/dask-worker-space/*
-notebooks/*.npy
-notebooks/html_out/*
-notebooks/figs/*
-notebooks/*
-
-# exclude data from source control by default
-/data/
-
-# Mac OS-specific storage files
-.DS_Store
-
-# vim
-*.swp
-*.swo
-
-# Mypy cache
+# mypy
 .mypy_cache/
 
-# Interpolation weight files
-bilinear*
-
-# MISC
-*.nc
-scratch/*
-
-# snakemake
-.snakemake/*
+# PyCharm
+.idea/
