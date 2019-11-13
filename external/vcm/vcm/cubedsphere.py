@@ -231,9 +231,10 @@ def _block_reduce_dataarray_coordinates(reference_da, da, block_sizes, coord_fun
     them to a coarsened DataArray following the specification in the coord_func
     argument.
 
-    This is a private method intended for use only in _block_reduce_dataaray;
-    it is meant to allow for block_reduce to enable the same coordinate
-    transformation behavior as xarray's coarsen method.
+    This is a private method intended for use only in
+    _xarray_block_reduce_dataaray; it is meant to allow for block_reduce to
+    enable the same coordinate transformation behavior as xarray's coarsen
+    method.
     """
     if not is_dict_like(coord_func):
         coord_func = {d: coord_func for d in da.dims}
@@ -282,7 +283,7 @@ def _skimage_block_reduce_wrapper(
     data, reduction_function=None, ordered_block_sizes=None, new_chunks=None
 ):
     """A thin wrapper around skimage.measure.block_reduce for use only in
-    xr.apply_ufunc in _block_reduce_dataarray."""
+    xr.apply_ufunc in _xarray_block_reduce_dataarray."""
     if isinstance(data, dask.array.Array):
         return dask.array.map_blocks(
             skimage_block_reduce,
