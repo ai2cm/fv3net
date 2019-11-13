@@ -18,6 +18,7 @@ This creates a tar file `regrid_c3072_diag.tar.gz`, that you then upload can upl
 # Parameters
 
 | Parameter | Description | Example |
+|-----------|-------------|---------|
 |`source_prefix`| Prefix of the source data in GCS (everything but .tile1.nc) | gs://path/to/sfc_data (no tile) |
 | `output-bucket`| URL to output file in GCS | gs://vcm-ml-data/output.nc |
 | `resolution`| Resolution of input data | one of 'C48', 'C96', or 'C384' |
