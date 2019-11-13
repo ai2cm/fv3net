@@ -22,3 +22,9 @@ This creates a tar file `regrid_c3072_diag.tar.gz`, that you then upload can upl
 |`source_prefix`| Prefix of the source data in GCS (everything but .tile1.nc) | gs://path/to/sfc_data (no tile) |
 | `output-bucket`| URL to output file in GCS | gs://vcm-ml-data/output.nc |
 | `resolution`| Resolution of input data | one of 'C48', 'C96', or 'C384' |
+
+# Miscellaneous
+
+Kubeflow provides a REST API, that could be used to automate these steps. See
+[this tutorial](https://www.suse.com/c/kubeflow-data-science-on-steroids/) for
+an example of triggering a job via this API.
