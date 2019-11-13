@@ -16,13 +16,12 @@ from toolz import curry
 
 
 from ..data.cubedsphere import (
-    add_coarsened_subtile_coordinates,
     coarsen_subtile_coordinates,
-    weighted_block_average,
-    edge_weighted_block_average,
-    block_median,
-    block_coarsen,
-    block_edge_sum,
+    weighted_block_average_and_add_coarsened_subtile_coordinates,
+    edge_weighted_block_average_and_add_coarsened_subtile_coordinates,
+    block_median_and_add_coarsened_subtile_coordinates,
+    block_coarsen_and_add_coarsened_subtile_coordinates,
+    block_edge_sum_and_add_coarsened_subtile_coordinates,
     open_cubed_sphere
 )
 
@@ -172,7 +171,7 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
     dx_edge_weighted_vars = ['u']
     dy_edge_weighted_vars = ['v']
 
-    area_weighted = weighted_block_average(
+    area_weighted = weighted_block_average_and_add_coarsened_subtile_coordinates(
         ds[area_weighted_vars],
         area,
         coarsening_factor,
@@ -181,7 +180,7 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
     )
 
     mass = delp * area
-    mass_weighted = weighted_block_average(
+    mass_weighted = weighted_block_average_and_add_coarsened_subtile_coordinates(
         ds[mass_weighted_vars],
         mass,
         coarsening_factor,
@@ -189,7 +188,7 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
         y_dim='yaxis_2'
     )
 
-    edge_weighted_x = edge_weighted_block_average(
+    edge_weighted_x = edge_weighted_block_average_and_add_coarsened_subtile_coordinates(
         ds[dx_edge_weighted_vars],
         dx,
         coarsening_factor,
@@ -198,7 +197,7 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
         edge='x'
     )
 
-    edge_weighted_y = edge_weighted_block_average(
+    edge_weighted_y = edge_weighted_block_average_and_add_coarsened_subtile_coordinates(
         ds[dy_edge_weighted_vars],
         dy,
         coarsening_factor,
@@ -207,14 +206,8 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
         edge='y'
     )
 
-    result = xr.merge(
+    return xr.merge(
         [area_weighted, mass_weighted, edge_weighted_x, edge_weighted_y]
-    )
-    return add_coarsened_subtile_coordinates(
-        ds,
-        result,
-        coarsening_factor,
-        ['xaxis_1', 'yaxis_1', 'xaxis_2', 'yaxis_2']
     )
 
 
@@ -248,7 +241,7 @@ def coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
         'sgs_tke'
     ]
 
-    area_weighted = weighted_block_average(
+    area_weighted = weighted_block_average_and_add_coarsened_subtile_coordinates(
         ds[area_weighted_vars],
         area,
         coarsening_factor,
@@ -257,21 +250,14 @@ def coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
     )
 
     mass = delp * area
-    mass_weighted = weighted_block_average(
+    mass_weighted = weighted_block_average_and_add_coarsened_subtile_coordinates(
         ds[mass_weighted_vars],
         mass,
         coarsening_factor,
         x_dim='xaxis_1',
         y_dim='yaxis_1'
     )
-
-    result = xr.merge([area_weighted, mass_weighted])
-    return add_coarsened_subtile_coordinates(
-        ds,
-        result,
-        coarsening_factor,
-        ['xaxis_1', 'yaxis_1']
-    )
+    return xr.merge([area_weighted, mass_weighted])
 
 
 def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
@@ -291,18 +277,12 @@ def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
     xr.Dataset
     """
     area_weighted_vars = ['u_srf', 'v_srf']
-    result = weighted_block_average(
+    return weighted_block_average_and_add_coarsened_subtile_coordinates(
         ds[area_weighted_vars],
         area,
         coarsening_factor,
         x_dim='xaxis_1',
         y_dim='yaxis_1'
-    )
-    return add_coarsened_subtile_coordinates(
-        ds,
-        result,
-        coarsening_factor,
-        ['xaxis_1', 'yaxis_1']
     )
 
 
@@ -322,7 +302,7 @@ def coarse_grain_sfc_data(ds, area, coarsening_factor):
     -------
     xr.Dataset
     """
-    result = block_median(
+    result = block_median_and_add_coarsened_subtile_coordinates(
         ds,
         coarsening_factor,
         x_dim='xaxis_1',
@@ -330,12 +310,7 @@ def coarse_grain_sfc_data(ds, area, coarsening_factor):
     )
 
     result['slmsk'] = integerize(result.slmsk)
-    return add_coarsened_subtile_coordinates(
-        ds,
-        result,
-        coarsening_factor,
-        ['xaxis_1', 'yaxis_1']
-    )
+    return result
 
 
 def coarse_grain_grid_spec(
@@ -346,38 +321,32 @@ def coarse_grain_grid_spec(
         x_dim_staggered='grid_x',
         y_dim_staggered='grid_y'
 ):
-    coarse_dx = block_edge_sum(
+    coarse_dx = block_edge_sum_and_add_coarsened_subtile_coordinates(
         ds.dx,
         coarsening_factor,
         x_dim_unstaggered,
         y_dim_staggered,
         'x'
     )
-    coarse_dy = block_edge_sum(
+    coarse_dy = block_edge_sum_and_add_coarsened_subtile_coordinates(
         ds.dy,
         coarsening_factor,
         x_dim_staggered,
         y_dim_unstaggered,
         'y'
     )
-    coarse_area = block_coarsen(
+    coarse_area = block_coarsen_and_add_coarsened_subtile_coordinates(
         ds.area,
         coarsening_factor,
         x_dim_unstaggered,
         y_dim_unstaggered
     )
 
-    result = xr.merge([
+    return xr.merge([
         coarse_dx.rename(ds.dx.name),
         coarse_dy.rename(ds.dy.name),
         coarse_area.rename(ds.area.name)
     ])
-    return add_coarsened_subtile_coordinates(
-        ds,
-        result,
-        coarsening_factor,
-        ['grid_xt', 'grid_yt', 'grid_x', 'grid_y']
-    )
 
 
 def sync_dimension_order(a, b):
