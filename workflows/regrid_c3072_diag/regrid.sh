@@ -40,6 +40,8 @@ fi
 remapFile=${resolution}_to_${nlat}x${nlon}.nc
 
 
+# fregrid is a GFDL command line tool for regridding FMS model output
+# it works for cubed-sphere and many other grids.
 fregrid  --input_mosaic $mosaic \
  --remap_file $remapFile \
  --nlat $nlat --nlon $nlon \
