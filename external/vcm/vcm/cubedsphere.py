@@ -621,7 +621,7 @@ def weighted_block_average_and_add_coarsened_subtile_coordinates(
         y_dim,
         coord_func
     )
-    return add_coarsened_subtile_coordinates(obj, result, [x_dim, y_dim])
+    return add_coarsened_subtile_coordinates(obj, result, coarsening_factor, [x_dim, y_dim])
 
 
 def edge_weighted_block_average_and_add_coarsened_subtile_coordinates(
@@ -663,55 +663,7 @@ def edge_weighted_block_average_and_add_coarsened_subtile_coordinates(
         edge,
         coord_func
     )
-    return add_coarsened_subtile_coordinates(obj, result, [x_dim, y_dim])
-
-
-def block_reduce_and_add_coarsened_subtile_coordinates(
-    obj: Union[xr.Dataset, xr.DataArray],
-    block_sizes: Mapping[Hashable, int],
-    reduction_function: Callable,
-    coord_func: Union[str, Mapping[Hashable, Union[Callable, str]]] = 'mean'
-) -> Union[xr.Dataset, xr.DataArray]:
-    """A generic block reduce function for xarray data structures that also
-    adds coarsened subtile coordinates.
-
-    This is a wrapper around skimage.measure.block_reduce, which
-    enables functionality similar to xarray's built-in coarsen method, but
-    allows for arbitrary custom reduction functions.  As is default in xarray's
-    coarsen method, coordinate values along the coarse-grained dimensions are
-    coarsened using a mean aggregation method.  Flexibility in the reduction
-    function comes at the cost of more restrictive chunking requirements for
-    dask arrays.
-
-    This is needed for multiple reasons:
-        1. xarray's implementation of coarsen does not support using dask
-           arrays for some coarsening operations (e.g. median).
-        2. xarray's implementation of coarsen supports a limited set of
-           reduction functions; this implementation supports arbitrary
-           functions which take an array as input and reduce along a tuple of
-           dimensions (e.g. we could use it for a mode reduction).
-
-    Args:
-        obj: Input DataArray or Dataset.
-        block_sizes: Dictionary mapping dimension names to integer block sizes.
-        reduction_function: Array reduction function which accepts a tuple of
-            axes to reduce along.
-        coord_func: function that is applied to the coordinates, or a
-            mapping from coordinate name to function.  See `xarray's coarsen
-            method for details
-            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
-
-    Returns:
-        xr.Dataset or xr.DataArray.
-    """
-    result = block_reduce(
-        obj,
-        block_sizes,
-        reduction_function,
-        coord_func
-    )
-    dims = list(block_sizes.keys())
-    return add_coarsened_subtile_coordinates(obj, result, dims)
+    return add_coarsened_subtile_coordinates(obj, result, coarsening_factor, [x_dim, y_dim])
 
 
 def horizontal_block_reduce_and_add_coarsened_subtile_coordinates(
@@ -743,7 +695,7 @@ def horizontal_block_reduce_and_add_coarsened_subtile_coordinates(
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    result = block_reduce(
+    result = horizontal_block_reduce(
         obj,
         coarsening_factor,
         reduction_function,
@@ -751,7 +703,7 @@ def horizontal_block_reduce_and_add_coarsened_subtile_coordinates(
         y_dim,
         coord_func
     )
-    return add_coarsened_subtile_coordinates(obj, result, [x_dim, y_dim])
+    return add_coarsened_subtile_coordinates(obj, result, coarsening_factor, [x_dim, y_dim])
 
 
 def block_median_and_add_coarsened_subtile_coordinates(
@@ -786,7 +738,7 @@ def block_median_and_add_coarsened_subtile_coordinates(
         y_dim=y_dim,
         coord_func=coord_func
     )
-    return add_coarsened_subtile_coordinates(obj, result, [x_dim, y_dim])
+    return add_coarsened_subtile_coordinates(obj, result, coarsening_factor, [x_dim, y_dim])
 
 
 def block_coarsen_and_add_coarsened_subtile_coordinates(
@@ -822,7 +774,7 @@ def block_coarsen_and_add_coarsened_subtile_coordinates(
         method,
         coord_func
     )
-    return add_coarsened_subtile_coordinates(obj, result, [x_dim, y_dim])
+    return add_coarsened_subtile_coordinates(obj, result, coarsening_factor, [x_dim, y_dim])
 
 
 def block_edge_sum_and_add_coarsened_subtile_coordinates(
@@ -861,7 +813,9 @@ def block_edge_sum_and_add_coarsened_subtile_coordinates(
         edge,
         coord_func
     )
-    return add_coarsened_subtile_coordinates(obj, result, [x_dim, y_dim])
+    return add_coarsened_subtile_coordinates(
+        obj, result, coarsening_factor, [x_dim, y_dim]
+    )
 
 
 def save_tiles_separately(sfc_data, prefix, output_directory):

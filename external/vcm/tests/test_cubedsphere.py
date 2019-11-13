@@ -16,7 +16,13 @@ from vcm.cubedsphere import (
     block_coarsen,
     block_edge_sum,
     subtile_filenames,
-    all_filenames
+    all_filenames,
+    weighted_block_average_and_add_coarsened_subtile_coordinates,
+    edge_weighted_block_average_and_add_coarsened_subtile_coordinates,
+    horizontal_block_reduce_and_add_coarsened_subtile_coordinates,
+    block_median_and_add_coarsened_subtile_coordinates,
+    block_coarsen_and_add_coarsened_subtile_coordinates,
+    block_edge_sum_and_add_coarsened_subtile_coordinates
 )
 
 
@@ -415,4 +421,187 @@ def test_block_edge_sum(
         y_dim='y_dim',
         edge=edge
     )
+    xr.testing.assert_identical(result, expected)
+
+
+@pytest.fixture()
+def input_dataarray_with_subtile_coordinates():
+    shape = (4, 4, 2)
+    data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
+    dims = ['x', 'y', 'z']
+    coords = [np.arange(n) for n in shape]
+    return xr.DataArray(data, dims=dims, coords=coords, name='foo')
+
+    
+def test_weighted_block_average_and_add_coarsened_subtile_coordinates(
+    input_dataarray_with_subtile_coordinates
+):
+    coarsening_factor = 2
+    weights = input_dataarray_with_subtile_coordinates
+
+    expected_data = weighted_block_average(
+        input_dataarray_with_subtile_coordinates,
+        weights,
+        coarsening_factor,
+        'x',
+        'y'
+    )
+    expected = add_coarsened_subtile_coordinates(
+        input_dataarray_with_subtile_coordinates,
+        expected_data,
+        coarsening_factor,
+        ['x', 'y']
+    )
+    
+    result = weighted_block_average_and_add_coarsened_subtile_coordinates(
+        input_dataarray_with_subtile_coordinates,
+        weights,
+        coarsening_factor,
+        'x',
+        'y'
+    )
+    
+    xr.testing.assert_identical(result, expected)
+
+
+def test_edge_weighted_block_average_and_add_coarsened_subtile_coordinates(
+    input_dataarray_with_subtile_coordinates
+):
+    coarsening_factor = 2
+    weights = input_dataarray_with_subtile_coordinates
+
+    expected_data = edge_weighted_block_average(
+        input_dataarray_with_subtile_coordinates,
+        weights,
+        coarsening_factor,
+        'x',
+        'y'
+    )
+    expected = add_coarsened_subtile_coordinates(
+        input_dataarray_with_subtile_coordinates,
+        expected_data,
+        coarsening_factor,
+        ['x', 'y']
+    )
+    
+    result = edge_weighted_block_average_and_add_coarsened_subtile_coordinates(
+        input_dataarray_with_subtile_coordinates,
+        weights,
+        coarsening_factor,
+        'x',
+        'y'
+    )
+    
+    xr.testing.assert_identical(result, expected)
+    
+
+def test_horizontal_block_reduce_and_add_coarsened_subtile_coordinates(
+    input_dataarray_with_subtile_coordinates
+):
+    coarsening_factor = 2
+    expected_data = horizontal_block_reduce(
+        input_dataarray_with_subtile_coordinates,
+        coarsening_factor,
+        np.mean,
+        'x',
+        'y'
+    )
+    expected = add_coarsened_subtile_coordinates(
+        input_dataarray_with_subtile_coordinates,
+        expected_data,
+        coarsening_factor,
+        ['x', 'y']
+    )
+    
+    result = horizontal_block_reduce_and_add_coarsened_subtile_coordinates(
+        input_dataarray_with_subtile_coordinates,
+        coarsening_factor,
+        np.mean,
+        'x',
+        'y'
+    )
+    
+    xr.testing.assert_identical(result, expected)
+
+
+def test_block_median_and_add_coarsened_subtile_coordinates(
+    input_dataarray_with_subtile_coordinates
+):
+    coarsening_factor = 2
+    expected_data = block_median(
+        input_dataarray_with_subtile_coordinates,
+        coarsening_factor,
+        'x',
+        'y'
+    )
+    expected = add_coarsened_subtile_coordinates(
+        input_dataarray_with_subtile_coordinates,
+        expected_data,
+        coarsening_factor,
+        ['x', 'y']
+    )
+    
+    result = block_median_and_add_coarsened_subtile_coordinates(
+        input_dataarray_with_subtile_coordinates,
+        coarsening_factor,
+        'x',
+        'y'
+    )
+    
+    xr.testing.assert_identical(result, expected)
+
+
+def test_block_coarsen_and_add_coarsened_subtile_coordinates(
+    input_dataarray_with_subtile_coordinates
+):
+    coarsening_factor = 2
+    expected_data = block_coarsen(
+        input_dataarray_with_subtile_coordinates,
+        coarsening_factor,
+        'x',
+        'y',
+        'sum'
+    )
+    expected = add_coarsened_subtile_coordinates(
+        input_dataarray_with_subtile_coordinates,
+        expected_data,
+        coarsening_factor,
+        ['x', 'y']
+    )
+    
+    result = block_coarsen_and_add_coarsened_subtile_coordinates(
+        input_dataarray_with_subtile_coordinates,
+        coarsening_factor,
+        'x',
+        'y',
+        'sum'
+    )
+    
+    xr.testing.assert_identical(result, expected)
+
+
+def test_block_edge_sum_and_add_coarsened_subtile_coordinates(
+    input_dataarray_with_subtile_coordinates
+):
+    coarsening_factor = 2
+    expected_data = block_edge_sum(
+        input_dataarray_with_subtile_coordinates,
+        coarsening_factor,
+        'x',
+        'y'
+    )
+    expected = add_coarsened_subtile_coordinates(
+        input_dataarray_with_subtile_coordinates,
+        expected_data,
+        coarsening_factor,
+        ['x', 'y']
+    )
+    
+    result = block_edge_sum_and_add_coarsened_subtile_coordinates(
+        input_dataarray_with_subtile_coordinates,
+        coarsening_factor,
+        'x',
+        'y'
+    )
+    
     xr.testing.assert_identical(result, expected)
