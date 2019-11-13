@@ -220,7 +220,9 @@ def edge_weighted_block_average(
     return result
 
 
-def is_dict_like(value: Any) -> bool:
+def _is_dict_like(value: Any) -> bool:
+    """This is a function copied from xarray's internals for use in determining
+    whether an object is dictionary like."""
     return hasattr(value, "keys") and hasattr(value, "__getitem__")
 
 
@@ -236,7 +238,7 @@ def _block_reduce_dataarray_coordinates(reference_da, da, block_sizes, coord_fun
     enable the same coordinate transformation behavior as xarray's coarsen
     method.
     """
-    if not is_dict_like(coord_func):
+    if not _is_dict_like(coord_func):
         coord_func = {d: coord_func for d in da.dims}
 
     for dim, size in block_sizes.items():
