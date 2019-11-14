@@ -203,7 +203,7 @@ def test_xarray_block_reduce_dataarray(reduction_function, use_dask, input_dataa
     if use_dask:
         input_dataarray = input_dataarray.chunk({"x": 2, "y": 2, "z": -1})
 
-    block_sizes = dict(zip(input_dataarray.dims, block_size))
+    block_sizes = {"x": 2, "y": 2}
     result = _xarray_block_reduce_dataarray(input_dataarray, block_sizes, reduction_function)
     xr.testing.assert_identical(result, expected)
 

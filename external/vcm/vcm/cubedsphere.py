@@ -261,7 +261,7 @@ def _block_reduce_dataarray_coordinates(reference_da, da, block_sizes, coord_fun
     return da
 
 
-def _compute_block_reduced_dataarray_chunks(da, block_sizes):
+def _compute_block_reduced_dataarray_chunks(da, ordered_block_sizes):
     """Compute chunk sizes of the block reduced array."""
     # TODO: we could make the error checking more user-friendly by checking all
     # dimensions for compatible chunk sizes first and displaying all invalid
@@ -269,15 +269,15 @@ def _compute_block_reduced_dataarray_chunks(da, block_sizes):
     # first occurence.
     new_chunks = []
     if da.chunks is not None:
-        for axis, dim in enumerate(da.dims):
+        for axis, (dim, block_size) in enumerate(zip(da.dims, ordered_block_sizes)):
             dimension_chunks = np.array(da.chunks[axis])
-            if not np.all(dimension_chunks % block_sizes[dim] == 0):
+            if not np.all(dimension_chunks % block_size == 0):
                 raise ValueError(
                     f"All chunks along dimension {dim} of DataArray must be "
-                    f"divisible by the block_size, {block_sizes[dim]}."
+                    f"divisible by the block_size, {block_size}."
                 )
             else:
-                new_chunks.append(tuple(dimension_chunks // block_sizes[dim]))
+                new_chunks.append(tuple(dimension_chunks // block_size))
     return new_chunks
 
 
@@ -341,13 +341,12 @@ def _xarray_block_reduce_dataarray(
     if not reduction_dimensions:
         return da
 
-    new_chunks = _compute_block_reduced_dataarray_chunks(da, block_sizes)
-
     # skimage.measure.block_reduce requires an ordered tuple of block sizes
     # with a length corresponding to the rank of the array. Non-reduced
     # dimensions must be filled with a block size of 1.
     ordered_block_sizes = tuple(block_sizes.get(dim, 1) for dim in da.dims)
-
+    new_chunks = _compute_block_reduced_dataarray_chunks(da, ordered_block_sizes)
+    
     result = xr.apply_ufunc(
         _skimage_block_reduce_wrapper,
         da,
