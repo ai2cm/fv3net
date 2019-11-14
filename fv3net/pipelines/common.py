@@ -1,5 +1,7 @@
 from typing import Callable, Any
+from typing.io import BinaryIO
 import apache_beam as beam
+from apache_beam.io import filesystems
 from apache_beam import io
 import xarray as xr
 import tempfile
@@ -22,14 +24,6 @@ class CombineSubtilesByKey(beam.PTransform):
     @staticmethod
     def _combine(key, datasets):
         return key, xr.combine_by_coords(datasets)
-
-
-class _NetCDFSink(io.FileBasedSink):
-    def __init__(self):
-        super(_NetCDFSink, self).__init__(file_path_prefix="", coder=None)
-
-    def write_record(self, file_handle, value: xr.Dataset):
-        value.to_netcdf(file_handle)
 
 
 class WriteToNetCDFs(beam.PTransform):
@@ -77,14 +71,22 @@ netCDF files.
     """
 
     def __init__(self, name_fn: Callable[[Any], str]):
-        self._sink = _NetCDFSink()
         self.name_fn = name_fn
 
     def _process(self, key, elm: xr.Dataset):
-        path = self.name_fn(key)
-        dest = self._sink.open(path)
-        tmp = tempfile.mktemp()
+        """Save a netCDF to a path which is determined from `key`
 
+        This works for any url support by apache-beam's built-in FileSystems_ class.
+
+        .. _FileSytems_:
+            https://beam.apache.org/releases/pydoc/2.6.0/apache_beam.io.filesystems.html#apache_beam.io.filesystems.FileSystems
+
+        """
+        path = self.name_fn(key)
+        dest = filesystems.FileSystems.create(path)
+
+        # use a file-system backed buffer in case the data is too large to fit in memory
+        tmp = tempfile.mktemp()
         try:
             elm.to_netcdf(tmp)
             with open(tmp, "rb") as src:
