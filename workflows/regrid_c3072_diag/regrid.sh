@@ -3,9 +3,6 @@
 set -e
 set -x
 
-nlat=180
-nlon=360
-
 
 src_prefix="$1"; shift;
 outputBucket="$1"; shift;
@@ -44,9 +41,9 @@ remapFile=${resolution}_to_${nlat}x${nlon}.nc
 # it works for cubed-sphere and many other grids.
 fregrid  --input_mosaic $mosaic \
  --remap_file $remapFile \
- --nlat $nlat --nlon $nlon \
  --input_file  $localPrefix \
  --output_file $localPrefix.nc \
- --scalar_field $scalarFields
+ --scalar_field $scalarFields \
+ $@
 
 gsutil cp $localPrefix.nc $outputBucket
