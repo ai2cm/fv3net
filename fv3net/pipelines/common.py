@@ -78,7 +78,7 @@ netCDF files.
 
         This works for any url support by apache-beam's built-in FileSystems_ class.
 
-        .. _FileSytems_:
+        .. _FileSystems:
             https://beam.apache.org/releases/pydoc/2.6.0/apache_beam.io.filesystems.html#apache_beam.io.filesystems.FileSystems
 
         """
