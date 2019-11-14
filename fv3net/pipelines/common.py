@@ -83,7 +83,7 @@ netCDF files.
 
         """
         path = self.name_fn(key)
-        dest = filesystems.FileSystems.create(path)
+        dest: BinaryIO = filesystems.FileSystems.create(path)
 
         # use a file-system backed buffer in case the data is too large to fit in memory
         tmp = tempfile.mktemp()
