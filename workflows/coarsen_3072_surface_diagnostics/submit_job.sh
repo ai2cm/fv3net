@@ -11,7 +11,7 @@ BEAM_MAIN_MODULE=fv3net.pipelines.coarsen_surface_c3072
 #
 # Notes:
 # Calling the setup.py from this current directory and then using the tarball from the
-# local the local dists folder led to import errors when submitting to the remote
+# local dists folder led to import errors when submitting to the remote
 # Therefore, we run the setup.py for vcm in the external/vcm directory.
 (
 cd $VCM_PATH
