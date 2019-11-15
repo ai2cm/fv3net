@@ -6,13 +6,7 @@ from .cubedsphere import (
     open_cubed_sphere, block_coarsen, block_edge_sum, block_median,
     xarray_block_reduce,
     edge_weighted_block_average, save_tiles_separately,
-    horizontal_block_reduce,
-    weighted_block_average_and_add_coarsened_subtile_coordinates,
-    edge_weighted_block_average_and_add_coarsened_subtile_coordinates,
-    horizontal_block_reduce_and_add_coarsened_subtile_coordinates,
-    block_median_and_add_coarsened_subtile_coordinates,
-    block_coarsen_and_add_coarsened_subtile_coordinates,
-    block_edge_sum_and_add_coarsened_subtile_coordinates,
+    horizontal_block_reduce
 )
 from .extract import extract_tarball_to_path
 # from .regrid import regrid_horizontal
@@ -30,12 +24,6 @@ __all__ = [
     "extract_tarball_to_path",
     "xarray_block_reduce",
     "horizontal_block_reduce",
-    "weighted_block_average_and_add_coarsened_subtile_coordinates",
-    "edge_weighted_block_average_and_add_coarsened_subtile_coordinates",
-    "horizontal_block_reduce_and_add_coarsened_subtile_coordinates",
-    "block_median_and_add_coarsened_subtile_coordinates",
-    "block_coarsen_and_add_coarsened_subtile_coordinates",
-    "block_edge_sum_and_add_coarsened_subtile_coordinates",
     # "regrid_horizontal",
     "TOP_LEVEL_DIR",
 ]
