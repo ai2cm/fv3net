@@ -16,7 +16,7 @@ from vcm.cubedsphere import (
     block_coarsen,
     block_edge_sum,
     subtile_filenames,
-    all_filenames
+    all_filenames,
 )
 
 
@@ -198,7 +198,9 @@ def test_xarray_block_reduce_dataarray(reduction_function, use_dask, input_dataa
         input_dataarray = input_dataarray.chunk({"x": 2, "y": 2, "z": -1})
 
     block_sizes = {"x": 2, "y": 2}
-    result = _xarray_block_reduce_dataarray(input_dataarray, block_sizes, reduction_function)
+    result = _xarray_block_reduce_dataarray(
+        input_dataarray, block_sizes, reduction_function
+    )
     xr.testing.assert_identical(result, expected)
 
 
@@ -253,7 +255,9 @@ def test_horizontal_block_reduce_dataset(input_dataset):
     coarsening_factor = 2
     block_sizes = {"x": coarsening_factor, "y": coarsening_factor, "z": 1}
 
-    expected_foo = _xarray_block_reduce_dataarray(input_dataset.foo, block_sizes, np.median)
+    expected_foo = _xarray_block_reduce_dataarray(
+        input_dataset.foo, block_sizes, np.median
+    )
 
     # No change expected to bar, because it contains no horizontal dimensions.
     expected_bar = input_dataset.bar
@@ -310,30 +314,29 @@ def subtile_y(request):
 
 @pytest.fixture()
 def input_subtile_x_coordinates(subtile_x):
-    return np.array([1., 2., 3., 4.]) + 4. * subtile_x
+    return np.array([1.0, 2.0, 3.0, 4.0]) + 4.0 * subtile_x
 
 
 @pytest.fixture()
 def input_subtile_y_coordinates(subtile_y):
-    return np.array([1., 2., 3., 4.]) + 4. * subtile_y
+    return np.array([1.0, 2.0, 3.0, 4.0]) + 4.0 * subtile_y
 
 
 @pytest.fixture()
 def expected_subtile_x_coordinates(subtile_x):
-    data = np.array([1., 2.]) + 2. * subtile_x
+    data = np.array([1.0, 2.0]) + 2.0 * subtile_x
     return xr.DataArray(data, dims=["x"], coords=[data], name="x")
 
 
 @pytest.fixture()
 def expected_subtile_y_coordinates(subtile_y):
-    data = np.array([1., 2.]) + 2. * subtile_y
+    data = np.array([1.0, 2.0]) + 2.0 * subtile_y
     return xr.DataArray(data, dims=["y"], coords=[data], name="y")
 
 
 @pytest.fixture()
 def input_dataarray_with_subtile_coordinates(
-    input_subtile_x_coordinates,
-    input_subtile_y_coordinates
+    input_subtile_x_coordinates, input_subtile_y_coordinates
 ):
     shape = (4, 4, 2)
     data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
@@ -345,18 +348,14 @@ def input_dataarray_with_subtile_coordinates(
 def test_weighted_block_average_with_coordinates(
     input_dataarray_with_subtile_coordinates,
     expected_subtile_x_coordinates,
-    expected_subtile_y_coordinates
+    expected_subtile_y_coordinates,
 ):
     coarsening_factor = 2
     weights = input_dataarray_with_subtile_coordinates
     result = weighted_block_average(
-        input_dataarray_with_subtile_coordinates,
-        weights,
-        coarsening_factor,
-        "x",
-        "y"
+        input_dataarray_with_subtile_coordinates, weights, coarsening_factor, "x", "y"
     )
-    
+
     xr.testing.assert_identical(result["x"], expected_subtile_x_coordinates)
     xr.testing.assert_identical(result["y"], expected_subtile_y_coordinates)
     assert "z" not in result.coords
@@ -365,54 +364,43 @@ def test_weighted_block_average_with_coordinates(
 def test_horizontal_block_reduce_with_coordinates(
     input_dataarray_with_subtile_coordinates,
     expected_subtile_x_coordinates,
-    expected_subtile_y_coordinates
+    expected_subtile_y_coordinates,
 ):
     coarsening_factor = 2
     result = horizontal_block_reduce(
-        input_dataarray_with_subtile_coordinates,
-        coarsening_factor,
-        np.mean,
-        "x",
-        "y"
+        input_dataarray_with_subtile_coordinates, coarsening_factor, np.mean, "x", "y"
     )
-    
+
     xr.testing.assert_identical(result["x"], expected_subtile_x_coordinates)
     xr.testing.assert_identical(result["y"], expected_subtile_y_coordinates)
     assert "z" not in result.coords
-    
+
 
 def test_block_median_with_coordinates(
     input_dataarray_with_subtile_coordinates,
     expected_subtile_x_coordinates,
-    expected_subtile_y_coordinates
+    expected_subtile_y_coordinates,
 ):
     coarsening_factor = 2
     result = block_median(
-        input_dataarray_with_subtile_coordinates,
-        coarsening_factor,
-        "x",
-        "y"
+        input_dataarray_with_subtile_coordinates, coarsening_factor, "x", "y"
     )
-    
+
     xr.testing.assert_identical(result["x"], expected_subtile_x_coordinates)
     xr.testing.assert_identical(result["y"], expected_subtile_y_coordinates)
     assert "z" not in result.coords
-    
+
 
 def test_block_coarsen_with_coordinates(
     input_dataarray_with_subtile_coordinates,
     expected_subtile_x_coordinates,
-    expected_subtile_y_coordinates
+    expected_subtile_y_coordinates,
 ):
     coarsening_factor = 2
     result = block_coarsen(
-        input_dataarray_with_subtile_coordinates,
-        coarsening_factor,
-        "x",
-        "y",
-        "sum"
+        input_dataarray_with_subtile_coordinates, coarsening_factor, "x", "y", "sum"
     )
-    
+
     xr.testing.assert_identical(result["x"], expected_subtile_x_coordinates)
     xr.testing.assert_identical(result["y"], expected_subtile_y_coordinates)
     assert "z" not in result.coords
@@ -420,42 +408,44 @@ def test_block_coarsen_with_coordinates(
 
 @pytest.fixture()
 def input_subtile_staggered_x_coordinates(subtile_x):
-    return np.array([1., 2., 3., 4., 5.]) + 4. * subtile_x
+    return np.array([1.0, 2.0, 3.0, 4.0, 5.0]) + 4.0 * subtile_x
 
 
 @pytest.fixture()
 def input_subtile_staggered_y_coordinates(subtile_y):
-    return np.array([1., 2., 3., 4.]) + 4. * subtile_y
+    return np.array([1.0, 2.0, 3.0, 4.0]) + 4.0 * subtile_y
 
 
 @pytest.fixture()
 def expected_subtile_staggered_x_coordinates(subtile_x):
-    data = np.array([1., 2., 3.]) + 2. * subtile_x
+    data = np.array([1.0, 2.0, 3.0]) + 2.0 * subtile_x
     return xr.DataArray(data, dims=["x"], coords=[data], name="x")
 
 
 @pytest.fixture()
 def expected_subtile_staggered_y_coordinates(subtile_y):
-    data = np.array([1., 2.]) + 2. * subtile_y
+    data = np.array([1.0, 2.0]) + 2.0 * subtile_y
     return xr.DataArray(data, dims=["y"], coords=[data], name="y")
 
 
 @pytest.fixture()
 def input_dataarray_with_staggered_subtile_coordinates(
-    input_subtile_staggered_x_coordinates,
-    input_subtile_staggered_y_coordinates
+    input_subtile_staggered_x_coordinates, input_subtile_staggered_y_coordinates
 ):
     shape = (5, 4, 2)
     data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
     dims = ["x", "y", "z"]
-    coords = {"x": input_subtile_staggered_x_coordinates, "y": input_subtile_staggered_y_coordinates}
+    coords = {
+        "x": input_subtile_staggered_x_coordinates,
+        "y": input_subtile_staggered_y_coordinates,
+    }
     return xr.DataArray(data, dims=dims, coords=coords, name="foo")
 
 
 def test_edge_weighted_block_average_with_coordinates(
     input_dataarray_with_staggered_subtile_coordinates,
     expected_subtile_staggered_x_coordinates,
-    expected_subtile_staggered_y_coordinates
+    expected_subtile_staggered_y_coordinates,
 ):
     coarsening_factor = 2
     spacing = input_dataarray_with_staggered_subtile_coordinates
@@ -465,9 +455,9 @@ def test_edge_weighted_block_average_with_coordinates(
         coarsening_factor,
         "x",
         "y",
-        edge="y"
+        edge="y",
     )
-    
+
     xr.testing.assert_identical(result["x"], expected_subtile_staggered_x_coordinates)
     xr.testing.assert_identical(result["y"], expected_subtile_staggered_y_coordinates)
     assert "z" not in result.coords
@@ -476,7 +466,7 @@ def test_edge_weighted_block_average_with_coordinates(
 def test_block_edge_sum_with_coordinates(
     input_dataarray_with_staggered_subtile_coordinates,
     expected_subtile_staggered_x_coordinates,
-    expected_subtile_staggered_y_coordinates
+    expected_subtile_staggered_y_coordinates,
 ):
     coarsening_factor = 2
     result = block_edge_sum(
@@ -484,30 +474,9 @@ def test_block_edge_sum_with_coordinates(
         coarsening_factor,
         "x",
         "y",
-        edge="y"
+        edge="y",
     )
-    
+
     xr.testing.assert_identical(result["x"], expected_subtile_staggered_x_coordinates)
     xr.testing.assert_identical(result["y"], expected_subtile_staggered_y_coordinates)
     assert "z" not in result.coords
-    
-    
-# def test_block_edge_sum_and_add_coarsened_subtile_coordinates(
-#     input_dataarray_with_subtile_coordinates,
-# ):
-#     coarsening_factor = 2
-#     expected_data = block_edge_sum(
-#         input_dataarray_with_subtile_coordinates, coarsening_factor, "x", "y"
-#     )
-#     expected = add_coarsened_subtile_coordinates(
-#         input_dataarray_with_subtile_coordinates,
-#         expected_data,
-#         coarsening_factor,
-#         ["x", "y"],
-#     )
-
-#     result = block_edge_sum_and_add_coarsened_subtile_coordinates(
-#         input_dataarray_with_subtile_coordinates, coarsening_factor, "x", "y"
-#     )
-
-#     xr.testing.assert_identical(result, expected)
