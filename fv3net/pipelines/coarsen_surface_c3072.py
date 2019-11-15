@@ -60,7 +60,6 @@ def download_subtile(suffix: str):
         ds = xr.open_dataset(fdata.name)
         weights = xr.open_dataset(fgrid.name)[AREA]
         tile = suffix[4]
-        ds = ds
 
     for var in ds:
         yield {"tile": tile, "name": var}, (weights, ds[var].load())
