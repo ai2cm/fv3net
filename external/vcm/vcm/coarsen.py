@@ -16,7 +16,7 @@ from toolz import curry
 
 
 from ..data.cubedsphere import (
-    coarsen_subtile_coordinates,
+    coarsen_coords,
     weighted_block_average,
     edge_weighted_block_average,
     block_median,
@@ -62,11 +62,7 @@ def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Datase
         return coarsened
 
     coarsened = coarsen_sum(data_no_area * area) / coarsen_sum(area)
-    coarse_coords = coarsen_subtile_coordinates(
-        factor,
-        data,
-        ["xaxis_1", "yaxis_1"]
-    )
+    coarse_coords = coarsen_coords(factor, data, ["xaxis_1", "yaxis_1"])
 
     # special hack for SLMASK (should be integer quantity)
     coarsened['slmsk'] = integerize(coarsened.slmsk)
@@ -257,6 +253,7 @@ def coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
         x_dim='xaxis_1',
         y_dim='yaxis_1'
     )
+
     return xr.merge([area_weighted, mass_weighted])
 
 

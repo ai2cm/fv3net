@@ -77,7 +77,7 @@ def open_cubed_sphere(prefix: str, **kwargs):
     return xr.concat(tiles, dim="tile")
 
 
-def coarsen_subtile_coordinates(
+def coarsen_coords(
     coarsening_factor: int,
     reference_subtile: Union[xr.Dataset, xr.DataArray],
     dims: List[Hashable],
@@ -103,7 +103,7 @@ def coarsen_subtile_coordinates(
     return result
 
 
-def coarsen_subtile_coordinates_coord_func(
+def coarsen_coords_coord_func(
     coordinate: np.array, axis: Union[int, Tuple[int]] = -1
 ):
     """xarray coarsen coord_func version of coarsen_subtile_coordinates.
@@ -129,7 +129,7 @@ def coarsen_subtile_coordinates_coord_func(
     )
 
 
-def add_coarsened_subtile_coordinates(
+def add_coordinates(
     reference_obj: Union[xr.Dataset, xr.DataArray],
     coarsened_obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
@@ -147,16 +147,16 @@ def add_coarsened_subtile_coordinates(
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    coarsened_coordinates = coarsen_subtile_coordinates(
+    coarsened_coords = coarsen_coords(
         coarsening_factor, reference_obj, dims
     )
 
     if isinstance(coarsened_obj, xr.DataArray):
-        result = coarsened_obj.assign_coords(coarsened_coordinates).rename(
+        result = coarsened_obj.assign_coords(coarsened_coords).rename(
             coarsened_obj.name
         )
     else:
-        result = coarsened_obj.assign_coords(coarsened_coordinates)
+        result = coarsened_obj.assign_coords(coarsened_coords)
     return result
 
 
@@ -168,7 +168,7 @@ def weighted_block_average(
     y_dim: Hashable = "yaxis_2",
     coord_func: Union[
         str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_subtile_coordinates_coord_func,
+    ] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset through weighted block averaging.
 
@@ -209,7 +209,7 @@ def edge_weighted_block_average(
     edge: str = "x",
     coord_func: Union[
         str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_subtile_coordinates_coord_func,
+    ] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset along a block edge.
 
@@ -379,7 +379,7 @@ def _xarray_block_reduce_dataarray(
     cval: float = np.nan,
     coord_func: Union[
         str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_subtile_coordinates_coord_func,
+    ] = coarsen_coords_coord_func,
 ) -> xr.DataArray:
     """An xarray and dask compatible block_reduce function designed for
     DataArrays.
@@ -449,7 +449,7 @@ def xarray_block_reduce(
     cval: float = np.nan,
     coord_func: Union[
         str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_subtile_coordinates_coord_func,
+    ] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """A generic block reduce function for xarray data structures.
 
@@ -507,7 +507,7 @@ def horizontal_block_reduce(
     y_dim: Hashable = "yaxis_1",
     coord_func: Union[
         str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_subtile_coordinates_coord_func,
+    ] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """A generic horizontal block reduce function for xarray data structures.
 
@@ -545,7 +545,7 @@ def block_median(
     y_dim: Hashable = "yaxis_1",
     coord_func: Union[
         str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_subtile_coordinates_coord_func,
+    ] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by taking the median over blocks.
 
@@ -582,7 +582,7 @@ def block_coarsen(
     method: str = "sum",
     coord_func: Union[
         str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_subtile_coordinates_coord_func,
+    ] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by performing an operation over blocks.
 
@@ -615,7 +615,7 @@ def block_edge_sum(
     edge: str = "x",
     coord_func: Union[
         str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_subtile_coordinates_coord_func,
+    ] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by summing along a block edge.
 

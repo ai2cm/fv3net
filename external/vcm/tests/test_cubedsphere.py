@@ -5,8 +5,8 @@ import xarray as xr
 from skimage.measure import block_reduce as skimage_block_reduce
 
 from vcm.cubedsphere import (
-    add_coarsened_subtile_coordinates,
-    coarsen_subtile_coordinates,
+    add_coordinates,
+    coarsen_coords,
     _xarray_block_reduce_dataarray,
     horizontal_block_reduce,
     block_median,
@@ -80,7 +80,7 @@ def test_remove_duplicate_coords(x, y, data, expected_x, expected_y, expected_da
         "cell interfaces; second subtile",
     ],
 )
-def test_coarsen_subtile_coordinates(
+def test_coarsen_coords(
     coarsening_factor, input_coordinate, expected_coordinate
 ):
     input_coordinate = xr.DataArray(
@@ -92,12 +92,12 @@ def test_coarsen_subtile_coordinates(
     )
     expected = {"x": expected_coordinate}
 
-    result = coarsen_subtile_coordinates(coarsening_factor, input_coordinate, ["x"])
+    result = coarsen_coords(coarsening_factor, input_coordinate, ["x"])
     xr.testing.assert_identical(result["x"], expected["x"])
 
 
 @pytest.mark.parametrize("coarsened_object_type", ["DataArray", "Dataset"])
-def test_add_coarsened_subtile_coordinates(coarsened_object_type):
+def test_add_coordinates(coarsened_object_type):
     coarsening_factor = 2
 
     x = np.array([1.0, 2.0]).astype(np.float32)
@@ -118,7 +118,7 @@ def test_add_coarsened_subtile_coordinates(coarsened_object_type):
     if coarsened_object_type == "Dataset":
         expected = expected.to_dataset()
 
-    result = add_coarsened_subtile_coordinates(
+    result = add_coordinates(
         reference_obj, coarsened_obj, coarsening_factor, ["x", "y"]
     )
 
