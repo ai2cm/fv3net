@@ -106,7 +106,7 @@ def coarsen_coords(
 def coarsen_coords_coord_func(
     coordinate: np.array, axis: Union[int, Tuple[int]] = -1
 ):
-    """xarray coarsen coord_func version of coarsen_subtile_coordinates.
+    """xarray coarsen coord_func version of coarsen_coords.
 
     Note that xarray requires an axis argument for this to work, but it is not
     used by this function.  To coarsen dimension coordinates, xarray reshapes
