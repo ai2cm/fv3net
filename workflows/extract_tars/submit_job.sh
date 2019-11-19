@@ -23,5 +23,5 @@ python -m fv3net.pipelines.extract_tars \
     --type_check_strictness 'ALL_REQUIRED' \
     --worker_machine_type n1-standard-1 \
     --setup_file ./setup.py \
-    --extra_package dist/vcm-0.1.0.tar.gz
+    --extra_package external/vcm/dist/vcm-0.1.0.tar.gz
 
