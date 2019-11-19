@@ -2,6 +2,7 @@
 Some helper function for visualization.
 """
 import holoviews as hv
+from external.vcm.vcm.cubedsphere import shift_edge_var_to_center
 
 
 def make_image(
@@ -56,9 +57,11 @@ def make_animation(
     return hv_img
 
 
+
 def plot_cube(
         data: xr.DataArray,
         grid: xr.Dataset,
+        additional_masks=[],
         ax=None,
         colorbar=True,
         contours=False,
@@ -72,6 +75,8 @@ def plot_cube(
     grid: Dataset of grid variables that must include:
         -lat, lon, latb, lonb (where lat and lon are grid centers and lonb and latb are grid edges)
 
+    additional_masks: DataArray mask with same dims as data, e.g. land/sea mask
+
     Returns:
 
     Fig and ax handles
@@ -79,7 +84,7 @@ def plot_cube(
     """
 
     if ax is None:
-        fig, ax = plt.subplots(1, 1, subplot_kw={'projection': ccrs.PlateCarree()}, figsize=(10, 7))
+        fig, ax = plt.subplots(1, 1, subplot_kw={'projection': ccrs.PlateCarree()}, figsize=(12,9))
     if 'grid_y' in data.dims or 'grid_x' in data.dims:
         data = shift_edge_var_to_center(data)
 
@@ -89,6 +94,8 @@ def plot_cube(
 
     mask = np.abs(grid.grid_lont - 180) > MASK_SIZE
     masked = data.where(mask)
+    for additional_mask in additional_masks:
+        masked = masked.where(additional_mask)
 
     if 'vmin' not in kwargs:
         kwargs['vmin'] = float(data.min())
@@ -117,8 +124,9 @@ def plot_cube(
             )
 
     if colorbar:
-        cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cbar = plt.colorbar(im, cax = fig.add_axes([0.91, 0.275, 0.03, 0.45]))
         cbar.ax.set_ylabel(data.name)
-    ax.coastlines(color=[0, 0.25, 0], linewidth=1.5)
+
+    ax.coastlines(color=[0, 0.25, 0], linewidth=0.6)
 
     return fig, ax

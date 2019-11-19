@@ -20,17 +20,6 @@ def convert_momenta_to_lat_lon_coords(ds: xr.Dataset):
     return u_latlon, v_latlon
 
 
-def shift_edge_var_to_center(edge_var: xr.DataArray):
-    # assumes C or D grid
-    if 'grid_y' in edge_var.dims:
-        return _rename_xy_coords(0.5 * (edge_var + edge_var.shift(grid_y=1))[:,  1:, :])
-    elif 'grid_x' in edge_var.dims:
-        return _rename_xy_coords(0.5 * (edge_var + edge_var.shift(grid_x=1))[:, :, 1:])
-    else:
-        raise ValueError(
-            'Variable to shift to center must be centered on one horizontal axis and edge-valued on the other.')
-
-
 def _deg_to_radians(deg):
     """
 
@@ -50,7 +39,7 @@ def _dot(v1, v2):
     return sum([v1[i] * v2[i] for i in range(len(v1))])
 
 
-def _rename_xy_coords(cell_centered_da: xr.DataArray):
+def _rename_xy_coords(cell_centered_da):
     """
     Args:
         cell_centered_da: data array that got shifted from edges to cell centers
@@ -71,11 +60,16 @@ def _spherical_to_cartesian_basis(
         lat_unit_vec
 ):
     """
-    :param lon_component:
-    :param lat_component:
-    :param lon_unit_vec: lon_hat for cell center, provided in cartesian basis
-    :param lat_unit_vec: lat_hat for cell center, provided in cartesian basis
-    :return:
+    Convert a vector from lat/lon basis to cartesian.
+    Assumes vector lies on surface of sphere, i.e. spherical basis r component is zero
+    Args:
+        lon_component:
+        lat_component:
+        lon_unit_vec:
+        lat_unit_vec:
+
+    Returns:
+
     """
     [x, y, z] = [
         lon_component * lon_unit_vec[i] + lat_component * lat_unit_vec[i]
@@ -101,13 +95,14 @@ def _lon_lat_unit_vectors_to_cartesian(ds):
 
 def _lon_diff(corner1, corner2):
     lon_diff = (corner2 - corner1)
+    # this handles the prime meridian case
     lon_diff = lon_diff \
         .where(abs(lon_diff) < 180.,
                np.sign(lon_diff) * (abs(lon_diff) - 360))
     return lon_diff
 
 
-def _get_local_basis_in_spherical_coords(grid: xr.Dataset):
+def _get_local_basis_in_spherical_coords(grid):
     """
     Approximates the lon/lat unit vector at cell center as equal to the x/y
     vectors at the bottom left corner written in the lat/lon basis.

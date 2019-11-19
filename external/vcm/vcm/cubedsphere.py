@@ -12,6 +12,17 @@ NUM_TILES = 6
 SUBTILE_FILE_PATTERN = '{prefix}.tile{tile:d}.nc.{subtile:04d}'
 
 
+def shift_edge_var_to_center(edge_var: xr.DataArray):
+    # assumes C or D grid
+    if 'grid_y' in edge_var.dims:
+        return _rename_xy_coords(0.5 * (edge_var + edge_var.shift(grid_y=1))[:,  1:, :])
+    elif 'grid_x' in edge_var.dims:
+        return _rename_xy_coords(0.5 * (edge_var + edge_var.shift(grid_x=1))[:, :, 1:])
+    else:
+        raise ValueError(
+            'Variable to shift to center must be centered on one horizontal axis and edge-valued on the other.')
+
+
 # TODO: write a test for this method
 def combine_subtiles(subtiles):
     """Combine subtiles of a cubed-sphere dataset
