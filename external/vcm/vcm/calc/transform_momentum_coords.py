@@ -2,8 +2,8 @@ import numpy as np
 import xarray as xr
 
 def convert_momenta_to_lat_lon_coords(ds: xr.Dataset):
-    u_centered = _rename_xy_coords(0.5 * (ds.u + ds.u.shift(grid_y=1))[:, :, 1:, :])
-    v_centered = _rename_xy_coords(0.5 * (ds.v + ds.v.shift(grid_x=1))[:, :, :, 1:])
+    u_centered = _rename_xy_coords(0.5 * (ds.u + ds.u.shift(grid_y=1))[:, 1:, :])
+    v_centered = _rename_xy_coords(0.5 * (ds.v + ds.v.shift(grid_x=1))[:, :, 1:])
 
     (e1_lon, e1_lat), (e2_lon, e2_lat) = _get_local_basis_in_spherical_coords(ds)
     lon_unit_vec_cartesian, lat_unit_vec_cartesian = _lon_lat_unit_vectors_to_cartesian(ds)
@@ -23,9 +23,9 @@ def convert_momenta_to_lat_lon_coords(ds: xr.Dataset):
 def shift_edge_var_to_center(edge_var: xr.DataArray):
     # assumes C or D grid
     if 'grid_y' in edge_var.dims:
-        return _rename_xy_coords(0.5 * (edge_var + edge_var.shift(grid_y=1))[:, :, 1:, :])
+        return _rename_xy_coords(0.5 * (edge_var + edge_var.shift(grid_y=1))[:,  1:, :])
     elif 'grid_x' in edge_var.dims:
-        return _rename_xy_coords(0.5 * (edge_var + edge_var.shift(grid_x=1))[:, :, :, 1:])
+        return _rename_xy_coords(0.5 * (edge_var + edge_var.shift(grid_x=1))[:, :, 1:])
     else:
         raise ValueError(
             'Variable to shift to center must be centered on one horizontal axis and edge-valued on the other.')
