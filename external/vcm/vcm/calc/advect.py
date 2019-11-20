@@ -3,7 +3,7 @@ from scipy.ndimage import map_coordinates
 from numba import jit
 import xarray as xr
 import dask.array as da
-from vcm.convenience import open_dataset
+from external.vcm.vcm.convenience import open_dataset
 
 
 @jit

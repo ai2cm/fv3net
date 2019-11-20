@@ -1,9 +1,10 @@
 import numpy as np
 import xarray as xr
+from ..cubedsphere import rename_centered_xy_coords
 
 def convert_momenta_to_lat_lon_coords(ds: xr.Dataset):
-    u_centered = _rename_xy_coords(0.5 * (ds.u + ds.u.shift(grid_y=1))[:, 1:, :])
-    v_centered = _rename_xy_coords(0.5 * (ds.v + ds.v.shift(grid_x=1))[:, :, 1:])
+    u_centered = rename_centered_xy_coords(0.5 * (ds.u + ds.u.shift(grid_y=1))[:, 1:, :])
+    v_centered = rename_centered_xy_coords(0.5 * (ds.v + ds.v.shift(grid_x=1))[:, :, 1:])
 
     (e1_lon, e1_lat), (e2_lon, e2_lat) = _get_local_basis_in_spherical_coords(ds)
     lon_unit_vec_cartesian, lat_unit_vec_cartesian = _lon_lat_unit_vectors_to_cartesian(ds)
@@ -37,20 +38,6 @@ def _dot(v1, v2):
     Wrote this because applying np.dot to dataset did not behave as expected / slow
     """
     return sum([v1[i] * v2[i] for i in range(len(v1))])
-
-
-def _rename_xy_coords(cell_centered_da):
-    """
-    Args:
-        cell_centered_da: data array that got shifted from edges to cell centers
-    Returns:
-        same input array with dims renamed to corresponding cell center dims
-    """
-    for dim in ['grid_x', 'grid_y']:
-        if dim in cell_centered_da.dims:
-            cell_centered_da[dim] = cell_centered_da[dim] - 1
-            cell_centered_da = cell_centered_da.rename({dim: dim + 't'})
-    return cell_centered_da
 
 
 def _spherical_to_cartesian_basis(

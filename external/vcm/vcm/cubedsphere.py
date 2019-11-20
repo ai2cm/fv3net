@@ -11,13 +11,25 @@ from skimage.measure import block_reduce
 NUM_TILES = 6
 SUBTILE_FILE_PATTERN = '{prefix}.tile{tile:d}.nc.{subtile:04d}'
 
+def rename_centered_xy_coords(cell_centered_da):
+    """
+    Args:
+        cell_centered_da: data array that got shifted from edges to cell centers
+    Returns:
+        same input array with dims renamed to corresponding cell center dims
+    """
+    for dim in ['grid_x', 'grid_y']:
+        if dim in cell_centered_da.dims:
+            cell_centered_da[dim] = cell_centered_da[dim] - 1
+            cell_centered_da = cell_centered_da.rename({dim: dim + 't'})
+    return cell_centered_da
 
 def shift_edge_var_to_center(edge_var: xr.DataArray):
     # assumes C or D grid
     if 'grid_y' in edge_var.dims:
-        return _rename_xy_coords(0.5 * (edge_var + edge_var.shift(grid_y=1))[:,  1:, :])
+        return rename_centered_xy_coords(0.5 * (edge_var + edge_var.shift(grid_y=1))[:,  1:, :])
     elif 'grid_x' in edge_var.dims:
-        return _rename_xy_coords(0.5 * (edge_var + edge_var.shift(grid_x=1))[:, :, 1:])
+        return rename_centered_xy_coords(0.5 * (edge_var + edge_var.shift(grid_x=1))[:, :, 1:])
     else:
         raise ValueError(
             'Variable to shift to center must be centered on one horizontal axis and edge-valued on the other.')
