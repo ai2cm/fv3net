@@ -2,23 +2,38 @@ import numpy as np
 import xarray as xr
 from ..cubedsphere import rename_centered_xy_coords
 
-def convert_momenta_to_lat_lon_coords(ds: xr.Dataset):
-    u_centered = rename_centered_xy_coords(0.5 * (ds.u + ds.u.shift(grid_y=1))[:, 1:, :])
-    v_centered = rename_centered_xy_coords(0.5 * (ds.v + ds.v.shift(grid_x=1))[:, :, 1:])
 
-    (e1_lon, e1_lat), (e2_lon, e2_lat) = _get_local_basis_in_spherical_coords(ds)
-    lon_unit_vec_cartesian, lat_unit_vec_cartesian = _lon_lat_unit_vectors_to_cartesian(ds)
+def convert_vars_to_lat_lon_coords(
+        da_x: xr.DataArray,
+        da_y: xr.DataArray,
+        grid: xr.Dataset
+):
+    """
+
+    Args:
+        da_x: x component of variable (defined on top/bottom cell edges), e.g. u, du_dt
+        da_y: y component of variable (defined on left/right cell edges), e.g. v, dv_dt
+        grid: dataset of lat/lon at cell centers and edges
+
+    Returns:
+        lon_component , lat_component: data arrays of the lon and lat components of the variable
+    """
+    x_var_centered = rename_centered_xy_coords(0.5 * (da_x + da_x.shift(grid_y=1))[:, 1:, :])
+    y_var_centered = rename_centered_xy_coords(0.5 * (da_y + da_y.shift(grid_x=1))[:, :, 1:])
+
+    (e1_lon, e1_lat), (e2_lon, e2_lat) = _get_local_basis_in_spherical_coords(grid)
+    lon_unit_vec_cartesian, lat_unit_vec_cartesian = _lon_lat_unit_vectors_to_cartesian(grid)
     e1_cartesian = _spherical_to_cartesian_basis(e1_lon, e1_lat, lon_unit_vec_cartesian, lat_unit_vec_cartesian)
     e2_cartesian = _spherical_to_cartesian_basis(e2_lon, e2_lat, lon_unit_vec_cartesian, lat_unit_vec_cartesian)
 
     denom = (_dot(e1_cartesian, lon_unit_vec_cartesian) * _dot(e2_cartesian, lat_unit_vec_cartesian) -
              _dot(e2_cartesian, lon_unit_vec_cartesian) * _dot(e1_cartesian, lat_unit_vec_cartesian))
-    u_latlon = (_dot(e2_cartesian, lat_unit_vec_cartesian) * u_centered -
-                _dot(e1_cartesian, lat_unit_vec_cartesian) * v_centered) / denom
-    v_latlon = (_dot(e2_cartesian, lon_unit_vec_cartesian) * u_centered -
-                _dot(e1_cartesian, lon_unit_vec_cartesian) * v_centered) / denom
+    lon_component = (_dot(e2_cartesian, lat_unit_vec_cartesian) * x_var_centered -
+                _dot(e1_cartesian, lat_unit_vec_cartesian) * y_var_centered) / denom
+    lat_component = (_dot(e2_cartesian, lon_unit_vec_cartesian) * x_var_centered -
+                _dot(e1_cartesian, lon_unit_vec_cartesian) * y_var_centered) / denom
 
-    return u_latlon, v_latlon
+    return lon_component , lat_component
 
 
 def _deg_to_radians(deg):
@@ -68,15 +83,15 @@ def _spherical_to_cartesian_basis(
     return x, y, z
 
 
-def _lon_lat_unit_vectors_to_cartesian(ds):
+def _lon_lat_unit_vectors_to_cartesian(grid):
     lon_unit_vec = (
-        -np.sin(ds.grid_lont),
-        np.cos(ds.grid_lont),
+        -np.sin(grid.grid_lont),
+        np.cos(grid.grid_lont),
         0)
     lat_unit_vec = (
-        np.cos(np.pi / 2 - ds.grid_latt) * np.cos(ds.grid_lont),
-        np.cos(np.pi / 2 - ds.grid_latt) * np.sin(ds.grid_lont),
-        -np.sin(np.pi / 2 - ds.grid_latt))
+        np.cos(np.pi / 2 - grid.grid_latt) * np.cos(grid.grid_lont),
+        np.cos(np.pi / 2 - grid.grid_latt) * np.sin(grid.grid_lont),
+        -np.sin(np.pi / 2 - grid.grid_latt))
     return lon_unit_vec, lat_unit_vec
 
 
