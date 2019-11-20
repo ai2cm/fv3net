@@ -3,8 +3,8 @@ import intake
 import yaml
 
 from dask import delayed
-from vcm import TOP_LEVEL_DIR
-from vcm.cloud.remote_data import open_gfdl_data_with_2d
+from external.vcm.vcm import TOP_LEVEL_DIR
+from external.vcm.vcm.cloud.remote_data import open_gfdl_data_with_2d
 from pathlib import Path
 
 # TODO Fix short tag yaml file get for fv3 installed as package
