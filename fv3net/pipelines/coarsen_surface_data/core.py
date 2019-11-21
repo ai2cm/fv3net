@@ -19,7 +19,6 @@ def concat_files(tiles):
 
 @delayed
 def _median_no_dask(x, coarsening):
-    n = len(x["xaxis_1"])
     return cubedsphere.block_median(x.chunk(), coarsening).compute()
 
 

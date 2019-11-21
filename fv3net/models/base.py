@@ -32,7 +32,7 @@ class BaseXarrayEstimator:
             output_vars: list of output_variables
             sample_dim: dimension over which samples are taken
             data: xarray Dataset with dimensions (sample_dim, *)
-            
+
         Returns:
             fitted model
         """
@@ -41,11 +41,11 @@ class BaseXarrayEstimator:
     def predict(self, data: xr.Dataset, sample_dim: str) -> xr.Dataset:
         """
         Make a prediction
-        
+
         Args:
             data: xarray Dataset with the same feature dimensions as trained
               data
-            sample_dim: dimension along which "samples" are defined. This could be 
+            sample_dim: dimension along which "samples" are defined. This could be
               inferred, but explicity is not terrible.
         Returns:
             prediction:
@@ -55,12 +55,12 @@ class BaseXarrayEstimator:
 
 class SklearnWrapper(BaseXarrayEstimator):
     """Wrap a SkLearn model for use with xarray
-    
+
     """
 
     def __init__(self, model: BaseEstimator):
         """
-        
+
         Args:
             model: a scikit learn regression model
         """

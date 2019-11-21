@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 import tempfile
 from datetime import datetime
 from functools import partial
@@ -63,24 +62,24 @@ def main(time: str, rundir_transformations=(), key=None):
         except KeyError:
             pass
         else:
-            gsutils.authenticate(key)
+            gsutil.authenticate(key)
 
     elif key:
-        gsutils.authenticate(key)
+        gsutil.authenticate(key)
 
     with tempfile.TemporaryDirectory() as localdir:
-        gsutils.copy(restart_dir(time), localdir)
+        gsutil.copy(restart_dir(time), localdir)
         logging.info("running experiment")
         for transform in rundir_transformations:
             transform(localdir)
         try:
-            fv3.run_experiment(localdir)
+            fv3run.run_experiment(localdir)
         except Exception as e:
             logging.critical(
                 f"Experiment failed. Listing rundir for debugging purposes: {os.listdir(localdir)}"
             )
             raise e
-        gsutils.copy(localdir + "/*", output(time))
+        gsutil.copy(localdir + "/*", output(time))
 
 
 if __name__ == "__main__":

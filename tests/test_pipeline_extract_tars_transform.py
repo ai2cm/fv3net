@@ -1,7 +1,6 @@
 import pytest
 
-from fv3net.pipelines.extract_tars.transforms import \
-    not_finished_with_tar_extract
+from fv3net.pipelines.extract_tars.transforms import not_finished_with_tar_extract
 
 
 @pytest.mark.parametrize(

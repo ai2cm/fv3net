@@ -60,7 +60,7 @@ def train(
     shuffled = flat.isel(sample=ind)
 
     train = shuffled.isel(sample=slice(0, n_train))
-    test = shuffled.isel(sample=slice(n_train, n_train + n_test))
+    # test = shuffled.isel(sample=slice(n_train, n_train + n_test))
 
     sklearn_model = TransformedTargetRegressor(
         RandomForestRegressor(

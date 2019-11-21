@@ -73,7 +73,7 @@ def lagrangian_update(phi, *args, **kwargs):
     return map_coordinates(phi, origin)
 
 
-## Dask wrapper
+# Dask wrapper
 
 ghost_cells_depth = {1: 2, 2: 2, 3: 2}
 boundaries = {1: "nearest", 2: "reflect", 3: "nearest"}

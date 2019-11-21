@@ -265,7 +265,7 @@ def open_oro_data(paths: list) -> xr.Dataset:
 
 def open_fv_tracer(paths: list) -> xr.Dataset:
     """
-    Open fv_tracer file type differently than the others 
+    Open fv_tracer file type differently than the others
     because its input and ouput variable lists are currently not the same -
     sgs_tke shows up in outputs but not inputs
     """
@@ -301,7 +301,7 @@ def use_diagnostic_coordinates(
     ds: xr.Dataset, category: str, output_mapping: dict
 ) -> xr.Dataset:
     """
-    Map the coordinate names to diagnostic standards using an assumed order for dimensions for each 
+    Map the coordinate names to diagnostic standards using an assumed order for dimensions for each
     file category and variable
     """
     data_vars = {}

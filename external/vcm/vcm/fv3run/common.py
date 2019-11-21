@@ -1,5 +1,4 @@
 import os
-from subprocess import check_call
 
 submit_job_script = """
 #!/bin/bash

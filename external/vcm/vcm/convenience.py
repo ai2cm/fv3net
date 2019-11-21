@@ -1,10 +1,17 @@
+import logging
+import os
+import subprocess
+import tempfile
+from collections import defaultdict
 from pathlib import Path
 
+import dask.array as da
 import intake
 import xarray as xr
 import yaml
 from dask import delayed
 
+from gcm.cloud import gsutil
 from vcm import TOP_LEVEL_DIR
 from vcm.cloud.remote_data import open_gfdl_data_with_2d
 
@@ -65,10 +72,10 @@ def open_dataset(tag) -> xr.Dataset:
 
 
 def open_data(sources=False, two_dimensional=True):
-    ds = xr.open_zarr(
-        root
-        + "data/interim/2019-07-17-FV3_DYAMOND_0.25deg_15minute_256x256_blocks.zarr"
+    path = os.path.join(
+        root, "data/interim/2019-07-17-FV3_DYAMOND_0.25deg_15minute_256x256_blocks.zarr"
     )
+    ds = xr.open_zarr(path)
 
     if sources:
         src = xr.open_zarr(root + "data/interim/apparent_sources.zarr")
@@ -81,10 +88,10 @@ def open_data(sources=False, two_dimensional=True):
     return ds
 
 
-## Data Adjustments ##
+# Data Adjustments ##
 def _rename_SHiELD_varnames_to_orig(ds: xr.Dataset) -> xr.Dataset:
     """
-    Replace varnames from new dataset to match original style 
+    Replace varnames from new dataset to match original style
     from initial DYAMOND data.
     """
 
@@ -141,7 +148,7 @@ def _open_remote_nc(url):
 def file_names_for_time_step(timestep, category, resolution=3072):
     # TODO remove this hardcode
     bucket = f"gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/C{resolution}/{timestep}/{timestep}.{category}*"
-    return gslist(bucket)
+    return gsutil.list_matches(bucket)
 
 
 def tile_num(name):

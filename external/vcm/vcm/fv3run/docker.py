@@ -54,10 +54,9 @@ def run_experiment(directory):
     return check_call(
         [
             "docker",
-            "run",  #'-d',
+            "run",
             "-v",
             rundir(directory) + ":" + rundir(directory),
-            #'-v', os.getcwd() + '/data/inputdata/fv3gfs-data-docker/fix.v201702:/inputdata/fix.v201702',
             DOCKER_IMAGE,
             "bash",
             script_path,
@@ -67,10 +66,6 @@ def run_experiment(directory):
 
 def swap_sfc_data(sfc_data, broken_sfc_data, key):
     return sfc_data.assign({key: broken_sfc_data[key]})
-
-
-def rundir(directory):
-    return join(abspath(directory), "rundir")
 
 
 if __name__ == "__main__":

@@ -3,7 +3,6 @@ Utilities for coarse-graining restart data and directories
 """
 import logging
 import os
-from itertools import product
 from os.path import join
 
 import dask.bag as db
@@ -12,9 +11,15 @@ import pandas as pd
 import xarray as xr
 from toolz import curry
 
-from ..data.cubedsphere import (block_coarsen, block_edge_sum, block_median,
-                                coarsen_coords, edge_weighted_block_average,
-                                open_cubed_sphere, weighted_block_average)
+from ..data.cubedsphere import (
+    block_coarsen,
+    block_edge_sum,
+    block_median,
+    coarsen_coords,
+    edge_weighted_block_average,
+    open_cubed_sphere,
+    weighted_block_average,
+)
 
 TILES = range(1, 7)
 OUTPUT_CATEGORY_NAMES = {

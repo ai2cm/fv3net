@@ -16,7 +16,6 @@ def _test_data():
 
 
 def data_from_disk():
-    suffix = "tileX.nc.0000"
     prefix = "PRATEsfc/gfsphysics_15min_fine_PRATEsfc"
     for fname in cubedsphere.all_filenames(prefix):
         tile = int(fname[-9])
@@ -34,7 +33,7 @@ def test_CombineSubtilesByKey(tmpdir):
         return "gs://vcm-ml-data/TESTDELETE/{name}.tile{tile}.nc".format(**key)
 
     with TestPipeline() as p:
-        data = (
+        (
             p
             | beam.Create(mock_data())
             | common.CombineSubtilesByKey()

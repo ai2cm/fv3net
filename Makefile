@@ -79,12 +79,12 @@ PYTHON_FILES = $(shell git ls-files | grep -e 'py$$')
 
 lint:
 	flake8 $(PYTHON_FILES)
-	black --check $(PYTHON_FILES)
 	isort -c $(PYTHON_FILES)
+	black --check $(PYTHON_FILES)
 
 reformat:
-	black $(PYTHON_FILES)
 	isort $(PYTHON_FILES)
+	black $(PYTHON_FILES)
 
 #################################################################################
 # Self Documenting Commands                                                     #

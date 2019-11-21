@@ -6,7 +6,6 @@ from typing.io import BinaryIO
 
 import apache_beam as beam
 import xarray as xr
-from apache_beam import io
 from apache_beam.io import filesystems
 
 

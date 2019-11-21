@@ -6,11 +6,8 @@ from scipy.interpolate import interp1d
 
 from vcm.convenience import open_dataset, replace_esmf_coords_reg_latlon
 
-# import xesmf as xe
 
-
-
-### Vertical interpolation
+# Vertical interpolation
 def interpolate_1d_scipy(x, xp, arg):
     """simple test case"""
     return interp1d(xp, arg)(x)
@@ -101,9 +98,9 @@ def fregrid_bnds_to_esmf(grid_xt_bnds):
 
 def fregrid_to_esmf_compatible_coords(data: xr.Dataset) -> xr.Dataset:
     """Add ESMF-compatible grid information
-    
+
     GFDL's fregrid stores metadata about the coordinates in a different way than ESMF.
-    This function adds lon, and lat coordinates as well as the bounding information 
+    This function adds lon, and lat coordinates as well as the bounding information
     lon_b and lat_b.
     """
     data = data.rename({"grid_xt": "lon", "grid_yt": "lat"})
@@ -114,7 +111,7 @@ def fregrid_to_esmf_compatible_coords(data: xr.Dataset) -> xr.Dataset:
     return data.assign_coords(lon_b=lon_b, lat_b=lat_b)
 
 
-### Horizontal interpolation
+# Horizontal interpolation
 def regrid_horizontal(
     data_in,
     d_lon_out=1.0,
@@ -123,7 +120,7 @@ def regrid_horizontal(
     prev_regrid_dataset=None,
 ):
     """Interpolate horizontally from one rectangular grid to another
-    
+
     Args:
       data_in: Raw dataset to be regridded
       d_lon_out: longitude grid spacing (in degrees)
@@ -134,6 +131,8 @@ def regrid_horizontal(
         not present in prev_regrid_dataset, then they will be regridded
         and added to the output.
     """
+    import xesmf as xe
+
     raise NotImplementedError(
         "No longer using ESMF and this function is broken"
         " without a proper pip installer for esmpy."
@@ -144,11 +143,8 @@ def regrid_horizontal(
     contiguous_space = data_in.chunk({"lon": -1, "lat": -1, "time": 1})
 
     # Create output dataset with appropriate lat-lon
-    # grid_out = xe.util.grid_global(d_lon_out, d_lat_out)
-
-    # regridder = xe.Regridder(
-    #     contiguous_space, grid_out, method, reuse_weights=True
-    # )
+    grid_out = xe.util.grid_global(d_lon_out, d_lat_out)
+    regridder = xe.Regridder(contiguous_space, grid_out, method, reuse_weights=True)
 
     # Regrid each variable in original dataset
     regridded_das = []
