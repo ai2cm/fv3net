@@ -1,12 +1,13 @@
-from typing import Callable, Any
-from typing.io import BinaryIO
-import apache_beam as beam
-from apache_beam.io import filesystems
-from apache_beam import io
-import xarray as xr
-import tempfile
-import shutil
 import os
+import shutil
+import tempfile
+from typing import Any, Callable
+from typing.io import BinaryIO
+
+import apache_beam as beam
+import xarray as xr
+from apache_beam import io
+from apache_beam.io import filesystems
 
 
 class CombineSubtilesByKey(beam.PTransform):

@@ -1,7 +1,7 @@
-import xarray as xr
 import numpy as np
+import xarray as xr
 
-floating_point_types = tuple(np.dtype(t) for t in ['float32', 'float64', 'float128'])
+floating_point_types = tuple(np.dtype(t) for t in ["float32", "float64", "float128"])
 
 
 def is_float(x):

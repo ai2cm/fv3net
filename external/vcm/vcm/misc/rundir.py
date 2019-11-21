@@ -1,10 +1,10 @@
-import xarray as xr
-from os.path import join
+from collections import defaultdict
 from datetime import datetime, timedelta
+from os.path import join
+
 import cftime
 import pandas as pd
-from collections import defaultdict
-
+import xarray as xr
 
 data_id = "data/raw/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute"
 output_2d = "data/interim/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute_2d.zarr"

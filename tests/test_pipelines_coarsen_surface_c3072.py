@@ -1,10 +1,10 @@
+import apache_beam as beam
 import numpy as np
 import xarray as xr
-from vcm import cubedsphere
-import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
-from fv3net.pipelines import common
-from fv3net.pipelines import coarsen_surface_c3072
+
+from fv3net.pipelines import coarsen_surface_c3072, common
+from vcm import cubedsphere
 
 
 def _test_data():

@@ -1,15 +1,12 @@
 """Tools for working with cubedsphere data"""
 import logging
 from os.path import join
+from typing import Any, Callable, Hashable, List, Mapping, Tuple, Union
 
 import dask
 import numpy as np
 import xarray as xr
-
-from typing import Any, Callable, Hashable, List, Mapping, Tuple, Union
-
 from skimage.measure import block_reduce as skimage_block_reduce
-
 
 NUM_TILES = 6
 SUBTILE_FILE_PATTERN = "{prefix}.tile{tile:d}.nc.{subtile:04d}"
@@ -103,9 +100,7 @@ def coarsen_coords(
     return result
 
 
-def coarsen_coords_coord_func(
-    coordinate: np.array, axis: Union[int, Tuple[int]] = -1
-):
+def coarsen_coords_coord_func(coordinate: np.array, axis: Union[int, Tuple[int]] = -1):
     """xarray coarsen coord_func version of coarsen_coords.
 
     Note that xarray requires an axis argument for this to work, but it is not
@@ -147,9 +142,7 @@ def add_coordinates(
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    coarsened_coords = coarsen_coords(
-        coarsening_factor, reference_obj, dims
-    )
+    coarsened_coords = coarsen_coords(coarsening_factor, reference_obj, dims)
 
     if isinstance(coarsened_obj, xr.DataArray):
         result = coarsened_obj.assign_coords(coarsened_coords).rename(

@@ -1,6 +1,7 @@
-import apache_beam
 import logging
 from typing import Iterable, List
+
+import apache_beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pvalue import PCollection
 
@@ -25,19 +26,16 @@ def run(file_lister: Iterable[str], output_prefix: str, pipeline_args: List) -> 
     )
     pipeline = apache_beam.Pipeline(options=options)
 
-    to_extract: PCollection[str] = apache_beam.Create(
-        file_lister
-    ).with_output_types(str)
+    to_extract: PCollection[str] = apache_beam.Create(file_lister).with_output_types(
+        str
+    )
 
     filter_finished: PCollection[str] = apache_beam.Filter(
-        cftransforms.not_finished_with_tar_extract,
-        output_prefix
+        cftransforms.not_finished_with_tar_extract, output_prefix
     ).with_output_types(str)
 
     extract_fn = apache_beam.ParDo(
-        cftransforms.ExtractAndUploadTimestepWithC3072SurfaceData(
-            output_prefix
-        )
+        cftransforms.ExtractAndUploadTimestepWithC3072SurfaceData(output_prefix)
     )
 
     _ = pipeline | to_extract | filter_finished | extract_fn
