@@ -150,8 +150,9 @@ This python code in this project is autoformated using the
 [black](https://black.readthedocs.io/en/stable/) code formatting tool, and the
 [isort](https://github.com/timothycrosley/isort) tool for automatically sorting
 the order of import statements. To pass CI, any contributed code must be
-unchanged by the action of these tools, and is also checked by the flake8
-linter.
+unchanged by black and also checked by the flake8 linter. However, please use
+isort to sort the import statements (done automatically by `make reformat`
+below).
 
 Contributers can see if their *commited* code passes these standards by running
 
