@@ -1,4 +1,4 @@
-from setuptools import find_packages, setup
+from setuptools import setup, find_packages
 
 dependencies = [
     "apache-beam==2.16.0",

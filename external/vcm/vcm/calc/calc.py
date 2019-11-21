@@ -5,7 +5,7 @@ gravity = 9.81
 specific_heat = 1004
 
 
-def mass_integrate(phi, dp, dim="pfull"):
+def mass_integrate(phi, dp, dim='pfull'):
     return (phi * dp / gravity).sum(dim)
 
 

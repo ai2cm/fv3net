@@ -5,10 +5,11 @@ from os.path import join
 import dask
 import numpy as np
 import xarray as xr
+
 from skimage.measure import block_reduce
 
 NUM_TILES = 6
-SUBTILE_FILE_PATTERN = "{prefix}.tile{tile:d}.nc.{subtile:04d}"
+SUBTILE_FILE_PATTERN = '{prefix}.tile{tile:d}.nc.{subtile:04d}'
 
 
 # TODO: write a test for this method
@@ -36,15 +37,19 @@ def combine_subtiles(subtiles):
     return xr.merge(output_vars)
 
 
-def subtile_filenames(prefix, tile, pattern=SUBTILE_FILE_PATTERN, num_subtiles=16):
+def subtile_filenames(prefix, tile, pattern=SUBTILE_FILE_PATTERN,
+                      num_subtiles=16):
     for subtile in range(num_subtiles):
         yield pattern.format(prefix=prefix, tile=tile, subtile=subtile)
 
 
-def all_filenames(prefix, pattern=SUBTILE_FILE_PATTERN, num_subtiles=16):
+def all_filenames(prefix, pattern=SUBTILE_FILE_PATTERN,
+                  num_subtiles=16):
     filenames = []
     for tile in range(1, NUM_TILES + 1):
-        filenames.extend(subtile_filenames(prefix, tile, pattern, num_subtiles))
+        filenames.extend(subtile_filenames(prefix, tile, pattern,
+                                           num_subtiles)
+        )
     return filenames
 
 
@@ -70,7 +75,7 @@ def open_cubed_sphere(prefix: str, **kwargs):
         subtiles = [xr.open_dataset(file, chunks={}) for file in files]
         combined = combine_subtiles(subtiles).assign_coords(tile=tile)
         tiles.append(remove_duplicate_coords(combined))
-    return xr.concat(tiles, dim="tile")
+    return xr.concat(tiles, dim='tile')
 
 
 def coarsen_coords(factor, tile, dims):
@@ -84,14 +89,20 @@ def add_coordinates(reference_ds, coarsened_ds, factor, x_dim, y_dim):
     new_coordinates = coarsen_coords(factor, reference_ds, [x_dim, y_dim])
 
     if isinstance(coarsened_ds, xr.DataArray):
-        result = coarsened_ds.assign_coords(**new_coordinates).rename(coarsened_ds.name)
+        result = coarsened_ds.assign_coords(
+            **new_coordinates
+        ).rename(coarsened_ds.name)
     else:
         result = coarsened_ds.assign_coords(**new_coordinates)
     return result
 
 
 def weighted_block_average(
-    da, weights, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_2"
+    da,
+    weights,
+    coarsening_factor,
+    x_dim='xaxis_1',
+    y_dim='yaxis_2'
 ):
     """Coarsen a DataArray or Dataset through weighted block averaging.
 
@@ -118,15 +129,19 @@ def weighted_block_average(
     input DataArray and weights are the same.
     """
     coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-    result = (da * weights).coarsen(**coarsen_kwargs).sum() / weights.coarsen(
-        **coarsen_kwargs
-    ).sum()
+    result = ((da * weights).coarsen(**coarsen_kwargs).sum() /
+              weights.coarsen(**coarsen_kwargs).sum())
 
     return add_coordinates(da, result, coarsening_factor, x_dim, y_dim)
 
 
 def edge_weighted_block_average(
-    da, spacing, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1", edge="x"
+    da,
+    spacing,
+    coarsening_factor,
+    x_dim='xaxis_1',
+    y_dim='yaxis_1',
+    edge='x'
 ):
     """Coarsen a DataArray or Dataset along a block edge.
 
@@ -154,23 +169,26 @@ def edge_weighted_block_average(
     Note that this function assumes that the x and y dimension names of the
     input DataArray and weights are the same.
     """
-    if edge == "x":
+    if edge == 'x':
         coarsen_dim = x_dim
         downsample_dim = y_dim
-    elif edge == "y":
+    elif edge == 'y':
         coarsen_dim = y_dim
         downsample_dim = x_dim
     else:
         raise ValueError(f"'edge' most be either 'x' or 'y'; got {edge}.")
 
     coarsen_kwargs = {coarsen_dim: coarsening_factor}
-    coarsened = (spacing * da).coarsen(coarsen_kwargs).sum() / spacing.coarsen(
-        coarsen_kwargs
-    ).sum()
+    coarsened = (
+        (spacing * da).coarsen(coarsen_kwargs).sum() /
+        spacing.coarsen(coarsen_kwargs).sum()
+    )
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
-    return add_coordinates(da, result, coarsening_factor, coarsen_dim, downsample_dim)
+    return add_coordinates(
+        da, result, coarsening_factor, coarsen_dim, downsample_dim
+    )
 
 
 def _general_block_median(da, block_sizes):
@@ -188,7 +206,6 @@ def _general_block_median(da, block_sizes):
     -------
     xr.DataArray
     """
-
     def func(data, ordered_block_sizes, chunks):
         if isinstance(data, dask.array.Array):
             return dask.array.map_blocks(
@@ -197,7 +214,7 @@ def _general_block_median(da, block_sizes):
                 ordered_block_sizes,
                 np.median,
                 dtype=np.float32,
-                chunks=chunks,
+                chunks=chunks
             )
         else:
             return block_reduce(data, ordered_block_sizes, np.median)
@@ -221,8 +238,8 @@ def _general_block_median(da, block_sizes):
         chunks,
         input_core_dims=[da.dims, [], []],
         output_core_dims=[da.dims],
-        dask="allowed",
-        exclude_dims=set(da.dims),
+        dask='allowed',
+        exclude_dims=set(da.dims)
     )
 
     # Restore coordinates for dimensions that did not change size
@@ -233,7 +250,7 @@ def _general_block_median(da, block_sizes):
     return result
 
 
-def block_median(ds, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1"):
+def block_median(ds, coarsening_factor, x_dim='xaxis_1', y_dim='yaxis_1'):
     """Coarsen a DataArray or Dataset by taking the median over blocks.
 
     Mainly meant for coarse-graining sfc_data variables.
@@ -253,7 +270,6 @@ def block_median(ds, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1"):
     -------
     xr.DataArray
     """
-
     def _block_median_da(da, coarsening_factor, x_dim, y_dim):
         block_sizes = {}
         for dim in da.dims:
@@ -268,7 +284,12 @@ def block_median(ds, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1"):
         results = []
         for da in ds.values():
             if x_dim in da.dims and y_dim in da.dims:
-                results.append(_block_median_da(da, coarsening_factor, x_dim, y_dim))
+                results.append(_block_median_da(
+                    da,
+                    coarsening_factor,
+                    x_dim,
+                    y_dim)
+                )
             else:
                 results.append(da)
 
@@ -280,7 +301,11 @@ def block_median(ds, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1"):
 
 
 def block_coarsen(
-    da, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1", method="sum"
+    da,
+    coarsening_factor,
+    x_dim='xaxis_1',
+    y_dim='yaxis_1',
+    method='sum'
 ):
     """Coarsen a DataArray or Dataset by performing an operation over blocks.
 
@@ -316,7 +341,13 @@ def block_coarsen(
     return add_coordinates(da, result, coarsening_factor, x_dim, y_dim)
 
 
-def block_edge_sum(da, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1", edge="x"):
+def block_edge_sum(
+    da,
+    coarsening_factor,
+    x_dim='xaxis_1',
+    y_dim='yaxis_1',
+    edge='x'
+):
     """Coarsen a DataArray or Dataset by summing along a block edge.
 
     Mainly meant for coarse-graining the dx and dy variables from the original
@@ -344,10 +375,10 @@ def block_edge_sum(da, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1", edge
     Note that this function assumes that the x and y dimension names of the
     input DataArray and weights are the same.
     """
-    if edge == "x":
+    if edge == 'x':
         coarsen_dim = x_dim
         downsample_dim = y_dim
-    elif edge == "y":
+    elif edge == 'y':
         coarsen_dim = y_dim
         downsample_dim = x_dim
     else:
@@ -358,12 +389,14 @@ def block_edge_sum(da, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1", edge
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
-    return add_coordinates(da, result, coarsening_factor, coarsen_dim, downsample_dim)
+    return add_coordinates(
+        da, result, coarsening_factor, coarsen_dim, downsample_dim
+    )
 
 
 def save_tiles_separately(sfc_data, prefix, output_directory):
 
-    # TODO: move to vcm.cubedsphere
+    #TODO: move to vcm.cubedsphere
     for i in range(6):
         output_path = join(output_directory, f"{prefix}.tile{i+1}.nc")
         logging.info(f"saving data to {output_path}")

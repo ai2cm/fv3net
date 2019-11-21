@@ -1,9 +1,14 @@
-import numpy as np
 import pytest
+import numpy as np
 import xarray as xr
 
-from vcm.cubedsphere import (all_filenames, remove_duplicate_coords,
-                             subtile_filenames, weighted_block_average)
+
+from vcm.cubedsphere import (
+    remove_duplicate_coords,
+    weighted_block_average,
+    subtile_filenames,
+    all_filenames,
+)
 
 
 def test_subtile_filenames():
