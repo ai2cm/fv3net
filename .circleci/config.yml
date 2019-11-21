@@ -9,7 +9,22 @@ jobs:
     steps:
     - checkout
     - run: sudo pip install -r requirements.txt
-    - run: make lint
     - run: sudo pip install -e external/vcm
     - run: echo $GCLOUD_SERVICE_KEY > key.json
     - run: pytest
+  lint:
+    docker:
+    - image: circleci/python:3.7
+      environment:
+          GOOGLE_APPLICATION_CREDENTIALS=key.json
+    steps:
+    - checkout
+    - run: sudo pip install black flake8
+    - run: make lint
+
+workflows:
+  version: 2
+  lint:
+    jobs:
+      - build
+      - lint
