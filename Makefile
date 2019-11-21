@@ -83,6 +83,7 @@ lint:
 	# ignore unused import error in __init__.py files
 	flake8 --ignore=F401 $(PYTHON_INIT_FILES)
 	black --check $(PYTHON_FILES)
+	@echo "LINTING SUCCESSFUL"
 
 reformat:
 	isort $(PYTHON_FILES)
