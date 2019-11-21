@@ -11,7 +11,7 @@ import xarray as xr
 import yaml
 from dask import delayed
 
-from gcm.cloud import gsutil
+from vcm.cloud import gsutil
 from vcm import TOP_LEVEL_DIR
 from vcm.cloud.remote_data import open_gfdl_data_with_2d
 
