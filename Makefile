@@ -74,6 +74,18 @@ snakemake_k8s: push_image
 snakemake:
 	bash -c 'snakemake 2> >(tee snakemake_log.txt)'
 
+
+PYTHON_FILES = $(shell git ls-files | grep -e 'py$$')
+
+lint:
+	flake8 $(PYTHON_FILES)
+	black --check $(PYTHON_FILES)
+	isort -c $(PYTHON_FILES)
+
+reformat:
+	black $(PYTHON_FILES)
+	isort $(PYTHON_FILES)
+
 #################################################################################
 # Self Documenting Commands                                                     #
 #################################################################################
