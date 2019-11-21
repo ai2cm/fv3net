@@ -1,6 +1,5 @@
 import numpy as np
 import xarray as xr
-from ..cubedsphere import rename_centered_xy_coords
 
 
 def convert_vars_to_lat_lon_coords(
@@ -9,7 +8,10 @@ def convert_vars_to_lat_lon_coords(
         grid: xr.Dataset
 ):
     """
-
+    Transforms a vector in the x/y plane into lat/lon coordinates.
+    The input x and y components are assumed to be defined at the cell center.
+    If they are originally defined on edges, e.g. u and v, they can be centered with
+    func shift_edge_var_to_center from vcm.calc.cubedsphere
     Args:
         da_x: x component of variable (defined on top/bottom cell edges), e.g. u, du_dt
         da_y: y component of variable (defined on left/right cell edges), e.g. v, dv_dt
@@ -18,9 +20,6 @@ def convert_vars_to_lat_lon_coords(
     Returns:
         lon_component , lat_component: data arrays of the lon and lat components of the variable
     """
-    x_var_centered = rename_centered_xy_coords(0.5 * (da_x + da_x.shift(grid_y=1))[:, 1:, :])
-    y_var_centered = rename_centered_xy_coords(0.5 * (da_y + da_y.shift(grid_x=1))[:, :, 1:])
-
     (e1_lon, e1_lat), (e2_lon, e2_lat) = _get_local_basis_in_spherical_coords(grid)
     lon_unit_vec_cartesian, lat_unit_vec_cartesian = _lon_lat_unit_vectors_to_cartesian(grid)
     e1_cartesian = _spherical_to_cartesian_basis(e1_lon, e1_lat, lon_unit_vec_cartesian, lat_unit_vec_cartesian)
@@ -28,10 +27,10 @@ def convert_vars_to_lat_lon_coords(
 
     denom = (_dot(e1_cartesian, lon_unit_vec_cartesian) * _dot(e2_cartesian, lat_unit_vec_cartesian) -
              _dot(e2_cartesian, lon_unit_vec_cartesian) * _dot(e1_cartesian, lat_unit_vec_cartesian))
-    lon_component = (_dot(e2_cartesian, lat_unit_vec_cartesian) * x_var_centered -
-                _dot(e1_cartesian, lat_unit_vec_cartesian) * y_var_centered) / denom
-    lat_component = (_dot(e2_cartesian, lon_unit_vec_cartesian) * x_var_centered -
-                _dot(e1_cartesian, lon_unit_vec_cartesian) * y_var_centered) / denom
+    lon_component = (_dot(e2_cartesian, lat_unit_vec_cartesian) * da_x -
+                _dot(e1_cartesian, lat_unit_vec_cartesian) * da_y) / denom
+    lat_component = (_dot(e2_cartesian, lon_unit_vec_cartesian) * da_x -
+                _dot(e1_cartesian, lon_unit_vec_cartesian) * da_y) / denom
 
     return lon_component , lat_component
 
@@ -85,13 +84,13 @@ def _spherical_to_cartesian_basis(
 
 def _lon_lat_unit_vectors_to_cartesian(grid):
     lon_unit_vec = (
-        -np.sin(grid.grid_lont),
-        np.cos(grid.grid_lont),
+        -np.sin(_deg_to_radians(grid.grid_lont)),
+        np.cos(_deg_to_radians(grid.grid_lont)),
         0)
     lat_unit_vec = (
-        np.cos(np.pi / 2 - grid.grid_latt) * np.cos(grid.grid_lont),
-        np.cos(np.pi / 2 - grid.grid_latt) * np.sin(grid.grid_lont),
-        -np.sin(np.pi / 2 - grid.grid_latt))
+        np.cos(np.pi / 2 - _deg_to_radians(grid.grid_latt)) * np.cos(_deg_to_radians(grid.grid_lont)),
+        np.cos(np.pi / 2 - _deg_to_radians(grid.grid_latt)) * np.sin(_deg_to_radians(grid.grid_lont)),
+        -np.sin(np.pi / 2 - _deg_to_radians(grid.grid_latt)))
     return lon_unit_vec, lat_unit_vec
 
 
@@ -116,15 +115,15 @@ def _get_local_basis_in_spherical_coords(grid):
         lon_hat & lat_hat: tuples that define unit vectors in lat/lon coordinates
         at the center of each cell.
     """
-    xhat_lon_component = 0.5 * _deg_to_radians(
+    xhat_lon_component = _deg_to_radians(
         _lon_diff(grid.grid_lon, grid.grid_lon.shift(grid_x=-1))[:, :-1, :-1]) \
         .rename({'grid_x': 'grid_xt', 'grid_y': 'grid_yt'})
-    yhat_lon_component = 0.5 * _deg_to_radians(
+    yhat_lon_component = _deg_to_radians(
         _lon_diff(grid.grid_lon, grid.grid_lon.shift(grid_y=-1))[:, :-1, :-1]) \
         .rename({'grid_x': 'grid_xt', 'grid_y': 'grid_yt'})
-    xhat_lat_component = 0.5 * _deg_to_radians(grid.grid_lat.shift(grid_x=-1) - grid.grid_lat)[:, :-1, :-1] \
+    xhat_lat_component = _deg_to_radians(grid.grid_lat.shift(grid_x=-1) - grid.grid_lat)[:, :-1, :-1] \
         .rename({'grid_x': 'grid_xt', 'grid_y': 'grid_yt'})
-    yhat_lat_component = 0.5 * _deg_to_radians(grid.grid_lat.shift(grid_y=-1) - grid.grid_lat)[:, :-1, :-1] \
+    yhat_lat_component = _deg_to_radians(grid.grid_lat.shift(grid_y=-1) - grid.grid_lat)[:, :-1, :-1] \
         .rename({'grid_x': 'grid_xt', 'grid_y': 'grid_yt'})
     return (xhat_lon_component, xhat_lat_component), (yhat_lon_component, yhat_lat_component)
 
