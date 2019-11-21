@@ -78,7 +78,12 @@ For a dataflow pipeline, jobs can be tested locally using a DirectRunner, e.g.,
 To submit a Dataflow job to the cloud involves a few steps, including packaging 
 our external package `vcm` to be uploaded.
 
-    python external/vcm/setup.py sdist
+    $ cd external/vcm
+    $ python setup.py sdist
+
+
+After creating the uploadable `vcm` package, submit the Dataflow job from the top 
+level of `fv3net` using:
 
     python -m fv3net.pipelines.extract_tars \
         test_tars \
@@ -94,7 +99,7 @@ our external package `vcm` to be uploaded.
         --type_check_strictness 'ALL_REQUIRED' \
         --worker_machine_type n1-standard-1 \
         --setup_file ./setup.py \
-        --extra_package dist/vcm-0.1.0.tar.gz
+        --extra_package external/vcm/dist/vcm-0.1.0.tar.gz
 
 We provide configurable job submission scripts under workflows to expedite this process. E.g.,
 
