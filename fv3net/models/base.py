@@ -1,7 +1,8 @@
-from sklearn.base import BaseEstimator
 from dataclasses import dataclass
-import xarray as xr
+
 import numpy as np
+import xarray as xr
+from sklearn.base import BaseEstimator
 
 
 def remove(dims, sample_dim):
@@ -23,11 +24,7 @@ def _flatten(data: xr.Dataset, sample_dim) -> np.ndarray:
 @dataclass
 class BaseXarrayEstimator:
     def fit(
-        self,
-        input_vars: tuple,
-        output_vars: tuple,
-        sample_dim: str,
-        data: xr.Dataset,
+        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
     ):
         """
         Args:
@@ -70,11 +67,7 @@ class SklearnWrapper(BaseXarrayEstimator):
         self.model = model
 
     def fit(
-        self,
-        input_vars: tuple,
-        output_vars: tuple,
-        sample_dim: str,
-        data: xr.Dataset,
+        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
     ):
         self.input_vars_ = input_vars
         self.output_vars_ = output_vars
@@ -101,10 +94,7 @@ class SklearnWrapper(BaseXarrayEstimator):
         ds = xr.DataArray(
             numpy,
             dims=[sample_dim, "feature"],
-            coords={
-                sample_dim: inputs[sample_dim],
-                "feature": self.output_features_,
-            },
+            coords={sample_dim: inputs[sample_dim], "feature": self.output_features_},
         )
 
         return ds.to_unstacked_dataset("feature")

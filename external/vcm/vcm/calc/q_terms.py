@@ -1,18 +1,17 @@
 """
 Compute Q1 and Q2 from advective tendencies.
 """
-import xarray as xr
-import numpy as np
 import datetime
+
+import numpy as np
+import xarray as xr
 
 G = 9.81
 C_P = 1004
 
 
 def compute_Q_terms(data_3d, data_adv):
-    assert len(data_3d.time) == len(
-        data_adv.time
-    ), "Time dimensions must match."
+    assert len(data_3d.time) == len(data_adv.time), "Time dimensions must match."
     data_3d = data_3d.chunk({"time": len(data_3d.time)})
     data_adv = data_adv.chunk({"time": len(data_adv.time)})
 

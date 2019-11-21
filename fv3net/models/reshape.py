@@ -7,9 +7,11 @@ zarr archive.
 
 The saved archive is suitable to use with uwnet.train
 """
-import xarray as xr
-import numpy as np
 import argparse
+
+import numpy as np
+import xarray as xr
+
 from vcm.convenience import open_data
 
 
