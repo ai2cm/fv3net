@@ -26,7 +26,13 @@ def rename_centered_xy_coords(cell_centered_da):
 
 
 def shift_edge_var_to_center(edge_var: xr.DataArray):
-    # assumes C or D grid
+    """
+    Args:
+        edge_var: variable that is defined on edges of grid, e.g. u, v
+
+    Returns:
+        data array with the original variable at cell center
+    """
     if 'grid_y' in edge_var.dims:
         return rename_centered_xy_coords(
             0.5 * (edge_var + edge_var.shift(grid_y=1)).isel(grid_y=slice(1, None)))

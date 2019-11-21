@@ -37,12 +37,11 @@ def convert_vars_to_lat_lon_coords(
 
 def _deg_to_radians(deg):
     """
-
     Args:
-        deg:
+        deg: angle in degrees
 
     Returns:
-
+        angle in radians
     """
     return deg * np.pi / 180.
 
@@ -64,13 +63,13 @@ def _spherical_to_cartesian_basis(
     Convert a vector from lat/lon basis to cartesian.
     Assumes vector lies on surface of sphere, i.e. spherical basis r component is zero
     Args:
-        lon_component:
-        lat_component:
-        lon_unit_vec:
-        lat_unit_vec:
+        lon_component: coefficient that multiplies lon unit vec at a point on sphere
+        lat_component: " " " lat unit vec
+        lon_unit_vec: lon unit vec in cartesian basis at point on sphere
+        lat_unit_vec: lat unit vec in cartesian basis at point on sphere
 
     Returns:
-
+        components of the vector in cartesian basis
     """
     [x, y, z] = [
         lon_component * lon_unit_vec[i] + lat_component * lat_unit_vec[i]
@@ -83,19 +82,36 @@ def _spherical_to_cartesian_basis(
 
 
 def _lon_lat_unit_vectors_to_cartesian(grid):
-    lon_unit_vec = (
+    """
+
+    Args:
+        grid: Dataset with lat/lon coordinates defined at edges and cell centers
+
+    Returns:
+        lon and lat vectors at the center of each cell, expressed in cartesian basis
+    """
+    lon_vec_cartesian = (
         -np.sin(_deg_to_radians(grid.grid_lont)),
         np.cos(_deg_to_radians(grid.grid_lont)),
         0)
-    lat_unit_vec = (
+    lat_vec_cartesian = (
         np.cos(np.pi / 2 - _deg_to_radians(grid.grid_latt)) * np.cos(_deg_to_radians(grid.grid_lont)),
         np.cos(np.pi / 2 - _deg_to_radians(grid.grid_latt)) * np.sin(_deg_to_radians(grid.grid_lont)),
         -np.sin(np.pi / 2 - _deg_to_radians(grid.grid_latt)))
-    return lon_unit_vec, lat_unit_vec
+    return lon_vec_cartesian, lat_vec_cartesian
 
 
-def _lon_diff(corner1, corner2):
-    lon_diff = (corner2 - corner1)
+def _lon_diff(edge1, edge2):
+    """
+    Handles the case where edges are on either side of prime meridian
+    Args:
+        edge1: dataArray of grid_lon (lon at edges)
+        edge2: dataArray of grid_lon + n cells offset
+
+    Returns:
+
+    """
+    lon_diff = (edge2 - edge1)
     # this handles the prime meridian case
     lon_diff = lon_diff \
         .where(abs(lon_diff) < 180.,
