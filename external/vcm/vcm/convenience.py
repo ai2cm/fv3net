@@ -11,8 +11,8 @@ import xarray as xr
 import yaml
 from dask import delayed
 
-from vcm.cloud import gsutil
 from vcm import TOP_LEVEL_DIR
+from vcm.cloud import gsutil
 from vcm.cloud.remote_data import open_gfdl_data_with_2d
 
 # TODO Fix short tag yaml file get for fv3 installed as package
@@ -36,7 +36,8 @@ root = get_root()
 fv3_data_root = "/home/noahb/data/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute/"
 
 paths = {
-    "1deg_src": f"{root}/data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr"
+    "1deg_src": f"{root}/data/interim/advection/"
+    "2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr"
 }
 
 
@@ -147,7 +148,9 @@ def _open_remote_nc(url):
 
 def file_names_for_time_step(timestep, category, resolution=3072):
     # TODO remove this hardcode
-    bucket = f"gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/C{resolution}/{timestep}/{timestep}.{category}*"
+    bucket = f"gs://vcm-ml-data"
+    f"2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
+    f"C{resolution}/{timestep}/{timestep}.{category}*"
     return gsutil.list_matches(bucket)
 
 

@@ -25,10 +25,10 @@ def regrid_op(*args, **kwargs):
 
 @dsl.pipeline(name="Regrid the input data")
 def regrid_input_data(
-    source_prefix: str = "gs://vcm-ml-data/2019-11-12-fv3gfs-C48-five-day-nudged-run/nudge_rundir/sfc_dt_atmos",
-    output_bucket: str = "gs://vcm-ml-data/2019-11-12-fv3gfs-C48-five-day-nudged-run/nLat180_nLon360/sfc_dt_atmos.nc",
+    source_prefix: str = "gs://vcm-ml-data/2019-11-12-fv3gfs-C48-five-day-nudged-run/nudge_rundir/sfc_dt_atmos",  # noqa
+    output_bucket: str = "gs://vcm-ml-data/2019-11-12-fv3gfs-C48-five-day-nudged-run/nLat180_nLon360/sfc_dt_atmos.nc",  # noqa
     resolution: str = "C48",
-    fields: str = "DLWRFsfc,DSWRFsfc,DSWRFtoa,HPBLsfc,LHTFLsfc,PRATEsfc,SHTFLsfc,ULWRFsfc,ULWRFtoa,USWRFsfc,USWRFtoa",
+    fields: str = "DLWRFsfc,DSWRFsfc,DSWRFtoa,HPBLsfc,LHTFLsfc,PRATEsfc,SHTFLsfc,ULWRFsfc,ULWRFtoa,USWRFsfc,USWRFtoa",  # noqa
     extra_args: str = "--nlat 180 --nlon 360",
 ):
     regrid_op(source_prefix, output_bucket, resolution, fields, extra_args)

@@ -392,7 +392,8 @@ def _xarray_block_reduce_dataarray(
             must be divisible by the block size along that dimension.
         reduction_function: Array reduction function which accepts a tuple of
             axes to reduce along.
-        cval: Constant padding value if array is not perfectly divisible by the block size.
+        cval: Constant padding value if array is not perfectly divisible by the block
+            size.
         coord_func: function that is applied to the coordinates, or a
             mapping from coordinate name to function.  See `xarray's coarsen
             method for details
@@ -470,7 +471,8 @@ def xarray_block_reduce(
         block_sizes: Dictionary mapping dimension names to integer block sizes.
         reduction_function: Array reduction function which accepts a tuple of
             axes to reduce along.
-        cval: Constant padding value if array is not perfectly divisible by the block size.
+        cval: Constant padding value if array is not perfectly divisible by the
+            block size.
         coord_func: function that is applied to the coordinates, or a
             mapping from coordinate name to function.  See `xarray's coarsen
             method for details

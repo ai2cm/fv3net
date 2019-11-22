@@ -7,8 +7,8 @@ logger = logging.getLogger("list_timesteps_to_run")
 
 logging.basicConfig(level=logging.INFO)
 
-INPUT_BUCKET = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/coarsened/C48"
-OUTPUT_BUCKET = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/restart/C48"
+INPUT_BUCKET = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/coarsened/C48"  # noqa
+OUTPUT_BUCKET = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/restart/C48"  # noqa
 
 
 def timestep_from_url(url):

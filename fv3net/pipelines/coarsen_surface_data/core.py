@@ -31,9 +31,11 @@ def output_names(key) -> dict:
     timestep, coarsenings = key
     urls = {}
     for coarsening in coarsenings:
-        res = int(3072 // coarsening)
-        category = "sfc_data"
-        output_file_name = f"gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/coarsened/C{res}/{timestep}/{category}.nc"
+        output_file_name = (
+            f"gs://vcm-ml-data/"
+            "2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
+            "coarsened/C{res}/{timestep}/{category}.nc"
+        )
         urls[coarsening] = output_file_name
     return urls
 

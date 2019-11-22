@@ -164,7 +164,8 @@ def height_interfaces(dz: xr.DataArray, zs: xr.DataArray = 0) -> xr.DataArray:
     """Compute the height from the surface elevation and thickness
 
     Args:
-        dz: thickness of layers. assumes that top of atmosphere is index 0 in the pfull dimension
+        dz: thickness of layers. assumes that top of atmosphere is index 0 in the pfull
+            dimension
         zs: surface elevation
 
     Returns:

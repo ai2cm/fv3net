@@ -8,8 +8,16 @@ from os.path import join
 from vcm import fv3run
 from vcm.cloud import gsutil
 
-RESTART_DIR_PATTERN = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/restart/C48/{time}/rundir"
-OUTPUT_DIR_PATTERN = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/one-step-run/C48/{time}/rundir"
+RESTART_DIR_PATTERN = (
+    "gs://vcm-ml-data/"
+    "2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
+    "restart/C48/{time}/rundir"
+)
+OUTPUT_DIR_PATTERN = (
+    "gs://vcm-ml-data/"
+    "2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
+    "one-step-run/C48/{time}/rundir"
+)
 
 
 def restart_dir(time):
@@ -30,7 +38,8 @@ def patch_diag_table(dir, time):
     with open(join(dir, "rundir", "diag_table"), "w") as file:
         date_string = convert_timestamp_to_diag_table_time(time)
         file.write(f"20160801.00Z.C48.32bit.non-mono\n{date_string}")
-        # add output of the grid spec for post-processing purposes (TODO replace all this with fv3config)
+        # add output of the grid spec for post-processing purposes (TODO
+        # replace all this with fv3config)
         file.write(
             """
             #output files
@@ -43,7 +52,7 @@ def patch_diag_table(dir, time):
             "dynamics", "grid_lont", "grid_lont", "grid_spec", "all", .false.,  "none", 2,
             "dynamics", "grid_latt", "grid_latt", "grid_spec", "all", .false.,  "none", 2,
             "dynamics", "area",     "area",     "grid_spec", "all", .false.,  "none", 2,
-            """
+            """  # noqa
         )
 
 
@@ -52,8 +61,9 @@ def main(time: str, rundir_transformations=(), key=None):
 
     Args:
         time: the timestep YYYYMMDD.HHMMSS to run the model for
-        rundir_transformations: a sequence of transformations (e.g. modifying the diag_table) to
-           apply to the downloaded run directory before the FV3 simulation.
+        rundir_transformations: a sequence of transformations (e.g. modifying the
+           diag_table) to apply to the downloaded run directory before the FV3
+           simulation.
 
     """
     if key is None:
@@ -76,7 +86,8 @@ def main(time: str, rundir_transformations=(), key=None):
             fv3run.run_experiment(localdir)
         except Exception as e:
             logging.critical(
-                f"Experiment failed. Listing rundir for debugging purposes: {os.listdir(localdir)}"
+                "Experiment failed. Listing rundir for debugging purposes"
+                f"{os.listdir(localdir)}"
             )
             raise e
         gsutil.copy(localdir + "/*", output(time))

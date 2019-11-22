@@ -13,8 +13,14 @@ from vcm.convenience import rundir
 
 logging.basicConfig(level=logging.INFO)
 
-bucket = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/one-step-run/C48"
-OUTPUT = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/zarr_new_dims/C48"
+bucket = (
+    "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
+    "one-step-run/C48"
+)
+OUTPUT = (
+    "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
+    "zarr_new_dims/C48"
+)
 coarsenings = (8, 16, 32, 64)
 
 
