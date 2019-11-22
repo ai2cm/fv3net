@@ -17,7 +17,61 @@ from vcm.cubedsphere import (
     block_edge_sum,
     subtile_filenames,
     all_filenames,
+    shift_edge_var_to_center
 )
+
+
+@pytest.fixture()
+def test_y_component_edge_array():
+    y_component_edge_coords = {"tile": [1], "grid_yt": [1], "grid_x": [1, 2]}
+    y_component_edge_arr = np.array([[[30, 40]]])
+    y_component_edge_da = xr.DataArray(
+        y_component_edge_arr,
+        dims=["tile", "grid_yt", "grid_x"],
+        coords=y_component_edge_coords
+    )
+    return y_component_edge_da
+
+
+@pytest.fixture()
+def test_x_component_edge_array():
+    x_component_edge_coords = {"tile": [1], "grid_y": [1, 2], "grid_xt": [1]}
+    x_component_edge_arr = np.array([[[10], [20]]])
+    x_component_edge_da = xr.DataArray(
+        x_component_edge_arr,
+        dims=["tile", "grid_y", "grid_xt"],
+        coords=x_component_edge_coords
+    )
+    return x_component_edge_da
+
+@pytest.fixture()
+def test_centered_vector():
+    centered_coords = {"tile": [1], "grid_yt": [1], "grid_xt": [1]}
+    x_component_da = xr.DataArray(
+        [[[15]]],
+        dims=["tile", "grid_yt", "grid_xt"],
+        coords=centered_coords)
+    y_component_da = xr.DataArray(
+        [[[35]]],
+        dims=["tile", "grid_yt", "grid_xt"],
+        coords=centered_coords)
+    centered_vector = xr.Dataset({"x_component": x_component_da, "y_component": y_component_da})
+    return centered_vector
+
+
+def test_shift_edge_var_to_center(
+        test_y_component_edge_array,
+        test_x_component_edge_array,
+        test_centered_vector
+):
+    centered_x_component = shift_edge_var_to_center(test_x_component_edge_array)
+    centered_y_component = shift_edge_var_to_center(test_y_component_edge_array)
+
+    xr.testing.assert_equal(centered_x_component, test_centered_vector.x_component)
+    xr.testing.assert_equal(centered_y_component, test_centered_vector.y_component)
+
+    with pytest.raises(ValueError):
+        shift_edge_var_to_center(test_centered_vector)
 
 
 def test_subtile_filenames():

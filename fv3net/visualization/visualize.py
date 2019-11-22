@@ -4,6 +4,7 @@ Some helper function for visualization.
 import holoviews as hv
 
 
+
 def make_image(
     sliced_data,
     cmap_range=None,
