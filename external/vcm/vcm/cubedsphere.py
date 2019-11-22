@@ -10,6 +10,8 @@ from skimage.measure import block_reduce
 
 NUM_TILES = 6
 SUBTILE_FILE_PATTERN = '{prefix}.tile{tile:d}.nc.{subtile:04d}'
+STAGGERED_DIMS = ['grid_x', 'grid_y']
+
 
 def rename_centered_xy_coords(cell_centered_da):
     """
@@ -18,7 +20,7 @@ def rename_centered_xy_coords(cell_centered_da):
     Returns:
         same input array with dims renamed to corresponding cell center dims
     """
-    for dim in ['grid_x', 'grid_y']:
+    for dim in STAGGERED_DIMS:
         if dim in cell_centered_da.dims:
             cell_centered_da[dim] = cell_centered_da[dim] - 1
             cell_centered_da = cell_centered_da.rename({dim: dim + 't'})
@@ -33,12 +35,9 @@ def shift_edge_var_to_center(edge_var: xr.DataArray):
     Returns:
         data array with the original variable at cell center
     """
-    if 'grid_y' in edge_var.dims:
+    for staggered_dim in [dim for dim in STAGGERED_DIMS if dim in edge_var.dims]:
         return rename_centered_xy_coords(
-            0.5 * (edge_var + edge_var.shift(grid_y=1)).isel(grid_y=slice(1, None)))
-    elif 'grid_x' in edge_var.dims:
-        return rename_centered_xy_coords(
-            0.5 * (edge_var + edge_var.shift(grid_x=1)).isel(grid_x=slice(1, None)))
+            0.5 * (edge_var + edge_var.shift({staggered_dim: 1})).isel({staggered_dim: slice(1, None)}))
     else:
         raise ValueError(
             'Variable to shift to center must be centered on one horizontal axis and edge-valued on the other.')

@@ -6,7 +6,7 @@ from vcm.calc.transform_cubesphere_coords import (
     _lon_diff,
     _get_local_basis_in_spherical_coords,
     _lon_lat_unit_vectors_to_cartesian,
-    convert_vars_to_lat_lon_coords
+    rotate_winds_to_lat_lon_coords
 )
 
 RAD_PER_DEG = np.pi / 180.
@@ -65,7 +65,7 @@ def test_lon_lat_unit_vectors_to_cartesian(test_unit_grid):
     assert lathat == pytest.approx((0., 0., -1.))
 
 
-def test_convert_vars_to_lat_lon_coords(test_unit_grid):
+def test_rotate_winds_to_lat_lon_coords(test_unit_grid):
     x_momentum = xr.DataArray(
         [[[1]]],
         dims=["tile", "grid_yt", "grid_xt"],
@@ -76,5 +76,5 @@ def test_convert_vars_to_lat_lon_coords(test_unit_grid):
         dims=["tile", "grid_yt", "grid_xt"],
         coords={"tile": [1], "grid_yt": [1], "grid_xt": [1]}
     )
-    lon_momentum, lat_momentum = convert_vars_to_lat_lon_coords(x_momentum, y_momentum ,test_unit_grid)
+    lon_momentum, lat_momentum = rotate_winds_to_lat_lon_coords(x_momentum, y_momentum ,test_unit_grid)
     assert (lon_momentum, lat_momentum) == pytest.approx((1, 1))
