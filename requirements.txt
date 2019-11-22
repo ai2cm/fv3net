@@ -26,3 +26,4 @@ snakemake
 toolz
 xarray>=0.12
 zarr
+nose
