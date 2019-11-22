@@ -71,7 +71,7 @@ def test_shift_edge_var_to_center(
     xr.testing.assert_equal(centered_y_component, test_centered_vector.y_component)
 
     with pytest.raises(ValueError):
-        shift_edge_var_to_center(_test_weights_array(n=10))
+        shift_edge_var_to_center(test_centered_vector)
 
 
 def test_subtile_filenames():
