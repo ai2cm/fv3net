@@ -51,10 +51,6 @@ clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 
-## Lint using flake8
-lint:
-	flake8 src
-
 
 ## Set up python interpreter environment
 create_environment:
@@ -86,8 +82,8 @@ lint:
 	@echo "LINTING SUCCESSFUL"
 
 reformat:
-	isort $(PYTHON_FILES)
-	black $(PYTHON_FILES)
+	isort $(PYTHON_FILES) $(PYTHON_INIT_FILES)
+	black $(PYTHON_FILES) $(PYTHON_INIT_FILES)
 
 #################################################################################
 # Self Documenting Commands                                                     #
