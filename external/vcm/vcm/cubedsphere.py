@@ -44,7 +44,8 @@ def shift_edge_var_to_center(edge_var: xr.DataArray):
         )
     else:
         raise ValueError(
-            "Variable to shift to center must be centered on one horizontal axis and edge-valued on the other."
+            "Variable to shift to center must be centered on one horizontal axis and "
+            "edge-valued on the other."
         )
 
 

@@ -16,7 +16,8 @@ def rotate_winds_to_lat_lon_coords(
         grid: dataset of lat/lon at cell centers and edges
 
     Returns:
-        lon_component , lat_component: data arrays of the lon and lat components of the variable
+        lon_component, lat_component: data arrays of the lon and lat components of the
+                                      variable
     """
     (e1_lon, e1_lat), (e2_lon, e2_lat) = _get_local_basis_in_spherical_coords(grid)
     lon_unit_vec_cartesian, lat_unit_vec_cartesian = _lon_lat_unit_vectors_to_cartesian(
