@@ -1,10 +1,11 @@
-!/usr/bin/env python
-import os
-import sys
-from jinja2 import Template
 from collections import defaultdict
+from jinja2 import Template
+import matplotlib.pyplot as plt
+import os
 
-from src.data import SAMRun, open_ngaqua
+from vcm.diagnostic.utils import load_config
+from vcm.diagnostic.plot import create_plot
+from vcm.cloud import gcs
 
 IMAGES = defaultdict(list)
 
@@ -31,10 +32,15 @@ def get_images_relative(output_dir):
 
 
 def create_diagnostics(
-        schema,
-        data
+        plot_configs,
+        data,
+        output_dir
 ):
-    pass
+    for plot_config in plot_configs:
+        figure = create_plot(data, plot_config)
+        plt.savefig(figure, os.path.join(output_dir, plot_config.plot_name+'.png'))
+
+
 
 
 
@@ -43,11 +49,10 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "timestep-schema",
-        description="Expected schema of rundir data timesteps",
+        "config-file",
+        description="Path for config file that describes what/how to plot",
         type=str,
-        choices=['single', 'multiple'],
-        required=True
+        default="default_plot_config.json"
     )
     parser.add_argument(
         "output-dir",
@@ -55,15 +60,22 @@ if __name__ == '__main__':
         type=str,
         required=True
     )
-    # keep or remove this? plotting routines
     parser.add_argument(
-        "rundir",
+        "gcs-run-dir",
         description="Path to rundir",
         required=False
     )
     args = parser.parse_args()
-    create_diagnostics(args.timestep_schema)
 
+    # TODO: add this func to vcm.cloud.gcs
+    data = gcs.open_zarr(args.gcs_run_dir)
+
+    plot_configs = load_config(args.config_file)
+    create_diagnostics(
+        plot_configs,
+        data,
+        args.output_dir
+    )
 
     os.mkdir(args.output_dir)
 

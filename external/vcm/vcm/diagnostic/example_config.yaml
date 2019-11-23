@@ -1,0 +1,29 @@
+-
+  plot_name: avg_precipitable_water_vs_obs
+  plot_type: time_series
+  variable: PW
+  dim_slices:
+    initialization_time:
+      - null
+      - 20
+    pfull:
+      - null
+      - null
+  function_specs:
+    - mean:
+        dim: pfull
+    - compare_to_obs_time_series:
+        obs_path: path_to_obs_data
+        obs_variable: PW
+-
+  plot_name: avg_precipitation
+  plot_type: time_series
+  variable: precip
+  dim_slices:
+    initialization_time:
+      -null
+      -null
+  function_specs:
+    - compare_to_obs_time_series:
+        obs_path: path_to_obs_data
+        obs_variable: PW
