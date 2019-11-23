@@ -24,7 +24,7 @@ jobs:
 
 workflows:
   version: 2
-  lint:
+  test_and_lint:
     jobs:
       - lint
       - build:
