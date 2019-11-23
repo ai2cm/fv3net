@@ -1,7 +1,6 @@
 import logging
 import pprint
 
-import fire
 import numpy as np
 import yaml
 from sklearn.compose import TransformedTargetRegressor
@@ -9,6 +8,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.externals import joblib
 from sklearn.preprocessing import StandardScaler
 
+import fire
 from fv3net.models.base import SklearnWrapper
 from vcm.convenience import open_dataset
 

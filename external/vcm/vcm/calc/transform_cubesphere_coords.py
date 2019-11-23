@@ -3,9 +3,7 @@ import xarray as xr
 
 
 def rotate_winds_to_lat_lon_coords(
-        da_x: xr.DataArray,
-        da_y: xr.DataArray,
-        grid: xr.Dataset
+    da_x: xr.DataArray, da_y: xr.DataArray, grid: xr.Dataset
 ):
     """ Transforms a vector in the x/y plane into lat/lon coordinates.
 
@@ -21,18 +19,31 @@ def rotate_winds_to_lat_lon_coords(
         lon_component , lat_component: data arrays of the lon and lat components of the variable
     """
     (e1_lon, e1_lat), (e2_lon, e2_lat) = _get_local_basis_in_spherical_coords(grid)
-    lon_unit_vec_cartesian, lat_unit_vec_cartesian = _lon_lat_unit_vectors_to_cartesian(grid)
-    e1_cartesian = _spherical_to_cartesian_basis(e1_lon, e1_lat, lon_unit_vec_cartesian, lat_unit_vec_cartesian)
-    e2_cartesian = _spherical_to_cartesian_basis(e2_lon, e2_lat, lon_unit_vec_cartesian, lat_unit_vec_cartesian)
+    lon_unit_vec_cartesian, lat_unit_vec_cartesian = _lon_lat_unit_vectors_to_cartesian(
+        grid
+    )
+    e1_cartesian = _spherical_to_cartesian_basis(
+        e1_lon, e1_lat, lon_unit_vec_cartesian, lat_unit_vec_cartesian
+    )
+    e2_cartesian = _spherical_to_cartesian_basis(
+        e2_lon, e2_lat, lon_unit_vec_cartesian, lat_unit_vec_cartesian
+    )
 
-    denom = (_dot(e1_cartesian, lon_unit_vec_cartesian) * _dot(e2_cartesian, lat_unit_vec_cartesian) -
-             _dot(e2_cartesian, lon_unit_vec_cartesian) * _dot(e1_cartesian, lat_unit_vec_cartesian))
-    lon_component = (_dot(e2_cartesian, lat_unit_vec_cartesian) * da_x -
-                _dot(e1_cartesian, lat_unit_vec_cartesian) * da_y) / denom
-    lat_component = (_dot(e2_cartesian, lon_unit_vec_cartesian) * da_x -
-                _dot(e1_cartesian, lon_unit_vec_cartesian) * da_y) / denom
+    denom = _dot(e1_cartesian, lon_unit_vec_cartesian) * _dot(
+        e2_cartesian, lat_unit_vec_cartesian
+    ) - _dot(e2_cartesian, lon_unit_vec_cartesian) * _dot(
+        e1_cartesian, lat_unit_vec_cartesian
+    )
+    lon_component = (
+        _dot(e2_cartesian, lat_unit_vec_cartesian) * da_x
+        - _dot(e1_cartesian, lat_unit_vec_cartesian) * da_y
+    ) / denom
+    lat_component = (
+        _dot(e2_cartesian, lon_unit_vec_cartesian) * da_x
+        - _dot(e1_cartesian, lon_unit_vec_cartesian) * da_y
+    ) / denom
 
-    return lon_component , lat_component
+    return lon_component, lat_component
 
 
 def _dot(v1, v2):
@@ -42,10 +53,7 @@ def _dot(v1, v2):
 
 
 def _spherical_to_cartesian_basis(
-        lon_component,
-        lat_component,
-        lon_unit_vec,
-        lat_unit_vec
+    lon_component, lat_component, lon_unit_vec, lat_unit_vec
 ):
     """ Convert a vector from lat/lon basis to cartesian.
 
@@ -61,7 +69,8 @@ def _spherical_to_cartesian_basis(
     """
     [x, y, z] = [
         lon_component * lon_unit_vec[i] + lat_component * lat_unit_vec[i]
-        for i in range(3)]
+        for i in range(3)
+    ]
     norm = np.sqrt(x ** 2 + y ** 2 + z ** 2)
     x /= norm
     y /= norm
@@ -81,11 +90,15 @@ def _lon_lat_unit_vectors_to_cartesian(grid):
     lon_vec_cartesian = (
         -np.sin(np.deg2rad(grid.grid_lont)),
         np.cos(np.deg2rad(grid.grid_lont)),
-        0)
+        0,
+    )
     lat_vec_cartesian = (
-        np.cos(np.pi / 2 - np.deg2rad(grid.grid_latt)) * np.cos(np.deg2rad(grid.grid_lont)),
-        np.cos(np.pi / 2 - np.deg2rad(grid.grid_latt)) * np.sin(np.deg2rad(grid.grid_lont)),
-        -np.sin(np.pi / 2 - np.deg2rad(grid.grid_latt)))
+        np.cos(np.pi / 2 - np.deg2rad(grid.grid_latt))
+        * np.cos(np.deg2rad(grid.grid_lont)),
+        np.cos(np.pi / 2 - np.deg2rad(grid.grid_latt))
+        * np.sin(np.deg2rad(grid.grid_lont)),
+        -np.sin(np.pi / 2 - np.deg2rad(grid.grid_latt)),
+    )
     return lon_vec_cartesian, lat_vec_cartesian
 
 
@@ -100,11 +113,11 @@ def _lon_diff(edge1, edge2):
     Returns: dataArray of lon difference
 
     """
-    lon_diff = (edge2 - edge1)
+    lon_diff = edge2 - edge1
     # this handles the prime meridian case
-    lon_diff = lon_diff \
-        .where(abs(lon_diff) < 180.,
-               np.sign(lon_diff) * (abs(lon_diff) - 360))
+    lon_diff = lon_diff.where(
+        abs(lon_diff) < 180.0, np.sign(lon_diff) * (abs(lon_diff) - 360)
+    )
     return lon_diff
 
 
@@ -121,13 +134,18 @@ def _get_local_basis_in_spherical_coords(grid):
         at the center of each cell.
     """
     xhat_lon_component = np.deg2rad(
-        _lon_diff(grid.grid_lon, grid.grid_lon.shift(grid_x=-1))[:, :-1, :-1]) \
-        .rename({'grid_x': 'grid_xt', 'grid_y': 'grid_yt'})
+        _lon_diff(grid.grid_lon, grid.grid_lon.shift(grid_x=-1))[:, :-1, :-1]
+    ).rename({"grid_x": "grid_xt", "grid_y": "grid_yt"})
     yhat_lon_component = np.deg2rad(
-        _lon_diff(grid.grid_lon, grid.grid_lon.shift(grid_y=-1))[:, :-1, :-1]) \
-        .rename({'grid_x': 'grid_xt', 'grid_y': 'grid_yt'})
-    xhat_lat_component = np.deg2rad(grid.grid_lat.shift(grid_x=-1) - grid.grid_lat)[:, :-1, :-1] \
-        .rename({'grid_x': 'grid_xt', 'grid_y': 'grid_yt'})
-    yhat_lat_component = np.deg2rad(grid.grid_lat.shift(grid_y=-1) - grid.grid_lat)[:, :-1, :-1] \
-        .rename({'grid_x': 'grid_xt', 'grid_y': 'grid_yt'})
-    return (xhat_lon_component, xhat_lat_component), (yhat_lon_component, yhat_lat_component)
+        _lon_diff(grid.grid_lon, grid.grid_lon.shift(grid_y=-1))[:, :-1, :-1]
+    ).rename({"grid_x": "grid_xt", "grid_y": "grid_yt"})
+    xhat_lat_component = np.deg2rad(grid.grid_lat.shift(grid_x=-1) - grid.grid_lat)[
+        :, :-1, :-1
+    ].rename({"grid_x": "grid_xt", "grid_y": "grid_yt"})
+    yhat_lat_component = np.deg2rad(grid.grid_lat.shift(grid_y=-1) - grid.grid_lat)[
+        :, :-1, :-1
+    ].rename({"grid_x": "grid_xt", "grid_y": "grid_yt"})
+    return (
+        (xhat_lon_component, xhat_lat_component),
+        (yhat_lon_component, yhat_lat_component),
+    )

@@ -14,10 +14,9 @@ from vcm.cubedsphere import (
     edge_weighted_block_average,
     horizontal_block_reduce,
     remove_duplicate_coords,
+    shift_edge_var_to_center,
     subtile_filenames,
     weighted_block_average,
-    all_filenames,
-    shift_edge_var_to_center
 )
 
 
@@ -28,7 +27,7 @@ def test_y_component_edge_array():
     y_component_edge_da = xr.DataArray(
         y_component_edge_arr,
         dims=["tile", "grid_yt", "grid_x"],
-        coords=y_component_edge_coords
+        coords=y_component_edge_coords,
     )
     return y_component_edge_da
 
@@ -40,29 +39,28 @@ def test_x_component_edge_array():
     x_component_edge_da = xr.DataArray(
         x_component_edge_arr,
         dims=["tile", "grid_y", "grid_xt"],
-        coords=x_component_edge_coords
+        coords=x_component_edge_coords,
     )
     return x_component_edge_da
+
 
 @pytest.fixture()
 def test_centered_vector():
     centered_coords = {"tile": [1], "grid_yt": [1], "grid_xt": [1]}
     x_component_da = xr.DataArray(
-        [[[15]]],
-        dims=["tile", "grid_yt", "grid_xt"],
-        coords=centered_coords)
+        [[[15]]], dims=["tile", "grid_yt", "grid_xt"], coords=centered_coords
+    )
     y_component_da = xr.DataArray(
-        [[[35]]],
-        dims=["tile", "grid_yt", "grid_xt"],
-        coords=centered_coords)
-    centered_vector = xr.Dataset({"x_component": x_component_da, "y_component": y_component_da})
+        [[[35]]], dims=["tile", "grid_yt", "grid_xt"], coords=centered_coords
+    )
+    centered_vector = xr.Dataset(
+        {"x_component": x_component_da, "y_component": y_component_da}
+    )
     return centered_vector
 
 
 def test_shift_edge_var_to_center(
-        test_y_component_edge_array,
-        test_x_component_edge_array,
-        test_centered_vector
+    test_y_component_edge_array, test_x_component_edge_array, test_centered_vector
 ):
     centered_x_component = shift_edge_var_to_center(test_x_component_edge_array)
     centered_y_component = shift_edge_var_to_center(test_y_component_edge_array)
