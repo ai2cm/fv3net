@@ -27,7 +27,4 @@ workflows:
   test_and_lint:
     jobs:
       - lint
-      - build:
-          requires:
-            - lint
-
+      - build
