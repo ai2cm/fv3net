@@ -1,7 +1,8 @@
-from sklearn.base import BaseEstimator
 from dataclasses import dataclass
-import xarray as xr
+
 import numpy as np
+import xarray as xr
+from sklearn.base import BaseEstimator
 
 
 def remove(dims, sample_dim):
@@ -23,11 +24,7 @@ def _flatten(data: xr.Dataset, sample_dim) -> np.ndarray:
 @dataclass
 class BaseXarrayEstimator:
     def fit(
-        self,
-        input_vars: tuple,
-        output_vars: tuple,
-        sample_dim: str,
-        data: xr.Dataset,
+        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
     ):
         """
         Args:
@@ -35,7 +32,7 @@ class BaseXarrayEstimator:
             output_vars: list of output_variables
             sample_dim: dimension over which samples are taken
             data: xarray Dataset with dimensions (sample_dim, *)
-            
+
         Returns:
             fitted model
         """
@@ -44,11 +41,11 @@ class BaseXarrayEstimator:
     def predict(self, data: xr.Dataset, sample_dim: str) -> xr.Dataset:
         """
         Make a prediction
-        
+
         Args:
             data: xarray Dataset with the same feature dimensions as trained
               data
-            sample_dim: dimension along which "samples" are defined. This could be 
+            sample_dim: dimension along which "samples" are defined. This could be
               inferred, but explicity is not terrible.
         Returns:
             prediction:
@@ -58,23 +55,19 @@ class BaseXarrayEstimator:
 
 class SklearnWrapper(BaseXarrayEstimator):
     """Wrap a SkLearn model for use with xarray
-    
+
     """
 
     def __init__(self, model: BaseEstimator):
         """
-        
+
         Args:
             model: a scikit learn regression model
         """
         self.model = model
 
     def fit(
-        self,
-        input_vars: tuple,
-        output_vars: tuple,
-        sample_dim: str,
-        data: xr.Dataset,
+        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
     ):
         self.input_vars_ = input_vars
         self.output_vars_ = output_vars
@@ -101,10 +94,7 @@ class SklearnWrapper(BaseXarrayEstimator):
         ds = xr.DataArray(
             numpy,
             dims=[sample_dim, "feature"],
-            coords={
-                sample_dim: inputs[sample_dim],
-                "feature": self.output_features_,
-            },
+            coords={sample_dim: inputs[sample_dim], "feature": self.output_features_},
         )
 
         return ds.to_unstacked_dataset("feature")

@@ -1,10 +1,10 @@
-import xarray as xr
-from os.path import join
+from collections import defaultdict
 from datetime import datetime, timedelta
+from os.path import join
+
 import cftime
 import pandas as pd
-from collections import defaultdict
-
+import xarray as xr
 
 data_id = "data/raw/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute"
 output_2d = "data/interim/2019-07-17-GFDL_FV3_DYAMOND_0.25deg_15minute_2d.zarr"
@@ -78,8 +78,8 @@ CATEGORY_DIR_MAPPING = {
     "phy_data": ["RESTART"],
 }
 
-# define assumed coordinate order for each file type and for variables within each time type that differ from the default arrangement
-# oro
+# define assumed coordinate order for each file type and for variables within
+# each time type that differ from the default arrangement oro
 _oro_data_axes_map = defaultdict(lambda: ("tile", "grid_yt", "grid_xt"))
 # fv_core
 _fv_core_res_axes_map = defaultdict(
@@ -210,8 +210,9 @@ def open_files(files, **kwargs):
 def run_dir_cubed_sphere_filepaths(
     run_dir: str, category: str, tile_suffixes: list, target_dirs: list
 ) -> list:
-    """
-    Create nested list of .nc files to open for a given run_dir and restart file category
+    """Create nested list of .nc files to open for a given run_dir and restart
+    file category
+
     """
     return [
         [
@@ -225,9 +226,9 @@ def run_dir_cubed_sphere_filepaths(
 
 
 def assign_time_dims(ds: xr.Dataset, dirs: list, dims: dict) -> xr.Dataset:
-    """
-    Assign coordinates to appropriate time dimensions, i.e., initialization time and forecast time,
-    and drop uninformative time dimension labels
+    """Assign coordinates to appropriate time dimensions, i.e., initialization
+    time and forecast time, and drop uninformative time dimension labels
+
     """
     if dirs == BOTH_DIRS:
         ds = ds.assign_coords(
@@ -249,8 +250,9 @@ def assign_time_dims(ds: xr.Dataset, dirs: list, dims: dict) -> xr.Dataset:
 
 
 def open_oro_data(paths: list) -> xr.Dataset:
-    """
-    Open orography files via xr.concat since they are indexed differently than other files
+    """Open orography files via xr.concat since they are indexed differently than
+    other files
+
     """
     ds = xr.concat(
         objs=[
@@ -265,7 +267,7 @@ def open_oro_data(paths: list) -> xr.Dataset:
 
 def open_fv_tracer(paths: list) -> xr.Dataset:
     """
-    Open fv_tracer file type differently than the others 
+    Open fv_tracer file type differently than the others
     because its input and ouput variable lists are currently not the same -
     sgs_tke shows up in outputs but not inputs
     """
@@ -300,9 +302,9 @@ def add_vertical_coords(ds: xr.Dataset, run_dir: str, dims: dict) -> xr.Dataset:
 def use_diagnostic_coordinates(
     ds: xr.Dataset, category: str, output_mapping: dict
 ) -> xr.Dataset:
-    """
-    Map the coordinate names to diagnostic standards using an assumed order for dimensions for each 
-    file category and variable
+    """Map the coordinate names to diagnostic standards using an assumed order for
+    dimensions for each file category and variable
+
     """
     data_vars = {}
     for var in ds.data_vars:
@@ -317,10 +319,11 @@ def combine_file_categories(
     new_dims: dict,
     output_mapping: dict,
 ) -> xr.Dataset:
-    """
-    Take a dict of file categories and their mapping to sub_dirs in a run_dir, and then opens and stitch together
-    the input and restart files and renaming coordinates to match fv3gvs diagnostic output, and timestepping goals,
+    """Take a dict of file categories and their mapping to sub_dirs in a run_dir,
+    and then opens and stitch together the input and restart files and renaming
+    coordinates to match fv3gvs diagnostic output, and timestepping goals,
     i.e., having both initialization time and forecast time
+
     """
     ds_dict = {}
     for category, dirs in category_mapping.items():
@@ -363,7 +366,8 @@ def rundir_to_dataset(rundir: str, initial_timestep: str) -> xr.Dataset:
     initialization_time = [
         cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)
     ]
-    # TODO: add functionality for passing timestep length and number of restart timesteps
+    # TODO: add functionality for passing timestep length and number of restart
+    # timesteps
     forecast_time = [timedelta(minutes=0), timedelta(minutes=TIMESTEP_LENGTH_MINUTES)]
     new_dims = {
         "initialization_time": initialization_time,

@@ -1,10 +1,10 @@
+import apache_beam as beam
 import numpy as np
 import xarray as xr
-from vcm import cubedsphere
-import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
-from fv3net.pipelines import common
-from fv3net.pipelines import coarsen_surface_c3072
+
+from fv3net.pipelines import coarsen_surface_c3072, common
+from vcm import cubedsphere
 
 
 def _test_data():
@@ -16,7 +16,6 @@ def _test_data():
 
 
 def data_from_disk():
-    suffix = "tileX.nc.0000"
     prefix = "PRATEsfc/gfsphysics_15min_fine_PRATEsfc"
     for fname in cubedsphere.all_filenames(prefix):
         tile = int(fname[-9])
@@ -34,7 +33,7 @@ def test_CombineSubtilesByKey(tmpdir):
         return "gs://vcm-ml-data/TESTDELETE/{name}.tile{tile}.nc".format(**key)
 
     with TestPipeline() as p:
-        data = (
+        (
             p
             | beam.Create(mock_data())
             | common.CombineSubtilesByKey()
@@ -46,6 +45,6 @@ def test__name():
     key = {"tile": 3, "name": "a"}
     path = coarsen_surface_c3072._name(key)
     assert (
-        path
-        == f"gs://vcm-ml-data/2019-11-06-X-SHiELD-gfsphysics-diagnostics-coarsened/C384/a.tile3.nc"
+        path == f"gs://vcm-ml-data/"
+        "2019-11-06-X-SHiELD-gfsphysics-diagnostics-coarsened/C384/a.tile3.nc"
     )

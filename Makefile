@@ -51,10 +51,6 @@ clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 
-## Lint using flake8
-lint:
-	flake8 src
-
 
 ## Set up python interpreter environment
 create_environment:
@@ -73,6 +69,21 @@ snakemake_k8s: push_image
 
 snakemake:
 	bash -c 'snakemake 2> >(tee snakemake_log.txt)'
+
+
+PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
+PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
+
+lint:
+	black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
+	flake8 $(PYTHON_FILES)
+	# ignore unused import error in __init__.py files
+	flake8 --ignore=F401 $(PYTHON_INIT_FILES)
+	@echo "LINTING SUCCESSFUL"
+
+reformat:
+	isort $(PYTHON_FILES) $(PYTHON_INIT_FILES)
+	black $(PYTHON_FILES) $(PYTHON_INIT_FILES)
 
 #################################################################################
 # Self Documenting Commands                                                     #

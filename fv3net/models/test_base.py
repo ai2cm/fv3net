@@ -1,6 +1,7 @@
-from .base import _flatten
 import numpy as np
 import xarray as xr
+
+from .base import _flatten
 
 
 def test__flatten():
@@ -35,9 +36,7 @@ def test__flatten_1d_input():
 
 def test__flatten_same_order():
     nx, ny = 10, 4
-    x = xr.DataArray(
-        np.arange(nx * ny).reshape((nx, ny)), dims=["sample", "feature"]
-    )
+    x = xr.DataArray(np.arange(nx * ny).reshape((nx, ny)), dims=["sample", "feature"])
 
     ds = xr.Dataset({"a": x, "b": x.T})
     sample_dim = "sample"

@@ -144,4 +144,22 @@ The training script should take in a yaml file of options with this command line
 python -m fv3net.models.{model_type}.train --options options.yaml output.pkl
 ```
 
+# Code linting checks
+
+This python code in this project is autoformated using the
+[black](https://black.readthedocs.io/en/stable/) code formatting tool, and the
+[isort](https://github.com/timothycrosley/isort) tool for automatically sorting
+the order of import statements. To pass CI, any contributed code must be
+unchanged by black and also checked by the flake8 linter. However, please use
+isort to sort the import statements (done automatically by `make reformat`
+below).
+
+Contributers can see if their *commited* code passes these standards by running
+
+    make lint
+
+If it does not pass, than it can be autoformatted using 
+
+    make reformat
+
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>

@@ -1,15 +1,16 @@
-from fv3net.models.base import SklearnWrapper
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import StandardScaler
-from sklearn.compose import TransformedTargetRegressor
-from vcm.convenience import open_dataset
-import numpy as np
-import fire
-from sklearn.externals import joblib
-import yaml
+import logging
 import pprint
 
-import logging
+import numpy as np
+import yaml
+from sklearn.compose import TransformedTargetRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.externals import joblib
+from sklearn.preprocessing import StandardScaler
+
+import fire
+from fv3net.models.base import SklearnWrapper
+from vcm.convenience import open_dataset
 
 logging.basicConfig(level=logging.INFO)
 
@@ -59,13 +60,11 @@ def train(
     shuffled = flat.isel(sample=ind)
 
     train = shuffled.isel(sample=slice(0, n_train))
-    test = shuffled.isel(sample=slice(n_train, n_train + n_test))
+    # test = shuffled.isel(sample=slice(n_train, n_train + n_test))
 
     sklearn_model = TransformedTargetRegressor(
         RandomForestRegressor(
-            n_estimators=n_estimators,
-            n_jobs=n_jobs,
-            min_samples_leaf=min_samples_leaf,
+            n_estimators=n_estimators, n_jobs=n_jobs, min_samples_leaf=min_samples_leaf
         ),
         StandardScaler(),
     )
@@ -73,9 +72,7 @@ def train(
 
     logging.info("Fitting model:")
     logging.info(model)
-    model.fit(
-        list(input_variables), list(output_variables), sample_dimension, train
-    )
+    model.fit(list(input_variables), list(output_variables), sample_dimension, train)
 
     logging.info("Saving to " + model_path)
     joblib.dump(model, model_path)

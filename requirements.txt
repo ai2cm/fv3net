@@ -26,4 +26,6 @@ snakemake
 toolz
 xarray>=0.12
 zarr
+black
+isort
 nose
