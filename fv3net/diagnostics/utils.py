@@ -6,18 +6,12 @@ import yaml
 
 from vcm.diagnostic import ufuncs
 
-FUNCTION_MAP = {
-    'mean_over_dim': ufuncs.mean_over_dim,
-    'sum_over_dim': ufuncs.sum_over_dim,
-    'remove_forecast_time_dim': ufuncs.remove_forecast_time_dim
-}
-
 
 @dataclass
 class PlotConfig:
     diagnostic_variable: str
     plot_name: str
-    plot_type: str
+    plotting_function: str
     dim_slices: dict
     functions: List
     function_kwargs: List[dict]
@@ -39,9 +33,9 @@ def load_ufuncs(raw_config):
             # handle case where function name is given with no kwargs attached
             if not function_kwargs:
                 function_kwargs={}
-            if function_name not in FUNCTION_MAP:
+            if not hasattr(ufuncs, function_name)
                 raise ValueError("Function name {} is not in the function map.".format(function_name))
-            functions.append(FUNCTION_MAP[function_name])
+            functions.append(getattr(ufuncs, function_name))
             kwargs.append(function_kwargs)
         return functions, kwargs
     else:
@@ -55,7 +49,8 @@ def load_dim_slices(raw_config):
             if len(indices)==1:
                 dim_selection[dim] = indices[0]
             else:
-                dim_selection[dim] = slice(indices[0], indices[1])
+                indices += [None]
+                dim_selection[dim] = slice(indices[0], indices[1], indices[2])
         return dim_selection
     else:
         return {}
@@ -73,7 +68,7 @@ def load_configs(config_path):
         functions, function_kwargs = load_ufuncs(raw_config)
         plot_config = PlotConfig(
             plot_name=raw_config['plot_name'],
-            plot_type=raw_config['plot_type'],
+            plotting_function=raw_config['plotting_function'],
             diagnostic_variable=raw_config['diagnostic_variable'],
             dim_slices=dim_slices,
             functions=functions,

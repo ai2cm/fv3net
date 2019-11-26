@@ -10,10 +10,11 @@
       - null
       - null
   function_specifications:  # MUST PROVIDE IN ORDER OF EXECUTION
-    - sum:    # function name that corresponds to key in FUNCTION_MAP
+    - sum_over_dim:    # function name in vcm.diagnostic.ufuncs
         dim: pfull   # function kwargs
         var_to_sum: sphum
         new_var: PW
+        apply_delp_weighting: True
   plot_kwargs:
     - xlabel: time
     - ylabel:
@@ -30,6 +31,7 @@
       - null
   function_specifications:
     - mean_over_dim:
-        - dim: pfull
-        - var_to_avg: Q1
-        - new_var: Q1_mean_above_1000_HPa
+        dim: pfull
+        var_to_avg: Q1
+        new_var: Q1_mean_above_1000_HPa
+        apply_delp_weighting: True
