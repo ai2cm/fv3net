@@ -6,6 +6,7 @@ import numpy as np
 
 PLOT_TYPES = ['map', 'time_series']
 
+TIME_VAR = 'initialization_time'
 VERTICAL_GRID_VAR = 'pfull'
 LON_GRID_CENTER = 'grid_lont'
 LAT_GRID_CENTER = 'grid_latt'
@@ -17,16 +18,17 @@ def create_plot(
         ds,
         plot_config
 ):
+    for dim, dim_slice in plot_config.dim_slices.items():
+        ds = ds.isel({dim: dim_slice})
+    for function, kwargs in zip(plot_config.functions, plot_config.function_kwargs):
+        ds = ds.pipe(function, **kwargs)
+
     if plot_config.plot_type == 'map':
         return _plot_var_map(ds, plot_config)
     elif plot_config.plot_type == 'time_series':
         return _plot_var_time_series(ds, plot_config)
     else:
         raise ValueError("Invalid plot_type in config, must be in {}".format(PLOT_TYPES))
-
-
-def _get_grid(ds):
-    return ds[[LAT_GRID_EDGE, LON_GRID_EDGE, LAT_GRID_CENTER, LON_GRID_CENTER]]
 
 
 def _plot_var_map(
@@ -43,19 +45,19 @@ def _plot_var_map(
     Returns:
         axes
     """
-    # sacrificing some ugliness here so that specification in the yaml is safer / more readable:
-    # single entry dicts seemed easier to write in yaml than list of func name and kwargs
-    for dim, dim_slice in plot_config.dim_slices.items():
-        ds = ds.isel({dim: dim_slice})
-    for function, kwargs in zip(plot_config.functions, plot_config.function_kwargs):
-        ds = ds.pipe(function, **kwargs)
-    grid = _get_grid(ds)
+    grid = ds[[LAT_GRID_EDGE, LON_GRID_EDGE, LAT_GRID_CENTER, LON_GRID_CENTER]]
     fig, ax = plot_cube(ds[plot_config.diagnostic_variable], grid)
     return fig
 
 
 def _plot_var_time_series(ds, plot_config):
-    pass
+    dims_to_avg = [
+        dim for dim in ds[plot_config.diagnostic_variable].dims
+            if dim != TIME_VAR]
+    time = ds[TIME_VAR].values
+    diag_var = ds[plot_config.diagnostic_variable].mean(dims_to_avg).values
+    fig = plt.plot(time, diag_var)
+    return fig
 
 
 def _plot_histogram(ds, plot_config):
@@ -63,7 +65,7 @@ def _plot_histogram(ds, plot_config):
 
 
 
-# temporary while waiting on PR! will remove after #67 is merged.
+# TODO: temporary!!! this is here to make testing easier. remove after PR #67 is merged.
 import xarray as xr
 import numpy as np
 import cartopy.crs as ccrs

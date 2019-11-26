@@ -9,12 +9,6 @@ utils.FUNCTION_MAP and use that alias to refer to it in your config yaml.
 """
 
 
-
-def example_func(ds):
-
-    pass
-
-
 def compare_to_obs_time_series():
     pass
 

@@ -29,10 +29,10 @@ that each plot config block is an entry in a list.
           - null
           - null
         function_specifications:  # MUST PROVIDE IN ORDER OF EXECUTION
-        - sum:    # function name that corresponds to key in FUNCTION_MAP
-            dim: pfull   # function kwargs
-            var_to_sum: sphum
-            new_var: PW
+          - sum:    # function name that corresponds to key in FUNCTION_MAP
+              dim_to_sum: pfull   # function kwargs
+              var_to_sum: sphum
+              new_var: PW
 
 
 #### Adding a new diagnostic
