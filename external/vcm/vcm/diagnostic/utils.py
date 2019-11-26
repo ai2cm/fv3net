@@ -9,6 +9,7 @@ from vcm.diagnostic import ufuncs
 FUNCTION_MAP = {
     'mean_over_dim': ufuncs.mean_over_dim,
     'sum_over_dim': ufuncs.sum_over_dim,
+    'remove_forecast_time_dim': ufuncs.remove_forecast_time_dim
 }
 
 

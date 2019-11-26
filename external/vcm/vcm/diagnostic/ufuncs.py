@@ -13,6 +13,22 @@ def compare_to_obs_time_series():
     pass
 
 
+def remove_forecast_time_dim(ds):
+    """
+    The one step runs have a second 'forecast_time' dimension that is used
+    to calculate tendencies, but should be removed before plotting
+
+    Args:
+        ds: xarray dataset
+
+    Returns:
+        Same dataset but with extra time dim removed
+    """
+    if 'forecast_time' in ds.dims:
+        ds = ds.isel(forecast_time=0).squeeze().drop('forecast_time')
+    return ds
+
+
 def mean_over_dim(ds, dim, var_to_avg, new_var):
     # note: apply always moves core dimensions to the end
     da_mean = xr.apply_ufunc(
