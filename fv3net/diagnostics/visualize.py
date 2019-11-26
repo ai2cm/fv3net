@@ -1,7 +1,13 @@
 """
 Some helper function for visualization.
+
+These are specifically for usage in fv3net.
+There are more general purpose plotting functions in
+vcm.visualize, some of which are utilized here.
 """
 import holoviews as hv
+
+
 
 
 def make_image(
