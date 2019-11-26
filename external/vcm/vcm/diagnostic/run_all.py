@@ -3,7 +3,7 @@ from jinja2 import Template
 import matplotlib.pyplot as plt
 import os
 
-from vcm.diagnostic.utils import load_config
+from vcm.diagnostic.utils import load_config, read_zarr_from_gcs
 from vcm.diagnostic.plot import create_plot
 from vcm.cloud import gcs
 
@@ -41,10 +41,6 @@ def create_diagnostics(
         plt.savefig(figure, os.path.join(output_dir, plot_config.plot_name+'.png'))
 
 
-
-
-
-
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
@@ -62,14 +58,12 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "gcs-run-dir",
-        description="Path to rundir",
-        required=False
+        description="Path to remote gcs rundir",
+        required=True
     )
     args = parser.parse_args()
 
-    # TODO: add this func to vcm.cloud.gcs
-    data = gcs.open_zarr(args.gcs_run_dir)
-
+    data = read_zarr_from_gcs(args.gcs_run_dir)
     plot_configs = load_config(args.config_file)
     create_diagnostics(
         plot_configs,
@@ -80,6 +74,6 @@ if __name__ == '__main__':
     os.mkdir(args.output_dir)
 
     sections = get_images_relative(args.output_dir)
-    with open(f"{args.output_dir}/diagnostics.html", "w") as f:
+    with open("{}/diagnostics.html".format(args.output_dir), "w") as f:
         html = report_html.render(sections=sections)
         f.write(html)

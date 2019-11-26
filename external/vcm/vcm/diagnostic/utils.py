@@ -1,13 +1,14 @@
 from dataclasses import dataclass
+import gcsfs
 from typing import List
-import ufuncs
+import xarray as xr
 import yaml
 
+from vcm.diagnostic import ufuncs
 
-
-VERTICAL_GRID_VAR = 'pfull'
 FUNCTION_MAP = {
-    'mean': ufuncs.mean,
+    'mean': ufuncs.mean_over_dim,
+    'sum': ufuncs.sum_over_dim,
     'test_func': ufuncs.test_func
 }
 
@@ -17,25 +18,40 @@ class PlotConfig:
     var: str
     plot_name: str
     plot_type: str
-    dim_slices: List[dict]
+    dim_slices: dict
     functions: List
     function_kwargs: List[dict]
+
+
+def read_zarr_from_gcs(gcs_url, project='vcm-ml'):
+    fs = gcsfs.GCSFileSystem(project=project)
+    return xr.open_zarr(fs.get_mapper(gcs_url))
 
 
 def load_ufuncs(raw_config):
     functions, kwargs = [], []
     for function_spec in raw_config['function_specifications']:
-        # sacrificing some ugliness here so that specification in the yaml is safer / more readable
+        # sacrificing some ugliness here so that specification in the yaml is safer / more readable:
         # single entry dict seemed like a more foolproof format than list of func name and kwargs
         function_name, function_kwargs = list(function_spec.keys())[0], list(function_spec.values())[0]
         if function_name not in FUNCTION_MAP:
-            raise ValueError("Function name {} is not in the function map.")
+            raise ValueError("Function name {} is not in the function map.".format(function_name))
         functions.append(FUNCTION_MAP[function_name])
         kwargs.append(function_kwargs)
     return functions, kwargs
 
 
-def load_config(config_path):
+def load_dim_slices(raw_config):
+    dim_selection = {}
+    for dim, indices in raw_config['dim_slices'].items():
+        if len(indices)==1:
+            dim_selection[dim] = indices[0]
+        else:
+            dim_selection[dim] = slice(indices[0], indices[1])
+    return dim_selection
+
+
+def load_configs(config_path):
     with open(config_path, 'r') as stream:
         try:
             raw_configs = yaml.safe_load(stream)
@@ -43,18 +59,15 @@ def load_config(config_path):
             raise ValueError("Bad yaml config: {}".format(exc))
     plot_configs = []
     for raw_config in raw_configs:
-        dim_slices = [
-            {dim: slice(indices[0], indices[1])}
-                for dim, indices in raw_config['dim_slices'].items()
-        ]
+        dim_slices = load_dim_slices(raw_config)
         functions, kwargs = load_ufuncs(raw_config)
         plot_config = PlotConfig(
             plot_name=raw_config['plot_name'],
             plot_type=raw_config['plot_type'],
-            var=raw_config['variable'],
+            var=raw_config['diagnostic_variable'],
             dim_slices=dim_slices,
             functions=functions,
-            kwargs=kwargs
+            function_kwargs=kwargs
         )
         plot_configs.append(plot_config)
     return plot_configs
