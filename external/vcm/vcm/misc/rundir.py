@@ -1,29 +1,30 @@
 import os
-import f90nml
-from typing.io import BinaryIO
-from typing import Dict
 import re
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from datetime import datetime
 from functools import partial
 from os.path import join
+from typing import Dict
+from typing.io import BinaryIO
 
 import cftime
 import fsspec
 import pandas as pd
 import xarray as xr
 
+import f90nml
+
 TIME_FMT = "%Y%m%d.%H%M%S"
 
 NUM_SOIL_LAYERS = 4
-CATEGORIES = ['fv_core.res', 'sfc_data', 'fv_tracer', 'fv_srf_wnd.res']
-X_NAME = 'grid_xt'
-Y_NAME = 'grid_yt'
-X_EDGE_NAME = 'grid_x'
-Y_EDGE_NAME = 'grid_y'
-Z_NAME = 'pfull'
-Z_EDGE_NAME = 'phalf'
+CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
+X_NAME = "grid_xt"
+Y_NAME = "grid_yt"
+X_EDGE_NAME = "grid_x"
+Y_EDGE_NAME = "grid_y"
+Z_NAME = "pfull"
+Z_EDGE_NAME = "phalf"
 
 
 def _parse_time_string(time):
@@ -48,12 +49,11 @@ class RestartFile:
     category: str
     tile: int
     subtile: int
-    protocol: str = 'file'
+    protocol: str = "file"
     _time: str = None
 
-
     @classmethod
-    def from_path(cls, path, protocol='file'):
+    def from_path(cls, path, protocol="file"):
         pattern = cls._restart_regexp()
         matches = pattern.search(path)
         time = matches.group("time")
@@ -62,11 +62,17 @@ class RestartFile:
         subtile = matches.group("subtile")
         subtile = None if subtile is None else int(subtile)
 
-        if 'grid' in category:
+        if "grid" in category:
             raise ValueError(f"Data {category} is not a restart file")
 
-        return cls(path, category=category, tile=int(tile), subtile=subtile,
-                   _time=time, protocol=protocol)
+        return cls(
+            path,
+            category=category,
+            tile=int(tile),
+            subtile=subtile,
+            _time=time,
+            protocol=protocol,
+        )
 
     @property
     def time(self):
@@ -102,15 +108,15 @@ class RestartFile:
 
 def _set_initial_time(restart_files, time):
     return [
-        replace(file, _time=time) if file.is_initial_time else file for file in
-        restart_files
+        replace(file, _time=time) if file.is_initial_time else file
+        for file in restart_files
     ]
 
 
 def _set_final_time(restart_files, time):
     return [
-        replace(file, _time=time) if file.is_final_time else file for file in
-        restart_files
+        replace(file, _time=time) if file.is_final_time else file
+        for file in restart_files
     ]
 
 
@@ -142,7 +148,9 @@ def _open_all_restarts_at_url(url, initial_time=None, final_time=None):
     return _fill_times(restarts, initial_time, final_time)
 
 
-def open_restarts(url: str, initial_time: str, final_time: str, grid: Dict[str, int]=None) -> xr.Dataset:
+def open_restarts(
+    url: str, initial_time: str, final_time: str, grid: Dict[str, int] = None
+) -> xr.Dataset:
     """Opens all the restart file within a certain path
 
     The dimension names are the same as the diagnostic output
@@ -171,13 +179,17 @@ def open_restarts(url: str, initial_time: str, final_time: str, grid: Dict[str, 
     for restart in restarts:
         ds = _load_restart(restart)
         try:
-            ds_no_time = ds.isel(Time=0).drop('Time')
+            ds_no_time = ds.isel(Time=0).drop("Time")
         except ValueError:
             ds_no_time = ds
 
-        ds_correct_metadata = ds_no_time.apply(partial(_fix_data_array_dimension_names, **grid))
+        ds_correct_metadata = ds_no_time.apply(
+            partial(_fix_data_array_dimension_names, **grid)
+        )
         for variable in ds_correct_metadata:
-            output[variable][(restart.time, restart.tile)] = ds_correct_metadata[variable]
+            output[variable][(restart.time, restart.tile)] = ds_correct_metadata[
+                variable
+            ]
 
     return xr.merge([_concat_dict(output[key]) for key in output])
 
@@ -186,20 +198,25 @@ def _get_grid(rundir):
     proto, path = _split_url(rundir)
     fs = fsspec.filesystem(proto)
     # open namelist
-    namelist = join(path, 'input.nml')
+    namelist = join(path, "input.nml")
     with fs.open(namelist, "r") as f:
         s = f.read()
-    nml = f90nml.reads(s)['fv_core_nml']
+    nml = f90nml.reads(s)["fv_core_nml"]
 
     # open one file
-    return {'nz': nml['npz'], 'nx': nml['npx']-1, 'ny': nml['npy'] - 1, 'nz_soil': NUM_SOIL_LAYERS}
+    return {
+        "nz": nml["npz"],
+        "nx": nml["npx"] - 1,
+        "ny": nml["npy"] - 1,
+        "nz_soil": NUM_SOIL_LAYERS,
+    }
 
 
-def _concat_dict(datasets, dims=['time', 'tile']):
+def _concat_dict(datasets, dims=["time", "tile"]):
     index = pd.MultiIndex.from_tuples(datasets.keys(), names=dims)
-    index.name = 'stacked'
+    index.name = "stacked"
     ds = xr.concat(datasets.values(), dim=index)
-    return ds.unstack('stacked')
+    return ds.unstack("stacked")
 
 
 def _fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
@@ -222,7 +239,7 @@ def _fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
     """
     replacement_dict = {}
     for dim_name, length in zip(data_array.dims, data_array.shape):
-        if dim_name[:5] == 'xaxis' or dim_name.startswith('lon'):
+        if dim_name[:5] == "xaxis" or dim_name.startswith("lon"):
             if length == nx:
                 replacement_dict[dim_name] = X_NAME
             elif length == nx + 1:
@@ -231,24 +248,23 @@ def _fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
                 replacement_dict[dim_name] = {nx: X_NAME, nx + 1: X_EDGE_NAME}[length]
             except KeyError as e:
                 raise ValueError(
-                    f'unable to determine dim name for dimension '
-                    f'{dim_name} with length {length} (nx={nx})'
+                    f"unable to determine dim name for dimension "
+                    f"{dim_name} with length {length} (nx={nx})"
                 ) from e
-        elif dim_name[:5] == 'yaxis' or dim_name.startswith('lat'):
+        elif dim_name[:5] == "yaxis" or dim_name.startswith("lat"):
             try:
                 replacement_dict[dim_name] = {ny: Y_NAME, ny + 1: Y_EDGE_NAME}[length]
             except KeyError as e:
                 raise ValueError(
-                    f'unable to determine dim name for dimension '
-                    f'{dim_name} with length {length} (ny={ny})'
+                    f"unable to determine dim name for dimension "
+                    f"{dim_name} with length {length} (ny={ny})"
                 ) from e
-        elif dim_name[:5] == 'zaxis':
+        elif dim_name[:5] == "zaxis":
             try:
                 replacement_dict[dim_name] = {nz: Z_NAME, nz_soil: Z_EDGE_NAME}[length]
             except KeyError as e:
                 raise ValueError(
-                    f'unable to determine dim name for dimension '
-                    f'{dim_name} with length {length} (nz={nz})'
+                    f"unable to determine dim name for dimension "
+                    f"{dim_name} with length {length} (nz={nz})"
                 ) from e
     return data_array.rename(replacement_dict).variable
-
