@@ -148,52 +148,6 @@ def _open_all_restarts_at_url(url, initial_time=None, final_time=None):
     return _fill_times(restarts, initial_time, final_time)
 
 
-def open_restarts(
-    url: str, initial_time: str, final_time: str, grid: Dict[str, int] = None
-) -> xr.Dataset:
-    """Opens all the restart file within a certain path
-
-    The dimension names are the same as the diagnostic output
-
-    Args:
-        url: a URL to the root directory of the. Can be any type of protocol used by
-            fsspec, such as google cloud storage 'gs://path-to-rundir'. If no protocol prefix is used, then it will be
-            assumed to be a path to a local file
-        initial_time: A YYYYMMDD.HHMMSS string for the initial condition. will be parsed to CFTime
-        final_time: same as `initial_time` but for the final time
-        grid: a dict with the grid information (e.g.)::
-
-             {'nz': 79, 'nz_soil': 4, 'nx': 48, 'ny': 48}
-
-    Returns:
-        a combined dataset of all the restart files. This is currently not a
-        lazy operation. All the data is loaded.
-
-    """
-    restarts = _open_all_restarts_at_url(url, initial_time, final_time)
-
-    if grid is None:
-        grid = _get_grid(url)
-
-    output = defaultdict(dict)
-    for restart in restarts:
-        ds = _load_restart(restart)
-        try:
-            ds_no_time = ds.isel(Time=0).drop("Time")
-        except ValueError:
-            ds_no_time = ds
-
-        ds_correct_metadata = ds_no_time.apply(
-            partial(_fix_data_array_dimension_names, **grid)
-        )
-        for variable in ds_correct_metadata:
-            output[variable][(restart.time, restart.tile)] = ds_correct_metadata[
-                variable
-            ]
-
-    return xr.merge([_concat_dict(output[key]) for key in output])
-
-
 def _get_grid(rundir):
     proto, path = _split_url(rundir)
     fs = fsspec.filesystem(proto)
@@ -268,3 +222,51 @@ def _fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
                     f"{dim_name} with length {length} (nz={nz})"
                 ) from e
     return data_array.rename(replacement_dict).variable
+
+
+def open_restarts(
+    url: str, initial_time: str, final_time: str, grid: Dict[str, int] = None
+) -> xr.Dataset:
+    """Opens all the restart file within a certain path
+
+    The dimension names are the same as the diagnostic output
+
+    Args:
+        url: a URL to the root directory of the. Can be any type of protocol used by
+            fsspec, such as google cloud storage 'gs://path-to-rundir'. If no protocol
+            prefix is used, then it will be
+            assumed to be a path to a local file
+        initial_time: A YYYYMMDD.HHMMSS string for the initial condition. will be parsed
+            CFTime
+        final_time: same as `initial_time` but for the final time
+        grid: a dict with the grid information (e.g.)::
+
+             {'nz': 79, 'nz_soil': 4, 'nx': 48, 'ny': 48}
+
+    Returns:
+        a combined dataset of all the restart files. This is currently not a
+        lazy operation. All the data is loaded.
+
+    """
+    restarts = _open_all_restarts_at_url(url, initial_time, final_time)
+
+    if grid is None:
+        grid = _get_grid(url)
+
+    output = defaultdict(dict)
+    for restart in restarts:
+        ds = _load_restart(restart)
+        try:
+            ds_no_time = ds.isel(Time=0).drop("Time")
+        except ValueError:
+            ds_no_time = ds
+
+        ds_correct_metadata = ds_no_time.apply(
+            partial(_fix_data_array_dimension_names, **grid)
+        )
+        for variable in ds_correct_metadata:
+            output[variable][(restart.time, restart.tile)] = ds_correct_metadata[
+                variable
+            ]
+
+    return xr.merge([_concat_dict(output[key]) for key in output])
