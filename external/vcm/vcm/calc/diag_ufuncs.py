@@ -11,14 +11,11 @@ the result is the input dataset with diagnostic variable added.
 """
 
 
-def compare_to_obs_time_series():
-    pass
-
-
-def remove_forecast_time_dim(ds):
-    """
-    The one step runs have a second time dimension 'forecast_time' that is used
-    to calculate tendencies, but should be removed before plotting
+def remove_extra_dim(ds, extra_dim='forecast_time'):
+    """ Sometimes dataarrays have extra dimensions that complicate plotting.
+    e.g. The one step runs have a second time dimension 'forecast_time' that is used
+    to calculate tendencies. However, carrying around the extra time dim after calculation
+    complicates plotting, so it is removed before using the final dataarray in mapping functions
 
     Args:
         ds: xarray dataset
@@ -26,16 +23,23 @@ def remove_forecast_time_dim(ds):
     Returns:
         Same dataset but with extra time dim removed
     """
-    if 'forecast_time' in ds.dims:
-        ds = ds.isel(forecast_time=0).squeeze().drop('forecast_time')
+    if len(ds[extra_dim].values) > 1:
+        raise ValueError("Function remove_extra_dim should only be used on redundant dimensions \
+                         of length 1. You tried to remove {0} which has length {1}."
+                         .format(extra_dim, len(ds[extra_dim].values)))
+
+    if extra_dim in ds.dims:
+        ds = ds.isel({extra_dim: 0}).squeeze().drop(extra_dim)
     return ds
 
 
-def apply_pressure_thickness_weighting(
+def apply_weighting(
         ds,
-        var_to_weight
+        var_to_weight,
+        weighting_var,
+        weighting_dim
 ):
-    pressure_thickness_weights = ds.delp / ds.delp.sum('pfull')
+    pressure_thickness_weights = (ds.delp / ds.delp.sum('pfull'))
     ds[var_to_weight] = ds[var_to_weight] * pressure_thickness_weights
     return ds
 
@@ -49,6 +53,7 @@ def mean_over_dim(
 ):
     if apply_delp_weighting:
         ds = apply_pressure_thickness_weighting(ds, var_to_avg)
+        return ds.sum(dim)
     da_mean = ds[var_to_avg].mean(dim)
     ds[new_var] = da_mean
     return ds
@@ -59,10 +64,7 @@ def sum_over_dim(
         dim,
         var_to_sum,
         new_var,
-        apply_delp_weighting=False
 ):
-    if apply_delp_weighting:
-        ds = apply_pressure_thickness_weighting(ds, var_to_avg)
     da_sum = ds[var_to_sum].sum(dim)
     ds[new_var] = da_sum
     return ds

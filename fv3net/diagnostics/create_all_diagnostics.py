@@ -74,6 +74,6 @@ if __name__ == '__main__':
     os.mkdir(args.output_dir)
 
     sections = get_images_relative(args.output_dir)
-    with open("{}/diagnostics.html".format(args.output_dir), "w") as f:
+    with open(f"{args.output_dir}/diagnostics.html", "w") as f:
         html = report_html.render(sections=sections)
         f.write(html)

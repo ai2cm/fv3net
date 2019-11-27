@@ -1,4 +1,4 @@
-### Creating diagnostic plots 
+### Purpose
 Create diagnostic plots for one-timestep or multi-timestep runs.
 
 #### Overview
@@ -18,28 +18,25 @@ Below is an example of how to specify a diagnostic in the config YAML file. Keep
 that each plot config block is an entry in a list.
 
     -
-        plot_name: Precipitable water
-        plotting_function: time_series  # must exit in 
-        
-        diagnostic_variable: PW  # diagnostic variable. can either exist in raw data or be calculated by user defined functions
-        dim_slices:  # subselect data on ds.isel(dim=index) or ds.isel(dim=slice)
-        initialization_time:  
-          - null
-          - 100
-          - 5
+      plot_name: Q1 above 1000 HPa
+      plotting_function: map
+      diagnostic_variable: Q1_mean_above_1000_HPa
+      dim_slices:
+        initialization_time:
+          - 10
         pfull:
+          - -4
           - null
-          - null
-        function_specifications:  # MUST PROVIDE IN ORDER OF EXECUTION
-          - sum_over_dim:    # function name that exists in vcm.calc.diag_ufuncs
-              dim_to_sum: pfull   # function kwargs
-              var_to_sum: sphum
-              new_var: PW
-              apply_delp_weighting: True
-        plot_kwargs:
-            xlabel: time
-            ylabel: PW [kg/kg]
-
+      function_specifications:
+        - mean_over_dim:
+            dim: pfull
+            var_to_avg: Q1
+            new_var: Q1_mean_above_1000_HPa
+            apply_delp_weighting: True
+      plot_kwargs:
+        xlabel: time
+        ylabel: Q1 at surface
+        
 #### Adding a new diagnostic
 1. If needed, add a user defined function in `vcm.calc.diag_ufuncs` that computes the desired quantity and 
 adds it as a variable in the dataset.
@@ -47,8 +44,6 @@ adds it as a variable in the dataset.
 3. If the current plotting functions in `fv3net.diagnostics.visualize` do not suffice for your use case, you can add 
 another plot function to that module. Use the function name as the config entry `plotting_function`.
 
-
-Current plot options
 
 
 ### Example: automatically create all plots from config yaml

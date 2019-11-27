@@ -33,12 +33,11 @@ def create_plot(
 
     if plot_config.plotting_function in globals():
         plot_func = globals()[plot_config.plotting_function]
-        return plot_func(ds, plot_config)
+        return plot_func(ds, plot_config, **plot_config.plot_kwargs)
     else:
         raise ValueError(
-            "Invalid plotting_function {} in config, \
-            must correspond to function existing in fv3net.diagnostics.visualize" \
-            .format(plot_config.plotting_function))
+            f'Invalid plotting_function "{plot_config.plotting_function}" provided in config, \
+            must correspond to function existing in fv3net.diagnostics.visualize')
 
 
 def plot_diag_var_map(
@@ -58,8 +57,7 @@ def plot_diag_var_map(
     grid = ds[[LAT_GRID_EDGE, LON_GRID_EDGE, LAT_GRID_CENTER, LON_GRID_CENTER]]
     fig, ax = plot_cube(
         ds[plot_config.diagnostic_variable],
-        grid,
-        **plot_config.plot_kwargs)
+        grid)
     return fig
 
 
@@ -70,16 +68,24 @@ def plot_snapshots(
     pass
 
 
-def plot_time_series(ds, plot_config):
+def plot_time_series(
+        ds,
+        plot_config,
+        xlabel=None,
+        ylabel=None
+):
     dims_to_avg = [
         dim for dim in ds[plot_config.diagnostic_variable].dims
-            if dim != TIME_VAR]
+        if dim != TIME_VAR]
     time = ds[TIME_VAR].values
     diag_var = ds[plot_config.diagnostic_variable].mean(dims_to_avg).values
     fig = plt.plot(
         time,
-        diag_var,
-        **plot_config.plot_kwargs)
+        diag_var)
+    if xlabel:
+        plt.xlabel(xlabel)
+    if ylabel:
+        plt.ylabel(ylabel)
     return fig
 
 
@@ -87,18 +93,18 @@ def plot_histogram(ds, plot_config):
     pass
 
 
-
 """
 These seem to be older unused functions that didn't get cleaned up in a previous refactor?
 """
 
+
 def make_image(
-    sliced_data,
-    cmap_range=None,
-    coords=None,
-    quad=False,
-    invert_y=False,
-    **kwargs
+        sliced_data,
+        cmap_range=None,
+        coords=None,
+        quad=False,
+        invert_y=False,
+        **kwargs
 ):
     coords = coords or (
         ["grid_xt", "grid_yt"]
@@ -120,12 +126,12 @@ def make_image(
 
 
 def make_animation(
-    sliced_data,
-    cmap_range=None,
-    coords=None,
-    quad=False,
-    invert_y=False,
-    **kwargs
+        sliced_data,
+        cmap_range=None,
+        coords=None,
+        quad=False,
+        invert_y=False,
+        **kwargs
 ):
     coords = coords or (
         ["grid_xt", "grid_yt"]

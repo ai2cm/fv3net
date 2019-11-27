@@ -33,8 +33,8 @@ def load_ufuncs(raw_config):
             # handle case where function name is given with no kwargs attached
             if not function_kwargs:
                 function_kwargs={}
-            if not hasattr(ufuncs, function_name)
-                raise ValueError("Function name {} is not in the function map.".format(function_name))
+            if not hasattr(ufuncs, function_name):
+                raise ValueError(f"Function name {function_name} is not in the function map.")
             functions.append(getattr(ufuncs, function_name))
             kwargs.append(function_kwargs)
         return functions, kwargs
@@ -56,16 +56,24 @@ def load_dim_slices(raw_config):
         return {}
 
 
+def load_plot_kwargs(raw_config):
+    if 'plot_kwargs' in raw_config and raw_config['plot_kwargs'] is not None:
+        return raw_config['plot_kwargs']
+    else:
+        return {}
+
+
 def load_configs(config_path):
     with open(config_path, 'r') as stream:
         try:
             raw_configs = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
-            raise ValueError("Bad yaml config: {}".format(exc))
+            raise ValueError(f"Bad yaml config: {exc}")
     plot_configs = []
     for raw_config in raw_configs:
         dim_slices = load_dim_slices(raw_config)
         functions, function_kwargs = load_ufuncs(raw_config)
+        plot_kwargs = load_plot_kwargs(raw_config)
         plot_config = PlotConfig(
             plot_name=raw_config['plot_name'],
             plotting_function=raw_config['plotting_function'],
@@ -73,7 +81,7 @@ def load_configs(config_path):
             dim_slices=dim_slices,
             functions=functions,
             function_kwargs=function_kwargs,
-            plot_kwargs=raw_config['plot_kwargs']
+            plot_kwargs=plot_kwargs
         )
         plot_configs.append(plot_config)
     return plot_configs

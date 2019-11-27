@@ -1,7 +1,7 @@
 -
-  plot_name: Precipitable water
+  plot_name: Q2 mean
   plot_type: time_series  # see plot.PLOT_TYPES for the list of options
-  diagnostic_variable: PW  # diagnostic variable. can either exist in raw data or be calculated by user defined functions
+  diagnostic_variable: Q2 # diagnostic variable. can either exist in raw data or be calculated by user defined functions
   dim_slices:  # subselect data on ds.isel(dim=index) or ds.isel(dim=slice)
     initialization_time:
       - null
@@ -10,14 +10,14 @@
       - null
       - null
   function_specifications:  # MUST PROVIDE IN ORDER OF EXECUTION
-    - sum_over_dim:    # function name in vcm.diagnostic.ufuncs
+    - mean_over_dim:    # function name in vcm.diagnostic.ufuncs
         dim: pfull   # function kwargs
-        var_to_sum: sphum
-        new_var: PW
+        var_to_sum: Q2
+        new_var: Q2
         apply_delp_weighting: True
   plot_kwargs:
     - xlabel: time
-    - ylabel:
+    - ylabel: Q2
 
 -
   plot_name: Q1 above 1000 HPa
