@@ -45,6 +45,8 @@ def _split_url(url):
 
 @dataclass
 class RestartFile:
+    """An object representing a restart file either local or remote"""
+
     path: str
     category: str
     tile: int
