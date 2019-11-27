@@ -1,10 +1,13 @@
 import os
 import pathlib
+from typing.io import BinaryIO
+from typing import Dict
 import re
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from os.path import join
+import attr
 
 import cftime
 import fsspec
@@ -209,27 +212,54 @@ TIME_FMT = "%Y%m%d.%H%M%S"
 TIMESTEP_LENGTH_MINUTES = 15
 
 
+def _parse_time_string(time):
+    t = datetime.strptime(time, TIME_FMT)
+    return cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)
+
+
+def _split_url(url):
+
+    try:
+        protocol, path = url.split("://")
+    except ValueError:
+        protocol = "file"
+        path = url
+
+    return protocol, path
+
+
 @dataclass
 class RestartFile:
     path: str
     category: str
     tile: int
     subtile: int
-    time: str = None
+    protocol: str = 'file'
+    _time: str = None
+
 
     @classmethod
-    def from_path(cls, path):
+    def from_path(cls, path, protocol='file'):
         pattern = cls._restart_regexp()
         matches = pattern.search(path)
         time = matches.group("time")
         category = matches.group("category")
         tile = matches.group("tile")
         subtile = matches.group("subtile")
-
         subtile = None if subtile is None else int(subtile)
-        tile = int(tile)
 
-        return cls(path, category=category, tile=tile, subtile=subtile, time=time)
+        if 'grid' in category:
+            raise ValueError(f"Data {category} is not a restart file")
+
+        return cls(path, category=category, tile=int(tile), subtile=subtile,
+                   _time=time, protocol=protocol)
+
+    @property
+    def time(self):
+        try:
+            return _parse_time_string(self._time)
+        except TypeError:
+            return None
 
     @property
     def is_initial_time(self):
@@ -252,17 +282,52 @@ class RestartFile:
 
         return re.compile(pattern)
 
+    def open(self) -> BinaryIO:
+        return fsspec.filesystem(self.protocol).open(self.path, "rb")
+
 
 def set_initial_time(restart_files, time):
     return [
-        replace(file, time=time) if file.is_input else file for file in restart_files
+        replace(file, _time=time) if file.is_initial_time else file for file in
+        restart_files
     ]
 
 
 def set_final_time(restart_files, time):
     return [
-        replace(file, time=time) if file.is_input else file for file in restart_files
+        replace(file, _time=time) if file.is_final_time else file for file in
+        restart_files
     ]
+
+
+def restart_files_at_url(url):
+    proto, path = _split_url(url)
+    fs = fsspec.filesystem(proto)
+
+    for root, dirs, files in fs.walk(path):
+        for file in files:
+            path = os.path.join(root, file)
+            try:
+                yield RestartFile.from_path(path, protocol=proto)
+            except:
+                pass
+
+
+def infer_initial_time(times):
+    return times[0] - (times[1] - times[0])
+
+
+def infer_final_time(times):
+    return times[-1] + (times[-1] - times[-2])
+
+
+def fill_times(restart_files, initial_time=None, final_time=None):
+    times = sorted(set(file.time for file in restart_files))
+    if initial_time is None:
+        initial_time = infer_initial_time(times)
+    if final_time is None:
+        final_time = infer_final_time(times)
+    return set_final_time(set_initial_time(restart_files, initial_time), final_time)
 
 
 def open_files(files, **kwargs):
@@ -312,41 +377,14 @@ def assign_time_dims(ds: xr.Dataset, dirs: list, dims: dict) -> xr.Dataset:
     return ds
 
 
-def open_oro_data(paths: list) -> xr.Dataset:
+def open_oro_data(ds) -> xr.Dataset:
     """Open orography files via xr.concat since they are indexed differently than
     other files
 
     """
-    ds = xr.concat(
-        objs=[
-            xr.open_dataset(path).drop(labels=["lat", "lon"]) for path in paths[0][0]
-        ],
-        dim="tile",
-    )
     # drop since these are duplicated in the grid spec
     labels_to_drop = ["slmsk", "geolon", "geolat"]
     return ds.drop(labels=labels_to_drop)
-
-
-def open_fv_tracer(paths: list) -> xr.Dataset:
-    """
-    Open fv_tracer file type differently than the others
-    because its input and ouput variable lists are currently not the same -
-    sgs_tke shows up in outputs but not inputs
-    """
-    input_ds = xr.open_mfdataset(
-        paths=[paths[0][0]],
-        concat_dim=["initialization_time", "tile"],
-        combine="nested",
-    ).drop(labels="sgs_tke")
-    restart_ds = xr.open_mfdataset(
-        paths=[paths[0][1]],
-        concat_dim=["initialization_time", "tile"],
-        combine="nested",
-    )
-    return xr.concat(
-        [input_ds, restart_ds], dim="forecast_time"
-    )  # .transpose((1, 0, 2))
 
 
 def add_vertical_coords(ds: xr.Dataset, run_dir: str, dims: dict) -> xr.Dataset:
@@ -446,31 +484,6 @@ def rundir_to_dataset(rundir: str, initial_timestep: str) -> xr.Dataset:
     )
     return ds
 
-
-def _get_filesystem_from_url(url):
-    return _get_filesystem_and_path(url)[0]
-
-
-def _get_filesystem_and_path(url):
-
-    try:
-        protocol, path = url.split("://")
-    except ValueError:
-        protocol = "file"
-        path = url
-
-    return fsspec.filesystem(protocol), path
-
-
-def _open_url(url, *args, **kwargs):
-    fs, path = _get_filesystem_and_path(url)
-    return fs.open(path, *args, **kwargs)
-
-
-def walk_url(rundir):
-    fs, path = _get_filesystem_and_path(rundir)
-    for arg in fs.walk(path):
-        yield arg
 
 
 def main():

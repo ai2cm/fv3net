@@ -14,7 +14,7 @@ FV_CORE_FINAL = rundir.RestartFile(
 
 FV_CORE_IN_RESTART_FULL_COMPLEXITY = rundir.RestartFile(
     path="./RESTART/20180605.000000.fv_core.res.tile6.nc.0000",
-    time="20180605.000000",
+    _time="20180605.000000",
     category="fv_core.res",
     tile=6,
     subtile=0,
@@ -67,3 +67,18 @@ def test_RestartFile_is_initial_time(file, expected):
 )
 def test_RestartFile_is_final_time(file, expected):
     assert file.is_final_time == expected
+
+
+def test_restart_files_at_url():
+    url = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/one-step-run/C48/20160801.003000/"
+    restart_files = list(rundir.restart_files_at_url(url))
+    r = restart_files_w_time = rundir.fill_times(restart_files,
+                                             initial_time="20160801.003000",
+                                             final_time="20160801.004500")
+    import xarray as xr
+    file = r[0]
+
+    f = file.open()
+    print(xr.open_dataset(f))
+
+
