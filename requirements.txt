@@ -20,6 +20,7 @@ numpy==1.16
 partd
 pyyaml==3.13
 pytest
+pytest-mpl
 scikit-image
 scikit-learn==0.20
 snakemake

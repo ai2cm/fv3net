@@ -1,10 +1,13 @@
+# import numba first to avoid later vcm import crash
+import numba
+
 from dataclasses import dataclass
 import gcsfs
 from typing import List
 import xarray as xr
 import yaml
 
-from vcm.diagnostic import ufuncs
+from vcm.calc import diag_ufuncs
 
 
 @dataclass
@@ -33,9 +36,9 @@ def load_ufuncs(raw_config):
             # handle case where function name is given with no kwargs attached
             if not function_kwargs:
                 function_kwargs={}
-            if not hasattr(ufuncs, function_name):
+            if not hasattr(diag_ufuncs, function_name):
                 raise ValueError(f"Function name {function_name} is not in the function map.")
-            functions.append(getattr(ufuncs, function_name))
+            functions.append(getattr(diag_ufuncs, function_name))
             kwargs.append(function_kwargs)
         return functions, kwargs
     else:
@@ -85,6 +88,4 @@ def load_configs(config_path):
         )
         plot_configs.append(plot_config)
     return plot_configs
-
-
 

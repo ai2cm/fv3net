@@ -37,10 +37,10 @@ def apply_weighting(
         ds,
         var_to_weight,
         weighting_var,
-        weighting_dim
+        weighting_dims
 ):
-    pressure_thickness_weights = (ds.delp / ds.delp.sum('pfull'))
-    ds[var_to_weight] = ds[var_to_weight] * pressure_thickness_weights
+    weights = (ds[weighting_var] / ds[weighting_var].sum(weighting_dims))
+    ds[var_to_weight] = ds[var_to_weight] * weights
     return ds
 
 
@@ -49,11 +49,7 @@ def mean_over_dim(
         dim,
         var_to_avg,
         new_var,
-        apply_delp_weighting=False
 ):
-    if apply_delp_weighting:
-        ds = apply_pressure_thickness_weighting(ds, var_to_avg)
-        return ds.sum(dim)
     da_mean = ds[var_to_avg].mean(dim)
     ds[new_var] = da_mean
     return ds

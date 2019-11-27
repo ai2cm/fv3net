@@ -5,7 +5,6 @@ These are specifically for usage in fv3net.
 There are more general purpose plotting functions in
 vcm.visualize, some of which are utilized here.
 """
-import holoviews as hv
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -74,18 +73,20 @@ def plot_time_series(
         xlabel=None,
         ylabel=None
 ):
+    fig = plt.figure()
     dims_to_avg = [
         dim for dim in ds[plot_config.diagnostic_variable].dims
         if dim != TIME_VAR]
     time = ds[TIME_VAR].values
     diag_var = ds[plot_config.diagnostic_variable].mean(dims_to_avg).values
-    fig = plt.plot(
+    ax = fig.add_subplot(111)
+    ax.plot(
         time,
         diag_var)
     if xlabel:
-        plt.xlabel(xlabel)
+        ax.set_xlabel(xlabel)
     if ylabel:
-        plt.ylabel(ylabel)
+        ax.set_ylabel(ylabel)
     return fig
 
 
@@ -93,58 +94,3 @@ def plot_histogram(ds, plot_config):
     pass
 
 
-"""
-These seem to be older unused functions that didn't get cleaned up in a previous refactor?
-"""
-
-
-def make_image(
-        sliced_data,
-        cmap_range=None,
-        coords=None,
-        quad=False,
-        invert_y=False,
-        **kwargs
-):
-    coords = coords or (
-        ["grid_xt", "grid_yt"]
-        if "grid_xt" in sliced_data.coords
-        else ["lon", "lat"]
-    )
-    hv_img = (
-        hv.QuadMesh(sliced_data, coords)
-        if quad
-        else hv.Image(sliced_data, coords)
-    )
-    if cmap_range is not None:
-        var_name = sliced_data.name
-        hv_img = hv_img.redim(
-            **{var_name: hv.Dimension(var_name, range=cmap_range)}
-        )
-    hv_img = hv_img.options(**kwargs)
-    return hv_img
-
-
-def make_animation(
-        sliced_data,
-        cmap_range=None,
-        coords=None,
-        quad=False,
-        invert_y=False,
-        **kwargs
-):
-    coords = coords or (
-        ["grid_xt", "grid_yt"]
-        if "grid_xt" in sliced_data.coords
-        else ["lon", "lat"]
-    )
-    hv_ds = hv.Dataset(sliced_data)
-    hv_img = hv_ds.to(hv.QuadMesh if quad else hv.Image, coords).options(
-        **kwargs
-    )
-    if cmap_range is not None:
-        var_name = sliced_data.name
-        hv_img = hv_img.redim(
-            **{var_name: hv.Dimension(var_name, range=cmap_range)}
-        )
-    return hv_img
