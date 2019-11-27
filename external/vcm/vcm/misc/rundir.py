@@ -23,6 +23,8 @@ X_NAME = 'grid_xt'
 Y_NAME = 'grid_yt'
 X_EDGE_NAME = 'grid_x'
 Y_EDGE_NAME = 'grid_y'
+Z_NAME = 'pfull'
+Z_EDGE_NAME = 'phalf'
 
 
 def _parse_time_string(time):
@@ -147,6 +149,7 @@ def _load_restart(file: RestartFile):
     with file.open() as f:
         return xr.open_dataset(f).load()
 
+
 def _open_all_restarts_at_url(url, initial_time=None, final_time=None):
     restarts = list(_restart_files_at_url(url))
     return fill_times(restarts, initial_time, final_time)
@@ -219,47 +222,11 @@ def fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
                 ) from e
         elif dim_name[:5] == 'zaxis':
             try:
-                replacement_dict[dim_name] = {nz: 'z', nz_soil: 'z_soil'}[length]
+                replacement_dict[dim_name] = {nz: Z_NAME, nz_soil: Z_EDGE_NAME}[length]
             except KeyError as e:
                 raise ValueError(
                     f'unable to determine dim name for dimension '
                     f'{dim_name} with length {length} (nz={nz})'
                 ) from e
     return data_array.rename(replacement_dict).variable
-
-
-def open_oro_data(ds) -> xr.Dataset:
-    """Open orography files via xr.concat since they are indexed differently than
-    other files
-
-    """
-    # drop since these are duplicated in the grid spec
-    labels_to_drop = ["slmsk", "geolon", "geolat"]
-    return ds.drop(labels=labels_to_drop)
-
-
-def add_vertical_coords(ds: xr.Dataset, run_dir: str, dims: dict) -> xr.Dataset:
-    """
-    Add the ak and bk 1-D arrays of length phalf stored in fv_core.res.nc to the dataset
-    """
-    vertical_coords_ds = (
-        xr.open_dataset(join(run_dir, "INPUT/fv_core.res.nc"))
-        .rename({"xaxis_1": "phalf"})
-        .squeeze()
-        .drop(labels="Time")
-    )
-    return xr.merge([ds, vertical_coords_ds])
-
-
-def use_diagnostic_coordinates(
-    ds: xr.Dataset, category: str, output_mapping: dict
-) -> xr.Dataset:
-    """Map the coordinate names to diagnostic standards using an assumed order for
-    dimensions for each file category and variable
-
-    """
-    data_vars = {}
-    for var in ds.data_vars:
-        data_vars[var] = (output_mapping[category][var], ds[var].data)
-    return xr.Dataset(data_vars)
 
