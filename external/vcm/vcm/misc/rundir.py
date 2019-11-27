@@ -1,8 +1,13 @@
+import os
+import pathlib
+import re
 from collections import defaultdict
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from os.path import join
 
 import cftime
+import fsspec
 import pandas as pd
 import xarray as xr
 
@@ -77,6 +82,8 @@ CATEGORY_DIR_MAPPING = {
     "sfc_data": BOTH_DIRS,
     "phy_data": ["RESTART"],
 }
+
+RESTART_CATEGORIES = CATEGORY_DIR_MAPPING.keys()
 
 # define assumed coordinate order for each file type and for variables within
 # each time type that differ from the default arrangement oro
@@ -200,6 +207,62 @@ N_TILES = 6
 TILE_SUFFIXES = [f".tile{tile}.nc" for tile in range(1, N_TILES + 1)]
 TIME_FMT = "%Y%m%d.%H%M%S"
 TIMESTEP_LENGTH_MINUTES = 15
+
+
+@dataclass
+class RestartFile:
+    path: str
+    category: str
+    tile: int
+    subtile: int
+    time: str = None
+
+    @classmethod
+    def from_path(cls, path):
+        pattern = cls._restart_regexp()
+        matches = pattern.search(path)
+        time = matches.group("time")
+        category = matches.group("category")
+        tile = matches.group("tile")
+        subtile = matches.group("subtile")
+
+        subtile = None if subtile is None else int(subtile)
+        tile = int(tile)
+
+        return cls(path, category=category, tile=tile, subtile=subtile, time=time)
+
+    @property
+    def is_initial_time(self):
+        dirname = os.path.dirname(self.path)
+        return dirname.endswith("INPUT")
+
+    @property
+    def is_final_time(self):
+        in_restart = not self.is_initial_time
+        return in_restart and self.time is None
+
+    @staticmethod
+    def _restart_regexp():
+        pattern = (
+            r"(?P<time>\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)?\.?"
+            r"(?P<category>[^\/]*)\."
+            r"tile(?P<tile>\d)\.nc"
+            r"\.?(?P<subtile>\d\d\d\d)?"
+        )
+
+        return re.compile(pattern)
+
+
+def set_initial_time(restart_files, time):
+    return [
+        replace(file, time=time) if file.is_input else file for file in restart_files
+    ]
+
+
+def set_final_time(restart_files, time):
+    return [
+        replace(file, time=time) if file.is_input else file for file in restart_files
+    ]
 
 
 def open_files(files, **kwargs):
@@ -382,6 +445,32 @@ def rundir_to_dataset(rundir: str, initial_timestep: str) -> xr.Dataset:
         tile_suffixes=TILE_SUFFIXES,
     )
     return ds
+
+
+def _get_filesystem_from_url(url):
+    return _get_filesystem_and_path(url)[0]
+
+
+def _get_filesystem_and_path(url):
+
+    try:
+        protocol, path = url.split("://")
+    except ValueError:
+        protocol = "file"
+        path = url
+
+    return fsspec.filesystem(protocol), path
+
+
+def _open_url(url, *args, **kwargs):
+    fs, path = _get_filesystem_and_path(url)
+    return fs.open(path, *args, **kwargs)
+
+
+def walk_url(rundir):
+    fs, path = _get_filesystem_and_path(rundir)
+    for arg in fs.walk(path):
+        yield arg
 
 
 def main():
