@@ -120,8 +120,7 @@ def _set_final_time(restart_files, time):
     ]
 
 
-def _fill_times(restart_files, initial_time=None, final_time=None):
-    times = sorted(set(file.time for file in restart_files))
+def _fill_times(restart_files, initial_time, final_time):
     return _set_final_time(_set_initial_time(restart_files, initial_time), final_time)
 
 
@@ -134,7 +133,7 @@ def _restart_files_at_url(url):
             path = os.path.join(root, file)
             try:
                 yield RestartFile.from_path(path, protocol=proto)
-            except:
+            except ValueError:
                 pass
 
 
