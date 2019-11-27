@@ -1,8 +1,9 @@
-import numpy as np
-from scipy.ndimage import map_coordinates
-from numba import jit
-import xarray as xr
 import dask.array as da
+import numpy as np
+import xarray as xr
+from numba import jit
+from scipy.ndimage import map_coordinates
+
 from vcm.convenience import open_dataset
 
 
@@ -60,11 +61,7 @@ def compute_dx_dy(lat, lon):
     dlon = np.r_[lon[1] - lon[0], lon[2:] - lon[:-2], lon[-1] - lon[-2]]
     dlat = np.r_[lat[1] - lat[0], lat[2:] - lat[:-2], lat[-1] - lat[-2]]
 
-    dx = (
-        np.cos(np.deg2rad(lat[:, np.newaxis]))
-        * np.deg2rad(dlon)
-        * radius_earth
-    )
+    dx = np.cos(np.deg2rad(lat[:, np.newaxis])) * np.deg2rad(dlon) * radius_earth
     dy = np.deg2rad(dlat) * radius_earth
     dy = np.broadcast_to(dy[:, np.newaxis], (len(lat), len(lon)))
 
@@ -76,7 +73,7 @@ def lagrangian_update(phi, *args, **kwargs):
     return map_coordinates(phi, origin)
 
 
-## Dask wrapper
+# Dask wrapper
 
 ghost_cells_depth = {1: 2, 2: 2, 3: 2}
 boundaries = {1: "nearest", 2: "reflect", 3: "nearest"}
@@ -113,9 +110,7 @@ def lagrangian_update_dask(phi, lat, lon, dz, u, v, w, **kwargs):
     """
     dx, dy = compute_dx_dy(np.asarray(lat), np.asarray(lon))
     horz_chunks = u.chunks[-2:]
-    ghosted_2d = [
-        ghost_2d(da.from_array(arg, horz_chunks)) for arg in [dx, dy]
-    ]
+    ghosted_2d = [ghost_2d(da.from_array(arg, horz_chunks)) for arg in [dx, dy]]
     ghosted_3d = [ghosted_array(arg) for arg in [dz, u, v, w]]
     ghosted_phi = ghosted_array(phi)
 
@@ -130,11 +125,7 @@ def lagrangian_update_dask(phi, lat, lon, dz, u, v, w, **kwargs):
 
     # call blockwise
     output_ghosted = da.blockwise(
-        lagrangian_update,
-        "tkji",
-        *blockwise_args,
-        dtype=ghosted_phi.dtype,
-        **kwargs
+        lagrangian_update, "tkji", *blockwise_args, dtype=ghosted_phi.dtype, **kwargs
     )
     return remove_ghost_cells(output_ghosted)
 
@@ -142,13 +133,9 @@ def lagrangian_update_dask(phi, lat, lon, dz, u, v, w, **kwargs):
 def lagrangian_update_xarray(data_3d, advect_var="temp", **kwargs):
     dim_order = ["time", "pfull", "y", "x"]
     ds = data_3d.assign(dz=data_3d.dz.transpose(*dim_order))
-    args = [
-        ds[key].data for key in [advect_var, "y", "x", "dz", "u", "v", "w"]
-    ]
+    args = [ds[key].data for key in [advect_var, "y", "x", "dz", "u", "v", "w"]]
     dask = lagrangian_update_dask(*args, **kwargs)
-    return xr.DataArray(
-        dask, coords=ds[advect_var].coords, dims=ds[advect_var].dims
-    )
+    return xr.DataArray(dask, coords=ds[advect_var].coords, dims=ds[advect_var].dims)
 
 
 def advection_fixed_height(
@@ -177,7 +164,8 @@ def height_interfaces(dz: xr.DataArray, zs: xr.DataArray = 0) -> xr.DataArray:
     """Compute the height from the surface elevation and thickness
 
     Args:
-        dz: thickness of layers. assumes that top of atmosphere is index 0 in the pfull dimension
+        dz: thickness of layers. assumes that top of atmosphere is index 0 in the pfull
+            dimension
         zs: surface elevation
 
     Returns:
@@ -200,9 +188,7 @@ def vertical_interfaces_to_centers(phi):
         phi = phi.drop("pfull_b")
     except ValueError:
         pass
-    avg = (
-        phi.isel(pfull_b=slice(1, None)) + phi.isel(pfull_b=slice(0, -1))
-    ) / 2
+    avg = (phi.isel(pfull_b=slice(1, None)) + phi.isel(pfull_b=slice(0, -1))) / 2
     return avg.rename({"pfull_b": "pfull"})
 
 
@@ -247,12 +233,10 @@ def apparent_source(scalar, z_centered, dz, advection_tendency):
 
 def storage_and_advection(data_3d, tracers, time_step):
     data_vars = {}
-    z_c = height_centered(data_3d['dz'], data_3d['zs'])
+    z_c = height_centered(data_3d["dz"], data_3d["zs"])
     for key in tracers:
         data_vars["advection_" + key] = advection_fixed_height(data_3d, key)
-        storage = storage_fixed_height(
-            data_3d[key], z_c, data_3d.dz, dt=time_step
-        )
+        storage = storage_fixed_height(data_3d[key], z_c, data_3d.dz, dt=time_step)
         data_vars["storage_" + key] = storage
 
     return xr.Dataset(data_vars)

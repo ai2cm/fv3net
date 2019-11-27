@@ -78,7 +78,12 @@ For a dataflow pipeline, jobs can be tested locally using a DirectRunner, e.g.,
 To submit a Dataflow job to the cloud involves a few steps, including packaging 
 our external package `vcm` to be uploaded.
 
-    python external/vcm/setup.py sdist
+    $ cd external/vcm
+    $ python setup.py sdist
+
+
+After creating the uploadable `vcm` package, submit the Dataflow job from the top 
+level of `fv3net` using:
 
     python -m fv3net.pipelines.extract_tars \
         test_tars \
@@ -94,7 +99,7 @@ our external package `vcm` to be uploaded.
         --type_check_strictness 'ALL_REQUIRED' \
         --worker_machine_type n1-standard-1 \
         --setup_file ./setup.py \
-        --extra_package dist/vcm-0.1.0.tar.gz
+        --extra_package external/vcm/dist/vcm-0.1.0.tar.gz
 
 We provide configurable job submission scripts under workflows to expedite this process. E.g.,
 
@@ -138,5 +143,23 @@ The training script should take in a yaml file of options with this command line
 ```
 python -m fv3net.models.{model_type}.train --options options.yaml output.pkl
 ```
+
+# Code linting checks
+
+This python code in this project is autoformated using the
+[black](https://black.readthedocs.io/en/stable/) code formatting tool, and the
+[isort](https://github.com/timothycrosley/isort) tool for automatically sorting
+the order of import statements. To pass CI, any contributed code must be
+unchanged by black and also checked by the flake8 linter. However, please use
+isort to sort the import statements (done automatically by `make reformat`
+below).
+
+Contributers can see if their *commited* code passes these standards by running
+
+    make lint
+
+If it does not pass, than it can be autoformatted using 
+
+    make reformat
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>

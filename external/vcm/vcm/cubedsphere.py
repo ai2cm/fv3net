@@ -1,18 +1,52 @@
 """Tools for working with cubedsphere data"""
 import logging
 from os.path import join
+from typing import Any, Callable, Hashable, List, Mapping, Tuple, Union
 
 import dask
 import numpy as np
 import xarray as xr
-
-from typing import Any, Callable, Hashable, List, Mapping, Tuple, Union
-
 from skimage.measure import block_reduce as skimage_block_reduce
-
 
 NUM_TILES = 6
 SUBTILE_FILE_PATTERN = "{prefix}.tile{tile:d}.nc.{subtile:04d}"
+STAGGERED_DIMS = ["grid_x", "grid_y"]
+
+
+def rename_centered_xy_coords(cell_centered_da):
+    """
+    Args:
+        cell_centered_da: data array that got shifted from edges to cell centers
+    Returns:
+        same input array with dims renamed to corresponding cell center dims
+    """
+    for dim in STAGGERED_DIMS:
+        if dim in cell_centered_da.dims:
+            cell_centered_da[dim] = cell_centered_da[dim] - 1
+            cell_centered_da = cell_centered_da.rename({dim: dim + "t"})
+    return cell_centered_da
+
+
+def shift_edge_var_to_center(edge_var: xr.DataArray):
+    """
+    Args:
+        edge_var: variable that is defined on edges of grid, e.g. u, v
+
+    Returns:
+        data array with the original variable at cell center
+    """
+    for staggered_dim in [dim for dim in STAGGERED_DIMS if dim in edge_var.dims]:
+        return rename_centered_xy_coords(
+            0.5
+            * (edge_var + edge_var.shift({staggered_dim: 1})).isel(
+                {staggered_dim: slice(1, None)}
+            )
+        )
+    else:
+        raise ValueError(
+            "Variable to shift to center must be centered on one horizontal axis and "
+            "edge-valued on the other."
+        )
 
 
 # TODO: write a test for this method
@@ -103,9 +137,7 @@ def coarsen_coords(
     return result
 
 
-def coarsen_coords_coord_func(
-    coordinate: np.array, axis: Union[int, Tuple[int]] = -1
-):
+def coarsen_coords_coord_func(coordinate: np.array, axis: Union[int, Tuple[int]] = -1):
     """xarray coarsen coord_func version of coarsen_coords.
 
     Note that xarray requires an axis argument for this to work, but it is not
@@ -147,9 +179,7 @@ def add_coordinates(
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    coarsened_coords = coarsen_coords(
-        coarsening_factor, reference_obj, dims
-    )
+    coarsened_coords = coarsen_coords(coarsening_factor, reference_obj, dims)
 
     if isinstance(coarsened_obj, xr.DataArray):
         result = coarsened_obj.assign_coords(coarsened_coords).rename(
@@ -399,7 +429,8 @@ def _xarray_block_reduce_dataarray(
             must be divisible by the block size along that dimension.
         reduction_function: Array reduction function which accepts a tuple of
             axes to reduce along.
-        cval: Constant padding value if array is not perfectly divisible by the block size.
+        cval: Constant padding value if array is not perfectly divisible by the block
+            size.
         coord_func: function that is applied to the coordinates, or a
             mapping from coordinate name to function.  See `xarray's coarsen
             method for details
@@ -477,7 +508,8 @@ def xarray_block_reduce(
         block_sizes: Dictionary mapping dimension names to integer block sizes.
         reduction_function: Array reduction function which accepts a tuple of
             axes to reduce along.
-        cval: Constant padding value if array is not perfectly divisible by the block size.
+        cval: Constant padding value if array is not perfectly divisible by the
+            block size.
         coord_func: function that is applied to the coordinates, or a
             mapping from coordinate name to function.  See `xarray's coarsen
             method for details
