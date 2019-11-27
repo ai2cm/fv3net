@@ -1,15 +1,13 @@
 import os
-import pathlib
+import f90nml
 from typing.io import BinaryIO
-from typing import Mapping, Any, Tuple, Sequence, Dict
+from typing import Dict
 import re
 from collections import defaultdict
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta
-from toolz import groupby, merge
+from datetime import datetime
 from functools import partial
 from os.path import join
-import attr
 
 import cftime
 import fsspec
@@ -18,6 +16,7 @@ import xarray as xr
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 
+NUM_SOIL_LAYERS = 4
 CATEGORIES = ['fv_core.res', 'sfc_data', 'fv_tracer', 'fv_srf_wnd.res']
 X_NAME = 'grid_xt'
 Y_NAME = 'grid_yt'
@@ -101,35 +100,23 @@ class RestartFile:
         return fsspec.filesystem(self.protocol).open(self.path, "rb")
 
 
-def set_initial_time(restart_files, time):
+def _set_initial_time(restart_files, time):
     return [
         replace(file, _time=time) if file.is_initial_time else file for file in
         restart_files
     ]
 
 
-def set_final_time(restart_files, time):
+def _set_final_time(restart_files, time):
     return [
         replace(file, _time=time) if file.is_final_time else file for file in
         restart_files
     ]
 
 
-def infer_initial_time(times):
-    return times[0] - (times[1] - times[0])
-
-
-def infer_final_time(times):
-    return times[-1] + (times[-1] - times[-2])
-
-
-def fill_times(restart_files, initial_time=None, final_time=None):
+def _fill_times(restart_files, initial_time=None, final_time=None):
     times = sorted(set(file.time for file in restart_files))
-    if initial_time is None:
-        initial_time = infer_initial_time(times)
-    if final_time is None:
-        final_time = infer_final_time(times)
-    return set_final_time(set_initial_time(restart_files, initial_time), final_time)
+    return _set_final_time(_set_initial_time(restart_files, initial_time), final_time)
 
 
 def _restart_files_at_url(url):
@@ -152,11 +139,33 @@ def _load_restart(file: RestartFile):
 
 def _open_all_restarts_at_url(url, initial_time=None, final_time=None):
     restarts = list(_restart_files_at_url(url))
-    return fill_times(restarts, initial_time, final_time)
+    return _fill_times(restarts, initial_time, final_time)
 
 
-def open_restarts(url, initial_time, final_time, grid: Dict[str, int]):
+def open_restarts(url: str, initial_time: str, final_time: str, grid: Dict[str, int]=None) -> xr.Dataset:
+    """Opens all the restart file within a certain path
+
+    The dimension names are the same as the diagnostic output
+
+    Args:
+        url: a URL to the root directory of the. Can be any type of protocol used by
+            fsspec, such as google cloud storage 'gs://path-to-rundir'. If no protocol prefix is used, then it will be
+            assumed to be a path to a local file
+        initial_time: A YYYYMMDD.HHMMSS string for the initial condition. will be parsed to CFTime
+        final_time: same as `initial_time` but for the final time
+        grid: a dict with the grid information (e.g.)::
+
+             {'nz': 79, 'nz_soil': 4, 'nx': 48, 'ny': 48}
+
+    Returns:
+        a combined dataset of all the restart files. This is currently not a
+        lazy operation. All the data is loaded.
+
+    """
     restarts = _open_all_restarts_at_url(url, initial_time, final_time)
+
+    if grid is None:
+        grid = _get_grid(url)
 
     output = defaultdict(dict)
     for restart in restarts:
@@ -166,21 +175,34 @@ def open_restarts(url, initial_time, final_time, grid: Dict[str, int]):
         except ValueError:
             ds_no_time = ds
 
-        ds_correct_metadata = ds_no_time.apply(partial(fix_data_array_dimension_names, **grid))
+        ds_correct_metadata = ds_no_time.apply(partial(_fix_data_array_dimension_names, **grid))
         for variable in ds_correct_metadata:
             output[variable][(restart.time, restart.tile)] = ds_correct_metadata[variable]
 
-    return xr.merge([concat_dict(output[key]) for key in output])
+    return xr.merge([_concat_dict(output[key]) for key in output])
 
 
-def concat_dict(datasets, dims=['time', 'tile']):
+def _get_grid(rundir):
+    proto, path = _split_url(rundir)
+    fs = fsspec.filesystem(proto)
+    # open namelist
+    namelist = join(path, 'input.nml')
+    with fs.open(namelist, "r") as f:
+        s = f.read()
+    nml = f90nml.reads(s)['fv_core_nml']
+
+    # open one file
+    return {'nz': nml['npz'], 'nx': nml['npx']-1, 'ny': nml['npy'] - 1, 'nz_soil': NUM_SOIL_LAYERS}
+
+
+def _concat_dict(datasets, dims=['time', 'tile']):
     index = pd.MultiIndex.from_tuples(datasets.keys(), names=dims)
     index.name = 'stacked'
     ds = xr.concat(datasets.values(), dim=index)
     return ds.unstack('stacked')
 
 
-def fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
+def _fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
     """Modify dimension names from e.g. xaxis1 to 'x' or 'x_interface' in-place.
 
     Done based on dimension length (similarly for y).

@@ -70,10 +70,10 @@ def test_RestartFile_is_final_time(file, expected):
     assert file.is_final_time == expected
 
 
+@pytest.mark.skip()
 def test_restart_files_at_url():
-    url = "20160801.003000/"
-    grid = {'nz': 79, 'nz_soil': 4, 'nx': 48, 'ny': 48}
-    ds = rundir.open_restarts(url, initial_time="20160801.003000", final_time="20160801.004500", grid=grid)
+    url = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/one-step-run/C48/20160801.003000/rundir"
+    ds = rundir.open_restarts(url, initial_time="20160801.003000", final_time="20160801.004500")
     grid = xr.open_mfdataset('20160801.003000/rundir/grid_spec.tile?.nc', concat_dim='tile', combine='nested')
     ds = ds.merge(grid)
     print(ds)
