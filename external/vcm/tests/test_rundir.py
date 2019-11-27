@@ -70,15 +70,9 @@ def test_RestartFile_is_final_time(file, expected):
 
 
 def test_restart_files_at_url():
-    url = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/one-step-run/C48/20160801.003000/"
-    restart_files = list(rundir.restart_files_at_url(url))
-    r = restart_files_w_time = rundir.fill_times(restart_files,
-                                             initial_time="20160801.003000",
-                                             final_time="20160801.004500")
-    import xarray as xr
-    file = r[0]
-
-    f = file.open()
-    print(xr.open_dataset(f))
+    url = "20160801.003000/"
+    restart = rundir._open_all_restarts_at_url(url,
+                                               initial_time="20160801.003000",
+                                               final_time="20160801.004500")
 
 
