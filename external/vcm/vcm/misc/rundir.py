@@ -1,12 +1,13 @@
 import os
 import pathlib
 from typing.io import BinaryIO
-from typing import Dict
+from typing import Mapping, Any, Tuple, Sequence, Dict
 import re
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from toolz import groupby, merge
+from functools import partial
 from os.path import join
 import attr
 
@@ -16,6 +17,12 @@ import pandas as pd
 import xarray as xr
 
 TIME_FMT = "%Y%m%d.%H%M%S"
+
+CATEGORIES = ['fv_core.res', 'sfc_data', 'fv_tracer', 'fv_srf_wnd.res']
+X_NAME = 'grid_xt'
+Y_NAME = 'grid_yt'
+X_EDGE_NAME = 'grid_x'
+Y_EDGE_NAME = 'grid_y'
 
 
 def _parse_time_string(time):
@@ -137,44 +144,88 @@ def _restart_files_at_url(url):
 
 
 def _load_restart(file: RestartFile):
-    ds = xr.open_dataset(file.open())
-    return {key: ds[key].data for key in ds}
-
-
-def _load_group(files):
-    return merge(_load_restart(file) for file in files)
-
+    with file.open() as f:
+        return xr.open_dataset(f).load()
 
 def _open_all_restarts_at_url(url, initial_time=None, final_time=None):
     restarts = list(_restart_files_at_url(url))
-    restarts = fill_times(restarts, initial_time, final_time)
-    grouped = groupby(lambda x: (x.time, x.tile), restarts)
-    opened = {key: _load_group(files) for key, files in grouped.items()}
-    return opened
+    return fill_times(restarts, initial_time, final_time)
 
 
-def assign_time_dims(ds: xr.Dataset, dirs: list, dims: dict) -> xr.Dataset:
-    """Assign coordinates to appropriate time dimensions, i.e., initialization
-    time and forecast time, and drop uninformative time dimension labels
+def open_restarts(url, initial_time, final_time, grid: Dict[str, int]):
+    restarts = _open_all_restarts_at_url(url, initial_time, final_time)
 
+    output = defaultdict(dict)
+    for restart in restarts:
+        ds = _load_restart(restart)
+        try:
+            ds_no_time = ds.isel(Time=0).drop('Time')
+        except ValueError:
+            ds_no_time = ds
+
+        ds_correct_metadata = ds_no_time.apply(partial(fix_data_array_dimension_names, **grid))
+        for variable in ds_correct_metadata:
+            output[variable][(restart.time, restart.tile)] = ds_correct_metadata[variable]
+
+    return xr.merge([concat_dict(output[key]) for key in output])
+
+
+def concat_dict(datasets, dims=['time', 'tile']):
+    index = pd.MultiIndex.from_tuples(datasets.keys(), names=dims)
+    index.name = 'stacked'
+    ds = xr.concat(datasets.values(), dim=index)
+    return ds.unstack('stacked')
+
+
+def fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
+    """Modify dimension names from e.g. xaxis1 to 'x' or 'x_interface' in-place.
+
+    Done based on dimension length (similarly for y).
+
+    Args:
+        data_array (DataArray): the object being modified
+        nx (int): the number of grid cells along the x-axis
+        ny (int): the number of grid cells along the y-axis
+        nz (int): the number of grid cells along the z-axis
+        nz_soil (int): the number of grid cells along the soil model z-axis
+
+    Returns:
+        renamed_array (DataArray): new object with renamed dimensions
+
+    Notes:
+        copied from fv3gfs-python
     """
-    if dirs == BOTH_DIRS:
-        ds = ds.assign_coords(
-            initialization_time=dims["initialization_time"],
-            forecast_time=dims["forecast_time"],
-        )
-    elif dirs == ["RESTART"]:
-        ds = ds.assign_coords(
-            initialization_time=dims["initialization_time"],
-            forecast_time=[dims["forecast_time"][-1]],
-        )
-    if "Time" in ds.dims:
-        ds = ds.squeeze(dim="Time")
-    if "Time" in ds.coords:
-        ds = ds.drop(labels="Time")
-    if "time" in ds.coords:
-        ds = ds.drop(labels="time")
-    return ds
+    replacement_dict = {}
+    for dim_name, length in zip(data_array.dims, data_array.shape):
+        if dim_name[:5] == 'xaxis' or dim_name.startswith('lon'):
+            if length == nx:
+                replacement_dict[dim_name] = X_NAME
+            elif length == nx + 1:
+                replacement_dict[dim_name] = X_EDGE_NAME
+            try:
+                replacement_dict[dim_name] = {nx: X_NAME, nx + 1: X_EDGE_NAME}[length]
+            except KeyError as e:
+                raise ValueError(
+                    f'unable to determine dim name for dimension '
+                    f'{dim_name} with length {length} (nx={nx})'
+                ) from e
+        elif dim_name[:5] == 'yaxis' or dim_name.startswith('lat'):
+            try:
+                replacement_dict[dim_name] = {ny: Y_NAME, ny + 1: Y_EDGE_NAME}[length]
+            except KeyError as e:
+                raise ValueError(
+                    f'unable to determine dim name for dimension '
+                    f'{dim_name} with length {length} (ny={ny})'
+                ) from e
+        elif dim_name[:5] == 'zaxis':
+            try:
+                replacement_dict[dim_name] = {nz: 'z', nz_soil: 'z_soil'}[length]
+            except KeyError as e:
+                raise ValueError(
+                    f'unable to determine dim name for dimension '
+                    f'{dim_name} with length {length} (nz={nz})'
+                ) from e
+    return data_array.rename(replacement_dict).variable
 
 
 def open_oro_data(ds) -> xr.Dataset:
