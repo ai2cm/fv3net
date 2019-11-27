@@ -18,7 +18,7 @@ class PlotConfig:
     dim_slices: dict
     functions: List
     function_kwargs: List[dict]
-    plot_kwargs: dict
+    plot_params: dict
 
 
 def read_zarr_from_gcs(gcs_url, project='vcm-ml'):
@@ -59,9 +59,9 @@ def load_dim_slices(raw_config):
         return {}
 
 
-def load_plot_kwargs(raw_config):
-    if 'plot_kwargs' in raw_config and raw_config['plot_kwargs'] is not None:
-        return raw_config['plot_kwargs']
+def load_plot_params(raw_config):
+    if 'plot_params' in raw_config and raw_config['plot_params'] is not None:
+        return raw_config['plot_params']
     else:
         return {}
 
@@ -76,7 +76,7 @@ def load_configs(config_path):
     for raw_config in raw_configs:
         dim_slices = load_dim_slices(raw_config)
         functions, function_kwargs = load_ufuncs(raw_config)
-        plot_kwargs = load_plot_kwargs(raw_config)
+        plot_params = load_plot_params(raw_config)
         plot_config = PlotConfig(
             plot_name=raw_config['plot_name'],
             plotting_function=raw_config['plotting_function'],
@@ -84,7 +84,7 @@ def load_configs(config_path):
             dim_slices=dim_slices,
             functions=functions,
             function_kwargs=function_kwargs,
-            plot_kwargs=plot_kwargs
+            plot_params=plot_params
         )
         plot_configs.append(plot_config)
     return plot_configs

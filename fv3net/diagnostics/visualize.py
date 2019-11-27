@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # TODO: map plotting function is waiting on PR #67 to get merged
-# from vcm.visualize import plot_cube
+from vcm.visualize import plot_cube
 
 
 # Unclear if these coordinates will get new names in future so left as global vars
@@ -32,7 +32,7 @@ def create_plot(
 
     if plot_config.plotting_function in globals():
         plot_func = globals()[plot_config.plotting_function]
-        return plot_func(ds, plot_config, **plot_config.plot_kwargs)
+        return plot_func(ds, plot_config)
     else:
         raise ValueError(
             f'Invalid plotting_function "{plot_config.plotting_function}" provided in config, \
@@ -60,18 +60,9 @@ def plot_diag_var_map(
     return fig
 
 
-def plot_snapshots(
-        ds,
-        plot_config
-):
-    pass
-
-
 def plot_time_series(
         ds,
-        plot_config,
-        xlabel=None,
-        ylabel=None
+        plot_config
 ):
     fig = plt.figure()
     dims_to_avg = [
@@ -83,14 +74,10 @@ def plot_time_series(
     ax.plot(
         time,
         diag_var)
-    if xlabel:
-        ax.set_xlabel(xlabel)
-    if ylabel:
-        ax.set_ylabel(ylabel)
+    if 'xlabel' in plot_config.plot_params:
+        ax.set_xlabel(plot_config.plot_params['xlabel'])
+    if 'xlabel' in plot_config.plot_params:
+        ax.set_ylabel(plot_config.plot_params['ylabel'])
     return fig
-
-
-def plot_histogram(ds, plot_config):
-    pass
 
 
