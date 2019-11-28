@@ -72,7 +72,10 @@ def _restart_files_at_url(url, initial_time, final_time):
 
     Note:
         the time for the data in INPUT and RESTART cannot be parsed from the file name
-        alone so they are required arguments
+        alone so they are required arguments. Some tricky logic such as reading the
+        fv_coupler.res file could be done, but I do not think this low-level function
+        should have side-effects such as reading a file (which might not always be
+        where we expect).
 
     """
     proto, path = _split_url(url)
