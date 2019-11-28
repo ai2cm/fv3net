@@ -1,9 +1,7 @@
 from dataclasses import dataclass
 from typing import List
 
-import gcsfs
 import numba
-import xarray as xr
 import yaml
 from vcm.calc import diag_ufuncs
 
@@ -12,6 +10,10 @@ del numba  # imports numba separately to avoid later vcm import crash
 
 @dataclass
 class PlotConfig:
+    """
+    Stores instructions for creating a single figure.
+    """
+
     diagnostic_variable: str
     plot_name: str
     plotting_function: str
@@ -19,11 +21,6 @@ class PlotConfig:
     functions: List
     function_kwargs: List[dict]
     plot_params: dict
-
-
-def read_zarr_from_gcs(gcs_url, project="vcm-ml"):
-    fs = gcsfs.GCSFileSystem(project=project)
-    return xr.open_zarr(fs.get_mapper(gcs_url))
 
 
 def load_ufuncs(raw_config):

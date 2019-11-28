@@ -1,10 +1,12 @@
 import os
 from collections import defaultdict
 
+import gcsfs
 import matplotlib.pyplot as plt
+import xarray as xr
 from jinja2 import Template
 from vcm.diagnostic.plot import create_plot
-from vcm.diagnostic.utils import load_config, read_zarr_from_gcs
+from vcm.diagnostic.utils import load_config
 
 IMAGES = defaultdict(list)
 
@@ -19,6 +21,11 @@ report_html = Template(
 
 """
 )
+
+
+def read_zarr_from_gcs(gcs_url, project="vcm-ml"):
+    fs = gcsfs.GCSFileSystem(project=project)
+    return xr.open_zarr(fs.get_mapper(gcs_url))
 
 
 def relative_paths(paths, output_dir):
