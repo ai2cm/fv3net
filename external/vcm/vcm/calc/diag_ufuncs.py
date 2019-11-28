@@ -1,22 +1,19 @@
-import numpy as np
-import xarray as xr
-
-
 """
 User defined functions for producing diagnostic outputs. For functions 
 whose purpose is to calculate a new quantity, the output format must 
 be a dataset with the new quantity stored as variable. 
 
-Some of these replicate existing functions in vcm.calc, but wrapped so that
-the result is the input dataset with diagnostic variable added.
+Some of these replicate existing functions in vcm.calc, but wrapped
+so that the result is the input dataset with diagnostic variable added.
 """
 
 
 def remove_extra_dim(ds, extra_dim="forecast_time"):
     """ Sometimes dataarrays have extra dimensions that complicate plotting.
     e.g. The one step runs have a second time dimension 'forecast_time' that is used
-    to calculate tendencies. However, carrying around the extra time dim after calculation
-    complicates plotting, so it is removed before using the final dataarray in mapping functions
+    to calculate tendencies. However, carrying around the extra time dim after
+    calculation complicates plotting, so it is removed before using the final
+    dataarray in mapping functions
 
     Args:
         ds: xarray dataset
@@ -26,10 +23,9 @@ def remove_extra_dim(ds, extra_dim="forecast_time"):
     """
     if len(ds[extra_dim].values) > 1:
         raise ValueError(
-            "Function remove_extra_dim should only be used on redundant dimensions \
-                         of length 1. You tried to remove {0} which has length {1}.".format(
-                extra_dim, len(ds[extra_dim].values)
-            )
+            f"Function remove_extra_dim should only be used on redundant dimensions \
+                         of length 1. You tried to remove {extra_dim} \
+                         which has length {len(ds[extra_dim].values)}."
         )
 
     if extra_dim in ds.dims:

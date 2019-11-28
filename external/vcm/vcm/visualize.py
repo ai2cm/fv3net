@@ -44,7 +44,7 @@ def plot_cube(data: xr.DataArray, grid: xr.Dataset, ax=None, colorbar=True, **kw
         im = ax.pcolormesh(
             lonb, latb, masked.isel(tile=tile), transform=ccrs.PlateCarree(), **kwargs
         )
-        cf = ax.contour(
+        ax.contour(
             grid.grid_lont.isel(tile=tile),
             grid.grid_latt.isel(tile=tile),
             masked.isel(tile=tile),

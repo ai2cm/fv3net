@@ -29,8 +29,9 @@ def load_ufuncs(raw_config):
     if "function_specifications" in raw_config:
         functions, kwargs = [], []
         for function_spec in raw_config["function_specifications"]:
-            # sacrificing some ugliness here so that specification in the yaml is safer / more readable:
-            # single entry dict seemed like a more foolproof format than list of func name and kwargs
+            # sacrificing some ugliness here so that specification in the yaml is
+            # safer / more readable: single entry dict seemed like a more foolproof
+            # format than list of func name and kwargs
             function_name, function_kwargs = (
                 list(function_spec.keys())[0],
                 list(function_spec.values())[0],

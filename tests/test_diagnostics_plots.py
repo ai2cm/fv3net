@@ -1,9 +1,6 @@
-import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 import xarray as xr
-from matplotlib.testing.decorators import image_comparison
 from vcm.calc.diag_ufuncs import mean_over_dim
 
 from fv3net.diagnostics.utils import PlotConfig

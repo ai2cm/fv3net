@@ -3,7 +3,6 @@ from collections import defaultdict
 
 import matplotlib.pyplot as plt
 from jinja2 import Template
-from vcm.cloud import gcs
 from vcm.diagnostic.plot import create_plot
 from vcm.diagnostic.utils import load_config, read_zarr_from_gcs
 

@@ -6,7 +6,6 @@ There are more general purpose plotting functions in
 vcm.visualize, some of which are utilized here.
 """
 import matplotlib.pyplot as plt
-import numpy as np
 
 # TODO: map plotting function is waiting on PR #67 to get merged
 from vcm.visualize import plot_cube
