@@ -91,4 +91,3 @@ def list_bucket_files(
                 continue
 
         yield f"gs://{blob.bucket.name}/{blob.name}"
-

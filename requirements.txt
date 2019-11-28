@@ -1,5 +1,6 @@
 # external
 apache-beam==2.16.0
+cartopy
 click
 cloudpickle
 dask>=2.3.0

@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 import xarray as xr
 from skimage.measure import block_reduce as skimage_block_reduce
-
 from vcm.cubedsphere import (
     _xarray_block_reduce_dataarray,
     add_coordinates,

@@ -9,7 +9,6 @@ The saved archive is suitable to use with uwnet.train
 """
 
 import numpy as np
-
 from vcm.convenience import open_data
 
 
