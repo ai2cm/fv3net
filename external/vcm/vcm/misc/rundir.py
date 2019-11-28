@@ -1,12 +1,10 @@
 import os
 import re
 from collections import defaultdict
-from dataclasses import dataclass, replace
 from datetime import datetime
 from functools import partial
 from os.path import join
 from typing import Dict
-from typing.io import BinaryIO
 
 import cftime
 import fsspec
@@ -43,110 +41,56 @@ def _split_url(url):
     return protocol, path
 
 
-@dataclass
-class RestartFile:
-    """An object representing a restart file either local or remote"""
-
-    path: str
-    category: str
-    tile: int
-    subtile: int
-    protocol: str = "file"
-    _time: str = None
-
-    @classmethod
-    def from_path(cls, path, protocol="file"):
-        pattern = cls._restart_regexp()
-        matches = pattern.search(path)
-        time = matches.group("time")
-        category = matches.group("category")
-        tile = matches.group("tile")
-        subtile = matches.group("subtile")
-        subtile = None if subtile is None else int(subtile)
-
-        if "grid" in category:
-            raise ValueError(f"Data {category} is not a restart file")
-
-        return cls(
-            path,
-            category=category,
-            tile=int(tile),
-            subtile=subtile,
-            _time=time,
-            protocol=protocol,
-        )
-
-    @property
-    def time(self):
-        try:
-            return _parse_time_string(self._time)
-        except TypeError:
-            return None
-
-    @property
-    def is_initial_time(self):
-        dirname = os.path.dirname(self.path)
-        return dirname.endswith("INPUT")
-
-    @property
-    def is_final_time(self):
-        in_restart = not self.is_initial_time
-        return in_restart and self.time is None
-
-    @staticmethod
-    def _restart_regexp():
-        pattern = (
-            r"(?P<time>\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)?\.?"
-            r"(?P<category>[^\/]*)\."
-            r"tile(?P<tile>\d)\.nc"
-            r"\.?(?P<subtile>\d\d\d\d)?"
-        )
-
-        return re.compile(pattern)
-
-    def open(self) -> BinaryIO:
-        return fsspec.filesystem(self.protocol).open(self.path, "rb")
+def _parse_time(path):
+    return re.match(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path).group(1)
 
 
-def _set_initial_time(restart_files, time):
-    return [
-        replace(file, _time=time) if file.is_initial_time else file
-        for file in restart_files
-    ]
+def _get_time(dirname, file, initial_time, final_time):
+    try:
+        return _parse_time(file)
+    except AttributeError:
+        if dirname.endswith("INPUT"):
+            return initial_time
+        elif dirname.endswith("RESTART"):
+            return final_time
 
 
-def _set_final_time(restart_files, time):
-    return [
-        replace(file, _time=time) if file.is_final_time else file
-        for file in restart_files
-    ]
+def _get_tile(file):
+    tile = re.search(r"tile(\d)\.nc", file).group(1)
+    return tile
 
 
-def _fill_times(restart_files, initial_time, final_time):
-    return _set_final_time(_set_initial_time(restart_files, initial_time), final_time)
+def _is_restart_file(file):
+    return any(category in file for category in CATEGORIES) and "tile" in file
 
 
-def _restart_files_at_url(url):
+def _restart_files_at_url(url, initial_time, final_time):
+    """List restart files with a given initial and end time within a particular URL
+
+    Yields:
+        (time, tile, protocol, path)
+
+    Note:
+        the time for the data in INPUT and RESTART cannot be parsed from the file name
+        alone so they are required arguments
+
+    """
     proto, path = _split_url(url)
     fs = fsspec.filesystem(proto)
 
     for root, dirs, files in fs.walk(path):
         for file in files:
             path = os.path.join(root, file)
-            try:
-                yield RestartFile.from_path(path, protocol=proto)
-            except ValueError:
-                pass
+            if _is_restart_file(file):
+                time = _get_time(root, file, initial_time, final_time)
+                tile = _get_tile(file)
+                yield time, tile, proto, path
 
 
-def _load_restart(file: RestartFile):
-    with file.open() as f:
+def _load_restart(protocol, path):
+    fs = fsspec.filesystem(protocol)
+    with fs.open(path) as f:
         return xr.open_dataset(f).load()
-
-
-def _open_all_restarts_at_url(url, initial_time=None, final_time=None):
-    restarts = list(_restart_files_at_url(url))
-    return _fill_times(restarts, initial_time, final_time)
 
 
 def _get_grid(rundir):
@@ -167,7 +111,7 @@ def _get_grid(rundir):
     }
 
 
-def _concat_dict(datasets, dims=["time", "tile"]):
+def _concatenate_by_key(datasets, dims=["time", "tile"]):
     index = pd.MultiIndex.from_tuples(datasets.keys(), names=dims)
     index.name = "stacked"
     ds = xr.concat(datasets.values(), dim=index)
@@ -225,6 +169,19 @@ def _fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
     return data_array.rename(replacement_dict).variable
 
 
+def _fix_metadata(ds, grid):
+    try:
+        ds_no_time = ds.isel(Time=0).drop("Time")
+    except ValueError:
+        ds_no_time = ds
+
+    ds_correct_metadata = ds_no_time.apply(
+        partial(_fix_data_array_dimension_names, **grid)
+    )
+
+    return ds_correct_metadata
+
+
 def open_restarts(
     url: str, initial_time: str, final_time: str, grid: Dict[str, int] = None
 ) -> xr.Dataset:
@@ -235,10 +192,9 @@ def open_restarts(
     Args:
         url: a URL to the root directory of the. Can be any type of protocol used by
             fsspec, such as google cloud storage 'gs://path-to-rundir'. If no protocol
-            prefix is used, then it will be
-            assumed to be a path to a local file
+            prefix is used, then it will be assumed to be a path to a local file
         initial_time: A YYYYMMDD.HHMMSS string for the initial condition. will be parsed
-            CFTime
+            with CFTime
         final_time: same as `initial_time` but for the final time
         grid: a dict with the grid information (e.g.)::
 
@@ -249,25 +205,19 @@ def open_restarts(
         lazy operation. All the data is loaded.
 
     """
-    restarts = _open_all_restarts_at_url(url, initial_time, final_time)
+    restart_files = _restart_files_at_url(url, initial_time, final_time)
 
     if grid is None:
         grid = _get_grid(url)
 
     output = defaultdict(dict)
-    for restart in restarts:
-        ds = _load_restart(restart)
-        try:
-            ds_no_time = ds.isel(Time=0).drop("Time")
-        except ValueError:
-            ds_no_time = ds
-
-        ds_correct_metadata = ds_no_time.apply(
-            partial(_fix_data_array_dimension_names, **grid)
-        )
+    for (time, tile, protocol, path) in restart_files:
+        ds = _load_restart(protocol, path)
+        ds_correct_metadata = _fix_metadata(ds, grid)
+        time_obj = _parse_time_string(time)
         for variable in ds_correct_metadata:
-            output[variable][(restart.time, restart.tile)] = ds_correct_metadata[
-                variable
-            ]
-
-    return xr.merge([_concat_dict(output[key]) for key in output])
+            output[variable][(time_obj, tile)] = ds_correct_metadata[variable]
+    concatenated_variables = {
+        name: _concatenate_by_key(arrays) for name, arrays in output.items()
+    }
+    return xr.Dataset(concatenated_variables)
