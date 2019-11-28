@@ -57,7 +57,7 @@ def _get_time(dirname, file, initial_time, final_time):
 
 def _get_tile(file):
     tile = re.search(r"tile(\d)\.nc", file).group(1)
-    return tile
+    return int(tile)
 
 
 def _is_restart_file(file):
