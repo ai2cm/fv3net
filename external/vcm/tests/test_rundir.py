@@ -31,6 +31,7 @@ def test__nml_to_grid():
     nml = {'fv_core'}
 
 
+@pytest.mark.skip()
 def test_restart_files_at_url():
     url = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/one-step-run/C48/20160801.003000/rundir"  # noqa
     url = "20160801.003000/rundir"
@@ -42,3 +43,13 @@ def test_restart_files_at_url():
     )
     ds = ds.merge(grid)
     print(ds)
+
+
+def test__concatenate_by_key():
+    arr = xr.DataArray([0.0], dims=['x'])
+    arrays = {('a', 1): arr, ('a', 2): arr}
+
+    ds = rundir._concatenate_by_key(arrays, ['letter', 'number'])
+
+    assert isinstance(ds, xr.DataArray)
+    assert ds.dims == ['letter', 'number', 'x']
