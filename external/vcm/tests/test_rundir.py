@@ -1,4 +1,4 @@
-# import pytest
+import pytest
 import xarray as xr
 
 from vcm.misc import rundir
@@ -7,9 +7,28 @@ FV_CORE_IN_RESTART = "./RESTART/fv_core.res.tile6.nc"
 FV_CORE_IN_RESTART = "./INPUT/fv_core.res.tile6.nc"
 FV_CORE_IN_RESTART_WITH_TIMESTEP = "./RESTART/20180605.000000.fv_core.res.tile6.nc"
 
+FINAL = 'final'
+INIT = 'init'
+
 
 def test__get_tile():
     assert rundir._get_tile(FV_CORE_IN_RESTART) == 6
+
+
+@pytest.mark.parametrize('dirname, name, expected', [
+    ( 'RESTART', "20180605.000000.fv_core.res.tile6.nc", '20180605.000000'),
+    ( 'INPUT', "20180605.000000.fv_core.res.tile6.nc", INIT),
+    ( 'INPUT', "fv_core.res.tile6.nc", INIT),
+    ( 'RESTART', "fv_core.res.tile6.nc", FINAL),
+])
+
+def test__get_time(dirname, name, expected):
+    time = rundir._get_time(dirname, name, initial_time=INIT,final_time=FINAL)
+    assert time == expected
+
+
+def test__nml_to_grid():
+    nml = {'fv_core'}
 
 
 def test_restart_files_at_url():

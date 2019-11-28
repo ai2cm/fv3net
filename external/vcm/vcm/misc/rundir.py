@@ -42,17 +42,17 @@ def _split_url(url):
 
 
 def _parse_time(path):
-    return re.match(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path).group(1)
+    return re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path).group(1)
 
 
 def _get_time(dirname, file, initial_time, final_time):
-    try:
-        return _parse_time(file)
-    except AttributeError:
-        if dirname.endswith("INPUT"):
-            return initial_time
-        elif dirname.endswith("RESTART"):
-            return final_time
+    if dirname.endswith("INPUT"):
+        return initial_time
+    elif dirname.endswith("RESTART"):
+        try:
+            return _parse_time(file)
+        except AttributeError:
+                return final_time
 
 
 def _get_tile(file):
