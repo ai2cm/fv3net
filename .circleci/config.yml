@@ -8,6 +8,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
     - checkout
+    - run: sudo apt-get install proj-bin
     - run: sudo pip install -r requirements.txt
     - run: sudo pip install -e external/vcm
     - run: echo $GCLOUD_SERVICE_KEY > key.json

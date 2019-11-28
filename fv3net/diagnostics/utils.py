@@ -1,4 +1,3 @@
-# import numba first to avoid later vcm import crash
 from dataclasses import dataclass
 from typing import List
 
@@ -7,6 +6,8 @@ import numba
 import xarray as xr
 import yaml
 from vcm.calc import diag_ufuncs
+
+del numba  # imports numba separately to avoid later vcm import crash
 
 
 @dataclass

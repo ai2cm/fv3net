@@ -1,10 +1,9 @@
-"""
-User defined functions for producing diagnostic outputs. For functions 
-whose purpose is to calculate a new quantity, the output format must 
-be a dataset with the new quantity stored as variable. 
+""" User defined functions for producing diagnostic outputs.
+For functions whose purpose is to calculate a new quantity,
+the output format must be a dataset with the new quantity stored as variable.
 
-Some of these replicate existing functions in vcm.calc, but wrapped
-so that the result is the input dataset with diagnostic variable added.
+Some of these replicate existing functions in vcm.calc, but wrapped so that
+the result is the input dataset with diagnostic variable added.
 """
 
 

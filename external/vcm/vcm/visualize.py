@@ -9,10 +9,12 @@ def plot_cube(data: xr.DataArray, grid: xr.Dataset, ax=None, colorbar=True, **kw
     
     Arguments:
     
-    Data: Dataarray of variable to plot assumed to have dimensions (grid_ty, grid_xt and tile)
+    Data: Dataarray of variable to plot assumed to have dimensions
+     (grid_ty, grid_xt and tile)
     
     grid: Dataset of grid variables that must include:
-        -lat, lon, latb, lonb (where lat and lon are grid centers and lonb and latb are grid edges)
+        -lat, lon, latb, lonb
+        (where lat and lon are grid centers and lonb and latb are grid edges)
         
     Returns:
     
