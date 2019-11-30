@@ -12,6 +12,8 @@ from .cubedsphere import (
     xarray_block_reduce,
 )
 from .extract import extract_tarball_to_path
+from .merging import combine_by_key
+from .fv3_restarts import open_restarts
 
 # TODO: convenience and regrid are currently broken
 
