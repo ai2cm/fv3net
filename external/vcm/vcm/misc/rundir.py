@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import datetime
 from functools import partial
 from os.path import join
-from typing import Dict
+from typing import Dict, Tuple
 
 import cftime
 import fsspec
@@ -138,7 +138,62 @@ def _concat_binary_op(a, b, coord, dim):
         return xr.concat([a, temp], dim=dim)
 
 
-def _concatenate_by_key(datasets, dims=["time", "tile"]):
+def _concatenate_by_key(datasets: Dict[Tuple, xr.DataArray], dims=["time", "tile"]):
+    """Merge dataarrays contained within a dictionary
+
+    They keys of dictionary are tuples, the elements of which will become the 
+    coordinates and keys of the result.
+
+    This can be viewed as an alternative to some of xarrays built-in merging routines. 
+    It is more robust than xr.combine_by_coords, and more easy to use than 
+    xr.combine_nested, since it does not require created a nested list of dataarrays.
+
+    When loading multiple netCDFs from disk it is often possible to parse some 
+    coordinate info from the file-name. For instance, one can easy build a dictionary of 
+    DataArrays like this::
+
+        {(variable, time, tile): array ...}
+    
+    This function allows combining the dataarrays along the "time" and "tile" part of 
+    the key to create an output like::
+
+        {variable: array_with_time_tile_coords ...}
+
+
+    Args:
+        datasets: a dictionary with tuples for keys and DataArrays for values. The 
+            elements of the key represent coordinates along which the dataarrays will 
+            be concatenated.
+        dims: the dimensions to associate with the keys of `datasets`. If the length 
+            of dims is `n`, then the final `n` elements of the key tuples will be 
+            turned into coordinates.
+
+
+    Examples:
+        >>> arr = xr.DataArray([0.0], dims=["x"])
+        >>> arrays = {("a", 1): arr, ("a", 2): arr, ("b", 1): arr, ("b", 2): arr}
+        >>> arrays
+        {('a', 1): <xarray.DataArray (x: 1)>
+        array([0.])
+        Dimensions without coordinates: x, ('a', 2): <xarray.DataArray (x: 1)>
+        array([0.])
+        Dimensions without coordinates: x, ('b', 1): <xarray.DataArray (x: 1)>
+        array([0.])
+        Dimensions without coordinates: x, ('b', 2): <xarray.DataArray (x: 1)>
+        array([0.])
+        Dimensions without coordinates: x}
+        >>>  _concatenate_by_key(arrays, dims=['letter', 'number'])
+        <xarray.DataArray (letter: 2, number: 2, x: 1)>
+        array([[[0.],
+                [0.]],
+
+            [[0.],
+                [0.]]])
+        Coordinates:
+        * number   (number) int64 1 2
+        * letter   (letter) object 'a' 'b'
+        Dimensions without coordinates: x
+    """
     output = _reduce_one_key_at_time(_concat_binary_op, datasets, dims)
     if first(output) == ():
         return output[()]
