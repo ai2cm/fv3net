@@ -138,7 +138,7 @@ def _concat_binary_op(a, b, coord, dim):
         return xr.concat([a, temp], dim=dim)
 
 
-def _concatenate_by_key(datasets: Dict[Tuple, xr.DataArray], dims=["time", "tile"]):
+def combine_by_key(datasets: Dict[Tuple, xr.DataArray], dims=["time", "tile"]):
     """Merge dataarrays contained within a dictionary
 
     They keys of dictionary are tuples, the elements of which will become the 
@@ -305,4 +305,4 @@ def open_restarts(
         grid = _get_grid(url)
     restart_files = _restart_files_at_url(url, initial_time, final_time)
     arrays = _load_arrays(restart_files, grid)
-    return xr.Dataset(_concatenate_by_key(arrays, dims=["time", "tile"]))
+    return xr.Dataset(combine_by_key(arrays, dims=["time", "tile"]))
