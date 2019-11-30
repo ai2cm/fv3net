@@ -3,7 +3,7 @@ import os
 import pytest
 import xarray as xr
 
-from vcm.fv3_restarts import _get_tile, _get_time, open_restarts
+from vcm.fv3_restarts import _get_tile, _get_time, open_restarts, _is_restart_file
 
 FV_CORE_IN_RESTART = "./RESTART/fv_core.res.tile6.nc"
 FV_CORE_IN_RESTART = "./INPUT/fv_core.res.tile6.nc"
@@ -11,6 +11,19 @@ FV_CORE_IN_RESTART_WITH_TIMESTEP = "./RESTART/20180605.000000.fv_core.res.tile6.
 
 FINAL = "final"
 INIT = "init"
+
+
+@pytest.mark.parametrize(
+    "path, is_restart",
+    [
+        ("INPUT/fv_core.res.tile6.nc", True),
+        ("atmos_dt_atmos.nc", False),
+        ("RESTART/fv_core.res.tile6.nc", True),
+        ("INPUT/fv_core.res.txt", False),
+    ],
+)
+def test__is_restart_file(path, is_restart):
+    assert _is_restart_file(path) == is_restart
 
 
 def test__get_tile():
