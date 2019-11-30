@@ -59,6 +59,7 @@ def combine_by_key(datasets: Dict[Tuple, xr.DataArray], dims=["time", "tile"]):
 
 
     Examples:
+        >>> import pprint
         >>> arr = xr.DataArray([0.0], dims=["x"])
         >>> arrays = {("a", 1): arr, ("a", 2): arr, ("b", 1): arr, ("b", 2): arr}
         >>> arrays
@@ -71,7 +72,7 @@ def combine_by_key(datasets: Dict[Tuple, xr.DataArray], dims=["time", "tile"]):
         Dimensions without coordinates: x, ('b', 2): <xarray.DataArray (x: 1)>
         array([0.])
         Dimensions without coordinates: x}
-        >>>  _concatenate_by_key(arrays, dims=['letter', 'number'])
+        >>>  combine_by_key(arrays, dims=['letter', 'number'])
         <xarray.DataArray (letter: 2, number: 2, x: 1)>
         array([[[0.],
                 [0.]],
@@ -82,6 +83,19 @@ def combine_by_key(datasets: Dict[Tuple, xr.DataArray], dims=["time", "tile"]):
         * number   (number) int64 1 2
         * letter   (letter) object 'a' 'b'
         Dimensions without coordinates: x
+        >>> pprint.pprint(combine_by_key(arrays, dims=['number']))
+        {'a': <xarray.DataArray (number: 2, x: 1)>
+        array([[0.],
+            [0.]])
+        Coordinates:
+        * number   (number) int64 1 2
+        Dimensions without coordinates: x,
+        'b': <xarray.DataArray (number: 2, x: 1)>
+        array([[0.],
+            [0.]])
+        Coordinates:
+        * number   (number) int64 1 2
+        Dimensions without coordinates: x}
     """
     output = _reduce_one_key_at_time(_concat_binary_op, datasets, dims)
     if first(output) == ():

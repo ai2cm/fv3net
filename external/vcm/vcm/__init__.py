@@ -24,6 +24,8 @@ TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 __all__ = [
     # "open_dataset",
+    "combine_by_key",
+    "open_restarts",
     "open_cubed_sphere",
     "block_coarsen",
     "block_edge_sum",
