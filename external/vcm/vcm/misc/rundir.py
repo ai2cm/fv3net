@@ -10,6 +10,7 @@ import cftime
 import fsspec
 import pandas as pd
 import xarray as xr
+from toolz import assoc, first, groupby, keymap
 
 import f90nml
 
@@ -52,7 +53,7 @@ def _get_time(dirname, file, initial_time, final_time):
         try:
             return _parse_time(file)
         except AttributeError:
-                return final_time
+            return final_time
 
 
 def _get_tile(file):
@@ -114,21 +115,37 @@ def _get_grid(rundir):
     }
 
 
+def _reduce_one_key_at_time(func, seqs, dims):
+    """Turn flat dictionary into nested lists by keys"""
+    # first groupby last element of key tuple
+    if len(dims) == 0:
+        return seqs
+    else:
+        # groupby everything but final key
+        output = {}
+        for key, array in seqs.items():
+            val = output.get(key[:-1], None)
+            output[key[:-1]] = func(val, array, key[-1], dims[-1])
+
+        return _reduce_one_key_at_time(func, output, dims[:-1])
+
+
+def _concat_binary_op(a, b, coord, dim):
+    temp = b.assign_coords({dim: coord})
+    if a is None:
+        return temp
+    else:
+        return xr.concat([a, temp], dim=dim)
+
+
 def _concatenate_by_key(datasets, dims=["time", "tile"]):
-    index = pd.MultiIndex.from_tuples(datasets.keys(), names=dims)
-    index.name = "stacked"
-    ds = xr.concat(datasets.values(), dim=index)
-    return ds.unstack("stacked")
-
-
-def _concatenate_dataset_by_key(datasets, dims=["time", "tile"]):
-    """The behavior of xr.concat is confusing and somewhat unstable, this function
-    applies it by variable and then merges the output"""
-    output = defaultdict(dict)
-    for key, ds in datasets.items():
-        for var in ds:
-            output[var][key] = ds[var]
-    return xr.Dataset({var: _concatenate_by_key(output[var], dims) for var in output})
+    output = _reduce_one_key_at_time(_concat_binary_op, datasets, dims)
+    if first(output) == ():
+        return output[()]
+    if len(first(output)) == 1:
+        return {key[0]: val for key, val in output.items()}
+    else:
+        return output
 
 
 def _fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
@@ -195,13 +212,14 @@ def _fix_metadata(ds, grid):
     return ds_correct_metadata
 
 
-def _load_datasets(restart_files, grid):
-    output = {}
+def _load_arrays(restart_files, grid):
+    output = defaultdict(dict)
     for (time, tile, protocol, path) in restart_files:
         ds = _load_restart(protocol, path)
         ds_correct_metadata = _fix_metadata(ds, grid)
         time_obj = _parse_time_string(time)
-        output[(time_obj, tile)] = ds_correct_metadata
+        for var in ds_correct_metadata:
+            output[(var, time_obj, tile)] = ds_correct_metadata[var]
     return output
 
 
@@ -231,5 +249,5 @@ def open_restarts(
     if grid is None:
         grid = _get_grid(url)
     restart_files = _restart_files_at_url(url, initial_time, final_time)
-    dataset_dict = _load_datasets(restart_files, grid)
-    return _concatenate_dataset_by_key(dataset_dict)
+    arrays = _load_arrays(restart_files, grid)
+    return xr.Dataset(_concatenate_by_key(arrays, dims=["time", "tile"]))
