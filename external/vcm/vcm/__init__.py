@@ -1,5 +1,7 @@
 import pathlib
 
+from .combining import combine_array_sequence
+
 # from .convenience import open_dataset
 from .cubedsphere import (
     block_coarsen,
@@ -13,7 +15,6 @@ from .cubedsphere import (
 )
 from .extract import extract_tarball_to_path
 from .fv3_restarts import open_restarts
-from .combining import combine_array_sequence
 
 # TODO: convenience and regrid are currently broken
 
