@@ -1,7 +1,6 @@
-from typing import Any, Dict, Iterable, Tuple, TypeVar
+from typing import Any, Iterable, Tuple
 
 import xarray as xr
-from toolz import first
 
 
 def _reduce_one_key_at_time(func, seqs, dims):
@@ -32,7 +31,7 @@ def combine_array_sequence(
 ) -> xr.Dataset:
     """Merge a sequence of dataarrays into one Dataset
 
-    The input is a sequence of (name, dims, array) tuples and the output is an Dataset 
+    The input is a sequence of (name, dims, array) tuples and the output is an Dataset
     which combines the arrays assumings.
 
     This can be viewed as an alternative to some of xarrays built-in merging routines.
@@ -53,15 +52,15 @@ def combine_array_sequence(
 
 
     Examples:
-        >>> import xarray as xr                                                                                                                                               
-        >>> name = 'a'                                                                                                                                                        
-        >>> arr = xr.DataArray([0.0], dims=["x"])                                                                                                                             
-        >>> arrays = [ 
-        ...         (name, ("a", 1), arr),  
-        ...         (name, ("b", 1), arr),  
-        ...         (name, ("a", 2), arr),  
-        ...         (name, ("b", 2), arr), 
-        ...     ]                                                                                                                                                             
+        >>> import xarray as xr
+        >>> name = 'a'
+        >>> arr = xr.DataArray([0.0], dims=["x"])
+        >>> arrays = [
+        ...         (name, ("a", 1), arr),
+        ...         (name, ("b", 1), arr),
+        ...         (name, ("a", 2), arr),
+        ...         (name, ("b", 2), arr),
+        ...     ]
         >>> combine_by_dims(arrays, ["letter", "number"])
         <xarray.Dataset>
         Dimensions:  (letter: 2, number: 2, x: 1)
