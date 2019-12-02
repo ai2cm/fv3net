@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 # TODO: map plotting function is waiting on PR #67 to get merged
 from vcm.visualize import plot_cube
 
+
 # Unclear if these coordinates will get new names in future so left as global vars
 TIME_VAR = "initialization_time"
 VERTICAL_GRID_VAR = "pfull"
@@ -34,7 +35,7 @@ def create_plot(ds, plot_config):
             must correspond to function existing in fv3net.diagnostics.visualize'
         )
 
-
+# TODO: this is dependent on the plotting PR, so wait on that to merge
 def plot_diag_var_map(
     ds, plot_config,
 ):

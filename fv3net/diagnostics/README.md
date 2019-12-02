@@ -42,11 +42,43 @@ that each plot config block is an entry in a list.
 adds it as a variable in the dataset.
 2. Create an entry for the diagnostic in the config yaml file. See instructions above regarding the config format.
 3. If the current plotting functions in `fv3net.diagnostics.visualize` do not suffice for your use case, you can add 
-another plot function to that module. Use the function name as the config entry `plotting_function`.
+another plot function to that module. Use the function name as the config entry `plotting_function`. Unit tests for
+new plot functions need to be run once locally to generate a baseline plot future comparisons, which should
+be stored in `tests/baseline_plots`.
 
 
 
 ### Example: automatically create all plots from config yaml
 ```
 python create_all_diagnostics.py --config-file default_config.yaml --output-dir diag_output --gcs-run-dir gs://bucket/data-location
+```
+
+
+### Example: interactive usage
+The diagnostic suite is designed for automated usage, but if you want to use it to recreate a 
+figure in interactive mode, you can create the `PlotConfig` python object yourself. Note that
+if you have multiple user defined functions being applied, you'll need to make sure their order 
+and the order of plot kwargs matches what you want. 
+```
+from fv3net.diagnostics.utils import PlotConfig
+from fv3net.diagnostics.visualize import create_plot
+
+# import the user defined funcs that are needed from vcm
+from vcm.calc.diag_ufuncs import mean_over_dim
+
+...
+# assuming that the dataset ds is already loaded
+
+plot_config = PlotConfig(
+    diagnostic_variable="mean_diag_var",
+    plot_name="test time series sliced",
+    plotting_function="plot_time_series",
+    dim_slices={"initialization_time": slice(None, 50, None)},
+    functions=[mean_over_dim],
+    function_kwargs=[
+        {"dim": "pfull", "var_to_avg": "diag_var", "new_var": "mean_diag_var"}
+    ],
+    plot_params={"xlabel": "time [d]", "ylabel": "mean diag var"},
+)
+fig = create_plot(ds, plot_config)
 ```
