@@ -39,7 +39,7 @@ def load_ufuncs(raw_config):
                 function_kwargs = {}
             if not hasattr(diag_ufuncs, function_name):
                 raise ValueError(
-                    f"Function name {function_name} is not in the function map."
+                    f"Function name {function_name} is not in vcm.calc.diag_ufuncs."
                 )
             functions.append(getattr(diag_ufuncs, function_name))
             kwargs.append(function_kwargs)
