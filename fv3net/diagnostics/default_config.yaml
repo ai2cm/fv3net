@@ -1,37 +1,160 @@
--
-  plot_name: Q2 mean
-  plot_type: time_series  # see plot.PLOT_TYPES for the list of options
-  diagnostic_variable: Q2 # diagnostic variable. can either exist in raw data or be calculated by user defined functions
-  dim_slices:  # subselect data on ds.isel(dim=index) or ds.isel(dim=slice)
-    initialization_time:
-      - null
-      - 20
-    pfull:
-      - null
-      - null
-  function_specifications:  # MUST PROVIDE IN ORDER OF EXECUTION
-    - mean_over_dim:    # function name in vcm.diagnostic.ufuncs
-        dim: pfull   # function kwargs
-        var_to_sum: Q2
-        new_var: Q2
-        apply_delp_weighting: True
-  plot_kwargs:
-    - xlabel: time
-    - ylabel: Q2
 
 -
-  plot_name: Q1 above 1000 HPa
-  plot_type: map
+  plot_name: Q1, vertical average
+  plotting_function: plot_diag_var_map
+  diagnostic_variable: Q1_vertical_avg
+  dim_slices:
+    initialization_time:
+      - 0
+  function_specifications:
+    - remove_forecast_time_dim:
+    - apply_weighting:
+        - var_to_weight: Q1
+        - weighting_var: delp
+        - weighting_dims: pfull
+    - mean_over_dim:
+         dim: pfull
+         var_to_avg: Q1
+         new_var: Q1_vertical_avg
+
+-
+  plot_name: Q1,  200-550 HPa
+  plotting_function: plot_diag_var_map
+  diagnostic_variable: Q1_mean_200-550_HPa
+  dim_slices:
+    initialization_time:
+      - null
+      - null
+    pfull:
+      - 25
+      - 46
+  function_specifications:
+    - remove_forecast_time_dim:
+    - apply_weighting:
+        - var_to_weight: Q1
+        - weighting_var: delp
+        - weighting_dims: pfull
+    - mean_over_dim:
+         dim: pfull
+         var_to_avg: Q1
+         new_var: Q1_mean_200-550_HPa
+
+-
+  plot_name: Q1,  >550 HPa
+  plotting_function: plot_diag_var_map
+  diagnostic_variable: Q1_mean_above_550_HPa
+  dim_slices:
+    initialization_time:
+      - null
+      - null
+    pfull:
+      - 46
+      - null
+  function_specifications:
+    - remove_forecast_time_dim:
+    - apply_weighting:
+        - var_to_weight: Q1
+        - weighting_var: delp
+        - weighting_dims: pfull
+    - mean_over_dim:
+         dim: pfull
+         var_to_avg: Q1
+         new_var: Q1_mean_above_550_HPa
+
+-
+  plot_name: Q1, above 1000 HPa
+  plotting_function: plot_diag_var_map
   diagnostic_variable: Q1_mean_above_1000_HPa
   dim_slices:
     initialization_time:
       - 10
+      - null
     pfull:
       - -4
       - null
   function_specifications:
+    - remove_forecast_time_dim:
     - mean_over_dim:
-        dim: pfull
-        var_to_avg: Q1
-        new_var: Q1_mean_above_1000_HPa
-        apply_delp_weighting: True
+         dim: pfull
+         var_to_avg: Q1
+         new_var: Q1_mean_above_1000_HPa
+
+-
+  plot_name: Q2, vertical average
+  plotting_function: plot_diag_var_map
+  diagnostic_variable: Q2_vertical_avg
+  dim_slices:
+    initialization_time:
+      - 0
+  function_specifications:
+    - remove_forecast_time_dim:
+    - apply_weighting:
+        - var_to_weight: Q2
+        - weighting_var: delp
+        - weighting_dims: pfull
+    - mean_over_dim:
+         dim: pfull
+         var_to_avg: Q2
+         new_var: Q2_vertical_avg
+
+-
+  plot_name: Q2,  200-550 HPa
+  plotting_function: plot_diag_var_map
+  diagnostic_variable: Q2_mean_200-550_HPa
+  dim_slices:
+    initialization_time:
+      - null
+      - null
+    pfull:
+      - 25
+      - 46
+  function_specifications:
+    - remove_forecast_time_dim:
+    - apply_weighting:
+        - var_to_weight: Q2
+        - weighting_var: delp
+        - weighting_dims: pfull
+    - mean_over_dim:
+         dim: pfull
+         var_to_avg: Q2
+         new_var: Q2_mean_200-550_HPa
+
+-
+  plot_name: Q2,  >550 HPa
+  plotting_function: plot_diag_var_map
+  diagnostic_variable: Q2_mean_above_550_HPa
+  dim_slices:
+    initialization_time:
+      - null
+      - null
+    pfull:
+      - 46
+      - null
+  function_specifications:
+    - remove_forecast_time_dim:
+    - apply_weighting:
+        - var_to_weight: Q2
+        - weighting_var: delp
+        - weighting_dims: pfull
+    - mean_over_dim:
+         dim: pfull
+         var_to_avg: Q2
+         new_var: Q2_mean_above_550_HPa
+
+-
+  plot_name: Q2, above 1000 HPa
+  plotting_function: plot_diag_var_map
+  diagnostic_variable: Q2_mean_above_1000_HPa
+  dim_slices:
+    initialization_time:
+      - 10
+      - null
+    pfull:
+      - -4
+      - null
+  function_specifications:
+    - remove_forecast_time_dim:
+    - mean_over_dim:
+         dim: pfull
+         var_to_avg: Q2
+         new_var: Q2_mean_above_1000_HPa
