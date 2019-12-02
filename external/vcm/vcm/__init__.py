@@ -13,7 +13,7 @@ from .cubedsphere import (
 )
 from .extract import extract_tarball_to_path
 from .fv3_restarts import open_restarts
-from .merging import combine_array_sequence
+from .combining import combine_array_sequence
 
 # TODO: convenience and regrid are currently broken
 
