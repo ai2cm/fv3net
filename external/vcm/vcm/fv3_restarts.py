@@ -4,14 +4,14 @@ from collections import defaultdict
 from datetime import datetime
 from functools import partial
 from os.path import join
-from typing import Dict
+from typing import Any, Dict, Generator, Tuple
 
 import cftime
 import fsspec
 import xarray as xr
 
 import f90nml
-from vcm.merging import combine_by_key
+from vcm.merging import combine_by_dims
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 
@@ -178,15 +178,15 @@ def _fix_metadata(ds, grid):
     return ds_correct_metadata
 
 
-def _load_arrays(restart_files, grid):
-    output = defaultdict(dict)
+def _load_arrays(
+    restart_files, grid
+) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
     for (time, tile, protocol, path) in restart_files:
         ds = _load_restart(protocol, path)
         ds_correct_metadata = _fix_metadata(ds, grid)
         time_obj = _parse_time_string(time)
         for var in ds_correct_metadata:
-            output[(var, time_obj, tile)] = ds_correct_metadata[var]
-    return output
+            yield var, (time_obj, tile), ds_correct_metadata[var]
 
 
 def open_restarts(
@@ -216,4 +216,4 @@ def open_restarts(
         grid = _get_grid(url)
     restart_files = _restart_files_at_url(url, initial_time, final_time)
     arrays = _load_arrays(restart_files, grid)
-    return xr.Dataset(combine_by_key(arrays, dims=["time", "tile"]))
+    return xr.Dataset(combine_by_dims(arrays, dims=["time", "tile"]))
