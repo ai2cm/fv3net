@@ -47,9 +47,9 @@ def test__get_time(dirname, name, expected):
 
 def test_restart_files_at_url():
     url = "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/one-step-run/C48/20160801.003000/rundir"  # noqa
-    # url = "rundir"
-    # if not os.path.isdir(url):
-    # pytest.skip("Data is not available locally.")
+    url = "rundir"
+    if not os.path.isdir(url):
+        pytest.skip("Data is not available locally.")
     ds = open_restarts(
         url, initial_time="20160801.003000", final_time="20160801.004500"
     )

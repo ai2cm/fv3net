@@ -11,7 +11,7 @@ import fsspec
 import xarray as xr
 
 import f90nml
-from vcm.merging import combine_by_dims
+from vcm.merging import combine_array_sequence
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 
@@ -216,4 +216,4 @@ def open_restarts(
         grid = _get_grid(url)
     restart_files = _restart_files_at_url(url, initial_time, final_time)
     arrays = _load_arrays(restart_files, grid)
-    return xr.Dataset(combine_by_dims(arrays, dims=["time", "tile"]))
+    return xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"]))

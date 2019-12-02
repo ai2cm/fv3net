@@ -13,7 +13,7 @@ from .cubedsphere import (
 )
 from .extract import extract_tarball_to_path
 from .fv3_restarts import open_restarts
-from .merging import combine_by_key
+from .merging import combine_array_sequence
 
 # TODO: convenience and regrid are currently broken
 
@@ -24,7 +24,7 @@ TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 __all__ = [
     # "open_dataset",
-    "combine_by_key",
+    "combine_array_sequence",
     "open_restarts",
     "open_cubed_sphere",
     "block_coarsen",

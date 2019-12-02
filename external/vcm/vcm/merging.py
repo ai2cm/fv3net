@@ -27,7 +27,7 @@ def _concat_binary_op(a, b, coord, dim):
         return xr.concat([a, temp], dim=dim)
 
 
-def combine_by_dims(
+def combine_array_sequence(
     datasets: Iterable[Tuple[Any, Tuple, xr.DataArray]], labels=["time", "tile"]
 ) -> xr.Dataset:
     """Merge a sequence of dataarrays into one Dataset
@@ -73,5 +73,5 @@ def combine_by_dims(
             a        (letter, number, x) float64 0.0 0.0 0.0 0.0
     """
     datasets_dict = {(name,) + dims: array for name, dims, array in datasets}
-    output = _reduce_one_key_at_time(_concat_binary_op, datasets_dict, dims)
+    output = _reduce_one_key_at_time(_concat_binary_op, datasets_dict, labels)
     return xr.Dataset({key[0]: val for key, val in output.items()})

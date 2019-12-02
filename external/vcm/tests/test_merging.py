@@ -1,9 +1,9 @@
 import xarray as xr
 
-from vcm.merging import combine_by_dims
+from vcm.merging import combine_array_sequence
 
 
-def test__concatenate_by_key():
+def test__combine_array_sequence():
     name = "a"
     arr = xr.DataArray([0.0], dims=["x"])
     arrays = [
@@ -13,7 +13,7 @@ def test__concatenate_by_key():
         (name, ("b", 2), arr),
     ]
 
-    ds = combine_by_dims(arrays, ["letter", "number"])
+    ds = combine_array_sequence(arrays, ["letter", "number"])
 
     assert isinstance(ds, xr.Dataset)
     assert name in ds
