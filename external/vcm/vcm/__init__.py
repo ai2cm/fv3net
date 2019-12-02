@@ -23,7 +23,6 @@ from .merging import combine_array_sequence
 TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 __all__ = [
-    # "open_dataset",
     "combine_array_sequence",
     "open_restarts",
     "open_cubed_sphere",
@@ -35,6 +34,5 @@ __all__ = [
     "extract_tarball_to_path",
     "xarray_block_reduce",
     "horizontal_block_reduce",
-    # "regrid_horizontal",
     "TOP_LEVEL_DIR",
 ]

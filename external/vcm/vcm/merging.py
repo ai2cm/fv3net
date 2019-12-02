@@ -1,4 +1,4 @@
-from typing import Any, Iterable, Tuple
+from typing import Any, Iterable, Sequence, Tuple
 
 import xarray as xr
 
@@ -27,7 +27,7 @@ def _concat_binary_op(a, b, coord, dim):
 
 
 def combine_array_sequence(
-    datasets: Iterable[Tuple[Any, Tuple, xr.DataArray]], labels=["time", "tile"]
+    datasets: Iterable[Tuple[Any, Tuple, xr.DataArray]], labels: Sequence[Any]
 ) -> xr.Dataset:
     """Merge a sequence of dataarrays into one Dataset
 

@@ -24,6 +24,36 @@ Z_NAME = "pfull"
 Z_EDGE_NAME = "phalf"
 
 
+def open_restarts(
+    url: str, initial_time: str, final_time: str, grid: Dict[str, int] = None
+) -> xr.Dataset:
+    """Opens all the restart file within a certain path
+
+    The dimension names are the same as the diagnostic output
+
+    Args:
+        url: a URL to the root directory of the. Can be any type of protocol used by
+            fsspec, such as google cloud storage 'gs://path-to-rundir'. If no protocol
+            prefix is used, then it will be assumed to be a path to a local file
+        initial_time: A YYYYMMDD.HHMMSS string for the initial condition. will be parsed
+            with CFTime
+        final_time: same as `initial_time` but for the final time
+        grid: a dict with the grid information (e.g.)::
+
+             {'nz': 79, 'nz_soil': 4, 'nx': 48, 'ny': 48}
+
+    Returns:
+        a combined dataset of all the restart files. This is currently not a
+        lazy operation. All the data is loaded.
+
+    """
+    if grid is None:
+        grid = _get_grid(url)
+    restart_files = _restart_files_at_url(url, initial_time, final_time)
+    arrays = _load_arrays(restart_files, grid)
+    return xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"]))
+
+
 def _parse_time_string(time):
     t = datetime.strptime(time, TIME_FMT)
     return cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)
@@ -134,10 +164,6 @@ def _fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
     replacement_dict = {}
     for dim_name, length in zip(data_array.dims, data_array.shape):
         if dim_name[:5] == "xaxis" or dim_name.startswith("lon"):
-            if length == nx:
-                replacement_dict[dim_name] = X_NAME
-            elif length == nx + 1:
-                replacement_dict[dim_name] = X_EDGE_NAME
             try:
                 replacement_dict[dim_name] = {nx: X_NAME, nx + 1: X_EDGE_NAME}[length]
             except KeyError as e:
@@ -186,33 +212,3 @@ def _load_arrays(
         time_obj = _parse_time_string(time)
         for var in ds_correct_metadata:
             yield var, (time_obj, tile), ds_correct_metadata[var]
-
-
-def open_restarts(
-    url: str, initial_time: str, final_time: str, grid: Dict[str, int] = None
-) -> xr.Dataset:
-    """Opens all the restart file within a certain path
-
-    The dimension names are the same as the diagnostic output
-
-    Args:
-        url: a URL to the root directory of the. Can be any type of protocol used by
-            fsspec, such as google cloud storage 'gs://path-to-rundir'. If no protocol
-            prefix is used, then it will be assumed to be a path to a local file
-        initial_time: A YYYYMMDD.HHMMSS string for the initial condition. will be parsed
-            with CFTime
-        final_time: same as `initial_time` but for the final time
-        grid: a dict with the grid information (e.g.)::
-
-             {'nz': 79, 'nz_soil': 4, 'nx': 48, 'ny': 48}
-
-    Returns:
-        a combined dataset of all the restart files. This is currently not a
-        lazy operation. All the data is loaded.
-
-    """
-    if grid is None:
-        grid = _get_grid(url)
-    restart_files = _restart_files_at_url(url, initial_time, final_time)
-    arrays = _load_arrays(restart_files, grid)
-    return xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"]))
