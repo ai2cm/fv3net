@@ -1,6 +1,6 @@
 import xarray as xr
 
-from vcm.merging import combine_array_sequence
+from vcm.combining import combine_array_sequence
 
 
 def test_combine_array_sequence():

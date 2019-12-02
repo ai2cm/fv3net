@@ -29,7 +29,7 @@ def _concat_binary_op(a, b, coord, dim):
 def combine_array_sequence(
     datasets: Iterable[Tuple[Any, Tuple, xr.DataArray]], labels: Sequence[Any]
 ) -> xr.Dataset:
-    """Merge a sequence of dataarrays into one Dataset
+    """Combine a sequence of dataarrays into one Dataset
 
     The input is a sequence of (name, dims, array) tuples and the output is an Dataset
     which combines the arrays assumings.

@@ -10,7 +10,7 @@ import fsspec
 import xarray as xr
 
 import f90nml
-from vcm.merging import combine_array_sequence
+from vcm.combining import combine_array_sequence
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 
