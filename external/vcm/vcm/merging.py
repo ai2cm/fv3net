@@ -44,11 +44,16 @@ def combine_array_sequence(
 
         (name, (time, location), array)
 
+    This function allows merging this list into a Dataset with variables names given by
+    `name`, and the dimensions `time` and `location` combined.
+
 
     Args:
         datasets: a sequence of (name, dims, array) tuples.
         labels: the labels corresponding the dims part of the tuple above. This must
             be the same length as each dims.
+    Returns:
+        merged dataset
 
 
     Examples:
