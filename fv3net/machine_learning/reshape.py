@@ -42,7 +42,7 @@ if __name__ == "__main__":
     ds = open_data(sources=True)
 
     variables = "u v w temp q1 q2 qv pres z fsdt lhflx shflx test_case".split()
-    sample_dims = ["time", "grid_yt", "grid_xt"]
+    sample_dims = ["time", "grid_yt", "grid_xt", "tile"]
 
     # compute a simple test case which can be reproduced by ML
     test_case = (ds.qv + ds.temp).assign_attrs(

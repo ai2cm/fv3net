@@ -1,11 +1,14 @@
+import argparse
 import gcsfs
 import numpy as np
 import os
 import xarray as xr
 
-from vcm.calc import apparent_source
-from vcm.calc.diag_ufuncs import mask_to_surface_type
+from fv3net.machine_learning import reshape
 
+from vcm.calc import apparent_source
+#from vcm.calc.diag_ufuncs import mask_to_surface_type
+from vcm.cubedsphere import shift_edge_var_to_center, rename_centered_xy_coords
 
 GRID_VARS = [
     'grid_lon',
@@ -17,22 +20,47 @@ GRID_VARS = [
 VARS_TO_KEEP = [
     'sphum',
     'T',
-    'area',
     'delp',
     'u',
     'v',
     'slmsk'
 ]
 
+TARGET_VARS = ['Q1', 'Q2', 'QU', 'QV']
+
 
 def create_training_set(
         gcs_data_path,
         num_timesteps_to_sample,
-        bucket,
-        project,
-        t_dim
+        sample_dims=['tile', 'grid_yt', 'grid_xt', 'initialization_time'],
+        chunk_size=5e5,
+        bucket='vcm-ml-data',
+        project='vcm-ml'
 ):
-    pass
+    ds = _load_cloud_data(
+        gcs_data_path, num_timesteps_to_sample, bucket, project, t_dim)
+
+    da_centered_u = rename_centered_xy_coords(shift_edge_var_to_center(ds['u']))
+    da_centered_v = rename_centered_xy_coords(shift_edge_var_to_center(ds['v']))
+    ds['QU'] = apparent_source(da_centered_u)
+    ds['QV'] = apparent_source(da_centered_v)
+    ds['Q1'] = apparent_source(ds.T)
+    ds['Q2'] = apparent_source(ds.sphum)
+
+    ds = ds[VARS_TO_KEEP + TARGET_VARS]
+    ds = _reshape_and_shuffle(ds, sample_dims, chunk_size)
+    return ds
+
+
+def _reshape_and_shuffle(
+        ds,
+        sample_dims,
+        chunk_size
+):
+    ds_stacked = ds.stack(sample=sample_dims).transpose("sample", "pfull")
+    ds_chunked = ds_stacked.chunk({"sample": chunk_size})
+    ds_chunked_shuffled = reshape.shuffled(ds_chunked, dim="sample")
+    return ds_chunked_shuffled
 
 
 def _load_cloud_data(
@@ -85,3 +113,11 @@ def _select_samples(
     return sample_urls
 
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--sample-dims',
+        type=str,
+        nargs='+',
+        help="coordinate dimensions to stack over"
+    )

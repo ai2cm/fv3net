@@ -1,4 +1,4 @@
-from fv3net.models.reshape import chunk_indices
+from fv3net.machine_learning.reshape import chunk_indices
 
 
 def test_chunk_indices():
