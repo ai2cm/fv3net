@@ -35,9 +35,10 @@ def create_plot(ds, plot_config):
             must correspond to function existing in fv3net.diagnostics.visualize'
         )
 
+
 # TODO: this is dependent on the plotting PR, so wait on that to merge
 def plot_diag_var_map(
-    ds, plot_config,
+    ds, plot_config
 ):
     """
 
@@ -46,11 +47,17 @@ def plot_diag_var_map(
         plot_config: dict that specifies variable and dimensions to plot,
         functions to apply
         plot_func: optional plotting function from vcm.visualize
+        vmin:
+        vmax:
     Returns:
         axes
     """
     grid = ds[[LAT_GRID_EDGE, LON_GRID_EDGE, LAT_GRID_CENTER, LON_GRID_CENTER]]
-    fig, ax = plot_cube(ds[plot_config.diagnostic_variable], grid)
+    fig, ax = plot_cube(
+        ds[plot_config.diagnostic_variable],
+        grid,
+        vmin=plot_config.plot_params["vmin"],
+        vmax=plot_config.plot_params["vmax"])
     return fig
 
 

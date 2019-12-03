@@ -1,4 +1,3 @@
-
 -
   plot_name: Q1, vertical average
   plotting_function: plot_diag_var_map
@@ -7,7 +6,7 @@
     forecast_time:
       - 0
     initialization_time:
-      - 0
+      - 25
   function_specifications:
     - remove_extra_dim:
     - apply_weighting:
@@ -27,7 +26,7 @@
     forecast_time:
       - 0
     initialization_time:
-      - 0
+      - 25
     pfull:
       - 25
       - 46
@@ -50,7 +49,7 @@
     forecast_time:
       - 0
     initialization_time:
-      - 0
+      - 25
     pfull:
       - 46
       - null
@@ -73,7 +72,7 @@
     forecast_time:
       - 0
     initialization_time:
-      - 0
+      - 25
     pfull:
       - -4
       - null
@@ -92,7 +91,7 @@
     forecast_time:
       - 0
     initialization_time:
-      - 0
+      - 25
   function_specifications:
     - remove_extra_dim:
     - apply_weighting:
@@ -112,7 +111,7 @@
     forecast_time:
       - 0
     initialization_time:
-      - 0
+      - 25
     pfull:
       - 25
       - 46
@@ -135,7 +134,7 @@
     forecast_time:
       - 0
     initialization_time:
-      - 0
+      - 25
     pfull:
       - 46
       - null
@@ -158,7 +157,7 @@
     forecast_time:
       - 0
     initialization_time:
-      - 0
+      - 25
     pfull:
       - -4
       - null
