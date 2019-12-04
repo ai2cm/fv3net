@@ -13,6 +13,10 @@ from vcm.cubedsphere import shift_edge_var_to_center, rename_centered_xy_coords
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+fh = logging.FileHandler('dataset.log')
+fh.setLevel(logging.INFO)
+logger.addHandler(fh)
+
 
 GRID_VARS = [
     'grid_lon',
@@ -41,7 +45,8 @@ def create_training_set(
         sample_dims=['tile', 'grid_yt', 'grid_xt', 'initialization_time'],
         sample_chunk_size=5e5,
         bucket='vcm-ml-data',
-        project='vcm-ml'
+        project='vcm-ml',
+        random_seed=1234
 ):
     ds = _load_cloud_data(
         gcs_data_path, num_timesteps_to_sample, bucket, project)
@@ -61,7 +66,7 @@ def create_training_set(
         # tendencies but must be discarded since their calculate tendencies have much
         # larger dt than the simulation step
         ds = ds.isel(initialization_time=[2 * i for i in range(num_timesteps_to_sample)])
-    ds = _reshape_and_shuffle(ds, sample_dims, sample_chunk_size)
+    ds = _reshape_and_shuffle(ds, sample_dims, sample_chunk_size, random_seed)
     return ds
 
 
@@ -83,28 +88,30 @@ def write_to_zarr(
 
     """
     num_samples = len(ds.sample)
-    num_chunks = int(num_samples / load_size) + 1
+    num_chunks = int(num_samples / load_size + 1)
     logger.info("Writing to zarr...")
     fs = gcsfs.GCSFileSystem(project=project)
     output_path = fs.get_mapper(os.path.join(bucket, gcs_dest_path))
     for i in range(num_chunks):
         t0 = time.time()
-        load_slice = slice(i * load_size, (i + 1) * load_size)
+        load_slice = slice(int(i * load_size), int((i + 1) * load_size))
         ds_subset = ds.isel(sample=load_slice).load()
         ds_subset.to_zarr(output_path, 'a', append_dim='sample')
         del ds_subset
         logger.info(f"{i}/{num_chunks} written, {int(time.time() - t0)} s.")
-    logger.info("Done writing zarr.")
+    logger.info(f"Done writing zarr to {os.path.join(bucket, gcs_dest_path}.")
 
 
 def _reshape_and_shuffle(
         ds,
         sample_dims,
-        chunk_size
+        chunk_size,
+        random_seed
 ):
     ds_stacked = ds.stack(sample=sample_dims).transpose("sample", "pfull")
     ds_chunked = ds_stacked.chunk({"sample": chunk_size})
-    ds_chunked_shuffled = reshape.shuffled(ds_chunked, dim="sample") \
+    ds_chunked_shuffled = reshape.full_shuffle(
+        ds_chunked, dim="sample", chunk_size=chunk_size, random_seed=random_seed) \
         .reset_index('sample')
     return ds_chunked_shuffled
 
@@ -212,6 +219,12 @@ if __name__ == "__main__":
         default=5e5,
         help="Chunk size in the sample dimension after time/space dims are stacked."
     )
+    parser.add_argument(
+        '--random-seed',
+        type=int,
+        default=1234,
+        help="Random seed for shuffling data."
+    )
     args = parser.parse_args()
     ds = create_training_set(
         gcs_data_path=args.gcs_input_data_path,
@@ -219,7 +232,8 @@ if __name__ == "__main__":
         sample_dims=args.sample_dims,
         sample_chunk_size=args.sample_chunk_size,
         bucket=args.gcs_bucket,
-        project=args.gcs_project
+        project=args.gcs_project,
+        random_seed=args.random_seed
     )
     write_to_zarr(
         ds,

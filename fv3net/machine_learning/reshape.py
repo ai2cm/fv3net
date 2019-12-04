@@ -33,6 +33,15 @@ def shuffled(dataset, dim):
     return dataset.isel({dim: shuffled_inds})
 
 
+def full_shuffle(dataset, dim, chunk_size=5e4, random_seed=1234):
+    indices = dataset[dim].values
+    np.random.seed(random_seed)
+    np.random.shuffle(indices)
+    ds_shuffled = ds.isel({dim: indices})
+    ds_shuffled.chunk({dim: chunk_size})
+    return ds_shuffled
+
+
 if __name__ == "__main__":
     chunk_size = 500_000
     output_file = "data/processed/flattened.zarr"
