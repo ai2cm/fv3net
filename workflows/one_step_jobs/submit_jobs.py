@@ -93,7 +93,8 @@ def submit_jobs(timestep_list):
         fv3config.run_kubernetes(
             config_location,
             outdir,
-            DOCKER_IMAGE,  # runfile=runfile_location,
+            DOCKER_IMAGE,
+            runfile=runfile_location,
             jobname=job_name,
             namespace="default",
             memory_gb=3.6,
