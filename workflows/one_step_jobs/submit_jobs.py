@@ -12,6 +12,7 @@ import fv3config
 
 logger = logging.getLogger("run_jobs")
 
+
 PARENT_BUCKET = (
     "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
 )
@@ -68,7 +69,7 @@ def timesteps_to_process() -> List[str]:
 
 def submit_jobs(timestep_list):
     fs = gcsfs.GCSFileSystem(project="VCM-ML")
-    for timestep in timestep_list[:1]:
+    for timestep in timestep_list:
         job_name = f"one-step.{timestep}.{uuid.uuid4()}"
         config = fv3config.get_default_config()
         config = fv3config.enable_restart(config)
