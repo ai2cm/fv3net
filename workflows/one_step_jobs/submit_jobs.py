@@ -46,7 +46,7 @@ def set_run_duration(config: dict, duration: timedelta) -> dict:
     return return_config
 
 
-def timestep_from_url(url):
+def timestep_from_url(url: str) -> str:
     return str(Path(url).name)
 
 
@@ -67,21 +67,24 @@ def timesteps_to_process() -> List[str]:
     return sorted(list(set(to_do) - set(done)))
 
 
-def submit_jobs(timestep_list):
+def get_config(timestep):
+    config = fv3config.get_default_config()
+    config = fv3config.enable_restart(config)
+    config["experiment_name"] = f"one-step.{timestep}.{uuid.uuid4()}"
+    config["initial_conditions"] = os.path.join(INPUT_BUCKET, timestep, "rundir/INPUT")
+    config = set_run_duration(config, timedelta(minutes=15))
+    config["namelist"]["coupler_nml"].update({"dt_atmos": 60, "dt_ocean": 60})
+    config["namelist"]["fv_core_nml"].update(
+        {"external_eta": True, "npz": 79, "k_split": 1, "n_split": 1}
+    )
+    return config
+
+
+def submit_jobs(timestep_list: List[str]) -> None:
     fs = gcsfs.GCSFileSystem(project="VCM-ML")
     for timestep in timestep_list:
-        job_name = f"one-step.{timestep}.{uuid.uuid4()}"
-        config = fv3config.get_default_config()
-        config = fv3config.enable_restart(config)
-        config["experiment_name"] = job_name
-        config["initial_conditions"] = os.path.join(
-            INPUT_BUCKET, timestep, "rundir/INPUT"
-        )
-        config = set_run_duration(config, timedelta(minutes=15))
-        config["namelist"]["coupler_nml"].update({"dt_atmos": 60, "dt_ocean": 60})
-        config["namelist"]["fv_core_nml"].update(
-            {"external_eta": True, "npz": 79, "k_split": 1, "n_split": 1}
-        )
+        config = get_config(timestep)
+        job_name = config["experiment_name"]
         config_location = os.path.join(CONFIG_BUCKET, timestep, "fv3config.yml")
         with fs.open(config_location, "w") as config_file:
             config_file.write(yaml.dump(config))
