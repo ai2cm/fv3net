@@ -20,7 +20,7 @@ Project Organization
     ├── tests               
     ├── workflows           <-- Job submission scripts and description for pieces of data pipeline
     │   ├── extract_tars        <-- Dig yourself out of a tarpit using Dataflow
-    │   ├── rerun-fv3           <-- Perform a single step run of FV3 for available timesteps
+    │   ├── one_step_jobs       <-- Submit one-step kubernetes jobs using fv3run
     │   └── scale-snakemake     <-- Coarsening operation with kubernetes and snakemake (Deprecated)
     ├── Dockerfile
     ├── LICENSE
