@@ -1,5 +1,7 @@
 import pathlib
 
+from .combining import combine_array_sequence
+
 # from .convenience import open_dataset
 from .cubedsphere import (
     block_coarsen,
@@ -12,6 +14,7 @@ from .cubedsphere import (
     xarray_block_reduce,
 )
 from .extract import extract_tarball_to_path
+from .fv3_restarts import open_restarts
 
 # TODO: convenience and regrid are currently broken
 
@@ -21,7 +24,8 @@ from .extract import extract_tarball_to_path
 TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 __all__ = [
-    # "open_dataset",
+    "combine_array_sequence",
+    "open_restarts",
     "open_cubed_sphere",
     "block_coarsen",
     "block_edge_sum",
@@ -31,6 +35,5 @@ __all__ = [
     "extract_tarball_to_path",
     "xarray_block_reduce",
     "horizontal_block_reduce",
-    # "regrid_horizontal",
     "TOP_LEVEL_DIR",
 ]

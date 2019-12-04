@@ -33,3 +33,4 @@ dependencies:
     - gsutil
     - apache-beam==2.16.0
     - snakemake
+    - -e external/vcm
