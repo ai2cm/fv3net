@@ -1,5 +1,6 @@
 """Tools for working with cubedsphere data"""
 import logging
+from functools import partial
 from os.path import join
 from typing import Any, Callable, Hashable, List, Mapping, Tuple, Union
 
@@ -7,6 +8,8 @@ import dask
 import numpy as np
 import xarray as xr
 from skimage.measure import block_reduce as skimage_block_reduce
+from scipy.stats import mode
+
 
 NUM_TILES = 6
 SUBTILE_FILE_PATTERN = "{prefix}.tile{tile:d}.nc.{subtile:04d}"
@@ -687,6 +690,106 @@ def block_edge_sum(
     # coarsen.
     return _coarsen_downsample_coordinate(
         obj, result, downsample_dim, coarsening_factor, coord_func
+    )
+
+
+def _mode(arr, axis=0, nan_policy="propagate"):
+    """A version of scipy.stats.mode that only returns a NumPy array with the
+    mode values along the given axis."""
+    result = mode(arr, axis=axis, nan_policy=nan_policy).mode
+
+    # Note that the result always has a length-one extra dimension in place of
+    # the dimension that was reduced.  We would like to squeeze that out to be
+    # consistent with NumPy reduction functions (like np.mean).
+    return np.squeeze(result, axis)
+
+
+def _ureduce(arr, func, **kwargs):
+    """Heavily adapted from NumPy: https://github.com/numpy/numpy/blob/b83f10ef7ee766bf30ccfa563b6cc8f7fd38a4c8/numpy/lib/function_base.py#L3343-L3395
+
+    This moves the axes to reduce along to the end of the array, reshapes the
+    array so that these axes are combined into a single axis, and finally
+    reduces the array along that combined axis.
+
+    This is a simplified version of the NumPy version; to be robust, we may
+    want to follow the NumPy version and make sure we handle all possible types
+    of axis arguments (e.g. single integers and tuples; currently this only
+    handles tuples).  For now this private function contains the minimum needed
+    to implement a mode reduction function that can be applied over multiple
+    axes at once.
+
+    Args:
+        arr : Input array.
+        func : Function.
+        **kwargs : Keyword arguments to pass to the function.
+
+    Returns:
+        NumPy array.
+    """
+    arr = np.asanyarray(arr)
+    axis = kwargs.get("axis", None)
+    if axis is not None:
+        if not isinstance(axis, tuple) or any(ax < 0 for ax in axis):
+            raise ValueError(
+                f"Our in-house version of _ureduce currently only supports "
+                "a tuple of positive integers as an 'axis' argument; got {axis}."
+            )
+        nd = arr.ndim
+        if len(axis) == 1:
+            kwargs["axis"] = axis[0]
+        else:
+            keep = set(range(nd)) - set(axis)
+            nkeep = len(keep)
+            for i, s in enumerate(sorted(keep)):
+                arr = arr.swapaxes(i, s)
+            arr = arr.reshape(arr.shape[:nkeep] + (-1,))
+            kwargs["axis"] = len(arr.shape) - 1
+    return func(arr, **kwargs)
+
+
+def _mode_reduce(arr, axis=(0,), nan_policy="propagate"):
+    """A version of _mode that reduces over a tuple of axes."""
+    return _ureduce(arr, _mode, axis=axis, nan_policy=nan_policy)
+
+
+def block_mode(
+    obj: Union[xr.Dataset, xr.DataArray],
+    coarsening_factor: int,
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    coord_func: Union[
+        str, Mapping[Hashable, Union[Callable, str]]
+    ] = coarsen_coords_coord_func,
+    nan_policy: str = "propagate",
+) -> Union[xr.Dataset, xr.DataArray]:
+    """Coarsen a DataArray or Dataset by taking the mode over blocks.
+
+    See also: scipy.stats.mode.
+
+    Args:
+        obj: Input Dataset or DataArray.
+        coarsening_factor: Integer coarsening factor to use.
+        x_dim: x dimension name (default 'xaxis_1').
+        y_dim: y dimension name (default 'yaxis_1').
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
+        nan_policy: Defines how to handle when input contains nan. 'propagate'
+        returns nan, raise' throws an error, 'omit' performs the calculations
+        ignoring nan values. Default is 'propagate'.
+
+    Returns:
+        xr.Dataset or xr.DataArray.
+    """
+    reduction_function = partial(_mode_reduce, nan_policy=nan_policy)
+    return horizontal_block_reduce(
+        obj,
+        coarsening_factor,
+        reduction_function,
+        x_dim=x_dim,
+        y_dim=y_dim,
+        coord_func=coord_func,
     )
 
 

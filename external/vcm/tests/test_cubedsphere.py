@@ -4,12 +4,16 @@ import xarray as xr
 from skimage.measure import block_reduce as skimage_block_reduce
 
 from vcm.cubedsphere import (
+    _mode,
+    _mode_reduce,
+    _ureduce,
     _xarray_block_reduce_dataarray,
     add_coordinates,
     all_filenames,
     block_coarsen,
     block_edge_sum,
     block_median,
+    block_mode,
     coarsen_coords,
     edge_weighted_block_average,
     horizontal_block_reduce,
@@ -530,3 +534,128 @@ def test_block_edge_sum_with_coordinates(
     xr.testing.assert_identical(result["x"], expected_subtile_staggered_x_coordinates)
     xr.testing.assert_identical(result["y"], expected_subtile_staggered_y_coordinates)
     assert "z" not in result.coords
+
+
+@pytest.mark.parametrize(
+    "axes",
+    [
+        (0,),
+        (1,),
+        (2,),
+        (0, 1),
+        (0, 2),
+        (1, 2),
+        (0, 1, 2),
+        (2, 0),
+        (2, 1),
+        (1, 0),
+        (2, 0, 1),
+        (2, 1, 0),
+        (),
+        None,
+    ],
+    ids=lambda x: f"axis={x}",
+)
+def test__ureduce(axes):
+    def _median(arr, axis=-1):
+        """A median function that works strictly on a single axis.
+
+        We will demonstrate in this test that our implementation of _ureduce
+        properly transforms this function into one that can be applied to
+        multiple axes.
+        """
+        if axis is not None:
+            arr = np.moveaxis(arr, axis, -1)
+            return np.median(arr, axis=-1)
+        else:
+            return np.median(arr)
+
+    arr = np.random.random((5, 3, 5))
+
+    result = _ureduce(arr, _median, axis=axes)
+    expected = np.median(arr, axis=axes)
+    np.testing.assert_array_equal(result, expected)
+
+
+@pytest.mark.parametrize("axes", [1, "a", (1, -1), (-1,)], ids=lambda x: f"axis={x}")
+def test__ureduce_error(axes):
+    def _median(arr, axis=-1):
+        """A median function that works strictly on a single axis.
+
+        We will demonstrate in this test that our implementation of _ureduce
+        properly transforms this function into one that can be applied to
+        multiple axes.
+        """
+        arr = np.moveaxis(arr, axis, -1)
+        return np.median(arr, axis=-1)
+
+    arr = np.random.random((5,))
+
+    with pytest.raises(ValueError, match="in-house version of _ureduce"):
+        _ureduce(arr, _median, axis=axes)
+
+
+@pytest.mark.parametrize(
+    ("array", "axis", "kwargs", "expected"),
+    [
+        (np.array([[1, 1, 0], [0, 0, 1], [0, 1, 1]]), None, {}, 1),
+        (np.array([[1, 1, 0], [0, 0, 1], [0, 1, 1]]), 0, {}, np.array([0, 1, 1])),
+        (np.array([[1, 1, 0], [0, 0, 1], [0, 1, 1]]), 1, {}, np.array([1, 0, 1])),
+        (np.array([np.nan, np.nan, 3.0]), None, {"nan_policy": "omit"}, 3.0),
+    ],
+    ids=[
+        "axis=None, kwargs={}",
+        "axis=0, kwargs={}",
+        "axis=1, kwargs={}",
+        "axis=None, kwargs={'nan_policy': 'omit'}",
+    ],
+)
+def test__mode(array, axis, expected, kwargs):
+    result = _mode(array, axis=axis, **kwargs)
+    np.testing.assert_array_equal(result, expected)
+
+
+@pytest.mark.parametrize(
+    ("array", "axis", "kwargs", "expected"),
+    [
+        (np.array([[[1, 1, 0], [0, 0, 1], [0, 1, 1]]]), None, {}, 1),
+        (
+            np.array([[[1, 1, 0], [0, 0, 1], [0, 1, 1]]]),
+            (0, 1),
+            {},
+            np.array([0, 1, 1]),
+        ),
+        (
+            np.array([[[1, 1, 0], [0, 0, 1], [0, 1, 1]]]),
+            (0, 2),
+            {},
+            np.array([1, 0, 1]),
+        ),
+        (
+            np.array([[[1, 1, 0], [0, 0, 1], [np.nan, 1, 1]]]),
+            (0, 2),
+            {"nan_policy": "omit"},
+            np.array([1, 0, 1]),
+        ),
+    ],
+    ids=[
+        "axis=None, kwargs={}",
+        "axis=(0, 1), kwargs={}",
+        "axis=(0, 2), kwargs={}",
+        "axis=(0, 2), kwargs={'nan_policy': 'omit'}",
+    ],
+)
+def test__mode_reduce(array, axis, expected, kwargs):
+    result = _mode_reduce(array, axis=axis, **kwargs)
+    np.testing.assert_array_equal(result, expected)
+
+
+def test_block_mode():
+    data = np.array([[0, 0, 1, 1], [0, 0, 1, 1], [1, 1, 0, 0], [1, 1, 0, np.nan]])
+    da = xr.DataArray(data, dims=["x", "y"])
+
+    expected_data = np.array([[0.0, 1.0], [1.0, 0.0]])
+    expected = xr.DataArray(expected_data, dims=["x", "y"])
+
+    result = block_mode(da, 2, x_dim="x", y_dim="y", nan_policy="omit")
+    xr.testing.assert_identical(result, expected)
