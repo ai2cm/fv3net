@@ -24,7 +24,8 @@ def _flatten(data: xr.Dataset, sample_dim) -> np.ndarray:
 @dataclass
 class BaseXarrayEstimator:
     def fit(
-        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
+            self, input_vars: tuple, output_vars: tuple, sample_dim: str,
+            data: xr.Dataset
     ):
         """
         Args:
@@ -65,9 +66,15 @@ class SklearnWrapper(BaseXarrayEstimator):
             model: a scikit learn regression model
         """
         self.model = model
+        if 'n_estimators' in self.model.__dict__:
+            self.n_estimators_per_batch = self.model.n_estimators
+        elif hasattr(self.model, 'estimator') and \
+                'n_estimators' in self.model.estimator.__dict__:
+            self.n_estimators_per_batch = self.model.estimator.n_estimators
 
     def fit(
-        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
+            self, input_vars: tuple, output_vars: tuple, sample_dim: str,
+            data: xr.Dataset
     ):
         self.input_vars_ = input_vars
         self.output_vars_ = output_vars
@@ -84,6 +91,19 @@ class SklearnWrapper(BaseXarrayEstimator):
         self.model.fit(inputs, outputs.values)
 
         return self
+
+    def add_new_batch_estimators(self):
+        if 'n_estimators' in self.model.__dict__:
+            self.model.n_estimators += self.n_estimators_per_batch
+        elif hasattr(self.model, 'estimator') and \
+             'n_estimators' in self.model.estimator.__dict__:
+            self.model.set_params(
+                estimator__n_estimators = \
+                    self.model.estimator.n_estimators + self.n_estimators_per_batch)
+        else:
+            raise ValueError("Cannot add more estimators to model. Check that model is"
+                             "either sklearn RandomForestRegressor "
+                             "or MultiOutputRegressor.")
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)

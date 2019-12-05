@@ -42,6 +42,7 @@ TARGET_VARS = ['Q1', 'Q2', 'QU', 'QV']
 def create_training_set(
         gcs_data_path,
         num_timesteps_to_sample=None,
+        sample_consecutive=False,
         sample_dims=['tile', 'grid_yt', 'grid_xt', 'initialization_time'],
         sample_chunk_size=5e5,
         bucket='vcm-ml-data',
@@ -99,7 +100,7 @@ def write_to_zarr(
         ds_subset.to_zarr(output_path, 'a', append_dim='sample')
         del ds_subset
         logger.info(f"{i}/{num_chunks} written, {int(time.time() - t0)} s.")
-    logger.info(f"Done writing zarr to {os.path.join(bucket, gcs_dest_path}.")
+    logger.info(f"Done writing zarr to {os.path.join(bucket, gcs_dest_path)}.")
 
 
 def _reshape_and_shuffle(
@@ -108,11 +109,16 @@ def _reshape_and_shuffle(
         chunk_size,
         random_seed
 ):
-    ds_stacked = ds.stack(sample=sample_dims).transpose("sample", "pfull")
-    ds_chunked = ds_stacked.chunk({"sample": chunk_size})
-    ds_chunked_shuffled = reshape.full_shuffle(
-        ds_chunked, dim="sample", chunk_size=chunk_size, random_seed=random_seed) \
+    t0 = time.time()
+    ds_stacked = ds \
+        .stack(sample=sample_dims) \
+        .transpose("sample", "pfull") \
         .reset_index('sample')
+    ds_chunked = ds_stacked.chunk({"sample": chunk_size})
+    #ds_chunked_shuffled = reshape.full_shuffle(
+    #    ds_chunked, dim="sample", chunk_size=chunk_size, random_seed=random_seed)
+    ds_chunked_shuffled = reshape.shuffled(ds_chunked, "sample")
+    logger.info(f"Time to shuffle and rechunk: {int(time.time()-t0)} s")
     return ds_chunked_shuffled
 
 

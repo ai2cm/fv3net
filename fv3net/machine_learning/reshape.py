@@ -34,10 +34,10 @@ def shuffled(dataset, dim):
 
 
 def full_shuffle(dataset, dim, chunk_size=5e4, random_seed=1234):
-    indices = dataset[dim].values
+    indices = list(range(len(dataset[dim])))
     np.random.seed(random_seed)
     np.random.shuffle(indices)
-    ds_shuffled = ds.isel({dim: indices})
+    ds_shuffled = dataset.isel({dim: indices})
     ds_shuffled.chunk({dim: chunk_size})
     return ds_shuffled
 

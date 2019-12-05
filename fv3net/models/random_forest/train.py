@@ -9,7 +9,7 @@ from sklearn.externals import joblib
 from sklearn.preprocessing import StandardScaler
 
 import fire
-from fv3net.machine_learning.sklearn_format.wrapper import SklearnWrapper
+from fv3net.machine_learning.sklearn.wrapper import SklearnWrapper
 from vcm.convenience import open_dataset
 
 logging.basicConfig(level=logging.INFO)

@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 
-from fv3net.machine_learning.sklearn_format.wrapper import _flatten
+from fv3net.machine_learning.sklearn.wrapper import _flatten
 
 
 def test__flatten():

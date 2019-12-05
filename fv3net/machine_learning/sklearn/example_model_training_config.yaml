@@ -1,0 +1,18 @@
+model_type: sklearn_random_forest
+hyperparameters:
+  max_depth: 9
+  n_estimators: 5
+random_seed: 1234
+num_batches: null
+batch_size: 100000
+train_frac: 0.8
+test_frac: 0.2
+train_data_path: 'gs://vcm-ml-data/test_annak/test.zarr'
+input_variables:
+  - T
+  - sphum
+  - u
+  - v
+output_variables:
+  - Q1
+  - Q2
