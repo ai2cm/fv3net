@@ -705,7 +705,9 @@ def _mode(arr, axis=0, nan_policy="propagate"):
 
 
 def _ureduce(arr, func, **kwargs):
-    """Heavily adapted from NumPy: https://github.com/numpy/numpy/blob/b83f10ef7ee766bf30ccfa563b6cc8f7fd38a4c8/numpy/lib/function_base.py#L3343-L3395
+    """Heavily adapted from NumPy: https://github.com/numpy/numpy/blob/
+    b83f10ef7ee766bf30ccfa563b6cc8f7fd38a4c8/numpy/lib/
+    function_base.py#L3343-L3395
 
     This moves the axes to reduce along to the end of the array, reshapes the
     array so that these axes are combined into a single axis, and finally
