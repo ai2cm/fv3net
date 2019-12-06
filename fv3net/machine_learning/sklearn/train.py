@@ -1,5 +1,6 @@
 import argparse
 from dataclasses import dataclass
+import joblib
 import time
 from typing import List
 import xarray as xr
@@ -23,7 +24,7 @@ class ModelTrainingConfig:
     gcs_project: str='vcm-ml'
 
 
-def _load_model_training_config(config_path):
+def load_model_training_config(config_path):
     with open(config_path, "r") as stream:
         try:
             config_dict = yaml.safe_load(stream)
@@ -33,7 +34,7 @@ def _load_model_training_config(config_path):
     return config
 
 
-def _load_training_data(train_config):
+def load_training_data(train_config):
     if train_config.train_data_path[:5]=="gs://":
         import gcsfs
         fs = gcsfs.GCSFileSystem(project=train_config.gcs_project)
@@ -86,4 +87,24 @@ def train_model(batched_data, train_config):
         print(f"Batch {i} done fitting, took {int(time.time()-t0)} s.")
     return model
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--train-config-path",
+        type=str,
+        required=True,
+        help="Path for training configuration yaml file"
+    )
+    parser.add_argument(
+        "--model-output-path",
+        type=str,
+        required=True,
+        help="Path for writing trained model"
+    )
+    args = parser.parse_args()
+    train_config = load_model_training_config(args.train_config_file)
+    batched_data = load_training_data(train_config)
+    model = train_model(batched_data, train_config)
+    joblib.dump(model, args.model_output_path)
 
