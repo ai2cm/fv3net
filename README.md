@@ -105,28 +105,48 @@ We provide configurable job submission scripts under workflows to expedite this 
 
     workflows/extract_tars/submit_job.sh
 
+## Deploying on k8s with fv3net
 
-## Deploying on k8s  (likely outdated?)
+Docker images with the python-wrapped model and fv3run are available from the
+[fv3gfs-python](https://github.com/VulcanClimateModeling/fv3gfs-python) repo.
+Kubernetes jobs can be written to run the model on these docker images. A super simple
+job would be to perform an `fv3run` command (provided by the
+[fv3config package](https://github.com/VulcanClimateModeling/fv3config))
+using google cloud storage locations. For example, running the basic model using a
+fv3config dictionary in a yaml file to output to a google cloud storage bucket
+would look like:
 
-Make docker image for this workflow and push it to GCR
+```
+fv3run gs://my_bucket/my_config.yml gs://my_bucket/my_outdir
+```
 
-    make push_image
+If you have a python model runfile you want to execute in place of the default model
+script, you could use it by adding e.g. `--runfile gs://my-bucket/my_runfile.py`
+to the `fv3run` command.
 
-Create a K8S cluster:
+You could create a kubernetes yaml file which runs such a command on a
+`fv3gfs-python` docker image, and submit it manually. However, `fv3config` also
+supplies a `run_kubernetes` function to do this for you. See the
+[`fv3config`](https://github.com/VulcanClimateModeling/fv3config) documentation for
+more complete details, or the `one_step_jobs` workflow for a more complex example of
+using the function to prepare and submit many jobs.
 
-    bash provision_cluster.sh
+The basic structure of the command is
 
-This cluster has some big-mem nodes for doing the FV3 run, which requires at least a n1-standard-2 VM for 
-C48.
+    fv3config.run_kubernetes(
+        config_location,
+        outdir,
+        docker_image,
+        gcp_secret='gcp_key',
+    )
 
-Install argo following [these instructions](https://github.com/argoproj/argo/blob/master/demo.md).
-
-Submit an argo job using
-
-    argo submit --watch argo-fv3net.yml
-
-
-# Extending this code
+Where `config_location` is a google cloud storage location of a yaml file containing
+a fv3config dictionary, outdir is a google cloud storage location to put the resulting
+run directory, `docker_image` is the name of a docker image containing `fv3config`
+and `fv3gfs-python`, and `gcp_secret` is the name of the secret containing the google
+cloud platform access key (as a json file called `key.json`). Additional arguments are
+available for configuring the kubernetes job and documented in the `run_kubernetes`
+docstring.
 
 ## Adding new model types
 
