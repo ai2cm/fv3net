@@ -67,6 +67,7 @@ AREA_AND_SNCOVR_MEAN = ["sheleg"]
 AREA_AND_FICE_MEAN = ["hice"]
 MINIMUM_OVER_DOMINANT_SFC_TYPE = ["shdmin"]
 MAXIMUM_OVER_DOMINANT_SFC_TYPE = ["shdmax", "snoalb"]
+AREA_OR_AREA_AND_FICE_MEAN = ["tisfc"]
 
 
 def integerize(x):
@@ -392,6 +393,36 @@ def _block_upsample_and_rechunk(
         return result
 
 
+def _area_or_area_and_fice_mean(
+    ds: xr.Dataset,
+    area: xr.DataArray,
+    fice: xr.DataArray,
+    is_dominant_surface_type: xr.DataArray,
+    coarsened_slmsk: xr.DataArray,
+    coarsening_factor: int,
+) -> xr.Dataset:
+    """Special function for handling tisfc.
+
+    Takes the area and ice fraction weighted mean over sea ice and the area
+    weighted mean over anything else.
+    """
+    sea_ice = weighted_block_average(
+        ds.where(is_dominant_surface_type),
+        (area * fice).where(is_dominant_surface_type),
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+    )
+    land_or_ocean = weighted_block_average(
+        ds.where(is_dominant_surface_type),
+        area.where(is_dominant_surface_type),
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+    )
+    return xr.where(coarsened_slmsk == 2.0, sea_ice, land_or_ocean)
+
+
 def coarse_grain_sfc_data_complicated(
     ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int
 ) -> xr.Dataset:
@@ -528,29 +559,19 @@ def coarse_grain_sfc_data_complicated(
         method="max",
     )
 
-    # Handle tisfc specially
-    tisfc_sea_ice = weighted_block_average(
-        ds.tisfc.where(is_dominant_surface_type),
-        (area * ds.fice).where(is_dominant_surface_type),
+    area_or_area_and_fice_mean = _area_or_area_and_fice_mean(
+        ds[AREA_OR_AREA_AND_FICE_MEAN],
+        area,
+        ds.fice,
+        is_dominant_surface_type,
+        mode.slmsk,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
-    )
-    tisfc_land_or_ocean = weighted_block_average(
-        ds.tisfc.where(is_dominant_surface_type),
-        area.where(is_dominant_surface_type),
-        coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
-    )
-    tisfc = xr.where(mode.slmsk == 2.0, tisfc_sea_ice, tisfc_land_or_ocean).rename(
-        "tisfc"
     )
 
     result = xr.merge(
         [
             mode,
-            tisfc,
+            area_or_area_and_fice_mean,
             mode_over_dominant_surface_type,
             area_mean_over_dominant_sfc_and_stype,
             zorl_and_canopy,
