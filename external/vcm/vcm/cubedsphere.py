@@ -693,11 +693,7 @@ def block_edge_sum(
     )
 
 
-def _mode(
-    arr: np.array,
-    axis: int = 0,
-    nan_policy: str = "propagate"
-) -> np.array:
+def _mode(arr: np.array, axis: int = 0, nan_policy: str = "propagate") -> np.array:
     """A version of scipy.stats.mode that only returns a NumPy array with the
     mode values along the given axis."""
     result = mode(arr, axis=axis, nan_policy=nan_policy).mode
@@ -708,11 +704,7 @@ def _mode(
     return np.squeeze(result, axis)
 
 
-def _ureduce(
-    arr: np.array,
-    func: Callable,
-    **kwargs
-) -> np.array:
+def _ureduce(arr: np.array, func: Callable, **kwargs) -> np.array:
     """Heavily adapted from NumPy: https://github.com/numpy/numpy/blob/
     b83f10ef7ee766bf30ccfa563b6cc8f7fd38a4c8/numpy/lib/
     function_base.py#L3343-L3395
@@ -759,9 +751,7 @@ def _ureduce(
 
 
 def _mode_reduce(
-    arr: np.array,
-    axis: Tuple[int] = (0,),
-    nan_policy: str = "propagate"
+    arr: np.array, axis: Tuple[int] = (0,), nan_policy: str = "propagate"
 ) -> np.array:
     """A version of _mode that reduces over a tuple of axes."""
     return _ureduce(arr, _mode, axis=axis, nan_policy=nan_policy)
@@ -809,14 +799,13 @@ def block_mode(
 
 
 def _xarray_repeat_dataarray(
-    obj: xr.DataArray,
-    factor: int,
-    dim: Hashable
+    obj: xr.DataArray, factor: int, dim: Hashable
 ) -> xr.DataArray:
     """Upsample a DataArray by uniformly repeating values n times along a dimension."""
+
     def func(arr, repeats=1):
         return arr.repeat(repeats, axis=-1)
-    
+
     if dim not in obj.dims:
         return obj
     else:
@@ -826,15 +815,13 @@ def _xarray_repeat_dataarray(
             input_core_dims=[[dim]],
             output_core_dims=[[dim]],
             exclude_dims={dim},
-            dask='allowed',
-            kwargs={'repeats': factor}
+            dask="allowed",
+            kwargs={"repeats": factor},
         )
-    
+
 
 def _xarray_repeat(
-    obj: Union[xr.Dataset, xr.DataArray],
-    factor: int,
-    dim: Hashable
+    obj: Union[xr.Dataset, xr.DataArray], factor: int, dim: Hashable
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Upsample an object by uniformly repeating values n times along a dimension."""
     obj_dimensions = list(obj.dims)
@@ -842,16 +829,11 @@ def _xarray_repeat(
         raise ValueError(
             "Cannot repeat over {!r}; expected one of {!r}.".format(dim, obj_dimensions)
         )
-        
+
     if isinstance(obj, xr.Dataset):
-        return obj.apply(
-            _xarray_repeat_dataarray,
-            args=(factor, dim)
-        )
+        return obj.apply(_xarray_repeat_dataarray, args=(factor, dim))
     else:
-        return _xarray_repeat_dataarray(
-            obj, factor, dim
-        )
+        return _xarray_repeat_dataarray(obj, factor, dim)
     return obj
 
 
@@ -880,9 +862,7 @@ def block_upsample(
         xr.Dataset or xr.DataArray.
     """
     return _xarray_repeat(
-        _xarray_repeat(obj, upsampling_factor, x_dim),
-        upsampling_factor,
-        y_dim
+        _xarray_repeat(obj, upsampling_factor, x_dim), upsampling_factor, y_dim
     )
 
 

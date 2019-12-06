@@ -666,43 +666,43 @@ def test_block_mode():
 
 
 @pytest.mark.parametrize(
-    'dim', ['x', 'y'], ids=['dim in DataArray', 'dim absent from DataArray']
+    "dim", ["x", "y"], ids=["dim in DataArray", "dim absent from DataArray"]
 )
-@pytest.mark.parametrize('use_dask', [False, True])
+@pytest.mark.parametrize("use_dask", [False, True])
 def test__xarray_repeat_dataarray(dim, use_dask):
-    da = xr.DataArray([1, 2, 3], dims=['x'], coords=[[1, 2, 3]])
+    da = xr.DataArray([1, 2, 3], dims=["x"], coords=[[1, 2, 3]])
     if use_dask:
         da = da.chunk()
-    
-    if dim == 'x':
-        expected = xr.DataArray([1, 1, 2, 2, 3, 3], dims=['x'])
+
+    if dim == "x":
+        expected = xr.DataArray([1, 1, 2, 2, 3, 3], dims=["x"])
     else:
         expected = da.copy(deep=True)
     result = _xarray_repeat_dataarray(da, 2, dim)
 
     if use_dask:
         assert isinstance(result.data, dask.array.Array)
-    
+
     xr.testing.assert_identical(result, expected)
-    
 
-@pytest.mark.parametrize('object_type', ['Dataset', 'DataArray'])
-@pytest.mark.parametrize('dim', ['x', 'z'], ids=['dim present', 'dim not present'])
+
+@pytest.mark.parametrize("object_type", ["Dataset", "DataArray"])
+@pytest.mark.parametrize("dim", ["x", "z"], ids=["dim present", "dim not present"])
 def test__xarray_repeat(object_type, dim):
-    foo = xr.DataArray([1, 2, 3], dims=['x'], coords=[[1, 2, 3]], name='foo')
-    bar = xr.DataArray([1, 2, 3], dims=['y'], coords=[[1, 2, 3]], name='bar')
+    foo = xr.DataArray([1, 2, 3], dims=["x"], coords=[[1, 2, 3]], name="foo")
+    bar = xr.DataArray([1, 2, 3], dims=["y"], coords=[[1, 2, 3]], name="bar")
 
-    expected_foo = xr.DataArray([1, 1, 2, 2, 3, 3], dims=['x'], name='foo')
+    expected_foo = xr.DataArray([1, 1, 2, 2, 3, 3], dims=["x"], name="foo")
     expected_bar = bar.copy(deep=True)
-    
-    if object_type == 'Dataset':
+
+    if object_type == "Dataset":
         obj = xr.merge([foo, bar])
         expected = xr.merge([expected_foo, expected_bar])
     else:
         obj = foo
         expected = expected_foo
 
-    if dim == 'x':
+    if dim == "x":
         result = _xarray_repeat(obj, 2, dim)
         xr.testing.assert_identical(result, expected)
     else:
@@ -710,18 +710,22 @@ def test__xarray_repeat(object_type, dim):
             _xarray_repeat(obj, 2, dim)
 
 
-@pytest.mark.parametrize('object_type', ['Dataset', 'DataArray'])
-@pytest.mark.parametrize('use_dask', [False, True])
+@pytest.mark.parametrize("object_type", ["Dataset", "DataArray"])
+@pytest.mark.parametrize("use_dask", [False, True])
 def test_block_upsample(object_type, use_dask):
-    obj = xr.DataArray([[1, 2], [3, 4]], dims=['x', 'y'], name='foo')
-    expected = xr.DataArray([[1, 1, 2, 2], [1, 1, 2, 2], [3, 3, 4, 4], [3, 3, 4, 4]], dims=['x', 'y'], name='foo')
+    obj = xr.DataArray([[1, 2], [3, 4]], dims=["x", "y"], name="foo")
+    expected = xr.DataArray(
+        [[1, 1, 2, 2], [1, 1, 2, 2], [3, 3, 4, 4], [3, 3, 4, 4]],
+        dims=["x", "y"],
+        name="foo",
+    )
 
-    if object_type == 'Dataset':
+    if object_type == "Dataset":
         obj = obj.to_dataset()
         expected = expected.to_dataset()
 
     if use_dask:
-        obj = obj.chunk({'x': 1})
-        
-    result = block_upsample(obj, 2, x_dim='x', y_dim='y')
+        obj = obj.chunk({"x": 1})
+
+    result = block_upsample(obj, 2, x_dim="x", y_dim="y")
     xr.testing.assert_identical(result, expected)
