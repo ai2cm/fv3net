@@ -693,7 +693,11 @@ def block_edge_sum(
     )
 
 
-def _mode(arr, axis=0, nan_policy="propagate"):
+def _mode(
+    arr: np.array,
+    axis: int = 0,
+    nan_policy: str = "propagate"
+) -> np.array:
     """A version of scipy.stats.mode that only returns a NumPy array with the
     mode values along the given axis."""
     result = mode(arr, axis=axis, nan_policy=nan_policy).mode
@@ -704,7 +708,11 @@ def _mode(arr, axis=0, nan_policy="propagate"):
     return np.squeeze(result, axis)
 
 
-def _ureduce(arr, func, **kwargs):
+def _ureduce(
+    arr: np.array,
+    func: Callable,
+    **kwargs
+) -> np.array:
     """Heavily adapted from NumPy: https://github.com/numpy/numpy/blob/
     b83f10ef7ee766bf30ccfa563b6cc8f7fd38a4c8/numpy/lib/
     function_base.py#L3343-L3395
@@ -721,8 +729,9 @@ def _ureduce(arr, func, **kwargs):
     axes at once.
 
     Args:
-        arr : Input array.
-        func : Function.
+        arr : Input NumPy array.
+        func : Function which takes an axis argument and reduces along a single
+            axis.
         **kwargs : Keyword arguments to pass to the function.
 
     Returns:
@@ -749,7 +758,11 @@ def _ureduce(arr, func, **kwargs):
     return func(arr, **kwargs)
 
 
-def _mode_reduce(arr, axis=(0,), nan_policy="propagate"):
+def _mode_reduce(
+    arr: np.array,
+    axis: Tuple[int] = (0,),
+    nan_policy: str = "propagate"
+) -> np.array:
     """A version of _mode that reduces over a tuple of axes."""
     return _ureduce(arr, _mode, axis=axis, nan_policy=nan_policy)
 
@@ -778,8 +791,8 @@ def block_mode(
             method for details
             <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
         nan_policy: Defines how to handle when input contains nan. 'propagate'
-        returns nan, raise' throws an error, 'omit' performs the calculations
-        ignoring nan values. Default is 'propagate'.
+            returns nan, raise' throws an error, 'omit' performs the calculations
+            ignoring nan values. Default is 'propagate'.
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -792,6 +805,84 @@ def block_mode(
         x_dim=x_dim,
         y_dim=y_dim,
         coord_func=coord_func,
+    )
+
+
+def _xarray_repeat_dataarray(
+    obj: xr.DataArray,
+    factor: int,
+    dim: Hashable
+) -> xr.DataArray:
+    """Upsample a DataArray by uniformly repeating values n times along a dimension."""
+    def func(arr, repeats=1):
+        return arr.repeat(repeats, axis=-1)
+    
+    if dim not in obj.dims:
+        return obj
+    else:
+        return xr.apply_ufunc(
+            func,
+            obj,
+            input_core_dims=[[dim]],
+            output_core_dims=[[dim]],
+            exclude_dims={dim},
+            dask='allowed',
+            kwargs={'repeats': factor}
+        )
+    
+
+def _xarray_repeat(
+    obj: Union[xr.Dataset, xr.DataArray],
+    factor: int,
+    dim: Hashable
+) -> Union[xr.Dataset, xr.DataArray]:
+    """Upsample an object by uniformly repeating values n times along a dimension."""
+    obj_dimensions = list(obj.dims)
+    if dim not in obj.dims:
+        raise ValueError(
+            "Cannot repeat over {!r}; expected one of {!r}.".format(dim, obj_dimensions)
+        )
+        
+    if isinstance(obj, xr.Dataset):
+        return obj.apply(
+            _xarray_repeat_dataarray,
+            args=(factor, dim)
+        )
+    else:
+        return _xarray_repeat_dataarray(
+            obj, factor, dim
+        )
+    return obj
+
+
+def block_upsample(
+    obj: Union[xr.Dataset, xr.DataArray],
+    upsampling_factor: int,
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+) -> Union[xr.Dataset, xr.DataArray]:
+    """Upsample an object by uniformly repeating values n times in each
+    horizontal dimension.
+
+    Note that this function drops the coordinates along the x and y dimensions
+    of the input object, as it is not always obvious how one should infer what
+    the missing coordinates should be.  Coordinates are not needed for our
+    application currently in VCM, so we will defer the complexity of addressing
+    this question for the time being.
+
+    Args:
+        obj: Input Dataset or DataArray.
+        factor: Integer upsampling factor to use.
+        x_dim: x dimension name (default 'xaxis_1').
+        y_dim: y dimension name (default 'yaxis_1').
+
+    Returns:
+        xr.Dataset or xr.DataArray.
+    """
+    return _xarray_repeat(
+        _xarray_repeat(obj, upsampling_factor, x_dim),
+        upsampling_factor,
+        y_dim
     )
 
 

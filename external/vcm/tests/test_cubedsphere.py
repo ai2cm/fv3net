@@ -1,3 +1,4 @@
+import dask
 import numpy as np
 import pytest
 import xarray as xr
@@ -8,12 +9,15 @@ from vcm.cubedsphere import (
     _mode_reduce,
     _ureduce,
     _xarray_block_reduce_dataarray,
+    _xarray_repeat,
+    _xarray_repeat_dataarray,
     add_coordinates,
     all_filenames,
     block_coarsen,
     block_edge_sum,
     block_median,
     block_mode,
+    block_upsample,
     coarsen_coords,
     edge_weighted_block_average,
     horizontal_block_reduce,
@@ -658,4 +662,66 @@ def test_block_mode():
     expected = xr.DataArray(expected_data, dims=["x", "y"])
 
     result = block_mode(da, 2, x_dim="x", y_dim="y", nan_policy="omit")
+    xr.testing.assert_identical(result, expected)
+
+
+@pytest.mark.parametrize(
+    'dim', ['x', 'y'], ids=['dim in DataArray', 'dim absent from DataArray']
+)
+@pytest.mark.parametrize('use_dask', [False, True])
+def test__xarray_repeat_dataarray(dim, use_dask):
+    da = xr.DataArray([1, 2, 3], dims=['x'], coords=[[1, 2, 3]])
+    if use_dask:
+        da = da.chunk()
+    
+    if dim == 'x':
+        expected = xr.DataArray([1, 1, 2, 2, 3, 3], dims=['x'])
+    else:
+        expected = da.copy(deep=True)
+    result = _xarray_repeat_dataarray(da, 2, dim)
+
+    if use_dask:
+        assert isinstance(result.data, dask.array.Array)
+    
+    xr.testing.assert_identical(result, expected)
+    
+
+@pytest.mark.parametrize('object_type', ['Dataset', 'DataArray'])
+@pytest.mark.parametrize('dim', ['x', 'z'], ids=['dim present', 'dim not present'])
+def test__xarray_repeat(object_type, dim):
+    foo = xr.DataArray([1, 2, 3], dims=['x'], coords=[[1, 2, 3]], name='foo')
+    bar = xr.DataArray([1, 2, 3], dims=['y'], coords=[[1, 2, 3]], name='bar')
+
+    expected_foo = xr.DataArray([1, 1, 2, 2, 3, 3], dims=['x'], name='foo')
+    expected_bar = bar.copy(deep=True)
+    
+    if object_type == 'Dataset':
+        obj = xr.merge([foo, bar])
+        expected = xr.merge([expected_foo, expected_bar])
+    else:
+        obj = foo
+        expected = expected_foo
+
+    if dim == 'x':
+        result = _xarray_repeat(obj, 2, dim)
+        xr.testing.assert_identical(result, expected)
+    else:
+        with pytest.raises(ValueError, match="Cannot repeat over 'z'"):
+            _xarray_repeat(obj, 2, dim)
+
+
+@pytest.mark.parametrize('object_type', ['Dataset', 'DataArray'])
+@pytest.mark.parametrize('use_dask', [False, True])
+def test_block_upsample(object_type, use_dask):
+    obj = xr.DataArray([[1, 2], [3, 4]], dims=['x', 'y'], name='foo')
+    expected = xr.DataArray([[1, 1, 2, 2], [1, 1, 2, 2], [3, 3, 4, 4], [3, 3, 4, 4]], dims=['x', 'y'], name='foo')
+
+    if object_type == 'Dataset':
+        obj = obj.to_dataset()
+        expected = expected.to_dataset()
+
+    if use_dask:
+        obj = obj.chunk({'x': 1})
+        
+    result = block_upsample(obj, 2, x_dim='x', y_dim='y')
     xr.testing.assert_identical(result, expected)
