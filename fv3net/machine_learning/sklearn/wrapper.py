@@ -76,6 +76,7 @@ class SklearnWrapper(BaseXarrayEstimator):
             self, input_vars: tuple, output_vars: tuple, sample_dim: str,
             data: xr.Dataset
     ):
+
         self.input_vars_ = input_vars
         self.output_vars_ = output_vars
         self.feature_dims_ = remove(data.dims, sample_dim)
@@ -87,9 +88,7 @@ class SklearnWrapper(BaseXarrayEstimator):
             dim for dim in outputs.dims if dim != sample_dim
         ][0]
         self.output_features_ = outputs.indexes[self.output_features_dim_name_]
-
         self.model.fit(inputs, outputs.values)
-
         return self
 
     def add_new_batch_estimators(self):

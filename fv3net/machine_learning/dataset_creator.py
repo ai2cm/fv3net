@@ -38,12 +38,23 @@ VARS_TO_KEEP = [
 
 TARGET_VARS = ['Q1', 'Q2', 'QU', 'QV']
 
+def mask_to_surface_type(
+        ds,
+        surface_type
+):
+    if surface_type not in ['sea', 'land', 'seaice']:
+        raise ValueError("Must mask to surface_type in ['sea', 'land', 'seaice'].")
+    surface_type_codes = {'sea': 0, 'land': 1, 'seaice': 2}
+    mask = ds.slmsk == surface_type_codes[surface_type]
+    ds_masked = ds.where(mask)
+    return ds_masked
+
 
 def create_training_set(
         gcs_data_path,
         num_timesteps_to_sample=None,
-        sample_consecutive=False,
         sample_dims=['tile', 'grid_yt', 'grid_xt', 'initialization_time'],
+        mask_to_surface_type=None,
         sample_chunk_size=5e5,
         bucket='vcm-ml-data',
         project='vcm-ml',
@@ -59,7 +70,8 @@ def create_training_set(
     ds['QV'] = apparent_source(ds.v)
     ds['Q1'] = apparent_source(ds.T)
     ds['Q2'] = apparent_source(ds.sphum)
-
+    if not mask_to_surface_type:
+        ds = mask_to_surface_type(ds, mask_to_surface_type)
     ds = ds[VARS_TO_KEEP + TARGET_VARS] \
         .isel(forecast_time=0).squeeze().drop('forecast_time')
     if num_timesteps_to_sample:
