@@ -5,16 +5,20 @@ import logging
 import os
 from os.path import join
 
+import dask.array as dask_array
 import dask.bag as db
 import numpy as np
 import pandas as pd
 import xarray as xr
 from toolz import curry
 
+from .casting import doubles_to_floats
 from .cubedsphere import (
     block_coarsen,
     block_edge_sum,
     block_median,
+    block_mode,
+    block_upsample,
     coarsen_coords,
     edge_weighted_block_average,
     open_cubed_sphere,
@@ -29,6 +33,40 @@ OUTPUT_CATEGORY_NAMES = {
     "sfc_data": "sfc_data",
 }
 SOURCE_DATA_PATTERN = "{timestep}/{timestep}.{category}"
+
+# Define global constants to specify how each of the sfc_data variables should
+# be coarsened.
+AREA_MEAN = [
+    "tsea",
+    "alvsf",
+    "alvwf",
+    "alnsf",
+    "alnwf",
+    "facsf",
+    "facwf",
+    "f10m",
+    "t2m",
+    "q2m",
+    "uustar",
+    "ffmm",
+    "ffhh",
+    "tprcp",
+    "snwdph",
+]
+AREA_MEAN_OVER_DOMINANT_SFC_TYPE = [
+    "tg3",
+    "vfrac",
+    "fice",
+    "sncovr",
+]
+AREA_AND_VFRAC_MEAN_OVER_DOMINANT_SFC_AND_VTYPE = ["canopy", "zorl"]
+AREA_MEAN_OVER_DOMINANT_SFC_AND_STYPE = ["smc", "slc", "stc"]
+MODE = ["slmsk", "srflag"]
+MODE_OVER_DOMINANT_SFC_TYPE = ["slope", "vtype", "stype"]
+AREA_AND_SNCOVR_MEAN = ["sheleg"]
+AREA_AND_FICE_MEAN = ["hice"]
+MINIMUM_OVER_DOMINANT_SFC_TYPE = ["shdmin"]
+MAXIMUM_OVER_DOMINANT_SFC_TYPE = ["shdmax", "snoalb"]
 
 
 def integerize(x):
@@ -290,6 +328,243 @@ def coarse_grain_sfc_data(ds, area, coarsening_factor):
 
     result["slmsk"] = integerize(result.slmsk)
     return result
+
+
+def _apply_surface_chgres_corrections(ds: xr.Dataset) -> xr.Dataset:
+    """This function applies the corrections noted in surface_chgres.F90
+    to the variables in the coarsened surface Dataset.
+    
+    See https://github.com/VulcanClimateModeling/fv3gfs/blob/
+    master/sorc/global_chgres.fd/surface_chgres.f90 for more information.
+    """
+    # 1. Clip tsea and tg3 at 273.16 K if a cell contains land ice.
+    vtype_land_ice = 15.0
+    freezing_temperature = 273.16
+
+    clipped_tsea = ds.tsea.where(
+        ds.tsea < freezing_temperature, other=freezing_temperature
+    )
+    clipped_t3g = ds.tg3.where(
+        ds.tg3 < freezing_temperature, other=freezing_temperature
+    )
+
+    tsea = xr.where(ds.vtype == vtype_land_ice, clipped_tsea, ds.tsea)
+    tg3 = xr.where(ds.vtype == vtype_land_ice, clipped_t3g, ds.tg3)
+
+    ds["tsea"] = tsea
+    ds["tg3"] = tg3
+
+    # 2. If a cell contains land ice, make sure the soil type is ice
+    stype_land_ice = 16.0
+    stype = xr.where(ds.vtype == vtype_land_ice, stype_land_ice, ds.stype)
+    ds["stype"] = stype
+
+    # 3. If a cell does not contain vegetation, i.e. if shdmin < 0.011,
+    # then set the canopy moisture content to zero.
+    threshold = 0.011
+    canopy = xr.where(ds.shdmin < threshold, 0.0, ds.canopy)
+    ds["canopy"] = canopy
+
+    # 4. If a cell contains land ice, then shdmin is set to zero.
+    shdmin = xr.where(ds.vtype == vtype_land_ice, 0.0, ds.shdmin)
+    ds["shdmin"] = shdmin
+
+    return ds
+
+
+def _block_upsample_and_rechunk(
+    da: xr.DataArray, reference_da: xr.DataArray, upsampling_factor: int
+) -> xr.DataArray:
+    """Upsample DataArray and rechunk to match reference DataArray's chunks.
+
+    This is needed, because block_upsample leads to unnecessarily small chunk
+    sizes when applied to dask arrays, which degrades performance if not
+    corrected.
+
+    This private function is strictly for use in
+    coarse_grain_sfc_data_complicated; it implicitly assumes that the
+    reference_da has dimensions that match the upsampled da.
+    """
+    result = block_upsample(da, upsampling_factor)
+    if isinstance(da.data, dask_array.Array):
+        return result.chunk(reference_da.chunks)
+    else:
+        return result
+
+
+def coarse_grain_sfc_data_complicated(
+    ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int
+) -> xr.Dataset:
+    """Coarse grain a set of sfc_data restart files using the 'complicated'
+    method.
+
+    See:
+
+    https://paper.dropbox.com/doc/Downsampling-restart-fields-for-the-
+    Noah-land-surface-model--Ap8z8JnU1OH4HwNZ~PY4z~p~Ag-OgkIEYSn0g4X9CCZxn5dy
+    
+    for a description of what this procedure does.
+
+    Args:
+        ds: Input Dataset.
+        area: DataArray with the surface area of each grid cell; it is assumed
+            its horizontal dimension names are 'xaxis_1' and 'yaxis_1'.
+        coarsening_factor: Integer coarsening factor to use.
+
+    Returns:
+        xr.Dataset
+    """
+    mode = block_mode(ds[MODE], coarsening_factor)
+
+    upsampled_slmsk = _block_upsample_and_rechunk(
+        mode.slmsk, ds.slmsk, coarsening_factor
+    )
+    is_dominant_surface_type = ds.slmsk == upsampled_slmsk
+
+    mode_over_dominant_surface_type = block_mode(
+        ds[MODE_OVER_DOMINANT_SFC_TYPE].where(is_dominant_surface_type),
+        coarsening_factor,
+    )
+
+    upsampled_vtype = _block_upsample_and_rechunk(
+        mode_over_dominant_surface_type.vtype, ds.vtype, coarsening_factor
+    )
+    is_dominant_vtype = ds.vtype == upsampled_vtype
+    is_dominant_vegetation_and_surface_type = (
+        is_dominant_surface_type & is_dominant_vtype
+    )
+
+    upsampled_stype = _block_upsample_and_rechunk(
+        mode_over_dominant_surface_type.stype, ds.stype, coarsening_factor
+    )
+    is_dominant_stype = ds.stype == upsampled_stype
+    is_dominant_soil_and_surface_type = is_dominant_surface_type & is_dominant_stype
+
+    area_mean_over_dominant_sfc_and_stype = weighted_block_average(
+        ds[AREA_MEAN_OVER_DOMINANT_SFC_AND_STYPE].where(
+            is_dominant_soil_and_surface_type
+        ),
+        area.where(is_dominant_soil_and_surface_type),
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+    )
+
+    area_mean = weighted_block_average(
+        ds[AREA_MEAN], area, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1"
+    )
+
+    area_mean_over_dominant_sfc_type = weighted_block_average(
+        ds[AREA_MEAN_OVER_DOMINANT_SFC_TYPE].where(is_dominant_surface_type),
+        area.where(is_dominant_surface_type),
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+    )
+
+    area_and_vfrac_mean_over_dominant_sfc_and_vtype = weighted_block_average(
+        ds[AREA_AND_VFRAC_MEAN_OVER_DOMINANT_SFC_AND_VTYPE].where(
+            is_dominant_vegetation_and_surface_type
+        ),
+        (area * ds.vfrac).where(is_dominant_vegetation_and_surface_type),
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+    )
+
+    area_mean_over_dominant_sfc_and_vtype = weighted_block_average(
+        ds[AREA_AND_VFRAC_MEAN_OVER_DOMINANT_SFC_AND_VTYPE].where(
+            is_dominant_vegetation_and_surface_type
+        ),
+        area.where(is_dominant_vegetation_and_surface_type),
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+    )
+
+    coarsened_area_times_vfrac = block_coarsen(
+        (ds.vfrac * area).where(is_dominant_vegetation_and_surface_type),
+        coarsening_factor,
+    )
+    zorl_and_canopy = xr.where(
+        coarsened_area_times_vfrac > 0.0,
+        area_and_vfrac_mean_over_dominant_sfc_and_vtype,
+        area_mean_over_dominant_sfc_and_vtype,
+    )
+
+    area_and_sncovr_mean = weighted_block_average(
+        ds[AREA_AND_SNCOVR_MEAN],
+        area * ds.sncovr,
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+    ).fillna(
+        0.0
+    )  # Any spots with NaN's are a result of zero snow cover.
+
+    area_and_fice_mean = weighted_block_average(
+        ds[AREA_AND_FICE_MEAN],
+        area * ds.fice,
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+    ).fillna(
+        0.0
+    )  # Any spots with NaN's are a result of zero ice cover.
+
+    minimum_over_dominant_sfc_type = block_coarsen(
+        ds[MINIMUM_OVER_DOMINANT_SFC_TYPE].where(is_dominant_surface_type),
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+        method="min",
+    )
+
+    maximum_over_dominant_sfc_type = block_coarsen(
+        ds[MAXIMUM_OVER_DOMINANT_SFC_TYPE].where(is_dominant_surface_type),
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+        method="max",
+    )
+
+    # Handle tisfc specially
+    tisfc_sea_ice = weighted_block_average(
+        ds.tisfc.where(is_dominant_surface_type),
+        (area * ds.fice).where(is_dominant_surface_type),
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+    )
+    tisfc_land_or_ocean = weighted_block_average(
+        ds.tisfc.where(is_dominant_surface_type),
+        area.where(is_dominant_surface_type),
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+    )
+    tisfc = xr.where(mode.slmsk == 2.0, tisfc_sea_ice, tisfc_land_or_ocean).rename(
+        "tisfc"
+    )
+
+    result = xr.merge(
+        [
+            mode,
+            tisfc,
+            mode_over_dominant_surface_type,
+            area_mean_over_dominant_sfc_and_stype,
+            zorl_and_canopy,
+            area_mean,
+            area_mean_over_dominant_sfc_type,
+            area_and_sncovr_mean,
+            area_and_fice_mean,
+            minimum_over_dominant_sfc_type,
+            maximum_over_dominant_sfc_type,
+        ]
+    )
+
+    result = _apply_surface_chgres_corrections(result)
+    return doubles_to_floats(result)
 
 
 def coarse_grain_grid_spec(
