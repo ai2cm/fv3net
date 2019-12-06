@@ -144,7 +144,8 @@ Where `config_location` is a google cloud storage location of a yaml file contai
 a fv3config dictionary, outdir is a google cloud storage location to put the resulting
 run directory, `docker_image` is the name of a docker image containing `fv3config`
 and `fv3gfs-python`, and `gcp_secret` is the name of the secret containing the google
-cloud platform access key (as a json file called `key.json`). Additional arguments are
+cloud platform access key (as a json file called `key.json`). For our VCM group this
+should be set to 'gcp_key'. Additional arguments are
 available for configuring the kubernetes job and documented in the `run_kubernetes`
 docstring.
 
