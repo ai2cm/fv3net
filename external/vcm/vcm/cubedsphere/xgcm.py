@@ -34,12 +34,16 @@ COORDS =  {'x': {'center': 'grid_xt', 'outer': 'grid_x'}, 'y': {'center': 'grid_
 
 
 def create_fv3_grid(ds: xr.Dataset) -> xgcm.Grid:
-    """Create an XGCM grid from a dataset of FV3 tile data
+    """Create an XGCM_ grid from a dataset of FV3 tile data
+
+    This object can be used to interpolate and differentiate cubed sphere data, please
+    see the XGCM_ documentation for more information.
 
     The tile dimension must have a corresponding coordinate. You can make it like this::
 
         ds = ds.assign_coords(tile=np.arange(6))
 
+    .. _XGCM: https://xgcm.readthedocs.io/en/latest/
     """
     if 'tile' not in ds.coords:
         raise ValueError("The input Dataset must have a `tile` coordinate.")
