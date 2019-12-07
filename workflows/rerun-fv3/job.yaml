@@ -16,7 +16,7 @@ spec:
       volumes:
       - name: my-secret-vol
         secret:
-          secretName: my-secret
+          secretName: gcp-key
       containers:
       - name: 'snakemake'
         image: 'us.gcr.io/vcm-ml/fv3net'

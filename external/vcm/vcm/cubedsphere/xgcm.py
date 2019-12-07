@@ -39,11 +39,17 @@ def create_fv3_grid(ds: xr.Dataset) -> xgcm.Grid:
     This object can be used to interpolate and differentiate cubed sphere data, please
     see the XGCM_ documentation for more information.
 
+    See this notebook_ for usage.
+
+
     The tile dimension must have a corresponding coordinate. You can make it like this::
 
         ds = ds.assign_coords(tile=np.arange(6))
 
+
     .. _XGCM: https://xgcm.readthedocs.io/en/latest/
+    .. _notebook: https://github.com/VulcanClimateModeling/explore/blob/master/noahb/2019-12-06-XGCM.ipynb # noqa
+
     """
     if 'tile' not in ds.coords:
         raise ValueError("The input Dataset must have a `tile` coordinate.")
