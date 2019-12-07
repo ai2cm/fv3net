@@ -1,8 +1,10 @@
-import numpy as np
 import argparse
-from vcm import cubedsphere
-import xarray as xr
 import logging
+
+import numpy as np
+import xarray as xr
+
+from vcm import cubedsphere
 
 gravity = 9.81  # m /s2
 Rd = 287  # J / K / kg
@@ -51,7 +53,7 @@ def hydrostatic_temperature(dz, dp, p, q):
 def hydrostatic_temperature_with_logp(dz, dp, q):
     pi = absolute_pressure_interface(dp)
     dlogp = xr.DataArray(np.log(pi)).diff(VERTICAL_DIM)
-    tv = gravity * np.abs(dz)/np.abs(dlogp) / Rd
+    tv = gravity * np.abs(dz) / np.abs(dlogp) / Rd
     return virtual_temperature_to_temperature(tv, q)
 
 
@@ -89,19 +91,24 @@ def adjust_surface_geopotential(phis, old_dz, new_dz):
     height_change = thickness_old - thickness_new
 
 
-
 # TODO: refactor this to a separate file for adjustments
 def parse_arguments():
-    parser = argparse.ArgumentParser(description='Hydrostatically adjust the height variable')
-    parser.add_argument('tracer', help='everything before tile.nc')
-    parser.add_argument('fv_core', help='everything before tile.nc')
-    parser.add_argument('fv_core_out', help='output prefix')
-    parser.add_argument('--adjust-temp', action='store_true', help='adjust the temperature rather than the thickness')
+    parser = argparse.ArgumentParser(
+        description="Hydrostatically adjust the height variable"
+    )
+    parser.add_argument("tracer", help="everything before tile.nc")
+    parser.add_argument("fv_core", help="everything before tile.nc")
+    parser.add_argument("fv_core_out", help="output prefix")
+    parser.add_argument(
+        "--adjust-temp",
+        action="store_true",
+        help="adjust the temperature rather than the thickness",
+    )
     return parser.parse_args()
 
 
 def open_tiles(prefix):
-    return xr.open_mfdataset(prefix+ '.tile?.nc', combine='nested', concat_dim='tile')
+    return xr.open_mfdataset(prefix + ".tile?.nc", combine="nested", concat_dim="tile")
 
 
 def main():
@@ -124,8 +131,8 @@ def main():
         core_adj = core.assign(DZ=dz_adjusted)
 
     # save to disk
-    cubedsphere.save_tiles_separately(core_adj, args.fv_core_out, output_directory='.')
+    cubedsphere.save_tiles_separately(core_adj, args.fv_core_out, output_directory=".")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
