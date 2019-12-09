@@ -655,7 +655,14 @@ def test__mode_reduce(array, axis, expected, kwargs):
 
 
 def test_block_mode():
-    data = np.array([[0, 0, 1, 1], [0, 0, 1, 1], [1, 1, 0, 0], [1, 1, 0, np.nan]])
+    data = np.array(
+        [
+            [0.0, 0.0, 1.0, 1.0],
+            [0.0, 0.0, 1.0, 1.0],
+            [1.0, 1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0, np.nan],
+        ]
+    )
     da = xr.DataArray(data, dims=["x", "y"])
 
     expected_data = np.array([[0.0, 1.0], [1.0, 0.0]])
