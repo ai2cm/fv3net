@@ -4,15 +4,7 @@ from .coarsen import (
     block_median,
     edge_weighted_block_average,
     horizontal_block_reduce,
-    xarray_block_reduce
+    xarray_block_reduce,
 )
-
-from .io import (
-    open_cubed_sphere,
-    save_tiles_separately,
-    all_filenames
-)
-
-from .xgcm import (
-    create_fv3_grid
-)
+from .io import all_filenames, open_cubed_sphere, save_tiles_separately
+from .xgcm import create_fv3_grid

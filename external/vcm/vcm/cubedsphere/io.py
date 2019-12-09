@@ -1,6 +1,7 @@
-from vcm.cubedsphere.coarsen import NUM_TILES, SUBTILE_FILE_PATTERN
 import numpy as np
 import xarray as xr
+
+from vcm.cubedsphere.coarsen import NUM_TILES, SUBTILE_FILE_PATTERN
 
 
 def open_cubed_sphere(prefix: str, **kwargs):
