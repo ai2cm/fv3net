@@ -29,3 +29,4 @@ zarr
 black
 isort
 nose
+xgcm==0.2.0
