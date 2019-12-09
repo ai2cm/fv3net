@@ -1,9 +1,9 @@
 import dask.array as dask_array
-import numpy as np
 import xarray as xr
 
 from typing import Dict, Hashable
 
+from . import xarray_utils
 from .casting import doubles_to_floats
 from .cubedsphere import (
     block_coarsen,
@@ -257,7 +257,7 @@ def area_or_area_and_fice_weighted_mean(
         y_dim="yaxis_1",
     )
     return xr.where(
-        _xarray_isclose(coarsened_surface_type, 2.0), sea_ice, land_or_ocean
+        xarray_utils.isclose(coarsened_surface_type, 2.0), sea_ice, land_or_ocean
     )
 
 
@@ -311,7 +311,7 @@ def _clip_tsea_and_t3g_at_freezing_over_ice(ds: xr.Dataset) -> xr.Dataset:
         ds.tg3 < FREEZING_TEMPERATURE, other=FREEZING_TEMPERATURE
     )
 
-    is_land_ice = _xarray_isclose(ds.vtype, VTYPE_LAND_ICE)
+    is_land_ice = xarray_utils.isclose(ds.vtype, VTYPE_LAND_ICE)
 
     tsea = xr.where(is_land_ice, clipped_tsea, ds.tsea)
     tg3 = xr.where(is_land_ice, clipped_t3g, ds.tg3)
@@ -327,7 +327,7 @@ def _ensure_stype_is_ice_if_vtype_is_ice(ds: xr.Dataset) -> xr.Dataset:
 
     If a cell contains land ice, make sure the soil type is ice.
     """
-    is_land_ice = _xarray_isclose(ds.vtype, VTYPE_LAND_ICE)
+    is_land_ice = xarray_utils.isclose(ds.vtype, VTYPE_LAND_ICE)
     stype = xr.where(is_land_ice, STYPE_LAND_ICE, ds.stype)
     ds["stype"] = stype
     return ds
@@ -349,7 +349,7 @@ def _zero_shdmin_over_land_ice(ds: xr.Dataset) -> xr.Dataset:
 
     If a cell contains land ice, then shdmin is set to zero.
     """
-    is_land_ice = _xarray_isclose(ds.vtype, VTYPE_LAND_ICE)
+    is_land_ice = xarray_utils.isclose(ds.vtype, VTYPE_LAND_ICE)
     shdmin = xr.where(is_land_ice, 0.0, ds.shdmin)
     ds["shdmin"] = shdmin
     return ds
@@ -393,12 +393,6 @@ def _block_upsample_and_rechunk(
     )
 
 
-def _xarray_isclose(a, b):
-    return xr.apply_ufunc(
-        np.isclose, a, b, dask="parallelized", output_dtypes=[np.bool]
-    )
-
-
 def _compute_arguments_for_complex_sfc_coarsening(
     ds: xr.Dataset, coarsening_factor: int
 ) -> Dict[str, xr.DataArray]:
@@ -407,7 +401,7 @@ def _compute_arguments_for_complex_sfc_coarsening(
     upsampled_slmsk = _block_upsample_and_rechunk(
         coarsened_slmsk, ds.slmsk, coarsening_factor
     )
-    is_dominant_surface_type = _xarray_isclose(ds.slmsk, upsampled_slmsk)
+    is_dominant_surface_type = xarray_utils.isclose(ds.slmsk, upsampled_slmsk)
 
     coarsened_vtype_and_stype = block_mode(
         ds[["vtype", "stype"]].where(is_dominant_surface_type), coarsening_factor
@@ -416,12 +410,12 @@ def _compute_arguments_for_complex_sfc_coarsening(
     upsampled_vtype = _block_upsample_and_rechunk(
         coarsened_vtype_and_stype.vtype, ds.vtype, coarsening_factor
     )
-    is_dominant_vtype = _xarray_isclose(ds.vtype, upsampled_vtype)
+    is_dominant_vtype = xarray_utils.isclose(ds.vtype, upsampled_vtype)
 
     upsampled_stype = _block_upsample_and_rechunk(
         coarsened_vtype_and_stype.stype, ds.stype, coarsening_factor
     )
-    is_dominant_stype = _xarray_isclose(ds.stype, upsampled_stype)
+    is_dominant_stype = xarray_utils.isclose(ds.stype, upsampled_stype)
 
     return {
         "coarsened_slmsk": coarsened_slmsk,

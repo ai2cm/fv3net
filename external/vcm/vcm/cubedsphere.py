@@ -10,6 +10,7 @@ import xarray as xr
 from skimage.measure import block_reduce as skimage_block_reduce
 from scipy.stats import mode
 
+from . import xarray_utils
 
 NUM_TILES = 6
 SUBTILE_FILE_PATTERN = "{prefix}.tile{tile:d}.nc.{subtile:04d}"
@@ -798,45 +799,6 @@ def block_mode(
     )
 
 
-def _xarray_repeat_dataarray(
-    obj: xr.DataArray, factor: int, dim: Hashable
-) -> xr.DataArray:
-    """Upsample a DataArray by uniformly repeating values n times along a dimension."""
-
-    def func(arr, repeats=1):
-        return arr.repeat(repeats, axis=-1)
-
-    if dim not in obj.dims:
-        return obj
-    else:
-        return xr.apply_ufunc(
-            func,
-            obj,
-            input_core_dims=[[dim]],
-            output_core_dims=[[dim]],
-            exclude_dims={dim},
-            dask="allowed",
-            kwargs={"repeats": factor},
-        )
-
-
-def _xarray_repeat(
-    obj: Union[xr.Dataset, xr.DataArray], factor: int, dim: Hashable
-) -> Union[xr.Dataset, xr.DataArray]:
-    """Upsample an object by uniformly repeating values n times along a dimension."""
-    obj_dimensions = list(obj.dims)
-    if dim not in obj.dims:
-        raise ValueError(
-            "Cannot repeat over {!r}; expected one of {!r}.".format(dim, obj_dimensions)
-        )
-
-    if isinstance(obj, xr.Dataset):
-        return obj.apply(_xarray_repeat_dataarray, args=(factor, dim))
-    else:
-        return _xarray_repeat_dataarray(obj, factor, dim)
-    return obj
-
-
 def block_upsample(
     obj: Union[xr.Dataset, xr.DataArray],
     upsampling_factor: int,
@@ -861,8 +823,8 @@ def block_upsample(
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    return _xarray_repeat(
-        _xarray_repeat(obj, upsampling_factor, x_dim), upsampling_factor, y_dim
+    return xarray_utils.repeat(
+        xarray_utils.repeat(obj, upsampling_factor, x_dim), upsampling_factor, y_dim
     )
 
 
