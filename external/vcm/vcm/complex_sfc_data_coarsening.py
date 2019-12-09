@@ -19,7 +19,7 @@ STYPE_LAND_ICE = 16.0
 VTYPE_LAND_ICE = 15.0
 
 
-def area_weighted_mean(
+def _area_weighted_mean(
     data_var: xr.DataArray,
     coarsening_factor: int,
     area: xr.DataArray,
@@ -36,7 +36,7 @@ def area_weighted_mean(
     )
 
 
-def area_weighted_mean_over_dominant_sfc_type(
+def _area_weighted_mean_over_dominant_sfc_type(
     data_var: xr.DataArray,
     coarsening_factor: int,
     area: xr.DataArray,
@@ -57,7 +57,7 @@ def area_weighted_mean_over_dominant_sfc_type(
     )
 
 
-def area_and_vfrac_weighted_mean_over_dominant_sfc_and_vtype(
+def _area_and_vfrac_weighted_mean_over_dominant_sfc_and_vtype(
     data_var: xr.DataArray,
     coarsening_factor: int,
     area: xr.DataArray,
@@ -98,7 +98,7 @@ def area_and_vfrac_weighted_mean_over_dominant_sfc_and_vtype(
     )
 
 
-def area_weighted_mean_over_dominant_sfc_and_stype(
+def _area_weighted_mean_over_dominant_sfc_and_stype(
     data_var: xr.DataArray,
     coarsening_factor: int,
     area: xr.DataArray,
@@ -120,7 +120,7 @@ def area_weighted_mean_over_dominant_sfc_and_stype(
     )
 
 
-def mode(
+def _mode(
     data_var: xr.DataArray,
     coarsening_factor: int,
     area: xr.DataArray,
@@ -135,7 +135,7 @@ def mode(
     return block_mode(data_var, coarsening_factor)
 
 
-def mode_over_dominant_sfc_type(
+def _mode_over_dominant_sfc_type(
     data_var: xr.DataArray,
     coarsening_factor: int,
     area: xr.DataArray,
@@ -150,7 +150,7 @@ def mode_over_dominant_sfc_type(
     return block_mode(data_var.where(is_dominant_surface_type), coarsening_factor)
 
 
-def area_and_sncovr_weighted_mean(
+def _area_and_sncovr_weighted_mean(
     data_var: xr.DataArray,
     coarsening_factor: int,
     area: xr.DataArray,
@@ -167,7 +167,7 @@ def area_and_sncovr_weighted_mean(
     ).fillna(0.0)
 
 
-def area_and_fice_weighted_mean(
+def _area_and_fice_weighted_mean(
     data_var: xr.DataArray,
     coarsening_factor: int,
     area: xr.DataArray,
@@ -184,7 +184,7 @@ def area_and_fice_weighted_mean(
     ).fillna(0.0)
 
 
-def minimum_over_dominant_sfc_type(
+def _minimum_over_dominant_sfc_type(
     data_var: xr.DataArray,
     coarsening_factor: int,
     area: xr.DataArray,
@@ -205,7 +205,7 @@ def minimum_over_dominant_sfc_type(
     )
 
 
-def maximum_over_dominant_sfc_type(
+def _maximum_over_dominant_sfc_type(
     data_var: xr.DataArray,
     coarsening_factor: int,
     area: xr.DataArray,
@@ -226,7 +226,7 @@ def maximum_over_dominant_sfc_type(
     )
 
 
-def area_or_area_and_fice_weighted_mean(
+def _area_or_area_and_fice_weighted_mean(
     data_var: xr.DataArray,
     coarsening_factor: int,
     area: xr.DataArray,
@@ -264,38 +264,38 @@ def area_or_area_and_fice_weighted_mean(
 # Note that slmsk, vtype, and stype are handled separately (they need to be
 # coarsened ahead of coarsening these other variables).
 SFC_DATA_COARSENING_METHOD = {
-    "tsea": area_weighted_mean,
-    "alvsf": area_weighted_mean,
-    "alvwf": area_weighted_mean,
-    "alnsf": area_weighted_mean,
-    "alnwf": area_weighted_mean,
-    "facsf": area_weighted_mean,
-    "facwf": area_weighted_mean,
-    "f10m": area_weighted_mean,
-    "t2m": area_weighted_mean,
-    "q2m": area_weighted_mean,
-    "uustar": area_weighted_mean,
-    "ffmm": area_weighted_mean,
-    "ffhh": area_weighted_mean,
-    "tprcp": area_weighted_mean,
-    "snwdph": area_weighted_mean,
-    "tg3": area_weighted_mean_over_dominant_sfc_type,
-    "vfrac": area_weighted_mean_over_dominant_sfc_type,
-    "fice": area_weighted_mean_over_dominant_sfc_type,
-    "sncovr": area_weighted_mean_over_dominant_sfc_type,
-    "canopy": area_and_vfrac_weighted_mean_over_dominant_sfc_and_vtype,
-    "zorl": area_and_vfrac_weighted_mean_over_dominant_sfc_and_vtype,
-    "smc": area_weighted_mean_over_dominant_sfc_and_stype,
-    "slc": area_weighted_mean_over_dominant_sfc_and_stype,
-    "stc": area_weighted_mean_over_dominant_sfc_and_stype,
-    "srflag": mode,
-    "slope": mode_over_dominant_sfc_type,
-    "sheleg": area_and_sncovr_weighted_mean,
-    "hice": area_and_fice_weighted_mean,
-    "shdmin": minimum_over_dominant_sfc_type,
-    "shdmax": maximum_over_dominant_sfc_type,
-    "snoalb": maximum_over_dominant_sfc_type,
-    "tisfc": area_or_area_and_fice_weighted_mean,
+    "tsea": _area_weighted_mean,
+    "alvsf": _area_weighted_mean,
+    "alvwf": _area_weighted_mean,
+    "alnsf": _area_weighted_mean,
+    "alnwf": _area_weighted_mean,
+    "facsf": _area_weighted_mean,
+    "facwf": _area_weighted_mean,
+    "f10m": _area_weighted_mean,
+    "t2m": _area_weighted_mean,
+    "q2m": _area_weighted_mean,
+    "uustar": _area_weighted_mean,
+    "ffmm": _area_weighted_mean,
+    "ffhh": _area_weighted_mean,
+    "tprcp": _area_weighted_mean,
+    "snwdph": _area_weighted_mean,
+    "tg3": _area_weighted_mean_over_dominant_sfc_type,
+    "vfrac": _area_weighted_mean_over_dominant_sfc_type,
+    "fice": _area_weighted_mean_over_dominant_sfc_type,
+    "sncovr": _area_weighted_mean_over_dominant_sfc_type,
+    "canopy": _area_and_vfrac_weighted_mean_over_dominant_sfc_and_vtype,
+    "zorl": _area_and_vfrac_weighted_mean_over_dominant_sfc_and_vtype,
+    "smc": _area_weighted_mean_over_dominant_sfc_and_stype,
+    "slc": _area_weighted_mean_over_dominant_sfc_and_stype,
+    "stc": _area_weighted_mean_over_dominant_sfc_and_stype,
+    "srflag": _mode,
+    "slope": _mode_over_dominant_sfc_type,
+    "sheleg": _area_and_sncovr_weighted_mean,
+    "hice": _area_and_fice_weighted_mean,
+    "shdmin": _minimum_over_dominant_sfc_type,
+    "shdmax": _maximum_over_dominant_sfc_type,
+    "snoalb": _maximum_over_dominant_sfc_type,
+    "tisfc": _area_or_area_and_fice_weighted_mean,
 }
 
 

@@ -6,9 +6,9 @@ from typing import Any, Callable, Hashable, List, Mapping, Tuple, Union
 
 import dask
 import numpy as np
+import scipy.stats
 import xarray as xr
 from skimage.measure import block_reduce as skimage_block_reduce
-from scipy.stats import mode
 
 from . import xarray_utils
 
@@ -697,7 +697,7 @@ def block_edge_sum(
 def _mode(arr: np.array, axis: int = 0, nan_policy: str = "propagate") -> np.array:
     """A version of scipy.stats.mode that only returns a NumPy array with the
     mode values along the given axis."""
-    result = mode(arr, axis=axis, nan_policy=nan_policy).mode
+    result = scipy.stats.mode(arr, axis=axis, nan_policy=nan_policy).mode
 
     # Note that the result always has a length-one extra dimension in place of
     # the dimension that was reduced.  We would like to squeeze that out to be
