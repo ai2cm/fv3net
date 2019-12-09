@@ -1,5 +1,4 @@
 import argparse
-import logging
 
 import numpy as np
 import xarray as xr
@@ -82,13 +81,6 @@ def hydrostatic_dz_withlog(T, q, dp):
 
 def thickness(x, p):
     return x.where((p < 600e2) & (p > 100e2)).sum(VERTICAL_DIM)
-
-
-def adjust_surface_geopotential(phis, old_dz, new_dz):
-    thickness_old = old_dz.sum(VERTICAL_DIM)
-    thickness_new = new_dz.sum(VERTICAL_DIM)
-
-    height_change = thickness_old - thickness_new
 
 
 # TODO: refactor this to a separate file for adjustments

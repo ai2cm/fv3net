@@ -1,6 +1,4 @@
 """Tools for working with cubedsphere data"""
-import logging
-from os.path import join
 from typing import Any, Callable, Hashable, List, Mapping, Tuple, Union
 
 import dask
