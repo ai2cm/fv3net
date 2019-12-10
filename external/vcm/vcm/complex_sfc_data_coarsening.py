@@ -402,23 +402,17 @@ def _compute_arguments_for_complex_sfc_coarsening(
 ) -> Dict[str, xr.DataArray]:
     coarsened_slmsk = block_mode(ds.slmsk, coarsening_factor)
 
-    upsampled_slmsk = _block_upsample_like(
-        coarsened_slmsk, ds.slmsk
-    )
+    upsampled_slmsk = _block_upsample_like(coarsened_slmsk, ds.slmsk)
     is_dominant_surface_type = xarray_utils.isclose(ds.slmsk, upsampled_slmsk)
 
     coarsened_vtype_and_stype = block_mode(
         ds[["vtype", "stype"]].where(is_dominant_surface_type), coarsening_factor
     )
 
-    upsampled_vtype = _block_upsample_like(
-        coarsened_vtype_and_stype.vtype, ds.vtype
-    )
+    upsampled_vtype = _block_upsample_like(coarsened_vtype_and_stype.vtype, ds.vtype)
     is_dominant_vtype = xarray_utils.isclose(ds.vtype, upsampled_vtype)
 
-    upsampled_stype = _block_upsample_like(
-        coarsened_vtype_and_stype.stype, ds.stype
-    )
+    upsampled_stype = _block_upsample_like(coarsened_vtype_and_stype.stype, ds.stype)
     is_dominant_stype = xarray_utils.isclose(ds.stype, upsampled_stype)
 
     return {
