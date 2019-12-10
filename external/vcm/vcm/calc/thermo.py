@@ -13,6 +13,7 @@ VERTICAL_DIM = "zaxis_1"
 
 REVERSE = slice(None, None, -1)
 
+
 def density_to_virtual_temperature(rho, p):
     return p / Rd / rho
 
@@ -33,7 +34,7 @@ def absolute_pressure_interface(dp, toa_pressure=300, dim=VERTICAL_DIM):
 
 
 def absolute_height_interface(dz, phis, dim=VERTICAL_DIM):
-    dzv = - dz.variable  # dz in model is negative
+    dzv = -dz.variable  # dz in model is negative
     bottom = 0 * dzv.isel({dim: [0]}) + phis.variable / gravity
     bottom = bottom.transpose(*dzv.dims)
     dzv_with_bottom = bottom.concat([dzv, bottom], dim=dim)
