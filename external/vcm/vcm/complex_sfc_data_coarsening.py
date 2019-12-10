@@ -368,23 +368,27 @@ def _apply_surface_chgres_corrections(ds: xr.Dataset) -> xr.Dataset:
     return _zero_shdmin_over_land_ice(ds)
 
 
-def _block_upsample_and_rechunk(
+def _block_upsample_like(
     da: xr.DataArray,
     reference_da: xr.DataArray,
-    upsampling_factor: int,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
 ) -> xr.DataArray:
-    """Upsample DataArray and rechunk to match reference DataArray's chunks.
+    """Upsample a DataArray and sync its chunk and coordinate properties with a
+    reference DataArray.
 
-    This is needed, because block_upsample leads to unnecessarily small chunk
-    sizes when applied to dask arrays, which degrades performance if not
-    corrected.
-
-    This private function is strictly for use in
-    coarse_grain_sfc_data_complicated; it implicitly assumes that the
-    reference_da has dimensions that match the upsampled da.
+    The purpose of this function is to upsample a coarsened DataArray back out
+    to its original resolution.  In doing so it:
+      - Ensures the chunk sizes of the upsampled DataArray match the chunk sizes of
+        the original DataArray.  This is useful, because block_upsample often
+        produces chunk sizes that are too small for good performance when
+        applied to dask arrays.
+      - Adds horizontal dimension coordinates that match the reference DataArray.
+    
+    As other block-related functions, this function assumes that the upsampling
+    factor is the same in the x and y dimension.
     """
+    upsampling_factor = reference_da.sizes[x_dim] // da.sizes[x_dim]
     result = block_upsample(da, upsampling_factor, x_dim=x_dim, y_dim=y_dim)
     if isinstance(da.data, dask_array.Array):
         result = result.chunk(reference_da.chunks)
@@ -398,8 +402,8 @@ def _compute_arguments_for_complex_sfc_coarsening(
 ) -> Dict[str, xr.DataArray]:
     coarsened_slmsk = block_mode(ds.slmsk, coarsening_factor)
 
-    upsampled_slmsk = _block_upsample_and_rechunk(
-        coarsened_slmsk, ds.slmsk, coarsening_factor
+    upsampled_slmsk = _block_upsample_like(
+        coarsened_slmsk, ds.slmsk
     )
     is_dominant_surface_type = xarray_utils.isclose(ds.slmsk, upsampled_slmsk)
 
@@ -407,13 +411,13 @@ def _compute_arguments_for_complex_sfc_coarsening(
         ds[["vtype", "stype"]].where(is_dominant_surface_type), coarsening_factor
     )
 
-    upsampled_vtype = _block_upsample_and_rechunk(
-        coarsened_vtype_and_stype.vtype, ds.vtype, coarsening_factor
+    upsampled_vtype = _block_upsample_like(
+        coarsened_vtype_and_stype.vtype, ds.vtype
     )
     is_dominant_vtype = xarray_utils.isclose(ds.vtype, upsampled_vtype)
 
-    upsampled_stype = _block_upsample_and_rechunk(
-        coarsened_vtype_and_stype.stype, ds.stype, coarsening_factor
+    upsampled_stype = _block_upsample_like(
+        coarsened_vtype_and_stype.stype, ds.stype
     )
     is_dominant_stype = xarray_utils.isclose(ds.stype, upsampled_stype)
 
