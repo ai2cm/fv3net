@@ -2,7 +2,7 @@
 import logging
 from functools import partial
 from os.path import join
-from typing import Any, Callable, Hashable, List, Mapping, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Tuple, Union
 
 import dask
 import numpy as np
@@ -610,39 +610,6 @@ def block_median(
     )
 
 
-def block_coarsen(
-    obj: Union[xr.Dataset, xr.DataArray],
-    coarsening_factor: int,
-    x_dim: Hashable = "xaxis_1",
-    y_dim: Hashable = "yaxis_1",
-    method: str = "sum",
-    coord_func: Union[
-        str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_coords_coord_func,
-) -> Union[xr.Dataset, xr.DataArray]:
-    """Coarsen a DataArray or Dataset by performing an operation over blocks.
-
-    Args:
-        obj: Input Dataset or DataArray.
-        coarsening_factor: Integer coarsening factor to use.
-        x_dim: x dimension name (default 'xaxis_1').
-        y_dim: y dimension name (default 'yaxis_1').
-        method: Name of coarsening method to use.
-        coord_func: function that is applied to the coordinates, or a
-            mapping from coordinate name to function.  See `xarray's coarsen
-            method for details
-            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
-
-    Returns:
-        xr.Dataset or xr.DataArray.
-    """
-    coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-    coarsen_object = obj.coarsen(coarsen_kwargs, coord_func=coord_func)
-    result = getattr(coarsen_object, method)()
-
-    return result
-
-
 def block_edge_sum(
     obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
@@ -758,7 +725,7 @@ def _mode_reduce(
     return _ureduce(arr, _mode, axis=axis, nan_policy=nan_policy)
 
 
-def block_mode(
+def _block_mode(
     obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
     x_dim: Hashable = "xaxis_1",
@@ -797,6 +764,59 @@ def block_mode(
         y_dim=y_dim,
         coord_func=coord_func,
     )
+
+
+CUSTOM_COARSENING_FUNCTIONS = {"median": block_median, "mode": _block_mode}
+
+
+def block_coarsen(
+    obj: Union[xr.Dataset, xr.DataArray],
+    coarsening_factor: int,
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    method: str = "sum",
+    coord_func: Union[
+        str, Mapping[Hashable, Union[Callable, str]]
+    ] = coarsen_coords_coord_func,
+    func_kwargs: Optional[Dict] = None,
+) -> Union[xr.Dataset, xr.DataArray]:
+    """Coarsen a DataArray or Dataset by performing an operation over blocks.
+
+    In addition to the operations supported through xarray's coarsen method,
+    this function also supports dask-compatible 'median' and 'mode' reduction
+    methods.
+
+    Args:
+        obj: Input Dataset or DataArray.
+        coarsening_factor: Integer coarsening factor to use.
+        x_dim: x dimension name (default 'xaxis_1').
+        y_dim: y dimension name (default 'yaxis_1').
+        method: Name of coarsening method to use.
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
+        func_kwargs: Additional keyword arguments to pass to the reduction function.
+
+    Returns:
+        xr.Dataset or xr.DataArray.
+    """
+    if func_kwargs is None:
+        func_kwargs = {}
+
+    if method in CUSTOM_COARSENING_FUNCTIONS:
+        return CUSTOM_COARSENING_FUNCTIONS[method](
+            obj,
+            coarsening_factor,
+            x_dim=x_dim,
+            y_dim=y_dim,
+            coord_func=coord_func,
+            **func_kwargs,
+        )
+    else:
+        coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
+        coarsen_object = obj.coarsen(coarsen_kwargs, coord_func=coord_func)
+        return getattr(coarsen_object, method)()
 
 
 def block_upsample(

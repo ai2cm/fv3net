@@ -7,7 +7,6 @@ from . import xarray_utils
 from .casting import doubles_to_floats
 from .cubedsphere import (
     block_coarsen,
-    block_mode,
     block_upsample,
     weighted_block_average,
 )
@@ -134,7 +133,14 @@ def _mode(
     fice: xr.DataArray,
     coarsened_surface_type: xr.DataArray,
 ) -> xr.DataArray:
-    return block_mode(data_var, coarsening_factor)
+    return block_coarsen(
+        data_var,
+        coarsening_factor,
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
+        method="mode",
+        func_kwargs={"nan_policy": "omit"},
+    )
 
 
 def _mode_over_dominant_sfc_type(
@@ -149,7 +155,14 @@ def _mode_over_dominant_sfc_type(
     fice: xr.DataArray,
     coarsened_surface_type: xr.DataArray,
 ) -> xr.DataArray:
-    return block_mode(data_var.where(is_dominant_surface_type), coarsening_factor)
+    return block_coarsen(
+        data_var.where(is_dominant_surface_type),
+        coarsening_factor,
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
+        method="mode",
+        func_kwargs={"nan_policy": "omit"},
+    )
 
 
 def _area_and_sncovr_weighted_mean(
@@ -402,13 +415,25 @@ def _block_upsample_like(
 def _compute_arguments_for_complex_sfc_coarsening(
     ds: xr.Dataset, coarsening_factor: int
 ) -> Dict[str, xr.DataArray]:
-    coarsened_slmsk = block_mode(ds.slmsk, coarsening_factor)
+    coarsened_slmsk = block_coarsen(
+        ds.slmsk,
+        coarsening_factor,
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
+        method="mode",
+        func_kwargs={"nan_policy": "omit"},
+    )
 
     upsampled_slmsk = _block_upsample_like(coarsened_slmsk, ds.slmsk)
     is_dominant_surface_type = xarray_utils.isclose(ds.slmsk, upsampled_slmsk)
 
-    coarsened_vtype_and_stype = block_mode(
-        ds[["vtype", "stype"]].where(is_dominant_surface_type), coarsening_factor
+    coarsened_vtype_and_stype = block_coarsen(
+        ds[["vtype", "stype"]].where(is_dominant_surface_type),
+        coarsening_factor,
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
+        method="mode",
+        func_kwargs={"nan_policy": "omit"},
     )
 
     upsampled_vtype = _block_upsample_like(coarsened_vtype_and_stype.vtype, ds.vtype)

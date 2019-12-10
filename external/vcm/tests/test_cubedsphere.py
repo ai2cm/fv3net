@@ -4,6 +4,7 @@ import xarray as xr
 from skimage.measure import block_reduce as skimage_block_reduce
 
 from vcm.cubedsphere import (
+    _block_mode,
     _mode,
     _mode_reduce,
     _ureduce,
@@ -13,7 +14,6 @@ from vcm.cubedsphere import (
     block_coarsen,
     block_edge_sum,
     block_median,
-    block_mode,
     block_upsample,
     coarsen_coords,
     edge_weighted_block_average,
@@ -330,6 +330,16 @@ def test_block_median(input_dataarray):
     block_sizes = {"x": coarsening_factor, "y": coarsening_factor, "z": 1}
     expected = _xarray_block_reduce_dataarray(input_dataarray, block_sizes, np.median)
     result = block_median(input_dataarray, coarsening_factor, "x", "y")
+    xr.testing.assert_identical(result, expected)
+
+
+def test_block_median_via_block_coarsen(input_dataarray):
+    coarsening_factor = 2
+    block_sizes = {"x": coarsening_factor, "y": coarsening_factor, "z": 1}
+    expected = _xarray_block_reduce_dataarray(input_dataarray, block_sizes, np.median)
+    result = block_coarsen(
+        input_dataarray, coarsening_factor, "x", "y", method="median"
+    )
     xr.testing.assert_identical(result, expected)
 
 
@@ -651,7 +661,7 @@ def test__mode_reduce(array, axis, expected, kwargs):
     np.testing.assert_array_equal(result, expected)
 
 
-def test_block_mode():
+def test__block_mode():
     data = np.array(
         [
             [0.0, 0.0, 1.0, 1.0],
@@ -665,7 +675,27 @@ def test_block_mode():
     expected_data = np.array([[0.0, 1.0], [1.0, 0.0]])
     expected = xr.DataArray(expected_data, dims=["x", "y"])
 
-    result = block_mode(da, 2, x_dim="x", y_dim="y", nan_policy="omit")
+    result = _block_mode(da, 2, x_dim="x", y_dim="y", nan_policy="omit")
+    xr.testing.assert_identical(result, expected)
+
+
+def test_block_mode_via_block_coarsen():
+    data = np.array(
+        [
+            [0.0, 0.0, 1.0, 1.0],
+            [0.0, 0.0, 1.0, 1.0],
+            [1.0, 1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0, np.nan],
+        ]
+    )
+    da = xr.DataArray(data, dims=["x", "y"])
+
+    expected_data = np.array([[0.0, 1.0], [1.0, 0.0]])
+    expected = xr.DataArray(expected_data, dims=["x", "y"])
+
+    result = block_coarsen(
+        da, 2, x_dim="x", y_dim="y", method="mode", func_kwargs={"nan_policy": "omit"}
+    )
     xr.testing.assert_identical(result, expected)
 
 
