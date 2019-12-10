@@ -17,6 +17,8 @@ FREEZING_TEMPERATURE = 273.16
 SHDMIN_THRESHOLD = 0.011
 STYPE_LAND_ICE = 16.0
 VTYPE_LAND_ICE = 15.0
+X_DIM = "xaxis_1"
+Y_DIM = "yaxis_1"
 
 
 def _area_weighted_mean(
@@ -32,7 +34,7 @@ def _area_weighted_mean(
     coarsened_surface_type: xr.DataArray,
 ) -> xr.DataArray:
     return weighted_block_average(
-        data_var, area, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1"
+        data_var, area, coarsening_factor, x_dim=X_DIM, y_dim=Y_DIM
     )
 
 
@@ -52,8 +54,8 @@ def _area_weighted_mean_over_dominant_sfc_type(
         data_var.where(is_dominant_surface_type),
         area.where(is_dominant_surface_type),
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
     )
 
 
@@ -74,21 +76,21 @@ def _area_and_vfrac_weighted_mean_over_dominant_sfc_and_vtype(
         data_var.where(mask),
         area.where(mask),
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
     )
     area_and_vfrac_weighted_mean = weighted_block_average(
         data_var.where(mask),
         (area * vfrac).where(mask),
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
     )
     coarsened_area_times_vfrac = block_coarsen(
         (area * vfrac).where(mask),
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
         method="sum",
     )
     return xr.where(
@@ -115,8 +117,8 @@ def _area_weighted_mean_over_dominant_sfc_and_stype(
         data_var.where(mask),
         area.where(mask),
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
     )
 
 
@@ -163,7 +165,7 @@ def _area_and_sncovr_weighted_mean(
     coarsened_surface_type: xr.DataArray,
 ) -> xr.DataArray:
     return weighted_block_average(
-        data_var, area * sncovr, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1"
+        data_var, area * sncovr, coarsening_factor, x_dim=X_DIM, y_dim=Y_DIM
     ).fillna(0.0)
 
 
@@ -180,7 +182,7 @@ def _area_and_fice_weighted_mean(
     coarsened_surface_type: xr.DataArray,
 ) -> xr.DataArray:
     return weighted_block_average(
-        data_var, area * fice, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1"
+        data_var, area * fice, coarsening_factor, x_dim=X_DIM, y_dim=Y_DIM
     ).fillna(0.0)
 
 
@@ -199,8 +201,8 @@ def _minimum_over_dominant_sfc_type(
     return block_coarsen(
         data_var.where(is_dominant_surface_type),
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
         method="min",
     )
 
@@ -220,8 +222,8 @@ def _maximum_over_dominant_sfc_type(
     return block_coarsen(
         data_var.where(is_dominant_surface_type),
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
         method="max",
     )
 
@@ -246,15 +248,15 @@ def _area_or_area_and_fice_weighted_mean(
         data_var.where(is_dominant_surface_type),
         (area * fice).where(is_dominant_surface_type),
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
     )
     land_or_ocean = weighted_block_average(
         data_var.where(is_dominant_surface_type),
         area.where(is_dominant_surface_type),
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=X_DIM,
+        y_dim=Y_DIM,
     )
     return xr.where(
         xarray_utils.isclose(coarsened_surface_type, 2.0), sea_ice, land_or_ocean
