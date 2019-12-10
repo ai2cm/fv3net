@@ -31,13 +31,20 @@ FV3_FACE_CONNECTIONS = {
     }
 }
 
-COORDS = {
-    "x": {"center": "grid_xt", "outer": "grid_x"},
-    "y": {"center": "grid_yt", "outer": "grid_y"},
-}
+# diagnostics defaults
+COORD_X_CENTER = "grid_xt"
+COORD_X_OUTER = "grid_x"
+COORD_Y_CENTER = "grid_yt"
+COORD_Y_OUTER = "grid_y"
 
 
-def create_fv3_grid(ds: xr.Dataset) -> xgcm.Grid:
+def create_fv3_grid(
+    ds: xr.Dataset,
+    x_center=COORD_X_CENTER: str,
+    x_outer=COORD_X_OUTER: str,
+    y_center=COORD_Y_CENTER: str,
+    y_outer=COORD_Y_OUTER: str,
+) -> xgcm.Grid:
     """Create an XGCM_ grid from a dataset of FV3 tile data
 
     This object can be used to interpolate and differentiate cubed sphere data, please
@@ -58,4 +65,8 @@ def create_fv3_grid(ds: xr.Dataset) -> xgcm.Grid:
     if "tile" not in ds.coords:
         raise ValueError("The input Dataset must have a `tile` coordinate.")
 
-    return xgcm.Grid(ds, coords=COORDS, face_connections=FV3_FACE_CONNECTIONS)
+    coords = {
+        "x": {"center": COORD_X_CENTER, "outer": COORD_X_OUTER},
+        "y": {"center": COORD_Y_CENTER, "outer": COORD_Y_OUTER},
+    }
+    return xgcm.Grid(ds, coords=coords, face_connections=FV3_FACE_CONNECTIONS)
