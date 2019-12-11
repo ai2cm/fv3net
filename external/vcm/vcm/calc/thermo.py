@@ -47,7 +47,7 @@ def interface_to_center(ds, dim=VERTICAL_DIM):
 
 def dp_to_p(dp, dim=VERTICAL_DIM):
     pi = absolute_pressure_interface(dp, dim=dim)
-    pc = interface_to_center(pi)
+    pc = interface_to_center(pi, dim=dim)
     return xr.DataArray(pc, coords=dp.coords)
 
 
