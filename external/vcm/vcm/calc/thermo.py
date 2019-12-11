@@ -5,8 +5,9 @@ import xarray as xr
 
 from vcm import cubedsphere
 
-gravity = 9.81  # m /s2
-Rd = 287  # J / K / kg
+# following are defined as in FV3GFS model (see fms/constants/constants.f90)
+gravity = 9.80665  # m /s2
+Rd = 287.05  # J / K / kg
 
 # default for restart file
 VERTICAL_DIM = "zaxis_1"
