@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 import xarray as xr
 
-import time
+from fv3net.machine_learning import reshape
 
 @dataclass
 class BatchGenerator:
@@ -30,3 +30,19 @@ class BatchGenerator:
     def generate_test_set(self):
         return self.ds.isel(sample=slice(self.num_train_samples, None))
 
+    def _reshape_and_shuffle(
+            self,
+            ds,
+            sample_dims,
+            chunk_size=None,
+            random_seed=1234
+    ):
+        t0 = time.time()
+        ds_stacked = ds \
+            .stack(sample=sample_dims) \
+            .transpose("sample", "pfull") \
+            .reset_index('sample')
+        ds_chunked = ds_stacked.chunk({"sample": chunk_size})
+        ds_chunked_shuffled = reshape.shuffled(ds_chunked, "sample")
+        logger.info(f"Time to shuffle and rechunk: {int(time.time()-t0)} s")
+        return ds_chunked_shuffled
