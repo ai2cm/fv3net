@@ -66,7 +66,7 @@ def create_fv3_grid(
         raise ValueError("The input Dataset must have a `tile` coordinate.")
 
     coords = {
-        "x": {"center": COORD_X_CENTER, "outer": COORD_X_OUTER},
-        "y": {"center": COORD_Y_CENTER, "outer": COORD_Y_OUTER},
+        "x": {"center": x_center, "outer": x_outer},
+        "y": {"center": y_center, "outer": y_outer},
     }
     return xgcm.Grid(ds, coords=coords, face_connections=FV3_FACE_CONNECTIONS)
