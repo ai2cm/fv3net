@@ -34,8 +34,8 @@ def isclose(
     )
 
 
-def _repeat_dataarray(obj: xr.DataArray, factor: int, dim: Hashable) -> xr.DataArray:
-    """Upsample a DataArray by uniformly repeating values n times along a dimension."""
+def _repeat_dataarray(obj: xr.DataArray, repeats: int, dim: Hashable) -> xr.DataArray:
+    """Repeat elements of an array."""
 
     def func(arr, repeats=1):
         return arr.repeat(repeats, axis=-1)
@@ -50,19 +50,19 @@ def _repeat_dataarray(obj: xr.DataArray, factor: int, dim: Hashable) -> xr.DataA
             output_core_dims=[[dim]],
             exclude_dims={dim},
             dask="allowed",
-            kwargs={"repeats": factor},
+            kwargs={"repeats": repeats},
         )
 
 
 def repeat(
-    obj: Union[xr.Dataset, xr.DataArray], factor: int, dim: Hashable
+    obj: Union[xr.Dataset, xr.DataArray], repeats: Union[int, np.array], dim: Hashable
 ) -> Union[xr.Dataset, xr.DataArray]:
-    """Upsample an object by uniformly repeating values n times along a
-    dimension.
+    """Repeat elements of an array.
     
     Args:
         obj: Input xr.Dataset or xr.DataArray.
-        factor: Integer repetition factor.
+        repeats: The number of repetitions for each element. repeats is
+            broadcasted to fit the shape of the given axis.
         dim: Dimension name to repeat along.
 
     Returns:
@@ -75,7 +75,7 @@ def repeat(
         )
 
     if isinstance(obj, xr.Dataset):
-        return obj.apply(_repeat_dataarray, args=(factor, dim))
+        return obj.apply(_repeat_dataarray, args=(repeats, dim))
     else:
-        return _repeat_dataarray(obj, factor, dim)
+        return _repeat_dataarray(obj, repeats, dim)
     return obj

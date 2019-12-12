@@ -54,11 +54,16 @@ def test__repeat_dataarray(dim, use_dask):
 
 @pytest.mark.parametrize("object_type", ["Dataset", "DataArray"])
 @pytest.mark.parametrize("dim", ["x", "z"], ids=["dim present", "dim not present"])
-def test_repeat(object_type, dim):
+@pytest.mark.parametrize(
+    ("expected_foo_data", "repeats"),
+    [([1, 1, 2, 2, 3, 3], 2), ([1, 1, 2, 3], [2, 1, 1])],
+    ids=["integer repeats argument", "array repeats argument"],
+)
+def test_repeat(object_type, dim, expected_foo_data, repeats):
     foo = xr.DataArray([1, 2, 3], dims=["x"], coords=[[1, 2, 3]], name="foo")
     bar = xr.DataArray([1, 2, 3], dims=["y"], coords=[[1, 2, 3]], name="bar")
 
-    expected_foo = xr.DataArray([1, 1, 2, 2, 3, 3], dims=["x"], name="foo")
+    expected_foo = xr.DataArray(expected_foo_data, dims=["x"], name="foo")
     expected_bar = bar.copy(deep=True)
 
     if object_type == "Dataset":
@@ -69,7 +74,7 @@ def test_repeat(object_type, dim):
         expected = expected_foo
 
     if dim == "x":
-        result = repeat(obj, 2, dim)
+        result = repeat(obj, repeats, dim)
         xr.testing.assert_identical(result, expected)
     else:
         with pytest.raises(ValueError, match="Cannot repeat over 'z'"):
