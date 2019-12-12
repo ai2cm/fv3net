@@ -101,6 +101,7 @@ bilinear*
 # MISC
 *.nc
 scratch/*
+.submit_example.sh
 
 # snakemake
 .snakemake/*

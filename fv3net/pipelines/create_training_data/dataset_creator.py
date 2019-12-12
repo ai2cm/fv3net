@@ -6,6 +6,7 @@ import time
 import xarray as xr
 
 from vcm.calc import apparent_source
+from vcm.convenience import get_timestep_from_filename
 from vcm.cubedsphere import shift_edge_var_to_center, rename_centered_xy_coords
 
 logger = logging.getLogger()
@@ -40,8 +41,8 @@ def write_to_zarr(
         ds,
         gcs_dest_dir,
         zarr_file,
+        project='vcm-ml',
         bucket='vcm-ml-data',
-        project='vcm-ml'
 ):
     """Still haven't figured out why writing is so slow
 
@@ -55,20 +56,22 @@ def write_to_zarr(
     """
     logger.info("Writing to zarr...")
     t0 = time.time()
-    fs = gcsfs.GCSFileSystem(project=project)
     output_path = os.path.join(bucket, gcs_dest_dir, zarr_file)
+    fs = gcsfs.GCSFileSystem(project=project)
     ds.to_zarr(fs.get_mapper(output_path), 'w')
     logger.info(f"Done writing zarr to {output_path}, {int(time.time() - t0)} s.")
 
 
 def create_training_dataset(
         data_urls,
-        mask_to_surface_type=None
+        mask_to_surface_type=None,
+        project='vcm-ml'
 ):
     t0 = time.time()
-    ds = _load_cloud_data(data_urls)
-    logger.info(f"Finished loading zarrs for tsteps "
-                f"{tstep_index_start}-{tstep_index_stop}. "
+    fs = gcsfs.GCSFileSystem(project=project)
+    ds = _load_cloud_data(fs, data_urls)
+    logger.info(f"Finished loading zarrs for timesteps "
+                f"{[get_timestep_from_filename(url) for url in data_urls]}. "
                 f"{int(time.time() - t0)} s")
     if not mask_to_surface_type:
         ds = mask_to_surface_type(ds, mask_to_surface_type)
@@ -76,7 +79,7 @@ def create_training_dataset(
     return ds
 
 
-def _load_cloud_data(gcs_urls):
+def _load_cloud_data(fs, gcs_urls):
     gcs_zarr_mappings = [fs.get_mapper(url) for url in gcs_urls]
     ds = xr.concat(
         map(xr.open_zarr, gcs_zarr_mappings),
