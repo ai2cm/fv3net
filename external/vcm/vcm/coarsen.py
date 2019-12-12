@@ -11,6 +11,8 @@ import pandas as pd
 import xarray as xr
 from toolz import curry
 
+from .calc.thermo import absolute_pressure_interface
+from .calc.remapz import remap_vertical
 from .cubedsphere import (
     block_coarsen,
     block_edge_sum,
@@ -29,6 +31,8 @@ OUTPUT_CATEGORY_NAMES = {
     "sfc_data": "sfc_data",
 }
 SOURCE_DATA_PATTERN = "{timestep}/{timestep}.{category}"
+DEFAULT_COARSEN_LEVEL = "model"
+NO_REMAP_VARS = ["DZ", "delp", "u", "v", "phis"]
 
 
 def integerize(x):
@@ -356,6 +360,7 @@ def coarsen_restart_file_category(
     source_data_prefix,
     output_files,
     source_data_pattern=SOURCE_DATA_PATTERN,
+    coarsen_level=DEFAULT_COARSEN_LEVEL,
 ):
     category = OUTPUT_CATEGORY_NAMES[native_category_name]
     grid_spec = xr.open_dataset(coarse_grid_spec, chunks={"tile": 1})
@@ -368,15 +373,19 @@ def coarsen_restart_file_category(
     )
 
     if category == "fv_core_coarse.res":
+        if coarsen_level == "pressure":
+            source = remap_to_coarse_pressure(source, source.delp, grid_spec)
         coarsened = coarse_grain_fv_core(
             source,
             source.delp,
-            grid_spec.area.rename({"grid_xt": "xaxis_1", "grid_yt": "yaxis_2"}),
+            grid_spec.areac,
             grid_spec.dx.rename({"grid_xt": "xaxis_1", "grid_y": "yaxis_1"}),
             grid_spec.dy.rename({"grid_x": "xaxis_2", "grid_yt": "yaxis_2"}),
             coarsening_factor,
         )
     elif category == "fv_srf_wnd_coarse.res":
+        if coarsen_level == "pressure":
+            source = remap_to_coarse_pressure(source, source.delp, grid_spec)
         coarsened = coarse_grain_fv_srf_wnd(
             source,
             grid_spec.area.rename({"grid_xt": "xaxis_1", "grid_yt": "yaxis_1"}),
@@ -412,3 +421,28 @@ def coarsen_restart_file_category(
     coarsened = sync_dimension_order(coarsened, source)
     for tile, file in zip(TILES, output_files):
         coarsened.sel(tile=tile).drop("tile").to_netcdf(file)
+
+
+def remap_to_coarse_pressure(ds, delp_fine, grid_spec, coarsening_factor):
+    delp_coarse = weighted_block_average(
+        delp_fine,
+        grid_spec.area.rename({"grid_xt": "xaxis_1", "grid_yt": "yaxis_2"}),
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_2",
+    )
+    delp_coarse_on_fine = block_upsample_like(delp_coarse, delp_fine)
+    p_fine = absolute_pressure_interface(delp_fine, dim="zaxis_1")
+    p_coarse_on_fine = absolute_pressure_interface(delp_coarse_on_fine, dim="zaxis_1")
+    ds_remap = xr.zeros_like(ds)
+    for var in ds:
+        if var == "delp":
+            ds_remap[var] = delp_coarse_on_fine
+        elif var in NO_REMAP_VARS:
+            ds_remap[var] = ds[var]
+        else:
+            ds_remap[var] = remap_vertical(p_fine, ds[var], p_coarse_on_fine)
+    delp_masked = delp_coarse_on_fine.where(
+        p_coarse_on_fine.isel(1, None) < p_fine.max(dim="zaxis_1"), other=0.0
+    )
+    return ds_remap, delp_masked
