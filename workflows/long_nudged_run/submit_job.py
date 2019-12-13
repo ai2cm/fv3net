@@ -67,7 +67,6 @@ def set_run_duration(config: dict, duration: timedelta) -> dict:
 
 def get_config(start_date: datetime, run_duration: timedelta) -> dict:
     config = fv3config.get_default_config()
-    config = fv3config.enable_restart(config)
     config["experiment_name"] = f"long-nudged-run.{uuid.uuid4()}"
     config["diag_table"] = os.path.join(CONFIG_BUCKET, "diag_table")
     config["initial_conditions"] = IC_BUCKET
