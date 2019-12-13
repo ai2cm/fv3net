@@ -4,7 +4,6 @@ import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
 from cartopy import crs as ccrs
-from cartopy.util import add_cyclic_point
 from os.path import join
 import warnings
 from functools import partial
@@ -24,15 +23,15 @@ DIAG_COORD_VARS = {'lonb' : ['grid_y', 'grid_x', 'tile'],
               'lat' : ['grid_yt', 'grid_xt', 'tile']
              }
 
+
 def plot_cube(
-    plottable_variable : xr.Dataset,
+    plottable_variable: xr.Dataset,
+    plotting_function: str = 'pcolormesh',
     ax: plt.axes = None,
     row: str = None,
     column: str = None,
     projection: ccrs.Projection = ccrs.Robinson(),
     colorbar: bool = True,
-    contour: bool = False,
-    contour_kwargs: dict = None,
     coastlines: bool = True,
     coastlines_kwargs: dict = None,
     **kwargs
@@ -48,6 +47,8 @@ def plot_cube(
             takes in the output of `vcm.v3_restarts.open_restarts` merged to 
             dataset of grid spec variables, along with the name of the variable to be plotted, or from the helper function `mappable_diag_var`, 
             which takes in the output of `vcm.v3_restarts.open_restarts`
+        plotting_function (str):
+            Function name to use in plotting the variable. Available options are 'pcolormesh' and 'contour'. Defaults to 'pcolormesh'.
         ax (plt.axes, optional):
             Axes onto which the map should be plotted; must be created with a cartopy projection argument. 
             If not supplied, axes are generated with a projection. If axes are suppled, faceting is disabled
@@ -63,11 +64,6 @@ def plot_cube(
             Defaults to Robinson projection. 
         colorbar (bool, optional):
             Flag for whether to plot a colorbar. Defaults to True.
-        contour (bool, optional): 
-            Flag for whether to plot contour lines of the variable over the pcolormesh. Default False.
-        contour_kwargs (dict, optional):
-            Dict of options to be passed to `plt.contour` if `contour` flag is set to True. If not supplied,
-            contours are plotted at level [0] only.
         coastlines (bool, optinal):
             Whether to plot coastlines on map. Default True.
         coastlines_kwargs (dict, optional):
@@ -77,16 +73,14 @@ def plot_cube(
     
         axes (list):
             List or nested list of `ax.axes` objects assocated with map subplots.
-        ims (list):
-            List or nested list of `ax.pcolormesh` object handles associated with map subplots.
-        cfs (list):
-            List or nested list of `ax.contour` object handles associated with map subplots.
+        hs (list):
+            List or nested list of matplotlib object handles associated with map subplots.
         cbar (obj):
             `ax.colorbar` object handle associated with figure
     
     Example:
     
-        # plots W at multiple times and vertical levels, faceted across subplots
+        # plots T at multiple vertical levels, faceted across subplots
         sample_data = fv3_restarts.open_restarts(
                 '/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/rundir/',
                 '20160805.170000',
@@ -95,14 +89,16 @@ def plot_cube(
         grid_spec_paths = [f"/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/rundir/grid_spec.tile{tile}.nc" for tile in range (1,7)]
         grid_spec = xr.open_mfdataset(paths = grid_spec_paths, combine = 'nested', concat_dim = 'tile')
         ds = xr.merge([sample_data, grid_spec])
-        axes, ims, cfs, cbar = plot_cube(
-                mappable_restart_var(ds, 'W').isel(pfull = slice(None, None, 20)),
-                row = "pfull",
-                column = "time",
-                contour = True,
-                coastlines = True,
-                colorbar = True
-            )
+        axes, hs, cbar = plot_cube(
+            mappable_restart_var(ds, 'T').isel(time = 0, pfull = [78, 40]),#.isel(pfull = slice(None, None, 20)),
+            plotting_function='pcolormesh',
+            row = "pfull",
+            coastlines = True,
+            coastlines_kwargs = coastlines_kwargs,
+            colorbar = True,
+            vmin = 250,
+            vmax = 300,
+        )
     """
 
     
@@ -117,14 +113,13 @@ def plot_cube(
     cmap = kwargs['cmap'] if 'cmap' in kwargs else None
     kwargs["vmin"], kwargs["vmax"], kwargs["cmap"] = _infer_color_limits(xmin, xmax, vmin, vmax, cmap)
     
-    _plot_func = partial(
+    _plot_func_short = partial(
         _plot_cube_axes,
+        plotting_function,
         plottable_variable.lat.values,
         plottable_variable.lon.values,
         plottable_variable.latb.values,
         plottable_variable.lonb.values,
-        contour = contour,
-        contour_kwargs = contour_kwargs,
         coastlines = coastlines,
         coastlines_kwargs = coastlines_kwargs,
         **kwargs
@@ -147,14 +142,12 @@ def plot_cube(
             
         _, axes = plt.subplots(n_rows, n_cols, subplot_kw={'projection': projection})
         
-        ims = []
-        cfs = []
+        hs = []
         for i in range(axes.shape[0]):
             if len(axes.shape) > 1:
-                ims2 = []
-                cfs2 = []
+                hs2 = []
                 for j in range(axes.shape[1]):
-                    im, cf = _plot_func(
+                    h = _plot_func_short(
                         array = plottable_variable[var_name].isel({
                             row : i,
                             column : j
@@ -162,42 +155,38 @@ def plot_cube(
                         ax = axes[i, j],
                         title = f"{row} = {plottable_variable[row].isel({row : i}).item()}, {column} = {plottable_variable[column].isel({column : j}).item()}"
                     )
-                    ims2.append(im)
-                    cfs2.append(cfs)
-                ims.append(ims2)
-                cfs.append(cfs2)
+                    hs2.append(h)
+                hs.append(hs2)
             else:
                 coord = row if not column else column
-                im, cf = _plot_func(
+                h = _plot_func_short(
                     array = plottable_variable[var_name].isel({coord : i}).values,
                     ax = axes[i],
                     title = f"{coord} = {plottable_variable[coord].isel({coord : i}).item()}"
                     )
-                ims.append(im)
-                cfs.append(cf)
+                hs.append(h)
     else:
         # single axes
         
         if not ax:
             _, ax = plt.subplots(1, 1, subplot_kw={'projection': projection})
-        im, cf = _plot_func(
+        h = _plot_func_short(
             array = array,
             ax = ax
         )
         axes = [ax]
-        ims = [im]
-        cfs = [cf]
+        hs = [h]
         
     if colorbar:
         plt.gcf().subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.8,
                     wspace=0.02, hspace=0.02)
         cb_ax = plt.gcf().add_axes([0.83, 0.1, 0.02, 0.8])
-        cbar = plt.colorbar(im, cax=cb_ax)
+        cbar = plt.colorbar(h, cax=cb_ax)
         cbar.ax.set_ylabel(var_name)
     else:
         cbar = None
     
-    return axes, ims, cfs, cbar
+    return axes, hs, cbar
 
 
 def mappable_restart_var(
@@ -223,23 +212,25 @@ def mappable_restart_var(
     
     Example:
     
-        # plots W at multiple times and vertical levels, faceted across subplots
+        # plots T at multiple vertical levels, faceted across subplots
         sample_data = fv3_restarts.open_restarts(
                 '/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/rundir/',
                 '20160805.170000',
                 '20160805.171500'
             )
         grid_spec_paths = [f"/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/rundir/grid_spec.tile{tile}.nc" for tile in range (1,7)]
-        grid_spec = xr.open_mfdataset(paths = grid_spec_paths, combine='nested', concat_dim='tile')
+        grid_spec = xr.open_mfdataset(paths = grid_spec_paths, combine = 'nested', concat_dim = 'tile')
         ds = xr.merge([sample_data, grid_spec])
-        axes, ims, cfs, cbar = plot_cube(
-                mappable_restart_var(ds, 'W').isel(pfull = slice(None, None, 20)),
-                row = "pfull",
-                column = "time",
-                contour = True,
-                coastlines = True,
-                colorbar = True
-            )
+        axes, hs, cbar = plot_cube(
+            mappable_restart_var(ds, 'T').isel(time = 0, pfull = [78, 40]),#.isel(pfull = slice(None, None, 20)),
+            plotting_function='pcolormesh',
+            row = "pfull",
+            coastlines = True,
+            coastlines_kwargs = coastlines_kwargs,
+            colorbar = True,
+            vmin = 250,
+            vmax = 300,
+        )
     """
     
     for var, dims in RESTART_COORD_VARS.items():
@@ -302,11 +293,12 @@ def mappable_diag_var(
     
         # plots diagnostic V850 at two times, faceted across rows
         diag_ds = fv3_restarts.open_standard_diags("/home/brianh/dev/fv3net/data/restart/C48/no_adjustment_2019-11-26")
-        axes, ims, cfs, cbar = plot_cube(
+        coastline_kwargs = {"color" : [1, 0, 0], "linewidth" : 1.5}
+        axes, hs, cbar = plot_cube(
             mappable_diag_var(diag_ds, 'VGRD850').isel(time = slice(2, 4)),
             row = "time",
-            contour = True,
             coastlines = True,
+            coastlines_kwargs = coastline_kwargs,
             colorbar = True,
         )
     """
@@ -408,16 +400,15 @@ def _infer_color_limits(
 
 
 def _plot_cube_axes(
+    plotting_function: str,
     lat: np.ndarray,
     lon: np.ndarray,
     latb: np.ndarray,
     lonb: np.ndarray,
     array: np.ndarray,
     ax: plt.axes,
-    contour: bool = False,
-    contour_kwargs: dict = None,
     coastlines: bool = False,
-    coastline_kwargs: dict = None,
+    coastlines_kwargs: dict = None,
     title: str = None,
     **kwargs
 ):
@@ -427,6 +418,8 @@ def _plot_cube_axes(
     
     Args:
     
+        plotting_function (str):
+            Function name to use in plotting the variable. Available options are 'pcolormesh' and 'contour'.
         lat (np.ndarray): 
             Array of latitudes of cell centers, of dimensions (npy, npx, tile) 
         lon (np.ndarray): 
@@ -439,11 +432,6 @@ def _plot_cube_axes(
             Array of variables values at cell centers, of dimensions (npy, npx, tile)
         ax (plt.axes, optional):
             Axes onto which the map should be plotted; must be created with a cartopy projection argument. 
-        contour (bool, optional): 
-            Flag for whether to plot contour lines of the variable over the pcolormesh. Default False.
-        contour_kwargs (dict, optional):
-            Dict of options to be passed to `plt.contour` if `contour` flag is set to True. If not supplied,
-            contours are plotted at level [0] only.
         coastlines (bool, optinal):
             Whether to plot coastlines on map. Default True.
         coastlines_kwargs (dict, optional):
@@ -451,15 +439,26 @@ def _plot_cube_axes(
     
     Returns:
     
-        im (obj):
-            `ax.pcolormesh` object handle associated with map subplot
-        cf (obj):
-            `ax.contour` object handle associated with map subplot
+        h (obj):
+            matplotlib object handle associated with map subplot
     
     """
     
-    
-    im = _pcolormesh_cube_arrays(
+
+    if plotting_function == 'pcolormesh':
+        setattr(ax, 'plotting_function', _pcolormesh_cube_arrays)
+    elif plotting_function == 'contour':
+        setattr(ax, 'plotting_function', _contour_cube_arrays)
+    else:
+        raise ValueError("Plotting functions only include pcolormesh and contour.")
+
+    if "coastlines_kwargs" in kwargs:
+        coastlines_kwargs = kwargs["coastlines_kwargs"]
+        del kwargs["coastlines_kwargs"]
+        
+    h = ax.plotting_function(
+        lat,
+        lon,
         latb,
         lonb,
         array,
@@ -467,38 +466,20 @@ def _plot_cube_axes(
         ax.projection.proj4_params['lon_0'],
         **kwargs
     )
-    
-    if contour:
-        contour_kwargs = dict() if not contour_kwargs else contour_kwargs
-        if "levels" not in contour_kwargs:
-            contour_kwargs["levels"] = [0]
-        if "linewidths" not in contour_kwargs:
-            contour_kwargs["linewidths"] = 0.5
-        if "colors" not in contour_kwargs:
-            contour_kwargs["colors"] = [[0.5, 0.5, 0.5]]
-        cf = _contour_cube_arrays(
-            lon,
-            lonb,
-            lat,
-            array,
-            ax,
-            ax.projection.proj4_params['lon_0'],
-            **contour_kwargs
-        )
-    else:
-        cf = None
         
     if coastlines:
-        coastline_kwargs = dict() if not coastline_kwargs else coastline_kwargs
-        ax.coastlines(**coastline_kwargs)
+        coastlines_kwargs = dict() if not coastlines_kwargs else coastlines_kwargs
+        ax.coastlines(**coastlines_kwargs)
         
     if title:
         ax.set_title(title)
 
-    return im, cf
+    return h
 
 
 def _pcolormesh_cube_arrays(
+    lat: np.ndarray,
+    lon: np.ndarray,
     latb: np.ndarray,
     lonb: np.ndarray,
     array: np.ndarray,
@@ -511,7 +492,11 @@ def _pcolormesh_cube_arrays(
         using np.ndarrays for all data
     
     Args:
-    
+        
+        lat (np.ndarray): 
+            Array of latitudes of cell centers, of dimensions (npy, npx, tile) 
+        lon (np.ndarray): 
+            Array of longitudes of cell centers, of dimensions (npy, npx, tile) 
         latb (np.ndarray): 
             Array of latitudes of cell edges, of dimensions (npy + 1, npx + 1, tile) 
         lonb (np.ndarray): 
@@ -525,7 +510,6 @@ def _pcolormesh_cube_arrays(
         **kwargs:
             Additional arguments to be passed tp `ax.pcolormesh`
 
-    
     Returns:
     
         im (obj):
@@ -548,6 +532,20 @@ def _pcolormesh_cube_arrays(
         (latb.shape[1] != (array.shape[1] + 1))
     ):
         raise ValueError('First and second axes lengths of latb and lonb must be one greater than those of array.')
+        
+    if (len(lon.shape) != 3) or (len(lat.shape) != 3) or (len(array.shape) != 3):
+        raise ValueError('Lonb, latb, and data_var each must be 3-dimensional.')
+    
+    if (lon.shape[-1] != 6) or (lat.shape[-1] != 6) or (array.shape[-1] != 6):
+        raise ValueError('Last axis of each array must have six elements for cubed-sphere tiles.')
+
+    if (
+        (lon.shape[0] != lat.shape[0]) or 
+        (lat.shape[0] != array.shape[0]) or 
+        (lon.shape[1] != lat.shape[1]) or 
+        (lat.shape[1] != array.shape[1])
+    ):
+        raise ValueError('First and second axes lengths of lat and lonb must be equal to those of array.')
     
     masked_array = np.where(
         mask_antimeridian_quads(lonb, central_longitude),
@@ -568,13 +566,14 @@ def _pcolormesh_cube_arrays(
 
 
 def _contour_cube_arrays(
-    lon: np.ndarray,
-    lonb: np.ndarray,
     lat: np.ndarray,
+    lon: np.ndarray,
+    latb: np.ndarray,
+    lonb: np.ndarray,
     array: np.ndarray,
     ax: plt.axes,
     central_longitude: float = 0.0,
-    **contour_kwargs
+    **kwargs
 ):
     
     """ Plots tiled cubed sphere contours for a given subplot axis,
@@ -586,6 +585,8 @@ def _contour_cube_arrays(
             Array of latitudes of cell centers, of dimensions (npy, npx, tile) 
         lon (np.ndarray): 
             Array of longitudes of cell centers, of dimensions (npy, npx, tile) 
+        latb (np.ndarray): 
+            Array of latitudes of cell edges, of dimensions (npy + 1, npx + 1, tile) 
         lonb (np.ndarray): 
             Array of longitudes of cell edges, of dimensions (npy + 1, npx + 1, tile) 
         array (np.ndarray): 
@@ -594,10 +595,9 @@ def _contour_cube_arrays(
             Axes onto which the contours should be plotted; must be created with a cartopy projection argument. 
         central_longitude (float, optional): 
             Longitude on which the projected map should be centered. Defaults to 0.0.
-        **contour_kwargs:
+        **kwargs:
             Additional arguments to be passed tp `ax.contour`
 
-    
     Returns:
     
         cf (obj):
@@ -618,6 +618,20 @@ def _contour_cube_arrays(
         (lat.shape[1] != array.shape[1])
     ):
         raise ValueError('First and second axes lengths of lat and lonb must be equal to those of array.')
+        
+    if (len(lonb.shape) != 3) or (len(latb.shape) != 3) or (len(array.shape) != 3):
+        raise ValueError('Lonb, latb, and data_var each must be 3-dimensional.')
+    
+    if (lonb.shape[-1] != 6) or (latb.shape[-1] != 6) or (array.shape[-1] != 6):
+        raise ValueError('Last axis of each array must have six elements for cubed-sphere tiles.')
+
+    if (
+        (lonb.shape[0] != latb.shape[0]) or 
+        (latb.shape[0] != (array.shape[0] + 1)) or 
+        (lonb.shape[1] != latb.shape[1]) or 
+        (latb.shape[1] != (array.shape[1] + 1))
+    ):
+        raise ValueError('First and second axes lengths of latb and lonb must be one greater than those of array.')
 
     masked_array = np.where(
         mask_antimeridian_quads(lonb, central_longitude),
@@ -635,8 +649,7 @@ def _contour_cube_arrays(
                 lat[:, :, tile],
                 masked_array[:, :, tile],
                 transform = ccrs.PlateCarree(),
-                **contour_kwargs
+                **kwargs
             )
         
     return cf
-
