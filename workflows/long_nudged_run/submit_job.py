@@ -10,7 +10,7 @@ import fv3config
 logger = logging.getLogger("run_jobs")
 
 START_DATE = datetime(2016, 1, 1, 0, 0, 0)
-RUN_DURATION = timedelta(days=2)
+RUN_DURATION = timedelta(days=5)
 
 BUCKET = "gs://vcm-ml-data/"
 NUDGE_BUCKET = BUCKET + "2019-12-02-year-2016-T85-nudging-data"
@@ -74,7 +74,9 @@ def get_config(start_date: datetime, run_duration: timedelta) -> dict:
     config["namelist"]["coupler_nml"].update(
         {"current_date": date_to_list(START_DATE), "dt_atmos": 900, "dt_ocean": 900}
     )
-    config["namelist"]["fv_core_nml"]["nudge"] = True
+    config["namelist"]["fv_core_nml"].update(
+        {"nudge": True, "layout": [2, 2]}
+    )
     config["namelist"].update(fv3config.config_from_namelist(LOCAL_NUDGE_NAMELIST))
     patch_files = [
         fv3config.get_asset_dict(NUDGE_BUCKET, file, target_location="INPUT")
@@ -105,11 +107,11 @@ def submit_job() -> None:
         jobname=job_name,
         namespace="default",
         memory_gb=3.6,
-        cpu_count=1,
+        cpu_count=24,
         gcp_secret="gcp-key",
         image_pull_policy="Always",
     )
-    logger.info(f"Submitted long nudged run")
+    logger.info(f"Submitted {job_name}")
 
 
 if __name__ == "__main__":
