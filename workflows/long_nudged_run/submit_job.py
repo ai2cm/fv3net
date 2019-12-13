@@ -75,7 +75,7 @@ def get_config(start_date: datetime, run_duration: timedelta) -> dict:
         {"current_date": date_to_list(START_DATE), "dt_atmos": 900, "dt_ocean": 900}
     )
     config["namelist"]["fv_core_nml"].update(
-        {"nudge": True, "layout": [2, 2]}
+        {"nudge": True}
     )
     config["namelist"].update(fv3config.config_from_namelist(LOCAL_NUDGE_NAMELIST))
     patch_files = [
@@ -107,7 +107,7 @@ def submit_job() -> None:
         jobname=job_name,
         namespace="default",
         memory_gb=3.6,
-        cpu_count=24,
+        cpu_count=6,
         gcp_secret="gcp-key",
         image_pull_policy="Always",
     )
