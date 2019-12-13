@@ -23,13 +23,14 @@ def chunk_indices(chunks):
     return indices
 
 
-def shuffled_within_chunks(indices):
+def shuffled_within_chunks(indices, random_seed):
+    np.random.seed(random_seed)
     return np.concatenate([np.random.permutation(index) for index in indices])
 
 
-def shuffled(dataset, dim):
+def shuffled(dataset, dim, random_seed):
     indices = chunk_indices(dataset.chunks[dim])
-    shuffled_inds = shuffled_within_chunks(indices)
+    shuffled_inds = shuffled_within_chunks(indices, random_seed)
     return dataset.isel({dim: shuffled_inds})
 
 

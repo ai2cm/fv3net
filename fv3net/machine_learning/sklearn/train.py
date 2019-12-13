@@ -13,7 +13,7 @@ from .wrapper import SklearnWrapper
 @dataclass
 class ModelTrainingConfig:
     model_type: str
-    train_data_path: str
+    gcs_data_dir: str
     hyperparameters: dict
     num_batches: int
     batch_size: int
@@ -21,7 +21,7 @@ class ModelTrainingConfig:
     test_frac: float
     input_variables: List[str]
     output_variables: List[str]
-    gcs_project: str='vcm-ml'
+    gcs_project: str = 'vcm-ml'
 
 
 def load_model_training_config(config_path):
@@ -34,16 +34,9 @@ def load_model_training_config(config_path):
     return config
 
 
-def load_training_data(train_config):
-    if train_config.train_data_path[:5]=="gs://":
-        import gcsfs
-        fs = gcsfs.GCSFileSystem(project=train_config.gcs_project)
-        train_data_path = fs.get_mapper(train_config.train_data_path)
-    else:
-        train_data_path = train_config.train_data_path
-    ds_full = xr.open_zarr(train_data_path)
+def load_data_generator(train_config):
     ds_batches = BatchGenerator(
-        ds_full,
+        train_config.gcs_data_dir,
         train_config.batch_size,
         train_config.train_frac,
         train_config.test_frac,
