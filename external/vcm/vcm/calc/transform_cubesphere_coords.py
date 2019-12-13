@@ -183,17 +183,17 @@ def mask_antimeridian_quads(
     """
     
     antimeridian = (central_longitude + 180.0)%360.0
-    mask = np.full([lons.shape[0] - 1, lons.shape[1] - 1, lons.shape[2]], True)
+    mask = np.full([lonb.shape[0] - 1, lonb.shape[1] - 1, lonb.shape[2]], True)
     for tile in range(6):
-        tile_lons = lons[:, :, tile]
+        tile_lonb = lonb[:, :, tile]
         tile_mask = mask[:, :, tile]
-        for ix in range(tile_lons.shape[0] - 1):
-            for iy in range(tile_lons.shape[1] - 1):
+        for ix in range(tile_lonb.shape[0] - 1):
+            for iy in range(tile_lonb.shape[1] - 1):
                 vertex_indices = (
                     [ix, ix + 1, ix, ix + 1],
                     [iy, iy, iy + 1, iy + 1]
                 )
-                vertices = tile_lons[vertex_indices]
+                vertices = tile_lonb[vertex_indices]
                 if sum(
                     _periodic_equal_or_less_than(vertices, antimeridian)
                 ) != 4 and sum(
@@ -258,7 +258,7 @@ def _periodic_greater_than(x1, x2, period = 360.0):
     """
     
     return np.where(
-        np.abs(x1 - y) <= period/2.0,
+        np.abs(x1 - x2) <= period/2.0,
         np.where(x1 - x2 > 0, True, False), 
         np.where(x1 - x2 >= 0, 
                  np.where(x1 - (x2 + period) > 0, True, False),

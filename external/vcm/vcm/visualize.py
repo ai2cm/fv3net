@@ -1,5 +1,5 @@
 from vcm import fv3_restarts, cubedsphere
-from vcm.calc.transform_cubesphere_coords import rotate_winds_to_lat_lon_coords
+from vcm.calc.transform_cubesphere_coords import mask_antimeridian_quads
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
@@ -550,7 +550,7 @@ def _pcolormesh_cube_arrays(
         raise ValueError('First and second axes lengths of latb and lonb must be one greater than those of array.')
     
     masked_array = np.where(
-        _mask_antimeridian_quads(lonb, central_longitude),
+        mask_antimeridian_quads(lonb, central_longitude),
         array,
         np.nan
     )
@@ -619,9 +619,8 @@ def _contour_cube_arrays(
     ):
         raise ValueError('First and second axes lengths of lat and lonb must be equal to those of array.')
 
-    mask = _mask_antimeridian_quads(lonb, central_longitude)
     masked_array = np.where(
-        _mask_antimeridian_quads(lonb, central_longitude),
+        mask_antimeridian_quads(lonb, central_longitude),
         array,
         np.nan
     )
