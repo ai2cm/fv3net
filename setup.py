@@ -14,6 +14,7 @@ dependencies = [
     "xarray==0.13.0",
     "partd",
     "pyyaml==3.13",
+    "zarr"
 ]
 
 setup(

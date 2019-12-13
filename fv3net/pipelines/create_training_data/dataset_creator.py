@@ -6,6 +6,7 @@ import time
 import xarray as xr
 
 from vcm.calc import apparent_source
+from vcm.cloud import gsutil
 from vcm.convenience import get_timestep_from_filename
 from vcm.cubedsphere import shift_edge_var_to_center, rename_centered_xy_coords
 
@@ -40,8 +41,7 @@ TARGET_VARS = ['Q1', 'Q2', 'QU', 'QV']
 def write_to_zarr(
         ds,
         gcs_dest_dir,
-        zarr_file,
-        project='vcm-ml',
+        zarr_filename,
         bucket='vcm-ml-data',
 ):
     """Still haven't figured out why writing is so slow
@@ -56,9 +56,9 @@ def write_to_zarr(
     """
     logger.info("Writing to zarr...")
     t0 = time.time()
-    output_path = os.path.join(bucket, gcs_dest_dir, zarr_file)
-    fs = gcsfs.GCSFileSystem(project=project)
-    ds.to_zarr(fs.get_mapper(output_path), 'w')
+    output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
+    ds.to_zarr(zarr_filename, mode="w")
+    gsutil.copy(zarr_filename, output_path)
     logger.info(f"Done writing zarr to {output_path}, {int(time.time() - t0)} s.")
 
 
