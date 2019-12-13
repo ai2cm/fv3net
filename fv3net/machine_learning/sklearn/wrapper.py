@@ -80,7 +80,6 @@ class SklearnWrapper(BaseXarrayEstimator):
         self.input_vars_ = input_vars
         self.output_vars_ = output_vars
         self.feature_dims_ = remove(data.dims, sample_dim)
-
         inputs = _flatten(data[input_vars], sample_dim).values
         outputs = _flatten(data[output_vars], sample_dim)
 
@@ -108,7 +107,7 @@ class SklearnWrapper(BaseXarrayEstimator):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
     def predict(self, data, sample_dim):
-        inputs = _flatten(data[self.input_vars_], sample_dim)
+        inputs = _flatten(data[self.input_vars_], sample_dim).values
         numpy = self.model.predict(inputs)
         ds = xr.DataArray(
             numpy,

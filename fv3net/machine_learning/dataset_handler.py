@@ -15,7 +15,7 @@ fh.setLevel(logging.INFO)
 logger.addHandler(fh)
 
 
-SAMPLE_DIMS = ['initialization_time', 'grid_yt', 'grid_xt']
+SAMPLE_DIMS = ['initialization_time', 'grid_yt', 'grid_xt', 'tile']
 
 @dataclass
 class BatchGenerator:
@@ -33,18 +33,16 @@ class BatchGenerator:
         self.train_file_batches, self.test_file_batches = \
             self._split_train_test_files(zarr_urls)
 
-    def generate_train_batches(self):
-        for file_batch_urls in self.train_file_batches:
+    def generate_batches(self, batch_type='train'):
+        if batch_type == 'train':
+            grouped_urls = self.train_file_batches
+        elif batch_type == 'test':
+            grouped_urls = self.test_file_batches
+        for file_batch_urls in grouped_urls:
             fs_paths = [self.fs.get_mapper(url) for url in file_batch_urls]
             ds = xr.concat(map(xr.open_zarr, fs_paths), 'initialization_time')
-            ds_shuffled = self._reshape_and_shuffle(ds, SAMPLE_DIMS)
+            ds_shuffled = self._reshape_and_shuffle(ds)
             yield ds_shuffled
-
-    def generate_test_batches(self):
-        for file_batch_urls in self.test_file_batches:
-            fs_paths = [self.fs.get_mapper(url) for url in file_batch_urls]
-            ds = xr.concat(map(xr.open_zarr, fs_paths), 'initialization_time')
-            yield ds
 
     def _split_train_test_files(self, zarr_urls):
         num_total_files = len(zarr_urls)
@@ -54,7 +52,7 @@ class BatchGenerator:
             self.num_train_batches = int(
                 (num_train_files / self.files_per_batch)
                 + min(1, num_train_files % self.files_per_batch))
-        num_test_batches =  int(num_test_files / self.files_per_batch)
+        num_test_batches = int(num_test_files / self.files_per_batch)
 
         np.random.seed(self.random_seed)
         np.random.shuffle(zarr_urls)

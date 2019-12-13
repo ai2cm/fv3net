@@ -3,11 +3,10 @@ from dataclasses import dataclass
 import joblib
 import time
 from typing import List
-import xarray as xr
 import yaml
 
-from ..dataset_handler import BatchGenerator
-from .wrapper import SklearnWrapper
+from fv3net.machine_learning.dataset_handler import BatchGenerator
+from fv3net.machine_learning.sklearn.wrapper import SklearnWrapper
 
 
 @dataclass
@@ -66,11 +65,11 @@ def _get_regressor(train_config):
 def train_model(batched_data, train_config):
     regressor = _get_regressor(train_config)
     model = SklearnWrapper(regressor)
-    for i, batch in enumerate(batched_data.generate_train_batches()):
+    for i, batch in enumerate(batched_data.generate_batches('train')):
         if i > 0:
             model.add_new_batch_estimators()
         t0 = time.time()
-        print(f"Fitting batch {i}/{batched_data.num_batches}")
+        print(f"Fitting batch {i}/{batched_data.num_train_batches}")
         model.fit(
             input_vars=train_config.input_variables,
             output_vars=train_config.output_variables,
@@ -84,7 +83,7 @@ def train_model(batched_data, train_config):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--train-config-path",
+        "--train-config-file",
         type=str,
         required=True,
         help="Path for training configuration yaml file"
@@ -97,7 +96,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     train_config = load_model_training_config(args.train_config_file)
-    batched_data = load_training_data(train_config)
+    batched_data = load_data_generator(train_config)
     model = train_model(batched_data, train_config)
     joblib.dump(model, args.model_output_path)
 
