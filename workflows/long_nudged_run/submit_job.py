@@ -91,27 +91,25 @@ def submit_job() -> None:
     config = get_config(START_DATE, RUN_DURATION)
     job_name = config["experiment_name"]
     config_location = os.path.join(CONFIG_BUCKET, "fv3config.yml")
-    with open('test_fv3config.yml', "w") as config_file:
-        config_file.write(yaml.dump(config))
     with fs.open(config_location, "w") as config_file:
         config_file.write(yaml.dump(config))
     with fs.open(nudging_file_list_location, "w") as nudging_filelist:
-        nudging_filelist.write(get_nudge_file_list(START_DATE, RUN_DURATION))
+        nudging_filelist.write("\n".join(get_nudge_file_list(START_DATE, RUN_DURATION)))
     runfile_location = os.path.join(CONFIG_BUCKET, "runfile.py")
     fs.put(LOCAL_RUNFILE, runfile_location)
     fs.put(LOCAL_DIAG_TABLE, os.path.join(CONFIG_BUCKET, "diag_table"))
-#    fv3config.run_kubernetes(
-#        config_location,
-#        OUTPUT_BUCKET,
-#        DOCKER_IMAGE,
-#        runfile=runfile_location,
-#        jobname=job_name,
-#        namespace="default",
-#        memory_gb=3.6,
-#        cpu_count=1,
-#        gcp_secret="gcp-key",
-#        image_pull_policy="Always",
-#    )
+    fv3config.run_kubernetes(
+        config_location,
+        OUTPUT_BUCKET,
+        DOCKER_IMAGE,
+        runfile=runfile_location,
+        jobname=job_name,
+        namespace="default",
+        memory_gb=3.6,
+        cpu_count=1,
+        gcp_secret="gcp-key",
+        image_pull_policy="Always",
+    )
     logger.info(f"Submitted long nudged run")
 
 
