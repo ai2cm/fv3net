@@ -24,15 +24,13 @@ GRID_VARS = [
     'grid_latt'
 ]
 
-VARS_TO_KEEP = [
+INPUT_VARS = [
     'sphum',
     'T',
     'delp',
     'u',
     'v',
-    'slmsk',
-    'grid_latt',
-    'grid_lont'
+    'slmsk'
 ]
 
 TARGET_VARS = ['Q1', 'Q2', 'QU', 'QV']
@@ -84,7 +82,7 @@ def _load_cloud_data(fs, gcs_urls):
     ds = xr.concat(
         map(xr.open_zarr, gcs_zarr_mappings),
         'initialization_time'
-    )[VARS_TO_KEEP]
+    )[INPUT_VARS]
     return ds
 
 
@@ -110,7 +108,7 @@ def _create_train_cols(ds):
     ds['Q1'] = apparent_source(ds.T)
     ds['Q2'] = apparent_source(ds.sphum)
     num_slices = len(ds.initialization_time.values) - 1
-    ds = ds[VARS_TO_KEEP + TARGET_VARS] \
+    ds = ds[INPUT_VARS + TARGET_VARS + GRID_VARS] \
         .isel(forecast_time=0).squeeze().drop('forecast_time') \
         .isel(initialization_time=slice(None, num_slices))
     return ds
