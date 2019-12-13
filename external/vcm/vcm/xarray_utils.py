@@ -18,8 +18,8 @@ def isclose(
         b: xr.DataArray
         rtol: The relative tolerance parameter (float).
         atol: The absolute tolerance parameter (float).
-        equal_nan: Whether to compare NaN’s as equal. If True, NaN’s in a will
-            be considered equal to NaN’s in b in the output array (bool).
+        equal_nan: Whether to compare NaN’s as equal. If True, NaN's in a will
+            be considered equal to NaN's in b in the output array (bool).
 
     Returns:
         xr.DataArray
@@ -62,7 +62,8 @@ def repeat(
     Args:
         obj: Input xr.Dataset or xr.DataArray.
         repeats: The number of repetitions for each element. repeats is
-            broadcasted to fit the shape of the given axis.
+            broadcasted to fit the shape of the given axis.  Note that an array
+            repeats argument is not supported for dask arrays.
         dim: Dimension name to repeat along.
 
     Returns:

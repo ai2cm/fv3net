@@ -404,7 +404,7 @@ def _block_upsample_like(
     factor is the same in the x and y dimension.
     """
     upsampling_factor = reference_da.sizes[x_dim] // da.sizes[x_dim]
-    result = block_upsample(da, upsampling_factor, x_dim=x_dim, y_dim=y_dim)
+    result = block_upsample(da, upsampling_factor, [x_dim, y_dim])
     if isinstance(da.data, dask_array.Array):
         result = result.chunk(reference_da.chunks)
     return result.assign_coords(

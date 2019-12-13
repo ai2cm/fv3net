@@ -819,17 +819,44 @@ def block_coarsen(
         return getattr(coarsen_object, method)()
 
 
+def _upsample_staggered_or_unstaggered(obj, upsampling_factor, dim):
+    """If the dimension size is odd, then replace the last repeat value with
+    one.  Otherwise use the same repeat value for all points."""
+    dim_size = obj.sizes[dim]
+    is_staggered_dim = dim_size % 2 == 1
+    if is_staggered_dim:
+        # dask.array.repeat does not currently take array arguments for
+        # repeats; we work around this by splitting the array into portions
+        # where we upsample with a uniform factor and then concatenate them
+        # back together.
+        a = xarray_utils.repeat(
+            obj.isel({dim: slice(None, -1)}), upsampling_factor, dim
+        )
+        b = xarray_utils.repeat(obj.isel({dim: slice(-1, None)}), 1, dim)
+        if isinstance(obj, xr.Dataset):
+            # Use data_vars="minimal" here to prevent variables without the
+            # repeating dimension from being broadcast along the repeating
+            # dimension during the concat step.
+            return xr.concat([a, b], dim=dim, data_vars="minimal")
+        else:
+            return xr.concat([a, b], dim=dim)
+    else:
+        return xarray_utils.repeat(obj, upsampling_factor, dim)
+
+
 def block_upsample(
-    obj: Union[xr.Dataset, xr.DataArray],
-    upsampling_factor: int,
-    x_dim: Hashable = "xaxis_1",
-    y_dim: Hashable = "yaxis_1",
+    obj: Union[xr.Dataset, xr.DataArray], upsampling_factor: int, dims: List[Hashable],
 ) -> Union[xr.Dataset, xr.DataArray]:
-    """Upsample an object by uniformly repeating values n times in each
+    """Upsample an object by repeating values n times in each
     horizontal dimension.
 
-    Note that this function drops the coordinates along the x and y dimensions
-    of the input object, as it is not always obvious how one should infer what
+    If a dimension has an odd size, it is assumed to be represent the grid cell
+    interfaces.  In that case, values of the array are repeated with the
+    upsampling factor, except for values on the upper boundary, which are not
+    be repeated at all.
+
+    Note that this function drops the coordinates along the dimensions
+    specified, as it is not always obvious how one should infer what
     the missing coordinates should be.  Coordinates are not needed for our
     application currently in VCM, so we will defer the complexity of addressing
     this question for the time being.
@@ -837,15 +864,15 @@ def block_upsample(
     Args:
         obj: Input Dataset or DataArray.
         factor: Integer upsampling factor to use.
-        x_dim: x dimension name (default 'xaxis_1').
-        y_dim: y dimension name (default 'yaxis_1').
+        dims: List of dimension names to upsample along; could be unstaggered
+            or staggered.
 
     Returns:
         xr.Dataset or xr.DataArray.
     """
-    return xarray_utils.repeat(
-        xarray_utils.repeat(obj, upsampling_factor, x_dim), upsampling_factor, y_dim
-    )
+    for dim in dims:
+        obj = _upsample_staggered_or_unstaggered(obj, upsampling_factor, dim)
+    return obj
 
 
 def save_tiles_separately(sfc_data, prefix, output_directory):

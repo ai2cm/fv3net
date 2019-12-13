@@ -699,22 +699,49 @@ def test_block_mode_via_block_coarsen():
     xr.testing.assert_identical(result, expected)
 
 
-@pytest.mark.parametrize("object_type", ["Dataset", "DataArray"])
 @pytest.mark.parametrize("use_dask", [False, True])
-def test_block_upsample(object_type, use_dask):
-    obj = xr.DataArray([[1, 2], [3, 4]], dims=["x", "y"], name="foo")
-    expected = xr.DataArray(
+def test_block_upsample_dataset(use_dask):
+    foo = xr.DataArray([[1, 2], [3, 4]], dims=["xt", "yt"], name="foo")
+    u = xr.DataArray([[1, 2, 3], [4, 5, 6]], dims=["xt", "y"], name="u")
+
+    ds = xr.merge([foo, u])
+
+    expected_foo = xr.DataArray(
         [[1, 1, 2, 2], [1, 1, 2, 2], [3, 3, 4, 4], [3, 3, 4, 4]],
-        dims=["x", "y"],
+        dims=["xt", "yt"],
         name="foo",
     )
+    expected_u = xr.DataArray(
+        [[1, 1, 2, 2, 3], [1, 1, 2, 2, 3], [4, 4, 5, 5, 6], [4, 4, 5, 5, 6]],
+        dims=["xt", "y"],
+        name="u",
+    )
 
-    if object_type == "Dataset":
-        obj = obj.to_dataset()
-        expected = expected.to_dataset()
+    expected = xr.merge([expected_foo, expected_u])
 
     if use_dask:
-        obj = obj.chunk({"x": 1})
+        ds = ds.chunk({"xt": 1})
 
-    result = block_upsample(obj, 2, x_dim="x", y_dim="y")
+    result = block_upsample(ds, 2, dims=["xt", "y", "yt"])
+    xr.testing.assert_identical(result, expected)
+
+
+@pytest.mark.parametrize(
+    ("data", "expected_data"),
+    [
+        ([[1, 2], [3, 4]], [[1, 1, 2, 2], [1, 1, 2, 2], [3, 3, 4, 4], [3, 3, 4, 4]]),
+        (
+            [[1, 2, 3], [4, 5, 6]],
+            [[1, 1, 2, 2, 3], [1, 1, 2, 2, 3], [4, 4, 5, 5, 6], [4, 4, 5, 5, 6]],
+        ),
+    ],
+)
+@pytest.mark.parametrize("use_dask", [False, True])
+def test_block_upsample_dataarray(data, expected_data, use_dask):
+    foo = xr.DataArray(data, dims=["x", "y"], name="foo")
+    expected = xr.DataArray(expected_data, dims=["x", "y"], name="foo")
+    if use_dask:
+        foo = foo.chunk({"x": 1})
+
+    result = block_upsample(foo, 2, dims=["x", "y"])
     xr.testing.assert_identical(result, expected)
