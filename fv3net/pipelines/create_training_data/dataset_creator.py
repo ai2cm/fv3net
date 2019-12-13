@@ -82,7 +82,7 @@ def _load_cloud_data(fs, gcs_urls):
     ds = xr.concat(
         map(xr.open_zarr, gcs_zarr_mappings),
         'initialization_time'
-    )[INPUT_VARS]
+    )[INPUT_VARS + GRID_VARS]
     return ds
 
 
