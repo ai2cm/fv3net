@@ -820,8 +820,9 @@ def block_coarsen(
 
 
 def _upsample_staggered_or_unstaggered(obj, upsampling_factor, dim):
-    """If the dimension size is odd, then replace the last repeat value with
-    one.  Otherwise use the same repeat value for all points."""
+    """If the dimension size is even, uniformly repeat all points along the
+    dimension; if the dimension size is odd, repeat all the points by
+    the given factor except for the last value along the dimension."""
     dim_size = obj.sizes[dim]
     is_staggered_dim = dim_size % 2 == 1
     if is_staggered_dim:
@@ -834,8 +835,8 @@ def _upsample_staggered_or_unstaggered(obj, upsampling_factor, dim):
         )
         b = xarray_utils.repeat(obj.isel({dim: slice(-1, None)}), 1, dim)
         if isinstance(obj, xr.Dataset):
-            # Use data_vars="minimal" here to prevent variables without the
-            # repeating dimension from being broadcast along the repeating
+            # Use data_vars="minimal" here to prevent data variables without
+            # the repeating dimension from being broadcast along the repeating
             # dimension during the concat step.
             return xr.concat([a, b], dim=dim, data_vars="minimal")
         else:
