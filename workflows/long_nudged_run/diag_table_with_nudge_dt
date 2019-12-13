@@ -75,11 +75,6 @@ default_experiment
  "dynamics",  "ctp",         "PRESctp",      "atmos_dt_atmos", "all", .false., "none", 2
  "dynamics",  "ctz" ,        "HGTctp",       "atmos_dt_atmos", "all", .false., "none", 2
 ###
- "dynamics",  "u_dt_nudge",    "u_dt_nudge",    "atmos_dt_atmos", "all", .false., "none", 2
- "dynamics",  "v_dt_nudge",    "v_dt_nudge",    "atmos_dt_atmos", "all", .false., "none", 2
- "dynamics",  "delp_dt_nudge", "delp_dt_nudge", "atmos_dt_atmos", "all", .false., "none", 2
- "dynamics",  "ps_dt_nudge",   "ps_dt_nudge",   "atmos_dt_atmos", "all", .false., "none", 2
- "dynamics",  "t_dt_nudge",    "t_dt_nudge",    "atmos_dt_atmos", "all", .false., "none", 2
 ###
 # atmos_8xdaily
 ###
@@ -103,6 +98,11 @@ default_experiment
  "dynamics",  "rainwat",      "rainwat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
  "dynamics",  "snowwat",      "snowwat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
  "dynamics",  "graupel",      "graupel",      "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "u_dt_nudge",    "u_dt_nudge",  "atmos_8xdaily", "all", .false., "none", 2
+ "dynamics",  "v_dt_nudge",    "v_dt_nudge",  "atmos_8xdaily", "all", .false., "none", 2
+ "dynamics",  "delp_dt_nudge","delp_dt_nudge","atmos_8xdaily", "all", .false., "none", 2
+ "dynamics",  "ps_dt_nudge",   "ps_dt_nudge", "atmos_8xdaily", "all", .false., "none", 2
+ "dynamics",  "t_dt_nudge",    "t_dt_nudge",  "atmos_8xdaily", "all", .false., "none", 2
 ###
 # sfc_dt_atmos
 ###
@@ -181,3 +181,4 @@ default_experiment
 #         = 2  float
 #         = 4  packed 16-bit integers
 #         = 8  packed 1-byte (not tested?)
+#
