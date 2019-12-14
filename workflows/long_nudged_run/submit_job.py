@@ -10,13 +10,14 @@ import fv3config
 logger = logging.getLogger("run_jobs")
 
 START_DATE = datetime(2016, 1, 1, 0, 0, 0)
-RUN_DURATION = timedelta(days=5)
+RUN_DURATION = timedelta(days=80)
 
+RUN_NAME= f"nudged-run-segment-1.{uuid.uuid4()}"
 BUCKET = "gs://vcm-ml-data/"
 NUDGE_BUCKET = BUCKET + "2019-12-02-year-2016-T85-nudging-data"
 IC_BUCKET = BUCKET + "2019-12-03-C48-20160101.00Z_IC"
-OUTPUT_BUCKET = BUCKET + "2019-12-12-long-FV3GFS-runs/nudged/C48/output"
-CONFIG_BUCKET = BUCKET + "2019-12-12-long-FV3GFS-runs/nudged/C48/config"
+OUTPUT_BUCKET = BUCKET + f"2019-12-12-baseline-FV3GFS-runs/nudged/C48/{RUN_NAME}/output"
+CONFIG_BUCKET = BUCKET + f"2019-12-12-baseline-FV3GFS-runs/nudged/C48/{RUN_NAME}/config"
 DOCKER_IMAGE = "us.gcr.io/vcm-ml/fv3gfs-python"
 LOCAL_RUNFILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runfile.py")
 LOCAL_DIAG_TABLE = os.path.join(
@@ -67,7 +68,7 @@ def set_run_duration(config: dict, duration: timedelta) -> dict:
 
 def get_config(start_date: datetime, run_duration: timedelta) -> dict:
     config = fv3config.get_default_config()
-    config["experiment_name"] = f"long-nudged-run.{uuid.uuid4()}"
+    config["experiment_name"] = RUN_NAME
     config["diag_table"] = os.path.join(CONFIG_BUCKET, "diag_table")
     config["initial_conditions"] = IC_BUCKET
     config = set_run_duration(config, RUN_DURATION)
