@@ -71,9 +71,9 @@ def create_training_dataset(
     logger.info(f"Finished loading zarrs for timesteps "
                 f"{[get_timestep_from_filename(url) for url in data_urls]}. "
                 f"{int(time.time() - t0)} s")
+    ds = _create_train_cols(ds)
     if not mask_to_surface_type:
         ds = mask_to_surface_type(ds, mask_to_surface_type)
-    ds = _create_train_cols(ds)
     return ds
 
 

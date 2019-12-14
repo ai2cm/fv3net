@@ -34,7 +34,6 @@ class CreateTrainZarr(beam.DoFn):
             ds,
             self.gcs_output_data_dir,
             zarr_file,
-            project=self.gcs_project,
             bucket=self.gcs_bucket, )
 
 
