@@ -1,10 +1,12 @@
-from vcm import fv3_restarts, cubedsphere
-from vcm.calc.transform_cubesphere_coords import mask_antimeridian_quads, rotate_winds_to_lat_lon_coords
+from vcm import cubedsphere
+from vcm.calc.transform_cubesphere_coords import (
+    mask_antimeridian_quads,
+    rotate_winds_to_lat_lon_coords,
+)
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
 from cartopy import crs as ccrs
-from os.path import join
 import warnings
 from functools import partial
 
@@ -45,38 +47,45 @@ def plot_cube(
         plottable_variable (xr.Dataset): 
             Dataset containing variable to plotted via pcolormesh, along with 
             coordinate variables (lat, latb, lon, lonb). This dataset object 
-            can be created from the helper function `mappable_restart_var`, which
-            takes in the output of `vcm.v3_restarts.open_restarts` merged to 
-            dataset of grid spec variables, along with the name of the variable to be plotted, or from the helper function `mappable_diag_var`, 
-            which takes in the output of `vcm.v3_restarts.open_restarts`
+            can be created from the helper function `mappable_restart_var`, 
+            which takes in the output of `vcm.v3_restarts.open_restarts` 
+            merged to  dataset of grid spec variables, along with the name of 
+            the variable to be plotted, or from the helper function 
+            `mappable_diag_var`, which takes in the output of 
+            `vcm.v3_restarts.open_restarts`
         plotting_function (str):
-            Function name to use in plotting the variable. Available options are 'pcolormesh' and 'contour'. Defaults to 'pcolormesh'.
+            Function name to use in plotting the variable. Available options 
+            are 'pcolormesh' and 'contour'. Defaults to 'pcolormesh'.
         ax (plt.axes, optional):
-            Axes onto which the map should be plotted; must be created with a cartopy projection argument. 
-            If not supplied, axes are generated with a projection. If axes are suppled, faceting is disabled
+            Axes onto which the map should be plotted; must be created with 
+            a cartopy projection argument. If not supplied, axes are generated 
+            with a projection. If axes are  suppled, faceting is disabled
             and the `row` and `column` arguments are ignored. 
         row (str, optional): 
-            Name of diemnsion to be faceted along subplot rows. Must not be a tile, lat, or lon dimension. 
-            Defaults to no row facets.
+            Name of diemnsion to be faceted along subplot rows. Must not be a 
+            tile, lat, or lon dimension.  Defaults to no row facets.
         column (str, optional): 
-            Name of diemnsion to be faceted along subplot columns. Must not be a tile, lat, or lon dimension.
-            Defaults to no column facets.
+            Name of diemnsion to be faceted along subplot columns. Must not be 
+            a tile, lat, or lon dimension. Defaults to no column facets.
         projection (ccrs.Projection, optional):
-            Cartopy projection object to be used in creating axes. Ignored if cartopy geo-axes are supplied. 
-            Defaults to Robinson projection. 
+            Cartopy projection object to be used in creating axes. Ignored if 
+            cartopy geo-axes are supplied.  Defaults to Robinson projection. 
         colorbar (bool, optional):
             Flag for whether to plot a colorbar. Defaults to True.
         coastlines (bool, optinal):
             Whether to plot coastlines on map. Default True.
         coastlines_kwargs (dict, optional):
-            Dict of options to be passed to cartopy axes's `coastline` function if `coastlines` flag is set to True.
+            Dict of options to be passed to cartopy axes's `coastline` function 
+            if `coastlines` flag is set to True.
     
     Returns:
     
         axes (list):
-            List or nested list of `ax.axes` objects assocated with map subplots.
+            List or nested list of `ax.axes` objects assocated with map 
+            subplots.
         hs (list):
-            List or nested list of matplotlib object handles associated with map subplots.
+            List or nested list of matplotlib object handles associated with 
+            map subplots.
         cbar (obj):
             `ax.colorbar` object handle associated with figure
     
@@ -84,15 +93,18 @@ def plot_cube(
     
         # plots T at multiple vertical levels, faceted across subplots
         sample_data = fv3_restarts.open_restarts(
-                '/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/rundir/',
+                '/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/
+                rundir/',
                 '20160805.170000',
                 '20160805.171500'
             )
-        grid_spec_paths = [f"/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/rundir/grid_spec.tile{tile}.nc" for tile in range (1,7)]
-        grid_spec = xr.open_mfdataset(paths = grid_spec_paths, combine = 'nested', concat_dim = 'tile')
+        grid_spec_paths = [f"/home/brianh/dev/fv3net/data/restart/C48/
+        20160805.170000/rundir/grid_spec.tile{tile}.nc" for tile in range (1,7)]
+        grid_spec = xr.open_mfdataset(paths = grid_spec_paths, 
+        combine = 'nested', concat_dim = 'tile')
         ds = xr.merge([sample_data, grid_spec])
         axes, hs, cbar = plot_cube(
-            mappable_restart_var(ds, 'T').isel(time = 0, pfull = [78, 40]),#.isel(pfull = slice(None, None, 20)),
+            mappable_restart_var(ds, 'T').isel(time = 0, pfull = [78, 40]),
             plotting_function='pcolormesh',
             row = "pfull",
             coastlines = True,
@@ -137,18 +149,26 @@ def plot_cube(
         remaining_dims = set(
             [dim for dim in plottable_variable.dims if dim not in [row, column]]
         )
-        if remaining_dims != set(["grid_x", "grid_xt", "grid_y", "grid_yt", "tile"]):
-            raise valueError(
-                "Dimensions for each facet plot must consist only of latitude, longitude, and tile."
+        if remaining_dims != set(
+            ["grid_x", "grid_xt", "grid_y", "grid_yt", "tile"]
+        ):
+            raise ValueError(
+                """Dimensions for each facet plot must consist only of latitude, 
+                longitude, and tile."""
             )
         n_rows = plottable_variable.sizes[row] if row else 1
         n_cols = plottable_variable.sizes[column] if column else 1
         if n_rows > 10 or n_cols > 10:
             raise ValueError(
-                "Facet rows and/or columns exceed maximum. Try subsetting along the row and/or column dimensions."
+                """Facet rows and/or columns exceed maximum. Try subsetting 
+                along the row and/or column dimensions."""
             )
 
-        _, axes = plt.subplots(n_rows, n_cols, subplot_kw={"projection": projection})
+        _, axes = plt.subplots(
+            n_rows,
+            n_cols,
+            subplot_kw = {"projection" : projection}
+        )
 
         hs = []
         for i in range(axes.shape[0]):
@@ -156,27 +176,35 @@ def plot_cube(
                 hs2 = []
                 for j in range(axes.shape[1]):
                     h = _plot_func_short(
-                        array=plottable_variable[var_name]
+                        array = plottable_variable[var_name]
                         .isel({row: i, column: j})
                         .values,
-                        ax=axes[i, j],
-                        title=f"{row} = {plottable_variable[row].isel({row : i}).item()}, {column} = {plottable_variable[column].isel({column : j}).item()}",
+                        ax = axes[i, j],
+                        title = (
+                            f"{row} = "
+                            f"{plottable_variable[row].isel({row : i}).item()}"
+                            f", {column} = "
+                            f"{plottable_variable[column].isel({column : j}).item()}"
+                        ),
                     )
                     hs2.append(h)
                 hs.append(hs2)
             else:
                 coord = row if not column else column
                 h = _plot_func_short(
-                    array=plottable_variable[var_name].isel({coord: i}).values,
-                    ax=axes[i],
-                    title=f"{coord} = {plottable_variable[coord].isel({coord : i}).item()}",
+                    array = plottable_variable[var_name].isel({coord: i}).values,
+                    ax = axes[i],
+                    title = (
+                        f"{coord} = "
+                        f"{plottable_variable[coord].isel({coord : i}).item()}"
+                    ),
                 )
                 hs.append(h)
     else:
         # single axes
 
         if not ax:
-            _, ax = plt.subplots(1, 1, subplot_kw={"projection": projection})
+            _, ax = plt.subplots(1, 1, subplot_kw = {"projection" : projection})
         h = _plot_func_short(array=array, ax=ax)
         axes = [ax]
         hs = [h]
