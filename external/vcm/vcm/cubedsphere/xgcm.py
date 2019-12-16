@@ -36,9 +36,12 @@ def create_fv3_grid(
     See this notebook_ for usage.
 
 
-    The tile dimension must have a corresponding coordinate. You can make it like this::
+    The tile dimension must have a corresponding coordinate. To follow GFDL's 
+    convention, this coordinate should start with 1.
+    
+    You can make it like this::
 
-        ds = ds.assign_coords(tile=np.arange(6))
+        ds = ds.assign_coords(tile=np.arange(1, 7))
 
 
     .. _XGCM: https://xgcm.readthedocs.io/en/latest/
