@@ -4,32 +4,15 @@ import xgcm
 # none of the connecitons are "reversed" in the xgcm parlance
 FV3_FACE_CONNECTIONS = {
     "tile": {
-        0: {
-            "x": ((4, "y", False), (1, "x", False)),
-            "y": ((5, "y", False), (2, "x", False)),
-        },
-        1: {
-            "x": ((0, "x", False), (3, "y", False)),
-            "y": ((5, "x", False), (2, "y", False)),
-        },
-        2: {
-            "x": ((0, "y", False), (3, "x", False)),
-            "y": ((1, "y", False), (4, "x", False)),
-        },
-        3: {
-            "x": ((2, "x", False), (5, "y", False)),
-            "y": ((1, "x", False), (4, "y", False)),
-        },
-        4: {
-            "x": ((2, "y", False), (5, "x", False)),
-            "y": ((3, "y", False), (0, "x", False)),
-        },
-        5: {
-            "x": ((4, "x", False), (1, "y", False)),
-            "y": ((3, "x", False), (0, "y", False)),
-        },
+        1: {"x": ((5, "y", 1), (2, "x", 1)), "y": ((6, "y", 1), (3, "x", 1))},
+        2: {"x": ((1, "x", 1), (4, "y", 1)), "y": ((6, "x", 1), (3, "y", 1))},
+        3: {"x": ((1, "y", 1), (4, "x", 1)), "y": ((2, "y", 1), (5, "x", 1))},
+        4: {"x": ((3, "x", 1), (6, "y", 1)), "y": ((2, "x", 1), (5, "y", 1))},
+        5: {"x": ((3, "y", 1), (6, "x", 1)), "y": ((4, "y", 1), (1, "x", 1))},
+        6: {"x": ((5, "x", 1), (2, "y", 1)), "y": ((4, "x", 1), (1, "y", 1))},
     }
 }
+
 
 # diagnostics defaults
 COORD_X_CENTER = "grid_xt"
