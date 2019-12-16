@@ -72,7 +72,10 @@ class SklearnWrapper(BaseXarrayEstimator):
                 'n_estimators' in self.model.estimator.__dict__:
             self.n_estimators_per_batch = self.model.estimator.n_estimators
 
-    def fit(
+    def fit(self, features, targets):
+        self.model.fit(features, targets)
+
+    def fit_xarray(
             self, input_vars: tuple, output_vars: tuple, sample_dim: str,
             data: xr.Dataset
     ):
@@ -88,7 +91,6 @@ class SklearnWrapper(BaseXarrayEstimator):
         ][0]
         self.output_features_ = outputs.indexes[self.output_features_dim_name_]
         self.model.fit(inputs, outputs.values)
-        return self
 
     def add_new_batch_estimators(self):
         if 'n_estimators' in self.model.__dict__:
@@ -106,7 +108,10 @@ class SklearnWrapper(BaseXarrayEstimator):
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
-    def predict(self, data, sample_dim):
+    def predict(self, features):
+        return self.model.predict(features)
+
+    def predict_xrarray(self, data, sample_dim):
         inputs = _flatten(data[self.input_vars_], sample_dim).values
         numpy = self.model.predict(inputs)
         ds = xr.DataArray(
@@ -116,3 +121,4 @@ class SklearnWrapper(BaseXarrayEstimator):
         )
 
         return ds.to_unstacked_dataset("feature")
+
