@@ -29,3 +29,4 @@ zarr
 black
 isort
 nose
+kubernetes==10.0.1
