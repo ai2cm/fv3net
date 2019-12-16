@@ -12,10 +12,15 @@ logger = logging.getLogger("run_jobs")
 START_DATE = datetime(2016, 1, 1, 0, 0, 0)
 RUN_DURATION = timedelta(days=80)
 
-RUN_NAME= f"nudged-run-segment-1.{uuid.uuid4()}"
+# RUN_NAME= f"nudged-run-segment-1.{uuid.uuid4()}"
+RUN_NAME = f"nudged-run-segment-2.{uuid.uuid4()}"
 BUCKET = "gs://vcm-ml-data/"
 NUDGE_BUCKET = BUCKET + "2019-12-02-year-2016-T85-nudging-data"
-IC_BUCKET = BUCKET + "2019-12-03-C48-20160101.00Z_IC"
+# IC_BUCKET = BUCKET + "2019-12-03-C48-20160101.00Z_IC"
+IC_BUCKET = (
+    BUCKET
+    + "2019-12-12-baseline-FV3GFS-runs/nudged/C48/nudged-run-segment-1.56c407fb-cf76-44d8-b356-93e1af9996de/output/RESTART"
+)
 OUTPUT_BUCKET = BUCKET + f"2019-12-12-baseline-FV3GFS-runs/nudged/C48/{RUN_NAME}/output"
 CONFIG_BUCKET = BUCKET + f"2019-12-12-baseline-FV3GFS-runs/nudged/C48/{RUN_NAME}/config"
 DOCKER_IMAGE = "us.gcr.io/vcm-ml/fv3gfs-python"
@@ -68,6 +73,7 @@ def set_run_duration(config: dict, duration: timedelta) -> dict:
 
 def get_config(start_date: datetime, run_duration: timedelta) -> dict:
     config = fv3config.get_default_config()
+    config = fv3config.enable_restart(config)
     config["experiment_name"] = RUN_NAME
     config["diag_table"] = os.path.join(CONFIG_BUCKET, "diag_table")
     config["initial_conditions"] = IC_BUCKET
@@ -75,9 +81,7 @@ def get_config(start_date: datetime, run_duration: timedelta) -> dict:
     config["namelist"]["coupler_nml"].update(
         {"current_date": date_to_list(START_DATE), "dt_atmos": 900, "dt_ocean": 900}
     )
-    config["namelist"]["fv_core_nml"].update(
-        {"nudge": True}
-    )
+    config["namelist"]["fv_core_nml"].update({"nudge": True})
     config["namelist"].update(fv3config.config_from_namelist(LOCAL_NUDGE_NAMELIST))
     patch_files = [
         fv3config.get_asset_dict(NUDGE_BUCKET, file, target_location="INPUT")
