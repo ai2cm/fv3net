@@ -81,18 +81,18 @@ def get_config(timestep):
 
 
 def submit_jobs(timestep_list: List[str]) -> None:
-    fs = gcsfs.GCSFileSystem(project="VCM-ML")
+    fs = gcsfs.GCSFileSystem()
     for timestep in timestep_list:
         config = get_config(timestep)
         job_name = config["experiment_name"]
-        config_location = os.path.join(CONFIG_BUCKET, timestep, "fv3config.yml")
-        with fs.open(config_location, "w") as config_file:
-            config_file.write(yaml.dump(config))
         runfile_location = os.path.join(CONFIG_BUCKET, timestep, "runfile.py")
         fs.put(LOCAL_RUNFILE, runfile_location)
         diag_table_location = os.path.join(CONFIG_BUCKET, timestep, "diag_table")
         fs.put(LOCAL_DIAG_TABLE, diag_table_location)
         config["diag_table"] = diag_table_location
+        config_location = os.path.join(CONFIG_BUCKET, timestep, "fv3config.yml")
+        with fs.open(config_location, "w") as config_file:
+            config_file.write(yaml.dump(config))
         outdir = os.path.join(OUTPUT_BUCKET, timestep)
         fv3config.run_kubernetes(
             config_location,
@@ -112,4 +112,4 @@ def submit_jobs(timestep_list: List[str]) -> None:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     timestep_list = timesteps_to_process()
-    submit_jobs(timestep_list)
+    submit_jobs(timestep_list[0:1])

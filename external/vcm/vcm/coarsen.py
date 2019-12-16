@@ -11,7 +11,7 @@ import pandas as pd
 import xarray as xr
 from toolz import curry
 
-from ..data.cubedsphere import (
+from .cubedsphere import (
     block_coarsen,
     block_edge_sum,
     block_median,
