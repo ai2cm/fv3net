@@ -40,10 +40,10 @@ COORD_Y_OUTER = "grid_y"
 
 def create_fv3_grid(
     ds: xr.Dataset,
-    x_center=COORD_X_CENTER: str,
-    x_outer=COORD_X_OUTER: str,
-    y_center=COORD_Y_CENTER: str,
-    y_outer=COORD_Y_OUTER: str,
+    x_center: str = COORD_X_CENTER,
+    x_outer: str = COORD_X_OUTER,
+    y_center: str = COORD_Y_CENTER,
+    y_outer: str = COORD_Y_OUTER,
 ) -> xgcm.Grid:
     """Create an XGCM_ grid from a dataset of FV3 tile data
 
