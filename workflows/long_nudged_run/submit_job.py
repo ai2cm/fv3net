@@ -17,9 +17,10 @@ RUN_NAME = f"nudged-run-segment-2.{uuid.uuid4()}"
 BUCKET = "gs://vcm-ml-data/"
 NUDGE_BUCKET = BUCKET + "2019-12-02-year-2016-T85-nudging-data"
 # IC_BUCKET = BUCKET + "2019-12-03-C48-20160101.00Z_IC"
+PREVIOUS_SEGMENT = "nudged-run-segment-1.56c407fb-cf76-44d8-b356-93e1af9996de"
 IC_BUCKET = (
     BUCKET
-    + "2019-12-12-baseline-FV3GFS-runs/nudged/C48/nudged-run-segment-1.56c407fb-cf76-44d8-b356-93e1af9996de/output/RESTART"
+    + f"2019-12-12-baseline-FV3GFS-runs/nudged/C48/{PREVIOUS_SEGMENT}/output/RESTART"
 )
 OUTPUT_BUCKET = BUCKET + f"2019-12-12-baseline-FV3GFS-runs/nudged/C48/{RUN_NAME}/output"
 CONFIG_BUCKET = BUCKET + f"2019-12-12-baseline-FV3GFS-runs/nudged/C48/{RUN_NAME}/config"
