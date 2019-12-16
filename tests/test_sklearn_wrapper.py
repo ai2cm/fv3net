@@ -44,3 +44,4 @@ def test__flatten_same_order():
     b = _flatten(ds[["b"]], sample_dim)
 
     np.testing.assert_allclose(a, b)
+

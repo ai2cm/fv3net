@@ -1,7 +1,6 @@
 import argparse
 from dataclasses import dataclass
 import joblib
-import time
 from typing import List
 import yaml
 
@@ -68,7 +67,6 @@ def train_model(batched_data, train_config):
     for i, batch in enumerate(batched_data.generate_batches('train')):
         if i > 0:
             model.add_new_batch_estimators()
-        t0 = time.time()
         print(f"Fitting batch {i}/{batched_data.num_train_batches}")
         model.fit(
             input_vars=train_config.input_variables,
@@ -76,7 +74,7 @@ def train_model(batched_data, train_config):
             sample_dim='sample',
             data=batch
         )
-        print(f"Batch {i} done fitting, took {int(time.time()-t0)} s.")
+        print(f"Batch {i} done fitting.")
     return model
 
 

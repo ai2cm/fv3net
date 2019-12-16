@@ -2,7 +2,6 @@ import argparse
 import gcsfs
 import logging
 import os
-import time
 import xarray as xr
 
 from vcm.calc import apparent_source
@@ -53,11 +52,10 @@ def write_to_zarr(
 
     """
     logger.info("Writing to zarr...")
-    t0 = time.time()
     output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
     ds.to_zarr(zarr_filename, mode="w")
     gsutil.copy(zarr_filename, output_path)
-    logger.info(f"Done writing zarr to {output_path}, {int(time.time() - t0)} s.")
+    logger.info(f"Done writing zarr to {output_path}")
 
 
 def create_training_dataset(
@@ -65,12 +63,10 @@ def create_training_dataset(
         mask_to_surface_type=None,
         project='vcm-ml'
 ):
-    t0 = time.time()
     fs = gcsfs.GCSFileSystem(project=project)
     ds = _load_cloud_data(fs, data_urls)
     logger.info(f"Finished loading zarrs for timesteps "
-                f"{[get_timestep_from_filename(url) for url in data_urls]}. "
-                f"{int(time.time() - t0)} s")
+                f"{[get_timestep_from_filename(url) for url in data_urls]}. ")
     ds = _create_train_cols(ds)
     if not mask_to_surface_type:
         ds = mask_to_surface_type(ds, mask_to_surface_type)

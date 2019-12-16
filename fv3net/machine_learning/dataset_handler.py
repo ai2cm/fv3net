@@ -1,10 +1,8 @@
-import argparse
 from dataclasses import dataclass
 import gcsfs
 import logging
 import numpy as np
 import xarray as xr
-import time
 
 from fv3net.machine_learning import reshape
 
@@ -71,11 +69,9 @@ class BatchGenerator:
             self,
             ds,
     ):
-        t0 = time.time()
         ds_stacked = ds \
             .stack(sample=SAMPLE_DIMS) \
             .transpose("sample", "pfull") \
             .reset_index('sample')
         ds_shuffled = reshape.shuffled(ds_stacked, "sample", self.random_seed)
-        logger.info(f"Time to shuffle and rechunk: {int(time.time()-t0)} s")
         return ds_shuffled
