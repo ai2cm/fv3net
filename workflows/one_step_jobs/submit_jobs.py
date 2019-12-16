@@ -81,7 +81,7 @@ def get_config(timestep):
 
 
 def submit_jobs(timestep_list: List[str]) -> None:
-    fs = gcsfs.GCSFileSystem(project="VCM-ML")
+    fs = gcsfs.GCSFileSystem()
     for timestep in timestep_list:
         config = get_config(timestep)
         job_name = config["experiment_name"]
