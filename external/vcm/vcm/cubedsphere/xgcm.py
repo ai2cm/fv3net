@@ -1,5 +1,6 @@
 import xarray as xr
 import xgcm
+from . import constants
 
 # none of the connecitons are "reversed" in the xgcm parlance
 FV3_FACE_CONNECTIONS = {
@@ -14,13 +15,6 @@ FV3_FACE_CONNECTIONS = {
 }
 
 
-# diagnostics defaults
-COORD_X_CENTER = "grid_xt"
-COORD_X_OUTER = "grid_x"
-COORD_Y_CENTER = "grid_yt"
-COORD_Y_OUTER = "grid_y"
-
-
 def _validate_tile_coord(ds: xr.Dataset):
 
     if "tile" not in ds.coords:
@@ -32,10 +26,10 @@ def _validate_tile_coord(ds: xr.Dataset):
 
 def create_fv3_grid(
     ds: xr.Dataset,
-    x_center: str = COORD_X_CENTER,
-    x_outer: str = COORD_X_OUTER,
-    y_center: str = COORD_Y_CENTER,
-    y_outer: str = COORD_Y_OUTER,
+    x_center: str = constants.COORD_X_CENTER,
+    x_outer: str = constants.COORD_X_OUTER,
+    y_center: str = constants.COORD_Y_CENTER,
+    y_outer: str = constants.COORD_Y_OUTER,
 ) -> xgcm.Grid:
     """Create an XGCM_ grid from a dataset of FV3 tile data
 
