@@ -47,12 +47,6 @@ def shift_edge_var_to_center(edge_var: xr.DataArray):
         )
 
 
-# TODO: write a test for this method
-
-
-# TODO: this expects prefix as a path prefix to the coarsened tiles
-
-
 def coarsen_coords(
     coarsening_factor: int,
     reference_subtile: Union[xr.Dataset, xr.DataArray],

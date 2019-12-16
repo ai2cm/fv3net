@@ -21,6 +21,15 @@ COORD_Y_CENTER = "grid_yt"
 COORD_Y_OUTER = "grid_y"
 
 
+def _validate_tile_coord(ds: xr.Dataset):
+
+    if "tile" not in ds.coords:
+        raise ValueError("The input Dataset must have a `tile` coordinate.")
+
+    if not set(ds.tile) == {1, 2, 3, 4, 5, 6}:
+        raise ValueError("`tile` coordinate must contain each of [1, 2, 3, 4, 5, 6]")
+
+
 def create_fv3_grid(
     ds: xr.Dataset,
     x_center: str = COORD_X_CENTER,
@@ -30,26 +39,33 @@ def create_fv3_grid(
 ) -> xgcm.Grid:
     """Create an XGCM_ grid from a dataset of FV3 tile data
 
-    This object can be used to interpolate and differentiate cubed sphere data, please
-    see the XGCM_ documentation for more information.
 
-    See this notebook_ for usage.
+    Args:
+        ds: dataset with a valid tiles dimension. The tile dimension must have a 
+            corresponding coordinate. To follow GFDL's convention, this coordinate 
+            should start with 1. You can make it like this::
 
+                ds = ds.assign_coords(tile=np.arange(1, 7))
 
-    The tile dimension must have a corresponding coordinate. To follow GFDL's 
-    convention, this coordinate should start with 1.
-    
-    You can make it like this::
+        x_center (optional): the dimension name for the x edges
+        x_outer (optional): the dimension name for the x edges
+        y_center (optional): the dimension name for the y edges
+        y_outer (optional): the dimension name for the y edges
 
-        ds = ds.assign_coords(tile=np.arange(1, 7))
+    Returns:
+        an xgcm grid object. This object can be used to interpolate and differentiate 
+        cubed sphere data, please see the XGCM_ documentation for more information.
+
+    Notes:
+        See this notebook_ for usage.
 
 
     .. _XGCM: https://xgcm.readthedocs.io/en/latest/
     .. _notebook: https://github.com/VulcanClimateModeling/explore/blob/master/noahb/2019-12-06-XGCM.ipynb # noqa
 
     """
-    if "tile" not in ds.coords:
-        raise ValueError("The input Dataset must have a `tile` coordinate.")
+
+    _validate_tile_coord(ds)
 
     coords = {
         "x": {"center": x_center, "outer": x_outer},

@@ -7,6 +7,7 @@ import xarray as xr
 from vcm.cubedsphere.coarsen import NUM_TILES, SUBTILE_FILE_PATTERN
 
 
+# TODO: this expects prefix as a path prefix to the coarsened tiles
 def open_cubed_sphere(prefix: str, **kwargs):
     """Open cubed-sphere data
 
