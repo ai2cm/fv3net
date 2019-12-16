@@ -9,7 +9,6 @@ from .cubedsphere import (
     block_median,
     edge_weighted_block_average,
     horizontal_block_reduce,
-    open_cubed_sphere,
     save_tiles_separately,
     xarray_block_reduce,
 )
@@ -26,7 +25,6 @@ TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 __all__ = [
     "combine_array_sequence",
     "open_restarts",
-    "open_cubed_sphere",
     "block_coarsen",
     "block_edge_sum",
     "block_median",
