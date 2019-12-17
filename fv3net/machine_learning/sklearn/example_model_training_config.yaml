@@ -11,8 +11,6 @@ output_normalization_file: None
 input_variables:
   - T
   - sphum
-  - u
-  - v
 output_variables:
   - Q1
   - Q2

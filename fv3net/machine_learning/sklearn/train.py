@@ -39,7 +39,7 @@ def get_output_normalizations(output_normalization_file):
     """
     if output_normalization_file=='default':
         with path('fv3net.machine_learning.sklearn',
-                  'default_Q1_Q2_mean_stdev.npy') as f:
+                  'default_Q1_Q2_mean_stddev.npy') as f:
             output_norms_mean, output_norms_stddev = np.load(f)
     else:
         with open(output_normalization_file, 'r') as f:
@@ -162,7 +162,7 @@ if __name__ == "__main__":
         help="Path for writing trained model"
     )
     parser.add_argument(
-        "--output-normalization-file",
+        "--target-normalization-file",
         type=str,
         default='default',
         help="File that contains arrays mean and stddev for normalizing outputs"
@@ -170,7 +170,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     train_config = load_model_training_config(args.train_config_file)
     batched_data = load_data_generator(train_config)
-    output_norms_mean, output_norms_stddev = get_output_normalizations(train_config)
+    output_norms_mean, output_norms_stddev = \
+        get_output_normalizations(args.target_normalization_file)
     model = train_model(
         batched_data, train_config, output_norms_mean, output_norms_stddev)
     joblib.dump(model, args.model_output_path)
