@@ -5,16 +5,16 @@ dependencies = [
     "cloudpickle==1.2.2",
     "dask==2.6.0",
     "fsspec==0.5.2",
-    "gcsfs",
+    "gcsfs==0.3.1",
     "google-cloud-storage==1.20.0",
     "intake==0.5.3",
-    "numba",
+    "numba==0.44.1",
     "scikit-image",
     "netCDF4==1.4.2",
     "xarray==0.13.0",
-    "partd",
+    "partd==1.1.0",
     "pyyaml==3.13",
-    "zarr"
+    "zarr==2.3.2"
 ]
 
 setup(

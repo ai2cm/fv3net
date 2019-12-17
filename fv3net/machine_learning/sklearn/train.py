@@ -68,12 +68,14 @@ def train_model(batched_data, train_config):
         if i > 0:
             model.add_new_batch_estimators()
         print(f"Fitting batch {i}/{batched_data.num_train_batches}")
-        model.fit(
+        #model.fit_xarray(
+        features, targets = model.get_inputs_outputs_xarray(
             input_vars=train_config.input_variables,
             output_vars=train_config.output_variables,
             sample_dim='sample',
             data=batch
         )
+        model.fit(features, targets)
         print(f"Batch {i} done fitting.")
     return model
 

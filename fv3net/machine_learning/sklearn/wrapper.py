@@ -73,7 +73,8 @@ class SklearnWrapper(BaseXarrayEstimator):
             self.n_estimators_per_batch = self.model.estimator.n_estimators
 
     def fit(self, features, targets):
-        self.model.fit(features, targets)
+        normed_targets = self.norm_outputs(targets)
+        self.model.fit(features, normed_targets)
 
     def fit_xarray(
             self, input_vars: tuple, output_vars: tuple, sample_dim: str,
@@ -90,16 +91,17 @@ class SklearnWrapper(BaseXarrayEstimator):
             dim for dim in outputs.dims if dim != sample_dim
         ][0]
         self.output_features_ = outputs.indexes[self.output_features_dim_name_]
-        self.model.fit(inputs, outputs.values)
+        normed_outputs = self.norm_outputs(outputs.values)
+        self.model.fit(inputs, normed_outputs)
 
     def add_new_batch_estimators(self):
         if 'n_estimators' in self.model.__dict__:
             self.model.n_estimators += self.n_estimators_per_batch
         elif hasattr(self.model, 'estimator') and \
-             'n_estimators' in self.model.estimator.__dict__:
+                'n_estimators' in self.model.estimator.__dict__:
             self.model.set_params(
-                estimator__n_estimators = \
-                    self.model.estimator.n_estimators + self.n_estimators_per_batch)
+                estimator__n_estimators=
+                self.model.estimator.n_estimators + self.n_estimators_per_batch)
         else:
             raise ValueError("Cannot add more estimators to model. Check that model is"
                              "either sklearn RandomForestRegressor "
@@ -109,16 +111,26 @@ class SklearnWrapper(BaseXarrayEstimator):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
     def predict(self, features):
-        return self.model.predict(features)
+        normed_prediction = self.model.predict(features)
+        prediction = self.unnorm_outputs(normed_prediction)
+        return prediction
 
     def predict_xrarray(self, data, sample_dim):
         inputs = _flatten(data[self.input_vars_], sample_dim).values
-        numpy = self.model.predict(inputs)
+        normed_numpy_prediction = self.model.predict(inputs)
+        numpy_prediction = self.unnorm_outputs(normed_numpy_prediction)
         ds = xr.DataArray(
-            numpy,
+            numpy_prediction,
             dims=[sample_dim, "feature"],
             coords={sample_dim: inputs[sample_dim], "feature": self.output_features_},
         )
 
         return ds.to_unstacked_dataset("feature")
 
+    def norm_outputs(self, output_matrix, norm_file="default_Q1_Q2_mean_stdev.npy"):
+        outputs_mean, outputs_stdev = np.load(norm_file)
+        return np.divide(np.subtract(output_matrix, outputs_mean), outputs_stdev)
+
+    def unnorm_outputs(self, output_matrix, norm_file="default_Q1_Q2_mean_stdev.npy"):
+        outputs_mean, outputs_stdev = np.load(norm_file)
+        return np.sum([outputs_mean, np.product([outputs_stdev, output_matrix])])
