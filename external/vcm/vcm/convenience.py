@@ -178,9 +178,12 @@ def map_ops(fun, grouped_files, *args):
 
 
 def open_remote_nc(path, meta=None):
-
     computation = delayed(_open_remote_nc)(path)
+    return open_delayed(computation, meta=meta)
 
+
+def open_delayed(computation, meta=None):
+    """Open dask delayed object with as an xarray with given metadata"""
     data_vars = {}
     for key in meta:
         template_var = meta[key]
@@ -189,4 +192,4 @@ def open_remote_nc(path, meta=None):
         )
         data_vars[key] = (template_var.dims, array)
 
-    return xr.Dataset(data_vars)
+    return xr.Dataset(data_vars, coords=meta.coords)
