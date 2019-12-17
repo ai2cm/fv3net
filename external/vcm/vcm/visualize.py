@@ -150,12 +150,14 @@ def plot_cube(
             plottable_variable.sizes,
             projection
         )
+        print(axes)
         handles = []
         for i in range(axes.shape[0]):
             if len(axes.shape) > 1:
                 # 2 facet dims
                 handles2 = []
                 for j in range(axes.shape[1]):
+                    print(i,j,axes[i,j])
                     handle = _plot_func_short(
                         array = plottable_variable[var_name]
                         .isel({row: i, column: j})
@@ -477,6 +479,8 @@ def _get_facet_axes(
         subplot_kw = {"projection" : projection}
     )
     
+    print(axes)
+    
     return axes
 
 
@@ -581,11 +585,11 @@ def _plot_cube_axes(
     else:
         raise ValueError(
             "Plotting functions only include pcolormesh, contour, and contourf."
-        )
+        ) 
         
     if "coastlines_kwargs" in kwargs:
         coastlines_kwargs = kwargs["coastlines_kwargs"]
-        del kwargs["coastlines_kwargs"]  
+        del kwargs["coastlines_kwargs"] 
         
     central_longitude = ax.projection.proj4_params["lon_0"]
                 
@@ -597,6 +601,8 @@ def _plot_cube_axes(
         array,
         np.nan
     )
+    
+    print(ax)
 
     for tile in range(6):
         if ax.plotting_function != plt.pcolormesh:
