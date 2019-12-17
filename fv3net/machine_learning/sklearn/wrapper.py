@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-
+from importlib import resources
 import numpy as np
 import xarray as xr
 from sklearn.base import BaseEstimator
@@ -72,6 +72,13 @@ class SklearnWrapper(BaseXarrayEstimator):
                 'n_estimators' in self.model.estimator.__dict__:
             self.n_estimators_per_batch = self.model.estimator.n_estimators
 
+    def __repr__(self):
+        return "SklearnWrapper(\n%s)" % repr(self.model)
+
+    def save_normalization_data(self, output_means, output_stddevs):
+        self.output_means = output_means
+        self.output_stddevs = output_stddevs
+
     def fit(self, features, targets):
         normed_targets = self.norm_outputs(targets)
         self.model.fit(features, normed_targets)
@@ -80,7 +87,6 @@ class SklearnWrapper(BaseXarrayEstimator):
             self, input_vars: tuple, output_vars: tuple, sample_dim: str,
             data: xr.Dataset
     ):
-
         self.input_vars_ = input_vars
         self.output_vars_ = output_vars
         self.feature_dims_ = remove(data.dims, sample_dim)
@@ -107,30 +113,28 @@ class SklearnWrapper(BaseXarrayEstimator):
                              "either sklearn RandomForestRegressor "
                              "or MultiOutputRegressor.")
 
-    def __repr__(self):
-        return "SklearnWrapper(\n%s)" % repr(self.model)
-
-    def predict(self, features):
+    def predict(self, features, norm_file=None):
         normed_prediction = self.model.predict(features)
         prediction = self.unnorm_outputs(normed_prediction)
         return prediction
 
     def predict_xrarray(self, data, sample_dim):
         inputs = _flatten(data[self.input_vars_], sample_dim).values
-        normed_numpy_prediction = self.model.predict(inputs)
-        numpy_prediction = self.unnorm_outputs(normed_numpy_prediction)
+        normed_prediction = self.model.predict(inputs)
+        physical_prediction = self.unnorm_outputs(normed_prediction)
         ds = xr.DataArray(
-            numpy_prediction,
+            physical_prediction,
             dims=[sample_dim, "feature"],
             coords={sample_dim: inputs[sample_dim], "feature": self.output_features_},
         )
-
         return ds.to_unstacked_dataset("feature")
 
-    def norm_outputs(self, output_matrix, norm_file="default_Q1_Q2_mean_stdev.npy"):
-        outputs_mean, outputs_stdev = np.load(norm_file)
-        return np.divide(np.subtract(output_matrix, outputs_mean), outputs_stdev)
+    def norm_outputs(self, output_matrix):
+        return np.divide(
+            np.subtract(output_matrix, self.output_means),
+            self.output_stddevs)
 
-    def unnorm_outputs(self, output_matrix, norm_file="default_Q1_Q2_mean_stdev.npy"):
-        outputs_mean, outputs_stdev = np.load(norm_file)
-        return np.sum([outputs_mean, np.product([outputs_stdev, output_matrix])])
+    def unnorm_outputs(self, output_matrix):
+        return np.sum(
+            [np.product([self.output_stddevs, output_matrix]),
+             self.output_means])
