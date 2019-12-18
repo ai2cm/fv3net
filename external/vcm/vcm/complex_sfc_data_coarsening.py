@@ -58,7 +58,9 @@ def coarse_grain_sfc_data_complex(
                 data_var=ds[data_var],
                 coarsening_factor=coarsening_factor,
                 area=area,
-                is_dominant_surface_type=precomputed_arguments["is_dominant_surface_type"],
+                is_dominant_surface_type=precomputed_arguments[
+                    "is_dominant_surface_type"
+                ],
                 is_dominant_vtype=precomputed_arguments["is_dominant_vtype"],
                 is_dominant_stype=precomputed_arguments["is_dominant_stype"],
                 vfrac=ds.vfrac,
@@ -195,9 +197,7 @@ def _area_weighted_mean_over_dominant_sfc_and_stype(
 
 
 def _mode(
-    data_var: xr.DataArray = None,
-    coarsening_factor: int = None,
-    **unused_kwargs,
+    data_var: xr.DataArray = None, coarsening_factor: int = None, **unused_kwargs,
 ) -> xr.DataArray:
     return block_coarsen(
         data_var,
@@ -307,9 +307,7 @@ def _area_or_area_and_fice_weighted_mean(
         x_dim=X_DIM,
         y_dim=Y_DIM,
     )
-    return xr.where(
-        xarray_utils.isclose(coarsened_slmsk, 2.0), sea_ice, land_or_ocean
-    )
+    return xr.where(xarray_utils.isclose(coarsened_slmsk, 2.0), sea_ice, land_or_ocean)
 
 
 # Note that slmsk, vtype, and stype are handled separately (they need to be
@@ -446,4 +444,3 @@ def _block_upsample_like(
     return result.assign_coords(
         {x_dim: reference_da[x_dim], y_dim: reference_da[y_dim]}
     )
-

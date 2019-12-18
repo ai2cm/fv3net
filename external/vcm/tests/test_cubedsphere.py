@@ -371,7 +371,7 @@ def test_block_edge_sum(data, factor, edge, expected_data):
 @pytest.fixture(params=[np.float32, np.float64])
 def dtype(request):
     return request.param
-    
+
 
 @pytest.fixture(params=[0, 1, 2])
 def subtile_x(request):
@@ -501,9 +501,7 @@ def expected_subtile_staggered_y_coordinates(subtile_y):
 
 @pytest.fixture()
 def input_dataarray_with_staggered_subtile_coordinates(
-    input_subtile_staggered_x_coordinates,
-    input_subtile_staggered_y_coordinates,
-    dtype
+    input_subtile_staggered_x_coordinates, input_subtile_staggered_y_coordinates, dtype
 ):
     shape = (5, 4, 2)
     data = np.arange(np.product(shape)).reshape(shape).astype(dtype)
@@ -513,7 +511,7 @@ def input_dataarray_with_staggered_subtile_coordinates(
         "y": input_subtile_staggered_y_coordinates,
     }
     print(data.dtype)
-    print(coords['x'].dtype)
+    print(coords["x"].dtype)
     return xr.DataArray(data, dims=dims, coords=coords, name="foo")
 
 
@@ -533,8 +531,12 @@ def test_edge_weighted_block_average_with_coordinates(
         edge="y",
     )
 
-    assert_identical_including_dtype(result["x"], expected_subtile_staggered_x_coordinates)
-    assert_identical_including_dtype(result["y"], expected_subtile_staggered_y_coordinates)
+    assert_identical_including_dtype(
+        result["x"], expected_subtile_staggered_x_coordinates
+    )
+    assert_identical_including_dtype(
+        result["y"], expected_subtile_staggered_y_coordinates
+    )
     assert "z" not in result.coords
 
 
@@ -552,8 +554,12 @@ def test_block_edge_sum_with_coordinates(
         edge="y",
     )
 
-    assert_identical_including_dtype(result["x"], expected_subtile_staggered_x_coordinates)
-    assert_identical_including_dtype(result["y"], expected_subtile_staggered_y_coordinates)
+    assert_identical_including_dtype(
+        result["x"], expected_subtile_staggered_x_coordinates
+    )
+    assert_identical_including_dtype(
+        result["y"], expected_subtile_staggered_y_coordinates
+    )
     assert "z" not in result.coords
 
 

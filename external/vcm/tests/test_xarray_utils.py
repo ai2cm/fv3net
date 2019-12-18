@@ -4,7 +4,10 @@ import pytest
 import xarray as xr
 
 from vcm.xarray_utils import (
-    _repeat_dataarray, assert_identical_including_dtype, isclose, repeat
+    _repeat_dataarray,
+    assert_identical_including_dtype,
+    isclose,
+    repeat,
 )
 
 
@@ -19,7 +22,7 @@ from vcm.xarray_utils import (
         ([np.nan], [np.nan], [False], {}),
         ([np.nan], [np.nan], [True], {"equal_nan": True}),
         ([1.0], [1.0], [True], {}),
-        ([1.0], [1.0 + 1.0e-9], [False], {"rtol": 1.0e-10, "atol": 1.0e-10})
+        ([1.0], [1.0 + 1.0e-9], [False], {"rtol": 1.0e-10, "atol": 1.0e-10}),
     ],
 )
 def test_isclose(use_dask, a, b, expected, kwargs):
@@ -85,20 +88,20 @@ def test_repeat(object_type, dim, expected_foo_data, repeats):
             repeat(obj, 2, dim)
 
 
-@pytest.mark.parametrize('object_type', ["DataArray", "Dataset"])
+@pytest.mark.parametrize("object_type", ["DataArray", "Dataset"])
 def test_assert_identical_including_dtype(object_type):
-    a = xr.DataArray([1, 2], dims=['x'], coords=[[0, 1]], name="foo")
-    b = xr.DataArray([1, 2], dims=['x'], coords=[[0, 1]], name="foo")
-    c = a.astype('float64')
+    a = xr.DataArray([1, 2], dims=["x"], coords=[[0, 1]], name="foo")
+    b = xr.DataArray([1, 2], dims=["x"], coords=[[0, 1]], name="foo")
+    c = a.astype("float64")
     d = a.copy(deep=True)
-    d['x'] = d.x.astype('float64')
+    d["x"] = d.x.astype("float64")
 
-    if object_type == 'Dataset':
+    if object_type == "Dataset":
         a = a.to_dataset()
         b = b.to_dataset()
         c = c.to_dataset()
         d = d.to_dataset()
-    
+
     assert_identical_including_dtype(a, b)
 
     with pytest.raises(AssertionError):
