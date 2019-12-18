@@ -5,7 +5,7 @@ import gcsfs
 import numpy as np
 import xarray as xr
 
-from fv3net.machine_learning import reshape
+from fv3net.regression import reshape
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)

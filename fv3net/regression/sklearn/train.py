@@ -7,8 +7,8 @@ import joblib
 import numpy as np
 import yaml
 
-from fv3net.machine_learning.dataset_handler import BatchGenerator
-from fv3net.machine_learning.sklearn.wrapper import SklearnWrapper
+from fv3net.regression.dataset_handler import BatchGenerator
+from fv3net.regression.sklearn.wrapper import SklearnWrapper
 
 
 @dataclass
@@ -40,7 +40,7 @@ def get_output_normalizations(output_normalization_file):
     """
     if output_normalization_file == "default":
         with path(
-            "fv3net.machine_learning.sklearn", "default_Q1_Q2_mean_stddev.dat"
+            "fv3net.regression.sklearn", "default_Q1_Q2_mean_stddev.dat"
         ) as f:
             output_norms_mean, output_norms_stddev = np.loadtxt(f)
     else:
