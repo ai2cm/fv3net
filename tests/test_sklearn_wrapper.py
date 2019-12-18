@@ -1,7 +1,19 @@
 import numpy as np
+import pytest
 import xarray as xr
 
-from fv3net.machine_learning.sklearn.wrapper import _flatten
+from fv3net.machine_learning.sklearn.wrapper import _flatten, SklearnWrapper
+
+
+@pytest.fixture
+def test_model_wrapper():
+    from sklearn.ensemble import RandomForestRegressor
+    regressor = RandomForestRegressor()
+    model_wrapper =  SklearnWrapper(regressor)
+    target_means = np.array([1., 2., -1.])
+    target_stddevs = np.array([0.5, 1., 2.])
+    model_wrapper.save_normalization_data(target_means, target_stddevs)
+    return model_wrapper
 
 
 def test__flatten():
@@ -45,3 +57,14 @@ def test__flatten_same_order():
 
     np.testing.assert_allclose(a, b)
 
+
+def test__norm_outputs(test_model_wrapper):
+    physical_target_values = np.array([2., 4., -2])
+    normed_target_values = test_model_wrapper.norm_outputs(physical_target_values)
+    assert np.array_equal(normed_target_values, [2., 2., -0.5])
+
+
+def test__unnorm_outputs(test_model_wrapper):
+    normed_target_values = [2., 2., -0.5]
+    physical_target_values = test_model_wrapper.unnorm_outputs(normed_target_values)
+    assert np.array_equal(physical_target_values, [2., 4., -2])

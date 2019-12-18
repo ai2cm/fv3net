@@ -12,12 +12,18 @@ from fv3net.pipelines.create_training_data.dataset_creator import \
     create_training_dataset, write_to_zarr
 from vcm.convenience import get_timestep_from_filename
 
+# There have been issues where python crashes immediately unless numba gets
+# imported explicitly before vcm, hence the import and del
 del numba
 
 logging.basicConfig(level=logging.INFO)
 
 
 class CreateTrainZarr(beam.DoFn):
+    """Applies process to elements of beam ProcessCollection to create
+    batch dataset with feature/target variables and write it to GCS
+
+    """
     def __init__(self, args):
         self.mask_to_surface_type = args.mask_to_surface_type
         self.gcs_output_data_dir = args.gcs_output_data_dir
@@ -35,7 +41,6 @@ class CreateTrainZarr(beam.DoFn):
             self.gcs_output_data_dir,
             zarr_file,
             bucket=self.gcs_bucket, )
-
 
 
 def run(args, pipeline_args):
@@ -58,7 +63,6 @@ def run(args, pipeline_args):
          | beam.Create(data_urls)
          | "CreateSubsetZarr" >> beam.ParDo(CreateTrainZarr(args))
          )
-
 
 
 if __name__ == "__main__":

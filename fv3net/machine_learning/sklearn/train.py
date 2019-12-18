@@ -25,7 +25,6 @@ class ModelTrainingConfig:
     input_variables: List[str]
     output_variables: List[str]
     gcs_project: str = 'vcm-ml'
-    output_normalization_file: str = 'default'
 
 
 def get_output_normalizations(output_normalization_file):

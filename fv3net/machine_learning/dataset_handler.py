@@ -26,12 +26,25 @@ class BatchGenerator:
     random_seed: int = 1234
 
     def __post_init__(self):
+        """Randomly splits the list of zarrs in the gcs_data_dir into train/test
+
+        Returns:
+
+        """
         self.fs = gcsfs.GCSFileSystem(project=self.gcs_project)
         zarr_urls = self.fs.ls(self.gcs_data_dir)
         self.train_file_batches, self.test_file_batches = \
             self._split_train_test_files(zarr_urls)
 
     def generate_batches(self, batch_type='train'):
+        """
+
+        Args:
+            batch_type: train or test
+
+        Returns:
+            dataset of vertical columns shuffled within each training batch
+        """
         if batch_type == 'train':
             grouped_urls = self.train_file_batches
         elif batch_type == 'test':
@@ -43,6 +56,14 @@ class BatchGenerator:
             yield ds_shuffled
 
     def _split_train_test_files(self, zarr_urls):
+        """
+
+        Args:
+            zarr_urls: list of zarr files on GCS
+
+        Returns:
+            train and test arrays, randomly split by fraction train_frac/test_frac
+        """
         num_total_files = len(zarr_urls)
         num_train_files = int(num_total_files * self.train_frac)
         num_test_files = num_total_files - num_train_files
@@ -69,6 +90,16 @@ class BatchGenerator:
             self,
             ds,
     ):
+        """
+
+        Args:
+            ds: xarray dataset of feature and target variables with
+            time/spatial dimensions
+
+        Returns:
+            xarray dataset with dimensions (except for vertical dim) stacked into a
+            single sample dimension, randomly shuffled
+        """
         ds_stacked = ds \
             .stack(sample=SAMPLE_DIMS) \
             .transpose("sample", "pfull") \

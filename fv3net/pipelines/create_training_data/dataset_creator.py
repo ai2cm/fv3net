@@ -40,15 +40,15 @@ def write_to_zarr(
         zarr_filename,
         bucket='vcm-ml-data',
 ):
-    """Still haven't figured out why writing is so slow
+    """Writes temporary zarr on worker and moves it to GCS
 
     Args:
-        ds:
-        gcs_dest_path:
-        load_size:
-
+        ds: xr dataset for single training batch
+        gcs_dest_path: write location on GCS
+        zarr_filename: name for zarr, use first timestamp as label
+        bucket: GCS bucket
     Returns:
-
+        None
     """
     logger.info("Writing to zarr...")
     output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
@@ -62,6 +62,16 @@ def create_training_dataset(
         mask_to_surface_type=None,
         project='vcm-ml'
 ):
+    """
+
+    Args:
+        data_urls:
+        mask_to_surface_type:
+        project:
+
+    Returns:
+
+    """
     fs = gcsfs.GCSFileSystem(project=project)
     ds = _load_cloud_data(fs, data_urls)
     logger.info(f"Finished loading zarrs for timesteps "
@@ -73,6 +83,15 @@ def create_training_dataset(
 
 
 def _load_cloud_data(fs, gcs_urls):
+    """
+
+    Args:
+        fs: GCSFileSystem
+        gcs_urls: list of GCS urls to open
+
+    Returns:
+        xarray dataset of concatenated zarrs in url list
+    """
     gcs_zarr_mappings = [fs.get_mapper(url) for url in gcs_urls]
     ds = xr.concat(
         map(xr.open_zarr, gcs_zarr_mappings),
@@ -85,6 +104,15 @@ def mask_to_surface_type(
         ds,
         surface_type
 ):
+    """
+
+    Args:
+        ds: xarray dataset, must have variable slmsk
+        surface_type: one of ['sea', 'land', 'seaice']
+
+    Returns:
+        input dataset masked to the surface_type specified
+    """
     if surface_type not in ['sea', 'land', 'seaice']:
         raise ValueError("Must mask to surface_type in ['sea', 'land', 'seaice'].")
     surface_type_codes = {'sea': 0, 'land': 1, 'seaice': 2}
@@ -94,6 +122,14 @@ def mask_to_surface_type(
 
 
 def _create_train_cols(ds):
+    """
+
+    Args:
+        ds: xarray dataset, must have variables ['u', 'v', 'T', 'sphum']
+
+    Returns:
+        xarray dataset with variables in INPUT_VARS + TARGET_VARS + GRID_VARS
+    """
     da_centered_u = rename_centered_xy_coords(shift_edge_var_to_center(ds['u']))
     da_centered_v = rename_centered_xy_coords(shift_edge_var_to_center(ds['v']))
     ds['u'] = da_centered_u

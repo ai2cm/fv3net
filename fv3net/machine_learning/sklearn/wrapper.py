@@ -135,6 +135,6 @@ class SklearnWrapper(BaseXarrayEstimator):
             self.output_stddevs)
 
     def unnorm_outputs(self, output_matrix):
-        return np.sum(
-            [np.product([self.output_stddevs, output_matrix]),
-             self.output_means])
+        return np.add(
+            np.multiply(self.output_stddevs, output_matrix),
+            self.output_means)

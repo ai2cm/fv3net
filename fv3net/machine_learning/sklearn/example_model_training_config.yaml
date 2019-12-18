@@ -7,7 +7,6 @@ batch_size: 100000
 train_frac: 0.8
 test_frac: 0.2
 gcs_data_dir: 'gs://vcm-ml-data/test_annak/test-dataflow'
-output_normalization_file: None
 input_variables:
   - T
   - sphum
