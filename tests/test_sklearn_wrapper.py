@@ -2,19 +2,19 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from fv3net.regression.sklearn.wrapper import SklearnWrapper, _flatten
+from fv3net.regression.sklearn.wrapper import TransformedTargetRegressor, _flatten
 
 
 @pytest.fixture
-def test_model_wrapper():
+def test_transformed_target_regressor():
     from sklearn.ensemble import RandomForestRegressor
 
     regressor = RandomForestRegressor()
-    model_wrapper = SklearnWrapper(regressor)
+    regressor_wrapper = TransformedTargetRegressor(regressor)
     target_means = np.array([1.0, 2.0, -1.0])
     target_stddevs = np.array([0.5, 1.0, 2.0])
-    model_wrapper.save_normalization_data(target_means, target_stddevs)
-    return model_wrapper
+    regressor_wrapper.save_normalization_data(target_means, target_stddevs)
+    return regressor_wrapper
 
 
 def test__flatten():
@@ -59,13 +59,15 @@ def test__flatten_same_order():
     np.testing.assert_allclose(a, b)
 
 
-def test__norm_outputs(test_model_wrapper):
+def test__transform(test_transformed_target_regressor):
     physical_target_values = np.array([2.0, 4.0, -2])
-    normed_target_values = test_model_wrapper.norm_outputs(physical_target_values)
+    normed_target_values = \
+        test_transformed_target_regressor._transform(physical_target_values)
     assert np.array_equal(normed_target_values, [2.0, 2.0, -0.5])
 
 
-def test__unnorm_outputs(test_model_wrapper):
+def test__inverse_transform_outputs(test_transformed_target_regressor):
     normed_target_values = [2.0, 2.0, -0.5]
-    physical_target_values = test_model_wrapper.unnorm_outputs(normed_target_values)
+    physical_target_values = \
+        test_transformed_target_regressor._inverse_transform(normed_target_values)
     assert np.array_equal(physical_target_values, [2.0, 4.0, -2])

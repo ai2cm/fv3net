@@ -22,8 +22,78 @@ def _flatten(data: xr.Dataset, sample_dim) -> np.ndarray:
 
 
 @dataclass
+class TransformedTargetRegressor:
+    """Modeled off of sklearn's TransformedTargetRegressor but with
+    i) function to add estimators
+
+    """
+    def __init__(self, regressor):
+        self.regressor = regressor
+        self.n_estimators_per_batch = regressor.n_estimators
+
+    def save_normalization_data(self, output_means, output_stddevs):
+        self.output_means = output_means
+        self.output_stddevs = output_stddevs
+
+    def add_new_batch_estimators(self):
+        if "n_estimators" in self.regressor.__dict__:
+            new_total_estimators = \
+                self.regressor.n_estimators + self.n_estimators_per_batch
+            self.regressor.n_estimators = new_total_estimators
+        elif (
+            hasattr(self.regressor, "estimator")
+            and "n_estimators" in self.regressor.estimator.__dict__
+        ):
+            self.regressor.set_params(
+                estimator__n_estimators=self.regressor.estimator.n_estimators
+                + self.n_estimators_per_batch
+            )
+        else:
+            raise ValueError(
+                "Cannot add more estimators to model. Check that model is"
+                "either sklearn RandomForestRegressor "
+                "or MultiOutputRegressor."
+            )
+
+    def fit(self, features, outputs):
+        normed_outputs = self._transform(outputs)
+        self.regressor.fit(features, normed_outputs)
+
+    def predict(self, features):
+        normed_outputs = self.regressor.predict(features)
+        physical_outputs = self._inverse_transform(normed_outputs)
+        return physical_outputs
+
+    def _transform(self, output_matrix):
+        """
+
+        Args:
+            output_matrix: physical values of targets
+
+        Returns:
+            targets normalized by (target-mean) / stddev
+        """
+        return np.divide(
+            np.subtract(output_matrix, self.output_means), self.output_stddevs
+        )
+
+    def _inverse_transform(self, output_matrix):
+        """
+
+        Args:
+            output_matrix: normalized prediction values
+
+        Returns:
+            physical values of predictions
+        """
+        return np.add(
+            np.multiply(self.output_stddevs, output_matrix), self.output_means
+        )
+
+
+@dataclass
 class BaseXarrayEstimator:
-    def fit(
+    def fit_xarray(
         self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
     ):
         """
@@ -38,7 +108,7 @@ class BaseXarrayEstimator:
         """
         raise NotImplementedError
 
-    def predict(self, data: xr.Dataset, sample_dim: str) -> xr.Dataset:
+    def predict_xarray(self, data: xr.Dataset, sample_dim: str) -> xr.Dataset:
         """
         Make a prediction
 
@@ -76,13 +146,8 @@ class SklearnWrapper(BaseXarrayEstimator):
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
-    def save_normalization_data(self, output_means, output_stddevs):
-        self.output_means = output_means
-        self.output_stddevs = output_stddevs
-
     def fit(self, features, targets):
-        normed_targets = self.norm_outputs(targets)
-        self.model.fit(features, normed_targets)
+        self.model.fit(features, targets)
 
     def fit_xarray(
         self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
@@ -97,49 +162,19 @@ class SklearnWrapper(BaseXarrayEstimator):
             dim for dim in outputs.dims if dim != sample_dim
         ][0]
         self.output_features_ = outputs.indexes[self.output_features_dim_name_]
-        normed_outputs = self.norm_outputs(outputs.values)
-        self.model.fit(inputs, normed_outputs)
+        self.model.fit(inputs, outputs.values)
 
-    def add_new_batch_estimators(self):
-        if "n_estimators" in self.model.__dict__:
-            self.model.n_estimators += self.n_estimators_per_batch
-        elif (
-            hasattr(self.model, "estimator")
-            and "n_estimators" in self.model.estimator.__dict__
-        ):
-            self.model.set_params(
-                estimator__n_estimators=self.model.estimator.n_estimators
-                + self.n_estimators_per_batch
-            )
-        else:
-            raise ValueError(
-                "Cannot add more estimators to model. Check that model is"
-                "either sklearn RandomForestRegressor "
-                "or MultiOutputRegressor."
-            )
+    def predict(self, features):
+        return self.model.predict(features)
 
-    def predict(self, features, norm_file=None):
-        normed_prediction = self.model.predict(features)
-        prediction = self.unnorm_outputs(normed_prediction)
-        return prediction
-
-    def predict_xrarray(self, data, sample_dim):
+    def predict_xarray(self, data, sample_dim):
         inputs = _flatten(data[self.input_vars_], sample_dim).values
-        normed_prediction = self.model.predict(inputs)
-        physical_prediction = self.unnorm_outputs(normed_prediction)
+        prediction = self.model.predict(inputs)
         ds = xr.DataArray(
-            physical_prediction,
+            prediction,
             dims=[sample_dim, "feature"],
             coords={sample_dim: inputs[sample_dim], "feature": self.output_features_},
         )
         return ds.to_unstacked_dataset("feature")
 
-    def norm_outputs(self, output_matrix):
-        return np.divide(
-            np.subtract(output_matrix, self.output_means), self.output_stddevs
-        )
 
-    def unnorm_outputs(self, output_matrix):
-        return np.add(
-            np.multiply(self.output_stddevs, output_matrix), self.output_means
-        )
