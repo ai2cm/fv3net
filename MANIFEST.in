@@ -1,1 +1,1 @@
-include fv3net/machine_learning/sklearn/default_Q1_Q2_mean_stddev.npy
+include fv3net/machine_learning/sklearn/default_Q1_Q2_mean_stddev.dat

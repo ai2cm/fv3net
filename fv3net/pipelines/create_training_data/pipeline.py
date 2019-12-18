@@ -9,13 +9,11 @@ import xarray as xr
 
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
-from vcm.cubedsphere import rename_centered_xy_coords, shift_edge_var_to_center
+from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
+from vcm.select import mask_to_surface_type
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-fh = logging.FileHandler("dataset.log")
-fh.setLevel(logging.INFO)
-logger.addHandler(fh)
 
 
 # There have been issues where python crashes immediately unless numba gets
@@ -53,15 +51,16 @@ def run(args, pipeline_args):
             | "LoadCloudData" >> beam.Map(_load_cloud_data, fs=fs)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
             | "MaskToSurfaceType" >> beam.Map(
-                _mask_to_surface_type, surface_type=args.mask_to_surface_type)
+                mask_to_surface_type, surface_type=args.mask_to_surface_type)
             | "WriteToZarr" >> beam.Map(
                 _write_to_zarr,
-                gcs_dest_dir=args.gcs_output_data_dir)
+                gcs_dest_dir=args.gcs_output_data_dir,
+                bucket=args.gcs_bucket)
         )
 
 
 def _write_to_zarr(
-    ds, gcs_dest_dir, bucket="vcm-ml-data",
+    ds, gcs_dest_dir, bucket="gs://vcm-ml-data",
 ):
     """Writes temporary zarr on worker and moves it to GCS
 
@@ -86,7 +85,7 @@ def _filename_from_first_timestep(ds):
     return timestep + ".zarr"
 
 
-def _load_cloud_data(fs, gcs_urls):
+def _load_cloud_data(gcs_urls, fs):
     """
 
     Args:
@@ -97,30 +96,10 @@ def _load_cloud_data(fs, gcs_urls):
         xarray dataset of concatenated zarrs in url list
     """
     gcs_zarr_mappings = [fs.get_mapper(url) for url in gcs_urls]
-    ds = xr.concat(map(xr.open_zarr, gcs_zarr_mappings), "initialization_time")[
+    ds = xr.concat(map(xr.open_zarr, gcs_zarr_mappings), TIME_DIM)[
         INPUT_VARS + GRID_VARS
     ]
     return ds
-
-
-def _mask_to_surface_type(ds, surface_type):
-    """
-
-    Args:
-        ds: xarray dataset, must have variable slmsk
-        surface_type: one of ['sea', 'land', 'seaice']
-
-    Returns:
-        input dataset masked to the surface_type specified
-    """
-    if not surface_type:
-        return ds
-    elif surface_type not in ["sea", "land", "seaice"]:
-        raise ValueError("Must mask to surface_type in ['sea', 'land', 'seaice'].")
-    surface_type_codes = {"sea": 0, "land": 1, "seaice": 2}
-    mask = ds.slmsk == surface_type_codes[surface_type]
-    ds_masked = ds.where(mask)
-    return ds_masked
 
 
 def _create_train_cols(ds):
@@ -146,7 +125,7 @@ def _create_train_cols(ds):
         .isel(forecast_time=0)
         .squeeze()
         .drop("forecast_time")
-        .isel(initialization_time=slice(None, num_slices))
+        .isel({TIME_DIM: slice(None, num_slices)})
     )
     return ds
 

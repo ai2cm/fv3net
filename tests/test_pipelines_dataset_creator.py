@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from fv3net.pipelines.create_training_data.dataset_creator import _create_train_cols
+from fv3net.pipelines.create_training_data.pipeline import _create_train_cols
 
 
 @pytest.fixture
