@@ -132,65 +132,87 @@ def plot_cube(
 
     _plot_func_short = partial(
         _plot_cube_axes,
-        plotting_function,
-        plottable_variable.lat.values,
-        plottable_variable.lon.values,
-        plottable_variable.latb.values,
-        plottable_variable.lonb.values,
+        plotting_function = plotting_function,
+        lat = plottable_variable.lat.values,
+        lon = plottable_variable.lon.values,
+        latb = plottable_variable.latb.values,
+        lonb = plottable_variable.lonb.values,
         coastlines = coastlines,
         coastlines_kwargs = coastlines_kwargs,
         **kwargs,
     )
-
+    
     if not ax and (row or column):
         # facets
-        axes = _get_facet_axes(
+        n_rows, n_cols = _get_facet_dims(
             row,
             column,
             plottable_variable.sizes,
             projection
         )
-        print(axes)
+        f = plt.figure()
+        gs = f.add_gridspec(n_rows, n_cols)
         handles = []
-        for i in range(axes.shape[0]):
-            if len(axes.shape) > 1:
+        if n_rows > 1:
+            if n_cols > 1:
                 # 2 facet dims
                 handles2 = []
-                for j in range(axes.shape[1]):
-                    print(i,j,axes[i,j])
+                for i in range(n_rows):
+                    for j in range(n_cols):
+                        handle = _plot_func_short(
+                            array = plottable_variable[var_name]
+                            .isel({row: i, column: j})
+                            .values,
+                            ax = f.add_subplot(gs[i, j], projection = projection),
+                            title = (
+                                f"{row} = "
+                                f"{plottable_variable[row].isel({row : i}).item()}"
+                                f", {column} = "
+                                f"{plottable_variable[column].isel({column : j}).item()}"
+                            ),
+                        )
+                        handles2.append(handle)
+                    handles.append(handles2)
+            else:
+                # rows only
+                for i in range(n_rows):
                     handle = _plot_func_short(
                         array = plottable_variable[var_name]
-                        .isel({row: i, column: j})
+                        .isel({row: i})
                         .values,
-                        ax = axes[i, j],
+                        ax = f.add_subplot(gs[i, 0], projection = projection),
                         title = (
                             f"{row} = "
                             f"{plottable_variable[row].isel({row : i}).item()}"
-                            f", {column} = "
-                            f"{plottable_variable[column].isel({column : j}).item()}"
                         ),
                     )
-                    handles2.append(handle)
-                handles.append(handles2)
-            else:
-                # 1 facet dim
-                coord = row if not column else column
-                handle = _plot_func_short(
-                    array = plottable_variable[var_name].isel({coord: i}).values,
-                    ax = axes[i],
-                    title = (
-                        f"{coord} = "
-                        f"{plottable_variable[coord].isel({coord : i}).item()}"
-                    ),
-                )
-                handles.append(handle)
+                    handles.append(handle)
+        else:
+            if n_cols > 1:
+                # columns only
+                for i in range(n_cols):
+                    handle = _plot_func_short(
+                        array = plottable_variable[var_name]
+                        .isel({column: i})
+                        .values,
+                        ax = f.add_subplot(gs[0, i], projection = projection),
+                        title = (
+                            f", {column} = "
+                            f"{plottable_variable[column].isel({column : i}).item()}"
+                        ),
+                    )
+                    handles.append(handle)
+        axes = f.axes
     else:
         # single axes
         if not ax:
-            _, ax = plt.subplots(1, 1, subplot_kw = {"projection" : projection})
+            f, ax = plt.subplots(1, 1, subplot_kw = {"projection" : projection})
         handle = _plot_func_short(array = array, ax = ax)
         axes = [ax]
         handles = [handle]
+    
+    for ax in axes:
+        print(ax.get_extent())
 
     if colorbar:
         plt.gcf().subplots_adjust(
@@ -420,7 +442,7 @@ def _infer_color_limits(
     return vmin, vmax, cmap
 
 
-def _get_facet_axes(
+def _get_facet_dims(
     row : str,
     column : str,
     plottable_variable_sizes: dict,
@@ -439,16 +461,16 @@ def _get_facet_axes(
         plottable_variable_sizes (dict):
             Dictionary of  variable dimension names and associated lengths, 
             assumed to be from xarray.Dataset.sizes
-            
         projection:
             Cartopy coordinate projection object
     
     Returns:
     
-       axes(np.ndarray):
-            1- or 2-D array of axes handles for subplotting as facets
+       n_rows, n_cols (int):
+           Number of rows and columns of faceted subplots
     
     """
+    
     
     if row and row not in plottable_variable_sizes:
         raise ValueError("Row not in dataset dimensions.")
@@ -472,16 +494,8 @@ def _get_facet_axes(
             """Facet rows and/or columns exceed maximum. Try subsetting 
             along the row and/or column dimensions."""
         )
-
-    _, axes = plt.subplots(
-        n_rows,
-        n_cols,
-        subplot_kw = {"projection" : projection}
-    )
     
-    print(axes)
-    
-    return axes
+    return n_rows, n_cols
 
 
 def _plot_cube_axes(
@@ -602,8 +616,6 @@ def _plot_cube_axes(
         np.nan
     )
     
-    print(ax)
-
     for tile in range(6):
         if ax.plotting_function != plt.pcolormesh:
             lon_tile = lon[:, :, tile]
@@ -622,7 +634,7 @@ def _plot_cube_axes(
                 x,
                 y,
                 masked_array[:, :, tile],
-                transform=ccrs.PlateCarree(),
+                transform = ccrs.PlateCarree(),
                 **kwargs,
             )
 
