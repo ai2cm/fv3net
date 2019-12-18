@@ -16,7 +16,7 @@ from vcm.convenience import open_delayed
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 
-SCHEMA_CACHE={}
+SCHEMA_CACHE = {}
 
 NUM_SOIL_LAYERS = 4
 RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]

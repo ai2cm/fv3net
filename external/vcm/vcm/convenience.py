@@ -195,7 +195,9 @@ def open_delayed(delayed_dataset, schema=None):
     data_vars = {}
     for key in schema:
         template_var = schema[key]
-        array = _delayed_to_array(delayed_dataset, key, shape=template_var.shape, dtype=template_var.dtype)
+        array = _delayed_to_array(
+            delayed_dataset, key, shape=template_var.shape, dtype=template_var.dtype
+        )
         data_vars[key] = (template_var.dims, array)
 
     return xr.Dataset(data_vars, coords=schema.coords)
