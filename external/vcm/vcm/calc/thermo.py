@@ -43,7 +43,7 @@ def dz_to_z(dz, phis, dim=VERTICAL_DIM):
     return xr.DataArray(zc, coords=dz.coords)
 
 
-def hydrostatic_dz_with_logp(T, q, delp):
+def hydrostatic_dz(T, q, delp):
     pi = pressure_on_interface(delp)
     tv = (1 + 0.61 * q) * T
     dlogp = xr.DataArray(np.log(pi)).diff(VERTICAL_DIM)
