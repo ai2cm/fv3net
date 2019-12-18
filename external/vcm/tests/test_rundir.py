@@ -2,7 +2,6 @@ import os
 
 import pytest
 import xarray as xr
-
 from vcm import open_restarts
 from vcm.fv3_restarts import _get_tile, _get_time, _is_restart_file
 

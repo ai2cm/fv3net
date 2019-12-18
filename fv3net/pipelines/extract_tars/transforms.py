@@ -5,10 +5,9 @@ from itertools import product
 from pathlib import Path
 
 import apache_beam
+import vcm.extract as extract
 from apache_beam.utils import retry
 from google.cloud.storage import Client
-
-import vcm.extract as extract
 from vcm.cloud import gcs
 
 delay_kwargs = dict(initial_delay_secs=30, num_retries=8)

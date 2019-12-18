@@ -6,10 +6,9 @@ from os.path import join
 from typing import Any, Dict, Generator, Tuple
 
 import cftime
+import f90nml
 import fsspec
 import xarray as xr
-
-import f90nml
 from vcm.combining import combine_array_sequence
 
 TIME_FMT = "%Y%m%d.%H%M%S"

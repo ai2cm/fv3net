@@ -7,9 +7,8 @@ from typing import Iterator
 import apache_beam as beam
 import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
-
 from vcm.cloud import gsutil
-from vcm.convenience import rundir, get_timestep_from_filename
+from vcm.convenience import get_timestep_from_filename, rundir
 
 logging.basicConfig(level=logging.INFO)
 

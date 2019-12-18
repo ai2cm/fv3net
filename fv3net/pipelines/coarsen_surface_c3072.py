@@ -5,10 +5,10 @@ import tempfile
 import apache_beam as beam
 import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
-
-from fv3net.pipelines import common
 from vcm import cubedsphere
 from vcm.cloud import gcs
+
+from fv3net.pipelines import common
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from importlib import resources
+
 import numpy as np
 import xarray as xr
 from sklearn.base import BaseEstimator
@@ -24,8 +25,7 @@ def _flatten(data: xr.Dataset, sample_dim) -> np.ndarray:
 @dataclass
 class BaseXarrayEstimator:
     def fit(
-            self, input_vars: tuple, output_vars: tuple, sample_dim: str,
-            data: xr.Dataset
+        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
     ):
         """
         Args:
@@ -66,10 +66,12 @@ class SklearnWrapper(BaseXarrayEstimator):
             model: a scikit learn regression model
         """
         self.model = model
-        if 'n_estimators' in self.model.__dict__:
+        if "n_estimators" in self.model.__dict__:
             self.n_estimators_per_batch = self.model.n_estimators
-        elif hasattr(self.model, 'estimator') and \
-                'n_estimators' in self.model.estimator.__dict__:
+        elif (
+            hasattr(self.model, "estimator")
+            and "n_estimators" in self.model.estimator.__dict__
+        ):
             self.n_estimators_per_batch = self.model.estimator.n_estimators
 
     def __repr__(self):
@@ -84,8 +86,7 @@ class SklearnWrapper(BaseXarrayEstimator):
         self.model.fit(features, normed_targets)
 
     def fit_xarray(
-            self, input_vars: tuple, output_vars: tuple, sample_dim: str,
-            data: xr.Dataset
+        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
     ):
         self.input_vars_ = input_vars
         self.output_vars_ = output_vars
@@ -101,17 +102,22 @@ class SklearnWrapper(BaseXarrayEstimator):
         self.model.fit(inputs, normed_outputs)
 
     def add_new_batch_estimators(self):
-        if 'n_estimators' in self.model.__dict__:
+        if "n_estimators" in self.model.__dict__:
             self.model.n_estimators += self.n_estimators_per_batch
-        elif hasattr(self.model, 'estimator') and \
-                'n_estimators' in self.model.estimator.__dict__:
+        elif (
+            hasattr(self.model, "estimator")
+            and "n_estimators" in self.model.estimator.__dict__
+        ):
             self.model.set_params(
-                estimator__n_estimators=
-                self.model.estimator.n_estimators + self.n_estimators_per_batch)
+                estimator__n_estimators=self.model.estimator.n_estimators
+                + self.n_estimators_per_batch
+            )
         else:
-            raise ValueError("Cannot add more estimators to model. Check that model is"
-                             "either sklearn RandomForestRegressor "
-                             "or MultiOutputRegressor.")
+            raise ValueError(
+                "Cannot add more estimators to model. Check that model is"
+                "either sklearn RandomForestRegressor "
+                "or MultiOutputRegressor."
+            )
 
     def predict(self, features, norm_file=None):
         normed_prediction = self.model.predict(features)
@@ -131,10 +137,10 @@ class SklearnWrapper(BaseXarrayEstimator):
 
     def norm_outputs(self, output_matrix):
         return np.divide(
-            np.subtract(output_matrix, self.output_means),
-            self.output_stddevs)
+            np.subtract(output_matrix, self.output_means), self.output_stddevs
+        )
 
     def unnorm_outputs(self, output_matrix):
         return np.add(
-            np.multiply(self.output_stddevs, output_matrix),
-            self.output_means)
+            np.multiply(self.output_stddevs, output_matrix), self.output_means
+        )
