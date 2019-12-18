@@ -23,6 +23,7 @@ from .cubedsphere import (
     remap_to_edge_weighted_pressure,
     weighted_block_average,
 )
+from .calc.thermo import hydrostatic_dz
 
 TILES = range(1, 7)
 OUTPUT_CATEGORY_NAMES = {
@@ -220,7 +221,7 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
     -------
     xr.Dataset
     """
-    area_weighted_vars = ["delp"]
+    area_weighted_vars = ["phis", "delp", "DZ"]
     mass_weighted_vars = ["W", "T"]
     dx_edge_weighted_vars = ["u"]
     dy_edge_weighted_vars = ["v"]
@@ -256,18 +257,18 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         y_dim="yaxis_2",
     )
 
-    mass = delp * area
+    masked_mass = delp * masked_area
     mass_weighted = weighted_block_average(
-        ds[mass_weighted_vars],
-        mass,
+        area_pressure_remapped,
+        masked_mass,
         coarsening_factor,
         x_dim="xaxis_1",
         y_dim="yaxis_2",
     )
 
     edge_weighted_x = edge_weighted_block_average(
-        ds[dx_edge_weighted_vars],
-        dx,
+        dx_pressure_remapped,
+        masked_dx,
         coarsening_factor,
         x_dim="xaxis_1",
         y_dim="yaxis_1",
@@ -275,17 +276,13 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
     )
 
     edge_weighted_y = edge_weighted_block_average(
-        ds[dy_edge_weighted_vars],
-        dy,
+        dy_pressure_remapped,
+        masked_dy,
         coarsening_factor,
         x_dim="xaxis_2",
         y_dim="yaxis_2",
         edge="y",
     )
-
-    # compute DZ
-
-    # compute phis
 
     return xr.merge([area_weighted, mass_weighted, edge_weighted_x, edge_weighted_y])
 
@@ -332,6 +329,63 @@ def coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
     mass_weighted = weighted_block_average(
         ds[mass_weighted_vars],
         mass,
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+    )
+
+    return xr.merge([area_weighted, mass_weighted])
+
+
+def coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
+    """Coarse grain a set of fv_tracer restart files.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Input Dataset; assumed to be from a set of fv_tracer restart files
+    delp : xr.DataArray
+        Pressure thicknesses
+    area : xr.DataArray
+        Area weights
+    coarsening_factor : int
+        Coarsening factor to use
+
+    Returns
+    -------
+    xr.Dataset
+    """
+    area_weighted_vars = ["cld_amt"]
+    mass_weighted_vars = [
+        "sphum",
+        "liq_wat",
+        "rainwat",
+        "ice_wat",
+        "snowwat",
+        "graupel",
+        "o3mr",
+        "sgs_tke",
+    ]
+
+    ds_remapped, masked_area = remap_to_area_weighted_pressure(
+        ds,
+        delp,
+        area,
+        coarsening_factor,
+    )
+
+    area_weighted = weighted_block_average(
+        ds_remapped[area_weighted_vars],
+        masked_area,
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+    )
+
+    masked_mass = delp * masked_area
+    mass_weighted = weighted_block_average(
+        ds_remapped[mass_weighted_vars],
+        masked_mass,
         coarsening_factor,
         x_dim="xaxis_1",
         y_dim="yaxis_1",
