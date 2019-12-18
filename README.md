@@ -7,12 +7,12 @@ Improving the GFDL FV3 model physics with machine learning
 Project Organization
 ------------
 
-    ├── assets              <-- Useful files for restart directory creation? 
+    ├── assets              <-- Useful files for restart directory creation?
     ├── configurations      <-- Files for ML model configuration and general configuration
     ├── data                <-- Intermediate data store
-    ├── docker 
+    ├── docker
     ├── external            <-- Package dependencies that will be spun off into their own repo
-    │   └── vcm                 <-- General VCM tools package 
+    │   └── vcm                 <-- General VCM tools package
     ├── fv3net              <-- Main package source for ML pipelines and model code
     │   ├── models
     │   ├── pipelines           <-- Cloud data pipelines
@@ -20,13 +20,13 @@ Project Organization
     ├── tests               
     ├── workflows           <-- Job submission scripts and description for pieces of data pipeline
     │   ├── extract_tars        <-- Dig yourself out of a tarpit using Dataflow
-    │   ├── rerun-fv3           <-- Perform a single step run of FV3 for available timesteps
+    │   ├── one_step_jobs       <-- Submit one-step kubernetes jobs using fv3run
     │   └── scale-snakemake     <-- Coarsening operation with kubernetes and snakemake (Deprecated)
     ├── Dockerfile
     ├── LICENSE
     ├── Makefile
     ├── README.md
-    ├── catalog.yml         <-- Intake list of datasets 
+    ├── catalog.yml         <-- Intake list of datasets
     ├── environment.yml
     ├── pytest.ini
     ├── regression_tests.sh
@@ -50,8 +50,8 @@ or possible add it to the `PYTHONPATH` environmental variable.
 
 ## Adding VCM Tools
 
-Currently VCM Tools , which is used by the pipeline resides within this repository 
-in the external folder.  This will be eventually spun off into its own repo.  To 
+Currently VCM Tools , which is used by the pipeline resides within this repository
+in the external folder.  This will be eventually spun off into its own repo.  To
 make sure that `vcm` is in the Python path, you can run
 
     $ cd external/vcm
@@ -71,18 +71,18 @@ execute a single function.  This workflow type is good for pure python operation
 that are easily parallelizable.  Dataflow handles resource provision and worker
 scaling making it a somewhat straightforward option.
 
-For a dataflow pipeline, jobs can be tested locally using a DirectRunner, e.g., 
+For a dataflow pipeline, jobs can be tested locally using a DirectRunner, e.g.,
 
     python -m fv3net.pipelines.extract_tars test_tars test_output_dir --runner DirectRunner
 
-To submit a Dataflow job to the cloud involves a few steps, including packaging 
+To submit a Dataflow job to the cloud involves a few steps, including packaging
 our external package `vcm` to be uploaded.
 
     $ cd external/vcm
     $ python setup.py sdist
 
 
-After creating the uploadable `vcm` package, submit the Dataflow job from the top 
+After creating the uploadable `vcm` package, submit the Dataflow job from the top
 level of `fv3net` using:
 
     python -m fv3net.pipelines.extract_tars \
@@ -108,27 +108,49 @@ We provide configurable job submission scripts under workflows to expedite this 
 If you get an error `Could not create workflow; user does not have write access to project` upon
 trying to submit the dataflow job, do `gcloud auth application-default login` first and then retry.
 
-## Deploying on k8s  (likely outdated?)
+## Deploying on k8s with fv3net
 
-Make docker image for this workflow and push it to GCR
+Docker images with the python-wrapped model and fv3run are available from the
+[fv3gfs-python](https://github.com/VulcanClimateModeling/fv3gfs-python) repo.
+Kubernetes jobs can be written to run the model on these docker images. A super simple
+job would be to perform an `fv3run` command (provided by the
+[fv3config package](https://github.com/VulcanClimateModeling/fv3config))
+using google cloud storage locations. For example, running the basic model using a
+fv3config dictionary in a yaml file to output to a google cloud storage bucket
+would look like:
 
-    make push_image
+```
+fv3run gs://my_bucket/my_config.yml gs://my_bucket/my_outdir
+```
 
-Create a K8S cluster:
+If you have a python model runfile you want to execute in place of the default model
+script, you could use it by adding e.g. `--runfile gs://my-bucket/my_runfile.py`
+to the `fv3run` command.
 
-    bash provision_cluster.sh
+You could create a kubernetes yaml file which runs such a command on a
+`fv3gfs-python` docker image, and submit it manually. However, `fv3config` also
+supplies a `run_kubernetes` function to do this for you. See the
+[`fv3config`](https://github.com/VulcanClimateModeling/fv3config) documentation for
+more complete details, or the `one_step_jobs` workflow for a more complex example of
+using the function to prepare and submit many jobs.
 
-This cluster has some big-mem nodes for doing the FV3 run, which requires at least a n1-standard-2 VM for 
-C48.
+The basic structure of the command is
 
-Install argo following [these instructions](https://github.com/argoproj/argo/blob/master/demo.md).
+    fv3config.run_kubernetes(
+        config_location,
+        outdir,
+        docker_image,
+        gcp_secret='gcp_key',
+    )
 
-Submit an argo job using
-
-    argo submit --watch argo-fv3net.yml
-
-
-# Extending this code
+Where `config_location` is a google cloud storage location of a yaml file containing
+a fv3config dictionary, outdir is a google cloud storage location to put the resulting
+run directory, `docker_image` is the name of a docker image containing `fv3config`
+and `fv3gfs-python`, and `gcp_secret` is the name of the secret containing the google
+cloud platform access key (as a json file called `key.json`). For our VCM group this
+should be set to 'gcp_key'. Additional arguments are
+available for configuring the kubernetes job and documented in the `run_kubernetes`
+docstring.
 
 ## Adding new model types
 
@@ -160,7 +182,7 @@ Contributers can see if their *commited* code passes these standards by running
 
     make lint
 
-If it does not pass, than it can be autoformatted using 
+If it does not pass, than it can be autoformatted using
 
     make reformat
 

@@ -82,7 +82,6 @@ lint:
 	@echo "LINTING SUCCESSFUL"
 
 reformat:
-	isort $(PYTHON_FILES) $(PYTHON_INIT_FILES)
 	black $(PYTHON_FILES) $(PYTHON_INIT_FILES)
 
 #################################################################################
