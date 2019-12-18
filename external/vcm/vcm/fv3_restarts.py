@@ -78,20 +78,20 @@ def _parse_time(path):
     return re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path).group(1)
 
 
-def _get_time(dirname, file, initial_time, final_time):
+def _get_time(dirname, path, initial_time, final_time):
     if dirname.endswith("INPUT"):
         return initial_time
     elif dirname.endswith("RESTART"):
         try:
-            return _parse_time(file)
+            return _parse_time(path)
         except AttributeError:
             return final_time
 
 
-def _parse_category(file):
-    cats_in_file = {category for category in RESTART_CATEGORIES if category in file}
-    if len(cats_in_file) == 1:
-        return cats_in_file.pop()
+def _parse_category(path):
+    cats_in_path = {category for category in RESTART_CATEGORIES if category in path}
+    if len(cats_in_path) == 1:
+        return cats_in_path.pop()
     else:
         # Check that the file only matches one restart category for safety
         # it not clear if this is completely necessary, but it ensures the output of
@@ -99,13 +99,13 @@ def _parse_category(file):
         raise ValueError("Multiple categories present in filename.")
 
 
-def _get_tile(file):
-    tile = re.search(r"tile(\d)\.nc", file).group(1)
+def _get_tile(path):
+    tile = re.search(r"tile(\d)\.nc", path).group(1)
     return int(tile)
 
 
-def _is_restart_file(file):
-    return any(category in file for category in RESTART_CATEGORIES) and "tile" in file
+def _is_restart_file(path):
+    return any(category in path for category in RESTART_CATEGORIES) and "tile" in path
 
 
 def _restart_files_at_url(url, initial_time, final_time):
