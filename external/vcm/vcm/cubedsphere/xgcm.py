@@ -31,7 +31,18 @@ FV3_FACE_CONNECTIONS = {
         },
     }
 }
-
+# FV3_FACE_CONNECTIONS = {'tile': {0: {'x': ((4, 'y', False), (1, 'x', False)),
+#    'y': ((5, 'y', False), (2, 'x', False))},
+#   1: {'x': ((0, 'x', False), (3, 'y', False)),
+#    'y': ((5, 'x', False), (2, 'y', False))},
+#   2: {'x': ((0, 'y', False), (3, 'x', False)),
+#    'y': ((1, 'y', False), (4, 'x', False))},
+#   3: {'x': ((2, 'x', False), (5, 'y', False)),
+#    'y': ((1, 'x', False), (4, 'y', False))},
+#   4: {'x': ((2, 'y', False), (5, 'x', False)),
+#    'y': ((3, 'y', False), (0, 'x', False))},
+#   5: {'x': ((4, 'x', False), (1, 'y', False)),
+#    'y': ((3, 'x', False), (0, 'y', False))}}}
 
 def _validate_tile_coord(ds: xr.Dataset):
 
