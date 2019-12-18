@@ -145,6 +145,19 @@ def _load_restart_with_schema(protocol, path, schema):
     return open_delayed(promise, schema)
 
 
+def _load_restart_lazily(protocol, path, category, CACHE={}):
+    # only actively load the initial data
+    if category in CACHE:
+        schema = CACHE[category]
+    else:
+        schema = _load_restart(protocol, path)
+        # drop sgs_tke variable, since this is not always in fv_tracer.res
+        schema = schema.drop('sgs_tke', errors='ignore')
+        CACHE[category] = schema
+
+    return _load_restart_with_schema(protocol, path, schema)
+
+
 def _get_grid(rundir):
     proto, path = _split_url(rundir)
     fs = fsspec.filesystem(proto)
@@ -227,17 +240,8 @@ def _load_arrays(
     restart_files, grid
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
     # use the same schema for all coupler_res
-    cached_schema = {}
     for (time, category, tile, protocol, path) in restart_files:
-        # only actively load the initial data
-        if category in cached_schema:
-            ds = _load_restart_with_schema(protocol, path, cached_schema[category])
-        else:
-            ds = _load_restart(protocol, path)
-            # drop sgs_tke variable, since this is not always in fv_tracer.res
-            ds = ds.drop('sgs_tke', errors='ignore')
-            cached_schema[category] = ds
-
+        ds = _load_restart_lazily(protocol, path, category)
         ds_correct_metadata = _fix_metadata(ds, grid)
         time_obj = _parse_time_string(time)
         for var in ds_correct_metadata:
