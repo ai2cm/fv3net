@@ -22,18 +22,10 @@ def _flatten(data: xr.Dataset, sample_dim) -> np.ndarray:
 
 
 @dataclass
-class TransformedTargetRegressor:
-    """Modeled off of sklearn's TransformedTargetRegressor but with
-    i) function to add estimators
-
-    """
+class BatchTrainingRegressor:
     def __init__(self, regressor):
         self.regressor = regressor
         self.n_estimators_per_batch = regressor.n_estimators
-
-    def save_normalization_data(self, output_means, output_stddevs):
-        self.output_means = output_means
-        self.output_stddevs = output_stddevs
 
     def add_new_batch_estimators(self):
         if "n_estimators" in self.regressor.__dict__:
@@ -54,6 +46,23 @@ class TransformedTargetRegressor:
                 "either sklearn RandomForestRegressor "
                 "or MultiOutputRegressor."
             )
+
+    def fit(self, features, outputs):
+        raise NotImplementedError
+
+    def predict(self, features):
+        raise NotImplementedError
+
+@dataclass
+class TransformedTargetRegressor(BatchTrainingRegressor):
+    """Modeled off of sklearn's TransformedTargetRegressor but with
+    the ability to save the same means/stddev used in normalization without
+    having to provide them again to the inverse transform at prediction time.
+
+    """
+    def save_normalization_data(self, output_means, output_stddevs):
+        self.output_means = output_means
+        self.output_stddevs = output_stddevs
 
     def fit(self, features, outputs):
         normed_outputs = self._transform(outputs)
