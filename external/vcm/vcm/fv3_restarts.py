@@ -93,6 +93,9 @@ def _parse_category(file):
     if len(cats_in_file) == 1:
         return cats_in_file.pop()
     else:
+        # Check that the file only matches one restart category for safety
+        # it not clear if this is completely necessary, but it ensures the output of
+        # this routine is more predictable
         raise ValueError("Multiple categories present in filename.")
 
 
