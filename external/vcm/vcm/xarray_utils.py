@@ -83,8 +83,7 @@ def repeat(
 
 
 def assert_identical_including_dtype(
-    a: Union[xr.Dataset, xr.DataArray],
-    b: Union[xr.Dataset, xr.DataArray]
+    a: Union[xr.Dataset, xr.DataArray], b: Union[xr.Dataset, xr.DataArray]
 ):
     """Check whether two xarray objects are identical up to the dtype.
 
