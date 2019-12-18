@@ -5,7 +5,7 @@ import os
 import apache_beam as beam
 import gcsfs
 import numba
-from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 from vcm.convenience import get_timestep_from_filename
 
 from fv3net.pipelines.create_training_data.dataset_creator import (

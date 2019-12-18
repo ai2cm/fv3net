@@ -40,9 +40,9 @@ def get_output_normalizations(output_normalization_file):
     """
     if output_normalization_file == "default":
         with path(
-            "fv3net.machine_learning.sklearn", "default_Q1_Q2_mean_stddev.npy"
+            "fv3net.machine_learning.sklearn", "default_Q1_Q2_mean_stddev.dat"
         ) as f:
-            output_norms_mean, output_norms_stddev = np.load(f)
+            output_norms_mean, output_norms_stddev = np.loadtxt(f)
     else:
         with open(output_normalization_file, "r") as f:
             if output_normalization_file.split(".")[-1] == ".npy":

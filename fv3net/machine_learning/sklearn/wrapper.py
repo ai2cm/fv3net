@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from importlib import resources
 
 import numpy as np
 import xarray as xr

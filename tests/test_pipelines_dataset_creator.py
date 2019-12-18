@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 import xarray as xr
 
@@ -34,7 +35,7 @@ def test_training_raw_ds():
     # hi res changes by 0 K, C48 changes by 1 K
     T_da = xr.DataArray(
         [[[[273.0, 274.0], [273.0, 274.0]]]],
-        dims=["grid_yt", "grid_xt", "initialization_time", "forecast_time",],
+        dims=["grid_yt", "grid_xt", "initialization_time", "forecast_time"],
         coords=centered_coords,
     )
 
