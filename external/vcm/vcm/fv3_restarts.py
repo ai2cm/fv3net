@@ -49,7 +49,7 @@ def open_restarts(
         lazy operation. All the data is loaded.
 
     Notes:
-        This will not open the sgs_tke variable which is sometimes present in 
+        This will not open the sgs_tke variable which is sometimes present in
         the initial conditions, but not always in the restart files.
 
     """
@@ -152,7 +152,7 @@ def _load_restart_lazily(protocol, path, category, CACHE={}):
     else:
         schema = _load_restart(protocol, path)
         # drop sgs_tke variable, since this is not always in fv_tracer.res
-        schema = schema.drop('sgs_tke', errors='ignore')
+        schema = schema.drop("sgs_tke", errors="ignore")
         CACHE[category] = schema
 
     return _load_restart_with_schema(protocol, path, schema)

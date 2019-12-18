@@ -24,7 +24,9 @@ def get_root():
 
 def get_shortened_dataset_tags():
     """"Return a dictionary mapping short dataset definitions to the full names"""
-    short_dset_yaml = pathlib.Path(TOP_LEVEL_DIR, "configurations") / "short_datatag_defs.yml"
+    short_dset_yaml = (
+        pathlib.Path(TOP_LEVEL_DIR, "configurations") / "short_datatag_defs.yml"
+    )
     return yaml.load(short_dset_yaml.open(), Loader=yaml.SafeLoader)
 
 

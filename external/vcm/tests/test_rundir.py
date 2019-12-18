@@ -1,7 +1,6 @@
 import os
 
 import pytest
-import xarray as xr
 
 from vcm import open_restarts
 from vcm.fv3_restarts import _get_tile, _get_time, _is_restart_file, _parse_category
@@ -61,7 +60,7 @@ def test_restart_files_at_url():
 
 def test__parse_category_succeeds():
     file = "fv_core.res.tile1.nc"
-    assert _parse_category(file) == 'fv_core.res'
+    assert _parse_category(file) == "fv_core.res"
 
 
 def test__parse_category_fails_with_ambiguous_category():

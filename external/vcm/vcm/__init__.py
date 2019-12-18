@@ -1,4 +1,3 @@
-
 from .combining import combine_array_sequence
 
 # from .convenience import open_dataset
@@ -14,7 +13,6 @@ from .cubedsphere import (
 from .extract import extract_tarball_to_path
 from .fv3_restarts import open_restarts
 from .convenience import TOP_LEVEL_DIR
-
 
 
 __all__ = [
