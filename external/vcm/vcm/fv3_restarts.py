@@ -40,11 +40,11 @@ def open_restarts(
             used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
             protocol prefix is used, then it will be assumed to be a path to a local
             file.
-        initial_time: A YYYYMMDD.HHMMSS string for the initial condition. The initial 
+        initial_time: A YYYYMMDD.HHMMSS string for the initial condition. The initial
             condition data does not have an time-stamp in its filename, so you must
             provide it using this argument. This only updates the time coordinate of
             the output and does not imply any subselection of time-steps.
-        final_time: same as `initial_time` but for the ending time of the simulation. 
+        final_time: same as `initial_time` but for the ending time of the simulation.
             Again, the timestamp is not in the filename of the final set of restart
             files.
         grid: a dict with the grid information (e.g.)::
@@ -52,8 +52,8 @@ def open_restarts(
              {'nz': 79, 'nz_soil': 4, 'nx': 48, 'ny': 48}
 
     Returns:
-        a combined dataset of all the restart files. All except the first file of 
-        each restart-file type (e.g. fv_core.res) will only be lazily loaded. This 
+        a combined dataset of all the restart files. All except the first file of
+        each restart-file type (e.g. fv_core.res) will only be lazily loaded. This
         allows opening large datasets out-of-core.
 
     """
