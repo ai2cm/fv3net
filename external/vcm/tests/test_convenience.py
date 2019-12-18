@@ -21,6 +21,7 @@ def test_open_delayed(dataset):
     ds = open_delayed(a_delayed, schema=dataset)
 
     xr.testing.assert_equal(dataset, ds.compute())
+    assert isinstance(ds["a"].data, Array)
 
 
 def test_open_delayed_fills_nans(dataset):
