@@ -32,7 +32,7 @@ def remap_to_edge_weighted_pressure(
 ):
     """ docstring """
     grid = create_fv3_grid(
-        delp,
+        xr.Dataset(delp),
         x_center="xaxis_1",
         x_outer="xaxis_2",
         y_center="yaxis_2",
