@@ -48,6 +48,10 @@ def open_restarts(
         a combined dataset of all the restart files. This is currently not a
         lazy operation. All the data is loaded.
 
+    Notes:
+        This will not open the sgs_tke variable which is sometimes present in 
+        the initial conditions, but not always in the restart files.
+
     """
     if grid is None:
         grid = _get_grid(url)
@@ -230,6 +234,8 @@ def _load_arrays(
             ds = _load_restart_with_schema(protocol, path, cached_schema[category])
         else:
             ds = _load_restart(protocol, path)
+            # drop sgs_tke variable, since this is not always in fv_tracer.res
+            ds = ds.drop('sgs_tke', errors='ignore')
             cached_schema[category] = ds
 
         ds_correct_metadata = _fix_metadata(ds, grid)
