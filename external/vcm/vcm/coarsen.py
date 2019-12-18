@@ -18,6 +18,8 @@ from .cubedsphere import (
     coarsen_coords,
     edge_weighted_block_average,
     open_cubed_sphere,
+    remap_to_area_weighted_pressure,
+    remap_to_edge_weighted_pressure,
     weighted_block_average,
 )
 
@@ -190,6 +192,99 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
         y_dim="yaxis_2",
         edge="y",
     )
+
+    return xr.merge([area_weighted, mass_weighted, edge_weighted_x, edge_weighted_y])
+
+
+def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
+    """Coarse grain a set of fv_core restart files, averaging on surfaces of
+    constant pressure. DZ is computed from delp and T assuming hydrostatic balance.
+    phis is coarsened by forcing the model top height to remain constant under
+    coarsening and integrating DZ to the surface.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Input Dataset; assumed to be from a set of fv_core restart files
+    area : xr.DataArray
+        Area weights
+    dx : xr.DataArray
+        x edge lengths
+    dy : xr.DataArray
+        y edge lengths
+    coarsening_factor : int
+        Coarsening factor to use
+
+    Returns
+    -------
+    xr.Dataset
+    """
+    area_weighted_vars = ["delp"]
+    mass_weighted_vars = ["W", "T"]
+    dx_edge_weighted_vars = ["u"]
+    dy_edge_weighted_vars = ["v"]
+
+    area_pressure_remapped, masked_area = remap_to_area_weighted_pressure(
+        ds[mass_weighted_vars],
+        delp,
+        area,
+        coarsening_factor,
+    )
+
+    dx_pressure_remapped, masked_dx = remap_to_edge_weighted_pressure(
+        ds[dx_edge_weighted_vars],
+        delp,
+        dx,
+        coarsening_factor,
+        edge='x',
+    )
+
+    dy_pressure_remapped, masked_dy = remap_to_edge_weighted_pressure(
+        ds[dy_edge_weighted_vars],
+        delp,
+        dy,
+        coarsening_factor,
+        edge='y',
+    )
+
+    area_weighted = weighted_block_average(
+        ds[area_weighted_vars],
+        area,
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_2",
+    )
+
+    mass = delp * area
+    mass_weighted = weighted_block_average(
+        ds[mass_weighted_vars],
+        mass,
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_2",
+    )
+
+    edge_weighted_x = edge_weighted_block_average(
+        ds[dx_edge_weighted_vars],
+        dx,
+        coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
+        edge="x",
+    )
+
+    edge_weighted_y = edge_weighted_block_average(
+        ds[dy_edge_weighted_vars],
+        dy,
+        coarsening_factor,
+        x_dim="xaxis_2",
+        y_dim="yaxis_2",
+        edge="y",
+    )
+
+    # compute DZ
+
+    # compute phis
 
     return xr.merge([area_weighted, mass_weighted, edge_weighted_x, edge_weighted_y])
 
