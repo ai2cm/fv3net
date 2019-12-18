@@ -23,6 +23,7 @@ from vcm.cubedsphere.coarsen import (
 )
 from vcm.cubedsphere.io import all_filenames, remove_duplicate_coords, subtile_filenames
 from vcm.cubedsphere import create_fv3_grid
+from vcm.xarray_utils import assert_identical_including_dtype
 
 
 @pytest.fixture()
@@ -113,13 +114,13 @@ def test_remove_duplicate_coords(x, y, data, expected_x, expected_y, expected_da
 
     # Test the DataArray case
     result = remove_duplicate_coords(data)
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
     # Test the Dataset case
     data = data.to_dataset()
     expected = expected.to_dataset()
     result = remove_duplicate_coords(data)
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 @pytest.mark.parametrize(
@@ -148,7 +149,7 @@ def test_coarsen_coords(coarsening_factor, input_coordinate, expected_coordinate
     expected = {"x": expected_coordinate}
 
     result = coarsen_coords(coarsening_factor, input_coordinate, ["x"])
-    xr.testing.assert_identical(result["x"], expected["x"])
+    assert_identical_including_dtype(result["x"], expected["x"])
 
 
 @pytest.mark.parametrize("coarsened_object_type", ["DataArray", "Dataset"])
@@ -177,7 +178,7 @@ def test_add_coordinates(coarsened_object_type):
         reference_obj, coarsened_obj, coarsening_factor, ["x", "y"]
     )
 
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 @pytest.mark.parametrize("object_type", ["DataArray", "Dataset"])
@@ -200,14 +201,14 @@ def test_weighted_block_average(object_type):
     result = weighted_block_average(
         data, weights, coarsening_factor, x_dim="x", y_dim="y"
     )
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 @pytest.mark.parametrize(
     ("data", "spacing", "factor", "edge", "expected_data"),
     [
-        ([[2, 6, 2], [6, 2, 6]], [[6, 2, 6], [2, 6, 2]], 2, "x", [[3, 3]]),
-        ([[2, 6], [6, 2], [2, 6]], [[6, 2], [2, 6], [6, 2]], 2, "y", [[3], [3]]),
+        ([[2, 6, 2], [6, 2, 6]], [[6, 2, 6], [2, 6, 2]], 2, "x", [[3.0, 3.0]]),
+        ([[2, 6], [6, 2], [2, 6]], [[6, 2], [2, 6], [6, 2]], 2, "y", [[3.0], [3.0]]),
     ],
     ids=["edge='x'", "edge='y'"],
 )
@@ -221,7 +222,7 @@ def test_edge_weighted_block_average(data, spacing, factor, edge, expected_data)
     result = edge_weighted_block_average(
         da, weights, factor, x_dim="x_dim", y_dim="y_dim", edge=edge
     )
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 @pytest.fixture()
@@ -256,7 +257,7 @@ def test_xarray_block_reduce_dataarray(reduction_function, use_dask, input_dataa
     result = _xarray_block_reduce_dataarray(
         input_dataarray, block_sizes, reduction_function
     )
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 def test_xarray_block_reduce_dataarray_bad_chunk_size(input_dataarray):
@@ -293,7 +294,7 @@ def test_block_reduce_dataarray_coordinates(input_dataarray, coord_func):
         .median()
         .rename(input_dataarray.name)
     )
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 def test_horizontal_block_reduce_dataarray(input_dataarray):
@@ -303,7 +304,7 @@ def test_horizontal_block_reduce_dataarray(input_dataarray):
     result = horizontal_block_reduce(
         input_dataarray, coarsening_factor, np.median, "x", "y"
     )
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 def test_horizontal_block_reduce_dataset(input_dataset):
@@ -322,7 +323,7 @@ def test_horizontal_block_reduce_dataset(input_dataset):
         input_dataset, coarsening_factor, np.median, "x", "y"
     )
 
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 def test_block_median(input_dataarray):
@@ -330,7 +331,7 @@ def test_block_median(input_dataarray):
     block_sizes = {"x": coarsening_factor, "y": coarsening_factor, "z": 1}
     expected = _xarray_block_reduce_dataarray(input_dataarray, block_sizes, np.median)
     result = block_median(input_dataarray, coarsening_factor, "x", "y")
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 def test_block_median_via_block_coarsen(input_dataarray):
@@ -340,7 +341,7 @@ def test_block_median_via_block_coarsen(input_dataarray):
     result = block_coarsen(
         input_dataarray, coarsening_factor, "x", "y", method="median"
     )
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 def test_block_coarsen(input_dataarray):
@@ -348,7 +349,7 @@ def test_block_coarsen(input_dataarray):
     method = "min"
     expected = input_dataarray.coarsen(x=coarsening_factor, y=coarsening_factor).min()
     result = block_coarsen(input_dataarray, coarsening_factor, "x", "y", method)
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 @pytest.mark.parametrize(
@@ -364,8 +365,13 @@ def test_block_edge_sum(data, factor, edge, expected_data):
     da = xr.DataArray(data, dims=dims, coords=None)
     expected = xr.DataArray(expected_data, dims=dims, coords=None)
     result = block_edge_sum(da, factor, x_dim="x_dim", y_dim="y_dim", edge=edge)
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
+
+@pytest.fixture(params=[np.float32, np.float64])
+def dtype(request):
+    return request.param
+    
 
 @pytest.fixture(params=[0, 1, 2])
 def subtile_x(request):
@@ -379,32 +385,32 @@ def subtile_y(request):
 
 @pytest.fixture()
 def input_subtile_x_coordinates(subtile_x):
-    return np.array([1.0, 2.0, 3.0, 4.0]) + 4.0 * subtile_x
+    return (np.array([1.0, 2.0, 3.0, 4.0]) + 4.0 * subtile_x).astype(np.float32)
 
 
 @pytest.fixture()
 def input_subtile_y_coordinates(subtile_y):
-    return np.array([1.0, 2.0, 3.0, 4.0]) + 4.0 * subtile_y
+    return (np.array([1.0, 2.0, 3.0, 4.0]) + 4.0 * subtile_y).astype(np.float32)
 
 
 @pytest.fixture()
 def expected_subtile_x_coordinates(subtile_x):
-    data = np.array([1.0, 2.0]) + 2.0 * subtile_x
+    data = (np.array([1.0, 2.0]) + 2.0 * subtile_x).astype(np.float32)
     return xr.DataArray(data, dims=["x"], coords=[data], name="x")
 
 
 @pytest.fixture()
 def expected_subtile_y_coordinates(subtile_y):
-    data = np.array([1.0, 2.0]) + 2.0 * subtile_y
+    data = (np.array([1.0, 2.0]) + 2.0 * subtile_y).astype(np.float32)
     return xr.DataArray(data, dims=["y"], coords=[data], name="y")
 
 
 @pytest.fixture()
 def input_dataarray_with_subtile_coordinates(
-    input_subtile_x_coordinates, input_subtile_y_coordinates
+    input_subtile_x_coordinates, input_subtile_y_coordinates, dtype
 ):
     shape = (4, 4, 2)
-    data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
+    data = np.arange(np.product(shape)).reshape(shape).astype(dtype)
     dims = ["x", "y", "z"]
     coords = {"x": input_subtile_x_coordinates, "y": input_subtile_y_coordinates}
     return xr.DataArray(data, dims=dims, coords=coords, name="foo")
@@ -421,8 +427,8 @@ def test_weighted_block_average_with_coordinates(
         input_dataarray_with_subtile_coordinates, weights, coarsening_factor, "x", "y"
     )
 
-    xr.testing.assert_identical(result["x"], expected_subtile_x_coordinates)
-    xr.testing.assert_identical(result["y"], expected_subtile_y_coordinates)
+    assert_identical_including_dtype(result["x"], expected_subtile_x_coordinates)
+    assert_identical_including_dtype(result["y"], expected_subtile_y_coordinates)
     assert "z" not in result.coords
 
 
@@ -436,8 +442,8 @@ def test_horizontal_block_reduce_with_coordinates(
         input_dataarray_with_subtile_coordinates, coarsening_factor, np.mean, "x", "y"
     )
 
-    xr.testing.assert_identical(result["x"], expected_subtile_x_coordinates)
-    xr.testing.assert_identical(result["y"], expected_subtile_y_coordinates)
+    assert_identical_including_dtype(result["x"], expected_subtile_x_coordinates)
+    assert_identical_including_dtype(result["y"], expected_subtile_y_coordinates)
     assert "z" not in result.coords
 
 
@@ -451,8 +457,8 @@ def test_block_median_with_coordinates(
         input_dataarray_with_subtile_coordinates, coarsening_factor, "x", "y"
     )
 
-    xr.testing.assert_identical(result["x"], expected_subtile_x_coordinates)
-    xr.testing.assert_identical(result["y"], expected_subtile_y_coordinates)
+    assert_identical_including_dtype(result["x"], expected_subtile_x_coordinates)
+    assert_identical_including_dtype(result["y"], expected_subtile_y_coordinates)
     assert "z" not in result.coords
 
 
@@ -466,44 +472,48 @@ def test_block_coarsen_with_coordinates(
         input_dataarray_with_subtile_coordinates, coarsening_factor, "x", "y", "sum"
     )
 
-    xr.testing.assert_identical(result["x"], expected_subtile_x_coordinates)
-    xr.testing.assert_identical(result["y"], expected_subtile_y_coordinates)
+    assert_identical_including_dtype(result["x"], expected_subtile_x_coordinates)
+    assert_identical_including_dtype(result["y"], expected_subtile_y_coordinates)
     assert "z" not in result.coords
 
 
 @pytest.fixture()
 def input_subtile_staggered_x_coordinates(subtile_x):
-    return np.array([1.0, 2.0, 3.0, 4.0, 5.0]) + 4.0 * subtile_x
+    return (np.array([1.0, 2.0, 3.0, 4.0, 5.0]) + 4.0 * subtile_x).astype(np.float32)
 
 
 @pytest.fixture()
 def input_subtile_staggered_y_coordinates(subtile_y):
-    return np.array([1.0, 2.0, 3.0, 4.0]) + 4.0 * subtile_y
+    return (np.array([1.0, 2.0, 3.0, 4.0]) + 4.0 * subtile_y).astype(np.float32)
 
 
 @pytest.fixture()
 def expected_subtile_staggered_x_coordinates(subtile_x):
-    data = np.array([1.0, 2.0, 3.0]) + 2.0 * subtile_x
+    data = (np.array([1.0, 2.0, 3.0]) + 2.0 * subtile_x).astype(np.float32)
     return xr.DataArray(data, dims=["x"], coords=[data], name="x")
 
 
 @pytest.fixture()
 def expected_subtile_staggered_y_coordinates(subtile_y):
-    data = np.array([1.0, 2.0]) + 2.0 * subtile_y
+    data = (np.array([1.0, 2.0]) + 2.0 * subtile_y).astype(np.float32)
     return xr.DataArray(data, dims=["y"], coords=[data], name="y")
 
 
 @pytest.fixture()
 def input_dataarray_with_staggered_subtile_coordinates(
-    input_subtile_staggered_x_coordinates, input_subtile_staggered_y_coordinates
+    input_subtile_staggered_x_coordinates,
+    input_subtile_staggered_y_coordinates,
+    dtype
 ):
     shape = (5, 4, 2)
-    data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
+    data = np.arange(np.product(shape)).reshape(shape).astype(dtype)
     dims = ["x", "y", "z"]
     coords = {
         "x": input_subtile_staggered_x_coordinates,
         "y": input_subtile_staggered_y_coordinates,
     }
+    print(data.dtype)
+    print(coords['x'].dtype)
     return xr.DataArray(data, dims=dims, coords=coords, name="foo")
 
 
@@ -523,8 +533,8 @@ def test_edge_weighted_block_average_with_coordinates(
         edge="y",
     )
 
-    xr.testing.assert_identical(result["x"], expected_subtile_staggered_x_coordinates)
-    xr.testing.assert_identical(result["y"], expected_subtile_staggered_y_coordinates)
+    assert_identical_including_dtype(result["x"], expected_subtile_staggered_x_coordinates)
+    assert_identical_including_dtype(result["y"], expected_subtile_staggered_y_coordinates)
     assert "z" not in result.coords
 
 
@@ -542,8 +552,8 @@ def test_block_edge_sum_with_coordinates(
         edge="y",
     )
 
-    xr.testing.assert_identical(result["x"], expected_subtile_staggered_x_coordinates)
-    xr.testing.assert_identical(result["y"], expected_subtile_staggered_y_coordinates)
+    assert_identical_including_dtype(result["x"], expected_subtile_staggered_x_coordinates)
+    assert_identical_including_dtype(result["y"], expected_subtile_staggered_y_coordinates)
     assert "z" not in result.coords
 
 
@@ -676,7 +686,7 @@ def test__block_mode():
     expected = xr.DataArray(expected_data, dims=["x", "y"])
 
     result = _block_mode(da, 2, x_dim="x", y_dim="y", nan_policy="omit")
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 def test_block_mode_via_block_coarsen():
@@ -696,7 +706,7 @@ def test_block_mode_via_block_coarsen():
     result = block_coarsen(
         da, 2, x_dim="x", y_dim="y", method="mode", func_kwargs={"nan_policy": "omit"}
     )
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 @pytest.mark.parametrize("use_dask", [False, True])
@@ -723,7 +733,7 @@ def test_block_upsample_dataset(use_dask):
         ds = ds.chunk({"xt": 1})
 
     result = block_upsample(ds, 2, dims=["xt", "y", "yt"])
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 @pytest.mark.parametrize(
@@ -744,7 +754,7 @@ def test_block_upsample_dataarray(data, expected_data, use_dask):
         foo = foo.chunk({"x": 1})
 
     result = block_upsample(foo, 2, dims=["x", "y"])
-    xr.testing.assert_identical(result, expected)
+    assert_identical_including_dtype(result, expected)
 
 
 def test_create_fv3_grid_fails_without_tile_coord():

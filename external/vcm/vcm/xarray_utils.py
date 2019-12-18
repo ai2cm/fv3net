@@ -80,3 +80,26 @@ def repeat(
     else:
         return _repeat_dataarray(obj, repeats, dim)
     return obj
+
+
+def assert_identical_including_dtype(
+    a: Union[xr.Dataset, xr.DataArray],
+    b: Union[xr.Dataset, xr.DataArray]
+):
+    """Check whether two xarray objects are identical up to the dtype.
+
+    xarray's internal xr.testing.assert_identical does not check whether variable
+    dtypes are equal.
+
+    Args:
+        a: Input xr.Dataset or xr.DataArray
+        b: Input xr.Dataset or xr.DataArray
+    """
+    xr.testing.assert_identical(a, b)
+    if isinstance(a, xr.Dataset):
+        for variable in a.variables:
+            assert a[variable].dtype == b[variable].dtype
+    else:
+        assert a.dtype == b.dtype
+        for coord in a.coords:
+            assert a[coord].dtype == b[coord].dtype
