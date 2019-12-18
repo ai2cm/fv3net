@@ -2,11 +2,11 @@ import xarray as xr
 
 from ..calc import thermo
 from ..cubedsphere import (
-    block_upsample,
     create_fv3_grid,
     edge_weighted_block_average,
     weighted_block_average,
 )
+from ..cubedsphere.coarsen import block_upsample
 import mappm
 
 # default for restart file
