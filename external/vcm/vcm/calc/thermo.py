@@ -13,14 +13,14 @@ REVERSE = slice(None, None, -1)
 TOA_PRESSURE = 300.0  # Pa
 
 
-def absolute_pressure_interface(dp, toa_pressure=TOA_PRESSURE, dim=VERTICAL_DIM):
-    dpv = dp.variable
-    top = 0 * dpv.isel({dim: [0]}) + toa_pressure
-    dp_with_top = top.concat([top, dpv], dim=dim)
-    return dp_with_top.cumsum(dim)
+def pressure_on_interface(delp, toa_pressure=TOA_PRESSURE, dim=VERTICAL_DIM):
+    delpv = delp.variable
+    top = 0 * delpv.isel({dim: [0]}) + toa_pressure
+    delp_with_top = top.concat([top, delpv], dim=dim)
+    return delp_with_top.cumsum(dim)
 
 
-def absolute_height_interface(dz, phis, dim=VERTICAL_DIM):
+def height_on_interface(dz, phis, dim=VERTICAL_DIM):
     dzv = -dz.variable  # dz in model is negative
     bottom = (0 * dzv.isel({dim: [0]}) + phis.variable / gravity).transpose(*dzv.dims)
     dzv_with_bottom = bottom.concat([dzv, bottom], dim=dim)
@@ -31,20 +31,20 @@ def interface_to_center(ds, dim=VERTICAL_DIM):
     return (ds.isel({dim: slice(0, -1)}) + ds.isel({dim: slice(1, None)})) / 2
 
 
-def dp_to_p(dp, dim=VERTICAL_DIM):
-    pi = absolute_pressure_interface(dp, dim=dim)
+def delp_to_p(delp, dim=VERTICAL_DIM):
+    pi = pressure_on_interface(delp, dim=dim)
     pc = interface_to_center(pi, dim=dim)
-    return xr.DataArray(pc, coords=dp.coords)
+    return xr.DataArray(pc, coords=delp.coords)
 
 
 def dz_to_z(dz, phis, dim=VERTICAL_DIM):
-    zi = absolute_height_interface(dz, phis, dim=dim)
+    zi = height_on_interface(dz, phis, dim=dim)
     zc = interface_to_center(zi, dim=dim)
     return xr.DataArray(zc, coords=dz.coords)
 
 
-def hydrostatic_dz_with_logp(T, q, dp):
-    pi = absolute_pressure_interface(dp)
+def hydrostatic_dz_with_logp(T, q, delp):
+    pi = pressure_on_interface(delp)
     tv = (1 + 0.61 * q) * T
     dlogp = xr.DataArray(np.log(pi)).diff(VERTICAL_DIM)
     return -dlogp * Rd * tv / gravity
