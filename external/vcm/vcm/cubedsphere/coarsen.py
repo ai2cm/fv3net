@@ -8,7 +8,7 @@ import scipy.stats
 import xarray as xr
 from skimage.measure import block_reduce as skimage_block_reduce
 
-from . import xarray_utils
+from .. import xarray_utils
 
 NUM_TILES = 6
 SUBTILE_FILE_PATTERN = "{prefix}.tile{tile:d}.nc.{subtile:04d}"
