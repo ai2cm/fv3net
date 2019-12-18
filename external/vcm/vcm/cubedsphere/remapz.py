@@ -3,6 +3,7 @@ import xarray as xr
 from ..calc import thermo
 from ..cubedsphere import (
     block_upsample,
+    create_fv3_grid,
     edge_weighted_block_average,
     weighted_block_average,
 )
@@ -14,20 +15,12 @@ VERTICAL_DIM = "zaxis_1"
 
 def remap_to_area_weighted_pressure(
     ds: xr.Dataset, delp: xr.DataArray, area: xr.DataArray, coarsening_factor: int,
-) -> xr.Dataset:
+):
+    """ docstring """
     delp_coarse = weighted_block_average(
         delp, area, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_2"
     )
-    phalf_coarse = thermo.pressure_on_interface(delp_coarse, dim=VERTICAL_DIM)
-    phalf_fine = thermo.pressure_on_interface(delp, dim=VERTICAL_DIM)
-    phalf_coarse_on_fine = block_upsample(
-        phalf_coarse, coarsening_factor, ["xaxis_1", "yaxis_2"]
-    )
-    ds_remap = xr.zeros_like(ds)
-    for var in ds:
-        ds_remap[var] = remap_levels(phalf_fine, ds[var], phalf_coarse_on_fine)
-    # mask area to exclude cells below new surface pressure
-    return ds_remap, area
+    return _remap_given_delp(ds, delp, delp_coarse, area, coarsening_factor)
 
 
 def remap_to_edge_weighted_pressure(
@@ -36,8 +29,37 @@ def remap_to_edge_weighted_pressure(
     length: xr.DataArray,
     coarsening_factor: int,
     edge: str = "x",
-) -> xr.Dataset:
-    return None
+):
+    """ docstring """
+    grid = create_fv3_grid(
+        delp,
+        x_center="xaxis_1",
+        x_outer="xaxis_2",
+        y_center="yaxis_2",
+        y_outer="yaxis_1",
+    )
+    delp_on_edge = grid.interp(delp, edge)
+    delp_on_edge_coarse = edge_weighted_block_average(
+        delp, length, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_2", edge=edge
+    )
+    return _remap_given_delp(
+        ds, delp_on_edge, delp_on_edge_coarse, length, coarsening_factor
+    )
+
+
+def _remap_given_delp(ds, delp_fine, delp_coarse, weights, coarsening_factor):
+    phalf_coarse = thermo.pressure_on_interface(delp_coarse, dim=VERTICAL_DIM)
+    phalf_fine = thermo.pressure_on_interface(delp_fine, dim=VERTICAL_DIM)
+    phalf_coarse_on_fine = block_upsample(
+        phalf_coarse, coarsening_factor, ["xaxis_1", "yaxis_2"]
+    )
+    ds_remap = xr.zeros_like(ds)
+    for var in ds:
+        ds_remap[var] = remap_levels(phalf_fine, ds[var], phalf_coarse_on_fine)
+    masked_weights = weights.where(
+        phalf_coarse_on_fine < phalf_fine.max(dim=VERTICAL_DIM), other=0.0,
+    )
+    return ds_remap, masked_weights
 
 
 def remap_levels(p_in, f_in, p_out, iv=1, kord=1, ptop=0, dim=VERTICAL_DIM):
