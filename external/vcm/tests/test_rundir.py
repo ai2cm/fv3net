@@ -1,10 +1,9 @@
 import os
 
 import pytest
-import xarray as xr
 
 from vcm import open_restarts
-from vcm.fv3_restarts import _get_tile, _get_time, _is_restart_file
+from vcm.fv3_restarts import _get_tile, _get_time, _is_restart_file, _parse_category
 
 FV_CORE_IN_RESTART = "./RESTART/fv_core.res.tile6.nc"
 FV_CORE_IN_RESTART = "./INPUT/fv_core.res.tile6.nc"
@@ -57,7 +56,14 @@ def test_restart_files_at_url():
         url, initial_time="20160801.003000", final_time="20160801.004500"
     )
     print(ds)
-    grid = xr.open_mfdataset(
-        "rundir/grid_spec.tile?.nc", concat_dim="tile", combine="nested"
-    )
-    ds = ds.merge(grid)
+
+
+def test__parse_category_succeeds():
+    file = "fv_core.res.tile1.nc"
+    assert _parse_category(file) == "fv_core.res"
+
+
+def test__parse_category_fails_with_ambiguous_category():
+    file = "sfc_data.fv_core.res.tile1.nc"
+    with pytest.raises(ValueError):
+        _parse_category(file)
