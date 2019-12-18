@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from fv3net.machine_learning.sklearn.wrapper import SklearnWrapper, _flatten
+from fv3net.regression.sklearn.wrapper import SklearnWrapper, _flatten
 
 
 @pytest.fixture
