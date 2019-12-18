@@ -231,6 +231,8 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         delp,
         area,
         coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_2",
     )
 
     dx_pressure_remapped, masked_dx = remap_to_edge_weighted_pressure(
@@ -238,6 +240,8 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         delp,
         dx,
         coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
         edge='x',
     )
 
@@ -246,6 +250,8 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         delp,
         dy,
         coarsening_factor,
+        x_dim="xaxis_2",
+        y_dim="yaxis_2",
         edge='y',
     )
 
@@ -372,6 +378,8 @@ def coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
         delp,
         area,
         coarsening_factor,
+        x_dim="xaxis_1",
+        y_dim="yaxis_1",
     )
 
     area_weighted = weighted_block_average(
@@ -419,6 +427,8 @@ def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
         y_dim="yaxis_1",
     )
 
+
+def coarse_grain_phis(phis, dz_coars)
 
 def coarse_grain_sfc_data(ds, area, coarsening_factor, version="simple"):
     """Coarse grain a set of sfc_data restart files.
