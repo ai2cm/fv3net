@@ -2,15 +2,15 @@ import numpy as np
 import pytest
 import xarray as xr
 from skimage.measure import block_reduce as skimage_block_reduce
+import xgcm
 
-from vcm.cubedsphere import (
+from vcm.cubedsphere.coarsen import (
     _block_mode,
     _mode,
     _mode_reduce,
     _ureduce,
     _xarray_block_reduce_dataarray,
     add_coordinates,
-    all_filenames,
     block_coarsen,
     block_edge_sum,
     block_median,
@@ -18,11 +18,11 @@ from vcm.cubedsphere import (
     coarsen_coords,
     edge_weighted_block_average,
     horizontal_block_reduce,
-    remove_duplicate_coords,
     shift_edge_var_to_center,
-    subtile_filenames,
     weighted_block_average,
 )
+from vcm.cubedsphere.io import all_filenames, remove_duplicate_coords, subtile_filenames
+from vcm.cubedsphere import create_fv3_grid
 
 
 @pytest.fixture()
@@ -745,3 +745,30 @@ def test_block_upsample_dataarray(data, expected_data, use_dask):
 
     result = block_upsample(foo, 2, dims=["x", "y"])
     xr.testing.assert_identical(result, expected)
+
+
+def test_create_fv3_grid_fails_without_tile_coord():
+    ds = xr.DataArray([1.0], dims=["tile"]).to_dataset(name="a")
+
+    with pytest.raises(ValueError):
+        create_fv3_grid(ds)
+
+
+def test_create_fv3_grid_fails_on_incomplete_tile_coord():
+    ds = xr.Dataset(
+        {"a": (["tile", "grid_yt", "grid_xt"], np.ones((5, 1, 1)))},
+        coords={"tile": [1, 2, 3, 4, 5]},
+    )
+
+    with pytest.raises(ValueError):
+        create_fv3_grid(ds)
+
+
+def test_create_fv3_grid_succeeds():
+    ds = xr.Dataset(
+        {"a": (["tile", "grid_yt", "grid_xt"], np.ones((6, 2, 2)))},
+        coords={"tile": [1, 2, 3, 4, 5, 6]},
+    )
+
+    grid = create_fv3_grid(ds)
+    assert isinstance(grid, xgcm.Grid)
