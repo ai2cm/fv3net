@@ -1,4 +1,3 @@
-import pathlib
 
 from .combining import combine_array_sequence
 
@@ -14,13 +13,9 @@ from .cubedsphere import (
 )
 from .extract import extract_tarball_to_path
 from .fv3_restarts import open_restarts
+from .convenience import TOP_LEVEL_DIR
 
-# TODO: convenience and regrid are currently broken
 
-
-# from .regrid import regrid_horizontal
-
-TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 __all__ = [
     "combine_array_sequence",

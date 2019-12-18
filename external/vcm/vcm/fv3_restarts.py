@@ -8,9 +8,11 @@ from typing import Any, Dict, Generator, Tuple
 import cftime
 import fsspec
 import xarray as xr
+from dask.delayed import delayed
 
 import f90nml
 from vcm.combining import combine_array_sequence
+from vcm.convenience import open_delayed
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 
@@ -84,6 +86,14 @@ def _get_time(dirname, file, initial_time, final_time):
             return final_time
 
 
+def _parse_category(file):
+    cats_in_file = {category for category in CATEGORIES if category in file}
+    if len(cats_in_file) == 1:
+        return cats_in_file.pop()
+    else:
+        raise ValueError("Multiple categories present in filename.")
+
+
 def _get_tile(file):
     tile = re.search(r"tile(\d)\.nc", file).group(1)
     return int(tile)
@@ -97,7 +107,7 @@ def _restart_files_at_url(url, initial_time, final_time):
     """List restart files with a given initial and end time within a particular URL
 
     Yields:
-        (time, tile, protocol, path)
+        (time, category, tile, protocol, path)
 
     Note:
         the time for the data in INPUT and RESTART cannot be parsed from the file name
@@ -116,13 +126,19 @@ def _restart_files_at_url(url, initial_time, final_time):
             if _is_restart_file(file):
                 time = _get_time(root, file, initial_time, final_time)
                 tile = _get_tile(file)
-                yield time, tile, proto, path
+                category = _parse_category(file)
+                yield time, category, tile, proto, path
 
 
 def _load_restart(protocol, path):
     fs = fsspec.filesystem(protocol)
     with fs.open(path) as f:
         return xr.open_dataset(f).load()
+
+
+def _load_restart_with_schema(protocol, path, schema):
+    promise = delayed(_load_restart)(protocol, path)
+    return open_delayed(promise, schema)
 
 
 def _get_grid(rundir):
@@ -206,8 +222,16 @@ def _fix_metadata(ds, grid):
 def _load_arrays(
     restart_files, grid
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
-    for (time, tile, protocol, path) in restart_files:
-        ds = _load_restart(protocol, path)
+    # use the same schema for all coupler_res
+    cached_schema = {}
+    for (time, category, tile, protocol, path) in restart_files:
+        # only actively load the initial data
+        if category in cached_schema:
+            ds = _load_restart_with_schema(protocol, path, cached_schema[category])
+        else:
+            ds = _load_restart(protocol, path)
+            cached_schema[category] = ds
+
         ds_correct_metadata = _fix_metadata(ds, grid)
         time_obj = _parse_time_string(time)
         for var in ds_correct_metadata:
