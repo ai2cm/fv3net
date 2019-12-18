@@ -112,7 +112,7 @@ def _restart_files_at_url(url, initial_time, final_time):
     """List restart files with a given initial and end time within a particular URL
 
     Yields:
-        (time, category, tile, protocol, path)
+        (time, restart_category, tile, protocol, path)
 
     Note:
         the time for the data in INPUT and RESTART cannot be parsed from the file name
