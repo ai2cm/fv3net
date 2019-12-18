@@ -16,8 +16,10 @@ from vcm.convenience import open_delayed
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 
+SCHEMA_CACHE={}
+
 NUM_SOIL_LAYERS = 4
-CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
+RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
 X_NAME = "grid_xt"
 Y_NAME = "grid_yt"
 X_EDGE_NAME = "grid_x"
@@ -47,10 +49,6 @@ def open_restarts(
     Returns:
         a combined dataset of all the restart files. This is currently not a
         lazy operation. All the data is loaded.
-
-    Notes:
-        This will not open the sgs_tke variable which is sometimes present in
-        the initial conditions, but not always in the restart files.
 
     """
     if grid is None:
@@ -91,7 +89,7 @@ def _get_time(dirname, file, initial_time, final_time):
 
 
 def _parse_category(file):
-    cats_in_file = {category for category in CATEGORIES if category in file}
+    cats_in_file = {category for category in RESTART_CATEGORIES if category in file}
     if len(cats_in_file) == 1:
         return cats_in_file.pop()
     else:
@@ -104,7 +102,7 @@ def _get_tile(file):
 
 
 def _is_restart_file(file):
-    return any(category in file for category in CATEGORIES) and "tile" in file
+    return any(category in file for category in RESTART_CATEGORIES) and "tile" in file
 
 
 def _restart_files_at_url(url, initial_time, final_time):
@@ -137,7 +135,7 @@ def _restart_files_at_url(url, initial_time, final_time):
 def _load_restart(protocol, path):
     fs = fsspec.filesystem(protocol)
     with fs.open(path) as f:
-        return xr.open_dataset(f).load()
+        return xr.open_dataset(f).compute()
 
 
 def _load_restart_with_schema(protocol, path, schema):
@@ -145,15 +143,13 @@ def _load_restart_with_schema(protocol, path, schema):
     return open_delayed(promise, schema)
 
 
-def _load_restart_lazily(protocol, path, category, CACHE={}):
+def _load_restart_lazily(protocol, path, restart_category):
     # only actively load the initial data
-    if category in CACHE:
-        schema = CACHE[category]
+    if restart_category in SCHEMA_CACHE:
+        schema = SCHEMA_CACHE[restart_category]
     else:
         schema = _load_restart(protocol, path)
-        # drop sgs_tke variable, since this is not always in fv_tracer.res
-        schema = schema.drop("sgs_tke", errors="ignore")
-        CACHE[category] = schema
+        SCHEMA_CACHE[restart_category] = schema
 
     return _load_restart_with_schema(protocol, path, schema)
 
@@ -240,8 +236,8 @@ def _load_arrays(
     restart_files, grid
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
     # use the same schema for all coupler_res
-    for (time, category, tile, protocol, path) in restart_files:
-        ds = _load_restart_lazily(protocol, path, category)
+    for (time, restart_category, tile, protocol, path) in restart_files:
+        ds = _load_restart_lazily(protocol, path, restart_category)
         ds_correct_metadata = _fix_metadata(ds, grid)
         time_obj = _parse_time_string(time)
         for var in ds_correct_metadata:

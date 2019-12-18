@@ -5,6 +5,7 @@ import tempfile
 from collections import defaultdict
 import pathlib
 
+import numpy as np
 import dask.array as da
 import intake
 import xarray as xr
@@ -180,17 +181,21 @@ def map_ops(fun, grouped_files, *args):
 
 def open_remote_nc(path, meta=None):
     computation = delayed(_open_remote_nc)(path)
-    return open_delayed(computation, meta=meta)
+    return open_delayed(computation, schema=meta)
 
 
-def open_delayed(computation, meta=None):
+def _delayed_to_array(delayed_dataset, key, shape, dtype):
+    null = da.full(shape, np.nan, dtype=dtype)
+    array_delayed = delayed_dataset.get(key, null)
+    return da.from_delayed(array_delayed, shape, dtype)
+
+
+def open_delayed(delayed_dataset, schema=None):
     """Open dask delayed object with as an xarray with given metadata"""
     data_vars = {}
-    for key in meta:
-        template_var = meta[key]
-        array = da.from_delayed(
-            computation[key], shape=template_var.shape, dtype=template_var.dtype
-        )
+    for key in schema:
+        template_var = schema[key]
+        array = _delayed_to_array(delayed_dataset, key, shape=template_var.shape, dtype=template_var.dtype)
         data_vars[key] = (template_var.dims, array)
 
-    return xr.Dataset(data_vars, coords=meta.coords)
+    return xr.Dataset(data_vars, coords=schema.coords)
