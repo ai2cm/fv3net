@@ -1,6 +1,5 @@
 import logging
 import os
-import re
 import subprocess
 import tempfile
 from collections import defaultdict
@@ -11,6 +10,7 @@ import intake
 import xarray as xr
 import yaml
 from dask import delayed
+
 from vcm import TOP_LEVEL_DIR
 from vcm.cloud import gsutil
 from vcm.cloud.remote_data import open_gfdl_data_with_2d
@@ -39,11 +39,6 @@ paths = {
     "1deg_src": f"{root}/data/interim/advection/"
     "2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr"
 }
-
-
-def get_timestep_from_filename(file):
-    pattern = re.compile(r"(........\.......)")
-    return pattern.search(file).group(1)
 
 
 def open_catalog():

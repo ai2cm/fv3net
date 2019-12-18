@@ -9,6 +9,7 @@ from subprocess import CalledProcessError
 import pytest
 from google.api_core.exceptions import NotFound
 from google.cloud.storage import Blob
+
 from vcm import extract
 from vcm.cloud import gcs
 
