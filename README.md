@@ -7,12 +7,12 @@ Improving the GFDL FV3 model physics with machine learning
 Project Organization
 ------------
 
-    ├── assets              <-- Useful files for restart directory creation?
+    ├── assets              <-- Useful files for restart directory creation? 
     ├── configurations      <-- Files for ML model configuration and general configuration
     ├── data                <-- Intermediate data store
-    ├── docker
+    ├── docker 
     ├── external            <-- Package dependencies that will be spun off into their own repo
-    │   └── vcm                 <-- General VCM tools package
+    │   └── vcm                 <-- General VCM tools package 
     ├── fv3net              <-- Main package source for ML pipelines and model code
     │   ├── models
     │   ├── pipelines           <-- Cloud data pipelines
@@ -26,7 +26,7 @@ Project Organization
     ├── LICENSE
     ├── Makefile
     ├── README.md
-    ├── catalog.yml         <-- Intake list of datasets
+    ├── catalog.yml         <-- Intake list of datasets 
     ├── environment.yml
     ├── pytest.ini
     ├── regression_tests.sh
@@ -50,8 +50,8 @@ or possible add it to the `PYTHONPATH` environmental variable.
 
 ## Adding VCM Tools
 
-Currently VCM Tools , which is used by the pipeline resides within this repository
-in the external folder.  This will be eventually spun off into its own repo.  To
+Currently VCM Tools , which is used by the pipeline resides within this repository 
+in the external folder.  This will be eventually spun off into its own repo.  To 
 make sure that `vcm` is in the Python path, you can run
 
     $ cd external/vcm
@@ -71,18 +71,18 @@ execute a single function.  This workflow type is good for pure python operation
 that are easily parallelizable.  Dataflow handles resource provision and worker
 scaling making it a somewhat straightforward option.
 
-For a dataflow pipeline, jobs can be tested locally using a DirectRunner, e.g.,
+For a dataflow pipeline, jobs can be tested locally using a DirectRunner, e.g., 
 
     python -m fv3net.pipelines.extract_tars test_tars test_output_dir --runner DirectRunner
 
-To submit a Dataflow job to the cloud involves a few steps, including packaging
+To submit a Dataflow job to the cloud involves a few steps, including packaging 
 our external package `vcm` to be uploaded.
 
     $ cd external/vcm
     $ python setup.py sdist
 
 
-After creating the uploadable `vcm` package, submit the Dataflow job from the top
+After creating the uploadable `vcm` package, submit the Dataflow job from the top 
 level of `fv3net` using:
 
     python -m fv3net.pipelines.extract_tars \
@@ -107,6 +107,7 @@ We provide configurable job submission scripts under workflows to expedite this 
 
 If you get an error `Could not create workflow; user does not have write access to project` upon
 trying to submit the dataflow job, do `gcloud auth application-default login` first and then retry.
+
 
 ## Deploying on k8s with fv3net
 
@@ -182,7 +183,7 @@ Contributers can see if their *commited* code passes these standards by running
 
     make lint
 
-If it does not pass, than it can be autoformatted using
+If it does not pass, than it can be autoformatted using 
 
     make reformat
 

@@ -2,9 +2,9 @@ import apache_beam as beam
 import numpy as np
 import xarray as xr
 from apache_beam.testing.test_pipeline import TestPipeline
-from vcm import cubedsphere
 
 from fv3net.pipelines import coarsen_surface_c3072, common
+from vcm import cubedsphere
 
 
 def _test_data():
