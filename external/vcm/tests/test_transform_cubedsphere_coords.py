@@ -1,4 +1,3 @@
-#import numba
 import numpy as np
 import pytest
 import xarray as xr
@@ -16,8 +15,6 @@ from vcm.cubedsphere.constants import (
     COORD_Y_OUTER,
 )
 
-# Sometimes python crashing on imports when vcm is used, if numba is not imported first
-#del numba
 
 RAD_PER_DEG = np.pi / 180.0
 
