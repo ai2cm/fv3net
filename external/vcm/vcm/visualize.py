@@ -175,8 +175,6 @@ def plot_cube(
         handles = [handle]
 
     if colorbar:
-        colorbar_kwargs = dict() if not colorbar_kwargs else colorbar_kwargs
-#             colorbar_kwargs
         plt.gcf().subplots_adjust(
             bottom = 0.1,
             top = 0.9,
@@ -189,10 +187,12 @@ def plot_cube(
         cbar = plt.colorbar(
             handles[0],
             cax = cb_ax,
-            extend = 'both',
-            **colorbar_kwargs
+            extend = 'both'
         )
-        cbar.set_label(var_name)
+        cbar.set_label(_get_var_label(
+            plottable_variable[var_name].attrs,
+            var_name
+        ))
     else:
         cbar = None
 
@@ -558,3 +558,14 @@ def _infer_color_limits(
         cmap = "RdBu_r" if vmin == -vmax else "viridis"
 
     return vmin, vmax, cmap
+
+
+def _get_var_label(
+    attrs: dict,
+    var_name: str
+):
+    
+    if 'long_name' in attrs and 'units' in attrs:
+        return f"{attrs['long_name']} [{attrs['units']}]"
+    else:
+        return var_name
