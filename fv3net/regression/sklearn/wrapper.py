@@ -29,28 +29,33 @@ class BatchTrainingRegressor:
 
     def __init__(self, regressor):
         self.regressor = regressor
-        self.n_estimators_per_batch = regressor.n_estimators
+        self.n_estimators_per_batch = self.n_estimators
+
+    @property
+    def n_estimators(self):
+        try:
+            return getattr(self.regressor, "n_estimators")
+        except AttributeError:
+            try:
+                return getattr(self.regressor.estimator, "n_estimators")
+            except AttributeError:
+                raise ValueError("Unable to get number of estimators per regressor."
+                                 "Check that the regressor is either sklearn "
+                                 "RandomForestRegressor, or MultiOutputRegressor "
+                                 "with multiple estimators per regressor")
 
     def add_new_batch_estimators(self):
-        if "n_estimators" in self.regressor.__dict__:
-            new_total_estimators = (
-                self.regressor.n_estimators + self.n_estimators_per_batch
-            )
-            self.regressor.n_estimators = new_total_estimators
-        elif (
-            hasattr(self.regressor, "estimator")
-            and "n_estimators" in self.regressor.estimator.__dict__
-        ):
-            self.regressor.set_params(
-                estimator__n_estimators=self.regressor.estimator.n_estimators
-                + self.n_estimators_per_batch
-            )
-        else:
-            raise ValueError(
-                "Cannot add more estimators to model. Check that model is"
-                "either sklearn RandomForestRegressor "
-                "or MultiOutputRegressor."
-            )
+        new_total_estimators = self.n_estimators + self.n_estimators_per_batch
+        try:
+            setattr(self.regressor.n_estimators, new_total_estimators)
+        except AttributeError:
+            try:
+                self.regressor.set_params(estimator__n_estimators=new_total_estimators)
+            except ValueError:
+                raise ValueError(
+                    "Cannot add more estimators to model. Check that model is"
+                    "either sklearn RandomForestRegressor "
+                    "or MultiOutputRegressor ")
 
     def fit(self, features, outputs):
         raise NotImplementedError
@@ -66,7 +71,7 @@ class TransformedTargetRegressor(BatchTrainingRegressor):
 
     """
 
-    def save_normalization_data(self, output_means, output_stddevs):
+    def set_normalization_data(self, output_means, output_stddevs):
         self.output_means = output_means
         self.output_stddevs = output_stddevs
 
@@ -150,13 +155,6 @@ class SklearnWrapper(BaseXarrayEstimator):
             model: a scikit learn regression model
         """
         self.model = model
-        if "n_estimators" in self.model.__dict__:
-            self.n_estimators_per_batch = self.model.n_estimators
-        elif (
-            hasattr(self.model, "estimator")
-            and "n_estimators" in self.model.estimator.__dict__
-        ):
-            self.n_estimators_per_batch = self.model.estimator.n_estimators
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)

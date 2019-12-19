@@ -139,7 +139,7 @@ def train_model(batched_data, train_config, output_norms_mean, output_norms_stdd
     """
     base_regressor = _get_regressor(train_config)
     model = TransformedTargetRegressor(base_regressor)
-    model.save_normalization_data(output_norms_mean, output_norms_stddev)
+    model.set_normalization_data(output_norms_mean, output_norms_stddev)
     model_wrapper = SklearnWrapper(model)
     for i, batch in enumerate(batched_data.generate_batches("train")):
         if i > 0:

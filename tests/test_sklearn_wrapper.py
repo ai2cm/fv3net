@@ -13,7 +13,7 @@ def test_transformed_target_regressor():
     regressor_wrapper = TransformedTargetRegressor(regressor)
     target_means = np.array([1.0, 2.0, -1.0])
     target_stddevs = np.array([0.5, 1.0, 2.0])
-    regressor_wrapper.save_normalization_data(target_means, target_stddevs)
+    regressor_wrapper.set_normalization_data(target_means, target_stddevs)
     return regressor_wrapper
 
 
@@ -73,3 +73,4 @@ def test__inverse_transform_outputs(test_transformed_target_regressor):
         normed_target_values
     )
     assert pytest.approx(physical_target_values) == [2.0, 4.0, -2]
+
