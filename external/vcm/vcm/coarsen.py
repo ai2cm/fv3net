@@ -428,7 +428,11 @@ def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
     )
 
 
-def coarse_grain_phis(phis, dz_coars)
+def coarse_grain_phis(phis_fine, dz_coarse, dz_fine):
+    """ Coarse-grain phis by imposing the same model-top height before
+    and after coarse-graining"""
+    return phis_coarse
+
 
 def coarse_grain_sfc_data(ds, area, coarsening_factor, version="simple"):
     """Coarse grain a set of sfc_data restart files.
