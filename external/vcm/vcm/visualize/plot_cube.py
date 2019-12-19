@@ -54,38 +54,38 @@ def plot_cube(
     **kwargs,
 ):
     """ Plots tiled cubed sphere grids onto a global map projection
-    
+
     Args:
-    
+
         plottable_variable (xr.Dataset):
             Dataset containing variable to plotted via pcolormesh, along with
-            coordinate variables (lat, latb, lon, lonb). This dataset object 
+            coordinate variables (lat, latb, lon, lonb). This dataset object
             can be created from the helper function `mappable_restart_var`,
-             which takes in the output of `vcm.v3_restarts.open_restarts` 
-            merged to  dataset of grid spec variables, along with the name of 
-            the variable to be plotted, or from the helper function 
-            `mappable_diag_var`, which takes in the output of 
+             which takes in the output of `vcm.v3_restarts.open_restarts`
+            merged to  dataset of grid spec variables, along with the name of
+            the variable to be plotted, or from the helper function
+            `mappable_diag_var`, which takes in the output of
             `vcm.v3_restarts.open_restarts`
         plotting_function (Callable, optional):
-            Matplotlib 2-d plotting function to use in plotting the variable. 
+            Matplotlib 2-d plotting function to use in plotting the variable.
             Available options are plt.pcolormesh,  plt.contour, and
             plt.contourf. Defaults to plt.pcolormesh.
         ax (plt.axes, optional):
-            Axes onto which the map should be plotted; must be created with 
-            a cartopy projection argument. If not supplied, axes are generated 
-            with a projection. If ax is suppled, faceting is disabled. 
-        row (str, optional): 
-            Name of diemnsion to be faceted along subplot rows. Must not be a 
+            Axes onto which the map should be plotted; must be created with
+            a cartopy projection argument. If not supplied, axes are generated
+            with a projection. If ax is suppled, faceting is disabled.
+        row (str, optional):
+            Name of diemnsion to be faceted along subplot rows. Must not be a
             tile, lat, or lon dimension.  Defaults to no row facets.
-        col (str, optional): 
-            Name of diemnsion to be faceted along subplot columns. Must not be 
+        col (str, optional):
+            Name of diemnsion to be faceted along subplot columns. Must not be
             a tile, lat, or lon dimension. Defaults to no column facets.
-        col_wrap (int, optional): 
+        col_wrap (int, optional):
             If only one of `col`, `row` is specified, number of columns to plot
             before wrapping onto next row. Defaults to None, i.e. no limit.
         projection (ccrs.Projection, optional):
-            Cartopy projection object to be used in creating axes. Ignored if 
-            cartopy geo-axes are supplied.  Defaults to Robinson projection. 
+            Cartopy projection object to be used in creating axes. Ignored if
+            cartopy geo-axes are supplied.  Defaults to Robinson projection.
         colorbar (bool, optional):
             Flag for whether to plot a colorbar. Defaults to True.
         coastlines (bool, optinal):
@@ -95,21 +95,21 @@ def plot_cube(
             function if `coastlines` flag is set to True.
         **kwargs:
             Additional keyword arguments to be passed to the plotting function.
-    
+
     Returns:
-    
+
         axes (list):
-            List or nested list of `plt.axes` objects assocated with map 
+            List or nested list of `plt.axes` objects assocated with map
             subplots if faceting; otherwise single `plt.axes` object.
         handles (list):
-            List or nested list of matplotlib object handles associated with 
+            List or nested list of matplotlib object handles associated with
             map subplots if faceting; otherwise single object handle.
         cbar (obj):
-            `ax.colorbar` object handle associated with figure, if `colorbar` 
-            arg is True, else None. 
-    
+            `ax.colorbar` object handle associated with figure, if `colorbar`
+            arg is True, else None.
+
     Example:
-    
+
         # plots T at multiple vertical levels, faceted across subplots
         sample_data = fv3_restarts.open_restarts(
                 '/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/
@@ -119,7 +119,7 @@ def plot_cube(
             )
         grid_spec_paths = [f"/home/brianh/dev/fv3net/data/restart/C48/
         20160805.170000/rundir/grid_spec.tile{tile}.nc" for tile in range (1,7)]
-        grid_spec = xr.open_mfdataset(paths = grid_spec_paths, 
+        grid_spec = xr.open_mfdataset(paths = grid_spec_paths,
         combine = 'nested', concat_dim = 'tile')
         ds = xr.merge([sample_data, grid_spec])
         axes, hs, cbar = plot_cube(
@@ -195,29 +195,29 @@ def mappable_var(ds: xr.Dataset, var_name: str, ds_type: str = "restart"):
 
     """ Converts a restart or diagnostic dataset into a format for plotting
     across cubed-sphere tiles
-    
+
     Args:
-    
-        ds (xr.Dataset): 
-            Dataset containing the variable to be plotted, along with grid spec 
-            information. Assumed to be created by merging 
-            `fv3_restarts.open_restarts` output and grid spec tiles, or 
+
+        ds (xr.Dataset):
+            Dataset containing the variable to be plotted, along with grid spec
+            information. Assumed to be created by merging
+            `fv3_restarts.open_restarts` output and grid spec tiles, or
             `fv3_restarts.open_standard_diags`.
-        var_name (str): 
+        var_name (str):
             Name of variable to be plotted.
         ds_type (str, optional):
-            A string indicating the type of dataset ('restart' or 'diag') 
+            A string indicating the type of dataset ('restart' or 'diag')
             from which the variable is being plotted. Defaults to 'restart'.
-    
+
     Returns:
-    
+
         ds (xr.Dataset):
-            Dataset containing variable to be plotted as well as grid 
-            coordinates variables. Grid variables are renamed and ordered for 
+            Dataset containing variable to be plotted as well as grid
+            coordinates variables. Grid variables are renamed and ordered for
             plotting as first argument to `plot_cube`.
-    
+
     Example:
-    
+
         # plots T at multiple vertical levels, faceted across subplots
         sample_data = fv3_restarts.open_restarts(
                 '/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/
@@ -227,7 +227,7 @@ def mappable_var(ds: xr.Dataset, var_name: str, ds_type: str = "restart"):
             )
         grid_spec_paths = [f"/home/brianh/dev/fv3net/data/restart/C48/
         20160805.170000/rundir/grid_spec.tile{tile}.nc" for tile in range (1,7)]
-        grid_spec = xr.open_mfdataset(paths = grid_spec_paths, 
+        grid_spec = xr.open_mfdataset(paths = grid_spec_paths,
         combine = 'nested', concat_dim = 'tile')
         ds = xr.merge([sample_data, grid_spec])
         axes, hs, cbar = plot_cube(
@@ -292,22 +292,22 @@ def _plot_cube_axes(
 
     """ Plots tiled cubed sphere for a given subplot axis,
         using np.ndarrays for all data
-    
+
     Args:
-    
-        array (np.ndarray): 
+
+        array (np.ndarray):
             Array of variables values at cell centers, of dimensions (npy, npx,
             tile)
-        lat (np.ndarray): 
-            Array of latitudes of cell centers, of dimensions (npy, npx, tile) 
-        lon (np.ndarray): 
+        lat (np.ndarray):
+            Array of latitudes of cell centers, of dimensions (npy, npx, tile)
+        lon (np.ndarray):
             Array of longitudes of cell centers, of dimensions (npy, npx, tile)
-        latb (np.ndarray): 
+        latb (np.ndarray):
             Array of latitudes of cell edges, of dimensions (npy + 1, npx + 1,
-            tile) 
-        lonb (np.ndarray): 
+            tile)
+        lonb (np.ndarray):
             Array of longitudes of cell edges, of dimensions (npy + 1, npx + 1,
-            tile) 
+            tile)
         coastlines (bool, optinal):
             Whether to plot coastlines on map. Default True.
         coastlines_kwargs (dict, optional):
@@ -316,18 +316,18 @@ def _plot_cube_axes(
         title (str, optional):
             Title text of subplot. Defaults to None.
         **kwargs:
-            Keyword arguments to be passed to plotting function. 
-    
+            Keyword arguments to be passed to plotting function.
+
     Returns:
-    
+
         p_handle (obj):
             matplotlib object handle associated with map subplot
-    
+
     """
 
     if (lon.shape[-1] != 6) or (lat.shape[-1] != 6) or (array.shape[-1] != 6):
         raise ValueError(
-            """Last axis of each array must have six elements for 
+            """Last axis of each array must have six elements for
             cubed-sphere tiles."""
         )
 
@@ -338,7 +338,7 @@ def _plot_cube_axes(
         or (lat.shape[1] != array.shape[1])
     ):
         raise ValueError(
-            """First and second axes lengths of lat and lonb must be equal to 
+            """First and second axes lengths of lat and lonb must be equal to
             those of array."""
         )
 
@@ -357,7 +357,7 @@ def _plot_cube_axes(
         or (latb.shape[1] != (array.shape[1] + 1))
     ):
         raise ValueError(
-            """First and second axes lengths of latb and lonb 
+            """First and second axes lengths of latb and lonb
             must be one greater than those of array."""
         )
 
@@ -370,7 +370,7 @@ def _plot_cube_axes(
         setattr(ax, "plotting_function", plotting_function)
     else:
         raise ValueError(
-            """Plotting functions only include plt.pcolormesh, plt.contour, 
+            """Plotting functions only include plt.pcolormesh, plt.contour,
             and plt.contourf."""
         )
 

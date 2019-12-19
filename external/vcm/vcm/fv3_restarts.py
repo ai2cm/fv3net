@@ -263,30 +263,33 @@ def _load_arrays(
 def open_standard_diags(rundir: str):
 
     """ Opens a set of diagnostic outputs from a model run
-    
+
     Args:
-    
-        rundir (str): 
+
+        rundir (str):
             Relative path to run directory containing diagnostic outputs
-    
+
     Returns:
-    
+
         ds (xr.Dataset):
-            Dataset containing diagnostic variables merged across tiles and 
+            Dataset containing diagnostic variables merged across tiles and
             categories
-    
+
     Example:
-    
+
         ds = open_standard_diags(
             "/home/brianh/dev/fv3net/data/restart/C48/no_adjustment_2019-11-26"
         )
-        
+
     """
 
     return xr.merge(
         [
             xr.open_mfdataset(
-                [join(rundir, category + f".tile{tile}.nc") for tile in range(1, 7)],
+                [
+                    join(rundir, category + f".tile{tile}.nc")
+                    for tile in range(1, 7)
+                ],
                 combine="nested",
                 concat_dim="tile",
             )

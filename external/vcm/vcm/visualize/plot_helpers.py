@@ -7,9 +7,9 @@ def _infer_color_limits(
 
     """ "auto-magical" handling of color limits and colormap if not supplied by
     user
-    
+
     Args:
-    
+
         xmin (float):
             Smallest value in data to be plotted
         xmax (float):
@@ -20,24 +20,24 @@ def _infer_color_limits(
             Colormap minimum value. Default None.
         cmap (str, optional):
             Name of colormap. Default None.
-    
+
     Returns:
-    
+
         vmin (float)
-            Inferred colormap minimum value if not supplied, or user value if 
+            Inferred colormap minimum value if not supplied, or user value if
             supplied.
         vmax (float)
             Inferred colormap maximum value if not supplied, or user value if
             supplied.
         cmap (str)
             Inferred colormap if not supplied, or user value if supplied.
-    
+
     Example:
-    
+
         # choose limits and cmap for data spanning 0
         >>>> _infer_color_limits(-10, 20)
         (-20, 20, 'RdBu_r')
-        
+
     """
 
     if not vmin and not vmax:
@@ -71,20 +71,20 @@ def _infer_color_limits(
 def _get_var_label(attrs: dict, var_name: str):
 
     """ Get the label for the variable on the colorbar
-    
+
     Args:
-    
+
         attrs (dict):
             Variable aattribute dict
         var_name (str):
             Short name of variable
-    
+
     Returns:
-    
+
         var_name (str)
             Variable name to be plotted, either short name or annotated name
-    
-        
+
+
     """
 
     if "long_name" in attrs and "units" in attrs:

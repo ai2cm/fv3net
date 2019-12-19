@@ -157,20 +157,20 @@ def _get_local_basis_in_spherical_coords(grid):
 def get_rotated_centered_winds(ds: xr.Dataset):
 
     """ Get rotated and centered winds from restart wind variables
-    
+
     Args:
-    
-        ds (xr.Dataset): 
-            Dataset containing 'u' and 'v' restart wind variables on 
-            staggered, tiled grid; also containing grid variables for centers 
+
+        ds (xr.Dataset):
+            Dataset containing 'u' and 'v' restart wind variables on
+            staggered, tiled grid; also containing grid variables for centers
             and edges
-    
+
     Returns:
-    
+
         u_r, v_r (xr.DataArrays)
             DataArrays of rotated, centered winds
-    
-        
+
+
     """
 
     u_c = shift_edge_var_to_center(ds["u"].drop(labels=COORD_X_CENTER))

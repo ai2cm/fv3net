@@ -3,26 +3,26 @@ import numpy as np
 
 def _mask_antimeridian_quads(lonb: np.ndarray, central_longitude: float):
 
-    """ Computes mask of grid quadrilaterals bisected by a projection system's 
+    """ Computes mask of grid quadrilaterals bisected by a projection system's
     antimeridian, in order to avoid cartopy plotting artifacts
-    
-    Args:
-    
-        lonb (np.ndarray): 
-            Array of grid edge longitudes, of dimensions (npy + 1, npx + 1, 
-            tile) 
-        central_longitude (float): 
-            Central longitude from which the antimeridian is computed
-    
-    Returns:
-    
-        mask (np.ndarray): 
-            Boolean array of grid centers, False = excluded, of dimensions 
-            (npy, npx, tile) 
 
-    
+    Args:
+
+        lonb (np.ndarray):
+            Array of grid edge longitudes, of dimensions (npy + 1, npx + 1,
+            tile)
+        central_longitude (float):
+            Central longitude from which the antimeridian is computed
+
+    Returns:
+
+        mask (np.ndarray):
+            Boolean array of grid centers, False = excluded, of dimensions
+            (npy, npx, tile)
+
+
     Example:
-    
+
         masked_array = np.where(
             mask_antimeridian_quads(lonb, central_longitude),
             array,
@@ -52,22 +52,22 @@ def _mask_antimeridian_quads(lonb: np.ndarray, central_longitude: float):
 
 def _periodic_equal_or_less_than(x1, x2, period=360.0):
 
-    """ Compute whether x1 is less than or equal to x2, where 
-    the difference between the two is the shortest distance on a periodic domain 
-    
+    """ Compute whether x1 is less than or equal to x2, where
+    the difference between the two is the shortest distance on a periodic domain
+
     Args:
-    
+
         x1 (float), x2 (float):
             Values to be compared
-        Period (float, optional): 
-            Period of domain. Default 360 (degrees). 
-    
+        Period (float, optional):
+            Period of domain. Default 360 (degrees).
+
     Returns:
-    
-        Less_than_or_equal (Bool): 
+
+        Less_than_or_equal (Bool):
             Whether x1 is less than or equal to x2
-    
-    
+
+
     """
 
     return np.where(
@@ -83,22 +83,22 @@ def _periodic_equal_or_less_than(x1, x2, period=360.0):
 
 def _periodic_greater_than(x1, x2, period=360.0):
 
-    """ Compute whether x1 is greater than x2, where 
-    the difference between the two is the shortest distance on a periodic domain 
-    
+    """ Compute whether x1 is greater than x2, where
+    the difference between the two is the shortest distance on a periodic domain
+
     Args:
-    
+
         x1 (float), x2 (float):
             Values to be compared
-        Period (float, optional): 
-            Period of domain. Default 360 (degrees). 
-    
+        Period (float, optional):
+            Period of domain. Default 360 (degrees).
+
     Returns:
-    
-        Greater_than (Bool): 
+
+        Greater_than (Bool):
             Whether x1 is greater than x2
-    
-    
+
+
     """
 
     return np.where(
@@ -114,22 +114,22 @@ def _periodic_greater_than(x1, x2, period=360.0):
 
 def _periodic_difference(x1, x2, period=360.0):
 
-    """ Compute difference between x1 and x2, where 
-    the difference is the shortest distance on a periodic domain 
-    
+    """ Compute difference between x1 and x2, where
+    the difference is the shortest distance on a periodic domain
+
     Args:
-    
+
         x1 (float), x2 (float):
             Values to be compared
-        Period (float, optional): 
-            Period of domain. Default 360 (degrees). 
-    
+        Period (float, optional):
+            Period of domain. Default 360 (degrees).
+
     Returns:
-    
-        Difference (float): 
+
+        Difference (float):
             Difference between x1 and x2
-    
-    
+
+
     """
 
     return np.where(
