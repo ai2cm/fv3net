@@ -3,13 +3,10 @@ from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
     COORD_Y_CENTER,
     COORD_X_OUTER,
-    COORD_Y_OUTER
+    COORD_Y_OUTER,
 )
 from vcm.calc.transform_cubesphere_coords import get_rotated_centered_winds
-from vcm.visualize.plot_helpers import (
-    _infer_color_limits,
-    _get_var_label
-)
+from vcm.visualize.plot_helpers import _infer_color_limits, _get_var_label
 from vcm.visualize.masking import _mask_antimeridian_quads
 import xarray as xr
 import numpy as np
@@ -37,10 +34,10 @@ DIAG_COORD_VARS = {
 }
 
 COORD_NAME_MAPPING = {
-    "grid_lon" : "lonb",
-    "grid_lat" : "latb",
-    "grid_lont" : "lon",
-    "grid_latt" : "lat"
+    "grid_lon": "lonb",
+    "grid_lat": "latb",
+    "grid_lont": "lon",
+    "grid_latt": "lat",
 }
 
 
@@ -152,71 +149,51 @@ def plot_cube(
 
     _plot_func_short = partial(
         _plot_cube_axes,
-        lat = plottable_variable.lat.values,
-        lon = plottable_variable.lon.values,
-        latb = plottable_variable.latb.values,
-        lonb = plottable_variable.lonb.values,
-        plotting_function = plotting_function,
-        coastlines = coastlines,
-        coastlines_kwargs = coastlines_kwargs,
+        lat=plottable_variable.lat.values,
+        lon=plottable_variable.lon.values,
+        latb=plottable_variable.latb.values,
+        lonb=plottable_variable.lonb.values,
+        plotting_function=plotting_function,
+        coastlines=coastlines,
+        coastlines_kwargs=coastlines_kwargs,
         **kwargs,
     )
-    
+
     if not ax and (row or col):
         # facets
         facet_grid = xr.plot.FacetGrid(
-            data = plottable_variable,
-            row = row,
-            col = col,
-            col_wrap = col_wrap,
-            subplot_kws = {'projection' : projection}
+            data=plottable_variable,
+            row=row,
+            col=col,
+            col_wrap=col_wrap,
+            subplot_kws={"projection": projection},
         )
-        facet_grid = facet_grid.map(
-            _plot_func_short,
-            var_name
-        )
+        facet_grid = facet_grid.map(_plot_func_short, var_name)
         axes = facet_grid.axes
         handles = facet_grid._mappables
     else:
         # single axes
         if not ax:
-            f, ax = plt.subplots(1, 1, subplot_kw = {"projection" : projection})
+            f, ax = plt.subplots(1, 1, subplot_kw={"projection": projection})
         handle = _plot_func_short(array)
         axes = [ax]
         handles = [handle]
 
     if colorbar:
         plt.gcf().subplots_adjust(
-            bottom = 0.1,
-            top = 0.9,
-            left = 0.1,
-            right = 0.8,
-            wspace = 0.02,
-            hspace = 0.02
+            bottom=0.1, top=0.9, left=0.1, right=0.8, wspace=0.02, hspace=0.02
         )
         cb_ax = plt.gcf().add_axes([0.83, 0.1, 0.02, 0.8])
-        cbar = plt.colorbar(
-            handles[0],
-            cax = cb_ax,
-            extend = 'both'
-        )
-        cbar.set_label(_get_var_label(
-            plottable_variable[var_name].attrs,
-            var_name
-        ))
+        cbar = plt.colorbar(handles[0], cax=cb_ax, extend="both")
+        cbar.set_label(_get_var_label(plottable_variable[var_name].attrs, var_name))
     else:
         cbar = None
 
     return axes, handles, cbar
 
 
-def mappable_var(
-    ds: xr.Dataset,
-    var_name: str,
-    ds_type: str = 'restart'
-):
+def mappable_var(ds: xr.Dataset, var_name: str, ds_type: str = "restart"):
 
-    
     """ Converts a restart or diagnostic dataset into a format for plotting
     across cubed-sphere tiles
     
@@ -265,11 +242,11 @@ def mappable_var(
             vmax = 300,
         )
     """
-    
-    if ds_type not in ['restart', 'diag']:
+
+    if ds_type not in ["restart", "diag"]:
         raise ValueError('ds_type must be "restart" or "diag".')
-        
-    if ds_type == 'restart':
+
+    if ds_type == "restart":
         coord_dict = RESTART_COORD_VARS
     else:
         coord_dict = DIAG_COORD_VARS
@@ -277,33 +254,28 @@ def mappable_var(
     for var, dims in coord_dict.items():
         ds[var] = ds[var].transpose(*dims)
 
-    if var_name in ["u", "v"] and ds_type == 'restart':
-        
+    if var_name in ["u", "v"] and ds_type == "restart":
+
         u_r, v_r = get_rotated_centered_winds(ds)
-        
+
         if var_name == "u":
             ds = ds.assign({var_name: u_r})
         else:
             ds = ds.assign({var_name: v_r})
-            
-    new_ds = ds[[var_name]].copy().transpose(
-        COORD_Y_CENTER,
-        COORD_X_CENTER,
-        "tile",
-        ...
+
+    new_ds = (
+        ds[[var_name]].copy().transpose(COORD_Y_CENTER, COORD_X_CENTER, "tile", ...)
     )
 
     for restart_name, diag_name in COORD_NAME_MAPPING.items():
-        if ds_type == 'restart':
-            new_ds = new_ds.assign_coords(
-                coords = {diag_name : ds[restart_name]}
-            )
+        if ds_type == "restart":
+            new_ds = new_ds.assign_coords(coords={diag_name: ds[restart_name]})
         else:
-            new_ds = new_ds.assign_coords(coords = {diag_name : ds[diag_name]})
+            new_ds = new_ds.assign_coords(coords={diag_name: ds[diag_name]})
 
-    return new_ds.drop(labels = [
-        COORD_Y_CENTER, COORD_X_CENTER,COORD_Y_OUTER, COORD_X_OUTER
-    ])
+    return new_ds.drop(
+        labels=[COORD_Y_CENTER, COORD_X_CENTER, COORD_Y_OUTER, COORD_X_OUTER]
+    )
 
 
 def _plot_cube_axes(
@@ -353,7 +325,6 @@ def _plot_cube_axes(
             matplotlib object handle associated with map subplot
     
     """
-  
 
     if (lon.shape[-1] != 6) or (lat.shape[-1] != 6) or (array.shape[-1] != 6):
         raise ValueError(
@@ -371,7 +342,7 @@ def _plot_cube_axes(
             """First and second axes lengths of lat and lonb must be equal to 
             those of array."""
         )
-        
+
     if (len(lonb.shape) != 3) or (len(latb.shape) != 3) or (len(array.shape) != 3):
         raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
 
@@ -393,7 +364,7 @@ def _plot_cube_axes(
 
     if (len(lon.shape) != 3) or (len(lat.shape) != 3) or (len(array.shape) != 3):
         raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
-        
+
     ax = plt.gca()
 
     if plotting_function in [plt.pcolormesh, plt.contour, plt.contourf]:
@@ -402,23 +373,14 @@ def _plot_cube_axes(
         raise ValueError(
             """Plotting functions only include plt.pcolormesh, plt.contour, 
             and plt.contourf."""
-        ) 
-        
-#     if "coastlines_kwargs" in kwargs:
-#         coastlines_kwargs = kwargs["coastlines_kwargs"]
-#         del kwargs["coastlines_kwargs"] 
-        
+        )
+
     central_longitude = ax.projection.proj4_params["lon_0"]
-                
+
     masked_array = np.where(
-        _mask_antimeridian_quads(
-            lonb,
-            central_longitude
-        ),
-        array,
-        np.nan
+        _mask_antimeridian_quads(lonb, central_longitude), array, np.nan
     )
-    
+
     for tile in range(6):
         if ax.plotting_function == plt.pcolormesh:
             x = lonb[:, :, tile]
@@ -429,27 +391,22 @@ def _plot_cube_axes(
             x = np.where(
                 lon_tile < (central_longitude + 180.0) % 360.0,
                 lon_tile,
-                lon_tile - 360.0
+                lon_tile - 360.0,
             )
             y = lat[:, :, tile]
-            if 'levels' not in kwargs:
-                kwargs['n_levels'] = (
-                    11 if not 'n_levels' in kwargs else kwargs['n_levels'])
-                kwargs['levels'] = np.linspace(
-                    kwargs['vmin'],
-                    kwargs['vmax'],
-                    kwargs['n_levels']
+            if "levels" not in kwargs:
+                kwargs["n_levels"] = (
+                    11 if not "n_levels" in kwargs else kwargs["n_levels"]
+                )
+                kwargs["levels"] = np.linspace(
+                    kwargs["vmin"], kwargs["vmax"], kwargs["n_levels"]
                 )
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             p_handle = ax.plotting_function(
-                x,
-                y,
-                masked_array[:, :, tile],
-                transform = ccrs.PlateCarree(),
-                **kwargs,
+                x, y, masked_array[:, :, tile], transform=ccrs.PlateCarree(), **kwargs
             )
-    
+
     ax.set_global()
 
     if coastlines:

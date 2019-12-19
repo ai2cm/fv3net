@@ -5,8 +5,9 @@ from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
     COORD_Y_CENTER,
     COORD_X_OUTER,
-    COORD_Y_OUTER
+    COORD_Y_OUTER,
 )
+
 
 def rotate_winds_to_lat_lon_coords(
     da_x: xr.DataArray, da_y: xr.DataArray, grid: xr.Dataset
@@ -158,10 +159,8 @@ def _get_local_basis_in_spherical_coords(grid):
     )
 
 
-def get_rotated_centered_winds(
-    ds: xr.Dataset
-):
-    
+def get_rotated_centered_winds(ds: xr.Dataset):
+
     """ Get rotated and centered winds from restart wind variables
     
     Args:
@@ -178,13 +177,9 @@ def get_rotated_centered_winds(
     
         
     """
-    
-    u_c = shift_edge_var_to_center(
-        ds["u"].drop(labels = COORD_X_CENTER)
-    )
-    v_c = shift_edge_var_to_center(
-        ds["v"].drop(labels = COORD_Y_CENTER)
-    )
+
+    u_c = shift_edge_var_to_center(ds["u"].drop(labels=COORD_X_CENTER))
+    v_c = shift_edge_var_to_center(ds["v"].drop(labels=COORD_Y_CENTER))
     return rotate_winds_to_lat_lon_coords(
         u_c, v_c, ds[["grid_lont", "grid_latt", "grid_lon", "grid_lat"]]
     )

@@ -2,11 +2,7 @@ import numpy as np
 
 
 def _infer_color_limits(
-    xmin: float,
-    xmax: float,
-    vmin: float = None,
-    vmax: float = None,
-    cmap: str = None
+    xmin: float, xmax: float, vmin: float = None, vmax: float = None, cmap: str = None
 ):
 
     """ "auto-magical" handling of color limits and colormap if not supplied by
@@ -72,11 +68,8 @@ def _infer_color_limits(
     return vmin, vmax, cmap
 
 
-def _get_var_label(
-    attrs: dict,
-    var_name: str
-):
-    
+def _get_var_label(attrs: dict, var_name: str):
+
     """ Get the label for the variable on the colorbar
     
     Args:
@@ -93,8 +86,8 @@ def _get_var_label(
     
         
     """
-    
-    if 'long_name' in attrs and 'units' in attrs:
+
+    if "long_name" in attrs and "units" in attrs:
         return f"{attrs['long_name']} [{attrs['units']}]"
     else:
         return var_name
