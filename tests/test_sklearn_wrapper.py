@@ -64,7 +64,7 @@ def test__transform(test_transformed_target_regressor):
     normed_target_values = test_transformed_target_regressor._transform(
         physical_target_values
     )
-    assert np.array_equal(normed_target_values, [2.0, 2.0, -0.5])
+    assert pytest.approx(normed_target_values) == [2.0, 2.0, -0.5]
 
 
 def test__inverse_transform_outputs(test_transformed_target_regressor):
@@ -72,4 +72,4 @@ def test__inverse_transform_outputs(test_transformed_target_regressor):
     physical_target_values = test_transformed_target_regressor._inverse_transform(
         normed_target_values
     )
-    assert np.array_equal(physical_target_values, [2.0, 4.0, -2])
+    assert pytest.approx(physical_target_values) == [2.0, 4.0, -2]
