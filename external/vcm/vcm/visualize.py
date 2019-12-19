@@ -215,8 +215,8 @@ def mappable_var(
 ):
 
     
-    """ Converts a restart dataset into a format for plotting across 
-    cubed-sphere tiles
+    """ Converts a restart or diagnostic dataset into a format for plotting
+    across cubed-sphere tiles
     
     Args:
     
@@ -240,24 +240,38 @@ def mappable_var(
     
     Example:
     
-        # plots T at multiple vertical levels, faceted across subplots
+        # plots restart v at multiple vertical levels and times across subplots
         sample_data = fv3_restarts.open_restarts(
-                '/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/rundir/',
-                '20160805.170000',
-                '20160805.171500'
+            '/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/rundir/',
+            '20160805.170000',
+            '20160805.171500'
+        )
+        grid_spec_paths = [
+            "/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/rundir/" +
+            f"grid_spec.tile{tile}.nc" for tile in range (1,7)
+        ]
+        grid_spec = xr.open_mfdataset(
+            paths = grid_spec_paths,
+            combine='nested',
+            concat_dim='tile'
             )
-        grid_spec_paths = [f"/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/rundir/grid_spec.tile{tile}.nc" for tile in range (1,7)]
-        grid_spec = xr.open_mfdataset(paths = grid_spec_paths, combine = 'nested', concat_dim = 'tile')
         ds = xr.merge([sample_data, grid_spec])
+        coastlines_kwargs = {"color" : [1, 0, 0], "linewidth" : 1.5}
+        projection = ccrs.Orthographic(
+            central_longitude = 305,
+            central_latitude = -30
+        )
         axes, hs, cbar = plot_cube(
-            mappable_restart_var(ds, 'T').isel(time = 0, pfull = [78, 40]),#.isel(pfull = slice(None, None, 20)),
-            plotting_function='pcolormesh',
+            mappable_var(ds, 'v').isel(pfull = [78, 40]),
+            plotting_function = plt.pcolormesh,
             row = "pfull",
+            col= "time",
+            projection = projection,
             coastlines = True,
             coastlines_kwargs = coastlines_kwargs,
             colorbar = True,
-            vmin = 250,
-            vmax = 300,
+            vmin = -20,
+            vmax = 20,
         )
     """
     
@@ -280,14 +294,7 @@ def mappable_var(
             ds = ds.assign({var_name: u_r})
         else:
             ds = ds.assign({var_name: v_r})
-              
-#     if "pfull" in diag_ds[var_name].dims:
-#         vardims = ["grid_yt", "grid_xt", "tile", "time", "pfull"]
-#     elif len(diag_ds[var_name].dims) == 4:
-#         vardims = ["grid_yt", "grid_xt", "tile", "time"]
-#     else:
-#         raise ValueError("Invalid variable for plotting as map.")
-
+            
     new_ds = ds[[var_name]].copy().transpose(
         COORD_Y_CENTER,
         COORD_X_CENTER,
@@ -304,66 +311,8 @@ def mappable_var(
             new_ds = new_ds.assign_coords(coords = {diag_name : ds[diag_name]})
 
     return new_ds.drop(labels = [
-        COORD_Y_CENTER, COORD_X_CENTER,COORD_Y_OUTER, COORD_X_OUTER, "tile"
+        COORD_Y_CENTER, COORD_X_CENTER,COORD_Y_OUTER, COORD_X_OUTER
     ])
-
-
-
-def mappable_diag_var(diag_ds: xr.Dataset, var_name: str):
-
-    """ Converts a diagnostics dataset into a format for plotting across cubed-sphere tiles
-    
-    Args:
-    
-        diag_ds (xr.Dataset): 
-            Dataset containing the variable to be plotted, along with grid spec information. Assumed to be
-            `fv3_restarts.open_standard_diags` output. 
-        var_name (str): 
-            Name of variable to be plotted.
-    
-    Returns:
-    
-        ds (xr.Dataset):
-            Dataset containing variable to be plotted as well as grid coordinates variables.
-            Grid variables are renamed and ordered for plotting as first argument to `plot_cube`.
-    
-    Example:
-    
-        # plots diagnostic V850 at two times, faceted across rows
-        diag_ds = fv3_restarts.open_standard_diags("/home/brianh/dev/fv3net/data/restart/C48/no_adjustment_2019-11-26")
-        coastline_kwargs = {"color" : [1, 0, 0], "linewidth" : 1.5}
-        axes, hs, cbar = plot_cube(
-            mappable_diag_var(diag_ds, 'VGRD850').isel(time = slice(2, 4)),
-            row = "time",
-            coastlines = True,
-            coastlines_kwargs = coastline_kwargs,
-            colorbar = True,
-        )
-    """
-
-    for var, dims in DIAG_COORD_VARS.items():
-        diag_ds[var] = diag_ds[var].transpose(*dims)
-
-    if "pfull" in diag_ds[var_name].dims:
-        vardims = ["grid_yt", "grid_xt", "tile", "time", "pfull"]
-    elif len(diag_ds[var_name].dims) == 4:
-        vardims = ["grid_yt", "grid_xt", "tile", "time"]
-    else:
-        raise ValueError("Invalid variable for plotting as map.")
-
-    return (
-        diag_ds[[var_name]]
-        .transpose(*vardims)
-        .assign_coords(
-            coords={
-                "lon": diag_ds["lon"],
-                "lat": diag_ds["lat"],
-                "lonb": diag_ds["lonb"],
-                "latb": diag_ds["latb"],
-            }
-        )
-        .drop(labels=["grid_xt", "grid_yt", "grid_x", "grid_y"])
-    )
 
 
 def _plot_cube_axes(
@@ -417,7 +366,8 @@ def _plot_cube_axes(
 
     if (lon.shape[-1] != 6) or (lat.shape[-1] != 6) or (array.shape[-1] != 6):
         raise ValueError(
-            "Last axis of each array must have six elements for cubed-sphere tiles."
+            """Last axis of each array must have six elements for 
+            cubed-sphere tiles."""
         )
 
     if (
@@ -427,7 +377,8 @@ def _plot_cube_axes(
         or (lat.shape[1] != array.shape[1])
     ):
         raise ValueError(
-            "First and second axes lengths of lat and lonb must be equal to those of array."
+            """First and second axes lengths of lat and lonb must be equal to 
+            those of array."""
         )
         
     if (len(lonb.shape) != 3) or (len(latb.shape) != 3) or (len(array.shape) != 3):
