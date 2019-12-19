@@ -1,6 +1,12 @@
 import numpy as np
 import xarray as xr
-
+from vcm.cubedsphere.coarsen import shift_edge_var_to_center
+from vcm.cubedsphere.constants import (
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_OUTER
+)
 
 def rotate_winds_to_lat_lon_coords(
     da_x: xr.DataArray, da_y: xr.DataArray, grid: xr.Dataset
@@ -152,137 +158,33 @@ def _get_local_basis_in_spherical_coords(grid):
     )
 
 
-def mask_antimeridian_quads(lonb: np.ndarray, central_longitude: float):
-
-    """ Computes mask of grid quadrilaterals bisected by a projection system's antimeridian,
-    in order to avoid cartopy plotting artifacts
+def get_rotated_centered_winds(
+    ds: xr.Dataset
+):
+    
+    """ Get rotated and centered winds from restart wind variables
     
     Args:
     
-        lonb (np.ndarray): 
-            Array of grid edge longitudes, of dimensions (npy + 1, npx + 1, tile) 
-        central_longitude (float): 
-            Central longitude from which the antimeridian is computed
+        ds (xr.Dataset): 
+            Dataset containing 'u' and 'v' restart wind variables on 
+            staggered, tiled grid; also containing grid variables for centers 
+            and edges
     
     Returns:
     
-        mask (np.ndarray): 
-            Boolean array of grid centers, False = excluded, of dimensions (npy, npx, tile) 
-
+        u_r, v_r (xr.DataArrays)
+            DataArrays of rotated, centered winds
     
-    Example:
-    
-        masked_array = np.where(
-            mask_antimeridian_quads(lonb, central_longitude),
-            array,
-            np.nan
-        )
+        
     """
-
-    antimeridian = (central_longitude + 180.0) % 360.0
-    mask = np.full([lonb.shape[0] - 1, lonb.shape[1] - 1, lonb.shape[2]], True)
-    for tile in range(6):
-        tile_lonb = lonb[:, :, tile]
-        tile_mask = mask[:, :, tile]
-        for ix in range(tile_lonb.shape[0] - 1):
-            for iy in range(tile_lonb.shape[1] - 1):
-                vertex_indices = ([ix, ix + 1, ix, ix + 1], [iy, iy, iy + 1, iy + 1])
-                vertices = tile_lonb[vertex_indices]
-                if (
-                    sum(_periodic_equal_or_less_than(vertices, antimeridian)) != 4
-                    and sum(_periodic_greater_than(vertices, antimeridian)) != 4
-                    and sum((_periodic_difference(vertices, antimeridian) < 90.0)) == 4
-                ):
-                    tile_mask[ix, iy] = False
-        mask[:, :, tile] = tile_mask
-
-    return mask
-
-
-def _periodic_equal_or_less_than(x1, x2, period=360.0):
-
-    """ Compute whether x1 is less than or equal to x2, where 
-    the difference between the two is the shortest distance on a periodic domain 
     
-    Args:
-    
-        x1 (float), x2 (float):
-            Values to be compared
-        Period (float, optional): 
-            Period of domain. Default 360 (degrees). 
-    
-    Returns:
-    
-        Less_than_or_equal (Bool): 
-            Whether x1 is less than or equal to x2
-    
-    
-    """
-
-    return np.where(
-        np.abs(x1 - x2) <= period / 2.0,
-        np.where(x1 - x2 <= 0, True, False),
-        np.where(
-            x1 - x2 >= 0,
-            np.where(x1 - (x2 + period) <= 0, True, False),
-            np.where((x1 + period) - x2 <= 0, True, False),
-        ),
+    u_c = shift_edge_var_to_center(
+        ds["u"].drop(labels = COORD_X_CENTER)
     )
-
-
-def _periodic_greater_than(x1, x2, period=360.0):
-
-    """ Compute whether x1 is greater than x2, where 
-    the difference between the two is the shortest distance on a periodic domain 
-    
-    Args:
-    
-        x1 (float), x2 (float):
-            Values to be compared
-        Period (float, optional): 
-            Period of domain. Default 360 (degrees). 
-    
-    Returns:
-    
-        Greater_than (Bool): 
-            Whether x1 is greater than x2
-    
-    
-    """
-
-    return np.where(
-        np.abs(x1 - x2) <= period / 2.0,
-        np.where(x1 - x2 > 0, True, False),
-        np.where(
-            x1 - x2 >= 0,
-            np.where(x1 - (x2 + period) > 0, True, False),
-            np.where((x1 + period) - x2 > 0, True, False),
-        ),
+    v_c = shift_edge_var_to_center(
+        ds["v"].drop(labels = COORD_Y_CENTER)
     )
-
-
-def _periodic_difference(x1, x2, period=360.0):
-
-    """ Compute difference between x1 and x2, where 
-    the difference is the shortest distance on a periodic domain 
-    
-    Args:
-    
-        x1 (float), x2 (float):
-            Values to be compared
-        Period (float, optional): 
-            Period of domain. Default 360 (degrees). 
-    
-    Returns:
-    
-        Difference (float): 
-            Difference between x1 and x2
-    
-    
-    """
-
-    return np.where(
-        np.abs(x1 - x2) <= period / 2.0,
-        x1 - x2,
-        np.where(x1 - x2 >= 0, x1 - (x2 + period), (x1 + period) - x2),
+    return rotate_winds_to_lat_lon_coords(
+        u_c, v_c, ds[["grid_lont", "grid_latt", "grid_lon", "grid_lat"]]
     )

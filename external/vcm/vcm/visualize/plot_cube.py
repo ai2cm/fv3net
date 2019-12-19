@@ -5,10 +5,12 @@ from vcm.cubedsphere.constants import (
     COORD_X_OUTER,
     COORD_Y_OUTER
 )
-from vcm.calc.transform_cubesphere_coords import (
-    mask_antimeridian_quads,
-    rotate_winds_to_lat_lon_coords,
+from vcm.calc.transform_cubesphere_coords import get_rotated_centered_winds
+from vcm.visualize.plot_helpers import (
+    _infer_color_limits,
+    _get_var_label
 )
+from vcm.visualize.masking import _mask_antimeridian_quads
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
@@ -240,38 +242,27 @@ def mappable_var(
     
     Example:
     
-        # plots restart v at multiple vertical levels and times across subplots
+        # plots T at multiple vertical levels, faceted across subplots
         sample_data = fv3_restarts.open_restarts(
-            '/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/rundir/',
-            '20160805.170000',
-            '20160805.171500'
-        )
-        grid_spec_paths = [
-            "/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/rundir/" +
-            f"grid_spec.tile{tile}.nc" for tile in range (1,7)
-        ]
-        grid_spec = xr.open_mfdataset(
-            paths = grid_spec_paths,
-            combine='nested',
-            concat_dim='tile'
+                '/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/
+                rundir/',
+                '20160805.170000',
+                '20160805.171500'
             )
+        grid_spec_paths = [f"/home/brianh/dev/fv3net/data/restart/C48/
+        20160805.170000/rundir/grid_spec.tile{tile}.nc" for tile in range (1,7)]
+        grid_spec = xr.open_mfdataset(paths = grid_spec_paths, 
+        combine = 'nested', concat_dim = 'tile')
         ds = xr.merge([sample_data, grid_spec])
-        coastlines_kwargs = {"color" : [1, 0, 0], "linewidth" : 1.5}
-        projection = ccrs.Orthographic(
-            central_longitude = 305,
-            central_latitude = -30
-        )
         axes, hs, cbar = plot_cube(
-            mappable_var(ds, 'v').isel(pfull = [78, 40]),
-            plotting_function = plt.pcolormesh,
+            mappable_restart_var(ds, 'T').isel(time = 0, pfull = [78, 40]),
+            plotting_function='pcolormesh',
             row = "pfull",
-            col= "time",
-            projection = projection,
             coastlines = True,
             coastlines_kwargs = coastlines_kwargs,
             colorbar = True,
-            vmin = -20,
-            vmax = 20,
+            vmin = 250,
+            vmax = 300,
         )
     """
     
@@ -288,7 +279,7 @@ def mappable_var(
 
     if var_name in ["u", "v"] and ds_type == 'restart':
         
-        u_r, v_r = _get_rotated_centered_winds(ds)
+        u_r, v_r = get_rotated_centered_winds(ds)
         
         if var_name == "u":
             ds = ds.assign({var_name: u_r})
@@ -420,7 +411,7 @@ def _plot_cube_axes(
     central_longitude = ax.projection.proj4_params["lon_0"]
                 
     masked_array = np.where(
-        mask_antimeridian_quads(
+        _mask_antimeridian_quads(
             lonb,
             central_longitude
         ),
@@ -466,133 +457,3 @@ def _plot_cube_axes(
         ax.coastlines(**coastlines_kwargs)
 
     return p_handle
-
-
-def _infer_color_limits(
-    xmin: float,
-    xmax: float,
-    vmin: float = None,
-    vmax: float = None,
-    cmap: str = None
-):
-
-    """ "auto-magical" handling of color limits and colormap if not supplied by
-    user
-    
-    Args:
-    
-        xmin (float): 
-            Smallest value in data to be plotted
-        xmax (float): 
-            Largest value in data to be plotted
-        vmin (float, optional):  
-            Colormap minimum value. Default None.
-        vmax (float, optional): 
-            Colormap minimum value. Default None.
-        cmap (str, optional):
-            Name of colormap. Default None.
-    
-    Returns:
-    
-        vmin (float)
-            Inferred colormap minimum value if not supplied, or user value if 
-            supplied.
-        vmax (float)
-            Inferred colormap maximum value if not supplied, or user value if
-            supplied.
-        cmap (str)
-            Inferred colormap if not supplied, or user value if supplied.
-    
-    Example:
-    
-        # choose limits and cmap for data spanning 0
-        >>>> _infer_color_limits(-10, 20)
-        (-20, 20, 'RdBu_r')
-        
-    """
-
-    if not vmin and not vmax:
-        if xmin < 0 and xmax > 0:
-            cmap = "RdBu_r" if not cmap else cmap
-            vabs_max = np.max([np.abs(xmin), np.abs(xmax)])
-            vmin, vmax = (-vabs_max, vabs_max)
-        else:
-            vmin, vmax = xmin, xmax
-            cmap = "viridis" if not cmap else cmap
-    elif not vmin:
-        if xmin < 0 and vmax > 0:
-            vmin = -vmax
-            cmap = "RdBu_r" if not cmap else cmap
-        else:
-            vmin = xmin
-            cmap = "viridis" if not cmap else cmap
-    elif not vmax:
-        if xmax > 0 and vmin < 0:
-            vmax = -vmin
-            cmap = "RdBu_r" if not cmap else cmap
-        else:
-            vmax = xmax
-            cmap = "viridis" if not cmap else cmap
-    elif not cmap:
-        cmap = "RdBu_r" if vmin == -vmax else "viridis"
-
-    return vmin, vmax, cmap
-
-
-def _get_var_label(
-    attrs: dict,
-    var_name: str
-):
-    
-    """ Get the label for the variable on the colorbar
-    
-    Args:
-    
-        attrs (dict): 
-            Variable aattribute dict
-        var_name (str): 
-            Short name of variable
-    
-    Returns:
-    
-        var_name (str)
-            Variable name to be plotted, either short name or annotated name
-    
-        
-    """
-    
-    if 'long_name' in attrs and 'units' in attrs:
-        return f"{attrs['long_name']} [{attrs['units']}]"
-    else:
-        return var_name
-    
-    
-def _get_rotated_centered_winds(
-    ds: xr.Dataset
-):
-    
-    """ Get rotated and centered winds from restart wind variables
-    
-    Args:
-    
-        ds (xr.Dataset): 
-            Dataset containing 'u' and 'v' restart wind variables on 
-            staggered, tiled grid
-    
-    Returns:
-    
-        u_r, v_r (xr.DataArrays)
-            DataArrays of rotated, centered winds
-    
-        
-    """
-    
-    u_c = shift_edge_var_to_center(
-        ds["u"].drop(labels = COORD_X_CENTER)
-    )
-    v_c = shift_edge_var_to_center(
-        ds["v"].drop(labels = COORD_Y_CENTER)
-    )
-    return rotate_winds_to_lat_lon_coords(
-        u_c, v_c, ds[["grid_lont", "grid_latt", "grid_lon", "grid_lat"]]
-    )
