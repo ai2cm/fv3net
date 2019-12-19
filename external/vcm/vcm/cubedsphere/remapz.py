@@ -7,7 +7,13 @@ from ..cubedsphere import (
 )
 from ..cubedsphere.coarsen import block_upsample
 from .xgcm import create_fv3_grid
-import mappm
+
+try:
+    import mappm
+except ImportError:
+    _mappm_installed = False
+else:
+    _mappm_installed = True
 
 # default for restart file
 VERTICAL_DIM = "zaxis_1"
@@ -135,6 +141,9 @@ def remap_levels(p_in, f_in, p_out, iv=1, kord=1, dim=VERTICAL_DIM):
     Returns:
         xr.DataArray: f_in remapped to p_out pressure levels
     """
+    if not _mappm_installed:
+        raise ImportError("mappm must be installed to use remap_levels")
+
     dims_except_vertical = list(f_in.dims)
     dims_except_vertical.remove(dim)
 
