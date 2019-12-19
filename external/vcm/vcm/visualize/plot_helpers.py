@@ -10,13 +10,13 @@ def _infer_color_limits(
     
     Args:
     
-        xmin (float): 
+        xmin (float):
             Smallest value in data to be plotted
-        xmax (float): 
+        xmax (float):
             Largest value in data to be plotted
-        vmin (float, optional):  
+        vmin (float, optional):
             Colormap minimum value. Default None.
-        vmax (float, optional): 
+        vmax (float, optional):
             Colormap minimum value. Default None.
         cmap (str, optional):
             Name of colormap. Default None.
@@ -74,9 +74,9 @@ def _get_var_label(attrs: dict, var_name: str):
     
     Args:
     
-        attrs (dict): 
+        attrs (dict):
             Variable aattribute dict
-        var_name (str): 
+        var_name (str):
             Short name of variable
     
     Returns:
