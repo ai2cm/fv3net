@@ -28,6 +28,13 @@ DIAG_COORD_VARS = {
     "lat": ["grid_yt", "grid_xt", "tile"],
 }
 
+COORD_NAME_MAPPING = {
+    "grid_lon" : "lonb",
+    "grid_lat" : "latb",
+    "grid_lont" : "lon",
+    "grid_latt" : "lat"
+}
+
 
 def plot_cube(
     plottable_variable: xr.Dataset,
@@ -250,11 +257,16 @@ def mappable_var(
     
     if ds_type not in ['restart', 'diag']:
         raise ValueError('ds_type must be "restart" or "diag".')
+        
+    if ds_type == 'restart':
+        coord_dict = RESTART_COORD_VARS
+    else:
+        coord_dict = DIAG_COORD_VARS
 
-    for var, dims in RESTART_COORD_VARS.items():
+    for var, dims in coord_dict.items():
         ds[var] = ds[var].transpose(*dims)
 
-    if var_name in ["u", "v"]:
+    if var_name in ["u", "v"] and ds_type == 'restart':
         
         u_r, v_r = _get_rotated_centered_winds(ds)
         
@@ -262,28 +274,26 @@ def mappable_var(
             ds = ds.assign({var_name: u_r})
         else:
             ds = ds.assign({var_name: v_r})
+              
+#     if "pfull" in diag_ds[var_name].dims:
+#         vardims = ["grid_yt", "grid_xt", "tile", "time", "pfull"]
+#     elif len(diag_ds[var_name].dims) == 4:
+#         vardims = ["grid_yt", "grid_xt", "tile", "time"]
+#     else:
+#         raise ValueError("Invalid variable for plotting as map.")
 
-    return (
-        ds[[var_name]]
-        .transpose("grid_yt", "grid_xt", "tile", "pfull", "time")
-        .assign_coords(
-            coords={
-                "lon": ds["grid_lont"],
-                "lat": ds["grid_latt"],
-                "lonb": ds["grid_lon"],
-                "latb": ds["grid_lat"],
-            }
-        )
-        .drop(labels=["grid_xt", "grid_yt", "grid_x", "grid_y", "tile"])
-#         .rename(
-#             {
-#                 "grid_lont": "lon",
-#                 "grid_latt": "lat",
-#                 "grid_lon": "lonb",
-#                 "grid_lat": "latb",
-#             }
-#         )
-    )
+    new_ds = ds[[var_name]].copy().transpose("grid_yt", "grid_xt", "tile", "pfull", "time")
+
+    for restart_name, diag_name in COORD_NAME_MAPPING.items():
+        if ds_type == 'restart':
+            new_ds = new_ds.assign_coords(
+                coords = {diag_name : ds[restart_name]}
+            )
+        else:
+            new_ds = new_ds.assign_coords(coords = {diag_name : ds[diag_name]})
+
+    return new_ds.drop(labels=["grid_xt", "grid_yt", "grid_x", "grid_y", "tile"])
+
 
 
 def mappable_diag_var(diag_ds: xr.Dataset, var_name: str):
