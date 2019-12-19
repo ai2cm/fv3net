@@ -5,44 +5,33 @@ from . import constants
 # none of the connecitons are "reversed" in the xgcm parlance
 FV3_FACE_CONNECTIONS = {
     "tile": {
+        0: {
+            "x": ((4, "y", False), (1, "x", False)),
+            "y": ((5, "y", False), (2, "x", False)),
+        },
         1: {
-            "x": ((5, "y", False), (2, "x", False)),
-            "y": ((6, "y", False), (3, "x", False)),
+            "x": ((0, "x", False), (3, "y", False)),
+            "y": ((5, "x", False), (2, "y", False)),
         },
         2: {
-            "x": ((1, "x", False), (4, "y", False)),
-            "y": ((6, "x", False), (3, "y", False)),
+            "x": ((0, "y", False), (3, "x", False)),
+            "y": ((1, "y", False), (4, "x", False)),
         },
         3: {
-            "x": ((1, "y", False), (4, "x", False)),
-            "y": ((2, "y", False), (5, "x", False)),
+            "x": ((2, "x", False), (5, "y", False)),
+            "y": ((1, "x", False), (4, "y", False)),
         },
         4: {
-            "x": ((3, "x", False), (6, "y", False)),
-            "y": ((2, "x", False), (5, "y", False)),
+            "x": ((2, "y", False), (5, "x", False)),
+            "y": ((3, "y", False), (0, "x", False)),
         },
         5: {
-            "x": ((3, "y", False), (6, "x", False)),
-            "y": ((4, "y", False), (1, "x", False)),
-        },
-        6: {
-            "x": ((5, "x", False), (2, "y", False)),
-            "y": ((4, "x", False), (1, "y", False)),
+            "x": ((4, "x", False), (1, "y", False)),
+            "y": ((3, "x", False), (0, "y", False)),
         },
     }
 }
-FV3_FACE_CONNECTIONS = {'tile': {0: {'x': ((4, 'y', False), (1, 'x', False)),
-   'y': ((5, 'y', False), (2, 'x', False))},
-  1: {'x': ((0, 'x', False), (3, 'y', False)),
-   'y': ((5, 'x', False), (2, 'y', False))},
-  2: {'x': ((0, 'y', False), (3, 'x', False)),
-   'y': ((1, 'y', False), (4, 'x', False))},
-  3: {'x': ((2, 'x', False), (5, 'y', False)),
-   'y': ((1, 'x', False), (4, 'y', False))},
-  4: {'x': ((2, 'y', False), (5, 'x', False)),
-   'y': ((3, 'y', False), (0, 'x', False))},
-  5: {'x': ((4, 'x', False), (1, 'y', False)),
-   'y': ((3, 'x', False), (0, 'y', False))}}}
+
 
 def _validate_tile_coord(ds: xr.Dataset):
 

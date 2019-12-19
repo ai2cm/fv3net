@@ -796,4 +796,4 @@ def test_create_fv3_grid_succeeds(grid_dataset):
 def test_xgcm_grid_interp(grid_dataset):
 
     grid = create_fv3_grid(grid_dataset)
-    grid.interp(grid_dataset.a, 'x')
+    grid.interp(grid_dataset.a, "x")
