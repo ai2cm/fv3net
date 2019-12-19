@@ -68,7 +68,7 @@ def create_fv3_grid(
             corresponding coordinate. To follow GFDL's convention, this coordinate 
             should start with 1. You can make it like this::
 
-                ds = ds.assign_coords(tile=np.arange(1, 7))
+                ds = ds.assign_coords(tile=np.arange(6))
 
         x_center (optional): the dimension name for the x edges
         x_outer (optional): the dimension name for the x edges
