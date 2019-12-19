@@ -1,4 +1,3 @@
-from vcm.cubedsphere.coarsen import shift_edge_var_to_center
 from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
     COORD_Y_CENTER,
@@ -396,7 +395,7 @@ def _plot_cube_axes(
             y = lat[:, :, tile]
             if "levels" not in kwargs:
                 kwargs["n_levels"] = (
-                    11 if not "n_levels" in kwargs else kwargs["n_levels"]
+                    11 if "n_levels" not in kwargs else kwargs["n_levels"]
                 )
                 kwargs["levels"] = np.linspace(
                     kwargs["vmin"], kwargs["vmax"], kwargs["n_levels"]

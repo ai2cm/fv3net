@@ -1,12 +1,7 @@
 import numpy as np
 import xarray as xr
 from vcm.cubedsphere.coarsen import shift_edge_var_to_center
-from vcm.cubedsphere.constants import (
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    COORD_X_OUTER,
-    COORD_Y_OUTER,
-)
+from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
 
 
 def rotate_winds_to_lat_lon_coords(

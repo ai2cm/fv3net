@@ -3,20 +3,22 @@ import numpy as np
 
 def _mask_antimeridian_quads(lonb: np.ndarray, central_longitude: float):
 
-    """ Computes mask of grid quadrilaterals bisected by a projection system's antimeridian,
-    in order to avoid cartopy plotting artifacts
+    """ Computes mask of grid quadrilaterals bisected by a projection system's 
+    antimeridian, in order to avoid cartopy plotting artifacts
     
     Args:
     
         lonb (np.ndarray): 
-            Array of grid edge longitudes, of dimensions (npy + 1, npx + 1, tile) 
+            Array of grid edge longitudes, of dimensions (npy + 1, npx + 1, 
+            tile) 
         central_longitude (float): 
             Central longitude from which the antimeridian is computed
     
     Returns:
     
         mask (np.ndarray): 
-            Boolean array of grid centers, False = excluded, of dimensions (npy, npx, tile) 
+            Boolean array of grid centers, False = excluded, of dimensions 
+            (npy, npx, tile) 
 
     
     Example:

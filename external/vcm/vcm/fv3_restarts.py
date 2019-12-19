@@ -272,11 +272,15 @@ def open_standard_diags(rundir: str):
     Returns:
     
         ds (xr.Dataset):
-            Dataset containing diagnostic variables merged across tiles and categories
+            Dataset containing diagnostic variables merged across tiles and 
+            categories
     
     Example:
     
-        ds = open_standard_diags("/home/brianh/dev/fv3net/data/restart/C48/no_adjustment_2019-11-26")
+        ds = open_standard_diags(
+            "/home/brianh/dev/fv3net/data/restart/C48/no_adjustment_2019-11-26"
+        )
+        
     """
 
     return xr.merge(
