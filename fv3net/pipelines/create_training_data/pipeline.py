@@ -104,7 +104,7 @@ def _load_cloud_data(gcs_urls, fs):
     return ds
 
 
-def _create_train_cols(ds, cols_to_keep=INPUT_VARS+TARGET_VARS+GRID_VARS ):
+def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS + GRID_VARS):
     """
 
     Args:
