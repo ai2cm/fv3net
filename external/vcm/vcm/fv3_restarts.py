@@ -12,6 +12,12 @@ from dask.delayed import delayed
 
 import f90nml
 from vcm.combining import combine_array_sequence
+from vcm.cubedsphere.constants import (
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_OUTER,
+)
 from vcm.convenience import open_delayed
 
 TIME_FMT = "%Y%m%d.%H%M%S"
@@ -20,10 +26,10 @@ SCHEMA_CACHE = {}
 
 NUM_SOIL_LAYERS = 4
 RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
-X_NAME = "grid_xt"
-Y_NAME = "grid_yt"
-X_EDGE_NAME = "grid_x"
-Y_EDGE_NAME = "grid_y"
+X_NAME = COORD_X_CENTER
+Y_NAME = COORD_Y_CENTER
+X_EDGE_NAME = COORD_X_OUTER
+Y_EDGE_NAME = COORD_Y_OUTER
 Z_NAME = "pfull"
 Z_EDGE_NAME = "phalf"
 

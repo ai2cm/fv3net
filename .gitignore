@@ -65,6 +65,7 @@ target/
 
 # Pycharm
 .idea
+venv/
 
 # VS Code
 .vscode/
