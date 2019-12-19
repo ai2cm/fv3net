@@ -53,9 +53,9 @@ def create_fv3_grid(
 
 
     Args:
-        ds: dataset with a valid tiles dimension. The tile dimension must have a 
-            corresponding coordinate. To follow GFDL's convention, this coordinate 
-            should start with 1. You can make it like this::
+        ds: dataset with a valid tiles dimension. The tile dimension must have a
+            corresponding coordinate. To avoid xgcm bugs, this coordinate should start
+            with 0. You can make it like this::
 
                 ds = ds.assign_coords(tile=np.arange(6))
 
