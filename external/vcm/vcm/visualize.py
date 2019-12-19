@@ -1,4 +1,4 @@
-from vcm import cubedsphere
+from vcm.cubedsphere.coarsen import shift_edge_var_to_center
 from vcm.calc.transform_cubesphere_coords import (
     mask_antimeridian_quads,
     rotate_winds_to_lat_lon_coords,
@@ -244,15 +244,9 @@ def mappable_restart_var(restart_ds: xr.Dataset, var_name: str):
         restart_ds[var] = restart_ds[var].transpose(*dims)
 
     if var_name in ["u", "v"]:
-        u_c = cubedsphere.shift_edge_var_to_center(
-            restart_ds["u"].drop(labels="grid_xt")
-        )
-        v_c = cubedsphere.shift_edge_var_to_center(
-            restart_ds["v"].drop(labels="grid_yt")
-        )
-        u_r, v_r = rotate_winds_to_lat_lon_coords(
-            u_c, v_c, restart_ds[["grid_lont", "grid_latt", "grid_lon", "grid_lat"]]
-        )
+        
+        u_r, v_r = _get_rotated_centered_winds(restart_ds)
+        
         if var_name == "u":
             restart_ds = restart_ds.assign({var_name: u_r})
         else:
@@ -565,7 +559,55 @@ def _get_var_label(
     var_name: str
 ):
     
+    """ Get the label for the variable on the colorbar
+    
+    Args:
+    
+        attrs (dict): 
+            Variable aattribute dict
+        var_name (str): 
+            Short name of variable
+    
+    Returns:
+    
+        var_name (str)
+            Variable name to be plotted, either short name or annotated name
+    
+        
+    """
+    
     if 'long_name' in attrs and 'units' in attrs:
         return f"{attrs['long_name']} [{attrs['units']}]"
     else:
         return var_name
+    
+    
+def _get_rotated_centered_winds(
+    ds: xr.Dataset
+):
+    
+    """ Get rotated and centered winds from restart wind variables
+    
+    Args:
+    
+        ds (xr.Dataset): 
+            Dataset containing 'u' and 'v' restart wind variables on 
+            staggered, tiled grid
+    
+    Returns:
+    
+        u_r, v_r (xr.DataArrays)
+            DataArrays of rotated, centered winds
+    
+        
+    """
+    
+    u_c = shift_edge_var_to_center(
+        ds["u"].drop(labels="grid_xt")
+    )
+    v_c = shift_edge_var_to_center(
+        ds["v"].drop(labels="grid_yt")
+    )
+    return rotate_winds_to_lat_lon_coords(
+        u_c, v_c, ds[["grid_lont", "grid_latt", "grid_lon", "grid_lat"]]
+    )
