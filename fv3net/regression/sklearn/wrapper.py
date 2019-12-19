@@ -21,8 +21,11 @@ def _flatten(data: xr.Dataset, sample_dim) -> np.ndarray:
     return stacked.transpose(sample_dim, feature_dim_name)
 
 
-@dataclass
 class BatchTrainingRegressor:
+    """Base class for sklearn-type regressors that are incrementally trained in batches
+    So that we can add new estimators at the start of new training batch.
+
+    """
     def __init__(self, regressor):
         self.regressor = regressor
         self.n_estimators_per_batch = regressor.n_estimators
@@ -53,7 +56,7 @@ class BatchTrainingRegressor:
     def predict(self, features):
         raise NotImplementedError
 
-@dataclass
+
 class TransformedTargetRegressor(BatchTrainingRegressor):
     """Modeled off of sklearn's TransformedTargetRegressor but with
     the ability to save the same means/stddev used in normalization without
