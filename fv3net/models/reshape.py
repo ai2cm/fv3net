@@ -10,6 +10,7 @@ The saved archive is suitable to use with uwnet.train
 
 import numpy as np
 
+from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
 from vcm.convenience import open_data
 
 
@@ -42,7 +43,7 @@ if __name__ == "__main__":
     ds = open_data(sources=True)
 
     variables = "u v w temp q1 q2 qv pres z fsdt lhflx shflx test_case".split()
-    sample_dims = ["time", "grid_yt", "grid_xt"]
+    sample_dims = ["time", COORD_Y_CENTER, COORD_X_CENTER]
 
     # compute a simple test case which can be reproduced by ML
     test_case = (ds.qv + ds.temp).assign_attrs(
@@ -54,7 +55,7 @@ if __name__ == "__main__":
     variables = list(variables)  # needs to be a list for xarray
     stacked = (
         ds[variables]
-        .sel(grid_yt=valid_latitudes)
+        .sel({COORD_Y_CENTER: valid_latitudes})
         .stack(sample=sample_dims)
         .transpose("sample", "pfull")
         .drop("sample")

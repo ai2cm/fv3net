@@ -21,6 +21,12 @@ from vcm.cubedsphere.coarsen import (
     shift_edge_var_to_center,
     weighted_block_average,
 )
+from vcm.cubedsphere.constants import (
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_OUTER,
+)
 from vcm.cubedsphere.io import all_filenames, remove_duplicate_coords, subtile_filenames
 from vcm.cubedsphere import create_fv3_grid
 from vcm.xarray_utils import assert_identical_including_dtype
@@ -28,11 +34,11 @@ from vcm.xarray_utils import assert_identical_including_dtype
 
 @pytest.fixture()
 def test_y_component_edge_array():
-    y_component_edge_coords = {"tile": [1], "grid_yt": [1], "grid_x": [1, 2]}
+    y_component_edge_coords = {"tile": [1], COORD_Y_CENTER: [1], COORD_X_OUTER: [1, 2]}
     y_component_edge_arr = np.array([[[30, 40]]])
     y_component_edge_da = xr.DataArray(
         y_component_edge_arr,
-        dims=["tile", "grid_yt", "grid_x"],
+        dims=["tile", COORD_Y_CENTER, COORD_X_OUTER],
         coords=y_component_edge_coords,
     )
     return y_component_edge_da
@@ -40,11 +46,11 @@ def test_y_component_edge_array():
 
 @pytest.fixture()
 def test_x_component_edge_array():
-    x_component_edge_coords = {"tile": [1], "grid_y": [1, 2], "grid_xt": [1]}
+    x_component_edge_coords = {"tile": [1], COORD_Y_OUTER: [1, 2], COORD_X_CENTER: [1]}
     x_component_edge_arr = np.array([[[10], [20]]])
     x_component_edge_da = xr.DataArray(
         x_component_edge_arr,
-        dims=["tile", "grid_y", "grid_xt"],
+        dims=["tile", COORD_Y_OUTER, COORD_X_CENTER],
         coords=x_component_edge_coords,
     )
     return x_component_edge_da
@@ -52,12 +58,12 @@ def test_x_component_edge_array():
 
 @pytest.fixture()
 def test_centered_vector():
-    centered_coords = {"tile": [1], "grid_yt": [1], "grid_xt": [1]}
+    centered_coords = {"tile": [1], COORD_Y_CENTER: [1], COORD_X_CENTER: [1]}
     x_component_da = xr.DataArray(
-        [[[15]]], dims=["tile", "grid_yt", "grid_xt"], coords=centered_coords
+        [[[15]]], dims=["tile", COORD_Y_CENTER, COORD_X_CENTER], coords=centered_coords
     )
     y_component_da = xr.DataArray(
-        [[[35]]], dims=["tile", "grid_yt", "grid_xt"], coords=centered_coords
+        [[[35]]], dims=["tile", COORD_Y_CENTER, COORD_X_CENTER], coords=centered_coords
     )
     centered_vector = xr.Dataset(
         {"x_component": x_component_da, "y_component": y_component_da}
@@ -772,7 +778,7 @@ def test_create_fv3_grid_fails_without_tile_coord():
 
 def test_create_fv3_grid_fails_on_incomplete_tile_coord():
     ds = xr.Dataset(
-        {"a": (["tile", "grid_yt", "grid_xt"], np.ones((5, 1, 1)))},
+        {"a": (["tile", COORD_Y_CENTER, COORD_X_CENTER], np.ones((5, 1, 1)))},
         coords={"tile": [1, 2, 3, 4, 5]},
     )
 
@@ -782,7 +788,7 @@ def test_create_fv3_grid_fails_on_incomplete_tile_coord():
 
 def test_create_fv3_grid_succeeds():
     ds = xr.Dataset(
-        {"a": (["tile", "grid_yt", "grid_xt"], np.ones((6, 2, 2)))},
+        {"a": (["tile", COORD_Y_CENTER, COORD_X_CENTER], np.ones((6, 2, 2)))},
         coords={"tile": [1, 2, 3, 4, 5, 6]},
     )
 

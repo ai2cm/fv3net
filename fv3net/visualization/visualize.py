@@ -2,13 +2,16 @@
 Some helper function for visualization.
 """
 import holoviews as hv
+from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
 
 
 def make_image(
     sliced_data, cmap_range=None, coords=None, quad=False, invert_y=False, **kwargs
 ):
     coords = coords or (
-        ["grid_xt", "grid_yt"] if "grid_xt" in sliced_data.coords else ["lon", "lat"]
+        [COORD_X_CENTER, COORD_Y_CENTER]
+        if COORD_X_CENTER in sliced_data.coords
+        else ["lon", "lat"]
     )
     hv_img = hv.QuadMesh(sliced_data, coords) if quad else hv.Image(sliced_data, coords)
     if cmap_range is not None:
@@ -22,7 +25,9 @@ def make_animation(
     sliced_data, cmap_range=None, coords=None, quad=False, invert_y=False, **kwargs
 ):
     coords = coords or (
-        ["grid_xt", "grid_yt"] if "grid_xt" in sliced_data.coords else ["lon", "lat"]
+        [COORD_X_CENTER, COORD_Y_CENTER]
+        if COORD_X_CENTER in sliced_data.coords
+        else ["lon", "lat"]
     )
     hv_ds = hv.Dataset(sliced_data)
     hv_img = hv_ds.to(hv.QuadMesh if quad else hv.Image, coords).options(**kwargs)
