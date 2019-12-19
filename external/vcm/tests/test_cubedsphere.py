@@ -786,12 +786,12 @@ def test_create_fv3_grid_fails_on_incomplete_tile_coord():
         create_fv3_grid(ds)
 
 
-def test_create_fv3_grid_succeeds():
-    ds = xr.Dataset(
+@pytest.fixture()
+def grid_dataset():
+    return xr.Dataset(
         {"a": (["tile", COORD_Y_CENTER, COORD_X_CENTER], np.ones((6, 2, 2)))},
-        coords={"tile": [1, 2, 3, 4, 5, 6]},
+        coords={"tile": [0, 1, 2, 3, 4, 5]},
     )
-
 
 def test_create_fv3_grid_succeeds(grid_dataset):
     grid = create_fv3_grid(grid_dataset)
