@@ -23,7 +23,7 @@ from .cubedsphere import (
     remap_to_edge_weighted_pressure,
     weighted_block_average,
 )
-from .calc.thermo import hydrostatic_dz
+from .calc.thermo import hydrostatic_dz, height_on_interface, dz_and_top_to_phis
 
 TILES = range(1, 7)
 OUTPUT_CATEGORY_NAMES = {
@@ -242,7 +242,7 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         coarsening_factor,
         x_dim="xaxis_1",
         y_dim="yaxis_1",
-        edge='x',
+        edge="x",
     )
 
     dy_pressure_remapped, masked_dy = remap_to_edge_weighted_pressure(
@@ -252,7 +252,7 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         coarsening_factor,
         x_dim="xaxis_2",
         y_dim="yaxis_2",
-        edge='y',
+        edge="y",
     )
 
     area_weighted = weighted_block_average(
@@ -374,12 +374,7 @@ def coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
     ]
 
     ds_remapped, masked_area = remap_to_area_weighted_pressure(
-        ds,
-        delp,
-        area,
-        coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        ds, delp, area, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1",
     )
 
     area_weighted = weighted_block_average(
@@ -428,10 +423,25 @@ def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
     )
 
 
-def coarse_grain_phis(phis_fine, dz_coarse, dz_fine):
-    """ Coarse-grain phis by imposing the same model-top height before
-    and after coarse-graining"""
-    return phis_coarse
+def impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim="zaxis_1"):
+    """Compute layer thicknesses assuming hydrostatic balance and adjust
+    surface geopotential by maintaining same model top height.
+
+    Args:
+        ds_fv_core (xr.Dataset): fv_core restart category Dataset
+        ds_fv_tracer (xr.Dataset): fv_tracer restart category Dataset
+        dim (str): vertical dimension name (default "zaxis_1")
+
+    Returns:
+        xr.Dataset: ds_fv_core with hydrostatic DZ and adjusted phis
+    """
+    height = height_on_interface(ds_fv_core["DZ"], ds_fv_core["phis"], dim=dim)
+    height_top = height.isel({dim: 0})
+    ds_fv_core["DZ"] = hydrostatic_dz(
+        ds_fv_core["T"], ds_fv_tracer["sphum"], ds_fv_core["delp"], dim=dim
+    )
+    ds_fv_core["phis"] = dz_and_top_to_phis(height_top, ds_fv_core["DZ"], dim=dim)
+    return ds_fv_core
 
 
 def coarse_grain_sfc_data(ds, area, coarsening_factor, version="simple"):
