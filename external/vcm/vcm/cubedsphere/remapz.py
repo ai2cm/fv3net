@@ -2,11 +2,11 @@ import xarray as xr
 
 from ..calc import thermo
 from ..cubedsphere import (
-    create_fv3_grid,
     edge_weighted_block_average,
     weighted_block_average,
 )
 from ..cubedsphere.coarsen import block_upsample
+from .xgcm import create_fv3_grid
 import mappm
 
 # default for restart file
@@ -152,6 +152,7 @@ def remap_levels(p_in, f_in, p_out, iv=1, kord=1, dim=VERTICAL_DIM):
     ), "f_in must have a vertical dimension one shorter than p_in"
 
     f_out = xr.zeros_like(f_in)
+    # the final argument to mappm is unused by the subroutine
     f_out.values = mappm.mappm(
         p_in.values, f_in.values, p_out.values, 1, n_columns, iv, kord, 0.0
     )
