@@ -3,19 +3,19 @@ import os
 import subprocess
 import tempfile
 from collections import defaultdict
-from pathlib import Path
+import pathlib
 
+import numpy as np
 import dask.array as da
 import intake
 import xarray as xr
 import yaml
 from dask import delayed
 
-from vcm import TOP_LEVEL_DIR
 from vcm.cloud import gsutil
 from vcm.cloud.remote_data import open_gfdl_data_with_2d
 
-# TODO Fix short tag yaml file get for fv3 installed as package
+TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 
 def get_root():
@@ -25,7 +25,9 @@ def get_root():
 
 def get_shortened_dataset_tags():
     """"Return a dictionary mapping short dataset definitions to the full names"""
-    short_dset_yaml = Path(TOP_LEVEL_DIR, "configurations") / "short_datatag_defs.yml"
+    short_dset_yaml = (
+        pathlib.Path(TOP_LEVEL_DIR, "configurations") / "short_datatag_defs.yml"
+    )
     return yaml.load(short_dset_yaml.open(), Loader=yaml.SafeLoader)
 
 
@@ -178,15 +180,24 @@ def map_ops(fun, grouped_files, *args):
 
 
 def open_remote_nc(path, meta=None):
-
     computation = delayed(_open_remote_nc)(path)
+    return open_delayed(computation, schema=meta)
 
+
+def _delayed_to_array(delayed_dataset, key, shape, dtype):
+    null = da.full(shape, np.nan, dtype=dtype)
+    array_delayed = delayed_dataset.get(key, null)
+    return da.from_delayed(array_delayed, shape, dtype)
+
+
+def open_delayed(delayed_dataset, schema=None):
+    """Open dask delayed object with as an xarray with given metadata"""
     data_vars = {}
-    for key in meta:
-        template_var = meta[key]
-        array = da.from_delayed(
-            computation[key], shape=template_var.shape, dtype=template_var.dtype
+    for key in schema:
+        template_var = schema[key]
+        array = _delayed_to_array(
+            delayed_dataset, key, shape=template_var.shape, dtype=template_var.dtype
         )
         data_vars[key] = (template_var.dims, array)
 
-    return xr.Dataset(data_vars)
+    return xr.Dataset(data_vars, coords=schema.coords)

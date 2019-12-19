@@ -11,6 +11,7 @@ import pandas as pd
 import xarray as xr
 from toolz import curry
 
+from .complex_sfc_data_coarsening import coarse_grain_sfc_data_complex
 from .cubedsphere import (
     block_coarsen,
     block_edge_sum,
@@ -270,7 +271,7 @@ def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
     )
 
 
-def coarse_grain_sfc_data(ds, area, coarsening_factor):
+def coarse_grain_sfc_data(ds, area, coarsening_factor, version="simple"):
     """Coarse grain a set of sfc_data restart files.
 
     Parameters
@@ -281,15 +282,24 @@ def coarse_grain_sfc_data(ds, area, coarsening_factor):
         Area weights
     coarsening_factor : int
         Coarsening factor to use
+    version : str
+        Version of the method to use {'simple', 'complex'}
 
     Returns
     -------
     xr.Dataset
     """
-    result = block_median(ds, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1")
-
-    result["slmsk"] = integerize(result.slmsk)
-    return result
+    if version == "simple":
+        result = block_median(ds, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1")
+        result["slmsk"] = integerize(result.slmsk)
+        return result
+    elif version == "complex":
+        return coarse_grain_sfc_data_complex(ds, area, coarsening_factor)
+    else:
+        raise ValueError(
+            f"Currently the only supported versions are 'simple' and 'complex'. "
+            "Got {version}."
+        )
 
 
 def coarse_grain_grid_spec(

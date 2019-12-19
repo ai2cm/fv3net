@@ -8,14 +8,18 @@ from typing import Any, Dict, Generator, Tuple
 import cftime
 import fsspec
 import xarray as xr
+from dask.delayed import delayed
 
 import f90nml
 from vcm.combining import combine_array_sequence
+from vcm.convenience import open_delayed
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 
+SCHEMA_CACHE = {}
+
 NUM_SOIL_LAYERS = 4
-CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
+RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
 X_NAME = "grid_xt"
 Y_NAME = "grid_yt"
 X_EDGE_NAME = "grid_x"
@@ -39,19 +43,25 @@ def open_restarts(
     The dimension names are the same as the diagnostic output
 
     Args:
-        url: a URL to the root directory of the. Can be any type of protocol used by
-            fsspec, such as google cloud storage 'gs://path-to-rundir'. If no protocol
-            prefix is used, then it will be assumed to be a path to a local file
-        initial_time: A YYYYMMDD.HHMMSS string for the initial condition. will be parsed
-            with CFTime
-        final_time: same as `initial_time` but for the final time
+        url: a URL to the root directory of a run directory. Can be any type of protocol
+            used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
+            protocol prefix is used, then it will be assumed to be a path to a local
+            file.
+        initial_time: A YYYYMMDD.HHMMSS string for the initial condition. The initial
+            condition data does not have an time-stamp in its filename, so you must
+            provide it using this argument. This only updates the time coordinate of
+            the output and does not imply any subselection of time-steps.
+        final_time: same as `initial_time` but for the ending time of the simulation.
+            Again, the timestamp is not in the filename of the final set of restart
+            files.
         grid: a dict with the grid information (e.g.)::
 
              {'nz': 79, 'nz_soil': 4, 'nx': 48, 'ny': 48}
 
     Returns:
-        a combined dataset of all the restart files. This is currently not a
-        lazy operation. All the data is loaded.
+        a combined dataset of all the restart files. All except the first file of
+        each restart-file type (e.g. fv_core.res) will only be lazily loaded. This
+        allows opening large datasets out-of-core.
 
     """
     if grid is None:
@@ -81,30 +91,41 @@ def _parse_time(path):
     return re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path).group(1)
 
 
-def _get_time(dirname, file, initial_time, final_time):
+def _get_time(dirname, path, initial_time, final_time):
     if dirname.endswith("INPUT"):
         return initial_time
     elif dirname.endswith("RESTART"):
         try:
-            return _parse_time(file)
+            return _parse_time(path)
         except AttributeError:
             return final_time
 
 
-def _get_tile(file):
-    tile = re.search(r"tile(\d)\.nc", file).group(1)
+def _parse_category(path):
+    cats_in_path = {category for category in RESTART_CATEGORIES if category in path}
+    if len(cats_in_path) == 1:
+        return cats_in_path.pop()
+    else:
+        # Check that the file only matches one restart category for safety
+        # it not clear if this is completely necessary, but it ensures the output of
+        # this routine is more predictable
+        raise ValueError("Multiple categories present in filename.")
+
+
+def _get_tile(path):
+    tile = re.search(r"tile(\d)\.nc", path).group(1)
     return int(tile)
 
 
-def _is_restart_file(file):
-    return any(category in file for category in CATEGORIES) and "tile" in file
+def _is_restart_file(path):
+    return any(category in path for category in RESTART_CATEGORIES) and "tile" in path
 
 
 def _restart_files_at_url(url, initial_time, final_time):
     """List restart files with a given initial and end time within a particular URL
 
     Yields:
-        (time, tile, protocol, path)
+        (time, restart_category, tile, protocol, path)
 
     Note:
         the time for the data in INPUT and RESTART cannot be parsed from the file name
@@ -123,13 +144,30 @@ def _restart_files_at_url(url, initial_time, final_time):
             if _is_restart_file(file):
                 time = _get_time(root, file, initial_time, final_time)
                 tile = _get_tile(file)
-                yield time, tile, proto, path
+                category = _parse_category(file)
+                yield time, category, tile, proto, path
 
 
 def _load_restart(protocol, path):
     fs = fsspec.filesystem(protocol)
     with fs.open(path) as f:
-        return xr.open_dataset(f).load()
+        return xr.open_dataset(f).compute()
+
+
+def _load_restart_with_schema(protocol, path, schema):
+    promise = delayed(_load_restart)(protocol, path)
+    return open_delayed(promise, schema)
+
+
+def _load_restart_lazily(protocol, path, restart_category):
+    # only actively load the initial data
+    if restart_category in SCHEMA_CACHE:
+        schema = SCHEMA_CACHE[restart_category]
+    else:
+        schema = _load_restart(protocol, path)
+        SCHEMA_CACHE[restart_category] = schema
+
+    return _load_restart_with_schema(protocol, path, schema)
 
 
 def _get_grid(rundir):
@@ -213,8 +251,9 @@ def _fix_metadata(ds, grid):
 def _load_arrays(
     restart_files, grid
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
-    for (time, tile, protocol, path) in restart_files:
-        ds = _load_restart(protocol, path)
+    # use the same schema for all coupler_res
+    for (time, restart_category, tile, protocol, path) in restart_files:
+        ds = _load_restart_lazily(protocol, path, restart_category)
         ds_correct_metadata = _fix_metadata(ds, grid)
         time_obj = _parse_time_string(time)
         for var in ds_correct_metadata:
