@@ -286,10 +286,7 @@ def open_standard_diags(rundir: str):
     return xr.merge(
         [
             xr.open_mfdataset(
-                [
-                    join(rundir, category + f".tile{tile}.nc")
-                    for tile in range(1, 7)
-                ],
+                [join(rundir, category + f".tile{tile}.nc") for tile in range(1, 7)],
                 combine="nested",
                 concat_dim="tile",
             )
