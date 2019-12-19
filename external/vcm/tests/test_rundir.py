@@ -27,7 +27,7 @@ def test__is_restart_file(path, is_restart):
 
 
 def test__get_tile():
-    assert _get_tile(FV_CORE_IN_RESTART) == 6
+    assert _get_tile(FV_CORE_IN_RESTART) == 5
 
 
 @pytest.mark.parametrize(

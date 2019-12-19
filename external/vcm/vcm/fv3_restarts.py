@@ -106,8 +106,15 @@ def _parse_category(path):
 
 
 def _get_tile(path):
+    """Get tile number
+
+    Following python, but unlike FV3, the first tile number is 0. In other words, the
+    tile number of `.tile1.nc` is 0.
+
+    This avoids confusion when using the outputs of :ref:`open_restarts`.
+    """
     tile = re.search(r"tile(\d)\.nc", path).group(1)
-    return int(tile)
+    return int(tile) - 1
 
 
 def _is_restart_file(path):
