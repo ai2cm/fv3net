@@ -39,9 +39,7 @@ def get_output_normalizations(output_normalization_file):
         np arrays for mean and stddev per output element for use in normalizing
     """
     if output_normalization_file == "default":
-        with path(
-            "fv3net.regression.sklearn", "default_Q1_Q2_mean_stddev.dat"
-        ) as f:
+        with path("fv3net.regression.sklearn", "default_Q1_Q2_mean_stddev.dat") as f:
             output_norms_mean, output_norms_stddev = np.loadtxt(f)
     else:
         with open(output_normalization_file, "r") as f:

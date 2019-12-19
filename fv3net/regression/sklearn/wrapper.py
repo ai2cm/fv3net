@@ -26,14 +26,16 @@ class BatchTrainingRegressor:
     So that we can add new estimators at the start of new training batch.
 
     """
+
     def __init__(self, regressor):
         self.regressor = regressor
         self.n_estimators_per_batch = regressor.n_estimators
 
     def add_new_batch_estimators(self):
         if "n_estimators" in self.regressor.__dict__:
-            new_total_estimators = \
+            new_total_estimators = (
                 self.regressor.n_estimators + self.n_estimators_per_batch
+            )
             self.regressor.n_estimators = new_total_estimators
         elif (
             hasattr(self.regressor, "estimator")
@@ -63,6 +65,7 @@ class TransformedTargetRegressor(BatchTrainingRegressor):
     having to provide them again to the inverse transform at prediction time.
 
     """
+
     def save_normalization_data(self, output_means, output_stddevs):
         self.output_means = output_means
         self.output_stddevs = output_stddevs
@@ -188,5 +191,3 @@ class SklearnWrapper(BaseXarrayEstimator):
             coords={sample_dim: inputs[sample_dim], "feature": self.output_features_},
         )
         return ds.to_unstacked_dataset("feature")
-
-

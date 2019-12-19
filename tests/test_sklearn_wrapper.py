@@ -61,13 +61,15 @@ def test__flatten_same_order():
 
 def test__transform(test_transformed_target_regressor):
     physical_target_values = np.array([2.0, 4.0, -2])
-    normed_target_values = \
-        test_transformed_target_regressor._transform(physical_target_values)
+    normed_target_values = test_transformed_target_regressor._transform(
+        physical_target_values
+    )
     assert np.array_equal(normed_target_values, [2.0, 2.0, -0.5])
 
 
 def test__inverse_transform_outputs(test_transformed_target_regressor):
     normed_target_values = [2.0, 2.0, -0.5]
-    physical_target_values = \
-        test_transformed_target_regressor._inverse_transform(normed_target_values)
+    physical_target_values = test_transformed_target_regressor._inverse_transform(
+        normed_target_values
+    )
     assert np.array_equal(physical_target_values, [2.0, 4.0, -2])

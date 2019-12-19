@@ -21,7 +21,7 @@ logger.setLevel(logging.INFO)
 del numba
 
 
-TIME_DIM = 'initialization_time'
+TIME_DIM = "initialization_time"
 GRID_VARS = ["grid_lon", "grid_lat", "grid_lont", "grid_latt"]
 INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
@@ -50,12 +50,14 @@ def run(args, pipeline_args):
             | beam.Create(data_urls)
             | "LoadCloudData" >> beam.Map(_load_cloud_data, fs=fs)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
-            | "MaskToSurfaceType" >> beam.Map(
-                mask_to_surface_type, surface_type=args.mask_to_surface_type)
-            | "WriteToZarr" >> beam.Map(
+            | "MaskToSurfaceType"
+            >> beam.Map(mask_to_surface_type, surface_type=args.mask_to_surface_type)
+            | "WriteToZarr"
+            >> beam.Map(
                 _write_to_zarr,
                 gcs_dest_dir=args.gcs_output_data_dir,
-                bucket=args.gcs_bucket)
+                bucket=args.gcs_bucket,
+            )
         )
 
 
@@ -102,7 +104,7 @@ def _load_cloud_data(gcs_urls, fs):
     return ds
 
 
-def _create_train_cols(ds):
+def _create_train_cols(ds, cols_to_keep=INPUT_VARS+TARGET_VARS+GRID_VARS ):
     """
 
     Args:
@@ -120,13 +122,9 @@ def _create_train_cols(ds):
     ds["Q1"] = apparent_source(ds.T)
     ds["Q2"] = apparent_source(ds.sphum)
     num_slices = len(ds.initialization_time.values) - 1
-    ds = (
-        ds[INPUT_VARS + TARGET_VARS + GRID_VARS]
-        .isel(forecast_time=0)
-        .squeeze()
-        .drop("forecast_time")
-        .isel({TIME_DIM: slice(None, num_slices)})
-    )
+    ds = ds[cols_to_keep].isel({TIME_DIM: slice(None, num_slices)})
+    if "forecast_time" in ds.dims:
+        ds = ds.isel(forecast_time=0).squeeze().drop("forecast_time")
     return ds
 
 
