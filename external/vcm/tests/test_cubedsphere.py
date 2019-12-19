@@ -792,5 +792,13 @@ def test_create_fv3_grid_succeeds():
         coords={"tile": [1, 2, 3, 4, 5, 6]},
     )
 
-    grid = create_fv3_grid(ds)
+
+def test_create_fv3_grid_succeeds(grid_dataset):
+    grid = create_fv3_grid(grid_dataset)
     assert isinstance(grid, xgcm.Grid)
+
+
+def test_xgcm_grid_interp(grid_dataset):
+
+    grid = create_fv3_grid(grid_dataset)
+    grid.interp(grid_dataset.a, "x")
