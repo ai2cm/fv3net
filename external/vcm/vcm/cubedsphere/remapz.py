@@ -157,7 +157,7 @@ def remap_levels(p_in, f_in, p_out, iv=1, kord=1, dim=VERTICAL_DIM):
         f_in.shape[0] == n_columns and p_out.shape[0] == n_columns
     ), "All dimensions except vertical must be same size for p_in, f_in and p_out"
     assert (
-        p_in.shape[1] == f_in.shape[1]
+        f_in.shape[1] == p_in.shape[1] - 1
     ), "f_in must have a vertical dimension one shorter than p_in"
 
     f_out = xr.zeros_like(f_in)
