@@ -38,7 +38,6 @@ def plot_cube(
     col_wrap: int = None,
     projection: ccrs.Projection = ccrs.Robinson(),
     colorbar: bool = True,
-    colorbar_kwargs: dict = None,
     coastlines: bool = True,
     coastlines_kwargs: dict = None,
     **kwargs,
@@ -78,9 +77,6 @@ def plot_cube(
             cartopy geo-axes are supplied.  Defaults to Robinson projection. 
         colorbar (bool, optional):
             Flag for whether to plot a colorbar. Defaults to True.
-        colorbar_kwargs (dict, optional):
-            Dict of arguments to be passed to `plt.colorbar()` if `colorbar`
-            set to True.
         coastlines (bool, optinal):
             Whether to plot coastlines on map. Default True.
         coastlines_kwargs (dict, optional):
@@ -199,23 +195,35 @@ def plot_cube(
     return axes, handles, cbar
 
 
-def mappable_restart_var(restart_ds: xr.Dataset, var_name: str):
+def mappable_var(
+    ds: xr.Dataset,
+    var_name: str,
+    ds_type: str = 'restart'
+):
 
-    """ Converts a restart dataset into a format for plotting across cubed-sphere tiles
+    
+    """ Converts a restart dataset into a format for plotting across 
+    cubed-sphere tiles
     
     Args:
     
-        restart_ds (xr.Dataset): 
-            Dataset containing the variable to be plotted, along with grid spec information. Assumed to be
-            created by merging `fv3_restarts.open_restarts` output and grid spec tiles. 
+        ds (xr.Dataset): 
+            Dataset containing the variable to be plotted, along with grid spec 
+            information. Assumed to be created by merging 
+            `fv3_restarts.open_restarts` output and grid spec tiles, or 
+            `fv3_restarts.open_standard_diags`.
         var_name (str): 
             Name of variable to be plotted.
+        ds_type (str, optional):
+            A string indicating the type of dataset ('restart' or 'diag') 
+            from which the variable is being plotted. Defaults to 'restart'.
     
     Returns:
     
         ds (xr.Dataset):
-            Dataset containing variable to be plotted as well as grid coordinates variables.
-            Grid variables are renamed and ordered for plotting as first argument to `plot_cube`.
+            Dataset containing variable to be plotted as well as grid 
+            coordinates variables. Grid variables are renamed and ordered for 
+            plotting as first argument to `plot_cube`.
     
     Example:
     
@@ -239,39 +247,42 @@ def mappable_restart_var(restart_ds: xr.Dataset, var_name: str):
             vmax = 300,
         )
     """
+    
+    if ds_type not in ['restart', 'diag']:
+        raise ValueError('ds_type must be "restart" or "diag".')
 
     for var, dims in RESTART_COORD_VARS.items():
-        restart_ds[var] = restart_ds[var].transpose(*dims)
+        ds[var] = ds[var].transpose(*dims)
 
     if var_name in ["u", "v"]:
         
-        u_r, v_r = _get_rotated_centered_winds(restart_ds)
+        u_r, v_r = _get_rotated_centered_winds(ds)
         
         if var_name == "u":
-            restart_ds = restart_ds.assign({var_name: u_r})
+            ds = ds.assign({var_name: u_r})
         else:
-            restart_ds = restart_ds.assign({var_name: v_r})
+            ds = ds.assign({var_name: v_r})
 
     return (
-        restart_ds[[var_name]]
+        ds[[var_name]]
         .transpose("grid_yt", "grid_xt", "tile", "pfull", "time")
         .assign_coords(
             coords={
-                "grid_lont": restart_ds["grid_lont"],
-                "grid_latt": restart_ds["grid_latt"],
-                "grid_lon": restart_ds["grid_lon"],
-                "grid_lat": restart_ds["grid_lat"],
+                "lon": ds["grid_lont"],
+                "lat": ds["grid_latt"],
+                "lonb": ds["grid_lon"],
+                "latb": ds["grid_lat"],
             }
         )
         .drop(labels=["grid_xt", "grid_yt", "grid_x", "grid_y", "tile"])
-        .rename(
-            {
-                "grid_lont": "lon",
-                "grid_latt": "lat",
-                "grid_lon": "lonb",
-                "grid_lat": "latb",
-            }
-        )
+#         .rename(
+#             {
+#                 "grid_lont": "lon",
+#                 "grid_latt": "lat",
+#                 "grid_lon": "lonb",
+#                 "grid_lat": "latb",
+#             }
+#         )
     )
 
 
