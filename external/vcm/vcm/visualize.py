@@ -1,4 +1,10 @@
 from vcm.cubedsphere.coarsen import shift_edge_var_to_center
+from vcm.cubedsphere.constants import (
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_OUTER
+)
 from vcm.calc.transform_cubesphere_coords import (
     mask_antimeridian_quads,
     rotate_winds_to_lat_lon_coords,
@@ -15,17 +21,17 @@ from typing import Callable
 # globals
 
 RESTART_COORD_VARS = {
-    "grid_lon": ["grid_y", "grid_x", "tile"],
-    "grid_lat": ["grid_y", "grid_x", "tile"],
-    "grid_lont": ["grid_yt", "grid_xt", "tile"],
-    "grid_latt": ["grid_yt", "grid_xt", "tile"],
+    "grid_lon": [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
+    "grid_lat": [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
+    "grid_lont": [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
+    "grid_latt": [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
 }
 
 DIAG_COORD_VARS = {
-    "lonb": ["grid_y", "grid_x", "tile"],
-    "latb": ["grid_y", "grid_x", "tile"],
-    "lon": ["grid_yt", "grid_xt", "tile"],
-    "lat": ["grid_yt", "grid_xt", "tile"],
+    "lonb": [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
+    "latb": [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
+    "lon": [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
+    "lat": [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
 }
 
 COORD_NAME_MAPPING = {
@@ -282,7 +288,12 @@ def mappable_var(
 #     else:
 #         raise ValueError("Invalid variable for plotting as map.")
 
-    new_ds = ds[[var_name]].copy().transpose("grid_yt", "grid_xt", "tile", "pfull", "time")
+    new_ds = ds[[var_name]].copy().transpose(
+        COORD_Y_CENTER,
+        COORD_X_CENTER,
+        "tile",
+        ...
+    )
 
     for restart_name, diag_name in COORD_NAME_MAPPING.items():
         if ds_type == 'restart':
@@ -292,7 +303,9 @@ def mappable_var(
         else:
             new_ds = new_ds.assign_coords(coords = {diag_name : ds[diag_name]})
 
-    return new_ds.drop(labels=["grid_xt", "grid_yt", "grid_x", "grid_y", "tile"])
+    return new_ds.drop(labels = [
+        COORD_Y_CENTER, COORD_X_CENTER,COORD_Y_OUTER, COORD_X_OUTER, "tile"
+    ])
 
 
 
@@ -624,10 +637,10 @@ def _get_rotated_centered_winds(
     """
     
     u_c = shift_edge_var_to_center(
-        ds["u"].drop(labels="grid_xt")
+        ds["u"].drop(labels = COORD_X_CENTER)
     )
     v_c = shift_edge_var_to_center(
-        ds["v"].drop(labels="grid_yt")
+        ds["v"].drop(labels = COORD_Y_CENTER)
     )
     return rotate_winds_to_lat_lon_coords(
         u_c, v_c, ds[["grid_lont", "grid_latt", "grid_lon", "grid_lat"]]
