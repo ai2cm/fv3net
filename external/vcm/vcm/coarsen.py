@@ -200,9 +200,8 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
 
 def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
     """Coarse grain a set of fv_core restart files, averaging on surfaces of
-    constant pressure. DZ is computed from delp and T assuming hydrostatic balance.
-    phis is coarsened by forcing the model top height to remain constant under
-    coarsening and integrating DZ to the surface.
+    constant pressure (except for delp, DZ and phis which are averaged on model
+    surfaces).
 
     Parameters
     ----------
@@ -344,7 +343,8 @@ def coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
 
 
 def coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
-    """Coarse grain a set of fv_tracer restart files.
+    """Coarse grain a set of fv_tracer restart files, averaging on surfaces of
+    constant pressure.
 
     Parameters
     ----------
@@ -425,7 +425,7 @@ def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
 
 def impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim="zaxis_1"):
     """Compute layer thicknesses assuming hydrostatic balance and adjust
-    surface geopotential by maintaining same model top height.
+    surface geopotential in order to maintain same model top height.
 
     Args:
         ds_fv_core (xr.Dataset): fv_core restart category Dataset

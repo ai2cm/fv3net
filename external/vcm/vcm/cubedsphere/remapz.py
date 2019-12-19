@@ -21,7 +21,19 @@ def remap_to_area_weighted_pressure(
     x_dim: str = "xaxis_1",
     y_dim: str = "yaxis_1",
 ):
-    """ docstring """
+    """ Vertically remap a dataset of cell-centered quantities to coarsened pressure levels.
+
+    Args:
+        ds (xr.Dataset): input Dataset
+        delp (xr.DataArray): pressure thicknesses
+        area (xr.DataArray): area weights
+        coarsening_factor (int): coarsening-factor for pressure levels
+        x_dim (str, optional): x-dimension name. Defaults to "xaxis_1"
+        y_dim (str, optional): y-dimension name. Defaults to "yaxis_1"
+
+    Returns:
+        xr.Dataset
+    """
     delp_coarse = weighted_block_average(
         delp, area, coarsening_factor, x_dim=x_dim, y_dim=y_dim
     )
@@ -39,7 +51,20 @@ def remap_to_edge_weighted_pressure(
     y_dim: str = "yaxis_1",
     edge: str = "x",
 ):
-    """ docstring """
+    """ Vertically remap a dataset of edge-valued quantities to coarsened pressure levels.
+
+    Args:
+        ds (xr.Dataset): input Dataset
+        delp (xr.DataArray): pressure thicknesses
+        length (xr.DataArray): edge length weights
+        coarsening_factor (int): coarsening-factor for pressure levels
+        x_dim (str, optional): x-dimension name. Defaults to "xaxis_1"
+        y_dim (str, optional): y-dimension name. Defaults to "yaxis_1"
+        edge (str, optional): grid cell side to coarse-grain along {"x", "y"}
+
+    Returns:
+        xr.Dataset
+    """
     grid = create_fv3_grid(
         xr.Dataset(delp),
         x_center="xaxis_1",
@@ -47,14 +72,14 @@ def remap_to_edge_weighted_pressure(
         y_center="yaxis_2",
         y_outer="yaxis_1",
     )
-    delp_on_edge = grid.interp(delp, edge)
-    delp_on_edge_coarse = edge_weighted_block_average(
-        delp, length, coarsening_factor, x_dim=x_dim, y_dim=y_dim, edge=edge
+    delp_edge = grid.interp(delp, edge)
+    delp_edge_coarse = edge_weighted_block_average(
+        delp_edge, length, coarsening_factor, x_dim=x_dim, y_dim=y_dim, edge=edge
     )
     return _remap_given_delp(
         ds,
-        delp_on_edge,
-        delp_on_edge_coarse,
+        delp_edge,
+        delp_edge_coarse,
         length,
         coarsening_factor,
         x_dim=x_dim,
@@ -71,7 +96,8 @@ def _remap_given_delp(
     x_dim: str = "xaxis_1",
     y_dim: str = "yaxis_1",
 ):
-    """ docstring """
+    """Given a fine and coarse delp, do vertical remapping to coarse pressure levels.
+    """
     phalf_coarse = thermo.pressure_on_interface(delp_coarse, dim=VERTICAL_DIM)
     phalf_fine = thermo.pressure_on_interface(delp_fine, dim=VERTICAL_DIM)
     phalf_coarse_on_fine = block_upsample(
@@ -89,7 +115,26 @@ def _remap_given_delp(
     return ds_remap, masked_weights
 
 
-def remap_levels(p_in, f_in, p_out, iv=1, kord=1, ptop=0, dim=VERTICAL_DIM):
+def remap_levels(p_in, f_in, p_out, iv=1, kord=1, dim=VERTICAL_DIM):
+    """Do vertical remapping using Fortran mappm subroutine.
+
+    Args:
+        p_in (xr.DataArray): pressure at layer edges in original vertical coordinate
+        f_in (xr.DataArray): variable to be remapped, defined for layer averages
+        p_out (xr.DataArray): pressure at layer edges in new vertical coordinate
+        iv (int, optional): flag for monotinicity conservation method. Defaults to 1.
+            comments from mappm indicate that iv should be chosen depending on variable:
+            iv = -2: vertical velocity
+            iv = -1: winds
+            iv = 0: positive definite scalars
+            iv = 1: others
+            iv = 2: temperature
+        kord (int, optional): method number for vertical remapping. Defaults to 1.
+        dim (str, optional): name of vertical dimension. Defaults to "zaxis_1".
+
+    Returns:
+        xr.DataArray: f_in remapped to p_out pressure levels
+    """
     dims_except_vertical = list(f_in.dims)
     dims_except_vertical.remove(dim)
 
@@ -99,17 +144,16 @@ def remap_levels(p_in, f_in, p_out, iv=1, kord=1, ptop=0, dim=VERTICAL_DIM):
     p_out = p_out.stack(bigdim=dims_except_vertical).transpose()
 
     n_columns = p_in.shape[0]
-    npz = f_in.shape[1]
     assert (
         f_in.shape[0] == n_columns and p_out.shape[0] == n_columns
     ), "All dimensions except vertical must be same size for p_in, f_in and p_out"
     assert (
-        p_in.shape[1] == npz + 1 and p_out.shape[1] == npz + 1
-    ), "f_in must have a vertical dimension one shorter than p_in and p_out"
+        p_in.shape[1] == f_in.shape[1]
+    ), "f_in must have a vertical dimension one shorter than p_in"
 
     f_out = xr.zeros_like(f_in)
     f_out.values = mappm.mappm(
-        p_in.values, f_in.values, p_out.values, 1, n_columns, iv, kord, ptop
+        p_in.values, f_in.values, p_out.values, 1, n_columns, iv, kord, 0.0
     )
 
     return f_out.unstack()
