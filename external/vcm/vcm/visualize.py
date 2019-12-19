@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 from cartopy import crs as ccrs
 import warnings
 from functools import partial
+from typing import Callable
 
 
 # globals
@@ -30,12 +31,14 @@ DIAG_COORD_VARS = {
 
 def plot_cube(
     plottable_variable: xr.Dataset,
-    plotting_function: str = "pcolormesh",
+    plotting_function: Callable = plt.pcolormesh,
     ax: plt.axes = None,
     row: str = None,
-    column: str = None,
+    col: str = None,
+    col_wrap: int = None,
     projection: ccrs.Projection = ccrs.Robinson(),
     colorbar: bool = True,
+    colorbar_kwargs: dict = None,
     coastlines: bool = True,
     coastlines_kwargs: dict = None,
     **kwargs,
@@ -53,30 +56,36 @@ def plot_cube(
             the variable to be plotted, or from the helper function 
             `mappable_diag_var`, which takes in the output of 
             `vcm.v3_restarts.open_restarts`
-        plotting_function (str):
-            Function name to use in plotting the variable. Available options 
-            are 'pcolormesh' and 'contour'. Defaults to 'pcolormesh'.
+        plotting_function (Callable, optional):
+            Matplotlib 2-d plotting function to use in plotting the variable. 
+            Available options are plt.pcolormesh,  plt.contour, and 
+            plt.contourf. Defaults to plt.pcolormesh.
         ax (plt.axes, optional):
             Axes onto which the map should be plotted; must be created with 
             a cartopy projection argument. If not supplied, axes are generated 
-            with a projection. If axes are  suppled, faceting is disabled
-            and the `row` and `column` arguments are ignored. 
+            with a projection. If ax is suppled, faceting is disabled. 
         row (str, optional): 
             Name of diemnsion to be faceted along subplot rows. Must not be a 
             tile, lat, or lon dimension.  Defaults to no row facets.
-        column (str, optional): 
+        col (str, optional): 
             Name of diemnsion to be faceted along subplot columns. Must not be 
             a tile, lat, or lon dimension. Defaults to no column facets.
+        col_wrap (int, optional): 
+            If only one of `col`, `row` is specified, number of columns to plot
+            before wrapping onto next row. Defaults to None, i.e. no limit.
         projection (ccrs.Projection, optional):
             Cartopy projection object to be used in creating axes. Ignored if 
             cartopy geo-axes are supplied.  Defaults to Robinson projection. 
         colorbar (bool, optional):
             Flag for whether to plot a colorbar. Defaults to True.
+        colorbar_kwargs (dict, optional):
+            Dict of arguments to be passed to `plt.colorbar()` if `colorbar`
+            set to True.
         coastlines (bool, optinal):
             Whether to plot coastlines on map. Default True.
         coastlines_kwargs (dict, optional):
-            Dict of options to be passed to cartopy axes's `coastline` function 
-            if `coastlines` flag is set to True.
+            Dict of arguments to be passed to cartopy axes's `coastline`
+            function if `coastlines` flag is set to True.
         **kwargs:
             Additional keyword arguments to be passed to the plotting function.
     
@@ -132,89 +141,42 @@ def plot_cube(
 
     _plot_func_short = partial(
         _plot_cube_axes,
-        plotting_function = plotting_function,
         lat = plottable_variable.lat.values,
         lon = plottable_variable.lon.values,
         latb = plottable_variable.latb.values,
         lonb = plottable_variable.lonb.values,
+        plotting_function = plotting_function,
         coastlines = coastlines,
         coastlines_kwargs = coastlines_kwargs,
         **kwargs,
     )
     
-    if not ax and (row or column):
+    if not ax and (row or col):
         # facets
-        n_rows, n_cols = _get_facet_dims(
-            row,
-            column,
-            plottable_variable.sizes,
-            projection
+        facet_grid = xr.plot.FacetGrid(
+            data = plottable_variable,
+            row = row,
+            col = col,
+            col_wrap = col_wrap,
+            subplot_kws = {'projection' : projection}
         )
-        f = plt.figure()
-        gs = f.add_gridspec(n_rows, n_cols)
-        handles = []
-        if n_rows > 1:
-            if n_cols > 1:
-                # 2 facet dims
-                handles2 = []
-                for i in range(n_rows):
-                    for j in range(n_cols):
-                        handle = _plot_func_short(
-                            array = plottable_variable[var_name]
-                            .isel({row: i, column: j})
-                            .values,
-                            ax = f.add_subplot(gs[i, j], projection = projection),
-                            title = (
-                                f"{row} = "
-                                f"{plottable_variable[row].isel({row : i}).item()}"
-                                f", {column} = "
-                                f"{plottable_variable[column].isel({column : j}).item()}"
-                            ),
-                        )
-                        handles2.append(handle)
-                    handles.append(handles2)
-            else:
-                # rows only
-                for i in range(n_rows):
-                    handle = _plot_func_short(
-                        array = plottable_variable[var_name]
-                        .isel({row: i})
-                        .values,
-                        ax = f.add_subplot(gs[i, 0], projection = projection),
-                        title = (
-                            f"{row} = "
-                            f"{plottable_variable[row].isel({row : i}).item()}"
-                        ),
-                    )
-                    handles.append(handle)
-        else:
-            if n_cols > 1:
-                # columns only
-                for i in range(n_cols):
-                    handle = _plot_func_short(
-                        array = plottable_variable[var_name]
-                        .isel({column: i})
-                        .values,
-                        ax = f.add_subplot(gs[0, i], projection = projection),
-                        title = (
-                            f", {column} = "
-                            f"{plottable_variable[column].isel({column : i}).item()}"
-                        ),
-                    )
-                    handles.append(handle)
-        axes = f.axes
+        facet_grid = facet_grid.map(
+            _plot_func_short,
+            var_name
+        )
+        axes = facet_grid.axes
+        handles = facet_grid._mappables
     else:
         # single axes
         if not ax:
             f, ax = plt.subplots(1, 1, subplot_kw = {"projection" : projection})
-        handle = _plot_func_short(array = array, ax = ax)
+        handle = _plot_func_short(array)
         axes = [ax]
         handles = [handle]
-    
-    for ax in axes:
-        print(ax.get_extent())
 
     if colorbar:
+        colorbar_kwargs = dict() if not colorbar_kwargs else colorbar_kwargs
+#             colorbar_kwargs
         plt.gcf().subplots_adjust(
             bottom = 0.1,
             top = 0.9,
@@ -224,8 +186,13 @@ def plot_cube(
             hspace = 0.02
         )
         cb_ax = plt.gcf().add_axes([0.83, 0.1, 0.02, 0.8])
-        cbar = plt.colorbar(handle, cax = cb_ax)
-        cbar.ax.set_ylabel(var_name)
+        cbar = plt.colorbar(
+            handles[0],
+            cax = cb_ax,
+            extend = 'both',
+            **colorbar_kwargs
+        )
+        cbar.set_label(var_name)
     else:
         cbar = None
 
@@ -371,6 +338,157 @@ def mappable_diag_var(diag_ds: xr.Dataset, var_name: str):
     )
 
 
+def _plot_cube_axes(
+    array: np.ndarray,
+    lat: np.ndarray,
+    lon: np.ndarray,
+    latb: np.ndarray,
+    lonb: np.ndarray,
+    plotting_function: str,
+    coastlines: bool = False,
+    coastlines_kwargs: dict = None,
+    title: str = None,
+    **kwargs,
+):
+
+    """ Plots tiled cubed sphere for a given subplot axis,
+        using np.ndarrays for all data
+    
+    Args:
+    
+        array (np.ndarray): 
+            Array of variables values at cell centers, of dimensions (npy, npx,
+            tile)
+        lat (np.ndarray): 
+            Array of latitudes of cell centers, of dimensions (npy, npx, tile) 
+        lon (np.ndarray): 
+            Array of longitudes of cell centers, of dimensions (npy, npx, tile)
+        latb (np.ndarray): 
+            Array of latitudes of cell edges, of dimensions (npy + 1, npx + 1,
+            tile) 
+        lonb (np.ndarray): 
+            Array of longitudes of cell edges, of dimensions (npy + 1, npx + 1,
+            tile) 
+        coastlines (bool, optinal):
+            Whether to plot coastlines on map. Default True.
+        coastlines_kwargs (dict, optional):
+            Dict of options to be passed to cartopy axes's `coastline` function
+            if `coastlines` flag is set to True.
+        title (str, optional):
+            Title text of subplot. Defaults to None.
+        **kwargs:
+            Keyword arguments to be passed to plotting function. 
+    
+    Returns:
+    
+        p_handle (obj):
+            matplotlib object handle associated with map subplot
+    
+    """
+  
+
+    if (lon.shape[-1] != 6) or (lat.shape[-1] != 6) or (array.shape[-1] != 6):
+        raise ValueError(
+            "Last axis of each array must have six elements for cubed-sphere tiles."
+        )
+
+    if (
+        (lon.shape[0] != lat.shape[0])
+        or (lat.shape[0] != array.shape[0])
+        or (lon.shape[1] != lat.shape[1])
+        or (lat.shape[1] != array.shape[1])
+    ):
+        raise ValueError(
+            "First and second axes lengths of lat and lonb must be equal to those of array."
+        )
+        
+    if (len(lonb.shape) != 3) or (len(latb.shape) != 3) or (len(array.shape) != 3):
+        raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
+
+    if (lonb.shape[-1] != 6) or (latb.shape[-1] != 6) or (array.shape[-1] != 6):
+        raise ValueError(
+            "Last axis of each array must have six elements for cubed-sphere tiles."
+        )
+
+    if (
+        (lonb.shape[0] != latb.shape[0])
+        or (latb.shape[0] != (array.shape[0] + 1))
+        or (lonb.shape[1] != latb.shape[1])
+        or (latb.shape[1] != (array.shape[1] + 1))
+    ):
+        raise ValueError(
+            """First and second axes lengths of latb and lonb 
+            must be one greater than those of array."""
+        )
+
+    if (len(lon.shape) != 3) or (len(lat.shape) != 3) or (len(array.shape) != 3):
+        raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
+        
+    ax = plt.gca()
+
+    if plotting_function in [plt.pcolormesh, plt.contour, plt.contourf]:
+        setattr(ax, "plotting_function", plotting_function)
+    else:
+        raise ValueError(
+            """Plotting functions only include plt.pcolormesh, plt.contour, 
+            and plt.contourf."""
+        ) 
+        
+#     if "coastlines_kwargs" in kwargs:
+#         coastlines_kwargs = kwargs["coastlines_kwargs"]
+#         del kwargs["coastlines_kwargs"] 
+        
+    central_longitude = ax.projection.proj4_params["lon_0"]
+                
+    masked_array = np.where(
+        mask_antimeridian_quads(
+            lonb,
+            central_longitude
+        ),
+        array,
+        np.nan
+    )
+    
+    for tile in range(6):
+        if ax.plotting_function == plt.pcolormesh:
+            x = lonb[:, :, tile]
+            y = latb[:, :, tile]
+        else:
+            # contouring
+            lon_tile = lon[:, :, tile]
+            x = np.where(
+                lon_tile < (central_longitude + 180.0) % 360.0,
+                lon_tile,
+                lon_tile - 360.0
+            )
+            y = lat[:, :, tile]
+            if 'levels' not in kwargs:
+                kwargs['n_levels'] = (
+                    11 if not 'n_levels' in kwargs else kwargs['n_levels'])
+                kwargs['levels'] = np.linspace(
+                    kwargs['vmin'],
+                    kwargs['vmax'],
+                    kwargs['n_levels']
+                )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            p_handle = ax.plotting_function(
+                x,
+                y,
+                masked_array[:, :, tile],
+                transform = ccrs.PlateCarree(),
+                **kwargs,
+            )
+    
+    ax.set_global()
+
+    if coastlines:
+        coastlines_kwargs = dict() if not coastlines_kwargs else coastlines_kwargs
+        ax.coastlines(**coastlines_kwargs)
+
+    return p_handle
+
+
 def _infer_color_limits(
     xmin: float,
     xmax: float,
@@ -440,399 +558,3 @@ def _infer_color_limits(
         cmap = "RdBu_r" if vmin == -vmax else "viridis"
 
     return vmin, vmax, cmap
-
-
-def _get_facet_dims(
-    row : str,
-    column : str,
-    plottable_variable_sizes: dict,
-    projection: ccrs.Projection
-):
-    
-    """ Determine number of axes for faceting from row and column dimension
-    lengths and dataset sizes.
-    
-    Args:
-    
-        row (str):
-            Dimension name to be faceted along row subplots.
-        column (str):
-            Dimension name to be faceted along column subplots.
-        plottable_variable_sizes (dict):
-            Dictionary of  variable dimension names and associated lengths, 
-            assumed to be from xarray.Dataset.sizes
-        projection:
-            Cartopy coordinate projection object
-    
-    Returns:
-    
-       n_rows, n_cols (int):
-           Number of rows and columns of faceted subplots
-    
-    """
-    
-    
-    if row and row not in plottable_variable_sizes:
-        raise ValueError("Row not in dataset dimensions.")
-    if column and column not in plottable_variable_sizes:
-        raise ValueError("Column not in dataset dimensions.")
-    remaining_dims = set(
-        [dim for dim in plottable_variable_sizes 
-         if dim not in [row, column]]
-        )
-    if remaining_dims != set(
-        ["grid_x", "grid_xt", "grid_y", "grid_yt", "tile"]
-    ):
-        raise ValueError(
-             """Dimensions for each facet plot must consist only of
-             latitude, longitude, and tile."""
-        )
-    n_rows = plottable_variable_sizes[row] if row else 1
-    n_cols = plottable_variable_sizes[column] if column else 1
-    if n_rows > 10 or n_cols > 10:
-        raise ValueError(
-            """Facet rows and/or columns exceed maximum. Try subsetting 
-            along the row and/or column dimensions."""
-        )
-    
-    return n_rows, n_cols
-
-
-def _plot_cube_axes(
-    plotting_function: str,
-    lat: np.ndarray,
-    lon: np.ndarray,
-    latb: np.ndarray,
-    lonb: np.ndarray,
-    array: np.ndarray,
-    ax: plt.axes,
-    coastlines: bool = False,
-    coastlines_kwargs: dict = None,
-    title: str = None,
-    **kwargs,
-):
-
-    """ Plots tiled cubed sphere for a given subplot axis,
-        using np.ndarrays for all data
-    
-    Args:
-    
-        plotting_function (str):
-            Function name to use in plotting the variable. Available options 
-            are 'pcolormesh' and 'contour'.
-        lat (np.ndarray): 
-            Array of latitudes of cell centers, of dimensions (npy, npx, tile) 
-        lon (np.ndarray): 
-            Array of longitudes of cell centers, of dimensions (npy, npx, tile)
-        latb (np.ndarray): 
-            Array of latitudes of cell edges, of dimensions (npy + 1, npx + 1,
-            tile) 
-        lonb (np.ndarray): 
-            Array of longitudes of cell edges, of dimensions (npy + 1, npx + 1,
-            tile) 
-        array (np.ndarray): 
-            Array of variables values at cell centers, of dimensions (npy, npx,
-            tile)
-        ax (plt.axes):
-            Axes onto which the map should be plotted; must be created with a 
-            Cartopy projection argument. 
-        coastlines (bool, optinal):
-            Whether to plot coastlines on map. Default True.
-        coastlines_kwargs (dict, optional):
-            Dict of options to be passed to cartopy axes's `coastline` function
-            if `coastlines` flag is set to True.
-        title (str, optional):
-            Title text of subplot. Defaults to None.
-        **kwargs:
-            Keyword arguments to be passed to plotting function. 
-    
-    Returns:
-    
-        p_handle (obj):
-            matplotlib object handle associated with map subplot
-    
-    """
-  
-
-    if (lon.shape[-1] != 6) or (lat.shape[-1] != 6) or (array.shape[-1] != 6):
-        raise ValueError(
-            "Last axis of each array must have six elements for cubed-sphere tiles."
-        )
-
-    if (
-        (lon.shape[0] != lat.shape[0])
-        or (lat.shape[0] != array.shape[0])
-        or (lon.shape[1] != lat.shape[1])
-        or (lat.shape[1] != array.shape[1])
-    ):
-        raise ValueError(
-            "First and second axes lengths of lat and lonb must be equal to those of array."
-        )
-        
-    if (len(lonb.shape) != 3) or (len(latb.shape) != 3) or (len(array.shape) != 3):
-        raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
-
-    if (lonb.shape[-1] != 6) or (latb.shape[-1] != 6) or (array.shape[-1] != 6):
-        raise ValueError(
-            "Last axis of each array must have six elements for cubed-sphere tiles."
-        )
-
-    if (
-        (lonb.shape[0] != latb.shape[0])
-        or (latb.shape[0] != (array.shape[0] + 1))
-        or (lonb.shape[1] != latb.shape[1])
-        or (latb.shape[1] != (array.shape[1] + 1))
-    ):
-        raise ValueError(
-            "First and second axes lengths of latb and lonb must be one greater than those of array."
-        )
-
-    if (len(lon.shape) != 3) or (len(lat.shape) != 3) or (len(array.shape) != 3):
-        raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
-
-    if plotting_function == "pcolormesh":
-        setattr(ax, "plotting_function", plt.pcolormesh)
-    elif plotting_function == "contour":
-        setattr(ax, "plotting_function", plt.contour)
-    elif plotting_function == "contourf":
-        setattr(ax, "plotting_function", plt.contourf)
-    else:
-        raise ValueError(
-            "Plotting functions only include pcolormesh, contour, and contourf."
-        ) 
-        
-    if "coastlines_kwargs" in kwargs:
-        coastlines_kwargs = kwargs["coastlines_kwargs"]
-        del kwargs["coastlines_kwargs"] 
-        
-    central_longitude = ax.projection.proj4_params["lon_0"]
-                
-    masked_array = np.where(
-        mask_antimeridian_quads(
-            lonb,
-            central_longitude
-        ),
-        array,
-        np.nan
-    )
-    
-    for tile in range(6):
-        if ax.plotting_function != plt.pcolormesh:
-            lon_tile = lon[:, :, tile]
-            x = np.where(
-                lon_tile < (central_longitude + 180.0) % 360.0,
-                lon_tile,
-                lon_tile - 360.0
-            )
-            y = lat[:, :, tile]
-        else:
-            x = lonb[:, :, tile]
-            y = latb[:, :, tile]
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            p_handle = ax.plotting_function(
-                x,
-                y,
-                masked_array[:, :, tile],
-                transform = ccrs.PlateCarree(),
-                **kwargs,
-            )
-
-    if coastlines:
-        coastlines_kwargs = dict() if not coastlines_kwargs else coastlines_kwargs
-        ax.coastlines(**coastlines_kwargs)
-
-    if title:
-        ax.set_title(title)
-
-    return p_handle
-
-
-# def _pcolormesh_cube_arrays(
-#     lat: np.ndarray,
-#     lon: np.ndarray,
-#     latb: np.ndarray,
-#     lonb: np.ndarray,
-#     array: np.ndarray,
-#     ax: plt.axes,
-#     central_longitude: float = 0.0,
-#     **kwargs,
-# ):
-
-#     """ Plots tiled cubed sphere pcolormesh for a given subplot axis,
-#         using np.ndarrays for all data
-    
-#     Args:
-        
-#         lat (np.ndarray): 
-#             Array of latitudes of cell centers, of dimensions (npy, npx, tile) 
-#         lon (np.ndarray): 
-#             Array of longitudes of cell centers, of dimensions (npy, npx, tile) 
-#         latb (np.ndarray): 
-#             Array of latitudes of cell edges, of dimensions (npy + 1, npx + 1, tile) 
-#         lonb (np.ndarray): 
-#             Array of longitudes of cell edges, of dimensions (npy + 1, npx + 1, tile) 
-#         array (np.ndarray): 
-#             Array of variables values at cell centers, of dimensions (npy, npx, tile)
-#         ax (plt.axes, optional):
-#             Axes onto which the pcolormesh should be plotted; must be created with a cartopy projection argument. 
-#         central_longitude (float, optional): 
-#             Longitude on which the projected map should be centered. Defaults to 0.0.
-#         **kwargs:
-#             Additional arguments to be passed tp `ax.pcolormesh`
-
-#     Returns:
-    
-#         im (obj):
-#             `ax.pcolormesh` object handle associated with map subplot
-            
-#     """
-
-#     if (len(lonb.shape) != 3) or (len(latb.shape) != 3) or (len(array.shape) != 3):
-#         raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
-
-#     if (lonb.shape[-1] != 6) or (latb.shape[-1] != 6) or (array.shape[-1] != 6):
-#         raise ValueError(
-#             "Last axis of each array must have six elements for cubed-sphere tiles."
-#         )
-
-#     if (
-#         (lonb.shape[0] != latb.shape[0])
-#         or (latb.shape[0] != (array.shape[0] + 1))
-#         or (lonb.shape[1] != latb.shape[1])
-#         or (latb.shape[1] != (array.shape[1] + 1))
-#     ):
-#         raise ValueError(
-#             "First and second axes lengths of latb and lonb must be one greater than those of array."
-#         )
-
-#     if (len(lon.shape) != 3) or (len(lat.shape) != 3) or (len(array.shape) != 3):
-#         raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
-
-#     if (lon.shape[-1] != 6) or (lat.shape[-1] != 6) or (array.shape[-1] != 6):
-#         raise ValueError(
-#             "Last axis of each array must have six elements for cubed-sphere tiles."
-#         )
-
-#     if (
-#         (lon.shape[0] != lat.shape[0])
-#         or (lat.shape[0] != array.shape[0])
-#         or (lon.shape[1] != lat.shape[1])
-#         or (lat.shape[1] != array.shape[1])
-#     ):
-#         raise ValueError(
-#             "First and second axes lengths of lat and lonb must be equal to those of array."
-#         )
-
-#     masked_array = np.where(
-#         mask_antimeridian_quads(lonb, central_longitude), array, np.nan
-#     )
-
-#     for tile in range(6):
-#         im = ax.pcolormesh(
-#             lonb[:, :, tile],
-#             latb[:, :, tile],
-#             masked_array[:, :, tile],
-#             transform=ccrs.PlateCarree(),
-#             **kwargs,
-#         )
-
-#     return im
-
-
-# def _contour_cube_arrays(
-#     lat: np.ndarray,
-#     lon: np.ndarray,
-#     latb: np.ndarray,
-#     lonb: np.ndarray,
-#     array: np.ndarray,
-#     ax: plt.axes,
-#     central_longitude: float = 0.0,
-#     **kwargs,
-# ):
-
-#     """ Plots tiled cubed sphere contours for a given subplot axis,
-#         using np.ndarrays for all data
-    
-#     Args:
-    
-#         lat (np.ndarray): 
-#             Array of latitudes of cell centers, of dimensions (npy, npx, tile) 
-#         lon (np.ndarray): 
-#             Array of longitudes of cell centers, of dimensions (npy, npx, tile) 
-#         latb (np.ndarray): 
-#             Array of latitudes of cell edges, of dimensions (npy + 1, npx + 1, tile) 
-#         lonb (np.ndarray): 
-#             Array of longitudes of cell edges, of dimensions (npy + 1, npx + 1, tile) 
-#         array (np.ndarray): 
-#             Array of variables values at cell centers, of dimensions (npy, npx, tile)
-#         ax (plt.axes, optional):
-#             Axes onto which the contours should be plotted; must be created with a cartopy projection argument. 
-#         central_longitude (float, optional): 
-#             Longitude on which the projected map should be centered. Defaults to 0.0.
-#         **kwargs:
-#             Additional arguments to be passed tp `ax.contour`
-
-#     Returns:
-    
-#         cf (obj):
-#             `ax.contour` object handle associated with map subplot
-            
-#     """
-
-#     if (len(lon.shape) != 3) or (len(lat.shape) != 3) or (len(array.shape) != 3):
-#         raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
-
-#     if (lon.shape[-1] != 6) or (lat.shape[-1] != 6) or (array.shape[-1] != 6):
-#         raise ValueError(
-#             "Last axis of each array must have six elements for cubed-sphere tiles."
-#         )
-
-#     if (
-#         (lon.shape[0] != lat.shape[0])
-#         or (lat.shape[0] != array.shape[0])
-#         or (lon.shape[1] != lat.shape[1])
-#         or (lat.shape[1] != array.shape[1])
-#     ):
-#         raise ValueError(
-#             "First and second axes lengths of lat and lonb must be equal to those of array."
-#         )
-
-#     if (len(lonb.shape) != 3) or (len(latb.shape) != 3) or (len(array.shape) != 3):
-#         raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
-
-#     if (lonb.shape[-1] != 6) or (latb.shape[-1] != 6) or (array.shape[-1] != 6):
-#         raise ValueError(
-#             "Last axis of each array must have six elements for cubed-sphere tiles."
-#         )
-
-#     if (
-#         (lonb.shape[0] != latb.shape[0])
-#         or (latb.shape[0] != (array.shape[0] + 1))
-#         or (lonb.shape[1] != latb.shape[1])
-#         or (latb.shape[1] != (array.shape[1] + 1))
-#     ):
-#         raise ValueError(
-#             "First and second axes lengths of latb and lonb must be one greater than those of array."
-#         )
-
-#     masked_array = np.where(
-#         mask_antimeridian_quads(lonb, central_longitude), array, np.nan
-#     )
-
-#     for tile in range(6):
-#         lon_tile = lon[:, :, tile]
-#         lon_c = np.where(
-#             lon_tile < (central_longitude + 180.0) % 360.0, lon_tile, lon_tile - 360.0
-#         )
-#         with warnings.catch_warnings():
-#             warnings.simplefilter("ignore")
-#             cf = ax.contour(
-#                 lon_c,
-#                 lat[:, :, tile],
-#                 masked_array[:, :, tile],
-#                 transform=ccrs.PlateCarree(),
-#                 **kwargs,
-#             )
-
-#     return cf
