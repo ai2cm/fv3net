@@ -5,12 +5,10 @@ import xarray as xr
 gravity = 9.80665  # m /s2
 Rd = 287.05  # J / K / kg
 
-# default for restart file
-VERTICAL_DIM = "zaxis_1"
 
-REVERSE = slice(None, None, -1)
-
+VERTICAL_DIM = "zaxis_1"  # default for restart files
 TOA_PRESSURE = 300.0  # Pa
+REVERSE = slice(None, None, -1)
 
 
 def pressure_on_interface(delp, toa_pressure=TOA_PRESSURE, dim=VERTICAL_DIM):
@@ -44,11 +42,11 @@ def dz_to_z(dz, phis, dim=VERTICAL_DIM):
 
 
 def hydrostatic_dz(T, q, delp, dim=VERTICAL_DIM):
-    pi = pressure_on_interface(delp)
+    pi = pressure_on_interface(delp, dim=dim)
     tv = (1 + 0.61 * q) * T
     dlogp = xr.DataArray(np.log(pi)).diff(dim)
     return -dlogp * Rd * tv / gravity
 
 
 def dz_and_top_to_phis(top_height, dz, dim=VERTICAL_DIM):
-    return gravity * (top_height * dz.sum(dim=dim))
+    return gravity * (top_height + dz.sum(dim=dim))
