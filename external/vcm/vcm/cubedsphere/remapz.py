@@ -6,6 +6,13 @@ from ..cubedsphere import (
     weighted_block_average,
 )
 from ..cubedsphere.coarsen import block_upsample
+from ..cubedsphere.constants import (
+    RESTART_Z_CENTER,
+    FV_CORE_X_CENTER,
+    FV_CORE_X_OUTER,
+    FV_CORE_Y_CENTER,
+    FV_CORE_Y_OUTER,
+)
 from .xgcm import create_fv3_grid
 
 try:
@@ -14,13 +21,6 @@ except ImportError:
     _mappm_installed = False
 else:
     _mappm_installed = True
-
-# default for restart file
-VERTICAL_DIM = "zaxis_1"
-FV_CORE_X_CENTER = "xaxis_1"
-FV_CORE_Y_CENTER = "yaxis_2"
-FV_CORE_X_OUTER = "xaxis_2"
-FV_CORE_Y_OUTER = "yaxis_1"
 
 
 def remap_to_area_weighted_pressure(
@@ -115,23 +115,25 @@ def _remap_given_delp(
     and mask weights below fine surface pressure.
     """
     delp_coarse_on_fine = block_upsample(delp_coarse, coarsening_factor, [x_dim, y_dim])
-    phalf_coarse_on_fine = pressure_at_interface(delp_coarse_on_fine, dim=VERTICAL_DIM)
-    phalf_fine = pressure_at_interface(delp_fine, dim=VERTICAL_DIM)
+    phalf_coarse_on_fine = pressure_at_interface(
+        delp_coarse_on_fine, dim=RESTART_Z_CENTER
+    )
+    phalf_fine = pressure_at_interface(delp_fine, dim=RESTART_Z_CENTER)
 
     ds_remap = xr.zeros_like(ds)
     for var in ds:
         ds_remap[var] = remap_levels(phalf_fine, ds[var], phalf_coarse_on_fine)
 
     masked_weights = weights.where(
-        phalf_coarse_on_fine.isel({VERTICAL_DIM: slice(1, None)})
-        < phalf_fine.isel({VERTICAL_DIM: -1}),
+        phalf_coarse_on_fine.isel({RESTART_Z_CENTER: slice(1, None)})
+        < phalf_fine.isel({RESTART_Z_CENTER: -1}),
         other=0.0,
     )
 
     return ds_remap, masked_weights
 
 
-def remap_levels(p_in, f_in, p_out, iv=1, kord=1, dim=VERTICAL_DIM):
+def remap_levels(p_in, f_in, p_out, iv=1, kord=1, dim=RESTART_Z_CENTER):
     """Do vertical remapping using Fortran mappm subroutine.
 
     Args:
