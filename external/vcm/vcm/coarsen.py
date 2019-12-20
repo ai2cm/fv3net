@@ -23,7 +23,7 @@ from .cubedsphere import (
     remap_to_edge_weighted_pressure,
     weighted_block_average,
 )
-from .calc.thermo import hydrostatic_dz, height_on_interface, dz_and_top_to_phis
+from .calc.thermo import hydrostatic_dz, height_at_interface, dz_and_top_to_phis
 
 TILES = range(1, 7)
 OUTPUT_CATEGORY_NAMES = {
@@ -435,7 +435,7 @@ def impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim="zaxis_1"):
     Returns:
         xr.Dataset: ds_fv_core with hydrostatic DZ and adjusted phis
     """
-    height = height_on_interface(ds_fv_core["DZ"], ds_fv_core["phis"], dim=dim)
+    height = height_at_interface(ds_fv_core["DZ"], ds_fv_core["phis"], dim=dim)
     height_top = height.isel({dim: 0})
     ds_fv_core["DZ"] = hydrostatic_dz(
         ds_fv_core["T"],

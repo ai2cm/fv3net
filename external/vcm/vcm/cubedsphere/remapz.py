@@ -1,6 +1,6 @@
 import xarray as xr
 
-from ..calc.thermo import pressure_on_interface
+from ..calc.thermo import pressure_at_interface
 from ..cubedsphere import (
     edge_weighted_block_average,
     weighted_block_average,
@@ -111,8 +111,8 @@ def _remap_given_delp(
     and mask weights below fine surface pressure.
     """
     delp_coarse_on_fine = block_upsample(delp_coarse, coarsening_factor, [x_dim, y_dim])
-    phalf_coarse_on_fine = pressure_on_interface(delp_coarse_on_fine, dim=VERTICAL_DIM)
-    phalf_fine = pressure_on_interface(delp_fine, dim=VERTICAL_DIM)
+    phalf_coarse_on_fine = pressure_at_interface(delp_coarse_on_fine, dim=VERTICAL_DIM)
+    phalf_fine = pressure_at_interface(delp_fine, dim=VERTICAL_DIM)
 
     ds_remap = xr.zeros_like(ds)
     for var in ds:
