@@ -1,8 +1,6 @@
 import numpy as np
 import xarray as xr
 from vcm.cubedsphere.coarsen import shift_edge_var_to_center
-from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
-
 from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
     COORD_Y_CENTER,
