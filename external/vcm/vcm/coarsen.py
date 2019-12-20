@@ -438,7 +438,10 @@ def impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim="zaxis_1"):
     height = height_on_interface(ds_fv_core["DZ"], ds_fv_core["phis"], dim=dim)
     height_top = height.isel({dim: 0})
     ds_fv_core["DZ"] = hydrostatic_dz(
-        ds_fv_core["T"], ds_fv_tracer["sphum"], ds_fv_core["delp"], dim=dim
+        ds_fv_core["T"],
+        ds_fv_tracer["sphum"].rename({"yaxis_1": "yaxis_2"}),
+        ds_fv_core["delp"],
+        dim=dim,
     )
     ds_fv_core["phis"] = dz_and_top_to_phis(height_top, ds_fv_core["DZ"], dim=dim)
     return ds_fv_core
