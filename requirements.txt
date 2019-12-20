@@ -31,3 +31,4 @@ isort
 nose
 xgcm==0.2.0
 kubernetes==10.0.1
+Cartopy==0.17.0
