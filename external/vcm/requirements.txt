@@ -65,4 +65,4 @@ wcwidth==0.1.7
 xarray==0.14.1
 zipp==0.6.0
 xgcm==0.2.0
-cartopy==0.17.0
+Cartopy==0.17.0
