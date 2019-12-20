@@ -4,12 +4,13 @@ from vcm.cubedsphere.constants import (
     COORD_X_OUTER,
     COORD_Y_OUTER,
 )
-from vcm.calc.transform_cubesphere_coords import get_rotated_centered_winds
+from vcm.cubedsphere.transform_cubesphere_coords import get_rotated_centered_winds
 from vcm.visualize.plot_helpers import _infer_color_limits, _get_var_label
 from vcm.visualize.masking import _mask_antimeridian_quads
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
+
 try:
     from cartopy import crs as ccrs
 except ImportError:
