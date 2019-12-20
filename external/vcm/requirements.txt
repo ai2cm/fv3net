@@ -62,6 +62,7 @@ toolz==0.10.0
 traitlets==4.3.3
 urllib3==1.25.6
 wcwidth==0.1.7
-xarray==0.14.0
+xarray==0.14.1
 zipp==0.6.0
 xgcm==0.2.0
+cartopy==0.17.0
