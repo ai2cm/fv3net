@@ -78,7 +78,7 @@ def remap_to_edge_weighted_pressure(
         y_center="yaxis_2",
         y_outer="yaxis_1",
     )
-    other_dim = {"x", "y"} - {edge}
+    other_dim = "x" if edge == "y" else "y"
     delp_staggered = grid.interp(delp, other_dim)
     delp_staggered_coarse = edge_weighted_block_average(
         delp_staggered, length, coarsening_factor, x_dim=x_dim, y_dim=y_dim, edge=edge
