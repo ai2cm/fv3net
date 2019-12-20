@@ -1,3 +1,9 @@
+! ``mappm.f90`` contains the subroutine ``mappm`` and its dependencies ``cs_profile``, ``cs_limiters``,
+! ``ppm_profile``, and ``ppm_limiters``. These are all copied from the FV3GFS module ``fv_mapz.F90``.
+! The only code changes that have been made to ``mappm.f90`` compared to the FV3GFS code are:
+!   - removed pre-processor ifdef statements
+!   - added definitions as needed for the constants r3, r23, r12 within each subroutine
+!     (these were defined as global variables in ``fv_mapz.F90``)
 
 !>@brief The subroutine 'mappm' is a general-purpose routine for remapping
 !! one set of vertical levels to another. 
