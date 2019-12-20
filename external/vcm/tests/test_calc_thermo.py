@@ -6,7 +6,7 @@ from vcm.calc.thermo import (
     VERTICAL_DIM,
     pressure_on_interface,
     height_on_interface,
-    interface_to_center,
+    _interface_to_center,
     dz_and_top_to_phis,
 )
 
@@ -26,10 +26,13 @@ def test_height_on_interface():
     xr.testing.assert_allclose(zabs.diff(VERTICAL_DIM), dz)
 
 
-def test_interface_to_center():
+def test__interface_to_center():
     interface = xr.DataArray(np.arange(1, 10), dims=[VERTICAL_DIM])
-    center = interface_to_center(interface, dim=VERTICAL_DIM)
-    xr.testing.assert_allclose(np.arange(1.5, 9), center)
+    center = _interface_to_center(interface, dim=VERTICAL_DIM)
+    xr.testing.assert_allclose(
+        xr.DataArray(np.arange(1.5, 9), dims=[VERTICAL_DIM]),
+        center
+    )
 
 
 def test_dz_and_top_to_phis():
@@ -37,4 +40,4 @@ def test_dz_and_top_to_phis():
     dz = np.arange(-4, -1)
     dza = xr.DataArray(dz, dims=[VERTICAL_DIM])
     phis = dz_and_top_to_phis(top, dza)
-    xr.testing.assert_allclose(phis / gravity, top + np.sum(dz))
+    np.testing.assert_allclose(phis.values / gravity, top + np.sum(dz))
