@@ -5,21 +5,6 @@ import xarray as xr
 from sklearn.base import BaseEstimator
 
 
-def remove(dims, sample_dim):
-    return tuple([dim for dim in dims if dim != sample_dim])
-
-
-def unused_name(old_names):
-    # should not conflict with existing name
-    # a random string that no-one will ever use
-    return "dadf3q32d9a09cf"
-
-
-def _flatten(data: xr.Dataset, sample_dim) -> np.ndarray:
-    feature_dim_name = unused_name(data.dims)
-    stacked = data.to_stacked_array(feature_dim_name, sample_dims=[sample_dim])
-    return stacked.transpose(sample_dim, feature_dim_name)
-
 
 class BatchTrainingRegressor:
     """Base class for sklearn-type regressors that are incrementally trained in batches
@@ -113,7 +98,7 @@ class TransformedTargetRegressor(BatchTrainingRegressor):
 
 @dataclass
 class BaseXarrayEstimator:
-    def fit_xarray(
+    def fit(
         self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
     ):
         """
@@ -128,7 +113,7 @@ class BaseXarrayEstimator:
         """
         raise NotImplementedError
 
-    def predict_xarray(self, data: xr.Dataset, sample_dim: str) -> xr.Dataset:
+    def predict(self, data: xr.Dataset, sample_dim: str) -> xr.Dataset:
         """
         Make a prediction
 
@@ -141,6 +126,56 @@ class BaseXarrayEstimator:
             prediction:
         """
         raise NotImplementedError
+
+
+@dataclass
+class Packer:
+    input_vars: tuple
+    output_vars: tuple
+    sample_dim: str
+
+    def feature_matrix(self, ds):
+        return self.flatten(ds[self.input_vars], self.sample_dim).values
+
+    def target_matrix(self, ds):
+        outputs = self.flatten(ds[self.output_vars], self.sample_dim)
+        self.output_features_dim_name_ = [
+            dim for dim in outputs.dims if dim != self.sample_dim
+        ][0]
+        self.output_features_ = outputs.indexes[self.output_features_dim_name_]
+        return outputs.values
+
+    def ds_prediction(self, prediction_matrix, features, sample_dim):
+        """
+
+        Args:
+            prediction_matrix: np array of prediction
+            features: np.ndarray produced using Packer.flatten on the input data
+            sample_dim: name of sample dimension
+
+        Returns:
+            xarray dataset containing model prediction
+        """
+        ds_prediction = xr.DataArray(
+            prediction_matrix,
+            dims=[sample_dim, "feature"],
+            coords={sample_dim: features[sample_dim],
+                    "feature": self.output_features_},
+        ).to_unstacked_dataset("feature")
+        return ds_prediction
+
+    def _remove(self, dims, sample_dim):
+        return tuple([dim for dim in dims if dim != sample_dim])
+
+    def _unused_name(self, old_names):
+        # should not conflict with existing name
+        # a random string that no-one will ever use
+        return "dadf3q32d9a09cf"
+
+    def flatten(self, data: xr.Dataset, sample_dim) -> np.ndarray:
+        feature_dim_name = self._unused_name(data.dims)
+        stacked = data.to_stacked_array(feature_dim_name, sample_dims=[sample_dim])
+        return stacked.transpose(sample_dim, feature_dim_name)
 
 
 class SklearnWrapper(BaseXarrayEstimator):
@@ -159,33 +194,16 @@ class SklearnWrapper(BaseXarrayEstimator):
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
-    def fit(self, features, targets):
-        self.model.fit(features, targets)
-
-    def fit_xarray(
+    def fit(
         self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
     ):
-        self.input_vars_ = input_vars
-        self.output_vars_ = output_vars
-        self.feature_dims_ = remove(data.dims, sample_dim)
-        inputs = _flatten(data[input_vars], sample_dim).values
-        outputs = _flatten(data[output_vars], sample_dim)
+        self.packer = Packer(input_vars, output_vars, sample_dim)
+        features = self.packer.feature_matrix(data)
+        targets = self.packer.target_matrix(data)
+        self.model.fit(features, targets)
 
-        self.output_features_dim_name_ = [
-            dim for dim in outputs.dims if dim != sample_dim
-        ][0]
-        self.output_features_ = outputs.indexes[self.output_features_dim_name_]
-        self.model.fit(inputs, outputs.values)
-
-    def predict(self, features):
-        return self.model.predict(features)
-
-    def predict_xarray(self, data, sample_dim):
-        inputs = _flatten(data[self.input_vars_], sample_dim).values
-        prediction = self.model.predict(inputs)
-        ds = xr.DataArray(
-            prediction,
-            dims=[sample_dim, "feature"],
-            coords={sample_dim: inputs[sample_dim], "feature": self.output_features_},
-        )
-        return ds.to_unstacked_dataset("feature")
+    def predict(self, data, sample_dim):
+        features = self.packer.flatten(data, sample_dim)
+        prediction = self.model.predict(features.values)
+        ds_prediction = self.packer.xr_prediction(prediction, features, sample_dim)
+        return ds_prediction
