@@ -60,12 +60,11 @@ def plot_cube(
         plottable_variable (xr.Dataset):
             Dataset containing variable to plotted via pcolormesh, along with
             coordinate variables (lat, latb, lon, lonb). This dataset object
-            can be created from the helper function `mappable_restart_var`,
-             which takes in the output of `vcm.v3_restarts.open_restarts`
-            merged to  dataset of grid spec variables, along with the name of
-            the variable to be plotted, or from the helper function
-            `mappable_diag_var`, which takes in the output of
-            `vcm.v3_restarts.open_restarts`
+            can be created from the helper function `mappable_var`,
+            which takes in either the output of `vcm.fv3_restarts.open_restarts`
+            merged to a dataset of grid spec variables, or the output of
+            vcm.fv3_restarts.open_standard_diags`, along with the name of
+            the variable to be plotted.
         plotting_function (Callable, optional):
             Matplotlib 2-d plotting function to use in plotting the variable.
             Available options are plt.pcolormesh,  plt.contour, and
