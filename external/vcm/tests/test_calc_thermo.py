@@ -26,11 +26,11 @@ def test_height_on_interface():
     xr.testing.assert_allclose(zabs.diff(VERTICAL_DIM), dz)
 
 
-def test__interface_to_center():
+def test__interface_to_midpoint():
     interface = xr.DataArray(np.arange(1, 10), dims=[VERTICAL_DIM])
-    center = _interface_to_midpoint(interface, dim=VERTICAL_DIM)
+    midpoint = _interface_to_midpoint(interface, dim=VERTICAL_DIM)
     xr.testing.assert_allclose(
-        xr.DataArray(np.arange(1.5, 9), dims=[VERTICAL_DIM]), center
+        xr.DataArray(np.arange(1.5, 9), dims=[VERTICAL_DIM]), midpoint
     )
 
 
