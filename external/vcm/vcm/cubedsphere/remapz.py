@@ -1,6 +1,6 @@
 import xarray as xr
 
-from ..calc import thermo
+from ..calc.thermo import pressure_on_interface
 from ..cubedsphere import (
     edge_weighted_block_average,
     weighted_block_average,
@@ -69,7 +69,7 @@ def remap_to_edge_weighted_pressure(
         edge (str, optional): grid cell side to coarse-grain along {"x", "y"}
 
     Returns:
-        xr.Dataset
+        (xr.Dataset, xr.DataArray)
     """
     grid = create_fv3_grid(
         xr.Dataset({"delp": delp}),
@@ -78,14 +78,15 @@ def remap_to_edge_weighted_pressure(
         y_center="yaxis_2",
         y_outer="yaxis_1",
     )
-    delp_edge = grid.interp(delp, edge)
-    delp_edge_coarse = edge_weighted_block_average(
-        delp_edge, length, coarsening_factor, x_dim=x_dim, y_dim=y_dim, edge=edge
+    other_dim = {"x", "y"} - {edge}
+    delp_staggered = grid.interp(delp, other_dim)
+    delp_staggered_coarse = edge_weighted_block_average(
+        delp_staggered, length, coarsening_factor, x_dim=x_dim, y_dim=y_dim, edge=edge
     )
     return _remap_given_delp(
         ds,
-        delp_edge,
-        delp_edge_coarse,
+        delp_staggered,
+        delp_staggered_coarse,
         length,
         coarsening_factor,
         x_dim=x_dim,
@@ -104,18 +105,18 @@ def _remap_given_delp(
 ):
     """Given a fine and coarse delp, do vertical remapping to coarse pressure levels.
     """
-    phalf_coarse = thermo.pressure_on_interface(delp_coarse, dim=VERTICAL_DIM)
-    phalf_fine = thermo.pressure_on_interface(delp_fine, dim=VERTICAL_DIM)
-    phalf_coarse_on_fine = block_upsample(
-        phalf_coarse, coarsening_factor, [x_dim, y_dim]
-    )
+    delp_coarse_on_fine = block_upsample(delp_coarse, coarsening_factor, [x_dim, y_dim])
+    phalf_coarse_on_fine = pressure_on_interface(delp_coarse_on_fine, dim=VERTICAL_DIM)
+    phalf_fine = pressure_on_interface(delp_fine, dim=VERTICAL_DIM)
 
     ds_remap = xr.zeros_like(ds)
     for var in ds:
         ds_remap[var] = remap_levels(phalf_fine, ds[var], phalf_coarse_on_fine)
 
     masked_weights = weights.where(
-        phalf_coarse_on_fine < phalf_fine.max(dim=VERTICAL_DIM), other=0.0,
+        phalf_coarse_on_fine.isel({VERTICAL_DIM: slice(1, None)})
+        < phalf_fine.isel({VERTICAL_DIM: -1}),
+        other=0.0,
     )
 
     return ds_remap, masked_weights
