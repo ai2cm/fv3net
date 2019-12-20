@@ -27,7 +27,8 @@ def remap_to_area_weighted_pressure(
     x_dim: str = "xaxis_1",
     y_dim: str = "yaxis_1",
 ):
-    """ Vertically remap a dataset of cell-centered quantities to coarsened pressure levels.
+    """ Vertically remap a dataset of cell-centered quantities to coarsened
+    pressure levels.
 
     Args:
         ds (xr.Dataset): input Dataset
@@ -38,7 +39,8 @@ def remap_to_area_weighted_pressure(
         y_dim (str, optional): y-dimension name. Defaults to "yaxis_1"
 
     Returns:
-        xr.Dataset
+        (xr.Dataset, xr.DataArray): tuple of remapped input Dataset and area masked
+        wherever coarse pressure bottom interfaces are below fine surface pressure
     """
     delp_coarse = weighted_block_average(
         delp, area, coarsening_factor, x_dim=x_dim, y_dim=y_dim
@@ -57,7 +59,8 @@ def remap_to_edge_weighted_pressure(
     y_dim: str = "yaxis_1",
     edge: str = "x",
 ):
-    """ Vertically remap a dataset of edge-valued quantities to coarsened pressure levels.
+    """ Vertically remap a dataset of edge-valued quantities to coarsened
+    pressure levels.
 
     Args:
         ds (xr.Dataset): input Dataset
@@ -69,7 +72,8 @@ def remap_to_edge_weighted_pressure(
         edge (str, optional): grid cell side to coarse-grain along {"x", "y"}
 
     Returns:
-        (xr.Dataset, xr.DataArray)
+        (xr.Dataset, xr.DataArray): tuple of remapped input Dataset and length masked
+        wherever coarse pressure bottom interfaces are below fine surface pressure
     """
     grid = create_fv3_grid(
         xr.Dataset({"delp": delp}),
@@ -103,7 +107,8 @@ def _remap_given_delp(
     x_dim: str = "xaxis_1",
     y_dim: str = "yaxis_1",
 ):
-    """Given a fine and coarse delp, do vertical remapping to coarse pressure levels.
+    """Given a fine and coarse delp, do vertical remapping to coarse pressure levels
+    and mask weights below fine surface pressure.
     """
     delp_coarse_on_fine = block_upsample(delp_coarse, coarsening_factor, [x_dim, y_dim])
     phalf_coarse_on_fine = pressure_on_interface(delp_coarse_on_fine, dim=VERTICAL_DIM)
@@ -143,7 +148,10 @@ def remap_levels(p_in, f_in, p_out, iv=1, kord=1, dim=VERTICAL_DIM):
         xr.DataArray: f_in remapped to p_out pressure levels
     """
     if not _mappm_installed:
-        raise ImportError("mappm must be installed to use remap_levels")
+        raise ImportError(
+            "mappm must be installed to use remap_levels. "
+            "Try `pip install vcm/external/mappm`. Requires a Fortran compiler."
+        )
 
     dims_except_vertical = list(f_in.dims)
     dims_except_vertical.remove(dim)
