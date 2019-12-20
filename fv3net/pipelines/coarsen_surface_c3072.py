@@ -9,6 +9,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from fv3net.pipelines import common
 from vcm import cubedsphere
 from vcm.cloud import gcs
+from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ COARSENING = 8
 PREFIX_DATA = "gfsphysics_15min_fine"
 PREFIX_GRID_SPEC = "grid_spec"
 AREA = "area"
-DIM_KWARGS = {"x_dim": "grid_xt", "y_dim": "grid_yt"}
+DIM_KWARGS = {"x_dim": COORD_X_CENTER, "y_dim": COORD_Y_CENTER}
 TILES = [1, 2, 3, 4, 5, 6]
 SUBTILES = list(range(16))  # set to [None] if io_layout=1,1
 output_resolution = int(ORIGINAL_RESOLUTION // COARSENING)
