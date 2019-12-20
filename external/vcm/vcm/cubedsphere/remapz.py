@@ -17,6 +17,10 @@ else:
 
 # default for restart file
 VERTICAL_DIM = "zaxis_1"
+FV_CORE_X_CENTER = "xaxis_1"
+FV_CORE_Y_CENTER = "yaxis_2"
+FV_CORE_X_OUTER = "xaxis_2"
+FV_CORE_Y_OUTER = "yaxis_1"
 
 
 def remap_to_area_weighted_pressure(
@@ -24,8 +28,8 @@ def remap_to_area_weighted_pressure(
     delp: xr.DataArray,
     area: xr.DataArray,
     coarsening_factor: int,
-    x_dim: str = "xaxis_1",
-    y_dim: str = "yaxis_1",
+    x_dim: str = FV_CORE_X_CENTER,
+    y_dim: str = FV_CORE_Y_CENTER,
 ):
     """ Vertically remap a dataset of cell-centered quantities to coarsened
     pressure levels.
@@ -55,8 +59,8 @@ def remap_to_edge_weighted_pressure(
     delp: xr.DataArray,
     length: xr.DataArray,
     coarsening_factor: int,
-    x_dim: str = "xaxis_1",
-    y_dim: str = "yaxis_1",
+    x_dim: str = FV_CORE_X_CENTER,
+    y_dim: str = FV_CORE_Y_OUTER,
     edge: str = "x",
 ):
     """ Vertically remap a dataset of edge-valued quantities to coarsened
@@ -77,10 +81,10 @@ def remap_to_edge_weighted_pressure(
     """
     grid = create_fv3_grid(
         xr.Dataset({"delp": delp}),
-        x_center="xaxis_1",
-        x_outer="xaxis_2",
-        y_center="yaxis_2",
-        y_outer="yaxis_1",
+        x_center=FV_CORE_X_CENTER,
+        x_outer=FV_CORE_X_OUTER,
+        y_center=FV_CORE_Y_CENTER,
+        y_outer=FV_CORE_Y_OUTER,
     )
     other_dim = "x" if edge == "y" else "y"
     delp_staggered = grid.interp(delp, other_dim)
@@ -104,8 +108,8 @@ def _remap_given_delp(
     delp_coarse,
     weights,
     coarsening_factor,
-    x_dim: str = "xaxis_1",
-    y_dim: str = "yaxis_1",
+    x_dim: str = FV_CORE_X_CENTER,
+    y_dim: str = FV_CORE_Y_CENTER,
 ):
     """Given a fine and coarse delp, do vertical remapping to coarse pressure levels
     and mask weights below fine surface pressure.
