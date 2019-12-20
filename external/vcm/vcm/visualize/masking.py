@@ -3,8 +3,9 @@ import numpy as np
 
 def _mask_antimeridian_quads(lonb: np.ndarray, central_longitude: float):
 
-    """ Computes mask of grid quadrilaterals bisected by a projection system's
-    antimeridian, in order to avoid cartopy plotting artifacts
+    """ Computes mask of cubed-sphere tile grid quadrilaterals bisected by a
+    projection system's antimeridian, in order to avoid cartopy plotting
+    artifacts
 
     Args:
 
