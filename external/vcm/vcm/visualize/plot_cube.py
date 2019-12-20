@@ -10,7 +10,10 @@ from vcm.visualize.masking import _mask_antimeridian_quads
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
-from cartopy import crs as ccrs
+try:
+    from cartopy import crs as ccrs
+except ImportError:
+    pass
 import warnings
 from functools import partial
 from typing import Callable
@@ -146,7 +149,7 @@ def plot_cube(
     )
 
     _plot_func_short = partial(
-        _plot_cube_axes,
+        plot_cube_axes,
         lat=plottable_variable.lat.values,
         lon=plottable_variable.lon.values,
         latb=plottable_variable.latb.values,
@@ -276,7 +279,7 @@ def mappable_var(ds: xr.Dataset, var_name: str, ds_type: str = "restart"):
     )
 
 
-def _plot_cube_axes(
+def plot_cube_axes(
     array: np.ndarray,
     lat: np.ndarray,
     lon: np.ndarray,
