@@ -8,7 +8,8 @@ import numpy as np
 import yaml
 
 from fv3net.regression.dataset_handler import BatchGenerator
-from fv3net.regression.sklearn.wrapper import TransformedTargetRegressor, SklearnWrapper
+from fv3net.regression.sklearn.wrapper import (
+    TransformedBatchRegressor, SklearnWrapper, BatchTrainer, TargetTransformer)
 
 
 @dataclass
@@ -138,21 +139,20 @@ def train_model(batched_data, train_config, output_norms_mean, output_norms_stdd
         trained sklearn model wrapper object
     """
     base_regressor = _get_regressor(train_config)
-    model = TransformedTargetRegressor(base_regressor)
-    model.set_normalization_data(output_norms_mean, output_norms_stddev)
+    batch_regressor = BatchTrainer(base_regressor)
+    target_transformer = TargetTransformer(output_norms_mean, output_norms_stddev)
+    model = TransformedBatchRegressor(batch_regressor, target_transformer)
     model_wrapper = SklearnWrapper(model)
     for i, batch in enumerate(batched_data.generate_batches("train")):
-        if i > 0:
-            model_wrapper.model.add_new_batch_estimators()
         print(f"Fitting batch {i}/{batched_data.num_train_batches}")
-        model_wrapper.fit_xarray(
+        model_wrapper.fit(
             input_vars=train_config.input_variables,
             output_vars=train_config.output_variables,
             sample_dim="sample",
             data=batch,
         )
         print(f"Batch {i} done fitting.")
-    return model_wrapper
+    return model_wrapper.model
 
 
 if __name__ == "__main__":

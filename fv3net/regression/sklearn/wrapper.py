@@ -5,8 +5,7 @@ import xarray as xr
 from sklearn.base import BaseEstimator
 
 
-
-class BatchTrainingRegressor:
+class BatchTrainer:
     """Base class for sklearn-type regressors that are incrementally trained in batches
     So that we can add new estimators at the start of new training batch.
 
@@ -15,6 +14,7 @@ class BatchTrainingRegressor:
     def __init__(self, regressor):
         self.regressor = regressor
         self.n_estimators_per_batch = self.n_estimators
+        self.num_batches_fit = 0
 
     @property
     def n_estimators(self):
@@ -29,7 +29,7 @@ class BatchTrainingRegressor:
                                  "RandomForestRegressor, or MultiOutputRegressor "
                                  "with multiple estimators per regressor")
 
-    def add_new_batch_estimators(self):
+    def _add_new_batch_estimators(self):
         new_total_estimators = self.n_estimators + self.n_estimators_per_batch
         try:
             setattr(self.regressor.n_estimators, new_total_estimators)
@@ -42,34 +42,24 @@ class BatchTrainingRegressor:
                     "either sklearn RandomForestRegressor "
                     "or MultiOutputRegressor ")
 
-    def fit(self, features, outputs):
-        raise NotImplementedError
+    def increment_fit(self, features, outputs):
+        if self.num_batches_fit > 0:
+            self.add_new_batch_estimators()
+        self.regressor.fit(features, outputs)
+        self.num_batches_fit += 1
 
-    def predict(self, features):
-        raise NotImplementedError
 
-
-class TransformedTargetRegressor(BatchTrainingRegressor):
+class TargetTransformer:
     """Modeled off of sklearn's TransformedTargetRegressor but with
-    the ability to save the same means/stddev used in normalization without
-    having to provide them again to the inverse transform at prediction time.
+        the ability to save the same means/stddev used in normalization without
+        having to provide them again to the inverse transform at prediction time.
 
     """
-
-    def set_normalization_data(self, output_means, output_stddevs):
+    def __init__(self, output_means, output_stddevs):
         self.output_means = output_means
         self.output_stddevs = output_stddevs
 
-    def fit(self, features, outputs):
-        normed_outputs = self._transform(outputs)
-        self.regressor.fit(features, normed_outputs)
-
-    def predict(self, features):
-        normed_outputs = self.regressor.predict(features)
-        physical_outputs = self._inverse_transform(normed_outputs)
-        return physical_outputs
-
-    def _transform(self, output_matrix):
+    def transform(self, output_matrix):
         """
 
         Args:
@@ -82,7 +72,7 @@ class TransformedTargetRegressor(BatchTrainingRegressor):
             np.subtract(output_matrix, self.output_means), self.output_stddevs
         )
 
-    def _inverse_transform(self, output_matrix):
+    def inverse_transform(self, output_matrix):
         """
 
         Args:
@@ -96,40 +86,32 @@ class TransformedTargetRegressor(BatchTrainingRegressor):
         )
 
 
-@dataclass
-class BaseXarrayEstimator:
-    def fit(
-        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
-    ):
-        """
-        Args:
-            input_vars: list of input variables
-            output_vars: list of output_variables
-            sample_dim: dimension over which samples are taken
-            data: xarray Dataset with dimensions (sample_dim, *)
+class TransformedBatchRegressor:
+    """Modeled off of sklearn's TransformedTargetRegressor but with
+    the ability to save the same means/stddev used in normalization without
+    having to provide them again to the inverse transform at prediction time.
 
-        Returns:
-            fitted model
-        """
-        raise NotImplementedError
+    """
+    def __init__(self, batch_trainer, transformer):
+        self.batch_trainer = batch_trainer
+        self.transformer = transformer
 
-    def predict(self, data: xr.Dataset, sample_dim: str) -> xr.Dataset:
-        """
-        Make a prediction
+    def fit(self, features, outputs):
+        normed_outputs = self.transformer.transform(outputs)
+        self.batch_trainer.increment_fit(features, normed_outputs)
 
-        Args:
-            data: xarray Dataset with the same feature dimensions as trained
-              data
-            sample_dim: dimension along which "samples" are defined. This could be
-              inferred, but explicity is not terrible.
-        Returns:
-            prediction:
-        """
-        raise NotImplementedError
+    def predict(self, features):
+        normed_outputs = self.batch_trainer.regressor.predict(features)
+        physical_outputs = self._inverse_transform(normed_outputs)
+        return physical_outputs
 
 
 @dataclass
 class Packer:
+    """Uses: i) getting features out of xarray dataset into np array and
+    ii) putting np array of predictions into xrarray dataset
+
+    """
     input_vars: tuple
     output_vars: tuple
     sample_dim: str
@@ -178,6 +160,38 @@ class Packer:
         return stacked.transpose(sample_dim, feature_dim_name)
 
 
+@dataclass
+class BaseXarrayEstimator:
+    def fit(
+        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
+    ):
+        """
+        Args:
+            input_vars: list of input variables
+            output_vars: list of output_variables
+            sample_dim: dimension over which samples are taken
+            data: xarray Dataset with dimensions (sample_dim, *)
+
+        Returns:
+            fitted model
+        """
+        raise NotImplementedError
+
+    def predict(self, data: xr.Dataset, sample_dim: str) -> xr.Dataset:
+        """
+        Make a prediction
+
+        Args:
+            data: xarray Dataset with the same feature dimensions as trained
+              data
+            sample_dim: dimension along which "samples" are defined. This could be
+              inferred, but explicity is not terrible.
+        Returns:
+            prediction:
+        """
+        raise NotImplementedError
+
+
 class SklearnWrapper(BaseXarrayEstimator):
     """Wrap a SkLearn model for use with xarray
 
@@ -207,3 +221,4 @@ class SklearnWrapper(BaseXarrayEstimator):
         prediction = self.model.predict(features.values)
         ds_prediction = self.packer.xr_prediction(prediction, features, sample_dim)
         return ds_prediction
+
