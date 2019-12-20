@@ -9,10 +9,11 @@ import xarray as xr
 from skimage.measure import block_reduce as skimage_block_reduce
 
 from .. import xarray_utils
+from vcm.cubedsphere.constants import COORD_X_OUTER, COORD_Y_OUTER
 
 NUM_TILES = 6
 SUBTILE_FILE_PATTERN = "{prefix}.tile{tile:d}.nc.{subtile:04d}"
-STAGGERED_DIMS = ["grid_x", "grid_y"]
+STAGGERED_DIMS = [COORD_X_OUTER, COORD_Y_OUTER]
 
 
 def rename_centered_xy_coords(cell_centered_da):

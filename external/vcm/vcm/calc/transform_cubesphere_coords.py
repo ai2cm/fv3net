@@ -3,6 +3,13 @@ import xarray as xr
 from vcm.cubedsphere.coarsen import shift_edge_var_to_center
 from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
 
+from vcm.cubedsphere.constants import (
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_OUTER,
+)
+
 
 def rotate_winds_to_lat_lon_coords(
     da_x: xr.DataArray, da_y: xr.DataArray, grid: xr.Dataset
@@ -137,17 +144,21 @@ def _get_local_basis_in_spherical_coords(grid):
         at the center of each cell.
     """
     xhat_lon_component = np.deg2rad(
-        _lon_diff(grid.grid_lon, grid.grid_lon.shift(grid_x=-1))[:, :-1, :-1]
-    ).rename({"grid_x": "grid_xt", "grid_y": "grid_yt"})
+        _lon_diff(grid.grid_lon, grid.grid_lon.shift({COORD_X_OUTER: -1}))[:, :-1, :-1]
+    ).rename({COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER})
     yhat_lon_component = np.deg2rad(
-        _lon_diff(grid.grid_lon, grid.grid_lon.shift(grid_y=-1))[:, :-1, :-1]
-    ).rename({"grid_x": "grid_xt", "grid_y": "grid_yt"})
-    xhat_lat_component = np.deg2rad(grid.grid_lat.shift(grid_x=-1) - grid.grid_lat)[
-        :, :-1, :-1
-    ].rename({"grid_x": "grid_xt", "grid_y": "grid_yt"})
-    yhat_lat_component = np.deg2rad(grid.grid_lat.shift(grid_y=-1) - grid.grid_lat)[
-        :, :-1, :-1
-    ].rename({"grid_x": "grid_xt", "grid_y": "grid_yt"})
+        _lon_diff(grid.grid_lon, grid.grid_lon.shift({COORD_Y_OUTER: -1}))[:, :-1, :-1]
+    ).rename({COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER})
+    xhat_lat_component = np.deg2rad(
+        grid.grid_lat.shift({COORD_X_OUTER: -1}) - grid.grid_lat
+    )[:, :-1, :-1].rename(
+        {COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER}
+    )
+    yhat_lat_component = np.deg2rad(
+        grid.grid_lat.shift({COORD_Y_OUTER: -1}) - grid.grid_lat
+    )[:, :-1, :-1].rename(
+        {COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER}
+    )
     return (
         (xhat_lon_component, xhat_lat_component),
         (yhat_lon_component, yhat_lat_component),

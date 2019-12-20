@@ -4,6 +4,7 @@ import zarr as zr
 from numba import jit
 from scipy.interpolate import interp1d
 
+from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
 from vcm.convenience import open_dataset, replace_esmf_coords_reg_latlon
 
 
@@ -103,7 +104,7 @@ def fregrid_to_esmf_compatible_coords(data: xr.Dataset) -> xr.Dataset:
     This function adds lon, and lat coordinates as well as the bounding information
     lon_b and lat_b.
     """
-    data = data.rename({"grid_xt": "lon", "grid_yt": "lat"})
+    data = data.rename({COORD_X_CENTER: "lon", COORD_Y_CENTER: "lat"})
 
     lon_b = xr.DataArray(fregrid_bnds_to_esmf(data.grid_xt_bnds), dims=["lon_b"])
     lat_b = xr.DataArray(fregrid_bnds_to_esmf(data.grid_yt_bnds), dims=["lat_b"])

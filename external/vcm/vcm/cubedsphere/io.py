@@ -11,15 +11,19 @@ from vcm.cubedsphere.coarsen import NUM_TILES, SUBTILE_FILE_PATTERN
 def open_cubed_sphere(prefix: str, **kwargs):
     """Open cubed-sphere data
 
-     Args:
+    Args:
          prefix: the beginning part of the filename before the `.tile1.nc.0001`
            part
+
+    Returns:
+        a dataset with tiles combined. The tile coordinate starts with 0.
+
      """
     tiles = []
     for tile in range(1, NUM_TILES + 1):
         files = subtile_filenames(prefix, tile, **kwargs)
         subtiles = [xr.open_dataset(file, chunks={}) for file in files]
-        combined = combine_subtiles(subtiles).assign_coords(tile=tile)
+        combined = combine_subtiles(subtiles).assign_coords(tile=tile - 1)
         tiles.append(remove_duplicate_coords(combined))
     return xr.concat(tiles, dim="tile")
 
