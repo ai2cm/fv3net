@@ -30,8 +30,7 @@ def test__interface_to_center():
     interface = xr.DataArray(np.arange(1, 10), dims=[VERTICAL_DIM])
     center = _interface_to_center(interface, dim=VERTICAL_DIM)
     xr.testing.assert_allclose(
-        xr.DataArray(np.arange(1.5, 9), dims=[VERTICAL_DIM]),
-        center
+        xr.DataArray(np.arange(1.5, 9), dims=[VERTICAL_DIM]), center
     )
 
 
