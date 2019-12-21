@@ -14,7 +14,6 @@ class BatchTrainer:
     def __init__(self, regressor):
         self.regressor = regressor
         self.n_estimators_per_batch = self.n_estimators
-        self.num_batches_fit = 0
 
     @property
     def n_estimators(self):
@@ -46,7 +45,6 @@ class BatchTrainer:
         if self.num_batches_fit > 0:
             self.add_new_batch_estimators()
         self.regressor.fit(features, outputs)
-        self.num_batches_fit += 1
 
 
 class TargetTransformer:
@@ -86,7 +84,7 @@ class TargetTransformer:
         )
 
 
-class TransformedBatchRegressor:
+class TransformBatchRegressor:
     """Modeled off of sklearn's TransformedTargetRegressor but with
     the ability to save the same means/stddev used in normalization without
     having to provide them again to the inverse transform at prediction time.
@@ -102,7 +100,7 @@ class TransformedBatchRegressor:
 
     def predict(self, features):
         normed_outputs = self.batch_trainer.regressor.predict(features)
-        physical_outputs = self._inverse_transform(normed_outputs)
+        physical_outputs = self.transformer.inverse_transform(normed_outputs)
         return physical_outputs
 
 

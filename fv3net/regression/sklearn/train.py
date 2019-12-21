@@ -9,7 +9,7 @@ import yaml
 
 from fv3net.regression.dataset_handler import BatchGenerator
 from fv3net.regression.sklearn.wrapper import (
-    TransformedBatchRegressor, SklearnWrapper, BatchTrainer, TargetTransformer)
+    TransformBatchRegressor, SklearnWrapper, BatchTrainer, TargetTransformer)
 
 
 @dataclass
@@ -141,7 +141,7 @@ def train_model(batched_data, train_config, output_norms_mean, output_norms_stdd
     base_regressor = _get_regressor(train_config)
     batch_regressor = BatchTrainer(base_regressor)
     target_transformer = TargetTransformer(output_norms_mean, output_norms_stddev)
-    model = TransformedBatchRegressor(batch_regressor, target_transformer)
+    model = TransformBatchRegressor(batch_regressor, target_transformer)
     model_wrapper = SklearnWrapper(model)
     for i, batch in enumerate(batched_data.generate_batches("train")):
         print(f"Fitting batch {i}/{batched_data.num_train_batches}")
