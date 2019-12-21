@@ -40,7 +40,7 @@ def _infer_color_limits(
 
     """
 
-    if not vmin and not vmax:
+    if vmin is None and vmax is None:
         if xmin < 0 and xmax > 0:
             cmap = "RdBu_r" if not cmap else cmap
             vabs_max = np.max([np.abs(xmin), np.abs(xmax)])
@@ -48,14 +48,14 @@ def _infer_color_limits(
         else:
             vmin, vmax = xmin, xmax
             cmap = "viridis" if not cmap else cmap
-    elif not vmin:
+    elif vmin is None:
         if xmin < 0 and vmax > 0:
             vmin = -vmax
             cmap = "RdBu_r" if not cmap else cmap
         else:
             vmin = xmin
             cmap = "viridis" if not cmap else cmap
-    elif not vmax:
+    elif vmax is None:
         if xmax > 0 and vmin < 0:
             vmax = -vmin
             cmap = "RdBu_r" if not cmap else cmap
