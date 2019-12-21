@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from vcm.calc.transform_cubesphere_coords import (
+from vcm.cubedsphere.transform_cubesphere_coords import (
     _get_local_basis_in_spherical_coords,
     _lon_diff,
     _lon_lat_unit_vectors_to_cartesian,

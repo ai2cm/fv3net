@@ -10,6 +10,7 @@ from vcm.visualize.masking import _mask_antimeridian_quads
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
+
 try:
     from cartopy import crs as ccrs
 except ImportError:
