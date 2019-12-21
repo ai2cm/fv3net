@@ -10,7 +10,6 @@ from vcm.visualize.masking import _mask_antimeridian_quads
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
-
 try:
     from cartopy import crs as ccrs
 except ImportError:
@@ -51,7 +50,7 @@ def plot_cube(
     row: str = None,
     col: str = None,
     col_wrap: int = None,
-    projection: ccrs.Projection = ccrs.Robinson(),
+    projection: "ccrs.Projection" = None,
     colorbar: bool = True,
     coastlines: bool = True,
     coastlines_kwargs: dict = None,
@@ -160,6 +159,8 @@ def plot_cube(
         coastlines_kwargs=coastlines_kwargs,
         **kwargs,
     )
+
+    projection = ccrs.Robinson() if not projection else projection
 
     if not ax and (row or col):
         # facets
