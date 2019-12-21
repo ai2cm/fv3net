@@ -23,10 +23,12 @@ class BatchTrainer:
             try:
                 return getattr(self.regressor.estimator, "n_estimators")
             except AttributeError:
-                raise ValueError("Unable to get number of estimators per regressor."
-                                 "Check that the regressor is either sklearn "
-                                 "RandomForestRegressor, or MultiOutputRegressor "
-                                 "with multiple estimators per regressor")
+                raise ValueError(
+                    "Unable to get number of estimators per regressor."
+                    "Check that the regressor is either sklearn "
+                    "RandomForestRegressor, or MultiOutputRegressor "
+                    "with multiple estimators per regressor"
+                )
 
     def _add_new_batch_estimators(self):
         new_total_estimators = self.n_estimators + self.n_estimators_per_batch
@@ -39,7 +41,8 @@ class BatchTrainer:
                 raise ValueError(
                     "Cannot add more estimators to model. Check that model is"
                     "either sklearn RandomForestRegressor "
-                    "or MultiOutputRegressor ")
+                    "or MultiOutputRegressor "
+                )
 
     def increment_fit(self, features, outputs):
         if self.num_batches_fit > 0:
@@ -53,6 +56,7 @@ class TargetTransformer:
         having to provide them again to the inverse transform at prediction time.
 
     """
+
     def __init__(self, output_means, output_stddevs):
         self.output_means = output_means
         self.output_stddevs = output_stddevs
@@ -90,6 +94,7 @@ class TransformBatchRegressor:
     having to provide them again to the inverse transform at prediction time.
 
     """
+
     def __init__(self, batch_trainer, transformer):
         self.batch_trainer = batch_trainer
         self.transformer = transformer
@@ -110,6 +115,7 @@ class Packer:
     ii) putting np array of predictions into xrarray dataset
 
     """
+
     input_vars: tuple
     output_vars: tuple
     sample_dim: str
@@ -139,8 +145,7 @@ class Packer:
         ds_prediction = xr.DataArray(
             prediction_matrix,
             dims=[sample_dim, "feature"],
-            coords={sample_dim: features[sample_dim],
-                    "feature": self.output_features_},
+            coords={sample_dim: features[sample_dim], "feature": self.output_features_},
         ).to_unstacked_dataset("feature")
         return ds_prediction
 
@@ -219,4 +224,3 @@ class SklearnWrapper(BaseXarrayEstimator):
         prediction = self.model.predict(features.values)
         ds_prediction = self.packer.xr_prediction(prediction, features, sample_dim)
         return ds_prediction
-

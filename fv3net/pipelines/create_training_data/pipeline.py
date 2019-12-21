@@ -126,5 +126,3 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS + GRID_VARS):
     if "forecast_time" in ds.dims:
         ds = ds.isel(forecast_time=0).squeeze().drop("forecast_time")
     return ds
-
-
