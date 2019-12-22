@@ -22,7 +22,9 @@ class BatchTransformRegressor:
             return getattr(self.transform_regressor.regressor, "n_estimators")
         except AttributeError:
             try:
-                return getattr(self.transform_regressor.regressor.estimator, "n_estimators")
+                return getattr(
+                    self.transform_regressor.regressor.estimator, "n_estimators"
+                )
             except AttributeError:
                 raise ValueError(
                     "Unable to get number of estimators per regressor."
@@ -34,10 +36,14 @@ class BatchTransformRegressor:
     def _add_new_batch_estimators(self):
         new_total_estimators = self.n_estimators + self.n_estimators_per_batch
         try:
-            setattr(self.transform_regressor.regressor.n_estimators, new_total_estimators)
+            setattr(
+                self.transform_regressor.regressor.n_estimators, new_total_estimators
+            )
         except AttributeError:
             try:
-                self.transform_regressor.regressor.set_params(estimator__n_estimators=new_total_estimators)
+                self.transform_regressor.regressor.set_params(
+                    estimator__n_estimators=new_total_estimators
+                )
             except ValueError:
                 raise ValueError(
                     "Cannot add more estimators to model. Check that model is"
@@ -48,7 +54,7 @@ class BatchTransformRegressor:
     def fit(self, features, outputs):
         if self.num_batches_fit > 0:
             self._add_new_batch_estimators()
-        self.regressor.fit(features, outputs)
+        self.transform_regressor.fit(features, outputs)
         self.num_batches_fit += 1
 
 

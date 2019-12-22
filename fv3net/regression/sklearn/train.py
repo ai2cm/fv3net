@@ -15,6 +15,7 @@ from fv3net.regression.sklearn.wrapper import (
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
 
+
 @dataclass
 class ModelTrainingConfig:
     """Convenience wrapper for model training parameters and file info
@@ -145,7 +146,6 @@ def train_model(batched_data, train_config, targets_for_normalization):
     target_transformer = StandardScaler()
     target_transformer.fit(targets_for_normalization)
     transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
-    transform_regressor = BatchTransformRegressor(transform_regressor)
     batch_regressor = BatchTransformRegressor(transform_regressor)
 
     model_wrapper = SklearnWrapper(batch_regressor)
@@ -187,7 +187,5 @@ if __name__ == "__main__":
     targets_for_normalization = get_outputs_for_normalization(
         args.target_normalization_file
     )
-    model = train_model(
-        batched_data, train_config, targets_for_normalization
-    )
+    model = train_model(batched_data, train_config, targets_for_normalization)
     joblib.dump(model, args.model_output_path)
