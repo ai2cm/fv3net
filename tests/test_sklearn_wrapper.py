@@ -6,14 +6,6 @@ from fv3net.regression.sklearn.wrapper import Packer
 
 
 @pytest.fixture
-def test_transformer():
-    target_means = np.array([1.0, 2.0, -1.0])
-    target_stddevs = np.array([0.5, 1.0, 2.0])
-    transformer = TargetTransformer(target_means, target_stddevs)
-    return transformer
-
-
-@pytest.fixture
 def test_packer():
     packer = Packer(["T", "sphum"], ["Q1", "Q2"], "z")
     return packer
