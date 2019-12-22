@@ -3,9 +3,10 @@ from dataclasses import dataclass
 import numpy as np
 import xarray as xr
 from sklearn.base import BaseEstimator
+from sklearn.compose import TransformedTargetRegressor
 
 
-class BatchTrainer:
+class BatchTransformRegressor:
     """Base class for sklearn-type regressors that are incrementally trained in batches
     So that we can add new estimators at the start of new training batch.
 
@@ -14,6 +15,7 @@ class BatchTrainer:
     def __init__(self, regressor):
         self.regressor = regressor
         self.n_estimators_per_batch = self.n_estimators
+        self.num_batches_fit = 0
 
     @property
     def n_estimators(self):
@@ -44,69 +46,11 @@ class BatchTrainer:
                     "or MultiOutputRegressor "
                 )
 
-    def increment_fit(self, features, outputs):
-        if self.num_batches_fit > 0:
-            self.add_new_batch_estimators()
-        self.regressor.fit(features, outputs)
-
-
-class TargetTransformer:
-    """Modeled off of sklearn's TransformedTargetRegressor but with
-        the ability to save the same means/stddev used in normalization without
-        having to provide them again to the inverse transform at prediction time.
-
-    """
-
-    def __init__(self, output_means, output_stddevs):
-        self.output_means = output_means
-        self.output_stddevs = output_stddevs
-
-    def transform(self, output_matrix):
-        """
-
-        Args:
-            output_matrix: physical values of targets
-
-        Returns:
-            targets normalized by (target-mean) / stddev
-        """
-        return np.divide(
-            np.subtract(output_matrix, self.output_means), self.output_stddevs
-        )
-
-    def inverse_transform(self, output_matrix):
-        """
-
-        Args:
-            output_matrix: normalized prediction values
-
-        Returns:
-            physical values of predictions
-        """
-        return np.add(
-            np.multiply(self.output_stddevs, output_matrix), self.output_means
-        )
-
-
-class TransformBatchRegressor:
-    """Modeled off of sklearn's TransformedTargetRegressor but with
-    the ability to save the same means/stddev used in normalization without
-    having to provide them again to the inverse transform at prediction time.
-
-    """
-
-    def __init__(self, batch_trainer, transformer):
-        self.batch_trainer = batch_trainer
-        self.transformer = transformer
-
     def fit(self, features, outputs):
-        normed_outputs = self.transformer.transform(outputs)
-        self.batch_trainer.increment_fit(features, normed_outputs)
-
-    def predict(self, features):
-        normed_outputs = self.batch_trainer.regressor.predict(features)
-        physical_outputs = self.transformer.inverse_transform(normed_outputs)
-        return physical_outputs
+        if self.num_batches_fit > 0:
+            self._add_new_batch_estimators()
+        self.regressor.fit(features, outputs)
+        self.num_batches_fit += 1
 
 
 @dataclass

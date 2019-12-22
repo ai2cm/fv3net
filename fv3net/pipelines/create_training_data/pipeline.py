@@ -1,4 +1,3 @@
-import numba
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import gcsfs
@@ -13,12 +12,6 @@ from vcm.select import mask_to_surface_type
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-
-# There have been issues where python crashes immediately unless numba gets
-# imported explicitly before vcm, hence the import and del
-del numba
-
 
 TIME_DIM = "initialization_time"
 GRID_VARS = ["grid_lon", "grid_lat", "grid_lont", "grid_latt"]
