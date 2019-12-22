@@ -42,7 +42,7 @@ def get_outputs_for_normalization(output_normalization_file):
         np array of sample target values for use in StandardScaler
     """
     if output_normalization_file == "default":
-        with path("fv3net.regression.sklearn", "default_norm_outputs.dat") as f:
+        with path("fv3net.regression.sklearn", "Tr") as f:
             sample_outputs = np.loadtxt(f)
     else:
         with open(output_normalization_file, "r") as f:
@@ -141,10 +141,11 @@ def train_model(batched_data, train_config, targets_for_normalization):
         trained sklearn model wrapper object
     """
     base_regressor = _get_regressor(train_config)
-    batch_regressor = BatchTrainer(base_regressor)
     target_transformer = StandardScaler()
     target_transformer.fit(targets_for_normalization)
     model = TransformBatchRegressor(batch_regressor, target_transformer)
+    batch_regressor = BatchTransformRegressor(model)
+
     model_wrapper = SklearnWrapper(model)
     for i, batch in enumerate(batched_data.generate_batches("train")):
         print(f"Fitting batch {i}/{batched_data.num_train_batches}")

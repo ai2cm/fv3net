@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import numpy as np
 import xarray as xr
 from sklearn.base import BaseEstimator
-from sklearn.compose import TransformedTargetRegressor
 
 
 class BatchTransformRegressor:
@@ -12,18 +11,18 @@ class BatchTransformRegressor:
 
     """
 
-    def __init__(self, regressor):
-        self.regressor = regressor
+    def __init__(self, transform_regressor):
+        self.transform_regressor = transform_regressor
         self.n_estimators_per_batch = self.n_estimators
         self.num_batches_fit = 0
 
     @property
     def n_estimators(self):
         try:
-            return getattr(self.regressor, "n_estimators")
+            return getattr(self.transform_regressor.regressor, "n_estimators")
         except AttributeError:
             try:
-                return getattr(self.regressor.estimator, "n_estimators")
+                return getattr(self.transform_regressor.regressor.estimator, "n_estimators")
             except AttributeError:
                 raise ValueError(
                     "Unable to get number of estimators per regressor."
@@ -35,10 +34,10 @@ class BatchTransformRegressor:
     def _add_new_batch_estimators(self):
         new_total_estimators = self.n_estimators + self.n_estimators_per_batch
         try:
-            setattr(self.regressor.n_estimators, new_total_estimators)
+            setattr(self.transform_regressor.regressor.n_estimators, new_total_estimators)
         except AttributeError:
             try:
-                self.regressor.set_params(estimator__n_estimators=new_total_estimators)
+                self.transform_regressor.regressor.set_params(estimator__n_estimators=new_total_estimators)
             except ValueError:
                 raise ValueError(
                     "Cannot add more estimators to model. Check that model is"
