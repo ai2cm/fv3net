@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from fv3net.regression.sklearn.wrapper import TargetTransformer, Packer
+from fv3net.regression.sklearn.wrapper import Packer
 
 
 @pytest.fixture
@@ -60,14 +60,3 @@ def test_flatten_same_order(test_packer):
 
     np.testing.assert_allclose(a, b)
 
-
-def test_transform(test_transformer):
-    physical_target_values = np.array([2.0, 4.0, -2])
-    normed_target_values = test_transformer.transform(physical_target_values)
-    assert pytest.approx(normed_target_values) == [2.0, 2.0, -0.5]
-
-
-def test_inverse_transform_outputs(test_transformer):
-    normed_target_values = [2.0, 2.0, -0.5]
-    physical_target_values = test_transformer.inverse_transform(normed_target_values)
-    assert pytest.approx(physical_target_values) == [2.0, 4.0, -2]
