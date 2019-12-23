@@ -1,16 +1,14 @@
 import numpy as np
 import pytest
 import xarray as xr
-from vcm.cubedsphere.remapz import (
-        remap_levels,
-    )
+from vcm.cubedsphere.remapz import remap_levels
+
 try:
     import mappm
 except:
     mappm_import_failed = True
 else:
     mappm_import_failed = False
-from vcm.cubedsphere.constants import RESTART_Z_CENTER
 
 
 def input_dataarray(shape):
@@ -33,5 +31,5 @@ def test_remap_levels(p_in_shape, f_in_shape, p_out_shape, expected):
     p_in = input_dataarray(p_in_shape)
     f_in = input_dataarray(f_in_shape)
     p_out = input_dataarray(p_out_shape)
-    f_out = remap_levels(p_in, f_in, p_out, dim="z")
-    assert f_out.shape == expected.shape
+    f_out = remap_levels(p_in, f_in, p_out, z_dim="z")
+    assert f_out.shape == expected
