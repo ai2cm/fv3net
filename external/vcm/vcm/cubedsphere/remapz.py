@@ -128,13 +128,17 @@ def _remap_given_delp(
     and mask weights below fine surface pressure.
     """
     delp_coarse_on_fine = block_upsample(delp_coarse, coarsening_factor, [x_dim, y_dim])
-    phalf_coarse_on_fine = pressure_at_interface(delp_coarse_on_fine, dim=z_dim)
-    phalf_fine = pressure_at_interface(delp_fine, dim=z_dim)
+    phalf_coarse_on_fine = pressure_at_interface(
+        delp_coarse_on_fine, dim_center=z_dim, dim_outer=RESTART_Z_OUTER
+    )
+    phalf_fine = pressure_at_interface(
+        delp_fine, dim_center=z_dim, dim_outer=RESTART_Z_OUTER
+    )
 
     ds_remap = xr.zeros_like(ds)
     for var in ds:
         ds_remap[var] = remap_levels(
-            phalf_fine, ds[var], phalf_coarse_on_fine, z_dim=z_dim
+            phalf_fine, ds[var], phalf_coarse_on_fine, z_dim_center=z_dim
         )
 
     masked_weights = weights.where(
@@ -169,7 +173,10 @@ def remap_levels(
             iv = 1: others
             iv = 2: temperature
         kord (int, optional): method number for vertical remapping. Defaults to 1.
-        z_dim (str, optional): name of vertical dimension. Defaults to "zaxis_1".
+        z_dim_center (str, optional): name of centered vertical dimension.
+            Defaults to "zaxis_1".
+        z_dim_outer (str, optional): name of staggered vertical dimension.
+            Defaults to "zaxis_2".
 
     Returns:
         xr.DataArray: f_in remapped to p_out pressure levels
