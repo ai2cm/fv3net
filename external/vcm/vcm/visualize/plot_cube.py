@@ -48,14 +48,11 @@ def plot_cube(
     """ Plots tiled cubed sphere grids onto a global map projection
 
     Args:
-
         plottable_variable (xr.Dataset):
             Dataset containing variable to plotted via pcolormesh, along with
             coordinate variables (lat, latb, lon, lonb). This dataset object
-            can be created from the helper function `mappable_var`,
-            which takes in either the output of `vcm.fv3_restarts.open_restarts`
-            merged to a dataset of grid spec variables, or the output of
-            vcm.fv3_restarts.open_standard_diags`, along with the name of
+            can be created from the helper function `mappable_var`, which takes
+            in an fv3gfs restart or diagnostic dataset along with the name of
             the variable to be plotted.
         plotting_function (str, optional):
             Name of matplotlib 2-d plotting function. Available options are
@@ -87,43 +84,28 @@ def plot_cube(
             Additional keyword arguments to be passed to the plotting function.
 
     Returns:
-
-        axes (list):
-            List or nested list of `plt.axes` objects assocated with map
-            subplots if faceting; otherwise single `plt.axes` object.
+        axes (np.ndarray):
+            Array of `plt.axes` objects assocated with map subplots if faceting;
+            otherwise array containing single axes object.
         handles (list):
             List or nested list of matplotlib object handles associated with
-            map subplots if faceting; otherwise single object handle.
+            map subplots if faceting; otherwise list of single object handle.
         cbar (obj):
-            `ax.colorbar` object handle associated with figure, if `colorbar`
+            `plt.colorbar` object handle associated with figure, if `colorbar`
             arg is True, else None.
 
     Example:
-
-        # plots T at multiple vertical levels, faceted across subplots
-        sample_data = fv3_restarts.open_restarts(
-                '/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/
-                rundir/',
-                '20160805.170000',
-                '20160805.171500'
-            )
-        grid_spec_paths = [f"/home/brianh/dev/fv3net/data/restart/C48/
-        20160805.170000/rundir/grid_spec.tile{tile}.nc" for tile in range (1,7)]
-        grid_spec = xr.open_mfdataset(paths = grid_spec_paths,
-        combine = 'nested', concat_dim = 'tile')
-        ds = xr.merge([sample_data, grid_spec])
+        # plot diag winds at two times
         axes, hs, cbar = plot_cube(
-            mappable_restart_var(ds, 'T').isel(time = 0, pfull = [78, 40]),
-            plotting_function='pcolormesh',
-            row = "pfull",
+            mappable_var(diag_ds, 'VGRD850').isel(time = slice(2, 4)),
+            plotting_function = "contourf",
+            col = "time",
             coastlines = True,
-            coastlines_kwargs = coastlines_kwargs,
             colorbar = True,
-            vmin = 250,
-            vmax = 300,
+            vmin = -20,
+            vmax = 20
         )
     """
-
     var_name = list(plottable_variable.data_vars)[0]
     array = plottable_variable[var_name].values
 
@@ -186,12 +168,10 @@ def plot_cube(
 
 
 def mappable_var(ds: xr.Dataset, var_name: str):
-
     """ Converts a restart or diagnostic dataset into a format for plotting
     across cubed-sphere tiles
 
     Args:
-
         ds (xr.Dataset):
             Dataset containing the variable to be plotted, along with grid spec
             information. May be created by merging
@@ -200,38 +180,24 @@ def mappable_var(ds: xr.Dataset, var_name: str):
             Name of variable to be plotted.
 
     Returns:
-
         ds (xr.Dataset):
             Dataset containing variable to be plotted as well as grid
             coordinates variables. Grid variables are renamed and ordered for
             plotting as first argument to `plot_cube`.
 
     Example:
-
-        # plots T at multiple vertical levels, faceted across subplots
-        sample_data = fv3_restarts.open_restarts(
-                '/home/brianh/dev/fv3net/data/restart/C48/20160805.170000/
-                rundir/',
-                '20160805.170000',
-                '20160805.171500'
-            )
-        grid_spec_paths = [f"/home/brianh/dev/fv3net/data/restart/C48/
-        20160805.170000/rundir/grid_spec.tile{tile}.nc" for tile in range (1,7)]
-        grid_spec = xr.open_mfdataset(paths = grid_spec_paths,
-        combine = 'nested', concat_dim = 'tile')
-        ds = xr.merge([sample_data, grid_spec])
+        # plot diag winds at two times
         axes, hs, cbar = plot_cube(
-            mappable_restart_var(ds, 'T').isel(time = 0, pfull = [78, 40]),
-            plotting_function='pcolormesh',
-            row = "pfull",
+            mappable_var(diag_ds, 'VGRD850').isel(time = slice(2, 4)),
+            plotting_function = "contourf",
+            col = "time",
             coastlines = True,
-            coastlines_kwargs = coastlines_kwargs,
             colorbar = True,
-            vmin = 250,
-            vmax = 300,
+            vmin = -20,
+            vmax = 20
+
         )
     """
-
     for var, dims in _COORD_VARS.items():
         ds[var] = ds[var].transpose(*dims)
 
@@ -258,12 +224,10 @@ def plot_cube_axes(
     ax: plt.axes = None,
     **kwargs,
 ):
-
     """ Plots tiled cubed sphere for a given subplot axis,
         using np.ndarrays for all data
 
     Args:
-
         array (np.ndarray):
             Array of variables values at cell centers, of dimensions (npy, npx,
             tile)
@@ -279,7 +243,7 @@ def plot_cube_axes(
             tile)
         plotting_function (str, optional):
             Name of matplotlib 2-d plotting function. Available options are
-            "pcolormesh", "contour", and "contourf". Defaults to plt.pcolormesh.
+            "pcolormesh", "contour", and "contourf". Defaults to "pcolormesh".
         ax (plt.axes, optional)
             Matplotlib geoaxes object onto which plotting function will be
             called. Default None uses current axes.
@@ -287,12 +251,21 @@ def plot_cube_axes(
             Keyword arguments to be passed to plotting function.
 
     Returns:
-
         p_handle (obj):
             matplotlib object handle associated with map subplot
 
+    Example:
+        _, ax = plt.subplots(1, 1, subplot_kw = {'projection': ccrs.Robinson()})
+        h = plot_cube_axes(
+            ds['T'].isel(time = 0, pfull = 40).values.transpose([1, 2, 0]),
+            ds['lat'].values,
+            ds['lon'].values,
+            ds['latb'].values,
+            ds['lonb'].values,
+            "contour",
+            ax
+        )
     """
-
     if (lon.shape[-1] != 6) or (lat.shape[-1] != 6) or (array.shape[-1] != 6):
         raise ValueError(
             """Last axis of each array must have six elements for
