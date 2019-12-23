@@ -29,6 +29,13 @@ from vcm.cubedsphere.constants import (
     COORD_Y_CENTER,
     COORD_X_OUTER,
     COORD_Y_OUTER,
+    FV_CORE_X_CENTER,
+    FV_CORE_Y_CENTER,
+    FV_CORE_X_OUTER,
+    FV_CORE_Y_OUTER,
+    FV_TRACER_X_CENTER,
+    FV_TRACER_Y_CENTER,
+    RESTART_Z_CENTER,
 )
 
 TILES = range(1, 7)
@@ -170,8 +177,8 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
         ds[area_weighted_vars],
         area,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_2",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
     )
 
     mass = delp * area
@@ -179,16 +186,16 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
         ds[mass_weighted_vars],
         mass,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_2",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
     )
 
     edge_weighted_x = edge_weighted_block_average(
         ds[dx_edge_weighted_vars],
         dx,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_OUTER,
         edge="x",
     )
 
@@ -196,8 +203,8 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
         ds[dy_edge_weighted_vars],
         dy,
         coarsening_factor,
-        x_dim="xaxis_2",
-        y_dim="yaxis_2",
+        x_dim=FV_CORE_X_OUTER,
+        y_dim=FV_CORE_Y_CENTER,
         edge="y",
     )
 
@@ -236,8 +243,8 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         delp,
         area,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_2",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
     )
 
     dx_pressure_remapped, masked_dx = remap_to_edge_weighted_pressure(
@@ -245,8 +252,8 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         delp,
         dx,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_OUTER,
         edge="x",
     )
 
@@ -255,8 +262,8 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         delp,
         dy,
         coarsening_factor,
-        x_dim="xaxis_2",
-        y_dim="yaxis_2",
+        x_dim=FV_CORE_X_OUTER,
+        y_dim=FV_CORE_Y_CENTER,
         edge="y",
     )
 
@@ -264,8 +271,8 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         ds[area_weighted_vars],
         area,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_2",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
     )
 
     masked_mass = delp * masked_area
@@ -273,16 +280,16 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         area_pressure_remapped,
         masked_mass,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_2",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
     )
 
     edge_weighted_x = edge_weighted_block_average(
         dx_pressure_remapped,
         masked_dx,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_OUTER,
         edge="x",
     )
 
@@ -290,8 +297,8 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         dy_pressure_remapped,
         masked_dy,
         coarsening_factor,
-        x_dim="xaxis_2",
-        y_dim="yaxis_2",
+        x_dim=FV_CORE_X_OUTER,
+        y_dim=FV_CORE_Y_CENTER,
         edge="y",
     )
 
@@ -332,8 +339,8 @@ def coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
         ds[area_weighted_vars],
         area,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=FV_TRACER_X_CENTER,
+        y_dim=FV_TRACER_Y_CENTER,
     )
 
     mass = delp * area
@@ -341,8 +348,8 @@ def coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
         ds[mass_weighted_vars],
         mass,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=FV_TRACER_X_CENTER,
+        y_dim=FV_TRACER_Y_CENTER,
     )
 
     return xr.merge([area_weighted, mass_weighted])
@@ -380,15 +387,20 @@ def coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
     ]
 
     ds_remapped, masked_area = remap_to_area_weighted_pressure(
-        ds, delp, area, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1",
+        ds,
+        delp,
+        area,
+        coarsening_factor,
+        x_dim=FV_TRACER_X_CENTER,
+        y_dim=FV_TRACER_Y_CENTER,
     )
 
     area_weighted = weighted_block_average(
         ds_remapped[area_weighted_vars],
         masked_area,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=FV_TRACER_X_CENTER,
+        y_dim=FV_TRACER_Y_CENTER,
     )
 
     masked_mass = delp * masked_area
@@ -396,8 +408,8 @@ def coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
         ds_remapped[mass_weighted_vars],
         masked_mass,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=FV_TRACER_X_CENTER,
+        y_dim=FV_TRACER_Y_CENTER,
     )
 
     return xr.merge([area_weighted, mass_weighted])
@@ -429,7 +441,7 @@ def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
     )
 
 
-def impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim="zaxis_1"):
+def impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim=RESTART_Z_CENTER):
     """Compute layer thicknesses assuming hydrostatic balance and adjust
     surface geopotential in order to maintain same model top height.
 
@@ -445,7 +457,7 @@ def impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim="zaxis_1"):
     height_top = height.isel({dim: 0})
     ds_fv_core["DZ"] = hydrostatic_dz(
         ds_fv_core["T"],
-        ds_fv_tracer["sphum"].rename({"yaxis_1": "yaxis_2"}),
+        ds_fv_tracer["sphum"].rename({FV_TRACER_Y_CENTER: FV_CORE_Y_CENTER}),
         ds_fv_core["delp"],
         dim=dim,
     )
@@ -564,10 +576,14 @@ def coarsen_restart_file_category(
             source,
             source.delp,
             grid_spec.area.rename(
-                {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_2"}
+                {COORD_X_CENTER: FV_CORE_X_CENTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
             ),
-            grid_spec.dx.rename({COORD_X_CENTER: "xaxis_1", COORD_Y_OUTER: "yaxis_1"}),
-            grid_spec.dy.rename({COORD_X_OUTER: "xaxis_2", COORD_Y_CENTER: "yaxis_2"}),
+            grid_spec.dx.rename(
+                {COORD_X_CENTER: FV_CORE_X_CENTER, COORD_Y_OUTER: FV_CORE_Y_OUTER}
+            ),
+            grid_spec.dy.rename(
+                {COORD_X_OUTER: FV_CORE_X_OUTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
+            ),
             coarsening_factor,
         )
     elif category == "fv_srf_wnd_coarse.res":
@@ -589,9 +605,9 @@ def coarsen_restart_file_category(
         )
         coarsened = coarse_grain_fv_tracer(
             source,
-            fv_core.delp.rename({"yaxis_2": "yaxis_1"}),
+            fv_core.delp.rename({FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}),
             grid_spec.area.rename(
-                {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
+                {COORD_X_CENTER: FV_TRACER_X_CENTER, COORD_Y_CENTER: FV_TRACER_Y_CENTER}
             ),
             coarsening_factor,
         )
