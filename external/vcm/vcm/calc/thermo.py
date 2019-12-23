@@ -16,22 +16,23 @@ def pressure_at_interface(
     delp, toa_pressure=TOA_PRESSURE, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER
 ):
     """ Compute pressure at layer interfaces """
-    top = xr.full_like(delp.isel({dim_center: [0]}), toa_pressure)
-    delp_with_top = xr.concat([top, delp], dim=dim_center)
-    return delp_with_top.cumsum(dim_center).rename({dim_center: dim_outer})
+    top = xr.full_like(delp.isel({dim_center: [0]}), toa_pressure).variable
+    delp_with_top = top.concat([top, delp.variable], dim=dim_center)
+    return xr.DataArray(delp_with_top.cumsum(dim_center)).rename(
+        {dim_center: dim_outer}
+    )
 
 
 def height_at_interface(dz, phis, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER):
     """ Compute geopotential height at layer interfaces """
     bottom = phis.broadcast_like(dz.isel({dim_center: [0]})) / GRAVITY
-    dz_with_bottom = xr.concat([-dz, bottom], dim=dim_center)
-    print(dz_with_bottom.sizes)
-    height = (
+    dzv = -dz.variable  # dz is negative in model
+    dz_with_bottom = dzv.concat([dzv, bottom], dim=dim_center)
+    return xr.DataArray(
         dz_with_bottom.isel({dim_center: REVERSE})
         .cumsum(dim_center)
         .isel({dim_center: REVERSE})
-    )
-    return height.rename({dim_center: dim_outer})
+    ).rename({dim_center: dim_outer})
 
 
 def pressure_at_midpoint(delp, dim=COORD_Z_CENTER):

@@ -142,8 +142,8 @@ def _remap_given_delp(
         )
 
     masked_weights = weights.where(
-        phalf_coarse_on_fine.isel({z_dim: slice(1, None)})
-        < phalf_fine.isel({z_dim: -1}),
+        phalf_coarse_on_fine.isel({RESTART_Z_OUTER: slice(1, None)})
+        < phalf_fine.isel({RESTART_Z_OUTER: -1}),
         other=0.0,
     )
 
