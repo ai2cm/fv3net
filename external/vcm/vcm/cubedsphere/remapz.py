@@ -175,7 +175,7 @@ def remap_levels(p_in, f_in, p_out, iv=1, kord=1, z_dim=RESTART_Z_CENTER):
         )
 
     # reshape for mappm
-    dims_except_z = f_in.isel(z_dim=0).dims
+    dims_except_z = f_in.isel({z_dim: 0}).dims
     p_in = p_in.stack(column=dims_except_z).transpose("column", z_dim)
     f_in = f_in.stack(column=dims_except_z).transpose("column", z_dim)
     p_out = p_out.stack(column=dims_except_z).transpose("column", z_dim)
@@ -188,7 +188,7 @@ def remap_levels(p_in, f_in, p_out, iv=1, kord=1, z_dim=RESTART_Z_CENTER):
         f_in.sizes[z_dim] == p_in.sizes[z_dim] - 1
     ), "f_in must have a vertical dimension one shorter than p_in"
 
-    f_out = xr.zeros_like(f_in)
+    f_out = xr.zeros_like(p_out.isel({z_dim: slice(0, -1)}))
     # the final argument to mappm is unused by the subroutine
     f_out.values = mappm.mappm(
         p_in.values, f_in.values, p_out.values, 1, n_columns, iv, kord, 0.0
