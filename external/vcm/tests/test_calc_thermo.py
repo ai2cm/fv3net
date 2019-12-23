@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 from vcm.calc.thermo import (
-    gravity,
+    GRAVITY,
     pressure_at_interface,
     height_at_interface,
     _interface_to_midpoint,
@@ -38,4 +38,4 @@ def test_dz_and_top_to_phis():
     dz = np.arange(-4, -1)
     dza = xr.DataArray(dz, dims=[COORD_Z_CENTER])
     phis = dz_and_top_to_phis(top, dza)
-    np.testing.assert_allclose(phis.values / gravity, top + np.sum(dz))
+    np.testing.assert_allclose(phis.values / GRAVITY, top + np.sum(dz))
