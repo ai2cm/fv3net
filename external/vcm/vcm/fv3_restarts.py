@@ -33,13 +33,6 @@ Y_EDGE_NAME = COORD_Y_OUTER
 Z_NAME = "pfull"
 Z_EDGE_NAME = "phalf"
 
-DIAG_FILE_CATEGORIES = [
-    "atmos_8xdaily",
-    "atmos_dt_atmos",
-    "atmos_static",
-    "sfc_dt_atmos",
-]
-
 
 def open_restarts(
     url: str, initial_time: str, final_time: str, grid: Dict[str, int] = None
@@ -271,38 +264,3 @@ def _load_arrays(
         time_obj = _parse_time_string(time)
         for var in ds_correct_metadata:
             yield var, (time_obj, tile), ds_correct_metadata[var]
-
-
-def open_standard_diags(rundir: str):
-
-    """ Opens a set of diagnostic outputs from a model run
-
-    Args:
-
-        rundir (str):
-            Relative path to run directory containing diagnostic outputs
-
-    Returns:
-
-        ds (xr.Dataset):
-            Dataset containing diagnostic variables merged across tiles and
-            categories
-
-    Example:
-
-        ds = open_standard_diags(
-            "/home/brianh/dev/fv3net/data/restart/C48/no_adjustment_2019-11-26"
-        )
-
-    """
-
-    return xr.merge(
-        [
-            xr.open_mfdataset(
-                [join(rundir, category + f".tile{tile}.nc") for tile in range(1, 7)],
-                combine="nested",
-                concat_dim="tile",
-            )
-            for category in DIAG_FILE_CATEGORIES
-        ]
-    )

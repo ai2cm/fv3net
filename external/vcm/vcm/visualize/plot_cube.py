@@ -240,10 +240,6 @@ def mappable_var(ds: xr.Dataset, var_name: str):
     xpose_dims = first_dims + rest
     new_ds = ds[[var_name]].copy().transpose(*xpose_dims)
 
-    #     new_ds = (
-    #         ds[[var_name]].copy().transpose(COORD_Y_CENTER, COORD_X_CENTER, "tile", ...)
-    #     )
-
     for grid_var in _COORD_VARS:
         new_ds = new_ds.assign_coords(coords={grid_var: ds[grid_var]})
 
