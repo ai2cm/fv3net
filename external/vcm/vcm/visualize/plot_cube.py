@@ -180,8 +180,13 @@ def plot_cube(
         if not ax:
             f, ax = plt.subplots(1, 1, subplot_kw={"projection": projection})
         handle = _plot_func_short(array)
-        axes = [ax]
+        axes = np.array(ax)
         handles = [handle]
+
+    if coastlines:
+        print(axes)
+        coastlines_kwargs = dict() if not coastlines_kwargs else coastlines_kwargs
+        [ax.coastlines(**coastlines_kwargs) for ax in axes.flatten()]
 
     if colorbar:
         plt.gcf().subplots_adjust(
@@ -313,11 +318,6 @@ def plot_cube_axes(
         lonb (np.ndarray):
             Array of longitudes of cell edges, of dimensions (npy + 1, npx + 1,
             tile)
-        coastlines (bool, optinal):
-            Whether to plot coastlines on map. Default True.
-        coastlines_kwargs (dict, optional):
-            Dict of options to be passed to cartopy axes's `coastline` function
-            if `coastlines` flag is set to True.
         title (str, optional):
             Title text of subplot. Defaults to None.
         **kwargs:
@@ -412,9 +412,5 @@ def plot_cube_axes(
             )
 
     ax.set_global()
-
-    if coastlines:
-        coastlines_kwargs = dict() if not coastlines_kwargs else coastlines_kwargs
-        ax.coastlines(**coastlines_kwargs)
 
     return p_handle
