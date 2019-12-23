@@ -156,8 +156,6 @@ def plot_cube(
         latb=plottable_variable.latb.values,
         lonb=plottable_variable.lonb.values,
         plotting_function=plotting_function,
-        coastlines=coastlines,
-        coastlines_kwargs=coastlines_kwargs,
         **kwargs,
     )
 
@@ -184,7 +182,6 @@ def plot_cube(
         handles = [handle]
 
     if coastlines:
-        print(axes)
         coastlines_kwargs = dict() if not coastlines_kwargs else coastlines_kwargs
         [ax.coastlines(**coastlines_kwargs) for ax in axes.flatten()]
 
@@ -294,9 +291,7 @@ def plot_cube_axes(
     latb: np.ndarray,
     lonb: np.ndarray,
     plotting_function: str,
-    coastlines: bool = False,
-    coastlines_kwargs: dict = None,
-    title: str = None,
+    ax: plt.axes = None,
     **kwargs,
 ):
 
@@ -318,8 +313,9 @@ def plot_cube_axes(
         lonb (np.ndarray):
             Array of longitudes of cell edges, of dimensions (npy + 1, npx + 1,
             tile)
-        title (str, optional):
-            Title text of subplot. Defaults to None.
+        ax (plt.axes, optional)
+            Matplotlib geoaxes object onto which plotting function will be
+            called. Default None uses current axes.
         **kwargs:
             Keyword arguments to be passed to plotting function.
 
@@ -343,7 +339,7 @@ def plot_cube_axes(
         or (lat.shape[1] != array.shape[1])
     ):
         raise ValueError(
-            """First and second axes lengths of lat and lonb must be equal to
+            """First and second axes lengths of lat and lon must be equal to
             those of array."""
         )
 
@@ -369,7 +365,8 @@ def plot_cube_axes(
     if (len(lon.shape) != 3) or (len(lat.shape) != 3) or (len(array.shape) != 3):
         raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
 
-    ax = plt.gca()
+    if ax is None:
+        ax = plt.gca()
 
     if plotting_function in [plt.pcolormesh, plt.contour, plt.contourf]:
         setattr(ax, "plotting_function", plotting_function)
@@ -378,6 +375,19 @@ def plot_cube_axes(
             """Plotting functions only include plt.pcolormesh, plt.contour,
             and plt.contourf."""
         )
+
+    if "vmin" not in kwargs:
+        kwargs["vmin"] = np.nanmin(array)
+
+    if "vmax" not in kwargs:
+        kwargs["vmax"] = np.nanmax(array)
+
+    if plotting_function != plt.pcolormesh:
+        if "levels" not in kwargs:
+            kwargs["n_levels"] = 11 if "n_levels" not in kwargs else kwargs["n_levels"]
+            kwargs["levels"] = np.linspace(
+                kwargs["vmin"], kwargs["vmax"], kwargs["n_levels"]
+            )
 
     central_longitude = ax.projection.proj4_params["lon_0"]
 
@@ -398,13 +408,6 @@ def plot_cube_axes(
                 lon_tile - 360.0,
             )
             y = lat[:, :, tile]
-            if "levels" not in kwargs:
-                kwargs["n_levels"] = (
-                    11 if "n_levels" not in kwargs else kwargs["n_levels"]
-                )
-                kwargs["levels"] = np.linspace(
-                    kwargs["vmin"], kwargs["vmax"], kwargs["n_levels"]
-                )
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             p_handle = ax.plotting_function(
