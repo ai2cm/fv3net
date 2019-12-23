@@ -308,12 +308,8 @@ def plot_cube_axes(
     if ax is None:
         ax = plt.gca()
 
-    if plotting_function == "pcolormesh":
-        _plotting_function = plt.pcolormesh
-    elif plotting_function == "contour":
-        _plotting_function = plt.contour
-    elif plotting_function == "contourf":
-        _plotting_function = plt.contourf
+    if plotting_function in ["pcolormesh", "contour", "contourf"]:
+        _plotting_function = getattr(ax, plotting_function)
     else:
         raise ValueError(
             """Plotting functions only include pcolormesh, contour,
@@ -326,7 +322,7 @@ def plot_cube_axes(
     if "vmax" not in kwargs:
         kwargs["vmax"] = np.nanmax(array)
 
-    if _plotting_function != plt.pcolormesh:
+    if plotting_function != "pcolormesh":
         if "levels" not in kwargs:
             kwargs["n_levels"] = 11 if "n_levels" not in kwargs else kwargs["n_levels"]
             kwargs["levels"] = np.linspace(
@@ -340,7 +336,7 @@ def plot_cube_axes(
     )
 
     for tile in range(6):
-        if _plotting_function == plt.pcolormesh:
+        if plotting_function == "pcolormesh":
             x = lonb[:, :, tile]
             y = latb[:, :, tile]
         else:
