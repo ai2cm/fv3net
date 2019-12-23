@@ -7,27 +7,29 @@ from vcm.calc.thermo import (
     _interface_to_midpoint,
     dz_and_top_to_phis,
 )
-from vcm.cubedsphere.constants import COORD_Z_CENTER
+from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 
 
 def test_pressure_on_interface():
     delp = xr.DataArray(np.arange(1, 10), dims=[COORD_Z_CENTER])
-    pabs = pressure_at_interface(delp)
-    pabs = xr.DataArray(pabs)
-    xr.testing.assert_allclose(pabs.diff(COORD_Z_CENTER), delp)
+    pressure = pressure_at_interface(delp)
+    xr.testing.assert_allclose(
+        pressure.diff(COORD_Z_OUTER), delp.rename({COORD_Z_CENTER: COORD_Z_OUTER})
+    )
 
 
 def test_height_on_interface():
     dz = xr.DataArray(np.arange(1, 10), dims=[COORD_Z_CENTER])
     phis = xr.DataArray(0)
-    zabs = height_at_interface(dz, phis)
-    zabs = xr.DataArray(zabs)
-    xr.testing.assert_allclose(zabs.diff(COORD_Z_CENTER), dz)
+    height = height_at_interface(dz, phis)
+    xr.testing.assert_allclose(
+        height.diff(COORD_Z_OUTER), dz.rename({COORD_Z_CENTER: COORD_Z_OUTER})
+    )
 
 
 def test__interface_to_midpoint():
-    interface = xr.DataArray(np.arange(1, 10), dims=[COORD_Z_CENTER])
-    midpoint = _interface_to_midpoint(interface, dim=COORD_Z_CENTER)
+    interface = xr.DataArray(np.arange(1, 10), dims=[COORD_Z_OUTER])
+    midpoint = _interface_to_midpoint(interface)
     xr.testing.assert_allclose(
         xr.DataArray(np.arange(1.5, 9), dims=[COORD_Z_CENTER]), midpoint
     )
