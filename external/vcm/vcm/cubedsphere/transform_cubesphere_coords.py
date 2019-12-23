@@ -163,7 +163,7 @@ def _get_local_basis_in_spherical_coords(grid):
     )
 
 
-def get_rotated_centered_winds(ds: xr.Dataset):
+def get_rotated_centered_winds_from_restarts(ds: xr.Dataset):
 
     """ Get rotated and centered winds from restart wind variables
 
