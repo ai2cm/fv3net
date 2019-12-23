@@ -10,14 +10,13 @@ from vcm.visualize.masking import _mask_antimeridian_quads
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
+import warnings
+from functools import partial
 
 try:
     from cartopy import crs as ccrs
 except ImportError:
     pass
-import warnings
-from functools import partial
-from typing import Callable
 
 
 # globals
@@ -46,7 +45,7 @@ COORD_NAME_MAPPING = {
 
 def plot_cube(
     plottable_variable: xr.Dataset,
-    plotting_function: Callable = plt.pcolormesh,
+    plotting_function: str = "pcolormesh",
     ax: plt.axes = None,
     row: str = None,
     col: str = None,
@@ -69,10 +68,9 @@ def plot_cube(
             merged to a dataset of grid spec variables, or the output of
             vcm.fv3_restarts.open_standard_diags`, along with the name of
             the variable to be plotted.
-        plotting_function (Callable, optional):
-            Matplotlib 2-d plotting function to use in plotting the variable.
-            Available options are plt.pcolormesh,  plt.contour, and
-            plt.contourf. Defaults to plt.pcolormesh.
+        plotting_function (str, optional):
+            Name of matplotlib 2-d plotting function. Available options are
+            "pcolormesh", "contour", and "contourf". Defaults to plt.pcolormesh.
         ax (plt.axes, optional):
             Axes onto which the map should be plotted; must be created with
             a cartopy projection argument. If not supplied, axes are generated
@@ -313,6 +311,9 @@ def plot_cube_axes(
         lonb (np.ndarray):
             Array of longitudes of cell edges, of dimensions (npy + 1, npx + 1,
             tile)
+        plotting_function (str, optional):
+            Name of matplotlib 2-d plotting function. Available options are
+            "pcolormesh", "contour", and "contourf". Defaults to plt.pcolormesh.
         ax (plt.axes, optional)
             Matplotlib geoaxes object onto which plotting function will be
             called. Default None uses current axes.
@@ -368,12 +369,16 @@ def plot_cube_axes(
     if ax is None:
         ax = plt.gca()
 
-    if plotting_function in [plt.pcolormesh, plt.contour, plt.contourf]:
-        setattr(ax, "plotting_function", plotting_function)
+    if plotting_function == "pcolormesh":
+        _plotting_function = plt.pcolormesh
+    elif plotting_function == "contour":
+        _plotting_function = plt.contour
+    elif plotting_function == "contourf":
+        _plotting_function = plt.contourf
     else:
         raise ValueError(
-            """Plotting functions only include plt.pcolormesh, plt.contour,
-            and plt.contourf."""
+            """Plotting functions only include pcolormesh, contour,
+            and contourf."""
         )
 
     if "vmin" not in kwargs:
@@ -382,7 +387,7 @@ def plot_cube_axes(
     if "vmax" not in kwargs:
         kwargs["vmax"] = np.nanmax(array)
 
-    if plotting_function != plt.pcolormesh:
+    if _plotting_function != plt.pcolormesh:
         if "levels" not in kwargs:
             kwargs["n_levels"] = 11 if "n_levels" not in kwargs else kwargs["n_levels"]
             kwargs["levels"] = np.linspace(
@@ -396,7 +401,7 @@ def plot_cube_axes(
     )
 
     for tile in range(6):
-        if ax.plotting_function == plt.pcolormesh:
+        if _plotting_function == plt.pcolormesh:
             x = lonb[:, :, tile]
             y = latb[:, :, tile]
         else:
@@ -410,7 +415,7 @@ def plot_cube_axes(
             y = lat[:, :, tile]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            p_handle = ax.plotting_function(
+            p_handle = _plotting_function(
                 x, y, masked_array[:, :, tile], transform=ccrs.PlateCarree(), **kwargs
             )
 
