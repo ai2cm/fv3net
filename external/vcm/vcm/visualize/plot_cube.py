@@ -3,8 +3,11 @@ from vcm.cubedsphere.constants import (
     COORD_Y_CENTER,
     COORD_X_OUTER,
     COORD_Y_OUTER,
+    VAR_LON_CENTER,
+    VAR_LAT_CENTER,
+    VAR_LON_OUTER,
+    VAR_LAT_OUTER,
 )
-from vcm.cubedsphere.transform_cubesphere_coords import get_rotated_centered_winds
 from vcm.visualize.plot_helpers import _infer_color_limits, _get_var_label
 from vcm.visualize.masking import _mask_antimeridian_quads
 import xarray as xr
@@ -19,27 +22,13 @@ except ImportError:
     pass
 
 
-# globals
+# global
 
-RESTART_COORD_VARS = {
-    "grid_lon": [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
-    "grid_lat": [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
-    "grid_lont": [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
-    "grid_latt": [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
-}
-
-DIAG_COORD_VARS = {
-    "lonb": [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
-    "latb": [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
-    "lon": [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
-    "lat": [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
-}
-
-COORD_NAME_MAPPING = {
-    "grid_lon": "lonb",
-    "grid_lat": "latb",
-    "grid_lont": "lon",
-    "grid_latt": "lat",
+_COORD_VARS = {
+    VAR_LON_OUTER: [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
+    VAR_LAT_OUTER: [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
+    VAR_LON_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
+    VAR_LAT_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
 }
 
 
@@ -196,7 +185,7 @@ def plot_cube(
     return axes, handles, cbar
 
 
-def mappable_var(ds: xr.Dataset, var_name: str, ds_type: str = "restart"):
+def mappable_var(ds: xr.Dataset, var_name: str):
 
     """ Converts a restart or diagnostic dataset into a format for plotting
     across cubed-sphere tiles
@@ -205,14 +194,10 @@ def mappable_var(ds: xr.Dataset, var_name: str, ds_type: str = "restart"):
 
         ds (xr.Dataset):
             Dataset containing the variable to be plotted, along with grid spec
-            information. Assumed to be created by merging
-            `fv3_restarts.open_restarts` output and grid spec tiles, or
-            `fv3_restarts.open_standard_diags`.
+            information. May be created by merging
+            `fv3_restarts.open_restarts` output and grid spec tiles.
         var_name (str):
             Name of variable to be plotted.
-        ds_type (str, optional):
-            A string indicating the type of dataset ('restart' or 'diag')
-            from which the variable is being plotted. Defaults to 'restart'.
 
     Returns:
 
@@ -247,35 +232,15 @@ def mappable_var(ds: xr.Dataset, var_name: str, ds_type: str = "restart"):
         )
     """
 
-    if ds_type not in ["restart", "diag"]:
-        raise ValueError('ds_type must be "restart" or "diag".')
-
-    if ds_type == "restart":
-        coord_dict = RESTART_COORD_VARS
-    else:
-        coord_dict = DIAG_COORD_VARS
-
-    for var, dims in coord_dict.items():
+    for var, dims in _COORD_VARS.items():
         ds[var] = ds[var].transpose(*dims)
-
-    if var_name in ["u", "v"] and ds_type == "restart":
-
-        u_r, v_r = get_rotated_centered_winds(ds)
-
-        if var_name == "u":
-            ds = ds.assign({var_name: u_r})
-        else:
-            ds = ds.assign({var_name: v_r})
 
     new_ds = (
         ds[[var_name]].copy().transpose(COORD_Y_CENTER, COORD_X_CENTER, "tile", ...)
     )
 
-    for restart_name, diag_name in COORD_NAME_MAPPING.items():
-        if ds_type == "restart":
-            new_ds = new_ds.assign_coords(coords={diag_name: ds[restart_name]})
-        else:
-            new_ds = new_ds.assign_coords(coords={diag_name: ds[diag_name]})
+    for grid_var in _COORD_VARS:
+        new_ds = new_ds.assign_coords(coords={grid_var: ds[grid_var]})
 
     return new_ds.drop(
         labels=[COORD_Y_CENTER, COORD_X_CENTER, COORD_Y_OUTER, COORD_X_OUTER]
