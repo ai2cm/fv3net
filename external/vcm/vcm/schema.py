@@ -36,14 +36,15 @@ class Schema:
 
         if self.dims[0] is ...:
             dims = self.dims[1:]
-            dims = tuple(arr.dims[:-len(dims)]) + tuple(dims)
+            dims = tuple(arr.dims[: -len(dims)]) + tuple(dims)
         else:
             dims = self.dims
 
         if len(dims) != len(arr.dims):
-            raise ValueError("schema dimensions must have the same length as "
-                             "arr or begin with ``...``")
-
+            raise ValueError(
+                "schema dimensions must have the same length as "
+                "arr or begin with ``...``"
+            )
 
         rename_dict = dict(zip(arr.dims, dims))
         return arr.rename(rename_dict)
