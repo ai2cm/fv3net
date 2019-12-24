@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import xarray as xr
 from vcm.calc.thermo import (
     GRAVITY,
@@ -10,21 +11,37 @@ from vcm.calc.thermo import (
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 
 
-def test_pressure_on_interface():
-    delp = xr.DataArray(np.arange(1, 10), dims=[COORD_Z_CENTER])
-    pressure = pressure_at_interface(delp)
-    xr.testing.assert_allclose(
-        pressure.diff(COORD_Z_OUTER), delp.rename({COORD_Z_CENTER: COORD_Z_OUTER})
+@pytest.mark.parametrize("toa_pressure", [0, 5])
+def test_pressure_on_interface(toa_pressure):
+    delp = xr.DataArray(
+        np.arange(1, 10),
+        dims=[COORD_Z_CENTER],
+        coords={COORD_Z_CENTER: np.arange(1, 10)},
     )
+    pressure = pressure_at_interface(delp, toa_pressure=toa_pressure)
+    pressure_expected = xr.DataArray(
+        np.cumsum(np.concatenate(([toa_pressure], delp.values))),
+        dims=[COORD_Z_OUTER],
+        coords={COORD_Z_OUTER: np.arange(1, 11)},
+    )
+    xr.testing.assert_allclose(pressure, pressure_expected)
 
 
-def test_height_on_interface():
-    dz = xr.DataArray(np.arange(1, 10), dims=[COORD_Z_CENTER])
-    phis = xr.DataArray(0)
+@pytest.mark.parametrize("phis_value", [0, 5])
+def test_height_on_interface(phis_value):
+    dz = xr.DataArray(
+        np.arange(1, 10),
+        dims=[COORD_Z_CENTER],
+        coords={COORD_Z_CENTER: np.arange(1, 10)},
+    )
+    phis = xr.DataArray(phis_value)
     height = height_at_interface(dz, phis)
-    xr.testing.assert_allclose(
-        height.diff(COORD_Z_OUTER), dz.rename({COORD_Z_CENTER: COORD_Z_OUTER})
+    height_expected = xr.DataArray(
+        np.cumsum(np.concatenate(([phis_value / GRAVITY], -dz.values[::-1])))[::-1],
+        dims=[COORD_Z_OUTER],
+        coords={COORD_Z_OUTER: np.arange(1, 11)},
     )
+    xr.testing.assert_allclose(height, height_expected)
 
 
 def test__interface_to_midpoint():
