@@ -6,6 +6,12 @@ from dataclasses import dataclass
 
 @dataclass
 class Schema:
+    """An object for representing the metadata, dimensions, and dtype of a DataArray
+
+    Attributes:
+        dims: a list of dimension names. If this begins with ``...``, then any data array ending with the dimensions after "..." will validate against this schema.
+    
+    """
     dims: Sequence[Any]
     dtype: np.dtype
 
