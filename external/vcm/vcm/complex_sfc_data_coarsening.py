@@ -30,7 +30,7 @@ def coarse_grain_sfc_data_complex(
 
     https://paper.dropbox.com/doc/Downsampling-restart-fields-for-the-
     Noah-land-surface-model--Ap8z8JnU1OH4HwNZ~PY4z~p~Ag-OgkIEYSn0g4X9CCZxn5dy
-    
+
     for a description of what this procedure does.
 
     Args:
@@ -407,7 +407,7 @@ def _zero_shdmin_over_land_ice(ds: xr.Dataset) -> xr.Dataset:
 def _apply_surface_chgres_corrections(ds: xr.Dataset) -> xr.Dataset:
     """This function applies the corrections noted in surface_chgres.F90
     to the variables in the coarsened surface Dataset.
-    
+
     See https://github.com/VulcanClimateModeling/fv3gfs/blob/
     master/sorc/global_chgres.fd/surface_chgres.f90 for more information.
     """
@@ -433,7 +433,7 @@ def _block_upsample_like(
         produces chunk sizes that are too small for good performance when
         applied to dask arrays.
       - Adds horizontal dimension coordinates that match the reference DataArray.
-    
+
     As other block-related functions, this function assumes that the upsampling
     factor is the same in the x and y dimension.
     """
