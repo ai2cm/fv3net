@@ -32,7 +32,7 @@ def remap_to_area_weighted_pressure(
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
-):
+) -> (xr.Dataset, xr.DataArray):
     """ Vertically remap a dataset of cell-centered quantities to coarsened
     pressure levels.
 
@@ -73,7 +73,7 @@ def remap_to_edge_weighted_pressure(
     y_dim: str = FV_CORE_Y_OUTER,
     z_dim: str = RESTART_Z_CENTER,
     edge: str = "x",
-):
+) -> (xr.Dataset, xr.DataArray):
     """ Vertically remap a dataset of edge-valued quantities to coarsened
     pressure levels.
 
@@ -128,7 +128,7 @@ def _remap_given_delp(
     """Given a fine and coarse delp, do vertical remapping to coarse pressure levels
     and mask weights below fine surface pressure.
     """
-    delp_coarse_on_fine = block_upsample(delp_coarse, coarsening_factor, [x_dim, y_dim])
+    delp_coarse_on_fine = block_upsample(delp_coarse, coarsening_factor, [y_dim, x_dim])
     phalf_coarse_on_fine = pressure_at_interface(
         delp_coarse_on_fine, dim_center=z_dim, dim_outer=RESTART_Z_OUTER
     )
@@ -142,24 +142,36 @@ def _remap_given_delp(
             phalf_fine, ds[var], phalf_coarse_on_fine, z_dim_center=z_dim
         )
 
-    masked_weights = weights.where(
-        phalf_coarse_on_fine.isel({RESTART_Z_OUTER: slice(1, None)}).variable
-        < phalf_fine.isel({RESTART_Z_OUTER: -1}).variable,
-        other=0.0,
+    masked_weights = _mask_weights(
+        weights, phalf_coarse_on_fine, phalf_fine, dim_center=z_dim,
     )
 
     return ds_remap, masked_weights
 
 
-def remap_levels(
-    p_in,
-    f_in,
-    p_out,
-    iv=1,
-    kord=1,
-    z_dim_center=RESTART_Z_CENTER,
-    z_dim_outer=RESTART_Z_OUTER,
+def _mask_weights(
+    weights,
+    phalf_coarse_on_fine,
+    phalf_fine,
+    dim_center=RESTART_Z_CENTER,
+    dim_outer=RESTART_Z_OUTER,
 ):
+    return weights.where(
+        phalf_coarse_on_fine.isel({dim_outer: slice(1, None)}).variable
+        < phalf_fine.isel({dim_outer: -1}).variable,
+        other=0.0,
+    ).rename({dim_outer: dim_center})
+
+
+def remap_levels(
+    p_in: xr.DataArray,
+    f_in: xr.DataArray,
+    p_out: xr.DataArray,
+    iv: int = 1,
+    kord: int = 1,
+    z_dim_center: str = RESTART_Z_CENTER,
+    z_dim_outer: str = RESTART_Z_OUTER,
+) -> xr.DataArray:
     """Do vertical remapping using Fortran mappm subroutine.
 
     Args:
@@ -190,18 +202,16 @@ def remap_levels(
             "mappm must be installed to use remap_levels. "
             "Try `pip install vcm/external/mappm`. Requires a Fortran compiler."
         )
-
-    f_out = xr.zeros_like(p_out.isel({z_dim_outer: slice(0, -1)})).rename(
-        {z_dim_outer: z_dim_center}
-    )
-    f_out_dims = f_out.dims
-
-    # reshape for mappm
+    f_in_dims = f_in.dims
     dims_except_z = f_in.isel({z_dim_center: 0}).dims
+    # ensure dims are in same order for all inputs
+    p_in = p_in.transpose(*dims_except_z, z_dim_outer)
+    p_out = p_out.transpose(*dims_except_z, z_dim_outer)
+    f_in = f_in.transpose(*dims_except_z, z_dim_center)
+    # reshape to 2D array for mappm
     p_in = p_in.stack(column=dims_except_z).transpose("column", z_dim_outer)
     p_out = p_out.stack(column=dims_except_z).transpose("column", z_dim_outer)
     f_in = f_in.stack(column=dims_except_z).transpose("column", z_dim_center)
-    f_out = f_out.stack(column=dims_except_z).transpose("column", z_dim_center)
 
     n_columns = p_in.sizes["column"]
     assert (
@@ -211,8 +221,11 @@ def remap_levels(
         f_in.sizes[z_dim_center] == p_in.sizes[z_dim_outer] - 1
     ), "f_in must have a vertical dimension one shorter than p_in"
 
+    f_out = xr.zeros_like(p_out.isel({z_dim_outer: slice(0, -1)})).rename(
+        {z_dim_outer: z_dim_center}
+    )
     # the final argument to mappm is unused by the subroutine
     f_out.values = mappm.mappm(
         p_in.values, f_in.values, p_out.values, 1, n_columns, iv, kord, 0.0
     )
-    return f_out.unstack().transpose(*f_out_dims)
+    return f_out.unstack().transpose(*f_in_dims)
