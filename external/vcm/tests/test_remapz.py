@@ -3,13 +3,6 @@ import pytest
 import xarray as xr
 from vcm.cubedsphere.remapz import remap_levels
 
-try:
-    import mappm
-except:
-    mappm_import_failed = True
-else:
-    mappm_import_failed = False
-
 
 def input_dataarray(shape):
     data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
@@ -29,11 +22,12 @@ def input_dataarray(shape):
     ],
 )
 def test_remap_levels(p_in_shape, f_in_shape, p_out_shape, expected):
-    if mappm_import_failed:
-        pytest.skip("mappm import failed. Skipping test_remap_levels.")
     p_in = input_dataarray(p_in_shape)
     f_in = input_dataarray(f_in_shape)
     p_out = input_dataarray(p_out_shape)
-    f_out = remap_levels(p_in, f_in, p_out, z_dim_center="z", z_dim_outer="z")
+    try:
+        f_out = remap_levels(p_in, f_in, p_out, z_dim_center="z", z_dim_outer="z")
+    except ImportError:
+        pytest.skip("mappm import failed. Skipping test_remap_levels.")
     f_out = f_out.transpose(*f_in.dims)
     assert f_out.shape == expected

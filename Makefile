@@ -76,7 +76,8 @@ PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 
 lint:
 	black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
-	flake8 $(PYTHON_FILES)
+	# ignore E203 whitespace before ':' since black inconsistent with this
+	flake8 --ignore=E203 $(PYTHON_FILES)
 	# ignore unused import error in __init__.py files
 	flake8 --ignore=F401 $(PYTHON_INIT_FILES)
 	@echo "LINTING SUCCESSFUL"
