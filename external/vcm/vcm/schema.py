@@ -22,7 +22,7 @@ class Schema:
     def from_dataarray(data: xr.DataArray) -> "Schema":
         return Schema(data.dims, data.dtype)
 
-    def validate(self, data: xr.DataArray):
+    def validate(self, data: xr.DataArray) -> bool:
         pass
 
     def rename(self, arr: xr.DataArray) -> xr.DataArray:
@@ -33,10 +33,20 @@ class Schema:
                 dimensions
         
         """
+
         if self.dims[0] is ...:
-            schema_dims = self.dims[1:]
-            dims = arr.dims[: -len(schema_dims)] + schema_dims
-        return xr.DataArray(arr.data, dims=dims)
+            dims = self.dims[1:]
+            dims = tuple(arr.dims[:-len(dims)]) + tuple(dims)
+        else:
+            dims = self.dims
+
+        if len(dims) != len(arr.dims):
+            raise ValueError("schema dimensions must have the same length as "
+                             "arr or begin with ``...``")
+
+
+        rename_dict = dict(zip(arr.dims, dims))
+        return arr.rename(rename_dict)
 
 
 def dataset_to_schema(ds: xr.Dataset) -> Mapping[Any, Schema]:
