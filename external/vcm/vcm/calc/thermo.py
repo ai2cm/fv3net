@@ -18,9 +18,8 @@ def pressure_at_interface(
     """ Compute pressure at layer interfaces """
     top = xr.full_like(delp.isel({dim_center: [0]}), toa_pressure).variable
     delp_with_top = top.concat([top, delp.variable], dim=dim_center)
-    return xr.DataArray(delp_with_top.cumsum(dim_center)).rename(
-        {dim_center: dim_outer}
-    )
+    pressure = delp_with_top.cumsum(dim_center)
+    return _add_coords(pressure, delp, dim_center=dim_center, dim_outer=dim_outer)
 
 
 def height_at_interface(dz, phis, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER):
@@ -28,11 +27,25 @@ def height_at_interface(dz, phis, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_O
     bottom = phis.broadcast_like(dz.isel({dim_center: [0]})) / GRAVITY
     dzv = -dz.variable  # dz is negative in model
     dz_with_bottom = dzv.concat([dzv, bottom], dim=dim_center)
-    return xr.DataArray(
+    height = (
         dz_with_bottom.isel({dim_center: REVERSE})
         .cumsum(dim_center)
         .isel({dim_center: REVERSE})
+    )
+    return _add_coords(height, dz, dim_center=dim_center, dim_outer=dim_outer)
+
+
+def _add_coords(dv, da, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER):
+    coords_except_z = da.drop(dim_center).coords
+    z_coord_center = da.coords[dim_center]
+    z_coord_outer = xr.concat(
+        [z_coord_center, 1 + z_coord_center.isel({dim_center: [-1]})], dim=dim_center
     ).rename({dim_center: dim_outer})
+    return (
+        xr.DataArray(dv, coords=coords_except_z)
+        .rename({dim_center: dim_outer})
+        .assign_coords({dim_outer: z_coord_outer})
+    )
 
 
 def pressure_at_midpoint(delp, dim=COORD_Z_CENTER):
@@ -66,11 +79,11 @@ def pressure_at_midpoint_log(delp, dim=COORD_Z_CENTER):
 
 def hydrostatic_dz(T, q, delp, dim=COORD_Z_CENTER):
     """ Compute layer thickness assuming hydrostatic balance """
-    pi = pressure_at_interface(delp, dim_center=dim)
+    pi = pressure_at_interface(delp, dim_center=dim, dim_outer=dim)
     epsilon = RDGAS / RVGAS
     tv = T * (1 + q / epsilon) / (1 + q)
     # tv = (1 + 0.61 * q) * T
-    dlogp = xr.DataArray(np.log(pi)).diff(dim)
+    dlogp = np.log(pi).diff(dim)
     return -dlogp * RDGAS * tv / GRAVITY
 
 
