@@ -84,6 +84,7 @@ def remap_to_edge_weighted_pressure(
         coarsening_factor (int): coarsening-factor for pressure levels
         x_dim (str, optional): x-dimension name. Defaults to "xaxis_1"
         y_dim (str, optional): y-dimension name. Defaults to "yaxis_1"
+        z_dim (str, optional): z-dimension name. Defaults to "zaxis_1"
         edge (str, optional): grid cell side to coarse-grain along {"x", "y"}
 
     Returns:
@@ -142,10 +143,8 @@ def _remap_given_delp(
         )
 
     masked_weights = weights.where(
-        phalf_coarse_on_fine.isel({RESTART_Z_OUTER: slice(1, None)}).rename(
-            {RESTART_Z_OUTER: z_dim}
-        )
-        < phalf_fine.isel({RESTART_Z_OUTER: -1}),
+        phalf_coarse_on_fine.isel({RESTART_Z_OUTER: slice(1, None)}).variable
+        < phalf_fine.isel({RESTART_Z_OUTER: -1}).variable,
         other=0.0,
     )
 
