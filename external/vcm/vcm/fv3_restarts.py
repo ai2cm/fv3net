@@ -35,9 +35,7 @@ Z_NAME = "pfull"
 Z_EDGE_NAME = "phalf"
 
 
-def open_restarts(
-    url: str, initial_time: str, final_time: str
-) -> xr.Dataset:
+def open_restarts(url: str, initial_time: str, final_time: str) -> xr.Dataset:
     """Opens all the restart file within a certain path
 
     The dimension names are the same as the diagnostic output
@@ -181,7 +179,7 @@ def _fix_metadata(ds):
 
 
 def _load_arrays(
-    restart_files
+    restart_files,
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
     # use the same schema for all coupler_res
     for (time, restart_category, tile, protocol, path) in restart_files:
