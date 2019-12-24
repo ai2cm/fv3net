@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Sequence, Dict, Any, Mapping
+from typing import Sequence, Any, Mapping
 import xarray as xr
 from dataclasses import dataclass
 
@@ -9,7 +9,9 @@ class Schema:
     """An object for representing the metadata, dimensions, and dtype of a DataArray
 
     Attributes:
-        dims: a list of dimension names. If this begins with ``...``, then any data array ending with the dimensions after "..." will validate against this schema.
+        dims: a list of dimension names. If this begins with ``...``, then
+            any data array ending with the dimensions after "..." will validate
+            against this schema.
     
     """
 
@@ -27,7 +29,8 @@ class Schema:
         """Apply metadata to array_like object
         
         Args:
-            arr (array_like): array to apply the dimension names to. If the number of dimensions
+            arr (array_like): array to apply the dimension names to. If the number of
+                dimensions
         
         """
         if self.dims[0] is ...:
