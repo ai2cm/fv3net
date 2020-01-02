@@ -1,6 +1,6 @@
 import xarray as xr
 
-from typing import Dict, Hashable
+from typing import Dict
 
 from . import xarray_utils
 from .casting import doubles_to_floats
