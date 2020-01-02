@@ -849,7 +849,7 @@ def block_upsample_like(
         upsampling_factor = reference_da.sizes[x_dim] // da.sizes[x_dim]
     result = block_upsample(da, upsampling_factor, [x_dim, y_dim])
     if isinstance(da.data, dask_array.Array):
-        result = result.chunk(reference_da.chunks)
+        result = result.chunk(reference_da.transpose(*result.dims).chunks)
     return result.assign_coords(
         {x_dim: reference_da[x_dim], y_dim: reference_da[y_dim]}
     )
