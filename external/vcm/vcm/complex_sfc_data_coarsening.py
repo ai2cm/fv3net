@@ -1,4 +1,3 @@
-import dask.array as dask_array
 import xarray as xr
 
 from typing import Dict, Hashable
@@ -7,7 +6,7 @@ from . import xarray_utils
 from .casting import doubles_to_floats
 from .cubedsphere.coarsen import (
     block_coarsen,
-    block_upsample,
+    block_upsample_like,
     weighted_block_average,
 )
 
@@ -85,7 +84,7 @@ def _compute_arguments_for_complex_sfc_coarsening(
         func_kwargs={"nan_policy": "omit"},
     )
 
-    upsampled_slmsk = _block_upsample_like(coarsened_slmsk, ds.slmsk)
+    upsampled_slmsk = block_upsample_like(coarsened_slmsk, ds.slmsk)
     is_dominant_surface_type = xarray_utils.isclose(ds.slmsk, upsampled_slmsk)
 
     coarsened_vtype_and_stype = block_coarsen(
@@ -97,10 +96,10 @@ def _compute_arguments_for_complex_sfc_coarsening(
         func_kwargs={"nan_policy": "omit"},
     )
 
-    upsampled_vtype = _block_upsample_like(coarsened_vtype_and_stype.vtype, ds.vtype)
+    upsampled_vtype = block_upsample_like(coarsened_vtype_and_stype.vtype, ds.vtype)
     is_dominant_vtype = xarray_utils.isclose(ds.vtype, upsampled_vtype)
 
-    upsampled_stype = _block_upsample_like(coarsened_vtype_and_stype.stype, ds.stype)
+    upsampled_stype = block_upsample_like(coarsened_vtype_and_stype.stype, ds.stype)
     is_dominant_stype = xarray_utils.isclose(ds.stype, upsampled_stype)
 
     return {
@@ -415,32 +414,3 @@ def _apply_surface_chgres_corrections(ds: xr.Dataset) -> xr.Dataset:
     ds = _ensure_stype_is_ice_if_vtype_is_ice(ds)
     ds = _zero_canopy_moisture_content_over_bare_land(ds)
     return _zero_shdmin_over_land_ice(ds)
-
-
-def _block_upsample_like(
-    da: xr.DataArray,
-    reference_da: xr.DataArray,
-    x_dim: Hashable = "xaxis_1",
-    y_dim: Hashable = "yaxis_1",
-) -> xr.DataArray:
-    """Upsample a DataArray and sync its chunk and coordinate properties with a
-    reference DataArray.
-
-    The purpose of this function is to upsample a coarsened DataArray back out
-    to its original resolution.  In doing so it:
-      - Ensures the chunk sizes of the upsampled DataArray match the chunk sizes of
-        the original DataArray.  This is useful, because block_upsample often
-        produces chunk sizes that are too small for good performance when
-        applied to dask arrays.
-      - Adds horizontal dimension coordinates that match the reference DataArray.
-
-    As other block-related functions, this function assumes that the upsampling
-    factor is the same in the x and y dimension.
-    """
-    upsampling_factor = reference_da.sizes[x_dim] // da.sizes[x_dim]
-    result = block_upsample(da, upsampling_factor, [x_dim, y_dim])
-    if isinstance(da.data, dask_array.Array):
-        result = result.chunk(reference_da.chunks)
-    return result.assign_coords(
-        {x_dim: reference_da[x_dim], y_dim: reference_da[y_dim]}
-    )
