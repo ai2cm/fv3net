@@ -81,8 +81,8 @@ def hydrostatic_dz(T, q, delp, dim=COORD_Z_CENTER):
     """ Compute layer thickness assuming hydrostatic balance """
     pi = pressure_at_interface(delp, dim_center=dim, dim_outer=dim)
     epsilon = RDGAS / RVGAS
-    tv = T * (1 + q / epsilon) / (1 + q)
-    # tv = (1 + 0.61 * q) * T
+    # tv = T * (1 + q / epsilon) / (1 + q)
+    tv = (1 + 0.61 * q) * T
     dlogp = np.log(pi).diff(dim)
     return -dlogp * RDGAS * tv / GRAVITY
 
