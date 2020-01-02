@@ -5,105 +5,57 @@ import xarray as xr
 from sklearn.base import BaseEstimator
 
 
-class BatchTrainer:
+class BatchTransformRegressor:
     """Base class for sklearn-type regressors that are incrementally trained in batches
     So that we can add new estimators at the start of new training batch.
 
     """
 
-    def __init__(self, regressor):
-        self.regressor = regressor
+    def __init__(self, transform_regressor):
+        self.transform_regressor = transform_regressor
         self.n_estimators_per_batch = self.n_estimators
         self.num_batches_fit = 0
 
     @property
     def n_estimators(self):
         try:
-            return getattr(self.regressor, "n_estimators")
+            return getattr(self.transform_regressor.regressor, "n_estimators")
         except AttributeError:
             try:
-                return getattr(self.regressor.estimator, "n_estimators")
+                return getattr(
+                    self.transform_regressor.regressor.estimator, "n_estimators"
+                )
             except AttributeError:
-                raise ValueError("Unable to get number of estimators per regressor."
-                                 "Check that the regressor is either sklearn "
-                                 "RandomForestRegressor, or MultiOutputRegressor "
-                                 "with multiple estimators per regressor")
+                raise ValueError(
+                    "Unable to get number of estimators per regressor."
+                    "Check that the regressor is either sklearn "
+                    "RandomForestRegressor, or MultiOutputRegressor "
+                    "with multiple estimators per regressor"
+                )
 
     def _add_new_batch_estimators(self):
         new_total_estimators = self.n_estimators + self.n_estimators_per_batch
         try:
-            setattr(self.regressor.n_estimators, new_total_estimators)
+            setattr(
+                self.transform_regressor.regressor.n_estimators, new_total_estimators
+            )
         except AttributeError:
             try:
-                self.regressor.set_params(estimator__n_estimators=new_total_estimators)
+                self.transform_regressor.regressor.set_params(
+                    estimator__n_estimators=new_total_estimators
+                )
             except ValueError:
                 raise ValueError(
                     "Cannot add more estimators to model. Check that model is"
                     "either sklearn RandomForestRegressor "
-                    "or MultiOutputRegressor ")
-
-    def increment_fit(self, features, outputs):
-        if self.num_batches_fit > 0:
-            self.add_new_batch_estimators()
-        self.regressor.fit(features, outputs)
-        self.num_batches_fit += 1
-
-
-class TargetTransformer:
-    """Modeled off of sklearn's TransformedTargetRegressor but with
-        the ability to save the same means/stddev used in normalization without
-        having to provide them again to the inverse transform at prediction time.
-
-    """
-    def __init__(self, output_means, output_stddevs):
-        self.output_means = output_means
-        self.output_stddevs = output_stddevs
-
-    def transform(self, output_matrix):
-        """
-
-        Args:
-            output_matrix: physical values of targets
-
-        Returns:
-            targets normalized by (target-mean) / stddev
-        """
-        return np.divide(
-            np.subtract(output_matrix, self.output_means), self.output_stddevs
-        )
-
-    def inverse_transform(self, output_matrix):
-        """
-
-        Args:
-            output_matrix: normalized prediction values
-
-        Returns:
-            physical values of predictions
-        """
-        return np.add(
-            np.multiply(self.output_stddevs, output_matrix), self.output_means
-        )
-
-
-class TransformedBatchRegressor:
-    """Modeled off of sklearn's TransformedTargetRegressor but with
-    the ability to save the same means/stddev used in normalization without
-    having to provide them again to the inverse transform at prediction time.
-
-    """
-    def __init__(self, batch_trainer, transformer):
-        self.batch_trainer = batch_trainer
-        self.transformer = transformer
+                    "or MultiOutputRegressor "
+                )
 
     def fit(self, features, outputs):
-        normed_outputs = self.transformer.transform(outputs)
-        self.batch_trainer.increment_fit(features, normed_outputs)
-
-    def predict(self, features):
-        normed_outputs = self.batch_trainer.regressor.predict(features)
-        physical_outputs = self._inverse_transform(normed_outputs)
-        return physical_outputs
+        if self.num_batches_fit > 0:
+            self._add_new_batch_estimators()
+        self.transform_regressor.fit(features, outputs)
+        self.num_batches_fit += 1
 
 
 @dataclass
@@ -183,6 +135,4 @@ class SklearnWrapper(BaseXarrayEstimator):
         y = self.model.predict(x)
         ds = _unpack(y, sample_dim, self.output_features_)
         return ds.assign_coords({sample_dim: data[sample_dim]})
-
-
 

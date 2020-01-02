@@ -9,7 +9,11 @@ import yaml
 
 from fv3net.regression.dataset_handler import BatchGenerator
 from fv3net.regression.sklearn.wrapper import (
-    TransformedBatchRegressor, SklearnWrapper, BatchTrainer, TargetTransformer)
+    SklearnWrapper,
+    BatchTransformRegressor,
+)
+from sklearn.compose import TransformedTargetRegressor
+from sklearn.preprocessing import StandardScaler
 
 
 @dataclass
@@ -30,31 +34,31 @@ class ModelTrainingConfig:
     gcs_project: str = "vcm-ml"
 
 
-def get_output_normalizations(output_normalization_file):
+def get_outputs_for_normalization(output_normalization_file):
     """
 
     Args:
         output_normalization_file: must be .npy, .txt., or .dat
 
     Returns:
-        np arrays for mean and stddev per output element for use in normalizing
+        np array of sample target values for use in StandardScaler
     """
     if output_normalization_file == "default":
-        with path("fv3net.regression.sklearn", "default_Q1_Q2_mean_stddev.dat") as f:
-            output_norms_mean, output_norms_stddev = np.loadtxt(f)
+        with path("fv3net.regression.sklearn", "default_norm_outputs.dat") as f:
+            sample_outputs = np.loadtxt(f)
     else:
         with open(output_normalization_file, "r") as f:
             if output_normalization_file.split(".")[-1] == ".npy":
-                output_norms_mean, output_norms_stddev = np.load(f)
+                sample_outputs = np.load(f)
             elif output_normalization_file.split(".")[-1] in [".txt", ".dat"]:
-                output_norms_mean, output_norms_stddev = np.loatxt(f)
+                sample_outputs = np.loatxt(f)
             else:
                 raise ValueError(
                     "Provide either a .npy array file, or '.txt' or '.dat'"
                     "with one column per output feature"
                 )
 
-    return output_norms_mean, output_norms_stddev
+    return sample_outputs
 
 
 def load_model_training_config(config_path):
@@ -126,7 +130,7 @@ def _get_regressor(train_config):
     return regressor
 
 
-def train_model(batched_data, train_config, output_norms_mean, output_norms_stddev):
+def train_model(batched_data, train_config, targets_for_normalization):
     """
 
     Args:
@@ -139,10 +143,12 @@ def train_model(batched_data, train_config, output_norms_mean, output_norms_stdd
         trained sklearn model wrapper object
     """
     base_regressor = _get_regressor(train_config)
-    batch_regressor = BatchTrainer(base_regressor)
-    target_transformer = TargetTransformer(output_norms_mean, output_norms_stddev)
-    model = TransformedBatchRegressor(batch_regressor, target_transformer)
-    model_wrapper = SklearnWrapper(model)
+    target_transformer = StandardScaler()
+    target_transformer.fit(targets_for_normalization)
+    transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
+    batch_regressor = BatchTransformRegressor(transform_regressor)
+
+    model_wrapper = SklearnWrapper(batch_regressor)
     for i, batch in enumerate(batched_data.generate_batches("train")):
         print(f"Fitting batch {i}/{batched_data.num_train_batches}")
         model_wrapper.fit(
@@ -178,10 +184,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     train_config = load_model_training_config(args.train_config_file)
     batched_data = load_data_generator(train_config)
-    output_norms_mean, output_norms_stddev = get_output_normalizations(
+    targets_for_normalization = get_outputs_for_normalization(
         args.target_normalization_file
     )
-    model = train_model(
-        batched_data, train_config, output_norms_mean, output_norms_stddev
-    )
+    model = train_model(batched_data, train_config, targets_for_normalization)
     joblib.dump(model, args.model_output_path)
