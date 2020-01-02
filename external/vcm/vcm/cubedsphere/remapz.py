@@ -1,3 +1,4 @@
+import numpy as np
 import xarray as xr
 
 from ..calc.thermo import pressure_at_interface
@@ -84,6 +85,7 @@ def remap_to_edge_weighted_pressure(
         (xr.Dataset, xr.DataArray): tuple of remapped input Dataset and length masked
         wherever coarse pressure bottom interfaces are below fine surface pressure
     """
+    hor_dims = {"x": x_dim, "y": y_dim}
     grid = create_fv3_grid(
         xr.Dataset({"delp": delp}),
         x_center=FV_CORE_X_CENTER,
@@ -91,8 +93,10 @@ def remap_to_edge_weighted_pressure(
         y_center=FV_CORE_Y_CENTER,
         y_outer=FV_CORE_Y_OUTER,
     )
-    other_dim = "x" if edge == "y" else "y"
-    delp_staggered = grid.interp(delp, other_dim)
+    interp_dim = "x" if edge == "y" else "y"
+    delp_staggered = grid.interp(delp, interp_dim).assign_coords(
+        {hor_dims[interp_dim]: np.arange(1, delp.sizes[hor_dims[edge]] + 2, dtype='float64')}
+    )
     delp_staggered_coarse = edge_weighted_block_average(
         delp_staggered, length, coarsening_factor, x_dim=x_dim, y_dim=y_dim, edge=edge
     )
