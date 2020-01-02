@@ -5,7 +5,7 @@ from ..cubedsphere import (
     edge_weighted_block_average,
     weighted_block_average,
 )
-from ..cubedsphere.coarsen import block_upsample
+from ..cubedsphere.coarsen import block_upsample_like
 from ..cubedsphere.constants import (
     RESTART_Z_CENTER,
     RESTART_Z_OUTER,
@@ -53,14 +53,7 @@ def remap_to_area_weighted_pressure(
         delp, area, coarsening_factor, x_dim=x_dim, y_dim=y_dim
     )
     return _remap_given_delp(
-        ds,
-        delp,
-        delp_coarse,
-        area,
-        coarsening_factor,
-        x_dim=x_dim,
-        y_dim=y_dim,
-        z_dim=z_dim,
+        ds, delp, delp_coarse, area, x_dim=x_dim, y_dim=y_dim, z_dim=z_dim,
     )
 
 
@@ -108,7 +101,6 @@ def remap_to_edge_weighted_pressure(
         delp_staggered,
         delp_staggered_coarse,
         length,
-        coarsening_factor,
         x_dim=x_dim,
         y_dim=y_dim,
         z_dim=z_dim,
@@ -120,7 +112,6 @@ def _remap_given_delp(
     delp_fine,
     delp_coarse,
     weights,
-    coarsening_factor,
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
@@ -128,7 +119,9 @@ def _remap_given_delp(
     """Given a fine and coarse delp, do vertical remapping to coarse pressure levels
     and mask weights below fine surface pressure.
     """
-    delp_coarse_on_fine = block_upsample(delp_coarse, coarsening_factor, [y_dim, x_dim])
+    delp_coarse_on_fine = block_upsample_like(
+        delp_coarse, delp_fine, x_dim=x_dim, y_dim=y_dim
+    )
     phalf_coarse_on_fine = pressure_at_interface(
         delp_coarse_on_fine, dim_center=z_dim, dim_outer=RESTART_Z_OUTER
     )
