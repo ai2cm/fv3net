@@ -832,8 +832,21 @@ def block_upsample_like(
 
     As other block-related functions, this function assumes that the upsampling
     factor is the same in the x and y dimension.
+
+    Args:
+        da (xr.DataArray): input DataArray.
+        reference_da (xr.DataArray): DataArray to which da will be upsampled.
+        x_dim (Hashable, optional): name of x-dimension. Defaults to "xaxis_1"
+        y_dim (Hashable, optional): name of y-dimension. Defaults to "yaxis_1"
+
+    Returns:
+        xr.DataArray: upsampled da
     """
-    upsampling_factor = reference_da.sizes[x_dim] // da.sizes[x_dim]
+    x_is_staggered_dim = da.sizes[x_dim] % 2 == 1
+    if x_is_staggered_dim:
+        upsampling_factor = (reference_da.sizes[x_dim] - 1) // (da.sizes[x_dim] - 1)
+    else:
+        upsampling_factor = reference_da.sizes[x_dim] // da.sizes[x_dim]
     result = block_upsample(da, upsampling_factor, [x_dim, y_dim])
     if isinstance(da.data, dask_array.Array):
         result = result.chunk(reference_da.chunks)
