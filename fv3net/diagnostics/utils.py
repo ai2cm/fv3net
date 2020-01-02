@@ -5,7 +5,6 @@ import yaml
 from vcm.calc import diag_ufuncs
 
 
-
 @dataclass
 class PlotConfig:
     """

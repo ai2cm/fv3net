@@ -166,7 +166,7 @@ def plot_cube(
     return axes, handles, cbar
 
 
-def mappable_var(ds: xr.Dataset, var_name: str, coord_vars: dict=_COORD_VARS):
+def mappable_var(ds: xr.Dataset, var_name: str):
     """ Converts a restart or diagnostic dataset into a format for plotting
     across cubed-sphere tiles
 
@@ -197,7 +197,7 @@ def mappable_var(ds: xr.Dataset, var_name: str, coord_vars: dict=_COORD_VARS):
 
         )
     """
-    for var, dims in coord_vars.items():
+    for var, dims in _COORD_VARS.items():
         ds[var] = ds[var].transpose(*dims)
 
     first_dims = [COORD_Y_CENTER, COORD_X_CENTER, "tile"]
@@ -205,7 +205,7 @@ def mappable_var(ds: xr.Dataset, var_name: str, coord_vars: dict=_COORD_VARS):
     xpose_dims = first_dims + rest
     new_ds = ds[[var_name]].copy().transpose(*xpose_dims)
 
-    for grid_var in coord_vars:
+    for grid_var in _COORD_VARS:
         new_ds = new_ds.assign_coords(coords={grid_var: ds[grid_var]})
 
     return new_ds.drop(

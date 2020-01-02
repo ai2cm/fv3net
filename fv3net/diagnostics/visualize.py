@@ -10,11 +10,11 @@ import matplotlib.pyplot as plt
 # TODO: map plotting function is waiting on PR #67 to get merged
 
 from vcm.visualize import plot_cube, mappable_var
-from vcm.constants import (
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    COORD_X_OUTER,
-    COORD_Y_OUTER,
+from vcm.cubedsphere.constants import (
+    VAR_LON_CENTER,
+    VAR_LAT_CENTER,
+    VAR_LON_OUTER,
+    VAR_LAT_OUTER,
     VAR_GRID_LON_CENTER,
     VAR_GRID_LAT_CENTER,
     VAR_GRID_LON_OUTER,
@@ -22,11 +22,11 @@ from vcm.constants import (
 
 
 TIME_VAR = "initialization_time"
-zarr_coord_vars = {
-    VAR_GRID_LON_OUTER: [COORD_Y_OUTER, COORD_X_OUTER, "tile", TIME_VAR],
-    VAR_GRID_LAT_OUTER: [COORD_Y_OUTER, COORD_X_OUTER, "tile", TIME_VAR],
-    VAR_GRID_LON_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile", TIME_VAR],
-    VAR_GRID_LAT_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile", TIME_VAR]
+rename_coord_vars = {
+    VAR_GRID_LON_OUTER: VAR_LON_OUTER,
+    VAR_GRID_LAT_OUTER: VAR_LAT_OUTER,
+    VAR_GRID_LON_CENTER: VAR_LON_CENTER,
+    VAR_GRID_LAT_CENTER: VAR_LAT_CENTER
 }
 
 def create_plot(ds, plot_config):
@@ -61,14 +61,14 @@ def plot_diag_var_map(
     Returns:
         axes
     """
+    ds = ds.rename(rename_coord_vars)
     ds_mappable = mappable_var(
         ds,
-        var_name=plot_config.diagnostic_variable,
-        coord_vars=zarr_coord_vars)
+        var_name=plot_config.diagnostic_variable)
     fig, ax = plot_cube(
         ds_mappable,
-        vmin=plot_config.plot_params["vmin"],
-        vmax=plot_config.plot_params["vmax"])
+        vmin=float(plot_config.plot_params["vmin"]),
+        vmax=float(plot_config.plot_params["vmax"]))
     return fig
 
 
