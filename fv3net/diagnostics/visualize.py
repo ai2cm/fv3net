@@ -8,16 +8,9 @@ vcm.visualize, some of which are utilized here.
 import matplotlib.pyplot as plt
 
 # TODO: map plotting function is waiting on PR #67 to get merged
-from vcm.visualize import plot_cube
+from vcm.visualize import plot_cube, mappable_var
 
-
-# Unclear if these coordinates will get new names in future so left as global vars
 TIME_VAR = "initialization_time"
-VERTICAL_GRID_VAR = "pfull"
-LON_GRID_CENTER = "grid_lont"
-LAT_GRID_CENTER = "grid_latt"
-LON_GRID_EDGE = "grid_lon"
-LAT_GRID_EDGE = "grid_lat"
 
 
 def create_plot(ds, plot_config):
@@ -53,8 +46,9 @@ def plot_diag_var_map(
         axes
     """
     grid = ds[[LAT_GRID_EDGE, LON_GRID_EDGE, LAT_GRID_CENTER, LON_GRID_CENTER]]
+    ds_mappable = mappable_var(ds, var_name=plot_config.diagnostic_variable)
     fig, ax = plot_cube(
-        ds[plot_config.diagnostic_variable],
+        ds_mappable[plot_config.diagnostic_variable],
         grid,
         vmin=plot_config.plot_params["vmin"],
         vmax=plot_config.plot_params["vmax"])
