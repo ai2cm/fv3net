@@ -22,6 +22,8 @@ from vcm.cubedsphere.constants import (
 
 
 TIME_VAR = "initialization_time"
+
+#
 rename_coord_vars = {
     VAR_GRID_LON_OUTER: VAR_LON_OUTER,
     VAR_GRID_LAT_OUTER: VAR_LAT_OUTER,
@@ -45,11 +47,10 @@ def create_plot(ds, plot_config):
         )
 
 
-# TODO: this is dependent on the plotting PR, so wait on that to merge
 def plot_diag_var_map(
     ds, plot_config
 ):
-    """
+    """Uses vcm.visualize.plot_cube to plot a
 
     Args:
         ds: xr dataset

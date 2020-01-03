@@ -40,6 +40,7 @@ def plot_cube(
     col_wrap: int = None,
     projection: "ccrs.Projection" = None,
     colorbar: bool = True,
+    cbar_label: str = None,
     coastlines: bool = True,
     coastlines_kwargs: dict = None,
     **kwargs,
@@ -74,6 +75,9 @@ def plot_cube(
             cartopy geo-axes are supplied.  Defaults to Robinson projection.
         colorbar (bool, optional):
             Flag for whether to plot a colorbar. Defaults to True.
+        cbar_label(str, optional):
+            If provided, will be used as the label on colorbar. Defaults to using
+            long name + units if available in dataset.attrs, or variable name if not.
         coastlines (bool, optinal):
             Whether to plot coastlines on map. Default True.
         coastlines_kwargs (dict, optional):
@@ -161,7 +165,8 @@ def plot_cube(
         )
         cb_ax = plt.gcf().add_axes([0.83, 0.1, 0.02, 0.8])
         cbar = plt.colorbar(handles[0], cax=cb_ax, extend="both")
-        cbar.set_label(_get_var_label(plottable_variable[var_name].attrs, var_name))
+        cbar.set_label(_get_var_label(
+            plottable_variable[var_name].attrs, cbar_label or var_name))
     else:
         cbar = None
 
