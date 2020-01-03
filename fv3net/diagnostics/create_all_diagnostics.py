@@ -41,8 +41,8 @@ def get_images_relative(output_dir):
 
 def create_diagnostics(plot_configs, data, output_dir):
     for plot_config in plot_configs:
-        figure = create_plot(data, plot_config)
-        plt.savefig(figure, os.path.join(output_dir, plot_config.plot_name + ".png"))
+        fig = create_plot(data, plot_config)
+        fig.savefig(os.path.join(output_dir, plot_config.plot_name + ".png"))
 
 
 if __name__ == "__main__":

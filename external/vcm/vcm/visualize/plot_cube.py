@@ -83,6 +83,7 @@ def plot_cube(
             Additional keyword arguments to be passed to the plotting function.
 
     Returns:
+        figure (matlotlib Figure)
         axes (np.ndarray):
             Array of `plt.axes` objects assocated with map subplots if faceting;
             otherwise array containing single axes object.
@@ -139,12 +140,13 @@ def plot_cube(
             subplot_kws={"projection": projection},
         )
         facet_grid = facet_grid.map(_plot_func_short, var_name)
+        fig = facet_grid.fig
         axes = facet_grid.axes
         handles = facet_grid._mappables
     else:
         # single axes
         if not ax:
-            f, ax = plt.subplots(1, 1, subplot_kw={"projection": projection})
+            fig, ax = plt.subplots(1, 1, subplot_kw={"projection": projection})
         handle = _plot_func_short(array)
         axes = np.array(ax)
         handles = [handle]
@@ -163,7 +165,7 @@ def plot_cube(
     else:
         cbar = None
 
-    return axes, handles, cbar
+    return fig, axes, handles, cbar
 
 
 def mappable_var(ds: xr.Dataset, var_name: str):
