@@ -66,3 +66,8 @@ def write_cloud_zarr(ds, gcs_path):
     mapping = fs.get_mapper(gcs_path)
     ds.to_zarr(store=mapping, mode="w")
     return ds
+
+
+def read_zarr_from_gcs(gcs_url, project="vcm-ml"):
+    fs = gcsfs.GCSFileSystem(project=project)
+    return xr.open_zarr(fs.get_mapper(gcs_url))
