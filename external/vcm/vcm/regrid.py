@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy as np
 import xarray as xr
 import zarr as zr
@@ -182,7 +184,9 @@ def _coords_to_points(coords, order):
     return np.stack([coords[key] for key in order], axis=-1)
 
 
-def interpolate_unstructured(data: xr.Dataset, coords) -> xr.Dataset:
+def interpolate_unstructured(
+    data: Union[xr.DataArray, xr.Dataset], coords
+) -> Union[xr.DataArray, xr.Dataset]:
     """Interpolate an unstructured dataset
 
     This is similar to the fancy indexing of xr.Dataset.interp, but it works
@@ -205,9 +209,11 @@ def interpolate_unstructured(data: xr.Dataset, coords) -> xr.Dataset:
             dims_in_coords.add(dim)
 
     if len(dims_in_coords) != 1:
-        raise ValueError("The values of ``coords`` can only have one common shared "
-                         "dimension. The coords have these dimensions: "
-                         f"`{dims_in_coords}`")
+        raise ValueError(
+            "The values of ``coords`` can only have one common shared "
+            "dimension. The coords have these dimensions: "
+            f"`{dims_in_coords}`"
+        )
 
     dim_name = dims_in_coords.pop()
 
