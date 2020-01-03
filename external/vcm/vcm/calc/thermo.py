@@ -83,7 +83,7 @@ def hydrostatic_dz(T, q, delp, dim=COORD_Z_CENTER):
     epsilon = RDGAS / RVGAS
     # tv = T * (1 + q / epsilon) / (1 + q)
     tv = (1 + 0.61 * q) * T
-    dlogp = np.log(pi).diff(dim)
+    dlogp = np.log(pi).diff(dim, label="lower")
     return -dlogp * RDGAS * tv / GRAVITY
 
 
