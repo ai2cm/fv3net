@@ -186,13 +186,18 @@ def interpolate_unstructured(data: xr.Dataset, coords) -> xr.Dataset:
     """Interpolate an unstructured dataset
 
     This is similar to the fancy indexing of xr.Dataset.interp, but it works
-    with unstructured grids.
+    with unstructured grids. Only nearest neighbors interpolation is supported for now.
         
     Args:
         data: data to interpolate
-        coords: dictionary of dataarrays with single common dim. Same as standard.interp
+        coords: dictionary of dataarrays with single common dim, similar to the
+            advanced indexing provided ``xr.DataArray.interp``. These can,
+            but do not have to be actual coordinates of the Dataset, but they should
+            be in a 1-to-1 map with the the dimensions of the data. For instance,
+            one can use this function to find the height of an isotherm, provided
+            that the temperature is monotonic with height.
     Returns:
-        interpolated Dataset
+        interpolated dataset with the coords from coords argument as coordinates.
     """
     dims_in_coords = set()
     for coord in coords:
