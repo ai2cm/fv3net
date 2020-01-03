@@ -62,17 +62,20 @@ def height_at_interface(dz, phis, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_O
 
 def _add_coords(dv, da, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER):
     """ Assign coords from da to dv, except use vertical coordinate that is
-    one element longer than da's """
-    coords_except_z = da.drop(dim_center).coords
-    z_coord_center = da.coords[dim_center]
-    z_coord_outer = xr.concat(
-        [z_coord_center, 1 + z_coord_center.isel({dim_center: [-1]})], dim=dim_center
-    ).rename({dim_center: dim_outer})
-    return (
-        xr.DataArray(dv, coords=coords_except_z)
-        .rename({dim_center: dim_outer})
-        .assign_coords({dim_outer: z_coord_outer})
-    )
+    one element longer than da's, if vertical coordinate exists in da """
+    if dim_center in da.coords:
+        z_coord_center = da.coords[dim_center]
+        z_coord_outer = xr.concat(
+            [z_coord_center, 1 + z_coord_center.isel({dim_center: [-1]})],
+            dim=dim_center,
+        ).rename({dim_center: dim_outer})
+        return (
+            xr.DataArray(dv, coords=da.drop(dim_center).coords)
+            .rename({dim_center: dim_outer})
+            .assign_coords({dim_outer: z_coord_outer})
+        )
+    else:
+        return xr.DataArray(dv, coords=da.coords).rename({dim_center: dim_outer})
 
 
 def pressure_at_midpoint(delp, toa_pressure=TOA_PRESSURE, dim=COORD_Z_CENTER):
@@ -109,7 +112,7 @@ def height_at_midpoint(dz, phis, dim=COORD_Z_CENTER):
 def _interface_to_midpoint(da, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER):
     da_mid = (
         da.isel({dim_outer: slice(0, -1)})
-        + da.isel({dim_outer: slice(1, None)}).drop(dim_outer)
+        + da.isel({dim_outer: slice(1, None)}).variable
     ) / 2
     return da_mid.rename({dim_outer: dim_center})
 
@@ -147,8 +150,6 @@ def hydrostatic_dz(T, q, delp, dim=COORD_Z_CENTER):
         xr.DataArray: layer thicknesses dz
     """
     pi = pressure_at_interface(delp, dim_center=dim, dim_outer=dim)
-    # epsilon = RDGAS / RVGAS
-    # tv = T * (1 + q / epsilon) / (1 + q)
     tv = T * (1 + (RVGAS / RDGAS - 1) * q)
     dlogp = np.log(pi).diff(dim, label="lower")
     return -dlogp * RDGAS * tv / GRAVITY
