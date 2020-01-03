@@ -8,7 +8,8 @@ from vcm.cubedsphere.constants import (
     VAR_LON_OUTER,
     VAR_LAT_OUTER,
 )
-from vcm.visualize.plot_helpers import _infer_color_limits, _get_var_label
+from vcm.visualize.plot_helpers import (
+    _infer_color_limits, _get_var_label, _remove_redundant_dims)
 from vcm.visualize.masking import _mask_antimeridian_quads
 import xarray as xr
 import numpy as np
@@ -27,7 +28,7 @@ _COORD_VARS = {
     VAR_LON_OUTER: [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
     VAR_LAT_OUTER: [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
     VAR_LON_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
-    VAR_LAT_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
+    VAR_LAT_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile"]
 }
 
 
@@ -205,6 +206,7 @@ def mappable_var(ds: xr.Dataset, var_name: str):
         )
     """
     for var, dims in _COORD_VARS.items():
+        ds[var] = _remove_redundant_dims(ds[var], required_dims=dims)
         ds[var] = ds[var].transpose(*dims)
 
     first_dims = [COORD_Y_CENTER, COORD_X_CENTER, "tile"]

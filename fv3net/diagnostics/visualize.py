@@ -57,10 +57,8 @@ def plot_diag_var_map(
         plot_config: dict that specifies variable and dimensions to plot,
         functions to apply
         plot_func: optional plotting function from vcm.visualize
-        vmin:
-        vmax:
     Returns:
-        axes
+        matplotlib Figure object
     """
     ds = ds.rename(rename_coord_vars)
     ds_mappable = mappable_var(
@@ -69,8 +67,6 @@ def plot_diag_var_map(
     fig, axes, handles, cbar = plot_cube(
         ds_mappable,
         **plot_config.plot_params)
-        #vmin=float(plot_config.plot_params["vmin"]),
-        #vmax=float(plot_config.plot_params["vmax"]))
     return fig
 
 

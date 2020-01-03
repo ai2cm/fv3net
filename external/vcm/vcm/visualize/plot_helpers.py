@@ -1,6 +1,11 @@
 import numpy as np
 
 
+def _remove_redundant_dims(ds, required_dims):
+    redundant_dims_index = {dim: 0 for dim in ds.dims if dim not in required_dims}
+    ds = ds.isel(redundant_dims_index).squeeze().drop(redundant_dims_index.keys())
+    return ds
+
 def _infer_color_limits(
     xmin: float, xmax: float, vmin: float = None, vmax: float = None, cmap: str = None
 ):
