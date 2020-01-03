@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-
+from vcm.cubedsphere.coarsen import shift_edge_var_to_center
 from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
     COORD_Y_CENTER,
@@ -160,4 +160,24 @@ def _get_local_basis_in_spherical_coords(grid):
     return (
         (xhat_lon_component, xhat_lat_component),
         (yhat_lon_component, yhat_lat_component),
+    )
+
+
+def get_rotated_centered_winds_from_restarts(ds: xr.Dataset):
+    """ Get rotated and centered winds from restart wind variables
+
+    Args:
+        ds (xr.Dataset):
+            Dataset containing 'u' and 'v' restart wind variables on
+            staggered, tiled grid; also containing grid variables for centers
+            and edges
+
+    Returns:
+        u_r, v_r (xr.DataArrays)
+            DataArrays of rotated, centered winds
+    """
+    u_c = shift_edge_var_to_center(ds["u"].drop(labels=COORD_X_CENTER))
+    v_c = shift_edge_var_to_center(ds["v"].drop(labels=COORD_Y_CENTER))
+    return rotate_winds_to_lat_lon_coords(
+        u_c, v_c, ds[["grid_lat", "grid_lon", "grid_latt", "grid_lont"]]
     )
