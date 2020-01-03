@@ -61,6 +61,19 @@ def open_restarts(url: str, initial_time: str, final_time: str) -> xr.Dataset:
     return xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"]))
 
 
+def fix_metadata(ds: xr.Dataset) -> xr.Dataset:
+    """Fix the meta-data of an individual restart file
+
+    This drops the singleton time dimension and applies the known dimensions listed in
+    ``vcm._schema``.
+    """
+    try:
+        ds_no_time = ds.isel(Time=0).drop("Time")
+    except ValueError:
+        ds_no_time = ds
+    return vcm._schema.rename_dataset(ds_no_time)
+
+
 def _parse_time_string(time):
     t = datetime.strptime(time, TIME_FMT)
     return cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)
@@ -167,21 +180,13 @@ def _load_restart_lazily(protocol, path, restart_category):
     return _load_restart_with_schema(protocol, path, schema)
 
 
-def _fix_metadata(ds):
-    try:
-        ds_no_time = ds.isel(Time=0).drop("Time")
-    except ValueError:
-        ds_no_time = ds
-    return vcm._schema.rename_dataset(ds_no_time)
-
-
 def _load_arrays(
     restart_files,
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
     # use the same schema for all coupler_res
     for (time, restart_category, tile, protocol, path) in restart_files:
         ds = _load_restart_lazily(protocol, path, restart_category)
-        ds_correct_metadata = _fix_metadata(ds)
+        ds_correct_metadata = fix_metadata(ds)
         time_obj = _parse_time_string(time)
         for var in ds_correct_metadata:
             yield var, (time_obj, tile), ds_correct_metadata[var]
