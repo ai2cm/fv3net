@@ -18,7 +18,8 @@ from vcm.cubedsphere.constants import (
     VAR_GRID_LON_CENTER,
     VAR_GRID_LAT_CENTER,
     VAR_GRID_LON_OUTER,
-    VAR_GRID_LAT_OUTER)
+    VAR_GRID_LAT_OUTER,
+)
 
 
 TIME_VAR = "initialization_time"
@@ -28,8 +29,9 @@ rename_coord_vars = {
     VAR_GRID_LON_OUTER: VAR_LON_OUTER,
     VAR_GRID_LAT_OUTER: VAR_LAT_OUTER,
     VAR_GRID_LON_CENTER: VAR_LON_CENTER,
-    VAR_GRID_LAT_CENTER: VAR_LAT_CENTER
+    VAR_GRID_LAT_CENTER: VAR_LAT_CENTER,
 }
+
 
 def create_plot(ds, plot_config):
     for dim, dim_slice in plot_config.dim_slices.items():
@@ -47,9 +49,7 @@ def create_plot(ds, plot_config):
         )
 
 
-def plot_diag_var_map(
-    ds, plot_config
-):
+def plot_diag_var_map(ds, plot_config):
     """Uses vcm.visualize.plot_cube to plot a
 
     Args:
@@ -61,12 +61,8 @@ def plot_diag_var_map(
         matplotlib Figure object
     """
     ds = ds.rename(rename_coord_vars)
-    ds_mappable = mappable_var(
-        ds,
-        var_name=plot_config.diagnostic_variable)
-    fig, axes, handles, cbar = plot_cube(
-        ds_mappable,
-        **plot_config.plot_params)
+    ds_mappable = mappable_var(ds, var_name=plot_config.diagnostic_variable)
+    fig, axes, handles, cbar = plot_cube(ds_mappable, **plot_config.plot_params)
     return fig
 
 

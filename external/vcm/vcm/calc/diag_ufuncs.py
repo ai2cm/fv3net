@@ -7,13 +7,7 @@ the result is the input dataset with diagnostic variable added.
 """
 
 
-def average_over_time_bin(
-        ds,
-        var,
-        time_dim,
-        sample_freq,
-        new_var
-):
+def average_over_time_bin(ds, var, time_dim, sample_freq, new_var):
     """
 
     Args:
@@ -83,16 +77,13 @@ def sum_over_dim(
     return ds
 
 
-def mask_to_surface_type(
-        ds,
-        surface_type,
-        surface_type_var='slmsk'
-):
-    valid_surface_types = ['land', 'sea', 'seaice', 'sea_ice', 'sea ice']
+def mask_to_surface_type(ds, surface_type, surface_type_var="slmsk"):
+    valid_surface_types = ["land", "sea", "seaice", "sea_ice", "sea ice"]
     if surface_type not in valid_surface_types:
         raise ValueError(
-            f"Argument 'surface_type' must be one of {valid_surface_types}.")
-    surface_type_codes = {'sea': 0, 'land': 1, 'seaice': 2, 'sea_ice': 2, 'sea ice': 2}
+            f"Argument 'surface_type' must be one of {valid_surface_types}."
+        )
+    surface_type_codes = {"sea": 0, "land": 1, "seaice": 2, "sea_ice": 2, "sea ice": 2}
     mask = ds.isel(pfull=0)[surface_type_var == surface_type_codes[surface_type]]
     ds = ds[mask]
     return ds

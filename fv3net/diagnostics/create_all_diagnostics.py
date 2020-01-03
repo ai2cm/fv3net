@@ -1,74 +1,58 @@
 import os
-from collections import defaultdict
+import argparse
 
-import gcsfs
-import matplotlib.pyplot as plt
-import xarray as xr
 from jinja2 import Template
 from vcm.cloud.remote_data import read_zarr_from_gcs
-from vcm.diagnostic.plot import create_plot
-from vcm.diagnostic.utils import load_config
+from fv3net.diagnostics.visualize import create_plot
+from fv3net.diagnostics.utils import load_configs
 
-IMAGES = defaultdict(list)
+IMAGES = {}
 
 report_html = Template(
     """
-{% for section, images in sections.items() %}
-<h1>{{section}}</h1>
-{% for image in images %}
+{% for header, image in sections.items() %}
+<h2>{{header}}</h2>
 <img src="{{image}}" />
-{% endfor %}
 {% endfor %}
 
 """
 )
 
 
-def relative_paths(paths, output_dir):
-    return [os.path.relpath(path, output_dir) for path in paths]
-
-
-def get_images_relative(output_dir):
-    return {
-        section: relative_paths(images, output_dir)
-        for section, images in IMAGES.items()
-    }
-
-
 def create_diagnostics(plot_configs, data, output_dir):
+    output_figures = {}
     for plot_config in plot_configs:
         fig = create_plot(data, plot_config)
-        fig.savefig(os.path.join(output_dir, plot_config.plot_name + ".png"))
+        filename = plot_config.plot_name + ".png"
+        fig.savefig(os.path.join(output_dir, filename), bbox_inches="tight")
+        output_figures[plot_config.plot_name] = filename
+    return output_figures
 
 
 if __name__ == "__main__":
-    import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "config-file",
-        description="Path for config file that describes what/how to plot",
+        "--config-file",
         type=str,
         default="default_plot_config.json",
+        help="Path for config file that describes what/how to plot",
     )
     parser.add_argument(
-        "output-dir",
-        description="Location to save diagnostic plots and html summary",
+        "--output-dir",
         type=str,
         required=True,
+        help="Location to save diagnostic plots and html summary",
     )
     parser.add_argument(
-        "gcs-run-dir", description="Path to remote gcs rundir", required=True
+        "--gcs-run-dir", required=True, help="Path to remote gcs rundir"
     )
     args = parser.parse_args()
-
+    if not os.path.exists(args.output_dir):
+        os.mkdir(args.output_dir)
     data = read_zarr_from_gcs(args.gcs_run_dir)
-    plot_configs = load_config(args.config_file)
-    create_diagnostics(plot_configs, data, args.output_dir)
-
-    os.mkdir(args.output_dir)
-
-    sections = get_images_relative(args.output_dir)
+    plot_configs = load_configs(args.config_file)
+    output_figure_headings = create_diagnostics(plot_configs, data, args.output_dir)
     with open(f"{args.output_dir}/diagnostics.html", "w") as f:
-        html = report_html.render(sections=sections)
+        html = report_html.render(sections=output_figure_headings)
         f.write(html)

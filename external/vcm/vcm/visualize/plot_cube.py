@@ -9,7 +9,10 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_OUTER,
 )
 from vcm.visualize.plot_helpers import (
-    _infer_color_limits, _get_var_label, _remove_redundant_dims)
+    _infer_color_limits,
+    _get_var_label,
+    _remove_redundant_dims,
+)
 from vcm.visualize.masking import _mask_antimeridian_quads
 import xarray as xr
 import numpy as np
@@ -28,7 +31,7 @@ _COORD_VARS = {
     VAR_LON_OUTER: [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
     VAR_LAT_OUTER: [COORD_Y_OUTER, COORD_X_OUTER, "tile"],
     VAR_LON_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
-    VAR_LAT_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile"]
+    VAR_LAT_CENTER: [COORD_Y_CENTER, COORD_X_CENTER, "tile"],
 }
 
 
@@ -166,8 +169,9 @@ def plot_cube(
         )
         cb_ax = plt.gcf().add_axes([0.83, 0.1, 0.02, 0.8])
         cbar = plt.colorbar(handles[0], cax=cb_ax, extend="both")
-        cbar.set_label(_get_var_label(
-            plottable_variable[var_name].attrs, cbar_label or var_name))
+        cbar.set_label(
+            _get_var_label(plottable_variable[var_name].attrs, cbar_label or var_name)
+        )
     else:
         cbar = None
 
