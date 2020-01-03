@@ -204,7 +204,11 @@ def interpolate_unstructured(data: xr.Dataset, coords) -> xr.Dataset:
         for dim in coords[coord].dims:
             dims_in_coords.add(dim)
 
-    assert len(dims_in_coords) == 1
+    if len(dims_in_coords) != 1:
+        raise ValueError("The values of ``coords`` can only have one common shared "
+                         "dimension. The coords have these dimensions: "
+                         f"`{dims_in_coords}`")
+
     dim_name = dims_in_coords.pop()
 
     spatial_dims = set()
