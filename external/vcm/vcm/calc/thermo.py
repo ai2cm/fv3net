@@ -147,8 +147,9 @@ def hydrostatic_dz(T, q, delp, dim=COORD_Z_CENTER):
         xr.DataArray: layer thicknesses dz
     """
     pi = pressure_at_interface(delp, dim_center=dim, dim_outer=dim)
-    epsilon = RDGAS / RVGAS
-    tv = T * (1 + q / epsilon) / (1 + q)
+    # epsilon = RDGAS / RVGAS
+    # tv = T * (1 + q / epsilon) / (1 + q)
+    tv = T * (1 + (RVGAS / RDGAS - 1) * q)
     dlogp = np.log(pi).diff(dim, label="lower")
     return -dlogp * RDGAS * tv / GRAVITY
 
