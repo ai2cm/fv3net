@@ -23,7 +23,20 @@ class Schema:
         return Schema(data.dims, data.dtype)
 
     def validate(self, data: xr.DataArray) -> bool:
-        pass
+        return self._validate_dims(data) and self._validate_dtype(data)
+
+    def _validate_dtype(self, data: xr.DataArray) -> bool:
+        return self.dtype == data.dtype
+
+    def _validate_dims(self, data: xr.DataArray) -> bool:
+        if self.dims[0] is ...:
+            expected_dims = self.dims[1:]
+            n = len(expected_dims)
+            data_dims = data.dims[-n:]
+        else:
+            expected_dims = self.dims
+            data_dims = data.dims
+        return set(expected_dims) == set(data_dims)
 
     def rename(self, arr: xr.DataArray) -> xr.DataArray:
         """Apply metadata to array_like object

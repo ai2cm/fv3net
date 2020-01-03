@@ -13,7 +13,7 @@ def da():
 @pytest.mark.parametrize("container_type", [list, tuple])
 def test_Schema_rename_any_dims(da, container_type):
     meta = schema.Schema(dims=container_type([..., "x"]), dtype=da.dtype)
-    out = meta.rename(da)
+    meta.rename(da)
 
 
 def test_Schema_rename_correct(da):
@@ -25,11 +25,11 @@ def test_Schema_rename_correct(da):
 def test_Schema_rename_fails_without_ellipsis(da):
     meta = schema.Schema(dims=["x"], dtype=da.dtype)
     with pytest.raises(ValueError):
-        out = meta.rename(da)
+        meta.rename(da)
 
 
 @pytest.mark.parametrize(
-    "dims, succeeds", [(["x"], False), (["bad"], False), ([..., "bad"], True),]
+    "dims, succeeds", [(["x"], False), (["bad"], False), ([..., "bad"], True)]
 )
 def test_Schema_validate_fails(da, dims, succeeds):
     meta = schema.Schema(dims=dims, dtype=da.dtype)
