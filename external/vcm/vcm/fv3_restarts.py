@@ -8,7 +8,7 @@ import fsspec
 import xarray as xr
 from dask.delayed import delayed
 
-import vcm.schema
+import vcm._schema
 from vcm.combining import combine_array_sequence
 from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
@@ -172,7 +172,7 @@ def _fix_metadata(ds):
         ds_no_time = ds.isel(Time=0).drop("Time")
     except ValueError:
         ds_no_time = ds
-    return vcm.schema.rename_dataset(ds_no_time)
+    return vcm._schema.rename_dataset(ds_no_time)
 
 
 def _load_arrays(
