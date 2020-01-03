@@ -11,6 +11,7 @@ import pandas as pd
 import xarray as xr
 from toolz import curry
 
+from .complex_sfc_data_coarsening import coarse_grain_sfc_data_complex
 from .cubedsphere import (
     block_coarsen,
     block_edge_sum,
@@ -19,6 +20,12 @@ from .cubedsphere import (
     edge_weighted_block_average,
     open_cubed_sphere,
     weighted_block_average,
+)
+from vcm.cubedsphere.constants import (
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_OUTER,
 )
 
 TILES = range(1, 7)
@@ -69,7 +76,7 @@ def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Datase
 
 # TODO: fix this name. it loads the data with area
 def load_tile_proc(tile, subtile, path, grid_path):
-    grid_spec_to_data_renaming = {"grid_xt": "xaxis_1", "grid_yt": "yaxis_1"}
+    grid_spec_to_data_renaming = {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
     grid = xr.open_dataset(grid_path)
 
     area = grid.area.rename(grid_spec_to_data_renaming)
@@ -270,7 +277,7 @@ def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
     )
 
 
-def coarse_grain_sfc_data(ds, area, coarsening_factor):
+def coarse_grain_sfc_data(ds, area, coarsening_factor, version="simple"):
     """Coarse grain a set of sfc_data restart files.
 
     Parameters
@@ -281,24 +288,33 @@ def coarse_grain_sfc_data(ds, area, coarsening_factor):
         Area weights
     coarsening_factor : int
         Coarsening factor to use
+    version : str
+        Version of the method to use {'simple', 'complex'}
 
     Returns
     -------
     xr.Dataset
     """
-    result = block_median(ds, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1")
-
-    result["slmsk"] = integerize(result.slmsk)
-    return result
+    if version == "simple":
+        result = block_median(ds, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1")
+        result["slmsk"] = integerize(result.slmsk)
+        return result
+    elif version == "complex":
+        return coarse_grain_sfc_data_complex(ds, area, coarsening_factor)
+    else:
+        raise ValueError(
+            f"Currently the only supported versions are 'simple' and 'complex'. "
+            "Got {version}."
+        )
 
 
 def coarse_grain_grid_spec(
     ds,
     coarsening_factor,
-    x_dim_unstaggered="grid_xt",
-    y_dim_unstaggered="grid_yt",
-    x_dim_staggered="grid_x",
-    y_dim_staggered="grid_y",
+    x_dim_unstaggered=COORD_X_CENTER,
+    y_dim_unstaggered=COORD_Y_CENTER,
+    x_dim_staggered=COORD_X_OUTER,
+    y_dim_staggered=COORD_Y_OUTER,
 ):
     coarse_dx = block_edge_sum(
         ds.dx, coarsening_factor, x_dim_unstaggered, y_dim_staggered, "x"
@@ -329,10 +345,10 @@ def coarsen_grid_spec(
     input_grid_spec,
     coarsening_factor,
     output_filename,
-    x_dim_unstaggered="grid_xt",
-    y_dim_unstaggered="grid_yt",
-    x_dim_staggered="grid_x",
-    y_dim_staggered="grid_y",
+    x_dim_unstaggered=COORD_X_CENTER,
+    y_dim_unstaggered=COORD_Y_CENTER,
+    x_dim_staggered=COORD_X_OUTER,
+    y_dim_staggered=COORD_Y_OUTER,
 ):
     tile = pd.Index(TILES, name="tile")
     native_grid_spec = xr.open_mfdataset(input_grid_spec, concat_dim=tile)
@@ -371,15 +387,19 @@ def coarsen_restart_file_category(
         coarsened = coarse_grain_fv_core(
             source,
             source.delp,
-            grid_spec.area.rename({"grid_xt": "xaxis_1", "grid_yt": "yaxis_2"}),
-            grid_spec.dx.rename({"grid_xt": "xaxis_1", "grid_y": "yaxis_1"}),
-            grid_spec.dy.rename({"grid_x": "xaxis_2", "grid_yt": "yaxis_2"}),
+            grid_spec.area.rename(
+                {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_2"}
+            ),
+            grid_spec.dx.rename({COORD_X_CENTER: "xaxis_1", COORD_Y_OUTER: "yaxis_1"}),
+            grid_spec.dy.rename({COORD_X_OUTER: "xaxis_2", COORD_Y_CENTER: "yaxis_2"}),
             coarsening_factor,
         )
     elif category == "fv_srf_wnd_coarse.res":
         coarsened = coarse_grain_fv_srf_wnd(
             source,
-            grid_spec.area.rename({"grid_xt": "xaxis_1", "grid_yt": "yaxis_1"}),
+            grid_spec.area.rename(
+                {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
+            ),
             coarsening_factor,
         )
     elif category == "fv_tracer_coarse.res":
@@ -394,14 +414,18 @@ def coarsen_restart_file_category(
         coarsened = coarse_grain_fv_tracer(
             source,
             fv_core.delp.rename({"yaxis_2": "yaxis_1"}),
-            grid_spec.area.rename({"grid_xt": "xaxis_1", "grid_yt": "yaxis_1"}),
+            grid_spec.area.rename(
+                {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
+            ),
             coarsening_factor,
         )
     elif category == "sfc_data":
         native_grid_spec = xr.open_mfdataset(native_grid_spec, concat_dim=tile)
         coarsened = coarse_grain_sfc_data(
             source,
-            native_grid_spec.area.rename({"grid_xt": "xaxis_1", "grid_yt": "yaxis_1"}),
+            native_grid_spec.area.rename(
+                {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
+            ),
             coarsening_factor,
         )
     else:

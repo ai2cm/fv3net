@@ -1,14 +1,19 @@
 """Tools for working with cubedsphere data"""
-from typing import Any, Callable, Hashable, List, Mapping, Tuple, Union
+from functools import partial
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Tuple, Union
 
 import dask
 import numpy as np
+import scipy.stats
 import xarray as xr
 from skimage.measure import block_reduce as skimage_block_reduce
 
+from .. import xarray_utils
+from vcm.cubedsphere.constants import COORD_X_OUTER, COORD_Y_OUTER
+
 NUM_TILES = 6
 SUBTILE_FILE_PATTERN = "{prefix}.tile{tile:d}.nc.{subtile:04d}"
-STAGGERED_DIMS = ["grid_x", "grid_y"]
+STAGGERED_DIMS = [COORD_X_OUTER, COORD_Y_OUTER]
 
 
 def rename_centered_xy_coords(cell_centered_da):
@@ -542,39 +547,6 @@ def block_median(
     )
 
 
-def block_coarsen(
-    obj: Union[xr.Dataset, xr.DataArray],
-    coarsening_factor: int,
-    x_dim: Hashable = "xaxis_1",
-    y_dim: Hashable = "yaxis_1",
-    method: str = "sum",
-    coord_func: Union[
-        str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_coords_coord_func,
-) -> Union[xr.Dataset, xr.DataArray]:
-    """Coarsen a DataArray or Dataset by performing an operation over blocks.
-
-    Args:
-        obj: Input Dataset or DataArray.
-        coarsening_factor: Integer coarsening factor to use.
-        x_dim: x dimension name (default 'xaxis_1').
-        y_dim: y dimension name (default 'yaxis_1').
-        method: Name of coarsening method to use.
-        coord_func: function that is applied to the coordinates, or a
-            mapping from coordinate name to function.  See `xarray's coarsen
-            method for details
-            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
-
-    Returns:
-        xr.Dataset or xr.DataArray.
-    """
-    coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-    coarsen_object = obj.coarsen(coarsen_kwargs, coord_func=coord_func)
-    result = getattr(coarsen_object, method)()
-
-    return result
-
-
 def block_edge_sum(
     obj: Union[xr.Dataset, xr.DataArray],
     coarsening_factor: int,
@@ -624,3 +596,218 @@ def block_edge_sum(
     return _coarsen_downsample_coordinate(
         obj, result, downsample_dim, coarsening_factor, coord_func
     )
+
+
+def _mode(arr: np.array, axis: int = 0, nan_policy: str = "propagate") -> np.array:
+    """A version of scipy.stats.mode that only returns a NumPy array with the
+    mode values along the given axis."""
+    result = scipy.stats.mode(arr, axis=axis, nan_policy=nan_policy).mode
+
+    # Note that the result always has a length-one extra dimension in place of
+    # the dimension that was reduced.  We would like to squeeze that out to be
+    # consistent with NumPy reduction functions (like np.mean).
+    return np.squeeze(result, axis)
+
+
+def _ureduce(arr: np.array, func: Callable, **kwargs) -> np.array:
+    """Heavily adapted from NumPy: https://github.com/numpy/numpy/blob/
+    b83f10ef7ee766bf30ccfa563b6cc8f7fd38a4c8/numpy/lib/
+    function_base.py#L3343-L3395
+
+    This moves the axes to reduce along to the end of the array, reshapes the
+    array so that these axes are combined into a single axis, and finally
+    reduces the array along that combined axis.
+
+    This is a simplified version of the NumPy version; to be robust, we may
+    want to follow the NumPy version and make sure we handle all possible types
+    of axis arguments (e.g. single integers and tuples; currently this only
+    handles tuples).  For now this private function contains the minimum needed
+    to implement a mode reduction function that can be applied over multiple
+    axes at once.
+
+    Args:
+        arr : Input NumPy array.
+        func : Function which takes an axis argument and reduces along a single
+            axis.
+        **kwargs : Keyword arguments to pass to the function.
+
+    Returns:
+        NumPy array.
+    """
+    arr = np.asanyarray(arr)
+    axis = kwargs.get("axis", None)
+    if axis is not None:
+        if not isinstance(axis, tuple) or any(ax < 0 for ax in axis):
+            raise ValueError(
+                f"Our in-house version of _ureduce currently only supports "
+                "a tuple of positive integers as an 'axis' argument; got {axis}."
+            )
+        nd = arr.ndim
+        if len(axis) == 1:
+            kwargs["axis"] = axis[0]
+        else:
+            keep = set(range(nd)) - set(axis)
+            nkeep = len(keep)
+            for i, s in enumerate(sorted(keep)):
+                arr = arr.swapaxes(i, s)
+            arr = arr.reshape(arr.shape[:nkeep] + (-1,))
+            kwargs["axis"] = len(arr.shape) - 1
+    return func(arr, **kwargs)
+
+
+def _mode_reduce(
+    arr: np.array, axis: Tuple[int] = (0,), nan_policy: str = "propagate"
+) -> np.array:
+    """A version of _mode that reduces over a tuple of axes."""
+    return _ureduce(arr, _mode, axis=axis, nan_policy=nan_policy)
+
+
+def _block_mode(
+    obj: Union[xr.Dataset, xr.DataArray],
+    coarsening_factor: int,
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    coord_func: Union[
+        str, Mapping[Hashable, Union[Callable, str]]
+    ] = coarsen_coords_coord_func,
+    nan_policy: str = "propagate",
+) -> Union[xr.Dataset, xr.DataArray]:
+    """Coarsen a DataArray or Dataset by taking the mode over blocks.
+
+    See also: scipy.stats.mode.
+
+    Args:
+        obj: Input Dataset or DataArray.
+        coarsening_factor: Integer coarsening factor to use.
+        x_dim: x dimension name (default 'xaxis_1').
+        y_dim: y dimension name (default 'yaxis_1').
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
+        nan_policy: Defines how to handle when input contains nan. 'propagate'
+            returns nan, raise' throws an error, 'omit' performs the calculations
+            ignoring nan values. Default is 'propagate'.
+
+    Returns:
+        xr.Dataset or xr.DataArray.
+    """
+    reduction_function = partial(_mode_reduce, nan_policy=nan_policy)
+    return horizontal_block_reduce(
+        obj,
+        coarsening_factor,
+        reduction_function,
+        x_dim=x_dim,
+        y_dim=y_dim,
+        coord_func=coord_func,
+    )
+
+
+CUSTOM_COARSENING_FUNCTIONS = {"median": block_median, "mode": _block_mode}
+
+
+def block_coarsen(
+    obj: Union[xr.Dataset, xr.DataArray],
+    coarsening_factor: int,
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+    method: str = "sum",
+    coord_func: Union[
+        str, Mapping[Hashable, Union[Callable, str]]
+    ] = coarsen_coords_coord_func,
+    func_kwargs: Optional[Dict] = None,
+) -> Union[xr.Dataset, xr.DataArray]:
+    """Coarsen a DataArray or Dataset by performing an operation over blocks.
+
+    In addition to the operations supported through xarray's coarsen method,
+    this function also supports dask-compatible 'median' and 'mode' reduction
+    methods.
+
+    Args:
+        obj: Input Dataset or DataArray.
+        coarsening_factor: Integer coarsening factor to use.
+        x_dim: x dimension name (default 'xaxis_1').
+        y_dim: y dimension name (default 'yaxis_1').
+        method: Name of coarsening method to use.
+        coord_func: function that is applied to the coordinates, or a
+            mapping from coordinate name to function.  See `xarray's coarsen
+            method for details
+            <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
+        func_kwargs: Additional keyword arguments to pass to the reduction function.
+
+    Returns:
+        xr.Dataset or xr.DataArray.
+    """
+    if func_kwargs is None:
+        func_kwargs = {}
+
+    if method in CUSTOM_COARSENING_FUNCTIONS:
+        return CUSTOM_COARSENING_FUNCTIONS[method](
+            obj,
+            coarsening_factor,
+            x_dim=x_dim,
+            y_dim=y_dim,
+            coord_func=coord_func,
+            **func_kwargs,
+        )
+    else:
+        coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
+        coarsen_object = obj.coarsen(coarsen_kwargs, coord_func=coord_func)
+        return getattr(coarsen_object, method)()
+
+
+def _upsample_staggered_or_unstaggered(obj, upsampling_factor, dim):
+    """If the dimension size is even, uniformly repeat all points along the
+    dimension; if the dimension size is odd, repeat all the points by
+    the given factor except for the last value along the dimension."""
+    dim_size = obj.sizes[dim]
+    is_staggered_dim = dim_size % 2 == 1
+    if is_staggered_dim:
+        # dask.array.repeat does not currently take array arguments for
+        # repeats; we work around this by splitting the array into portions
+        # where we upsample with a uniform factor and then concatenate them
+        # back together.
+        a = xarray_utils.repeat(
+            obj.isel({dim: slice(None, -1)}), upsampling_factor, dim
+        )
+        b = xarray_utils.repeat(obj.isel({dim: slice(-1, None)}), 1, dim)
+        if isinstance(obj, xr.Dataset):
+            # Use data_vars="minimal" here to prevent data variables without
+            # the repeating dimension from being broadcast along the repeating
+            # dimension during the concat step.
+            return xr.concat([a, b], dim=dim, data_vars="minimal")
+        else:
+            return xr.concat([a, b], dim=dim)
+    else:
+        return xarray_utils.repeat(obj, upsampling_factor, dim)
+
+
+def block_upsample(
+    obj: Union[xr.Dataset, xr.DataArray], upsampling_factor: int, dims: List[Hashable],
+) -> Union[xr.Dataset, xr.DataArray]:
+    """Upsample an object by repeating values n times in each
+    horizontal dimension.
+
+    If a dimension has an odd size, it is assumed to be represent the grid cell
+    interfaces.  In that case, values of the array are repeated with the
+    upsampling factor, except for values on the upper boundary, which are not
+    be repeated at all.
+
+    Note that this function drops the coordinates along the dimensions
+    specified, as it is not always obvious how one should infer what
+    the missing coordinates should be.  Coordinates are not needed for our
+    application currently in VCM, so we will defer the complexity of addressing
+    this question for the time being.
+
+    Args:
+        obj: Input Dataset or DataArray.
+        factor: Integer upsampling factor to use.
+        dims: List of dimension names to upsample along; could be unstaggered
+            or staggered.
+
+    Returns:
+        xr.Dataset or xr.DataArray.
+    """
+    for dim in dims:
+        obj = _upsample_staggered_or_unstaggered(obj, upsampling_factor, dim)
+    return obj
