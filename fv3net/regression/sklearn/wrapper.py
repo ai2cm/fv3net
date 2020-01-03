@@ -91,17 +91,24 @@ class BaseXarrayEstimator:
 
 
 def _unique_dim_name(data):
-    return ''.join(data.dims)
+    return "".join(data.dims)
+
 
 def _pack(data: xr.Dataset, sample_dim) -> np.ndarray:
     feature_dim_name = _unique_dim_name(data)
     stacked = data.to_stacked_array(feature_dim_name, sample_dims=[sample_dim])
-    return stacked.transpose(sample_dim, feature_dim_name).data, stacked.indexes[feature_dim_name]
+    return (
+        stacked.transpose(sample_dim, feature_dim_name).data,
+        stacked.indexes[feature_dim_name],
+    )
 
 
 def _unpack(data: np.ndarray, sample_dim, feature_index):
-    da = xr.DataArray(data, dims=[sample_dim, 'feature'], coords={'feature': feature_index})
-    return da.to_unstacked_dataset('feature')
+    da = xr.DataArray(
+        data, dims=[sample_dim, "feature"], coords={"feature": feature_index}
+    )
+    return da.to_unstacked_dataset("feature")
+
 
 class SklearnWrapper(BaseXarrayEstimator):
     """Wrap a SkLearn model for use with xarray
