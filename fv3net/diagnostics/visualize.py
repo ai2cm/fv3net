@@ -68,8 +68,9 @@ def plot_diag_var_map(
         var_name=plot_config.diagnostic_variable)
     fig, axes, handles, cbar = plot_cube(
         ds_mappable,
-        vmin=float(plot_config.plot_params["vmin"]),
-        vmax=float(plot_config.plot_params["vmax"]))
+        **plot_config.plot_params)
+        #vmin=float(plot_config.plot_params["vmin"]),
+        #vmax=float(plot_config.plot_params["vmax"]))
     return fig
 
 

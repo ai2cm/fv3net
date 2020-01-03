@@ -115,8 +115,8 @@ def plot_cube(
 
     xmin = np.nanmin(array)
     xmax = np.nanmax(array)
-    vmin = kwargs["vmin"] if "vmin" in kwargs else None
-    vmax = kwargs["vmax"] if "vmax" in kwargs else None
+    vmin = float(kwargs["vmin"]) if "vmin" in kwargs else None
+    vmax = float(kwargs["vmax"]) if "vmax" in kwargs else None
     cmap = kwargs["cmap"] if "cmap" in kwargs else None
     kwargs["vmin"], kwargs["vmax"], kwargs["cmap"] = _infer_color_limits(
         xmin, xmax, vmin, vmax, cmap
