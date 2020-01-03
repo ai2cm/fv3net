@@ -136,8 +136,8 @@ def train_model(batched_data, train_config, targets_for_normalization):
     Args:
         batched_data: iterator that yields training batch datasets
         train_config: ModelTrainingConfig object
-        output_norms_mean: array of means to subtract from outputs
-        output_norms_stddev: array of stddevs to divide (raw output - mean)
+        targets_for_normalization: array of sample output data used to save norm and std
+            dev to the StandardScaler transformer
 
     Returns:
         trained sklearn model wrapper object
@@ -179,7 +179,7 @@ if __name__ == "__main__":
         "--target-normalization-file",
         type=str,
         default="default",
-        help="File that contains arrays mean and stddev for normalizing outputs",
+        help="File that contains array of sample output for use in StandardScaler",
     )
     args = parser.parse_args()
     train_config = load_model_training_config(args.train_config_file)

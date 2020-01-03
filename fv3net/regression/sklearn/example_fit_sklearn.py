@@ -37,9 +37,9 @@ from vcm.calc.metrics import r2_score
 train = batch.isel(sample=slice(0, 5000))
 test = batch.isel(sample=slice(-5000, None))
 
-pred = wrapped_rf.predict(test, sample_dim='sample')     
+pred = wrapped_rf.predict(test, sample_dim='sample')
 grid = xr.open_dataset('/home/noahb/workspace/explore/noahb/dycoreOnly/atmos_dt_atmos.tile1.nc')
-r2_q2 = r2_score(test['Q2'], pred['Q2'], sample_dim='sample') 
+r2_q2 = r2_score(test['Q2'], pred['Q2'], sample_dim='sample')
 
 r2_q2  = r2_q2.assign_coords(pfull=grid.pfull)
 

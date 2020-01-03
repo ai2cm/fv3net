@@ -4,7 +4,6 @@ import xarray as xr
 
 from fv3net.regression.sklearn.wrapper import _pack
 
-
 def test_flatten(test_packer):
     x = np.ones((3, 4, 5))
     shape = (3, 4, 5)
