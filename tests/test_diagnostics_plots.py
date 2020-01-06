@@ -1,4 +1,5 @@
 import matplotlib
+matplotlib.use('qt5agg')
 import numpy as np
 import pytest
 import xarray as xr
