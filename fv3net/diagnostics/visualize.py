@@ -59,7 +59,7 @@ def plot_diag_var_map(ds, plot_config):
         VAR_GRID_LAT_CENTER: VAR_LAT_CENTER,
     }
     ds = ds.rename(rename_coord_vars)
-    ds_mappable = mappable_var(ds, var_name=plot_config.diagnostic_variable)
+    ds_mappable = mappable_var(ds, var_name=plot_config.diagnostic_variable[0])
     fig, axes, handles, cbar = plot_cube(ds_mappable, **plot_config.plot_params)
     return fig
 

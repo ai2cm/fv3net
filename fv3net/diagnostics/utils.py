@@ -93,6 +93,27 @@ def load_plot_params(raw_config):
         return {}
 
 
+def load_diagnostic_vars(raw_config):
+    """ Get diagnostic variable(s) from config. If single string provided put it into
+    single element list. This is so that later plotting functions can put two variables
+    on same figure.
+
+    Args:
+        raw_config: config entry as read directly from file
+
+    Returns:
+        list: diagnostic variable names
+    """
+    if isinstance(raw_config["diagnostic_variable"], list):
+        diag_var = raw_config
+    elif isinstance(raw_config["diagnostic_variable"], str):
+        diag_var = [raw_config["diagnostic_variable"]]
+    else:
+        raise TypeError("diagnostic_variable in the config file must be a single string"
+                        "or list of strings")
+    return diag_var
+
+
 def load_configs(config_path):
     """
 
@@ -109,17 +130,15 @@ def load_configs(config_path):
             raise ValueError(f"Bad yaml config: {exc}")
     plot_configs = []
     for raw_config in raw_configs:
-        dim_slices = load_dim_slices(raw_config)
         functions, function_kwargs = load_ufuncs(raw_config)
-        plot_params = load_plot_params(raw_config)
         plot_config = PlotConfig(
             plot_name=raw_config["plot_name"],
             plotting_function=raw_config["plotting_function"],
-            diagnostic_variable=raw_config["diagnostic_variable"],
-            dim_slices=dim_slices,
+            diagnostic_variable=load_diagnostic_vars(raw_config),
+            dim_slices=load_dim_slices(raw_config),
             functions=functions,
             function_kwargs=function_kwargs,
-            plot_params=plot_params,
+            plot_params=load_plot_params(raw_config),
         )
         plot_configs.append(plot_config)
     return plot_configs
