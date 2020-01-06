@@ -19,6 +19,7 @@ netcdf4>=1.4
 numba
 numpy==1.16
 partd
+pyqt5
 pyyaml==3.13
 pytest
 pytest-faulthandler
