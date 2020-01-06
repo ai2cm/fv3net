@@ -32,7 +32,9 @@ def pressure_at_interface(
     top = xr.full_like(delp.isel({dim_center: [0]}), toa_pressure).variable
     delp_with_top = top.concat([top, delp.variable], dim=dim_center)
     pressure = delp_with_top.cumsum(dim_center)
-    return _add_coords(pressure, delp, dim_center=dim_center, dim_outer=dim_outer)
+    return _add_coords_to_interface_variable(
+        pressure, delp, dim_center=dim_center
+    ).rename({dim_center: dim_outer})
 
 
 def height_at_interface(dz, phis, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER):
@@ -57,25 +59,19 @@ def height_at_interface(dz, phis, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_O
         .cumsum(dim_center)
         .isel({dim_center: REVERSE})
     )
-    return _add_coords(height, dz, dim_center=dim_center, dim_outer=dim_outer)
+    return _add_coords_to_interface_variable(height, dz, dim_center=dim_center).rename(
+        {dim_center: dim_outer}
+    )
 
 
-def _add_coords(dv, da, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER):
-    """ Assign coords from da to dv, except use vertical coordinate that is
-    one element longer than da's, if vertical coordinate exists in da """
-    if dim_center in da.coords:
-        z_coord_center = da.coords[dim_center]
-        z_coord_outer = xr.concat(
-            [z_coord_center, 1 + z_coord_center.isel({dim_center: [-1]})],
-            dim=dim_center,
-        ).rename({dim_center: dim_outer})
-        return (
-            xr.DataArray(dv, coords=da.drop(dim_center).coords)
-            .rename({dim_center: dim_outer})
-            .assign_coords({dim_outer: z_coord_outer})
-        )
+def _add_coords_to_interface_variable(
+    dv_outer: xr.Variable, da_center: xr.DataArray, dim_center: str = COORD_Z_CENTER,
+):
+    """Assign all coords except vertical from da_center to dv_outer """
+    if dim_center in da_center.coords:
+        return xr.DataArray(dv_outer, coords=da_center.drop(dim_center).coords)
     else:
-        return xr.DataArray(dv, coords=da.coords).rename({dim_center: dim_outer})
+        return xr.DataArray(dv_outer, coords=da_center.coords)
 
 
 def pressure_at_midpoint(delp, toa_pressure=TOA_PRESSURE, dim=COORD_Z_CENTER):
@@ -111,8 +107,7 @@ def height_at_midpoint(dz, phis, dim=COORD_Z_CENTER):
 
 def _interface_to_midpoint(da, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER):
     da_mid = (
-        da.isel({dim_outer: slice(0, -1)})
-        + da.isel({dim_outer: slice(1, None)}).variable
+        da.isel({dim_outer: slice(0, -1)}) + da.isel({dim_outer: slice(1, None)})
     ) / 2
     return da_mid.rename({dim_outer: dim_center})
 
@@ -133,7 +128,7 @@ def pressure_at_midpoint_log(delp, toa_pressure=TOA_PRESSURE, dim=COORD_Z_CENTER
     pi = pressure_at_interface(
         delp, toa_pressure=toa_pressure, dim_center=dim, dim_outer=dim
     )
-    dlogp = np.log(pi).diff(dim, label="lower")
+    dlogp = np.log(pi).diff(dim)
     return delp / dlogp
 
 
@@ -151,7 +146,7 @@ def hydrostatic_dz(T, q, delp, dim=COORD_Z_CENTER):
     """
     pi = pressure_at_interface(delp, dim_center=dim, dim_outer=dim)
     tv = T * (1 + (RVGAS / RDGAS - 1) * q)
-    dlogp = np.log(pi).diff(dim, label="lower")
+    dlogp = np.log(pi).diff(dim)
     return -dlogp * RDGAS * tv / GRAVITY
 
 

@@ -19,8 +19,8 @@ from .cubedsphere import (
     coarsen_coords,
     edge_weighted_block_average,
     open_cubed_sphere,
-    remap_to_area_weighted_pressure,
-    remap_to_edge_weighted_pressure,
+    regrid_to_area_weighted_pressure,
+    regrid_to_edge_weighted_pressure,
     weighted_block_average,
 )
 from .calc.thermo import hydrostatic_dz, height_at_interface, dz_and_top_to_phis
@@ -238,7 +238,7 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
     dx_edge_weighted_vars = ["u"]
     dy_edge_weighted_vars = ["v"]
 
-    area_pressure_remapped, masked_area = remap_to_area_weighted_pressure(
+    area_pressure_regridded, masked_area = regrid_to_area_weighted_pressure(
         ds[mass_weighted_vars],
         delp,
         area,
@@ -247,7 +247,7 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         y_dim=FV_CORE_Y_CENTER,
     )
 
-    dx_pressure_remapped, masked_dx = remap_to_edge_weighted_pressure(
+    dx_pressure_regridded, masked_dx = regrid_to_edge_weighted_pressure(
         ds[dx_edge_weighted_vars],
         delp,
         dx,
@@ -257,7 +257,7 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         edge="x",
     )
 
-    dy_pressure_remapped, masked_dy = remap_to_edge_weighted_pressure(
+    dy_pressure_regridded, masked_dy = regrid_to_edge_weighted_pressure(
         ds[dy_edge_weighted_vars],
         delp,
         dy,
@@ -277,7 +277,7 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
 
     masked_mass = delp * masked_area
     mass_weighted = weighted_block_average(
-        area_pressure_remapped,
+        area_pressure_regridded,
         masked_mass,
         coarsening_factor,
         x_dim=FV_CORE_X_CENTER,
@@ -285,7 +285,7 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
     )
 
     edge_weighted_x = edge_weighted_block_average(
-        dx_pressure_remapped,
+        dx_pressure_regridded,
         masked_dx,
         coarsening_factor,
         x_dim=FV_CORE_X_CENTER,
@@ -294,7 +294,7 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
     )
 
     edge_weighted_y = edge_weighted_block_average(
-        dy_pressure_remapped,
+        dy_pressure_regridded,
         masked_dy,
         coarsening_factor,
         x_dim=FV_CORE_X_OUTER,
@@ -386,7 +386,7 @@ def coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
         "sgs_tke",
     ]
 
-    ds_remapped, masked_area = remap_to_area_weighted_pressure(
+    ds_regridded, masked_area = regrid_to_area_weighted_pressure(
         ds,
         delp,
         area,
@@ -396,7 +396,7 @@ def coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
     )
 
     area_weighted = weighted_block_average(
-        ds_remapped[area_weighted_vars],
+        ds_regridded[area_weighted_vars],
         masked_area,
         coarsening_factor,
         x_dim=FV_TRACER_X_CENTER,
@@ -405,7 +405,7 @@ def coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
 
     masked_mass = delp * masked_area
     mass_weighted = weighted_block_average(
-        ds_remapped[mass_weighted_vars],
+        ds_regridded[mass_weighted_vars],
         masked_mass,
         coarsening_factor,
         x_dim=FV_TRACER_X_CENTER,
@@ -457,14 +457,13 @@ def impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim=RESTART_Z_CENTER):
         ds_fv_core["DZ"], ds_fv_core["phis"], dim_center=dim, dim_outer=dim
     )
     height_top = height.isel({dim: 0})
-    ds_fv_core["DZ"] = hydrostatic_dz(
+    dz = hydrostatic_dz(
         ds_fv_core["T"],
         ds_fv_tracer["sphum"].rename({FV_TRACER_Y_CENTER: FV_CORE_Y_CENTER}),
         ds_fv_core["delp"],
         dim=dim,
     )
-    ds_fv_core["phis"] = dz_and_top_to_phis(height_top, ds_fv_core["DZ"], dim=dim)
-    return ds_fv_core
+    return ds_fv_core.assign(DZ=dz, phis=dz_and_top_to_phis(height_top, dz, dim=dim))
 
 
 def coarse_grain_sfc_data(ds, area, coarsening_factor, version="simple"):

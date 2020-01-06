@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import xarray as xr
-from vcm.cubedsphere.remapz import remap_levels, _mask_weights
+from vcm.cubedsphere.regridz import regrid_vertical, _mask_weights
 
 
 def input_dataarray(shape):
@@ -21,14 +21,14 @@ def input_dataarray(shape):
         ((4, 4, 6), (4, 4, 5), (4, 4, 3), (4, 4, 2)),
     ],
 )
-def test_remap_levels(p_in_shape, f_in_shape, p_out_shape, expected):
+def test_regrid_vertical(p_in_shape, f_in_shape, p_out_shape, expected):
     p_in = input_dataarray(p_in_shape)
     f_in = input_dataarray(f_in_shape)
     p_out = input_dataarray(p_out_shape)
     try:
-        f_out = remap_levels(p_in, f_in, p_out, z_dim_center="z", z_dim_outer="z")
+        f_out = regrid_vertical(p_in, f_in, p_out, z_dim_center="z", z_dim_outer="z")
     except ImportError:
-        pytest.skip("mappm import failed. Skipping test_remap_levels.")
+        pytest.skip("mappm import failed. Skipping test_regrid_vertical.")
     f_out = f_out.transpose(*f_in.dims)
     assert f_out.shape == expected
 

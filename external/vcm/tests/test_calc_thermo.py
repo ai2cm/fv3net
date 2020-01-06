@@ -7,71 +7,54 @@ from vcm.calc.thermo import (
     height_at_interface,
     _interface_to_midpoint,
     dz_and_top_to_phis,
-    _add_coords,
+    _add_coords_to_interface_variable,
 )
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 
 
 @pytest.mark.parametrize("toa_pressure", [0, 5])
 def test_pressure_on_interface(toa_pressure):
-    delp = xr.DataArray(
-        np.arange(1, 10),
-        dims=[COORD_Z_CENTER],
-        coords={COORD_Z_CENTER: np.arange(1, 10)},
-    )
+    delp = xr.DataArray(np.arange(1, 10), dims=[COORD_Z_CENTER])
     pressure = pressure_at_interface(delp, toa_pressure=toa_pressure)
-    pressure_expected = xr.DataArray(
-        np.cumsum(np.concatenate(([toa_pressure], delp.values))),
-        dims=[COORD_Z_OUTER],
-        coords={COORD_Z_OUTER: np.arange(1, 11)},
+    xr.testing.assert_allclose(
+        pressure.diff(COORD_Z_OUTER), delp.rename({COORD_Z_CENTER: COORD_Z_OUTER})
     )
-    xr.testing.assert_allclose(pressure, pressure_expected)
+    np.testing.assert_allclose(pressure.isel({COORD_Z_OUTER: 0}).values, toa_pressure)
 
 
 @pytest.mark.parametrize("phis_value", [0, 5])
 def test_height_on_interface(phis_value):
-    dz = xr.DataArray(
-        np.arange(1, 10),
-        dims=[COORD_Z_CENTER],
-        coords={COORD_Z_CENTER: np.arange(1, 10)},
-    )
+    dz = xr.DataArray(np.arange(1, 10), dims=[COORD_Z_CENTER])
     phis = xr.DataArray(phis_value)
     height = height_at_interface(dz, phis)
-    height_expected = xr.DataArray(
-        np.cumsum(np.concatenate(([phis_value / GRAVITY], -dz.values[::-1])))[::-1],
-        dims=[COORD_Z_OUTER],
-        coords={COORD_Z_OUTER: np.arange(1, 11)},
+    xr.testing.assert_allclose(
+        height.diff(COORD_Z_OUTER), dz.rename({COORD_Z_CENTER: COORD_Z_OUTER})
     )
-    xr.testing.assert_allclose(height, height_expected)
+    np.testing.assert_allclose(
+        height.isel({COORD_Z_OUTER: -1}).values, phis_value / GRAVITY
+    )
 
 
-@pytest.mark.parametrize("interface_coords", [None, {COORD_Z_OUTER: np.arange(1, 10)}])
-def test__interface_to_midpoint(interface_coords):
-    interface = xr.DataArray(
-        np.arange(1, 10), dims=[COORD_Z_OUTER], coords=interface_coords
-    )
+def test__interface_to_midpoint():
+    interface = xr.DataArray(np.arange(1, 10), dims=[COORD_Z_OUTER])
     midpoint = _interface_to_midpoint(interface)
-    if interface_coords is None:
-        midpoint_coords = None
-    else:
-        midpoint_coords = {COORD_Z_CENTER: interface_coords[COORD_Z_OUTER][:-1]}
-    expected = xr.DataArray(
-        np.arange(1.5, 9), dims=[COORD_Z_CENTER], coords=midpoint_coords
-    )
+    expected = xr.DataArray(np.arange(1.5, 9), dims=[COORD_Z_CENTER])
     xr.testing.assert_allclose(midpoint, expected)
 
 
-@pytest.mark.parametrize("z_coord", [None, {COORD_Z_CENTER: np.arange(1, 10)}])
-def test__add_coords(z_coord):
-    da = xr.DataArray(np.arange(1, 10), dims=[COORD_Z_CENTER], coords=z_coord)
-    dv = xr.Variable([COORD_Z_CENTER], np.arange(1, 11))
-    da_out = _add_coords(dv, da, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_OUTER)
-    if z_coord is None:
-        output_coord = None
-    else:
-        output_coord = {COORD_Z_OUTER: np.arange(1, 11)}
+@pytest.mark.parametrize(
+    "da_coords, da_out_expected_coords",
+    [
+        ({"x": range(5)}, {"x": range(5)}),
+        ({"z": range(10), "x": range(5)}, {"x": range(5)}),
+    ],
+)
+def test__add_coords_to_interface_variable(da_coords, da_out_expected_coords):
+    da = xr.DataArray(np.ones((10, 5)), dims=["z", "x"], coords=da_coords)
+    dv = xr.Variable(["z", "x"], np.ones((11, 5)))
+    da_out = _add_coords_to_interface_variable(dv, da, dim_center="z")
     da_out_expected = xr.DataArray(
-        np.arange(1, 11), dims=[COORD_Z_OUTER], coords=output_coord
+        np.ones((11, 5)), dims=["z", "x"], coords=da_out_expected_coords
     )
     xr.testing.assert_allclose(da_out, da_out_expected)
 
