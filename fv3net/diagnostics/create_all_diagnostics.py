@@ -1,3 +1,10 @@
+"""
+This can be used to generate a html report of diagnostic figures using
+a plot configuration yaml file.
+The report will be written to output_dir/diagnostics.html where the output_dir is
+one of the command line args.
+"""
+
 import os
 import argparse
 
@@ -6,10 +13,10 @@ from vcm.cloud.remote_data import read_zarr_from_gcs
 from fv3net.diagnostics.visualize import create_plot
 from fv3net.diagnostics.utils import load_configs
 
-IMAGES = {}
+
 
 report_html = Template(
-    """
+"""
 {% for header, image in sections.items() %}
 <h2>{{header}}</h2>
 <img src="{{image}}" />
@@ -20,6 +27,16 @@ report_html = Template(
 
 
 def create_diagnostics(plot_configs, data, output_dir):
+    """ Create one plot per config entry in config file
+
+    Args:
+        plot_configs: List of PlotConfig objs
+        data: xarray dataset
+        output_dir: directory to write output figures to
+
+    Returns:
+        dict: key: header name for each figure, value: filename of figure
+    """
     output_figures = {}
     for plot_config in plot_configs:
         fig = create_plot(data, plot_config)
@@ -30,7 +47,6 @@ def create_diagnostics(plot_configs, data, output_dir):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config-file",
@@ -45,7 +61,9 @@ if __name__ == "__main__":
         help="Location to save diagnostic plots and html summary",
     )
     parser.add_argument(
-        "--gcs-run-dir", required=True, help="Path to remote gcs rundir"
+        "--gcs-run-dir",
+        required=True,
+        help="Path to remote gcs rundir"
     )
     args = parser.parse_args()
     if not os.path.exists(args.output_dir):

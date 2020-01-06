@@ -115,13 +115,14 @@ def load_diagnostic_vars(raw_config):
 
 
 def load_configs(config_path):
-    """
+    """ Loads the plot configs from yaml file into PlotConfig objects for
+    ease of use later on
 
     Args:
-        config_path:
+        config_path: configuration yaml file path
 
     Returns:
-
+        list: PlotConfig objects
     """
     with open(config_path, "r") as stream:
         try:
