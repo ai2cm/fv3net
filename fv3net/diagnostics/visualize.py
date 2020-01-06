@@ -70,9 +70,11 @@ def plot_diag_var_map(ds, plot_config):
     }
     ds = ds.rename(rename_coord_vars)
     if len(plot_config.diagnostic_variable) > 1:
-        warnings.warn("More than one diagnostic variable provided in config entry "
-                      "for a map plot figure, check your config. Only plotting the "
-                      "first diagnostic variable in the list.")
+        warnings.warn(
+            "More than one diagnostic variable provided in config entry "
+            "for a map plot figure, check your config. Only plotting the "
+            "first diagnostic variable in the list."
+        )
     ds_mappable = mappable_var(ds, var_name=plot_config.diagnostic_variable[0])
     fig, axes, handles, cbar = plot_cube(ds_mappable, **plot_config.plot_params)
     return fig
@@ -90,9 +92,7 @@ def plot_time_series(ds, plot_config):
     """
     fig = plt.figure()
     for var in plot_config.diagnostic_variable:
-        dims_to_avg = [
-            dim for dim in ds[var].dims if dim != TIME_VAR
-        ]
+        dims_to_avg = [dim for dim in ds[var].dims if dim != TIME_VAR]
         time = ds[TIME_VAR].values
         diag_var = ds[var].mean(dims_to_avg).values
         ax = fig.add_subplot(111)

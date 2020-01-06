@@ -67,7 +67,7 @@ def test_ds_time_series():
 @pytest.mark.mpl_image_compare(filename="time_series_sliced.png")
 def test_create_plot(test_ds_time_series):
     plot_config = PlotConfig(
-        diagnostic_variable="mean_diag_var",
+        diagnostic_variable=["mean_diag_var"],
         plot_name="test time series sliced",
         plotting_function="plot_time_series",
         dim_slices={"initialization_time": slice(None, 50, None)},
@@ -84,7 +84,7 @@ def test_create_plot(test_ds_time_series):
 @pytest.mark.mpl_image_compare(filename="time_series.png")
 def test_plot_time_series(test_ds_time_series):
     plot_config = PlotConfig(
-        diagnostic_variable="diag_var",
+        diagnostic_variable=["diag_var"],
         plot_name="test time series",
         plotting_function="plot_time_series",
         dim_slices={},
@@ -99,7 +99,7 @@ def test_plot_time_series(test_ds_time_series):
 @pytest.mark.mpl_image_compare(filename="single_map.png")
 def test_plot_diag_var_map(test_gridded_ds):
     plot_config = PlotConfig(
-        diagnostic_variable="diag_var",
+        diagnostic_variable=["diag_var"],
         plot_name="test map plot",
         plotting_function="plot_diag_var_map",
         dim_slices={},

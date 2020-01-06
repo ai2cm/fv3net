@@ -44,7 +44,8 @@
 -
   plot_name: Q1,  >550 HPa
   plotting_function: plot_diag_var_map
-  diagnostic_variable: Q1_mean_above_550_HPa
+  diagnostic_variable:
+    - Q1_mean_above_550_HPa
   dim_slices:
     forecast_time:
       - 0

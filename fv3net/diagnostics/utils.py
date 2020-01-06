@@ -109,8 +109,10 @@ def load_diagnostic_vars(raw_config):
     elif isinstance(raw_config["diagnostic_variable"], str):
         diag_var = [raw_config["diagnostic_variable"]]
     else:
-        raise TypeError("diagnostic_variable in the config file must be a single string"
-                        "or list of strings")
+        raise TypeError(
+            "diagnostic_variable in the config file must be a single string"
+            "or list of strings"
+        )
     return diag_var
 
 

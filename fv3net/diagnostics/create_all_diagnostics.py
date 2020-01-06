@@ -14,9 +14,8 @@ from fv3net.diagnostics.visualize import create_plot
 from fv3net.diagnostics.utils import load_configs
 
 
-
 report_html = Template(
-"""
+    """
 {% for header, image in sections.items() %}
 <h2>{{header}}</h2>
 <img src="{{image}}" />
@@ -61,9 +60,7 @@ if __name__ == "__main__":
         help="Location to save diagnostic plots and html summary",
     )
     parser.add_argument(
-        "--gcs-run-dir",
-        required=True,
-        help="Path to remote gcs rundir"
+        "--gcs-run-dir", required=True, help="Path to remote gcs rundir"
     )
     args = parser.parse_args()
     if not os.path.exists(args.output_dir):
