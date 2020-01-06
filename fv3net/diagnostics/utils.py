@@ -21,6 +21,17 @@ class PlotConfig:
 
 
 def load_ufuncs(raw_config):
+    """Uses list of function names in config to get the user defined functions and kwargs
+    used to calculate diagnostic quantities
+
+    Args:
+        raw_config: Config entry as read in directly from file (before formatting into
+        the PlotConfig object)
+
+    Returns:
+        list: functions to be piped to data
+        list[dict]: function kwargs for each function
+    """
     if "function_specifications" in raw_config:
         functions, kwargs = [], []
         for function_spec in raw_config["function_specifications"]:
@@ -46,6 +57,14 @@ def load_ufuncs(raw_config):
 
 
 def load_dim_slices(raw_config):
+    """ Parse config for the appropriate input to use in xr.dataset.isel()
+
+    Args:
+        raw_config: config entry as read directly from file
+
+    Returns:
+        dict: {dim: selection} to be used as input to ds.isel()
+    """
     dim_selection = {}
     if "dim_slices" in raw_config:
         for dim, indices in raw_config["dim_slices"].items():
@@ -60,6 +79,14 @@ def load_dim_slices(raw_config):
 
 
 def load_plot_params(raw_config):
+    """ Load arguments for plotting functions
+
+    Args:
+        raw_config: config entry as read directly from file
+
+    Returns:
+        dict: arguments for plot functions in fv3net.diagnostics.visualize
+    """
     if "plot_params" in raw_config and raw_config["plot_params"] is not None:
         return raw_config["plot_params"]
     else:
@@ -67,6 +94,14 @@ def load_plot_params(raw_config):
 
 
 def load_configs(config_path):
+    """
+
+    Args:
+        config_path:
+
+    Returns:
+
+    """
     with open(config_path, "r") as stream:
         try:
             raw_configs = yaml.safe_load(stream)
