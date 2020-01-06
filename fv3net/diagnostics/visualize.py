@@ -76,9 +76,10 @@ def plot_time_series(ds, plot_config):
         time = ds[TIME_VAR].values
         diag_var = ds[var].mean(dims_to_avg).values
         ax = fig.add_subplot(111)
-        ax.plot(time, diag_var)
+        ax.plot(time, diag_var, label=var)
         if "xlabel" in plot_config.plot_params:
             ax.set_xlabel(plot_config.plot_params["xlabel"])
         if "ylabel" in plot_config.plot_params:
             ax.set_ylabel(plot_config.plot_params["ylabel"])
+        ax.legend()
     return fig

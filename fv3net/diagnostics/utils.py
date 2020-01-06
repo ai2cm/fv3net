@@ -105,7 +105,7 @@ def load_diagnostic_vars(raw_config):
         list: diagnostic variable names
     """
     if isinstance(raw_config["diagnostic_variable"], list):
-        diag_var = raw_config
+        diag_var = raw_config["diagnostic_variable"]
     elif isinstance(raw_config["diagnostic_variable"], str):
         diag_var = [raw_config["diagnostic_variable"]]
     else:
