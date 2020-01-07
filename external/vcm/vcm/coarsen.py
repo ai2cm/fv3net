@@ -47,7 +47,7 @@ OUTPUT_CATEGORY_NAMES = {
 }
 SOURCE_DATA_PATTERN = "{timestep}/{timestep}.{category}"
 DATA_PATTERN = "{prefix}.{category}.tile{tile}.nc"
-CATEGORY_LIST = ["fv_core.res", "fv_src_wnd.res", "fv_tracer.res", "sfc_data"]
+CATEGORY_LIST = ["fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", "sfc_data"]
 
 
 def integerize(x):
@@ -635,13 +635,14 @@ def coarsen_restart_file_category(
 
 def coarsen_restarts_on_pressure(
     coarsening_factor,
-    grid_spec_filename,
+    grid_spec_prefix,
     source_data_prefix,
     output_data_prefix,
     data_pattern=DATA_PATTERN,
 ):
-    grid_spec = xr.open_dataset(grid_spec_filename, chunks={"tile": 1})
     tiles = pd.Index(range(6), name="tile")
+    filename = grid_spec_prefix + ".tile*.nc"
+    grid_spec = xr.open_mfdataset(filename, concat_dim=[tiles], combine="nested")
 
     source = {}
     coarsened = {}
@@ -651,7 +652,9 @@ def coarsen_restarts_on_pressure(
             category=OUTPUT_CATEGORY_NAMES[category],
             tile="*",
         )
-        source[category] = xr.open_mfdataset(filename, concat_dim=tiles)
+        source[category] = xr.open_mfdataset(
+            filename, concat_dim=[tiles], combine="nested"
+        )
 
         if category == "fv_core.res":
             coarsened[category] = coarse_grain_fv_core_on_pressure(
