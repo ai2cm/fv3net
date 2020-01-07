@@ -1,5 +1,8 @@
-import matplotlib
-matplotlib.use("Agg")
+"""
+If adding a new plot test, run
+ > pytest tests/test_diagnostics_plots.py --mpl-generate-path tests/baseline_images
+first before pytest to generate the new test image in the comparison set
+"""
 import numpy as np
 import pytest
 import xarray as xr
@@ -107,7 +110,7 @@ def test_plot_diag_var_map(test_gridded_ds):
         dim_slices={},
         functions=[],
         function_kwargs=[],
-        plot_params={},
+        plot_params={"coastlines": False},
     )
     fig = plot_diag_var_map(test_gridded_ds, plot_config)
     return fig
