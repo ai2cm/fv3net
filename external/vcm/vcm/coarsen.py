@@ -43,9 +43,11 @@ OUTPUT_CATEGORY_NAMES = {
     "fv_core.res": "fv_core_coarse.res",
     "fv_srf_wnd.res": "fv_srf_wnd_coarse.res",
     "fv_tracer.res": "fv_tracer_coarse.res",
-    "sfc_data": "sfc_data",
+    "sfc_data": "sfc_data_coarse",
 }
 SOURCE_DATA_PATTERN = "{timestep}/{timestep}.{category}"
+DATA_PATTERN = "{prefix}.{category}.tile{tile}.nc"
+CATEGORY_LIST = ["fv_core.res", "fv_src_wnd.res", "fv_tracer.res", "sfc_data"]
 
 
 def integerize(x):
@@ -629,3 +631,88 @@ def coarsen_restart_file_category(
     coarsened = sync_dimension_order(coarsened, source)
     for tile, file in zip(TILES, output_files):
         coarsened.sel(tile=tile).drop("tile").to_netcdf(file)
+
+
+def coarsen_restarts_on_pressure(
+    coarsening_factor,
+    grid_spec_filename,
+    source_data_prefix,
+    output_data_prefix,
+    data_pattern=DATA_PATTERN,
+):
+    grid_spec = xr.open_dataset(grid_spec_filename, chunks={"tile": 1})
+    tiles = pd.Index(range(6), name="tile")
+
+    source = {}
+    coarsened = {}
+    for category in CATEGORY_LIST:
+        filename = data_pattern.format(
+            prefix=source_data_prefix,
+            category=OUTPUT_CATEGORY_NAMES[category],
+            tile="*",
+        )
+        source[category] = xr.open_mfdataset(filename, concat_dim=tiles)
+
+        if category == "fv_core.res":
+            coarsened[category] = coarse_grain_fv_core_on_pressure(
+                source[category],
+                source[category].delp,
+                grid_spec.area.rename(
+                    {COORD_X_CENTER: FV_CORE_X_CENTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
+                ),
+                grid_spec.dx.rename(
+                    {COORD_X_CENTER: FV_CORE_X_CENTER, COORD_Y_OUTER: FV_CORE_Y_OUTER}
+                ),
+                grid_spec.dy.rename(
+                    {COORD_X_OUTER: FV_CORE_X_OUTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
+                ),
+                coarsening_factor,
+            )
+        elif category == "fv_srf_wnd.res":
+            coarsened[category] = coarse_grain_fv_srf_wnd(
+                source[category],
+                grid_spec.area.rename(
+                    {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
+                ),
+                coarsening_factor,
+            )
+        elif category == "fv_tracer.res":
+            coarsened[category] = coarse_grain_fv_tracer_on_pressure(
+                source[category],
+                source["fv_core.res"].delp.rename(
+                    {FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}
+                ),
+                grid_spec.area.rename(
+                    {
+                        COORD_X_CENTER: FV_TRACER_X_CENTER,
+                        COORD_Y_CENTER: FV_TRACER_Y_CENTER,
+                    }
+                ),
+                coarsening_factor,
+            )
+        elif category == "sfc_data":
+            coarsened = coarse_grain_sfc_data_complex(
+                source[category],
+                grid_spec.area.rename(
+                    {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
+                ),
+                coarsening_factor,
+            )
+
+    source["fv_core.res"] = impose_hydrostatic_balance(
+        source["fv_core.res"], source["fv_tracer.res"]
+    )
+
+    for category in CATEGORY_LIST:
+        coarsened[category] = sync_dimension_order(
+            coarsened[category], source[category]
+        )
+        _save_restart_category(
+            coarsened[category], output_data_prefix, category, data_pattern
+        )
+
+
+def _save_restart_category(ds, prefix, category, data_pattern):
+    for tile in TILES:
+        filename = data_pattern.format(prefix=prefix, category=category, tile=tile)
+        ds.isel(tile=tile - 1).drop("tile").to_netcdf(filename)
