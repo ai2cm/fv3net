@@ -694,7 +694,7 @@ def coarsen_restarts_on_pressure(
                 coarsening_factor,
             )
         elif category == "sfc_data":
-            coarsened = coarse_grain_sfc_data_complex(
+            coarsened[category] = coarse_grain_sfc_data_complex(
                 source[category],
                 grid_spec.area.rename(
                     {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
@@ -702,8 +702,8 @@ def coarsen_restarts_on_pressure(
                 coarsening_factor,
             )
 
-    source["fv_core.res"] = impose_hydrostatic_balance(
-        source["fv_core.res"], source["fv_tracer.res"]
+    coarsened["fv_core.res"] = impose_hydrostatic_balance(
+        coarsened["fv_core.res"], coarsened["fv_tracer.res"]
     )
 
     for category in CATEGORY_LIST:
