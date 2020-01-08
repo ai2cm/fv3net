@@ -718,4 +718,5 @@ def coarsen_restarts_on_pressure(
 def _save_restart_category(ds, prefix, category, data_pattern):
     for tile in TILES:
         filename = data_pattern.format(prefix=prefix, category=category, tile=tile)
-        ds.isel(tile=tile - 1).drop("tile").to_netcdf(filename)
+        ds.isel(tile=tile - 1).drop("tile", errors="ignore").to_netcdf(filename)
+
