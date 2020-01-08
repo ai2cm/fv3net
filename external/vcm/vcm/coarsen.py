@@ -46,7 +46,7 @@ OUTPUT_CATEGORY_NAMES = {
     "sfc_data": "sfc_data_coarse",
 }
 SOURCE_DATA_PATTERN = "{timestep}/{timestep}.{category}"
-DATA_PATTERN = "{prefix}.{category}.tile{tile}.nc"
+DATA_PATTERN = "{prefix}{category}.tile{tile}.nc"
 CATEGORY_LIST = ["fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", "sfc_data"]
 
 
@@ -651,8 +651,8 @@ def coarsen_restarts_on_pressure(
         output_data_prefix (str): Prefix of path where coarsened restart files will be
             saved.
         data_pattern (str, optional): pattern for source and output data file naming
-            convention. Defaults to "{prefix}.{category}.tile{tile}.nc". Must include
-            prefix, category and tile.
+            convention. Defaults to "{prefix}{category}.tile{tile}.nc". Must include
+            {prefix}, {category} and {tile}.
     """
     tiles = pd.Index(range(6), name="tile")
     filename = grid_spec_prefix + ".tile*.nc"
