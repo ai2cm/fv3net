@@ -13,7 +13,7 @@ from .cubedsphere import (
 from .extract import extract_tarball_to_path
 from .fv3_restarts import open_restarts
 from .convenience import TOP_LEVEL_DIR
-from .coarsen import coarsen_restarts_on_pressure
+from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 
 
 __all__ = [
@@ -29,4 +29,5 @@ __all__ = [
     "horizontal_block_reduce",
     "TOP_LEVEL_DIR",
     "coarsen_restarts_on_pressure",
+    "coarsen_restarts_on_sigma",
 ]
