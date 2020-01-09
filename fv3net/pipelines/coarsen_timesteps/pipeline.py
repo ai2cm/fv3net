@@ -9,7 +9,7 @@ from vcm.cloud import gsutil
 import vcm
 
 logger = logging.getLogger('CoarsenTimesteps')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 def time_step(file):
@@ -25,33 +25,38 @@ def coarsen_timestep(
 ):
 
     curr_timestep = time_step(timestep_gcs_url)
-    logger.info('Coarsening timestep')
+    logger.info(f'Coarsening timestep: {curr_timestep}')
 
     # Download data restart, spec
-    with tempfile.TemporaryDirectory as tmpdir:
+    with tempfile.TemporaryDirectory() as tmpdir:
 
         # Copy Gridspec
         local_spec_dir = os.path.join(tmpdir, 'local_grid_spec')
         os.makedirs(local_spec_dir, exist_ok=True)
+        logger.debug(f'Copying gridspec to {local_spec_dir}')
         gsutil.copy(gridspec_path, local_spec_dir)
 
         # Copy restart
-        tmp_timestep_dir = os.path.join(tmpdir, time_step)
+        tmp_timestep_dir = os.path.join(tmpdir, 'local_fine_dir')
+        os.makedirs(tmp_timestep_dir, exist_ok=True)
+        logger.debug(f'Copying restart files to {tmp_timestep_dir}')
         gsutil.copy(timestep_gcs_url, tmp_timestep_dir)
 
         # Coarsen data
         local_coarse_dir = os.path.join(tmpdir, 'local_coarse_dir', curr_timestep)
         os.makedirs(local_coarse_dir, exist_ok=True)
+        logger.debug(f'Directory for coarsening files: {local_coarse_dir}')
         vcm.coarsen_restarts_on_pressure(
             coarsen_factor,
             os.path.join(local_spec_dir, 'grid_spec'),
-            tmp_timestep_dir,
-            local_coarse_dir
+            os.path.join(tmp_timestep_dir, curr_timestep, curr_timestep),
+            os.path.join(local_coarse_dir, curr_timestep)
         )
+        logger.info('Coarsening completed.')
 
         # Upload data
-        timstep_gcs_output_dir = os.path.join(output_dir, curr_timestep)
-        gsutil.copy(local_coarse_dir, timstep_gcs_output_dir)
+        logger.info(f'Uploading coarsened data to {output_dir}')
+        gsutil.copy(local_coarse_dir, output_dir)
 
 
 def run(args, pipeline_args=None):
@@ -62,9 +67,9 @@ def run(args, pipeline_args=None):
     target_resolution = args.target_resolution
     
     if args.gcs_dst_dir:
-        output_dir_prefix = os.path.join(args.gcs_dst_dir, target_resolution)
+        output_dir_prefix = os.path.join(args.gcs_dst_dir, str(target_resolution))
     else:
-        output_dir_prefix = os.path.join(source_timestep_dir, target_resolution)
+        output_dir_prefix = os.path.join(source_timestep_dir, str(target_resolution))
 
     coarsen_factor = source_resolution // target_resolution
     timestep_urls = gsutil.list_matches(source_timestep_dir)
