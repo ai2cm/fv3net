@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 
 dependencies = [
-    "apache-beam==2.16.0",
+    "apache-beam[gcp]==2.16.0",
     "cloudpickle==1.2.2",
     "dask==2.6.0",
     # "fsspec==0.5.2",
