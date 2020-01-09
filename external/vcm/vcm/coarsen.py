@@ -49,6 +49,7 @@ SOURCE_DATA_PATTERN = "{timestep}/{timestep}.{category}"
 DATA_PATTERN = "{prefix}{category}.tile{tile}.nc"
 CATEGORY_LIST = ["fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", "sfc_data"]
 
+logger = logging.getLogger('vcm.coarsen')
 
 def integerize(x):
     return np.round(x).astype(x.dtype)
@@ -703,6 +704,7 @@ def _open_restart_categories(prefix, data_pattern=DATA_PATTERN):
         filename = data_pattern.format(
             prefix=prefix, category=OUTPUT_CATEGORY_NAMES[category], tile="*",
         )
+        logger.debug(f'Restart MF Category Filename: {filename}')
         source[category] = xr.open_mfdataset(
             filename, concat_dim=[tiles], combine="nested"
         )

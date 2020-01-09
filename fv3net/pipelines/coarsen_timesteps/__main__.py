@@ -1,7 +1,12 @@
 import argparse
+import logging
 from .pipeline import run
 
 if __name__ == "__main__":
+
+    logger = logging.getLogger('CoarsenTimesteps')
+    logger.setLevel(logging.INFO)
+    
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
