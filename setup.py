@@ -4,7 +4,7 @@ dependencies = [
     "apache-beam==2.16.0",
     "cloudpickle==1.2.2",
     "dask==2.6.0",
-    "fsspec==0.5.2",
+    # "fsspec==0.5.2",
     "google-cloud-storage==1.20.0",
     "intake==0.5.3",
     "scikit-image",
@@ -12,6 +12,9 @@ dependencies = [
     "xarray==0.13.0",
     "partd",
     "pyyaml==3.13",
+    "numba",
+    "xgcm",
+    "gcsfs",
 ]
 
 setup(
