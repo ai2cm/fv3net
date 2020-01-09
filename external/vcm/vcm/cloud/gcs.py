@@ -30,13 +30,13 @@ def init_blob_from_gcs_url(gcs_url: str) -> Blob:
 
 
 def download_blob_to_file(source_blob: Blob, out_dir: str, filename: str) -> Path:
-    logger.info(f"Downloading tar ({filename}) from remote storage.")
+    logger.info(f"Downloading ({filename}) from remote storage.")
 
     out_dir = Path(out_dir)
     filename = Path(filename)
     download_path = out_dir.joinpath(filename)
     download_path.parent.mkdir(parents=True, exist_ok=True)
-    logger.debug(f"Tarfile download path: {download_path}")
+    logger.debug(f"File download path: {download_path}")
 
     source_blob.chunk_size = 128 * 2 ** 20  # 128 MB chunks
     with open(download_path, mode="wb") as f:
