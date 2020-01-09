@@ -67,9 +67,9 @@ def run(args, pipeline_args=None):
     target_resolution = args.target_resolution
     
     if args.gcs_dst_dir:
-        output_dir_prefix = os.path.join(args.gcs_dst_dir, str(target_resolution))
+        output_dir_prefix = os.path.join(args.gcs_dst_dir, f'C{target_resolution}')
     else:
-        output_dir_prefix = os.path.join(source_timestep_dir, str(target_resolution))
+        output_dir_prefix = os.path.join(source_timestep_dir, f'C{target_resolution}')
 
     coarsen_factor = source_resolution // target_resolution
     timestep_urls = gsutil.list_matches(source_timestep_dir)
