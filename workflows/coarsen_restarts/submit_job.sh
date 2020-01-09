@@ -2,7 +2,7 @@
 
 GCS_SRC="gs://vcm-ml-data/2019-12-02-40-day-X-SHiELD-simulation-C384-restart-files"
 GCS_DST="gs://vcm-ml-data/test_andrep/coarsen_test"
-GCS_GRIDSPEC="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/grid_spec.tile*.nc"
+GCS_GRIDSPEC="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy"
 
 SRC_RESOLUTION=384
 TARGET_RESOLUTION=48
@@ -18,8 +18,8 @@ python -m fv3net.pipelines.coarsen_timesteps\
     --project vcm-ml \
     --region us-central1 \
     --temp_location gs://vcm-ml-data/tmp_dataflow \
-    --num_workers 2 \
-    --max_num_workers 2 \
+    --num_workers 1 \
+    --max_num_workers 1 \
     --disk_size_gb 50 \
     --worker_machine_type n1-standard-2 \
     --setup_file ./setup.py \
