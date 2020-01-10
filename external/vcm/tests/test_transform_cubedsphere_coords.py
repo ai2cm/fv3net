@@ -60,10 +60,10 @@ def test_lon_diff(test_unit_grid):
 
 def test_get_local_basis_in_spherical_coords(test_unit_grid):
     xhat, yhat = _get_local_basis_in_spherical_coords(test_unit_grid)
-    assert all(xhat[0] == 4 * RAD_PER_DEG)
-    assert all(xhat[1] == 0)
-    assert all(yhat[0] == 0)
-    assert all(yhat[1] == 4 * RAD_PER_DEG)
+    assert xhat[0].values.flatten()[0] == 4 * RAD_PER_DEG
+    assert xhat[1].values.flatten()[0] == 0
+    assert yhat[0].values.flatten()[0]  == 0
+    assert yhat[1].values.flatten()[0] == 4 * RAD_PER_DEG
 
 
 def test_lon_lat_unit_vectors_to_cartesian(test_unit_grid):
