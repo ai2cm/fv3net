@@ -115,7 +115,7 @@ def run(args, pipeline_args=None):
     gcs.parse_gcs_url(source_timestep_dir)
     # timestep_urls = gcs.list_bucket_files(Client(), )
     timestep_urls = gsutil.list_matches(source_timestep_dir)
-    timestep_urls = timestep_urls[0:1]
+    timestep_urls = timestep_urls[0:480]
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
