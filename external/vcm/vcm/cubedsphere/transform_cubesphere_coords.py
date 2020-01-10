@@ -16,7 +16,7 @@ def rotate_winds_to_lat_lon_coords(
 
     The input x and y components are assumed to be defined at the cell center.
     If they are originally defined on edges, e.g. u and v, they can be centered with
-    func shift_edge_var_to_center from vcm.calc.cubedsphere
+    func shift_edge_var_to_center from vcm.calc.cubedsphere.coarsen
     Args:
         da_x: x component of variable, e.g. u, du_dt
         da_y: y component of variable, e.g. v, dv_dt
@@ -142,21 +142,17 @@ def _get_local_basis_in_spherical_coords(grid):
         at the center of each cell.
     """
     xhat_lon_component = np.deg2rad(
-        _lon_diff(grid.grid_lon, grid.grid_lon.shift({COORD_X_OUTER: -1}))[:, :-1, :-1]
+        _lon_diff(grid.grid_lon, grid.grid_lon.shift({COORD_X_OUTER: -1}))[:, :, :-1]
     ).rename({COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER})
     yhat_lon_component = np.deg2rad(
-        _lon_diff(grid.grid_lon, grid.grid_lon.shift({COORD_Y_OUTER: -1}))[:, :-1, :-1]
+        _lon_diff(grid.grid_lon, grid.grid_lon.shift({COORD_Y_OUTER: -1}))[:, :, :-1]
     ).rename({COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER})
     xhat_lat_component = np.deg2rad(
         grid.grid_lat.shift({COORD_X_OUTER: -1}) - grid.grid_lat
-    )[:, :-1, :-1].rename(
-        {COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER}
-    )
+    )[:, :, :-1].rename({COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER})
     yhat_lat_component = np.deg2rad(
         grid.grid_lat.shift({COORD_Y_OUTER: -1}) - grid.grid_lat
-    )[:, :-1, :-1].rename(
-        {COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER}
-    )
+    )[:, :, :-1].rename({COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER})
     return (
         (xhat_lon_component, xhat_lat_component),
         (yhat_lon_component, yhat_lat_component),

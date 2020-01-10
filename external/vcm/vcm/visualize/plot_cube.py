@@ -8,7 +8,11 @@ from vcm.cubedsphere.constants import (
     VAR_LON_OUTER,
     VAR_LAT_OUTER,
 )
-from vcm.visualize.plot_helpers import _infer_color_limits, _get_var_label
+from vcm.visualize.plot_helpers import (
+    _infer_color_limits,
+    _get_var_label,
+    _min_max_from_percentiles,
+)
 from vcm.visualize.masking import _mask_antimeridian_quads
 import xarray as xr
 import numpy as np
@@ -109,8 +113,7 @@ def plot_cube(
     var_name = list(plottable_variable.data_vars)[0]
     array = plottable_variable[var_name].values
 
-    xmin = np.nanmin(array)
-    xmax = np.nanmax(array)
+    xmin, xmax = _min_max_from_percentiles(array)
     vmin = kwargs["vmin"] if "vmin" in kwargs else None
     vmax = kwargs["vmax"] if "vmax" in kwargs else None
     cmap = kwargs["cmap"] if "cmap" in kwargs else None
