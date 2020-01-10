@@ -45,6 +45,7 @@ def plot_cube(
     col_wrap: int = None,
     projection: "ccrs.Projection" = None,
     colorbar: bool = True,
+    cbar_label: str = None,
     coastlines: bool = True,
     coastlines_kwargs: dict = None,
     **kwargs,
@@ -143,12 +144,13 @@ def plot_cube(
             subplot_kws={"projection": projection},
         )
         facet_grid = facet_grid.map(_plot_func_short, var_name)
+        fig = facet_grid.fig
         axes = facet_grid.axes
         handles = facet_grid._mappables
     else:
         # single axes
         if not ax:
-            f, ax = plt.subplots(1, 1, subplot_kw={"projection": projection})
+            fig, ax = plt.subplots(1, 1, subplot_kw={"projection": projection})
         handle = _plot_func_short(array)
         axes = np.array(ax)
         handles = [handle]
@@ -163,11 +165,13 @@ def plot_cube(
         )
         cb_ax = plt.gcf().add_axes([0.83, 0.1, 0.02, 0.8])
         cbar = plt.colorbar(handles[0], cax=cb_ax, extend="both")
-        cbar.set_label(_get_var_label(plottable_variable[var_name].attrs, var_name))
+        cbar.set_label(
+            _get_var_label(plottable_variable[var_name].attrs, cbar_label or var_name)
+        )
     else:
         cbar = None
 
-    return axes, handles, cbar
+    return fig, axes, handles, cbar
 
 
 def mappable_var(ds: xr.Dataset, var_name: str):
