@@ -62,7 +62,7 @@ def test_get_local_basis_in_spherical_coords(test_unit_grid):
     xhat, yhat = _get_local_basis_in_spherical_coords(test_unit_grid)
     assert xhat[0].values.flatten()[0] == 4 * RAD_PER_DEG
     assert xhat[1].values.flatten()[0] == 0
-    assert yhat[0].values.flatten()[0]  == 0
+    assert yhat[0].values.flatten()[0] == 0
     assert yhat[1].values.flatten()[0] == 4 * RAD_PER_DEG
 
 
