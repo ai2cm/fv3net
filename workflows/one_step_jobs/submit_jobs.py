@@ -21,7 +21,7 @@ OUTPUT_BUCKET = PARENT_BUCKET + "one_step_output/C48/"
 CONFIG_BUCKET = PARENT_BUCKET + "one_step_config/C48/"
 DOCKER_IMAGE = "us.gcr.io/vcm-ml/fv3gfs-python"
 LOCAL_PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
-LOCAL_FILES_TO_UPLOAD = ["runfile.py", "diag_table", "fv_core.res.nc"]
+LOCAL_FILES_TO_UPLOAD = ["runfile.py", "diag_table", "vertical_grid/fv_core.res.nc"]
 
 RESTART_CATEGORIES = ["fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", "sfc_data"]
 TILES = range(1, 7)
@@ -83,13 +83,6 @@ def get_initial_condition_patch_files(timestep):
         for category in RESTART_CATEGORIES
         for tile in TILES
     ]
-    patch_files += [
-        fv3config.get_asset_dict(
-            os.path.join(CONFIG_BUCKET, timestep),
-            "fv_core.res.nc",
-            target_location="INPUT",
-        ),
-    ]
     return patch_files
 
 
@@ -98,12 +91,10 @@ def get_config(timestep):
     config = fv3config.enable_restart(config)
     config["experiment_name"] = f"one-step.{timestep}.{uuid.uuid4()}"
     config["diag_table"] = os.path.join(CONFIG_BUCKET, timestep, "diag_table")
-    # all files from restart_example initial conditions (except coupler.res) will
-    # be overwritten by patch_files. But coupler.res will be ignored since
-    # force_date_from_namelist=True
-    config["initial_conditions"] = "restart_example"
-    config = fv3config.set_run_duration(config, RUN_DURATION)
+    # Following has only fv_core.res.nc. Other initial conditions are in patch_files.
+    config["initial_conditions"] = os.path.join(CONFIG_BUCKET, timestep, "vertical_grid")
     config["patch_files"] = get_initial_condition_patch_files(timestep)
+    config = fv3config.set_run_duration(config, RUN_DURATION)
     config["namelist"]["coupler_nml"].update(
         {
             "dt_atmos": RUN_TIMESTEP,
@@ -113,7 +104,6 @@ def get_config(timestep):
             "force_date_from_namelist": True,
         }
     )
-    config["namelist"]["atmos_model_nml"]["fhout"] = RUN_TIMESTEP / SECONDS_IN_HOUR
     config["namelist"]["fv_core_nml"].update(
         {"external_eta": True, "npz": 79, "k_split": 1, "n_split": 1}
     )
@@ -142,11 +132,11 @@ def submit_jobs(timestep_list: List[str]) -> None:
             jobname=job_name,
             namespace="default",
             memory_gb=3.6,
-            cpu_count=1,
+            cpu_count=6,
             gcp_secret="gcp-key",
             image_pull_policy="Always",
         )
-        logger.info(f"Submitted job for timestep {timestep}")
+        logger.info(f"Submitted job {job_name}")
 
 
 if __name__ == "__main__":
