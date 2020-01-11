@@ -45,7 +45,7 @@ def plot_cube(
     col_wrap: int = None,
     projection: "ccrs.Projection" = None,
     colorbar: bool = True,
-    cbar_lim_abs_minmax: bool = False,
+    cmap_percentiles_lim: bool = True,
     cbar_label: str = None,
     coastlines: bool = True,
     coastlines_kwargs: dict = None,
@@ -81,8 +81,8 @@ def plot_cube(
             cartopy geo-axes are supplied.  Defaults to Robinson projection.
         colorbar (bool, optional):
             Flag for whether to plot a colorbar. Defaults to True.
-        cbar_lim_abs_minmax(bool, optional):
-            If True, use the absolute min/max to set color limits. If False, use 2/98
+        cmap_percentiles_lim(bool, optional):
+            If False, use the absolute min/max to set color limits. If True, use 2/98
             percentile values.
         cbar_label (str, optional):
             If provided, use this as the color bar label.
@@ -119,10 +119,10 @@ def plot_cube(
     """
     var_name = list(plottable_variable.data_vars)[0]
     array = plottable_variable[var_name].values
-    if cbar_lim_abs_minmax:
-        xmin, xmax = np.nanmin(array), np.nanmax(array)
-    else:
+    if cmap_percentiles_lim:
         xmin, xmax = _min_max_from_percentiles(array)
+    else:
+        xmin, xmax = np.nanmin(array), np.nanmax(array)
     vmin = kwargs["vmin"] if "vmin" in kwargs else None
     vmax = kwargs["vmax"] if "vmax" in kwargs else None
     cmap = kwargs["cmap"] if "cmap" in kwargs else None
