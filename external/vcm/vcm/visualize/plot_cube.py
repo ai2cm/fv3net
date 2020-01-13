@@ -12,6 +12,7 @@ from vcm.visualize.plot_helpers import (
     _infer_color_limits,
     _get_var_label,
     _remove_redundant_dims,
+    _min_max_from_percentiles
 )
 from vcm.visualize.masking import _mask_antimeridian_quads
 import xarray as xr
@@ -44,6 +45,7 @@ def plot_cube(
     col_wrap: int = None,
     projection: "ccrs.Projection" = None,
     colorbar: bool = True,
+    cmap_percentiles_lim: bool = True,
     cbar_label: str = None,
     coastlines: bool = True,
     coastlines_kwargs: dict = None,
@@ -79,9 +81,11 @@ def plot_cube(
             cartopy geo-axes are supplied.  Defaults to Robinson projection.
         colorbar (bool, optional):
             Flag for whether to plot a colorbar. Defaults to True.
-        cbar_label(str, optional):
-            If provided, will be used as the label on colorbar. Defaults to using
-            long name + units if available in dataset.attrs, or variable name if not.
+        cmap_percentiles_lim(bool, optional):
+            If False, use the absolute min/max to set color limits. If True, use 2/98
+            percentile values.
+        cbar_label (str, optional):
+            If provided, use this as the color bar label.
         coastlines (bool, optinal):
             Whether to plot coastlines on map. Default True.
         coastlines_kwargs (dict, optional):
@@ -116,11 +120,12 @@ def plot_cube(
     """
     var_name = list(plottable_variable.data_vars)[0]
     array = plottable_variable[var_name].values
-
-    xmin = np.nanmin(array)
-    xmax = np.nanmax(array)
-    vmin = float(kwargs["vmin"]) if "vmin" in kwargs else None
-    vmax = float(kwargs["vmax"]) if "vmax" in kwargs else None
+    if cmap_percentiles_lim:
+        xmin, xmax = _min_max_from_percentiles(array)
+    else:
+        xmin, xmax = np.nanmin(array), np.nanmax(array)
+    vmin = kwargs["vmin"] if "vmin" in kwargs else None
+    vmax = kwargs["vmax"] if "vmax" in kwargs else None
     cmap = kwargs["cmap"] if "cmap" in kwargs else None
     kwargs["vmin"], kwargs["vmax"], kwargs["cmap"] = _infer_color_limits(
         xmin, xmax, vmin, vmax, cmap
