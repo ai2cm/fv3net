@@ -4,7 +4,7 @@ import xarray as xr
 from vcm.calc.diag_ufuncs import (
     apply_weighting,
     mean_over_dim,
-    remove_extra_dim,
+    remove_extra_dims,
     sum_over_dim,
 )
 
@@ -30,10 +30,9 @@ def test_ds_xy():
 
 
 def test_remove_extra_dim(test_ds_z):
-    ds = remove_extra_dim(test_ds_z, extra_dim="forecast_time")
+    ds = remove_extra_dims(test_ds_z)
     assert "forecast_time" not in ds.dims
-    with pytest.raises(ValueError):
-        remove_extra_dim(test_ds_z, extra_dim="pfull")
+    assert "pfull" in ds.dims
 
 
 def test_apply_weighting(test_ds_xy):

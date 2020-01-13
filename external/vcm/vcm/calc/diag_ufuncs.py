@@ -21,7 +21,7 @@ def average_over_time_bin(ds, var, time_dim, sample_freq, new_var):
 
     """
     da_var_time_mean = ds[var].resample(indexer={time_dim: sample_freq}).mean()
-    return ds.assign(new_var=da_var_time_mean)
+    return ds.assign({new_var: da_var_time_mean})
 
 
 def remove_extra_dims(ds):
@@ -50,14 +50,14 @@ def mean_over_dim(
     ds, dim, var_to_avg, new_var,
 ):
     da_mean = ds[var_to_avg].mean(dim)
-    return ds.assign(new_var=da_mean)
+    return ds.assign({new_var: da_mean})
 
 
 def sum_over_dim(
     ds, dim, var_to_sum, new_var,
 ):
     da_sum = ds[var_to_sum].sum(dim)
-    return ds.assign(new_var=da_sum)
+    return ds.assign({new_var: da_sum})
 
 
 def mask_to_surface_type(ds, surface_type, surface_type_var="slmsk"):
@@ -67,6 +67,6 @@ def mask_to_surface_type(ds, surface_type, surface_type_var="slmsk"):
             f"Argument 'surface_type' must be one of {valid_surface_types}."
         )
     surface_type_codes = {"sea": 0, "land": 1, "seaice": 2, "sea_ice": 2, "sea ice": 2}
-    mask = ds.isel(pfull=0)[surface_type_var == surface_type_codes[surface_type]]
+    mask = ds.isel(pfull=-1)[surface_type_var == surface_type_codes[surface_type]]
     ds = ds[mask]
     return ds
