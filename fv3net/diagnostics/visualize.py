@@ -92,11 +92,9 @@ def plot_time_series(ds, plot_config):
     """
     fig = plt.figure()
     for var in plot_config.diagnostic_variable:
-        dims_to_avg = [dim for dim in ds[var].dims if dim != TIME_VAR]
         time = ds[TIME_VAR].values
-        diag_var = ds[var].mean(dims_to_avg).values
         ax = fig.add_subplot(111)
-        ax.plot(time, diag_var, label=var)
+        ax.plot(time, ds[var].values, label=var)
         if "xlabel" in plot_config.plot_params:
             ax.set_xlabel(plot_config.plot_params["xlabel"])
         if "ylabel" in plot_config.plot_params:

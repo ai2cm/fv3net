@@ -5,7 +5,7 @@ def _remove_redundant_dims(ds, required_dims):
     if set(ds.dims) == set(required_dims):
         return ds
     redundant_dims_index = {dim: 0 for dim in ds.dims if dim not in required_dims}
-    ds = ds.isel(redundant_dims_index).squeeze().drop(redundant_dims_index.keys())
+    ds = ds.isel(redundant_dims_index).squeeze(drop=True)
     return ds
 
 

@@ -20,12 +20,11 @@ def average_over_time_bin(ds, var, time_dim, sample_freq, new_var):
     Returns:
 
     """
-    da_var_time_mean = ds.resample(indexer={time_dim: sample_freq}).mean()[var]
-    ds[new_var] = da_var_time_mean
-    return ds
+    da_var_time_mean = ds[var].resample(indexer={time_dim: sample_freq}).mean()
+    return ds.assign(new_var=da_var_time_mean)
 
 
-def remove_extra_dim(ds, extra_dim="forecast_time"):
+def remove_extra_dims(ds):
     """ Sometimes dataarrays have extra dimensions that complicate plotting.
     e.g. The one step runs have a second time dimension 'forecast_time' that is used
     to calculate tendencies. However, carrying around the extra time dim after
@@ -38,21 +37,7 @@ def remove_extra_dim(ds, extra_dim="forecast_time"):
     Returns:
         Same dataset but with extra time dim removed
     """
-
-    try:
-        if len(ds[extra_dim].values) > 1:
-            raise ValueError(
-                f"Function remove_extra_dim should only be used on redundant dimensions \
-                             of length 1. You tried to remove {extra_dim} \
-                             which has length {len(ds[extra_dim].values)}."
-            )
-    except TypeError:
-        # Appropriate usage of this function should raise a TypeError above
-        pass
-
-    if extra_dim in ds.dims:
-        ds = ds.isel({extra_dim: 0}).squeeze().drop(extra_dim)
-    return ds
+    return ds.squeeze(drop=True)
 
 
 def apply_weighting(ds, var_to_weight, weighting_var, weighting_dims):
@@ -65,16 +50,14 @@ def mean_over_dim(
     ds, dim, var_to_avg, new_var,
 ):
     da_mean = ds[var_to_avg].mean(dim)
-    ds[new_var] = da_mean
-    return ds
+    return ds.assign(new_var=da_mean)
 
 
 def sum_over_dim(
     ds, dim, var_to_sum, new_var,
 ):
     da_sum = ds[var_to_sum].sum(dim)
-    ds[new_var] = da_sum
-    return ds
+    return ds.assign(new_var=da_sum)
 
 
 def mask_to_surface_type(ds, surface_type, surface_type_var="slmsk"):

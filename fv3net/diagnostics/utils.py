@@ -132,6 +132,8 @@ def load_configs(config_path):
         except yaml.YAMLError as exc:
             raise ValueError(f"Bad yaml config: {exc}")
     plot_configs = []
+    if isinstance(raw_configs, dict):
+        raw_configs = [raw_configs]
     for raw_config in raw_configs:
         functions, function_kwargs = load_ufuncs(raw_config)
         plot_config = PlotConfig(

@@ -60,12 +60,12 @@ if __name__ == "__main__":
         help="Location to save diagnostic plots and html summary",
     )
     parser.add_argument(
-        "--gcs-run-dir", required=True, help="Path to remote gcs rundir"
+        "--gcs-zarr-path", required=True, help="Path to remote gcs zarr dataset"
     )
     args = parser.parse_args()
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
-    data = read_zarr_from_gcs(args.gcs_run_dir)
+    data = read_zarr_from_gcs(args.gcs_zarr_path)
     plot_configs = load_configs(args.config_file)
     output_figure_headings = create_diagnostics(plot_configs, data, args.output_dir)
     with open(f"{args.output_dir}/diagnostics.html", "w") as f:
