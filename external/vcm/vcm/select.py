@@ -12,7 +12,7 @@ def mask_to_surface_type(ds, surface_type):
     Returns:
         input dataset masked to the surface_type specified
     """
-    if not surface_type:
+    if surface_type is None:
         warnings.warn("surface_type provided as None: no mask applied.")
         return ds
     elif surface_type not in ["sea", "land", "seaice"]:

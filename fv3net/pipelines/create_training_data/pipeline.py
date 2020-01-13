@@ -23,8 +23,8 @@ def run(args, pipeline_args):
     fs = gcsfs.GCSFileSystem(project=args.gcs_project)
 
     zarr_dir = os.path.join(args.gcs_bucket, args.gcs_input_data_path)
-    gcs_urls = sorted(fs.ls(zarr_dir))
-    num_outputs = int((len(gcs_urls) - 1) / args.timesteps_per_output_file)
+    gcs_urls = [url for url in sorted(fs.ls(zarr_dir)) if ".zarr" in url]
+    num_outputs = (len(gcs_urls) - 1) // args.timesteps_per_output_file
     tstep_pairs = [
         (
             args.timesteps_per_output_file * i,
