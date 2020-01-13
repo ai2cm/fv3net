@@ -1,12 +1,7 @@
 import numpy as np
 import pytest
 import xarray as xr
-from vcm.cubedsphere.constants import (
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    COORD_X_OUTER,
-    COORD_Y_OUTER,
-)
+from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
 from vcm.select import mask_to_surface_type
 
 
