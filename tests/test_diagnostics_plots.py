@@ -100,17 +100,3 @@ def test_plot_time_series(test_ds_time_series):
     fig = plot_time_series(test_ds_time_series.isel(pfull=0), plot_config)
     return fig
 
-
-@pytest.mark.mpl_image_compare(filename="single_map.png")
-def test_plot_diag_var_map(test_gridded_ds):
-    plot_config = PlotConfig(
-        diagnostic_variable=["diag_var"],
-        plot_name="test map plot",
-        plotting_function="plot_diag_var_map",
-        dim_slices={},
-        functions=[],
-        function_kwargs=[],
-        plot_params={"coastlines": False},
-    )
-    fig = plot_diag_var_map(test_gridded_ds, plot_config)
-    return fig

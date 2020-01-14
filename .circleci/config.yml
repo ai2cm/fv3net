@@ -9,7 +9,6 @@ jobs:
     steps:
     - checkout
     - run: sudo apt-get install libproj-dev proj-data proj-bin
-    - run: sudo apt-get install libgeos-dev
     - run: sudo pip install -r requirements.txt
     - run: sudo pip install -e external/vcm
     - run: echo $GCLOUD_SERVICE_KEY > key.json
