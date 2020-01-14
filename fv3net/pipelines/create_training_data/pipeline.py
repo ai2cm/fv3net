@@ -58,14 +58,11 @@ def _get_url_batches(gcs_urls, timesteps_per_output_file):
         nested list where inner lists are groupings of input urls
     """
     num_outputs = (len(gcs_urls) - 1) // timesteps_per_output_file
-    tstep_pairs = [
-        (
-            timesteps_per_output_file * i,
-            timesteps_per_output_file * i + (timesteps_per_output_file + 1),
-        )
-        for i in range(num_outputs)
-    ]
-    data_urls = [gcs_urls[start_ind:stop_ind] for start_ind, stop_ind in tstep_pairs]
+    data_urls = []
+    for i in range(num_outputs):
+        start_ind = timesteps_per_output_file * i
+        stop_ind = timesteps_per_output_file * i + (timesteps_per_output_file + 1)
+        data_urls.append(gcs_urls[start_ind:stop_ind])
     num_leftover = len(gcs_urls) % timesteps_per_output_file
     remainder_urls = [gcs_urls[-num_leftover:]] if num_leftover > 1 else []
     data_urls += remainder_urls
