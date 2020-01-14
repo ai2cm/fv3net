@@ -130,7 +130,7 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS + GRID_VARS):
     ds["QV"] = apparent_source(ds.v)
     ds["Q1"] = apparent_source(ds.T)
     ds["Q2"] = apparent_source(ds.sphum)
-    ds = ds[cols_to_keep]
+    ds = ds[cols_to_keep].isel({TIME_DIM: slice(None, ds.sizes[TIME_DIM] - 1)})
     if "forecast_time" in ds.dims:
         ds = ds.isel(forecast_time=0).squeeze(drop=True)
     return ds
