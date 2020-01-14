@@ -99,4 +99,3 @@ def test_plot_time_series(test_ds_time_series):
     )
     fig = plot_time_series(test_ds_time_series.isel(pfull=0), plot_config)
     return fig
-
