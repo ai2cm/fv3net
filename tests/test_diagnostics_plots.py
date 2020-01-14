@@ -11,8 +11,7 @@ from vcm.calc.diag_ufuncs import mean_over_dim
 from fv3net.diagnostics.utils import PlotConfig
 from fv3net.diagnostics.visualize import (
     create_plot,
-    plot_diag_var_map,
-    plot_time_series,
+    plot_time_series
 )
 
 
