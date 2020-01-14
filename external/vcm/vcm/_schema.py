@@ -9,9 +9,6 @@ from vcm.cubedsphere.constants import (
     COORD_Y_OUTER,
 )
 
-print("SCHEMA!!!")
-
-
 @dataclass
 class Schema:
     """An object for representing the metadata, dimensions, and dtype of a DataArray
@@ -88,77 +85,77 @@ def rename_dataset(ds: xr.Dataset):
 
 # List of schema
 REGISTRY = {
-    "phis": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
+    "phis": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
     "delp": Schema(
-        dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")
+        dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")
     ),
-    "DZ": Schema(dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "W": Schema(dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "T": Schema(dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "u": Schema(dims=(..., "pfull", "COORD_Y_OUTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "v": Schema(dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_OUTER"), dtype=np.dtype("float32")),
-    "u_srf": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "v_srf": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
+    "DZ": Schema(dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "W": Schema(dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "T": Schema(dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "u": Schema(dims=(..., "pfull", COORD_Y_OUTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "v": Schema(dims=(..., "pfull", COORD_Y_CENTER, COORD_X_OUTER), dtype=np.dtype("float32")),
+    "u_srf": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "v_srf": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
     "cld_amt": Schema(
-        dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")
+        dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")
     ),
     "sphum": Schema(
-        dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")
+        dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")
     ),
     "liq_wat": Schema(
-        dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")
+        dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")
     ),
     "rainwat": Schema(
-        dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")
+        dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")
     ),
     "ice_wat": Schema(
-        dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")
+        dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")
     ),
     "snowwat": Schema(
-        dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")
+        dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")
     ),
     "graupel": Schema(
-        dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")
+        dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")
     ),
     "o3mr": Schema(
-        dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")
+        dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")
     ),
     "sgs_tke": Schema(
-        dims=(..., "pfull", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")
+        dims=(..., "pfull", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")
     ),
-    "slmsk": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "tsea": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "sheleg": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "tg3": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "zorl": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "alvsf": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "alvwf": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "alnsf": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "alnwf": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "facsf": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "facwf": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "vfrac": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "canopy": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "f10m": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "t2m": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "q2m": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "vtype": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "stype": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "uustar": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "ffmm": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "ffhh": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "hice": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "fice": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "tisfc": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "tprcp": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "srflag": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "snwdph": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "shdmin": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "shdmax": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "slope": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "snoalb": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "sncovr": Schema(dims=(..., "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "stc": Schema(dims=(..., "phalf", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "smc": Schema(dims=(..., "phalf", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
-    "slc": Schema(dims=(..., "phalf", "COORD_Y_CENTER", "COORD_X_CENTER"), dtype=np.dtype("float32")),
+    "slmsk": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "tsea": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "sheleg": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "tg3": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "zorl": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "alvsf": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "alvwf": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "alnsf": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "alnwf": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "facsf": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "facwf": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "vfrac": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "canopy": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "f10m": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "t2m": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "q2m": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "vtype": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "stype": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "uustar": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "ffmm": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "ffhh": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "hice": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "fice": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "tisfc": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "tprcp": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "srflag": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "snwdph": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "shdmin": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "shdmax": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "slope": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "snoalb": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "sncovr": Schema(dims=(..., COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "stc": Schema(dims=(..., "phalf", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "smc": Schema(dims=(..., "phalf", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
+    "slc": Schema(dims=(..., "phalf", COORD_Y_CENTER, COORD_X_CENTER), dtype=np.dtype("float32")),
 }
