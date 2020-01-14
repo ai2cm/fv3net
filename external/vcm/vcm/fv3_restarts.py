@@ -43,7 +43,9 @@ def open_restarts(url: str, initial_time: str, final_time: str) -> xr.Dataset:
     """
     restart_files = _restart_files_at_url(url, initial_time, final_time)
     arrays = _load_arrays(restart_files)
-    return xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"]))
+    return xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"])).sortby(
+        "time"
+    )
 
 
 def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
