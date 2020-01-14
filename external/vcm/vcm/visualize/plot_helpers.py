@@ -1,6 +1,23 @@
 import numpy as np
 
 
+def _min_max_from_percentiles(x, min_percentile=2, max_percentile=98):
+    """ Use +/- small percentile to determine bounds for colorbar. Avoids the case
+    where an outlier in the data causes the color scale to be washed out.
+
+    Args:
+        x: array of data values
+        min_percentile: lower percentile to use instead of absolute min
+        max_percentile: upper percentile to use instead of absolute max
+
+    Returns:
+
+    """
+    x = x[~np.isnan(x)]
+    xmin, xmax = np.percentile(x, [min_percentile, max_percentile])
+    return xmin, xmax
+
+
 def _infer_color_limits(
     xmin: float, xmax: float, vmin: float = None, vmax: float = None, cmap: str = None
 ):
