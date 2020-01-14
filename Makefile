@@ -29,7 +29,7 @@ enter: build_image
 	docker run -it -v $(shell pwd):/code \
 		-e GOOGLE_CLOUD_PROJECT=vcm-ml \
 		-w /code $(IMAGE)  bash
-        
+
 #		-e GOOGLE_APPLICATION_CREDENTIALS=/google_creds.json \
 #		-v $(HOME)/.config/gcloud/application_default_credentials.json:/google_creds.json \
 
@@ -45,7 +45,7 @@ requirements: test_environment
 .PHONY: data
 data:
 	dvc repro $(DATA)
-    
+
 ## Delete all compiled Python files
 clean:
 	find . -type f -name "*.py[co]" -delete
@@ -78,7 +78,7 @@ lint:
 	black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
 	flake8 $(PYTHON_FILES)
 	# ignore unused import error in __init__.py files
-	flake8 --ignore=F401 E203 $(PYTHON_INIT_FILES)
+	flake8 --ignore=F401 $(PYTHON_INIT_FILES)
 	@echo "LINTING SUCCESSFUL"
 
 reformat:
