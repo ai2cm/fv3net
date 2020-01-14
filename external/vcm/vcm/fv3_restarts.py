@@ -10,29 +10,11 @@ from dask.delayed import delayed
 
 import vcm._schema
 from vcm.combining import combine_array_sequence
-
-# from vcm.cubedsphere.constants import (
-#     COORD_X_CENTER,
-#     COORD_Y_CENTER,
-#     COORD_X_OUTER,
-#     COORD_Y_OUTER,
-#     COORD_Z_CENTER,
-#     COORD_Z_SOIL,
-# )
 from vcm.convenience import open_delayed
 
 TIME_FMT = "%Y%m%d.%H%M%S"
-
 SCHEMA_CACHE = {}
-
-# NUM_SOIL_LAYERS = 4
 RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
-# X_NAME = COORD_X_CENTER
-# Y_NAME = COORD_Y_CENTER
-# X_EDGE_NAME = COORD_X_OUTER
-# Y_EDGE_NAME = COORD_Y_OUTER
-# Z_NAME = COORD_Z_CENTER
-# Z_EDGE_NAME = COORD_Z_SOIL
 
 
 def open_restarts(url: str, initial_time: str, final_time: str) -> xr.Dataset:
