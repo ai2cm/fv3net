@@ -105,6 +105,7 @@ def _load_cloud_data(gcs_urls, fs):
     Returns:
         xarray dataset of concatenated zarrs in url list
     """
+    logger.info(f"Using urls for batch: {gcs_urls}")
     gcs_zarr_mappings = [fs.get_mapper(url) for url in gcs_urls]
     ds = xr.concat(map(xr.open_zarr, gcs_zarr_mappings), TIME_DIM)[
         INPUT_VARS + GRID_VARS
@@ -129,8 +130,7 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS + GRID_VARS):
     ds["QV"] = apparent_source(ds.v)
     ds["Q1"] = apparent_source(ds.T)
     ds["Q2"] = apparent_source(ds.sphum)
-    num_slices = len(ds.initialization_time.values) - 1
-    ds = ds[cols_to_keep].isel({TIME_DIM: slice(None, num_slices)})
+    ds = ds[cols_to_keep]
     if "forecast_time" in ds.dims:
-        ds = ds.isel(forecast_time=0).squeeze().drop("forecast_time")
+        ds = ds.isel(forecast_time=0).squeeze(drop=True)
     return ds
