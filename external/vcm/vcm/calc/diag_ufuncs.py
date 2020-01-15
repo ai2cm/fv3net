@@ -18,7 +18,7 @@ def average_over_time_bin(ds, var, time_dim, sample_freq, new_var):
         new_var: name for time averaged variable that will be added to dataset
 
     Returns:
-
+        dataset with var averaged over the time bins specified
     """
     da_var_time_mean = ds[var].resample(indexer={time_dim: sample_freq}).mean()
     return ds.assign({new_var: da_var_time_mean})
