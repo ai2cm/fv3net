@@ -8,7 +8,7 @@ import fsspec
 import xarray as xr
 from dask.delayed import delayed
 
-import vcm._schema
+from vcm._schema_registry import coerce_dataset_to_schema
 from vcm.combining import combine_array_sequence
 from vcm.convenience import open_delayed
 
@@ -51,14 +51,14 @@ def open_restarts(url: str, initial_time: str, final_time: str) -> xr.Dataset:
 def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
     """Update the meta-data of an individual restart file
 
-    This drops the singleton time dimension and applies the known dimensions listed in
-    ``vcm._schema``.
+    This drops the singleton time dimension and applies the known dimensions
+    listed in `vcm.schema` and `vcm._schema_registry`.
     """
     try:
         ds_no_time = ds.isel(Time=0).drop("Time")
     except ValueError:
         ds_no_time = ds
-    return vcm._schema.coerce_dataset_to_schema(ds_no_time)
+    return coerce_dataset_to_schema(ds_no_time)
 
 
 def _parse_time_string(time):
