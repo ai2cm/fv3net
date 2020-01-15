@@ -21,18 +21,9 @@ TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
 
 def run(args, pipeline_args):
     fs = gcsfs.GCSFileSystem(project=args.gcs_project)
-
     zarr_dir = os.path.join(args.gcs_bucket, args.gcs_input_data_path)
-    gcs_urls = sorted(fs.ls(zarr_dir))
-    num_outputs = int((len(gcs_urls) - 1) / args.timesteps_per_output_file)
-    tstep_pairs = [
-        (
-            args.timesteps_per_output_file * i,
-            args.timesteps_per_output_file * i + (args.timesteps_per_output_file + 1),
-        )
-        for i in range(num_outputs)
-    ]
-    data_urls = [gcs_urls[start_ind:stop_ind] for start_ind, stop_ind in tstep_pairs]
+    gcs_urls = [url for url in sorted(fs.ls(zarr_dir)) if ".zarr" in url]
+    data_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
 
     print(f"Processing {len(data_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
@@ -51,6 +42,31 @@ def run(args, pipeline_args):
                 bucket=args.gcs_bucket,
             )
         )
+
+
+def _get_url_batches(gcs_urls, timesteps_per_output_file):
+    """ Groups the time ordered urls into lists of max length
+    (args.timesteps_per_output_file + 1). The last file in each grouping is only
+    used to calculate the hi res tendency, and is dropped from the final
+    batch training zarr.
+
+    Args:
+        gcs_urls: list of urls to be grouped into batches
+        timesteps_per_output_file: number of initialization timesteps that will be in
+        each final train dataset batch
+    Returns:
+        nested list where inner lists are groupings of input urls
+    """
+    num_outputs = (len(gcs_urls) - 1) // timesteps_per_output_file
+    data_urls = []
+    for i in range(num_outputs):
+        start_ind = timesteps_per_output_file * i
+        stop_ind = timesteps_per_output_file * i + (timesteps_per_output_file + 1)
+        data_urls.append(gcs_urls[start_ind:stop_ind])
+    num_leftover = len(gcs_urls) % timesteps_per_output_file
+    remainder_urls = [gcs_urls[-num_leftover:]] if num_leftover > 1 else []
+    data_urls += remainder_urls
+    return data_urls
 
 
 def _write_to_zarr(
@@ -113,8 +129,7 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS + GRID_VARS):
     ds["QV"] = apparent_source(ds.v)
     ds["Q1"] = apparent_source(ds.T)
     ds["Q2"] = apparent_source(ds.sphum)
-    num_slices = len(ds.initialization_time.values) - 1
-    ds = ds[cols_to_keep].isel({TIME_DIM: slice(None, num_slices)})
+    ds = ds[cols_to_keep].isel({TIME_DIM: slice(None, ds.sizes[TIME_DIM] - 1)})
     if "forecast_time" in ds.dims:
-        ds = ds.isel(forecast_time=0).squeeze().drop("forecast_time")
+        ds = ds.isel(forecast_time=0).squeeze(drop=True)
     return ds

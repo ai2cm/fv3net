@@ -1,4 +1,4 @@
-python -m fv3net.pipelines.create_training_data.pipeline \
+python -m fv3net.pipelines.create_training_data \
 --gcs-input-data-path 2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/zarr_new_dims/C48 \
 --gcs-output-data-dir test-annak/test_dataflow \
 --mask-to-surface-type sea \
