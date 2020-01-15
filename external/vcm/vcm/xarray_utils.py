@@ -58,7 +58,7 @@ def repeat(
     obj: Union[xr.Dataset, xr.DataArray], repeats: Union[int, np.array], dim: Hashable
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Repeat elements of an array.
-    
+
     Args:
         obj: Input xr.Dataset or xr.DataArray.
         repeats: The number of repetitions for each element. repeats is

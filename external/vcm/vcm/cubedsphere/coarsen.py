@@ -3,6 +3,7 @@ from functools import partial
 from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Tuple, Union
 
 import dask
+import dask.array as dask_array
 import numpy as np
 import scipy.stats
 import xarray as xr
@@ -811,3 +812,44 @@ def block_upsample(
     for dim in dims:
         obj = _upsample_staggered_or_unstaggered(obj, upsampling_factor, dim)
     return obj
+
+
+def block_upsample_like(
+    da: xr.DataArray,
+    reference_da: xr.DataArray,
+    x_dim: Hashable = "xaxis_1",
+    y_dim: Hashable = "yaxis_1",
+) -> xr.DataArray:
+    """Upsample a DataArray and sync its chunk and coordinate properties with a
+    reference DataArray.
+    The purpose of this function is to upsample a coarsened DataArray back out
+    to its original resolution.  In doing so it:
+      - Ensures the chunk sizes of the upsampled DataArray match the chunk sizes of
+        the original DataArray.  This is useful, because block_upsample often
+        produces chunk sizes that are too small for good performance when
+        applied to dask arrays.
+      - Adds horizontal dimension coordinates that match the reference DataArray.
+
+    As other block-related functions, this function assumes that the upsampling
+    factor is the same in the x and y dimension.
+
+    Args:
+        da (xr.DataArray): input DataArray.
+        reference_da (xr.DataArray): DataArray to which da will be upsampled.
+        x_dim (Hashable, optional): name of x-dimension. Defaults to "xaxis_1"
+        y_dim (Hashable, optional): name of y-dimension. Defaults to "yaxis_1"
+
+    Returns:
+        xr.DataArray: upsampled da
+    """
+    x_is_staggered_dim = da.sizes[x_dim] % 2 == 1
+    if x_is_staggered_dim:
+        upsampling_factor = (reference_da.sizes[x_dim] - 1) // (da.sizes[x_dim] - 1)
+    else:
+        upsampling_factor = reference_da.sizes[x_dim] // da.sizes[x_dim]
+    result = block_upsample(da, upsampling_factor, [x_dim, y_dim])
+    if isinstance(da.data, dask_array.Array):
+        result = result.chunk(reference_da.transpose(*result.dims).chunks)
+    return result.assign_coords(
+        {x_dim: reference_da[x_dim], y_dim: reference_da[y_dim]}
+    )
