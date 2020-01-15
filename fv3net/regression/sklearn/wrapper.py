@@ -57,6 +57,9 @@ class BatchTransformRegressor:
         self.transform_regressor.fit(features, outputs)
         self.num_batches_fit += 1
 
+    def predict(self, features):
+        return self.transform_regressor.predict(features)
+
 
 @dataclass
 class BaseXarrayEstimator:
