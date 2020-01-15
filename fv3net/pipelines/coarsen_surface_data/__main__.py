@@ -4,7 +4,6 @@ import re
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
-
 from vcm.cloud import gsutils
 
 from .core import coarsen_and_upload_surface, output_names

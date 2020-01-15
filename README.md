@@ -105,6 +105,10 @@ We provide configurable job submission scripts under workflows to expedite this 
 
     workflows/extract_tars/submit_job.sh
 
+If you get an error `Could not create workflow; user does not have write access to project` upon
+trying to submit the dataflow job, do `gcloud auth application-default login` first and then retry.
+
+
 ## Deploying on k8s with fv3net
 
 Docker images with the python-wrapped model and fv3run are available from the
