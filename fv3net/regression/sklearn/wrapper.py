@@ -37,7 +37,7 @@ class BatchTransformRegressor:
         new_total_estimators = self.n_estimators + self.n_estimators_per_batch
         try:
             setattr(
-                self.transform_regressor.regressor.n_estimators, new_total_estimators
+                self.transform_regressor.regressor, "n_estimators", new_total_estimators
             )
         except AttributeError:
             try:

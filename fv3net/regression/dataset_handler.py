@@ -117,6 +117,7 @@ class BatchGenerator:
             ds[self.data_vars].stack(sample=SAMPLE_DIMS)
             .transpose("sample", "pfull")
             .reset_index("sample")
+            .dropna("sample")
         )
         ds_shuffled = reshape.shuffled(ds_stacked, "sample", self.random_seed)
         return ds_shuffled
