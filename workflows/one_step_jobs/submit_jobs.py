@@ -6,9 +6,13 @@ import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import List
+from multiprocessing import Pool
 import gcsfs
 import yaml
+import tempfile
 import fv3config
+
+from vcm.cloud import gsutil, gcs
 
 logger = logging.getLogger("run_jobs")
 
@@ -55,9 +59,81 @@ def time_list_from_timestep(timestep: str) -> List[int]:
     return [year, month, day, hour, minute, second]
 
 
+def check_runs_complete(bucket: str):
+    """Checks for log and tail of output to see if run successfully incomplete"""
+    # TODO: Ideally this would check some sort of model exit code
+
+    timestep_check_args = [
+        (curr_timestep, os.path.join(bucket, curr_timestep, 'stdout.log'))
+        for curr_timestep in list_timesteps(bucket)
+    ]
+
+    pool = Pool(processes=16)
+    complete = set(pool.map(_check_run_complete_unpacker, timestep_check_args))
+    pool.close()
+
+    if None in complete:
+        complete.remove(None)
+
+    return complete
+
+
+def _check_run_complete_unpacker(arg: tuple) -> str:
+    return _check_run_complete_func(*arg)
+
+
+def _check_run_complete_func(timestep: str, logfile_path: str) -> str:
+
+    if gsutil.exists(logfile_path) and _check_log_tail(logfile_path):
+        return timestep
+    else:
+        return None
+
+
+def _check_log_tail(gcs_log_file: str) -> bool:
+
+    # Checking for specific timing headers that outputs at the end of the run
+
+    output_timing_header = [
+        'tmin', 'tmax', 'tavg', 'tstd', 'tfrac', 'grain', 'pemin', 'pemax\n'
+    ]
+    output_timing_row_lead = [
+        'Total', 'Initialization', 'FV', 'FV', 'FV', 'GFS', 'GFS', 'GFS',
+        'Dynamics', 'Dynamics', 'FV3', 'Main', 'Termination'
+    ]
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = Path(gcs_log_file).name
+        gcs_file_blob = gcs.init_blob_from_gcs_url(gcs_log_file)
+        gcs.download_blob_to_file(gcs_file_blob, tmpdir, filename)
+
+        with open(os.path.join(tmpdir, filename), 'r') as f:
+            log_output = f.readlines()[-15:]
+
+        headers = [word for word in log_output[0].split(' ') if word]
+        top_check = _check_header_categories(output_timing_header, headers)
+        row_headers = [line.split(' ')[0] for line in log_output[1:-1]]
+        row_check = _check_header_categories(output_timing_row_lead, row_headers)
+
+        return top_check and row_check
+
+
+def _check_header_categories(target_categories, source_categories):
+    if not source_categories:
+        return False
+    elif len(source_categories) != len(target_categories):
+        return False
+
+    for i, target in enumerate(target_categories):
+        if target != source_categories[i]:
+            return False
+    
+    return True
+
+
 def timesteps_to_process() -> List[str]:
     to_do = list_timesteps(INPUT_BUCKET)
-    done = list_timesteps(OUTPUT_BUCKET)
+    done = check_runs_complete(OUTPUT_BUCKET)
     logger.info(f"Number of input times: {len(to_do)}")
     logger.info(f"Number of completed times: {len(done)}")
     logger.info(f"Number of times to process: {len(to_do) - len(done)}")
