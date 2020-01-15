@@ -275,10 +275,10 @@ REGISTRY = {
 }
 
 
-def coerce_dataset_to_schema(ds: xr.Dataset):
+def impose_dataset_to_schema(ds: xr.Dataset):
     return xr.Dataset(
         {
-            variable: REGISTRY[variable].coerce_dataarray_to_schema(ds[variable])
+            variable: REGISTRY[variable].impose_dataarray_to_schema(ds[variable])
             if variable in REGISTRY
             else ds[variable]
             for variable in ds

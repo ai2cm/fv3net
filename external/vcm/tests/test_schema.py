@@ -1,4 +1,4 @@
-from vcm import _schema
+from vcm import schema
 import numpy as np
 import xarray as xr
 
@@ -12,18 +12,18 @@ def da():
 
 @pytest.mark.parametrize("container_type", [list, tuple])
 def test_Schema_rename_any_dims(da, container_type):
-    meta = _schema.Schema(dims=container_type([..., "x"]), dtype=da.dtype, attrs={})
+    meta = schema.Schema(dims=container_type([..., "x"]), attrs={})
     meta._rename_dimensions(da)
 
 
 def test_Schema_rename_dimensions_correct(da):
-    meta = _schema.Schema(dims=[..., "x"], dtype=da.dtype, attrs={})
+    meta = schema.Schema(dims=[..., "x"], attrs={})
     out = meta._rename_dimensions(da)
     xr.testing.assert_allclose(out, da.rename({"bad": "x"}))
 
 
 def test_Schema_rename_dimensions_fails_without_ellipsis(da):
-    meta = _schema.Schema(dims=["x"], dtype=da.dtype, attrs={})
+    meta = schema.Schema(dims=["x"], attrs={})
     with pytest.raises(ValueError):
         meta._rename_dimensions(da)
 
@@ -32,5 +32,5 @@ def test_Schema_rename_dimensions_fails_without_ellipsis(da):
     "dims, succeeds", [(["x"], False), (["bad"], False), ([..., "bad"], True)]
 )
 def test_Schema_validate_fails(da, dims, succeeds):
-    meta = _schema.Schema(dims=dims, dtype=da.dtype, attrs={})
+    meta = schema.Schema(dims=dims, attrs={})
     assert meta.validate(da) == succeeds

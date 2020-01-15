@@ -1,21 +1,22 @@
 from typing import Sequence, Any, Mapping, Dict
 import xarray as xr
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
 class Schema:
-    """An object for representing the metadata, dimensions, and dtype of a DataArray
+    """An object for representing the dimension names and attrs of a DataArray
 
     Attributes:
         dims: a list of dimension names. If this begins with ``...``, then
             any data array ending with the dimensions after "..." will validate
             against this schema.
+        attrs: a dict of attributes of the DataArray
 
     """
 
     dims: Sequence[Any]
-    attrs: Dict
+    attrs: Dict = field(default_factory=dict)
 
     @staticmethod
     def from_dataarray(data: xr.DataArray) -> "Schema":
@@ -34,7 +35,7 @@ class Schema:
             data_dims = data.dims
         return set(expected_dims) == set(data_dims)
 
-    def coerce_dataarray_to_schema(self, arr: xr.DataArray) -> xr.DataArray:
+    def impose_dataarray_to_schema(self, arr: xr.DataArray) -> xr.DataArray:
         """Apply dimension names and variable attributes to array_like object
 
         Args:
@@ -52,10 +53,10 @@ class Schema:
         """Apply dimension names to array_like object
 
         Args:
-            arr (array_like): array to apply the dimension names to. If the number of
-                dimensions doesn't match an error is returned. If the schema
-                specifies only n trailing dimensions then only n trailing
-                dimensions are renamed.
+            arr (array_like): array to apply the dimension names to. If the
+            number of dimensions doesn't match an error is returned. If the
+            schema specifies only n trailing dimensions then only n trailing
+            dimensions are renamed.
 
         Returns:
             arr: (array_like): An array with renamed dimensions.

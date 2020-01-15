@@ -8,7 +8,7 @@ import fsspec
 import xarray as xr
 from dask.delayed import delayed
 
-from vcm._schema_registry import coerce_dataset_to_schema
+from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
 from vcm.convenience import open_delayed
 
@@ -58,7 +58,7 @@ def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
         ds_no_time = ds.isel(Time=0).drop("Time")
     except ValueError:
         ds_no_time = ds
-    return coerce_dataset_to_schema(ds_no_time)
+    return impose_dataset_to_schema(ds_no_time)
 
 
 def _parse_time_string(time):
