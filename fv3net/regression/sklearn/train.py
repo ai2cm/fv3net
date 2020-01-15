@@ -158,7 +158,7 @@ def train_model(batched_data, train_config, targets_for_normalization):
             data=batch,
         )
         print(f"Batch {i} done fitting.")
-    return model_wrapper.model
+    return model_wrapper
 
 
 if __name__ == "__main__":
