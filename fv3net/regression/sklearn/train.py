@@ -88,12 +88,14 @@ def load_data_generator(train_config):
     Returns:
         iterator that generates xr datasets for training batches
     """
+    data_vars = train_config.input_variables + train_config.output_variables
     ds_batches = BatchGenerator(
+        data_vars,
         train_config.gcs_data_dir,
         train_config.batch_size,
         train_config.train_frac,
         train_config.test_frac,
-        train_config.num_batches,
+        train_config.num_batches
     )
     return ds_batches
 

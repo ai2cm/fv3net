@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+from typing import List
 
 import gcsfs
 import numpy as np
@@ -19,6 +20,7 @@ SAMPLE_DIMS = ["initialization_time", "grid_yt", "grid_xt", "tile"]
 
 @dataclass
 class BatchGenerator:
+    data_vars: List[str]
     gcs_data_dir: str
     files_per_batch: int
     train_frac: float
@@ -31,7 +33,7 @@ class BatchGenerator:
         """Randomly splits the list of zarrs in the gcs_data_dir into train/test
 
         Returns:
-
+            two lists of batch data url paths, one is for training and other is for test
         """
         self.fs = gcsfs.GCSFileSystem(project=self.gcs_project)
         zarr_urls = self.fs.ls(self.gcs_data_dir)
@@ -112,7 +114,7 @@ class BatchGenerator:
             single sample dimension, randomly shuffled
         """
         ds_stacked = (
-            ds.stack(sample=SAMPLE_DIMS)
+            ds[self.data_vars].stack(sample=SAMPLE_DIMS)
             .transpose("sample", "pfull")
             .reset_index("sample")
         )
