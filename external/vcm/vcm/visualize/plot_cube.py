@@ -11,6 +11,7 @@ from vcm.cubedsphere.constants import (
 from vcm.visualize.plot_helpers import (
     _infer_color_limits,
     _get_var_label,
+    _remove_redundant_dims,
     _min_max_from_percentiles,
 )
 from vcm.visualize.masking import _mask_antimeridian_quads
@@ -24,7 +25,6 @@ try:
     from cartopy import crs as ccrs
 except ImportError:
     pass
-
 
 # global
 
@@ -95,6 +95,7 @@ def plot_cube(
             Additional keyword arguments to be passed to the plotting function.
 
     Returns:
+        figure (matlotlib Figure)
         axes (np.ndarray):
             Array of `plt.axes` objects assocated with map subplots if faceting;
             otherwise array containing single axes object.
@@ -214,6 +215,7 @@ def mappable_var(ds: xr.Dataset, var_name: str):
         )
     """
     for var, dims in _COORD_VARS.items():
+        ds[var] = _remove_redundant_dims(ds[var], required_dims=dims)
         ds[var] = ds[var].transpose(*dims)
 
     first_dims = [COORD_Y_CENTER, COORD_X_CENTER, "tile"]

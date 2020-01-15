@@ -7,10 +7,10 @@ from sklearn.compose import TransformedTargetRegressor
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.externals import joblib
 from sklearn.preprocessing import StandardScaler
+from vcm.convenience import open_dataset
 
 import fire
 from fv3net.models.base import SklearnWrapper
-from vcm.convenience import open_dataset
 
 logging.basicConfig(level=logging.INFO)
 
