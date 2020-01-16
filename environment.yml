@@ -1,7 +1,6 @@
 channels:
   - defaults
   - conda-forge
-
 dependencies:
   - click
   - cloudpickle
@@ -13,6 +12,7 @@ dependencies:
   - gcsfs
   - google-cloud-storage
   - h5netcdf
+  - h5py==2.10
   - hypothesis
   - intake
   - intake-xarray
@@ -21,16 +21,17 @@ dependencies:
   - numba
   - numpy
   - partd
-  - pyyaml==3.13
+  - pyyaml==5.3
   - pytest
   - scikit-image
   - scikit-learn==0.20
   - toolz
-  - xarray>=0.12
+  - xarray==0.14
+  - jupyterlab
   - zarr
-
+  - pip
+  - xgcm==0.2
+  - jupyterlab
   - pip:
-    - gsutil
     - apache-beam==2.16.0
     - snakemake
-    - -e external/vcm

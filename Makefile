@@ -36,10 +36,6 @@ enter: build_image
 push_image: build_image
 	docker push $(GCR_IMAGE)
 
-## Install Python Dependencies
-requirements: test_environment
-	$(PYTHON_INTERPRETER) -m pip install -U pip setuptools wheel
-	$(PYTHON_INTERPRETER) -m pip install -r requirements.txt
 
 ## Make Dataset
 .PHONY: data
@@ -53,6 +49,10 @@ clean:
 
 
 ## Set up python interpreter environment
+build_environment:
+	bash build_environment.sh
+
+
 create_environment:
 	conda env create --name $(PROJECT_NAME) environment.yml
 
