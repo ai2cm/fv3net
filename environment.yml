@@ -38,5 +38,5 @@ dependencies:
   - jupyterlab
   - apache-beam
   - pip:
-    - -e --no-deps external/fv3config
-    - -e --no-deps external/vcm
+    - -e external/fv3config
+    - -e external/vcm
