@@ -144,7 +144,7 @@ def _load_cloud_data(run_dirs, fs):
 def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
     grid_info_files = ["gs://" + filename for filename in fs.ls(run_dir)
         if "atmos_dt_atmos" in filename]
-    os.makedirs("grid_spec", exist_ok=True)
+    os.makedirs("temp_grid_spec", exist_ok=True)
     gsutil.copy_many(grid_info_files, "temp_grid_spec")
     grid = open_cubed_sphere(
         "grid_spec/atmos_dt_atmos",
