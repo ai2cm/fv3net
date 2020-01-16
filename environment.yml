@@ -10,8 +10,8 @@ dependencies:
   - dask>=2.3.0
   - fsspec
   - f90nml
-  - black==19.3
-  - isort==4.3
+  - black=19.3
+  - isort=4.3
   - flake8
   - gcsfs
   - google-cloud-storage
