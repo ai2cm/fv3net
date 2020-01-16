@@ -26,10 +26,9 @@ jobs:
     docker:
     - image: continuumio/miniconda:4.7.12
     steps:
-    - checkout:
-      post:
-       - git submodule sync --recursive
-       - git submodule update --recursive --init
+    - checkout
+    - run: git submodule sync --recursive
+    - run: git submodule update --recursive --init
     - run: make create_environment
     - run: conda activate fv3net && python test_environment.py
 workflows:
