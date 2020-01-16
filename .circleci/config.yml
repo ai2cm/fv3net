@@ -7,8 +7,8 @@ jobs:
       environment:
           GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
-    - run: echo $GCLOUD_SERVICE_KEY > key.json
     - checkout
+    - run: echo $GCLOUD_SERVICE_KEY > key.json
     - run: git submodule sync --recursive
     - run: git submodule update --recursive --init
     - run: conda install make
