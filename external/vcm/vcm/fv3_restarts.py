@@ -61,6 +61,34 @@ def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
     return impose_dataset_to_schema(ds_no_time)
 
 
+
+def _parse_first_last_forecast_times(fs, run_dir):
+    """
+
+    Args:
+        fs: gcsfs GCSFileSystem
+        run_dir: run directory assumed to be named with initialization time in TIME_FMT,
+         e.g. "20160801.001000"
+
+    Returns:
+        strings in TIME_FMT: initialization time and last forecast time
+    """
+    if run_dir[-1] == "/":
+        run_dir = run_dir[:-1]
+    restart_contents = fs.ls(os.path.join(run_dir, "RESTART"))
+    forecast_times = []
+    for filename in restart_contents:
+        try:
+            timestring = _parse_time(os.path.basename(filename))
+        except AttributeError:
+            timestring = None
+        if timestring and timestring not in forecast_times:
+            forecast_times.append(timestring)
+    t_init = os.path.basename(run_dir)
+    t_last = sorted(forecast_times)[-1]
+    return t_init, t_last
+
+
 def _parse_time_string(time):
     t = datetime.strptime(time, TIME_FMT)
     return cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)

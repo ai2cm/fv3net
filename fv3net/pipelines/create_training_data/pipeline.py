@@ -7,40 +7,58 @@ import xarray as xr
 
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
+from vcm.cubedsphere.constants import (
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_OUTER,
+    VAR_LON_CENTER,
+    VAR_LAT_CENTER,
+    VAR_LON_OUTER ,
+    VAR_LAT_OUTER)
+from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
+from vcm.fv3_restarts import open_restarts, _parse_time_string, \
+    _parse_first_last_forecast_times
 from vcm.select import mask_to_surface_type
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-TIME_DIM = "initialization_time"
-GRID_VARS = ["grid_lon", "grid_lat", "grid_lont", "grid_latt"]
+INIT_TIME_DIM = "initialization_time"
+FORECAST_TIME_DIM = "forecast_time"
+GRID_XY_COORDS =  {
+    COORD_X_CENTER: range(48), COORD_Y_CENTER: range(48),
+    COORD_X_OUTER: range(49), COORD_Y_OUTER: range(49)}
+GRID_VARS = list(GRID_XY_COORDS.keys())+ ['area']
 INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
 
 
 def run(args, pipeline_args):
     fs = gcsfs.GCSFileSystem(project=args.gcs_project)
-    zarr_dir = os.path.join(args.gcs_bucket, args.gcs_input_data_path)
-    gcs_urls = [url for url in sorted(fs.ls(zarr_dir)) if ".zarr" in url]
-    data_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
+    data_path = os.path.join(args.gcs_bucket, args.gcs_input_data_path)
+    gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(data_path))]
+    _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir, args.gcs_bucket)
+    data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
 
-    print(f"Processing {len(data_urls)} subsets...")
+    print(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
-            p
-            | beam.Create(data_urls)
-            | "LoadCloudData" >> beam.Map(_load_cloud_data, fs=fs)
-            | "CreateTrainingCols" >> beam.Map(_create_train_cols)
-            | "MaskToSurfaceType"
-            >> beam.Map(mask_to_surface_type, surface_type=args.mask_to_surface_type)
-            | "WriteToZarr"
-            >> beam.Map(
-                _write_to_zarr,
-                gcs_dest_dir=args.gcs_output_data_dir,
-                bucket=args.gcs_bucket,
-            )
+                p
+                | beam.Create(data_batch_urls)
+                | "LoadCloudData" >> beam.Map(_load_cloud_data, fs=fs)
+                | "CreateTrainingCols" >> beam.Map(_create_train_cols)
+                | "MaskToSurfaceType"
+                    >> beam.Map(
+                        mask_to_surface_type,
+                        surface_type=args.mask_to_surface_type)
+                | "WriteToZarr"
+                    >> beam.Map(
+                        _write_to_zarr,
+                        gcs_dest_dir=args.gcs_output_data_dir,
+                        bucket=args.gcs_bucket)
         )
 
 
@@ -70,7 +88,7 @@ def _get_url_batches(gcs_urls, timesteps_per_output_file):
 
 
 def _write_to_zarr(
-    ds, gcs_dest_dir, bucket="gs://vcm-ml-data",
+        ds, gcs_dest_dir, bucket="gs://vcm-ml-data", zarr_filename=None
 ):
     """Writes temporary zarr on worker and moves it to GCS
 
@@ -83,7 +101,8 @@ def _write_to_zarr(
         None
     """
     logger.info("Writing to zarr...")
-    zarr_filename = _filename_from_first_timestep(ds)
+    if not zarr_filename:
+        zarr_filename = _filename_from_first_timestep(ds)
     output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
     ds.to_zarr(zarr_filename, mode="w")
     gsutil.copy(zarr_filename, output_path)
@@ -91,29 +110,52 @@ def _write_to_zarr(
 
 
 def _filename_from_first_timestep(ds):
-    timestep = min(ds[TIME_DIM].values).strftime("%Y%m%d.%H%M%S")
+    timestep = min(ds[INIT_TIME_DIM].values).strftime("%Y%m%d.%H%M%S")
     return timestep + ".zarr"
 
 
-def _load_cloud_data(gcs_urls, fs):
+def _load_cloud_data(run_dirs, fs):
     """
 
     Args:
         fs: GCSFileSystem
-        gcs_urls: list of GCS urls to open
+        run_dirs: list of GCS urls to open
 
     Returns:
         xarray dataset of concatenated zarrs in url list
     """
-    logger.info(f"Using urls for batch: {gcs_urls}")
-    gcs_zarr_mappings = [fs.get_mapper(url) for url in gcs_urls]
-    ds = xr.concat(map(xr.open_zarr, gcs_zarr_mappings), TIME_DIM)[
-        INPUT_VARS + GRID_VARS
-    ]
-    return ds
+    logger.info(f"Using run dirs for batch: {run_dirs}")
+    ds_runs = []
+    for run_dir in run_dirs:
+        t_init, t_last = _parse_first_last_forecast_times(fs, run_dir)
+        ds_runs.append(
+            open_restarts(run_dir, t_init, t_last)
+                .rename({"time": FORECAST_TIME_DIM})
+                .isel(FORECAST_TIME_DIM=slice(-2, None))
+                .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
+                [INPUT_VARS]
+                .assign_coords(GRID_XY_COORDS)
+        )
+    return xr.concat(ds_runs, INIT_TIME_DIM)
 
 
-def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS + GRID_VARS):
+def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
+    grid_info_files = ["gs://" + filename for filename in fs.ls(run_dir)
+        if "atmos_dt_atmos" in filename]
+    os.makedirs("grid_spec", exist_ok=True)
+    gsutil.copy_many(grid_info_files, "grid_spec")
+    grid = open_cubed_sphere(
+        "grid_spec/atmos_dt_atmos",
+        num_subtiles=1,
+        pattern='{prefix}.tile{tile:d}.nc'
+    )[['area', VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]]
+    _write_to_zarr(
+        grid, gcs_output_data_dir, gcs_bucket, zarr_filename="grid_spec.zarr")
+    logger.info(f"Wrote grid spec to "
+                f"{os.path.join(gcs_bucket, gcs_output_data_dir, 'grid_spec.zarr')}")
+
+
+def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
     """
 
     Args:
@@ -130,7 +172,7 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS + GRID_VARS):
     ds["QV"] = apparent_source(ds.v)
     ds["Q1"] = apparent_source(ds.T)
     ds["Q2"] = apparent_source(ds.sphum)
-    ds = ds[cols_to_keep].isel({TIME_DIM: slice(None, ds.sizes[TIME_DIM] - 1)})
-    if "forecast_time" in ds.dims:
-        ds = ds.isel(forecast_time=0).squeeze(drop=True)
+    ds = ds[cols_to_keep].isel({INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1)})
+    if FORECAST_TIME_DIM in ds.dims:
+        ds = ds.isel(FORECAST_TIME_DIM=0).squeeze(drop=True)
     return ds
