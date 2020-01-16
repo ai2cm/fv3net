@@ -13,6 +13,7 @@ jobs:
     - run: git submodule update --recursive --init
     - run: conda install make
     - run: make create_environment
+    - run: source activateEnv fv3net 
     - run: pytest --mpl --mpl-baseline-path=tests/baseline_images
   lint:
     docker:
@@ -32,7 +33,8 @@ jobs:
     - run: git submodule update --recursive --init
     - run: conda install make
     - run: make create_environment
-    - run: conda activate fv3net && python test_environment.py
+    - run: source activateEnv fv3net 
+    - run: python test_environment.py
 workflows:
   version: 2
   test_and_lint:
