@@ -126,14 +126,16 @@ def _load_cloud_data(run_dirs, fs):
     Returns:
         xarray dataset of concatenated zarrs in url list
     """
-    logger.info(f"Using run dirs for batch: {run_dirs}")
+    logger.info(
+        f"Using run dirs for batch: "
+        f"{[os.path.basename(run_dir) for run_dir in run_dirs]}")
     ds_runs = []
     for run_dir in run_dirs:
         t_init, t_last = _parse_first_last_forecast_times(fs, run_dir)
         ds_runs.append(
             open_restarts(run_dir, t_init, t_last)
                 .rename({"time": FORECAST_TIME_DIM})
-                .isel(FORECAST_TIME_DIM=slice(-2, None))
+                .isel({FORECAST_TIME_DIM: slice(-2, None)})
                 .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
                 [INPUT_VARS]
                 .assign_coords(GRID_XY_COORDS)
@@ -177,5 +179,5 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
     ds["Q2"] = apparent_source(ds.sphum)
     ds = ds[cols_to_keep].isel({INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1)})
     if FORECAST_TIME_DIM in ds.dims:
-        ds = ds.isel(FORECAST_TIME_DIM=0).squeeze(drop=True)
+        ds = ds.isel({FORECAST_TIME_DIM: 0}).squeeze(drop=True)
     return ds
