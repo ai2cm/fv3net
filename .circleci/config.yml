@@ -24,21 +24,9 @@ jobs:
     - checkout
     - run: sudo pip install black flake8
     - run: make lint
-  environment:
-    docker:
-    - image: continuumio/miniconda:4.7.12
-    steps:
-    - checkout
-    - run: git submodule sync --recursive
-    - run: git submodule update --recursive --init
-    - run: conda install make
-    - run: make create_environment
-    - run: source activateEnv fv3net 
-    - run: python test_environment.py
 workflows:
   version: 2
   test_and_lint:
     jobs:
       - lint
       - build
-      - environment
