@@ -4,4 +4,4 @@ import fv3config
 
 vcm.open_restarts
 
-print("Enviroment contains the required packages")
+print("Environment contains the required packages")
