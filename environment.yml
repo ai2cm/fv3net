@@ -27,6 +27,7 @@ dependencies:
   - partd
   - pyyaml==5.3
   - pytest
+  - pytest-mpl=0.11
   - scikit-image
   - scikit-learn==0.20
   - toolz
