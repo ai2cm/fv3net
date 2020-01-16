@@ -3,6 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - click
+  - conda-build
   - cloudpickle
   - crcmod
   - dask>=2.3.0
