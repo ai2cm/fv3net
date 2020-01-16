@@ -147,7 +147,7 @@ def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
     os.makedirs("temp_grid_spec", exist_ok=True)
     gsutil.copy_many(grid_info_files, "temp_grid_spec")
     grid = open_cubed_sphere(
-        "grid_spec/atmos_dt_atmos",
+        "temp_grid_spec/atmos_dt_atmos",
         num_subtiles=1,
         pattern='{prefix}.tile{tile:d}.nc'
     )[['area', VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]]
