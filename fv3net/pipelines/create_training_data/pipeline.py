@@ -3,6 +3,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 import gcsfs
 import logging
 import os
+import shutil
 import xarray as xr
 
 from vcm.calc import apparent_source
@@ -107,6 +108,7 @@ def _write_to_zarr(
     ds.to_zarr(zarr_filename, mode="w")
     gsutil.copy(zarr_filename, output_path)
     logger.info(f"Done writing zarr to {output_path}")
+    shutil.rmtree(zarr_filename)
 
 
 def _filename_from_first_timestep(ds):
@@ -143,7 +145,7 @@ def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
     grid_info_files = ["gs://" + filename for filename in fs.ls(run_dir)
         if "atmos_dt_atmos" in filename]
     os.makedirs("grid_spec", exist_ok=True)
-    gsutil.copy_many(grid_info_files, "grid_spec")
+    gsutil.copy_many(grid_info_files, "temp_grid_spec")
     grid = open_cubed_sphere(
         "grid_spec/atmos_dt_atmos",
         num_subtiles=1,
@@ -153,6 +155,7 @@ def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
         grid, gcs_output_data_dir, gcs_bucket, zarr_filename="grid_spec.zarr")
     logger.info(f"Wrote grid spec to "
                 f"{os.path.join(gcs_bucket, gcs_output_data_dir, 'grid_spec.zarr')}")
+    shutil.rmtree("temp_grid_spec")
 
 
 def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
