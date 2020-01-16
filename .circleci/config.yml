@@ -13,7 +13,7 @@ jobs:
     - run: git submodule update --recursive --init
     - run: conda install make
     - run: make create_environment
-    - run: source activateEnv fv3net 
+    - run: source activate_conda_from_subshell fv3net 
     - run: pytest --mpl --mpl-baseline-path=tests/baseline_images
   lint:
     docker:
