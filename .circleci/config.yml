@@ -22,7 +22,13 @@ jobs:
     - checkout
     - run: sudo pip install black flake8
     - run: make lint
-
+  environment:
+    docker:
+    - image: continuumio/miniconda:4.7.12
+    steps:
+    - checkout
+    - run: make create_environment
+    - run: conda activate fv3net && python test_environment.py
 workflows:
   version: 2
   test_and_lint:
