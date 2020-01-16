@@ -83,7 +83,7 @@ def coarsen_timestep(
         os.makedirs(local_coarse_dir, exist_ok=True)
         logger.debug(f'Directory for coarsening files: {local_coarse_dir}')
         filename_prefix = f'{curr_timestep}.'
-        vcm.coarsen_restarts_on_sigma(
+        vcm.coarsen_restarts_on_pressure(
             coarsen_factor,
             os.path.join(local_spec_dir, 'grid_spec'),
             os.path.join(tmp_timestep_dir, curr_timestep, filename_prefix),
