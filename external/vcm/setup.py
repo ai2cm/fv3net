@@ -5,7 +5,7 @@
 
 from setuptools import find_packages, setup
 
-install_requirements = ["Click>=7.0", "f90nml>=1.1.0", "appdirs>=1.4.0", "requests"]
+install_requirements = ["Click>=7.0", "f90nml>=1.1.0", "appdirs>=1.4.0", "requests", "h5py>=2.10"]
 
 
 setup(
