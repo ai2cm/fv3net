@@ -29,6 +29,7 @@ jobs:
     - checkout
     - run: git submodule sync --recursive
     - run: git submodule update --recursive --init
+    - run: conda install make
     - run: make create_environment
     - run: conda activate fv3net && python test_environment.py
 workflows:
