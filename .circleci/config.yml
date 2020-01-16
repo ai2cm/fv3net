@@ -7,11 +7,12 @@ jobs:
       environment:
           GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
-    - checkout
-    - run: sudo apt-get install libproj-dev proj-data proj-bin
-    - run: sudo pip install -r requirements.txt
-    - run: sudo pip install -e external/vcm
     - run: echo $GCLOUD_SERVICE_KEY > key.json
+    - checkout
+    - run: git submodule sync --recursive
+    - run: git submodule update --recursive --init
+    - run: conda install make
+    - run: make create_environment
     - run: pytest --mpl --mpl-baseline-path=tests/baseline_images
   lint:
     docker:
