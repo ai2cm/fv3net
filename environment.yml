@@ -4,6 +4,7 @@ channels:
 dependencies:
   - cartopy
   - click
+  - conda-build
   - cloudpickle
   - crcmod
   - dask>=2.3
@@ -37,7 +38,3 @@ dependencies:
   - xgcm=0.2
   - jupyterlab
   - apache-beam
-  - pip:
-    - --no-deps -e external/fv3config
-    - --no-deps -e external/vcm
-    - --no-deps -e .

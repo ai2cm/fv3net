@@ -50,8 +50,7 @@ clean:
 
 ## Set up python interpreter environment
 create_environment:
-	conda env create -n $(PROJECT_NAME) -f environment.yml
-	
+	bash build_environment.sh $(PROJECT_NAME)
 
 ## Test python environment is setup correctly
 test_environment:
