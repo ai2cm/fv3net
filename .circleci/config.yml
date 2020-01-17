@@ -10,10 +10,11 @@ jobs:
     - checkout
     - run: echo $GCLOUD_SERVICE_KEY > key.json
     - run: conda install make
+    - run: make update_submodules
     - run: make create_environment
     - run: | 
         source activate fv3net
-        pytest --mpl --mpl-baseline-path=tests/baseline_images
+        pytest
   lint:
     docker:
     - image: circleci/python:3.7

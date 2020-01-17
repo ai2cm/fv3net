@@ -41,9 +41,12 @@ This computational environment can be challenging to install because it require
 both external packages as well as tools developed locally at Vulcan. The
 internal Vulcan dependencies are included as submodules in the `external`
 folder, while the external dependencies are managed using anaconda with an
-`environment.yml`.
+`environment.yml`. The Vulcan submodules can be download, if they aren't
+already, by running
 
-Assuming anaconda is installed, the environment can be created by running
+    make update_submodules
+
+Then, assuming anaconda is installed, the environment can be created by running
 
     make create_environment
 

@@ -38,7 +38,7 @@ push_image: build_image
 
 
 ## Make Dataset
-.PHONY: data
+.PHONY: data update_submodules create_environment
 data:
 	dvc repro $(DATA)
 
@@ -54,7 +54,7 @@ update_submodules:
 	git submodule update --recursive --init
 
 
-create_environment: update_submodules
+create_environment:
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
 
 #################################################################################
