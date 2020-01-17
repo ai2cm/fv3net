@@ -1,5 +1,6 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+from datetime import timedelta
 import gcsfs
 import logging
 import os
@@ -128,19 +129,27 @@ def _load_cloud_data(run_dirs, fs):
     """
     logger.info(
         f"Using run dirs for batch: "
-        f"{[os.path.basename(run_dir) for run_dir in run_dirs]}")
+        f"{[os.path.basename(run_dir[:-1]) for run_dir in run_dirs]}")
     ds_runs = []
     for run_dir in run_dirs:
         t_init, t_last = _parse_first_last_forecast_times(fs, run_dir)
-        ds_runs.append(
-            open_restarts(run_dir, t_init, t_last)
-                .rename({"time": FORECAST_TIME_DIM})
-                .isel({FORECAST_TIME_DIM: slice(-2, None)})
-                .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
-                [INPUT_VARS]
-                .assign_coords(GRID_XY_COORDS)
-        )
+        ds_run = open_restarts(run_dir, t_init, t_last) \
+            .rename({"time": FORECAST_TIME_DIM}) \
+            .isel({FORECAST_TIME_DIM: slice(-2, None)}) \
+            [INPUT_VARS] \
+            .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]}) \
+            .assign_coords(GRID_XY_COORDS)
+        ds_run = _set_forecast_time_coord(ds_run)
+        ds_runs.append(ds_run)
     return xr.concat(ds_runs, INIT_TIME_DIM)
+
+
+def _set_forecast_time_coord(ds):
+    delta_t_forecast = (ds.forecast_time.values[1] - ds.forecast_time.values[
+        0])
+    ds.reset_index([FORECAST_TIME_DIM], drop=True)
+    ds.assign_coords({FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]})
+    return ds
 
 
 def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
@@ -177,7 +186,8 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
     ds["QV"] = apparent_source(ds.v)
     ds["Q1"] = apparent_source(ds.T)
     ds["Q2"] = apparent_source(ds.sphum)
-    ds = ds[cols_to_keep].isel({INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1)})
-    if FORECAST_TIME_DIM in ds.dims:
-        ds = ds.isel({FORECAST_TIME_DIM: 0}).squeeze(drop=True)
+    ds = ds[cols_to_keep] \
+            .isel({INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1),
+                   FORECAST_TIME_DIM: 0}) \
+            .squeeze(drop=True)
     return ds

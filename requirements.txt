@@ -6,10 +6,11 @@ dask>=2.3.0
 fsspec
 f90nml
 flake8
-gcsfs
+gcsfs==0.3.1
 google-cloud-storage
 gsutil
-h5netcdf
+h5netcdf==0.7.4
+h5py==2.10.0
 hypothesis
 intake
 intake_xarray
