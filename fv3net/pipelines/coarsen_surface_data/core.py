@@ -3,9 +3,9 @@ import tempfile
 import pandas as pd
 import xarray as xr
 from dask.delayed import delayed
+from vcm import convenience, cubedsphere
 
 from gcs import upload_to_gcs
-from vcm import convenience, cubedsphere
 
 combine_subtiles = delayed(cubedsphere.combine_subtiles)
 

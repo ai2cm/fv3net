@@ -1,8 +1,11 @@
+from typing import Union
+
 import numpy as np
 import xarray as xr
 import zarr as zr
 from numba import jit
 from scipy.interpolate import interp1d
+from scipy.spatial import KDTree
 
 from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
 from vcm.convenience import open_dataset, replace_esmf_coords_reg_latlon
@@ -175,6 +178,60 @@ def _var_finished_regridding(prev_regrid_dataset: zr.hierarchy.Group, var: str):
         is_finished_regrid = False
 
     return is_finished_regrid
+
+
+def _coords_to_points(coords, order):
+    return np.stack([coords[key] for key in order], axis=-1)
+
+
+def interpolate_unstructured(
+    data: Union[xr.DataArray, xr.Dataset], coords
+) -> Union[xr.DataArray, xr.Dataset]:
+    """Interpolate an unstructured dataset
+
+    This is similar to the fancy indexing of xr.Dataset.interp, but it works
+    with unstructured grids. Only nearest neighbors interpolation is supported for now.
+        
+    Args:
+        data: data to interpolate
+        coords: dictionary of dataarrays with single common dim, similar to the
+            advanced indexing provided ``xr.DataArray.interp``. These can,
+            but do not have to be actual coordinates of the Dataset, but they should
+            be in a 1-to-1 map with the the dimensions of the data. For instance,
+            one can use this function to find the height of an isotherm, provided
+            that the temperature is monotonic with height.
+    Returns:
+        interpolated dataset with the coords from coords argument as coordinates.
+    """
+    dims_in_coords = set()
+    for coord in coords:
+        for dim in coords[coord].dims:
+            dims_in_coords.add(dim)
+
+    if len(dims_in_coords) != 1:
+        raise ValueError(
+            "The values of ``coords`` can only have one common shared "
+            "dimension. The coords have these dimensions: "
+            f"`{dims_in_coords}`"
+        )
+
+    dim_name = dims_in_coords.pop()
+
+    spatial_dims = set()
+    for key in coords:
+        for dim in data[key].dims:
+            spatial_dims.add(dim)
+    spatial_dims = list(spatial_dims)
+
+    stacked = data.stack({dim_name: spatial_dims})
+    order = list(coords)
+    input_points = _coords_to_points(stacked, order)
+    output_points = _coords_to_points(coords, order)
+    tree = KDTree(input_points)
+    _, indices = tree.query(output_points)
+    output = stacked.isel({dim_name: indices})
+    output = output.drop(dim_name)
+    return output.assign_coords(coords)
 
 
 def main():

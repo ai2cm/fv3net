@@ -3,7 +3,7 @@
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
-
+ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
 PROFILE = default
@@ -29,23 +29,19 @@ enter: build_image
 	docker run -it -v $(shell pwd):/code \
 		-e GOOGLE_CLOUD_PROJECT=vcm-ml \
 		-w /code $(IMAGE)  bash
-        
+
 #		-e GOOGLE_APPLICATION_CREDENTIALS=/google_creds.json \
 #		-v $(HOME)/.config/gcloud/application_default_credentials.json:/google_creds.json \
 
 push_image: build_image
 	docker push $(GCR_IMAGE)
 
-## Install Python Dependencies
-requirements: test_environment
-	$(PYTHON_INTERPRETER) -m pip install -U pip setuptools wheel
-	$(PYTHON_INTERPRETER) -m pip install -r requirements.txt
 
 ## Make Dataset
-.PHONY: data
+.PHONY: data update_submodules create_environment overwrite_baseline_images
 data:
 	dvc repro $(DATA)
-    
+
 ## Delete all compiled Python files
 clean:
 	find . -type f -name "*.py[co]" -delete
@@ -53,12 +49,17 @@ clean:
 
 
 ## Set up python interpreter environment
-create_environment:
-	conda env create --name $(PROJECT_NAME) environment.yml
+update_submodules:
+	git submodule sync --recursive
+	git submodule update --recursive --init
 
-## Test python environment is setup correctly
-test_environment:
-	$(PYTHON_INTERPRETER) test_environment.py
+
+create_environment:
+	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
+
+
+overwrite_baseline_images:
+	pytest tests/test_diagnostics_plots.py --mpl-generate-path tests/baseline_images
 
 #################################################################################
 # PROJECT RULES                                                                 #

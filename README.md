@@ -37,26 +37,26 @@ Project Organization
 
 # Setting up the environment
 
-To install requirements for development and running of this package, run
+This computational environment can be challenging to install because it require
+both external packages as well as tools developed locally at Vulcan. The
+internal Vulcan dependencies are included as submodules in the `external`
+folder, while the external dependencies are managed using anaconda with an
+`environment.yml`. The Vulcan submodules can be download, if they aren't
+already, by running
 
-    pip install -r requirements.txt
+    make update_submodules
 
+Then, assuming anaconda is installed, the environment can be created by running
 
-To make sure that `fv3net` is in the python path, you can run
+    make create_environment
 
-    python setup.py develop
+This creates an anaconda environment `fv3net` containing both Vulcan and
+external dependencies. It downloads all the Vulcan submodules and installs them
+in development mode (e.g. `pip install -e`) so that any modifications within
+`external` will be loaded in the conda environment. Once this command completes
+succesfully, the fv3net environment can be activated with
 
-or possible add it to the `PYTHONPATH` environmental variable.
-
-## Adding VCM Tools
-
-Currently VCM Tools , which is used by the pipeline resides within this repository 
-in the external folder.  This will be eventually spun off into its own repo.  To 
-make sure that `vcm` is in the Python path, you can run
-
-    $ cd external/vcm
-    $ python setup.py install    
-
+    conda activate fv3net
 
 # Deploying cloud data pipelines
 
@@ -104,6 +104,10 @@ level of `fv3net` using:
 We provide configurable job submission scripts under workflows to expedite this process. E.g.,
 
     workflows/extract_tars/submit_job.sh
+
+If you get an error `Could not create workflow; user does not have write access to project` upon
+trying to submit the dataflow job, do `gcloud auth application-default login` first and then retry.
+
 
 ## Deploying on k8s with fv3net
 

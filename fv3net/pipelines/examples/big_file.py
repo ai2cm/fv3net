@@ -2,7 +2,6 @@ import logging
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-
 from vcm.cloud import gsutil
 
 logging.basicConfig(level=logging.INFO)

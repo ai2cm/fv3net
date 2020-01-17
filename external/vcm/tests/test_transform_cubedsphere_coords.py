@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from vcm.calc.transform_cubesphere_coords import (
+from vcm.cubedsphere.transform_cubesphere_coords import (
     _get_local_basis_in_spherical_coords,
     _lon_diff,
     _lon_lat_unit_vectors_to_cartesian,
@@ -60,8 +60,10 @@ def test_lon_diff(test_unit_grid):
 
 def test_get_local_basis_in_spherical_coords(test_unit_grid):
     xhat, yhat = _get_local_basis_in_spherical_coords(test_unit_grid)
-    assert xhat == (4 * RAD_PER_DEG, 0)
-    assert yhat == (0, 4 * RAD_PER_DEG)
+    assert xhat[0].values.flatten()[0] == 4 * RAD_PER_DEG
+    assert xhat[1].values.flatten()[0] == 0
+    assert yhat[0].values.flatten()[0] == 0
+    assert yhat[1].values.flatten()[0] == 4 * RAD_PER_DEG
 
 
 def test_lon_lat_unit_vectors_to_cartesian(test_unit_grid):

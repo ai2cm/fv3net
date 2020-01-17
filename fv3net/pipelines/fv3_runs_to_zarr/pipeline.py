@@ -7,7 +7,6 @@ from typing import Iterator
 import apache_beam as beam
 import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
-
 from vcm.cloud import gsutil
 from vcm.convenience import rundir
 
