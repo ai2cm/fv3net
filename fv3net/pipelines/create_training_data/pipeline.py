@@ -15,7 +15,8 @@ logger.setLevel(logging.INFO)
 
 TIME_DIM = "initialization_time"
 GRID_VARS = ["grid_lon", "grid_lat", "grid_lont", "grid_latt"]
-INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
+INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk", "phis", "DZ", "W", "u_srf",
+              "v_srf", "tsea", "tprcp"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
 
 
