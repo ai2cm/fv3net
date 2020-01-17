@@ -38,3 +38,4 @@ dependencies:
   - xgcm=0.2
   - jupyterlab
   - apache-beam
+  - gsutil
