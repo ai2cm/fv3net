@@ -49,7 +49,12 @@ clean:
 
 
 ## Set up python interpreter environment
-create_environment:
+update_submodules:
+	git submodule sync --recursive
+	git submodule update --recursive --init
+
+
+create_environment: update_submodules
 	bash build_environment.sh $(PROJECT_NAME)
 
 ## Test python environment is setup correctly

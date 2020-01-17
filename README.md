@@ -37,26 +37,23 @@ Project Organization
 
 # Setting up the environment
 
-To install requirements for development and running of this package, run
+This computational environment can be challenging to install because it require
+both external packages as well as tools developed locally at Vulcan. The
+internal Vulcan dependencies are included as submodules in the `external`
+folder, while the external dependencies are managed using anaconda with an
+`environment.yml`.
 
-    pip install -r requirements.txt
+Assuming anaconda is installed, the environment can be created by running
 
+    make create_environment
 
-To make sure that `fv3net` is in the python path, you can run
+This creates an anaconda environment `fv3net` containing both Vulcan and
+external dependencies. It downloads all the Vulcan submodules and installs them
+in development mode (e.g. `pip install -e`) so that any modifications within
+`external` will be loaded in the conda environment. Once this command completes
+succesfully, the fv3net environment can be activated with
 
-    python setup.py develop
-
-or possible add it to the `PYTHONPATH` environmental variable.
-
-## Adding VCM Tools
-
-Currently VCM Tools , which is used by the pipeline resides within this repository 
-in the external folder.  This will be eventually spun off into its own repo.  To 
-make sure that `vcm` is in the Python path, you can run
-
-    $ cd external/vcm
-    $ python setup.py install    
-
+    conda activate fv3net
 
 # Deploying cloud data pipelines
 
