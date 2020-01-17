@@ -65,6 +65,7 @@ def test_ds_time_series():
     return ds_time_series
 
 
+@pytest.mark.skip()
 @pytest.mark.mpl_image_compare(filename="time_series_sliced.png")
 def test_create_plot(test_ds_time_series):
     plot_config = PlotConfig(
@@ -82,6 +83,7 @@ def test_create_plot(test_ds_time_series):
     return fig
 
 
+@pytest.mark.skip()
 @pytest.mark.mpl_image_compare(filename="time_series.png")
 def test_plot_time_series(test_ds_time_series):
     plot_config = PlotConfig(
