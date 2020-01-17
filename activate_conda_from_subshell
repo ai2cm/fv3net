@@ -1,7 +1,0 @@
-#!/bin/bash
-
-CONDA_ENV=$1
-
-CONDA_BASE=$(conda info --base)
-source $CONDA_BASE/etc/profile.d/conda.sh
-conda activate $CONDA_ENV

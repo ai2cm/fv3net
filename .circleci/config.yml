@@ -12,7 +12,7 @@ jobs:
     - run: conda install make
     - run: make create_environment
     - run: | 
-        source activate_conda_from_subshell fv3net
+        source activate fv3net
         pytest --mpl --mpl-baseline-path=tests/baseline_images
   lint:
     docker:

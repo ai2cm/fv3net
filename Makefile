@@ -3,7 +3,7 @@
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
-
+ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
 PROFILE = default
@@ -55,11 +55,7 @@ update_submodules:
 
 
 create_environment: update_submodules
-	bash build_environment.sh $(PROJECT_NAME)
-
-## Test python environment is setup correctly
-test_environment:
-	$(PYTHON_INTERPRETER) test_environment.py
+	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
 
 #################################################################################
 # PROJECT RULES                                                                 #
