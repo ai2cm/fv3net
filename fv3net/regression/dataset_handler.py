@@ -36,7 +36,7 @@ class BatchGenerator:
             two lists of batch data url paths, one is for training and other is for test
         """
         self.fs = gcsfs.GCSFileSystem(project=self.gcs_project)
-        zarr_urls = self.fs.ls(self.gcs_data_dir)
+        zarr_urls = [zarr_file for zarr_file in self.fs.ls(self.gcs_data_dir) if "grid_spec" not in zarr_file]
         self.train_file_batches, self.test_file_batches = self._split_train_test_files(
             zarr_urls
         )
