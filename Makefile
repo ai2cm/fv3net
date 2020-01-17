@@ -38,7 +38,7 @@ push_image: build_image
 
 
 ## Make Dataset
-.PHONY: data update_submodules create_environment
+.PHONY: data update_submodules create_environment overwrite_baseline_images
 data:
 	dvc repro $(DATA)
 
@@ -56,6 +56,10 @@ update_submodules:
 
 create_environment:
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
+
+
+overwrite_baseline_images:
+	pytest tests/test_diagnostics_plots.py --mpl-generate-path tests/baseline_images
 
 #################################################################################
 # PROJECT RULES                                                                 #
