@@ -13,6 +13,8 @@ import vcm
 logger = logging.getLogger('CoarsenPipeline')
 logger.setLevel(logging.DEBUG)
 
+NUM_FILES_IN_COARSENED_DIR = 24
+
 
 def time_step(file):
     pattern = re.compile(r"(........\.......)")
@@ -50,7 +52,21 @@ def _get_dir_stem(parent_dirname, full_dirname, include_parent=True):
     else:
         stem_dir = ''
 
-    return stem_dir    
+    return stem_dir
+
+
+def check_timestep_url_incomplete(gcs_url, output_prefix):
+
+    output_timestep_dir = os.path.join(output_prefix, time_step(gcs_url))
+
+    timestep_exists = gsutil.exists(output_timestep_dir)
+    
+    if timestep_exists:
+        timestep_files = gsutil.list_matches(output_timestep_dir)
+        incorrect_num_files = len(timestep_files) != NUM_FILES_IN_COARSENED_DIR
+        return incorrect_num_files
+    else:
+        return True
 
 
 def coarsen_timestep(
@@ -96,7 +112,6 @@ def coarsen_timestep(
         logger.info(f'Uploading coarsened data to {timestep_output_dir}')
         bucket_name, blob_prefix = gcs.parse_gcs_url(timestep_output_dir)
         gcs.upload_dir_to_gcs(bucket_name, blob_prefix, Path(local_coarse_dir))
-        # gsutil.copy(local_coarse_dir, output_dir)
 
 
 def run(args, pipeline_args=None):
@@ -112,15 +127,15 @@ def run(args, pipeline_args=None):
         output_dir_prefix = os.path.join(source_timestep_dir, f'C{target_resolution}')
 
     coarsen_factor = source_resolution // target_resolution
-    gcs.parse_gcs_url(source_timestep_dir)
-    # timestep_urls = gcs.list_bucket_files(Client(), )
     timestep_urls = gsutil.list_matches(source_timestep_dir)
-    timestep_urls = timestep_urls[0:480]
+
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
             p
             | "CreateTStepURLs" >> beam.Create(timestep_urls)
+            | "CheckCompleteTSteps" >> beam.filter(check_timestep_url_incomplete,
+                                                   output_dir_prefix)
             | "CoarsenTStep" >> beam.ParDo(coarsen_timestep,
                                            output_dir=output_dir_prefix,
                                            coarsen_factor=coarsen_factor,
