@@ -28,6 +28,7 @@ from vcm.select import mask_to_surface_type
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+SAMPLE_DIM = "sample"
 INIT_TIME_DIM = "initialization_time"
 FORECAST_TIME_DIM = "forecast_time"
 GRID_XY_COORDS = {
@@ -61,7 +62,8 @@ def run(args, pipeline_args):
                     >> beam.Map(
                         _write_to_zarr,
                         gcs_dest_dir=args.gcs_output_data_dir,
-                        bucket=args.gcs_bucket)
+                        bucket=args.gcs_bucket,
+                        drop_na_dim=SAMPLE_DIM)
 
         )
 
@@ -91,7 +93,8 @@ def _get_url_batches(gcs_urls, timesteps_per_output_file):
 
 
 def _write_to_zarr(
-        ds, gcs_dest_dir, bucket="gs://vcm-ml-data", zarr_filename=None
+        ds, gcs_dest_dir, bucket="gs://vcm-ml-data", zarr_filename=None,
+        drop_na_dim=None
 ):
     """Writes temporary zarr on worker and moves it to GCS
 
@@ -100,6 +103,7 @@ def _write_to_zarr(
         gcs_dest_path: write location on GCS
         zarr_filename: name for zarr, use first timestamp as label
         bucket: GCS bucket
+        drop_na_dim: option to drop na entries in this dimension before saving
     Returns:
         None
     """
@@ -107,7 +111,9 @@ def _write_to_zarr(
     if not zarr_filename:
         zarr_filename = _filename_from_first_timestep(ds)
     output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
-    ds.dropna("sample").to_zarr(zarr_filename, mode="w")
+    if drop_na_dim:
+        ds = ds.dropna(drop_na_dim)
+    ds.to_zarr(zarr_filename, mode="w")
     gsutil.copy(zarr_filename, output_path)
     logger.info(f"Done writing zarr to {output_path}")
     shutil.rmtree(zarr_filename)
@@ -143,6 +149,10 @@ def _load_cloud_data(run_dirs, fs):
         ds_run = _set_forecast_time_coord(ds_run)
         ds_runs.append(ds_run)
     return xr.concat(ds_runs, INIT_TIME_DIM)
+
+
+def _load_diagnostic_data(run_dirs, fs):
+
 
 
 def _set_forecast_time_coord(ds):
@@ -191,4 +201,4 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
             .isel({INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1),
                    FORECAST_TIME_DIM: 0}) \
             .squeeze(drop=True)
-    return ds.stack(sample=[dim for dim in ds.dims if dim != COORD_Z_CENTER])
+    return ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
