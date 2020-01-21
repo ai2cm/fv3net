@@ -64,7 +64,7 @@ def check_runs_complete(bucket: str):
     # TODO: Ideally this would check some sort of model exit code
 
     timestep_check_args = [
-        (curr_timestep, os.path.join(bucket, curr_timestep, 'stdout.log'))
+        (curr_timestep, os.path.join(bucket, curr_timestep, "stdout.log"))
         for curr_timestep in list_timesteps(bucket)
     ]
 
@@ -95,11 +95,29 @@ def _check_log_tail(gcs_log_file: str) -> bool:
     # Checking for specific timing headers that outputs at the end of the run
 
     output_timing_header = [
-        'tmin', 'tmax', 'tavg', 'tstd', 'tfrac', 'grain', 'pemin', 'pemax\n'
+        "tmin",
+        "tmax",
+        "tavg",
+        "tstd",
+        "tfrac",
+        "grain",
+        "pemin",
+        "pemax\n",
     ]
     output_timing_row_lead = [
-        'Total', 'Initialization', 'FV', 'FV', 'FV', 'GFS', 'GFS', 'GFS',
-        'Dynamics', 'Dynamics', 'FV3', 'Main', 'Termination'
+        "Total",
+        "Initialization",
+        "FV",
+        "FV",
+        "FV",
+        "GFS",
+        "GFS",
+        "GFS",
+        "Dynamics",
+        "Dynamics",
+        "FV3",
+        "Main",
+        "Termination",
     ]
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -107,12 +125,12 @@ def _check_log_tail(gcs_log_file: str) -> bool:
         gcs_file_blob = gcs.init_blob_from_gcs_url(gcs_log_file)
         gcs.download_blob_to_file(gcs_file_blob, tmpdir, filename)
 
-        with open(os.path.join(tmpdir, filename), 'r') as f:
+        with open(os.path.join(tmpdir, filename), "r") as f:
             log_output = f.readlines()[-15:]
 
-        headers = [word for word in log_output[0].split(' ') if word]
+        headers = [word for word in log_output[0].split(" ") if word]
         top_check = _check_header_categories(output_timing_header, headers)
-        row_headers = [line.split(' ')[0] for line in log_output[1:-1]]
+        row_headers = [line.split(" ")[0] for line in log_output[1:-1]]
         row_check = _check_header_categories(output_timing_row_lead, row_headers)
 
         return top_check and row_check
@@ -127,7 +145,7 @@ def _check_header_categories(target_categories, source_categories):
     for i, target in enumerate(target_categories):
         if target != source_categories[i]:
             return False
-    
+
     return True
 
 
@@ -168,7 +186,9 @@ def get_config(timestep):
     config["experiment_name"] = f"one-step.{timestep}.{uuid.uuid4()}"
     config["diag_table"] = os.path.join(CONFIG_BUCKET, timestep, "diag_table")
     # Following has only fv_core.res.nc. Other initial conditions are in patch_files.
-    config["initial_conditions"] = os.path.join(CONFIG_BUCKET, timestep, "vertical_grid")
+    config["initial_conditions"] = os.path.join(
+        CONFIG_BUCKET, timestep, "vertical_grid"
+    )
     config["patch_files"] = get_initial_condition_patch_files(timestep)
     config = fv3config.set_run_duration(config, RUN_DURATION)
     config["namelist"]["coupler_nml"].update(
