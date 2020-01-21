@@ -30,9 +30,9 @@ logger.setLevel(logging.INFO)
 
 INIT_TIME_DIM = "initialization_time"
 FORECAST_TIME_DIM = "forecast_time"
-GRID_XY_COORDS =  {
-    COORD_X_CENTER: range(48), COORD_Y_CENTER: range(48),
-    COORD_X_OUTER: range(49), COORD_Y_OUTER: range(49)}
+GRID_XY_COORDS = {
+    COORD_X_CENTER: range(1,49), COORD_Y_CENTER: range(1,49),
+    COORD_X_OUTER: range(1,50), COORD_Y_OUTER: range(1,50)}
 GRID_VARS = list(GRID_XY_COORDS.keys())+ ['area']
 INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
