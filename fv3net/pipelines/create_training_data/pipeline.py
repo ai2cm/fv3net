@@ -58,12 +58,13 @@ def run(args, pipeline_args):
                     >> beam.Map(
                         mask_to_surface_type,
                         surface_type=args.mask_to_surface_type)
+                | "StackAndDropNan"
+                    >> beam.Map(_stack_and_drop_nan_samples)
                 | "WriteToZarr"
                     >> beam.Map(
                         _write_to_zarr,
                         gcs_dest_dir=args.gcs_output_data_dir,
-                        bucket=args.gcs_bucket,
-                        drop_na_dim=SAMPLE_DIM)
+                        bucket=args.gcs_bucket)
 
         )
 
@@ -93,9 +94,7 @@ def _get_url_batches(gcs_urls, timesteps_per_output_file):
 
 
 def _write_to_zarr(
-        ds, gcs_dest_dir, bucket="gs://vcm-ml-data", zarr_filename=None,
-        drop_na_dim=None
-):
+        ds, gcs_dest_dir, bucket="gs://vcm-ml-data", zarr_filename=None):
     """Writes temporary zarr on worker and moves it to GCS
 
     Args:
@@ -111,8 +110,6 @@ def _write_to_zarr(
     if not zarr_filename:
         zarr_filename = _filename_from_first_timestep(ds)
     output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
-    if drop_na_dim:
-        ds = ds.dropna(drop_na_dim)
     ds.to_zarr(zarr_filename, mode="w")
     gsutil.copy(zarr_filename, output_path)
     logger.info(f"Done writing zarr to {output_path}")
@@ -151,10 +148,6 @@ def _load_cloud_data(run_dirs, fs):
     return xr.concat(ds_runs, INIT_TIME_DIM)
 
 
-def _load_diagnostic_data(run_dirs, fs):
-
-
-
 def _set_forecast_time_coord(ds):
     delta_t_forecast = (ds.forecast_time.values[1] - ds.forecast_time.values[
         0])
@@ -180,6 +173,14 @@ def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
     shutil.rmtree("temp_grid_spec")
 
 
+def _stack_and_drop_nan_samples(ds):
+    ds = ds \
+        .stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]}) \
+        .transpose(SAMPLE_DIM, COORD_Z_CENTER) \
+        .reset_index(SAMPLE_DIM) \
+        .dropna(SAMPLE_DIM)
+    return ds
+
 def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
     """
 
@@ -201,4 +202,4 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
             .isel({INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1),
                    FORECAST_TIME_DIM: 0}) \
             .squeeze(drop=True)
-    return ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
+    return ds
