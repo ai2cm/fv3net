@@ -1,18 +1,22 @@
 channels:
   - defaults
   - conda-forge
-
 dependencies:
+  - cartopy
   - click
+  - conda-build
   - cloudpickle
   - crcmod
-  - dask>=2.3.0
+  - dask>=2.3
   - fsspec
   - f90nml
+  - black
+  - isort
   - flake8
   - gcsfs
   - google-cloud-storage
   - h5netcdf
+  - h5py>=2.10
   - hypothesis
   - intake
   - intake-xarray
@@ -21,16 +25,19 @@ dependencies:
   - numba
   - numpy
   - partd
-  - pyyaml==3.13
+  - pyyaml==5.3
   - pytest
+  - pytest-mpl
   - scikit-image
-  - scikit-learn==0.20
+  - scikit-learn
   - toolz
-  - xarray>=0.12
+  - xarray>=0.14
+  - jupyterlab
   - zarr
-
+  - pip
+  - xgcm=0.2
+  - jupyterlab
+  - apache-beam
+  - matplotlib=3.1
   - pip:
     - gsutil
-    - apache-beam==2.16.0
-    - snakemake
-    - -e external/vcm
