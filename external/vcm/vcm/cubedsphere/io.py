@@ -8,12 +8,13 @@ from vcm.cubedsphere.coarsen import NUM_TILES, SUBTILE_FILE_PATTERN
 
 
 # TODO: this expects prefix as a path prefix to the coarsened tiles
-def open_cubed_sphere(prefix: str, **kwargs):
+def open_cubed_sphere(prefix: str, fs=None, **kwargs):
     """Open cubed-sphere data
 
     Args:
          prefix: the beginning part of the filename before the `.tile1.nc.0001`
            part
+         fs: optional argument to provide a FileSystem object for remote data
 
     Returns:
         a dataset with tiles combined. The tile coordinate starts with 0.
@@ -22,6 +23,8 @@ def open_cubed_sphere(prefix: str, **kwargs):
     tiles = []
     for tile in range(1, NUM_TILES + 1):
         files = subtile_filenames(prefix, tile, **kwargs)
+        if fs:
+            files = [fs.get_mapper(file) for file in files]
         subtiles = [xr.open_dataset(file, chunks={}) for file in files]
         combined = combine_subtiles(subtiles).assign_coords(tile=tile - 1)
         tiles.append(remove_duplicate_coords(combined))
