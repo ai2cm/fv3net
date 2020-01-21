@@ -107,7 +107,7 @@ def _write_to_zarr(
     if not zarr_filename:
         zarr_filename = _filename_from_first_timestep(ds)
     output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
-    ds.to_zarr(zarr_filename, mode="w")
+    ds.dropna("sample").to_zarr(zarr_filename, mode="w")
     gsutil.copy(zarr_filename, output_path)
     logger.info(f"Done writing zarr to {output_path}")
     shutil.rmtree(zarr_filename)
