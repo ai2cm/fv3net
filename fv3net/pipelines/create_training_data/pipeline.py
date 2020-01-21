@@ -10,6 +10,7 @@ import xarray as xr
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
 from vcm.cubedsphere.constants import (
+    COORD_Z_CENTER,
     COORD_X_CENTER,
     COORD_Y_CENTER,
     COORD_X_OUTER,
@@ -61,8 +62,8 @@ def run(args, pipeline_args):
                         _write_to_zarr,
                         gcs_dest_dir=args.gcs_output_data_dir,
                         bucket=args.gcs_bucket)
-        )
 
+        )
 
 def _get_url_batches(gcs_urls, timesteps_per_output_file):
     """ Groups the time ordered urls into lists of max length
@@ -190,4 +191,4 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
             .isel({INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1),
                    FORECAST_TIME_DIM: 0}) \
             .squeeze(drop=True)
-    return ds
+    return ds.stack(sample=[dim for dim in ds.dims if dim != COORD_Z_CENTER])
