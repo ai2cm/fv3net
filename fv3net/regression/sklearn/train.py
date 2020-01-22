@@ -1,17 +1,17 @@
 import argparse
-from dataclasses import dataclass
-from importlib.resources import path
-from typing import List
-
 import joblib
 import numpy as np
+import os
 import yaml
 
+from dataclasses import dataclass
+from datetime import datetime
+from importlib.resources import path
+from shutil import copyfile
+from typing import List
+
 from fv3net.regression.dataset_handler import BatchGenerator
-from fv3net.regression.sklearn.wrapper import (
-    SklearnWrapper,
-    BatchTransformRegressor,
-)
+from fv3net.regression.sklearn.wrapper import SklearnWrapper, BatchTransformRegressor
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
 
@@ -95,7 +95,7 @@ def load_data_generator(train_config):
         train_config.batch_size,
         train_config.train_frac,
         train_config.test_frac,
-        train_config.num_batches
+        train_config.num_batches,
     )
     return ds_batches
 
@@ -172,7 +172,7 @@ if __name__ == "__main__":
         help="Path for training configuration yaml file",
     )
     parser.add_argument(
-        "--model-output-path",
+        "--model-output-filename",
         type=str,
         required=True,
         help="Path for writing trained model",
@@ -183,6 +183,12 @@ if __name__ == "__main__":
         default="default",
         help="File that contains array of sample output for use in StandardScaler",
     )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="''",
+        help="Optional- provide a directory in which model and config will be saved.",
+    )
     args = parser.parse_args()
     train_config = load_model_training_config(args.train_config_file)
     batched_data = load_data_generator(train_config)
@@ -190,4 +196,9 @@ if __name__ == "__main__":
         args.target_normalization_file
     )
     model = train_model(batched_data, train_config, targets_for_normalization)
-    joblib.dump(model, args.model_output_path)
+    timestamp = datetime.now().strftime("%Y%m%d.%H%M%S")
+    copyfile(
+        args.train_config_file,
+        os.path.join(args.output_dir, f"{timestamp}_training_config.yml"),
+    )
+    joblib.dump(model, f"{timestamp}_{args.model_output_filename}")
