@@ -29,6 +29,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 SAMPLE_DIM = "sample"
+SAMPLE_CHUNK_SIZE = 1500
 INIT_TIME_DIM = "initialization_time"
 FORECAST_TIME_DIM = "forecast_time"
 GRID_XY_COORDS = {
@@ -37,6 +38,7 @@ GRID_XY_COORDS = {
 GRID_VARS = list(GRID_XY_COORDS.keys())+ ['area']
 INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
+DIAG_VARS = ["DSWRFsfc", "USWRFsfc", "DSWRFtoa", "USWRFtoa", "ULWRFtoa", "ULWRFsfc", "DLWRFsfc", "LHTFLsfc", "SHTFLsfc"]
 
 
 def run(args, pipeline_args):
@@ -173,11 +175,13 @@ def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
 
 
 def _stack_and_drop_nan_samples(ds):
+
     ds = ds \
         .stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]}) \
         .transpose(SAMPLE_DIM, COORD_Z_CENTER) \
         .reset_index(SAMPLE_DIM) \
-        .dropna(SAMPLE_DIM)
+        .dropna(SAMPLE_DIM) \
+        .chunk(SAMPLE_CHUNK_SIZE, ds.sizes[COORD_Z_CENTER])
     return ds
 
 
