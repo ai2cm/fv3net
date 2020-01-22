@@ -44,6 +44,20 @@ if __name__ == "__main__":
         "When the full output is shuffled at the data generator step, these"
         "timesteps will always be in the same training data batch.",
     )
+    parser.add_argument(
+        "--train-fraction",
+        type=float,
+        default=0.8,
+        help="Fraction of batches to save as training set. "
+             "Output zarr files will be saved in either 'train' or 'test' subdir of "
+             "gcs-output-data-dir"
+    )
+    parser.add_argument(
+        "--random-seed",
+        type=int,
+        default=1234,
+        help="Random seed used when shuffling data batches before test/train selection"
+    )
     args, pipeline_args = parser.parse_known_args()
 
     """Main function"""

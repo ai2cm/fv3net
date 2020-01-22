@@ -3,6 +3,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from datetime import timedelta
 import gcsfs
 import logging
+from numpy import random
 import os
 import shutil
 import xarray as xr
@@ -21,7 +22,7 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_OUTER)
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
-from vcm.fv3_restarts import open_restarts, _parse_time_string, \
+from vcm.fv3_restarts import open_restarts, _parse_time, _parse_time_string, \
     _parse_first_last_forecast_times
 from vcm.select import mask_to_surface_type
 
@@ -38,7 +39,6 @@ GRID_XY_COORDS = {
 GRID_VARS = list(GRID_XY_COORDS.keys())+ ['area']
 INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
-DIAG_VARS = ["DSWRFsfc", "USWRFsfc", "DSWRFtoa", "USWRFtoa", "ULWRFtoa", "ULWRFsfc", "DLWRFsfc", "LHTFLsfc", "SHTFLsfc"]
 
 
 def run(args, pipeline_args):
@@ -47,6 +47,7 @@ def run(args, pipeline_args):
     gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(data_path))]
     _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir, args.gcs_bucket)
     data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
+    train_test_labels = _test_train_split(data_batch_urls, args.train_frac, args.random_seed)
 
     print(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
@@ -66,7 +67,8 @@ def run(args, pipeline_args):
                     >> beam.Map(
                         _write_to_zarr,
                         gcs_dest_dir=args.gcs_output_data_dir,
-                        bucket=args.gcs_bucket)
+                        bucket=args.gcs_bucket,
+                        train_test_labels=train_test_labels)
 
         )
 
@@ -95,8 +97,33 @@ def _get_url_batches(gcs_urls, timesteps_per_output_file):
     return data_urls
 
 
+def _test_train_split(url_batches, train_frac, random_seed=1234):
+    """ Randomly assigns train/test set labels to each batch
+
+    Args:
+        url_batches: nested list where inner lists are groupings of input urls
+        train_frac:
+        random_seed:
+
+    Returns:
+
+    """
+    random.seed(random_seed)
+    random.shuffle(url_batches)
+    if train_frac > 1:
+        train_frac = 1
+        logger.warning("Train fraction provided > 1. Will set to 1.")
+    num_train_batches = int(len(url_batches) * train_frac)
+    labels = {
+        "train" : [_parse_time(batch_urls[0])
+                       for batch_urls in url_batches[:num_train_batches]],
+        "test": [_parse_time(batch_urls[0])
+                   for batch_urls in url_batches[num_train_batches:]]}
+    return labels
+
+
 def _write_to_zarr(
-        ds, gcs_dest_dir, bucket="gs://vcm-ml-data", zarr_filename=None):
+        ds, gcs_dest_dir, bucket="gs://vcm-ml-data", zarr_filename=None, train_test_labels={}):
     """Writes temporary zarr on worker and moves it to GCS
 
     Args:
@@ -104,23 +131,43 @@ def _write_to_zarr(
         gcs_dest_path: write location on GCS
         zarr_filename: name for zarr, use first timestamp as label
         bucket: GCS bucket
-        drop_na_dim: option to drop na entries in this dimension before saving
+        train_test_labels: optional dict with
     Returns:
         None
     """
     logger.info("Writing to zarr...")
     if not zarr_filename:
-        zarr_filename = _filename_from_first_timestep(ds)
-    output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
+        zarr_filename = _path_from_first_timestep(ds, train_test_labels)
+    output_path = os.path.join(bucket, gcs_dest_dir,  zarr_filename)
     ds.to_zarr(zarr_filename, mode="w")
     gsutil.copy(zarr_filename, output_path)
     logger.info(f"Done writing zarr to {output_path}")
     shutil.rmtree(zarr_filename)
 
 
-def _filename_from_first_timestep(ds):
+def _path_from_first_timestep(ds, train_test_labels={}):
+    """ Uses first init time as zarr filename, and appends a 'train'/'test' subdir
+    if a dict of labels is provided
+
+    Args:
+        ds:
+        train_test_labels: dict with keys ["test", "train"] and values lists of
+            timestep strings that go to each set
+
+    Returns:
+        path in args.gcs_output_dir to write the zarr to
+    """
     timestep = min(ds[INIT_TIME_DIM].values).strftime("%Y%m%d.%H%M%S")
-    return timestep + ".zarr"
+    try:
+        if timestep in train_test_labels["train"]:
+            train_test_subdir = "train"
+        elif timestep in train_test_labels["test"]:
+            train_test_subdir = "test"
+    except KeyError:
+        logger.warning("No train_test_labels dict with keys 'train', 'test' provided."
+                       "Will write zarrs directly to gcs_output_dir.")
+        train_test_subdir = ""
+    return os.path.join(train_test_subdir, timestep + ".zarr")
 
 
 def _load_cloud_data(run_dirs, fs):
@@ -151,6 +198,16 @@ def _load_cloud_data(run_dirs, fs):
 
 
 def _set_forecast_time_coord(ds):
+    """ Converts the forecast time dim into relative units so that different
+    initialization times can be concatenated together
+
+    Args:
+        ds: xarray dataset with dim FORECAST_TIME_DIM in absolute time
+
+    Returns:
+        dataset with the FORECAST_TIME_DIM converted to relative time after first
+        time in dataset
+    """
     delta_t_forecast = (ds.forecast_time.values[1] - ds.forecast_time.values[
         0])
     ds.reset_index([FORECAST_TIME_DIM], drop=True)
@@ -158,6 +215,17 @@ def _set_forecast_time_coord(ds):
 
 
 def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
+    """ Reads grid spec from diag files in a run dir and writes to GCS
+
+    Args:
+        fs: GCSFileSystem object
+        run_dir: run dir to read grid data from. Using the first timestep should be fine
+        gcs_output_data_dir: Write path
+        gcs_bucket: GCS bucket to write to
+
+    Returns:
+        None
+    """
     grid_info_files = ["gs://" + filename for filename in fs.ls(run_dir)
         if "atmos_dt_atmos" in filename]
     os.makedirs("temp_grid_spec", exist_ok=True)
@@ -175,6 +243,15 @@ def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
 
 
 def _stack_and_drop_nan_samples(ds):
+    """
+
+    Args:
+        ds: xarray dataset
+
+    Returns:
+        xr dataset stacked into sample dimension and with NaN elements dropped
+         (the masked out land/sea type)
+    """
 
     ds = ds \
         .stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]}) \
