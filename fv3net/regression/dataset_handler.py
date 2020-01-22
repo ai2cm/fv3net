@@ -3,10 +3,12 @@ from dataclasses import dataclass
 from typing import List
 
 import gcsfs
+from math import ceil
 import numpy as np
 import xarray as xr
 
 from fv3net.regression import reshape
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -14,8 +16,8 @@ fh = logging.FileHandler("dataset_handler.log")
 fh.setLevel(logging.INFO)
 logger.addHandler(fh)
 
-
-SAMPLE_DIMS = ["initialization_time", "grid_yt", "grid_xt", "tile"]
+INIT_TIME_DIM = "initialization_time"
+SAMPLE_DIM = "sample"
 
 
 @dataclass
@@ -23,25 +25,37 @@ class BatchGenerator:
     data_vars: List[str]
     gcs_data_dir: str
     files_per_batch: int
-    train_frac: float
-    test_frac: float
     num_train_batches: int = None
     gcs_project: str = "vcm-ml"
     random_seed: int = 1234
 
     def __post_init__(self):
-        """Randomly splits the list of zarrs in the gcs_data_dir into train/test
+        """ Group the input zarrs into batches for training
 
         Returns:
-            two lists of batch data url paths, one is for training and other is for test
+            nested list of zarr paths, where inner lists are the sets of zarrs used
+            to train each batch
         """
         self.fs = gcsfs.GCSFileSystem(project=self.gcs_project)
-        zarr_urls = [zarr_file for zarr_file in self.fs.ls(self.gcs_data_dir) if "grid_spec" not in zarr_file]
-        self.train_file_batches, self.test_file_batches = self._split_train_test_files(
-            zarr_urls
-        )
+        zarr_urls = [
+            zarr_file
+            for zarr_file in self.fs.ls(self.gcs_data_dir)
+            if "grid_spec" not in zarr_file
+        ]
+        np.random.seed(self.random_seed)
+        np.random.shuffle(zarr_urls)
+        num_batches = self._validate_num_batches(total_num_input_files=len(zarr_urls))
 
-    def generate_batches(self, batch_type="train"):
+        self.train_file_batches = [
+            zarr_urls[
+                batch_num
+                * self.files_per_batch : (batch_num + 1)
+                * self.files_per_batch
+            ]
+            for batch_num in range(num_batches - 1)
+        ]
+
+    def generate_batches(self):
         """
 
         Args:
@@ -50,74 +64,30 @@ class BatchGenerator:
         Returns:
             dataset of vertical columns shuffled within each training batch
         """
-        if batch_type == "train":
-            grouped_urls = self.train_file_batches
-        elif batch_type == "test":
-            grouped_urls = self.test_file_batches
+        grouped_urls = self.train_file_batches
         for file_batch_urls in grouped_urls:
             fs_paths = [self.fs.get_mapper(url) for url in file_batch_urls]
-            ds = xr.concat(map(xr.open_zarr, fs_paths), "initialization_time")
-            ds_shuffled = self._reshape_and_shuffle(ds)
+            ds = xr.concat(map(xr.open_zarr, fs_paths), INIT_TIME_DIM)
+            ds_shuffled = reshape.shuffled(ds, SAMPLE_DIM, self.random_seed)
             yield ds_shuffled
 
-    def _split_train_test_files(self, zarr_urls):
-        """
-
-        Args:
-            zarr_urls: list of zarr files on GCS
+    @property
+    def _validate_num_batches(self, total_num_input_files):
+        """ check that the number of batches (if provided) and the number of
+        files per batch are reasonable given the number of zarrs in the input data dir.
+        If their product is greater than the number of input files, number of batches
+        is changed so that (num_batches * files_per_batch) < total files.
 
         Returns:
-            train and test arrays, randomly split by fraction train_frac/test_frac
+            None
         """
-        num_total_files = len(zarr_urls)
-        num_train_files = int(num_total_files * self.train_frac)
-        num_test_files = num_total_files - num_train_files
         if not self.num_train_batches:
-            self.num_train_batches = int(
-                (num_train_files / self.files_per_batch)
-                + min(1, num_train_files % self.files_per_batch)
+            num_train_batches = total_num_input_files // self.files_per_batch
+        elif self.num_train_batches * self.files_per_batch > total_num_input_files:
+            num_train_batches = self.num_train_batches - ceil(
+                (self.num_train_batches * self.files_per_batch - total_num_input_files)
+                / self.num_train_batches
             )
-        num_test_batches = int(num_test_files / self.files_per_batch)
-
-        np.random.seed(self.random_seed)
-        np.random.shuffle(zarr_urls)
-
-        train_file_batches = [
-            zarr_urls[
-                batch_num
-                * self.files_per_batch : (batch_num + 1)
-                * self.files_per_batch
-            ]
-            for batch_num in range(self.num_train_batches - 1)
-        ]
-        test_file_batches = [
-            zarr_urls[
-                self.num_train_batches
-                + batch_num * self.files_per_batch : self.num_train_batches
-                + (batch_num + 1) * self.files_per_batch
-            ]
-            for batch_num in range(num_test_batches - 1)
-        ]
-        return train_file_batches, test_file_batches
-
-    def _reshape_and_shuffle(
-        self, ds,
-    ):
-        """
-
-        Args:
-            ds: xarray dataset of feature and target variables with
-            time/spatial dimensions
-
-        Returns:
-            xarray dataset with dimensions (except for vertical dim) stacked into a
-            single sample dimension, randomly shuffled
-        """
-        ds_stacked = (
-            ds[self.data_vars].stack(sample=SAMPLE_DIMS)
-            .transpose("sample", "pfull")
-            .reset_index("sample")
-            .dropna("sample")
-        )
-        ds_shuffled = reshape.shuffled(ds_stacked, "sample", self.random_seed)
-        return ds_shuffled
+        else:
+            num_train_batches = self.num_train_batches
+        return num_train_batches
