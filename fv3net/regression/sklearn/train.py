@@ -21,6 +21,7 @@ class ModelTrainingConfig:
     """Convenience wrapper for model training parameters and file info
 
     """
+
     model_type: str
     gcs_data_dir: str
     hyperparameters: dict
