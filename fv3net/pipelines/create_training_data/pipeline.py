@@ -15,8 +15,7 @@ logger.setLevel(logging.INFO)
 
 TIME_DIM = "initialization_time"
 GRID_VARS = ["grid_lon", "grid_lat", "grid_lont", "grid_latt"]
-INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk", "phis", "DZ", "W", "u_srf",
-              "v_srf", "tsea", "tprcp"]
+INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
 
 
@@ -106,6 +105,7 @@ def _load_cloud_data(gcs_urls, fs):
     Returns:
         xarray dataset of concatenated zarrs in url list
     """
+    logger.info(f"Using urls for batch: {gcs_urls}")
     gcs_zarr_mappings = [fs.get_mapper(url) for url in gcs_urls]
     ds = xr.concat(map(xr.open_zarr, gcs_zarr_mappings), TIME_DIM)[
         INPUT_VARS + GRID_VARS

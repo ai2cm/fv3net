@@ -1,12 +1,10 @@
 model_type: sklearn_random_forest
 hyperparameters:
-  max_depth: 9
+  max_depth: 13
   n_estimators: 5
 num_batches: null
 batch_size: 100000
-train_frac: 0.8
-test_frac: 0.2
-gcs_data_dir: 'gs://vcm-ml-data/test_annak/test-dataflow'
+gcs_data_dir: 'gs://vcm-ml-data/test_annak/2020-01-22_train_data_pipeline'
 input_variables:
   - T
   - sphum

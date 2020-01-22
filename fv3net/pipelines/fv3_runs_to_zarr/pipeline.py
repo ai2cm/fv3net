@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import tempfile
 from typing import Iterator
 
@@ -7,7 +8,7 @@ import apache_beam as beam
 import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
 from vcm.cloud import gsutil
-from vcm.convenience import get_timestep_from_filename, rundir
+from vcm.convenience import rundir
 
 logging.basicConfig(level=logging.INFO)
 
@@ -22,9 +23,14 @@ OUTPUT = (
 coarsenings = (8, 16, 32, 64)
 
 
+def time_step(file):
+    pattern = re.compile(r"(........\.......)")
+    return pattern.search(file).group(1)
+
+
 def get_time_steps(bucket):
     files = gsutil.list_matches(bucket)
-    return [get_timestep_from_filename(file) for file in files]
+    return [time_step(file) for file in files]
 
 
 def url(time):
