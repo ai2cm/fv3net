@@ -54,6 +54,8 @@ def get_config(start_date: datetime, run_duration: timedelta) -> dict:
     config["diag_table"] = os.path.join(CONFIG_BUCKET, "diag_table")
     config["initial_conditions"] = IC_BUCKET
     config = fv3config.set_run_duration(config, RUN_DURATION)
+    # make physics diagnostic output hourly
+    config["namelist"]["atmos_model_nml"]["fhout"] = 1.0
     config["namelist"]["coupler_nml"].update(
         {"current_date": date_to_list(START_DATE), "dt_atmos": 900, "dt_ocean": 900}
     )
