@@ -28,9 +28,6 @@ LOCAL_NUDGE_NAMELIST = "nudge.nml"
 NUDGE_FILENAME_PATTERN = "%Y%m%d_%HZ_T85LR.nc"
 NUDGE_INTERVAL = 6  # hours
 
-SECONDS_IN_MINUTE = 60
-SECONDS_IN_HOUR = SECONDS_IN_MINUTE * 60
-SECONDS_IN_DAY = SECONDS_IN_HOUR * 24
 HOURS_IN_DAY = 24
 
 nudging_file_list_location = os.path.join(CONFIG_BUCKET, "nudging_file_list")
