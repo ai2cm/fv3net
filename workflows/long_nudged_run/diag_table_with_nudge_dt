@@ -5,7 +5,7 @@ default_experiment
 "atmos_hourly",            1,  "hours",    1, "hours",  "time"
 "atmos_8xdaily",           3,  "hours",    1, "hours",  "time"
 "tracers_8xdaily",         3,  "hours",    1, "hours",  "time"
-"dt_nudge_8xdaily",        3,  "hours",    1, "hours",  "time"
+"nudge_dt_8xdaily",        3,  "hours",    1, "hours",  "time"
 "sfc_hourly",              1,  "hours",    1, "hours", "time"
 #
 #output variables
