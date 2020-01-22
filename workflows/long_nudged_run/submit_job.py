@@ -1,4 +1,3 @@
-import copy
 import logging
 import os
 import uuid
@@ -18,7 +17,7 @@ NUDGE_BUCKET = BUCKET + "2019-12-02-year-2016-T85-nudging-data"
 IC_BUCKET = BUCKET + "2019-12-03-C48-20160101.00Z_IC"
 OUTPUT_BUCKET = BUCKET + f"2019-12-12-baseline-FV3GFS-runs/nudged/C48/{RUN_NAME}/output"
 CONFIG_BUCKET = BUCKET + f"2019-12-12-baseline-FV3GFS-runs/nudged/C48/{RUN_NAME}/config"
-DOCKER_IMAGE = "us.gcr.io/vcm-ml/fv3gfs-python"
+DOCKER_IMAGE = "us.gcr.io/vcm-ml/fv3gfs-python:hyperthread"
 LOCAL_RUNFILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runfile.py")
 LOCAL_DIAG_TABLE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "diag_table_with_nudge_dt"
