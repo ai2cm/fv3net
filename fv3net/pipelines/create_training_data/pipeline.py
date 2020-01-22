@@ -152,8 +152,7 @@ def _set_forecast_time_coord(ds):
     delta_t_forecast = (ds.forecast_time.values[1] - ds.forecast_time.values[
         0])
     ds.reset_index([FORECAST_TIME_DIM], drop=True)
-    ds.assign_coords({FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]})
-    return ds
+    return ds.assign_coords({FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]})
 
 
 def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
@@ -180,6 +179,7 @@ def _stack_and_drop_nan_samples(ds):
         .reset_index(SAMPLE_DIM) \
         .dropna(SAMPLE_DIM)
     return ds
+
 
 def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
     """
