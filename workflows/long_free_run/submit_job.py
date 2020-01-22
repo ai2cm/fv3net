@@ -10,9 +10,9 @@ import fv3config
 logger = logging.getLogger("run_jobs")
 
 START_DATE = datetime(2016, 1, 1, 0, 0, 0)
-RUN_DURATION = timedelta(days=5)
+RUN_DURATION = timedelta(days=366)
 
-RUN_NAME = f"free-run-2016.{uuid.uuid4()}"
+RUN_NAME = f"free-2016.{uuid.uuid4()}"
 BUCKET = "gs://vcm-ml-data/"
 IC_BUCKET = BUCKET + "2019-12-03-C48-20160101.00Z_IC"
 OUTPUT_BUCKET = BUCKET + f"2019-12-12-baseline-FV3GFS-runs/free/C48/{RUN_NAME}/output"
