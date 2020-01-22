@@ -21,14 +21,11 @@ class ModelTrainingConfig:
     """Convenience wrapper for model training parameters and file info
 
     """
-
     model_type: str
     gcs_data_dir: str
     hyperparameters: dict
     num_batches: int
-    batch_size: int
-    train_frac: float
-    test_frac: float
+    files_per_batch: int
     input_variables: List[str]
     output_variables: List[str]
     gcs_project: str = "vcm-ml"
@@ -51,7 +48,7 @@ def get_outputs_for_normalization(output_normalization_file):
             if output_normalization_file.split(".")[-1] == ".npy":
                 sample_outputs = np.load(f)
             elif output_normalization_file.split(".")[-1] in [".txt", ".dat"]:
-                sample_outputs = np.loatxt(f)
+                sample_outputs = np.loadtxt(f)
             else:
                 raise ValueError(
                     "Provide either a .npy array file, or '.txt' or '.dat'"
@@ -92,9 +89,7 @@ def load_data_generator(train_config):
     ds_batches = BatchGenerator(
         data_vars,
         train_config.gcs_data_dir,
-        train_config.batch_size,
-        train_config.train_frac,
-        train_config.test_frac,
+        train_config.files_per_batch,
         train_config.num_batches,
     )
     return ds_batches
@@ -196,6 +191,9 @@ if __name__ == "__main__":
         args.target_normalization_file
     )
     model = train_model(batched_data, train_config, targets_for_normalization)
+
+    # model and config are saved with timestamp prefix so that they can be
+    # matched together
     timestamp = datetime.now().strftime("%Y%m%d.%H%M%S")
     copyfile(
         args.train_config_file,

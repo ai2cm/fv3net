@@ -25,7 +25,7 @@ class BatchGenerator:
     data_vars: List[str]
     gcs_data_dir: str
     files_per_batch: int
-    num_train_batches: int = None
+    num_batches: int = None
     gcs_project: str = "vcm-ml"
     random_seed: int = 1234
 
@@ -44,8 +44,7 @@ class BatchGenerator:
         ]
         np.random.seed(self.random_seed)
         np.random.shuffle(zarr_urls)
-        num_batches = self._validate_num_batches(total_num_input_files=len(zarr_urls))
-
+        num_batches = self._validated_num_batches(total_num_input_files=len(zarr_urls))
         self.train_file_batches = [
             zarr_urls[
                 batch_num
@@ -72,7 +71,7 @@ class BatchGenerator:
             yield ds_shuffled
 
     @property
-    def _validate_num_batches(self, total_num_input_files):
+    def _validated_num_batches(self, total_num_input_files):
         """ check that the number of batches (if provided) and the number of
         files per batch are reasonable given the number of zarrs in the input data dir.
         If their product is greater than the number of input files, number of batches
@@ -81,13 +80,13 @@ class BatchGenerator:
         Returns:
             None
         """
-        if not self.num_train_batches:
+        if not self.num_batches:
             num_train_batches = total_num_input_files // self.files_per_batch
-        elif self.num_train_batches * self.files_per_batch > total_num_input_files:
-            num_train_batches = self.num_train_batches - ceil(
-                (self.num_train_batches * self.files_per_batch - total_num_input_files)
-                / self.num_train_batches
+        elif self.num_batches * self.files_per_batch > total_num_input_files:
+            num_train_batches = self.num_batches - ceil(
+                (self.num_batches * self.files_per_batch - total_num_input_files)
+                / self.num_batches
             )
         else:
-            num_train_batches = self.num_train_batches
+            num_train_batches = self.num_batches
         return num_train_batches
