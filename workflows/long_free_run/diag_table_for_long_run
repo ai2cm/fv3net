@@ -5,7 +5,6 @@ default_experiment
 "atmos_hourly",            1,  "hours",    1, "hours",  "time"
 "atmos_8xdaily",           3,  "hours",    1, "hours",  "time"
 "tracers_8xdaily",         3,  "hours",    1, "hours",  "time"
-"nudge_dt_8xdaily",        3,  "hours",    1, "hours",  "time"
 "sfc_hourly",              1,  "hours",    1, "hours", "time"
 #
 #output variables
@@ -108,19 +107,6 @@ default_experiment
  "dynamics",  "rainwat",      "rainwat",      "tracers_8xdaily",  "all",  .false.,  "none",  2
  "dynamics",  "snowwat",      "snowwat",      "tracers_8xdaily",  "all",  .false.,  "none",  2
  "dynamics",  "graupel",      "graupel",      "tracers_8xdaily",  "all",  .false.,  "none",  2
-###
-# nudge_dt_8xdaily
-###
- "dynamics",  "grid_lont",   "lon",           "nudge_dt_8xdaily", "all", .false.,  "none", 2,
- "dynamics",  "grid_latt",   "lat",           "nudge_dt_8xdaily", "all", .false.,  "none", 2,
- "dynamics",  "grid_lon",    "lonb",          "nudge_dt_8xdaily", "all", .false.,  "none", 2,
- "dynamics",  "grid_lat",    "latb",          "nudge_dt_8xdaily", "all", .false.,  "none", 2,
- "dynamics",  "area",        "area",          "nudge_dt_8xdaily", "all", .false.,  "none", 2,
- "dynamics",  "u_dt_nudge",    "u_dt_nudge",  "nudge_dt_8xdaily", "all", .false., "none", 2
- "dynamics",  "v_dt_nudge",    "v_dt_nudge",  "nudge_dt_8xdaily", "all", .false., "none", 2
- "dynamics",  "delp_dt_nudge","delp_dt_nudge","nudge_dt_8xdaily", "all", .false., "none", 2
- "dynamics",  "ps_dt_nudge",   "ps_dt_nudge", "nudge_dt_8xdaily", "all", .false., "none", 2
- "dynamics",  "t_dt_nudge",    "t_dt_nudge",  "nudge_dt_8xdaily", "all", .false., "none", 2
 ###
 # sfc_hourly
 ###
