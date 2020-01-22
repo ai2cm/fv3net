@@ -10,9 +10,9 @@ import fv3config
 logger = logging.getLogger("run_jobs")
 
 START_DATE = datetime(2016, 1, 1, 0, 0, 0)
-RUN_DURATION = timedelta(days=5)
+RUN_DURATION = timedelta(days=366)
 
-RUN_NAME = f"nudged-run-2016.{uuid.uuid4()}"
+RUN_NAME = f"nudged-2016.{uuid.uuid4()}"
 BUCKET = "gs://vcm-ml-data/"
 NUDGE_BUCKET = BUCKET + "2019-12-02-year-2016-T85-nudging-data"
 IC_BUCKET = BUCKET + "2019-12-03-C48-20160101.00Z_IC"
@@ -89,7 +89,7 @@ def submit_job() -> None:
         runfile=runfile_location,
         jobname=job_name,
         namespace="default",
-        memory_gb=3.6,
+        memory_gb=14,
         cpu_count=24,
         gcp_secret="gcp-key",
         image_pull_policy="Always",
