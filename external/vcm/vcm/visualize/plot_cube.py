@@ -160,6 +160,8 @@ def plot_cube(
         # single axes
         if not ax:
             fig, ax = plt.subplots(1, 1, subplot_kw={"projection": projection})
+        else:
+            fig = plt.gcf()
         handle = _plot_func_short(array)
         axes = np.array(ax)
         handles = [handle]
