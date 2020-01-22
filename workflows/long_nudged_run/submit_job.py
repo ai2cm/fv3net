@@ -51,27 +51,12 @@ def get_nudge_file_list(start_date: datetime, run_duration: timedelta) -> list:
     return [nudge_filename(time) for time in time_list]
 
 
-def set_run_duration(config: dict, duration: timedelta) -> dict:
-    return_config = copy.deepcopy(config)
-    coupler_nml = return_config["namelist"]["coupler_nml"]
-    total_seconds = duration.total_seconds()
-    if total_seconds % 1 != 0:
-        raise ValueError("duration must be an integer number of seconds")
-    coupler_nml["months"] = 0
-    coupler_nml["hours"] = 0
-    coupler_nml["minutes"] = 0
-    days = int(total_seconds / SECONDS_IN_DAY)
-    coupler_nml["days"] = days
-    coupler_nml["seconds"] = int(total_seconds - (days * SECONDS_IN_DAY))
-    return return_config
-
-
 def get_config(start_date: datetime, run_duration: timedelta) -> dict:
     config = fv3config.get_default_config()
     config["experiment_name"] = RUN_NAME
     config["diag_table"] = os.path.join(CONFIG_BUCKET, "diag_table")
     config["initial_conditions"] = IC_BUCKET
-    config = set_run_duration(config, RUN_DURATION)
+    config = fv3config.set_run_duration(config, RUN_DURATION)
     config["namelist"]["coupler_nml"].update(
         {"current_date": date_to_list(START_DATE), "dt_atmos": 900, "dt_ocean": 900}
     )
