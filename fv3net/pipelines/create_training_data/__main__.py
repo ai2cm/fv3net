@@ -49,14 +49,14 @@ if __name__ == "__main__":
         type=float,
         default=0.8,
         help="Fraction of batches to save as training set. "
-             "Output zarr files will be saved in either 'train' or 'test' subdir of "
-             "gcs-output-data-dir"
+        "Output zarr files will be saved in either 'train' or 'test' subdir of "
+        "gcs-output-data-dir",
     )
     parser.add_argument(
         "--random-seed",
         type=int,
         default=1234,
-        help="Random seed used when shuffling data batches before test/train selection"
+        help="Random seed used when shuffling data batches before test/train selection",
     )
     args, pipeline_args = parser.parse_known_args()
 

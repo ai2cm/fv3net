@@ -61,7 +61,6 @@ def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
     return impose_dataset_to_schema(ds_no_time)
 
 
-
 def _parse_first_last_forecast_times(fs, run_dir):
     """
 
