@@ -14,7 +14,6 @@ def open_cubed_sphere(prefix: str, **kwargs):
     Args:
          prefix: the beginning part of the filename before the `.tile1.nc.0001`
            part
-         fs: optional argument to provide a FileSystem object for remote data
 
     Returns:
         a dataset with tiles combined. The tile coordinate starts with 0.
