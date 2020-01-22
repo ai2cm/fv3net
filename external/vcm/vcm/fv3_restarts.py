@@ -1,42 +1,23 @@
 import os
 import re
 from datetime import datetime
-from functools import partial
-from os.path import join
-from typing import Any, Dict, Generator, Tuple
+from typing import Any, Generator, Tuple
 
 import cftime
 import fsspec
 import xarray as xr
 from dask.delayed import delayed
 
-import f90nml
+from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
-from vcm.cubedsphere.constants import (
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    COORD_X_OUTER,
-    COORD_Y_OUTER,
-)
 from vcm.convenience import open_delayed
 
 TIME_FMT = "%Y%m%d.%H%M%S"
-
 SCHEMA_CACHE = {}
-
-NUM_SOIL_LAYERS = 4
 RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
-X_NAME = COORD_X_CENTER
-Y_NAME = COORD_Y_CENTER
-X_EDGE_NAME = COORD_X_OUTER
-Y_EDGE_NAME = COORD_Y_OUTER
-Z_NAME = "pfull"
-Z_EDGE_NAME = "phalf"
 
 
-def open_restarts(
-    url: str, initial_time: str, final_time: str, grid: Dict[str, int] = None
-) -> xr.Dataset:
+def open_restarts(url: str, initial_time: str, final_time: str) -> xr.Dataset:
     """Opens all the restart file within a certain path
 
     The dimension names are the same as the diagnostic output
@@ -53,9 +34,6 @@ def open_restarts(
         final_time: same as `initial_time` but for the ending time of the simulation.
             Again, the timestamp is not in the filename of the final set of restart
             files.
-        grid: a dict with the grid information (e.g.)::
-
-             {'nz': 79, 'nz_soil': 4, 'nx': 48, 'ny': 48}
 
     Returns:
         a combined dataset of all the restart files. All except the first file of
@@ -63,11 +41,24 @@ def open_restarts(
         allows opening large datasets out-of-core.
 
     """
-    if grid is None:
-        grid = _get_grid(url)
     restart_files = _restart_files_at_url(url, initial_time, final_time)
-    arrays = _load_arrays(restart_files, grid)
-    return xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"]))
+    arrays = _load_arrays(restart_files)
+    return xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"])).sortby(
+        "time"
+    )
+
+
+def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
+    """Update the meta-data of an individual restart file
+
+    This drops the singleton time dimension and applies the known dimensions
+    listed in `vcm.schema` and `vcm._schema_registry`.
+    """
+    try:
+        ds_no_time = ds.isel(Time=0).drop("Time")
+    except ValueError:
+        ds_no_time = ds
+    return impose_dataset_to_schema(ds_no_time)
 
 
 def _parse_time_string(time):
@@ -176,91 +167,13 @@ def _load_restart_lazily(protocol, path, restart_category):
     return _load_restart_with_schema(protocol, path, schema)
 
 
-def _get_grid(rundir):
-    proto, path = _split_url(rundir)
-    fs = fsspec.filesystem(proto)
-    # open namelist
-    namelist = join(path, "input.nml")
-    with fs.open(namelist, "r") as f:
-        s = f.read()
-    nml = f90nml.reads(s)["fv_core_nml"]
-
-    # open one file
-    return {
-        "nz": nml["npz"],
-        "nx": nml["npx"] - 1,
-        "ny": nml["npy"] - 1,
-        "nz_soil": NUM_SOIL_LAYERS,
-    }
-
-
-def _fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
-    """Modify dimension names from e.g. xaxis1 to 'x' or 'x_interface' in-place.
-
-    Done based on dimension length (similarly for y).
-
-    Args:
-        data_array (DataArray): the object being modified
-        nx (int): the number of grid cells along the x-axis
-        ny (int): the number of grid cells along the y-axis
-        nz (int): the number of grid cells along the z-axis
-        nz_soil (int): the number of grid cells along the soil model z-axis
-
-    Returns:
-        renamed_array (DataArray): new object with renamed dimensions
-
-    Notes:
-        copied from fv3gfs-python
-    """
-    replacement_dict = {}
-    for dim_name, length in zip(data_array.dims, data_array.shape):
-        if dim_name[:5] == "xaxis" or dim_name.startswith("lon"):
-            try:
-                replacement_dict[dim_name] = {nx: X_NAME, nx + 1: X_EDGE_NAME}[length]
-            except KeyError as e:
-                raise ValueError(
-                    f"unable to determine dim name for dimension "
-                    f"{dim_name} with length {length} (nx={nx})"
-                ) from e
-        elif dim_name[:5] == "yaxis" or dim_name.startswith("lat"):
-            try:
-                replacement_dict[dim_name] = {ny: Y_NAME, ny + 1: Y_EDGE_NAME}[length]
-            except KeyError as e:
-                raise ValueError(
-                    f"unable to determine dim name for dimension "
-                    f"{dim_name} with length {length} (ny={ny})"
-                ) from e
-        elif dim_name[:5] == "zaxis":
-            try:
-                replacement_dict[dim_name] = {nz: Z_NAME, nz_soil: Z_EDGE_NAME}[length]
-            except KeyError as e:
-                raise ValueError(
-                    f"unable to determine dim name for dimension "
-                    f"{dim_name} with length {length} (nz={nz})"
-                ) from e
-    return data_array.rename(replacement_dict).variable
-
-
-def _fix_metadata(ds, grid):
-    try:
-        ds_no_time = ds.isel(Time=0).drop("Time")
-    except ValueError:
-        ds_no_time = ds
-
-    ds_correct_metadata = ds_no_time.apply(
-        partial(_fix_data_array_dimension_names, **grid)
-    )
-
-    return ds_correct_metadata
-
-
 def _load_arrays(
-    restart_files, grid
+    restart_files,
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
     # use the same schema for all coupler_res
     for (time, restart_category, tile, protocol, path) in restart_files:
         ds = _load_restart_lazily(protocol, path, restart_category)
-        ds_correct_metadata = _fix_metadata(ds, grid)
+        ds_standard_metadata = standardize_metadata(ds)
         time_obj = _parse_time_string(time)
-        for var in ds_correct_metadata:
-            yield var, (time_obj, tile), ds_correct_metadata[var]
+        for var in ds_standard_metadata:
+            yield var, (time_obj, tile), ds_standard_metadata[var]
