@@ -22,6 +22,7 @@ Project Organization
     │   ├── extract_tars        <-- Dig yourself out of a tarpit using Dataflow
     │   ├── one_step_jobs       <-- Submit one-step kubernetes jobs using fv3run
     │   ├── long_nudged_run     <-- Submit extended nudged simulation using fv3run
+    │   ├── long_free_run       <-- Submit extended free-running simulation using fv3run
     │   └── scale-snakemake     <-- Coarsening operation with kubernetes and snakemake (Deprecated)
     ├── Dockerfile
     ├── LICENSE
