@@ -14,6 +14,7 @@ def calc_directory_md5(source_dir: str) -> str:
     """
 
     files = glob.glob(os.path.join(source_dir, '*'))
+    files.sort()
     logger.debug(f"Number of files in checksum: {len(files):d}")
 
     logger.info(f'Calculating directory checksum for {source_dir}')

@@ -21,13 +21,14 @@ def upload_timestep_files_and_checksum(
     checksum_folder_destination: str,
 ):
     with tempfile.TemporaryDirectory() as tmpdir:
+        
+        timestep_path = os.path.join(source_data, timestep)
+        logger.info(f'Source timestep: {timestep_path}')
+        gsutil.copy(timestep_path, tmpdir)
 
-        logger.info(f'Source timestep: {source_data}/{timestep}')
-        gsutil.copy_directory_contents(source_data + timestep, tmpdir)
+        full_hash = utils.calc_directory_md5(os.path.join(tmpdir, timestep))
 
-        full_hash = utils.calc_directory_md5(tmpdir)
-
-        checksum_path = os.path.join(tmpdir, 'checksum')
+        checksum_path = os.path.join(tmpdir, 'target-C48-checksum')
         with open(checksum_path, 'w') as f:
             f.write(full_hash)
             logger.debug(f"Checksum saved to {checksum_path}")
@@ -38,8 +39,8 @@ def upload_timestep_files_and_checksum(
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    src_data = "gs://vcm-ml-data/2020-01-06-X-SHiELD-2019-12-02-restarts-and-rundirs/restarts/C48/"
+    src_data = "gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48/"
     timestep = "20160801.001500"
-    chksum_dst = "gs://vcm-ml-data/fv3net-testing-data/coarsen-timesteps/"
+    chksum_dst = "gs://vcm-ml-data/fv3net-testing-data/coarsen-timesteps/target-C48"
 
     upload_timestep_files_and_checksum(src_data, timestep, chksum_dst)
