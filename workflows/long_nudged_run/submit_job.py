@@ -17,7 +17,7 @@ NUDGE_BUCKET = BUCKET + "2019-12-02-year-2016-T85-nudging-data"
 IC_BUCKET = BUCKET + "2019-12-03-C48-20160101.00Z_IC"
 OUTPUT_BUCKET = BUCKET + f"2019-12-12-baseline-FV3GFS-runs/nudged/C48/{RUN_NAME}/output"
 CONFIG_BUCKET = BUCKET + f"2019-12-12-baseline-FV3GFS-runs/nudged/C48/{RUN_NAME}/config"
-DOCKER_IMAGE = "us.gcr.io/vcm-ml/fv3gfs-python:hyperthread"
+DOCKER_IMAGE = "us.gcr.io/vcm-ml/fv3gfs-python:test-longrun"
 LOCAL_RUNFILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runfile.py")
 LOCAL_DIAG_TABLE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "diag_table_with_nudge_dt"
@@ -53,8 +53,10 @@ def get_config(start_date: datetime, run_duration: timedelta) -> dict:
     config["diag_table"] = os.path.join(CONFIG_BUCKET, "diag_table")
     config["initial_conditions"] = IC_BUCKET
     config = fv3config.set_run_duration(config, RUN_DURATION)
-    # make physics diagnostic output hourly
-    config["namelist"]["atmos_model_nml"]["fhout"] = 1.0
+    # make physics diagnostic output hourly and span full run
+    config["namelist"]["atmos_model_nml"].update(
+        {"fhout": 1.0, "fhmax": (RUN_DURATION.days + 1) * HOURS_IN_DAY}
+    )
     config["namelist"]["coupler_nml"].update(
         {"current_date": date_to_list(START_DATE), "dt_atmos": 900, "dt_ocean": 900}
     )
