@@ -30,6 +30,7 @@ from vcm.fv3_restarts import (
     _parse_time,
     _parse_time_string,
     _parse_first_last_forecast_times,
+    _set_forecast_time_coord
 )
 from vcm.select import mask_to_surface_type
 
