@@ -21,7 +21,6 @@ class ModelTrainingConfig:
     """Convenience wrapper for model training parameters and file info
 
     """
-
     model_type: str
     gcs_data_dir: str
     hyperparameters: dict
@@ -30,33 +29,6 @@ class ModelTrainingConfig:
     input_variables: List[str]
     output_variables: List[str]
     gcs_project: str = "vcm-ml"
-
-
-def get_outputs_for_normalization(output_normalization_file):
-    """
-
-    Args:
-        output_normalization_file: must be .npy, .txt., or .dat
-
-    Returns:
-        np array of sample target values for use in StandardScaler
-    """
-    if output_normalization_file == "default":
-        with path("fv3net.regression.sklearn", "default_norm_outputs.dat") as f:
-            sample_outputs = np.loadtxt(f)
-    else:
-        with open(output_normalization_file, "r") as f:
-            if output_normalization_file.split(".")[-1] == ".npy":
-                sample_outputs = np.load(f)
-            elif output_normalization_file.split(".")[-1] in [".txt", ".dat"]:
-                sample_outputs = np.loadtxt(f)
-            else:
-                raise ValueError(
-                    "Provide either a .npy array file, or '.txt' or '.dat'"
-                    "with one column per output feature"
-                )
-
-    return sample_outputs
 
 
 def load_model_training_config(config_path):
@@ -109,26 +81,18 @@ def _get_regressor(train_config):
     model_type = train_config.model_type.replace(" ", "").replace("_", "")
     if "rf" in model_type or "randomforest" in model_type:
         from sklearn.ensemble import RandomForestRegressor
-
         regressor = RandomForestRegressor(**train_config.hyperparameters, n_jobs=-1)
-    elif "gbt" in model_type or "boostedtrees" in model_type:
-        from sklearn.multioutput import MultiOutputRegressor
-        from xgboost import XGBRegressor
-
-        regressor = MultiOutputRegressor(
-            XGBRegressor(**train_config.hyperparameters), n_jobs=-1
-        )
     else:
         raise ValueError(
             f"Model type {train_config.model_type} not implemented. "
-            "Options are random forest (contains keywords 'rf' "
-            "or 'random forest') or gradient boosted trees "
-            "(contains keywords 'gbt' or 'boosted trees')."
+            "Options are "
+            " 1) random forest (contains keywords 'rf' "
+            "or 'random forest') "
         )
     return regressor
 
 
-def train_model(batched_data, train_config, targets_for_normalization):
+def train_model(batched_data, train_config):
     """
 
     Args:
@@ -142,7 +106,6 @@ def train_model(batched_data, train_config, targets_for_normalization):
     """
     base_regressor = _get_regressor(train_config)
     target_transformer = StandardScaler()
-    target_transformer.fit(targets_for_normalization)
     transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
     batch_regressor = BatchTransformRegressor(transform_regressor)
 
@@ -174,12 +137,6 @@ if __name__ == "__main__":
         help="Path for writing trained model",
     )
     parser.add_argument(
-        "--target-normalization-file",
-        type=str,
-        default="default",
-        help="File that contains array of sample output for use in StandardScaler",
-    )
-    parser.add_argument(
         "--output-dir",
         type=str,
         default="''",
@@ -188,10 +145,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     train_config = load_model_training_config(args.train_config_file)
     batched_data = load_data_generator(train_config)
-    targets_for_normalization = get_outputs_for_normalization(
-        args.target_normalization_file
-    )
-    model = train_model(batched_data, train_config, targets_for_normalization)
+
+    model = train_model(batched_data, train_config)
 
     # model and config are saved with timestamp prefix so that they can be
     # matched together

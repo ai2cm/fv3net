@@ -1,64 +1,45 @@
 from dataclasses import dataclass
-
+from copy import copy
 import numpy as np
 import xarray as xr
 from sklearn.base import BaseEstimator
 
 
-class BatchTransformRegressor:
-    """Base class for sklearn-type regressors that are incrementally trained in batches
-    So that we can add new estimators at the start of new training batch.
+class RegressorEnsemble:
+    """Ensemble of regressors that are incrementally trained in batches
 
     """
-
-    def __init__(self, transform_regressor):
-        self.transform_regressor = transform_regressor
-        self.n_estimators_per_batch = self.n_estimators
-        self.num_batches_fit = 0
-
-    @property
-    def n_estimators(self):
-        try:
-            return getattr(self.transform_regressor.regressor, "n_estimators")
-        except AttributeError:
-            try:
-                return getattr(
-                    self.transform_regressor.regressor.estimator, "n_estimators"
-                )
-            except AttributeError:
-                raise ValueError(
-                    "Unable to get number of estimators per regressor."
-                    "Check that the regressor is either sklearn "
-                    "RandomForestRegressor, or MultiOutputRegressor "
-                    "with multiple estimators per regressor"
-                )
-
-    def _add_new_batch_estimators(self):
-        new_total_estimators = self.n_estimators + self.n_estimators_per_batch
-        try:
-            setattr(
-                self.transform_regressor.regressor, "n_estimators", new_total_estimators
-            )
-        except AttributeError:
-            try:
-                self.transform_regressor.regressor.set_params(
-                    estimator__n_estimators=new_total_estimators
-                )
-            except ValueError:
-                raise ValueError(
-                    "Cannot add more estimators to model. Check that model is"
-                    "either sklearn RandomForestRegressor "
-                    "or MultiOutputRegressor "
-                )
+    def __init__(self, base_regressor):
+        self.base_regressor = base_regressor
+        self.regressors = []
 
     def fit(self, features, outputs):
-        if self.num_batches_fit > 0:
-            self._add_new_batch_estimators()
-        self.transform_regressor.fit(features, outputs)
-        self.num_batches_fit += 1
+        """ Adds a base regressor fit on features to the ensemble
+
+        Args:
+            features: numpy array of features
+            outputs: numpy array of targets
+
+        Returns:
+
+        """
+        new_regressor = copy(self.base_regressor)
+        new_regressor.fit(features, outputs)
+        self.regressors.append(new_regressor)
 
     def predict(self, features):
-        return self.transform_regressor.predict(features)
+        """
+
+        Args:
+            features: 2D numpy array of features to predict on
+
+        Returns:
+            2D numpy array of predictions with N rows corresponding to N input samples.
+            Each row is the average ensemble prediction for that sample.
+        """
+        predictions = np.array(
+            [regressor.predict(features) for regressor in self.regressors])
+        return np.mean(predictions, axis=0)
 
 
 @dataclass
