@@ -25,6 +25,7 @@ def download_all_bucket_files(gcs_url: str, out_dir_prefix: str, include_parent_
     bucket_name, blob_prefix = gcs.parse_gcs_url(gcs_url)
     blob_gcs_paths = gcs.list_bucket_files(Client(), bucket_name, prefix=blob_prefix)
     parent_dirname = Path(blob_prefix).name
+    logger.debug(f"Downloading files from bucket prefix: {blob_prefix}")
 
     for blob_url in blob_gcs_paths:
         _, blob_path = gcs.parse_gcs_url(blob_url)
