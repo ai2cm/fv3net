@@ -28,12 +28,12 @@ done by running
 
 	make save_state
 
-This will create a file `rundir/state.pkl`, which can be read in python using 
+This will create a file `state.pkl`, which can be read in python using 
 	
 ```python
 import state_io
 
-with open("rundir/state.pkl", "rb") as f:
+with open("state.pkl", "rb") as f:
     data = state_io.load(f)
 ```
 

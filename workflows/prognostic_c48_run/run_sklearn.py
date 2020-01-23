@@ -51,7 +51,7 @@ def update(model, state, dt):
 
 
 if __name__ == "__main__":
-    with open("rundir/state.pkl", "rb") as f:
+    with open("state.pkl", "rb") as f:
         data = state_io.load(f)
 
     tile = data[0]
