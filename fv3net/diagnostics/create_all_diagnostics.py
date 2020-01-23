@@ -5,13 +5,18 @@ The report will be written to output_dir/diagnostics.html where the output_dir i
 one of the command line args.
 """
 
-import os
 import argparse
+import fsspec
+import os
 
 from jinja2 import Template
-from vcm.cloud.remote_data import read_zarr_from_gcs
+from vcm.fv3net_restarts import (
+    open_restarts,
+    _split_url,
+    _parse_first_last_forecast_times,
+)
 from fv3net.diagnostics.visualize import create_plot
-from fv3net.diagnostics.utils import load_configs
+from fv3net.diagnostics.utils import load_configs, open_dataset
 
 
 report_html = Template(
@@ -60,12 +65,16 @@ if __name__ == "__main__":
         help="Location to save diagnostic plots and html summary",
     )
     parser.add_argument(
-        "--gcs-zarr-path", required=True, help="Path to remote gcs zarr dataset"
+        "--data-path",
+        required=True,
+        help="Path to data. Can provide either a rundir (GCS or local) or a zarr.",
     )
+
     args = parser.parse_args()
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
-    data = read_zarr_from_gcs(args.gcs_zarr_path)
+
+    data = open_dataset(args.data_path)
     plot_configs = load_configs(args.config_file)
     output_figure_headings = create_diagnostics(plot_configs, data, args.output_dir)
     with open(f"{args.output_dir}/diagnostics.html", "w") as f:

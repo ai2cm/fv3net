@@ -1,6 +1,5 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-from datetime import timedelta
 import gcsfs
 import logging
 from numpy import random
@@ -20,10 +19,13 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_CENTER,
     VAR_LON_OUTER,
     VAR_LAT_OUTER,
+    INIT_TIME_DIM,
+    FORECAST_TIME_DIM,
 )
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
 from vcm.fv3_restarts import (
+    TIME_FMT,
     open_restarts,
     _parse_time,
     _parse_time_string,
@@ -37,15 +39,7 @@ logger.setLevel(logging.INFO)
 SAMPLE_DIM = "sample"
 SAMPLE_CHUNK_SIZE = 1500
 
-INIT_TIME_DIM = "initialization_time"
-FORECAST_TIME_DIM = "forecast_time"
-GRID_XY_COORDS = {
-    COORD_X_CENTER: range(1, 49),
-    COORD_Y_CENTER: range(1, 49),
-    COORD_X_OUTER: range(1, 50),
-    COORD_Y_OUTER: range(1, 50),
-}
-GRID_VARS = list(GRID_XY_COORDS.keys()) + ["area"]
+GRID_VARS = [COORD_X_CENTER, COORD_Y_CENTER, COORD_X_OUTER, COORD_Y_OUTER, "area"]
 INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
 
@@ -73,7 +67,7 @@ def run(args, pipeline_args):
             | "StackAndDropNan" >> beam.Map(_stack_and_drop_nan_samples)
             | "WriteToZarr"
             >> beam.Map(
-                _write_to_zarr,
+                _write_remote_train_zarr,
                 gcs_dest_dir=args.gcs_output_data_dir,
                 bucket=args.gcs_bucket,
                 train_test_labels=train_test_labels,
@@ -105,7 +99,7 @@ def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
         num_subtiles=1,
         pattern="{prefix}.tile{tile:d}.nc",
     )[["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]]
-    _write_to_zarr(
+    _write_remote_train_zarr(
         grid, gcs_output_data_dir, gcs_bucket, zarr_filename="grid_spec.zarr"
     )
     logger.info(
@@ -191,7 +185,6 @@ def _open_cloud_data(run_dirs, fs):
             .rename({"time": FORECAST_TIME_DIM})
             .isel({FORECAST_TIME_DIM: slice(-2, None)})[INPUT_VARS]
             .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
-            .assign_coords(GRID_XY_COORDS)
         )
         ds_run = _set_forecast_time_coord(ds_run)
         ds_runs.append(ds_run)
@@ -249,12 +242,12 @@ def _stack_and_drop_nan_samples(ds):
     return ds
 
 
-def _write_to_zarr(
+def _write_remote_train_zarr(
     ds,
     gcs_dest_dir,
     bucket="gs://vcm-ml-data",
     zarr_filename=None,
-    train_test_labels={},
+    train_test_labels=None,
 ):
     """Writes temporary zarr on worker and moves it to GCS
 
@@ -277,46 +270,35 @@ def _write_to_zarr(
     shutil.rmtree(zarr_filename)
 
 
-def _path_from_first_timestep(ds, train_test_labels={}):
+def _path_from_first_timestep(ds, train_test_labels=None):
     """ Uses first init time as zarr filename, and appends a 'train'/'test' subdir
     if a dict of labels is provided
 
     Args:
         ds:
-        train_test_labels: dict with keys ["test", "train"] and values lists of
+        train_test_labels: optional dict with keys ["test", "train"] and values lists of
             timestep strings that go to each set
 
     Returns:
         path in args.gcs_output_dir to write the zarr to
     """
-    timestep = min(ds[INIT_TIME_DIM].values).strftime("%Y%m%d.%H%M%S")
-    try:
-        if timestep in train_test_labels["train"]:
-            train_test_subdir = "train"
-        elif timestep in train_test_labels["test"]:
-            train_test_subdir = "test"
-    except KeyError:
-        logger.warning(
-            "No train_test_labels dict with keys 'train', 'test' provided."
+    timestep = min(ds[INIT_TIME_DIM].values).strftime(TIME_FMT)
+    if isinstance(train_test_labels, dict):
+        try:
+            if timestep in train_test_labels["train"]:
+                train_test_subdir = "train"
+            elif timestep in train_test_labels["test"]:
+                train_test_subdir = "test"
+        except KeyError:
+            logger.warning(
+                "train_test_labels dict does not have keys ['train', 'test']."
+                "Will write zarrs directly to gcs_output_dir."
+            )
+            train_test_subdir = ""
+    else:
+        logger.info(
+            "No train_test_labels dict provided."
             "Will write zarrs directly to gcs_output_dir."
         )
         train_test_subdir = ""
     return os.path.join(train_test_subdir, timestep + ".zarr")
-
-
-def _set_forecast_time_coord(ds):
-    """ Converts the forecast time dim into relative units so that different
-    initialization times can be concatenated together
-
-    Args:
-        ds: xarray dataset with dim FORECAST_TIME_DIM in absolute time
-
-    Returns:
-        dataset with the FORECAST_TIME_DIM converted to relative time after first
-        time in dataset
-    """
-    delta_t_forecast = ds.forecast_time.values[1] - ds.forecast_time.values[0]
-    ds.reset_index([FORECAST_TIME_DIM], drop=True)
-    return ds.assign_coords(
-        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]}
-    )

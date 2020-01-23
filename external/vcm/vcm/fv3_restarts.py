@@ -1,6 +1,6 @@
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Generator, Tuple
 
 import cftime
@@ -11,6 +11,7 @@ from dask.delayed import delayed
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
 from vcm.convenience import open_delayed
+from vcm.cubedsphere.constants import FORECAST_TIME_DIM
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 SCHEMA_CACHE = {}
@@ -61,11 +62,29 @@ def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
     return impose_dataset_to_schema(ds_no_time)
 
 
+def _set_forecast_time_coord(ds):
+    """ Converts the forecast time dim into relative units so that different
+    initialization times can be concatenated together
+
+    Args:
+        ds: xarray dataset with dim FORECAST_TIME_DIM in absolute time
+
+    Returns:
+        dataset with the FORECAST_TIME_DIM converted to relative time after first
+        time in dataset (np.timedelta64 [ns])
+    """
+    delta_t_forecast = ds[FORECAST_TIME_DIM].values[1] - ds[FORECAST_TIME_DIM].values[0]
+    ds.reset_index([FORECAST_TIME_DIM], drop=True)
+    return ds.assign_coords(
+        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]}
+    )
+
+
 def _parse_first_last_forecast_times(fs, run_dir):
     """
 
     Args:
-        fs: gcsfs GCSFileSystem
+        fs: filesystem object
         run_dir: run directory assumed to be named with initialization time in TIME_FMT,
          e.g. "20160801.001000"
 
