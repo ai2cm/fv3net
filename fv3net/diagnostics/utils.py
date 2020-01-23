@@ -20,25 +20,6 @@ class PlotConfig:
     plot_params: dict
 
 
-def open_dataset(data_path):
-    protocol, path = _split_url(data_path)
-    fs = fsspec.filesystem(protocol)
-
-    if ".zarr" in data_path:
-        data = xr.open_zarr(fs.get_mapper(data_path))
-    else:
-        try:
-            t_init, t_last = _parse_first_last_forecast_times(fs, data_path)
-            data = open_restarts(data_path, t_init)
-        except:
-            raise ValueError(
-                "Cannot open zarr or run directory at data path provided."
-                "Check the input argument and make sure it is one of"
-                "these allowed data formats."
-            )
-    return data
-
-
 def load_ufuncs(raw_config):
     """Uses list of function names in config to get the user defined functions and kwargs
     used to calculate diagnostic quantities
