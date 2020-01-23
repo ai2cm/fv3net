@@ -10,6 +10,7 @@ MPIRUN = $(RUN_INTERACTIVE) mpirun -n 6 --allow-run-as-root --oversubscribe --mc
 
 
 build:
+	pip wheel --no-deps git+ssh://git@github.com/VulcanClimateModeling/fv3net.git@2020-01-23-prognostic-rf
 	docker build . -t $(IMAGE)
 
 dev:
