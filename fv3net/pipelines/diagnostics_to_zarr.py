@@ -16,10 +16,10 @@ INITIAL_CHUNKS = {"time": 12}
 TILES = range(1, 7)
 PARENT_BUCKET = "gs://vcm-ml-data/2019-12-12-baseline-FV3GFS-runs/"
 DIAGNOSTIC_CATEGORIES = [
-    # "atmos_8xdaily",
-    # "tracers_8xdaily",
-    # "nudge_dt_8xdaily",
-    # "atmos_hourly",
+    "atmos_8xdaily",
+    "tracers_8xdaily",
+    "nudge_dt_8xdaily",
+    "atmos_hourly",
     "sfc_hourly"
 ]
 
