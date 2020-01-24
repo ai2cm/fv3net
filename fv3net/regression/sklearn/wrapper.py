@@ -14,6 +14,10 @@ class RegressorEnsemble:
         self.base_regressor = base_regressor
         self.regressors = []
 
+    @property
+    def num_regressors(self):
+        return len(self.regressors)
+
     def fit(self, features, outputs):
         """ Adds a base regressor fit on features to the ensemble
 

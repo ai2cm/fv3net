@@ -1,7 +1,9 @@
 import numpy as np
+from sklearn.linear_model import LinearRegression
+import pytest
 import xarray as xr
 
-from fv3net.regression.sklearn.wrapper import _pack
+from fv3net.regression.sklearn.wrapper import RegressorEnsemble, _pack
 
 
 def test_flatten():
@@ -44,3 +46,27 @@ def test_flatten_same_order():
     b = _pack(ds[["b"]], sample_dim)[0]
 
     np.testing.assert_allclose(a, b)
+
+
+@pytest.fixture
+def test_regressor_ensemble():
+    base_regressor = LinearRegression()
+    ensemble_regressor = RegressorEnsemble(base_regressor)
+    num_batches = 3
+    X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
+    y = np.dot(X, np.array([1, 2])) + 3
+    for i in range(num_batches):
+        ensemble_regressor.fit(X, y)
+    return ensemble_regressor
+
+
+def test_ensemble_fit(test_regressor_ensemble):
+    regressor_ensemble = test_regressor_ensemble
+    assert regressor_ensemble.num_regressors == 3
+    X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
+    y = np.dot(X, np.array([1, 2])) + 3
+    regressor_ensemble.fit(X, y)
+    # test that .fit appends a new regressor
+    assert regressor_ensemble.num_regressors == 4
+    # test that new regressors are actually fit and not empty base regressor
+    assert len(regressor_ensemble.regressors[-1].coef_) > 0
