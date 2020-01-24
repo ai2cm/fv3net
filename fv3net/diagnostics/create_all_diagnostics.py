@@ -6,15 +6,9 @@ one of the command line args.
 """
 
 import argparse
-import fsspec
 import os
 
 from jinja2 import Template
-from vcm.fv3net_restarts import (
-    open_restarts,
-    _split_url,
-    _parse_first_last_forecast_times,
-)
 from fv3net.diagnostics.visualize import create_plot
 from fv3net.diagnostics.utils import load_configs, open_dataset
 

@@ -1,8 +1,14 @@
 from dataclasses import dataclass
+import fsspec
 from typing import List
-
+import xarray as xr
 import yaml
 from vcm.calc import diag_ufuncs
+from vcm.fv3net_restarts import (
+    open_restarts,
+    _split_url,
+    _parse_first_last_forecast_times,
+)
 
 
 @dataclass
