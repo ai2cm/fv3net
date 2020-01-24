@@ -62,11 +62,11 @@ def test_regressor_ensemble():
 
 def test_ensemble_fit(test_regressor_ensemble):
     regressor_ensemble = test_regressor_ensemble
-    assert regressor_ensemble.num_regressors == 3
+    assert regressor_ensemble.n_estimators == 3
     X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]])
     y = np.dot(X, np.array([1, 2])) + 3
     regressor_ensemble.fit(X, y)
     # test that .fit appends a new regressor
-    assert regressor_ensemble.num_regressors == 4
+    assert regressor_ensemble.n_estimators == 4
     # test that new regressors are actually fit and not empty base regressor
     assert len(regressor_ensemble.regressors[-1].coef_) > 0

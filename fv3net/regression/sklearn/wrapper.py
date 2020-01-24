@@ -15,7 +15,7 @@ class RegressorEnsemble:
         self.regressors = []
 
     @property
-    def num_regressors(self):
+    def n_estimators(self):
         return len(self.regressors)
 
     def fit(self, features, outputs):
