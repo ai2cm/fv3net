@@ -24,7 +24,6 @@ class ModelTrainingConfig:
     """Convenience wrapper for model training parameters and file info
 
     """
-
     model_type: str
     gcs_data_dir: str
     hyperparameters: dict
@@ -85,7 +84,6 @@ def _get_regressor(train_config):
     model_type = train_config.model_type.replace(" ", "").replace("_", "")
     if "rf" in model_type or "randomforest" in model_type:
         from sklearn.ensemble import RandomForestRegressor
-
         regressor = RandomForestRegressor(**train_config.hyperparameters, n_jobs=-1)
     else:
         raise ValueError(
