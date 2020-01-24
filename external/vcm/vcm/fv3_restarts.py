@@ -36,11 +36,9 @@ def open_restarts(url: str) -> xr.Dataset:
     """
     restart_files = _restart_files_at_url(url)
     arrays = _load_arrays(restart_files)
-    return (
-        xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"]))
-        .sortby("time")
-        .drop("time")
-    )
+    return xr.Dataset(
+        combine_array_sequence(arrays, labels=["file_prefix", "tile"])
+    ).pipe(_sort_file_prefixes)
 
 
 def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
@@ -76,14 +74,39 @@ def _parse_time(path):
     return re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path).group(1)
 
 
-def _get_time(dirname, path):
+def _get_file_prefix(dirname, path):
     if dirname.endswith("INPUT"):
-        return "0000_INPUT"
+        return "INPUT/"
     elif dirname.endswith("RESTART"):
         try:
-            return _parse_time(path)
+            return os.path.join("RESTART", _parse_time(path))
         except AttributeError:
-            return "9999_FINAL"
+            return "RESTART/"
+
+
+def _sort_file_prefixes(ds):
+
+    if "INPUT/" not in ds.file_prefix:
+        raise ValueError("Open restarts() did not find the input set of restart files.")
+    if "RESTART/" not in ds.file_prefix:
+        raise ValueError("Open_restarts() did not find the final set of restart files.")
+
+    intermediate_prefixes = sorted(
+        [
+            prefix.item()
+            for prefix in ds.file_prefix
+            if prefix.item() not in ["INPUT/", "RESTART/"]
+        ]
+    )
+
+    return xr.concat(
+        [
+            ds.sel(file_prefix="INPUT/"),
+            ds.sel(file_prefix=intermediate_prefixes),
+            ds.sel(file_prefix="RESTART/"),
+        ],
+        dim="file_prefix",
+    )
 
 
 def _parse_category(path):
@@ -127,10 +150,10 @@ def _restart_files_at_url(url):
         for file in files:
             path = os.path.join(root, file)
             if _is_restart_file(file):
-                time = _get_time(root, file)
+                file_prefix = _get_file_prefix(root, file)
                 tile = _get_tile(file)
                 category = _parse_category(file)
-                yield time, category, tile, proto, path
+                yield file_prefix, category, tile, proto, path
 
 
 def _load_restart(protocol, path):
@@ -159,9 +182,9 @@ def _load_arrays(
     restart_files,
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
     # use the same schema for all coupler_res
-    for (time, restart_category, tile, protocol, path) in restart_files:
+    for (file_prefix, restart_category, tile, protocol, path) in restart_files:
         ds = _load_restart_lazily(protocol, path, restart_category)
         ds_standard_metadata = standardize_metadata(ds)
         #         time_obj = _parse_time_string(time)
         for var in ds_standard_metadata:
-            yield var, (time, tile), ds_standard_metadata[var]
+            yield var, (file_prefix, tile), ds_standard_metadata[var]
