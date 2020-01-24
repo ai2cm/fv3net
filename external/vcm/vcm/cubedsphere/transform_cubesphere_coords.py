@@ -6,6 +6,10 @@ from vcm.cubedsphere.constants import (
     COORD_Y_CENTER,
     COORD_X_OUTER,
     COORD_Y_OUTER,
+    VAR_LON_CENTER,
+    VAR_LAT_CENTER,
+    VAR_LON_OUTER,
+    VAR_LAT_OUTER,
 )
 
 
@@ -96,16 +100,16 @@ def _lon_lat_unit_vectors_to_cartesian(grid):
         lon and lat vectors at the center of each cell, expressed in cartesian basis
     """
     lon_vec_cartesian = (
-        -np.sin(np.deg2rad(grid.grid_lont)),
-        np.cos(np.deg2rad(grid.grid_lont)),
+        -np.sin(np.deg2rad(grid[VAR_LON_CENTER])),
+        np.cos(np.deg2rad(grid[VAR_LON_CENTER])),
         0,
     )
     lat_vec_cartesian = (
-        np.cos(np.pi / 2 - np.deg2rad(grid.grid_latt))
-        * np.cos(np.deg2rad(grid.grid_lont)),
-        np.cos(np.pi / 2 - np.deg2rad(grid.grid_latt))
-        * np.sin(np.deg2rad(grid.grid_lont)),
-        -np.sin(np.pi / 2 - np.deg2rad(grid.grid_latt)),
+        np.cos(np.pi / 2 - np.deg2rad(grid[VAR_LAT_CENTER]))
+        * np.cos(np.deg2rad(grid[VAR_LON_CENTER])),
+        np.cos(np.pi / 2 - np.deg2rad(grid[VAR_LAT_CENTER]))
+        * np.sin(np.deg2rad(grid[VAR_LON_CENTER])),
+        -np.sin(np.pi / 2 - np.deg2rad(grid[VAR_LAT_CENTER])),
     )
     return lon_vec_cartesian, lat_vec_cartesian
 
@@ -115,8 +119,8 @@ def _lon_diff(edge1, edge2):
     Input units are degrees.
 
     Args:
-        edge1: dataArray of grid_lon (lon at edges)
-        edge2: dataArray of grid_lon + n cells offset
+        edge1: dataArray of GRID_LON_OUTER (lon at edges)
+        edge2: dataArray of GRID_LON_OUTER + n cells offset
 
     Returns: dataArray of lon difference
 
@@ -142,16 +146,16 @@ def _get_local_basis_in_spherical_coords(grid):
         at the center of each cell.
     """
     xhat_lon_component = np.deg2rad(
-        _lon_diff(grid.grid_lon, grid.grid_lon.shift({COORD_X_OUTER: -1}))[:, :, :-1]
+        _lon_diff(grid[VAR_LON_OUTER], grid[VAR_LON_OUTER].shift({COORD_X_OUTER: -1}))[:, :, :-1]
     ).rename({COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER})
     yhat_lon_component = np.deg2rad(
-        _lon_diff(grid.grid_lon, grid.grid_lon.shift({COORD_Y_OUTER: -1}))[:, :, :-1]
+        _lon_diff(grid[VAR_LON_OUTER], grid[VAR_LON_OUTER].shift({COORD_Y_OUTER: -1}))[:, :, :-1]
     ).rename({COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER})
     xhat_lat_component = np.deg2rad(
-        grid.grid_lat.shift({COORD_X_OUTER: -1}) - grid.grid_lat
+        grid[VAR_LAT_OUTER].shift({COORD_X_OUTER: -1}) - grid[VAR_LAT_OUTER]
     )[:, :, :-1].rename({COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER})
     yhat_lat_component = np.deg2rad(
-        grid.grid_lat.shift({COORD_Y_OUTER: -1}) - grid.grid_lat
+        grid[VAR_LAT_OUTER].shift({COORD_Y_OUTER: -1}) - grid[VAR_LAT_OUTER]
     )[:, :, :-1].rename({COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER})
     return (
         (xhat_lon_component, xhat_lat_component),
@@ -175,5 +179,5 @@ def get_rotated_centered_winds_from_restarts(ds: xr.Dataset):
     u_c = shift_edge_var_to_center(ds["u"].drop(labels=COORD_X_CENTER))
     v_c = shift_edge_var_to_center(ds["v"].drop(labels=COORD_Y_CENTER))
     return rotate_winds_to_lat_lon_coords(
-        u_c, v_c, ds[["grid_lat", "grid_lon", "grid_latt", "grid_lont"]]
+        u_c, v_c, ds[[VAR_LON_OUTER, VAR_LON_CENTER, VAR_LAT_OUTER, VAR_LAT_CENTER]]
     )
