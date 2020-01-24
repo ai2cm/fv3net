@@ -146,10 +146,14 @@ def _get_local_basis_in_spherical_coords(grid):
         at the center of each cell.
     """
     xhat_lon_component = np.deg2rad(
-        _lon_diff(grid[VAR_LON_OUTER], grid[VAR_LON_OUTER].shift({COORD_X_OUTER: -1}))[:, :, :-1]
+        _lon_diff(grid[VAR_LON_OUTER], grid[VAR_LON_OUTER].shift({COORD_X_OUTER: -1}))[
+            :, :, :-1
+        ]
     ).rename({COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER})
     yhat_lon_component = np.deg2rad(
-        _lon_diff(grid[VAR_LON_OUTER], grid[VAR_LON_OUTER].shift({COORD_Y_OUTER: -1}))[:, :, :-1]
+        _lon_diff(grid[VAR_LON_OUTER], grid[VAR_LON_OUTER].shift({COORD_Y_OUTER: -1}))[
+            :, :, :-1
+        ]
     ).rename({COORD_X_OUTER: COORD_X_CENTER, COORD_Y_OUTER: COORD_Y_CENTER})
     xhat_lat_component = np.deg2rad(
         grid[VAR_LAT_OUTER].shift({COORD_X_OUTER: -1}) - grid[VAR_LAT_OUTER]
