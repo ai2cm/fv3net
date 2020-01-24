@@ -6,7 +6,7 @@ from sklearn.utils import parallel_backend
 import state_io
 
 SKLEARN_MODEL = (
-    "gs://vcm-ml-data/test-annak/ml-pipeline-output/2020-01-17_rf_40d_run.pkl" # noqa
+    "gs://vcm-ml-data/test-annak/ml-pipeline-output/2020-01-17_rf_40d_run.pkl"  # noqa
 )
 
 

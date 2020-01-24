@@ -2,7 +2,7 @@ import fv3config
 import fsspec
 import yaml
 
-config_url = "gs://vcm-ml-data/2020-01-15-noahb-exploration/2hr_strong_dampingone_step_config/C48/20160805.000000/fv3config.yml" # noqa
+config_url = "gs://vcm-ml-data/2020-01-15-noahb-exploration/2hr_strong_dampingone_step_config/C48/20160805.000000/fv3config.yml"  # noqa
 
 output_url = (
     "gs://vcm-ml-data/2020-01-15-noahb-exploration/save_data_test/C48/20160805.000000/"
