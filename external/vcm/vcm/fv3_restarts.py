@@ -5,6 +5,7 @@ from typing import Any, Generator, Tuple
 
 import cftime
 import fsspec
+import numpy as np
 import xarray as xr
 from dask.delayed import delayed
 
@@ -16,7 +17,7 @@ from vcm.cubedsphere.constants import FORECAST_TIME_DIM
 TIME_FMT = "%Y%m%d.%H%M%S"
 SCHEMA_CACHE = {}
 RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
-
+FILE_PREFIX_COORD = "file_prefix"
 
 def open_restarts(url: str, initial_time: str, final_time: str) -> xr.Dataset:
     """Opens all the restart file within a certain path
@@ -62,7 +63,7 @@ def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
     return impose_dataset_to_schema(ds_no_time)
 
 
-def _set_forecast_time_coord(ds):
+def _set_relative_diff_forecast_time(ds, dt_sec):
     """ Converts the forecast time dim into relative units so that different
     initialization times can be concatenated together
 
@@ -73,24 +74,24 @@ def _set_forecast_time_coord(ds):
         dataset with the FORECAST_TIME_DIM converted to relative time after first
         time in dataset (np.timedelta64 [ns])
     """
-    delta_t_forecast = ds[FORECAST_TIME_DIM].values[1] - ds[FORECAST_TIME_DIM].values[0]
-    ds.reset_index([FORECAST_TIME_DIM], drop=True)
+    num_tsteps = ds.sizes([FILE_PREFIX_COORD])
     return ds.assign_coords(
-        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]}
+        {FORECAST_TIME_DIM: [timedelta(seconds=tstep * dt_sec) for tstep in num_tsteps]}
     )
 
 
-def _parse_first_last_forecast_times(fs, run_dir):
+def _parse_forecast_dt(run_dir):
     """
 
     Args:
-        fs: filesystem object
         run_dir: run directory assumed to be named with initialization time in TIME_FMT,
          e.g. "20160801.001000"
 
     Returns:
-        strings in TIME_FMT: initialization time and last forecast time
+        float: dt [seconds] as parsed from filenames of first two forecasted restarts
     """
+    proto, path = _split_url(run_dir)
+    fs = fsspec.filesystem(proto)
     if run_dir[-1] == "/":
         run_dir = run_dir[:-1]
     restart_contents = fs.ls(os.path.join(run_dir, "RESTART"))
@@ -102,9 +103,9 @@ def _parse_first_last_forecast_times(fs, run_dir):
             timestring = None
         if timestring and timestring not in forecast_times:
             forecast_times.append(timestring)
-    t_init = os.path.basename(run_dir)
-    t_last = sorted(forecast_times)[-1]
-    return t_init, t_last
+    forecast_times = sorted(forecast_times)
+    t_sample = np.array([_parse_time_string(t) for t in forecast_times[:2]])
+    return (t_sample[1]-t_sample[0]).total_seconds()
 
 
 def _parse_time_string(time):

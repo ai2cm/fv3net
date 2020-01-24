@@ -27,9 +27,9 @@ from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to
 from vcm.fv3_restarts import (
     TIME_FMT,
     open_restarts,
+    _parse_forecast_dt,
     _parse_time,
     _parse_time_string,
-    _parse_first_last_forecast_times,
     _set_forecast_time_coord,
 )
 from vcm.select import mask_to_surface_type
@@ -54,6 +54,7 @@ def run(args, pipeline_args):
     train_test_labels = _test_train_split(
         data_batch_urls, args.train_fraction, args.random_seed
     )
+    dt_forecast = _parse_forecast_dt(gcs_urls[0])
 
     print(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
@@ -61,7 +62,7 @@ def run(args, pipeline_args):
         (
             p
             | beam.Create(data_batch_urls)
-            | "LoadCloudData" >> beam.Map(_open_cloud_data, fs=fs)
+            | "LoadCloudData" >> beam.Map(_open_cloud_data, dt_forecast=dt_forecast)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
             | "MaskToSurfaceType"
             >> beam.Map(mask_to_surface_type, surface_type=args.mask_to_surface_type)
@@ -163,7 +164,7 @@ def _test_train_split(url_batches, train_frac, random_seed=1234):
     return labels
 
 
-def _open_cloud_data(run_dirs, fs):
+def _open_cloud_data(run_dirs, dt_forecast_sec):
     """Opens multiple run directories into a single dataset, where the init time
     of each run dir is the INIT_TIME_DIM and the times within
 
@@ -180,14 +181,14 @@ def _open_cloud_data(run_dirs, fs):
     )
     ds_runs = []
     for run_dir in run_dirs:
-        t_init, t_last = _parse_first_last_forecast_times(fs, run_dir)
+        t_init = _parse_time_string(_parse_time(run_dir))
         ds_run = (
-            open_restarts(run_dir, t_init, t_last)
-            .rename({"time": FORECAST_TIME_DIM})
-            .isel({FORECAST_TIME_DIM: slice(-2, None)})[INPUT_VARS]
-            .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
+            open_restarts(run_dir)
+            [INPUT_VARS]
+            .expand_dims(dim={INIT_TIME_DIM: [t_init]})
         )
-        ds_run = _set_forecast_time_coord(ds_run)
+        ds_run = _set_forecast_time_coord(ds_run) \
+            .isel({FORECAST_TIME_DIM: slice(-2, None)})
         ds_runs.append(ds_run)
     return xr.concat(ds_runs, INIT_TIME_DIM)
 

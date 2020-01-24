@@ -38,7 +38,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--timesteps-per-output-file",
         type=int,
-        default=2,
+        default=3,
         help="Number of consecutive timesteps to calculate features/targets for in "
         "a single process and save to output file."
         "When the full output is shuffled at the data generator step, these"
