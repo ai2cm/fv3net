@@ -11,6 +11,7 @@ from dask.delayed import delayed
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
 from vcm.convenience import open_delayed
+from vcm.cubedsphere.constants import GRID_VARS
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 SCHEMA_CACHE = {}
@@ -46,6 +47,29 @@ def open_restarts(url: str, initial_time: str, final_time: str) -> xr.Dataset:
     return xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"])).sortby(
         "time"
     )
+
+# TODO remove after forecast time dim PR
+def open_grid(url):
+    grid_files = _diag_files_in_run_dir(url)
+    arrays = _load_arrays(grid_files)
+    return xr.Dataset(combine_array_sequence(arrays, labels=["tile"])) \
+        [GRID_VARS] \
+        .isel(time=0) \
+        .squeeze(drop=True)
+
+
+def _diag_files_in_run_dir(run_dir):
+    time = _parse_time(run_dir)
+    protocol, _ = _split_url(run_dir)
+    fs = fsspec.filesystem(protocol)
+    diag_files = [filename for filename in fs.ls(run_dir)
+                  if "atmos_dt_atmos" in filename]
+    for filename in diag_files:
+        proto = "gs"
+        path = filename
+        tile = _get_tile(filename)
+        category = "atmos_dt_atmos"
+        yield time, category, tile, proto, path
 
 
 def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:

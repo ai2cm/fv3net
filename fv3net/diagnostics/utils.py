@@ -1,12 +1,15 @@
 from dataclasses import dataclass
 import fsspec
+import os
 from typing import List
 import xarray as xr
 import yaml
 from vcm.calc import diag_ufuncs
-from vcm.fv3net_restarts import (
+from vcm.fv3_restarts import (
     open_restarts,
+    open_grid,
     _split_url,
+    _parse_time,
     _parse_first_last_forecast_times,
 )
 
@@ -34,15 +37,17 @@ def open_dataset(data_path):
         data = xr.open_zarr(fs.get_mapper(data_path))
     else:
         try:
+            # TODO: remove time parsing after Brians's PR merged
             t_init, t_last = _parse_first_last_forecast_times(fs, data_path)
             data = open_restarts(data_path, t_init)
+            grid = open_grid(data_path)
         except:
             raise ValueError(
                 "Cannot open zarr or run directory at data path provided."
                 "Check the input argument and make sure it is one of"
                 "these allowed data formats."
             )
-    return data
+    return xr.merge([data, grid])
 
 
 def load_ufuncs(raw_config):
