@@ -1,20 +1,22 @@
 import argparse
 import joblib
-import numpy as np
 import os
 import yaml
 
 from dataclasses import dataclass
 from datetime import datetime
-from importlib.resources import path
-from shutil import copyfile
+from shutil import copyfile, rmtree
 from typing import List
 
 from fv3net.regression.dataset_handler import BatchGenerator
-from fv3net.regression.sklearn.wrapper import SklearnWrapper, BatchTransformRegressor
+from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
+from vcm.cloud import gsutil
 
+MODEL_CONFIG_FILENAME = "training_config.yml"
+MODEL_FILENAME = "sklearn_model.pkl"
+OUTPUT_DIR_SUFFIX = "model_training_files"
 
 @dataclass
 class ModelTrainingConfig:
@@ -107,7 +109,7 @@ def train_model(batched_data, train_config):
     base_regressor = _get_regressor(train_config)
     target_transformer = StandardScaler()
     transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
-    batch_regressor = BatchTransformRegressor(transform_regressor)
+    batch_regressor = RegressorEnsemble(transform_regressor)
 
     model_wrapper = SklearnWrapper(batch_regressor)
     for i, batch in enumerate(batched_data.generate_batches("train")):
@@ -131,16 +133,23 @@ if __name__ == "__main__":
         help="Path for training configuration yaml file",
     )
     parser.add_argument(
-        "--model-output-filename",
-        type=str,
-        required=True,
-        help="Path for writing trained model",
-    )
-    parser.add_argument(
         "--output-dir",
         type=str,
         default="''",
         help="Optional- provide a directory in which model and config will be saved.",
+    )
+    parser.add_argument(
+        "--remote-output-url",
+        type=str,
+        required=False,
+        help="Optional remote location to save config and trained model."
+    )
+    parser.add_argument(
+        "--delete-local-results-after-upload",
+        type=bool,
+        default=True,
+        help="If results are uploaded to remote storage, "
+             "remove local copy after upload."
     )
     args = parser.parse_args()
     train_config = load_model_training_config(args.train_config_file)
@@ -151,8 +160,18 @@ if __name__ == "__main__":
     # model and config are saved with timestamp prefix so that they can be
     # matched together
     timestamp = datetime.now().strftime("%Y%m%d.%H%M%S")
+    output_dir = f"{timestamp}_{OUTPUT_DIR_SUFFIX}"
     copyfile(
         args.train_config_file,
-        os.path.join(args.output_dir, f"{timestamp}_training_config.yml"),
+        os.path.join(output_dir, f"{timestamp}_{MODEL_CONFIG_FILENAME}"),
     )
-    joblib.dump(model, f"{timestamp}_{args.model_output_filename}")
+    joblib.dump(
+        model,
+        os.path.join(output_dir, f"{timestamp}_{MODEL_FILENAME}"))
+
+    if args.remote_output_url:
+        gsutil.copy(output_dir, args.remote_output_url)
+        if args.delete_local_results_after_upload is True:
+            rmtree(output_dir)
+
+

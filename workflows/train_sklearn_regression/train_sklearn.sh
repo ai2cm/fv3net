@@ -1,5 +1,4 @@
  python -m fv3net.regression.sklearn.train \
-  --train-config-file rf_train_config.yml \
-  --model-output-filename rf_model.pkl \
+  --train-config-file example_rf_training_config.yml \
   --target-normalization-file default \
   --output-dir outputs_sklearn_regression
