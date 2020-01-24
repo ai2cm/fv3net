@@ -18,11 +18,13 @@ MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
 OUTPUT_DIR_SUFFIX = "model_training_files"
 
+
 @dataclass
 class ModelTrainingConfig:
     """Convenience wrapper for model training parameters and file info
 
     """
+
     model_type: str
     gcs_data_dir: str
     hyperparameters: dict
@@ -83,6 +85,7 @@ def _get_regressor(train_config):
     model_type = train_config.model_type.replace(" ", "").replace("_", "")
     if "rf" in model_type or "randomforest" in model_type:
         from sklearn.ensemble import RandomForestRegressor
+
         regressor = RandomForestRegressor(**train_config.hyperparameters, n_jobs=-1)
     else:
         raise ValueError(
@@ -142,14 +145,14 @@ if __name__ == "__main__":
         "--remote-output-url",
         type=str,
         required=False,
-        help="Optional remote location to save config and trained model."
+        help="Optional remote location to save config and trained model.",
     )
     parser.add_argument(
         "--delete-local-results-after-upload",
         type=bool,
         default=True,
         help="If results are uploaded to remote storage, "
-             "remove local copy after upload."
+        "remove local copy after upload.",
     )
     args = parser.parse_args()
     train_config = load_model_training_config(args.train_config_file)
@@ -165,13 +168,9 @@ if __name__ == "__main__":
         args.train_config_file,
         os.path.join(output_dir, f"{timestamp}_{MODEL_CONFIG_FILENAME}"),
     )
-    joblib.dump(
-        model,
-        os.path.join(output_dir, f"{timestamp}_{MODEL_FILENAME}"))
+    joblib.dump(model, os.path.join(output_dir, f"{timestamp}_{MODEL_FILENAME}"))
 
     if args.remote_output_url:
         gsutil.copy(output_dir, args.remote_output_url)
         if args.delete_local_results_after_upload is True:
             rmtree(output_dir)
-
-

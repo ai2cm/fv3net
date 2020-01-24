@@ -9,6 +9,7 @@ class RegressorEnsemble:
     """Ensemble of regressors that are incrementally trained in batches
 
     """
+
     def __init__(self, base_regressor):
         self.base_regressor = base_regressor
         self.regressors = []
@@ -38,7 +39,8 @@ class RegressorEnsemble:
             Each row is the average ensemble prediction for that sample.
         """
         predictions = np.array(
-            [regressor.predict(features) for regressor in self.regressors])
+            [regressor.predict(features) for regressor in self.regressors]
+        )
         return np.mean(predictions, axis=0)
 
 
