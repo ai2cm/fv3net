@@ -17,7 +17,7 @@ SCHEMA_CACHE = {}
 RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
 
 
-def open_restarts(url: str, initial_time: str, final_time: str) -> xr.Dataset:
+def open_restarts(url: str) -> xr.Dataset:
     """Opens all the restart file within a certain path
 
     The dimension names are the same as the diagnostic output
@@ -27,24 +27,19 @@ def open_restarts(url: str, initial_time: str, final_time: str) -> xr.Dataset:
             used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
             protocol prefix is used, then it will be assumed to be a path to a local
             file.
-        initial_time: A YYYYMMDD.HHMMSS string for the initial condition. The initial
-            condition data does not have an time-stamp in its filename, so you must
-            provide it using this argument. This only updates the time coordinate of
-            the output and does not imply any subselection of time-steps.
-        final_time: same as `initial_time` but for the ending time of the simulation.
-            Again, the timestamp is not in the filename of the final set of restart
-            files.
-
+            
     Returns:
         a combined dataset of all the restart files. All except the first file of
         each restart-file type (e.g. fv_core.res) will only be lazily loaded. This
         allows opening large datasets out-of-core.
 
     """
-    restart_files = _restart_files_at_url(url, initial_time, final_time)
+    restart_files = _restart_files_at_url(url)
     arrays = _load_arrays(restart_files)
-    return xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"])).sortby(
-        "time"
+    return (
+        xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"]))
+        .sortby("time")
+        .drop("time")
     )
 
 
@@ -81,14 +76,14 @@ def _parse_time(path):
     return re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path).group(1)
 
 
-def _get_time(dirname, path, initial_time, final_time):
+def _get_time(dirname, path):
     if dirname.endswith("INPUT"):
-        return initial_time
+        return "0000_INPUT"
     elif dirname.endswith("RESTART"):
         try:
             return _parse_time(path)
         except AttributeError:
-            return final_time
+            return "9999_FINAL"
 
 
 def _parse_category(path):
@@ -118,18 +113,11 @@ def _is_restart_file(path):
     return any(category in path for category in RESTART_CATEGORIES) and "tile" in path
 
 
-def _restart_files_at_url(url, initial_time, final_time):
+def _restart_files_at_url(url):
     """List restart files with a given initial and end time within a particular URL
 
     Yields:
         (time, restart_category, tile, protocol, path)
-
-    Note:
-        the time for the data in INPUT and RESTART cannot be parsed from the file name
-        alone so they are required arguments. Some tricky logic such as reading the
-        fv_coupler.res file could be done, but I do not think this low-level function
-        should have side-effects such as reading a file (which might not always be
-        where we expect).
 
     """
     proto, path = _split_url(url)
@@ -139,7 +127,7 @@ def _restart_files_at_url(url, initial_time, final_time):
         for file in files:
             path = os.path.join(root, file)
             if _is_restart_file(file):
-                time = _get_time(root, file, initial_time, final_time)
+                time = _get_time(root, file)
                 tile = _get_tile(file)
                 category = _parse_category(file)
                 yield time, category, tile, proto, path
@@ -174,6 +162,6 @@ def _load_arrays(
     for (time, restart_category, tile, protocol, path) in restart_files:
         ds = _load_restart_lazily(protocol, path, restart_category)
         ds_standard_metadata = standardize_metadata(ds)
-        time_obj = _parse_time_string(time)
+        #         time_obj = _parse_time_string(time)
         for var in ds_standard_metadata:
-            yield var, (time_obj, tile), ds_standard_metadata[var]
+            yield var, (time, tile), ds_standard_metadata[var]
