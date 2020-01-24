@@ -9,8 +9,8 @@ FV_CORE_IN_RESTART = "./RESTART/fv_core.res.tile6.nc"
 FV_CORE_IN_RESTART = "./INPUT/fv_core.res.tile6.nc"
 FV_CORE_IN_RESTART_WITH_TIMESTEP = "./RESTART/20180605.000000.fv_core.res.tile6.nc"
 
-FINAL = "final"
-INIT = "init"
+FINAL = "9999_FINAL"
+INIT = "0000_INPUT"
 
 
 @pytest.mark.parametrize(
@@ -40,7 +40,7 @@ def test__get_tile():
     ],
 )
 def test__get_time(dirname, name, expected):
-    time = _get_time(dirname, name, initial_time=INIT, final_time=FINAL)
+    time = _get_time(dirname, name)
     assert time == expected
 
 
@@ -52,9 +52,7 @@ def test_restart_files_at_url():
     url = "rundir"
     if not os.path.isdir(url):
         pytest.skip("Data is not available locally.")
-    ds = open_restarts(
-        url, initial_time="20160801.003000", final_time="20160801.004500"
-    )
+    ds = open_restarts(url)
     print(ds)
 
 
