@@ -73,6 +73,9 @@ def test__parse_category_fails_with_ambiguous_category():
 
 
 def test__open_restarts_fails_without_input_and_restart_dirs():
-    url = "gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48/20160801.001500"
+    url = (
+        "gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/"
+        "restarts/C48/20160801.001500"
+    )
     with pytest.raises(ValueError):
         open_restarts(url)

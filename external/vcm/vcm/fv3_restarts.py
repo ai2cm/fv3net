@@ -1,23 +1,30 @@
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Generator, Tuple
 
 import cftime
 import fsspec
 import xarray as xr
+import pandas as pd
 from dask.delayed import delayed
+import f90nml
 
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
 from vcm.convenience import open_delayed
+from vcm.cubedsphere.constants import (
+    RESTART_CATEGORIES,
+    TIME_FMT,
+    INIT_TIME_DIM,
+    FORECAST_TIME_DIM,
+)
 
-TIME_FMT = "%Y%m%d.%H%M%S"
+
 SCHEMA_CACHE = {}
-RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
 
 
-def open_restarts(url: str) -> xr.Dataset:
+def open_restarts(url: str, add_time_coords=False) -> xr.Dataset:
     """Opens all the restart file within a certain path
 
     The dimension names are the same as the diagnostic output
@@ -27,6 +34,11 @@ def open_restarts(url: str) -> xr.Dataset:
             used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
             protocol prefix is used, then it will be assumed to be a path to a local
             file.
+        add_time_coords (bool, optional): a flag to indicate whether to try to
+            infer and add time dimensions by reading the run director's namelist.
+            If false, the forecast time dimension will be the file prefixes of the
+            restart files. If true, a relative forecast time coordinate and an
+            absolute initialization time coordinate/dim willl be added. Default False.
             
     Returns:
         a combined dataset of all the restart files. All except the first file of
@@ -36,9 +48,13 @@ def open_restarts(url: str) -> xr.Dataset:
     """
     restart_files = _restart_files_at_url(url)
     arrays = _load_arrays(restart_files)
-    return xr.Dataset(
+    ds = xr.Dataset(
         combine_array_sequence(arrays, labels=["file_prefix", "tile"])
     ).pipe(_sort_file_prefixes)
+    if add_time_coords:
+        return _assign_time_coordinates(ds, url)
+    else:
+        return ds
 
 
 def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
@@ -52,6 +68,26 @@ def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
     except ValueError:
         ds_no_time = ds
     return impose_dataset_to_schema(ds_no_time)
+
+
+def _assign_time_coordinates(ds: xr.Dataset, url: str) -> xr.Dataset:
+
+    try:
+        proto, namelist_path = _get_namelist_path(url)
+        config = _config_from_fs_namelist(proto, namelist_path)
+        start_time = cftime.DatetimeJulian(*_get_current_date(config, url))
+        duration = _get_run_duration(config)
+        interval_seconds = config["coupler_nml"].get(
+            "restart_secs", 0
+        ) + 86400 * config["coupler_nml"].get("restart_days", 0)
+        forecast_time_index = _get_forecast_time_index(duration, interval_seconds)
+        return (
+            ds.assign_coords({FORECAST_TIME_DIM: ("file_prefix", forecast_time_index)})
+            .swap_dims({"file_prefix": FORECAST_TIME_DIM})
+            .expand_dims({INIT_TIME_DIM: [start_time]})
+        )
+    except ValueError:
+        return ds
 
 
 def _parse_time_string(time):
@@ -188,3 +224,111 @@ def _load_arrays(
         #         time_obj = _parse_time_string(time)
         for var in ds_standard_metadata:
             yield var, (file_prefix, tile), ds_standard_metadata[var]
+
+
+def _get_namelist_path(url):
+
+    proto, path = _split_url(url)
+    fs = fsspec.filesystem(proto)
+
+    for root, dirs, files in fs.walk(path):
+        for file in files:
+            if _is_namelist_file(file):
+                return proto, os.path.join(root, file)
+
+
+def _is_namelist_file(file):
+    return "input.nml" in file
+
+
+def _get_coupler_res_path(url):
+
+    proto, path = _split_url(url)
+    fs = fsspec.filesystem(proto)
+
+    for root, dirs, files in fs.walk(path):
+        for file in files:
+            if _is_coupler_res_file(file):
+                return proto, os.path.join(root, file)
+
+
+def _is_coupler_res_file(file):
+    return "coupler.res" in file
+
+
+def _config_from_fs_namelist(proto, namelist_path):
+    fs = fsspec.filesystem(proto)
+    with fs.open(namelist_path, "rt") as f:
+        return _to_nested_dict(f90nml.read(f).items())
+
+
+def _to_nested_dict(source):
+    return_value = dict(source)
+    for name, value in return_value.items():
+        if isinstance(value, f90nml.Namelist):
+            return_value[name] = _to_nested_dict(value)
+    return return_value
+
+
+def _get_current_date(config, url):
+    """Return current_date from configuration dictionary
+    Note: Mostly copied from fv3config, but with fsspec capabilities added
+    """
+    force_date_from_namelist = config["coupler_nml"].get(
+        "force_date_from_namelist", False
+    )
+    # following code replicates the logic that the fv3gfs model uses to determine the current_date
+    if force_date_from_namelist:
+        current_date = config["coupler_nml"].get("current_date", [0, 0, 0, 0, 0, 0])
+    else:
+        try:
+            proto, coupler_res_filename = _get_coupler_res_path(url)
+            current_date = _get_current_date_from_coupler_res(
+                proto, coupler_res_filename
+            )
+        except TypeError:
+            current_date = config["coupler_nml"].get("current_date", [0, 0, 0, 0, 0, 0])
+    return current_date
+
+
+def _get_current_date_from_coupler_res(proto, coupler_res_filename):
+    """Return a timedelta indicating the duration of the run.
+    Note: Mostly copied from fv3config, but with fsspec capabilities added
+    """
+    fs = fsspec.filesystem(proto)
+    with fs.open(coupler_res_filename) as f:
+        third_line = f.readlines()[2]
+        current_date = [int(d) for d in re.findall(r"\d+", third_line)]
+        if len(current_date) != 6:
+            raise ValueError(
+                f"{coupler_res_filename} does not have a valid current model time (need six integers on third line)"
+            )
+    return current_date
+
+
+def _get_run_duration(config):
+    """Return a timedelta indicating the duration of the run.
+    Note: Mostly copied from fv3config
+    """
+    coupler_nml = config.get("coupler_nml", {})
+    months = coupler_nml.get("months", 0)
+    if months != 0:  # months have no set duration and thus cannot be timedelta
+        raise ValueError(f"namelist contains non-zero value {months} for months")
+    return timedelta(
+        **{
+            name: coupler_nml.get(name, 0)
+            for name in ("seconds", "minutes", "hours", "days")
+        }
+    )
+
+
+def _get_forecast_time_index(duration, interval_seconds):
+    """Return a timedelta_range for the restart output timestamps
+    """
+    if interval_seconds:
+        forecast_time_index = pd.timedelta_range(
+            start="0 s", end=duration, freq=f"{interval_seconds}s"
+        )
+    else:
+        forecast_time_index = pd.timedelta_range(start="0 s", end=duration, periods=2)
+    return forecast_time_index

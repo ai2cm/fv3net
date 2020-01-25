@@ -21,3 +21,7 @@ VAR_GRID_LON_CENTER = "grid_lont"
 VAR_GRID_LAT_CENTER = "grid_latt"
 VAR_GRID_LON_OUTER = "grid_lon"
 VAR_GRID_LAT_OUTER = "grid_lat"
+INIT_TIME_DIM = "initialization_time"
+FORECAST_TIME_DIM = "forecast_time"
+TIME_FMT = "%Y%m%d.%H%M%S"
+RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
