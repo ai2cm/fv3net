@@ -281,7 +281,8 @@ def _get_current_date(config, url):
     force_date_from_namelist = config["coupler_nml"].get(
         "force_date_from_namelist", False
     )
-    # following code replicates the logic that the fv3gfs model uses to determine the current_date
+    # following code replicates the logic that the fv3gfs model
+    # uses to determine the current_date
     if force_date_from_namelist:
         current_date = config["coupler_nml"].get("current_date", [0, 0, 0, 0, 0, 0])
     else:
@@ -305,7 +306,8 @@ def _get_current_date_from_coupler_res(proto, coupler_res_filename):
         current_date = [int(d) for d in re.findall(r"\d+", third_line)]
         if len(current_date) != 6:
             raise ValueError(
-                f"{coupler_res_filename} does not have a valid current model time (need six integers on third line)"
+                f"{coupler_res_filename} does not have a valid current model time"
+                "(need six integers on third line)"
             )
     return current_date
 

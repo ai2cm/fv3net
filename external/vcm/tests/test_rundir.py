@@ -87,7 +87,7 @@ def test__open_restarts_fails_without_input_and_restart_dirs():
         open_restarts(url)
 
 
-@pytest.mark.parameterize(
+@pytest.mark.parametrize(
     "url, expected",
     [
         (
@@ -95,7 +95,8 @@ def test__open_restarts_fails_without_input_and_restart_dirs():
             (
                 "gs",
                 (
-                    "vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/"
+                    "vcm-ml-data/"
+                    "2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/"
                     "one_step_output/C48/20160801.001500/input.nml"
                 ),
             ),
