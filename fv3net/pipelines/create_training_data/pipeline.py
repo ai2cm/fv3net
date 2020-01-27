@@ -69,9 +69,7 @@ def _get_url_batches(gcs_urls, timesteps_per_output_file):
     return data_urls
 
 
-def _write_to_zarr(
-    ds, gcs_dest_dir, bucket="gs://vcm-ml-data",
-):
+def _write_to_zarr(ds, gcs_dest_dir, bucket="gs://vcm-ml-data"):
     """Writes temporary zarr on worker and moves it to GCS
 
     Args:

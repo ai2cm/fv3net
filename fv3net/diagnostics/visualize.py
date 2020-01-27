@@ -12,16 +12,6 @@ import matplotlib.pyplot as plt
 import warnings
 
 from vcm.visualize import plot_cube, mappable_var
-from vcm.cubedsphere.constants import (
-    VAR_LON_CENTER,
-    VAR_LAT_CENTER,
-    VAR_LON_OUTER,
-    VAR_LAT_OUTER,
-    VAR_GRID_LON_CENTER,
-    VAR_GRID_LAT_CENTER,
-    VAR_GRID_LON_OUTER,
-    VAR_GRID_LAT_OUTER,
-)
 
 # TODO: this may have to change if we change to using >1 step runs
 TIME_VAR = "initialization_time"
@@ -62,13 +52,6 @@ def plot_diag_var_map(ds, plot_config):
     Returns:
         matplotlib Figure object
     """
-    rename_coord_vars = {
-        VAR_GRID_LON_OUTER: VAR_LON_OUTER,
-        VAR_GRID_LAT_OUTER: VAR_LAT_OUTER,
-        VAR_GRID_LON_CENTER: VAR_LON_CENTER,
-        VAR_GRID_LAT_CENTER: VAR_LAT_CENTER,
-    }
-    ds = ds.rename(rename_coord_vars)
     if len(plot_config.diagnostic_variable) > 1:
         warnings.warn(
             "More than one diagnostic variable provided in config entry "
