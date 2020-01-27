@@ -8,26 +8,22 @@ import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
 import fsspec
 
+from vcm.cloud import gsutil
+
 logger = logging.getLogger(__name__)
 
-INITIAL_CHUNKS = {"time": 12}
+INITIAL_CHUNKS = {"time": 192}
 TILES = range(1, 7)
 COMMON_SUFFIX = ".tile1.nc"
+DEFAULT_DIAGNOSTIC_DIR = "diagnostic_zarr"
 
 
 def run(args, pipeline_args):
     rundir = args.rundir
-    if args.diagnostic_dir is None:
-        diagnostic_dir = os.path.join(_get_parent_dir(rundir), "diagnostic_zarr")
-    else:
-        diagnostic_dir = args.diagnostic_dir
-    if args.diagnostic_categories is None:
-        diagnostic_categories = _get_all_diagnostic_categories(rundir, _get_fs(rundir))
-    else:
-        diagnostic_categories = args.diagnostic_categories
-
-    logger.info(f"Diagnostic categories to convert are {diagnostic_categories}")
+    diagnostic_dir = _parse_diagnostic_dir(args.diagnostic_dir, rundir)
+    diagnostic_categories = _parse_categories(args.diagnostic_categories, rundir)
     logger.info(f"Diagnostic zarrs being written to {diagnostic_dir}")
+    logger.info(f"Diagnostic categories to convert are {diagnostic_categories}")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
@@ -40,12 +36,36 @@ def run(args, pipeline_args):
         )
 
 
-def _get_fs(path):
-    """Return the fsspec filesystem required to handle a given path."""
-    if path.startswith("gs://"):
-        return fsspec.filesystem("gs")
+def open_convert_save(diagnostic_category, rundir, diagnostic_dir):
+    remote_zarr = os.path.join(diagnostic_dir, diagnostic_category)
+    with tempfile.TemporaryDirectory() as local_zarr:
+        for tile in TILES:
+            logger.info(f"Converting category {diagnostic_category} tile {tile}")
+            remote_nc = os.path.join(rundir, f"{diagnostic_category}.tile{tile}.nc")
+            with fsspec.open(remote_nc) as nc:
+                xr.open_dataset(nc, chunks=INITIAL_CHUNKS).assign_coords(
+                    {"tile": tile - 1}
+                ).expand_dims("tile").to_zarr(local_zarr, append_dim="tile")
+        logger.info(f"Starting upload of complete zarr for {diagnostic_category}")
+        # fsspec is slow at copying many files, so use gsutil to copy zarr store
+        if not remote_zarr.startswith("gs://"):
+            os.makedirs(remote_zarr, exists_ok=True)
+        gsutil.copy(local_zarr, remote_zarr)
+        logger.info(f"Finished upload of complete zarr for {diagnostic_category}")
+
+
+def _parse_categories(diagnostic_categories, rundir):
+    if diagnostic_categories is None:
+        return _get_all_diagnostic_categories(rundir, _get_fs(rundir))
     else:
-        return fsspec.filesystem("file")
+        return diagnostic_categories
+
+
+def _parse_diagnostic_dir(diagnostic_dir, rundir):
+    if diagnostic_dir is None:
+        return os.path.join(_get_parent_dir(rundir), DEFAULT_DIAGNOSTIC_DIR)
+    else:
+        return diagnostic_dir
 
 
 def _get_all_diagnostic_categories(rundir, fs):
@@ -57,7 +77,7 @@ def _get_all_diagnostic_categories(rundir, fs):
 def _get_category_from_path(path):
     """ get part of filename before COMMON_SUFFIX """
     basename = os.path.basename(path)
-    return basename[:-len(COMMON_SUFFIX)]
+    return basename[: -len(COMMON_SUFFIX)]
 
 
 def _get_parent_dir(path):
@@ -66,22 +86,12 @@ def _get_parent_dir(path):
     return os.path.split(path)[0]
 
 
-def open_convert_save(diagnostic_category, rundir, diagnostic_dir):
-    logger.info(f"Converting {diagnostic_category} to zarr")
-    remote_zarr = os.path.join(diagnostic_dir, diagnostic_category)
-    fs = _get_fs(remote_zarr)
-    # cannot read and write at same time with fsspec, so must save
-    # zarr locally before uploading to GCS
-    with tempfile.TemporaryDirectory() as local_zarr:
-        for tile in TILES:
-            logger.info(f"tile {tile}")
-            prefix = os.path.join(rundir, diagnostic_category)
-            remote_nc = f"{prefix}.tile{tile}.nc"
-            with fsspec.open(remote_nc) as nc:
-                xr.open_dataset(nc, chunks=INITIAL_CHUNKS).assign_coords(
-                    {"tile": tile - 1}
-                ).expand_dims("tile").to_zarr(local_zarr, append_dim="tile")
-        fs.put(local_zarr, remote_zarr, recursive=True)
+def _get_fs(path):
+    """Return the fsspec filesystem required to handle a given path."""
+    if path.startswith("gs://"):
+        return fsspec.filesystem("gs")
+    else:
+        return fsspec.filesystem("file")
 
 
 if __name__ == "__main__":
