@@ -14,7 +14,7 @@ TEST_DATA_GCS = "gs://vcm-ml-data/fv3net-testing-data/coarsen-timesteps"
 SRC_GCS = os.path.join(TEST_DATA_GCS, "C384")
 TIMESTEP = "20160801.001500"
 GRIDSPEC_GCS = os.path.join(TEST_DATA_GCS, "gridspec-c384")
-COMPARE_GCS = os.path.join(TEST_DATA_GCS, "altC48", TIMESTEP)
+COMPARE_GCS = os.path.join(TEST_DATA_GCS, "target-C48", TIMESTEP)
 DST_GCS = os.path.join(TEST_DATA_GCS, "C48")
 
 @pytest.fixture
