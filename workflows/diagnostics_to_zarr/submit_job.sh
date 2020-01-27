@@ -13,5 +13,5 @@ python -m $PIPELINE  \
     --temp_location gs://vcm-ml-data/tmp_dataflow \
     --num_workers $NUM_WORKERS \
     --max_num_workers $NUM_WORKERS \
-    --disk_size_gb 100 \
-    --worker_machine_type n1-highmem-2
+    --disk_size_gb 120 \
+    --worker_machine_type n1-highmem-4
