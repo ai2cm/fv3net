@@ -86,7 +86,11 @@ def _assign_time_coordinates(ds: xr.Dataset, url: str) -> xr.Dataset:
             .swap_dims({"file_prefix": FORECAST_TIME_DIM})
             .expand_dims({INIT_TIME_DIM: [start_time]})
         )
-    except ValueError:
+    except ValueError as e:
+        print(
+            f"Warning, inferring time dimensions failed: {e}."
+            "Returning dataset with no time coordinates."
+        )
         return ds
 
 
@@ -248,12 +252,12 @@ def _get_coupler_res_path(url):
 
     for root, dirs, files in fs.walk(path):
         for file in files:
-            if _is_coupler_res_file(file):
+            if _is_coupler_res_file(root, file):
                 return proto, os.path.join(root, file)
 
 
-def _is_coupler_res_file(file):
-    return "coupler.res" in file
+def _is_coupler_res_file(root, file):
+    return "INPUT/coupler.res" in os.path.join(root, file)
 
 
 def _config_from_fs_namelist(proto, namelist_path):
@@ -296,7 +300,7 @@ def _get_current_date_from_coupler_res(proto, coupler_res_filename):
     Note: Mostly copied from fv3config, but with fsspec capabilities added
     """
     fs = fsspec.filesystem(proto)
-    with fs.open(coupler_res_filename) as f:
+    with fs.open(coupler_res_filename, "rt") as f:
         third_line = f.readlines()[2]
         current_date = [int(d) for d in re.findall(r"\d+", third_line)]
         if len(current_date) != 6:

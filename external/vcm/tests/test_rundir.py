@@ -1,6 +1,6 @@
 import os
-
 import pytest
+from datetime import timedelta
 
 from vcm import open_restarts
 from vcm.fv3_restarts import (
@@ -8,6 +8,11 @@ from vcm.fv3_restarts import (
     _get_file_prefix,
     _is_restart_file,
     _parse_category,
+    _get_current_date,
+    _get_namelist_path,
+    _config_from_fs_namelist,
+    _get_current_date_from_coupler_res,
+    _get_run_duration,
 )
 
 FV_CORE_IN_RESTART = "./RESTART/fv_core.res.tile6.nc"
@@ -16,6 +21,11 @@ FV_CORE_IN_RESTART_WITH_TIMESTEP = "./RESTART/20180605.000000.fv_core.res.tile6.
 
 FINAL = "RESTART/"
 INIT = "INPUT/"
+
+OUTPUT_URL = (
+    "gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/"
+    "one_step_output/C48/20160801.001500"
+)
 
 
 @pytest.mark.parametrize(
@@ -50,10 +60,6 @@ def test__get_file_prefix(dirname, name, expected):
 
 
 def test_restart_files_at_url():
-    url = (
-        "gs://vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
-        "one-step-run/C48/20160801.003000/rundir"
-    )
     url = "rundir"
     if not os.path.isdir(url):
         pytest.skip("Data is not available locally.")
@@ -79,3 +85,57 @@ def test__open_restarts_fails_without_input_and_restart_dirs():
     )
     with pytest.raises(ValueError):
         open_restarts(url)
+
+
+@pytest.mark.parameterize(
+    "url, expected",
+    [
+        (
+            OUTPUT_URL,
+            (
+                "gs",
+                (
+                    "vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/"
+                    "one_step_output/C48/20160801.001500/input.nml"
+                ),
+            ),
+        )
+    ],
+)
+def test__get_namelist_path(url, expected):
+    assert _get_namelist_path(url) == expected
+
+
+@pytest.fixture()
+def test_config():
+    proto, namelist_path = _get_namelist_path(OUTPUT_URL)
+    return _config_from_fs_namelist(proto, namelist_path)
+
+
+@pytest.mark.parametrize(
+    "config, url, expected", [(test_config, OUTPUT_URL, (2016, 8, 1, 0, 15, 0))]
+)
+def test__get_current_date(config, url, expected):
+    assert _get_current_date(config, url) == expected
+
+
+@pytest.mark.parametrize(
+    "proto, coupler_res_filename, expected",
+    [
+        (
+            "gs",
+            (
+                "vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
+                "one_step_output/C48/20160801.003000/INPUT/coupler.res"
+            ),
+            (2016, 8, 1, 0, 30, 0),
+        )
+    ],
+)
+def test__get_current_date_from_coupler_res(proto, coupler_res_filename, expected):
+    assert _get_current_date_from_coupler_res(proto, coupler_res_filename) == expected
+
+
+@pytest.mark.parametrize("config, expected", [(test_config, timedelta(seconds=900))])
+def test__get_run_duration(config, expected):
+    assert _get_run_duration(config) == expected
