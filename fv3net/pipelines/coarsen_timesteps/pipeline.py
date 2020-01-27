@@ -70,6 +70,41 @@ def check_timestep_url_incomplete(gcs_url, output_prefix):
         return True
 
 
+def _copy_gridspec(local_spec_dir, gridspec_gcs_path):
+
+    os.makedirs(local_spec_dir, exist_ok=True)
+    logger.debug(f'Copying gridspec to {local_spec_dir}')
+    download_all_bucket_files(gridspec_gcs_path, local_spec_dir, include_parent_in_stem=False)
+
+
+def _copy_restart(local_timestep_dir, timestep_gcs_path):
+    
+    os.makedirs(local_timestep_dir, exist_ok=True)
+    logger.debug(f'Copying restart files to {local_timestep_dir}')
+    download_all_bucket_files(timestep_gcs_path, local_timestep_dir)
+
+
+def _coarsen_data(local_coarsen_dir, timestep_name, coarsen_factor, local_spec_dir, local_timestep_dir):
+
+    os.makedirs(local_coarsen_dir, exist_ok=True)
+    logger.debug(f'Directory for coarsening files: {local_coarsen_dir}')
+    filename_prefix = f'{timestep_name}.'
+    vcm.coarsen_restarts_on_pressure(
+        coarsen_factor,
+        os.path.join(local_spec_dir, 'grid_spec'),
+        os.path.join(local_timestep_dir, timestep_name, filename_prefix),
+        os.path.join(local_coarsen_dir, filename_prefix)
+    )
+    logger.info('Coarsening completed.')
+
+
+def _upload_data(gcs_output_dir, local_coarsen_dir):
+
+    logger.info(f'Uploading coarsened data to {gcs_output_dir}')
+    bucket_name, blob_prefix = gcs.parse_gcs_url(gcs_output_dir)
+    gcs.upload_dir_to_gcs(bucket_name, blob_prefix, Path(local_coarsen_dir))
+
+
 def coarsen_timestep(
     timestep_gcs_url: str,
     output_dir: str,
@@ -80,39 +115,19 @@ def coarsen_timestep(
     curr_timestep = time_step(timestep_gcs_url)
     logger.info(f'Coarsening timestep: {curr_timestep}')
 
-    # Download data restart, spec
     with tempfile.TemporaryDirectory() as tmpdir:
 
-        # Copy Gridspec
         local_spec_dir = os.path.join(tmpdir, 'local_grid_spec')
-        os.makedirs(local_spec_dir, exist_ok=True)
-        logger.debug(f'Copying gridspec to {local_spec_dir}')
-        download_all_bucket_files(gridspec_path, local_spec_dir, include_parent_in_stem=False)
+        _copy_gridspec(local_spec_dir, gridspec_path)
 
-        # Copy restart
         tmp_timestep_dir = os.path.join(tmpdir, 'local_fine_dir')
-        os.makedirs(tmp_timestep_dir, exist_ok=True)
-        logger.debug(f'Copying restart files to {tmp_timestep_dir}')
-        download_all_bucket_files(timestep_gcs_url, tmp_timestep_dir)
+        _copy_restart(tmp_timestep_dir, timestep_gcs_url)
 
-        # Coarsen data
-        local_coarse_dir = os.path.join(tmpdir, 'local_coarse_dir', curr_timestep)
-        os.makedirs(local_coarse_dir, exist_ok=True)
-        logger.debug(f'Directory for coarsening files: {local_coarse_dir}')
-        filename_prefix = f'{curr_timestep}.'
-        vcm.coarsen_restarts_on_pressure(
-            coarsen_factor,
-            os.path.join(local_spec_dir, 'grid_spec'),
-            os.path.join(tmp_timestep_dir, curr_timestep, filename_prefix),
-            os.path.join(local_coarse_dir, filename_prefix)
-        )
-        logger.info('Coarsening completed.')
+        local_coarsen_dir = os.path.join(tmpdir, 'local_coarse_dir', curr_timestep)
+        _coarsen_data(local_coarsen_dir, curr_timestep, coarsen_factor, local_spec_dir, local_timestep_dir)
 
-        # Upload data
         timestep_output_dir = os.path.join(output_dir, curr_timestep)
-        logger.info(f'Uploading coarsened data to {timestep_output_dir}')
-        bucket_name, blob_prefix = gcs.parse_gcs_url(timestep_output_dir)
-        gcs.upload_dir_to_gcs(bucket_name, blob_prefix, Path(local_coarse_dir))
+        _upload_data(timestep_output_dir, local_coarsen_dir)
 
 
 def run(args, pipeline_args=None):
