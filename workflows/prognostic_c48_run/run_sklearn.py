@@ -16,20 +16,6 @@ def open_sklearn_model(url):
         return joblib.load(f)
 
 
-def rename_to_restart(state):
-    return {
-        state_io.CF_TO_RESTART_MAP.get(key, key): state[key].rename({"z": "pfull"})
-        for key in state
-    }
-
-
-def rename_to_orig(state):
-    return {
-        state_io.RESTART_TO_CF_MAP.get(key, key): state[key].rename({"pfull": "z"})
-        for key in state
-    }
-
-
 def predict(model, state):
     stacked = state.stack(sample=["x", "y"])
     with parallel_backend("threading", n_jobs=1):
@@ -47,7 +33,7 @@ def update(model, state, dt):
         sphum=state["sphum"] + tend.Q2 * dt, T=state.T + tend.Q1 * dt
     )
 
-    return rename_to_orig(updated), rename_to_orig(tend)
+    return state_io.rename_to_orig(updated), state_io.rename_to_orig(tend)
 
 
 if __name__ == "__main__":

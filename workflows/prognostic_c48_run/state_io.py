@@ -10,6 +10,19 @@ CF_TO_RESTART_MAP = {"specific_humidity": "sphum", "air_temperature": "T"}
 
 RESTART_TO_CF_MAP = dict(zip(CF_TO_RESTART_MAP.values(), CF_TO_RESTART_MAP.keys()))
 
+def rename_to_restart(state):
+    return {
+        CF_TO_RESTART_MAP.get(key, key): state[key].rename({"z": "pfull"})
+        for key in state
+    }
+
+
+def rename_to_orig(state):
+    return {
+        RESTART_TO_CF_MAP.get(key, key): state[key].rename({"pfull": "z"})
+        for key in state
+    }
+
 
 def dump(state, f):
     output = [{key: val.to_dict() for key, val in state_i.items()} for state_i in state]
