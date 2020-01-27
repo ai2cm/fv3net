@@ -8,7 +8,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
     - checkout
-    - run: apt-get install gfortran=7.4.0
+    - run: apt-get install gfortran
     - run: echo $GCLOUD_SERVICE_KEY > key.json
     - run: conda install make
     - run: make update_submodules
