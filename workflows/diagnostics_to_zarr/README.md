@@ -5,9 +5,6 @@ specific xarray version (0.14.0) and so to run locally, one must ensure your
 environment is using that version. For dataflow jobs, a custom setup.py is provided
 which pins this exact version.
 
-The example scripts `submit_local.sh` and `submit_job.sh` are provided for local
-and Dataflow jobs, respectively. 
-
 Call signature for pipeline:
 ```
 $ python -m fv3net.pipelines.diagnostics_to_zarr -h
