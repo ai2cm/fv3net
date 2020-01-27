@@ -8,8 +8,6 @@ import xarray as xr
 from apache_beam.options.pipeline_options import PipelineOptions
 import fsspec
 
-from vcm.cloud import gsutil
-
 logger = logging.getLogger(__name__)
 
 INITIAL_CHUNKS = {"time": 12}
@@ -69,6 +67,7 @@ def _get_parent_dir(path):
 def open_convert_save(diagnostic_category, rundir, diagnostic_dir):
     logger.info(f"Converting {diagnostic_category} to zarr")
     remote_zarr = os.path.join(diagnostic_dir, diagnostic_category)
+    fs = _get_fs(remote_zarr)
     # cannot read and write at same time with fsspec, so must save
     # zarr locally before uploading to GCS
     with tempfile.TemporaryDirectory() as local_zarr:
@@ -80,7 +79,7 @@ def open_convert_save(diagnostic_category, rundir, diagnostic_dir):
                 xr.open_dataset(nc, chunks=INITIAL_CHUNKS).assign_coords(
                     {"tile": tile - 1}
                 ).expand_dims("tile").to_zarr(local_zarr, append_dim="tile")
-        gsutil.copy(local_zarr, remote_zarr)
+        fs.put(local_zarr, remote_zarr, recursive=True)
 
 
 if __name__ == "__main__":
