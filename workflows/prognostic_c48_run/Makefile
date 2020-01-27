@@ -8,13 +8,14 @@ RUN_INTERACTIVE = docker run -ti $(RUN_ARGS)
 RUN ?= docker run $(RUN_ARGS)
 MPIRUN = $(RUN_INTERACTIVE) mpirun -n 6 --allow-run-as-root --oversubscribe --mca btl_vader_single_copy_mechanism none
 
+all: sklearn_run
 
 build:
 	pip wheel --no-deps git+ssh://git@github.com/VulcanClimateModeling/fv3net.git@2020-01-23-prognostic-rf
 	docker build . -t $(IMAGE)
 
 rundir:
-	$(RUN) python download_rundir.py
+	$(RUN) python3 download_rundir.py
 
 dev:
 	 $(RUN_INTERACTIVE) bash

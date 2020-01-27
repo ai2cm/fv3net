@@ -24,7 +24,7 @@ def predict(model, state):
 
 
 def update(model, state, dt):
-    renamed = rename_to_restart(state)
+    renamed = state_io.rename_to_restart(state)
     state = xr.Dataset(renamed)
 
     tend = predict(model, state)
