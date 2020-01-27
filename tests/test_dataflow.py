@@ -1,7 +1,15 @@
+import pytest
+
 from fv3net.pipelines.examples import simple_fv3net
+
+"""
+Runs a simple dataflow test to ensure that job submission with base
+fv3net packages works.
+"""
 
 PIPELINE_ARGS = [
     "--runner", "DataflowRunner",
+    "--job-name", "simple-dataflow-regression-test"
     "--project", "vcm-ml",
     "--region", "us-central1",
     "--temp_location", "gs://vcm-ml-data/tmp_dataflow",
@@ -17,10 +25,12 @@ PIPELINE_ARGS = [
 TEST_GCS_OUT = "gs://vcm-ml-data/fv3net-testing-data/simple-dataflow"
 
 
-def test_simple_dataflow():
-    sum_list = list(range(10))
-    simple_fv3net.run(sum_list, TEST_GCS_OUT, pipeline_options=PIPELINE_ARGS)
+@pytest.mark.regression
+def test_simple_dataflow_job():
+    list_to_sum = list(range(11))
+    simple_fv3net.run(list_to_sum, TEST_GCS_OUT, pipeline_options=PIPELINE_ARGS)
+    simple_fv3net.check_run(TEST_GCS_OUT, sum(list_to_sum))
 
 
 if __name__ == "__main__":
-    test_simple_dataflow()
+    test_simple_dataflow_job()
