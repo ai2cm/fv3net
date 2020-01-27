@@ -2,12 +2,15 @@
 This workflow takes a path/url to a run directory as an input and saves zarr stores
 of the diagnostic model output to a specified location. This workflow requires a 
 specific xarray version (0.14.0) and so to run locally, one must ensure your 
-environment is using that version. For dataflow jobs, a custom setup.py is provided. 
+environment is using that version. For dataflow jobs, a custom setup.py is provided
+which pins this exact version.
 
 The example scripts `submit_local.sh` and `submit_job.sh` are provided for local
 and Dataflow jobs, respectively. 
 
+Call signature for pipeline:
 ```
+$ python -m fv3net.pipelines.diagnostics_to_zarr -h
 usage: diagnostics_to_zarr.py [-h] --rundir RUNDIR
                               [--diagnostic-dir DIAGNOSTIC_DIR]
                               [--diagnostic-categories DIAGNOSTIC_CATEGORIES [DIAGNOSTIC_CATEGORIES ...]]
