@@ -14,7 +14,7 @@ build:
 	docker build . -t $(IMAGE)
 
 rundir:
-	$(RUN) python download_rundir.py
+	$(RUN) python3 download_rundir.py
 
 dev:
 	 $(RUN_INTERACTIVE) bash
