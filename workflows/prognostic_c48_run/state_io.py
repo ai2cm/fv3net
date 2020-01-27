@@ -69,7 +69,8 @@ class ZarrVariableWriter:
         )
 
     def set_dims(self, dims):
-        self.array.attrs["_ARRAY_DIMENSIONS"] = dims
+        if self.rank == 0:
+            self.array.attrs["_ARRAY_DIMENSIONS"] = dims
 
     def append(self, array):
 
