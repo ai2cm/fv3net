@@ -4,6 +4,15 @@ Prognostic model run workflow
 This workflow makes makes a coupled C48 FV3 run with a scikit-learn model.
 It is mostly organized through the Makefile.
 
+Authenticating with google cloud
+--------------------------------
+
+This workflow needs to access google cloud storage within docker. To do this,
+it expects that the environmental variable GOOGLE_APPLICATION_CREDENTIALS
+will point to a valid service account key on the host system. For example,
+
+    export GOOGLE_APPLICATION_CREDENTIALS=<path/to/key.json>
+
 Quickstart
 ----------
 
