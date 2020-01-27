@@ -22,38 +22,31 @@ RAD_PER_DEG = np.pi / 180.0
 @pytest.fixture()
 def test_unit_grid():
     centered_coords = {"tile": [1], COORD_Y_CENTER: [1], COORD_X_CENTER: [1]}
-    lont_da = xr.DataArray(
+    lon = xr.DataArray(
         [[[1.0]]], dims=["tile", COORD_Y_CENTER, COORD_X_CENTER], coords=centered_coords
     )
-    latt_da = xr.DataArray(
+    lat = xr.DataArray(
         [[[0.0]]], dims=["tile", COORD_Y_CENTER, COORD_X_CENTER], coords=centered_coords
     )
     corner_coords = {"tile": [1], COORD_Y_OUTER: [1, 2], COORD_X_OUTER: [1, 2]}
-    lon_grid = xr.DataArray(
+    lonb = xr.DataArray(
         [[[359.0, 3.0], [359.0, 3.0]]],
         dims=["tile", COORD_Y_OUTER, COORD_X_OUTER],
         coords=corner_coords,
     )
-    lat_grid = xr.DataArray(
+    latb = xr.DataArray(
         [[[-2.0, -2.0], [2.0, 2.0]]],
         dims=["tile", COORD_Y_OUTER, COORD_X_OUTER],
         coords=corner_coords,
     )
-    grid = xr.Dataset(
-        {
-            "grid_lont": lont_da,
-            "grid_latt": latt_da,
-            "grid_lon": lon_grid,
-            "grid_lat": lat_grid,
-        }
-    )
+    grid = xr.Dataset({"lon": lon, "lat": lat, "lonb": lonb, "latb": latb})
     return grid
 
 
 def test_lon_diff(test_unit_grid):
     # test over prime meridian
     lon_diff = _lon_diff(
-        test_unit_grid.grid_lon, test_unit_grid.grid_lon.shift({COORD_X_OUTER: -1})
+        test_unit_grid.lonb, test_unit_grid.lonb.shift({COORD_X_OUTER: -1})
     )[:, :-1, :-1]
     assert lon_diff == 4.0
 
