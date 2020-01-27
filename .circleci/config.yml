@@ -3,7 +3,7 @@ orbs:
 jobs:
   build:
     docker:
-    - image: continuumio/miniconda:4.7.12
+    - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran
       environment:
           GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
