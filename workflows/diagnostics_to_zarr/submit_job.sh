@@ -5,7 +5,7 @@ NUM_WORKERS=6
 
 python -m $PIPELINE  \
     --rundir $RUNDIR \
-    --job_name diagnostics-to-zarr \
+    --job_name diags-to-zarr-$(uuidgen) \
     --project vcm-ml \
     --region us-central1 \
     --runner DataflowRunner \
