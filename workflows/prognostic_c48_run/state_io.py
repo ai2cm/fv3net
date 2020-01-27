@@ -10,6 +10,7 @@ CF_TO_RESTART_MAP = {"specific_humidity": "sphum", "air_temperature": "T"}
 
 RESTART_TO_CF_MAP = dict(zip(CF_TO_RESTART_MAP.values(), CF_TO_RESTART_MAP.keys()))
 
+
 def rename_to_restart(state):
     return {
         CF_TO_RESTART_MAP.get(key, key): state[key].rename({"z": "pfull"})
