@@ -113,11 +113,9 @@ def test_config():
     return _config_from_fs_namelist(proto, namelist_path)
 
 
-@pytest.mark.parametrize(
-    "config, url, expected", [(test_config, OUTPUT_URL, (2016, 8, 1, 0, 15, 0))]
-)
-def test__get_current_date(config, url, expected):
-    assert _get_current_date(config, url) == expected
+def test__get_current_date(test_config, OUTPUT_URL, expected):
+    expected = [2016, 8, 1, 0, 15, 0]
+    assert _get_current_date(test_config, OUTPUT_URL) == expected
 
 
 @pytest.mark.parametrize(
@@ -129,7 +127,7 @@ def test__get_current_date(config, url, expected):
                 "vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
                 "one_step_output/C48/20160801.003000/INPUT/coupler.res"
             ),
-            (2016, 8, 1, 0, 30, 0),
+            [2016, 8, 1, 0, 30, 0],
         )
     ],
 )
