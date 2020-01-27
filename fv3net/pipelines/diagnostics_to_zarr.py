@@ -26,6 +26,8 @@ def run(args, pipeline_args):
     else:
         diagnostic_categories = args.diagnostic_categories
 
+    logger.info(f"Diagnostic categories to convert are {diagnostic_categories}")
+    logger.info(f"Diagnostic zarrs being written to {diagnostic_dir}")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
