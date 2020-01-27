@@ -18,6 +18,7 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 VARIABLES = list(state_io.CF_TO_RESTART_MAP) + [DELP]
 
 cp = 1004
+gravity = 9.81
 
 
 def compute_diagnostics(state, diags):
@@ -25,8 +26,8 @@ def compute_diagnostics(state, diags):
         net_precip=(diags["Q2"] * state[DELP] / 9.81)
         .sum("z")
         .assign_attrs(units="kg/m^2/s"),
-        PW=(state[SPHUM] * state[DELP] / 9.81).sum("z").assign_attrs(units="mm"),
-        net_heating=(diags["Q1"] * state[DELP] / 9.81 * cp)
+        PW=(state[SPHUM] * state[DELP] / gravity).sum("z").assign_attrs(units="mm"),
+        net_heating=(diags["Q1"] * state[DELP] / gravity * cp)
         .sum("z")
         .assign_attrs(units="W/m^2"),
     )
