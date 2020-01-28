@@ -113,7 +113,7 @@ def test_config():
     return _config_from_fs_namelist(proto, namelist_path)
 
 
-def test__get_current_date(test_config, OUTPUT_URL, expected):
+def test__get_current_date(test_config):
     expected = [2016, 8, 1, 0, 15, 0]
     assert _get_current_date(test_config, OUTPUT_URL) == expected
 
@@ -135,6 +135,6 @@ def test__get_current_date_from_coupler_res(proto, coupler_res_filename, expecte
     assert _get_current_date_from_coupler_res(proto, coupler_res_filename) == expected
 
 
-@pytest.mark.parametrize("config, expected", [(test_config, timedelta(seconds=900))])
-def test__get_run_duration(config, expected):
-    assert _get_run_duration(config) == expected
+def test__get_run_duration(test_config):
+    expected = timedelta(seconds=900)
+    assert _get_run_duration(test_config) == expected
