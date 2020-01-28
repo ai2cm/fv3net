@@ -5,6 +5,7 @@ import tempfile
 
 import apache_beam as beam
 import xarray as xr
+import zarr
 from apache_beam.options.pipeline_options import PipelineOptions
 import fsspec
 
@@ -46,6 +47,7 @@ def open_convert_save(diagnostic_category, rundir, diagnostic_dir):
                 xr.open_dataset(nc, chunks=INITIAL_CHUNKS).assign_coords(
                     {"tile": tile - 1}
                 ).expand_dims("tile").to_zarr(local_zarr, append_dim="tile")
+        zarr.convenience.consolidate_metadata(local_zarr)
         logger.info(f"Starting upload of complete zarr for {diagnostic_category}")
         # fsspec is slow at copying many files, so use gsutil to copy zarr store
         if not remote_zarr.startswith("gs://"):
