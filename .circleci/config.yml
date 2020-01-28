@@ -2,7 +2,7 @@ version: 2.1
 jobs:
   build:    
     docker:
-    - image: continuum/miniconda:latest
+    - image: continuumio/miniconda:4.7.12
       environment:
           GOOGLE_APPLICATION_CREDENTIALS=key.json
     # machine: true
