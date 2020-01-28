@@ -1,21 +1,23 @@
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Generator, Tuple
 
 import cftime
 import fsspec
+import numpy as np
 import xarray as xr
 from dask.delayed import delayed
 
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
 from vcm.convenience import open_delayed
+from vcm.cubedsphere.constants import FORECAST_TIME_DIM
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 SCHEMA_CACHE = {}
 RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
-
+FILE_PREFIX_COORD = "file_prefix"
 
 def open_restarts(url: str, initial_time: str, final_time: str) -> xr.Dataset:
     """Opens all the restart file within a certain path
@@ -59,6 +61,51 @@ def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
     except ValueError:
         ds_no_time = ds
     return impose_dataset_to_schema(ds_no_time)
+
+
+def _set_relative_diff_forecast_time(ds, dt_sec):
+    """ Converts the forecast time dim into relative units so that different
+    initialization times can be concatenated together
+
+    Args:
+        ds: xarray dataset with dim FORECAST_TIME_DIM in absolute time
+
+    Returns:
+        dataset with the FORECAST_TIME_DIM converted to relative time after first
+        time in dataset (np.timedelta64 [ns])
+    """
+    num_tsteps = ds.sizes([FILE_PREFIX_COORD])
+    return ds.assign_coords(
+        {FORECAST_TIME_DIM: [timedelta(seconds=tstep * dt_sec) for tstep in num_tsteps]}
+    )
+
+
+def _parse_forecast_dt(run_dir):
+    """
+
+    Args:
+        run_dir: run directory assumed to be named with initialization time in TIME_FMT,
+         e.g. "20160801.001000"
+
+    Returns:
+        float: dt [seconds] as parsed from filenames of first two forecasted restarts
+    """
+    proto, path = _split_url(run_dir)
+    fs = fsspec.filesystem(proto)
+    if run_dir[-1] == "/":
+        run_dir = run_dir[:-1]
+    restart_contents = fs.ls(os.path.join(run_dir, "RESTART"))
+    forecast_times = []
+    for filename in restart_contents:
+        try:
+            timestring = _parse_time(os.path.basename(filename))
+        except AttributeError:
+            timestring = None
+        if timestring and timestring not in forecast_times:
+            forecast_times.append(timestring)
+    forecast_times = sorted(forecast_times)
+    t_sample = np.array([_parse_time_string(t) for t in forecast_times[:2]])
+    return (t_sample[1]-t_sample[0]).total_seconds()
 
 
 def _parse_time_string(time):
