@@ -1,13 +1,15 @@
 import pytest
 import numpy as np
 import xarray as xr
+from cartopy import crs as ccrs
+from matplotlib import pyplot as plt
 from vcm.visualize.masking import (
     _mask_antimeridian_quads,
     _periodic_equal_or_less_than,
     _periodic_greater_than,
     _periodic_difference,
 )
-from vcm.visualize.plot_cube import plot_cube_axes
+from vcm.visualize.plot_cube import mappable_var, plot_cube_axes, plot_cube
 
 
 @pytest.mark.parametrize(
@@ -144,11 +146,6 @@ def t2m():
         dtype=np.float32,
     )
 
-
-def test_plot_cube_axes(t2m, lat, lon, latb, lonb):
-    plot_cube_axes(t2m, lat, lon, latb, lonb, "pcolormesh")
-
-
 @pytest.fixture()
 def sample_dataset(latb, lonb, lat, lon, t2m):
     dataset = xr.Dataset(
@@ -170,6 +167,30 @@ def sample_dataset(latb, lonb, lat, lon, t2m):
         }
     )
     return dataset
+
+
+def test_mappable_var_all_sizes(sample_dataset):
+    mappable_ds = mappable_var(sample_dataset, 't2m')
+    sizes_expected = {'grid_x' : 2, 'grid_yt' : 1, 'grid_y': 2, 'grid_xt' : 1, 'tile' : 6}
+    assert mappable_ds.sizes == sizes_expected
+    
+
+def test_mappable_var_coords(sample_dataset):
+    mappable_ds_coords = set(mappable_var(sample_dataset, 't2m').coords)
+    coords_expected = set(['lat', 'latb', 'lon', 'lonb', 'tile'])
+    assert mappable_ds_coords == coords_expected
+    
+
+def test_mappable_var_sizes(sample_dataset):
+    mappable_var_sizes = mappable_var(sample_dataset, 't2m')['t2m'].sizes
+    sizes_expected = {'grid_yt' : 1, 'grid_xt' : 1, 'tile' : 6}
+    assert mappable_var_sizes == sizes_expected
+    
+
+def test_plot_cube_axes(sample_dataset):
+    ds = mappable_var(sample_dataset, 't2m')
+    ax = plt.axes(projection = ccrs.Robinson())
+    plot_cube_axes(ds.t2m.values, ds.lat.values, ds.lon.values, ds.latb.values, ds.lonb.values, 'pcolormesh', ax = ax)
 
 
 # def test__plot_cube()
