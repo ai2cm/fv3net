@@ -97,3 +97,50 @@ netCDF files.
 
     def expand(self, pcoll):
         return pcoll | beam.MapTuple(self._process)
+
+
+class ArraysToZarr(beam.PTransform):
+    """Write a PCollection of Dataset objects to zarr.
+    
+    The dims of each Dataset must be identical, but the data are combined accross multiple coords
+    
+    The data are stored in the same chunks as the input dataset sequence
+    """
+
+    def __init__(self, store):
+        self.store = store
+
+    def expand(self, pcoll):
+        global_metadata = pcoll | "CombineCoordinates" >> beam.Map(get_metadata) | beam.CombineGlobally(coords_union)
+        zarr_group = global_metadata | "Initialize Zarr" >> beam.Map(_initialize_zarr, store=self.store)
+        return pcoll | "PutDatasetInZarr" >> beam.Map(_put_in_zarr, global_metadata=beam.pvalue.AsSingleton(global_metadata),
+                                                      zarr_group=beam.pvalue.AsSingleton(global_zarr))
+
+
+def _initialize_zarr(metadata, store):
+    pass
+
+
+def _put_in_zarr(dataset, global_metadata, zarr_group):
+    local_metadata = get_metadata(dataset)
+    for name in dataset:
+        idx = get_index(name, local_metadata, global_metadata)
+        global_zarr[key][idx] = np.asarray(dataset[name])
+    return
+
+
+def get_metadata(ds: xr.Dataset):
+    return {
+        "dims": {key: ds[key].dims for key in ds},
+        "coords": ds.coords,
+        "names": list(ds),
+        "attrs": {key: ds[key].attrs for key in ds}
+    }
+
+
+def coords_union(coords):
+    pass
+
+
+def get_index(name, local_metadata, global_metadata):
+    pass
