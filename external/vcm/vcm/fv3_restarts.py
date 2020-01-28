@@ -165,6 +165,31 @@ def _is_restart_file(path):
     return any(category in path for category in RESTART_CATEGORIES) and "tile" in path
 
 
+def _parse_first_last_forecast_times(fs, run_dir):
+    """
+    Args:
+        fs: gcsfs GCSFileSystem
+        run_dir: run directory assumed to be named with initialization time in TIME_FMT,
+         e.g. "20160801.001000"
+    Returns:
+        strings in TIME_FMT: initialization time and last forecast time
+    """
+    if run_dir[-1] == "/":
+        run_dir = run_dir[:-1]
+    restart_contents = fs.ls(os.path.join(run_dir, "RESTART"))
+    forecast_times = []
+    for filename in restart_contents:
+        try:
+            timestring = _parse_time(os.path.basename(filename))
+        except AttributeError:
+            timestring = None
+        if timestring and timestring not in forecast_times:
+            forecast_times.append(timestring)
+    t_init = os.path.basename(run_dir)
+    t_last = sorted(forecast_times)[-1]
+    return t_init, t_last
+
+
 def _restart_files_at_url(url, initial_time, final_time):
     """List restart files with a given initial and end time within a particular URL
 

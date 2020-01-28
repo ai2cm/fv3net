@@ -33,7 +33,7 @@ from vcm.fv3_restarts import (
     _parse_forecast_dt,
     _parse_time,
     _parse_time_string,
-    _set_forecast_time_coord,
+    _set_relative_diff_forecast_time,
 )
 from vcm.select import mask_to_surface_type
 logger = logging.getLogger()
@@ -44,7 +44,7 @@ SAMPLE_CHUNK_SIZE = 1500
 
 HIRES_GRID_VARS = [
     COORD_X_CENTER, COORD_Y_CENTER, COORD_X_OUTER, COORD_Y_OUTER, "area_coarse"]
-INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
+INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk", "phis", "tsea", "slope"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
 HIRES_DATA_VARS = [
     'LHTFLsfc_coarse',
@@ -72,7 +72,7 @@ def run(args, pipeline_args):
         (
             p
             | beam.Create(data_batch_urls)
-            | "LoadCloudData" >> beam.Map(_open_cloud_data, dt_forecast=dt_forecast)
+            | "LoadCloudData" >> beam.Map(_open_cloud_data)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
             | "MergeHiresDiagVars" >> beam.Map(
                 _merge_hires_data,
@@ -178,7 +178,7 @@ def _test_train_split(url_batches, train_frac, random_seed=1234):
     return labels
 
 
-def _open_cloud_data(run_dirs, dt_forecast_sec):
+def _open_cloud_data(run_dirs, dt_forecast=60):
     """Opens multiple run directories into a single dataset, where the init time
     of each run dir is the INIT_TIME_DIM and the times within
 
@@ -201,7 +201,7 @@ def _open_cloud_data(run_dirs, dt_forecast_sec):
             [INPUT_VARS]
             .expand_dims(dim={INIT_TIME_DIM: [t_init]})
         )
-        ds_run = _set_forecast_time_coord(ds_run) \
+        ds_run = _set_relative_diff_forecast_time(ds_run) \
             .isel({FORECAST_TIME_DIM: slice(-2, None)})
         ds_runs.append(ds_run)
     return xr.concat(ds_runs, INIT_TIME_DIM)
