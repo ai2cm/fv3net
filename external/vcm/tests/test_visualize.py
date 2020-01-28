@@ -76,12 +76,36 @@ def test__periodic_difference(x1, x2, period, expected):
 def latb():
     return np.array(
         [
-            [[-35.26439, -35.26439], [35.26439, 35.26439]],
-            [[-35.26439, -35.26439], [35.26439, 35.26439]],
-            [[35.26439, 35.26439], [35.26439, 35.26439]],
-            [[35.26439, -35.26439], [35.26439, -35.26439]],
-            [[35.26439, -35.26439], [35.26439, -35.26439]],
-            [[-35.26439, -35.26439], [-35.26439, -35.26439]],
+            [
+                [-35.26439, -35.988922, -36.69255],
+                [-33.79504, -34.505943, -35.197224],
+                [-32.32569, -33.02107, -33.6981],
+            ],
+            [
+                [-35.26439, -35.988922, -36.69255],
+                [-33.79504, -34.505943, -35.197224],
+                [-32.32569, -33.02107, -33.6981],
+            ],
+            [
+                [35.26439, 35.988922, 36.69255],
+                [35.988922, 36.76087, 37.512653],
+                [36.69255, 37.512653, 38.313576],
+            ],
+            [
+                [35.26439, 33.79504, 32.32569],
+                [35.988922, 34.505943, 33.02107],
+                [36.69255, 35.197224, 33.6981],
+            ],
+            [
+                [35.26439, 33.79504, 32.32569],
+                [35.988922, 34.505943, 33.02107],
+                [36.69255, 35.197224, 33.6981],
+            ],
+            [
+                [-35.26439, -35.988922, -36.69255],
+                [-35.988922, -36.76087, -37.512653],
+                [-36.69255, -37.512653, -38.313576],
+            ],
         ],
         dtype=np.float32,
     )
@@ -91,12 +115,36 @@ def latb():
 def lonb():
     return np.array(
         [
-            [[305.0, 35.0], [305.0, 35.0]],
-            [[35.0, 125.0], [35.0, 125.0]],
-            [[35.0, 125.0], [305.0, 215.0]],
-            [[125.0, 125.0], [215.0, 215.0]],
-            [[215.0, 215.0], [305.0, 305.0]],
-            [[215.0, 125.0], [305.0, 35.0]],
+            [
+                [305.0, 306.5727, 308.1741],
+                [305.0, 306.5727, 308.1741],
+                [305.0, 306.5727, 308.1741],
+            ],
+            [
+                [35.0, 36.572693, 38.174114],
+                [35.0, 36.572693, 38.174114],
+                [35.0, 36.572693, 38.174114],
+            ],
+            [
+                [35.0, 36.572693, 38.174114],
+                [33.427307, 35.0, 36.606304],
+                [31.825886, 33.393696, 35.0],
+            ],
+            [
+                [125.0, 125.0, 125.0],
+                [126.57269, 126.57269, 126.57269],
+                [128.17412, 128.17412, 128.17412],
+            ],
+            [
+                [215.0, 215.0, 215.0],
+                [216.5727, 216.5727, 216.5727],
+                [218.17412, 218.17412, 218.17412],
+            ],
+            [
+                [215.0, 213.4273, 211.82588],
+                [216.5727, 215.0, 213.39369],
+                [218.17412, 216.60631, 215.0],
+            ],
         ],
         dtype=np.float32,
     )
@@ -106,12 +154,12 @@ def lonb():
 def lon():
     return np.array(
         [
-            [[351.03876]],
-            [[81.03876]],
-            [[215.0]],
-            [[171.03876]],
-            [[261.03876]],
-            [[35.0]],
+            [[305.7829, 307.3699], [305.78317, 307.37018]],
+            [[35.782913, 37.369915], [35.78316, 37.370167]],
+            [[35.0, 36.588547], [33.411453, 35.0]],
+            [[125.78291, 125.783165], [127.36991, 127.37016]],
+            [[215.78291, 215.78316], [217.36992, 217.37016]],
+            [[215.0, 213.41145], [216.58855, 215.0]],
         ],
         dtype=np.float32,
     )
@@ -121,12 +169,12 @@ def lon():
 def lat():
     return np.array(
         [
-            [[1.038589]],
-            [[1.038589]],
-            [[88.531136]],
-            [[-1.038589]],
-            [[-1.038589]],
-            [[-88.531136]],
+            [[-34.891106, -35.59881], [-33.414417, -34.10818]],
+            [[-34.891106, -35.59881], [-33.414417, -34.10818]],
+            [[36.00591, 36.74402], [36.74402, 37.530376]],
+            [[34.891106, 33.414417], [35.59881, 34.10818]],
+            [[34.891106, 33.414417], [35.59881, 34.10818]],
+            [[-36.00591, -36.74402], [-36.74402, -37.530376]],
         ],
         dtype=np.float32,
     )
@@ -136,21 +184,32 @@ def lat():
 def t2m():
     return np.array(
         [
-            [[296.26602]],
-            [[301.1429]],
-            [[273.25952]],
-            [[301.7855]],
-            [[294.68396]],
-            [[220.30968]],
+            [
+                [[285.24548, 285.91785], [286.58337, 286.31308]],
+                [[289.17456, 288.05328], [289.89584, 289.19724]],
+                [[300.79932, 297.65076], [293.8577, 293.46573]],
+                [[300.42297, 301.45743], [305.09097, 301.1763]],
+                [[293.6815, 293.9053], [293.52594, 293.69046]],
+                [[287.85144, 287.42148], [287.58282, 287.13138]],
+            ],
+            [
+                [[285.24548, 285.91785], [286.58337, 286.31308]],
+                [[289.17456, 288.05328], [289.89584, 289.19724]],
+                [[300.79932, 297.65076], [293.8577, 293.46573]],
+                [[300.42297, 301.45743], [305.09097, 301.1763]],
+                [[293.6815, 293.9053], [293.52594, 293.69046]],
+                [[287.85144, 287.42148], [287.58282, 287.13138]],
+            ],
         ],
         dtype=np.float32,
     )
+
 
 @pytest.fixture()
 def sample_dataset(latb, lonb, lat, lon, t2m):
     dataset = xr.Dataset(
         {
-            "t2m": (["tile", "grid_yt", "grid_xt"], t2m),
+            "t2m": (["time", "tile", "grid_yt", "grid_xt"], t2m),
             "lat": (["tile", "grid_yt", "grid_xt"], lat),
             "lon": (["tile", "grid_yt", "grid_xt"], lon),
             "latb": (["tile", "grid_y", "grid_x"], latb),
@@ -159,38 +218,70 @@ def sample_dataset(latb, lonb, lat, lon, t2m):
     )
     dataset = dataset.assign_coords(
         {
+            "time": np.arange(2),
             "tile": np.arange(6),
-            "grid_x": np.arange(2.0),
-            "grid_y": np.arange(2.0),
-            "grid_xt": np.arange(1.0),
-            "grid_yt": np.arange(1.0),
+            "grid_x": np.arange(3.0),
+            "grid_y": np.arange(3.0),
+            "grid_xt": np.arange(2.0),
+            "grid_yt": np.arange(2.0),
         }
     )
     return dataset
 
 
 def test_mappable_var_all_sizes(sample_dataset):
-    mappable_ds = mappable_var(sample_dataset, 't2m')
-    sizes_expected = {'grid_x' : 2, 'grid_yt' : 1, 'grid_y': 2, 'grid_xt' : 1, 'tile' : 6}
+    mappable_ds = mappable_var(sample_dataset, "t2m").isel(time=0)
+    sizes_expected = {"grid_x": 3, "grid_yt": 2, "grid_y": 3, "grid_xt": 2, "tile": 6}
     assert mappable_ds.sizes == sizes_expected
-    
+
 
 def test_mappable_var_coords(sample_dataset):
-    mappable_ds_coords = set(mappable_var(sample_dataset, 't2m').coords)
-    coords_expected = set(['lat', 'latb', 'lon', 'lonb', 'tile'])
+    mappable_ds_coords = set(mappable_var(sample_dataset, "t2m").coords)
+    coords_expected = set(["lat", "latb", "lon", "lonb", "tile", "time"])
     assert mappable_ds_coords == coords_expected
-    
+
 
 def test_mappable_var_sizes(sample_dataset):
-    mappable_var_sizes = mappable_var(sample_dataset, 't2m')['t2m'].sizes
-    sizes_expected = {'grid_yt' : 1, 'grid_xt' : 1, 'tile' : 6}
+    mappable_var_sizes = mappable_var(sample_dataset, "t2m").isel(time=0)["t2m"].sizes
+    sizes_expected = {"grid_yt": 2, "grid_xt": 2, "tile": 6}
     assert mappable_var_sizes == sizes_expected
-    
-
-def test_plot_cube_axes(sample_dataset):
-    ds = mappable_var(sample_dataset, 't2m')
-    ax = plt.axes(projection = ccrs.Robinson())
-    plot_cube_axes(ds.t2m.values, ds.lat.values, ds.lon.values, ds.latb.values, ds.lonb.values, 'pcolormesh', ax = ax)
 
 
-# def test__plot_cube()
+@pytest.mark.parametrize(
+    "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
+)
+def test_plot_cube_axes(sample_dataset, plotting_function):
+    ds = mappable_var(sample_dataset, "t2m").isel(time=0)
+    ax = plt.axes(projection=ccrs.Robinson())
+    plot_cube_axes(
+        ds.t2m.values,
+        ds.lat.values,
+        ds.lon.values,
+        ds.latb.values,
+        ds.lonb.values,
+        plotting_function,
+        ax=ax,
+    )
+
+
+@pytest.mark.parametrize(
+    "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
+)
+def test_plot_cube_with_facets(sample_dataset, plotting_function):
+    f, axes, hs, cbar = plot_cube(
+        mappable_var(sample_dataset, "t2m"),
+        col="time",
+        plotting_function=plotting_function,
+    )
+
+
+@pytest.mark.parametrize(
+    "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
+)
+def test_plot_cube_on_axis(sample_dataset, plotting_function):
+    ax = plt.axes(projection=ccrs.Robinson())
+    f, axes, hs, cbar = plot_cube(
+        mappable_var(sample_dataset, "t2m").isel(time=0),
+        plotting_function=plotting_function,
+        ax=ax,
+    )
