@@ -42,9 +42,17 @@ logger.setLevel(logging.INFO)
 SAMPLE_DIM = "sample"
 SAMPLE_CHUNK_SIZE = 1500
 
-GRID_VARS = [COORD_X_CENTER, COORD_Y_CENTER, COORD_X_OUTER, COORD_Y_OUTER, "area"]
+HIRES_GRID_VARS = [
+    COORD_X_CENTER, COORD_Y_CENTER, COORD_X_OUTER, COORD_Y_OUTER, "area_coarse"]
 INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
+HIRES_DATA_VARS = [
+    'LHTFLsfc_coarse',
+    'SHTFLsfc_coarse',
+    'PRATEsfc_coarse',
+    'DSWRFtoa_coarse'
+]
+INPUT_VARS_FROM_HIRES = ["insolation", "LHF", "SHF", "precip_sfc"]
 
 
 def run(args, pipeline_args):
@@ -66,6 +74,10 @@ def run(args, pipeline_args):
             | beam.Create(data_batch_urls)
             | "LoadCloudData" >> beam.Map(_open_cloud_data, dt_forecast=dt_forecast)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
+            | "MergeHiresDiagVars" >> beam.Map(
+                _merge_hires_data,
+                diag_c384_path=args.diag_c384_path,
+            )
             | "MaskToSurfaceType"
             >> beam.Map(mask_to_surface_type, surface_type=args.mask_to_surface_type)
             | "StackAndDropNan" >> beam.Map(_stack_and_drop_nan_samples)
@@ -308,9 +320,10 @@ def _path_from_first_timestep(ds, train_test_labels=None):
     return os.path.join(train_test_subdir, timestep + ".zarr")
 
 
-def _merge_hires_data(ds_run, diag_c384_path, diag_data_vars):
+def _merge_hires_data(ds_run, diag_c384_path):
     init_times = ds_run[INIT_TIME_DIM].values
-    diags_c384 = helpers._load_c384_diag(diag_c384_path, init_times, diag_data_vars)
+    diags_c384 = helpers.load_c384_diag(diag_c384_path, init_times) \
+        [HIRES_GRID_VARS + HIRES_DATA_VARS]
     diags_c48 = coarsen.weighted_block_average(
         diags_c384,
         diags_c384["area_coarse"],
@@ -318,5 +331,5 @@ def _merge_hires_data(ds_run, diag_c384_path, diag_data_vars):
         y_dim = COORD_Y_CENTER,
         coarsening_factor=8
     ).unify_chunks()
-    features_diags_c48 = helpers._coarsened_features(diags_c48)
+    features_diags_c48 = helpers.add_coarsened_features(diags_c48)[INPUT_VARS_FROM_HIRES]
     return xr.merge([ds_run, features_diags_c48])

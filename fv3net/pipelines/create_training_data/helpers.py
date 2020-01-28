@@ -27,13 +27,6 @@ GRID_VAR_MAP = {
     "grid_x_coarse" : COORD_X_OUTER,
     "grid_y_coarse" : COORD_Y_OUTER
 }
-HIRES_GRID_VARS = [
-    COORD_X_CENTER, COORD_Y_CENTER, COORD_X_OUTER, COORD_Y_OUTER, "area_coarse"]
-
-
-def _filename_from_first_timestep(ds):
-    timestep = min(ds[INIT_TIME_DIM].values).strftime("%Y%m%d.%H%M%S")
-    return timestep + ".zarr"
 
 
 def _round_time(t):
@@ -56,7 +49,7 @@ def _round_time(t):
         raise ValueError("Time value > 1 second from 1 minute timesteps.")
 
 
-def _load_c384_diag(c384_data_path, init_times, data_vars=None):
+def load_c384_diag(c384_data_path, init_times):
     protocol, path = _split_url(c384_data_path)
     fs = fsspec.filesystem(protocol)
     ds_c384 = xr.open_zarr(fs.get_mapper(c384_data_path))
@@ -67,19 +60,16 @@ def _load_c384_diag(c384_data_path, init_times, data_vars=None):
             {"tile": range(6),
             INIT_TIME_DIM: [_round_time(t) for t in ds_c384.time.values]}) \
         .sel({INIT_TIME_DIM: init_times})
-    if data_vars:
-        ds_c384 = ds_c384[data_vars + HIRES_GRID_VARS]
     return ds_c384
 
 
-def _coarsened_features(ds_c48):
+def add_coarsened_features(ds_c48):
     ds_features = ds_c48.assign(
         {
-            "insolation": ds_c48['DSWRFsfc_coarse'] + ds_c48['DLWRFsfc_coarse'],
+            "insolation": ds_c48['DSWRFtoa_coarse'],  # downward longwave at TOA << shortwave
             "LHF": ds_c48["LHTFLsfc_coarse"],
             "SHF": ds_c48["SHTFLsfc_coarse"],
-            "precip_sfc": ds_c48["PRATEsfc_coarse"]}) \
-        [FEATURES_FROM_HIRES]
+            "precip_sfc": ds_c48["PRATEsfc_coarse"]})
     return ds_features
 
 
