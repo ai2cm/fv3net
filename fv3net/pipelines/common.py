@@ -104,7 +104,8 @@ class ArraysToZarr(beam.PTransform):
     
     The dims of each Dataset must be identical, but the data are combined accross multiple coords
     
-    The data are stored in the same chunks as the input dataset sequence
+    The data are stored in the same chunks as the input dataset sequence. This ensures 
+    that the no process will try to write to the same chunk.
     """
 
     def __init__(self, store):
