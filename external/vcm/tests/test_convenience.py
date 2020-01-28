@@ -10,7 +10,7 @@ import pytest
 @pytest.fixture()
 def dataset():
     arr = np.random.rand(100, 10)
-    coords = dict(time=np.arange(100), x=np.arange(10),)
+    coords = dict(time=np.arange(100), x=np.arange(10))
     return xr.Dataset(
         {"a": (["time", "x"], arr), "b": (["time", "x"], arr)}, coords=coords
     )

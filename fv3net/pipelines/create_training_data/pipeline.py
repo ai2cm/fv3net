@@ -5,16 +5,19 @@ import logging
 import os
 import xarray as xr
 
+from . import helpers
+from vcm import coarsen
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
 from vcm.select import mask_to_surface_type
-
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-TIME_DIM = "initialization_time"
-GRID_VARS = ["grid_lon", "grid_lat", "grid_lont", "grid_latt"]
+
+from vcm.cubedsphere.constants import (
+    INIT_TIME_DIM, GRID_VARS, COORD_X_CENTER, COORD_Y_CENTER)
+FEATURES_FROM_HIRES = ["insolation", "LHF", "SHF", "precip_sfc"]
 INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
 
@@ -81,16 +84,12 @@ def _write_to_zarr(ds, gcs_dest_dir, bucket="gs://vcm-ml-data"):
         None
     """
     logger.info("Writing to zarr...")
-    zarr_filename = _filename_from_first_timestep(ds)
+    zarr_filename = helpers._filename_from_first_timestep(ds)
     output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
     ds.to_zarr(zarr_filename, mode="w")
     gsutil.copy(zarr_filename, output_path)
     logger.info(f"Done writing zarr to {output_path}")
 
-
-def _filename_from_first_timestep(ds):
-    timestep = min(ds[TIME_DIM].values).strftime("%Y%m%d.%H%M%S")
-    return timestep + ".zarr"
 
 
 def _load_cloud_data(gcs_urls, fs):
@@ -105,13 +104,16 @@ def _load_cloud_data(gcs_urls, fs):
     """
     logger.info(f"Using urls for batch: {gcs_urls}")
     gcs_zarr_mappings = [fs.get_mapper(url) for url in gcs_urls]
-    ds = xr.concat(map(xr.open_zarr, gcs_zarr_mappings), TIME_DIM)[
+    ds = xr.concat(map(xr.open_zarr, gcs_zarr_mappings), INIT_TIME_DIM)[
         INPUT_VARS + GRID_VARS
     ]
     return ds
 
 
-def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS + GRID_VARS):
+def _create_train_cols(
+        ds,
+        cols_to_keep=INPUT_VARS + TARGET_VARS + FEATURES_FROM_HIRES + GRID_VARS
+):
     """
 
     Args:
@@ -128,7 +130,24 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS + GRID_VARS):
     ds["QV"] = apparent_source(ds.v)
     ds["Q1"] = apparent_source(ds.T)
     ds["Q2"] = apparent_source(ds.sphum)
-    ds = ds[cols_to_keep].isel({TIME_DIM: slice(None, ds.sizes[TIME_DIM] - 1)})
+    ds = ds[cols_to_keep].isel({INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1)})
     if "forecast_time" in ds.dims:
         ds = ds.isel(forecast_time=0).squeeze(drop=True)
     return ds
+
+
+def _merge_hires_data(ds_run, diag_c384_path, diag_data_vars):
+    init_times = ds_run[INIT_TIME_DIM].values
+    diags_c384 = helpers._load_c384_diag(diag_c384_path, init_times, diag_data_vars)
+    diags_c48 = coarsen.weighted_block_average(
+        diags_c384,
+        diags_c384["area_coarse"],
+        x_dim = COORD_X_CENTER,
+        y_dim = COORD_Y_CENTER,
+        coarsening_factor=8
+    ).unify_chunks()
+    features_diags_c48 = helpers._coarsened_features(diags_c48)
+    return xr.merge([ds_run, features_diags_c48])
+
+
+

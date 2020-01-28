@@ -65,7 +65,7 @@ def height_at_interface(dz, phis, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_O
 
 
 def _add_coords_to_interface_variable(
-    dv_outer: xr.Variable, da_center: xr.DataArray, dim_center: str = COORD_Z_CENTER,
+    dv_outer: xr.Variable, da_center: xr.DataArray, dim_center: str = COORD_Z_CENTER
 ):
     """Assign all coords except vertical from da_center to dv_outer """
     if dim_center in da_center.coords:

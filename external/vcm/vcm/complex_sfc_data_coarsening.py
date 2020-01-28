@@ -196,7 +196,7 @@ def _area_weighted_mean_over_dominant_sfc_and_stype(
 
 
 def _mode(
-    data_var: xr.DataArray = None, coarsening_factor: int = None, **unused_kwargs,
+    data_var: xr.DataArray = None, coarsening_factor: int = None, **unused_kwargs
 ) -> xr.DataArray:
     return block_coarsen(
         data_var,
