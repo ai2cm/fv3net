@@ -30,10 +30,8 @@ from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to
 from vcm.fv3_restarts import (
     TIME_FMT,
     open_restarts,
-    _parse_forecast_dt,
     _parse_time,
     _parse_time_string,
-    _set_relative_diff_forecast_time,
 )
 from vcm.select import mask_to_surface_type
 logger = logging.getLogger()
@@ -197,11 +195,10 @@ def _open_cloud_data(run_dirs, dt_forecast=60):
     for run_dir in run_dirs:
         t_init = _parse_time_string(_parse_time(run_dir))
         ds_run = (
-            open_restarts(run_dir)
+            open_restarts(run_dir, add_time_coords=True)
             [INPUT_VARS]
             .expand_dims(dim={INIT_TIME_DIM: [t_init]})
-        )
-        ds_run = _set_relative_diff_forecast_time(ds_run) \
+        ) \
             .isel({FORECAST_TIME_DIM: slice(-2, None)})
         ds_runs.append(ds_run)
     return xr.concat(ds_runs, INIT_TIME_DIM)
