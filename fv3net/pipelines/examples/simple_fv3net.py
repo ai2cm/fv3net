@@ -5,9 +5,9 @@ import subprocess
 
 from apache_beam.options.pipeline_options import PipelineOptions
 
-import fv3net    # noqa
-import vcm       # noqa
-import mappm     # noqa
+import fv3net  # noqa
+import vcm  # noqa
+import mappm  # noqa
 import fv3config  # noqa
 from vcm.cloud import gsutil
 
@@ -23,7 +23,8 @@ def run(list_to_sum, out_gcs_dir, pipeline_options=None):
             p
             | "CreateCollection" >> beam.Create(list_to_sum)
             | "SummedNumbers" >> beam.CombineGlobally(sum)
-            | "WriteSum" >> beam.io.WriteToText(out_gcs_path, shard_name_template='', num_shards=1)
+            | "WriteSum"
+            >> beam.io.WriteToText(out_gcs_path, shard_name_template="", num_shards=1)
         )
 
 
@@ -35,8 +36,8 @@ def check_run(out_gcs_dir, target_sum):
     with tempfile.TemporaryDirectory() as tmpdir:
         local_success_file = os.path.join(tmpdir, OUTPUT_FILENAME)
         gsutil.copy(dataflow_success_file, local_success_file)
-        with open(local_success_file, 'r') as f:
+        with open(local_success_file, "r") as f:
             sum_result = int(f.readline().strip())
             assert sum_result == target_sum
 
-    subprocess.check_call(['gsutil', 'rm', dataflow_success_file])
+    subprocess.check_call(["gsutil", "rm", dataflow_success_file])
