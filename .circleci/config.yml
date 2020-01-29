@@ -2,11 +2,10 @@ version: 2.1
 jobs:
   build:    
     docker:
-    - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
-      auth:
-        username: _json_key
-        password: $ANDRE_GCP_KEY
-    machine: true
+      - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
+        auth:
+          username: _json_key
+          password: $ANDRE_GCP_KEY
     steps:
     - checkout
     - run: conda install make
