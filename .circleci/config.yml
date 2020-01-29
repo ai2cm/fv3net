@@ -6,6 +6,8 @@ jobs:
         auth:
           username: _json_key
           password: $ANDRE_GCP_KEY
+        environment:
+          GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
     - checkout
     - run: conda install make
