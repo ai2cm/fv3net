@@ -20,7 +20,6 @@ dependencies:
   - hypothesis
   - intake
   - intake-xarray
-  - kubernetes
   - metpy
   - netcdf4>=1.4
   - numba
@@ -29,6 +28,7 @@ dependencies:
   - pyyaml==5.3
   - pytest
   - pytest-mpl
+  - python-kubernetes
   - scikit-image
   - scikit-learn
   - toolz
