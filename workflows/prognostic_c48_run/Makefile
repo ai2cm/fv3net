@@ -8,11 +8,12 @@ RUN_INTERACTIVE = docker run -ti $(RUN_ARGS)
 RUN ?= docker run $(RUN_ARGS)
 SKLEARN_MODEL = gs://vcm-ml-data/test-annak/ml-pipeline-output/2020-01-17_rf_40d_run.pkl
 FV3CONFIG = fv3config.yml
+FV3NET_VERSION ?=2020-01-23-prognostic-rf
 
 all: sklearn_run
 
 fv3net-0.1.0-py3-none-any.whl:
-	pip wheel --no-deps git+ssh://git@github.com/VulcanClimateModeling/fv3net.git@2020-01-23-prognostic-rf
+	pip wheel --no-deps git+ssh://git@github.com/VulcanClimateModeling/fv3net.git@$(FV3NET_VERSION)
 
 build: fv3net-0.1.0-py3-none-any.whl
 	docker build . -t $(IMAGE)

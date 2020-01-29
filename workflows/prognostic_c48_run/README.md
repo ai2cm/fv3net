@@ -21,6 +21,12 @@ To build the docker image to used, run
 
 	make build
 
+The git revision of the fv3net installed in the docker image can be specified using the `FV3NET_VERSION` flag. For example,
+
+    FV3NET_VERSION=master make build
+    
+will install the master branch of fv3net.
+
 To start a bash shell in this image, run
 
 	make dev
