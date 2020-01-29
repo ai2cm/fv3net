@@ -11,8 +11,9 @@ vcm.visualize such as plot_cube.
 import matplotlib.pyplot as plt
 import warnings
 
-from vcm.cubedsphere.coords import INIT_TIME_VAR as TIME_VAR
 from vcm.visualize import plot_cube, mappable_var
+
+TIME_DIM = "time"
 
 
 def create_plot(ds, plot_config):
@@ -75,7 +76,7 @@ def plot_time_series(ds, plot_config):
     if hasattr(plot_config, "time_dim"):
         time_dim = plot_config.time_dim
     else:
-        time_dim = TIME_VAR
+        time_dim = TIME_DIM
     for var in plot_config.diagnostic_variable:
         time = ds[time_dim].values
         ax = fig.add_subplot(111)

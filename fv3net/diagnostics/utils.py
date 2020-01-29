@@ -13,7 +13,6 @@ from vcm.fv3_restarts import (
     _load_arrays,
     _split_url,
     _parse_time,
-    _parse_first_last_forecast_times,
 )
 
 
@@ -38,7 +37,6 @@ def _open_grid(url):
     arrays = _load_arrays(grid_files)
     return xr.Dataset(combine_array_sequence(arrays, labels=["tile"])) \
         [GRID_VARS] \
-        .isel(time=0) \
         .squeeze(drop=True)
 
 

@@ -24,7 +24,7 @@ report_html = Template(
 )
 
 
-def create_diagnostics(plot_configs, data, output_dir, time_dim):
+def create_diagnostics(plot_configs, data, output_dir):
     """ Create one plot per config entry in config file
 
     Args:
@@ -37,7 +37,7 @@ def create_diagnostics(plot_configs, data, output_dir, time_dim):
     """
     output_figures = {}
     for plot_config in plot_configs:
-        fig = create_plot(data, plot_config, time_dim)
+        fig = create_plot(data, plot_config)
         filename = plot_config.plot_name + ".png"
         fig.savefig(os.path.join(output_dir, filename), bbox_inches="tight")
         output_figures[plot_config.plot_name] = filename
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     data = open_dataset(args.data_path)
     plot_configs = load_configs(args.config_file)
     output_figure_headings = create_diagnostics(
-        plot_configs, data, args.output_dir, args.time_dim)
+        plot_configs, data, args.output_dir)
     with open(f"{args.output_dir}/diagnostics.html", "w") as f:
         html = report_html.render(sections=output_figure_headings)
         f.write(html)

@@ -13,7 +13,7 @@ import f90nml
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
 from vcm.convenience import open_delayed
-from vcm.cubedsphere.constants import RESTART_CATEGORIES, TIME_FMT,
+from vcm.cubedsphere.constants import RESTART_CATEGORIES, TIME_FMT
 
 
 SCHEMA_CACHE = {}
