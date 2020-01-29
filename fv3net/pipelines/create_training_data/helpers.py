@@ -15,6 +15,7 @@ from vcm.cubedsphere.constants import (
     COORD_Y_CENTER,
     COORD_Y_OUTER,
     INIT_TIME_DIM,
+    FORECAST_TIME_DIM,
     TIME_FMT
 )
 
@@ -66,6 +67,14 @@ def _path_from_first_timestep(ds, train_test_labels=None):
         )
         train_test_subdir = ""
     return os.path.join(train_test_subdir, timestep + ".zarr")
+
+
+def _set_relative_forecast_time_coord(ds):
+    delta_t_forecast = (ds[FORECAST_TIME_DIM].values[-1]
+                        - ds[FORECAST_TIME_DIM].values[-2])
+    ds.reset_index([FORECAST_TIME_DIM], drop=True)
+    return ds.assign_coords(
+        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]})
 
 
 def _round_time(t):

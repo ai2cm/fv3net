@@ -29,7 +29,8 @@ from vcm.cubedsphere.constants import (
 )
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
-from vcm.fv3_restarts import open_restarts, _parse_time
+from vcm.fv3_restarts import (
+    open_restarts_with_time_coordinates, _parse_time, _parse_time_string)
 from vcm.select import mask_to_surface_type
 
 logger = logging.getLogger()
@@ -196,9 +197,16 @@ def _open_cloud_data(run_dirs):
         )
         ds_runs = []
         for run_dir in run_dirs:
-            ds_run = (open_restarts(run_dir, add_time_coords=True)[INPUT_VARS]).isel(
-                {FORECAST_TIME_DIM: slice(-2, None)}
-            ).drop("file_prefix")
+            t_init = _parse_time(run_dir)
+            ds_run = (
+                open_restarts_with_time_coordinates(run_dir)
+                [INPUT_VARS]
+                .rename({"time": FORECAST_TIME_DIM})
+                .isel({FORECAST_TIME_DIM: slice(-2, None)})
+                .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
+                )
+            ds_run = helpers._set_relative_forecast_time_coord(ds_run) \
+                    .drop("file_prefix")
             ds_runs.append(ds_run)
         return xr.concat(ds_runs, INIT_TIME_DIM)
     except (ValueError, TypeError) as e:
@@ -235,8 +243,8 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
         )
         return ds
     except (ValueError, TypeError) as e:
-        logger.info(f"Failed step CreateTrainingCols for batch"
-                    "{ds[INIT_TIME_DIM].values[0]}: {e}")
+        logger.error(f"Failed step CreateTrainingCols for batch"
+                    f"{ds[INIT_TIME_DIM].values[0]}: {e}")
 
 
 def _merge_hires_data(ds_run, diag_c384_path):
@@ -256,7 +264,7 @@ def _merge_hires_data(ds_run, diag_c384_path):
             INPUT_VARS_FROM_HIRES
         ]
         return xr.merge([ds_run, features_diags_c48])
-    except (AttributeError, ValueError, TypeError) as e:
+    except (KeyError, AttributeError, ValueError, TypeError) as e:
         logger.error(f"Failed to merge in features from high res diagnostics: {e}")
 
 
@@ -286,7 +294,7 @@ def _stack_and_drop_nan_samples(ds):
                 .chunk(SAMPLE_CHUNK_SIZE, ds.sizes[COORD_Z_CENTER])
             )
         return ds
-    except AttributeError as e:
+    except (AttributeError, RuntimeError) as e:
         # TODO: fill in except with the error that gets raised when running into the
         # memory issues with this step
         e = sys.exc_info()[0]
@@ -319,7 +327,7 @@ def _write_remote_train_zarr(
         gsutil.copy(zarr_filename, output_path)
         logger.info(f"Done writing zarr to {output_path}")
         shutil.rmtree(zarr_filename)
-    except (ValueError, AttributeError, TypeError) as e:
+    except (ValueError, AttributeError, TypeError, RuntimeError) as e:
         logger.error(f"Failed to write zarr: {e}")
 
 
