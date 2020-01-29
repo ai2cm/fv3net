@@ -5,9 +5,12 @@ from typing import List
 import xarray as xr
 import yaml
 from vcm.calc import diag_ufuncs
+from vcm.cubedsphere.constants import GRID_VARS
 from vcm.fv3_restarts import (
-    open_restarts,
-    open_grid,
+    combine_array_sequence,
+    open_restarts_with_time_coodinates,
+    _diag_files_in_run_dir,
+    _load_arrays,
     _split_url,
     _parse_time,
     _parse_first_last_forecast_times,
@@ -27,25 +30,32 @@ class PlotConfig:
     functions: List
     function_kwargs: List[dict]
     plot_params: dict
+    time_dim: str = None
+
+
+def _open_grid(url):
+    grid_files = _diag_files_in_run_dir(url)
+    arrays = _load_arrays(grid_files)
+    return xr.Dataset(combine_array_sequence(arrays, labels=["tile"])) \
+        [GRID_VARS] \
+        .isel(time=0) \
+        .squeeze(drop=True)
 
 
 def open_dataset(data_path):
     protocol, path = _split_url(data_path)
     fs = fsspec.filesystem(protocol)
-
     if ".zarr" in data_path:
         data = xr.open_zarr(fs.get_mapper(data_path))
     else:
         try:
-            # TODO: remove time parsing after Brians's PR merged
-            t_init, t_last = _parse_first_last_forecast_times(fs, data_path)
-            data = open_restarts(data_path, t_init)
-            grid = open_grid(data_path)
-        except:
-            raise ValueError(
+            data = open_restarts_with_time_coodinates(data_path).drop("file_prefix")
+            grid = _open_grid(data_path)
+        except ValueError as e:
+            raise(
                 "Cannot open zarr or run directory at data path provided."
                 "Check the input argument and make sure it is one of"
-                "these allowed data formats."
+                f"these allowed data formats. {e}"
             )
     return xr.merge([data, grid])
 
@@ -175,5 +185,7 @@ def load_configs(config_path):
             function_kwargs=function_kwargs,
             plot_params=load_plot_params(raw_config),
         )
+        if "time_dim" in raw_config:
+            plot_config.time_dim = raw_config["time_dim"]
         plot_configs.append(plot_config)
     return plot_configs

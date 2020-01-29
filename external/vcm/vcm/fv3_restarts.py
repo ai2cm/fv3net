@@ -13,7 +13,7 @@ import f90nml
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
 from vcm.convenience import open_delayed
-from vcm.cubedsphere.constants import RESTART_CATEGORIES, TIME_FMT, GRID_VARS
+from vcm.cubedsphere.constants import RESTART_CATEGORIES, TIME_FMT,
 
 
 SCHEMA_CACHE = {}
@@ -41,15 +41,6 @@ def open_restarts(url: str) -> xr.Dataset:
     return _sort_file_prefixes(
         xr.Dataset(combine_array_sequence(arrays, labels=["file_prefix", "tile"])), url
     )
-
-# TODO remove after forecast time dim PR
-def open_grid(url):
-    grid_files = _diag_files_in_run_dir(url)
-    arrays = _load_arrays(grid_files)
-    return xr.Dataset(combine_array_sequence(arrays, labels=["tile"])) \
-        [GRID_VARS] \
-        .isel(time=0) \
-        .squeeze(drop=True)
 
 
 def _diag_files_in_run_dir(run_dir):

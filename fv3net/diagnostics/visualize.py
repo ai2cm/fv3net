@@ -11,10 +11,8 @@ vcm.visualize such as plot_cube.
 import matplotlib.pyplot as plt
 import warnings
 
+from vcm.cubedsphere.coords import INIT_TIME_VAR as TIME_VAR
 from vcm.visualize import plot_cube, mappable_var
-
-# TODO: this may have to change if we change to using >1 step runs
-TIME_VAR = "initialization_time"
 
 
 def create_plot(ds, plot_config):
@@ -74,8 +72,12 @@ def plot_time_series(ds, plot_config):
         matplotlib figure
     """
     fig = plt.figure()
+    if hasattr(plot_config, "time_dim"):
+        time_dim = plot_config.time_dim
+    else:
+        time_dim = TIME_VAR
     for var in plot_config.diagnostic_variable:
-        time = ds[TIME_VAR].values
+        time = ds[time_dim].values
         ax = fig.add_subplot(111)
         ax.plot(time, ds[var].values, label=var)
         if "xlabel" in plot_config.plot_params:
