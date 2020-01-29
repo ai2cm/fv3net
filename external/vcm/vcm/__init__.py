@@ -1,5 +1,3 @@
-import pathlib
-
 from .combining import combine_array_sequence
 
 # from .convenience import open_dataset
@@ -9,24 +7,18 @@ from .cubedsphere import (
     block_median,
     edge_weighted_block_average,
     horizontal_block_reduce,
-    open_cubed_sphere,
     save_tiles_separately,
     xarray_block_reduce,
 )
 from .extract import extract_tarball_to_path
 from .fv3_restarts import open_restarts
+from .convenience import TOP_LEVEL_DIR
+from .visualize import plot_cube, mappable_var, plot_cube_axes
 
-# TODO: convenience and regrid are currently broken
-
-
-# from .regrid import regrid_horizontal
-
-TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 __all__ = [
     "combine_array_sequence",
     "open_restarts",
-    "open_cubed_sphere",
     "block_coarsen",
     "block_edge_sum",
     "block_median",
@@ -36,4 +28,7 @@ __all__ = [
     "xarray_block_reduce",
     "horizontal_block_reduce",
     "TOP_LEVEL_DIR",
+    "plot_cube",
+    "mappable_var",
+    "plot_cube_axes",
 ]

@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: regrid-the-input-data-
+spec:
+  arguments:
+    parameters:
+    - name: source_prefix
+      value: gs://vcm-ml-data/2019-11-12-fv3gfs-C48-five-day-nudged-run/nudge_rundir/sfc_dt_atmos
+    - name: output_bucket
+      value: gs://vcm-ml-data/2019-11-12-fv3gfs-C48-five-day-nudged-run/nLat180_nLon360/sfc_dt_atmos.nc
+    - name: resolution
+      value: C48
+    - name: fields
+      value: DLWRFsfc,DSWRFsfc,DSWRFtoa,HPBLsfc,LHTFLsfc,PRATEsfc,SHTFLsfc,ULWRFsfc,ULWRFtoa,USWRFsfc,USWRFtoa
+    - name: extra_args
+      value: --nlat 180 --nlon 360
+  entrypoint: regrid
+  volumes:
+  - name: gcp-credentials-user-gcp-sa
+    secret:
+      secretName: gcp-key
+  templates:
+   - name: regrid
+     container:
+      image: us.gcr.io/vcm-ml/regrid_c3072_diag
+      command:
+      - /usr/bin/regrid.sh
+      - '{{workflow.parameters.source_prefix}}'
+      - '{{workflow.parameters.output_bucket}}'
+      - '{{workflow.parameters.resolution}}'
+      - '{{workflow.parameters.fields}}'
+      - '{{workflow.parameters.extra_args}}'
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-credentials-user-gcp-sa

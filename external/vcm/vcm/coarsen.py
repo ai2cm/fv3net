@@ -11,6 +11,7 @@ import pandas as pd
 import xarray as xr
 from toolz import curry
 
+from .complex_sfc_data_coarsening import coarse_grain_sfc_data_complex
 from .cubedsphere import (
     block_coarsen,
     block_edge_sum,
@@ -18,7 +19,23 @@ from .cubedsphere import (
     coarsen_coords,
     edge_weighted_block_average,
     open_cubed_sphere,
+    regrid_to_area_weighted_pressure,
+    regrid_to_edge_weighted_pressure,
     weighted_block_average,
+)
+from .calc.thermo import hydrostatic_dz, height_at_interface, dz_and_top_to_phis
+from vcm.cubedsphere.constants import (
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_OUTER,
+    FV_CORE_X_CENTER,
+    FV_CORE_Y_CENTER,
+    FV_CORE_X_OUTER,
+    FV_CORE_Y_OUTER,
+    FV_TRACER_X_CENTER,
+    FV_TRACER_Y_CENTER,
+    RESTART_Z_CENTER,
 )
 
 TILES = range(1, 7)
@@ -69,7 +86,7 @@ def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Datase
 
 # TODO: fix this name. it loads the data with area
 def load_tile_proc(tile, subtile, path, grid_path):
-    grid_spec_to_data_renaming = {"grid_xt": "xaxis_1", "grid_yt": "yaxis_1"}
+    grid_spec_to_data_renaming = {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
     grid = xr.open_dataset(grid_path)
 
     area = grid.area.rename(grid_spec_to_data_renaming)
@@ -160,8 +177,8 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
         ds[area_weighted_vars],
         area,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_2",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
     )
 
     mass = delp * area
@@ -169,16 +186,16 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
         ds[mass_weighted_vars],
         mass,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_2",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
     )
 
     edge_weighted_x = edge_weighted_block_average(
         ds[dx_edge_weighted_vars],
         dx,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_OUTER,
         edge="x",
     )
 
@@ -186,8 +203,102 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
         ds[dy_edge_weighted_vars],
         dy,
         coarsening_factor,
-        x_dim="xaxis_2",
-        y_dim="yaxis_2",
+        x_dim=FV_CORE_X_OUTER,
+        y_dim=FV_CORE_Y_CENTER,
+        edge="y",
+    )
+
+    return xr.merge([area_weighted, mass_weighted, edge_weighted_x, edge_weighted_y])
+
+
+def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
+    """Coarse grain a set of fv_core restart files, averaging on surfaces of
+    constant pressure (except for delp, DZ and phis which are averaged on model
+    surfaces).
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Input Dataset; assumed to be from a set of fv_core restart files
+    area : xr.DataArray
+        Area weights
+    dx : xr.DataArray
+        x edge lengths
+    dy : xr.DataArray
+        y edge lengths
+    coarsening_factor : int
+        Coarsening factor to use
+
+    Returns
+    -------
+    xr.Dataset
+    """
+    area_weighted_vars = ["phis", "delp", "DZ"]
+    mass_weighted_vars = ["W", "T"]
+    dx_edge_weighted_vars = ["u"]
+    dy_edge_weighted_vars = ["v"]
+
+    area_pressure_regridded, masked_area = regrid_to_area_weighted_pressure(
+        ds[mass_weighted_vars],
+        delp,
+        area,
+        coarsening_factor,
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
+    )
+
+    dx_pressure_regridded, masked_dx = regrid_to_edge_weighted_pressure(
+        ds[dx_edge_weighted_vars],
+        delp,
+        dx,
+        coarsening_factor,
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_OUTER,
+        edge="x",
+    )
+
+    dy_pressure_regridded, masked_dy = regrid_to_edge_weighted_pressure(
+        ds[dy_edge_weighted_vars],
+        delp,
+        dy,
+        coarsening_factor,
+        x_dim=FV_CORE_X_OUTER,
+        y_dim=FV_CORE_Y_CENTER,
+        edge="y",
+    )
+
+    area_weighted = weighted_block_average(
+        ds[area_weighted_vars],
+        area,
+        coarsening_factor,
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
+    )
+
+    masked_mass = delp * masked_area
+    mass_weighted = weighted_block_average(
+        area_pressure_regridded,
+        masked_mass,
+        coarsening_factor,
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_CENTER,
+    )
+
+    edge_weighted_x = edge_weighted_block_average(
+        dx_pressure_regridded,
+        masked_dx,
+        coarsening_factor,
+        x_dim=FV_CORE_X_CENTER,
+        y_dim=FV_CORE_Y_OUTER,
+        edge="x",
+    )
+
+    edge_weighted_y = edge_weighted_block_average(
+        dy_pressure_regridded,
+        masked_dy,
+        coarsening_factor,
+        x_dim=FV_CORE_X_OUTER,
+        y_dim=FV_CORE_Y_CENTER,
         edge="y",
     )
 
@@ -228,8 +339,8 @@ def coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
         ds[area_weighted_vars],
         area,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=FV_TRACER_X_CENTER,
+        y_dim=FV_TRACER_Y_CENTER,
     )
 
     mass = delp * area
@@ -237,8 +348,68 @@ def coarse_grain_fv_tracer(ds, delp, area, coarsening_factor):
         ds[mass_weighted_vars],
         mass,
         coarsening_factor,
-        x_dim="xaxis_1",
-        y_dim="yaxis_1",
+        x_dim=FV_TRACER_X_CENTER,
+        y_dim=FV_TRACER_Y_CENTER,
+    )
+
+    return xr.merge([area_weighted, mass_weighted])
+
+
+def coarse_grain_fv_tracer_on_pressure(ds, delp, area, coarsening_factor):
+    """Coarse grain a set of fv_tracer restart files, averaging on surfaces of
+    constant pressure.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Input Dataset; assumed to be from a set of fv_tracer restart files
+    delp : xr.DataArray
+        Pressure thicknesses
+    area : xr.DataArray
+        Area weights
+    coarsening_factor : int
+        Coarsening factor to use
+
+    Returns
+    -------
+    xr.Dataset
+    """
+    area_weighted_vars = ["cld_amt"]
+    mass_weighted_vars = [
+        "sphum",
+        "liq_wat",
+        "rainwat",
+        "ice_wat",
+        "snowwat",
+        "graupel",
+        "o3mr",
+        "sgs_tke",
+    ]
+
+    ds_regridded, masked_area = regrid_to_area_weighted_pressure(
+        ds,
+        delp,
+        area,
+        coarsening_factor,
+        x_dim=FV_TRACER_X_CENTER,
+        y_dim=FV_TRACER_Y_CENTER,
+    )
+
+    area_weighted = weighted_block_average(
+        ds_regridded[area_weighted_vars],
+        masked_area,
+        coarsening_factor,
+        x_dim=FV_TRACER_X_CENTER,
+        y_dim=FV_TRACER_Y_CENTER,
+    )
+
+    masked_mass = delp * masked_area
+    mass_weighted = weighted_block_average(
+        ds_regridded[mass_weighted_vars],
+        masked_mass,
+        coarsening_factor,
+        x_dim=FV_TRACER_X_CENTER,
+        y_dim=FV_TRACER_Y_CENTER,
     )
 
     return xr.merge([area_weighted, mass_weighted])
@@ -270,7 +441,32 @@ def coarse_grain_fv_srf_wnd(ds, area, coarsening_factor):
     )
 
 
-def coarse_grain_sfc_data(ds, area, coarsening_factor):
+def impose_hydrostatic_balance(ds_fv_core, ds_fv_tracer, dim=RESTART_Z_CENTER):
+    """Compute layer thicknesses assuming hydrostatic balance and adjust
+    surface geopotential in order to maintain same model top height.
+
+    Args:
+        ds_fv_core (xr.Dataset): fv_core restart category Dataset
+        ds_fv_tracer (xr.Dataset): fv_tracer restart category Dataset
+        dim (str): vertical dimension name (default "zaxis_1")
+
+    Returns:
+        xr.Dataset: ds_fv_core with hydrostatic DZ and adjusted phis
+    """
+    height = height_at_interface(
+        ds_fv_core["DZ"], ds_fv_core["phis"], dim_center=dim, dim_outer=dim
+    )
+    height_top = height.isel({dim: 0})
+    dz = hydrostatic_dz(
+        ds_fv_core["T"],
+        ds_fv_tracer["sphum"].rename({FV_TRACER_Y_CENTER: FV_CORE_Y_CENTER}),
+        ds_fv_core["delp"],
+        dim=dim,
+    )
+    return ds_fv_core.assign(DZ=dz, phis=dz_and_top_to_phis(height_top, dz, dim=dim))
+
+
+def coarse_grain_sfc_data(ds, area, coarsening_factor, version="simple"):
     """Coarse grain a set of sfc_data restart files.
 
     Parameters
@@ -281,24 +477,33 @@ def coarse_grain_sfc_data(ds, area, coarsening_factor):
         Area weights
     coarsening_factor : int
         Coarsening factor to use
+    version : str
+        Version of the method to use {'simple', 'complex'}
 
     Returns
     -------
     xr.Dataset
     """
-    result = block_median(ds, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1")
-
-    result["slmsk"] = integerize(result.slmsk)
-    return result
+    if version == "simple":
+        result = block_median(ds, coarsening_factor, x_dim="xaxis_1", y_dim="yaxis_1")
+        result["slmsk"] = integerize(result.slmsk)
+        return result
+    elif version == "complex":
+        return coarse_grain_sfc_data_complex(ds, area, coarsening_factor)
+    else:
+        raise ValueError(
+            f"Currently the only supported versions are 'simple' and 'complex'. "
+            "Got {version}."
+        )
 
 
 def coarse_grain_grid_spec(
     ds,
     coarsening_factor,
-    x_dim_unstaggered="grid_xt",
-    y_dim_unstaggered="grid_yt",
-    x_dim_staggered="grid_x",
-    y_dim_staggered="grid_y",
+    x_dim_unstaggered=COORD_X_CENTER,
+    y_dim_unstaggered=COORD_Y_CENTER,
+    x_dim_staggered=COORD_X_OUTER,
+    y_dim_staggered=COORD_Y_OUTER,
 ):
     coarse_dx = block_edge_sum(
         ds.dx, coarsening_factor, x_dim_unstaggered, y_dim_staggered, "x"
@@ -329,10 +534,10 @@ def coarsen_grid_spec(
     input_grid_spec,
     coarsening_factor,
     output_filename,
-    x_dim_unstaggered="grid_xt",
-    y_dim_unstaggered="grid_yt",
-    x_dim_staggered="grid_x",
-    y_dim_staggered="grid_y",
+    x_dim_unstaggered=COORD_X_CENTER,
+    y_dim_unstaggered=COORD_Y_CENTER,
+    x_dim_staggered=COORD_X_OUTER,
+    y_dim_staggered=COORD_Y_OUTER,
 ):
     tile = pd.Index(TILES, name="tile")
     native_grid_spec = xr.open_mfdataset(input_grid_spec, concat_dim=tile)
@@ -371,15 +576,23 @@ def coarsen_restart_file_category(
         coarsened = coarse_grain_fv_core(
             source,
             source.delp,
-            grid_spec.area.rename({"grid_xt": "xaxis_1", "grid_yt": "yaxis_2"}),
-            grid_spec.dx.rename({"grid_xt": "xaxis_1", "grid_y": "yaxis_1"}),
-            grid_spec.dy.rename({"grid_x": "xaxis_2", "grid_yt": "yaxis_2"}),
+            grid_spec.area.rename(
+                {COORD_X_CENTER: FV_CORE_X_CENTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
+            ),
+            grid_spec.dx.rename(
+                {COORD_X_CENTER: FV_CORE_X_CENTER, COORD_Y_OUTER: FV_CORE_Y_OUTER}
+            ),
+            grid_spec.dy.rename(
+                {COORD_X_OUTER: FV_CORE_X_OUTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
+            ),
             coarsening_factor,
         )
     elif category == "fv_srf_wnd_coarse.res":
         coarsened = coarse_grain_fv_srf_wnd(
             source,
-            grid_spec.area.rename({"grid_xt": "xaxis_1", "grid_yt": "yaxis_1"}),
+            grid_spec.area.rename(
+                {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
+            ),
             coarsening_factor,
         )
     elif category == "fv_tracer_coarse.res":
@@ -393,15 +606,19 @@ def coarsen_restart_file_category(
         )
         coarsened = coarse_grain_fv_tracer(
             source,
-            fv_core.delp.rename({"yaxis_2": "yaxis_1"}),
-            grid_spec.area.rename({"grid_xt": "xaxis_1", "grid_yt": "yaxis_1"}),
+            fv_core.delp.rename({FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}),
+            grid_spec.area.rename(
+                {COORD_X_CENTER: FV_TRACER_X_CENTER, COORD_Y_CENTER: FV_TRACER_Y_CENTER}
+            ),
             coarsening_factor,
         )
     elif category == "sfc_data":
         native_grid_spec = xr.open_mfdataset(native_grid_spec, concat_dim=tile)
         coarsened = coarse_grain_sfc_data(
             source,
-            native_grid_spec.area.rename({"grid_xt": "xaxis_1", "grid_yt": "yaxis_1"}),
+            native_grid_spec.area.rename(
+                {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
+            ),
             coarsening_factor,
         )
     else:

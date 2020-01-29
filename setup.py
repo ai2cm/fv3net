@@ -1,17 +1,21 @@
 from setuptools import find_packages, setup
 
 dependencies = [
-    "apache-beam==2.16.0",
-    "cloudpickle==1.2.2",
-    "dask==2.6.0",
-    "fsspec==0.5.2",
-    "google-cloud-storage==1.20.0",
-    "intake==0.5.3",
+    "apache-beam",
+    "cloudpickle",
+    "dask",
+    "gcsfs",
+    "fsspec",
+    "google-cloud-storage",
+    "intake",
+    "numba",
     "scikit-image",
-    "netCDF4==1.4.2",
-    "xarray==0.13.0",
+    "netCDF4",
+    "xarray>=0.14.0",
     "partd",
-    "pyyaml==3.13",
+    "pyyaml>=5.0",
+    "xgcm",
+    "zarr",
 ]
 
 setup(

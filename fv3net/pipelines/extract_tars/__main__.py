@@ -2,9 +2,9 @@ import argparse
 import logging
 
 from google.cloud.storage import Client
+from vcm.cloud import gcs
 
 from fv3net.pipelines.extract_tars.pipeline import run
-from vcm.cloud import gcs
 
 if __name__ == "__main__":
 
