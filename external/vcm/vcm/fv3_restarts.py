@@ -30,21 +30,21 @@ def open_restarts(url: str) -> xr.Dataset:
     The dimension names are the same as the diagnostic output
 
     Args:
-        url: a URL to the root directory of a run directory. Can be any type of protocol
+        url (str): a URL to the root directory of a run directory. Can be any type of protocol
             used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
             protocol prefix is used, then it will be assumed to be a path to a local
             file.
             
     Returns:
-        a combined dataset of all the restart files. All except the first file of
-        each restart-file type (e.g. fv_core.res) will only be lazily loaded. This
-        allows opening large datasets out-of-core.
+        ds (xr.Dataset): a combined dataset of all the restart files. All except the first file of
+            each restart-file type (e.g. fv_core.res) will only be lazily loaded. This
+            allows opening large datasets out-of-core.
 
     """
     restart_files = _restart_files_at_url(url)
     arrays = _load_arrays(restart_files)
     return _sort_file_prefixes(
-        xr.Dataset(combine_array_sequence(arrays, labels=["file_prefix", "tile"]))
+        xr.Dataset(combine_array_sequence(arrays, labels=["file_prefix", "tile"])), url
     )
 
 
@@ -54,16 +54,16 @@ def open_restarts_with_time_coodinates(url: str) -> xr.Dataset:
     The dimension names are the same as the diagnostic output
 
     Args:
-        url: a URL to the root directory of a run directory. Can be any type of protocol
+        url (str): a URL to the root directory of a run directory. Can be any type of protocol
             used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
             protocol prefix is used, then it will be assumed to be a path to a local
             file.
             
     Returns:
-        a combined dataset of all the restart files. All except the first file of
-        each restart-file type (e.g. fv_core.res) will only be lazily loaded. This
-        allows opening large datasets out-of-core. Time coordinates are inferred
-        from the run directory's namelist and other files.
+        ds (xr.Dataset): a combined dataset of all the restart files. All except the first file of
+            each restart-file type (e.g. fv_core.res) will only be lazily loaded. This
+            allows opening large datasets out-of-core. Time coordinates are inferred
+            from the run directory's namelist and other files.
     """
     ds = open_restarts(url)
     forecast_time, initialization_time = get_restart_times(url)
@@ -94,7 +94,7 @@ def get_restart_times(url: str) -> (pd.timedelta_range, cftime.DatetimeJulian):
     """Reads the run directory's files to infer restart forecast times
     
     Args:
-        url: a URL to the root directory of a run directory. Can be any type of protocol
+        url (str): a URL to the root directory of a run directory. Can be any type of protocol
             used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
             protocol prefix is used, then it will be assumed to be a path to a local
             file.
@@ -152,12 +152,18 @@ def _get_file_prefix(dirname, path):
             return "RESTART/"
 
 
-def _sort_file_prefixes(ds):
+def _sort_file_prefixes(ds, url):
 
     if "INPUT/" not in ds.file_prefix:
-        raise ValueError("Open restarts() did not find the input set of restart files.")
+        raise ValueError(
+            "Open restarts did not find the input set"
+            f"of restart files for run directory {url}."
+        )
     if "RESTART/" not in ds.file_prefix:
-        raise ValueError("Open_restarts() did not find the final set of restart files.")
+        raise ValueError(
+            "Open restarts did not find the final set"
+            f"of restart files for run directory {url}."
+        )
 
     intermediate_prefixes = sorted(
         [
