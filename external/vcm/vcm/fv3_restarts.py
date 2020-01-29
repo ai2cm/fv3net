@@ -71,14 +71,10 @@ def open_restarts_with_time_coodinates(url: str) -> xr.Dataset:
         )
         times = None
     if times is not None:
-        return (
-            ds.assign_coords({"time": ("file_prefix", times)}).swap_dims(
-                {"file_prefix": "time"}
-            )
-            #             .expand_dims({INIT_TIME_DIM: [initialization_time]})
+        return ds.assign_coords({"time": ("file_prefix", times)}).swap_dims(
+            {"file_prefix": "time"}
         )
     else:
-        print("failed")
         return ds
 
 
@@ -99,9 +95,8 @@ def get_restart_times(url: str) -> Sequence[cftime.DatetimeJulian]:
     """Reads the run directory's files to infer restart forecast times
     
     Due to the challenges of directly parsing the forecast times from the restart files,
-    it is more robust to read the initialization time and forecast time outputs from
-    the namelist and coupler.res in the run directory. This function implements
-    that ability.
+    it is more robust to read the ime outputs from the namelist and coupler.res
+    in the run directory. This function implements that ability.
     
     Args:
         url (str): a URL to the root directory of a run directory.
@@ -110,7 +105,7 @@ def get_restart_times(url: str) -> Sequence[cftime.DatetimeJulian]:
             assumed to be a path to a local file.
             
     Returns:
-        time (cftime.DatetimeJulian): time coordinate
+        time Sequence[cftime.DatetimeJulian]: a list of time coordinates
     """
     proto, namelist_path = _get_namelist_path(url)
     config = _config_from_fs_namelist(proto, namelist_path)
