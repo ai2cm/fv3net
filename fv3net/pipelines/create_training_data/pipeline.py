@@ -65,7 +65,7 @@ def run(args, pipeline_args):
         data_batch_urls, args.train_fraction, args.random_seed
     )
 
-    print(f"Processing {len(data_batch_urls)} subsets...")
+    logger.infof"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
@@ -202,7 +202,7 @@ def _open_cloud_data(run_dirs):
             ds_runs.append(ds_run)
         return xr.concat(ds_runs, INIT_TIME_DIM)
     except (ValueError, TypeError) as e:
-        print(e)
+        logger.error(e)
         pass
 
 
@@ -236,7 +236,7 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
         )
         return ds
     except ValueError as e:
-        print(e)
+        logger.error(e)
         pass
 
 
