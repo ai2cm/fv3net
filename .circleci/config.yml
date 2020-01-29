@@ -1,19 +1,23 @@
 version: 2.1
 jobs:
   build:    
-    docker:
-    - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran
-      auth:
-        username: _json_key
-        password: $DECODED_GCR_KEY
+    # docker:
+    # - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran
+    #   auth:
+    #     username: _json_key
+    #     password: $DECODED_GCR_KEY
+    machine: true
     steps:
     - checkout
+    - run: |
+        docker login -u _json_key -p $DECODED_GCR_KEY
+        docker run us.gcr.io/vcm-ml/circleci-miniconda-gfortran
     - run: conda install make
-    - run: make update_submodules
-    - run: make create_environment
-    - run: | 
-        source activate fv3net
-        pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+    # - run: make update_submodules
+    # - run: make create_environment
+    # - run: | 
+    #     source activate fv3net
+    #     pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
   lint:
     docker:
     - image: circleci/python:3.7
