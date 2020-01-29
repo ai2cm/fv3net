@@ -22,7 +22,7 @@ jobs:
     - image: circleci/python:3.7
     steps:
     - checkout
-    - run: sudo pip install black flake8
+    - run: sudo pip install black==19.10b0 flake8
     - run: make lint
 workflows:
   version: 2
