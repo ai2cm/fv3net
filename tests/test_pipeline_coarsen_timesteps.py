@@ -8,7 +8,7 @@ from pathlib import Path
 
 from vcm.cloud import gsutil
 
-from fv3net.pipelines.coarsen_timesteps.pipeline import check_timestep_url_incomplete, coarsen_timestep
+from fv3net.pipelines.coarsen_timesteps.pipeline import check_coarsen_incomplete, coarsen_timestep
 
 TEST_DATA_GCS = "gs://vcm-ml-data/fv3net-testing-data/coarsen-timesteps"
 SRC_GCS = os.path.join(TEST_DATA_GCS, "C384")
@@ -81,5 +81,5 @@ def test_coarsen_timestep_single_coarsen_operation(temporary_gcs_dst):
 
 )
 def test_coarsen_timestep_folder_completion(check_gcs_url, expected):
-    result = check_timestep_url_incomplete(COMPARE_GCS, check_gcs_url)
+    result = check_coarsen_incomplete(COMPARE_GCS, check_gcs_url)
     assert result == expected

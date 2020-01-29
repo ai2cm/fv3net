@@ -56,7 +56,7 @@ def _get_dir_stem(parent_dirname, full_dirname, include_parent=True):
     return stem_dir
 
 
-def check_timestep_url_incomplete(gcs_url, output_prefix):
+def check_coarsen_incomplete(gcs_url, output_prefix):
 
     output_timestep_dir = os.path.join(output_prefix, time_step(gcs_url))
 
@@ -151,7 +151,7 @@ def run(args, pipeline_args=None):
         (
             p
             | "CreateTStepURLs" >> beam.Create(timestep_urls)
-            | "CheckCompleteTSteps" >> beam.filter(check_timestep_url_incomplete,
+            | "CheckCompleteTSteps" >> beam.filter(check_coarsen_incomplete,
                                                    output_dir_prefix)
             | "CoarsenTStep" >> beam.ParDo(coarsen_timestep,
                                            output_dir=output_dir_prefix,
