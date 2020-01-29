@@ -71,12 +71,8 @@ def check_coarsen_incomplete(gcs_url, output_prefix):
     if timestep_exists:
         timestep_files = fs.ls(output_timestep_dir)
         incorrect_num_files = len(timestep_files) != NUM_FILES_IN_COARSENED_DIR
-        print(
-            f"Num dir files: {len(timestep_files)}, expected {NUM_FILES_IN_COARSENED_DIR}"
-        )
         return incorrect_num_files
     else:
-        print(f"Timestep did not exist. {output_timestep_dir}")
         return True
 
 
@@ -140,7 +136,7 @@ def coarsen_timestep(
             curr_timestep,
             coarsen_factor,
             local_spec_dir,
-            local_timestep_dir,
+            tmp_timestep_dir,
         )
 
         timestep_output_dir = os.path.join(output_dir, curr_timestep)
@@ -160,7 +156,8 @@ def run(args, pipeline_args=None):
         output_dir_prefix = os.path.join(source_timestep_dir, f"C{target_resolution}")
 
     coarsen_factor = source_resolution // target_resolution
-    timestep_urls = gsutil.list_matches(source_timestep_dir)
+    fs = gcsfs.GCSFileSystem()
+    timestep_urls = fs.ls(source_timestep_dir)
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:

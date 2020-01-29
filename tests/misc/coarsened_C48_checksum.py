@@ -37,7 +37,10 @@ def upload_timestep_files_and_checksum(
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    src_data = "gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48/"
+    src_data = (
+        "gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02"
+        "-pressure-coarsened-rundirs/restarts/C48/"
+    )
     timestep = "20160801.001500"
     chksum_dst = "gs://vcm-ml-data/fv3net-testing-data/coarsen-timesteps/target-C48"
 

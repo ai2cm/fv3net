@@ -39,8 +39,9 @@ def test_coarsen_timestep_single_coarsen_operation(temporary_gcs_dst):
 
     Note: it seems that this test is machine dependent in the hydrostatic adjustment,
     potentially due to float32 precision error accumulation in the operations.  Between
-    dataflow machine and vm, the 'phis' field in fv_core were off by relative error between
-    0.1 and 1.  Currently checking baseline against coarsening generated on a GCloud VM.
+    dataflow machine and vm, the 'phis' field in fv_core were off by relative error
+    between 0.1 and 1.  Currently checking baseline against coarsening generated on a
+    GCloud VM.
     """
     coarsen_timestep(
         os.path.join(SRC_GCS, TIMESTEP), temporary_gcs_dst, 384 // 48, GRIDSPEC_GCS

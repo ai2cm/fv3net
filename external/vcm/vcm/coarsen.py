@@ -2,7 +2,6 @@
 Utilities for coarse-graining restart data and directories
 """
 import logging
-import os
 from os.path import join
 
 import dask.bag as db
@@ -18,7 +17,6 @@ from .cubedsphere import (
     block_median,
     coarsen_coords,
     edge_weighted_block_average,
-    open_cubed_sphere,
     regrid_to_area_weighted_pressure,
     regrid_to_edge_weighted_pressure,
     weighted_block_average,
