@@ -1,7 +1,7 @@
 import os
 import re
 from datetime import datetime, timedelta
-from typing import Any, Generator, Tuple
+from typing import Any, Generator, Tuple, Sequence
 
 import cftime
 import fsspec
@@ -13,12 +13,7 @@ import f90nml
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
 from vcm.convenience import open_delayed
-from vcm.cubedsphere.constants import (
-    RESTART_CATEGORIES,
-    TIME_FMT,
-    INIT_TIME_DIM,
-    FORECAST_TIME_DIM,
-)
+from vcm.cubedsphere.constants import RESTART_CATEGORIES, TIME_FMT
 
 
 SCHEMA_CACHE = {}
@@ -67,14 +62,23 @@ def open_restarts_with_time_coodinates(url: str) -> xr.Dataset:
             other files.
     """
     ds = open_restarts(url)
-    forecast_time, initialization_time = get_restart_times(url)
-    if forecast_time is not None and initialization_time is not None:
+    try:
+        times = get_restart_times(url)
+    except (ValueError, TypeError) as e:
+        print(
+            f"Warning, inferring time dimensions failed: {e}.\n"
+            f"Returning no time coordinates for run directory at {url}."
+        )
+        times = None
+    if times is not None:
         return (
-            ds.assign_coords({FORECAST_TIME_DIM: ("file_prefix", forecast_time)})
-            .swap_dims({"file_prefix": FORECAST_TIME_DIM})
-            .expand_dims({INIT_TIME_DIM: [initialization_time]})
+            ds.assign_coords({"time": ("file_prefix", times)}).swap_dims(
+                {"file_prefix": "time"}
+            )
+            #             .expand_dims({INIT_TIME_DIM: [initialization_time]})
         )
     else:
+        print("failed")
         return ds
 
 
@@ -91,7 +95,7 @@ def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
     return impose_dataset_to_schema(ds_no_time)
 
 
-def get_restart_times(url: str) -> (pd.timedelta_range, cftime.DatetimeJulian):
+def get_restart_times(url: str) -> Sequence[cftime.DatetimeJulian]:
     """Reads the run directory's files to infer restart forecast times
     
     Due to the challenges of directly parsing the forecast times from the restart files,
@@ -106,26 +110,15 @@ def get_restart_times(url: str) -> (pd.timedelta_range, cftime.DatetimeJulian):
             assumed to be a path to a local file.
             
     Returns:
-        forecast_time (pd.timedelta_range): a relative forecast time coordinate
-        initialization_time (cftime.DatetimeJulian): an absolute initialization time
+        time (cftime.DatetimeJulian): time coordinate
     """
-    try:
-        proto, namelist_path = _get_namelist_path(url)
-        config = _config_from_fs_namelist(proto, namelist_path)
-        initialization_time = cftime.DatetimeJulian(*_get_current_date(config, url))
-        duration = _get_run_duration(config)
-        interval_seconds = config["coupler_nml"].get(
-            "restart_secs", 0
-        ) + 86400 * config["coupler_nml"].get("restart_days", 0)
-        forecast_time = _get_forecast_time_index(duration, interval_seconds)
-        return forecast_time, initialization_time
-
-    except (ValueError, TypeError) as e:
-        print(
-            f"Warning, inferring time dimensions failed: {e}.\n"
-            f"Returning no time coordinates for run directory at {url}."
-        )
-        return None, None
+    proto, namelist_path = _get_namelist_path(url)
+    config = _config_from_fs_namelist(proto, namelist_path)
+    initialization_time = _get_current_date(config, url)
+    duration = _get_run_duration(config)
+    interval = _get_restart_interval(config)
+    forecast_time = _get_forecast_time_index(initialization_time, duration, interval)
+    return forecast_time
 
 
 def _parse_time_string(time):
@@ -315,7 +308,7 @@ def _to_nested_dict(source):
 
 
 def _get_current_date(config, url):
-    """Return current_date from configuration dictionary
+    """Return current_date as a datetime from configuration dictionary
     Note: Mostly copied from fv3config, but with fsspec capabilities added
     """
     force_date_from_namelist = config["coupler_nml"].get(
@@ -333,7 +326,14 @@ def _get_current_date(config, url):
             )
         except TypeError:
             current_date = config["coupler_nml"].get("current_date", [0, 0, 0, 0, 0, 0])
-    return current_date
+    return datetime(
+        **{
+            time_unit: value
+            for time_unit, value in zip(
+                ("year", "month", "day", "hour", "minute", "second"), current_date
+            )
+        }
+    )
 
 
 def _get_current_date_from_coupler_res(proto, coupler_res_filename):
@@ -368,13 +368,29 @@ def _get_run_duration(config):
     )
 
 
-def _get_forecast_time_index(duration, interval_seconds):
-    """Return a timedelta_range for the restart output timestamps
+def _get_restart_interval(config):
+    config = config["coupler_nml"]
+    return timedelta(
+        seconds=(config.get("restart_secs", 0) + 86400 * config.get("restart_days", 0))
+    )
+
+
+def _get_forecast_time_index(initialization_time, duration, interval):
+    """Return a list of cftime.DatetimeJulian objects for the restart output
     """
-    if interval_seconds:
-        forecast_time_index = pd.timedelta_range(
-            start="0 s", end=duration, freq=f"{interval_seconds}s"
+    if interval == timedelta(seconds=0):
+        interval = duration
+    end_time = initialization_time + duration
+    return [
+        cftime.DatetimeJulian(
+            timestamp.year,
+            timestamp.month,
+            timestamp.day,
+            timestamp.hour,
+            timestamp.minute,
+            timestamp.second,
         )
-    else:
-        forecast_time_index = pd.timedelta_range(start="0 s", end=duration, periods=2)
-    return forecast_time_index
+        for timestamp in pd.date_range(
+            start=initialization_time, end=end_time, freq=interval
+        )
+    ]
