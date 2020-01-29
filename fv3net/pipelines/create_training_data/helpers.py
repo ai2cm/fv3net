@@ -1,6 +1,7 @@
 from datetime import timedelta
 import fsspec
 import logging
+import os
 import xarray as xr
 
 from vcm.fv3_restarts import _split_url
@@ -14,6 +15,7 @@ from vcm.cubedsphere.constants import (
     COORD_Y_CENTER,
     COORD_Y_OUTER,
     INIT_TIME_DIM,
+    TIME_FMT
 )
 
 
@@ -83,7 +85,9 @@ def _round_time(t):
     elif t.second == 59:
         return t.replace(microsecond=0) + timedelta(seconds=1)
     else:
-        raise ValueError("Time value > 1 second from 1 minute timesteps.")
+        raise ValueError(f"Time value > 1 second from 1 minute timesteps for "
+                         "C48 initialization time {t}. Are you sure you're joining "
+                         "the correct high res data?")
 
 
 def load_c384_diag(c384_data_path, init_times):

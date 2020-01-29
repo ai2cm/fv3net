@@ -29,7 +29,7 @@ from vcm.cubedsphere.constants import (
 )
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
-from vcm.fv3_restarts import TIME_FMT, open_restarts, _parse_time
+from vcm.fv3_restarts import open_restarts, _parse_time
 from vcm.select import mask_to_surface_type
 
 logger = logging.getLogger()
@@ -235,7 +235,7 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
             .squeeze(drop=True)
         )
         return ds
-    except ValueError as e:
+    except (ValueError, TypeError) as e:
         logger.info(f"Failed step CreateTrainingCols for batch"
                     "{ds[INIT_TIME_DIM].values[0]}")
         logger.error(e)
@@ -259,7 +259,7 @@ def _merge_hires_data(ds_run, diag_c384_path):
             INPUT_VARS_FROM_HIRES
         ]
         return xr.merge([ds_run, features_diags_c48])
-    except (AttributeError, ValueError) as e:
+    except (AttributeError, ValueError, TypeError) as e:
         logger.error(e)
         pass
 
@@ -267,7 +267,7 @@ def _merge_hires_data(ds_run, diag_c384_path):
 def _try_mask_to_surface_type(ds, surface_type):
     try:
         return mask_to_surface_type(ds, surface_type)
-    except (AttributeError, ValueError) as e:
+    except (AttributeError, ValueError, TypeError) as e:
         logger.error(e)
         pass
 
@@ -325,7 +325,7 @@ def _write_remote_train_zarr(
         gsutil.copy(zarr_filename, output_path)
         logger.info(f"Done writing zarr to {output_path}")
         shutil.rmtree(zarr_filename)
-    except AttributeError as e:
+    except (ValueError, AttributeError, TypeError) as e:
         logger.error(f"Failed to write zarr.")
         logger.error(e)
 
