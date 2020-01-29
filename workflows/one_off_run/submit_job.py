@@ -50,8 +50,6 @@ def submit_job(bucket, run_config):
     job_name = model_config["experiment_name"] + f".{uuid.uuid4()}"
     kubernetes_config = get_kubernetes_config(run_config["kubernetes"])
     config_bucket = os.path.join(bucket, "config")
-    with fsspec.open(os.path.join(config_bucket, "fv3config.yml"), "w") as config_file:
-        config_file.write(yaml.dump(model_config))
     # if necessary, upload runfile and diag_table. In future, this should be
     # replaced with an fv3config function to do the same for all elements of config
     kubernetes_config["runfile"] = _upload_if_necessary(
@@ -60,6 +58,8 @@ def submit_job(bucket, run_config):
     model_config["diag_table"] = _upload_if_necessary(
         model_config["diag_table"], config_bucket
     )
+    with fsspec.open(os.path.join(config_bucket, "fv3config.yml"), "w") as config_file:
+        config_file.write(yaml.dump(model_config))
     fv3config.run_kubernetes(
         os.path.join(config_bucket, "fv3config.yml"),
         os.path.join(bucket, "output"),
