@@ -24,16 +24,13 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_OUTER,
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
-    GRID_VARS
+    GRID_VARS,
 )
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
-from vcm.fv3_restarts import (
-    TIME_FMT,
-    open_restarts,
-    _parse_time,
-)
+from vcm.fv3_restarts import TIME_FMT, open_restarts, _parse_time
 from vcm.select import mask_to_surface_type
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -43,14 +40,19 @@ SAMPLE_DIM = "sample"
 SAMPLE_CHUNK_SIZE = 1500
 
 HIRES_GRID_VARS = [
-    COORD_X_CENTER, COORD_Y_CENTER, COORD_X_OUTER, COORD_Y_OUTER, "area_coarse"]
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_OUTER,
+    "area_coarse",
+]
 INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk", "phis", "tsea", "slope"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
 HIRES_DATA_VARS = [
-    'LHTFLsfc_coarse',
-    'SHTFLsfc_coarse',
-    'PRATEsfc_coarse',
-    'DSWRFtoa_coarse'
+    "LHTFLsfc_coarse",
+    "SHTFLsfc_coarse",
+    "PRATEsfc_coarse",
+    "DSWRFtoa_coarse",
 ]
 INPUT_VARS_FROM_HIRES = ["insolation", "LHF", "SHF", "precip_sfc"]
 
@@ -65,7 +67,7 @@ def run(args, pipeline_args):
         data_batch_urls, args.train_fraction, args.random_seed
     )
 
-    logger.infof"Processing {len(data_batch_urls)} subsets...")
+    logger.info(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
@@ -73,10 +75,8 @@ def run(args, pipeline_args):
             | beam.Create(data_batch_urls)
             | "LoadCloudData" >> beam.Map(_open_cloud_data)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
-            | "MergeHiresDiagVars" >> beam.Map(
-                _merge_hires_data,
-                diag_c384_path=args.diag_c384_path,
-            )
+            | "MergeHiresDiagVars"
+            >> beam.Map(_merge_hires_data, diag_c384_path=args.diag_c384_path)
             | "MaskToSurfaceType"
             >> beam.Map(mask_to_surface_type, surface_type=args.mask_to_surface_type)
             | "StackAndDropNan" >> beam.Map(_stack_and_drop_nan_samples)
@@ -195,10 +195,9 @@ def _open_cloud_data(run_dirs):
         )
         ds_runs = []
         for run_dir in run_dirs:
-            ds_run = (
-                open_restarts(run_dir, add_time_coords=True)
-                [INPUT_VARS]
-            ).isel({FORECAST_TIME_DIM: slice(-2, None)})
+            ds_run = (open_restarts(run_dir, add_time_coords=True)[INPUT_VARS]).isel(
+                {FORECAST_TIME_DIM: slice(-2, None)}
+            )
             ds_runs.append(ds_run)
         return xr.concat(ds_runs, INIT_TIME_DIM)
     except (ValueError, TypeError) as e:
@@ -326,14 +325,17 @@ def _path_from_first_timestep(ds, train_test_labels=None):
 
 def _merge_hires_data(ds_run, diag_c384_path):
     init_times = ds_run[INIT_TIME_DIM].values
-    diags_c384 = helpers.load_c384_diag(diag_c384_path, init_times) \
-        [HIRES_GRID_VARS + HIRES_DATA_VARS]
+    diags_c384 = helpers.load_c384_diag(diag_c384_path, init_times)[
+        HIRES_GRID_VARS + HIRES_DATA_VARS
+    ]
     diags_c48 = coarsen.weighted_block_average(
         diags_c384,
         diags_c384["area_coarse"],
-        x_dim = COORD_X_CENTER,
-        y_dim = COORD_Y_CENTER,
-        coarsening_factor=8
+        x_dim=COORD_X_CENTER,
+        y_dim=COORD_Y_CENTER,
+        coarsening_factor=8,
     ).unify_chunks()
-    features_diags_c48 = helpers.add_coarsened_features(diags_c48)[INPUT_VARS_FROM_HIRES]
+    features_diags_c48 = helpers.add_coarsened_features(diags_c48)[
+        INPUT_VARS_FROM_HIRES
+    ]
     return xr.merge([ds_run, features_diags_c48])

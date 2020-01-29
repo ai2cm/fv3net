@@ -4,7 +4,7 @@ import intake
 import xarray as xr
 
 from vcm.fv3_restarts import _split_url
-from vcm.cubedsphere.constants import(
+from vcm.cubedsphere.constants import (
     VAR_LON_CENTER,
     VAR_LAT_CENTER,
     VAR_LON_OUTER,
@@ -13,7 +13,7 @@ from vcm.cubedsphere.constants import(
     COORD_X_OUTER,
     COORD_Y_CENTER,
     COORD_Y_OUTER,
-    INIT_TIME_DIM
+    INIT_TIME_DIM,
 )
 
 
@@ -22,10 +22,10 @@ GRID_VAR_MAP = {
     "grid_lon_coarse": VAR_LON_OUTER,
     "grid_latt_coarse": VAR_LAT_CENTER,
     "grid_lont_coarse": VAR_LON_CENTER,
-    "grid_xt_coarse" : COORD_X_CENTER,
-    "grid_yt_coarse" : COORD_Y_CENTER,
-    "grid_x_coarse" : COORD_X_OUTER,
-    "grid_y_coarse" : COORD_Y_OUTER
+    "grid_xt_coarse": COORD_X_CENTER,
+    "grid_yt_coarse": COORD_Y_CENTER,
+    "grid_x_coarse": COORD_X_OUTER,
+    "grid_y_coarse": COORD_Y_OUTER,
 }
 
 
@@ -53,23 +53,29 @@ def load_c384_diag(c384_data_path, init_times):
     protocol, path = _split_url(c384_data_path)
     fs = fsspec.filesystem(protocol)
     ds_c384 = xr.open_zarr(fs.get_mapper(c384_data_path))
-    ds_c384 = ds_c384 \
-        .rename(GRID_VAR_MAP) \
-        .rename({"time": "initialization_time"}) \
+    ds_c384 = (
+        ds_c384.rename(GRID_VAR_MAP)
+        .rename({"time": "initialization_time"})
         .assign_coords(
-            {"tile": range(6),
-            INIT_TIME_DIM: [_round_time(t) for t in ds_c384.time.values]}) \
+            {
+                "tile": range(6),
+                INIT_TIME_DIM: [_round_time(t) for t in ds_c384.time.values],
+            }
+        )
         .sel({INIT_TIME_DIM: init_times})
+    )
     return ds_c384
 
 
 def add_coarsened_features(ds_c48):
     ds_features = ds_c48.assign(
         {
-            "insolation": ds_c48['DSWRFtoa_coarse'],  # downward longwave at TOA << shortwave
+            "insolation": ds_c48[
+                "DSWRFtoa_coarse"
+            ],  # downward longwave at TOA << shortwave
             "LHF": ds_c48["LHTFLsfc_coarse"],
             "SHF": ds_c48["SHTFLsfc_coarse"],
-            "precip_sfc": ds_c48["PRATEsfc_coarse"]})
+            "precip_sfc": ds_c48["PRATEsfc_coarse"],
+        }
+    )
     return ds_features
-
-
