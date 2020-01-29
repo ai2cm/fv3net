@@ -18,10 +18,11 @@ Project Organization
     │   ├── pipelines           <-- Cloud data pipelines
     │   ├── visualization
     ├── tests               
-    ├── workflows           <-- Job submission scripts and description for pieces of data pipeline
-    │   ├── extract_tars        <-- Dig yourself out of a tarpit using Dataflow
-    │   ├── one_step_jobs       <-- Submit one-step kubernetes jobs using fv3run
-    │   └── scale-snakemake     <-- Coarsening operation with kubernetes and snakemake (Deprecated)
+    ├── workflows                <-- Job submission scripts and description for pieces of data pipeline
+    │   ├── extract_tars         <-- Dig yourself out of a tarpit using Dataflow
+    │   ├── one_step_jobs        <-- Submit one-step kubernetes jobs using fv3run
+    │   ├── fregrid_cube_netcdfs <-- Regrid cubed-sphere to lat/lon and other grids data with fregrid
+    │   └── scale-snakemake      <-- Coarsening operation with kubernetes and snakemake (Deprecated)
     ├── Dockerfile
     ├── LICENSE
     ├── Makefile
