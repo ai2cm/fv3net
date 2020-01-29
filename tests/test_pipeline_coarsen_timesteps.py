@@ -1,5 +1,4 @@
 import pytest
-import subprocess
 import os
 
 from fv3net.pipelines.coarsen_timesteps.pipeline import (
@@ -12,15 +11,6 @@ TIMESTEP = "20160801.001500"
 GRIDSPEC_GCS = os.path.join(TEST_DATA_GCS, "gridspec-c384")
 COMPARE_GCS = os.path.join(TEST_DATA_GCS, "target-C48", TIMESTEP)
 DST_GCS = os.path.join(TEST_DATA_GCS, "C48")
-
-
-@pytest.fixture
-def temporary_gcs_dst():
-
-    yield DST_GCS
-
-    # Remove destination directory
-    subprocess.check_call(["gsutil", "-m", "rm", "-r", DST_GCS])
 
 
 @pytest.mark.parametrize(
