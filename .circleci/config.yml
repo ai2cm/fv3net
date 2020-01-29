@@ -10,6 +10,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
     - checkout
+    - run: echo $ANDRE_GCP_KEY > key.json
     - run: conda install make
     - run: make update_submodules
     - run: make create_environment
@@ -19,8 +20,6 @@ jobs:
   lint:
     docker:
     - image: circleci/python:3.7
-      environment:
-          GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
     - checkout
     - run: sudo pip install black flake8
