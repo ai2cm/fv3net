@@ -6,6 +6,7 @@ import logging
 from numpy import random
 import os
 import shutil
+import sys
 import xarray as xr
 
 from . import helpers
@@ -78,7 +79,7 @@ def run(args, pipeline_args):
             | "MergeHiresDiagVars"
             >> beam.Map(_merge_hires_data, diag_c384_path=args.diag_c384_path)
             | "MaskToSurfaceType"
-            >> beam.Map(mask_to_surface_type, surface_type=args.mask_to_surface_type)
+            >> beam.Map(_try_mask_to_surface_type, surface_type=args.mask_to_surface_type)
             | "StackAndDropNan" >> beam.Map(_stack_and_drop_nan_samples)
             | "WriteToZarr"
             >> beam.Map(
@@ -235,11 +236,42 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
         )
         return ds
     except ValueError as e:
+        logger.info(f"Failed step CreateTrainingCols for batch"
+                    "{ds[INIT_TIME_DIM].values[0]}")
         logger.error(e)
         pass
 
 
-@retry.with_exponential_backoff(**delay_kwargs)
+def _merge_hires_data(ds_run, diag_c384_path):
+    try:
+        init_times = ds_run[INIT_TIME_DIM].values
+        diags_c384 = helpers.load_c384_diag(diag_c384_path, init_times)[
+            HIRES_GRID_VARS + HIRES_DATA_VARS
+        ]
+        diags_c48 = coarsen.weighted_block_average(
+            diags_c384,
+            diags_c384["area_coarse"],
+            x_dim=COORD_X_CENTER,
+            y_dim=COORD_Y_CENTER,
+            coarsening_factor=8,
+        ).unify_chunks()
+        features_diags_c48 = helpers.add_coarsened_features(diags_c48)[
+            INPUT_VARS_FROM_HIRES
+        ]
+        return xr.merge([ds_run, features_diags_c48])
+    except (AttributeError, ValueError) as e:
+        logger.error(e)
+        pass
+
+
+def _try_mask_to_surface_type(ds, surface_type):
+    try:
+        return mask_to_surface_type(ds, surface_type)
+    except (AttributeError, ValueError) as e:
+        logger.error(e)
+        pass
+
+
 def _stack_and_drop_nan_samples(ds):
     """
 
@@ -250,17 +282,23 @@ def _stack_and_drop_nan_samples(ds):
         xr dataset stacked into sample dimension and with NaN elements dropped
          (the masked out land/sea type)
     """
-    ds = (
-        ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
-        .transpose(SAMPLE_DIM, COORD_Z_CENTER)
-        .reset_index(SAMPLE_DIM)
-        .dropna(SAMPLE_DIM)
-        .chunk(SAMPLE_CHUNK_SIZE, ds.sizes[COORD_Z_CENTER])
-    )
-    return ds
+    try:
+        ds = (
+                ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
+                .transpose(SAMPLE_DIM, COORD_Z_CENTER)
+                .reset_index(SAMPLE_DIM)
+                .dropna(SAMPLE_DIM)
+                .chunk(SAMPLE_CHUNK_SIZE, ds.sizes[COORD_Z_CENTER])
+            )
+        return ds
+    except:
+        # TODO: fill in except with the error that gets raised when running into the
+        # memory issues with this step
+        e = sys.exc_info()[0]
+        logger.error("Failed stack and drop nan samples")
+        logger.error(e)
 
 
-@retry.with_exponential_backoff(**delay_kwargs)
 def _write_remote_train_zarr(
     ds,
     gcs_dest_dir,
@@ -279,63 +317,16 @@ def _write_remote_train_zarr(
     Returns:
         None
     """
-    logger.info("Writing to zarr...")
-    if not zarr_filename:
-        zarr_filename = _path_from_first_timestep(ds, train_test_labels)
-    output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
-    ds.to_zarr(zarr_filename, mode="w")
-    gsutil.copy(zarr_filename, output_path)
-    logger.info(f"Done writing zarr to {output_path}")
-    shutil.rmtree(zarr_filename)
+    try:
+        if not zarr_filename:
+            zarr_filename = helpers._path_from_first_timestep(ds, train_test_labels)
+        output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
+        ds.to_zarr(zarr_filename, mode="w")
+        gsutil.copy(zarr_filename, output_path)
+        logger.info(f"Done writing zarr to {output_path}")
+        shutil.rmtree(zarr_filename)
+    except AttributeError as e:
+        logger.error(f"Failed to write zarr.")
+        logger.error(e)
 
 
-def _path_from_first_timestep(ds, train_test_labels=None):
-    """ Uses first init time as zarr filename, and appends a 'train'/'test' subdir
-    if a dict of labels is provided
-
-    Args:
-        ds:
-        train_test_labels: optional dict with keys ["test", "train"] and values lists of
-            timestep strings that go to each set
-
-    Returns:
-        path in args.gcs_output_dir to write the zarr to
-    """
-    timestep = min(ds[INIT_TIME_DIM].values).strftime(TIME_FMT)
-    if isinstance(train_test_labels, dict):
-        try:
-            if timestep in train_test_labels["train"]:
-                train_test_subdir = "train"
-            elif timestep in train_test_labels["test"]:
-                train_test_subdir = "test"
-        except KeyError:
-            logger.warning(
-                "train_test_labels dict does not have keys ['train', 'test']."
-                "Will write zarrs directly to gcs_output_dir."
-            )
-            train_test_subdir = ""
-    else:
-        logger.info(
-            "No train_test_labels dict provided."
-            "Will write zarrs directly to gcs_output_dir."
-        )
-        train_test_subdir = ""
-    return os.path.join(train_test_subdir, timestep + ".zarr")
-
-
-def _merge_hires_data(ds_run, diag_c384_path):
-    init_times = ds_run[INIT_TIME_DIM].values
-    diags_c384 = helpers.load_c384_diag(diag_c384_path, init_times)[
-        HIRES_GRID_VARS + HIRES_DATA_VARS
-    ]
-    diags_c48 = coarsen.weighted_block_average(
-        diags_c384,
-        diags_c384["area_coarse"],
-        x_dim=COORD_X_CENTER,
-        y_dim=COORD_Y_CENTER,
-        coarsening_factor=8,
-    ).unify_chunks()
-    features_diags_c48 = helpers.add_coarsened_features(diags_c48)[
-        INPUT_VARS_FROM_HIRES
-    ]
-    return xr.merge([ds_run, features_diags_c48])
