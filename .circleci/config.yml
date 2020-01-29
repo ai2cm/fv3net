@@ -10,7 +10,7 @@ jobs:
     steps:
     - checkout
     - run: |
-        docker login -u _json_key -p $DECODED_GCR_KEY http://us.gcr.io
+        echo $DECODED_GCR_KEY | docker login -u _json_key --password-stdin http://us.gcr.io
         docker run us.gcr.io/vcm-ml/circleci-miniconda-gfortran
     - run: conda install make
     # - run: make update_submodules
