@@ -97,3 +97,12 @@ class ZarrVariableWriter:
             raise e
 
         self.idx += 1
+
+
+def append_to_writers(writers, diags):
+    for key in writers:
+        writers[key].append(diags[key])
+
+
+def init_writers(group, comm, diags):
+    return {key: ZarrVariableWriter(comm, group, name=key) for key in diags}

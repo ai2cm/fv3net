@@ -1,13 +1,11 @@
+import argparse
+
 import fsspec
 import xarray as xr
 from sklearn.externals import joblib
 from sklearn.utils import parallel_backend
 
 import state_io
-
-SKLEARN_MODEL = (
-    "gs://vcm-ml-data/test-annak/ml-pipeline-output/2020-01-17_rf_40d_run.pkl"  # noqa
-)
 
 
 def open_sklearn_model(url):
@@ -37,10 +35,14 @@ def update(model, state, dt):
 
 
 if __name__ == "__main__":
-    with open("state.pkl", "rb") as f:
+    import sys
+
+    state_path = sys.argv[1]
+    model = open_sklearn_model(sys.argv[2])
+
+    with open(state_path, "rb") as f:
         data = state_io.load(f)
 
     tile = data[0]
-    model = open_sklearn_model(SKLEARN_MODEL)
     preds = update(model, tile, dt=1)
     print(preds)

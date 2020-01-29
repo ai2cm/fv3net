@@ -5,3 +5,5 @@ ADD fv3net-0.1.0-py3-none-any.whl /wheels/fv3net-0.1.0-py3-none-any.whl
 RUN pip3 install --no-deps /wheels/fv3net-0.1.0-py3-none-any.whl && \
     pip3 install scikit-learn==0.22 joblib zarr
 
+COPY online_modules/ /online_modules
+ENV PYTHONPATH=/online_modules:${PYTHON_PATH}
