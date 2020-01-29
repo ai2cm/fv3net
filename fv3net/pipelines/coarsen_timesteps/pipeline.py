@@ -65,6 +65,7 @@ def check_timestep_url_incomplete(gcs_url, output_prefix):
     if timestep_exists:
         timestep_files = gsutil.list_matches(output_timestep_dir)
         incorrect_num_files = len(timestep_files) != NUM_FILES_IN_COARSENED_DIR
+        logger.warning(f'Num dir files: {len(timestep_files)}, expected {NUM_FILES_IN_COARSENED_DIR}')
         return incorrect_num_files
     else:
         return True
