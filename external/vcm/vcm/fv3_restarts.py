@@ -30,10 +30,10 @@ def open_restarts(url: str) -> xr.Dataset:
     The dimension names are the same as the diagnostic output
 
     Args:
-        url (str): a URL to the root directory of a run directory. Can be any type of protocol
-            used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
-            protocol prefix is used, then it will be assumed to be a path to a local
-            file.
+        url (str): a URL to the root directory of a run directory.
+            Can be any type of protocol used by fsspec, such as google cloud storage
+            'gs://path-to-rundir'. If no protocol prefix is used, then it will be
+            assumed to be a path to a local file.
             
     Returns:
         ds (xr.Dataset): a combined dataset of all the restart files. All except
@@ -54,10 +54,10 @@ def open_restarts_with_time_coodinates(url: str) -> xr.Dataset:
     The dimension names are the same as the diagnostic output
 
     Args:
-        url (str): a URL to the root directory of a run directory. Can be any type of protocol
-            used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
-            protocol prefix is used, then it will be assumed to be a path to a local
-            file.
+        url (str): a URL to the root directory of a run directory.
+            Can be any type of protocol used by fsspec, such as google cloud storage
+            'gs://path-to-rundir'. If no protocol prefix is used, then it will be
+            assumed to be a path to a local file.
             
     Returns:
         ds (xr.Dataset): a combined dataset of all the restart files. All except
@@ -100,10 +100,10 @@ def get_restart_times(url: str) -> (pd.timedelta_range, cftime.DatetimeJulian):
     that ability.
     
     Args:
-        url (str): a URL to the root directory of a run directory. Can be any type of protocol
-            used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
-            protocol prefix is used, then it will be assumed to be a path to a local
-            file.
+        url (str): a URL to the root directory of a run directory.
+            Can be any type of protocol used by fsspec, such as google cloud storage
+            'gs://path-to-rundir'. If no protocol prefix is used, then it will be
+            assumed to be a path to a local file.
             
     Returns:
         forecast_time (pd.timedelta_range): a relative forecast time coordinate
