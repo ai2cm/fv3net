@@ -198,12 +198,11 @@ def _open_cloud_data(run_dirs):
         for run_dir in run_dirs:
             ds_run = (open_restarts(run_dir, add_time_coords=True)[INPUT_VARS]).isel(
                 {FORECAST_TIME_DIM: slice(-2, None)}
-            )
+            ).drop("file_prefix")
             ds_runs.append(ds_run)
         return xr.concat(ds_runs, INIT_TIME_DIM)
     except (ValueError, TypeError) as e:
-        logger.error(e)
-        pass
+        logger.error(f"Failed to open restarts from cloud: {e}")
 
 
 def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
@@ -237,9 +236,7 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
         return ds
     except (ValueError, TypeError) as e:
         logger.info(f"Failed step CreateTrainingCols for batch"
-                    "{ds[INIT_TIME_DIM].values[0]}")
-        logger.error(e)
-        pass
+                    "{ds[INIT_TIME_DIM].values[0]}: {e}")
 
 
 def _merge_hires_data(ds_run, diag_c384_path):
@@ -260,16 +257,14 @@ def _merge_hires_data(ds_run, diag_c384_path):
         ]
         return xr.merge([ds_run, features_diags_c48])
     except (AttributeError, ValueError, TypeError) as e:
-        logger.error(e)
-        pass
+        logger.error(f"Failed to merge in features from high res diagnostics: {e}")
 
 
 def _try_mask_to_surface_type(ds, surface_type):
     try:
         return mask_to_surface_type(ds, surface_type)
     except (AttributeError, ValueError, TypeError) as e:
-        logger.error(e)
-        pass
+        logger.error(f"Failed masking to surface type: {e}")
 
 
 def _stack_and_drop_nan_samples(ds):
@@ -291,12 +286,11 @@ def _stack_and_drop_nan_samples(ds):
                 .chunk(SAMPLE_CHUNK_SIZE, ds.sizes[COORD_Z_CENTER])
             )
         return ds
-    except:
+    except AttributeError as e:
         # TODO: fill in except with the error that gets raised when running into the
         # memory issues with this step
         e = sys.exc_info()[0]
-        logger.error("Failed stack and drop nan samples")
-        logger.error(e)
+        logger.error(f"Failed stack and drop nan samples: {e}")
 
 
 def _write_remote_train_zarr(
@@ -326,7 +320,6 @@ def _write_remote_train_zarr(
         logger.info(f"Done writing zarr to {output_path}")
         shutil.rmtree(zarr_filename)
     except (ValueError, AttributeError, TypeError) as e:
-        logger.error(f"Failed to write zarr.")
-        logger.error(e)
+        logger.error(f"Failed to write zarr: {e}")
 
 
