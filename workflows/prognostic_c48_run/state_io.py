@@ -60,7 +60,7 @@ class ZarrVariableWriter:
     def _init_zarr(self, array):
         if self.rank == 0:
             self._init_zarr_root(array)
-        self.array = self.comm.bcast(self.array, root=0)
+        self.sync_array()
 
     def _init_zarr_root(self, array):
         shape = (1, self.size) + array.shape
@@ -73,6 +73,9 @@ class ZarrVariableWriter:
         if self.rank == 0:
             self.array.attrs["_ARRAY_DIMENSIONS"] = dims
 
+    def sync_array(self):
+        self.array = self.comm.bcast(self.array, root=0)
+
     def append(self, array):
 
         if self.array is None:
@@ -81,12 +84,16 @@ class ZarrVariableWriter:
 
         if self.idx >= self.array.shape[0]:
             new_shape = (self.idx + 1, self.size) + self.array.shape[2:]
-            self.array.resize(*new_shape)
-            self.array.attrs.update(array.attrs)
+
+            if self.rank == 0:
+                self.array.resize(*new_shape)
+                self.array.attrs.update(array.attrs)
 
         try:
+            self.sync_array()
             self.array[self.idx, self.rank, ...] = np.asarray(array)
         except Exception as e:
             logger.critical("Exception Raised on rank", self.rank)
             raise e
+
         self.idx += 1
