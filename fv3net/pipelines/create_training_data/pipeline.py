@@ -1,5 +1,6 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.utils import retry
 import gcsfs
 import logging
 from numpy import random
@@ -31,11 +32,12 @@ from vcm.fv3_restarts import (
     TIME_FMT,
     open_restarts,
     _parse_time,
-    _parse_time_string,
 )
 from vcm.select import mask_to_surface_type
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+delay_kwargs = dict(initial_delay_secs=20, num_retries=3)
 
 SAMPLE_DIM = "sample"
 SAMPLE_CHUNK_SIZE = 1500
@@ -62,7 +64,6 @@ def run(args, pipeline_args):
     train_test_labels = _test_train_split(
         data_batch_urls, args.train_fraction, args.random_seed
     )
-    dt_forecast = _parse_forecast_dt(gcs_urls[0])
 
     print(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
@@ -176,7 +177,7 @@ def _test_train_split(url_batches, train_frac, random_seed=1234):
     return labels
 
 
-def _open_cloud_data(run_dirs, dt_forecast=60):
+def _open_cloud_data(run_dirs):
     """Opens multiple run directories into a single dataset, where the init time
     of each run dir is the INIT_TIME_DIM and the times within
 
@@ -187,21 +188,22 @@ def _open_cloud_data(run_dirs, dt_forecast=60):
     Returns:
         xarray dataset of concatenated zarrs in url list
     """
-    logger.info(
-        f"Using run dirs for batch: "
-        f"{[os.path.basename(run_dir[:-1]) for run_dir in run_dirs]}"
-    )
-    ds_runs = []
-    for run_dir in run_dirs:
-        t_init = _parse_time_string(_parse_time(run_dir))
-        ds_run = (
-            open_restarts(run_dir, add_time_coords=True)
-            [INPUT_VARS]
-            .expand_dims(dim={INIT_TIME_DIM: [t_init]})
-        ) \
-            .isel({FORECAST_TIME_DIM: slice(-2, None)})
-        ds_runs.append(ds_run)
-    return xr.concat(ds_runs, INIT_TIME_DIM)
+    try:
+        logger.info(
+            f"Using run dirs for batch: "
+            f"{[os.path.basename(run_dir[:-1]) for run_dir in run_dirs]}"
+        )
+        ds_runs = []
+        for run_dir in run_dirs:
+            ds_run = (
+                open_restarts(run_dir, add_time_coords=True)
+                [INPUT_VARS]
+            ).isel({FORECAST_TIME_DIM: slice(-2, None)})
+            ds_runs.append(ds_run)
+        return xr.concat(ds_runs, INIT_TIME_DIM)
+    except (ValueError, TypeError) as e:
+        print(e)
+        pass
 
 
 def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
@@ -213,27 +215,32 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
     Returns:
         xarray dataset with variables in INPUT_VARS + TARGET_VARS + GRID_VARS
     """
-    da_centered_u = rename_centered_xy_coords(shift_edge_var_to_center(ds["u"]))
-    da_centered_v = rename_centered_xy_coords(shift_edge_var_to_center(ds["v"]))
-    ds["u"] = da_centered_u
-    ds["v"] = da_centered_v
-    ds["QU"] = apparent_source(ds.u)
-    ds["QV"] = apparent_source(ds.v)
-    ds["Q1"] = apparent_source(ds.T)
-    ds["Q2"] = apparent_source(ds.sphum)
-    ds = (
-        ds[cols_to_keep]
-        .isel(
-            {
-                INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1),
-                FORECAST_TIME_DIM: 0,
-            }
+    try:
+        da_centered_u = rename_centered_xy_coords(shift_edge_var_to_center(ds["u"]))
+        da_centered_v = rename_centered_xy_coords(shift_edge_var_to_center(ds["v"]))
+        ds["u"] = da_centered_u
+        ds["v"] = da_centered_v
+        ds["QU"] = apparent_source(ds.u)
+        ds["QV"] = apparent_source(ds.v)
+        ds["Q1"] = apparent_source(ds.T)
+        ds["Q2"] = apparent_source(ds.sphum)
+        ds = (
+            ds[cols_to_keep]
+            .isel(
+                {
+                    INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1),
+                    FORECAST_TIME_DIM: 0,
+                }
+            )
+            .squeeze(drop=True)
         )
-        .squeeze(drop=True)
-    )
-    return ds
+        return ds
+    except ValueError as e:
+        print(e)
+        pass
 
 
+@retry.with_exponential_backoff(**delay_kwargs)
 def _stack_and_drop_nan_samples(ds):
     """
 
@@ -244,7 +251,6 @@ def _stack_and_drop_nan_samples(ds):
         xr dataset stacked into sample dimension and with NaN elements dropped
          (the masked out land/sea type)
     """
-
     ds = (
         ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
         .transpose(SAMPLE_DIM, COORD_Z_CENTER)
@@ -255,6 +261,7 @@ def _stack_and_drop_nan_samples(ds):
     return ds
 
 
+@retry.with_exponential_backoff(**delay_kwargs)
 def _write_remote_train_zarr(
     ds,
     gcs_dest_dir,
