@@ -1,5 +1,3 @@
-import argparse
-
 import fsspec
 import xarray as xr
 from sklearn.externals import joblib
