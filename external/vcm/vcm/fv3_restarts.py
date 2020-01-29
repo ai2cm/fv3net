@@ -36,9 +36,9 @@ def open_restarts(url: str) -> xr.Dataset:
             file.
             
     Returns:
-        ds (xr.Dataset): a combined dataset of all the restart files. All except the first file of
-            each restart-file type (e.g. fv_core.res) will only be lazily loaded. This
-            allows opening large datasets out-of-core.
+        ds (xr.Dataset): a combined dataset of all the restart files. All except
+            the first file of each restart-file type (e.g. fv_core.res) will only
+            be lazily loaded. This allows opening large datasets out-of-core.
 
     """
     restart_files = _restart_files_at_url(url)
@@ -60,10 +60,11 @@ def open_restarts_with_time_coodinates(url: str) -> xr.Dataset:
             file.
             
     Returns:
-        ds (xr.Dataset): a combined dataset of all the restart files. All except the first file of
-            each restart-file type (e.g. fv_core.res) will only be lazily loaded. This
-            allows opening large datasets out-of-core. Time coordinates are inferred
-            from the run directory's namelist and other files.
+        ds (xr.Dataset): a combined dataset of all the restart files. All except
+            the first file of each restart-file type (e.g. fv_core.res) will only
+            be lazily loaded. This allows opening large datasets out-of-core.
+            Time coordinates are inferred from the run directory's namelist and
+            other files.
     """
     ds = open_restarts(url)
     forecast_time, initialization_time = get_restart_times(url)
@@ -93,6 +94,11 @@ def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
 def get_restart_times(url: str) -> (pd.timedelta_range, cftime.DatetimeJulian):
     """Reads the run directory's files to infer restart forecast times
     
+    Due to the challenges of directly parsing the forecast times from the restart files,
+    it is more robust to read the initialization time and forecast time outputs from
+    the namelist and coupler.res in the run directory. This function implements
+    that ability.
+    
     Args:
         url (str): a URL to the root directory of a run directory. Can be any type of protocol
             used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
@@ -101,7 +107,7 @@ def get_restart_times(url: str) -> (pd.timedelta_range, cftime.DatetimeJulian):
             
     Returns:
         forecast_time (pd.timedelta_range): a relative forecast time coordinate
-        start_time (cftime.DatetimeJulian): an absolute initialization time
+        initialization_time (cftime.DatetimeJulian): an absolute initialization time
     """
     try:
         proto, namelist_path = _get_namelist_path(url)
@@ -156,12 +162,12 @@ def _sort_file_prefixes(ds, url):
 
     if "INPUT/" not in ds.file_prefix:
         raise ValueError(
-            "Open restarts did not find the input set"
+            "Open restarts did not find the input set "
             f"of restart files for run directory {url}."
         )
     if "RESTART/" not in ds.file_prefix:
         raise ValueError(
-            "Open restarts did not find the final set"
+            "Open restarts did not find the final set "
             f"of restart files for run directory {url}."
         )
 
