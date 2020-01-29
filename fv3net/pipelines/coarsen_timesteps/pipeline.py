@@ -3,11 +3,12 @@ import re
 import tempfile
 import os
 import logging
+import gcsfs
 from pathlib import Path
 from apache_beam.options.pipeline_options import PipelineOptions
 from google.cloud.storage import Client
 
-from vcm.cloud import gcs, gsutil
+from vcm.cloud import gcs
 import vcm
 
 logger = logging.getLogger('CoarsenPipeline')
@@ -60,14 +61,16 @@ def check_coarsen_incomplete(gcs_url, output_prefix):
 
     output_timestep_dir = os.path.join(output_prefix, time_step(gcs_url))
 
-    timestep_exists = gsutil.exists(output_timestep_dir)
+    fs = gcsfs.GCSFileSystem()
+    timestep_exists = fs.exists(output_timestep_dir)
     
     if timestep_exists:
-        timestep_files = gsutil.list_matches(output_timestep_dir)
+        timestep_files = fs.ls(output_timestep_dir)
         incorrect_num_files = len(timestep_files) != NUM_FILES_IN_COARSENED_DIR
-        logger.warning(f'Num dir files: {len(timestep_files)}, expected {NUM_FILES_IN_COARSENED_DIR}')
+        print(f'Num dir files: {len(timestep_files)}, expected {NUM_FILES_IN_COARSENED_DIR}')
         return incorrect_num_files
     else:
+        print(f'Timestep did not exist. {output_timestep_dir}')
         return True
 
 

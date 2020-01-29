@@ -16,7 +16,7 @@ jobs:
     - run: make create_environment
     - run: | 
         source activate fv3net
-        pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+        pytest -k test_coarsen_timestep_folder_completion -s
   lint:
     docker:
     - image: circleci/python:3.7
