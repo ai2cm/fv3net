@@ -20,6 +20,7 @@ dependencies:
   - hypothesis
   - intake
   - intake-xarray
+  - kubernetes
   - metpy
   - netcdf4>=1.4
   - numba
