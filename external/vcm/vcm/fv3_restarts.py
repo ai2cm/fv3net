@@ -24,7 +24,7 @@ from vcm.cubedsphere.constants import (
 SCHEMA_CACHE = {}
 
 
-def open_restarts(url: str, add_time_coords=False) -> xr.Dataset:
+def open_restarts(url: str) -> xr.Dataset:
     """Opens all the restart file within a certain path
 
     The dimension names are the same as the diagnostic output
@@ -34,11 +34,6 @@ def open_restarts(url: str, add_time_coords=False) -> xr.Dataset:
             used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
             protocol prefix is used, then it will be assumed to be a path to a local
             file.
-        add_time_coords (bool, optional): a flag to indicate whether to try to
-            infer and add time dimensions by reading the run director's namelist.
-            If false, the forecast time dimension will be the file prefixes of the
-            restart files. If true, a relative forecast time coordinate and an
-            absolute initialization time coordinate/dim willl be added. Default False.
             
     Returns:
         a combined dataset of all the restart files. All except the first file of
@@ -48,11 +43,36 @@ def open_restarts(url: str, add_time_coords=False) -> xr.Dataset:
     """
     restart_files = _restart_files_at_url(url)
     arrays = _load_arrays(restart_files)
-    ds = xr.Dataset(
-        combine_array_sequence(arrays, labels=["file_prefix", "tile"])
-    ).pipe(_sort_file_prefixes)
-    if add_time_coords:
-        return _assign_time_coordinates(ds, url)
+    return _sort_file_prefixes(
+        xr.Dataset(combine_array_sequence(arrays, labels=["file_prefix", "tile"]))
+    )
+
+
+def open_restarts_with_time_coodinates(url: str) -> xr.Dataset:
+    """Opens all the restart file within a certain path, with time coordinates
+
+    The dimension names are the same as the diagnostic output
+
+    Args:
+        url: a URL to the root directory of a run directory. Can be any type of protocol
+            used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
+            protocol prefix is used, then it will be assumed to be a path to a local
+            file.
+            
+    Returns:
+        a combined dataset of all the restart files. All except the first file of
+        each restart-file type (e.g. fv_core.res) will only be lazily loaded. This
+        allows opening large datasets out-of-core. Time coordinates are inferred
+        from the run directory's namelist and other files.
+    """
+    ds = open_restarts(url)
+    forecast_time, initialization_time = get_restart_times(url)
+    if forecast_time is not None and initialization_time is not None:
+        return (
+            ds.assign_coords({FORECAST_TIME_DIM: ("file_prefix", forecast_time)})
+            .swap_dims({"file_prefix": FORECAST_TIME_DIM})
+            .expand_dims({INIT_TIME_DIM: [initialization_time]})
+        )
     else:
         return ds
 
@@ -70,28 +90,36 @@ def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
     return impose_dataset_to_schema(ds_no_time)
 
 
-def _assign_time_coordinates(ds: xr.Dataset, url: str) -> xr.Dataset:
-
+def get_restart_times(url: str) -> (pd.timedelta_range, cftime.DatetimeJulian):
+    """Reads the run directory's files to infer restart forecast times
+    
+    Args:
+        url: a URL to the root directory of a run directory. Can be any type of protocol
+            used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
+            protocol prefix is used, then it will be assumed to be a path to a local
+            file.
+            
+    Returns:
+        forecast_time (pd.timedelta_range): a relative forecast time coordinate
+        start_time (cftime.DatetimeJulian): an absolute initialization time
+    """
     try:
         proto, namelist_path = _get_namelist_path(url)
         config = _config_from_fs_namelist(proto, namelist_path)
-        start_time = cftime.DatetimeJulian(*_get_current_date(config, url))
+        initialization_time = cftime.DatetimeJulian(*_get_current_date(config, url))
         duration = _get_run_duration(config)
         interval_seconds = config["coupler_nml"].get(
             "restart_secs", 0
         ) + 86400 * config["coupler_nml"].get("restart_days", 0)
-        forecast_time_index = _get_forecast_time_index(duration, interval_seconds)
-        return (
-            ds.assign_coords({FORECAST_TIME_DIM: ("file_prefix", forecast_time_index)})
-            .swap_dims({"file_prefix": FORECAST_TIME_DIM})
-            .expand_dims({INIT_TIME_DIM: [start_time]})
-        )
+        forecast_time = _get_forecast_time_index(duration, interval_seconds)
+        return forecast_time, initialization_time
+
     except ValueError as e:
         print(
             f"Warning, inferring time dimensions failed: {e}."
-            "Returning dataset with no time coordinates."
+            f"Returning no time coordinates for run directory at {url}."
         )
-        return ds
+        return (None, None)
 
 
 def _parse_time_string(time):
