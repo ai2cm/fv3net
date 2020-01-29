@@ -120,12 +120,12 @@ def get_restart_times(url: str) -> (pd.timedelta_range, cftime.DatetimeJulian):
         forecast_time = _get_forecast_time_index(duration, interval_seconds)
         return forecast_time, initialization_time
 
-    except ValueError as e:
+    except (ValueError, TypeError) as e:
         print(
-            f"Warning, inferring time dimensions failed: {e}."
+            f"Warning, inferring time dimensions failed: {e}.\n"
             f"Returning no time coordinates for run directory at {url}."
         )
-        return (None, None)
+        return None, None
 
 
 def _parse_time_string(time):
