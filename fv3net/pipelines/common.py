@@ -163,27 +163,28 @@ def _chunk_size_to_index(sizes):
     return tuple(chunks)
 
 
-def _get_chunk_indices_test(chunks):
-    return [{'x': idx} for idx in _chunk_size_to_index(chunks['x'])]
+def _chunk_id_and_index(tups, keys):
+    """Change (0, idx) ... to (0,0), {'x': idx_x...}"""
+    chunk_ids, indexer = zip(*tups)
+    return tuple(chunk_ids), dict(zip(keys, indexer))
 
 
 def _get_chunk_indices(chunks):
     keys = chunks.keys()
-    chunk_indexers = [_chunk_size_to_index(chunks[key])
+    chunk_indexers = [enumerate(_chunk_size_to_index(chunks[key]))
                       for key in keys]
     return [
-        dict(zip(keys, indexes))
+        _chunk_id_and_index(indexes, keys)
         for indexes in itertools.product(*chunk_indexers)
     ]
 
 from collections import namedtuple
 
-chunk = namedtuple('chunk', ['id', 'index', 'data', 'info'])
 
 def _yield_chunks(ds):
     indices = _get_chunk_indices(ds.chunks)
-    for k, index in enumerate(indices):
-        yield chunk(id=k, index=index, data=ds.isel(index).load(), info=indices)
+    for chunk_index, index in indices:
+        yield chunk_index, ds.isel(index)
 
 
 class SplitChunks(beam.PTransform):
