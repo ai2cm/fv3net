@@ -84,7 +84,9 @@ def get_and_write_input_fname_asset(config, config_bucket):
 
 def update_config_for_nudging(model_config, config_bucket):
     model_config["patch_files"] = get_nudge_files_asset_list(model_config)
-    model_config["patch_files"].append(get_and_write_input_fname_asset(model_config, config_bucket))
+    model_config["patch_files"].append(
+        get_and_write_input_fname_asset(model_config, config_bucket)
+    )
     return model_config
 
 
