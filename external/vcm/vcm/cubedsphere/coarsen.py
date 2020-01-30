@@ -784,7 +784,7 @@ def _upsample_staggered_or_unstaggered(obj, upsampling_factor, dim):
 
 
 def block_upsample(
-    obj: Union[xr.Dataset, xr.DataArray], upsampling_factor: int, dims: List[Hashable]
+    obj: Union[xr.Dataset, xr.DataArray], upsampling_factor: int, dims: List[Hashable],
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Upsample an object by repeating values n times in each
     horizontal dimension.

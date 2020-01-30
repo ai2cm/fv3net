@@ -46,12 +46,16 @@ def apply_weighting(ds, var_to_weight, weighting_var, weighting_dims):
     return ds
 
 
-def mean_over_dim(ds, dim, var_to_avg, new_var):
+def mean_over_dim(
+    ds, dim, var_to_avg, new_var,
+):
     da_mean = ds[var_to_avg].mean(dim)
     return ds.assign({new_var: da_mean})
 
 
-def sum_over_dim(ds, dim, var_to_sum, new_var):
+def sum_over_dim(
+    ds, dim, var_to_sum, new_var,
+):
     da_sum = ds[var_to_sum].sum(dim)
     return ds.assign({new_var: da_sum})
 

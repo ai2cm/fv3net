@@ -2,7 +2,10 @@ import numpy as np
 import xarray as xr
 
 from ..calc.thermo import pressure_at_interface
-from ..cubedsphere import edge_weighted_block_average, weighted_block_average
+from ..cubedsphere import (
+    edge_weighted_block_average,
+    weighted_block_average,
+)
 from ..cubedsphere.coarsen import block_upsample_like
 from ..cubedsphere.constants import (
     RESTART_Z_CENTER,
@@ -51,7 +54,7 @@ def regrid_to_area_weighted_pressure(
         delp, area, coarsening_factor, x_dim=x_dim, y_dim=y_dim
     )
     return _regrid_given_delp(
-        ds, delp, delp_coarse, area, x_dim=x_dim, y_dim=y_dim, z_dim=z_dim
+        ds, delp, delp_coarse, area, x_dim=x_dim, y_dim=y_dim, z_dim=z_dim,
     )
 
 
@@ -137,7 +140,7 @@ def _regrid_given_delp(
         )
 
     masked_weights = _mask_weights(
-        weights, phalf_coarse_on_fine, phalf_fine, dim_center=z_dim
+        weights, phalf_coarse_on_fine, phalf_fine, dim_center=z_dim,
     )
 
     return ds_regrid, masked_weights
