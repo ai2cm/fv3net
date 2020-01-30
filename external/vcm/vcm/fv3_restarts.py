@@ -13,7 +13,7 @@ import f90nml
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
 from vcm.convenience import open_delayed
-from vcm.cubedsphere.constants import RESTART_CATEGORIES, TIME_FMT
+from vcm.cubedsphere.constants import GRID_VARS, RESTART_CATEGORIES, TIME_FMT
 
 
 SCHEMA_CACHE = {}
@@ -112,6 +112,28 @@ def get_restart_times(url: str) -> Sequence[cftime.DatetimeJulian]:
     interval = _get_restart_interval(config)
     forecast_time = _get_forecast_time_index(initialization_time, duration, interval)
     return forecast_time
+
+
+def open_grid(rundir_url):
+    grid_files = _diag_files_in_run_dir(rundir_url)
+    arrays = _load_arrays(grid_files)
+    return xr.Dataset(combine_array_sequence(arrays, labels=["tile"]))[
+        GRID_VARS
+    ].squeeze(drop=True)
+
+
+def _diag_files_in_run_dir(run_dir):
+    time = _parse_time(run_dir)
+    protocol, _ = _split_url(run_dir)
+    fs = fsspec.filesystem(protocol)
+    diag_files = [
+        filename for filename in fs.ls(run_dir) if "atmos_dt_atmos" in filename
+    ]
+    for filename in diag_files:
+        path = filename
+        tile = _get_tile(filename)
+        category = "atmos_dt_atmos"
+        yield time, category, tile, protocol, path
 
 
 def _parse_time_string(time):

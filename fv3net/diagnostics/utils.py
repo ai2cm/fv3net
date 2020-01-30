@@ -5,12 +5,9 @@ from typing import List
 import xarray as xr
 import yaml
 from vcm.calc import diag_ufuncs
-from vcm.cubedsphere.constants import GRID_VARS
 from vcm.fv3_restarts import (
-    combine_array_sequence,
-    open_restarts_with_time_coodinates,
-    _diag_files_in_run_dir,
-    _load_arrays,
+    open_restarts_with_time_coordinates,
+    open_grid,
     _split_url,
     _parse_time,
 )
@@ -32,14 +29,6 @@ class PlotConfig:
     time_dim: str = None
 
 
-def _open_grid(url):
-    grid_files = _diag_files_in_run_dir(url)
-    arrays = _load_arrays(grid_files)
-    return xr.Dataset(combine_array_sequence(arrays, labels=["tile"]))[
-        GRID_VARS
-    ].squeeze(drop=True)
-
-
 def open_dataset(data_path):
     protocol, path = _split_url(data_path)
     fs = fsspec.filesystem(protocol)
@@ -47,8 +36,8 @@ def open_dataset(data_path):
         data = xr.open_zarr(fs.get_mapper(data_path))
     else:
         try:
-            data = open_restarts_with_time_coodinates(data_path).drop("file_prefix")
-            grid = _open_grid(data_path)
+            data = open_restarts_with_time_coordinates(data_path).drop("file_prefix")
+            grid = open_grid(data_path)
         except ValueError as e:
             raise (
                 "Cannot open zarr or run directory at data path provided."
