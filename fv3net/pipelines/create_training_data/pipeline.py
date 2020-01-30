@@ -1,12 +1,11 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.utils import retry
+from datetime import timedelta
 import gcsfs
 import logging
 from numpy import random
 import os
 import shutil
-import sys
 import xarray as xr
 
 from . import helpers
@@ -25,18 +24,20 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_OUTER,
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
+    TIME_FMT,
     GRID_VARS,
 )
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
 from vcm.fv3_restarts import (
-    open_restarts_with_time_coordinates, _parse_time, _parse_time_string)
+    open_restarts_with_time_coordinates,
+    _parse_time,
+    _parse_time_string,
+)
 from vcm.select import mask_to_surface_type
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-delay_kwargs = dict(initial_delay_secs=20, num_retries=3)
 
 SAMPLE_DIM = "sample"
 SAMPLE_CHUNK_SIZE = 1500
@@ -178,6 +179,13 @@ def _test_train_split(url_batches, train_frac, random_seed=1234):
     }
     return labels
 
+def _set_forecast_time_coord(ds):
+    delta_t_forecast = ds.forecast_time.values[1] - ds.forecast_time.values[0]
+    ds.reset_index([FORECAST_TIME_DIM], drop=True)
+    return ds.assign_coords(
+        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]}
+    )
+
 
 def _open_cloud_data(run_dirs):
     """Opens multiple run directories into a single dataset, where the init time
@@ -211,6 +219,8 @@ def _open_cloud_data(run_dirs):
         return xr.concat(ds_runs, INIT_TIME_DIM)
     except (ValueError, TypeError) as e:
         logger.error(f"Failed to open restarts from cloud: {e}")
+        ds_runs.append(ds_run)
+    return xr.concat(ds_runs, INIT_TIME_DIM)
 
 
 def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
@@ -329,5 +339,3 @@ def _write_remote_train_zarr(
         shutil.rmtree(zarr_filename)
     except (ValueError, AttributeError, TypeError, RuntimeError) as e:
         logger.error(f"Failed to write zarr: {e}")
-
-

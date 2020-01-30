@@ -1,6 +1,6 @@
 import os
 import pytest
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from vcm import open_restarts
 from vcm.fv3_restarts import (
@@ -114,7 +114,15 @@ def test_config():
 
 
 def test__get_current_date(test_config):
-    expected = [2016, 8, 1, 0, 15, 0]
+    expected = datetime(
+        **{
+            time_unit: value
+            for time_unit, value in zip(
+                ("year", "month", "day", "hour", "minute", "second"),
+                (2016, 8, 1, 0, 15, 0),
+            )
+        }
+    )
     assert _get_current_date(test_config, OUTPUT_URL) == expected
 
 
