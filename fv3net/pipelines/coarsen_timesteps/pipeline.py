@@ -158,6 +158,10 @@ def run(args, pipeline_args=None):
     coarsen_factor = source_resolution // target_resolution
     fs = gcsfs.GCSFileSystem()
     timestep_urls = fs.ls(source_timestep_dir)
+    timestep_urls.sort()
+
+    # gcsfs removes leading gs://
+    timestep_urls = ["gs://" + url for url in timestep_urls]
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
@@ -165,7 +169,7 @@ def run(args, pipeline_args=None):
             p
             | "CreateTStepURLs" >> beam.Create(timestep_urls)
             | "CheckCompleteTSteps"
-            >> beam.filter(check_coarsen_incomplete, output_dir_prefix)
+            >> beam.Filter(check_coarsen_incomplete, output_dir_prefix)
             | "CoarsenTStep"
             >> beam.ParDo(
                 coarsen_timestep,
