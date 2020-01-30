@@ -7,6 +7,3 @@ push: build
 
 build:
 	docker build -t $(IMAGE) .
-
-pipeline: 
-	dsl-compile --py make_pipeline.py --output regrid_c3072_diag.tar.gz

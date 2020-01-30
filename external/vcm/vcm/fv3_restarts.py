@@ -43,20 +43,6 @@ def open_restarts(url: str) -> xr.Dataset:
     )
 
 
-def _diag_files_in_run_dir(run_dir):
-    time = _parse_time(run_dir)
-    protocol, _ = _split_url(run_dir)
-    fs = fsspec.filesystem(protocol)
-    diag_files = [filename for filename in fs.ls(run_dir)
-                  if "atmos_dt_atmos" in filename]
-    for filename in diag_files:
-        proto = "gs"
-        path = filename
-        tile = _get_tile(filename)
-        category = "atmos_dt_atmos"
-        yield time, category, tile, proto, path
-
-
 def open_restarts_with_time_coodinates(url: str) -> xr.Dataset:
     """Opens all the restart file within a certain path, with time coordinates
 
@@ -83,13 +69,11 @@ def open_restarts_with_time_coodinates(url: str) -> xr.Dataset:
             f"Warning, inferring time dimensions failed: {e}.\n"
             f"Returning no time coordinates for run directory at {url}."
         )
-        times = None
-    if times is not None:
+        return ds
+    else:
         return ds.assign_coords({"time": ("file_prefix", times)}).swap_dims(
             {"file_prefix": "time"}
         )
-    else:
-        return ds
 
 
 def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
