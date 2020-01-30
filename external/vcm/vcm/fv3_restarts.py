@@ -69,13 +69,11 @@ def open_restarts_with_time_coodinates(url: str) -> xr.Dataset:
             f"Warning, inferring time dimensions failed: {e}.\n"
             f"Returning no time coordinates for run directory at {url}."
         )
-        times = None
-    if times is not None:
+        return ds
+    else:
         return ds.assign_coords({"time": ("file_prefix", times)}).swap_dims(
             {"file_prefix": "time"}
         )
-    else:
-        return ds
 
 
 def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
