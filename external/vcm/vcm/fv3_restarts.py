@@ -29,7 +29,7 @@ def open_restarts(url: str) -> xr.Dataset:
             Can be any type of protocol used by fsspec, such as google cloud storage
             'gs://path-to-rundir'. If no protocol prefix is used, then it will be
             assumed to be a path to a local file.
-            
+
     Returns:
         ds (xr.Dataset): a combined dataset of all the restart files. All except
             the first file of each restart-file type (e.g. fv_core.res) will only
@@ -43,7 +43,7 @@ def open_restarts(url: str) -> xr.Dataset:
     )
 
 
-def open_restarts_with_time_coodinates(url: str) -> xr.Dataset:
+def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
     """Opens all the restart file within a certain path, with time coordinates
 
     The dimension names are the same as the diagnostic output
@@ -53,7 +53,7 @@ def open_restarts_with_time_coodinates(url: str) -> xr.Dataset:
             Can be any type of protocol used by fsspec, such as google cloud storage
             'gs://path-to-rundir'. If no protocol prefix is used, then it will be
             assumed to be a path to a local file.
-            
+
     Returns:
         ds (xr.Dataset): a combined dataset of all the restart files. All except
             the first file of each restart-file type (e.g. fv_core.res) will only
@@ -91,17 +91,17 @@ def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
 
 def get_restart_times(url: str) -> Sequence[cftime.DatetimeJulian]:
     """Reads the run directory's files to infer restart forecast times
-    
+
     Due to the challenges of directly parsing the forecast times from the restart files,
     it is more robust to read the ime outputs from the namelist and coupler.res
     in the run directory. This function implements that ability.
-    
+
     Args:
         url (str): a URL to the root directory of a run directory.
             Can be any type of protocol used by fsspec, such as google cloud storage
             'gs://path-to-rundir'. If no protocol prefix is used, then it will be
             assumed to be a path to a local file.
-            
+
     Returns:
         time Sequence[cftime.DatetimeJulian]: a list of time coordinates
     """

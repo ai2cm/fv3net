@@ -1,11 +1,13 @@
 import numpy as np
 import xarray as xr
 
+from vcm.cubedsphere.constants import INIT_TIME_DIM, FORECAST_TIME_DIM, COORD_Z_CENTER
+
 gravity = 9.81
 specific_heat = 1004
 
 
-def mass_integrate(phi, dp, dim="pfull"):
+def mass_integrate(phi, dp, dim=COORD_Z_CENTER):
     return (phi * dp / gravity).sum(dim)
 
 
@@ -19,7 +21,7 @@ def timedelta_to_seconds(dt):
 
 
 def apparent_source(
-    q: xr.DataArray, t_dim: str = "initialization_time", s_dim: str = "forecast_time"
+    q: xr.DataArray, t_dim: str = INIT_TIME_DIM, s_dim: str = FORECAST_TIME_DIM
 ) -> xr.DataArray:
     """Compute the apparent source from stepped output
 

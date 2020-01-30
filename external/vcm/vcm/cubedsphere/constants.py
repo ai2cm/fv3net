@@ -26,3 +26,5 @@ FORECAST_TIME_DIM = "forecast_time"
 TIME_FMT = "%Y%m%d.%H%M%S"
 RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
 GRID_VARS = [VAR_LAT_CENTER, VAR_LAT_OUTER, VAR_LON_CENTER, VAR_LON_OUTER, "area"]
+INIT_TIME_DIM = "initialization_time"
+FORECAST_TIME_DIM = "forecast_time"
