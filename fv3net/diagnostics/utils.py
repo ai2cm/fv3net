@@ -23,28 +23,16 @@ class PlotConfig:
     time_dim: str = None
 
 
-def _open_rundir_data(data_path, grid_path):
-    protocol, path = _split_url(data_path)
-    fs = fsspec.filesystem(protocol)
-    data = open_restarts_with_time_coordinates(data_path).drop("file_prefix")
-    if grid_path:
-        grid = xr.open_zarr(fs.get_mapper(grid_path))
-    else:
-        grid = open_grid(data_path)
-    return xr.merge([data, grid])
-
-
-def _open_zarr_data(data_path, grid_path):
-    protocol, path = _split_url(data_path)
-    fs = fsspec.filesystem(protocol)
-    data = xr.open_zarr(fs.get_mapper(data_path))
-    if "sample" in data.dims:
-        data = data.unstack()
-    grid = xr.open_zarr(fs.get_mapper(grid_path))
-    return xr.merge([data.unstack(), grid])
-
-
 def open_dataset(data_path, grid_path):
+    """ Check if data is zarr or rundir and read in
+
+    Args:
+        data_path: path to either a run dir or zarr
+        grid_path: path to zarr grid spec (can be None if rundir provided for data_path)
+
+    Returns:
+         dataset with grid spec merged
+    """
     try:
         if ".zarr" in data_path:
             ds = _open_zarr_data(data_path, grid_path)
@@ -188,3 +176,22 @@ def load_configs(config_path):
             plot_config.time_dim = raw_config["time_dim"]
         plot_configs.append(plot_config)
     return plot_configs
+
+
+def _open_rundir_data(data_path, grid_path):
+    protocol, path = _split_url(data_path)
+    fs = fsspec.filesystem(protocol)
+    data = open_restarts_with_time_coordinates(data_path).drop("file_prefix")
+    if grid_path:
+        grid = xr.open_zarr(fs.get_mapper(grid_path))
+    else:
+        grid = open_grid(data_path)
+    return xr.merge([data, grid])
+
+
+def _open_zarr_data(data_path, grid_path):
+    protocol, path = _split_url(data_path)
+    fs = fsspec.filesystem(protocol)
+    data = xr.open_zarr(fs.get_mapper(data_path))
+    grid = xr.open_zarr(fs.get_mapper(grid_path))
+    return xr.merge([data, grid])

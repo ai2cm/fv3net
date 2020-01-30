@@ -67,7 +67,8 @@ def plot_time_series(ds, plot_config):
 
     Args:
         ds: xarray dataset
-        plot_config: PlotConfig object
+        plot_config: PlotConfig object, note that the time_dim can be set in the config
+        in case the time dim name is not "time"
 
     Returns:
         matplotlib figure
