@@ -28,6 +28,7 @@ dependencies:
   - pyyaml==5.3
   - pytest
   - pytest-mpl
+  - python-kubernetes
   - scikit-image
   - scikit-learn
   - toolz
