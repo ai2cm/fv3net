@@ -81,7 +81,9 @@ def run(args, pipeline_args):
             | "MergeHiresDiagVars"
             >> beam.Map(_merge_hires_data, diag_c384_path=args.diag_c384_path)
             | "MaskToSurfaceType"
-            >> beam.Map(_try_mask_to_surface_type, surface_type=args.mask_to_surface_type)
+            >> beam.Map(
+                _try_mask_to_surface_type, surface_type=args.mask_to_surface_type
+            )
             | "StackAndDropNan" >> beam.Map(_stack_and_drop_nan_samples)
             | "WriteToZarr"
             >> beam.Map(
@@ -179,6 +181,7 @@ def _test_train_split(url_batches, train_frac, random_seed=1234):
     }
     return labels
 
+
 def _set_forecast_time_coord(ds):
     delta_t_forecast = ds.forecast_time.values[1] - ds.forecast_time.values[0]
     ds.reset_index([FORECAST_TIME_DIM], drop=True)
@@ -207,14 +210,14 @@ def _open_cloud_data(run_dirs):
         for run_dir in run_dirs:
             t_init = _parse_time(run_dir)
             ds_run = (
-                open_restarts_with_time_coordinates(run_dir)
-                [INPUT_VARS]
+                open_restarts_with_time_coordinates(run_dir)[INPUT_VARS]
                 .rename({"time": FORECAST_TIME_DIM})
                 .isel({FORECAST_TIME_DIM: slice(-2, None)})
                 .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
-                )
-            ds_run = helpers._set_relative_forecast_time_coord(ds_run) \
-                    .drop("file_prefix")
+            )
+            ds_run = helpers._set_relative_forecast_time_coord(ds_run).drop(
+                "file_prefix"
+            )
             ds_runs.append(ds_run)
         return xr.concat(ds_runs, INIT_TIME_DIM)
     except (ValueError, TypeError) as e:
@@ -253,8 +256,10 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
         )
         return ds
     except (ValueError, TypeError) as e:
-        logger.error(f"Failed step CreateTrainingCols for batch"
-                    f"{ds[INIT_TIME_DIM].values[0]}: {e}")
+        logger.error(
+            f"Failed step CreateTrainingCols for batch"
+            f"{ds[INIT_TIME_DIM].values[0]}: {e}"
+        )
 
 
 def _merge_hires_data(ds_run, diag_c384_path):
@@ -297,12 +302,12 @@ def _stack_and_drop_nan_samples(ds):
     """
     try:
         ds = (
-                ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
-                .transpose(SAMPLE_DIM, COORD_Z_CENTER)
-                .reset_index(SAMPLE_DIM)
-                .dropna(SAMPLE_DIM)
-                .chunk(SAMPLE_CHUNK_SIZE, ds.sizes[COORD_Z_CENTER])
-            )
+            ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
+            .transpose(SAMPLE_DIM, COORD_Z_CENTER)
+            .reset_index(SAMPLE_DIM)
+            .dropna(SAMPLE_DIM)
+            .chunk(SAMPLE_CHUNK_SIZE, ds.sizes[COORD_Z_CENTER])
+        )
         return ds
     except (AttributeError, RuntimeError) as e:
         # TODO: fill in except with the error that gets raised when running into the

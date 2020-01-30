@@ -16,7 +16,7 @@ from vcm.cubedsphere.constants import (
     COORD_Y_OUTER,
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
-    TIME_FMT
+    TIME_FMT,
 )
 
 
@@ -70,11 +70,13 @@ def _path_from_first_timestep(ds, train_test_labels=None):
 
 
 def _set_relative_forecast_time_coord(ds):
-    delta_t_forecast = (ds[FORECAST_TIME_DIM].values[-1]
-                        - ds[FORECAST_TIME_DIM].values[-2])
+    delta_t_forecast = (
+        ds[FORECAST_TIME_DIM].values[-1] - ds[FORECAST_TIME_DIM].values[-2]
+    )
     ds.reset_index([FORECAST_TIME_DIM], drop=True)
     return ds.assign_coords(
-        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]})
+        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]}
+    )
 
 
 def _round_time(t):
@@ -94,9 +96,11 @@ def _round_time(t):
     elif t.second == 59:
         return t.replace(microsecond=0) + timedelta(seconds=1)
     else:
-        raise ValueError(f"Time value > 1 second from 1 minute timesteps for "
-                         "C48 initialization time {t}. Are you sure you're joining "
-                         "the correct high res data?")
+        raise ValueError(
+            f"Time value > 1 second from 1 minute timesteps for "
+            "C48 initialization time {t}. Are you sure you're joining "
+            "the correct high res data?"
+        )
 
 
 def load_c384_diag(c384_data_path, init_times):
