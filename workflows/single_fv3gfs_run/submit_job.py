@@ -129,7 +129,8 @@ if __name__ == "__main__":
         "--bucket",
         type=str,
         required=True,
-        help="Remote url where config and output will be saved.",
+        help="Remote url where config and output will be saved. Specifically, "
+        "configuration will be saved to BUCKET/config and output to BUCKET/output",
     )
     parser.add_argument(
         "--run-yaml",
