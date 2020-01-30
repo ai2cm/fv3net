@@ -73,7 +73,7 @@ def plot_time_series(ds, plot_config):
         matplotlib figure
     """
     fig = plt.figure()
-    if hasattr(plot_config, "time_dim"):
+    if hasattr(plot_config, "time_dim") and plot_config.time_dim:
         time_dim = plot_config.time_dim
     else:
         time_dim = TIME_DIM

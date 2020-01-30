@@ -5,7 +5,8 @@ the output format must be a dataset with the new quantity stored as variable.
 Some of these replicate existing functions, but act as a wrapper so that
 the function returns the input dataset with diagnostic variable added.
 """
-
+from .calc import mass_integrate
+from vcm.cubedsphere.constants import COORD_Z_CENTER
 
 def average_over_time_bin(ds, var, time_dim, sample_freq, new_var):
     """
@@ -58,6 +59,12 @@ def sum_over_dim(
 ):
     da_sum = ds[var_to_sum].sum(dim)
     return ds.assign({new_var: da_sum})
+
+
+def column_mass_integrate(
+    ds, var_to_sum, new_var
+):
+    return ds.assign({new_var: mass_integrate(var_to_sum, dp="delp")})
 
 
 def mask_to_surface_type(ds, surface_type, surface_type_var="slmsk"):

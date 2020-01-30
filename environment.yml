@@ -22,6 +22,7 @@ dependencies:
   - intake-xarray
   - metpy
   - netcdf4>=1.4
+  - nc-time-axis
   - numba
   - numpy
   - partd
