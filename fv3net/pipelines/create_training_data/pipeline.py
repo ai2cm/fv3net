@@ -163,11 +163,11 @@ def _test_train_split(url_batches, train_frac, random_seed=1234):
 
 
 def _set_forecast_time_coord(ds):
-    delta_t_forecast = (ds.forecast_time.values[1] - ds.forecast_time.values[
-        0])
+    delta_t_forecast = ds.forecast_time.values[1] - ds.forecast_time.values[0]
     ds.reset_index([FORECAST_TIME_DIM], drop=True)
     return ds.assign_coords(
-        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]})
+        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]}
+    )
 
 
 def _open_cloud_data(run_dirs):
@@ -189,8 +189,7 @@ def _open_cloud_data(run_dirs):
     for run_dir in run_dirs:
         t_init = _parse_time_string(_parse_time(run_dir))
         ds_run = (
-            open_restarts_with_time_coordinates(run_dir)
-            [INPUT_VARS]
+            open_restarts_with_time_coordinates(run_dir)[INPUT_VARS]
             .expand_dims(dim={INIT_TIME_DIM: [t_init]})
             .rename({"time": FORECAST_TIME_DIM})
             .isel({FORECAST_TIME_DIM: slice(-2, None)})
