@@ -1,3 +1,7 @@
+kubernetes:
+  docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1
+  memory_gb: 14
+  cpu_count: 24
 fv3config:
   diag_table: diag_table_long_free
   experiment_name: free-5day
@@ -25,7 +29,3 @@ fv3config:
         - 2
     gfs_physics_nml:
       fhzero: 1.0
-kubernetes:
-  docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1
-  memory_gb: 14
-  cpu_count: 24

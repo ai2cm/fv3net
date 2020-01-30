@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime, timedelta
 import logging
 import os
 import uuid
@@ -17,6 +18,11 @@ KUBERNETES_CONFIG_DEFAULT = {
     "gcp_secret": "gcp-key",
     "image_pull_policy": "Always",
 }
+
+HOURS_IN_DAY = 24
+NUDGE_INTERVAL = 6  # hours
+NUDGE_FILENAME_PATTERN = "%Y%m%d_%HZ_T85LR.nc"
+NUDGE_BUCKET = "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data"
 
 
 def get_model_config(config_update) -> dict:
@@ -45,11 +51,32 @@ def _upload_if_necessary(path, bucket_url):
     return path
 
 
+def _get_nudge_file_list(start_date: datetime, run_duration: timedelta) -> list:
+    run_duration_hours = run_duration.days * HOURS_IN_DAY
+    nudging_hours = range(0, run_duration_hours + NUDGE_INTERVAL, NUDGE_INTERVAL)
+    time_list = [start_date + timedelta(hours=hour) for hour in nudging_hours]
+    return [time.strftime(NUDGE_FILENAME_PATTERN) for time in time_list]
+
+
+def _get_0z_start_date(config):
+    """ Return datetime object for 00:00:00 on current_date """
+    current_date = config["namelist"]["coupler_nml"]["current_date"]
+    return datetime(current_date[0], current_date[1], current_date[2])
+
+
+def get_nudge_files_asset_list(config):
+    start_date = _get_0z_start_date(config)
+    run_duration = fv3config.get_run_duration(config)
+    return [
+        fv3config.get_asset_dict(NUDGE_BUCKET, file, target_location="INPUT")
+        for file in _get_nudge_file_list(start_date, run_duration)
+    ]
+
+
 def submit_job(bucket, run_config):
-    model_config = get_model_config(run_config["fv3config"])
-    job_name = model_config["experiment_name"] + f".{uuid.uuid4()}"
-    kubernetes_config = get_kubernetes_config(run_config["kubernetes"])
     config_bucket = os.path.join(bucket, "config")
+    model_config = get_model_config(run_config["fv3config"])
+    kubernetes_config = get_kubernetes_config(run_config["kubernetes"])
     # if necessary, upload runfile and diag_table. In future, this should be
     # replaced with an fv3config function to do the same for all elements of config
     kubernetes_config["runfile"] = _upload_if_necessary(
@@ -58,8 +85,11 @@ def submit_job(bucket, run_config):
     model_config["diag_table"] = _upload_if_necessary(
         model_config["diag_table"], config_bucket
     )
+    if model_config["namelist"]["fv_core_nml"].get("nudge", False):
+        model_config["patch_files"] = get_nudge_files_asset_list(model_config)
     with fsspec.open(os.path.join(config_bucket, "fv3config.yml"), "w") as config_file:
         config_file.write(yaml.dump(model_config))
+    job_name = model_config["experiment_name"] + f".{uuid.uuid4()}"
     fv3config.run_kubernetes(
         os.path.join(config_bucket, "fv3config.yml"),
         os.path.join(bucket, "output"),
@@ -90,7 +120,7 @@ if __name__ == "__main__":
         required=True,
         help="Path to local run configuration yaml.",
     )
-    args = parser.parse_args()
+    args, extra_args = parser.parse_known_args()
     with open(args.run_yaml) as file:
         run_config = yaml.load(file, Loader=yaml.FullLoader)
     submit_job(args.bucket, run_config)
