@@ -55,10 +55,10 @@ def test_gridded_ds():
 
 @pytest.fixture()
 def test_ds_time_series():
-    coords = {"pfull": [1, 2], "initialization_time": range(100)}
+    coords = {"pfull": [1, 2], "time": range(100)}
     da_diag_var = xr.DataArray(
         [np.linspace(50, -50, 100), np.linspace(-50, 50, 100)],
-        dims=["pfull", "initialization_time"],
+        dims=["pfull", "time"],
         coords=coords,
     )
     ds_time_series = xr.Dataset({"diag_var": da_diag_var})
@@ -71,7 +71,7 @@ def test_create_plot(test_ds_time_series):
         diagnostic_variable=["mean_diag_var"],
         plot_name="test time series sliced",
         plotting_function="plot_time_series",
-        dim_slices={"initialization_time": slice(None, 50, None)},
+        dim_slices={"time": slice(None, 50, None)},
         functions=[mean_over_dim],
         function_kwargs=[
             {"dim": "pfull", "var_to_avg": "diag_var", "new_var": "mean_diag_var"}

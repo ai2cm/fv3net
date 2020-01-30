@@ -8,6 +8,7 @@ the function returns the input dataset with diagnostic variable added.
 from .calc import mass_integrate
 from vcm.cubedsphere.constants import COORD_Z_CENTER
 
+
 def average_over_time_bin(ds, var, time_dim, sample_freq, new_var):
     """
 
@@ -47,23 +48,17 @@ def apply_weighting(ds, var_to_weight, weighting_var, weighting_dims):
     return ds
 
 
-def mean_over_dim(
-    ds, dim, var_to_avg, new_var,
-):
+def mean_over_dim(ds, dim, var_to_avg, new_var):
     da_mean = ds[var_to_avg].mean(dim)
     return ds.assign({new_var: da_mean})
 
 
-def sum_over_dim(
-    ds, dim, var_to_sum, new_var,
-):
+def sum_over_dim(ds, dim, var_to_sum, new_var):
     da_sum = ds[var_to_sum].sum(dim)
     return ds.assign({new_var: da_sum})
 
 
-def column_mass_integrate(
-    ds, var_to_sum, new_var
-):
+def column_mass_integrate(ds, var_to_sum, new_var):
     return ds.assign({new_var: mass_integrate(var_to_sum, dp="delp")})
 
 

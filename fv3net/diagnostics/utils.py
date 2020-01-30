@@ -35,9 +35,9 @@ class PlotConfig:
 def _open_grid(url):
     grid_files = _diag_files_in_run_dir(url)
     arrays = _load_arrays(grid_files)
-    return xr.Dataset(combine_array_sequence(arrays, labels=["tile"])) \
-        [GRID_VARS] \
-        .squeeze(drop=True)
+    return xr.Dataset(combine_array_sequence(arrays, labels=["tile"]))[
+        GRID_VARS
+    ].squeeze(drop=True)
 
 
 def open_dataset(data_path):
@@ -50,7 +50,7 @@ def open_dataset(data_path):
             data = open_restarts_with_time_coodinates(data_path).drop("file_prefix")
             grid = _open_grid(data_path)
         except ValueError as e:
-            raise(
+            raise (
                 "Cannot open zarr or run directory at data path provided."
                 "Check the input argument and make sure it is one of"
                 f"these allowed data formats. {e}"

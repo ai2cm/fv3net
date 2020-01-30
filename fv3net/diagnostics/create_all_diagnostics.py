@@ -73,8 +73,7 @@ if __name__ == "__main__":
         os.mkdir(args.output_dir)
     data = open_dataset(args.data_path)
     plot_configs = load_configs(args.config_file)
-    output_figure_headings = create_diagnostics(
-        plot_configs, data, args.output_dir)
+    output_figure_headings = create_diagnostics(plot_configs, data, args.output_dir)
     with open(f"{args.output_dir}/diagnostics.html", "w") as f:
         html = report_html.render(sections=output_figure_headings)
         f.write(html)
