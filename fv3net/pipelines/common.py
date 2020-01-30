@@ -1,12 +1,18 @@
 import os
 import shutil
 import tempfile
+
+import itertools
+
+
 from typing import Any, Callable
+from toolz import valmap
 from typing.io import BinaryIO
 
 import apache_beam as beam
 import xarray as xr
 from apache_beam.io import filesystems
+
 
 
 class CombineSubtilesByKey(beam.PTransform):
@@ -99,6 +105,7 @@ netCDF files.
         return pcoll | beam.MapTuple(self._process)
 
 
+
 class ArraysToZarr(beam.PTransform):
     """Write a PCollection of Dataset objects to zarr.
     
@@ -145,3 +152,40 @@ def coords_union(coords):
 
 def get_index(name, local_metadata, global_metadata):
     pass
+
+
+def _chunk_size_to_index(sizes):
+    chunks = []
+    offset = 0
+    for size in sizes:
+        chunks.append(slice(offset, offset + size))
+        offset += size
+    return tuple(chunks)
+
+
+def _get_chunk_indices_test(chunks):
+    return [{'x': idx} for idx in _chunk_size_to_index(chunks['x'])]
+
+
+def _get_chunk_indices(chunks):
+    keys = chunks.keys()
+    chunk_indexers = [_chunk_size_to_index(chunks[key])
+                      for key in keys]
+    return [
+        dict(zip(keys, indexes))
+        for indexes in itertools.product(*chunk_indexers)
+    ]
+
+from collections import namedtuple
+
+chunk = namedtuple('chunk', ['id', 'index', 'data', 'info'])
+
+def _yield_chunks(ds):
+    indices = _get_chunk_indices(ds.chunks)
+    for k, index in enumerate(indices):
+        yield chunk(id=k, index=index, data=ds.isel(index).load(), info=indices)
+
+
+class SplitChunks(beam.PTransform):
+    def expand(self, coll):
+        return coll | beam.ParDo(_yield_chunks)
