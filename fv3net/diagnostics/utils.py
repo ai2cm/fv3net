@@ -29,22 +29,38 @@ class PlotConfig:
     time_dim: str = None
 
 
-def open_dataset(data_path):
+def _open_rundir_data(data_path, grid_path):
     protocol, path = _split_url(data_path)
     fs = fsspec.filesystem(protocol)
-    if ".zarr" in data_path:
-        data = xr.open_zarr(fs.get_mapper(data_path))
+    data = open_restarts_with_time_coordinates(data_path).drop("file_prefix")
+    if grid_path:
+        grid = xr.open_zarr(fs.get_mapper(grid_path))
     else:
-        try:
-            data = open_restarts_with_time_coordinates(data_path).drop("file_prefix")
-            grid = open_grid(data_path)
-        except ValueError as e:
-            raise (
-                "Cannot open zarr or run directory at data path provided."
-                "Check the input argument and make sure it is one of"
-                f"these allowed data formats. {e}"
-            )
+        grid = open_grid(data_path)
     return xr.merge([data, grid])
+
+
+def _open_zarr_data(data_path, grid_path):
+    protocol, path = _split_url(data_path)
+    fs = fsspec.filesystem(protocol)
+    data = xr.open_zarr(fs.get_mapper(data_path))
+    grid = xr.open_zarr(fs.get_mapper(grid_path))
+    return xr.merge([data, grid])
+
+
+def open_dataset(data_path, grid_path):
+    try:
+        if ".zarr" in data_path:
+            ds = _open_zarr_data(data_path, grid_path)
+        else:
+            ds = _open_rundir_data(data_path, grid_path)
+    except ValueError as e:
+        raise (
+            "Cannot open zarr or run directory at data path provided."
+            "Check the input argument and make sure it is one of"
+            f"these allowed data formats. {e}"
+        )
+    return ds
 
 
 def load_ufuncs(raw_config):

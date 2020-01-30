@@ -64,15 +64,20 @@ if __name__ == "__main__":
         help="Path to data. Can provide either a rundir (GCS or local) or a zarr.",
     )
     parser.add_argument(
-        "--time-dim",
-        default="initialization_time",
-        help="Name of time dimension. Defaults to 'initialization_time'.",
+        "--grid-path",
+        default=None,
+        help="Path to zarr grid spec. If not provided, will attempt read a grid spec "
+        "from files in the data-path arg. This will work if the data-path is a "
+        "run-dir but probably not if the data is in zarr form.",
     )
+
     args = parser.parse_args()
     if not os.path.exists(args.output_dir):
         os.mkdir(args.output_dir)
+    if args.grid_path and ".zarr" not in args.grid_path:
+        raise ValueError("If grid path provided, must be in zarr format.")
     data = open_dataset(args.data_path)
-    plot_configs = load_configs(args.config_file)
+    plot_configs = load_configs(args.config_file, args.grid_path)
     output_figure_headings = create_diagnostics(plot_configs, data, args.output_dir)
     with open(f"{args.output_dir}/diagnostics.html", "w") as f:
         html = report_html.render(sections=output_figure_headings)
