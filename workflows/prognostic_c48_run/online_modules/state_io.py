@@ -82,12 +82,10 @@ class ZarrVariableWriter:
             self._init_zarr(array)
             self.set_dims(["time", "rank"] + list(array.dims))
 
-        if self.idx >= self.array.shape[0]:
+        if self.idx >= self.array.shape[0] and self.rank == 0:
             new_shape = (self.idx + 1, self.size) + self.array.shape[2:]
-
-            if self.rank == 0:
-                self.array.resize(*new_shape)
-                self.array.attrs.update(array.attrs)
+            self.array.resize(*new_shape)
+            self.array.attrs.update(array.attrs)
 
         try:
             self.sync_array()
