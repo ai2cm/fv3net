@@ -1,5 +1,6 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+from datetime import timedelta
 import gcsfs
 import logging
 from numpy import random
@@ -26,7 +27,7 @@ from vcm.cubedsphere.constants import (
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
 from vcm.fv3_restarts import (
-    open_restarts_with_time_coordinate,
+    open_restarts_with_time_coordinates,
     _parse_time,
     _parse_time_string,
 )
@@ -52,7 +53,6 @@ def run(args, pipeline_args):
     train_test_labels = _test_train_split(
         data_batch_urls, args.train_fraction, args.random_seed
     )
-    dt_forecast = _parse_forecast_dt(gcs_urls[0])
 
     print(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
@@ -60,7 +60,7 @@ def run(args, pipeline_args):
         (
             p
             | beam.Create(data_batch_urls)
-            | "LoadCloudData" >> beam.Map(_open_cloud_data, dt_forecast=dt_forecast)
+            | "LoadCloudData" >> beam.Map(_open_cloud_data)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
             | "MaskToSurfaceType"
             >> beam.Map(mask_to_surface_type, surface_type=args.mask_to_surface_type)
@@ -166,11 +166,11 @@ def _set_forecast_time_coord(ds):
     delta_t_forecast = (ds.forecast_time.values[1] - ds.forecast_time.values[
         0])
     ds.reset_index([FORECAST_TIME_DIM], drop=True)
-    ds.assign_coords({FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]})
-    return ds
+    return ds.assign_coords(
+        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]})
 
 
-def _open_cloud_data(run_dirs, dt_forecast_sec):
+def _open_cloud_data(run_dirs):
     """Opens multiple run directories into a single dataset, where the init time
     of each run dir is the INIT_TIME_DIM and the times within
 
@@ -189,15 +189,16 @@ def _open_cloud_data(run_dirs, dt_forecast_sec):
     for run_dir in run_dirs:
         t_init = _parse_time_string(_parse_time(run_dir))
         ds_run = (
-            open_restarts_with_time_coordinate(run_dir)
+            open_restarts_with_time_coordinates(run_dir)
             [INPUT_VARS]
             .expand_dims(dim={INIT_TIME_DIM: [t_init]})
             .rename({"time": FORECAST_TIME_DIM})
             .isel({FORECAST_TIME_DIM: slice(-2, None)})
         )
-        ds_run = _set_forecast_time_coord(ds_run) \
+        ds_run = _set_forecast_time_coord(ds_run)
 
         ds_runs.append(ds_run)
+    logger.info(f"init times in dataset loaded: {ds_runs[INIT_TIME_DIM].values}")
     return xr.concat(ds_runs, INIT_TIME_DIM)
 
 
