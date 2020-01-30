@@ -62,7 +62,7 @@ Note that the `online_modules` must be in the PYTHONPATH for this make rule to w
 Configure the scikit-learn run
 ------------------------------------------
 
-The scikit-learn model and location for zarr output can be configured using `fv3config.yml`. To do this, simply add/modifly the `scikit_learn` entry of the yaml file as follows:
+The scikit-learn model and location for zarr output can be configured using `fv3config.yml`. To do this, simply add/modify the `scikit_learn` entry of the yaml file as follows:
 ```
 scikit_learn:
   model: gs://vcm-ml-data/test-annak/ml-pipeline-output/2020-01-17_rf_40d_run.pkl
