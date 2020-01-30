@@ -1,0 +1,217 @@
+
+
+# example of lat cross section, line plot
+-
+  plot_name: equator cross section, T at bottom p level
+  plotting_function: plot_cross_section
+  diagnostic_variable:
+    - T
+  dim_slices:
+    forecast_time:
+      - 0
+    initialization_time:
+      - 10
+    pfull:
+      - 0
+  function_specifications:
+    - remove_extra_dims:
+    - interp_latlon_cross_section:
+        cross_section_dim: lon
+        cross_section_deg: 0
+    - remove_extra_dims:
+        extra_dim: pfull
+
+# example of lat cross section, color plot
+-
+  plot_name: equator cross section, T
+  plotting_function: plot_cross_section
+  diagnostic_variable:
+    - T
+  dim_slices:
+    initialization_time:
+      - 10
+    forecast_time:
+      - 0
+  function_specifications:
+    - remove_extra_dims:
+    - interp_latlon_cross_section:
+        cross_section_dim: lat
+        cross_section_deg: 0
+
+# example of faceted map plot
+-
+  plot_name: dT_dt, vertical int
+  plotting_function: plot_diag_var_map
+  diagnostic_variable:
+      - dT_dt_vertical_int
+  dim_slices:
+    forecast_time:
+      - 0
+    initialization_time:
+      - 25
+      - 35
+  function_specifications:  # function name from vcm.calc.diag_ufuncs, followed by the function args
+    - remove_extra_dims:
+    - apply_weighting:
+        var_to_weight: dT_dt
+        weighting_var: delp
+        weighting_dims: pfull
+    - sum_over_dim:
+         dim: pfull
+         var_to_sum: dT_dt
+         new_var: dT_dt_vertical_int
+  plot_params:
+    col: initialization_time
+    vmin: -0.0001
+    vmax: 0.0001
+    cbar_label: dT_dt vertical integral
+    col_wrap: 5
+
+
+# example of single map plot
+-
+  plot_name: dT_dt, vertical int
+  plotting_function: plot_diag_var_map
+  diagnostic_variable: dT_dt_vertical_int
+  dim_slices:
+    forecast_time:
+      - 0
+    initialization_time:
+      - 27
+  function_specifications:
+    - remove_extra_dims:
+    - apply_weighting:
+        var_to_weight: dT_dt
+        weighting_var: delp
+        weighting_dims: pfull
+    - sum_over_dim:
+         dim: pfull
+         var_to_sum: dT_dt
+         new_var: dT_dt_vertical_int
+  plot_params:
+    vmin: -0.0001
+    vmax: 0.0001
+
+# example of time series plot
+-
+  plot_name: dT_dt
+  plotting_function: plot_time_series
+  time_dim: initialization_time
+  diagnostic_variable:
+      - dT_dt
+      - dT_dt_C48
+  dim_slices:
+    forecast_time:
+      - 0
+    grid_xt:
+      - 20
+    grid_yt:
+      - 5
+    tile:
+      - 3
+    pfull:
+      - 60
+  function_specifications:
+    - remove_extra_dims:
+  plot_params:
+    xlabel: time
+    ylabel: dT/dt
+
+
+-
+  plot_name: dsphum_dt, vertical int
+  plotting_function: plot_diag_var_map
+  diagnostic_variable: dsphum_dt_vertical_int
+  dim_slices:
+    forecast_time:
+      - 0
+    initialization_time:
+      - 25
+  function_specifications:
+    - remove_extra_dims:
+    - apply_weighting:
+        var_to_weight: dsphum_dt
+        weighting_var: delp
+        weighting_dims: pfull
+    - sum_over_dim:
+         dim: pfull
+         var_to_sum: dsphum_dt
+         new_var: dsphum_dt_vertical_int
+  plot_params:
+    vmin: -5e-8
+    vmax: 5e-8
+
+-
+  plot_name: dsphum_dt, vertical int
+  plotting_function: plot_diag_var_map
+  diagnostic_variable: dsphum_dt_vertical_int
+  dim_slices:
+    forecast_time:
+      - 0
+    initialization_time:
+      - 25
+      - 35
+  function_specifications:
+    - remove_extra_dims:
+    - apply_weighting:
+        var_to_weight: dsphum_dt
+        weighting_var: delp
+        weighting_dims: pfull
+    - sum_over_dim:
+         dim: pfull
+         var_to_sum: dsphum_dt
+         new_var: dsphum_dt_vertical_int
+  plot_params:
+    vmin: -5e-8
+    vmax: 5e-8
+    col: initialization_time
+    cbar_label: dsphum_dt vertical integral
+    col_wrap: 5
+
+-
+  plot_name: dsphum_dt
+  plotting_function: plot_time_series
+  diagnostic_variable: dsphum_dt
+  dim_slices:
+    forecast_time:
+      - 0
+    initialization_time:
+      - null
+      - null
+    grid_xt:
+      - 20
+    grid_yt:
+      - 5
+    tile:
+      - 3
+    pfull:
+      - 60
+  function_specifications:
+    - remove_extra_dims:
+  plot_params:
+    xlabel: time
+    ylabel: dsphum/dt
+
+-
+  plot_name: dsphum_dt_C48
+  plotting_function: plot_time_series
+  diagnostic_variable: dsphum_dt_C48
+  dim_slices:
+    forecast_time:
+      - 0
+    initialization_time:
+      - null
+      - null
+    grid_xt:
+      - 20
+    grid_yt:
+      - 5
+    tile:
+      - 3
+    pfull:
+      - 60
+  function_specifications:
+    - remove_extra_dims:
+  plot_params:
+    xlabel: time
+    ylabel: dsphum_C48/dt
