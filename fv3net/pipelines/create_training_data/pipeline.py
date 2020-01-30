@@ -164,6 +164,14 @@ def _test_train_split(url_batches, train_frac, random_seed=1234):
     return labels
 
 
+def _set_forecast_time_coord(ds):
+    delta_t_forecast = (ds.forecast_time.values[1] - ds.forecast_time.values[
+        0])
+    ds.reset_index([FORECAST_TIME_DIM], drop=True)
+    ds.assign_coords({FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]})
+    return ds
+
+
 def _open_cloud_data(run_dirs, dt_forecast_sec):
     """Opens multiple run directories into a single dataset, where the init time
     of each run dir is the INIT_TIME_DIM and the times within
@@ -186,9 +194,11 @@ def _open_cloud_data(run_dirs, dt_forecast_sec):
             open_restarts(run_dir)
             [INPUT_VARS]
             .expand_dims(dim={INIT_TIME_DIM: [t_init]})
+            .rename({"time": FORECAST_TIME_DIM})
+            .isel({FORECAST_TIME_DIM: slice(-2, None)})
         )
         ds_run = _set_forecast_time_coord(ds_run) \
-            .isel({FORECAST_TIME_DIM: slice(-2, None)})
+
         ds_runs.append(ds_run)
     return xr.concat(ds_runs, INIT_TIME_DIM)
 
