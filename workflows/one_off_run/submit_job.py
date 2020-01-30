@@ -51,7 +51,7 @@ def _upload_if_necessary(path, bucket_url):
     return path
 
 
-def _get_nudge_file_list(start_date: datetime, run_duration: timedelta) -> list:
+def get_nudge_file_list(start_date: datetime, run_duration: timedelta) -> list:
     run_duration_hours = run_duration.days * HOURS_IN_DAY
     nudging_hours = range(0, run_duration_hours + NUDGE_INTERVAL, NUDGE_INTERVAL)
     time_list = [start_date + timedelta(hours=hour) for hour in nudging_hours]
@@ -69,8 +69,23 @@ def get_nudge_files_asset_list(config):
     run_duration = fv3config.get_run_duration(config)
     return [
         fv3config.get_asset_dict(NUDGE_BUCKET, file, target_location="INPUT")
-        for file in _get_nudge_file_list(start_date, run_duration)
+        for file in get_nudge_file_list(start_date, run_duration)
     ]
+
+
+def get_and_write_input_fname_asset(config, config_bucket):
+    input_fname_list = config["namelist"]["fv_nwp_nudge_nml"]["input_fname_list"]
+    start_date = _get_0z_start_date(config)
+    run_duration = fv3config.get_run_duration(config)
+    with fsspec.open(os.path.join(config_bucket, input_fname_list), "w") as remote_file:
+        remote_file.write("\n".join(get_nudge_file_list(start_date, run_duration)))
+    return fv3config.get_asset_dict(config_bucket, input_fname_list)
+
+
+def update_config_for_nudging(model_config, config_bucket):
+    model_config["patch_files"] = get_nudge_files_asset_list(model_config)
+    model_config["patch_files"].append(get_and_write_input_fname_asset(model_config, config_bucket))
+    return model_config
 
 
 def submit_job(bucket, run_config):
@@ -86,7 +101,7 @@ def submit_job(bucket, run_config):
         model_config["diag_table"], config_bucket
     )
     if model_config["namelist"]["fv_core_nml"].get("nudge", False):
-        model_config["patch_files"] = get_nudge_files_asset_list(model_config)
+        model_config = update_config_for_nudging(model_config, config_bucket)
     with fsspec.open(os.path.join(config_bucket, "fv3config.yml"), "w") as config_file:
         config_file.write(yaml.dump(model_config))
     job_name = model_config["experiment_name"] + f".{uuid.uuid4()}"
