@@ -44,6 +44,8 @@ def _open_zarr_data(data_path, grid_path):
     protocol, path = _split_url(data_path)
     fs = fsspec.filesystem(protocol)
     data = xr.open_zarr(fs.get_mapper(data_path))
+    if "sample" in data.dims:
+        data = data.unstack()
     grid = xr.open_zarr(fs.get_mapper(grid_path))
     return xr.merge([data, grid])
 
