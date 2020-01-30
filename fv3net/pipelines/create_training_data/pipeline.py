@@ -197,7 +197,6 @@ def _open_cloud_data(run_dirs):
         ds_run = _set_forecast_time_coord(ds_run)
 
         ds_runs.append(ds_run)
-    logger.info(f"init times in dataset loaded: {ds_runs[INIT_TIME_DIM].values}")
     return xr.concat(ds_runs, INIT_TIME_DIM)
 
 
