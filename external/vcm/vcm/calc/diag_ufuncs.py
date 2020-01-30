@@ -6,7 +6,6 @@ Some of these replicate existing functions, but act as a wrapper so that
 the function returns the input dataset with diagnostic variable added.
 """
 from .calc import mass_integrate
-from vcm.cubedsphere.constants import COORD_Z_CENTER
 
 
 def average_over_time_bin(ds, var, time_dim, sample_freq, new_var):

@@ -1,16 +1,10 @@
 from dataclasses import dataclass
 import fsspec
-import os
 from typing import List
 import xarray as xr
 import yaml
 from vcm.calc import diag_ufuncs
-from vcm.fv3_restarts import (
-    open_restarts_with_time_coordinates,
-    open_grid,
-    _split_url,
-    _parse_time,
-)
+from vcm.fv3_restarts import open_restarts_with_time_coordinates, open_grid, _split_url
 
 
 @dataclass
@@ -47,7 +41,7 @@ def _open_zarr_data(data_path, grid_path):
     if "sample" in data.dims:
         data = data.unstack()
     grid = xr.open_zarr(fs.get_mapper(grid_path))
-    return xr.merge([data, grid])
+    return xr.merge([data.unstack(), grid])
 
 
 def open_dataset(data_path, grid_path):
