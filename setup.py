@@ -7,6 +7,7 @@ dependencies = [
     "gcsfs",
     "fsspec",
     "google-cloud-storage",
+    "h5netcdf",
     "intake",
     "numba",
     "scikit-image",

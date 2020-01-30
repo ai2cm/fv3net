@@ -1,47 +1,112 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+from datetime import timedelta
 import gcsfs
 import logging
+from numpy import random
 import os
+import shutil
 import xarray as xr
 
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
+from vcm.cubedsphere.constants import (
+    COORD_Z_CENTER,
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_OUTER,
+    VAR_LON_CENTER,
+    VAR_LAT_CENTER,
+    VAR_LON_OUTER,
+    VAR_LAT_OUTER,
+    INIT_TIME_DIM,
+    FORECAST_TIME_DIM,
+    TIME_FMT,
+)
+from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
+from vcm.fv3_restarts import (
+    open_restarts_with_time_coordinates,
+    _parse_time,
+    _parse_time_string,
+)
 from vcm.select import mask_to_surface_type
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-TIME_DIM = "initialization_time"
-GRID_VARS = ["grid_lon", "grid_lat", "grid_lont", "grid_latt"]
+SAMPLE_DIM = "sample"
+SAMPLE_CHUNK_SIZE = 1500
+
+GRID_VARS = [COORD_X_CENTER, COORD_Y_CENTER, COORD_X_OUTER, COORD_Y_OUTER, "area"]
 INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
 
 
 def run(args, pipeline_args):
     fs = gcsfs.GCSFileSystem(project=args.gcs_project)
-    zarr_dir = os.path.join(args.gcs_bucket, args.gcs_input_data_path)
-    gcs_urls = [url for url in sorted(fs.ls(zarr_dir)) if ".zarr" in url]
-    data_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
+    data_path = os.path.join(args.gcs_bucket, args.gcs_input_data_path)
+    gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(data_path))]
+    _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir, args.gcs_bucket)
+    data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
+    train_test_labels = _test_train_split(
+        data_batch_urls, args.train_fraction, args.random_seed
+    )
 
-    print(f"Processing {len(data_urls)} subsets...")
+    print(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
             p
-            | beam.Create(data_urls)
-            | "LoadCloudData" >> beam.Map(_load_cloud_data, fs=fs)
+            | beam.Create(data_batch_urls)
+            | "LoadCloudData" >> beam.Map(_open_cloud_data)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
             | "MaskToSurfaceType"
             >> beam.Map(mask_to_surface_type, surface_type=args.mask_to_surface_type)
+            | "StackAndDropNan" >> beam.Map(_stack_and_drop_nan_samples)
             | "WriteToZarr"
             >> beam.Map(
-                _write_to_zarr,
+                _write_remote_train_zarr,
                 gcs_dest_dir=args.gcs_output_data_dir,
                 bucket=args.gcs_bucket,
+                train_test_labels=train_test_labels,
             )
         )
+
+
+def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
+    """ Reads grid spec from diag files in a run dir and writes to GCS
+
+    Args:
+        fs: GCSFileSystem object
+        run_dir: run dir to read grid data from. Using the first timestep should be fine
+        gcs_output_data_dir: Write path
+        gcs_bucket: GCS bucket to write to
+
+    Returns:
+        None
+    """
+    grid_info_files = [
+        "gs://" + filename
+        for filename in fs.ls(run_dir)
+        if "atmos_dt_atmos" in filename
+    ]
+    os.makedirs("temp_grid_spec", exist_ok=True)
+    gsutil.copy_many(grid_info_files, "temp_grid_spec")
+    grid = open_cubed_sphere(
+        "temp_grid_spec/atmos_dt_atmos",
+        num_subtiles=1,
+        pattern="{prefix}.tile{tile:d}.nc",
+    )[["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]]
+    _write_remote_train_zarr(
+        grid, gcs_output_data_dir, gcs_bucket, zarr_filename="grid_spec.zarr"
+    )
+    logger.info(
+        f"Wrote grid spec to "
+        f"{os.path.join(gcs_bucket, gcs_output_data_dir, 'grid_spec.zarr')}"
+    )
+    shutil.rmtree("temp_grid_spec")
 
 
 def _get_url_batches(gcs_urls, timesteps_per_output_file):
@@ -69,49 +134,73 @@ def _get_url_batches(gcs_urls, timesteps_per_output_file):
     return data_urls
 
 
-def _write_to_zarr(ds, gcs_dest_dir, bucket="gs://vcm-ml-data"):
-    """Writes temporary zarr on worker and moves it to GCS
+def _test_train_split(url_batches, train_frac, random_seed=1234):
+    """ Randomly assigns train/test set labels to each batch
 
     Args:
-        ds: xr dataset for single training batch
-        gcs_dest_path: write location on GCS
-        zarr_filename: name for zarr, use first timestamp as label
-        bucket: GCS bucket
+        url_batches: nested list where inner lists are groupings of input urls
+        train_frac:
+        random_seed:
+
     Returns:
-        None
+
     """
-    logger.info("Writing to zarr...")
-    zarr_filename = _filename_from_first_timestep(ds)
-    output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
-    ds.to_zarr(zarr_filename, mode="w")
-    gsutil.copy(zarr_filename, output_path)
-    logger.info(f"Done writing zarr to {output_path}")
+    random.seed(random_seed)
+    random.shuffle(url_batches)
+    if train_frac > 1:
+        train_frac = 1
+        logger.warning("Train fraction provided > 1. Will set to 1.")
+    num_train_batches = int(len(url_batches) * train_frac)
+    labels = {
+        "train": [
+            _parse_time(batch_urls[0]) for batch_urls in url_batches[:num_train_batches]
+        ],
+        "test": [
+            _parse_time(batch_urls[0]) for batch_urls in url_batches[num_train_batches:]
+        ],
+    }
+    return labels
 
 
-def _filename_from_first_timestep(ds):
-    timestep = min(ds[TIME_DIM].values).strftime("%Y%m%d.%H%M%S")
-    return timestep + ".zarr"
+def _set_forecast_time_coord(ds):
+    delta_t_forecast = ds.forecast_time.values[1] - ds.forecast_time.values[0]
+    ds.reset_index([FORECAST_TIME_DIM], drop=True)
+    return ds.assign_coords(
+        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]}
+    )
 
 
-def _load_cloud_data(gcs_urls, fs):
-    """
+def _open_cloud_data(run_dirs):
+    """Opens multiple run directories into a single dataset, where the init time
+    of each run dir is the INIT_TIME_DIM and the times within
 
     Args:
         fs: GCSFileSystem
-        gcs_urls: list of GCS urls to open
+        run_dirs: list of GCS urls to open
 
     Returns:
         xarray dataset of concatenated zarrs in url list
     """
-    logger.info(f"Using urls for batch: {gcs_urls}")
-    gcs_zarr_mappings = [fs.get_mapper(url) for url in gcs_urls]
-    ds = xr.concat(map(xr.open_zarr, gcs_zarr_mappings), TIME_DIM)[
-        INPUT_VARS + GRID_VARS
-    ]
-    return ds
+    logger.info(
+        f"Using run dirs for batch: "
+        f"{[os.path.basename(run_dir[:-1]) for run_dir in run_dirs]}"
+    )
+    ds_runs = []
+    for run_dir in run_dirs:
+        t_init = _parse_time_string(_parse_time(run_dir))
+        ds_run = (
+            open_restarts_with_time_coordinates(run_dir)[INPUT_VARS]
+            .expand_dims(dim={INIT_TIME_DIM: [t_init]})
+            .rename({"time": FORECAST_TIME_DIM})
+            .isel({FORECAST_TIME_DIM: slice(-2, None)})
+        )
+        ds_run = _set_forecast_time_coord(ds_run)
+
+        ds_runs.append(ds_run)
+    return xr.concat(ds_runs, INIT_TIME_DIM)
 
 
-def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS + GRID_VARS):
+def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
     """
 
     Args:
@@ -128,7 +217,97 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS + GRID_VARS):
     ds["QV"] = apparent_source(ds.v)
     ds["Q1"] = apparent_source(ds.T)
     ds["Q2"] = apparent_source(ds.sphum)
-    ds = ds[cols_to_keep].isel({TIME_DIM: slice(None, ds.sizes[TIME_DIM] - 1)})
-    if "forecast_time" in ds.dims:
-        ds = ds.isel(forecast_time=0).squeeze(drop=True)
+    ds = (
+        ds[cols_to_keep]
+        .isel(
+            {
+                INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1),
+                FORECAST_TIME_DIM: 0,
+            }
+        )
+        .squeeze(drop=True)
+    )
     return ds
+
+
+def _stack_and_drop_nan_samples(ds):
+    """
+
+    Args:
+        ds: xarray dataset
+
+    Returns:
+        xr dataset stacked into sample dimension and with NaN elements dropped
+         (the masked out land/sea type)
+    """
+
+    ds = (
+        ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
+        .transpose(SAMPLE_DIM, COORD_Z_CENTER)
+        .reset_index(SAMPLE_DIM)
+        .dropna(SAMPLE_DIM)
+        .chunk(SAMPLE_CHUNK_SIZE, ds.sizes[COORD_Z_CENTER])
+    )
+    return ds
+
+
+def _write_remote_train_zarr(
+    ds,
+    gcs_dest_dir,
+    bucket="gs://vcm-ml-data",
+    zarr_filename=None,
+    train_test_labels=None,
+):
+    """Writes temporary zarr on worker and moves it to GCS
+
+    Args:
+        ds: xr dataset for single training batch
+        gcs_dest_path: write location on GCS
+        zarr_filename: name for zarr, use first timestamp as label
+        bucket: GCS bucket
+        train_test_labels: optional dict with
+    Returns:
+        None
+    """
+    logger.info("Writing to zarr...")
+    if not zarr_filename:
+        zarr_filename = _path_from_first_timestep(ds, train_test_labels)
+    output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
+    ds.to_zarr(zarr_filename, mode="w")
+    gsutil.copy(zarr_filename, output_path)
+    logger.info(f"Done writing zarr to {output_path}")
+    shutil.rmtree(zarr_filename)
+
+
+def _path_from_first_timestep(ds, train_test_labels=None):
+    """ Uses first init time as zarr filename, and appends a 'train'/'test' subdir
+    if a dict of labels is provided
+
+    Args:
+        ds:
+        train_test_labels: optional dict with keys ["test", "train"] and values lists of
+            timestep strings that go to each set
+
+    Returns:
+        path in args.gcs_output_dir to write the zarr to
+    """
+    timestep = min(ds[INIT_TIME_DIM].values).strftime(TIME_FMT)
+    if isinstance(train_test_labels, dict):
+        try:
+            if timestep in train_test_labels["train"]:
+                train_test_subdir = "train"
+            elif timestep in train_test_labels["test"]:
+                train_test_subdir = "test"
+        except KeyError:
+            logger.warning(
+                "train_test_labels dict does not have keys ['train', 'test']."
+                "Will write zarrs directly to gcs_output_dir."
+            )
+            train_test_subdir = ""
+    else:
+        logger.info(
+            "No train_test_labels dict provided."
+            "Will write zarrs directly to gcs_output_dir."
+        )
+        train_test_subdir = ""
+    return os.path.join(train_test_subdir, timestep + ".zarr")

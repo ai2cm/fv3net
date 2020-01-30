@@ -43,7 +43,7 @@ def open_restarts(url: str) -> xr.Dataset:
     )
 
 
-def open_restarts_with_time_coodinates(url: str) -> xr.Dataset:
+def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
     """Opens all the restart file within a certain path, with time coordinates
 
     The dimension names are the same as the diagnostic output
