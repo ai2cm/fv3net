@@ -21,16 +21,14 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_OUTER,
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
+    TIME_FMT,
 )
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
 from vcm.fv3_restarts import (
-    TIME_FMT,
-    open_restarts,
-    _parse_forecast_dt,
+    open_restarts_with_time_coordinate,
     _parse_time,
     _parse_time_string,
-    _set_forecast_time_coord,
 )
 from vcm.select import mask_to_surface_type
 
@@ -191,7 +189,7 @@ def _open_cloud_data(run_dirs, dt_forecast_sec):
     for run_dir in run_dirs:
         t_init = _parse_time_string(_parse_time(run_dir))
         ds_run = (
-            open_restarts(run_dir)
+            open_restarts_with_time_coordinate(run_dir)
             [INPUT_VARS]
             .expand_dims(dim={INIT_TIME_DIM: [t_init]})
             .rename({"time": FORECAST_TIME_DIM})
