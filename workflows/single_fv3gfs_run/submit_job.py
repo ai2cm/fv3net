@@ -80,7 +80,7 @@ def _get_nudge_files_asset_list(config):
 
 def _get_and_write_nudge_files_description_asset(config, config_bucket):
     """Write a text file with list of all nudging files required  (which the
-    model requires to know what the nudging files are called) and return an fv3config 
+    model requires to know what the nudging files are called) and return an fv3config
     asset pointing to this text file."""
     input_fname_list = config["namelist"]["fv_nwp_nudge_nml"]["input_fname_list"]
     with fsspec.open(os.path.join(config_bucket, input_fname_list), "w") as remote_file:
