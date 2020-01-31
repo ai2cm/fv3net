@@ -8,7 +8,7 @@
     initialization_time:
       - 25
   function_specifications:
-    - remove_extra_dim:
+    - remove_extra_dims:
     - apply_weighting:
         var_to_weight: Q1
         weighting_var: delp
@@ -31,7 +31,7 @@
       - 25
       - 46
   function_specifications:
-    - remove_extra_dim:
+    - remove_extra_dims:
     - apply_weighting:
         var_to_weight: Q1
         weighting_var: delp
@@ -55,7 +55,7 @@
       - 46
       - null
   function_specifications:
-    - remove_extra_dim:
+    - remove_extra_dims:
     - apply_weighting:
         var_to_weight: Q1
         weighting_var: delp
@@ -78,7 +78,7 @@
       - -4
       - null
   function_specifications:
-    - remove_extra_dim:
+    - remove_extra_dims:
     - mean_over_dim:
          dim: pfull
          var_to_avg: Q1
@@ -94,7 +94,7 @@
     initialization_time:
       - 25
   function_specifications:
-    - remove_extra_dim:
+    - remove_extra_dims:
     - apply_weighting:
         var_to_weight: Q2
         weighting_var: delp
@@ -117,7 +117,7 @@
       - 25
       - 46
   function_specifications:
-    - remove_extra_dim:
+    - remove_extra_dims:
     - apply_weighting:
         var_to_weight: Q2
         weighting_var: delp
@@ -140,7 +140,7 @@
       - 46
       - null
   function_specifications:
-    - remove_extra_dim:
+    - remove_extra_dims:
     - apply_weighting:
         var_to_weight: Q2
         weighting_var: delp
@@ -163,7 +163,7 @@
       - -4
       - null
   function_specifications:
-    - remove_extra_dim:
+    - remove_extra_dims:
     - mean_over_dim:
          dim: pfull
          var_to_avg: Q2

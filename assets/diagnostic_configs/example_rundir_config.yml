@@ -1,0 +1,42 @@
+# example of time series plot
+-
+  plot_name: T vs SST
+  plotting_function: plot_time_series
+  diagnostic_variable:
+      - T
+  dim_slices:
+    grid_xt:
+      - 20
+    grid_yt:
+      - 5
+    tile:
+      - 3
+    pfull:
+      - 78
+  function_specifications:
+    - remove_extra_dims:
+  time_dim: time
+  plot_params:
+    xlabel: time
+    ylabel: T
+
+# example of faceted map plot
+-
+  plot_name: PW
+  plotting_function: plot_diag_var_map
+  diagnostic_variable:
+      - sphum_vertical_int
+  dim_slices:
+    time:
+      - 0
+      - 10
+  function_specifications:  # function name from vcm.calc.diag_ufuncs, followed by the function args
+    - remove_extra_dims:
+    - sum_over_dim:
+         dim: pfull
+         var_to_sum: sphum
+         new_var: sphum_vertical_int
+  plot_params:
+    col: time
+    cbar_label: PW
+    col_wrap: 5
