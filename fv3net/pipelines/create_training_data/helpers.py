@@ -103,22 +103,22 @@ def _round_time(t):
         )
 
 
-def load_c384_diag(c384_data_path, init_times):
-    protocol, path = _split_url(c384_data_path)
+def load_diag(diag_data_path, init_times):
+    protocol, path = _split_url(diag_data_path)
     fs = fsspec.filesystem(protocol)
-    ds_c384 = xr.open_zarr(fs.get_mapper(c384_data_path))
-    ds_c384 = (
-        ds_c384.rename(GRID_VAR_MAP)
+    ds_diag = xr.open_zarr(fs.get_mapper(diag_data_path))
+    ds_diag = (
+        ds_diag.rename(GRID_VAR_MAP)
         .rename({"time": "initialization_time"})
         .assign_coords(
             {
                 "tile": range(6),
-                INIT_TIME_DIM: [_round_time(t) for t in ds_c384.time.values],
+                INIT_TIME_DIM: [_round_time(t) for t in ds_diag.time.values],
             }
         )
         .sel({INIT_TIME_DIM: init_times})
     )
-    return ds_c384
+    return ds_diag
 
 
 def add_coarsened_features(ds_c48):

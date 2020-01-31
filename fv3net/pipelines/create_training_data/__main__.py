@@ -11,11 +11,11 @@ if __name__ == "__main__":
         "Don't include bucket in path.",
     )
     parser.add_argument(
-        "--diag-c384-path",
+        "--diag-c48-path",
         type=str,
         required=False,
-        help="Location of C384 high res diagnostic zarr to coarsen for features "
-        "(SHF, LHF, etc.) that are not saved in restarts. If not provided, the"
+        help="Location of C48 (coarsened from C384) high res diagnostic zarr for "
+        "features (SHF, LHF, etc.) that are not saved in restarts. If not provided, "
         "features from diagnostics will not be in the final training data set.",
     )
     parser.add_argument(

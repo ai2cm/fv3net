@@ -79,7 +79,7 @@ def run(args, pipeline_args):
             | "LoadCloudData" >> beam.Map(_open_cloud_data)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
             | "MergeHiresDiagVars"
-            >> beam.Map(_merge_hires_data, diag_c384_path=args.diag_c384_path)
+            >> beam.Map(_merge_hires_data, diag_c48_path=args.diag_c48_path)
             | "MaskToSurfaceType"
             >> beam.Map(
                 _try_mask_to_surface_type, surface_type=args.mask_to_surface_type
@@ -262,19 +262,14 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
         )
 
 
-def _merge_hires_data(ds_run, diag_c384_path):
+def _merge_hires_data(ds_run, diag_c48_path):
+    if not diag_c48_path:
+        return ds_run
     try:
         init_times = ds_run[INIT_TIME_DIM].values
-        diags_c384 = helpers.load_c384_diag(diag_c384_path, init_times)[
+        diags_c48 = helpers.load_diag(diag_c48_path, init_times)[
             HIRES_GRID_VARS + HIRES_DATA_VARS
         ]
-        diags_c48 = coarsen.weighted_block_average(
-            diags_c384,
-            diags_c384["area_coarse"],
-            x_dim=COORD_X_CENTER,
-            y_dim=COORD_Y_CENTER,
-            coarsening_factor=8,
-        ).unify_chunks()
         features_diags_c48 = helpers.add_coarsened_features(diags_c48)[
             INPUT_VARS_FROM_HIRES
         ]
