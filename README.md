@@ -19,7 +19,7 @@ Project Organization
     │   ├── visualization
     ├── tests               
     ├── workflows           <-- Job submission scripts and description for pieces of data pipeline
-    │   ├── coarsen_timesteps   <-- Coarsen FV3GFS restart timesteps to desired resolution
+    │   ├── coarsen_restarts    <-- Coarsen FV3GFS restart timesteps to desired resolution
     │   ├── extract_tars        <-- Dig yourself out of a tarpit using Dataflow
     │   ├── one_step_jobs       <-- Submit one-step kubernetes jobs using fv3run
     │   └── scale-snakemake     <-- Coarsening operation with kubernetes and snakemake (Deprecated)

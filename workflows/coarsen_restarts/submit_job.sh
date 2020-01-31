@@ -7,7 +7,7 @@ GCS_GRIDSPEC="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy"
 SRC_RESOLUTION=384
 TARGET_RESOLUTION=48
 
-python -m fv3net.pipelines.coarsen_timesteps\
+python -m fv3net.pipelines.coarsen_restarts\
     --gcs-src-dir $GCS_SRC \
     --gcs-dst-dir $GCS_DST \
     --gcs-grid-spec-path $GCS_GRIDSPEC \

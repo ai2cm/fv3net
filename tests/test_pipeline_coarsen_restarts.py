@@ -1,7 +1,7 @@
 import pytest
 import os
 
-from fv3net.pipelines.coarsen_timesteps.pipeline import check_coarsen_incomplete
+from fv3net.pipelines.coarsen_restarts.pipeline import check_coarsen_incomplete
 
 TEST_DATA_GCS = "gs://vcm-ml-data/fv3net-testing-data/coarsen-timesteps"
 SRC_GCS = os.path.join(TEST_DATA_GCS, "C384")

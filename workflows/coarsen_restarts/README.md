@@ -6,7 +6,7 @@ timesteps in a directory on cloud storage.  The workflow performs the coarsening
 using pressure-level coarsening defined in `vcm.coarsen`.
 
 ```python
-fv3net.pipelines.coarsen_timesteps
+fv3net.pipelines.coarsen_restarts
 
 usage: __main__.py [-h] --gcs-src-dir GCS_SRC_DIR [--gcs-dst-dir GCS_DST_DIR]
                    --gcs-grid-spec-path GCS_GRID_SPEC_PATH --source-resolution
