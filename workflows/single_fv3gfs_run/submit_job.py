@@ -1,5 +1,5 @@
 import argparse
-from collections import Mapping
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 import logging
 import os
@@ -98,6 +98,7 @@ def _update_config_for_nudging(model_config, config_bucket):
 
 
 def _get_and_upload_run_config(bucket, run_config):
+    """ Get config objects for current job and upload as necessary"""
     config_bucket = os.path.join(bucket, "config")
     model_config = get_model_config(run_config["fv3config"])
     kube_config = get_kube_config(run_config["kubernetes"])
@@ -155,3 +156,5 @@ if __name__ == "__main__":
     with open(args.run_yaml) as file:
         run_config = yaml.load(file, Loader=yaml.FullLoader)
     submit_job(args.bucket, run_config)
+    logger.info(f"Submitted {job_name}")
+
