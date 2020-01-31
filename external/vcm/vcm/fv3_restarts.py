@@ -5,7 +5,6 @@ from typing import Any, Generator, Tuple, Sequence
 
 import cftime
 import fsspec
-import numpy as np
 import xarray as xr
 import pandas as pd
 from dask.delayed import delayed
