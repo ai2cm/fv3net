@@ -1,73 +1,117 @@
 import os
 import re
-from datetime import datetime
-from functools import partial
-from os.path import join
-from typing import Any, Dict, Generator, Tuple
+from datetime import datetime, timedelta
+from typing import Any, Generator, Tuple, Sequence
 
 import cftime
 import fsspec
 import xarray as xr
+import pandas as pd
 from dask.delayed import delayed
-
 import f90nml
-from vcm.combining import combine_array_sequence
-from vcm.cubedsphere.constants import (
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    COORD_X_OUTER,
-    COORD_Y_OUTER,
-)
-from vcm.convenience import open_delayed
 
-TIME_FMT = "%Y%m%d.%H%M%S"
+from vcm.schema_registry import impose_dataset_to_schema
+from vcm.combining import combine_array_sequence
+from vcm.convenience import open_delayed
+from vcm.cubedsphere.constants import RESTART_CATEGORIES, TIME_FMT
+
 
 SCHEMA_CACHE = {}
 
-NUM_SOIL_LAYERS = 4
-RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
-X_NAME = COORD_X_CENTER
-Y_NAME = COORD_Y_CENTER
-X_EDGE_NAME = COORD_X_OUTER
-Y_EDGE_NAME = COORD_Y_OUTER
-Z_NAME = "pfull"
-Z_EDGE_NAME = "phalf"
 
-
-def open_restarts(
-    url: str, initial_time: str, final_time: str, grid: Dict[str, int] = None
-) -> xr.Dataset:
+def open_restarts(url: str) -> xr.Dataset:
     """Opens all the restart file within a certain path
 
     The dimension names are the same as the diagnostic output
 
     Args:
-        url: a URL to the root directory of a run directory. Can be any type of protocol
-            used by fsspec, such as google cloud storage 'gs://path-to-rundir'. If no
-            protocol prefix is used, then it will be assumed to be a path to a local
-            file.
-        initial_time: A YYYYMMDD.HHMMSS string for the initial condition. The initial
-            condition data does not have an time-stamp in its filename, so you must
-            provide it using this argument. This only updates the time coordinate of
-            the output and does not imply any subselection of time-steps.
-        final_time: same as `initial_time` but for the ending time of the simulation.
-            Again, the timestamp is not in the filename of the final set of restart
-            files.
-        grid: a dict with the grid information (e.g.)::
-
-             {'nz': 79, 'nz_soil': 4, 'nx': 48, 'ny': 48}
+        url (str): a URL to the root directory of a run directory.
+            Can be any type of protocol used by fsspec, such as google cloud storage
+            'gs://path-to-rundir'. If no protocol prefix is used, then it will be
+            assumed to be a path to a local file.
 
     Returns:
-        a combined dataset of all the restart files. All except the first file of
-        each restart-file type (e.g. fv_core.res) will only be lazily loaded. This
-        allows opening large datasets out-of-core.
+        ds (xr.Dataset): a combined dataset of all the restart files. All except
+            the first file of each restart-file type (e.g. fv_core.res) will only
+            be lazily loaded. This allows opening large datasets out-of-core.
 
     """
-    if grid is None:
-        grid = _get_grid(url)
-    restart_files = _restart_files_at_url(url, initial_time, final_time)
-    arrays = _load_arrays(restart_files, grid)
-    return xr.Dataset(combine_array_sequence(arrays, labels=["time", "tile"]))
+    restart_files = _restart_files_at_url(url)
+    arrays = _load_arrays(restart_files)
+    return _sort_file_prefixes(
+        xr.Dataset(combine_array_sequence(arrays, labels=["file_prefix", "tile"])), url
+    )
+
+
+def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
+    """Opens all the restart file within a certain path, with time coordinates
+
+    The dimension names are the same as the diagnostic output
+
+    Args:
+        url (str): a URL to the root directory of a run directory.
+            Can be any type of protocol used by fsspec, such as google cloud storage
+            'gs://path-to-rundir'. If no protocol prefix is used, then it will be
+            assumed to be a path to a local file.
+
+    Returns:
+        ds (xr.Dataset): a combined dataset of all the restart files. All except
+            the first file of each restart-file type (e.g. fv_core.res) will only
+            be lazily loaded. This allows opening large datasets out-of-core.
+            Time coordinates are inferred from the run directory's namelist and
+            other files.
+    """
+    ds = open_restarts(url)
+    try:
+        times = get_restart_times(url)
+    except (ValueError, TypeError) as e:
+        print(
+            f"Warning, inferring time dimensions failed: {e}.\n"
+            f"Returning no time coordinates for run directory at {url}."
+        )
+        return ds
+    else:
+        return ds.assign_coords({"time": ("file_prefix", times)}).swap_dims(
+            {"file_prefix": "time"}
+        )
+
+
+def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
+    """Update the meta-data of an individual restart file
+
+    This drops the singleton time dimension and applies the known dimensions
+    listed in `vcm.schema` and `vcm._schema_registry`.
+    """
+    try:
+        ds_no_time = ds.isel(Time=0).drop("Time")
+    except ValueError:
+        ds_no_time = ds
+    return impose_dataset_to_schema(ds_no_time)
+
+
+def get_restart_times(url: str) -> Sequence[cftime.DatetimeJulian]:
+    """Reads the run directory's files to infer restart forecast times
+
+    Due to the challenges of directly parsing the forecast times from the restart files,
+    it is more robust to read the ime outputs from the namelist and coupler.res
+    in the run directory. This function implements that ability.
+
+    Args:
+        url (str): a URL to the root directory of a run directory.
+            Can be any type of protocol used by fsspec, such as google cloud storage
+            'gs://path-to-rundir'. If no protocol prefix is used, then it will be
+            assumed to be a path to a local file.
+
+    Returns:
+        time Sequence[cftime.DatetimeJulian]: a list of time coordinates
+    """
+    proto, namelist_path = _get_namelist_path(url)
+    config = _config_from_fs_namelist(proto, namelist_path)
+    initialization_time = _get_current_date(config, url)
+    duration = _get_run_duration(config)
+    interval = _get_restart_interval(config)
+    forecast_time = _get_forecast_time_index(initialization_time, duration, interval)
+    return forecast_time
 
 
 def _parse_time_string(time):
@@ -90,14 +134,45 @@ def _parse_time(path):
     return re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path).group(1)
 
 
-def _get_time(dirname, path, initial_time, final_time):
+def _get_file_prefix(dirname, path):
     if dirname.endswith("INPUT"):
-        return initial_time
+        return "INPUT/"
     elif dirname.endswith("RESTART"):
         try:
-            return _parse_time(path)
+            return os.path.join("RESTART", _parse_time(path))
         except AttributeError:
-            return final_time
+            return "RESTART/"
+
+
+def _sort_file_prefixes(ds, url):
+
+    if "INPUT/" not in ds.file_prefix:
+        raise ValueError(
+            "Open restarts did not find the input set "
+            f"of restart files for run directory {url}."
+        )
+    if "RESTART/" not in ds.file_prefix:
+        raise ValueError(
+            "Open restarts did not find the final set "
+            f"of restart files for run directory {url}."
+        )
+
+    intermediate_prefixes = sorted(
+        [
+            prefix.item()
+            for prefix in ds.file_prefix
+            if prefix.item() not in ["INPUT/", "RESTART/"]
+        ]
+    )
+
+    return xr.concat(
+        [
+            ds.sel(file_prefix="INPUT/"),
+            ds.sel(file_prefix=intermediate_prefixes),
+            ds.sel(file_prefix="RESTART/"),
+        ],
+        dim="file_prefix",
+    )
 
 
 def _parse_category(path):
@@ -127,18 +202,11 @@ def _is_restart_file(path):
     return any(category in path for category in RESTART_CATEGORIES) and "tile" in path
 
 
-def _restart_files_at_url(url, initial_time, final_time):
+def _restart_files_at_url(url):
     """List restart files with a given initial and end time within a particular URL
 
     Yields:
         (time, restart_category, tile, protocol, path)
-
-    Note:
-        the time for the data in INPUT and RESTART cannot be parsed from the file name
-        alone so they are required arguments. Some tricky logic such as reading the
-        fv_coupler.res file could be done, but I do not think this low-level function
-        should have side-effects such as reading a file (which might not always be
-        where we expect).
 
     """
     proto, path = _split_url(url)
@@ -148,10 +216,10 @@ def _restart_files_at_url(url, initial_time, final_time):
         for file in files:
             path = os.path.join(root, file)
             if _is_restart_file(file):
-                time = _get_time(root, file, initial_time, final_time)
+                file_prefix = _get_file_prefix(root, file)
                 tile = _get_tile(file)
                 category = _parse_category(file)
-                yield time, category, tile, proto, path
+                yield file_prefix, category, tile, proto, path
 
 
 def _load_restart(protocol, path):
@@ -176,91 +244,146 @@ def _load_restart_lazily(protocol, path, restart_category):
     return _load_restart_with_schema(protocol, path, schema)
 
 
-def _get_grid(rundir):
-    proto, path = _split_url(rundir)
-    fs = fsspec.filesystem(proto)
-    # open namelist
-    namelist = join(path, "input.nml")
-    with fs.open(namelist, "r") as f:
-        s = f.read()
-    nml = f90nml.reads(s)["fv_core_nml"]
-
-    # open one file
-    return {
-        "nz": nml["npz"],
-        "nx": nml["npx"] - 1,
-        "ny": nml["npy"] - 1,
-        "nz_soil": NUM_SOIL_LAYERS,
-    }
-
-
-def _fix_data_array_dimension_names(data_array, nx, ny, nz, nz_soil):
-    """Modify dimension names from e.g. xaxis1 to 'x' or 'x_interface' in-place.
-
-    Done based on dimension length (similarly for y).
-
-    Args:
-        data_array (DataArray): the object being modified
-        nx (int): the number of grid cells along the x-axis
-        ny (int): the number of grid cells along the y-axis
-        nz (int): the number of grid cells along the z-axis
-        nz_soil (int): the number of grid cells along the soil model z-axis
-
-    Returns:
-        renamed_array (DataArray): new object with renamed dimensions
-
-    Notes:
-        copied from fv3gfs-python
-    """
-    replacement_dict = {}
-    for dim_name, length in zip(data_array.dims, data_array.shape):
-        if dim_name[:5] == "xaxis" or dim_name.startswith("lon"):
-            try:
-                replacement_dict[dim_name] = {nx: X_NAME, nx + 1: X_EDGE_NAME}[length]
-            except KeyError as e:
-                raise ValueError(
-                    f"unable to determine dim name for dimension "
-                    f"{dim_name} with length {length} (nx={nx})"
-                ) from e
-        elif dim_name[:5] == "yaxis" or dim_name.startswith("lat"):
-            try:
-                replacement_dict[dim_name] = {ny: Y_NAME, ny + 1: Y_EDGE_NAME}[length]
-            except KeyError as e:
-                raise ValueError(
-                    f"unable to determine dim name for dimension "
-                    f"{dim_name} with length {length} (ny={ny})"
-                ) from e
-        elif dim_name[:5] == "zaxis":
-            try:
-                replacement_dict[dim_name] = {nz: Z_NAME, nz_soil: Z_EDGE_NAME}[length]
-            except KeyError as e:
-                raise ValueError(
-                    f"unable to determine dim name for dimension "
-                    f"{dim_name} with length {length} (nz={nz})"
-                ) from e
-    return data_array.rename(replacement_dict).variable
-
-
-def _fix_metadata(ds, grid):
-    try:
-        ds_no_time = ds.isel(Time=0).drop("Time")
-    except ValueError:
-        ds_no_time = ds
-
-    ds_correct_metadata = ds_no_time.apply(
-        partial(_fix_data_array_dimension_names, **grid)
-    )
-
-    return ds_correct_metadata
-
-
 def _load_arrays(
-    restart_files, grid
+    restart_files,
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
     # use the same schema for all coupler_res
-    for (time, restart_category, tile, protocol, path) in restart_files:
+    for (file_prefix, restart_category, tile, protocol, path) in restart_files:
         ds = _load_restart_lazily(protocol, path, restart_category)
-        ds_correct_metadata = _fix_metadata(ds, grid)
-        time_obj = _parse_time_string(time)
-        for var in ds_correct_metadata:
-            yield var, (time_obj, tile), ds_correct_metadata[var]
+        ds_standard_metadata = standardize_metadata(ds)
+        #         time_obj = _parse_time_string(time)
+        for var in ds_standard_metadata:
+            yield var, (file_prefix, tile), ds_standard_metadata[var]
+
+
+def _get_namelist_path(url):
+
+    proto, path = _split_url(url)
+    fs = fsspec.filesystem(proto)
+
+    for root, dirs, files in fs.walk(path):
+        for file in files:
+            if _is_namelist_file(file):
+                return proto, os.path.join(root, file)
+
+
+def _is_namelist_file(file):
+    return "input.nml" in file
+
+
+def _get_coupler_res_path(url):
+
+    proto, path = _split_url(url)
+    fs = fsspec.filesystem(proto)
+
+    for root, dirs, files in fs.walk(path):
+        for file in files:
+            if _is_coupler_res_file(root, file):
+                return proto, os.path.join(root, file)
+
+
+def _is_coupler_res_file(root, file):
+    return "INPUT/coupler.res" in os.path.join(root, file)
+
+
+def _config_from_fs_namelist(proto, namelist_path):
+    fs = fsspec.filesystem(proto)
+    with fs.open(namelist_path, "rt") as f:
+        return _to_nested_dict(f90nml.read(f).items())
+
+
+def _to_nested_dict(source):
+    return_value = dict(source)
+    for name, value in return_value.items():
+        if isinstance(value, f90nml.Namelist):
+            return_value[name] = _to_nested_dict(value)
+    return return_value
+
+
+def _get_current_date(config, url):
+    """Return current_date as a datetime from configuration dictionary
+    Note: Mostly copied from fv3config, but with fsspec capabilities added
+    """
+    force_date_from_namelist = config["coupler_nml"].get(
+        "force_date_from_namelist", False
+    )
+    # following code replicates the logic that the fv3gfs model
+    # uses to determine the current_date
+    if force_date_from_namelist:
+        current_date = config["coupler_nml"].get("current_date", [0, 0, 0, 0, 0, 0])
+    else:
+        try:
+            proto, coupler_res_filename = _get_coupler_res_path(url)
+            current_date = _get_current_date_from_coupler_res(
+                proto, coupler_res_filename
+            )
+        except TypeError:
+            current_date = config["coupler_nml"].get("current_date", [0, 0, 0, 0, 0, 0])
+    return datetime(
+        **{
+            time_unit: value
+            for time_unit, value in zip(
+                ("year", "month", "day", "hour", "minute", "second"), current_date
+            )
+        }
+    )
+
+
+def _get_current_date_from_coupler_res(proto, coupler_res_filename):
+    """Return a timedelta indicating the duration of the run.
+    Note: Mostly copied from fv3config, but with fsspec capabilities added
+    """
+    fs = fsspec.filesystem(proto)
+    with fs.open(coupler_res_filename, "rt") as f:
+        third_line = f.readlines()[2]
+        current_date = [int(d) for d in re.findall(r"\d+", third_line)]
+        if len(current_date) != 6:
+            raise ValueError(
+                f"{coupler_res_filename} does not have a valid current model time"
+                "(need six integers on third line)"
+            )
+    return current_date
+
+
+def _get_run_duration(config):
+    """Return a timedelta indicating the duration of the run.
+    Note: Mostly copied from fv3config
+    """
+    coupler_nml = config.get("coupler_nml", {})
+    months = coupler_nml.get("months", 0)
+    if months != 0:  # months have no set duration and thus cannot be timedelta
+        raise ValueError(f"namelist contains non-zero value {months} for months")
+    return timedelta(
+        **{
+            name: coupler_nml.get(name, 0)
+            for name in ("seconds", "minutes", "hours", "days")
+        }
+    )
+
+
+def _get_restart_interval(config):
+    config = config["coupler_nml"]
+    return timedelta(
+        seconds=(config.get("restart_secs", 0) + 86400 * config.get("restart_days", 0))
+    )
+
+
+def _get_forecast_time_index(initialization_time, duration, interval):
+    """Return a list of cftime.DatetimeJulian objects for the restart output
+    """
+    if interval == timedelta(seconds=0):
+        interval = duration
+    end_time = initialization_time + duration
+    return [
+        cftime.DatetimeJulian(
+            timestamp.year,
+            timestamp.month,
+            timestamp.day,
+            timestamp.hour,
+            timestamp.minute,
+            timestamp.second,
+        )
+        for timestamp in pd.date_range(
+            start=initialization_time, end=end_time, freq=interval
+        )
+    ]
