@@ -6,10 +6,10 @@ import logging
 from numpy import random
 import os
 import shutil
+import sys
 import xarray as xr
 
 from . import helpers
-from vcm import coarsen
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
 from vcm.cubedsphere.constants import (
@@ -24,8 +24,6 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_OUTER,
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
-    TIME_FMT,
-    GRID_VARS,
 )
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
