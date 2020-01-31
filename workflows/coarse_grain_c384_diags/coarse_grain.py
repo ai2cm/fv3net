@@ -6,10 +6,17 @@ from vcm import coarsen
 from vcm.cloud import gsutil
 import logging
 
+HIRES_DATA_VARS = [
+    "LHTFLsfc_coarse",
+    "SHTFLsfc_coarse",
+    "PRATEsfc_coarse",
+    "DSWRFtoa_coarse",
+]
+
 logging.basicConfig(level=logging.INFO)
 
 catalog = intake.open_catalog("../../catalog.yml")
-diag_path = catalog["40day_c384_diags_time_avg"]
+diag_path = catalog["40day_c384_diags_time_avg"].urlpath
 diag_path = diag_path[:-1] if diag_path[-1] == "/" else diag_path
 
 # write coarsened C48 diags to same dir as high res diags
@@ -31,7 +38,7 @@ grid384 = diags[
     ]
 ]
 
-diags384 = xr.merge([diags, grid384]).rename(
+diags384 = xr.merge([diags[HIRES_DATA_VARS], grid384]).rename(
     {
         "grid_lat_coarse": "latb",
         "grid_latt_coarse": "lat",
@@ -51,7 +58,7 @@ diags48 = coarsen.weighted_block_average(
     x_dim="grid_xt",
     y_dim="grid_yt",
     coarsening_factor=8,
-)
+).unify_chunks()
 
 diags48.to_zarr(c48_filename, mode="w")
 gsutil.copy(c48_filename, output_path)
