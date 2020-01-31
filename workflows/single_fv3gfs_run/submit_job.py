@@ -93,7 +93,9 @@ def _update_config_for_nudging(model_config, config_bucket):
     listing nudging files"""
     if "patch_files" not in model_config:
         model_config["patch_files"] = []
-    model_config["patch_files"].append(_get_fname_asset(model_config, config_bucket))
+    model_config["patch_files"].append(
+        _get_and_write_nudge_files_description_asset(model_config, config_bucket)
+    )
     model_config["patch_files"].extend(_get_nudge_files_asset_list(model_config))
     return model_config
 
