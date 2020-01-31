@@ -156,5 +156,4 @@ if __name__ == "__main__":
     with open(args.run_yaml) as file:
         run_config = yaml.load(file, Loader=yaml.FullLoader)
     submit_job(args.bucket, run_config)
-    logger.info(f"Submitted {job_name}")
 
