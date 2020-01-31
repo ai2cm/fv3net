@@ -20,17 +20,6 @@ from vcm.cubedsphere.constants import (
 )
 
 
-GRID_VAR_MAP = {
-    "grid_lat_coarse": VAR_LAT_OUTER,
-    "grid_lon_coarse": VAR_LON_OUTER,
-    "grid_latt_coarse": VAR_LAT_CENTER,
-    "grid_lont_coarse": VAR_LON_CENTER,
-    "grid_xt_coarse": COORD_X_CENTER,
-    "grid_yt_coarse": COORD_Y_CENTER,
-    "grid_x_coarse": COORD_X_OUTER,
-    "grid_y_coarse": COORD_Y_OUTER,
-}
-
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -84,8 +73,7 @@ def load_diag(diag_data_path, init_times):
     fs = fsspec.filesystem(protocol)
     ds_diag = xr.open_zarr(fs.get_mapper(diag_data_path))
     ds_diag = (
-        ds_diag.rename(GRID_VAR_MAP)
-        .rename({"time": "initialization_time"})
+        ds_diag.rename({"time": "initialization_time"})
         .assign_coords({"tile": range(6)})
         .sel({INIT_TIME_DIM: init_times})
     )

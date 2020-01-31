@@ -40,13 +40,6 @@ logger.setLevel(logging.INFO)
 SAMPLE_DIM = "sample"
 SAMPLE_CHUNK_SIZE = 1500
 
-HIRES_GRID_VARS = [
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    COORD_X_OUTER,
-    COORD_Y_OUTER,
-    "area_coarse",
-]
 INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk", "phis", "tsea", "slope"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
 HIRES_DATA_VARS = [
@@ -265,9 +258,7 @@ def _merge_hires_data(ds_run, diag_c48_path):
         return ds_run
     try:
         init_times = ds_run[INIT_TIME_DIM].values
-        diags_c48 = helpers.load_diag(diag_c48_path, init_times)[
-            HIRES_GRID_VARS + HIRES_DATA_VARS
-        ]
+        diags_c48 = helpers.load_diag(diag_c48_path, init_times)[HIRES_DATA_VARS]
         features_diags_c48 = helpers.add_coarsened_features(diags_c48)[
             INPUT_VARS_FROM_HIRES
         ]
@@ -303,9 +294,6 @@ def _stack_and_drop_nan_samples(ds):
         )
         return ds
     except (AttributeError, RuntimeError) as e:
-        # TODO: fill in except with the error that gets raised when running into the
-        # memory issues with this step
-        e = sys.exc_info()[0]
         logger.error(f"Failed stack and drop nan samples: {e}")
 
 
