@@ -1,13 +1,20 @@
 import xarray as xr
 import intake
-import fsspec
+import os
+import shutil
 from vcm import coarsen
+from vcm.cloud import gsutil
 import logging
 
 logging.basicConfig(level=logging.INFO)
 
 catalog = intake.open_catalog("../../catalog.yml")
-OUTPUT_PATH = catalog["40day_c48_diags"].urlpath
+diag_path = catalog["40day_c384_diags_time_avg"]
+diag_path = diag_path[:-1] if diag_path[-1] == "/" else diag_path
+
+# write coarsened C48 diags to same dir as high res diags
+c48_filename = "C48_gfsphysics_15min_coarse.zarr"
+output_path = os.path.join(os.path.dirname(diag_path), c48_filename)
 
 diags = catalog["40day_c384_diags_time_avg"].to_dask()
 
@@ -45,3 +52,9 @@ diags48 = coarsen.weighted_block_average(
     y_dim="grid_yt",
     coarsening_factor=8,
 )
+
+diags48.to_zarr(c48_filename, mode="w")
+gsutil.copy(c48_filename, output_path)
+
+logging.info(f"Done writing coarsened C48 zarr to {output_path}")
+shutil.rmtree(c48_filename)
