@@ -31,7 +31,8 @@ optional arguments:
 ```
 
 See `workflows/coarsen_restarts/submit_job.sh` to see an example of calling this
-module for submission of a dataflow job.
-dataflow.  **Note**: The pressure level coarsening takes quite a bit of memory
+module for submission of a dataflow job.  Any coarsening job scripts we'd like to document
+should go into the `workflows/coarsen_restarts` directory.
+**Note**: The pressure level coarsening takes quite a bit of memory
 for the C384 coarsening.  Make sure the machine type has enough memory.  If you
 see the job failing without any useful errors, it's probably memory related.
