@@ -6,7 +6,6 @@ import logging
 import gcsfs
 from pathlib import Path
 from apache_beam.options.pipeline_options import PipelineOptions
-from google.cloud.storage import Client
 
 from vcm.cloud import gcs
 import vcm
@@ -20,45 +19,6 @@ NUM_FILES_IN_COARSENED_DIR = 24
 def time_step(file):
     pattern = re.compile(r"(........\.......)")
     return pattern.search(file).group(1)
-
-
-def download_all_bucket_files(
-    gcs_url: str, out_dir_prefix: str, include_parent_in_stem=True
-):
-    bucket_name, blob_prefix = gcs.parse_gcs_url(gcs_url)
-    blob_gcs_paths = gcs.list_bucket_files(Client(), bucket_name, prefix=blob_prefix)
-    parent_dirname = Path(blob_prefix).name
-    logger.debug(f"Downloading files from bucket prefix: {blob_prefix}")
-
-    for blob_url in blob_gcs_paths:
-        _, blob_path = gcs.parse_gcs_url(blob_url)
-        filename = Path(blob_path).name
-        full_dir = str(Path(blob_path).parent)
-        out_dir_stem = _get_dir_stem(
-            parent_dirname, full_dir, include_parent=include_parent_in_stem
-        )
-
-        blob = gcs.init_blob_from_gcs_url(blob_url)
-        out_dir = os.path.join(out_dir_prefix, out_dir_stem)
-        gcs.download_blob_to_file(blob, out_dir, filename)
-
-
-def _get_dir_stem(parent_dirname, full_dirname, include_parent=True):
-
-    dir_components = Path(full_dirname).parts
-    stem_start_idx = dir_components.index(parent_dirname)
-
-    if not include_parent:
-        stem_start_idx += 1
-
-    stem_dir = dir_components[stem_start_idx:]
-
-    if stem_dir:
-        stem_dir = str(Path(*stem_dir))
-    else:
-        stem_dir = ""
-
-    return stem_dir
 
 
 def check_coarsen_incomplete(gcs_url, output_prefix):
@@ -80,7 +40,7 @@ def _copy_gridspec(local_spec_dir, gridspec_gcs_path):
 
     os.makedirs(local_spec_dir, exist_ok=True)
     logger.debug(f"Copying gridspec to {local_spec_dir}")
-    download_all_bucket_files(
+    gcs.download_all_bucket_files(
         gridspec_gcs_path, local_spec_dir, include_parent_in_stem=False
     )
 
@@ -89,7 +49,7 @@ def _copy_restart(local_timestep_dir, timestep_gcs_path):
 
     os.makedirs(local_timestep_dir, exist_ok=True)
     logger.debug(f"Copying restart files to {local_timestep_dir}")
-    download_all_bucket_files(timestep_gcs_path, local_timestep_dir)
+    gcs.download_all_bucket_files(timestep_gcs_path, local_timestep_dir)
 
 
 def _coarsen_data(

@@ -1,5 +1,6 @@
 import hashlib
 import os
+import glob
 import pickle
 import shutil
 import tempfile
@@ -218,3 +219,35 @@ def test_upload_dir_to_gcs_does_not_upload_subdir(tmpdir):
     pkl_blob.delete()
 
     assert not nonexistent_pkl_blob.exists()
+
+
+@pytest.mark.parametrize('include_parent', [(True,), (False,)])
+def test_download_all_bucket_files(include_parent):
+
+    bucket_files = ['test_data.tar', 'test_data_array.nc', 'test_datafile.txt']
+
+    gcs_url = "gs://vcm-ml-data/tmp_dataflow/test_data/"
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        gcs.download_all_bucket_files(gcs_url, tmpdir, include_parent_in_stem=include_parent)
+
+        if include_parent:
+            local_dir = os.path.join(tmpdir, 'test_data')
+        else:
+            local_dir = tmpdir
+
+        for filename in bucket_files:
+            local_filepath = os.path.join(local_dir, filename)
+            assert os.path.exists(local_filepath)
+
+        local_files = glob.glob(os.path.join(local_dir, '*'))
+        assert len(local_files) == len(bucket_files)
+
+
+def test_download_all_bucket_files_nonexistant_gcs_url():
+
+    with pytest.raises(ValueError):
+        gcs.download_all_bucket_files(
+            "gs://vcm-ml-data/non-existent-bucket/doesnt/exist",
+            "/tmp/mytemp"
+        )
