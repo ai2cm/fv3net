@@ -31,6 +31,10 @@ from vcm.cubedsphere.constants import (
     FV_CORE_Y_CENTER,
     FV_CORE_X_OUTER,
     FV_CORE_Y_OUTER,
+    FV_SRF_X_CENTER,
+    FV_SRF_Y_CENTER,
+    FV_SRF_WND_X_CENTER,
+    FV_SRF_WND_Y_CENTER,
     FV_TRACER_X_CENTER,
     FV_TRACER_Y_CENTER,
     RESTART_Z_CENTER,
@@ -599,7 +603,7 @@ def coarsen_restarts_on_sigma(
 
     coarsened["fv_srf_wnd.res"] = coarse_grain_fv_srf_wnd(
         source["fv_srf_wnd.res"],
-        grid_spec.area.rename({COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}),
+        grid_spec.area.rename({COORD_X_CENTER: FV_SRF_WND_X_CENTER, COORD_Y_CENTER: FV_SRF_WND_Y_CENTER}),
         coarsening_factor,
     )
 
@@ -614,7 +618,7 @@ def coarsen_restarts_on_sigma(
 
     coarsened["sfc_data"] = coarse_grain_sfc_data_complex(
         source["sfc_data"],
-        grid_spec.area.rename({COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}),
+        grid_spec.area.rename({COORD_X_CENTER: FV_SRF_X_CENTER, COORD_Y_CENTER: FV_SRF_Y_CENTER}),
         coarsening_factor,
     )
 
@@ -668,7 +672,7 @@ def coarsen_restarts_on_pressure(
 
     coarsened["fv_srf_wnd.res"] = coarse_grain_fv_srf_wnd(
         source["fv_srf_wnd.res"],
-        grid_spec.area.rename({COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}),
+        grid_spec.area.rename({COORD_X_CENTER: FV_SRF_WND_X_CENTER, COORD_Y_CENTER: FV_SRF_WND_Y_CENTER}),
         coarsening_factor,
     )
 
@@ -683,7 +687,7 @@ def coarsen_restarts_on_pressure(
 
     coarsened["sfc_data"] = coarse_grain_sfc_data_complex(
         source["sfc_data"],
-        grid_spec.area.rename({COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}),
+        grid_spec.area.rename({COORD_X_CENTER: FV_SRF_X_CENTER, COORD_Y_CENTER: FV_SRF_Y_CENTER}),
         coarsening_factor,
     )
 
