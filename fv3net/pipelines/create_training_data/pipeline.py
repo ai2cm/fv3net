@@ -6,7 +6,6 @@ import logging
 from numpy import random
 import os
 import shutil
-import sys
 import xarray as xr
 
 from . import helpers
@@ -42,13 +41,12 @@ SAMPLE_CHUNK_SIZE = 1500
 
 INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk", "phis", "tsea", "slope"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
-HIRES_DATA_VARS = [
-    "LHTFLsfc_coarse",
-    "SHTFLsfc_coarse",
-    "PRATEsfc_coarse",
-    "DSWRFtoa_coarse",
-]
-INPUT_VARS_FROM_HIRES = ["insolation", "LHF", "SHF", "precip_sfc"]
+RENAMED_HIRES_VARS = {
+    "DSWRFtoa_coarse": "insolation",
+    "LHTFLsfc_coarse": "LHF",
+    "SHTFLsfc_coarse": "SHF",
+    "PRATEsfc_coarse": "precip_sfc",
+}
 
 
 def run(args, pipeline_args):
@@ -173,14 +171,6 @@ def _test_train_split(url_batches, train_frac, random_seed=1234):
     return labels
 
 
-def _set_forecast_time_coord(ds):
-    delta_t_forecast = ds.forecast_time.values[1] - ds.forecast_time.values[0]
-    ds.reset_index([FORECAST_TIME_DIM], drop=True)
-    return ds.assign_coords(
-        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]}
-    )
-
-
 def _open_cloud_data(run_dirs):
     """Opens multiple run directories into a single dataset, where the init time
     of each run dir is the INIT_TIME_DIM and the times within
@@ -214,7 +204,6 @@ def _open_cloud_data(run_dirs):
     except (ValueError, TypeError) as e:
         logger.error(f"Failed to open restarts from cloud: {e}")
         ds_runs.append(ds_run)
-    return xr.concat(ds_runs, INIT_TIME_DIM)
 
 
 def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
@@ -258,10 +247,9 @@ def _merge_hires_data(ds_run, diag_c48_path):
         return ds_run
     try:
         init_times = ds_run[INIT_TIME_DIM].values
-        diags_c48 = helpers.load_diag(diag_c48_path, init_times)[HIRES_DATA_VARS]
-        features_diags_c48 = helpers.add_coarsened_features(diags_c48)[
-            INPUT_VARS_FROM_HIRES
-        ]
+        data_vars = RENAMED_HIRES_VARS.keys()
+        diags_c48 = helpers.load_diag(diag_c48_path, init_times)[data_vars]
+        features_diags_c48 = diags_c48.rename(RENAMED_HIRES_VARS)
         return xr.merge([ds_run, features_diags_c48])
     except (KeyError, AttributeError, ValueError, TypeError) as e:
         logger.error(f"Failed to merge in features from high res diagnostics: {e}")

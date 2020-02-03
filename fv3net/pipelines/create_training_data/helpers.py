@@ -5,23 +5,35 @@ import os
 import xarray as xr
 
 from vcm.fv3_restarts import _split_url
-from vcm.cubedsphere.constants import (
-    VAR_LON_CENTER,
-    VAR_LAT_CENTER,
-    VAR_LON_OUTER,
-    VAR_LAT_OUTER,
-    COORD_X_CENTER,
-    COORD_X_OUTER,
-    COORD_Y_CENTER,
-    COORD_Y_OUTER,
-    INIT_TIME_DIM,
-    FORECAST_TIME_DIM,
-    TIME_FMT,
-)
+from vcm.cubedsphere.constants import INIT_TIME_DIM, FORECAST_TIME_DIM, TIME_FMT
 
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+
+def _round_time(t):
+    """ The high res data timestamps are often +/- a few 1e-2 seconds off the
+    initialization times of the restarts, which makes it difficult to merge on
+    time. This rounds time to the nearest second, assuming the init time is at most
+    1 sec away from a round minute.
+
+    Args:
+        t: datetime or cftime object
+
+    Returns:
+        datetime or cftime object rounded to nearest minute
+    """
+    if t.second == 0:
+        return t.replace(microsecond=0)
+    elif t.second == 59:
+        return t.replace(microsecond=0) + timedelta(seconds=1)
+    else:
+        raise ValueError(
+            f"Time value > 1 second from 1 minute timesteps for "
+            "C48 initialization time {t}. Are you sure you're joining "
+            "the correct high res data?"
+        )
 
 
 def _path_from_first_timestep(ds, train_test_labels=None):
@@ -29,7 +41,7 @@ def _path_from_first_timestep(ds, train_test_labels=None):
     if a dict of labels is provided
 
     Args:
-        ds:
+        ds: input dataset
         train_test_labels: optional dict with keys ["test", "train"] and values lists of
             timestep strings that go to each set
 
@@ -73,22 +85,13 @@ def load_diag(diag_data_path, init_times):
     fs = fsspec.filesystem(protocol)
     ds_diag = xr.open_zarr(fs.get_mapper(diag_data_path))
     ds_diag = (
-        ds_diag.rename({"time": "initialization_time"})
-        .assign_coords({"tile": range(6)})
+        ds_diag.rename({"time": INIT_TIME_DIM})
+        .assign_coords(
+            {
+                INIT_TIME_DIM: [_round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
+                "tile": range(6),
+            }
+        )
         .sel({INIT_TIME_DIM: init_times})
     )
     return ds_diag
-
-
-def add_coarsened_features(ds_c48):
-    ds_features = ds_c48.assign(
-        {
-            "insolation": ds_c48[
-                "DSWRFtoa_coarse"
-            ],  # downward longwave at TOA << shortwave
-            "LHF": ds_c48["LHTFLsfc_coarse"],
-            "SHF": ds_c48["SHTFLsfc_coarse"],
-            "precip_sfc": ds_c48["PRATEsfc_coarse"],
-        }
-    )
-    return ds_features
