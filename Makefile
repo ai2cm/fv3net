@@ -79,7 +79,7 @@ lint:
 	black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
 	flake8 $(PYTHON_FILES)
 	# ignore unused import error in __init__.py files
-	flake8 --ignore=F401 $(PYTHON_INIT_FILES)
+	flake8 --ignore=F401 E203 $(PYTHON_INIT_FILES)
 	@echo "LINTING SUCCESSFUL"
 
 reformat:
