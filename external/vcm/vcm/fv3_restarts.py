@@ -2,6 +2,7 @@ import os
 import re
 from datetime import datetime, timedelta
 from typing import Any, Generator, Tuple, Sequence
+import warnings
 
 import cftime
 import fsspec
@@ -142,37 +143,39 @@ def _get_file_prefix(dirname, path):
             return os.path.join("RESTART", _parse_time(path))
         except AttributeError:
             return "RESTART/"
+    else:
+        return None
 
 
 def _sort_file_prefixes(ds, url):
-
-    if "INPUT/" not in ds.file_prefix:
-        raise ValueError(
-            "Open restarts did not find the input set "
-            f"of restart files for run directory {url}."
+    if ds.file_prefix.values is None:
+        if "INPUT/" not in ds.file_prefix:
+            warnings.warn(
+                "Open restarts did not find the input set "
+                f"of restart files for run directory {url}."
+            )
+        if "RESTART/" not in ds.file_prefix:
+            warnings.warn(
+                "Open restarts did not find the final set "
+                f"of restart files for run directory {url}."
+            )
+        intermediate_prefixes = sorted(
+            [
+                prefix.item()
+                for prefix in ds.file_prefix
+                if prefix.item() not in ["INPUT/", "RESTART/"]
+            ]
         )
-    if "RESTART/" not in ds.file_prefix:
-        raise ValueError(
-            "Open restarts did not find the final set "
-            f"of restart files for run directory {url}."
+        return xr.concat(
+            [
+                ds.sel(file_prefix="INPUT/"),
+                ds.sel(file_prefix=intermediate_prefixes),
+                ds.sel(file_prefix="RESTART/"),
+            ],
+            dim="file_prefix",
         )
-
-    intermediate_prefixes = sorted(
-        [
-            prefix.item()
-            for prefix in ds.file_prefix
-            if prefix.item() not in ["INPUT/", "RESTART/"]
-        ]
-    )
-
-    return xr.concat(
-        [
-            ds.sel(file_prefix="INPUT/"),
-            ds.sel(file_prefix=intermediate_prefixes),
-            ds.sel(file_prefix="RESTART/"),
-        ],
-        dim="file_prefix",
-    )
+    else:
+        return ds
 
 
 def _parse_category(path):
