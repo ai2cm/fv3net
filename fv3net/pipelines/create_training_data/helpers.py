@@ -83,15 +83,13 @@ def _set_relative_forecast_time_coord(ds):
 def load_diag(diag_data_path, init_times):
     protocol, path = _split_url(diag_data_path)
     fs = fsspec.filesystem(protocol)
-    ds_diag = xr.open_zarr(fs.get_mapper(diag_data_path))
-    ds_diag = (
-        ds_diag.rename({"time": INIT_TIME_DIM})
-        .assign_coords(
-            {
-                INIT_TIME_DIM: [_round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
-                "tile": range(6),
-            }
-        )
-        .sel({INIT_TIME_DIM: init_times})
+    ds_diag = xr.open_zarr(fs.get_mapper(diag_data_path)).rename(
+        {"time": INIT_TIME_DIM}
     )
+    ds_diag = ds_diag.assign_coords(
+        {
+            INIT_TIME_DIM: [_round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
+            "tile": range(6),
+        }
+    ).sel({INIT_TIME_DIM: init_times})
     return ds_diag
