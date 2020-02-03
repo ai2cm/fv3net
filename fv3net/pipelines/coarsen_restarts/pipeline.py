@@ -1,5 +1,4 @@
 import apache_beam as beam
-import re
 import tempfile
 import os
 import logging
@@ -8,6 +7,7 @@ from pathlib import Path
 from apache_beam.options.pipeline_options import PipelineOptions
 
 from vcm.cloud import gcs
+from vcm import parse_timestep_from_path
 import vcm
 
 logger = logging.getLogger("CoarsenPipeline")
@@ -16,14 +16,10 @@ logger.setLevel(logging.DEBUG)
 NUM_FILES_IN_COARSENED_DIR = 24
 
 
-def time_step(file):
-    pattern = re.compile(r"(........\.......)")
-    return pattern.search(file).group(1)
-
-
 def check_coarsen_incomplete(gcs_url, output_prefix):
 
-    output_timestep_dir = os.path.join(output_prefix, time_step(gcs_url))
+    timestep = parse_timestep_from_path(gcs_url)
+    output_timestep_dir = os.path.join(output_prefix, timestep)
 
     fs = gcsfs.GCSFileSystem()
     timestep_exists = fs.exists(output_timestep_dir)

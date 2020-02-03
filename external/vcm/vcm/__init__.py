@@ -12,7 +12,7 @@ from .cubedsphere import (
 )
 from .extract import extract_tarball_to_path
 from .fv3_restarts import open_restarts
-from .convenience import TOP_LEVEL_DIR
+from .convenience import TOP_LEVEL_DIR, parse_timestep_from_path
 from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .visualize import plot_cube, mappable_var, plot_cube_axes
 
@@ -29,6 +29,7 @@ __all__ = [
     "xarray_block_reduce",
     "horizontal_block_reduce",
     "TOP_LEVEL_DIR",
+    "parse_timestep_from_path",
     "coarsen_restarts_on_pressure",
     "coarsen_restarts_on_sigma",
     "plot_cube",

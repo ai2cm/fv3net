@@ -65,11 +65,15 @@ def download_all_bucket_files(
             /tmp/contents/...
     """
     bucket_name, blob_prefix = parse_gcs_url(gcs_url)
-    blob_gcs_paths = list_bucket_files(Client(), bucket_name, prefix=blob_prefix, is_dir=True)
+    blob_gcs_paths = list_bucket_files(
+        Client(), bucket_name, prefix=blob_prefix, is_dir=True
+    )
     blob_gcs_paths = list(blob_gcs_paths)
-    
+
     if not blob_gcs_paths:
-        raise ValueError(f"No files found under directory gs://{bucket_name}/{blob_prefix}")
+        raise ValueError(
+            f"No files found under directory gs://{bucket_name}/{blob_prefix}"
+        )
     parent_dirname = Path(blob_prefix).name
     logger.debug(f"Downloading files from bucket prefix: {blob_prefix}")
 
@@ -138,11 +142,7 @@ def _upload_file_to_gcs(args):
 
 
 def list_bucket_files(
-    client: Client,
-    bucket_name: str,
-    prefix=None,
-    file_extension=None,
-    is_dir=False,
+    client: Client, bucket_name: str, prefix=None, file_extension=None, is_dir=False,
 ) -> Iterable[str]:
 
     blob_list = client.list_blobs(bucket_name, prefix=prefix)
@@ -153,7 +153,7 @@ def list_bucket_files(
             blob_extension_name = blob.name.split(".")[-1]
             if file_extension.strip(".") != blob_extension_name:
                 continue
-        
+
         # Excludes top level directory that matches prefix
         if is_dir and blob.name[-1] == "/":
             continue
