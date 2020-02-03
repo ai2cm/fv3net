@@ -75,7 +75,7 @@ def coarsen_timestep(
     timestep_gcs_url: str, output_dir: str, coarsen_factor: int, gridspec_path: str,
 ):
 
-    curr_timestep = time_step(timestep_gcs_url)
+    curr_timestep = parse_timestep_from_path(timestep_gcs_url)
     logger.info(f"Coarsening timestep: {curr_timestep}")
 
     with tempfile.TemporaryDirectory() as tmpdir:
