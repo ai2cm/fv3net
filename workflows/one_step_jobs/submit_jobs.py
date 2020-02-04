@@ -20,8 +20,8 @@ KUBERNETES_CONFIG_DEFAULT = {
     "image_pull_policy": "Always",
 }
 
-RUNDIRS_DIRECTORY_NAME = "rundirs"
-CONFIG_DIRECTORY_NAME = "config"
+RUNDIRS_DIRECTORY_NAME = "one_step_output"
+CONFIG_DIRECTORY_NAME = "one_step_config"
 VERTICAL_GRID_FILENAME = "fv_core.res.nc"
 RESTART_CATEGORIES = ["fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", "sfc_data"]
 TILES = range(1, 7)
