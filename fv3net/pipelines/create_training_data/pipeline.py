@@ -11,7 +11,6 @@ from . import helpers
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
 from vcm.cubedsphere.constants import (
-    COORD_Z_CENTER,
     VAR_LON_CENTER,
     VAR_LAT_CENTER,
     VAR_LON_OUTER,
