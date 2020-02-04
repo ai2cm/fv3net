@@ -285,15 +285,16 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Remote url where model configuration and output will be saved. "
-        "Specifically, configuration files will be saved to OUTPUT_BUCKET/config "
-        "and model output to OUTPUT_BUCKET/rundirs",
+        "Specifically, configuration files will be saved to OUTPUT_BUCKET/"
+        f"{CONFIG_DIRECTORY_NAME} and model output to OUTPUT_BUCKET/"
+        f"{RUNDIRS_DIRECTORY_NAME}",
     )
     parser.add_argument(
         "--n-steps",
         type=int,
         default=None,
         help="Number of timesteps to process. By default all timesteps "
-        "found in INPUT-BUCKET will be processed. Useful for testing.",
+        "found in INPUT_BUCKET will be processed. Useful for testing.",
     )
     args = parser.parse_args()
     with open(args.one_step_yaml) as file:
