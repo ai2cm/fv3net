@@ -247,7 +247,7 @@ def _merge_hires_data(ds_run, diag_c48_path):
         return ds_run
     try:
         init_times = ds_run[INIT_TIME_DIM].values
-        data_vars = RENAMED_HIRES_VARS.keys()
+        data_vars = list(RENAMED_HIRES_VARS.keys())
         diags_c48 = helpers.load_diag(diag_c48_path, init_times)[data_vars]
         features_diags_c48 = diags_c48.rename(RENAMED_HIRES_VARS)
         return xr.merge([ds_run, features_diags_c48])

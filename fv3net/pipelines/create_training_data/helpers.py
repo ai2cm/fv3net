@@ -91,5 +91,5 @@ def load_diag(diag_data_path, init_times):
             INIT_TIME_DIM: [_round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
             "tile": range(6),
         }
-    ).sel({INIT_TIME_DIM: init_times})
-    return ds_diag
+    )
+    return ds_diag.sel({INIT_TIME_DIM: init_times})
