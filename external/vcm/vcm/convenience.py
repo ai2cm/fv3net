@@ -10,6 +10,7 @@ import dask.array as da
 import intake
 import xarray as xr
 import yaml
+import re
 from dask import delayed
 
 from vcm.cloud import gsutil
@@ -29,6 +30,17 @@ def get_shortened_dataset_tags():
         pathlib.Path(TOP_LEVEL_DIR, "configurations") / "short_datatag_defs.yml"
     )
     return yaml.load(short_dset_yaml.open(), Loader=yaml.SafeLoader)
+
+
+def parse_timestep_from_path(path: str):
+    """Get the model timestep timestamp from a given path"""
+
+    extracted_time = re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path)
+
+    if extracted_time is not None:
+        return extracted_time.group(1)
+    else:
+        raise ValueError(f"No matching time pattern found in path: {path}")
 
 
 root = get_root()
