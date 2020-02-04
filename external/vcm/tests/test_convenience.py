@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from vcm.convenience import open_delayed
+from vcm.convenience import open_delayed, parse_timestep_from_path
 from dask.delayed import delayed
 from dask.array import Array
 
@@ -35,3 +35,17 @@ def test_open_delayed_fills_nans(dataset):
     assert np.all(np.isnan(b))
     assert b.dims == dataset["b"].dims
     assert b.dtype == dataset["b"].dtype
+
+
+def test_extract_timestep_from_path():
+
+    timestep = "20160801.001500"
+    good_path = f"gs://path/to/timestep/{timestep}/"
+    assert parse_timestep_from_path(good_path) == timestep
+
+
+def test_extract_timestep_from_path_with_no_timestep_in_path():
+
+    with pytest.raises(ValueError):
+        bad_path = "gs://path/to/not/a/timestep/"
+        parse_timestep_from_path(bad_path)
