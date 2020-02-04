@@ -38,7 +38,7 @@ output_path = os.path.join(os.path.dirname(diag_path), C48_OUTPUT_FILENAME)
 diags = catalog["40day_c384_diags_time_avg"].to_dask()
 logging.info(f"Size of diagnostic data:  {diags.nbytes / 1e9:.2f} GB")
 
-# rename the dimensions approriately
+# rename the dimensions appropriately
 grid384 = diags[
     [
         "grid_lat_coarse",
@@ -71,10 +71,9 @@ diags48 = coarsen.weighted_block_average(
     coarsening_factor=8,
 )
 
-# Drop grid coords
 diags48 = diags48.unify_chunks()
 
-diags48.to_zarr(C48_OUTPUT_FILENAME, mode="w")
+diags48.to_zarr(C48_OUTPUT_FILENAME, mode="w", consolidated=True)
 gsutil.copy(C48_OUTPUT_FILENAME, output_path)
 
 logging.info(f"Done writing coarsened C48 zarr to {output_path}")
