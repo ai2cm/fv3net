@@ -1,0 +1,22 @@
+kubernetes:
+  docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1
+fv3config:
+  diag_table: diag_table_one_step
+  namelist:
+    atmos_model_nml:
+      dycore_only: true
+    coupler_nml:
+      days: 0
+      minutes: 15
+      seconds: 0
+      dt_atmos: 60  # seconds
+      dt_ocean: 60  # seconds
+      restart_secs: 60
+    fv_core_nml:
+      do_sat_adj: false
+      external_eta: true
+      npz: 79
+      k_split: 1
+      n_split: 1
+    gfdl_cloud_microphysics_nml:
+      fast_sat_adj: false
