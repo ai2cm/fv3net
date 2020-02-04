@@ -79,7 +79,8 @@ def current_date_from_timestep(timestep: str) -> List[int]:
 
 
 def check_runs_complete(rundir_url: str):
-    """Checks for stdout.log and tail of said logfile to see if run successfully completed"""
+    """Checks for existence of stdout.log and tail of said logfile to see if run
+    successfully completed"""
     # TODO: Ideally this would check some sort of model exit code
     timestep_check_args = [
         (curr_timestep, os.path.join(rundir_url, curr_timestep, "stdout.log"))
@@ -199,7 +200,7 @@ def _get_experiment_name(first_tag: str, second_tag: str) -> str:
     """Return unique experiment name with only alphanumeric, hyphen or dot"""
     uuid_short = str(uuid.uuid4())[:8]
     exp_name = f"one-step.{first_tag}.{second_tag}.{uuid_short}"
-    return re.sub("[^a-zA-Z0-9.\-]", "", exp_name)
+    return re.sub(r"[^a-zA-Z0-9.\-]", "", exp_name)
 
 
 def _get_and_upload_config(
@@ -283,9 +284,10 @@ if __name__ == "__main__":
         "--output-bucket",
         type=str,
         required=True,
-        help="Remote url where model configuration and output will be saved. Specifically, "
-        "configuration files will be saved to OUTPUT-BUCKET/one_step_config and "
-        "model output to OUTPUT-BUCKET/one_step_rundirs",
+        help="Remote url where model configuration and output will be saved. "
+        "Specifically, configuration files will be saved to "
+        "OUTPUT-BUCKET/one_step_config and model output to "
+        "OUTPUT-BUCKET/one_step_rundirs",
     )
     parser.add_argument(
         "--n-steps",
