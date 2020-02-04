@@ -278,16 +278,15 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Remote url to initial conditions. Initial conditions are assumed to be "
-        "stored as INPUT-BUCKET/{timestamp}/{timestamp}.{restart_category}.tile*.nc",
+        "stored as INPUT_BUCKET/{timestamp}/{timestamp}.{restart_category}.tile*.nc",
     )
     parser.add_argument(
         "--output-bucket",
         type=str,
         required=True,
         help="Remote url where model configuration and output will be saved. "
-        "Specifically, configuration files will be saved to "
-        "OUTPUT-BUCKET/one_step_config and model output to "
-        "OUTPUT-BUCKET/one_step_rundirs",
+        "Specifically, configuration files will be saved to OUTPUT_BUCKET/config "
+        "and model output to OUTPUT_BUCKET/rundirs",
     )
     parser.add_argument(
         "--n-steps",
