@@ -1,6 +1,5 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-from datetime import timedelta
 import gcsfs
 import logging
 from numpy import random
@@ -8,21 +7,16 @@ import os
 import shutil
 import xarray as xr
 
+from . import helpers
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
 from vcm.cubedsphere.constants import (
-    COORD_Z_CENTER,
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    COORD_X_OUTER,
-    COORD_Y_OUTER,
     VAR_LON_CENTER,
     VAR_LAT_CENTER,
     VAR_LON_OUTER,
     VAR_LAT_OUTER,
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
-    TIME_FMT,
 )
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
@@ -39,9 +33,14 @@ logger.setLevel(logging.INFO)
 SAMPLE_DIM = "sample"
 SAMPLE_CHUNK_SIZE = 1500
 
-GRID_VARS = [COORD_X_CENTER, COORD_Y_CENTER, COORD_X_OUTER, COORD_Y_OUTER, "area"]
-INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk"]
+INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk", "phis", "tsea", "slope"]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
+RENAMED_HIRES_VARS = {
+    "DSWRFtoa_coarse": "insolation",
+    "LHTFLsfc_coarse": "LHF",
+    "SHTFLsfc_coarse": "SHF",
+    "PRATEsfc_coarse": "precip_sfc",
+}
 
 
 def run(args, pipeline_args):
@@ -54,7 +53,7 @@ def run(args, pipeline_args):
         data_batch_urls, args.train_fraction, args.random_seed
     )
 
-    print(f"Processing {len(data_batch_urls)} subsets...")
+    logger.info(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
@@ -62,9 +61,12 @@ def run(args, pipeline_args):
             | beam.Create(data_batch_urls)
             | "LoadCloudData" >> beam.Map(_open_cloud_data)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
+            | "MergeHiresDiagVars"
+            >> beam.Map(_merge_hires_data, diag_c48_path=args.diag_c48_path)
             | "MaskToSurfaceType"
-            >> beam.Map(mask_to_surface_type, surface_type=args.mask_to_surface_type)
-            | "StackAndDropNan" >> beam.Map(_stack_and_drop_nan_samples)
+            >> beam.Map(
+                _try_mask_to_surface_type, surface_type=args.mask_to_surface_type
+            )
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
@@ -162,14 +164,6 @@ def _test_train_split(url_batches, train_frac, random_seed=1234):
     return labels
 
 
-def _set_forecast_time_coord(ds):
-    delta_t_forecast = ds.forecast_time.values[1] - ds.forecast_time.values[0]
-    ds.reset_index([FORECAST_TIME_DIM], drop=True)
-    return ds.assign_coords(
-        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]}
-    )
-
-
 def _open_cloud_data(run_dirs):
     """Opens multiple run directories into a single dataset, where the init time
     of each run dir is the INIT_TIME_DIM and the times within
@@ -181,23 +175,28 @@ def _open_cloud_data(run_dirs):
     Returns:
         xarray dataset of concatenated zarrs in url list
     """
-    logger.info(
-        f"Using run dirs for batch: "
-        f"{[os.path.basename(run_dir[:-1]) for run_dir in run_dirs]}"
-    )
-    ds_runs = []
-    for run_dir in run_dirs:
-        t_init = _parse_time_string(_parse_time(run_dir))
-        ds_run = (
-            open_restarts_with_time_coordinates(run_dir)[INPUT_VARS]
-            .expand_dims(dim={INIT_TIME_DIM: [t_init]})
-            .rename({"time": FORECAST_TIME_DIM})
-            .isel({FORECAST_TIME_DIM: slice(-2, None)})
+    try:
+        logger.info(
+            f"Using run dirs for batch: "
+            f"{[os.path.basename(run_dir[:-1]) for run_dir in run_dirs]}"
         )
-        ds_run = _set_forecast_time_coord(ds_run)
-
+        ds_runs = []
+        for run_dir in run_dirs:
+            t_init = _parse_time(run_dir)
+            ds_run = (
+                open_restarts_with_time_coordinates(run_dir)[INPUT_VARS]
+                .rename({"time": FORECAST_TIME_DIM})
+                .isel({FORECAST_TIME_DIM: slice(-2, None)})
+                .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
+            )
+            ds_run = helpers._set_relative_forecast_time_coord(ds_run).drop(
+                "file_prefix"
+            )
+            ds_runs.append(ds_run)
+        return xr.concat(ds_runs, INIT_TIME_DIM)
+    except (ValueError, TypeError) as e:
+        logger.error(f"Failed to open restarts from cloud: {e}")
         ds_runs.append(ds_run)
-    return xr.concat(ds_runs, INIT_TIME_DIM)
 
 
 def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
@@ -209,46 +208,51 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
     Returns:
         xarray dataset with variables in INPUT_VARS + TARGET_VARS + GRID_VARS
     """
-    da_centered_u = rename_centered_xy_coords(shift_edge_var_to_center(ds["u"]))
-    da_centered_v = rename_centered_xy_coords(shift_edge_var_to_center(ds["v"]))
-    ds["u"] = da_centered_u
-    ds["v"] = da_centered_v
-    ds["QU"] = apparent_source(ds.u)
-    ds["QV"] = apparent_source(ds.v)
-    ds["Q1"] = apparent_source(ds.T)
-    ds["Q2"] = apparent_source(ds.sphum)
-    ds = (
-        ds[cols_to_keep]
-        .isel(
-            {
-                INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1),
-                FORECAST_TIME_DIM: 0,
-            }
+    try:
+        da_centered_u = rename_centered_xy_coords(shift_edge_var_to_center(ds["u"]))
+        da_centered_v = rename_centered_xy_coords(shift_edge_var_to_center(ds["v"]))
+        ds["u"] = da_centered_u
+        ds["v"] = da_centered_v
+        ds["QU"] = apparent_source(ds.u)
+        ds["QV"] = apparent_source(ds.v)
+        ds["Q1"] = apparent_source(ds.T)
+        ds["Q2"] = apparent_source(ds.sphum)
+        ds = (
+            ds[cols_to_keep]
+            .isel(
+                {
+                    INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1),
+                    FORECAST_TIME_DIM: 0,
+                }
+            )
+            .squeeze(drop=True)
         )
-        .squeeze(drop=True)
-    )
-    return ds
+        return ds
+    except (ValueError, TypeError) as e:
+        logger.error(
+            f"Failed step CreateTrainingCols for batch"
+            f"{ds[INIT_TIME_DIM].values[0]}: {e}"
+        )
 
 
-def _stack_and_drop_nan_samples(ds):
-    """
+def _merge_hires_data(ds_run, diag_c48_path):
+    if not diag_c48_path:
+        return ds_run
+    try:
+        init_times = ds_run[INIT_TIME_DIM].values
+        data_vars = list(RENAMED_HIRES_VARS.keys())
+        diags_c48 = helpers.load_diag(diag_c48_path, init_times)[data_vars]
+        features_diags_c48 = diags_c48.rename(RENAMED_HIRES_VARS)
+        return xr.merge([ds_run, features_diags_c48])
+    except (KeyError, AttributeError, ValueError, TypeError) as e:
+        logger.error(f"Failed to merge in features from high res diagnostics: {e}")
 
-    Args:
-        ds: xarray dataset
 
-    Returns:
-        xr dataset stacked into sample dimension and with NaN elements dropped
-         (the masked out land/sea type)
-    """
-
-    ds = (
-        ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
-        .transpose(SAMPLE_DIM, COORD_Z_CENTER)
-        .reset_index(SAMPLE_DIM)
-        .dropna(SAMPLE_DIM)
-        .chunk(SAMPLE_CHUNK_SIZE, ds.sizes[COORD_Z_CENTER])
-    )
-    return ds
+def _try_mask_to_surface_type(ds, surface_type):
+    try:
+        return mask_to_surface_type(ds, surface_type)
+    except (AttributeError, ValueError, TypeError) as e:
+        logger.error(f"Failed masking to surface type: {e}")
 
 
 def _write_remote_train_zarr(
@@ -269,45 +273,13 @@ def _write_remote_train_zarr(
     Returns:
         None
     """
-    logger.info("Writing to zarr...")
-    if not zarr_filename:
-        zarr_filename = _path_from_first_timestep(ds, train_test_labels)
-    output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
-    ds.to_zarr(zarr_filename, mode="w")
-    gsutil.copy(zarr_filename, output_path)
-    logger.info(f"Done writing zarr to {output_path}")
-    shutil.rmtree(zarr_filename)
-
-
-def _path_from_first_timestep(ds, train_test_labels=None):
-    """ Uses first init time as zarr filename, and appends a 'train'/'test' subdir
-    if a dict of labels is provided
-
-    Args:
-        ds:
-        train_test_labels: optional dict with keys ["test", "train"] and values lists of
-            timestep strings that go to each set
-
-    Returns:
-        path in args.gcs_output_dir to write the zarr to
-    """
-    timestep = min(ds[INIT_TIME_DIM].values).strftime(TIME_FMT)
-    if isinstance(train_test_labels, dict):
-        try:
-            if timestep in train_test_labels["train"]:
-                train_test_subdir = "train"
-            elif timestep in train_test_labels["test"]:
-                train_test_subdir = "test"
-        except KeyError:
-            logger.warning(
-                "train_test_labels dict does not have keys ['train', 'test']."
-                "Will write zarrs directly to gcs_output_dir."
-            )
-            train_test_subdir = ""
-    else:
-        logger.info(
-            "No train_test_labels dict provided."
-            "Will write zarrs directly to gcs_output_dir."
-        )
-        train_test_subdir = ""
-    return os.path.join(train_test_subdir, timestep + ".zarr")
+    try:
+        if not zarr_filename:
+            zarr_filename = helpers._path_from_first_timestep(ds, train_test_labels)
+        output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
+        ds.to_zarr(zarr_filename, mode="w")
+        gsutil.copy(zarr_filename, output_path)
+        logger.info(f"Done writing zarr to {output_path}")
+        shutil.rmtree(zarr_filename)
+    except (ValueError, AttributeError, TypeError, RuntimeError) as e:
+        logger.error(f"Failed to write zarr: {e}")
