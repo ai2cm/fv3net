@@ -271,6 +271,7 @@ def _stack_and_drop_nan_samples(ds):
         ds = (
             ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
             .transpose(SAMPLE_DIM, COORD_Z_CENTER)
+            .reset_index(SAMPLE_DIM)
             .dropna(SAMPLE_DIM)
             .chunk(SAMPLE_CHUNK_SIZE, ds.sizes[COORD_Z_CENTER])
         )
