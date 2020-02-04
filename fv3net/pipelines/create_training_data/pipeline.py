@@ -1,6 +1,5 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-from datetime import timedelta
 import gcsfs
 import logging
 from numpy import random
@@ -13,10 +12,6 @@ from vcm.calc import apparent_source
 from vcm.cloud import gsutil
 from vcm.cubedsphere.constants import (
     COORD_Z_CENTER,
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    COORD_X_OUTER,
-    COORD_Y_OUTER,
     VAR_LON_CENTER,
     VAR_LAT_CENTER,
     VAR_LON_OUTER,
