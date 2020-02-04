@@ -1,28 +1,30 @@
 version: 2.1
-orbs:
 jobs:
-  build:
+  build:    
     docker:
-    - image: continuumio/miniconda:4.7.12
-      environment:
+      - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
+        auth:
+          username: _json_key
+          password: $DECODED_GOOGLE_CREDENTIALS
+        environment:
           GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
     - checkout
-    - run: echo $GCLOUD_SERVICE_KEY > key.json
+    - run: | 
+        echo $ENCODED_GOOGLE_CREDENTIALS | \
+        base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
     - run: conda install make
     - run: make update_submodules
     - run: make create_environment
     - run: | 
         source activate fv3net
-        pytest --mpl --mpl-baseline-path=tests/baseline_images
+        pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
   lint:
     docker:
     - image: circleci/python:3.7
-      environment:
-          GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
     - checkout
-    - run: sudo pip install black flake8
+    - run: sudo pip install black==19.10b0 flake8
     - run: make lint
 workflows:
   version: 2
