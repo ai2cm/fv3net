@@ -10,7 +10,7 @@ dependencies:
   - dask>=2.3
   - fsspec
   - f90nml
-  - black
+  - black=19.10b0
   - isort
   - flake8
   - gcsfs
