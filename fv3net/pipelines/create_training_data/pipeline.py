@@ -68,7 +68,6 @@ def run(args, pipeline_args):
             >> beam.Map(
                 _try_mask_to_surface_type, surface_type=args.mask_to_surface_type
             )
-            | "StackAndDropNan" >> beam.Map(_stack_and_drop_nan_samples)
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
