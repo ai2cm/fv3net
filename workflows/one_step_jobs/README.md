@@ -10,10 +10,7 @@ microphysics)
 Both of these configurations use a one-minute timestep with no dynamics substepping and
 have a total duration of 15 minutes.
 
-To process many (> around 40) runs at once, it is recommended to submit this workflow
-from a VM authorized with a service account. Users have had issues with API request errors
-when submitting from a machine authorized with a non-service Google account.
-
+Workflow call signature:
 ```
 $ python submit_jobs.py -h
 usage: submit_jobs.py [-h] --one-step-yaml ONE_STEP_YAML --input-bucket
@@ -37,4 +34,24 @@ optional arguments:
                         timesteps found in INPUT_BUCKET for which successful
                         runs do not exist in OUTPUT_BUCKET will be processed.
                         Useful for testing.
+```
+
+
+### Kubernetes VM access troubleshooting
+
+To process many (> around 40) runs at once, it is recommended to submit this workflow
+from a VM authorized with a service account. Users have had issues with API request errors
+when submitting from a machine authorized with a non-service Google account.
+
+To submit to the kubernetes cluster on a VM, the kubectl configuration needs to point at a proxy cluster access point and the VM needs to have a firewall rule to allow for communication with the proxy IP. See the long-lived-infrastructure cluster access README for details on this process, specifically, the make kubeconfig_init command. Most VMs should already have a firewall rule set up, but a good way to test whether everythings working is by running the following command:
+
+```
+kubectl get pods --all-namespaces
+```
+
+If the command hangs, then it's likely the firewall rule is not set up properly or the configuration is not set up correctly.
+Use the following command to view your current configuration. It should point towards the external IP address of the k8s-ml-cluster-dev-proxy-lsch VM.
+
+```
+kubectl config view
 ```
