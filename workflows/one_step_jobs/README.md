@@ -26,15 +26,15 @@ optional arguments:
                         Path to local run configuration yaml.
   --input-bucket INPUT_BUCKET
                         Remote url to initial conditions. Initial conditions
-                        are assumed to be stored as INPUT-BUCKET/{timestamp}/
+                        are assumed to be stored as INPUT_BUCKET/{timestamp}/
                         {timestamp}.{restart_category}.tile*.nc
   --output-bucket OUTPUT_BUCKET
                         Remote url where model configuration and output will
                         be saved. Specifically, configuration files will be
-                        saved to OUTPUT-BUCKET/config and model output to
-                        OUTPUT-BUCKET/rundirs
+                        saved to OUTPUT_BUCKET/one_step_config and model
+                        output to OUTPUT_BUCKET/one_step_output
   --n-steps N_STEPS     Number of timesteps to process. By default all
-                        timesteps found in INPUT-BUCKET will be processed.
+                        timesteps found in INPUT_BUCKET for which successful
+                        runs do not exist in OUTPUT_BUCKET will be processed.
                         Useful for testing.
-
 ```

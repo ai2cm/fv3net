@@ -294,7 +294,8 @@ if __name__ == "__main__":
         type=int,
         default=None,
         help="Number of timesteps to process. By default all timesteps "
-        "found in INPUT_BUCKET will be processed. Useful for testing.",
+        "found in INPUT_BUCKET for which successful runs do not exist in "
+        "OUTPUT_BUCKET will be processed. Useful for testing.",
     )
     args = parser.parse_args()
     with open(args.one_step_yaml) as file:
