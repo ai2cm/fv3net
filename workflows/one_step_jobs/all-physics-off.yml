@@ -5,6 +5,7 @@ fv3config:
   namelist:
     atmos_model_nml:
       dycore_only: true
+      fhout: 0.01666
     coupler_nml:
       days: 0
       minutes: 15
@@ -20,3 +21,5 @@ fv3config:
       n_split: 1
     gfdl_cloud_microphysics_nml:
       fast_sat_adj: false
+    gfs_physics_nml:
+      fhzero: 0.01666

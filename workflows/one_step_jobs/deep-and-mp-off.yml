@@ -3,6 +3,8 @@ kubernetes:
 fv3config:
   diag_table: diag_table_one_step
   namelist:
+    atmos_model_nml:
+      fhout: 0.01666
     coupler_nml:
       days: 0
       minutes: 15
@@ -20,3 +22,4 @@ fv3config:
       fast_sat_adj: false
     gfs_physics_nml:
       do_deep: false
+      fhzero: 0.01666
