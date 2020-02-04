@@ -28,3 +28,6 @@ RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
 GRID_VARS = [VAR_LAT_CENTER, VAR_LAT_OUTER, VAR_LON_CENTER, VAR_LON_OUTER, "area"]
 INIT_TIME_DIM = "initialization_time"
 FORECAST_TIME_DIM = "forecast_time"
+TILE_COORDS = range(
+    6
+)  # note that we changed to start index at 0, so some older data might start at 1

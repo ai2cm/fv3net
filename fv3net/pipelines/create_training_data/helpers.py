@@ -5,7 +5,12 @@ import os
 import xarray as xr
 
 from vcm.fv3_restarts import _split_url
-from vcm.cubedsphere.constants import INIT_TIME_DIM, FORECAST_TIME_DIM, TIME_FMT
+from vcm.cubedsphere.constants import (
+    INIT_TIME_DIM,
+    FORECAST_TIME_DIM,
+    TIME_FMT,
+    TILE_COORDS,
+)
 
 
 logger = logging.getLogger()
@@ -83,13 +88,13 @@ def _set_relative_forecast_time_coord(ds):
 def load_diag(diag_data_path, init_times):
     protocol, path = _split_url(diag_data_path)
     fs = fsspec.filesystem(protocol)
-    ds_diag = xr.open_zarr(fs.get_mapper(diag_data_path)).rename(
+    ds_diag = xr.open_zarr(fs.get_mapper(diag_data_path), consolidated=True).rename(
         {"time": INIT_TIME_DIM}
     )
     ds_diag = ds_diag.assign_coords(
         {
             INIT_TIME_DIM: [_round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
-            "tile": range(6),
+            "tile": TILE_COORDS,
         }
     )
     return ds_diag.sel({INIT_TIME_DIM: init_times})
