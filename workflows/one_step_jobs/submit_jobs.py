@@ -1,37 +1,58 @@
-import copy
+import argparse
+from collections.abc import Mapping
 import logging
 import os
-import subprocess
+import re
 import uuid
-from datetime import timedelta
 from pathlib import Path
 from typing import List
 from multiprocessing import Pool
-import gcsfs
+import fsspec
 import yaml
-import tempfile
 import fv3config
-
-from vcm.cloud import gsutil, gcs
 
 logger = logging.getLogger("run_jobs")
 
-RUN_DURATION = timedelta(minutes=15)
-RUN_TIMESTEP = 60  # seconds
+KUBERNETES_CONFIG_DEFAULT = {
+    "docker_image": "us.gcr.io/vcm-ml/fv3gfs-python",
+    "cpu_count": 6,
+    "gcp_secret": "gcp-key",
+    "image_pull_policy": "Always",
+}
 
-PARENT_BUCKET = "gs://vcm-ml-data/2020-01-06-X-SHiELD-2019-12-02-restarts-and-rundirs/"
-INPUT_BUCKET = PARENT_BUCKET + "restarts/C48/"
-OUTPUT_BUCKET = PARENT_BUCKET + "one_step_output/C48/"
-CONFIG_BUCKET = PARENT_BUCKET + "one_step_config/C48/"
-DOCKER_IMAGE = "us.gcr.io/vcm-ml/fv3gfs-python"
-LOCAL_PARENT_DIR = os.path.dirname(os.path.abspath(__file__))
-LOCAL_FILES_TO_UPLOAD = ["runfile.py", "diag_table", "vertical_grid/fv_core.res.nc"]
-
+RUNDIRS_DIRECTORY_NAME = "rundirs"
+CONFIG_DIRECTORY_NAME = "config"
+VERTICAL_GRID_FILENAME = "fv_core.res.nc"
 RESTART_CATEGORIES = ["fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", "sfc_data"]
 TILES = range(1, 7)
 
-SECONDS_IN_MINUTE = 60
-SECONDS_IN_HOUR = 60 * SECONDS_IN_MINUTE
+
+def get_model_config(config_update: dict) -> dict:
+    """Get default model config and update with provided config_update"""
+    config = fv3config.get_default_config()
+    return _update_nested_dict(config, config_update)
+
+
+def get_kubernetes_config(config_update: dict) -> dict:
+    """Get default kubernetes config and update with provided config_update"""
+    return _update_nested_dict(KUBERNETES_CONFIG_DEFAULT, config_update)
+
+
+def _update_nested_dict(source_dict: dict, update_dict: dict) -> dict:
+    for key, value in update_dict.items():
+        if key in source_dict and isinstance(source_dict[key], Mapping):
+            _update_nested_dict(source_dict[key], update_dict[key])
+        else:
+            source_dict[key] = update_dict[key]
+    return source_dict
+
+
+def _upload_if_necessary(path: str, bucket_url: str) -> str:
+    if not path.startswith("gs://"):
+        remote_path = os.path.join(bucket_url, os.path.basename(path))
+        fsspec.filesystem("gs").put(path, remote_path)
+        path = remote_path
+    return path
 
 
 def timestep_from_url(url: str) -> str:
@@ -40,16 +61,14 @@ def timestep_from_url(url: str) -> str:
 
 def list_timesteps(bucket: str) -> set:
     """Returns the unique timesteps in a bucket"""
-    try:
-        ls_output = subprocess.check_output(["gsutil", "ls", bucket])
-    except subprocess.CalledProcessError:
-        return set()
-    file_list = ls_output.decode("UTF-8").strip().split()
+    fs = fsspec.filesystem("gs")
+    file_list = fs.ls(bucket)
     timesteps = map(timestep_from_url, file_list)
     return set(timesteps)
 
 
-def time_list_from_timestep(timestep: str) -> List[int]:
+def current_date_from_timestep(timestep: str) -> List[int]:
+    """Return timestep in the format required by fv3gfs namelist"""
     year = int(timestep[:4])
     month = int(timestep[4:6])
     day = int(timestep[6:8])
@@ -59,22 +78,18 @@ def time_list_from_timestep(timestep: str) -> List[int]:
     return [year, month, day, hour, minute, second]
 
 
-def check_runs_complete(bucket: str):
-    """Checks for log and tail of output to see if run successfully incomplete"""
+def check_runs_complete(rundir_url: str):
+    """Checks for stdout.log and tail of said logfile to see if run successfully completed"""
     # TODO: Ideally this would check some sort of model exit code
-
     timestep_check_args = [
-        (curr_timestep, os.path.join(bucket, curr_timestep, "stdout.log"))
-        for curr_timestep in list_timesteps(bucket)
+        (curr_timestep, os.path.join(rundir_url, curr_timestep, "stdout.log"))
+        for curr_timestep in list_timesteps(rundir_url)
     ]
-
     pool = Pool(processes=16)
     complete = set(pool.map(_check_run_complete_unpacker, timestep_check_args))
     pool.close()
-
     if None in complete:
         complete.remove(None)
-
     return complete
 
 
@@ -83,17 +98,14 @@ def _check_run_complete_unpacker(arg: tuple) -> str:
 
 
 def _check_run_complete_func(timestep: str, logfile_path: str) -> str:
-
-    if gsutil.exists(logfile_path) and _check_log_tail(logfile_path):
+    if fsspec.filesystem("gs").exists(logfile_path) and _check_log_tail(logfile_path):
         return timestep
     else:
         return None
 
 
 def _check_log_tail(gcs_log_file: str) -> bool:
-
-    # Checking for specific timing headers that outputs at the end of the run
-
+    # Checking for specific timing headers that output at the end of the run
     output_timing_header = [
         "tmin",
         "tmax",
@@ -119,57 +131,43 @@ def _check_log_tail(gcs_log_file: str) -> bool:
         "Main",
         "Termination",
     ]
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        filename = Path(gcs_log_file).name
-        gcs_file_blob = gcs.init_blob_from_gcs_url(gcs_log_file)
-        gcs.download_blob_to_file(gcs_file_blob, tmpdir, filename)
-
-        with open(os.path.join(tmpdir, filename), "r") as f:
-            log_output = f.readlines()[-15:]
-
-        headers = [word for word in log_output[0].split(" ") if word]
-        top_check = _check_header_categories(output_timing_header, headers)
-        row_headers = [line.split(" ")[0] for line in log_output[1:-1]]
-        row_check = _check_header_categories(output_timing_row_lead, row_headers)
-
-        return top_check and row_check
+    with fsspec.open(gcs_log_file, "r") as f:
+        log_output = f.readlines()[-15:]
+    headers = [word for word in log_output[0].split(" ") if word]
+    top_check = _check_header_categories(output_timing_header, headers)
+    row_headers = [line.split(" ")[0] for line in log_output[1:-1]]
+    row_check = _check_header_categories(output_timing_row_lead, row_headers)
+    return top_check and row_check
 
 
-def _check_header_categories(target_categories, source_categories):
+def _check_header_categories(
+    target_categories: List[str], source_categories: List[str]
+) -> bool:
     if not source_categories:
         return False
     elif len(source_categories) != len(target_categories):
         return False
-
     for i, target in enumerate(target_categories):
         if target != source_categories[i]:
             return False
-
     return True
 
 
-def timesteps_to_process() -> List[str]:
-    to_do = list_timesteps(INPUT_BUCKET)
-    done = check_runs_complete(OUTPUT_BUCKET)
+def timesteps_to_process(input_bucket: str, output_bucket: str) -> List[str]:
+    """Return list of timesteps left to process"""
+    rundirs_url = os.path.join(output_bucket, RUNDIRS_DIRECTORY_NAME)
+    to_do = list_timesteps(input_bucket)
+    done = check_runs_complete(rundirs_url)
     logger.info(f"Number of input times: {len(to_do)}")
     logger.info(f"Number of completed times: {len(done)}")
-    logger.info(f"Number of times to process: {len(to_do) - len(done)}")
     return sorted(list(set(to_do) - set(done)))
 
 
-def turn_off_physics(config):
-    new_config = copy.deepcopy(config)
-    new_config["namelist"]["atmos_model_nml"]["dycore_only"] = True
-    new_config["namelist"]["fv_core_nml"]["do_sat_adj"] = False
-    new_config["namelist"]["gfdl_cloud_microphysics_nml"]["fast_sat_adj"] = False
-    return new_config
-
-
-def get_initial_condition_patch_files(timestep):
-    patch_files = [
+def _get_initial_condition_assets(input_bucket: str, timestep: str) -> List[dict]:
+    """Get list of assets representing initial conditions for this timestep"""
+    initial_condition_assets = [
         fv3config.get_asset_dict(
-            os.path.join(INPUT_BUCKET, timestep),
+            os.path.join(input_bucket, timestep),
             f"{timestep}.{category}.tile{tile}.nc",
             target_location="INPUT",
             target_name=f"{category}.tile{tile}.nc",
@@ -177,65 +175,136 @@ def get_initial_condition_patch_files(timestep):
         for category in RESTART_CATEGORIES
         for tile in TILES
     ]
-    return patch_files
+    return initial_condition_assets
 
 
-def get_config(timestep):
-    config = fv3config.get_default_config()
-    config = fv3config.enable_restart(config)
-    config["experiment_name"] = f"one-step.{timestep}.{uuid.uuid4()}"
-    config["diag_table"] = os.path.join(CONFIG_BUCKET, timestep, "diag_table")
-    # Following has only fv_core.res.nc. Other initial conditions are in patch_files.
-    config["initial_conditions"] = os.path.join(
-        CONFIG_BUCKET, timestep, "vertical_grid"
+def _get_vertical_grid_asset(config_url: str) -> dict:
+    """Get asset corresponding to fv_core.res.nc which describes vertical coordinate"""
+    return fv3config.get_asset_dict(
+        config_url,
+        VERTICAL_GRID_FILENAME,
+        target_location="INPUT",
+        target_name=VERTICAL_GRID_FILENAME,
     )
-    config["patch_files"] = get_initial_condition_patch_files(timestep)
-    config = fv3config.set_run_duration(config, RUN_DURATION)
-    config["namelist"]["coupler_nml"].update(
+
+
+def _get_output_urls(url: str, timestep: str) -> tuple:
+    """Return paths for config and rundir directories for this timestep"""
+    config_url = os.path.join(url, CONFIG_DIRECTORY_NAME, timestep)
+    rundir_url = os.path.join(url, RUNDIRS_DIRECTORY_NAME, timestep)
+    return config_url, rundir_url
+
+
+def _get_experiment_name(first_tag: str, second_tag: str) -> str:
+    """Return unique experiment name with only alphanumeric, hyphen or dot"""
+    uuid_short = str(uuid.uuid4())[:8]
+    exp_name = f"one-step.{first_tag}.{second_tag}.{uuid_short}"
+    return re.sub("[^a-zA-Z0-9.\-]", "", exp_name)
+
+
+def _get_and_upload_config(
+    workflow_name: str,
+    one_step_config: dict,
+    input_bucket: str,
+    output_bucket: str,
+    timestep: str,
+) -> dict:
+    """Update model and kubernetes configurations for this particular
+    timestep and upload necessary files to GCS"""
+    config_url, rundir_url = _get_output_urls(output_bucket, timestep)
+    model_config = get_model_config(one_step_config["fv3config"])
+    kubernetes_config = get_kubernetes_config(one_step_config["kubernetes"])
+    model_config = fv3config.enable_restart(model_config)
+    model_config["experiment_name"] = _get_experiment_name(workflow_name, timestep)
+    model_config["initial_conditions"] = _get_initial_condition_assets(
+        input_bucket, timestep
+    )
+    model_config["initial_conditions"].append(_get_vertical_grid_asset(config_url))
+    model_config["namelist"]["coupler_nml"].update(
         {
-            "dt_atmos": RUN_TIMESTEP,
-            "dt_ocean": RUN_TIMESTEP,
-            "restart_secs": RUN_TIMESTEP,
-            "current_date": time_list_from_timestep(timestep),
+            "current_date": current_date_from_timestep(timestep),
             "force_date_from_namelist": True,
         }
     )
-    config["namelist"]["fv_core_nml"].update(
-        {"external_eta": True, "npz": 79, "k_split": 1, "n_split": 1}
-    )
-    config = turn_off_physics(config)
-    return config
-
-
-def submit_jobs(timestep_list: List[str]) -> None:
-    fs = gcsfs.GCSFileSystem()
-    for timestep in timestep_list:
-        config = get_config(timestep)
-        job_name = config["experiment_name"]
-        for filename in LOCAL_FILES_TO_UPLOAD:
-            file_local = os.path.join(LOCAL_PARENT_DIR, filename)
-            file_remote = os.path.join(CONFIG_BUCKET, timestep, filename)
-            fs.put(file_local, file_remote)
-        config_location = os.path.join(CONFIG_BUCKET, timestep, "fv3config.yml")
-        with fs.open(config_location, "w") as config_file:
-            config_file.write(yaml.dump(config))
-        outdir = os.path.join(OUTPUT_BUCKET, timestep)
-        fv3config.run_kubernetes(
-            config_location,
-            outdir,
-            DOCKER_IMAGE,
-            runfile=os.path.join(CONFIG_BUCKET, timestep, "runfile.py"),
-            jobname=job_name,
-            namespace="default",
-            memory_gb=3.6,
-            cpu_count=6,
-            gcp_secret="gcp-key",
-            image_pull_policy="Always",
+    if kubernetes_config.get("runfile", None) is not None:
+        kubernetes_config["runfile"] = _upload_if_necessary(
+            kubernetes_config["runfile"], config_url
         )
-        logger.info(f"Submitted job {job_name}")
+    model_config["diag_table"] = _upload_if_necessary(
+        model_config["diag_table"], config_url
+    )
+    fs = fsspec.filesystem("gs")
+    fs.put(VERTICAL_GRID_FILENAME, os.path.join(config_url, VERTICAL_GRID_FILENAME))
+    with fsspec.open(os.path.join(config_url, "fv3config.yml"), "w") as config_file:
+        config_file.write(yaml.dump(model_config))
+    return {"fv3config": model_config, "kubernetes": kubernetes_config}
+
+
+def submit_jobs(
+    timestep_list: List[str],
+    workflow_name: str,
+    one_step_config: dict,
+    input_bucket: str,
+    output_bucket: str,
+):
+    """Submit one-step job for all timesteps in timestep_list"""
+    for timestep in timestep_list:
+        one_step_config = _get_and_upload_config(
+            workflow_name, one_step_config, input_bucket, output_bucket, timestep
+        )
+        jobname = one_step_config["fv3config"]["experiment_name"]
+        one_step_config["kubernetes"]["jobname"] = jobname
+        config_url, rundir_url = _get_output_urls(output_bucket, timestep)
+        fv3config.run_kubernetes(
+            os.path.join(config_url, "fv3config.yml"),
+            rundir_url,
+            **one_step_config["kubernetes"],
+        )
+        logger.info(f"Submitted job {jobname}")
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    timestep_list = timesteps_to_process()
-    submit_jobs(timestep_list[0:1])
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--one-step-yaml",
+        type=str,
+        required=True,
+        help="Path to local run configuration yaml.",
+    )
+    parser.add_argument(
+        "--input-bucket",
+        type=str,
+        required=True,
+        help="Remote url to initial conditions. Initial conditions are assumed to be "
+        "stored as INPUT-BUCKET/{timestamp}/{timestamp}.{restart_category}.tile*.nc",
+    )
+    parser.add_argument(
+        "--output-bucket",
+        type=str,
+        required=True,
+        help="Remote url where model configuration and output will be saved. Specifically, "
+        "configuration files will be saved to OUTPUT-BUCKET/one_step_config and "
+        "model output to OUTPUT-BUCKET/one_step_rundirs",
+    )
+    parser.add_argument(
+        "--n-steps",
+        type=int,
+        default=None,
+        help="Number of timesteps to process. By default all timesteps "
+        "found in INPUT-BUCKET will be processed. Useful for testing.",
+    )
+    args = parser.parse_args()
+    with open(args.one_step_yaml) as file:
+        one_step_config = yaml.load(file, Loader=yaml.FullLoader)
+    workflow_name = os.path.splitext(args.one_step_yaml)[0]
+    timestep_list = timesteps_to_process(args.input_bucket, args.output_bucket)
+    timestep_list = timestep_list[: args.n_steps]
+    logger.info(f"Number of times to process: {len(timestep_list)}")
+    submit_jobs(
+        timestep_list,
+        workflow_name,
+        one_step_config,
+        args.input_bucket,
+        args.output_bucket,
+    )
