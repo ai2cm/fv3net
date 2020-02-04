@@ -68,7 +68,6 @@ def run(args, pipeline_args):
             >> beam.Map(
                 _try_mask_to_surface_type, surface_type=args.mask_to_surface_type
             )
-            | "StackAndDropNan" >> beam.Map(_stack_and_drop_nan_samples)
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
@@ -255,29 +254,6 @@ def _try_mask_to_surface_type(ds, surface_type):
         return mask_to_surface_type(ds, surface_type)
     except (AttributeError, ValueError, TypeError) as e:
         logger.error(f"Failed masking to surface type: {e}")
-
-
-def _stack_and_drop_nan_samples(ds):
-    """
-
-    Args:
-        ds: xarray dataset
-
-    Returns:
-        xr dataset stacked into sample dimension and with NaN elements dropped
-         (the masked out land/sea type)
-    """
-    try:
-        ds = (
-            ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
-            .transpose(SAMPLE_DIM, COORD_Z_CENTER)
-            .reset_index(SAMPLE_DIM)
-            .dropna(SAMPLE_DIM)
-            .chunk(SAMPLE_CHUNK_SIZE, ds.sizes[COORD_Z_CENTER])
-        )
-        return ds
-    except (AttributeError, RuntimeError) as e:
-        logger.error(f"Failed stack and drop nan samples: {e}")
 
 
 def _write_remote_train_zarr(

@@ -7,14 +7,15 @@ from math import ceil
 import numpy as np
 import xarray as xr
 
+from vcm.cubedsphere.constants import COORD_Z_CENTER, INIT_TIME_DIM
+
+SAMPLE_DIM = "sample"
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 fh = logging.FileHandler("dataset_handler.log")
 fh.setLevel(logging.INFO)
 logger.addHandler(fh)
-
-INIT_TIME_DIM = "initialization_time"
-SAMPLE_DIM = "sample"
 
 
 @dataclass
@@ -64,7 +65,8 @@ class BatchGenerator:
         for file_batch_urls in grouped_urls:
             fs_paths = [self.fs.get_mapper(url) for url in file_batch_urls]
             ds = xr.concat(map(xr.open_zarr, fs_paths), INIT_TIME_DIM)
-            ds_shuffled = _shuffled(ds, SAMPLE_DIM, self.random_seed)
+            ds_stacked = _stack_and_drop_nan_samples(ds)
+            ds_shuffled = _shuffled(ds_stacked, SAMPLE_DIM, self.random_seed)
             yield ds_shuffled
 
     @property
@@ -108,3 +110,22 @@ def _shuffled(dataset, dim, random_seed):
     indices = _chunk_indices(dataset.chunks[dim])
     shuffled_inds = _shuffled_within_chunks(indices, random_seed)
     return dataset.isel({dim: shuffled_inds})
+
+
+def _stack_and_drop_nan_samples(ds):
+    """
+
+    Args:
+        ds: xarray dataset
+
+    Returns:
+        xr dataset stacked into sample dimension and with NaN elements dropped
+         (the masked out land/sea type)
+    """
+    ds = (
+        ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
+        .transpose(SAMPLE_DIM, COORD_Z_CENTER)
+        .reset_index(SAMPLE_DIM)
+        .dropna(SAMPLE_DIM)
+    )
+    return ds
