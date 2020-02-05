@@ -9,8 +9,9 @@ from multiprocessing import Pool
 import fsspec
 import yaml
 import fv3config
-from vcm.convenience import parse_timestep_from_path
+from vcm.convenience import list_timesteps
 from vcm.cubedsphere.constants import RESTART_CATEGORIES, TILE_COORDS_FILENAMES
+from vcm.cloud.fsspec import get_protocol, get_fs
 
 logger = logging.getLogger("run_jobs")
 
@@ -38,19 +39,11 @@ def _update_nested_dict(source_dict: dict, update_dict: dict) -> dict:
 
 
 def _upload_if_necessary(path: str, remote_url: str) -> str:
-    if not path.startswith("gs://"):
+    if get_protocol(path) == "file":
         remote_path = os.path.join(remote_url, os.path.basename(path))
-        fsspec.filesystem("gs").put(path, remote_path)
+        get_fs(remote_url).put(path, remote_path)
         path = remote_path
     return path
-
-
-def _list_timesteps(path: str) -> set:
-    """Returns the unique timesteps at a path"""
-    fs = fsspec.filesystem("gs")
-    file_list = fs.ls(path)
-    timesteps = map(parse_timestep_from_path, file_list)
-    return set(timesteps)
 
 
 def _current_date_from_timestep(timestep: str) -> List[int]:
@@ -70,7 +63,7 @@ def _check_runs_complete(rundir_url: str):
     # TODO: Ideally this would check some sort of model exit code
     timestep_check_args = [
         (curr_timestep, os.path.join(rundir_url, curr_timestep, "stdout.log"))
-        for curr_timestep in _list_timesteps(rundir_url)
+        for curr_timestep in list_timesteps(rundir_url)
     ]
     pool = Pool(processes=16)
     complete = set(pool.map(_check_run_complete_unpacker, timestep_check_args))
@@ -85,7 +78,7 @@ def _check_run_complete_unpacker(arg: tuple) -> str:
 
 
 def _check_run_complete_func(timestep: str, logfile_path: str) -> str:
-    if fsspec.filesystem("gs").exists(logfile_path) and _check_log_tail(logfile_path):
+    if get_fs(logfile_path).exists(logfile_path) and _check_log_tail(logfile_path):
         return timestep
     else:
         return None
@@ -145,7 +138,7 @@ def timesteps_to_process(input_url: str, output_url: str, n_steps: int) -> List[
     input_url minus the successfully completed timesteps in output_url. List is
     also limited to a length of n_steps (which can be None, i.e. no limit)"""
     rundirs_url = os.path.join(output_url, RUNDIRS_DIRECTORY_NAME)
-    to_do = _list_timesteps(input_url)
+    to_do = list_timesteps(input_url)
     done = _check_runs_complete(rundirs_url)
     timestep_list = sorted(list(set(to_do) - set(done)))[:n_steps]
     logger.info(f"Number of input times: {len(to_do)}")
@@ -228,7 +221,7 @@ def _get_and_upload_config(
     model_config["diag_table"] = _upload_if_necessary(
         model_config["diag_table"], config_url
     )
-    fs = fsspec.filesystem("gs")
+    fs = get_fs(config_url)
     fs.put(VERTICAL_GRID_FILENAME, os.path.join(config_url, VERTICAL_GRID_FILENAME))
     with fsspec.open(os.path.join(config_url, "fv3config.yml"), "w") as config_file:
         config_file.write(yaml.dump(model_config))
