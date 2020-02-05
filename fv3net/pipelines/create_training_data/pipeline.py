@@ -189,12 +189,13 @@ def _open_cloud_data(run_dirs):
                 .isel({FORECAST_TIME_DIM: slice(-2, None)})
                 .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
             )
-            ds_run = helpers._set_relative_forecast_time_coord(ds_run).drop(
-                "file_prefix"
-            )
+
+            ds_run = helpers._set_relative_forecast_time_coord(ds_run)
+            if "file_prefix" in ds_run.dims:
+                ds_run = ds_run.drop("file_prefix")
             ds_runs.append(ds_run)
         return xr.concat(ds_runs, INIT_TIME_DIM)
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to open restarts from cloud: {e}")
 
 
