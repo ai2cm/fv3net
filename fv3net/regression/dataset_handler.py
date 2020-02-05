@@ -65,7 +65,7 @@ class BatchGenerator:
         for file_batch_urls in grouped_urls:
             fs_paths = [self.fs.get_mapper(url) for url in file_batch_urls]
             ds = xr.concat(map(xr.open_zarr, fs_paths), INIT_TIME_DIM)
-            ds_stacked = _stack_and_drop_nan_samples(ds)
+            ds_stacked = stack_and_drop_nan_samples(ds)
             ds_shuffled = _shuffled(ds_stacked, SAMPLE_DIM, self.random_seed)
             yield ds_shuffled
 
@@ -112,7 +112,7 @@ def _shuffled(dataset, dim, random_seed):
     return dataset.isel({dim: shuffled_inds})
 
 
-def _stack_and_drop_nan_samples(ds):
+def stack_and_drop_nan_samples(ds):
     """
 
     Args:
@@ -125,7 +125,6 @@ def _stack_and_drop_nan_samples(ds):
     ds = (
         ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
         .transpose(SAMPLE_DIM, COORD_Z_CENTER)
-        .reset_index(SAMPLE_DIM)
         .dropna(SAMPLE_DIM)
     )
     return ds

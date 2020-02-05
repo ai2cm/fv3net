@@ -196,7 +196,6 @@ def _open_cloud_data(run_dirs):
         return xr.concat(ds_runs, INIT_TIME_DIM)
     except (ValueError, TypeError) as e:
         logger.error(f"Failed to open restarts from cloud: {e}")
-        ds_runs.append(ds_run)
 
 
 def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
@@ -230,8 +229,7 @@ def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
         return ds
     except (ValueError, TypeError) as e:
         logger.error(
-            f"Failed step CreateTrainingCols for batch"
-            f"{ds[INIT_TIME_DIM].values[0]}: {e}"
+            f"Failed step CreateTrainingCols: {e}"
         )
 
 
