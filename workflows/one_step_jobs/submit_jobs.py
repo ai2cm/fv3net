@@ -4,12 +4,13 @@ import logging
 import os
 import re
 import uuid
-from pathlib import Path
 from typing import List
 from multiprocessing import Pool
 import fsspec
 import yaml
 import fv3config
+from vcm.convenience import parse_timestep_from_path
+from vcm.cubedsphere.constants import RESTART_CATEGORIES, TILE_COORDS_FILENAMES
 
 logger = logging.getLogger("run_jobs")
 
@@ -20,26 +21,15 @@ KUBERNETES_CONFIG_DEFAULT = {
     "image_pull_policy": "Always",
 }
 
+MODEL_CONFIG_DEFAULT = fv3config.get_default_config()
+
 RUNDIRS_DIRECTORY_NAME = "one_step_output"
 CONFIG_DIRECTORY_NAME = "one_step_config"
 VERTICAL_GRID_FILENAME = "fv_core.res.nc"
-RESTART_CATEGORIES = ["fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", "sfc_data"]
-TILES = range(1, 7)
-
-
-def get_model_config(config_update: dict) -> dict:
-    """Get default model config and update with provided config_update"""
-    config = fv3config.get_default_config()
-    return _update_nested_dict(config, config_update)
-
-
-def get_kubernetes_config(config_update: dict) -> dict:
-    """Get default kubernetes config and update with provided config_update"""
-    return _update_nested_dict(KUBERNETES_CONFIG_DEFAULT, config_update)
 
 
 def _update_nested_dict(source_dict: dict, update_dict: dict) -> dict:
-    for key, value in update_dict.items():
+    for key in update_dict:
         if key in source_dict and isinstance(source_dict[key], Mapping):
             _update_nested_dict(source_dict[key], update_dict[key])
         else:
@@ -47,27 +37,23 @@ def _update_nested_dict(source_dict: dict, update_dict: dict) -> dict:
     return source_dict
 
 
-def _upload_if_necessary(path: str, bucket_url: str) -> str:
+def _upload_if_necessary(path: str, remote_url: str) -> str:
     if not path.startswith("gs://"):
-        remote_path = os.path.join(bucket_url, os.path.basename(path))
+        remote_path = os.path.join(remote_url, os.path.basename(path))
         fsspec.filesystem("gs").put(path, remote_path)
         path = remote_path
     return path
 
 
-def timestep_from_url(url: str) -> str:
-    return str(Path(url).name)
-
-
-def list_timesteps(bucket: str) -> set:
-    """Returns the unique timesteps in a bucket"""
+def _list_timesteps(path: str) -> set:
+    """Returns the unique timesteps at a path"""
     fs = fsspec.filesystem("gs")
-    file_list = fs.ls(bucket)
-    timesteps = map(timestep_from_url, file_list)
+    file_list = fs.ls(path)
+    timesteps = map(parse_timestep_from_path, file_list)
     return set(timesteps)
 
 
-def current_date_from_timestep(timestep: str) -> List[int]:
+def _current_date_from_timestep(timestep: str) -> List[int]:
     """Return timestep in the format required by fv3gfs namelist"""
     year = int(timestep[:4])
     month = int(timestep[4:6])
@@ -78,13 +64,13 @@ def current_date_from_timestep(timestep: str) -> List[int]:
     return [year, month, day, hour, minute, second]
 
 
-def check_runs_complete(rundir_url: str):
+def _check_runs_complete(rundir_url: str):
     """Checks for existence of stdout.log and tail of said logfile to see if run
     successfully completed"""
     # TODO: Ideally this would check some sort of model exit code
     timestep_check_args = [
         (curr_timestep, os.path.join(rundir_url, curr_timestep, "stdout.log"))
-        for curr_timestep in list_timesteps(rundir_url)
+        for curr_timestep in _list_timesteps(rundir_url)
     ]
     pool = Pool(processes=16)
     complete = set(pool.map(_check_run_complete_unpacker, timestep_check_args))
@@ -154,27 +140,31 @@ def _check_header_categories(
     return True
 
 
-def timesteps_to_process(input_bucket: str, output_bucket: str) -> List[str]:
-    """Return list of timesteps left to process"""
-    rundirs_url = os.path.join(output_bucket, RUNDIRS_DIRECTORY_NAME)
-    to_do = list_timesteps(input_bucket)
-    done = check_runs_complete(rundirs_url)
+def timesteps_to_process(input_url: str, output_url: str, n_steps: int) -> List[str]:
+    """Return list of timesteps left to process. This is all the timesteps in
+    input_url minus the successfully completed timesteps in output_url. List is
+    also limited to a length of n_steps (which can be None, i.e. no limit)"""
+    rundirs_url = os.path.join(output_url, RUNDIRS_DIRECTORY_NAME)
+    to_do = _list_timesteps(input_url)
+    done = _check_runs_complete(rundirs_url)
+    timestep_list = sorted(list(set(to_do) - set(done)))[:n_steps]
     logger.info(f"Number of input times: {len(to_do)}")
     logger.info(f"Number of completed times: {len(done)}")
-    return sorted(list(set(to_do) - set(done)))
+    logger.info(f"Number of times to process: {len(timestep_list)}")
+    return timestep_list
 
 
-def _get_initial_condition_assets(input_bucket: str, timestep: str) -> List[dict]:
+def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
     """Get list of assets representing initial conditions for this timestep"""
     initial_condition_assets = [
         fv3config.get_asset_dict(
-            os.path.join(input_bucket, timestep),
+            os.path.join(input_url, timestep),
             f"{timestep}.{category}.tile{tile}.nc",
             target_location="INPUT",
             target_name=f"{category}.tile{tile}.nc",
         )
         for category in RESTART_CATEGORIES
-        for tile in TILES
+        for tile in TILE_COORDS_FILENAMES
     ]
     return initial_condition_assets
 
@@ -206,24 +196,28 @@ def _get_experiment_name(first_tag: str, second_tag: str) -> str:
 def _get_and_upload_config(
     workflow_name: str,
     one_step_config: dict,
-    input_bucket: str,
-    output_bucket: str,
+    input_url: str,
+    output_url: str,
     timestep: str,
 ) -> dict:
     """Update model and kubernetes configurations for this particular
     timestep and upload necessary files to GCS"""
-    config_url, rundir_url = _get_output_urls(output_bucket, timestep)
-    model_config = get_model_config(one_step_config["fv3config"])
-    kubernetes_config = get_kubernetes_config(one_step_config["kubernetes"])
+    config_url, rundir_url = _get_output_urls(output_url, timestep)
+    user_model_config = one_step_config["fv3config"]
+    user_kubernetes_config = one_step_config["kubernetes"]
+    model_config = _update_nested_dict(MODEL_CONFIG_DEFAULT, user_model_config)
+    kubernetes_config = _update_nested_dict(
+        KUBERNETES_CONFIG_DEFAULT, user_kubernetes_config
+    )
     model_config = fv3config.enable_restart(model_config)
     model_config["experiment_name"] = _get_experiment_name(workflow_name, timestep)
     model_config["initial_conditions"] = _get_initial_condition_assets(
-        input_bucket, timestep
+        input_url, timestep
     )
     model_config["initial_conditions"].append(_get_vertical_grid_asset(config_url))
     model_config["namelist"]["coupler_nml"].update(
         {
-            "current_date": current_date_from_timestep(timestep),
+            "current_date": _current_date_from_timestep(timestep),
             "force_date_from_namelist": True,
         }
     )
@@ -245,17 +239,17 @@ def submit_jobs(
     timestep_list: List[str],
     workflow_name: str,
     one_step_config: dict,
-    input_bucket: str,
-    output_bucket: str,
+    input_url: str,
+    output_url: str,
 ):
     """Submit one-step job for all timesteps in timestep_list"""
     for timestep in timestep_list:
         one_step_config = _get_and_upload_config(
-            workflow_name, one_step_config, input_bucket, output_bucket, timestep
+            workflow_name, one_step_config, input_url, output_url, timestep
         )
         jobname = one_step_config["fv3config"]["experiment_name"]
         one_step_config["kubernetes"]["jobname"] = jobname
-        config_url, rundir_url = _get_output_urls(output_bucket, timestep)
+        config_url, rundir_url = _get_output_urls(output_url, timestep)
         fv3config.run_kubernetes(
             os.path.join(config_url, "fv3config.yml"),
             rundir_url,
@@ -274,19 +268,19 @@ if __name__ == "__main__":
         help="Path to local run configuration yaml.",
     )
     parser.add_argument(
-        "--input-bucket",
+        "--input-url",
         type=str,
         required=True,
         help="Remote url to initial conditions. Initial conditions are assumed to be "
-        "stored as INPUT_BUCKET/{timestamp}/{timestamp}.{restart_category}.tile*.nc",
+        "stored as INPUT_URL/{timestamp}/{timestamp}.{restart_category}.tile*.nc",
     )
     parser.add_argument(
-        "--output-bucket",
+        "--output-url",
         type=str,
         required=True,
         help="Remote url where model configuration and output will be saved. "
-        "Specifically, configuration files will be saved to OUTPUT_BUCKET/"
-        f"{CONFIG_DIRECTORY_NAME} and model output to OUTPUT_BUCKET/"
+        "Specifically, configuration files will be saved to OUTPUT_URL/"
+        f"{CONFIG_DIRECTORY_NAME} and model output to OUTPUT_URL/"
         f"{RUNDIRS_DIRECTORY_NAME}",
     )
     parser.add_argument(
@@ -294,20 +288,14 @@ if __name__ == "__main__":
         type=int,
         default=None,
         help="Number of timesteps to process. By default all timesteps "
-        "found in INPUT_BUCKET for which successful runs do not exist in "
-        "OUTPUT_BUCKET will be processed. Useful for testing.",
+        "found in INPUT_URL for which successful runs do not exist in "
+        "OUTPUT_URL will be processed. Useful for testing.",
     )
     args = parser.parse_args()
     with open(args.one_step_yaml) as file:
         one_step_config = yaml.load(file, Loader=yaml.FullLoader)
     workflow_name = os.path.splitext(args.one_step_yaml)[0]
-    timestep_list = timesteps_to_process(args.input_bucket, args.output_bucket)
-    timestep_list = timestep_list[: args.n_steps]
-    logger.info(f"Number of times to process: {len(timestep_list)}")
+    timestep_list = timesteps_to_process(args.input_url, args.output_url, args.n_steps)
     submit_jobs(
-        timestep_list,
-        workflow_name,
-        one_step_config,
-        args.input_bucket,
-        args.output_bucket,
+        timestep_list, workflow_name, one_step_config, args.input_url, args.output_url
     )

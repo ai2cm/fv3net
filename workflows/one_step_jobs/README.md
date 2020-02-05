@@ -13,27 +13,26 @@ have a total duration of 15 minutes.
 Workflow call signature:
 ```
 $ python submit_jobs.py -h
-usage: submit_jobs.py [-h] --one-step-yaml ONE_STEP_YAML --input-bucket
-                      INPUT_BUCKET --output-bucket OUTPUT_BUCKET
-                      [--n-steps N_STEPS]
+usage: submit_jobs.py [-h] --one-step-yaml ONE_STEP_YAML --input-url INPUT_URL
+                      --output-url OUTPUT_URL [--n-steps N_STEPS]
 
 optional arguments:
   -h, --help            show this help message and exit
   --one-step-yaml ONE_STEP_YAML
                         Path to local run configuration yaml.
-  --input-bucket INPUT_BUCKET
+  --input-url INPUT_URL
                         Remote url to initial conditions. Initial conditions
-                        are assumed to be stored as INPUT_BUCKET/{timestamp}/
-                        {timestamp}.{restart_category}.tile*.nc
-  --output-bucket OUTPUT_BUCKET
+                        are assumed to be stored as INPUT_URL/{timestamp}/{tim
+                        estamp}.{restart_category}.tile*.nc
+  --output-url OUTPUT_URL
                         Remote url where model configuration and output will
                         be saved. Specifically, configuration files will be
-                        saved to OUTPUT_BUCKET/one_step_config and model
-                        output to OUTPUT_BUCKET/one_step_output
+                        saved to OUTPUT_URL/one_step_config and model output
+                        to OUTPUT_URL/one_step_output
   --n-steps N_STEPS     Number of timesteps to process. By default all
-                        timesteps found in INPUT_BUCKET for which successful
-                        runs do not exist in OUTPUT_BUCKET will be processed.
-                        Useful for testing.
+                        timesteps found in INPUT_URL for which successful runs
+                        do not exist in OUTPUT_URL will be processed. Useful
+                        for testing.
 ```
 
 
