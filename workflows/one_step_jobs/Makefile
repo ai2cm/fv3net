@@ -17,4 +17,5 @@ test-submission:
 	    --one-step-yaml all-physics-off.yml \
         --input-url $(root_url)/restarts/C48 \
         --output-url gs://vcm-ml-data/test-oliwm/one-step-all-physics-off \
-        --n-steps 5
+        --n-steps 5 \
+        --overwrite

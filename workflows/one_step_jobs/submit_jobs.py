@@ -27,6 +27,7 @@ MODEL_CONFIG_DEFAULT = fv3config.get_default_config()
 RUNDIRS_DIRECTORY_NAME = "one_step_output"
 CONFIG_DIRECTORY_NAME = "one_step_config"
 VERTICAL_GRID_FILENAME = "fv_core.res.nc"
+STDOUT_FILENAME = "stdout.log"
 
 
 def _update_nested_dict(source_dict: dict, update_dict: dict) -> dict:
@@ -62,7 +63,7 @@ def _check_runs_complete(rundir_url: str):
     successfully completed"""
     # TODO: Ideally this would check some sort of model exit code
     timestep_check_args = [
-        (curr_timestep, os.path.join(rundir_url, curr_timestep, "stdout.log"))
+        (curr_timestep, os.path.join(rundir_url, curr_timestep, STDOUT_FILENAME))
         for curr_timestep in list_timesteps(rundir_url)
     ]
     pool = Pool(processes=16)
@@ -133,18 +134,30 @@ def _check_header_categories(
     return True
 
 
-def timesteps_to_process(input_url: str, output_url: str, n_steps: int) -> List[str]:
+def timesteps_to_process(
+    input_url: str, output_url: str, n_steps: int, overwrite: bool
+) -> List[str]:
     """Return list of timesteps left to process. This is all the timesteps in
     input_url minus the successfully completed timesteps in output_url. List is
     also limited to a length of n_steps (which can be None, i.e. no limit)"""
     rundirs_url = os.path.join(output_url, RUNDIRS_DIRECTORY_NAME)
     to_do = list_timesteps(input_url)
     done = _check_runs_complete(rundirs_url)
+    if overwrite:
+        _delete_logs_of_done_timesteps(output_url, done)
+        done = []
     timestep_list = sorted(list(set(to_do) - set(done)))[:n_steps]
     logger.info(f"Number of input times: {len(to_do)}")
     logger.info(f"Number of completed times: {len(done)}")
     logger.info(f"Number of times to process: {len(timestep_list)}")
     return timestep_list
+
+
+def _delete_logs_of_done_timesteps(output_url: str, timesteps: List[str]):
+    fs = get_fs(output_url)
+    for timestep in timesteps:
+        _, rundir_url = _get_output_urls(output_url, timestep)
+        fs.rm(os.path.join(rundir_url, STDOUT_FILENAME))
 
 
 def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
@@ -284,11 +297,19 @@ if __name__ == "__main__":
         "found in INPUT_URL for which successful runs do not exist in "
         "OUTPUT_URL will be processed. Useful for testing.",
     )
+    parser.add_argument(
+        "-o", "--overwrite",
+        action="store_true",
+        help="Whether to overwrite successful timesteps. Default behavior is"
+        "to not process already existing successful timesteps.",
+    )
     args = parser.parse_args()
     with open(args.one_step_yaml) as file:
         one_step_config = yaml.load(file, Loader=yaml.FullLoader)
     workflow_name = os.path.splitext(args.one_step_yaml)[0]
-    timestep_list = timesteps_to_process(args.input_url, args.output_url, args.n_steps)
+    timestep_list = timesteps_to_process(
+        args.input_url, args.output_url, args.n_steps, args.overwrite
+    )
     submit_jobs(
         timestep_list, workflow_name, one_step_config, args.input_url, args.output_url
     )
