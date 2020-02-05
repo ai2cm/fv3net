@@ -115,8 +115,8 @@ def train_model(batched_data, train_config):
     batch_regressor = RegressorEnsemble(transform_regressor)
 
     model_wrapper = SklearnWrapper(batch_regressor)
-    for i, batch in enumerate(batched_data.generate_batches("train")):
-        print(f"Fitting batch {i}/{batched_data.num_train_batches}")
+    for i, batch in enumerate(batched_data.generate_batches()):
+        print(f"Fitting batch {i}/{batched_data.num_batches}")
         model_wrapper.fit(
             input_vars=train_config.input_variables,
             output_vars=train_config.output_variables,
@@ -134,12 +134,6 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Path for training configuration yaml file",
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="''",
-        help="Optional- provide a directory in which model and config will be saved.",
     )
     parser.add_argument(
         "--remote-output-url",
@@ -164,6 +158,8 @@ if __name__ == "__main__":
     # matched together
     timestamp = datetime.now().strftime("%Y%m%d.%H%M%S")
     output_dir = f"{timestamp}_{OUTPUT_DIR_SUFFIX}"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     copyfile(
         args.train_config_file,
         os.path.join(output_dir, f"{timestamp}_{MODEL_CONFIG_FILENAME}"),
