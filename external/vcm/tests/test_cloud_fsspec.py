@@ -2,6 +2,7 @@ from vcm.cloud.fsspec import get_protocol
 
 import pytest
 
+
 @pytest.mark.parametrize(
     ("path", "expected_protocol"),
     [

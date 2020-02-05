@@ -298,10 +298,10 @@ if __name__ == "__main__":
         "OUTPUT_URL will be processed. Useful for testing.",
     )
     parser.add_argument(
-        "-o", "--overwrite",
+        "-o",
+        "--overwrite",
         action="store_true",
-        help="Whether to overwrite successful timesteps. Default behavior is"
-        "to not process already existing successful timesteps.",
+        help="Overwrite successful timesteps in OUTPUT_URL.",
     )
     args = parser.parse_args()
     with open(args.one_step_yaml) as file:

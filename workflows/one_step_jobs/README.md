@@ -14,9 +14,8 @@ Workflow call signature:
 ```
 $ python submit_jobs.py -h
 usage: submit_jobs.py [-h] --one-step-yaml ONE_STEP_YAML --input-url INPUT_URL
-                      --output-url OUTPUT_URL [--n-steps N_STEPS]
+                      --output-url OUTPUT_URL [--n-steps N_STEPS] [-o]
 
-optional arguments:
   -h, --help            show this help message and exit
   --one-step-yaml ONE_STEP_YAML
                         Path to local run configuration yaml.
@@ -33,6 +32,7 @@ optional arguments:
                         timesteps found in INPUT_URL for which successful runs
                         do not exist in OUTPUT_URL will be processed. Useful
                         for testing.
+  -o, --overwrite       Overwrite successful timesteps in OUTPUT_URL.
 ```
 
 
@@ -42,7 +42,12 @@ To process many (> around 40) runs at once, it is recommended to submit this wor
 from a VM authorized with a service account. Users have had issues with API request errors
 when submitting from a machine authorized with a non-service Google account.
 
-To submit to the kubernetes cluster on a VM, the kubectl configuration needs to point at a proxy cluster access point and the VM needs to have a firewall rule to allow for communication with the proxy IP. See the long-lived-infrastructure cluster access README for details on this process, specifically, the make kubeconfig_init command. Most VMs should already have a firewall rule set up, but a good way to test whether everythings working is by running the following command:
+To submit to the kubernetes cluster on a VM, the kubectl configuration needs to point at a 
+proxy cluster access point and the VM needs to have a firewall rule to allow for communication 
+with the proxy IP. See the long-lived-infrastructure [cluster access README](https://github.com/VulcanClimateModeling/long-lived-infrastructure#cluster-access-on-a-personal-vm) 
+for details on this process, specifically, the make kubeconfig_init command. Most VMs should 
+already have a firewall rule set up, but a good way to test whether everythings working is 
+by running the following command:
 
 ```
 kubectl get pods --all-namespaces
