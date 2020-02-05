@@ -42,14 +42,15 @@ class BatchGenerator:
         ]
         np.random.seed(self.random_seed)
         np.random.shuffle(zarr_urls)
-        num_batches = self._validated_num_batches(total_num_input_files=len(zarr_urls))
+        total_num_input_files = len(zarr_urls)
+        num_batches = self._validated_num_batches(total_num_input_files)
         self.train_file_batches = [
             zarr_urls[
                 batch_num
                 * self.files_per_batch : (batch_num + 1)
                 * self.files_per_batch
             ]
-            for batch_num in range(num_batches - 1)
+            for batch_num in range(num_batches)
         ]
 
     def generate_batches(self):
@@ -65,11 +66,10 @@ class BatchGenerator:
         for file_batch_urls in grouped_urls:
             fs_paths = [self.fs.get_mapper(url) for url in file_batch_urls]
             ds = xr.concat(map(xr.open_zarr, fs_paths), INIT_TIME_DIM)
-            ds_stacked = _stack_and_drop_nan_samples(ds)
+            ds_stacked = stack_and_drop_nan_samples(ds).unify_chunks()
             ds_shuffled = _shuffled(ds_stacked, SAMPLE_DIM, self.random_seed)
             yield ds_shuffled
 
-    @property
     def _validated_num_batches(self, total_num_input_files):
         """ check that the number of batches (if provided) and the number of
         files per batch are reasonable given the number of zarrs in the input data dir.
@@ -77,7 +77,7 @@ class BatchGenerator:
         is changed so that (num_batches * files_per_batch) < total files.
 
         Returns:
-            None
+            Number of batches to use for training
         """
         if not self.num_batches:
             num_train_batches = total_num_input_files // self.files_per_batch
@@ -112,7 +112,7 @@ def _shuffled(dataset, dim, random_seed):
     return dataset.isel({dim: shuffled_inds})
 
 
-def _stack_and_drop_nan_samples(ds):
+def stack_and_drop_nan_samples(ds):
     """
 
     Args:
@@ -125,7 +125,6 @@ def _stack_and_drop_nan_samples(ds):
     ds = (
         ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
         .transpose(SAMPLE_DIM, COORD_Z_CENTER)
-        .reset_index(SAMPLE_DIM)
         .dropna(SAMPLE_DIM)
     )
     return ds
