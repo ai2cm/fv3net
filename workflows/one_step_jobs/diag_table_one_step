@@ -3,7 +3,6 @@ default_experiment
 #output files
 "atmos_static",           -1,  "hours",    1, "hours", "time"
 "atmos_dt_atmos",          0,  "hours",    1, "hours",  "time"
-"atmos_8xdaily",           3,  "hours",    1, "hours",  "time"
 "sfc_dt_atmos",            0,  "hours",    1, "hours", "time"
 #
 #output variables
@@ -19,8 +18,6 @@ default_experiment
 ###
 # atmos_dt_atmos
 ###
- "dynamics",  "sphum",        "sphum",        "atmos_dt_atmos",  "all",  .false.,  "none",  2
- "dynamics",  "temp",         "temp",         "atmos_dt_atmos",  "all",  .false.,  "none",  2
  "dynamics",  "grid_lont",   "lon",           "atmos_dt_atmos", "all", .false.,  "none", 2,
  "dynamics",  "grid_latt",   "lat",           "atmos_dt_atmos", "all", .false.,  "none", 2,
  "dynamics",  "grid_lon",    "lonb",          "atmos_dt_atmos", "all", .false.,  "none", 2,
@@ -76,29 +73,6 @@ default_experiment
  "dynamics",  "ctt",         "TMPctp",       "atmos_dt_atmos", "all", .false., "none", 2
  "dynamics",  "ctp",         "PRESctp",      "atmos_dt_atmos", "all", .false., "none", 2
  "dynamics",  "ctz" ,        "HGTctp",       "atmos_dt_atmos", "all", .false., "none", 2
-###
-# atmos_8xdaily
-###
- "dynamics",  "grid_lont",   "lon",           "atmos_8xdaily", "all", .false.,  "none", 2,
- "dynamics",  "grid_latt",   "lat",           "atmos_8xdaily", "all", .false.,  "none", 2,
- "dynamics",  "grid_lon",    "lonb",          "atmos_8xdaily", "all", .false.,  "none", 2,
- "dynamics",  "grid_lat",    "latb",          "atmos_8xdaily", "all", .false.,  "none", 2,
- "dynamics",  "area",        "area",          "atmos_8xdaily", "all", .false.,  "none", 2,
- "dynamics",  "ucomp",        "ucomp",        "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "vcomp",        "vcomp",        "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "temp",         "temp",         "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "delp",         "delp",         "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "sphum",        "sphum",        "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "pfnh",         "nhpres",       "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "w",            "w",            "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "delz",         "delz",         "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "ps",           "ps",           "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "reflectivity", "reflectivity", "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "liq_wat",      "liq_wat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "ice_wat",      "ice_wat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "rainwat",      "rainwat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "snowwat",      "snowwat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
- "dynamics",  "graupel",      "graupel",      "atmos_8xdaily",  "all",  .false.,  "none",  2
 ###
 # sfc_dt_atmos
 ###
