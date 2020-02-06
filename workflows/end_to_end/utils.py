@@ -22,26 +22,31 @@ def get_step_args(args):
     step = args.workflow_step
     _, _, experiment = _get_experiment_config(config_location)
     step_input = _get_step_input(experiment_path, step, experiment['steps'])
-    step_output = _get_step_output(experiment_path, experiment['steps'][step])
+    step_output = _get_step_output(experiment_path, step, experiment['steps'])
+    step_method = experiment['steps'][step]['method']
+    print(step_input, step_output, step_method)
     
     
 def _get_step_input(experiment_path, step, steps_config):
-    previous_step = _get_previous_step(step, steps_config)
+    previous_step, previous_step_method = _get_previous_step(step, steps_config)
     if step != 'coarsen':
-        return 
+        return os.path.join(experiment_path, f"{previous_step}_{previous_step_method}")
     else:
-        return steps_config[previous_step]["output_location"]
+        return steps_config[previous_step]['output_location']
 
     
 def _get_previous_step(step, steps_config):
     for other_step in steps_config:
         if other_step == steps_config[step]['input_method']:
-            return other_step
+            return other_step, steps_config[other_step]['method']
         
 
 def _get_step_output(experiment_path, step, steps_config):
-    previous_step = _get_previous_step(step, steps_config)
-    return steps_config[previous_step]["output_location"]
+    return os.path.join(experiment_path, f"{step}_{steps_config[step]['method']}")
+
+
+def _get_step_method(experiment_path, step, steps_config):
+    return os.path.join(experiment_path, f"{step}_{steps_config[step]['method']}")
     
     
 def _get_experiment_config(config_location):

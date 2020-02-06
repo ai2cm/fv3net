@@ -6,18 +6,15 @@ experiment:
   name: test-experiment
   fv3net_hash: ca279cb79c0b97a5e5e758ec8785612b3c7ec044
   steps:
-    SHiELD_input:
+    hi_res_input:
       method: 40-day-X-SHiELD-simulation
       config_location: None
-      input_location: None
-      output_location: "gs://vcm-ml-data/2019-12-02-40-day-X-SHiELD-simulation-C384-restart-files"
+      output_location: "gs://vcm-ml-data/orchestration-testing"
     coarsen:
-      method: pressure_levels
+      method: 48
       config_location: None
-      input_method: SHiELD_input
-      output_location: 'coarsen'
+      input_method: hi_res_input
     one-step-run:
       method: sample_one_step_method
       config_location: None
       input_location: coarsen
-      output_location: '.'
