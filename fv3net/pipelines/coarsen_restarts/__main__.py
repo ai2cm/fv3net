@@ -39,7 +39,7 @@ if __name__ == "__main__":
         help="Source data cubed-sphere grid resolution.",
     )
     parser.add_argument(
-        "--target_resolution",
+        "--target-resolution",
         type=int,
         required=True,
         help="Target coarsening resolution to output.",
