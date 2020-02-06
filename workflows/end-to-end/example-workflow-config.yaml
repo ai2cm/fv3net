@@ -1,2 +1,23 @@
+user: brianh
+storage_proto: 'gs'
+storage_root: vcm-ml-data
+# storage_root: home/brianh/dev/fv3net/data
 experiment:
-    name: test-experiment
+  name: test-experiment
+  fv3net_hash: ca279cb79c0b97a5e5e758ec8785612b3c7ec044
+  steps:
+    SHiELD_input:
+      method: 40-day-X-SHiELD-simulation
+      config_location: None
+      input_location: None
+      output_location: "gs://vcm-ml-data/2019-12-02-40-day-X-SHiELD-simulation-C384-restart-files"
+    coarsen:
+      method: pressure_levels
+      config_location: None
+      input_method: SHiELD_input
+      output_location: 'coarsen'
+    one-step-run:
+      method: sample_one_step_method
+      config_location: None
+      input_location: coarsen
+      output_location: '.'
