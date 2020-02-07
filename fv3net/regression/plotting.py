@@ -207,8 +207,8 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         plot_filename="r2_vs_pressure_level_landsea.png",
     )
     report_sections["R^2 vs pressure levels"] = [
-        os.path.join(output_dir, "r2_vs_pressure_level_global.png"),
-        os.path.join(output_dir, "r2_vs_pressure_level_landsea.png"),
+        "r2_vs_pressure_level_global.png",
+        "r2_vs_pressure_level_landsea.png",
     ]
 
     # plot a variable across the diurnal cycle
@@ -229,8 +229,8 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         plot_filename="diurnal_cycle_P-E_land.png",
     )
     report_sections["Diurnal cycle"] = [
-        os.path.join(output_dir, "diurnal_cycle_P-E_sea.png"),
-        os.path.join(output_dir, "diurnal_cycle_P-E_land.png"),
+        "diurnal_cycle_P-E_sea.png",
+        "diurnal_cycle_P-E_land.png"
     ]
 
     # map plot a variable and compare across prediction/ C48 /coarsened high res data
@@ -242,6 +242,6 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )[0]
     fig_pe.savefig(os.path.join(output_dir, "P-E.png"))
     plt.show()
-    report_sections["P-E"] = [os.path.join(output_dir, "P-E.png")]
+    report_sections["P-E"] = ["P-E.png"]
 
     return report_sections
