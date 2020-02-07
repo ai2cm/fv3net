@@ -86,4 +86,4 @@ def test_solar_time():
         coords={"x": range(6)},
     )
     ds_solar_test = xr.Dataset({"initialization_time": t, "lon": l})
-    assert np.array_equal(solar_time(ds_solar_test), [0., 12., 18., 0., 6., 0.])
+    assert np.allclose(solar_time(ds_solar_test), [0, 12, 18, 0, 6, 0])

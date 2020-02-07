@@ -16,7 +16,6 @@ from vcm.cloud import gsutil
 
 MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
-OUTPUT_DIR_SUFFIX = "model_training_files"
 
 
 @dataclass
@@ -148,6 +147,12 @@ if __name__ == "__main__":
         help="If results are uploaded to remote storage, "
         "remove local copy after upload.",
     )
+    parser.add_argument(
+        "--output-dir-suffix",
+        type=str,
+        default="sklearn_regression",
+        help="Directory suffix to write files to. Prefixed with today's timestamp."
+    )
     args = parser.parse_args()
     train_config = load_model_training_config(args.train_config_file)
     batched_data = load_data_generator(train_config)
@@ -157,7 +162,7 @@ if __name__ == "__main__":
     # model and config are saved with timestamp prefix so that they can be
     # matched together
     timestamp = datetime.now().strftime("%Y%m%d.%H%M%S")
-    output_dir = f"{timestamp}_{OUTPUT_DIR_SUFFIX}"
+    output_dir = f"{timestamp}_{args.output_dir_suffix}"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     copyfile(

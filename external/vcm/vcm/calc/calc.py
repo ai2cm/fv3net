@@ -7,8 +7,7 @@ from vcm.cubedsphere.constants import (
 
 gravity = 9.81
 specific_heat = 1004
-poisson_const = 0.2854
-p0 = 100000  # reference pressure for potential temp [Pa]
+
 HR_PER_DEG_LONGITUDE = 1./15
 
 def mass_integrate(phi, dp, dim=COORD_Z_CENTER):
@@ -63,20 +62,3 @@ def solar_time(ds):
     fractional_hr = ds[INIT_TIME_DIM].dt.hour + (ds[INIT_TIME_DIM].dt.minute/60.)
     solar_time = (fractional_hr + ds[VAR_LON_CENTER] * HR_PER_DEG_LONGITUDE) % 24
     return solar_time
-
-
-def interp_T_at_p0(p0, p, T):
-    interp_func = interp1d(p, T)
-    return interp_func(p0)[0]
-interp_T_at_700mb = [
-        float(interp_T_at_p0(70000, p, t)) for t, p in zip(ds_test.T.values, P.values)]
-
-
-def potential_temperature(P, T):
-    return T * (p0 / P) ** poisson_const
-
-
-def lower_tropospheric_instability(ds):
-    # limit to ocean tiles between +/- 20 deg lat
-
-    return theta_700mb - theta_sfc
