@@ -72,7 +72,7 @@ def _upload_data(gcs_output_dir, local_coarsen_dir):
 
 
 def coarsen_timestep(
-    timestep_gcs_url: str, output_dir: str, coarsen_factor: int, gridspec_path: str,
+    timestep_gcs_url: str, output_dir: str, coarsen_factor: int, gridspec_path: str
 ):
 
     curr_timestep = parse_timestep_from_path(timestep_gcs_url)
