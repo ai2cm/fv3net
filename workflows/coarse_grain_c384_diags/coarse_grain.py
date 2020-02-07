@@ -26,8 +26,13 @@ HIRES_DATA_VARS = [
     "SHTFLsfc_coarse",
     "PRATEsfc_coarse",
     "DSWRFtoa_coarse",
+    "DSWRFsfc_coarse",
+    "USWRFtoa_coarse",
+    "USWRFsfc_coarse",
+    "DLWRFsfc_coarse",
+    "ULWRFtoa_coarse",
+    "ULWRFsfc_coarse",
 ]
-
 catalog = intake.open_catalog("../../catalog.yml")
 diag_path = catalog["40day_c384_diags_time_avg"].urlpath
 diag_path = diag_path[:-1] if diag_path[-1] == "/" else diag_path
