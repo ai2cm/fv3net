@@ -32,7 +32,7 @@ def _predict_on_test_data(
         ds_test = load_test_dataset(test_data_path, num_test_zarrs)
         sk_wrapped_model = load_model(model_path)
         ds_pred = predict_dataset(sk_wrapped_model, ds_test)
-        return ds_test, ds_pred
+        return ds_test.unstack(), ds_pred
     else:
         raise ValueError("Cannot predict using model type {model_type},"
                          "only 'rf' is currently implemented.")
@@ -270,7 +270,8 @@ if __name__ == "__main__":
 
     timestamp = datetime.now().strftime("%Y%m%d.%H%M%S")
     output_dir = f"{timestamp}_{args.output_dir_suffix}"
-
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     ds_test, ds_pred = _predict_on_test_data(
         args.test_data_path,
         args.model_path,
