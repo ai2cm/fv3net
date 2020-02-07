@@ -34,7 +34,7 @@ class ModelTrainingConfig:
     gcs_project: str = "vcm-ml"
 
 
-def load_model_training_config(config_path):
+def load_model_training_config(config_path, gcs_data_dir):
     """
 
     Args:
@@ -48,6 +48,7 @@ def load_model_training_config(config_path):
             config_dict = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             raise ValueError(f"Bad yaml config: {exc}")
+    config_dict["gcs_data_dir"] = gcs_data_dir
     config = ModelTrainingConfig(**config_dict)
     return config
 
@@ -135,6 +136,12 @@ if __name__ == "__main__":
         help="Path for training configuration yaml file",
     )
     parser.add_argument(
+        "--train-data-path",
+        type=str,
+        required=True,
+        help="Location of training data",
+    )
+    parser.add_argument(
         "--remote-output-url",
         type=str,
         required=False,
@@ -151,10 +158,11 @@ if __name__ == "__main__":
         "--output-dir-suffix",
         type=str,
         default="sklearn_regression",
-        help="Directory suffix to write files to. Prefixed with today's timestamp."
+        help="Directory suffix to write files to. Prefixed with today's timestamp.",
     )
     args = parser.parse_args()
-    train_config = load_model_training_config(args.train_config_file)
+    train_config = load_model_training_config(
+        args.train_config_file, args.train_data_path)
     batched_data = load_data_generator(train_config)
 
     model = train_model(batched_data, train_config)
