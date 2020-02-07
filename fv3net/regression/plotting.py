@@ -120,9 +120,9 @@ def _make_land_sea_r2_plot(
 def _plot_diurnal_cycle(
     merged_ds,
     var,
+    output_dir,
     num_time_bins=24,
     title=None,
-    output_dir,
     plot_filename="diurnal_cycle.png",
     save_fig=True,
 ):
