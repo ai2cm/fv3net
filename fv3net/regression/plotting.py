@@ -63,6 +63,7 @@ def _make_r2_plot(
     save_fig=True,
     title=None,
 ):
+    plt.clf()
     if isinstance(vars, str):
         vars = [vars]
     x = ds_pred["pfull"].values
@@ -93,10 +94,10 @@ def _make_land_sea_r2_plot(
     plot_filename="r2_vs_pressure_level_landsea.png",
     save_fig=True,
 ):
+    plt.clf()
     x = ds_pred_land.pfull.values
     colors = ["blue", "orange"]
     for color, var in zip(colors, vars):
-
         y_sea = r2_score(
             ds_target_sea.stack(sample=STACK_DIMS)[var],
             ds_pred_sea.stack(sample=STACK_DIMS)[var],
@@ -126,6 +127,7 @@ def _plot_diurnal_cycle(
     plot_filename="diurnal_cycle.png",
     save_fig=True,
 ):
+    plt.clf()
     for label in merged_ds["dataset"].values:
         ds = merged_ds.sel(dataset=label).stack(sample=STACK_DIMS).dropna("sample")
         solar_time = ds["solar_time"].values.flatten()
@@ -235,6 +237,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # map plot a variable and compare across prediction/ C48 /coarsened high res data
     matplotlib.rcParams["figure.dpi"] = 200
+    plt.clf()
     fig_pe = plot_cube(
         mappable_var(ds_pe.isel({INIT_TIME_DIM: 0}), "P-E"),
         col="dataset",
