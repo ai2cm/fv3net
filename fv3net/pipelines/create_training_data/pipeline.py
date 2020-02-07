@@ -33,8 +33,32 @@ logger.setLevel(logging.INFO)
 SAMPLE_DIM = "sample"
 SAMPLE_CHUNK_SIZE = 1500
 
-INPUT_VARS = ["sphum", "T", "delp", "u", "v", "slmsk", "phis", "tsea", "slope"]
+RESTART_VARS = [
+    "sphum",
+    "T",
+    "delp",
+    "u",
+    "v",
+    "slmsk",
+    "phis",
+    "tsea",
+    "slope",
+    "DZ",
+    "W",
+]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
+HIRES_VARS = [
+    "LHTFLsfc_coarse",
+    "SHTFLsfc_coarse",
+    "PRATEsfc_coarse",
+    "DSWRFtoa_coarse",
+    "DSWRFsfc_coarse",
+    "USWRFtoa_coarse",
+    "USWRFsfc_coarse",
+    "DLWRFsfc_coarse",
+    "ULWRFtoa_coarse",
+    "ULWRFsfc_coarse",
+]
 RENAMED_HIRES_VARS = {
     "DSWRFtoa_coarse": "insolation",
     "LHTFLsfc_coarse": "LHF",
@@ -184,7 +208,7 @@ def _open_cloud_data(run_dirs):
         for run_dir in run_dirs:
             t_init = _parse_time(run_dir)
             ds_run = (
-                open_restarts_with_time_coordinates(run_dir)[INPUT_VARS]
+                open_restarts_with_time_coordinates(run_dir)[RESTART_VARS]
                 .rename({"time": FORECAST_TIME_DIM})
                 .isel({FORECAST_TIME_DIM: slice(-2, None)})
                 .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
@@ -199,14 +223,14 @@ def _open_cloud_data(run_dirs):
         ds_runs.append(ds_run)
 
 
-def _create_train_cols(ds, cols_to_keep=INPUT_VARS + TARGET_VARS):
+def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
     """
 
     Args:
         ds: xarray dataset, must have variables ['u', 'v', 'T', 'sphum']
 
     Returns:
-        xarray dataset with variables in INPUT_VARS + TARGET_VARS + GRID_VARS
+        xarray dataset with variables in RESTART_VARS + TARGET_VARS + GRID_VARS
     """
     try:
         da_centered_u = rename_centered_xy_coords(shift_edge_var_to_center(ds["u"]))
@@ -240,8 +264,7 @@ def _merge_hires_data(ds_run, diag_c48_path):
         return ds_run
     try:
         init_times = ds_run[INIT_TIME_DIM].values
-        data_vars = list(RENAMED_HIRES_VARS.keys())
-        diags_c48 = helpers.load_diag(diag_c48_path, init_times)[data_vars]
+        diags_c48 = helpers.load_diag(diag_c48_path, init_times)[HIRES_VARS]
         features_diags_c48 = diags_c48.rename(RENAMED_HIRES_VARS)
         return xr.merge([ds_run, features_diags_c48])
     except (KeyError, AttributeError, ValueError, TypeError) as e:
