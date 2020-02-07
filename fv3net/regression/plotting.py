@@ -24,8 +24,6 @@ SEC_PER_DAY = 86400
 SAMPLE_DIM = "sample"
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
-OUTPUT_FIG_DIR = "model_performance_plots"
-
 
 def _merge_comparison_datasets(var, ds_pred, ds_data, ds_hires, grid):
     """ Makes a comparison dataset out of high res, C48 run, and prediction data
@@ -91,7 +89,7 @@ def _make_land_sea_r2_plot(
     ds_target_sea,
     ds_target_land,
     vars,
-    output_dir=OUTPUT_FIG_DIR,
+    output_dir,
     plot_filename="r2_vs_pressure_level_landsea.png",
     save_fig=True,
 ):
@@ -124,7 +122,7 @@ def _plot_diurnal_cycle(
     var,
     num_time_bins=24,
     title=None,
-    output_dir=OUTPUT_FIG_DIR,
+    output_dir,
     plot_filename="diurnal_cycle.png",
     save_fig=True,
 ):
@@ -205,6 +203,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         ds_target_sea,
         ds_target_land,
         vars=["Q1", "Q2"],
+        output_dir=output_dir,
         plot_filename="r2_vs_pressure_level_landsea.png",
     )
     report_sections["R^2 vs pressure levels"] = [
