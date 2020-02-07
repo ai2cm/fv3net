@@ -32,12 +32,18 @@ def load_test_dataset(test_data_path, num_files_to_load=50):
     np.random.shuffle(zarrs_in_test_dir)
 
     ds_test = xr.concat(
-            map(xr.open_zarr,
-                [fs.get_mapper(file_path)
-                 for file_path in zarrs_in_test_dir[:num_files_to_load]]),
-        INIT_TIME_DIM)
+        map(
+            xr.open_zarr,
+            [
+                fs.get_mapper(file_path)
+                for file_path in zarrs_in_test_dir[:num_files_to_load]
+            ],
+        ),
+        INIT_TIME_DIM,
+    )
     ds_test = ds_test.assign_coords(
-        {INIT_TIME_DIM: [round_time(t) for t in ds_test[INIT_TIME_DIM].values]})
+        {INIT_TIME_DIM: [round_time(t) for t in ds_test[INIT_TIME_DIM].values]}
+    )
     ds_stacked = stack_and_drop_nan_samples(ds_test)
     return ds_stacked
 
@@ -56,7 +62,8 @@ def predict_dataset(sk_wrapped_model, ds_stacked):
     """
     ds_keep_vars = ds_stacked[KEEP_VARS]
     ds_pred = sk_wrapped_model.predict(
-        ds_stacked[sk_wrapped_model.input_vars_], SAMPLE_DIM)
+        ds_stacked[sk_wrapped_model.input_vars_], SAMPLE_DIM
+    )
     return xr.merge([ds_pred, ds_keep_vars]).unstack()
 
 
@@ -67,7 +74,3 @@ def load_model(model_path):
         return joblib.load("temp_model.pkl")
     else:
         return joblib.load(model_path)
-
-
-
-
