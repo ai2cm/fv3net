@@ -18,7 +18,7 @@ python -m fv3net.pipelines.coarsen_restarts\
     --project vcm-ml \
     --region us-central1 \
     --temp_location gs://vcm-ml-data/tmp_dataflow \
-    --num_workers 10 \
+    --num_workers 3 \
     --max_num_workers 50 \
     --disk_size_gb 50 \
     --worker_machine_type n1-highmem-4 \
