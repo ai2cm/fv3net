@@ -5,8 +5,14 @@ set -e
 config_file=$1
 
 # get arguments for all steps
-output_root=$(python workflows/end_to_end/create_experiment_path.py $config_file)
+all_step_args=$(python workflows/end_to_end/create_experiment_path.py $config_file)
+echo $all_step_args
 
-echo $output_root
-coarsen_args=$(echo $output_root | jq -r .coarsen_restarts)
+# Coarsening Step
+coarsen_args=$(echo $all_step_args | jq -r .coarsen_restarts)
 workflows/coarsen_restarts/orchestrator_job.sh $coarsen_args
+
+# One-step Jobs
+one_step_args=$(echo $all_step_args | jq -r .one_step_run)
+
+
