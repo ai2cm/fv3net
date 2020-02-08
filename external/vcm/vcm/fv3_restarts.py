@@ -148,7 +148,7 @@ def _get_file_prefix(dirname, path):
 
 
 def _sort_file_prefixes(ds, url):
-    if ds.file_prefix.values is None:
+    if len(ds.file_prefix.values.shape) != 0:
         if "INPUT/" not in ds.file_prefix:
             warnings.warn(
                 "Open restarts did not find the input set "
