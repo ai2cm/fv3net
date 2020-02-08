@@ -8,13 +8,8 @@ import submit_utils
 
 logger = logging.getLogger("run_jobs")
 
-PWD = os.path.dirname(os.path.abspath(__file__))
-DOCKER_IMAGE = "us.gcr.io/vcm-ml/fv3gfs-python"
-LOCAL_RUNFILE = os.path.join(PWD, "runfile.py")
-LOCAL_DIAG_TABLE = os.path.join(PWD, "diag_table")
 RUNDIRS_DIRECTORY_NAME = "one_step_output"
 CONFIG_DIRECTORY_NAME = "one_step_config"
-STDOUT_FILENAME = "stdout.log"
 
 
 if __name__ == "__main__":
