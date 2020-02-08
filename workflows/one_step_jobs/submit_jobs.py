@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     with open(args.one_step_yaml) as file:
         one_step_config = yaml.load(file, Loader=yaml.FullLoader)
-    workflow_name = os.path.splitext(args.one_step_yaml)[0]
+    workflow_name = Path(args.one_step_yaml).with_suffix("").name
 
     output_url = os.path.join(args.output_url, RUNDIRS_DIRECTORY_NAME)
     config_url = os.path.join(args.output_url, CONFIG_DIRECTORY_NAME)
