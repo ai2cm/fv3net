@@ -44,6 +44,16 @@ if __name__ == "__main__":
         required=True,
         help="Target coarsening resolution to output.",
     )
+    parser.add_argument(
+        "--add-target-subdir",
+        type=bool,
+        required=False,
+        default=True,
+        help=(
+            "Add subdirectory with C{target-resolution} to the destination directory."
+            " If --gcs-dst-dir is not specified, then the subdir is automatically added."
+        ),
+    )
 
     args, pipeline_args = parser.parse_known_args()
     run(args=args, pipeline_args=pipeline_args)
