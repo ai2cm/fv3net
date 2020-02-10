@@ -1,6 +1,6 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-import gcsfs
+import fsspec
 import logging
 from numpy import random
 import os
@@ -24,6 +24,7 @@ from vcm.fv3_restarts import (
     open_restarts_with_time_coordinates,
     _parse_time,
     _parse_time_string,
+    _split_url
 )
 from vcm.select import mask_to_surface_type
 
@@ -68,9 +69,9 @@ RENAMED_HIRES_VARS = {
 
 
 def run(args, pipeline_args):
-    fs = gcsfs.GCSFileSystem(project=args.gcs_project)
-    data_path = os.path.join(args.gcs_bucket, args.gcs_input_data_path)
-    gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(data_path))]
+    proto, path = _split_url(args.gcs_input_data_path)
+    fs = fsspec.filesystem(proto)
+    gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(path))]
     _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir, args.gcs_bucket)
     data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
     train_test_labels = _test_train_split(
