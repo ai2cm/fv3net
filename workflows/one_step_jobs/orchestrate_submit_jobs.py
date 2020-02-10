@@ -16,26 +16,22 @@ def _create_arg_parser():
     parser.add_argument(
         "input_url",
         type=str,
-        required=True,
         help="Remote url to initial conditions. Initial conditions are assumed to be "
         "stored as INPUT_URL/{timestamp}/{timestamp}.{restart_category}.tile*.nc",
     )
     parser.add_argument(
         "output_url",
         type=str,
-        required=True,
         help="Remote url where model output will be saved."
     )
     parser.add_argument(
         "one_step_yaml",
         type=str,
-        required=True,
         help="Path to local run configuration yaml.",
     )
     parser.add_argument(
         "experiment_label",
         type=str,
-        required=True,
         help="Label to group the individual Kubernetes jobs with",
     )
     parser.add_argument(
@@ -66,7 +62,7 @@ def _create_arg_parser():
 
 def wait_for_complete(experiment_label):
 
-    wait_script = os.path.join(PWD, "wait_until_comletion.sh")
+    wait_script = os.path.join(PWD, "wait_until_complete.sh")
     subprocess.check_call([wait_script, str(experiment_label)])
 
 
@@ -81,7 +77,7 @@ if __name__ == "__main__":
     workflow_name = Path(args.one_step_yaml).with_suffix("").name
 
     if not args.config_url:
-        config_url = os.path.join(args.output_gcs_path, CONFIG_DIRECTORY_NAME)
+        config_url = os.path.join(args.output_url, CONFIG_DIRECTORY_NAME)
     else:
         config_url = args.config_url
 

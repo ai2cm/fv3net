@@ -12,7 +12,8 @@ experiment:
         source-resolution: 384
         target-resolution: 48
     one_step_run:
-      input_from: coarsen_restarts
+      # input_from: coarsen_restarts
+      input_location: gs://vcm-ml-data/orchestration-testing/test-experiment-522f4ad/coarsen_restarts_source-resolution_384_target-resolution_48
       method: 
         one_step_yaml: /home/andrep/repos/fv3net/workflows/one_step_jobs/all-physics-off.yml
         experiment_label: test-orchestration-group
