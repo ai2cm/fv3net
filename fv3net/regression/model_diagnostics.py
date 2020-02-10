@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime
 import fsspec
+from jinja2 import Template
 import os
 import xarray as xr
 
@@ -10,7 +11,6 @@ from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     COORD_X_CENTER,
     COORD_Y_CENTER,
-    COORD_Z_CENTER,
     TILE_COORDS,
 )
 from vcm.calc.thermo import LATENT_HEAT_VAPORIZATION
@@ -24,8 +24,6 @@ STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 OUTPUT_FIG_DIR = "model_performance_plots"
 
-
-from jinja2 import Template
 
 report_html = Template(
     """

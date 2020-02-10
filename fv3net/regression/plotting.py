@@ -8,13 +8,11 @@ import xarray as xr
 
 from vcm.calc import mass_integrate, r2_score
 from vcm.calc.calc import local_time
-from vcm.calc.thermo import pressure_at_midpoint
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     COORD_X_CENTER,
     COORD_Y_CENTER,
     COORD_Z_CENTER,
-    TILE_COORDS,
     PRESSURE_GRID,
 )
 from vcm.cubedsphere.regridz import regrid_to_pressure_level
@@ -70,7 +68,7 @@ def _make_r2_plot(
     plt.clf()
     if isinstance(vars, str):
         vars = [vars]
-    x = np.array(PRESSURE_GRID / 100)
+    x = np.array(PRESSURE_GRID) / 100
     for var in vars:
         y = r2_score(
             regrid_to_pressure_level(ds_target, var).stack(sample=STACK_DIMS),
@@ -79,7 +77,7 @@ def _make_r2_plot(
         ).values
         plt.plot(x, y, label=var)
     plt.legend()
-    plt.xlabel("pressure level")
+    plt.xlabel("pressure [HPa]")
     plt.ylabel("$R^2$")
     if title:
         plt.title(title)
@@ -99,7 +97,7 @@ def _make_land_sea_r2_plot(
     save_fig=True,
 ):
     plt.clf()
-    x = np.array(PRESSURE_GRID / 100)
+    x = np.array(PRESSURE_GRID) / 100
     colors = ["blue", "orange"]
     for color, var in zip(colors, vars):
         y_sea = r2_score(

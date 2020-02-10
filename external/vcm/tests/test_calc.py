@@ -11,7 +11,7 @@ from vcm.calc.thermo import (
     _add_coords_to_interface_variable,
 )
 from vcm.calc.calc import solar_time
-from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER, INIT_TIME_DIM
+from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 
 
 @pytest.mark.parametrize("toa_pressure", [0, 5])
@@ -82,6 +82,6 @@ def test_solar_time():
         dims=["x"],
         coords={"x": range(6)},
     )
-    l = xr.DataArray([0, 180, 270, 360, 0, 270], dims=["x"], coords={"x": range(6)})
-    ds_solar_test = xr.Dataset({"initialization_time": t, "lon": l})
+    lon = xr.DataArray([0, 180, 270, 360, 0, 270], dims=["x"], coords={"x": range(6)})
+    ds_solar_test = xr.Dataset({"initialization_time": t, "lon": lon})
     assert np.allclose(solar_time(ds_solar_test), [0, 12, 18, 0, 6, 0])
