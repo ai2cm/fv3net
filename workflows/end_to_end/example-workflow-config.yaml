@@ -14,4 +14,5 @@ experiment:
     one_step_run:
       input_from: coarsen_restarts
       method: 
-        one_step_yaml: lolwut.yml
+        one_step_yaml: /home/andrep/repos/fv3net/workflows/one_step_jobs/all-physics-off.yml
+        experiment_label: test-orchestration-group

@@ -14,12 +14,6 @@ CONFIG_DIRECTORY_NAME = "one_step_config"
 def _create_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "one_step_yaml",
-        type=str,
-        required=True,
-        help="Path to local run configuration yaml.",
-    )
-    parser.add_argument(
         "input_url",
         type=str,
         required=True,
@@ -31,6 +25,12 @@ def _create_arg_parser():
         type=str,
         required=True,
         help="Remote url where model output will be saved."
+    )
+    parser.add_argument(
+        "one_step_yaml",
+        type=str,
+        required=True,
+        help="Path to local run configuration yaml.",
     )
     parser.add_argument(
         "experiment_label",
