@@ -24,6 +24,7 @@ cd ../../../..
 # One-step Jobs
 one_step_args=$(echo $all_step_args | jq -r .one_step_run)
 echo $one_step_args
+python workflows/one_step_jobs/orchestrate_submit_jobs $one_step_args
 
 
 
