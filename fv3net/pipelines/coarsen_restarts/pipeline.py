@@ -108,7 +108,7 @@ def run(args, pipeline_args=None):
 
     if args.gcs_dst_dir:
         output_dir_prefix = args.gcs_dst_dir
-        if args.add_target_subdir:
+        if not args.no_target_subdir:
             output_dir_prefix = os.path.join(output_dir_prefix, f"C{target_resolution}")
     else:
         output_dir_prefix = os.path.join(source_timestep_dir, f"C{target_resolution}")

@@ -13,7 +13,7 @@ python -m fv3net.pipelines.coarsen_restarts\
     --gcs-grid-spec-path $GCS_GRIDSPEC \
     --source-resolution $SRC_RESOLUTION \
     --target-resolution $TARGET_RESOLUTION \
-    --add-target-subdir False \
+    --no-target-subdir \
     --runner DataflowRunner \
     --job_name coarsen-restarts-$(whoami) \
     --project vcm-ml \

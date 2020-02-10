@@ -45,13 +45,12 @@ if __name__ == "__main__":
         help="Target coarsening resolution to output.",
     )
     parser.add_argument(
-        "--add-target-subdir",
-        type=bool,
-        required=False,
-        default=True,
+        "--no-target-subdir",
+        action="store_true",
         help=(
-            "Add subdirectory with C{target-resolution} to the destination directory."
-            " If --gcs-dst-dir is not specified, then the subdir is automatically added."
+            "Do not add subdirectory with C{target-resolution} to the destination "
+            "directory. If --gcs-dst-dir is not specified, then the subdir is "
+            "automatically added."
         ),
     )
 
