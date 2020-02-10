@@ -1,6 +1,6 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-import gcsfs
+import fsspec
 import logging
 from numpy import random
 import os
@@ -24,6 +24,7 @@ from vcm.fv3_restarts import (
     open_restarts_with_time_coordinates,
     _parse_time,
     _parse_time_string,
+    _split_url
 )
 from vcm.select import mask_to_surface_type
 
@@ -68,9 +69,9 @@ RENAMED_HIRES_VARS = {
 
 
 def run(args, pipeline_args):
-    fs = gcsfs.GCSFileSystem(project=args.gcs_project)
-    data_path = os.path.join(args.gcs_bucket, args.gcs_input_data_path)
-    gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(data_path))]
+    proto, path = _split_url(args.gcs_input_data_path)
+    fs = fsspec.filesystem(proto)
+    gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(path))]
     _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir, args.gcs_bucket)
     data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
     train_test_labels = _test_train_split(
@@ -213,14 +214,14 @@ def _open_cloud_data(run_dirs):
                 .isel({FORECAST_TIME_DIM: slice(-2, None)})
                 .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
             )
-            ds_run = helpers._set_relative_forecast_time_coord(ds_run).drop(
-                "file_prefix"
-            )
+
+            ds_run = helpers._set_relative_forecast_time_coord(ds_run)
+            if "file_prefix" in ds_run.dims:
+                ds_run = ds_run.drop("file_prefix")
             ds_runs.append(ds_run)
         return xr.concat(ds_runs, INIT_TIME_DIM)
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to open restarts from cloud: {e}")
-        ds_runs.append(ds_run)
 
 
 def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
@@ -254,8 +255,7 @@ def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
         return ds
     except (ValueError, TypeError) as e:
         logger.error(
-            f"Failed step CreateTrainingCols for batch"
-            f"{ds[INIT_TIME_DIM].values[0]}: {e}"
+            f"Failed step CreateTrainingCols: {e}"
         )
 
 

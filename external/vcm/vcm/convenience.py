@@ -1,3 +1,4 @@
+from datetime import timedelta
 import logging
 import os
 import subprocess
@@ -19,6 +20,30 @@ from vcm.cloud.remote_data import open_gfdl_data_with_2d
 from vcm.cloud.fsspec import get_fs
 
 TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
+
+
+def round_time(t):
+    """ cftime will introduces noise when decoding values into date objects.
+    This rounds time in the date object to the nearest second, assuming the init time
+    is at most 1 sec away from a round minute. This is used when merging datasets so
+    their time dims match up.
+
+    Args:
+        t: datetime or cftime object
+
+    Returns:
+        datetime or cftime object rounded to nearest minute
+    """
+    if t.second == 0:
+        return t.replace(microsecond=0)
+    elif t.second == 59:
+        return t.replace(microsecond=0) + timedelta(seconds=1)
+    else:
+        raise ValueError(
+            f"Time value > 1 second from 1 minute timesteps for "
+            "C48 initialization time {t}. Are you sure you're joining "
+            "the correct high res data?"
+        )
 
 
 def get_root():
