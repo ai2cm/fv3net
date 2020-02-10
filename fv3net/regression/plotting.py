@@ -246,7 +246,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         col="dataset",
         cbar_label="P-E [mm/day]",
     )[0]
-    plt.title(time_label)
+    plt.suptitle(time_label)
     fig_pe.savefig(os.path.join(output_dir, "P-E.png"))
     plt.show()
     report_sections["P-E"] = ["P-E.png"]
