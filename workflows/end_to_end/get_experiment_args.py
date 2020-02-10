@@ -78,13 +78,25 @@ def _get_output_location(step_name, step_config, root_path):
     return output_location
     
 
-def _generate_output_path_from_config(step_name, step_config):
+def _generate_output_path_from_config(step_name, step_config, max_config_stubs=3):
     """generate an output location stub from a step's methodological config"""
     
     output_str = step_name
     method_config = step_config.get("method", None)
     if method_config is not None:
-        method_strs = [f"{k}_{v}" for i, (k, v) in enumerate(method_config.items()) if i < 3]
+        method_strs = []
+        for i, (key, val) in enumerate(method_config.items()):
+            if i >= max_config_stubs:
+                break
+            
+            val = str(val)
+
+            # get last part of path so string isn't so long
+            if "/" in val:
+                val = val.split("/")[-1]
+            
+            key_val = f"{key}_{val}"
+            method_strs.append(key_val)
         method_output_stub = "_".join(method_strs)
         output_str += "_" + method_output_stub
 
