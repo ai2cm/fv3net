@@ -9,6 +9,7 @@ dependencies = [
     "google-cloud-storage",
     "h5netcdf",
     "intake",
+    "metpy",
     "numba",
     "scikit-image",
     "netCDF4",

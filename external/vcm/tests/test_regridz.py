@@ -1,7 +1,11 @@
 import numpy as np
 import pytest
 import xarray as xr
-from vcm.cubedsphere.regridz import regrid_vertical, _mask_weights
+from vcm.cubedsphere.regridz import (
+    regrid_vertical,
+    _mask_weights,
+    regrid_to_shared_coords,
+)
 
 
 def input_dataarray(shape):
@@ -50,3 +54,27 @@ def test__mask_weights():
         weights, phalf_coarse_on_fine, phalf_fine, dim_center="z", dim_outer="z"
     )
     xr.testing.assert_allclose(expected_weights, masked_weights)
+
+
+@pytest.fixture()
+def test_ds_interp():
+    coords = {"pfull": [1, 2, 3], "x": [1, 2]}
+    da_var_to_interp = xr.DataArray(
+        [[1.0, 2.0, 3.0], [-1.0, -2.0, -3.0]], dims=["x", "pfull"], coords=coords
+    )
+    da_pressure = xr.DataArray(
+        [[0, 1, 2], [0, 2, 4]], dims=["x", "pfull"], coords=coords
+    )
+    ds = xr.Dataset({"interp_var": da_var_to_interp, "pressure": da_pressure})
+    return ds
+
+
+def test_regrid_to_shared_coords(test_ds_interp):
+    test_da = regrid_to_shared_coords(
+        test_ds_interp["interp_var"],
+        np.array([0.5, 2]),
+        test_ds_interp["pressure"],
+        "pressure_uniform",
+        "pfull",
+    )
+    assert np.allclose(test_da.values, [[1.5, -1.25], [3.0, -2.0]])

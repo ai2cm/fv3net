@@ -66,8 +66,12 @@ def regrid_to_shared_coords(
     Returns:
         data array of the variable interpolated at values of new_coord_grid
     """
-    da_var_to_regrid = da_var_to_regrid.transpose(replace_dim_name, ...)
-    da_old_coords = da_old_coords.transpose(replace_dim_name, ...)
+    dims_order = tuple(
+        [replace_dim_name]
+        + [dim for dim in da_var_to_regrid.dims if dim != replace_dim_name]
+    )
+    da_var_to_regrid = da_var_to_regrid.transpose(*dims_order)
+    da_old_coords = da_old_coords.transpose(*dims_order)
     interp_values = interpolate_1d(
         new_coord_grid, da_old_coords.values, da_var_to_regrid.values, axis=0
     )
