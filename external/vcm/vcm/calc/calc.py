@@ -1,10 +1,16 @@
 import numpy as np
 import xarray as xr
-
-from vcm.cubedsphere.constants import INIT_TIME_DIM, FORECAST_TIME_DIM, COORD_Z_CENTER
+from vcm.cubedsphere.constants import (
+    INIT_TIME_DIM,
+    FORECAST_TIME_DIM,
+    COORD_Z_CENTER,
+    VAR_LON_CENTER,
+)
 
 gravity = 9.81
 specific_heat = 1004
+
+HOUR_PER_DEG_LONGITUDE = 1.0 / 15
 
 
 def mass_integrate(phi, dp, dim=COORD_Z_CENTER):
@@ -53,3 +59,13 @@ def apparent_source(
     )
 
     return tend - tend_c48
+
+
+def local_time(ds, time=INIT_TIME_DIM, lon_var=VAR_LON_CENTER):
+    fractional_hr = (
+        ds[time].dt.hour
+        + (ds[time].dt.minute / 60.0)
+        + (ds[INIT_TIME_DIM].dt.second / 3600.0)
+    )
+    local_time = (fractional_hr + ds[lon_var] * HOUR_PER_DEG_LONGITUDE) % 24
+    return local_time

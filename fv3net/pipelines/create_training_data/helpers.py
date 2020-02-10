@@ -5,6 +5,7 @@ import os
 import xarray as xr
 
 from vcm.fv3_restarts import _split_url
+from vcm.convenience import round_time
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
@@ -15,30 +16,6 @@ from vcm.cubedsphere.constants import (
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-
-def _round_time(t):
-    """ The high res data timestamps are often +/- a few 1e-2 seconds off the
-    initialization times of the restarts, which makes it difficult to merge on
-    time. This rounds time to the nearest second, assuming the init time is at most
-    1 sec away from a round minute.
-
-    Args:
-        t: datetime or cftime object
-
-    Returns:
-        datetime or cftime object rounded to nearest minute
-    """
-    if t.second == 0:
-        return t.replace(microsecond=0)
-    elif t.second == 59:
-        return t.replace(microsecond=0) + timedelta(seconds=1)
-    else:
-        raise ValueError(
-            f"Time value > 1 second from 1 minute timesteps for "
-            "C48 initialization time {t}. Are you sure you're joining "
-            "the correct high res data?"
-        )
 
 
 def _path_from_first_timestep(ds, train_test_labels=None):
@@ -93,7 +70,7 @@ def load_diag(diag_data_path, init_times):
     )
     ds_diag = ds_diag.assign_coords(
         {
-            INIT_TIME_DIM: [_round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
+            INIT_TIME_DIM: [round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
             "tile": TILE_COORDS,
         }
     )
