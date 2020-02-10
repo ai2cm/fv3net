@@ -17,7 +17,7 @@ from vcm.cubedsphere.constants import (
     TILE_COORDS,
     PRESSURE_GRID,
 )
-from vcm.cubedsphere.regridz import regrid_to_shared_coords
+from vcm.cubedsphere.regridz import regrid_to_pressure_level
 from vcm.select import mask_to_surface_type
 from vcm.visualize import plot_cube, mappable_var
 
@@ -57,16 +57,6 @@ def _merge_comparison_datasets(var, ds_pred, ds_data, ds_hires, grid):
     return ds_comparison
 
 
-def _regrid_to_pressure_level(da):
-    return regrid_to_shared_coords(
-        da,
-        np.array(PRESSURE_GRID),
-        pressure_at_midpoint(da),
-        regrid_dim_name="pressure",
-        replace_dim_name="pfull",
-    )
-
-
 def _make_r2_plot(
     ds_pred,
     ds_target,
@@ -80,11 +70,11 @@ def _make_r2_plot(
     plt.clf()
     if isinstance(vars, str):
         vars = [vars]
-    x = ds_pred["pfull"].values
+    x = np.array(PRESSURE_GRID / 100)
     for var in vars:
         y = r2_score(
-            _regrid_to_pressure_level(ds_target).stack(sample=STACK_DIMS)[var],
-            _regrid_to_pressure_level(ds_pred).stack(sample=STACK_DIMS)[var],
+            regrid_to_pressure_level(ds_target, var).stack(sample=STACK_DIMS),
+            regrid_to_pressure_level(ds_pred, var).stack(sample=STACK_DIMS),
             sample_dim,
         ).values
         plt.plot(x, y, label=var)
@@ -109,17 +99,17 @@ def _make_land_sea_r2_plot(
     save_fig=True,
 ):
     plt.clf()
-    x = np.array(PRESSURE_GRID)
+    x = np.array(PRESSURE_GRID / 100)
     colors = ["blue", "orange"]
     for color, var in zip(colors, vars):
         y_sea = r2_score(
-            _regrid_to_pressure_level(ds_target_sea).stack(sample=STACK_DIMS)[var],
-            _regrid_to_pressure_level(ds_pred_sea).stack(sample=STACK_DIMS)[var],
+            regrid_to_pressure_level(ds_target_sea, var).stack(sample=STACK_DIMS),
+            regrid_to_pressure_level(ds_pred_sea, var).stack(sample=STACK_DIMS),
             SAMPLE_DIM,
         ).values
         y_land = r2_score(
-            _regrid_to_pressure_level(ds_target_land).stack(sample=STACK_DIMS)[var],
-            _regrid_to_pressure_level(ds_pred_land).stack(sample=STACK_DIMS)[var],
+            regrid_to_pressure_level(ds_target_land, var).stack(sample=STACK_DIMS),
+            regrid_to_pressure_level(ds_pred_land, var).stack(sample=STACK_DIMS),
             SAMPLE_DIM,
         ).values
         plt.plot(x, y_sea, color=color, alpha=0.7, label=f"{var}, sea", linestyle="--")
