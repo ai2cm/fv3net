@@ -1,19 +1,23 @@
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 import os
 import pandas as pd
 from scipy.stats import binned_statistic
 import xarray as xr
 
 from vcm.calc import mass_integrate, r2_score
-from vcm.calc.calc import solar_time
+from vcm.calc.calc import local_time
+from vcm.calc.thermo import pressure_at_midpoint
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     COORD_X_CENTER,
     COORD_Y_CENTER,
     COORD_Z_CENTER,
     TILE_COORDS,
+    PRESSURE_GRID,
 )
+from vcm.cubedsphere.regridz import regrid_to_shared_coords
 from vcm.select import mask_to_surface_type
 from vcm.visualize import plot_cube, mappable_var
 
@@ -53,6 +57,16 @@ def _merge_comparison_datasets(var, ds_pred, ds_data, ds_hires, grid):
     return ds_comparison
 
 
+def _regrid_to_pressure_level(da):
+    return regrid_to_shared_coords(
+        da,
+        np.array(PRESSURE_GRID),
+        pressure_at_midpoint(da),
+        regrid_dim_name="pressure",
+        replace_dim_name="pfull",
+    )
+
+
 def _make_r2_plot(
     ds_pred,
     ds_target,
@@ -69,8 +83,8 @@ def _make_r2_plot(
     x = ds_pred["pfull"].values
     for var in vars:
         y = r2_score(
-            ds_target.stack(sample=STACK_DIMS)[var],
-            ds_pred.stack(sample=STACK_DIMS)[var],
+            _regrid_to_pressure_level(ds_target).stack(sample=STACK_DIMS)[var],
+            _regrid_to_pressure_level(ds_pred).stack(sample=STACK_DIMS)[var],
             sample_dim,
         ).values
         plt.plot(x, y, label=var)
@@ -95,23 +109,23 @@ def _make_land_sea_r2_plot(
     save_fig=True,
 ):
     plt.clf()
-    x = ds_pred_land.pfull.values
+    x = np.array(PRESSURE_GRID)
     colors = ["blue", "orange"]
     for color, var in zip(colors, vars):
         y_sea = r2_score(
-            ds_target_sea.stack(sample=STACK_DIMS)[var],
-            ds_pred_sea.stack(sample=STACK_DIMS)[var],
+            _regrid_to_pressure_level(ds_target_sea).stack(sample=STACK_DIMS)[var],
+            _regrid_to_pressure_level(ds_pred_sea).stack(sample=STACK_DIMS)[var],
             SAMPLE_DIM,
         ).values
         y_land = r2_score(
-            ds_target_land.stack(sample=STACK_DIMS)[var],
-            ds_pred_land.stack(sample=STACK_DIMS)[var],
+            _regrid_to_pressure_level(ds_target_land).stack(sample=STACK_DIMS)[var],
+            _regrid_to_pressure_level(ds_pred_land).stack(sample=STACK_DIMS)[var],
             SAMPLE_DIM,
         ).values
         plt.plot(x, y_sea, color=color, alpha=0.7, label=f"{var}, sea", linestyle="--")
         plt.plot(x, y_land, color=color, alpha=0.7, label=f"{var}, land", linestyle=":")
     plt.legend()
-    plt.xlabel("pressure level")
+    plt.xlabel("pressure [HPa]")
     plt.ylabel("$R^2$")
     if save_fig:
         plt.savefig(os.path.join(output_dir, plot_filename))
@@ -130,16 +144,16 @@ def _plot_diurnal_cycle(
     plt.clf()
     for label in merged_ds["dataset"].values:
         ds = merged_ds.sel(dataset=label).stack(sample=STACK_DIMS).dropna("sample")
-        solar_time = ds["solar_time"].values.flatten()
+        local_time = ds["local_time"].values.flatten()
         data_var = ds[var].values.flatten()
         bin_means, bin_edges, _ = binned_statistic(
-            solar_time, data_var, bins=num_time_bins
+            local_time, data_var, bins=num_time_bins
         )
         bin_centers = [
             0.5 * (bin_edges[i] + bin_edges[i + 1]) for i in range(num_time_bins)
         ]
         plt.plot(bin_centers, bin_means, label=label)
-    plt.xlabel("solar time [hr]")
+    plt.xlabel("local_time [hr]")
     plt.ylabel(var)
     plt.legend(loc="lower left")
     if title:
@@ -214,7 +228,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ]
 
     # plot a variable across the diurnal cycle
-    ds_pe["solar_time"] = solar_time(ds_pe)
+    ds_pe["local_time"] = local_time(ds_pe)
     matplotlib.rcParams["figure.dpi"] = 80
     _plot_diurnal_cycle(
         mask_to_surface_type(ds_pe, "sea"),
@@ -232,17 +246,19 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
     report_sections["Diurnal cycle"] = [
         "diurnal_cycle_P-E_sea.png",
-        "diurnal_cycle_P-E_land.png"
+        "diurnal_cycle_P-E_land.png",
     ]
 
     # map plot a variable and compare across prediction/ C48 /coarsened high res data
     matplotlib.rcParams["figure.dpi"] = 200
     plt.clf()
+    time_label = ds_pe[INIT_TIME_DIM].values[0].strftime("%Y-%m-%d, %H:%M:%S")
     fig_pe = plot_cube(
         mappable_var(ds_pe.isel({INIT_TIME_DIM: 0}), "P-E"),
         col="dataset",
         cbar_label="P-E [mm/day]",
     )[0]
+    plt.title(time_label)
     fig_pe.savefig(os.path.join(output_dir, "P-E.png"))
     plt.show()
     report_sections["P-E"] = ["P-E.png"]

@@ -136,10 +136,7 @@ if __name__ == "__main__":
         help="Path for training configuration yaml file",
     )
     parser.add_argument(
-        "--train-data-path",
-        type=str,
-        required=True,
-        help="Location of training data",
+        "--train-data-path", type=str, required=True, help="Location of training data",
     )
     parser.add_argument(
         "--remote-output-url",
@@ -162,7 +159,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     train_config = load_model_training_config(
-        args.train_config_file, args.train_data_path)
+        args.train_config_file, args.train_data_path
+    )
     batched_data = load_data_generator(train_config)
 
     model = train_model(batched_data, train_config)

@@ -6,7 +6,7 @@ from ..cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 GRAVITY = 9.80665  # m /s2
 RDGAS = 287.05  # J / K / kg
 RVGAS = 461.5  # J / K / kg
-
+LATENT_HEAT_VAPORIZATION = 2.5e6
 
 TOA_PRESSURE = 300.0  # Pa
 REVERSE = slice(None, None, -1)
@@ -65,7 +65,7 @@ def height_at_interface(dz, phis, dim_center=COORD_Z_CENTER, dim_outer=COORD_Z_O
 
 
 def _add_coords_to_interface_variable(
-    dv_outer: xr.Variable, da_center: xr.DataArray, dim_center: str = COORD_Z_CENTER,
+    dv_outer: xr.Variable, da_center: xr.DataArray, dim_center: str = COORD_Z_CENTER
 ):
     """Assign all coords except vertical from da_center to dv_outer """
     if dim_center in da_center.coords:

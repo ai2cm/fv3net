@@ -71,19 +71,17 @@ def test_dz_and_top_to_phis():
 
 def test_solar_time():
     t = xr.DataArray(
-        [cftime.DatetimeJulian(2020, 1, 1, 0, 0),
-         cftime.DatetimeJulian(2020, 1, 1, 0, 0),
-         cftime.DatetimeJulian(2020, 1, 1, 0, 0),
-         cftime.DatetimeJulian(2020, 1, 1, 0, 0),
-         cftime.DatetimeJulian(2020, 1, 1, 6, 0),
-         cftime.DatetimeJulian(2020, 1, 1, 6, 0), ],
+        [
+            cftime.DatetimeJulian(2020, 1, 1, 0, 0),
+            cftime.DatetimeJulian(2020, 1, 1, 0, 0),
+            cftime.DatetimeJulian(2020, 1, 1, 0, 0),
+            cftime.DatetimeJulian(2020, 1, 1, 0, 0),
+            cftime.DatetimeJulian(2020, 1, 1, 6, 0),
+            cftime.DatetimeJulian(2020, 1, 1, 6, 0),
+        ],
         dims=["x"],
         coords={"x": range(6)},
     )
-    l = xr.DataArray(
-        [0, 180, 270, 360, 0, 270],
-        dims=["x"],
-        coords={"x": range(6)},
-    )
+    l = xr.DataArray([0, 180, 270, 360, 0, 270], dims=["x"], coords={"x": range(6)})
     ds_solar_test = xr.Dataset({"initialization_time": t, "lon": l})
     assert np.allclose(solar_time(ds_solar_test), [0, 12, 18, 0, 6, 0])

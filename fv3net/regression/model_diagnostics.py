@@ -13,9 +13,10 @@ from vcm.cubedsphere.constants import (
     COORD_Z_CENTER,
     TILE_COORDS,
 )
+from vcm.calc.thermo import LATENT_HEAT_VAPORIZATION
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
-Lv = 2.5e6
+
 SEC_PER_DAY = 86400
 
 SAMPLE_DIM = "sample"
@@ -71,7 +72,8 @@ def _load_high_res_dataset(coarsened_hires_diags_path, init_times):
             f"are not matched in high res dataset."
         )
     ds_hires["P-E"] = SEC_PER_DAY * (
-        ds_hires["PRATEsfc_coarse"] - ds_hires["LHTFLsfc_coarse"] / Lv
+        ds_hires["PRATEsfc_coarse"]
+        - ds_hires["LHTFLsfc_coarse"] / LATENT_HEAT_VAPORIZATION
     )
     return ds_hires
 
@@ -107,7 +109,7 @@ if __name__ == "__main__":
         type=str,
         default="rf",
         help="Type of model to use. Default is random forest 'rf'. "
-        "The only type implement right now is 'rf'.",
+        "The only type implemented right now is 'rf'.",
     )
     parser.add_argument(
         "--output-dir-suffix",
