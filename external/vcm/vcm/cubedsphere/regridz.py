@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 
-from ..calc.thermo import pressure_at_interface, pressure_at_midpoint
+from ..calc.thermo import pressure_at_interface, pressure_at_midpoint_log
 from ..cubedsphere import edge_weighted_block_average, weighted_block_average
 from ..cubedsphere.coarsen import block_upsample_like
 from ..cubedsphere.constants import (
@@ -24,20 +24,22 @@ else:
     _mappm_installed = True
 
 
-def regrid_to_pressure_level(ds, var):
+def regrid_to_common_pressure(da_var, delp):
     """ Convenience function that uses regrid_to_shared_coords() for a common
     usage of interpolating to a pressure grid
 
     Args:
-        da: data array
+        da_var: data array variable to regrid
+        delp: data array with delp (pressure thickness)
 
     Returns:
-
+        data array of da_var at vertical coordinates of
+        pressure grid from vcm.cubedsphere.constants
     """
     return regrid_to_shared_coords(
-        ds[var],
+        da_var,
         np.array(PRESSURE_GRID),
-        pressure_at_midpoint(ds["delp"]),
+        pressure_at_midpoint_log(delp),
         regrid_dim_name="pressure",
         replace_dim_name="pfull",
     )

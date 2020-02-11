@@ -15,7 +15,7 @@ from vcm.cubedsphere.constants import (
     COORD_Z_CENTER,
     PRESSURE_GRID,
 )
-from vcm.cubedsphere.regridz import regrid_to_pressure_level
+from vcm.cubedsphere.regridz import regrid_to_common_pressure
 from vcm.select import mask_to_surface_type
 from vcm.visualize import plot_cube, mappable_var
 
@@ -71,8 +71,12 @@ def _make_r2_plot(
     x = np.array(PRESSURE_GRID) / 100
     for var in vars:
         y = r2_score(
-            regrid_to_pressure_level(ds_target, var).stack(sample=STACK_DIMS),
-            regrid_to_pressure_level(ds_pred, var).stack(sample=STACK_DIMS),
+            regrid_to_common_pressure(ds_target[var], ds_target["delp"]).stack(
+                sample=STACK_DIMS
+            ),
+            regrid_to_common_pressure(ds_pred[var], ds_pred["delp"]).stack(
+                sample=STACK_DIMS
+            ),
             sample_dim,
         ).values
         plt.plot(x, y, label=var)
@@ -101,13 +105,21 @@ def _make_land_sea_r2_plot(
     colors = ["blue", "orange"]
     for color, var in zip(colors, vars):
         y_sea = r2_score(
-            regrid_to_pressure_level(ds_target_sea, var).stack(sample=STACK_DIMS),
-            regrid_to_pressure_level(ds_pred_sea, var).stack(sample=STACK_DIMS),
+            regrid_to_common_pressure(ds_target_sea[var], ds_target_sea["delp"]).stack(
+                sample=STACK_DIMS
+            ),
+            regrid_to_common_pressure(ds_pred_sea[var], ds_pred_sea["delp"]).stack(
+                sample=STACK_DIMS
+            ),
             SAMPLE_DIM,
         ).values
         y_land = r2_score(
-            regrid_to_pressure_level(ds_target_land, var).stack(sample=STACK_DIMS),
-            regrid_to_pressure_level(ds_pred_land, var).stack(sample=STACK_DIMS),
+            regrid_to_common_pressure(
+                ds_target_land[var], ds_target_land["delp"]
+            ).stack(sample=STACK_DIMS),
+            regrid_to_common_pressure(ds_pred_land[var], ds_pred_land["delp"]).stack(
+                sample=STACK_DIMS
+            ),
             SAMPLE_DIM,
         ).values
         plt.plot(x, y_sea, color=color, alpha=0.7, label=f"{var}, sea", linestyle="--")

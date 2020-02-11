@@ -19,17 +19,17 @@ def regrid_to_shared_coords(
     different at each point, e.g. interpolate temperature profiles to be given at the
     same pressure values for each data point.
 
-    For example usage, see the regrid_to_pressure_level()
+    For example usage, see vcm.cubedsphere.regridz.regrid_to_pressure_level
 
     Args:
-    da_var_to_regrid: data array for the variable to interpolate to new coord grid
-    new_coord_grid: coordinates to interpolate the data variable onto
-    da_old_coords: data array of the original "coordinates"- can be different for
+    da_var_to_regrid: xr data array, for the variable to interpolate to new coord grid
+    new_coord_grid: 1d list/array, coordinates to interpolate the data variable onto
+    da_old_coords: xr data array, of the original "coordinates"- can be different for
         each element. Must have same shape as da_var_to_regrid
-    regrid_dim_name: name of new dimension to assign
-    replace_dim_name: Name of old dimension (usually pfull) along which the data was
-        interpolated. This gets replaced because the new data and coords don't have to
-        have the same length as the original data array
+    regrid_dim_name: str, name of new dimension to assign
+    replace_dim_name: str, Name of old dimension (usually pfull) along which the data
+        was interpolated. This gets replaced because the new data and coords don't have
+        to have the same length as the original data array
 
     Returns:
         data array of the variable interpolated at values of new_coord_grid
