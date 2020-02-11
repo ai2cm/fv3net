@@ -300,7 +300,7 @@ def submit_jobs(
         jobname = one_step_config["fv3config"]["experiment_name"]
         one_step_config["kubernetes"]["jobname"] = jobname
         fv3config.run_kubernetes(
-            os.path.join(config_url, "fv3config.yml"),
+            os.path.join(curr_config_url, "fv3config.yml"),
             curr_output_url,
             experiment_label=experiment_label,
             **one_step_config["kubernetes"],

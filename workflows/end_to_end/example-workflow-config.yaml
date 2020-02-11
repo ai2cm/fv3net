@@ -3,8 +3,9 @@ storage_proto: 'gs'
 storage_root: vcm-ml-data/orchestration-testing
 experiment:
   name: test-experiment
+  unique_id: True
   fv3net_hash: ca279cb79c0b97a5e5e758ec8785612b3c7ec044
-#   workflow_steps: [coarsen_restarts, one_step_run creating_training_data]
+#   workflow_steps: [coarsen_restarts, one_step_run, creating_training_data, train_sklearn_model]
   workflow_steps: [train_sklearn_model]
   steps:
     coarsen_restarts:
@@ -15,6 +16,7 @@ experiment:
     one_step_run:
       # input_from: coarsen_restarts
       input_location: gs://vcm-ml-data/orchestration-testing/test-experiment-522f4ad/coarsen_restarts_source-resolution_384_target-resolution_48
+      add_unique_id: ['experiment_label']
       method: 
         one_step_yaml: /home/andrep/repos/fv3net/workflows/one_step_jobs/all-physics-off.yml
         experiment_label: test-orchestration-group
