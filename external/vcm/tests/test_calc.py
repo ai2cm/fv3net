@@ -10,7 +10,7 @@ from vcm.calc.thermo import (
     dz_and_top_to_phis,
     _add_coords_to_interface_variable,
 )
-from vcm.calc.calc import solar_time
+from vcm.calc.calc import local_time
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 
 
@@ -84,4 +84,4 @@ def test_solar_time():
     )
     lon = xr.DataArray([0, 180, 270, 360, 0, 270], dims=["x"], coords={"x": range(6)})
     ds_solar_test = xr.Dataset({"initialization_time": t, "lon": lon})
-    assert np.allclose(solar_time(ds_solar_test), [0, 12, 18, 0, 6, 0])
+    assert np.allclose(local_time(ds_solar_test), [0, 12, 18, 0, 6, 0])
