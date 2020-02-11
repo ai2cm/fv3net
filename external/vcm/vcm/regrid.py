@@ -1,5 +1,5 @@
 from typing import Union
-
+from metpy.interpolate import interpolate_1d
 import numpy as np
 import xarray as xr
 import zarr as zr
@@ -9,6 +9,49 @@ from scipy.spatial import KDTree
 
 from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
 from vcm.convenience import open_dataset, replace_esmf_coords_reg_latlon
+
+
+def regrid_to_shared_coords(
+    da_var_to_regrid, new_coord_grid, da_old_coords, regrid_dim_name, replace_dim_name
+):
+    """ This function interpolates a variable to a new coordinate grid that is along
+    a dimension corresponding to existing irregular coordinates that may be
+    different at each point, e.g. interpolate temperature profiles to be given at the
+    same pressure values for each data point.
+
+    For example usage, see the regrid_to_pressure_level()
+
+    Args:
+    da_var_to_regrid: data array for the variable to interpolate to new coord grid
+    new_coord_grid: coordinates to interpolate the data variable onto
+    da_old_coords: data array of the original "coordinates"- can be different for
+        each element. Must have same shape as da_var_to_regrid
+    regrid_dim_name: name of new dimension to assign
+    replace_dim_name: Name of old dimension (usually pfull) along which the data was
+        interpolated. This gets replaced because the new data and coords don't have to
+        have the same length as the original data array
+
+    Returns:
+        data array of the variable interpolated at values of new_coord_grid
+    """
+    dims_order = tuple(
+        [replace_dim_name]
+        + [dim for dim in da_var_to_regrid.dims if dim != replace_dim_name]
+    )
+    da_var_to_regrid = da_var_to_regrid.transpose(*dims_order)
+    da_old_coords = da_old_coords.transpose(*dims_order)
+    interp_values = interpolate_1d(
+        new_coord_grid, da_old_coords.values, da_var_to_regrid.values, axis=0
+    )
+    new_dims = [regrid_dim_name] + list(da_var_to_regrid.dims[1:])
+
+    new_coords = {
+        dim: da_var_to_regrid[dim].values
+        for dim in da_var_to_regrid.dims
+        if dim != replace_dim_name
+    }
+    new_coords[regrid_dim_name] = new_coord_grid
+    return xr.DataArray(interp_values, dims=new_dims, coords=new_coords)
 
 
 # Vertical interpolation
@@ -191,7 +234,7 @@ def interpolate_unstructured(
 
     This is similar to the fancy indexing of xr.Dataset.interp, but it works
     with unstructured grids. Only nearest neighbors interpolation is supported for now.
-        
+
     Args:
         data: data to interpolate
         coords: dictionary of dataarrays with single common dim, similar to the
