@@ -29,5 +29,6 @@ python workflows/one_step_jobs/orchestrate_submit_jobs.py $one_step_args
 training_data_args=$(echo $all_step_args | jq -r .create_training_data)
 workflows/create_training_data/orchestrator_job.sh $training_data_args
 
-
-
+# train ML model step
+ml_model_args=$(echo $all_step_args | jq -r .create_training_data)
+workflows/sklearn_regression/orchestrator_train_sklearn.sh $training_data_args
