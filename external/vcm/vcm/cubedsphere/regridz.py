@@ -1,11 +1,8 @@
 import numpy as np
 import xarray as xr
 
-from ..calc.thermo import pressure_at_interface
-from ..cubedsphere import (
-    edge_weighted_block_average,
-    weighted_block_average,
-)
+from ..calc.thermo import pressure_at_interface, pressure_at_midpoint_log
+from ..cubedsphere import edge_weighted_block_average, weighted_block_average
 from ..cubedsphere.coarsen import block_upsample_like
 from ..cubedsphere.constants import (
     RESTART_Z_CENTER,
@@ -14,7 +11,9 @@ from ..cubedsphere.constants import (
     FV_CORE_X_OUTER,
     FV_CORE_Y_CENTER,
     FV_CORE_Y_OUTER,
+    PRESSURE_GRID,
 )
+from ..regrid import regrid_to_shared_coords
 from .xgcm import create_fv3_grid
 
 try:
@@ -23,6 +22,27 @@ except ImportError:
     _mappm_installed = False
 else:
     _mappm_installed = True
+
+
+def regrid_to_common_pressure(da_var, delp):
+    """ Convenience function that uses regrid_to_shared_coords() for a common
+    usage of interpolating to a pressure grid
+
+    Args:
+        da_var: data array variable to regrid
+        delp: data array with delp (pressure thickness)
+
+    Returns:
+        data array of da_var at vertical coordinates of
+        pressure grid from vcm.cubedsphere.constants
+    """
+    return regrid_to_shared_coords(
+        da_var,
+        np.array(PRESSURE_GRID),
+        pressure_at_midpoint_log(delp),
+        regrid_dim_name="pressure",
+        replace_dim_name="pfull",
+    )
 
 
 def regrid_to_area_weighted_pressure(
@@ -54,7 +74,7 @@ def regrid_to_area_weighted_pressure(
         delp, area, coarsening_factor, x_dim=x_dim, y_dim=y_dim
     )
     return _regrid_given_delp(
-        ds, delp, delp_coarse, area, x_dim=x_dim, y_dim=y_dim, z_dim=z_dim,
+        ds, delp, delp_coarse, area, x_dim=x_dim, y_dim=y_dim, z_dim=z_dim
     )
 
 
@@ -140,7 +160,7 @@ def _regrid_given_delp(
         )
 
     masked_weights = _mask_weights(
-        weights, phalf_coarse_on_fine, phalf_fine, dim_center=z_dim,
+        weights, phalf_coarse_on_fine, phalf_fine, dim_center=z_dim
     )
 
     return ds_regrid, masked_weights

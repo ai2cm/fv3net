@@ -76,7 +76,6 @@ def run(args, pipeline_args):
     train_test_labels = _test_train_split(
         data_batch_urls, args.train_fraction, args.random_seed
     )
-
     logger.info(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
@@ -213,14 +212,14 @@ def _open_cloud_data(run_dirs):
                 .isel({FORECAST_TIME_DIM: slice(-2, None)})
                 .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
             )
-            ds_run = helpers._set_relative_forecast_time_coord(ds_run).drop(
-                "file_prefix"
-            )
+
+            ds_run = helpers._set_relative_forecast_time_coord(ds_run)
+            if "file_prefix" in ds_run.dims:
+                ds_run = ds_run.drop("file_prefix")
             ds_runs.append(ds_run)
         return xr.concat(ds_runs, INIT_TIME_DIM)
-    except (ValueError, TypeError) as e:
+    except (ValueError, TypeError, AttributeError) as e:
         logger.error(f"Failed to open restarts from cloud: {e}")
-        ds_runs.append(ds_run)
 
 
 def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
@@ -253,10 +252,7 @@ def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
         )
         return ds
     except (ValueError, TypeError) as e:
-        logger.error(
-            f"Failed step CreateTrainingCols for batch"
-            f"{ds[INIT_TIME_DIM].values[0]}: {e}"
-        )
+        logger.error(f"Failed step CreateTrainingCols: {e}")
 
 
 def _merge_hires_data(ds_run, diag_c48_path):
