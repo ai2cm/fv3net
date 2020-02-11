@@ -2,7 +2,7 @@ from metpy.interpolate import interpolate_1d
 import numpy as np
 import xarray as xr
 
-from ..calc.thermo import pressure_at_interface
+from ..calc.thermo import pressure_at_interface, pressure_at_midpoint_log
 from ..cubedsphere import edge_weighted_block_average, weighted_block_average
 from ..cubedsphere.coarsen import block_upsample_like
 from ..cubedsphere.constants import (
@@ -12,7 +12,9 @@ from ..cubedsphere.constants import (
     FV_CORE_X_OUTER,
     FV_CORE_Y_CENTER,
     FV_CORE_Y_OUTER,
+    PRESSURE_GRID,
 )
+from ..regrid import regrid_to_shared_coords
 from .xgcm import create_fv3_grid
 
 try:
@@ -23,41 +25,25 @@ else:
     _mappm_installed = True
 
 
-def regrid_to_shared_coords(
-    da_var_to_regrid, new_coord_grid, da_old_coords, regrid_dim_name, replace_dim_name
-):
-    """ This function interpolates a variable to a new coordinate grid that is along
-    a dimension corresponding to existing irregular coordinates that may be
-    different at each point, e.g. interpolate temperature profiles to be given at the
-    same pressure values for each data point
+def regrid_to_common_pressure(da_var, delp):
+    """ Convenience function that uses regrid_to_shared_coords() for a common
+    usage of interpolating to a pressure grid
 
     Args:
-    da_var_to_regrid: data array for the variable to interpolate to new coord grid
-    new_coord_grid: coordinates to interpolate the data variable onto
-    da_old_coords: data array of the original "coordinates"- can be different for
-        each element. Must have same shape as da_var_to_regrid
-    regrid_dim_name: name of new dimension to assign
-    replace_dim_name: Name of old dimension (usually pfull) along which the data was
-        interpolated. This gets replaced because the new data and coords don't have to
-        have the same length as the original data array
+        da_var: data array variable to regrid
+        delp: data array with delp (pressure thickness)
 
     Returns:
-        data array of the variable interpolated at values of new_coord_grid
+        data array of da_var at vertical coordinates of
+        pressure grid from vcm.cubedsphere.constants
     """
-    interp_values = interpolate_1d(
-        new_coord_grid, da_old_coords.values, da_var_to_regrid.values, axis=1
+    return regrid_to_shared_coords(
+        da_var,
+        np.array(PRESSURE_GRID),
+        pressure_at_midpoint_log(delp),
+        regrid_dim_name="pressure",
+        replace_dim_name="pfull",
     )
-    new_dims = [
-        dim if dim != replace_dim_name else regrid_dim_name
-        for dim in da_var_to_regrid.dims
-    ]
-    new_coords = {
-        dim: da_var_to_regrid[dim].values
-        for dim in da_var_to_regrid.dims
-        if dim != replace_dim_name
-    }
-    new_coords[regrid_dim_name] = new_coord_grid
-    return xr.DataArray(interp_values, dims=new_dims, coords=new_coords)
 
 
 def regrid_to_area_weighted_pressure(

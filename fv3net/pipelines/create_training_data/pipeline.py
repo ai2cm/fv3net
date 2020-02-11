@@ -77,7 +77,6 @@ def run(args, pipeline_args):
     train_test_labels = _test_train_split(
         data_batch_urls, args.train_fraction, args.random_seed
     )
-
     logger.info(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
@@ -253,9 +252,7 @@ def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
         )
         return ds
     except (ValueError, TypeError) as e:
-        logger.error(
-            f"Failed step CreateTrainingCols: {e}"
-        )
+        logger.error(f"Failed step CreateTrainingCols: {e}")
 
 
 def _merge_hires_data(ds_run, diag_c48_path):

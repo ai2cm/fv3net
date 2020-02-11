@@ -1,7 +1,10 @@
 import numpy as np
 import pytest
 import xarray as xr
-from vcm.cubedsphere.regridz import regrid_vertical, _mask_weights
+from vcm.cubedsphere.regridz import (
+    regrid_vertical,
+    _mask_weights,
+)
 
 
 def input_dataarray(shape):
