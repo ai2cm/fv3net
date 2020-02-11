@@ -80,7 +80,14 @@ def list_timesteps(path: str) -> List[str]:
         sorted list of all timesteps within path
     """
     file_list = get_fs(path).ls(path)
-    timesteps = map(parse_timestep_from_path, file_list)
+    timesteps = []
+    for current_file in file_list:
+        try:
+            timestep = parse_timestep_from_path(current_file)
+            timesteps.append(timestep)
+        except ValueError as e:
+            # not a timestep directory
+            continue
     return sorted(timesteps)
 
 

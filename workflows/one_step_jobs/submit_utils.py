@@ -6,6 +6,7 @@ import fsspec
 import re
 from multiprocessing import Pool
 from typing import List, Mapping
+from pathlib import Path
 
 import fv3config
 
@@ -194,6 +195,30 @@ def _get_vertical_grid_asset(config_url: str) -> dict:
     )
 
 
+def _get_local_filepath(filename: str) -> str:
+    """
+    Sometimes files are in the local working directory and other times it's not.
+    This function makes attempt at looking if it's not available as specified.
+    
+    Skips looking if filename references a remote file. 
+    """
+    protocol = get_protocol(filename)
+    if protocol != "file":
+        return filename
+    
+    pyfile_pwd = Path(__file__).parent.as_posix()
+    pyfile_path = os.path.join(pyfile_pwd, filename)
+
+    if os.path.exists(filename):
+        path = filename
+    elif os.path.exists(pyfile_path):
+        path = pyfile_path
+    else:
+        raise ValueError(f"Could not find file in directory or as specified.  Checked for {filename} and {pyfile_path}")
+    
+    return path
+
+
 def _get_experiment_name(first_tag: str, second_tag: str) -> str:
     """Return unique experiment name with only alphanumeric, hyphen or dot"""
     uuid_short = str(uuid.uuid4())[:8]
@@ -232,16 +257,23 @@ def _get_and_upload_config(
     )
 
     if "runfile" in kubernetes_config:
+        runfile_path = _get_local_filepath(model_config["runfile"])
         kubernetes_config["runfile"] = _upload_if_necessary(
-            kubernetes_config["runfile"], config_url
+            runfile_path, config_url
         )
+
+    diag_table_path = _get_local_filepath(model_config["diag_table"])
     model_config["diag_table"] = _upload_if_necessary(
-        model_config["diag_table"], config_url
+        diag_table_path, config_url
     )
+
     fs = get_fs(config_url)
-    fs.put(VERTICAL_GRID_FILENAME, os.path.join(config_url, VERTICAL_GRID_FILENAME))
+    vertical_grid_filepath = _get_local_filepath(VERTICAL_GRID_FILENAME)
+    fs.put(vertical_grid_filepath, os.path.join(config_url, VERTICAL_GRID_FILENAME))
+
     with fsspec.open(os.path.join(config_url, "fv3config.yml"), "w") as config_file:
         config_file.write(yaml.dump(model_config))
+
     return {"fv3config": model_config, "kubernetes": kubernetes_config}
 
 
@@ -266,7 +298,7 @@ def submit_jobs(
         )
 
         jobname = one_step_config["fv3config"]["experiment_name"]
-        one_step_config["kubernetes"]["jobname"] = jobname,
+        one_step_config["kubernetes"]["jobname"] = jobname
         fv3config.run_kubernetes(
             os.path.join(config_url, "fv3config.yml"),
             curr_output_url,
