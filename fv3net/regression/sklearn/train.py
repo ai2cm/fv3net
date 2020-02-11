@@ -139,10 +139,10 @@ if __name__ == "__main__":
         "--train-data-path", type=str, required=True, help="Location of training data",
     )
     parser.add_argument(
-        "--remote-output-url",
+        "--output-data-path",
         type=str,
-        required=False,
-        help="Optional remote location to save config and trained model.",
+        required=True,
+        help="Location to save config and trained model.",
     )
     parser.add_argument(
         "--delete-local-results-after-upload",
@@ -151,12 +151,12 @@ if __name__ == "__main__":
         help="If results are uploaded to remote storage, "
         "remove local copy after upload.",
     )
-    parser.add_argument(
-        "--output-dir-suffix",
-        type=str,
-        default="sklearn_regression",
-        help="Directory suffix to write files to. Prefixed with today's timestamp.",
-    )
+#     parser.add_argument(
+#         "--output-dir-suffix",
+#         type=str,
+#         default="sklearn_regression",
+#         help="Directory suffix to write files to. Prefixed with today's timestamp.",
+#     )
     args = parser.parse_args()
     train_config = load_model_training_config(
         args.train_config_file, args.train_data_path
@@ -176,8 +176,7 @@ if __name__ == "__main__":
         os.path.join(output_dir, f"{timestamp}_{MODEL_CONFIG_FILENAME}"),
     )
     joblib.dump(model, os.path.join(output_dir, f"{timestamp}_{MODEL_FILENAME}"))
-
-    if args.remote_output_url:
-        gsutil.copy(output_dir, args.remote_output_url)
-        if args.delete_local_results_after_upload is True:
-            rmtree(output_dir)
+    
+    gsutil.copy(output_dir, args.output_data_path)
+    if args.delete_local_results_after_upload is True:
+        rmtree(output_dir)
