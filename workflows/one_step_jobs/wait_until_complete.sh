@@ -19,6 +19,6 @@ FAILED_JOBS="$(kubectl get jobs --selector "experiment_group=$exp_label" --outpu
 printf "failed jobs from iteration %s:\n%s\n" "$exp_label" "$FAILED_JOBS"
 
 # Delete completed jobs
-kubectl jobs delete `kubectl get jobs --selector "experiment_group=$exp_label" --output=json | jq --raw-output '[.items[] | select (.status.succeeded == 1)] | .[].metadata.name'` || exit 1`
+kubectl delete jobs `kubectl get jobs --selector "experiment_group=$exp_label" --output=json | jq --raw-output '[.items[] | select (.status.succeeded == 1)] | .[].metadata.name'` || exit 1
 
 exit 0
