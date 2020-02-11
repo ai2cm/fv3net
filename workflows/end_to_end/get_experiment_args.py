@@ -27,7 +27,7 @@ def _get_experiment_path(config, unique_id=None):
     if proto == '' or proto is None:
         proto = 'file'
 
-    experiment_name = f"{experiment['name']}-{str(uuid.uuid4())[-7:]}"
+    experiment_name = f"{experiment['name']}"
 
     if unique_id is not None:
         experiment_name = f"{experiment_name}-{unique_id}"
@@ -39,7 +39,7 @@ def _get_all_step_arguments(workflow_steps, config):
     """Get a dictionary of each step with i/o and methedological arguments"""
     
     if config['experiment']['unique_id']:
-        unique_id = {str(uuid.uuid4())[-8:]
+        unique_id = str(uuid.uuid4())[-8:]
     else:
         unique_id = None
     
