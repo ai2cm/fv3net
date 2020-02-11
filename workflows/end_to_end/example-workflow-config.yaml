@@ -25,8 +25,8 @@ experiment:
       input_location: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs
       method: 
         model-resolution: 48
-        diag-c48-path: gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/gfsphysics_15min_coarse.zarr
+        diag-c48-path: gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/C48_gfsphysics_15min_coarse.zarr
         timesteps-per-output-file: 3
-        mask-to-surface-type: None
+        mask-to-surface-type: 
         train-fraction: 0.8
         

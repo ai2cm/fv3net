@@ -72,7 +72,7 @@ def run(args, pipeline_args):
     proto, path = _split_url(args.gcs_input_data_path)
     fs = fsspec.filesystem(proto)
     gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(path))]
-    _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir, args.gcs_bucket)
+    _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir)
     data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
     train_test_labels = _test_train_split(
         data_batch_urls, args.train_fraction, args.random_seed
@@ -95,14 +95,13 @@ def run(args, pipeline_args):
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
-                gcs_dest_dir=args.gcs_output_data_dir,
-                bucket=args.gcs_bucket,
+                gcs_output_dir=args.gcs_output_data_dir,
                 train_test_labels=train_test_labels,
             )
         )
 
 
-def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
+def _save_grid_spec(fs, run_dir, gcs_output_data_dir):
     """ Reads grid spec from diag files in a run dir and writes to GCS
 
     Args:
@@ -127,11 +126,11 @@ def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
         pattern="{prefix}.tile{tile:d}.nc",
     )[["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]]
     _write_remote_train_zarr(
-        grid, gcs_output_data_dir, gcs_bucket, zarr_filename="grid_spec.zarr"
+        grid, gcs_output_data_dir, zarr_name="grid_spec.zarr"
     )
     logger.info(
         f"Wrote grid spec to "
-        f"{os.path.join(gcs_bucket, gcs_output_data_dir, 'grid_spec.zarr')}"
+        f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
     )
     shutil.rmtree("temp_grid_spec")
 
@@ -272,6 +271,7 @@ def _merge_hires_data(ds_run, diag_c48_path):
 
 
 def _try_mask_to_surface_type(ds, surface_type):
+    surface_type = None if surface_type == "None" else surface_type
     try:
         return mask_to_surface_type(ds, surface_type)
     except (AttributeError, ValueError, TypeError) as e:
@@ -280,9 +280,8 @@ def _try_mask_to_surface_type(ds, surface_type):
 
 def _write_remote_train_zarr(
     ds,
-    gcs_dest_dir,
-    bucket="gs://vcm-ml-data",
-    zarr_filename=None,
+    gcs_output_dir,
+    zarr_name=None,
     train_test_labels=None,
 ):
     """Writes temporary zarr on worker and moves it to GCS
@@ -297,12 +296,12 @@ def _write_remote_train_zarr(
         None
     """
     try:
-        if not zarr_filename:
-            zarr_filename = helpers._path_from_first_timestep(ds, train_test_labels)
-        output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
-        ds.to_zarr(zarr_filename, mode="w")
-        gsutil.copy(zarr_filename, output_path)
+        if not zarr_name:
+            zarr_name = helpers._path_from_first_timestep(ds, train_test_labels)
+        output_path = os.path.join(gcs_output_dir, zarr_name)
+        ds.to_zarr(zarr_name, mode="w")
+        gsutil.copy(zarr_name, output_path)
         logger.info(f"Done writing zarr to {output_path}")
-        shutil.rmtree(zarr_filename)
+        shutil.rmtree(zarr_name)
     except (ValueError, AttributeError, TypeError, RuntimeError) as e:
         logger.error(f"Failed to write zarr: {e}")
