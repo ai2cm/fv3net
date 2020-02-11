@@ -4,7 +4,6 @@ hyperparameters:
   n_estimators: 4
 num_batches: 3
 files_per_batch: 5
-gcs_data_dir: 'gs://vcm-ml-data/test_annak/2020-02-05_train_data_pipeline/train'
 input_variables:
   - T
   - sphum
