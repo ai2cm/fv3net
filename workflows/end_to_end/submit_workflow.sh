@@ -17,18 +17,22 @@ python setup.py sdist
 
 cd ../../../..
 
-# Coarsening step
-coarsen_args=$(echo $all_step_args | jq -r .coarsen_restarts)
-workflows/coarsen_restarts/orchestrator_job.sh $coarsen_args
+# # Coarsening step
+# coarsen_args=$(echo $all_step_args | jq -r .coarsen_restarts)
+# workflows/coarsen_restarts/orchestrator_job.sh $coarsen_args
 
-# One-step jobs
-one_step_args=$(echo $all_step_args | jq -r .one_step_run)
-python workflows/one_step_jobs/orchestrate_submit_jobs.py $one_step_args
+# # One-step jobs
+# one_step_args=$(echo $all_step_args | jq -r .one_step_run)
+# python workflows/one_step_jobs/orchestrate_submit_jobs.py $one_step_args
 
 # ML training data creation step
 training_data_args=$(echo $all_step_args | jq -r .create_training_data)
 workflows/create_training_data/orchestrator_job.sh $training_data_args
 
 # train ML model step
-ml_model_args=$(echo $all_step_args | jq -r .create_training_data)
-workflows/sklearn_regression/orchestrator_train_sklearn.sh $training_data_args
+train_model_args=$(echo $all_step_args | jq -r .train_sklearn_model)
+workflows/sklearn_regression/orchestrator_train_sklearn.sh $train_model_args
+
+# test ML model step
+test_model_args=$(echo $all_step_args | jq -r .test_sklearn_model)
+workflows/sklearn_regression/orchestrator_test_sklearn.sh $test_model_args
