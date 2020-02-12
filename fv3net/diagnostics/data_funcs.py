@@ -29,6 +29,6 @@ def merge_comparison_datasets(
     datasets_to_merge = [xr.concat([ds[var].squeeze(drop=True) for ds in datasets],
                                    src_dim_index), grid]
     if additional_dataset is not None:
-        datasets_to_merge += additional_dataset
+        datasets_to_merge.append(additional_dataset)
     ds_comparison = xr.merge(datasets_to_merge)
     return ds_comparison
