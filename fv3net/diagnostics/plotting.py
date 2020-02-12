@@ -73,15 +73,11 @@ def plot_diurnal_cycle(
     plt.show()
 
 
-
 # functions below here are from the previous design and probably outdated
 # leaving for now as they might be adapted to work with new design
 
-def plot_diag_var_single_map(
-        da,
-        grid,
-        var_name,
-        plot_cube_kwargs=None):
+
+def plot_diag_var_single_map(da, grid, var_name, plot_cube_kwargs=None):
     """ Uses vcm.visualize.plot_cube to plot
 
     Args:
@@ -98,12 +94,12 @@ def plot_diag_var_single_map(
 
 
 def plot_time_series(
-        ds,
-        vars_to_plot,
-        output_dir,
-        time_var=INIT_TIME_DIM,
-        plot_kwargs=None,
-        plot_filename="time_series.png",
+    ds,
+    vars_to_plot,
+    output_dir,
+    time_var=INIT_TIME_DIM,
+    plot_kwargs=None,
+    plot_filename="time_series.png",
 ):
     """ Plot one or more variables as a time series.
 
