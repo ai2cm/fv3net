@@ -16,7 +16,7 @@ if __name__ == "__main__":
         required=False,
         help="Location of C48 (coarsened from C384) high res diagnostic zarr for "
         "features (SHF, LHF, etc.) that are not saved in restarts. If not provided, "
-        "features from diagnostics will not be in the final training data set.",
+        "features from diagnostics_old will not be in the final training data set.",
     )
     parser.add_argument(
         "--gcs-output-data-dir",

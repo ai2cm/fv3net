@@ -6,7 +6,8 @@ from ..cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 GRAVITY = 9.80665  # m /s2
 RDGAS = 287.05  # J / K / kg
 RVGAS = 461.5  # J / K / kg
-LATENT_HEAT_VAPORIZATION = 2.5e6
+LATENT_HEAT_VAPORIZATION = 2.5e6  # J / kg
+SPECIFIC_HEAT = 1004.0  # J / kg / K
 
 TOA_PRESSURE = 300.0  # Pa
 REVERSE = slice(None, None, -1)

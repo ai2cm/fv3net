@@ -9,6 +9,7 @@ from vcm.cubedsphere.constants import (
     TILE_COORDS,
 )
 from vcm.calc.thermo import LATENT_HEAT_VAPORIZATION
+from ..data_funcs import energy_convergence
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
 
@@ -20,7 +21,11 @@ STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 def predict_on_test_data(test_data_path, model_path, num_test_zarrs, model_type="rf"):
     if model_type == "rf":
-        from fv3net.regression.sklearn.test import load_test_dataset, load_model, predict_dataset
+        from fv3net.regression.sklearn.test import (
+            load_test_dataset,
+            load_model,
+            predict_dataset,
+        )
 
         ds_test = load_test_dataset(test_data_path, num_test_zarrs)
         sk_wrapped_model = load_model(model_path)
@@ -55,4 +60,5 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times=None):
         ds_hires["PRATEsfc_coarse"]
         - ds_hires["LHTFLsfc_coarse"] / LATENT_HEAT_VAPORIZATION
     )
+    ds_hires["heating"] = energy_convergence(ds_hires)
     return ds_hires

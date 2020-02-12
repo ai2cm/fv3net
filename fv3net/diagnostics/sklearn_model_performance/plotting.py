@@ -6,6 +6,7 @@ import xarray as xr
 
 from vcm.calc import mass_integrate, r2_score
 from vcm.calc.calc import local_time
+from vcm.calc.thermo import SPECIFIC_HEAT
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     COORD_X_CENTER,
@@ -17,7 +18,6 @@ from vcm.cubedsphere.regridz import regrid_to_common_pressure
 from vcm.select import mask_to_surface_type
 from vcm.visualize import plot_cube, mappable_var
 
-from ..create_report import create_report
 from ..plotting import plot_diurnal_cycle
 from ..data_funcs import merge_comparison_datasets
 
@@ -164,6 +164,10 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ds_target["P-E"] = (
         mass_integrate(-ds_target["Q2"], ds_target.delp) * kg_m2s_to_mm_day
     )
+    ds_pred["heating"] = SPECIFIC_HEAT * mass_integrate(ds_pred["Q1"], ds_pred.delp)
+    ds_target["heating"] = SPECIFIC_HEAT * mass_integrate(
+        ds_target["Q1"], ds_target.delp
+    )
 
     # for convenience, separate the land/sea data
     slmsk = ds_target.isel({COORD_Z_CENTER: -1, INIT_TIME_DIM: 0}).slmsk
@@ -179,6 +183,13 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
     ds_pe = merge_comparison_datasets(
         "P-E",
+        [ds_pred, ds_target, ds_hires],
+        ["prediction", "target C48", "coarsened high res"],
+        grid,
+        slmsk,
+    )
+    ds_heating = merge_comparison_datasets(
+        "heating",
         [ds_pred, ds_target, ds_hires],
         ["prediction", "target C48", "coarsened high res"],
         grid,
@@ -226,12 +237,28 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         output_dir=output_dir,
         plot_filename="diurnal_cycle_P-E_land.png",
     )
+    plot_diurnal_cycle(
+        mask_to_surface_type(ds_heating, "sea"),
+        "heating",
+        title="ocean",
+        output_dir=output_dir,
+        plot_filename="diurnal_cycle_heating_sea.png",
+    )
+    plot_diurnal_cycle(
+        mask_to_surface_type(ds_pe, "land"),
+        "heating",
+        title="land",
+        output_dir=output_dir,
+        plot_filename="diurnal_cycle_heating_land.png",
+    )
     report_sections["Diurnal cycle"] = [
         "diurnal_cycle_P-E_sea.png",
         "diurnal_cycle_P-E_land.png",
+        "diurnal_cycle_heating_sea.png",
+        "diurnal_cycle_heating_land.png",
     ]
 
-    # map plot a variable and compare across prediction/ C48 /coarsened high res data
+    # map plot variables and compare across prediction/ C48 /coarsened high res data
     plot_comparison_maps(
         ds_pe,
         "P-E",
@@ -245,9 +272,30 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         "P-E",
         output_dir=output_dir,
         plot_filename="P-E_time_snapshots.png",
-        time_index_selection=[0, 2, 4, 6, 8],
+        time_index_selection=[0, -1],
         plot_cube_kwargs={"cbar_label": "timestep snapshot, P-E [mm/day]"},
     )
     report_sections["P-E"] = ["P-E_time_avg.png", "P-E_snapshots.png"]
+
+    plot_comparison_maps(
+        ds_heating,
+        "heating",
+        output_dir=output_dir,
+        plot_filename="column_heating_time_avg.png",
+        time_index_selection=None,
+        plot_cube_kwargs={"cbar_label": "time avg, column heating [W/m$^2$]"},
+    )
+    plot_comparison_maps(
+        ds_heating,
+        "heating",
+        output_dir=output_dir,
+        plot_filename="column_heating_snapshots.png",
+        time_index_selection=[0, -1],
+        plot_cube_kwargs={"cbar_label": "timestep snapshot, column heating [W/m$^2$]"},
+    )
+    report_sections["Column heating"] = [
+        "column_heating_time_avg.png",
+        "column_heating_snapshots.png",
+    ]
 
     return report_sections
