@@ -20,7 +20,7 @@ STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 def predict_on_test_data(test_data_path, model_path, num_test_zarrs, model_type="rf"):
     if model_type == "rf":
-        from fv3net.sklearn.test import load_test_dataset, load_model, predict_dataset
+        from fv3net.regression.sklearn.test import load_test_dataset, load_model, predict_dataset
 
         ds_test = load_test_dataset(test_data_path, num_test_zarrs)
         sk_wrapped_model = load_model(model_path)
