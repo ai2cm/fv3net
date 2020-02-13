@@ -6,7 +6,7 @@ from ..cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 GRAVITY = 9.80665  # m /s2
 RDGAS = 287.05  # J / K / kg
 RVGAS = 461.5  # J / K / kg
-LATENT_HEAT_VAPORIZATION = 2.5e6
+LATENT_HEAT_VAPORIZATION = 2.51e6
 
 TOA_PRESSURE = 300.0  # Pa
 REVERSE = slice(None, None, -1)
@@ -153,3 +153,54 @@ def hydrostatic_dz(T, q, delp, dim=COORD_Z_CENTER):
 def dz_and_top_to_phis(top_height, dz, dim=COORD_Z_CENTER):
     """ Compute surface geopotential from model top height and layer thicknesses"""
     return GRAVITY * (top_height + dz.sum(dim=dim))
+
+
+def net_heating(
+    dlw_sfc, dsw_sfc, ulw_sfc, ulw_toa, usw_sfc, usw_toa, dsw_toa, shf, cond_int
+):
+    """A dataarray implementation of ``net_heating_from_dataset``
+    
+
+    All argument except for ``cond_int`` should be in W/m2. cond_int is in units
+    kg/kg/s which is equivalent to a surface precipitation rate in mm/s.
+    """
+
+    return (
+        -dlw_sfc
+        - dsw_sfc
+        + ulw_sfc
+        - ulw_toa
+        + usw_sfc
+        - usw_toa
+        + dsw_toa
+        + shf
+        + cond_int * LATENT_HEAT_VAPORIZATION
+    )
+
+
+def net_heating_from_dataset(ds: xr.Dataset) -> xr.DataArray:
+    """Compute the net heating from a dataset of diagnostic output
+
+    This should be equivalent to the vertical integral (i.e. <>) of Q1::
+        
+        cp <Q1>
+
+    Args:
+        ds: a datasets with the names for the heat fluxes and precipitation used
+            by the ML pipeline
+    
+    Returns:
+        the total net heating, the rate of change of the dry enthalpy <c_p T>
+    """
+    fluxes = (
+        ds.DLWRFsfc_coarse,
+        ds.DSWRFsfc_coarse,
+        ds.ULWRFsfc_coarse,
+        ds.ULWRFtoa_coarse,
+        ds.USWRFsfc_coarse,
+        ds.USWRFtoa_coarse,
+        ds.insolation,
+        ds.SHF,
+        ds.precip_sfc,
+    )
+    return net_heating(*fluxes)
