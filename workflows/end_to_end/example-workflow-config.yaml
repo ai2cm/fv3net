@@ -5,29 +5,49 @@ experiment:
   name: test-experiment
   unique_id: True
   fv3net_hash: ca279cb79c0b97a5e5e758ec8785612b3c7ec044
-#   workflow_steps: [coarsen_restarts, one_step_run, creating_training_data, train_sklearn_model]
   workflow_steps: [test_sklearn_model]
+#   workflow_steps: [
+#     coarsen_restarts,
+#     one_step_run,
+#     create_training_data,
+#     train_sklearn_model,
+#     prognostic_run,
+#   ]
+  experiment_vars:
+    one_step_yaml: /home/andrep/repos/fv3net/workflows/one_step_jobs/all-physics-off.yml
   steps:
     coarsen_restarts:
-      input_location:  gs://vcm-ml-data/orchestration-testing/shield-C384-restarts-2019-12-04
+      inputs:
+        data_to_coarsen:
+          location: gs://vcm-ml-data/orchestration-testing/shield-C384-restarts-2019-12-04
       method:
         source-resolution: 384
         target-resolution: 48
+    
     one_step_run:
-      # input_from: coarsen_restarts
-      input_location: gs://vcm-ml-data/orchestration-testing/test-experiment-522f4ad/coarsen_restarts_source-resolution_384_target-resolution_48
-      add_unique_id: ['experiment_label']
+      config_transforms:
+        add_unique_id: ['experiment_label']
+        use_top_level: ['experiment_yaml']
+      inputs:
+        restart_data:
+          from: coarsen_restarts
+          # location: gs://vcm-ml-data/orchestration-testing/test-experiment-522f4ad/coarsen_restarts_source-resolution_384_target-resolution_48
+      output: null
       method: 
-        one_step_yaml: /home/andrep/repos/fv3net/workflows/one_step_jobs/all-physics-off.yml
+        experiment_yaml: one_step_yaml
         experiment_label: test-orchestration-group
+    
     create_training_data:
-#       input_from: one_step_run
-      input_location: gs://vcm-ml-data/orchestration-testing/test-experiment-d8d2f94f/one_step_run_one_step_yaml_all-physics-off.yml_experiment_label_test-orchestration-group
+      inputs:
+        one_step_data:
+          from: one_step_run
+          # location: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs
       method: 
         diag-c48-path: gs://vcm-ml-data/test-annak/2020-02-11_coarsened_c48_diags.zarr
         timesteps-per-output-file: 2
         mask-to-surface-type: 
         train-fraction: 0.6
+        
     train_sklearn_model:
       input_from: create_training_data
 #       input_location: gs://vcm-ml-data/test-annak/2020-02-05_train_data_pipeline/train
@@ -41,5 +61,16 @@ experiment:
         test_data: gs://vcm-ml-data/orchestration-testing/test-experiment-f059bf46/create_training_data_diag-c48-path_2020-02-11_coarsened_c48_diags.zarr_timesteps-per-output-file_2_mask-to-surface-type_None
         diagnostics_data: gs://vcm-ml-data/test-annak/2020-02-11_coarsened_c48_diags.zarr
         num-test-zarrs: 4
-        
-        
+    
+    prognostic_run:
+      inputs:
+        sklearn_model:
+          from: train_sklearn_model
+        restart_file_dir:
+          from: one_step_run
+      config_transforms:
+        use_top_level: ['base_yaml']
+      method:
+        base_yaml: one_step_yaml
+        prognostic_yaml_adjust: /home/andrep/repos/fv3net/workflows/prognostic_c48_run/prognostic_run_update.one_step_yaml
+        ic_timestep: 20160801.001500
