@@ -19,7 +19,9 @@ from vcm.select import mask_to_surface_type
 from vcm.visualize import plot_cube, mappable_var
 
 from ..plotting import plot_diurnal_cycle
-from ..data_funcs import merge_comparison_datasets
+from ..data_funcs import (
+    merge_comparison_datasets, get_latlon_grid_coords,
+    EXAMPLE_CLIMATE_LATLON_COORDS)
 
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
@@ -181,20 +183,23 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ds_target_land = mask_to_surface_type(xr.merge([ds_target, slmsk]), "land").drop(
         "slmsk"
     )
+
     ds_pe = merge_comparison_datasets(
         "P-E",
         [ds_pred, ds_target, ds_hires],
-        ["prediction", "target C48", "coarsened high res"],
+        ["prediction", "target", "high res diagnostics"],
         grid,
         slmsk,
     )
+    ds_pe["local_time"] = local_time(ds_pe)
     ds_heating = merge_comparison_datasets(
         "heating",
         [ds_pred, ds_target, ds_hires],
-        ["prediction", "target C48", "coarsened high res"],
+        ["prediction", "target", "high res diagnostics"],
         grid,
         slmsk,
     )
+    ds_heating["local_time"] = local_time(ds_heating)
 
     # R^2 vs pressure plots
     matplotlib.rcParams["figure.dpi"] = 70
@@ -221,7 +226,6 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ]
 
     # plot a variable across the diurnal cycle
-    ds_pe["local_time"] = local_time(ds_pe)
     matplotlib.rcParams["figure.dpi"] = 80
     plot_diurnal_cycle(
         mask_to_surface_type(ds_pe, "sea"),
@@ -245,18 +249,27 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         plot_filename="diurnal_cycle_heating_sea.png",
     )
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_pe, "land"),
+        mask_to_surface_type(ds_heating, "land"),
         "heating",
         title="land",
         output_dir=output_dir,
         plot_filename="diurnal_cycle_heating_land.png",
+    )
+    local_coords = get_latlon_grid_coords(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
+    for location_name, coords in local_coords.items():
+        plot_diurnal_cycle(
+            ds_heating.sel(coords),
+            title=location_name,
+            output_dir=output_dir,
+            plot_filename=f"diurnal_cycle_heating_{location_name}.png"
     )
     report_sections["Diurnal cycle"] = [
         "diurnal_cycle_P-E_sea.png",
         "diurnal_cycle_P-E_land.png",
         "diurnal_cycle_heating_sea.png",
         "diurnal_cycle_heating_land.png",
-    ]
+    ] + [f"diurnal_cycle_heating_{location_name}.png" for location_name in local_coords]
+
 
     # map plot variables and compare across prediction/ C48 /coarsened high res data
     plot_comparison_maps(

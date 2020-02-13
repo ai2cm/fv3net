@@ -2,15 +2,23 @@ import pandas as pd
 import xarray as xr
 
 from vcm.calc.thermo import LATENT_HEAT_VAPORIZATION
-from vcm.select import drop_nondim_coords
+from vcm.select import drop_nondim_coords, get_latlon_grid_coords
 
+# give as [lat, lon]
+EXAMPLE_CLIMATE_LATLON_COORDS = {
+    "sahara_desert": [20., 10.],
+    "tropical_india": [20., 81.],
+    "himalayas": [28., 87],
+    "central_canada": [55., 258.],
+    "tropical_west_pacific": [-5., 165.]
+}
 
 def merge_comparison_datasets(
     var, datasets, dataset_labels, grid, additional_dataset=None
 ):
     """ Makes a comparison dataset out of multiple datasets that all have a common
     data variable. They are concatenated with a new dim "dataset" that can be used
-    to distinguish each dataset's data values from each other when plotting together.
+    to distinguish each dataset's data values from each other when plotting togethe
 
     Args:
         var: data variable of interest that is in all datasets
@@ -38,7 +46,7 @@ def merge_comparison_datasets(
     return ds_comparison
 
 
-def energy_convergence(ds_hires):
+def hires_diag_column_heating(ds_hires):
     """
 
     Args:
@@ -47,12 +55,19 @@ def energy_convergence(ds_hires):
     Returns:
         Data array of the column energy convergence [W/m2]
     """
-    energy_convergence = (
-        (ds_hires["SHTFLsfc_coarse"] + ds_hires["LHTFLsfc_coarse"])
+    heating = (
+        ds_hires["SHTFLsfc_coarse"]
         + (ds_hires["USWRFsfc_coarse"] - ds_hires["USWRFtoa_coarse"])
         + (ds_hires["DSWRFtoa_coarse"] - ds_hires["DSWRFsfc_coarse"])
         + (ds_hires["ULWRFsfc_coarse"] - ds_hires["ULWRFtoa_coarse"])
         - ds_hires["DLWRFsfc_coarse"]
         + ds_hires["PRATEsfc_coarse"] * LATENT_HEAT_VAPORIZATION
     )
-    return energy_convergence.rename("energy_convergence")
+    return heating.rename("heating")
+
+
+def get_latlon_grid_coords(grid, climate_latlon_coords):
+    climate_grid_coords = {}
+    for climate, latlon_coords in climate_latlon_coords.items():
+        climate_grid_coords[climate] = get_latlon_grid_coords(grid, lat=latlon[0], lon=latlon[1])
+    return climate_grid_coords

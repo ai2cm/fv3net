@@ -33,6 +33,7 @@ def plot_diurnal_cycle(
     title=None,
     plot_filename="diurnal_cycle.png",
     save_fig=True,
+    y_label=None
 ):
     """
 
@@ -64,7 +65,7 @@ def plot_diurnal_cycle(
         ]
         plt.plot(bin_centers, bin_means, label=label)
     plt.xlabel("local_time [hr]")
-    plt.ylabel(var)
+    plt.ylabel(y_label or var)
     plt.legend(loc="lower left")
     if title:
         plt.title(title)
