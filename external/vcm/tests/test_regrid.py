@@ -2,7 +2,7 @@ import xarray as xr
 import numpy as np
 import pytest
 
-from vcm.regrid import interpolate_unstructured
+from vcm.regrid import interpolate_unstructured, regrid_to_shared_coords
 
 
 def test_interpolate_unstructured_same_as_sel_if_1d():
@@ -50,3 +50,27 @@ def test_interpolate_unstructured_2d(width):
 
     xr.testing.assert_equal(expected["a"].variable, answer["a"].variable)
     assert expected["a"].dims == ("sample",)
+
+
+@pytest.fixture()
+def test_ds_interp():
+    coords = {"pfull": [1, 2, 3], "x": [1, 2]}
+    da_var_to_interp = xr.DataArray(
+        [[1.0, 2.0, 3.0], [-1.0, -2.0, -3.0]], dims=["x", "pfull"], coords=coords
+    )
+    da_pressure = xr.DataArray(
+        [[0, 1, 2], [0, 2, 4]], dims=["x", "pfull"], coords=coords
+    )
+    ds = xr.Dataset({"interp_var": da_var_to_interp, "pressure": da_pressure})
+    return ds
+
+
+def test_regrid_to_shared_coords(test_ds_interp):
+    test_da = regrid_to_shared_coords(
+        test_ds_interp["interp_var"],
+        np.array([0.5, 2]),
+        test_ds_interp["pressure"],
+        "pressure_uniform",
+        "pfull",
+    )
+    assert np.allclose(test_da.values, [[1.5, -1.25], [3.0, -2.0]])

@@ -8,16 +8,14 @@ import xarray as xr
 
 from vcm.calc import mass_integrate, r2_score
 from vcm.calc.calc import local_time
-from vcm.calc.thermo import pressure_at_midpoint
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     COORD_X_CENTER,
     COORD_Y_CENTER,
     COORD_Z_CENTER,
-    TILE_COORDS,
     PRESSURE_GRID,
 )
-from vcm.cubedsphere.regridz import regrid_to_shared_coords
+from vcm.cubedsphere.regridz import regrid_to_common_pressure
 from vcm.select import mask_to_surface_type
 from vcm.visualize import plot_cube, mappable_var
 
@@ -57,16 +55,6 @@ def _merge_comparison_datasets(var, ds_pred, ds_data, ds_hires, grid):
     return ds_comparison
 
 
-def _regrid_to_pressure_level(da):
-    return regrid_to_shared_coords(
-        da,
-        np.array(PRESSURE_GRID),
-        pressure_at_midpoint(da),
-        regrid_dim_name="pressure",
-        replace_dim_name="pfull",
-    )
-
-
 def _make_r2_plot(
     ds_pred,
     ds_target,
@@ -80,16 +68,20 @@ def _make_r2_plot(
     plt.clf()
     if isinstance(vars, str):
         vars = [vars]
-    x = ds_pred["pfull"].values
+    x = np.array(PRESSURE_GRID) / 100
     for var in vars:
         y = r2_score(
-            _regrid_to_pressure_level(ds_target).stack(sample=STACK_DIMS)[var],
-            _regrid_to_pressure_level(ds_pred).stack(sample=STACK_DIMS)[var],
+            regrid_to_common_pressure(ds_target[var], ds_target["delp"]).stack(
+                sample=STACK_DIMS
+            ),
+            regrid_to_common_pressure(ds_pred[var], ds_pred["delp"]).stack(
+                sample=STACK_DIMS
+            ),
             sample_dim,
         ).values
         plt.plot(x, y, label=var)
     plt.legend()
-    plt.xlabel("pressure level")
+    plt.xlabel("pressure [HPa]")
     plt.ylabel("$R^2$")
     if title:
         plt.title(title)
@@ -109,17 +101,25 @@ def _make_land_sea_r2_plot(
     save_fig=True,
 ):
     plt.clf()
-    x = np.array(PRESSURE_GRID)
+    x = np.array(PRESSURE_GRID) / 100
     colors = ["blue", "orange"]
     for color, var in zip(colors, vars):
         y_sea = r2_score(
-            _regrid_to_pressure_level(ds_target_sea).stack(sample=STACK_DIMS)[var],
-            _regrid_to_pressure_level(ds_pred_sea).stack(sample=STACK_DIMS)[var],
+            regrid_to_common_pressure(ds_target_sea[var], ds_target_sea["delp"]).stack(
+                sample=STACK_DIMS
+            ),
+            regrid_to_common_pressure(ds_pred_sea[var], ds_pred_sea["delp"]).stack(
+                sample=STACK_DIMS
+            ),
             SAMPLE_DIM,
         ).values
         y_land = r2_score(
-            _regrid_to_pressure_level(ds_target_land).stack(sample=STACK_DIMS)[var],
-            _regrid_to_pressure_level(ds_pred_land).stack(sample=STACK_DIMS)[var],
+            regrid_to_common_pressure(
+                ds_target_land[var], ds_target_land["delp"]
+            ).stack(sample=STACK_DIMS),
+            regrid_to_common_pressure(ds_pred_land[var], ds_pred_land["delp"]).stack(
+                sample=STACK_DIMS
+            ),
             SAMPLE_DIM,
         ).values
         plt.plot(x, y_sea, color=color, alpha=0.7, label=f"{var}, sea", linestyle="--")
@@ -258,7 +258,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         col="dataset",
         cbar_label="P-E [mm/day]",
     )[0]
-    plt.title(time_label)
+    plt.suptitle(time_label)
     fig_pe.savefig(os.path.join(output_dir, "P-E.png"))
     plt.show()
     report_sections["P-E"] = ["P-E.png"]

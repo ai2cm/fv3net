@@ -5,6 +5,7 @@ experiment:
   name: test-experiment
   unique_id: True
   fv3net_hash: ca279cb79c0b97a5e5e758ec8785612b3c7ec044
+<<<<<<< HEAD
   workflow_steps: [
     coarsen_restarts,
     one_step_run,
@@ -17,6 +18,10 @@ experiment:
   experiment_vars:
     one_step_yaml: /home/andrep/repos/fv3net/workflows/one_step_jobs/all-physics-off.yml
   
+=======
+#   workflow_steps: [coarsen_restarts, one_step_run, creating_training_data, train_sklearn_model]
+  workflow_steps: [train_sklearn_model]
+>>>>>>> f99e82802886c9be5dc56260d9c346250d66d2e7
   steps:
     coarsen_restarts:
       inputs:

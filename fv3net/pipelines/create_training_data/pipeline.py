@@ -27,6 +27,7 @@ from vcm.fv3_restarts import (
     _split_url
 )
 from vcm.select import mask_to_surface_type
+from vcm.convenience import parse_timestep_from_path
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -71,13 +72,12 @@ RENAMED_HIRES_VARS = {
 def run(args, pipeline_args):
     proto, path = _split_url(args.gcs_input_data_path)
     fs = fsspec.filesystem(proto)
-    gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(path))]
+    gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(path)) if _filter_timestep(run_dir_path)]
     _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir)
     data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
     train_test_labels = _test_train_split(
         data_batch_urls, args.train_fraction, args.random_seed
     )
-
     logger.info(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
@@ -253,9 +253,7 @@ def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
         )
         return ds
     except (ValueError, TypeError) as e:
-        logger.error(
-            f"Failed step CreateTrainingCols: {e}"
-        )
+        logger.error(f"Failed step CreateTrainingCols: {e}")
 
 
 def _merge_hires_data(ds_run, diag_c48_path):
@@ -305,3 +303,12 @@ def _write_remote_train_zarr(
         shutil.rmtree(zarr_name)
     except (ValueError, AttributeError, TypeError, RuntimeError) as e:
         logger.error(f"Failed to write zarr: {e}")
+
+        
+def _filter_timestep(path):
+    try:
+        parse_timestep_from_path(path)
+        return True
+    except ValueError:
+        return False
+        

@@ -63,9 +63,7 @@ def apparent_source(
 
 def local_time(ds, time=INIT_TIME_DIM, lon_var=VAR_LON_CENTER):
     fractional_hr = (
-        ds[time].dt.hour
-        + (ds[time].dt.minute / 60.0)
-        + (ds[INIT_TIME_DIM].dt.second / 3600.0)
+        ds[time].dt.hour + (ds[time].dt.minute / 60.0) + (ds[time].dt.second / 3600.0)
     )
     local_time = (fractional_hr + ds[lon_var] * HOUR_PER_DEG_LONGITUDE) % 24
     return local_time

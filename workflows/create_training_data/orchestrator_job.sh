@@ -7,7 +7,7 @@ MASK_SURFACE_TYPE=$6
 TRAIN_FRACTION=$7
 
 python -m fv3net.pipelines.create_training_data \
---gcs-input-data-path ${INPUT_LOCATION}/one_step_output/C${MODEL_RESOLUTION} \
+--gcs-input-data-path ${INPUT_LOCATION} \
 --diag-c48-path ${DIAG_PATH} \
 --timesteps-per-output-file ${TIMESTEPS_PER_OUTPUT} \
 --mask-to-surface-type ${MASK_SURFACE_TYPE} \
