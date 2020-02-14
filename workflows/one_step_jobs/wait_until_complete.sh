@@ -20,8 +20,8 @@ printf "failed jobs from iteration %s:\n%s\n" "$exp_label" "$FAILED_JOBS"
 
 # Delete completed jobs
 delete_jobs=`kubectl get jobs --selector "experiment_group=$exp_label" --output=json | jq --raw-output '[.items[] | select (.status.succeeded == 1)] | .[].metadata.name'`
-if  [! -z $delete_jobs]; then
-  kubectl delete jobs  $delete_jobs
+if  [ ! -z "$delete_jobs" ]; then
+  kubectl delete jobs $delete_jobs
 fi
 
 exit 0

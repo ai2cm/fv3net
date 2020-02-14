@@ -84,9 +84,12 @@ if __name__ == "__main__":
     timestep_list = submit_utils.timesteps_to_process(
         args.input_url, args.output_url, args.n_steps, args.overwrite
     )
+
+    local_vgrid_file = os.path.join(PWD, submit_utils.VERTICAL_GRID_FILENAME)
     submit_utils.submit_jobs(
         timestep_list, workflow_name, one_step_config, args.input_url, args.output_url,
-        config_url, experiment_label=args.experiment_label
+        config_url, experiment_label=args.experiment_label,
+        local_vertical_grid_file=local_vgrid_file
     )
 
     wait_for_complete(args.experiment_label)

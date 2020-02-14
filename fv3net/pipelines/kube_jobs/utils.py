@@ -6,7 +6,6 @@ import fsspec
 import re
 from multiprocessing import Pool
 from typing import List, Mapping
-from pathlib import Path
 
 import fv3config
 
@@ -43,7 +42,7 @@ def update_nested_dict(source_dict: dict, update_dict: dict) -> dict:
     return source_dict
 
 
-def _upload_if_necessary(path: str, remote_url: str) -> str:
+def upload_if_necessary(path: str, remote_url: str) -> str:
     if get_protocol(path) == "file":
         remote_path = os.path.join(remote_url, os.path.basename(path))
         get_fs(remote_url).put(path, remote_path)
@@ -196,30 +195,6 @@ def _get_vertical_grid_asset(config_url: str) -> dict:
     )
 
 
-def _get_local_filepath(filename: str) -> str:
-    """
-    Sometimes files are in the local working directory and other times it's not.
-    This function makes attempt at looking if it's not available as specified.
-    
-    Skips looking if filename references a remote file.
-    """
-    protocol = get_protocol(filename)
-    if protocol != "file":
-        return filename
-    
-    pyfile_pwd = Path(__file__).parent.as_posix()
-    pyfile_path = os.path.join(pyfile_pwd, filename)
-
-    if os.path.exists(filename):
-        path = filename
-    elif os.path.exists(pyfile_path):
-        path = pyfile_path
-    else:
-        raise ValueError(f"Could not find file in directory or as specified.  Checked for {filename} and {pyfile_path}")
-    
-    return path
-
-
 # TODO: Specific to One-step
 def _get_experiment_name(first_tag: str, second_tag: str) -> str:
     """Return unique experiment name with only alphanumeric, hyphen or dot"""
@@ -234,6 +209,7 @@ def _update_and_upload_config(
     input_url: str,
     config_url: str,
     timestep: str,
+    local_vertical_grid_file=None,
 ) -> dict:
     
     user_model_config = one_step_config["fv3config"]
@@ -245,24 +221,17 @@ def _update_and_upload_config(
 
     # Set restart and adjust and upload assets to GCS
     model_config = prepare_and_upload_model_config(
-        workflow_name, input_url, config_url, timestep, model_config
+        workflow_name, input_url, config_url, timestep, model_config,
+        local_vertical_grid_file=local_vertical_grid_file
     )
 
     if "runfile" in kubernetes_config:
         runfile_path = kubernetes_config["runfile"]
-        kubernetes_config["runfile"] = upload_runfile(runfile_path, config_url)
+        kubernetes_config["runfile"] = upload_if_necessary(
+            runfile_path, config_url
+        )
 
     return {"fv3config": model_config, "kubernetes": kubernetes_config}
-
-
-def upload_runfile(runfile_path, config_url):
-
-    runfile_path = _get_local_filepath(runfile_path)
-    runfile_path = _upload_if_necessary(
-        runfile_path, config_url
-    )
-
-    return runfile_path
     
 
 def prepare_and_upload_model_config(
@@ -272,6 +241,7 @@ def prepare_and_upload_model_config(
     timestep: str,
     model_config: dict,
     upload_config_filename="fv3config.yml",
+    local_vertical_grid_file=None
 ) -> dict:
     """Update model and kubernetes configurations for this particular
     timestep and upload necessary files to GCS"""
@@ -289,14 +259,13 @@ def prepare_and_upload_model_config(
         }
     )
 
-    diag_table_path = _get_local_filepath(model_config["diag_table"])
-    model_config["diag_table"] = _upload_if_necessary(
-        diag_table_path, config_url
+    model_config["diag_table"] = upload_if_necessary(
+        model_config["diag_table"], config_url
     )
 
-    fs = get_fs(config_url)
-    vertical_grid_filepath = _get_local_filepath(VERTICAL_GRID_FILENAME)
-    fs.put(vertical_grid_filepath, os.path.join(config_url, VERTICAL_GRID_FILENAME))
+    if local_vertical_grid_file is not None:
+        fs = get_fs(config_url)
+        fs.put(local_vertical_grid_file, os.path.join(config_url, VERTICAL_GRID_FILENAME))
 
     with fsspec.open(os.path.join(config_url, upload_config_filename), "w") as config_file:
         config_file.write(yaml.dump(model_config))
@@ -312,6 +281,7 @@ def submit_jobs(
     output_url: str,
     config_url: str,
     experiment_label=None,
+    local_vertical_grid_file=None,
 ):
     """Submit one-step job for all timesteps in timestep_list"""
     for timestep in timestep_list:
@@ -321,7 +291,8 @@ def submit_jobs(
         curr_config_url = add_timestep_to_url(config_url, timestep)
 
         one_step_config = _update_and_upload_config(
-            workflow_name, one_step_config, curr_input_url, curr_config_url, timestep
+            workflow_name, one_step_config, curr_input_url, curr_config_url, timestep,
+            local_vertical_grid_file=local_vertical_grid_file
         )
 
         jobname = one_step_config["fv3config"]["experiment_name"]
