@@ -9,5 +9,5 @@ hi-res-data-vars:
   - DLWRFsfc_coarse
   - ULWRFtoa_coarse
   - ULWRFsfc_coarse
-c48-output_filename: C48_gfsphysics_15min_coarse.zarr
-
+output_filename: gfsphysics_15min_coarse.zarr
+target_resolution: 48

@@ -27,22 +27,12 @@ logging.basicConfig(level=logging.INFO)
 def coarsen_c384_diagnostics(args):
     
     coarsen_diags_config = _get_config(args.config_path)
-
-    c48_zarr_suffix = coarsen_diags_config["c48-output_filename"]
-    c48_output_path = os.path.join(args.output_path, c48_zarr_suffix)
+    zarr_suffix = coarsen_diags_config["output_filename"]
+    output_path = os.path.join(args.output_path, zarr_suffix)
     hires_data_vars = coarsen_diags_config["hi-res-data-vars"]
-#     catalog = intake.open_catalog("../../catalog.yml")
-#     diag_path = catalog["40day_c384_diags_time_avg"].urlpath
-#     diag_path = diag_path[:-1] if diag_path[-1] == "/" else diag_path
-
-#     # write coarsened C48 diags to same dir as high res diags
-#     output_path = os.path.join(os.path.dirname(diag_path), C48_OUTPUT_FILENAME)
-
-#     diags = catalog["40day_c384_diags_time_avg"].to_dask()
-
     diags = _get_remote_diags(args.input_path)
-    
     logging.info(f"Size of diagnostic data:  {diags.nbytes / 1e9:.2f} GB")
+    coarsening_factor = 384//coarsen_diags_config['target_resolution']
 
     # rename the dimensions appropriately
     grid384 = diags[
@@ -68,21 +58,19 @@ def coarsen_c384_diagnostics(args):
     )
 
     # coarsen the data
-    diags48 = coarsen.weighted_block_average(
+    diags_coarsened = coarsen.weighted_block_average(
         diags384[hires_data_vars],
         diags384["area_coarse"],
         x_dim=COORD_X_CENTER,
         y_dim=COORD_Y_CENTER,
-        coarsening_factor=8,
+        coarsening_factor=coarsening_factor,
     )
 
-    diags48 = diags48.unify_chunks()
-
-    diags48.to_zarr(c48_zarr_suffix, mode="w", consolidated=True)
-    gsutil.copy(c48_zarr_suffix, c48_output_path)
-
-    logging.info(f"Done writing coarsened C48 zarr to {c48_output_path}")
-    shutil.rmtree(c48_zarr_suffix)
+    diags_coarsened = diags_coarsened.unify_chunks()
+    diags_coarsened.to_zarr(zarr_suffix, mode="w", consolidated=True)
+    gsutil.copy(zarr_suffix, output_path)
+    logging.info(f"Done writing coarsened diagnostics zarr to {output_path}")
+    shutil.rmtree(zarr_suffix)
     
     
 def _get_config(config_path):
