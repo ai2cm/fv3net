@@ -14,6 +14,7 @@ from vcm.convenience import list_timesteps
 from vcm.cubedsphere.constants import RESTART_CATEGORIES, TILE_COORDS_FILENAMES
 from vcm.cloud.fsspec import get_protocol, get_fs
 
+# TODO: This top level gets adjusted by an update function below, should change
 KUBERNETES_CONFIG_DEFAULT = {
     "docker_image": "us.gcr.io/vcm-ml/fv3gfs-python",
     "cpu_count": 6,
@@ -33,10 +34,10 @@ VERTICAL_GRID_FILENAME = "fv_core.res.nc"
 logger = logging.getLogger("one_step_jobs")
 
 
-def _update_nested_dict(source_dict: dict, update_dict: dict) -> dict:
+def update_nested_dict(source_dict: dict, update_dict: dict) -> dict:
     for key in update_dict:
         if key in source_dict and isinstance(source_dict[key], Mapping):
-            _update_nested_dict(source_dict[key], update_dict[key])
+            update_nested_dict(source_dict[key], update_dict[key])
         else:
             source_dict[key] = update_dict[key]
     return source_dict
@@ -171,7 +172,7 @@ def _check_header_categories(
 
 # Config Handling
 def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
-    """Get list of assets representing initial conditions for this timestep"""
+    """Get list of assets representing initial conditions for this timestep to pipeline for now"""
     initial_condition_assets = [
         fv3config.get_asset_dict(
             input_url,
@@ -200,7 +201,7 @@ def _get_local_filepath(filename: str) -> str:
     Sometimes files are in the local working directory and other times it's not.
     This function makes attempt at looking if it's not available as specified.
     
-    Skips looking if filename references a remote file. 
+    Skips looking if filename references a remote file.
     """
     protocol = get_protocol(filename)
     if protocol != "file":
@@ -219,6 +220,7 @@ def _get_local_filepath(filename: str) -> str:
     return path
 
 
+# TODO: Specific to One-step
 def _get_experiment_name(first_tag: str, second_tag: str) -> str:
     """Return unique experiment name with only alphanumeric, hyphen or dot"""
     uuid_short = str(uuid.uuid4())[:8]
@@ -226,22 +228,53 @@ def _get_experiment_name(first_tag: str, second_tag: str) -> str:
     return re.sub(r"[^a-zA-Z0-9.\-]", "", exp_name)
 
 
-def _get_and_upload_config(
+def _update_and_upload_config(
     workflow_name: str,
     one_step_config: dict,
     input_url: str,
     config_url: str,
     timestep: str,
 ) -> dict:
-    """Update model and kubernetes configurations for this particular
-    timestep and upload necessary files to GCS"""
-
+    
     user_model_config = one_step_config["fv3config"]
     user_kubernetes_config = one_step_config["kubernetes"]
-    model_config = _update_nested_dict(MODEL_CONFIG_DEFAULT, user_model_config)
-    kubernetes_config = _update_nested_dict(
+    model_config = update_nested_dict(MODEL_CONFIG_DEFAULT, user_model_config)
+    kubernetes_config = update_nested_dict(
         KUBERNETES_CONFIG_DEFAULT, user_kubernetes_config
     )
+
+    # Set restart and adjust and upload assets to GCS
+    model_config = prepare_and_upload_model_config(
+        workflow_name, input_url, config_url, timestep, model_config
+    )
+
+    if "runfile" in kubernetes_config:
+        runfile_path = kubernetes_config["runfile"]
+        kubernetes_config["runfile"] = upload_runfile(runfile_path, config_url)
+
+    return {"fv3config": model_config, "kubernetes": kubernetes_config}
+
+
+def upload_runfile(runfile_path, config_url):
+
+    runfile_path = _get_local_filepath(runfile_path)
+    runfile_path = _upload_if_necessary(
+        runfile_path, config_url
+    )
+
+    return runfile_path
+    
+
+def prepare_and_upload_model_config(
+    workflow_name: str,
+    input_url: str,
+    config_url: str,
+    timestep: str,
+    model_config: dict,
+    upload_config_filename="fv3config.yml",
+) -> dict:
+    """Update model and kubernetes configurations for this particular
+    timestep and upload necessary files to GCS"""
 
     model_config = fv3config.enable_restart(model_config)
     model_config["experiment_name"] = _get_experiment_name(workflow_name, timestep)
@@ -256,12 +289,6 @@ def _get_and_upload_config(
         }
     )
 
-    if "runfile" in kubernetes_config:
-        runfile_path = _get_local_filepath(model_config["runfile"])
-        kubernetes_config["runfile"] = _upload_if_necessary(
-            runfile_path, config_url
-        )
-
     diag_table_path = _get_local_filepath(model_config["diag_table"])
     model_config["diag_table"] = _upload_if_necessary(
         diag_table_path, config_url
@@ -271,10 +298,10 @@ def _get_and_upload_config(
     vertical_grid_filepath = _get_local_filepath(VERTICAL_GRID_FILENAME)
     fs.put(vertical_grid_filepath, os.path.join(config_url, VERTICAL_GRID_FILENAME))
 
-    with fsspec.open(os.path.join(config_url, "fv3config.yml"), "w") as config_file:
+    with fsspec.open(os.path.join(config_url, upload_config_filename), "w") as config_file:
         config_file.write(yaml.dump(model_config))
 
-    return {"fv3config": model_config, "kubernetes": kubernetes_config}
+    return model_config
 
 
 def submit_jobs(
@@ -293,7 +320,7 @@ def submit_jobs(
         curr_output_url = add_timestep_to_url(output_url, timestep)
         curr_config_url = add_timestep_to_url(config_url, timestep)
 
-        one_step_config = _get_and_upload_config(
+        one_step_config = _update_and_upload_config(
             workflow_name, one_step_config, curr_input_url, curr_config_url, timestep
         )
 

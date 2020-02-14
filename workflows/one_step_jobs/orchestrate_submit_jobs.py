@@ -5,7 +5,7 @@ import subprocess
 import yaml
 from pathlib import Path
 
-import submit_utils
+import fv3net.pipelines.kube_jobs.utils as submit_utils
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
