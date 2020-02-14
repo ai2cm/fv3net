@@ -5,7 +5,7 @@ experiment:
   name: test-experiment
   unique_id: True
   fv3net_hash: ca279cb79c0b97a5e5e758ec8785612b3c7ec044
-  workflow_steps: [create_training_data, train_sklearn_model, test_sklearn_model]
+  workflow_steps: [test_sklearn_model]
 #   workflow_steps: [
 #     coarsen_restarts,
 #     one_step_run,
@@ -68,11 +68,11 @@ experiment:
       command: workflows/sklearn_regression/orchestrator_test_sklearn.sh
       inputs:
         trained_model:
-          from: train_sklearn_model
-#           location: gs://vcm-ml-data/orchestration-testing/test-experiment-f059bf46/train_sklearn_model_train-config-file_example_rf_training_config.yml
+#           from: train_sklearn_model
+          location: gs://vcm-ml-data/orchestration-testing/test-experiment-d2c8dbd6/train_sklearn_model_train-config-file_example_rf_training_config.yml
         testing_data:
-          from: create_training_data
-#           location: gs://vcm-ml-data/orchestration-testing/test-experiment-f059bf46/create_training_data_diag-c48-path_2020-02-11_coarsened_c48_diags.zarr_timesteps-per-output-file_2_mask-to-surface-type_None
+#           from: create_training_data
+          location: gs://vcm-ml-data/orchestration-testing/test-experiment-d2c8dbd6/create_training_data_timesteps-per-output-file_2_mask-to-surface-type_None_train-fraction_0.5
         diagnostics_data:
 #           from: coarsen_diagnostics
           location: gs://vcm-ml-data/test-annak/2020-02-11_coarsened_c48_diags.zarr

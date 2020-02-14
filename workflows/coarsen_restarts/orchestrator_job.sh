@@ -1,16 +1,15 @@
 #!/bin/sh
 
-GCS_SRC=$1
-GCS_DST=$2
-GCS_GRIDSPEC="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy"
-
-SRC_RESOLUTION=$3
-TARGET_RESOLUTION=$4
+INPUT_PATH=$1
+OUTPUT_PATH=$2
+GCS_GRIDSPEC_PATH=$3
+SRC_RESOLUTION=$4
+TARGET_RESOLUTION=$5
 
 python -m fv3net.pipelines.coarsen_restarts\
-    --gcs-src-dir $GCS_SRC \
-    --gcs-dst-dir $GCS_DST \
-    --gcs-grid-spec-path $GCS_GRIDSPEC \
+    --gcs-src-dir $INPUT_PATH \
+    --gcs-dst-dir $OUTPUT_PATH \
+    --gcs-grid-spec-path $GCS_GRIDSPEC_PATH \
     --source-resolution $SRC_RESOLUTION \
     --target-resolution $TARGET_RESOLUTION \
     --no-target-subdir \
