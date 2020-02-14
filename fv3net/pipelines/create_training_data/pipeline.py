@@ -248,7 +248,6 @@ def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
                     FORECAST_TIME_DIM: 0,
                 }
             )
-            .squeeze(FORECAST_TIME_DIM)
             .drop(FORECAST_TIME_DIM)
         )
         return ds
