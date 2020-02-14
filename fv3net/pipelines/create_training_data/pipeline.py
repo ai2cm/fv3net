@@ -215,8 +215,6 @@ def _open_cloud_data(run_dirs):
             )
 
             ds_run = helpers._set_relative_forecast_time_coord(ds_run)
-            if "file_prefix" in ds_run.dims:
-                ds_run = ds_run.drop("file_prefix")
             ds_runs.append(ds_run)
         return xr.concat(ds_runs, INIT_TIME_DIM)
     except (ValueError, TypeError, AttributeError) as e:
@@ -249,9 +247,10 @@ def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
                     FORECAST_TIME_DIM: 0,
                 }
             )
-            .squeeze(FORECAST_TIME_DIM)
             .drop(FORECAST_TIME_DIM)
         )
+        if "file_prefix" in ds.coords:
+            ds = ds.drop("file_prefix")
         return ds
     except (ValueError, TypeError) as e:
         logger.error(f"Failed step CreateTrainingCols: {e}")
