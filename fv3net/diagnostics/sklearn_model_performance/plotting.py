@@ -20,7 +20,7 @@ from vcm.visualize import plot_cube, mappable_var
 
 from ..plotting import plot_diurnal_cycle
 from ..data_funcs import (
-    merge_comparison_datasets, get_latlon_grid_coords,
+    merge_comparison_datasets, get_example_latlon_grid_coords,
     EXAMPLE_CLIMATE_LATLON_COORDS)
 
 
@@ -255,20 +255,30 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         output_dir=output_dir,
         plot_filename="diurnal_cycle_heating_land.png",
     )
-    local_coords = get_latlon_grid_coords(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
+    local_coords = get_example_latlon_grid_coords(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
             ds_heating.sel(coords),
+            "heating",
             title=location_name,
             output_dir=output_dir,
             plot_filename=f"diurnal_cycle_heating_{location_name}.png"
     )
+        plot_diurnal_cycle(
+            ds_pe.sel(coords),
+            "P-E",
+            title=location_name,
+            output_dir=output_dir,
+            plot_filename=f"diurnal_cycle_P-E_{location_name}.png"
+        )
     report_sections["Diurnal cycle"] = [
         "diurnal_cycle_P-E_sea.png",
         "diurnal_cycle_P-E_land.png",
         "diurnal_cycle_heating_sea.png",
         "diurnal_cycle_heating_land.png",
-    ] + [f"diurnal_cycle_heating_{location_name}.png" for location_name in local_coords]
+    ] \
+    + [f"diurnal_cycle_heating_{location_name}.png" for location_name in local_coords] \
+    + [f"diurnal_cycle_P-E_{location_name}.png" for location_name in local_coords]
 
 
     # map plot variables and compare across prediction/ C48 /coarsened high res data
