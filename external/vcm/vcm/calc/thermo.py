@@ -9,6 +9,7 @@ RVGAS = 461.5  # J / K / kg
 LATENT_HEAT_VAPORIZATION_0_C = 2.5e6
 SPECIFIC_ENTHALPY_LIQUID = 4185.5
 SPECIFIC_ENTHALPY_VAP0R = 1846
+FREEZING_TEMPERATURE = 273.15
 
 TOA_PRESSURE = 300.0  # Pa
 REVERSE = slice(None, None, -1)
@@ -160,7 +161,7 @@ def dz_and_top_to_phis(top_height, dz, dim=COORD_Z_CENTER):
 def latent_heat_vaporization(T):
     return LATENT_HEAT_VAPORIZATION_0_C + (
         SPECIFIC_ENTHALPY_LIQUID - SPECIFIC_ENTHALPY_VAP0R
-    ) * (T - 287.15)
+    ) * (T - FREEZING_TEMPERATURE)
 
 
 def net_heating(
@@ -173,7 +174,7 @@ def net_heating(
     dsw_toa,
     shf,
     cond_int,
-    surface_temperature=287.15 + 10,
+    surface_temperature=FREEZING_TEMPERATURE + 10,
 ):
     """A dataarray implementation of ``net_heating_from_dataset``
 
