@@ -11,6 +11,8 @@ SPECIFIC_ENTHALPY_LIQUID = 4185.5
 SPECIFIC_ENTHALPY_VAP0R = 1846
 FREEZING_TEMPERATURE = 273.15
 
+DEFAULT_SURFACE_TEMPERATURE = FREEZING_TEMPERATURE + 15
+
 TOA_PRESSURE = 300.0  # Pa
 REVERSE = slice(None, None, -1)
 
@@ -173,7 +175,7 @@ def net_heating(
     usw_toa,
     dsw_toa,
     shf,
-    cond_int,
+    surface_rain_rate,
     surface_temperature=FREEZING_TEMPERATURE + 10,
 ):
     """A dataarray implementation of ``net_heating_from_dataset``
@@ -197,8 +199,22 @@ def net_heating(
         - usw_toa
         + dsw_toa
         + shf
-        + cond_int * lv
+        + surface_rain_rate * lv
     )
+
+
+def latent_heat_flux_to_evaporation(lhf, surface_temperature=DEFAULT_SURFACE_TEMPERATURE):
+    """Compute evaporation from latent heat flux
+    
+    Args:
+        lhf: W/m2
+        surface_temperature: degrees K
+
+    Returns:
+        evaporation: kg/s/m^2
+    """
+
+    return lhf / latent_heat_vaporization(surface_temperature)
 
 
 def net_heating_from_dataset(ds: xr.Dataset) -> xr.DataArray:
