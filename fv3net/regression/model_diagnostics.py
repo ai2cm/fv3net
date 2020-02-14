@@ -13,7 +13,7 @@ from vcm.cubedsphere.constants import (
     COORD_Y_CENTER,
     TILE_COORDS,
 )
-from vcm.calc.thermo import LATENT_HEAT_VAPORIZATION
+from vcm.calc import thermo
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
 
@@ -69,10 +69,9 @@ def _load_high_res_dataset(coarsened_hires_diags_path, init_times):
             f"Timesteps {set(init_times)-set(ds_hires[INIT_TIME_DIM].values)}"
             f"are not matched in high res dataset."
         )
-    ds_hires["P-E"] = SEC_PER_DAY * (
-        ds_hires["PRATEsfc_coarse"]
-        - ds_hires["LHTFLsfc_coarse"] / LATENT_HEAT_VAPORIZATION
-    )
+
+    evaporation = thermo.latent_heat_flux_to_evaporation(ds_hires["LHTFLsfc_coarse"])
+    ds_hires["P-E"] = SEC_PER_DAY * (ds_hires["PRATEsfc_coarse"] - evaporation)
     return ds_hires
 
 
