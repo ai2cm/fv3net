@@ -183,6 +183,8 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
                 f"Make sure all datasets are unstacked,"
                 "i.e. have original dimensions {STACK_DIMS}."
             )
+    ds_pred = ds_pred.drop(labels='file_prefix')
+    ds_target = ds_target.drop(labels='file_prefix')
     report_sections = {}
     ds_pred["P-E"] = mass_integrate(-ds_pred["Q2"], ds_pred.delp) * kg_m2s_to_mm_day
     ds_target["P-E"] = (
@@ -191,8 +193,6 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # for convenience, separate the land/sea data
     slmsk = ds_target.isel({COORD_Z_CENTER: -1, INIT_TIME_DIM: 0}).slmsk
-    print(slmsk.file_prefix)
-    print(ds_pred.file_prefix)
     ds_pred_sea = mask_to_surface_type(xr.merge([ds_pred, slmsk]), "sea").drop("slmsk")
     ds_target_sea = mask_to_surface_type(xr.merge([ds_target, slmsk]), "sea").drop(
         "slmsk"
