@@ -191,6 +191,8 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # for convenience, separate the land/sea data
     slmsk = ds_target.isel({COORD_Z_CENTER: -1, INIT_TIME_DIM: 0}).slmsk
+    print(slmsk.file_prefix)
+    print(ds_pred.file_prefix)
     ds_pred_sea = mask_to_surface_type(xr.merge([ds_pred, slmsk]), "sea").drop("slmsk")
     ds_target_sea = mask_to_surface_type(xr.merge([ds_target, slmsk]), "sea").drop(
         "slmsk"

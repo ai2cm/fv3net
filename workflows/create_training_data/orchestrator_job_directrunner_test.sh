@@ -1,13 +1,12 @@
 INPUT_LOCATION=$1
 OUTPUT_LOCATION=$2
-MODEL_RESOLUTION=$3
-DIAG_PATH=$4
-TIMESTEPS_PER_OUTPUT=$5
-MASK_SURFACE_TYPE=$6
-TRAIN_FRACTION=$7
+DIAG_PATH=$3
+TIMESTEPS_PER_OUTPUT=$4
+MASK_SURFACE_TYPE=$5
+TRAIN_FRACTION=$6
 
 python -m fv3net.pipelines.create_training_data \
---gcs-input-data-path ${INPUT_LOCATION}/one_step_output/C${MODEL_RESOLUTION} \
+--gcs-input-data-path ${INPUT_LOCATION} \
 --diag-c48-path ${DIAG_PATH} \
 --timesteps-per-output-file ${TIMESTEPS_PER_OUTPUT} \
 --mask-to-surface-type ${MASK_SURFACE_TYPE} \

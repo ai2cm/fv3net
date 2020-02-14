@@ -5,8 +5,10 @@ set -e
 config_file=$1
 
 # get arguments for all steps
-all_step_args=$(python workflows/end_to_end/get_experiment_args.py $config_file)
-echo $all_step_args
+ALL=$(python workflows/end_to_end/get_experiment_steps_and_args.py $config_file)
+WORKFLOW=$(echo $ALL | jq -r .workflow)
+COMMANDS=$(echo $ALL | jq -r .commands)
+ALL_ARGUMENTS=$(echo $ALL | jq -r .arguments)
 
 # extra fv3net packages
 cd external/vcm
@@ -17,18 +19,11 @@ python setup.py sdist
 
 cd ../../../..
 
-# Coarsening step
-coarsen_args=$(echo $all_step_args | jq -r .coarsen_restarts)
-workflows/coarsen_restarts/orchestrator_job.sh $coarsen_args
-
-# One-step jobs
-one_step_args=$(echo $all_step_args | jq -r .one_step_run)
-python workflows/one_step_jobs/orchestrate_submit_jobs.py $one_step_args
-
-# ML training data creation step
-training_data_args=$(echo $all_step_args | jq -r .create_training_data)
-workflows/create_training_data/orchestrator_job.sh $training_data_args
-
-# train ML model step
-ml_model_args=$(echo $all_step_args | jq -r .create_training_data)
-workflows/sklearn_regression/orchestrator_train_sklearn.sh $training_data_args
+echo "Starting workflow to execute the following steps: "$WORKFLOW
+for STEP in $WORKFLOW; do
+  echo "Starting command "$STEP"..."
+  COMMAND=$(echo $COMMANDS | jq -r .${STEP})
+  ARGUMENTS=$(echo $ALL_ARGUMENTS | jq -r .${STEP})
+  echo "Running command \""${COMMAND}" "${ARGUMENTS}"\""
+  $($COMMAND $ARGUMENTS)
+done

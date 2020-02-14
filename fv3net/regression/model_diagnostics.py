@@ -14,6 +14,7 @@ from vcm.cubedsphere.constants import (
     TILE_COORDS,
 )
 from vcm.calc.thermo import LATENT_HEAT_VAPORIZATION
+from .sklearn.train import MODEL_FILENAME
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
 
@@ -42,6 +43,7 @@ def _predict_on_test_data(test_data_path, model_path, num_test_zarrs, model_type
         from .sklearn.test import load_test_dataset, load_model, predict_dataset
 
         ds_test = load_test_dataset(test_data_path, num_test_zarrs)
+        print(ds_test)
         sk_wrapped_model = load_model(model_path)
         ds_pred = predict_dataset(sk_wrapped_model, ds_test)
         return ds_test.unstack(), ds_pred
@@ -88,7 +90,13 @@ if __name__ == "__main__":
         "--model-path",
         type=str,
         required=True,
-        help="Model file location. Can be local or remote.",
+        help="Directory path containing trained model. Can be local or remote.",
+    )
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default=MODEL_FILENAME,
+        help=f"Name of the trained model object. Defaults to {MODEL_FILENAME}",
     )
     parser.add_argument(
         "--high-res-data-path",
@@ -122,7 +130,7 @@ if __name__ == "__main__":
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     ds_test, ds_pred = _predict_on_test_data(
-        args.test_data_path, args.model_path, args.num_test_zarrs, args.model_type
+        args.test_data_path, os.path.join(args.model_path, args.model_name), args.num_test_zarrs, args.model_type
     )
     init_times = list(set(ds_test[INIT_TIME_DIM].values))
     ds_hires = _load_high_res_dataset(args.high_res_data_path, init_times)

@@ -5,17 +5,21 @@ import os
 import uuid
 
 
-def get_experiment_args(args):
+def get_experiment_steps_and_args(args):
     """Load all arguments for orchestration script from config"""
     
     with open(args.config_file, 'r') as f:
         config = yaml.safe_load(f)
 
     _apply_config_transforms(config)
-    workflow_steps = config["experiment"]['workflow_steps']
-    all_step_arguments = _get_all_step_arguments(workflow_steps, config)
-
-    return json.dumps(all_step_arguments)
+    workflow_steps_config = config["experiment"]['workflow_steps']
+    all_step_commands, all_step_arguments = _get_all_step_arguments(workflow_steps_config, config)
+    experiment_steps_and_args = {
+        "workflow" : " ".join([step for step in workflow_steps_config]),
+        "commands" : all_step_commands,
+        "arguments" : all_step_arguments
+    }
+    return json.dumps(experiment_steps_and_args)
 
 
 def _apply_config_transforms(config):
@@ -122,6 +126,7 @@ def _get_all_step_arguments(workflow_steps, config):
     """Get a dictionary of each step with i/o and methedological arguments"""
 
     steps_config = config["experiment"]["steps"]
+    all_step_commands = {}
     all_step_arguments = {}
     for i, step in enumerate(workflow_steps):
         curr_config = steps_config[step]
@@ -134,8 +139,9 @@ def _get_all_step_arguments(workflow_steps, config):
         input_args = " ".join(all_input_locations)
         step_args = " ".join([input_args, output_location, method_args])
         all_step_arguments[step] = step_args
+        all_step_commands[step] = curr_config['command']
 
-    return all_step_arguments
+    return all_step_commands, all_step_arguments
     
 
 def _generate_output_path_from_config(step_name, step_config, max_config_stubs=3):
@@ -187,5 +193,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # run the function
-    exp_args = get_experiment_args(args)
+    exp_args = get_experiment_steps_and_args(args)
     print(exp_args)
