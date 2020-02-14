@@ -1,0 +1,13 @@
+hi-res-data-vars:
+  - LHTFLsfc_coarse
+  - SHTFLsfc_coarse
+  - PRATEsfc_coarse
+  - DSWRFtoa_coarse
+  - DSWRFsfc_coarse
+  - USWRFtoa_coarse
+  - USWRFsfc_coarse
+  - DLWRFsfc_coarse
+  - ULWRFtoa_coarse
+  - ULWRFsfc_coarse
+c48-output_filename: C48_gfsphysics_15min_coarse.zarr
+

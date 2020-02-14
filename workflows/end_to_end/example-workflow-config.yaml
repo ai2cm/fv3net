@@ -5,9 +5,10 @@ experiment:
   name: test-experiment
   unique_id: True
   fv3net_hash: ca279cb79c0b97a5e5e758ec8785612b3c7ec044
-  workflow_steps: [test_sklearn_model]
+  workflow_steps: [coarsen_diagnostics]
 #   workflow_steps: [
 #     coarsen_restarts,
+#     coarsen_diagnostics,
 #     one_step_run,
 #     create_training_data,
 #     train_sklearn_model,
@@ -25,6 +26,14 @@ experiment:
       method:
         source-resolution: 384
         target-resolution: 48
+    
+    coarsen_diagnostics:
+      command: workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.sh
+      inputs:
+        c384_diagnostics: 
+          location: gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/gfsphysics_15min_coarse.zarr
+      method:
+        coarsening_config: workflows/coarsen_c384_diagnostics/coarsen-c384-diagnostics.yml
     
     one_step_run:
       config_transforms:
