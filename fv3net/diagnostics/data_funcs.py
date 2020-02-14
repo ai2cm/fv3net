@@ -66,8 +66,8 @@ def hires_diag_column_heating(ds_hires):
     return heating.rename("heating")
 
 
-def get_latlon_grid_coords(grid, climate_latlon_coords):
+def get_example_latlon_grid_coords(grid, climate_latlon_coords):
     climate_grid_coords = {}
     for climate, latlon_coords in climate_latlon_coords.items():
-        climate_grid_coords[climate] = get_latlon_grid_coords(grid, lat=latlon[0], lon=latlon[1])
+        climate_grid_coords[climate] = get_latlon_grid_coords(grid, lat=latlon_coords[0], lon=latlon_coords[1])
     return climate_grid_coords

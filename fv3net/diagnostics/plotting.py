@@ -54,7 +54,9 @@ def plot_diurnal_cycle(
     """
     plt.clf()
     for label in merged_ds["dataset"].values:
-        ds = merged_ds.sel(dataset=label).stack(sample=STACK_DIMS).dropna("sample")
+        ds = merged_ds.sel(dataset=label)
+        if len([dim for dim in ds.dims if dim in STACK_DIMS]) > 1:
+            ds = ds.stack(sample=STACK_DIMS).dropna("sample")
         local_time = ds["local_time"].values.flatten()
         data_var = ds[var].values.flatten()
         bin_means, bin_edges, _ = binned_statistic(

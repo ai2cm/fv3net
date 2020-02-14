@@ -9,7 +9,7 @@ from vcm.cubedsphere.constants import (
     TILE_COORDS,
 )
 from vcm.calc.thermo import LATENT_HEAT_VAPORIZATION
-from ..data_funcs import energy_convergence
+from ..data_funcs import hires_diag_column_heating
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
 
@@ -60,5 +60,5 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times=None):
         ds_hires["PRATEsfc_coarse"]
         - ds_hires["LHTFLsfc_coarse"] / LATENT_HEAT_VAPORIZATION
     )
-    ds_hires["heating"] = energy_convergence(ds_hires)
+    ds_hires["heating"] = hires_diag_column_heating(ds_hires)
     return ds_hires
