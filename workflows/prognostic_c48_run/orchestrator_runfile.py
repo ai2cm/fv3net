@@ -1,13 +1,14 @@
 import logging
 
 import zarr
+import yaml
+import f90nml
 
 import fv3gfs
 import sklearn_interface
 import state_io
 from fv3gfs._wrapper import get_time
 from mpi4py import MPI
-import config
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -32,8 +33,10 @@ def compute_diagnostics(state, diags):
     )
 
 
-args = config.get_config()
-NML = config.get_namelist()
+with open("fv3config.yml", "r") as f:
+    args = yaml.load(f, Loader=yaml.FullLoader)
+
+NML = f90nml.read("input.nml")
 TIMESTEP = NML["coupler_nml"]["dt_atmos"]
 
 times = []
@@ -46,11 +49,11 @@ if __name__ == "__main__":
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
 
     # open zarr tape for output
-    group = zarr.open_group(args.zarr_output, mode="w")
+    group = zarr.open_group(args["zarr_output"], mode="w")
 
     if rank == 0:
         logger.info("Downloading Sklearn Model")
-        MODEL = sklearn_interface.open_sklearn_model(args.model)
+        MODEL = sklearn_interface.open_sklearn_model(args["model"])
         logger.info("Model downloaded")
     else:
         MODEL = None
