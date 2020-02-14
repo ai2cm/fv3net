@@ -6,7 +6,9 @@ from ..cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 GRAVITY = 9.80665  # m /s2
 RDGAS = 287.05  # J / K / kg
 RVGAS = 461.5  # J / K / kg
-LATENT_HEAT_VAPORIZATION = 2.51e6
+LATENT_HEAT_VAPORIZATION_0_C = 2.5e6
+SPECIFIC_ENTHALPY_LIQUID = 4185.5
+SPECIFIC_ENTHALPY_VAP0R = 1846
 
 TOA_PRESSURE = 300.0  # Pa
 REVERSE = slice(None, None, -1)
@@ -155,15 +157,35 @@ def dz_and_top_to_phis(top_height, dz, dim=COORD_Z_CENTER):
     return GRAVITY * (top_height + dz.sum(dim=dim))
 
 
+def latent_heat_vaporization(T):
+    return LATENT_HEAT_VAPORIZATION_0_C + (
+        SPECIFIC_ENTHALPY_LIQUID - SPECIFIC_ENTHALPY_VAP0R
+    ) * (T - 287.15)
+
+
 def net_heating(
-    dlw_sfc, dsw_sfc, ulw_sfc, ulw_toa, usw_sfc, usw_toa, dsw_toa, shf, cond_int
+    dlw_sfc,
+    dsw_sfc,
+    ulw_sfc,
+    ulw_toa,
+    usw_sfc,
+    usw_toa,
+    dsw_toa,
+    shf,
+    cond_int,
+    surface_temperature=287.15 + 10,
 ):
     """A dataarray implementation of ``net_heating_from_dataset``
-    
 
     All argument except for ``cond_int`` should be in W/m2. cond_int is in units
-    kg/kg/s which is equivalent to a surface precipitation rate in mm/s.
+    kg/kg/s which is equivalent to a surface precipitation rate in mm/s. All
+    precipitation is assumed to fall as liquid water.
+
+    If provided, the surface temperature in K will be used to calculate the latent heat
+    of vaporization with the FV3 formulas.
     """
+
+    lv = latent_heat_vaporization(surface_temperature)
 
     return (
         -dlw_sfc
@@ -174,7 +196,7 @@ def net_heating(
         - usw_toa
         + dsw_toa
         + shf
-        + cond_int * LATENT_HEAT_VAPORIZATION
+        + cond_int * lv
     )
 
 
