@@ -7,15 +7,8 @@ from pathlib import Path
 import fv3config
 import fv3net.pipelines.kube_jobs.utils as kubejob_utils
 
-PWD = Path(__file__).parent
+PWD = Path(os.path.abspath(__file__)).parent
 RUNFILE = os.path.join(PWD, "orchestrator_runfile.py")
-
-fv3config.run_kubernetes(
-    os.path.join(curr_config_url, "fv3config.yml"),
-    curr_output_url,
-    experiment_label=experiment_label,
-    **one_step_config["kubernetes"],
-)
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -49,9 +42,10 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "ic_timestep",
         type=str,
-        required=False,
-        help="Time step to grab from the initial conditions url.,
+        help="Time step to grab from the initial conditions url."
     )
+
+    return parser
 
 
 def _get_prognostic_model_config(base_config, prognostic_config):
@@ -62,8 +56,8 @@ def _get_prognostic_model_config(base_config, prognostic_config):
 
     model_config = fv3config.get_default_config()
     with open(base_config, "r") as f:
-        fv3config = yaml.load(f, Loader=yaml.FullLoader)
-        onestep_model_config = fv3config["fv3config"]
+        full_config = yaml.load(f, Loader=yaml.FullLoader)
+        onestep_model_config = full_config["fv3config"]
     with open(prognostic_config, "r") as f:
         prognostic_model_config = yaml.load(f, Loader=yaml.FullLoader)
 
@@ -78,7 +72,7 @@ if __name__ == "__main__":
     parser = _create_arg_parser()
     args = parser.parse_args()
 
-    short_id = uuid.uuid4()[-8:]
+    short_id = str(uuid.uuid4())[:8]
     job_name = f"prognostic-run-{short_id}"
 
     # Get model config with one-step and prognistic run updates
@@ -97,12 +91,12 @@ if __name__ == "__main__":
 
     # Prepare remote run directory
     model_config = kubejob_utils.prepare_and_upload_model_config(
-        job_name, args.input_url, config_url, args.timestep, model_config,
-        upload_config_filename=job_config_filename,
+        job_name, args.initial_condition_url, config_url, args.ic_timestep,
+        model_config, upload_config_filename=job_config_filename
     )
 
-    remote_runfile_path = kubejob_utils.upload_runfile(
-        {"runfile": RUNFILE}
+    remote_runfile_path = kubejob_utils.upload_if_necessary(
+        RUNFILE, config_url
     )
     job_config_path = os.path.join(config_url, job_config_filename)
 
