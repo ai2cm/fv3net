@@ -14,6 +14,7 @@ from vcm.cubedsphere.constants import (
     TILE_COORDS,
 )
 from vcm.calc.thermo import LATENT_HEAT_VAPORIZATION
+from vcm.cloud import gsutil
 from .sklearn.train import MODEL_FILENAME
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
@@ -22,8 +23,6 @@ SEC_PER_DAY = 86400
 
 SAMPLE_DIM = "sample"
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
-
-OUTPUT_FIG_DIR = "model_performance_plots"
 
 
 report_html = Template(
@@ -43,7 +42,6 @@ def _predict_on_test_data(test_data_path, model_path, num_test_zarrs, model_type
         from .sklearn.test import load_test_dataset, load_model, predict_dataset
 
         ds_test = load_test_dataset(test_data_path, num_test_zarrs)
-        print(ds_test)
         sk_wrapped_model = load_model(model_path)
         ds_pred = predict_dataset(sk_wrapped_model, ds_test)
         return ds_test.unstack(), ds_pred
@@ -78,6 +76,12 @@ def _load_high_res_dataset(coarsened_hires_diags_path, init_times):
     return ds_hires
 
 
+def _upload_report_dir(output_dir, output_path):
+#     proto, path = _split_url(output_path)
+    fs = fsspec.filesystem(proto)
+    fs.copy(output_dir, output_path)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -103,6 +107,12 @@ if __name__ == "__main__":
         type=str,
         required=True,
         help="Path to C48 coarsened high res diagnostic data.",
+    )
+    parser.add_argument(
+        "--output-path",
+        type=str,
+        default=None,
+        help="Optional file output location; may be remove or local.",
     )
     parser.add_argument(
         "--num-test-zarrs",
@@ -143,3 +153,6 @@ if __name__ == "__main__":
     with open(f"{output_dir}/model_diagnostics.html", "w") as f:
         html = report_html.render(sections=report_sections)
         f.write(html)
+        
+    if args.output_path:
+        gsutil.copy(output_dir, args.output_path)
