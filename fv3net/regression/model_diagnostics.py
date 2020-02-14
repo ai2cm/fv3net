@@ -70,8 +70,8 @@ def _load_high_res_dataset(coarsened_hires_diags_path, init_times):
             f"are not matched in high res dataset."
         )
 
-    evaporation = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_hires["LHTFLsfc_coarse"])
-    ds_hires["P-E"] = SEC_PER_DAY * (ds_hires["PRATEsfc_coarse"] - evaporation) 
+    evaporation = thermo.latent_heat_flux_to_evaporation(ds_hires["LHTFLsfc_coarse"])
+    ds_hires["P-E"] = SEC_PER_DAY * (ds_hires["PRATEsfc_coarse"] - evaporation)
     return ds_hires
 
 
