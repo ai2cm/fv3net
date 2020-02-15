@@ -62,3 +62,5 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times=None):
     )
     ds_hires["heating"] = hires_diag_column_heating(ds_hires)
     return ds_hires
+
+

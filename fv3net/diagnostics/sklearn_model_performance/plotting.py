@@ -62,8 +62,42 @@ def _make_r2_plot(
     plt.ylabel("$R^2$")
     if title:
         plt.title(title)
-    if save_fig:
-        plt.savefig(os.path.join(output_dir, plot_filename))
+    plt.savefig(os.path.join(output_dir, plot_filename))
+    plt.show()
+
+
+def _make_vertical_profile_plots(
+        ds_pred,
+        ds_target,
+        var,
+        units,
+        output_dir,
+        plot_filename=f"vertical_profile.png",
+        title=None
+):
+    ds_pred = regrid_to_common_pressure(ds_pred[var], ds_pred["delp"])
+    ds_target = regrid_to_common_pressure(ds_target[var], ds_target["delp"])
+    ds_pred_pos_PE = ds_pred.where(ds_pred["P-E"] > 0)
+    ds_pred_neg_PE = ds_pred.where(ds_pred["P-E"] < 0)
+    ds_target_pos_PE = ds_target.where(ds_target["P-E"] > 0)
+    ds_target_neg_PE = ds_target(ds_target["P-E"] < 0)
+
+    plot_params = {
+        ds_pred_pos_PE: {"label": "P-E > 0", "color": "blue", "linestyle": "-"},
+        ds_target_pos_PE: {"label": "P-E > 0", "color": "blue", "linestyle": "--"},
+        ds_pred_neg_PE: {"label": "P-E < 0", "color": "orange", "linestyle": "-"},
+        ds_target_neg_PE: {"label": "P-E < 0", "color": "orange", "linestyle": "--"}
+    }
+    pressure = ds_pred.pressure.values
+    for data, kwargs in plot_params.items():
+        data_mean = np.mean(data.stack(sample=STACK_DIMS).dropna("sample").values, axis=1)
+        plt.plot(pressure, data_mean, **kwargs)
+
+    plt.xlabel("Pressure [HPa]")
+    plt.ylabel(units)
+    if title:
+        plt.title(title)
+    plt.savefig(os.path.join(output_dir, plot_filename))
     plt.show()
 
 
@@ -75,7 +109,6 @@ def _make_land_sea_r2_plot(
     vars,
     output_dir,
     plot_filename="r2_vs_pressure_level_landsea.png",
-    save_fig=True,
 ):
     plt.clf()
     x = np.array(PRESSURE_GRID) / 100
@@ -104,8 +137,7 @@ def _make_land_sea_r2_plot(
     plt.legend()
     plt.xlabel("pressure [HPa]")
     plt.ylabel("$R^2$")
-    if save_fig:
-        plt.savefig(os.path.join(output_dir, plot_filename))
+    plt.savefig(os.path.join(output_dir, plot_filename))
     plt.show()
 
 
@@ -200,6 +232,29 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         slmsk,
     )
     ds_heating["local_time"] = local_time(ds_heating)
+
+
+    # vertical profile plots
+    _make_vertical_profile_plots(
+        ds_pred_land,
+        ds_target_land,
+        var="Q2",
+        units="Q2 [kg/kg/s]",
+        output_dir=output_dir,
+        plot_filename=f"vertical_profile_Q2_land.png",
+        title="land"
+    )
+
+    _make_vertical_profile_plots(
+        ds_pred_sea,
+        ds_target_sea,
+        var="Q2",
+        units="Q2 [kg/kg/s]",
+        output_dir=output_dir,
+        plot_filename=f"vertical_profile_Q2_sea.png",
+        title="land"
+    )
+
 
     # R^2 vs pressure plots
     matplotlib.rcParams["figure.dpi"] = 70
