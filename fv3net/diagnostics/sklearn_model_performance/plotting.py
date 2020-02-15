@@ -75,12 +75,14 @@ def _make_vertical_profile_plots(
         plot_filename=f"vertical_profile.png",
         title=None
 ):
-    ds_pred = regrid_to_common_pressure(ds_pred, ds_pred["delp"])
-    ds_target = regrid_to_common_pressure(ds_target, ds_target["delp"])
-    ds_pred_pos_PE = ds_pred.where(ds_pred["P-E"] > 0)
-    ds_pred_neg_PE = ds_pred.where(ds_pred["P-E"] < 0)
-    ds_target_pos_PE = ds_target.where(ds_target["P-E"] > 0)
-    ds_target_neg_PE = ds_target(ds_target["P-E"] < 0)
+    pos_mask, neg_mask = ds_pred["P-E"] > 0, ds_pred["P-E"] < 0
+    ds_pred = regrid_to_common_pressure(ds_pred[var], ds_pred["delp"])
+    ds_target = regrid_to_common_pressure(ds_target[var], ds_target["delp"])
+
+    ds_pred_pos_PE = ds_pred.where(pos_mask)
+    ds_pred_neg_PE = ds_pred.where(neg_mask)
+    ds_target_pos_PE = ds_target.where(pos_mask)
+    ds_target_neg_PE = ds_target(neg_mask)
 
     plot_params = {
         ds_pred_pos_PE: {"label": "P-E > 0", "color": "blue", "linestyle": "-"},
