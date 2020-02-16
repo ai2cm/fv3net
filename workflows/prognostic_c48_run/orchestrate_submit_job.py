@@ -11,8 +11,9 @@ import fv3net.pipelines.kube_jobs.utils as kubejob_utils
 from vcm.cloud.fsspec import get_fs
 
 PWD = Path(os.path.abspath(__file__)).parent
-RUNFILE = os.path.join(PWD, "orchestrator_runfile.py")
+RUNFILE = os.path.join(PWD, "sklearn_runfile.py")
 CONFIG_FILENAME = "fv3config.yml"
+MODEL_FILENAME = "sklearn_model.pkl"
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -42,6 +43,11 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "ic_timestep",
         type=str,
         help="Time step to grab from the initial conditions url."
+    )
+    parser.add_argument(
+        "docker_image",
+        type=str,
+        help="Docker image to pull for the prognostic run kubernetes pod."
     )
 
     return parser
@@ -106,7 +112,7 @@ if __name__ == "__main__":
 
     # Add prognostic config section
     model_config["scikit_learn"] = {
-        "model": args.model_url,
+        "model": os.path.join(args.model_url, MODEL_FILENAME),
         "zarr_output": os.path.join(args.output_url, "diags.zarr")
     }
 
@@ -129,7 +135,7 @@ if __name__ == "__main__":
         config_location=job_config_path,
         outdir=args.output_url,
         jobname=job_name,
-        docker_image="us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1",
+        docker_image=args.docker_image,
         runfile=remote_runfile_path,
         cpu_count=6,
         gcp_secret="gcp-key",
