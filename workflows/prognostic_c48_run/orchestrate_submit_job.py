@@ -130,7 +130,6 @@ if __name__ == "__main__":
         RUNFILE, config_dir
     )
 
-    experiment_label = "orchestrated-prognostic"
     fv3config.run_kubernetes(
         config_location=job_config_path,
         outdir=args.output_url,
@@ -140,7 +139,7 @@ if __name__ == "__main__":
         cpu_count=6,
         gcp_secret="gcp-key",
         image_pull_policy="Always",
-        experiment_label=experiment_label
+        experiment_label=job_name
     )
 
-    wait_for_complete(experiment_label)
+    wait_for_complete(job_name)
