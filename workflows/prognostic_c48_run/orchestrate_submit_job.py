@@ -113,7 +113,7 @@ if __name__ == "__main__":
     # Add prognostic config section
     model_config["scikit_learn"] = {
         "model": os.path.join(args.model_url, MODEL_FILENAME),
-        "zarr_output": os.path.join(args.output_url, "diags.zarr")
+        "zarr_output": "diags.zarr"
     }
 
     # Upload the new prognostic config
