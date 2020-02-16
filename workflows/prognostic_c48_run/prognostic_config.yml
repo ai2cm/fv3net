@@ -1,0 +1,6 @@
+diag_table: workflows/prognostic_c48_run/diag_table_prognostic
+namelist:
+  coupler_nml:
+    hours: 0
+    minutes: 60
+    seconds: 0

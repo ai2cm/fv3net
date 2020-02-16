@@ -2,13 +2,17 @@ import argparse
 import uuid
 import os
 import yaml
+import fsspec
+import subprocess
 from pathlib import Path
 
 import fv3config
 import fv3net.pipelines.kube_jobs.utils as kubejob_utils
+from vcm.cloud.fsspec import get_fs
 
 PWD = Path(os.path.abspath(__file__)).parent
 RUNFILE = os.path.join(PWD, "orchestrator_runfile.py")
+CONFIG_FILENAME = "fv3config.yml"
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -30,11 +34,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Remote storage location for prognostic run output."
     )
     parser.add_argument(
-        "base_fv3config_yml",
-        type=str,
-        help="Path to fv3config YAML file used to perform the one-step training data runs."
-    )
-    parser.add_argument(
         "prog_config_yml",
         type=str,
         help="Path to a config update YAML file specifying the changes (e.g., diag_table, runtime, ...) from the one-step runs for the prognostic run.",
@@ -48,23 +47,36 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _get_prognostic_model_config(base_config, prognostic_config):
+def _get_onestep_config(restart_path, timestep):
+
+    config_path = os.path.join(restart_path, timestep, CONFIG_FILENAME)
+    fs = get_fs(config_path)
+    with fs.open(config_path) as f:
+        config = yaml.safe_load(f)
+
+    return config
+
+
+def _update_with_prognostic_model_config(model_config, prognostic_config):
     """
-    Update the default model config with first the one-step job config
-    and then updates for the the prognostic run.
+    Update the default model config with the prognostic run.
     """
 
-    model_config = fv3config.get_default_config()
-    with open(base_config, "r") as f:
-        full_config = yaml.load(f, Loader=yaml.FullLoader)
-        onestep_model_config = full_config["fv3config"]
     with open(prognostic_config, "r") as f:
         prognostic_model_config = yaml.load(f, Loader=yaml.FullLoader)
 
-    kubejob_utils.update_nested_dict(model_config, onestep_model_config)
     kubejob_utils.update_nested_dict(model_config, prognostic_model_config)
 
     return model_config
+
+
+# TODO: should probably move to kube_job fv3net so no weird traversal necessary
+def wait_for_complete(experiment_label):
+
+    wait_script = str(
+        Path(PWD).parent.joinpath("one_step_jobs", "wait_until_complete.sh")
+    )
+    subprocess.check_call([wait_script, str(experiment_label)])
 
 
 if __name__ == "__main__":
@@ -75,13 +87,22 @@ if __name__ == "__main__":
     short_id = str(uuid.uuid4())[:8]
     job_name = f"prognostic-run-{short_id}"
 
-    # Get model config with one-step and prognistic run updates
-    model_config = _get_prognostic_model_config(
-        args.base_fv3config_yml, args.prog_config_yml
+    model_config = _get_onestep_config(
+        args.initial_condition_url, args.ic_timestep
     )
 
-    config_url = os.path.join(args.output_url, "job_config")
+    # Get model config with one-step and prognistic run updates
+    model_config = _update_with_prognostic_model_config(
+        model_config, args.prog_config_yml
+    )
+
     job_config_filename = "fv3config.yml"
+    config_dir = os.path.join(args.output_url, "job_config")
+    job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
+
+    model_config["diag_table"] = kubejob_utils.upload_if_necessary(
+        model_config["diag_table"], config_dir
+    )
 
     # Add prognostic config section
     model_config["scikit_learn"] = {
@@ -89,23 +110,31 @@ if __name__ == "__main__":
         "zarr_output": os.path.join(args.output_url, "diags.zarr")
     }
 
+    # Upload the new prognostic config
+    with fsspec.open(job_config_path, "w") as f:
+        f.write(yaml.dump(model_config))
+
     # Prepare remote run directory
-    model_config = kubejob_utils.prepare_and_upload_model_config(
-        job_name, args.initial_condition_url, config_url, args.ic_timestep,
-        model_config, upload_config_filename=job_config_filename
-    )
+    # model_config = kubejob_utils.prepare_and_upload_model_config(
+    #     job_name, args.initial_condition_url, config_url, args.ic_timestep,
+    #     model_config, upload_config_filename=job_config_filename
+    # )
 
     remote_runfile_path = kubejob_utils.upload_if_necessary(
-        RUNFILE, config_url
+        RUNFILE, config_dir
     )
-    job_config_path = os.path.join(config_url, job_config_filename)
 
+    experiment_label = "orchestrated-prognostic"
     fv3config.run_kubernetes(
         config_location=job_config_path,
         outdir=args.output_url,
+        jobname=job_name,
         docker_image="us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1",
         runfile=remote_runfile_path,
         cpu_count=6,
         gcp_secret="gcp-key",
         image_pull_policy="Always",
+        experiment_label=experiment_label
     )
+
+    wait_for_complete(experiment_label)

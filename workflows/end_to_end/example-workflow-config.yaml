@@ -5,7 +5,7 @@ experiment:
   name: test-experiment-d8d2f94f
   unique_id: False
   fv3net_hash: ca279cb79c0b97a5e5e758ec8785612b3c7ec044
-  workflow_steps: [test_sklearn_model]
+  workflow_steps: [prognostic_run]
 #   workflow_steps: [
 #     coarsen_restarts,
 #     one_step_run,
@@ -80,15 +80,12 @@ experiment:
         num-test-zarrs: 4
     
     prognostic_run:
-      command: python -m pdb workflows/prognostic_c48_run/orchestrate_submit_job.py
+      command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
       inputs:
         sklearn_model:
           location: gs://vcm-ml-data/test-annak/ml-pipeline-output/2020-01-17_rf_40d_run.pkl
         restart_file_dir:
           from: one_step_run
-      config_transforms:
-        use_top_level: ['base_yaml']
       method:
-        base_yaml: one_step_yaml
         prognostic_yaml_adjust: workflows/prognostic_c48_run/prognostic_config.yml
         ic_timestep: "20160801.001500"
