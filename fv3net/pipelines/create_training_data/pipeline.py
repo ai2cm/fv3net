@@ -159,19 +159,17 @@ def _get_url_batches(gcs_urls, timesteps_per_output_file):
     return data_urls
 
 
-def _test_train_split(url_batches, train_frac, random_seed=1234):
+def _test_train_split(url_batches, train_frac):
     """ Randomly assigns train/test set labels to each batch
 
     Args:
-        url_batches: nested list where inner lists are groupings of input urls
-        train_frac:
-        random_seed:
+        url_batches: nested list where inner lists are groupings of input urls,
+        ordered by time
+        train_frac: Float [0, 1]
 
     Returns:
-
+        dict lookup for each batch's set to save to
     """
-    random.seed(random_seed)
-    random.shuffle(url_batches)
     if train_frac > 1:
         train_frac = 1
         logger.warning("Train fraction provided > 1. Will set to 1.")
