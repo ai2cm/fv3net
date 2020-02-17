@@ -2,7 +2,6 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import gcsfs
 import logging
-from numpy import random
 import os
 import shutil
 import xarray as xr
