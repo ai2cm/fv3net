@@ -75,24 +75,40 @@ def _make_vertical_profile_plots(
         plot_filename=f"vertical_profile.png",
         title=None
 ):
+    """Creates vertical profile plots of Q2 for dry/wet columns
+    
+    Args:
+        ds_pred (xr dataset): [description]
+        ds_target (xr dataset): [description]
+        var (str): [description]
+        units (str): [description]
+        output_dir (str): [description]
+        plot_filename (str, optional): [description]. Defaults to f"vertical_profile.png".
+        title (str, optional): [description]. Defaults to None.
+    """
+    
+    plt.clf()
     pos_mask, neg_mask = ds_pred["P-E"] > 0, ds_pred["P-E"] < 0
     ds_pred = regrid_to_common_pressure(ds_pred[var], ds_pred["delp"])
     ds_target = regrid_to_common_pressure(ds_target[var], ds_target["delp"])
+    print(ds_pred.stack(sample=STACK_DIMS).dropna("sample").values.shape)
+    print(ds_target.stack(sample=STACK_DIMS).dropna("sample").values.shape)
 
     ds_pred_pos_PE = ds_pred.where(pos_mask)
     ds_pred_neg_PE = ds_pred.where(neg_mask)
     ds_target_pos_PE = ds_target.where(pos_mask)
-    ds_target_neg_PE = ds_target(neg_mask)
+    ds_target_neg_PE = ds_target.where(neg_mask)
 
-    plot_params = {
-        ds_pred_pos_PE: {"label": "P-E > 0", "color": "blue", "linestyle": "-"},
-        ds_target_pos_PE: {"label": "P-E > 0", "color": "blue", "linestyle": "--"},
-        ds_pred_neg_PE: {"label": "P-E < 0", "color": "orange", "linestyle": "-"},
-        ds_target_neg_PE: {"label": "P-E < 0", "color": "orange", "linestyle": "--"}
-    }
-    pressure = ds_pred.pressure.values
-    for data, kwargs in plot_params.items():
-        data_mean = np.mean(data[var].stack(sample=STACK_DIMS).dropna("sample").values, axis=1)
+    pressure = ds_pred.pressure.values/100.
+    profiles_kwargs = zip(
+        [ds_pred_pos_PE, ds_target_pos_PE, ds_pred_neg_PE, ds_target_neg_PE],
+        [{"label": "P-E > 0", "color": "blue", "linestyle": "-", "label": "prediction"},
+         {"label": "P-E > 0", "color": "blue", "linestyle": "--", "label": "target"},
+         {"label": "P-E < 0", "color": "orange", "linestyle": "-", "label": "prediction"},
+         {"label": "P-E < 0", "color": "orange", "linestyle": "--", "label": "target"}]
+    )
+    for data, kwargs in profiles_kwargs:
+        data_mean = np.nanmean(data.stack(sample=STACK_DIMS).values, axis=1)
         plt.plot(pressure, data_mean, **kwargs)
 
     plt.xlabel("Pressure [HPa]")
@@ -243,7 +259,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         var="Q2",
         units="Q2 [kg/kg/s]",
         output_dir=output_dir,
-        plot_filename=f"vertical_profile_Q2_land.png",
+        plot_filename="vertical_profile_Q2_land.png",
         title="land"
     )
 
@@ -253,10 +269,13 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         var="Q2",
         units="Q2 [kg/kg/s]",
         output_dir=output_dir,
-        plot_filename=f"vertical_profile_Q2_sea.png",
+        plot_filename="vertical_profile_Q2_sea.png",
         title="land"
     )
-
+    report_sections["Q2 vertical profile"] = [
+        "vertical_profile_Q2_land.png",
+        "vertical_profile_Q2_sea.png"
+    ]
 
     # R^2 vs pressure plots
     matplotlib.rcParams["figure.dpi"] = 70
@@ -283,7 +302,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ]
 
     # plot a variable across the diurnal cycle
-    matplotlib.rcParams["figure.dpi"] = 80
+    matplotlib.rcParams["figure.dpi"] = 80 
     plot_diurnal_cycle(
         mask_to_surface_type(ds_pe, "sea"),
         "P-E",
