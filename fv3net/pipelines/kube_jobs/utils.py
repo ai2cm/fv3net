@@ -171,7 +171,8 @@ def _check_header_categories(
 
 # Config Handling
 def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
-    """Get list of assets representing initial conditions for this timestep to pipeline for now"""
+    """Get list of assets representing initial conditions for this timestep
+    to pipeline for now"""
     initial_condition_assets = [
         fv3config.get_asset_dict(
             input_url,
@@ -211,7 +212,7 @@ def _update_and_upload_config(
     timestep: str,
     local_vertical_grid_file=None,
 ) -> dict:
-    
+
     user_model_config = one_step_config["fv3config"]
     user_kubernetes_config = one_step_config["kubernetes"]
     model_config = update_nested_dict(MODEL_CONFIG_DEFAULT, user_model_config)
@@ -221,18 +222,20 @@ def _update_and_upload_config(
 
     # Set restart and adjust and upload assets to GCS
     model_config = prepare_and_upload_model_config(
-        workflow_name, input_url, config_url, timestep, model_config,
-        local_vertical_grid_file=local_vertical_grid_file
+        workflow_name,
+        input_url,
+        config_url,
+        timestep,
+        model_config,
+        local_vertical_grid_file=local_vertical_grid_file,
     )
 
     if "runfile" in kubernetes_config:
         runfile_path = kubernetes_config["runfile"]
-        kubernetes_config["runfile"] = upload_if_necessary(
-            runfile_path, config_url
-        )
+        kubernetes_config["runfile"] = upload_if_necessary(runfile_path, config_url)
 
     return {"fv3config": model_config, "kubernetes": kubernetes_config}
-    
+
 
 def prepare_and_upload_model_config(
     workflow_name: str,
@@ -241,7 +244,7 @@ def prepare_and_upload_model_config(
     timestep: str,
     model_config: dict,
     upload_config_filename="fv3config.yml",
-    local_vertical_grid_file=None
+    local_vertical_grid_file=None,
 ) -> dict:
     """Update model and kubernetes configurations for this particular
     timestep and upload necessary files to GCS"""
@@ -265,9 +268,13 @@ def prepare_and_upload_model_config(
 
     if local_vertical_grid_file is not None:
         fs = get_fs(config_url)
-        fs.put(local_vertical_grid_file, os.path.join(config_url, VERTICAL_GRID_FILENAME))
+        fs.put(
+            local_vertical_grid_file, os.path.join(config_url, VERTICAL_GRID_FILENAME)
+        )
 
-    with fsspec.open(os.path.join(config_url, upload_config_filename), "w") as config_file:
+    with fsspec.open(
+        os.path.join(config_url, upload_config_filename), "w"
+    ) as config_file:
         config_file.write(yaml.dump(model_config))
 
     return model_config
@@ -291,8 +298,12 @@ def submit_jobs(
         curr_config_url = add_timestep_to_url(config_url, timestep)
 
         one_step_config = _update_and_upload_config(
-            workflow_name, one_step_config, curr_input_url, curr_config_url, timestep,
-            local_vertical_grid_file=local_vertical_grid_file
+            workflow_name,
+            one_step_config,
+            curr_input_url,
+            curr_config_url,
+            timestep,
+            local_vertical_grid_file=local_vertical_grid_file,
         )
 
         jobname = one_step_config["fv3config"]["experiment_name"]

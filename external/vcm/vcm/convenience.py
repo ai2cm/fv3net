@@ -85,7 +85,7 @@ def list_timesteps(path: str) -> List[str]:
         try:
             timestep = parse_timestep_from_path(current_file)
             timesteps.append(timestep)
-        except ValueError as e:
+        except ValueError:
             # not a timestep directory
             continue
     return sorted(timesteps)

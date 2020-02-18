@@ -31,14 +31,10 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "source_resolution",
-        type=int,
-        help="Source data cubed-sphere grid resolution.",
+        "source_resolution", type=int, help="Source data cubed-sphere grid resolution.",
     )
     parser.add_argument(
-        "target_resolution",
-        type=int,
-        help="Target coarsening resolution to output.",
+        "target_resolution", type=int, help="Target coarsening resolution to output.",
     )
     parser.add_argument(
         "--no-target-subdir",

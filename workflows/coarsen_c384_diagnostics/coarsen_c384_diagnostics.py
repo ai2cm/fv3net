@@ -1,4 +1,3 @@
-import intake
 import logging
 import os
 import shutil
@@ -26,14 +25,14 @@ logging.basicConfig(level=logging.INFO)
 
 
 def coarsen_c384_diagnostics(args):
-    
+
     coarsen_diags_config = _get_config(args.config_path)
-#     zarr_suffix = coarsen_diags_config["output_filename"]
+    #     zarr_suffix = coarsen_diags_config["output_filename"]
     output_path = os.path.join(args.output_path, COARSENED_DIAGS_ZARR_NAME)
     hires_data_vars = coarsen_diags_config["hi-res-data-vars"]
     diags = _get_remote_diags(args.input_path)
     logging.info(f"Size of diagnostic data:  {diags.nbytes / 1e9:.2f} GB")
-    coarsening_factor = 384//coarsen_diags_config['target_resolution']
+    coarsening_factor = 384 // coarsen_diags_config["target_resolution"]
 
     # rename the dimensions appropriately
     grid384 = diags[
@@ -72,13 +71,13 @@ def coarsen_c384_diagnostics(args):
     gsutil.copy(COARSENED_DIAGS_ZARR_NAME, output_path)
     logging.info(f"Done writing coarsened diagnostics zarr to {output_path}")
     shutil.rmtree(COARSENED_DIAGS_ZARR_NAME)
-    
-    
+
+
 def _get_config(config_path):
-    with open(config_path, 'r') as f:
+    with open(config_path, "r") as f:
         return yaml.safe_load(f)
-    
-    
+
+
 def _get_remote_diags(diags_path):
     proto, path = _split_url(diags_path)
     fs = fsspec.filesystem(proto)
@@ -86,24 +85,18 @@ def _get_remote_diags(diags_path):
     return xr.open_zarr(mapper)
 
 
-if __name__=='__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "input_path",
-        type=str,
-        help="GCS location of C384 diagnostics data zarrs."
+        "input_path", type=str, help="GCS location of C384 diagnostics data zarrs."
     )
     parser.add_argument(
         "output_path",
         type=str,
-        help="GCS location where= coarsened diagnostics zarrs will be written."
+        help="GCS location where= coarsened diagnostics zarrs will be written.",
     )
     parser.add_argument(
-        "config_path",
-        type=str,
-        help="Location of diagnostics coarsening config yaml."
+        "config_path", type=str, help="Location of diagnostics coarsening config yaml."
     )
     args = parser.parse_args()
     coarsen_c384_diagnostics(args)
-    
-    

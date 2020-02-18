@@ -1,4 +1,3 @@
-from metpy.interpolate import interpolate_1d
 import numpy as np
 import xarray as xr
 

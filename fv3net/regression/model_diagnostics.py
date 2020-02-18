@@ -56,9 +56,9 @@ def _predict_on_test_data(test_data_path, model_path, num_test_zarrs, model_type
 def _load_high_res_dataset(coarsened_hires_diags_path, init_times):
     full_zarr_path = os.path.join(coarsened_hires_diags_path, COARSENED_DIAGS_ZARR_NAME)
     fs = fsspec.filesystem("gs")
-    ds_hires = xr.open_zarr(
-        fs.get_mapper(full_zarr_path), consolidated=True
-    ).rename({"time": INIT_TIME_DIM})
+    ds_hires = xr.open_zarr(fs.get_mapper(full_zarr_path), consolidated=True).rename(
+        {"time": INIT_TIME_DIM}
+    )
     ds_hires = ds_hires.assign_coords(
         {
             INIT_TIME_DIM: [round_time(t) for t in ds_hires[INIT_TIME_DIM].values],
@@ -76,12 +76,6 @@ def _load_high_res_dataset(coarsened_hires_diags_path, init_times):
         - ds_hires["LHTFLsfc_coarse"] / LATENT_HEAT_VAPORIZATION
     )
     return ds_hires
-
-
-def _upload_report_dir(output_dir, output_path):
-#     proto, path = _split_url(output_path)
-    fs = fsspec.filesystem(proto)
-    fs.copy(output_dir, output_path)
 
 
 if __name__ == "__main__":
@@ -138,7 +132,10 @@ if __name__ == "__main__":
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     ds_test, ds_pred = _predict_on_test_data(
-        args.test_data_path, os.path.join(args.model_path, args.model_name), args.num_test_zarrs, args.model_type
+        args.test_data_path,
+        os.path.join(args.model_path, args.model_name),
+        args.num_test_zarrs,
+        args.model_type,
     )
     init_times = list(set(ds_test[INIT_TIME_DIM].values))
     ds_hires = _load_high_res_dataset(args.high_res_data_path, init_times)
@@ -151,6 +148,6 @@ if __name__ == "__main__":
     with open(f"{output_dir}/model_diagnostics.html", "w") as f:
         html = report_html.render(sections=report_sections)
         f.write(html)
-        
+
     if args.output_path:
         gsutil.copy(output_dir, args.output_path)

@@ -85,4 +85,3 @@ def test_solar_time():
     lon = xr.DataArray([0, 180, 270, 360, 0, 270], dims=["x"], coords={"x": range(6)})
     ds_solar_test = xr.Dataset({"initialization_time": t, "lon": lon})
     assert np.allclose(local_time(ds_solar_test), [0, 12, 18, 0, 6, 0])
-

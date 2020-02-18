@@ -65,5 +65,10 @@ if __name__ == "__main__":
         args.input_url, args.output_url, args.n_steps, args.overwrite
     )
     submit_utils.submit_jobs(
-        timestep_list, workflow_name, one_step_config, args.input_url, output_url, config_url
+        timestep_list,
+        workflow_name,
+        one_step_config,
+        args.input_url,
+        output_url,
+        config_url,
     )

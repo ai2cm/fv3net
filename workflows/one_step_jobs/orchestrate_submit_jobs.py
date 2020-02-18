@@ -20,14 +20,10 @@ def _create_arg_parser():
         "stored as INPUT_URL/{timestamp}/{timestamp}.{restart_category}.tile*.nc",
     )
     parser.add_argument(
-        "output_url",
-        type=str,
-        help="Remote url where model output will be saved."
+        "output_url", type=str, help="Remote url where model output will be saved."
     )
     parser.add_argument(
-        "one_step_yaml",
-        type=str,
-        help="Path to local run configuration yaml.",
+        "one_step_yaml", type=str, help="Path to local run configuration yaml.",
     )
     parser.add_argument(
         "experiment_label",
@@ -54,7 +50,7 @@ def _create_arg_parser():
         "--config-url",
         type=str,
         required=False,
-        help="Storage path for job configuration files"
+        help="Storage path for job configuration files",
     )
 
     return parser
@@ -87,9 +83,14 @@ if __name__ == "__main__":
 
     local_vgrid_file = os.path.join(PWD, submit_utils.VERTICAL_GRID_FILENAME)
     submit_utils.submit_jobs(
-        timestep_list, workflow_name, one_step_config, args.input_url, args.output_url,
-        config_url, experiment_label=args.experiment_label,
-        local_vertical_grid_file=local_vgrid_file
+        timestep_list,
+        workflow_name,
+        one_step_config,
+        args.input_url,
+        args.output_url,
+        config_url,
+        experiment_label=args.experiment_label,
+        local_vertical_grid_file=local_vgrid_file,
     )
 
     wait_for_complete(args.experiment_label)
