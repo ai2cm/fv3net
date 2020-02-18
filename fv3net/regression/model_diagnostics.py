@@ -15,7 +15,8 @@ from vcm.cubedsphere.constants import (
 )
 from vcm.calc.thermo import LATENT_HEAT_VAPORIZATION
 from vcm.cloud import gsutil
-from .sklearn.train import MODEL_FILENAME
+from fv3net.regression.sklearn import MODEL_FILENAME
+from fv3net import COARSENED_DIAGS_ZARR_NAME
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
 
@@ -53,9 +54,10 @@ def _predict_on_test_data(test_data_path, model_path, num_test_zarrs, model_type
 
 
 def _load_high_res_dataset(coarsened_hires_diags_path, init_times):
+    full_zarr_path = os.path.join(coarsened_hires_diags_path, COARSENED_DIAGS_ZARR_NAME)
     fs = fsspec.filesystem("gs")
     ds_hires = xr.open_zarr(
-        fs.get_mapper(coarsened_hires_diags_path), consolidated=True
+        fs.get_mapper(full_zarr_path), consolidated=True
     ).rename({"time": INIT_TIME_DIM})
     ds_hires = ds_hires.assign_coords(
         {
