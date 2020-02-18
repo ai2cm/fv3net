@@ -72,9 +72,7 @@ def run(args, pipeline_args):
     gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(data_path))]
     _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir, args.gcs_bucket)
     data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
-    train_test_labels = _test_train_split(
-        data_batch_urls, args.train_fraction, args.random_seed
-    )
+    train_test_labels = _test_train_split(data_batch_urls, args.train_fraction)
     logger.info(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
