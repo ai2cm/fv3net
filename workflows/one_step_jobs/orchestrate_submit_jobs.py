@@ -5,7 +5,7 @@ import subprocess
 import yaml
 from pathlib import Path
 
-import fv3net.pipelines.kube_jobs.utils as submit_utils
+from fv3net.pipelines.kube_jobs import one_step
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
@@ -81,12 +81,12 @@ if __name__ == "__main__":
     else:
         config_url = args.config_url
 
-    timestep_list = submit_utils.timesteps_to_process(
+    timestep_list = one_step.timesteps_to_process(
         args.input_url, args.output_url, args.n_steps, args.overwrite
     )
 
-    local_vgrid_file = os.path.join(PWD, submit_utils.VERTICAL_GRID_FILENAME)
-    submit_utils.submit_jobs(
+    local_vgrid_file = os.path.join(PWD, one_step.VERTICAL_GRID_FILENAME)
+    one_step.submit_jobs(
         timestep_list, workflow_name, one_step_config, args.input_url, args.output_url,
         config_url, experiment_label=args.experiment_label,
         local_vertical_grid_file=local_vgrid_file
