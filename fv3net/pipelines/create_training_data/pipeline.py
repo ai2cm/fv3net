@@ -73,12 +73,14 @@ def run(args, pipeline_args):
     _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir, args.gcs_bucket)
     data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
     train_test_labels = _test_train_split(data_batch_urls, args.train_fraction)
+    data_batch_urls_reordered = _reorder_batches(data_batch_urls, args.train_fraction)
+
     logger.info(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
             p
-            | beam.Create(data_batch_urls)
+            | beam.Create(data_batch_urls_reordered)
             | "LoadCloudData" >> beam.Map(_open_cloud_data)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
             | "MergeHiresDiagVars"
@@ -95,6 +97,31 @@ def run(args, pipeline_args):
                 train_test_labels=train_test_labels,
             )
         )
+
+
+def _reorder_batches(sorted_batches, train_frac):
+    """Uniformly distribute the test batches within the list of batches to run,
+    so that they are not all left to the end of the job. This is so that we don't 
+    have to run a training data job to completion in order to get the desired
+    train/test ratio.
+    
+    Args:
+        sorted_batches ([type]): [description]
+        train_frac ([type]): [description]
+    """
+    num_batches = len(sorted_batches)
+    split_index = int(train_frac * num_batches)
+    train_set = sorted_batches[:split_index]
+    test_set = sorted_batches[split_index:]
+    train_test_ratio = int(train_frac / (1 - train_frac))
+    reordered_batches = []
+    while len(train_set) > 0:
+        if len(test_set) > 0:
+            reordered_batches.append(test_set.pop(0))
+        for i in range(train_test_ratio):
+            if len(train_set) > 0:
+                reordered_batches.append(train_set.pop(0))
+    return reordered_batches
 
 
 def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
