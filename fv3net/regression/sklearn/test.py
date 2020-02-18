@@ -13,7 +13,7 @@ SAMPLE_DIM = "sample"
 KEEP_VARS = ["delp", "slope", "precip_sfc"]
 
 
-def load_test_dataset(test_data_path, num_files_to_load=50):
+def load_test_dataset(test_data_path, num_files_to_load=50, downsample_time_factor=8):
     """
 
     Args:
@@ -24,12 +24,10 @@ def load_test_dataset(test_data_path, num_files_to_load=50):
     Returns:
         xarray dataset created by concatenating test data zarrs
     """
-    protocol, _ = _split_url(test_data_path)
-    fs = fsspec.filesystem(protocol)
-    zarrs_in_test_dir = [file for file in fs.ls(test_data_path) if ".zarr" in file]
+    test_data_urls = load_downsampled_time_range(test_data_path, downsample_time_factor)
+    zarrs_in_test_dir = [file for file in test_data_urlsif ".zarr" in file]
     if len(zarrs_in_test_dir) < 1:
         raise ValueError(f"No .zarr files found in  {test_data_path}.")
-    np.random.shuffle(zarrs_in_test_dir)
 
     ds_test = xr.concat(
         map(
@@ -47,6 +45,19 @@ def load_test_dataset(test_data_path, num_files_to_load=50):
     ds_stacked = stack_and_drop_nan_samples(ds_test)
     return ds_stacked
 
+
+def load_downsampled_time_range(
+        test_data_path,
+        downsample_time_factor=8
+):
+    fs = fsspec.filesystem("gs")
+    sorted_urls = sorted(fs.ls(test_data_path))
+    downsampled_urls = [
+        sorted_urls[i * downsample_time_factor] 
+        for i in range(int(len(sorted_urls)/downsample_time_factor))
+    ]
+    return downsampled_urls
+    
 
 def predict_dataset(sk_wrapped_model, ds_stacked):
     """
