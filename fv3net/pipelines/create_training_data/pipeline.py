@@ -108,6 +108,10 @@ def _reorder_batches(sorted_batches, train_frac):
     Args:
         sorted_batches (nested list):of run dirs per batch
         train_frac (float): fraction of batches for use in training
+
+    Returns:
+        nested list of batch urls, reordered so that test times are uniformly
+        distributed in list
     """
     num_batches = len(sorted_batches)
     split_index = int(train_frac * num_batches)
