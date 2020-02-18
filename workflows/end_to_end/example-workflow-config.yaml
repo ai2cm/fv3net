@@ -1,17 +1,17 @@
 user: brianh
-storage_proto: 'gs'
+storage_proto: gs
 storage_root: vcm-ml-data/orchestration-testing
 experiment:
-  name: test-experiment-d8d2f94f
-  unique_id: False
+  name: test-experiment
+  unique_id: True
   fv3net_hash: ca279cb79c0b97a5e5e758ec8785612b3c7ec044
   workflow_steps: 
-#     - coarsen_restarts
-#     - coarsen_diagnostics
+    - coarsen_restarts
+    - coarsen_diagnostics
     - one_step_run
     - create_training_data
     - train_sklearn_model
-#     - test_sklearn_model
+    - test_sklearn_model
     - prognostic_run
   experiment_vars:
     one_step_yaml: ./workflows/one_step_jobs/all-physics-off.yml
@@ -35,25 +35,28 @@ experiment:
         coarsening_config: workflows/coarsen_c384_diagnostics/coarsen-c384-diagnostics.yml
     
     one_step_run:
-      config_transforms:
-        add_unique_id: ['experiment_label']
-        use_top_level: ['experiment_yaml']
       command: python ./workflows/one_step_jobs/orchestrate_submit_jobs.py
       inputs:
         restart_data:
           from: coarsen_restarts
-      output: null
       method: 
         experiment_yaml: one_step_yaml
         experiment_label: test-orchestration-group
+      config_transforms:
+        add_unique_id: 
+          - experiment_label
+        use_top_level:
+          - experiment_yaml
     
     create_training_data:
-      command: ./workflows/create_training_data/orchestrator_job.sh
+      command: ./workflows/create_training_data/orchestrator_job_directrunner_test.sh
       inputs:
         one_step_data:
           from: one_step_run
+#           location: gs://vcm-ml-data/orchestration-testing/test-experiment-e1b4376b/one_step_run_experiment_yaml_all-physics-off.yml_experiment_label_test-orchestration-group-e1b4376b
         diagnostics_data:
           from: coarsen_diagnostics
+#           location: gs://vcm-ml-data/orchestration-testing/test-experiment-e1b4376b/coarsen_diagnostics_coarsening_config_coarsen-c384-diagnostics.yml/gfsphysics_15min_coarse.zarr
       method: 
         timesteps-per-output-file: 2
         mask-to-surface-type: 
