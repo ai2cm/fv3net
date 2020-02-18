@@ -15,7 +15,7 @@ from vcm.cubedsphere.constants import (
 )
 from vcm.calc.thermo import LATENT_HEAT_VAPORIZATION
 from vcm.cloud import gsutil
-from fv3net.regression.sklearn import MODEL_FILENAME
+from fv3net.regression.sklearn.train import MODEL_FILENAME
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0

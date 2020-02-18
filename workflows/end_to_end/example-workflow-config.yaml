@@ -6,13 +6,13 @@ experiment:
   unique_id: True
   fv3net_hash: ca279cb79c0b97a5e5e758ec8785612b3c7ec044
   workflow_steps: 
-    - coarsen_restarts
+#     - coarsen_restarts
     - coarsen_diagnostics
-    - one_step_run
+#     - one_step_run
     - create_training_data
     - train_sklearn_model
     - test_sklearn_model
-    - prognostic_run
+#     - prognostic_run
   experiment_vars:
     one_step_yaml: ./workflows/one_step_jobs/all-physics-off.yml
   steps:

@@ -39,16 +39,14 @@ configuration YAML.
 
 ### Experiment configuration YAML syntax
 
-Here is a portion of the YAML file to configure the workflow to run an experiment:
+Here is a portion of a YAML file to configure the workflow to run an experiment:
 
 ```
-user: brianh
-storage_proto: 'gs'
+storage_proto: gs
 storage_root: vcm-ml-data/orchestration-testing
 experiment:
   name: test-experiment
   unique_id: True
-  fv3net_hash: ca279cb79c0b97a5e5e758ec8785612b3c7ec044
   steps_to_run:
     - coarsen_restarts
     - coarsen_diagnostics
@@ -78,13 +76,14 @@ experiment:
         experiment_yaml: one_step_yaml
         experiment_label: test-orchestration-group
       config_transforms:
-        add_unique_id: ['experiment_label']
-        use_top_level: ['experiment_yaml']
+        add_unique_id: 
+          - experiment_label
+        use_top_level: 
+          - experiment_yaml
 ```
 
 #### Top-level arguments:
 
-- user
 - storage_proto: protocol of the filesystem; can be either 'gs' or 'file'
 - storage_root: root directory of storage for the experiment
 
@@ -92,7 +91,6 @@ experiment:
 
 - name: name of experiment
 - unique_id: a UUID is appended to experiment name if True; if false, the `name`field is used directly. True is used for new workflows, whereas False allows for specifying an existing experiment to rerun or start from an intermediate step.
-- fv3net_hash: Repo commit hash of the fv3net codebase to be used (not yet implemted)
 - steps_to_run: a YAML list of workflow steps to execute for this experiment
 - experiment_vars: a method that applies to more than one step in the experiment can be set here; see `use_top_level` under step configuration
 
