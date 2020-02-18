@@ -15,6 +15,7 @@ def get_experiment_steps_and_args(args):
     workflow_steps_config = config["experiment"]['workflow_steps']
     all_step_commands, all_step_arguments = _get_all_step_arguments(workflow_steps_config, config)
     experiment_steps_and_args = {
+        "name" : config['experiment']['name'],
         "workflow" : " ".join([step for step in workflow_steps_config]),
         "commands" : all_step_commands,
         "arguments" : all_step_arguments
