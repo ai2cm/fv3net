@@ -131,19 +131,23 @@ def train_model(batched_data, train_config):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--train-config-file",
+        "train_data_path", type=str, help="Location of training data",
+    )
+    parser.add_argument(
+        "train_config_file",
         type=str,
-        required=True,
         help="Path for training configuration yaml file",
     )
     parser.add_argument(
-        "--train-data-path", type=str, required=True, help="Location of training data",
+        "output_data_path",
+        type=str,
+        help="Location to save config and trained model.",
     )
     parser.add_argument(
-        "--output-data-path",
+        "--output-dir-suffix",
         type=str,
-        required=True,
-        help="Location to save config and trained model.",
+        default="sklearn_regression",
+        help="Local directory suffix to write files to. Prefixed with today's timestamp.",
     )
     parser.add_argument(
         "--delete-local-results-after-upload",
@@ -151,13 +155,6 @@ if __name__ == "__main__":
         default=False,
         help="If results are uploaded to remote storage, "
         "remove local copy after upload.",
-    )
-    parser.add_argument(
-        "--output-dir-suffix",
-        type=str,
-        required=False,
-        default="sklearn_regression",
-        help="Local directory suffix to write files to. Prefixed with today's timestamp.",
     )
     args = parser.parse_args()
     train_config = load_model_training_config(

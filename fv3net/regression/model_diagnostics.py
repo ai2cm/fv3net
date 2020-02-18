@@ -85,34 +85,30 @@ def _upload_report_dir(output_dir, output_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--test-data-path",
+        "model_path",
         type=str,
-        required=True,
+        help="Directory path containing trained model. Can be local or remote.",
+    )
+    parser.add_argument(
+        "test_data_path",
+        type=str,
         help="Path to directory containing test data zarrs. Can be local or remote.",
     )
     parser.add_argument(
-        "--model-path",
+        "high_res_data_path",
         type=str,
-        required=True,
-        help="Directory path containing trained model. Can be local or remote.",
+        help="Path to C48 coarsened high res diagnostic data.",
+    )
+    parser.add_argument(
+        "output_path",
+        type=str,
+        help="Optional file output location; may be remove or local.",
     )
     parser.add_argument(
         "--model-name",
         type=str,
         default=MODEL_FILENAME,
         help=f"Name of the trained model object. Defaults to {MODEL_FILENAME}",
-    )
-    parser.add_argument(
-        "--high-res-data-path",
-        type=str,
-        required=True,
-        help="Path to C48 coarsened high res diagnostic data.",
-    )
-    parser.add_argument(
-        "--output-path",
-        type=str,
-        default=None,
-        help="Optional file output location; may be remove or local.",
     )
     parser.add_argument(
         "--num-test-zarrs",

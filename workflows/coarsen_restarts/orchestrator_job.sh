@@ -7,11 +7,11 @@ SRC_RESOLUTION=$4
 TARGET_RESOLUTION=$5
 
 python -m fv3net.pipelines.coarsen_restarts\
-    --gcs-src-dir $INPUT_PATH \
-    --gcs-dst-dir $OUTPUT_PATH \
-    --gcs-grid-spec-path $GCS_GRIDSPEC_PATH \
-    --source-resolution $SRC_RESOLUTION \
-    --target-resolution $TARGET_RESOLUTION \
+    $INPUT_PATH \
+    $OUTPUT_PATH \
+    $GCS_GRIDSPEC_PATH \
+    $SRC_RESOLUTION \
+    $TARGET_RESOLUTION \
     --no-target-subdir \
     --runner DataflowRunner \
     --job_name coarsen-restarts-$(whoami) \
