@@ -3,15 +3,21 @@ import yaml
 import json
 import os
 import uuid
+from typing import List
 
 
-def get_experiment_steps_and_args(args):
-    """Load all arguments for orchestration script from config"""
+def get_experiment_steps_and_args(config_file: str):
+    """
+    Load all arguments for orchestration script from config and
+    dump in a JSON format to be consumed.
+    """
     
-    with open(args.config_file, 'r') as f:
+    with open(config_file, 'r') as f:
         config = yaml.safe_load(f)
 
+    # Resolve inputs, outputs, and other config parameters
     _apply_config_transforms(config)
+
     workflow_steps_config = config["experiment"]['workflow_steps']
     all_step_commands, all_step_arguments = _get_all_step_arguments(workflow_steps_config, config)
     experiment_steps_and_args = {
@@ -23,7 +29,11 @@ def get_experiment_steps_and_args(args):
     return json.dumps(experiment_steps_and_args)
 
 
-def _apply_config_transforms(config):
+def _apply_config_transforms(config: dict):
+    """
+    Transforms to apply to the configuration dictionary.  All transforms
+    are assumed to be in-place.
+    """
 
     _add_unique_id(config)
     _use_top_level_var(config)
@@ -31,7 +41,8 @@ def _apply_config_transforms(config):
     _resolve_input_from(config)
 
 
-def _add_unique_id(config):
+def _add_unique_id(config: dict):
+    """Add a shared uuid to specified configuration paramters"""
 
     exp_config = config['experiment']
     if not exp_config['unique_id']:
@@ -41,6 +52,7 @@ def _add_unique_id(config):
     exp_name = exp_config['name']
     exp_config['name'] = exp_name + f"-{unique_id}"
 
+    # Go through all step configuration to check for method specific uuid additions
     for step_name, step_config in exp_config['steps'].items():
         config_transforms = step_config.get('config_transforms', None)
 
@@ -52,8 +64,8 @@ def _add_unique_id(config):
                 step_config['method'][config_var] = method_val
 
 
-def _resolve_output_location(config):
-
+def _resolve_output_location(config: dict):
+    """Get the step output location if one is not specified"""
     root_exp_path = _get_experiment_path(config)
     all_steps_config = config['experiment']['steps']
 
@@ -67,7 +79,11 @@ def _resolve_output_location(config):
             step_config['output_location'] = location
 
 
-def _resolve_input_from(config):
+def _resolve_input_from(config: dict):
+    """
+    Get the step input location if not specified.  Derives from previous
+    steps if the "from" keyword is used along with a step name.
+    """
 
     all_steps_config = config['experiment']['steps']
 
@@ -78,6 +94,11 @@ def _resolve_input_from(config):
             location = source_info.get('location', None)
             from_key = source_info.get('from', None)
             
+            if location is not None and from_key is not None:
+                raise ValueError(
+                    f"Ambiguous input location for {step_name}-{input_source}."
+                    f" Both 'from' and 'location' were specified"
+                )
             if location is not None:
                 continue
             elif from_key is not None:
@@ -89,7 +110,10 @@ def _resolve_input_from(config):
                 )
 
 
-def _use_top_level_var(config):
+def _use_top_level_var(config: dict):
+    """
+    Interpolate parameters marked to use a top-level variable from the YAML file.
+    """
 
     experiment_vars = config['experiment']['experiment_vars']
     all_steps_config = config['experiment']['steps']
@@ -109,7 +133,8 @@ def _use_top_level_var(config):
             step_config["method"][varname] = experiment_vars[exp_var_key]
 
 
-def _get_experiment_path(config):
+def _get_experiment_path(config: dict):
+    """Get root directory path for experiment output."""
 
     proto = config['storage_proto']
     root = config['storage_root']
@@ -118,12 +143,18 @@ def _get_experiment_path(config):
     if proto == '' or proto is None:
         proto = 'file'
 
+    if proto != 'file' and proto != 'gs':
+        raise ValueError(
+            f"Protocol, {proto}, is not currently supported. Please use "
+            f"'file' or 'gs'"
+        )
+
     experiment_name = f"{experiment['name']}"
 
     return f"{proto}://{root}/{experiment_name}"
 
 
-def _get_all_step_arguments(workflow_steps, config):
+def _get_all_step_arguments(workflow_steps: List[str], config: dict):
     """Get a dictionary of each step with i/o and methedological arguments"""
 
     steps_config = config["experiment"]["steps"]
@@ -145,7 +176,9 @@ def _get_all_step_arguments(workflow_steps, config):
     return all_step_commands, all_step_arguments
     
 
-def _generate_output_path_from_config(step_name, step_config, max_config_stubs=3):
+def _generate_output_path_from_config(
+    step_name: str, step_config: dict, max_config_stubs: int = 3
+):
     """generate an output location stub from a step's methodological config"""
     
     output_str = step_name
@@ -170,8 +203,11 @@ def _generate_output_path_from_config(step_name, step_config, max_config_stubs=3
     return output_str
 
 
-def _generate_method_args(step_config):
-    """generate the methodlogical arguments for the step"""
+def _generate_method_args(step_config: dict):
+    """
+    Generate the methodological arguments for the step as positional arguments
+    in a string.
+    """
     method_config = step_config.get("method", None)
 
     if method_config is not None:
@@ -193,6 +229,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    # run the function
-    exp_args = get_experiment_steps_and_args(args)
+    exp_args = get_experiment_steps_and_args(args.config_file)
+
+    # Print JSON to stdout to be consumed by shell script
     print(exp_args)
