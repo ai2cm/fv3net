@@ -88,21 +88,18 @@ def _get_remote_diags(diags_path):
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--input-path",
+        "input_path",
         type=str,
-        required=True,
         help="GCS location of C384 diagnostics data zarrs."
     )
     parser.add_argument(
-        "--output-path",
+        "output_path",
         type=str,
-        required=True,
         help="GCS location where= coarsened diagnostics zarrs will be written."
     )
     parser.add_argument(
-        "--config-path",
+        "config_path",
         type=str,
-        required=True,
         help="Location of diagnostics coarsening config yaml."
     )
     args = parser.parse_args()
