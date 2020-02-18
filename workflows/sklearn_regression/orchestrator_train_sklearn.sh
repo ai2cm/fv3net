@@ -3,6 +3,6 @@ OUTPUT_DATA_PATH=$2
 TRAINING_CONFIG_PATH=$3
 
 python -m fv3net.regression.sklearn.train \
-  --train-data-path ${INPUT_DATA_PATH}"/train" \
-  --train-config-file ${TRAINING_CONFIG_PATH} \
-  --output-data-path ${OUTPUT_DATA_PATH}
+  ${INPUT_DATA_PATH}"/train" \
+  ${TRAINING_CONFIG_PATH} \
+  ${OUTPUT_DATA_PATH}
