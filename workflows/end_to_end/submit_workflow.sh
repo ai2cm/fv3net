@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export PYTHONPATH="./"
+
 set -e
 
 config_file=$1
