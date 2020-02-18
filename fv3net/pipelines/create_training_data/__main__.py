@@ -12,9 +12,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "diag_c48_path",
         type=str,
-        help="Location of C48 (coarsened from C384) high res diagnostic zarr for "
-        "features (SHF, LHF, etc.) that are not saved in restarts. If not provided, "
-        "features from diagnostics will not be in the final training data set.",
+        help="Directory containing diagnostic zarr directory coarsened from C384 "
+        "for features (SHF, LHF, etc.) that are not saved in restarts."
     )
     parser.add_argument(
         "gcs_output_data_dir",

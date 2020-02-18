@@ -28,6 +28,7 @@ from vcm.fv3_restarts import (
 )
 from vcm.select import mask_to_surface_type
 from vcm.convenience import parse_timestep_from_path
+from fv3net import COARSENED_DIAGS_ZARR_NAME
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -261,7 +262,8 @@ def _merge_hires_data(ds_run, diag_c48_path):
         return ds_run
     try:
         init_times = ds_run[INIT_TIME_DIM].values
-        diags_c48 = helpers.load_diag(diag_c48_path, init_times)[HIRES_VARS]
+        full_zarr_path = os.path.join(diag_c48_path, COARSENED_DIAGS_ZARR_NAME)
+        diags_c48 = helpers.load_diag(full_zarr_path, init_times)[HIRES_VARS]
         features_diags_c48 = diags_c48.rename(RENAMED_HIRES_VARS)
         return xr.merge([ds_run, features_diags_c48])
     except (KeyError, AttributeError, ValueError, TypeError) as e:

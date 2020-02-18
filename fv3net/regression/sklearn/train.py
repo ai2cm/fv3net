@@ -10,12 +10,10 @@ from typing import List
 
 from fv3net.regression.dataset_handler import BatchGenerator
 from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
+from fv3net.regression.sklearn import MODEL_CONFIG_FILENAME, MODEL_FILENAME
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
 from vcm.cloud import gsutil
-
-MODEL_CONFIG_FILENAME = "training_config.yml"
-MODEL_FILENAME = "sklearn_model.pkl"
 
 
 @dataclass
