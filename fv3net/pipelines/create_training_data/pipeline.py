@@ -101,7 +101,7 @@ def run(args, pipeline_args):
 
 def _reorder_batches(sorted_batches, train_frac):
     """Uniformly distribute the test batches within the list of batches to run,
-    so that they are not all left to the end of the job. This is so that we don't 
+    so that they are not all left to the end of the job. This is so that we don't
     have to run a training data job to completion in order to get the desired
     train/test ratio.
     
