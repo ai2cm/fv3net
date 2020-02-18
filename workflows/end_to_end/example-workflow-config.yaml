@@ -5,15 +5,15 @@ experiment:
   name: test-experiment-d8d2f94f
   unique_id: False
   fv3net_hash: ca279cb79c0b97a5e5e758ec8785612b3c7ec044
-  # workflow_steps: [prognostic_run]
-  workflow_steps: [
+  workflow_steps: [prognostic_run]
+  # workflow_steps: [
     # coarsen_restarts,
-    one_step_run,
-    create_training_data,
-    train_sklearn_model,
+    # one_step_run,
+    # create_training_data,
+    # train_sklearn_model,
     # test_sklearn_model,
-    prognostic_run,
-  ]
+    # prognostic_run,
+  # ]
   experiment_vars:
     one_step_yaml: /home/andrep/repos/fv3net/workflows/one_step_jobs/all-physics-off.yml
   steps:
@@ -62,7 +62,8 @@ experiment:
 #           location: gs://vcm-ml-data/test-annak/2020-02-05_train_data_pipeline/train
 #           location: gs://vcm-ml-data/orchestration-testing/test-experiment-b8132844/create_training_data_model-resolution_48_diag-c48-path_2020-02-11_coarsened_c48_diags.zarr_timesteps-per-output-file_3
       method: 
-        train-config-file: workflows/sklearn_regression/example_rf_training_config.yml
+        train-config-file: workflows/sklearn_regression/example_base_rf_training_config.yml
+        # train-config-file: workflows/sklearn_regression/example_rf_training_config.yml
         
     test_sklearn_model: 
       command: workflows/sklearn_regression/orchestrator_test_sklearn.sh

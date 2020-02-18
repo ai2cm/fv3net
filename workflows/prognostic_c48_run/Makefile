@@ -38,7 +38,7 @@ state.pkl:
 	cp save_state/state.pkl .
 
 sklearn_run: #rundir
-	fv3run --dockerimage test-image --runfile sklearn_runfile.py $(FV3CONFIG) rundir
+	fv3run --dockerimage us.gcr.io/vcm-ml/prognostic-run-orchestration --runfile sklearn_runfile.py $(FV3CONFIG) ../../scratch/rundir
 
 clean:
 	rm -rf net_precip net_heating/ PW
