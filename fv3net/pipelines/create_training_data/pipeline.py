@@ -106,8 +106,8 @@ def _reorder_batches(sorted_batches, train_frac):
     train/test ratio.
     
     Args:
-        sorted_batches ([type]): [description]
-        train_frac ([type]): [description]
+        sorted_batches (nested list):of run dirs per batch
+        train_frac (float): fraction of batches for use in training
     """
     num_batches = len(sorted_batches)
     split_index = int(train_frac * num_batches)
