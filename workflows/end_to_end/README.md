@@ -57,7 +57,7 @@ experiment:
     - prognostic_run
   experiment_vars:
     one_step_yaml: workflows/one_step_jobs/all-physics-off.yml
-  steps:
+  steps_config:
     coarsen_restarts:
       command: workflows/coarsen_restarts/orchestrator_job.sh
       inputs:
@@ -84,8 +84,8 @@ experiment:
 
 #### Top-level arguments:
 
-- storage_proto: protocol of the filesystem; can be either 'gs' or 'file'
-- storage_root: root directory of storage for the experiment
+- **torage_proto**: protocol of the filesystem; can be either 'gs' or 'file'
+- **storage_root**: root directory of storage for the experiment
 
 #### Experiment level arguments:
 

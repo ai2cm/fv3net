@@ -3,20 +3,20 @@ storage_root: vcm-ml-data/orchestration-testing
 experiment:
   name: test-experiment
   unique_id: True
-  workflow_steps: 
+  steps_to_run: 
     - coarsen_restarts
     - coarsen_diagnostics
     - one_step_run
     - create_training_data
     - train_sklearn_model
-    - test_sklearn_model
+#     - test_sklearn_model
     - prognostic_run
   experiment_vars:
-    one_step_yaml: ./workflows/one_step_jobs/all-physics-off.yml
+    one_step_yaml: workflows/one_step_jobs/all-physics-off.yml
   
-  steps:
+  steps_config:
     coarsen_restarts:
-      command: ./workflows/coarsen_restarts/orchestrator_job.sh
+      command: workflows/coarsen_restarts/orchestrator_job.sh
       inputs:
         data_to_coarsen:
           location: gs://vcm-ml-data/orchestration-testing/shield-C384-restarts-2019-12-04
@@ -34,7 +34,7 @@ experiment:
         coarsening_config: workflows/coarsen_c384_diagnostics/coarsen-c384-diagnostics.yml
     
     one_step_run:
-      command: python ./workflows/one_step_jobs/orchestrate_submit_jobs.py
+      command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
       inputs:
         restart_data:
           from: coarsen_restarts
@@ -48,30 +48,27 @@ experiment:
           - experiment_yaml
     
     create_training_data:
-      command: ./workflows/create_training_data/orchestrator_job_directrunner_test.sh
+      command: workflows/create_training_data/orchestrator_job.sh
       inputs:
         one_step_data:
           from: one_step_run
-#           location: gs://vcm-ml-data/orchestration-testing/test-experiment-e1b4376b/one_step_run_experiment_yaml_all-physics-off.yml_experiment_label_test-orchestration-group-e1b4376b
         diagnostics_data:
           from: coarsen_diagnostics
-#           location: gs://vcm-ml-data/orchestration-testing/test-experiment-e1b4376b/coarsen_diagnostics_coarsening_config_coarsen-c384-diagnostics.yml/gfsphysics_15min_coarse.zarr
       method: 
         timesteps-per-output-file: 2
         mask-to-surface-type: 
         train-fraction: 0.5
         
     train_sklearn_model:
-      command: ./workflows/sklearn_regression/orchestrator_train_sklearn.sh
+      command: workflows/sklearn_regression/orchestrator_train_sklearn.sh
       inputs:
         training_data:
           from: create_training_data
       method: 
-        # train-config-file: ./workflows/sklearn_regression/example_rf_training_config.yml
-        train-config-file: ./workflows/sklearn_regression/example_base_rf_training_config.yml
+        train-config-file: workflows/sklearn_regression/example_base_rf_training_config.yml
         
     test_sklearn_model: 
-      command: ./workflows/sklearn_regression/orchestrator_test_sklearn.sh
+      command: workflows/sklearn_regression/orchestrator_test_sklearn.sh
       inputs:
         trained_model:
           from: train_sklearn_model
@@ -87,7 +84,6 @@ experiment:
       inputs:
         sklearn_model:
           from: train_sklearn_model
-          # location: gs://vcm-ml-data/test-annak/ml-pipeline-output/2020-01-17_rf_40d_run.pkl
         restart_file_dir:
           from: one_step_run
       method:
