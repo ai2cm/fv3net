@@ -156,7 +156,10 @@ def _check_header_categories(
 
 
 def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
-    """Get list of assets representing initial conditions for this timestep to pipeline for now"""
+    """
+    Get list of assets representing initial conditions for this timestep to pipeline
+    for now.
+    """
     initial_condition_assets = utils.update_tiled_asset_names(
         source_url=input_url,
         source_filename="{timestep}.{category}.tile{tile}.nc",
