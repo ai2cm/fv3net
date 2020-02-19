@@ -104,7 +104,7 @@ def _reorder_batches(sorted_batches, train_frac):
     so that they are not all left to the end of the job. This is so that we don't
     have to run a training data job to completion in order to get the desired
     train/test ratio.
-    
+
     Args:
         sorted_batches (nested list):of run dirs per batch
         train_frac (float): fraction of batches for use in training
@@ -322,7 +322,7 @@ def _write_remote_train_zarr(
         if not zarr_filename:
             zarr_filename = helpers._path_from_first_timestep(ds, train_test_labels)
         output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
-        ds.to_zarr(zarr_filename, mode="w")
+        ds.to_zarr(zarr_filename, mode="w", consolidated=True)
         gsutil.copy(zarr_filename, output_path)
         logger.info(f"Done writing zarr to {output_path}")
         shutil.rmtree(zarr_filename)
