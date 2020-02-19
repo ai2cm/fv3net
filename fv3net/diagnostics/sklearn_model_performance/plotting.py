@@ -251,7 +251,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
     ds_heating["local_time"] = local_time(ds_heating)
 
-
+    
     # vertical profile plots
     _make_vertical_profile_plots(
         ds_pred_land,
@@ -331,6 +331,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         output_dir=output_dir,
         plot_filename="diurnal_cycle_heating_land.png",
     )
+    
     local_coords = get_example_latlon_grid_coords(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(

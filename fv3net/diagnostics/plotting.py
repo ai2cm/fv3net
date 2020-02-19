@@ -9,6 +9,7 @@ vcm.visualize such as plot_cube.
 
 """
 import matplotlib.pyplot as plt
+import numpy as np
 import os
 from scipy.stats import binned_statistic
 import xarray as xr
@@ -23,6 +24,11 @@ from vcm.cubedsphere.constants import (
 )
 
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
+
+
+def mask_nan_lines(x, y):
+    nan_mask = np.isfinite(y)
+    return np.array(x)[nan_mask], np.array(y)[nan_mask]
 
 
 def plot_diurnal_cycle(
@@ -65,6 +71,7 @@ def plot_diurnal_cycle(
         bin_centers = [
             0.5 * (bin_edges[i] + bin_edges[i + 1]) for i in range(num_time_bins)
         ]
+        bin_centers, bin_means = mask_nan_lines(bin_centers, bin_means)
         plt.plot(bin_centers, bin_means, label=label)
     plt.xlabel("local_time [hr]")
     plt.ylabel(y_label or var)
