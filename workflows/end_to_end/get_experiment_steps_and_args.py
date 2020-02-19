@@ -17,7 +17,7 @@ def get_experiment_steps_and_args(config_file: str):
 
     # Resolve inputs, outputs, and other config parameters
     _apply_config_transforms(config)
-    workflow_steps_config = config["experiment"]["workflow_steps"]
+    workflow_steps_config = config["experiment"]["steps_to_run"]
     all_step_commands, all_step_arguments = _get_all_step_arguments(
         workflow_steps_config, config
     )
@@ -54,7 +54,7 @@ def _add_unique_id(config: dict):
     exp_config["name"] = exp_name + f"-{unique_id}"
 
     # Go through all step configuration to check for method specific uuid additions
-    for step_name, step_config in exp_config["steps"].items():
+    for step_name, step_config in exp_config["steps_config"].items():
         config_transforms = step_config.get("config_transforms", None)
 
         if config_transforms and "add_unique_id" in config_transforms:
@@ -68,7 +68,7 @@ def _add_unique_id(config: dict):
 def _resolve_output_location(config: dict):
     """Get the step output location if one is not specified"""
     root_exp_path = _get_experiment_path(config)
-    all_steps_config = config["experiment"]["steps"]
+    all_steps_config = config["experiment"]["steps_config"]
 
     for step_name, step_config in all_steps_config.items():
 
@@ -86,7 +86,7 @@ def _resolve_input_from(config: dict):
     steps if the "from" keyword is used along with a step name.
     """
 
-    all_steps_config = config["experiment"]["steps"]
+    all_steps_config = config["experiment"]["steps_config"]
 
     for step_name, step_config in all_steps_config.items():
         input_config = step_config["inputs"]
@@ -117,7 +117,7 @@ def _use_top_level_var(config: dict):
     """
 
     experiment_vars = config["experiment"]["experiment_vars"]
-    all_steps_config = config["experiment"]["steps"]
+    all_steps_config = config["experiment"]["steps_config"]
 
     for step_name, step_config in all_steps_config.items():
 
@@ -158,7 +158,7 @@ def _get_experiment_path(config: dict):
 def _get_all_step_arguments(workflow_steps: List[str], config: dict):
     """Get a dictionary of each step with i/o and methedological arguments"""
 
-    steps_config = config["experiment"]["steps"]
+    steps_config = config["experiment"]["steps_config"]
     all_step_commands = {}
     all_step_arguments = {}
     for i, step in enumerate(workflow_steps):
