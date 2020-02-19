@@ -162,8 +162,8 @@ def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
     initial_condition_assets = utils.update_tiled_asset_names(
         source_url=input_url,
         source_filename="{timestep}.{category}.tile{tile}.nc",
-        target_location="INPUT",
-        target_name="{category}.tile{tile}.nc",
+        target_url="INPUT",
+        target_filename="{category}.tile{tile}.nc",
         timestep=timestep,
     )
 
@@ -236,17 +236,17 @@ def _upload_config_files(
 
     if "runfile" in kubernetes_config:
         runfile_path = kubernetes_config["runfile"]
-        kubernetes_config["runfile"] = utils.upload_if_necessary(
+        kubernetes_config["runfile"] = utils.transfer_local_to_remote(
             runfile_path, config_url
         )
 
-    model_config["diag_table"] = utils.upload_if_necessary(
+    model_config["diag_table"] = utils.transfer_local_to_remote(
         model_config["diag_table"], config_url
     )
 
     if local_vertical_grid_file is not None:
         fs = get_fs(config_url)
-        vfile_path = os.path.jon(config_url, VERTICAL_GRID_FILENAME)
+        vfile_path = os.path.join(config_url, VERTICAL_GRID_FILENAME)
         fs.put(local_vertical_grid_file, vfile_path)
 
     config_path = os.path.join(config_url, upload_config_filename)
@@ -261,7 +261,7 @@ def prepare_and_upload_config(
     input_url: str,
     config_url: str,
     timestep: str,
-    one_step_config: str,
+    one_step_config: dict,
     **kwargs,
 ) -> Tuple[dict]:
     """Update model and kubernetes configurations for this particular
@@ -307,6 +307,7 @@ def submit_jobs(
             curr_input_url,
             curr_config_url,
             timestep,
+            one_step_config,
             local_vertical_grid_file=local_vertical_grid_file,
         )
 

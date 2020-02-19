@@ -84,7 +84,11 @@ experiment:
 
 #### Top-level arguments:
 
+<<<<<<< HEAD
+- **storage_proto**: protocol of the filesystem; can be either 'gs' or 'file'
+=======
 - **torage_proto**: protocol of the filesystem; can be either 'gs' or 'file'
+>>>>>>> f945706ab1c7a8b52c81eb89f0c12834d5aa5f5e
 - **storage_root**: root directory of storage for the experiment
 
 #### Experiment level arguments:
@@ -106,7 +110,7 @@ For each step in `steps_to_run`, its configuration is set by its equivalently na
 - **method**: configurable key-value pairs specific to the workflow step; each value is provided as a command-line argument appended to `command` after I/O arguments.
 - **config_transforms**: additional parameter value translation functionality
     - **add_unique_id**: a list of step method keys for which the experiment-level UUID should be appended to the method value; useful for appending the experiment UUID to the `experiment label` tag appended to Kubernetes jobs
-    - **use_top_level**: a list of step method keys for which the method value should be remapped using `experiment_vars` defined above; this allows for setting multiple steps' methods to the same value, e.g., using the same one-step YAML config file for both the one-step and prognostic jobs.
+    - **use_top_level**: a list of step method keys for which the method value should be remapped using `experiment_vars` defined above; this allows for setting multiple steps' methods to the same value, e.g., using the same docker image for both the one-step and prognostic jobs.
     
 
 ### Data output locations

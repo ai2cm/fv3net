@@ -39,13 +39,14 @@ experiment:
         restart_data:
           from: coarsen_restarts
       method: 
-        experiment_yaml: one_step_yaml
+        experiment_yaml: ./workflows/one_step_jobs/all-physics-off.yml
         experiment_label: test-orchestration-group
+        docker_image: kube_docker_image
       config_transforms:
         add_unique_id: 
           - experiment_label
         use_top_level:
-          - experiment_yaml
+          - docker_image
     
     create_training_data:
       command: workflows/create_training_data/orchestrator_job.sh
@@ -64,8 +65,8 @@ experiment:
       inputs:
         training_data:
           from: create_training_data
-      method: 
-        train-config-file: workflows/sklearn_regression/example_base_rf_training_config.yml
+      method:
+        train-config-file: ./workflows/sklearn_regression/example_base_rf_training_config.yml
         
     test_sklearn_model: 
       command: workflows/sklearn_regression/orchestrator_test_sklearn.sh
@@ -89,4 +90,7 @@ experiment:
       method:
         prognostic_yaml_adjust: workflows/prognostic_c48_run/prognostic_config.yml
         ic_timestep: "20160801.001500"
-        docker_image: "us.gcr.io/vcm-ml/prognostic-run-orchestration"
+        docker_image: kube_docker_image
+      config_transforms:
+        use_top_level:
+          - docker_image
