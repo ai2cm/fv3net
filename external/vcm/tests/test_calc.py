@@ -1,14 +1,16 @@
+import cftime
 import numpy as np
 import pytest
 import xarray as xr
 from vcm.calc.thermo import (
-    GRAVITY,
+    _GRAVITY,
     pressure_at_interface,
     height_at_interface,
     _interface_to_midpoint,
     dz_and_top_to_phis,
     _add_coords_to_interface_variable,
 )
+from vcm.calc.calc import local_time
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 
 
@@ -31,7 +33,7 @@ def test_height_on_interface(phis_value):
         height.diff(COORD_Z_OUTER), dz.rename({COORD_Z_CENTER: COORD_Z_OUTER})
     )
     np.testing.assert_allclose(
-        height.isel({COORD_Z_OUTER: -1}).values, phis_value / GRAVITY
+        height.isel({COORD_Z_OUTER: -1}).values, phis_value / _GRAVITY
     )
 
 
@@ -64,4 +66,22 @@ def test_dz_and_top_to_phis():
     dz = np.arange(-4, -1)
     dza = xr.DataArray(dz, dims=[COORD_Z_CENTER])
     phis = dz_and_top_to_phis(top, dza)
-    np.testing.assert_allclose(phis.values / GRAVITY, top + np.sum(dz))
+    np.testing.assert_allclose(phis.values / _GRAVITY, top + np.sum(dz))
+
+
+def test_solar_time():
+    t = xr.DataArray(
+        [
+            cftime.DatetimeJulian(2020, 1, 1, 0, 0),
+            cftime.DatetimeJulian(2020, 1, 1, 0, 0),
+            cftime.DatetimeJulian(2020, 1, 1, 0, 0),
+            cftime.DatetimeJulian(2020, 1, 1, 0, 0),
+            cftime.DatetimeJulian(2020, 1, 1, 6, 0),
+            cftime.DatetimeJulian(2020, 1, 1, 6, 0),
+        ],
+        dims=["x"],
+        coords={"x": range(6)},
+    )
+    lon = xr.DataArray([0, 180, 270, 360, 0, 270], dims=["x"], coords={"x": range(6)})
+    ds_solar_test = xr.Dataset({"initialization_time": t, "lon": lon})
+    assert np.allclose(local_time(ds_solar_test), [0, 12, 18, 0, 6, 0])

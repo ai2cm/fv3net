@@ -143,7 +143,7 @@ def plot_cube(
 
     projection = ccrs.Robinson() if not projection else projection
 
-    if not ax and (row or col):
+    if ax is None and (row or col):
         # facets
         facet_grid = xr.plot.FacetGrid(
             data=plottable_variable,
@@ -158,8 +158,10 @@ def plot_cube(
         handles = facet_grid._mappables
     else:
         # single axes
-        if not ax:
+        if ax is None:
             fig, ax = plt.subplots(1, 1, subplot_kw={"projection": projection})
+        else:
+            fig = ax.figure
         handle = _plot_func_short(array)
         axes = np.array(ax)
         handles = [handle]

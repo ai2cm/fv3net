@@ -16,7 +16,6 @@ from vcm.cloud import gsutil
 
 MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
-OUTPUT_DIR_SUFFIX = "model_training_files"
 
 
 @dataclass
@@ -35,7 +34,7 @@ class ModelTrainingConfig:
     gcs_project: str = "vcm-ml"
 
 
-def load_model_training_config(config_path):
+def load_model_training_config(config_path, gcs_data_dir):
     """
 
     Args:
@@ -49,6 +48,7 @@ def load_model_training_config(config_path):
             config_dict = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             raise ValueError(f"Bad yaml config: {exc}")
+    config_dict["gcs_data_dir"] = gcs_data_dir
     config = ModelTrainingConfig(**config_dict)
     return config
 
@@ -115,8 +115,8 @@ def train_model(batched_data, train_config):
     batch_regressor = RegressorEnsemble(transform_regressor)
 
     model_wrapper = SklearnWrapper(batch_regressor)
-    for i, batch in enumerate(batched_data.generate_batches("train")):
-        print(f"Fitting batch {i}/{batched_data.num_train_batches}")
+    for i, batch in enumerate(batched_data.generate_batches()):
+        print(f"Fitting batch {i}/{batched_data.num_batches}")
         model_wrapper.fit(
             input_vars=train_config.input_variables,
             output_vars=train_config.output_variables,
@@ -136,10 +136,7 @@ if __name__ == "__main__":
         help="Path for training configuration yaml file",
     )
     parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="''",
-        help="Optional- provide a directory in which model and config will be saved.",
+        "--train-data-path", type=str, required=True, help="Location of training data",
     )
     parser.add_argument(
         "--remote-output-url",
@@ -154,8 +151,16 @@ if __name__ == "__main__":
         help="If results are uploaded to remote storage, "
         "remove local copy after upload.",
     )
+    parser.add_argument(
+        "--output-dir-suffix",
+        type=str,
+        default="sklearn_regression",
+        help="Directory suffix to write files to. Prefixed with today's timestamp.",
+    )
     args = parser.parse_args()
-    train_config = load_model_training_config(args.train_config_file)
+    train_config = load_model_training_config(
+        args.train_config_file, args.train_data_path
+    )
     batched_data = load_data_generator(train_config)
 
     model = train_model(batched_data, train_config)
@@ -163,7 +168,9 @@ if __name__ == "__main__":
     # model and config are saved with timestamp prefix so that they can be
     # matched together
     timestamp = datetime.now().strftime("%Y%m%d.%H%M%S")
-    output_dir = f"{timestamp}_{OUTPUT_DIR_SUFFIX}"
+    output_dir = f"{timestamp}_{args.output_dir_suffix}"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
     copyfile(
         args.train_config_file,
         os.path.join(output_dir, f"{timestamp}_{MODEL_CONFIG_FILENAME}"),

@@ -28,8 +28,50 @@ VAR_GRID_LAT_OUTER = "grid_lat"
 INIT_TIME_DIM = "initialization_time"
 FORECAST_TIME_DIM = "forecast_time"
 TIME_FMT = "%Y%m%d.%H%M%S"
-RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer", "fv_srf_wnd.res"]
+RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer.res", "fv_srf_wnd.res"]
 GRID_VARS = [VAR_LAT_CENTER, VAR_LAT_OUTER, VAR_LON_CENTER, VAR_LON_OUTER, "area"]
 INIT_TIME_DIM = "initialization_time"
 FORECAST_TIME_DIM = "forecast_time"
 TILE_COORDS = range(6)
+TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
+
+# for use in regridding values to the same vertical grid [Pa]
+PRESSURE_GRID = [
+    100.0,
+    200.0,
+    300.0,
+    500.0,
+    700.0,
+    1000.0,
+    2000.0,
+    3000.0,
+    5000.0,
+    7000.0,
+    10000.0,
+    12500.0,
+    15000.0,
+    17500.0,
+    20000.0,
+    22500.0,
+    25000.0,
+    30000.0,
+    35000.0,
+    40000.0,
+    45000.0,
+    50000.0,
+    55000.0,
+    60000.0,
+    65000.0,
+    70000.0,
+    75000.0,
+    77500.0,
+    80000.0,
+    82500.0,
+    85000.0,
+    87500.0,
+    90000.0,
+    92500.0,
+    95000.0,
+    97500.0,
+    100000.0,
+]
