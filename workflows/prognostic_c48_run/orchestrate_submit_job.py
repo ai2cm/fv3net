@@ -103,7 +103,7 @@ if __name__ == "__main__":
     config_dir = os.path.join(args.output_url, "job_config")
     job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
 
-    model_config["diag_table"] = kubejob_utils.upload_if_necessary(
+    model_config["diag_table"] = kubejob_utils.transfer_local_to_remote(
         model_config["diag_table"], config_dir
     )
 
@@ -117,13 +117,7 @@ if __name__ == "__main__":
     with fsspec.open(job_config_path, "w") as f:
         f.write(yaml.dump(model_config))
 
-    # Prepare remote run directory
-    # model_config = kubejob_utils.prepare_and_upload_model_config(
-    #     job_name, args.initial_condition_url, config_url, args.ic_timestep,
-    #     model_config, upload_config_filename=job_config_filename
-    # )
-
-    remote_runfile_path = kubejob_utils.upload_if_necessary(RUNFILE, config_dir)
+    remote_runfile_path = kubejob_utils.transfer_local_to_remote(RUNFILE, config_dir)
 
     fv3config.run_kubernetes(
         config_location=job_config_path,
