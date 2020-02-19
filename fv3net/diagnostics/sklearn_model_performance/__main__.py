@@ -4,75 +4,11 @@ import fsspec
 import os
 import xarray as xr
 
-from vcm.cubedsphere.constants import (
-    INIT_TIME_DIM,
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    TILE_COORDS,
-)
+from vcm.cubedsphere.constants import INIT_TIME_DIM
 from .data_funcs import predict_on_test_data, load_high_res_diag_dataset
 from .plotting import make_all_plots
 from ..create_report import create_report
 from vcm.calc import thermo
-
-kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
-
-SEC_PER_DAY = 86400
-
-SAMPLE_DIM = "sample"
-STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
-
-OUTPUT_FIG_DIR = "model_performance_plots"
-
-
-report_html = Template(
-    """
-    {% for header, images in sections.items() %}
-        <h2>{{header}}</h2>
-            {% for image in images %}
-                <img src="{{image}}" />
-            {% endfor %}
-    {% endfor %}
-"""
-)
-
-
-def _predict_on_test_data(test_data_path, model_path, num_test_zarrs, model_type="rf"):
-    if model_type == "rf":
-        from .sklearn.test import load_test_dataset, load_model, predict_dataset
-
-        ds_test = load_test_dataset(test_data_path, num_test_zarrs)
-        sk_wrapped_model = load_model(model_path)
-        ds_pred = predict_dataset(sk_wrapped_model, ds_test)
-        return ds_test.unstack(), ds_pred
-    else:
-        raise ValueError(
-            "Cannot predict using model type {model_type},"
-            "only 'rf' is currently implemented."
-        )
-
-
-def _load_high_res_dataset(coarsened_hires_diags_path, init_times):
-    fs = fsspec.filesystem("gs")
-    ds_hires = xr.open_zarr(
-        fs.get_mapper(coarsened_hires_diags_path), consolidated=True
-    ).rename({"time": INIT_TIME_DIM})
-    ds_hires = ds_hires.assign_coords(
-        {
-            INIT_TIME_DIM: [round_time(t) for t in ds_hires[INIT_TIME_DIM].values],
-            "tile": TILE_COORDS,
-        }
-    )
-    ds_hires = ds_hires.sel({INIT_TIME_DIM: list(set(init_times))})
-    if set(ds_hires[INIT_TIME_DIM].values) != set(init_times):
-        raise ValueError(
-            f"Timesteps {set(init_times)-set(ds_hires[INIT_TIME_DIM].values)}"
-            f"are not matched in high res dataset."
-        )
-
-    evaporation = thermo.latent_heat_flux_to_evaporation(ds_hires["LHTFLsfc_coarse"])
-    ds_hires["P-E"] = SEC_PER_DAY * (ds_hires["PRATEsfc_coarse"] - evaporation)
-    return ds_hires
 
 
 if __name__ == "__main__":
@@ -111,7 +47,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output-dir-suffix",
         type=str,
-        default="sklearn_regression",
+        default="sklearn_regression_predictions",
         help="Directory suffix to write files to. Prefixed with today's timestamp.",
     )
     args = parser.parse_args()

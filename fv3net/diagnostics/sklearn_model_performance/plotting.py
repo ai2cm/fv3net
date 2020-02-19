@@ -245,7 +245,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         "P-E",
         output_dir=output_dir,
         plot_filename="P-E_time_snapshots.png",
-        time_index_selection=[0, 2, 4, 6, 8],
+        time_index_selection=[0, 2],
         plot_cube_kwargs={"cbar_label": "timestep snapshot, P-E [mm/day]"},
     )
     report_sections["P-E"] = ["P-E_time_avg.png", "P-E_snapshots.png"]
