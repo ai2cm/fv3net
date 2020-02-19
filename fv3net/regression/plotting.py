@@ -183,8 +183,6 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
                 f"Make sure all datasets are unstacked,"
                 "i.e. have original dimensions {STACK_DIMS}."
             )
-    ds_pred = ds_pred.drop(labels="file_prefix")
-    ds_target = ds_target.drop(labels="file_prefix")
     report_sections = {}
     ds_pred["P-E"] = mass_integrate(-ds_pred["Q2"], ds_pred.delp) * kg_m2s_to_mm_day
     ds_target["P-E"] = (
