@@ -84,11 +84,7 @@ experiment:
 
 #### Top-level arguments:
 
-<<<<<<< HEAD
 - **storage_proto**: protocol of the filesystem; can be either 'gs' or 'file'
-=======
-- **torage_proto**: protocol of the filesystem; can be either 'gs' or 'file'
->>>>>>> f945706ab1c7a8b52c81eb89f0c12834d5aa5f5e
 - **storage_root**: root directory of storage for the experiment
 
 #### Experiment level arguments:
