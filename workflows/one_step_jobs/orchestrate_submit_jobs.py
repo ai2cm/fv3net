@@ -33,7 +33,7 @@ def _create_arg_parser():
     parser.add_argument(
         "docker_image",
         type=str,
-        help="Docker image to use for performing the one-step FV3GFS runs."
+        help="Docker image to use for performing the one-step FV3GFS runs.",
     )
     parser.add_argument(
         "-o",
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     timestep_list = one_step.timesteps_to_process(
         args.input_url, args.output_url, args.n_steps, args.overwrite
     )
-    
+
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
 
     local_vgrid_file = os.path.join(PWD, one_step.VERTICAL_GRID_FILENAME)
