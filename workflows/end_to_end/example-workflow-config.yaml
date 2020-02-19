@@ -12,7 +12,7 @@ experiment:
 #     - test_sklearn_model
     - prognostic_run
   experiment_vars:
-    one_step_yaml: workflows/one_step_jobs/all-physics-off.yml
+    kube_docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
   
   steps_config:
     coarsen_restarts:
