@@ -13,7 +13,7 @@ if __name__ == "__main__":
         "diag_c48_path",
         type=str,
         help="Directory containing diagnostic zarr directory coarsened from C384 "
-        "for features (SHF, LHF, etc.) that are not saved in restarts."
+        "for features (SHF, LHF, etc.) that are not saved in restarts.",
     )
     parser.add_argument(
         "gcs_output_data_dir",

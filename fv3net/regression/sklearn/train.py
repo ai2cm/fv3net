@@ -115,7 +115,7 @@ def train_model(batched_data, train_config):
     batch_regressor = RegressorEnsemble(transform_regressor)
 
     model_wrapper = SklearnWrapper(batch_regressor)
-    
+
     for i, batch in enumerate(batched_data.generate_batches()):
         print(f"Fitting batch {i}/{batched_data.num_batches}")
         model_wrapper.fit(
@@ -134,20 +134,17 @@ if __name__ == "__main__":
         "train_data_path", type=str, help="Location of training data",
     )
     parser.add_argument(
-        "train_config_file",
-        type=str,
-        help="Path for training configuration yaml file",
+        "train_config_file", type=str, help="Path for training configuration yaml file",
     )
     parser.add_argument(
-        "output_data_path",
-        type=str,
-        help="Location to save config and trained model.",
+        "output_data_path", type=str, help="Location to save config and trained model.",
     )
     parser.add_argument(
         "--output-dir-suffix",
         type=str,
         default="sklearn_regression",
-        help="Local directory suffix to write files to. Prefixed with today's timestamp.",
+        help="Local directory suffix to write files to. "
+        "Prefixed with today's timestamp.",
     )
     parser.add_argument(
         "--delete-local-results-after-upload",
@@ -171,11 +168,10 @@ if __name__ == "__main__":
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     copyfile(
-        args.train_config_file,
-        os.path.join(output_dir, MODEL_CONFIG_FILENAME),
+        args.train_config_file, os.path.join(output_dir, MODEL_CONFIG_FILENAME),
     )
     joblib.dump(model, os.path.join(output_dir, MODEL_FILENAME))
-    
+
     gsutil.copy(output_dir, args.output_data_path)
     if args.delete_local_results_after_upload is True:
         rmtree(output_dir)

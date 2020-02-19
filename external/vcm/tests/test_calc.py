@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import xarray as xr
 from vcm.calc.thermo import (
-    GRAVITY,
+    _GRAVITY,
     pressure_at_interface,
     height_at_interface,
     _interface_to_midpoint,
@@ -33,7 +33,7 @@ def test_height_on_interface(phis_value):
         height.diff(COORD_Z_OUTER), dz.rename({COORD_Z_CENTER: COORD_Z_OUTER})
     )
     np.testing.assert_allclose(
-        height.isel({COORD_Z_OUTER: -1}).values, phis_value / GRAVITY
+        height.isel({COORD_Z_OUTER: -1}).values, phis_value / _GRAVITY
     )
 
 
@@ -66,7 +66,7 @@ def test_dz_and_top_to_phis():
     dz = np.arange(-4, -1)
     dza = xr.DataArray(dz, dims=[COORD_Z_CENTER])
     phis = dz_and_top_to_phis(top, dza)
-    np.testing.assert_allclose(phis.values / GRAVITY, top + np.sum(dz))
+    np.testing.assert_allclose(phis.values / _GRAVITY, top + np.sum(dz))
 
 
 def test_solar_time():
@@ -85,4 +85,3 @@ def test_solar_time():
     lon = xr.DataArray([0, 180, 270, 360, 0, 270], dims=["x"], coords={"x": range(6)})
     ds_solar_test = xr.Dataset({"initialization_time": t, "lon": lon})
     assert np.allclose(local_time(ds_solar_test), [0, 12, 18, 0, 6, 0])
-

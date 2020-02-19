@@ -24,7 +24,7 @@ from vcm.fv3_restarts import (
     open_restarts_with_time_coordinates,
     _parse_time,
     _parse_time_string,
-    _split_url
+    _split_url,
 )
 from vcm.select import mask_to_surface_type
 from vcm.convenience import parse_timestep_from_path
@@ -73,7 +73,11 @@ RENAMED_HIRES_VARS = {
 def run(args, pipeline_args):
     proto, path = _split_url(args.gcs_input_data_path)
     fs = fsspec.filesystem(proto)
-    gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(path)) if _filter_timestep(run_dir_path)]
+    gcs_urls = [
+        "gs://" + run_dir_path
+        for run_dir_path in sorted(fs.ls(path))
+        if _filter_timestep(run_dir_path)
+    ]
     _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir)
     data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
     train_test_labels = _test_train_split(
@@ -126,12 +130,9 @@ def _save_grid_spec(fs, run_dir, gcs_output_data_dir):
         num_subtiles=1,
         pattern="{prefix}.tile{tile:d}.nc",
     )[["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]]
-    _write_remote_train_zarr(
-        grid, gcs_output_data_dir, zarr_name="grid_spec.zarr"
-    )
+    _write_remote_train_zarr(grid, gcs_output_data_dir, zarr_name="grid_spec.zarr")
     logger.info(
-        f"Wrote grid spec to "
-        f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
+        f"Wrote grid spec to " f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
     )
     shutil.rmtree("temp_grid_spec")
 
@@ -279,10 +280,7 @@ def _try_mask_to_surface_type(ds, surface_type):
 
 
 def _write_remote_train_zarr(
-    ds,
-    gcs_output_dir,
-    zarr_name=None,
-    train_test_labels=None,
+    ds, gcs_output_dir, zarr_name=None, train_test_labels=None,
 ):
     """Writes temporary zarr on worker and moves it to GCS
 
@@ -306,11 +304,10 @@ def _write_remote_train_zarr(
     except (ValueError, AttributeError, TypeError, RuntimeError) as e:
         logger.error(f"Failed to write zarr: {e}")
 
-        
+
 def _filter_timestep(path):
     try:
         parse_timestep_from_path(path)
         return True
     except ValueError:
         return False
-        

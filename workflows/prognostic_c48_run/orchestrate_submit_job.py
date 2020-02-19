@@ -20,34 +20,33 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "model_url",
-        type=str,
-        help="Remote url to a trained sklearn model.",
+        "model_url", type=str, help="Remote url to a trained sklearn model.",
     )
     parser.add_argument(
         "initial_condition_url",
         type=str,
-        help="Remote url to directory holding timesteps with model initial conditions."
+        help="Remote url to directory holding timesteps with model initial conditions.",
     )
     parser.add_argument(
         "output_url",
         type=str,
-        help="Remote storage location for prognostic run output."
+        help="Remote storage location for prognostic run output.",
     )
     parser.add_argument(
         "prog_config_yml",
         type=str,
-        help="Path to a config update YAML file specifying the changes (e.g., diag_table, runtime, ...) from the one-step runs for the prognostic run.",
+        help="Path to a config update YAML file specifying the changes (e.g., "
+        "diag_table, runtime, ...) from the one-step runs for the prognostic run.",
     )
     parser.add_argument(
         "ic_timestep",
         type=str,
-        help="Time step to grab from the initial conditions url."
+        help="Time step to grab from the initial conditions url.",
     )
     parser.add_argument(
         "docker_image",
         type=str,
-        help="Docker image to pull for the prognostic run kubernetes pod."
+        help="Docker image to pull for the prognostic run kubernetes pod.",
     )
 
     return parser
@@ -93,9 +92,7 @@ if __name__ == "__main__":
     short_id = str(uuid.uuid4())[:8]
     job_name = f"prognostic-run-{short_id}"
 
-    model_config = _get_onestep_config(
-        args.initial_condition_url, args.ic_timestep
-    )
+    model_config = _get_onestep_config(args.initial_condition_url, args.ic_timestep)
 
     # Get model config with one-step and prognistic run updates
     model_config = _update_with_prognostic_model_config(
@@ -113,7 +110,7 @@ if __name__ == "__main__":
     # Add prognostic config section
     model_config["scikit_learn"] = {
         "model": os.path.join(args.model_url, MODEL_FILENAME),
-        "zarr_output": "diags.zarr"
+        "zarr_output": "diags.zarr",
     }
 
     # Upload the new prognostic config
@@ -126,9 +123,7 @@ if __name__ == "__main__":
     #     model_config, upload_config_filename=job_config_filename
     # )
 
-    remote_runfile_path = kubejob_utils.upload_if_necessary(
-        RUNFILE, config_dir
-    )
+    remote_runfile_path = kubejob_utils.upload_if_necessary(RUNFILE, config_dir)
 
     fv3config.run_kubernetes(
         config_location=job_config_path,
@@ -139,7 +134,7 @@ if __name__ == "__main__":
         cpu_count=6,
         gcp_secret="gcp-key",
         image_pull_policy="Always",
-        experiment_label=job_name
+        experiment_label=job_name,
     )
 
     wait_for_complete(job_name)
