@@ -1,18 +1,19 @@
 storage_proto: gs
 storage_root: vcm-ml-data/orchestration-testing
 experiment:
-  name: test-experiment
-  unique_id: True
+  name: test-experiment-d8d2f94f
+  unique_id: False
+  # workflow_steps: [one_step_run]
   workflow_steps: 
-    - coarsen_restarts
-    - coarsen_diagnostics
+    # - coarsen_restarts
+    # - coarsen_diagnostics
     - one_step_run
-    - create_training_data
-    - train_sklearn_model
-    - test_sklearn_model
+    # - create_training_data
+    # - train_sklearn_model
+    # - test_sklearn_model
     - prognostic_run
   experiment_vars:
-    one_step_yaml: ./workflows/one_step_jobs/all-physics-off.yml
+    kube_docker_image: "us.gcr.io/vcm-ml/prognostic-run-orchestration"
   
   steps:
     coarsen_restarts:
@@ -37,25 +38,25 @@ experiment:
       command: python ./workflows/one_step_jobs/orchestrate_submit_jobs.py
       inputs:
         restart_data:
-          from: coarsen_restarts
+          # from: coarsen_restarts
+          location: gs://vcm-ml-data/orchestration-testing/test-experiment-d8d2f94f/coarsen_restarts_grid-spec_2020-01-06-C384-grid-spec-with-area-dx-dy_source-resolution_384_target-resolution_48
       method: 
-        experiment_yaml: one_step_yaml
+        experiment_yaml: ./workflows/one_step_jobs/all-physics-off.yml
         experiment_label: test-orchestration-group
+        docker_image: kube_docker_image
       config_transforms:
         add_unique_id: 
           - experiment_label
         use_top_level:
-          - experiment_yaml
+          - docker_image
     
     create_training_data:
       command: ./workflows/create_training_data/orchestrator_job_directrunner_test.sh
       inputs:
         one_step_data:
           from: one_step_run
-#           location: gs://vcm-ml-data/orchestration-testing/test-experiment-e1b4376b/one_step_run_experiment_yaml_all-physics-off.yml_experiment_label_test-orchestration-group-e1b4376b
         diagnostics_data:
           from: coarsen_diagnostics
-#           location: gs://vcm-ml-data/orchestration-testing/test-experiment-e1b4376b/coarsen_diagnostics_coarsening_config_coarsen-c384-diagnostics.yml/gfsphysics_15min_coarse.zarr
       method: 
         timesteps-per-output-file: 2
         mask-to-surface-type: 
@@ -66,8 +67,7 @@ experiment:
       inputs:
         training_data:
           from: create_training_data
-      method: 
-        # train-config-file: ./workflows/sklearn_regression/example_rf_training_config.yml
+      method:
         train-config-file: ./workflows/sklearn_regression/example_base_rf_training_config.yml
         
     test_sklearn_model: 
@@ -87,10 +87,12 @@ experiment:
       inputs:
         sklearn_model:
           from: train_sklearn_model
-          # location: gs://vcm-ml-data/test-annak/ml-pipeline-output/2020-01-17_rf_40d_run.pkl
         restart_file_dir:
           from: one_step_run
       method:
         prognostic_yaml_adjust: workflows/prognostic_c48_run/prognostic_config.yml
         ic_timestep: "20160801.001500"
-        docker_image: "us.gcr.io/vcm-ml/prognostic-run-orchestration"
+        docker_image: kube_docker_image
+      config_transforms:
+        use_top_level:
+          - docker_image
