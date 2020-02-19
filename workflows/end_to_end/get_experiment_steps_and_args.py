@@ -11,8 +11,8 @@ def get_experiment_steps_and_args(config_file: str):
     Load all arguments for orchestration script from config and
     dump in a JSON format to be consumed.
     """
-    
-    with open(config_file, 'r') as f:
+
+    with open(config_file, "r") as f:
         config = yaml.safe_load(f)
 
     # Resolve inputs, outputs, and other config parameters
@@ -54,8 +54,8 @@ def _add_unique_id(config: dict):
     exp_config["name"] = exp_name + f"-{unique_id}"
 
     # Go through all step configuration to check for method specific uuid additions
-    for step_name, step_config in exp_config['steps'].items():
-        config_transforms = step_config.get('config_transforms', None)
+    for step_name, step_config in exp_config["steps"].items():
+        config_transforms = step_config.get("config_transforms", None)
 
         if config_transforms and "add_unique_id" in config_transforms:
             vars_to_add_unique = step_config["config_transforms"]["add_unique_id"]
@@ -92,20 +92,14 @@ def _resolve_input_from(config: dict):
         input_config = step_config["inputs"]
 
         for input_source, source_info in input_config.items():
-<<<<<<< HEAD
-            location = source_info.get('location', None)
-            from_key = source_info.get('from', None)
-            
+            location = source_info.get("location", None)
+            from_key = source_info.get("from", None)
+
             if location is not None and from_key is not None:
                 raise ValueError(
                     f"Ambiguous input location for {step_name}-{input_source}."
                     f" Both 'from' and 'location' were specified"
                 )
-=======
-            location = source_info.get("location", None)
-            from_key = source_info.get("from", None)
-
->>>>>>> ae4eaef0bbbfb60239123cd6ba124f6b34f5c309
             if location is not None:
                 continue
             elif from_key is not None:
@@ -150,7 +144,7 @@ def _get_experiment_path(config: dict):
     if proto == "" or proto is None:
         proto = "file"
 
-    if proto != 'file' and proto != 'gs':
+    if proto != "file" and proto != "gs":
         raise ValueError(
             f"Protocol, {proto}, is not currently supported. Please use "
             f"'file' or 'gs'"
@@ -233,14 +227,8 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-<<<<<<< HEAD
-    
+
     exp_args = get_experiment_steps_and_args(args.config_file)
 
     # Print JSON to stdout to be consumed by shell script
-=======
-
-    # run the function
-    exp_args = get_experiment_steps_and_args(args)
->>>>>>> ae4eaef0bbbfb60239123cd6ba124f6b34f5c309
     print(exp_args)

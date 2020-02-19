@@ -49,7 +49,7 @@ def update_tiled_asset_names(
     arguments.
 
     Filename strings should include any specified variable name inserts to
-    be updated with a format. E.g., "{timestep}.{category}.tile{tile}.nc"   
+    be updated with a format. E.g., "{timestep}.{category}.tile{tile}.nc"
     """
     assets = [
         fv3config.get_asset_dict(

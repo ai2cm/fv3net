@@ -154,6 +154,7 @@ def _check_header_categories(
 
 # Configuration Handling
 
+
 def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
     """Get list of assets representing initial conditions for this timestep to pipeline for now"""
     initial_condition_assets = utils.update_tiled_asset_names(
@@ -161,7 +162,7 @@ def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
         source_filename="{timestep}.{category}.tile{tile}.nc",
         target_location="INPUT",
         target_name="{category}.tile{tile}.nc",
-        timestep=timestep
+        timestep=timestep,
     )
 
     return initial_condition_assets
@@ -224,7 +225,7 @@ def _upload_config_files(
     kubernetes_config: dict,
     config_url: str,
     local_vertical_grid_file=None,
-    upload_config_filename="fv3config.yml"
+    upload_config_filename="fv3config.yml",
 ) -> Tuple[dict]:
     """
     Upload any files to remote paths necessary for fv3config and the
@@ -245,13 +246,13 @@ def _upload_config_files(
         fs = get_fs(config_url)
         vfile_path = os.path.jon(config_url, VERTICAL_GRID_FILENAME)
         fs.put(local_vertical_grid_file, vfile_path)
-    
+
     config_path = os.path.join(config_url, upload_config_filename)
     with fsspec.open(config_path, "w") as config_file:
         config_file.write(yaml.dump(model_config))
 
     return model_config, kubernetes_config
-    
+
 
 def prepare_and_upload_config(
     workflow_name: str,
@@ -259,7 +260,7 @@ def prepare_and_upload_config(
     config_url: str,
     timestep: str,
     one_step_config: str,
-    **kwargs
+    **kwargs,
 ) -> Tuple[dict]:
     """Update model and kubernetes configurations for this particular
     timestep and upload necessary files to GCS"""
@@ -268,8 +269,12 @@ def prepare_and_upload_config(
     user_kubernetes_config = one_step_config["kubernetes"]
 
     model_config, kube_config = _update_config(
-        workflow_name, user_model_config, user_kubernetes_config,
-        input_url, config_url, timestep,
+        workflow_name,
+        user_model_config,
+        user_kubernetes_config,
+        input_url,
+        config_url,
+        timestep,
     )
     model_config, kube_config = _upload_config_files(
         model_config, kube_config, config_url, **kwargs
@@ -296,7 +301,10 @@ def submit_jobs(
         curr_config_url = os.path.join(config_url, timestep)
 
         model_config, kube_config = prepare_and_upload_config(
-            workflow_name, curr_input_url, curr_config_url, timestep,
+            workflow_name,
+            curr_input_url,
+            curr_config_url,
+            timestep,
             local_vertical_grid_file=local_vertical_grid_file,
         )
 
