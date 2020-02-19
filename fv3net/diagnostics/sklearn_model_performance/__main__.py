@@ -4,24 +4,10 @@ import fsspec
 import os
 import xarray as xr
 
-from vcm.cubedsphere.constants import (
-    INIT_TIME_DIM,
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    TILE_COORDS,
-)
+from vcm.cubedsphere.constants import INIT_TIME_DIM
 from .data_funcs import predict_on_test_data, load_high_res_diag_dataset
 from .plotting import make_all_plots
 from ..create_report import create_report
-
-kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
-
-SEC_PER_DAY = 86400
-
-SAMPLE_DIM = "sample"
-STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
-
-OUTPUT_FIG_DIR = "model_performance_plots"
 
 
 if __name__ == "__main__":
@@ -60,7 +46,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output-dir-suffix",
         type=str,
-        default="sklearn_regression",
+        default="sklearn_regression_predictions",
         help="Directory suffix to write files to. Prefixed with today's timestamp.",
     )
     args = parser.parse_args()
