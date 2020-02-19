@@ -24,8 +24,10 @@ def load_test_dataset(test_data_path, num_files_to_load=50, downsample_time_fact
     Returns:
         xarray dataset created by concatenating test data zarrs
     """
-    test_data_urls = load_downsampled_time_range(test_data_path, downsample_time_factor)
-    zarrs_in_test_dir = [file for file in test_data_urlsif ".zarr" in file]
+    protocol, _ = _split_url(test_data_path)
+    fs = fsspec.filesystem(protocol)
+    test_data_urls = load_downsampled_time_range(fs, test_data_path, downsample_time_factor)
+    zarrs_in_test_dir = [file for file in test_data_urls if ".zarr" in file]
     if len(zarrs_in_test_dir) < 1:
         raise ValueError(f"No .zarr files found in  {test_data_path}.")
 
@@ -47,10 +49,10 @@ def load_test_dataset(test_data_path, num_files_to_load=50, downsample_time_fact
 
 
 def load_downsampled_time_range(
+        fs,
         test_data_path,
         downsample_time_factor=8
 ):
-    fs = fsspec.filesystem("gs")
     sorted_urls = sorted(fs.ls(test_data_path))
     downsampled_urls = [
         sorted_urls[i * downsample_time_factor] 
