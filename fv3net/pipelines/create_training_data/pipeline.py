@@ -2,7 +2,6 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import gcsfs
 import logging
-from numpy import random
 import os
 import shutil
 import xarray as xr
@@ -73,15 +72,15 @@ def run(args, pipeline_args):
     gcs_urls = ["gs://" + run_dir_path for run_dir_path in sorted(fs.ls(data_path))]
     _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir, args.gcs_bucket)
     data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
-    train_test_labels = _test_train_split(
-        data_batch_urls, args.train_fraction, args.random_seed
-    )
+    train_test_labels = _test_train_split(data_batch_urls, args.train_fraction)
+    data_batch_urls_reordered = _reorder_batches(data_batch_urls, args.train_fraction)
+
     logger.info(f"Processing {len(data_batch_urls)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
             p
-            | beam.Create(data_batch_urls)
+            | beam.Create(data_batch_urls_reordered)
             | "LoadCloudData" >> beam.Map(_open_cloud_data)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
             | "MergeHiresDiagVars"
@@ -98,6 +97,35 @@ def run(args, pipeline_args):
                 train_test_labels=train_test_labels,
             )
         )
+
+
+def _reorder_batches(sorted_batches, train_frac):
+    """Uniformly distribute the test batches within the list of batches to run,
+    so that they are not all left to the end of the job. This is so that we don't
+    have to run a training data job to completion in order to get the desired
+    train/test ratio.
+
+    Args:
+        sorted_batches (nested list):of run dirs per batch
+        train_frac (float): fraction of batches for use in training
+
+    Returns:
+        nested list of batch urls, reordered so that test times are uniformly
+        distributed in list
+    """
+    num_batches = len(sorted_batches)
+    split_index = int(train_frac * num_batches)
+    train_set = sorted_batches[:split_index]
+    test_set = sorted_batches[split_index:]
+    train_test_ratio = int(train_frac / (1 - train_frac))
+    reordered_batches = []
+    while len(train_set) > 0:
+        if len(test_set) > 0:
+            reordered_batches.append(test_set.pop(0))
+        for i in range(train_test_ratio):
+            if len(train_set) > 0:
+                reordered_batches.append(train_set.pop(0))
+    return reordered_batches
 
 
 def _save_grid_spec(fs, run_dir, gcs_output_data_dir, gcs_bucket):
@@ -159,19 +187,17 @@ def _get_url_batches(gcs_urls, timesteps_per_output_file):
     return data_urls
 
 
-def _test_train_split(url_batches, train_frac, random_seed=1234):
+def _test_train_split(url_batches, train_frac):
     """ Randomly assigns train/test set labels to each batch
 
     Args:
-        url_batches: nested list where inner lists are groupings of input urls
-        train_frac:
-        random_seed:
+        url_batches: nested list where inner lists are groupings of input urls,
+        ordered by time
+        train_frac: Float [0, 1]
 
     Returns:
-
+        dict lookup for each batch's set to save to
     """
-    random.seed(random_seed)
-    random.shuffle(url_batches)
     if train_frac > 1:
         train_frac = 1
         logger.warning("Train fraction provided > 1. Will set to 1.")
@@ -296,7 +322,7 @@ def _write_remote_train_zarr(
         if not zarr_filename:
             zarr_filename = helpers._path_from_first_timestep(ds, train_test_labels)
         output_path = os.path.join(bucket, gcs_dest_dir, zarr_filename)
-        ds.to_zarr(zarr_filename, mode="w")
+        ds.to_zarr(zarr_filename, mode="w", consolidated=True)
         gsutil.copy(zarr_filename, output_path)
         logger.info(f"Done writing zarr to {output_path}")
         shutil.rmtree(zarr_filename)
