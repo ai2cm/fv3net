@@ -11,7 +11,6 @@ from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
 )
 from fv3net.diagnostics.sklearn_model_performance.plotting_sklearn import make_all_plots
 from fv3net.diagnostics.create_report import create_report
-from vcm.calc import thermo
 
 
 if __name__ == "__main__":
