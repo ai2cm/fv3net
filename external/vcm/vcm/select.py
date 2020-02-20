@@ -74,4 +74,3 @@ def get_latlon_grid_coords(grid, lat, lon,
             print(f"No grid points with lat/lon within +/- {search_width} deg of {lat, lon}.")
             search_width += search_width_increment
     raise ValueError(f"No grid points with lat/lon within +/- {max_search_width} deg of {lat, lon}.")
-

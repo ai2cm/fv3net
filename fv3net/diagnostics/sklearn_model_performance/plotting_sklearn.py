@@ -18,10 +18,8 @@ from vcm.cubedsphere.regridz import regrid_to_common_pressure
 from vcm.select import mask_to_surface_type
 from vcm.visualize import plot_cube, mappable_var
 
-from ..plotting import plot_diurnal_cycle
-from ..data_funcs import (
-    merge_comparison_datasets, get_example_latlon_grid_coords,
-    EXAMPLE_CLIMATE_LATLON_COORDS)
+from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
+from fv3net.diagnostics.data_funcs import merge_comparison_datasets
 
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
@@ -39,7 +37,6 @@ def _make_r2_plot(
     output_dir,
     plot_filename="r2_vs_pressure_level.png",
     sample_dim=SAMPLE_DIM,
-    save_fig=True,
     title=None,
 ):
     plt.clf()
@@ -76,7 +73,7 @@ def _make_vertical_profile_plots(
         title=None
 ):
     """Creates vertical profile plots of Q2 for dry/wet columns
-    
+
     Args:
         ds_pred (xr dataset): [description]
         ds_target (xr dataset): [description]
@@ -86,7 +83,7 @@ def _make_vertical_profile_plots(
         plot_filename (str, optional): [description]. Defaults to f"vertical_profile.png".
         title (str, optional): [description]. Defaults to None.
     """
-    
+
     plt.clf()
     pos_mask, neg_mask = ds_pred["P-E"] > 0, ds_pred["P-E"] < 0
     ds_pred = regrid_to_common_pressure(ds_pred[var], ds_pred["delp"])
@@ -251,7 +248,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
     ds_heating["local_time"] = local_time(ds_heating)
 
-    
+
     # vertical profile plots
     _make_vertical_profile_plots(
         ds_pred_land,
@@ -302,7 +299,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ]
 
     # plot a variable across the diurnal cycle
-    matplotlib.rcParams["figure.dpi"] = 80 
+    matplotlib.rcParams["figure.dpi"] = 80
     plot_diurnal_cycle(
         mask_to_surface_type(ds_pe, "sea"),
         "P-E",
@@ -331,7 +328,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         output_dir=output_dir,
         plot_filename="diurnal_cycle_heating_land.png",
     )
-    
+
     local_coords = get_example_latlon_grid_coords(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
