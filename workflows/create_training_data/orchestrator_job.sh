@@ -5,6 +5,9 @@ TIMESTEPS_PER_OUTPUT=$4
 MASK_SURFACE_TYPE=$5
 TRAIN_FRACTION=$6
 
+user=$(whoami)
+user=${user,,}
+
 python -m fv3net.pipelines.create_training_data \
 ${DATA_PATH} \
 ${DIAG_PATH} \
@@ -13,7 +16,7 @@ ${OUTPUT_PATH} \
 --mask-to-surface-type ${MASK_SURFACE_TYPE} \
 --train-fraction ${TRAIN_FRACTION} \
 --gcs-bucket gs://vcm-ml-data \
---job_name create-training-data-$(whoami) \
+--job_name create-training-data-${user} \
 --project vcm-ml \
 --region us-central1 \
 --runner DataflowRunner \
