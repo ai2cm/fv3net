@@ -6,6 +6,9 @@ GCS_GRIDSPEC_PATH=$3
 SRC_RESOLUTION=$4
 TARGET_RESOLUTION=$5
 
+user=$(whoami)
+user=${user,,}
+
 python -m fv3net.pipelines.coarsen_restarts\
     $INPUT_PATH \
     $OUTPUT_PATH \
@@ -14,7 +17,7 @@ python -m fv3net.pipelines.coarsen_restarts\
     $TARGET_RESOLUTION \
     --no-target-subdir \
     --runner DataflowRunner \
-    --job_name coarsen-restarts-$(whoami) \
+    --job_name coarsen-restarts-$user \
     --project vcm-ml \
     --region us-central1 \
     --temp_location gs://vcm-ml-data/tmp_dataflow \

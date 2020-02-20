@@ -6,6 +6,9 @@ GCS_GRIDSPEC="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy"
 SRC_RESOLUTION=384
 TARGET_RESOLUTION=48
 
+user=$(whoami)
+user=${user,,}
+
 python -m fv3net.pipelines.coarsen_restarts\
     $GCS_SRC \
     $GCS_DST \
@@ -13,7 +16,7 @@ python -m fv3net.pipelines.coarsen_restarts\
     $SRC_RESOLUTION \
     $TARGET_RESOLUTION \
     --runner DataflowRunner \
-    --job_name coarsen-restarts-$(whoami) \
+    --job_name coarsen-restarts-$user \
     --project vcm-ml \
     --region us-central1 \
     --temp_location gs://vcm-ml-data/tmp_dataflow \
