@@ -17,9 +17,8 @@ from vcm.cubedsphere.regridz import regrid_to_common_pressure
 from vcm.select import mask_to_surface_type
 from vcm.visualize import plot_cube, mappable_var
 
-from ..create_report import create_report
-from ..plotting import plot_diurnal_cycle
-from ..data_funcs import merge_comparison_datasets
+from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
+from fv3net.diagnostics.data_funcs import merge_comparison_datasets
 
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
@@ -37,7 +36,6 @@ def _make_r2_plot(
     output_dir,
     plot_filename="r2_vs_pressure_level.png",
     sample_dim=SAMPLE_DIM,
-    save_fig=True,
     title=None,
 ):
     plt.clf()
@@ -60,8 +58,7 @@ def _make_r2_plot(
     plt.ylabel("$R^2$")
     if title:
         plt.title(title)
-    if save_fig:
-        plt.savefig(os.path.join(output_dir, plot_filename))
+    plt.savefig(os.path.join(output_dir, plot_filename))
     plt.show()
 
 
@@ -73,7 +70,6 @@ def _make_land_sea_r2_plot(
     vars,
     output_dir,
     plot_filename="r2_vs_pressure_level_landsea.png",
-    save_fig=True,
 ):
     plt.clf()
     x = np.array(PRESSURE_GRID) / 100
@@ -102,8 +98,7 @@ def _make_land_sea_r2_plot(
     plt.legend()
     plt.xlabel("pressure [HPa]")
     plt.ylabel("$R^2$")
-    if save_fig:
-        plt.savefig(os.path.join(output_dir, plot_filename))
+    plt.savefig(os.path.join(output_dir, plot_filename))
     plt.show()
 
 

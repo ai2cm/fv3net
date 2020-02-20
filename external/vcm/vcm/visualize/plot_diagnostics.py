@@ -32,7 +32,6 @@ def plot_diurnal_cycle(
     num_time_bins=24,
     title=None,
     plot_filename="diurnal_cycle.png",
-    save_fig=True,
 ):
     """
 
@@ -40,18 +39,18 @@ def plot_diurnal_cycle(
         merged_ds: xr dataset, can either provide a merged dataset with a "dataset" dim
         that will be used to plot separate lines for each variable, or a single dataset
         with no "dataset" dim
-        var: name of variable to plot
-        output_dir: write location for figure
+        var: str, name of variable to plot
+        output_dir: str, write location for figure
         num_time_bins: number of bins per day
-        title: optional plot title
-        dataset_labels: optional list of str labels for datasets, in order corresponding
-            to datasets_to_plot
-        plot_filename: filename to save to
+        title: str, optional plot title
+        plot_filename: str, filename to save to
 
     Returns:
         None
     """
     plt.clf()
+    if "dataset" not in merged_ds.dims:
+        merged_ds = xr.concat([merged_ds], "dataset")
     for label in merged_ds["dataset"].values:
         ds = merged_ds.sel(dataset=label).stack(sample=STACK_DIMS).dropna("sample")
         local_time = ds["local_time"].values.flatten()
@@ -68,8 +67,7 @@ def plot_diurnal_cycle(
     plt.legend(loc="lower left")
     if title:
         plt.title(title)
-    if save_fig:
-        plt.savefig(os.path.join(output_dir, plot_filename))
+    plt.savefig(os.path.join(output_dir, plot_filename))
     plt.show()
 
 
@@ -97,30 +95,36 @@ def plot_time_series(
     ds,
     vars_to_plot,
     output_dir,
-    time_var=INIT_TIME_DIM,
-    plot_kwargs=None,
     plot_filename="time_series.png",
+    time_var=INIT_TIME_DIM,
+    xlabel=None,
+    ylabel=None,
+    title=None,
 ):
     """ Plot one or more variables as a time series.
 
     Args:
         ds: xarray dataset
-        plot_config: PlotConfig object
-
+        vars_to_plot: list[str] of data variables to plot
+        output_dir: str, output directory to save figure into
+        plot_filename: str, filename to save figure to
+        time_var: str, name of time dimension
+        xlabel: str, x axis label
+        ylabel: str, y axis label
+        title: str, plot title
     Returns:
         matplotlib figure
     """
     plt.clf()
-    plot_kwargs = plot_kwargs or {}
     for var in vars_to_plot:
         time = ds[time_var].values
         plt.plot(time, ds[var].values, label=var)
-        if "xlabel" in plot_kwargs:
-            plt.xlabel(plot_kwargs["xlabel"])
-        if "ylabel" in plot_kwargs:
-            plt.ylabel(plot_kwargs["ylabel"])
-        plt.legend()
-    if "title" in plot_kwargs:
-        plt.title(plot_kwargs["title"])
+    if xlabel:
+        plt.xlabel(xlabel)
+    if ylabel:
+        plt.ylabel(ylabel)
+    plt.legend()
+    if title:
+        plt.title(title)
     plt.savefig(os.path.join(output_dir, plot_filename))
     plt.show()

@@ -5,9 +5,12 @@ import os
 import xarray as xr
 
 from vcm.cubedsphere.constants import INIT_TIME_DIM
-from .data_funcs import predict_on_test_data, load_high_res_diag_dataset
-from .plotting import make_all_plots
-from ..create_report import create_report
+from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
+    predict_on_test_data,
+    load_high_res_diag_dataset,
+)
+from fv3net.diagnostics.sklearn_model_performance.plotting_sklearn import make_all_plots
+from fv3net.diagnostics.create_report import create_report
 from vcm.calc import thermo
 
 

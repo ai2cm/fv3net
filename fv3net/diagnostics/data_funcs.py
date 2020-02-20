@@ -12,13 +12,14 @@ def merge_comparison_datasets(
     to distinguish each dataset's data values from each other when plotting together.
 
     Args:
-        var: data variable of interest that is in all datasets
-        datasets: list of xr datasets or data arrays to concat
-        dataset_labels: ordered list corresponding to datasets, is the coords for the
-            "dataset" dimension
-        grid: dataset with lat/lon grid vars
-        additional_data: any additional data (e.g. slmsk) to merge along with datasets
-            and grid
+        var: str, data variable of interest that is in all datasets
+        datasets: list[xr datasets or data arrays], arrays that will be concatenated
+            along the dataset dimension
+        dataset_labels: list[str], same order that corresponds to datasets,
+            is the coords for the "dataset" dimension
+        grid: xr dataset with lat/lon grid vars
+        additional_data: xr data array, any additional data (e.g. slmsk) to merge along
+            with data arrays and grid
 
     Returns:
         Dataset with new dataset dimension to denote the target vs predicted
