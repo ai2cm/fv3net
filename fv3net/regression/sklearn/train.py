@@ -139,13 +139,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "output_data_path", type=str, help="Location to save config and trained model.",
     )
-    #     parser.add_argument(
-    #         "--output-dir-suffix",
-    #         type=str,
-    #         default="sklearn_regression",
-    #         help="Local directory suffix to write files to. "
-    #         "Prefixed with today's timestamp.",
-    #     )
     parser.add_argument(
         "--delete-local-results-after-upload",
         type=bool,
