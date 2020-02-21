@@ -77,3 +77,6 @@ check_call(
     ]
     + args.args.split()
 )
+
+logging.info(f"Uploading to {args.outputBucket}")
+fs.put("data.nc", args.outputBucket)
