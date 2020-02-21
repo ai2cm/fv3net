@@ -1,6 +1,5 @@
 import fsspec
 import joblib
-import numpy as np
 import xarray as xr
 
 from ..dataset_handler import stack_and_drop_nan_samples
@@ -13,7 +12,7 @@ SAMPLE_DIM = "sample"
 KEEP_VARS = ["delp", "slope", "precip_sfc"]
 
 
-def load_test_dataset(test_data_path, num_files_to_load=50, downsample_time_factor=8):
+def load_test_dataset(test_data_path, num_files_to_load=50, downsample_time_factor=1):
     """
 
     Args:
@@ -26,19 +25,14 @@ def load_test_dataset(test_data_path, num_files_to_load=50, downsample_time_fact
     """
     protocol, _ = _split_url(test_data_path)
     fs = fsspec.filesystem(protocol)
-    test_data_urls = load_downsampled_time_range(fs, test_data_path, downsample_time_factor)
-    zarrs_in_test_dir = [file for file in test_data_urls if ".zarr" in file]
+    test_data_urls = load_downsampled_time_range(
+        fs, test_data_path, downsample_time_factor)
+    zarrs_in_test_dir = sorted([file for file in test_data_urls if ".zarr" in file])
     if len(zarrs_in_test_dir) < 1:
         raise ValueError(f"No .zarr files found in  {test_data_path}.")
-
     ds_test = xr.concat(
-        map(
-            xr.open_zarr,
-            [
-                fs.get_mapper(file_path)
-                for file_path in zarrs_in_test_dir[:num_files_to_load]
-            ],
-        ),
+        [xr.open_zarr(fs.get_mapper(file_path), consolidated=True)
+            for file_path in zarrs_in_test_dir[:num_files_to_load]],
         INIT_TIME_DIM,
     )
     ds_test = ds_test.assign_coords(
@@ -51,12 +45,12 @@ def load_test_dataset(test_data_path, num_files_to_load=50, downsample_time_fact
 def load_downsampled_time_range(
         fs,
         test_data_path,
-        downsample_time_factor=8
+        downsample_time_factor
 ):
     sorted_urls = sorted(fs.ls(test_data_path))
     downsampled_urls = [
-        sorted_urls[i * downsample_time_factor] 
-        for i in range(int(len(sorted_urls)/downsample_time_factor))
+        sorted_urls[i * downsample_time_factor]
+        for i in range(int(len(sorted_urls) / downsample_time_factor))
     ]
     return downsampled_urls
     
