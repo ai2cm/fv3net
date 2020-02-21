@@ -14,21 +14,12 @@ from scipy.stats import binned_statistic
 import xarray as xr
 
 from vcm.visualize import plot_cube, mappable_var
-from vcm.cubedsphere.constants import (
-    INIT_TIME_DIM,
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-)
+from vcm.cubedsphere.constants import INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER
 
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 
-def plot_diurnal_cycle(
-    merged_ds,
-    var,
-    num_time_bins=24,
-    title=None,
-):
+def plot_diurnal_cycle(merged_ds, var, num_time_bins=24, title=None):
     """
 
     Args:
@@ -43,7 +34,7 @@ def plot_diurnal_cycle(
         matplotlib figure object
     """
     plt.clf()
-    fig=plt.figure()
+    fig = plt.figure()
     if "dataset" not in merged_ds.dims:
         merged_ds = xr.concat([merged_ds], "dataset")
     for label in merged_ds["dataset"].values:
@@ -63,7 +54,6 @@ def plot_diurnal_cycle(
     if title:
         plt.title(title)
     return fig
-
 
 
 # functions below here are from the previous design and probably outdated

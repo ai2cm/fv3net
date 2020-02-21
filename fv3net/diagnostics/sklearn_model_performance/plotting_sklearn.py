@@ -29,13 +29,7 @@ SAMPLE_DIM = "sample"
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 
-def _make_r2_plot(
-    ds_pred,
-    ds_target,
-    vars,
-    sample_dim=SAMPLE_DIM,
-    title=None,
-):
+def _make_r2_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None):
     plt.clf()
     fig = plt.figure()
     if isinstance(vars, str):
@@ -62,11 +56,7 @@ def _make_r2_plot(
 
 
 def _make_land_sea_r2_plot(
-    ds_pred_sea,
-    ds_pred_land,
-    ds_target_sea,
-    ds_target_land,
-    vars,
+    ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars
 ):
     plt.clf()
     fig = plt.figure()
@@ -101,10 +91,7 @@ def _make_land_sea_r2_plot(
 
 
 def plot_comparison_maps(
-    ds_merged,
-    var,
-    time_index_selection=None,
-    plot_cube_kwargs=None,
+    ds_merged, var, time_index_selection=None, plot_cube_kwargs=None
 ):
     # map plot a variable and compare across prediction/ C48 /coarsened high res data
     matplotlib.rcParams["figure.dpi"] = 200
@@ -178,18 +165,11 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # R^2 vs pressure plots
     matplotlib.rcParams["figure.dpi"] = 70
-    _make_r2_plot(
-        ds_pred,
-        ds_target,
-        ["Q1", "Q2"],
-        title="$R^2$, global",
-    ).savefig(os.path.join(output_dir, "r2_vs_pressure_level_global.png"))
+    _make_r2_plot(ds_pred, ds_target, ["Q1", "Q2"], title="$R^2$, global").savefig(
+        os.path.join(output_dir, "r2_vs_pressure_level_global.png")
+    )
     _make_land_sea_r2_plot(
-        ds_pred_sea,
-        ds_pred_land,
-        ds_target_sea,
-        ds_target_land,
-        vars=["Q1", "Q2"],
+        ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars=["Q1", "Q2"]
     ).savefig(os.path.join(output_dir, "r2_vs_pressure_level_landsea.png"))
     report_sections["R^2 vs pressure levels"] = [
         "r2_vs_pressure_level_global.png",
@@ -200,14 +180,10 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ds_pe["local_time"] = local_time(ds_pe)
     matplotlib.rcParams["figure.dpi"] = 80
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_pe, "sea"),
-        "P-E",
-        title="ocean"
+        mask_to_surface_type(ds_pe, "sea"), "P-E", title="ocean"
     ).savefig(os.path.join(output_dir, "diurnal_cycle_P-E_sea.png"))
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_pe, "land"),
-        "P-E",
-        title="land"
+        mask_to_surface_type(ds_pe, "land"), "P-E", title="land"
     ).savefig(os.path.join(output_dir, "diurnal_cycle_P-E_land.png"))
     report_sections["Diurnal cycle"] = [
         "diurnal_cycle_P-E_sea.png",
