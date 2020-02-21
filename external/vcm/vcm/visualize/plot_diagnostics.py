@@ -26,10 +26,8 @@ STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 def plot_diurnal_cycle(
     merged_ds,
     var,
-    output_dir,
     num_time_bins=24,
     title=None,
-    plot_filename="diurnal_cycle.png",
 ):
     """
 
@@ -38,15 +36,14 @@ def plot_diurnal_cycle(
         that will be used to plot separate lines for each variable, or a single dataset
         with no "dataset" dim
         var: str, name of variable to plot
-        output_dir: str, write location for figure
         num_time_bins: number of bins per day
         title: str, optional plot title
-        plot_filename: str, filename to save to
 
     Returns:
-        None
+        matplotlib figure object
     """
     plt.clf()
+    fig=plt.figure()
     if "dataset" not in merged_ds.dims:
         merged_ds = xr.concat([merged_ds], "dataset")
     for label in merged_ds["dataset"].values:
@@ -65,8 +62,8 @@ def plot_diurnal_cycle(
     plt.legend(loc="lower left")
     if title:
         plt.title(title)
-    plt.savefig(os.path.join(output_dir, plot_filename))
-    plt.show()
+    return fig
+
 
 
 # functions below here are from the previous design and probably outdated

@@ -33,12 +33,11 @@ def _make_r2_plot(
     ds_pred,
     ds_target,
     vars,
-    output_dir,
-    plot_filename="r2_vs_pressure_level.png",
     sample_dim=SAMPLE_DIM,
     title=None,
 ):
     plt.clf()
+    fig = plt.figure()
     if isinstance(vars, str):
         vars = [vars]
     x = np.array(PRESSURE_GRID) / 100
@@ -58,8 +57,8 @@ def _make_r2_plot(
     plt.ylabel("$R^2$")
     if title:
         plt.title(title)
-    plt.savefig(os.path.join(output_dir, plot_filename))
     plt.show()
+    return fig
 
 
 def _make_land_sea_r2_plot(
@@ -68,10 +67,9 @@ def _make_land_sea_r2_plot(
     ds_target_sea,
     ds_target_land,
     vars,
-    output_dir,
-    plot_filename="r2_vs_pressure_level_landsea.png",
 ):
     plt.clf()
+    fig = plt.figure()
     x = np.array(PRESSURE_GRID) / 100
     colors = ["blue", "orange"]
     for color, var in zip(colors, vars):
@@ -98,15 +96,13 @@ def _make_land_sea_r2_plot(
     plt.legend()
     plt.xlabel("pressure [HPa]")
     plt.ylabel("$R^2$")
-    plt.savefig(os.path.join(output_dir, plot_filename))
     plt.show()
+    return fig
 
 
 def plot_comparison_maps(
     ds_merged,
     var,
-    output_dir,
-    plot_filename,
     time_index_selection=None,
     plot_cube_kwargs=None,
 ):
@@ -130,8 +126,8 @@ def plot_comparison_maps(
             .strftime("%Y-%m-%d, %H:%M:%S")
         )
         plt.suptitle(time_label)
-    fig.savefig(os.path.join(output_dir, plot_filename))
     plt.show()
+    return fig
 
 
 def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
@@ -186,19 +182,15 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         ds_pred,
         ds_target,
         ["Q1", "Q2"],
-        output_dir=output_dir,
-        plot_filename="r2_vs_pressure_level_global.png",
         title="$R^2$, global",
-    )
+    ).savefig(os.path.join(output_dir, "r2_vs_pressure_level_global.png"))
     _make_land_sea_r2_plot(
         ds_pred_sea,
         ds_pred_land,
         ds_target_sea,
         ds_target_land,
         vars=["Q1", "Q2"],
-        output_dir=output_dir,
-        plot_filename="r2_vs_pressure_level_landsea.png",
-    )
+    ).savefig(os.path.join(output_dir, "r2_vs_pressure_level_landsea.png"))
     report_sections["R^2 vs pressure levels"] = [
         "r2_vs_pressure_level_global.png",
         "r2_vs_pressure_level_landsea.png",
@@ -210,17 +202,13 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     plot_diurnal_cycle(
         mask_to_surface_type(ds_pe, "sea"),
         "P-E",
-        title="ocean",
-        output_dir=output_dir,
-        plot_filename="diurnal_cycle_P-E_sea.png",
-    )
+        title="ocean"
+    ).savefig(os.path.join(output_dir, "diurnal_cycle_P-E_sea.png"))
     plot_diurnal_cycle(
         mask_to_surface_type(ds_pe, "land"),
         "P-E",
-        title="land",
-        output_dir=output_dir,
-        plot_filename="diurnal_cycle_P-E_land.png",
-    )
+        title="land"
+    ).savefig(os.path.join(output_dir, "diurnal_cycle_P-E_land.png"))
     report_sections["Diurnal cycle"] = [
         "diurnal_cycle_P-E_sea.png",
         "diurnal_cycle_P-E_land.png",
@@ -230,19 +218,15 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     plot_comparison_maps(
         ds_pe,
         "P-E",
-        output_dir=output_dir,
-        plot_filename="P-E_time_avg.png",
         time_index_selection=None,
         plot_cube_kwargs={"cbar_label": "time avg, P-E [mm/day]"},
-    )
+    ).savefig(os.path.join(output_dir, "P-E_time_avg.png"))
     plot_comparison_maps(
         ds_pe,
         "P-E",
-        output_dir=output_dir,
-        plot_filename="P-E_time_snapshots.png",
         time_index_selection=[0, 2],
         plot_cube_kwargs={"cbar_label": "timestep snapshot, P-E [mm/day]"},
-    )
+    ).savefig(os.path.join(output_dir, "P-E_time_snapshots.png"))
     report_sections["P-E"] = ["P-E_time_avg.png", "P-E_snapshots.png"]
 
     return report_sections
