@@ -1,0 +1,6 @@
+xarray
+zarr
+netcdf4
+fsspec
+gcsfs
+sh
