@@ -22,12 +22,6 @@ if __name__ == "__main__":
         "Don't include bucket in path.",
     )
     parser.add_argument(
-        "--gcs-bucket",
-        type=str,
-        default="gs://vcm-ml-data",
-        help="Google Cloud Storage bucket name.",
-    )
-    parser.add_argument(
         "--gcs-project",
         type=str,
         default="vcm-ml",

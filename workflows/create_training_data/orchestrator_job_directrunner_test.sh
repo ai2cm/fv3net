@@ -12,5 +12,4 @@ ${OUTPUT_PATH} \
 --timesteps-per-output-file ${TIMESTEPS_PER_OUTPUT} \
 --mask-to-surface-type ${MASK_SURFACE_TYPE} \
 --train-fraction ${TRAIN_FRACTION} \
---gcs-bucket gs://vcm-ml-data \
 --runner DirectRunner

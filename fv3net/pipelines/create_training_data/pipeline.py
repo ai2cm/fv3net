@@ -141,7 +141,6 @@ def _save_grid_spec(fs, run_dir, gcs_output_data_dir):
         fs: GCSFileSystem object
         run_dir: run dir to read grid data from. Using the first timestep should be fine
         gcs_output_data_dir: Write path
-        gcs_bucket: GCS bucket to write to
 
     Returns:
         None
@@ -314,7 +313,6 @@ def _write_remote_train_zarr(
         ds: xr dataset for single training batch
         gcs_dest_path: write location on GCS
         zarr_filename: name for zarr, use first timestamp as label
-        bucket: GCS bucket
         train_test_labels: optional dict with
     Returns:
         None
