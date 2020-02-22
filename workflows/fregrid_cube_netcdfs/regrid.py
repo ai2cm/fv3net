@@ -6,6 +6,8 @@ import tarfile
 import sh
 import logging
 from subprocess import check_call
+import dask
+dask.config.set(scheduler='processes')
 
 
 grid = "gs://vcm-ml-data/2019-10-05-coarse-grid-and-orography-data.tar"
@@ -79,4 +81,8 @@ check_call(
 )
 
 logging.info(f"Uploading to {args.outputBucket}")
-fs.put("data.nc", args.outputBucket)
+if args.outputBucket.endswith('.nc'):
+    fs.put("data.nc", args.outputBucket)
+else:
+    obj = xr.open_dataset("data.nc").to_zarr(fs.get_mapper(args.outputBucket), mode='w', compute=False)
+    obj.compute(n_workers=8)
