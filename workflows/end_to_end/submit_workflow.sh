@@ -24,13 +24,13 @@ echo -e "\n\n\n############### Starting workflow "${NAME}" to execute the follow
 echo -e "\n\n\n############### Creating fv3net python package sdist files...\n\n\n"
 
 # extra fv3net packages
-cd external/vcm
-python setup.py sdist
+(
+  cd external/vcm
+  python setup.py sdist
 
-cd external/mappm
-python setup.py sdist
-
-cd ../../../..
+  cd external/mappm
+  python setup.py sdist
+)
 
 for STEP in ${WORKFLOW}; do
   echo -e "\n\n\n############### Starting step "${STEP}"... \n\n\n"
