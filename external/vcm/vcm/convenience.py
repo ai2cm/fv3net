@@ -70,27 +70,6 @@ def parse_timestep_from_path(path: str):
         raise ValueError(f"No matching time pattern found in path: {path}")
 
 
-def list_timesteps(path: str) -> List[str]:
-    """Returns the unique timesteps at a path
-
-    Args:
-        path: local or remote path to directory containing timesteps
-
-    Returns:
-        sorted list of all timesteps within path
-    """
-    file_list = get_fs(path).ls(path)
-    timesteps = []
-    for current_file in file_list:
-        try:
-            timestep = parse_timestep_from_path(current_file)
-            timesteps.append(timestep)
-        except ValueError:
-            # not a timestep directory
-            continue
-    return sorted(timesteps)
-
-
 root = get_root()
 
 

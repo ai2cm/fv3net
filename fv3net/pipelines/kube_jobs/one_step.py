@@ -10,7 +10,7 @@ from typing import List, Tuple
 
 import fv3config
 from fv3net.pipelines.kube_jobs import utils
-from vcm.convenience import list_timesteps
+from fv3net.pipelines.common import list_timesteps
 from vcm.cloud.fsspec import get_fs
 
 STDOUT_FILENAME = "stdout.log"
