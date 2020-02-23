@@ -3,7 +3,7 @@ import yaml
 import json
 import os
 import uuid
-from typing import List
+from typing import List, Mapping
 
 
 def get_experiment_steps_and_args(config_file: str):
@@ -30,7 +30,7 @@ def get_experiment_steps_and_args(config_file: str):
     return json.dumps(experiment_steps_and_args)
 
 
-def _apply_config_transforms(config: dict):
+def _apply_config_transforms(config: Mapping):
     """
     Transforms to apply to the configuration dictionary.  All transforms
     are assumed to be in-place.
@@ -41,7 +41,7 @@ def _apply_config_transforms(config: dict):
     _resolve_input_from(config)
 
 
-def _add_unique_id(config: dict):
+def _add_unique_id(config: Mapping):
     """Add a shared uuid to specified configuration paramters"""
 
     exp_config = config["experiment"]
@@ -53,7 +53,7 @@ def _add_unique_id(config: dict):
     exp_config["name"] = exp_name + f"-{unique_id}"
 
 
-def _resolve_output_location(config: dict):
+def _resolve_output_location(config: Mapping):
     """Get the step output location if one is not specified"""
     root_exp_path = _get_experiment_path(config)
     all_steps_config = config["experiment"]["steps_config"]
@@ -68,7 +68,7 @@ def _resolve_output_location(config: dict):
             step_config["output_location"] = location
 
 
-def _resolve_input_from(config: dict):
+def _resolve_input_from(config: Mapping):
     """
     Get the step input location if not specified.  Derives from previous
     steps if the "from" keyword is used along with a step name.
@@ -99,7 +99,7 @@ def _resolve_input_from(config: dict):
                 )
 
 
-def _get_experiment_path(config: dict):
+def _get_experiment_path(config: Mapping):
     """Get root directory path for experiment output."""
 
     proto = config["storage_proto"]
@@ -120,7 +120,7 @@ def _get_experiment_path(config: dict):
     return f"{proto}://{root}/{experiment_name}"
 
 
-def _get_all_step_arguments(workflow_steps: List[str], config: dict):
+def _get_all_step_arguments(workflow_steps: List[str], config: Mapping):
     """Get a dictionary of each step with i/o and methedological arguments"""
 
     steps_config = config["experiment"]["steps_config"]
@@ -143,7 +143,7 @@ def _get_all_step_arguments(workflow_steps: List[str], config: dict):
 
 
 def _generate_output_path_from_config(
-    step_name: str, step_config: dict, max_config_stubs: int = 3
+    step_name: str, step_config: Mapping, max_config_stubs: int = 3
 ):
     """generate an output location stub from a step's methodological config"""
 
@@ -169,7 +169,7 @@ def _generate_output_path_from_config(
     return output_str
 
 
-def _generate_method_args(step_config: dict):
+def _generate_method_args(step_config: Mapping):
     """
     Generate the methodological arguments for the step as positional arguments
     in a string.
