@@ -11,8 +11,6 @@ experiment:
     - train_sklearn_model
 #     - test_sklearn_model
     - prognostic_run
-  experiment_vars:
-    kube_docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
   
   steps_config:
     coarsen_restarts:
@@ -22,7 +20,7 @@ experiment:
           location: gs://vcm-ml-data/orchestration-testing/shield-C384-restarts-2019-12-04
         grid_spec: 
           location: gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy
-      method:
+      extra_args:
         source-resolution: 384
         target-resolution: 48
     
@@ -31,7 +29,7 @@ experiment:
       inputs:
         c384_diagnostics: 
           location: gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/gfsphysics_15min_coarse.zarr
-      method:
+      extra_args:
         coarsening_config: workflows/coarsen_c384_diagnostics/coarsen-c384-diagnostics.yml
     
     one_step_run:
@@ -39,15 +37,10 @@ experiment:
       inputs:
         restart_data:
           from: coarsen_restarts
-      method: 
+      extra_args: 
         experiment_yaml: ./workflows/one_step_jobs/all-physics-off.yml
         experiment_label: test-orchestration-group
-        docker_image: kube_docker_image
-      config_transforms:
-        add_unique_id: 
-          - experiment_label
-        use_top_level:
-          - docker_image
+        docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
     
     create_training_data:
       command: workflows/create_training_data/orchestrator_job.sh
@@ -56,7 +49,7 @@ experiment:
           from: one_step_run
         diagnostics_data:
           from: coarsen_diagnostics
-      method: 
+      extra_args: 
         timesteps-per-output-file: 2
         mask-to-surface-type: 
         train-fraction: 0.5
@@ -66,7 +59,7 @@ experiment:
       inputs:
         training_data:
           from: create_training_data
-      method:
+      extra_args:
         train-config-file: ./workflows/sklearn_regression/example_base_rf_training_config.yml
         
     test_sklearn_model: 
@@ -78,7 +71,7 @@ experiment:
           from: create_training_data
         diagnostics_data:
           from: coarsen_diagnostics
-      method: 
+      extra_args: 
         num-test-zarrs: 4
     
     prognostic_run:
@@ -88,10 +81,7 @@ experiment:
           from: train_sklearn_model
         restart_file_dir:
           from: one_step_run
-      method:
+      extra_args:
         prognostic_yaml_adjust: workflows/prognostic_c48_run/prognostic_config.yml
         ic_timestep: "20160801.001500"
-        docker_image: kube_docker_image
-      config_transforms:
-        use_top_level:
-          - docker_image
+        docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
