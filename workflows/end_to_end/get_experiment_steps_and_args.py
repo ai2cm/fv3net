@@ -37,7 +37,6 @@ def _apply_config_transforms(config: dict):
     """
 
     _add_unique_id(config)
-    _use_top_level_var(config)
     _resolve_output_location(config)
     _resolve_input_from(config)
 
@@ -52,17 +51,6 @@ def _add_unique_id(config: dict):
     unique_id = str(uuid.uuid4())[-8:]
     exp_name = exp_config["name"]
     exp_config["name"] = exp_name + f"-{unique_id}"
-
-    # Go through all step configuration to check for method specific uuid additions
-    for step_name, step_config in exp_config["steps_config"].items():
-        config_transforms = step_config.get("config_transforms", None)
-
-        if config_transforms and "add_unique_id" in config_transforms:
-            vars_to_add_unique = step_config["config_transforms"]["add_unique_id"]
-            for config_var in vars_to_add_unique:
-                method_val = step_config["method"][config_var]
-                method_val += f"-{unique_id}"
-                step_config["method"][config_var] = method_val
 
 
 def _resolve_output_location(config: dict):
@@ -109,29 +97,6 @@ def _resolve_input_from(config: dict):
                     f"Input section of {step_name} should have either 'location' "
                     "or 'from' specified in the orchestration configuration"
                 )
-
-
-def _use_top_level_var(config: dict):
-    """
-    Interpolate parameters marked to use a top-level variable from the YAML file.
-    """
-
-    experiment_vars = config["experiment"]["experiment_vars"]
-    all_steps_config = config["experiment"]["steps_config"]
-
-    for step_name, step_config in all_steps_config.items():
-
-        if "config_transforms" not in step_config:
-            continue
-        elif "use_top_level" not in step_config["config_transforms"]:
-            continue
-
-        vars_to_transform = step_config["config_transforms"]["use_top_level"]
-
-        for varname in vars_to_transform:
-
-            exp_var_key = step_config["method"][varname]
-            step_config["method"][varname] = experiment_vars[exp_var_key]
 
 
 def _get_experiment_path(config: dict):
