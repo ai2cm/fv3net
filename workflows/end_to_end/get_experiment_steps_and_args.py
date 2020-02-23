@@ -148,7 +148,7 @@ def _generate_output_path_from_config(
     """generate an output location stub from a step's methodological config"""
 
     output_str = step_name
-    method_config = step_config.get("method", None)
+    method_config = step_config.get("extra_args", None)
     if method_config is not None:
         method_strs = []
         for i, (key, val) in enumerate(method_config.items()):
