@@ -1,5 +1,7 @@
 import logging
 import os
+import time
+import kubernetes
 from typing import List, Mapping
 
 import fv3config
@@ -7,7 +9,7 @@ import fv3config
 from vcm.cubedsphere.constants import RESTART_CATEGORIES, TILE_COORDS_FILENAMES
 from vcm.cloud.fsspec import get_protocol, get_fs
 
-logger = logging.getLogger("one_step_jobs")
+logger = logging.getLogger(__name__)
 
 
 def update_nested_dict(source_dict: dict, update_dict: dict) -> dict:
@@ -63,3 +65,55 @@ def update_tiled_asset_names(
     ]
 
     return assets
+
+
+def wait_for_kubejob_complete(job_labels: Mapping[str, str]):
+    """
+    Function to block operation until a group of submitted kubernetes jobs complete.
+
+    Args:
+        job_labels: key-value pairs of job labels used to filter the job query. These
+            values are translated to equivalence statements for the selector. E.g., 
+            "key1=value1,key2=value2,..."
+    """
+
+    selector_format_labels = [f"{key}={value}" for key, value in job_labels.items()]
+    combined_selectors = ",".join(selector_format_labels) 
+
+    kubernetes.config.load_kube_config()
+    batch = kubernetes.client.BatchV1Api()
+
+    # Check active jobs
+    while True:
+        
+        jobs = batch.list_job_for_all_namespaces(selector=combined_selectors)
+        active_jobs = [
+            job_info.metadata.name for job_info in jobs.items if job_info.status.active
+        ]
+
+        if active_jobs:
+            logger.info(f"Active Jobs at {time.strftime('%Y-%m-%d %H:%M:%S')}\n" + "\n".join(active_jobs))
+            time.sleep(30)
+            continue
+        else:
+            logger.info("All kubernetes jobs finished!")
+            break
+    
+    # Get failed and successful jobs
+    failed = []
+    success = []
+    for job_info in jobs.items:
+        if job_info.status.failed:
+            failed.append(job_info.metadata.name)
+        elif job_info.status.succeeded:
+            # tuples for delete operation
+            success.append((job_info.metadata.name, job_info.metadata.namespace))
+    
+    logger.info("Failed Jobs from EXP_LABEL:\n" + "\n".join(failed))
+
+    # Delete successful jobs
+    logger.info("Deleting successful jobs.")
+    for delete_args in success:
+        jobname, namespace = delete_args
+        logger.info(f"Deleting -- {jobname}")
+        batch.delete_namespaced_job(jobname, namespace)
