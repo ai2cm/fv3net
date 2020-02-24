@@ -27,11 +27,6 @@ def _create_arg_parser():
         "one_step_yaml", type=str, help="Path to local run configuration yaml.",
     )
     parser.add_argument(
-        "experiment_label",
-        type=str,
-        help="Label to group the individual Kubernetes jobs with",
-    )
-    parser.add_argument(
         "docker_image",
         type=str,
         help="Docker image to use for performing the one-step FV3GFS runs.",

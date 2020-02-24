@@ -3,7 +3,7 @@ storage_root: vcm-ml-data/orchestration-testing
 experiment:
   name: test-experiment
   unique_id: True
-  steps_to_run: 
+  steps_to_run:
     - coarsen_restarts
     - coarsen_diagnostics
     - one_step_run
@@ -39,7 +39,6 @@ experiment:
           from: coarsen_restarts
       extra_args: 
         experiment_yaml: ./workflows/one_step_jobs/all-physics-off.yml
-        experiment_label: test-orchestration-group
         docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
     
     create_training_data:
