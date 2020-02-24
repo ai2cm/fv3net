@@ -8,7 +8,7 @@ import fv3config
 import fv3net.pipelines.kube_jobs.utils as kubejob_utils
 from vcm.cloud.fsspec import get_fs
 from fv3net.pipelines.common import get_unique_tag
-from fv3net.pipelines.kube_jobs.utils import wait_for_kubejob_complete
+from fv3net.pipelines.kube_jobs import wait_for_complete
 
 PWD = Path(os.path.abspath(__file__)).parent
 RUNFILE = os.path.join(PWD, "sklearn_runfile.py")
@@ -123,4 +123,4 @@ if __name__ == "__main__":
         job_labels=job_label,
     )
 
-    wait_for_kubejob_complete(job_label)
+    wait_for_complete(job_label)

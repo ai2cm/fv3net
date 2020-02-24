@@ -67,7 +67,7 @@ def update_tiled_asset_names(
     return assets
 
 
-def wait_for_kubejob_complete(job_labels: Mapping[str, str]):
+def wait_for_complete(job_labels: Mapping[str, str]):
     """
     Function to block operation until a group of submitted kubernetes jobs complete.
 

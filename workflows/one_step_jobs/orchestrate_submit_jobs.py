@@ -4,8 +4,7 @@ import logging
 import yaml
 from pathlib import Path
 
-from fv3net.pipelines.kube_jobs import one_step
-from fv3net.pipelines.kube_jobs.utils import wait_for_kubejob_complete
+from fv3net.pipelines.kube_jobs import one_step, wait_for_complete
 from fv3net.pipelines.common import get_unique_tag
 
 PWD = os.path.dirname(os.path.abspath(__file__))
@@ -92,4 +91,4 @@ if __name__ == "__main__":
         local_vertical_grid_file=local_vgrid_file,
     )
 
-    wait_for_kubejob_complete(job_label)
+    wait_for_complete(job_label)
