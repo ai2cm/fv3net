@@ -292,7 +292,7 @@ def submit_jobs(
     input_url: str,
     output_url: str,
     config_url: str,
-    experiment_label=None,
+    job_labels=None,
     local_vertical_grid_file=None,
 ) -> None:
     """Submit one-step job for all timesteps in timestep_list"""
@@ -316,7 +316,7 @@ def submit_jobs(
         fv3config.run_kubernetes(
             os.path.join(curr_config_url, "fv3config.yml"),
             curr_output_url,
-            experiment_label=experiment_label,
+            job_labels=job_labels,
             **kube_config,
         )
         logger.info(f"Submitted job {jobname}")

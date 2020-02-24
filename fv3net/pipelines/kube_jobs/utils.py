@@ -86,7 +86,7 @@ def wait_for_kubejob_complete(job_labels: Mapping[str, str]):
     # Check active jobs
     while True:
         
-        jobs = batch.list_job_for_all_namespaces(selector=combined_selectors)
+        jobs = batch.list_job_for_all_namespaces(label_selector=combined_selectors)
         active_jobs = [
             job_info.metadata.name for job_info in jobs.items if job_info.status.active
         ]

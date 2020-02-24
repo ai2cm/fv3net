@@ -174,7 +174,7 @@ def _generate_method_args(step_config: Mapping):
     Generate the methodological arguments for the step as positional arguments
     in a string.
     """
-    method_config = step_config.get("method", None)
+    method_config = step_config.get("extra_args", None)
 
     if method_config is not None:
         method_args = [str(val) for val in method_config.values()]
