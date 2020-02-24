@@ -73,7 +73,7 @@ def wait_for_kubejob_complete(job_labels: Mapping[str, str]):
 
     Args:
         job_labels: key-value pairs of job labels used to filter the job query. These
-            values are translated to equivalence statements for the selector. E.g., 
+            values are translated to equivalence statements for the selector. E.g.,
             "key1=value1,key2=value2,..."
     """
 
