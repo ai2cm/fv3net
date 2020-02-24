@@ -1,14 +1,14 @@
 import argparse
-import uuid
 import os
 import yaml
 import fsspec
-import subprocess
 from pathlib import Path
 
 import fv3config
 import fv3net.pipelines.kube_jobs.utils as kubejob_utils
 from vcm.cloud.fsspec import get_fs
+from fv3net.pipelines.common import get_unique_tag
+from fv3net.pipelines.kube_jobs.utils import wait_for_kubejob_complete
 
 PWD = Path(os.path.abspath(__file__)).parent
 RUNFILE = os.path.join(PWD, "sklearn_runfile.py")
@@ -75,22 +75,14 @@ def _update_with_prognostic_model_config(model_config, prognostic_config):
     return model_config
 
 
-# TODO: should probably move to kube_job fv3net so no weird traversal necessary
-def wait_for_complete(experiment_label):
-
-    wait_script = str(
-        Path(PWD).parent.joinpath("one_step_jobs", "wait_until_complete.sh")
-    )
-    subprocess.check_call([wait_script, str(experiment_label)])
-
-
 if __name__ == "__main__":
 
     parser = _create_arg_parser()
     args = parser.parse_args()
 
-    short_id = str(uuid.uuid4())[:8]
+    short_id = get_unique_tag(8)
     job_name = f"prognostic-run-{short_id}"
+    job_label = {"orchestrator-jobs": f"prognostic-group-{short_id}"}
 
     model_config = _get_onestep_config(args.initial_condition_url, args.ic_timestep)
 
@@ -128,7 +120,7 @@ if __name__ == "__main__":
         cpu_count=6,
         gcp_secret="gcp-key",
         image_pull_policy="Always",
-        experiment_label=job_name,
+        job_labels=job_label,
     )
 
-    wait_for_complete(job_name)
+    wait_for_kubejob_complete(job_label)

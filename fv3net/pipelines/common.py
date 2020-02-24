@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+import uuid
 from typing import Any, Callable, List
 from typing.io import BinaryIO
 
@@ -121,3 +122,10 @@ def list_timesteps(path: str) -> List[str]:
             # not a timestep directory
             continue
     return sorted(timesteps)
+
+
+def get_unique_tag(tag_length: int) -> str:
+    """Generate a unique tag"""
+
+    short_id = str(uuid.uuid4())
+    return short_id[:tag_length]

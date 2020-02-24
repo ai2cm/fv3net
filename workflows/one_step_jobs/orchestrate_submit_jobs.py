@@ -1,11 +1,12 @@
 import argparse
 import os
 import logging
-import subprocess
 import yaml
 from pathlib import Path
 
 from fv3net.pipelines.kube_jobs import one_step
+from fv3net.pipelines.kube_jobs.utils import wait_for_kubejob_complete
+from fv3net.pipelines.common import get_unique_tag
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
@@ -61,12 +62,6 @@ def _create_arg_parser():
     return parser
 
 
-def wait_for_complete(experiment_label):
-
-    wait_script = os.path.join(PWD, "wait_until_complete.sh")
-    subprocess.check_call([wait_script, str(experiment_label)])
-
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
@@ -76,6 +71,8 @@ if __name__ == "__main__":
     with open(args.one_step_yaml) as file:
         one_step_config = yaml.load(file, Loader=yaml.FullLoader)
     workflow_name = Path(args.one_step_yaml).with_suffix("").name
+    short_id = get_unique_tag(8)
+    job_label = {'orchestrator-jobs': f"{workflow_name}-{short_id}"}
 
     if not args.config_url:
         config_url = os.path.join(args.output_url, CONFIG_DIRECTORY_NAME)
@@ -96,8 +93,8 @@ if __name__ == "__main__":
         args.input_url,
         args.output_url,
         config_url,
-        experiment_label=args.experiment_label,
+        job_labels=job_label,
         local_vertical_grid_file=local_vgrid_file,
     )
 
-    wait_for_complete(args.experiment_label)
+    wait_for_kubejob_complete(job_label)
