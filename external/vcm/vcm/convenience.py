@@ -5,7 +5,6 @@ import subprocess
 import tempfile
 from collections import defaultdict
 import pathlib
-from typing import List
 
 import numpy as np
 import dask.array as da
@@ -17,7 +16,6 @@ from dask import delayed
 
 from vcm.cloud import gsutil
 from vcm.cloud.remote_data import open_gfdl_data_with_2d
-from vcm.cloud.fsspec import get_fs
 
 TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 

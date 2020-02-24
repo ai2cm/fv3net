@@ -1,12 +1,15 @@
 import os
 import shutil
 import tempfile
-from typing import Any, Callable
+from typing import Any, Callable, List
 from typing.io import BinaryIO
 
 import apache_beam as beam
 import xarray as xr
 from apache_beam.io import filesystems
+
+from vcm.cloud.fsspec import get_fs
+from vcm.convenience import parse_timestep_from_path
 
 
 class CombineSubtilesByKey(beam.PTransform):
