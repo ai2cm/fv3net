@@ -27,8 +27,9 @@ echo -e "\n\n\n############### Creating fv3net python package sdist files...\n\n
 (
   cd external/vcm
   python setup.py sdist
-
-  cd external/mappm
+)
+(
+  cd external/vcm/external/mappm
   python setup.py sdist
 )
 
