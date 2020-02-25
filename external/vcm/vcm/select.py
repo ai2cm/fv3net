@@ -1,6 +1,7 @@
 """
 This module is for functions that select subsets of the data
 """
+import numpy as np
 import warnings
 
 
@@ -21,3 +22,10 @@ def mask_to_surface_type(ds, surface_type):
     mask = ds.slmsk.astype(int) == surface_type_codes[surface_type]
     ds_masked = ds.where(mask)
     return ds_masked
+
+
+def drop_nondim_coords(ds):
+    for coord in ds.coords:
+        if not isinstance(ds[coord].values, np.ndarray):
+            ds = ds.squeeze().drop(coord)
+    return ds

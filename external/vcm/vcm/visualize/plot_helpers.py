@@ -97,10 +97,13 @@ def _get_var_label(attrs: dict, var_name: str):
             Short name of variable
 
     Returns:
-        var_name (str)
-            Variable name to be plotted, either short name or annotated name
+        var_label (str)
+            long_name [units], var_name [units] or var_name depending on attrs
     """
-    if "long_name" in attrs and "units" in attrs:
-        return f"{attrs['long_name']} [{attrs['units']}]"
+    if "long_name" in attrs:
+        var_label = attrs["long_name"]
     else:
-        return var_name
+        var_label = var_name
+    if "units" in attrs:
+        var_label += f" [{attrs['units']}]"
+    return var_label
