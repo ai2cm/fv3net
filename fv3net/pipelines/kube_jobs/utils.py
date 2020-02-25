@@ -105,7 +105,9 @@ def wait_for_complete(
     # Check active jobs
     while True:
 
-        jobs = batch_client.list_job_for_all_namespaces(label_selector=combined_selectors)
+        jobs = batch_client.list_job_for_all_namespaces(
+            label_selector=combined_selectors
+        )
         active_jobs = [
             job_info.metadata.name for job_info in jobs.items if job_info.status.active
         ]
@@ -139,8 +141,7 @@ def wait_for_complete(
 
 
 def delete_job_pods(
-    job_list: Sequence[JobInfo],
-    batch_client: kubernetes.client.BatchV1Api = None
+    job_list: Sequence[JobInfo], batch_client: kubernetes.client.BatchV1Api = None
 ):
     """
     Delete specified job pods on the kubernetes cluster.

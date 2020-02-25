@@ -7,6 +7,7 @@ from fv3net.pipelines.kube_jobs import wait_for_complete
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
+
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
@@ -21,12 +22,7 @@ class MockBatchV1ApiResponse(object):
         self.items = items
 
     @classmethod
-    def from_args(
-        cls,
-        num_jobs: int,
-        num_successful: int,
-        labels: Mapping[str, str]
-    ):
+    def from_args(cls, num_jobs: int, num_successful: int, labels: Mapping[str, str]):
         """
         Args:
             num_jobs: Number of fake jobs to create
@@ -34,7 +30,7 @@ class MockBatchV1ApiResponse(object):
             num_successful: Number of jobs to mark as successful.
             labels: Labels to apply to all generated jobs.
         """
-        
+
         items = []
         for i in range(num_jobs):
 
@@ -47,22 +43,16 @@ class MockBatchV1ApiResponse(object):
 
     @staticmethod
     def _gen_job_info(
-        job_name: str,
-        success: bool,
-        labels: Mapping[str, str],
+        job_name: str, success: bool, labels: Mapping[str, str],
     ):
 
         info = dotdict(
-            metadata=dotdict(
-                labels=labels,
-                name=job_name,
-                namespace="default",
-            ),
+            metadata=dotdict(labels=labels, name=job_name, namespace="default",),
             status=dotdict(
                 active=1,
                 failed=(1 if not success else None),
                 succeeded=(1 if success else None),
-            )
+            ),
         )
 
         return info
@@ -74,7 +64,7 @@ class MockBatchV1ApiResponse(object):
             curr_job_namespace = job_item.metadata.namespace
             if job_name == curr_job_name and job_namespace == curr_job_namespace:
                 break
-        
+
         del self.items[i]
 
     def make_jobs_inactive(self):
@@ -100,9 +90,9 @@ class MockBatchV1ApiResponse(object):
             labels_match = self._check_labels_in_job_info(job_labels, labels)
             if labels_match:
                 items.append(job_info)
-        
+
         return self.__class__(items)
-            
+
     @staticmethod
     def _check_labels_in_job_info(job_labels, check_labels):
         for label_key, label_value in check_labels.items():
@@ -131,9 +121,9 @@ class MockBatchV1Api(object):
             self.response.make_jobs_inactive()
         elif self.num_list_calls > 5:
             raise TimeoutError("Probably stuck in a loop.")
-        
+
         self.num_list_calls += 1
-        
+
         label_dict = self._parse_label_selector(label_selector)
         return self.response.get_response_with_matching_labels(label_dict)
 
@@ -155,10 +145,8 @@ def mock_batch_api():
 
     num_jobs = 4
     num_success = 3
-    labels = {'test-group': 'test-label', 'group2': 'grp2-label'}
-    mock_response = MockBatchV1ApiResponse.from_args(
-        num_jobs, num_success, labels
-    )
+    labels = {"test-group": "test-label", "group2": "grp2-label"}
+    mock_response = MockBatchV1ApiResponse.from_args(num_jobs, num_success, labels)
     mock_api = MockBatchV1Api(mock_response)
 
     return num_jobs, num_success, mock_api, labels
