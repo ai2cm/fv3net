@@ -2,6 +2,7 @@ import argparse
 import os
 import yaml
 import fsspec
+import logging
 from pathlib import Path
 
 import fv3config
@@ -9,6 +10,7 @@ import fv3net.pipelines.kube_jobs as kube_jobs
 from vcm.cloud.fsspec import get_fs
 from fv3net.pipelines.common import get_unique_tag
 
+logger = logging.getLogger(__name__)
 PWD = Path(os.path.abspath(__file__)).parent
 RUNFILE = os.path.join(PWD, "sklearn_runfile.py")
 CONFIG_FILENAME = "fv3config.yml"
@@ -76,6 +78,7 @@ def _update_with_prognostic_model_config(model_config, prognostic_config):
 
 if __name__ == "__main__":
 
+    logging.basicConfig(level=logging.INFO)
     parser = _create_arg_parser()
     args = parser.parse_args()
 
