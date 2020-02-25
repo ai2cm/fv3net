@@ -240,8 +240,8 @@ def net_heating_from_dataset(ds: xr.Dataset) -> xr.DataArray:
         ds.ULWRFtoa_coarse,
         ds.USWRFsfc_coarse,
         ds.USWRFtoa_coarse,
-        ds.insolation,
-        ds.SHF,
-        ds.precip_sfc,
+        ds.DSWRFtoa_coarse,
+        ds.SHTFLsfc_coarse,
+        ds.PRATEsfc_coarse,
     )
     return net_heating(*fluxes)
