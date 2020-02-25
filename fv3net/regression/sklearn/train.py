@@ -158,7 +158,6 @@ if __name__ == "__main__":
     if proto == "" or proto == "file":
         if proto == "file":
             path = "/" + path
-        print(proto, path)
         if not os.path.exists(path):
             os.makedirs(path)
         copyfile(
