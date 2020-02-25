@@ -134,7 +134,10 @@ def wait_for_complete(
             # tuples for delete operation
             success.append(job_id_info)
 
-    fail_names = list(zip(*failed))[0]
+    if failed:
+        fail_names = list(zip(*failed))[0]
+    else:
+        fail_names = []
     logger.info("Failed Jobs from EXP_LABEL:\n" + "\n".join(fail_names))
 
     return success, failed
