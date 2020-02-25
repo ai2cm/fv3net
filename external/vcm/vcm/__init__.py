@@ -11,7 +11,7 @@ from .cubedsphere import (
     xarray_block_reduce,
 )
 from .extract import extract_tarball_to_path
-from .fv3_restarts import open_restarts
+from .fv3_restarts import open_restarts, open_restarts_with_time_coordinates
 from .convenience import TOP_LEVEL_DIR, parse_timestep_from_path
 from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .visualize import plot_cube, mappable_var, plot_cube_axes
