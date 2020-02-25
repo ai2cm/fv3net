@@ -11,7 +11,7 @@ import fv3config
 logger = logging.getLogger("run_jobs")
 
 KUBERNETES_CONFIG_DEFAULT = {
-    "docker_image": "us.gcr.io/vcm-ml/fv3gfs-python",
+    "docker_image": "us.gcr.io/vcm-ml/fv3gfs-python:v0.2.2",
     "runfile": None,
     "namespace": "default",
     "memory_gb": 3.6,
@@ -24,17 +24,34 @@ HOURS_IN_DAY = 24
 NUDGE_INTERVAL = 6  # hours
 NUDGE_FILENAME_PATTERN = "%Y%m%d_%HZ_T85LR.nc"
 NUDGE_BUCKET = "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data"
+FV3CONFIG_DEFAULTS_URL = "gs://vcm-fv3config/config/yaml/default"
 
 
-def get_model_config(config_update):
+def get_model_config(config_update, docker_image):
     """Get default model config and update with provided config_update"""
-    config = fv3config.get_default_config()
-    return _update_nested_dict(config, config_update)
+    fv3gfs_python_version = _get_major_minor_version_number(docker_image)
+    default_config_url = os.path.join(
+        FV3CONFIG_DEFAULTS_URL, fv3gfs_python_version, "fv3config.yml"
+    )
+    with fsspec.open(default_config_url) as f:
+        default_config = yaml.safe_load(f)
+    return _update_nested_dict(default_config, config_update)
 
 
 def get_kubernetes_config(config_update):
     """Get default kubernetes config and updatedwith provided config_update"""
     return _update_nested_dict(KUBERNETES_CONFIG_DEFAULT, config_update)
+
+
+def _get_major_minor_version_number(docker_image):
+    """Parse and return major/minor version number (e.g. v0.2) from docker image"""
+    if ":v" in docker_image:
+        tag = docker_image.split(":")[1]
+        return tag[:4]
+    else:
+        raise RuntimeError(
+            "Must specify fv3gfs-python docker image with tagged version number"
+        )
 
 
 def _update_nested_dict(source_dict, update_dict):
@@ -103,8 +120,10 @@ def _update_config_for_nudging(model_config, config_bucket):
 def _get_and_upload_run_config(bucket, run_config):
     """Get config objects for current job and upload as necessary"""
     config_bucket = os.path.join(bucket, "config")
-    model_config = get_model_config(run_config["fv3config"])
     kubernetes_config = get_kubernetes_config(run_config["kubernetes"])
+    model_config = get_model_config(
+        run_config["fv3config"], kubernetes_config["docker_image"]
+    )
     # if necessary, upload runfile and diag_table. In future, this should be
     # replaced with an fv3config function to do the same for all elements of config
     if kubernetes_config["runfile"] is not None:

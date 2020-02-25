@@ -121,6 +121,7 @@ default_experiment
  "dynamics",  "delp_dt_nudge","delp_dt_nudge","nudge_dt_8xdaily", "all", .false., "none", 2
  "dynamics",  "ps_dt_nudge",   "ps_dt_nudge", "nudge_dt_8xdaily", "all", .false., "none", 2
  "dynamics",  "t_dt_nudge",    "t_dt_nudge",  "nudge_dt_8xdaily", "all", .false., "none", 2
+ "dynamics",  "q_dt_nudge",    "q_dt_nudge",  "nudge_dt_8xdaily", "all", .false., "none", 2
 ###
 # sfc_hourly
 ###
