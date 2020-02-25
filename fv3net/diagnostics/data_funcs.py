@@ -1,7 +1,7 @@
 import pandas as pd
 import xarray as xr
 
-from vcm.calc.thermo import LATENT_HEAT_VAPORIZATION
+from vcm.calc.thermo import _LATENT_HEAT_VAPORIZATION_0_C
 from vcm.select import drop_nondim_coords, get_latlon_grid_coords
 
 # give as [lat, lon]
@@ -63,7 +63,7 @@ def hires_diag_column_heating(ds_hires):
         + (ds_hires["DSWRFtoa_coarse"] - ds_hires["DSWRFsfc_coarse"])
         + (ds_hires["ULWRFsfc_coarse"] - ds_hires["ULWRFtoa_coarse"])
         - ds_hires["DLWRFsfc_coarse"]
-        + ds_hires["PRATEsfc_coarse"] * LATENT_HEAT_VAPORIZATION
+        + ds_hires["PRATEsfc_coarse"] * _LATENT_HEAT_VAPORIZATION_0_C
     )
     return heating.rename("heating")
 
@@ -71,5 +71,6 @@ def hires_diag_column_heating(ds_hires):
 def get_example_latlon_grid_coords(grid, climate_latlon_coords):
     climate_grid_coords = {}
     for climate, latlon_coords in climate_latlon_coords.items():
-        climate_grid_coords[climate] = get_latlon_grid_coords(grid, lat=latlon_coords[0], lon=latlon_coords[1])
+        climate_grid_coords[climate] = get_latlon_grid_coords(
+            grid, lat=latlon_coords[0], lon=latlon_coords[1])
     return climate_grid_coords
