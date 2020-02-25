@@ -1,12 +1,16 @@
 import os
 import shutil
 import tempfile
-from typing import Any, Callable
+import uuid
+from typing import Any, Callable, List
 from typing.io import BinaryIO
 
 import apache_beam as beam
 import xarray as xr
 from apache_beam.io import filesystems
+
+from vcm.cloud.fsspec import get_fs
+from vcm.convenience import parse_timestep_from_path
 
 
 class CombineSubtilesByKey(beam.PTransform):
@@ -97,3 +101,31 @@ netCDF files.
 
     def expand(self, pcoll):
         return pcoll | beam.MapTuple(self._process)
+
+
+def list_timesteps(path: str) -> List[str]:
+    """Returns the unique timesteps at a path
+
+    Args:
+        path: local or remote path to directory containing timesteps
+
+    Returns:
+        sorted list of all timesteps within path
+    """
+    file_list = get_fs(path).ls(path)
+    timesteps = []
+    for current_file in file_list:
+        try:
+            timestep = parse_timestep_from_path(current_file)
+            timesteps.append(timestep)
+        except ValueError:
+            # not a timestep directory
+            continue
+    return sorted(timesteps)
+
+
+def get_unique_tag(tag_length: int) -> str:
+    """Generate a unique tag"""
+
+    short_id = str(uuid.uuid4())
+    return short_id[:tag_length]

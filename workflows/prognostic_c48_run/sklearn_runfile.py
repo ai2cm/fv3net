@@ -46,7 +46,12 @@ if __name__ == "__main__":
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
 
     # open zarr tape for output
-    group = zarr.open_group(args.zarr_output, mode="w")
+    if rank == 0:
+        GROUP = zarr.open_group(args.zarr_output, mode="w")
+    else:
+        GROUP = None
+
+    GROUP = comm.bcast(GROUP, root=0)
 
     if rank == 0:
         logger.info("Downloading Sklearn Model")
@@ -86,7 +91,7 @@ if __name__ == "__main__":
         diagnostics = compute_diagnostics(state, diags)
 
         if i == 0:
-            writers = state_io.init_writers(group, comm, diagnostics)
+            writers = state_io.init_writers(GROUP, comm, diagnostics)
         state_io.append_to_writers(writers, diagnostics)
 
         times.append(get_time())
