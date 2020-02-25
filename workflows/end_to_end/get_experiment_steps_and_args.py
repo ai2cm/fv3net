@@ -158,9 +158,6 @@ def _generate_output_path_from_config(
             # get last part of path so string isn't so long
             if "/" in val:
                 val = val.split("/")[-1]
-            # dump file type suffixes if they exist
-            if "." in val:
-                val = val.split(".")[-2]
             key_val = f"{key}_{val}"
             method_strs.append(key_val)
         method_output_stub = "_".join(method_strs)
