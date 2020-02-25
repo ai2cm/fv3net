@@ -19,7 +19,7 @@ def merge_comparison_datasets(
 ):
     """ Makes a comparison dataset out of multiple datasets that all have a common
     data variable. They are concatenated with a new dim "dataset" that can be used
-    to distinguish each dataset's data values from each other when plotting togethe
+    to distinguish each dataset's data values from each other when plotting together.
 
     Args:
         var: str, data variable of interest that is in all datasets

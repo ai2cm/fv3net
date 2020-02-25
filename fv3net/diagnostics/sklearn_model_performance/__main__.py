@@ -8,6 +8,7 @@ from vcm.cubedsphere.constants import INIT_TIME_DIM
 from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
     predict_on_test_data,
     load_high_res_diag_dataset,
+    add_integrated_Q_vars,
 )
 from fv3net.diagnostics.sklearn_model_performance.plotting_sklearn import make_all_plots
 from fv3net.diagnostics.create_report import create_report
@@ -61,6 +62,8 @@ if __name__ == "__main__":
     ds_test, ds_pred = predict_on_test_data(
         args.test_data_path, args.model_path, args.num_test_zarrs, args.model_type
     )
+    add_integrated_Q_vars(ds_test)
+    add_integrated_Q_vars(ds_pred)
     init_times = list(set(ds_test[INIT_TIME_DIM].values))
     ds_hires = load_high_res_diag_dataset(args.high_res_data_path, init_times)
 

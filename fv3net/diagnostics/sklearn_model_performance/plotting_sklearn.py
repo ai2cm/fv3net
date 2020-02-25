@@ -66,166 +66,92 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ds_target_land = mask_to_surface_type(xr.merge([ds_target, slmsk]), "land").drop(
         "slmsk"
     )
-
     ds_pe = merge_comparison_datasets(
         "P-E",
         [ds_pred, ds_target, ds_hires],
-        ["prediction", "target", "high res diagnostics"],
+        ["prediction", "target C48", "coarsened high res"],
         grid,
         slmsk,
     )
-    ds_pe["local_time"] = local_time(ds_pe)
     ds_heating = merge_comparison_datasets(
         "heating",
         [ds_pred, ds_target, ds_hires],
-        ["prediction", "target", "high res diagnostics"],
+        ["prediction", "target C48", "coarsened high res"],
         grid,
         slmsk,
     )
-    ds_heating["local_time"] = local_time(ds_heating)
-
-
-    # vertical profile plots
-    _make_vertical_profile_plots(
-        ds_pred_land,
-        ds_target_land,
-        var="Q2",
-        units="Q2 [kg/kg/s]",
-        output_dir=output_dir,
-        plot_filename="vertical_profile_Q2_land.png",
-        title="land"
-    )
-
-    _make_vertical_profile_plots(
-        ds_pred_sea,
-        ds_target_sea,
-        var="Q2",
-        units="Q2 [kg/kg/s]",
-        output_dir=output_dir,
-        plot_filename="vertical_profile_Q2_sea.png",
-        title="land"
-    )
-    report_sections["Q2 vertical profile"] = [
-        "vertical_profile_Q2_land.png",
-        "vertical_profile_Q2_sea.png"
-    ]
 
     # R^2 vs pressure plots
     matplotlib.rcParams["figure.dpi"] = 70
-    _make_r2_plot(
-        ds_pred,
-        ds_target,
-        ["Q1", "Q2"],
-        output_dir=output_dir,
-        plot_filename="r2_vs_pressure_level_global.png",
-        title="$R^2$, global",
+    _make_r2_plot(ds_pred, ds_target, ["Q1", "Q2"], title="$R^2$, global").savefig(
+        os.path.join(output_dir, "r2_vs_pressure_level_global.png")
     )
     _make_land_sea_r2_plot(
-        ds_pred_sea,
-        ds_pred_land,
-        ds_target_sea,
-        ds_target_land,
-        vars=["Q1", "Q2"],
-        output_dir=output_dir,
-        plot_filename="r2_vs_pressure_level_landsea.png",
-    )
+        ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars=["Q1", "Q2"]
+    ).savefig(os.path.join(output_dir, "r2_vs_pressure_level_landsea.png"))
     report_sections["R^2 vs pressure levels"] = [
         "r2_vs_pressure_level_global.png",
         "r2_vs_pressure_level_landsea.png",
     ]
 
     # plot a variable across the diurnal cycle
+    ds_pe["local_time"] = local_time(ds_pe)
     matplotlib.rcParams["figure.dpi"] = 80
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_pe, "sea"),
-        "P-E",
-        title="ocean",
-        output_dir=output_dir,
-        plot_filename="diurnal_cycle_P-E_sea.png",
-    )
-    plot_diurnal_cycle(
-        mask_to_surface_type(ds_pe, "land"),
-        "P-E",
-        title="land",
-        output_dir=output_dir,
-        plot_filename="diurnal_cycle_P-E_land.png",
-    )
-    plot_diurnal_cycle(
-        mask_to_surface_type(ds_heating, "sea"),
-        "heating",
-        title="ocean",
-        output_dir=output_dir,
-        plot_filename="diurnal_cycle_heating_sea.png",
-    )
+        mask_to_surface_type(ds_pe, "sea"), 
+        "P-E", 
+        title="ocean"
+    ).savefig(os.path.join(output_dir, "diurnal_cycle_P-E_sea.png"))
     plot_diurnal_cycle(
         mask_to_surface_type(ds_heating, "land"),
         "heating",
         title="land",
-        output_dir=output_dir,
-        plot_filename="diurnal_cycle_heating_land.png",
-    )
+    ).savefig(os.path.join(output_dir, "diurnal_cycle_heating_land.png"))
 
     local_coords = get_example_latlon_grid_coords(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
             ds_heating.sel(coords),
             "heating [W/m$^2$]",
-            title=location_name,
-            output_dir=output_dir,
-            plot_filename=f"diurnal_cycle_heating_{location_name}.png"
-    )
+            title=location_name
+        ).savefig(os.path.join(output_dir, f"diurnal_cycle_heating_{location_name}.png"))
         plot_diurnal_cycle(
             ds_pe.sel(coords),
             "P-E [mm]",
-            title=location_name,
-            output_dir=output_dir,
-            plot_filename=f"diurnal_cycle_P-E_{location_name}.png"
-        )
+            title=location_name
+        ).savefig(os.path.join(output_dir, f"diurnal_cycle_P-E_{location_name}.png"))
     report_sections["Diurnal cycle"] = [
         "diurnal_cycle_P-E_sea.png",
         "diurnal_cycle_P-E_land.png",
-        "diurnal_cycle_heating_sea.png",
-        "diurnal_cycle_heating_land.png",
-    ] \
-    + [f"diurnal_cycle_heating_{location_name}.png" for location_name in local_coords] \
-    + [f"diurnal_cycle_P-E_{location_name}.png" for location_name in local_coords]
-
+    ]
 
     # map plot variables and compare across prediction/ C48 /coarsened high res data
     _plot_comparison_maps(
         ds_pe,
         "P-E",
-        output_dir=output_dir,
-        plot_filename="P-E_time_avg.png",
         time_index_selection=None,
         plot_cube_kwargs={"cbar_label": "time avg, P-E [mm/day]"},
     )
     _plot_comparison_maps(
         ds_pe,
         "P-E",
-        output_dir=output_dir,
-        plot_filename="P-E_time_snapshots.png",
-        time_index_selection=[0, -1],
+        time_index_selection=[0, 2],
         plot_cube_kwargs={"cbar_label": "timestep snapshot, P-E [mm/day]"},
-    )
+    ).savefig(os.path.join(output_dir, "P-E_time_snapshots.png"))
     report_sections["P-E"] = ["P-E_time_avg.png", "P-E_snapshots.png"]
 
     _plot_comparison_maps(
         ds_heating,
         "heating",
-        output_dir=output_dir,
-        plot_filename="column_heating_time_avg.png",
         time_index_selection=None,
-        plot_cube_kwargs={"cbar_label": "time avg, column heating [W/m$^2$]"},
-    )
+        plot_cube_kwargs={"cbar_label": "time avg, column heating [W/m$^2$]"}
+    ).savefig(os.path.join(output_dir, "column_heating_time_avg.png"))
     _plot_comparison_maps(
         ds_heating,
         "heating",
-        output_dir=output_dir,
-        plot_filename="column_heating_snapshots.png",
         time_index_selection=[0, -1],
-        plot_cube_kwargs={"cbar_label": "timestep snapshot, column heating [W/m$^2$]"},
-    )
+        plot_cube_kwargs={"cbar_label": "timestep snapshot, column heating [W/m$^2$]"}
+    ).savefig(os.path.join(output_dir, "column_heating_snapshots.png"))
     report_sections["Column heating"] = [
         "column_heating_time_avg.png",
         "column_heating_snapshots.png",
@@ -236,16 +162,10 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
 # plotting functions specific to this diagnostic workflow 
 
-def _make_r2_plot(
-    ds_pred,
-    ds_target,
-    vars,
-    output_dir,
-    plot_filename="r2_vs_pressure_level.png",
-    sample_dim=SAMPLE_DIM,
-    title=None,
-):
+
+def _make_r2_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None):
     plt.clf()
+    fig = plt.figure()
     if isinstance(vars, str):
         vars = [vars]
     x = np.array(PRESSURE_GRID) / 100
@@ -265,8 +185,70 @@ def _make_r2_plot(
     plt.ylabel("$R^2$")
     if title:
         plt.title(title)
-    plt.savefig(os.path.join(output_dir, plot_filename))
     plt.show()
+    return fig
+
+
+def _make_land_sea_r2_plot(
+    ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars
+):
+    plt.clf()
+    fig = plt.figure()
+    x = np.array(PRESSURE_GRID) / 100
+    colors = ["blue", "orange"]
+    for color, var in zip(colors, vars):
+        y_sea = r2_score(
+            regrid_to_common_pressure(ds_target_sea[var], ds_target_sea["delp"]).stack(
+                sample=STACK_DIMS
+            ),
+            regrid_to_common_pressure(ds_pred_sea[var], ds_pred_sea["delp"]).stack(
+                sample=STACK_DIMS
+            ),
+            SAMPLE_DIM,
+        ).values
+        y_land = r2_score(
+            regrid_to_common_pressure(
+                ds_target_land[var], ds_target_land["delp"]
+            ).stack(sample=STACK_DIMS),
+            regrid_to_common_pressure(ds_pred_land[var], ds_pred_land["delp"]).stack(
+                sample=STACK_DIMS
+            ),
+            SAMPLE_DIM,
+        ).values
+        plt.plot(x, y_sea, color=color, alpha=0.7, label=f"{var}, sea", linestyle="--")
+        plt.plot(x, y_land, color=color, alpha=0.7, label=f"{var}, land", linestyle=":")
+    plt.legend()
+    plt.xlabel("pressure [HPa]")
+    plt.ylabel("$R^2$")
+    plt.show()
+    return fig
+
+
+def _plot_comparison_maps(
+    ds_merged, var, time_index_selection=None, plot_cube_kwargs=None
+):
+    # map plot a variable and compare across prediction/ C48 /coarsened high res data
+    matplotlib.rcParams["figure.dpi"] = 200
+    plt.clf()
+    plot_cube_kwargs = plot_cube_kwargs or {}
+
+    if not time_index_selection:
+        map_var = mappable_var(ds_merged.mean(INIT_TIME_DIM), var)
+    else:
+        map_var = mappable_var(
+            ds_merged.isel({INIT_TIME_DIM: time_index_selection}), var
+        )
+        plot_cube_kwargs["row"] = INIT_TIME_DIM
+    fig = plot_cube(map_var, col="dataset", **plot_cube_kwargs)[0]
+    if isinstance(time_index_selection, int):
+        time_label = (
+            ds_merged[INIT_TIME_DIM]
+            .values[time_index_selection]
+            .strftime("%Y-%m-%d, %H:%M:%S")
+        )
+        plt.suptitle(time_label)
+    plt.show()
+    return fig
 
 
 def _make_vertical_profile_plots(
@@ -321,77 +303,4 @@ def _make_vertical_profile_plots(
     plt.legend()
     plt.savefig(os.path.join(output_dir, plot_filename))
     plt.show()
-
-
-def _make_land_sea_r2_plot(
-    ds_pred_sea,
-    ds_pred_land,
-    ds_target_sea,
-    ds_target_land,
-    vars,
-    output_dir,
-    plot_filename="r2_vs_pressure_level_landsea.png",
-):
-    plt.clf()
-    x = np.array(PRESSURE_GRID) / 100
-    colors = ["blue", "orange"]
-    for color, var in zip(colors, vars):
-        y_sea = r2_score(
-            regrid_to_common_pressure(ds_target_sea[var], ds_target_sea["delp"]).stack(
-                sample=STACK_DIMS
-            ),
-            regrid_to_common_pressure(ds_pred_sea[var], ds_pred_sea["delp"]).stack(
-                sample=STACK_DIMS
-            ),
-            SAMPLE_DIM,
-        ).values
-        y_land = r2_score(
-            regrid_to_common_pressure(
-                ds_target_land[var], ds_target_land["delp"]
-            ).stack(sample=STACK_DIMS),
-            regrid_to_common_pressure(ds_pred_land[var], ds_pred_land["delp"]).stack(
-                sample=STACK_DIMS
-            ),
-            SAMPLE_DIM,
-        ).values
-        plt.plot(x, y_sea, color=color, alpha=0.7, label=f"{var}, sea", linestyle="--")
-        plt.plot(x, y_land, color=color, alpha=0.7, label=f"{var}, land", linestyle=":")
-    plt.legend()
-    plt.xlabel("pressure [HPa]")
-    plt.ylabel("$R^2$")
-    plt.savefig(os.path.join(output_dir, plot_filename))
-    plt.show()
-
-
-def _plot_comparison_maps(
-    ds_merged,
-    var,
-    output_dir,
-    plot_filename,
-    time_index_selection=None,
-    plot_cube_kwargs=None,
-):
-    # map plot a variable and compare across prediction/ C48 /coarsened high res data
-    matplotlib.rcParams["figure.dpi"] = 200
-    plt.clf()
-    plot_cube_kwargs = plot_cube_kwargs or {}
-
-    if not time_index_selection:
-        map_var = mappable_var(ds_merged.mean(INIT_TIME_DIM), var)
-    else:
-        map_var = mappable_var(
-            ds_merged.isel({INIT_TIME_DIM: time_index_selection}), var
-        )
-        plot_cube_kwargs["row"] = INIT_TIME_DIM
-    fig = plot_cube(map_var, col="dataset", **plot_cube_kwargs)[0]
-    if isinstance(time_index_selection, int):
-        time_label = (
-            ds_merged[INIT_TIME_DIM]
-            .values[time_index_selection]
-            .strftime("%Y-%m-%d, %H:%M:%S")
-        )
-        plt.suptitle(time_label)
-    fig.savefig(os.path.join(output_dir, plot_filename))
-    plt.show()
-
 

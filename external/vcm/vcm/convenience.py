@@ -22,6 +22,24 @@ from vcm.cloud.fsspec import get_fs
 TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 
+def periodic_phase(phase):
+    """normalize phases to be in [0, 360] deg
+    
+    Args:
+        phase (array): phases in degrees
+
+    Returns:
+        [array]: normalized phases
+    """
+    def _conditions(d):
+        if d > 0:
+            return d - int(d/360)*360
+        else:
+            return d - int((d/360)-1)*360
+    cond = np.vectorize(_conditions)
+    return cond(phase)
+
+
 def round_time(t):
     """ cftime will introduces noise when decoding values into date objects.
     This rounds time in the date object to the nearest second, assuming the init time

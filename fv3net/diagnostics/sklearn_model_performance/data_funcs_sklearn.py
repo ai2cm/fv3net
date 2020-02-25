@@ -1,7 +1,8 @@
 import fsspec
+from scipy.interpolate import UnivariateSpline
 import xarray as xr
 
-from vcm.calc import thermo
+from vcm.calc import mass_integrate, pressure_at_midpoint_log, thermo
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
@@ -9,9 +10,15 @@ from vcm.cubedsphere.constants import (
     COORD_Y_CENTER,
     TILE_COORDS,
 )
+from vcm.regrid import regrid_to_shared_coords
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
+kg_m2_to_mm = 1000. / 997
 
+p0 = 100000  # reference pressure for potential temp [Pa]
+SPECIFIC_HEAT_CONST_PRESSURE = 1004  # [J/kg K]
+GRAVITY = 9.81  # [m/s2]
+POISSON_CONST = 0.2854
 SEC_PER_DAY = 86400
 
 SAMPLE_DIM = "sample"
@@ -57,4 +64,33 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times):
 
     evaporation = thermo.latent_heat_flux_to_evaporation(ds_hires["LHTFLsfc_coarse"])
     ds_hires["P-E"] = SEC_PER_DAY * (ds_hires["PRATEsfc_coarse"] - evaporation)
+    ds_hires["heating"] = thermo.net_heating_from_dataset(ds_hires)
     return ds_hires
+
+
+def add_integrated_Q_vars(ds):
+    """ Integrates column Q1, Q2 to add variables heating and P-E. Modifies in place.
+    
+    Args:
+        ds (xarray dataset): dataset that has Q1, Q2, delp data variables 
+    """
+    ds["P-E"] = mass_integrate(-ds["Q2"], ds.delp) * kg_m2s_to_mm_day
+    ds["heating"] = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(ds["Q1"], ds.delp)
+
+
+def integrate_for_Q(P, sphum, lower_bound=55000, upper_bound=85000):
+    spline = UnivariateSpline(P, sphum)
+    return (spline.integral(lower_bound, upper_bound) / GRAVITY) * kg_m2_to_mm
+
+
+def potential_temperature(P, T):
+    return T * (p0 / P) ** POISSON_CONST
+
+
+def lower_tropospheric_instability(ds):
+    pressure = pressure_at_midpoint_log(ds.delp)
+    T_at_700mb = regrid_to_shared_coords(
+        ds["T"], [70000], pressure, regrid_dim_name="p700mb", replace_dim_name="pfull") \
+        .squeeze().drop("p700mb")
+    theta_700mb = potential_temperature(70000, T_at_700mb)    
+    return theta_700mb - ds["tsea"]
