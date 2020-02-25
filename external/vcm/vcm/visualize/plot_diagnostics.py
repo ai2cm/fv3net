@@ -15,11 +15,7 @@ from scipy.stats import binned_statistic
 import xarray as xr
 
 from vcm.visualize import plot_cube, mappable_var
-from vcm.cubedsphere.constants import (
-    INIT_TIME_DIM,
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-)
+from vcm.cubedsphere.constants import INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER
 
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
@@ -36,7 +32,7 @@ def plot_diurnal_cycle(
     num_time_bins=24,
     title=None,
     plot_filename="diurnal_cycle.png",
-    ylabel=None
+    ylabel=None,
 ):
     """
 
@@ -71,7 +67,7 @@ def plot_diurnal_cycle(
         bin_centers, bin_means = mask_nan_lines(bin_centers, bin_means)
         plt.plot(bin_centers, bin_means, label=label)
     plt.xlabel("local_time [hr]")
-    plt.ylabel(y_label or var)
+    plt.ylabel(ylabel or var)
     plt.legend(loc="lower left")
     if title:
         plt.title(title)

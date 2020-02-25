@@ -19,9 +19,9 @@ from vcm.visualize import plot_cube, mappable_var
 
 from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
 from fv3net.diagnostics.data_funcs import (
-    merge_comparison_datasets, 
+    merge_comparison_datasets,
     get_example_latlon_grid_coords,
-    EXAMPLE_CLIMATE_LATLON_COORDS
+    EXAMPLE_CLIMATE_LATLON_COORDS,
 )
 
 
@@ -81,6 +81,15 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         slmsk,
     )
 
+    # Vertical Q2 profiles over land and ocean
+    matplotlib.rcParams["figure.dpi"] = 70
+    _make_vertical_profile_plots(
+        ds_pred_land, ds_target_land, "Q2", "[kg/kg/day]", "global Q2 vertical profile"
+    ).savefig(os.path.join(output_dir, "vertical_profile_Q2_land.png"))
+    _make_vertical_profile_plots(
+        ds_pred_sea, ds_target_sea, "Q2", "[kg/kg/day]", "global Q2 vertical profile"
+    ).savefig(os.path.join(output_dir, "vertical_profile_Q2_sea.png"))
+
     # R^2 vs pressure plots
     matplotlib.rcParams["figure.dpi"] = 70
     _make_r2_plot(ds_pred, ds_target, ["Q1", "Q2"], title="$R^2$, global").savefig(
@@ -98,28 +107,22 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ds_pe["local_time"] = local_time(ds_pe)
     matplotlib.rcParams["figure.dpi"] = 80
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_pe, "sea"), 
-        "P-E", 
-        title="ocean"
+        mask_to_surface_type(ds_pe, "sea"), "P-E", title="ocean"
     ).savefig(os.path.join(output_dir, "diurnal_cycle_P-E_sea.png"))
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_heating, "land"),
-        "heating",
-        title="land",
+        mask_to_surface_type(ds_heating, "land"), "heating", title="land"
     ).savefig(os.path.join(output_dir, "diurnal_cycle_heating_land.png"))
 
     local_coords = get_example_latlon_grid_coords(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
-            ds_heating.sel(coords),
-            "heating [W/m$^2$]",
-            title=location_name
-        ).savefig(os.path.join(output_dir, f"diurnal_cycle_heating_{location_name}.png"))
-        plot_diurnal_cycle(
-            ds_pe.sel(coords),
-            "P-E [mm]",
-            title=location_name
-        ).savefig(os.path.join(output_dir, f"diurnal_cycle_P-E_{location_name}.png"))
+            ds_heating.sel(coords), "heating [W/m$^2$]", title=location_name
+        ).savefig(
+            os.path.join(output_dir, f"diurnal_cycle_heating_{location_name}.png")
+        )
+        plot_diurnal_cycle(ds_pe.sel(coords), "P-E [mm]", title=location_name).savefig(
+            os.path.join(output_dir, f"diurnal_cycle_P-E_{location_name}.png")
+        )
     report_sections["Diurnal cycle"] = [
         "diurnal_cycle_P-E_sea.png",
         "diurnal_cycle_P-E_land.png",
@@ -144,13 +147,13 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         ds_heating,
         "heating",
         time_index_selection=None,
-        plot_cube_kwargs={"cbar_label": "time avg, column heating [W/m$^2$]"}
+        plot_cube_kwargs={"cbar_label": "time avg, column heating [W/m$^2$]"},
     ).savefig(os.path.join(output_dir, "column_heating_time_avg.png"))
     _plot_comparison_maps(
         ds_heating,
         "heating",
         time_index_selection=[0, -1],
-        plot_cube_kwargs={"cbar_label": "timestep snapshot, column heating [W/m$^2$]"}
+        plot_cube_kwargs={"cbar_label": "timestep snapshot, column heating [W/m$^2$]"},
     ).savefig(os.path.join(output_dir, "column_heating_snapshots.png"))
     report_sections["Column heating"] = [
         "column_heating_time_avg.png",
@@ -160,7 +163,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     return report_sections
 
 
-# plotting functions specific to this diagnostic workflow 
+# Below are plotting functions specific to this diagnostic workflow
 
 
 def _make_r2_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None):
@@ -251,16 +254,8 @@ def _plot_comparison_maps(
     return fig
 
 
-def _make_vertical_profile_plots(
-        ds_pred,
-        ds_target,
-        var,
-        units,
-        output_dir,
-        plot_filename=f"vertical_profile.png",
-        title=None
-):
-    """Creates vertical profile plots of Q2 for dry/wet columns
+def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
+    """Creates vertical profile plots of Q2 for drying/moistening columns
 
     Args:
         ds_pred (xr dataset): [description]
@@ -268,12 +263,14 @@ def _make_vertical_profile_plots(
         var (str): [description]
         units (str): [description]
         output_dir (str): [description]
-        plot_filename (str, optional): [description]. Defaults to f"vertical_profile.png".
+        plot_filename (str, optional): [description].
+             Defaults to f"vertical_profile.png".
         title (str, optional): [description]. Defaults to None.
     """
 
     plt.clf()
-    pos_mask, neg_mask = ds_pred["P-E"] > 0, ds_pred["P-E"] < 0
+    fig = plt.figure()
+    pos_mask, neg_mask = ds_target["P-E"] > 0, ds_target["P-E"] < 0
     ds_pred = regrid_to_common_pressure(ds_pred[var], ds_pred["delp"])
     ds_target = regrid_to_common_pressure(ds_target[var], ds_target["delp"])
 
@@ -282,13 +279,15 @@ def _make_vertical_profile_plots(
     ds_target_pos_PE = ds_target.where(pos_mask)
     ds_target_neg_PE = ds_target.where(neg_mask)
 
-    pressure = ds_pred.pressure.values / 100.
+    pressure = ds_pred.pressure.values / 100.0
     profiles_kwargs = zip(
         [ds_pred_pos_PE, ds_target_pos_PE, ds_pred_neg_PE, ds_target_neg_PE],
-        [{"label": "P-E > 0, prediction", "color": "blue", "linestyle": "-"},
-         {"label": "P-E > 0, target", "color": "blue", "linestyle": "--"},
-         {"label": "P-E < 0, prediction", "color": "orange", "linestyle": "-"},
-         {"label": "P-E < 0, target", "color": "orange", "linestyle": "--"}]
+        [
+            {"label": "P-E > 0, prediction", "color": "blue", "linestyle": "-"},
+            {"label": "P-E > 0, target", "color": "blue", "linestyle": "--"},
+            {"label": "P-E < 0, prediction", "color": "orange", "linestyle": "-"},
+            {"label": "P-E < 0, target", "color": "orange", "linestyle": "--"},
+        ],
     )
 
     for data, kwargs in profiles_kwargs:
@@ -301,6 +300,5 @@ def _make_vertical_profile_plots(
     if title:
         plt.title(title)
     plt.legend()
-    plt.savefig(os.path.join(output_dir, plot_filename))
     plt.show()
-
+    return fig

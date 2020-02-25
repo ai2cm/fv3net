@@ -6,11 +6,11 @@ from vcm.select import drop_nondim_coords, get_latlon_grid_coords
 
 # give as [lat, lon]
 EXAMPLE_CLIMATE_LATLON_COORDS = {
-    "sahara_desert": [20., 10.],
-    "tropical_india": [20., 81.],
-    "himalayas": [28., 87],
-    "central_canada": [55., 258.],
-    "tropical_west_pacific": [-5., 165.]
+    "sahara_desert": [20.0, 10.0],
+    "tropical_india": [20.0, 81.0],
+    "himalayas": [28.0, 87],
+    "central_canada": [55.0, 258.0],
+    "tropical_west_pacific": [-5.0, 165.0],
 }
 
 
@@ -72,5 +72,6 @@ def get_example_latlon_grid_coords(grid, climate_latlon_coords):
     climate_grid_coords = {}
     for climate, latlon_coords in climate_latlon_coords.items():
         climate_grid_coords[climate] = get_latlon_grid_coords(
-            grid, lat=latlon_coords[0], lon=latlon_coords[1])
+            grid, lat=latlon_coords[0], lon=latlon_coords[1]
+        )
     return climate_grid_coords

@@ -1,4 +1,3 @@
-import datetime
 import numpy as np
 import xarray as xr
 from vcm.cubedsphere.constants import (
@@ -68,22 +67,3 @@ def local_time(ds, time=INIT_TIME_DIM, lon_var=VAR_LON_CENTER):
     )
     local_time = (fractional_hr + ds[lon_var] * HOUR_PER_DEG_LONGITUDE) % 24
     return local_time
-
-
-def local_day_since_start(ds, time=INIT_TIME_DIM, lon_var=VAR_LON_CENTER):
-    """ Converts initialization datetime at each lat/lon point into
-    local time + days since start [days]
-
-    Args:
-        ds: dataset with init time dim in GMT
-        time: name of time dim
-        lon_var: name of longitude dim
-
-    Returns:
-        data array with the time at each point given in fractional days since start,
-        where the fraction of day corresponds to local time
-    """
-    init_time_hr = (ds[time] - ds[time].isel(time=0)) \
-                   / (np.timedelta64(1000000000, "ns") * 60 * 60)
-    local_hr_offset = ds[lon_var] * HOUR_PER_DEG_LONGITUDE
-    return (init_time_hr + local_hr_offset) / 24.

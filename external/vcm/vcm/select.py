@@ -38,10 +38,14 @@ def drop_nondim_coords(ds):
     return ds
 
 
-def get_latlon_grid_coords(grid, lat, lon,
-                           init_search_width=0.5,
-                           search_width_increment=0.5,
-                           max_search_width=3.):
+def get_latlon_grid_coords(
+    grid,
+    lat,
+    lon,
+    init_search_width=0.5,
+    search_width_increment=0.5,
+    max_search_width=3.0,
+):
     """ Convenience function to look up the APPROXIMATE grid coordinates for a
     lat/lon coordinate.
 
@@ -59,18 +63,23 @@ def get_latlon_grid_coords(grid, lat, lon,
     """
     search_width = init_search_width
     while search_width <= max_search_width:
-        try:
-            lat_mask = (grid[VAR_LAT_CENTER] > lat-1) & (grid[VAR_LAT_CENTER] < lat+1)
-            lon_mask = (grid[VAR_LON_CENTER] > lon-1) & (grid[VAR_LON_CENTER] < lon+1)
-            local_pt = grid[[VAR_LAT_CENTER, VAR_LON_CENTER]] \
-                .where(lat_mask).where(lon_mask) \
-                .stack(sample=[COORD_X_CENTER, COORD_Y_CENTER, "tile"]) \
-                .dropna("sample")
-            if len(local_pt.sample.values) > 0:
-                    return {"tile": local_pt["tile"].values[0],
-                        COORD_X_CENTER: local_pt[COORD_X_CENTER].values[0],
-                        COORD_Y_CENTER: local_pt[COORD_Y_CENTER].values[0]}
-        except:
-            print(f"No grid points with lat/lon within +/- {search_width} deg of {lat, lon}.")
+        lat_mask = (grid[VAR_LAT_CENTER] > lat - 1) & (grid[VAR_LAT_CENTER] < lat + 1)
+        lon_mask = (grid[VAR_LON_CENTER] > lon - 1) & (grid[VAR_LON_CENTER] < lon + 1)
+        local_pt = (
+            grid[[VAR_LAT_CENTER, VAR_LON_CENTER]]
+            .where(lat_mask)
+            .where(lon_mask)
+            .stack(sample=[COORD_X_CENTER, COORD_Y_CENTER, "tile"])
+            .dropna("sample")
+        )
+        if len(local_pt.sample.values) > 0:
+            return {
+                "tile": local_pt["tile"].values[0],
+                COORD_X_CENTER: local_pt[COORD_X_CENTER].values[0],
+                COORD_Y_CENTER: local_pt[COORD_Y_CENTER].values[0],
+            }
+        else:
             search_width += search_width_increment
-    raise ValueError(f"No grid points with lat/lon within +/- {max_search_width} deg of {lat, lon}.")
+    raise ValueError(
+        f"No grid points with lat/lon within +/- {max_search_width} deg of {lat, lon}."
+    )
