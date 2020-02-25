@@ -18,6 +18,7 @@ dependencies = [
     "pyyaml>=5.0",
     "xgcm",
     "zarr",
+    "kubernetes",
 ]
 
 setup(

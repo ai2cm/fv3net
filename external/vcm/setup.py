@@ -11,6 +11,18 @@ install_requirements = [
     "appdirs>=1.4.0",
     "requests",
     "h5py>=2.10",
+    "dask",
+    "xarray",
+    "toolz",
+    "scipy",
+    "scikit-image",
+    "metpy",
+    "numba",
+    "intake",
+    "gcsfs",
+    "zarr",
+    "xgcm",
+    "cftime",
 ]
 
 

@@ -4,32 +4,22 @@ from fv3net.pipelines.create_training_data.pipeline import run
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--gcs-input-data-path",
+        "gcs_input_data_path",
         type=str,
-        required=True,
         help="Location of input data in Google Cloud Storage bucket. "
         "Don't include bucket in path.",
     )
     parser.add_argument(
-        "--diag-c48-path",
+        "diag_c48_path",
         type=str,
-        required=False,
-        help="Location of C48 (coarsened from C384) high res diagnostic zarr for "
-        "features (SHF, LHF, etc.) that are not saved in restarts. If not provided, "
-        "features from diagnostics will not be in the final training data set.",
+        help="Directory containing diagnostic zarr directory coarsened from C384 "
+        "for features (SHF, LHF, etc.) that are not saved in restarts.",
     )
     parser.add_argument(
-        "--gcs-output-data-dir",
+        "gcs_output_data_dir",
         type=str,
-        required=True,
         help="Write path for train data in Google Cloud Storage bucket. "
         "Don't include bucket in path.",
-    )
-    parser.add_argument(
-        "--gcs-bucket",
-        type=str,
-        default="gs://vcm-ml-data",
-        help="Google Cloud Storage bucket name.",
     )
     parser.add_argument(
         "--gcs-project",
