@@ -102,6 +102,7 @@ bilinear*
 # MISC
 *.nc
 scratch/*
+\#*#
 
 # snakemake
 .snakemake/*
