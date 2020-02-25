@@ -4,7 +4,8 @@ import logging
 import yaml
 from pathlib import Path
 
-from fv3net.pipelines.kube_jobs import one_step, wait_for_complete
+import fv3net.pipelines.kube_jobs as kube_jobs
+from fv3net.pipelines.kube_jobs import one_step
 from fv3net.pipelines.common import get_unique_tag
 
 PWD = os.path.dirname(os.path.abspath(__file__))
@@ -91,4 +92,5 @@ if __name__ == "__main__":
         local_vertical_grid_file=local_vgrid_file,
     )
 
-    wait_for_complete(job_label)
+    successful, _ = kube_jobs.wait_for_complete(job_label)
+    kube_jobs.delete_job_pods(successful)

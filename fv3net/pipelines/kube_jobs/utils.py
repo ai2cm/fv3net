@@ -2,7 +2,7 @@ import logging
 import os
 import time
 import kubernetes
-from typing import List, Mapping
+from typing import Sequence, Mapping, Tuple
 
 import fv3config
 
@@ -10,6 +10,8 @@ from vcm.cubedsphere.constants import RESTART_CATEGORIES, TILE_COORDS_FILENAMES
 from vcm.cloud.fsspec import get_protocol, get_fs
 
 logger = logging.getLogger(__name__)
+
+JobInfo = Tuple[str, str]
 
 
 def update_nested_dict(source_dict: dict, update_dict: dict) -> dict:
@@ -43,7 +45,7 @@ def update_tiled_asset_names(
     target_url: str,
     target_filename: str,
     **kwargs,
-) -> List[dict]:
+) -> Sequence[dict]:
 
     """
     Update tile-based fv3config assets with new names.  Uses format to update
@@ -67,7 +69,19 @@ def update_tiled_asset_names(
     return assets
 
 
-def wait_for_complete(job_labels: Mapping[str, str]):
+def _initialize_batch_client() -> kubernetes.client.BatchV1Api:
+
+    kubernetes.config.load_kube_config()
+    batch_client = kubernetes.client.BatchV1Api()
+
+    return batch_client
+
+
+def wait_for_complete(
+    job_labels: Mapping[str, str],
+    batch_client: kubernetes.client.BatchV1Api = None,
+    sleep_interval: int = 30,
+) -> Tuple[Sequence[JobInfo], Sequence[JobInfo]]:
     """
     Function to block operation until a group of submitted kubernetes jobs complete.
 
@@ -75,18 +89,23 @@ def wait_for_complete(job_labels: Mapping[str, str]):
         job_labels: key-value pairs of job labels used to filter the job query. These
             values are translated to equivalence statements for the selector. E.g.,
             "key1=value1,key2=value2,..."
+        client: A BatchV1Api client to communicate with the cluster.
+        sleep_interval: time interval between active job check queries
+
+    Returns:
+        Job information for successful and failing jobs that match the given labels.
     """
 
     selector_format_labels = [f"{key}={value}" for key, value in job_labels.items()]
     combined_selectors = ",".join(selector_format_labels)
 
-    kubernetes.config.load_kube_config()
-    batch = kubernetes.client.BatchV1Api()
+    if batch_client is None:
+        batch_client = _initialize_batch_client()
 
     # Check active jobs
     while True:
 
-        jobs = batch.list_job_for_all_namespaces(label_selector=combined_selectors)
+        jobs = batch_client.list_job_for_all_namespaces(label_selector=combined_selectors)
         active_jobs = [
             job_info.metadata.name for job_info in jobs.items if job_info.status.active
         ]
@@ -96,7 +115,7 @@ def wait_for_complete(job_labels: Mapping[str, str]):
                 f"Active Jobs at {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                 + "\n".join(active_jobs)
             )
-            time.sleep(30)
+            time.sleep(sleep_interval)
             continue
         else:
             logger.info("All kubernetes jobs finished!")
@@ -106,17 +125,37 @@ def wait_for_complete(job_labels: Mapping[str, str]):
     failed = []
     success = []
     for job_info in jobs.items:
+        job_id_info = (job_info.metadata.name, job_info.metadata.namespace)
         if job_info.status.failed:
-            failed.append(job_info.metadata.name)
+            failed.append(job_id_info)
         elif job_info.status.succeeded:
             # tuples for delete operation
-            success.append((job_info.metadata.name, job_info.metadata.namespace))
+            success.append(job_id_info)
 
-    logger.info("Failed Jobs from EXP_LABEL:\n" + "\n".join(failed))
+    fail_names = list(zip(*failed))[0]
+    logger.info("Failed Jobs from EXP_LABEL:\n" + "\n".join(fail_names))
 
-    # Delete successful jobs
+    return success, failed
+
+
+def delete_job_pods(
+    job_list: Sequence[JobInfo],
+    batch_client: kubernetes.client.BatchV1Api = None
+):
+    """
+    Delete specified job pods on the kubernetes cluster.
+
+    Args:
+        job_list: List of (job_name, job_namespace) tuples to delete from the
+            cluster.
+        client: A BatchV1Api client to communicate with the cluster
+    """
+
+    if batch_client is None:
+        batch_client = _initialize_batch_client()
+
     logger.info("Deleting successful jobs.")
-    for delete_args in success:
+    for delete_args in job_list:
         jobname, namespace = delete_args
         logger.info(f"Deleting -- {jobname}")
-        batch.delete_namespaced_job(jobname, namespace)
+        batch_client.delete_namespaced_job(jobname, namespace)

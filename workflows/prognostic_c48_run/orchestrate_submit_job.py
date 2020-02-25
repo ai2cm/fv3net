@@ -5,10 +5,9 @@ import fsspec
 from pathlib import Path
 
 import fv3config
-import fv3net.pipelines.kube_jobs.utils as kubejob_utils
+import fv3net.pipelines.kube_jobs as kube_jobs
 from vcm.cloud.fsspec import get_fs
 from fv3net.pipelines.common import get_unique_tag
-from fv3net.pipelines.kube_jobs import wait_for_complete
 
 PWD = Path(os.path.abspath(__file__)).parent
 RUNFILE = os.path.join(PWD, "sklearn_runfile.py")
@@ -70,7 +69,7 @@ def _update_with_prognostic_model_config(model_config, prognostic_config):
     with open(prognostic_config, "r") as f:
         prognostic_model_config = yaml.load(f, Loader=yaml.FullLoader)
 
-    kubejob_utils.update_nested_dict(model_config, prognostic_model_config)
+    kube_jobs.update_nested_dict(model_config, prognostic_model_config)
 
     return model_config
 
@@ -95,7 +94,7 @@ if __name__ == "__main__":
     config_dir = os.path.join(args.output_url, "job_config")
     job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
 
-    model_config["diag_table"] = kubejob_utils.transfer_local_to_remote(
+    model_config["diag_table"] = kube_jobs.transfer_local_to_remote(
         model_config["diag_table"], config_dir
     )
 
@@ -109,7 +108,7 @@ if __name__ == "__main__":
     with fsspec.open(job_config_path, "w") as f:
         f.write(yaml.dump(model_config))
 
-    remote_runfile_path = kubejob_utils.transfer_local_to_remote(RUNFILE, config_dir)
+    remote_runfile_path = kube_jobs.transfer_local_to_remote(RUNFILE, config_dir)
 
     fv3config.run_kubernetes(
         config_location=job_config_path,
@@ -123,4 +122,5 @@ if __name__ == "__main__":
         job_labels=job_label,
     )
 
-    wait_for_complete(job_label)
+    successful, _ = kube_jobs.wait_for_complete(job_label)
+    kube_jobs.delete_job_pods(successful)
