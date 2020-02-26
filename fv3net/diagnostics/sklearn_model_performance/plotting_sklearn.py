@@ -321,7 +321,7 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
 
     for data, kwargs in profiles_kwargs:
         stack_dims = [dim for dim in STACK_DIMS if dim in data.dims]
-        data_mean = np.nanmean(data.stack(sample=stack_dims).values, axis=1)
+        data_mean = np.mean(np.nan_to_num(data.stack(sample=stack_dims).values), axis=1)
         plt.plot(pressure, data_mean, **kwargs)
 
     plt.xlabel("Pressure [HPa]")
