@@ -49,12 +49,6 @@ if __name__ == "__main__":
         "The only type implemented right now is 'rf'.",
     )
     parser.add_argument(
-        "--output-dir-suffix",
-        type=str,
-        default="sklearn_regression_predictions",
-        help="Directory suffix to write files to. Prefixed with today's timestamp.",
-    )
-    parser.add_argument(
         "--delete-local-results-after-upload",
         type=bool,
         default=False,
