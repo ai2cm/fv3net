@@ -25,13 +25,7 @@ def mask_nan_lines(x, y):
     return np.array(x)[nan_mask], np.array(y)[nan_mask]
 
 
-def plot_diurnal_cycle(
-    merged_ds,
-    var,
-    num_time_bins=24,
-    title=None,
-    ylabel=None,
-):
+def plot_diurnal_cycle(merged_ds, var, num_time_bins=24, title=None, ylabel=None):
     """
 
     Args:

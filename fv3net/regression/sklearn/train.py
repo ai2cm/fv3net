@@ -130,14 +130,12 @@ def train_model(batched_data, train_config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("train_data_path", type=str, help="Location of training data")
     parser.add_argument(
-        "train_data_path", type=str, help="Location of training data",
+        "train_config_file", type=str, help="Path for training configuration yaml file"
     )
     parser.add_argument(
-        "train_config_file", type=str, help="Path for training configuration yaml file",
-    )
-    parser.add_argument(
-        "output_data_path", type=str, help="Location to save config and trained model.",
+        "output_data_path", type=str, help="Location to save config and trained model."
     )
     parser.add_argument(
         "--delete-local-results-after-upload",
@@ -160,9 +158,7 @@ if __name__ == "__main__":
             path = "/" + path
         if not os.path.exists(path):
             os.makedirs(path)
-        copyfile(
-            args.train_config_file, os.path.join(path, MODEL_CONFIG_FILENAME),
-        )
+        copyfile(args.train_config_file, os.path.join(path, MODEL_CONFIG_FILENAME))
         joblib.dump(model, os.path.join(path, MODEL_FILENAME))
     elif proto == "gs":
         joblib.dump(model, MODEL_FILENAME)

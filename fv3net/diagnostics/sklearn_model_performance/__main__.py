@@ -22,9 +22,7 @@ if __name__ == "__main__":
         help="Path to directory containing test data zarrs. Can be local or remote.",
     )
     parser.add_argument(
-        "model_path",
-        type=str,
-        help="Model file location. Can be local or remote.",
+        "model_path", type=str, help="Model file location. Can be local or remote."
     )
     parser.add_argument(
         "high_res_data_path",
