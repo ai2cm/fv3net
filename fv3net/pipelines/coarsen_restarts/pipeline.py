@@ -7,7 +7,7 @@ from pathlib import Path
 from apache_beam.options.pipeline_options import PipelineOptions
 
 from vcm.cloud import gcs
-from ..common import parse_timestep_from_path
+from ..common import parse_timestep_from_path, list_timesteps
 import vcm
 
 logger = logging.getLogger("CoarsenPipeline")
@@ -114,12 +114,10 @@ def run(args, pipeline_args=None):
         output_dir_prefix = os.path.join(source_timestep_dir, f"C{target_resolution}")
 
     coarsen_factor = source_resolution // target_resolution
-    fs = gcsfs.GCSFileSystem()
-    timestep_urls = fs.ls(source_timestep_dir)
-    timestep_urls.sort()
-
-    # gcsfs removes leading gs://
-    timestep_urls = ["gs://" + url for url in timestep_urls]
+    available_timesteps = list_timesteps(source_timestep_dir)
+    timestep_urls = [
+        os.path.join(source_timestep_dir, tstep) for tstep in available_timesteps
+    ]
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
