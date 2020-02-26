@@ -2,6 +2,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from scipy.stats import binned_statistic_2d
 import xarray as xr
 
 from vcm.calc import r2_score
@@ -11,10 +12,12 @@ from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
     COORD_Y_CENTER,
     COORD_Z_CENTER,
+    VAR_LAT_CENTER,
     PRESSURE_GRID,
 )
 from vcm.cubedsphere.regridz import regrid_to_common_pressure
 from vcm.select import mask_to_surface_type
+from vcm.calc.thermo import pressure_at_midpoint_log
 from vcm.visualize import plot_cube, mappable_var
 
 from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
@@ -23,7 +26,8 @@ from fv3net.diagnostics.data_funcs import (
     get_example_latlon_grid_coords,
     EXAMPLE_CLIMATE_LATLON_COORDS,
 )
-
+from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
+    integrate_for_Q, lower_tropospheric_stability,)
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
 SEC_PER_DAY = 86400
@@ -81,6 +85,19 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         slmsk,
     )
 
+    # LTS
+    matplotlib.rcParams["figure.dpi"] = 100
+    PE_pred = mask_to_surface_type(ds_pe.sel(dataset="prediction"), "sea")["P-E"] \
+        .squeeze().drop("dataset")
+    PE_hires = mask_to_surface_type(ds_pe.sel(dataset="coarsened high res"), "sea")["P-E"] \
+        .squeeze().drop("dataset")
+    _plot_lower_troposphere_stability(
+        xr.merge([grid, ds_target_sea]),
+        PE_pred,
+        PE_hires,
+        mask_to_surface_type(ds_pe.sel(dataset="coarsened high res"), "sea")["P-E"]
+    ).savefig(os.path.join(output_dir, "LTS_vs_Q.png"))
+
     # Vertical Q2 profiles over land and ocean
     matplotlib.rcParams["figure.dpi"] = 70
     _make_vertical_profile_plots(
@@ -105,6 +122,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # plot a variable across the diurnal cycle
     ds_pe["local_time"] = local_time(ds_pe)
+    ds_heating["local_time"] = local_time(ds_heating)
     matplotlib.rcParams["figure.dpi"] = 80
     plot_diurnal_cycle(
         mask_to_surface_type(ds_pe, "sea"), "P-E", title="ocean"
@@ -116,11 +134,12 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     local_coords = get_example_latlon_grid_coords(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
-            ds_heating.sel(coords), "heating [W/m$^2$]", title=location_name
+            ds_heating.sel(coords), "heating", title=location_name, ylabel= "heating [W/m$^2$]"
         ).savefig(
             os.path.join(output_dir, f"diurnal_cycle_heating_{location_name}.png")
         )
-        plot_diurnal_cycle(ds_pe.sel(coords), "P-E [mm]", title=location_name).savefig(
+        plot_diurnal_cycle(ds_pe.sel(coords), "P-E", title=location_name, ylabel="P-E [mm]"
+        ).savefig(
             os.path.join(output_dir, f"diurnal_cycle_P-E_{location_name}.png")
         )
     report_sections["Diurnal cycle"] = [
@@ -300,5 +319,55 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
     if title:
         plt.title(title)
     plt.legend()
+    plt.show()
+    return fig
+
+
+def _plot_lower_troposphere_stability(
+        ds, 
+        PE_pred,
+        PE_hires,
+        lat_max=20):
+    lat_mask = abs(ds[VAR_LAT_CENTER]) < lat_max
+    PE_pred = PE_pred.rename("PE_pred")
+    PE_hires = PE_hires.rename("PE_hires")
+    ds = xr.merge([ds, PE_pred, PE_hires]) \
+        .where(lat_mask).stack(sample=STACK_DIMS).dropna("sample")
+    
+    ds["pressure"] = pressure_at_midpoint_log(ds["delp"])
+    Q = [integrate_for_Q(p, qt)
+            for p, qt in zip(ds["pressure"].values.T, ds["sphum"].values.T)]
+    LTS = lower_tropospheric_stability(ds)
+
+    fig = plt.figure(figsize=(16,4))
+    
+    ax1 = fig.add_subplot(131)
+    hist = ax1.hist2d(LTS.values, Q)
+    cbar1 = fig.colorbar(hist[3], ax=ax1)
+    cbar1.set_label("count")
+    ax1.set_xlabel("LTS [K]")
+    ax1.set_ylabel("Q [mm]")
+
+    ax2 = fig.add_subplot(132)
+    bin_values_pred, x_edge, y_edge , _ = binned_statistic_2d(
+        LTS.values, Q, ds["PE_pred"].values, statistic='mean', bins=20)
+    X, Y = np.meshgrid(x_edge, y_edge)
+    PE = ax2.pcolormesh(X, Y, bin_values_pred.T, vmin=-10, vmax=100)
+    cbar2 = fig.colorbar(PE, ax=ax2)
+    cbar2.set_label("P-E [mm/d]")
+    ax2.set_xlabel("LTS [K]")
+    ax2.set_ylabel("Q [mm]")
+    ax2.set_title("Avg predicted P-E")
+
+    ax3 = fig.add_subplot(133)
+    bin_values_hires, x_edge, y_edge , _ = binned_statistic_2d(
+        LTS.values, Q, ds["PE_hires"].values, statistic='mean', bins=20)
+    bin_error = (bin_values_pred - bin_values_hires)
+    PE_err = ax3.pcolormesh(X, Y, bin_error.T,)
+    cbar3 = fig.colorbar(PE_err, ax=ax3)
+    cbar3.set_label("P-E [mm/d]")
+    ax3.set_xlabel("LTS [K]")
+    ax3.set_ylabel("Q [mm]")   
+    ax3.set_title("Avg P-E error (predicted - high res)")
     plt.show()
     return fig

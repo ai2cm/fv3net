@@ -17,27 +17,23 @@ from fv3net.diagnostics.create_report import create_report
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--test-data-path",
+        "test_data_path",
         type=str,
-        required=True,
         help="Path to directory containing test data zarrs. Can be local or remote.",
     )
     parser.add_argument(
-        "--model-path",
+        "model_path",
         type=str,
-        required=True,
         help="Model file location. Can be local or remote.",
     )
     parser.add_argument(
-        "--high-res-data-path",
+        "high_res_data_path",
         type=str,
-        required=True,
         help="Path to C48 coarsened high res diagnostic data.",
     )
     parser.add_argument(
-        "--num-test-zarrs",
+        "num_test_zarrs",
         type=int,
-        default=5,
         help="Number of zarrs to concat together for use as test set.",
     )
     parser.add_argument(

@@ -2,7 +2,7 @@ import fsspec
 from scipy.interpolate import UnivariateSpline
 import xarray as xr
 
-from vcm.calc import mass_integrate, pressure_at_midpoint_log, thermo
+from vcm.calc import mass_integrate, thermo
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
@@ -11,6 +11,7 @@ from vcm.cubedsphere.constants import (
     TILE_COORDS,
 )
 from vcm.regrid import regrid_to_shared_coords
+
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
 kg_m2_to_mm = 1000.0 / 997
@@ -83,12 +84,8 @@ def integrate_for_Q(P, sphum, lower_bound=55000, upper_bound=85000):
     return (spline.integral(lower_bound, upper_bound) / GRAVITY) * kg_m2_to_mm
 
 
-def potential_temperature(P, T):
-    return T * (p0 / P) ** POISSON_CONST
-
-
-def lower_tropospheric_instability(ds):
-    pressure = pressure_at_midpoint_log(ds.delp)
+def lower_tropospheric_stability(ds):
+    pressure = thermo.pressure_at_midpoint_log(ds.delp)
     T_at_700mb = (
         regrid_to_shared_coords(
             ds["T"],
@@ -100,5 +97,5 @@ def lower_tropospheric_instability(ds):
         .squeeze()
         .drop("p700mb")
     )
-    theta_700mb = potential_temperature(70000, T_at_700mb)
+    theta_700mb = thermo.potential_temperature(70000, T_at_700mb)
     return theta_700mb - ds["tsea"]
