@@ -7,10 +7,10 @@ from typing.io import BinaryIO
 
 import apache_beam as beam
 import xarray as xr
+import re
 from apache_beam.io import filesystems
 
 from vcm.cloud.fsspec import get_fs
-from vcm.convenience import parse_timestep_from_path
 
 
 class CombineSubtilesByKey(beam.PTransform):
@@ -103,8 +103,22 @@ netCDF files.
         return pcoll | beam.MapTuple(self._process)
 
 
+def parse_timestep_from_path(path: str):
+    """Get the model timestep timestamp from a given path"""
+
+    extracted_time = re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path)
+
+    if extracted_time is not None:
+        return extracted_time.group(1)
+    else:
+        raise ValueError(f"No matching time pattern found in path: {path}")
+
+
 def list_timesteps(path: str) -> List[str]:
-    """Returns the unique timesteps at a path
+    """
+    Returns the unique timesteps at a path. Note that any path with a 
+    timestep matching the parsing check will be returned from this
+    function. 
 
     Args:
         path: local or remote path to directory containing timesteps
@@ -126,6 +140,9 @@ def list_timesteps(path: str) -> List[str]:
 
 def get_unique_tag(tag_length: int) -> str:
     """Generate a unique tag"""
+
+    if tag_length < 1:
+        raise ValueError('Unique tag length should be 1 or greater.')
 
     short_id = str(uuid.uuid4())
     return short_id[:tag_length]

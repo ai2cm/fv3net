@@ -7,7 +7,7 @@ from pathlib import Path
 from apache_beam.options.pipeline_options import PipelineOptions
 
 from vcm.cloud import gcs
-from vcm import parse_timestep_from_path
+from ..common import parse_timestep_from_path
 import vcm
 
 logger = logging.getLogger("CoarsenPipeline")
