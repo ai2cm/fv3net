@@ -8,10 +8,11 @@ from fv3net.pipelines.common import (
     get_unique_tag,
 )
 
+
 @pytest.fixture
 def timestep_dir():
 
-    timesteps = ['20160801.001500', '20160801.003000', '20160801.004500']
+    timesteps = ["20160801.001500", "20160801.003000", "20160801.004500"]
     extra_file = "not_a_timestep.nc"
     extra_dir = "what_a_config_dir"
 
@@ -25,14 +26,14 @@ def timestep_dir():
 
 
 def test_timestep_lister(timestep_dir):
-    
+
     tmpdir, timesteps = timestep_dir
     timesteps_found = list_timesteps(tmpdir)
     assert len(timesteps_found) == len(timesteps)
     for check_timestep in timesteps_found:
         assert check_timestep in timesteps
 
-        
+
 def test_timestep_lister_sorted(timestep_dir):
 
     tmpdir, timesteps = timestep_dir
@@ -64,4 +65,3 @@ def test_unique_tag_length():
 
     with pytest.raises(ValueError):
         get_unique_tag(0)
-

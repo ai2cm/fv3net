@@ -116,7 +116,7 @@ def parse_timestep_from_path(path: str):
 
 def list_timesteps(path: str) -> List[str]:
     """
-    Returns the unique timesteps at a path. Note that any path with a 
+    Returns the unique timesteps at a path. Note that any path with a
     timestep matching the parsing check will be returned from this
     function.
 
@@ -142,7 +142,7 @@ def get_unique_tag(tag_length: int) -> str:
     """Generate a unique tag"""
 
     if tag_length < 1:
-        raise ValueError('Unique tag length should be 1 or greater.')
+        raise ValueError("Unique tag length should be 1 or greater.")
 
     short_id = str(uuid.uuid4())
     return short_id[:tag_length]

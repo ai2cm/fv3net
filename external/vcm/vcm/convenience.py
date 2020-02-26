@@ -11,7 +11,6 @@ import dask.array as da
 import intake
 import xarray as xr
 import yaml
-import re
 from dask import delayed
 
 from vcm.cloud import gsutil
