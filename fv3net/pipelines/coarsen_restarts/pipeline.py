@@ -61,7 +61,7 @@ def _coarsen_data(
         os.path.join(local_timestep_dir, timestep_name, filename_prefix),
         os.path.join(local_coarsen_dir, filename_prefix),
     )
-    logger.info("Coarsening completed.")
+    logger.info(f"Coarsening completed. ({timestep_name})")
 
 
 def _upload_data(gcs_output_dir, local_coarsen_dir):
