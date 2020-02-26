@@ -118,7 +118,7 @@ def list_timesteps(path: str) -> List[str]:
     """
     Returns the unique timesteps at a path. Note that any path with a 
     timestep matching the parsing check will be returned from this
-    function. 
+    function.
 
     Args:
         path: local or remote path to directory containing timesteps
