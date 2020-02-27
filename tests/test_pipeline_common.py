@@ -3,7 +3,6 @@ import tempfile
 import pathlib
 import os
 from fv3net.pipelines.common import (
-    parse_timestep_from_path,
     list_timesteps,
     get_unique_tag,
 )
@@ -41,20 +40,6 @@ def test_timestep_lister_sorted(timestep_dir):
     timesteps_found = list_timesteps(tmpdir)
     for i, ref_timestep in enumerate(timesteps):
         assert timesteps_found[i] == ref_timestep
-
-
-def test_extract_timestep_from_path():
-
-    timestep = "20160801.001500"
-    good_path = f"gs://path/to/timestep/{timestep}/"
-    assert parse_timestep_from_path(good_path) == timestep
-
-
-def test_extract_timestep_from_path_with_no_timestep_in_path():
-
-    with pytest.raises(ValueError):
-        bad_path = "gs://path/to/not/a/timestep/"
-        parse_timestep_from_path(bad_path)
 
 
 def test_unique_tag_length():

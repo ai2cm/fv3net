@@ -1,16 +1,16 @@
-from datetime import timedelta
 import logging
 import os
 import subprocess
 import tempfile
-from collections import defaultdict
 import pathlib
-
-import numpy as np
-import dask.array as da
 import intake
-import xarray as xr
 import yaml
+import re
+import dask.array as da
+import xarray as xr
+import numpy as np
+from datetime import timedelta
+from collections import defaultdict
 from dask import delayed
 
 from vcm.cloud import gsutil
@@ -41,6 +41,17 @@ def round_time(t):
             "C48 initialization time {t}. Are you sure you're joining "
             "the correct high res data?"
         )
+
+
+def parse_timestep_from_path(path: str):
+    """Get the model timestep timestamp from a given path"""
+
+    extracted_time = re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path)
+
+    if extracted_time is not None:
+        return extracted_time.group(1)
+    else:
+        raise ValueError(f"No matching time pattern found in path: {path}")
 
 
 def get_root():

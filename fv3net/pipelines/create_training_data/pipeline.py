@@ -25,8 +25,8 @@ from vcm.fv3_restarts import (
     _parse_time_string,
     _split_url,
 )
+from vcm import parse_timestep_from_path
 from vcm.select import mask_to_surface_type
-from ..common import parse_timestep_from_path
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 
 logger = logging.getLogger()

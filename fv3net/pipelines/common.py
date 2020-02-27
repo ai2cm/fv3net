@@ -7,10 +7,10 @@ from typing.io import BinaryIO
 
 import apache_beam as beam
 import xarray as xr
-import re
 from apache_beam.io import filesystems
 
 from vcm.cloud.fsspec import get_fs
+from vcm import parse_timestep_from_path
 
 
 class CombineSubtilesByKey(beam.PTransform):
@@ -101,17 +101,6 @@ netCDF files.
 
     def expand(self, pcoll):
         return pcoll | beam.MapTuple(self._process)
-
-
-def parse_timestep_from_path(path: str):
-    """Get the model timestep timestamp from a given path"""
-
-    extracted_time = re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path)
-
-    if extracted_time is not None:
-        return extracted_time.group(1)
-    else:
-        raise ValueError(f"No matching time pattern found in path: {path}")
 
 
 def list_timesteps(path: str) -> List[str]:
