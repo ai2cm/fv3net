@@ -52,7 +52,7 @@ if __name__ == "__main__":
         type=bool,
         default=False,
         help="If uploading to a remote results dir, delete the local copies"
-            "after upload."
+        " after upload.",
     )
     args = parser.parse_args()
 
