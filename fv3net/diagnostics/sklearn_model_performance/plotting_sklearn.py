@@ -23,7 +23,7 @@ from vcm.visualize import plot_cube, mappable_var
 from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
 from fv3net.diagnostics.data_funcs import (
     merge_comparison_datasets,
-    get_example_latlon_grid_coords,
+    get_latlon_grid_coords_set,
     EXAMPLE_CLIMATE_LATLON_COORDS,
 )
 from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
@@ -36,6 +36,14 @@ SEC_PER_DAY = 86400
 
 SAMPLE_DIM = "sample"
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
+
+DPI_FIGURES = {
+    "LTS": 100,
+    "Q2_pressure_profiles": 70,
+    "R2_pressure_profiles": 70,
+    "diurnal_cycle": 80,
+    "map_plot_3col": 120
+}
 
 
 def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
@@ -88,7 +96,6 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
 
     # LTS
-    matplotlib.rcParams["figure.dpi"] = 100
     PE_pred = (
         mask_to_surface_type(ds_pe.sel(dataset="prediction"), "sea")["P-E"]
         .squeeze()
@@ -104,58 +111,73 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         PE_pred,
         PE_hires,
         mask_to_surface_type(ds_pe.sel(dataset="coarsened high res"), "sea")["P-E"],
-    ).savefig(os.path.join(output_dir, "LTS_vs_Q.png"))
+    ).savefig(os.path.join(output_dir, "LTS_vs_Q.png"), dpi=DPI_FIGURES["LTS"])
+    report_sections["Lower tropospheric stability vs humidity"] = ["LTS_vs_Q.png"]
+    
 
     # Vertical Q2 profiles over land and ocean
-    matplotlib.rcParams["figure.dpi"] = 70
     _make_vertical_profile_plots(
         ds_pred_land, ds_target_land, "Q2", "[kg/kg/day]", "global Q2 vertical profile"
     ).savefig(os.path.join(output_dir, "vertical_profile_Q2_land.png"))
     _make_vertical_profile_plots(
         ds_pred_sea, ds_target_sea, "Q2", "[kg/kg/day]", "global Q2 vertical profile"
-    ).savefig(os.path.join(output_dir, "vertical_profile_Q2_sea.png"))
+    ).savefig(
+        os.path.join(output_dir, "vertical_profile_Q2_sea.png"), 
+        dpi=DPI_FIGURES["Q2_pressure_profiles"])
+    report_sections["Q2 pressure level profiles"] = [
+        "vertical_profile_Q2_land.png",
+        "vertical_profile_Q2_sea.png",
+    ]
 
     # R^2 vs pressure plots
-    matplotlib.rcParams["figure.dpi"] = 70
     _make_r2_plot(ds_pred, ds_target, ["Q1", "Q2"], title="$R^2$, global").savefig(
         os.path.join(output_dir, "r2_vs_pressure_level_global.png")
     )
     _make_land_sea_r2_plot(
         ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars=["Q1", "Q2"]
-    ).savefig(os.path.join(output_dir, "r2_vs_pressure_level_landsea.png"))
+    ).savefig(os.path.join(output_dir, "r2_vs_pressure_level_landsea.png"), 
+        dpi=DPI_FIGURES["R2_pressure_profiles"])
     report_sections["R^2 vs pressure levels"] = [
         "r2_vs_pressure_level_global.png",
         "r2_vs_pressure_level_landsea.png",
     ]
 
     # plot P-E across the diurnal cycle
-    matplotlib.rcParams["figure.dpi"] = 80
-    local_coords = get_example_latlon_grid_coords(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
+    local_coords = get_latlon_grid_coords_set(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
     ds_pe["local_time"] = local_time(ds_pe)
     ds_heating["local_time"] = local_time(ds_heating)
     plot_diurnal_cycle(
         mask_to_surface_type(ds_pe, "sea"), "P-E", title="ocean"
-    ).savefig(os.path.join(output_dir, "diurnal_cycle_P-E_sea.png"))
+    ).savefig(
+        os.path.join(output_dir, "diurnal_cycle_P-E_sea.png"),
+        dpi=DPI_FIGURES["diurnal_cycle"]
+    )
     plot_diurnal_cycle(
         mask_to_surface_type(ds_pe, "land"), "P-E", title="land"
-    ).savefig(os.path.join(output_dir, "diurnal_cycle_P-E_land.png"))
+    ).savefig(
+            os.path.join(output_dir, "diurnal_cycle_P-E_land.png"),
+            dpi=DPI_FIGURES["diurnal_cycle"])
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
             ds_pe.sel(coords), "P-E", title=location_name, ylabel="P-E [mm]"
-        ).savefig(os.path.join(output_dir, f"diurnal_cycle_P-E_{location_name}.png"))
+        ).savefig(
+            os.path.join(output_dir, f"diurnal_cycle_P-E_{location_name}.png"),
+            dpi=DPI_FIGURES["diurnal_cycle"]
+        )
     report_sections["Diurnal cycle, P-E"] = [
         "diurnal_cycle_P-E_sea.png",
         "diurnal_cycle_P-E_land.png",
     ] + [f"diurnal_cycle_P-E_{location_name}.png" for location_name in local_coords]
 
     # plot column heating across the diurnal cycle
-    matplotlib.rcParams["figure.dpi"] = 80
     plot_diurnal_cycle(
         mask_to_surface_type(ds_heating, "sea"), "heating", title="sea"
-    ).savefig(os.path.join(output_dir, "diurnal_cycle_heating_sea.png"))
+    ).savefig(os.path.join(output_dir, "diurnal_cycle_heating_sea.png"),
+            dpi=DPI_FIGURES["diurnal_cycle"])
     plot_diurnal_cycle(
         mask_to_surface_type(ds_heating, "land"), "heating", title="land"
-    ).savefig(os.path.join(output_dir, "diurnal_cycle_heating_land.png"))
+    ).savefig(os.path.join(output_dir, "diurnal_cycle_heating_land.png"),
+            dpi=DPI_FIGURES["diurnal_cycle"])
 
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
@@ -164,13 +186,13 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
             title=location_name,
             ylabel="heating [W/m$^2$]",
         ).savefig(
-            os.path.join(output_dir, f"diurnal_cycle_heating_{location_name}.png")
+            os.path.join(output_dir, f"diurnal_cycle_heating_{location_name}.png"),
+            dpi=DPI_FIGURES["diurnal_cycle"]
         )
     report_sections["Diurnal cycle, heating"] = [
         "diurnal_cycle_heating_sea.png",
         "diurnal_cycle_heating_land.png",
     ] + [f"diurnal_cycle_heating_{location_name}.png" for location_name in local_coords]
-
 
     # map plot variables and compare across prediction/ C48 /coarsened high res data
     _plot_comparison_maps(
@@ -178,13 +200,17 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         "P-E",
         time_index_selection=None,
         plot_cube_kwargs={"cbar_label": "time avg, P-E [mm/day]"},
-    ).savefig(os.path.join(output_dir, "P-E_time_avg.png"))
+    ).savefig(
+        os.path.join(output_dir, "P-E_time_avg.png"),
+        dpi=DPI_FIGURES["map_plot_3col"]
+    )
     _plot_comparison_maps(
         ds_pe,
         "P-E",
         time_index_selection=[0, 2],
         plot_cube_kwargs={"cbar_label": "timestep snapshot, P-E [mm/day]"},
-    ).savefig(os.path.join(output_dir, "P-E_time_snapshots.png"))
+    ).savefig(os.path.join(output_dir, "P-E_time_snapshots.png"),
+        dpi=DPI_FIGURES["map_plot_3col"])
     report_sections["P-E"] = ["P-E_time_avg.png", "P-E_time_snapshots.png"]
 
     _plot_comparison_maps(
@@ -192,13 +218,15 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         "heating",
         time_index_selection=None,
         plot_cube_kwargs={"cbar_label": "time avg, column heating [W/m$^2$]"},
-    ).savefig(os.path.join(output_dir, "column_heating_time_avg.png"))
+    ).savefig(os.path.join(output_dir, "column_heating_time_avg.png"),
+        dpi=DPI_FIGURES["map_plot_3col"])
     _plot_comparison_maps(
         ds_heating,
         "heating",
         time_index_selection=[0, -1],
         plot_cube_kwargs={"cbar_label": "timestep snapshot, column heating [W/m$^2$]"},
-    ).savefig(os.path.join(output_dir, "column_heating_snapshots.png"))
+    ).savefig(os.path.join(output_dir, "column_heating_snapshots.png"),
+        dpi=DPI_FIGURES["map_plot_3col"])
     report_sections["Column heating"] = [
         "column_heating_time_avg.png",
         "column_heating_snapshots.png",

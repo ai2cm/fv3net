@@ -1,7 +1,7 @@
+import numpy as np
 import pandas as pd
 import xarray as xr
 
-from vcm.calc.thermo import _LATENT_HEAT_VAPORIZATION_0_C
 from vcm.select import drop_nondim_coords, get_latlon_grid_coords
 
 # give as [lat, lon]
@@ -48,30 +48,28 @@ def merge_comparison_datasets(
     return ds_comparison
 
 
-def hires_diag_column_heating(ds_hires):
-    """
-
-    Args:
-        ds_hires: coarsened dataset created from the high res SHiELD diagnostics data
-
-    Returns:
-        Data array of the column energy convergence [W/m2]
-    """
-    heating = (
-        ds_hires["SHTFLsfc_coarse"]
-        + (ds_hires["USWRFsfc_coarse"] - ds_hires["USWRFtoa_coarse"])
-        + (ds_hires["DSWRFtoa_coarse"] - ds_hires["DSWRFsfc_coarse"])
-        + (ds_hires["ULWRFsfc_coarse"] - ds_hires["ULWRFtoa_coarse"])
-        - ds_hires["DLWRFsfc_coarse"]
-        + ds_hires["PRATEsfc_coarse"] * _LATENT_HEAT_VAPORIZATION_0_C
-    )
-    return heating.rename("heating")
-
-
-def get_example_latlon_grid_coords(grid, climate_latlon_coords):
+def get_latlon_grid_coords_set(grid, climate_latlon_coords):
     climate_grid_coords = {}
     for climate, latlon_coords in climate_latlon_coords.items():
         climate_grid_coords[climate] = get_latlon_grid_coords(
             grid, lat=latlon_coords[0], lon=latlon_coords[1]
         )
     return climate_grid_coords
+
+
+def periodic_phase(phase):
+    """normalize phases to be in [0, 360] deg
+    
+    Args:
+        phase (array): phases in degrees
+
+    Returns:
+        [array]: normalized phases
+    """
+    def _conditions(d):
+        if d > 0:
+            return d - int(d / 360) * 360
+        else:
+            return d - int((d / 360) - 1) * 360
+    cond = np.vectorize(_conditions)
+    return cond(phase)

@@ -1,20 +1,18 @@
 import argparse
-import fsspec
-from vcm.cloud import gsutil
 import os
 import shutil
 import xarray as xr
-
+from vcm.cloud import fsspec
 from vcm.cubedsphere.constants import INIT_TIME_DIM
 from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
     predict_on_test_data,
     load_high_res_diag_dataset,
     add_integrated_Q_vars,
 )
-from vcm.fv3_restarts import _split_url
 from fv3net.diagnostics.sklearn_model_performance.plotting_sklearn import make_all_plots
 from fv3net.diagnostics.create_report import create_report
 
+TEMP_OUTPUT_DIR = "temp_sklearn_prediction_report_output"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -24,7 +22,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "test_data_path",
         type=str,
-        help="Path to directory containing test data zarrs. Can be local or remote.",
+        help="Path to directory containing test data zarrs."
+            "Can be local or remote.",
     )
     parser.add_argument(
         "high_res_data_path",
@@ -52,20 +51,20 @@ if __name__ == "__main__":
         "--delete-local-results-after-upload",
         type=bool,
         default=False,
-        help="If uploading to a remote results dir, delete the local copies after upload."
+        help="If uploading to a remote results dir, delete the local copies"
+            "after upload."
     )
     args = parser.parse_args()
 
     # if output path is remote GCS location, save results to local output dir first
-    proto, path = _split_url(args.output_path)
+    proto = fsspec.get_protocol(args.output_path)
     if proto == "" or proto == "file":
-        if proto == "file":
-            path = "/" + path
-        output_dir = path
+        output_dir = args.output_path
     elif proto == "gs":
-        remote_data_path, output_dir = os.path.split(path.strip("/"))
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+        remote_data_path, output_dir = os.path.split(args.output_path.strip("/"))
+
+    fs_output = fsspec.get_fs(args.output_path)
+    fs_output.makedirs(output_dir, exist_ok=True)
 
     ds_test, ds_pred = predict_on_test_data(
         args.test_data_path, args.model_path, args.num_test_zarrs, args.model_type
@@ -76,12 +75,12 @@ if __name__ == "__main__":
     ds_hires = load_high_res_diag_dataset(args.high_res_data_path, init_times)
 
     grid_path = os.path.join(os.path.dirname(args.test_data_path), "grid_spec.zarr")
-    fs = fsspec.filesystem("gs")
-    grid = xr.open_zarr(fs.get_mapper(grid_path))
+    fs_input = fsspec.get_fs(args.test_data_path)
+    grid = xr.open_zarr(fs_input.get_mapper(grid_path))
     report_sections = make_all_plots(ds_pred, ds_test, ds_hires, grid, output_dir)
     create_report(report_sections, "ml_model_predict_diagnostics", output_dir)
 
     if proto == "gs":
-        gsutil.copy(output_dir, remote_data_path)
+        fs_output.put(output_dir, remote_data_path)
         if args.delete_local_results_after_upload is True:
             shutil.rmtree(output_dir)

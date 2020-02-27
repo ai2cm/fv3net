@@ -1,4 +1,4 @@
-import fsspec
+from vcm.cloud import fsspec
 import joblib
 import xarray as xr
 
@@ -23,8 +23,7 @@ def load_test_dataset(test_data_path, num_files_to_load=50, downsample_time_fact
     Returns:
         xarray dataset created by concatenating test data zarrs
     """
-    protocol, _ = _split_url(test_data_path)
-    fs = fsspec.filesystem(protocol)
+    fs = fsspec.get_fs(test_data_path)
     test_data_urls = load_downsampled_time_range(
         fs, test_data_path, downsample_time_factor
     )
@@ -74,9 +73,10 @@ def predict_dataset(sk_wrapped_model, ds_stacked):
 
 
 def load_model(model_path):
-    protocol, _ = _split_url(model_path)
+    protocol = fsspec.get_protocol(model_path)
     if protocol == "gs":
-        gsutil.copy(model_path, "temp_model.pkl")
+        fs = fsspec.get_fs(model_path)
+        fs.get(model_path, "temp_model.pkl")
         return joblib.load("temp_model.pkl")
     else:
         return joblib.load(model_path)

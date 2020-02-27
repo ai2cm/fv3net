@@ -10,4 +10,4 @@ python -m fv3net.diagnostics.sklearn_model_performance \
   ${DATA_PATH}"/test" \
   ${DIAGS_PATH} \
   ${OUTPUT_PATH} \
-  --num-test-zarrs ${NUM_TEST_ZARRS}
+  ${NUM_TEST_ZARRS}

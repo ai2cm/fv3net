@@ -11,16 +11,15 @@ from vcm.cubedsphere.constants import (
     TILE_COORDS,
 )
 from vcm.regrid import regrid_to_shared_coords
-
-
-kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
-kg_m2_to_mm = 1000.0 / 997
-
-p0 = 100000  # reference pressure for potential temp [Pa]
-SPECIFIC_HEAT_CONST_PRESSURE = 1004  # [J/kg K]
-GRAVITY = 9.81  # [m/s2]
-POISSON_CONST = 0.2854
-SEC_PER_DAY = 86400
+from vcm.constants import (
+    kg_m2s_to_mm_day,
+    kg_m2_to_mm, 
+    p0,
+    SPECIFIC_HEAT_CONST_PRESSURE,
+    GRAVITY,
+    POISSON_CONST,
+    SEC_PER_DAY
+)
 
 SAMPLE_DIM = "sample"
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
