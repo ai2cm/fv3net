@@ -3,9 +3,7 @@ import joblib
 import xarray as xr
 
 from ..dataset_handler import stack_and_drop_nan_samples
-from vcm.cloud import gsutil
 from vcm.convenience import round_time
-from vcm.fv3_restarts import _split_url
 from vcm.cubedsphere.constants import INIT_TIME_DIM
 
 SAMPLE_DIM = "sample"
