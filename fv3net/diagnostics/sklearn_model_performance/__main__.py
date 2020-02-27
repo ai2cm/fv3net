@@ -82,6 +82,6 @@ if __name__ == "__main__":
     create_report(report_sections, "ml_model_predict_diagnostics", output_dir)
 
     if proto == "gs":
-        gsutil.copy(output_dir, f"gs://{remote_data_path}")
+        gsutil.copy(output_dir, args.output_path)
         if args.delete_local_results_after_upload is True:
             shutil.rmtree(output_dir)
