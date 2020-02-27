@@ -93,4 +93,5 @@ if __name__ == "__main__":
     )
 
     successful, _ = kube_jobs.wait_for_complete(job_label)
-    kube_jobs.delete_job_pods(successful)
+    if successful:
+        kube_jobs.delete_job_pods(successful)
