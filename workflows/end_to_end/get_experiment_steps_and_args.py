@@ -132,10 +132,10 @@ def _get_all_step_arguments(workflow_steps: List[str], config: Mapping):
             input_info["location"] for input_info in curr_config["inputs"].values()
         ]
         output_location = curr_config["output_location"]
-        method_args = _generate_method_args(curr_config)
-
+        extra_args = _generate_args(curr_config)
+        
         input_args = " ".join(all_input_locations)
-        step_args = " ".join([input_args, output_location, method_args])
+        step_args = " ".join([input_args, output_location, extra_args])
         all_step_arguments[step] = step_args
         all_step_commands[step] = curr_config["command"]
 
@@ -145,41 +145,51 @@ def _get_all_step_arguments(workflow_steps: List[str], config: Mapping):
 def _generate_output_path_from_config(
     step_name: str, step_config: Mapping, max_config_stubs: int = 3
 ):
-    """generate an output location stub from a step's methodological config"""
+    """generate an output location stub from a step's required argument config"""
 
     output_str = step_name
-    method_config = step_config.get("extra_args", None)
-    if method_config is not None:
-        method_strs = []
-        for i, (key, val) in enumerate(method_config.items()):
+    arg_config = step_config.get("extra_args", None)
+    if arg_config is not None:
+        arg_strs = []
+        for i, (key, val) in enumerate(arg_config.items()):
             if i >= max_config_stubs:
                 break
             val = str(val)
+            
             # get last part of path so string isn't so long
             if "/" in val:
                 val = val.split("/")[-1]
+            
+            key = key.strip("--")  # remove prefix of optional argument
             key_val = f"{key}_{val}"
-            method_strs.append(key_val)
-        method_output_stub = "_".join(method_strs)
-        output_str += "_" + method_output_stub
+            arg_strs.append(key_val)
+        arg_output_stub = "_".join(arg_strs)
+        output_str += "_" + arg_output_stub
 
     return output_str
 
 
-def _generate_method_args(step_config: Mapping):
+def _generate_args(step_config: Mapping):
     """
-    Generate the methodological arguments for the step as positional arguments
-    in a string.
+    Generate the arguments for the step as positional arguments
+    in a string followed by optional arguments.
     """
-    method_config = step_config.get("extra_args", None)
+    arg_config = step_config.get("extra_args", None)
 
-    if method_config is not None:
-        method_args = [str(val) for val in method_config.values()]
-        combined_method_args = " ".join(method_args)
+    if arg_config is not None:
+        optional_args = []
+        required_args = []
+        for arg_key, arg_value in arg_config.items():
+            if arg_key[:2] == "--":
+                optional_args += [arg_key, str(arg_value)]
+            else:
+                required_args.append(str(arg_value))
+
+        combined_args = " ".join(required_args + optional_args)
     else:
-        combined_method_args = ""
+        combined_args = ""
 
-    return combined_method_args
+    return combined_args
 
 
 if __name__ == "__main__":
