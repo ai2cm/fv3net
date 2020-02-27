@@ -171,7 +171,6 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         "diurnal_cycle_heating_land.png",
     ] + [f"diurnal_cycle_heating_{location_name}.png" for location_name in local_coords]
 
-
     # map plot variables and compare across prediction/ C48 /coarsened high res data
     _plot_comparison_maps(
         ds_pe,
