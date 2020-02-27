@@ -61,8 +61,6 @@ if __name__ == "__main__":
         output_dir = args.output_path
     elif proto == "gs":
         remote_data_path, output_dir = os.path.split(args.output_path.strip("/"))
-
-    fs_output = fsspec.get_fs(args.output_path)
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
     ds_test, ds_pred = predict_on_test_data(
@@ -78,8 +76,8 @@ if __name__ == "__main__":
     grid = xr.open_zarr(fs_input.get_mapper(grid_path))
     report_sections = make_all_plots(ds_pred, ds_test, ds_hires, grid, output_dir)
     create_report(report_sections, "ml_model_predict_diagnostics", output_dir)
-
+    fs_output = fsspec.get_fs(args.output_path)
     if proto == "gs":
-        fs_output.put(output_dir, remote_data_path)
+        fs_output.put(output_dir, remote_data_path, recursive=True)
         if args.delete_local_results_after_upload is True:
             shutil.rmtree(output_dir)
