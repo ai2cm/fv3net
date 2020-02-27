@@ -11,8 +11,7 @@ config_file=$1
 ALL=$(python workflows/end_to_end/get_experiment_steps_and_args.py ${config_file})
 NAME=$(echo ${ALL} | jq -r .name)
 WORKFLOW=$(echo ${ALL} | jq -r .workflow)
-COMMANDS=$(echo ${ALL} | jq -r .commands)
-ALL_ARGUMENTS=$(echo ${ALL} | jq -r .arguments)
+ALL_CMD_AND_ARGS=$(echo ${ALL} | jq -r .command_and_args)
 
 LOGFILE=${NAME}".log"
 exec > >(tee ${LOGFILE}) 2>&1
@@ -34,11 +33,10 @@ echo -e "\n\n\n############### Creating fv3net python package sdist files...\n\n
 )
 
 for STEP in ${WORKFLOW}; do
+  STEP_COMMAND_ARGS=$(echo ${ALL_CMD_AND_ARGS} | jq -r .${STEP})
   echo -e "\n\n\n############### Starting step "${STEP}"... \n\n\n"
-  COMMAND=$(echo ${COMMANDS} | jq -r .${STEP})
-  ARGUMENTS=$(echo ${ALL_ARGUMENTS} | jq -r .${STEP})
-  echo -e "############### Running command \""${COMMAND}" "${ARGUMENTS}"\"\n\n\n"
-  ${COMMAND} ${ARGUMENTS}
+  echo -e "############### Running command \"${STEP_COMMAND_ARGS}\"\n\n\n"
+  $STEP_COMMAND_ARGS
   echo -e "\n\n\n"
 done
 

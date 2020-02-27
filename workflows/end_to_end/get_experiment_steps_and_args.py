@@ -18,14 +18,11 @@ def get_experiment_steps_and_args(config_file: str):
     # Resolve inputs, outputs, and other config parameters
     _apply_config_transforms(config)
     workflow_steps_config = config["experiment"]["steps_to_run"]
-    all_step_commands, all_step_arguments = _get_all_step_arguments(
-        workflow_steps_config, config
-    )
+    all_step_arguments = _get_all_step_arguments(workflow_steps_config, config)
     experiment_steps_and_args = {
         "name": config["experiment"]["name"],
         "workflow": " ".join([step for step in workflow_steps_config]),
-        "commands": all_step_commands,
-        "arguments": all_step_arguments,
+        "command_and_args": all_step_arguments,
     }
     return json.dumps(experiment_steps_and_args)
 
@@ -124,7 +121,6 @@ def _get_all_step_arguments(workflow_steps: List[str], config: Mapping):
     """Get a dictionary of each step with i/o and methedological arguments"""
 
     steps_config = config["experiment"]["steps_config"]
-    all_step_commands = {}
     all_step_arguments = {}
     for i, step in enumerate(workflow_steps):
         curr_config = steps_config[step]
@@ -132,14 +128,14 @@ def _get_all_step_arguments(workflow_steps: List[str], config: Mapping):
             input_info["location"] for input_info in curr_config["inputs"].values()
         ]
         output_location = curr_config["output_location"]
+        command = curr_config["command"]
         extra_args = _generate_args(curr_config)
         
         input_args = " ".join(all_input_locations)
-        step_args = " ".join([input_args, output_location, extra_args])
+        step_args = " ".join([command, input_args, output_location, extra_args])
         all_step_arguments[step] = step_args
-        all_step_commands[step] = curr_config["command"]
 
-    return all_step_commands, all_step_arguments
+    return all_step_arguments
 
 
 def _generate_output_path_from_config(
