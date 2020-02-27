@@ -1,7 +1,8 @@
 import os
 import re
 from datetime import datetime, timedelta
-from typing import Any, Generator, Tuple, Sequence
+from typing import Any, Generator, Tuple, Sequence, Mapping
+from collections import defaultdict
 
 import cftime
 import fsspec
@@ -220,6 +221,20 @@ def _restart_files_at_url(url):
                 tile = _get_tile(file)
                 category = _parse_category(file)
                 yield file_prefix, category, tile, proto, path
+
+
+def _open_restarts_recursive(url: str) -> Mapping:
+    files = _restart_files_at_url(url)
+    categories = defaultdict(list)
+    for (_, category, _, proto, url) in files:
+        ds = _load_restart_lazily(proto, url, category)
+        categories[category].append(ds.assign_coords(url=url))
+    return dict(categories)
+
+
+def open_restarts_recursive(url):
+    cats = _open_restarts_recursive(url)
+    return {key: xr.concat(cats[key], dim='url')}
 
 
 def _load_restart(protocol, path):
