@@ -53,6 +53,13 @@ def _create_arg_parser():
         required=False,
         help="Storage path for job configuration files",
     )
+    parser.add_argument(
+        "--init-frequency",
+        type=int,
+        required=False,
+        help="Frequency (in minutes) to initialize one-step jobs starting from"
+             " the first available timestep."
+    )
 
     return parser
 
@@ -77,6 +84,10 @@ if __name__ == "__main__":
     timestep_list = one_step.timesteps_to_process(
         args.input_url, args.output_url, args.n_steps, args.overwrite
     )
+
+    if args.init_frequency is not None:
+        # use timestamp to time, apply time delta, then translate back to timestamp
+        pass
 
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
 
