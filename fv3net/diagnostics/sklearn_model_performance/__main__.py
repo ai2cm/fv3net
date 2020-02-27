@@ -22,8 +22,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "test_data_path",
         type=str,
-        help="Path to directory containing test data zarrs."
-            "Can be local or remote.",
+        help="Path to directory containing test data zarrs." "Can be local or remote.",
     )
     parser.add_argument(
         "high_res_data_path",
@@ -64,8 +63,8 @@ if __name__ == "__main__":
         remote_data_path, output_dir = os.path.split(args.output_path.strip("/"))
 
     fs_output = fsspec.get_fs(args.output_path)
-    fs_output.makedirs(output_dir, exist_ok=True)
-
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
     ds_test, ds_pred = predict_on_test_data(
         args.test_data_path, args.model_path, args.num_test_zarrs, args.model_type
     )

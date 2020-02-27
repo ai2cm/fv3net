@@ -66,10 +66,12 @@ def periodic_phase(phase):
     Returns:
         [array]: normalized phases
     """
+
     def _conditions(d):
         if d > 0:
             return d - int(d / 360) * 360
         else:
             return d - int((d / 360) - 1) * 360
+
     cond = np.vectorize(_conditions)
     return cond(phase)

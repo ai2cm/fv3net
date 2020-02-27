@@ -44,39 +44,42 @@ def test_mask_to_surface_type(test_surface_type_grid):
 
 def test_get_latlon_grid_coords(test_latlon_grid):
     test_exact_pt = get_latlon_grid_coords(
-        test_latlon_grid, 
-        lat=3, 
-        lon=2, 
-        init_search_width=0.5, 
-        search_width_increment=0.5, 
-        max_search_width=3) 
-    assert test_exact_pt[COORD_X_CENTER] == 3 
+        test_latlon_grid,
+        lat=3,
+        lon=2,
+        init_search_width=0.5,
+        search_width_increment=0.5,
+        max_search_width=3,
+    )
+    assert test_exact_pt[COORD_X_CENTER] == 3
     assert test_exact_pt[COORD_Y_CENTER] == 2
     test_within_radius = get_latlon_grid_coords(
-        test_latlon_grid, 
-        lat=3.25, 
-        lon=2.25, 
-        init_search_width=0.45, 
-        search_width_increment=0.5, 
-        max_search_width=3) 
+        test_latlon_grid,
+        lat=3.25,
+        lon=2.25,
+        init_search_width=0.45,
+        search_width_increment=0.5,
+        max_search_width=3,
+    )
     assert test_within_radius[COORD_X_CENTER] == 3
     assert test_within_radius[COORD_Y_CENTER] == 2
     test_multiple_pts = get_latlon_grid_coords(
-        test_latlon_grid, 
-        lat=9, 
-        lon=9, 
-        init_search_width=2.5, 
-        search_width_increment=0.5, 
-        max_search_width=3)
+        test_latlon_grid,
+        lat=9,
+        lon=9,
+        init_search_width=2.5,
+        search_width_increment=0.5,
+        max_search_width=3,
+    )
     assert test_multiple_pts[COORD_X_CENTER] in [9, 8, 7]
     assert test_multiple_pts[COORD_Y_CENTER] in [9, 8, 7]
     with pytest.raises(ValueError):
         test_no_match = get_latlon_grid_coords(
-            test_latlon_grid, 
-            lat=13.5, 
-            lon=12.5, 
-            init_search_width=0.45, 
-            search_width_increment=0.5, 
-            max_search_width=3) 
+            test_latlon_grid,
+            lat=13.5,
+            lon=12.5,
+            init_search_width=0.45,
+            search_width_increment=0.5,
+            max_search_width=3,
+        )
         del test_no_match  # to placate linter
-        

@@ -13,12 +13,12 @@ from vcm.cubedsphere.constants import (
 from vcm.regrid import regrid_to_shared_coords
 from vcm.constants import (
     kg_m2s_to_mm_day,
-    kg_m2_to_mm, 
+    kg_m2_to_mm,
     p0,
     SPECIFIC_HEAT_CONST_PRESSURE,
     GRAVITY,
     POISSON_CONST,
-    SEC_PER_DAY
+    SEC_PER_DAY,
 )
 
 SAMPLE_DIM = "sample"
