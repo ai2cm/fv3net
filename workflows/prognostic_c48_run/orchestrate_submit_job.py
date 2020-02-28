@@ -8,7 +8,7 @@ from pathlib import Path
 import fv3config
 import fv3net.pipelines.kube_jobs as kube_jobs
 from vcm.cloud.fsspec import get_fs
-from fv3net.pipelines.common import get_unique_tag
+from fv3net.pipelines.common import get_alphanumeric_unique_tag
 
 logger = logging.getLogger(__name__)
 PWD = Path(os.path.abspath(__file__)).parent
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     parser = _create_arg_parser()
     args = parser.parse_args()
 
-    short_id = get_unique_tag(8)
+    short_id = get_alphanumeric_unique_tag(8)
     job_name = f"prognostic-run-{short_id}"
     job_label = {"orchestrator-jobs": f"prognostic-group-{short_id}"}
 

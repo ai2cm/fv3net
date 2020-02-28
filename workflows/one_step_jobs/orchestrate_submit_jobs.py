@@ -6,7 +6,7 @@ from pathlib import Path
 
 import fv3net.pipelines.kube_jobs as kube_jobs
 from fv3net.pipelines.kube_jobs import one_step
-from fv3net.pipelines.common import get_unique_tag
+from fv3net.pipelines.common import get_alphanumeric_unique_tag
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     with open(args.one_step_yaml) as file:
         one_step_config = yaml.load(file, Loader=yaml.FullLoader)
     workflow_name = Path(args.one_step_yaml).with_suffix("").name
-    short_id = get_unique_tag(8)
+    short_id = get_alphanumeric_unique_tag(8)
     job_label = {"orchestrator-jobs": f"{workflow_name}-{short_id}"}
 
     if not args.config_url:
