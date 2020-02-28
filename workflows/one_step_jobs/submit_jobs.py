@@ -46,6 +46,13 @@ def _get_arg_parser():
         action="store_true",
         help="Overwrite successful timesteps in OUTPUT_URL.",
     )
+    parser.add_argument(
+        "--init-frequency",
+        type=int,
+        required=False,
+        help="Frequency (in minutes) to initialize one-step jobs starting from"
+             " the first available timestep."
+    )
 
     return parser
 
@@ -66,6 +73,12 @@ if __name__ == "__main__":
     timestep_list = one_step.timesteps_to_process(
         args.input_url, args.output_url, args.n_steps, args.overwrite
     )
+
+    if args.init_frequency is not None:
+        timestep_list = one_step.subsample_timesteps_at_frequency(
+            timestep_list,
+            args.init_frequency
+        )
 
     one_step.submit_jobs(
         timestep_list,
