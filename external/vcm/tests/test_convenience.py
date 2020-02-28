@@ -1,10 +1,16 @@
 import numpy as np
 import xarray as xr
-from vcm.convenience import open_delayed, parse_timestep_from_path
+import pytest
+from datetime import datetime
 from dask.delayed import delayed
 from dask.array import Array
 
-import pytest
+from vcm.cubedsphere.constants import TIME_FMT
+from vcm.convenience import (
+    open_delayed,
+    parse_timestep_from_path,
+    parse_time_from_string,
+)
 
 
 @pytest.fixture()
@@ -49,3 +55,22 @@ def test_extract_timestep_from_path_with_no_timestep_in_path():
     with pytest.raises(ValueError):
         bad_path = "gs://path/to/not/a/timestep/"
         parse_timestep_from_path(bad_path)
+
+
+def test_datetime_from_string():
+
+    year = 2008
+    month = 3
+    day = 24
+    hour = 16
+    minute = 50
+    second = 41
+    time_str = f"{year:04d}{month:02d}{day:02d}.{hour:02d}{minute:02d}{second:02d}"
+
+    parsed_datetime = parse_time_from_string(time_str)
+    assert parsed_datetime.year == year
+    assert parsed_datetime.month == month
+    assert parsed_datetime.day == day
+    assert parsed_datetime.hour == hour
+    assert parsed_datetime.minute == minute
+    assert parsed_datetime.second == second

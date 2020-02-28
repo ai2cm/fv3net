@@ -6,15 +6,18 @@ import pathlib
 import intake
 import yaml
 import re
+import cftime
 import dask.array as da
 import xarray as xr
 import numpy as np
+from datetime import datetime
 from datetime import timedelta
 from collections import defaultdict
 from dask import delayed
 
 from vcm.cloud import gsutil
 from vcm.cloud.remote_data import open_gfdl_data_with_2d
+from vcm.cubedsphere.constants import TIME_FMT
 
 TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -43,8 +46,16 @@ def round_time(t):
         )
 
 
-def parse_timestep_from_path(path: str):
-    """Get the model timestep timestamp from a given path"""
+def parse_timestep_from_path(path: str) -> str:
+    """
+    Get the model timestep timestamp from a given path
+    
+    Args:
+        path: A file or directory path that includes a timestep to extract
+
+    Returns:
+        The extrancted timestep string
+    """
 
     extracted_time = re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path)
 
@@ -52,6 +63,14 @@ def parse_timestep_from_path(path: str):
         return extracted_time.group(1)
     else:
         raise ValueError(f"No matching time pattern found in path: {path}")
+
+
+def parse_time_from_string(time: str) -> cftime.DatetimeJulian:
+    """
+    Retrieve a datetime object from an FV3GFS timestamp string
+    """
+    t = datetime.strptime(time, TIME_FMT)
+    return cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)
 
 
 def get_root():

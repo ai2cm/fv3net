@@ -14,6 +14,7 @@ from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
 from vcm.convenience import open_delayed
 from vcm.cubedsphere.constants import RESTART_CATEGORIES, TIME_FMT
+from vcm import parse_timestep_from_path, 
 
 
 SCHEMA_CACHE = {}
@@ -114,11 +115,6 @@ def get_restart_times(url: str) -> Sequence[cftime.DatetimeJulian]:
     return forecast_time
 
 
-def _parse_time_string(time):
-    t = datetime.strptime(time, TIME_FMT)
-    return cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)
-
-
 def _split_url(url):
 
     try:
@@ -128,10 +124,6 @@ def _split_url(url):
         path = url
 
     return protocol, path
-
-
-def _parse_time(path):
-    return re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path).group(1)
 
 
 def _get_file_prefix(dirname, path):
