@@ -133,7 +133,7 @@ def get_alphanumeric_unique_tag(tag_length: int) -> str:
 
     if tag_length < 1:
         raise ValueError("Unique tag length should be 1 or greater.")
-    
+
     use_chars = string.ascii_lowercase + string.digits
     short_id = "".join([secrets.choice(use_chars) for i in range(tag_length)])
     return short_id

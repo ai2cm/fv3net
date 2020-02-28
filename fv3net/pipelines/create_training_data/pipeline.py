@@ -204,10 +204,12 @@ def _test_train_split(url_batches, train_frac):
     num_train_batches = int(len(url_batches) * train_frac)
     labels = {
         "train": [
-            parse_timestep_from_path(batch_urls[0]) for batch_urls in url_batches[:num_train_batches]
+            parse_timestep_from_path(batch_urls[0])
+            for batch_urls in url_batches[:num_train_batches]
         ],
         "test": [
-            parse_timestep_from_path(batch_urls[0]) for batch_urls in url_batches[num_train_batches:]
+            parse_timestep_from_path(batch_urls[0])
+            for batch_urls in url_batches[num_train_batches:]
         ],
     }
     return labels
