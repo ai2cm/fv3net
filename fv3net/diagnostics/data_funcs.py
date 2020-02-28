@@ -49,6 +49,21 @@ def merge_comparison_datasets(
 
 
 def get_latlon_grid_coords_set(grid, climate_latlon_coords):
+    """ Create a dict of {location: ds.sel dict args} out of an
+    input dict of {location: [lat, lon]}. This is useful for 
+    showing data in a fixed location.
+    
+    Args:
+        grid (xr dataset): has lat, lon as data variables
+        climate_latlon_coords (dict): has format {location: [lat, lon]}
+    
+    Returns:
+        dict: {location: ds.sel dict args}, 
+            e.g. {
+                "indonesia": {"tile": 2, "grid_xt": 3, "grid_yt": 23},
+                "vancouver": {"tile": 2, "grid_xt": 3, "grid_yt": 23},
+            }
+    """
     climate_grid_coords = {}
     for climate, latlon_coords in climate_latlon_coords.items():
         climate_grid_coords[climate] = get_latlon_grid_coords(
