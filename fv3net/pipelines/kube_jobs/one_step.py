@@ -90,6 +90,7 @@ def subsample_timesteps_at_frequency(
     Returns:
         A subsampled list of the input timesteps at the desired frequency.
     """
+    logger.info(f"Subsampling available timesteps to every {sampling_frequency} minutes.")
     current_time = parse_time_from_string(timesteps[0])
     last_time = parse_time_from_string(timesteps[-1])
     available_times = set(timesteps)
@@ -104,11 +105,14 @@ def subsample_timesteps_at_frequency(
 
         current_time = next_time
 
-    if len(subsampled_timesteps) < 2:
+    num_subsampled = len(subsampled_timesteps)
+    if num_subsampled < 2:
         raise ValueError(
             f"No available timesteps found matching desired subsampling frequency"
             f" of {sampling_frequency} minutes."
         )
+
+    logger.info(f"Number of timesteps after subsampling: {num_subsampled}")
 
     return subsampled_timesteps
 
