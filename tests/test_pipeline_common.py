@@ -2,9 +2,10 @@ import pytest
 import tempfile
 import pathlib
 import os
+import re
 from fv3net.pipelines.common import (
     list_timesteps,
-    get_unique_tag,
+    get_alphanumeric_unique_tag,
 )
 
 
@@ -42,11 +43,23 @@ def test_timestep_lister_sorted(timestep_dir):
         assert timesteps_found[i] == ref_timestep
 
 
-def test_unique_tag_length():
+def test_alphanumeric_unique_tag_length():
 
     tlen = 8
-    tag = get_unique_tag(tlen)
+    tag = get_alphanumeric_unique_tag(tlen)
     assert len(tag) == tlen
 
     with pytest.raises(ValueError):
-        get_unique_tag(0)
+        get_alphanumeric_unique_tag(0)
+
+
+def test_alphanumeric_uniq_tag_is_lowercase_alphanumeric():
+    """
+    Generate a really long tag to be reasonably certain character restrictions
+    are enforced.
+    """
+
+    tag = get_alphanumeric_unique_tag(250)
+    pattern = "^[a-z0-9]+$"
+    res = re.match(pattern, tag)
+    assert res is not None

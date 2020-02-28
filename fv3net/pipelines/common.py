@@ -1,7 +1,8 @@
 import os
 import shutil
 import tempfile
-import uuid
+import secrets
+import string
 from typing import Any, Callable, List
 from typing.io import BinaryIO
 
@@ -127,11 +128,12 @@ def list_timesteps(path: str) -> List[str]:
     return sorted(timesteps)
 
 
-def get_unique_tag(tag_length: int) -> str:
-    """Generate a unique tag"""
+def get_alphanumeric_unique_tag(tag_length: int) -> str:
+    """Generates a random alphanumeric string (a-z0-9) of a specified length"""
 
     if tag_length < 1:
         raise ValueError("Unique tag length should be 1 or greater.")
-
-    short_id = str(uuid.uuid4())
-    return short_id[:tag_length]
+    
+    use_chars = string.ascii_lowercase + string.digits
+    short_id = "".join([secrets.choice(use_chars) for i in range(tag_length)])
+    return short_id
