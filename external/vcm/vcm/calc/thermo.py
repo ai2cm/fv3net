@@ -9,12 +9,19 @@ _RVGAS = 461.5  # J / K / kg
 _LATENT_HEAT_VAPORIZATION_0_C = 2.5e6
 _SPECIFIC_ENTHALPY_LIQUID = 4185.5
 _SPECIFIC_ENTHALPY_VAP0R = 1846
+_SPECIFIC_HEAT_CONST_PRESSURE = 1004
 _FREEZING_TEMPERATURE = 273.15
+_POISSON_CONST = 0.2854
 
 _DEFAULT_SURFACE_TEMPERATURE = _FREEZING_TEMPERATURE + 15
 
 _TOA_PRESSURE = 300.0  # Pa
+_REFERENCE_SURFACE_PRESSURE = 100000  # reference pressure for potential temp [Pa]
 _REVERSE = slice(None, None, -1)
+
+
+def potential_temperature(P, T):
+    return T * (_REFERENCE_SURFACE_PRESSURE / P) ** _POISSON_CONST
 
 
 def pressure_at_interface(
@@ -207,7 +214,7 @@ def latent_heat_flux_to_evaporation(
     lhf, surface_temperature=_DEFAULT_SURFACE_TEMPERATURE
 ):
     """Compute evaporation from latent heat flux
-    
+
     Args:
         lhf: W/m2
         surface_temperature: degrees K
@@ -223,13 +230,13 @@ def net_heating_from_dataset(ds: xr.Dataset) -> xr.DataArray:
     """Compute the net heating from a dataset of diagnostic output
 
     This should be equivalent to the vertical integral (i.e. <>) of Q1::
-        
+
         cp <Q1>
 
     Args:
         ds: a datasets with the names for the heat fluxes and precipitation used
             by the ML pipeline
-    
+
     Returns:
         the total net heating, the rate of change of the dry enthalpy <c_p T>
     """

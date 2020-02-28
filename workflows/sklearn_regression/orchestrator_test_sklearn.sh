@@ -5,9 +5,9 @@ OUTPUT_PATH=$4
 NUM_TEST_ZARRS=$5
 
 
-python -m fv3net.regression.model_diagnostics \
+python -m fv3net.diagnostics.sklearn_model_performance \
   ${MODEL_PATH} \
   ${DATA_PATH}"/test" \
   ${DIAGS_PATH} \
   ${OUTPUT_PATH} \
-  --num-test-zarrs ${NUM_TEST_ZARRS}
+  ${NUM_TEST_ZARRS}
