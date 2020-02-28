@@ -3,13 +3,10 @@ import os
 import logging
 import yaml
 from pathlib import Path
-from datetime import timedelta
 
 import fv3net.pipelines.kube_jobs as kube_jobs
 from fv3net.pipelines.kube_jobs import one_step
 from fv3net.pipelines.common import get_alphanumeric_unique_tag
-from vcm.convenience import parse_time_from_string, parse_timestep_from_path
-from vcm.cubedsphere.constants import TIME_FMT
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
@@ -61,7 +58,7 @@ def _create_arg_parser():
         type=int,
         required=False,
         help="Frequency (in minutes) to initialize one-step jobs starting from"
-             " the first available timestep."
+        " the first available timestep.",
     )
 
     return parser
@@ -90,8 +87,7 @@ if __name__ == "__main__":
 
     if args.init_frequency is not None:
         timestep_list = one_step.subsample_timesteps_at_frequency(
-            timestep_list,
-            args.init_frequency
+            timestep_list, args.init_frequency
         )
 
     one_step_config["kubernetes"]["docker_image"] = args.docker_image

@@ -75,8 +75,7 @@ def _delete_logs_of_done_timesteps(output_url: str, timesteps: List[str]):
 
 
 def subsample_timesteps_at_frequency(
-    timesteps: List[str],
-    sampling_frequency: int,
+    timesteps: List[str], sampling_frequency: int,
 ) -> List[str]:
     """
     Subsample a list of timesteps at the specified frequency (in minutes). Raises
@@ -102,7 +101,7 @@ def subsample_timesteps_at_frequency(
         next_time_str = next_time.strftime(TIME_FMT)
         if next_time_str in available_times:
             subsampled_timesteps.append(next_time_str)
-        
+
         current_time = next_time
 
     if len(subsampled_timesteps) < 2:

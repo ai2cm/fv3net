@@ -36,16 +36,13 @@ def test_runs_complete_no_logfile(run_dir):
 
 @pytest.mark.parametrize(
     "logfile, expected",
-    [
-        ("stdout_unfinished.log", set()),
-        ("stdout_finished.log", set([TIMESTEP]))
-    ]
+    [("stdout_unfinished.log", set()), ("stdout_finished.log", set([TIMESTEP]))],
 )
 def test_runs_complete_with_logfile(run_dir, timestep_dir, logfile, expected):
 
     shutil.copy(
         os.path.join(TEST_DATA_DIR, logfile),
-        os.path.join(timestep_dir, one_step.STDOUT_FILENAME)
+        os.path.join(timestep_dir, one_step.STDOUT_FILENAME),
     )
 
     complete_timesteps = one_step.check_runs_complete(run_dir)
@@ -67,7 +64,7 @@ def test_subsample_timesteps_at_frequency():
     with pytest.raises(ValueError):
         # frequency larger than available times
         one_step.subsample_timesteps_at_frequency(timesteps, 60)
-    
+
     with pytest.raises(ValueError):
         # frequency not aligned
         one_step.subsample_timesteps_at_frequency(timesteps, 7)

@@ -51,7 +51,7 @@ def _get_arg_parser():
         type=int,
         required=False,
         help="Frequency (in minutes) to initialize one-step jobs starting from"
-             " the first available timestep."
+        " the first available timestep.",
     )
 
     return parser
@@ -76,8 +76,7 @@ if __name__ == "__main__":
 
     if args.init_frequency is not None:
         timestep_list = one_step.subsample_timesteps_at_frequency(
-            timestep_list,
-            args.init_frequency
+            timestep_list, args.init_frequency
         )
 
     one_step.submit_jobs(
