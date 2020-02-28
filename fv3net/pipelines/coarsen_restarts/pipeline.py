@@ -6,9 +6,9 @@ import gcsfs
 from pathlib import Path
 from apache_beam.options.pipeline_options import PipelineOptions
 
+from fv3net.pipelines.common import list_timesteps
 import vcm
 from vcm.cloud import gcs
-from ..common import list_timesteps
 from vcm import parse_timestep_from_path
 
 logger = logging.getLogger("CoarsenPipeline")
