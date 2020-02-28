@@ -51,9 +51,7 @@ def timesteps_to_process(
     rundirs_url = os.path.join(output_url)
     to_do = list_timesteps(input_url)
     if subsample_frequency is not None:
-        to_do = subsample_timesteps_at_frequency(
-            to_do, subsample_frequency
-        )
+        to_do = subsample_timesteps_at_frequency(to_do, subsample_frequency)
     done = check_runs_complete(rundirs_url)
     if overwrite:
         _delete_logs_of_done_timesteps(output_url, done)
@@ -100,7 +98,9 @@ def subsample_timesteps_at_frequency(
     Returns:
         A subsampled list of the input timesteps at the desired frequency.
     """
-    logger.info(f"Subsampling available timesteps to every {sampling_frequency} minutes.")
+    logger.info(
+        f"Subsampling available timesteps to every {sampling_frequency} minutes."
+    )
     current_time = parse_time_from_string(timesteps[0])
     last_time = parse_time_from_string(timesteps[-1])
     available_times = set(timesteps)

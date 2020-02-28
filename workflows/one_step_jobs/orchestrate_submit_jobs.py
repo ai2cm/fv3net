@@ -86,7 +86,7 @@ if __name__ == "__main__":
         args.output_url,
         args.n_steps,
         args.overwrite,
-        subsample_frequency=args.init_frequency
+        subsample_frequency=args.init_frequency,
     )
 
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
