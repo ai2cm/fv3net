@@ -1,6 +1,5 @@
 from .combining import combine_array_sequence
 
-# from .convenience import open_dataset
 from .cubedsphere import (
     block_coarsen,
     block_edge_sum,
@@ -12,7 +11,11 @@ from .cubedsphere import (
 )
 from .extract import extract_tarball_to_path
 from .fv3_restarts import open_restarts
-from .convenience import TOP_LEVEL_DIR, parse_timestep_from_path
+from .convenience import (
+    TOP_LEVEL_DIR,
+    parse_timestep_str_from_path,
+    parse_datetime_from_str,
+)
 from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .visualize import plot_cube, mappable_var, plot_cube_axes
 
@@ -29,10 +32,11 @@ __all__ = [
     "xarray_block_reduce",
     "horizontal_block_reduce",
     "TOP_LEVEL_DIR",
-    "parse_timestep_from_path",
     "coarsen_restarts_on_pressure",
     "coarsen_restarts_on_sigma",
     "plot_cube",
     "mappable_var",
     "plot_cube_axes",
+    "parse_timestep_str_from_path",
+    "parse_datetime_from_str",
 ]

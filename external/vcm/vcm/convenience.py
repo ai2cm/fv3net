@@ -1,21 +1,23 @@
-from datetime import timedelta
 import logging
 import os
 import subprocess
 import tempfile
-from collections import defaultdict
 import pathlib
-
-import numpy as np
-import dask.array as da
 import intake
-import xarray as xr
 import yaml
 import re
+import cftime
+import dask.array as da
+import xarray as xr
+import numpy as np
+from datetime import datetime
+from datetime import timedelta
+from collections import defaultdict
 from dask import delayed
 
 from vcm.cloud import gsutil
 from vcm.cloud.remote_data import open_gfdl_data_with_2d
+from vcm.cubedsphere.constants import TIME_FMT
 
 TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -44,6 +46,33 @@ def round_time(t):
         )
 
 
+def parse_timestep_str_from_path(path: str) -> str:
+    """
+    Get the model timestep timestamp from a given path
+    
+    Args:
+        path: A file or directory path that includes a timestep to extract
+
+    Returns:
+        The extrancted timestep string
+    """
+
+    extracted_time = re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path)
+
+    if extracted_time is not None:
+        return extracted_time.group(1)
+    else:
+        raise ValueError(f"No matching time pattern found in path: {path}")
+
+
+def parse_datetime_from_str(time: str) -> cftime.DatetimeJulian:
+    """
+    Retrieve a datetime object from an FV3GFS timestamp string
+    """
+    t = datetime.strptime(time, TIME_FMT)
+    return cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)
+
+
 def get_root():
     """Returns the absolute path to the root directory for any machine"""
     return str(TOP_LEVEL_DIR)
@@ -55,17 +84,6 @@ def get_shortened_dataset_tags():
         pathlib.Path(TOP_LEVEL_DIR, "configurations") / "short_datatag_defs.yml"
     )
     return yaml.load(short_dset_yaml.open(), Loader=yaml.SafeLoader)
-
-
-def parse_timestep_from_path(path: str):
-    """Get the model timestep timestamp from a given path"""
-
-    extracted_time = re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path)
-
-    if extracted_time is not None:
-        return extracted_time.group(1)
-    else:
-        raise ValueError(f"No matching time pattern found in path: {path}")
 
 
 root = get_root()
