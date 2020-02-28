@@ -130,7 +130,7 @@ def _get_all_step_arguments(workflow_steps: List[str], config: Mapping):
         output_location = curr_config["output_location"]
         command = curr_config["command"]
         extra_args = _generate_args(curr_config)
-        
+
         input_args = " ".join(all_input_locations)
         step_args = " ".join([command, input_args, output_location, extra_args])
         all_step_arguments[step] = step_args
@@ -151,11 +151,11 @@ def _generate_output_path_from_config(
             if i >= max_config_stubs:
                 break
             val = str(val)
-            
+
             # get last part of path so string isn't so long
             if "/" in val:
                 val = val.split("/")[-1]
-            
+
             key = key.strip("--")  # remove prefix of optional argument
             key_val = f"{key}_{val}"
             arg_strs.append(key_val)
