@@ -71,13 +71,12 @@ if __name__ == "__main__":
     config_url = os.path.join(args.output_url, CONFIG_DIRECTORY_NAME)
 
     timestep_list = one_step.timesteps_to_process(
-        args.input_url, args.output_url, args.n_steps, args.overwrite
+        args.input_url,
+        args.output_url,
+        args.n_steps,
+        args.overwrite,
+        subsample_frequency=args.init_frequency,
     )
-
-    if args.init_frequency is not None:
-        timestep_list = one_step.subsample_timesteps_at_frequency(
-            timestep_list, args.init_frequency
-        )
 
     one_step.submit_jobs(
         timestep_list,

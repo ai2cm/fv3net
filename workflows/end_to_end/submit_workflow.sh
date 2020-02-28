@@ -13,7 +13,11 @@ NAME=$(echo ${ALL} | jq -r .name)
 WORKFLOW=$(echo ${ALL} | jq -r .workflow)
 ALL_CMD_AND_ARGS=$(echo ${ALL} | jq -r .command_and_args)
 
-LOGFILE=${NAME}".log"
+LOGDIR="./logs"
+if [ ! -d $LOGDIR ]; then
+  mkdir $LOGDIR
+fi
+LOGFILE="$LOGDIR/${NAME}.log"
 exec > >(tee ${LOGFILE}) 2>&1
 
 # run the workflow
