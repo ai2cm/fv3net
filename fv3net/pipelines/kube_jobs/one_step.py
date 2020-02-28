@@ -4,6 +4,7 @@ import fsspec
 import uuid
 import yaml
 import re
+from datetime import timedelta
 from copy import deepcopy
 from multiprocessing import Pool
 from typing import List, Tuple
@@ -12,6 +13,8 @@ import fv3config
 from fv3net.pipelines.kube_jobs import utils
 from fv3net.pipelines.common import list_timesteps
 from vcm.cloud.fsspec import get_fs
+from vcm.cubedsphere.constants import TIME_FMT
+from vcm.convenience import parse_time_from_string
 
 STDOUT_FILENAME = "stdout.log"
 VERTICAL_GRID_FILENAME = "fv_core.res.nc"
@@ -69,6 +72,46 @@ def _delete_logs_of_done_timesteps(output_url: str, timesteps: List[str]):
     for timestep in timesteps:
         rundir_url = os.path.join(output_url, timestep)
         fs.rm(os.path.join(rundir_url, STDOUT_FILENAME))
+
+
+def subsample_timesteps_at_frequency(
+    timesteps: List[str],
+    sampling_frequency: int,
+) -> List[str]:
+    """
+    Subsample a list of timesteps at the specified frequency (in minutes). Raises
+    a ValueError if requested frequency of output does not align with available
+    timesteps.
+
+    Args:
+        timesteps: A list of all available timestep strings.  Assumed to
+            be in the format described by vcm.cubedsphere.constants.TIME_FMT
+        sampling_frequency: The frequency to subsample the list in minutes
+    
+    Returns:
+        A subsampled list of the input timesteps at the desired frequency.
+    """
+    current_time = parse_time_from_string(timesteps[0])
+    last_time = parse_time_from_string(timesteps[-1])
+    available_times = set(timesteps)
+    delta = timedelta(minutes=sampling_frequency)
+
+    subsampled_timesteps = [timesteps[0]]
+    while current_time < last_time:
+        next_time = current_time + delta
+        next_time_str = next_time.strftime(TIME_FMT)
+        if next_time_str in available_times:
+            subsampled_timesteps.append(next_time_str)
+        
+        current_time = next_time
+
+    if len(subsampled_timesteps) < 2:
+        raise ValueError(
+            f"No available timesteps found matching desired subsampling frequency"
+            f" of {sampling_frequency} minutes."
+        )
+
+    return subsampled_timesteps
 
 
 # Run Completion Checks
