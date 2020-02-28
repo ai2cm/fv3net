@@ -61,7 +61,7 @@ def timesteps_to_process(
     timestep_list = sorted(list(set(to_do) - set(done)))[:n_steps]
 
     logger.info(f"Number of input times: {len(to_do)}")
-    logger.info(f"Number of completed times: {len(done)}")
+    logger.info(f"Number of completed times: {min(len(done), len(to_do))}")
     logger.info(f"Number of times to process: {len(timestep_list)}")
     return timestep_list
 
