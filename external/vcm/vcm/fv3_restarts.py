@@ -12,7 +12,7 @@ import f90nml
 
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
-from vcm.convenience import open_delayed, parse_timestep_from_path
+from vcm.convenience import open_delayed, parse_timestep_str_from_path
 from vcm.cubedsphere.constants import RESTART_CATEGORIES
 
 
@@ -130,7 +130,7 @@ def _get_file_prefix(dirname, path):
         return "INPUT/"
     elif dirname.endswith("RESTART"):
         try:
-            return os.path.join("RESTART", parse_timestep_from_path(path))
+            return os.path.join("RESTART", parse_timestep_str_from_path(path))
         except ValueError:
             return "RESTART/"
 

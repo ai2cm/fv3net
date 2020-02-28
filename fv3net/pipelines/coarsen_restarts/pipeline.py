@@ -9,7 +9,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from fv3net.pipelines.common import list_timesteps
 import vcm
 from vcm.cloud import gcs
-from vcm import parse_timestep_from_path
+from vcm import parse_timestep_str_from_path
 
 logger = logging.getLogger("CoarsenPipeline")
 logger.setLevel(logging.DEBUG)
@@ -19,7 +19,7 @@ NUM_FILES_IN_COARSENED_DIR = 24
 
 def check_coarsen_incomplete(gcs_url, output_prefix):
 
-    timestep = parse_timestep_from_path(gcs_url)
+    timestep = parse_timestep_str_from_path(gcs_url)
     output_timestep_dir = os.path.join(output_prefix, timestep)
 
     fs = gcsfs.GCSFileSystem()
@@ -76,7 +76,7 @@ def coarsen_timestep(
     timestep_gcs_url: str, output_dir: str, coarsen_factor: int, gridspec_path: str
 ):
 
-    curr_timestep = parse_timestep_from_path(timestep_gcs_url)
+    curr_timestep = parse_timestep_str_from_path(timestep_gcs_url)
     logger.info(f"Coarsening timestep: {curr_timestep}")
 
     with tempfile.TemporaryDirectory() as tmpdir:
