@@ -59,18 +59,13 @@ def test_extract_timestep_from_path_with_no_timestep_in_path():
 
 def test_datetime_from_string():
 
-    year = 2008
-    month = 3
-    day = 24
-    hour = 16
-    minute = 50
-    second = 41
-    time_str = f"{year:04d}{month:02d}{day:02d}.{hour:02d}{minute:02d}{second:02d}"
-
+    current_time = datetime.now()
+    time_str = current_time.strftime(TIME_FMT)
     parsed_datetime = parse_time_from_string(time_str)
-    assert parsed_datetime.year == year
-    assert parsed_datetime.month == month
-    assert parsed_datetime.day == day
-    assert parsed_datetime.hour == hour
-    assert parsed_datetime.minute == minute
-    assert parsed_datetime.second == second
+
+    assert parsed_datetime.year == current_time.year
+    assert parsed_datetime.month == current_time.month
+    assert parsed_datetime.day == current_time.day
+    assert parsed_datetime.hour == current_time.hour
+    assert parsed_datetime.minute == current_time.minute
+    assert parsed_datetime.second == current_time.second
