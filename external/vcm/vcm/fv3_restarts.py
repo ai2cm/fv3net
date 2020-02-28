@@ -131,7 +131,7 @@ def _get_file_prefix(dirname, path):
     elif dirname.endswith("RESTART"):
         try:
             return os.path.join("RESTART", parse_timestep_from_path(path))
-        except AttributeError:
+        except ValueError:
             return "RESTART/"
 
 
