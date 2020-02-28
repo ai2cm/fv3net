@@ -46,7 +46,7 @@ def round_time(t):
         )
 
 
-def parse_timestep_from_path(path: str) -> str:
+def parse_timestep_str_from_path(path: str) -> str:
     """
     Get the model timestep timestamp from a given path
     
@@ -65,7 +65,7 @@ def parse_timestep_from_path(path: str) -> str:
         raise ValueError(f"No matching time pattern found in path: {path}")
 
 
-def parse_time_from_string(time: str) -> cftime.DatetimeJulian:
+def parse_datetime_from_str(time: str) -> cftime.DatetimeJulian:
     """
     Retrieve a datetime object from an FV3GFS timestamp string
     """

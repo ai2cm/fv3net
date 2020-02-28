@@ -23,7 +23,7 @@ from vcm.fv3_restarts import (
     open_restarts_with_time_coordinates,
     _split_url,
 )
-from vcm import parse_timestep_from_path, parse_time_from_string
+from vcm import parse_timestep_str_from_path, parse_datetime_from_str
 from vcm.select import mask_to_surface_type
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 
@@ -204,11 +204,11 @@ def _test_train_split(url_batches, train_frac):
     num_train_batches = int(len(url_batches) * train_frac)
     labels = {
         "train": [
-            parse_timestep_from_path(batch_urls[0])
+            parse_timestep_str_from_path(batch_urls[0])
             for batch_urls in url_batches[:num_train_batches]
         ],
         "test": [
-            parse_timestep_from_path(batch_urls[0])
+            parse_timestep_str_from_path(batch_urls[0])
             for batch_urls in url_batches[num_train_batches:]
         ],
     }
@@ -233,12 +233,12 @@ def _open_cloud_data(run_dirs):
         )
         ds_runs = []
         for run_dir in run_dirs:
-            t_init = parse_timestep_from_path(run_dir)
+            t_init = parse_timestep_str_from_path(run_dir)
             ds_run = (
                 open_restarts_with_time_coordinates(run_dir)[RESTART_VARS]
                 .rename({"time": FORECAST_TIME_DIM})
                 .isel({FORECAST_TIME_DIM: slice(-2, None)})
-                .expand_dims(dim={INIT_TIME_DIM: [parse_time_from_string(t_init)]})
+                .expand_dims(dim={INIT_TIME_DIM: [parse_datetime_from_str(t_init)]})
             )
 
             ds_run = helpers._set_relative_forecast_time_coord(ds_run)
@@ -331,7 +331,7 @@ def _write_remote_train_zarr(
 
 def _filter_timestep(path):
     try:
-        parse_timestep_from_path(path)
+        parse_timestep_str_from_path(path)
         return True
     except ValueError:
         return False

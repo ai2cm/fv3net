@@ -11,7 +11,7 @@ import xarray as xr
 from apache_beam.io import filesystems
 
 from vcm.cloud.fsspec import get_fs
-from vcm import parse_timestep_from_path
+from vcm import parse_timestep_str_from_path
 
 
 class CombineSubtilesByKey(beam.PTransform):
@@ -120,7 +120,7 @@ def list_timesteps(path: str) -> List[str]:
     timesteps = []
     for current_file in file_list:
         try:
-            timestep = parse_timestep_from_path(current_file)
+            timestep = parse_timestep_str_from_path(current_file)
             timesteps.append(timestep)
         except ValueError:
             # not a timestep directory
