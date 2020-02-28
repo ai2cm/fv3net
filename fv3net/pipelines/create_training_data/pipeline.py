@@ -21,11 +21,9 @@ from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
 from vcm.fv3_restarts import (
     open_restarts_with_time_coordinates,
-    _parse_time,
-    _parse_time_string,
     _split_url,
 )
-from vcm import parse_timestep_from_path
+from vcm import parse_timestep_from_path, parse_time_from_string
 from vcm.select import mask_to_surface_type
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 
@@ -206,10 +204,10 @@ def _test_train_split(url_batches, train_frac):
     num_train_batches = int(len(url_batches) * train_frac)
     labels = {
         "train": [
-            _parse_time(batch_urls[0]) for batch_urls in url_batches[:num_train_batches]
+            parse_timestep_from_path(batch_urls[0]) for batch_urls in url_batches[:num_train_batches]
         ],
         "test": [
-            _parse_time(batch_urls[0]) for batch_urls in url_batches[num_train_batches:]
+            parse_timestep_from_path(batch_urls[0]) for batch_urls in url_batches[num_train_batches:]
         ],
     }
     return labels
@@ -233,12 +231,12 @@ def _open_cloud_data(run_dirs):
         )
         ds_runs = []
         for run_dir in run_dirs:
-            t_init = _parse_time(run_dir)
+            t_init = parse_timestep_from_path(run_dir)
             ds_run = (
                 open_restarts_with_time_coordinates(run_dir)[RESTART_VARS]
                 .rename({"time": FORECAST_TIME_DIM})
                 .isel({FORECAST_TIME_DIM: slice(-2, None)})
-                .expand_dims(dim={INIT_TIME_DIM: [_parse_time_string(t_init)]})
+                .expand_dims(dim={INIT_TIME_DIM: [parse_time_from_string(t_init)]})
             )
 
             ds_run = helpers._set_relative_forecast_time_coord(ds_run)
