@@ -12,9 +12,8 @@ import f90nml
 
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
-from vcm.convenience import open_delayed
+from vcm.convenience import open_delayed, parse_timestep_from_path
 from vcm.cubedsphere.constants import RESTART_CATEGORIES
-from vcm import parse_timestep_from_path
 
 
 SCHEMA_CACHE = {}
