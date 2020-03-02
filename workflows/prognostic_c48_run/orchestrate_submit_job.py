@@ -103,7 +103,7 @@ if __name__ == "__main__":
     kube_opts = KUBERNETES_DEFAULT.copy()
     if "kubernetes" in model_config:
         user_kube_config = model_config.pop("kubernetes")
-        kube_opts.update(user_kube_config)    
+        kube_opts.update(user_kube_config)
 
     job_config_filename = "fv3config.yml"
     config_dir = os.path.join(args.output_url, "job_config")
