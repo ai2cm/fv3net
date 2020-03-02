@@ -32,6 +32,8 @@ class ModelTrainingConfig:
     input_variables: List[str]
     output_variables: List[str]
     gcs_project: str = "vcm-ml"
+    random_seed: int = 1234
+    mask_to_surface_type: str = "none"
 
 
 def load_model_training_config(config_path, gcs_data_dir):
@@ -68,6 +70,8 @@ def load_data_generator(train_config):
         train_config.gcs_data_dir,
         train_config.files_per_batch,
         train_config.num_batches,
+        random_seed=train_config.random_seed,
+        mask_to_surface_type=train_config.mask_to_surface_type,
     )
     return ds_batches
 

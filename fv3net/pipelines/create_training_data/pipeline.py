@@ -19,12 +19,8 @@ from vcm.cubedsphere.constants import (
 )
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
-from vcm.fv3_restarts import (
-    open_restarts_with_time_coordinates,
-    _split_url,
-)
+from vcm.fv3_restarts import open_restarts_with_time_coordinates, _split_url
 from vcm import parse_timestep_str_from_path, parse_datetime_from_str
-from vcm.select import mask_to_surface_type
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 
 logger = logging.getLogger()
@@ -90,10 +86,6 @@ def run(args, pipeline_args):
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
             | "MergeHiresDiagVars"
             >> beam.Map(_merge_hires_data, diag_c48_path=args.diag_c48_path)
-            | "MaskToSurfaceType"
-            >> beam.Map(
-                _try_mask_to_surface_type, surface_type=args.mask_to_surface_type
-            )
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
@@ -188,7 +180,7 @@ def _get_url_batches(gcs_urls, timesteps_per_output_file):
 
 
 def _test_train_split(url_batches, train_frac):
-    """ Randomly assigns train/test set labels to each batch
+    """ Assigns train/test set labels to each batch, split by init timestamp
 
     Args:
         url_batches: nested list where inner lists are groupings of input urls,
@@ -296,16 +288,8 @@ def _merge_hires_data(ds_run, diag_c48_path):
         logger.error(f"Failed to merge in features from high res diagnostics: {e}")
 
 
-def _try_mask_to_surface_type(ds, surface_type):
-    surface_type = None if surface_type == "None" else surface_type
-    try:
-        return mask_to_surface_type(ds, surface_type)
-    except (AttributeError, ValueError, TypeError) as e:
-        logger.error(f"Failed masking to surface type: {e}")
-
-
 def _write_remote_train_zarr(
-    ds, gcs_output_dir, zarr_name=None, train_test_labels=None,
+    ds, gcs_output_dir, zarr_name=None, train_test_labels=None
 ):
     """Writes temporary zarr on worker and moves it to GCS
 
