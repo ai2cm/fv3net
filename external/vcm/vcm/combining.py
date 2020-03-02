@@ -12,17 +12,20 @@ def _collect_variables(datasets):
     return variables
 
 
+def move_dims_to_front(ds, labels):
+    output = {}
+    for key in ds:
+        new_dims = tuple(labels) + tuple(dim for dim in ds[key].dims if dim not in labels)
+        output[key] = ds[key].transpose(*new_dims)
+    return xr.Dataset(output)
 
-def _datasets_dims(ds):
-    return ds.dims
 
 def _combine_arrays(arrays: Mapping[Tuple, xr.Dataset], labels):
     idx = pd.MultiIndex.from_tuples(arrays.keys(), names=labels)
     idx.name = 'concat_dim'
     concat = xr.concat(arrays.values(), dim=idx)
-    old_dims = concat.isel({idx.name: 0}).dims
-    new_dims = tuple(labels) + tuple(old_dims)
-    return concat.unstack(idx.name).transpose(*new_dims)
+    unstacked = concat.unstack(idx.name)
+    return move_dims_to_front(unstacked, labels)
 
 
 def _merge_datasets_with_key(datasets):

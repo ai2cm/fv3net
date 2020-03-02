@@ -39,10 +39,15 @@ def open_restarts(url: str) -> xr.Dataset:
     """
     restart_files = _restart_files_at_url(url)
     arrays = _load_datasets(restart_files)
-    return xr.merge(
-        standardize_metadata(combining.combine_dataset_sequence(arrays[key], labels=["file_prefix", "tile"]))
+    combined = [
+        standardize_metadata(
+            combining.combine_dataset_sequence(
+                arrays[key], labels=["file_prefix", "tile"]
+            )
+        )
         for key in arrays
-    )
+    ]
+    return xr.merge(combined)
 
 
 def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
@@ -217,7 +222,7 @@ def _open_restarts_recursive(url: str) -> Mapping:
 
 def open_restarts_recursive(url):
     cats = _open_restarts_recursive(url)
-    return {key: xr.concat(cats[key], dim='url') for key in cats}
+    return {key: xr.concat(cats[key], dim="url") for key in cats}
 
 
 def _load_restart(protocol, path):
@@ -242,9 +247,7 @@ def _load_restart_lazily(protocol, path, restart_category):
     return _load_restart_with_schema(protocol, path, schema)
 
 
-def _load_datasets(
-    restart_files,
-):
+def _load_datasets(restart_files,):
     # use the same schema for all coupler_res
     output = defaultdict(lambda: defaultdict(list))
     for (file_prefix, restart_category, tile, protocol, path) in restart_files:
