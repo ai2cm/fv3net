@@ -38,8 +38,11 @@ def open_restarts(url: str) -> xr.Dataset:
 
     """
     restart_files = _restart_files_at_url(url)
-    datasets = _load_datasets(restart_files)
-    return combining.combine_dataset_sequence(datasets, labels=["file_prefix", "tile"])
+    arrays = _load_datasets(restart_files)
+    return xr.merge(
+        standardize_metadata(combining.combine_dataset_sequence(arrays[key], labels=["file_prefix", "tile"]))
+        for key in arrays
+    )
 
 
 def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
@@ -135,13 +138,10 @@ def _parse_time(path):
 
 
 def _get_file_prefix(dirname, path):
-    if dirname.endswith("INPUT"):
-        return "INPUT/"
-    elif dirname.endswith("RESTART"):
-        try:
-            return os.path.join("RESTART", _parse_time(path))
-        except AttributeError:
-            return "RESTART/"
+    try:
+        return os.path.join(dirname, _parse_time(path))
+    except AttributeError:
+        return dirname
 
 
 def _sort_file_prefixes(ds):
@@ -244,13 +244,13 @@ def _load_restart_lazily(protocol, path, restart_category):
 
 def _load_datasets(
     restart_files,
-) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
+):
     # use the same schema for all coupler_res
+    output = defaultdict(lambda: defaultdict(list))
     for (file_prefix, restart_category, tile, protocol, path) in restart_files:
         ds = _load_restart_lazily(protocol, path, restart_category)
-        ds_standard_metadata = standardize_metadata(ds)
-        #         time_obj = _parse_time_string(time)
-        yield (file_prefix, tile), ds_standard_metadata
+        output[restart_category][(file_prefix, tile)] = ds
+    return output
 
 
 def _get_namelist_path(url):

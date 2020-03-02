@@ -8,12 +8,12 @@ def test_combine_dataset_sequence():
         'b': ([], 0.0),
     })
 
-    arrays = [
+    arrays = dict([
         (("a", 1), ds),
         (("b", 1), ds),
         (("a", 2), ds),
         (("b", 2), ds),
-    ]
+    ])
 
     ds = combine_dataset_sequence(arrays, ["letter", "number"])
 

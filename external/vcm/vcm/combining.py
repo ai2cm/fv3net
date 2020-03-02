@@ -36,10 +36,9 @@ def _merge_datasets_with_key(datasets):
 
 
 def combine_dataset_sequence(
-    datasets: Iterable[Tuple[Tuple, xr.Dataset]],
+    datasets: Mapping[Tuple, xr.Dataset],
     labels: Sequence[Any]
 ) -> xr.Dataset:
-    datasets = _merge_datasets_with_key(datasets)
     return _combine_arrays(datasets, labels)
 
 
