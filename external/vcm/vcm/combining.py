@@ -1,29 +1,46 @@
-from typing import Any, Iterable, Sequence, Tuple
+from typing import Any, Iterable, Sequence, Tuple, Mapping
 from collections import defaultdict
 import pandas as pd
 
 import xarray as xr
 
 
-def _reduce_one_key_at_time(seqs, dims):
-    """Turn flat dictionary into nested lists by keys"""
-    # first groupby last element of key tuple
-    if len(dims) == 0:
-        return seqs
-    else:
-        # groupby everything but final key
-        output = defaultdict(list)
-        labels = defaultdict(list)
-        for key, array in seqs.items():
-            output[key[:-1]].append(array)
-            labels[key[:-1]].append(key[-1])
+def _collect_variables(datasets):
+    variables = defaultdict(dict)
+    for name, dims, array in datasets:
+        variables[name][dims] = array
+    return variables
 
-        # concat the output
-        out2 = {}
-        for key in output:
-            out2[key] = xr.concat(output[key], dim=pd.Index(labels[key], name=dims[-1]))
 
-        return _reduce_one_key_at_time(out2, dims[:-1])
+
+def _datasets_dims(ds):
+    return ds.dims
+
+def _combine_arrays(arrays: Mapping[Tuple, xr.Dataset], labels):
+    idx = pd.MultiIndex.from_tuples(arrays.keys(), names=labels)
+    idx.name = 'concat_dim'
+    concat = xr.concat(arrays.values(), dim=idx)
+    old_dims = concat.isel({idx.name: 0}).dims
+    new_dims = tuple(labels) + tuple(old_dims)
+    return concat.unstack(idx.name).transpose(*new_dims)
+
+
+def _merge_datasets_with_key(datasets):
+    output = defaultdict(list)
+    for dims, datasets in datasets:
+        output[dims].append(datasets)
+    
+    for key in output:
+        output[key] = xr.merge(output[key])
+    return output
+
+
+def combine_dataset_sequence(
+    datasets: Iterable[Tuple[Tuple, xr.Dataset]],
+    labels: Sequence[Any]
+) -> xr.Dataset:
+    datasets = _merge_datasets_with_key(datasets)
+    return _combine_arrays(datasets, labels)
 
 
 def combine_array_sequence(
@@ -76,6 +93,9 @@ def combine_array_sequence(
         Data variables:
             a        (letter, number, x) float64 0.0 0.0 0.0 0.0
     """
-    datasets_dict = {(name,) + dims: array for name, dims, array in datasets}
-    output = _reduce_one_key_at_time(datasets_dict, labels)
-    return xr.Dataset({key[0]: val for key, val in output.items()})
+    variables = _collect_variables(datasets)
+    return xr.Dataset({
+        key: _combine_arrays(variables[key], labels)
+        for key in variables
+
+    })

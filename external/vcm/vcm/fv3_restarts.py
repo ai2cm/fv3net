@@ -12,7 +12,7 @@ from dask.delayed import delayed
 import f90nml
 
 from vcm.schema_registry import impose_dataset_to_schema
-from vcm.combining import combine_array_sequence
+from vcm import combining
 from vcm.convenience import open_delayed
 from vcm.cubedsphere.constants import RESTART_CATEGORIES, TIME_FMT
 
@@ -38,8 +38,8 @@ def open_restarts(url: str) -> xr.Dataset:
 
     """
     restart_files = _restart_files_at_url(url)
-    arrays = _load_arrays(restart_files)
-    return combine_array_sequence(arrays, labels=["file_prefix", "tile"])
+    datasets = _load_datasets(restart_files)
+    return combining.combine_dataset_sequence(datasets, labels=["file_prefix", "tile"])
 
 
 def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
@@ -242,7 +242,7 @@ def _load_restart_lazily(protocol, path, restart_category):
     return _load_restart_with_schema(protocol, path, schema)
 
 
-def _load_arrays(
+def _load_datasets(
     restart_files,
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
     # use the same schema for all coupler_res
@@ -250,8 +250,7 @@ def _load_arrays(
         ds = _load_restart_lazily(protocol, path, restart_category)
         ds_standard_metadata = standardize_metadata(ds)
         #         time_obj = _parse_time_string(time)
-        for var in ds_standard_metadata:
-            yield var, (file_prefix, tile), ds_standard_metadata[var]
+        yield (file_prefix, tile), ds_standard_metadata
 
 
 def _get_namelist_path(url):
