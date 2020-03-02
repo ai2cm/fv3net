@@ -14,7 +14,7 @@ from fv3net.pipelines.kube_jobs import utils
 from fv3net.pipelines.common import list_timesteps
 from vcm.cloud.fsspec import get_fs
 from vcm.cubedsphere.constants import TIME_FMT
-from vcm.convenience import parse_time_from_string
+from vcm.convenience import parse_datetime_from_str
 
 STDOUT_FILENAME = "stdout.log"
 VERTICAL_GRID_FILENAME = "fv_core.res.nc"
@@ -101,8 +101,8 @@ def subsample_timesteps_at_frequency(
     logger.info(
         f"Subsampling available timesteps to every {sampling_frequency} minutes."
     )
-    current_time = parse_time_from_string(timesteps[0])
-    last_time = parse_time_from_string(timesteps[-1])
+    current_time = parse_datetime_from_str(timesteps[0])
+    last_time = parse_datetime_from_str(timesteps[-1])
     available_times = set(timesteps)
     delta = timedelta(minutes=sampling_frequency)
 
