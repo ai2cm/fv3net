@@ -39,9 +39,7 @@ def open_restarts(url: str) -> xr.Dataset:
     """
     restart_files = _restart_files_at_url(url)
     arrays = _load_arrays(restart_files)
-    return _sort_file_prefixes(
-        xr.Dataset(combine_array_sequence(arrays, labels=["file_prefix", "tile"])), url
-    )
+    return combine_array_sequence(arrays, labels=["file_prefix", "tile"])
 
 
 def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
@@ -63,6 +61,7 @@ def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
             other files.
     """
     ds = open_restarts(url)
+    ds = _sort_file_prefixes(ds)
     try:
         times = get_restart_times(url)
     except (ValueError, TypeError) as e:
@@ -145,34 +144,18 @@ def _get_file_prefix(dirname, path):
             return "RESTART/"
 
 
-def _sort_file_prefixes(ds, url):
+def _sort_file_prefixes(ds):
+    index = _argsort_file_prefixes(ds.file_prefix)
+    return ds.sel(file_prefix=index)
 
-    if "INPUT/" not in ds.file_prefix:
-        raise ValueError(
-            "Open restarts did not find the input set "
-            f"of restart files for run directory {url}."
-        )
-    if "RESTART/" not in ds.file_prefix:
-        raise ValueError(
-            "Open restarts did not find the final set "
-            f"of restart files for run directory {url}."
-        )
 
-    intermediate_prefixes = sorted(
+def _argsort_file_prefixes(prefixes):
+    return sorted(
         [
             prefix.item()
-            for prefix in ds.file_prefix
+            for prefix in prefixes
             if prefix.item() not in ["INPUT/", "RESTART/"]
         ]
-    )
-
-    return xr.concat(
-        [
-            ds.sel(file_prefix="INPUT/"),
-            ds.sel(file_prefix=intermediate_prefixes),
-            ds.sel(file_prefix="RESTART/"),
-        ],
-        dim="file_prefix",
     )
 
 
@@ -234,7 +217,7 @@ def _open_restarts_recursive(url: str) -> Mapping:
 
 def open_restarts_recursive(url):
     cats = _open_restarts_recursive(url)
-    return {key: xr.concat(cats[key], dim='url')}
+    return {key: xr.concat(cats[key], dim='url') for key in cats}
 
 
 def _load_restart(protocol, path):
