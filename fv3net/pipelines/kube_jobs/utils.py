@@ -138,7 +138,9 @@ def wait_for_complete(
         fail_names = list(zip(*failed))[0]
     else:
         fail_names = []
-    logger.info("Failed Jobs from EXP_LABEL:\n" + "\n".join(fail_names))
+    logger.info(
+        f"Failed Jobs  (labels: {combined_selectors}):\n" + "\n".join(fail_names)
+    )
 
     return success, failed
 
