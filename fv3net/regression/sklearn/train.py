@@ -11,8 +11,7 @@ from fv3net.regression.dataset_handler import BatchGenerator
 from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
-from vcm.cloud import gsutil
-from vcm.fv3_restarts import _split_url
+from vcm.cloud import fsspec
 
 MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
@@ -151,21 +150,23 @@ if __name__ == "__main__":
     batched_data = load_data_generator(train_config)
 
     model = train_model(batched_data, train_config)
+    proto = fsspec.get_protocol(args.output_path)
 
-    proto, path = _split_url(args.output_data_path)
     if proto == "" or proto == "file":
-        if proto == "file":
-            path = "/" + path
-        if not os.path.exists(path):
-            os.makedirs(path)
-        copyfile(args.train_config_file, os.path.join(path, MODEL_CONFIG_FILENAME))
-        joblib.dump(model, os.path.join(path, MODEL_FILENAME))
-    elif proto == "gs":
-        joblib.dump(model, MODEL_FILENAME)
-        gsutil.copy(MODEL_FILENAME, os.path.join(args.output_data_path, MODEL_FILENAME))
-        gsutil.copy(
+        if not os.path.exists(args.output_data_path):
+            os.makedirs(args.output_data_path)
+        copyfile(
             args.train_config_file,
             os.path.join(args.output_data_path, MODEL_CONFIG_FILENAME),
+        )
+        joblib.dump(model, os.path.join(args.output_data_path, MODEL_FILENAME))
+    elif proto == "gs":
+        joblib.dump(model, MODEL_FILENAME)
+        fs = fsspec.get_fs(args.output_data_path)
+        fs.put(MODEL_FILENAME, os.path.join(args.output_data_path, MODEL_FILENAME))
+        fs.put(
+            args.train_config_file,
+            os.path.join(args.output_data_path, args.train_config_file),
         )
         if args.delete_local_results_after_upload is True:
             os.remove(MODEL_FILENAME)
