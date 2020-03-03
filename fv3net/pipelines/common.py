@@ -133,29 +133,29 @@ def list_timesteps(path: str) -> List[str]:
     return sorted(timesteps)
 
 
-def subsample_timesteps_at_frequency(
-    timesteps: List[str], sampling_frequency: int,
+def subsample_timesteps_at_interval(
+    timesteps: List[str], sampling_interval: int,
 ) -> List[str]:
     """
-    Subsample a list of timesteps at the specified frequency (in minutes). Raises
-    a ValueError if requested frequency of output does not align with available
+    Subsample a list of timesteps at the specified interval (in minutes). Raises
+    a ValueError if requested interval of output does not align with available
     timesteps.
 
     Args:
         timesteps: A list of all available timestep strings.  Assumed to
             be in the format described by vcm.cubedsphere.constants.TIME_FMT
-        sampling_frequency: The frequency to subsample the list in minutes
+        sampling_interval: The interval to subsample the list in minutes
     
     Returns:
-        A subsampled list of the input timesteps at the desired frequency.
+        A subsampled list of the input timesteps at the desired interval.
     """
     logger.info(
-        f"Subsampling available timesteps to every {sampling_frequency} minutes."
+        f"Subsampling available timesteps to every {sampling_interval} minutes."
     )
     current_time = parse_datetime_from_str(timesteps[0])
     last_time = parse_datetime_from_str(timesteps[-1])
     available_times = set(timesteps)
-    delta = timedelta(minutes=sampling_frequency)
+    delta = timedelta(minutes=sampling_interval)
 
     subsampled_timesteps = [timesteps[0]]
     while current_time < last_time:
@@ -169,8 +169,8 @@ def subsample_timesteps_at_frequency(
     num_subsampled = len(subsampled_timesteps)
     if num_subsampled < 2:
         raise ValueError(
-            f"No available timesteps found matching desired subsampling frequency"
-            f" of {sampling_frequency} minutes."
+            f"No available timesteps found matching desired subsampling interval"
+            f" of {sampling_interval} minutes."
         )
 
     return subsampled_timesteps

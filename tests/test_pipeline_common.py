@@ -6,7 +6,7 @@ import re
 from fv3net.pipelines.common import (
     list_timesteps,
     get_alphanumeric_unique_tag,
-    subsample_timesteps_at_frequency,
+    subsample_timesteps_at_interval,
 )
 
 
@@ -66,7 +66,7 @@ def test_alphanumeric_uniq_tag_is_lowercase_alphanumeric():
     assert res is not None
 
 
-def test_subsample_timesteps_at_frequency():
+def test_subsample_timesteps_at_interval():
 
     timesteps = [
         "20160801.001500",
@@ -75,13 +75,13 @@ def test_subsample_timesteps_at_frequency():
         "20160801.010000",
     ]
 
-    assert subsample_timesteps_at_frequency(timesteps, 5) == timesteps
-    assert subsample_timesteps_at_frequency(timesteps, 30) == timesteps[::2]
+    assert subsample_timesteps_at_interval(timesteps, 5) == timesteps
+    assert subsample_timesteps_at_interval(timesteps, 30) == timesteps[::2]
 
     with pytest.raises(ValueError):
         # frequency larger than available times
-        subsample_timesteps_at_frequency(timesteps, 60)
+        subsample_timesteps_at_interval(timesteps, 60)
 
     with pytest.raises(ValueError):
         # frequency not aligned
-        subsample_timesteps_at_frequency(timesteps, 7)
+        subsample_timesteps_at_interval(timesteps, 7)
