@@ -10,7 +10,7 @@ from typing import List, Tuple
 
 import fv3config
 from fv3net.pipelines.kube_jobs import utils
-from fv3net.pipelines.common import list_timesteps
+from fv3net.pipelines.common import list_timesteps, subsample_timesteps_at_interval
 from vcm.cloud.fsspec import get_fs
 
 STDOUT_FILENAME = "stdout.log"
@@ -33,22 +33,30 @@ logger = logging.getLogger(__name__)
 
 
 def timesteps_to_process(
-    input_url: str, output_url: str, n_steps: int, overwrite: bool
+    input_url: str,
+    output_url: str,
+    n_steps: int,
+    overwrite: bool,
+    subsample_frequency: int = None,
 ) -> List[str]:
     """
     Return list of timesteps left to process. This is all the timesteps in
-    input_url minus the successfully completed timesteps in output_url. List is
+    input_url at the subsampling frequency (if specified) minus the
+    successfully completed timesteps in output_url. List is
     also limited to a length of n_steps (which can be None, i.e. no limit)
     """
     rundirs_url = os.path.join(output_url)
     to_do = list_timesteps(input_url)
+    if subsample_frequency is not None:
+        to_do = subsample_timesteps_at_interval(to_do, subsample_frequency)
     done = check_runs_complete(rundirs_url)
     if overwrite:
         _delete_logs_of_done_timesteps(output_url, done)
         done = []
     timestep_list = sorted(list(set(to_do) - set(done)))[:n_steps]
+
     logger.info(f"Number of input times: {len(to_do)}")
-    logger.info(f"Number of completed times: {len(done)}")
+    logger.info(f"Number of completed times: {min(len(done), len(to_do))}")
     logger.info(f"Number of times to process: {len(timestep_list)}")
     return timestep_list
 
