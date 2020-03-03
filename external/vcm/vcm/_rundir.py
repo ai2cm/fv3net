@@ -22,18 +22,6 @@ from vcm.cubedsphere.constants import RESTART_CATEGORIES
 __all__ = ["get_prefix_time_mapping", "restart_files_at_url"]
 
 
-def split(url):
-    path = Path(url)
-    no_timestamp = path.name.endswith("INPUT") or path.name.endswith("RESTART")
-
-    if no_timestamp:
-        parent = path.parent
-    else:
-        parent = path.parent.parent
-
-    return str(parent), str(path.relative_to(parent))
-
-
 def append_if_not_present(list, item):
     if item not in list:
         list.append(item)
