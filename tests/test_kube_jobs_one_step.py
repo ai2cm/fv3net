@@ -47,24 +47,3 @@ def test_runs_complete_with_logfile(run_dir, timestep_dir, logfile, expected):
 
     complete_timesteps = one_step.check_runs_complete(run_dir)
     assert complete_timesteps == expected
-
-
-def test_subsample_timesteps_at_frequency():
-
-    timesteps = [
-        "20160801.001500",
-        "20160801.003000",
-        "20160801.004500",
-        "20160801.010000",
-    ]
-
-    assert one_step.subsample_timesteps_at_frequency(timesteps, 5) == timesteps
-    assert one_step.subsample_timesteps_at_frequency(timesteps, 30) == timesteps[::2]
-
-    with pytest.raises(ValueError):
-        # frequency larger than available times
-        one_step.subsample_timesteps_at_frequency(timesteps, 60)
-
-    with pytest.raises(ValueError):
-        # frequency not aligned
-        one_step.subsample_timesteps_at_frequency(timesteps, 7)

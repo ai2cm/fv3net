@@ -24,7 +24,7 @@ def _create_arg_parser():
         "output_url", type=str, help="Remote url where model output will be saved."
     )
     parser.add_argument(
-        "one_step_yaml", type=str, help="Path to local run configuration yaml."
+        "one_step_yaml", type=str, help="Path to local run configuration yaml.",
     )
     parser.add_argument(
         "docker_image",
@@ -53,6 +53,13 @@ def _create_arg_parser():
         required=False,
         help="Storage path for job configuration files",
     )
+    parser.add_argument(
+        "--init-frequency",
+        type=int,
+        required=False,
+        help="Frequency (in minutes) to initialize one-step jobs starting from"
+        " the first available timestep.",
+    )
 
     return parser
 
@@ -75,7 +82,11 @@ if __name__ == "__main__":
         config_url = args.config_url
 
     timestep_list = one_step.timesteps_to_process(
-        args.input_url, args.output_url, args.n_steps, args.overwrite
+        args.input_url,
+        args.output_url,
+        args.n_steps,
+        args.overwrite,
+        subsample_frequency=args.init_frequency,
     )
 
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
@@ -93,4 +104,5 @@ if __name__ == "__main__":
     )
 
     successful, _ = kube_jobs.wait_for_complete(job_label)
-    kube_jobs.delete_job_pods(successful)
+    if successful:
+        kube_jobs.delete_job_pods(successful)
