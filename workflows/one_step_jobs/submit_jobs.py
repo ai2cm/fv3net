@@ -16,7 +16,7 @@ LOCAL_VGRID_FILE = os.path.join(PWD, one_step.VERTICAL_GRID_FILENAME)
 def _get_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "one-step-yaml", type=str, help="Path to local run configuration yaml.",
+        "one-step-yaml", type=str, help="Path to local run configuration yaml."
     )
     parser.add_argument(
         "input-url",
@@ -46,13 +46,6 @@ def _get_arg_parser():
         action="store_true",
         help="Overwrite successful timesteps in OUTPUT_URL.",
     )
-    parser.add_argument(
-        "--init-frequency",
-        type=int,
-        required=False,
-        help="Frequency (in minutes) to initialize one-step jobs starting from"
-        " the first available timestep.",
-    )
 
     return parser
 
@@ -71,11 +64,7 @@ if __name__ == "__main__":
     config_url = os.path.join(args.output_url, CONFIG_DIRECTORY_NAME)
 
     timestep_list = one_step.timesteps_to_process(
-        args.input_url,
-        args.output_url,
-        args.n_steps,
-        args.overwrite,
-        subsample_frequency=args.init_frequency,
+        args.input_url, args.output_url, args.n_steps, args.overwrite
     )
 
     one_step.submit_jobs(

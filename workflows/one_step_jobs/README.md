@@ -33,9 +33,6 @@ usage: submit_jobs.py [-h] --one-step-yaml ONE_STEP_YAML --input-url INPUT_URL
                         do not exist in OUTPUT_URL will be processed. Useful
                         for testing.
   -o, --overwrite       Overwrite successful timesteps in OUTPUT_URL.
-  --init-frequency INIT_FREQUENCY
-                        Frequency (in minutes) to initialize one-step jobs
-                        starting from the first available timestep.
 ```
 
 
