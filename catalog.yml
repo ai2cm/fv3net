@@ -97,6 +97,16 @@ sources:
       urlpath: 'gs://vcm-ml-data/2019-12-12-40-day-X-SHiELD-simulation-regridded-diagnostics/atmos_8xdaily_1_degree.zarr/'
 
 
+  40day_c384_atmos_8xdaily:
+    description: 8x daily atmospheric diagnostics from the 40 day run on a lat lon grid
+    driver: zarr
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-data/2020-02-25-additional-november-C3072-simulation-C384-diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
+
+
   ## Local Data Intake ##
   # TODO: Could this be replicated with intake caching? Or switch to an ignored file?
   local_2019-09-24-GFDL-SHiELD-15-minute-2-days_regrid_1degree:
