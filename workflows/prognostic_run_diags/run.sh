@@ -1,3 +1,5 @@
+#!/bin/bash
+
 usage="Usage: run.sh <url> [gcs]"
 
 if [[ $# < 1 ]]
