@@ -3,3 +3,7 @@
 Example:
 
     bash run.sh gs://vcm-ml-data/end-to-end-experiments/2020-02-26-physics-off/annak-prognostic-physics-off-1773255e/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160801.001500_docker_image_prognostic-run-orchestration
+
+	bash run.sh \
+		gs://vcm-ml-data/end-to-end-experiments/2020-02-26-physics-off/annak-prognostic-physics-off-1773255e/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160801.001500_docker_image_prognostic-run-orchestration  \
+		vcm-ml-public/end-to-end-experiments/2020-02-26-physics-off/annak-prognostic-physics-off-1773255e/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160801.001500_docker_image_prognostic-run-orchestration/diags.html
