@@ -16,7 +16,7 @@ LOCAL_VGRID_FILE = os.path.join(PWD, one_step.VERTICAL_GRID_FILENAME)
 def _get_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "one-step-yaml", type=str, help="Path to local run configuration yaml.",
+        "one-step-yaml", type=str, help="Path to local run configuration yaml."
     )
     parser.add_argument(
         "input-url",

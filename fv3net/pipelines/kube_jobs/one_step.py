@@ -83,7 +83,7 @@ def _delete_logs_of_done_timesteps(output_url: str, timesteps: List[str]):
 
 
 def subsample_timesteps_at_frequency(
-    timesteps: List[str], sampling_frequency: int,
+    timesteps: List[str], sampling_frequency: int
 ) -> List[str]:
     """
     Subsample a list of timesteps at the specified frequency (in minutes). Raises

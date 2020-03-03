@@ -24,7 +24,7 @@ def _create_arg_parser():
         "output_url", type=str, help="Remote url where model output will be saved."
     )
     parser.add_argument(
-        "one_step_yaml", type=str, help="Path to local run configuration yaml.",
+        "one_step_yaml", type=str, help="Path to local run configuration yaml."
     )
     parser.add_argument(
         "docker_image",
