@@ -1,21 +1,14 @@
-import os
-import re
-from datetime import datetime, timedelta
-from typing import Any, Generator, Tuple, Sequence
+from typing import Any, Generator, Tuple
 
-import cftime
 import fsspec
 import xarray as xr
-import pandas as pd
 from dask.delayed import delayed
-import f90nml
 
-from vcm.schema_registry import impose_dataset_to_schema
 from vcm.combining import combine_array_sequence
-from vcm.convenience import open_delayed, parse_timestep_str_from_path
-from vcm.cubedsphere.constants import RESTART_CATEGORIES
+from vcm.convenience import open_delayed
+from vcm.schema_registry import impose_dataset_to_schema
 
-from _rundir import get_restart_times, _sort_file_prefixes, _restart_files_at_url
+from . import _rundir
 
 SCHEMA_CACHE = {}
 
@@ -37,11 +30,9 @@ def open_restarts(url: str) -> xr.Dataset:
             be lazily loaded. This allows opening large datasets out-of-core.
 
     """
-    restart_files = _restart_files_at_url(url)
+    restart_files = _rundir.restart_files_at_url(url)
     arrays = _load_arrays(restart_files)
-    return _sort_file_prefixes(
-        xr.Dataset(combine_array_sequence(arrays, labels=["file_prefix", "tile"])), url
-    )
+    return xr.Dataset(combine_array_sequence(arrays, labels=["file_prefix", "tile"]))
 
 
 def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
@@ -61,20 +52,16 @@ def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
             be lazily loaded. This allows opening large datasets out-of-core.
             Time coordinates are inferred from the run directory's namelist and
             other files.
+
     """
+    file_prefix_dim = "file_prefix"
+    time_dim = "time"
+
+    fs = fsspec.filesystem("gs")
     ds = open_restarts(url)
-    try:
-        times = get_restart_times(url)
-    except (ValueError, TypeError) as e:
-        print(
-            f"Warning, inferring time dimensions failed: {e}.\n"
-            f"Returning no time coordinates for run directory at {url}."
-        )
-        return ds
-    else:
-        return ds.assign_coords({"time": ("file_prefix", times)}).swap_dims(
-            {"file_prefix": "time"}
-        )
+    mapping = _rundir.get_prefix_time_mapping(fs, url)
+    ds_with_times = _replace_1d_coord_by_mapping(ds, mapping, file_prefix_dim, time_dim)
+    return ds_with_times.sortby(time_dim)
 
 
 def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
@@ -88,6 +75,12 @@ def standardize_metadata(ds: xr.Dataset) -> xr.Dataset:
     except ValueError:
         ds_no_time = ds
     return impose_dataset_to_schema(ds_no_time)
+
+
+def _replace_1d_coord_by_mapping(ds, mapping, old_dim, new_dim="time"):
+    coord = ds[old_dim]
+    times = xr.DataArray([mapping[prefix.item()] for prefix in coord], dims=[old_dim])
+    return ds.assign_coords({new_dim: times}).swap_dims({old_dim: new_dim})
 
 
 def _load_restart(protocol, path):

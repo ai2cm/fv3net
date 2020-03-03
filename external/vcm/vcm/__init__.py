@@ -10,7 +10,7 @@ from .cubedsphere import (
     xarray_block_reduce,
 )
 from .extract import extract_tarball_to_path
-from .fv3_restarts import open_restarts
+from .fv3_restarts import open_restarts, open_restarts_with_time_coordinates
 from .convenience import (
     TOP_LEVEL_DIR,
     parse_timestep_str_from_path,
