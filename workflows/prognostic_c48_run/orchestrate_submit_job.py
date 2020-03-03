@@ -16,13 +16,6 @@ RUNFILE = os.path.join(PWD, "sklearn_runfile.py")
 CONFIG_FILENAME = "fv3config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
 
-KUBERNETES_DEFAULT = {
-    "cpu_count": 6,
-    "memory_gb": 3.6,
-    "gcp_secret": "gcp-key",
-    "image_pull_policy": "Always",
-}
-
 
 def _create_arg_parser() -> argparse.ArgumentParser:
 
@@ -100,11 +93,6 @@ if __name__ == "__main__":
         model_config, args.prog_config_yml
     )
 
-    kube_opts = KUBERNETES_DEFAULT.copy()
-    if "kubernetes" in model_config:
-        user_kube_config = model_config.pop("kubernetes")
-        kube_opts.update(user_kube_config)
-
     job_config_filename = "fv3config.yml"
     config_dir = os.path.join(args.output_url, "job_config")
     job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
@@ -131,8 +119,10 @@ if __name__ == "__main__":
         jobname=job_name,
         docker_image=args.docker_image,
         runfile=remote_runfile_path,
+        cpu_count=6,
+        gcp_secret="gcp-key",
+        image_pull_policy="Always",
         job_labels=job_label,
-        **kube_opts,
     )
 
     successful, _ = kube_jobs.wait_for_complete(job_label)

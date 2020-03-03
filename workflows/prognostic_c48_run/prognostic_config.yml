@@ -1,6 +1,3 @@
-kubernetes:
-  cpu_count: 6
-  memory_gb: 3.6
 diag_table: workflows/prognostic_c48_run/diag_table_prognostic
 namelist:
   coupler_nml:
