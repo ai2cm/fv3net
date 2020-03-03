@@ -141,7 +141,7 @@ def _get_all_step_arguments(workflow_steps: List[str], config: Mapping):
 def _generate_output_path_from_config(
     step_name: str, step_config: Mapping, max_config_stubs: int = 3
 ):
-    """generate an output location stub from a step's required argument config"""
+    """generate an output location stub from a step's argument configuration"""
 
     output_str = step_name
     arg_config = step_config.get("extra_args", None)
