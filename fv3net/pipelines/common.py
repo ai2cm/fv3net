@@ -1,12 +1,17 @@
 import os
 import shutil
 import tempfile
-from typing import Any, Callable
+import secrets
+import string
+from typing import Any, Callable, List
 from typing.io import BinaryIO
 
 import apache_beam as beam
 import xarray as xr
 from apache_beam.io import filesystems
+
+from vcm.cloud.fsspec import get_fs
+from vcm import parse_timestep_str_from_path
 
 
 class CombineSubtilesByKey(beam.PTransform):
@@ -97,3 +102,38 @@ netCDF files.
 
     def expand(self, pcoll):
         return pcoll | beam.MapTuple(self._process)
+
+
+def list_timesteps(path: str) -> List[str]:
+    """
+    Returns the unique timesteps at a path. Note that any path with a
+    timestep matching the parsing check will be returned from this
+    function.
+
+    Args:
+        path: local or remote path to directory containing timesteps
+
+    Returns:
+        sorted list of all timesteps within path
+    """
+    file_list = get_fs(path).ls(path)
+    timesteps = []
+    for current_file in file_list:
+        try:
+            timestep = parse_timestep_str_from_path(current_file)
+            timesteps.append(timestep)
+        except ValueError:
+            # not a timestep directory
+            continue
+    return sorted(timesteps)
+
+
+def get_alphanumeric_unique_tag(tag_length: int) -> str:
+    """Generates a random alphanumeric string (a-z0-9) of a specified length"""
+
+    if tag_length < 1:
+        raise ValueError("Unique tag length should be 1 or greater.")
+
+    use_chars = string.ascii_lowercase + string.digits
+    short_id = "".join([secrets.choice(use_chars) for i in range(tag_length)])
+    return short_id

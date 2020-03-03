@@ -6,9 +6,10 @@ import gcsfs
 from pathlib import Path
 from apache_beam.options.pipeline_options import PipelineOptions
 
-from vcm.cloud import gcs
-from vcm import parse_timestep_from_path
+from fv3net.pipelines.common import list_timesteps
 import vcm
+from vcm.cloud import gcs
+from vcm import parse_timestep_str_from_path
 
 logger = logging.getLogger("CoarsenPipeline")
 logger.setLevel(logging.DEBUG)
@@ -18,7 +19,7 @@ NUM_FILES_IN_COARSENED_DIR = 24
 
 def check_coarsen_incomplete(gcs_url, output_prefix):
 
-    timestep = parse_timestep_from_path(gcs_url)
+    timestep = parse_timestep_str_from_path(gcs_url)
     output_timestep_dir = os.path.join(output_prefix, timestep)
 
     fs = gcsfs.GCSFileSystem()
@@ -61,7 +62,7 @@ def _coarsen_data(
         os.path.join(local_timestep_dir, timestep_name, filename_prefix),
         os.path.join(local_coarsen_dir, filename_prefix),
     )
-    logger.info("Coarsening completed.")
+    logger.info(f"Coarsening completed. ({timestep_name})")
 
 
 def _upload_data(gcs_output_dir, local_coarsen_dir):
@@ -75,7 +76,7 @@ def coarsen_timestep(
     timestep_gcs_url: str, output_dir: str, coarsen_factor: int, gridspec_path: str
 ):
 
-    curr_timestep = parse_timestep_from_path(timestep_gcs_url)
+    curr_timestep = parse_timestep_str_from_path(timestep_gcs_url)
     logger.info(f"Coarsening timestep: {curr_timestep}")
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -107,17 +108,17 @@ def run(args, pipeline_args=None):
     target_resolution = args.target_resolution
 
     if args.gcs_dst_dir:
-        output_dir_prefix = os.path.join(args.gcs_dst_dir, f"C{target_resolution}")
+        output_dir_prefix = args.gcs_dst_dir
+        if not args.no_target_subdir:
+            output_dir_prefix = os.path.join(output_dir_prefix, f"C{target_resolution}")
     else:
         output_dir_prefix = os.path.join(source_timestep_dir, f"C{target_resolution}")
 
     coarsen_factor = source_resolution // target_resolution
-    fs = gcsfs.GCSFileSystem()
-    timestep_urls = fs.ls(source_timestep_dir)
-    timestep_urls.sort()
-
-    # gcsfs removes leading gs://
-    timestep_urls = ["gs://" + url for url in timestep_urls]
+    available_timesteps = list_timesteps(source_timestep_dir)
+    timestep_urls = [
+        os.path.join(source_timestep_dir, tstep) for tstep in available_timesteps
+    ]
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
