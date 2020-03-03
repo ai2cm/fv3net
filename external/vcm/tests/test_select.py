@@ -41,11 +41,6 @@ def test_mask_to_surface_type(test_surface_type_grid):
     seaice = mask_to_surface_type(test_surface_type_grid, "seaice").checkvar.values
     np.testing.assert_equal(seaice, np.array([[np.nan, np.nan, 2]]))
 
-    no_mask = mask_to_surface_type(test_surface_type_grid, None).checkvar.values
-    np.testing.assert_equal(no_mask, np.array([[0, 1, 2]]))
-    no_mask = mask_to_surface_type(test_surface_type_grid, "none").checkvar.values
-    np.testing.assert_equal(no_mask, np.array([[0, 1, 2]]))
-
 
 def test_get_latlon_grid_coords(test_latlon_grid):
     test_exact_pt = get_latlon_grid_coords(

@@ -4,7 +4,6 @@ hyperparameters:
   n_estimators: 4
 num_batches: 2
 files_per_batch: 1
-mask_to_surface_type: none
 input_variables:
   - T
   - sphum
