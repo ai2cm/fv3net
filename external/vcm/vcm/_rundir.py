@@ -99,6 +99,7 @@ def _get_restart_times(fs, url: str) -> Sequence[cftime.DatetimeJulian]:
     Returns:
         time Sequence[cftime.DatetimeJulian]: a list of time coordinates
     """
+    # TODO the implementation of this feature should be simplified
     namelist_path = _get_namelist_path(fs, url)
     config = _config_from_fs_namelist(fs, namelist_path)
     initialization_time = _get_current_date(config, fs, url)
@@ -184,6 +185,7 @@ def _get_current_date(config, fs, url):
     """Return current_date as a datetime from configuration dictionary
     Note: Mostly copied from fv3config, but with fsspec capabilities added
     """
+    # TODO simplify this complicated code. Too many levels within this function
     force_date_from_namelist = config["coupler_nml"].get(
         "force_date_from_namelist", False
     )
@@ -208,6 +210,7 @@ def _get_current_date(config, fs, url):
 
 
 def _get_current_date_from_coupler_res(fs, coupler_res_filename):
+    # TODO should return a data-time object if possible
     with fs.open(coupler_res_filename, "rt") as f:
         third_line = f.readlines()[2]
         current_date = [int(d) for d in re.findall(r"\d+", third_line)]
@@ -243,6 +246,8 @@ def _get_forecast_time_index(initialization_time, duration, interval):
     """Return a list of cftime.DatetimeJulian objects for the restart output
     """
     if interval == timedelta(seconds=0):
+        # TODO why do we need this if-statement? It seems like interval == 0
+        #  shouldn't be possible
         interval = duration
     end_time = initialization_time + duration
     return [
