@@ -51,10 +51,11 @@ if __name__ == "__main__":
     args = parse_args()
     with open(args.basefile, "r") as f:
         config = yaml.safe_load(f)
+    reference_dir = config["nudging"]["restarts_path"]
     time = datetime(*config["namelist"]["coupler_nml"]["current_date"])
     label = runfile.time_to_label(time)
     config["initial_conditions"] = get_initial_condition_assets(
-        runfile.REFERENCE_DIR, label
+        reference_dir, label
     )
     config["initial_conditions"].append(FV_CORE_ASSET)
     with open(args.outfile, "w") as f:

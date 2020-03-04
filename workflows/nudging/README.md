@@ -40,3 +40,6 @@ nudging image, and then repeats the workflow, showing the error log if an error
 occurs. It requires an environment variable `FV3GFS_PYTHON_DIR` which points to
 the directory where the `fv3gfs-python` repo is stored. It assumes that the repo is
 checked out to the correct version of `fv3gfs-python`.
+
+If you want to run the workflow on a different image, for example on the image
+without cached data, you can use `NUDGING_IMG=<image name> make run`
