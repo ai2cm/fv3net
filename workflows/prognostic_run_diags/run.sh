@@ -14,6 +14,5 @@ url=$1
 
 if [[ $# > 1 ]]
 then
-	gsutil cp prognostic-run-diags-v1.html gs://$2
-	echo "uploaded to: http://storage.googleapis.com/$2"
+	gsutil cp prognostic-run-diags-v1.html $2
 fi
