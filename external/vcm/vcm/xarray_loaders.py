@@ -1,14 +1,13 @@
-from vcm.cloud.fsspec import get_fs
-import xarray as xr
-import io
-import shutil
 import logging
-from vcm.convenience import open_delayed
+
+import xarray as xr
 from dask.delayed import delayed
 
-__all__ = [
-    "open_tiles"
-]
+from vcm.cloud.fsspec import get_fs
+from vcm.convenience import open_delayed
+
+__all__ = ["open_tiles"]
+
 
 def _read_metadata_remote(fs, url):
     logging.info("Reading metadata")
@@ -32,9 +31,8 @@ def open_tiles(url_prefix: str) -> xr.Dataset:
 
     """
     fs = get_fs(url_prefix)
-    files = sorted(fs.glob(url_prefix + '.tile?.nc'))
+    files = sorted(fs.glob(url_prefix + ".tile?.nc"))
     schema = _read_metadata_remote(fs, files[0])
     delayeds = [delayed(_open_remote_nc)(fs, url) for url in files]
     datasets = [open_delayed(d, schema) for d in delayeds]
-    return xr.concat(datasets, dim='tile')
-
+    return xr.concat(datasets, dim="tile")

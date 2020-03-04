@@ -22,9 +22,7 @@ from .convenience import (
 from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .visualize import plot_cube, mappable_var, plot_cube_axes
 
-from .xarray_loaders import (
-    open_tiles
-)
+from .xarray_loaders import open_tiles
 
 __all__ = [
     "combine_array_sequence",
