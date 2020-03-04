@@ -27,15 +27,11 @@ def append_if_not_present(list, item):
         list.append(item)
 
 
-def _parse_time(name):
-    return re.search(r"(\d\d\d\d\d\d\d\d.\d\d\d\d\d\d)", name).group(1)
-
-
 def get_prefixes(fs, url):
     prefixes = ["INPUT"]
     restarts = fs.glob(url + "/RESTART/????????.??????.*")
     for restart in restarts:
-        time = _parse_time(Path(restart).name)
+        time = parse_timestep_str_from_path(Path(restart).name)
         append_if_not_present(prefixes, os.path.join("RESTART", time))
     prefixes.append("RESTART")
     return prefixes
