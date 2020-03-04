@@ -87,7 +87,7 @@ experiment:
         docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
 
     diags_prognostic_run:
-      command: python workflows/prognostic_run_diags/run.sh
+      command: bash workflows/prognostic_run_diags/run.sh
       inputs:
         fv3_output:
           from: prognostic_run
