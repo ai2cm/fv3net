@@ -17,12 +17,10 @@ from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
 )
+from vcm.cloud import fsspec
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
-from vcm.fv3_restarts import (
-    open_restarts_with_time_coordinates,
-    _split_url,
-)
+from vcm.fv3_restarts import open_restarts_with_time_coordinates
 from vcm import parse_timestep_str_from_path, parse_datetime_from_str
 from vcm.select import mask_to_surface_type
 from fv3net import COARSENED_DIAGS_ZARR_NAME
@@ -68,11 +66,10 @@ RENAMED_HIRES_VARS = {
 
 
 def run(args, pipeline_args):
-    proto, path = _split_url(args.gcs_input_data_path)
-    fs = fsspec.filesystem(proto)
+    fs = fsspec.get_fs(args.gcs_input_data_path)
     gcs_urls = [
         "gs://" + run_dir_path
-        for run_dir_path in sorted(fs.ls(path))
+        for run_dir_path in sorted(fs.ls(args.gcs_input_data_path))
         if _filter_timestep(run_dir_path)
     ]
     _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir)
@@ -305,7 +302,7 @@ def _try_mask_to_surface_type(ds, surface_type):
 
 
 def _write_remote_train_zarr(
-    ds, gcs_output_dir, zarr_name=None, train_test_labels=None,
+    ds, gcs_output_dir, zarr_name=None, train_test_labels=None
 ):
     """Writes temporary zarr on worker and moves it to GCS
 
