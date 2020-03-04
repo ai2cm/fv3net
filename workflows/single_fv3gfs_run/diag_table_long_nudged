@@ -51,6 +51,10 @@ default_experiment
  "dynamics",  "vort850",     "VORT850",       "atmos_hourly", "all", .false.,  "none", 2
  "dynamics",  "vort500",     "VORT500",       "atmos_hourly", "all", .false.,  "none", 2
  "dynamics",  "vort200",     "VORT200",       "atmos_hourly", "all", .false.,  "none", 2
+###
+ "dynamics",  "z850",        "Z850",          "atmos_hourly", "all", .false.,  "none", 2
+ "dynamics",  "z500",        "Z500",          "atmos_hourly", "all", .false.,  "none", 2
+ "dynamics",  "z200",        "Z200",          "atmos_hourly", "all", .false.,  "none", 2
 ####
  "dynamics",  "dp1000",       "DPT1000",      "atmos_hourly", "all", .false.,  "none", 2
  "dynamics",  "dp850",        "DPT850",       "atmos_hourly", "all", .false.,  "none", 2
