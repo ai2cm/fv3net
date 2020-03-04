@@ -234,7 +234,7 @@ def map_ops(fun, grouped_files, *args):
     return out
 
 
-def open_remote_nc(fs, path, meta=None):
+def open_remote_nc(path, meta=None):
     computation = delayed(_open_remote_nc)(path)
     return open_delayed(computation, schema=meta)
 
