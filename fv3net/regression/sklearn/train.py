@@ -127,6 +127,19 @@ def train_model(batched_data, train_config):
     return model_wrapper
 
 
+def _save_output(output_url, model, config):
+    fs = vcm.cloud.fsspec.get_fs(output_url)
+    fs.makedirs(output_url, exist_ok=True)
+    model_url = os.path.join(output_url, MODEL_FILENAME)
+    config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
+
+    with fs.open(model_url, "w") as f:
+        joblib.dump(model, f)
+
+    with fs.open(config_url, "w") as f:
+        yaml.dump(train_config, f)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("train_data_path", type=str, help="Location of training data")
@@ -150,28 +163,4 @@ if __name__ == "__main__":
     batched_data = load_data_generator(train_config)
 
     model = train_model(batched_data, train_config)
-    proto = fsspec.get_protocol(args.output_data_path)
-
-    if proto == "" or proto == "file":
-        if not os.path.exists(args.output_data_path):
-            os.makedirs(args.output_data_path)
-        copyfile(
-            args.train_config_file,
-            os.path.join(args.output_data_path, MODEL_CONFIG_FILENAME),
-        )
-        joblib.dump(model, os.path.join(args.output_data_path, MODEL_FILENAME))
-    elif proto == "gs":
-        joblib.dump(model, MODEL_FILENAME)
-        fs = fsspec.get_fs(args.output_data_path)
-        fs.put(MODEL_FILENAME, os.path.join(args.output_data_path, MODEL_FILENAME))
-        fs.put(
-            args.train_config_file,
-            os.path.join(args.output_data_path, MODEL_CONFIG_FILENAME),
-        )
-        if args.delete_local_results_after_upload is True:
-            os.remove(MODEL_FILENAME)
-    else:
-        raise ValueError(
-            f'Invalid protocol "{proto}". Filesystem protocol must be local '
-            '("" or "file") or "gs".'
-        )
+    _save_output(args.output_data_path, model, train_config)
