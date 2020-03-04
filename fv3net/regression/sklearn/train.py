@@ -11,7 +11,7 @@ from fv3net.regression.dataset_handler import BatchGenerator
 from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
-from vcm.cloud import fsspec
+import vcm.cloud.fsspec
 
 MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
@@ -127,17 +127,17 @@ def train_model(batched_data, train_config):
     return model_wrapper
 
 
-def _save_output(output_url, model, config):
+def save_output(output_url, model, config):
     fs = vcm.cloud.fsspec.get_fs(output_url)
     fs.makedirs(output_url, exist_ok=True)
     model_url = os.path.join(output_url, MODEL_FILENAME)
     config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
 
-    with fs.open(model_url, "w") as f:
+    with fs.open(model_url, "wb") as f:
         joblib.dump(model, f)
 
     with fs.open(config_url, "w") as f:
-        yaml.dump(train_config, f)
+        yaml.dump(config, f)
 
 
 if __name__ == "__main__":
@@ -163,4 +163,4 @@ if __name__ == "__main__":
     batched_data = load_data_generator(train_config)
 
     model = train_model(batched_data, train_config)
-    _save_output(args.output_data_path, model, train_config)
+    save_output(args.output_data_path, model, train_config)
