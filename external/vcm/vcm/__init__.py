@@ -1,8 +1,5 @@
 from .combining import combine_array_sequence
 
-from . import cubedsphere
-
-# TODO remove these imports
 from .cubedsphere import (
     block_coarsen,
     block_edge_sum,
