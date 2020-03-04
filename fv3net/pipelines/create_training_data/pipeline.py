@@ -1,6 +1,5 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-import fsspec
 import logging
 import os
 import shutil
