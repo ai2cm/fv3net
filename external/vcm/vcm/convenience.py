@@ -245,8 +245,43 @@ def _delayed_to_array(delayed_dataset, key, shape, dtype):
     return da.from_delayed(array_delayed, shape, dtype)
 
 
-def open_delayed(delayed_dataset, schema=None):
-    """Open dask delayed object with as an xarray with given metadata"""
+def open_delayed(delayed_dataset, schema: xr.Dataset=None) -> xr.Dataset:
+    """Open dask delayed object with the same metadata as template
+    
+    Mostly useful for lazily loading remote resources. For example, this greatly 
+    accelerates opening a list of remote netCDF resources conforming to the same 
+    "schema".
+
+    Args:
+        delayed_dataset: a dask delayed object which resolves to an xarray Dataset
+        schema, optional: an xarray Dataset with the same coords and dims as the 
+            Dataset wrapped with the delayed object.
+
+    Returns:
+        dataset: a dask-array backed dataset
+    
+    Example:
+
+        >>> import xarray as xr                                                                                                                                                                        
+        >>> from dask.delayed import delayed                                                                                                                                                           
+        >>> @delayed 
+        ... def identity(x): 
+        ...     return x 
+        ...                                                                                                                                                                                            
+        >>> ds = xr.Dataset({'a': (['x'], np.ones(10))})                                                                                                                                               
+        >>> delayed = identity(ds)                                                                                                                                                                     
+        >>> delayed                                                                                                                                                                                    
+        Delayed('identity-6539bc06-097a-4864-8cbf-699ebe3c4130')
+        >>> wrapped_delayed_obj = open_delayed(delayed, schema=ds)                                                                                                                                     
+        >>> wrapped_delayed_obj                                                                                                                                                                        
+        <xarray.Dataset>
+        Dimensions:  (x: 10)
+        Dimensions without coordinates: x
+        Data variables:
+            a        (x) float64 dask.array<chunksize=(10,), meta=np.ndarray>
+
+        
+    """
     data_vars = {}
     for key in schema:
         template_var = schema[key]
