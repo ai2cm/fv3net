@@ -54,9 +54,7 @@ if __name__ == "__main__":
     reference_dir = config["nudging"]["restarts_path"]
     time = datetime(*config["namelist"]["coupler_nml"]["current_date"])
     label = runfile.time_to_label(time)
-    config["initial_conditions"] = get_initial_condition_assets(
-        reference_dir, label
-    )
+    config["initial_conditions"] = get_initial_condition_assets(reference_dir, label)
     config["initial_conditions"].append(FV_CORE_ASSET)
     with open(args.outfile, "w") as f:
         f.write(yaml.dump(config))

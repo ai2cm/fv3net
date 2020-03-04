@@ -21,7 +21,7 @@ Building the image
 
 Build requires an `fv3gfs-python` base image. If you don't have one with the
 correct version tag, it will be automatically pulled by `make build`. It then produces an image
-tagged with `-nudging` which contains the cached data needed to perform the nudging run,
+tagged with `-nudging` which contains the cached data needed to create the nudging rundir,
 and any additional python packages needed.
 
 Building the `-nudging` image requires `GOOGLE_APPLICATION_CREDENTIALS` to be set.
