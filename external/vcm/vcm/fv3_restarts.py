@@ -12,6 +12,7 @@ from vcm.cloud.fsspec import get_fs
 from . import _rundir
 
 SCHEMA_CACHE = {}
+FILE_PREFIX_DIM = "file_prefix"
 
 
 def open_restarts(url: str) -> xr.Dataset:
@@ -35,7 +36,7 @@ def open_restarts(url: str) -> xr.Dataset:
     walker = fs.walk(url)
     restart_files = _rundir.yield_restart_files(walker)
     arrays = _load_arrays(fs, restart_files)
-    return xr.Dataset(combine_array_sequence(arrays, labels=["file_prefix", "tile"]))
+    return xr.Dataset(combine_array_sequence(arrays, labels=[FILE_PREFIX_DIM, "tile"]))
 
 
 def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
@@ -57,13 +58,12 @@ def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
             other files.
 
     """
-    file_prefix_dim = "file_prefix"
     time_dim = "time"
 
     fs = get_fs(url)
     ds = open_restarts(url)
     mapping = _rundir.get_prefix_time_mapping(fs, url)
-    ds_with_times = _replace_1d_coord_by_mapping(ds, mapping, file_prefix_dim, time_dim)
+    ds_with_times = _replace_1d_coord_by_mapping(ds, mapping, FILE_PREFIX_DIM, time_dim)
     return ds_with_times.sortby(time_dim)
 
 
