@@ -1,12 +1,13 @@
 from typing import Any, Generator, Tuple
 
-import fsspec
 import xarray as xr
 from dask.delayed import delayed
 
 from vcm.combining import combine_array_sequence
 from vcm.convenience import open_delayed
 from vcm.schema_registry import impose_dataset_to_schema
+from vcm.cloud.fsspec import get_fs
+
 
 from . import _rundir
 
@@ -30,7 +31,9 @@ def open_restarts(url: str) -> xr.Dataset:
             be lazily loaded. This allows opening large datasets out-of-core.
 
     """
-    restart_files = _rundir.restart_files_at_url(url)
+    fs = get_fs(url)
+    walker = fs.walk(url)
+    restart_files = _rundir.yield_restart_files(walker)
     arrays = _load_arrays(restart_files)
     return xr.Dataset(combine_array_sequence(arrays, labels=["file_prefix", "tile"]))
 
