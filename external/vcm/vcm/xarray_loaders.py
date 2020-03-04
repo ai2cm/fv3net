@@ -35,4 +35,4 @@ def open_tiles(url_prefix: str) -> xr.Dataset:
     schema = _read_metadata_remote(fs, files[0])
     delayeds = [delayed(_open_remote_nc)(fs, url) for url in files]
     datasets = [open_delayed(d, schema) for d in delayeds]
-    return xr.concat(datasets, dim="tile")
+    return xr.concat(datasets, dim="tile").assign_coords(tile=list(range(6)))
