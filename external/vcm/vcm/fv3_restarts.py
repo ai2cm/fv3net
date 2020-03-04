@@ -34,7 +34,7 @@ def open_restarts(url: str) -> xr.Dataset:
     fs = get_fs(url)
     walker = fs.walk(url)
     restart_files = _rundir.yield_restart_files(walker)
-    arrays = _load_arrays(restart_files)
+    arrays = _load_arrays(fs, restart_files)
     return xr.Dataset(combine_array_sequence(arrays, labels=["file_prefix", "tile"]))
 
 
@@ -60,7 +60,7 @@ def open_restarts_with_time_coordinates(url: str) -> xr.Dataset:
     file_prefix_dim = "file_prefix"
     time_dim = "time"
 
-    fs = fsspec.filesystem("gs")
+    fs = get_fs(url)
     ds = open_restarts(url)
     mapping = _rundir.get_prefix_time_mapping(fs, url)
     ds_with_times = _replace_1d_coord_by_mapping(ds, mapping, file_prefix_dim, time_dim)
@@ -86,34 +86,34 @@ def _replace_1d_coord_by_mapping(ds, mapping, old_dim, new_dim="time"):
     return ds.assign_coords({new_dim: times}).swap_dims({old_dim: new_dim})
 
 
-def _load_restart(protocol, path):
-    fs = fsspec.filesystem(protocol)
+def _load_restart(fs, path):
     with fs.open(path) as f:
         return xr.open_dataset(f).compute()
 
 
-def _load_restart_with_schema(protocol, path, schema):
-    promise = delayed(_load_restart)(protocol, path)
+def _load_restart_with_schema(fs, path, schema):
+    promise = delayed(_load_restart)(fs, path)
     return open_delayed(promise, schema)
 
 
-def _load_restart_lazily(protocol, path, restart_category):
+def _load_restart_lazily(fs, path, restart_category):
     # only actively load the initial data
     if restart_category in SCHEMA_CACHE:
         schema = SCHEMA_CACHE[restart_category]
     else:
-        schema = _load_restart(protocol, path)
+        schema = _load_restart(fs, path)
         SCHEMA_CACHE[restart_category] = schema
 
-    return _load_restart_with_schema(protocol, path, schema)
+    return _load_restart_with_schema(fs, path, schema)
 
 
 def _load_arrays(
+    fs,
     restart_files,
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
     # use the same schema for all coupler_res
-    for (file_prefix, restart_category, tile, protocol, path) in restart_files:
-        ds = _load_restart_lazily(protocol, path, restart_category)
+    for (file_prefix, restart_category, tile, path) in restart_files:
+        ds = _load_restart_lazily(fs, path, restart_category)
         ds_standard_metadata = standardize_metadata(ds)
         for var in ds_standard_metadata:
             yield var, (file_prefix, tile), ds_standard_metadata[var]
