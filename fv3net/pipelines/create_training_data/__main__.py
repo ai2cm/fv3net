@@ -28,12 +28,6 @@ if __name__ == "__main__":
         help="Project name for google cloud.",
     )
     parser.add_argument(
-        "--mask-to-surface-type",
-        type=str,
-        default=None,
-        help="Mask to surface type in ['sea', 'land', 'seaice'].",
-    )
-    parser.add_argument(
         "--timesteps-per-output-file",
         type=int,
         default=3,
@@ -49,12 +43,6 @@ if __name__ == "__main__":
         help="Fraction of batches to save as training set. "
         "Output zarr files will be saved in either 'train' or 'test' subdir of "
         "gcs-output-data-dir",
-    )
-    parser.add_argument(
-        "--random-seed",
-        type=int,
-        default=1234,
-        help="Random seed used when shuffling data batches before test/train selection",
     )
     args, pipeline_args = parser.parse_known_args()
 
