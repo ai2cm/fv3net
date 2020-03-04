@@ -12,7 +12,7 @@ NUDGING_IMG=$(IMG_NAME):$(IMG_VERSION)-nudging
 all: build run
 
 run: $(CONFIG_FILE)
-	fv3run $(CONFIG_FILE) $(OUTDIR) --dockerimage $(NUDGING_IMG) --runfile $(RUNFILE)
+	fv3run $(CONFIG_FILE) $(OUTDIR) --dockerimage $(NUDGING_IMG) --runfile $(RUNFILE))
 
 build: $(CONFIG_FILE)
 ifeq ($(GOOGLE_APPLICATION_CREDENTIALS),)

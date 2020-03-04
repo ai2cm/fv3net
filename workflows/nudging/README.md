@@ -19,7 +19,8 @@ The output directory should now be present in `output`.
 Building the image
 ------------------
 
-Build requires the `fv3gfs-python` base image. `make build` produces an image
+Build requires an `fv3gfs-python` base image. If you don't have one with the
+correct version tag, it will be automatically pulled by `make build`. It then produces an image
 tagged with `-nudging` which contains the cached data needed to perform the nudging run,
 and any additional python packages needed.
 
