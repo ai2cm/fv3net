@@ -14,6 +14,9 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_CENTER,
     VAR_LON_OUTER,
     VAR_LAT_OUTER,
+    COORD_X_CENTER,
+    COORD_Y_CENTER,
+    COORD_Z_CENTER,
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
 )
@@ -26,8 +29,9 @@ from fv3net import COARSENED_DIAGS_ZARR_NAME
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-SAMPLE_DIM = "sample"
-SAMPLE_CHUNK_SIZE = 1500
+CHUNK_SIZES = {
+    "tile": 6, INIT_TIME_DIM: 1, COORD_Y_CENTER: 48,
+    COORD_X_CENTER: 48, COORD_Z_CENTER: 79}
 
 RESTART_VARS = [
     "sphum",
@@ -305,7 +309,8 @@ def _write_remote_train_zarr(
         if not zarr_name:
             zarr_name = helpers._path_from_first_timestep(ds, train_test_labels)
         output_path = os.path.join(gcs_output_dir, zarr_name)
-        ds.to_zarr(zarr_name, mode="w", consolidated=True)
+        chunks = ds.unify_chunks().chunks
+        ds.chunk(CHUNK_SIZES).to_zarr(zarr_name, mode="w", consolidated=True)
         gsutil.copy(zarr_name, output_path)
         logger.info(f"Done writing zarr to {output_path}")
         shutil.rmtree(zarr_name)
