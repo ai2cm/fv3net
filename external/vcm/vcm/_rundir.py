@@ -73,6 +73,7 @@ def _get_prefixes(fs, url):
     prefixes.append("RESTART")
     return prefixes
 
+
 def _sorted_file_prefixes(prefixes):
     return sorted(prefix for prefix in prefixes if prefix not in ["INPUT", "RESTART"])
 

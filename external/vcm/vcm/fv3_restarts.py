@@ -108,8 +108,7 @@ def _load_restart_lazily(fs, path, restart_category):
 
 
 def _load_arrays(
-    fs,
-    restart_files,
+    fs, restart_files,
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
     # use the same schema for all coupler_res
     for (file_prefix, restart_category, tile, path) in restart_files:
