@@ -22,6 +22,9 @@ TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
 
 def get_initial_condition_assets(input_url: str, label: str) -> List[dict]:
     """Get list of assets representing initial conditions for this label"""
+    # If you re-use this somewhere else or have time to refactor it, please refactor
+    # it to use fv3net/pipelines/kube_jobs/utils.py#L42
+    # (update_tiled_asset_names)
     initial_condition_assets = [
         fv3config.get_asset_dict(
             os.path.join(input_url, label),
