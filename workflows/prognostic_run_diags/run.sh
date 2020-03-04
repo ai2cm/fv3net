@@ -7,6 +7,8 @@ then
 	echo $usage
 fi
 
+cd workflows/prognostic_run_diags
+
 
 url=$1
 (
@@ -16,6 +18,6 @@ url=$1
 
 if [[ $# > 1 ]]
 then
-	gsutil cp prognostic-run-diags-v1.html gs://$2
-	echo "uploaded to: http://storage.googleapis.com/$2"
+	output=$2
+	gsutil cp prognostic-run-diags-v1.html $output/index.html
 fi
