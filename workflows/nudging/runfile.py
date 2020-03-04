@@ -2,7 +2,6 @@ import os
 import functools
 from datetime import datetime, timedelta
 import yaml
-import fv3config
 
 if __name__ == "__main__":
     import fv3gfs
@@ -25,7 +24,10 @@ def get_timescales_from_config(config):
 
 
 def time_to_label(time):
-    return f"{time.year:04d}{time.month:02d}{time.day:02d}.{time.hour:02d}{time.minute:02d}{time.second:02d}"
+    return (
+        f"{time.year:04d}{time.month:02d}{time.day:02d}."
+        f"{time.hour:02d}{time.minute:02d}{time.second:02d}"
+    )
 
 
 def test_time_to_label():
