@@ -41,3 +41,6 @@ dependencies:
   - apache-beam
   - matplotlib=3.1
   - python=3.7
+  - pip:
+    - gsutil
+
