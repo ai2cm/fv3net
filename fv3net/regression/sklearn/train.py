@@ -150,7 +150,7 @@ if __name__ == "__main__":
     batched_data = load_data_generator(train_config)
 
     model = train_model(batched_data, train_config)
-    proto = fsspec.get_protocol(args.output_path)
+    proto = fsspec.get_protocol(args.output_data_path)
 
     if proto == "" or proto == "file":
         if not os.path.exists(args.output_data_path):
@@ -166,7 +166,7 @@ if __name__ == "__main__":
         fs.put(MODEL_FILENAME, os.path.join(args.output_data_path, MODEL_FILENAME))
         fs.put(
             args.train_config_file,
-            os.path.join(args.output_data_path, args.train_config_file),
+            os.path.join(args.output_data_path, MODEL_CONFIG_FILENAME),
         )
         if args.delete_local_results_after_upload is True:
             os.remove(MODEL_FILENAME)
