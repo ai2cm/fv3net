@@ -4,7 +4,6 @@ import os
 import yaml
 
 from dataclasses import dataclass
-from shutil import copyfile
 from typing import List
 
 from fv3net.regression.dataset_handler import BatchGenerator
