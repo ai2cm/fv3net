@@ -12,7 +12,7 @@ url=$1
 	jupyter nbconvert --execute prognostic-run-diags-v1.ipynb
 )
 
-if [[ $# > 1 ]]
+if [[ $# > 1]]
 then
 	gsutil cp prognostic-run-diags-v1.html $2
 fi
