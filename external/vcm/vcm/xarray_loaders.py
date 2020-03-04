@@ -32,6 +32,8 @@ def open_tiles(url_prefix: str) -> xr.Dataset:
     """
     fs = get_fs(url_prefix)
     files = sorted(fs.glob(url_prefix + ".tile?.nc"))
+    if len(files) != 6:
+        raise ValueError(f"Invalid set of input files. {len(files)} detected, but 6 expected.")
     schema = _read_metadata_remote(fs, files[0])
     delayeds = [delayed(_open_remote_nc)(fs, url) for url in files]
     datasets = [open_delayed(d, schema) for d in delayeds]
