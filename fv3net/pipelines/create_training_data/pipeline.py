@@ -29,7 +29,7 @@ from fv3net import COARSENED_DIAGS_ZARR_NAME
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-CHUNK_SIZES = {
+_CHUNK_SIZES = {
     "tile": 1,
     INIT_TIME_DIM: 1,
     COORD_Y_CENTER: 24,
@@ -314,7 +314,7 @@ def _write_remote_train_zarr(
             zarr_name = helpers._path_from_first_timestep(ds, train_test_labels)
         output_path = os.path.join(gcs_output_dir, zarr_name)
         chunks = ds.unify_chunks().chunks
-        ds.chunk(CHUNK_SIZES).to_zarr(zarr_name, mode="w", consolidated=True)
+        ds.chunk(_CHUNK_SIZES).to_zarr(zarr_name, mode="w", consolidated=True)
         gsutil.copy(zarr_name, output_path)
         logger.info(f"Done writing zarr to {output_path}")
         shutil.rmtree(zarr_name)
