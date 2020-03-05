@@ -98,7 +98,7 @@ sources:
 
 
   40day_c384_atmos_8xdaily:
-    description: 8x daily atmospheric diagnostics from the 40 day run on a lat lon grid
+    description: Instantaneous 8x daily atmospheric diagnostics from the 40 day run on a C384 grid
     driver: zarr
     args:
       storage_options:
