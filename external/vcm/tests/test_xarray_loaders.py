@@ -23,11 +23,12 @@ def ds():
     }
 
     ds = xr.Dataset(
-        {"a": (["tile", "y", "x"], np.random.sample((6, 48, 48)))}, coords=coords,
-        attrs ={"foo": "bar"}
+        {"a": (["tile", "y", "x"], np.random.sample((6, 48, 48)))},
+        coords=coords,
+        attrs={"foo": "bar"},
     )
 
-    ds['a'].attrs['foo'] = 'var'
+    ds["a"].attrs["foo"] = "var"
 
     return ds
 
