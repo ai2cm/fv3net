@@ -7,6 +7,7 @@ default_experiment
 "tracers_8xdaily",         3,  "hours",    1, "hours",  "time"
 "nudge_dt_8xdaily",        3,  "hours",    1, "hours",  "time"
 "sfc_hourly",              1,  "hours",    1, "hours", "time"
+"atmos_monthly",           1,  "months",   1, "hours", "time"
 #
 #output variables
 #
@@ -52,9 +53,9 @@ default_experiment
  "dynamics",  "vort500",     "VORT500",       "atmos_hourly", "all", .false.,  "none", 2
  "dynamics",  "vort200",     "VORT200",       "atmos_hourly", "all", .false.,  "none", 2
 ###
- "dynamics",  "z850",        "Z850",          "atmos_hourly", "all", .false.,  "none", 2
- "dynamics",  "z500",        "Z500",          "atmos_hourly", "all", .false.,  "none", 2
- "dynamics",  "z200",        "Z200",          "atmos_hourly", "all", .false.,  "none", 2
+ "dynamics",  "z850",        "h850",          "atmos_hourly", "all", .false.,  "none", 2
+ "dynamics",  "z500",        "h500",          "atmos_hourly", "all", .false.,  "none", 2
+ "dynamics",  "z200",        "h200",          "atmos_hourly", "all", .false.,  "none", 2
 ####
  "dynamics",  "dp1000",       "DPT1000",      "atmos_hourly", "all", .false.,  "none", 2
  "dynamics",  "dp850",        "DPT850",       "atmos_hourly", "all", .false.,  "none", 2
@@ -170,6 +171,73 @@ default_experiment
  "gfs_sfc",   "SOILT2"         "SOILT2"     "sfc_hourly",         "all",  .false.,  "none",  2
  "gfs_sfc",   "SOILT3"         "SOILT3"     "sfc_hourly",         "all",  .false.,  "none",  2
  "gfs_sfc",   "SOILT4"         "SOILT4"     "sfc_hourly",         "all",  .false.,  "none",  2
+###
+# atmos_monthly
+###
+ "dynamics",  "grid_lont",     "lon",       "atmos_monthly",       "all",  .true.,  "none",  2,
+ "dynamics",  "grid_latt",     "lat",       "atmos_monthly",       "all",  .true.,  "none",  2,
+ "dynamics",  "grid_lon",      "lonb",      "atmos_monthly",       "all",  .true.,  "none",  2,
+ "dynamics",  "grid_lat",      "latb",      "atmos_monthly",       "all",  .true.,  "none",  2,
+ "dynamics",  "area",          "area",      "atmos_monthly",       "all",  .true.,  "none",  2,
+ "gfs_phys",  "cnvprcp_ave"    "CPRATsfc"   "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "totprcp_ave"    "PRATEsfc"   "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "totice_ave"     "ICEsfc"     "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "totsnw_ave"     "SNOWsfc"    "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "totgrp_ave"     "GRAUPELsfc" "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "DSWRF"          "DSWRFsfc"   "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "USWRF"          "USWRFsfc"   "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "DSWRFtoa"       "DSWRFtoa"   "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "USWRFtoa"       "USWRFtoa"   "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "ULWRFtoa"       "ULWRFtoa"   "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "ULWRF"          "ULWRFsfc"   "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "DLWRF"          "DLWRFsfc"   "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "lhtfl_ave"      "LHTFLsfc"   "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "shtfl_ave"      "SHTFLsfc"   "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_sfc",   "SLMSKsfc"       "SLMSKsfc"   "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_sfc",   "q2m"            "SPFH2m"     "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_sfc",   "t2m"            "TMP2m"      "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_sfc",   "tsfc"           "TMPsfc"     "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "dpt2m"          "DPT2m"      "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "u10m"           "UGRD10m"    "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "v10m"           "VGRD10m"    "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "wind10mmax"     "MAXWIND10m" "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_phys",  "soilm"          "SOILM"      "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_sfc",   "SOILT1"         "SOILT1"     "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_sfc",   "SOILT2"         "SOILT2"     "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_sfc",   "SOILT3"         "SOILT3"     "atmos_monthly",       "all",  .true.,  "none",  2
+ "gfs_sfc",   "SOILT4"         "SOILT4"     "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "u500",          "UGRD500",   "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "v500",          "VGRD500",   "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "w500",          "VVEL500",   "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "t500",          "TMP500",    "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "vort500",       "VORT500",   "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "z500",          "h500",      "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "rh500",         "RH500",     "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "sphum",        "sphum",      "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "liq_wat",      "liq_wat",    "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "ice_wat",      "ice_wat",    "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "rainwat",      "rainwat",    "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "snowwat",      "snowwat",    "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "graupel",      "graupel",    "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "slp",         "PRMSL",       "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "ps",          "PRESsfc",     "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "tq",          "PWAT",        "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "lw",          "VIL",         "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "iw",          "iw",          "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "ucomp",        "ucomp",      "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "vcomp",        "vcomp",      "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "temp",         "temp",       "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "delp",         "delp",       "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "pfnh",         "nhpres",     "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "w",            "w",          "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "delz",         "delz",       "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "ps",           "ps",         "atmos_monthly",       "all",  .true.,  "none",  2
+ "dynamics",  "u_dt_nudge",    "u_dt_nudge",  "atmos_monthly",     "all",  .true., "none", 2
+ "dynamics",  "v_dt_nudge",    "v_dt_nudge",  "atmos_monthly",     "all",  .true., "none", 2
+ "dynamics",  "delp_dt_nudge","delp_dt_nudge","atmos_monthly",     "all",  .true., "none", 2
+ "dynamics",  "ps_dt_nudge",   "ps_dt_nudge", "atmos_monthly",     "all",  .true., "none", 2
+ "dynamics",  "t_dt_nudge",    "t_dt_nudge",  "atmos_monthly",     "all",  .true., "none", 2
+ "dynamics",  "q_dt_nudge",    "q_dt_nudge",  "atmos_monthly",     "all",  .true., "none", 2
 
 #=============================================================================================
 #
