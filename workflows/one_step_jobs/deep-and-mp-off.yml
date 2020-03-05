@@ -18,9 +18,7 @@ fv3config:
       npz: 79
       k_split: 1
       n_split: 1
-    gfdl_cloud_microphysics_nml:
-      fast_sat_adj: false
     gfs_physics_nml:
       do_deep: false
-      gfs_physics_nml.do_gfdl_mp_in_physics: false
+      do_gfdl_mp_in_physics: false
       fhzero: 0.01666
