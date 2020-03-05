@@ -1,9 +1,10 @@
 default_experiment
-2016 8 5 18 45 0
+2016 08 01 00 0 0
 #output files
 "atmos_static",           -1,  "hours",    1, "hours", "time"
-"atmos_dt_atmos",          15,  "minutes",    1, "hours",  "time"
-"sfc_dt_atmos",            15,  "minutes",    1, "hours", "time"
+"atmos_dt_atmos",          0,  "hours",    1, "hours",  "time"
+"atmos_8xdaily",           3,  "hours",    1, "hours",  "time"
+"sfc_dt_atmos",            0,  "hours",    1, "hours", "time"
 #
 #output variables
 #
@@ -26,7 +27,7 @@ default_experiment
  "dynamics",  "us",          "UGRDlowest",    "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "u850",        "UGRD850",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "u500",        "UGRD500",       "atmos_dt_atmos", "all", .false.,  "none", 2
- "dynamics",  "u250",        "UGRD250",       "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "u200",        "UGRD200",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "u50",         "UGRD50",        "atmos_dt_atmos", "all", .false.,  "none", 2
 ###
  "dynamics",  "vs",          "VGRDlowest",    "atmos_dt_atmos", "all", .false.,  "none", 2
@@ -48,6 +49,10 @@ default_experiment
  "dynamics",  "vort850",     "VORT850",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "vort500",     "VORT500",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "vort200",     "VORT200",       "atmos_dt_atmos", "all", .false.,  "none", 2
+###
+ "dynamics",  "z850",        "Z850",          "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "z500",        "Z500",          "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "z200",        "Z200",          "atmos_dt_atmos", "all", .false.,  "none", 2
 ####
  "dynamics",  "dp1000",       "DPT1000",      "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "dp850",        "DPT850",       "atmos_dt_atmos", "all", .false.,  "none", 2
@@ -73,6 +78,29 @@ default_experiment
  "dynamics",  "ctt",         "TMPctp",       "atmos_dt_atmos", "all", .false., "none", 2
  "dynamics",  "ctp",         "PRESctp",      "atmos_dt_atmos", "all", .false., "none", 2
  "dynamics",  "ctz" ,        "HGTctp",       "atmos_dt_atmos", "all", .false., "none", 2
+###
+# atmos_8xdaily
+###
+ "dynamics",  "grid_lont",   "lon",           "atmos_8xdaily", "all", .false.,  "none", 2,
+ "dynamics",  "grid_latt",   "lat",           "atmos_8xdaily", "all", .false.,  "none", 2,
+ "dynamics",  "grid_lon",    "lonb",          "atmos_8xdaily", "all", .false.,  "none", 2,
+ "dynamics",  "grid_lat",    "latb",          "atmos_8xdaily", "all", .false.,  "none", 2,
+ "dynamics",  "area",        "area",          "atmos_8xdaily", "all", .false.,  "none", 2,
+ "dynamics",  "ucomp",        "ucomp",        "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "vcomp",        "vcomp",        "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "temp",         "temp",         "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "delp",         "delp",         "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "sphum",        "sphum",        "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "pfnh",         "nhpres",       "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "w",            "w",            "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "delz",         "delz",         "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "ps",           "ps",           "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "reflectivity", "reflectivity", "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "liq_wat",      "liq_wat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "ice_wat",      "ice_wat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "rainwat",      "rainwat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "snowwat",      "snowwat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "graupel",      "graupel",      "atmos_8xdaily",  "all",  .false.,  "none",  2
 ###
 # sfc_dt_atmos
 ###

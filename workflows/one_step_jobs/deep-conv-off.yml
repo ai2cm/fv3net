@@ -1,5 +1,5 @@
 kubernetes:
-  docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration:fv3py_v2.3-mp-off-switch
+  docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1
 fv3config:
   diag_table: workflows/one_step_jobs/diag_table_one_step
   namelist:
@@ -13,14 +13,10 @@ fv3config:
       dt_ocean: 60  # seconds
       restart_secs: 60
     fv_core_nml:
-      do_sat_adj: false
       external_eta: true
       npz: 79
       k_split: 1
       n_split: 1
-    gfdl_cloud_microphysics_nml:
-      fast_sat_adj: false
     gfs_physics_nml:
       do_deep: false
-      gfs_physics_nml.do_gfdl_mp_in_physics: false
       fhzero: 0.01666
