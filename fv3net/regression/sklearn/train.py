@@ -4,15 +4,13 @@ import os
 import yaml
 
 from dataclasses import dataclass
-from shutil import copyfile
 from typing import List
 
 from fv3net.regression.dataset_handler import BatchGenerator
 from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
-from vcm.cloud import gsutil
-from vcm.fv3_restarts import _split_url
+import vcm.cloud.fsspec
 
 MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
@@ -132,6 +130,19 @@ def train_model(batched_data, train_config):
     return model_wrapper
 
 
+def save_output(output_url, model, config):
+    fs = vcm.cloud.fsspec.get_fs(output_url)
+    fs.makedirs(output_url, exist_ok=True)
+    model_url = os.path.join(output_url, MODEL_FILENAME)
+    config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
+
+    with fs.open(model_url, "wb") as f:
+        joblib.dump(model, f)
+
+    with fs.open(config_url, "w") as f:
+        yaml.dump(config, f)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("train_data_path", type=str, help="Location of training data")
@@ -155,26 +166,4 @@ if __name__ == "__main__":
     batched_data = load_data_generator(train_config)
 
     model = train_model(batched_data, train_config)
-
-    proto, path = _split_url(args.output_data_path)
-    if proto == "" or proto == "file":
-        if proto == "file":
-            path = "/" + path
-        if not os.path.exists(path):
-            os.makedirs(path)
-        copyfile(args.train_config_file, os.path.join(path, MODEL_CONFIG_FILENAME))
-        joblib.dump(model, os.path.join(path, MODEL_FILENAME))
-    elif proto == "gs":
-        joblib.dump(model, MODEL_FILENAME)
-        gsutil.copy(MODEL_FILENAME, os.path.join(args.output_data_path, MODEL_FILENAME))
-        gsutil.copy(
-            args.train_config_file,
-            os.path.join(args.output_data_path, MODEL_CONFIG_FILENAME),
-        )
-        if args.delete_local_results_after_upload is True:
-            os.remove(MODEL_FILENAME)
-    else:
-        raise ValueError(
-            f'Invalid protocol "{proto}". Filesystem protocol must be local '
-            '("" or "file") or "gs".'
-        )
+    save_output(args.output_data_path, model, train_config)

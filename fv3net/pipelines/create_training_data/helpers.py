@@ -1,10 +1,9 @@
 from datetime import timedelta
-import fsspec
 import logging
 import os
 import xarray as xr
 
-from vcm.fv3_restarts import _split_url
+from vcm.cloud import fsspec
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
@@ -63,8 +62,7 @@ def _set_relative_forecast_time_coord(ds):
 
 
 def load_diag(diag_data_path, init_times):
-    protocol, path = _split_url(diag_data_path)
-    fs = fsspec.filesystem(protocol)
+    fs = fsspec.get_fs(diag_data_path)
     ds_diag = xr.open_zarr(fs.get_mapper(diag_data_path), consolidated=True).rename(
         {"time": INIT_TIME_DIM}
     )
