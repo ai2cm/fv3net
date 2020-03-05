@@ -7,8 +7,6 @@ from dask.delayed import delayed
 
 from vcm.cloud.fsspec import get_fs
 
-__all__ = ["open_tiles"]
-
 
 def _read_metadata_remote(fs, url):
     logging.info("Reading metadata")
@@ -94,8 +92,3 @@ def open_delayed(delayed_dataset, schema: xr.Dataset = None) -> xr.Dataset:
         )
         data_vars[key] = (template_var.dims, array, template_var.attrs)
     return xr.Dataset(data_vars, coords=schema.coords, attrs=schema.attrs)
-
-
-def open_remote_nc(fs, path, meta=None):
-    computation = delayed(_open_remote_nc)(path)
-    return open_delayed(computation, schema=meta)
