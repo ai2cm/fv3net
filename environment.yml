@@ -43,3 +43,4 @@ dependencies:
   - python=3.7
   - pip:
     - gsutil
+    - nc-time-axis>=1.2.0

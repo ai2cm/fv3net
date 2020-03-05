@@ -11,6 +11,7 @@ experiment:
     - train_sklearn_model
 #     - test_sklearn_model
     - prognostic_run
+    - diags_prognostic_run
   
   steps_config:
     coarsen_restarts:
@@ -84,3 +85,9 @@ experiment:
         prognostic_yaml_adjust: workflows/prognostic_c48_run/prognostic_config.yml
         ic_timestep: "20160801.001500"
         docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
+
+    diags_prognostic_run:
+      command: bash workflows/prognostic_run_diags/run.sh
+      inputs:
+        fv3_output:
+          from: prognostic_run
