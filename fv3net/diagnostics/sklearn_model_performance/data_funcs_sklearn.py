@@ -1,6 +1,8 @@
 import fsspec
 from scipy.interpolate import UnivariateSpline
+import os
 import xarray as xr
+
 
 from vcm.calc import mass_integrate, thermo
 from vcm.convenience import round_time
@@ -18,6 +20,8 @@ from vcm.constants import (
     GRAVITY,
     SEC_PER_DAY,
 )
+
+from fv3net import COARSENED_DIAGS_ZARR_NAME
 
 SAMPLE_DIM = "sample"
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
@@ -45,7 +49,10 @@ def predict_on_test_data(test_data_path, model_path, num_test_zarrs, model_type=
 def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times):
     fs = fsspec.filesystem("gs")
     ds_hires = xr.open_zarr(
-        fs.get_mapper(coarsened_hires_diags_path), consolidated=True
+        fs.get_mapper(
+            os.path.join(coarsened_hires_diags_path, COARSENED_DIAGS_ZARR_NAME)
+        ),
+        consolidated=True,
     ).rename({"time": INIT_TIME_DIM})
     ds_hires = ds_hires.assign_coords(
         {
