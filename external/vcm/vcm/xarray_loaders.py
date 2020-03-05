@@ -47,7 +47,7 @@ def _delayed_to_array(delayed_dataset, key, shape, dtype):
     return da.from_delayed(array_delayed, shape, dtype)
 
 
-def open_delayed(delayed_dataset, schema: xr.Dataset = None) -> xr.Dataset:
+def open_delayed(delayed_dataset, schema: xr.Dataset) -> xr.Dataset:
     """Open dask delayed object with the same metadata as template
 
     Mostly useful for lazily loading remote resources. For example, this greatly
@@ -56,7 +56,7 @@ def open_delayed(delayed_dataset, schema: xr.Dataset = None) -> xr.Dataset:
 
     Args:
         delayed_dataset: a dask delayed object which resolves to an xarray Dataset
-        schema, optional: an xarray Dataset with the same coords and dims as the
+        schema: an xarray Dataset with the same coords and dims as the
             Dataset wrapped with the delayed object.
 
     Returns:
