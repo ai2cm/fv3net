@@ -30,8 +30,8 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 CHUNK_SIZES = {
-    "tile": 6, INIT_TIME_DIM: 1, COORD_Y_CENTER: 48,
-    COORD_X_CENTER: 48, COORD_Z_CENTER: 79}
+    "tile": 1, INIT_TIME_DIM: 1, COORD_Y_CENTER: 24,
+    COORD_X_CENTER: 24, COORD_Z_CENTER: 79}
 
 RESTART_VARS = [
     "sphum",
