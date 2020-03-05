@@ -7,6 +7,12 @@ from dask.delayed import delayed
 import vcm
 
 
+def assert_attributes_equal(a, b):
+    for variable in a:
+        assert a[variable].attrs == b[variable].attrs
+    assert a.attrs == b.attrs
+
+
 @pytest.fixture()
 def ds():
 
@@ -17,8 +23,11 @@ def ds():
     }
 
     ds = xr.Dataset(
-        {"a": (["tile", "y", "x"], np.random.sample((6, 48, 48)))}, coords=coords
+        {"a": (["tile", "y", "x"], np.random.sample((6, 48, 48)))}, coords=coords,
+        attrs ={"foo": "bar"}
     )
+
+    ds['a'].attrs['foo'] = 'var'
 
     return ds
 
@@ -30,6 +39,7 @@ def test_open_tiles(tmpdir, ds):
     loaded = vcm.open_tiles(str(tmpdir.join("prefix")))
 
     xr.testing.assert_equal(ds, loaded)
+    assert_attributes_equal(ds, loaded)
 
 
 def test_open_tiles_errors_with_wrong_number_of_tiles(tmpdir, ds):
@@ -54,6 +64,7 @@ def test_open_delayed(dataset):
     ds = vcm.open_delayed(a_delayed, schema=dataset)
 
     xr.testing.assert_equal(dataset, ds.compute())
+    assert_attributes_equal(dataset, ds)
     assert isinstance(ds["a"].data, dask.array.Array)
 
 
