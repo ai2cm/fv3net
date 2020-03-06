@@ -1,19 +1,13 @@
-import logging
 import os
-import subprocess
-import tempfile
 import pathlib
-import intake
-import yaml
 import re
-import cftime
-import dask.array as da
-import xarray as xr
-import numpy as np
-from datetime import datetime
-from datetime import timedelta
 from collections import defaultdict
-from dask import delayed
+from datetime import datetime, timedelta
+
+import cftime
+import intake
+import xarray as xr
+import yaml
 
 from vcm.cloud import gsutil
 from vcm.cloud.remote_data import open_gfdl_data_with_2d
@@ -195,14 +189,6 @@ def _insert_apparent_heating(ds: xr.Dataset) -> xr.Dataset:
     return ds.assign(q1=apparent_heating(dtemp_dt, ds.w), q2=dqt_dt)
 
 
-@delayed
-def _open_remote_nc(url):
-    with tempfile.NamedTemporaryFile() as fp:
-        logging.info("downloading %s to disk" % url)
-        subprocess.check_call((["gsutil", "-q", "cp", url, fp.name]))
-        return xr.open_dataset(fp.name).load()
-
-
 def file_names_for_time_step(timestep, category, resolution=3072):
     # TODO remove this hardcode
     bucket = f"gs://vcm-ml-data"
@@ -232,27 +218,3 @@ def map_ops(fun, grouped_files, *args):
             seq.append(ds)
         out[key] = seq
     return out
-
-
-def open_remote_nc(path, meta=None):
-    computation = delayed(_open_remote_nc)(path)
-    return open_delayed(computation, schema=meta)
-
-
-def _delayed_to_array(delayed_dataset, key, shape, dtype):
-    null = da.full(shape, np.nan, dtype=dtype)
-    array_delayed = delayed_dataset.get(key, null)
-    return da.from_delayed(array_delayed, shape, dtype)
-
-
-def open_delayed(delayed_dataset, schema=None):
-    """Open dask delayed object with as an xarray with given metadata"""
-    data_vars = {}
-    for key in schema:
-        template_var = schema[key]
-        array = _delayed_to_array(
-            delayed_dataset, key, shape=template_var.shape, dtype=template_var.dtype
-        )
-        data_vars[key] = (template_var.dims, array)
-
-    return xr.Dataset(data_vars, coords=schema.coords)

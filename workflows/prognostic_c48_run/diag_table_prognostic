@@ -1,9 +1,10 @@
 default_experiment
-2016 8 5 18 45 0
+2016 08 01 00 0 0
 #output files
 "atmos_static",           -1,  "hours",    1, "hours", "time"
-"atmos_dt_atmos",          15,  "minutes",    1, "hours",  "time"
-"sfc_dt_atmos",            15,  "minutes",    1, "hours", "time"
+"atmos_dt_atmos",          0,  "hours",    1, "hours",  "time"
+"atmos_8xdaily",           3,  "hours",    1, "hours",  "time"
+"sfc_dt_atmos",            0,  "hours",    1, "hours", "time"
 #
 #output variables
 #
@@ -26,7 +27,7 @@ default_experiment
  "dynamics",  "us",          "UGRDlowest",    "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "u850",        "UGRD850",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "u500",        "UGRD500",       "atmos_dt_atmos", "all", .false.,  "none", 2
- "dynamics",  "u250",        "UGRD250",       "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "u200",        "UGRD200",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "u50",         "UGRD50",        "atmos_dt_atmos", "all", .false.,  "none", 2
 ###
  "dynamics",  "vs",          "VGRDlowest",    "atmos_dt_atmos", "all", .false.,  "none", 2
@@ -48,6 +49,10 @@ default_experiment
  "dynamics",  "vort850",     "VORT850",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "vort500",     "VORT500",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "vort200",     "VORT200",       "atmos_dt_atmos", "all", .false.,  "none", 2
+###
+ "dynamics",  "z850",        "h850",          "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "z500",        "h500",          "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "z200",        "h200",          "atmos_dt_atmos", "all", .false.,  "none", 2
 ####
  "dynamics",  "dp1000",       "DPT1000",      "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "dp850",        "DPT850",       "atmos_dt_atmos", "all", .false.,  "none", 2
@@ -74,49 +79,74 @@ default_experiment
  "dynamics",  "ctp",         "PRESctp",      "atmos_dt_atmos", "all", .false., "none", 2
  "dynamics",  "ctz" ,        "HGTctp",       "atmos_dt_atmos", "all", .false., "none", 2
 ###
+# atmos_8xdaily
+###
+ "dynamics",  "grid_lont",   "lon",           "atmos_8xdaily", "all", .false.,  "none", 2,
+ "dynamics",  "grid_latt",   "lat",           "atmos_8xdaily", "all", .false.,  "none", 2,
+ "dynamics",  "grid_lon",    "lonb",          "atmos_8xdaily", "all", .false.,  "none", 2,
+ "dynamics",  "grid_lat",    "latb",          "atmos_8xdaily", "all", .false.,  "none", 2,
+ "dynamics",  "area",        "area",          "atmos_8xdaily", "all", .false.,  "none", 2,
+ "dynamics",  "ucomp",        "ucomp",        "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "vcomp",        "vcomp",        "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "temp",         "temp",         "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "delp",         "delp",         "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "sphum",        "sphum",        "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "pfnh",         "nhpres",       "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "w",            "w",            "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "delz",         "delz",         "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "ps",           "ps",           "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "reflectivity", "reflectivity", "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "liq_wat",      "liq_wat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "ice_wat",      "ice_wat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "rainwat",      "rainwat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "snowwat",      "snowwat",      "atmos_8xdaily",  "all",  .false.,  "none",  2
+ "dynamics",  "graupel",      "graupel",      "atmos_8xdaily",  "all",  .false.,  "none",  2
+###
 # sfc_dt_atmos
 ###
- "dynamics",  "grid_lont",     "lon",       "sfc_dt_atmos",         "all",  .false.,  "none", 2,
- "dynamics",  "grid_latt",     "lat",       "sfc_dt_atmos",         "all",  .false.,  "none", 2,
- "dynamics",  "grid_lon",      "lonb",      "sfc_dt_atmos",         "all", .false.,  "none", 2,
- "dynamics",  "grid_lat",      "latb",      "sfc_dt_atmos",         "all", .false.,  "none", 2,
- "dynamics",  "area",          "area",      "sfc_dt_atmos",         "all",  .false.,  "none", 2,
- "gfs_phys",  "cnvprcp_ave"    "CPRATsfc"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "totprcp_ave"    "PRATEsfc"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "totice_ave"     "ICEsfc"     "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "totsnw_ave"     "SNOWsfc"    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "totgrp_ave"     "GRAUPELsfc" "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "DSWRF"          "DSWRFsfc"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "USWRF"          "USWRFsfc"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "DSWRFtoa"       "DSWRFtoa"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "USWRFtoa"       "USWRFtoa"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "ULWRFtoa"       "ULWRFtoa"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "ULWRF"          "ULWRFsfc"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "DLWRF"          "DLWRFsfc"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "lhtfl_ave"      "LHTFLsfc"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "shtfl_ave"      "SHTFLsfc"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "hpbl"           "HPBLsfc"    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "fice"           "ICECsfc"    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "SLMSKsfc"       "SLMSKsfc"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "TCDC_aveclm"    "TCDCclm"    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "TCDC_avehcl"    "TCDChcl"    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "TCDC_avelcl"    "TCDClcl"    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "TCDC_avemcl"    "TCDCmcl"    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "q2m"            "SPFH2m"     "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "t2m"            "TMP2m"      "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "tsfc"           "TMPsfc"     "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "dpt2m"          "DPT2m"      "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "u10m"           "UGRD10m"    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "v10m"           "VGRD10m"    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "weasd"          "WEASDsfc"   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "snowd"          "SNODsfc"    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "tmpmax2m"       "TMAX2m"     "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "wind10mmax"     "MAXWIND10m" "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "soilm"          "SOILM"      "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "SOILT1"         "SOILT1"     "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "SOILT2"         "SOILT2"     "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "SOILT3"         "SOILT3"     "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "SOILT4"         "SOILT4"     "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "dynamics",  "grid_lont",     "lon",       "sfc_dt_atmos",         "all",  .false.,  "none", 2
+ "dynamics",  "grid_latt",     "lat",       "sfc_dt_atmos",         "all",  .false.,  "none", 2
+ "dynamics",  "grid_lon",      "lonb",      "sfc_dt_atmos",         "all", .false.,  "none", 2
+ "dynamics",  "grid_lat",      "latb",      "sfc_dt_atmos",         "all", .false.,  "none", 2
+ "dynamics",  "area",          "area",      "sfc_dt_atmos",         "all",  .false.,  "none", 2
+ "gfs_phys",  "dusfci",    "uflx",     "sfc_dt_atmos",   "all",   .false.,  "none", 2
+ "gfs_phys",  "dvsfci",    "vflx",     "sfc_dt_atmos",   "all",   .false.,  "none", 2
+ "gfs_phys",  "cnvprcp_ave",    "CPRATsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "totprcp_ave",    "PRATEsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "totice_ave",     "ICEsfc",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "totsnw_ave",     "SNOWsfc",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "totgrp_ave",     "GRAUPELsfc", "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "DSWRF",          "DSWRFsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "USWRF",          "USWRFsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "DSWRFtoa",       "DSWRFtoa",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "USWRFtoa",       "USWRFtoa",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "ULWRFtoa",       "ULWRFtoa",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "ULWRF",          "ULWRFsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "DLWRF",          "DLWRFsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "lhtfl_ave",      "LHTFLsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "shtfl_ave",      "SHTFLsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "hpbl",           "HPBLsfc",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_sfc",   "fice",           "ICECsfc",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_sfc",   "SLMSKsfc",       "SLMSKsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "TCDC_aveclm",    "TCDCclm",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "TCDC_avehcl",    "TCDChcl",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "TCDC_avelcl",    "TCDClcl",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "TCDC_avemcl",    "TCDCmcl",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_sfc",   "q2m",            "SPFH2m",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_sfc",   "t2m",           "TMP2m",      "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_sfc",   "tsfc",          "TMPsfc",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "dpt2m",         "DPT2m",      "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "u10m",           "UGRD10m",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "v10m",           "VGRD10m",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_sfc",   "weasd",          "WEASDsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_sfc",   "snowd",          "SNODsfc",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "tmpmax2m",       "TMAX2m",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "wind10mmax",     "MAXWIND10m", "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "soilm",          "SOILM",      "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_sfc",   "SOILT1",         "SOILT1",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_sfc",   "SOILT2",         "SOILT2",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_sfc",   "SOILT3",         "SOILT3",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_sfc",   "SOILT4",         "SOILT4",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
 
 #=============================================================================================
 #

@@ -4,7 +4,7 @@ import xarray as xr
 from dask.delayed import delayed
 
 from vcm.combining import combine_array_sequence
-from vcm.convenience import open_delayed
+from vcm.xarray_loaders import open_delayed
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.cloud.fsspec import get_fs
 
