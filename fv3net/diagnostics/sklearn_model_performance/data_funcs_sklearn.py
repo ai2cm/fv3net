@@ -47,6 +47,7 @@ def predict_on_test_data(test_data_path, model_path, num_test_zarrs, model_type=
 def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times):
     fs = get_fs(coarsened_hires_diags_path)
     ds_hires = xr.open_zarr(
+        # fs.get_mapper functions like a zarr store
         fs.get_mapper(
             os.path.join(coarsened_hires_diags_path, fv3net.COARSENED_DIAGS_ZARR_NAME)
         ),
