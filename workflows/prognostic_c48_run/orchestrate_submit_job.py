@@ -28,7 +28,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "model_url", type=str, help="Remote url to a trained sklearn model.",
+        "--model_url", type=str, help="Remote url to a trained sklearn model.",
     )
     parser.add_argument(
         "initial_condition_url",
@@ -114,23 +114,23 @@ if __name__ == "__main__":
     )
 
     # Add prognostic config section
-    model_config["scikit_learn"] = {
-        "model": os.path.join(args.model_url, MODEL_FILENAME),
-        "zarr_output": "diags.zarr",
-    }
+    if args.model_url:
+        model_config["scikit_learn"] = {
+            "model": os.path.join(args.model_url, MODEL_FILENAME),
+            "zarr_output": "diags.zarr",
+        }
+        kube_opts['runfile'] = kube_jobs.transfer_local_to_remote(RUNFILE, config_dir)
 
     # Upload the new prognostic config
     with fsspec.open(job_config_path, "w") as f:
         f.write(yaml.dump(model_config))
 
-    remote_runfile_path = kube_jobs.transfer_local_to_remote(RUNFILE, config_dir)
 
     fv3config.run_kubernetes(
         config_location=job_config_path,
         outdir=args.output_url,
         jobname=job_name,
         docker_image=args.docker_image,
-        runfile=remote_runfile_path,
         job_labels=job_label,
         **kube_opts,
     )
