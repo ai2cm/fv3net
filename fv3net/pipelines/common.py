@@ -1,3 +1,4 @@
+import fsspec
 import os
 import shutil
 import tempfile
@@ -12,7 +13,6 @@ import apache_beam as beam
 import xarray as xr
 from apache_beam.io import filesystems
 
-from vcm.cloud.fsspec import get_fs
 from vcm import parse_timestep_str_from_path, parse_datetime_from_str
 from vcm.cubedsphere.constants import TIME_FMT
 
@@ -121,7 +121,8 @@ def list_timesteps(path: str) -> List[str]:
     Returns:
         sorted list of all timesteps within path
     """
-    file_list = get_fs(path).ls(path)
+    fs, _, _ = fsspec.get_fs_token_paths(path)
+    file_list = fs.ls(path)
     timesteps = []
     for current_file in file_list:
         try:
@@ -134,7 +135,7 @@ def list_timesteps(path: str) -> List[str]:
 
 
 def subsample_timesteps_at_interval(
-    timesteps: List[str], sampling_interval: int,
+    timesteps: List[str], sampling_interval: int
 ) -> List[str]:
     """
     Subsample a list of timesteps at the specified interval (in minutes). Raises

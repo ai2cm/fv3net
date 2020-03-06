@@ -1,5 +1,6 @@
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+import fsspec
 import logging
 import os
 import shutil
@@ -16,7 +17,6 @@ from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
 )
-from vcm.cloud import fsspec
 from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
 from vcm.fv3_restarts import open_restarts_with_time_coordinates
@@ -64,7 +64,7 @@ RENAMED_HIRES_VARS = {
 
 
 def run(args, pipeline_args):
-    fs = fsspec.get_fs(args.gcs_input_data_path)
+    fs, _, _ = fsspec.get_fs_token_paths(args.gcs_input_data_path)
     gcs_urls = [
         "gs://" + run_dir_path
         for run_dir_path in sorted(fs.ls(args.gcs_input_data_path))

@@ -1,8 +1,8 @@
 import argparse
+import fsspec
 import os
 import shutil
 import xarray as xr
-from vcm.cloud import fsspec
 from vcm.cubedsphere.constants import INIT_TIME_DIM
 from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
     predict_on_test_data,
@@ -55,14 +55,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # if output path is remote GCS location, save results to local output dir first
-    proto = fsspec.get_protocol(args.output_path)
-    if proto == "" or proto == "file":
-        output_dir = args.output_path
-    elif proto == "gs":
-        remote_data_path, output_dir = os.path.split(args.output_path.strip("/"))
-    if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
     ds_test, ds_pred = predict_on_test_data(
         args.test_data_path, args.model_path, args.num_test_zarrs, args.model_type
     )
@@ -72,12 +64,11 @@ if __name__ == "__main__":
     ds_hires = load_high_res_diag_dataset(args.high_res_data_path, init_times)
 
     grid_path = os.path.join(os.path.dirname(args.test_data_path), "grid_spec.zarr")
-    fs_input = fsspec.get_fs(args.test_data_path)
+    fs_input, _, _ = fsspec.get_fs_token_paths(args.test_data_path)
     grid = xr.open_zarr(fs_input.get_mapper(grid_path))
-    report_sections = make_all_plots(ds_pred, ds_test, ds_hires, grid, output_dir)
-    create_report(report_sections, "ml_model_predict_diagnostics", output_dir)
-    fs_output = fsspec.get_fs(args.output_path)
-    if proto == "gs":
-        fs_output.put(output_dir, remote_data_path, recursive=True)
-        if args.delete_local_results_after_upload is True:
-            shutil.rmtree(output_dir)
+
+    fs_output, _, _ = fsspec.get_fs_token_paths(args.output_path)
+    fs_output.makedirs(args.output_path, exist_ok=True)
+
+    report_sections = make_all_plots(ds_pred, ds_test, ds_hires, grid, args.output_path)
+    create_report(report_sections, "ml_model_predict_diagnostics", args.output_path)

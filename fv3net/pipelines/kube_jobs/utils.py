@@ -1,13 +1,14 @@
+import fsspec
 import logging
 import os
 import time
 import kubernetes
 from typing import Sequence, Mapping, Tuple
+from urllib.parse import urlparse
 
 import fv3config
 
 from vcm.cubedsphere.constants import RESTART_CATEGORIES, TILE_COORDS_FILENAMES
-from vcm.cloud.fsspec import get_protocol, get_fs
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +33,10 @@ def transfer_local_to_remote(path: str, remote_url: str) -> str:
     Transfer a local file to a remote path and return that remote path.
     If path is already remote, this does nothing.
     """
-    if get_protocol(path) == "file":
+    if urlparse(path).scheme in ["file", ""]:
         remote_path = os.path.join(remote_url, os.path.basename(path))
-        get_fs(remote_url).put(path, remote_path)
+        fs, _, _ = fsspec.get_fs_token_paths(remote_url)
+        fs.put(path, remote_path)
         path = remote_path
     return path
 

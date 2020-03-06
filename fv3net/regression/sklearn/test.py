@@ -1,5 +1,4 @@
-from vcm.cloud import fsspec
-import joblib
+import fsspec
 import xarray as xr
 
 from ..dataset_handler import stack_and_drop_nan_samples
@@ -21,7 +20,7 @@ def load_test_dataset(test_data_path, num_files_to_load=50, downsample_time_fact
     Returns:
         xarray dataset created by concatenating test data zarrs
     """
-    fs = fsspec.get_fs(test_data_path)
+    fs, _, _ = fsspec.get_fs_token_paths(test_data_path)
     test_data_urls = load_downsampled_time_range(
         fs, test_data_path, downsample_time_factor
     )
@@ -69,12 +68,3 @@ def predict_dataset(sk_wrapped_model, ds_stacked):
     )
     return xr.merge([ds_pred, ds_keep_vars]).unstack()
 
-
-def load_model(model_path):
-    protocol = fsspec.get_protocol(model_path)
-    if protocol == "gs":
-        fs = fsspec.get_fs(model_path)
-        fs.get(model_path, "temp_model.pkl")
-        return joblib.load("temp_model.pkl")
-    else:
-        return joblib.load(model_path)

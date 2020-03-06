@@ -1,3 +1,4 @@
+import fsspec
 from jinja2 import Template
 
 
@@ -25,6 +26,7 @@ def create_report(report_sections, report_name, output_dir):
     Returns:
         None
     """
-    with open(f"{output_dir}/{report_name}.html", "w") as f:
+    fs, _, _ = fsspec.get_fs_token_paths(output_dir)
+    with fs.open(f"{output_dir}/{report_name}.html", "w") as f:
         html = report_html.render(sections=report_sections)
         f.write(html)

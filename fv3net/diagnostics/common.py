@@ -1,4 +1,6 @@
+import fsspec
 import numpy as np
+import os
 import pandas as pd
 import xarray as xr
 
@@ -12,6 +14,12 @@ EXAMPLE_CLIMATE_LATLON_COORDS = {
     "central_canada": [55.0, 258.0],
     "tropical_west_pacific": [-5.0, 165.0],
 }
+
+
+def save_fig(fig, output_dir, filename, dpi=80):
+    fs, _, _ = fsspec.get_fs_token_paths(output_dir)
+    with fs.open(os.path.join(output_dir, filename), "wb") as f:
+        fig.savefig(f, dpi=dpi)
 
 
 def merge_comparison_datasets(

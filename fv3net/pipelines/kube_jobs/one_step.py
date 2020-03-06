@@ -11,7 +11,6 @@ from typing import List, Tuple
 import fv3config
 from fv3net.pipelines.kube_jobs import utils
 from fv3net.pipelines.common import list_timesteps, subsample_timesteps_at_interval
-from vcm.cloud.fsspec import get_fs
 
 STDOUT_FILENAME = "stdout.log"
 VERTICAL_GRID_FILENAME = "fv_core.res.nc"
@@ -73,7 +72,7 @@ def _current_date_from_timestep(timestep: str) -> List[int]:
 
 
 def _delete_logs_of_done_timesteps(output_url: str, timesteps: List[str]):
-    fs = get_fs(output_url)
+    fs, _, _ = fsspec.get_fs_token_paths(output_url)
     for timestep in timesteps:
         rundir_url = os.path.join(output_url, timestep)
         fs.rm(os.path.join(rundir_url, STDOUT_FILENAME))
@@ -101,7 +100,8 @@ def _check_run_complete_unpacker(arg: tuple) -> str:
 
 
 def _check_run_complete_func(timestep: str, logfile_path: str) -> str:
-    if get_fs(logfile_path).exists(logfile_path) and _check_log_tail(logfile_path):
+    fs, _, _ = fsspec.get_fs_token_paths(logfile_path)
+    if fs.exists(logfile_path) and _check_log_tail(logfile_path):
         return timestep
     else:
         return None
@@ -253,7 +253,7 @@ def _upload_config_files(
     )
 
     if local_vertical_grid_file is not None:
-        fs = get_fs(config_url)
+        fs, _, _ = fsspec.get_fs_token_paths(config_url)
         vfile_path = os.path.join(config_url, VERTICAL_GRID_FILENAME)
         fs.put(local_vertical_grid_file, vfile_path)
 

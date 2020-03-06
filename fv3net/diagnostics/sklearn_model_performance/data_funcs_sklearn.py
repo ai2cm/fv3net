@@ -1,4 +1,5 @@
 import fsspec
+import joblib
 from scipy.interpolate import UnivariateSpline
 import xarray as xr
 
@@ -27,12 +28,13 @@ def predict_on_test_data(test_data_path, model_path, num_test_zarrs, model_type=
     if model_type == "rf":
         from fv3net.regression.sklearn.test import (
             load_test_dataset,
-            load_model,
             predict_dataset,
         )
 
         ds_test = load_test_dataset(test_data_path, num_test_zarrs)
-        sk_wrapped_model = load_model(model_path)
+        fs, _, _ = fsspec.get_fs_token_paths(model_path)
+        with fs.open(model_path, "rb") as f:
+            sk_wrapped_model = joblib.load(f)
         ds_pred = predict_dataset(sk_wrapped_model, ds_test)
         return ds_test.unstack(), ds_pred
     else:

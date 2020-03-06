@@ -1,4 +1,5 @@
 import argparse
+import fsspec
 import joblib
 import os
 import yaml
@@ -10,7 +11,6 @@ from fv3net.regression.dataset_handler import BatchGenerator
 from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
-import vcm.cloud.fsspec
 
 MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
@@ -131,7 +131,7 @@ def train_model(batched_data, train_config):
 
 
 def save_output(output_url, model, config):
-    fs = vcm.cloud.fsspec.get_fs(output_url)
+    fs, _, _ = fsspec.get_fs_token_paths(output_url)
     fs.makedirs(output_url, exist_ok=True)
     model_url = os.path.join(output_url, MODEL_FILENAME)
     config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
