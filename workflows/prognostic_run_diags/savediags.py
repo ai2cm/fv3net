@@ -50,7 +50,8 @@ verification_c48 = vcm.cubedsphere.weighted_block_average(
 # open data
 atmos_diag_url = os.path.join(url, "atmos_dt_atmos")
 ds = vcm.open_tiles(atmos_diag_url).load()
-resampled = ds.resample(time="3H", label="right").mean()
+resampled = ds.resample(time="3H", label="right").nearest()
+grid_c48 = resampled[vcm.cubedsphere.constants.GRID_VARS]
 
 verification_c48 = verification_c48.sel(
     time=resampled.time[:-1]
@@ -87,7 +88,6 @@ for variable in area_averages:
 
 # add grid vars
 diags = xr.Dataset(diags, attrs=attrs)
-grid_c48 = resampled[vcm.cubedsphere.constants.GRID_VARS].isel(time=0)
 diags = diags.merge(grid_c48)
 
 with fsspec.open(args.output, "wb") as f:
