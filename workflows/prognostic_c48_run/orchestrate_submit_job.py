@@ -41,10 +41,16 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Remote storage location for prognostic run output.",
     )
     parser.add_argument(
-        "prog_config_yml",
+        "--prog_config_yml",
         type=str,
+        default='prognostic_config.yml',
         help="Path to a config update YAML file specifying the changes (e.g., "
         "diag_table, runtime, ...) from the one-step runs for the prognostic run.",
+    )
+    parser.add_argument(
+        "-d", "--detach",
+        action='store_true',
+        help="Do not wait for the k8s job to complete."
     )
     parser.add_argument(
         "ic_timestep",
@@ -135,5 +141,6 @@ if __name__ == "__main__":
         **kube_opts,
     )
 
-    successful, _ = kube_jobs.wait_for_complete(job_label)
-    kube_jobs.delete_job_pods(successful)
+    if not args.detach:
+        successful, _ = kube_jobs.wait_for_complete(job_label)
+        kube_jobs.delete_job_pods(successful)
