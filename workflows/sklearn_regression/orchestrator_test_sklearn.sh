@@ -6,7 +6,7 @@ NUM_TEST_ZARRS=$5
 
 
 python -m fv3net.diagnostics.sklearn_model_performance \
-  ${MODEL_PATH} \
+  ${MODEL_PATH}"/sklearn_model.pkl" \
   ${DATA_PATH}"/test" \
   ${DIAGS_PATH} \
   ${OUTPUT_PATH} \
