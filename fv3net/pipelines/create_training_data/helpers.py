@@ -89,7 +89,7 @@ def load_train_diag(top_level_dir, init_times):
     one_step_diags = []
     for init_time in init_times:
         run_dir = os.path.join(top_level_dir, init_time.strftime(TIME_FMT))
-        ds_diag = fv3_restarts.open_diagnostic(run_dir, "sfc_dt_atmos")
-        one_step_diags.append(ds_diag)
+        ds_diag = fv3_restarts.open_diagnostic(run_dir, "sfc_dt_atmos").isel(time=0)
+        one_step_diags.append(ds_diag.squeeze().drop("time"))
     return xr.concat([ds for ds in one_step_diags], time_dim_index)
         

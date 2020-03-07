@@ -1,5 +1,5 @@
 from typing import Any, Generator, Tuple
-
+import os
 import xarray as xr
 from dask.delayed import delayed
 
@@ -7,12 +7,23 @@ from vcm.combining import combine_array_sequence
 from vcm.xarray_loaders import open_delayed
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.cloud.fsspec import get_fs
+from vcm.cubedsphere.constants import TILE_COORDS_FILENAMES 
 
 
 from . import _rundir
 
 SCHEMA_CACHE = {}
 FILE_PREFIX_DIM = "file_prefix"
+
+
+def open_diagnostic(url, category):
+    fs = get_fs(url)
+    diag_tiles = []
+    for tile in TILE_COORDS_FILENAMES:
+        tile_file = f"{category}.tile{tile}.nc"
+        with fs.open(os.path.join(url, tile_file), "rb") as f:
+            diag_tiles.append(xr.open_dataset(f))
+    return xr.concat(diag_tiles, "tile")
 
 
 def open_restarts(url: str) -> xr.Dataset:

@@ -70,7 +70,7 @@ RENAMED_TRAIN_DIAG_VARS = {var: f"{var}_train" for var in DIAG_VARS}
 def run(args, pipeline_args):
     fs = fsspec.get_fs(args.gcs_input_data_path)
     gcs_urls = [
-        "gs://" + run_dir_path.strip("/")
+        "gs://" + run_dir_path
         for run_dir_path in sorted(fs.ls(args.gcs_input_data_path))
         if _filter_timestep(run_dir_path)
     ]
@@ -229,21 +229,20 @@ def _open_cloud_data(run_dirs):
         f"{[os.path.basename(run_dir[:-1]) for run_dir in run_dirs]}"
     )
     ds_runs = []
-    try:
-        for run_dir in run_dirs:
-            t_init = parse_timestep_str_from_path(run_dir)
-            ds_run = (
-                open_restarts_with_time_coordinates(run_dir)[RESTART_VARS]
-                .rename({"time": FORECAST_TIME_DIM})
-                .isel({FORECAST_TIME_DIM: slice(-2, None)})
-                .expand_dims(dim={INIT_TIME_DIM: [parse_datetime_from_str(t_init)]})
-            )
-
-            ds_run = helpers._set_relative_forecast_time_coord(ds_run)
-            ds_runs.append(ds_run)
-        return xr.concat(ds_runs, INIT_TIME_DIM)
-    except (ValueError, TypeError, AttributeError, KeyError) as e:
-        logger.error(f"Failed to open restarts from cloud: {e}")
+    #try:
+    for run_dir in run_dirs:
+        t_init = parse_timestep_str_from_path(run_dir)
+        ds_run = (
+            open_restarts_with_time_coordinates(run_dir)[RESTART_VARS]
+            .rename({"time": FORECAST_TIME_DIM})
+            .isel({FORECAST_TIME_DIM: slice(-2, None)})
+            .expand_dims(dim={INIT_TIME_DIM: [parse_datetime_from_str(t_init)]})
+        )
+        ds_run = helpers._set_relative_forecast_time_coord(ds_run)
+        ds_runs.append(ds_run)
+    return xr.concat(ds_runs, INIT_TIME_DIM)
+    #except (ValueError, TypeError, AttributeError, KeyError) as e:
+    #    logger.error(f"Failed to open restarts from cloud: {e}")
 
 
 def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
