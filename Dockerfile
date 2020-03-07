@@ -1,22 +1,14 @@
-FROM us.gcr.io/vcm-ml/fv3gfs-compiled-default:latest
+FROM jupyter/base-notebook
 
+USER root
+RUN apt-get update && apt-get install -y gfortran
+ENV UWNET=/home/$NB_USER/uwnet
+ADD . $UWNET
+RUN fix-permissions $UWNET
 
-RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-netcdf4 \
-    cython3
+USER $NB_UID
 
+RUN conda install -y make
+RUN make -C $UWNET create_environment
 
-ADD docker/install_gcloud.sh install_gcloud.sh
-RUN bash install_gcloud.sh
-
-ADD docker/download_inputdata.sh download_inputdata.sh
-RUN bash download_inputdata.sh
-
-ADD requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt
-
-COPY . /code
-ENV PYTHONPATH=/code:$PYTHONPATH
-WORKDIR /code
-
+ENV PATH=/opt/conda/envs/fv3net/bin:$PATH
