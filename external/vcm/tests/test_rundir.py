@@ -15,6 +15,7 @@ from vcm._rundir import (
     _config_from_fs_namelist,
     _get_current_date_from_coupler_res,
     _get_run_duration,
+    _get_prefixes,
 )
 
 FV_CORE_IN_RESTART = "./RESTART/fv_core.res.tile6.nc"
@@ -138,3 +139,20 @@ def test__get_current_date_from_coupler_res(fs, coupler_res_filename, expected):
 def test__get_run_duration(test_config):
     expected = timedelta(seconds=900)
     assert _get_run_duration(test_config) == expected
+
+
+def test_get_prefixes():
+    walker = [
+        ("blah/RESTART", [], ["20160101.000015.fv_core.res.tile6.nc"]),
+        ("blah/RESTART", [], ["20160101.000000.fv_core.res.tile6.nc"]),
+        ("blah/INPUT", [], ["fv_core.res.tile6.nc"]),
+        ("blah/RESTART", [], ["fv_core.res.tile6.nc"]),
+    ]
+
+    expected = [
+        "INPUT",
+        "RESTART/20160101.000000",
+        "RESTART/20160101.000015",
+        "RESTART",
+    ]
+    assert _get_prefixes(walker) == expected
