@@ -30,7 +30,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--timesteps-per-output-file",
         type=int,
-        default=3,
+        default=1,
         help="Number of consecutive timesteps to calculate features/targets for in "
         "a single process and save to output file."
         "When the full output is shuffled at the data generator step, these"
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--train-fraction",
         type=float,
-        default=0.8,
+        default=0.5,
         help="Fraction of batches to save as training set. "
         "Output zarr files will be saved in either 'train' or 'test' subdir of "
         "gcs-output-data-dir",

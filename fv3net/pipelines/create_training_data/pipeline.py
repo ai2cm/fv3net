@@ -51,34 +51,30 @@ RESTART_VARS = [
     "W",
 ]
 TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
-HIRES_VARS = [
-    "LHTFLsfc_coarse",
-    "SHTFLsfc_coarse",
-    "PRATEsfc_coarse",
-    "DSWRFtoa_coarse",
-    "DSWRFsfc_coarse",
-    "USWRFtoa_coarse",
-    "USWRFsfc_coarse",
-    "DLWRFsfc_coarse",
-    "ULWRFtoa_coarse",
-    "ULWRFsfc_coarse",
+DIAG_VARS = [
+    "LHTFLsfc",
+    "SHTFLsfc",
+    "PRATEsfc",
+    "DSWRFtoa",
+    "DSWRFsfc",
+    "USWRFtoa",
+    "USWRFsfc",
+    "DLWRFsfc",
+    "ULWRFtoa",
+    "ULWRFsfc",
 ]
-RENAMED_HIRES_VARS = {
-    "DSWRFtoa_coarse": "insolation",
-    "LHTFLsfc_coarse": "LHF",
-    "SHTFLsfc_coarse": "SHF",
-    "PRATEsfc_coarse": "precip_sfc",
-}
+RENAMED_PROG_DIAG_VARS = {f"{var}_coarse": f"{var}_prog" for var in DIAG_VARS}
+RENAMED_TRAIN_DIAG_VARS = {var: f"{var}_train" for var in DIAG_VARS}
 
 
 def run(args, pipeline_args):
     fs = fsspec.get_fs(args.gcs_input_data_path)
     gcs_urls = [
-        "gs://" + run_dir_path
+        "gs://" + run_dir_path.strip("/")
         for run_dir_path in sorted(fs.ls(args.gcs_input_data_path))
         if _filter_timestep(run_dir_path)
     ]
-    _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir)
+    #_save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir)
     data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
     train_test_labels = _test_train_split(data_batch_urls, args.train_fraction)
     data_batch_urls_reordered = _reorder_batches(data_batch_urls, args.train_fraction)
@@ -93,6 +89,8 @@ def run(args, pipeline_args):
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
             | "MergeHiresDiagVars"
             >> beam.Map(_merge_hires_data, diag_c48_path=args.diag_c48_path)
+            | "MergeOneStepDiagVars" 
+            >> beam.Map(_merge_onestep_diag_data, top_level_data_dir=args.gcs_input_data_path)
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
@@ -225,12 +223,13 @@ def _open_cloud_data(run_dirs):
     Returns:
         xarray dataset of concatenated zarrs in url list
     """
+
+    logger.info(
+        f"Using run dirs for batch: "
+        f"{[os.path.basename(run_dir[:-1]) for run_dir in run_dirs]}"
+    )
+    ds_runs = []
     try:
-        logger.info(
-            f"Using run dirs for batch: "
-            f"{[os.path.basename(run_dir[:-1]) for run_dir in run_dirs]}"
-        )
-        ds_runs = []
         for run_dir in run_dirs:
             t_init = parse_timestep_str_from_path(run_dir)
             ds_run = (
@@ -243,7 +242,7 @@ def _open_cloud_data(run_dirs):
             ds_run = helpers._set_relative_forecast_time_coord(ds_run)
             ds_runs.append(ds_run)
         return xr.concat(ds_runs, INIT_TIME_DIM)
-    except (ValueError, TypeError, AttributeError) as e:
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
         logger.error(f"Failed to open restarts from cloud: {e}")
 
 
@@ -288,11 +287,23 @@ def _merge_hires_data(ds_run, diag_c48_path):
     try:
         init_times = ds_run[INIT_TIME_DIM].values
         full_zarr_path = os.path.join(diag_c48_path, COARSENED_DIAGS_ZARR_NAME)
-        diags_c48 = helpers.load_diag(full_zarr_path, init_times)[HIRES_VARS]
-        features_diags_c48 = diags_c48.rename(RENAMED_HIRES_VARS)
+        diags_c48 = helpers.load_prog_diag(full_zarr_path, init_times) \
+            [list(RENAMED_PROG_DIAG_VARS.keys())]
+        features_diags_c48 = diags_c48.rename(RENAMED_PROG_DIAG_VARS)
         return xr.merge([ds_run, features_diags_c48])
     except (KeyError, AttributeError, ValueError, TypeError) as e:
         logger.error(f"Failed to merge in features from high res diagnostics: {e}")
+
+
+def _merge_onestep_diag_data(ds_run, top_level_data_dir):
+    try:
+        init_times = ds_run[INIT_TIME_DIM].values
+        diags_onestep = helpers.load_train_diag(top_level_data_dir, init_times)[DIAG_VARS]
+        diags_onestep = diags_onestep.rename(RENAMED_TRAIN_DIAG_VARS)
+        return xr.merge([ds_run, diags_onestep])
+    
+    except (FileNotFoundError, ValueError, TypeError) as e:
+        logger.error(f"Failed to merge one step run diag files: {e}")
 
 
 def _write_remote_train_zarr(
