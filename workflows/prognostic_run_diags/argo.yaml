@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: prognostic-run-diags-
+spec:
+  arguments:
+    parameters:
+    - name: run
+      value: gs://<path>
+  entrypoint: regrid
+  volumes:
+  - name: gcp-credentials-user-gcp-sa
+    secret:
+      secretName: gcp-key
+  templates:
+   - name: regrid
+     tolerations:
+     - key: "dedicated"
+       operator: "Equal"
+       value: "climate-sim-pool"
+       effect: "NoSchedule"
+     container:
+      image: us.gcr.io/vcm-ml/fv3net
+      command:
+      - bash 
+      - workflows/prognostic_run_diags/run.sh
+      - '{{workflow.parameters.run}}'
+      workingDir: /home/jovyan/fv3net
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-credentials-user-gcp-sa
+      resources:
+        requests:
+            memory: "5Gi"
+        limits:
+            memory: "5Gi"
