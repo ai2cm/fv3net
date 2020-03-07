@@ -55,7 +55,7 @@ def get_prefix_time_mapping(
 
     """
     times = _get_restart_times(fs, url)
-    prefixes = _get_prefixes(fs, url)
+    prefixes = _get_prefixes(fs.walk(url))
     return dict(zip(prefixes, times))
 
 
@@ -64,14 +64,10 @@ def _append_if_not_present(list, item):
         list.append(item)
 
 
-def _get_prefixes(fs, url):
-    prefixes = ["INPUT"]
-    restarts = fs.glob(url + "/RESTART/????????.??????.*")
-    for restart in restarts:
-        time = parse_timestep_str_from_path(Path(restart).name)
-        _append_if_not_present(prefixes, os.path.join("RESTART", time))
-    prefixes.append("RESTART")
-    return prefixes
+def _get_prefixes(walker):
+    prefixes = set(prefix for prefix, _, _, _ in yield_restart_files(walker))
+    timestamped_prefixes = prefixes - {"INPUT", "RESTART"}
+    return ["INPUT"] + sorted(timestamped_prefixes) + ["RESTART"]
 
 
 def _sorted_file_prefixes(prefixes):
