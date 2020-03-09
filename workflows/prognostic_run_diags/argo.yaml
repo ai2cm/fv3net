@@ -7,6 +7,8 @@ spec:
     parameters:
     - name: run
       value: gs://<path>
+    - name: output
+      value: gs://<path>
   entrypoint: regrid
   volumes:
   - name: gcp-credentials-user-gcp-sa
@@ -22,9 +24,9 @@ spec:
      container:
       image: us.gcr.io/vcm-ml/fv3net
       command:
-      - bash 
-      - workflows/prognostic_run_diags/run.sh
+      - python -m fv3net.pipelines.savediags
       - '{{workflow.parameters.run}}'
+      - '{{workflow.parameters.output}}'
       workingDir: /home/jovyan/fv3net
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
