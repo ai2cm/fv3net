@@ -13,6 +13,11 @@ import xarray as xr
 import fv3net
 import vcm
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("savediags.py")
+
 
 def rms(x, y, w, dims):
     return np.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
@@ -35,8 +40,10 @@ attrs = vars(args)
 attrs["history"] = " ".join(sys.argv)
 
 url = args.url
+logger.info(f"Processing run directory at {url}")
 
 # open grid
+logger.info("Opening Grid Spec")
 grid_c384 = vcm.open_tiles(args.grid_spec)
 
 # open verification
@@ -94,5 +101,6 @@ for variable in area_averages:
 diags = xr.Dataset(diags, attrs=attrs)
 diags = diags.merge(grid_c48)
 
+logger.info(f"Saving data to {args.output}")
 with fsspec.open(args.output, "wb") as f:
     diags.to_netcdf(f)

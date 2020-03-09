@@ -23,8 +23,11 @@ spec:
        effect: "NoSchedule"
      container:
       image: us.gcr.io/vcm-ml/fv3net
-      command:
-      - python -m fv3net.pipelines.savediags
+      command: ["bash", "-c"]
+      args:
+      - 'python'
+      - '-m'
+      - 'fv3net.pipelines.savediags'
       - '{{workflow.parameters.run}}'
       - '{{workflow.parameters.output}}'
       workingDir: /home/jovyan/fv3net
