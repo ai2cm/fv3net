@@ -97,7 +97,7 @@ def add_column_heating_moistening(ds):
     heating and P-E. Modifies in place.
     
     Args:
-        ds (xarray dataset): train/test or prediction dataset 
+        ds (xarray dataset): train/test or prediction dataset
             that has dQ1, dQ2, delp, precip and LHF data variables
     """
     ds["P-E"] = (

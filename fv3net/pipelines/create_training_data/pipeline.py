@@ -143,7 +143,8 @@ def _save_grid_spec(fs, run_dirs, gcs_output_data_dir, max_attempts=25):
             logger.error(e)
             attempt += 1
     raise FileNotFoundError(
-        f"Unable to open diag files for creating grid spec, reached max attempts {max_attempts}"
+        f"Unable to open diag files for creating grid spec, \
+        reached max attempts {max_attempts}"
     )
 
 
