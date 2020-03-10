@@ -202,6 +202,8 @@ def _get_base_config(version_key: str) -> Mapping:
     with fsspec.open(config_path) as f:
         base_yaml = yaml.safe_load(f)
 
+    return base_yaml
+
 def _update_config(
     workflow_name: str,
     base_config_version: str,
