@@ -7,6 +7,7 @@ import uuid
 import fsspec
 import yaml
 import fv3config
+from fv3net.pipelines.kube_jobs import get_base_fv3config
 
 logger = logging.getLogger("run_jobs")
 
@@ -100,10 +101,10 @@ def _update_config_for_nudging(model_config, config_bucket):
     return model_config
 
 
-def _get_and_upload_run_config(bucket, run_config):
+def _get_and_upload_run_config(bucket, run_config, base_model_config):
     """Get config objects for current job and upload as necessary"""
     config_bucket = os.path.join(bucket, "config")
-    model_config = get_model_config(run_config["fv3config"])
+    model_config = _update_nested_dict(base_model_config, run_config["fv3config"])
     kubernetes_config = get_kubernetes_config(run_config["kubernetes"])
     # if necessary, upload runfile and diag_table. In future, this should be
     # replaced with an fv3config function to do the same for all elements of config
@@ -121,8 +122,8 @@ def _get_and_upload_run_config(bucket, run_config):
     return {"kubernetes": kubernetes_config, "fv3config": model_config}, config_bucket
 
 
-def submit_job(bucket, run_config):
-    run_config, config_bucket = _get_and_upload_run_config(bucket, run_config)
+def submit_job(bucket, run_config, base_model_config):
+    run_config, config_bucket = _get_and_upload_run_config(bucket, run_config, base_model_config)
     job_name = run_config["fv3config"]["experiment_name"] + f".{uuid.uuid4()}"
     fv3config.run_kubernetes(
         os.path.join(config_bucket, "fv3config.yml"),
@@ -155,7 +156,17 @@ if __name__ == "__main__":
         required=True,
         help="Path to local run configuration yaml.",
     )
+    parser.add_argument(
+        "--config-version",
+        type=str,
+        required=False,
+        default="v0.2",
+        help="Default fv3config.yml version to use as the base configuration. "
+        "This should be consistent with the fv3gfs-python version in the specified "
+        "docker image.",
+    )
     args, extra_args = parser.parse_known_args()
+    base_model_config = get_base_fv3config(args.config_version)
     with open(args.run_yaml) as file:
         run_config = yaml.load(file, Loader=yaml.FullLoader)
-    submit_job(args.bucket, run_config)
+    submit_job(args.bucket, run_config, base_model_config)
