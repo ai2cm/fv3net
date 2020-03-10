@@ -2,6 +2,8 @@ import logging
 import os
 import time
 import kubernetes
+import fsspec
+import yaml
 from typing import Sequence, Mapping, Tuple
 
 import fv3config
@@ -14,7 +16,15 @@ logger = logging.getLogger(__name__)
 JobInfo = Tuple[str, str]
 
 
-def update_nested_dict(source_dict: dict, update_dict: dict) -> dict:
+# Map for configuration defaults required for different fv3gfs-python versions
+FV3CONFIG_DEFAULTS_URL = "gs://vcm-fv3config/config/yaml/default"
+FV3CONFIG_DEFAULTS_BY_VERSION = {
+    "v0.2": os.path.join(FV3CONFIG_DEFAULTS_URL, "v0.2/fv3config.yml"),
+    "v0.3": os.path.join(FV3CONFIG_DEFAULTS_URL, "v0.3/fv3config.yml"),
+}
+
+
+def update_nested_dict(source_dict: Mapping, update_dict: Mapping) -> Mapping:
     """
     Recursively update a dictionary with new values.  Used to update
     configuration dicts with partial specifications.
@@ -25,6 +35,17 @@ def update_nested_dict(source_dict: dict, update_dict: dict) -> dict:
         else:
             source_dict[key] = update_dict[key]
     return source_dict
+
+
+def get_base_config(version_key: str) -> Mapping:
+    """
+    Get base configuration dictionary specific to an fv3gfs-python version.
+    """
+    config_path = FV3CONFIG_DEFAULTS_BY_VERSION[version_key]
+    with fsspec.open(config_path) as f:
+        base_yaml = yaml.safe_load(f)
+
+    return base_yaml
 
 
 def transfer_local_to_remote(path: str, remote_url: str) -> str:

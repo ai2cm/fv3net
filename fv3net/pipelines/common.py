@@ -19,14 +19,6 @@ from vcm.cubedsphere.constants import TIME_FMT
 logger = logging.getLogger(__name__)
 
 
-# Map for configuration defaults required for different fv3gfs-python versions
-FV3CONFIG_DEFAULTS_URL = "gs://vcm-fv3config/config/yaml/default"
-FV3CONFIG_DEFAULTS_BY_VERSION = {
-    "v0.2": os.path.join(FV3CONFIG_DEFAULTS_URL, "v0.2/fv3config.yml"),
-    "v0.3": os.path.join(FV3CONFIG_DEFAULTS_URL, "v0.3/fv3config.yml"),
-}
-
-
 class CombineSubtilesByKey(beam.PTransform):
     """Transform for combining subtiles of cubed-sphere data in a beam PCollection.
 

@@ -10,11 +10,7 @@ from typing import List, Tuple, Mapping
 
 import fv3config
 from . import utils
-from ..common import (
-    list_timesteps,
-    subsample_timesteps_at_interval,
-    FV3CONFIG_DEFAULTS_BY_VERSION,
-)
+from ..common import list_timesteps, subsample_timesteps_at_interval
 from vcm.cloud.fsspec import get_fs
 
 STDOUT_FILENAME = "stdout.log"
@@ -197,13 +193,6 @@ def _get_experiment_name(first_tag: str, second_tag: str) -> str:
     return re.sub(r"[^a-zA-Z0-9.\-]", "", exp_name)
 
 
-def _get_base_config(version_key: str) -> Mapping:
-    config_path = FV3CONFIG_DEFAULTS_BY_VERSION[version_key]
-    with fsspec.open(config_path) as f:
-        base_yaml = yaml.safe_load(f)
-
-    return base_yaml
-
 def _update_config(
     workflow_name: str,
     base_config_version: str,
@@ -217,7 +206,7 @@ def _update_config(
     Update kubernetes and fv3 configurations with user inputs
     to prepare for fv3gfs one-step runs.
     """
-    base_model_config = _get_base_config(base_config_version)
+    base_model_config = utils.get_base_config(base_config_version)
     model_config = utils.update_nested_dict(base_model_config, user_model_config)
     kubernetes_config = utils.update_nested_dict(
         deepcopy(KUBERNETES_CONFIG_DEFAULT), user_kubernetes_config
