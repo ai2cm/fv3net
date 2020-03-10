@@ -7,7 +7,7 @@ from vcm.combining import combine_array_sequence
 from vcm.xarray_loaders import open_delayed
 from vcm.schema_registry import impose_dataset_to_schema
 from vcm.cloud.fsspec import get_fs
-from vcm.cubedsphere.constants import TILE_COORDS_FILENAMES 
+from vcm.cubedsphere.constants import TILE_COORDS_FILENAMES
 
 
 from . import _rundir
@@ -119,7 +119,7 @@ def _load_restart_lazily(fs, path, restart_category):
 
 
 def _load_arrays(
-    fs, restart_files,
+    fs, restart_files
 ) -> Generator[Tuple[Any, Tuple, xr.DataArray], None, None]:
     # use the same schema for all coupler_res
     for (file_prefix, restart_category, tile, path) in restart_files:
