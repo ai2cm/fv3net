@@ -23,8 +23,7 @@ spec:
        effect: "NoSchedule"
      container:
       image: us.gcr.io/vcm-ml/fv3net
-      command: ["bash", "-c"]
-      args:
+      command:
       - 'python'
       - '-m'
       - 'fv3net.pipelines.savediags'
@@ -42,5 +41,7 @@ spec:
       resources:
         requests:
             memory: "5Gi"
+            cpu: "1000m"
         limits:
             memory: "5Gi"
+            cpu: "1000m"

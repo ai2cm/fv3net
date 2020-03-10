@@ -6,17 +6,20 @@ import os
 import sys
 
 import fsspec
+import tempfile
 import intake
 import numpy as np
 import xarray as xr
+import io
+import shutil
 
 import fv3net
 import vcm
 
 import logging
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("savediags.py")
+logger.setLevel(logging.INFO)
 
 
 def rms(x, y, w, dims):
@@ -101,6 +104,8 @@ for variable in area_averages:
 diags = xr.Dataset(diags, attrs=attrs)
 diags = diags.merge(grid_c48)
 
+
+
 logger.info(f"Saving data to {args.output}")
-with fsspec.open(args.output, "wb") as f:
-    diags.to_netcdf(f)
+mapper = fsspec.get_mapper(args.output)
+diags.load().to_zarr(mapper, mode='w')
