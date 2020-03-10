@@ -6,12 +6,14 @@ import os
 N_JOBS = 4
 Q = []
 
+BUCKET = 'gs://vcm-ml-data/testing-2020-02/prognostic_run_diags/'
+
 with open("rundirs.yml") as f:
     rundirs = yaml.safe_load(f)
     
 
-def name_output_bucket(rundir):
-    return os.path.join(rundir, 'metrics.zarr')
+def name_output_bucket(name):
+    return os.path.join(BUCKET, f'{name}.nc')
 
 
 def run_command(rundir, output):
@@ -39,8 +41,9 @@ def run_in_shell(rundirs):
 
 
 def submit_to_argo(rundirs):
-    for rundir in rundirs:
-        output = name_output_bucket(rundir)
+    for spec in rundirs:
+        output = name_output_bucket(spec['name'])
+        rundir = spec['url']
         run_argo(rundir, output)
 
 
