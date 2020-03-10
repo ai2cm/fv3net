@@ -6,11 +6,15 @@ import yaml
 import re
 from copy import deepcopy
 from multiprocessing import Pool
-from typing import List, Tuple
+from typing import List, Tuple, Mapping
 
 import fv3config
-from fv3net.pipelines.kube_jobs import utils
-from fv3net.pipelines.common import list_timesteps, subsample_timesteps_at_interval
+from . import utils
+from ..common import (
+    list_timesteps,
+    subsample_timesteps_at_interval,
+    FV3CONFIG_DEFAULTS_BY_VERSION,
+)
 from vcm.cloud.fsspec import get_fs
 
 STDOUT_FILENAME = "stdout.log"
@@ -20,14 +24,12 @@ SECONDS_IN_MINUTE = 60
 SECONDS_IN_HOUR = SECONDS_IN_MINUTE * 60
 SECONDS_IN_DAY = SECONDS_IN_HOUR * 24
 
-# TODO: This top level gets adjusted by an update function below, should change
 KUBERNETES_CONFIG_DEFAULT = {
     "docker_image": "us.gcr.io/vcm-ml/fv3gfs-python",
     "cpu_count": 6,
     "gcp_secret": "gcp-key",
     "image_pull_policy": "Always",
 }
-MODEL_CONFIG_DEFAULT = fv3config.get_default_config()
 
 logger = logging.getLogger(__name__)
 
@@ -195,8 +197,14 @@ def _get_experiment_name(first_tag: str, second_tag: str) -> str:
     return re.sub(r"[^a-zA-Z0-9.\-]", "", exp_name)
 
 
+def _get_base_config(version_key: str) -> Mapping:
+    config_path = FV3CONFIG_DEFAULTS_BY_VERSION[version_key]
+    with fsspec.open(config_path) as f:
+        base_yaml = yaml.safe_load(f)
+
 def _update_config(
     workflow_name: str,
+    base_config_version: str,
     user_model_config: dict,
     user_kubernetes_config: dict,
     input_url: str,
@@ -207,9 +215,8 @@ def _update_config(
     Update kubernetes and fv3 configurations with user inputs
     to prepare for fv3gfs one-step runs.
     """
-    model_config = utils.update_nested_dict(
-        deepcopy(MODEL_CONFIG_DEFAULT), user_model_config
-    )
+    base_model_config = _get_base_config(base_config_version)
+    model_config = utils.update_nested_dict(base_model_config, user_model_config)
     kubernetes_config = utils.update_nested_dict(
         deepcopy(KUBERNETES_CONFIG_DEFAULT), user_kubernetes_config
     )
@@ -270,6 +277,7 @@ def prepare_and_upload_config(
     config_url: str,
     timestep: str,
     one_step_config: dict,
+    base_config_version: str,
     **kwargs,
 ) -> Tuple[dict]:
     """Update model and kubernetes configurations for this particular
@@ -280,6 +288,7 @@ def prepare_and_upload_config(
 
     model_config, kube_config = _update_config(
         workflow_name,
+        base_config_version,
         user_model_config,
         user_kubernetes_config,
         input_url,
@@ -300,6 +309,7 @@ def submit_jobs(
     input_url: str,
     output_url: str,
     config_url: str,
+    base_config_version: str,
     job_labels=None,
     local_vertical_grid_file=None,
 ) -> None:
@@ -316,6 +326,7 @@ def submit_jobs(
             curr_config_url,
             timestep,
             one_step_config,
+            base_config_version,
             local_vertical_grid_file=local_vertical_grid_file,
         )
 
