@@ -10,7 +10,6 @@ import tempfile
 import intake
 import numpy as np
 import xarray as xr
-import io
 import shutil
 
 import fv3net
@@ -31,7 +30,7 @@ def dump_nc(ds: xr.Dataset, f):
     # need to use a buffer since seek doesn't work with GCSFS file objects
     with tempfile.TemporaryDirectory() as dirname:
         url = os.path.join(dirname, "tmp.nc")
-        ds.to_netcdf(url)
+        ds.to_netcdf(url, engine='h5netcdf')
         with open(url, "rb") as tmp1:
             shutil.copyfileobj(tmp1, f)
 
