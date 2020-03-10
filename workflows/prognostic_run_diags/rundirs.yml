@@ -1,5 +1,10 @@
-- gs://vcm-ml-data/end-to-end-experiments/2020-02-26-physics-off/annak-prognostic-physics-off-1773255e/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160801.001500_docker_image_prognostic-run-orchestration
-- gs://vcm-ml-data/end-to-end-experiments/deep-conv-off/annak-prognostic-deep-conv-off-ic20160803-199b834a/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160803.061500_docker_image_prognostic-run-orchestration
-- gs://vcm-ml-data/end-to-end-experiments/2020-02-28-deep-and-mp-off/annak-prognostic-deep-and-mp-off/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160801.001500_docker_image_prognostic-run-orchestration:fv3py_v2.3-mp-off-switch
-- gs://vcm-ml-data/testing-2020-02/2020-02-28-X-SHiELD-2019-12-02-deep-and-mp-off/2020-03-06-fd6609/prognostic_run_baseline/
-- gs://vcm-ml-data/testing-2020-02/2020-03-03-X-SHiELD-2019-12-02-deep-conv-off/2020-03-06-d9560b/prognostic_run_baseline
+- url: gs://vcm-ml-data/end-to-end-experiments/2020-02-26-physics-off/annak-prognostic-physics-off-1773255e/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160801.001500_docker_image_prognostic-run-orchestration
+  name: physics-off-rf
+- url: gs://vcm-ml-data/end-to-end-experiments/deep-conv-off/annak-prognostic-deep-conv-off-ic20160803-199b834a/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160803.061500_docker_image_prognostic-run-orchestration
+  name: deep-off-rf
+- url: gs://vcm-ml-data/end-to-end-experiments/2020-02-28-deep-and-mp-off/annak-prognostic-deep-and-mp-off/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160801.001500_docker_image_prognostic-run-orchestration:fv3py_v2.3-mp-off-switch
+  name: deepOffMPOff-rf
+- url: gs://vcm-ml-data/testing-2020-02/2020-02-28-X-SHiELD-2019-12-02-deep-and-mp-off/2020-03-06-fd6609/prognostic_run_baseline/
+  name: deep-and-mp-off-baseline
+- url: gs://vcm-ml-data/testing-2020-02/2020-03-03-X-SHiELD-2019-12-02-deep-conv-off/2020-03-06-d9560b/prognostic_run_baseline
+  name: deep-off-baseline
