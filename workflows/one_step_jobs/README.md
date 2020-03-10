@@ -36,6 +36,10 @@ usage: submit_jobs.py [-h] --one-step-yaml ONE_STEP_YAML --input-url INPUT_URL
   --init-frequency INIT_FREQUENCY
                         Frequency (in minutes) to initialize one-step jobs
                         starting from the first available timestep.
+  --config-version CONFIG_VERSION
+                        Default fv3config.yml version to use as the base
+                        configuration. This should be consistent with the
+                        fv3gfs-python version in the specified docker image.
 ```
 
 
@@ -47,7 +51,7 @@ when submitting from a machine authorized with a non-service Google account.
 
 To submit to the kubernetes cluster on a VM, the kubectl configuration needs to point at a 
 proxy cluster access point and the VM needs to have a firewall rule to allow for communication 
-with the proxy IP. See the long-lived-infrastructure [cluster access README](https://github.com/VulcanClimateModeling/long-lived-infrastructure#cluster-access-on-a-personal-vm) 
+with the proxy IP. See the long-lived-infrastructure [cluster access README](https://github.com/VulcanClimateModeling/long-lived-infrastructure#vm-access-setup) 
 for details on this process, specifically, the make kubeconfig_init command. Most VMs should 
 already have a firewall rule set up, but a good way to test whether everythings working is 
 by running the following command:
