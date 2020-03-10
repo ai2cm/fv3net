@@ -39,9 +39,9 @@ STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 DPI_FIGURES = {
     "LTS": 100,
-    "Q2_pressure_profiles": 70,
-    "R2_pressure_profiles": 70,
-    "diurnal_cycle": 80,
+    "Q2_pressure_profiles": 100,
+    "R2_pressure_profiles": 100,
+    "diurnal_cycle": 90,
     "map_plot_3col": 120,
 }
 
@@ -107,17 +107,17 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         .drop("dataset")
     )
     _plot_lower_troposphere_stability(
-        xr.merge([grid, ds_target_sea]),
-        PE_pred,
-        PE_hires,
-        mask_to_surface_type(ds_pe.sel(dataset="coarsened high res"), "sea")["P-E"],
+        xr.merge([grid, ds_target_sea]), PE_pred, PE_hires, lat_max=20
     ).savefig(os.path.join(output_dir, "LTS_vs_Q.png"), dpi=DPI_FIGURES["LTS"])
     report_sections["Lower tropospheric stability vs humidity"] = ["LTS_vs_Q.png"]
 
     # Vertical Q2 profiles over land and ocean
     _make_vertical_profile_plots(
         ds_pred_land, ds_target_land, "Q2", "[kg/kg/day]", "global Q2 vertical profile"
-    ).savefig(os.path.join(output_dir, "vertical_profile_Q2_land.png"))
+    ).savefig(
+        os.path.join(output_dir, "vertical_profile_Q2_land.png"),
+        dpi=DPI_FIGURES["Q2_pressure_profiles"],
+    )
     _make_vertical_profile_plots(
         ds_pred_sea, ds_target_sea, "Q2", "[kg/kg/day]", "global Q2 vertical profile"
     ).savefig(
@@ -131,7 +131,8 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # R^2 vs pressure plots
     _make_r2_plot(ds_pred, ds_target, ["Q1", "Q2"], title="$R^2$, global").savefig(
-        os.path.join(output_dir, "r2_vs_pressure_level_global.png")
+        os.path.join(output_dir, "r2_vs_pressure_level_global.png"),
+        dpi=DPI_FIGURES["R2_pressure_profiles"],
     )
     _make_land_sea_r2_plot(
         ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars=["Q1", "Q2"]
@@ -409,7 +410,7 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
     fig = plt.figure(figsize=(16, 4))
 
     ax1 = fig.add_subplot(131)
-    hist = ax1.hist2d(LTS.values, Q)
+    hist = ax1.hist2d(LTS.values, Q, bins=20)
     cbar1 = fig.colorbar(hist[3], ax=ax1)
     cbar1.set_label("count")
     ax1.set_xlabel("LTS [K]")

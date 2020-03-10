@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import xarray as xr
 
-from vcm import fv3_restarts
+from vcm.fv3_restarts import open_diagnostic
 from vcm.cloud.fsspec import get_fs
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import (
@@ -89,7 +89,6 @@ def load_train_diag(top_level_dir, init_times):
     one_step_diags = []
     for init_time in init_times:
         run_dir = os.path.join(top_level_dir, init_time.strftime(TIME_FMT))
-        ds_diag = fv3_restarts.open_diagnostic(run_dir, "sfc_dt_atmos").isel(time=0)
+        ds_diag = open_diagnostic(run_dir, "sfc_dt_atmos").isel(time=0)
         one_step_diags.append(ds_diag.squeeze().drop("time"))
     return xr.concat([ds for ds in one_step_diags], time_dim_index)
-        

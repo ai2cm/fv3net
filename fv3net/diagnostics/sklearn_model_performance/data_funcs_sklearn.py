@@ -3,6 +3,12 @@ import os
 import xarray as xr
 
 import fv3net
+from fv3net.pipelines.create_trainining_data import (
+    SUFFIX_HIRES_DIAG,
+    SUFFIX_COARSE_TRAIN_DIAG,
+    VAR_Q_HEATING_ML,
+    VAR_Q_MOISTENING_ML,
+)
 from vcm.calc import mass_integrate, thermo
 from vcm.cloud.fsspec import get_fs
 from vcm.convenience import round_time
@@ -25,7 +31,13 @@ SAMPLE_DIM = "sample"
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 
-def predict_on_test_data(test_data_path, model_path, num_test_zarrs, model_type="rf"):
+def predict_on_test_data(
+    test_data_path,
+    model_path,
+    num_test_zarrs,
+    model_type="rf",
+    downsample_time_factor=1,
+):
     if model_type == "rf":
         from fv3net.regression.sklearn.test import (
             load_test_dataset,
@@ -33,7 +45,9 @@ def predict_on_test_data(test_data_path, model_path, num_test_zarrs, model_type=
             predict_dataset,
         )
 
-        ds_test = load_test_dataset(test_data_path, num_test_zarrs)
+        ds_test = load_test_dataset(
+            test_data_path, num_test_zarrs, downsample_time_factor
+        )
         sk_wrapped_model = load_model(model_path)
         ds_pred = predict_dataset(sk_wrapped_model, ds_test)
         return ds_test.unstack(), ds_pred
@@ -68,18 +82,29 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times):
 
     evaporation = thermo.latent_heat_flux_to_evaporation(ds_hires["LHTFLsfc_coarse"])
     ds_hires["P-E"] = SEC_PER_DAY * (ds_hires["PRATEsfc_coarse"] - evaporation)
-    ds_hires["heating"] = thermo.net_heating_from_dataset(ds_hires)
+    ds_hires["heating"] = thermo.net_heating_from_dataset(ds_hires, suffix="coarse")
     return ds_hires
 
 
-def add_integrated_Q_vars(ds):
-    """ Integrates column Q1, Q2 to add variables heating and P-E. Modifies in place.
+def add_column_heating_moistening(ds):
+    """ Integrates column dQ1, dQ2 and sum with model's heating/moistening to calculate
+    heating and P-E. Modifies in place.
     
     Args:
-        ds (xarray dataset): dataset that has Q1, Q2, delp data variables
+        ds (xarray dataset): train/test or prediction dataset 
+            that has dQ1, dQ2, delp, precip and LHF data variables
     """
-    ds["P-E"] = mass_integrate(-ds["Q2"], ds.delp) * kg_m2s_to_mm_day
-    ds["heating"] = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(ds["Q1"], ds.delp)
+    ds["P-E"] = (
+        mass_integrate(-ds[VAR_Q_MOISTENING_ML], ds.delp)
+        - thermo.latent_heat_flux_to_evaporation(
+            ds[f"LHTFLsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]
+        )
+        + ds[f"PRATEsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]
+    ) * kg_m2s_to_mm_day
+
+    ds["heating"] = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
+        ds[VAR_Q_HEATING_ML], ds.delp
+    ) + thermo.net_heating_from_dataset(ds, suffix=SUFFIX_COARSE_TRAIN_DIAG)
 
 
 def integrate_for_Q(P, sphum, lower_bound=55000, upper_bound=85000):
