@@ -3,14 +3,12 @@ from jinja2 import Template
 
 report_html = Template(
     """
-    <html>
     {% for header, images in sections.items() %}
         <h2>{{header}}</h2>
             {% for image in images %}
                 <img src="{{image}}" />
             {% endfor %}
     {% endfor %}
-    </html>
 """
 )
 
