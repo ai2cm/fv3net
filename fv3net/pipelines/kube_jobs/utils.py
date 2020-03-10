@@ -37,7 +37,7 @@ def update_nested_dict(source_dict: Mapping, update_dict: Mapping) -> Mapping:
     return source_dict
 
 
-def get_base_config(version_key: str) -> Mapping:
+def get_base_fv3config(version_key: str) -> Mapping:
     """
     Get base configuration dictionary specific to an fv3gfs-python version.
     """

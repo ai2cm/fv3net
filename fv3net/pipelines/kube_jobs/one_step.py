@@ -206,7 +206,7 @@ def _update_config(
     Update kubernetes and fv3 configurations with user inputs
     to prepare for fv3gfs one-step runs.
     """
-    base_model_config = utils.get_base_config(base_config_version)
+    base_model_config = utils.get_base_fv3config(base_config_version)
     model_config = utils.update_nested_dict(base_model_config, user_model_config)
     kubernetes_config = utils.update_nested_dict(
         deepcopy(KUBERNETES_CONFIG_DEFAULT), user_kubernetes_config
