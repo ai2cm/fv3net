@@ -3,28 +3,29 @@ kind: Workflow
 metadata:
   generateName: prognostic-run-diags-
 spec:
-  arguments:
-    parameters:
-    - name: runs
-  entrypoint: all
+  # arguments:
+  #   parameters:
+  #   - name: runs
+  # entrypoint: all
+  entrypoint: notebook
   volumes:
   - name: gcp-credentials-user-gcp-sa
     secret:
       secretName: gcp-key
   templates:
-   - name: all
-     steps:
-      - - name: regrid-step
-          withParam: "{{workflow.parameters.runs}}"
-          template: regrid
-          arguments:
-            parameters:
-              - name: run
-                value: "{{item.url}}"
-              - name: output
-                value: "gs://vcm-ml-data/testing-2020-02/{{item.name}}.nc"
-      - - name: generate-notebook
-          template: notebook
+  #  - name: all
+  #    steps:
+  #     - - name: regrid-step
+  #         withParam: "{{workflow.parameters.runs}}"
+  #         template: regrid
+  #         arguments:
+  #           parameters:
+  #             - name: run
+  #               value: "{{item.url}}"
+  #             - name: output
+  #               value: "gs://vcm-ml-data/testing-2020-02/{{item.name}}.nc"
+  #     - - name: generate-notebook
+  #         template: notebook
    - name: notebook
      tolerations:
      - key: "dedicated"
