@@ -5,17 +5,57 @@ metadata:
 spec:
   arguments:
     parameters:
-    - name: run
-      value: gs://<path>
-    - name: output
-      value: gs://<path>
-  entrypoint: regrid
+    - name: runs
+  entrypoint: all
   volumes:
   - name: gcp-credentials-user-gcp-sa
     secret:
       secretName: gcp-key
   templates:
+   - name: all
+     steps:
+      - - name: regrid-step
+          withParam: "{{workflow.parameters.runs}}"
+          template: regrid
+          arguments:
+            parameters:
+              - name: run
+                value: "{{item.url}}"
+              - name: output
+                value: "gs://vcm-ml-data/testing-2020-02/{{item.name}}.nc"
+      - - name: generate-notebook
+          template: notebook
+   - name: notebook
+     tolerations:
+     - key: "dedicated"
+       operator: "Equal"
+       value: "climate-sim-pool"
+       effect: "NoSchedule"
+     container:
+      image: us.gcr.io/vcm-ml/fv3net
+      command: ['bash', 'upload_report.sh']
+      workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-credentials-user-gcp-sa
+      resources:
+        requests:
+            memory: "6Gi"
+            cpu: "1000m"
+        limits:
+            memory: "6Gi"
+            cpu: "1000m"
+       
    - name: regrid
+     inputs:
+      parameters:
+      - name: run
+      - name: output
      tolerations:
      - key: "dedicated"
        operator: "Equal"
@@ -27,8 +67,8 @@ spec:
       - 'python'
       - '-m'
       - 'fv3net.pipelines.savediags'
-      - '{{workflow.parameters.run}}'
-      - '{{workflow.parameters.output}}'
+      - '{{inputs.parameters.run}}'
+      - '{{inputs.parameters.output}}'
       workingDir: /home/jovyan/fv3net
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
