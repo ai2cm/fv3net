@@ -123,7 +123,9 @@ def _get_and_upload_run_config(bucket, run_config, base_model_config):
 
 
 def submit_job(bucket, run_config, base_model_config):
-    run_config, config_bucket = _get_and_upload_run_config(bucket, run_config, base_model_config)
+    run_config, config_bucket = _get_and_upload_run_config(
+        bucket, run_config, base_model_config
+    )
     job_name = run_config["fv3config"]["experiment_name"] + f".{uuid.uuid4()}"
     fv3config.run_kubernetes(
         os.path.join(config_bucket, "fv3config.yml"),

@@ -6,7 +6,7 @@ import yaml
 import re
 from copy import deepcopy
 from multiprocessing import Pool
-from typing import List, Tuple, Mapping
+from typing import List, Tuple
 
 import fv3config
 from . import utils

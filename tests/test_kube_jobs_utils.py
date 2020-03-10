@@ -173,4 +173,3 @@ def test_get_base_fv3config_bad_version():
 
     with pytest.raises(KeyError):
         get_base_fv3config("nonexistent_fv3gfs_version_key")
-
