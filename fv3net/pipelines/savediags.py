@@ -30,7 +30,7 @@ def dump_nc(ds: xr.Dataset, f):
     # need to use a buffer since seek doesn't work with GCSFS file objects
     with tempfile.TemporaryDirectory() as dirname:
         url = os.path.join(dirname, "tmp.nc")
-        ds.to_netcdf(url, engine='h5netcdf')
+        ds.to_netcdf(url, engine="h5netcdf")
         with open(url, "rb") as tmp1:
             shutil.copyfileobj(tmp1, f)
 
@@ -79,7 +79,6 @@ if __name__ == "__main__":
         time=resampled.time[:-1]
     )  # don't use last time point. there is some trouble
 
-
     # begin constructing diags
     diags = {}
 
@@ -88,7 +87,6 @@ if __name__ == "__main__":
     diags["pwat_run_final"] = ds.PWAT.isel(time=-2)
     diags["pwat_verification_final"] = verification_c48.PWAT.isel(time=-2)
 
-
     # RMSE
     rms_errors = rms(
         resampled, verification_c48, resampled.area, dims=["grid_xt", "grid_yt", "tile"]
@@ -96,8 +94,9 @@ if __name__ == "__main__":
 
     for variable in rms_errors:
         lower = variable.lower()
-        diags[f"{lower}_rms_global"] = rms_errors[variable].assign_attrs(ds[variable].attrs)
-
+        diags[f"{lower}_rms_global"] = rms_errors[variable].assign_attrs(
+            ds[variable].attrs
+        )
 
     # global averages
     horz_dims = ["grid_xt", "grid_yt", "tile"]
