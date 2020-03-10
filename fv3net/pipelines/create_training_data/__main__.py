@@ -22,12 +22,6 @@ if __name__ == "__main__":
         "Don't include bucket in path.",
     )
     parser.add_argument(
-        "--gcs-project",
-        type=str,
-        default="vcm-ml",
-        help="Project name for google cloud.",
-    )
-    parser.add_argument(
         "--timesteps-per-output-file",
         type=int,
         default=1,
@@ -45,6 +39,6 @@ if __name__ == "__main__":
         "gcs-output-data-dir",
     )
     args, pipeline_args = parser.parse_known_args()
-
+    print(args)
     """Main function"""
     run(args=args, pipeline_args=pipeline_args)

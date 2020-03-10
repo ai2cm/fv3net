@@ -56,7 +56,7 @@ def run(args, pipeline_args):
         for run_dir_path in sorted(fs.ls(args.gcs_input_data_path))
         if _filter_timestep(run_dir_path)
     ]
-    _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir)
+    _save_grid_spec(fs, gcs_urls, args.gcs_output_data_dir)
     data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
     train_test_labels = _test_train_split(data_batch_urls, args.train_fraction)
     data_batch_urls_reordered = _reorder_batches(data_batch_urls, args.train_fraction)
@@ -113,7 +113,7 @@ def _reorder_batches(sorted_batches, train_frac):
     return reordered_batches
 
 
-def _save_grid_spec(fs, run_dir, gcs_output_data_dir):
+def _save_grid_spec(fs, run_dirs, gcs_output_data_dir, max_attempts=25):
     """ Reads grid spec from diag files in a run dir and writes to GCS
 
     Args:
@@ -124,13 +124,22 @@ def _save_grid_spec(fs, run_dir, gcs_output_data_dir):
     Returns:
         None
     """
-    grid = open_diagnostic(run_dir, "atmos_dt_atmos").isel(time=0)[
-        ["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]
-    ]
-    _write_remote_train_zarr(grid, gcs_output_data_dir, zarr_name="grid_spec.zarr")
-    logger.info(
-        f"Wrote grid spec to " f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
-    )
+    attempt = 0
+    while attempt <= max_attempts:
+        run_dir = run_dirs[attempt]
+        try:
+            grid = open_diagnostic(run_dir, "atmos_dt_atmos").isel(time=0)[
+                ["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]
+            ]
+            _write_remote_train_zarr(grid, gcs_output_data_dir, zarr_name="grid_spec.zarr")
+            logger.info(
+                f"Wrote grid spec to " f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
+            )
+            return
+        except FileNotFoundError as e:
+            logger.error(e)
+            attempt += 1
+    raise FileNotFoundError(f"Unable to open diag files for creating grid spec, reached max attempts {max_attempts}")
 
 
 def _get_url_batches(gcs_urls, timesteps_per_output_file):
@@ -298,8 +307,9 @@ def _write_remote_train_zarr(
     try:
         if not zarr_name:
             zarr_name = helpers._path_from_first_timestep(ds, train_test_labels)
+            ds = ds.chunk(_CHUNK_SIZES)
         output_path = os.path.join(gcs_output_dir, zarr_name)
-        ds.chunk(_CHUNK_SIZES).to_zarr(zarr_name, mode="w", consolidated=True)
+        ds.to_zarr(zarr_name, mode="w", consolidated=True)
         gsutil.copy(zarr_name, output_path)
         logger.info(f"Done writing zarr to {output_path}")
         shutil.rmtree(zarr_name)
