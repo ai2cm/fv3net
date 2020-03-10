@@ -40,6 +40,7 @@ usage: submit_jobs.py [-h] --one-step-yaml ONE_STEP_YAML --input-url INPUT_URL
                         Default fv3config.yml version to use as the base
                         configuration. This should be consistent with the
                         fv3gfs-python version in the specified docker image.
+                        Defaults to fv3gfs-python v0.2 style configuration.
 ```
 
 
