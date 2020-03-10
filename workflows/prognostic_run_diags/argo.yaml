@@ -40,8 +40,8 @@ spec:
         name: gcp-credentials-user-gcp-sa
       resources:
         requests:
-            memory: "5Gi"
+            memory: "6Gi"
             cpu: "1000m"
         limits:
-            memory: "5Gi"
+            memory: "6Gi"
             cpu: "1000m"
