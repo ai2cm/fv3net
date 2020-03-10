@@ -81,13 +81,13 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times):
         )
 
     evaporation = thermo.latent_heat_flux_to_evaporation(
-        ds_hires[f"LHTFLsfc_{SUFFIX_HIRES_DIAG}"]
+        ds_hires["LHTFLsfc_coarse"]
     )
     ds_hires["P-E"] = SEC_PER_DAY * (
-        ds_hires[f"PRATEsfc_{SUFFIX_HIRES_DIAG}"] - evaporation
+        ds_hires["PRATEsfc_coarse"] - evaporation
     )
     ds_hires["heating"] = thermo.net_heating_from_dataset(
-        ds_hires, suffix=SUFFIX_HIRES_DIAG
+        ds_hires, suffix="coarse"
     )
     return ds_hires
 
