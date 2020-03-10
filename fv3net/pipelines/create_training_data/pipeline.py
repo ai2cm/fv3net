@@ -131,15 +131,20 @@ def _save_grid_spec(fs, run_dirs, gcs_output_data_dir, max_attempts=25):
             grid = open_diagnostic(run_dir, "atmos_dt_atmos").isel(time=0)[
                 ["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]
             ]
-            _write_remote_train_zarr(grid, gcs_output_data_dir, zarr_name="grid_spec.zarr")
+            _write_remote_train_zarr(
+                grid, gcs_output_data_dir, zarr_name="grid_spec.zarr"
+            )
             logger.info(
-                f"Wrote grid spec to " f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
+                f"Wrote grid spec to "
+                f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
             )
             return
         except FileNotFoundError as e:
             logger.error(e)
             attempt += 1
-    raise FileNotFoundError(f"Unable to open diag files for creating grid spec, reached max attempts {max_attempts}")
+    raise FileNotFoundError(
+        f"Unable to open diag files for creating grid spec, reached max attempts {max_attempts}"
+    )
 
 
 def _get_url_batches(gcs_urls, timesteps_per_output_file):
