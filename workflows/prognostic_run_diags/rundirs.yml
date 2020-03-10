@@ -8,3 +8,5 @@
   name: deep-and-mp-off-baseline
 - url: gs://vcm-ml-data/testing-2020-02/2020-03-03-X-SHiELD-2019-12-02-deep-conv-off/2020-03-06-d9560b/prognostic_run_baseline
   name: deep-off-baseline
+- url: gs://vcm-ml-data/experiments-2020-03/all-physics-off-4d4bb0a8/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160803.061500_docker_image_prognostic-run-orchestration
+  name: no-physics-rf
