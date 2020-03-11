@@ -83,10 +83,10 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times):
     evaporation = thermo.latent_heat_flux_to_evaporation(
         ds_hires["LHTFLsfc_coarse"]
     )
-    ds_hires["P-E"] = SEC_PER_DAY * (
+    ds_hires["P-E_total"] = SEC_PER_DAY * (
         ds_hires["PRATEsfc_coarse"] - evaporation
     )
-    ds_hires["heating"] = thermo.net_heating_from_dataset(
+    ds_hires["heating_total"] = thermo.net_heating_from_dataset(
         ds_hires, suffix="coarse"
     )
     return ds_hires
@@ -100,7 +100,7 @@ def add_column_heating_moistening(ds):
         ds (xarray dataset): train/test or prediction dataset
             that has dQ1, dQ2, delp, precip and LHF data variables
     """
-    ds["P-E"] = (
+    ds["P-E_total"] = (
         mass_integrate(-ds[VAR_Q_MOISTENING_ML], ds.delp)
         - thermo.latent_heat_flux_to_evaporation(
             ds[f"LHTFLsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]
@@ -108,7 +108,7 @@ def add_column_heating_moistening(ds):
         + ds[f"PRATEsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]
     ) * kg_m2s_to_mm_day
 
-    ds["heating"] = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
+    ds["heating_total"] = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
         ds[VAR_Q_HEATING_ML], ds.delp
     ) + thermo.net_heating_from_dataset(ds, suffix=SUFFIX_COARSE_TRAIN_DIAG)
 

@@ -81,14 +81,14 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         "slmsk"
     )
     ds_pe = merge_comparison_datasets(
-        "P-E",
+        "P-E_total",
         [ds_pred, ds_target, ds_hires],
         ["prediction", "target C48", "coarsened high res"],
         grid,
         slmsk,
     )
     ds_heating = merge_comparison_datasets(
-        "heating",
+        "heating_total",
         [ds_pred, ds_target, ds_hires],
         ["prediction", "target C48", "coarsened high res"],
         grid,
@@ -97,12 +97,12 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # LTS
     PE_pred = (
-        mask_to_surface_type(ds_pe.sel(dataset="prediction"), "sea")["P-E"]
+        mask_to_surface_type(ds_pe.sel(dataset="prediction"), "sea")["P-E_total"]
         .squeeze()
         .drop("dataset")
     )
     PE_hires = (
-        mask_to_surface_type(ds_pe.sel(dataset="coarsened high res"), "sea")["P-E"]
+        mask_to_surface_type(ds_pe.sel(dataset="coarsened high res"), "sea")["P-E_total"]
         .squeeze()
         .drop("dataset")
     )
@@ -113,13 +113,13 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # Vertical dQ2 profiles over land and ocean
     _make_vertical_profile_plots(
-        ds_pred_land, ds_target_land, "dQ2", "[kg/kg/day]", "global dQ2 vertical profile"
+        ds_pred_land, ds_target_land, "dQ2", "[kg/kg/day]", "land: dQ2 vertical profile"
     ).savefig(
         os.path.join(output_dir, "vertical_profile_dQ2_land.png"),
         dpi=DPI_FIGURES["dQ2_pressure_profiles"],
     )
     _make_vertical_profile_plots(
-        ds_pred_sea, ds_target_sea, "dQ2", "[kg/kg/day]", "global dQ2 vertical profile"
+        ds_pred_sea, ds_target_sea, "dQ2", "[kg/kg/day]", "ocean: dQ2 vertical profile"
     ).savefig(
         os.path.join(output_dir, "vertical_profile_dQ2_sea.png"),
         dpi=DPI_FIGURES["dQ2_pressure_profiles"],
@@ -150,20 +150,20 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ds_pe["local_time"] = local_time(ds_pe)
     ds_heating["local_time"] = local_time(ds_heating)
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_pe, "sea"), "P-E", title="ocean"
+        mask_to_surface_type(ds_pe, "sea"), "P-E_total", title="ocean"
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_P-E_sea.png"),
         dpi=DPI_FIGURES["diurnal_cycle"],
     )
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_pe, "land"), "P-E", title="land"
+        mask_to_surface_type(ds_pe, "land"), "P-E_total", title="land"
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_P-E_land.png"),
         dpi=DPI_FIGURES["diurnal_cycle"],
     )
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
-            ds_pe.sel(coords), "P-E", title=location_name, ylabel="P-E [mm]"
+            ds_pe.sel(coords), "P-E_total", title=location_name, ylabel="P-E [mm]"
         ).savefig(
             os.path.join(output_dir, f"diurnal_cycle_P-E_{location_name}.png"),
             dpi=DPI_FIGURES["diurnal_cycle"],
@@ -175,13 +175,13 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # plot column heating across the diurnal cycle
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_heating, "sea"), "heating", title="sea"
+        mask_to_surface_type(ds_heating, "sea"), "heating_total", title="sea"
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_heating_sea.png"),
         dpi=DPI_FIGURES["diurnal_cycle"],
     )
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_heating, "land"), "heating", title="land"
+        mask_to_surface_type(ds_heating, "land"), "heating_total", title="land"
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_heating_land.png"),
         dpi=DPI_FIGURES["diurnal_cycle"],
@@ -190,7 +190,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
             ds_heating.sel(coords),
-            "heating",
+            "heating_total",
             title=location_name,
             ylabel="heating [W/m$^2$]",
         ).savefig(
@@ -205,7 +205,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     # map plot variables and compare across prediction/ C48 /coarsened high res data
     _plot_comparison_maps(
         ds_pe,
-        "P-E",
+        "P-E_total",
         time_index_selection=None,
         plot_cube_kwargs={"cbar_label": "time avg, P-E [mm/day]"},
     ).savefig(
@@ -213,7 +213,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
     _plot_comparison_maps(
         ds_pe,
-        "P-E",
+        "P-E_total",
         time_index_selection=[0, 2],
         plot_cube_kwargs={"cbar_label": "timestep snapshot, P-E [mm/day]"},
     ).savefig(
@@ -224,7 +224,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     _plot_comparison_maps(
         ds_heating,
-        "heating",
+        "heating_total",
         time_index_selection=None,
         plot_cube_kwargs={"cbar_label": "time avg, column heating [W/m$^2$]"},
     ).savefig(
@@ -233,7 +233,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
     _plot_comparison_maps(
         ds_heating,
-        "heating",
+        "heating_total",
         time_index_selection=[0, -1],
         plot_cube_kwargs={"cbar_label": "timestep snapshot, column heating [W/m$^2$]"},
     ).savefig(
@@ -355,7 +355,7 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
 
     plt.clf()
     fig = plt.figure()
-    pos_mask, neg_mask = ds_target["P-E"] > 0, ds_target["P-E"] < 0
+    pos_mask, neg_mask = ds_target["P-E_total"] > 0, ds_target["P-E_total"] < 0
     ds_pred = regrid_to_common_pressure(ds_pred[var], ds_pred["delp"])
     ds_target = regrid_to_common_pressure(ds_target[var], ds_target["delp"])
 

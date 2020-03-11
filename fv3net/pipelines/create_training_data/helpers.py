@@ -63,7 +63,17 @@ def _set_relative_forecast_time_coord(ds):
     )
 
 
-def load_prog_diag(diag_data_path, init_times):
+def load_hires_prog_diag(diag_data_path, init_times):
+    """Loads coarsened diagnostic variables from the prognostic high res run.
+    
+    Args:
+        diag_data_path (str): path to directory containing coarsened high res
+            diagnostic data
+        init_times (list(datetime)): list of datetimes to filter diagnostic data to
+    
+    Returns:
+        xarray dataset: prognostic high res diagnostic variables
+    """
     fs = get_fs(diag_data_path)
     ds_diag = xr.open_zarr(fs.get_mapper(diag_data_path), consolidated=True).rename(
         {"time": INIT_TIME_DIM}
