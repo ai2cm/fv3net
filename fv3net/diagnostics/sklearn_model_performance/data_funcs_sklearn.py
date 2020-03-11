@@ -4,7 +4,6 @@ import xarray as xr
 
 import fv3net
 from fv3net.pipelines.create_training_data import (
-    SUFFIX_HIRES_DIAG,
     SUFFIX_COARSE_TRAIN_DIAG,
     VAR_Q_HEATING_ML,
     VAR_Q_MOISTENING_ML,
