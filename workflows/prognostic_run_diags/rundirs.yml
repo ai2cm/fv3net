@@ -10,3 +10,5 @@
   name: deep-off-baseline
 - url: gs://vcm-ml-data/experiments-2020-03/all-physics-off-4d4bb0a8/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160803.061500_docker_image_prognostic-run-orchestration
   name: physics-off-1-rf
+- name: deep-conv-off-265ebf37
+  url: gs://vcm-ml-data/experiments-2020-03/deep-conv-off-265ebf37/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160803.061500_docker_image_prognostic-run-orchestration
