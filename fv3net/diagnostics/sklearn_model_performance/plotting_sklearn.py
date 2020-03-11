@@ -102,7 +102,9 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         .drop("dataset")
     )
     PE_hires = (
-        mask_to_surface_type(ds_pe.sel(dataset="coarsened high res"), "sea")["P-E_total"]
+        mask_to_surface_type(ds_pe.sel(dataset="coarsened high res"), "sea")[
+            "P-E_total"
+        ]
         .squeeze()
         .drop("dataset")
     )
