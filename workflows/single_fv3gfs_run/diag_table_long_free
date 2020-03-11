@@ -156,6 +156,8 @@ default_experiment
  "gfs_sfc",   "SOILT2"         "SOILT2"     "sfc_hourly",         "all",  .false.,  "none",  2
  "gfs_sfc",   "SOILT3"         "SOILT3"     "sfc_hourly",         "all",  .false.,  "none",  2
  "gfs_sfc",   "SOILT4"         "SOILT4"     "sfc_hourly",         "all",  .false.,  "none",  2
+ "gfs_phys",  "dusfci",        "uflx",      "sfc_hourly",         "all",  .false.,  "none",  2
+ "gfs_phys",  "dvsfci",        "vflx",      "sfc_hourly",         "all",  .false.,  "none",  2
 ###
 # atmos_monthly
 ###
@@ -223,6 +225,8 @@ default_experiment
  "dynamics",  "ps_dt_nudge",   "ps_dt_nudge", "atmos_monthly",     "all",  .true., "none", 2
  "dynamics",  "t_dt_nudge",    "t_dt_nudge",  "atmos_monthly",     "all",  .true., "none", 2
  "dynamics",  "q_dt_nudge",    "q_dt_nudge",  "atmos_monthly",     "all",  .true., "none", 2
+ "gfs_phys",  "dusfci",        "uflx",      "atmos_monthly",        "all",  .false.,  "none",  2
+ "gfs_phys",  "dvsfci",        "vflx",      "atmos_monthly",        "all",  .false.,  "none",  2
 
 
 #=============================================================================================
