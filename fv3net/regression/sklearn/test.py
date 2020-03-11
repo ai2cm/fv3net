@@ -5,9 +5,17 @@ import xarray as xr
 from ..dataset_handler import stack_and_drop_nan_samples
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import INIT_TIME_DIM
+from fv3net.pipelines.create_training_data import (
+    RENAMED_PROG_DIAG_VARS,
+    RENAMED_TRAIN_DIAG_VARS,
+)
 
 SAMPLE_DIM = "sample"
-KEEP_VARS = ["delp", "slope", "precip_sfc"]
+KEEP_VARS = (
+    ["delp"]
+    + list(RENAMED_TRAIN_DIAG_VARS.values())
+    + list(RENAMED_PROG_DIAG_VARS.values())
+)
 
 
 def load_test_dataset(test_data_path, num_files_to_load=50, downsample_time_factor=1):

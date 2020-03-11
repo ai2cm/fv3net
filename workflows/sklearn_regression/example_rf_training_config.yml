@@ -14,5 +14,5 @@ input_variables:
   - SHF
   - LHF
 output_variables:
-  - Q1
-  - Q2
+  - dQ1
+  - dQ2
