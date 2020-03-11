@@ -39,7 +39,7 @@ STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 DPI_FIGURES = {
     "LTS": 100,
-    "Q2_pressure_profiles": 100,
+    "dQ2_pressure_profiles": 100,
     "R2_pressure_profiles": 100,
     "diurnal_cycle": 90,
     "map_plot_3col": 120,
@@ -111,31 +111,31 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ).savefig(os.path.join(output_dir, "LTS_vs_Q.png"), dpi=DPI_FIGURES["LTS"])
     report_sections["Lower tropospheric stability vs humidity"] = ["LTS_vs_Q.png"]
 
-    # Vertical Q2 profiles over land and ocean
+    # Vertical dQ2 profiles over land and ocean
     _make_vertical_profile_plots(
-        ds_pred_land, ds_target_land, "Q2", "[kg/kg/day]", "global Q2 vertical profile"
+        ds_pred_land, ds_target_land, "dQ2", "[kg/kg/day]", "global dQ2 vertical profile"
     ).savefig(
-        os.path.join(output_dir, "vertical_profile_Q2_land.png"),
-        dpi=DPI_FIGURES["Q2_pressure_profiles"],
+        os.path.join(output_dir, "vertical_profile_dQ2_land.png"),
+        dpi=DPI_FIGURES["dQ2_pressure_profiles"],
     )
     _make_vertical_profile_plots(
-        ds_pred_sea, ds_target_sea, "Q2", "[kg/kg/day]", "global Q2 vertical profile"
+        ds_pred_sea, ds_target_sea, "dQ2", "[kg/kg/day]", "global dQ2 vertical profile"
     ).savefig(
-        os.path.join(output_dir, "vertical_profile_Q2_sea.png"),
-        dpi=DPI_FIGURES["Q2_pressure_profiles"],
+        os.path.join(output_dir, "vertical_profile_dQ2_sea.png"),
+        dpi=DPI_FIGURES["dQ2_pressure_profiles"],
     )
-    report_sections["Q2 pressure level profiles"] = [
-        "vertical_profile_Q2_land.png",
-        "vertical_profile_Q2_sea.png",
+    report_sections["dQ2 pressure level profiles"] = [
+        "vertical_profile_dQ2_land.png",
+        "vertical_profile_dQ2_sea.png",
     ]
 
     # R^2 vs pressure plots
-    _make_r2_plot(ds_pred, ds_target, ["Q1", "Q2"], title="$R^2$, global").savefig(
+    _make_r2_plot(ds_pred, ds_target, ["dQ1", "dQ2"], title="$R^2$, global").savefig(
         os.path.join(output_dir, "r2_vs_pressure_level_global.png"),
         dpi=DPI_FIGURES["R2_pressure_profiles"],
     )
     _make_land_sea_r2_plot(
-        ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars=["Q1", "Q2"]
+        ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars=["dQ1", "dQ2"]
     ).savefig(
         os.path.join(output_dir, "r2_vs_pressure_level_landsea.png"),
         dpi=DPI_FIGURES["R2_pressure_profiles"],
@@ -340,7 +340,7 @@ def _plot_comparison_maps(
 
 
 def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
-    """Creates vertical profile plots of Q2 for drying/moistening columns
+    """Creates vertical profile plots of dQ2 for drying/moistening columns
 
     Args:
         ds_pred (xr dataset): [description]
