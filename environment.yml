@@ -44,3 +44,4 @@ dependencies:
   - pip:
     - gsutil
     - nc-time-axis>=1.2.0
+    - bump2version>=0.5.11
