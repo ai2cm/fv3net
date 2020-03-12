@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from scipy.stats import binned_statistic_2d
+from sklearn.externals import joblib
 import xarray as xr
 
 from vcm.calc import r2_score
@@ -24,11 +25,13 @@ from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
 from fv3net.diagnostics.data_funcs import (
     merge_comparison_datasets,
     get_latlon_grid_coords_set,
+    save_lines,
     EXAMPLE_CLIMATE_LATLON_COORDS,
 )
 from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
     integrate_for_Q,
     lower_tropospheric_stability,
+    r2_2d_var_summary,
 )
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
@@ -67,6 +70,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
                 "i.e. have original dimensions {STACK_DIMS}."
             )
     report_sections = {}
+    data_summary = {}   # to save data for comparison to other configurations
 
     # for convenience, separate the land/sea data
     slmsk = ds_target.isel({COORD_Z_CENTER: -1, INIT_TIME_DIM: 0}).slmsk
@@ -95,6 +99,9 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         slmsk,
     )
 
+    # add 2d R^2 values to the data summary
+    data_summary.update(r2_2d_var_summary(ds_pe, ds_heating))
+
     # LTS
     PE_pred = (
         mask_to_surface_type(ds_pe.sel(dataset="prediction"), "sea")["P-E_total"]
@@ -115,33 +122,28 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # Vertical dQ2 profiles over land and ocean
     _make_vertical_profile_plots(
-        ds_pred_land, ds_target_land, "dQ2", "[kg/kg/day]", "land: dQ2 vertical profile"
+        ds_pred_land, ds_target_land, "dQ2", "[kg/kg/day]", "land: dQ2 vertical profile", saved_data=data_summary
     ).savefig(
         os.path.join(output_dir, "vertical_profile_dQ2_land.png"),
         dpi=DPI_FIGURES["dQ2_pressure_profiles"],
     )
     _make_vertical_profile_plots(
-        ds_pred_sea, ds_target_sea, "dQ2", "[kg/kg/day]", "ocean: dQ2 vertical profile"
-    ).savefig(
-        os.path.join(output_dir, "vertical_profile_dQ2_sea.png"),
+        ds_pred_sea, ds_target_sea, "dQ2", "[kg/kg/day]", "ocean: dQ2 vertical profile", saved_data=data_summary
         dpi=DPI_FIGURES["dQ2_pressure_profiles"],
-    )
     report_sections["dQ2 pressure level profiles"] = [
         "vertical_profile_dQ2_land.png",
         "vertical_profile_dQ2_sea.png",
     ]
 
     # R^2 vs pressure plots
-    _make_r2_plot(ds_pred, ds_target, ["dQ1", "dQ2"], title="$R^2$, global").savefig(
+    _make_r2_plot(ds_pred, ds_target, ["dQ1", "dQ2"], title="$R^2$, global", saved_data=data_summary
+    ).savefig(
         os.path.join(output_dir, "r2_vs_pressure_level_global.png"),
         dpi=DPI_FIGURES["R2_pressure_profiles"],
     )
     _make_land_sea_r2_plot(
-        ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars=["dQ1", "dQ2"]
-    ).savefig(
-        os.path.join(output_dir, "r2_vs_pressure_level_landsea.png"),
+        ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars=["dQ1", "dQ2"], saved_data=data_summary
         dpi=DPI_FIGURES["R2_pressure_profiles"],
-    )
     report_sections["R^2 vs pressure levels"] = [
         "r2_vs_pressure_level_global.png",
         "r2_vs_pressure_level_landsea.png",
@@ -246,6 +248,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         "column_heating_time_avg.png",
         "column_heating_snapshots.png",
     ]
+    joblib.dump(data_summary, os.path.join(output_dir, "data_summary.pkl"))
 
     return report_sections
 
@@ -253,7 +256,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 # Below are plotting functions specific to this diagnostic workflow
 
 
-def _make_r2_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None):
+def _make_r2_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None, saved_data=None):
     plt.clf()
     fig = plt.figure()
     if isinstance(vars, str):
@@ -275,12 +278,14 @@ def _make_r2_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None):
     plt.ylabel("$R^2$")
     if title:
         plt.title(title)
-    plt.show()
+    if saved_data:
+        ax = fig.gca()
+        save_lines(ax, "R2_plot_global", saved_data)
     return fig
 
 
 def _make_land_sea_r2_plot(
-    ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars
+    ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars,saved_data=None
 ):
     plt.clf()
     fig = plt.figure()
@@ -310,7 +315,9 @@ def _make_land_sea_r2_plot(
     plt.legend()
     plt.xlabel("pressure [HPa]")
     plt.ylabel("$R^2$")
-    plt.show()
+    if saved_data:
+        ax = fig.gca()
+        save_lines(ax, "R2_plot_land_sea", saved_data)        
     return fig
 
 
@@ -337,11 +344,11 @@ def _plot_comparison_maps(
             .strftime("%Y-%m-%d, %H:%M:%S")
         )
         plt.suptitle(time_label)
-    plt.show()
     return fig
 
 
-def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
+
+def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None, saved_data=None):
     """Creates vertical profile plots of dQ2 for drying/moistening columns
 
     Args:
@@ -357,14 +364,16 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
 
     plt.clf()
     fig = plt.figure()
-    pos_mask, neg_mask = ds_target["P-E_total"] > 0, ds_target["P-E_total"] < 0
+
+    pos_mask_target, neg_mask_target = ds_target["P-E_total"] > 0, ds_target["P-E_total"] < 0
+    pos_mask_pred, neg_mask_pred = ds_pred["P-E_total"] > 0, ds_pred["P-E_total"] < 0
     ds_pred = regrid_to_common_pressure(ds_pred[var], ds_pred["delp"])
     ds_target = regrid_to_common_pressure(ds_target[var], ds_target["delp"])
 
-    ds_pred_pos_PE = ds_pred.where(pos_mask)
-    ds_pred_neg_PE = ds_pred.where(neg_mask)
-    ds_target_pos_PE = ds_target.where(pos_mask)
-    ds_target_neg_PE = ds_target.where(neg_mask)
+    ds_pred_pos_PE = ds_pred.where(pos_mask_pred)
+    ds_pred_neg_PE = ds_pred.where(neg_mask_pred)
+    ds_target_pos_PE = ds_target.where(pos_mask_target)
+    ds_target_neg_PE = ds_target.where(neg_mask_target)
 
     pressure = ds_pred.pressure.values / 100.0
     profiles_kwargs = zip(
@@ -387,7 +396,9 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
     if title:
         plt.title(title)
     plt.legend()
-    plt.show()
+    if saved_data:
+        ax = fig.gca()
+        save_lines(ax, f"{var}_vertical_profile_plot", saved_data)        
     return fig
 
 
@@ -443,3 +454,5 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
     ax3.set_title("Avg P-E error (predicted - high res)")
     plt.show()
     return fig
+
+
