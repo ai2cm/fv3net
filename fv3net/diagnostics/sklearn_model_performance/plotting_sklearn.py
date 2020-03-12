@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from scipy.stats import binned_statistic_2d
+from sklearn.externals import joblib
 import xarray as xr
 
 from vcm.calc import r2_score
@@ -30,6 +31,7 @@ from fv3net.diagnostics.data_funcs import (
 from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
     integrate_for_Q,
     lower_tropospheric_stability,
+    r2_2d_var_summary,
 )
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
@@ -68,7 +70,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
                 "i.e. have original dimensions {STACK_DIMS}."
             )
     report_sections = {}
-    data_summary = {}   # to save intermediate plot data 
+    data_summary = {}   # to save data for comparison to other configurations
 
     # for convenience, separate the land/sea data
     slmsk = ds_target.isel({COORD_Z_CENTER: -1, INIT_TIME_DIM: 0}).slmsk
@@ -96,6 +98,9 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         grid,
         slmsk,
     )
+
+    # add 2d R^2 values to the data summary
+    data_summary.update(r2_2d_var_summary(ds_pe, ds_heating))
 
     # LTS
     PE_pred = (
@@ -249,8 +254,9 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         "column_heating_time_avg.png",
         "column_heating_snapshots.png",
     ]
+    joblib.dump(data_summary, os.path.join(output_dir, "data_summary.pkl"))
 
-    return report_sections, data_summary
+    return report_sections
 
 
 # Below are plotting functions specific to this diagnostic workflow
@@ -368,8 +374,8 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None, sav
     ds_pred = regrid_to_common_pressure(ds_pred[var], ds_pred["delp"])
     ds_target = regrid_to_common_pressure(ds_target[var], ds_target["delp"])
 
-    ds_pred_pos_PE = ds_pred.where(pos_mask)
-    ds_pred_neg_PE = ds_pred.where(neg_mask)
+    ds_pred_pos_PE = ds_pred.where(pos_mask_pred)
+    ds_pred_neg_PE = ds_pred.where(neg_mask_pred)
     ds_target_pos_PE = ds_target.where(pos_mask_target)
     ds_target_neg_PE = ds_target.where(neg_mask_target)
 
