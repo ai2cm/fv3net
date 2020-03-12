@@ -117,13 +117,13 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # Vertical dQ2 profiles over land and ocean
     _make_vertical_profile_plots(
-        ds_pred_land, ds_target_land, "dQ2", "[kg/kg/day]", "land: dQ2 vertical profile"
+        ds_pred_land, ds_target_land, "dQ2", "[kg/kg/day]", "land: dQ2 vertical profile", saved_data=data_summary
     ).savefig(
         os.path.join(output_dir, "vertical_profile_dQ2_land.png"),
         dpi=DPI_FIGURES["dQ2_pressure_profiles"],
     )
     _make_vertical_profile_plots(
-        ds_pred_sea, ds_target_sea, "dQ2", "[kg/kg/day]", "ocean: dQ2 vertical profile"
+        ds_pred_sea, ds_target_sea, "dQ2", "[kg/kg/day]", "ocean: dQ2 vertical profile", saved_data=data_summary
     ).savefig(
         os.path.join(output_dir, "vertical_profile_dQ2_sea.png"),
         dpi=DPI_FIGURES["dQ2_pressure_profiles"],
@@ -134,12 +134,13 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ]
 
     # R^2 vs pressure plots
-    _make_r2_plot(ds_pred, ds_target, ["dQ1", "dQ2"], title="$R^2$, global").savefig(
+    _make_r2_plot(ds_pred, ds_target, ["dQ1", "dQ2"], title="$R^2$, global", saved_data=data_summary
+    ).savefig(
         os.path.join(output_dir, "r2_vs_pressure_level_global.png"),
         dpi=DPI_FIGURES["R2_pressure_profiles"],
     )
     _make_land_sea_r2_plot(
-        ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars=["dQ1", "dQ2"]
+        ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars=["dQ1", "dQ2"], saved_data=data_summary
     ).savefig(
         os.path.join(output_dir, "r2_vs_pressure_level_landsea.png"),
         dpi=DPI_FIGURES["R2_pressure_profiles"],
@@ -249,7 +250,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         "column_heating_snapshots.png",
     ]
 
-    return report_sections
+    return report_sections, data_summary
 
 
 # Below are plotting functions specific to this diagnostic workflow
@@ -451,3 +452,5 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
     ax3.set_title("Avg P-E error (predicted - high res)")
     plt.show()
     return fig
+
+

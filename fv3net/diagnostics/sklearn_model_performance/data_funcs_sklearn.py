@@ -30,6 +30,11 @@ SAMPLE_DIM = "sample"
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 
+def r2_global_2d_var(ds_pred, ds_target, var):
+
+    return r2
+
+    
 def predict_on_test_data(
     test_data_path,
     model_path,
