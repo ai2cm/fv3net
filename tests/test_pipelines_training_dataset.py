@@ -50,6 +50,8 @@ def test_training_raw_ds():
 
 
 def test__create_train_cols(test_training_raw_ds):
-    train_ds = _create_train_cols(test_training_raw_ds, cols_to_keep=["T", "Q1", "QU"])
-    assert pytest.approx(train_ds.Q1.values) == -1.0 / (15.0 * 60)
-    assert pytest.approx(train_ds.QU.values) == -10.0 / (15.0 * 60)
+    train_ds = _create_train_cols(
+        test_training_raw_ds, cols_to_keep=["T", "dQ1", "dQU"]
+    )
+    assert pytest.approx(train_ds.dQ1.values) == -1.0 / (15.0 * 60)
+    assert pytest.approx(train_ds.dQU.values) == -10.0 / (15.0 * 60)

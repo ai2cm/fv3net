@@ -10,9 +10,9 @@ input_variables:
   - phis
   - slmsk
   - tsea
-  - insolation
-  - SHF
-  - LHF
+  - DSWRFtoa_train
+  - SHTFLsfc_train
+  - LHTFLsfc_train
 output_variables:
-  - Q1
-  - Q2
+  - dQ1
+  - dQ2
