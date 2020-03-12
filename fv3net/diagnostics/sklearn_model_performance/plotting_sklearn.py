@@ -24,6 +24,7 @@ from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
 from fv3net.diagnostics.data_funcs import (
     merge_comparison_datasets,
     get_latlon_grid_coords_set,
+    save_lines,
     EXAMPLE_CLIMATE_LATLON_COORDS,
 )
 from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
@@ -67,6 +68,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
                 "i.e. have original dimensions {STACK_DIMS}."
             )
     report_sections = {}
+    data_summary = {}   # to save intermediate plot data 
 
     # for convenience, separate the land/sea data
     slmsk = ds_target.isel({COORD_Z_CENTER: -1, INIT_TIME_DIM: 0}).slmsk
@@ -251,7 +253,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 # Below are plotting functions specific to this diagnostic workflow
 
 
-def _make_r2_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None):
+def _make_r2_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None, saved_data=None):
     plt.clf()
     fig = plt.figure()
     if isinstance(vars, str):
@@ -273,12 +275,14 @@ def _make_r2_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None):
     plt.ylabel("$R^2$")
     if title:
         plt.title(title)
-    plt.show()
+    if saved_data:
+        ax = fig.gca()
+        save_lines(ax, "R2_plot_global", saved_data)
     return fig
 
 
 def _make_land_sea_r2_plot(
-    ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars
+    ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars,saved_data=None
 ):
     plt.clf()
     fig = plt.figure()
@@ -308,7 +312,9 @@ def _make_land_sea_r2_plot(
     plt.legend()
     plt.xlabel("pressure [HPa]")
     plt.ylabel("$R^2$")
-    plt.show()
+    if saved_data:
+        ax = fig.gca()
+        save_lines(ax, "R2_plot_land_sea", saved_data)        
     return fig
 
 
@@ -335,11 +341,10 @@ def _plot_comparison_maps(
             .strftime("%Y-%m-%d, %H:%M:%S")
         )
         plt.suptitle(time_label)
-    plt.show()
     return fig
 
 
-def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
+def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None, saved_data=None):
     """Creates vertical profile plots of dQ2 for drying/moistening columns
 
     Args:
@@ -355,14 +360,15 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
 
     plt.clf()
     fig = plt.figure()
-    pos_mask, neg_mask = ds_target["P-E"] > 0, ds_target["P-E"] < 0
+    pos_mask_target, neg_mask_target = ds_target["P-E_total"] > 0, ds_target["P-E_total"] < 0
+    pos_mask_pred, neg_mask_pred = ds_pred["P-E_total"] > 0, ds_pred["P-E_total"] < 0
     ds_pred = regrid_to_common_pressure(ds_pred[var], ds_pred["delp"])
     ds_target = regrid_to_common_pressure(ds_target[var], ds_target["delp"])
 
     ds_pred_pos_PE = ds_pred.where(pos_mask)
     ds_pred_neg_PE = ds_pred.where(neg_mask)
-    ds_target_pos_PE = ds_target.where(pos_mask)
-    ds_target_neg_PE = ds_target.where(neg_mask)
+    ds_target_pos_PE = ds_target.where(pos_mask_target)
+    ds_target_neg_PE = ds_target.where(neg_mask_target)
 
     pressure = ds_pred.pressure.values / 100.0
     profiles_kwargs = zip(
@@ -385,7 +391,9 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
     if title:
         plt.title(title)
     plt.legend()
-    plt.show()
+    if saved_data:
+        ax = fig.gca()
+        save_lines(ax, f"{var}_vertical_profile_plot", saved_data)        
     return fig
 
 
