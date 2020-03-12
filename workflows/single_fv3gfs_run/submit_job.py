@@ -1,5 +1,4 @@
 import argparse
-from collections.abc import Mapping
 from datetime import datetime, timedelta
 import logging
 import os
@@ -7,7 +6,7 @@ import uuid
 import fsspec
 import yaml
 import fv3config
-from fv3net.pipelines.kube_jobs import get_base_fv3config
+from fv3net.pipelines.kube_jobs import get_base_fv3config, update_nested_dict
 
 logger = logging.getLogger("run_jobs")
 
@@ -27,24 +26,9 @@ NUDGE_FILENAME_PATTERN = "%Y%m%d_%HZ_T85LR.nc"
 NUDGE_BUCKET = "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data"
 
 
-def get_model_config(config_update):
-    """Get default model config and update with provided config_update"""
-    config = fv3config.get_default_config()
-    return _update_nested_dict(config, config_update)
-
-
 def get_kubernetes_config(config_update):
     """Get default kubernetes config and updatedwith provided config_update"""
-    return _update_nested_dict(KUBERNETES_CONFIG_DEFAULT, config_update)
-
-
-def _update_nested_dict(source_dict, update_dict):
-    for key, value in update_dict.items():
-        if key in source_dict and isinstance(source_dict[key], Mapping):
-            _update_nested_dict(source_dict[key], update_dict[key])
-        else:
-            source_dict[key] = update_dict[key]
-    return source_dict
+    return update_nested_dict(KUBERNETES_CONFIG_DEFAULT, config_update)
 
 
 def _upload_if_necessary(path, bucket_url):
@@ -104,7 +88,7 @@ def _update_config_for_nudging(model_config, config_bucket):
 def _get_and_upload_run_config(bucket, run_config, base_model_config):
     """Get config objects for current job and upload as necessary"""
     config_bucket = os.path.join(bucket, "config")
-    model_config = _update_nested_dict(base_model_config, run_config["fv3config"])
+    model_config = update_nested_dict(base_model_config, run_config["fv3config"])
     kubernetes_config = get_kubernetes_config(run_config["kubernetes"])
     # if necessary, upload runfile and diag_table. In future, this should be
     # replaced with an fv3config function to do the same for all elements of config
