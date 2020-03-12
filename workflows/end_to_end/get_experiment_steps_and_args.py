@@ -16,24 +16,26 @@ def get_experiment_steps_and_args(config_file: str):
         config = yaml.safe_load(f)
 
     # Resolve inputs, outputs, and other config parameters
-    _apply_config_transforms(config)
-    workflow_steps_config = config["experiment"]["steps_to_run"]
-    all_step_arguments = _get_all_step_arguments(workflow_steps_config, config)
+    workflow_steps = config["experiment"]["steps_to_run"]
+    _apply_config_transforms(config, workflow_steps)
+    all_step_arguments = _get_all_step_arguments(workflow_steps, config)
     experiment_steps_and_args = {
         "name": config["experiment"]["name"],
-        "workflow": " ".join([step for step in workflow_steps_config]),
+        "workflow": " ".join([step for step in workflow_steps]),
         "command_and_args": all_step_arguments,
     }
     return json.dumps(experiment_steps_and_args)
 
 
-def _apply_config_transforms(config: Mapping):
+def _apply_config_transforms(config: Mapping, workflow_steps: List):
     """
     Transforms to apply to the configuration dictionary.  All transforms
     are assumed to be in-place.
     """
-
     _add_unique_id(config)
+    all_steps_config = config["experiment"]["steps_config"]
+    current_steps_config = {step: all_steps_config[step] for step in workflow_steps }
+    config["experiment"]["steps_config"] = current_steps_config
     _resolve_output_location(config)
     _resolve_input_from(config)
 
@@ -144,23 +146,24 @@ def _generate_output_path_from_config(
     """generate an output location stub from a step's argument configuration"""
 
     output_str = step_name
-    arg_config = step_config.get("extra_args", None)
-    if arg_config is not None:
-        arg_strs = []
-        for i, (key, val) in enumerate(arg_config.items()):
-            if i >= max_config_stubs:
-                break
-            val = str(val)
+    arg_config = step_config.get("args", None)
+    arg_strs = []
+    n_stubs = 0
+    for key in [key for key in arg_config if not isinstance(arg_config[key], Mapping)]:
+        n_stubs =+ 1
+        if n_stubs > max_config_stubs:
+            break
+        val = str(arg_config[key])
 
-            # get last part of path so string isn't so long
-            if "/" in val:
-                val = val.split("/")[-1]
+        # get last part of path so string isn't so long
+        if "/" in val:
+            val = val.split("/")[-1]
 
-            key = key.strip("--")  # remove prefix of optional argument
-            key_val = f"{key}_{val}"
-            arg_strs.append(key_val)
-        arg_output_stub = "_".join(arg_strs)
-        output_str += "_" + arg_output_stub
+        key = key.strip("--")  # remove prefix of optional argument
+        key_val = f"{key}_{val}"
+        arg_strs.append(key_val)
+    arg_output_stub = "_".join(arg_strs)
+    output_str += "_" + arg_output_stub
 
     return output_str
 
