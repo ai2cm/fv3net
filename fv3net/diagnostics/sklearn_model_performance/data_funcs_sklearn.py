@@ -8,7 +8,7 @@ from fv3net.pipelines.create_training_data import (
     VAR_Q_HEATING_ML,
     VAR_Q_MOISTENING_ML,
 )
-from vcm.calc import mass_integrate, thermo
+from vcm.calc import mass_integrate, thermo, r2_score
 from vcm.cloud.fsspec import get_fs
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import (
@@ -18,6 +18,7 @@ from vcm.cubedsphere.constants import (
     TILE_COORDS,
 )
 from vcm.regrid import regrid_to_shared_coords
+from vcm.select import mask_to_surface_type
 from vcm.constants import (
     kg_m2s_to_mm_day,
     kg_m2_to_mm,
@@ -30,10 +31,43 @@ SAMPLE_DIM = "sample"
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 
+def r2_2d_var_summary(ds_pe, ds_heating):
+    r2_summary = {}
+            dataset.sel(dataset="prediction").stack(STACK_DIMS),
+            dataset.sel(dataset="target C48").stack(STACK_DIMS),
+            "sample"
+        )
+        r2_summary[f"R2_global_{var}_vs_hires"] = r2_score(
+            dataset.sel(dataset="prediction").stack(STACK_DIMS),
+            dataset.sel(dataset="coarsened high res").stack(STACK_DIMS),
+            "sample"
+        )
+        r2_summary[f"R2_sea_{var}_vs_target"] = r2_score(
+            mask_to_surface_type(dataset.sel(dataset="prediction"), "sea").stack(STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="target C48"), "sea").stack(STACK_DIMS),
+            "sample"
+        )
+        r2_summary[f"R2_sea_{var}_vs_hires"] = r2_score(
+            mask_to_surface_type(dataset.sel(dataset="prediction"), "sea").stack(STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="coarsened high res"), "sea").stack(STACK_DIMS),
+            "sample"
+        )
+        r2_summary[f"R2_land_{var}_vs_target"] = r2_score(
+            mask_to_surface_type(dataset.sel(dataset="prediction"), "land").stack(STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="target C48"), "land").stack(STACK_DIMS),
+            "sample"
+        )
+        r2_summary[f"R2_land_{var}_vs_hires"] = r2_score(
+            mask_to_surface_type(dataset.sel(dataset="prediction"), "land").stack(STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="coarsened high res"), "land").stack(STACK_DIMS),
+            "sample"
+        )
+    return r2_summary
+
+
 def predict_on_test_data(
     test_data_path,
     model_path,
-    num_test_zarrs,
     model_type="rf",
     downsample_time_factor=1,
 ):

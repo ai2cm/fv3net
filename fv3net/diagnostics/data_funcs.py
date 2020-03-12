@@ -14,8 +14,17 @@ EXAMPLE_CLIMATE_LATLON_COORDS = {
 }
 
 
+def save_lines(ax, title, saved_data=None):
+    if not saved_data:
+        saved_data = {}
+    for line in ax.lines:
+        x, y, label = line.get_xdata(), line.get_ydata(), line.get_label()
+        saved_data[title] = {"x": x, "y": y, "label": label}
+    return saved_data
+
+
 def merge_comparison_datasets(
-    var, datasets, dataset_labels, grid, additional_dataset=None
+    data_vars, datasets, dataset_labels, grid, additional_dataset=None
 ):
     """ Makes a comparison dataset out of multiple datasets that all have a common
     data variable. They are concatenated with a new dim "dataset" that can be used
@@ -39,7 +48,7 @@ def merge_comparison_datasets(
     src_dim_index = pd.Index(dataset_labels, name="dataset")
     datasets = [drop_nondim_coords(ds) for ds in datasets]
     datasets_to_merge = [
-        xr.concat([ds[var].squeeze(drop=True) for ds in datasets], src_dim_index),
+        xr.concat([ds[data_vars].squeeze(drop=True) for ds in datasets], src_dim_index),
         grid,
     ]
     if additional_dataset is not None:
