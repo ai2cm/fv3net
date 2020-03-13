@@ -18,7 +18,7 @@ from vcm.cubedsphere.constants import (
     VAR_LON_OUTER,
     VAR_LAT_OUTER,
 )
-from vcm.fv3_restarts import _split_url
+from vcm.cloud.fsspec import get_fs
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 
 logging.basicConfig(level=logging.INFO)
@@ -79,8 +79,7 @@ def _get_config(config_path):
 
 
 def _get_remote_diags(diags_path):
-    proto, path = _split_url(diags_path)
-    fs = fsspec.filesystem(proto)
+    fs = get_fs(diags_path)
     mapper = fs.get_mapper(diags_path)
     return xr.open_zarr(mapper)
 
@@ -91,12 +90,12 @@ if __name__ == "__main__":
         "input_path", type=str, help="GCS location of C384 diagnostics data zarrs."
     )
     parser.add_argument(
+        "config_path", type=str, help="Location of diagnostics coarsening config yaml."
+    )
+    parser.add_argument(
         "output_path",
         type=str,
         help="GCS location where= coarsened diagnostics zarrs will be written.",
-    )
-    parser.add_argument(
-        "config_path", type=str, help="Location of diagnostics coarsening config yaml."
     )
     args = parser.parse_args()
     coarsen_c384_diagnostics(args)
