@@ -4,9 +4,13 @@ import json
 import os
 import uuid
 from typing import List, Mapping, Any, Hashable
-from dataflow import COARSEN_RESTARTS_DATAFLOW_ARGS#, CREATE_TRAINING_DATAFLOW_ARGS
+from dataflow import COARSEN_RESTARTS_DATAFLOW_ARGS, CREATE_TRAINING_DATAFLOW_ARGS
 
-print(COARSEN_RESTARTS_DATAFLOW_ARGS)
+DATAFLOW_ARGS_MAPPING = {
+    "coarsen_restarts" : COARSEN_RESTARTS_DATAFLOW_ARGS,
+    "create_training_data" : CREATE_TRAINING_DATAFLOW_ARGS
+}
+
 
 def get_experiment_steps_and_args(config_file: str):
     """
@@ -43,6 +47,9 @@ def _apply_config_transforms(config: Mapping):
     _add_unique_id(config)
     _resolve_output_location(config)
     _resolve_input_from(config)
+    _resolve_dataflow_args(config)
+    
+    print(config)
 
 
 def _add_unique_id(config: Mapping):
@@ -99,7 +106,7 @@ def _resolve_input_from(config: Mapping):
                 elif from_key is not None:
                     previous_step = steps_config.get(from_key, None)
                     if previous_step is not None:
-                        source_info["location"] = previous_step
+                        source_info["location"] = previous_step['output_location']
                     else:
                         raise KeyError(
                             f"A step argument specified 'from' another step requires that "
@@ -135,6 +142,23 @@ def _get_experiment_path(config: Mapping):
     return f"{proto}://{root}/{experiment_name}"
 
 
+def _resolve_dataflow_args(config: Mapping):
+    """Add dataflow arguments to step if it is the job runner"""
+    
+    steps_config = config["experiment"]["steps_config"]
+    for step, step_config in steps_config.items():
+        dataflow_arg = step_config["args"].get("--runner", None)
+        if dataflow_arg == "DataflowRunner":
+            step_config['args'].update(dict(DATAFLOW_ARGS_MAPPING[step]))
+        elif dataflow_arg == "DirectRunner":
+            continue
+        elif dataflow_arg is not None:
+            raise ValueError(
+                f"'runner' arg must be 'DataflowRunner' or 'DirectRunner'; "
+                f"instead received '{dataflow_arg}'."
+            )
+
+
 def _get_all_step_arguments(config: Mapping):
     """Get a dictionary of each step with i/o and methedological arguments"""
 
@@ -154,7 +178,6 @@ def _get_all_step_arguments(config: Mapping):
         step_args.append(output_location)
         step_args.extend(optional_args)
         all_step_arguments[step] = ' '.join(step_args)
-    print(all_step_arguments)
 
     return all_step_arguments
 
