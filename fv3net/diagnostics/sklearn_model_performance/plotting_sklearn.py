@@ -70,7 +70,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
                 "i.e. have original dimensions {STACK_DIMS}."
             )
     report_sections = {}
-    data_summary = {}   # to save data for comparison to other configurations
+    metrics_dataset = xr.Dataset()   # to save data for comparison to other configurations
 
     # for convenience, separate the land/sea data
     slmsk = ds_target.isel({COORD_Z_CENTER: -1, INIT_TIME_DIM: 0}).slmsk
@@ -100,7 +100,9 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
 
     # add 2d R^2 values to the data summary
-    data_summary.update(r2_2d_var_summary(ds_pe, ds_heating))
+    r2_scalar_metrics = r2_2d_var_summary(ds_pe, ds_heating)
+    for r2_name, r2_value in r2_scalar_metrics.items():
+        metrics_dataset.assign({r2_name: r2_value})
 
     # LTS
     PE_pred = (
@@ -122,13 +124,13 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # Vertical dQ2 profiles over land and ocean
     _make_vertical_profile_plots(
-        ds_pred_land, ds_target_land, "dQ2", "[kg/kg/day]", "land: dQ2 vertical profile", saved_data=data_summary
+        ds_pred_land, ds_target_land, "dQ2", "[kg/kg/s]", "land: dQ2 vertical profile", saved_data=metrics_dataset
     ).savefig(
         os.path.join(output_dir, "vertical_profile_dQ2_land.png"),
         dpi=DPI_FIGURES["dQ2_pressure_profiles"],
     )
     _make_vertical_profile_plots(
-        ds_pred_sea, ds_target_sea, "dQ2", "[kg/kg/day]", "ocean: dQ2 vertical profile", saved_data=data_summary
+        ds_pred_sea, ds_target_sea, "dQ2", "[kg/kg/s]", "ocean: dQ2 vertical profile", saved_data=metrics_dataset
     ).savefig(
         os.path.join(output_dir, "vertical_profile_dQ2_sea.png"),
         dpi=DPI_FIGURES["dQ2_pressure_profiles"],
@@ -139,8 +141,13 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ]
 
     # R^2 vs pressure plots
-    _make_r2_plot(ds_pred, ds_target, ["dQ1", "dQ2"], title="$R^2$, global", saved_data=data_summary
-        ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars=["dQ1", "dQ2"]
+    _make_r2_profile_plot(ds_pred, ds_target, ["dQ1", "dQ2"], title="$R^2$, global", saved_data=metrics_dataset
+    ).savefig(
+        os.path.join(output_dir, "r2_vs_pressure_level_global.png"),
+        dpi=DPI_FIGURES["R2_pressure_profiles"],
+    )
+    _make_land_sea_r2_profile_plot(
+        ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, ["dQ1", "dQ2"], saved_data=metrics_dataset
     ).savefig(
         os.path.join(output_dir, "r2_vs_pressure_level_landsea.png"),
         dpi=DPI_FIGURES["R2_pressure_profiles"],
@@ -249,15 +256,14 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         "column_heating_time_avg.png",
         "column_heating_snapshots.png",
     ]
-    joblib.dump(data_summary, os.path.join(output_dir, "data_summary.pkl"))
-
+    metrics_dataset.to_netcdf(os.path.join(output_dir, "metrics.nc"))
     return report_sections
 
 
 # Below are plotting functions specific to this diagnostic workflow
 
 
-def _make_r2_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None, saved_data=None):
+def _make_r2_profile_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None, saved_data=None):
     plt.clf()
     fig = plt.figure()
     if isinstance(vars, str):
@@ -272,21 +278,21 @@ def _make_r2_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None, s
                 sample=STACK_DIMS
             ),
             sample_dim,
-        ).values
-        plt.plot(x, y, label=var)
+        )
+        plt.plot(x, y.values, label=var)
+        if saved_data:
+            saved_data.assign({f"R2_profile_{var}_global": y})
     plt.legend()
     plt.xlabel("pressure [HPa]")
     plt.ylabel("$R^2$")
     if title:
         plt.title(title)
-    if saved_data:
-        ax = fig.gca()
-        save_lines(ax, "R2_plot_global", saved_data)
+
     return fig
 
 
-def _make_land_sea_r2_plot(
-    ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars,saved_data=None
+def _make_land_sea_r2_profile_plot(
+    ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars, saved_data=None
 ):
     plt.clf()
     fig = plt.figure()
@@ -301,7 +307,7 @@ def _make_land_sea_r2_plot(
                 sample=STACK_DIMS
             ),
             SAMPLE_DIM,
-        ).values
+        )
         y_land = r2_score(
             regrid_to_common_pressure(
                 ds_target_land[var], ds_target_land["delp"]
@@ -310,15 +316,15 @@ def _make_land_sea_r2_plot(
                 sample=STACK_DIMS
             ),
             SAMPLE_DIM,
-        ).values
-        plt.plot(x, y_sea, color=color, alpha=0.7, label=f"{var}, sea", linestyle="--")
-        plt.plot(x, y_land, color=color, alpha=0.7, label=f"{var}, land", linestyle=":")
+        )
+        plt.plot(x, y_sea.values, color=color, alpha=0.7, label=f"{var}, sea", linestyle="--")
+        plt.plot(x, y_land.values, color=color, alpha=0.7, label=f"{var}, land", linestyle=":")
+        if saved_data:
+            saved_data.assign({f"R2_profile_{var}_land": y_land})
+            saved_data.assign({f"R2_profile_{var}_sea": y_sea})
     plt.legend()
     plt.xlabel("pressure [HPa]")
-    plt.ylabel("$R^2$")
-    if saved_data:
-        ax = fig.gca()
-        save_lines(ax, "R2_plot_land_sea", saved_data)        
+    plt.ylabel("$R^2$")    
     return fig
 
 
@@ -389,15 +395,15 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None, sav
         stack_dims = [dim for dim in STACK_DIMS if dim in data.dims]
         data_mean = np.mean(np.nan_to_num(data.stack(sample=stack_dims).values), axis=1)
         plt.plot(pressure, data_mean, **kwargs)
-
+        if saved_data:
+            da = xr.DataArray(data_mean, dims="pressure", coords=pressure)
+            saved_data.assign({f"{var}_profile {kwargs['label']}": da})
     plt.xlabel("Pressure [HPa]")
     plt.ylabel(units)
     if title:
         plt.title(title)
     plt.legend()
-    if saved_data:
-        ax = fig.gca()
-        save_lines(ax, f"{var}_vertical_profile_plot", saved_data)        
+     
     return fig
 
 

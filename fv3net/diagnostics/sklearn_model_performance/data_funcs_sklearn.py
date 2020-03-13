@@ -33,41 +33,45 @@ STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 def r2_2d_var_summary(ds_pe, ds_heating):
     r2_summary = {}
-            dataset.sel(dataset="prediction").stack(STACK_DIMS),
-            dataset.sel(dataset="target C48").stack(STACK_DIMS),
+    for var, dataset in zip(["heating_total", "P-E_total"], [ds_heating, ds_pe]):
+        r2_summary[f"R2_global_{var}_vs_target"] = r2_score(
+            dataset.sel(dataset="target C48")[var].stack(sample=STACK_DIMS),
+            dataset.sel(dataset="prediction")[var].stack(sample=STACK_DIMS),
             "sample"
-        )
+        ).values.item()
         r2_summary[f"R2_global_{var}_vs_hires"] = r2_score(
-            dataset.sel(dataset="prediction").stack(STACK_DIMS),
-            dataset.sel(dataset="coarsened high res").stack(STACK_DIMS),
+            dataset.sel(dataset="coarsened high res")[var].stack(sample=STACK_DIMS),
+            dataset.sel(dataset="prediction")[var].stack(sample=STACK_DIMS),
             "sample"
-        )
+        ).values.item()
         r2_summary[f"R2_sea_{var}_vs_target"] = r2_score(
-            mask_to_surface_type(dataset.sel(dataset="prediction"), "sea").stack(STACK_DIMS),
-            mask_to_surface_type(dataset.sel(dataset="target C48"), "sea").stack(STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="target C48"), "sea")[var].stack(sample=STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="prediction"), "sea")[var].stack(sample=STACK_DIMS),
             "sample"
-        )
+        ).values.item()
         r2_summary[f"R2_sea_{var}_vs_hires"] = r2_score(
-            mask_to_surface_type(dataset.sel(dataset="prediction"), "sea").stack(STACK_DIMS),
-            mask_to_surface_type(dataset.sel(dataset="coarsened high res"), "sea").stack(STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="coarsened high res"), "sea")[var].stack(sample=STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="prediction"), "sea")[var].stack(sample=STACK_DIMS),
             "sample"
-        )
+        ).values.item()
         r2_summary[f"R2_land_{var}_vs_target"] = r2_score(
-            mask_to_surface_type(dataset.sel(dataset="prediction"), "land").stack(STACK_DIMS),
-            mask_to_surface_type(dataset.sel(dataset="target C48"), "land").stack(STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="target C48"), "land")[var].stack(sample=STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="prediction"), "land")[var].stack(sample=STACK_DIMS),
             "sample"
-        )
+        ).values.item()
         r2_summary[f"R2_land_{var}_vs_hires"] = r2_score(
-            mask_to_surface_type(dataset.sel(dataset="prediction"), "land").stack(STACK_DIMS),
-            mask_to_surface_type(dataset.sel(dataset="coarsened high res"), "land").stack(STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="coarsened high res"), "land")[var].stack(sample=STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="prediction"), "land")[var].stack(sample=STACK_DIMS),
             "sample"
-        )
+        ).values.item()
+    print(r2_summary)
     return r2_summary
 
 
 def predict_on_test_data(
     test_data_path,
     model_path,
+    num_test_zarrs,
     model_type="rf",
     downsample_time_factor=1,
 ):
