@@ -4,7 +4,9 @@ import json
 import os
 import uuid
 from typing import List, Mapping, Any, Hashable
+from dataflow import COARSEN_RESTARTS_DATAFLOW_ARGS#, CREATE_TRAINING_DATAFLOW_ARGS
 
+print(COARSEN_RESTARTS_DATAFLOW_ARGS)
 
 def get_experiment_steps_and_args(config_file: str):
     """
@@ -185,29 +187,11 @@ def _generate_output_path_from_config(
     return output_str
 
 
-# def _generate_args(step_config: Mapping):
-#     """
-#     Generate the arguments for the step as positional arguments
-#     in a string followed by optional arguments.
-#     """
-#     arg_config = step_config.get("extra_args", None)
-
-#     if arg_config is not None:
-#         optional_args = []
-#         required_args = []
-#         for arg_key, arg_value in arg_config.items():
-#             if arg_key[:2] == "--":
-#                 optional_args += [arg_key, str(arg_value)]
-#             else:
-#                 required_args.append(str(arg_value))
-
-#         combined_args = " ".join(required_args + optional_args)
-#     else:
-#         combined_args = ""
-
-#     return combined_args
 
 def _resolve_arg_value(value: Any) -> Hashable:
+    """take an entry in step args dict, which may itself be a dict (if 
+    specifying input from/location) or a value, and return a string value
+    """
     if isinstance(value, Mapping):
         location_value = value.get("location", None)
         if location_value is None:

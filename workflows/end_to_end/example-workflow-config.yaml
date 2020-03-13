@@ -4,7 +4,7 @@ experiment:
   name: test-experiment
   unique_id: True
   steps_to_run:
-#     - coarsen_restarts
+    - coarsen_restarts
 #     - coarsen_diagnostics
     - one_step_run
 #     - create_training_data
@@ -23,6 +23,7 @@ experiment:
           location: gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy
         source-resolution: 384
         target-resolution: 48
+        job-runner: DataflowRunner
     
     coarsen_diagnostics:
       command: python ./workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.py
