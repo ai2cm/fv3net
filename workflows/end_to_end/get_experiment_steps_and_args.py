@@ -48,8 +48,6 @@ def _apply_config_transforms(config: Mapping):
     _resolve_output_location(config)
     _resolve_input_from(config)
     _resolve_dataflow_args(config)
-    
-    print(config)
 
 
 def _add_unique_id(config: Mapping):
@@ -149,7 +147,7 @@ def _resolve_dataflow_args(config: Mapping):
     for step, step_config in steps_config.items():
         dataflow_arg = step_config["args"].get("--runner", None)
         if dataflow_arg == "DataflowRunner":
-            step_config['args'].update(dict(DATAFLOW_ARGS_MAPPING[step]))
+            step_config['args'].update(DATAFLOW_ARGS_MAPPING[step])
         elif dataflow_arg == "DirectRunner":
             continue
         elif dataflow_arg is not None:
@@ -169,10 +167,11 @@ def _get_all_step_arguments(config: Mapping):
         required_args = []
         optional_args = []
         for key, value in step_config["args"].items():
-            if key.startswith('--'):
-                optional_args.extend([key, _resolve_arg_value(value)])
+            arg_string = _resolve_arg_values(key, value)
+            if arg_string.startswith('--'):
+                optional_args.append(arg_string)
             else:
-                required_args.append(_resolve_arg_value(value))
+                required_args.append(arg_string)
         output_location = step_config["output_location"]
         step_args.extend(required_args)
         step_args.append(output_location)
@@ -210,21 +209,32 @@ def _generate_output_path_from_config(
     return output_str
 
 
-
-def _resolve_arg_value(value: Any) -> Hashable:
-    """take an entry in step args dict, which may itself be a dict (if 
-    specifying input from/location) or a value, and return a string value
+def _resolve_arg_values(key: Hashable, value: Any) -> Hashable:
+    """take a step args key-value pair and process into an appropriate arg string"
     """
     if isinstance(value, Mapping):
+        # case for when the arg is a dict {"location" : path}
         location_value = value.get("location", None)
         if location_value is None:
             raise ValueError("Argument 'location' value not specified.")
         else:
-            return str(location_value) 
+            if key.startswith('--'):
+                return ' '.join([key, str(location_value)])
+            else:
+                return str(location_value)
+    if isinstance(value, List):
+        # case for when the arg is a list
+        # i.e., multiple optional args with same key, needed for dataflow packages
+        multiple_optional_args = []
+        for item in value:
+            multiple_optional_args.extend([key, item])
+        return ' '.join(multiple_optional_args)
     else:
-        return str(value)
+        if key.startswith('--'):
+            return ' '.join([key, str(value)])
+        else:
+            return str(value)
     
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

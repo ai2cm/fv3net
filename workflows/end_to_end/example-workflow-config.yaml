@@ -5,9 +5,9 @@ experiment:
   unique_id: True
   steps_to_run:
     - coarsen_restarts
-#     - coarsen_diagnostics
+    - coarsen_diagnostics
     - one_step_run
-#     - create_training_data
+    - create_training_data
 #     - train_sklearn_model
 #     - test_sklearn_model
 #     - prognostic_run
@@ -15,7 +15,7 @@ experiment:
   
   steps_config:
     coarsen_restarts:
-      command: workflows/coarsen_restarts/orchestrator_job.sh
+      command: python -m fv3net.pipelines.coarsen_restarts
       args:
         data_to_coarsen:
           location: gs://vcm-ml-data/orchestration-testing/shield-C384-restarts-2019-12-04
@@ -23,7 +23,7 @@ experiment:
           location: gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy
         source-resolution: 384
         target-resolution: 48
-        job-runner: DataflowRunner
+        --runner: DataflowRunner
     
     coarsen_diagnostics:
       command: python ./workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.py
@@ -35,7 +35,7 @@ experiment:
     one_step_run:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
       args:
-        restart_data:
+        --restart_data:
           from: coarsen_restarts
         experiment_yaml: ./workflows/one_step_jobs/all-physics-off.yml
         docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
@@ -50,6 +50,7 @@ experiment:
         timesteps-per-output-file: 2
         mask-to-surface-type: 
         train-fraction: 0.5
+        --runner: DataflowRunner
         
     train_sklearn_model:
       command: workflows/sklearn_regression/orchestrator_train_sklearn.sh
