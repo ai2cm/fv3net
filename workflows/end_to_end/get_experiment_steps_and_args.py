@@ -3,7 +3,7 @@ import yaml
 import json
 import os
 import uuid
-from typing import List, Mapping
+from typing import List, Mapping, Any, Hashable
 
 
 def get_experiment_steps_and_args(config_file: str):
@@ -17,8 +17,14 @@ def get_experiment_steps_and_args(config_file: str):
 
     # Resolve inputs, outputs, and other config parameters
     workflow_steps = config["experiment"]["steps_to_run"]
-    _apply_config_transforms(config, workflow_steps)
-    all_step_arguments = _get_all_step_arguments(workflow_steps, config)
+    all_steps_config = config["experiment"]["steps_config"]
+    try:
+        current_steps_config = {step: all_steps_config[step] for step in workflow_steps }
+    except KeyError:
+        raise('Workflow steps list contains a step not defined in steps config.')
+    config["experiment"]["steps_config"] = current_steps_config
+    _apply_config_transforms(config)
+    all_step_arguments = _get_all_step_arguments(config)
     experiment_steps_and_args = {
         "name": config["experiment"]["name"],
         "workflow": " ".join([step for step in workflow_steps]),
@@ -27,15 +33,12 @@ def get_experiment_steps_and_args(config_file: str):
     return json.dumps(experiment_steps_and_args)
 
 
-def _apply_config_transforms(config: Mapping, workflow_steps: List):
+def _apply_config_transforms(config: Mapping):
     """
     Transforms to apply to the configuration dictionary.  All transforms
     are assumed to be in-place.
     """
     _add_unique_id(config)
-    all_steps_config = config["experiment"]["steps_config"]
-    current_steps_config = {step: all_steps_config[step] for step in workflow_steps }
-    config["experiment"]["steps_config"] = current_steps_config
     _resolve_output_location(config)
     _resolve_input_from(config)
 
@@ -55,9 +58,9 @@ def _add_unique_id(config: Mapping):
 def _resolve_output_location(config: Mapping):
     """Get the step output location if one is not specified"""
     root_exp_path = _get_experiment_path(config)
-    all_steps_config = config["experiment"]["steps_config"]
+    steps_config = config["experiment"]["steps_config"]
 
-    for step_name, step_config in all_steps_config.items():
+    for step_name, step_config in steps_config.items():
 
         if "output_location" in step_config:
             continue
@@ -73,29 +76,40 @@ def _resolve_input_from(config: Mapping):
     steps if the "from" keyword is used along with a step name.
     """
 
-    all_steps_config = config["experiment"]["steps_config"]
+    steps_config = config["experiment"]["steps_config"]
 
-    for step_name, step_config in all_steps_config.items():
-        input_config = step_config["inputs"]
+    for step_name, step_config in steps_config.items():
+        args_config = step_config["args"]
 
-        for input_source, source_info in input_config.items():
-            location = source_info.get("location", None)
-            from_key = source_info.get("from", None)
+        for arg in args_config:
+            if isinstance(args_config[arg], Mapping):
+                source_info = args_config[arg]
+                location = source_info.get("location", None)
+                from_key = source_info.get("from", None)
 
-            if location is not None and from_key is not None:
-                raise ValueError(
-                    f"Ambiguous input location for {step_name}-{input_source}."
-                    f" Both 'from' and 'location' were specified"
-                )
-            if location is not None:
-                continue
-            elif from_key is not None:
-                source_info["location"] = all_steps_config[from_key]["output_location"]
-            else:
-                raise KeyError(
-                    f"Input section of {step_name} should have either 'location' "
-                    "or 'from' specified in the orchestration configuration"
-                )
+                if location is not None and from_key is not None:
+                    raise ValueError(
+                        f"Ambiguous input location for {step_name}-{input_source}."
+                        f" Both 'from' and 'location' were specified"
+                    )
+                if location is not None:
+                    continue
+                elif from_key is not None:
+                    previous_step = steps_config.get(from_key, None)
+                    if previous_step is not None:
+                        source_info["location"] = previous_step
+                    else:
+                        raise KeyError(
+                            f"A step argument specified 'from' another step requires that "
+                            f"the other step also be run as part of the same workflow. "
+                            f"Add '{from_key}' to the workflow or specify '{arg}' with " 
+                            f"'location' instead."
+                        )
+                else:
+                    raise KeyError(
+                        f"An arg of {step_name} is provided as a key-value pair,"
+                        f" but only 'location' or 'from' may be specified."
+                    )
 
 
 def _get_experiment_path(config: Mapping):
@@ -119,23 +133,26 @@ def _get_experiment_path(config: Mapping):
     return f"{proto}://{root}/{experiment_name}"
 
 
-def _get_all_step_arguments(workflow_steps: List[str], config: Mapping):
+def _get_all_step_arguments(config: Mapping):
     """Get a dictionary of each step with i/o and methedological arguments"""
 
     steps_config = config["experiment"]["steps_config"]
     all_step_arguments = {}
-    for i, step in enumerate(workflow_steps):
-        curr_config = steps_config[step]
-        all_input_locations = [
-            input_info["location"] for input_info in curr_config["inputs"].values()
-        ]
-        output_location = curr_config["output_location"]
-        command = curr_config["command"]
-        extra_args = _generate_args(curr_config)
-
-        input_args = " ".join(all_input_locations)
-        step_args = " ".join([command, input_args, output_location, extra_args])
-        all_step_arguments[step] = step_args
+    for step, step_config in steps_config.items():
+        step_args = [step_config["command"]]
+        required_args = []
+        optional_args = []
+        for key, value in step_config["args"].items():
+            if key.startswith('--'):
+                optional_args.extend([key, _resolve_arg_value(value)])
+            else:
+                required_args.append(_resolve_arg_value(value))
+        output_location = step_config["output_location"]
+        step_args.extend(required_args)
+        step_args.append(output_location)
+        step_args.extend(optional_args)
+        all_step_arguments[step] = ' '.join(step_args)
+    print(all_step_arguments)
 
     return all_step_arguments
 
@@ -168,27 +185,38 @@ def _generate_output_path_from_config(
     return output_str
 
 
-def _generate_args(step_config: Mapping):
-    """
-    Generate the arguments for the step as positional arguments
-    in a string followed by optional arguments.
-    """
-    arg_config = step_config.get("extra_args", None)
+# def _generate_args(step_config: Mapping):
+#     """
+#     Generate the arguments for the step as positional arguments
+#     in a string followed by optional arguments.
+#     """
+#     arg_config = step_config.get("extra_args", None)
 
-    if arg_config is not None:
-        optional_args = []
-        required_args = []
-        for arg_key, arg_value in arg_config.items():
-            if arg_key[:2] == "--":
-                optional_args += [arg_key, str(arg_value)]
-            else:
-                required_args.append(str(arg_value))
+#     if arg_config is not None:
+#         optional_args = []
+#         required_args = []
+#         for arg_key, arg_value in arg_config.items():
+#             if arg_key[:2] == "--":
+#                 optional_args += [arg_key, str(arg_value)]
+#             else:
+#                 required_args.append(str(arg_value))
 
-        combined_args = " ".join(required_args + optional_args)
+#         combined_args = " ".join(required_args + optional_args)
+#     else:
+#         combined_args = ""
+
+#     return combined_args
+
+def _resolve_arg_value(value: Any) -> Hashable:
+    if isinstance(value, Mapping):
+        location_value = value.get("location", None)
+        if location_value is None:
+            raise ValueError("Argument 'location' value not specified.")
+        else:
+            return str(location_value) 
     else:
-        combined_args = ""
-
-    return combined_args
+        return str(value)
+    
 
 
 if __name__ == "__main__":

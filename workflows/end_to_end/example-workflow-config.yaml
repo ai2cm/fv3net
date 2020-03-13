@@ -4,9 +4,9 @@ experiment:
   name: test-experiment
   unique_id: True
   steps_to_run:
-    - coarsen_restarts
+#     - coarsen_restarts
 #     - coarsen_diagnostics
-#     - one_step_run
+    - one_step_run
 #     - create_training_data
 #     - train_sklearn_model
 #     - test_sklearn_model
