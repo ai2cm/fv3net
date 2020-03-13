@@ -138,7 +138,6 @@ def plot_cube(
         latb=plottable_variable.latb.values,
         lonb=plottable_variable.lonb.values,
         plotting_function=plotting_function,
-        ax=ax,
         **kwargs,
     )
 
@@ -163,7 +162,7 @@ def plot_cube(
             fig, ax = plt.subplots(1, 1, subplot_kw={"projection": projection})
         else:
             fig = ax.figure
-        handle = _plot_func_short(array)
+        handle = _plot_func_short(array, ax=ax)
         axes = np.array(ax)
         handles = [handle]
 
