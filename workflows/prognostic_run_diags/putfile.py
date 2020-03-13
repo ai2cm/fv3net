@@ -2,4 +2,4 @@ import sys
 import fsspec
 
 fs = fsspec.filesystem("gs")
-fs.put(*sys.argv)
+fs.put(*sys.argv[1:])
