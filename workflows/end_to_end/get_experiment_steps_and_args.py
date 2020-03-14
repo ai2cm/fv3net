@@ -96,7 +96,7 @@ def _resolve_input_from(config: Mapping):
 
                 if location is not None and from_key is not None:
                     raise ValueError(
-                        f"Ambiguous input location for {step_name}-{input_source}."
+                        f"Ambiguous input location for {step_name}-{arg}."
                         f" Both 'from' and 'location' were specified"
                     )
                 if location is not None:

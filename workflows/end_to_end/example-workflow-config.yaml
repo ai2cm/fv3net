@@ -4,9 +4,9 @@ experiment:
   name: test-experiment
   unique_id: True
   steps_to_run:
-    - coarsen_restarts
-    - coarsen_diagnostics
-    - one_step_run
+#     - coarsen_restarts
+#     - coarsen_diagnostics
+#     - one_step_run
     - create_training_data
 #     - train_sklearn_model
 #     - test_sklearn_model
@@ -35,21 +35,23 @@ experiment:
     one_step_run:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
       args:
-        --restart_data:
-          from: coarsen_restarts
+        restart_data:
+#           from: coarsen_restarts
+          location: gs://vcm-ml-data/orchestration-testing/test-experiment-95647d07/coarsen_restarts_source-resolution_384_target-resolution_48_runner_DataflowRunner/C48
         experiment_yaml: ./workflows/one_step_jobs/all-physics-off.yml
         docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
     
     create_training_data:
-      command: workflows/create_training_data/orchestrator_job.sh
+      command: python -m fv3net.pipelines.create_training_data
       args:
         one_step_data:
-          from: one_step_run
+#           from: one_step_run
+          location: gs://vcm-ml-data/orchestration-testing/test-experiment-d9eef6bc/one_step_run_experiment_yaml_all-physics-off.yml_docker_image_prognostic-run-orchestration
         diagnostics_data:
-          from: coarsen_diagnostics
-        timesteps-per-output-file: 2
-        mask-to-surface-type: 
-        train-fraction: 0.5
+#           from: coarsen_diagnostics
+          location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04/gfsphysics_15min_coarse.zarr
+        --timesteps-per-output-file: 2
+        --train-fraction: 0.5
         --runner: DataflowRunner
         
     train_sklearn_model:

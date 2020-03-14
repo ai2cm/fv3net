@@ -18,6 +18,7 @@ COARSEN_RESTARTS_DATAFLOW_ARGS = {
 
 CREATE_TRAINING_DATAFLOW_ARGS = COARSEN_RESTARTS_DATAFLOW_ARGS.copy()
 CREATE_TRAINING_DATAFLOW_ARGS.update({
+    "--job_name": f"create-training-data-{getuser().lower()}",
     "--num_workers": 4,
     "--max_num_workers": 30,
     "--disk_size_gb": 30,
