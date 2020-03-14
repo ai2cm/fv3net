@@ -108,7 +108,7 @@ def plot_cube(
 
     Example:
         # plot diag winds at two times
-        axes, hs, cbar = plot_cube(
+        fig, axes, hs, cbar = plot_cube(
             mappable_var(diag_ds, 'VGRD850').isel(time = slice(2, 4)),
             plotting_function = "contourf",
             col = "time",
@@ -162,7 +162,7 @@ def plot_cube(
             fig, ax = plt.subplots(1, 1, subplot_kw={"projection": projection})
         else:
             fig = ax.figure
-        handle = _plot_func_short(array)
+        handle = _plot_func_short(array, ax=ax)
         axes = np.array(ax)
         handles = [handle]
 
@@ -171,10 +171,14 @@ def plot_cube(
         [ax.coastlines(**coastlines_kwargs) for ax in axes.flatten()]
 
     if colorbar:
-        plt.gcf().subplots_adjust(
-            bottom=0.1, top=0.9, left=0.1, right=0.8, wspace=0.02, hspace=0.02
-        )
-        cb_ax = plt.gcf().add_axes([0.83, 0.1, 0.02, 0.8])
+        if row or col:
+            fig.subplots_adjust(
+                bottom=0.1, top=0.9, left=0.1, right=0.8, wspace=0.02, hspace=0.02
+            )
+            cb_ax = fig.add_axes([0.83, 0.1, 0.02, 0.8])
+        else:
+            fig.subplots_adjust(wspace=0.25)
+            cb_ax = ax.inset_axes([1.05, 0, 0.02, 1])
         cbar = plt.colorbar(handles[0], cax=cb_ax, extend="both")
         cbar.set_label(
             _get_var_label(plottable_variable[var_name].attrs, cbar_label or var_name)

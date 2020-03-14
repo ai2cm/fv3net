@@ -60,6 +60,15 @@ def _create_arg_parser():
         help="Frequency (in minutes) to initialize one-step jobs starting from"
         " the first available timestep.",
     )
+    parser.add_argument(
+        "--config-version",
+        type=str,
+        required=False,
+        default="v0.2",
+        help="Default fv3config.yml version to use as the base configuration. "
+        "This should be consistent with the fv3gfs-python version in the specified "
+        "docker image.",
+    )
 
     return parser
 
@@ -99,6 +108,7 @@ if __name__ == "__main__":
         args.input_url,
         args.output_url,
         config_url,
+        args.config_version,
         job_labels=job_label,
         local_vertical_grid_file=local_vgrid_file,
     )

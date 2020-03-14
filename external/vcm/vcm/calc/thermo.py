@@ -226,7 +226,7 @@ def latent_heat_flux_to_evaporation(
     return lhf / latent_heat_vaporization(surface_temperature)
 
 
-def net_heating_from_dataset(ds: xr.Dataset) -> xr.DataArray:
+def net_heating_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.DataArray:
     """Compute the net heating from a dataset of diagnostic output
 
     This should be equivalent to the vertical integral (i.e. <>) of Q1::
@@ -236,19 +236,25 @@ def net_heating_from_dataset(ds: xr.Dataset) -> xr.DataArray:
     Args:
         ds: a datasets with the names for the heat fluxes and precipitation used
             by the ML pipeline
+        suffix: (optional) suffix of flux data vars if applicable. Will add "_" before
+            appending to variable names if not already in suffix.
 
     Returns:
         the total net heating, the rate of change of the dry enthalpy <c_p T>
     """
+    if suffix and suffix[0] != "_":
+        suffix = "_" + suffix
+    elif not suffix or suffix == "":
+        suffix = ""
     fluxes = (
-        ds.DLWRFsfc_coarse,
-        ds.DSWRFsfc_coarse,
-        ds.ULWRFsfc_coarse,
-        ds.ULWRFtoa_coarse,
-        ds.USWRFsfc_coarse,
-        ds.USWRFtoa_coarse,
-        ds.DSWRFtoa_coarse,
-        ds.SHTFLsfc_coarse,
-        ds.PRATEsfc_coarse,
+        ds["DLWRFsfc" + suffix],
+        ds["DSWRFsfc" + suffix],
+        ds["ULWRFsfc" + suffix],
+        ds["ULWRFtoa" + suffix],
+        ds["USWRFsfc" + suffix],
+        ds["USWRFtoa" + suffix],
+        ds["DSWRFtoa" + suffix],
+        ds["SHTFLsfc" + suffix],
+        ds["PRATEsfc" + suffix],
     )
     return net_heating(*fluxes)

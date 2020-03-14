@@ -2,7 +2,7 @@ import pytest
 
 from typing import Mapping
 
-from fv3net.pipelines.kube_jobs import wait_for_complete
+from fv3net.pipelines.kube_jobs import wait_for_complete, get_base_fv3config
 
 
 class dotdict(dict):
@@ -161,3 +161,15 @@ def test_wait_for_complete(mock_batch_api):
 
     assert len(success) == num_sucess
     assert len(fail) == num_jobs - num_sucess
+
+
+def test_get_base_fv3config():
+
+    config = get_base_fv3config("v0.2")
+    assert isinstance(config, Mapping)
+
+
+def test_get_base_fv3config_bad_version():
+
+    with pytest.raises(KeyError):
+        get_base_fv3config("nonexistent_fv3gfs_version_key")

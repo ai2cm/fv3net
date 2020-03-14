@@ -5,7 +5,17 @@ import os
 import shutil
 import xarray as xr
 
-from . import helpers
+from . import (
+    helpers,
+    DIAG_VARS,
+    RENAMED_TRAIN_DIAG_VARS,
+    RENAMED_PROG_DIAG_VARS,
+    RESTART_VARS,
+    VAR_Q_HEATING_ML,
+    VAR_Q_MOISTENING_ML,
+    VAR_Q_U_WIND_ML,
+    VAR_Q_V_WIND_ML,
+)
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
 from vcm.cubedsphere.constants import (
@@ -20,14 +30,15 @@ from vcm.cubedsphere.constants import (
     FORECAST_TIME_DIM,
 )
 from vcm.cloud import fsspec
-from vcm.cubedsphere import open_cubed_sphere
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
-from vcm.fv3_restarts import open_restarts_with_time_coordinates
+from vcm.fv3_restarts import open_restarts_with_time_coordinates, open_diagnostic
 from vcm import parse_timestep_str_from_path, parse_datetime_from_str
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+TARGET_VARS = [VAR_Q_HEATING_ML, VAR_Q_MOISTENING_ML, VAR_Q_U_WIND_ML, VAR_Q_V_WIND_ML]
 
 _CHUNK_SIZES = {
     "tile": 1,
@@ -35,39 +46,6 @@ _CHUNK_SIZES = {
     COORD_Y_CENTER: 24,
     COORD_X_CENTER: 24,
     COORD_Z_CENTER: 79,
-}
-
-RESTART_VARS = [
-    "sphum",
-    "T",
-    "delp",
-    "u",
-    "v",
-    "slmsk",
-    "phis",
-    "tsea",
-    "slope",
-    "DZ",
-    "W",
-]
-TARGET_VARS = ["Q1", "Q2", "QU", "QV"]
-HIRES_VARS = [
-    "LHTFLsfc_coarse",
-    "SHTFLsfc_coarse",
-    "PRATEsfc_coarse",
-    "DSWRFtoa_coarse",
-    "DSWRFsfc_coarse",
-    "USWRFtoa_coarse",
-    "USWRFsfc_coarse",
-    "DLWRFsfc_coarse",
-    "ULWRFtoa_coarse",
-    "ULWRFsfc_coarse",
-]
-RENAMED_HIRES_VARS = {
-    "DSWRFtoa_coarse": "insolation",
-    "LHTFLsfc_coarse": "LHF",
-    "SHTFLsfc_coarse": "SHF",
-    "PRATEsfc_coarse": "precip_sfc",
 }
 
 
@@ -78,7 +56,7 @@ def run(args, pipeline_args):
         for run_dir_path in sorted(fs.ls(args.gcs_input_data_path))
         if _filter_timestep(run_dir_path)
     ]
-    _save_grid_spec(fs, gcs_urls[0], args.gcs_output_data_dir)
+    _save_grid_spec(fs, gcs_urls, args.gcs_output_data_dir)
     data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
     train_test_labels = _test_train_split(data_batch_urls, args.train_fraction)
     data_batch_urls_reordered = _reorder_batches(data_batch_urls, args.train_fraction)
@@ -93,6 +71,10 @@ def run(args, pipeline_args):
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
             | "MergeHiresDiagVars"
             >> beam.Map(_merge_hires_data, diag_c48_path=args.diag_c48_path)
+            | "MergeOneStepDiagVars"
+            >> beam.Map(
+                _merge_onestep_diag_data, top_level_data_dir=args.gcs_input_data_path
+            )
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
@@ -131,7 +113,7 @@ def _reorder_batches(sorted_batches, train_frac):
     return reordered_batches
 
 
-def _save_grid_spec(fs, run_dir, gcs_output_data_dir):
+def _save_grid_spec(fs, run_dirs, gcs_output_data_dir, max_attempts=25):
     """ Reads grid spec from diag files in a run dir and writes to GCS
 
     Args:
@@ -142,23 +124,28 @@ def _save_grid_spec(fs, run_dir, gcs_output_data_dir):
     Returns:
         None
     """
-    grid_info_files = [
-        "gs://" + filename
-        for filename in fs.ls(run_dir)
-        if "atmos_dt_atmos" in filename
-    ]
-    os.makedirs("temp_grid_spec", exist_ok=True)
-    gsutil.copy_many(grid_info_files, "temp_grid_spec")
-    grid = open_cubed_sphere(
-        "temp_grid_spec/atmos_dt_atmos",
-        num_subtiles=1,
-        pattern="{prefix}.tile{tile:d}.nc",
-    )[["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]]
-    _write_remote_train_zarr(grid, gcs_output_data_dir, zarr_name="grid_spec.zarr")
-    logger.info(
-        f"Wrote grid spec to " f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
+    attempt = 0
+    while attempt <= max_attempts:
+        run_dir = run_dirs[attempt]
+        try:
+            grid = open_diagnostic(run_dir, "atmos_dt_atmos").isel(time=0)[
+                ["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]
+            ]
+            _write_remote_train_zarr(
+                grid, gcs_output_data_dir, zarr_name="grid_spec.zarr"
+            )
+            logger.info(
+                f"Wrote grid spec to "
+                f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
+            )
+            return
+        except FileNotFoundError as e:
+            logger.error(e)
+            attempt += 1
+    raise FileNotFoundError(
+        f"Unable to open diag files for creating grid spec, \
+        reached max attempts {max_attempts}"
     )
-    shutil.rmtree("temp_grid_spec")
 
 
 def _get_url_batches(gcs_urls, timesteps_per_output_file):
@@ -225,12 +212,13 @@ def _open_cloud_data(run_dirs):
     Returns:
         xarray dataset of concatenated zarrs in url list
     """
+
+    logger.info(
+        f"Using run dirs for batch: "
+        f"{[os.path.basename(run_dir[:-1]) for run_dir in run_dirs]}"
+    )
+    ds_runs = []
     try:
-        logger.info(
-            f"Using run dirs for batch: "
-            f"{[os.path.basename(run_dir[:-1]) for run_dir in run_dirs]}"
-        )
-        ds_runs = []
         for run_dir in run_dirs:
             t_init = parse_timestep_str_from_path(run_dir)
             ds_run = (
@@ -239,11 +227,10 @@ def _open_cloud_data(run_dirs):
                 .isel({FORECAST_TIME_DIM: slice(-2, None)})
                 .expand_dims(dim={INIT_TIME_DIM: [parse_datetime_from_str(t_init)]})
             )
-
             ds_run = helpers._set_relative_forecast_time_coord(ds_run)
             ds_runs.append(ds_run)
         return xr.concat(ds_runs, INIT_TIME_DIM)
-    except (ValueError, TypeError, AttributeError) as e:
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
         logger.error(f"Failed to open restarts from cloud: {e}")
 
 
@@ -261,10 +248,10 @@ def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
         da_centered_v = rename_centered_xy_coords(shift_edge_var_to_center(ds["v"]))
         ds["u"] = da_centered_u
         ds["v"] = da_centered_v
-        ds["QU"] = apparent_source(ds.u)
-        ds["QV"] = apparent_source(ds.v)
-        ds["Q1"] = apparent_source(ds.T)
-        ds["Q2"] = apparent_source(ds.sphum)
+        ds[VAR_Q_U_WIND_ML] = apparent_source(ds.u)
+        ds[VAR_Q_V_WIND_ML] = apparent_source(ds.v)
+        ds[VAR_Q_HEATING_ML] = apparent_source(ds.T)
+        ds[VAR_Q_MOISTENING_ML] = apparent_source(ds.sphum)
         ds = (
             ds[cols_to_keep]
             .isel(
@@ -288,11 +275,26 @@ def _merge_hires_data(ds_run, diag_c48_path):
     try:
         init_times = ds_run[INIT_TIME_DIM].values
         full_zarr_path = os.path.join(diag_c48_path, COARSENED_DIAGS_ZARR_NAME)
-        diags_c48 = helpers.load_diag(full_zarr_path, init_times)[HIRES_VARS]
-        features_diags_c48 = diags_c48.rename(RENAMED_HIRES_VARS)
+        diags_c48 = helpers.load_prog_diag(full_zarr_path, init_times)[
+            list(RENAMED_PROG_DIAG_VARS.keys())
+        ]
+        features_diags_c48 = diags_c48.rename(RENAMED_PROG_DIAG_VARS)
         return xr.merge([ds_run, features_diags_c48])
     except (KeyError, AttributeError, ValueError, TypeError) as e:
         logger.error(f"Failed to merge in features from high res diagnostics: {e}")
+
+
+def _merge_onestep_diag_data(ds_run, top_level_data_dir):
+    try:
+        init_times = ds_run[INIT_TIME_DIM].values
+        diags_onestep = helpers.load_train_diag(top_level_data_dir, init_times)[
+            DIAG_VARS
+        ]
+        diags_onestep = diags_onestep.rename(RENAMED_TRAIN_DIAG_VARS)
+        return xr.merge([ds_run, diags_onestep])
+
+    except (IndexError, FileNotFoundError, ValueError, TypeError) as e:
+        logger.error(f"Failed to merge one step run diag files: {e}")
 
 
 def _write_remote_train_zarr(
@@ -311,8 +313,9 @@ def _write_remote_train_zarr(
     try:
         if not zarr_name:
             zarr_name = helpers._path_from_first_timestep(ds, train_test_labels)
+            ds = ds.chunk(_CHUNK_SIZES)
         output_path = os.path.join(gcs_output_dir, zarr_name)
-        ds.chunk(_CHUNK_SIZES).to_zarr(zarr_name, mode="w", consolidated=True)
+        ds.to_zarr(zarr_name, mode="w", consolidated=True)
         gsutil.copy(zarr_name, output_path)
         logger.info(f"Done writing zarr to {output_path}")
         shutil.rmtree(zarr_name)
