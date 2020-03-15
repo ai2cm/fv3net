@@ -8,9 +8,9 @@ the trained model output as well as a copy of the model configuration.
 Example shell script:
 ```
 python -m fv3net.regression.sklearn.train \
-  --train-config-file example_rf_training_config.yml \
-  --output-dir-suffix sklearn_regression \
-  --train-data-path gs://vcm-ml-data/test_annak/2020-02-05_train_data_pipeline/train
+  gs://vcm-ml-data/test_annak/2020-02-05_train_data_pipeline #input data path where "train" folder is located
+  example_rf_training_config.yml \
+  {output_data_path} \
   --delete-local-results-after-upload True
 ```
 The last two arguments are optional and allow the user to save the output directory to 
