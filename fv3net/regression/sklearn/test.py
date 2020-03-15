@@ -1,8 +1,10 @@
 from vcm.cloud import fsspec
 import joblib
 import xarray as xr
+import os
 
 from ..dataset_handler import stack_and_drop_nan_samples
+from .train import MODEL_FILENAME
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import INIT_TIME_DIM
 from fv3net.pipelines.create_training_data import (
@@ -82,7 +84,7 @@ def load_model(model_path):
     protocol = fsspec.get_protocol(model_path)
     if protocol == "gs":
         fs = fsspec.get_fs(model_path)
-        fs.get(model_path, "temp_model.pkl")
+        fs.get(os.path.join(model_path, MODEL_FILENAME), "temp_model.pkl")
         return joblib.load("temp_model.pkl")
     else:
         return joblib.load(model_path)
