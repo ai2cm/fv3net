@@ -100,13 +100,20 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
 
     # add 3d dQ1, dQ2 to data summary
-    metrics_dataset.assign({"dQ1": ds_pred["dQ1"]})
-    metrics_dataset.assign({"dQ2": ds_pred["dQ2"]})
+    metrics_dataset["dQ1"] = ds_pred["dQ1"]
+    metrics_dataset["dQ2"] = ds_pred["dQ2"]
 
     # add 2d R^2 values to the data summary
     r2_scalar_metrics = r2_2d_var_summary(ds_pe, ds_heating)
     for r2_name, r2_value in r2_scalar_metrics.items():
-        metrics_dataset.assign({r2_name: r2_value})
+        metrics_dataset = metrics_dataset.assign({r2_name: r2_value})
+
+    for dataset, var_2d in zip([ds_pe, ds_heating], ["P-E", "heating"]):
+        fig_r2_vs_target, fig_r2_vs_hires = r2_map_2d_vars(
+            dataset, f"{var_2d}_total", grid, metrics_dataset
+        )
+        fig_r2_vs_target.savefig(os.path.join(output_dir, f"r2_{var_2d}_vs_target.png"))
+        fig_r2_vs_hires.savefig(os.path.join(output_dir, f"r2_{var_2d}_vs_hires.png"))
 
     # <dQ1>, <dQ2> and as fraction of total 2D integrated vars
     (
@@ -327,7 +334,8 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 def _make_r2_profile_plot(
     ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None, saved_data=None
 ):
-    plt.clf()
+    matplotlib.pyplot.figure().clear()
+    matplotlib.pyplot.close()
     fig = plt.figure()
     if isinstance(vars, str):
         vars = [vars]
@@ -357,7 +365,8 @@ def _make_r2_profile_plot(
 def _make_land_sea_r2_profile_plot(
     ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, vars, saved_data=None
 ):
-    plt.clf()
+    matplotlib.pyplot.figure().clear()
+    matplotlib.pyplot.close()
     fig = plt.figure()
     x = np.array(PRESSURE_GRID) / 100
     colors = ["blue", "orange"]
@@ -405,7 +414,8 @@ def _plot_comparison_maps(
 ):
     # map plot a variable and compare across prediction/ C48 /coarsened high res data
     matplotlib.rcParams["figure.dpi"] = 200
-    plt.clf()
+    matplotlib.pyplot.figure().clear()
+    matplotlib.pyplot.close()
     plot_cube_kwargs = plot_cube_kwargs or {}
 
     if not time_index_selection:
@@ -441,8 +451,8 @@ def _make_vertical_profile_plots(
              Defaults to f"vertical_profile.png".
         title (str, optional): [description]. Defaults to None.
     """
-
-    plt.clf()
+    matplotlib.pyplot.figure().clear()
+    matplotlib.pyplot.close()
     fig = plt.figure()
     pos_mask_target, neg_mask_target = (
         ds_target["P-E_total"] > 0,
@@ -539,16 +549,32 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
 
 
 def r2_map_2d_vars(merged_ds, var, grid, saved_data):
-    r2_map = r2_score(
+    r2_map_vs_target = r2_score(
         merged_ds.sel(dataset="target C48")[var],
         merged_ds.sel(dataset="prediction")[var],
         [INIT_TIME_DIM],
         mean_dims=["tile", COORD_X_CENTER, COORD_Y_CENTER],
     )
-    fig = plot_cube(mappable_var(xr.merge([grid, r2_map]), var), vmin=0, vmax=1)[0]
+    mappable_var_vs_target = mappable_var(xr.merge([grid, r2_map_vs_target]), var)
+    fig_vs_target = plot_cube(mappable_var_vs_target, vmin=0, vmax=1)[0]
+
+    r2_map_vs_hires = r2_score(
+        merged_ds.sel(dataset="coarsened high res")[var],
+        merged_ds.sel(dataset="prediction")[var],
+        [INIT_TIME_DIM],
+        mean_dims=["tile", COORD_X_CENTER, COORD_Y_CENTER],
+    )
+    mappable_var_vs_hires = mappable_var(xr.merge([grid, r2_map_vs_hires]), var)
+    fig_vs_hires = plot_cube(mappable_var_vs_hires, vmin=0, vmax=1)[0]
+
     if saved_data:
-        saved_data = saved_data.assign({f"r2_map_{var}": mappable_var})
-    return fig
+        saved_data = saved_data.assign(
+            {
+                f"r2_map_vs_target_{var}": mappable_var_vs_target,
+                f"r2_map_vs_hires_{var}": mappable_var_vs_hires,
+            }
+        )
+    return fig_vs_target, fig_vs_hires
 
 
 def map_plot_dq_vs_qtot(ds_pred, ds_target, grid):
