@@ -28,17 +28,30 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model_url", type=str, help="Remote url to a trained sklearn model.",
-    )
-    parser.add_argument(
         "initial_condition_url",
         type=str,
         help="Remote url to directory holding timesteps with model initial conditions.",
     )
     parser.add_argument(
+        "ic_timestep",
+        type=str,
+        help="Time step to grab from the initial conditions url.",
+    )
+    parser.add_argument(
+        "docker_image",
+        type=str,
+        help="Docker image to pull for the prognostic run kubernetes pod.",
+    )
+    parser.add_argument(
         "output_url",
         type=str,
         help="Remote storage location for prognostic run output.",
+    )
+    parser.add_argument(
+        "--model_url",
+        type=str,
+        default=None,
+        help="Remote url to a trained sklearn model.",
     )
     parser.add_argument(
         "--prog_config_yml",
@@ -52,16 +65,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "--detach",
         action="store_true",
         help="Do not wait for the k8s job to complete.",
-    )
-    parser.add_argument(
-        "ic_timestep",
-        type=str,
-        help="Time step to grab from the initial conditions url.",
-    )
-    parser.add_argument(
-        "docker_image",
-        type=str,
-        help="Docker image to pull for the prognostic run kubernetes pod.",
     )
 
     return parser
@@ -106,6 +109,7 @@ if __name__ == "__main__":
     model_config = _update_with_prognostic_model_config(
         model_config, args.prog_config_yml
     )
+    print(model_config)
 
     kube_opts = KUBERNETES_DEFAULT.copy()
     if "kubernetes" in model_config:
