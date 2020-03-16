@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from scipy.stats import binned_statistic_2d
-from sklearn.externals import joblib
 import xarray as xr
 
 from vcm.calc import r2_score
@@ -110,9 +109,15 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         metrics_dataset.assign({r2_name: r2_value})
 
     # <dQ1>, <dQ2> and as fraction of total 2D integrated vars
-    fig_pe_ml, fig_pe_physics, fig_pe_ml_frac, fig_heating_ml, fig_heating_physics, fig_heating_ml_frac = map_plot_dq_vs_qtot(
-        ds_pred, ds_target, grid
-    )
+    (
+        fig_pe_ml,
+        fig_pe_physics,
+        fig_pe_ml_frac,
+        fig_heating_ml,
+        fig_heating_physics,
+        fig_heating_ml_frac,
+    ) = map_plot_dq_vs_qtot(ds_pred, ds_target, grid)
+
     fig_pe_ml.savefig(os.path.join(output_dir, "dQ2_vertical_integral_map.png"))
     fig_pe_physics.savefig(os.path.join(output_dir, "physics_Q2_map.png"))
     fig_pe_ml_frac.savefig(os.path.join(output_dir, "dQ2_frac_of_PE.png"))
