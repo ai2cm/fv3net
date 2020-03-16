@@ -36,3 +36,7 @@ Simply add a new item to rundirs.yml and resubmit the job. All the steps will be
 re-run, which is redundant, but the process isn't that slow.
 
 [1]: http://storage.googleapis.com/vcm-ml-public/testing-2020-02/prognostic_run_diags/combined.html
+
+## Updating the code
+
+After updating the script `fv3net/pipelines/save_prognostic_run_diags.py` you will need to rebuild the docker image, and update the corresponding references in the `argo.yaml`. Specifically, `make push_image` will output a SHA256 digest for the pushed-docker image. Copy-paste this into the "image" fields in `argo.yaml`.
