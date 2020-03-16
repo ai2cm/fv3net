@@ -542,7 +542,7 @@ def r2_map_2d_vars(merged_ds, var, grid, saved_data):
 
 def map_plot_dq_vs_qtot(ds_pred, ds_target, grid):
     ds_merged = merge_comparison_datasets(
-        vars=["P-E_ml", "heating_ml", "P-E_total", "heating_total"], 
+        data_vars=["P-E_ml", "heating_ml", "P-E_total", "heating_total"], 
         datasets=[ds_pred, ds_target], 
         dataset_labels=["prediction", "target C48"], 
         grid=grid)
