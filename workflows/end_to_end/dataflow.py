@@ -12,17 +12,18 @@ COARSEN_RESTARTS_DATAFLOW_ARGS = {
     "--setup_file": "./setup.py",
     "--extra_package": [
         "external/vcm/dist/vcm-0.1.0.tar.gz",
-        "external/vcm/external/mappm/dist/mappm-0.0.0.tar.gz"
-    ]
+        "external/vcm/external/mappm/dist/mappm-0.0.0.tar.gz",
+    ],
 }
 
 CREATE_TRAINING_DATAFLOW_ARGS = COARSEN_RESTARTS_DATAFLOW_ARGS.copy()
-CREATE_TRAINING_DATAFLOW_ARGS.update({
-    "--job_name": f"create-training-data-{getuser().lower()}",
-    "--num_workers": 4,
-    "--max_num_workers": 30,
-    "--disk_size_gb": 30,
-    "--worker_machine_type": "n1-standard-1",
-    "--extra_package": "external/vcm/dist/vcm-0.1.0.tar.gz"
-})
-
+CREATE_TRAINING_DATAFLOW_ARGS.update(
+    {
+        "--job_name": f"create-training-data-{getuser().lower()}",
+        "--num_workers": 4,
+        "--max_num_workers": 30,
+        "--disk_size_gb": 30,
+        "--worker_machine_type": "n1-standard-1",
+        "--extra_package": "external/vcm/dist/vcm-0.1.0.tar.gz",
+    }
+)

@@ -3,7 +3,6 @@ import os
 import shutil
 import argparse
 import yaml
-import fsspec
 import xarray as xr
 
 from vcm import coarsen

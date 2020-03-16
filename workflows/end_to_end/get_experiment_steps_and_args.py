@@ -7,8 +7,8 @@ from typing import List, Mapping, Any, Hashable
 from dataflow import COARSEN_RESTARTS_DATAFLOW_ARGS, CREATE_TRAINING_DATAFLOW_ARGS
 
 DATAFLOW_ARGS_MAPPING = {
-    "coarsen_restarts" : COARSEN_RESTARTS_DATAFLOW_ARGS,
-    "create_training_data" : CREATE_TRAINING_DATAFLOW_ARGS
+    "coarsen_restarts": COARSEN_RESTARTS_DATAFLOW_ARGS,
+    "create_training_data": CREATE_TRAINING_DATAFLOW_ARGS,
 }
 
 
@@ -25,9 +25,9 @@ def get_experiment_steps_and_args(config_file: str):
     workflow_steps = config["experiment"]["steps_to_run"]
     all_steps_config = config["experiment"]["steps_config"]
     try:
-        current_steps_config = {step: all_steps_config[step] for step in workflow_steps }
+        current_steps_config = {step: all_steps_config[step] for step in workflow_steps}
     except KeyError:
-        raise('Workflow steps list contains a step not defined in steps config.')
+        raise ("Workflow steps list contains a step not defined in steps config.")
     config["experiment"]["steps_config"] = current_steps_config
     _apply_config_transforms(config)
     all_step_arguments = _get_all_step_arguments(config)
@@ -104,13 +104,13 @@ def _resolve_input_from(config: Mapping):
                 elif from_key is not None:
                     previous_step = steps_config.get(from_key, None)
                     if previous_step is not None:
-                        source_info["location"] = previous_step['output_location']
+                        source_info["location"] = previous_step["output_location"]
                     else:
                         raise KeyError(
-                            f"A step argument specified 'from' another step requires that "
-                            f"the other step also be run as part of the same workflow. "
-                            f"Add '{from_key}' to the workflow or specify '{arg}' with " 
-                            f"'location' instead."
+                            f"A step argument specified 'from' another step requires "
+                            f"that the other step also be run as part of the same "
+                            f"workflow. Add '{from_key}' to the workflow or specify "
+                            f"'{arg}' with 'location' instead."
                         )
                 else:
                     raise KeyError(
@@ -142,12 +142,12 @@ def _get_experiment_path(config: Mapping):
 
 def _resolve_dataflow_args(config: Mapping):
     """Add dataflow arguments to step if it is the job runner"""
-    
+
     steps_config = config["experiment"]["steps_config"]
     for step, step_config in steps_config.items():
         dataflow_arg = step_config["args"].get("--runner", None)
         if dataflow_arg == "DataflowRunner":
-            step_config['args'].update(DATAFLOW_ARGS_MAPPING[step])
+            step_config["args"].update(DATAFLOW_ARGS_MAPPING[step])
         elif dataflow_arg == "DirectRunner":
             continue
         elif dataflow_arg is not None:
@@ -168,7 +168,7 @@ def _get_all_step_arguments(config: Mapping):
         optional_args = []
         for key, value in step_config["args"].items():
             arg_string = _resolve_arg_values(key, value)
-            if arg_string.startswith('--'):
+            if arg_string.startswith("--"):
                 optional_args.append(arg_string)
             else:
                 required_args.append(arg_string)
@@ -176,7 +176,7 @@ def _get_all_step_arguments(config: Mapping):
         step_args.extend(required_args)
         step_args.append(output_location)
         step_args.extend(optional_args)
-        all_step_arguments[step] = ' '.join(step_args)
+        all_step_arguments[step] = " ".join(step_args)
 
     return all_step_arguments
 
@@ -191,7 +191,7 @@ def _generate_output_path_from_config(
     arg_strs = []
     n_stubs = 0
     for key in [key for key in arg_config if not isinstance(arg_config[key], Mapping)]:
-        n_stubs =+ 1
+        n_stubs = +1
         if n_stubs > max_config_stubs:
             break
         val = str(arg_config[key])
@@ -218,8 +218,8 @@ def _resolve_arg_values(key: Hashable, value: Any) -> Hashable:
         if location_value is None:
             raise ValueError("Argument 'location' value not specified.")
         else:
-            if key.startswith('--'):
-                return ' '.join([key, str(location_value)])
+            if key.startswith("--"):
+                return " ".join([key, str(location_value)])
             else:
                 return str(location_value)
     if isinstance(value, List):
@@ -228,13 +228,13 @@ def _resolve_arg_values(key: Hashable, value: Any) -> Hashable:
         multiple_optional_args = []
         for item in value:
             multiple_optional_args.extend([key, item])
-        return ' '.join(multiple_optional_args)
+        return " ".join(multiple_optional_args)
     else:
-        if key.startswith('--'):
-            return ' '.join([key, str(value)])
+        if key.startswith("--"):
+            return " ".join([key, str(value)])
         else:
             return str(value)
-    
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
