@@ -95,6 +95,21 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         slmsk,
     )
 
+    # <dQ1>, <dQ2> and as fraction of total 2D integrated vars
+    fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac = map_plot_dq_vs_qtot(
+        ds_pred, ds_target, grid
+    )
+    fig_pe_ml.savefig(os.path.join(output_dir, "dQ2_vertical_integral_map.png"))
+    fig_pe_ml_frac.savefig(os.path.join(output_dir, "dQ2_frac_of_PE.png"))
+    fig_heating_ml.savefig(os.path.join(output_dir, "dQ1_vertical_integral_map.png"))
+    fig_heating_ml_frac.savefig(os.path.join(output_dir, "dQ1_frac_of_heating.png"))
+    report_sections["Lower tropospheric stability vs humidity"] = [
+        "dQ2_vertical_integral_map.png",
+        "dQ2_frac_of_PE.png",
+        "dQ1_vertical_integral_map.png",
+        "dQ1_frac_of_heating.png",
+    ]
+
     # LTS
     PE_pred = (
         mask_to_surface_type(ds_pe.sel(dataset="prediction"), "sea")["P-E_total"]
@@ -443,3 +458,40 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
     ax3.set_title("Avg P-E error (predicted - high res)")
     plt.show()
     return fig
+
+
+def map_plot_dq_vs_qtot(ds_pred, ds_target, grid):
+    ds_merged = merge_comparison_datasets(
+        vars=["P-E_ml", "heating_ml", "P-E_total", "heating_total"],
+        datasets=[ds_pred, ds_target],
+        dataset_labels=["prediction", "target C48"],
+        grid=grid,
+    )
+    ds_merged.assign(
+        {
+            "P-E_ml_frac_of_total": ds_merged["P-E_ml"] / ds_merged["P-E_total"],
+            "heating_ml_frac_of_total": ds_merged["heating_ml"]
+            / ds_merged["heating_total"],
+        }
+    )
+    fig_pe_ml = plot_cube(
+        mappable_var(ds_merged, "P-E_ml").mean(INIT_TIME_DIM), col="dataset"
+    )
+    fig_pe_ml.suptitle("P-E [mm/d]: ML contribution")
+    fig_pe_ml_frac = plot_cube(
+        mappable_var(ds_merged, "P-E_ml_frac_of_total").mean(INIT_TIME_DIM),
+        col="dataset",
+    )
+    fig_pe_ml_frac.suptitle("P-E: ML prediction as fraction of total")
+
+    fig_heating_ml = plot_cube(
+        mappable_var(ds_merged, "heating_ml").mean(INIT_TIME_DIM), col="dataset"
+    )
+    fig_heating_ml.suptitle("heating [W/m$^2$], ML contribution")
+    fig_heating_ml_frac = plot_cube(
+        mappable_var(ds_merged, "heating_ml_frac_of_total").mean(INIT_TIME_DIM),
+        col="dataset",
+    )
+    fig_heating_ml_frac.suptitle("heating: ML prediction as fraction of total")
+
+    return fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac

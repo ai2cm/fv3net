@@ -1,4 +1,3 @@
-from scipy.interpolate import UnivariateSpline
 import os
 import xarray as xr
 
@@ -106,6 +105,23 @@ def add_column_heating_moistening(ds):
     ds["heating_total"] = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
         ds[VAR_Q_HEATING_ML], ds.delp
     ) + thermo.net_heating_from_dataset(ds, suffix=SUFFIX_COARSE_TRAIN_DIAG)
+
+    ds["P-E_ml"] = mass_integrate(-ds[VAR_Q_MOISTENING_ML], ds.delp) * kg_m2s_to_mm_day
+    ds["P-E_physics"] = (
+        ds[f"PRATEsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]
+        - thermo.latent_heat_flux_to_evaporation(
+            ds[f"LHTFLsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]
+        )
+    ) * kg_m2s_to_mm_day
+    ds["P-E_total"] = ds["P-E_ml"] + ds["P-E_physics"]
+
+    ds["heating_ml"] = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
+        ds[VAR_Q_HEATING_ML], ds.delp
+    )
+    ds["heating_physics"] = thermo.net_heating_from_dataset(
+        ds, suffix=SUFFIX_COARSE_TRAIN_DIAG
+    )
+    ds["heating_total"] = ds["heating_ml"] + ds["heating_physics"]
 
 
 def integrate_for_Q(P, sphum, lower_bound=55000, upper_bound=85000):
