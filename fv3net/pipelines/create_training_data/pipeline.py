@@ -275,7 +275,7 @@ def _merge_hires_data(ds_run, diag_c48_path):
     try:
         init_times = ds_run[INIT_TIME_DIM].values
         full_zarr_path = os.path.join(diag_c48_path, COARSENED_DIAGS_ZARR_NAME)
-        diags_c48 = helpers.load_prog_diag(full_zarr_path, init_times)[
+        diags_c48 = helpers.load_hires_prog_diag(full_zarr_path, init_times)[
             list(RENAMED_PROG_DIAG_VARS.keys())
         ]
         features_diags_c48 = diags_c48.rename(RENAMED_PROG_DIAG_VARS)

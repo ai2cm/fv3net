@@ -163,7 +163,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     r2_map_2d_vars(ds_heating, "heating_total", grid, metrics_dataset) \
         .savefig(os.path.join(output_dir, "r2_map_heating.png"))
     report_sections["R^2 maps for 2D variables"] = ["r2_map_P-E.png", "r2_map_heating.png"]
-    
+
     # plot P-E across the diurnal cycle
     local_coords = get_latlon_grid_coords_set(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
     ds_pe["local_time"] = local_time(ds_pe)
@@ -470,8 +470,8 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
 
 def r2_map_2d_vars(merged_ds, var, grid, saved_data):
     r2_map = r2_score(
-        ds_pe.sel(dataset="target C48")[var],
-        ds_pe.sel(dataset="prediction")[var],   
+        merged_ds.sel(dataset="target C48")[var],
+        merged_ds.sel(dataset="prediction")[var],   
         [INIT_TIME_DIM],         
         mean_dims=["tile", COORD_X_CENTER, COORD_Y_CENTER])
     fig = plot_cube(
