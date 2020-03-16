@@ -109,10 +109,10 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     for r2_name, r2_value in r2_scalar_metrics.items():
         metrics_dataset.assign({r2_name: r2_value})
 
-
     # <dQ1>, <dQ2> and as fraction of total 2D integrated vars
-    fig_pe_ml, fig_pe_physics, fig_pe_ml_frac, fig_heating_ml, fig_heating_physics, fig_heating_ml_frac = \
-        map_plot_dq_vs_qtot(ds_pred, ds_target, grid)
+    fig_pe_ml, fig_pe_physics, fig_pe_ml_frac, fig_heating_ml, fig_heating_physics, fig_heating_ml_frac = map_plot_dq_vs_qtot(
+        ds_pred, ds_target, grid
+    )
     fig_pe_ml.savefig(os.path.join(output_dir, "dQ2_vertical_integral_map.png"))
     fig_pe_physics.savefig(os.path.join(output_dir, "physics_Q2_map.png"))
     fig_pe_ml_frac.savefig(os.path.join(output_dir, "dQ2_frac_of_PE.png"))
@@ -125,7 +125,8 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         "dQ2_frac_of_PE.png",
         "dQ1_vertical_integral_map.png",
         "physics_Q1_map.png",
-        "dQ1_frac_of_heating.png"]
+        "dQ1_frac_of_heating.png",
+    ]
 
     # LTS
     PE_pred = (
@@ -338,7 +339,7 @@ def _make_r2_profile_plot(
         )
         plt.plot(x, y.values, label=var)
         if saved_data:
-            saved_data.assign({f"R2_profile_{var}_global": y})
+            saved_data = saved_data.assign({f"R2_profile_{var}_global": y})
     plt.legend()
     plt.xlabel("pressure [HPa]")
     plt.ylabel("$R^2$")
@@ -386,8 +387,8 @@ def _make_land_sea_r2_profile_plot(
             linestyle=":",
         )
         if saved_data:
-            saved_data.assign({f"R2_profile_{var}_land": y_land})
-            saved_data.assign({f"R2_profile_{var}_sea": y_sea})
+            saved_data = saved_data.assign({f"R2_profile_{var}_land": y_land})
+            saved_data = saved_data.assign({f"R2_profile_{var}_sea": y_sea})
     plt.legend()
     plt.xlabel("pressure [HPa]")
     plt.ylabel("$R^2$")
@@ -468,7 +469,7 @@ def _make_vertical_profile_plots(
         plt.plot(pressure, data_mean, **kwargs)
         if saved_data:
             da = xr.DataArray(data_mean, dims="pressure", coords=pressure)
-            saved_data.assign({f"{var}_profile {kwargs['label']}": da})
+            saved_data = saved_data.assign({f"{var}_profile {kwargs['label']}": da})
     plt.xlabel("Pressure [HPa]")
     plt.ylabel(units)
     if title:
@@ -541,34 +542,68 @@ def r2_map_2d_vars(merged_ds, var, grid, saved_data):
     )
     fig = plot_cube(mappable_var(xr.merge([grid, r2_map]), var), vmin=0, vmax=1)[0]
     if saved_data:
-        saved_data.assign({f"r2_map_{var}": mappable_var})
+        saved_data = saved_data.assign({f"r2_map_{var}": mappable_var})
     return fig
 
 
 def map_plot_dq_vs_qtot(ds_pred, ds_target, grid):
     ds_merged = merge_comparison_datasets(
-        data_vars=["P-E_ml", "heating_ml", "P-E_physics", "heating_physics", "P-E_total", "heating_total"], 
-        datasets=[ds_pred, ds_target], 
-        dataset_labels=["prediction", "target C48"], 
-        grid=grid)
-    ds_merged = ds_merged.assign({
-        "P-E_ml_frac_of_total": ds_merged["P-E_ml"] / ds_merged["P-E_total"],
-        "heating_ml_frac_of_total": ds_merged["heating_ml"] / ds_merged["heating_total"]
-    })
-    fig_pe_ml = plot_cube(mappable_var(ds_merged, "P-E_ml").mean(INIT_TIME_DIM), col="dataset")[0]
+        data_vars=[
+            "P-E_ml",
+            "heating_ml",
+            "P-E_physics",
+            "heating_physics",
+            "P-E_total",
+            "heating_total",
+        ],
+        datasets=[ds_pred, ds_target],
+        dataset_labels=["prediction", "target C48"],
+        grid=grid,
+    )
+    ds_merged = ds_merged.assign(
+        {
+            "P-E_ml_frac_of_total": ds_merged["P-E_ml"] / ds_merged["P-E_total"],
+            "heating_ml_frac_of_total": ds_merged["heating_ml"]
+            / ds_merged["heating_total"],
+        }
+    )
+    fig_pe_ml = plot_cube(
+        mappable_var(ds_merged, "P-E_ml").mean(INIT_TIME_DIM), col="dataset"
+    )[0]
     fig_pe_ml.suptitle("P-E [mm/d]: ML contribution")
-    fig_pe_physics = plot_cube(mappable_var(ds_merged, "P-E_physics").mean(INIT_TIME_DIM), col="dataset")[0]
-    fig_pe_physics.suptitle("P-E [mm/d]: model physics contribution")   
+    fig_pe_physics = plot_cube(
+        mappable_var(ds_merged, "P-E_physics").mean(INIT_TIME_DIM), col="dataset"
+    )[0]
+    fig_pe_physics.suptitle("P-E [mm/d]: model physics contribution")
     fig_pe_ml_frac = plot_cube(
-        mappable_var(ds_merged, "P-E_ml_frac_of_total").mean(INIT_TIME_DIM), col="dataset", vmin=-1, vmax=1)[0]
+        mappable_var(ds_merged, "P-E_ml_frac_of_total").mean(INIT_TIME_DIM),
+        col="dataset",
+        vmin=-1,
+        vmax=1,
+    )[0]
     fig_pe_ml_frac.suptitle("P-E: ML prediction as fraction of total")
 
-    fig_heating_ml = plot_cube(mappable_var(ds_merged, "heating_ml").mean(INIT_TIME_DIM), col="dataset")[0]
+    fig_heating_ml = plot_cube(
+        mappable_var(ds_merged, "heating_ml").mean(INIT_TIME_DIM), col="dataset"
+    )[0]
     fig_heating_ml.suptitle("heating [W/m$^2$:, ML contribution")
-    fig_heating_physics = plot_cube(mappable_var(ds_merged, "P-E_physics").mean(INIT_TIME_DIM), col="dataset")[0]
-    fig_heating_physics.suptitle("heating [W/m$^2$]: model physics contribution")   
+    fig_heating_physics = plot_cube(
+        mappable_var(ds_merged, "P-E_physics").mean(INIT_TIME_DIM), col="dataset"
+    )[0]
+    fig_heating_physics.suptitle("heating [W/m$^2$]: model physics contribution")
     fig_heating_ml_frac = plot_cube(
-        mappable_var(ds_merged, "heating_ml_frac_of_total").mean(INIT_TIME_DIM), col="dataset", vmin=-1, vmax=1)[0]
+        mappable_var(ds_merged, "heating_ml_frac_of_total").mean(INIT_TIME_DIM),
+        col="dataset",
+        vmin=-1,
+        vmax=1,
+    )[0]
     fig_heating_ml_frac.suptitle("heating: ML prediction as fraction of total")
 
-    return fig_pe_ml, fig_pe_physics, fig_pe_ml_frac, fig_heating_ml, fig_heating_physics, fig_heating_ml_frac
+    return (
+        fig_pe_ml,
+        fig_pe_physics,
+        fig_pe_ml_frac,
+        fig_heating_ml,
+        fig_heating_physics,
+        fig_heating_ml_frac,
+    )
