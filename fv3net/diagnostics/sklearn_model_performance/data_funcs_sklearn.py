@@ -1,4 +1,3 @@
-from scipy.interpolate import UnivariateSpline
 import os
 import xarray as xr
 
@@ -37,50 +36,33 @@ def r2_2d_var_summary(ds_pe, ds_heating):
         r2_summary[f"R2_global_{var}_vs_target"] = r2_score(
             dataset.sel(dataset="target C48")[var].stack(sample=STACK_DIMS),
             dataset.sel(dataset="prediction")[var].stack(sample=STACK_DIMS),
-            "sample",
+            "sample"
         ).values.item()
         r2_summary[f"R2_global_{var}_vs_hires"] = r2_score(
             dataset.sel(dataset="coarsened high res")[var].stack(sample=STACK_DIMS),
             dataset.sel(dataset="prediction")[var].stack(sample=STACK_DIMS),
-            "sample",
+            "sample"
         ).values.item()
         r2_summary[f"R2_sea_{var}_vs_target"] = r2_score(
-            mask_to_surface_type(dataset.sel(dataset="target C48"), "sea")[var].stack(
-                sample=STACK_DIMS
-            ),
-            mask_to_surface_type(dataset.sel(dataset="prediction"), "sea")[var].stack(
-                sample=STACK_DIMS
-            ),
-            "sample",
+            mask_to_surface_type(dataset.sel(dataset="target C48"), "sea")[var].stack(sample=STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="prediction"), "sea")[var].stack(sample=STACK_DIMS),
+            "sample"
         ).values.item()
         r2_summary[f"R2_sea_{var}_vs_hires"] = r2_score(
-            mask_to_surface_type(dataset.sel(dataset="coarsened high res"), "sea")[
-                var
-            ].stack(sample=STACK_DIMS),
-            mask_to_surface_type(dataset.sel(dataset="prediction"), "sea")[var].stack(
-                sample=STACK_DIMS
-            ),
-            "sample",
+            mask_to_surface_type(dataset.sel(dataset="coarsened high res"), "sea")[var].stack(sample=STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="prediction"), "sea")[var].stack(sample=STACK_DIMS),
+            "sample"
         ).values.item()
         r2_summary[f"R2_land_{var}_vs_target"] = r2_score(
-            mask_to_surface_type(dataset.sel(dataset="target C48"), "land")[var].stack(
-                sample=STACK_DIMS
-            ),
-            mask_to_surface_type(dataset.sel(dataset="prediction"), "land")[var].stack(
-                sample=STACK_DIMS
-            ),
-            "sample",
+            mask_to_surface_type(dataset.sel(dataset="target C48"), "land")[var].stack(sample=STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="prediction"), "land")[var].stack(sample=STACK_DIMS),
+            "sample"
         ).values.item()
         r2_summary[f"R2_land_{var}_vs_hires"] = r2_score(
-            mask_to_surface_type(dataset.sel(dataset="coarsened high res"), "land")[
-                var
-            ].stack(sample=STACK_DIMS),
-            mask_to_surface_type(dataset.sel(dataset="prediction"), "land")[var].stack(
-                sample=STACK_DIMS
-            ),
-            "sample",
+            mask_to_surface_type(dataset.sel(dataset="coarsened high res"), "land")[var].stack(sample=STACK_DIMS),
+            mask_to_surface_type(dataset.sel(dataset="prediction"), "land")[var].stack(sample=STACK_DIMS),
+            "sample"
         ).values.item()
-    print(r2_summary)
     return r2_summary
 
 
@@ -160,6 +142,20 @@ def add_column_heating_moistening(ds):
     ds["heating_total"] = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
         ds[VAR_Q_HEATING_ML], ds.delp
     ) + thermo.net_heating_from_dataset(ds, suffix=SUFFIX_COARSE_TRAIN_DIAG)
+
+    ds["P-E_ml"] = mass_integrate(-ds[VAR_Q_MOISTENING_ML], ds.delp) * kg_m2s_to_mm_day
+    ds["P-E_physics"] = (
+        ds[f"PRATEsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]
+        - thermo.latent_heat_flux_to_evaporation(
+            ds[f"LHTFLsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]) 
+    ) * kg_m2s_to_mm_day
+    ds["P-E_total"] = ds["P-E_ml"] + ds["P-E_physics"]
+
+    ds["heating_ml"] = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
+        ds[VAR_Q_HEATING_ML], ds.delp
+    )
+    ds["heating_physics"] = thermo.net_heating_from_dataset(ds, suffix=SUFFIX_COARSE_TRAIN_DIAG)
+    ds["heating_total"] = ds["heating_ml"] + ds["heating_physics"]
 
 
 def integrate_for_Q(P, sphum, lower_bound=55000, upper_bound=85000):

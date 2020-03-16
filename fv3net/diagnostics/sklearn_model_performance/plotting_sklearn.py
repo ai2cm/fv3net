@@ -25,7 +25,6 @@ from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
 from fv3net.diagnostics.data_funcs import (
     merge_comparison_datasets,
     get_latlon_grid_coords_set,
-    save_lines,
     EXAMPLE_CLIMATE_LATLON_COORDS,
 )
 from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
@@ -101,10 +100,27 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         slmsk,
     )
 
+    # add 3d dQ1, dQ2 to data summary
+    metrics_dataset.assign({"dQ1": ds_pred["dQ1"]})
+    metrics_dataset.assign({"dQ2": ds_pred["dQ2"]})
+
     # add 2d R^2 values to the data summary
     r2_scalar_metrics = r2_2d_var_summary(ds_pe, ds_heating)
     for r2_name, r2_value in r2_scalar_metrics.items():
         metrics_dataset.assign({r2_name: r2_value})
+
+
+    # <dQ1>, <dQ2> and as fraction of total 2D integrated vars
+    fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac = map_plot_dq_vs_qtot(ds_pred, ds_target, grid)
+    fig_pe_ml.savefig(os.path.join(output_dir, "dQ2_vertical_integral_map.png"))
+    fig_pe_ml_frac.savefig(os.path.join(output_dir, "dQ2_frac_of_PE.png"))
+    fig_heating_ml.savefig(os.path.join(output_dir, "dQ1_vertical_integral_map.png"))
+    fig_heating_ml_frac.savefig(os.path.join(output_dir, "dQ1_frac_of_heating.png"))
+    report_sections["Lower tropospheric stability vs humidity"] = [
+        "dQ2_vertical_integral_map.png",
+        "dQ2_frac_of_PE.png",
+        "dQ1_vertical_integral_map.png",
+        "dQ1_frac_of_heating.png"]
 
     # LTS
     PE_pred = (
@@ -522,3 +538,26 @@ def r2_map_2d_vars(merged_ds, var, grid, saved_data):
     if saved_data:
         saved_data.assign({f"r2_map_{var}": mappable_var})
     return fig
+
+
+def map_plot_dq_vs_qtot(ds_pred, ds_target, grid):
+    ds_merged = merge_comparison_datasets(
+        vars=["P-E_ml", "heating_ml", "P-E_total", "heating_total"], 
+        datasets=[ds_pred, ds_target], 
+        dataset_labels=["prediction", "target C48"], 
+        grid=grid)
+    ds_merged.assign({
+        "P-E_ml_frac_of_total": ds_merged["P-E_ml"] / ds_merged["P-E_total"],
+        "heating_ml_frac_of_total": ds_merged["heating_ml"] / ds_merged["heating_total"]
+    })
+    fig_pe_ml = plot_cube(mappable_var(ds_merged, "P-E_ml").mean(INIT_TIME_DIM), col="dataset")
+    fig_pe_ml.suptitle("P-E [mm/d]: ML contribution")
+    fig_pe_ml_frac = plot_cube(mappable_var(ds_merged, "P-E_ml_frac_of_total").mean(INIT_TIME_DIM), col="dataset")
+    fig_pe_ml_frac.suptitle("P-E: ML prediction as fraction of total")
+
+    fig_heating_ml = plot_cube(mappable_var(ds_merged, "heating_ml").mean(INIT_TIME_DIM), col="dataset")
+    fig_heating_ml.suptitle("heating [W/m$^2$], ML contribution")
+    fig_heating_ml_frac = plot_cube(mappable_var(ds_merged, "heating_ml_frac_of_total").mean(INIT_TIME_DIM), col="dataset")
+    fig_heating_ml_frac.suptitle("heating: ML prediction as fraction of total")
+
+    return fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac
