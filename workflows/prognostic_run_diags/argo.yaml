@@ -6,7 +6,7 @@ spec:
   arguments:
     parameters:
     - name: runs
-  entrypoint: all
+  entrypoint: notebook
   volumes:
   - name: gcp-credentials-user-gcp-sa
     secret:
@@ -32,7 +32,7 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net@sha256:61d24dd05def82248ba7ff10bc79f2c4772551a2cb9824b6ae608c63e31fbe11
+      image: us.gcr.io/vcm-ml/fv3net
       command: ['bash', 'upload_report.sh']
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
@@ -62,7 +62,7 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net@sha256:61d24dd05def82248ba7ff10bc79f2c4772551a2cb9824b6ae608c63e31fbe11
+      image: us.gcr.io/vcm-ml/fv3net
       command:
       - 'python'
       - '-m'

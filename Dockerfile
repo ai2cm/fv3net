@@ -18,6 +18,7 @@ USER $NB_UID
 
 ENV PATH=/opt/conda/envs/fv3net/bin:$PATH
 RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME
+RUN jupyter labextension install @pyviz/jupyterlab_pyviz
 
 # Add rest of fv3net directory
 USER root 
