@@ -1,5 +1,6 @@
 FROM jupyter/base-notebook
 
+ENV FV3NET=/home/$NB_USER/fv3net
 
 ENV ENVIRONMENT_SCRIPTS=$FV3NET/.environment-scripts
 ENV PROJECT_NAME=fv3net
@@ -7,7 +8,6 @@ ENV PROJECT_NAME=fv3net
 # Install dependencies (slow)
 USER root
 RUN apt-get update && apt-get install -y gfortran
-ENV FV3NET=/home/$NB_USER/fv3net
 ADD environment.yml  $FV3NET/
 ADD Makefile  $FV3NET/
 ADD .environment-scripts $ENVIRONMENT_SCRIPTS
