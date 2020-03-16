@@ -66,7 +66,7 @@ spec:
       command:
       - 'python'
       - '-m'
-      - 'fv3net.pipelines.savediags'
+      - 'fv3net.pipelines.save_prognostic_run_diags'
       - '{{inputs.parameters.run}}'
       - '{{inputs.parameters.output}}'
       workingDir: /home/jovyan/fv3net

@@ -1,4 +1,4 @@
-from fv3net.pipelines import savediags
+from fv3net.pipelines import save_prognostic_run_diags as savediags
 import xarray as xr
 import fsspec
 from unittest.mock import Mock

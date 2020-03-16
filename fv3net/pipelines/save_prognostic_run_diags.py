@@ -17,7 +17,7 @@ import vcm
 
 import logging
 
-logger = logging.getLogger("savediags.py")
+logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
 
 
