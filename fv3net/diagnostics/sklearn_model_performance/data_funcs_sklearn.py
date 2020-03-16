@@ -1,4 +1,5 @@
 import os
+from scipy.interpolate import UnivariateSpline
 import xarray as xr
 
 import fv3net
@@ -131,18 +132,6 @@ def add_column_heating_moistening(ds):
         ds (xarray dataset): train/test or prediction dataset
             that has dQ1, dQ2, delp, precip and LHF data variables
     """
-    ds["P-E_total"] = (
-        mass_integrate(-ds[VAR_Q_MOISTENING_ML], ds.delp)
-        - thermo.latent_heat_flux_to_evaporation(
-            ds[f"LHTFLsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]
-        )
-        + ds[f"PRATEsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]
-    ) * kg_m2s_to_mm_day
-
-    ds["heating_total"] = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
-        ds[VAR_Q_HEATING_ML], ds.delp
-    ) + thermo.net_heating_from_dataset(ds, suffix=SUFFIX_COARSE_TRAIN_DIAG)
-
     ds["P-E_ml"] = mass_integrate(-ds[VAR_Q_MOISTENING_ML], ds.delp) * kg_m2s_to_mm_day
     ds["P-E_physics"] = (
         ds[f"PRATEsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]
