@@ -32,7 +32,7 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net@sha256:bb0658c27b1c5e8f1425563170353f516143ea89374be40e7ccdd781bb9345a
+      image: us.gcr.io/vcm-ml/fv3net@sha256:61d24dd05def82248ba7ff10bc79f2c4772551a2cb9824b6ae608c63e31fbe11
       command: ['bash', 'upload_report.sh']
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
@@ -62,7 +62,7 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net@sha256:bb0658c27b1c5e8f1425563170353f516143ea89374be40e7ccdd781bb9345a
+      image: us.gcr.io/vcm-ml/fv3net@sha256:61d24dd05def82248ba7ff10bc79f2c4772551a2cb9824b6ae608c63e31fbe11
       command:
       - 'python'
       - '-m'
