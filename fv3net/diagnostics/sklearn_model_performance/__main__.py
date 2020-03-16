@@ -92,4 +92,3 @@ if __name__ == "__main__":
         copy(output_dir, args.output_path)
         if args.delete_local_results_after_upload is True:
             shutil.rmtree(output_dir)
-        

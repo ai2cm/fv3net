@@ -70,7 +70,9 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
                 "i.e. have original dimensions {STACK_DIMS}."
             )
     report_sections = {}
-    metrics_dataset = xr.Dataset()   # to save data for comparison to other configurations
+    metrics_dataset = (
+        xr.Dataset()
+    )  # to save data for comparison to other configurations
 
     # for convenience, separate the land/sea data
     slmsk = ds_target.isel({COORD_Z_CENTER: -1, INIT_TIME_DIM: 0}).slmsk
@@ -124,13 +126,23 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # Vertical dQ2 profiles over land and ocean
     _make_vertical_profile_plots(
-        ds_pred_land, ds_target_land, "dQ2", "[kg/kg/s]", "land: dQ2 vertical profile", saved_data=metrics_dataset
+        ds_pred_land,
+        ds_target_land,
+        "dQ2",
+        "[kg/kg/s]",
+        "land: dQ2 vertical profile",
+        saved_data=metrics_dataset,
     ).savefig(
         os.path.join(output_dir, "vertical_profile_dQ2_land.png"),
         dpi=DPI_FIGURES["dQ2_pressure_profiles"],
     )
     _make_vertical_profile_plots(
-        ds_pred_sea, ds_target_sea, "dQ2", "[kg/kg/s]", "ocean: dQ2 vertical profile", saved_data=metrics_dataset
+        ds_pred_sea,
+        ds_target_sea,
+        "dQ2",
+        "[kg/kg/s]",
+        "ocean: dQ2 vertical profile",
+        saved_data=metrics_dataset,
     ).savefig(
         os.path.join(output_dir, "vertical_profile_dQ2_sea.png"),
         dpi=DPI_FIGURES["dQ2_pressure_profiles"],
@@ -141,13 +153,23 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ]
 
     # R^2 vs pressure plots
-    _make_r2_profile_plot(ds_pred, ds_target, ["dQ1", "dQ2"], title="$R^2$, global", saved_data=metrics_dataset
+    _make_r2_profile_plot(
+        ds_pred,
+        ds_target,
+        ["dQ1", "dQ2"],
+        title="$R^2$, global",
+        saved_data=metrics_dataset,
     ).savefig(
         os.path.join(output_dir, "r2_vs_pressure_level_global.png"),
         dpi=DPI_FIGURES["R2_pressure_profiles"],
     )
     _make_land_sea_r2_profile_plot(
-        ds_pred_sea, ds_pred_land, ds_target_sea, ds_target_land, ["dQ1", "dQ2"], saved_data=metrics_dataset
+        ds_pred_sea,
+        ds_pred_land,
+        ds_target_sea,
+        ds_target_land,
+        ["dQ1", "dQ2"],
+        saved_data=metrics_dataset,
     ).savefig(
         os.path.join(output_dir, "r2_vs_pressure_level_landsea.png"),
         dpi=DPI_FIGURES["R2_pressure_profiles"],
@@ -158,11 +180,16 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ]
 
     # R^2 maps, 2d variables
-    r2_map_2d_vars(ds_pe, "P-E_total", grid, metrics_dataset) \
-        .savefig(os.path.join(output_dir, "r2_map_P-E.png"))
-    r2_map_2d_vars(ds_heating, "heating_total", grid, metrics_dataset) \
-        .savefig(os.path.join(output_dir, "r2_map_heating.png"))
-    report_sections["R^2 maps for 2D variables"] = ["r2_map_P-E.png", "r2_map_heating.png"]
+    r2_map_2d_vars(ds_pe, "P-E_total", grid, metrics_dataset).savefig(
+        os.path.join(output_dir, "r2_map_P-E.png")
+    )
+    r2_map_2d_vars(ds_heating, "heating_total", grid, metrics_dataset).savefig(
+        os.path.join(output_dir, "r2_map_heating.png")
+    )
+    report_sections["R^2 maps for 2D variables"] = [
+        "r2_map_P-E.png",
+        "r2_map_heating.png",
+    ]
 
     # plot P-E across the diurnal cycle
     local_coords = get_latlon_grid_coords_set(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
@@ -270,7 +297,9 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 # Below are plotting functions specific to this diagnostic workflow
 
 
-def _make_r2_profile_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None, saved_data=None):
+def _make_r2_profile_plot(
+    ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None, saved_data=None
+):
     plt.clf()
     fig = plt.figure()
     if isinstance(vars, str):
@@ -324,14 +353,23 @@ def _make_land_sea_r2_profile_plot(
             ),
             SAMPLE_DIM,
         )
-        plt.plot(x, y_sea.values, color=color, alpha=0.7, label=f"{var}, sea", linestyle="--")
-        plt.plot(x, y_land.values, color=color, alpha=0.7, label=f"{var}, land", linestyle=":")
+        plt.plot(
+            x, y_sea.values, color=color, alpha=0.7, label=f"{var}, sea", linestyle="--"
+        )
+        plt.plot(
+            x,
+            y_land.values,
+            color=color,
+            alpha=0.7,
+            label=f"{var}, land",
+            linestyle=":",
+        )
         if saved_data:
             saved_data.assign({f"R2_profile_{var}_land": y_land})
             saved_data.assign({f"R2_profile_{var}_sea": y_sea})
     plt.legend()
     plt.xlabel("pressure [HPa]")
-    plt.ylabel("$R^2$")    
+    plt.ylabel("$R^2$")
     return fig
 
 
@@ -361,7 +399,9 @@ def _plot_comparison_maps(
     return fig
 
 
-def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None, saved_data=None):
+def _make_vertical_profile_plots(
+    ds_pred, ds_target, var, units, title=None, saved_data=None
+):
     """Creates vertical profile plots of dQ2 for drying/moistening columns
 
     Args:
@@ -377,7 +417,10 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None, sav
 
     plt.clf()
     fig = plt.figure()
-    pos_mask_target, neg_mask_target = ds_target["P-E_total"] > 0, ds_target["P-E_total"] < 0
+    pos_mask_target, neg_mask_target = (
+        ds_target["P-E_total"] > 0,
+        ds_target["P-E_total"] < 0,
+    )
     pos_mask_pred, neg_mask_pred = ds_pred["P-E_total"] > 0, ds_pred["P-E_total"] < 0
     ds_pred = regrid_to_common_pressure(ds_pred[var], ds_pred["delp"])
     ds_target = regrid_to_common_pressure(ds_target[var], ds_target["delp"])
@@ -410,7 +453,7 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None, sav
     if title:
         plt.title(title)
     plt.legend()
-     
+
     return fig
 
 
@@ -471,11 +514,11 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
 def r2_map_2d_vars(merged_ds, var, grid, saved_data):
     r2_map = r2_score(
         merged_ds.sel(dataset="target C48")[var],
-        merged_ds.sel(dataset="prediction")[var],   
-        [INIT_TIME_DIM],         
-        mean_dims=["tile", COORD_X_CENTER, COORD_Y_CENTER])
-    fig = plot_cube(
-        mappable_var(xr.merge([grid, r2_map]), var), vmin=0, vmax=1)[0]
+        merged_ds.sel(dataset="prediction")[var],
+        [INIT_TIME_DIM],
+        mean_dims=["tile", COORD_X_CENTER, COORD_Y_CENTER],
+    )
+    fig = plot_cube(mappable_var(xr.merge([grid, r2_map]), var), vmin=0, vmax=1)[0]
     if saved_data:
         saved_data.assign({f"r2_map_{var}": mappable_var})
     return fig
