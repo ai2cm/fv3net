@@ -73,7 +73,7 @@ experiment:
           from: coarsen_diagnostics
       extra_args: 
         num-test-zarrs: 4
-    
+
     prognostic_run:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
       inputs:
@@ -85,9 +85,3 @@ experiment:
         prognostic_yaml_adjust: workflows/prognostic_c48_run/prognostic_config.yml
         ic_timestep: "20160801.001500"
         docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
-
-    diags_prognostic_run:
-      command: bash workflows/prognostic_run_diags/run.sh
-      inputs:
-        fv3_output:
-          from: prognostic_run
