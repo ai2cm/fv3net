@@ -23,8 +23,17 @@ RUN jupyter labextension install @pyviz/jupyterlab_pyviz
 # Add rest of fv3net directory
 USER root 
 ADD . $FV3NET
+# install gcloud sdk
+RUN cd / && \
+    curl  https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-284.0.0-linux-x86_64.tar.gz |\
+    tar xz
+ENV PATH=/google-cloud-sdk/bin:${PATH}
+#RUN /google-cloud-sdk/bin/gcloud init
+
 RUN fix-permissions $FV3NET
 USER $NB_UID
+
+# RUN gcloud init
 
 # setup the local python packages
 
