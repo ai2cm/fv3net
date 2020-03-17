@@ -6,7 +6,7 @@ import random
 import string
 import logging
 from datetime import timedelta
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Tuple, Set
 from typing.io import BinaryIO
 
 import apache_beam as beam
@@ -258,6 +258,47 @@ def subsample_timesteps_at_interval(
         )
 
     return subsampled_timesteps
+
+
+def get_timestep_pairs(
+    available_timesteps: Set[str],
+    pair_interval: timedelta,
+    timesteps_to_pair_from: List[str] = None
+) -> List[Tuple[str]]:
+    """
+    Get pairs of fv3gfs timesteps at the desired time interval.
+
+    Args:
+        available_timesteps:
+            All available timesteps to check for pairs from. If timesteps_to_pair_from
+            is not specified, finds all pairs from this argument.
+        pair_interval:
+            The time interval to check for the paired timestep
+        timesteps_to_pair_from:
+            A list of timesteps to generate pairs for from available timesteps.  If not
+            provided, all pairs are returned from available_timesteps.
+
+    Returns:
+        A list of paired timestep string tuples
+    """
+
+    if timesteps_to_pair_from is None:
+        timesteps = list(available_timesteps)
+    else:
+        timesteps = timesteps_to_pair_from
+    
+    timesteps.sort()
+
+    pairs = []
+    for tstep in timesteps:
+        pair_time = parse_datetime_from_str(tstep) + pair_interval
+        pair_tstep = pair_time.strftime(TIME_FMT)
+
+        if pair_tstep in available_timesteps:
+            pairs.append((tstep, pair_tstep))
+
+    return pairs
+
 
 
 def get_alphanumeric_unique_tag(tag_length: int) -> str:
