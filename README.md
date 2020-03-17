@@ -77,6 +77,7 @@ along with information can be found under the `workflows` directory.
 The workflows use a pair of common images:
 
 |Image| Description| 
+|-----|------------|
 | `us.gcr.io/vcm-ml/prognostic_run` | fv3gfs-python with minimal fv3net and vcm installed |
 | `us.gcr.io/vcm-ml/fv3net` | fv3net image with all dependencies including plotting |
 
