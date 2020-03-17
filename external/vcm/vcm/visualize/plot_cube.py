@@ -111,7 +111,7 @@ def plot_cube(
 
     Example:
         # plot diag winds at two times
-        fig, axes, hs, cbar = plot_cube(
+        fig, axes, hs, cbar, facet_grid = plot_cube(
             mappable_var(diag_ds, 'VGRD850').isel(time = slice(2, 4)),
             plotting_function = "contourf",
             col = "time",
