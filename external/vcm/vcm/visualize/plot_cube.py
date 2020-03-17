@@ -105,10 +105,13 @@ def plot_cube(
         cbar (obj):
             `plt.colorbar` object handle associated with figure, if `colorbar`
             arg is True, else None.
+        facet_grid (xarray.plot.facetgrid):
+            xarray plotting facetgrid for multi-axes case. In single-axes case,
+            retunrs None.
 
     Example:
         # plot diag winds at two times
-        fig, axes, hs, cbar = plot_cube(
+        fig, axes, hs, cbar, facet_grid = plot_cube(
             mappable_var(diag_ds, 'VGRD850').isel(time = slice(2, 4)),
             plotting_function = "contourf",
             col = "time",
@@ -165,6 +168,7 @@ def plot_cube(
         handle = _plot_func_short(array, ax=ax)
         axes = np.array(ax)
         handles = [handle]
+        facet_grid = None
 
     if coastlines:
         coastlines_kwargs = dict() if not coastlines_kwargs else coastlines_kwargs
@@ -186,7 +190,7 @@ def plot_cube(
     else:
         cbar = None
 
-    return fig, axes, handles, cbar
+    return fig, axes, handles, cbar, facet_grid
 
 
 def mappable_var(ds: xr.Dataset, var_name: str):
