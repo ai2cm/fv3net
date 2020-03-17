@@ -6,7 +6,7 @@ spec:
   arguments:
     parameters:
     - name: runs
-  entrypoint: notebook
+  entrypoint: all
   volumes:
   - name: gcp-credentials-user-gcp-sa
     secret:
