@@ -134,18 +134,40 @@ def list_timesteps(path: str) -> List[str]:
     return sorted(timesteps)
 
 
-def _get_base_timestep_interval(timestep_list, num_to_check=4, vote_threshold=0.75):
+def get_base_timestep_interval(
+    timestep_list: List[str], num_to_check: int = 4, vote_threshold: float = 0.75
+) -> timedelta:
     """
     Checks base time delta of available timesteps by looking at multiple pairs.
     Returns the delta that achieves the requested majority threshold.
+
+    timestep_list:
+        A sorted list of all available timestep strings.  Assumed to
+        be in the format described by vcm.cubedsphere.constants.TIME_FMT
+    num_to_check:
+        Number of timestep pairs to check for the vote on the timestep interval
+    vote_threshold:
+        The threshold to clear for determining an interval. I.e., if we measure
+        x% pairs with a time interval of 15 minutes, we'll return that as the likely
+        base time interval.
+
+    Returns:
+        The estimated base time interval between the provided timesteps
     """
     if vote_threshold <= 0.5 or vote_threshold > 1:
         raise ValueError("Vote threshold must be within (0.5, 1.0]")
 
-    check_idxs = random.randrange(len(timestep_list) - 1)
+    if num_to_check >= len(timestep_list):
+        raise ValueError(
+            "Number of timestep intervals to check should be less than number of "
+            "available timesteps."
+        )
+
+    all_idxs = list(range(len(timestep_list) - 1))
+    check_idxs = random.sample(all_idxs, num_to_check)
     timedeltas = []
     for idx in check_idxs:
-        t1, t2 = timestep_list[idx:(idx + 2)]
+        t1, t2 = timestep_list[idx : (idx + 2)]
         delta = parse_datetime_from_str(t2) - parse_datetime_from_str(t1)
         timedeltas.append(delta)
 
@@ -162,7 +184,10 @@ def _get_base_timestep_interval(timestep_list, num_to_check=4, vote_threshold=0.
 
 
 def subsample_timesteps_at_interval(
-    timesteps: List[str], sampling_interval: int, paired_steps: bool = False,
+    timesteps: List[str],
+    sampling_interval: int,
+    paired_steps: bool = False,
+    base_check_kwargs=None,
 ) -> List[str]:
     """
     Subsample a list of timesteps at the specified interval (in minutes). Raises
@@ -177,17 +202,25 @@ def subsample_timesteps_at_interval(
             timestep at the selected interval. Useful for ensuring the the
             correct restart files are available for calculating residuals
             from initialization data.
+        base_check_kwargs: Keyword arguments to pass to get_base_timestep_interval,
+            which determines the base time interval of provided timesteps.
     
     Returns:
         A subsampled list of the input timesteps at the desired interval.
     """
+
+    if base_check_kwargs is None:
+        base_check_kwargs = {}
+
+    if paired_steps:
+        base_delta = get_base_timestep_interval(timesteps, **base_check_kwargs)
+
     logger.info(
         f"Subsampling available timesteps to every {sampling_interval} minutes."
     )
     current_time = parse_datetime_from_str(timesteps[0])
     last_time = parse_datetime_from_str(timesteps[-1])
     available_times = set(timesteps)
-    base_delta = _get_base_timestep_interval(timesteps)
     sample_delta = timedelta(minutes=sampling_interval)
 
     subsampled_timesteps = []
