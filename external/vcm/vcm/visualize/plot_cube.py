@@ -107,7 +107,7 @@ def plot_cube(
             arg is True, else None.
         facet_grid (xarray.plot.facetgrid):
             xarray plotting facetgrid for multi-axes case. In single-axes case,
-            retunrs None. 
+            retunrs None.
 
     Example:
         # plot diag winds at two times

@@ -82,7 +82,9 @@ def plot_diag_var_single_map(da, grid, var_name, plot_cube_kwargs=None):
     """
     da = da.rename(var_name)
     ds_mappable = mappable_var(xr.merge([da, grid]), var_name)
-    fig, axes, handles, cbar, facet_grid = plot_cube(ds_mappable, **(plot_cube_kwargs or {}))
+    fig, axes, handles, cbar, facet_grid = plot_cube(
+        ds_mappable, **(plot_cube_kwargs or {})
+    )
     return fig
 
 
