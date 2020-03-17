@@ -95,5 +95,7 @@ def test_subsample_timesteps_at_interval_with_pairs():
         "20160801.004500",
     ]
 
+    # subsample at 30-minute interval with pairs
     subsampled = subsample_timesteps_at_interval(timesteps, 30, paired_steps=True)
+    # Last timestep should not be included since there's no associated pair
     assert subsampled == timesteps[:-1]
