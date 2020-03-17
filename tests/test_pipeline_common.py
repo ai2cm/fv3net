@@ -85,3 +85,15 @@ def test_subsample_timesteps_at_interval():
     with pytest.raises(ValueError):
         # frequency not aligned
         subsample_timesteps_at_interval(timesteps, 7)
+
+
+def test_subsample_timesteps_at_interval_with_pairs():
+
+    timesteps = [
+        "20160801.001500",
+        "20160801.003000",
+        "20160801.004500",
+    ]
+
+    subsampled = subsample_timesteps_at_interval(timesteps, 30, paired_steps=True)
+    assert subsampled == timesteps[:-1]

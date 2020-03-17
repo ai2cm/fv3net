@@ -134,7 +134,7 @@ def list_timesteps(path: str) -> List[str]:
 
 
 def subsample_timesteps_at_interval(
-    timesteps: List[str], sampling_interval: int,
+    timesteps: List[str], sampling_interval: int, paired_steps: bool = False,
 ) -> List[str]:
     """
     Subsample a list of timesteps at the specified interval (in minutes). Raises
@@ -142,9 +142,13 @@ def subsample_timesteps_at_interval(
     timesteps.
 
     Args:
-        timesteps: A list of all available timestep strings.  Assumed to
+        timesteps: A sorted list of all available timestep strings.  Assumed to
             be in the format described by vcm.cubedsphere.constants.TIME_FMT
         sampling_interval: The interval to subsample the list in minutes
+        paired_steps: Additionally include next available timestep for each
+            timestep at the selected interval. Useful for ensuring the the
+            correct restart files are available for calculating residuals
+            from initialization data.
     
     Returns:
         A subsampled list of the input timesteps at the desired interval.
@@ -157,14 +161,27 @@ def subsample_timesteps_at_interval(
     available_times = set(timesteps)
     delta = timedelta(minutes=sampling_interval)
 
-    subsampled_timesteps = [timesteps[0]]
-    while current_time < last_time:
-        next_time = current_time + delta
-        next_time_str = next_time.strftime(TIME_FMT)
-        if next_time_str in available_times:
-            subsampled_timesteps.append(next_time_str)
+    subsampled_timesteps = []
+    while current_time <= last_time:
+        time_str = current_time.strftime(TIME_FMT)
 
-        current_time = next_time
+        if time_str in available_times:
+
+            tsteps_to_add = [time_str]
+
+            if paired_steps:
+                pair_idx_to_include = timesteps.index(time_str) + 1
+                try:
+                    pair_time_str = timesteps[pair_idx_to_include]
+                    tsteps_to_add.append(pair_time_str)
+                except IndexError:
+                    tsteps_to_add = []
+                    logger.debug(f"Requested timestep pair beyond available timesteps."
+                                 f" Removing {time_str}.")
+            
+            subsampled_timesteps.extend(tsteps_to_add)
+
+        current_time += delta
 
     num_subsampled = len(subsampled_timesteps)
     if num_subsampled < 2:
