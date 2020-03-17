@@ -3,6 +3,7 @@
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
+VERSION = 0.1.0
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
@@ -22,10 +23,22 @@ endif
 #################################################################################
 # COMMANDS                                                                      #
 #################################################################################
+.PHONY: wheels build_images push_image
+wheels:
+	pip wheel --no-deps .
+	pip wheel --no-deps external/vcm
 
-build_images:
-	make -C docker/fv3net build
-	make -C docker/prognostic_run build
+# pattern rule for building docker images
+build_image_%:
+	docker build -f docker/$*/Dockerfile . -t us.gcr.io/vcm-ml/$*:$(VERSION)
+
+build_image_prognostic_run: wheels
+
+build_images: build_image_fv3net build_image_prognostic_run
+
+push_image:
+	docker push us.gcr.io/vcm-ml/fv3net:$(VERSION)
+	docker push us.gcr.io/vcm-ml/prognostic_run:$(VERSION)
 
 enter: build_image
 	docker run -it -v $(shell pwd):/code \
