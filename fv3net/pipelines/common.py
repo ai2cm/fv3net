@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import secrets
+import random
 import string
 import logging
 from datetime import timedelta
@@ -133,6 +134,33 @@ def list_timesteps(path: str) -> List[str]:
     return sorted(timesteps)
 
 
+def _get_base_timestep_interval(timestep_list, num_to_check=4, vote_threshold=0.75):
+    """
+    Checks base time delta of available timesteps by looking at multiple pairs.
+    Returns the delta that achieves the requested majority threshold.
+    """
+    if vote_threshold <= 0.5 or vote_threshold > 1:
+        raise ValueError("Vote threshold must be within (0.5, 1.0]")
+
+    check_idxs = random.randrange(len(timestep_list) - 1)
+    timedeltas = []
+    for idx in check_idxs:
+        t1, t2 = timestep_list[idx:(idx + 2)]
+        delta = parse_datetime_from_str(t2) - parse_datetime_from_str(t1)
+        timedeltas.append(delta)
+
+    for delta in timedeltas:
+        if timedeltas.count(delta) / num_to_check >= vote_threshold:
+            return delta
+    else:
+        # None of the measured timedeltas passed the vote threshold
+        raise ValueError(
+            "Could determine base timedelta from number of checked timestep pairs "
+            "and specified vote threshold.  It's likely that too many timesteps are "
+            "missing"
+        )
+
+
 def subsample_timesteps_at_interval(
     timesteps: List[str], sampling_interval: int, paired_steps: bool = False,
 ) -> List[str]:
@@ -159,7 +187,8 @@ def subsample_timesteps_at_interval(
     current_time = parse_datetime_from_str(timesteps[0])
     last_time = parse_datetime_from_str(timesteps[-1])
     available_times = set(timesteps)
-    delta = timedelta(minutes=sampling_interval)
+    base_delta = _get_base_timestep_interval(timesteps)
+    sample_delta = timedelta(minutes=sampling_interval)
 
     subsampled_timesteps = []
     while current_time <= last_time:
@@ -170,23 +199,26 @@ def subsample_timesteps_at_interval(
             tsteps_to_add = [time_str]
 
             if paired_steps:
-                pair_idx_to_include = timesteps.index(time_str) + 1
-                try:
-                    pair_time_str = timesteps[pair_idx_to_include]
+                pair_time = current_time + base_delta
+                pair_time_str = pair_time.strftime(TIME_FMT)
+
+                if pair_time_str in available_times:
                     tsteps_to_add.append(pair_time_str)
-                except IndexError:
+                else:
+                    # No pair available, remove both
                     tsteps_to_add = []
                     logger.debug(
-                        f"Requested timestep pair beyond available timesteps."
+                        f"Requested timestep pair not available."
                         f" Removing {time_str}."
                     )
 
             subsampled_timesteps.extend(tsteps_to_add)
 
-        current_time += delta
+        current_time += sample_delta
 
     num_subsampled = len(subsampled_timesteps)
-    if num_subsampled < 2:
+    min_limit = 2 if not paired_steps else 3
+    if num_subsampled < min_limit:
         raise ValueError(
             f"No available timesteps found matching desired subsampling interval"
             f" of {sampling_interval} minutes."
