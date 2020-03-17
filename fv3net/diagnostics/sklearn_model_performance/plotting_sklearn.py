@@ -112,7 +112,9 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # LTS
     PE_pred = (
-        mask_to_surface_type(ds_pe.sel(dataset="prediction"), "sea")["net_precipitation"]
+        mask_to_surface_type(ds_pe.sel(dataset="prediction"), "sea")[
+            "net_precipitation"
+        ]
         .squeeze()
         .drop("dataset")
     )
@@ -180,7 +182,10 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
-            ds_pe.sel(coords), "net_precipitation", title=location_name, ylabel="P-E [mm]"
+            ds_pe.sel(coords),
+            "net_precipitation",
+            title=location_name,
+            ylabel="P-E [mm]",
         ).savefig(
             os.path.join(output_dir, f"diurnal_cycle_P-E_{location_name}.png"),
             dpi=DPI_FIGURES["diurnal_cycle"],
@@ -372,7 +377,10 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
 
     plt.clf()
     fig = plt.figure()
-    pos_mask, neg_mask = ds_target["net_precipitation"] > 0, ds_target["net_precipitation"] < 0
+    pos_mask, neg_mask = (
+        ds_target["net_precipitation"] > 0,
+        ds_target["net_precipitation"] < 0,
+    )
     ds_pred = regrid_to_common_pressure(ds_pred[var], ds_pred["delp"])
     ds_target = regrid_to_common_pressure(ds_target[var], ds_target["delp"])
 
@@ -469,7 +477,8 @@ def map_plot_dq_vs_qtot(ds_pred, ds_target, grid):
     )
     ds_merged.assign(
         {
-            "P-E_ml_frac_of_total": ds_merged["P-E_ml"] / ds_merged["net_precipitation"],
+            "P-E_ml_frac_of_total": ds_merged["P-E_ml"]
+            / ds_merged["net_precipitation"],
             "heating_ml_frac_of_total": ds_merged["heating_ml"]
             / ds_merged["net_heating"],
         }
