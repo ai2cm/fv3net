@@ -5,11 +5,7 @@ from sklearn.utils import parallel_backend
 
 from . import state_io
 
-__all__ = [
-    "open_model",
-    "predict",
-    "update"
-]
+__all__ = ["open_model", "predict", "update"]
 
 
 def open_model(url):

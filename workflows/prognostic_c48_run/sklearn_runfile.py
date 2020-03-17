@@ -6,14 +6,13 @@ import fv3gfs
 from fv3gfs._wrapper import get_time
 from fv3net import runtime
 from mpi4py import MPI
-import config
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
-VARIABLES = list(state_io.CF_TO_RESTART_MAP) + [DELP]
+VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP]
 
 cp = 1004
 gravity = 9.81
