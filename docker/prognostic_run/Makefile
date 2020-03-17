@@ -9,7 +9,7 @@ vcm:
 	pip wheel --no-deps ../external/vcm
 
 build: fv3net vcm
-	docker build . -t $(IMAGE)
+	docker build -f Dockerfile ../../ -t $(IMAGE)
 
 push: build
 	docker push $(IMAGE)

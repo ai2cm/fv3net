@@ -117,6 +117,12 @@ If you get an error `Could not create workflow; user does not have write access 
 trying to submit the dataflow job, do `gcloud auth application-default login` first and then retry.
 
 
+## Building the fv3net docker images
+
+The pipelines use a pair of common images:
+1. us.gcr.io/vcm-ml/prognostic_run:v0.1.0
+1. us.gcr.io/vcm-ml/fv3net
+
 ## Deploying on k8s with fv3net
 
 Docker images with the python-wrapped model and fv3run are available from the

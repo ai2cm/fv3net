@@ -22,8 +22,10 @@ endif
 #################################################################################
 # COMMANDS                                                                      #
 #################################################################################
-build_image:
-	docker build . -t $(IMAGE) -t $(GCR_IMAGE)
+
+build_images:
+	make -C docker/fv3net build
+	make -C docker/prognostic_run build
 
 enter: build_image
 	docker run -it -v $(shell pwd):/code \
@@ -32,9 +34,6 @@ enter: build_image
 
 #		-e GOOGLE_APPLICATION_CREDENTIALS=/google_creds.json \
 #		-v $(HOME)/.config/gcloud/application_default_credentials.json:/google_creds.json \
-
-push_image: build_image
-	docker push $(GCR_IMAGE)
 
 
 ## Make Dataset
