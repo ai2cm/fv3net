@@ -1,4 +1,4 @@
-IMAGE=test-image
+IMAGE = us.gcr.io/vcm-ml/prognostic_run:v0.1.0
 KEY_ARGS= -v $(GOOGLE_APPLICATION_CREDENTIALS):/key.json \
 	  -e GOOGLE_APPLICATION_CREDENTIALS=/key.json
 LOCAL_DIR_ARGS = -w /code -v $(shell pwd):/code
@@ -10,15 +10,6 @@ SKLEARN_MODEL = gs://vcm-ml-data/test-annak/ml-pipeline-output/2020-01-17_rf_40d
 FV3CONFIG = gs://vcm-ml-data/end-to-end-experiments/2020-02-26-physics-off/annak-prognostic-physics-off-1773255e/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160801.001500_docker_image_prognostic-run-orchestration/job_config/fv3config.yml
 
 all: sklearn_run
-
-fv3net:
-	pip wheel --no-deps ../../.
-
-vcm:
-	pip wheel --no-deps ../../external/vcm
-
-build: fv3net vcm
-	docker build . -t $(IMAGE)
 
 dev:
 	 $(RUN_INTERACTIVE) bash
