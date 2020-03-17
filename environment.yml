@@ -41,6 +41,9 @@ dependencies:
   - apache-beam
   - matplotlib=3.1
   - python=3.7
+  - holoviews
+  - bokeh=1.4
   - pip:
     - gsutil
     - nc-time-axis>=1.2.0
+    - yq
