@@ -46,7 +46,9 @@ def timesteps_to_process(
     rundirs_url = os.path.join(output_url)
     to_do = list_timesteps(input_url)
     if subsample_frequency is not None:
-        to_do = subsample_timesteps_at_interval(to_do, subsample_frequency)
+        to_do = subsample_timesteps_at_interval(
+            to_do, subsample_frequency, paired_steps=True
+        )
     done = check_runs_complete(rundirs_url)
     if overwrite:
         _delete_logs_of_done_timesteps(output_url, done)

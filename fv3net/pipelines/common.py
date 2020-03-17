@@ -176,9 +176,11 @@ def subsample_timesteps_at_interval(
                     tsteps_to_add.append(pair_time_str)
                 except IndexError:
                     tsteps_to_add = []
-                    logger.debug(f"Requested timestep pair beyond available timesteps."
-                                 f" Removing {time_str}.")
-            
+                    logger.debug(
+                        f"Requested timestep pair beyond available timesteps."
+                        f" Removing {time_str}."
+                    )
+
             subsampled_timesteps.extend(tsteps_to_add)
 
         current_time += delta
