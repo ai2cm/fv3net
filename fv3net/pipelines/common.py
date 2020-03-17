@@ -186,8 +186,6 @@ def get_base_timestep_interval(
 def subsample_timesteps_at_interval(
     timesteps: List[str],
     sampling_interval: int,
-    paired_steps: bool = False,
-    base_check_kwargs=None,
 ) -> List[str]:
     """
     Subsample a list of timesteps at the specified interval (in minutes). Raises
@@ -198,22 +196,10 @@ def subsample_timesteps_at_interval(
         timesteps: A sorted list of all available timestep strings.  Assumed to
             be in the format described by vcm.cubedsphere.constants.TIME_FMT
         sampling_interval: The interval to subsample the list in minutes
-        paired_steps: Additionally include next available timestep for each
-            timestep at the selected interval. Useful for ensuring the the
-            correct restart files are available for calculating residuals
-            from initialization data.
-        base_check_kwargs: Keyword arguments to pass to get_base_timestep_interval,
-            which determines the base time interval of provided timesteps.
     
     Returns:
         A subsampled list of the input timesteps at the desired interval.
     """
-
-    if base_check_kwargs is None:
-        base_check_kwargs = {}
-
-    if paired_steps:
-        base_delta = get_base_timestep_interval(timesteps, **base_check_kwargs)
 
     logger.info(
         f"Subsampling available timesteps to every {sampling_interval} minutes."
@@ -228,30 +214,12 @@ def subsample_timesteps_at_interval(
         time_str = current_time.strftime(TIME_FMT)
 
         if time_str in available_times:
-
-            tsteps_to_add = [time_str]
-
-            if paired_steps:
-                pair_time = current_time + base_delta
-                pair_time_str = pair_time.strftime(TIME_FMT)
-
-                if pair_time_str in available_times:
-                    tsteps_to_add.append(pair_time_str)
-                else:
-                    # No pair available, remove both
-                    tsteps_to_add = []
-                    logger.debug(
-                        f"Requested timestep pair not available."
-                        f" Removing {time_str}."
-                    )
-
-            subsampled_timesteps.extend(tsteps_to_add)
+            subsampled_timesteps.append(time_str)
 
         current_time += sample_delta
 
     num_subsampled = len(subsampled_timesteps)
-    min_limit = 2 if not paired_steps else 3
-    if num_subsampled < min_limit:
+    if num_subsampled < 2:
         raise ValueError(
             f"No available timesteps found matching desired subsampling interval"
             f" of {sampling_interval} minutes."
@@ -298,7 +266,6 @@ def get_timestep_pairs(
             pairs.append((tstep, pair_tstep))
 
     return pairs
-
 
 
 def get_alphanumeric_unique_tag(tag_length: int) -> str:
