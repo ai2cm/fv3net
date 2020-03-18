@@ -13,8 +13,8 @@ from .convenience import (
 )
 from .calc import mass_integrate
 from .calc.thermo import (
-    net_precipitation_from_dataset,
-    net_heating_from_dataset,
+    net_heating,
+    net_precipitation,
     pressure_at_midpoint_log,
     potential_temperature,
 )

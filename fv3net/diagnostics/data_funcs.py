@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+import vcm
 from vcm.select import drop_nondim_coords, get_latlon_grid_coords
 
 # give as [lat, lon]
@@ -12,6 +13,7 @@ EXAMPLE_CLIMATE_LATLON_COORDS = {
     "central_canada": [55.0, 258.0],
     "tropical_west_pacific": [-5.0, 165.0],
 }
+_KG_M2S_TO_MM_DAY = 86400  # kg/m2/s same as mm/s. Using 1000 km/m3 for H20 density 
 
 
 def merge_comparison_datasets(
@@ -90,3 +92,37 @@ def periodic_phase(phase):
 
     cond = np.vectorize(_conditions)
     return cond(phase)
+
+
+def net_heating_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.DataArray:
+    """Compute the net heating from a dataset of diagnostic output
+
+    This should be equivalent to the vertical integral (i.e. <>) of Q1::
+
+        cp <Q1>
+
+    Args:
+        ds: a datasets with the names for the heat fluxes and precipitation used
+            by the ML pipeline
+        suffix: (optional) suffix of flux data vars if applicable. Will add '_' before
+            appending to variable names if not already in suffix.
+
+    Returns:
+        the total net heating, the rate of change of the dry enthalpy <c_p T>
+    """
+    if suffix and suffix[0] != "_":
+        suffix = "_" + suffix
+    elif not suffix or suffix == "":
+        suffix = ""
+    fluxes = (
+        ds["DLWRFsfc" + suffix],
+        ds["DSWRFsfc" + suffix],
+        ds["ULWRFsfc" + suffix],
+        ds["ULWRFtoa" + suffix],
+        ds["USWRFsfc" + suffix],
+        ds["USWRFtoa" + suffix],
+        ds["DSWRFtoa" + suffix],
+        ds["SHTFLsfc" + suffix],
+        ds["PRATEsfc" + suffix],
+    )
+    return vcm.net_heating(*fluxes)

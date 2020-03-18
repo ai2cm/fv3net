@@ -3,6 +3,7 @@ from scipy.interpolate import UnivariateSpline
 import xarray as xr
 
 import fv3net
+from ..data_funcs import net_heating_from_dataset
 from fv3net.pipelines.create_training_data import (
     SUFFIX_COARSE_TRAIN_DIAG,
     VAR_Q_HEATING_ML,
@@ -28,22 +29,14 @@ from vcm.constants import (
 SAMPLE_DIM = "sample"
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
-DATA_VAR_ATTRS = {
+THERMO_DATA_VAR_ATTRS = {
     "net_precipitation": {"long_name": "net column precipitation", "units": "mm/day"},
     "net_heating": {"long_name": "net column heating", "units": "W/m^2"},
-    "P-E_ml": {"long_name": "residual P-E predicted by ML model", "units": "mm/day"},
-    "heating_ml": {
+    "net_precipitation_ml": {"long_name": "residual P-E predicted by ML model", "units": "mm/day"},
+    "net_heating_ml": {
         "long_name": "residual heating predicted by ML model",
         "units": "W/m^2",
-    },
-    "P-E_physics": {
-        "long_name": "P-E from coarse res model physics",
-        "units": "mm/day",
-    },
-    "heating_physics": {
-        "long_name": "heating from coarse res model physics",
-        "units": "W/m^2",
-    },
+    }
 }
 
 
@@ -96,12 +89,10 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times):
             f"are not matched in high res dataset."
         )
 
-    ds_hires["net_precipitation"] = vcm.net_precipitation_from_dataset(
-        ds_hires, suffix="coarse"
-    )
-    ds_hires["net_heating"] = vcm.net_heating_from_dataset(ds_hires, suffix="coarse")
-    ds_hires["net_precipitation"].attrs = DATA_VAR_ATTRS["net_precipitation"]
-    ds_hires["net_heating"].attrs = DATA_VAR_ATTRS["net_heating"]
+    ds_hires["net_precipitation"] = vcm.net_precipitation(
+        ds_hires[f"LHTFLsfc_coarse"], 
+        ds_hires[f"PRATEsfc_coarse"])
+    ds_hires["net_heating"] = net_heating_from_dataset(ds_hires, suffix="coarse")
 
     return ds_hires
 
@@ -115,22 +106,23 @@ def add_column_heating_moistening(ds):
             that has dQ1, dQ2, delp, precip and LHF data variables
     """
 
-    ds["P-E_ml"] = (
+    ds["net_precipitation_ml"] = (
         vcm.mass_integrate(-ds[VAR_Q_MOISTENING_ML], ds.delp) * kg_m2s_to_mm_day
     )
-    ds["P-E_physics"] = vcm.net_precipitation_from_dataset(
-        ds, suffix=SUFFIX_COARSE_TRAIN_DIAG
-    )
-    ds["net_precipitation"] = ds["P-E_ml"] + ds["P-E_physics"]
+    ds["net_precipitation_physics"] = vcm.net_precipitation(
+        ds[f"LHTFLsfc_{SUFFIX_COARSE_TRAIN_DIAG}"], 
+        ds[f"PRATEsfc_{SUFFIX_COARSE_TRAIN_DIAG}"])
 
-    ds["heating_ml"] = SPECIFIC_HEAT_CONST_PRESSURE * vcm.mass_integrate(
+    ds["net_precipitation"] = ds["net_precipitation_ml"] + ds["net_precipitation_physics"]
+
+    ds["net_heating_ml"] = SPECIFIC_HEAT_CONST_PRESSURE * vcm.mass_integrate(
         ds[VAR_Q_HEATING_ML], ds.delp
     )
-    ds["heating_physics"] = vcm.net_heating_from_dataset(
+    ds["net_heating_physics"] = net_heating_from_dataset(
         ds, suffix=SUFFIX_COARSE_TRAIN_DIAG
     )
-    ds["net_heating"] = ds["heating_ml"] + ds["heating_physics"]
-    for data_var, data_attrs in DATA_VAR_ATTRS.items():
+    ds["net_heating"] = ds["net_heating_ml"] + ds["net_heating_physics"]
+    for data_var, data_attrs in THERMO_DATA_VAR_ATTRS.items():
         ds[data_var].attrs = data_attrs
 
 

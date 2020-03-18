@@ -20,8 +20,8 @@ _TOA_PRESSURE = 300.0  # Pa
 _REFERENCE_SURFACE_PRESSURE = 100000  # reference pressure for potential temp [Pa]
 _REVERSE = slice(None, None, -1)
 
-_KG_M2S_TO_MM_DAY = (1e3 * 86400) / 997.0
 _SEC_PER_DAY = 86400
+
 
 
 def potential_temperature(P, T):
@@ -200,8 +200,7 @@ def net_heating(
     """
 
     lv = latent_heat_vaporization(surface_temperature)
-
-    return (
+    da = (
         -dlw_sfc
         - dsw_sfc
         + ulw_sfc
@@ -212,6 +211,10 @@ def net_heating(
         + shf
         + surface_rain_rate * lv
     )
+    da.attrs = {
+        "long_name": "net heating from model physics",
+        "units": "W/m^2"}
+    return da
 
 
 def latent_heat_flux_to_evaporation(
@@ -230,57 +233,10 @@ def latent_heat_flux_to_evaporation(
     return lhf / latent_heat_vaporization(surface_temperature)
 
 
-def net_heating_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.DataArray:
-    """Compute the net heating from a dataset of diagnostic output
-
-    This should be equivalent to the vertical integral (i.e. <>) of Q1::
-
-        cp <Q1>
-
-    Args:
-        ds: a datasets with the names for the heat fluxes and precipitation used
-            by the ML pipeline
-        suffix: (optional) suffix of flux data vars if applicable. Will add '_' before
-            appending to variable names if not already in suffix.
-
-    Returns:
-        the total net heating, the rate of change of the dry enthalpy <c_p T>
-    """
-    if suffix and suffix[0] != "_":
-        suffix = "_" + suffix
-    elif not suffix or suffix == "":
-        suffix = ""
-    fluxes = (
-        ds["DLWRFsfc" + suffix],
-        ds["DSWRFsfc" + suffix],
-        ds["ULWRFsfc" + suffix],
-        ds["ULWRFtoa" + suffix],
-        ds["USWRFsfc" + suffix],
-        ds["USWRFtoa" + suffix],
-        ds["DSWRFtoa" + suffix],
-        ds["SHTFLsfc" + suffix],
-        ds["PRATEsfc" + suffix],
-    )
-    return net_heating(*fluxes)
-
-
-def net_precipitation_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.DataArray:
-    """
-    Args:
-        ds: a datasets with the names for the heat fluxes and precipitation used
-            by the ML pipeline
-        suffix: (optional) suffix of flux data vars if applicable. Will add '_' before
-            appending to variable names if not already in suffix.
-
-    Returns:
-        the total net heating due to model physics, units of mm/day
-    """
-    if suffix and suffix[0] != "_":
-        suffix = "_" + suffix
-    elif not suffix or suffix == "":
-        suffix = ""
-    net_precip = (
-        ds[f"PRATEsfc{suffix}"]
-        - latent_heat_flux_to_evaporation(ds[f"LHTFLsfc{suffix}"])
-    ) * _KG_M2S_TO_MM_DAY
-    return net_precip
+def net_precipitation(lhf, prate):
+    da = (prate - latent_heat_flux_to_evaporation(lhf)) * _SEC_PER_DAY
+    da.attrs = {
+        "long_name": "net precipitation from model physics",
+        "units": "mm/day",
+    },
+    return da
