@@ -1,6 +1,35 @@
 import os
 from fv3net import runtime
 import yaml
+import xarray as xr
+import numpy as np
+import logging
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__file__)
+
+
+def post_process():
+    logger.info("Post processing model outputs")
+    CHUNK = {'time': 1, 'tile': -1}
+
+    begin = xr.open_zarr("begin_physics.zarr")
+    before = xr.open_zarr("before_physics.zarr")
+    after = xr.open_zarr("after_physics.zarr")
+
+    # make the time dims consistent
+    time = begin.time
+    before = before.drop('time')
+    after = after.drop('time')
+    begin = begin.drop('time')
+
+    # concat data
+    dt = np.timedelta64(15, 'm')
+    time = np.arange(len(time)) * dt
+    ds = xr.concat([begin, before, after], dim='step').assign_coords(step=['begin', 'after_dynamics', 'after_physics'], time=time)
+    ds.chunk(CHUNK).to_zarr("post_processed.zarr", mode='w')
+
 
 if __name__ == "__main__":
     import fv3gfs
@@ -42,7 +71,9 @@ begin_monitor = fv3gfs.ZarrMonitor(
 
 fv3gfs.initialize()
 state = fv3gfs.get_state(names=VARIABLES)
+if rank == 0: logger.info("Beginning steps")
 for i in range(fv3gfs.get_step_count()):
+    if rank == 0: logger.info(f"step {i}")
     begin_monitor.store(state)
     fv3gfs.step_dynamics()
     state = fv3gfs.get_state(names=VARIABLES)
@@ -50,4 +81,7 @@ for i in range(fv3gfs.get_step_count()):
     fv3gfs.step_physics()
     state = fv3gfs.get_state(names=VARIABLES)
     after_monitor.store(state)
+
+if rank == 0:
+    post_process()
 fv3gfs.cleanup()

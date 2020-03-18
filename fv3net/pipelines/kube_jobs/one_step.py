@@ -30,6 +30,9 @@ KUBERNETES_CONFIG_DEFAULT = {
 logger = logging.getLogger(__name__)
 
 
+def create_zarr_store()
+
+
 def timesteps_to_process(
     input_url: str,
     output_url: str,
