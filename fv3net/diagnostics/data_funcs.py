@@ -15,7 +15,7 @@ EXAMPLE_CLIMATE_LATLON_COORDS = {
 
 
 def merge_comparison_datasets(
-    var, datasets, dataset_labels, grid, additional_dataset=None
+    data_vars, datasets, dataset_labels, grid, additional_dataset=None
 ):
     """ Makes a comparison dataset out of multiple datasets that all have a common
     data variable. They are concatenated with a new dim "dataset" that can be used
