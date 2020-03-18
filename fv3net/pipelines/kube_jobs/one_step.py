@@ -10,7 +10,12 @@ from typing import List, Tuple
 
 import fv3config
 from . import utils
-from ..common import list_timesteps, subsample_timesteps_at_interval
+from ..common import (
+    list_timesteps,
+    subsample_timesteps_at_interval,
+    get_base_timestep_interval,
+    get_timestep_pairs,
+)
 from vcm.cloud.fsspec import get_fs
 
 STDOUT_FILENAME = "stdout.log"
@@ -46,9 +51,18 @@ def timesteps_to_process(
     rundirs_url = os.path.join(output_url)
     to_do = list_timesteps(input_url)
     if subsample_frequency is not None:
-        to_do = subsample_timesteps_at_interval(
-            to_do, subsample_frequency, paired_steps=True
+        all_timesteps = to_do
+        to_do = subsample_timesteps_at_interval(to_do, subsample_frequency)
+
+        # Add back in timesteps for initialization residual calculation
+        base_interval = get_base_timestep_interval(
+            all_timesteps, num_to_check=4, vote_threshold=0.75
         )
+        paired = get_timestep_pairs(
+            all_timesteps, base_interval, timesteps_to_pair_from=to_do
+        )
+        to_do = {item for pair in paired for item in pair}
+
     done = check_runs_complete(rundirs_url)
     if overwrite:
         _delete_logs_of_done_timesteps(output_url, done)
