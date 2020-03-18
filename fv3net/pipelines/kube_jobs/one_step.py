@@ -1,6 +1,8 @@
 import logging
 import os
+import zarr
 import fsspec
+import numpy as np
 import uuid
 import yaml
 import re
@@ -30,8 +32,35 @@ KUBERNETES_CONFIG_DEFAULT = {
 logger = logging.getLogger(__name__)
 
 
-def create_zarr_store()
+def _compute_chunks(shape, chunks):
+    return tuple(
+        size if chunk == -1 else chunk
+        for size, chunk in zip(shape, chunks)
+    )
 
+
+def _get_schema(shape=(3, 1, 6, 79, 48, 48)):
+    variables = ["air_temperature" , "specific_humidity", "pressure_thickness_of_atmospheric_layer"]
+    dims_scalar = ['initial_time', 'step', 'lead_time', 'tile', 'z', 'y', 'x']
+    chunks_scalar = _compute_chunks(shape, [-1, 1, -1, -1, -1, -1])
+    DTYPE = np.float32
+    scalar_schema = {"dims": dims_scalar, "chunks": chunks_scalar, "dtype": DTYPE, "shape": shape}
+    return {key: scalar_schema for key in variables}
+
+
+def _init_group_with_schema(group, schemas, timesteps):
+    for name, schema in schemas.items():
+        shape = (len(timesteps),) + schema['shape']
+        chunks = (1,) + schema['chunks']
+        group.empty(name, shape=shape, chunks=chunks, dtype=schema['dtype'])
+
+
+def create_zarr_store(timesteps, output_url):
+    schemas = _get_schema()
+    mapper = fsspec.get_mapper(output_url)
+    group = zarr.open_group(mapper, mode='w')
+    _init_group_with_schema(group, schemas, timesteps)
+    
 
 def timesteps_to_process(
     input_url: str,
