@@ -185,7 +185,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
             ds_pe.sel(coords),
             "net_precipitation",
             title=location_name,
-            ylabel="P-E [mm]",
+            ylabel="P-E [mm/day]",
         ).savefig(
             os.path.join(output_dir, f"diurnal_cycle_P-E_{location_name}.png"),
             dpi=DPI_FIGURES["diurnal_cycle"],

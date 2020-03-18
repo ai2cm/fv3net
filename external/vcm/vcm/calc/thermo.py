@@ -23,6 +23,7 @@ _REVERSE = slice(None, None, -1)
 _KG_M2S_TO_MM_DAY = (1e3 * 86400) / 997.0
 _SEC_PER_DAY = 86400
 
+
 def potential_temperature(P, T):
     return T * (_REFERENCE_SURFACE_PRESSURE / P) ** _POISSON_CONST
 
@@ -268,7 +269,7 @@ def net_precipitation_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.Dat
     Args:
         ds: a datasets with the names for the heat fluxes and precipitation used
             by the ML pipeline
-        suffix: (optional) suffix of flux data vars if applicable. Will add "_" before
+        suffix: (optional) suffix of flux data vars if applicable. Will add '_' before
             appending to variable names if not already in suffix.
 
     Returns:
@@ -279,6 +280,7 @@ def net_precipitation_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.Dat
     elif not suffix or suffix == "":
         suffix = ""
     net_precip = (
-        ds[f"PRATEsfc{suffix}"] - latent_heat_flux_to_evaporation(ds[f"LHTFLsfc{suffix}"]
+        ds[f"PRATEsfc{suffix}"]
+        - latent_heat_flux_to_evaporation(ds[f"LHTFLsfc{suffix}"])
     ) * _KG_M2S_TO_MM_DAY
     return net_precip

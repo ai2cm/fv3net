@@ -97,7 +97,9 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times):
             f"are not matched in high res dataset."
         )
 
-    ds_hires["net_precipitation"] = vcm.net_precipitation_from_dataset(ds_hires, suffix="coarse")
+    ds_hires["net_precipitation"] = vcm.net_precipitation_from_dataset(
+        ds_hires, suffix="coarse"
+    )
     ds_hires["net_heating"] = vcm.net_heating_from_dataset(ds_hires, suffix="coarse")
     ds_hires["net_precipitation"].attrs = DATA_VAR_ATTRS["net_precipitation"]
     ds_hires["net_heating"].attrs = DATA_VAR_ATTRS["net_heating"]
@@ -114,8 +116,12 @@ def add_column_heating_moistening(ds):
             that has dQ1, dQ2, delp, precip and LHF data variables
     """
 
-    ds["P-E_ml"] = vcm.mass_integrate(-ds[VAR_Q_MOISTENING_ML], ds.delp) * kg_m2s_to_mm_day
-    ds["P-E_physics"] = vcm.net_precipitation_from_dataset(ds, suffix=SUFFIX_COARSE_TRAIN_DIAG)
+    ds["P-E_ml"] = (
+        vcm.mass_integrate(-ds[VAR_Q_MOISTENING_ML], ds.delp) * kg_m2s_to_mm_day
+    )
+    ds["P-E_physics"] = vcm.net_precipitation_from_dataset(
+        ds, suffix=SUFFIX_COARSE_TRAIN_DIAG
+    )
     ds["net_precipitation"] = ds["P-E_ml"] + ds["P-E_physics"]
 
     ds["heating_ml"] = SPECIFIC_HEAT_CONST_PRESSURE * vcm.mass_integrate(
