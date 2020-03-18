@@ -189,9 +189,8 @@ def _generate_output_path_from_config(
     output_str = step_name
     arg_config = step_config.get("args", None)
     arg_strs = []
-    n_stubs = 0
-    for key in [key for key in arg_config if not isinstance(arg_config[key], Mapping)]:
-        n_stubs = +1
+    non_map_args = {key: val for key in arg_config.items() if not isinstance(val, Mapping)} 
+    for n_stubs, (key, val) in enumerate(non_map_args.items(), 1):
         if n_stubs > max_config_stubs:
             break
         val = str(arg_config[key])
