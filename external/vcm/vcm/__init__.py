@@ -12,13 +12,13 @@ from .convenience import (
     parse_datetime_from_str,
 )
 from .calc import mass_integrate
-from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
-from .select import mask_to_surface_type
-from .thermo import (
+from .calc.thermo import (
     net_precipitation_from_dataset,
     net_heating_from_dataset,
     pressure_at_midpoint_log,
     potential_temperature,
 )
+from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
+from .select import mask_to_surface_type
 from .visualize import plot_cube, mappable_var, plot_cube_axes
 from .xarray_loaders import open_tiles, open_delayed
