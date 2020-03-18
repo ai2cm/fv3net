@@ -35,7 +35,11 @@ usage: submit_jobs.py [-h] --one-step-yaml ONE_STEP_YAML --input-url INPUT_URL
   -o, --overwrite       Overwrite successful timesteps in OUTPUT_URL.
   --init-frequency INIT_FREQUENCY
                         Frequency (in minutes) to initialize one-step jobs
-                        starting from the first available timestep.
+                        starting from the first available timestep. This will
+                        still include required timesteps for calculating residuals
+                        on the coarsened high-res data.  E.g., with 15-min data
+                        and a selected hourly init-frequency, timesteps to run
+                        are 000000, 001500, 010000, 011500. 
   --config-version CONFIG_VERSION
                         Default fv3config.yml version to use as the base
                         configuration. This should be consistent with the
