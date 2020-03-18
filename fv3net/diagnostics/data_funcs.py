@@ -13,7 +13,7 @@ EXAMPLE_CLIMATE_LATLON_COORDS = {
     "central_canada": [55.0, 258.0],
     "tropical_west_pacific": [-5.0, 165.0],
 }
-_KG_M2S_TO_MM_DAY = 86400  # kg/m2/s same as mm/s. Using 1000 km/m3 for H20 density 
+_KG_M2S_TO_MM_DAY = 86400  # kg/m2/s same as mm/s. Using 1000 km/m3 for H20 density
 
 
 def merge_comparison_datasets(

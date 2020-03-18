@@ -23,7 +23,6 @@ _REVERSE = slice(None, None, -1)
 _SEC_PER_DAY = 86400
 
 
-
 def potential_temperature(P, T):
     return T * (_REFERENCE_SURFACE_PRESSURE / P) ** _POISSON_CONST
 
@@ -211,9 +210,7 @@ def net_heating(
         + shf
         + surface_rain_rate * lv
     )
-    da.attrs = {
-        "long_name": "net heating from model physics",
-        "units": "W/m^2"}
+    da.attrs = {"long_name": "net heating from model physics", "units": "W/m^2"}
     return da
 
 
@@ -235,8 +232,7 @@ def latent_heat_flux_to_evaporation(
 
 def net_precipitation(lhf, prate):
     da = (prate - latent_heat_flux_to_evaporation(lhf)) * _SEC_PER_DAY
-    da.attrs = {
-        "long_name": "net precipitation from model physics",
-        "units": "mm/day",
-    },
+    da.attrs = (
+        {"long_name": "net precipitation from model physics", "units": "mm/day"},
+    )
     return da

@@ -32,11 +32,14 @@ STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 THERMO_DATA_VAR_ATTRS = {
     "net_precipitation": {"long_name": "net column precipitation", "units": "mm/day"},
     "net_heating": {"long_name": "net column heating", "units": "W/m^2"},
-    "net_precipitation_ml": {"long_name": "residual P-E predicted by ML model", "units": "mm/day"},
+    "net_precipitation_ml": {
+        "long_name": "residual P-E predicted by ML model",
+        "units": "mm/day",
+    },
     "net_heating_ml": {
         "long_name": "residual heating predicted by ML model",
         "units": "W/m^2",
-    }
+    },
 }
 
 
@@ -90,8 +93,8 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times):
         )
 
     ds_hires["net_precipitation"] = vcm.net_precipitation(
-        ds_hires[f"LHTFLsfc_coarse"], 
-        ds_hires[f"PRATEsfc_coarse"])
+        ds_hires[f"LHTFLsfc_coarse"], ds_hires[f"PRATEsfc_coarse"]
+    )
     ds_hires["net_heating"] = net_heating_from_dataset(ds_hires, suffix="coarse")
 
     return ds_hires
@@ -110,10 +113,13 @@ def add_column_heating_moistening(ds):
         vcm.mass_integrate(-ds[VAR_Q_MOISTENING_ML], ds.delp) * kg_m2s_to_mm_day
     )
     ds["net_precipitation_physics"] = vcm.net_precipitation(
-        ds[f"LHTFLsfc_{SUFFIX_COARSE_TRAIN_DIAG}"], 
-        ds[f"PRATEsfc_{SUFFIX_COARSE_TRAIN_DIAG}"])
+        ds[f"LHTFLsfc_{SUFFIX_COARSE_TRAIN_DIAG}"],
+        ds[f"PRATEsfc_{SUFFIX_COARSE_TRAIN_DIAG}"],
+    )
 
-    ds["net_precipitation"] = ds["net_precipitation_ml"] + ds["net_precipitation_physics"]
+    ds["net_precipitation"] = (
+        ds["net_precipitation_ml"] + ds["net_precipitation_physics"]
+    )
 
     ds["net_heating_ml"] = SPECIFIC_HEAT_CONST_PRESSURE * vcm.mass_integrate(
         ds[VAR_Q_HEATING_ML], ds.delp
