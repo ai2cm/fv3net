@@ -478,8 +478,19 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
     return fig
 
 
-def map_plot_ml_frac_of_total(ds, grid):
-
+def map_plot_ml_frac_of_total(ds):
+    """ Produces plots of the ML predicted components dQ of column heating
+    and moistening
+    
+    Args:
+        ds (xarray dataset): dataset with "dataset" dimension denoting whether
+        the dQ quantity was from the high-low res tendency or the ML model prediction
+    
+    Returns:
+        Figure objects for plots of ML predictions of {column heating, P-E}
+        for both the absolute ML prediction value as well as the ML
+        prediction as a fraction of the total quantity (ML + physics)
+    """
     ds = ds.assign(
         {
             "net_precipitation_ml_frac_of_total": ds["net_precipitation_ml"]
