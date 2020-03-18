@@ -337,11 +337,19 @@ def submit_jobs(
     local_vertical_grid_file=None,
 ) -> None:
     """Submit one-step job for all timesteps in timestep_list"""
-    for timestep in timestep_list:
+
+    zarr_url = os.path.join(output_url, "big.zarr")
+    create_zarr_store(timestep_list, zarr_url)
+
+    for k, timestep in enumerate(timestep_list):
 
         curr_input_url = os.path.join(input_url, timestep)
-        curr_output_url = os.path.join(output_url, timestep)
+
+        # do not upload to rundirectory to cloud
+        curr_output_url = os.path.join("/tmp", timestep)
         curr_config_url = os.path.join(config_url, timestep)
+
+        one_step_config['fv3config']['one_step'] = {'index': k, 'url': zarr_url}
 
         model_config, kube_config = prepare_and_upload_config(
             workflow_name,

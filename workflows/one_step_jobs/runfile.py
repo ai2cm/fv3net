@@ -1,5 +1,7 @@
 import os
 from fv3net import runtime
+import fsspec
+import zarr
 import yaml
 import xarray as xr
 import numpy as np
@@ -12,8 +14,6 @@ logger = logging.getLogger(__file__)
 
 def post_process():
     logger.info("Post processing model outputs")
-    CHUNK = {'time': 1, 'tile': -1}
-
     begin = xr.open_zarr("begin_physics.zarr")
     before = xr.open_zarr("before_physics.zarr")
     after = xr.open_zarr("after_physics.zarr")
@@ -28,8 +28,16 @@ def post_process():
     dt = np.timedelta64(15, 'm')
     time = np.arange(len(time)) * dt
     ds = xr.concat([begin, before, after], dim='step').assign_coords(step=['begin', 'after_dynamics', 'after_physics'], time=time)
-    ds.chunk(CHUNK).to_zarr("post_processed.zarr", mode='w')
 
+    # put in storage
+    # this object must be initialized
+    index = config['one_step']['index']
+    store_url = config['one_step']['url']
+    mapper = fsspec.get_mapper(store_url)
+    group = zarr.open_group(mapper, mode='a')
+    for variable in group:
+        dims = group[variable].attrs['_ARRAY_DIMENSIONS']
+        group[variable][index] = np.asarray(ds[variable].transpose(*dims))
 
 if __name__ == "__main__":
     import fv3gfs
