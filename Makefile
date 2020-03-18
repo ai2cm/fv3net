@@ -27,6 +27,7 @@ endif
 wheels:
 	pip wheel --no-deps .
 	pip wheel --no-deps external/vcm
+	pip wheel --no-deps external/fv3config
 
 # pattern rule for building docker images
 build_image_%:

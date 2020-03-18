@@ -39,9 +39,9 @@ def _compute_chunks(shape, chunks):
     )
 
 
-def _get_schema(shape=(3, 1, 6, 79, 48, 48)):
+def _get_schema(shape=(3, 15, 6, 79, 48, 48)):
     variables = ["air_temperature" , "specific_humidity", "pressure_thickness_of_atmospheric_layer"]
-    dims_scalar = ['initial_time', 'step', 'lead_time', 'tile', 'z', 'y', 'x']
+    dims_scalar = ['step', 'lead_time', 'tile', 'z', 'y', 'x']
     chunks_scalar = _compute_chunks(shape, [-1, 1, -1, -1, -1, -1])
     DTYPE = np.float32
     scalar_schema = {"dims": dims_scalar, "chunks": chunks_scalar, "dtype": DTYPE, "shape": shape}
@@ -52,7 +52,10 @@ def _init_group_with_schema(group, schemas, timesteps):
     for name, schema in schemas.items():
         shape = (len(timesteps),) + schema['shape']
         chunks = (1,) + schema['chunks']
-        group.empty(name, shape=shape, chunks=chunks, dtype=schema['dtype'])
+        array = group.empty(name, shape=shape, chunks=chunks, dtype=schema['dtype'])
+        array.attrs.update({
+            '_ARRAY_DIMENSIONS': ['initial_time'] + schema['dims']
+        })
 
 
 def create_zarr_store(timesteps, output_url):
@@ -350,6 +353,7 @@ def submit_jobs(
         curr_config_url = os.path.join(config_url, timestep)
 
         one_step_config['fv3config']['one_step'] = {'index': k, 'url': zarr_url}
+        print(curr_output_url, curr_config_url)
 
         model_config, kube_config = prepare_and_upload_config(
             workflow_name,
@@ -361,12 +365,10 @@ def submit_jobs(
             local_vertical_grid_file=local_vertical_grid_file,
         )
 
-        jobname = model_config["experiment_name"]
-        kube_config["jobname"] = jobname
         fv3config.run_kubernetes(
             os.path.join(curr_config_url, "fv3config.yml"),
             curr_output_url,
             job_labels=job_labels,
             **kube_config,
         )
-        logger.info(f"Submitted job {jobname}")
+        logger.info(f"Submitted job for timestep {timestep}")

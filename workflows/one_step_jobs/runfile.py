@@ -28,6 +28,7 @@ def post_process():
     dt = np.timedelta64(15, 'm')
     time = np.arange(len(time)) * dt
     ds = xr.concat([begin, before, after], dim='step').assign_coords(step=['begin', 'after_dynamics', 'after_physics'], time=time)
+    ds = ds.rename({'time': 'lead_time'})
 
     # put in storage
     # this object must be initialized
@@ -36,7 +37,8 @@ def post_process():
     mapper = fsspec.get_mapper(store_url)
     group = zarr.open_group(mapper, mode='a')
     for variable in group:
-        dims = group[variable].attrs['_ARRAY_DIMENSIONS']
+        logger.info(f"Writing {variable} to {group}")
+        dims = group[variable].attrs['_ARRAY_DIMENSIONS'][1:]
         group[variable][index] = np.asarray(ds[variable].transpose(*dims))
 
 if __name__ == "__main__":
