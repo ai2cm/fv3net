@@ -1,30 +1,22 @@
-FROM jupyter/base-notebook
+FROM us.gcr.io/vcm-ml/fv3gfs-compiled-default:latest
 
 
-ENV ENVIRONMENT_SCRIPTS=$FV3NET/.environment-scripts
-ENV PROJECT_NAME=fv3net
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-netcdf4 \
+    cython3
 
-# Install dependencies (slow)
-USER root
-RUN apt-get update && apt-get install -y gfortran
-ENV FV3NET=/home/$NB_USER/fv3net
-ADD environment.yml  $FV3NET/
-ADD Makefile  $FV3NET/
-ADD .environment-scripts $ENVIRONMENT_SCRIPTS
-RUN fix-permissions $FV3NET
-WORKDIR $FV3NET
 
-USER $NB_UID
+ADD docker/install_gcloud.sh install_gcloud.sh
+RUN bash install_gcloud.sh
 
-ENV PATH=/opt/conda/envs/fv3net/bin:$PATH
-RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME
+ADD docker/download_inputdata.sh download_inputdata.sh
+RUN bash download_inputdata.sh
 
-# Add rest of fv3net directory
-USER root 
-ADD . $FV3NET
-RUN fix-permissions $FV3NET
-USER $NB_UID
+ADD requirements.txt requirements.txt
+RUN pip3 install -r requirements.txt
 
-# setup the local python packages
+COPY . /code
+ENV PYTHONPATH=/code:$PYTHONPATH
+WORKDIR /code
 
-RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME

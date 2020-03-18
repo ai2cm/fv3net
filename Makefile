@@ -54,15 +54,8 @@ update_submodules:
 	git submodule update --recursive --init
 
 
-install_deps:
-	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
-
-install_local_packages:
-	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
-
 create_environment:
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
-	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
 
 overwrite_baseline_images:
