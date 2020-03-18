@@ -8,5 +8,6 @@ RUN apt-get install -y curl && \
     rm -f linux-libc-dev.deb && \
     apt-get install -y gfortran && \
     apt-get clean
+RUN conda update -n base conda
 
 CMD [ "/bin/bash" ]
