@@ -8,7 +8,7 @@ workdir=$(pwd)
  (
     cd ../../
     python $workdir/orchestrate_submit_jobs.py \
-        $src $output $yaml $image -o --n-steps 1 \
+        $src $output $yaml $image -o  \
 	--config-version v0.3
  )
 
