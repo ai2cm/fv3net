@@ -12,7 +12,10 @@ from fv3net.pipelines.common import (
     get_alphanumeric_unique_tag,
     subsample_timesteps_at_interval,
     get_base_timestep_interval,
+    get_timestep_pairs,
 )
+
+BASE_TIME_DELTA = timedelta(minutes=15)
 
 
 @pytest.fixture
@@ -21,10 +24,9 @@ def fv3_timesteps():
 
     initial_step = "20160801.001500"
     initial_datetime = parse_datetime_from_str(initial_step)
-    delta = timedelta(minutes=15)
     timesteps = []
     for i in range(12):
-        curr_dt = initial_datetime + i * delta
+        curr_dt = initial_datetime + i * BASE_TIME_DELTA
         timesteps.append(curr_dt.strftime(TIME_FMT))
 
     return tuple(timesteps)
@@ -122,12 +124,12 @@ def test_get_base_timestep_interval(fv3_timesteps):
     del timesteps[3]
 
     res = get_base_timestep_interval(timesteps, num_to_check=4, vote_threshold=0.75)
-    assert res == timedelta(minutes=15)
+    assert res == BASE_TIME_DELTA
 
 
 def test_subsample_timesteps_at_interval(fv3_timesteps):
 
-    # assumes 15 minute timesteps for tests below
+    # assumes BASE_TIME_DELTA is 15 minutes for tests below
     timesteps = list(fv3_timesteps[:4])
 
     assert subsample_timesteps_at_interval(timesteps, 5) == timesteps
@@ -142,13 +144,35 @@ def test_subsample_timesteps_at_interval(fv3_timesteps):
         subsample_timesteps_at_interval(timesteps, 7)
 
 
-def test_subsample_timesteps_at_interval_with_pairs(fv3_timesteps):
-    pass
-    # timesteps = list(fv3_timesteps[:7])
-    # # remove paired timestep of first entry
-    # del timesteps[1]
+def test_get_timestep_pairs(fv3_timesteps):
 
-    # # subsample at 30-minute interval with pairs
-    # subsampled = subsample_timesteps_at_interval(timesteps, 30, paired_steps=True)
-    # # First and last timestep should not be included since there's no associated pair
-    # assert subsampled == timesteps[2:-1]
+    num_tsteps = 5
+    timesteps = list(fv3_timesteps[:num_tsteps])
+    all_pairs = [tuple(timesteps[i:(i + 2)]) for i in range(num_tsteps - 1)]
+
+    assert all_pairs == get_timestep_pairs(set(timesteps), BASE_TIME_DELTA)
+
+    # remove pairing for index 2
+    del timesteps[3]  # remove 3 from available times
+    del all_pairs[2]  # remove idx pair [2, 3]
+    del all_pairs[2]  # remove idx pair [3, 4]
+
+    assert all_pairs == get_timestep_pairs(set(timesteps), BASE_TIME_DELTA)
+
+
+def test_get_timestep_pairs_from_specified_times(fv3_timesteps):
+
+    num_tsteps = 5
+    timesteps = list(fv3_timesteps[:num_tsteps])
+    all_pairs = [tuple(timesteps[i:(i + 2)]) for i in range(num_tsteps - 1)]
+
+    # no pair for index 0
+    del timesteps[1]  # remove 1 from available times
+    del all_pairs[0]  # remove idx pair [0, 1]
+
+    # leftover pairs [(1, 2), (2, 3), (3, 4)] no (4,5) since it's the end
+    specified = list(fv3_timesteps[1:num_tsteps])
+    res = get_timestep_pairs(
+        set(timesteps), BASE_TIME_DELTA, timesteps_to_pair_from=specified
+    )
+    assert all_pairs == res
