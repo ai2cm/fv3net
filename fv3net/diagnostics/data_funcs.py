@@ -41,7 +41,7 @@ def merge_comparison_datasets(
     src_dim_index = pd.Index(dataset_labels, name="dataset")
     datasets = [drop_nondim_coords(ds) for ds in datasets]
     datasets_to_merge = [
-        xr.concat([ds[var].squeeze(drop=True) for ds in datasets], src_dim_index),
+        xr.concat([ds[data_vars].squeeze(drop=True) for ds in datasets], src_dim_index),
         grid,
     ]
     if additional_dataset is not None:
