@@ -184,8 +184,7 @@ def get_base_timestep_interval(
 
 
 def subsample_timesteps_at_interval(
-    timesteps: List[str],
-    sampling_interval: int,
+    timesteps: List[str], sampling_interval: int,
 ) -> List[str]:
     """
     Subsample a list of timesteps at the specified interval (in minutes). Raises
@@ -231,7 +230,7 @@ def subsample_timesteps_at_interval(
 def get_timestep_pairs(
     available_timesteps: Set[str],
     pair_interval: timedelta,
-    timesteps_to_pair_from: List[str] = None
+    timesteps_to_pair_from: List[str] = None,
 ) -> List[Tuple[str]]:
     """
     Get pairs of fv3gfs timesteps at the desired time interval.
@@ -254,7 +253,7 @@ def get_timestep_pairs(
         timesteps = list(available_timesteps)
     else:
         timesteps = timesteps_to_pair_from
-    
+
     timesteps.sort()
 
     pairs = []

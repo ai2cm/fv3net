@@ -148,7 +148,7 @@ def test_get_timestep_pairs(fv3_timesteps):
 
     num_tsteps = 5
     timesteps = list(fv3_timesteps[:num_tsteps])
-    all_pairs = [tuple(timesteps[i:(i + 2)]) for i in range(num_tsteps - 1)]
+    all_pairs = [tuple(timesteps[i : (i + 2)]) for i in range(num_tsteps - 1)]
 
     assert all_pairs == get_timestep_pairs(set(timesteps), BASE_TIME_DELTA)
 
@@ -164,7 +164,7 @@ def test_get_timestep_pairs_from_specified_times(fv3_timesteps):
 
     num_tsteps = 5
     timesteps = list(fv3_timesteps[:num_tsteps])
-    all_pairs = [tuple(timesteps[i:(i + 2)]) for i in range(num_tsteps - 1)]
+    all_pairs = [tuple(timesteps[i : (i + 2)]) for i in range(num_tsteps - 1)]
 
     # no pair for index 0
     del timesteps[1]  # remove 1 from available times
