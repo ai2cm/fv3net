@@ -88,36 +88,40 @@ def _resolve_input_from(config: Mapping):
     for step_name, step_config in steps_config.items():
         args_config = step_config["args"]
 
-        for arg in args_config:
-            if isinstance(args_config[arg], Mapping):
-                source_info = args_config[arg]
-                location = source_info.get("location", None)
-                from_key = source_info.get("from", None)
+        for arg, val in args_config.items():
+            if isinstance(val, Mapping):
+                _resolve_input_mapping(val, steps_config, arg)
+                
 
-                if location is not None and from_key is not None:
-                    raise ValueError(
-                        f"Ambiguous input location for {step_name}-{arg}."
-                        f" Both 'from' and 'location' were specified"
-                    )
-                if location is not None:
-                    continue
-                elif from_key is not None:
-                    previous_step = steps_config.get(from_key, None)
-                    if previous_step is not None:
-                        source_info["location"] = previous_step["output_location"]
-                    else:
-                        raise KeyError(
-                            f"A step argument specified 'from' another step requires "
-                            f"that the other step also be run as part of the same "
-                            f"workflow. Add '{from_key}' to the workflow or specify "
-                            f"'{arg}' with 'location' instead."
-                        )
-                else:
-                    raise KeyError(
-                        f"An arg of {step_name} is provided as a key-value pair,"
-                        f" but only 'location' or 'from' may be specified."
-                    )
+def _resolve_input_mapping(input_mapping: Mapping, steps_config: Mapping, arg: str):
+                
+    location = input_mapping.get("location", None)
+    from_key = input_mapping.get("from", None)
 
+    if location is not None and from_key is not None:
+        raise ValueError(
+            f"Ambiguous input location for {step_name}-{arg}."
+            f" Both 'from' and 'location' were specified"
+        )
+    if location is not None:
+        return
+    elif from_key is not None:
+        previous_step = steps_config.get(from_key, None)
+        if previous_step is not None:
+            input_mapping["location"] = previous_step["output_location"]
+        else:
+            raise KeyError(
+                f"A step argument specified 'from' another step requires "
+                f"that the other step's cofiguration be specified. Add "
+                f"'{from_key}' to the configuration or specify '{arg}' "
+                f"with 'location' instead."
+            )
+    else:
+        raise KeyError(
+            f"{arg} is provided as a key-value pair,"
+            f" but only 'location' or 'from' may be specified."
+        )
+        
 
 def _get_experiment_path(config: Mapping):
     """Get root directory path for experiment output."""
