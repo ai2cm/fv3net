@@ -469,7 +469,7 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
 
 def map_plot_dq_vs_qtot(ds_pred, ds_target, grid):
     ds_merged = merge_comparison_datasets(
-        vars=["P-E_ml", "heating_ml", "net_precipitation", "net_heating"],
+        data_vars=["P-E_ml", "heating_ml", "net_precipitation", "net_heating"],
         datasets=[ds_pred, ds_target],
         dataset_labels=["prediction", "target C48"],
         grid=grid,
