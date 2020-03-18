@@ -478,42 +478,33 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
     return fig
 
 
-def map_plot_ml_frac_of_total(ds_pred, ds_target, grid):
-    ds = merge_comparison_datasets(
-        data_vars=[
-            "net_precipitation_ml",
-            "heating_ml",
-            "net_precipitation",
-            "net_heating",
-        ],
-        datasets=[ds_pred, ds_target],
-        dataset_labels=["prediction", "target C48"],
-        grid=grid,
-    )
-    ds.assign(
+def map_plot_ml_frac_of_total(ds, grid):
+
+    ds = ds.assign(
         {
             "net_precipitation_ml_frac_of_total": ds["net_precipitation_ml"]
-            / ds_pred["net_precipitation"],
-            "heating_ml_frac_of_total": ds["heating_ml"] / ds["net_heating"],
+            / ds["net_precipitation"],
+            "net_heating_ml_frac_of_total": ds["net_heating_ml"] / ds["net_heating"],
         }
     )
     fig_pe_ml = plot_cube(
         mappable_var(ds, "net_precipitation_ml").mean(INIT_TIME_DIM), col="dataset"
-    )
+    )[0]
     fig_pe_ml.suptitle("P-E [mm/d]: ML contribution")
     fig_pe_ml_frac = plot_cube(
         mappable_var(ds, "net_precipitation_ml_frac_of_total").mean(INIT_TIME_DIM),
         col="dataset",
-    )
+    )[0]
     fig_pe_ml_frac.suptitle("P-E: ML prediction as fraction of total")
 
     fig_heating_ml = plot_cube(
-        mappable_var(ds, "heating_ml").mean(INIT_TIME_DIM), col="dataset"
-    )
+        mappable_var(ds, "net_heating_ml").mean(INIT_TIME_DIM), col="dataset"
+    )[0]
     fig_heating_ml.suptitle("heating [W/m$^2$], ML contribution")
     fig_heating_ml_frac = plot_cube(
-        mappable_var(ds, "heating_ml_frac_of_total").mean(INIT_TIME_DIM), col="dataset"
-    )
+        mappable_var(ds, "net_heating_ml_frac_of_total").mean(INIT_TIME_DIM),
+        col="dataset",
+    )[0]
     fig_heating_ml_frac.suptitle("heating: ML prediction as fraction of total")
 
     return fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac
