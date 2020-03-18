@@ -2,6 +2,7 @@ import numpy as np
 import xarray as xr
 from ..cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 
+
 # following are defined as in FV3GFS model (see FV3/fms/constants/constants.f90)
 _GRAVITY = 9.80665  # m /s2
 _RDGAS = 287.05  # J / K / kg
@@ -19,6 +20,8 @@ _TOA_PRESSURE = 300.0  # Pa
 _REFERENCE_SURFACE_PRESSURE = 100000  # reference pressure for potential temp [Pa]
 _REVERSE = slice(None, None, -1)
 
+_KG_M2S_TO_MM_DAY = (1e3 * 86400) / 997.0
+_SEC_PER_DAY = 86400
 
 def potential_temperature(P, T):
     return T * (_REFERENCE_SURFACE_PRESSURE / P) ** _POISSON_CONST
@@ -236,7 +239,7 @@ def net_heating_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.DataArray
     Args:
         ds: a datasets with the names for the heat fluxes and precipitation used
             by the ML pipeline
-        suffix: (optional) suffix of flux data vars if applicable. Will add "_" before
+        suffix: (optional) suffix of flux data vars if applicable. Will add '_' before
             appending to variable names if not already in suffix.
 
     Returns:
@@ -258,3 +261,24 @@ def net_heating_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.DataArray
         ds["PRATEsfc" + suffix],
     )
     return net_heating(*fluxes)
+
+
+def net_precipitation_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.DataArray:
+    """
+    Args:
+        ds: a datasets with the names for the heat fluxes and precipitation used
+            by the ML pipeline
+        suffix: (optional) suffix of flux data vars if applicable. Will add "_" before
+            appending to variable names if not already in suffix.
+
+    Returns:
+        the total net heating due to model physics, units of mm/day
+    """
+    if suffix and suffix[0] != "_":
+        suffix = "_" + suffix
+    elif not suffix or suffix == "":
+        suffix = ""
+    net_precip = (
+        ds[f"PRATEsfc{suffix}"] - latent_heat_flux_to_evaporation(ds[f"LHTFLsfc{suffix}"]
+    ) * _KG_M2S_TO_MM_DAY
+    return net_precip

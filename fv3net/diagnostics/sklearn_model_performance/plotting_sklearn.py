@@ -15,9 +15,9 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_CENTER,
     PRESSURE_GRID,
 )
+import vcm
 from vcm.cubedsphere.regridz import regrid_to_common_pressure
 from vcm.select import mask_to_surface_type
-from vcm.calc.thermo import pressure_at_midpoint_log
 from vcm.visualize import plot_cube, mappable_var
 
 from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
@@ -425,7 +425,7 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
         .dropna("sample")
     )
 
-    ds["pressure"] = pressure_at_midpoint_log(ds["delp"])
+    ds["pressure"] = vcm.pressure_at_midpoint_log(ds["delp"])
     Q = [
         integrate_for_Q(p, qt)
         for p, qt in zip(ds["pressure"].values.T, ds["sphum"].values.T)
