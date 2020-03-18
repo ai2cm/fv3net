@@ -96,9 +96,8 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
 
     # <dQ1>, <dQ2> and as fraction of total 2D integrated vars
-    fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac = map_plot_dq_vs_qtot(
-        ds_pred, ds_target, grid
-    )
+    figs = map_plot_dq_vs_qtot(ds_pred, ds_target, grid)
+    fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac = figs
     fig_pe_ml.savefig(os.path.join(output_dir, "dQ2_vertical_integral_map.png"))
     fig_pe_ml_frac.savefig(os.path.join(output_dir, "dQ2_frac_of_PE.png"))
     fig_heating_ml.savefig(os.path.join(output_dir, "dQ1_vertical_integral_map.png"))
