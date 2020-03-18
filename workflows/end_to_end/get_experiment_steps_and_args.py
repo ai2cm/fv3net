@@ -26,8 +26,8 @@ def get_experiment_steps_and_args(config_file: str):
     all_steps_config = config["experiment"]["steps_config"]
     try:
         current_steps_config = {step: all_steps_config[step] for step in workflow_steps}
-    except KeyError:
-        raise ("Workflow steps list contains a step not defined in steps config.")
+    except:
+        raise KeyError("Workflow steps list contains a step not defined in steps config.")
     config["experiment"]["steps_config"] = current_steps_config
     _apply_config_transforms(config)
     all_step_arguments = _get_all_step_arguments(config)
@@ -189,7 +189,7 @@ def _generate_output_path_from_config(
     output_str = step_name
     arg_config = step_config.get("args", None)
     arg_strs = []
-    non_map_args = {key: val for key in arg_config.items() if not isinstance(val, Mapping)} 
+    non_map_args = {key: val for key, val in arg_config.items() if not isinstance(val, Mapping)} 
     for n_stubs, (key, val) in enumerate(non_map_args.items(), 1):
         if n_stubs > max_config_stubs:
             break
@@ -218,21 +218,22 @@ def _resolve_arg_values(key: Hashable, value: Any) -> Hashable:
             raise ValueError("Argument 'location' value not specified.")
         else:
             if key.startswith("--"):
-                return " ".join([key, str(location_value)])
+                arg_values = " ".join([key, str(location_value)])
             else:
-                return str(location_value)
-    if isinstance(value, List):
+                arg_values = str(location_value)
+    elif isinstance(value, List):
         # case for when the arg is a list
         # i.e., multiple optional args with same key, needed for dataflow packages
         multiple_optional_args = []
         for item in value:
             multiple_optional_args.extend([key, item])
-        return " ".join(multiple_optional_args)
+        arg_values = " ".join(multiple_optional_args)
     else:
         if key.startswith("--"):
-            return " ".join([key, str(value)])
+            arg_values = " ".join([key, str(value)])
         else:
-            return str(value)
+            arg_values = str(value)
+    return arg_values
 
 
 if __name__ == "__main__":
