@@ -1,10 +1,10 @@
 storage_proto: gs
 storage_root: vcm-ml-data/experiments-2020-03/end_to_end
 experiment:
-  name: deep-conv-off-fv3atm
-  unique_id: True
+  name: deep-conv-off-fv3atm-a45d1781
+  unique_id: False
   steps_to_run:
-    - one_step_run
+      #    - one_step_run
     - create_training_data
     - train_sklearn_model
     - test_sklearn_model
