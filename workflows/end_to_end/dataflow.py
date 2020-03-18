@@ -1,7 +1,11 @@
 from getpass import getuser
+from fv3net.pipelines.common import get_alphanumeric_unique_tag
 
 COARSEN_RESTARTS_DATAFLOW_ARGS = {
-    "--job_name": f"coarsen-restarts-{getuser().lower()}",
+    "--job_name": (
+        f"coarsen-restarts-{getuser().lower()}-"
+        f"{get_alphanumeric_unique_tag(7)}"
+    ),
     "--project": "vcm-ml",
     "--region": "us-central1",
     "--temp_location": "gs://vcm-ml-data/tmp_dataflow",
