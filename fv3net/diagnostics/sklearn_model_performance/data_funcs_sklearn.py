@@ -23,7 +23,6 @@ from vcm.constants import (
     kg_m2_to_mm,
     SPECIFIC_HEAT_CONST_PRESSURE,
     GRAVITY,
-    SEC_PER_DAY,
 )
 
 SAMPLE_DIM = "sample"
