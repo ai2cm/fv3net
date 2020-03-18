@@ -84,4 +84,4 @@ experiment:
       extra_args:
         prognostic_yaml_adjust: workflows/prognostic_c48_run/prognostic_config.yml
         ic_timestep: "20160801.001500"
-        docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
+        docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.0

@@ -18,6 +18,7 @@ dependencies:
   - h5netcdf
   - h5py>=2.10
   - hypothesis
+  - pandas=1.0.1
   - intake
   - intake-xarray
   - metpy

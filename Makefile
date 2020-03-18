@@ -3,6 +3,7 @@
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
+VERSION = 0.1.0
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
@@ -22,8 +23,22 @@ endif
 #################################################################################
 # COMMANDS                                                                      #
 #################################################################################
-build_image:
-	docker build . -t $(IMAGE) -t $(GCR_IMAGE)
+.PHONY: wheels build_images push_image
+wheels:
+	pip wheel --no-deps .
+	pip wheel --no-deps external/vcm
+
+# pattern rule for building docker images
+build_image_%:
+	docker build -f docker/$*/Dockerfile . -t us.gcr.io/vcm-ml/$*:$(VERSION)
+
+build_image_prognostic_run: wheels
+
+build_images: build_image_fv3net build_image_prognostic_run
+
+push_image:
+	docker push us.gcr.io/vcm-ml/fv3net:$(VERSION)
+	docker push us.gcr.io/vcm-ml/prognostic_run:$(VERSION)
 
 enter: build_image
 	docker run -it -v $(shell pwd):/code \
@@ -32,9 +47,6 @@ enter: build_image
 
 #		-e GOOGLE_APPLICATION_CREDENTIALS=/google_creds.json \
 #		-v $(HOME)/.config/gcloud/application_default_credentials.json:/google_creds.json \
-
-push_image: build_image
-	docker push $(GCR_IMAGE)
 
 
 ## Make Dataset
