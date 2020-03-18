@@ -231,7 +231,7 @@ def _open_cloud_data(run_dirs):
             ds_runs.append(ds_run)
         return xr.concat(ds_runs, INIT_TIME_DIM)
     except (ValueError, TypeError, AttributeError, KeyError) as e:
-        logger.error(f"Failed to open restarts from cloud: {e}")
+        logger.error(f"Failed to open restarts from cloud for rundirs {run_dirs}: {e}")
 
 
 def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
