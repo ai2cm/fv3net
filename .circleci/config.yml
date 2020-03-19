@@ -17,6 +17,7 @@ jobs:
           base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
     - run: make update_submodules
 
+    # Finna save a few minutes of build
     # Cache divided into ~500 mb chunks if possible per
     # https://circleci.com/docs/2.0/caching/#cache-size
     - restore_cache:
@@ -48,14 +49,40 @@ jobs:
     # Save deps to cache
     - run: 
         name: "Move large conda packages to temp cache"
-        command:
+        command: |
+          mkdir -p /tmp_conda
+          mv /opt/conda/pkgs/mkl-* /tmp_conda/
+          mv /opt/conda/pkgs/python-3* /tmp_conda/
+          mv /opt/conda/pkgs/qt-* /tmp_conda/
+          mv /opt/conda/pkgs/cache /tmp_conda/
     - save_cache:
         key: v1-python-dep-{{ checksum "environment.yml" }}
-    - run: move restored cache back into proper directories
+        paths:
+          - /tmp_conda/python-*
+    - save_cache:
+        key: v1-mkl-dep-{{ checksum "environment.yml" }}
+        paths:
+          - /tmp_conda/mkl-*
+    - save_cache:
+        key: v1-conda-cache-dep-{{ checksum "environment.yml" }}
+        paths:
+          - /tmp_conda/cache
+    - save_cache:
+        key: v1-qt-dep-{{ checksum "environment.yml" }}
+        paths:
+          - /tmp_conda/qt-*
+    - save_cache:
+        key: v1-pip-dep-{{ checksum "environment.yml" }}
+        paths:
+          - /root/.cache/pip
+    - run:
+        name: "Move large packages back into conda dir"
+        command: mv /tmp_conda/* /opt/conda/pkgs/
 
     - run: | 
         source activate fv3net
         pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+  
   lint:
     docker:
     - image: circleci/python:3.7
@@ -63,6 +90,8 @@ jobs:
     - checkout
     - run: sudo pip install black==19.10b0 flake8
     - run: make lint
+
+  
 workflows:
   version: 2
   test_and_lint:
