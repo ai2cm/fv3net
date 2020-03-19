@@ -18,6 +18,7 @@ for root, dirname, filename in fsspec.filesystem("gs").walk(
 
 print()
 print("big.zarr info:")
+print(ds)
 print()
 print(ds.info())
 print(ds.air_temperature.std().compute())

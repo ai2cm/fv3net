@@ -42,7 +42,7 @@ def _get_schema(shape=(3, 15, 6, 79, 48, 48)):
         "specific_humidity",
         "pressure_thickness_of_atmospheric_layer",
     ]
-    dims_scalar = ["step", "lead_time", "tile", "z", "y", "x"]
+    dims_scalar = ["step", "forecast_time", "tile", "z", "y", "x"]
     chunks_scalar = _compute_chunks(shape, [-1, 1, -1, -1, -1, -1])
     DTYPE = np.float32
     scalar_schema = {
