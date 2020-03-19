@@ -42,6 +42,7 @@ def _init_group_with_schema(group, schemas, timesteps):
 
 
 def init_data_var(group, array):
+    logger.info(f"Initializing coordinate: {array.name}")
     shape = (1,) + array.data.shape
     chunks = (1,) + tuple(size[0] for size in array.data.chunks)
     out_array = group.empty(
@@ -52,6 +53,7 @@ def init_data_var(group, array):
 
 
 def init_coord(group, coord):
+    logger.info(f"Initializing coordinate: {coord.name}")
     out_array = group.array(name=coord.name, data=np.asarray(coord))
     out_array.attrs.update(coord.attrs)
     out_array.attrs["_ARRAY_DIMENSIONS"] = list(coord.dims)
