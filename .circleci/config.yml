@@ -43,8 +43,9 @@ jobs:
       - run: 
           name: "Move cached conda deps into pkgs"
           command: |
-            mkdir -p /tmp_conda
-            mv /tmp_conda/* /opt/conda/pkgs
+            if [ -d /tmp/conda_pkgs ]; then
+              mv /tmp/conda_pks/* /opt/conda/pkgs
+            fi
 
       - run: make install_deps
 
@@ -52,33 +53,34 @@ jobs:
       - run: 
           name: "Move large conda packages to temp cache"
           command: |
-            mv /opt/conda/pkgs/mkl-* /tmp_conda/
-            mv /opt/conda/pkgs/python-3* /tmp_conda/
-            mv /opt/conda/pkgs/qt-* /tmp_conda/
-            mv /opt/conda/pkgs/cache /tmp_conda/
+            if [ ! -d /tmp/conda_pkgs/ ]; then mkdir -p /tmp/conda_pkgs/; fi
+            mv /opt/conda/pkgs/mkl-* /tmp/conda_pkgs/
+            mv /opt/conda/pkgs/python-3* /tmp/conda_pkgs/
+            mv /opt/conda/pkgs/qt-* /tmp/conda_pkgs/
+            mv /opt/conda/pkgs/cache /tmp/conda_pkgs/
       - save_cache:
           key: v1-python-dep-{{ checksum "environment.yml" }}
           paths:
-            - /tmp_conda/python-*
+            - /tmp/conda_pkgs/python-*
       - save_cache:
           key: v1-mkl-dep-{{ checksum "environment.yml" }}
           paths:
-            - /tmp_conda/mkl-*
+            - /tmp/conda_pkgs/mkl-*
       - save_cache:
           key: v1-conda-cache-dep-{{ checksum "environment.yml" }}
           paths:
-            - /tmp_conda/cache
+            - /tmp/conda_pkgs/cache
       - save_cache:
           key: v1-qt-dep-{{ checksum "environment.yml" }}
           paths:
-            - /tmp_conda/qt-*
+            - /tmp/conda_pkgs/qt-*
       - save_cache:
           key: v1-pip-dep-{{ checksum "environment.yml" }}
           paths:
             - /root/.cache/pip
       - run:
           name: "Move large packages back into conda dir"
-          command: mv /tmp_conda/* /opt/conda/pkgs/
+          command: mv /tmp/conda_pkgs/* /opt/conda/pkgs/
 
       - run: | 
           source activate fv3net
