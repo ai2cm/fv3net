@@ -8,6 +8,7 @@ import numpy as np
 import xarray as xr
 
 from vcm.cubedsphere.constants import COORD_Z_CENTER, INIT_TIME_DIM
+from vcm.select import mask_to_surface_type
 
 SAMPLE_DIM = "sample"
 
@@ -26,6 +27,7 @@ class BatchGenerator:
     num_batches: int = None
     gcs_project: str = "vcm-ml"
     random_seed: int = 1234
+    mask_to_surface_type: str = "none"
 
     def __post_init__(self):
         """ Group the input zarrs into batches for training
@@ -35,15 +37,18 @@ class BatchGenerator:
             to train each batch
         """
         self.fs = gcsfs.GCSFileSystem(project=self.gcs_project)
+        print(f"Reading data from {self.gcs_data_dir}.")
         zarr_urls = [
             zarr_file
             for zarr_file in self.fs.ls(self.gcs_data_dir)
             if "grid_spec" not in zarr_file
         ]
+        total_num_input_files = len(zarr_urls)
+        print(f"Number of .zarrs read from GCS: {total_num_input_files}.")
         np.random.seed(self.random_seed)
         np.random.shuffle(zarr_urls)
-        total_num_input_files = len(zarr_urls)
         num_batches = self._validated_num_batches(total_num_input_files)
+        print(f"{num_batches} data batches generated for model training.")
         self.train_file_batches = [
             zarr_urls[
                 batch_num
@@ -66,6 +71,7 @@ class BatchGenerator:
         for file_batch_urls in grouped_urls:
             fs_paths = [self.fs.get_mapper(url) for url in file_batch_urls]
             ds = xr.concat(map(xr.open_zarr, fs_paths), INIT_TIME_DIM)
+            ds = mask_to_surface_type(ds, self.mask_to_surface_type)
             ds_stacked = stack_and_drop_nan_samples(ds).unify_chunks()
             ds_shuffled = _shuffled(ds_stacked, SAMPLE_DIM, self.random_seed)
             yield ds_shuffled
@@ -82,6 +88,8 @@ class BatchGenerator:
         if not self.num_batches:
             num_train_batches = total_num_input_files // self.files_per_batch
         elif self.num_batches * self.files_per_batch > total_num_input_files:
+            if self.num_batches > total_num_input_files:
+                raise ValueError("Fewer input files than number of requested batches.")
             num_train_batches = self.num_batches - ceil(
                 (self.num_batches * self.files_per_batch - total_num_input_files)
                 / self.num_batches

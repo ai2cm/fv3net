@@ -4,49 +4,27 @@ from fv3net.pipelines.create_training_data.pipeline import run
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--gcs-input-data-path",
+        "gcs_input_data_path",
         type=str,
-        required=True,
         help="Location of input data in Google Cloud Storage bucket. "
         "Don't include bucket in path.",
     )
     parser.add_argument(
-        "--diag-c48-path",
+        "diag_c48_path",
         type=str,
-        required=False,
-        help="Location of C48 (coarsened from C384) high res diagnostic zarr for "
-        "features (SHF, LHF, etc.) that are not saved in restarts. If not provided, "
-        "features from diagnostics will not be in the final training data set.",
+        help="Directory containing diagnostic zarr directory coarsened from C384 "
+        "for features (SHF, LHF, etc.) that are not saved in restarts.",
     )
     parser.add_argument(
-        "--gcs-output-data-dir",
+        "gcs_output_data_dir",
         type=str,
-        required=True,
         help="Write path for train data in Google Cloud Storage bucket. "
         "Don't include bucket in path.",
     )
     parser.add_argument(
-        "--gcs-bucket",
-        type=str,
-        default="gs://vcm-ml-data",
-        help="Google Cloud Storage bucket name.",
-    )
-    parser.add_argument(
-        "--gcs-project",
-        type=str,
-        default="vcm-ml",
-        help="Project name for google cloud.",
-    )
-    parser.add_argument(
-        "--mask-to-surface-type",
-        type=str,
-        default=None,
-        help="Mask to surface type in ['sea', 'land', 'seaice'].",
-    )
-    parser.add_argument(
         "--timesteps-per-output-file",
         type=int,
-        default=3,
+        default=1,
         help="Number of consecutive timesteps to calculate features/targets for in "
         "a single process and save to output file."
         "When the full output is shuffled at the data generator step, these"
@@ -55,18 +33,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--train-fraction",
         type=float,
-        default=0.8,
+        default=0.5,
         help="Fraction of batches to save as training set. "
         "Output zarr files will be saved in either 'train' or 'test' subdir of "
         "gcs-output-data-dir",
     )
-    parser.add_argument(
-        "--random-seed",
-        type=int,
-        default=1234,
-        help="Random seed used when shuffling data batches before test/train selection",
-    )
     args, pipeline_args = parser.parse_known_args()
-
+    print(args)
     """Main function"""
     run(args=args, pipeline_args=pipeline_args)

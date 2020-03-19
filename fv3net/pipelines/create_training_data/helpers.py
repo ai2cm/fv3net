@@ -1,10 +1,11 @@
 from datetime import timedelta
-import fsspec
 import logging
 import os
+import pandas as pd
 import xarray as xr
 
-from vcm.fv3_restarts import _split_url
+from vcm.fv3_restarts import open_diagnostic
+from vcm.cloud.fsspec import get_fs
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
@@ -62,9 +63,18 @@ def _set_relative_forecast_time_coord(ds):
     )
 
 
-def load_diag(diag_data_path, init_times):
-    protocol, path = _split_url(diag_data_path)
-    fs = fsspec.filesystem(protocol)
+def load_hires_prog_diag(diag_data_path, init_times):
+    """Loads coarsened diagnostic variables from the prognostic high res run.
+    
+    Args:
+        diag_data_path (str): path to directory containing coarsened high res
+            diagnostic data
+        init_times (list(datetime)): list of datetimes to filter diagnostic data to
+    
+    Returns:
+        xarray dataset: prognostic high res diagnostic variables
+    """
+    fs = get_fs(diag_data_path)
     ds_diag = xr.open_zarr(fs.get_mapper(diag_data_path), consolidated=True).rename(
         {"time": INIT_TIME_DIM}
     )
@@ -75,3 +85,20 @@ def load_diag(diag_data_path, init_times):
         }
     )
     return ds_diag.sel({INIT_TIME_DIM: init_times})
+
+
+def load_train_diag(top_level_dir, init_times):
+    """ Loads diag variables from the run dirs that correspond to init_times
+    
+    Args:
+        top_level_dir (str): directory that contains the individual one step rundirs
+        init_times (list[datetime]): list of datetimes to load diags for
+    """
+    init_times = sorted(init_times)
+    time_dim_index = pd.Index(init_times, name=INIT_TIME_DIM)
+    one_step_diags = []
+    for init_time in init_times:
+        run_dir = os.path.join(top_level_dir, init_time.strftime(TIME_FMT))
+        ds_diag = open_diagnostic(run_dir, "sfc_dt_atmos").isel(time=0)
+        one_step_diags.append(ds_diag.squeeze().drop("time"))
+    return xr.concat([ds for ds in one_step_diags], time_dim_index)

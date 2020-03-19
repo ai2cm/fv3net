@@ -1,5 +1,4 @@
 import argparse
-from collections.abc import Mapping
 from datetime import datetime, timedelta
 import logging
 import os
@@ -7,6 +6,7 @@ import uuid
 import fsspec
 import yaml
 import fv3config
+from fv3net.pipelines.kube_jobs import get_base_fv3config, update_nested_dict
 
 logger = logging.getLogger("run_jobs")
 
@@ -27,40 +27,9 @@ NUDGE_BUCKET = "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data"
 FV3CONFIG_DEFAULTS_URL = "gs://vcm-fv3config/config/yaml/default"
 
 
-def get_model_config(config_update, docker_image):
-    """Get default model config and update with provided config_update"""
-    fv3gfs_python_version = _get_major_minor_version_number(docker_image)
-    default_config_url = os.path.join(
-        FV3CONFIG_DEFAULTS_URL, fv3gfs_python_version, "fv3config.yml"
-    )
-    with fsspec.open(default_config_url) as f:
-        default_config = yaml.safe_load(f)
-    return _update_nested_dict(default_config, config_update)
-
-
 def get_kubernetes_config(config_update):
     """Get default kubernetes config and updatedwith provided config_update"""
-    return _update_nested_dict(KUBERNETES_CONFIG_DEFAULT, config_update)
-
-
-def _get_major_minor_version_number(docker_image):
-    """Parse and return major/minor version number (e.g. v0.2) from docker image"""
-    if ":v" in docker_image:
-        tag = docker_image.split(":")[1]
-        return tag[:4]
-    else:
-        raise RuntimeError(
-            "Must specify fv3gfs-python docker image with tagged version number"
-        )
-
-
-def _update_nested_dict(source_dict, update_dict):
-    for key, value in update_dict.items():
-        if key in source_dict and isinstance(source_dict[key], Mapping):
-            _update_nested_dict(source_dict[key], update_dict[key])
-        else:
-            source_dict[key] = update_dict[key]
-    return source_dict
+    return update_nested_dict(KUBERNETES_CONFIG_DEFAULT, config_update)
 
 
 def _upload_if_necessary(path, bucket_url):
@@ -117,13 +86,11 @@ def _update_config_for_nudging(model_config, config_bucket):
     return model_config
 
 
-def _get_and_upload_run_config(bucket, run_config):
+def _get_and_upload_run_config(bucket, run_config, base_model_config):
     """Get config objects for current job and upload as necessary"""
     config_bucket = os.path.join(bucket, "config")
+    model_config = update_nested_dict(base_model_config, run_config["fv3config"])
     kubernetes_config = get_kubernetes_config(run_config["kubernetes"])
-    model_config = get_model_config(
-        run_config["fv3config"], kubernetes_config["docker_image"]
-    )
     # if necessary, upload runfile and diag_table. In future, this should be
     # replaced with an fv3config function to do the same for all elements of config
     if kubernetes_config["runfile"] is not None:
@@ -140,20 +107,16 @@ def _get_and_upload_run_config(bucket, run_config):
     return {"kubernetes": kubernetes_config, "fv3config": model_config}, config_bucket
 
 
-def submit_job(bucket, run_config):
-    run_config, config_bucket = _get_and_upload_run_config(bucket, run_config)
+def submit_job(bucket, run_config, base_model_config):
+    run_config, config_bucket = _get_and_upload_run_config(
+        bucket, run_config, base_model_config
+    )
     job_name = run_config["fv3config"]["experiment_name"] + f".{uuid.uuid4()}"
+    run_config["kubernetes"]["jobname"] = job_name
     fv3config.run_kubernetes(
         os.path.join(config_bucket, "fv3config.yml"),
         os.path.join(bucket, "output"),
-        run_config["kubernetes"]["docker_image"],
-        runfile=run_config["kubernetes"]["runfile"],
-        jobname=job_name,
-        namespace=run_config["kubernetes"]["namespace"],
-        memory_gb=run_config["kubernetes"]["memory_gb"],
-        cpu_count=run_config["kubernetes"]["cpu_count"],
-        gcp_secret=run_config["kubernetes"]["gcp_secret"],
-        image_pull_policy=run_config["kubernetes"]["image_pull_policy"],
+        **run_config["kubernetes"],
     )
     logger.info(f"Submitted {job_name}")
 
@@ -174,7 +137,17 @@ if __name__ == "__main__":
         required=True,
         help="Path to local run configuration yaml.",
     )
+    parser.add_argument(
+        "--config-version",
+        type=str,
+        required=False,
+        default="v0.2",
+        help="Default fv3config.yml version to use as the base configuration. "
+        "This should be consistent with the fv3gfs-python version in the specified "
+        "docker image.",
+    )
     args, extra_args = parser.parse_known_args()
+    base_model_config = get_base_fv3config(args.config_version)
     with open(args.run_yaml) as file:
         run_config = yaml.load(file, Loader=yaml.FullLoader)
-    submit_job(args.bucket, run_config)
+    submit_job(args.bucket, run_config, base_model_config)

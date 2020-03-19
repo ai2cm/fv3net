@@ -7,6 +7,11 @@ optional arguments:
                        Specifically, configuration will be saved to
                        BUCKET/config and output to BUCKET/output
   --run-yaml RUN_YAML  Path to local run configuration yaml.
+  --config-version CONFIG_VERSION
+                        Default fv3config.yml version to use as the base
+                        configuration. This should be consistent with the
+                        fv3gfs-python version in the specified docker image.
+                        Defaults to fv3gfs-python v0.2 style configuration.
 ```
 This workflow provides a re-usable job submission script for doing long one-off free
 or nudged simulations with the FV3GFS model. Example run configurations for 1-year long

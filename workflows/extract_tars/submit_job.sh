@@ -9,10 +9,13 @@ OUTPUT_DESTINATION='2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted'
 NUM_WORKERS='4'
 MAX_NUM_WORKERS='40'
 
+user=$(whoami)
+user=${user,,}
+
 python -m fv3net.pipelines.extract_tars \
     $SOURCE_TAR_PREFIX \
     $OUTPUT_DESTINATION \
-    --job_name test-extract-$(whoami) \
+    --job_name test-extract-${user} \
     --project vcm-ml \
     --region us-central1 \
     --runner DataflowRunner \

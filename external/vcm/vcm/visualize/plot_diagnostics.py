@@ -9,6 +9,7 @@ vcm.visualize such as plot_cube.
 
 """
 import matplotlib.pyplot as plt
+import numpy as np
 import os
 from scipy.stats import binned_statistic
 import xarray as xr
@@ -19,7 +20,12 @@ from vcm.cubedsphere.constants import INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CEN
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 
-def plot_diurnal_cycle(merged_ds, var, num_time_bins=24, title=None):
+def mask_nan_lines(x, y):
+    nan_mask = np.isfinite(y)
+    return np.array(x)[nan_mask], np.array(y)[nan_mask]
+
+
+def plot_diurnal_cycle(merged_ds, var, num_time_bins=24, title=None, ylabel=None):
     """
 
     Args:
@@ -31,14 +37,16 @@ def plot_diurnal_cycle(merged_ds, var, num_time_bins=24, title=None):
         title: str, optional plot title
 
     Returns:
-        matplotlib figure object
+        matplotlib figure
     """
     plt.clf()
     fig = plt.figure()
     if "dataset" not in merged_ds.dims:
         merged_ds = xr.concat([merged_ds], "dataset")
     for label in merged_ds["dataset"].values:
-        ds = merged_ds.sel(dataset=label).stack(sample=STACK_DIMS).dropna("sample")
+        ds = merged_ds.sel(dataset=label)
+        if len([dim for dim in ds.dims if dim in STACK_DIMS]) > 1:
+            ds = ds.stack(sample=STACK_DIMS).dropna("sample")
         local_time = ds["local_time"].values.flatten()
         data_var = ds[var].values.flatten()
         bin_means, bin_edges, _ = binned_statistic(
@@ -47,12 +55,14 @@ def plot_diurnal_cycle(merged_ds, var, num_time_bins=24, title=None):
         bin_centers = [
             0.5 * (bin_edges[i] + bin_edges[i + 1]) for i in range(num_time_bins)
         ]
+        bin_centers, bin_means = mask_nan_lines(bin_centers, bin_means)
         plt.plot(bin_centers, bin_means, label=label)
     plt.xlabel("local_time [hr]")
-    plt.ylabel(var)
+    plt.ylabel(ylabel or var)
     plt.legend(loc="lower left")
     if title:
         plt.title(title)
+    plt.show()
     return fig
 
 
@@ -72,7 +82,9 @@ def plot_diag_var_single_map(da, grid, var_name, plot_cube_kwargs=None):
     """
     da = da.rename(var_name)
     ds_mappable = mappable_var(xr.merge([da, grid]), var_name)
-    fig, axes, handles, cbar = plot_cube(ds_mappable, **(plot_cube_kwargs or {}))
+    fig, axes, handles, cbar, facet_grid = plot_cube(
+        ds_mappable, **(plot_cube_kwargs or {})
+    )
     return fig
 
 

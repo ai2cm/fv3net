@@ -18,13 +18,18 @@ Project Organization
     │   ├── pipelines           <-- Cloud data pipelines
     │   ├── visualization
     ├── tests
-    ├── workflows           <-- Job submission scripts and description for pieces of data pipeline
-    │   ├── coarsen_restarts    <-- Coarsen FV3GFS restart timesteps to desired resolution
-    │   ├── extract_tars        <-- Dig yourself out of a tarpit using Dataflow
-    │   ├── one_step_jobs       <-- Submit one-step kubernetes jobs using fv3run
-    │   ├── single_fv3gfs_run    <-- Submit a one off free or nudged fv3gfs simulation
-    │   ├── fregrid_cube_netcdfs <-- Regrid cubed-sphere to lat/lon and other grids data with fregrid
-    │   └── scale-snakemake     <-- Coarsening operation with kubernetes and snakemake (Deprecated)
+    ├── workflows                     <-- Job submission scripts and description for pieces of data pipeline
+    │   ├── coarsen_c384_diagnostics  <-- Coarsen FV3GFS C384 diagnostic files
+    │   ├── coarsen_restarts          <-- Coarsen FV3GFS restart timesteps to desired resolution
+    │   ├── create_training_data      <-- Create training data batches from Fv3GFS step simulations
+    │   ├── extract_tars              <-- Dig yourself out of a tarpit using Dataflow
+    │   ├── end_to_end                <-- Run end-to-end pre-processing, training, and prognostic run
+    │   ├── one_step_jobs             <-- Submit one-step kubernetes jobs using fv3run
+    │   ├── prognostic_c48_run        <-- Run a prognostic Fv3GFS simulation with an embedded ML model
+    │   ├── single_fv3gfs_run         <-- Submit a one off free or nudged fv3gfs simulation
+    │   ├── fregrid_cube_netcdfs      <-- Regrid cubed-sphere to lat/lon and other grids data with fregrid
+    │   ├── scale-snakemake           <-- Coarsening operation with kubernetes and snakemake (Deprecated)
+    │   └── sklearn_regression        <-- Train an ML model
     ├── Dockerfile
     ├── LICENSE
     ├── Makefile

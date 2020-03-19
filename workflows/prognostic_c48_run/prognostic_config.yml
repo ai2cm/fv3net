@@ -1,0 +1,19 @@
+kubernetes:
+  cpu_count: 6
+  memory_gb: 5.
+diag_table: workflows/prognostic_c48_run/diag_table_prognostic
+namelist:
+  coupler_nml:
+    days: 5  # total length
+    hours: 0
+    minutes: 0
+    seconds: 0
+    dt_atmos: 900  # seconds
+    dt_ocean: 900
+    restart_secs: 0  # seconds - frequency to save restarts
+  atmos_model_nml:
+    fhout: 0.25   # hours - frequency to save physics outputs
+  gfs_physics_nml:
+    fhzero: 0.25  # hours - frequency at which precip is set back to zero
+  fv_core_nml:
+    n_split: 6   # num dynamics steps per physics step
