@@ -160,6 +160,7 @@ if __name__ == "__main__":
         "remove local copy after upload.",
     )
     args = parser.parse_args()
+    args.train_data_path = os.path.join(args.train_data_path, "train")
     train_config = load_model_training_config(
         args.train_config_file, args.train_data_path
     )

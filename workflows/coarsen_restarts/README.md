@@ -8,26 +8,20 @@ using pressure-level coarsening defined in `vcm.coarsen`.
 ```python
 fv3net.pipelines.coarsen_restarts
 
-usage: __main__.py [-h] --gcs-src-dir GCS_SRC_DIR [--gcs-dst-dir GCS_DST_DIR]
-                   --gcs-grid-spec-path GCS_GRID_SPEC_PATH --source-resolution
-                   SOURCE_RESOLUTION --target_resolution TARGET_RESOLUTION
+usage: __main__.py [-h] GCS_SRC_DIR GCS_GRID_SPEC_PATH SOURCE_RESOLUTION 
+    TARGET_RESOLUTION GCS_DST_DIR
 
-optional arguments:
+positional arguments:
   -h, --help            show this help message and exit
-  --gcs-src-dir GCS_SRC_DIR
-                        Full GCS path to input data for downloading timesteps.
-  --gcs-dst-dir GCS_DST_DIR
-                        Full GCS path to output coarsened timestep data.
-                        Defaults to input pathwith target resolution appended
-                        as a directory
-  --gcs-grid-spec-path GCS_GRID_SPEC_PATH
-                        Full path with file wildcard 'grid_spec.tile*.nc' to
+  GCS_SRC_DIR           Full GCS path to input data for downloading timesteps
+  GCS_GRID_SPEC_PATH    Full path with file wildcard 'grid_spec.tile*.nc' to
                         select grid spec files with same resolution as the
                         source data
-  --source-resolution SOURCE_RESOLUTION
-                        Source data cubed-sphere grid resolution.
-  --target_resolution TARGET_RESOLUTION
-                        Target coarsening resolution to output
+  SOURCE_RESOLUTION     Source data cubed-sphere grid resolution.
+  TARGET_RESOLUTION     Target coarsening resolution to output
+  GCS_DST_DIR           Full GCS path to output coarsened timestep data.
+                        Defaults to input pathwith target resolution appended
+                        as a directory
 ```
 
 See `workflows/coarsen_restarts/submit_job.sh` to see an example of calling this
