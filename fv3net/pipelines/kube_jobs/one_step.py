@@ -269,7 +269,7 @@ def _upload_config_files(
     config_url: str,
     local_vertical_grid_file=None,
     upload_config_filename="fv3config.yml",
-) -> Tuple[dict]:
+) -> Tuple[str, dict]:
     """
     Upload any files to remote paths necessary for fv3config and the
     fv3gfs one-step runs.
@@ -294,7 +294,7 @@ def _upload_config_files(
     with fsspec.open(config_path, "w") as config_file:
         config_file.write(yaml.dump(model_config))
 
-    return model_config, kubernetes_config
+    return config_path, kubernetes_config
 
 
 def prepare_and_upload_config(
@@ -344,18 +344,13 @@ def submit_jobs(
     zarr_url = os.path.join(output_url, "big.zarr")
     create_zarr_store(timestep_list, zarr_url)
 
-    for k, timestep in enumerate(timestep_list):
-
+    def config_factory(index):
+        timestep = timestep_list[index]
         curr_input_url = os.path.join(input_url, timestep)
-
-        # do not upload to rundirectory to cloud
-        curr_output_url = os.path.join("/tmp", timestep)
         curr_config_url = os.path.join(config_url, timestep)
 
-        one_step_config['fv3config']['one_step'] = {'index': k, 'url': zarr_url}
-        print(curr_output_url, curr_config_url)
-
-        model_config, kube_config = prepare_and_upload_config(
+        one_step_config['fv3config']['one_step'] = {'index': index, 'url': zarr_url}
+        return prepare_and_upload_config(
             workflow_name,
             curr_input_url,
             curr_config_url,
@@ -365,10 +360,11 @@ def submit_jobs(
             local_vertical_grid_file=local_vertical_grid_file,
         )
 
+    for k, timestep in enumerate(timestep_list):
+        logger.info(f"Submitting job for timestep {timestep}")
+        model_config_url, kube_config = config_factory(k)
         fv3config.run_kubernetes(
-            os.path.join(curr_config_url, "fv3config.yml"),
-            curr_output_url,
-            job_labels=job_labels,
+            model_config_url,
+            "/tmp/null",
             **kube_config,
         )
-        logger.info(f"Submitted job for timestep {timestep}")
