@@ -67,7 +67,7 @@ experiment:
         diagnostics_data:
           location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
         --num_test_zarrs: 4
-    
+
     prognostic_run:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
       args:
