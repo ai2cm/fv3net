@@ -14,7 +14,7 @@ import zarr
 logger = logging.getLogger(__name__)
 
 OUTDIR = "/tmp/blah"
-RUNFILE = os.path.join(os.environ['FV3NET'], "workflows/one_step_jobs/runfile.py")
+RUNFILE = os.path.join(os.environ['FV3NET'], "/workflows/one_step_jobs/runfile.py")
 
 
 def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:

@@ -265,11 +265,11 @@ def submit_jobs(
     kube_config.pop('runfile')
 
     for k, timestep in enumerate(timestep_list):
-        command = ["python", "run_one_step.py", input_url, output_url, timestep, k]
+        command = ["python", "run_one_step.py", input_url, output_url, timestep, str(k)]
         kube_obj = fv3config.KubernetesConfig(
             image=image,
             command=command,
-            working_dir="/home/jovyan/fv3net/workflows/one_step_jobs",
+            working_dir="/workflows/one_step_jobs",
             **kube_config
         )
         kube_obj.submit(namespace="default")
