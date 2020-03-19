@@ -82,6 +82,10 @@ jobs:
           name: "Move large packages back into conda dir"
           command: mv /tmp/conda_pkgs/* /opt/conda/pkgs/
 
+      - run:
+          name: "Install fv3net packages"
+          command: make install_local_packages
+
       - run: | 
           source activate fv3net
           pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
