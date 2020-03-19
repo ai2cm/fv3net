@@ -23,7 +23,7 @@ endif
 #################################################################################
 # COMMANDS                                                                      #
 #################################################################################
-.PHONY: wheels build_images push_image
+.PHONY: wheels build_images push_image build_ci_image
 wheels:
 	pip wheel --no-deps .
 	pip wheel --no-deps external/vcm
@@ -47,6 +47,9 @@ enter: build_image
 
 #		-e GOOGLE_APPLICATION_CREDENTIALS=/google_creds.json \
 #		-v $(HOME)/.config/gcloud/application_default_credentials.json:/google_creds.json \
+
+build_ci_image:
+	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
 
 ## Make Dataset
