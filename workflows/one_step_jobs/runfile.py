@@ -44,15 +44,17 @@ def _init_group_with_schema(group, schemas, timesteps):
 def init_data_var(group, array):
     shape = (1,) + array.data.shape
     chunks = (1,) + tuple(size[0] for size in array.data.chunks)
-    out_array = group.empty(name=array.name, shape=shape, chunks=chunks, dtype=array.dtype)
+    out_array = group.empty(
+        name=array.name, shape=shape, chunks=chunks, dtype=array.dtype
+    )
     out_array.attrs.update(array.attrs)
-    out_array.attrs['_ARRAY_DIMENSIONS'] = ['initial_time'] + list(array.dims)
+    out_array.attrs["_ARRAY_DIMENSIONS"] = ["initial_time"] + list(array.dims)
 
 
 def init_coord(group, coord):
     out_array = group.array(name=coord.name, data=np.asarray(coord))
     out_array.attrs.update(coord.attrs)
-    out_array.attrs['_ARRAY_DIMENSIONS'] = list(coord.dims)
+    out_array.attrs["_ARRAY_DIMENSIONS"] = list(coord.dims)
 
 
 def create_zarr_store(timesteps, group, template):
@@ -86,7 +88,7 @@ def post_process(out_dir, url, index, init=False, timesteps=()):
     ds = xr.concat([begin, before, after], dim="step").assign_coords(
         step=["begin", "after_dynamics", "after_physics"], time=time
     )
-    ds = ds.rename({"time": "forecast_time"}).chunk({'forecast_time': 1, 'tile': 6})
+    ds = ds.rename({"time": "forecast_time"}).chunk({"forecast_time": 1, "tile": 6})
 
     mapper = fsspec.get_mapper(store_url)
     group = zarr.open_group(mapper, mode="a")
@@ -155,5 +157,5 @@ if __name__ == "__main__":
         after_monitor.store(state)
 
     if rank == 0:
-        post_process(RUN_DIR, **config['one_step'])
+        post_process(RUN_DIR, **config["one_step"])
     fv3gfs.cleanup()

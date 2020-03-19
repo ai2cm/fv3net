@@ -1,9 +1,7 @@
 import logging
 import os
-import zarr
 import fsspec
 from toolz import assoc
-import numpy as np
 import uuid
 import yaml
 import re
@@ -286,13 +284,13 @@ def submit_jobs(
     kube_kwargs = get_run_kubernetes_kwargs(one_step_config["kubernetes"], config_url)
 
     def config_factory(**kwargs):
-        timestep = timestep_list[kwargs['index']]
+        timestep = timestep_list[kwargs["index"]]
         curr_input_url = os.path.join(input_url, timestep)
         curr_config_url = os.path.join(config_url, timestep)
 
         config = deepcopy(one_step_config)
-        kwargs['url'] = zarr_url
-        config["fv3config"]['one_step'] = kwargs
+        kwargs["url"] = zarr_url
+        config["fv3config"]["one_step"] = kwargs
 
         model_config = _update_config(
             workflow_name,
@@ -313,7 +311,7 @@ def submit_jobs(
         
         """
         uid = str(uuid.uuid4())
-        labels = assoc(job_labels, 'jobid', uid)
+        labels = assoc(job_labels, "jobid", uid)
         model_config_url = config_factory(**kwargs)
         fv3config.run_kubernetes(
             model_config_url, "/tmp/null", job_labels=labels, **kube_kwargs

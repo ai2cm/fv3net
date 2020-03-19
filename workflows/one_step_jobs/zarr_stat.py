@@ -1,5 +1,6 @@
 import fsspec
 import xarray as xr
+
 print("output structure:")
 print()
 for root, dirname, filename in fsspec.filesystem("gs").walk(
