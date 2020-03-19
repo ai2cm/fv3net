@@ -11,7 +11,63 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__file__)
 
 
-def post_process(out_dir, store_url, index):
+def _compute_chunks(shape, chunks):
+    return tuple(size if chunk == -1 else chunk for size, chunk in zip(shape, chunks))
+
+
+def _get_schema(shape=(3, 15, 6, 79, 48, 48)):
+    variables = [
+        "air_temperature",
+        "specific_humidity",
+        "pressure_thickness_of_atmospheric_layer",
+    ]
+    dims_scalar = ["step", "forecast_time", "tile", "z", "y", "x"]
+    chunks_scalar = _compute_chunks(shape, [-1, 1, -1, -1, -1, -1])
+    DTYPE = np.float32
+    scalar_schema = {
+        "dims": dims_scalar,
+        "chunks": chunks_scalar,
+        "dtype": DTYPE,
+        "shape": shape,
+    }
+    return {key: scalar_schema for key in variables}
+
+
+def _init_group_with_schema(group, schemas, timesteps):
+    for name, schema in schemas.items():
+        shape = (len(timesteps),) + schema["shape"]
+        chunks = (1,) + schema["chunks"]
+        array = group.empty(name, shape=shape, chunks=chunks, dtype=schema["dtype"])
+        array.attrs.update({"_ARRAY_DIMENSIONS": ["initial_time"] + schema["dims"]})
+
+
+def init_data_var(group, array):
+    shape = (1,) + array.data.shape
+    chunks = (1,) + tuple(size[0] for size in array.data.chunks)
+    out_array = group.empty(name=array.name, shape=shape, chunks=chunks, dtype=array.dtype)
+    out_array.attrs.update(array.attrs)
+    out_array.attrs['_ARRAY_DIMENSIONS'] = ['initial_time'] + list(array.dims)
+
+
+def init_coord(group, coord):
+    out_array = group.array(name=coord.name, data=np.asarray(coord))
+    out_array.attrs.update(coord.attrs)
+    out_array.attrs['_ARRAY_DIMENSIONS'] = list(coord.dims)
+
+
+def create_zarr_store(timesteps, group, template):
+    logger.info("Creating group")
+    ds = template
+    for name in ds:
+        init_data_var(group, ds[name])
+
+    for name in ds.coords:
+        init_coord(group, ds[name])
+
+
+def post_process(out_dir, url, index, init=False, timesteps=()):
+
+    store_url = url
     logger.info("Post processing model outputs")
     begin = xr.open_zarr(f"{out_dir}/begin_physics.zarr")
     before = xr.open_zarr(f"{out_dir}/before_physics.zarr")
@@ -29,27 +85,19 @@ def post_process(out_dir, store_url, index):
     ds = xr.concat([begin, before, after], dim="step").assign_coords(
         step=["begin", "after_dynamics", "after_physics"], time=time
     )
-    ds = ds.rename({"time": "forecast_time"})
+    ds = ds.rename({"time": "forecast_time"}).chunk({'forecast_time': 1, 'tile': 6})
 
-    # put in storage
-    # this object must be initialized
     mapper = fsspec.get_mapper(store_url)
     group = zarr.open_group(mapper, mode="a")
+
+    if init:
+        group = zarr.open_group(mapper, mode="w")
+        create_zarr_store(timesteps, group, ds)
+
     for variable in ds:
         logger.info(f"Writing {variable} to {group}")
         dims = group[variable].attrs["_ARRAY_DIMENSIONS"][1:]
         group[variable][index] = np.asarray(ds[variable].transpose(*dims))
-
-    # TODO maybe move this code to coordinating file
-    for coord in ds.coords:
-        if coord not in group:
-            logger.info(f"writing {coord} to group")
-            group[coord] = np.asarray(ds[coord])
-            group[coord].attrs.update({
-                '_ARRAY_DIMENSIONS': ds[coord].dims
-            })
-            group[coord].attrs.update(ds[coord].attrs)
-
 
 
 if __name__ == "__main__":
@@ -106,5 +154,5 @@ if __name__ == "__main__":
         after_monitor.store(state)
 
     if rank == 0:
-        post_process(RUN_DIR, config['one_step']['url'], config['one_step']['index'])
+        post_process(RUN_DIR, **config['one_step'])
     fv3gfs.cleanup()

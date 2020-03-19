@@ -2,6 +2,7 @@ import logging
 import os
 import zarr
 import fsspec
+from toolz import assoc
 import numpy as np
 import uuid
 import yaml
@@ -30,43 +31,6 @@ KUBERNETES_CONFIG_DEFAULT = {
 }
 
 logger = logging.getLogger(__name__)
-
-
-def _compute_chunks(shape, chunks):
-    return tuple(size if chunk == -1 else chunk for size, chunk in zip(shape, chunks))
-
-
-def _get_schema(shape=(3, 15, 6, 79, 48, 48)):
-    variables = [
-        "air_temperature",
-        "specific_humidity",
-        "pressure_thickness_of_atmospheric_layer",
-    ]
-    dims_scalar = ["step", "forecast_time", "tile", "z", "y", "x"]
-    chunks_scalar = _compute_chunks(shape, [-1, 1, -1, -1, -1, -1])
-    DTYPE = np.float32
-    scalar_schema = {
-        "dims": dims_scalar,
-        "chunks": chunks_scalar,
-        "dtype": DTYPE,
-        "shape": shape,
-    }
-    return {key: scalar_schema for key in variables}
-
-
-def _init_group_with_schema(group, schemas, timesteps):
-    for name, schema in schemas.items():
-        shape = (len(timesteps),) + schema["shape"]
-        chunks = (1,) + schema["chunks"]
-        array = group.empty(name, shape=shape, chunks=chunks, dtype=schema["dtype"])
-        array.attrs.update({"_ARRAY_DIMENSIONS": ["initial_time"] + schema["dims"]})
-
-
-def create_zarr_store(timesteps, output_url):
-    schemas = _get_schema()
-    mapper = fsspec.get_mapper(output_url)
-    group = zarr.open_group(mapper, mode="w")
-    _init_group_with_schema(group, schemas, timesteps)
 
 
 def timesteps_to_process(
@@ -318,19 +282,22 @@ def submit_jobs(
     """Submit one-step job for all timesteps in timestep_list"""
 
     zarr_url = os.path.join(output_url, "big.zarr")
-    create_zarr_store(timestep_list, zarr_url)
+    # kube kwargs are shared by all jobs
+    kube_kwargs = get_run_kubernetes_kwargs(one_step_config["kubernetes"], config_url)
 
-    def config_factory(index):
-        timestep = timestep_list[index]
+    def config_factory(**kwargs):
+        timestep = timestep_list[kwargs['index']]
         curr_input_url = os.path.join(input_url, timestep)
         curr_config_url = os.path.join(config_url, timestep)
 
-        one_step_config["fv3config"]["one_step"] = {"index": index, "url": zarr_url}
+        config = deepcopy(one_step_config)
+        kwargs['url'] = zarr_url
+        config["fv3config"]['one_step'] = kwargs
 
         model_config = _update_config(
             workflow_name,
             base_config_version,
-            one_step_config["fv3config"],
+            config["fv3config"],
             curr_input_url,
             curr_config_url,
             timestep,
@@ -339,12 +306,25 @@ def submit_jobs(
             model_config, curr_config_url, local_vertical_grid_file
         )
 
-    # kube kwargs are shared by all jobs
-    kube_kwargs = get_run_kubernetes_kwargs(one_step_config["kubernetes"], config_url)
+    def run_job(wait=False, **kwargs):
+        """Run a run_kubernetes job
+
+        kwargs are passed workflows/one_step_jobs/runfile.py:post_process
+        
+        """
+        uid = str(uuid.uuid4())
+        labels = assoc(job_labels, 'jobid', uid)
+        model_config_url = config_factory(**kwargs)
+        fv3config.run_kubernetes(
+            model_config_url, "/tmp/null", job_labels=labels, **kube_kwargs
+        )
+        if wait:
+            utils.wait_for_complete(job_labels, sleep_interval=10)
 
     for k, timestep in enumerate(timestep_list):
-        logger.info(f"Submitting job for timestep {timestep}")
-        model_config_url = config_factory(k)
-        fv3config.run_kubernetes(
-            model_config_url, "/tmp/null", job_labels=job_labels, **kube_kwargs
-        )
+        if k == 0:
+            logger.info("Running the first time step to initialize the zarr store")
+            run_job(index=k, init=True, wait=True, timesteps=timestep_list)
+        else:
+            logger.info(f"Submitting job for timestep {timestep}")
+            run_job(index=k, init=False)
