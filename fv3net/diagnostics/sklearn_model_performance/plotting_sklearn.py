@@ -506,7 +506,7 @@ def map_plot_ml_frac_of_total(ds):
         mappable_var(ds, "net_precipitation_ml_frac_of_total").mean(INIT_TIME_DIM),
         col="dataset",
         vmin=-1,
-        vmax=1
+        vmax=1,
     )[0]
     fig_pe_ml_frac.suptitle("P-E: ML prediction as fraction of total")
 
@@ -518,7 +518,7 @@ def map_plot_ml_frac_of_total(ds):
         mappable_var(ds, "net_heating_ml_frac_of_total").mean(INIT_TIME_DIM),
         col="dataset",
         vmin=-1,
-        vmax=1
+        vmax=1,
     )[0]
     fig_heating_ml_frac.suptitle("heating: ML prediction as fraction of total")
 
