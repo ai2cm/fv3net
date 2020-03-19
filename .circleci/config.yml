@@ -53,13 +53,12 @@ jobs:
       - run: 
           name: "Move large conda packages to temp cache"
           command: |
-            if [ ! -d /tmp/conda_pkgs/ ]; then 
-              mkdir -p /tmp/conda_pkgs/python/
-              mkdir -p /tmp/conda_pkgs/mkl/
-              mkdir -p /tmp/conda_pkgs/qt/
-            fi
-            mv /opt/conda/pkgs/mkl-* /tmp/conda_pkgs/mkl/
+            conda clean -tp
+            mkdir -p /tmp/conda_pkgs/python/
             mv /opt/conda/pkgs/python-3* /tmp/conda_pkgs/python/
+            mkdir -p /tmp/conda_pkgs/mkl/
+            mv /opt/conda/pkgs/mkl-* /tmp/conda_pkgs/mkl/
+            mkdir -p /tmp/conda_pkgs/qt/
             mv /opt/conda/pkgs/qt-* /tmp/conda_pkgs/qt/
             mv /opt/conda/pkgs/cache /tmp/conda_pkgs/
       - save_cache:
