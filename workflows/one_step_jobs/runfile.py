@@ -10,6 +10,62 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__file__)
 
+DELP = "pressure_thickness_of_atmospheric_layer"
+TIME = "time"
+
+VARIABLES = [
+    "x_wind",
+    "y_wind",
+    "air_temperature",
+    "pressure_thickness_of_atmospheric_layer",
+    "vertical_wind",
+    "vertical_thickness_of_atmospheric_layer",
+    "surface_geopotential",
+    "eastward_wind_at_surface",
+    "mean_cos_zenith_angle",
+    "sensible_heat_flux",
+    "latent_heat_flux",
+    "convective_cloud_fraction",
+    "convective_cloud_top_pressure",
+    "convective_cloud_bottom_pressure",
+    "land_sea_mask",
+    "surface_temperature",
+    "water_equivalent_of_accumulated_snow_depth",
+    "deep_soil_temperature",
+    "surface_roughness",
+    "mean_visible_albedo_with_strong_cosz_dependency",
+    "mean_visible_albedo_with_weak_cosz_dependency",
+    "mean_near_infrared_albedo_with_strong_cosz_dependency",
+    "mean_near_infrared_albedo_with_weak_cosz_dependency",
+    "fractional_coverage_with_strong_cosz_dependency",
+    "fractional_coverage_with_weak_cosz_dependency",
+    "vegetation_fraction",
+    "canopy_water",
+    "fm_at_10m",
+    "air_temperature_at_2m",
+    "specific_humidity_at_2m",
+    "vegetation_type",
+    "soil_type",
+    "friction_velocity",
+    "fm_parameter",
+    "fh_parameter",
+    "sea_ice_thickness",
+    "ice_fraction_over_open_water",
+    "surface_temperature_over_ice_fraction",
+    "total_precipitation",
+    "snow_rain_flag",
+    "snow_depth_water_equivalent",
+    "minimum_fractional_coverage_of_green_vegetation",
+    "maximum_fractional_coverage_of_green_vegetation",
+    "surface_slope_type",
+    "maximum_snow_albedo_in_fraction",
+    "snow_cover_in_fraction",
+    "soil_temperature",
+    "total_soil_moisture",
+    "liquid_soil_moisture"
+]
+
+VARIABLES = VARIABLES + [TIME]
 
 def init_data_var(group, array, nt):
     logger.info(f"Initializing coordinate: {array.name}")
@@ -84,9 +140,6 @@ if __name__ == "__main__":
 
     RUN_DIR = os.path.dirname(os.path.realpath(__file__))
 
-    DELP = "pressure_thickness_of_atmospheric_layer"
-    TIME = "time"
-    VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP, TIME]
 
     rank = MPI.COMM_WORLD.Get_rank()
     current_dir = os.getcwd()
