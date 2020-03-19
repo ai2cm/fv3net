@@ -1,5 +1,6 @@
 import argparse
 import joblib
+import logging
 import os
 import yaml
 
@@ -14,6 +15,12 @@ import vcm.cloud.fsspec
 
 MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+fh = logging.FileHandler("ml_training.log")
+fh.setLevel(logging.INFO)
+logger.addHandler(fh)
 
 
 @dataclass
@@ -120,12 +127,15 @@ def train_model(batched_data, train_config):
 
     for i, batch in enumerate(batched_data.generate_batches()):
         print(f"Fitting batch {i}/{batched_data.num_batches}")
-        model_wrapper.fit(
-            input_vars=train_config.input_variables,
-            output_vars=train_config.output_variables,
-            sample_dim="sample",
-            data=batch,
-        )
+        try:
+            model_wrapper.fit(
+                input_vars=train_config.input_variables,
+                output_vars=train_config.output_variables,
+                sample_dim="sample",
+                data=batch,
+            )
+        except ValueError as e:
+            logger.error(f"Error training on batch {i}: {e}")
         print(f"Batch {i} done fitting.")
     return model_wrapper
 

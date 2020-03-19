@@ -1,3 +1,4 @@
+import backoff
 import logging
 from dataclasses import dataclass
 from typing import List
@@ -6,9 +7,8 @@ import gcsfs
 from math import ceil
 import numpy as np
 import xarray as xr
-
+import vcm
 from vcm.cubedsphere.constants import COORD_Z_CENTER, INIT_TIME_DIM
-from vcm.select import mask_to_surface_type
 
 SAMPLE_DIM = "sample"
 
@@ -69,12 +69,36 @@ class BatchGenerator:
         """
         grouped_urls = self.train_file_batches
         for file_batch_urls in grouped_urls:
-            fs_paths = [self.fs.get_mapper(url) for url in file_batch_urls]
-            ds = xr.concat(map(xr.open_zarr, fs_paths), INIT_TIME_DIM)
-            ds = mask_to_surface_type(ds, self.mask_to_surface_type)
+            try:
+                ds_shuffled = self._create_training_batch_with_retries(file_batch_urls)
+            except ValueError:
+                logger.error(
+                    f"Failed to generate batch from files {file_batch_urls}."
+                    "Skipping to next batch."
+                )
+                continue
+            yield ds_shuffled
+
+    @backoff.on_exception(backoff.expo, RuntimeError, max_tries=3)
+    def _create_training_batch_with_retries(self, urls):
+        timestep_paths = [self.fs.get_mapper(url) for url in urls]
+        try:
+            ds = xr.concat(map(xr.open_zarr, timestep_paths), INIT_TIME_DIM)
+            ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type)
             ds_stacked = stack_and_drop_nan_samples(ds).unify_chunks()
             ds_shuffled = _shuffled(ds_stacked, SAMPLE_DIM, self.random_seed)
-            yield ds_shuffled
+            return ds_shuffled
+        except ValueError as e:
+            # error when attempting to read from GCS that sometimes resolves on retry
+            if "array not found at path" in str(e):
+                logger.error(
+                    f"Error reading data from {timestep_paths}, will retry. {e}"
+                )
+                raise RuntimeError(str(e))
+            # other errors that will not recover on retry
+            else:
+                logger.error(f"Error reading data from {timestep_paths}. {e}")
+                raise e
 
     def _validated_num_batches(self, total_num_input_files):
         """ check that the number of batches (if provided) and the number of
