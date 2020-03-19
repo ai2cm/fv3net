@@ -5,13 +5,13 @@ experiment:
   unique_id: True
   steps_to_run:
     - coarsen_restarts
-    - coarsen_diagnostics
+#     - coarsen_diagnostics
     - one_step_run
     - create_training_data
     - train_sklearn_model
     - test_sklearn_model
     - prognostic_run
-    - diags_prognostic_run
+#     - diags_prognostic_run
   
   steps_config:
     coarsen_restarts:
@@ -36,8 +36,7 @@ experiment:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
       args:
         restart_data:
-#           from: coarsen_restarts
-          location: gs://vcm-ml-data/orchestration-testing/test-experiment-95647d07/coarsen_restarts_source-resolution_384_target-resolution_48_runner_DataflowRunner/C48
+          from: coarsen_restarts
         experiment_yaml: ./workflows/one_step_jobs/all-physics-off.yml
         docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
     
@@ -45,11 +44,8 @@ experiment:
       command: python -m fv3net.pipelines.create_training_data
       args:
         one_step_data:
-#           from: one_step_run
-          location: gs://vcm-ml-data/orchestration-testing/test-andrep/one_step_run_experiment_yaml_all-physics-off.yml_docker_image_prognostic-run-orchestration
-#           location: gs://vcm-ml-data/2020-02-28-X-SHiELD-2019-12-02-deep-and-mp-off
+          from: one_step_run
         diagnostics_data:
-#           from: coarsen_diagnostics
           location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
         --train-fraction: 0.5
         --runner: DataflowRunner
@@ -58,21 +54,17 @@ experiment:
       command: python -m fv3net.regression.sklearn.train
       args:
         training_data:
-#           from: create_training_data
-          location: gs://vcm-ml-data/orchestration-testing/test-experiment-0ec4a4b1/create_training_data_train-fraction_0.5_runner_DataflowRunner
+          from: create_training_data
         train-config-file: ./workflows/sklearn_regression/example_base_rf_training_config.yml
         
     test_sklearn_model: 
       command: python -m fv3net.diagnostics.sklearn_model_performance
       args:
         trained_model:
-#           from: train_sklearn_model
-          location: gs://vcm-ml-data/orchestration-testing/test-experiment-7021f96d/train_sklearn_model_train-config-file_example_base_rf_training_config.yml
+          from: train_sklearn_model
         testing_data:
-#           from: create_training_data
-          location: gs://vcm-ml-data/orchestration-testing/test-experiment-0ec4a4b1/create_training_data_train-fraction_0.5_runner_DataflowRunner
+          from: create_training_data
         diagnostics_data:
-#           from: coarsen_diagnostics
           location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
         --num_test_zarrs: 4
     
@@ -80,13 +72,11 @@ experiment:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
       args:
         restart_file_dir:
-#           from: one_step_run
-          location: gs://vcm-ml-data/orchestration-testing/test-andrep/one_step_run_experiment_yaml_all-physics-off.yml_docker_image_prognostic-run-orchestration
+          from: one_step_run 
         ic_timestep: "20160801.001500"
         docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration
         --model_url:
-#           from: train_sklearn_model
-          location: gs://vcm-ml-data/orchestration-testing/test-experiment-7021f96d/train_sklearn_model_train-config-file_example_base_rf_training_config.yml
+          from: train_sklearn_model
         --prog_config_yml: workflows/prognostic_c48_run/prognostic_config.yml
 
 

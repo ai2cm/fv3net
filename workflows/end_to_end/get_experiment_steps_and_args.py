@@ -23,12 +23,13 @@ def get_experiment_steps_and_args(config_file: str):
 
     # Resolve inputs, outputs, and other config parameters
     workflow_steps = config["experiment"]["steps_to_run"]
-    all_steps_config = config["experiment"]["steps_config"]
-    try:
-        current_steps_config = {step: all_steps_config[step] for step in workflow_steps}
-    except:
-        raise KeyError("Workflow steps list contains a step not defined in steps config.")
-    config["experiment"]["steps_config"] = current_steps_config
+#     all_steps_config = config["experiment"]["steps_config"]
+#     try:
+#         current_steps_config = {step: all_steps_config[step] for step in workflow_steps}
+#     except:
+    if any([step not in config["experiment"]["steps_config"] for step in workflow_steps]):
+        raise KeyError("'steps_to_run' list contains a step not defined in 'steps_config'.")
+#     config["experiment"]["steps_config"] = current_steps_config
     _apply_config_transforms(config)
     all_step_arguments = _get_all_step_arguments(config)
     experiment_steps_and_args = {
