@@ -3,7 +3,7 @@ from fv3net.pipelines.common import get_alphanumeric_unique_tag
 
 COARSEN_RESTARTS_DATAFLOW_ARGS = {
     "--job_name": (
-        f"coarsen-restarts-{getuser().lower()}-" f"{get_alphanumeric_unique_tag(7)}"
+        f"coarsen-restarts-{getuser().lower()}-{get_alphanumeric_unique_tag(7)}"
     ),
     "--project": "vcm-ml",
     "--region": "us-central1",
@@ -22,7 +22,10 @@ COARSEN_RESTARTS_DATAFLOW_ARGS = {
 CREATE_TRAINING_DATAFLOW_ARGS = COARSEN_RESTARTS_DATAFLOW_ARGS.copy()
 CREATE_TRAINING_DATAFLOW_ARGS.update(
     {
-        "--job_name": f"create-training-data-{getuser().lower()}",
+        "--job_name": (
+            f"create-training-data-{getuser().lower()}-"
+            f"{get_alphanumeric_unique_tag(7)}"
+        ),
         "--num_workers": 4,
         "--max_num_workers": 30,
         "--disk_size_gb": 30,
