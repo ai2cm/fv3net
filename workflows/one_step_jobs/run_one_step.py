@@ -99,4 +99,4 @@ if __name__ == "__main__":
 
     config = _assoc_initial_conditions(base_config, input_url, timestep)
     fv3config.run_native(config, outdir=OUTDIR, runfile=RUNFILE)
-    post_process(OUTDIR, store_url=f"{output_url}/big.zarr", index=index)
+    post_process(OUTDIR, store_url=f"{output_url}/big.zarr", index=int(index))
