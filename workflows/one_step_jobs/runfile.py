@@ -20,26 +20,29 @@ def post_process():
 
     # make the time dims consistent
     time = begin.time
-    before = before.drop('time')
-    after = after.drop('time')
-    begin = begin.drop('time')
+    before = before.drop("time")
+    after = after.drop("time")
+    begin = begin.drop("time")
 
     # concat data
-    dt = np.timedelta64(15, 'm')
+    dt = np.timedelta64(15, "m")
     time = np.arange(len(time)) * dt
-    ds = xr.concat([begin, before, after], dim='step').assign_coords(step=['begin', 'after_dynamics', 'after_physics'], time=time)
-    ds = ds.rename({'time': 'lead_time'})
+    ds = xr.concat([begin, before, after], dim="step").assign_coords(
+        step=["begin", "after_dynamics", "after_physics"], time=time
+    )
+    ds = ds.rename({"time": "lead_time"})
 
     # put in storage
     # this object must be initialized
-    index = config['one_step']['index']
-    store_url = config['one_step']['url']
+    index = config["one_step"]["index"]
+    store_url = config["one_step"]["url"]
     mapper = fsspec.get_mapper(store_url)
-    group = zarr.open_group(mapper, mode='a')
+    group = zarr.open_group(mapper, mode="a")
     for variable in group:
         logger.info(f"Writing {variable} to {group}")
-        dims = group[variable].attrs['_ARRAY_DIMENSIONS'][1:]
+        dims = group[variable].attrs["_ARRAY_DIMENSIONS"][1:]
         group[variable][index] = np.asarray(ds[variable].transpose(*dims))
+
 
 if __name__ == "__main__":
     import fv3gfs
@@ -48,7 +51,7 @@ if __name__ == "__main__":
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))
 
 DELP = "pressure_thickness_of_atmospheric_layer"
-TIME = 'time'
+TIME = "time"
 VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP, TIME]
 
 rank = MPI.COMM_WORLD.Get_rank()
@@ -81,9 +84,11 @@ begin_monitor = fv3gfs.ZarrMonitor(
 
 fv3gfs.initialize()
 state = fv3gfs.get_state(names=VARIABLES)
-if rank == 0: logger.info("Beginning steps")
+if rank == 0:
+    logger.info("Beginning steps")
 for i in range(fv3gfs.get_step_count()):
-    if rank == 0: logger.info(f"step {i}")
+    if rank == 0:
+        logger.info(f"step {i}")
     begin_monitor.store(state)
     fv3gfs.step_dynamics()
     state = fv3gfs.get_state(names=VARIABLES)

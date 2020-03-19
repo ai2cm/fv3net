@@ -83,7 +83,10 @@ if __name__ == "__main__":
         one_step_config = yaml.load(file, Loader=yaml.FullLoader)
     workflow_name = Path(args.one_step_yaml).with_suffix("").name
     short_id = get_alphanumeric_unique_tag(8)
-    job_label = {"orchestrator-jobs": f"{workflow_name}-{short_id}"}
+    job_label = {
+        "orchestrator-jobs": f"{workflow_name}-{short_id}",
+        "workflow": "one_step_jobs",
+    }
 
     if not args.config_url:
         config_url = os.path.join(args.output_url, CONFIG_DIRECTORY_NAME)

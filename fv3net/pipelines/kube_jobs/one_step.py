@@ -33,37 +33,41 @@ logger = logging.getLogger(__name__)
 
 
 def _compute_chunks(shape, chunks):
-    return tuple(
-        size if chunk == -1 else chunk
-        for size, chunk in zip(shape, chunks)
-    )
+    return tuple(size if chunk == -1 else chunk for size, chunk in zip(shape, chunks))
 
 
 def _get_schema(shape=(3, 15, 6, 79, 48, 48)):
-    variables = ["air_temperature" , "specific_humidity", "pressure_thickness_of_atmospheric_layer"]
-    dims_scalar = ['step', 'lead_time', 'tile', 'z', 'y', 'x']
+    variables = [
+        "air_temperature",
+        "specific_humidity",
+        "pressure_thickness_of_atmospheric_layer",
+    ]
+    dims_scalar = ["step", "lead_time", "tile", "z", "y", "x"]
     chunks_scalar = _compute_chunks(shape, [-1, 1, -1, -1, -1, -1])
     DTYPE = np.float32
-    scalar_schema = {"dims": dims_scalar, "chunks": chunks_scalar, "dtype": DTYPE, "shape": shape}
+    scalar_schema = {
+        "dims": dims_scalar,
+        "chunks": chunks_scalar,
+        "dtype": DTYPE,
+        "shape": shape,
+    }
     return {key: scalar_schema for key in variables}
 
 
 def _init_group_with_schema(group, schemas, timesteps):
     for name, schema in schemas.items():
-        shape = (len(timesteps),) + schema['shape']
-        chunks = (1,) + schema['chunks']
-        array = group.empty(name, shape=shape, chunks=chunks, dtype=schema['dtype'])
-        array.attrs.update({
-            '_ARRAY_DIMENSIONS': ['initial_time'] + schema['dims']
-        })
+        shape = (len(timesteps),) + schema["shape"]
+        chunks = (1,) + schema["chunks"]
+        array = group.empty(name, shape=shape, chunks=chunks, dtype=schema["dtype"])
+        array.attrs.update({"_ARRAY_DIMENSIONS": ["initial_time"] + schema["dims"]})
 
 
 def create_zarr_store(timesteps, output_url):
     schemas = _get_schema()
     mapper = fsspec.get_mapper(output_url)
-    group = zarr.open_group(mapper, mode='w')
+    group = zarr.open_group(mapper, mode="w")
     _init_group_with_schema(group, schemas, timesteps)
-    
+
 
 def timesteps_to_process(
     input_url: str,
@@ -321,28 +325,26 @@ def submit_jobs(
         curr_input_url = os.path.join(input_url, timestep)
         curr_config_url = os.path.join(config_url, timestep)
 
-        one_step_config['fv3config']['one_step'] = {'index': index, 'url': zarr_url}
+        one_step_config["fv3config"]["one_step"] = {"index": index, "url": zarr_url}
 
         model_config = _update_config(
             workflow_name,
             base_config_version,
-            one_step_config['fv3config'],
+            one_step_config["fv3config"],
             curr_input_url,
             curr_config_url,
             timestep,
         )
         return _upload_config_files(
-            model_config, curr_config_url, local_vertical_grid_file)
+            model_config, curr_config_url, local_vertical_grid_file
+        )
 
     # kube kwargs are shared by all jobs
-    kube_kwargs = get_run_kubernetes_kwargs(one_step_config['kubernetes'], config_url)
+    kube_kwargs = get_run_kubernetes_kwargs(one_step_config["kubernetes"], config_url)
 
     for k, timestep in enumerate(timestep_list):
         logger.info(f"Submitting job for timestep {timestep}")
         model_config_url = config_factory(k)
         fv3config.run_kubernetes(
-            model_config_url,
-            "/tmp/null",
-            job_labels=job_labels,
-            **kube_kwargs
+            model_config_url, "/tmp/null", job_labels=job_labels, **kube_kwargs
         )

@@ -8,8 +8,10 @@ ds = xr.open_zarr(m)
 
 print("output structure:")
 print()
-for root, dirname, filename in fsspec.filesystem('gs').walk("gs://vcm-ml-data/testing-noah/one-step"):
-    if not 'big.zarr' in root:
+for root, dirname, filename in fsspec.filesystem("gs").walk(
+    "gs://vcm-ml-data/testing-noah/one-step"
+):
+    if not "big.zarr" in root:
         for name in filename:
             print(f"{root}/{name}")
         for name in dirname:
@@ -20,5 +22,3 @@ print("big.zarr info:")
 print()
 print(ds.info())
 print(ds.air_temperature.std().compute())
-
-
