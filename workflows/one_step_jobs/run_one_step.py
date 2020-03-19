@@ -11,6 +11,7 @@ import xarray as xr
 import numpy as np
 import zarr
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 OUTDIR = "/tmp/blah"
@@ -91,6 +92,7 @@ def post_process(outdir, store_url, index):
         group[variable][index] = np.asarray(ds[variable].transpose(*dims))
 
 
+
 if __name__ == "__main__":
     input_url, output_url, timestep, index = sys.argv[1:]
 
@@ -98,5 +100,11 @@ if __name__ == "__main__":
         base_config = yaml.safe_load(f)
 
     config = _assoc_initial_conditions(base_config, input_url, timestep)
+
+    logger.info("Dumping yaml to remote")
+    with fsspec.open(os.path.join(output_url, "fv3config", f"{timestep}.yml")) as f:
+        yaml.safe_dump(config, f)
+
+    logger.info("Running FV3")
     fv3config.run_native(config, outdir=OUTDIR, runfile=RUNFILE)
     post_process(OUTDIR, store_url=f"{output_url}/big.zarr", index=int(index))
