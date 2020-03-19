@@ -24,7 +24,6 @@ HOURS_IN_DAY = 24
 NUDGE_INTERVAL = 6  # hours
 NUDGE_FILENAME_PATTERN = "%Y%m%d_%HZ_T85LR.nc"
 NUDGE_BUCKET = "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data"
-FV3CONFIG_DEFAULTS_URL = "gs://vcm-fv3config/config/yaml/default"
 
 
 def get_kubernetes_config(config_update):
