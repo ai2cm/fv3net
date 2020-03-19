@@ -58,6 +58,7 @@ def init_coord(group, coord):
 def create_zarr_store(timesteps, group, template):
     logger.info("Creating group")
     ds = template
+    group.attrs.update(ds.attrs)
     for name in ds:
         init_data_var(group, ds[name])
 
