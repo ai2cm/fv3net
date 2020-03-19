@@ -8,5 +8,6 @@ COPY fv3net-0.1.0-py3-none-any.whl /wheels/fv3net-0.1.0-py3-none-any.whl
 COPY vcm-0.1.0-py3-none-any.whl /wheels/vcm-0.1.0-py3-none-any.whl
 COPY external/fv3config /opt/fv3config
 RUN pip3 install --no-deps /wheels/fv3net-0.1.0-py3-none-any.whl  && pip3 install /wheels/vcm-0.1.0-py3-none-any.whl /opt/fv3config
+RUN pip3 install apache_beam kubernetes
 
 COPY workflows /workflows

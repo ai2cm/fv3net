@@ -14,7 +14,7 @@ import zarr
 logger = logging.getLogger(__name__)
 
 OUTDIR = "/tmp/blah"
-RUNFILE = os.path.join(os.environ['FV3NET'], "/workflows/one_step_jobs/runfile.py")
+RUNFILE = "/workflows/one_step_jobs/runfile.py"
 
 
 def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
@@ -23,7 +23,7 @@ def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
     """
     initial_condition_assets = utils.update_tiled_asset_names(
         source_url=input_url,
-        source_filename="{timestep}.{category}.tile{tile}.nc",
+        source_filename="{timestep}/{timestep}.{category}.tile{tile}.nc",
         target_url="INPUT",
         target_filename="{category}.tile{tile}.nc",
         timestep=timestep,
@@ -92,7 +92,7 @@ def post_process(outdir, store_url, index):
 
 
 if __name__ == "__main__":
-    input_url, timestep, index, output_url = sys.argv[1:]
+    input_url, output_url, timestep, index = sys.argv[1:]
 
     with fsspec.open(os.path.join(output_url, "fv3config.yml")) as f:
         base_config = yaml.safe_load(f)

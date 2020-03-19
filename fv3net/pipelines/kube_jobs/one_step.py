@@ -260,7 +260,8 @@ def submit_jobs(
     with fsspec.open(config_template_url, "w") as f:
         yaml.dump(config, f)
 
-    kube_config = one_step_config['kubernetes']
+    kube_config = KUBERNETES_CONFIG_DEFAULT
+    kube_config.update(one_step_config['kubernetes'])
     image = kube_config.pop('docker_image')
     kube_config.pop('runfile')
 
