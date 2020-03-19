@@ -107,7 +107,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         dataset_labels=["prediction", "target C48"],
         grid=grid,
     )
-    figs = map_plot_ml_frac_of_total(ds, grid)
+    figs = map_plot_ml_frac_of_total(ds)
     fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac = figs
     fig_pe_ml.savefig(os.path.join(output_dir, "dQ2_vertical_integral_map.png"))
     fig_pe_ml_frac.savefig(os.path.join(output_dir, "dQ2_frac_of_PE.png"))
@@ -505,6 +505,8 @@ def map_plot_ml_frac_of_total(ds):
     fig_pe_ml_frac = plot_cube(
         mappable_var(ds, "net_precipitation_ml_frac_of_total").mean(INIT_TIME_DIM),
         col="dataset",
+        vmin=-1,
+        vmax=1,
     )[0]
     fig_pe_ml_frac.suptitle("P-E: ML prediction as fraction of total")
 
@@ -515,6 +517,8 @@ def map_plot_ml_frac_of_total(ds):
     fig_heating_ml_frac = plot_cube(
         mappable_var(ds, "net_heating_ml_frac_of_total").mean(INIT_TIME_DIM),
         col="dataset",
+        vmin=-1,
+        vmax=1,
     )[0]
     fig_heating_ml_frac.suptitle("heating: ML prediction as fraction of total")
 
