@@ -23,13 +23,12 @@ def get_experiment_steps_and_args(config_file: str):
 
     # Resolve inputs, outputs, and other config parameters
     workflow_steps = config["experiment"]["steps_to_run"]
-#     all_steps_config = config["experiment"]["steps_config"]
-#     try:
-#         current_steps_config = {step: all_steps_config[step] for step in workflow_steps}
-#     except:
-    if any([step not in config["experiment"]["steps_config"] for step in workflow_steps]):
-        raise KeyError("'steps_to_run' list contains a step not defined in 'steps_config'.")
-#     config["experiment"]["steps_config"] = current_steps_config
+    if any(
+        [step not in config["experiment"]["steps_config"] for step in workflow_steps]
+    ):
+        raise KeyError(
+            "'steps_to_run' list contains a step not defined in 'steps_config'."
+        )
     _apply_config_transforms(config)
     all_step_arguments = _get_all_step_arguments(config)
     experiment_steps_and_args = {
@@ -92,16 +91,16 @@ def _resolve_input_from(config: Mapping):
         for arg, val in args_config.items():
             if isinstance(val, Mapping):
                 _resolve_input_mapping(val, steps_config, arg)
-                
+
 
 def _resolve_input_mapping(input_mapping: Mapping, steps_config: Mapping, arg: str):
-                
+
     location = input_mapping.get("location", None)
     from_key = input_mapping.get("from", None)
 
     if location is not None and from_key is not None:
         raise ValueError(
-            f"Ambiguous input location for {step_name}-{arg}."
+            f"Ambiguous input location for {arg}."
             f" Both 'from' and 'location' were specified"
         )
     if location is not None:
@@ -122,7 +121,7 @@ def _resolve_input_mapping(input_mapping: Mapping, steps_config: Mapping, arg: s
             f"{arg} is provided as a key-value pair,"
             f" but only 'location' or 'from' may be specified."
         )
-        
+
 
 def _get_experiment_path(config: Mapping):
     """Get root directory path for experiment output."""
@@ -194,7 +193,9 @@ def _generate_output_path_from_config(
     output_str = step_name
     arg_config = step_config.get("args", None)
     arg_strs = []
-    non_map_args = {key: val for key, val in arg_config.items() if not isinstance(val, Mapping)} 
+    non_map_args = {
+        key: val for key, val in arg_config.items() if not isinstance(val, Mapping)
+    }
     for n_stubs, (key, val) in enumerate(non_map_args.items(), 1):
         if n_stubs > max_config_stubs:
             break
