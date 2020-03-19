@@ -44,8 +44,9 @@ jobs:
           name: "Move cached conda deps into pkgs"
           command: |
             if [ -d /tmp/conda_pkgs ]; then
+              ls -lr /tmp/conda_pkgs/
               cp /tmp/conda_pkgs/cache/* /opt/conda/pkgs/cache/.
-              rm -rf /tmp/conda_pkgs/cache
+              rm -r /tmp/conda_pkgs/cache/
               mv /tmp/conda_pkgs/* /opt/conda/pkgs
             fi
 
