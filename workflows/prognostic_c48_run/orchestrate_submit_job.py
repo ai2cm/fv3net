@@ -109,7 +109,6 @@ if __name__ == "__main__":
     model_config = _update_with_prognostic_model_config(
         model_config, args.prog_config_yml
     )
-    print(model_config)
 
     kube_opts = KUBERNETES_DEFAULT.copy()
     if "kubernetes" in model_config:
