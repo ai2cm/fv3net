@@ -53,19 +53,23 @@ jobs:
       - run: 
           name: "Move large conda packages to temp cache"
           command: |
-            if [ ! -d /tmp/conda_pkgs/ ]; then mkdir -p /tmp/conda_pkgs/; fi
-            mv /opt/conda/pkgs/mkl-* /tmp/conda_pkgs/
-            mv /opt/conda/pkgs/python-3* /tmp/conda_pkgs/
-            mv /opt/conda/pkgs/qt-* /tmp/conda_pkgs/
+            if [ ! -d /tmp/conda_pkgs/ ]; then 
+              mkdir -p /tmp/conda_pkgs/python/
+              mkdir -p /tmp/conda_pkgs/mkl/
+              mkdir -p /tmp/conda_pkgs/qt/
+            fi
+            mv /opt/conda/pkgs/mkl-* /tmp/conda_pkgs/mkl/
+            mv /opt/conda/pkgs/python-3* /tmp/conda_pkgs/python/
+            mv /opt/conda/pkgs/qt-* /tmp/conda_pkgs/qt/
             mv /opt/conda/pkgs/cache /tmp/conda_pkgs/
       - save_cache:
           key: v2-python-dep-{{ checksum "environment.yml" }}
           paths:
-            - /tmp/conda_pkgs/python-*
+            - /tmp/conda_pkgs/python
       - save_cache:
           key: v2-mkl-dep-{{ checksum "environment.yml" }}
           paths:
-            - /tmp/conda_pkgs/mkl-*
+            - /tmp/conda_pkgs/mkl
       - save_cache:
           key: v2-conda-cache-dep-{{ checksum "environment.yml" }}
           paths:
@@ -73,7 +77,7 @@ jobs:
       - save_cache:
           key: v2-qt-dep-{{ checksum "environment.yml" }}
           paths:
-            - /tmp/conda_pkgs/qt-*
+            - /tmp/conda_pkgs/qt
       - save_cache:
           key: v2-pip-dep-{{ checksum "environment.yml" }}
           paths:
