@@ -8,12 +8,11 @@ import logging
 
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__file__)
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 TIME = "time"
 
-VARIABLES = [
+VARIABLES = ( 
     "x_wind",
     "y_wind",
     "air_temperature",
@@ -63,9 +62,10 @@ VARIABLES = [
     "soil_temperature",
     "total_soil_moisture",
     "liquid_soil_moisture"
-]
+ )
 
 VARIABLES = VARIABLES + [TIME]
+
 
 def init_data_var(group, array, nt):
     logger.info(f"Initializing coordinate: {array.name}")
@@ -99,10 +99,10 @@ def create_zarr_store(timesteps, group, template):
     dim.attrs['_ARRAY_DIMENSIONS'] = ['initial_time']
 
 
-def post_process(out_dir, url, index, init=False, timesteps=()):
-
+def post_process(out_dir, url, index, init=False, timesteps=(), variables=VARIABLES):
     store_url = url
     logger.info("Post processing model outputs")
+    logger.info(f"Variables to process: {variables}")
     begin = xr.open_zarr(f"{out_dir}/begin_physics.zarr")
     before = xr.open_zarr(f"{out_dir}/before_physics.zarr")
     after = xr.open_zarr(f"{out_dir}/after_physics.zarr")
@@ -119,13 +119,14 @@ def post_process(out_dir, url, index, init=False, timesteps=()):
     ds = xr.concat([begin, before, after], dim="step").assign_coords(
         step=["begin", "after_dynamics", "after_physics"], time=time
     )
+    ds = ds[variables]
     ds = ds.rename({"time": "forecast_time"}).chunk({"forecast_time": 1, "tile": 6})
 
     mapper = fsspec.get_mapper(store_url)
     group = zarr.open_group(mapper, mode="a")
 
     if init:
-        group = zarr.open_group(mapper, mode="w")
+        group = zarr.open_group(mapper, mode="a")
         create_zarr_store(timesteps, group, ds)
 
     for variable in ds:
@@ -140,8 +141,9 @@ if __name__ == "__main__":
 
     RUN_DIR = os.path.dirname(os.path.realpath(__file__))
 
-
     rank = MPI.COMM_WORLD.Get_rank()
+    size = MPI.COMM_WORLD.Get_size()
+    logger = logging.getLogger(__file__ + f"({rank}/{size})")
     current_dir = os.getcwd()
     config = runtime.get_config()
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
@@ -184,6 +186,7 @@ if __name__ == "__main__":
         state = fv3gfs.get_state(names=VARIABLES)
         after_monitor.store(state)
 
-    if rank == 0:
-        post_process(RUN_DIR, **config["one_step"])
+    MPI.COMM_WORLD.barrier()
+    # parallelize across variables
+    post_process(RUN_DIR, variables=VARIABLES[rank::size], **config["one_step"])
     fv3gfs.cleanup()
