@@ -1,10 +1,5 @@
 import os
 from fv3net import runtime
-import fsspec
-import zarr
-import yaml
-import xarray as xr
-import numpy as np
 import logging
 
 
@@ -12,34 +7,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__file__)
 
 
-def post_process():
-    logger.info("Post processing model outputs")
-    begin = xr.open_zarr("begin_physics.zarr")
-    before = xr.open_zarr("before_physics.zarr")
-    after = xr.open_zarr("after_physics.zarr")
-
-    # make the time dims consistent
-    time = begin.time
-    before = before.drop('time')
-    after = after.drop('time')
-    begin = begin.drop('time')
-
-    # concat data
-    dt = np.timedelta64(15, 'm')
-    time = np.arange(len(time)) * dt
-    ds = xr.concat([begin, before, after], dim='step').assign_coords(step=['begin', 'after_dynamics', 'after_physics'], time=time)
-    ds = ds.rename({'time': 'lead_time'})
-
-    # put in storage
-    # this object must be initialized
-    index = config['one_step']['index']
-    store_url = config['one_step']['url']
-    mapper = fsspec.get_mapper(store_url)
-    group = zarr.open_group(mapper, mode='a')
-    for variable in group:
-        logger.info(f"Writing {variable} to {group}")
-        dims = group[variable].attrs['_ARRAY_DIMENSIONS'][1:]
-        group[variable][index] = np.asarray(ds[variable].transpose(*dims))
 
 if __name__ == "__main__":
     import fv3gfs
@@ -91,7 +58,4 @@ for i in range(fv3gfs.get_step_count()):
     fv3gfs.step_physics()
     state = fv3gfs.get_state(names=VARIABLES)
     after_monitor.store(state)
-
-if rank == 0:
-    post_process()
 fv3gfs.cleanup()

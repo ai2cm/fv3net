@@ -10,6 +10,7 @@ from copy import deepcopy
 from multiprocessing import Pool
 from typing import List, Tuple
 
+
 import fv3config
 from . import utils
 from ..common import list_timesteps, subsample_timesteps_at_interval
@@ -17,6 +18,7 @@ from vcm.cloud.fsspec import get_fs
 
 STDOUT_FILENAME = "stdout.log"
 VERTICAL_GRID_FILENAME = "fv_core.res.nc"
+DIAG_TABLE_NAME = "diag_table"
 
 SECONDS_IN_MINUTE = 60
 SECONDS_IN_HOUR = SECONDS_IN_MINUTE * 60
@@ -92,17 +94,6 @@ def timesteps_to_process(
     logger.info(f"Number of completed times: {min(len(done), len(to_do))}")
     logger.info(f"Number of times to process: {len(timestep_list)}")
     return timestep_list
-
-
-def _current_date_from_timestep(timestep: str) -> List[int]:
-    """Return timestep in the format required by fv3gfs namelist"""
-    year = int(timestep[:4])
-    month = int(timestep[4:6])
-    day = int(timestep[6:8])
-    hour = int(timestep[9:11])
-    minute = int(timestep[11:13])
-    second = int(timestep[13:15])
-    return [year, month, day, hour, minute, second]
 
 
 def _delete_logs_of_done_timesteps(output_url: str, timesteps: List[str]):
@@ -196,19 +187,7 @@ def _check_header_categories(
 # Configuration Handling
 
 
-def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
-    """
-    Get list of assets representing initial conditions for this timestep to pipeline.
-    """
-    initial_condition_assets = utils.update_tiled_asset_names(
-        source_url=input_url,
-        source_filename="{timestep}.{category}.tile{tile}.nc",
-        target_url="INPUT",
-        target_filename="{category}.tile{tile}.nc",
-        timestep=timestep,
-    )
 
-    return initial_condition_assets
 
 
 def _get_vertical_grid_asset(config_url: str) -> dict:
@@ -229,13 +208,9 @@ def _get_experiment_name(first_tag: str, second_tag: str) -> str:
 
 
 def _update_config(
-    workflow_name: str,
     base_config_version: str,
     user_model_config: dict,
-    user_kubernetes_config: dict,
-    input_url: str,
-    config_url: str,
-    timestep: str,
+    output_url
 ) -> Tuple[dict]:
     """
     Update kubernetes and fv3 configurations with user inputs
@@ -243,132 +218,59 @@ def _update_config(
     """
     base_model_config = utils.get_base_fv3config(base_config_version)
     model_config = utils.update_nested_dict(base_model_config, user_model_config)
-    kubernetes_config = utils.update_nested_dict(
-        deepcopy(KUBERNETES_CONFIG_DEFAULT), user_kubernetes_config
-    )
-
     model_config = fv3config.enable_restart(model_config)
-    model_config["experiment_name"] = _get_experiment_name(workflow_name, timestep)
-    model_config["initial_conditions"] = _get_initial_condition_assets(
-        input_url, timestep
-    )
-    model_config["initial_conditions"].append(_get_vertical_grid_asset(config_url))
-    model_config["namelist"]["coupler_nml"].update(
-        {
-            "current_date": _current_date_from_timestep(timestep),
-            "force_date_from_namelist": True,
-        }
-    )
 
-    return model_config, kubernetes_config
+    model_config["initial_conditions"] = [_get_vertical_grid_asset(output_url)]
+    model_config['diag_table'] = os.path.join(output_url, DIAG_TABLE_NAME)
 
-
-def _upload_config_files(
-    model_config: dict,
-    kubernetes_config: dict,
-    config_url: str,
-    local_vertical_grid_file=None,
-    upload_config_filename="fv3config.yml",
-) -> Tuple[dict]:
-    """
-    Upload any files to remote paths necessary for fv3config and the
-    fv3gfs one-step runs.
-    """
-
-    if "runfile" in kubernetes_config:
-        runfile_path = kubernetes_config["runfile"]
-        kubernetes_config["runfile"] = utils.transfer_local_to_remote(
-            runfile_path, config_url
-        )
-
-    model_config["diag_table"] = utils.transfer_local_to_remote(
-        model_config["diag_table"], config_url
-    )
-
-    if local_vertical_grid_file is not None:
-        fs = get_fs(config_url)
-        vfile_path = os.path.join(config_url, VERTICAL_GRID_FILENAME)
-        fs.put(local_vertical_grid_file, vfile_path)
-
-    config_path = os.path.join(config_url, upload_config_filename)
-    with fsspec.open(config_path, "w") as config_file:
-        config_file.write(yaml.dump(model_config))
-
-    return model_config, kubernetes_config
-
-
-def prepare_and_upload_config(
-    workflow_name: str,
-    input_url: str,
-    config_url: str,
-    timestep: str,
-    one_step_config: dict,
-    base_config_version: str,
-    **kwargs,
-) -> Tuple[dict]:
-    """Update model and kubernetes configurations for this particular
-    timestep and upload necessary files to GCS"""
-
-    user_model_config = one_step_config["fv3config"]
-    user_kubernetes_config = one_step_config["kubernetes"]
-
-    model_config, kube_config = _update_config(
-        workflow_name,
-        base_config_version,
-        user_model_config,
-        user_kubernetes_config,
-        input_url,
-        config_url,
-        timestep,
-    )
-    model_config, kube_config = _upload_config_files(
-        model_config, kube_config, config_url, **kwargs
-    )
-
-    return model_config, kube_config
+    return model_config
 
 
 def submit_jobs(
+    image,
+    diag_table,
+    vertical_grid,
     timestep_list: List[str],
     workflow_name: str,
     one_step_config: dict,
     input_url: str,
     output_url: str,
     config_url: str,
-    base_config_version: str,
+    base_config_version,
     job_labels=None,
-    local_vertical_grid_file=None,
 ) -> None:
     """Submit one-step job for all timesteps in timestep_list"""
 
+    # setup URLS
     zarr_url = os.path.join(output_url, "big.zarr")
+    diag_url = os.path.join(output_url, DIAG_TABLE_NAME)
+    grid_url = os.path.join(output_url, VERTICAL_GRID_FILENAME)
+    config_template_url = os.path.join(output_url, "fv3config.yml")
+
+    # make the template
+    config = _update_config(
+        base_config_version, one_step_config['fv3config'], output_url)
+
+    # intialize output directory
     create_zarr_store(timestep_list, zarr_url)
+    fs = get_fs(output_url)
+    fs.put(diag_table, diag_url)
+    fs.put(vertical_grid, grid_url)
+
+    with fsspec.open(config_template_url, "w") as f:
+        yaml.dump(config, f)
+
+    kube_config = one_step_config['kubernetes']
+    image = kube_config.pop('docker_image')
+    kube_config.pop('runfile')
 
     for k, timestep in enumerate(timestep_list):
-
-        curr_input_url = os.path.join(input_url, timestep)
-
-        # do not upload to rundirectory to cloud
-        curr_output_url = os.path.join("/tmp", timestep)
-        curr_config_url = os.path.join(config_url, timestep)
-
-        one_step_config['fv3config']['one_step'] = {'index': k, 'url': zarr_url}
-        print(curr_output_url, curr_config_url)
-
-        model_config, kube_config = prepare_and_upload_config(
-            workflow_name,
-            curr_input_url,
-            curr_config_url,
-            timestep,
-            one_step_config,
-            base_config_version,
-            local_vertical_grid_file=local_vertical_grid_file,
+        command = ["python", "run_one_step.py", input_url, output_url, timestep, k]
+        kube_obj = fv3config.KubernetesConfig(
+            image=image,
+            command=command,
+            working_dir="/home/jovyan/fv3net/workflows/one_step_jobs",
+            **kube_config
         )
-
-        fv3config.run_kubernetes(
-            os.path.join(curr_config_url, "fv3config.yml"),
-            curr_output_url,
-            job_labels=job_labels,
-            **kube_config,
-        )
+        kube_obj.submit(namespace="default")
         logger.info(f"Submitted job for timestep {timestep}")

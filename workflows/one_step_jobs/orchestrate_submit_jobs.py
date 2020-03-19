@@ -98,10 +98,14 @@ if __name__ == "__main__":
         subsample_frequency=args.init_frequency,
     )
 
-    one_step_config["kubernetes"]["docker_image"] = args.docker_image
-
     local_vgrid_file = os.path.join(PWD, one_step.VERTICAL_GRID_FILENAME)
+
+    diag_table = "workflows/one_step_jobs/diag_table_one_step"
+
     one_step.submit_jobs(
+        args.docker_image,
+        diag_table,
+        local_vgrid_file,
         timestep_list,
         workflow_name,
         one_step_config,
@@ -110,7 +114,6 @@ if __name__ == "__main__":
         config_url,
         args.config_version,
         job_labels=job_label,
-        local_vertical_grid_file=local_vgrid_file,
     )
 
     successful, _ = kube_jobs.wait_for_complete(job_label)
