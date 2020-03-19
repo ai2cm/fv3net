@@ -38,9 +38,9 @@ def post_process(out_dir, store_url, index):
     for variable in ds:
         logger.info(f"Writing {variable} to {group}")
         dims = group[variable].attrs["_ARRAY_DIMENSIONS"][1:]
-        group[variable].attrs.update(ds[variable].attrs)
         group[variable][index] = np.asarray(ds[variable].transpose(*dims))
 
+    # TODO maybe move this code to coordinating file
     for coord in ds.coords:
         if coord not in group:
             logger.info(f"writing {coord} to group")
