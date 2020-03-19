@@ -42,7 +42,9 @@ jobs:
             - v1-pip-dep-
       - run: 
           name: "Move cached conda deps into pkgs"
-          command: mv /tmp_conda/* /opt/conda/pkgs
+          command: |
+            mkdir -p /tmp_conda
+            mv /tmp_conda/* /opt/conda/pkgs
 
       - run: make install_deps
 
@@ -50,7 +52,6 @@ jobs:
       - run: 
           name: "Move large conda packages to temp cache"
           command: |
-            mkdir -p /tmp_conda
             mv /opt/conda/pkgs/mkl-* /tmp_conda/
             mv /opt/conda/pkgs/python-3* /tmp_conda/
             mv /opt/conda/pkgs/qt-* /tmp_conda/
