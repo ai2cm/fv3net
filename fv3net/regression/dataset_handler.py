@@ -37,18 +37,18 @@ class BatchGenerator:
             to train each batch
         """
         self.fs = gcsfs.GCSFileSystem(project=self.gcs_project)
-        print(f"Reading data from {self.gcs_data_dir}.")
+        logger.info(f"Reading data from {self.gcs_data_dir}.")
         zarr_urls = [
             zarr_file
             for zarr_file in self.fs.ls(self.gcs_data_dir)
             if "grid_spec" not in zarr_file
         ]
         total_num_input_files = len(zarr_urls)
-        print(f"Number of .zarrs read from GCS: {total_num_input_files}.")
+        logger.info(f"Number of .zarrs in GCS train data dir: {total_num_input_files}.")
         np.random.seed(self.random_seed)
         np.random.shuffle(zarr_urls)
-        num_batches = self._validated_num_batches(total_num_input_files)
-        print(f"{num_batches} data batches generated for model training.")
+        self.num_batches = self._validated_num_batches(total_num_input_files)
+        logger.info(f"{num_batches} data batches generated for model training.")
         self.train_file_batches = [
             zarr_urls[
                 batch_num
@@ -100,7 +100,7 @@ class BatchGenerator:
                 logger.error(f"Error reading data from {timestep_paths}. {e}")
                 raise e
 
-    def _validated_num_batches(self, total_num_input_files):
+    def validated_num_batches(self, total_num_input_files):
         """ check that the number of batches (if provided) and the number of
         files per batch are reasonable given the number of zarrs in the input data dir.
         If their product is greater than the number of input files, number of batches
@@ -114,10 +114,7 @@ class BatchGenerator:
         elif self.num_batches * self.files_per_batch > total_num_input_files:
             if self.num_batches > total_num_input_files:
                 raise ValueError("Fewer input files than number of requested batches.")
-            num_train_batches = self.num_batches - ceil(
-                (self.num_batches * self.files_per_batch - total_num_input_files)
-                / self.num_batches
-            )
+            num_train_batches = total_num_input_files // self.files_per_batch
         else:
             num_train_batches = self.num_batches
         return num_train_batches

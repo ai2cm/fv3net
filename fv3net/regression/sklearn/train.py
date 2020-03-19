@@ -40,6 +40,17 @@ class ModelTrainingConfig:
     random_seed: int = 1234
     mask_to_surface_type: str = "none"
 
+    def validate_number_train_batches(batch_generator):
+        """ Since number of training files specified may be larger than
+        the actual number available, this adds an attribute num_batches_used
+        that keeps information about the actual number of training batches
+        used.
+        
+        Args:
+            batch_generator (BatchGenerator)
+        """
+        self.num_batches_used = batch_generator.num_batches
+
 
 def load_model_training_config(config_path, gcs_data_dir):
     """
@@ -72,6 +83,7 @@ def load_data_generator(train_config):
     data_vars = train_config.input_variables + train_config.output_variables
     ds_batches = BatchGenerator(
         data_vars,
+        train_config,
         train_config.gcs_data_dir,
         train_config.files_per_batch,
         train_config.num_batches,
@@ -122,8 +134,9 @@ def train_model(batched_data, train_config):
     target_transformer = StandardScaler()
     transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
     batch_regressor = RegressorEnsemble(transform_regressor)
-
     model_wrapper = SklearnWrapper(batch_regressor)
+
+    train_config.validate_number_train_batches(batched_data)
 
     for i, batch in enumerate(batched_data.generate_batches()):
         print(f"Fitting batch {i}/{batched_data.num_batches}")
@@ -134,9 +147,12 @@ def train_model(batched_data, train_config):
                 sample_dim="sample",
                 data=batch,
             )
+            logger.info(f"Batch {i} done fitting.")
         except ValueError as e:
             logger.error(f"Error training on batch {i}: {e}")
-        print(f"Batch {i} done fitting.")
+            train_config.num_batches_used -= 1
+            continue
+
     return model_wrapper
 
 
