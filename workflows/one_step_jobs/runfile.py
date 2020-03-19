@@ -2,7 +2,6 @@ import os
 from fv3net import runtime
 import fsspec
 import zarr
-import yaml
 import xarray as xr
 import numpy as np
 import logging

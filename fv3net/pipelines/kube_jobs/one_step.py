@@ -8,7 +8,7 @@ import yaml
 import re
 from copy import deepcopy
 from multiprocessing import Pool
-from typing import List, Tuple, Dict
+from typing import List, Dict
 
 import fv3config
 from . import utils

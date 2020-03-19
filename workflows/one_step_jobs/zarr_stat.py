@@ -1,6 +1,5 @@
 import fsspec
 import xarray as xr
-import zarr
 
 url = "gs://vcm-ml-data/testing-noah/one-step/big.zarr/"
 m = fsspec.get_mapper(url)
@@ -11,7 +10,7 @@ print()
 for root, dirname, filename in fsspec.filesystem("gs").walk(
     "gs://vcm-ml-data/testing-noah/one-step"
 ):
-    if not "big.zarr" in root:
+    if "big.zarr" not in root:
         for name in filename:
             print(f"{root}/{name}")
         for name in dirname:
