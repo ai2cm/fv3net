@@ -1,0 +1,63 @@
+kubernetes:
+  docker_image: us.gcr.io/vcm-ml/fv3gfs-python:use-analysis-sst
+  memory_gb: 14
+  cpu_count: 24
+fv3config:
+  diag_table: diag_table_long_nudged
+  experiment_name: nudge-T-2015
+  initial_conditions: gs://vcm-ml-data/2020-02-10-C48-20150101.00Z_IC
+  namelist:
+    atmos_model_nml:
+      fhout: 1.0
+      fhmax: 10000
+    coupler_nml:
+      current_date:
+        - 2015
+        - 1
+        - 1
+        - 0
+        - 0
+        - 0
+      days: 365
+      minutes: 0
+      seconds: 0
+      dt_atmos: 900  # seconds
+      dt_ocean: 900  # seconds
+    fv_core_nml:
+      nudge: true
+      layout:
+        - 2
+        - 2
+    gfs_physics_nml:
+      fhzero: 1.0
+      use_analysis_sst: true
+    fv_nwp_nudge_nml:
+      add_bg_wind: false
+      do_ps_bias: false
+      ibtrack: true
+      input_fname_list: nudging_file_list
+      k_breed: 10
+      kbot_winds: 0
+      mask_fac: 0.2
+      nf_ps: 3
+      nf_t: 3
+      nudge_debug: true
+      nudge_hght: false
+      nudge_ps: true
+      nudge_virt: true
+      nudge_winds: false
+      r_hi: 5.0
+      r_lo: 3.0
+      r_min: 225000.0
+      t_is_tv: false
+      tau_hght: 86400.0
+      tau_ps: 86400.0
+      tau_virt: 86400.0
+      tau_vt_rad: 1.0
+      tau_vt_slp: 86400.0
+      tau_vt_wind: 86400.0
+      tau_winds: 86400.0
+      tc_mask: true
+      time_varying: false
+      track_file_name: No_File_specified
+      use_high_top: true
