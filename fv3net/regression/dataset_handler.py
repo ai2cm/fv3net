@@ -2,12 +2,11 @@ import backoff
 import logging
 from dataclasses import dataclass
 from typing import List
-
-import gcsfs
 from math import ceil
 import numpy as np
 import xarray as xr
 import vcm
+from vcm.cloud.fsspec import get_fs
 from vcm.cubedsphere.constants import COORD_Z_CENTER, INIT_TIME_DIM
 
 SAMPLE_DIM = "sample"
@@ -25,7 +24,6 @@ class BatchGenerator:
     gcs_data_dir: str
     files_per_batch: int
     num_batches: int = None
-    gcs_project: str = "vcm-ml"
     random_seed: int = 1234
     mask_to_surface_type: str = "none"
 
@@ -36,7 +34,7 @@ class BatchGenerator:
             nested list of zarr paths, where inner lists are the sets of zarrs used
             to train each batch
         """
-        self.fs = gcsfs.GCSFileSystem(project=self.gcs_project)
+        self.fs = get_fs(self.gcs_data_dir)
         logger.info(f"Reading data from {self.gcs_data_dir}.")
         zarr_urls = [
             zarr_file
@@ -48,14 +46,14 @@ class BatchGenerator:
         np.random.seed(self.random_seed)
         np.random.shuffle(zarr_urls)
         self.num_batches = self._validated_num_batches(total_num_input_files)
-        logger.info(f"{num_batches} data batches generated for model training.")
+        logger.info(f"{self.num_batches} data batches generated for model training.")
         self.train_file_batches = [
             zarr_urls[
                 batch_num
                 * self.files_per_batch : (batch_num + 1)
                 * self.files_per_batch
             ]
-            for batch_num in range(num_batches)
+            for batch_num in range(self.num_batches)
         ]
 
     def generate_batches(self):

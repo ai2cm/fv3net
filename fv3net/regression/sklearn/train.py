@@ -83,7 +83,6 @@ def load_data_generator(train_config):
     data_vars = train_config.input_variables + train_config.output_variables
     ds_batches = BatchGenerator(
         data_vars,
-        train_config,
         train_config.gcs_data_dir,
         train_config.files_per_batch,
         train_config.num_batches,
