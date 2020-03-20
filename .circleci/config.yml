@@ -46,7 +46,7 @@ jobs:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
     steps:
       - checkout
-      - run: apt-get install make
+      - run: sudo apt-get install make
       - run: make build_image_fv3net VERSION=latest
       - run: |
           echo "$ENCODED_GCR_KEY" | base64 --decode | docker login --username _json_key --password-stdin https://gcr.io
@@ -82,10 +82,10 @@ workflows:
       - pytest_default:
           filters:
               tags:
-                only: /^v.*/
+                only: /^v.$/
       - build_default:
           requires:
             - pytest_default
           filters:
               tags:
-                only: /^v.*/
+                only: /^v.$/
