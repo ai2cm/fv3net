@@ -51,7 +51,7 @@ jobs:
     steps:
       - checkout
       - run: sudo apt-get install make
-      # - run: make build_image_fv3net VERSION=latest
+      - run: make build_image_fv3net VERSION=latest
       - gcp-gcr/gcr-auth:
           gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - run: |
@@ -86,13 +86,11 @@ workflows:
       - pytest_default
   build_and_push:
     jobs:
-      # - pytest_default:
-      #     filters:
-      #         tags:
-      #           only: /^v.$/
       - build_default:
-          # requires:
-          #   - pytest_default
           filters:
-              tags:
-                only: /^v.$/
+            tags:
+              only: /^v.$/
+            branches:
+              ignore: /.*/
+            
+              
