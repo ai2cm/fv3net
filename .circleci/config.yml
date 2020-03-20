@@ -37,6 +37,30 @@ jobs:
       - run: | 
           source activate fv3net
           pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+
+  build_default:
+    machine:
+      docker_layer_caching: true
+    environment:
+      GCR_IMAGE: us.gcr.io/vcm-ml/fv3net
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+    steps:
+      - checkout
+      - run: apt-get install make
+      - run: make build_image_fv3net VERSION=latest
+      - run: |
+          echo "$ENCODED_GCR_KEY" | base64 --decode | docker login --username _json_key --password-stdin https://gcr.io
+          if [[ "$CIRCLE_BRANCH" == "master" ]]
+          then
+              echo "pushing untagged image $GCR_IMAGE"
+              docker push $GCR_IMAGE
+          fi
+          if [[ ! -z "$CIRCLE_TAG" ]]
+          then
+              echo "pushing tagged image $GCR_IMAGE:$CIRCLE_TAG"
+              docker tag $GCR_IMAGE $GCR_IMAGE:$CIRCLE_TAG
+              docker push $GCR_IMAGE:$CIRCLE_TAG
+          fi
   
   lint:
     docker:
@@ -53,3 +77,15 @@ workflows:
     jobs:
       - lint
       - pytest_default
+  build_and_push:
+    jobs:
+      - pytest_default:
+          filters:
+              tags:
+                only: /^v.*/
+      - build_default:
+          requires:
+            - pytest_default
+          filters:
+              tags:
+                only: /^v.*/
