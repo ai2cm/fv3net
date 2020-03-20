@@ -1,4 +1,6 @@
 version: 2.1
+orbs:
+  gcp-gcr: circleci/gcp-gcr@0.6.1
 jobs:
   pytest_default:    
     docker:
@@ -48,6 +50,7 @@ jobs:
       - checkout
       - run: sudo apt-get install make
       - run: make build_image_fv3net VERSION=latest
+      - gcp-gcr/gcr-auth
       - run: |
           echo "$ENCODED_GCR_KEY" | base64 --decode | docker login --username _json_key --password-stdin https://gcr.io
           if [[ "$CIRCLE_BRANCH" == "master" ]]
