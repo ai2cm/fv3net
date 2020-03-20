@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List
 import numpy as np
 import xarray as xr
+
 import vcm
 from vcm.cloud.fsspec import get_fs
 from vcm.cubedsphere.constants import COORD_Z_CENTER, INIT_TIME_DIM
@@ -15,6 +16,13 @@ logger.setLevel(logging.INFO)
 fh = logging.FileHandler("dataset_handler.log")
 fh.setLevel(logging.INFO)
 logger.addHandler(fh)
+
+
+class RemoteDataError(Exception):
+    """ Raised for errors reading data from the cloud that
+    may be resolved upon retry.
+    """
+    pass
 
 
 @dataclass
@@ -84,6 +92,7 @@ class BatchGenerator:
             ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type)
             ds_stacked = stack_and_drop_nan_samples(ds).unify_chunks()
             ds_shuffled = _shuffled(ds_stacked, SAMPLE_DIM, self.random_seed)
+            logger.info(f"Successful batch read: {time.time()-t0} sec.")
             return ds_shuffled
         except ValueError as e:
             # error when attempting to read from GCS that sometimes resolves on retry
@@ -91,7 +100,7 @@ class BatchGenerator:
                 logger.error(
                     f"Error reading data from {timestep_paths}, will retry. {e}"
                 )
-                raise RuntimeError(str(e))
+                raise RemoteDataError(f"Failed to read data from remote location: {str(e)}")
             # other errors that will not recover on retry
             else:
                 logger.error(f"Error reading data from {timestep_paths}. {e}")
