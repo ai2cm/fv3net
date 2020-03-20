@@ -5,6 +5,10 @@ import zarr
 import xarray as xr
 import numpy as np
 import logging
+import dask
+
+# avoid out of memory errors
+dask.config.set(scheduler='single-threaded')
 
 
 logging.basicConfig(level=logging.INFO)
@@ -120,7 +124,7 @@ def post_process(out_dir, url, index, init=False, timesteps=(), comm=None):
     ds = xr.concat([begin, before, after], dim="step").assign_coords(
         step=["begin", "after_dynamics", "after_physics"], time=time
     )
-    ds = ds.rename({"time": "forecast_time"}).chunk({"forecast_time": 1, "tile": 6})
+    ds = ds.rename({"time": "forecast_time"}).chunk({"forecast_time": 1, "tile": 6, "step": 3})
 
     if comm is not None:
         rank = comm.Get_rank()
@@ -130,7 +134,7 @@ def post_process(out_dir, url, index, init=False, timesteps=(), comm=None):
     mapper = fsspec.get_mapper(store_url)
     if init and rank == 0:
         logging.info("initializing zarr store")
-        group = zarr.open_group(mapper, mode="a")
+        group = zarr.open_group(mapper, mode="w")
         create_zarr_store(timesteps, group, ds)
             
     if comm is None:
@@ -202,8 +206,9 @@ if __name__ == "__main__":
 
     MPI.COMM_WORLD.barrier()
     # parallelize across variables
-    if rank == 0:
-        post_process(RUN_DIR, **config["one_step"], comm=None)
+    del state, begin_monitor, before_monitor, after_monitor
+    # if rank == 0:
+    post_process(RUN_DIR, **config["one_step"], comm=MPI.COMM_WORLD)
     fv3gfs.cleanup()
 else:
     logger = logging.getLogger(__name__)
