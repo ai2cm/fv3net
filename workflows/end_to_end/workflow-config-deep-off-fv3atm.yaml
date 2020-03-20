@@ -4,7 +4,7 @@ experiment:
   name: deep-conv-off-fv3atm-a45d1781
   unique_id: False
   steps_to_run:
-      #    - one_step_run
+    - one_step_run
     - create_training_data
     - train_sklearn_model
     - test_sklearn_model
