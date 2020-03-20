@@ -27,7 +27,7 @@ jobs:
           command: |
             make install_deps
             make install_local_packages
-            cat environment.yml .circleci/.installed_build_env_deps > combined_deps.txt
+            cat .circleci/.installed_build_env_deps
       - save_cache:
           key: v1-fv3net-env-{{ checksum "combined_deps.txt" }}
           paths:

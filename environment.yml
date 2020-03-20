@@ -9,6 +9,9 @@ dependencies:
   - matplotlib=3.1
   - python=3.7
   - pip
+  - h5netcdf>=0.8
+  - h5py>=2.10
+  - netcdf4>=1.4
   - pip:
     - dask>=2.3
     - click>=7.0
@@ -22,20 +25,18 @@ dependencies:
     - bump2version>=0.5.11
     - flake8
     - gcsfs
+    - gsutil
     - google-cloud-storage
-    - h5netcdf>=0.8
-    - h5py>=2.10
     - hypothesis
     - intake
     - intake-xarray
+    - kubernetes
     - metpy
-    - netcdf4>=1.4
     - numba
     - partd
     - pyyaml==5.3
     - pytest
     - pytest-mpl
-    - python-kubernetes
     - scikit-image
     - scikit-learn
     - xarray>=0.14
