@@ -51,10 +51,9 @@ jobs:
       - checkout
       - run: sudo apt-get install make
       # - run: make build_image_fv3net VERSION=latest
-      - run: echo "$ENCODED_GCR_KEY" | base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
       - gcp-gcr/gcr-auth:
           google-project-id: GCLOUD_PROJECT
-          gcloud-service-key: GOOGLE_APPLICATION_CREDENTIALS
+          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - run: |
           echo "$ENCODED_GCR_KEY" | base64 --decode | docker login --username _json_key --password-stdin https://gcr.io
           if [[ "$CIRCLE_BRANCH" == "master" ]]
@@ -86,13 +85,13 @@ workflows:
       - pytest_default
   build_and_push:
     jobs:
-      - pytest_default:
-          filters:
-              tags:
-                only: /^v.$/
+      # - pytest_default:
+      #     filters:
+      #         tags:
+      #           only: /^v.$/
       - build_default:
-          requires:
-            - pytest_default
+          # requires:
+          #   - pytest_default
           filters:
               tags:
                 only: /^v.$/
