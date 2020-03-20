@@ -22,6 +22,7 @@ class RemoteDataError(Exception):
     """ Raised for errors reading data from the cloud that
     may be resolved upon retry.
     """
+
     pass
 
 
@@ -84,7 +85,7 @@ class BatchGenerator:
                 continue
             yield ds_shuffled
 
-    @backoff.on_exception(backoff.expo, RuntimeError, max_tries=3)
+    @backoff.on_exception(backoff.expo, RemoteDataError, max_tries=3)
     def _create_training_batch_with_retries(self, urls):
         timestep_paths = [self.fs.get_mapper(url) for url in urls]
         try:
@@ -92,7 +93,6 @@ class BatchGenerator:
             ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type)
             ds_stacked = stack_and_drop_nan_samples(ds).unify_chunks()
             ds_shuffled = _shuffled(ds_stacked, SAMPLE_DIM, self.random_seed)
-            logger.info(f"Successful batch read: {time.time()-t0} sec.")
             return ds_shuffled
         except ValueError as e:
             # error when attempting to read from GCS that sometimes resolves on retry
@@ -100,7 +100,9 @@ class BatchGenerator:
                 logger.error(
                     f"Error reading data from {timestep_paths}, will retry. {e}"
                 )
-                raise RemoteDataError(f"Failed to read data from remote location: {str(e)}")
+                raise RemoteDataError(
+                    f"Failed to read data from remote location: {str(e)}"
+                )
             # other errors that will not recover on retry
             else:
                 logger.error(f"Error reading data from {timestep_paths}. {e}")
