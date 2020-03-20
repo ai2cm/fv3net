@@ -141,7 +141,8 @@ def post_process(out_dir, url, index, init=False, timesteps=(), comm=None):
     for variable in ds[list(variables)]:
         logger.info(f"Writing {variable} to {group}")
         dims = group[variable].attrs["_ARRAY_DIMENSIONS"][1:]
-        group[variable][index] = np.asarray(ds[variable].transpose(*dims))
+        dask_arr = ds[variable].transpose(*dims).data
+        dask_arr.store(group[variable][index])
 
 
 if __name__ == "__main__":
