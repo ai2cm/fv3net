@@ -64,11 +64,10 @@ VARIABLES = (
     "liquid_soil_moisture"
  )
 
-VARIABLES = VARIABLES + [TIME]
 
 
 def init_data_var(group, array, nt):
-    logger.info(f"Initializing coordinate: {array.name}")
+    logger.info(f"Initializing variable: {array.name}")
     shape = (nt,) + array.data.shape
     chunks = (1,) + tuple(size[0] for size in array.data.chunks)
     out_array = group.empty(
@@ -99,10 +98,9 @@ def create_zarr_store(timesteps, group, template):
     dim.attrs['_ARRAY_DIMENSIONS'] = ['initial_time']
 
 
-def post_process(out_dir, url, index, init=False, timesteps=(), variables=VARIABLES):
+def post_process(out_dir, url, index, init=False, timesteps=(), comm=None):
     store_url = url
     logger.info("Post processing model outputs")
-    logger.info(f"Variables to process: {variables}")
     begin = xr.open_zarr(f"{out_dir}/begin_physics.zarr")
     before = xr.open_zarr(f"{out_dir}/before_physics.zarr")
     after = xr.open_zarr(f"{out_dir}/after_physics.zarr")
@@ -119,17 +117,28 @@ def post_process(out_dir, url, index, init=False, timesteps=(), variables=VARIAB
     ds = xr.concat([begin, before, after], dim="step").assign_coords(
         step=["begin", "after_dynamics", "after_physics"], time=time
     )
-    ds = ds[variables]
     ds = ds.rename({"time": "forecast_time"}).chunk({"forecast_time": 1, "tile": 6})
 
+    if comm is not None:
+        rank = comm.Get_rank()
+    else:
+        rank = 0
+
     mapper = fsspec.get_mapper(store_url)
-    group = zarr.open_group(mapper, mode="a")
-
-    if init:
-        group = zarr.open_group(mapper, mode="a")
+    if init and rank == 0:
+        group = zarr.open_group(mapper, mode="w")
         create_zarr_store(timesteps, group, ds)
+            
+    if comm is None:
+        variables = VARIABLES
+    else:
+        comm.barrier()
+        variables = list(VARIABLES)[comm.rank::comm.size]
 
-    for variable in ds:
+    # all processes open group
+    group = zarr.open_group(mapper, mode="a")
+    logger.info(f"Variables to process: {variables}")
+    for variable in ds[list(variables)]:
         logger.info(f"Writing {variable} to {group}")
         dims = group[variable].attrs["_ARRAY_DIMENSIONS"][1:]
         group[variable][index] = np.asarray(ds[variable].transpose(*dims))
@@ -172,7 +181,7 @@ if __name__ == "__main__":
     )
 
     fv3gfs.initialize()
-    state = fv3gfs.get_state(names=VARIABLES)
+    state = fv3gfs.get_state(names=VARIABLES + (TIME,))
     if rank == 0:
         logger.info("Beginning steps")
     for i in range(fv3gfs.get_step_count()):
@@ -180,13 +189,14 @@ if __name__ == "__main__":
             logger.info(f"step {i}")
         begin_monitor.store(state)
         fv3gfs.step_dynamics()
-        state = fv3gfs.get_state(names=VARIABLES)
+        state = fv3gfs.get_state(names=VARIABLES + (TIME,))
         before_monitor.store(state)
         fv3gfs.step_physics()
-        state = fv3gfs.get_state(names=VARIABLES)
+        state = fv3gfs.get_state(names=VARIABLES + (TIME,))
         after_monitor.store(state)
 
     MPI.COMM_WORLD.barrier()
     # parallelize across variables
-    post_process(RUN_DIR, variables=VARIABLES[rank::size], **config["one_step"])
+    if rank == 0:
+        post_process(RUN_DIR, **config["one_step"], comm=None)
     fv3gfs.cleanup()
