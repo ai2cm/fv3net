@@ -8,7 +8,7 @@ RUN pip3 install wheel
 # cache external package installation
 COPY external/fv3config /fv3net/external/fv3config
 COPY external/vcm /fv3net/external/vcm
-RUN pip3 install /fv3net/external/vcm /fv3net/external/fv3config
+RUN pip3 install -e /fv3net/external/vcm -e /fv3net/external/fv3config
 
 COPY . /fv3net
 RUN pip3 install --no-deps -e /fv3net

@@ -12,10 +12,13 @@ logging.basicConfig(level=logging.INFO)
 DELP = "pressure_thickness_of_atmospheric_layer"
 TIME = "time"
 
+TRACERS = ('specific_humidity', 'cloud_water_mixing_ratio', 'rain_mixing_ratio', 'cloud_ice_mixing_ratio', 'snow_mixing_ratio', 'graupel_mixing_ratio', 'ozone_mixing_ratio', 'cloud_amount')
+
 VARIABLES = ( 
     "x_wind",
     "y_wind",
     "air_temperature",
+    "specific_humidity",
     "pressure_thickness_of_atmospheric_layer",
     "vertical_wind",
     "vertical_thickness_of_atmospheric_layer",
@@ -62,7 +65,7 @@ VARIABLES = (
     "soil_temperature",
     "total_soil_moisture",
     "liquid_soil_moisture"
- )
+ ) + TRACERS
 
 
 
