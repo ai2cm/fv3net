@@ -16,90 +16,18 @@ jobs:
             echo $ENCODED_GOOGLE_CREDENTIALS | \
             base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
       - run: make update_submodules
-
-    # Finna save a few minutes of build
-    # Cache divided into ~500 mb chunks if possible per
-    # https://circleci.com/docs/2.0/caching/#cache-size
-      # - restore_cache:
-      #     keys:
-      #       - v3-python-dep-{{ checksum "environment.yml" }}
-      #       - v3-python-dep-
-      # - restore_cache:
-      #     keys:
-      #       - v3-mkl-dep-{{ checksum "environment.yml" }}
-      #       - v3-mkl-dep-
-      # - restore_cache:
-      #     keys:
-      #       - v3-conda-cache-dep-{{ checksum "environment.yml" }}
-      #       - v3-conda-cache-dep-
-      # - restore_cache:
-      #     keys:
-      #       - v3-qt-dep-{{ checksum "environment.yml" }}
-      #       - v3-qt-dep-
-      # - restore_cache:
-      #     keys:
-      #       - v3-pip-dep-{{ checksum "environment.yml" }}
-      #       - v3-pip-dep-
-      # - restore_cache:
-      #     keys:
-      #       - v3-all-conda-dep-{{ checksum "environment.yml" }}
-      #       - v3-all-conda-dep-
-      # - run: 
-      #     name: "Move cached conda deps into pkgs"
-      #     command: |
-      #       if [ -d /tmp/conda_pkgs ]; then
-      #         mv -f /tmp/conda_pkgs/python/* /opt/conda/pkgs
-      #         mv -f /tmp/conda_pkgs/mkl/* /opt/conda/pkgs
-      #         mv -f /tmp/conda_pkgs/qt/* /opt/conda/pkgs
-      #         mv -f /tmp/conda_pkgs/cache /opt/conda/pkgs
-      #       fi
-
-      - run: make install_deps
-
-      # Save deps to cache
-      # - run: 
-      #     name: "Move large conda packages to temp cache"
-      #     command: |
-      #       conda clean -tp
-      #       mkdir -p /tmp/conda_pkgs/python/
-      #       mv /opt/conda/pkgs/python-3* /tmp/conda_pkgs/python/
-      #       mkdir -p /tmp/conda_pkgs/mkl/
-      #       mv /opt/conda/pkgs/mkl-* /tmp/conda_pkgs/mkl/
-      #       mkdir -p /tmp/conda_pkgs/qt/
-      #       mv /opt/conda/pkgs/qt-* /tmp/conda_pkgs/qt/
-      #       mv /opt/conda/pkgs/cache /tmp/conda_pkgs/
-      # - save_cache:
-      #     key: v3-python-dep-{{ checksum "environment.yml" }}
-      #     paths:
-      #       - /tmp/conda_pkgs/python
-      # - save_cache:
-      #     key: v3-mkl-dep-{{ checksum "environment.yml" }}
-      #     paths:
-      #       - /tmp/conda_pkgs/mkl
-      # - save_cache:
-      #     key: v3-conda-cache-dep-{{ checksum "environment.yml" }}
-      #     paths:
-      #       - /tmp/conda_pkgs/cache
-      # - save_cache:
-      #     key: v3-qt-dep-{{ checksum "environment.yml" }}
-      #     paths:
-      #       - /tmp/conda_pkgs/qt
-      # - save_cache:
-      #     key: v3-all-conda-dep-{{ checksum "environment.yml" }}
-      #     paths:
-      #       - /opt/conda/pkgs
-      # - save_cache:
-      #     key: v3-pip-dep-{{ checksum "environment.yml" }}
-      #     paths:
-      #       - /root/.cache/pip
-      # - run:
-      #     name: "Move large packages back into conda dir"
-      #     command: mv /tmp/conda_pkgs/* /opt/conda/pkgs/
-
+      - restore_cache:
+          keys:
+            - v1-fv3net-env-{{ checksum "environment.yml" }}
       - run:
           name: "Install fv3net packages"
-          command: make install_local_packages
-
+          command: |
+            make install_deps
+            make install_local_packages
+      - save_cache:
+          key: v1-fv3net-env-{{ checksum "environment.yml" }}
+          paths:
+            - /opt/conda/envs/fv3net
       - run: | 
           source activate fv3net
           pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
