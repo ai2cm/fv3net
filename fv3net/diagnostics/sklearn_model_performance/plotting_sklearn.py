@@ -44,6 +44,7 @@ DPI_FIGURES = {
     "diurnal_cycle": 90,
     "map_plot_3col": 120,
 }
+matplotlib.use("Agg")
 
 
 def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
@@ -107,7 +108,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         dataset_labels=["prediction", "target C48"],
         grid=grid,
     )
-    figs = map_plot_ml_frac_of_total(ds)
+    figs = map_plot_ml_frac_of_total(ds, grid)
     fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac = figs
     fig_pe_ml.savefig(os.path.join(output_dir, "dQ2_vertical_integral_map.png"))
     fig_pe_ml_frac.savefig(os.path.join(output_dir, "dQ2_frac_of_PE.png"))
@@ -305,7 +306,6 @@ def _make_r2_plot(ds_pred, ds_target, vars, sample_dim=SAMPLE_DIM, title=None):
     plt.ylabel("$R^2$")
     if title:
         plt.title(title)
-    plt.show()
     return fig
 
 
@@ -340,7 +340,6 @@ def _make_land_sea_r2_plot(
     plt.legend()
     plt.xlabel("pressure [HPa]")
     plt.ylabel("$R^2$")
-    plt.show()
     return fig
 
 
@@ -367,7 +366,6 @@ def _plot_comparison_maps(
             .strftime("%Y-%m-%d, %H:%M:%S")
         )
         plt.suptitle(time_label)
-    plt.show()
     return fig
 
 
@@ -420,7 +418,6 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
     if title:
         plt.title(title)
     plt.legend()
-    plt.show()
     return fig
 
 
@@ -474,7 +471,6 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
     ax3.set_xlabel("LTS [K]")
     ax3.set_ylabel("Q [mm]")
     ax3.set_title("Avg P-E error (predicted - high res)")
-    plt.show()
     return fig
 
 
@@ -505,8 +501,6 @@ def map_plot_ml_frac_of_total(ds):
     fig_pe_ml_frac = plot_cube(
         mappable_var(ds, "net_precipitation_ml_frac_of_total").mean(INIT_TIME_DIM),
         col="dataset",
-        vmin=-1,
-        vmax=1
     )[0]
     fig_pe_ml_frac.suptitle("P-E: ML prediction as fraction of total")
 
@@ -517,8 +511,6 @@ def map_plot_ml_frac_of_total(ds):
     fig_heating_ml_frac = plot_cube(
         mappable_var(ds, "net_heating_ml_frac_of_total").mean(INIT_TIME_DIM),
         col="dataset",
-        vmin=-1,
-        vmax=1
     )[0]
     fig_heating_ml_frac.suptitle("heating: ML prediction as fraction of total")
 
