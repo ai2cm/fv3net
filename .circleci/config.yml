@@ -89,7 +89,7 @@ workflows:
       - build_default:
           filters:
             tags:
-              only: /^v.$/
+              only: /^v.*/
             branches:
               only: feature/circleci-fv3net-build-push
             
