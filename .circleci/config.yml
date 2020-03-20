@@ -21,17 +21,19 @@ jobs:
           command: cat environment.yml .circleci/.installed_build_env_deps > combined_deps.txt
       - restore_cache:
           keys:
-            - v1-fv3net-env-{{ checksum "combined_deps.txt" }}
+            - v2-fv3net-env-{{ checksum "combined_deps.txt" }}
       - run:
-          name: "Install fv3net packages"
+          name: "Install fv3net dependencies"
           command: |
             make install_deps
-            make install_local_packages
             cat .circleci/.installed_build_env_deps
       - save_cache:
-          key: v1-fv3net-env-{{ checksum "combined_deps.txt" }}
+          key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}
           paths:
             - /opt/conda/envs/fv3net
+      - run:
+          name: "Install fv3net packages"
+          command: make install_local_packages
       - run: | 
           source activate fv3net
           pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
