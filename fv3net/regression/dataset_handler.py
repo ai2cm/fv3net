@@ -98,7 +98,7 @@ class BatchGenerator:
                 logger.error(f"Error reading data from {timestep_paths}. {e}")
                 raise e
 
-    def validated_num_batches(self, total_num_input_files):
+    def _validated_num_batches(self, total_num_input_files):
         """ check that the number of batches (if provided) and the number of
         files per batch are reasonable given the number of zarrs in the input data dir.
         If their product is greater than the number of input files, number of batches
