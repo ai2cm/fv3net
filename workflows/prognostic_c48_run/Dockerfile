@@ -1,4 +1,4 @@
-FROM us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1
+FROM us.gcr.io/vcm-ml/fv3gfs-python:v0.3.1
 
 ADD fv3net-0.1.0-py3-none-any.whl /wheels/fv3net-0.1.0-py3-none-any.whl
 ADD vcm-0.1.0-py3-none-any.whl /wheels/vcm-0.1.0-py3-none-any.whl

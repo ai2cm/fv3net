@@ -1,4 +1,4 @@
-IMAGE=test-image
+IMAGE=us.gcr.io/vcm-ml/prognostic-run-orchestration
 KEY_ARGS= -v $(GOOGLE_APPLICATION_CREDENTIALS):/key.json \
 	  -e GOOGLE_APPLICATION_CREDENTIALS=/key.json
 LOCAL_DIR_ARGS = -w /code -v $(shell pwd):/code
