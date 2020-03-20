@@ -22,4 +22,9 @@ print("big.zarr info:")
 print(ds)
 print()
 print(ds.info())
-print(ds.air_temperature.std().compute())
+
+print()
+print("data size:", ds.isel(initial_time=0).nbytes/1e9, "GB/initial time")
+
+
+#print(ds.air_temperature.std().compute())

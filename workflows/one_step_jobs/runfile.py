@@ -161,10 +161,11 @@ if __name__ == "__main__":
 
     rank = MPI.COMM_WORLD.Get_rank()
     size = MPI.COMM_WORLD.Get_size()
-    logger = logging.getLogger(__file__ + f"({rank}/{size})")
     current_dir = os.getcwd()
     config = runtime.get_config()
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
+    logger = logging.getLogger(
+        f"one_step:{rank}/{size}:{config['one_step']['index']}")
 
     partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
 
