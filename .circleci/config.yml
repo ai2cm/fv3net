@@ -45,19 +45,19 @@ jobs:
       docker_layer_caching: true
     environment:
       GCR_IMAGE: us.gcr.io/vcm-ml/fv3net
-      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
     steps:
       - checkout
       - run: sudo apt-get install make
       - run: make build_image_fv3net VERSION=latest
+      - run: export GCP_BUCKET_CREDENTIALS=$(echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d)
       - gcp-gcr/gcr-auth:
-          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
+          gcloud-service-key: GCP_BUCKET_CREDENTIALS
       - run: |
           echo $CIRCLE_BRANCH
           echo $CIRCLE_TAG
-          if [[ "$CIRCLE_BRANCH" == "master" ]]
+          if [[ "$CIRCLE_BRANCH" == "feature/circleci-fv3net-build-push" ]]
           then
               echo "pushing untagged image $GCR_IMAGE"
               docker push $GCR_IMAGE
