@@ -38,7 +38,7 @@ experiment:
         training_data:
           from: create_training_data
       extra_args:
-        train-config-file: ./workflows/sklearn_regression/example_base_rf_training_config.yml
+        train-config-file: ./workflows/sklearn_regression/maxdepth_13_rf_config.yml
         
     test_sklearn_model: 
       command: workflows/sklearn_regression/orchestrator_test_sklearn.sh
