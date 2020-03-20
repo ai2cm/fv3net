@@ -40,7 +40,7 @@ class ModelTrainingConfig:
     random_seed: int = 1234
     mask_to_surface_type: str = "none"
 
-    def validate_number_train_batches(batch_generator):
+    def validate_number_train_batches(self, batch_generator):
         """ Since number of training files specified may be larger than
         the actual number available, this adds an attribute num_batches_used
         that keeps information about the actual number of training batches
