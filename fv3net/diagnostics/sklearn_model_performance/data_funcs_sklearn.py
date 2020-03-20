@@ -1,14 +1,15 @@
-from scipy.interpolate import UnivariateSpline
 import os
+from scipy.interpolate import UnivariateSpline
 import xarray as xr
 
 import fv3net
+from ..data_funcs import net_heating_from_dataset
 from fv3net.pipelines.create_training_data import (
     SUFFIX_COARSE_TRAIN_DIAG,
     VAR_Q_HEATING_ML,
     VAR_Q_MOISTENING_ML,
 )
-from vcm.calc import mass_integrate, thermo
+import vcm
 from vcm.cloud.fsspec import get_fs
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import (
@@ -23,11 +24,23 @@ from vcm.constants import (
     kg_m2_to_mm,
     SPECIFIC_HEAT_CONST_PRESSURE,
     GRAVITY,
-    SEC_PER_DAY,
 )
 
 SAMPLE_DIM = "sample"
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
+
+THERMO_DATA_VAR_ATTRS = {
+    "net_precipitation": {"long_name": "net column precipitation", "units": "mm/day"},
+    "net_heating": {"long_name": "net column heating", "units": "W/m^2"},
+    "net_precipitation_ml": {
+        "long_name": "residual P-E predicted by ML model",
+        "units": "mm/day",
+    },
+    "net_heating_ml": {
+        "long_name": "residual heating predicted by ML model",
+        "units": "W/m^2",
+    },
+}
 
 
 def predict_on_test_data(
@@ -79,11 +92,11 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times):
             f"are not matched in high res dataset."
         )
 
-    evaporation = thermo.latent_heat_flux_to_evaporation(ds_hires["LHTFLsfc_coarse"])
-    ds_hires["P-E_total"] = SEC_PER_DAY * (ds_hires["PRATEsfc_coarse"] - evaporation)
-    ds_hires["heating_total"] = thermo.net_heating_from_dataset(
-        ds_hires, suffix="coarse"
+    ds_hires["net_precipitation"] = vcm.net_precipitation(
+        ds_hires[f"LHTFLsfc_coarse"], ds_hires[f"PRATEsfc_coarse"]
     )
+    ds_hires["net_heating"] = net_heating_from_dataset(ds_hires, suffix="coarse")
+
     return ds_hires
 
 
@@ -95,17 +108,28 @@ def add_column_heating_moistening(ds):
         ds (xarray dataset): train/test or prediction dataset
             that has dQ1, dQ2, delp, precip and LHF data variables
     """
-    ds["P-E_total"] = (
-        mass_integrate(-ds[VAR_Q_MOISTENING_ML], ds.delp)
-        - thermo.latent_heat_flux_to_evaporation(
-            ds[f"LHTFLsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]
-        )
-        + ds[f"PRATEsfc_{SUFFIX_COARSE_TRAIN_DIAG}"]
-    ) * kg_m2s_to_mm_day
 
-    ds["heating_total"] = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
+    ds["net_precipitation_ml"] = (
+        vcm.mass_integrate(-ds[VAR_Q_MOISTENING_ML], ds.delp) * kg_m2s_to_mm_day
+    )
+    ds["net_precipitation_physics"] = vcm.net_precipitation(
+        ds[f"LHTFLsfc_{SUFFIX_COARSE_TRAIN_DIAG}"],
+        ds[f"PRATEsfc_{SUFFIX_COARSE_TRAIN_DIAG}"],
+    )
+
+    ds["net_precipitation"] = (
+        ds["net_precipitation_ml"] + ds["net_precipitation_physics"]
+    )
+
+    ds["net_heating_ml"] = SPECIFIC_HEAT_CONST_PRESSURE * vcm.mass_integrate(
         ds[VAR_Q_HEATING_ML], ds.delp
-    ) + thermo.net_heating_from_dataset(ds, suffix=SUFFIX_COARSE_TRAIN_DIAG)
+    )
+    ds["net_heating_physics"] = net_heating_from_dataset(
+        ds, suffix=SUFFIX_COARSE_TRAIN_DIAG
+    )
+    ds["net_heating"] = ds["net_heating_ml"] + ds["net_heating_physics"]
+    for data_var, data_attrs in THERMO_DATA_VAR_ATTRS.items():
+        ds[data_var].attrs = data_attrs
 
 
 def integrate_for_Q(P, sphum, lower_bound=55000, upper_bound=85000):
@@ -114,7 +138,7 @@ def integrate_for_Q(P, sphum, lower_bound=55000, upper_bound=85000):
 
 
 def lower_tropospheric_stability(ds):
-    pressure = thermo.pressure_at_midpoint_log(ds.delp)
+    pressure = vcm.pressure_at_midpoint_log(ds.delp)
     T_at_700mb = (
         regrid_to_shared_coords(
             ds["T"],
@@ -126,5 +150,5 @@ def lower_tropospheric_stability(ds):
         .squeeze()
         .drop("p700mb")
     )
-    theta_700mb = thermo.potential_temperature(70000, T_at_700mb)
+    theta_700mb = vcm.potential_temperature(70000, T_at_700mb)
     return theta_700mb - ds["tsea"]
