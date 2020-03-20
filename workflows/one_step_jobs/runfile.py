@@ -126,7 +126,8 @@ def post_process(out_dir, url, index, init=False, timesteps=(), comm=None):
 
     mapper = fsspec.get_mapper(store_url)
     if init and rank == 0:
-        group = zarr.open_group(mapper, mode="w")
+        logging.info("initializing zarr store")
+        group = zarr.open_group(mapper, mode="a")
         create_zarr_store(timesteps, group, ds)
             
     if comm is None:
@@ -142,7 +143,7 @@ def post_process(out_dir, url, index, init=False, timesteps=(), comm=None):
         logger.info(f"Writing {variable} to {group}")
         dims = group[variable].attrs["_ARRAY_DIMENSIONS"][1:]
         dask_arr = ds[variable].transpose(*dims).data
-        dask_arr.store(group[variable][index])
+        dask_arr.store(group[variable], regions=(index,))
 
 
 if __name__ == "__main__":
@@ -201,3 +202,5 @@ if __name__ == "__main__":
     if rank == 0:
         post_process(RUN_DIR, **config["one_step"], comm=None)
     fv3gfs.cleanup()
+else:
+    logger = logging.getLogger(__name__)
