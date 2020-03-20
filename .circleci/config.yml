@@ -22,24 +22,24 @@ jobs:
     # https://circleci.com/docs/2.0/caching/#cache-size
       - restore_cache:
           keys:
-            - v2-python-dep-{{ checksum "environment.yml" }}
-            - v2-python-dep-
+            - v3-python-dep-{{ checksum "environment.yml" }}
+            - v3-python-dep-
       - restore_cache:
           keys:
-            - v2-mkl-dep-{{ checksum "environment.yml" }}
-            - v2-mkl-dep-
+            - v3-mkl-dep-{{ checksum "environment.yml" }}
+            - v3-mkl-dep-
       - restore_cache:
           keys:
-            - v2-conda-cache-dep-{{ checksum "environment.yml" }}
-            - v2-conda-cache-dep-
+            - v3-conda-cache-dep-{{ checksum "environment.yml" }}
+            - v3-conda-cache-dep-
       - restore_cache:
           keys:
-            - v2-qt-dep-{{ checksum "environment.yml" }}
-            - v2-qt-dep-
+            - v3-qt-dep-{{ checksum "environment.yml" }}
+            - v3-qt-dep-
       - restore_cache:
           keys:
-            - v2-pip-dep-{{ checksum "environment.yml" }}
-            - v2-pip-dep-
+            - v3-pip-dep-{{ checksum "environment.yml" }}
+            - v3-pip-dep-
       - run: 
           name: "Move cached conda deps into pkgs"
           command: |
@@ -62,23 +62,23 @@ jobs:
             mv /opt/conda/pkgs/qt-* /tmp/conda_pkgs/qt/
             mv /opt/conda/pkgs/cache /tmp/conda_pkgs/
       - save_cache:
-          key: v2-python-dep-{{ checksum "environment.yml" }}
+          key: v3-python-dep-{{ checksum "environment.yml" }}
           paths:
             - /tmp/conda_pkgs/python
       - save_cache:
-          key: v2-mkl-dep-{{ checksum "environment.yml" }}
+          key: v3-mkl-dep-{{ checksum "environment.yml" }}
           paths:
             - /tmp/conda_pkgs/mkl
       - save_cache:
-          key: v2-conda-cache-dep-{{ checksum "environment.yml" }}
+          key: v3-conda-cache-dep-{{ checksum "environment.yml" }}
           paths:
             - /tmp/conda_pkgs/cache
       - save_cache:
-          key: v2-qt-dep-{{ checksum "environment.yml" }}
+          key: v3-qt-dep-{{ checksum "environment.yml" }}
           paths:
             - /tmp/conda_pkgs/qt
       - save_cache:
-          key: v2-pip-dep-{{ checksum "environment.yml" }}
+          key: v3-pip-dep-{{ checksum "environment.yml" }}
           paths:
             - /root/.cache/pip
       - run:
