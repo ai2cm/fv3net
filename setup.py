@@ -2,6 +2,7 @@ from setuptools import find_packages, setup
 
 dependencies = [
     "apache-beam",
+    "backoff",
     "cloudpickle",
     "dask",
     "gcsfs",
