@@ -40,6 +40,10 @@ jobs:
           keys:
             - v3-pip-dep-{{ checksum "environment.yml" }}
             - v3-pip-dep-
+      - restore_cache:
+          keys:
+            - v3-all-conda-dep-{{ checksum "environment.yml" }}
+            - v3-all-conda-dep-
       - run: 
           name: "Move cached conda deps into pkgs"
           command: |
@@ -80,6 +84,10 @@ jobs:
           key: v3-qt-dep-{{ checksum "environment.yml" }}
           paths:
             - /tmp/conda_pkgs/qt
+      - save_cache:
+          key: v3-all-conda-dep-{{ checksum "environment.yml" }}
+          paths:
+            - /opt/conda/pkgs
       - save_cache:
           key: v3-pip-dep-{{ checksum "environment.yml" }}
           paths:
