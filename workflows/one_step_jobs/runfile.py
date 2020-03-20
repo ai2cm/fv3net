@@ -120,7 +120,7 @@ def post_process(out_dir, url, index, init=False, timesteps=(), comm=None):
     ds = xr.concat([begin, before, after], dim="step").assign_coords(
         step=["begin", "after_dynamics", "after_physics"], time=time
     )
-    ds = ds.rename({"time": "forecast_time"}).chunk({"forecast_time": 1, "tile": 6, 'step': 3})
+    ds = ds.rename({"time": "forecast_time"}).chunk({"forecast_time": 1, "tile": 6})
 
     if comm is not None:
         rank = comm.Get_rank()
