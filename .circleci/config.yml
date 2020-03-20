@@ -46,11 +46,15 @@ jobs:
     environment:
       GCR_IMAGE: us.gcr.io/vcm-ml/fv3net
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+      GCLOUD_PROJECT: vcm-ml
     steps:
       - checkout
       - run: sudo apt-get install make
-      - run: make build_image_fv3net VERSION=latest
-      - gcp-gcr/gcr-auth
+      # - run: make build_image_fv3net VERSION=latest
+      - run: echo "$ENCODED_GCR_KEY" | base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
+      - gcp-gcr/gcr-auth:
+          google-project-id: GCLOUD_PROJECT
+          gcloud-service-key: GOOGLE_APPLICATION_CREDENTIALS
       - run: |
           echo "$ENCODED_GCR_KEY" | base64 --decode | docker login --username _json_key --password-stdin https://gcr.io
           if [[ "$CIRCLE_BRANCH" == "master" ]]
