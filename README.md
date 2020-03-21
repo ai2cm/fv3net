@@ -72,6 +72,18 @@ The main data processing pipelines for this project currently utilize Google Clo
 Dataflow and Kubernetes with Docker images.  Run scripts to deploy these workflows
 along with information can be found under the `workflows` directory.
 
+## Building the fv3net docker images
+
+The workflows use a pair of common images:
+
+|Image| Description| 
+|-----|------------|
+| `us.gcr.io/vcm-ml/prognostic_run` | fv3gfs-python with minimal fv3net and vcm installed |
+| `us.gcr.io/vcm-ml/fv3net` | fv3net image with all dependencies including plotting |
+
+These images can be built and pushed to GCR using `make build_images` and
+`make push_images`, respectively.
+
 ## Dataflow
 
 Dataflow jobs run in a "serverless" style where data is piped between workers who
@@ -115,6 +127,7 @@ We provide configurable job submission scripts under workflows to expedite this 
 
 If you get an error `Could not create workflow; user does not have write access to project` upon
 trying to submit the dataflow job, do `gcloud auth application-default login` first and then retry.
+
 
 
 ## Deploying on k8s with fv3net
