@@ -28,23 +28,9 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "model_url", type=str, help="Remote url to a trained sklearn model.",
-    )
-    parser.add_argument(
         "initial_condition_url",
         type=str,
         help="Remote url to directory holding timesteps with model initial conditions.",
-    )
-    parser.add_argument(
-        "output_url",
-        type=str,
-        help="Remote storage location for prognostic run output.",
-    )
-    parser.add_argument(
-        "prog_config_yml",
-        type=str,
-        help="Path to a config update YAML file specifying the changes (e.g., "
-        "diag_table, runtime, ...) from the one-step runs for the prognostic run.",
     )
     parser.add_argument(
         "ic_timestep",
@@ -55,6 +41,30 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "docker_image",
         type=str,
         help="Docker image to pull for the prognostic run kubernetes pod.",
+    )
+    parser.add_argument(
+        "output_url",
+        type=str,
+        help="Remote storage location for prognostic run output.",
+    )
+    parser.add_argument(
+        "--model_url",
+        type=str,
+        default=None,
+        help="Remote url to a trained sklearn model.",
+    )
+    parser.add_argument(
+        "--prog_config_yml",
+        type=str,
+        default="prognostic_config.yml",
+        help="Path to a config update YAML file specifying the changes (e.g., "
+        "diag_table, runtime, ...) from the one-step runs for the prognostic run.",
+    )
+    parser.add_argument(
+        "-d",
+        "--detach",
+        action="store_true",
+        help="Do not wait for the k8s job to complete.",
     )
 
     return parser
@@ -114,26 +124,26 @@ if __name__ == "__main__":
     )
 
     # Add prognostic config section
-    model_config["scikit_learn"] = {
-        "model": os.path.join(args.model_url, MODEL_FILENAME),
-        "zarr_output": "diags.zarr",
-    }
+    if args.model_url:
+        model_config["scikit_learn"] = {
+            "model": os.path.join(args.model_url, MODEL_FILENAME),
+            "zarr_output": "diags.zarr",
+        }
+        kube_opts["runfile"] = kube_jobs.transfer_local_to_remote(RUNFILE, config_dir)
 
     # Upload the new prognostic config
     with fsspec.open(job_config_path, "w") as f:
         f.write(yaml.dump(model_config))
-
-    remote_runfile_path = kube_jobs.transfer_local_to_remote(RUNFILE, config_dir)
 
     fv3config.run_kubernetes(
         config_location=job_config_path,
         outdir=args.output_url,
         jobname=job_name,
         docker_image=args.docker_image,
-        runfile=remote_runfile_path,
         job_labels=job_label,
         **kube_opts,
     )
 
-    successful, _ = kube_jobs.wait_for_complete(job_label)
-    kube_jobs.delete_job_pods(successful)
+    if not args.detach:
+        successful, _ = kube_jobs.wait_for_complete(job_label)
+        kube_jobs.delete_job_pods(successful)

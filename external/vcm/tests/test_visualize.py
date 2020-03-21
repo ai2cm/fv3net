@@ -269,7 +269,7 @@ def test_plot_cube_axes(sample_dataset, plotting_function):
     "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
 )
 def test_plot_cube_with_facets(sample_dataset, plotting_function):
-    f, axes, hs, cbar = plot_cube(
+    f, axes, hs, cbar, facet_grid = plot_cube(
         mappable_var(sample_dataset, "t2m"),
         col="time",
         plotting_function=plotting_function,
@@ -281,7 +281,7 @@ def test_plot_cube_with_facets(sample_dataset, plotting_function):
 )
 def test_plot_cube_on_axis(sample_dataset, plotting_function):
     ax = plt.axes(projection=ccrs.Robinson())
-    f, axes, hs, cbar = plot_cube(
+    f, axes, hs, cbar, facet_grid = plot_cube(
         mappable_var(sample_dataset, "t2m").isel(time=0),
         plotting_function=plotting_function,
         ax=ax,

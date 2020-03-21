@@ -36,8 +36,9 @@ if __name__ == "__main__":
         help="Output dir to write results to. Can be local or a GCS path.",
     )
     parser.add_argument(
-        "num_test_zarrs",
+        "--num_test_zarrs",
         type=int,
+        default=4,
         help="Number of zarrs to concat together for use as test set.",
     )
     parser.add_argument(
@@ -61,6 +62,7 @@ if __name__ == "__main__":
         help="Factor by which to downsample test set time steps",
     )
     args = parser.parse_args()
+    args.test_data_path = os.path.join(args.test_data_path, "test")
 
     # if output path is remote GCS location, save results to local output dir first
     proto = get_protocol(args.output_path)
