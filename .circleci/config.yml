@@ -51,7 +51,7 @@ jobs:
       - checkout
       - run: sudo apt-get install make
       - run: make build_image_fv3net VERSION=latest
-      - run: export GCP_BUCKET_CREDENTIALS=$(echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d)
+      - run: echo "export GCP_BUCKET_CREDENTIALS=$(echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d)" >> $BASH_ENV
       - gcp-gcr/gcr-auth:
           gcloud-service-key: GCP_BUCKET_CREDENTIALS
       - run: |
