@@ -72,6 +72,20 @@ VARIABLES = (
  ) + TRACERS
 
 
+def rename_sfc_dt_atmos(sfc):
+    SFC_VARIABLES =  [
+        "DSWRFtoa",
+        "DSWRFsfc",
+        "USWRFtoa",
+        "USWRFsfc",
+        "DLWRFsfc",
+        "ULWRFtoa",
+        "ULWRFsfc",
+    ]
+
+    DIMS = {"grid_xt": "x", "grid_yt": "y"}
+    return sfc[DIMS].rename(DIMS).drop(["tile", "x", "y"])
+
 
 def init_data_var(group, array, nt):
     logger.info(f"Initializing variable: {array.name}")
@@ -108,6 +122,7 @@ def create_zarr_store(timesteps, group, template):
 def post_process(out_dir, url, index, init=False, timesteps=(), comm=None):
     store_url = url
     logger.info("Post processing model outputs")
+    sfc = xr.open_mfdataset(f"{out_dir}/sfc_dt_atmos.tile?.nc", concat_dim='tile', combine='nested').pipe(rename_sfc_dt_atmos)
     begin = xr.open_zarr(f"{out_dir}/begin_physics.zarr")
     before = xr.open_zarr(f"{out_dir}/before_physics.zarr")
     after = xr.open_zarr(f"{out_dir}/after_physics.zarr")
@@ -124,6 +139,7 @@ def post_process(out_dir, url, index, init=False, timesteps=(), comm=None):
     ds = xr.concat([begin, before, after], dim="step").assign_coords(
         step=["begin", "after_dynamics", "after_physics"], time=time
     )
+    ds = ds.merge(sfc)
     ds = ds.rename({"time": "forecast_time"}).chunk({"forecast_time": 1, "tile": 6, "step": 3})
 
     if comm is not None:
@@ -205,11 +221,11 @@ if __name__ == "__main__":
         state = fv3gfs.get_state(names=VARIABLES + (TIME,))
         after_monitor.store(state)
 
-    MPI.COMM_WORLD.barrier()
     # parallelize across variables
+    fv3gfs.cleanup()
+    MPI.COMM_WORLD.barrier()
     del state, begin_monitor, before_monitor, after_monitor
     # if rank == 0:
     post_process(RUN_DIR, **config["one_step"], comm=MPI.COMM_WORLD)
-    fv3gfs.cleanup()
 else:
     logger = logging.getLogger(__name__)
