@@ -214,4 +214,14 @@ If it does not pass, than it can be autoformatted using
 
     make reformat
 
+# How to contribute to fv3net
+
+Please see the [contribution guide.](./CONTRIBUTING.md)
+
+# How to get updates and releases
+
+For details on what's included or upcoming for a release, please see the [HISTORY.rst](./HISTORY.rst) document.
+
+For instructions on preparing a release, please read [RELEASE.rst](./RELEASE.rst).
+
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>

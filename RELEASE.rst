@@ -1,6 +1,12 @@
 Release Instructions
 ====================
 
+## Release naming guidelines
+
+If `0.x.y` is the version, we bump `x` on either big new features or breaking changes, and `y` on smaller changes.
+
+## Release steps
+
 1. Prepare master branch for release (make sure all PRs are merged and tests pass).
 
 2. Run `bumpversion <major/minor/bugfix>`. This will create a new tagged commit,
