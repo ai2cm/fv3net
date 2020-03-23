@@ -3,7 +3,10 @@
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
+<<<<<<< HEAD
 VERSION ?= 0.1.0
+=======
+>>>>>>> parent of 8126de2... Merge branch 'refactor/fv3net-online-modules' into feature/versioned-fv3net
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')

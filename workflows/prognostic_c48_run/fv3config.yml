@@ -1,4 +1,5 @@
-scikit_learn: model:gs://vcm-ml-data/end-to-end-experiments/2020-02-26-physics-off/annak-prognostic-physics-off/train_sklearn_model_train-config-file_example_base_rf_training_config.yml_delete-local-results-after-upload_False/sklearn_model.pkl
+scikit_learn:
+  model: gs://vcm-ml-data/test-annak/ml-pipeline-output/2020-01-17_rf_40d_run.pkl
   zarr_output: diags.zarr
 data_table: default
 diag_table: gs://vcm-ml-data/2020-01-15-noahb-exploration/2hr_strong_dampingone_step_config/C48/20160805.000000/diag_table
