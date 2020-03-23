@@ -92,7 +92,8 @@ workflows:
             branches:
               only: master
       - build_default:
-          requires: pytest_default
+          requires: 
+            - pytest_default
           filters:
             tags:
               only: /^v.*/
