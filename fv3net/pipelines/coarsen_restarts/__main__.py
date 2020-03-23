@@ -15,14 +15,6 @@ if __name__ == "__main__":
         help="Full GCS path to input data for downloading timesteps.",
     )
     parser.add_argument(
-        "gcs_dst_dir",
-        type=str,
-        help=(
-            "Full GCS path to output coarsened timestep data. Defaults to input path"
-            "with target resolution appended as a directory"
-        ),
-    )
-    parser.add_argument(
         "gcs_grid_spec_path",
         type=str,
         help=(
@@ -35,6 +27,14 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "target_resolution", type=int, help="Target coarsening resolution to output.",
+    )
+    parser.add_argument(
+        "gcs_dst_dir",
+        type=str,
+        help=(
+            "Full GCS path to output coarsened timestep data. Defaults to input path"
+            "with target resolution appended as a directory"
+        ),
     )
     parser.add_argument(
         "--no-target-subdir",

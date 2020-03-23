@@ -2,8 +2,10 @@
 History
 =======
 
+Current
+-------
 
-0.1.0 (2020-03-12)
+0.1.0 (2020-03-20)
 ------------------
 
-* Initial pre-alpha release
+* First release of fv3net
