@@ -40,6 +40,10 @@ def merge_comparison_datasets(
 
     src_dim_index = pd.Index(dataset_labels, name="dataset")
     datasets = [drop_nondim_coords(ds) for ds in datasets]
+    datasets_to_fill_na = _data_vars_to_add(data_vars, datasets)
+    for fill_empty_da_kwargs in datasets_to_fill_na:
+        _add_empty_dataarray(**fill_empty_da_kwargs)
+        
     datasets_to_merge = [
         xr.concat([ds[data_vars].squeeze(drop=True) for ds in datasets], src_dim_index),
         grid,
@@ -126,3 +130,49 @@ def net_heating_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.DataArray
         ds["PRATEsfc" + suffix],
     )
     return vcm.net_heating(*fluxes)
+
+
+def _add_empty_dataarray(ds, example_dataarray):
+    """ Adds an empty data array with the dimensions of the example 
+    data array to the dataset. This is useful when concatenating mulitple 
+    datasets where one does not have a data variable.
+    ex. concating prediction/target/highres datasets for
+    plotting comparisons, where the high res data does not have 3D variables. 
+    Modifies dataset in place.
+
+    Args:
+        ds (xarray dataset): dataset that will have additional empty data array added
+        example_dataarray (data array with the desired dimensions)
+    
+    """
+    da_fill = np.empty(example_dataarray.shape)
+    da_fill[:] = np.nan
+    ds[example_dataarray.name] = da_fill
+
+
+def _data_vars_to_add(data_vars, datasets):
+    """ Checks if any dataset in a list to be concated is missing a data variable,
+    and returns of kwargs to be provided to _add_empty_dataarray
+    
+    Args:
+        data_vars (list[str]): full list of data vars for final concated ds
+        datasets ([type]): datasets to check again
+    
+    Returns:
+        List of dicts {"ds": dataset that needs empty datarray added, "example_dataarray": example of data array with dims}
+        This can be passed as kwargs to _add_empty_dataarray 
+    """
+    datasets_to_fill = []
+    for data_var in data_vars:
+        ds_needs_var_added, da_var = [], None
+        for ds in datasets:
+            if data_var in ds.data_vars:
+                da_var = ds[data_var]
+            else:
+                ds_needs_var_added.append(ds)
+        if not da_var:
+            raise ValueError(f"None of the datasets contain data array for {data_var}.")
+        if len(ds_needs_var_added) > 0:
+            for ds_to_fill in ds_needs_var_added:
+                datasets_to_fill.append({"ds": ds_to_fill, "template_dataarray": da_var})
+    return datasets_to_fill

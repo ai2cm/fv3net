@@ -26,9 +26,12 @@ from fv3net.diagnostics.data_funcs import (
     get_latlon_grid_coords_set,
     EXAMPLE_CLIMATE_LATLON_COORDS,
 )
-from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
+from fv3net.diagnostics.sklearn_model_performance import (
     integrate_for_Q,
     lower_tropospheric_stability,
+    DATASET_NAME_PREDICTION, 
+    DATASET_NAME_FV3_TARGET,
+    DATASET_NAME_SHIELD_HIRES,
 )
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
@@ -84,14 +87,14 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ds_pe = merge_comparison_datasets(
         "net_precipitation",
         [ds_pred, ds_target, ds_hires],
-        ["prediction", "target C48", "coarsened high res"],
+        [DATASET_NAME_PREDICTION, DATASET_NAME_FV3_TARGET, DATASET_NAME_SHIELD_HIRES],
         grid,
         slmsk,
     )
     ds_heating = merge_comparison_datasets(
         "net_heating",
         [ds_pred, ds_target, ds_hires],
-        ["prediction", "target C48", "coarsened high res"],
+        [DATASET_NAME_PREDICTION, DATASET_NAME_FV3_TARGET, DATASET_NAME_SHIELD_HIRES],
         grid,
         slmsk,
     )
@@ -105,7 +108,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
             "net_heating",
         ],
         datasets=[ds_pred, ds_target],
-        dataset_labels=["prediction", "target C48"],
+        dataset_labels=[DATASET_NAME_PREDICTION, DATASET_NAME_FV3_TARGET],
         grid=grid,
     )
     figs = map_plot_ml_frac_of_total(ds, grid)
@@ -123,14 +126,14 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # LTS
     PE_pred = (
-        mask_to_surface_type(ds_pe.sel(dataset="prediction"), "sea")[
+        mask_to_surface_type(ds_pe.sel(dataset=DATASET_NAME_PREDICTION), "sea")[
             "net_precipitation"
         ]
         .squeeze()
         .drop("dataset")
     )
     PE_hires = (
-        mask_to_surface_type(ds_pe.sel(dataset="coarsened high res"), "sea")[
+        mask_to_surface_type(ds_pe.sel(dataset=DATASET_NAME_SHIELD_HIRES), "sea")[
             "net_precipitation"
         ]
         .squeeze()
