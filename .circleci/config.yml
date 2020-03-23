@@ -50,6 +50,9 @@ jobs:
       - checkout
       - run: sudo apt-get install make
       - run: |
+          pip install --upgrade pip
+          pip install wheel
+      - run: |
           if [[ -z "$CIRCLE_TAG" ]]
           then
               use_version="latest"
