@@ -4,7 +4,7 @@ kubernetes:
   cpu_count: 24
 fv3config:
   diag_table: diag_table_long_nudged
-  experiment_name: nudge-T-2015
+  experiment_name: nudgetemppsuv
   initial_conditions: gs://vcm-ml-data/2020-02-10-C48-20150101.00Z_IC
   namelist:
     atmos_model_nml:
