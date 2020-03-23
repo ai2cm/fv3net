@@ -44,13 +44,19 @@ jobs:
     machine:
       docker_layer_caching: true
     environment:
-      GCR_IMAGE: us.gcr.io/vcm-ml/fv3net
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
     steps:
       - checkout
       - run: sudo apt-get install make
-      - run: make build_image_fv3net VERSION=latest
+      - run: |
+          if [[ -z "$CIRCLE_TAG" ]]
+          then
+              use_version="latest"
+          else
+              use_version=$CIRCLE_TAG
+          fi
+          make build_images VERSION=$use_version
       - gcp-gcr/gcr-auth:
           gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - run: |
@@ -58,14 +64,13 @@ jobs:
           echo $CIRCLE_TAG
           if [[ "$CIRCLE_BRANCH" == "master" ]]
           then
-              echo "pushing untagged image $GCR_IMAGE"
-              docker push $GCR_IMAGE
+              echo "pushing untagged images as 'latest'"
+              make push_image VERSION=latest
           fi
           if [[ ! -z "$CIRCLE_TAG" ]]
           then
-              echo "pushing tagged image $GCR_IMAGE:$CIRCLE_TAG"
-              docker tag $GCR_IMAGE $GCR_IMAGE:$CIRCLE_TAG
-              docker push $GCR_IMAGE:$CIRCLE_TAG
+              echo "pushing tagged images $CIRCLE_TAG"
+              make push_image version=$CIRCLE_TAG
           fi
   
   lint:
