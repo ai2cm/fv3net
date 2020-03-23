@@ -48,3 +48,4 @@ dependencies:
     - gsutil
     - nc-time-axis>=1.2.0
     - yq
+    - bump2version
