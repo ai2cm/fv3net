@@ -3,7 +3,7 @@ Release Instructions
 
 ## Release naming guidelines
 
-If `0.x.y` is the version, we bump `x` on either big new features or breaking changes, and `y` on smaller changes.
+If `0.x.y` is the version, bump `x` on either big new features or breaking changes, and `y` on smaller changes.
 
 ## Release steps
 
