@@ -3,18 +3,16 @@ import logging
 import zarr
 
 import fv3gfs
-import sklearn_interface
-import state_io
 from fv3gfs._wrapper import get_time
+from fv3net import runtime
 from mpi4py import MPI
-import config
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
-VARIABLES = list(state_io.CF_TO_RESTART_MAP) + [DELP]
+VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP]
 
 cp = 1004
 gravity = 9.81
@@ -32,8 +30,8 @@ def compute_diagnostics(state, diags):
     )
 
 
-args = config.get_config()
-NML = config.get_namelist()
+args = runtime.get_runfile_config()
+NML = runtime.get_namelist()
 TIMESTEP = NML["coupler_nml"]["dt_atmos"]
 
 times = []
@@ -55,7 +53,7 @@ if __name__ == "__main__":
 
     if rank == 0:
         logger.info("Downloading Sklearn Model")
-        MODEL = sklearn_interface.open_sklearn_model(args.model)
+        MODEL = runtime.sklearn.open_model(args.model)
         logger.info("Model downloaded")
     else:
         MODEL = None
@@ -81,7 +79,7 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
-        preds, diags = sklearn_interface.update(MODEL, state, dt=TIMESTEP)
+        preds, diags = runtime.sklearn.update(MODEL, state, dt=TIMESTEP)
         if rank == 0:
             logger.debug("Setting Fortran State")
         fv3gfs.set_state(preds)
@@ -91,8 +89,8 @@ if __name__ == "__main__":
         diagnostics = compute_diagnostics(state, diags)
 
         if i == 0:
-            writers = state_io.init_writers(GROUP, comm, diagnostics)
-        state_io.append_to_writers(writers, diagnostics)
+            writers = runtime.init_writers(GROUP, comm, diagnostics)
+        runtime.append_to_writers(writers, diagnostics)
 
         times.append(get_time())
 
