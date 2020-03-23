@@ -51,9 +51,8 @@ jobs:
       - checkout
       - run: sudo apt-get install make
       - run: make build_image_fv3net VERSION=latest
-      # - gcp-gcr/gcr-auth:
-      #     gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
-      - run: 'echo "$ENCODED_GOOGLE_CREDENTIALS" | base64 --decode | docker login --username _json_key --password-stdin https://gcr.io'
+      - gcp-gcr/gcr-auth:
+          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - run: |
           echo $CIRCLE_BRANCH
           echo $CIRCLE_TAG
