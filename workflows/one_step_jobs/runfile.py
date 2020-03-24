@@ -117,6 +117,9 @@ def init_data_var(group, array, nt):
 
 def init_coord(group, coord):
     logger.info(f"Initializing coordinate: {coord.name}")
+    # fill_value=NaN is needed below for xr.open_zarr to succesfully load this
+    # coordinate if decode_cf=True. Otherwise, time=0 gets filled in as nan. very
+    # confusing...
     out_array = group.array(name=coord.name, data=np.asarray(coord), fill_value='NaN')
     out_array.attrs.update(coord.attrs)
     out_array.attrs["_ARRAY_DIMENSIONS"] = list(coord.dims)
