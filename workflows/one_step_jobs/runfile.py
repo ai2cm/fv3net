@@ -1,7 +1,6 @@
 import os
 from fv3net import runtime
 import logging
-import dask
 import time
 from multiprocessing import Process
 
@@ -20,9 +19,18 @@ logger = logging.getLogger(__name__)
 DELP = "pressure_thickness_of_atmospheric_layer"
 TIME = "time"
 
-TRACERS = ('specific_humidity', 'cloud_water_mixing_ratio', 'rain_mixing_ratio', 'cloud_ice_mixing_ratio', 'snow_mixing_ratio', 'graupel_mixing_ratio', 'ozone_mixing_ratio', 'cloud_amount')
+TRACERS = (
+    "specific_humidity",
+    "cloud_water_mixing_ratio",
+    "rain_mixing_ratio",
+    "cloud_ice_mixing_ratio",
+    "snow_mixing_ratio",
+    "graupel_mixing_ratio",
+    "ozone_mixing_ratio",
+    "cloud_amount",
+)
 
-VARIABLES = ( 
+VARIABLES = (
     "x_wind",
     "y_wind",
     "air_temperature",
@@ -72,10 +80,10 @@ VARIABLES = (
     "snow_cover_in_fraction",
     "soil_temperature",
     "total_soil_moisture",
-    "liquid_soil_moisture"
- ) + TRACERS
+    "liquid_soil_moisture",
+) + TRACERS
 
-SFC_VARIABLES =  (
+SFC_VARIABLES = (
     "DSWRFtoa",
     "DSWRFsfc",
     "USWRFtoa",
@@ -85,9 +93,15 @@ SFC_VARIABLES =  (
     "ULWRFsfc",
 )
 
+
 def rename_sfc_dt_atmos(sfc):
     DIMS = {"grid_xt": "x", "grid_yt": "y", "time": "forecast_time"}
-    return sfc[list(SFC_VARIABLES)].rename(DIMS).transpose("forecast_time", "tile", "y", "x").drop(["forecast_time", "y", "x"])
+    return (
+        sfc[list(SFC_VARIABLES)]
+        .rename(DIMS)
+        .transpose("forecast_time", "tile", "y", "x")
+        .drop(["forecast_time", "y", "x"])
+    )
 
 
 def init_data_var(group, array, nt):
@@ -118,14 +132,16 @@ def create_zarr_store(timesteps, group, template):
 
     for name in ds.coords:
         init_coord(group, ds[name])
-    dim = group.array('initial_time', data=timesteps)
-    dim.attrs['_ARRAY_DIMENSIONS'] = ['initial_time']
+    dim = group.array("initial_time", data=timesteps)
+    dim.attrs["_ARRAY_DIMENSIONS"] = ["initial_time"]
 
 
 def post_process(out_dir, url, index, init=False, timesteps=()):
 
     if init and len(timesteps) > 0 and index:
-        raise ValueError(f"To initialize the zarr store, {timesteps} must not be empty.")
+        raise ValueError(
+            f"To initialize the zarr store, {timesteps} must not be empty."
+        )
 
     store_url = url
     logger.info("Post processing model outputs")
@@ -145,8 +161,12 @@ def post_process(out_dir, url, index, init=False, timesteps=()):
     ds = xr.concat([begin, before, after], dim="step").assign_coords(
         step=["begin", "after_dynamics", "after_physics"], time=time
     )
-    ds = ds.rename({"time": "forecast_time"}).chunk({"forecast_time": 1, "tile": 6, "step": 3})
-    sfc = xr.open_mfdataset(f"{out_dir}/sfc_dt_atmos.tile?.nc", concat_dim='tile', combine='nested').pipe(rename_sfc_dt_atmos)
+    ds = ds.rename({"time": "forecast_time"}).chunk(
+        {"forecast_time": 1, "tile": 6, "step": 3}
+    )
+    sfc = xr.open_mfdataset(
+        f"{out_dir}/sfc_dt_atmos.tile?.nc", concat_dim="tile", combine="nested"
+    ).pipe(rename_sfc_dt_atmos)
     ds = ds.merge(sfc)
 
     if init:
@@ -165,8 +185,8 @@ def post_process(out_dir, url, index, init=False, timesteps=()):
 
 
 def run_post_process_in_new_process(outdir, c):
-    url = c.pop('url')
-    index = c.pop('index')
+    url = c.pop("url")
+    index = c.pop("index")
     args = (outdir, url, index)
     kwargs = c
     p = Process(target=post_process, args=args, kwargs=kwargs)
@@ -185,8 +205,7 @@ if __name__ == "__main__":
     current_dir = os.getcwd()
     config = runtime.get_config()
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
-    logger = logging.getLogger(
-        f"one_step:{rank}/{size}:{config['one_step']['index']}")
+    logger = logging.getLogger(f"one_step:{rank}/{size}:{config['one_step']['index']}")
 
     partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
 
@@ -231,10 +250,10 @@ if __name__ == "__main__":
     del state, begin_monitor, before_monitor, after_monitor
 
     if rank == 0:
-        # TODO it would be much cleaner to call this is a separate script, but that 
+        # TODO it would be much cleaner to call this is a separate script, but that
         # would be incompatible with the run_k8s api
         # sleep a little while to allow all process to finish finalizing the netCDFs
         time.sleep(2)
-        run_post_process_in_new_process(RUN_DIR, config['one_step'])
+        run_post_process_in_new_process(RUN_DIR, config["one_step"])
 else:
     logger = logging.getLogger(__name__)
