@@ -51,27 +51,35 @@ jobs:
           gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - checkout
       - run: sudo apt-get install make
-      - run: |
-          if [[ -z "$CIRCLE_TAG" ]]
-          then
-              use_version="latest"
-          else
-              use_version=$CIRCLE_TAG
-          fi
-          make build_images VERSION=$use_version
-      - run: |
-          echo $CIRCLE_BRANCH
-          echo $CIRCLE_TAG
-          if [[ "$CIRCLE_BRANCH" == "master" ]]
-          then
-              echo "pushing untagged images as 'latest'"
-              make push_images VERSION=latest
-          fi
-          if [[ ! -z "$CIRCLE_TAG" ]]
-          then
-              echo "pushing tagged images $CIRCLE_TAG"
-              make push_images version=$CIRCLE_TAG
-          fi
+      - run:
+        name: "Pull submodules"
+        command: |
+          git submodule update --init --recursive
+      - run:
+          name: Build fv3net images 
+          command: |
+            if [[ -z "$CIRCLE_TAG" ]]
+            then
+                use_version="latest"
+            else
+                use_version=$CIRCLE_TAG
+            fi
+            make build_images VERSION=$use_version
+      - run:
+          name: Push fv3net images
+          command: |
+            echo $CIRCLE_BRANCH
+            echo $CIRCLE_TAG
+            if [[ "$CIRCLE_BRANCH" == "master" ]]
+            then
+                echo "pushing untagged images as 'latest'"
+                make push_images VERSION=latest
+            fi
+            if [[ ! -z "$CIRCLE_TAG" ]]
+            then
+                echo "pushing tagged images $CIRCLE_TAG"
+                make push_images version=$CIRCLE_TAG
+            fi
   
   lint:
     docker:
