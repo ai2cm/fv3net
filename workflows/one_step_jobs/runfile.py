@@ -1,17 +1,21 @@
 import os
 from fv3net import runtime
+import logging
+import dask
+import time
+from multiprocessing import Process
+
+# avoid out of memory errors
+# dask.config.set(scheduler='single-threaded')
+
 import fsspec
 import zarr
 import xarray as xr
 import numpy as np
-import logging
-import dask
-
-# avoid out of memory errors
-dask.config.set(scheduler='single-threaded')
 
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 DELP = "pressure_thickness_of_atmospheric_layer"
 TIME = "time"
@@ -71,20 +75,19 @@ VARIABLES = (
     "liquid_soil_moisture"
  ) + TRACERS
 
+SFC_VARIABLES =  (
+    "DSWRFtoa",
+    "DSWRFsfc",
+    "USWRFtoa",
+    "USWRFsfc",
+    "DLWRFsfc",
+    "ULWRFtoa",
+    "ULWRFsfc",
+)
 
 def rename_sfc_dt_atmos(sfc):
-    SFC_VARIABLES =  [
-        "DSWRFtoa",
-        "DSWRFsfc",
-        "USWRFtoa",
-        "USWRFsfc",
-        "DLWRFsfc",
-        "ULWRFtoa",
-        "ULWRFsfc",
-    ]
-
-    DIMS = {"grid_xt": "x", "grid_yt": "y"}
-    return sfc[DIMS].rename(DIMS).drop(["tile", "x", "y"])
+    DIMS = {"grid_xt": "x", "grid_yt": "y", "time": "forecast_time"}
+    return sfc[list(SFC_VARIABLES)].rename(DIMS).transpose("forecast_time", "tile", "y", "x").drop(["forecast_time", "y", "x"])
 
 
 def init_data_var(group, array, nt):
@@ -119,10 +122,13 @@ def create_zarr_store(timesteps, group, template):
     dim.attrs['_ARRAY_DIMENSIONS'] = ['initial_time']
 
 
-def post_process(out_dir, url, index, init=False, timesteps=(), comm=None):
+def post_process(out_dir, url, index, init=False, timesteps=()):
+
+    if init and len(timesteps) > 0 and index:
+        raise ValueError(f"To initialize the zarr store, {timesteps} must not be empty.")
+
     store_url = url
     logger.info("Post processing model outputs")
-    sfc = xr.open_mfdataset(f"{out_dir}/sfc_dt_atmos.tile?.nc", concat_dim='tile', combine='nested').pipe(rename_sfc_dt_atmos)
     begin = xr.open_zarr(f"{out_dir}/begin_physics.zarr")
     before = xr.open_zarr(f"{out_dir}/before_physics.zarr")
     after = xr.open_zarr(f"{out_dir}/after_physics.zarr")
@@ -139,34 +145,33 @@ def post_process(out_dir, url, index, init=False, timesteps=(), comm=None):
     ds = xr.concat([begin, before, after], dim="step").assign_coords(
         step=["begin", "after_dynamics", "after_physics"], time=time
     )
-    ds = ds.merge(sfc)
     ds = ds.rename({"time": "forecast_time"}).chunk({"forecast_time": 1, "tile": 6, "step": 3})
+    sfc = xr.open_mfdataset(f"{out_dir}/sfc_dt_atmos.tile?.nc", concat_dim='tile', combine='nested').pipe(rename_sfc_dt_atmos)
+    ds = ds.merge(sfc)
 
-    if comm is not None:
-        rank = comm.Get_rank()
-    else:
-        rank = 0
-
-    mapper = fsspec.get_mapper(store_url)
-    if init and rank == 0:
+    if init:
+        mapper = fsspec.get_mapper(store_url)
         logging.info("initializing zarr store")
         group = zarr.open_group(mapper, mode="w")
         create_zarr_store(timesteps, group, ds)
-            
-    if comm is None:
-        variables = VARIABLES
-    else:
-        comm.barrier()
-        variables = list(VARIABLES)[comm.rank::comm.size]
 
-    # all processes open group
-    group = zarr.open_group(mapper, mode="a")
+    variables = VARIABLES + SFC_VARIABLES
     logger.info(f"Variables to process: {variables}")
     for variable in ds[list(variables)]:
         logger.info(f"Writing {variable} to {group}")
         dims = group[variable].attrs["_ARRAY_DIMENSIONS"][1:]
         dask_arr = ds[variable].transpose(*dims).data
         dask_arr.store(group[variable], regions=(index,))
+
+
+def run_post_process_in_new_process(outdir, c):
+    url = c.pop('url')
+    index = c.pop('index')
+    args = (outdir, url, index)
+    kwargs = c
+    p = Process(target=post_process, args=args, kwargs=kwargs)
+    p.start()
+    p.join()
 
 
 if __name__ == "__main__":
@@ -223,9 +228,13 @@ if __name__ == "__main__":
 
     # parallelize across variables
     fv3gfs.cleanup()
-    MPI.COMM_WORLD.barrier()
     del state, begin_monitor, before_monitor, after_monitor
-    # if rank == 0:
-    post_process(RUN_DIR, **config["one_step"], comm=MPI.COMM_WORLD)
+
+    if rank == 0:
+        # TODO it would be much cleaner to call this is a separate script, but that 
+        # would be incompatible with the run_k8s api
+        # sleep a little while to allow all process to finish finalizing the netCDFs
+        time.sleep(2)
+        run_post_process_in_new_process(RUN_DIR, config['one_step'])
 else:
     logger = logging.getLogger(__name__)
