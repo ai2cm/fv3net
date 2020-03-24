@@ -60,6 +60,7 @@ jobs:
           make wheels WHEEL_DIR=./
           mkdir scratch
           pyenv global 2.7.12
+          pip install --upgrade pip
           if [[ -z "$CIRCLE_TAG" ]]
           then
               use_version="latest"
