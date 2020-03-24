@@ -4,48 +4,44 @@ channels:
 dependencies:
   - backoff
   - cartopy
-  - click
-  - conda-build
-  - cloudpickle
-  - crcmod
-  - dask>=2.3
-  - fsspec
-  - f90nml
-  - black=19.10b0
-  - isort
-  - flake8
-  - gcsfs
-  - google-cloud-storage
-  - h5netcdf
-  - h5py>=2.10
-  - hypothesis
-  - pandas=1.0.1
-  - intake
-  - intake-xarray
-  - metpy
-  - netcdf4>=1.4
-  - numba
   - numpy
-  - partd
-  - pyyaml==5.3
-  - pytest
-  - pytest-mpl
-  - python-kubernetes
-  - scikit-image
-  - scikit-learn
   - toolz
-  - xarray>=0.14
-  - jupyterlab
   - zarr
-  - pip
-  - xgcm=0.2
-  - jupyterlab
-  - apache-beam
   - matplotlib=3.1
   - python=3.7
-  - holoviews
-  - bokeh=1.4
+  - pip
+  - h5netcdf>=0.8
+  - h5py>=2.10
+  - netcdf4>=1.4
   - pip:
-    - gsutil
+    - dask>=2.3
+    - click>=7.0
+    - cloudpickle
+    - crcmod
+    - fsspec
+    - f90nml
+    - black==19.10b0
     - nc-time-axis>=1.2.0
     - yq
+    - bump2version>=0.5.11
+    - flake8
+    - gcsfs
+    - gsutil
+    - google-cloud-storage
+    - hypothesis
+    - intake
+    - intake-xarray
+    - kubernetes
+    - metpy
+    - numba
+    - partd
+    - pyyaml==5.3
+    - pytest
+    - pytest-mpl
+    - scikit-image
+    - scikit-learn
+    - xarray>=0.14
+    - jupyterlab
+    - xgcm>=0.2
+    - jupyterlab
+    - apache-beam[gcp]

@@ -3,7 +3,8 @@
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
-VERSION = v0.1.0-a1
+
+VERSION ?= v0.1.0
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
@@ -13,6 +14,7 @@ PYTHON_INTERPRETER = python3
 DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
 IMAGE = fv3net
 GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
+WHEEL_DIR ?= ./
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -23,6 +25,7 @@ endif
 #################################################################################
 # COMMANDS                                                                      #
 #################################################################################
+
 .PHONY: wheels build_images push_image
 # wheels:
 # 	pip wheel --no-deps .
@@ -31,7 +34,7 @@ endif
 
 # pattern rule for building docker images
 build_image_%:
-	docker build -f docker/$*/Dockerfile . -t us.gcr.io/vcm-ml/$*:$(VERSION)
+	docker build . -f docker/$*/Dockerfile -t us.gcr.io/vcm-ml/$*:$(VERSION)
 
 enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net us.gcr.io/vcm-ml/$*:$(VERSION) bash
@@ -52,6 +55,9 @@ enter: build_image
 
 #		-e GOOGLE_APPLICATION_CREDENTIALS=/google_creds.json \
 #		-v $(HOME)/.config/gcloud/application_default_credentials.json:/google_creds.json \
+
+build_ci_image:
+	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
 
 ## Make Dataset

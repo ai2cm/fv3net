@@ -28,7 +28,6 @@ reports
 tasks.pdf
 test.f90
 test.o
-tmp
 tox.ini
 vcm-ml-data
 dataflow/*/env

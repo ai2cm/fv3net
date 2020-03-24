@@ -1,5 +1,8 @@
 # Contributions Guides and Standards
 
+Please record all changes and updates in [HISTORY.rst](./HISTORY.rst) under the 
+upcoming section.  It is especially important to log changes that break backwards 
+compatibility so we can appropriately adjust the versioning.
 
 ## fv3net
 

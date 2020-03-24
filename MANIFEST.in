@@ -1,1 +1,8 @@
-include fv3net/regression/sklearn/default_norm_outputs.dat
+
+include HISTORY.rst
+include LICENSE
+include README.rst
+
+recursive-include tests *
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
