@@ -1,35 +1,35 @@
-# **/*.zarr
-# **/*.nc
-# **/*.pdf
-# **/*.png
-# argo-fv3net
-# .cache
-# conservative_768x1536_180x360.nc
-# data
-# .dockerignore
-# .dockerignore.swp
-# .dvc
-# .env
-# .envrc
-# experiments
-# .git
-# .gitignore
-# .idea
-# .vscode
-# models
-# my_mod.mod
-# notebooks
-# output.pdf
-# pipeline
-# README.md
-# references
-# reports
-# .snakemake
-# tasks.pdf
-# test.f90
-# test.o
-# tox.ini
-# vcm-ml-data
-# dataflow/*/env
-# external/vcm/venv
-# Dockerfile
+**/*.zarr
+**/*.nc
+**/*.pdf
+**/*.png
+argo-fv3net
+.cache
+conservative_768x1536_180x360.nc
+data
+.dockerignore
+.dockerignore.swp
+.dvc
+.env
+.envrc
+experiments
+.git
+.gitignore
+.idea
+.vscode
+models
+my_mod.mod
+notebooks
+output.pdf
+pipeline
+README.md
+references
+reports
+.snakemake
+tasks.pdf
+test.f90
+test.o
+tox.ini
+vcm-ml-data
+dataflow/*/env
+external/vcm/venv
+Dockerfile
