@@ -84,6 +84,17 @@ jobs:
     - run: sudo pip install black==19.10b0 flake8
     - run: make lint
 
+  test_docker_pull:
+    machine:
+      docker_layer_caching: true
+    environment:
+      GOOGLE_PROJECT_ID: vcm-ml
+      GOOGLE_COMPUTE_ZONE: us-central1
+    steps:
+      - gcp-gcr/gcr-auth:
+          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
+      - run: docker pull us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1
+
   
 workflows:
   version: 2
@@ -91,6 +102,7 @@ workflows:
     jobs:
       - lint
       - pytest_default
+      - test_docker_pull
   build_and_push:
     jobs:
       - pytest_default:
