@@ -13,6 +13,7 @@ PYTHON_INTERPRETER = python3
 DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
 IMAGE = fv3net
 GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
+WHEEL_DIR ?= ./
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -26,8 +27,8 @@ endif
 
 .PHONY: wheels build_images push_image build_ci_image
 wheels:
-	pip wheel -w --no-deps .
-	pip wheel -w --no-deps external/vcm
+	pip wheel -w $(WHEEL_DIR) --no-deps .
+	pip wheel -w $(WHEEL_DIR) --no-deps external/vcm
 
 # pattern rule for building docker images
 build_image_%:

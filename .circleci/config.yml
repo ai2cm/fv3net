@@ -57,13 +57,16 @@ jobs:
           pyenv global miniconda3-3.7.0
           conda install python=3.7
       - run: |
+          make wheels WHEEL_DIR=./
+          mkdir scratch
+          pyenv global 2.7.12
           if [[ -z "$CIRCLE_TAG" ]]
           then
               use_version="latest"
           else
               use_version=$CIRCLE_TAG
           fi
-          make build_images VERSION=$use_version
+          make build_images VERSION=$use_version WHEEL_DIR=./scratch/
       - run: |
           echo $CIRCLE_BRANCH
           echo $CIRCLE_TAG
