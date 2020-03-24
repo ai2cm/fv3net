@@ -52,22 +52,13 @@ jobs:
       - checkout
       - run: sudo apt-get install make
       - run: |
-          pyenv versions
-          [ -d /opt/circleci/.pyenv/versions/miniconda3-3.7.0 ] || pyenv install miniconda3-3.7.0
-          pyenv global miniconda3-3.7.0
-          conda install python=3.7
-      - run: |
-          make wheels WHEEL_DIR=./
-          mkdir scratch
-          pyenv global 2.7.12
-          pip install --upgrade pip
           if [[ -z "$CIRCLE_TAG" ]]
           then
               use_version="latest"
           else
               use_version=$CIRCLE_TAG
           fi
-          make build_images VERSION=$use_version WHEEL_DIR=./scratch/
+          make build_images VERSION=$use_version
       - run: |
           echo $CIRCLE_BRANCH
           echo $CIRCLE_TAG
