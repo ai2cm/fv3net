@@ -14,7 +14,6 @@ PYTHON_INTERPRETER = python3
 DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
 IMAGE = fv3net
 GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
-WHEEL_DIR ?= ./
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -38,8 +37,6 @@ build_image_%:
 
 enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net us.gcr.io/vcm-ml/$*:$(VERSION) bash
-
-build_image_prognostic_run:
 
 build_images: build_image_fv3net build_image_prognostic_run
 
