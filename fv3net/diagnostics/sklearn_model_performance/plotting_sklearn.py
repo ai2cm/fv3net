@@ -15,9 +15,9 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_CENTER,
     PRESSURE_GRID,
 )
+import vcm
 from vcm.cubedsphere.regridz import regrid_to_common_pressure
 from vcm.select import mask_to_surface_type
-from vcm.calc.thermo import pressure_at_midpoint_log
 from vcm.visualize import plot_cube, mappable_var
 
 from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
@@ -81,29 +81,56 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
         "slmsk"
     )
     ds_pe = merge_comparison_datasets(
-        "P-E_total",
+        "net_precipitation",
         [ds_pred, ds_target, ds_hires],
         ["prediction", "target C48", "coarsened high res"],
         grid,
         slmsk,
     )
     ds_heating = merge_comparison_datasets(
-        "heating_total",
+        "net_heating",
         [ds_pred, ds_target, ds_hires],
         ["prediction", "target C48", "coarsened high res"],
         grid,
         slmsk,
     )
 
+    # <dQ1>, <dQ2> and as fraction of total 2D integrated vars
+    ds = merge_comparison_datasets(
+        data_vars=[
+            "net_precipitation_ml",
+            "net_heating_ml",
+            "net_precipitation",
+            "net_heating",
+        ],
+        datasets=[ds_pred, ds_target],
+        dataset_labels=["prediction", "target C48"],
+        grid=grid,
+    )
+    figs = map_plot_ml_frac_of_total(ds)
+    fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac = figs
+    fig_pe_ml.savefig(os.path.join(output_dir, "dQ2_vertical_integral_map.png"))
+    fig_pe_ml_frac.savefig(os.path.join(output_dir, "dQ2_frac_of_PE.png"))
+    fig_heating_ml.savefig(os.path.join(output_dir, "dQ1_vertical_integral_map.png"))
+    fig_heating_ml_frac.savefig(os.path.join(output_dir, "dQ1_frac_of_heating.png"))
+    report_sections["ML model contributions to Q1 and Q2"] = [
+        "dQ2_vertical_integral_map.png",
+        "dQ2_frac_of_PE.png",
+        "dQ1_vertical_integral_map.png",
+        "dQ1_frac_of_heating.png",
+    ]
+
     # LTS
     PE_pred = (
-        mask_to_surface_type(ds_pe.sel(dataset="prediction"), "sea")["P-E_total"]
+        mask_to_surface_type(ds_pe.sel(dataset="prediction"), "sea")[
+            "net_precipitation"
+        ]
         .squeeze()
         .drop("dataset")
     )
     PE_hires = (
         mask_to_surface_type(ds_pe.sel(dataset="coarsened high res"), "sea")[
-            "P-E_total"
+            "net_precipitation"
         ]
         .squeeze()
         .drop("dataset")
@@ -152,20 +179,23 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     ds_pe["local_time"] = local_time(ds_pe)
     ds_heating["local_time"] = local_time(ds_heating)
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_pe, "sea"), "P-E_total", title="ocean"
+        mask_to_surface_type(ds_pe, "sea"), "net_precipitation", title="ocean"
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_P-E_sea.png"),
         dpi=DPI_FIGURES["diurnal_cycle"],
     )
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_pe, "land"), "P-E_total", title="land"
+        mask_to_surface_type(ds_pe, "land"), "net_precipitation", title="land"
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_P-E_land.png"),
         dpi=DPI_FIGURES["diurnal_cycle"],
     )
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
-            ds_pe.sel(coords), "P-E_total", title=location_name, ylabel="P-E [mm]"
+            ds_pe.sel(coords),
+            "net_precipitation",
+            title=location_name,
+            ylabel="P-E [mm/day]",
         ).savefig(
             os.path.join(output_dir, f"diurnal_cycle_P-E_{location_name}.png"),
             dpi=DPI_FIGURES["diurnal_cycle"],
@@ -177,13 +207,13 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     # plot column heating across the diurnal cycle
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_heating, "sea"), "heating_total", title="sea"
+        mask_to_surface_type(ds_heating, "sea"), "net_heating", title="sea"
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_heating_sea.png"),
         dpi=DPI_FIGURES["diurnal_cycle"],
     )
     plot_diurnal_cycle(
-        mask_to_surface_type(ds_heating, "land"), "heating_total", title="land"
+        mask_to_surface_type(ds_heating, "land"), "net_heating", title="land"
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_heating_land.png"),
         dpi=DPI_FIGURES["diurnal_cycle"],
@@ -192,7 +222,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
             ds_heating.sel(coords),
-            "heating_total",
+            "net_heating",
             title=location_name,
             ylabel="heating [W/m$^2$]",
         ).savefig(
@@ -207,7 +237,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     # map plot variables and compare across prediction/ C48 /coarsened high res data
     _plot_comparison_maps(
         ds_pe,
-        "P-E_total",
+        "net_precipitation",
         time_index_selection=None,
         plot_cube_kwargs={"cbar_label": "time avg, P-E [mm/day]"},
     ).savefig(
@@ -215,7 +245,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
     _plot_comparison_maps(
         ds_pe,
-        "P-E_total",
+        "net_precipitation",
         time_index_selection=[0, 2],
         plot_cube_kwargs={"cbar_label": "timestep snapshot, P-E [mm/day]"},
     ).savefig(
@@ -226,7 +256,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
 
     _plot_comparison_maps(
         ds_heating,
-        "heating_total",
+        "net_heating",
         time_index_selection=None,
         plot_cube_kwargs={"cbar_label": "time avg, column heating [W/m$^2$]"},
     ).savefig(
@@ -235,7 +265,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     )
     _plot_comparison_maps(
         ds_heating,
-        "heating_total",
+        "net_heating",
         time_index_selection=[0, -1],
         plot_cube_kwargs={"cbar_label": "timestep snapshot, column heating [W/m$^2$]"},
     ).savefig(
@@ -357,7 +387,10 @@ def _make_vertical_profile_plots(ds_pred, ds_target, var, units, title=None):
 
     plt.clf()
     fig = plt.figure()
-    pos_mask, neg_mask = ds_target["P-E_total"] > 0, ds_target["P-E_total"] < 0
+    pos_mask, neg_mask = (
+        ds_target["net_precipitation"] > 0,
+        ds_target["net_precipitation"] < 0,
+    )
     ds_pred = regrid_to_common_pressure(ds_pred[var], ds_pred["delp"])
     ds_target = regrid_to_common_pressure(ds_target[var], ds_target["delp"])
 
@@ -402,7 +435,7 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
         .dropna("sample")
     )
 
-    ds["pressure"] = pressure_at_midpoint_log(ds["delp"])
+    ds["pressure"] = vcm.pressure_at_midpoint_log(ds["delp"])
     Q = [
         integrate_for_Q(p, qt)
         for p, qt in zip(ds["pressure"].values.T, ds["sphum"].values.T)
@@ -443,3 +476,50 @@ def _plot_lower_troposphere_stability(ds, PE_pred, PE_hires, lat_max=20):
     ax3.set_title("Avg P-E error (predicted - high res)")
     plt.show()
     return fig
+
+
+def map_plot_ml_frac_of_total(ds):
+    """ Produces plots of the ML predicted components dQ of column heating
+    and moistening
+    
+    Args:
+        ds (xarray dataset): dataset with "dataset" dimension denoting whether
+        the dQ quantity was from the high-low res tendency or the ML model prediction
+    
+    Returns:
+        Figure objects for plots of ML predictions of {column heating, P-E}
+        for both the absolute ML prediction value as well as the ML
+        prediction as a fraction of the total quantity (ML + physics)
+    """
+    ds = ds.assign(
+        {
+            "net_precipitation_ml_frac_of_total": ds["net_precipitation_ml"]
+            / ds["net_precipitation"],
+            "net_heating_ml_frac_of_total": ds["net_heating_ml"] / ds["net_heating"],
+        }
+    )
+    fig_pe_ml = plot_cube(
+        mappable_var(ds, "net_precipitation_ml").mean(INIT_TIME_DIM), col="dataset"
+    )[0]
+    fig_pe_ml.suptitle("P-E [mm/d]: ML contribution")
+    fig_pe_ml_frac = plot_cube(
+        mappable_var(ds, "net_precipitation_ml_frac_of_total").mean(INIT_TIME_DIM),
+        col="dataset",
+        vmin=-1,
+        vmax=1,
+    )[0]
+    fig_pe_ml_frac.suptitle("P-E: ML prediction as fraction of total")
+
+    fig_heating_ml = plot_cube(
+        mappable_var(ds, "net_heating_ml").mean(INIT_TIME_DIM), col="dataset"
+    )[0]
+    fig_heating_ml.suptitle("heating [W/m$^2$], ML contribution")
+    fig_heating_ml_frac = plot_cube(
+        mappable_var(ds, "net_heating_ml_frac_of_total").mean(INIT_TIME_DIM),
+        col="dataset",
+        vmin=-1,
+        vmax=1,
+    )[0]
+    fig_heating_ml_frac.suptitle("heating: ML prediction as fraction of total")
+
+    return fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac

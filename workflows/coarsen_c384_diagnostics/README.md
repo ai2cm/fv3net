@@ -1,7 +1,7 @@
 #### Usage
 Run 
 `workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.sh`
-`  {INPUT_LOCATION} {OUTPUT_LOCATION} {CONFIG_LOCATION}`
+`  {INPUT_LOCATION} {CONFIG_LOCATION} {OUTPUT_LOCATION}`
 
 #### Description
 This script coarsens a subset of diagnostic variables from the high resolution runs

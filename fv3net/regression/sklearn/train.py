@@ -1,5 +1,6 @@
 import argparse
 import joblib
+import logging
 import os
 import yaml
 
@@ -14,6 +15,12 @@ import vcm.cloud.fsspec
 
 MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+fh = logging.FileHandler("ml_training.log")
+fh.setLevel(logging.INFO)
+logger.addHandler(fh)
 
 
 @dataclass
@@ -32,6 +39,17 @@ class ModelTrainingConfig:
     gcs_project: str = "vcm-ml"
     random_seed: int = 1234
     mask_to_surface_type: str = "none"
+
+    def validate_number_train_batches(self, batch_generator):
+        """ Since number of training files specified may be larger than
+        the actual number available, this adds an attribute num_batches_used
+        that keeps information about the actual number of training batches
+        used.
+        
+        Args:
+            batch_generator (BatchGenerator)
+        """
+        self.num_batches_used = batch_generator.num_batches
 
 
 def load_model_training_config(config_path, gcs_data_dir):
@@ -115,18 +133,25 @@ def train_model(batched_data, train_config):
     target_transformer = StandardScaler()
     transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
     batch_regressor = RegressorEnsemble(transform_regressor)
-
     model_wrapper = SklearnWrapper(batch_regressor)
 
+    train_config.validate_number_train_batches(batched_data)
+
     for i, batch in enumerate(batched_data.generate_batches()):
-        print(f"Fitting batch {i}/{batched_data.num_batches}")
-        model_wrapper.fit(
-            input_vars=train_config.input_variables,
-            output_vars=train_config.output_variables,
-            sample_dim="sample",
-            data=batch,
-        )
-        print(f"Batch {i} done fitting.")
+        logger.info(f"Fitting batch {i}/{batched_data.num_batches}")
+        try:
+            model_wrapper.fit(
+                input_vars=train_config.input_variables,
+                output_vars=train_config.output_variables,
+                sample_dim="sample",
+                data=batch,
+            )
+            logger.info(f"Batch {i} done fitting.")
+        except ValueError as e:
+            logger.error(f"Error training on batch {i}: {e}")
+            train_config.num_batches_used -= 1
+            continue
+
     return model_wrapper
 
 
@@ -160,6 +185,7 @@ if __name__ == "__main__":
         "remove local copy after upload.",
     )
     args = parser.parse_args()
+    args.train_data_path = os.path.join(args.train_data_path, "train")
     train_config = load_model_training_config(
         args.train_config_file, args.train_data_path
     )
