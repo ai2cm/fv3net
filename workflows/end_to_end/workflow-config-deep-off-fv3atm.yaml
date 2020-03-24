@@ -4,63 +4,70 @@ experiment:
   name: deep-conv-off-fv3atm-a45d1781
   unique_id: False
   steps_to_run:
-    - one_step_run
-    - create_training_data
+      #    - one_step_run
+      #    - create_training_data
     - train_sklearn_model
     - test_sklearn_model
-    - prognostic_run
+      #   - prognostic_run
+      #    - baseline_run
   
   steps_config:
     one_step_run:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
-      inputs:
+      args:
         restart_data:
           location: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48
-      extra_args: 
         experiment_yaml: ./workflows/one_step_jobs/deep-conv-off-fv3atm.yml
         docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.3.1
         --config-version: v0.3
 
     create_training_data:
-      command: workflows/create_training_data/orchestrator_job.sh
-      inputs:
+      command: python -m fv3net.pipelines.create_training_data
+      args:
         one_step_data:
           from: one_step_run
         diagnostics_data:
-          location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
-      extra_args: 
-        timesteps-per-output-file: 1
-        train-fraction: 0.5
+          location: gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/C48_gfsphysics_15min_coarse.zarr
+        --timesteps-per-output-file: 1
+        --train-fraction: 0.5
         
     train_sklearn_model:
-      command: workflows/sklearn_regression/orchestrator_train_sklearn.sh
-      inputs:
+      command: python -m fv3net.regression.sklearn.train
+      args:
         training_data:
           from: create_training_data
-      extra_args:
         train-config-file: ./workflows/sklearn_regression/maxdepth_13_rf_config.yml
         
     test_sklearn_model: 
-      command: workflows/sklearn_regression/orchestrator_test_sklearn.sh
-      inputs:
+      command: python -m fv3net.diagnostics.sklearn_model_performance
+      args:
         trained_model:
           from: train_sklearn_model
         testing_data:
           from: create_training_data
         diagnostics_data:
-          location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
-      extra_args: 
-        num-test-zarrs: 36
+          location: gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/C48_gfsphysics_15min_coarse.zarr
+        --num_test_zarrs: 36
+        --downsample-time-factor: 40
 
     prognostic_run:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
-      inputs:
-        sklearn_model:
-          from: train_sklearn_model
+      args:
         restart_file_dir:
           from: one_step_run
-      extra_args:
-        prognostic_yaml_adjust: workflows/prognostic_c48_run/prognostic_config.yml
         ic_timestep: "20160803.061500"
         docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration:fv3py_v0.3.1
+        --prog_yaml: workflows/prognostic_c48_run/prognostic_config.yml
+        --model_url:
+          from: train_sklearn_model
+
+    baseline_run:
+      command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
+      args:
+        restart_file_dir:
+          from: one_step_run
+        ic_timestep: "20160803.061500"
+        docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration:fv3py_v0.3.1
+        --prog_yaml: workflows/prognostic_c48_run/prognostic_config.yml
+
 
