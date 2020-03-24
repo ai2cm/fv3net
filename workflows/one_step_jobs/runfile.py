@@ -156,8 +156,7 @@ def post_process(out_dir, url, index, init=False, timesteps=()):
     begin = begin.drop("time")
 
     # concat data
-    dt = np.timedelta64(15, "m")
-    time = np.arange(len(time)) * dt
+    time = time - time[0]
     ds = xr.concat([begin, before, after], dim="step").assign_coords(
         step=["begin", "after_dynamics", "after_physics"], time=time
     )
