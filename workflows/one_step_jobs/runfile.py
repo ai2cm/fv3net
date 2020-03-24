@@ -120,7 +120,7 @@ def init_coord(group, coord):
     # fill_value=NaN is needed below for xr.open_zarr to succesfully load this
     # coordinate if decode_cf=True. Otherwise, time=0 gets filled in as nan. very
     # confusing...
-    out_array = group.array(name=coord.name, data=np.asarray(coord), fill_value='NaN')
+    out_array = group.array(name=coord.name, data=np.asarray(coord), fill_value="NaN")
     out_array.attrs.update(coord.attrs)
     out_array.attrs["_ARRAY_DIMENSIONS"] = list(coord.dims)
 
@@ -143,17 +143,15 @@ def _get_forecast_time(time):
     dt = np.asarray(time - time[0])
     return xr.DataArray(
         _convert_time_delta_to_float_seconds(dt),
-        name='time',
-        dims=['time'],
-        attrs={
-            'units': 's'
-        }
+        name="time",
+        dims=["time"],
+        attrs={"units": "s"},
     )
 
 
 def _convert_time_delta_to_float_seconds(a):
     ns_per_s = 1e9
-    return a.astype('timedelta64[ns]').astype(float) / ns_per_s
+    return a.astype("timedelta64[ns]").astype(float) / ns_per_s
 
 
 def post_process(out_dir, url, index, init=False, timesteps=()):
