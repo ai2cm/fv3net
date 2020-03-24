@@ -1,6 +1,5 @@
 import numpy as np
 import xarray as xr
-import warnings
 
 import vcm
 from vcm.calc import r2_score
@@ -13,7 +12,7 @@ from vcm.cubedsphere.constants import (
     VAR_LAT_CENTER,
     PRESSURE_GRID,
 )
-from fv3net.diagnostics.sklearn_model_performance import (
+from . import (
     DATASET_NAME_PREDICTION, 
     DATASET_NAME_FV3_TARGET,
     DATASET_NAME_SHIELD_HIRES,

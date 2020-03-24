@@ -31,7 +31,7 @@ def merge_comparison_datasets(
             is the coords for the "dataset" dimension
         grid: xr dataset with lat/lon grid vars
         additional_data: xr data array, any additional data (e.g. slmsk) to merge along
-            with data arrays and grid
+            with data arrays and grid.
 
     Returns:
         Dataset with new dataset dimension to denote the target vs predicted
@@ -40,6 +40,8 @@ def merge_comparison_datasets(
 
     src_dim_index = pd.Index(dataset_labels, name="dataset")
     datasets = [drop_nondim_coords(ds) for ds in datasets]
+    # if one of the datasets is missing data variable(s) that are in the others, 
+    # fill it with an empty data array
     _add_missing_data_vars(data_vars, datasets)
     
     datasets_to_merge = [

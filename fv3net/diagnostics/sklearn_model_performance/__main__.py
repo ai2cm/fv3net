@@ -4,14 +4,17 @@ import shutil
 import xarray as xr
 from vcm.cloud.fsspec import get_fs, get_protocol
 from vcm.cloud.gsutil import copy
-from vcm.cubedsphere.constants import INIT_TIME_DIM
+from vcm.cubedsphere.constants import INIT_TIME_DIM, VAR_SURFACE_TYPE
 from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
     predict_on_test_data,
     load_high_res_diag_dataset,
     add_column_heating_moistening,
 )
-from fv3net.diagnostics.sklearn_model_performance.plotting_sklearn import make_all_plots
+
 from fv3net.diagnostics.create_report import create_report
+from fv3net.diagnostics.data import merge_comparison_datasets
+from .plotting_sklearn import make_all_plots
+from .metrics import create_metrics_dataset, plot_metrics
 
 TEMP_OUTPUT_DIR = "temp_sklearn_prediction_report_output"
 
@@ -77,14 +80,39 @@ if __name__ == "__main__":
         args.model_type,
         args.downsample_time_factor,
     )
+
+    fs_input = get_fs(args.test_data_path)
+    fs_output = get_fs(args.output_path)
+
     add_column_heating_moistening(ds_test)
     add_column_heating_moistening(ds_pred)
     init_times = list(set(ds_test[INIT_TIME_DIM].values))
     ds_hires = load_high_res_diag_dataset(args.high_res_data_path, init_times)
-
     grid_path = os.path.join(os.path.dirname(args.test_data_path), "grid_spec.zarr")
-    fs_input = get_fs(args.test_data_path)
+
     grid = xr.open_zarr(fs_input.get_mapper(grid_path))
+    slmsk = ds_test[VAR_SURFACE_TYPE].isel({INIT_TIME_DIM:0})
+    ds = merge_comparison_datasets(
+        data_vars=DIAG_VARS,
+        datasets=[ds_pred, ds_test, ds_hires],
+        dataset_labels=[DATASET_NAME_PREDICTION, DATASET_NAME_FV3_TARGET, DATASET_NAME_SHIELD_HIRES],
+        grid=grid,
+        additional_dataset=slmsk,
+    )
+
+    # create and save metrics dataset
+    # metrics: r2 global values, r2 pressure level profiles, MSE at locations
+    ds_metrics = create_metrics_dataset(ds)
+    ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
+
+    # plot metrics and get section and filename dict for final report
+    plot_metrics(ds, output_dir)
+
+    # plot diagnostics and get section and filename dict for final report
+    # diagnostics: ML dQ vs total maps, LTS, Vertical dQ2 profiles in wet/dry columns, diurnal cycle, 
+    # time avg and snapshots of net precip and heating compared across datasets 
+
+
     report_sections = make_all_plots(ds_pred, ds_test, ds_hires, grid, output_dir)
     create_report(report_sections, "ml_model_predict_diagnostics", output_dir)
     fs_output = get_fs(args.output_path)

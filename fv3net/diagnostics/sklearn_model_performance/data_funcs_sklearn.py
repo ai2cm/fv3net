@@ -16,6 +16,7 @@ from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     COORD_X_CENTER,
     COORD_Y_CENTER,
+    COORD_Z_CENTER,
     TILE_COORDS,
 )
 from vcm.regrid import regrid_to_shared_coords
@@ -145,7 +146,7 @@ def lower_tropospheric_stability(ds):
             [70000],
             pressure,
             regrid_dim_name="p700mb",
-            replace_dim_name="pfull",
+            replace_dim_name=COORD_Z_CENTER,
         )
         .squeeze()
         .drop("p700mb")
