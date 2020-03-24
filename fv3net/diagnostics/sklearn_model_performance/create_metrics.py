@@ -1,9 +1,17 @@
+import numpy as np
 import xarray as xr
+import warnings
+
 import vcm
+from vcm.calc import r2_score
+from vcm.cubedsphere.regridz import regrid_to_common_pressure
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     COORD_X_CENTER,
     COORD_Y_CENTER,
+    COORD_Z_CENTER,
+    VAR_LAT_CENTER,
+    PRESSURE_GRID,
 )
 from fv3net.diagnostics.sklearn_model_performance import (
     DATASET_NAME_PREDICTION, 
@@ -12,9 +20,66 @@ from fv3net.diagnostics.sklearn_model_performance import (
 )
 
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
+SAMPLE_DIM = "sample"
 
 
-def r2_global_values(ds):
+def create_metrics_dataset(ds):
+    ds_metrics = _r2_global_values(ds)
+    ds_metrics["r2_dQ1_pressure_levels_global"] = _r2_pressure_level_metrics(ds, "dQ1")
+    ds_metrics["r2_dQ2_pressure_levels_global"] = _r2_pressure_level_metrics(ds, "dQ2")
+    ds_metrics["r2_dQ1_pressure_levels_sea"] = _r2_pressure_level_metrics(vcm.mask_to_surface_type(ds, "sea"), "dQ1")
+    ds_metrics["r2_dQ2_pressure_levels_sea"] = _r2_pressure_level_metrics(vcm.mask_to_surface_type(ds, "sea"), "dQ2")
+    ds_metrics["r2_dQ1_pressure_levels_land"] = _r2_pressure_level_metrics(vcm.mask_to_surface_type(ds, "land"), "dQ1")
+    ds_metrics["r2_dQ2_pressure_levels_land"] = _r2_pressure_level_metrics(vcm.mask_to_surface_type(ds, "land"), "dQ2")
+    ds_metrics["mse_net_precipitation_vs_fv3_target"] = _mean_squared_error_metrics(
+        ds, "net_precipitation", target_dataset_name=DATASET_NAME_FV3_TARGET)
+    ds_metrics["mse_net_precipitation_vs_shield"] = _mean_squared_error_metrics(
+        ds, "net_precipitation", target_dataset_name=DATASET_NAME_SHIELD_HIRES)
+    ds_metrics["mse_net_heating_vs_fv3_target"] = _mean_squared_error_metrics(
+        ds, "net_precipitation", target_dataset_name=DATASET_NAME_FV3_TARGET)
+    ds_metrics["mse_net_heating_vs_shield"] = _mean_squared_error_metrics(
+        ds, "net_precipitation", target_dataset_name=DATASET_NAME_SHIELD_HIRES)
+    return ds_metrics
+
+
+def _mean_squared_error_metrics(
+        ds, 
+        var,
+        target_dataset_name=DATASET_NAME_FV3_TARGET,
+        prediction_dataset_name=DATASET_NAME_PREDICTION,
+        sample_dim=SAMPLE_DIM,
+):
+    target = ds.sel(dataset=target_dataset_name)[var]
+    prediction = ds.sel(dataset=prediction_dataset_name)[var]
+    mse = np.sqrt((target - prediction)**2)
+    return mse
+
+
+def _r2_pressure_level_metrics(
+        ds, 
+        var,
+        target_dataset_name=DATASET_NAME_FV3_TARGET,
+        prediction_dataset_name=DATASET_NAME_PREDICTION,
+        sample_dim=SAMPLE_DIM
+):
+    pressure = np.array(PRESSURE_GRID) / 100
+    target = regrid_to_common_pressure(
+        ds.sel(dataset=target_dataset_name)[var],
+        ds.sel(dataset=target_dataset_name)["delp"]
+    ).stack({sample_dim: STACK_DIMS})
+    prediction = regrid_to_common_pressure(
+        ds.sel(dataset=prediction_dataset_name)[var],
+        ds.sel(dataset=prediction_dataset_name)["delp"]
+    ).stack({sample_dim: STACK_DIMS})
+    da = xr.DataArray(
+        r2_score(target, prediction, sample_dim),
+        dims=["pressure"],
+        coords={"pressure": pressure}
+    )
+    return da
+
+
+def _r2_global_values(ds):
     """ Calculate global R^2 for net precipitation and heating against
     target FV3 dataset and coarsened high res dataset
     
@@ -26,17 +91,17 @@ def r2_global_values(ds):
     """
     r2_summary = xr.Dataset()
     for var in ["net_heating", "net_precipitation"]:
-        r2_summary[f"R2_global_{var}_vs_target"] = vcm.r2_score(
+        r2_summary[f"R2_global_{var}_vs_target"] = r2_score(
             ds.sel(dataset=DATASET_NAME_FV3_TARGET)[var].stack(sample=STACK_DIMS),
             ds.sel(dataset=DATASET_NAME_PREDICTION)[var].stack(sample=STACK_DIMS),
             "sample",
         )
-        r2_summary[f"R2_global_{var}_vs_hires"] = vcm.r2_score(
+        r2_summary[f"R2_global_{var}_vs_hires"] = r2_score(
             ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)[var].stack(sample=STACK_DIMS),
             ds.sel(dataset=DATASET_NAME_PREDICTION)[var].stack(sample=STACK_DIMS),
             "sample",
         ).values.item()
-        r2_summary[f"R2_sea_{var}_vs_target"] = vcm.r2_score(
+        r2_summary[f"R2_sea_{var}_vs_target"] = r2_score(
             vcm.mask_to_surface_type(ds.sel(dataset=DATASET_NAME_FV3_TARGET), "sea")[var].stack(
                 sample=STACK_DIMS
             ),
@@ -45,7 +110,7 @@ def r2_global_values(ds):
             ),
             "sample",
         ).values.item()
-        r2_summary[f"R2_sea_{var}_vs_hires"] = vcm.r2_score(
+        r2_summary[f"R2_sea_{var}_vs_hires"] = r2_score(
             vcm.mask_to_surface_type(ds.sel(dataset=DATASET_NAME_SHIELD_HIRES), "sea")[
                 var
             ].stack(sample=STACK_DIMS),
@@ -54,7 +119,7 @@ def r2_global_values(ds):
             ),
             "sample",
         ).values.item()
-        r2_summary[f"R2_land_{var}_vs_target"] = vcm.r2_score(
+        r2_summary[f"R2_land_{var}_vs_target"] = r2_score(
             vcm.mask_to_surface_type(ds.sel(dataset=DATASET_NAME_FV3_TARGET), "land")[var].stack(
                 sample=STACK_DIMS
             ),
@@ -63,7 +128,7 @@ def r2_global_values(ds):
             ),
             "sample",
         ).values.item()
-        r2_summary[f"R2_land_{var}_vs_hires"] = vcm.r2_score(
+        r2_summary[f"R2_land_{var}_vs_hires"] = r2_score(
             vcm.mask_to_surface_type(ds.sel(dataset=DATASET_NAME_SHIELD_HIRES), "land")[
                 var
             ].stack(sample=STACK_DIMS),
