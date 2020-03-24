@@ -52,9 +52,9 @@ jobs:
       - checkout
       - run: sudo apt-get install make
       - run:
-        name: "Pull submodules"
-        command: |
-          git submodule update --init --recursive
+          name: "Pull submodules"
+          command: |
+            git submodule update --init --recursive
       - run:
           name: Build fv3net images 
           command: |
