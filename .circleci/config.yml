@@ -98,7 +98,7 @@ jobs:
       - run: |
           pyenv versions
           [ -d /opt/circleci/.pyenv/versions/3.7.6 ] || pyenv install 3.7.6
-          pyenv global 3.6.2
+          pyenv global 3.7.6
           pip install --upgrade pip setuptools
       # - run: docker pull us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1
       - run: make build_image_prognostic_run
