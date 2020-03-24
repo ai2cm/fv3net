@@ -26,8 +26,8 @@ endif
 
 .PHONY: wheels build_images push_image build_ci_image
 wheels:
-	pip wheel -w ./ --no-deps .
-	pip wheel -w ./ --no-deps external/vcm
+	pip wheel -w ./docker/prognostic_run/ --no-deps .
+	pip wheel -w ./docker/prognostic_run/ --no-deps external/vcm
 
 # pattern rule for building docker images
 build_image_%:
