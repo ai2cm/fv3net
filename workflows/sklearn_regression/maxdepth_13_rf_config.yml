@@ -1,6 +1,5 @@
 model_type: sklearn_random_forest
 hyperparameters:
-    #  min_samples_leaf: 15
   max_depth: 13
   n_estimators: 1
 num_batches: 5
