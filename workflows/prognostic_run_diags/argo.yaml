@@ -22,7 +22,7 @@ spec:
               - name: run
                 value: "{{item.url}}"
               - name: output
-                value: "gs://vcm-ml-data/testing-2020-02/{{item.name}}.nc"
+                value: "{{workflow.parameters.output_url}}/{{item.name}}.nc"
       - - name: generate-notebook
           template: notebook
    - name: notebook
