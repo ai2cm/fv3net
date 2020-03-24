@@ -31,7 +31,7 @@ wheels:
 
 # pattern rule for building docker images
 build_image_%:
-	docker build -f docker/$*/Dockerfile . -t us.gcr.io/vcm-ml/$*:$(VERSION)
+	docker build . -f docker/$*/Dockerfile -t us.gcr.io/vcm-ml/$*:$(VERSION)
 
 build_image_prognostic_run: wheels
 
