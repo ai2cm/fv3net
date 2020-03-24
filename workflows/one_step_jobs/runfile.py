@@ -117,7 +117,7 @@ def init_data_var(group, array, nt):
 
 def init_coord(group, coord):
     logger.info(f"Initializing coordinate: {coord.name}")
-    out_array = group.array(name=coord.name, data=np.asarray(coord))
+    out_array = group.array(name=coord.name, data=np.asarray(coord), fill_value='NaN')
     out_array.attrs.update(coord.attrs)
     out_array.attrs["_ARRAY_DIMENSIONS"] = list(coord.dims)
 
@@ -134,6 +134,23 @@ def create_zarr_store(timesteps, group, template):
         init_coord(group, ds[name])
     dim = group.array("initial_time", data=timesteps)
     dim.attrs["_ARRAY_DIMENSIONS"] = ["initial_time"]
+
+
+def _get_forecast_time(time):
+    dt = np.asarray(time - time[0])
+    return xr.DataArray(
+        _convert_time_delta_to_float_seconds(dt),
+        name='time',
+        dims=['time'],
+        attrs={
+            'units': 's'
+        }
+    )
+
+
+def _convert_time_delta_to_float_seconds(a):
+    ns_per_s = 1e9
+    return a.astype('timedelta64[ns]').astype(float) / ns_per_s
 
 
 def post_process(out_dir, url, index, init=False, timesteps=()):
@@ -156,7 +173,7 @@ def post_process(out_dir, url, index, init=False, timesteps=()):
     begin = begin.drop("time")
 
     # concat data
-    time = time - time[0]
+    time = _get_forecast_time(time)
     ds = xr.concat([begin, before, after], dim="step").assign_coords(
         step=["begin", "after_dynamics", "after_physics"], time=time
     )
