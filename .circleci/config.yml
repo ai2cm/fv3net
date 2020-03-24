@@ -78,7 +78,7 @@ jobs:
             if [[ ! -z "$CIRCLE_TAG" ]]
             then
                 echo "pushing tagged images $CIRCLE_TAG"
-                make push_images version=$CIRCLE_TAG
+                make push_images VERSION=$CIRCLE_TAG
             fi
   
   lint:
