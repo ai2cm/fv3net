@@ -65,12 +65,12 @@ jobs:
           if [[ "$CIRCLE_BRANCH" == "master" ]]
           then
               echo "pushing untagged images as 'latest'"
-              make push_image VERSION=latest
+              make push_images VERSION=latest
           fi
           if [[ ! -z "$CIRCLE_TAG" ]]
           then
               echo "pushing tagged images $CIRCLE_TAG"
-              make push_image version=$CIRCLE_TAG
+              make push_images version=$CIRCLE_TAG
           fi
   
   lint:
