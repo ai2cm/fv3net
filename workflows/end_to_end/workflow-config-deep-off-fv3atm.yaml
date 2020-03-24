@@ -4,12 +4,12 @@ experiment:
   name: deep-conv-off-fv3atm-a45d1781
   unique_id: False
   steps_to_run:
-      #    - one_step_run
-      #    - create_training_data
+    - one_step_run
+    - create_training_data
     - train_sklearn_model
     - test_sklearn_model
-      #   - prognostic_run
-      #    - baseline_run
+    - prognostic_run
+    - baseline_run
   
   steps_config:
     one_step_run:
@@ -27,7 +27,7 @@ experiment:
         one_step_data:
           from: one_step_run
         diagnostics_data:
-          location: gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/C48_gfsphysics_15min_coarse.zarr
+          location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
         --timesteps-per-output-file: 1
         --train-fraction: 0.5
         
@@ -46,7 +46,7 @@ experiment:
         testing_data:
           from: create_training_data
         diagnostics_data:
-          location: gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/C48_gfsphysics_15min_coarse.zarr
+          location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
         --num_test_zarrs: 36
         --downsample-time-factor: 40
 
@@ -57,7 +57,7 @@ experiment:
           from: one_step_run
         ic_timestep: "20160803.061500"
         docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration:fv3py_v0.3.1
-        --prog_yaml: workflows/prognostic_c48_run/prognostic_config.yml
+        --prog_config_yml: workflows/prognostic_c48_run/prognostic_config.yml
         --model_url:
           from: train_sklearn_model
 
@@ -68,6 +68,6 @@ experiment:
           from: one_step_run
         ic_timestep: "20160803.061500"
         docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration:fv3py_v0.3.1
-        --prog_yaml: workflows/prognostic_c48_run/prognostic_config.yml
+        --prog_config_yml: workflows/prognostic_c48_run/prognostic_config.yml
 
 
