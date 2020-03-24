@@ -28,7 +28,7 @@ endif
 wheels:
 	pip wheel -w ./docker/prognostic_run/ --no-deps .
 	pip wheel -w ./docker/prognostic_run/ --no-deps external/vcm
-	echo $(ls ./docker/prognostic_run/)
+	echo $(shell ls ./docker/prognostic_run/)
 
 # pattern rule for building docker images
 build_image_%:
