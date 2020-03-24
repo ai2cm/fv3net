@@ -96,7 +96,7 @@ jobs:
       - checkout
       - run: sudo apt-get install make
       - run: |
-          pip install --upgrade pip
+          pip install --upgrade pip setuptools
       # - run: docker pull us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1
       - run: make build_image_prognostic_run
 
