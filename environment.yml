@@ -48,4 +48,5 @@ dependencies:
   - pip:
     - gsutil
     - nc-time-axis>=1.2.0
+    - gitpython
     - yq

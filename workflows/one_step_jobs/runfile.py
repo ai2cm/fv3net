@@ -1,7 +1,9 @@
 import os
 from fv3net import runtime
+import fv3net
 import logging
 import time
+from git import Repo
 from multiprocessing import Process
 
 # avoid out of memory errors
@@ -125,10 +127,23 @@ def init_coord(group, coord):
     out_array.attrs["_ARRAY_DIMENSIONS"] = list(coord.dims)
 
 
+def get_provenance_info():
+    repo = Repo(search_parent_directories=True)
+    uncommited_changes = len(repo.index.diff(repo.head.commit))
+    untracked_files = len(repo.untracked_file)
+    return {
+        'fv3net_version': fv3net.__version__,
+        'commit': repo.head.commit.hexsha,
+        'index': 'dirty' if uncommited_changes > 0 else 'clean',
+        'working-tree': 'dirty' if untracked_files > 0 else 'clean',
+    }
+
+
 def create_zarr_store(timesteps, group, template):
     logger.info("Creating group")
     ds = template
     group.attrs.update(ds.attrs)
+    group.attrs.update(get_provenance_info())
     nt = len(timesteps)
     for name in ds:
         init_data_var(group, ds[name], nt)
