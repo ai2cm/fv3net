@@ -12,5 +12,7 @@
   name: physics-off-1-rf
 - name: deep-conv-off-265ebf37
   url: gs://vcm-ml-data/experiments-2020-03/deep-conv-off-265ebf37/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160803.061500_docker_image_prognostic-run-orchestration
-- url: gs://vcm-ml-data/experiments-2020-03/end_to_end/deep-conv-off-fv3atm-a45d1781/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160803.061500_docker_image_prognostic-run-orchestration:fv3py_v0.3.1
-  name: deep-off-fv3atm-a45d1781
+- name: deep-off-fv3atm-rf
+  url: gs://vcm-ml-data/experiments-2020-03/end_to_end/deep-conv-off-fv3atm-a45d1781/prognostic_run_prognostic_yaml_adjust_prognostic_config.yml_ic_timestep_20160803.061500_docker_image_prognostic-run-orchestration:fv3py_v0.3.1
+- name: deep-off-fv3atm-baseline
+  url: gs://vcm-ml-data/experiments-2020-03/end_to_end/deep-conv-off-fv3atm-a45d1781/baseline_run_ic_timestep_20160803.061500_docker_image_prognostic_run:v0.1.1-oliwmtest_prog_config_yml_prognostic_config.yml
