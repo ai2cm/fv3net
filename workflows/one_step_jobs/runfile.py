@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Sequence
 from fv3net import runtime
 import fv3net
 import logging
@@ -96,7 +96,7 @@ SFC_VARIABLES = (
 )
 
 
-def rename_sfc_dt_atmos(sfc):
+def rename_sfc_dt_atmos(sfc: xr.Dataset) -> xr.Dataset:
     DIMS = {"grid_xt": "x", "grid_yt": "y", "time": "forecast_time"}
     return (
         sfc[list(SFC_VARIABLES)]
@@ -106,7 +106,7 @@ def rename_sfc_dt_atmos(sfc):
     )
 
 
-def init_data_var(group, array, nt):
+def init_data_var(group: zarr.Group, array: xr.DataArray, nt: int):
     logger.info(f"Initializing variable: {array.name}")
     shape = (nt,) + array.data.shape
     chunks = (1,) + tuple(size[0] for size in array.data.chunks)
@@ -117,7 +117,7 @@ def init_data_var(group, array, nt):
     out_array.attrs["_ARRAY_DIMENSIONS"] = ["initial_time"] + list(array.dims)
 
 
-def init_coord(group, coord):
+def init_coord(group: zarr.Group, coord):
     logger.info(f"Initializing coordinate: {coord.name}")
     # fill_value=NaN is needed below for xr.open_zarr to succesfully load this
     # coordinate if decode_cf=True. Otherwise, time=0 gets filled in as nan. very
@@ -127,7 +127,7 @@ def init_coord(group, coord):
     out_array.attrs["_ARRAY_DIMENSIONS"] = list(coord.dims)
 
 
-def create_zarr_store(timesteps, group, template):
+def create_zarr_store(timesteps: Sequence[str], group: zarr.Group, template: xr.Dataset):
     logger.info("Creating group")
     ds = template
     group.attrs.update(ds.attrs)
@@ -141,7 +141,7 @@ def create_zarr_store(timesteps, group, template):
     dim.attrs["_ARRAY_DIMENSIONS"] = ["initial_time"]
 
 
-def _get_forecast_time(time):
+def _get_forecast_time(time) -> xr.DataArray:
     dt = np.asarray(time - time[0])
     return xr.DataArray(
         _convert_time_delta_to_float_seconds(dt),
@@ -156,7 +156,7 @@ def _convert_time_delta_to_float_seconds(a):
     return a.astype("timedelta64[ns]").astype(float) / ns_per_s
 
 
-def post_process(out_dir, url, index, init=False, timesteps=()):
+def post_process(out_dir: str, url: str, index: int, init: bool=False, timesteps: Sequence=()):
 
     if init and len(timesteps) > 0 and index:
         raise ValueError(
