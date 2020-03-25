@@ -208,6 +208,7 @@ def post_process(out_dir, url, index, init=False, timesteps=()):
         group = zarr.open_group(mapper, mode="w")
         create_zarr_store(timesteps, group, ds)
 
+    group = zarr.open_group(mapper, mode="a")
     variables = VARIABLES + SFC_VARIABLES
     logger.info(f"Variables to process: {variables}")
     for variable in ds[list(variables)]:
