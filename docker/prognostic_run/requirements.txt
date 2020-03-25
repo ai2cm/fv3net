@@ -3,3 +3,4 @@ dask
 joblib
 zarr
 scikit-image
+backoff

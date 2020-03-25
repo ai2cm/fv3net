@@ -4,7 +4,7 @@ kubernetes:
 diag_table: workflows/prognostic_c48_run/diag_table_prognostic
 namelist:
   coupler_nml:
-    days: 5  # total length
+    days: 10  # total length
     hours: 0
     minutes: 0
     seconds: 0
