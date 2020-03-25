@@ -45,6 +45,8 @@ DPI_FIGURES = {
     "map_plot_3col": 120,
 }
 
+matplotlib.use("Agg")
+
 
 def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     """ Makes figures for predictions on test data
