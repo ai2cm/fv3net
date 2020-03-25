@@ -133,11 +133,11 @@ def get_provenance_info():
     untracked_files = len(repo.untracked_files)
     unstaged_files = len(repo.index.diff(None))
     return {
-        'fv3net_version': fv3net.__version__,
-        'commit': repo.head.commit.hexsha,
-        'index': 'dirty' if uncommited_changes > 0 else 'clean',
-        'working-tree': 'dirty' if unstaged_files > 0 else 'clean',
-        'untracked_files': untracked_files
+        "fv3net_version": fv3net.__version__,
+        "commit": repo.head.commit.hexsha,
+        "index": "dirty" if uncommited_changes > 0 else "clean",
+        "working-tree": "dirty" if unstaged_files > 0 else "clean",
+        "untracked_files": untracked_files,
     }
 
 
