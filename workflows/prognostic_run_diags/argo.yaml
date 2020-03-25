@@ -32,7 +32,7 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net:v0.1.1
+      image: us.gcr.io/vcm-ml/fv3net:v0.1.0
       command: ['bash', 'upload_report.sh']
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
@@ -62,7 +62,7 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net:v0.1.1
+      image: us.gcr.io/vcm-ml/fv3net:v0.1.0
       command:
       - 'python'
       - '-m'
