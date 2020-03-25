@@ -1,9 +1,9 @@
 import os
+from typing import Dict, Any
 from fv3net import runtime
 import fv3net
 import logging
 import time
-from git import Repo
 from multiprocessing import Process
 
 # avoid out of memory errors
@@ -127,24 +127,10 @@ def init_coord(group, coord):
     out_array.attrs["_ARRAY_DIMENSIONS"] = list(coord.dims)
 
 
-def get_provenance_info():
-    uncommited_changes = len(repo.index.diff(repo.head.commit))
-    untracked_files = len(repo.untracked_files)
-    unstaged_files = len(repo.index.diff(None))
-    return {
-        "fv3net_version": fv3net.__version__,
-        "commit": repo.head.commit.hexsha,
-        "index": "dirty" if uncommited_changes > 0 else "clean",
-        "working-tree": "dirty" if unstaged_files > 0 else "clean",
-        "untracked_files": untracked_files,
-    }
-
-
 def create_zarr_store(timesteps, group, template):
     logger.info("Creating group")
     ds = template
     group.attrs.update(ds.attrs)
-    # group.attrs.update(get_provenance_info())
     nt = len(timesteps)
     for name in ds:
         init_data_var(group, ds[name], nt)
@@ -219,14 +205,12 @@ def post_process(out_dir, url, index, init=False, timesteps=()):
         dask_arr.store(group[variable], regions=(index,))
 
 
-def run_post_process_in_new_process(outdir, c):
+def run_post_process_from_config(outdir: str, c: Dict[str, Any]):
     url = c.pop("url")
     index = c.pop("index")
     args = (outdir, url, index)
     kwargs = c
-    p = Process(target=post_process, args=args, kwargs=kwargs)
-    p.start()
-    p.join()
+    post_process(*args, **kwargs)
 
 
 if __name__ == "__main__":
@@ -289,6 +273,6 @@ if __name__ == "__main__":
         # would be incompatible with the run_k8s api
         # sleep a little while to allow all process to finish finalizing the netCDFs
         time.sleep(2)
-        run_post_process_in_new_process(RUN_DIR, config["one_step"])
+        run_post_process_from_config(RUN_DIR, config["one_step"])
 else:
     logger = logging.getLogger(__name__)
