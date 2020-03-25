@@ -46,6 +46,7 @@ jobs:
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
     steps:
       - gcp-gcr/gcr-auth:
           gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
@@ -65,6 +66,11 @@ jobs:
                 use_version=$CIRCLE_TAG
             fi
             make build_images VERSION=$use_version
+      - run:
+          name: Run tests in fv3net image
+          command: |
+              echo $DECODED_GOOGLE_CREDENTIALS > $GOOGLE_APPLICATION_CREDENTIALS
+              bash docker/fv3net/run_tests_in_image.sh $CIRCLE_TAG
       - run:
           name: Push fv3net images
           command: |
