@@ -20,14 +20,11 @@ from vcm.select import mask_to_surface_type
 from vcm.visualize import plot_cube, mappable_var
 
 from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
-from fv3net.diagnostics import (
-    get_latlon_grid_coords_set,
-    EXAMPLE_CLIMATE_LATLON_COORDS,
-)
+from fv3net.diagnostics import get_latlon_grid_coords_set, EXAMPLE_CLIMATE_LATLON_COORDS
 from . import (
     integrate_for_Q,
     lower_tropospheric_stability,
-    DATASET_NAME_PREDICTION, 
+    DATASET_NAME_PREDICTION,
     DATASET_NAME_FV3_TARGET,
     DATASET_NAME_SHIELD_HIRES,
     DPI_FIGURES,
@@ -40,13 +37,14 @@ SAMPLE_DIM = "sample"
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 DIAG_VARS = [
     "net_precipitation",
-    "net_heating", 
-    "dQ1", 
-    "dQ2", 
-    "net_precipitation_ml", 
-    "net_heating_ml", 
-    "net_precipitation_physics", 
-    "net_heating_physics"]
+    "net_heating",
+    "dQ1",
+    "dQ2",
+    "net_precipitation_ml",
+    "net_heating_ml",
+    "net_precipitation_physics",
+    "net_heating_physics",
+]
 DPI_FIGURES = {
     "LTS": 100,
     "dQ2_pressure_profiles": 100,
@@ -74,27 +72,28 @@ def make_all_plots(ds, output_dir):
 
     # for convenience, separate the land/sea data
     ds_land = mask_to_surface_type(ds, "land")
-    ds_sea = mask_to_surface_type(ds, "sea")    
-    
+    ds_sea = mask_to_surface_type(ds, "sea")
+
     figs = _map_plot_ml_frac_of_total(ds)
     fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac = figs
     fig_pe_ml.savefig(os.path.join(output_dir, "dQ2_vertical_integral_map.png"))
     fig_pe_ml_frac.savefig(os.path.join(output_dir, "dQ2_frac_of_PE.png"))
     fig_heating_ml.savefig(os.path.join(output_dir, "dQ1_vertical_integral_map.png"))
     fig_heating_ml_frac.savefig(os.path.join(output_dir, "dQ1_frac_of_heating.png"))
-    
+
     report_sections["ML model contributions to Q1 and Q2"] = [
         "dQ2_vertical_integral_map.png",
         "dQ2_frac_of_PE.png",
         "dQ1_vertical_integral_map.png",
         "dQ1_frac_of_heating.png",
     ]
-    
+
     # LTS
-    _plot_lower_troposphere_stability(ds, lat_max=20) \
-        .savefig(os.path.join(output_dir, "LTS_vs_Q.png"), dpi=DPI_FIGURES["LTS"])
+    _plot_lower_troposphere_stability(ds, lat_max=20).savefig(
+        os.path.join(output_dir, "LTS_vs_Q.png"), dpi=DPI_FIGURES["LTS"]
+    )
     report_sections["Lower tropospheric stability vs humidity"] = ["LTS_vs_Q.png"]
-    
+
     # Vertical dQ2 profiles over land and ocean
     _make_vertical_profile_plots(
         ds_land, "dQ2", "[kg/kg/s]", "land: dQ2 vertical profile"
@@ -119,13 +118,17 @@ def make_all_plots(ds, output_dir):
     ds["local_time"] = vcm.local_time(ds)
 
     plot_diurnal_cycle(
-        mask_to_surface_type(ds[["net_precipitation", "slmsk", "local_time"]], "sea"), "net_precipitation", title="ocean"
+        mask_to_surface_type(ds[["net_precipitation", "slmsk", "local_time"]], "sea"),
+        "net_precipitation",
+        title="ocean",
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_P-E_sea.png"),
         dpi=DPI_FIGURES["diurnal_cycle"],
     )
     plot_diurnal_cycle(
-        mask_to_surface_type(ds[["net_precipitation", "slmsk", "local_time"]], "land"), "net_precipitation", title="land"
+        mask_to_surface_type(ds[["net_precipitation", "slmsk", "local_time"]], "land"),
+        "net_precipitation",
+        title="land",
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_P-E_land.png"),
         dpi=DPI_FIGURES["diurnal_cycle"],
@@ -147,13 +150,17 @@ def make_all_plots(ds, output_dir):
 
     # plot column heating across the diurnal cycle
     plot_diurnal_cycle(
-        mask_to_surface_type(ds[["net_heating", "slmsk", "local_time"]], "sea"), "net_heating", title="sea"
+        mask_to_surface_type(ds[["net_heating", "slmsk", "local_time"]], "sea"),
+        "net_heating",
+        title="sea",
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_heating_sea.png"),
         dpi=DPI_FIGURES["diurnal_cycle"],
     )
     plot_diurnal_cycle(
-        mask_to_surface_type(ds[["net_heating", "slmsk", "local_time"]], "land"), "net_heating", title="land"
+        mask_to_surface_type(ds[["net_heating", "slmsk", "local_time"]], "land"),
+        "net_heating",
+        title="land",
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_heating_land.png"),
         dpi=DPI_FIGURES["diurnal_cycle"],
@@ -173,7 +180,7 @@ def make_all_plots(ds, output_dir):
         "diurnal_cycle_heating_sea.png",
         "diurnal_cycle_heating_land.png",
     ] + [f"diurnal_cycle_heating_{location_name}.png" for location_name in local_coords]
-    
+
     # map plot variables and compare across prediction/ C48 /coarsened high res data
     _plot_comparison_maps(
         ds,
@@ -223,9 +230,7 @@ def make_all_plots(ds, output_dir):
 # Below are plotting functions specific to this diagnostic workflow
 
 
-def _plot_comparison_maps(
-    ds, var, time_index_selection=None, plot_cube_kwargs=None
-):
+def _plot_comparison_maps(ds, var, time_index_selection=None, plot_cube_kwargs=None):
     # map plot a variable and compare across prediction/ C48 /coarsened high res data
     matplotlib.rcParams["figure.dpi"] = 200
     plt.clf()
@@ -234,9 +239,7 @@ def _plot_comparison_maps(
     if not time_index_selection:
         map_var = mappable_var(ds.mean(INIT_TIME_DIM), var)
     else:
-        map_var = mappable_var(
-            ds.isel({INIT_TIME_DIM: time_index_selection}), var
-        )
+        map_var = mappable_var(ds.isel({INIT_TIME_DIM: time_index_selection}), var)
         plot_cube_kwargs["row"] = INIT_TIME_DIM
     fig = plot_cube(map_var, col="dataset", **plot_cube_kwargs)[0]
     if isinstance(time_index_selection, int):
@@ -269,9 +272,13 @@ def _make_vertical_profile_plots(ds, var, units, title=None):
         ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)["net_precipitation"] < 0,
     )
     ds_pred = regrid_to_common_pressure(
-        ds.sel(dataset=DATASET_NAME_PREDICTION)[var], ds.sel(dataset=DATASET_NAME_PREDICTION)["delp"])
+        ds.sel(dataset=DATASET_NAME_PREDICTION)[var],
+        ds.sel(dataset=DATASET_NAME_PREDICTION)["delp"],
+    )
     ds_target = regrid_to_common_pressure(
-        ds.sel(dataset=DATASET_NAME_FV3_TARGET)[var], ds.sel(dataset=DATASET_NAME_FV3_TARGET)["delp"])
+        ds.sel(dataset=DATASET_NAME_FV3_TARGET)[var],
+        ds.sel(dataset=DATASET_NAME_FV3_TARGET)["delp"],
+    )
 
     ds_pred_pos_PE = ds_pred.where(pos_mask)
     ds_pred_neg_PE = ds_pred.where(neg_mask)
@@ -307,10 +314,18 @@ def _plot_lower_troposphere_stability(ds, lat_max=20):
     lat_mask = abs(ds[VAR_LAT_CENTER]) < lat_max
 
     ds_test = ds.sel(dataset=DATASET_NAME_FV3_TARGET)
-    ds_test["net_precip_pred"] = ds.sel(dataset=DATASET_NAME_PREDICTION)["net_precipitation"]
-    ds_test["net_precip_hires"] = ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)["net_precipitation"]
-    ds_test = vcm.mask_to_surface_type(ds_test, "sea") \
-        .where(lat_mask).stack(sample=STACK_DIMS).dropna("sample")
+    ds_test["net_precip_pred"] = ds.sel(dataset=DATASET_NAME_PREDICTION)[
+        "net_precipitation"
+    ]
+    ds_test["net_precip_hires"] = ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)[
+        "net_precipitation"
+    ]
+    ds_test = (
+        vcm.mask_to_surface_type(ds_test, "sea")
+        .where(lat_mask)
+        .stack(sample=STACK_DIMS)
+        .dropna("sample")
+    )
     ds_test["pressure"] = vcm.pressure_at_midpoint_log(ds_test["delp"])
 
     Q = [
@@ -329,11 +344,7 @@ def _plot_lower_troposphere_stability(ds, lat_max=20):
 
     ax2 = fig.add_subplot(132)
     bin_values_pred, x_edge, y_edge, _ = binned_statistic_2d(
-        LTS.values, 
-        Q, 
-        ds_test["net_precip_pred"].values, 
-        statistic="mean",
-        bins=20
+        LTS.values, Q, ds_test["net_precip_pred"].values, statistic="mean", bins=20
     )
     X, Y = np.meshgrid(x_edge, y_edge)
     PE = ax2.pcolormesh(X, Y, bin_values_pred.T, vmin=-10, vmax=100)
@@ -345,11 +356,7 @@ def _plot_lower_troposphere_stability(ds, lat_max=20):
 
     ax3 = fig.add_subplot(133)
     bin_values_hires, x_edge, y_edge, _ = binned_statistic_2d(
-        LTS.values, 
-        Q, 
-        ds_test["net_precip_hires"].values, 
-        statistic="mean", 
-        bins=20
+        LTS.values, Q, ds_test["net_precip_hires"].values, statistic="mean", bins=20
     )
     bin_error = bin_values_pred - bin_values_hires
     PE_err = ax3.pcolormesh(X, Y, bin_error.T)

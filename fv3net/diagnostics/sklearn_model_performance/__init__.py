@@ -16,5 +16,5 @@ DPI_FIGURES = {
     "R2_pressure_profiles": 100,
     "diurnal_cycle": 90,
     "map_plot_3col": 120,
-    "map_plot_single": 100
+    "map_plot_single": 100,
 }

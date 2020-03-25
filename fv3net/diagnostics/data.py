@@ -40,10 +40,10 @@ def merge_comparison_datasets(
 
     src_dim_index = pd.Index(dataset_labels, name="dataset")
     datasets = [drop_nondim_coords(ds) for ds in datasets]
-    # if one of the datasets is missing data variable(s) that are in the others, 
+    # if one of the datasets is missing data variable(s) that are in the others,
     # fill it with an empty data array
     _add_missing_data_vars(data_vars, datasets)
-    
+
     datasets_to_merge = [
         xr.concat([ds[data_vars].squeeze(drop=True) for ds in datasets], src_dim_index),
         grid,
@@ -172,5 +172,3 @@ def _add_missing_data_vars(data_vars, datasets):
         for i in range(len(datasets)):
             if data_var not in list(datasets[i].data_vars):
                 datasets[i] = _add_empty_dataarray(datasets[i], array_var)
-
-
