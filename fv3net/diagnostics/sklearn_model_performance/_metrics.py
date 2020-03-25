@@ -45,16 +45,16 @@ def create_metrics_dataset(ds):
     ds_metrics["r2_dQ2_pressure_levels_land"] = _r2_pressure_level_metrics(
         vcm.mask_to_surface_type(ds, "land"), "dQ2"
     )
-    ds_metrics["mse_net_precipitation_vs_fv3_target"] = _mean_squared_error_metrics(
+    ds_metrics["rmse_net_precipitation_vs_fv3_target"] = _root_mean_squared_error_metrics(
         ds, "net_precipitation", target_dataset_name=DATASET_NAME_FV3_TARGET
     )
-    ds_metrics["mse_net_precipitation_vs_shield"] = _mean_squared_error_metrics(
+    ds_metrics["rmse_net_precipitation_vs_shield"] = _root_mean_squared_error_metrics(
         ds, "net_precipitation", target_dataset_name=DATASET_NAME_SHIELD_HIRES
     )
-    ds_metrics["mse_net_heating_vs_fv3_target"] = _mean_squared_error_metrics(
+    ds_metrics["rmse_net_heating_vs_fv3_target"] = _root_mean_squared_error_metrics(
         ds, "net_heating", target_dataset_name=DATASET_NAME_FV3_TARGET
     )
-    ds_metrics["mse_net_heating_vs_shield"] = _mean_squared_error_metrics(
+    ds_metrics["rmse_net_heating_vs_shield"] = _root_mean_squared_error_metrics(
         ds, "net_heating", target_dataset_name=DATASET_NAME_SHIELD_HIRES
     )
     return ds_metrics
@@ -80,11 +80,11 @@ def plot_metrics(ds_metrics, output_dir):
     report_sections["Mean squared error maps"] = []
     for var in ["net_precipitation", "net_heating"]:
         for target_dataset_name in ["fv3_target", "shield"]:
-            filename = f"mse_map_{var}_{target_dataset_name}.png"
+            filename = f"rmse_map_{var}_{target_dataset_name}.png"
             _plot_mse_map(ds_metrics, var, target_dataset_name).savefig(
                 os.path.join(output_dir, filename), dpi=DPI_FIGURES["map_plot_single"]
             )
-            report_sections["Mean squared error maps"].append(filename)
+            report_sections["Root mean squared error maps"].append(filename)
 
     return report_sections
 
@@ -129,7 +129,7 @@ def _plot_r2_land_sea(ds):
     return fig
 
 
-def _mean_squared_error_metrics(
+def _root_mean_squared_error_metrics(
     ds,
     var,
     target_dataset_name=DATASET_NAME_FV3_TARGET,
