@@ -10,6 +10,7 @@ USER root
 RUN apt-get update && apt-get install -y gfortran
 ADD environment.yml  $FV3NET/
 ADD .environment-scripts $ENVIRONMENT_SCRIPTS
+ADD .circleci $FV3NET/.circleci
 RUN fix-permissions $FV3NET
 WORKDIR $FV3NET
 

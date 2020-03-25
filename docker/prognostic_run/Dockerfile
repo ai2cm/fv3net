@@ -3,6 +3,11 @@ FROM us.gcr.io/vcm-ml/fv3gfs-python:v0.3.1
 
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 RUN pip3 install -r /tmp/requirements.txt
-COPY fv3net-0.1.0-py3-none-any.whl /wheels/fv3net-0.1.0-py3-none-any.whl
-COPY vcm-0.1.0-py3-none-any.whl /wheels/vcm-0.1.0-py3-none-any.whl
-RUN pip3 install --no-deps /wheels/fv3net-0.1.0-py3-none-any.whl  && pip3 install /wheels/vcm-0.1.0-py3-none-any.whl
+
+# cache external package installation
+COPY external/fv3config /fv3net/external/fv3config
+COPY external/vcm /fv3net/external/vcm
+RUN pip3 install -e /fv3net/external/vcm -e /fv3net/external/fv3config
+
+COPY . /fv3net
+RUN pip3 install --no-deps -e /fv3net
