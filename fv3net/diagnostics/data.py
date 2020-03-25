@@ -133,11 +133,11 @@ def net_heating_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.DataArray
 
 
 def _add_empty_dataarray(ds, template_dataarray):
-    """ Adds an empty data array with the dimensions of the example 
-    data array to the dataset. This is useful when concatenating mulitple 
+    """ Adds an empty data array with the dimensions of the example
+    data array to the dataset. This is useful when concatenating mulitple
     datasets where one does not have a data variable.
     ex. concating prediction/target/highres datasets for
-    plotting comparisons, where the high res data does not have 3D variables. 
+    plotting comparisons, where the high res data does not have 3D variables.
     Modifies dataset in place.
 
     Args:
@@ -159,8 +159,9 @@ def _add_missing_data_vars(data_vars, datasets):
         datasets ([type]): datasets to check again
     
     Returns:
-        List of dicts {"ds": dataset that needs empty datarray added, "example_dataarray": example of data array with dims}
-        This can be passed as kwargs to _add_empty_dataarray 
+        List of dicts {"ds": dataset that needs empty datarray added,
+        "example_dataarray": example of data array with dims}
+        This can be passed as kwargs to _add_empty_dataarray
     """
     for data_var in data_vars:
         array_var = None

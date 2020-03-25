@@ -5,16 +5,16 @@ import xarray as xr
 from vcm.cloud.fsspec import get_fs, get_protocol
 from vcm.cloud.gsutil import copy
 from vcm.cubedsphere.constants import INIT_TIME_DIM
-from fv3net.diagnostics.sklearn_model_performance.data_funcs_sklearn import (
+
+from fv3net.diagnostics.create_report import create_report
+from ..data import merge_comparison_datasets
+from ._data import (
     predict_on_test_data,
     load_high_res_diag_dataset,
     add_column_heating_moistening,
 )
-
-from fv3net.diagnostics.create_report import create_report
-from ..data import merge_comparison_datasets
-from .plotting_sklearn import make_all_plots
-from .metrics import create_metrics_dataset, plot_metrics
+from ._diagnostics import make_all_plots
+from ._metrics import create_metrics_dataset, plot_metrics
 from . import (
     DATASET_NAME_PREDICTION,
     DATASET_NAME_FV3_TARGET,

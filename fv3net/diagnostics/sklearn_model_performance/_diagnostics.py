@@ -4,15 +4,12 @@ import numpy as np
 import os
 from scipy.stats import binned_statistic_2d
 import warnings
-import xarray as xr
 
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     COORD_X_CENTER,
     COORD_Y_CENTER,
-    COORD_Z_CENTER,
     VAR_LAT_CENTER,
-    PRESSURE_GRID,
 )
 import vcm
 from vcm.cubedsphere.regridz import regrid_to_common_pressure
@@ -21,14 +18,14 @@ from vcm.visualize import plot_cube, mappable_var
 
 from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
 from fv3net.diagnostics import get_latlon_grid_coords_set, EXAMPLE_CLIMATE_LATLON_COORDS
+
 from . import (
-    integrate_for_Q,
-    lower_tropospheric_stability,
     DATASET_NAME_PREDICTION,
     DATASET_NAME_FV3_TARGET,
     DATASET_NAME_SHIELD_HIRES,
     DPI_FIGURES,
 )
+from ._data import integrate_for_Q, lower_tropospheric_stability
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
 SEC_PER_DAY = 86400
@@ -45,13 +42,7 @@ DIAG_VARS = [
     "net_precipitation_physics",
     "net_heating_physics",
 ]
-DPI_FIGURES = {
-    "LTS": 100,
-    "dQ2_pressure_profiles": 100,
-    "R2_pressure_profiles": 100,
-    "diurnal_cycle": 90,
-    "map_plot_3col": 120,
-}
+
 matplotlib.use("Agg")
 
 
@@ -74,7 +65,7 @@ def make_all_plots(ds, output_dir):
     ds_land = mask_to_surface_type(ds, "land")
     ds_sea = mask_to_surface_type(ds, "sea")
 
-    figs = _map_plot_ml_frac_of_total(ds)
+    figs = _map_plot_dQ_versus_total(ds)
     fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac = figs
     fig_pe_ml.savefig(os.path.join(output_dir, "dQ2_vertical_integral_map.png"))
     fig_pe_ml_frac.savefig(os.path.join(output_dir, "dQ2_frac_of_PE.png"))

@@ -11,8 +11,6 @@ from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     COORD_X_CENTER,
     COORD_Y_CENTER,
-    COORD_Z_CENTER,
-    VAR_LAT_CENTER,
     PRESSURE_GRID,
     GRID_VARS,
 )
