@@ -130,12 +130,14 @@ def init_coord(group, coord):
 def get_provenance_info():
     repo = Repo(search_parent_directories=True)
     uncommited_changes = len(repo.index.diff(repo.head.commit))
-    untracked_files = len(repo.untracked_file)
+    untracked_files = len(repo.untracked_files)
+    unstaged_files = len(repo.index.diff(None))
     return {
         'fv3net_version': fv3net.__version__,
         'commit': repo.head.commit.hexsha,
         'index': 'dirty' if uncommited_changes > 0 else 'clean',
-        'working-tree': 'dirty' if untracked_files > 0 else 'clean',
+        'working-tree': 'dirty' if unstaged_files > 0 else 'clean',
+        'untracked_files': untracked_files
     }
 
 
@@ -286,6 +288,6 @@ if __name__ == "__main__":
         # would be incompatible with the run_k8s api
         # sleep a little while to allow all process to finish finalizing the netCDFs
         time.sleep(2)
-        run_post_process_in_new_process(RUN_DIR, config["one_step"])
+        run_post_process_in_new_process(RUN_DIR, config["one_step"], config)
 else:
     logger = logging.getLogger(__name__)
