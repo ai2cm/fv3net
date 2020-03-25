@@ -26,7 +26,7 @@ experiment:
         --runner: DataflowRunner
 
     coarsen_diagnostics:
-      command: python ./workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.py
+      command: python workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.py
       args:
         c384_diagnostics: 
           location: gs://vcm-ml-data/test-end-to-end-integration/C384-diagnostics/gfsphysics_15min_coarse.zarr
@@ -37,8 +37,9 @@ experiment:
       args:
         restart_data:
           from: coarsen_restarts
+          #location: gs://vcm-ml-data/test-end-to-end-integration/end_to_end_test-99ca5b3d/coarsen_restarts_source-resolution_384_target-resolution_48_runner_DataflowRunner/C48
         experiment_yaml: tests/end_to_end_integration/one_step_jobs_integration.yml
-        docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.3.1
+        docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.1
         --config-version: v0.3
 
     create_training_data:
@@ -75,7 +76,7 @@ experiment:
         restart_file_dir:
           from: one_step_run
         ic_timestep: "20160801.001500"
-        docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.0
+        docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.1
         --prog_config_yml: tests/end_to_end_integration/prognostic_run_integration.yml
         --model_url:
           from: train_sklearn_model
@@ -86,7 +87,7 @@ experiment:
         restart_file_dir:
           from: one_step_run
         ic_timestep: "20160801.001500"
-        docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.0
+        docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.1
         --prog_config_yml: tests/end_to_end_integration/prognostic_run_integration.yml
 
 
