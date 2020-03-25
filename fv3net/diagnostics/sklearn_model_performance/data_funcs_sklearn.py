@@ -3,7 +3,7 @@ from scipy.interpolate import UnivariateSpline
 import xarray as xr
 
 import fv3net
-from ..data_funcs import net_heating_from_dataset
+from ..data import net_heating_from_dataset
 from fv3net.pipelines.create_training_data import (
     SUFFIX_COARSE_TRAIN_DIAG,
     VAR_Q_HEATING_ML,

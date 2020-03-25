@@ -30,6 +30,7 @@ from . import (
     DATASET_NAME_PREDICTION, 
     DATASET_NAME_FV3_TARGET,
     DATASET_NAME_SHIELD_HIRES,
+    DPI_FIGURES,
 )
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
