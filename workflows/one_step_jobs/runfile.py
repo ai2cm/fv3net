@@ -128,7 +128,6 @@ def init_coord(group, coord):
 
 
 def get_provenance_info():
-    repo = Repo(search_parent_directories=True)
     uncommited_changes = len(repo.index.diff(repo.head.commit))
     untracked_files = len(repo.untracked_files)
     unstaged_files = len(repo.index.diff(None))
@@ -145,7 +144,7 @@ def create_zarr_store(timesteps, group, template):
     logger.info("Creating group")
     ds = template
     group.attrs.update(ds.attrs)
-    group.attrs.update(get_provenance_info())
+    # group.attrs.update(get_provenance_info())
     nt = len(timesteps)
     for name in ds:
         init_data_var(group, ds[name], nt)
