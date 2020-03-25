@@ -1,10 +1,8 @@
 import os
 from typing import Dict, Any, Sequence
 from fv3net import runtime
-import fv3net
 import logging
 import time
-from multiprocessing import Process
 
 # avoid out of memory errors
 # dask.config.set(scheduler='single-threaded')
@@ -127,7 +125,9 @@ def init_coord(group: zarr.Group, coord):
     out_array.attrs["_ARRAY_DIMENSIONS"] = list(coord.dims)
 
 
-def create_zarr_store(timesteps: Sequence[str], group: zarr.Group, template: xr.Dataset):
+def create_zarr_store(
+    timesteps: Sequence[str], group: zarr.Group, template: xr.Dataset
+):
     logger.info("Creating group")
     ds = template
     group.attrs.update(ds.attrs)
@@ -156,7 +156,9 @@ def _convert_time_delta_to_float_seconds(a):
     return a.astype("timedelta64[ns]").astype(float) / ns_per_s
 
 
-def post_process(out_dir: str, url: str, index: int, init: bool=False, timesteps: Sequence=()):
+def post_process(
+    out_dir: str, url: str, index: int, init: bool = False, timesteps: Sequence = ()
+):
 
     if init and len(timesteps) > 0 and index:
         raise ValueError(
