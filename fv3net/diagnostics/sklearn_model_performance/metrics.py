@@ -62,14 +62,14 @@ def create_metrics_dataset(ds):
     return ds_metrics
 
 
-def plot_metrics(ds, output_dir):
+def plot_metrics(ds_metrics, output_dir):
     report_sections = {}
     # R^2 vs pressure plots
-    _plot_r2_global(ds).savefig(
+    _plot_r2_global(ds_metrics).savefig(
         os.path.join(output_dir, f"r2_pressure_levels_global.png"),
         dpi=DPI_FIGURES["R2_pressure_profiles"],
     )
-    _plot_r2_land_sea(ds).savefig(
+    _plot_r2_land_sea(ds_metrics).savefig(
         os.path.join(output_dir, f"r2_pressure_levels_landsea.png"),
         dpi=DPI_FIGURES["R2_pressure_profiles"],
     )
@@ -83,7 +83,7 @@ def plot_metrics(ds, output_dir):
     for var in ["net_precipitation", "net_heating"]:
         for target_dataset_name in ["fv3_target", "shield"]:
             filename = f"mse_map_{var}_{target_dataset_name}.png"
-            _plot_mse_map(ds, var, target_dataset_name).savefig(
+            _plot_mse_map(ds_metrics, var, target_dataset_name).savefig(
                 os.path.join(output_dir, filename), dpi=DPI_FIGURES["map_plot_single"]
             )
             report_sections["Mean squared error maps"].append(filename)

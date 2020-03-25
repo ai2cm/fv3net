@@ -130,12 +130,12 @@ if __name__ == "__main__":
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
 
     # plot metrics and get section and filename dict for final report
-    metrics_plot_sections = plot_metrics(ds, output_dir)
+    metrics_plot_sections = plot_metrics(ds_metrics, output_dir)
 
     # plot diagnostics and get section and filename dict for final report
     # diagnostics: ML dQ vs total maps, LTS, Vertical dQ2 profiles in wet/dry columns, diurnal cycle,
     # time avg and snapshots of net precip and heating compared across datasets
-    diag_report_sections = make_all_plots(ds_pred, ds_test, ds_hires, grid, output_dir)
+    diag_report_sections = make_all_plots(ds, output_dir)
 
     # create html report
     combined_report_sections = {**metrics_plot_sections, **diag_report_sections}
