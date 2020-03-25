@@ -288,6 +288,6 @@ if __name__ == "__main__":
         # would be incompatible with the run_k8s api
         # sleep a little while to allow all process to finish finalizing the netCDFs
         time.sleep(2)
-        run_post_process_in_new_process(RUN_DIR, config["one_step"], config)
+        run_post_process_in_new_process(RUN_DIR, config["one_step"])
 else:
     logger = logging.getLogger(__name__)
