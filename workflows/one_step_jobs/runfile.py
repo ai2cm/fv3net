@@ -202,8 +202,9 @@ def post_process(out_dir, url, index, init=False, timesteps=()):
     ).pipe(rename_sfc_dt_atmos)
     ds = ds.merge(sfc)
 
+    mapper = fsspec.get_mapper(store_url)
+
     if init:
-        mapper = fsspec.get_mapper(store_url)
         logging.info("initializing zarr store")
         group = zarr.open_group(mapper, mode="w")
         create_zarr_store(timesteps, group, ds)
