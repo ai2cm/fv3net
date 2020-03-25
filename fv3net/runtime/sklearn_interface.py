@@ -28,7 +28,7 @@ def update(model, state, dt):
     tend = predict(model, state)
 
     updated = state.assign(
-        sphum=state["sphum"] + tend.Q2 * dt, T=state.T + tend.Q1 * dt
+        sphum=state["sphum"] + tend.dQ2 * dt, T=state.T + tend.dQ1 * dt
     )
 
     return state_io.rename_to_orig(updated), state_io.rename_to_orig(tend)

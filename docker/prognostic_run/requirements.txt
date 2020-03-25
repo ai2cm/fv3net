@@ -5,3 +5,4 @@ zarr
 scikit-image
 google-cloud-logging
 gitpython
+backoff

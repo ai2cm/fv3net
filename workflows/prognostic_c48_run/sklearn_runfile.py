@@ -20,11 +20,11 @@ gravity = 9.81
 
 def compute_diagnostics(state, diags):
     return dict(
-        net_precip=(diags["Q2"] * state[DELP] / gravity)
+        net_precip=(diags["dQ2"] * state[DELP] / gravity)
         .sum("z")
         .assign_attrs(units="kg/m^2/s"),
         PW=(state[SPHUM] * state[DELP] / gravity).sum("z").assign_attrs(units="mm"),
-        net_heating=(diags["Q1"] * state[DELP] / gravity * cp)
+        net_heating=(diags["dQ1"] * state[DELP] / gravity * cp)
         .sum("z")
         .assign_attrs(units="W/m^2"),
     )

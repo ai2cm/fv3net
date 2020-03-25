@@ -45,8 +45,10 @@ dependencies:
   - python=3.7
   - holoviews
   - bokeh=1.4
+  - backoff
   - pip:
     - gsutil
     - nc-time-axis>=1.2.0
     - gitpython
+    - bump2version>=0.5.11
     - yq
