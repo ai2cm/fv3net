@@ -45,7 +45,9 @@ def create_metrics_dataset(ds):
     ds_metrics["r2_dQ2_pressure_levels_land"] = _r2_pressure_level_metrics(
         vcm.mask_to_surface_type(ds, "land"), "dQ2"
     )
-    ds_metrics["rmse_net_precipitation_vs_fv3_target"] = _root_mean_squared_error_metrics(
+    ds_metrics[
+        "rmse_net_precipitation_vs_fv3_target"
+    ] = _root_mean_squared_error_metrics(
         ds, "net_precipitation", target_dataset_name=DATASET_NAME_FV3_TARGET
     )
     ds_metrics["rmse_net_precipitation_vs_shield"] = _root_mean_squared_error_metrics(
