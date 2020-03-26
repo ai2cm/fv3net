@@ -10,35 +10,11 @@ microphysics)
 Both of these configurations use a one-minute timestep with no dynamics substepping and
 have a total duration of 15 minutes.
 
-Workflow call signature:
-```
-$ python submit_jobs.py -h
-usage: submit_jobs.py [-h] INPUT_URL ONE_STEP_YAML  OUTPUT_URL [--n-steps N_STEPS] [-o]
+This workflow can be submitted with the [orchestrate_submit_jobs.py] script.
+This script is self-documenting and its help can be seen by running:
 
-  -h, --help            show this help message and exit
-  INPUT_URL             Remote url to initial conditions. Initial conditions
-                        are assumed to be stored as INPUT_URL/{timestamp}/{tim
-                        estamp}.{restart_category}.tile*.nc
-  ONE_STEP_YAML         Path to local run configuration yaml.
-  DOCKER_IMAGE          fv3gfs-python model docker image.
-  OUTPUT_URL            Remote url where model configuration and output will
-                        be saved. Specifically, configuration files will be
-                        saved to OUTPUT_URL/one_step_config and model output
-                        to OUTPUT_URL/one_step_output
-  --n-steps N_STEPS     Number of timesteps to process. By default all
-                        timesteps found in INPUT_URL for which successful runs
-                        do not exist in OUTPUT_URL will be processed. Useful
-                        for testing.
-  -o, --overwrite       Overwrite successful timesteps in OUTPUT_URL.
-  --init-frequency INIT_FREQUENCY
-                        Frequency (in minutes) to initialize one-step jobs
-                        starting from the first available timestep.
-  --config-version CONFIG_VERSION
-                        Default fv3config.yml version to use as the base
-                        configuration. This should be consistent with the
-                        fv3gfs-python version in the specified docker image.
-                        Defaults to fv3gfs-python v0.2 style configuration.
-```
+    python orchestrate_submit_jobs.py -h
+
 
 
 ### Kubernetes VM access troubleshooting
