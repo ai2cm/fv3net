@@ -1,8 +1,7 @@
 import os
-from typing import Dict, Any, Sequence, Mapping
+from typing import Sequence, Mapping
 from fv3net import runtime
 import logging
-from collections import defaultdict
 import time
 
 # avoid out of memory errors
@@ -209,7 +208,7 @@ def post_process(
     group = zarr.open_group(mapper, mode="a")
     variables = VARIABLES + SFC_VARIABLES
     logger.info(f"Variables to process: {variables}")
-    dataset_to_write : xr.Dataset = ds[list(variables)]
+    dataset_to_write: xr.Dataset = ds[list(variables)]
     _write_to_store(group, dataset_to_write)
 
 
