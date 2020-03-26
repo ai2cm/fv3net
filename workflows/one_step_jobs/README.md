@@ -64,3 +64,13 @@ Use the following command to view your current configuration. It should point to
 ```
 kubectl config view
 ```
+
+### Out of Memory errors
+
+The one step jobs can be fail with OOMKilled errors if too many dask workers
+are used. These errors can typically be avoided by using the single-threaded
+dask scheduler. You can enable for this debugging purposes by adding the
+following lines to the top of [runfile.py](./runfile.py):
+
+    import dask
+    dask.config.set(scheduler='single-threaded')
