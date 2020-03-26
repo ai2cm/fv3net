@@ -8,21 +8,15 @@ from vcm.cubedsphere.constants import INIT_TIME_DIM
 
 from fv3net.diagnostics.create_report import create_report
 from ..data import merge_comparison_datasets
-from ._data import (
+from .data import (
     predict_on_test_data,
     load_high_res_diag_dataset,
     add_column_heating_moistening,
 )
-from ._diagnostics import make_all_plots
-from ._metrics import create_metrics_dataset, plot_metrics
-from . import (
-    DATASET_NAME_PREDICTION,
-    DATASET_NAME_FV3_TARGET,
-    DATASET_NAME_SHIELD_HIRES,
-)
+from .diagnostics import plot_diagnostics
+from .metrics import create_metrics_dataset, plot_metrics
 
-TEMP_OUTPUT_DIR = "temp_sklearn_prediction_report_output"
-DIAG_VARS = [
+DATA_VARS = [
     "dQ1",
     "dQ2",
     "sphum",
@@ -36,6 +30,18 @@ DIAG_VARS = [
     "net_heating_ml",
     "delp",
 ]
+DATASET_NAME_PREDICTION = "prediction"
+DATASET_NAME_FV3_TARGET = "C48_target"
+DATASET_NAME_SHIELD_HIRES = "coarsened_high_res"
+
+DPI_FIGURES = {
+    "LTS": 100,
+    "dQ2_pressure_profiles": 100,
+    "R2_pressure_profiles": 100,
+    "diurnal_cycle": 90,
+    "map_plot_3col": 120,
+    "map_plot_single": 100,
+}
 
 
 if __name__ == "__main__":
@@ -112,32 +118,23 @@ if __name__ == "__main__":
 
     grid = xr.open_zarr(fs_input.get_mapper(grid_path))
     slmsk = ds_test["slmsk"].isel({INIT_TIME_DIM: 0})
-    ds = merge_comparison_datasets(
-        data_vars=DIAG_VARS,
-        datasets=[ds_pred, ds_test, ds_hires],
-        dataset_labels=[
-            DATASET_NAME_PREDICTION,
-            DATASET_NAME_FV3_TARGET,
-            DATASET_NAME_SHIELD_HIRES,
-        ],
+    
+    ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires)
+    ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
+    metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES)
+    
+    diag_report_sections = plot_diagnostics(
+        ds_pred, ds_test, ds_hires,
+        ds_pred_label=DATASET_NAME_PREDICTION,
+        ds_fv3_label=DATASET_NAME_FV3_TARGET,
+        ds_shield_label=DATASET_NAME_SHIELD_HIRES,
         grid=grid,
-        additional_dataset=slmsk,
+        slmsk=slmsk,
+        data_vars=DATA_VARS,
+        output_dir=output_dir, 
+        dpi_figures=DPI_FIGURES,
     )
 
-    # create and save metrics dataset
-    # metrics: r2 global values, r2 pressure level profiles, MSE at locations
-    ds_metrics = create_metrics_dataset(ds)
-    ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
-
-    # plot metrics and get section and filename dict for final report
-    metrics_plot_sections = plot_metrics(ds_metrics, output_dir)
-
-    # plot diagnostics and get section and filename dict for final report
-    # diagnostics: ML dQ vs total maps, LTS, Vertical dQ2 profiles in wet/dry columns, diurnal cycle,
-    # time avg and snapshots of net precip and heating compared across datasets
-    diag_report_sections = make_all_plots(ds, output_dir)
-
-    # create html report
     combined_report_sections = {**metrics_plot_sections, **diag_report_sections}
     create_report(combined_report_sections, "ml_offline_diagnostics", output_dir)
 

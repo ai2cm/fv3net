@@ -138,11 +138,14 @@ def _add_empty_dataarray(ds, template_dataarray):
     datasets where one does not have a data variable.
     ex. concating prediction/target/highres datasets for
     plotting comparisons, where the high res data does not have 3D variables.
-    Modifies dataset in place.
 
     Args:
         ds (xarray dataset): dataset that will have additional empty data array added
         example_dataarray (data array with the desired dimensions)
+    
+    Returns:
+        original xarray dataset with an empty array assigned to the 
+        template name dataarray.
     
     """
     da_fill = np.empty(template_dataarray.shape)

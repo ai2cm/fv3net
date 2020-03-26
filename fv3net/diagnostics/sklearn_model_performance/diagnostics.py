@@ -19,13 +19,8 @@ from vcm.visualize import plot_cube, mappable_var
 from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
 from fv3net.diagnostics import get_latlon_grid_coords_set, EXAMPLE_CLIMATE_LATLON_COORDS
 
-from . import (
-    DATASET_NAME_PREDICTION,
-    DATASET_NAME_FV3_TARGET,
-    DATASET_NAME_SHIELD_HIRES,
-    DPI_FIGURES,
-)
-from ._data import integrate_for_Q, lower_tropospheric_stability
+from .data import integrate_for_Q, lower_tropospheric_stability
+from ..data import merge_comparison_datasets
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
 SEC_PER_DAY = 86400
@@ -46,25 +41,45 @@ DIAG_VARS = [
 matplotlib.use("Agg")
 
 
-def make_all_plots(ds, output_dir):
+def plot_diagnostics(
+    ds_pred, ds_fv3, ds_shield, 
+    ds_pred_label,
+    ds_fv3_label,
+    ds_shield_label,
+    grid,
+    slmsk,
+    data_vars,
+    output_dir, 
+    dpi_figures
+):
     """ Makes figures for predictions on test data
 
     Args:
-        ds: xarray dataset containing variables for diagnostic plots as well
-        as a "dataset" coord that distinguishes ML prediction, FV3 target, and SHiELD 
-        coarsened high res
+        ds_pred, ds_fv3, ds_shield [xarray dataset]: contains variables from
+            ML prediction, FV3 target, and SHiELD
+        ds_pred_label, ds_fv3_label, ds_shield_label [str]: labels for concated
+            dataset coord
+        grid [xarray dataset]: contains lat/lon grid info for map plotting
+        slmsk [xarray dataarray]: surface type variable information
+        data_vars [List[str]]: data variables to keep in concatenated dataset
         output_dir: location to write figures to
+        dpi_figures: dict of dpi for figures
 
     Returns:
         dict of header keys and image path list values for passing to the html
         report template
     """
     report_sections = {}
+    
+    ds = merge_comparison_datasets(
+        data_vars=data_vars,
+        datasets=[ds_pred, ds_fv3, ds_shield],
+        dataset_labels=[ds_pred_label, ds_fv3_label, ds_shield_label],
+        grid=grid,
+        additional_dataset=slmsk,
+    )
 
     # for convenience, separate the land/sea data
-    ds_land = mask_to_surface_type(ds, "land")
-    ds_sea = mask_to_surface_type(ds, "sea")
-
     figs = _map_plot_dQ_versus_total(ds)
     fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac = figs
     fig_pe_ml.savefig(os.path.join(output_dir, "dQ2_vertical_integral_map.png"))
@@ -81,23 +96,23 @@ def make_all_plots(ds, output_dir):
 
     # LTS
     _plot_lower_troposphere_stability(ds, lat_max=20).savefig(
-        os.path.join(output_dir, "LTS_vs_Q.png"), dpi=DPI_FIGURES["LTS"]
+        os.path.join(output_dir, "LTS_vs_Q.png"), dpi=dpi_figures["LTS"]
     )
     report_sections["Lower tropospheric stability vs humidity"] = ["LTS_vs_Q.png"]
 
     # Vertical dQ2 profiles over land and ocean
-    _make_vertical_profile_plots(
-        ds_land, "dQ2", "[kg/kg/s]", "land: dQ2 vertical profile"
-    ).savefig(
-        os.path.join(output_dir, "vertical_profile_dQ2_land.png"),
-        dpi=DPI_FIGURES["dQ2_pressure_profiles"],
-    )
-    _make_vertical_profile_plots(
-        ds_sea, "dQ2", "[kg/kg/s]", "ocean: dQ2 vertical profile"
-    ).savefig(
-        os.path.join(output_dir, "vertical_profile_dQ2_sea.png"),
-        dpi=DPI_FIGURES["dQ2_pressure_profiles"],
-    )
+    for sfc_type in ["sea", "land"]:
+        _make_vertical_profile_plots(
+            vcm.mask_to_surface_type(ds_pred, sfc_type)["dQ2"],
+            vcm.mask_to_surface_type(ds_fv3, sfc_type)["dQ2"],
+            vcm.mask_to_surface_type(ds_shield, sfc_type)["net_precipitation"],
+            delp=vcm.mask_to_surface_type(ds_pred, sfc_type)["delp"],
+            units="[kg/kg/s]", 
+            title=f"{sfc_type}: dQ2 vertical profile"
+        ).savefig(
+            os.path.join(output_dir, "vertical_profile_dQ2_{sfc_type}.png"),
+            dpi=dpi_figures["dQ2_pressure_profiles"],
+        )
     report_sections["dQ2 pressure level profiles"] = [
         "vertical_profile_dQ2_land.png",
         "vertical_profile_dQ2_sea.png",
@@ -114,7 +129,7 @@ def make_all_plots(ds, output_dir):
         title="ocean",
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_P-E_sea.png"),
-        dpi=DPI_FIGURES["diurnal_cycle"],
+        dpi=dpi_figures["diurnal_cycle"],
     )
     plot_diurnal_cycle(
         mask_to_surface_type(ds[["net_precipitation", "slmsk", "local_time"]], "land"),
@@ -122,7 +137,7 @@ def make_all_plots(ds, output_dir):
         title="land",
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_P-E_land.png"),
-        dpi=DPI_FIGURES["diurnal_cycle"],
+        dpi=dpi_figures["diurnal_cycle"],
     )
     for location_name, coords in local_coords.items():
         plot_diurnal_cycle(
@@ -132,7 +147,7 @@ def make_all_plots(ds, output_dir):
             ylabel="P-E [mm/day]",
         ).savefig(
             os.path.join(output_dir, f"diurnal_cycle_P-E_{location_name}.png"),
-            dpi=DPI_FIGURES["diurnal_cycle"],
+            dpi=dpi_figures["diurnal_cycle"],
         )
     report_sections["Diurnal cycle, P-E"] = [
         "diurnal_cycle_P-E_sea.png",
@@ -146,7 +161,7 @@ def make_all_plots(ds, output_dir):
         title="sea",
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_heating_sea.png"),
-        dpi=DPI_FIGURES["diurnal_cycle"],
+        dpi=dpi_figures["diurnal_cycle"],
     )
     plot_diurnal_cycle(
         mask_to_surface_type(ds[["net_heating", "slmsk", "local_time"]], "land"),
@@ -154,7 +169,7 @@ def make_all_plots(ds, output_dir):
         title="land",
     ).savefig(
         os.path.join(output_dir, "diurnal_cycle_heating_land.png"),
-        dpi=DPI_FIGURES["diurnal_cycle"],
+        dpi=dpi_figures["diurnal_cycle"],
     )
 
     for location_name, coords in local_coords.items():
@@ -165,7 +180,7 @@ def make_all_plots(ds, output_dir):
             ylabel="heating [W/m$^2$]",
         ).savefig(
             os.path.join(output_dir, f"diurnal_cycle_heating_{location_name}.png"),
-            dpi=DPI_FIGURES["diurnal_cycle"],
+            dpi=dpi_figures["diurnal_cycle"],
         )
     report_sections["Diurnal cycle, heating"] = [
         "diurnal_cycle_heating_sea.png",
@@ -179,7 +194,7 @@ def make_all_plots(ds, output_dir):
         time_index_selection=None,
         plot_cube_kwargs={"cbar_label": "time avg, P-E [mm/day]"},
     ).savefig(
-        os.path.join(output_dir, "P-E_time_avg.png"), dpi=DPI_FIGURES["map_plot_3col"]
+        os.path.join(output_dir, "P-E_time_avg.png"), dpi=dpi_figures["map_plot_3col"]
     )
     _plot_comparison_maps(
         ds,
@@ -188,7 +203,7 @@ def make_all_plots(ds, output_dir):
         plot_cube_kwargs={"cbar_label": "timestep snapshot, P-E [mm/day]"},
     ).savefig(
         os.path.join(output_dir, "P-E_time_snapshots.png"),
-        dpi=DPI_FIGURES["map_plot_3col"],
+        dpi=dpi_figures["map_plot_3col"],
     )
     report_sections["P-E"] = ["P-E_time_avg.png", "P-E_time_snapshots.png"]
 
@@ -199,7 +214,7 @@ def make_all_plots(ds, output_dir):
         plot_cube_kwargs={"cbar_label": "time avg, column heating [W/m$^2$]"},
     ).savefig(
         os.path.join(output_dir, "column_heating_time_avg.png"),
-        dpi=DPI_FIGURES["map_plot_3col"],
+        dpi=dpi_figures["map_plot_3col"],
     )
     _plot_comparison_maps(
         ds,
@@ -208,7 +223,7 @@ def make_all_plots(ds, output_dir):
         plot_cube_kwargs={"cbar_label": "timestep snapshot, column heating [W/m$^2$]"},
     ).savefig(
         os.path.join(output_dir, "column_heating_snapshots.png"),
-        dpi=DPI_FIGURES["map_plot_3col"],
+        dpi=dpi_figures["map_plot_3col"],
     )
     report_sections["Column heating"] = [
         "column_heating_time_avg.png",
@@ -243,12 +258,15 @@ def _plot_comparison_maps(ds, var, time_index_selection=None, plot_cube_kwargs=N
     return fig
 
 
-def _make_vertical_profile_plots(ds, var, units, title=None):
+def _make_vertical_profile_plots(da_pred, da_fv3, da_high_res_split_var, delp, units, title=None):
     """Creates vertical profile plots of dQ2 for drying/moistening columns
 
     Args:
-        ds (xr dataset): [description]
-        var (str): [description]
+        da_pred (xr data array): data array for ML prediction of 3d variable
+        da_fv3 (xr data array): data array for FV3 target of 3d variable
+        da_high_res_split_var (xr data array): data array for coarsened high res, 
+            e.g. net precip
+        variable to divide pos/neg columns
         units (str): [description]
         output_dir (str): [description]
         plot_filename (str, optional): [description].
@@ -259,26 +277,26 @@ def _make_vertical_profile_plots(ds, var, units, title=None):
     plt.clf()
     fig = plt.figure()
     pos_mask, neg_mask = (
-        ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)["net_precipitation"] > 0,
-        ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)["net_precipitation"] < 0,
+        da_high_res_split_var > 0,
+        da_high_res_split_var < 0,
     )
-    ds_pred = regrid_to_common_pressure(
-        ds.sel(dataset=DATASET_NAME_PREDICTION)[var],
-        ds.sel(dataset=DATASET_NAME_PREDICTION)["delp"],
+    da_pred = regrid_to_common_pressure(
+        da_pred,
+        delp,
     )
-    ds_target = regrid_to_common_pressure(
-        ds.sel(dataset=DATASET_NAME_FV3_TARGET)[var],
-        ds.sel(dataset=DATASET_NAME_FV3_TARGET)["delp"],
+    da_fv3 = regrid_to_common_pressure(
+        da_fv3,
+        delp,
     )
 
-    ds_pred_pos_PE = ds_pred.where(pos_mask)
-    ds_pred_neg_PE = ds_pred.where(neg_mask)
-    ds_target_pos_PE = ds_target.where(pos_mask)
-    ds_target_neg_PE = ds_target.where(neg_mask)
+    da_pred_pos_PE = da_pred.where(pos_mask)
+    da_pred_neg_PE = da_pred.where(neg_mask)
+    da_target_pos_PE = da_fv3.where(pos_mask)
+    da_target_neg_PE = da_fv3.where(neg_mask)
 
-    pressure = ds_pred.pressure.values / 100.0
+    pressure = da_pred.pressure.values / 100.0
     profiles_kwargs = zip(
-        [ds_pred_pos_PE, ds_target_pos_PE, ds_pred_neg_PE, ds_target_neg_PE],
+        [da_pred_pos_PE, da_target_pos_PE, da_pred_neg_PE, da_target_neg_PE],
         [
             {"label": "P-E > 0, prediction", "color": "blue", "linestyle": "-"},
             {"label": "P-E > 0, target", "color": "blue", "linestyle": "--"},
@@ -300,17 +318,12 @@ def _make_vertical_profile_plots(ds, var, units, title=None):
     return fig
 
 
-def _plot_lower_troposphere_stability(ds, lat_max=20):
+def _plot_lower_troposphere_stability(ds_pred, ds_test, ds_hires, lat_max=20):
     warnings.filterwarnings("ignore", message="invalid value encountered in less")
-    lat_mask = abs(ds[VAR_LAT_CENTER]) < lat_max
+    lat_mask = abs(ds_test[VAR_LAT_CENTER]) < lat_max
 
-    ds_test = ds.sel(dataset=DATASET_NAME_FV3_TARGET)
-    ds_test["net_precip_pred"] = ds.sel(dataset=DATASET_NAME_PREDICTION)[
-        "net_precipitation"
-    ]
-    ds_test["net_precip_hires"] = ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)[
-        "net_precipitation"
-    ]
+    ds_test["net_precip_pred"] = ds_pred["net_precipitation"]
+    ds_test["net_precip_hires"] = ds_hires["net_precipitation"]
     ds_test = (
         vcm.mask_to_surface_type(ds_test, "sea")
         .where(lat_mask)
