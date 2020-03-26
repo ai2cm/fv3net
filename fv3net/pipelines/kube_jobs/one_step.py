@@ -1,12 +1,14 @@
 import logging
 import os
 import fsspec
+import pprint
+from toolz import assoc
 import uuid
 import yaml
 import re
 from copy import deepcopy
 from multiprocessing import Pool
-from typing import List, Tuple
+from typing import List, Dict
 
 import fv3config
 from . import utils
@@ -197,20 +199,16 @@ def _update_config(
     workflow_name: str,
     base_config_version: str,
     user_model_config: dict,
-    user_kubernetes_config: dict,
     input_url: str,
     config_url: str,
     timestep: str,
-) -> Tuple[dict]:
+) -> Dict:
     """
     Update kubernetes and fv3 configurations with user inputs
     to prepare for fv3gfs one-step runs.
     """
     base_model_config = utils.get_base_fv3config(base_config_version)
     model_config = utils.update_nested_dict(base_model_config, user_model_config)
-    kubernetes_config = utils.update_nested_dict(
-        deepcopy(KUBERNETES_CONFIG_DEFAULT), user_kubernetes_config
-    )
 
     model_config = fv3config.enable_restart(model_config)
     model_config["experiment_name"] = _get_experiment_name(workflow_name, timestep)
@@ -225,27 +223,19 @@ def _update_config(
         }
     )
 
-    return model_config, kubernetes_config
+    return model_config
 
 
 def _upload_config_files(
     model_config: dict,
-    kubernetes_config: dict,
     config_url: str,
-    local_vertical_grid_file=None,
+    local_vertical_grid_file,
     upload_config_filename="fv3config.yml",
-) -> Tuple[dict]:
+) -> str:
     """
     Upload any files to remote paths necessary for fv3config and the
     fv3gfs one-step runs.
     """
-
-    if "runfile" in kubernetes_config:
-        runfile_path = kubernetes_config["runfile"]
-        kubernetes_config["runfile"] = utils.transfer_local_to_remote(
-            runfile_path, config_url
-        )
-
     model_config["diag_table"] = utils.transfer_local_to_remote(
         model_config["diag_table"], config_url
     )
@@ -259,38 +249,22 @@ def _upload_config_files(
     with fsspec.open(config_path, "w") as config_file:
         config_file.write(yaml.dump(model_config))
 
-    return model_config, kubernetes_config
+    return config_path
 
 
-def prepare_and_upload_config(
-    workflow_name: str,
-    input_url: str,
-    config_url: str,
-    timestep: str,
-    one_step_config: dict,
-    base_config_version: str,
-    **kwargs,
-) -> Tuple[dict]:
-    """Update model and kubernetes configurations for this particular
-    timestep and upload necessary files to GCS"""
+def get_run_kubernetes_kwargs(user_kubernetes_config, config_url):
 
-    user_model_config = one_step_config["fv3config"]
-    user_kubernetes_config = one_step_config["kubernetes"]
-
-    model_config, kube_config = _update_config(
-        workflow_name,
-        base_config_version,
-        user_model_config,
-        user_kubernetes_config,
-        input_url,
-        config_url,
-        timestep,
-    )
-    model_config, kube_config = _upload_config_files(
-        model_config, kube_config, config_url, **kwargs
+    kubernetes_config = utils.update_nested_dict(
+        deepcopy(KUBERNETES_CONFIG_DEFAULT), user_kubernetes_config
     )
 
-    return model_config, kube_config
+    if "runfile" in kubernetes_config:
+        runfile_path = kubernetes_config["runfile"]
+        kubernetes_config["runfile"] = utils.transfer_local_to_remote(
+            runfile_path, config_url
+        )
+
+    return kubernetes_config
 
 
 def submit_jobs(
@@ -305,28 +279,59 @@ def submit_jobs(
     local_vertical_grid_file=None,
 ) -> None:
     """Submit one-step job for all timesteps in timestep_list"""
-    for timestep in timestep_list:
 
+    zarr_url = os.path.join(output_url, "big.zarr")
+
+    logger.info("Working on one-step jobs with arguments:")
+    logger.info(pprint.pformat(locals()))
+    # kube kwargs are shared by all jobs
+    kube_kwargs = get_run_kubernetes_kwargs(one_step_config["kubernetes"], config_url)
+
+    def config_factory(**kwargs):
+        timestep = timestep_list[kwargs["index"]]
         curr_input_url = os.path.join(input_url, timestep)
-        curr_output_url = os.path.join(output_url, timestep)
         curr_config_url = os.path.join(config_url, timestep)
 
-        model_config, kube_config = prepare_and_upload_config(
+        config = deepcopy(one_step_config)
+        kwargs["url"] = zarr_url
+        config["fv3config"]["one_step"] = kwargs
+
+        model_config = _update_config(
             workflow_name,
+            base_config_version,
+            config["fv3config"],
             curr_input_url,
             curr_config_url,
             timestep,
-            one_step_config,
-            base_config_version,
-            local_vertical_grid_file=local_vertical_grid_file,
+        )
+        return _upload_config_files(
+            model_config, curr_config_url, local_vertical_grid_file
         )
 
-        jobname = model_config["experiment_name"]
-        kube_config["jobname"] = jobname
+    def run_job(wait=False, **kwargs):
+        """Run a run_kubernetes job
+
+        kwargs are passed workflows/one_step_jobs/runfile.py:post_process
+        
+        """
+        uid = str(uuid.uuid4())
+        labels = assoc(job_labels, "jobid", uid)
+        model_config_url = config_factory(**kwargs)
+
+        # the one step workflow doesn't need to upload its run directories any longer
+        # since all the data is in the big zarr. Setting outdir to a pod-local path
+        # avoids this unecessary upload step.
+        local_tmp_dir = "/tmp/null"
         fv3config.run_kubernetes(
-            os.path.join(curr_config_url, "fv3config.yml"),
-            curr_output_url,
-            job_labels=job_labels,
-            **kube_config,
+            model_config_url, local_tmp_dir, job_labels=labels, **kube_kwargs
         )
-        logger.info(f"Submitted job {jobname}")
+        if wait:
+            utils.wait_for_complete(job_labels, sleep_interval=10)
+
+    for k, timestep in enumerate(timestep_list):
+        if k == 0:
+            logger.info("Running the first time step to initialize the zarr store")
+            run_job(index=k, init=True, wait=True, timesteps=timestep_list)
+        else:
+            logger.info(f"Submitting job for timestep {timestep}")
+            run_job(index=k, init=False)

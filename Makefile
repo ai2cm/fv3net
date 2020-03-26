@@ -3,8 +3,7 @@
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
-
-VERSION ?= v0.1.0
+VERSION ?= v0.1.0-a1
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')

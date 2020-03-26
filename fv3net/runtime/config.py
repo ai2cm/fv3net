@@ -1,3 +1,4 @@
+from typing import Dict
 import yaml
 import f90nml
 
@@ -10,11 +11,11 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
 
-def get_runfile_config():
+def get_config() -> Dict:
     with open("fv3config.yml") as f:
         config = yaml.safe_load(f)
-    return dotdict(config["scikit_learn"])
+    return config
 
 
-def get_namelist():
+def get_namelist() -> f90nml.Namelist:
     return f90nml.read("input.nml")

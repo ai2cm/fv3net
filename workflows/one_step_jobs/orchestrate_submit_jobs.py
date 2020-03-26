@@ -11,6 +11,8 @@ from fv3net.pipelines.common import get_alphanumeric_unique_tag
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
 
+RUNFILE = os.path.join(PWD, "runfile.py")
+
 
 def _create_arg_parser():
     parser = argparse.ArgumentParser()
@@ -83,7 +85,10 @@ if __name__ == "__main__":
         one_step_config = yaml.load(file, Loader=yaml.FullLoader)
     workflow_name = Path(args.one_step_yaml).with_suffix("").name
     short_id = get_alphanumeric_unique_tag(8)
-    job_label = {"orchestrator-jobs": f"{workflow_name}-{short_id}"}
+    job_label = {
+        "orchestrator-jobs": f"{workflow_name}-{short_id}",
+        "workflow": "one_step_jobs",
+    }
 
     if not args.config_url:
         config_url = os.path.join(args.output_url, CONFIG_DIRECTORY_NAME)
@@ -98,6 +103,7 @@ if __name__ == "__main__":
         subsample_frequency=args.init_frequency,
     )
 
+    one_step_config["kubernetes"]["runfile"] = RUNFILE
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
 
     local_vgrid_file = os.path.join(PWD, one_step.VERTICAL_GRID_FILENAME)
