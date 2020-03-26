@@ -1,5 +1,5 @@
 import os
-from typing import Sequence, Mapping
+from typing import Sequence, Mapping, cast, Hashable
 from fv3net import runtime
 import logging
 import time
@@ -164,12 +164,26 @@ def _merge_monitor_data(paths: Mapping[str, str]) -> xr.Dataset:
     return xr.concat(datasets_no_time, dim="step").assign_coords(step=steps, time=time)
 
 
-def _write_to_store(group: zarr.ABSStore, ds: xr.Dataset):
+def _write_to_store(group: zarr.ABSStore, index: int, ds: xr.Dataset):
     for variable in ds:
         logger.info(f"Writing {variable} to {group}")
         dims = group[variable].attrs["_ARRAY_DIMENSIONS"][1:]
         dask_arr = ds[variable].transpose(*dims).data
         dask_arr.store(group[variable], regions=(index,))
+
+
+def _safe_get_variables(ds: xr.Dataset, variables: Sequence[Hashable]) -> xr.Dataset:
+    """ds[...] is very confusing function from a typing perspective and should be 
+    avoided in long-running pipeline codes. This function introduces a type-stable 
+    alternative that works better with mypy.
+
+    In particular, ds[('a' , 'b' ,'c')] looks for a variable named ('a', 'b', 'c') which 
+    usually doesn't exist, so it causes a key error. but ds[['a', 'b', 'c']] makes a 
+    dataset only consisting of the variables 'a', 'b', and 'c'. This causes tons of 
+    hard to find errors.
+    """
+    variables = list(variables)
+    return cast(xr.Dataset, ds[variables])
 
 
 def post_process(
@@ -190,6 +204,7 @@ def post_process(
     sfc = xr.open_mfdataset(sfc_pattern, concat_dim="tile", combine="nested").pipe(
         rename_sfc_dt_atmos
     )
+    sfc = _safe_get_variables(sfc, SFC_VARIABLES)
 
     ds = (
         _merge_monitor_data(monitor_paths)
@@ -197,7 +212,7 @@ def post_process(
         .chunk({"forecast_time": 1, "tile": 6, "step": 3})
     )
 
-    merged = xr.merge([sfc[list(SFC_VARIABLES)], ds])
+    merged = xr.merge([sfc, ds])
     mapper = fsspec.get_mapper(store_url)
 
     if init:
@@ -206,7 +221,7 @@ def post_process(
         create_zarr_store(timesteps, group, merged)
 
     group = zarr.open_group(mapper, mode="a")
-    _write_to_store(group, merged)
+    _write_to_store(group, index, merged)
 
 
 if __name__ == "__main__":
