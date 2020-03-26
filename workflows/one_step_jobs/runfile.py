@@ -197,7 +197,7 @@ def post_process(
         .chunk({"forecast_time": 1, "tile": 6, "step": 3})
     )
 
-    merged = xr.merge([sfc, ds])
+    merged = xr.merge([sfc[SFC_VARIABLES], ds])
     mapper = fsspec.get_mapper(store_url)
 
     if init:
@@ -206,10 +206,7 @@ def post_process(
         create_zarr_store(timesteps, group, merged)
 
     group = zarr.open_group(mapper, mode="a")
-    variables = VARIABLES + SFC_VARIABLES
-    logger.info(f"Variables to process: {variables}")
-    dataset_to_write: xr.Dataset = ds[list(variables)]
-    _write_to_store(group, dataset_to_write)
+    _write_to_store(group, merged)
 
 
 if __name__ == "__main__":
