@@ -1,7 +1,8 @@
 import os
-from typing import Dict, Any, Sequence
+from typing import Dict, Any, Sequence, Mapping
 from fv3net import runtime
 import logging
+from collections import defaultdict
 import time
 
 # avoid out of memory errors
@@ -156,63 +157,60 @@ def _convert_time_delta_to_float_seconds(a):
     return a.astype("timedelta64[ns]").astype(float) / ns_per_s
 
 
-def post_process(
-    out_dir: str, url: str, index: int, init: bool = False, timesteps: Sequence = ()
-):
+def _merge_monitor_data(paths: Mapping[str, str]) -> xr.Dataset:
+    datasets = {key: xr.open_zarr(val) for key, val in paths}
+    time = _get_forecast_time(datasets["begin"])
+    datasets_no_time = [val.drop("time") for val in datasets.values()]
+    steps = list(datasets.keys())
+    return xr.concat(datasets_no_time, dim="step").assign_coords(step=steps, time=time)
 
-    if init and len(timesteps) > 0 and index:
-        raise ValueError(
-            f"To initialize the zarr store, {timesteps} must not be empty."
-        )
 
-    store_url = url
-    logger.info("Post processing model outputs")
-    begin = xr.open_zarr(f"{out_dir}/begin_physics.zarr")
-    before = xr.open_zarr(f"{out_dir}/before_physics.zarr")
-    after = xr.open_zarr(f"{out_dir}/after_physics.zarr")
-
-    # make the time dims consistent
-    time = begin.time
-    before = before.drop("time")
-    after = after.drop("time")
-    begin = begin.drop("time")
-
-    # concat data
-    time = _get_forecast_time(time)
-    ds = xr.concat([begin, before, after], dim="step").assign_coords(
-        step=["begin", "after_dynamics", "after_physics"], time=time
-    )
-    ds = ds.rename({"time": "forecast_time"}).chunk(
-        {"forecast_time": 1, "tile": 6, "step": 3}
-    )
-    sfc = xr.open_mfdataset(
-        f"{out_dir}/sfc_dt_atmos.tile?.nc", concat_dim="tile", combine="nested"
-    ).pipe(rename_sfc_dt_atmos)
-    ds = ds.merge(sfc)
-
-    mapper = fsspec.get_mapper(store_url)
-
-    if init:
-        logging.info("initializing zarr store")
-        group = zarr.open_group(mapper, mode="w")
-        create_zarr_store(timesteps, group, ds)
-
-    group = zarr.open_group(mapper, mode="a")
-    variables = VARIABLES + SFC_VARIABLES
-    logger.info(f"Variables to process: {variables}")
-    for variable in ds[list(variables)]:
+def _write_to_store(group: zarr.ABSStore, ds: xr.Dataset):
+    for variable in ds:
         logger.info(f"Writing {variable} to {group}")
         dims = group[variable].attrs["_ARRAY_DIMENSIONS"][1:]
         dask_arr = ds[variable].transpose(*dims).data
         dask_arr.store(group[variable], regions=(index,))
 
 
-def run_post_process_from_config(outdir: str, c: Dict[str, Any]):
-    url = c.pop("url")
-    index = c.pop("index")
-    args = (outdir, url, index)
-    kwargs = c
-    post_process(*args, **kwargs)
+def post_process(
+    monitor_paths: Mapping[str, str],
+    sfc_pattern: str,
+    store_url: str,
+    index: int,
+    init: bool = False,
+    timesteps: Sequence = (),
+):
+
+    if init and len(timesteps) > 0 and index:
+        raise ValueError(
+            f"To initialize the zarr store, {timesteps} must not be empty."
+        )
+    logger.info("Post processing model outputs")
+
+    sfc = xr.open_mfdataset(sfc_pattern, concat_dim="tile", combine="nested").pipe(
+        rename_sfc_dt_atmos
+    )
+
+    ds = (
+        _merge_monitor_data(monitor_paths)
+        .rename({"time": "forecast_time"})
+        .chunk({"forecast_time": 1, "tile": 6, "step": 3})
+    )
+
+    merged = xr.merge([sfc, ds])
+    mapper = fsspec.get_mapper(store_url)
+
+    if init:
+        logging.info("initializing zarr store")
+        group = zarr.open_group(mapper, mode="w")
+        create_zarr_store(timesteps, group, merged)
+
+    group = zarr.open_group(mapper, mode="a")
+    variables = VARIABLES + SFC_VARIABLES
+    logger.info(f"Variables to process: {variables}")
+    dataset_to_write : xr.Dataset = ds[list(variables)]
+    _write_to_store(group, dataset_to_write)
 
 
 if __name__ == "__main__":
@@ -230,26 +228,17 @@ if __name__ == "__main__":
 
     partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
 
-    before_monitor = fv3gfs.ZarrMonitor(
-        os.path.join(RUN_DIR, "before_physics.zarr"),
-        partitioner,
-        mode="w",
-        mpi_comm=MPI.COMM_WORLD,
+    sfc_pattern = f"{RUN_DIR}/sfc_dt_atmos.tile?.nc"
+    paths = dict(
+        begin=os.path.join(RUN_DIR, "before_physics.zarr"),
+        after_physics=os.path.join(RUN_DIR, "after_physics.zarr"),
+        after_dynamics=os.path.join(RUN_DIR, "after_dynamics.zarr"),
     )
 
-    after_monitor = fv3gfs.ZarrMonitor(
-        os.path.join(RUN_DIR, "after_physics.zarr"),
-        partitioner,
-        mode="w",
-        mpi_comm=MPI.COMM_WORLD,
-    )
-
-    begin_monitor = fv3gfs.ZarrMonitor(
-        os.path.join(RUN_DIR, "begin_physics.zarr"),
-        partitioner,
-        mode="w",
-        mpi_comm=MPI.COMM_WORLD,
-    )
+    monitors = {
+        key: fv3gfs.ZarrMonitor(path, partitioner, mode="w", mpi_comm=MPI.COMM_WORLD,)
+        for key, path in paths.items()
+    }
 
     fv3gfs.initialize()
     state = fv3gfs.get_state(names=VARIABLES + (TIME,))
@@ -258,23 +247,26 @@ if __name__ == "__main__":
     for i in range(fv3gfs.get_step_count()):
         if rank == 0:
             logger.info(f"step {i}")
-        begin_monitor.store(state)
+        monitors["before"].store(state)
         fv3gfs.step_dynamics()
         state = fv3gfs.get_state(names=VARIABLES + (TIME,))
-        before_monitor.store(state)
+        monitors["after_dynamics"].store(state)
         fv3gfs.step_physics()
         state = fv3gfs.get_state(names=VARIABLES + (TIME,))
-        after_monitor.store(state)
+        monitors["after_physics"].store(state)
 
     # parallelize across variables
     fv3gfs.cleanup()
-    del state, begin_monitor, before_monitor, after_monitor
+    del monitors
 
     if rank == 0:
         # TODO it would be much cleaner to call this is a separate script, but that
         # would be incompatible with the run_k8s api
         # sleep a little while to allow all process to finish finalizing the netCDFs
         time.sleep(2)
-        run_post_process_from_config(RUN_DIR, config["one_step"])
+        c = config["one_step"]
+        url = c.pop("url")
+        index = c.pop("index")
+        post_process(paths, sfc_pattern, url, index, **c)
 else:
     logger = logging.getLogger(__name__)
