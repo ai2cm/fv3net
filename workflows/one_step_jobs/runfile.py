@@ -173,13 +173,13 @@ def _write_to_store(group: zarr.ABSStore, index: int, ds: xr.Dataset):
 
 
 def _safe_get_variables(ds: xr.Dataset, variables: Sequence[Hashable]) -> xr.Dataset:
-    """ds[...] is very confusing function from a typing perspective and should be 
-    avoided in long-running pipeline codes. This function introduces a type-stable 
+    """ds[...] is very confusing function from a typing perspective and should be
+    avoided in long-running pipeline codes. This function introduces a type-stable
     alternative that works better with mypy.
 
-    In particular, ds[('a' , 'b' ,'c')] looks for a variable named ('a', 'b', 'c') which 
-    usually doesn't exist, so it causes a key error. but ds[['a', 'b', 'c']] makes a 
-    dataset only consisting of the variables 'a', 'b', and 'c'. This causes tons of 
+    In particular, ds[('a' , 'b' ,'c')] looks for a variable named ('a', 'b', 'c') which
+    usually doesn't exist, so it causes a key error. but ds[['a', 'b', 'c']] makes a
+    dataset only consisting of the variables 'a', 'b', and 'c'. This causes tons of
     hard to find errors.
     """
     variables = list(variables)
