@@ -248,7 +248,7 @@ def make_all_plots(ds_pred, ds_target, ds_hires, grid, output_dir):
     _plot_comparison_maps(
         ds_pe,
         "net_precipitation",
-        time_index_selection=[0, 2],
+        time_index_selection=[0, -1],
         plot_cube_kwargs={"cbar_label": "timestep snapshot, P-E [mm/day]"},
     ).savefig(
         os.path.join(output_dir, "P-E_time_snapshots.png"),
