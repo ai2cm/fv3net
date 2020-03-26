@@ -17,7 +17,12 @@ _KG_M2S_TO_MM_DAY = 86400  # kg/m2/s same as mm/s. Using 1000 km/m3 for H20 dens
 
 
 def merge_comparison_datasets(
-    data_vars, datasets, dataset_labels, grid, additional_dataset=None
+    data_vars,
+    datasets,
+    dataset_labels,
+    grid,
+    concat_dim_name="dataset",
+    additional_dataset=None,
 ):
     """ Makes a comparison dataset out of multiple datasets that all have a common
     data variable. They are concatenated with a new dim "dataset" that can be used
@@ -38,14 +43,15 @@ def merge_comparison_datasets(
         quantities. It is unstacked into the original x,y, time dimensions.
     """
 
-    src_dim_index = pd.Index(dataset_labels, name="dataset")
+    src_dim_index = pd.Index(dataset_labels, name=concat_dim_name)
     datasets = [drop_nondim_coords(ds) for ds in datasets]
     # if one of the datasets is missing data variable(s) that are in the others,
     # fill it with an empty data array
     _add_missing_data_vars(data_vars, datasets)
-
     datasets_to_merge = [
-        xr.concat([ds[data_vars].squeeze(drop=True) for ds in datasets], src_dim_index),
+        xr.concat(
+            [ds[data_vars].squeeze(drop=True) for ds in datasets], dim=src_dim_index
+        ),
         grid,
     ]
     if additional_dataset is not None:

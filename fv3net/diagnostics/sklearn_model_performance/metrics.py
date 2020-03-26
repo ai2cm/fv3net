@@ -28,23 +28,25 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield):
 
     for sfc_type in ["global", "sea", "land"]:
         for var in ["dQ1", "dQ2"]:
-            ds_metrics[f"r2_{var}_pressure_levels_{sfc_type}"] = \
-                _r2_pressure_level_metrics(
-                    vcm.mask_to_surface_type(ds_fv3, sfc_type)[var], 
-                    vcm.mask_to_surface_type(ds_pred, sfc_type)[var], 
-                    vcm.mask_to_surface_type(ds_fv3, sfc_type)["delp"]
-                )
+            ds_metrics[
+                f"r2_{var}_pressure_levels_{sfc_type}"
+            ] = _r2_pressure_level_metrics(
+                vcm.mask_to_surface_type(ds_fv3, sfc_type)[var],
+                vcm.mask_to_surface_type(ds_pred, sfc_type)[var],
+                vcm.mask_to_surface_type(ds_fv3, sfc_type)["delp"],
+            )
     for var in ["net_precipitation", "net_heating"]:
         for ds_target in [ds_fv3, ds_shield]:
             target_label = ds_target.dataset.values.item()
-            ds_metrics[f"rmse_{var}_vs_{target_label}"] = \
-                _root_mean_squared_error_metrics(ds_target[var], ds_pred[var])
+            ds_metrics[
+                f"rmse_{var}_vs_{target_label}"
+            ] = _root_mean_squared_error_metrics(ds_target[var], ds_pred[var])
     return ds_metrics
 
 
 def plot_metrics(ds_metrics, output_dir, dpi_figures):
     report_sections = {}
-    # R^2 vs pressure 
+    # R^2 vs pressure
     _plot_r2_pressure_profile(ds_metrics).savefig(
         os.path.join(output_dir, f"r2_pressure_levels.png"),
         dpi=dpi_figures["R2_pressure_profiles"],
@@ -68,9 +70,7 @@ def _plot_rmse_map(ds, var, target_dataset_name):
     plt.close("all")
     data_var = f"rmse_{var}_vs_{target_dataset_name}"
     fig = vcm.plot_cube(
-        vcm.mappable_var(ds[GRID_VARS + [data_var]], data_var),
-        vmin=0,
-        vmax=2,
+        vcm.mappable_var(ds[GRID_VARS + [data_var]], data_var), vmin=0, vmax=2
     )[0]
     return fig
 
@@ -93,28 +93,15 @@ def _plot_r2_pressure_profile(ds):
     return fig
 
 
-def _root_mean_squared_error_metrics(
-    da_target, 
-    da_pred,
-):
+def _root_mean_squared_error_metrics(da_target, da_pred):
     rmse = np.sqrt((da_target - da_pred) ** 2).mean(INIT_TIME_DIM)
     return rmse
 
 
-def _r2_pressure_level_metrics(
-    da_target,
-    da_pred, 
-    delp,
-):
+def _r2_pressure_level_metrics(da_target, da_pred, delp):
     pressure = np.array(PRESSURE_GRID) / 100
-    target = regrid_to_common_pressure(
-        da_target,
-        delp,
-    ).stack(sample=STACK_DIMS)
-    prediction = regrid_to_common_pressure(
-        da_pred,
-        delp,
-    ).stack(sample=STACK_DIMS)
+    target = regrid_to_common_pressure(da_target, delp).stack(sample=STACK_DIMS)
+    prediction = regrid_to_common_pressure(da_pred, delp).stack(sample=STACK_DIMS)
     da = xr.DataArray(
         r2_score(target, prediction, "sample"),
         dims=["pressure"],
@@ -139,8 +126,12 @@ def _r2_global_values(ds_pred, ds_fv3, ds_shield):
             for ds_target in [ds_fv3, ds_shield]:
                 target_label = ds_target.dataset.values.item()
                 r2_summary[f"R2_{sfc_type}_{var}_vs_{target_label}"] = r2_score(
-                    vcm.mask_to_surface_type(ds_target[var], sfc_type).stack(sample=STACK_DIMS),
-                    vcm.mask_to_surface_type(ds_pred[var], sfc_type).stack(sample=STACK_DIMS),
+                    vcm.mask_to_surface_type(ds_target, sfc_type)[var].stack(
+                        sample=STACK_DIMS
+                    ),
+                    vcm.mask_to_surface_type(ds_pred, sfc_type)[var].stack(
+                        sample=STACK_DIMS
+                    ),
                     "sample",
                 ).values.item()
     return r2_summary

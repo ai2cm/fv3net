@@ -6,7 +6,7 @@ from vcm.cloud.fsspec import get_fs, get_protocol
 from vcm.cloud.gsutil import copy
 from vcm.cubedsphere.constants import INIT_TIME_DIM
 
-from fv3net.diagnostics.create_report import create_report
+from ..create_report import create_report
 from ..data import merge_comparison_datasets
 from .data import (
     predict_on_test_data,
@@ -118,21 +118,28 @@ if __name__ == "__main__":
 
     grid = xr.open_zarr(fs_input.get_mapper(grid_path))
     slmsk = ds_test["slmsk"].isel({INIT_TIME_DIM: 0})
-    
+
+    ds = merge_comparison_datasets(
+        data_vars=DATA_VARS,
+        datasets=[ds_pred, ds_test, ds_hires],
+        dataset_labels=[
+            DATASET_NAME_PREDICTION,
+            DATASET_NAME_FV3_TARGET,
+            DATASET_NAME_SHIELD_HIRES,
+        ],
+        grid=grid,
+        additional_dataset=slmsk,
+    )
+    ds_pred = ds.sel(dataset=DATASET_NAME_PREDICTION)
+    ds_test = ds.sel(dataset=DATASET_NAME_FV3_TARGET)
+    ds_hires = ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)
+
     ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires)
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
     metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES)
-    
+
     diag_report_sections = plot_diagnostics(
-        ds_pred, ds_test, ds_hires,
-        ds_pred_label=DATASET_NAME_PREDICTION,
-        ds_fv3_label=DATASET_NAME_FV3_TARGET,
-        ds_shield_label=DATASET_NAME_SHIELD_HIRES,
-        grid=grid,
-        slmsk=slmsk,
-        data_vars=DATA_VARS,
-        output_dir=output_dir, 
-        dpi_figures=DPI_FIGURES,
+        ds_pred, ds_test, ds_hires, output_dir=output_dir, dpi_figures=DPI_FIGURES
     )
 
     combined_report_sections = {**metrics_plot_sections, **diag_report_sections}

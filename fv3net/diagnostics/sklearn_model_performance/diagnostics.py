@@ -4,6 +4,7 @@ import numpy as np
 import os
 from scipy.stats import binned_statistic_2d
 import warnings
+import xarray as xr
 
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
@@ -41,25 +42,12 @@ DIAG_VARS = [
 matplotlib.use("Agg")
 
 
-def plot_diagnostics(
-    ds_pred, ds_fv3, ds_shield, 
-    ds_pred_label,
-    ds_fv3_label,
-    ds_shield_label,
-    grid,
-    slmsk,
-    data_vars,
-    output_dir, 
-    dpi_figures
-):
+def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures):
     """ Makes figures for predictions on test data
 
     Args:
         ds_pred, ds_fv3, ds_shield [xarray dataset]: contains variables from
-            ML prediction, FV3 target, and SHiELD
-        ds_pred_label, ds_fv3_label, ds_shield_label [str]: labels for concated
-            dataset coord
-        grid [xarray dataset]: contains lat/lon grid info for map plotting
+            ML prediction, FV3 target, and SHiELD. 
         slmsk [xarray dataarray]: surface type variable information
         data_vars [List[str]]: data variables to keep in concatenated dataset
         output_dir: location to write figures to
@@ -70,14 +58,7 @@ def plot_diagnostics(
         report template
     """
     report_sections = {}
-    
-    ds = merge_comparison_datasets(
-        data_vars=data_vars,
-        datasets=[ds_pred, ds_fv3, ds_shield],
-        dataset_labels=[ds_pred_label, ds_fv3_label, ds_shield_label],
-        grid=grid,
-        additional_dataset=slmsk,
-    )
+    ds = xr.concat([ds_pred, ds_fv3, ds_shield], dim="dataset")
 
     # for convenience, separate the land/sea data
     figs = _map_plot_dQ_versus_total(ds)
@@ -95,7 +76,7 @@ def plot_diagnostics(
     ]
 
     # LTS
-    _plot_lower_troposphere_stability(ds, lat_max=20).savefig(
+    _plot_lower_troposphere_stability(ds_pred, ds_fv3, ds_shield, lat_max=20).savefig(
         os.path.join(output_dir, "LTS_vs_Q.png"), dpi=dpi_figures["LTS"]
     )
     report_sections["Lower tropospheric stability vs humidity"] = ["LTS_vs_Q.png"]
@@ -107,8 +88,8 @@ def plot_diagnostics(
             vcm.mask_to_surface_type(ds_fv3, sfc_type)["dQ2"],
             vcm.mask_to_surface_type(ds_shield, sfc_type)["net_precipitation"],
             delp=vcm.mask_to_surface_type(ds_pred, sfc_type)["delp"],
-            units="[kg/kg/s]", 
-            title=f"{sfc_type}: dQ2 vertical profile"
+            units="[kg/kg/s]",
+            title=f"{sfc_type}: dQ2 vertical profile",
         ).savefig(
             os.path.join(output_dir, "vertical_profile_dQ2_{sfc_type}.png"),
             dpi=dpi_figures["dQ2_pressure_profiles"],
@@ -258,7 +239,9 @@ def _plot_comparison_maps(ds, var, time_index_selection=None, plot_cube_kwargs=N
     return fig
 
 
-def _make_vertical_profile_plots(da_pred, da_fv3, da_high_res_split_var, delp, units, title=None):
+def _make_vertical_profile_plots(
+    da_pred, da_fv3, da_high_res_split_var, delp, units, title=None
+):
     """Creates vertical profile plots of dQ2 for drying/moistening columns
 
     Args:
@@ -276,18 +259,9 @@ def _make_vertical_profile_plots(da_pred, da_fv3, da_high_res_split_var, delp, u
 
     plt.clf()
     fig = plt.figure()
-    pos_mask, neg_mask = (
-        da_high_res_split_var > 0,
-        da_high_res_split_var < 0,
-    )
-    da_pred = regrid_to_common_pressure(
-        da_pred,
-        delp,
-    )
-    da_fv3 = regrid_to_common_pressure(
-        da_fv3,
-        delp,
-    )
+    pos_mask, neg_mask = (da_high_res_split_var > 0, da_high_res_split_var < 0)
+    da_pred = regrid_to_common_pressure(da_pred, delp)
+    da_fv3 = regrid_to_common_pressure(da_fv3, delp)
 
     da_pred_pos_PE = da_pred.where(pos_mask)
     da_pred_neg_PE = da_pred.where(neg_mask)
