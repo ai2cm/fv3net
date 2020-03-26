@@ -242,7 +242,7 @@ def regrid_vertical_legacy(
     f_out = xr.zeros_like(p_out.isel({z_dim_outer: slice(0, -1)})).rename(
         {z_dim_outer: z_dim_center}
     )
-
+    # the final argument to mappm is unused by the subroutine
     f_out.values = mappm.mappm(
         p_in.values, f_in.values, p_out.values, 1, n_columns, iv, kord, 0.0
     )
@@ -305,13 +305,19 @@ def _assert_equal_number_of_columns(
     p_in: xr.DataArray, f_in: xr.DataArray, p_out: xr.DataArray
 ):
     """Ensure the number of columns in each of the inputs is the same."""
-    reference = _n_columns(p_in)
+    n_columns = _n_columns(p_in)
     other_arguments = [f_in, p_out]
-    if any(_n_columns(da) != reference for da in other_arguments):
+    if any(_n_columns(da) != n_columns for da in other_arguments):
         raise ValueError(
-            "All arguments to regrid_vertical must contain the "
-            "same number of columns."
+            "All dimensions except vertical must be same size for p_in, f_in and p_out"
         )
+
+
+def _assert_valid_vertical_dimension_sizes(
+    p_in: xr.DataArray, f_in: xr.DataArray, z_dim_outer: str, z_dim_center: str,
+):
+    if f_in.sizes[z_dim_center] != p_in.sizes[z_dim_outer] - 1:
+        raise ValueError("f_in must have a vertical dimension one shorter than p_in")
 
 
 def _columnwise_mappm(
@@ -379,6 +385,11 @@ def regrid_vertical(
         ImportError: if mappm is not installed. Try `pip install vcm/external/mappm`.
         ValueError: if the vertical dimensions for cell centers and cell edges have
             the same name.
+        ValueError: if the number of columns in each input array does not
+            match.
+        ValueError: if the length of the vertical dimension in input field is
+            not one less than the length of the dimension of the input pressure
+            field.
     """
     if not _mappm_installed:
         raise ImportError(
@@ -409,6 +420,7 @@ def regrid_vertical(
     z_dim_center_f_out = f"{z_dim_center}_f_out"
 
     _assert_equal_number_of_columns(p_in, f_in, p_out)
+    _assert_valid_vertical_dimension_sizes(p_in, f_in, z_dim_outer, z_dim_center)
 
     return (
         xr.apply_ufunc(
