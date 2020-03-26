@@ -158,7 +158,7 @@ def _convert_time_delta_to_float_seconds(a):
 
 def _merge_monitor_data(paths: Mapping[str, str]) -> xr.Dataset:
     datasets = {key: xr.open_zarr(val) for key, val in paths.items()}
-    time = _get_forecast_time(datasets["begin"])
+    time = _get_forecast_time(datasets["begin"].time)
     datasets_no_time = [val.drop("time") for val in datasets.values()]
     steps = list(datasets.keys())
     return xr.concat(datasets_no_time, dim="step").assign_coords(step=steps, time=time)
