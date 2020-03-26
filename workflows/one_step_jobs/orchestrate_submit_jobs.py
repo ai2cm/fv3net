@@ -11,7 +11,7 @@ from fv3net.pipelines.common import get_alphanumeric_unique_tag
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
 
-RUNFILE = os.path.join(PWD, 'runfile.py')
+RUNFILE = os.path.join(PWD, "runfile.py")
 
 
 def _create_arg_parser():
