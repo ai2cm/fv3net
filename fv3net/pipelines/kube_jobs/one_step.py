@@ -313,8 +313,13 @@ def submit_jobs(
         uid = str(uuid.uuid4())
         labels = assoc(job_labels, "jobid", uid)
         model_config_url = config_factory(**kwargs)
+
+        # the one step workflow doesn't need to upload its run directories any longer
+        # since all the data is in the big zarr. Setting outdir to a pod-local path
+        # avoids this unecessary upload step.
+        local_tmp_dir = "/tmp/null"
         fv3config.run_kubernetes(
-            model_config_url, "/tmp/null", job_labels=labels, **kube_kwargs
+            model_config_url, local_tmp_dir, job_labels=labels, **kube_kwargs
         )
         if wait:
             utils.wait_for_complete(job_labels, sleep_interval=10)
