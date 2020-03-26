@@ -1,6 +1,7 @@
 import logging
 import os
 import fsspec
+import pprint
 from toolz import assoc
 import uuid
 import yaml
@@ -280,6 +281,9 @@ def submit_jobs(
     """Submit one-step job for all timesteps in timestep_list"""
 
     zarr_url = os.path.join(output_url, "big.zarr")
+
+    logger.info("Working on one-step jobs with arguments:")
+    logger.info(pprint.pformat(locals()))
     # kube kwargs are shared by all jobs
     kube_kwargs = get_run_kubernetes_kwargs(one_step_config["kubernetes"], config_url)
 
