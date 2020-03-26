@@ -1,17 +1,17 @@
 storage_proto: gs
 storage_root: vcm-ml-data/test-end-to-end-integration
 experiment:
-  name: end_to_end_test-a9e4d507
-  unique_id: False
+  name: end_to_end_test
+  unique_id: True
   steps_to_run:
-      #   - coarsen_restarts
-      #   - coarsen_diagnostics
-      #   - one_step_run
-      #    - create_training_data
-      #  - train_sklearn_model
+    - coarsen_restarts
+    - coarsen_diagnostics
+    - one_step_run
+    - create_training_data
+    - train_sklearn_model
     - test_sklearn_model
-      #   - prognostic_run
-      #  - baseline_run
+    - prognostic_run
+    - baseline_run
   
   steps_config:
     coarsen_restarts:
