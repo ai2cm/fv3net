@@ -1,17 +1,17 @@
 storage_proto: gs
 storage_root: vcm-ml-data/test-end-to-end-integration
 experiment:
-  name: end_to_end_test
-  unique_id: True
+  name: end_to_end_test-a9e4d507
+  unique_id: False
   steps_to_run:
-    - coarsen_restarts
-    - coarsen_diagnostics
-    - one_step_run
-    - create_training_data
-    - train_sklearn_model
+      #   - coarsen_restarts
+      #   - coarsen_diagnostics
+      #   - one_step_run
+      #    - create_training_data
+      #  - train_sklearn_model
     - test_sklearn_model
-    - prognostic_run
-    - baseline_run
+      #   - prognostic_run
+      #  - baseline_run
   
   steps_config:
     coarsen_restarts:
@@ -37,7 +37,6 @@ experiment:
       args:
         restart_data:
           from: coarsen_restarts
-          #location: gs://vcm-ml-data/test-end-to-end-integration/end_to_end_test-99ca5b3d/coarsen_restarts_source-resolution_384_target-resolution_48_runner_DataflowRunner/C48
         experiment_yaml: tests/end_to_end_integration/one_step_jobs_integration.yml
         docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.1
         --config-version: v0.3
@@ -68,7 +67,8 @@ experiment:
           from: create_training_data
         diagnostics_data:
           from: coarsen_diagnostics
-        --num_test_zarrs: 1
+        --num_test_zarrs: 2
+        --delete-local-results-after-upload: true
 
     prognostic_run:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
