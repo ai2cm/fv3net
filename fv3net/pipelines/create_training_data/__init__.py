@@ -10,32 +10,37 @@ VAR_Q_V_WIND_ML = "dQV"
 SUFFIX_HIRES_DIAG = "prog"
 SUFFIX_COARSE_TRAIN_DIAG = "train"
 
-DIAG_VARS = [
-    "LHTFLsfc",
-    "SHTFLsfc",
-    "PRATEsfc",
-    "DSWRFtoa",
-    "DSWRFsfc",
-    "USWRFtoa",
-    "USWRFsfc",
-    "DLWRFsfc",
-    "ULWRFtoa",
-    "ULWRFsfc",
+RADIATION_VARS = [
+   "DSWRFtoa",
+   "DSWRFsfc",
+   "USWRFtoa",
+   "USWRFsfc",
+   "DLWRFsfc",
+   "ULWRFtoa",
+   "ULWRFsfc",
 ]
-RENAMED_PROG_DIAG_VARS = {f"{var}_coarse": f"{var}_prog" for var in DIAG_VARS}
-RENAMED_TRAIN_DIAG_VARS = {var: f"{var}_train" for var in DIAG_VARS}
 
+RENAMED_HIGH_RES_VARS = {
+    **{f"{var}_coarse": f"{var}_prog" for var in RADIATION_VARS},
+    **{"LHTFLsfc_coarse": "latent_heat_flux_prog",
+        "SHTFLsfc_coarse": "sensible_heat_flux_prog"}
+}
 
-RESTART_VARS = [
-    "sphum",
-    "T",
-    "delp",
-    "u",
-    "v",
-    "slmsk",
-    "phis",
-    "tsea",
-    "slope",
-    "DZ",
-    "W",
+ONE_STEP_VARS = RADIATION_VARS + [
+   "total_precipitation",
+   "surface_temperature",
+   "land_sea_mask",
+   "latent_heat_flux",
+   "sensible_heat_flux",
+   "mean_cos_zenith_angle",
+   "surface_geopotential",
+   "vertical_thickness_of_atmospheric_layer",
+   "vertical_wind",
+   "pressure_thickness_of_atmospheric_layer",
+   "specific_humidity",
+   "air_temperature",
+   "x_wind",
+   "y_wind",
 ]
+
+RENAMED_ONE_STEP_VARS = {var: f"{var}_train" for var in RADIATION_VARS}

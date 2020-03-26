@@ -5,17 +5,7 @@ import os
 import shutil
 import xarray as xr
 
-from . import (
-    helpers,
-    DIAG_VARS,
-    RENAMED_TRAIN_DIAG_VARS,
-    RENAMED_PROG_DIAG_VARS,
-    RESTART_VARS,
-    VAR_Q_HEATING_ML,
-    VAR_Q_MOISTENING_ML,
-    VAR_Q_U_WIND_ML,
-    VAR_Q_V_WIND_ML,
-)
+from . import helpers
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
 from vcm.cubedsphere.constants import (
@@ -38,7 +28,6 @@ from fv3net import COARSENED_DIAGS_ZARR_NAME
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-TARGET_VARS = [VAR_Q_HEATING_ML, VAR_Q_MOISTENING_ML, VAR_Q_U_WIND_ML, VAR_Q_V_WIND_ML]
 
 _CHUNK_SIZES = {
     "tile": 1,
@@ -47,6 +36,52 @@ _CHUNK_SIZES = {
     COORD_X_CENTER: 24,
     COORD_Z_CENTER: 79,
 }
+
+# residuals that the ML is training on
+# high resolution tendency - coarse res model's one step tendency
+VAR_Q_HEATING_ML = "dQ1"
+VAR_Q_MOISTENING_ML = "dQ2"
+VAR_Q_U_WIND_ML = "dQU"
+VAR_Q_V_WIND_ML = "dQV"
+TARGET_VARS = [VAR_Q_HEATING_ML, VAR_Q_MOISTENING_ML, VAR_Q_U_WIND_ML, VAR_Q_V_WIND_ML]
+
+# suffixes denote whether diagnostic variable is from the coarsened
+# high resolution prognostic run or the coarse res one step train data run
+SUFFIX_HIRES_DIAG = "prog"
+SUFFIX_COARSE_TRAIN_DIAG = "train"
+
+RADIATION_VARS = [
+   "DSWRFtoa",
+   "DSWRFsfc",
+   "USWRFtoa",
+   "USWRFsfc",
+   "DLWRFsfc",
+   "ULWRFtoa",
+   "ULWRFsfc",
+]
+RENAMED_HIGH_RES_VARS = {
+    **{f"{var}_coarse": f"{var}_prog" for var in RADIATION_VARS},
+    **{"LHTFLsfc_coarse": "latent_heat_flux_prog",
+        "SHTFLsfc_coarse": "sensible_heat_flux_prog"}
+}
+
+ONE_STEP_VARS = RADIATION_VARS + [
+   "total_precipitation",
+   "surface_temperature",
+   "land_sea_mask",
+   "latent_heat_flux",
+   "sensible_heat_flux",
+   "mean_cos_zenith_angle",
+   "surface_geopotential",
+   "vertical_thickness_of_atmospheric_layer",
+   "vertical_wind",
+   "pressure_thickness_of_atmospheric_layer",
+   "specific_humidity",
+   "air_temperature",
+   "x_wind",
+   "y_wind",
+]
+RENAMED_ONE_STEP_VARS = {var: f"{var}_train" for var in RADIATION_VARS}
 
 
 def run(args, pipeline_args):
@@ -276,9 +311,9 @@ def _merge_hires_data(ds_run, diag_c48_path):
         init_times = ds_run[INIT_TIME_DIM].values
         full_zarr_path = os.path.join(diag_c48_path, COARSENED_DIAGS_ZARR_NAME)
         diags_c48 = helpers.load_hires_prog_diag(full_zarr_path, init_times)[
-            list(RENAMED_PROG_DIAG_VARS.keys())
+            list(RENAMED_HIGH_RES_VARS.keys())
         ]
-        features_diags_c48 = diags_c48.rename(RENAMED_PROG_DIAG_VARS)
+        features_diags_c48 = diags_c48.rename(RENAMED_HIGH_RES_VARS)
         return xr.merge([ds_run, features_diags_c48])
     except (KeyError, AttributeError, ValueError, TypeError) as e:
         logger.error(f"Failed to merge in features from high res diagnostics: {e}")
@@ -290,7 +325,7 @@ def _merge_onestep_diag_data(ds_run, top_level_data_dir):
         diags_onestep = helpers.load_train_diag(top_level_data_dir, init_times)[
             DIAG_VARS
         ]
-        diags_onestep = diags_onestep.rename(RENAMED_TRAIN_DIAG_VARS)
+        diags_onestep = diags_onestep.rename(RENAMED_ONE_STEP_VARS)
         return xr.merge([ds_run, diags_onestep])
 
     except (IndexError, FileNotFoundError, ValueError, TypeError) as e:
