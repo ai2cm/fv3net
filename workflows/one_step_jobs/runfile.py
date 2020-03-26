@@ -197,7 +197,7 @@ def post_process(
         .chunk({"forecast_time": 1, "tile": 6, "step": 3})
     )
 
-    merged = xr.merge([sfc[SFC_VARIABLES], ds])
+    merged = xr.merge([sfc[list(SFC_VARIABLES)], ds])
     mapper = fsspec.get_mapper(store_url)
 
     if init:
