@@ -246,7 +246,7 @@ if __name__ == "__main__":
     for i in range(fv3gfs.get_step_count()):
         if rank == 0:
             logger.info(f"step {i}")
-        monitors["before"].store(state)
+        monitors["begin"].store(state)
         fv3gfs.step_dynamics()
         state = fv3gfs.get_state(names=VARIABLES + (TIME,))
         monitors["after_dynamics"].store(state)
