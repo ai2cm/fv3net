@@ -16,8 +16,30 @@ This script is self-documenting and its help can be seen by running:
     python orchestrate_submit_jobs.py -h
 
 
+# Minimal example
 
-### Kubernetes VM access troubleshooting
+Here is a minimal exmaple for how to run this script on a limited set of sample images.
+
+```sh
+workdir=$(pwd)
+src=gs://vcm-ml-data/orchestration-testing/test-andrep/coarsen_restarts_source-resolution_384_target-resolution_48/
+output=gs://vcm-ml-data/testing-noah/one-step
+VERSION=<image version>
+image=us.gcr.io/vcm-ml/prognostic_run:$VERSION
+yaml=$PWD/deep-conv-off.yml
+
+gsutil -m rm -r $output > /dev/null
+ (
+    cd ../../
+    python $workdir/orchestrate_submit_jobs.py \
+        $src $yaml $image $output -o  \
+	--config-version v0.3
+ )
+
+```
+
+
+# Kubernetes VM access troubleshooting
 
 To process many (> around 40) runs at once, it is recommended to submit this workflow
 from a VM authorized with a service account. Users have had issues with API request errors
@@ -41,7 +63,7 @@ Use the following command to view your current configuration. It should point to
 kubectl config view
 ```
 
-### Out of Memory errors
+# Out of Memory errors
 
 The one step jobs can be fail with OOMKilled errors if too many dask workers
 are used. These errors can typically be avoided by using the single-threaded
