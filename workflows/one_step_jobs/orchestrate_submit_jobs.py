@@ -11,6 +11,8 @@ from fv3net.pipelines.common import get_alphanumeric_unique_tag
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
 
+RUNFILE = os.path.join(PWD, 'runfile.py')
+
 
 def _create_arg_parser():
     parser = argparse.ArgumentParser()
@@ -101,6 +103,7 @@ if __name__ == "__main__":
         subsample_frequency=args.init_frequency,
     )
 
+    one_step_config["kubernetes"]["runfile"] = RUNFILE
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
 
     local_vgrid_file = os.path.join(PWD, one_step.VERTICAL_GRID_FILENAME)
