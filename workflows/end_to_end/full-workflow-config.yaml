@@ -38,8 +38,9 @@ experiment:
         restart_data:
           from: coarsen_restarts
         experiment_yaml: ./workflows/one_step_jobs/all-physics-off.yml
-        docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration:v0.1.0-a1
-    
+        docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.0-a1
+        --config-version: v0.3    
+
     create_training_data:
       command: python -m fv3net.pipelines.create_training_data
       args:
