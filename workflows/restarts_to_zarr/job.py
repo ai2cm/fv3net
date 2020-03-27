@@ -2,6 +2,7 @@ import logging
 import os
 from itertools import product
 from typing import Callable, Tuple
+import argparse
 
 import fsspec
 import xarray as xr
@@ -9,9 +10,15 @@ import zarr
 from distributed import Client
 from toolz import curry
 
-import fv3net
+from distributed import Client
+from dask_kubernetes import KubeCluster
+
+
 import vcm
 from fv3net.pipelines import list_timesteps
+
+DIR = os.path.dirname(__file__)
+WORKER_YAML = os.path.join(DIR, "worker-spec.yml")
 
 logging.basicConfig(level=logging.INFO)
 
@@ -53,11 +60,29 @@ def get_schema(fs: fsspec.AbstractFileSystem, url: str) -> xr.Dataset:
         return vcm.standardize_metadata(xr.open_dataset(f))
 
 
-if __name__ == "__main__":
-    # TODO Parameterize these settings
-    url = "gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files/"
-    times = list_timesteps(url)
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('url', help="root directory of time steps")
+    parser.add_argument('output', help="Location of output zarr")
+    parser.add_argument("-s", "--n-steps", default=-1, type=int)
+    parser.add_argument("-n", "--workers", default=1, type=int)
+
+    args = parser.parse_args()
+
+
+
+    logging.info("Building dask cluster and client")
+    cluster = KubeCluster.from_yaml(WORKER_YAML)
+    cluster.scale_up(args.workers)  # specify number of nodes explicitly
+    client = Client(cluster)
+
+    # TODO Parameterize these settings
+    times = list_timesteps(args.url)
+    if args.n_steps != -1:
+        times = times[args.n_steps]
+
+    logging.info("Getting the schema")
     fs = fsspec.filesystem("gs")
     categories = CATEGORIES
     tiles = [1, 2, 3, 4, 5, 6]
@@ -70,8 +95,8 @@ if __name__ == "__main__":
     print("Schema:")
     print(schema)
 
-    #
-    store = "big.zarr"
+    logging.info("Initializing output zarr")
+    store = fsspec.get_mapper(args.output)
     group = zarr.open_group(store, mode="w")
     output_m = vcm.ZarrMapping(
         group, schema, dims=["time", "tile"], coords={"tile": tiles, "time": times}
@@ -79,7 +104,7 @@ if __name__ == "__main__":
     load_timestep = get_timestep(fs, url)
     map_fn = curry(insert_timestep, output_m, load_timestep)
 
-    client = Client()
+    logging.info("Mapping job")
     results = client.map(map_fn, list(product(times, categories, tiles)))
     # wait for all results to complete
     client.gather(results)
