@@ -8,27 +8,21 @@ import xarray as xr
 from . import helpers
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
-from vcm.cubedsphere.constants import (
-    VAR_LON_CENTER,
-    VAR_LAT_CENTER,
-    VAR_LON_OUTER,
-    VAR_LAT_OUTER,
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    COORD_Z_CENTER,
-    INIT_TIME_DIM,
-    FORECAST_TIME_DIM,
-)
-from vcm.cloud import fsspec
+from vcm.cloud.fsspec import get_fs
 from vcm.cubedsphere.coarsen import rename_centered_xy_coords, shift_edge_var_to_center
-from vcm.fv3_restarts import open_restarts_with_time_coordinates, open_diagnostic
+from vcm.fv3_restarts import open_restarts_with_time_coordinates
 from vcm import parse_timestep_str_from_path, parse_datetime_from_str
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-
+INIT_TIME_DIM = "initial_time"
+FORECAST_TIME_DIM = "forecast_time"
+STEP_TIME_DIM = "step"
+VAR_LON_CENTER, VAR_LAT_CENTER, VAR_LON_OUTER, VAR_LAT_OUTER = \
+    ("lon", "lat", "lonb", "latb")
+COORD_X_CENTER, COORD_Y_CENTER, COORD_Z_CENTER = ("x", "y", "z")
 _CHUNK_SIZES = {
     "tile": 1,
     INIT_TIME_DIM: 1,
@@ -60,9 +54,9 @@ RADIATION_VARS = [
    "ULWRFsfc",
 ]
 RENAMED_HIGH_RES_VARS = {
-    **{f"{var}_coarse": f"{var}_prog" for var in RADIATION_VARS},
-    **{"LHTFLsfc_coarse": "latent_heat_flux_prog",
-        "SHTFLsfc_coarse": "sensible_heat_flux_prog"}
+    **{f"{var}_coarse": f"{var}_{SUFFIX_HIRES_DIAG}" for var in RADIATION_VARS},
+    **{"LHTFLsfc_coarse": f"latent_heat_flux_{SUFFIX_HIRES_DIAG}",
+        "SHTFLsfc_coarse": f"sensible_heat_flux_{SUFFIX_HIRES_DIAG}"}
 }
 
 ONE_STEP_VARS = RADIATION_VARS + [
@@ -86,14 +80,14 @@ RENAMED_DIMS = {"grid_xt": "x", "grid_yt": "y", "grid_x": "x_interface", "grid_y
 
 
 def run(args, pipeline_args):
-    fs = fsspec.get_fs(args.gcs_input_data_path)
+    fs = get_fs(args.gcs_input_data_path)
     gcs_urls = [
         "gs://" + run_dir_path
         for run_dir_path in sorted(fs.ls(args.gcs_input_data_path))
         if _filter_timestep(run_dir_path)
     ]
     _save_grid_spec(fs, gcs_urls, args.gcs_output_data_dir)
-    data_batch_urls = _get_url_batches(gcs_urls, args.timesteps_per_output_file)
+    data_batch_urls = _get__batches(gcs_urls, args.timesteps_per_output_file)
     train_test_labels = _test_train_split(data_batch_urls, args.train_fraction)
     data_batch_urls_reordered = _reorder_batches(data_batch_urls, args.train_fraction)
 
@@ -149,7 +143,7 @@ def _reorder_batches(sorted_batches, train_frac):
     return reordered_batches
 
 
-def _save_grid_spec(fs, run_dirs, gcs_output_data_dir, max_attempts=25):
+def _save_grid_spec(ds, gcs_output_data_dir):
     """ Reads grid spec from diag files in a run dir and writes to GCS
 
     Args:
@@ -160,28 +154,17 @@ def _save_grid_spec(fs, run_dirs, gcs_output_data_dir, max_attempts=25):
     Returns:
         None
     """
-    attempt = 0
-    while attempt <= max_attempts:
-        run_dir = run_dirs[attempt]
-        try:
-            grid = open_diagnostic(run_dir, "atmos_dt_atmos").isel(time=0)[
-                ["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]
-            ]
-            _write_remote_train_zarr(
-                grid, gcs_output_data_dir, zarr_name="grid_spec.zarr"
-            )
-            logger.info(
-                f"Wrote grid spec to "
-                f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
-            )
-            return
-        except FileNotFoundError as e:
-            logger.error(e)
-            attempt += 1
-    raise FileNotFoundError(
-        f"Unable to open diag files for creating grid spec, \
-        reached max attempts {max_attempts}"
+    grid = ds.isel(time=0)[
+        ["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]
+    ]
+    _write_remote_train_zarr(
+        grid, gcs_output_data_dir, zarr_name="grid_spec.zarr"
     )
+    logger.info(
+        f"Wrote grid spec to "
+        f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
+    )
+    return
 
 
 def _get_url_batches(gcs_urls, timesteps_per_output_file):

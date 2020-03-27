@@ -1,3 +1,7 @@
+initial_time_dim: "initial_time"
+forecast_time_dim: "forecast_time"
+step_time_dim: "step"
+
 one_step_data_variables: 
   - "DSWRFtoa"
   - "DSWRFsfc"
