@@ -22,6 +22,7 @@ matplotlib.use("Agg")
 
 
 def create_metrics_dataset(ds_pred, ds_fv3, ds_shield):
+
     ds_metrics = _r2_global_values(ds_pred, ds_fv3, ds_shield)
     for grid_var in GRID_VARS:
         ds_metrics[grid_var] = ds_pred[grid_var]
@@ -35,12 +36,21 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield):
                 vcm.mask_to_surface_type(ds_pred, sfc_type)[var],
                 vcm.mask_to_surface_type(ds_fv3, sfc_type)["delp"],
             )
+    ds_metrics = ds_metrics.assign_coords(
+        {
+            "target_dataset_names": [
+                ds_target.dataset.values.item() for ds_target in [ds_fv3, ds_shield]
+            ]
+        }
+    )
+
     for var in ["net_precipitation", "net_heating"]:
         for ds_target in [ds_fv3, ds_shield]:
             target_label = ds_target.dataset.values.item()
             ds_metrics[
                 f"rmse_{var}_vs_{target_label}"
             ] = _root_mean_squared_error_metrics(ds_target[var], ds_pred[var])
+
     return ds_metrics
 
 
@@ -54,9 +64,9 @@ def plot_metrics(ds_metrics, output_dir, dpi_figures):
     report_sections["R^2 vs pressure levels"] = ["r2_vs_pressure_levels.png"]
 
     # RMSE maps
-    report_sections["Mean squared error maps"] = []
+    report_sections["Root mean squared error maps"] = []
     for var in ["net_precipitation", "net_heating"]:
-        for target_dataset_name in ["fv3_target", "shield"]:
+        for target_dataset_name in ds_metrics.target_dataset_names.values:
             filename = f"rmse_map_{var}_{target_dataset_name}.png"
             _plot_rmse_map(ds_metrics, var, target_dataset_name).savefig(
                 os.path.join(output_dir, filename), dpi=dpi_figures["map_plot_single"]
