@@ -91,6 +91,11 @@ SFC_VARIABLES = (
     "DLWRFsfc",
     "ULWRFtoa",
     "ULWRFsfc",
+    "lat",
+    "lon",
+    "latb",
+    "lonb",
+    "area",
 )
 
 
