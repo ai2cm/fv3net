@@ -10,5 +10,5 @@ __all__ = [
     "mass_integrate",
     "r2_score",
     "compute_Q_terms",
-    "local_time"
+    "local_time",
 ]
