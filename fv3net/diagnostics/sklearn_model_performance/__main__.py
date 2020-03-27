@@ -132,6 +132,8 @@ if __name__ == "__main__":
         grid=grid,
         additional_dataset=slmsk,
     )
+    # separate datasets will now have common grid/sfc_type variables and
+    # an identifying dataset coordinate
     ds_pred = ds.sel(dataset=DATASET_NAME_PREDICTION)
     ds_test = ds.sel(dataset=DATASET_NAME_FV3_TARGET)
     ds_hires = ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)
