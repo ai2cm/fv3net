@@ -8,7 +8,7 @@ def test_zarr_mapping_set():
     schema = xr.Dataset({'a': (['x'], [2.0])}).chunk()
     store = {}
     group = zarr.open_group(store)
-    m = fv3net.ZarrMapping(group, keys, schema, dim='time')
+    m = fv3net.ZarrMapping(group, schema, keys, dim='time')
     m['a'] = schema
     m['b'] = schema
     m['c'] = schema
