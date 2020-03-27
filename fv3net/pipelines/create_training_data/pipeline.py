@@ -82,6 +82,7 @@ ONE_STEP_VARS = RADIATION_VARS + [
    "y_wind",
 ]
 RENAMED_ONE_STEP_VARS = {var: f"{var}_train" for var in RADIATION_VARS}
+RENAMED_DIMS = {"grid_xt": "x", "grid_yt": "y", "grid_x": "x_interface", "grid_y": "y_interface"}
 
 
 def run(args, pipeline_args):
