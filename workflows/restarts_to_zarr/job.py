@@ -1,18 +1,17 @@
-from typing import Sequence, Hashable, Iterable, Tuple, Callable, TypeVar
-import zarr
-import os
-import xarray as xr
-from distributed import Client
-from toolz import curry, pipe
-from toolz.curried import valmap
-import fsspec
-import fv3net
-from fv3net.pipelines import list_timesteps
-import vcm
-from vcm.fv3_restarts import _load_restart_lazily, standardize_metadata
-from itertools import product
 import logging
-import dask
+import os
+from itertools import product
+from typing import Callable, Hashable, Iterable, Sequence, Tuple, TypeVar
+
+import fsspec
+import xarray as xr
+import zarr
+from distributed import Client
+from toolz import curry
+
+import fv3net
+import vcm
+from fv3net.pipelines import list_timesteps
 
 logging.basicConfig(level=logging.INFO)
 
@@ -29,7 +28,7 @@ def get_timestep(fs, url, time, category, tile) -> xr.Dataset:
     logging.info(f"Opening {location}")
     with fs.open(location, "rb") as f:
         ds = xr.open_dataset(f).load()
-        return standardize_metadata(ds)
+        return vcm.standardize_metadata(ds)
 
 
 def insert_timestep(output: fv3net.ZarrMapping, get: Callable[[str, str, int], xr.Dataset], key: Tuple[str, str, int]):
@@ -42,14 +41,16 @@ def insert_timestep(output: fv3net.ZarrMapping, get: Callable[[str, str, int], x
 def get_schema(fs: fsspec.AbstractFileSystem, url: str) -> xr.Dataset:
     logging.info(f"Grabbing schema from {url}")
     with fs.open(url, "rb") as f:
-        return standardize_metadata(xr.open_dataset(f))
+        return vcm.standardize_metadata(xr.open_dataset(f))
 
 
 if __name__ == '__main__':
+    # TODO Parameterize these settings
     url = "gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files/"
+    times = list_timesteps(url)
+
     fs = fsspec.filesystem('gs')
-    categories = CATEGORIES[:2]
-    times = list_timesteps(url)[:2]
+    categories = CATEGORIES
     tiles = [1, 2, 3, 4, 5, 6]
 
     # get schema for first timestep
@@ -72,5 +73,3 @@ if __name__ == '__main__':
     results = client.map(map_fn, list(product(times, categories, tiles)))
     # wait for all results to complete
     client.gather(results)
-
-
