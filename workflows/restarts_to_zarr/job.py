@@ -11,10 +11,16 @@ from fv3net.pipelines import list_timesteps
 import vcm
 from vcm.fv3_restarts import _load_restart_lazily, standardize_metadata
 from itertools import product
+import logging
+import dask
+
+logging.basicConfig(level=logging.INFO)
+
+CATEGORIES=('fv_srf_wnd_coarse.res', 'sfc_data_coarse', 'fv_tracer_coarse.res', 'fv_core_coarse.res')
 
 
-def _files(prefix, categories=('fv_srf_wnd_coarse.res', 'sfc_data_coarse', 'fv_tracer_coarse.res', 'fv_core_coarse.res'), tiles=(1,2,3,4,5,6)):
-    for category, tile in product(categories, tiles):
+def _files(prefix, category, tiles=(1,2,3,4,5,6)):
+    for tile in tiles:
         yield category, tile, prefix + f"{category}.tile{tile}.nc"
 
 
@@ -45,9 +51,10 @@ def _yield_array_sequence(loaded: Iterable[Tuple[int, xr.Dataset]]):
             yield name, (tile,), ds[name]
 
 
-def open_restarts_prefix(fs: fsspec.AbstractFileSystem, prefix: str, **kwargs) -> xr.Dataset:
+def open_restarts_prefix(fs: fsspec.AbstractFileSystem, prefix: str, category: str) -> xr.Dataset:
+    logging.info(f"Opening {category} at {prefix}")
     return pipe(
-        _files(prefix, **kwargs),
+        _files(prefix, category),
         curry(_load_arrays, fs),
         _standardize_metadata,
         _yield_array_sequence,
@@ -56,13 +63,17 @@ def open_restarts_prefix(fs: fsspec.AbstractFileSystem, prefix: str, **kwargs) -
 
 
 @curry
-def get_timestep(fs, url, time):
+def get_timestep(fs, url, time, category):
     prefix = _get_c384_restart_prefix(url, time)
-    return open_restarts_prefix(fs, prefix)
+    return open_restarts_prefix(fs, prefix, category)
 
 
-def insert_timestep(output: fv3net.ZarrMapping, get, time: Hashable):
-    output[time] = get(time)
+def insert_timestep(output: fv3net.ZarrMapping, get, key):
+    time, category = key
+    with dask.config.set(scheduler='single-threaded'):
+        data = get(time, category).load()
+    logging.info(f"Setting data at {time} for {category}")
+    output[time] = data
 
 
 if __name__ == '__main__':
@@ -73,10 +84,15 @@ if __name__ == '__main__':
     # get schema for first timestep
     time = times[0]
     prefix = _get_c384_restart_prefix(url, time)
-    schema = open_restarts_prefix(fs, prefix)
+    CATEGORIES = CATEGORIES[:3]
+    times = times[:3]
+    schema = xr.merge([
+        open_restarts_prefix(fs, prefix, category) for category in CATEGORIES
+    ])
+    print("Schema:")
+    print(schema)
 
     #
-    times = times[:2]
     store = "big.zarr"
     group = zarr.open_group(store, mode="w")
     output_m = fv3net.ZarrMapping(group, schema, times, dim='time')
@@ -84,7 +100,8 @@ if __name__ == '__main__':
     map_fn = curry(insert_timestep, output_m, load_timestep)
 
     client = Client()
-    for time in enumerate(times):
-        client.submit(map_fn, time)
+    results = client.map(map_fn, list(product(times, CATEGORIES)))
+    # wait for all results to complete
+    client.gather(results)
 
 
