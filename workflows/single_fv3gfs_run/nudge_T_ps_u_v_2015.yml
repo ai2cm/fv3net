@@ -43,7 +43,7 @@ fv3config:
       nf_t: 3
       nudge_debug: true
       nudge_hght: false
-      nudge_ps: false
+      nudge_ps: true
       nudge_virt: true
       nudge_winds: true
       r_hi: 5.0
