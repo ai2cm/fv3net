@@ -1,9 +1,20 @@
 from typing import Sequence
+from collections import MutableMapping
 import zarr
 import xarray as xr
 from distributed import Client
 import numpy as np
 from toolz import curry
+
+
+def create_zarr(store: zarr.ABSStore, schema: xr.Dataset, dim: str, values: Sequence) -> zarr.Group:
+    group = zarr.open_group(store)
+    # TODO refactor zarr init from the one-step-job
+
+
+    return group
+
+
 
 
 def load_timestep(timestep_url):
@@ -25,12 +36,6 @@ def insert_timestep(group, index, get):
     write_to_group(group, ds)
 
 
-def create_zarr(store: zarr.ABSStore, schema: xr.Dataset, dim: str, values: Sequence) -> zarr.Group:
-    group = zarr.open_group(store)
-    # TODO refactor zarr init from the one-step-job
-
-
-    return group
 
 
 def restarts_to_zarr(client: Client, store: zarr.ABSStore, timestep_urls: Sequence[str], schema: xr.Dataset):
