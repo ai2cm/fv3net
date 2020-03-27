@@ -95,6 +95,30 @@ jobs:
     - run: sudo pip install black==19.10b0 flake8
     - run: make lint
 
+  integration_tests:
+    docker:
+      - image:
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+    steps:
+      - gcp-gcr/gcr-auth:
+          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
+      - run:
+          name: Setup firewall rule and kubectl
+          command: |
+            apt-get install wget
+            ci_public_ip=$(wget -qO- http://ipecho.net/plain | xargs echo)
+            echo $DECODED_GOOGLE_CREDENTIALS > $GOOGLE_APPLICATION_CREDENTIALS
+            gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+            proxy_ip=$(gcloud compute instances list --filter="labels.role=$K8S_PROXY_TARGET_TAG" \
+                --format="value(networkInterfaces.accessConfigs[0].natIP)")
+            firewall_name=$(openssl rand -hex 5)
+            gcloud compute firewall-rules create $firewall_name --action ALLOW \
+                --allow tcp:$K8S_PROXY_PORT  --destination-ranges $proxy_ip \
+                --network $K8S_PROXY_NETWORK --direction IN \
+                --source-ranges $ci_public_ip
+
+
   
 workflows:
   version: 2
