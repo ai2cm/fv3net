@@ -14,9 +14,9 @@ def _read_metadata_remote(fs, url):
         return xr.open_dataset(f)
 
 
-def _open_remote_nc(fs, url):
+def open_remote_nc(fs, url):
     with fs.open(url, "rb") as f:
-        return xr.open_dataset(f).load()
+        yield xr.open_dataset(f).load()
 
 
 def open_tiles(url_prefix: str) -> xr.Dataset:
@@ -36,7 +36,7 @@ def open_tiles(url_prefix: str) -> xr.Dataset:
             f"Invalid set of input files. {len(files)} detected, but 6 expected."
         )
     schema = _read_metadata_remote(fs, files[0])
-    delayeds = [delayed(_open_remote_nc)(fs, url) for url in files]
+    delayeds = [delayed(open_remote_nc)(fs, url) for url in files]
     datasets = [open_delayed(d, schema) for d in delayeds]
     return xr.concat(datasets, dim="tile").assign_coords(tile=list(range(6)))
 

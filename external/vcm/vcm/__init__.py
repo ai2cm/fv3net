@@ -21,4 +21,4 @@ from .calc.thermo import (
 from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .select import mask_to_surface_type
 from .visualize import plot_cube, mappable_var, plot_cube_axes
-from .xarray_loaders import open_tiles, open_delayed
+from .xarray_loaders import open_tiles, open_delayed, open_remote_nc
