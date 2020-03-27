@@ -3,10 +3,12 @@ import xarray as xr
 from sklearn.externals import joblib
 from sklearn.utils import parallel_backend
 
-import state_io
+from . import state_io
+
+__all__ = ["open_model", "predict", "update"]
 
 
-def open_sklearn_model(url):
+def open_model(url):
     # Load the model
     with fsspec.open(url, "rb") as f:
         return joblib.load(f)
@@ -26,21 +28,7 @@ def update(model, state, dt):
     tend = predict(model, state)
 
     updated = state.assign(
-        sphum=state["sphum"] + tend.Q2 * dt, T=state.T + tend.Q1 * dt
+        sphum=state["sphum"] + tend.dQ2 * dt, T=state.T + tend.dQ1 * dt
     )
 
     return state_io.rename_to_orig(updated), state_io.rename_to_orig(tend)
-
-
-if __name__ == "__main__":
-    import sys
-
-    state_path = sys.argv[1]
-    model = open_sklearn_model(sys.argv[2])
-
-    with open(state_path, "rb") as f:
-        data = state_io.load(f)
-
-    tile = data[0]
-    preds = update(model, tile, dt=1)
-    print(preds)

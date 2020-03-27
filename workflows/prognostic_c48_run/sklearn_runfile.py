@@ -3,18 +3,16 @@ import logging
 import zarr
 
 import fv3gfs
-import sklearn_interface
-import state_io
 from fv3gfs._wrapper import get_time
+from fv3net import runtime
 from mpi4py import MPI
-import config
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
-VARIABLES = list(state_io.CF_TO_RESTART_MAP) + [DELP]
+VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP]
 
 cp = 1004
 gravity = 9.81
@@ -22,18 +20,18 @@ gravity = 9.81
 
 def compute_diagnostics(state, diags):
     return dict(
-        net_precip=(diags["Q2"] * state[DELP] / gravity)
+        net_precip=(diags["dQ2"] * state[DELP] / gravity)
         .sum("z")
         .assign_attrs(units="kg/m^2/s"),
         PW=(state[SPHUM] * state[DELP] / gravity).sum("z").assign_attrs(units="mm"),
-        net_heating=(diags["Q1"] * state[DELP] / gravity * cp)
+        net_heating=(diags["dQ1"] * state[DELP] / gravity * cp)
         .sum("z")
         .assign_attrs(units="W/m^2"),
     )
 
 
-args = config.get_config()
-NML = config.get_namelist()
+args = runtime.get_runfile_config()
+NML = runtime.get_namelist()
 TIMESTEP = NML["coupler_nml"]["dt_atmos"]
 
 times = []
@@ -55,7 +53,7 @@ if __name__ == "__main__":
 
     if rank == 0:
         logger.info("Downloading Sklearn Model")
-        MODEL = sklearn_interface.open_sklearn_model(args.model)
+        MODEL = runtime.sklearn.open_model(args.model)
         logger.info("Model downloaded")
     else:
         MODEL = None
@@ -81,7 +79,7 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
-        preds, diags = sklearn_interface.update(MODEL, state, dt=TIMESTEP)
+        preds, diags = runtime.sklearn.update(MODEL, state, dt=TIMESTEP)
         if rank == 0:
             logger.debug("Setting Fortran State")
         fv3gfs.set_state(preds)
@@ -91,8 +89,8 @@ if __name__ == "__main__":
         diagnostics = compute_diagnostics(state, diags)
 
         if i == 0:
-            writers = state_io.init_writers(GROUP, comm, diagnostics)
-        state_io.append_to_writers(writers, diagnostics)
+            writers = runtime.init_writers(GROUP, comm, diagnostics)
+        runtime.append_to_writers(writers, diagnostics)
 
         times.append(get_time())
 

@@ -1,6 +1,8 @@
 version: 2.1
+orbs:
+  gcp-gcr: circleci/gcp-gcr@0.6.1
 jobs:
-  build:    
+  pytest_default:    
     docker:
       - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
         auth:
@@ -9,16 +11,82 @@ jobs:
         environment:
           GOOGLE_APPLICATION_CREDENTIALS=key.json
     steps:
-    - checkout
-    - run: | 
-        echo $ENCODED_GOOGLE_CREDENTIALS | \
-        base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
-    - run: conda install make
-    - run: make update_submodules
-    - run: make create_environment
-    - run: | 
-        source activate fv3net
-        pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+      - checkout
+      - run:
+          name: "Save GCS for tests."
+          command: |
+            echo $ENCODED_GOOGLE_CREDENTIALS | \
+            base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
+      - run: make update_submodules
+      - run:
+          name: "Concatenate package dependency files"
+          command: cat environment.yml .circleci/.installed_build_env_deps > combined_deps.txt
+      - restore_cache:
+          keys:
+            - v2-fv3net-env-{{ checksum "combined_deps.txt" }}
+      - run:
+          name: "Install fv3net dependencies"
+          command: |
+            make install_deps
+            cat .circleci/.installed_build_env_deps
+      - save_cache:
+          key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}
+          paths:
+            - /opt/conda/envs/fv3net
+      - run:
+          name: "Install fv3net packages"
+          command: make install_local_packages
+      - run: | 
+          source activate fv3net
+          pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+
+  build_default:
+    machine:
+      docker_layer_caching: true
+    environment:
+      GOOGLE_PROJECT_ID: vcm-ml
+      GOOGLE_COMPUTE_ZONE: us-central1
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+    steps:
+      - gcp-gcr/gcr-auth:
+          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
+      - checkout
+      - run: sudo apt-get install make
+      - run:
+          name: "Pull submodules"
+          command: |
+            git submodule update --init --recursive
+      - run:
+          name: Build fv3net images 
+          command: |
+            if [[ -z "$CIRCLE_TAG" ]]
+            then
+                use_version="latest"
+            else
+                use_version=$CIRCLE_TAG
+            fi
+            make build_images VERSION=$use_version
+      - run:
+          name: Run tests in fv3net image
+          command: |
+              echo $DECODED_GOOGLE_CREDENTIALS > $GOOGLE_APPLICATION_CREDENTIALS
+              bash docker/fv3net/run_tests_in_image.sh $CIRCLE_TAG
+      - run:
+          name: Push fv3net images
+          command: |
+            echo $CIRCLE_BRANCH
+            echo $CIRCLE_TAG
+            if [[ "$CIRCLE_BRANCH" == "master" ]]
+            then
+                echo "pushing untagged images as 'latest'"
+                make push_images VERSION=latest
+            fi
+            if [[ ! -z "$CIRCLE_TAG" ]]
+            then
+                echo "pushing tagged images $CIRCLE_TAG"
+                make push_images VERSION=$CIRCLE_TAG
+            fi
+  
   lint:
     docker:
     - image: circleci/python:3.7
@@ -26,9 +94,29 @@ jobs:
     - checkout
     - run: sudo pip install black==19.10b0 flake8
     - run: make lint
+
+  
 workflows:
   version: 2
   test_and_lint:
     jobs:
       - lint
-      - build
+      - pytest_default
+  build_and_push:
+    jobs:
+      - pytest_default:
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
+      - build_default:
+          requires: 
+            - pytest_default
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
+            
+              

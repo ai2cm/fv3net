@@ -21,15 +21,15 @@ def _create_arg_parser():
         "stored as INPUT_URL/{timestamp}/{timestamp}.{restart_category}.tile*.nc",
     )
     parser.add_argument(
-        "output_url", type=str, help="Remote url where model output will be saved."
-    )
-    parser.add_argument(
         "one_step_yaml", type=str, help="Path to local run configuration yaml.",
     )
     parser.add_argument(
         "docker_image",
         type=str,
         help="Docker image to use for performing the one-step FV3GFS runs.",
+    )
+    parser.add_argument(
+        "output_url", type=str, help="Remote url where model output will be saved."
     )
     parser.add_argument(
         "-o",
@@ -64,7 +64,7 @@ def _create_arg_parser():
         "--config-version",
         type=str,
         required=False,
-        default="v0.2",
+        default="v0.3",
         help="Default fv3config.yml version to use as the base configuration. "
         "This should be consistent with the fv3gfs-python version in the specified "
         "docker image.",

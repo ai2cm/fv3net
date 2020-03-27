@@ -21,7 +21,6 @@ from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
 from fv3net.diagnostics import get_latlon_grid_coords_set, EXAMPLE_CLIMATE_LATLON_COORDS
 
 from .data import integrate_for_Q, lower_tropospheric_stability
-from ..data import merge_comparison_datasets
 
 kg_m2s_to_mm_day = (1e3 * 86400) / 997.0
 SEC_PER_DAY = 86400
@@ -38,6 +37,8 @@ DIAG_VARS = [
     "net_precipitation_physics",
     "net_heating_physics",
 ]
+
+matplotlib.use("Agg")
 
 matplotlib.use("Agg")
 
@@ -373,6 +374,8 @@ def _map_plot_dQ_versus_total(ds):
     fig_pe_ml_frac = plot_cube(
         mappable_var(ds, "net_precipitation_ml_frac_of_total").mean(INIT_TIME_DIM),
         col="dataset",
+        vmin=-1,
+        vmax=1,
     )[0]
     fig_pe_ml_frac.suptitle("P-E: dQ residual as fraction of total")
 
@@ -383,6 +386,8 @@ def _map_plot_dQ_versus_total(ds):
     fig_heating_ml_frac = plot_cube(
         mappable_var(ds, "net_heating_ml_frac_of_total").mean(INIT_TIME_DIM),
         col="dataset",
+        vmin=-1,
+        vmax=1,
     )[0]
     fig_heating_ml_frac.suptitle("heating: ML prediction as fraction of total")
 

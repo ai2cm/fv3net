@@ -66,11 +66,29 @@ succesfully, the fv3net environment can be activated with
 
     conda activate fv3net
 
+The `build_environment.sh` script also outputs a list of all installed dependencies
+with their version under `.circleci/.installed_build_env_deps`.  This file is used
+along with `environment.yml` as a key for caching the `fv3net` dependencies.  Whenver
+`make create_environment` or the build script is run, this file will be updated
+and committed to keep track of versions over time.
+
 # Deploying cloud data pipelines
 
 The main data processing pipelines for this project currently utilize Google Cloud
 Dataflow and Kubernetes with Docker images.  Run scripts to deploy these workflows
 along with information can be found under the `workflows` directory.
+
+## Building the fv3net docker images
+
+The workflows use a pair of common images:
+
+|Image| Description| 
+|-----|------------|
+| `us.gcr.io/vcm-ml/prognostic_run` | fv3gfs-python with minimal fv3net and vcm installed |
+| `us.gcr.io/vcm-ml/fv3net` | fv3net image with all dependencies including plotting |
+
+These images can be built and pushed to GCR using `make build_images` and
+`make push_images`, respectively.
 
 ## Dataflow
 
@@ -115,6 +133,7 @@ We provide configurable job submission scripts under workflows to expedite this 
 
 If you get an error `Could not create workflow; user does not have write access to project` upon
 trying to submit the dataflow job, do `gcloud auth application-default login` first and then retry.
+
 
 
 ## Deploying on k8s with fv3net
@@ -194,5 +213,15 @@ Contributers can see if their *commited* code passes these standards by running
 If it does not pass, than it can be autoformatted using 
 
     make reformat
+
+# How to contribute to fv3net
+
+Please see the [contribution guide.](./CONTRIBUTING.md)
+
+# How to get updates and releases
+
+For details on what's included or upcoming for a release, please see the [HISTORY.rst](./HISTORY.rst) document.
+
+For instructions on preparing a release, please read [RELEASE.rst](./RELEASE.rst).
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>

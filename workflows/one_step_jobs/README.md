@@ -13,18 +13,15 @@ have a total duration of 15 minutes.
 Workflow call signature:
 ```
 $ python submit_jobs.py -h
-usage: submit_jobs.py [-h] --one-step-yaml ONE_STEP_YAML --input-url INPUT_URL
-                      --output-url OUTPUT_URL [--n-steps N_STEPS] [-o]
+usage: submit_jobs.py [-h] INPUT_URL ONE_STEP_YAML  OUTPUT_URL [--n-steps N_STEPS] [-o]
 
   -h, --help            show this help message and exit
-  --one-step-yaml ONE_STEP_YAML
-                        Path to local run configuration yaml.
-  --input-url INPUT_URL
-                        Remote url to initial conditions. Initial conditions
+  INPUT_URL             Remote url to initial conditions. Initial conditions
                         are assumed to be stored as INPUT_URL/{timestamp}/{tim
                         estamp}.{restart_category}.tile*.nc
-  --output-url OUTPUT_URL
-                        Remote url where model configuration and output will
+  ONE_STEP_YAML         Path to local run configuration yaml.
+  DOCKER_IMAGE          fv3gfs-python model docker image.
+  OUTPUT_URL            Remote url where model configuration and output will
                         be saved. Specifically, configuration files will be
                         saved to OUTPUT_URL/one_step_config and model output
                         to OUTPUT_URL/one_step_output
