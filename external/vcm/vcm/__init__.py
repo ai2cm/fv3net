@@ -18,6 +18,7 @@ from .calc.thermo import (
     pressure_at_midpoint_log,
     potential_temperature,
 )
+from ._zarr_mapping import ZarrMapping
 from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .select import mask_to_surface_type
 from .visualize import plot_cube, mappable_var, plot_cube_axes

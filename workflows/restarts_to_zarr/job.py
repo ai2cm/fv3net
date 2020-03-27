@@ -37,7 +37,7 @@ def get_timestep(fs, url, time, category, tile) -> xr.Dataset:
 
 
 def insert_timestep(
-    output: fv3net.ZarrMapping,
+    output: vcm.ZarrMapping,
     get: Callable[[str, str, int], xr.Dataset],
     key: Tuple[str, str, int],
 ):
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     #
     store = "big.zarr"
     group = zarr.open_group(store, mode="w")
-    output_m = fv3net.ZarrMapping(
+    output_m = vcm.ZarrMapping(
         group, schema, dims=["time", "tile"], coords={"tile": tiles, "time": times}
     )
     load_timestep = get_timestep(fs, url)
