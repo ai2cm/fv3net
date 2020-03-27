@@ -35,11 +35,19 @@ def _init_data_var(group: zarr.Group, array: xr.DataArray, nt: int, dim):
     _set_dims(out_array, dims)
 
 
+def _fill_value(dtype):
+    if np.issubdtype(dtype, np.integer):
+        return -1
+    else:
+        return "NaN"
+
+
 def _init_coord(group: zarr.Group, coord, dim):
     # fill_value=NaN is needed below for xr.open_zarr to succesfully load this
     # coordinate if decode_cf=True. Otherwise, time=0 gets filled in as nan. very
     # confusing...
-    out_array = group.array(name=coord.name, data=np.asarray(coord), fill_value="NaN")
+    arr = np.asarray(coord)
+    out_array = group.array(name=coord.name, data=arr, fill_value=_fill_value(arr.dtype))
     out_array.attrs.update(coord.attrs)
     _set_dims(out_array, coord.dims)
 

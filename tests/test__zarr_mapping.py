@@ -2,10 +2,34 @@ import unittest
 import fv3net
 import xarray as xr
 import zarr
+import numpy as np
 
-def test_zarr_mapping_set():
+import pytest
+
+
+@pytest.mark.parametrize('dtype, fill_value',[
+    (int, -1),
+    (float, np.nan)
+])
+def test_zarr_mapping_init_coord_fill_value(dtype, fill_value):
     keys = list('abc')
-    schema = xr.Dataset({'a': (['x'], [2.0])}).chunk()
+    arr = np.array([2.0], dtype=dtype)
+    schema = xr.Dataset({'x': (['x'], arr)})
+
+    store = {}
+    group = zarr.open_group(store)
+    m = fv3net.ZarrMapping(group, schema, keys, dim='time')
+
+    # check that both are NaN since NaN != Nan
+    if np.isnan(fill_value) and np.isnan(group['x'].fill_value):
+        return
+    assert group['x'].fill_value == fill_value
+
+
+def test_zarr_mapping_set(dtype=int):
+    keys = list('abc')
+    arr = np.array([2.0], dtype=dtype)
+    schema = xr.Dataset({'a': (['x'], arr)}).chunk()
     store = {}
     group = zarr.open_group(store)
     m = fv3net.ZarrMapping(group, schema, keys, dim='time')
