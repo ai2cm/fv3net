@@ -56,8 +56,9 @@ def open_restarts_prefix(fs: fsspec.AbstractFileSystem, prefix: str, **kwargs) -
 
 
 @curry
-def get_timestep(fs, url, timesteps, index):
-    return open_restarts_prefix(fs, url, timesteps[index])
+def get_timestep(fs, url, time):
+    prefix = _get_c384_restart_prefix(url, time)
+    return open_restarts_prefix(fs, prefix)
 
 
 def insert_timestep(output: fv3net.ZarrMapping, get, time: Hashable):
@@ -77,9 +78,9 @@ if __name__ == '__main__':
     #
     times = times[:2]
     store = "big.zarr"
-    group = zarr.open_group(store)
+    group = zarr.open_group(store, mode="w")
     output_m = fv3net.ZarrMapping(group, schema, times, dim='time')
-    load_timestep = get_timestep(fs, url, times)
+    load_timestep = get_timestep(fs, url)
     map_fn = curry(insert_timestep, output_m, load_timestep)
 
     client = Client()

@@ -63,6 +63,7 @@ class ZarrMapping:
 
     def __setitem__(self, key: str, value: xr.Dataset):
         index = self.keys().index(key)
+        targets = zip(*(self.group))
         for variable in value:
             self.group[variable][index] = np.asarray(value[variable])
 
