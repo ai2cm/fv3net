@@ -48,7 +48,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures):
 
     Args:
         ds_pred, ds_fv3, ds_shield [xarray dataset]: contains variables from
-            ML prediction, FV3 target, and SHiELD. 
+            ML prediction, FV3 target, and SHiELD.
         slmsk [xarray dataarray]: surface type variable information
         data_vars [List[str]]: data variables to keep in concatenated dataset
         output_dir: location to write figures to
@@ -248,7 +248,7 @@ def _make_vertical_profile_plots(
     Args:
         da_pred (xr data array): data array for ML prediction of 3d variable
         da_fv3 (xr data array): data array for FV3 target of 3d variable
-        da_high_res_split_var (xr data array): data array for coarsened high res, 
+        da_high_res_split_var (xr data array): data array for coarsened high res,
             e.g. net precip
         variable to divide pos/neg columns
         units (str): [description]

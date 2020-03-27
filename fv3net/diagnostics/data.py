@@ -150,7 +150,7 @@ def _add_empty_dataarray(ds, template_dataarray):
         example_dataarray (data array with the desired dimensions)
     
     Returns:
-        original xarray dataset with an empty array assigned to the 
+        original xarray dataset with an empty array assigned to the
         template name dataarray.
     
     """
