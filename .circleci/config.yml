@@ -121,8 +121,8 @@ jobs:
       - run:
           name: Setup kubectl
           command: |
-            cluster_name=$(gcloud container clusters list --format="value(name)")
             gcloud container clusters get-credentials --zone us-central1-c  $cluster_name
+            cluster_name=$(kubectl config get-clusters | tail -n 1)
             kubectl config set-cluster $cluster_name --server="https://"$proxy_ip
             echo $K8S_PROXY_ENCODED_CA_CRT | base64 -d > proxy.crt
             kubectl config set-cluster $cluster_name --certificate-authority="./proxy.crt"
