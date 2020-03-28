@@ -106,7 +106,7 @@ jobs:
           command: |
             apt-get install wget
             ci_public_ip=$(wget -qO- http://ipecho.net/plain | xargs echo)
-            echo $DECODED_GOOGLE_CREDENTIALS > $GOOGLE_APPLICATION_CREDENTIALS
+            echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
             gcloud config set project $K8S_PROXY_PROJECT
             gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
             proxy_ip=$(gcloud compute instances list --filter="labels.role=$K8S_PROXY_TARGET_TAG" \
