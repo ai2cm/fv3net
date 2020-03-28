@@ -20,7 +20,10 @@ from fv3net.pipelines import list_timesteps
 DIR = os.path.dirname(__file__)
 WORKER_YAML = os.path.join(DIR, "worker-spec.yml")
 
-logging.basicConfig(level=logging.INFO)
+def setup(*args):
+    logging.basicConfig(level=logging.INFO)
+
+setup()
 
 CATEGORIES = (
     "fv_srf_wnd_coarse.res",
@@ -34,7 +37,6 @@ def _file(url: str, time: str, category: str, tile: int) -> str:
     return os.path.join(url, time, f"{time}.{category}.tile{tile}.nc")
 
 
-@curry
 def get_timestep(fs, url, time, category, tile) -> xr.Dataset:
     location = _file(url, time, category, tile)
     logging.info(f"Opening {location}")
@@ -59,6 +61,11 @@ def get_schema(fs: fsspec.AbstractFileSystem, url: str) -> xr.Dataset:
     with fs.open(url, "rb") as f:
         return vcm.standardize_metadata(xr.open_dataset(f))
 
+def test_call():
+    return _call_me()
+
+def _call_me():
+    return "Hello"
 
 
 if __name__ == "__main__":
@@ -76,21 +83,26 @@ if __name__ == "__main__":
     cluster = KubeCluster.from_yaml(WORKER_YAML)
     cluster.scale_up(args.workers)  # specify number of nodes explicitly
     client = Client(cluster)
+    client.register_worker_callbacks(setup)
+    # client = Client()
+    logging.info("testing client function call")
+    res = client.submit(test_call)
+    print(res.result())
 
     # TODO Parameterize these settings
     times = list_timesteps(args.url)
     if args.n_steps != -1:
-        times = times[args.n_steps]
+        times = times[:args.n_steps]
 
     logging.info("Getting the schema")
     fs = fsspec.filesystem("gs")
-    categories = CATEGORIES
+    categories = CATEGORIES[:2]
     tiles = [1, 2, 3, 4, 5, 6]
 
     # get schema for first timestep
-    time = times[0]
+    time: str = times[0]
     schema = xr.merge(
-        [get_schema(fs, _file(url, time, category, tile=1)) for category in categories]
+        [get_schema(fs, _file(args.url, time, category, tile=1)) for category in categories]
     )
     print("Schema:")
     print(schema)
@@ -101,10 +113,11 @@ if __name__ == "__main__":
     output_m = vcm.ZarrMapping(
         group, schema, dims=["time", "tile"], coords={"tile": tiles, "time": times}
     )
-    load_timestep = get_timestep(fs, url)
+    load_timestep = curry(get_timestep, fs, args.url)
     map_fn = curry(insert_timestep, output_m, load_timestep)
 
     logging.info("Mapping job")
     results = client.map(map_fn, list(product(times, categories, tiles)))
     # wait for all results to complete
     client.gather(results)
+    logging.info("Job completed succesfully!")
