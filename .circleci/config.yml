@@ -128,6 +128,12 @@ jobs:
       - run:
           name: Submit integration tests
           command: kubectl get pods --all-namespaces
+      - run:
+          name: Firewall rule deletion
+          when: always
+          command: gcloud compute firewall-rules delete $firewall_name
+
+
 
 
   
