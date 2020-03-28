@@ -4,7 +4,7 @@ experiment:
   name: end_to_end_test
   unique_id: True
   steps_to_run:
-    - coarsen_restarts
+    #- coarsen_restarts  # this step is unreliable, so currently not part of integration test
     - coarsen_diagnostics
     - one_step_run
     - create_training_data
@@ -36,7 +36,8 @@ experiment:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
       args:
         restart_data:
-          from: coarsen_restarts
+          #from: coarsen_restarts  # uncomment this line and delete the following to include coarsening in test workflow
+          location: gs://vcm-ml-data/test-end-to-end-integration/C48-input-for-one-step-jobs
         experiment_yaml: tests/end_to_end_integration/one_step_jobs_integration.yml
         docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.1
         --config-version: v0.3
