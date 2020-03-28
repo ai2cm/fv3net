@@ -27,7 +27,9 @@ def timedelta_to_seconds(dt):
 
 
 def apparent_source(
-    q: xr.DataArray, t_dim: str = INIT_TIME_DIM, s_dim: str = FORECAST_TIME_DIM
+    q: xr.DataArray, 
+    t_dim: str = INIT_TIME_DIM, 
+    s_dim: str = FORECAST_TIME_DIM,
 ) -> xr.DataArray:
     """Compute the apparent source from stepped output
 
@@ -46,8 +48,11 @@ def apparent_source(
     q = q.drop([t_dim, s_dim])
     dq = q.diff(t_dim)
     dq_c48 = q.diff(s_dim)
-    dt = timedelta_to_seconds(t.diff(t_dim))
-    ds = timedelta_to_seconds(s.diff(s_dim))
+    
+    dt = t.diff(t_dim)
+    dt = timedelta_to_seconds(dt) if dt.dtype == "<m8[ns]" else dt
+    ds = s.diff(s_dim)
+    ds = timedelta_to_seconds(ds) if ds.dtype == "<m8[ns]" else ds
 
     tend = dq / dt
     tend_c48 = dq_c48 / ds

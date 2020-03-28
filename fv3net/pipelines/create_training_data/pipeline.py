@@ -20,6 +20,7 @@ logger.setLevel(logging.INFO)
 INIT_TIME_DIM = "initial_time"
 FORECAST_TIME_DIM = "forecast_time"
 STEP_TIME_DIM = "step"
+COORD_END_STEP = "after_physics"
 VAR_LON_CENTER, VAR_LAT_CENTER, VAR_LON_OUTER, VAR_LAT_OUTER = \
     ("lon", "lat", "lonb", "latb")
 COORD_X_CENTER, COORD_Y_CENTER, COORD_Z_CENTER = ("x", "y", "z")
@@ -41,9 +42,11 @@ TARGET_VARS = [VAR_Q_HEATING_ML, VAR_Q_MOISTENING_ML, VAR_Q_U_WIND_ML, VAR_Q_V_W
 
 # suffixes denote whether diagnostic variable is from the coarsened
 # high resolution prognostic run or the coarse res one step train data run
-SUFFIX_HIRES_DIAG = "prog"
-SUFFIX_COARSE_TRAIN_DIAG = "train"
+SUFFIX_HIRES = "prog"
+SUFFIX_COARSE_TRAIN = "train"
 
+VAR_X_WIND, VAR_Y_WIND = ("x_wind", "y_wind")
+VAR_TEMP, VAR_SPHUM = ("air_temperature", "specific_humidity")
 RADIATION_VARS = [
    "DSWRFtoa",
    "DSWRFsfc",
@@ -54,57 +57,54 @@ RADIATION_VARS = [
    "ULWRFsfc",
 ]
 RENAMED_HIGH_RES_VARS = {
-    **{f"{var}_coarse": f"{var}_{SUFFIX_HIRES_DIAG}" for var in RADIATION_VARS},
-    **{"LHTFLsfc_coarse": f"latent_heat_flux_{SUFFIX_HIRES_DIAG}",
-        "SHTFLsfc_coarse": f"sensible_heat_flux_{SUFFIX_HIRES_DIAG}"}
+    **{f"{var}_coarse": f"{var}_{SUFFIX_HIRES}" for var in RADIATION_VARS},
+    **{"LHTFLsfc_coarse": f"latent_heat_flux_{SUFFIX_HIRES}",
+        "SHTFLsfc_coarse": f"sensible_heat_flux_{SUFFIX_HIRES}"}
 }
 
 ONE_STEP_VARS = RADIATION_VARS + [
-   "total_precipitation",
-   "surface_temperature",
-   "land_sea_mask",
-   "latent_heat_flux",
-   "sensible_heat_flux",
-   "mean_cos_zenith_angle",
-   "surface_geopotential",
-   "vertical_thickness_of_atmospheric_layer",
-   "vertical_wind",
-   "pressure_thickness_of_atmospheric_layer",
-   "specific_humidity",
-   "air_temperature",
-   "x_wind",
-   "y_wind",
+    "total_precipitation",
+    "surface_temperature",
+    "land_sea_mask",
+    "latent_heat_flux",
+    "sensible_heat_flux",
+    "mean_cos_zenith_angle",
+    "surface_geopotential",
+    "vertical_thickness_of_atmospheric_layer",
+    "vertical_wind",
+    "pressure_thickness_of_atmospheric_layer",
+    VAR_TEMP, 
+    VAR_SPHUM,
+    VAR_X_WIND, 
+    VAR_Y_WIND,
 ]
-RENAMED_ONE_STEP_VARS = {var: f"{var}_train" for var in RADIATION_VARS}
+RENAMED_ONE_STEP_VARS = {var: f"{var}_{SUFFIX_COARSE_TRAIN}" for var in RADIATION_VARS}
 RENAMED_DIMS = {"grid_xt": "x", "grid_yt": "y", "grid_x": "x_interface", "grid_y": "y_interface"}
 
 
 def run(args, pipeline_args):
     fs = get_fs(args.gcs_input_data_path)
-    gcs_urls = [
-        "gs://" + run_dir_path
-        for run_dir_path in sorted(fs.ls(args.gcs_input_data_path))
-        if _filter_timestep(run_dir_path)
+    ds_full = xr.open_zarr(fs.get_mapper(args.gcs_input_data_path))
+    _save_grid_spec(ds_full, args.gcs_output_data_dir)
+    timestep_batches = _get_timestep_batches(
+        ds_full, args.timesteps_per_output_file)
+    train_test_labels = _test_train_split(timestep_batches, args.train_fraction)
+    timestep_batches_reordered = _reorder_batches(timestep_batches, args.train_fraction)
+    data_batches = [
+        ds_full.sel({INIT_TIME_DIM: timesteps})
+        for timesteps in timestep_batches_reordered
     ]
-    _save_grid_spec(fs, gcs_urls, args.gcs_output_data_dir)
-    data_batch_urls = _get__batches(gcs_urls, args.timesteps_per_output_file)
-    train_test_labels = _test_train_split(data_batch_urls, args.train_fraction)
-    data_batch_urls_reordered = _reorder_batches(data_batch_urls, args.train_fraction)
 
-    logger.info(f"Processing {len(data_batch_urls)} subsets...")
+    logger.info(f"Processing {len(timestep_batches)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
             p
-            | beam.Create(data_batch_urls_reordered)
+            | beam.Create(data_batches)
             | "LoadCloudData" >> beam.Map(_open_cloud_data)
             | "CreateTrainingCols" >> beam.Map(_create_train_cols)
             | "MergeHiresDiagVars"
             >> beam.Map(_merge_hires_data, diag_c48_path=args.diag_c48_path)
-            | "MergeOneStepDiagVars"
-            >> beam.Map(
-                _merge_onestep_diag_data, top_level_data_dir=args.gcs_input_data_path
-            )
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
@@ -154,7 +154,7 @@ def _save_grid_spec(ds, gcs_output_data_dir):
     Returns:
         None
     """
-    grid = ds.isel(time=0)[
+    grid = ds.isel({INIT_TIME_DIM: 0})[
         ["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]
     ]
     _write_remote_train_zarr(
@@ -167,7 +167,7 @@ def _save_grid_spec(ds, gcs_output_data_dir):
     return
 
 
-def _get_url_batches(gcs_urls, timesteps_per_output_file):
+def _get_timestep_batches(ds, timesteps_per_output_file):
     """ Groups the time ordered urls into lists of max length
     (args.timesteps_per_output_file + 1). The last file in each grouping is only
     used to calculate the hi res tendency, and is dropped from the final
@@ -180,19 +180,20 @@ def _get_url_batches(gcs_urls, timesteps_per_output_file):
     Returns:
         nested list where inner lists are groupings of input urls
     """
-    num_outputs = (len(gcs_urls) - 1) // timesteps_per_output_file
-    data_urls = []
+    timesteps = sorted(ds[INIT_TIME_DIM].values)
+    num_outputs = (len(timesteps) - 1) // timesteps_per_output_file
+    timestep_batches = []
     for i in range(num_outputs):
         start_ind = timesteps_per_output_file * i
         stop_ind = timesteps_per_output_file * i + (timesteps_per_output_file + 1)
-        data_urls.append(gcs_urls[start_ind:stop_ind])
-    num_leftover = len(gcs_urls) % timesteps_per_output_file
-    remainder_urls = [gcs_urls[-num_leftover:]] if num_leftover > 1 else []
-    data_urls += remainder_urls
-    return data_urls
+        timestep_batches.append(timesteps[start_ind:stop_ind])
+    num_leftover = len(timesteps) % timesteps_per_output_file
+    remainder_urls = [timesteps[-num_leftover:]] if num_leftover > 1 else []
+    timestep_batches += remainder_urls
+    return timestep_batches
 
 
-def _test_train_split(url_batches, train_frac):
+def _test_train_split(timestep_batches, train_frac):
     """ Assigns train/test set labels to each batch, split by init timestamp
 
     Args:
@@ -206,21 +207,19 @@ def _test_train_split(url_batches, train_frac):
     if train_frac > 1:
         train_frac = 1
         logger.warning("Train fraction provided > 1. Will set to 1.")
-    num_train_batches = int(len(url_batches) * train_frac)
+    num_train_batches = int(len(timestep_batches) * train_frac)
     labels = {
         "train": [
-            parse_timestep_str_from_path(batch_urls[0])
-            for batch_urls in url_batches[:num_train_batches]
+            timesteps[0] for timesteps in timestep_batches[:num_train_batches]
         ],
         "test": [
-            parse_timestep_str_from_path(batch_urls[0])
-            for batch_urls in url_batches[num_train_batches:]
+            timesteps[0] for timesteps in timestep_batches[num_train_batches:]
         ],
     }
     return labels
 
 
-def _open_cloud_data(run_dirs):
+def _open_cloud_data(ds):
     """Opens multiple run directories into a single dataset, where the init time
     of each run dir is the INIT_TIME_DIM and the times within
 
@@ -231,29 +230,16 @@ def _open_cloud_data(run_dirs):
     Returns:
         xarray dataset of concatenated zarrs in url list
     """
-
-    logger.info(
-        f"Using run dirs for batch: "
-        f"{[os.path.basename(run_dir[:-1]) for run_dir in run_dirs]}"
-    )
-    ds_runs = []
-    try:
-        for run_dir in run_dirs:
-            t_init = parse_timestep_str_from_path(run_dir)
-            ds_run = (
-                open_restarts_with_time_coordinates(run_dir)[RESTART_VARS]
-                .rename({"time": FORECAST_TIME_DIM})
-                .isel({FORECAST_TIME_DIM: slice(-2, None)})
-                .expand_dims(dim={INIT_TIME_DIM: [parse_datetime_from_str(t_init)]})
-            )
-            ds_run = helpers._set_relative_forecast_time_coord(ds_run)
-            ds_runs.append(ds_run)
-        return xr.concat(ds_runs, INIT_TIME_DIM)
-    except (IndexError, ValueError, TypeError, AttributeError, KeyError) as e:
-        logger.error(f"Failed to open restarts from cloud for rundirs {run_dir}: {e}")
+    logger.info(f"Using timesteps for batch: {ds[INIT_TIME_DIM].values}.")
+    init_datetime_coords = [
+        parse_datetime_from_str(init_time) for init_time in ds[INIT_TIME_DIM].values]
+    ds = ds \
+        .sel({FORECAST_TIME_DIM: slice(-2, None), STEP_TIME_DIM: COORD_END_STEP}) \
+        .assign_coords({INIT_TIME_DIM: init_datetime_coords})
+    return ds
 
 
-def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
+def _create_train_cols(ds):
     """
 
     Args:
@@ -263,16 +249,12 @@ def _create_train_cols(ds, cols_to_keep=RESTART_VARS + TARGET_VARS):
         xarray dataset with variables in RESTART_VARS + TARGET_VARS + GRID_VARS
     """
     try:
-        da_centered_u = rename_centered_xy_coords(shift_edge_var_to_center(ds["u"]))
-        da_centered_v = rename_centered_xy_coords(shift_edge_var_to_center(ds["v"]))
-        ds["u"] = da_centered_u
-        ds["v"] = da_centered_v
-        ds[VAR_Q_U_WIND_ML] = apparent_source(ds.u)
-        ds[VAR_Q_V_WIND_ML] = apparent_source(ds.v)
-        ds[VAR_Q_HEATING_ML] = apparent_source(ds.T)
-        ds[VAR_Q_MOISTENING_ML] = apparent_source(ds.sphum)
+        ds[VAR_Q_U_WIND_ML] = apparent_source(ds[VAR_X_WIND], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM)
+        ds[VAR_Q_V_WIND_ML] = apparent_source(ds[VAR_X_WIND], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM)
+        ds[VAR_Q_HEATING_ML] = apparent_source(ds[VAR_TEMP], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM)
+        ds[VAR_Q_MOISTENING_ML] = apparent_source(ds[VAR_SPHUM], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM)
         ds = (
-            ds[cols_to_keep]
+            ds[ONE_STEP_VARS]
             .isel(
                 {
                     INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1),
@@ -301,19 +283,6 @@ def _merge_hires_data(ds_run, diag_c48_path):
         return xr.merge([ds_run, features_diags_c48])
     except (KeyError, AttributeError, ValueError, TypeError) as e:
         logger.error(f"Failed to merge in features from high res diagnostics: {e}")
-
-
-def _merge_onestep_diag_data(ds_run, top_level_data_dir):
-    try:
-        init_times = ds_run[INIT_TIME_DIM].values
-        diags_onestep = helpers.load_train_diag(top_level_data_dir, init_times)[
-            DIAG_VARS
-        ]
-        diags_onestep = diags_onestep.rename(RENAMED_ONE_STEP_VARS)
-        return xr.merge([ds_run, diags_onestep])
-
-    except (IndexError, FileNotFoundError, ValueError, TypeError) as e:
-        logger.error(f"Failed to merge one step run diag files: {e}")
 
 
 def _write_remote_train_zarr(

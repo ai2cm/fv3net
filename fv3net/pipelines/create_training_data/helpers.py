@@ -111,4 +111,4 @@ def use_var_names_from_file(var_names_yaml):
             var_names = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             raise ValueError(f"Bad yaml config: {exc}")
-    f
+    
