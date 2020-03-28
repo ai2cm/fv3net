@@ -115,7 +115,7 @@ jobs:
             echo 'export firewall_name='$firewall_name >> $BASH_ENV
             echo 'export proxy_ip='$proxy_ip >> $BASH_ENV
             gcloud compute firewall-rules create $firewall_name \
-                --allow tcp:$K8S_PROXY_PORT  --destination-ranges $proxy_ip \
+                --allow tcp:$K8S_PROXY_PORT\
                 --network $K8S_PROXY_NETWORK --direction IN \
                 --source-ranges $ci_public_ip
       - run:
