@@ -254,7 +254,7 @@ def _create_train_cols(ds):
         ds[VAR_Q_HEATING_ML] = apparent_source(ds[VAR_TEMP], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM)
         ds[VAR_Q_MOISTENING_ML] = apparent_source(ds[VAR_SPHUM], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM)
         ds = (
-            ds[ONE_STEP_VARS]
+            ds[ONE_STEP_VARS + TARGET_VARS]
             .isel(
                 {
                     INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1),
