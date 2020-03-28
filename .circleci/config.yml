@@ -142,11 +142,14 @@ workflows:
   version: 2
   test_and_lint:
     jobs:
-      - lint
-      - pytest_default
-    filters:
-      branches:
-        ignore: /.*/
+      - lint:
+          filters:
+            branches:
+              ignore: /.*/
+      - pytest_default:
+          filters:
+            branches:
+              ignore: /.*/
   build_and_push:
     jobs:
       - pytest_default:
