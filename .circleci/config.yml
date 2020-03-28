@@ -143,6 +143,9 @@ workflows:
     jobs:
       - lint
       - pytest_default
+    filters:
+      branches:
+        ignore: /.*/
   build_and_push:
     jobs:
       - pytest_default:
