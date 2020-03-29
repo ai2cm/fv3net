@@ -17,6 +17,7 @@ pylint = "^2.4.4"
 black = "^19.10b0"
 zarr = "^2.4.0"
 ipython = "^7.13.0"
+pytest-cov = "^2.8.1"
 
 [build-system]
 requires = ["poetry>=0.12"]

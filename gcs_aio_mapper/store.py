@@ -43,7 +43,7 @@ async def _delete_item(bucket, item):
         return await client.delete(bucket, item)
 
 
-class GCSFSMapperAoi(MutableMapping):
+class GCSMapperAio(MutableMapping):
     def __init__(self, url, cache_size=20):
         super().__init__()
         self._cache = {}
