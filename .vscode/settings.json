@@ -1,3 +1,4 @@
 {
-    "python.pythonPath": "/Users/noah/Library/Caches/pypoetry/virtualenvs/gcsfs-aoi-127wDiUL-py3.7/bin/python"
+    "python.pythonPath": "/Users/noah/Library/Caches/pypoetry/virtualenvs/gcsfs-aoi-127wDiUL-py3.7/bin/python",
+    "python.formatting.provider": "black"
 }
