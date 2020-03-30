@@ -1,16 +1,18 @@
-from typing import Hashable, Mapping
-import aiohttp
 import asyncio
+import logging
+import os
+from collections import MutableMapping
+from typing import Hashable, Mapping
+
+import aiohttp
 from gcloud.aio.storage import Storage
 from google.cloud.storage import Client
-from collections import MutableMapping
-import os
-import logging
 from toolz import curry
 
 NUM_CONNECTIONS = 20
 
 logger = logging.getLogger(__package__)
+
 
 @curry
 def retry(func, num_tries=5):
@@ -19,8 +21,9 @@ def retry(func, num_tries=5):
         while True:
             try:
                 return func(*args, **kwargs)
-            except TimeoutError as e:
+            except Exception as e:
                 logger.warning("function failed retrying")
+                tries += 1
                 if tries >= num_tries:
                     raise e
 
@@ -94,11 +97,11 @@ class GCSMapperAio(MutableMapping):
 
     @property
     def bucket(self):
-        return self._url.lstrip('gs://').split('/')[0]
+        return self._url.lstrip("gs://").split("/")[0]
 
     @property
     def prefix(self):
-        return '/'.join(self._url.lstrip('gs://').split('/')[1:])
+        return "/".join(self._url.lstrip("gs://").split("/")[1:])
 
     def _upload_cache_to_remote(self):
         loop = asyncio.get_event_loop()
@@ -108,7 +111,7 @@ class GCSMapperAio(MutableMapping):
     def _list_remote_keys(self):
         client = Client(project=self.project)
         for blob in client.list_blobs(self.bucket, prefix=self.prefix):
-            yield blob.name[len(self.prefix)+1:]
+            yield blob.name[len(self.prefix) + 1 :]
 
     def keys(self):
         for key in list(self._cache):
@@ -135,7 +138,7 @@ class GCSMapperAio(MutableMapping):
 
     def __enter__(self):
         return self
-    
+
     def __exit__(self, type, value, traceback):
         self.flush()
 
