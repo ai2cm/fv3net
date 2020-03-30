@@ -6,6 +6,7 @@ from mpi4py import MPI
 from fv3net import runtime
 import fsspec
 import xarray as xr
+import cftime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,12 +20,19 @@ CF_TO_NUDGE = {
 }
 
 
+def _ensure_Julian(date):
+    return cftime.DatetimeJulian(
+        date.year, date.month, date.day, date.hour, date.minute, date.second
+    )
+
+
 def get_current_nudging_tendency(variables, time, ds_nudging):
     nudging_tendency = {}
     for variable in variables:
         nudging_variable_name = CF_TO_NUDGE[variable]
+        logger.info(ds_nudging[nudging_variable_name])
         nudging_tendency[variable] = ds_nudging[nudging_variable_name].sel(
-            time=time, method="nearest"
+            time=_ensure_Julian(time), method="nearest"
         )
     return nudging_tendency
 
@@ -48,7 +56,7 @@ if __name__ == "__main__":
     communicator = fv3gfs.CubedSphereCommunicator(
         MPI.COMM_WORLD, fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
     )
-    tile = fv3util.get_tile_index(rank, communicator.get_total_ranks())
+    tile = fv3util.get_tile_index(rank, communicator.partitioner.total_ranks)
     mapper = fsspec.get_mapper(nudging_zarr_url)
     ds_nudging = xr.open_zarr(mapper).isel(tile=tile).load()
 

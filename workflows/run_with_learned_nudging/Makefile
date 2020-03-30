@@ -1,4 +1,4 @@
-IMAGE = us.gcr.io/vcm-ml/mean_nudging_run
+IMAGE = us.gcr.io/vcm-ml/prognostic_run:mean_nudging
 FV3CONFIG = nudge_mean_$*.yml
 RUNFILE = mean_nudging_runfile.py
 
