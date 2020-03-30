@@ -2,6 +2,7 @@ from typing import Sequence, Tuple#, List
 import xarray as xr
 import numpy as np
 from vcm.cubedsphere.constants import TIME_FMT
+from vcm.select import mask_to_surface_type
 # from vcm import parse_timestep_str_from_path, parse_datetime_from_str
 from datetime import datetime, timedelta
 # import logging
@@ -25,7 +26,6 @@ VARS_FOR_PLOTS = [
     'pressure_thickness_of_atmospheric_layer',
     'land_sea_mask'
 ]
-GRID_VARS = ['lat', 'lon', 'latb', 'lonb', 'area']
 VAR_TYPE_DIM = 'var_type'
 
 
@@ -88,26 +88,28 @@ def time_coord_from_str_coord(str_coord: xr.DataArray, dim: str = INIT_TIME_DIM,
 
 def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
     
-    ds = ds.assign({'total_water' : thermo._total_water(
-        ds['specific_humidity'],
-        ds['cloud_ice_mixing_ratio'],
-        ds['cloud_water_mixing_ratio'],
-        ds['rain_mixing_ratio'],
-        ds['snow_mixing_ratio'],
-        ds['graupel_mixing_ratio'],
-        ds['pressure_thickness_of_atmospheric_layer'],
-    )})
-    ds = ds.assign({'psurf' : thermo._psurf_from_delp(
-        ds['pressure_thickness_of_atmospheric_layer']
-    )})
-    ds = ds.assign({'precipitable_water': thermo._precipitable_water(
-        ds['specific_humidity'],
-        ds['pressure_thickness_of_atmospheric_layer']
-    )})
-    ds = ds.assign({'total_heat' : thermo._total_heat(
-        ds['air_temperature'],
-        ds['pressure_thickness_of_atmospheric_layer']
-    )})
+    ds = ds.assign({
+        'total_water' : thermo.total_water(
+            ds['specific_humidity'],
+            ds['cloud_ice_mixing_ratio'],
+            ds['cloud_water_mixing_ratio'],
+            ds['rain_mixing_ratio'],
+            ds['snow_mixing_ratio'],
+            ds['graupel_mixing_ratio'],
+            ds['pressure_thickness_of_atmospheric_layer']
+        ),
+        'psurf' : thermo.psurf_from_delp(
+            ds['pressure_thickness_of_atmospheric_layer']
+        ),
+        'precipitable_water': thermo.precipitable_water(
+            ds['specific_humidity'],
+            ds['pressure_thickness_of_atmospheric_layer']
+        ),
+        'total_heat' : thermo.total_heat(
+            ds['air_temperature'],
+            ds['pressure_thickness_of_atmospheric_layer']
+        )
+    })
     
     return ds
 
@@ -172,3 +174,82 @@ def get_states_and_tendencies(ds_sample: Sequence[xr.Dataset]) -> xr.Dataset:
     states_and_tendencies = states_and_tendencies.assign_coords({VAR_TYPE_DIM: ['states', 'tendencies']})
     
     return states_and_tendencies
+
+
+def insert_column_integrated_tendencies(ds: xr.Dataset) -> xr.Dataset:
+    
+    ds = ds.assign({
+        'column_integrated_heating' : thermo.column_integrated_heating(
+            ds['air_temperature'].sel({VAR_TYPE_DIM: 'tendencies'}),
+            ds['pressure_thickness_of_atmospheric_layer'].sel({VAR_TYPE_DIM: 'states'}),
+        ).expand_dims({VAR_TYPE_DIM: ['tendencies']}),
+        'column_integrated_moistening' : thermo.column_integrated_moistening(
+            ds['specific_humidity'].sel({VAR_TYPE_DIM: 'tendencies'}),
+            ds['pressure_thickness_of_atmospheric_layer'].sel({VAR_TYPE_DIM: 'states'}).expand_dims({VAR_TYPE_DIM: ['tendencies']}),
+        )
+    })
+    
+    return ds
+    
+    
+def insert_model_run_differences(ds: xr.Dataset) -> xr.Dataset:
+
+    ds_residual = (
+        ds.sel({DELTA_DIM:  'hi-res'}) - ds.sel({DELTA_DIM: 'coarse'})
+    ).assign_coords({DELTA_DIM: 'hi-res - coarse'})
+
+    # combine into one dataset
+    return xr.concat([ds, ds_residual], dim = DELTA_DIM)
+
+
+def insert_abs_vars(ds: xr.Dataset, varnames: Sequence) -> xr.Dataset:
+    
+    for var in varnames:
+        if var in ds:
+            ds[var + '_abs'] = np.abs(ds[var])
+            ds[var + '_abs'].attrs.update({'long_name' : f"absolute {ds[var].attrs['long_name']}"})
+        else:
+            raise ValueError('Invalid variable name for absolute tendencies.')
+    
+    return ds
+
+
+def make_init_time_dim_intelligible(ds: xr.Dataset):
+    
+    ds = ds.assign_coords({
+        INIT_TIME_DIM: [
+            datetime
+            .utcfromtimestamp((time - np.datetime64(0, 's'))/np.timedelta64(1, 's'))
+            .strftime(TIME_FMT) for time in ds[INIT_TIME_DIM]
+        ]
+    })
+    
+    return ds
+
+
+def insert_weighted_mean_vars(ds, weights, dims = ['tile', 'x', 'y'], mask = None):
+    wm = (ds*weights).sum(dim = dims)/weights.sum(dim = dims)
+    for var in ds :
+        if var is not 'land_sea_mask':
+            wm[var] = wm[var].assign_attrs(ds[var].attrs)
+            wm = wm.rename({var: var + "_global_mean"})
+        
+    if mask == 'land_sea_mask)':
+        ds_land = mask_to_surface_type(ds, 'land')
+        weights_land = mask_to_surface_type(weights, 'land')
+        wm_land = (ds_land*weights_land).sum(dim = dims)/weights_land.sum(dim = dims)
+        ds_sea = mask_to_surface_type(ds, 'sea')
+        weights_sea =  mask_to_surface_type(weights, 'sea')
+        wm_sea = (ds_sea*weights_sea).sum(dim = dims)/weights_sea.sum(dim = dims)
+        for var in [var for var in ds if var not in ['area', 'slmsk']]:
+            wm = wm.assign({
+                var + "_land_mean": wm_land[var],
+                var + "_ocean_mean": wm_sea[var],
+            })
+            wm[var + "_land_mean"] = wm[var + "_land_mean"].assign_attrs(ds[var].attrs)
+            wm[var + "_ocean_mean"] = wm[var + "_ocean_mean"].assign_attrs(ds[var].attrs)
+    elif mask is not None:
+        raise ValueError('Only "land_sea_mask" is suppored as a mask.')
+            
+    return wm
+                                           
