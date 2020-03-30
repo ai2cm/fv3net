@@ -89,17 +89,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-
-
     logging.info("Building dask cluster and client")
-    # cluster = KubeCluster.from_yaml(WORKER_YAML)
-    # cluster.scale_up(args.workers)  # specify number of nodes explicitly
-    # client = Client(cluster)
-    client = Client()
+    cluster = KubeCluster.from_yaml(WORKER_YAML)
+    cluster.scale_up(args.workers)  # specify number of nodes explicitly
+    client = Client(cluster)
+    # client = Client()
     client.register_worker_callbacks(setup)
     logging.info("testing client function call")
     res = client.submit(test_call)
-    print(res.result())
+    logging.info(res.result())
 
     # TODO Parameterize these settings
     times = list_timesteps(args.url)
@@ -108,7 +106,7 @@ if __name__ == "__main__":
 
     logging.info("Getting the schema")
     fs = fsspec.filesystem("gs")
-    categories = CATEGORIES[:2]
+    categories = CATEGORIES
     tiles = [1, 2, 3, 4, 5, 6]
 
     # get schema for first timestep

@@ -25,7 +25,9 @@ spec:
         - gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files
         - gs://vcm-ml-data/testing-noah/big.zarr
         - "--n-steps"
-        - "2"
+        - "100"
+        - "--workers"
+        - "6"
           #imagePullPolicy: Never
         resources: {}
         terminationMessagePath: /dev/termination-log
