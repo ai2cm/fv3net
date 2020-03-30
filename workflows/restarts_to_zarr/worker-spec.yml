@@ -9,8 +9,8 @@ spec:
     secret:
       secretName: gcp-key
   containers:
-  - image: dask
-    imagePullPolicy: Never
+  - image: us.gcr.io/vcm-ml/restarts_to_zarr
+    #imagePullPolicy: Never
     args: [dask-worker, --nthreads, '4', --no-bokeh, --memory-limit, 3GB, --death-timeout, '60']
     name: dask
     resources:

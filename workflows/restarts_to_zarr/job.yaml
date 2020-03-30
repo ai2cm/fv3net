@@ -18,7 +18,7 @@ spec:
       serviceAccountName: dask-admin
       containers:
       - name: dask-job
-        image: dask
+        image: us.gcr.io/vcm-ml/restarts_to_zarr
         command: 
         - python
         - /fv3net/workflows/restarts_to_zarr/job.py
@@ -26,7 +26,7 @@ spec:
         - gs://vcm-ml-data/testing-noah/big.zarr
         - "--n-steps"
         - "2"
-        imagePullPolicy: Never
+          #imagePullPolicy: Never
         resources: {}
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
