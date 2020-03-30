@@ -22,7 +22,7 @@ DIR = os.path.dirname(__file__)
 WORKER_YAML = os.path.join(DIR, "worker-spec.yml")
 
 def setup(*args):
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
 
 setup()
 
