@@ -31,7 +31,15 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield):
                 vcm.mask_to_surface_type(ds_pred, sfc_type)[var],
                 vcm.mask_to_surface_type(ds_fv3, sfc_type)["delp"],
             )
-
+    # add a coordinate for target datasets so that the plot_metrics functions
+    # can use it for labels
+    ds_metrics = ds_metrics.assign_coords( 
+        {
+            "target_dataset_names": [
+                ds_target.dataset.values.item() for ds_target in [ds_fv3, ds_shield]
+            ]
+        }
+    )
     for var in ["net_precipitation", "net_heating"]:
         for ds_target in [ds_fv3, ds_shield]:
             target_label = ds_target.dataset.values.item()
