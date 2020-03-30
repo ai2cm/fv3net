@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "gcs-aoi-mapper"
+name = "gcs-aio-mapper"
 version = "0.1.0"
 description = "An mutable mapping interface to GCS leveraging asyncio"
 authors = ["Noah D. Brenowitz <nbren12@gmail.com>"]
