@@ -4,7 +4,6 @@ import asyncio
 from gcloud.aio.storage import Storage
 from google.cloud.storage import Client
 from collections import MutableMapping
-import gcsfs
 import os
 import logging
 
@@ -79,10 +78,6 @@ class GCSMapperAio(MutableMapping):
     @property
     def prefix(self):
         return '/'.join(self._url.lstrip('gs://').split('/')[1:])
-
-    @property
-    def _sync_mapper(self):
-        return gcsfs.GCSMap(os.path.join(self.bucket, self. prefix))
 
     def _upload_cache_to_remote(self):
         loop = asyncio.get_event_loop()

@@ -208,7 +208,7 @@ pep8test = ["flake8", "flake8-import-order", "pep8-naming"]
 test = ["pytest (>=3.6.0,<3.9.0 || >3.9.0,<3.9.1 || >3.9.1,<3.9.2 || >3.9.2)", "pretend", "iso8601", "pytz", "hypothesis (>=1.11.4,<3.79.2 || >3.79.2)"]
 
 [[package]]
-category = "main"
+category = "dev"
 description = "Decorators for Humans"
 name = "decorator"
 optional = false
@@ -226,14 +226,6 @@ version = "0.15"
 [package.dependencies]
 monotonic = ">=0.1"
 six = "*"
-
-[[package]]
-category = "main"
-description = "File-system specification"
-name = "fsspec"
-optional = false
-python-versions = ">3.5"
-version = "0.7.0"
 
 [[package]]
 category = "main"
@@ -273,24 +265,6 @@ gcloud-aio-auth = ">=3.0.0,<4.0.0"
 
 [[package]]
 category = "main"
-description = "Convenient Filesystem interface over GCS"
-name = "gcsfs"
-optional = false
-python-versions = ">=3.5"
-version = "0.6.1"
-
-[package.dependencies]
-decorator = "*"
-fsspec = ">=0.6.0"
-google-auth = ">=1.2"
-google-auth-oauthlib = "*"
-requests = "*"
-
-[package.extras]
-gcsfuse = ["fusepy"]
-
-[[package]]
-category = "main"
 description = "Google API client core library"
 name = "google-api-core"
 optional = false
@@ -325,21 +299,6 @@ pyasn1-modules = ">=0.2.1"
 rsa = ">=3.1.4,<4.1"
 setuptools = ">=40.3.0"
 six = ">=1.9.0"
-
-[[package]]
-category = "main"
-description = "Google Authentication Library"
-name = "google-auth-oauthlib"
-optional = false
-python-versions = "*"
-version = "0.4.1"
-
-[package.dependencies]
-google-auth = "*"
-requests-oauthlib = ">=0.7.0"
-
-[package.extras]
-tool = ["click"]
 
 [[package]]
 category = "main"
@@ -550,19 +509,6 @@ name = "numpy"
 optional = false
 python-versions = ">=3.5"
 version = "1.18.2"
-
-[[package]]
-category = "main"
-description = "A generic, spec-compliant, thorough implementation of the OAuth request-signing logic"
-name = "oauthlib"
-optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-version = "3.1.0"
-
-[package.extras]
-rsa = ["cryptography"]
-signals = ["blinker"]
-signedtoken = ["cryptography", "pyjwt (>=1.0.0)"]
 
 [[package]]
 category = "dev"
@@ -818,21 +764,6 @@ socks = ["PySocks (>=1.5.6,<1.5.7 || >1.5.7)", "win-inet-pton"]
 
 [[package]]
 category = "main"
-description = "OAuthlib authentication support for Requests."
-name = "requests-oauthlib"
-optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-version = "1.3.0"
-
-[package.dependencies]
-oauthlib = ">=3.0.0"
-requests = ">=2.0.0"
-
-[package.extras]
-rsa = ["oauthlib (>=3.0.0)"]
-
-[[package]]
-category = "main"
 description = "Pure-Python RSA implementation"
 name = "rsa"
 optional = false
@@ -962,7 +893,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "7bda10f33086eb4dcde8de53a54843ac11e9a46039da3f5ad067fec89b3fec2d"
+content-hash = "299b0c0d86826b84095c98947b2c8689f615cdec282bdc5bb8790678da9e479e"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -1133,10 +1064,6 @@ fasteners = [
     {file = "fasteners-0.15-py2.py3-none-any.whl", hash = "sha256:007e4d2b2d4a10093f67e932e5166722d2eab83b77724156e92ad013c6226574"},
     {file = "fasteners-0.15.tar.gz", hash = "sha256:3a176da6b70df9bb88498e1a18a9e4a8579ed5b9141207762368a1017bf8f5ef"},
 ]
-fsspec = [
-    {file = "fsspec-0.7.0-py3-none-any.whl", hash = "sha256:37c16d27e23aa41c1883928acb36eea1f2687299695acc385f31ce32127000ea"},
-    {file = "fsspec-0.7.0.tar.gz", hash = "sha256:9db71b6515e70e91d59d32a044d3b851053297027b47f105dd2b0dc3f94af976"},
-]
 future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
 ]
@@ -1148,10 +1075,6 @@ gcloud-aio-storage = [
     {file = "gcloud-aio-storage-5.2.2.tar.gz", hash = "sha256:697ccf67f05c557fcba2d42df8994bbf389074a6ff1f6dfcdc6da17d69c2e40d"},
     {file = "gcloud_aio_storage-5.2.2-py2.py3-none-any.whl", hash = "sha256:d967d64426383581e1a047e9d1f292341e2f3a1ee23224f7c8b89c1d55ca9df7"},
 ]
-gcsfs = [
-    {file = "gcsfs-0.6.1-py2.py3-none-any.whl", hash = "sha256:569a046612dd474cbc3719c2e0cc2c22c17f377d58513522c7178069c597c7fb"},
-    {file = "gcsfs-0.6.1.tar.gz", hash = "sha256:3e9845e3b8b24d18218c0f7bbdb2a9a315a47b9b6388bcaea025ab3449c17161"},
-]
 google-api-core = [
     {file = "google-api-core-1.16.0.tar.gz", hash = "sha256:92e962a087f1c4b8d1c5c88ade1c1dfd550047dcffb320c57ef6a534a20403e2"},
     {file = "google_api_core-1.16.0-py2.py3-none-any.whl", hash = "sha256:859f7392676761f2b160c6ee030c3422135ada4458f0948c5690a6a7c8d86294"},
@@ -1159,10 +1082,6 @@ google-api-core = [
 google-auth = [
     {file = "google-auth-1.12.0.tar.gz", hash = "sha256:016924388770b7e66c7e9ade1c4c3144ee88812d79697fd6c0dad9abdfcda2fd"},
     {file = "google_auth-1.12.0-py2.py3-none-any.whl", hash = "sha256:01d686448f57d3bc027726474faa1aa650ba333bedb392e06938b0add8ec8d3a"},
-]
-google-auth-oauthlib = [
-    {file = "google-auth-oauthlib-0.4.1.tar.gz", hash = "sha256:88d2cd115e3391eb85e1243ac6902e76e77c5fe438b7276b297fbe68015458dd"},
-    {file = "google_auth_oauthlib-0.4.1-py2.py3-none-any.whl", hash = "sha256:a92a0f6f41a0fb6138454fbc02674e64f89d82a244ea32f98471733c8ef0e0e1"},
 ]
 google-cloud-core = [
     {file = "google-cloud-core-1.3.0.tar.gz", hash = "sha256:878f9ad080a40cdcec85b92242c4b5819eeb8f120ebc5c9f640935e24fc129d8"},
@@ -1282,10 +1201,6 @@ numpy = [
     {file = "numpy-1.18.2-cp38-cp38-win32.whl", hash = "sha256:5e0feb76849ca3e83dd396254e47c7dba65b3fa9ed3df67c2556293ae3e16de3"},
     {file = "numpy-1.18.2-cp38-cp38-win_amd64.whl", hash = "sha256:ba3c7a2814ec8a176bb71f91478293d633c08582119e713a0c5351c0f77698da"},
     {file = "numpy-1.18.2.zip", hash = "sha256:e7894793e6e8540dbeac77c87b489e331947813511108ae097f1715c018b8f3d"},
-]
-oauthlib = [
-    {file = "oauthlib-3.1.0-py2.py3-none-any.whl", hash = "sha256:df884cd6cbe20e32633f1db1072e9356f53638e4361bef4e8b03c9127c9328ea"},
-    {file = "oauthlib-3.1.0.tar.gz", hash = "sha256:bee41cc35fcca6e988463cacc3bcb8a96224f470ca547e697b604cc697b2f889"},
 ]
 packaging = [
     {file = "packaging-20.3-py2.py3-none-any.whl", hash = "sha256:82f77b9bee21c1bafbf35a84905d604d5d1223801d639cf3ed140bd651c08752"},
@@ -1432,11 +1347,6 @@ regex = [
 requests = [
     {file = "requests-2.23.0-py2.py3-none-any.whl", hash = "sha256:43999036bfa82904b6af1d99e4882b560e5e2c68e5c4b0aa03b655f3d7d73fee"},
     {file = "requests-2.23.0.tar.gz", hash = "sha256:b3f43d496c6daba4493e7c431722aeb7dbc6288f52a6e04e7b6023b0247817e6"},
-]
-requests-oauthlib = [
-    {file = "requests-oauthlib-1.3.0.tar.gz", hash = "sha256:b4261601a71fd721a8bd6d7aa1cc1d6a8a93b4a9f5e96626f8e4d91e8beeaa6a"},
-    {file = "requests_oauthlib-1.3.0-py2.py3-none-any.whl", hash = "sha256:7f71572defaecd16372f9006f33c2ec8c077c3cfa6f5911a9a90202beb513f3d"},
-    {file = "requests_oauthlib-1.3.0-py3.7.egg", hash = "sha256:fa6c47b933f01060936d87ae9327fead68768b69c6c9ea2109c48be30f2d4dbc"},
 ]
 rsa = [
     {file = "rsa-4.0-py2.py3-none-any.whl", hash = "sha256:14ba45700ff1ec9eeb206a2ce76b32814958a98e372006c8fb76ba820211be66"},
