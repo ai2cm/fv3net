@@ -57,11 +57,21 @@ def test_rmdir_root():
     mapper.rmdir()
     assert set(mapper.keys()) == set()
 
+def test_rmdir_path():
+    mapper = GCSMapperAio('gs://vcm-ml-data/tmp/test2.zarr')
+    mapper['0'] = b"123"
+    mapper['1'] = b"234"
+    mapper['base/2'] = b"234"
+    mapper['base/3'] = b"234"
+    mapper.flush()
+    mapper.rmdir(path='base')
+    assert set(mapper.keys()) == {'0', '1'}
 
 def test_keys():
     mapper = GCSMapperAio('gs://vcm-ml-data/tmp/test2.zarr')
     mapper['0'] = b"123"
     mapper['1'] = b"234"
+    mapper['.zarray'] = b"234"
     mapper.flush()
     mapper['3'] = b"234"
-    assert set(mapper.keys()) == {'0', '1', '3'}
+    assert set(mapper.keys()) == {'0', '1', '3', '.zarray'}

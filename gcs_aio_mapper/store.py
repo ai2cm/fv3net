@@ -8,10 +8,11 @@ import gcsfs
 import os
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__package__)
 
 
 async def _upload_obj(client, bucket, prefix, key, val):
+    logging.debug(f"uploading {key} to {bucket}/{prefix}")
     location = os.path.join(prefix, key)
     return await client.upload(bucket, location, val)
 
@@ -91,7 +92,7 @@ class GCSMapperAio(MutableMapping):
     def _list_remote_keys(self):
         client = Client(project=self.project)
         for blob in client.list_blobs(self.bucket, prefix=self.prefix):
-            yield blob.name.lstrip(self.prefix)
+            yield blob.name[len(self.prefix)+1:]
 
     def keys(self):
         for key in list(self._cache):
