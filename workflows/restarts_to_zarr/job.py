@@ -75,7 +75,7 @@ def _call_me():
 def _get_store(output: str):
     if output.startswith("gs://"):
         # use asynchronous GCSMapper class that I wrote with my free time -- Noah
-        return GCSMapperAio(output, cache_size=10000, cache=zarr.storage.DirectoryStore("big.zarr"))
+        return GCSMapperAio(output, cache_size=100)
     else:
         return fsspec.get_mapper(output)
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     logging.info("Getting the schema")
     fs = fsspec.filesystem("gs")
     categories = CATEGORIES[:2]
-    tiles = [1, 2, 3, 4, 5, 6][:1]
+    tiles = [1, 2, 3, 4, 5, 6]
 
     # get schema for first timestep
     time: str = times[0]

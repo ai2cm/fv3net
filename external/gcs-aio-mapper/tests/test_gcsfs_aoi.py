@@ -2,6 +2,7 @@ from gcs_aio_mapper import __version__, GCSMapperAio
 from gcs_aio_mapper.store import retry
 import asyncio
 import pytest
+import pickle
 
 
 TEST_BUCKET = "vcm-ml-data"
@@ -114,3 +115,15 @@ def test_keys():
     mapper.flush()
     mapper["3"] = b"234"
     assert set(mapper.keys()) == {"0", "1", "3", ".zarray"}
+
+
+def test_pickle():
+    mapper = GCSMapperAio(f"gs://{TEST_BUCKET}/tmp/test2.zarr")
+    mapper["0"] = b"123"
+    out = pickle.dumps(mapper)
+
+    loaded = pickle.loads(out)
+    for key in mapper:
+        assert loaded[key] == mapper[key], key
+
+    assert set(loaded) == set(mapper)

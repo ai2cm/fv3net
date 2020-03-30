@@ -22,7 +22,7 @@ def retry(func, num_tries=5):
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
-                logger.warning("function failed on attempt {tries}")
+                logger.warning(f"function failed on attempt {tries}")
                 attempt += 1
                 if attempt > num_tries:
                     logger.warning(f"function failed after {num_tries} treis")
@@ -35,7 +35,7 @@ def retry(func, num_tries=5):
 async def _upload_obj(client, bucket, prefix, key, val):
     logger.debug(f"uploading {key} to {bucket}/{prefix}")
     location = os.path.join(prefix, key)
-    await client.upload(bucket, location, val)
+    await client.upload(bucket, location, val, timeout=180)
     logger.debug(f"done uploading {key} to {bucket}/{prefix}")
 
 
