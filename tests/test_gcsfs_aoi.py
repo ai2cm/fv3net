@@ -2,7 +2,7 @@ from gcs_aio_mapper import __version__, GCSMapperAio
 import pytest
 
 
-TEST_BUCKET = "vcm-ml-data"
+TEST_BUCKET = "test-bucket"
 
 
 def test_version():
