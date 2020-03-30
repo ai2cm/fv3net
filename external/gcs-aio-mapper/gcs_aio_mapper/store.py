@@ -6,12 +6,28 @@ from google.cloud.storage import Client
 from collections import MutableMapping
 import os
 import logging
+from toolz import curry
 
 NUM_CONNECTIONS = 20
 
 logger = logging.getLogger(__package__)
 
+@curry
+def retry(func, num_tries=5):
+    def wrapped(*args, **kwargs):
+        tries = 0
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except TimeoutError as e:
+                logger.warning("function failed retrying")
+                if tries >= num_tries:
+                    raise e
 
+    return wrapped
+
+
+@retry(num_tries=4)
 async def _upload_obj(client, bucket, prefix, key, val):
     logger.debug(f"uploading {key} to {bucket}/{prefix}")
     location = os.path.join(prefix, key)
