@@ -16,15 +16,16 @@ logger = logging.getLogger(__package__)
 
 @curry
 def retry(func, num_tries=5):
-    def wrapped(*args, **kwargs):
-        tries = 0
+    async def wrapped(*args, **kwargs):
+        attempt = 1
         while True:
             try:
-                return func(*args, **kwargs)
+                return await func(*args, **kwargs)
             except Exception as e:
-                logger.warning("function failed retrying")
-                tries += 1
-                if tries >= num_tries:
+                logger.warning("function failed on attempt {tries}")
+                attempt += 1
+                if attempt > num_tries:
+                    logger.warning(f"function failed after {num_tries} treis")
                     raise e
 
     return wrapped
@@ -34,7 +35,7 @@ def retry(func, num_tries=5):
 async def _upload_obj(client, bucket, prefix, key, val):
     logger.debug(f"uploading {key} to {bucket}/{prefix}")
     location = os.path.join(prefix, key)
-    return await client.upload(bucket, location, val, force_resumable_upload=True)
+    return await client.upload(bucket, location, val)
 
 
 async def _upload(cache: Mapping[str, bytes], bucket, prefix):

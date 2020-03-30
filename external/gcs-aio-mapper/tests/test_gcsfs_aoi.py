@@ -1,5 +1,6 @@
 from gcs_aio_mapper import __version__, GCSMapperAio
 from gcs_aio_mapper.store import retry
+import asyncio
 import pytest
 
 
@@ -17,7 +18,7 @@ def test_retry():
     class TestError(Exception):
         pass
 
-    def func(state=[n]):
+    async def func(state=[n]):
         if state[0] == 0:
             return "done"
         else:
@@ -27,10 +28,12 @@ def test_retry():
     func_will_succeed = retry(func, num_tries=n + 1)
     func_will_fail = retry(func, num_tries=n)
 
-    with pytest.raises(TestError):
-        func_will_fail()
+    loop = asyncio.get_event_loop()
 
-    func_will_succeed()
+    with pytest.raises(TestError):
+        loop.run_until_complete(func_will_fail())
+
+    loop.run_until_complete(func_will_succeed())
 
 
 @pytest.mark.parametrize(

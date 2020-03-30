@@ -3,7 +3,9 @@ from collections import MutableMapping
 import zarr
 import xarray as xr
 import numpy as np
+import logging
 
+logger = logging.getLogger("ZarrMapping")
 
 def _set_dims(array: zarr.Array, dims: Sequence[Hashable]):
     ARRAY_DIMENSIONS = "_ARRAY_DIMENSIONS"
@@ -25,6 +27,8 @@ def _create_zarr(dims, coords, group: zarr.Group, template: xr.Dataset):
 
     for name in coords:
         _init_coord(group, coords[name])
+
+    group.attrs['DIMS'] = dims
 
 
 def _init_data_var(group: zarr.Group, array: xr.DataArray, start_shape: Tuple[int], start_chunks, dims):
@@ -63,13 +67,29 @@ class ZarrMapping:
     """Store xarray data by key
 
     """
-    def __init__(self, group: zarr.Group, schema: xr.Dataset, dims: Sequence[Hashable], coords: Mapping):
-        self.group = group
-        self.dims = dims
-        self.coords = {name: xr.DataArray(coords[name], name=name, dims=[name])
-                       for name in coords}
+    def __init__(self, store):
+        self.store = store
+    
+    @property
+    def group(self):
+        return zarr.open_group(self.store, mode="a")
 
-        _create_zarr(dims, self.coords, self.group, schema)
+    @property
+    def dims(self):
+        return self.group.attrs['DIMS']
+
+    @property
+    def coords(self):
+        g = self.group
+        return {dim: g[dim][:] for dim in self.dims}
+
+    @staticmethod
+    def from_schema(store, schema, dims, coords):
+        group = zarr.open_group(store, mode="w")
+        coords = {name: xr.DataArray(coords[name], name=name, dims=[name])
+                       for name in coords}
+        _create_zarr(dims, coords, group, schema)
+        return ZarrMapping(store)
 
     def _get_index(self, keys):
         return tuple(_index(self.coords[dim], key) for dim, key in zip(self.dims, keys))
@@ -77,6 +97,7 @@ class ZarrMapping:
     def __setitem__(self, keys, value: xr.Dataset):
         index = self._get_index(keys)
         for variable in value:
+            logger.debug(f"Setting {variable}")
             self.group[variable][index] = np.asarray(value[variable])
 
     def flush(self):
