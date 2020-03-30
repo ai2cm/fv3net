@@ -155,23 +155,27 @@ def subsample_timesteps_at_interval(
     current_time = parse_datetime_from_str(timesteps[0])
     last_time = parse_datetime_from_str(timesteps[-1])
     available_times = set(timesteps)
-    delta = timedelta(minutes=sampling_interval)
-
     subsampled_timesteps = [timesteps[0]]
-    while current_time < last_time:
-        next_time = current_time + delta
-        next_time_str = next_time.strftime(TIME_FMT)
-        if next_time_str in available_times:
-            subsampled_timesteps.append(next_time_str)
-
-        current_time = next_time
-
-    num_subsampled = len(subsampled_timesteps)
-    if num_subsampled < 2:
-        raise ValueError(
-            f"No available timesteps found matching desired subsampling interval"
-            f" of {sampling_interval} minutes."
+    try:
+        delta = timedelta(minutes=sampling_interval)
+    except TypeError:
+        logger.warning(
+            f"No sampling interval specifed, returning first value only."
         )
+    else:
+        while current_time < last_time:
+            next_time = current_time + delta
+            next_time_str = next_time.strftime(TIME_FMT)
+            if next_time_str in available_times:
+                subsampled_timesteps.append(next_time_str)
+
+            current_time = next_time
+        num_subsampled = len(subsampled_timesteps)
+        if num_subsampled < 2:
+            logger.warning(
+                f"Desired subsampling interval of {sampling_interval} minutes "
+                f"longer than sequence duration. Using only first timestep."
+            )
 
     return subsampled_timesteps
 

@@ -6,14 +6,15 @@ from vcm.cubedsphere.constants import TIME_FMT
 from datetime import datetime, timedelta
 # import logging
 
-from one_step_jobs import thermo
+from fv3net.diagnostics.one_step_jobs import thermo
+from fv3net.pipelines.common import subsample_timesteps_at_interval
 
 # logger = logging.getLogger(__name__)
 
 INIT_TIME_DIM = 'initial_time'
 FORECAST_TIME_DIM = 'forecast_time'
 DELTA_DIM = 'model_run'
-RESTART_VARS = [
+VARS_FOR_PLOTS = [
     'psurf',
     'total_heat',
     'precipitable_water',
@@ -24,6 +25,7 @@ RESTART_VARS = [
     'pressure_thickness_of_atmospheric_layer',
     'land_sea_mask'
 ]
+GRID_VARS = ['lat', 'lon', 'latb', 'lonb', 'area']
 VAR_TYPE_DIM = 'var_type'
 
 
@@ -138,10 +140,10 @@ def _align_time_and_concat(ds_hires: xr.Dataset, ds_coarse: xr.Dataset) -> xr.Da
 def _compute_both_tendencies_and_concat(ds: xr.Dataset) -> xr.Dataset:
     
     dt_init = ds[INIT_TIME_DIM].diff(INIT_TIME_DIM).isel({INIT_TIME_DIM: 0})/np.timedelta64(1,'s')
-    tendencies_hires = ds[RESTART_VARS].diff(INIT_TIME_DIM, label = 'lower')/dt_init
+    tendencies_hires = ds[VARS_FOR_PLOTS].diff(INIT_TIME_DIM, label = 'lower')/dt_init
 
     dt_forecast = ds[FORECAST_TIME_DIM].diff(FORECAST_TIME_DIM).isel({FORECAST_TIME_DIM: 0})
-    tendencies_coarse = ds[RESTART_VARS].diff('step', label = 'lower')/dt_forecast
+    tendencies_coarse = ds[VARS_FOR_PLOTS].diff('step', label = 'lower')/dt_forecast
     
     tendencies_both = _align_time_and_concat(tendencies_hires, tendencies_coarse)
     
@@ -150,8 +152,8 @@ def _compute_both_tendencies_and_concat(ds: xr.Dataset) -> xr.Dataset:
 
 def _select_both_states_and_concat(ds: xr.Dataset) -> xr.Dataset:
     
-    states_hires = ds[RESTART_VARS].isel({INIT_TIME_DIM: slice(None, -1)})
-    states_coarse = ds[RESTART_VARS].sel({'step': "begin"}) 
+    states_hires = ds[VARS_FOR_PLOTS].isel({INIT_TIME_DIM: slice(None, -1)})
+    states_coarse = ds[VARS_FOR_PLOTS].sel({'step': "begin"}) 
     states_both = _align_time_and_concat(states_hires, states_coarse)
     
     return states_both
