@@ -10,7 +10,7 @@ from vcm.calc.thermo import (
     dz_and_top_to_phis,
     _add_coords_to_interface_variable,
 )
-from vcm.calc.calc import local_time
+from vcm.calc.calc import local_time, apparent_source
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 
 
@@ -85,3 +85,17 @@ def test_solar_time():
     lon = xr.DataArray([0, 180, 270, 360, 0, 270], dims=["x"], coords={"x": range(6)})
     ds_solar_test = xr.Dataset({"initialization_time": t, "lon": lon})
     assert np.allclose(local_time(ds_solar_test), [0, 12, 18, 0, 6, 0])
+
+
+def test_apparent_source():
+    coords = {
+        "initial_time":[cftime.DatetimeJulian(2016, 8, 1, 0, 15, 0), cftime.DatetimeJulian(2016, 8, 1, 0, 30, 0)], 
+        "forecast_time": [0., 60.],
+        "x": [1],
+        "y": [1]}
+    T = xr.DataArray(
+      [[[[1, 2], [3,5]]]], dims=["x", "y", "initial_time", "forecast_time", ], coords=coords
+    )
+    Q1 = apparent_source(T, t_dim="initial_time", s_dim="forecast_time")
+    assert Q1 == (2. / (15 * 60)) - (1. / 60)
+    
