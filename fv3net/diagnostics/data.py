@@ -17,7 +17,12 @@ _KG_M2S_TO_MM_DAY = 86400  # kg/m2/s same as mm/s. Using 1000 km/m3 for H20 dens
 
 
 def merge_comparison_datasets(
-    data_vars, datasets, dataset_labels, grid, additional_dataset=None
+    data_vars,
+    datasets,
+    dataset_labels,
+    grid,
+    concat_dim_name="dataset",
+    additional_dataset=None,
 ):
     """ Makes a comparison dataset out of multiple datasets that all have a common
     data variable. They are concatenated with a new dim "dataset" that can be used
@@ -31,17 +36,22 @@ def merge_comparison_datasets(
             is the coords for the "dataset" dimension
         grid: xr dataset with lat/lon grid vars
         additional_data: xr data array, any additional data (e.g. slmsk) to merge along
-            with data arrays and grid
+            with data arrays and grid.
 
     Returns:
         Dataset with new dataset dimension to denote the target vs predicted
         quantities. It is unstacked into the original x,y, time dimensions.
     """
 
-    src_dim_index = pd.Index(dataset_labels, name="dataset")
+    src_dim_index = pd.Index(dataset_labels, name=concat_dim_name)
     datasets = [drop_nondim_coords(ds) for ds in datasets]
+    # if one of the datasets is missing data variable(s) that are in the others,
+    # fill it with an empty data array
+    _add_missing_data_vars(data_vars, datasets)
     datasets_to_merge = [
-        xr.concat([ds[data_vars].squeeze(drop=True) for ds in datasets], src_dim_index),
+        xr.concat(
+            [ds[data_vars].squeeze(drop=True) for ds in datasets], dim=src_dim_index
+        ),
         grid,
     ]
     if additional_dataset is not None:
@@ -126,3 +136,49 @@ def net_heating_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.DataArray
         ds["PRATEsfc" + suffix],
     )
     return vcm.net_heating(*fluxes)
+
+
+def _add_empty_dataarray(ds, template_dataarray):
+    """ Adds an empty data array with the dimensions of the example
+    data array to the dataset. This is useful when concatenating mulitple
+    datasets where one does not have a data variable.
+    ex. concating prediction/target/highres datasets for
+    plotting comparisons, where the high res data does not have 3D variables.
+
+    Args:
+        ds (xarray dataset): dataset that will have additional empty data array added
+        example_dataarray (data array with the desired dimensions)
+    
+    Returns:
+        original xarray dataset with an empty array assigned to the
+        template name dataarray.
+    
+    """
+    da_fill = np.empty(template_dataarray.shape)
+    da_fill[:] = np.nan
+    return ds.assign({template_dataarray.name: (template_dataarray.dims, da_fill)})
+
+
+def _add_missing_data_vars(data_vars, datasets):
+    """ Checks if any dataset in a list to be concated is missing a data variable,
+    and returns of kwargs to be provided to _add_empty_dataarray
+    
+    Args:
+        data_vars (list[str]): full list of data vars for final concated ds
+        datasets ([type]): datasets to check again
+    
+    Returns:
+        List of dicts {"ds": dataset that needs empty datarray added,
+        "example_dataarray": example of data array with dims}
+        This can be passed as kwargs to _add_empty_dataarray
+    """
+    for data_var in data_vars:
+        array_var = None
+        for ds in datasets:
+            if data_var in list(ds.data_vars):
+                array_var = ds[data_var]
+        if array_var is None:
+            raise ValueError(f"None of the datasets contain data array for {data_var}.")
+        for i in range(len(datasets)):
+            if data_var not in list(datasets[i].data_vars):
+                datasets[i] = _add_empty_dataarray(datasets[i], array_var)
