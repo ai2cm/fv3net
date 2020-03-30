@@ -12,6 +12,7 @@ from toolz import curry
 
 from distributed import Client
 from dask_kubernetes import KubeCluster
+from gcs_aio_mapper import GCSMapperAio
 
 
 import vcm
@@ -68,6 +69,13 @@ def _call_me():
     return "Hello"
 
 
+def _get_store(output: str):
+    if output.startswith("gs://"):
+        return GCSMapperAio(output)
+    else:
+        return fsspec.get_mapper(output)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('url', help="root directory of time steps")
@@ -108,7 +116,7 @@ if __name__ == "__main__":
     print(schema)
 
     logging.info("Initializing output zarr")
-    store = fsspec.get_mapper(args.output)
+    store = _get_store(args.output)
     group = zarr.open_group(store, mode="w")
     output_m = vcm.ZarrMapping(
         group, schema, dims=["time", "tile"], coords={"tile": tiles, "time": times}

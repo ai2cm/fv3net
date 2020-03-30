@@ -23,6 +23,7 @@ install_requirements = [
     "zarr",
     "xgcm",
     "cftime",
+    "gcs_aio_mapper"
 ]
 
 
