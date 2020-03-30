@@ -12,7 +12,7 @@ Example::
     n = 25
 
     def build_gs_async():
-        store = GCSMapperAio("gs://vcm-ml-data/tmp/test.zarr", cache_size=n)
+        store = GCSMapperAio("gs://bucket/tmp/test.zarr", cache_size=n)
         g = zarr.open_array(store, shape=(n,), chunks=(3,), mode="w")
         for i in range(n):
             g[i] = i
@@ -20,7 +20,7 @@ Example::
 
 
     def build_gs():
-        store = GCSMap("gs://vcm-ml-data/tmp/test.zarr")
+        store = GCSMap("gs://bucket/tmp/test.zarr")
         g = zarr.open_array(store, shape=(n,), chunks=(3,), mode="w")
         for i in range(n):
             g[i] = i
