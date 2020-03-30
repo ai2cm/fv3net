@@ -25,24 +25,43 @@ def test_mapper_prefix(url, prefix):
 
 
 def test_set():
-    map = GCSMapperAio('gs://vcm-ml-data/tmp/test1.zarr')
-    map['0'] = b"123"
-    map['1'] = b"234"
-    map.flush()
+    mapper = GCSMapperAio('gs://vcm-ml-data/tmp/test1.zarr')
+    mapper['0'] = b"123"
+    mapper['1'] = b"234"
+    mapper.flush()
 
 
 def test_get():
-    map = GCSMapperAio('gs://vcm-ml-data/tmp/test2.zarr')
-    map['0'] = b"123"
-    map['1'] = b"234"
-    del map
+    mapper = GCSMapperAio('gs://vcm-ml-data/tmp/test2.zarr')
+    mapper['0'] = b"123"
+    mapper['1'] = b"234"
+    del mapper
 
-    map = GCSMapperAio('gs://vcm-ml-data/tmp/test2.zarr')
-    assert map['1'] == b"234"
+    mapper = GCSMapperAio('gs://vcm-ml-data/tmp/test2.zarr')
+    assert mapper['1'] == b"234"
 
 def test_set_error():
-    map = GCSMapperAio('gs://a-non-existant-bucket/test.zarr')
-    map['0'] = b"123"
-    map['1'] = b"234"
+    mapper = GCSMapperAio('gs://a-non-existant-bucket/test.zarr')
+    mapper['0'] = b"123"
+    mapper['1'] = b"234"
     with pytest.raises(Exception):
-        map.flush()
+        mapper.flush()
+
+
+def test_rmdir_root():
+    mapper = GCSMapperAio('gs://vcm-ml-data/tmp/test2.zarr')
+    mapper['0'] = b"123"
+    mapper['1'] = b"234"
+    mapper.flush()
+    mapper['2'] = b"234"
+    mapper.rmdir()
+    assert set(mapper.keys()) == set()
+
+
+def test_keys():
+    mapper = GCSMapperAio('gs://vcm-ml-data/tmp/test2.zarr')
+    mapper['0'] = b"123"
+    mapper['1'] = b"234"
+    mapper.flush()
+    mapper['3'] = b"234"
+    assert set(mapper.keys()) == {'0', '1', '3'}

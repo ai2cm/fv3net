@@ -2,9 +2,13 @@ from typing import Hashable, Mapping
 import aiohttp
 import asyncio
 from gcloud.aio.storage import Storage
+from google.cloud.storage import Client
 from collections import MutableMapping
 import gcsfs
 import os
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 async def _upload_obj(client, bucket, prefix, key, val):
@@ -27,6 +31,7 @@ async def _upload(cache: Mapping[str, bytes], bucket, prefix):
 
 async def delete_items(bucket, items):
     async with aiohttp.ClientSession() as session:
+        logging.debug(f"deleting {items} in {bucket}")
         client = Storage(session=session)
         return await asyncio.gather(*[client.delete(bucket, item) for item in items])
 
@@ -39,19 +44,21 @@ async def _get(bucket, prefix, key):
 
 async def _delete_item(bucket, item):
     async with aiohttp.ClientSession() as session:
+        logging.debug(f"deleting {item} in {bucket}")
         client = Storage(session=session)
         return await client.delete(bucket, item)
 
 
 class GCSMapperAio(MutableMapping):
-    def __init__(self, url, cache_size=20):
+    def __init__(self, url, cache_size=20, project='vcm-ml'):
         super().__init__()
         self._cache = {}
         self._url = url
+        self.project = project
         self.cache_size = cache_size
 
     def __getitem__(self, key: Hashable):
-        key = str(key)
+        key = self._normalize_key(key)
         if key in self._cache:
             return self._cache[key]
         else:
@@ -81,20 +88,25 @@ class GCSMapperAio(MutableMapping):
         loop.run_until_complete(_upload(self._cache, self.bucket, self.prefix))
         self._cache = {}
 
+    def _list_remote_keys(self):
+        client = Client(project=self.project)
+        for blob in client.list_blobs(self.bucket, prefix=self.prefix):
+            yield blob.name.lstrip(self.prefix)
+
     def keys(self):
-        for key in self._cache:
+        for key in list(self._cache):
             yield key
-        for key in self._sync_mapper:
-            yield key
+        yield from self._list_remote_keys()
 
     def __setitem__(self, key: Hashable, val: bytes):
-        key = str(key)
+        key = self._normalize_key(key)
         self._cache[key] = val
         if len(self._cache) > self.cache_size:
             self.flush()
 
     def __delitem__(self, key):
-        if key in self._cache:
+        key = self._normalize_key(key)
+        if key in self._cache.keys():
             del self._cache[key]
         else:
             loop = asyncio.get_event_loop()
@@ -119,10 +131,13 @@ class GCSMapperAio(MutableMapping):
     def _key_path(self, key: str):
         return os.path.join(self.prefix, key)
 
-    def rmdir(self, root):
+    def _normalize_key(self, key):
+        return str(key)
+
+    def rmdir(self, path=None):
         remote_keys = []
         for key in self.keys():
-            if key.startswith("root"):
+            if path is None or key.startswith(path):
                 try:
                     del self._cache[key]
                 except KeyError:

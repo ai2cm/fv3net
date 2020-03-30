@@ -10,6 +10,7 @@ pylint = "^2.4.4"
 aiohttp = "^3.6.2"
 gcloud-aio-storage = "^5.2.2"
 gcsfs = "^0.6.1"
+google-cloud-storage = "^1.26.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
