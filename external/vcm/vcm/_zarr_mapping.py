@@ -79,3 +79,6 @@ class ZarrMapping:
         for variable in value:
             self.group[variable][index] = np.asarray(value[variable])
 
+    def flush(self):
+        return self.group.store.flush()
+

@@ -55,6 +55,7 @@ def insert_timestep(
     data = get(time, category, tile)
     logging.info(f"Setting data at {time} for {category} tile {tile}")
     output[time, tile] = data
+    output.flush()
 
 
 def get_schema(fs: fsspec.AbstractFileSystem, url: str) -> xr.Dataset:
@@ -71,7 +72,8 @@ def _call_me():
 
 def _get_store(output: str):
     if output.startswith("gs://"):
-        return GCSMapperAio(output)
+        # use asynchronous GCSMapper class that I wrote with my free time -- Noah
+        return GCSMapperAio(output, cache_size=128)
     else:
         return fsspec.get_mapper(output)
 
