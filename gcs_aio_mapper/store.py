@@ -51,7 +51,7 @@ async def _delete_item(bucket, item):
 
 
 class GCSMapperAio(MutableMapping):
-    def __init__(self, url, cache_size=20, project='vcm-ml'):
+    def __init__(self, url, cache_size=20, project=None):
         super().__init__()
         self._cache = {}
         self._url = url
