@@ -5,7 +5,7 @@ runtime:
   - pressure_thickness_of_atmospheric_layer
 data_table: default
 diag_table: default
-experiment_name: nudge_mean_T
+experiment_name: nudge-mean-T-ps
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 initial_conditions: gs://vcm-ml-data/2019-12-03-C48-20160101.00Z_IC
 namelist:
