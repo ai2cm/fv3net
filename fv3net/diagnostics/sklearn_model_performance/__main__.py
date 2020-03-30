@@ -14,7 +14,8 @@ from .data import (
     add_column_heating_moistening,
 )
 from .diagnostics import plot_diagnostics
-from .metrics import create_metrics_dataset, plot_metrics
+from .create_metrics import create_metrics_dataset
+from .plot_metrics import plot_metrics
 
 DATA_VARS = [
     "dQ1",
