@@ -29,3 +29,4 @@ fv3config:
         - 2
     gfs_physics_nml:
       fhzero: 1.0
+      use_analysis_sst: true

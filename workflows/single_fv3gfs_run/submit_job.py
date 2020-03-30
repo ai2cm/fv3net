@@ -11,7 +11,7 @@ from fv3net.pipelines.kube_jobs import get_base_fv3config, update_nested_dict
 logger = logging.getLogger("run_jobs")
 
 KUBERNETES_CONFIG_DEFAULT = {
-    "docker_image": "us.gcr.io/vcm-ml/fv3gfs-python:v0.2.2",
+    "docker_image": "us.gcr.io/vcm-ml/fv3gfs-python",
     "runfile": None,
     "namespace": "default",
     "memory_gb": 3.6,
