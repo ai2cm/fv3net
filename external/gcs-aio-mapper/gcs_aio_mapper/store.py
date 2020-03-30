@@ -35,7 +35,8 @@ def retry(func, num_tries=5):
 async def _upload_obj(client, bucket, prefix, key, val):
     logger.debug(f"uploading {key} to {bucket}/{prefix}")
     location = os.path.join(prefix, key)
-    return await client.upload(bucket, location, val)
+    await client.upload(bucket, location, val)
+    logger.debug(f"done uploading {key} to {bucket}/{prefix}")
 
 
 async def _upload(cache: Mapping[str, bytes], bucket, prefix):
