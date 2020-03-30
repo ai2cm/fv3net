@@ -90,11 +90,11 @@ if __name__ == "__main__":
 
 
     logging.info("Building dask cluster and client")
-    cluster = KubeCluster.from_yaml(WORKER_YAML)
-    cluster.scale_up(args.workers)  # specify number of nodes explicitly
-    client = Client(cluster)
+    # cluster = KubeCluster.from_yaml(WORKER_YAML)
+    # cluster.scale_up(args.workers)  # specify number of nodes explicitly
+    # client = Client(cluster)
     client.register_worker_callbacks(setup)
-    # client = Client()
+    client = Client()
     logging.info("testing client function call")
     res = client.submit(test_call)
     print(res.result())

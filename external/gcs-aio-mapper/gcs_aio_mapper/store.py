@@ -17,16 +17,17 @@ async def _upload_obj(client, bucket, prefix, key, val):
 
 
 async def _upload(cache: Mapping[str, bytes], bucket, prefix):
+    items = list(cache.items())
+    futures = []
     async with aiohttp.ClientSession() as session:
         client = Storage(session=session)
-        all_ops = await asyncio.gather(
-            *[
-                _upload_obj(client, bucket, prefix, key, val)
-                for key, val in cache.items()
-            ]
-        )
-        # TODO check that ops were succesful?
-        return all_ops
+
+        while len(items) > 0:
+            key, val = items.pop()
+            futures.append(_upload_obj(client, bucket, prefix, key, val))
+
+            if len(futures) > 10 or len(items) == 0:
+                await asyncio.gather(*futures)
 
 
 async def delete_items(bucket, items):
@@ -50,9 +51,9 @@ async def _delete_item(bucket, item):
 
 
 class GCSMapperAio(MutableMapping):
-    def __init__(self, url, cache_size=20, project=None):
+    def __init__(self, url, cache_size=20, cache=None, project=None):
         super().__init__()
-        self._cache = {}
+        self._cache = {} if cache is None else cache
         self._url = url
         self.project = project
         self.cache_size = cache_size
@@ -141,5 +142,3 @@ class GCSMapperAio(MutableMapping):
         op = delete_items(self.bucket, remote_keys)
         loop = asyncio.get_event_loop()
         loop.run_until_complete(op)
-
-
