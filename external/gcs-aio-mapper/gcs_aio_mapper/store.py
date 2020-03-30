@@ -7,13 +7,15 @@ from collections import MutableMapping
 import os
 import logging
 
+NUM_CONNECTIONS = 20
+
 logger = logging.getLogger(__package__)
 
 
 async def _upload_obj(client, bucket, prefix, key, val):
-    logging.debug(f"uploading {key} to {bucket}/{prefix}")
+    logger.debug(f"uploading {key} to {bucket}/{prefix}")
     location = os.path.join(prefix, key)
-    return await client.upload(bucket, location, val)
+    return await client.upload(bucket, location, val, force_resumable_upload=True)
 
 
 async def _upload(cache: Mapping[str, bytes], bucket, prefix):
@@ -26,8 +28,10 @@ async def _upload(cache: Mapping[str, bytes], bucket, prefix):
             key, val = items.pop()
             futures.append(_upload_obj(client, bucket, prefix, key, val))
 
-            if len(futures) > 10 or len(items) == 0:
+            if len(futures) > NUM_CONNECTIONS or len(items) == 0:
+                logger.debug("starting batch")
                 await asyncio.gather(*futures)
+                futures = []
 
 
 async def delete_items(bucket, items):
