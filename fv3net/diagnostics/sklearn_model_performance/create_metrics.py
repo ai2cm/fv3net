@@ -33,7 +33,7 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield):
             )
     # add a coordinate for target datasets so that the plot_metrics functions
     # can use it for labels
-    ds_metrics = ds_metrics.assign_coords( 
+    ds_metrics = ds_metrics.assign_coords(
         {
             "target_dataset_names": [
                 ds_target.dataset.values.item() for ds_target in [ds_fv3, ds_shield]
