@@ -5,6 +5,7 @@ History
 
 latest
 ------
+* Add physics on end_to_end workflow configuration yaml. Only does baseline run for now.
 
 
 0.1.1 (2020-03-25)
