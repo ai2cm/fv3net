@@ -61,6 +61,8 @@ def insert_timestep(
     output[time, tile] = data
     output.flush()
 
+    del output, data
+
 
 def get_schema(fs: fsspec.AbstractFileSystem, url: str) -> xr.Dataset:
     logging.info(f"Grabbing schema from {url}")
@@ -121,11 +123,12 @@ if __name__ == "__main__":
 
     logging.info("Initializing output zarr")
     store = _get_store(args.output)
-    output_m = vcm.ZarrMapping.from_schema(
+    vcm.ZarrMapping.from_schema(
         store, schema, dims=["time", "tile"], coords={"tile": tiles, "time": times}
     )
     store.flush()
 
+    del store
     load_timestep = curry(get_timestep, fs, args.url)
     map_fn = curry(insert_timestep, args.output, load_timestep)
 
