@@ -26,8 +26,10 @@ WORKER_YAML = os.path.join(DIR, "worker-spec.yml")
 
 tracemalloc.start()
 
+
 def setup(*args):
     logging.basicConfig(level=logging.INFO)
+
 
 setup()
 
@@ -56,11 +58,11 @@ def map_robustly(fn, items, retries=3):
                 raise e
 
 
-
 def _file(url: str, time: str, category: str, tile: int) -> str:
     return os.path.join(url, time, f"{time}.{category}.tile{tile}.nc")
 
 
+@retry.with_exponential_backoff(num_retries=3)
 def get_timestep(key, fs, url) -> xr.Dataset:
     time, category, tile = key
     location = _file(url, time, category, tile)
@@ -74,8 +76,7 @@ def get_timestep(key, fs, url) -> xr.Dataset:
 
 
 def insert_timestep(
-    item: Tuple[Tuple[str, str, int], xr.DataArray],
-    out_path: str,
+    item: Tuple[Tuple[str, str, int], xr.DataArray], out_path: str,
 ):
     key, data = item
     time, category, tile = key
@@ -91,12 +92,6 @@ def get_schema(fs: fsspec.AbstractFileSystem, url: str) -> xr.Dataset:
     with fs.open(url, "rb") as f:
         return vcm.standardize_metadata(xr.open_dataset(f))
 
-def test_call():
-    return _call_me()
-
-def _call_me():
-    return "Hello"
-
 
 def _get_store(output: str):
     return fsspec.get_mapper(output)
@@ -109,28 +104,18 @@ def _get_store(output: str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('url', help="root directory of time steps")
-    parser.add_argument('output', help="Location of output zarr")
+    parser.add_argument("url", help="root directory of time steps")
+    parser.add_argument("output", help="Location of output zarr")
     parser.add_argument("-s", "--n-steps", default=-1, type=int)
     parser.add_argument("-n", "--workers", default=1, type=int)
-    parser.add_argument("--init", action='store_true')
+    parser.add_argument("--init", action="store_true")
 
-    args = parser.parse_args()
-
-    logging.info("Building dask cluster and client")
-    # cluster = KubeCluster.from_yaml(WORKER_YAML)
-    # cluster.scale_up(args.workers)  # specify number of nodes explicitly
-    # client = Client(cluster)
-    # client = Client()
-    # client.register_worker_callbacks(setup)
-    # logging.info("testing client function call")
-    # res = client.submit(test_call)
-    # logging.info(res.result())
+    args, pipeline_args = parser.parse_known_args()
 
     # TODO Parameterize these settings
     times = list_timesteps(args.url)
     if args.n_steps != -1:
-        times = times[:args.n_steps]
+        times = times[: args.n_steps]
 
     logging.info("Getting the schema")
     fs = fsspec.filesystem("gs")
@@ -141,7 +126,10 @@ if __name__ == "__main__":
     if args.init:
         time: str = times[0]
         schema = xr.merge(
-            [get_schema(fs, _file(args.url, time, category, tile=1)) for category in categories]
+            [
+                get_schema(fs, _file(args.url, time, category, tile=1))
+                for category in categories
+            ]
         )
         print("Schema:")
         print(schema)
@@ -152,18 +140,18 @@ if __name__ == "__main__":
             store, schema, dims=["time", "tile"], coords={"tile": tiles, "time": times}
         )
 
-
     items = product(times, categories, tiles)
 
     logging.info("Mapping job")
     # map_robustly(map_fn, ))
-    options = PipelineOptions(direct_num_workers=4)
+    options = PipelineOptions(pipeline_args)
     with beam.Pipeline(options=options) as p:
 
-        (p 
-           | beam.Create(items)
-           | "OpenFiles" >> beam.ParDo(get_timestep, fs, args.url)
-           | "Insert" >> beam.Map(insert_timestep, args.output)
+        (
+            p
+            | beam.Create(items)
+            | "OpenFiles" >> beam.ParDo(get_timestep, fs, args.url)
+            | "Insert" >> beam.Map(insert_timestep, args.output)
         )
 
     # wait for all results to complete
