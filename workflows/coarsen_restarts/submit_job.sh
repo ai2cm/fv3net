@@ -25,5 +25,5 @@ python -m fv3net.pipelines.coarsen_restarts\
     --disk_size_gb 50 \
     --worker_machine_type n1-highmem-4 \
     --setup_file ./setup.py \
-    --extra_package external/vcm/dist/vcm-0.1.0.tar.gz \
+    --extra_package external/vcm/dist/vcm-0.1.1.tar.gz \
     --extra_package external/vcm/external/mappm/dist/mappm-0.0.0.tar.gz
