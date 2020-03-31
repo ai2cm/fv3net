@@ -1,26 +1,21 @@
 from setuptools import find_packages, setup
 
 dependencies = [
-    "apache-beam",
-    "cloudpickle",
-    "dask",
-    "gcsfs",
-    "fsspec",
-    "google-cloud-storage",
-    "h5netcdf",
-    "intake",
-    "metpy",
-    "numba",
-    "scikit-image",
-    "netCDF4",
-    "xarray>=0.14.0",
-    "partd",
-    "pyyaml>=5.0",
-    "xgcm",
-    "zarr",
-    "kubernetes",
+    "dask==2.13.0",
+    "f90nml==1.1.2",
+    "fsspec==0.7.1",
+    "gcsfs==0.6.1",
+    "intake==0.5.4",
+    "MetPy==0.12.0",
+    "scikit-image==0.16.2",
+    "scipy==1.4.1",
+    "toolz==0.10.0",
+    "xarray==0.15.1",
+    "xgcm==0.3.0",
+    "zarr==2.4.0",
 ]
 
+packages = find_packages() + find_packages("external/vcm")
 setup(
     name="fv3net",
     packages=find_packages(),
