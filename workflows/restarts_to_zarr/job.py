@@ -1,4 +1,7 @@
 import logging
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.utils import retry
 import os
 from itertools import product
 import tracemalloc
@@ -9,7 +12,6 @@ from collections import deque, defaultdict
 import fsspec
 import xarray as xr
 import zarr
-from distributed import Client
 from toolz import curry
 
 from distributed import Client
@@ -54,31 +56,35 @@ def map_robustly(fn, items, retries=3):
                 raise e
 
 
+
 def _file(url: str, time: str, category: str, tile: int) -> str:
     return os.path.join(url, time, f"{time}.{category}.tile{tile}.nc")
 
 
-def get_timestep(fs, url, time, category, tile) -> xr.Dataset:
+def get_timestep(key, fs, url) -> xr.Dataset:
+    time, category, tile = key
     location = _file(url, time, category, tile)
     logging.info(f"Opening {location}")
     with fs.open(location, "rb") as f:
         ds = xr.open_dataset(f).load()
-        return vcm.standardize_metadata(ds)
+    ds = vcm.standardize_metadata(ds)
+
+    for variable in ds:
+        yield key, ds[variable]
 
 
 def insert_timestep(
+    item: Tuple[Tuple[str, str, int], xr.DataArray],
     out_path: str,
-    get: Callable[[str, str, int], xr.Dataset],
-    key: Tuple[str, str, int],
 ):
-    
+    key, data = item
+    time, category, tile = key
     # The ZarrMapping doesn't serialize so reinit it here.
     output = vcm.ZarrMapping(_get_store(out_path))
-    time, category, tile = key
-    data = get(time, category, tile)
-    logging.info(f"Setting data at {time} for {category} tile {tile}")
-    output[time, tile] = data
-    # output.flush()
+    name = data.name
+    logging.info(f"Inserting {name} at {time} for {category} tile {tile}")
+    output[time, tile] = data.to_dataset()
+
 
 def get_schema(fs: fsspec.AbstractFileSystem, url: str) -> xr.Dataset:
     logging.info(f"Grabbing schema from {url}")
@@ -107,6 +113,7 @@ if __name__ == "__main__":
     parser.add_argument('output', help="Location of output zarr")
     parser.add_argument("-s", "--n-steps", default=-1, type=int)
     parser.add_argument("-n", "--workers", default=1, type=int)
+    parser.add_argument("--init", action='store_true')
 
     args = parser.parse_args()
 
@@ -131,24 +138,34 @@ if __name__ == "__main__":
     tiles = [1, 2, 3, 4, 5, 6]
 
     # get schema for first timestep
-    time: str = times[0]
-    schema = xr.merge(
-        [get_schema(fs, _file(args.url, time, category, tile=1)) for category in categories]
-    )
-    print("Schema:")
-    print(schema)
+    if args.init:
+        time: str = times[0]
+        schema = xr.merge(
+            [get_schema(fs, _file(args.url, time, category, tile=1)) for category in categories]
+        )
+        print("Schema:")
+        print(schema)
 
-    logging.info("Initializing output zarr")
-    store = _get_store(args.output)
-    output_m = vcm.ZarrMapping.from_schema(
-        store, schema, dims=["time", "tile"], coords={"tile": tiles, "time": times}
-    )
+        logging.info("Initializing output zarr")
+        store = _get_store(args.output)
+        output_m = vcm.ZarrMapping.from_schema(
+            store, schema, dims=["time", "tile"], coords={"tile": tiles, "time": times}
+        )
 
-    load_timestep = curry(get_timestep, fs, args.url)
-    map_fn = curry(insert_timestep, args.output, load_timestep)
+
+    items = product(times, categories, tiles)
 
     logging.info("Mapping job")
-    map_robustly(map_fn, product(times, categories, tiles))
+    # map_robustly(map_fn, ))
+    options = PipelineOptions(direct_num_workers=4)
+    with beam.Pipeline(options=options) as p:
+
+        (p 
+           | beam.Create(items)
+           | "OpenFiles" >> beam.ParDo(get_timestep, fs, args.url)
+           | "Insert" >> beam.Map(insert_timestep, args.output)
+        )
+
     # wait for all results to complete
     # client.gather(results)
     logging.info("Job completed succesfully!")
