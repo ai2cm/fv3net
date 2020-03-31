@@ -3,6 +3,7 @@ import os
 from itertools import product
 from typing import Callable, Tuple
 import argparse
+import time
 
 import fsspec
 import xarray as xr
@@ -128,7 +129,12 @@ if __name__ == "__main__":
     map_fn = curry(insert_timestep, args.output, load_timestep)
 
     logging.info("Mapping job")
-    results = client.map(map_fn, list(product(times, categories, tiles)))
+    results = client.map(map_fn, list(product(times, categories, tiles)), retries=3)
     # wait for all results to complete
-    client.gather(results)
-    logging.info("Job completed succesfully!")
+    try:
+        client.gather(results)
+    except:
+        print("exception!")
+        time.sleep(10)
+    else:
+        logging.info("Job completed!")

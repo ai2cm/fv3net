@@ -28,7 +28,7 @@ spec:
         - "100"
         - "--workers"
         - "6"
-          #imagePullPolicy: Never
+        imagePullPolicy: Always
         resources: {}
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
