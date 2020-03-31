@@ -1,22 +1,14 @@
 import logging
-import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.utils import retry
 import os
-from itertools import product
 import tracemalloc
-from typing import Callable, Tuple
-import argparse
-from collections import deque, defaultdict
+from itertools import product
+from typing import Tuple
 
+import apache_beam as beam
 import fsspec
 import xarray as xr
-import zarr
-from toolz import curry
-
-from distributed import Client
-from gcs_aio_mapper import GCSMapperAio
-
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.utils import retry
 
 import vcm
 from fv3net.pipelines import list_timesteps
@@ -39,23 +31,6 @@ CATEGORIES = (
     "fv_tracer_coarse.res",
     "fv_core_coarse.res",
 )
-
-
-def map_robustly(fn, items, retries=3):
-    count = defaultdict(lambda: 0)
-    items = deque(items)
-    while len(items) > 0:
-        item = items.popleft()
-        try:
-            fn(item)
-        except Exception as e:
-            if count[item] < retries:
-                logging.exception(f"Exception raised for {item}...recomputing.", e)
-                items.append(item)
-                count[item] += 1
-            else:
-                logging.exception(f"{item}...failed {retries} times.", e)
-                raise e
 
 
 def _file(url: str, time: str, category: str, tile: int) -> str:
@@ -102,28 +77,33 @@ def _get_store(output: str):
         return fsspec.get_mapper(output)
 
 
+class MyOptions(PipelineOptions):
+    @classmethod
+    def _add_argparse_args(cls, parser):
+        """This is the recommend extension point
+
+        See https://beam.apache.org/releases/pydoc/2.5.0/apache_beam.options.pipeline_options.html
+        """
+        parser.add_argument("url", help="root directory of time steps")
+        parser.add_argument("output", help="Location of output zarr")
+        parser.add_argument("-s", "--n-steps", default=-1, type=int)
+        parser.add_argument("--init", action="store_true")
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("url", help="root directory of time steps")
-    parser.add_argument("output", help="Location of output zarr")
-    parser.add_argument("-s", "--n-steps", default=-1, type=int)
-    parser.add_argument("-n", "--workers", default=1, type=int)
-    parser.add_argument("--init", action="store_true")
 
-    args, pipeline_args = parser.parse_known_args()
-
-    # TODO Parameterize these settings
+    args = MyOptions()
     times = list_timesteps(args.url)
     if args.n_steps != -1:
         times = times[: args.n_steps]
 
-    logging.info("Getting the schema")
     fs = fsspec.filesystem("gs")
     categories = CATEGORIES
     tiles = [1, 2, 3, 4, 5, 6]
 
     # get schema for first timestep
     if args.init:
+        logging.info("Getting the schema")
         time: str = times[0]
         schema = xr.merge(
             [
@@ -141,11 +121,7 @@ if __name__ == "__main__":
         )
 
     items = product(times, categories, tiles)
-
-    logging.info("Mapping job")
-    # map_robustly(map_fn, ))
-    options = PipelineOptions(pipeline_args)
-    with beam.Pipeline(options=options) as p:
+    with beam.Pipeline(options=args) as p:
 
         (
             p
@@ -154,6 +130,4 @@ if __name__ == "__main__":
             | "Insert" >> beam.Map(insert_timestep, args.output)
         )
 
-    # wait for all results to complete
-    # client.gather(results)
     logging.info("Job completed succesfully!")
