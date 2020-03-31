@@ -61,6 +61,7 @@ def insert_timestep(
     output[time, tile] = data
     output.flush()
 
+
 def get_schema(fs: fsspec.AbstractFileSystem, url: str) -> xr.Dataset:
     logging.info(f"Grabbing schema from {url}")
     with fs.open(url, "rb") as f:
@@ -129,7 +130,7 @@ if __name__ == "__main__":
     map_fn = curry(insert_timestep, args.output, load_timestep)
 
     logging.info("Mapping job")
-    results = client.map(map_fn, list(product(times, categories, tiles)), retries=3)
+    results = client.map(map_fn, list(product(times, categories, tiles)), retries=3, resources={'MEMORY': 3.0e9})
     # wait for all results to complete
     try:
         client.gather(results)
