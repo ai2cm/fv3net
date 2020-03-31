@@ -16,7 +16,7 @@ spec:
   containers:
   - image: us.gcr.io/vcm-ml/restarts_to_zarr
     #imagePullPolicy: Never
-    args: [dask-worker, --nthreads, '2', --no-bokeh, --memory-limit, 3GB, --death-timeout, '60', --resources, "MEMORY=3e9"]
+    args: [dask-worker, --nthreads, '1', --no-bokeh, --memory-limit, 3GB, --death-timeout, '60', --resources, "MEMORY=3e9"]
     name: dask
     resources:
       limits:
