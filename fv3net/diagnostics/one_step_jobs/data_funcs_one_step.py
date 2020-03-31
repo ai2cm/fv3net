@@ -227,29 +227,44 @@ def make_init_time_dim_intelligible(ds: xr.Dataset):
     return ds
 
 
-def insert_weighted_mean_vars(ds, weights, dims = ['tile', 'x', 'y'], mask = None):
+def insert_weighted_mean_vars(
+    ds: xr.Dataset,
+    weights: xr.DataArray,
+    varnames: list,
+    mask_name = 'land_sea_mask',
+    dims = ['tile', 'x', 'y']
+) -> xr.Dataset:
+    
     wm = (ds*weights).sum(dim = dims)/weights.sum(dim = dims)
-    for var in ds :
-        if var is not 'land_sea_mask':
-            wm[var] = wm[var].assign_attrs(ds[var].attrs)
-            wm = wm.rename({var: var + "_global_mean"})
+    for var in varnames:
+        if var in ds:
+            new_name = f"{var}_global_mean"
+            ds = ds.assign({new_name: wm[var]})
+            ds[new_name] = ds[new_name].assign_attrs(ds[var].attrs)
+        else:
+            raise ValueError('Variable for global mean calculations not in dataset.')
         
-    if mask == 'land_sea_mask)':
-        ds_land = mask_to_surface_type(ds, 'land')
-        weights_land = mask_to_surface_type(weights, 'land')
+    if mask_name == 'land_sea_mask':
+        ds_land = mask_to_surface_type(ds.merge(weights), 'land', surface_type_varname = mask_name)
+        weights_land = ds_land['area']
         wm_land = (ds_land*weights_land).sum(dim = dims)/weights_land.sum(dim = dims)
-        ds_sea = mask_to_surface_type(ds, 'sea')
-        weights_sea =  mask_to_surface_type(weights, 'sea')
+        ds_sea = mask_to_surface_type(ds.merge(weights), 'sea', surface_type_varname = mask_name)
+        weights_sea = ds_sea['area']
         wm_sea = (ds_sea*weights_sea).sum(dim = dims)/weights_sea.sum(dim = dims)
-        for var in [var for var in ds if var not in ['area', 'slmsk']]:
-            wm = wm.assign({
-                var + "_land_mean": wm_land[var],
-                var + "_ocean_mean": wm_sea[var],
-            })
-            wm[var + "_land_mean"] = wm[var + "_land_mean"].assign_attrs(ds[var].attrs)
-            wm[var + "_ocean_mean"] = wm[var + "_ocean_mean"].assign_attrs(ds[var].attrs)
-    elif mask is not None:
+        for var in varnames:
+            if var in ds:
+                land_new_name = f"{var}_land_mean"
+                sea_new_name = f"{var}_sea_mean"
+                ds = ds.assign({
+                    land_new_name: wm_land[var],
+                    sea_new_name: wm_sea[var]
+                })
+                ds[land_new_name] = ds[land_new_name].assign_attrs(ds[var].attrs)
+                ds[sea_new_name] = ds[sea_new_name].assign_attrs(ds[var].attrs)
+            else:
+                raise ValueError('Variable for global mean calculations not in dataset.')
+    else:
         raise ValueError('Only "land_sea_mask" is suppored as a mask.')
             
-    return wm
+    return ds
                                            
