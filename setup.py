@@ -1,5 +1,4 @@
 from setuptools import find_packages, setup
-import os
 
 dependencies = [
     "dask==2.13.0",
@@ -7,6 +6,7 @@ dependencies = [
     "fsspec==0.7.1",
     "gcsfs==0.6.1",
     "intake==0.5.4",
+    "scikit-image==0.16.2",
     "MetPy==0.12.0",
     # "scikit-image==0.16.2",
     # "scipy==1.4.1",
@@ -15,7 +15,7 @@ dependencies = [
     "xgcm==0.3.0",
     "zarr==2.4.0",
     "numba==0.48.0",
-    "cftime-1.1.1.2"
+    "cftime==1.1.1.2"
 ]
 
 
