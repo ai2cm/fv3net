@@ -103,12 +103,3 @@ def load_train_diag(top_level_dir, init_times):
         ds_diag = open_diagnostic(run_dir, "sfc_dt_atmos").isel(time=0)
         one_step_diags.append(ds_diag.squeeze().drop("time"))
     return xr.concat([ds for ds in one_step_diags], time_dim_index)
-
-
-def use_var_names_from_file(var_names_yaml):
-   with open(var_names_yaml, "r") as stream:
-        try:
-            var_names = yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            raise ValueError(f"Bad yaml config: {exc}")
-    

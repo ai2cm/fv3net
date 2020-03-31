@@ -134,7 +134,7 @@ def list_timesteps(path: str) -> List[str]:
 
 
 def subsample_timesteps_at_interval(
-    timesteps: List[str], sampling_interval: int,
+    timesteps: List[str], sampling_interval: int
 ) -> List[str]:
     """
     Subsample a list of timesteps at the specified interval (in minutes). Raises

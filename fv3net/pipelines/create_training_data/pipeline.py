@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 import xarray as xr
+import yaml
 
 from . import helpers
 from vcm.calc import apparent_source
@@ -21,8 +22,12 @@ INIT_TIME_DIM = "initial_time"
 FORECAST_TIME_DIM = "forecast_time"
 STEP_TIME_DIM = "step"
 COORD_END_STEP = "after_physics"
-VAR_LON_CENTER, VAR_LAT_CENTER, VAR_LON_OUTER, VAR_LAT_OUTER = \
-    ("lon", "lat", "lonb", "latb")
+VAR_LON_CENTER, VAR_LAT_CENTER, VAR_LON_OUTER, VAR_LAT_OUTER = (
+    "lon",
+    "lat",
+    "lonb",
+    "latb",
+)
 COORD_X_CENTER, COORD_Y_CENTER, COORD_Z_CENTER = ("x", "y", "z")
 _CHUNK_SIZES = {
     "tile": 1,
@@ -48,18 +53,21 @@ SUFFIX_COARSE_TRAIN = "train"
 VAR_X_WIND, VAR_Y_WIND = ("x_wind", "y_wind")
 VAR_TEMP, VAR_SPHUM = ("air_temperature", "specific_humidity")
 RADIATION_VARS = [
-   "DSWRFtoa",
-   "DSWRFsfc",
-   "USWRFtoa",
-   "USWRFsfc",
-   "DLWRFsfc",
-   "ULWRFtoa",
-   "ULWRFsfc",
+    "DSWRFtoa",
+    "DSWRFsfc",
+    "USWRFtoa",
+    "USWRFsfc",
+    "DLWRFsfc",
+    "ULWRFtoa",
+    "ULWRFsfc",
 ]
+
 RENAMED_HIGH_RES_VARS = {
     **{f"{var}_coarse": f"{var}_{SUFFIX_HIRES}" for var in RADIATION_VARS},
-    **{"LHTFLsfc_coarse": f"latent_heat_flux_{SUFFIX_HIRES}",
-        "SHTFLsfc_coarse": f"sensible_heat_flux_{SUFFIX_HIRES}"}
+    **{
+        "LHTFLsfc_coarse": f"latent_heat_flux_{SUFFIX_HIRES}",
+        "SHTFLsfc_coarse": f"sensible_heat_flux_{SUFFIX_HIRES}",
+    },
 }
 
 ONE_STEP_VARS = RADIATION_VARS + [
@@ -73,21 +81,28 @@ ONE_STEP_VARS = RADIATION_VARS + [
     "vertical_thickness_of_atmospheric_layer",
     "vertical_wind",
     "pressure_thickness_of_atmospheric_layer",
-    VAR_TEMP, 
+    VAR_TEMP,
     VAR_SPHUM,
-    VAR_X_WIND, 
+    VAR_X_WIND,
     VAR_Y_WIND,
 ]
 RENAMED_ONE_STEP_VARS = {var: f"{var}_{SUFFIX_COARSE_TRAIN}" for var in RADIATION_VARS}
-RENAMED_DIMS = {"grid_xt": "x", "grid_yt": "y", "grid_x": "x_interface", "grid_y": "y_interface"}
+RENAMED_DIMS = {
+    "grid_xt": "x",
+    "grid_yt": "y",
+    "grid_x": "x_interface",
+    "grid_y": "y_interface",
+}
 
 
 def run(args, pipeline_args):
+    logger.error(f"{args}")
+    if args.var_names_yaml:
+        _use_var_names_from_file(args.var_names_yaml, SUFFIX_HIRES, SUFFIX_COARSE_TRAIN)
     fs = get_fs(args.gcs_input_data_path)
     ds_full = xr.open_zarr(fs.get_mapper(args.gcs_input_data_path))
     _save_grid_spec(ds_full, args.gcs_output_data_dir)
-    timestep_batches = _get_timestep_batches(
-        ds_full, args.timesteps_per_output_file)
+    timestep_batches = _get_timestep_batches(ds_full, args.timesteps_per_output_file)
     train_test_labels = _test_train_split(timestep_batches, args.train_fraction)
     timestep_batches_reordered = _reorder_batches(timestep_batches, args.train_fraction)
     data_batches = [
@@ -157,12 +172,9 @@ def _save_grid_spec(ds, gcs_output_data_dir):
     grid = ds.isel({INIT_TIME_DIM: 0})[
         ["area", VAR_LAT_OUTER, VAR_LON_OUTER, VAR_LAT_CENTER, VAR_LON_CENTER]
     ]
-    _write_remote_train_zarr(
-        grid, gcs_output_data_dir, zarr_name="grid_spec.zarr"
-    )
+    _write_remote_train_zarr(grid, gcs_output_data_dir, zarr_name="grid_spec.zarr")
     logger.info(
-        f"Wrote grid spec to "
-        f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
+        f"Wrote grid spec to " f"{os.path.join(gcs_output_data_dir, 'grid_spec.zarr')}"
     )
     return
 
@@ -209,12 +221,8 @@ def _test_train_split(timestep_batches, train_frac):
         logger.warning("Train fraction provided > 1. Will set to 1.")
     num_train_batches = int(len(timestep_batches) * train_frac)
     labels = {
-        "train": [
-            timesteps[0] for timesteps in timestep_batches[:num_train_batches]
-        ],
-        "test": [
-            timesteps[0] for timesteps in timestep_batches[num_train_batches:]
-        ],
+        "train": [timesteps[0] for timesteps in timestep_batches[:num_train_batches]],
+        "test": [timesteps[0] for timesteps in timestep_batches[num_train_batches:]],
     }
     return labels
 
@@ -232,10 +240,11 @@ def _open_cloud_data(ds):
     """
     logger.info(f"Using timesteps for batch: {ds[INIT_TIME_DIM].values}.")
     init_datetime_coords = [
-        parse_datetime_from_str(init_time) for init_time in ds[INIT_TIME_DIM].values]
-    ds = ds \
-        .sel({FORECAST_TIME_DIM: slice(-2, None), STEP_TIME_DIM: COORD_END_STEP}) \
-        .assign_coords({INIT_TIME_DIM: init_datetime_coords})
+        parse_datetime_from_str(init_time) for init_time in ds[INIT_TIME_DIM].values
+    ]
+    ds = ds.sel(
+        {FORECAST_TIME_DIM: slice(-2, None), STEP_TIME_DIM: COORD_END_STEP}
+    ).assign_coords({INIT_TIME_DIM: init_datetime_coords})
     return ds
 
 
@@ -249,10 +258,18 @@ def _create_train_cols(ds):
         xarray dataset with variables in RESTART_VARS + TARGET_VARS + GRID_VARS
     """
     try:
-        ds[VAR_Q_U_WIND_ML] = apparent_source(ds[VAR_X_WIND], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM)
-        ds[VAR_Q_V_WIND_ML] = apparent_source(ds[VAR_X_WIND], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM)
-        ds[VAR_Q_HEATING_ML] = apparent_source(ds[VAR_TEMP], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM)
-        ds[VAR_Q_MOISTENING_ML] = apparent_source(ds[VAR_SPHUM], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM)
+        ds[VAR_Q_U_WIND_ML] = apparent_source(
+            ds[VAR_X_WIND], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM
+        )
+        ds[VAR_Q_V_WIND_ML] = apparent_source(
+            ds[VAR_X_WIND], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM
+        )
+        ds[VAR_Q_HEATING_ML] = apparent_source(
+            ds[VAR_TEMP], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM
+        )
+        ds[VAR_Q_MOISTENING_ML] = apparent_source(
+            ds[VAR_SPHUM], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM
+        )
         ds = (
             ds[ONE_STEP_VARS + TARGET_VARS]
             .isel(
@@ -317,3 +334,49 @@ def _filter_timestep(path):
         return True
     except ValueError:
         return False
+
+
+def _use_var_names_from_file(var_names_yaml, suffix_hires, suffix_coarse_train):
+    with open(var_names_yaml, "r") as stream:
+        try:
+            var_names = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            raise ValueError(f"Bad yaml config: {exc}")
+    global INIT_TIME_DIM, FORECAST_TIME_DIM, STEP_TIME_DIM, COORD_END_STEP
+    INIT_TIME_DIM = var_names["initial_time_dim"]
+    FORECAST_TIME_DIM = var_names["forecast_time_dim"]
+    STEP_TIME_DIM = var_names["step_time_dim"]
+    COORD_END_STEP = var_names["end_step_coord"]
+
+    global COORD_X_CENTER, COORD_Y_CENTER, COORD_Z_CENTER, RENAMED_DIMS
+    COORD_X_CENTER = var_names["x_coord"]
+    COORD_Y_CENTER = var_names["y_coord"]
+    COORD_Z_CENTER = var_names["z_coord"]
+    RENAMED_DIMS = var_names["grid_dim_renaming"]
+
+    global VAR_X_WIND, VAR_Y_WIND, VAR_TEMP, VAR_SPHUM
+    VAR_X_WIND = var_names["x_wind_var"]
+    VAR_Y_WIND = var_names["y_wind_var"]
+    VAR_TEMP = var_names["temperature_var"]
+    VAR_SPHUM = var_names["specific_humidity_var"]
+
+    global RADIATION_VARS, ONE_STEP_VARS
+    RADIATION_VARS = var_names["radiation_variables"]
+    ONE_STEP_VARS = var_names["one_step_data_variables"] + [
+        VAR_X_WIND,
+        VAR_Y_WIND,
+        VAR_TEMP,
+        VAR_SPHUM,
+    ]
+
+    global RENAMED_HIGH_RES_VARS, RENAMED_ONE_STEP_VARS
+    RENAMED_HIGH_RES_VARS = {
+        **{f"{var}_coarse": f"{var}_{suffix_hires}" for var in RADIATION_VARS},
+        **{
+            "LHTFLsfc_coarse": f"latent_heat_flux_{suffix_hires}",
+            "SHTFLsfc_coarse": f"sensible_heat_flux_{suffix_hires}",
+        },
+    }
+    RENAMED_ONE_STEP_VARS = {
+        var: f"{var}_{suffix_coarse_train}" for var in RADIATION_VARS
+    }

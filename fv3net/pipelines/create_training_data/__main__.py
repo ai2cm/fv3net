@@ -38,7 +38,11 @@ if __name__ == "__main__":
         "Output zarr files will be saved in either 'train' or 'test' subdir of "
         "gcs-output-data-dir",
     )
+    parser.add_argument(
+        "--var-names-yaml",
+        type=str,
+        default=None,
+        help="optional yaml for providing data variable names",
+    )
     args, pipeline_args = parser.parse_known_args()
-    print(args)
-    """Main function"""
     run(args=args, pipeline_args=pipeline_args)

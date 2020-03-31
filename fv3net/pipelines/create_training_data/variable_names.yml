@@ -1,8 +1,24 @@
+
 initial_time_dim: "initial_time"
 forecast_time_dim: "forecast_time"
 step_time_dim: "step"
+end_step_coord: "after_physics"
+x_coord: "x"   
+y_coord: "y"    
+z_coord: "z"
 
-one_step_data_variables: 
+grid_dim_renaming: 
+  "grid_xt": "x"
+  "grid_yt": "y"
+  "grid_x": "x_interface"
+  "grid_y": "y_interface"
+
+x_wind_var: "x_wind"
+y_wind_var: "y_wind"
+temperature_var: "air_temperature"
+specific_humidity_var: "specific_humidity"
+
+radiation_variables:
   - "DSWRFtoa"
   - "DSWRFsfc"
   - "USWRFtoa"
@@ -10,6 +26,9 @@ one_step_data_variables:
   - "DLWRFsfc"
   - "ULWRFtoa"
   - "ULWRFsfc"
+
+# x/y wind, T, sphum, and radiation vars are also appended to this list
+one_step_data_variables: 
   - "total_precipitation"
   - "surface_temperature"
   - "land_sea_mask"
@@ -22,8 +41,6 @@ one_step_data_variables:
   - "pressure_thickness_of_atmospheric_layer"
   - "specific_humidity"
   - "air_temperature"
-  - "x_wind"
-  - "y_wind"
   
 high_res_data_variables:
   - "DSWRFtoa_coarse"
