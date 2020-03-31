@@ -89,13 +89,18 @@ def test_solar_time():
 
 def test_apparent_source():
     coords = {
-        "initial_time":[cftime.DatetimeJulian(2016, 8, 1, 0, 15, 0), cftime.DatetimeJulian(2016, 8, 1, 0, 30, 0)], 
-        "forecast_time": [0., 60.],
+        "initial_time": [
+            cftime.DatetimeJulian(2016, 8, 1, 0, 15, 0),
+            cftime.DatetimeJulian(2016, 8, 1, 0, 30, 0),
+        ],
+        "forecast_time": [0.0, 60.0],
         "x": [1],
-        "y": [1]}
+        "y": [1],
+    }
     T = xr.DataArray(
-      [[[[1, 2], [3,5]]]], dims=["x", "y", "initial_time", "forecast_time", ], coords=coords
+        [[[[1, 2], [3, 5]]]],
+        dims=["x", "y", "initial_time", "forecast_time"],
+        coords=coords,
     )
     Q1 = apparent_source(T, t_dim="initial_time", s_dim="forecast_time")
-    assert Q1 == (2. / (15 * 60)) - (1. / 60)
-    
+    assert Q1 == (2.0 / (15 * 60)) - (1.0 / 60)

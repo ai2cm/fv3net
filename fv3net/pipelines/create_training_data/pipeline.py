@@ -248,7 +248,7 @@ def _open_cloud_data(ds):
     return ds
 
 
-def _create_train_cols(ds):
+def _create_train_cols(ds, cols_to_keep=ONE_STEP_VARS + TARGET_VARS):
     """
 
     Args:
@@ -271,7 +271,7 @@ def _create_train_cols(ds):
             ds[VAR_SPHUM], t_dim=INIT_TIME_DIM, s_dim=FORECAST_TIME_DIM
         )
         ds = (
-            ds[ONE_STEP_VARS + TARGET_VARS]
+            ds[cols_to_keep]
             .isel(
                 {
                     INIT_TIME_DIM: slice(None, ds.sizes[INIT_TIME_DIM] - 1),
