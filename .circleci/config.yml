@@ -101,6 +101,7 @@ jobs:
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
     steps:
+      - checkout
       - run:
           name: Setup firewall rule
           command: |
@@ -129,7 +130,7 @@ jobs:
             kubectl config set-cluster $kube_cluster_name --certificate-authority="./proxy.crt"
       - run:
           name: Submit integration tests
-          command: kubectl get pods --all-namespaces
+          command: kubectl apply -f tests/end_to_end_integration/submit_e2e_job.yml
       - run:
           name: Firewall rule deletion
           when: always
