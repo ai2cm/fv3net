@@ -12,7 +12,7 @@ python -m fv3net.pipelines.restarts_to_zarr  \
     --num_workers $NUM_WORKERS \
     --autoscaling_algorithm=NONE \
     --worker_machine_type n1-standard-1 \
-    --disk_size_gb 20 \
+    --disk_size_gb 30 \
     --n-steps 50  \
     --url gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files \
-    --output gs://vcm-ml-data/testing-noah/big1.zarr
+    --output gs://vcm-ml-data/testing-noah/big2.zarr
