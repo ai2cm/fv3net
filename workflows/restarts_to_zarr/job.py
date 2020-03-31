@@ -4,7 +4,7 @@ from itertools import product
 import tracemalloc
 from typing import Callable, Tuple
 import argparse
-from collections import deque
+from collections import deque, defaultdict
 
 import fsspec
 import xarray as xr
@@ -35,6 +35,23 @@ CATEGORIES = (
     "fv_tracer_coarse.res",
     "fv_core_coarse.res",
 )
+
+
+def map_robustly(fn, items, retries=3):
+    count = defaultdict(lambda: 0)
+    items = deque(items)
+    while len(items) > 0:
+        item = items.popleft()
+        try:
+            fn(item)
+        except Exception as e:
+            if count[item] < retries:
+                logging.exception(f"Exception raised for {item}...recomputing.", e)
+                items.append(item)
+                count[item] += 1
+            else:
+                logging.exception(f"{item}...failed {retries} times.", e)
+                raise e
 
 
 def _file(url: str, time: str, category: str, tile: int) -> str:
@@ -131,16 +148,7 @@ if __name__ == "__main__":
     map_fn = curry(insert_timestep, args.output, load_timestep)
 
     logging.info("Mapping job")
-    items = deque(product(times, categories, tiles))
-    while len(items) > 0:
-        item = items.popleft()
-        try:
-            map_fn(item)
-        except Exception as e:
-            logging.exception(f"Exception raised for {item}", e)
-            logging.info("Reappending to list")
-            items.append(item)
-
+    map_robustly(map_fn, product(times, categories, tiles))
     # wait for all results to complete
     # client.gather(results)
     logging.info("Job completed succesfully!")
