@@ -9,7 +9,7 @@ jobs:
           username: _json_key
           password: $DECODED_GOOGLE_CREDENTIALS
         environment:
-          GOOGLE_APPLICATION_CREDENTIALS=key.json
+          GOOGLE_APPLICATION_CREDENTIALS: key.json
     steps:
       - checkout
       - run:
@@ -130,7 +130,7 @@ jobs:
             kubectl config set-cluster $kube_cluster_name --certificate-authority="./proxy.crt"
       - run:
           name: Submit integration tests
-          command: kubectl apply -f tests/end_to_end_integration/submit_e2e_job.yml
+          command: kubectl apply -f tests/end_to_end_integration/submit_e2e_job_k8s.yml
       - run:
           name: Firewall rule deletion
           when: always
