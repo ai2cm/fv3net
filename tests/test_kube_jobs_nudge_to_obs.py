@@ -1,49 +1,73 @@
 import pytest
-import os
-import pathlib
-import tempfile
-import shutil
+from datetime import datetime
 
-from fv3net.pipelines.kube_jobs import one_step
+from fv3net.pipelines.kube_jobs import nudge_to_obs
 
-PWD = pathlib.Path(os.path.abspath(__file__)).parent
-TEST_DATA_DIR = os.path.join(PWD, "one_step_test_logs")
-TIMESTEP = "20160801.001500"
-
-
-@pytest.fixture
-def timestep_dir():
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tstep_dir = os.path.join(tmpdir, TIMESTEP)
-        os.makedirs(tstep_dir)
-
-        yield tstep_dir
-
-
-@pytest.fixture
-def run_dir(timestep_dir):
-
-    yield str(pathlib.Path(timestep_dir).parent)
-
-
-def test_runs_complete_no_logfile(run_dir):
-
-    # no logfile copied in so should be empty
-    complete_timesteps = one_step.check_runs_complete(run_dir)
-    assert not complete_timesteps
+HOURS_IN_DAY = 24
+NUDGE_FILES_PER_DAY = HOURS_IN_DAY / nudge_to_obs.NUDGE_INTERVAL
 
 
 @pytest.mark.parametrize(
-    "logfile, expected",
-    [("stdout_unfinished.log", set()), ("stdout_finished.log", set([TIMESTEP]))],
+    "current_date, expected_datetime",
+    [
+        ([2016, 1, 1, 0, 0, 0], datetime(2016, 1, 1)),
+        ([2016, 1, 1, 1, 0, 0], datetime(2016, 1, 1, 1)),
+        ([2016, 1, 1, 7, 2, 0], datetime(2016, 1, 1, 7, 2)),
+        ([2016, 1, 1, 12, 3, 10], datetime(2016, 1, 1, 12, 3, 10)),
+    ],
 )
-def test_runs_complete_with_logfile(run_dir, timestep_dir, logfile, expected):
+def test__datetime_from_current_date(current_date, expected_datetime):
+    assert nudge_to_obs._datetime_from_current_date(current_date) == expected_datetime
 
-    shutil.copy(
-        os.path.join(TEST_DATA_DIR, logfile),
-        os.path.join(timestep_dir, one_step.STDOUT_FILENAME),
-    )
 
-    complete_timesteps = one_step.check_runs_complete(run_dir)
-    assert complete_timesteps == expected
+@pytest.mark.parametrize(
+    "start_time, expected",
+    [
+        (datetime(2016, 1, 1), datetime(2016, 1, 1, 0)),
+        (datetime(2016, 1, 1, 1), datetime(2016, 1, 1, 0)),
+        (datetime(2016, 1, 1, 7), datetime(2016, 1, 1, 6)),
+        (datetime(2016, 1, 1, 12), datetime(2016, 1, 1, 12)),
+        (datetime(2016, 1, 2, 18, 1), datetime(2016, 1, 2, 18)),
+    ],
+)
+def test__get_first_nudge_file_time(start_time, expected):
+    assert nudge_to_obs._get_first_nudge_time(start_time) == expected
+
+
+@pytest.mark.parametrize(
+    "coupler_nml, expected_list_length, expected_first_datetime, expected_last_datetime",
+    [
+        (
+            {"current_date": [2016, 1, 1, 0, 0, 0], "days": 1},
+            4 + 1,
+            datetime(2016, 1, 1),
+            datetime(2016, 1, 2),
+        ),
+        (
+            {"current_date": [2016, 1, 1, 0, 0, 0], "days": 1, "hours": 5},
+            4 + 1 + 1,
+            datetime(2016, 1, 1),
+            datetime(2016, 1, 2, 6),
+        ),
+        (
+            {"current_date": [2016, 1, 1, 0, 0, 0], "days": 1, "hours": 7},
+            4 + 2 + 1,
+            datetime(2016, 1, 1),
+            datetime(2016, 1, 2, 12),
+        ),
+        (
+            {"current_date": [2016, 1, 2, 1, 0, 0], "days": 1},
+            4 + 2,
+            datetime(2016, 1, 2),
+            datetime(2016, 1, 3, 6),
+        ),
+    ],
+)
+def test__get_nudge_time_list(
+    coupler_nml, expected_list_length, expected_first_datetime, expected_last_datetime
+):
+    config = {"namelist": {"coupler_nml": coupler_nml}}
+    nudge_file_list = nudge_to_obs._get_nudge_time_list(config)
+    assert len(nudge_file_list) == expected_list_length
+    assert nudge_file_list[0] == expected_first_datetime
+    assert nudge_file_list[-1] == expected_last_datetime
