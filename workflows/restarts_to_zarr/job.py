@@ -1,8 +1,10 @@
 import logging
 import os
 from itertools import product
+import tracemalloc
 from typing import Callable, Tuple
 import argparse
+from collections import deque
 
 import fsspec
 import xarray as xr
@@ -11,7 +13,6 @@ from distributed import Client
 from toolz import curry
 
 from distributed import Client
-from dask_kubernetes import KubeCluster
 from gcs_aio_mapper import GCSMapperAio
 
 
@@ -21,8 +22,10 @@ from fv3net.pipelines import list_timesteps
 DIR = os.path.dirname(__file__)
 WORKER_YAML = os.path.join(DIR, "worker-spec.yml")
 
+tracemalloc.start()
+
 def setup(*args):
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
 setup()
 
@@ -58,7 +61,7 @@ def insert_timestep(
     data = get(time, category, tile)
     logging.info(f"Setting data at {time} for {category} tile {tile}")
     output[time, tile] = data
-    output.flush()
+    # output.flush()
 
 def get_schema(fs: fsspec.AbstractFileSystem, url: str) -> xr.Dataset:
     logging.info(f"Grabbing schema from {url}")
@@ -91,14 +94,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     logging.info("Building dask cluster and client")
-    cluster = KubeCluster.from_yaml(WORKER_YAML)
-    cluster.scale_up(args.workers)  # specify number of nodes explicitly
-    client = Client(cluster)
+    # cluster = KubeCluster.from_yaml(WORKER_YAML)
+    # cluster.scale_up(args.workers)  # specify number of nodes explicitly
+    # client = Client(cluster)
     # client = Client()
-    client.register_worker_callbacks(setup)
-    logging.info("testing client function call")
-    res = client.submit(test_call)
-    logging.info(res.result())
+    # client.register_worker_callbacks(setup)
+    # logging.info("testing client function call")
+    # res = client.submit(test_call)
+    # logging.info(res.result())
 
     # TODO Parameterize these settings
     times = list_timesteps(args.url)
@@ -123,13 +126,21 @@ if __name__ == "__main__":
     output_m = vcm.ZarrMapping.from_schema(
         store, schema, dims=["time", "tile"], coords={"tile": tiles, "time": times}
     )
-    store.flush()
 
     load_timestep = curry(get_timestep, fs, args.url)
     map_fn = curry(insert_timestep, args.output, load_timestep)
 
     logging.info("Mapping job")
-    results = client.map(map_fn, list(product(times, categories, tiles)))
+    items = deque(product(times, categories, tiles))
+    while len(items) > 0:
+        item = items.popleft()
+        try:
+            map_fn(item)
+        except Exception as e:
+            logging.exception(f"Exception raised for {item}", e)
+            logging.info("Reappending to list")
+            items.append(item)
+
     # wait for all results to complete
-    client.gather(results)
+    # client.gather(results)
     logging.info("Job completed succesfully!")
