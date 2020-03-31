@@ -24,7 +24,7 @@ def precipitable_water(sphum, delp):
 
 
 def total_heat(T, delp):
-    total_heat =  SPECIFIC_HEAT_CONST_PRESSURE*(delp/GRAVITY)*T.sum("z")
+    total_heat = (SPECIFIC_HEAT_CONST_PRESSURE*(delp/GRAVITY)*T).sum("z")
     total_heat = total_heat.assign_attrs({'long_name' : "column integrated heat", "units": "J/m**2"})
     return total_heat
 

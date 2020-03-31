@@ -23,8 +23,7 @@ VARS_FOR_PLOTS = [
     'specific_humidity',
     'vertical_wind',
     'air_temperature',
-    'pressure_thickness_of_atmospheric_layer',
-    'land_sea_mask'
+    'pressure_thickness_of_atmospheric_layer'
 ]
 VAR_TYPE_DIM = 'var_type'
 
@@ -214,6 +213,21 @@ def insert_abs_vars(ds: xr.Dataset, varnames: Sequence) -> xr.Dataset:
     return ds
 
 
+def insert_variable_at_model_level(ds: xr.Dataset, varnames: list, level: int):
+    
+    for var in varnames:
+        if var in ds:
+            new_name = f"{var}_level_{level}"
+            ds = ds.assign({new_name: ds[var].sel({"z": level})})
+            ds[new_name].attrs.update({
+                'long_name': f"{var} at model level {level}",
+            })
+        else:
+            raise ValueError('Invalid variable for model level selection.')
+    
+    return ds
+
+
 def make_init_time_dim_intelligible(ds: xr.Dataset):
     
     ds = ds.assign_coords({
@@ -267,4 +281,17 @@ def insert_weighted_mean_vars(
         raise ValueError('Only "land_sea_mask" is suppored as a mask.')
             
     return ds
+
+
+def reduce_init_dim(ds: xr.Dataset, init_dim: str = INIT_TIME_DIM):
+    
+    for var in ds:
+        if init_dim in ds[var].dims:
+            ds = ds.assign({f"{var}_std": ds[var].std(dim = init_dim, keep_attrs=True)})
+    ds_mean = ds.mean(dim=INIT_TIME_DIM, keep_attrs=True)
+#     print(ds_mean)
+#     ds_mean = ds_mean.drop(labels=init_dim)
+#     ds_mean = ds_mean.squeeze()
+    
+    return ds_mean
                                            

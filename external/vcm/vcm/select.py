@@ -35,8 +35,7 @@ def mask_to_surface_type(
         warnings.warn("surface_type provided as None: no mask applied.")
         return ds
     elif surface_type not in enumeration:
-        raise ValueError("Must mask to surface_type in ['sea', 'land', 'seaice'].")
-#     print(ds)
+        raise ValueError("Must mask to surface_type in enumeration.")
     mask = ds[surface_type_varname].astype(int) == enumeration[surface_type]
     ds_masked = ds.where(mask)
     return ds_masked
