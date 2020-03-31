@@ -3,6 +3,7 @@ import tempfile
 import pathlib
 import os
 import re
+from typing import Iterable
 from fv3net.pipelines.common import (
     list_timesteps,
     get_alphanumeric_unique_tag,
@@ -42,6 +43,12 @@ def test_timestep_lister_sorted(timestep_dir):
     timesteps_found = list_timesteps(tmpdir)
     for i, ref_timestep in enumerate(timesteps):
         assert timesteps_found[i] == ref_timestep
+
+
+def test_timestep_lister_nonexistent_dir():
+    
+    res = list_timesteps("/nonexistent/directory/")
+    assert not res and isinstance(res, Iterable)
 
 
 def test_alphanumeric_unique_tag_length():
