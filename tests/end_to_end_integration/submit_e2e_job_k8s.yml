@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
       - command: [workflows/end_to_end/submit_workflow.sh, tests/end_to_end_integration/end_to_end_integration.yml]
-        image: us.gcr.io/vcm-ml/fv3net:latest
+        image: us.gcr.io/vcm-ml/fv3net:test_integration
         imagePullPolicy: Always
         env:
         - name: GOOGLE_APPLICATION_CREDENTIALS
