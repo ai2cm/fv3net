@@ -26,7 +26,7 @@ if __name__ == "__main__":
     parser.add_argument("--url", help="root directory of time steps")
     parser.add_argument("--output", help="Location of output zarr")
     parser.add_argument("-s", "--n-steps", default=-1, type=int)
-    parser.add_argument("--init", action="store_true")
+    parser.add_argument("--no-init", action="store_true")
     args, pipeline_args = parser.parse_known_args()
 
     times = list_timesteps(args.url)
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     tiles = [1, 2, 3, 4, 5, 6]
 
     # get schema for first timestep
-    if args.init:
+    if not args.no_init:
         logging.info("Getting the schema")
         time: str = times[0]
         schema = xr.merge(
