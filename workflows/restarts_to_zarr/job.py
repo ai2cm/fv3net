@@ -76,7 +76,7 @@ def _call_me():
 def _get_store(output: str):
     if output.startswith("gs://"):
         # use asynchronous GCSMapper class that I wrote with my free time -- Noah
-        return GCSMapperAio(output, cache_size=100)
+        return GCSMapperAio(output, cache_size=10)
     else:
         return fsspec.get_mapper(output)
 
