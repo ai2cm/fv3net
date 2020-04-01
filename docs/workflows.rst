@@ -24,7 +24,9 @@ The workflows in this project are described by the following graph.
    }
 
 
-.. toctree:
-   :members:
-
-   readme_links/*
+.. toctree::
+    :caption: List of Workflows:
+    :maxdepth: 1
+    :glob:
+    
+    readme_links/*

@@ -16,10 +16,13 @@ help:
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-%: Makefile workflows_base.rst
+%: Makefile links
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-workflows_base.rst:
+links: clean
 	python link_readmes.py
 
-.PHONY: workflows_base.rst
+clean:
+	rm -f readme_links/*.rst readme_links/.*.rst
+
+.PHONY: links clean
