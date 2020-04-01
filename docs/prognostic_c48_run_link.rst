@@ -1,1 +1,0 @@
-.. mdinclude:: ../workflows/prognostic_c48_run/README.md

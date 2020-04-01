@@ -1,1 +1,0 @@
-.. mdinclude:: ../workflows/prognostic_run_diags/README.md

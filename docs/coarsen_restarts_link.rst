@@ -1,1 +1,0 @@
-.. mdinclude:: ../workflows/coarsen_restarts/README.md

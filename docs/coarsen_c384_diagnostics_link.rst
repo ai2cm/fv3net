@@ -1,1 +1,0 @@
-.. mdinclude:: ../workflows/coarsen_c384_diagnostics/README.md

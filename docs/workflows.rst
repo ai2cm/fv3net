@@ -23,27 +23,8 @@ The workflows in this project are described by the following graph.
       "prognostic run" -> "prognostic run diagnostics";
    }
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Active Workflows:
 
-   coarsen_c384_diagnostics_link
-   nudging_link
-   end_to_end_link
-   prognostic_c48_run_link
-   one_step_jobs_link
-   diagnostics_to_zarr_link
-   fregrid_cube_netcdfs_link
-   single_fv3gfs_run_link
-   prognostic_run_diags_link
-   coarsen_3072_surface_diagnostics_link
-   coarsen_restarts_link
-   sklearn_regression_link
+.. toctree:
+   :members:
 
-   
-.. toctree::
-   :maxdepth: 1
-   :caption: Defunct Workflows:
-
-   scale-snakemake_link
-   extract_tars_link
+   readme_links/*

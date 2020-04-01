@@ -37,7 +37,6 @@ release = "0.1.0"
 extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
-    "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
     "sphinx.ext.graphviz",
     "m2r",

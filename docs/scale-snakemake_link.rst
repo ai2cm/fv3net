@@ -1,1 +1,0 @@
-.. mdinclude:: ../workflows/scale-snakemake/README.md
