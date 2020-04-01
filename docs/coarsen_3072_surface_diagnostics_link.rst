@@ -1,0 +1,1 @@
+.. mdinclude:: ../workflows/coarsen_3072_surface_diagnostics/README.md

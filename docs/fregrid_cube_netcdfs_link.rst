@@ -1,0 +1,1 @@
+.. mdinclude:: ../workflows/fregrid_cube_netcdfs/README.md

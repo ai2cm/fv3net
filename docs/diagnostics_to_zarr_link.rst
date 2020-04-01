@@ -1,0 +1,1 @@
+.. mdinclude:: ../workflows/diagnostics_to_zarr/README.md
