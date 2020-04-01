@@ -6,7 +6,6 @@ import shutil
 import xarray as xr
 
 from . import helpers
-from . import names
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
 from vcm.cloud.fsspec import get_fs
@@ -16,10 +15,11 @@ from fv3net import COARSENED_DIAGS_ZARR_NAME
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+TIME_FMT = "%Y%m%d.%H%M%S"
 GRID_SPEC_FILENAME = "grid_spec.zarr"
 
 # forecast time step used to calculate the FV3 run tendency
-FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 14
+FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
 # forecast time step used to calculate the high res tendency
 FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
 
@@ -59,26 +59,29 @@ def run(args, pipeline_args, names):
                 cols_to_keep=names["one_step_vars"] + names["target_vars"],
                 init_time_dim=names["init_time_dim"],
                 step_time_dim=names["step_time_dim"],
-                forecast_time_dim=names["forecast_time_dim'"],
+                forecast_time_dim=names["forecast_time_dim"],
                 coord_begin_step=names["coord_begin_step"],
                 var_source_name_map=names["var_source_name_map"],
                 forecast_timestep_for_onestep=FORECAST_TIME_INDEX_FOR_C48_TENDENCY,
                 forecast_timestep_for_highres=FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY,
+                radiation_vars=names["radiation_vars"],
+                suffix_coarse_train=names["suffix_coarse_train"],
             )
             | "MergeHiresDiagVars"
             >> beam.Map(
                 _merge_hires_data,
                 diag_c48_path=args.diag_c48_path,
                 coarsened_diags_zarr_name=COARSENED_DIAGS_ZARR_NAME,
-                renamed_high_res_vars=names["renamed_high_res_vars"],
+                radiation_vars=names["radiation_vars"],
+                suffix_hires=names["suffix_hires"],
                 init_time_dim=names["init_time_dim"],
             )
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
+                chunk_sizes=chunk_sizes,
                 gcs_output_dir=args.gcs_output_data_dir,
                 train_test_labels=train_test_labels,
-                chunk_sizes=chunk_sizes,
             )
         )
 
@@ -209,31 +212,21 @@ def _test_train_split(timestep_batches, train_frac):
         logger.warning("Train fraction provided > 1. Will set to 1.")
     num_train_batches = int(len(timestep_batches) * train_frac)
     labels = {
-        "train": [timesteps[0] for timesteps in timestep_batches[:num_train_batches]],
-        "test": [timesteps[0] for timesteps in timestep_batches[num_train_batches:]],
+        "train": [
+            timesteps[0].strftime(TIME_FMT)
+            for timesteps in timestep_batches[:num_train_batches]
+        ],
+        "test": [
+            timesteps[0].strftime(TIME_FMT)
+            for timesteps in timestep_batches[num_train_batches:]
+        ],
     }
     return labels
 
 
-def _open_cloud_data(ds, forecast_time_dim, step_time_dim, coord_begin_step):
-    """Selects forecast time dimension
-
-    Args:
-        fs: GCSFileSystem
-        run_dirs: list of GCS urls to open
-
-    Returns:
-        xarray dataset of concatenated zarrs in url list
-    """
-    logger.info(f"Using timesteps for batch: {ds[names.init_time_dim].values}.")
-    ds = ds.isel({forecast_time_dim: [0, -2, -1]}).sel(
-        {step_time_dim: coord_begin_step}
-    )
-    return ds
-
-
 def _create_train_cols(
     ds,
+    cols_to_keep,
     forecast_timestep_for_onestep,
     forecast_timestep_for_highres,
     init_time_dim,
@@ -241,7 +234,8 @@ def _create_train_cols(
     step_time_dim,
     coord_begin_step,
     var_source_name_map,
-    cols_to_keep=names["one_step_vars"] + names["target_vars"],
+    radiation_vars,
+    suffix_coarse_train,
 ):
     """ Calculate apparent sources for target variables and keep feature vars
     
@@ -263,9 +257,12 @@ def _create_train_cols(
     Returns:
         xarray dataset containing feature and target data variables
     """
-
+    renamed_one_step_vars = {
+        var: f"{var}_{suffix_coarse_train}" for var in radiation_vars
+    }
     try:
-        ds = ds.sel({step_time_dim: coord_begin_step})
+        ds = ds.sel({step_time_dim: coord_begin_step}).rename(renamed_one_step_vars)
+        ds = helpers.convert_forecast_time_to_timedelta(ds, forecast_time_dim)
         for var_name, source_name in var_source_name_map.items():
             ds[source_name] = apparent_source(
                 ds[var_name],
@@ -293,9 +290,15 @@ def _merge_hires_data(
     ds_run,
     diag_c48_path,
     coarsened_diags_zarr_name,
-    renamed_high_res_vars,
+    radiation_vars,
+    suffix_hires,
     init_time_dim,
 ):
+    renamed_high_res_vars = {
+        **{f"{var}_coarse": f"{var}_{suffix_hires}" for var in radiation_vars},
+        "LHTFLsfc_coarse": f"latent_heat_flux_{suffix_hires}",
+        "SHTFLsfc_coarse": f"sensible_heat_flux_{suffix_hires}",
+    }
     if not diag_c48_path:
         return ds_run
     try:
@@ -311,7 +314,7 @@ def _merge_hires_data(
 
 
 def _write_remote_train_zarr(
-    ds, gcs_output_dir, chunk_sizes, zarr_name=None, train_test_labels=None
+    ds, gcs_output_dir, zarr_name=None, train_test_labels=None, chunk_sizes=None
 ):
     """Writes temporary zarr on worker and moves it to GCS
 

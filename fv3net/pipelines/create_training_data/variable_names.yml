@@ -3,6 +3,18 @@
 suffix_hires: "prog"
 suffix_coarse_train: "train"
 
+target_vars:
+  - "dQU"
+  - "dQV"
+  - "dQ1"
+  - "dQ2"
+
+var_source_name_map:
+    "x_wind": "dQU"
+    "y_wind": "dQV"
+    "air_temperature": "dQ1"
+    "specific_humidity": "dQ2"      
+
 init_time_dim: "initial_time"
 forecast_time_dim: "forecast_time"
 step_time_dim: "step"
@@ -35,7 +47,7 @@ var_y_wind: "y_wind"
 var_temp: "air_temperature"
 var_sphum: "specific_humidity"
 
-radiation_variables:
+radiation_vars:
   - "DSWRFtoa"
   - "DSWRFsfc"
   - "USWRFtoa"
@@ -45,7 +57,7 @@ radiation_variables:
   - "ULWRFsfc"
 
 # x/y wind, T, sphum, and radiation vars are also appended to this list
-one_step_data_variables: 
+one_step_vars: 
   - "total_precipitation"
   - "surface_temperature"
   - "land_sea_mask"
@@ -58,6 +70,13 @@ one_step_data_variables:
   - "pressure_thickness_of_atmospheric_layer"
   - "specific_humidity"
   - "air_temperature"
+  - "DSWRFtoa_train"
+  - "DSWRFsfc_train"
+  - "USWRFtoa_train"
+  - "USWRFsfc_train"
+  - "DLWRFsfc_train"
+  - "ULWRFtoa_train"
+  - "ULWRFsfc_train"
   
 high_res_data_variables:
   - "DSWRFtoa_coarse"
@@ -70,8 +89,3 @@ high_res_data_variables:
   - "SHTFLsfc"
   - "LHTFLsfc"
 
-  var_source_name_map:
-    var_x_wind: "dQU"
-    var_y_wind: "dQV"
-    var_temp: "dQ1"
-    var_sphum: "dQ2"    

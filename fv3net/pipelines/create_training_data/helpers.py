@@ -19,6 +19,11 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
+def convert_forecast_time_to_timedelta(ds, forecast_time_dim):
+    timedelta_coords = ds[forecast_time_dim].astype("timedelta64[ns]")
+    return ds.assign_coords({forecast_time_dim: timedelta_coords})
+
+
 def _path_from_first_timestep(ds, train_test_labels=None):
     """ Uses first init time as zarr filename, and appends a 'train'/'test' subdir
     if a dict of labels is provided
@@ -51,6 +56,16 @@ def _path_from_first_timestep(ds, train_test_labels=None):
         )
         train_test_subdir = ""
     return os.path.join(train_test_subdir, timestep + ".zarr")
+
+
+def _set_relative_forecast_time_coord(ds):
+    delta_t_forecast = (
+        ds[FORECAST_TIME_DIM].values[-1] - ds[FORECAST_TIME_DIM].values[-2]
+    )
+    ds.reset_index([FORECAST_TIME_DIM], drop=True)
+    return ds.assign_coords(
+        {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]}
+    )
 
 
 def load_hires_prog_diag(diag_data_path, init_times):
