@@ -3,6 +3,7 @@ Utilities for coarse-graining restart data and directories
 """
 import logging
 from os.path import join
+from typing import Tuple
 
 import dask.bag as db
 import numpy as np
@@ -10,6 +11,31 @@ import pandas as pd
 import xarray as xr
 from toolz import curry
 
+# TODO remove these imports
+from vcm.cubedsphere.constants import (
+    COORD_X_CENTER,
+    COORD_X_OUTER,
+    COORD_Y_CENTER,
+    COORD_Y_OUTER,
+    FV_CORE_X_CENTER,
+    FV_CORE_X_OUTER,
+    FV_CORE_Y_CENTER,
+    FV_CORE_Y_OUTER,
+    FV_SRF_WND_X_CENTER,
+    FV_SRF_WND_Y_CENTER,
+    FV_TRACER_X_CENTER,
+    FV_TRACER_Y_CENTER,
+    RESTART_Z_CENTER,
+    SFC_DATA_X_CENTER,
+    SFC_DATA_Y_CENTER,
+    TILE_COORDS_FILENAMES,
+    COORD_Z_CENTER,
+    COORD_Z_SOIL,
+    COORD_Z_OUTER,
+    RESTART_Z_CENTER
+)
+
+from .fv3_restarts import split_into_restart_categories, RestartCategories
 from .complex_sfc_data_coarsening import coarse_grain_sfc_data_complex
 from .cubedsphere import (
     block_coarsen,
@@ -22,23 +48,7 @@ from .cubedsphere import (
     weighted_block_average,
 )
 from .calc.thermo import hydrostatic_dz, height_at_interface, dz_and_top_to_phis
-from vcm.cubedsphere.constants import (
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    COORD_X_OUTER,
-    COORD_Y_OUTER,
-    FV_CORE_X_CENTER,
-    FV_CORE_Y_CENTER,
-    FV_CORE_X_OUTER,
-    FV_CORE_Y_OUTER,
-    SFC_DATA_X_CENTER,
-    SFC_DATA_Y_CENTER,
-    FV_SRF_WND_X_CENTER,
-    FV_SRF_WND_Y_CENTER,
-    FV_TRACER_X_CENTER,
-    FV_TRACER_Y_CENTER,
-    RESTART_Z_CENTER,
-)
+
 
 TILES = range(1, 7)
 OUTPUT_CATEGORY_NAMES = {
@@ -629,6 +639,48 @@ def coarsen_restarts_on_sigma(
     for category in CATEGORY_LIST:
         sync_dimension_order(coarsened[category], source[category])
     _save_restart_categories(coarsened, output_data_prefix, data_pattern)
+
+
+def coarsen_restarts_on_pressure_v2(
+    restarts: xr.Dataset, grid_spec: xr.Dataset, coarsening_factor
+) -> xr.Dataset:
+    """ Coarsen a complete set of restart files, averaging on pressure levels and
+    using the 'complex' surface coarsening method
+
+    Args:
+        # TODO finish this docstring
+        restarts:
+        grid_spec:
+        coarsening_factor (int): Amount to coarsen, e.g. 8 for C384 to C48.
+    """
+
+    core, srf_wnd, tracer, sfc = _split_into_restart_categories(restarts)
+    coarsened = {}
+
+    delp = core.delp
+    area = grid_spec.area
+    dx = grid_spec.dx
+    dy = grid_spec.dy
+
+    coarsened["fv_core.res"] = coarse_grain_fv_core_on_pressure(
+        core, delp, area, dx, dy, coarsening_factor,
+    )
+
+    coarsened["fv_srf_wnd.res"] = coarse_grain_fv_srf_wnd(
+        srf_wnd, area, coarsening_factor,
+    )
+
+    coarsened["fv_tracer.res"] = coarse_grain_fv_tracer_on_pressure(
+        tracer, delp, area, coarsening_factor,
+    )
+
+    coarsened["sfc_data"] = coarse_grain_sfc_data_complex(sfc, area, coarsening_factor,)
+
+    coarsened["fv_core.res"] = impose_hydrostatic_balance(
+        coarsened["fv_core.res"], coarsened["fv_tracer.res"]
+    )
+
+    return xr.merge(coarsened)
 
 
 def coarsen_restarts_on_pressure(

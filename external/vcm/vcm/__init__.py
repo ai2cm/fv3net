@@ -5,6 +5,7 @@ from .fv3_restarts import (
     open_restarts,
     open_restarts_with_time_coordinates,
     standardize_metadata,
+    to_restart_netcdfs,
 )
 from .convenience import (
     TOP_LEVEL_DIR,
