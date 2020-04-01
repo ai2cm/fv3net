@@ -153,10 +153,18 @@ def create_zarr_store(
 
 
 def _get_forecast_time(time) -> xr.DataArray:
-    logger.info(f"time before setting to forecast time: {time}")
-    dt = np.asarray(time - time[0]).astype("timedelta64[ns]")
-    logger.info(f"setting to forecast time: {dt}")
-    return xr.DataArray(dt, name="time", dims=["time"], attrs={"units": "ns"})
+    dt = np.asarray(time - time[0])
+    return xr.DataArray(
+        _convert_time_delta_to_float_seconds(dt),
+        name="time",
+        dims=["time"],
+        attrs={"units": "s"},
+    )
+
+
+def _convert_time_delta_to_float_seconds(a):
+    ns_per_s = 1e9
+    return a.astype("timedelta64[ns]").astype(float) / ns_per_s
 
 
 def _merge_monitor_data(paths: Mapping[str, str]) -> xr.Dataset:
