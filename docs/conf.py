@@ -19,6 +19,8 @@ import sys
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath("../external/vcm"))
 
+import fv3net
+
 # -- Project information -----------------------------------------------------
 
 project = "fv3net"
@@ -26,7 +28,7 @@ copyright = u"2019-2020, Vulcan Technologies LLC"
 author = u"Vulcan Technologies LLC"
 
 # The full version, including alpha/beta/rc tags
-release = "0.1.0"
+release = fv3net.__version__
 
 
 # -- General configuration ---------------------------------------------------
