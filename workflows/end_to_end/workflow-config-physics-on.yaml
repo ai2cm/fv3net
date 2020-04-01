@@ -1,0 +1,31 @@
+storage_proto: gs
+storage_root: vcm-ml-data/experiments-2020-03/end_to_end
+experiment:
+  name: physics-on
+  unique_id: True
+  steps_to_run:
+    - one_step_run
+    - baseline_run
+  
+  steps_config:
+    one_step_run:
+      command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
+      args:
+        restart_data:
+          location: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48
+        experiment_yaml: ./workflows/one_step_jobs/all-physics-on.yml
+        docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.1
+        --config-version: v0.3
+        --init-frequency: 3240
+        --n-steps: 4
+
+    baseline_run:
+      command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
+      args:
+        restart_file_dir:
+          from: one_step_run
+        ic_timestep: "20160803.061500"
+        docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.1
+        --prog_config_yml: workflows/prognostic_c48_run/prognostic_config.yml
+
+
