@@ -21,14 +21,18 @@ spec:
         name: integration-test
         resources:
           requests:
-            cpu: 200m
-            memory: 500M
+            cpu: "2"
+            memory: 2G
         volumeMounts:
         - mountPath: /secret/gcp-credentials
           name: gcp-key-secret
           readOnly: true
       restartPolicy: Never
       terminationGracePeriodSeconds: 30
+      tolerations:
+        - key: dedicated
+          effect: NoSchedule
+          value: climate-sim-pool
       volumes:
       - name: gcp-key-secret
         secret:

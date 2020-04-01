@@ -9,13 +9,12 @@ new_job_name=${job_name}-${rand_tag}
 yq w -i submit_e2e_job_k8s.yml metadata.name $new_job_name
 
 # submit job
-kubectl apply -f integration_k8s_jobsubmit_e2e_job_k8s.yml
+kubectl apply -f submit_e2e_job_k8s.yml
 
 # Check for successful job within 30 minutes
-start=$(date -u +%s)
 timeout=$(date -ud "30 minutes" +%s)
 
-while [[ date +%s -le timeout ]]; do
+while [[ $(date +%s) -le $timeout ]]; do
 
     job_active=$(kubectl get job $new_job_name -o json | jq --raw-output .status.active)
     job_succeed=$(kubectl get job $new_job_name -o json | jq --raw-output .status.succeded)
@@ -27,7 +26,7 @@ while [[ date +%s -le timeout ]]; do
         exit 1
     else
         echo Job successful: $new_job_name
-    failed
+    fi
 
 done
 
