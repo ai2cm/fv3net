@@ -1,14 +1,16 @@
-# suffixes that denote whether diagnostic variable is from the coarsened
+# suffixes that denote whether flux variable is from the coarsened
 # high resolution prognostic run or the coarse res one step train data run
 suffix_hires: "prog"
 suffix_coarse_train: "train"
 
+# names of source term target variables
 target_vars:
   - "dQU"
   - "dQV"
   - "dQ1"
   - "dQ2"
 
+# maps data variable to its source term name
 var_source_name_map:
     "x_wind": "dQU"
     "y_wind": "dQV"
@@ -47,16 +49,7 @@ var_y_wind: "y_wind"
 var_temp: "air_temperature"
 var_sphum: "specific_humidity"
 
-radiation_vars:
-  - "DSWRFtoa"
-  - "DSWRFsfc"
-  - "USWRFtoa"
-  - "USWRFsfc"
-  - "DLWRFsfc"
-  - "ULWRFtoa"
-  - "ULWRFsfc"
-
-# x/y wind, T, sphum, and radiation vars are also appended to this list
+# data variables from one step output used as features
 one_step_vars: 
   - "total_precipitation"
   - "surface_temperature"
@@ -77,7 +70,9 @@ one_step_vars:
   - "DLWRFsfc_train"
   - "ULWRFtoa_train"
   - "ULWRFsfc_train"
-  
+
+# data variables from high res data kept in final dataset
+# these are names from coarsened SHiELD output, before renaming
 high_res_data_variables:
   - "DSWRFtoa_coarse"
   - "DSWRFsfc_coarse"
@@ -89,3 +84,11 @@ high_res_data_variables:
   - "SHTFLsfc"
   - "LHTFLsfc"
 
+radiation_vars:
+  - "DSWRFtoa"
+  - "DSWRFsfc"
+  - "USWRFtoa"
+  - "USWRFsfc"
+  - "DLWRFsfc"
+  - "ULWRFtoa"
+  - "ULWRFsfc"
