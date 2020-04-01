@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import os
 import numpy as np
+from typing import List, Mapping
 
 import fsspec
 import fv3config
@@ -15,7 +16,7 @@ NUDGE_BUCKET = "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data"
 NUDGE_FILE_TARGET = "INPUT"  # where to put analysis files in rundir
 
 
-def _datetime_from_current_date(current_date):
+def _datetime_from_current_date(current_date: List[int]) -> datetime:
     """Return datetime object given current_date, FV3GFS's time structure"""
     year = current_date[0]
     month = current_date[1]
@@ -26,14 +27,14 @@ def _datetime_from_current_date(current_date):
     return datetime(year, month, day, hour, minute, second)
 
 
-def _get_first_nudge_time(start_time):
+def _get_first_nudge_time(start_time: datetime) -> datetime:
     """Return datetime object for the last nudging time preceding or concurrent
      with start_time"""
     first_nudge_hour = NUDGE_HOURS[np.argmax(NUDGE_HOURS > start_time.hour) - 1]
     return datetime(start_time.year, start_time.month, start_time.day, first_nudge_hour)
 
 
-def _get_nudge_time_list(config):
+def _get_nudge_time_list(config: Mapping) -> List[datetime]:
     """Return list of datetime objects corresponding to times at which analysis files
     are required for nudging for a given model run configuration"""
     current_date = config["namelist"]["coupler_nml"]["current_date"]
@@ -48,13 +49,13 @@ def _get_nudge_time_list(config):
     return [first_nudge_time + timedelta(hours=hour) for hour in nudging_hours]
 
 
-def _get_nudge_filename_list(config):
+def _get_nudge_filename_list(config: Mapping) -> List[str]:
     """Return list of filenames of all nudging files required"""
     time_list = _get_nudge_time_list(config)
     return [time.strftime(NUDGE_FILENAME_PATTERN) for time in time_list]
 
 
-def _get_nudge_files_asset_list(config):
+def _get_nudge_files_asset_list(config: Mapping) -> List[Mapping]:
     """Return list of fv3config assets for all nudging files required for a given
     model run configuration"""
     return [
@@ -63,7 +64,7 @@ def _get_nudge_files_asset_list(config):
     ]
 
 
-def _get_and_write_nudge_files_description_asset(config, config_url):
+def _get_and_write_nudge_files_description_asset(config: Mapping, config_url: str) -> Mapping:
     """Write a text file with list of all nudging files required  (which the
     model requires to know what the nudging files are called) and return an fv3config
     asset pointing to this text file."""
@@ -75,18 +76,18 @@ def _get_and_write_nudge_files_description_asset(config, config_url):
     return fv3config.get_asset_dict(config_url, fname_list_filename)
 
 
-def update_config_for_nudging(config, config_url):
+def update_config_for_nudging(config: Mapping, config_url: str) -> Mapping:
     """Add assets to config for all nudging files and for the text file listing
     nudging files. This text file will be written to config_url.
 
     Args:
-        config (dict): an fv3config configuration dictionary
-        config_url (str): path where text file describing nudging files will be written.
+        config: an fv3config configuration dictionary
+        config_url: path where text file describing nudging files will be written.
             File will be written to {config_url}/{input_fname_list} where input_fname_list
             is a namelist parameter in the fv_nwp_nudge_nml namelist of config.
 
     Returns:
-        dict: config dict updated to include all required nudging files
+        config dict updated to include all required nudging files
     """
     if "patch_files" not in config:
         config["patch_files"] = []
