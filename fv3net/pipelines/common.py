@@ -174,7 +174,8 @@ def subsample_timesteps_at_interval(
         if num_subsampled < 2:
             logger.warning(
                 f"Desired subsampling interval of {sampling_interval} minutes "
-                f"longer than sequence duration. Using only first timestep."
+                f"longer than sequence duration, or is misaligned with the "
+                f"dataset interval. Using only first timestep."
             )
 
     return subsampled_timesteps

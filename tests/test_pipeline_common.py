@@ -78,10 +78,8 @@ def test_subsample_timesteps_at_interval():
     assert subsample_timesteps_at_interval(timesteps, 5) == timesteps
     assert subsample_timesteps_at_interval(timesteps, 30) == timesteps[::2]
 
-    with pytest.raises(ValueError):
-        # frequency larger than available times
-        subsample_timesteps_at_interval(timesteps, 60)
-
-    with pytest.raises(ValueError):
-        # frequency not aligned
-        subsample_timesteps_at_interval(timesteps, 7)
+    # frequency larger than available times, returns first only
+    assert subsample_timesteps_at_interval(timesteps, 60) == [timesteps[0]]
+    
+    # frequency not aligned, return first only
+    assert subsample_timesteps_at_interval(timesteps, 7) == [timesteps[0]]
