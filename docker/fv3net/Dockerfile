@@ -7,7 +7,9 @@ ENV PROJECT_NAME=fv3net
 
 # Install dependencies (slow)
 USER root
-RUN apt-get update && apt-get install -y gfortran && apt-get install jq -y
+RUN apt-get update && \
+    apt-get install -y gfortran && \
+    apt-get install jq -y
 ADD environment.yml  $FV3NET/
 ADD .environment-scripts $ENVIRONMENT_SCRIPTS
 ADD .circleci $FV3NET/.circleci
@@ -16,9 +18,9 @@ WORKDIR $FV3NET
 
 USER $NB_UID
 
-ENV PATH=/opt/conda/envs/fv3net/bin:$PATH
 RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME
-RUN jupyter labextension install @pyviz/jupyterlab_pyviz
+ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
+RUN jupyter labextension install @pyviz/jupyterlab_pyviz && conda clean -tpi
 
 USER root 
 # install gcloud sdk
@@ -26,6 +28,13 @@ RUN cd / && \
     curl  https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-284.0.0-linux-x86_64.tar.gz |\
     tar xz
 ENV PATH=/google-cloud-sdk/bin:${PATH}
+RUN gcloud components install kubectl && \
+    gcloud config set project vcm-ml && \
+    gcloud container clusters get-credentials \
+        --zone $(gcloud container clusters list --format="value(location)") \
+        --internal-ip \
+        $(gcloud container clusters list --format="value(name)") && \
+    fix-permissions /home/$NB_USER/.kube
 
 # Add rest of fv3net directory
 ADD . $FV3NET
