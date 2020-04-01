@@ -12,12 +12,14 @@ The workflows in this project are described by the following graph.
 
    digraph foo {
       "SHiELD Simulations at GFDL" -> "coarsen restarts"
-      "coarsen restarts" -> "coarsen diagnostics";
+      "SHiELD Simulations at GFDL" -> "coarsen diagnostics";
       "coarsen restarts" -> "one step runs";
       "one step runs" -> "create training data";
+      "coarsen diagnostics" -> "create training data";
       "create training data" -> "train sklearn model";
       "train sklearn model" -> "test sklearn model";
       "train sklearn model" -> "prognostic run";
+      "one step runs" -> "prognostic run";
       "prognostic run" -> "prognostic run diagnostics";
    }
 

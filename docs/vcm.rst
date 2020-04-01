@@ -28,18 +28,29 @@ I/O
    open_restarts
    open_restarts_with_time_coordinates
 
-Cloud
------
-
-.. automodule:: vcm.cloud
-   :members:
-
-
 Full API
 --------
 
+Top-level routines
+^^^^^^^^^^^^^^^^^^^^^^^
+
 .. automodule:: vcm
    :members:
+   :undoc-members:
+   :show-inheritance:
+
+Cubed sphere operations 
+^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: vcm.cubedsphere
    :members:
+   :undoc-members:
+   :show-inheritance:
+
+Cloud operations
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: vcm.cloud
+   :members:
+   :undoc-members:
+   :show-inheritance:

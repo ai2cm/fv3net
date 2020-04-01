@@ -13,6 +13,7 @@ Welcome to fv3net's documentation!
    readme_link
    workflows
    vcm
+   science
 
 
 
