@@ -93,14 +93,29 @@ def test_apparent_source():
             cftime.DatetimeJulian(2016, 8, 1, 0, 15, 0),
             cftime.DatetimeJulian(2016, 8, 1, 0, 30, 0),
         ],
-        "forecast_time": np.array([0., 60., 120., 180., 240.]).astype(np.dtype("<m8[s]")),
+        "forecast_time": np.array([0.0, 60.0, 120.0, 180.0, 240.0]).astype(
+            np.dtype("<m8[s]")
+        ),
     }
     T = xr.DataArray(
-        [[1, 2, 4, 7, 11.], [3, 5, 5, 5, 5.]],
+        [[1, 2, 4, 7, 11.0], [3, 5, 5, 5, 5.0]],
         dims=["initial_time", "forecast_time"],
         coords=coords,
     )
-    Q1_forecast0 = apparent_source(T, forecast_time_index=0, t_dim="initial_time", s_dim="forecast_time")
+    # check Q calculated for different forecast time steps
+    Q1_forecast0 = apparent_source(
+        T,
+        forecast_time_index_onestep=0,
+        forecast_time_index_highres=0,
+        t_dim="initial_time",
+        s_dim="forecast_time",
+    )
     assert Q1_forecast0 == pytest.approx((2.0 / (15 * 60)) - (1.0 / 60))
-    Q1_forecast3 = apparent_source(T, forecast_time_index=3, t_dim="initial_time", s_dim="forecast_time")
-    assert Q1_forecast3 == pytest.approx((2.0 / (15 * 60)) - (4.0 / 60))    
+    Q1_forecast3 = apparent_source(
+        T,
+        forecast_time_index_onestep=3,
+        forecast_time_index_highres=0,
+        t_dim="initial_time",
+        s_dim="forecast_time",
+    )
+    assert Q1_forecast3 == pytest.approx((2.0 / (15 * 60)) - (4.0 / 60))
