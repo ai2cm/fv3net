@@ -1,7 +1,6 @@
 import unittest
 import vcm
 import xarray as xr
-import zarr
 import numpy as np
 from itertools import product
 
@@ -16,8 +15,8 @@ def test_zarr_mapping_init_coord_fill_value(dtype, fill_value):
     coords = {"time": list("abc")}
 
     store = {}
-    group = zarr.open_group(store)
-    vcm.ZarrMapping(group, schema, dims=["time"], coords=coords)
+    m = vcm.ZarrMapping.from_schema(store, schema, dims=["time"], coords=coords)
+    group = m.group
 
     # check that both are NaN since NaN != Nan
     if np.isnan(fill_value) and np.isnan(group["x"].fill_value):
@@ -31,8 +30,7 @@ def test_zarr_mapping_set_1d(dtype=int):
     coords = {"time": list("abc")}
 
     store = {}
-    group = zarr.open_group(store)
-    m = vcm.ZarrMapping(group, schema, dims=["time"], coords=coords)
+    m = vcm.ZarrMapping.from_schema(store, schema, dims=["time"], coords=coords)
     m["a"] = schema
     m["b"] = schema
     m["c"] = schema
@@ -50,8 +48,7 @@ def test_zarr_mapping_set_2d(dtype=int):
     coords = {"time": [0, 1, 2], "space": list("xyz")}
 
     store = {}
-    group = zarr.open_group(store)
-    m = vcm.ZarrMapping(group, schema, dims=["time", "space"], coords=coords)
+    m = vcm.ZarrMapping.from_schema(store, schema, dims=["time", "space"], coords=coords)
     for time, space in product(coords["time"], coords["space"]):
         m[time, space] = schema
 
