@@ -1,5 +1,5 @@
 import unittest
-import fv3net
+import vcm
 import xarray as xr
 import zarr
 import numpy as np
@@ -17,7 +17,7 @@ def test_zarr_mapping_init_coord_fill_value(dtype, fill_value):
 
     store = {}
     group = zarr.open_group(store)
-    fv3net.ZarrMapping(group, schema, dims=["time"], coords=coords)
+    vcm.ZarrMapping(group, schema, dims=["time"], coords=coords)
 
     # check that both are NaN since NaN != Nan
     if np.isnan(fill_value) and np.isnan(group["x"].fill_value):
@@ -32,7 +32,7 @@ def test_zarr_mapping_set_1d(dtype=int):
 
     store = {}
     group = zarr.open_group(store)
-    m = fv3net.ZarrMapping(group, schema, dims=["time"], coords=coords)
+    m = vcm.ZarrMapping(group, schema, dims=["time"], coords=coords)
     m["a"] = schema
     m["b"] = schema
     m["c"] = schema
@@ -51,7 +51,7 @@ def test_zarr_mapping_set_2d(dtype=int):
 
     store = {}
     group = zarr.open_group(store)
-    m = fv3net.ZarrMapping(group, schema, dims=["time", "space"], coords=coords)
+    m = vcm.ZarrMapping(group, schema, dims=["time", "space"], coords=coords)
     for time, space in product(coords["time"], coords["space"]):
         m[time, space] = schema
 
