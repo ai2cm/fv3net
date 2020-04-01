@@ -48,7 +48,9 @@ def test_zarr_mapping_set_2d(dtype=int):
     coords = {"time": [0, 1, 2], "space": list("xyz")}
 
     store = {}
-    m = vcm.ZarrMapping.from_schema(store, schema, dims=["time", "space"], coords=coords)
+    m = vcm.ZarrMapping.from_schema(
+        store, schema, dims=["time", "space"], coords=coords
+    )
     for time, space in product(coords["time"], coords["space"]):
         m[time, space] = schema
 
