@@ -33,8 +33,8 @@ def test__create_train_cols(test_training_raw_ds):
     train_ds = _create_train_cols(
         test_training_raw_ds,
         cols_to_keep=["air_temperature", "dQ1"],
-        tendency_forecast_time_index_for_onestep=0,
-        tendency_forecast_time_index_for_highres=0,
+        forecast_timestep_for_onestep=0,
+        forecast_timestep_for_highres=0,
         init_time_dim="initial_time",
         forecast_time_dim="forecast_time",
         step_time_dim="step",
@@ -45,8 +45,8 @@ def test__create_train_cols(test_training_raw_ds):
     train_ds = _create_train_cols(
         test_training_raw_ds,
         cols_to_keep=["air_temperature", "dQ1"],
-        tendency_forecast_time_index_for_onestep=1,
-        tendency_forecast_time_index_for_highres=1,
+        forecast_timestep_for_onestep=1,
+        forecast_timestep_for_highres=1,
         init_time_dim="initial_time",
         forecast_time_dim="forecast_time",
         step_time_dim="step",
