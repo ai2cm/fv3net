@@ -95,7 +95,6 @@ jobs:
     - run: sudo pip install black==19.10b0 flake8
     - run: make lint
 
-  
 workflows:
   version: 2
   test_and_lint:
