@@ -15,12 +15,12 @@ dependencies = [
     "xgcm==0.3.0",
     "zarr==2.4.0",
     "numba==0.48.0",
-    "cftime==1.1.1.2"
+    "cftime==1.1.1.2",
 ]
 
 
-packages = find_packages() + find_packages("external/vcm", exclude='tests')
-package_dir = {'vcm': f'external/vcm/vcm/', 'fv3net': 'fv3net'}
+packages = find_packages() + find_packages("external/vcm", exclude="tests")
+package_dir = {"vcm": f"external/vcm/vcm/", "fv3net": "fv3net"}
 
 print(f"Found packages: {packages}")
 setup(

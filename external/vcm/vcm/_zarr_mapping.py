@@ -7,6 +7,7 @@ import logging
 
 logger = logging.getLogger("ZarrMapping")
 
+
 def _set_dims(array: zarr.Array, dims: Sequence[Hashable]):
     ARRAY_DIMENSIONS = "_ARRAY_DIMENSIONS"
     array.attrs[ARRAY_DIMENSIONS] = list(dims)
@@ -17,7 +18,7 @@ def _create_zarr(dims, coords, group: zarr.Group, template: xr.Dataset):
     group.attrs.update(ds.attrs)
 
     start_shape = [len(coords[dim]) for dim in dims]
-    start_chunks = (1,)*len(start_shape)
+    start_chunks = (1,) * len(start_shape)
 
     for name in ds:
         _init_data_var(group, ds[name], start_shape, start_chunks, dims)
@@ -28,10 +29,12 @@ def _create_zarr(dims, coords, group: zarr.Group, template: xr.Dataset):
     for name in coords:
         _init_coord(group, coords[name])
 
-    group.attrs['DIMS'] = dims
+    group.attrs["DIMS"] = dims
 
 
-def _init_data_var(group: zarr.Group, array: xr.DataArray, start_shape: Tuple[int], start_chunks, dims):
+def _init_data_var(
+    group: zarr.Group, array: xr.DataArray, start_shape: Tuple[int], start_chunks, dims
+):
     shape = tuple(start_shape) + array.data.shape
     chunks = tuple(start_chunks) + array.data.shape
     out_array = group.empty(
@@ -54,7 +57,9 @@ def _init_coord(group: zarr.Group, coord):
     # coordinate if decode_cf=True. Otherwise, time=0 gets filled in as nan. very
     # confusing...
     arr = np.asarray(coord)
-    out_array = group.array(name=coord.name, data=arr, fill_value=_fill_value(arr.dtype))
+    out_array = group.array(
+        name=coord.name, data=arr, fill_value=_fill_value(arr.dtype)
+    )
     out_array.attrs.update(coord.attrs)
     _set_dims(out_array, coord.dims)
 
@@ -67,16 +72,17 @@ class ZarrMapping:
     """Store xarray data by key
 
     """
+
     def __init__(self, store):
         self.store = store
-    
+
     @property
     def group(self):
         return zarr.open_group(self.store, mode="a")
 
     @property
     def dims(self):
-        return self.group.attrs['DIMS']
+        return self.group.attrs["DIMS"]
 
     @property
     def coords(self):
@@ -86,8 +92,9 @@ class ZarrMapping:
     @staticmethod
     def from_schema(store, schema, dims, coords):
         group = zarr.open_group(store, mode="w")
-        coords = {name: xr.DataArray(coords[name], name=name, dims=[name])
-                       for name in coords}
+        coords = {
+            name: xr.DataArray(coords[name], name=name, dims=[name]) for name in coords
+        }
         _create_zarr(dims, coords, group, schema)
         return ZarrMapping(store)
 
@@ -102,4 +109,3 @@ class ZarrMapping:
 
     def flush(self):
         return self.group.store.flush()
-
