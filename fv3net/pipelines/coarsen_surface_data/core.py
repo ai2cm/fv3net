@@ -4,6 +4,7 @@ import pandas as pd
 import xarray as xr
 from dask.delayed import delayed
 from vcm import convenience, cubedsphere
+import vcm
 
 from gcs import upload_to_gcs
 
