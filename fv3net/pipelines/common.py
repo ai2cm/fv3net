@@ -189,3 +189,13 @@ def get_alphanumeric_unique_tag(tag_length: int) -> str:
     use_chars = string.ascii_lowercase + string.digits
     short_id = "".join([secrets.choice(use_chars) for i in range(tag_length)])
     return short_id
+
+
+def dump_nc(ds: xr.Dataset, f):
+    # to_netcdf closes file, which will delete the buffer
+    # need to use a buffer since seek doesn't work with GCSFS file objects
+    with tempfile.TemporaryDirectory() as dirname:
+        url = os.path.join(dirname, "tmp.nc")
+        ds.to_netcdf(url, engine="h5netcdf")
+        with open(url, "rb") as tmp1:
+            shutil.copyfileobj(tmp1, f)
