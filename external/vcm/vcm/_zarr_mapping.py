@@ -1,5 +1,4 @@
-from typing import Sequence, Hashable, Tuple, Mapping
-from collections import MutableMapping
+from typing import Sequence, Hashable, Tuple
 import zarr
 import xarray as xr
 import numpy as np

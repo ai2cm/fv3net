@@ -17,7 +17,7 @@ def test_zarr_mapping_init_coord_fill_value(dtype, fill_value):
 
     store = {}
     group = zarr.open_group(store)
-    m = fv3net.ZarrMapping(group, schema, dims=["time"], coords=coords)
+    fv3net.ZarrMapping(group, schema, dims=["time"], coords=coords)
 
     # check that both are NaN since NaN != Nan
     if np.isnan(fill_value) and np.isnan(group["x"].fill_value):
