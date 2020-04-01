@@ -16,7 +16,7 @@ def _read_metadata_remote(fs, url):
 
 def open_remote_nc(fs, url):
     with fs.open(url, "rb") as f:
-        yield xr.open_dataset(f).load()
+        return xr.open_dataset(f).load()
 
 
 def open_tiles(url_prefix: str) -> xr.Dataset:
