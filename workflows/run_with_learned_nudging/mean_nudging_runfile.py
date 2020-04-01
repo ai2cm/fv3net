@@ -30,7 +30,6 @@ def get_current_nudging_tendency(variables, time, ds_nudging):
     nudging_tendency = {}
     for variable in variables:
         nudging_variable_name = CF_TO_NUDGE[variable]
-        logger.info(ds_nudging[nudging_variable_name])
         nudging_tendency[variable] = ds_nudging[nudging_variable_name].sel(
             time=_ensure_Julian(time), method="nearest"
         )
