@@ -1,5 +1,7 @@
 import argparse
-from fv3net.pipelines.create_training_data.pipeline import run
+import yaml
+
+from .pipeline import run
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -22,6 +24,12 @@ if __name__ == "__main__":
         "Don't include bucket in path.",
     )
     parser.add_argument(
+        "variable_namefile",
+        type=str,
+        default=None,
+        help="yaml file for providing data variable names",
+    )
+    parser.add_argument(
         "--timesteps-per-output-file",
         type=int,
         default=1,
@@ -38,11 +46,11 @@ if __name__ == "__main__":
         "Output zarr files will be saved in either 'train' or 'test' subdir of "
         "gcs-output-data-dir",
     )
-    parser.add_argument(
-        "--var-names-yaml",
-        type=str,
-        default=None,
-        help="optional yaml for providing data variable names",
-    )
+
     args, pipeline_args = parser.parse_known_args()
-    run(args=args, pipeline_args=pipeline_args)
+    with open(args.variable_namefile, "r") as stream:
+        try:
+            names = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            raise ValueError(f"Bad yaml config: {exc}")
+    run(args=args, pipeline_args=pipeline_args, names=names)

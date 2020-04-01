@@ -1,22 +1,39 @@
+# suffixes that denote whether diagnostic variable is from the coarsened
+# high resolution prognostic run or the coarse res one step train data run
+suffix_hires: "prog"
+suffix_coarse_train: "train"
 
-initial_time_dim: "initial_time"
+init_time_dim: "initial_time"
 forecast_time_dim: "forecast_time"
 step_time_dim: "step"
-end_step_coord: "after_physics"
-x_coord: "x"   
-y_coord: "y"    
-z_coord: "z"
+coord_begin_step: "begin"
 
-grid_dim_renaming: 
-  "grid_xt": "x"
-  "grid_yt": "y"
-  "grid_x": "x_interface"
-  "grid_y": "y_interface"
+coord_x_center : "x"   
+coord_y_center : "y"    
+coord_z_center : "z"
 
-x_wind_var: "x_wind"
-y_wind_var: "y_wind"
-temperature_var: "air_temperature"
-specific_humidity_var: "specific_humidity"
+var_lon_center: "lon"
+var_lat_center: "lat"
+var_lon_outer: "lonb"
+var_lat_outer: "latb"
+
+renamed_dims: 
+  grid_xt: "x"
+  grid_yt: "y"
+  grid_x: "x_interface"
+  grid_y: "y_interface"
+
+grid_vars:
+  - "area"
+  - "latb"
+  - "lonb"
+  - "lat"
+  - "lon"
+
+var_x_wind: "x_wind"
+var_y_wind: "y_wind"
+var_temp: "air_temperature"
+var_sphum: "specific_humidity"
 
 radiation_variables:
   - "DSWRFtoa"
@@ -52,3 +69,9 @@ high_res_data_variables:
   - "ULWRFsfc_coarse"
   - "SHTFLsfc"
   - "LHTFLsfc"
+
+  var_source_name_map:
+    var_x_wind: "dQU"
+    var_y_wind: "dQV"
+    var_temp: "dQ1"
+    var_sphum: "dQ2"    

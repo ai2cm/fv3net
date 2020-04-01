@@ -17,20 +17,6 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 GRID_SPEC_FILENAME = "grid_spec.zarr"
-GRID_VARS = [
-    "area",
-    names.var_lat_outer,
-    names.var_lon_outer,
-    names.var_lat_center,
-    names.var_lon_center,
-]
-_CHUNK_SIZES = {
-    "tile": 1,
-    names.init_time_dim: 1,
-    names.coord_y_center: 24,
-    names.coord_x_center: 24,
-    names.coord_z_center: 79,
-}
 
 # forecast time step used to calculate the FV3 run tendency
 FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 14
@@ -38,23 +24,29 @@ FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 14
 FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
 
 
-def run(args, pipeline_args):
+def run(args, pipeline_args, names):
     fs = get_fs(args.gcs_input_data_path)
     ds_full = xr.open_zarr(fs.get_mapper(args.gcs_input_data_path))
     _save_grid_spec(
         ds_full,
         args.gcs_output_data_dir,
-        grid_vars=GRID_VARS,
+        grid_vars=names["grid_vars"],
         grid_spec_filename=GRID_SPEC_FILENAME,
-        init_time_dim=names.init_time_dim,
+        init_time_dim=names["init_time_dim"],
     )
     data_batches, train_test_labels = _divide_data_batches(
         ds_full,
         args.timesteps_per_output_file,
         args.train_fraction,
-        init_time_dim=names.init_time_dim,
+        init_time_dim=names["init_time_dim"],
     )
-
+    chunk_sizes = {
+        "tile": 1,
+        names["init_time_dim"]: 1,
+        names["coord_y_center"]: 24,
+        names["coord_x_center"]: 24,
+        names["coord_z_center"]: 79,
+    }
     logger.info(f"Processing {len(data_batches)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
@@ -64,11 +56,12 @@ def run(args, pipeline_args):
             | "CreateTrainingCols"
             >> beam.Map(
                 _create_train_cols,
-                init_time_dim=names.init_time_dim,
-                step_time_dim=names.step_time_dim,
-                forecast_time_dim=names.forecast_time_dim,
-                coord_begin_step=names.coord_begin_step,
-                var_source_name_map=names.var_source_name_map,
+                cols_to_keep=names["one_step_vars"] + names["target_vars"],
+                init_time_dim=names["init_time_dim"],
+                step_time_dim=names["step_time_dim"],
+                forecast_time_dim=names["forecast_time_dim'"],
+                coord_begin_step=names["coord_begin_step"],
+                var_source_name_map=names["var_source_name_map"],
                 forecast_timestep_for_onestep=FORECAST_TIME_INDEX_FOR_C48_TENDENCY,
                 forecast_timestep_for_highres=FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY,
             )
@@ -77,15 +70,15 @@ def run(args, pipeline_args):
                 _merge_hires_data,
                 diag_c48_path=args.diag_c48_path,
                 coarsened_diags_zarr_name=COARSENED_DIAGS_ZARR_NAME,
-                renamed_high_res_vars=names.renamed_high_res_vars,
-                init_time_dim=names.init_time_dim,
+                renamed_high_res_vars=names["renamed_high_res_vars"],
+                init_time_dim=names["init_time_dim"],
             )
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
                 gcs_output_dir=args.gcs_output_data_dir,
                 train_test_labels=train_test_labels,
-                chunk_sizes=_CHUNK_SIZES,
+                chunk_sizes=chunk_sizes,
             )
         )
 
@@ -248,7 +241,7 @@ def _create_train_cols(
     step_time_dim,
     coord_begin_step,
     var_source_name_map,
-    cols_to_keep=names.one_step_vars + names.target_vars,
+    cols_to_keep=names["one_step_vars"] + names["target_vars"],
 ):
     """ Calculate apparent sources for target variables and keep feature vars
     
