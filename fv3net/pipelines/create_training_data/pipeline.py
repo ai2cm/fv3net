@@ -69,8 +69,8 @@ def run(args, pipeline_args):
                 forecast_time_dim=names.forecast_time_dim,
                 coord_begin_step=names.coord_begin_step,
                 var_source_name_map=names.var_source_name_map,
-                tendency_forecast_time_index_for_onestep=FORECAST_TIME_INDEX_FOR_C48_TENDENCY,
-                tendency_forecast_time_index_for_highres=FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY,
+                forecast_timestep_for_onestep=FORECAST_TIME_INDEX_FOR_C48_TENDENCY,
+                forecast_timestep_for_highres=FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY,
             )
             | "MergeHiresDiagVars"
             >> beam.Map(
@@ -241,8 +241,8 @@ def _open_cloud_data(ds, forecast_time_dim, step_time_dim, coord_begin_step):
 
 def _create_train_cols(
     ds,
-    tendency_forecast_time_index_for_onestep,
-    tendency_forecast_time_index_for_highres,
+    forecast_timestep_for_onestep,
+    forecast_timestep_for_highres,
     init_time_dim,
     forecast_time_dim,
     step_time_dim,
@@ -276,8 +276,8 @@ def _create_train_cols(
         for var_name, source_name in var_source_name_map.items():
             ds[source_name] = apparent_source(
                 ds[var_name],
-                tendency_forecast_time_index_for_onestep,
-                tendency_forecast_time_index_for_highres,
+                forecast_timestep_for_onestep,
+                forecast_timestep_for_highres,
                 t_dim=init_time_dim,
                 s_dim=forecast_time_dim,
             )
