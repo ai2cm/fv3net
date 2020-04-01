@@ -11,7 +11,7 @@ from .convenience import (
     parse_timestep_str_from_path,
     parse_datetime_from_str,
 )
-from .calc import mass_integrate
+from .calc import mass_integrate, r2_score, local_time
 from .calc.thermo import (
     net_heating,
     net_precipitation,
