@@ -40,6 +40,8 @@ def test__create_train_cols(test_training_raw_ds):
         step_time_dim="step",
         coord_begin_step="begin",
         var_source_name_map={"air_temperature": "dQ1"},
+        radiation_vars=[],
+        suffix_coarse_train="train",
     )
     assert train_ds.dQ1.values == pytest.approx(0.0 - 1.0 / 60)
     train_ds = _create_train_cols(
@@ -52,5 +54,7 @@ def test__create_train_cols(test_training_raw_ds):
         step_time_dim="step",
         coord_begin_step="begin",
         var_source_name_map={"air_temperature": "dQ1"},
+        radiation_vars=[],
+        suffix_coarse_train="train",
     )
     assert train_ds.dQ1.values == pytest.approx(1.0 / (15.0 * 60) - 26.0 / 60)
