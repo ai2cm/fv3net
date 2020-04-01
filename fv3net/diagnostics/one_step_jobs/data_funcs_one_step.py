@@ -283,15 +283,17 @@ def insert_weighted_mean_vars(
     return ds
 
 
-def reduce_init_dim(ds: xr.Dataset, init_dim: str = INIT_TIME_DIM):
+def shrink_ds(ds: xr.Dataset, init_dim: str = INIT_TIME_DIM):
     
     for var in ds:
         if init_dim in ds[var].dims:
             ds = ds.assign({f"{var}_std": ds[var].std(dim = init_dim, keep_attrs=True)})
     ds_mean = ds.mean(dim=INIT_TIME_DIM, keep_attrs=True)
-#     print(ds_mean)
-#     ds_mean = ds_mean.drop(labels=init_dim)
-#     ds_mean = ds_mean.squeeze()
     
-    return ds_mean
+    dropvars = []
+    for var in ds:
+        if 'z' in ds[var].dims and 'tile' in ds[var].dims:
+            dropvars.append(var)
+            
+    return ds.drop_vars(dropvars)
                                            
