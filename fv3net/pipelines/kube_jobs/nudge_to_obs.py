@@ -64,7 +64,9 @@ def _get_nudge_files_asset_list(config: Mapping) -> List[Mapping]:
     ]
 
 
-def _get_and_write_nudge_files_description_asset(config: Mapping, config_url: str) -> Mapping:
+def _get_and_write_nudge_files_description_asset(
+    config: Mapping, config_url: str
+) -> Mapping:
     """Write a text file with list of all nudging files required  (which the
     model requires to know what the nudging files are called) and return an fv3config
     asset pointing to this text file."""
