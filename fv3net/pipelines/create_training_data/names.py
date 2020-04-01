@@ -46,13 +46,13 @@ one_step_vars = radiation_vars + [
 
 # names for residuals that the ML is training on
 # high resolution tendency - coarse res model's one step tendency
-var_source_map = {
+var_source_name_map = {
     var_x_wind: "dQU",
     var_y_wind: "dQV",
     var_temp: "dQ1",
     var_sphum: "dQ2",
 }
-target_vars = list(var_source_map.values())
+target_vars = list(var_source_name_map.values())
 
 # mappings for renaming of variables in training data output
 renamed_high_res_vars = {

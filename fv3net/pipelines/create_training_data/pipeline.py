@@ -267,7 +267,7 @@ def _create_train_cols(
 
     try:
         ds = ds.sel({step_time_dim: coord_begin_step})
-        for source_name, var_name in var_source_name_map.items():
+        for var_name, source_name in var_source_name_map.items():
             ds[source_name] = apparent_source(
                 ds[var_name],
                 tendency_forecast_time_index,
