@@ -91,16 +91,27 @@ SFC_VARIABLES = (
     "DLWRFsfc",
     "ULWRFtoa",
     "ULWRFsfc",
+    "lat",
+    "lon",
+    "latb",
+    "lonb",
+    "area",
 )
 
 
 def rename_sfc_dt_atmos(sfc: xr.Dataset) -> xr.Dataset:
-    DIMS = {"grid_xt": "x", "grid_yt": "y", "time": "forecast_time"}
+    DIMS = {
+        "grid_xt": "x",
+        "grid_yt": "y",
+        "grid_x": "x_interface",
+        "grid_y": "y_interface",
+        "time": "forecast_time",
+    }
     return (
         sfc[list(SFC_VARIABLES)]
         .rename(DIMS)
-        .transpose("forecast_time", "tile", "y", "x")
-        .drop(["forecast_time", "y", "x"])
+        .transpose("forecast_time", "tile", "y", "x", "y_interface", "x_interface")
+        .drop(["forecast_time", "y", "x", "y_interface", "x_interface"])
     )
 
 
