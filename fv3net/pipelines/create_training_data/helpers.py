@@ -3,7 +3,6 @@ import logging
 import os
 import pandas as pd
 import xarray as xr
-import yaml
 
 from vcm.fv3_restarts import open_diagnostic
 from vcm.cloud.fsspec import get_fs

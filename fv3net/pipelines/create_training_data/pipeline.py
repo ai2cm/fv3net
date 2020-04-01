@@ -4,14 +4,13 @@ import logging
 import os
 import shutil
 import xarray as xr
-import yaml
 
 from . import helpers
 from . import names
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
 from vcm.cloud.fsspec import get_fs
-from vcm import parse_timestep_str_from_path, parse_datetime_from_str
+from vcm import parse_datetime_from_str
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 
 logger = logging.getLogger()
@@ -23,7 +22,7 @@ GRID_VARS = [
     names.var_lat_outer,
     names.var_lon_outer,
     names.var_lat_center,
-    names.var_lon_center
+    names.var_lon_center,
 ]
 _CHUNK_SIZES = {
     "tile": 1,
@@ -40,9 +39,9 @@ def run(args, pipeline_args):
     fs = get_fs(args.gcs_input_data_path)
     ds_full = xr.open_zarr(fs.get_mapper(args.gcs_input_data_path))
     _save_grid_spec(
-        ds_full, 
-        args.gcs_output_data_dir, 
-        grid_vars=GRID_VARS, 
+        ds_full,
+        args.gcs_output_data_dir,
+        grid_vars=GRID_VARS,
         grid_spec_filename=GRID_SPEC_FILENAME,
         init_time_dim=names.init_time_dim,
     )
@@ -59,7 +58,8 @@ def run(args, pipeline_args):
         (
             p
             | beam.Create(data_batches)
-            | "CreateTrainingCols" >> beam.Map(
+            | "CreateTrainingCols"
+            >> beam.Map(
                 _create_train_cols,
                 init_time_dim=names.init_time_dim,
                 step_time_dim=names.step_time_dim,
@@ -70,7 +70,7 @@ def run(args, pipeline_args):
             | "MergeHiresDiagVars"
             >> beam.Map(
                 _merge_hires_data,
-                diag_c48_path=args.diag_c48_path, 
+                diag_c48_path=args.diag_c48_path,
                 coarsened_diags_zarr_name=COARSENED_DIAGS_ZARR_NAME,
                 renamed_high_res_vars=names.renamed_high_res_vars,
                 init_time_dim=names.init_time_dim,
@@ -85,25 +85,30 @@ def run(args, pipeline_args):
         )
 
 
-def _divide_data_batches(ds_full, timesteps_per_output_file, train_fraction, init_time_dim):
+def _divide_data_batches(
+    ds_full, timesteps_per_output_file, train_fraction, init_time_dim
+):
     """ Divides the full dataset of one step run outputs into batches designated
     for training or test sets.
     Args:
         ds_full (xr dataset): dataset read in from the big zarr of all one step outputs
-        timesteps_per_output_file (int): number of timesteps to save per train batch file
+        timesteps_per_output_file (int): number of timesteps to save per train batch
         train_fraction (float): fraction of initial timesteps to use as training
     
     Returns:
         tuple (
-            list of datasets selected to the timesteps for each output, 
+            list of datasets selected to the timesteps for each output,
             dict of train and test timesteps
             )
     """
     init_datetime_coords = [
-        parse_datetime_from_str(init_time) for init_time in ds_full[init_time_dim].values
+        parse_datetime_from_str(init_time)
+        for init_time in ds_full[init_time_dim].values
     ]
     ds_full = ds_full.assign_coords({init_time_dim: init_datetime_coords})
-    timestep_batches = _get_timestep_batches(ds_full, timesteps_per_output_file, init_time_dim)
+    timestep_batches = _get_timestep_batches(
+        ds_full, timesteps_per_output_file, init_time_dim
+    )
     train_test_labels = _test_train_split(timestep_batches, train_fraction)
     timestep_batches_reordered = _reorder_batches(timestep_batches, train_fraction)
     data_batches = [
@@ -142,7 +147,9 @@ def _reorder_batches(sorted_batches, train_frac):
     return reordered_batches
 
 
-def _save_grid_spec(ds, gcs_output_data_dir, grid_vars, grid_spec_filename, init_time_dim):
+def _save_grid_spec(
+    ds, gcs_output_data_dir, grid_vars, grid_spec_filename, init_time_dim
+):
     """ Reads grid spec from diag files in a run dir and writes to GCS
 
     Args:
@@ -156,7 +163,8 @@ def _save_grid_spec(ds, gcs_output_data_dir, grid_vars, grid_spec_filename, init
     grid = ds.isel({init_time_dim: 0})[grid_vars]
     _write_remote_train_zarr(grid, gcs_output_data_dir, zarr_name=grid_spec_filename)
     logger.info(
-        f"Wrote grid spec to " f"{os.path.join(gcs_output_data_dir, grid_spec_filename)}"
+        f"Wrote grid spec to "
+        f"{os.path.join(gcs_output_data_dir, grid_spec_filename)}"
     )
     return
 
@@ -220,9 +228,9 @@ def _open_cloud_data(ds, forecast_time_dim, step_time_dim, coord_begin_step):
         xarray dataset of concatenated zarrs in url list
     """
     logger.info(f"Using timesteps for batch: {ds[names.init_time_dim].values}.")
-    ds = ds \
-        .isel({forecast_time_dim: [0, -2, -1]}) \
-        .sel({step_time_dim: coord_begin_step})
+    ds = ds.isel({forecast_time_dim: [0, -2, -1]}).sel(
+        {step_time_dim: coord_begin_step}
+    )
     return ds
 
 
@@ -236,19 +244,36 @@ def _create_train_cols(
     var_source_name_map,
     cols_to_keep=names.one_step_vars + names.target_vars,
 ):
-    """
-
+    """ Calculate apparent sources for target variables and keep feature vars
+    
     Args:
-        ds: xarray dataset, must have variables ['u', 'v', 'T', 'sphum']
-
+        ds (xarray dataset): must have the specified feature vars in cols_to_keep
+            as well as vars needed to calculate apparent sources
+        tendency_forecast_time_index (int): index of the forecast time step to use
+            when calculating apparent source
+        init_time_dim (str): name of initial time dimension
+        forecast_time_dim (str): name of forecast time dimension
+        step_time_dim (str): name of step time dimension
+        coord_begin_step (str): coordinate for the first step in each forecast timestep
+            (inital state before dynamics or physics are stepped)
+        var_source_name_map (dict): dict that maps variable name to its apparent source
+            variable name
+        cols_to_keep ([str], optional): List of variable names that will be in final
+            train dataset. Defaults to names.one_step_vars+names.target_vars.
+    
     Returns:
-        xarray dataset with variables in names.restart_vars + names.target_vars + names.grid_vars
+        xarray dataset containing feature and target data variables
     """
+
     try:
         ds = ds.sel({step_time_dim: coord_begin_step})
         for source_name, var_name in var_source_name_map.items():
             ds[source_name] = apparent_source(
-                ds[var_name], tendency_forecast_time_index, t_dim=init_time_dim, s_dim=forecast_time_dim)
+                ds[var_name],
+                tendency_forecast_time_index,
+                t_dim=init_time_dim,
+                s_dim=forecast_time_dim,
+            )
         ds = (
             ds[cols_to_keep]
             .isel(
@@ -264,7 +289,13 @@ def _create_train_cols(
         logger.error(f"Failed step CreateTrainingCols: {e}")
 
 
-def _merge_hires_data(ds_run, diag_c48_path, coarsened_diags_zarr_name, renamed_high_res_vars, init_time_dim):
+def _merge_hires_data(
+    ds_run,
+    diag_c48_path,
+    coarsened_diags_zarr_name,
+    renamed_high_res_vars,
+    init_time_dim,
+):
     if not diag_c48_path:
         return ds_run
     try:
@@ -303,4 +334,3 @@ def _write_remote_train_zarr(
         shutil.rmtree(zarr_name)
     except (ValueError, AttributeError, TypeError, RuntimeError) as e:
         logger.error(f"Failed to write zarr: {e}")
-

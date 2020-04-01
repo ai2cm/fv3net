@@ -1,10 +1,6 @@
 import numpy as np
 import xarray as xr
-from vcm.cubedsphere.constants import (
-    INIT_TIME_DIM,
-    COORD_Z_CENTER,
-    VAR_LON_CENTER,
-)
+from vcm.cubedsphere.constants import INIT_TIME_DIM, COORD_Z_CENTER, VAR_LON_CENTER
 
 gravity = 9.81
 specific_heat = 1004
@@ -26,10 +22,7 @@ def timedelta_to_seconds(dt):
 
 
 def apparent_source(
-    q: xr.DataArray, 
-    forecast_time_index,
-    t_dim: str, 
-    s_dim: str,
+    q: xr.DataArray, forecast_time_index, t_dim: str, s_dim: str
 ) -> xr.DataArray:
     """Compute the apparent source from stepped output
 
@@ -37,7 +30,7 @@ def apparent_source(
         q: The variable to compute the source of
         t_dim, optional: the dimension corresponding to the initial condition
         s_dim, optional: the dimension corresponding to the forecast time
-        step_dim: dimension corresponding to the step time dimension 
+        step_dim: dimension corresponding to the step time dimension
             (begin, before physics, after physics)
 
     Returns:
@@ -58,9 +51,9 @@ def apparent_source(
 
     # restore coords
     tend = tend.isel({s_dim: 0}).assign_coords(**{t_dim: t[:-1]})
-    tend_c48 = tend_c48.isel({s_dim: forecast_time_index, t_dim: slice(0, -1)}).assign_coords(
-        **{t_dim: t[:-1]}
-    )
+    tend_c48 = tend_c48.isel(
+        {s_dim: forecast_time_index, t_dim: slice(0, -1)}
+    ).assign_coords(**{t_dim: t[:-1]})
 
     return tend - tend_c48
 

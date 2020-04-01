@@ -1,6 +1,3 @@
-
-
-
 # suffixes that denote whether diagnostic variable is from the coarsened
 # high resolution prognostic run or the coarse res one step train data run
 suffix_hires = "prog"
@@ -50,14 +47,18 @@ one_step_vars = radiation_vars + [
 # names for residuals that the ML is training on
 # high resolution tendency - coarse res model's one step tendency
 var_source_map = {
-    var_x_wind: "dQU", var_y_wind: "dQV", var_temp: "dQ1", var_sphum: "dQ2"}
+    var_x_wind: "dQU",
+    var_y_wind: "dQV",
+    var_temp: "dQ1",
+    var_sphum: "dQ2",
+}
 target_vars = list(var_source_map.values())
 
 # mappings for renaming of variables in training data output
 renamed_high_res_vars = {
     **{f"{var}_coarse": f"{var}_{suffix_hires}" for var in radiation_vars},
-        "lhtflsfc_coarse": f"latent_heat_flux_{suffix_hires}",
-        "shtflsfc_coarse": f"sensible_heat_flux_{suffix_hires}",
+    "lhtflsfc_coarse": f"latent_heat_flux_{suffix_hires}",
+    "shtflsfc_coarse": f"sensible_heat_flux_{suffix_hires}",
 }
 renamed_one_step_vars = {var: f"{var}_{suffix_coarse_train}" for var in radiation_vars}
 renamed_dims = {
