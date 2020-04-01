@@ -1,6 +1,6 @@
 FV3CONFIG = nudge_mean_$*.yml
 RUNFILE = mean_nudging_runfile.py
-GCS_OUTDIR = gs://vcm-ml-data/2020-03-30-learned-nudging-FV3GFS-runs/$*
+GCS_OUTDIR = gs://vcm-ml-data/2020-03-30-learned-nudging-FV3GFS-runs/nudge_mean_$*
 
 
 run_all: run_T run_T_ps run_T_ps_u_v
