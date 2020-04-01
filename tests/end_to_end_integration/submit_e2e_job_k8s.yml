@@ -3,7 +3,7 @@ kind: Job
 metadata:
   labels:
     app: integration-test
-  name: end-to-end-integration-abcd
+  name: end-to-end-integration
   namespace: default
 spec:
   backoffLimit: 0

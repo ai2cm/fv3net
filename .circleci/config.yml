@@ -103,9 +103,14 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Setup firewall rule
+          name: Install dependencies
           command: |
             apt-get install wget
+            apt-get install yq
+            apt-get install jq
+      - run:
+          name: Setup firewall rule
+          command: |
             ci_public_ip=$(wget -qO- http://ipecho.net/plain | xargs echo)
             echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
             gcloud config set project $K8S_PROXY_PROJECT
