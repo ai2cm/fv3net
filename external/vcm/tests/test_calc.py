@@ -93,14 +93,14 @@ def test_apparent_source():
             cftime.DatetimeJulian(2016, 8, 1, 0, 15, 0),
             cftime.DatetimeJulian(2016, 8, 1, 0, 30, 0),
         ],
-        "forecast_time": [0.0, 60.0],
-        "x": [1],
-        "y": [1],
+        "forecast_time": np.array([0., 60., 120., 180., 240.]).astype(np.dtype("<m8[s]")),
     }
     T = xr.DataArray(
-        [[[[1, 2], [3, 5]]]],
-        dims=["x", "y", "initial_time", "forecast_time"],
+        [[1, 2, 4, 7, 11.], [3, 5, 5, 5, 5.]],
+        dims=["initial_time", "forecast_time"],
         coords=coords,
     )
-    Q1 = apparent_source(T, t_dim="initial_time", s_dim="forecast_time")
-    assert Q1 == (2.0 / (15 * 60)) - (1.0 / 60)
+    Q1_forecast0 = apparent_source(T, forecast_time_index=0, t_dim="initial_time", s_dim="forecast_time")
+    assert Q1_forecast0 == pytest.approx((2.0 / (15 * 60)) - (1.0 / 60))
+    Q1_forecast3 = apparent_source(T, forecast_time_index=3, t_dim="initial_time", s_dim="forecast_time")
+    assert Q1_forecast3 == pytest.approx((2.0 / (15 * 60)) - (4.0 / 60))    
