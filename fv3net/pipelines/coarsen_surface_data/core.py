@@ -53,7 +53,7 @@ def coarsen_and_upload_surface(key):
         timestep, category, resolution=stored_resolution
     )
     grouped_files = convenience.group_file_names(files)
-    opened = convenience.map_ops(convenience._open_remote_nc, grouped_files)
+    opened = convenience.map_ops(vcm.open_remote_nc, grouped_files)
 
     # coarse-graining
     with tempfile.TemporaryDirectory() as d:
