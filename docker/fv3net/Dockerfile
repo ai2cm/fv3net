@@ -30,6 +30,7 @@ RUN cd / && \
 ENV PATH=/google-cloud-sdk/bin:${PATH}
 RUN gcloud components install kubectl && \
     gcloud config set project vcm-ml && \
+    gcloud auth login --brief && \
     gcloud container clusters get-credentials \
         --zone $(gcloud container clusters list --format="value(location)") \
         --internal-ip \
