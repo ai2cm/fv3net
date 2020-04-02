@@ -1,6 +1,7 @@
 version: 2.1
 orbs:
   gcp-gcr: circleci/gcp-gcr@0.6.1
+  slack: circleci/slack@3.4.2
 jobs:
   pytest_default:    
     docker:
@@ -39,10 +40,13 @@ jobs:
       - run: | 
           source activate fv3net
           pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+      - slack/status:
+          mentions: 'channel'
 
   build_default:
     machine:
       docker_layer_caching: true
+      image: ubuntu-1604:201903-01
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
@@ -86,6 +90,11 @@ jobs:
                 echo "pushing tagged images $CIRCLE_TAG"
                 make push_images VERSION=$CIRCLE_TAG
             fi
+      - slack/status:
+          fail_only: true
+          mentions: 'channel'
+
+
   
   lint:
     docker:
@@ -141,44 +150,31 @@ jobs:
           name: Firewall rule deletion
           when: always
           command: gcloud compute firewall-rules delete $firewall_name
-
-
-
-
+      - slack/status:
+          fail_only: true
+          mentions: 'channel'
   
 workflows:
   version: 2
   test_and_lint:
     jobs:
-      - lint:
-          filters:
-            branches:
-              ignore: /.*/
-      - pytest_default:
-          filters:
-            branches:
-              ignore: /.*/
+      - lint
+      - pytest_default
   build_and_push:
     jobs:
-      - pytest_default:
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              only: master
       - build_default:
-          requires: 
-            - pytest_default
           filters:
             tags:
               only: /^v.*/
             branches:
               only: master
-  test_integrations:
-    jobs:
       - integration_tests:
+          requires:
+            - build_default
           filters:
+            tags:
+              only: /^v.*/
             branches:
-              only: feature/int-test
+              only: master
             
               
