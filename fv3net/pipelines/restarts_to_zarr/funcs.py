@@ -30,8 +30,7 @@ def insert_timestep(
     item: Tuple[Tuple[str, str, int], xr.DataArray], out_path: str,
 ):
     key, data = item
-    timestamp, category, tile = key
-    time = vcm.parse_datetime_from_str(timestamp)
+    time, category, tile = key
     # The ZarrMapping doesn't serialize so reinit it here.
     output = vcm.ZarrMapping(_get_store(out_path))
     name = data.name

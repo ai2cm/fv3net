@@ -29,9 +29,9 @@ if __name__ == "__main__":
     parser.add_argument("--no-init", action="store_true")
     args, pipeline_args = parser.parse_known_args()
 
-    timestamps = list_timesteps(args.url)
+    times = list_timesteps(args.url)
     if args.n_steps != -1:
-        timestamps = timestamps[: args.n_steps]
+        times = times[: args.n_steps]
 
     fs = fsspec.filesystem("gs")
     categories = CATEGORIES
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     # get schema for first timestep
     if not args.no_init:
         logging.info("Getting the schema")
-        time: str = timestamps[0]
+        time: str = times[0]
         schema = xr.merge(
             [
                 funcs.get_schema(fs, funcs._file(args.url, time, category, tile=1))
@@ -52,12 +52,11 @@ if __name__ == "__main__":
 
         logging.info("Initializing output zarr")
         store = funcs._get_store(args.output)
-        times = [vcm.parse_datetime_from_str(time) for time in timestamps]
         output_m = vcm.ZarrMapping.from_schema(
             store, schema, dims=["time", "tile"], coords={"tile": tiles, "time": times}
         )
 
-    items = product(timestamps, categories, tiles)
+    items = product(times, categories, tiles)
     with beam.Pipeline(options=PipelineOptions(pipeline_args)) as p:
 
         (
