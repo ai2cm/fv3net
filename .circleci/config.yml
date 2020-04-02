@@ -40,8 +40,6 @@ jobs:
       - run: | 
           source activate fv3net
           pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
-      - slack/status:
-          mentions: 'channel'
 
   build_default:
     machine:
