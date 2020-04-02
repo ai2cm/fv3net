@@ -25,6 +25,16 @@ FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
 
 
 def run(args, pipeline_args, names):
+    """ Divide full one step output data into batches to be sent
+    through a beam pipeline, which writes training/test data zarrs
+    
+    Args:
+        args ([arg namespace]): for named args in the main function
+        pipeline_args ([arg namespace]): additional args for the pipeline
+        names ([dict]): Contains information related to the variable 
+            and dimension names from the one step output and created
+            by the pipeline.
+    """
     fs = get_fs(args.gcs_input_data_path)
     ds_full = xr.open_zarr(fs.get_mapper(args.gcs_input_data_path))
     ds_full = _str_time_dim_to_datetime(ds_full, names["init_time_dim"])
@@ -67,13 +77,12 @@ def run(args, pipeline_args, names):
             >> beam.Map(
                 _add_apparent_sources,
                 init_time_dim=names["init_time_dim"],
-                forecast_time_dim=names["forecast_time_dim"],
+                forecast_time_dim=names["forecast_time_dim"],                
                 var_source_name_map=names["var_source_name_map"],
                 tendency_tstep_onestep=FORECAST_TIME_INDEX_FOR_C48_TENDENCY,
-                tendency_tstep__highres=FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY,
+                tendency_tstep_highres=FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY,
             )
-            | "SelectOneStepCols"
-            > beam.Map(lambda x: x[list(names["one_step_vars"])])
+            | "SelectOneStepCols" > beam.Map(lambda x: x[list(names["one_step_vars"])])
             | "MergeHiresDiagVars"
             >> beam.Map(
                 _merge_hires_data,
@@ -95,7 +104,8 @@ def run(args, pipeline_args, names):
 
 def _str_time_dim_to_datetime(ds, time_dim):
     datetime_coords = [
-        parse_datetime_from_str(time_str) for time_str in ds[time_dim].values
+        parse_datetime_from_str(time_str)
+        for time_str in ds[time_dim].values
     ]
     return ds.assign_coords({time_dim: datetime_coords})
 
@@ -270,11 +280,10 @@ def _add_apparent_sources(
                 s_dim=forecast_time_dim,
             )
         ds = ds.isel(
-            {
+            {  
                 init_time_dim: slice(None, ds.sizes[init_time_dim] - 1),
                 forecast_time_dim: 0,
-            }
-        ).drop(forecast_time_dim)
+            }).drop(forecast_time_dim)
         return ds
     except (ValueError, TypeError) as e:
         logger.error(f"Failed step CreateTrainingCols: {e}")

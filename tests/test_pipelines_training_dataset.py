@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from fv3net.pipelines.create_training_data.pipeline import _create_train_cols
+from fv3net.pipelines.create_training_data.pipeline import (
+    _add_apparent_sources, _preprocess_one_step_data)
 
 
 @pytest.fixture
@@ -30,31 +31,21 @@ def test_training_raw_ds():
 
 
 def test__create_train_cols(test_training_raw_ds):
-    train_ds = _create_train_cols(
+    ds = _preprocess_one_step_data(
         test_training_raw_ds,
-        cols_to_keep=["air_temperature", "dQ1"],
-        forecast_timestep_for_onestep=0,
-        forecast_timestep_for_highres=0,
-        init_time_dim="initial_time",
+        radiation_vars=[],
         forecast_time_dim="forecast_time",
+        suffix_coarse_train="train",
         step_time_dim="step",
         coord_begin_step="begin",
-        var_source_name_map={"air_temperature": "dQ1"},
-        radiation_vars=[],
-        suffix_coarse_train="train",
     )
-    assert train_ds.dQ1.values == pytest.approx(0.0 - 1.0 / 60)
-    train_ds = _create_train_cols(
-        test_training_raw_ds,
-        cols_to_keep=["air_temperature", "dQ1"],
-        forecast_timestep_for_onestep=1,
-        forecast_timestep_for_highres=1,
+    train_ds = _add_apparent_sources(
+        ds,
+        tendency_tstep_onestep=1,
+        tendency_tstep_highres=1,
         init_time_dim="initial_time",
         forecast_time_dim="forecast_time",
-        step_time_dim="step",
-        coord_begin_step="begin",
+
         var_source_name_map={"air_temperature": "dQ1"},
-        radiation_vars=[],
-        suffix_coarse_train="train",
     )
     assert train_ds.dQ1.values == pytest.approx(1.0 / (15.0 * 60) - 26.0 / 60)
