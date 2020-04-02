@@ -119,7 +119,7 @@ def rename_sfc_dt_atmos(sfc: xr.Dataset) -> xr.Dataset:
         sfc[list(SFC_VARIABLES + GRID_VARIABLES)]
         .rename(DIMS)
         .transpose("step", "forecast_time", "tile", "y", "x", "y_interface", "x_interface")
-        .drop(["step", "forecast_time", "y", "x", "y_interface", "x_interface"])
+        .drop(["forecast_time", "y", "x", "y_interface", "x_interface"])
     )
 
 
@@ -127,10 +127,13 @@ def _align_sfc_step_dim(da: xr.DataArray) -> xr.DataArray:
     
     da_shift = da.shift(shifts = {"time": 1})
     da_begin = da_shift.expand_dims({'step' : ['begin']})
-    da_after_dynamics = da_shift.expand_dims({'step' : ['after_dynamics']})
-    da_after_physics = da.expand_dims({'step' : ['after_physics']})
+    da_after_dynamics = da_shift.expand_dims({'step' : ["after_physics"]})
+    da_after_physics = da.expand_dims({'step' : ["after_dynamics"]})
+    da_all = xr.concat([da_begin, da_after_dynamics, da_after_physics], dim = 'step')
     
-    return xr.concat([da_begin, da_after_dynamics, da_after_physics], dim = 'step')
+    # need to assign coordiante dtype otherwise it's cast to object and zarr will choke
+    
+    return da_all.assign_coords({"step": da_all['step'].values.astype('<U14')})
 
 
 def init_data_var(group: zarr.Group, array: xr.DataArray, nt: int):
@@ -149,7 +152,9 @@ def init_coord(group: zarr.Group, coord):
     # fill_value=NaN is needed below for xr.open_zarr to succesfully load this
     # coordinate if decode_cf=True. Otherwise, time=0 gets filled in as nan. very
     # confusing...
-    out_array = group.array(name=coord.name, data=np.asarray(coord), fill_value="NaN")
+    coord_data = np.asarray(coord).astype('<U14')
+    print(coord_data)
+    out_array = group.array(name=coord.name, data=coord_data, fill_value="NaN")
     out_array.attrs.update(coord.attrs)
     out_array.attrs["_ARRAY_DIMENSIONS"] = list(coord.dims)
 
@@ -164,6 +169,7 @@ def create_zarr_store(
     for name in ds:
         init_data_var(group, ds[name], nt)
 
+    print(timesteps)
     for name in ds.coords:
         init_coord(group, ds[name])
     dim = group.array("initial_time", data=timesteps)
@@ -234,15 +240,18 @@ def post_process(
         rename_sfc_dt_atmos
     )
     sfc = _safe_get_variables(sfc, SFC_VARIABLES + GRID_VARIABLES)
+    print(sfc)
 
     ds = (
         _merge_monitor_data(monitor_paths)
         .rename({"time": "forecast_time"})
         .chunk({"forecast_time": 1, "tile": 6, "step": 3})
     )
+    print(ds)
 
     merged = xr.merge([sfc, ds])
     mapper = fsspec.get_mapper(store_url)
+    
 
     if init:
         logging.info("initializing zarr store")
