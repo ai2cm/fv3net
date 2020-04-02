@@ -30,7 +30,9 @@ VARS_FOR_PLOTS = [
     "USWRFsfc",
     "DLWRFsfc",
     "ULWRFtoa",
-    "ULWRFsfc"
+    "ULWRFsfc",
+    "latent_heat_flux",
+    "sensible_heat_flux"
 ]
 VAR_TYPE_DIM = 'var_type'
 
