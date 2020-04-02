@@ -30,12 +30,12 @@ RUN cd / && \
 ENV PATH=/google-cloud-sdk/bin:${PATH}
 RUN gcloud components install kubectl && \
     gcloud config set project vcm-ml && \
-    gcloud auth login --brief && \
-    gcloud container clusters get-credentials \
-        --zone $(gcloud container clusters list --format="value(location)") \
-        --internal-ip \
-        $(gcloud container clusters list --format="value(name)") && \
-    fix-permissions /home/$NB_USER/.kube
+    gcloud auth list && exit 1 
+    # gcloud container clusters get-credentials \
+    #     --zone $(gcloud container clusters list --format="value(location)") \
+    #     --internal-ip \
+    #     $(gcloud container clusters list --format="value(name)") && \
+    # fix-permissions /home/$NB_USER/.kube
 
 # Add rest of fv3net directory
 ADD . $FV3NET

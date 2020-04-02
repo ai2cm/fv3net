@@ -53,7 +53,8 @@ jobs:
       - gcp-gcr/gcr-auth:
           gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - checkout
-      - run: sudo apt-get install make
+      - run: 
+          sudo apt-get install make
       - run:
           name: "Pull submodules"
           command: |
