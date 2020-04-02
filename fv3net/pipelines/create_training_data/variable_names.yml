@@ -3,13 +3,6 @@
 suffix_hires: "prog"
 suffix_coarse_train: "train"
 
-# names of source term target variables
-target_vars:
-  - "dQU"
-  - "dQV"
-  - "dQ1"
-  - "dQ2"
-
 # maps data variable to its source term name
 var_source_name_map:
     "x_wind": "dQU"
@@ -49,8 +42,12 @@ var_y_wind: "y_wind"
 var_temp: "air_temperature"
 var_sphum: "specific_humidity"
 
-# data variables from one step output used as features
+# data variables from one step output used as features and targets
 one_step_vars: 
+  - "dQU"
+  - "dQV"
+  - "dQ1"
+  - "dQ2"
   - "total_precipitation"
   - "surface_temperature"
   - "land_sea_mask"

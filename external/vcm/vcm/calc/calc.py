@@ -22,25 +22,20 @@ def timedelta_to_seconds(dt):
 
 
 def apparent_source(
-    q: xr.DataArray,
-    forecast_time_index_onestep,
-    forecast_time_index_highres,
-    t_dim: str,
-    s_dim: str,
+    q: xr.DataArray, t_dim: str, s_dim: str, coarse_tstep_idx=0, highres_tstep_idx=0
 ) -> xr.DataArray:
     """Compute the apparent source from stepped output
 
     Args:
         q: The variable to compute the source of
-        forecast_time_index_onestep: forecast time step to use for
-            calculating one step run tendency
-        forecast_time_index_highres: forecast time step to use for
-            calculating high res run tendency
         t_dim, optional: the dimension corresponding to the initial condition
         s_dim, optional: the dimension corresponding to the forecast time
         step_dim: dimension corresponding to the step time dimension
             (begin, before physics, after physics)
-
+        coarse_tstep_idx: (default=0) forecast time step to use for
+            calculating one step run tendency
+        highres_tstep_idx: (default=0) forecast time step to use for
+            calculating high res run tendency
     Returns:
         The apparent source of q. Has units [q]/s
 
@@ -58,11 +53,9 @@ def apparent_source(
     tend_c48 = dq_c48 / ds
 
     # restore coords
-    tend = tend.isel({s_dim: forecast_time_index_highres}).assign_coords(
-        **{t_dim: t[:-1]}
-    )
+    tend = tend.isel({s_dim: highres_tstep_idx}).assign_coords(**{t_dim: t[:-1]})
     tend_c48 = tend_c48.isel(
-        {s_dim: forecast_time_index_onestep, t_dim: slice(0, -1)}
+        {s_dim: coarse_tstep_idx, t_dim: slice(0, -1)}
     ).assign_coords(**{t_dim: t[:-1]})
 
     return tend - tend_c48

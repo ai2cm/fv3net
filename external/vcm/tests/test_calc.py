@@ -105,16 +105,16 @@ def test_apparent_source():
     # check Q calculated for different forecast time steps
     Q1_forecast0 = apparent_source(
         T,
-        forecast_time_index_onestep=0,
-        forecast_time_index_highres=0,
+        coarse_tstep_idx=0,
+        highres_tstep_idx=0,
         t_dim="initial_time",
         s_dim="forecast_time",
     )
     assert Q1_forecast0 == pytest.approx((2.0 / (15 * 60)) - (1.0 / 60))
     Q1_forecast3 = apparent_source(
         T,
-        forecast_time_index_onestep=3,
-        forecast_time_index_highres=0,
+        coarse_tstep_idx=3,
+        highres_tstep_idx=0,
         t_dim="initial_time",
         s_dim="forecast_time",
     )

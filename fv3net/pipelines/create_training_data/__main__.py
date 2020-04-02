@@ -49,8 +49,5 @@ if __name__ == "__main__":
 
     args, pipeline_args = parser.parse_known_args()
     with open(args.variable_namefile, "r") as stream:
-        try:
-            names = yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            raise ValueError(f"Bad yaml config: {exc}")
+        names = yaml.safe_load(stream)
     run(args=args, pipeline_args=pipeline_args, names=names)

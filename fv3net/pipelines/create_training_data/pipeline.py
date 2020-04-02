@@ -27,6 +27,7 @@ FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
 def run(args, pipeline_args, names):
     fs = get_fs(args.gcs_input_data_path)
     ds_full = xr.open_zarr(fs.get_mapper(args.gcs_input_data_path))
+    ds_full = _str_time_dim_to_datetime(ds_full, names["init_time_dim"])
     _save_grid_spec(
         ds_full,
         args.gcs_output_data_dir,
@@ -53,20 +54,26 @@ def run(args, pipeline_args, names):
         (
             p
             | beam.Create(data_batches)
-            | "CreateTrainingCols"
+            | "PreprocessOneStepData"
             >> beam.Map(
-                _create_train_cols,
-                cols_to_keep=names["one_step_vars"] + names["target_vars"],
-                init_time_dim=names["init_time_dim"],
+                _preprocess_one_step_data,
+                radiation_vars=names["radiation_vars"],
+                suffix_coarse_train=names["suffix_coarse_train"],
                 step_time_dim=names["step_time_dim"],
                 forecast_time_dim=names["forecast_time_dim"],
                 coord_begin_step=names["coord_begin_step"],
-                var_source_name_map=names["var_source_name_map"],
-                forecast_timestep_for_onestep=FORECAST_TIME_INDEX_FOR_C48_TENDENCY,
-                forecast_timestep_for_highres=FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY,
-                radiation_vars=names["radiation_vars"],
-                suffix_coarse_train=names["suffix_coarse_train"],
             )
+            | "AddApparentSources"
+            >> beam.Map(
+                _add_apparent_sources,
+                init_time_dim=names["init_time_dim"],
+                forecast_time_dim=names["forecast_time_dim"],
+                var_source_name_map=names["var_source_name_map"],
+                tendency_tstep_onestep=FORECAST_TIME_INDEX_FOR_C48_TENDENCY,
+                tendency_tstep__highres=FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY,
+            )
+            | "SelectOneStepCols"
+            > beam.Map(lambda x: x[list(names["one_step_vars"])])
             | "MergeHiresDiagVars"
             >> beam.Map(
                 _merge_hires_data,
@@ -86,6 +93,13 @@ def run(args, pipeline_args, names):
         )
 
 
+def _str_time_dim_to_datetime(ds, time_dim):
+    datetime_coords = [
+        parse_datetime_from_str(time_str) for time_str in ds[time_dim].values
+    ]
+    return ds.assign_coords({time_dim: datetime_coords})
+
+
 def _divide_data_batches(
     ds_full, timesteps_per_output_file, train_fraction, init_time_dim
 ):
@@ -102,11 +116,6 @@ def _divide_data_batches(
             dict of train and test timesteps
             )
     """
-    init_datetime_coords = [
-        parse_datetime_from_str(init_time)
-        for init_time in ds_full[init_time_dim].values
-    ]
-    ds_full = ds_full.assign_coords({init_time_dim: init_datetime_coords})
     timestep_batches = _get_timestep_batches(
         ds_full, timesteps_per_output_file, init_time_dim
     )
@@ -224,63 +233,48 @@ def _test_train_split(timestep_batches, train_frac):
     return labels
 
 
-def _create_train_cols(
+def _preprocess_one_step_data(
     ds,
-    cols_to_keep,
-    forecast_timestep_for_onestep,
-    forecast_timestep_for_highres,
-    init_time_dim,
+    radiation_vars,
+    suffix_coarse_train,
     forecast_time_dim,
     step_time_dim,
     coord_begin_step,
-    var_source_name_map,
-    radiation_vars,
-    suffix_coarse_train,
 ):
-    """ Calculate apparent sources for target variables and keep feature vars
-    
-    Args:
-        ds (xarray dataset): must have the specified feature vars in cols_to_keep
-            as well as vars needed to calculate apparent sources
-        tendency_forecast_time_index (int): index of the forecast time step to use
-            when calculating apparent source
-        init_time_dim (str): name of initial time dimension
-        forecast_time_dim (str): name of forecast time dimension
-        step_time_dim (str): name of step time dimension
-        coord_begin_step (str): coordinate for the first step in each forecast timestep
-            (inital state before dynamics or physics are stepped)
-        var_source_name_map (dict): dict that maps variable name to its apparent source
-            variable name
-        cols_to_keep ([str], optional): List of variable names that will be in final
-            train dataset. Defaults to names.one_step_vars+names.target_vars.
-    
-    Returns:
-        xarray dataset containing feature and target data variables
-    """
     renamed_one_step_vars = {
         var: f"{var}_{suffix_coarse_train}" for var in radiation_vars
     }
     try:
         ds = ds.sel({step_time_dim: coord_begin_step}).rename(renamed_one_step_vars)
-        ds = helpers.convert_forecast_time_to_timedelta(ds, forecast_time_dim)
+        ds = helpers._convert_forecast_time_to_timedelta(ds, forecast_time_dim)
+        return ds
+    except (KeyError, ValueError) as e:
+        logger.error(f"Failed step PreprocessTrainData: {e}")
+
+
+def _add_apparent_sources(
+    ds,
+    tendency_tstep_onestep,
+    tendency_tstep_highres,
+    init_time_dim,
+    forecast_time_dim,
+    var_source_name_map,
+):
+    try:
         for var_name, source_name in var_source_name_map.items():
             ds[source_name] = apparent_source(
                 ds[var_name],
-                forecast_timestep_for_onestep,
-                forecast_timestep_for_highres,
+                coarse_tstep_idx=tendency_tstep_onestep,
+                highres_tstep_idx=tendency_tstep_highres,
                 t_dim=init_time_dim,
                 s_dim=forecast_time_dim,
             )
-        ds = (
-            ds[cols_to_keep]
-            .isel(
-                {
-                    init_time_dim: slice(None, ds.sizes[init_time_dim] - 1),
-                    forecast_time_dim: 0,
-                }
-            )
-            .drop(forecast_time_dim)
-        )
+        ds = ds.isel(
+            {
+                init_time_dim: slice(None, ds.sizes[init_time_dim] - 1),
+                forecast_time_dim: 0,
+            }
+        ).drop(forecast_time_dim)
         return ds
     except (ValueError, TypeError) as e:
         logger.error(f"Failed step CreateTrainingCols: {e}")
