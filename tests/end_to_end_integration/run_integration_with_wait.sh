@@ -11,25 +11,29 @@ yq w -i submit_e2e_job_k8s.yml metadata.name $new_job_name
 # submit job
 kubectl apply -f submit_e2e_job_k8s.yml
 
-# Check for successful job within 30 minutes
+# Sleep while job is active
 timeout=$(date -ud "30 minutes" +%s)
-
-while [[ $(date +%s) -le $timeout ]]; do
-
+job_active=$(kubectl get job $new_job_name -o json | jq --raw-output .status.active)
+while [[ $(date +%s) -le $timeout ]] && [[ $job_active == "1" ]]
+do
+    echo Job active: $new_job_name ... sleeping $(date "+%Y-%m-%d %H:%M")
+    sleep 60
     job_active=$(kubectl get job $new_job_name -o json | jq --raw-output .status.active)
-    job_succeed=$(kubectl get job $new_job_name -o json | jq --raw-output .status.succeded)
-    if [ $job_active ]; then
-        echo Job active: $new_job_name ... sleeping
-        sleep 60
-    elif [ ! $job_succeed ]; then
-        echo Job failed: $new_job_name
-        exit 1
-    else
-        echo Job successful: $new_job_name
-    fi
-
 done
 
-# else non-zero exit code
-echo Job timed out: $new_job_name
-exit 1
+# Check for job success
+job_succeed=$(kubectl get job $new_job_name -o json | jq --raw-output .status.succeeded)
+job_fail=$(kubectl get job $new_job_name -o json | jq --raw-output .status.failed)
+if [[ $job_succeed == "1" ]]
+then
+    echo Job successful: $new_job_name
+    echo Deleting job...
+    kubectl delete job $new_job_name
+elif [[ $job_fail == "1" ]]
+then
+    echo Job failed: $new_job_name
+    exit 1
+else
+    echo Job timed out or success ambiguous: $new_job_name
+    exit 1
+fi
