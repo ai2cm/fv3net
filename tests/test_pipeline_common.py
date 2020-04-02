@@ -46,7 +46,7 @@ def test_timestep_lister_sorted(timestep_dir):
 
 
 def test_timestep_lister_nonexistent_dir():
-    
+
     res = list_timesteps("/nonexistent/directory/")
     assert not res and isinstance(res, Iterable)
 
