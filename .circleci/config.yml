@@ -105,8 +105,8 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            apt-get install wget
-            apt-get install jq
+            apt-get install wget -y
+            apt-get install jq -y
             wget -qO /bin/yq https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_386
             chmod +x /bin/yq
       - run:
