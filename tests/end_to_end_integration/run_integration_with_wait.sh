@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SLEEP_TIME=60
+
 # create yaml with unique testing job name
 cd tests/end_to_end_integration
 rand_tag=$(openssl rand -hex 6)
@@ -16,8 +18,8 @@ timeout=$(date -ud "30 minutes" +%s)
 job_active=$(kubectl get job $new_job_name -o json | jq --raw-output .status.active)
 while [[ $(date +%s) -le $timeout ]] && [[ $job_active == "1" ]]
 do
-    echo Job active: $new_job_name ... sleeping $(date "+%Y-%m-%d %H:%M")
-    sleep 60
+    echo \[$(date "+%Y-%m-%d %H:%M")\] Job active: $new_job_name ... sleeping ${SLEEP_TIME}s
+    sleep $SLEEP_TIME
     job_active=$(kubectl get job $new_job_name -o json | jq --raw-output .status.active)
 done
 
