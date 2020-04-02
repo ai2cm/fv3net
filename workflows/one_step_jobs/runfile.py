@@ -119,7 +119,7 @@ def rename_sfc_dt_atmos(sfc: xr.Dataset) -> xr.Dataset:
         sfc[list(SFC_VARIABLES + GRID_VARIABLES)]
         .rename(DIMS)
         .transpose("step", "forecast_time", "tile", "y", "x", "y_interface", "x_interface")
-        .drop(["forecast_time", "y", "x", "y_interface", "x_interface"])
+        .drop(["step", "forecast_time", "y", "x", "y_interface", "x_interface"])
     )
 
 
@@ -247,6 +247,7 @@ def post_process(
     if init:
         logging.info("initializing zarr store")
         group = zarr.open_group(mapper, mode="w")
+        print(merged)
         create_zarr_store(timesteps, group, merged)
 
     group = zarr.open_group(mapper, mode="a")
