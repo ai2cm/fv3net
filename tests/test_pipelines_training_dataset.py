@@ -2,10 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from fv3net.pipelines.create_training_data.pipeline import (
-    _add_apparent_sources,
-    _preprocess_one_step_data,
-)
+from fv3net.pipelines.create_training_data.pipeline import _add_apparent_sources
 
 
 @pytest.fixture

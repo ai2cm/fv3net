@@ -29,6 +29,15 @@ renamed_dims:
   grid_yt: "y"
   grid_x: "x_interface"
   grid_y: "y_interface"
+  initialization_time: "initial_time"
+
+edge_dims:
+  - "x_interface"
+  - "y_interface"
+
+edge_to_center_dims:
+  "x_interface": "x"
+  "y_interface": "y"
 
 grid_vars:
   - "area"
@@ -51,8 +60,8 @@ one_step_vars:
   - "total_precipitation"
   - "surface_temperature"
   - "land_sea_mask"
-  - "latent_heat_flux"
-  - "sensible_heat_flux"
+  - "latent_heat_flux_train"
+  - "sensible_heat_flux_train"
   - "mean_cos_zenith_angle"
   - "surface_geopotential"
   - "vertical_thickness_of_atmospheric_layer"
@@ -81,7 +90,7 @@ high_res_data_variables:
   - "SHTFLsfc"
   - "LHTFLsfc"
 
-radiation_vars:
+flux_vars:
   - "DSWRFtoa"
   - "DSWRFsfc"
   - "USWRFtoa"
@@ -89,3 +98,7 @@ radiation_vars:
   - "DLWRFsfc"
   - "ULWRFtoa"
   - "ULWRFsfc"
+  - "SHTFLsfc"
+  - "LHTFLsfc"
+  - "sensible_heat_flux"
+  - "latent_heat_flux"
