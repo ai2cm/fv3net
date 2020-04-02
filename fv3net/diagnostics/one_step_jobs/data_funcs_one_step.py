@@ -1,16 +1,16 @@
-from typing import Sequence, Tuple#, List
+from typing import Sequence, Tuple
 import xarray as xr
 import numpy as np
 from vcm.cubedsphere.constants import TIME_FMT
 from vcm.select import mask_to_surface_type
-# from vcm import parse_timestep_str_from_path, parse_datetime_from_str
+from vcm.convenience import parse_datetime_from_str
 from datetime import datetime, timedelta
-# import logging
+import logging
 
 from fv3net.diagnostics.one_step_jobs import thermo
 from fv3net.pipelines.common import subsample_timesteps_at_interval
 
-# logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 INIT_TIME_DIM = 'initial_time'
 FORECAST_TIME_DIM = 'forecast_time'
@@ -23,7 +23,14 @@ VARS_FOR_PLOTS = [
     'specific_humidity',
     'vertical_wind',
     'air_temperature',
-    'pressure_thickness_of_atmospheric_layer'
+    'pressure_thickness_of_atmospheric_layer',
+    "DSWRFtoa",
+    "DSWRFsfc",
+    "USWRFtoa",
+    "USWRFsfc",
+    "DLWRFsfc",
+    "ULWRFtoa",
+    "ULWRFsfc"
 ]
 VAR_TYPE_DIM = 'var_type'
 
@@ -78,11 +85,12 @@ def _timestamp_pairs_indices(timestamp_list: list, timestamp: str, time_fmt: str
     return pairs
 
 
-def time_coord_from_str_coord(str_coord: xr.DataArray, dim: str = INIT_TIME_DIM, fmt = TIME_FMT) -> xr.DataArray:
-    return xr.DataArray(
-        data = [datetime.strptime(time.item(), TIME_FMT) for time in str_coord],
-        dims = (dim,)
-    )
+def time_coord_to_datetime(ds: xr.Dataset, time_coord: str = INIT_TIME_DIM) -> xr.Dataset:
+    
+    init_datetime_coords = [parse_datetime_from_str(timestamp) for timestamp in ds[time_coord].values]
+    ds = ds.assign_coords({time_coord: init_datetime_coords})
+    
+    return ds
 
 
 def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
