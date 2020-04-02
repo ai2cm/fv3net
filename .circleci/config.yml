@@ -107,6 +107,7 @@ jobs:
       - image: google/cloud-sdk
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+      FV3NET_IMAGE: us.gcr.io/vcm-ml/fv3net
     steps:
       - checkout
       - run:

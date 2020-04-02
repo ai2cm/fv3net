@@ -2,13 +2,23 @@
 
 SLEEP_TIME=60
 
+if [[ -z $FV3NET_IMAGE ]]; then
+    FV3NET_IMAGE="us.gcr.io/vcm-ml/fv3net"
+fi
+
+if [[ -z $CIRCLE_TAG ]]; then
+    CIRCLE_TAG="latest"
+fi
+
 # create yaml with unique testing job name
 cd tests/end_to_end_integration
 rand_tag=$(openssl rand -hex 6)
 job_name=$(cat submit_e2e_job_k8s.yml | yq r - metadata.name)
 new_job_name=${job_name}-${rand_tag}
-# save job name
+
+# save with new job name and correct image tag
 yq w -i submit_e2e_job_k8s.yml metadata.name $new_job_name
+yq w -i submit_e2e_job_k8s.yml spec.template.spec.containers[0].image "${FV3NET_IMAGE}:${CIRCLE_TAG}"
 
 # submit job
 kubectl apply -f submit_e2e_job_k8s.yml
