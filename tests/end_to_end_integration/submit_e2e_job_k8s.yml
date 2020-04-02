@@ -30,9 +30,9 @@ spec:
       restartPolicy: Never
       terminationGracePeriodSeconds: 30
       tolerations:
-        - key: dedicated
-          effect: NoSchedule
-          value: climate-sim-pool
+      - key: dedicated
+        effect: NoSchedule
+        value: climate-sim-pool
       volumes:
       - name: gcp-key-secret
         secret:
