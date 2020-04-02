@@ -15,7 +15,7 @@ def test_training_raw_ds():
         "forecast_time": np.array([0.0, 60.0, 120.0]).astype(np.dtype("<m8[s]")),
     }
 
-    # hi res changes by 0 K, C48 changes by 1 K and 6 K
+    # hi res changes by 0 K, C48 changes by 1 K and 26 K
     T_da = xr.DataArray(
         [[273.0, 274.0, 300.0], [273.0, 275.0, 310.0]],
         dims=["initial_time", "forecast_time"],
