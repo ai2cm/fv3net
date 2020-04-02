@@ -90,12 +90,15 @@ SFC_VARIABLES = (
     "USWRFsfc",
     "DLWRFsfc",
     "ULWRFtoa",
-    "ULWRFsfc",
+    "ULWRFsfc"
+)
+
+GRID_VARIABLES = (
     "lat",
     "lon",
     "latb",
     "lonb",
-    "area",
+    "area"
 )
 
 
@@ -107,12 +110,27 @@ def rename_sfc_dt_atmos(sfc: xr.Dataset) -> xr.Dataset:
         "grid_y": "y_interface",
         "time": "forecast_time",
     }
+    
+    realigned_sfc_vars = {varname: _align_sfc_step_dim(sfc[varname]) for varname in SFC_VARIABLES}
+    sfc = sfc.drop(SFC_VARIABLES)
+    sfc = sfc.assign(realigned_sfc_vars)
+    
     return (
-        sfc[list(SFC_VARIABLES)]
+        sfc[list(SFC_VARIABLES + GRID_VARIABLES)]
         .rename(DIMS)
-        .transpose("forecast_time", "tile", "y", "x", "y_interface", "x_interface")
+        .transpose("step", "forecast_time", "tile", "y", "x", "y_interface", "x_interface")
         .drop(["forecast_time", "y", "x", "y_interface", "x_interface"])
     )
+
+
+def _align_sfc_step_dim(da: xr.DataArray) -> xr.DataArray:
+    
+    da_shift = da.shift(shifts = {"time": 1})
+    da_begin = da_shift.expand_dims({'step' : ['begin']})
+    da_after_dynamics = da_shift.expand_dims({'step' : ['after_dynamics']})
+    da_after_physics = da.expand_dims({'step' : ['after_physics']})
+    
+    return xr.concat([da_begin, da_after_dynamics, da_after_physics], dim = 'step')
 
 
 def init_data_var(group: zarr.Group, array: xr.DataArray, nt: int):
@@ -215,7 +233,7 @@ def post_process(
     sfc = xr.open_mfdataset(sfc_pattern, concat_dim="tile", combine="nested").pipe(
         rename_sfc_dt_atmos
     )
-    sfc = _safe_get_variables(sfc, SFC_VARIABLES)
+    sfc = _safe_get_variables(sfc, SFC_VARIABLES + GRID_VARIABLES)
 
     ds = (
         _merge_monitor_data(monitor_paths)
