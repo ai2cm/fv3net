@@ -24,7 +24,7 @@ fv3config:
         - 0
         - 0
         - 0
-      days: 2
+      days: 91
       minutes: 0
       seconds: 0
       dt_atmos: 900  # seconds
