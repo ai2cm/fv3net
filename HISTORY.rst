@@ -6,6 +6,8 @@ History
 latest
 ------
 
+* Add public function: vcm.convert_timestamps
+* Add pipeline to load C384 restart data into a zarr
 
 0.1.1 (2020-03-25)
 ------------------

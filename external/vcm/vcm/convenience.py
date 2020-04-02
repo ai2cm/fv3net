@@ -3,10 +3,12 @@ import pathlib
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import TypeVar, Union, Sequence
 
 import cftime
 import intake
 import xarray as xr
+import numpy as np
 import yaml
 
 from vcm.cloud import gsutil
@@ -65,6 +67,11 @@ def parse_datetime_from_str(time: str) -> cftime.DatetimeJulian:
     """
     t = datetime.strptime(time, TIME_FMT)
     return cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)
+
+
+def convert_timestamps(coord: xr.DataArray) -> xr.DataArray:
+    parser = np.vectorize(parse_datetime_from_str)
+    return xr.DataArray(parser(coord), dims=coord.dims, attrs=coord.attrs)
 
 
 def get_root():
