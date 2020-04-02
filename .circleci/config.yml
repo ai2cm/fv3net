@@ -135,7 +135,7 @@ jobs:
             kubectl config set-cluster $kube_cluster_name --certificate-authority="./proxy.crt"
       - run:
           name: Submit integration tests
-          command: kubectl apply -f tests/end_to_end_integration/submit_e2e_job_k8s.yml
+          command: tests/end_to_end_integration/run_integration_with_wait.sh
       - run:
           name: Firewall rule deletion
           when: always
