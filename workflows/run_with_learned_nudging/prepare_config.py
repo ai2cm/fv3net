@@ -3,7 +3,6 @@ import logging
 import os
 import fsspec
 import yaml
-import vcm
 from fv3net.pipelines.kube_jobs import (
     get_base_fv3config,
     update_nested_dict,
@@ -81,8 +80,9 @@ if __name__ == "__main__":
     base_config = get_base_fv3config(args.config_version)
     with open(args.config_template) as f:
         template = yaml.load(f, Loader=yaml.FullLoader)
-    config = prepare_config(template, base_config, args.nudge_label, args.config_url)
-    fs = vcm.cloud.get_fs(args.config_url)
-    fs.mkdirs(args.config_url, exist_ok=True)
-    with fsspec.open(os.path.join(args.config_url, "fv3config.yml"), "w") as f:
+    fs, _, config_url_list = fsspec.get_fs_token_paths(args.config_url)  # ensures absolute
+    config_url = config_url_list[0]  # get_fs_token_paths returns a list
+    config = prepare_config(template, base_config, args.nudge_label, config_url)
+    fs.mkdirs(config_url, exist_ok=True)
+    with fsspec.open(os.path.join(config_url, "fv3config.yml"), "w") as f:
         yaml.safe_dump(config, f)
