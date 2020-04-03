@@ -136,9 +136,6 @@ def _align_sfc_step_da(da: xr.DataArray, step_names: Sequence) -> xr.DataArray:
         else:
             new_da = da.expand_dims({"step": [step]})
         da_list.append(new_da)
-    #     da_begin = da_shift.expand_dims({"step": ["begin"]})
-    #     da_after_dynamics = da_shift.expand_dims({"step": ["after_dynamics"]})
-    #     da_after_physics = da.expand_dims({"step": ["after_physics"]})
 
     return xr.concat(da_list, dim="step")
 
@@ -252,7 +249,7 @@ def post_process(
     sfc = (
         xr.open_mfdataset(sfc_pattern, concat_dim="tile", combine="nested")
         .pipe(rename_sfc_dt_atmos)
-        .pipe(align_sfc_step_ds, monitor_paths)
+        .pipe(align_sfc_step_ds, monitor_paths.keys())
     )
 
     ds = (
