@@ -1,18 +1,19 @@
 from vcm.cloud.fsspec import get_fs
 from fv3net.diagnostics.one_step_jobs.data_funcs_one_step import (
     time_inds_to_open,
+    time_coord_to_datetime,
+    insert_hi_res_diags,
     insert_derived_vars_from_ds_zarr,
-    time_coord_from_str_coord,
     get_states_and_tendencies,
     insert_column_integrated_tendencies,
     insert_model_run_differences,
     insert_abs_vars, 
     insert_variable_at_model_level,
-    make_init_time_dim_intelligible,
     insert_weighted_mean_vars,
     shrink_ds
 )
 from fv3net.pipelines.common import dump_nc
+from fv3net import COARSENED_DIAGS_ZARR_NAME
 import argparse
 import xarray as xr
 import os
@@ -36,6 +37,9 @@ def _create_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "one_step_path", type=str, help="One-step zarr path, including .zarr suffix."
+    )
+    parser.add_argument(
+        "hi_res_diags_path", type=str, help="Output location for diagnostics."
     )
     parser.add_argument(
         "one_step_diags_output_path", type=str, help="Output location for diagnostics."
@@ -67,19 +71,23 @@ if __name__ == "__main__":
     
     timestep_subset_indices = time_inds_to_open(ds_zarr[INIT_TIME_DIM], args.n_inits_sample)
     
+    hi_res_diags_zarrpath = os.path.join(args.hi_res_diags_path, COARSENED_DIAGS_ZARR_NAME)
+    
     ds_sample = [(
         ds_zarr
         .isel({INIT_TIME_DIM: list(indices)})
         .sel({'step': ['begin', 'after_physics']})
+        .pipe(time_coord_to_datetime)
+        .pipe(insert_hi_res_diags, hi_res_diags_zarrpath)
         .pipe(insert_derived_vars_from_ds_zarr)
     ) for indices in timestep_subset_indices]
     
     logger.info(f"Sampled {len(ds_sample)} initializations.")
     
-    ds_sample = [
-        ds.assign_coords({INIT_TIME_DIM: time_coord_from_str_coord(ds[INIT_TIME_DIM])})
-        for ds in ds_sample
-    ]
+#     ds_sample = [
+#         ds.assign_coords({INIT_TIME_DIM: time_coord_from_str_coord(ds[INIT_TIME_DIM])})
+#         for ds in ds_sample
+#     ]
     
     states_and_tendencies = (
         get_states_and_tendencies(ds_sample)
@@ -87,7 +95,6 @@ if __name__ == "__main__":
         .pipe(insert_model_run_differences)
         .pipe(insert_abs_vars, ABS_VARS)
         .pipe(insert_variable_at_model_level, ['vertical_wind'], 40)
-        .pipe(make_init_time_dim_intelligible)
     )
     
     grid = ds_zarr[GRID_VARS].isel({
@@ -106,6 +113,8 @@ if __name__ == "__main__":
         )
         .pipe(shrink_ds)
     )
+    
+    print(states_and_tendencies)
     
     output_nc_path = os.path.join(args.one_step_diags_output_path, OUTPUT_NC_FILENAME)
     fs_out = get_fs(output_nc_path)

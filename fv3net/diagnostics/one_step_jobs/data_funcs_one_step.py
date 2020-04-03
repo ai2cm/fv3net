@@ -9,6 +9,7 @@ import logging
 
 from fv3net.diagnostics.one_step_jobs import thermo
 from fv3net.pipelines.common import subsample_timesteps_at_interval
+from fv3net.pipelines.create_training_data.helpers import load_hires_prog_diag
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,15 @@ VARS_FOR_PLOTS = [
     "sensible_heat_flux"
 ]
 VAR_TYPE_DIM = 'var_type'
+SFC_VARIABLES = (
+    "DSWRFtoa",
+    "DSWRFsfc",
+    "USWRFtoa",
+    "USWRFsfc",
+    "DLWRFsfc",
+    "ULWRFtoa",
+    "ULWRFsfc"
+)
 
 
 def time_inds_to_open(time_coord: xr.DataArray, n_sample: int) -> Sequence:
@@ -93,6 +103,24 @@ def time_coord_to_datetime(ds: xr.Dataset, time_coord: str = INIT_TIME_DIM) -> x
     ds = ds.assign_coords({time_coord: init_datetime_coords})
     
     return ds
+
+
+def insert_hi_res_diags(ds: xr.Dataset, hi_res_diags_path: str) -> xr.Dataset:
+    
+    new_dims = {'grid_xt': 'x', 'grid_yt': 'y', 'initialization_time': INIT_TIME_DIM}
+    
+    datetimes = list(ds[INIT_TIME_DIM].values)
+    ds_hires_diags = load_hires_prog_diag(hi_res_diags_path, datetimes).rename(new_dims)
+    
+    new_vars = {}
+    for name in SFC_VARIABLES:
+        hires_name = name + '_coarse'
+        hires_var = ds_hires_diags[hires_name].transpose(INIT_TIME_DIM, 'tile', 'y', 'x')
+        coarse_var = ds[name].load()
+        coarse_var.loc[{FORECAST_TIME_DIM: 0, 'step': 'begin'}] = hires_var
+        new_vars[name] = coarse_var
+    
+    return ds.assign(new_vars)
 
 
 def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
@@ -301,9 +329,9 @@ def shrink_ds(ds: xr.Dataset, init_dim: str = INIT_TIME_DIM):
     ds_mean = ds.mean(dim=INIT_TIME_DIM, keep_attrs=True)
     
     dropvars = []
-    for var in ds:
+    for var in ds_mean:
         if 'z' in ds[var].dims and 'tile' in ds[var].dims:
             dropvars.append(var)
             
-    return ds.drop_vars(dropvars)
+    return ds_mean.drop_vars(dropvars)
                                            
