@@ -1,21 +1,26 @@
 IMAGE = us.gcr.io/vcm-ml/prognostic_run:mean_nudging
-CONFIGDIR = configdir/nudge_mean_$*
-FV3CONFIG = $(CONFIGDIR)/fv3config.yml
-LOCAL_OUTDIR = rundir/nudge_mean_$*
 RUNFILE = mean_nudging_runfile.py
+TEMPLATE = fv3config_template.yml
+LOCAL_OUTDIR = rundir/nudge_mean_$*
+LOCAL_CONFIGDIR = $(LOCAL_OUTDIR)/config
+LOCAL_FV3CONFIG = $(LOCAL_CONFIGDIR)/fv3config.yml
 GCS_OUTDIR = gs://vcm-ml-data/2020-03-30-learned-nudging-FV3GFS-runs/nudge_mean_$*
-TEMPLATE = nudge_mean_template.yml
+GCS_CONFIGDIR = $(GCS_OUTDIR)/config
+GCS_FV3CONFIG = $(GCS_CONFIGDIR)/fv3config.yml
 
 run_all_remote: run_remote_T run_remote_T_ps run_remote_T_ps_u_v
 
-run_remote_%: prepare_%
-	python submit_to_k8s.py --dockerimage $(IMAGE) --runfile $(RUNFILE) $(FV3CONFIG) $(GCS_OUTDIR)
+run_remote_%: prepare_remote_%
+	python submit_to_kubernetes.py --dockerimage $(IMAGE) --runfile $(RUNFILE) $(GCS_FV3CONFIG) $(GCS_OUTDIR)
 
-run_local_%: prepare_%
-	fv3run --dockerimage $(IMAGE) --runfile $(RUNFILE) $(FV3CONFIG) $(LOCAL_OUTDIR)
+run_local_%: prepare_local_%
+	fv3run --dockerimage $(IMAGE) --runfile $(RUNFILE) $(LOCAL_FV3CONFIG) $(LOCAL_OUTDIR)
 
-prepare_%:
-	python prepare_config.py $(TEMPLATE) $* $(CONFIGDIR)
+prepare_remote_%:
+	python prepare_config.py $(TEMPLATE) $* $(GCS_CONFIGDIR)
+
+prepare_local_%:
+	python prepare_config.py $(TEMPLATE) $* $(LOCAL_CONFIGDIR)
 
 clean:
 	rm -rf rundir configdir

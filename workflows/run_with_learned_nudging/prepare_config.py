@@ -8,6 +8,7 @@ from fv3net.pipelines.kube_jobs import (
     update_nested_dict,
     update_config_for_nudging,
 )
+import vcm
 
 logger = logging.getLogger("run_jobs")
 
@@ -53,9 +54,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "config_template",
-        type=str,
-        help="Path to fv3config yaml template.",
+        "config_template", type=str, help="Path to fv3config yaml template.",
     )
     parser.add_argument(
         "nudge_label",
@@ -77,12 +76,14 @@ if __name__ == "__main__":
         "docker image.",
     )
     args = parser.parse_args()
+    config_url = args.config_url
     base_config = get_base_fv3config(args.config_version)
     with open(args.config_template) as f:
         template = yaml.load(f, Loader=yaml.FullLoader)
-    fs, _, config_url_list = fsspec.get_fs_token_paths(args.config_url)  # ensures absolute
-    config_url = config_url_list[0]  # get_fs_token_paths returns a list
+    if vcm.cloud.get_protocol(config_url) == "file":
+        config_url = os.path.abspath(config_url)
     config = prepare_config(template, base_config, args.nudge_label, config_url)
+    fs = vcm.cloud.get_fs(config_url)
     fs.mkdirs(config_url, exist_ok=True)
     with fsspec.open(os.path.join(config_url, "fv3config.yml"), "w") as f:
         yaml.safe_dump(config, f)
