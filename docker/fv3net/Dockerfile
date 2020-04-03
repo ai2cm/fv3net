@@ -29,19 +29,17 @@ RUN cd / && \
     tar xz
 ENV PATH=/google-cloud-sdk/bin:${PATH}
 RUN gcloud components install kubectl && \
-    gcloud config set project vcm-ml && \
-    gcloud auth list && exit 1 
-    # gcloud container clusters get-credentials \
-    #     --zone $(gcloud container clusters list --format="value(location)") \
-    #     --internal-ip \
-    #     $(gcloud container clusters list --format="value(name)") && \
-    # fix-permissions /home/$NB_USER/.kube
+    gcloud config set project vcm-ml
+COPY docker/fv3net/init_kubeconfig.sh /tmp/init_kubeconfig.sh
+RUN chmod +x /tmp/init_kubeconfig.sh
 
 # Add rest of fv3net directory
 ADD . $FV3NET
 
-RUN fix-permissions $FV3NET
+RUN fix-permissions $FV3NET && fix-permissions /home/$NB_USER/.config/gcloud/
 USER $NB_UID
 
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
+ENTRYPOINT [ "/tmp/init_kubeconfig.sh" ]
+CMD ["/bin/bash"]
