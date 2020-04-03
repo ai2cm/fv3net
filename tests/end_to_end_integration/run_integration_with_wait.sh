@@ -2,18 +2,19 @@
 
 SLEEP_TIME=60
 
+JOB_YML= .submit_template/submit_e2e_job_k8s.yml
 # create yaml with unique testing job name
 cd tests/end_to_end_integration
 rand_tag=$(openssl rand -hex 6)
-job_name=$(cat submit_e2e_job_k8s.yml | yq r - metadata.name)
+job_name=$(cat $JOB_YML | yq r - metadata.name)
 new_job_name=${job_name}-${rand_tag}
 
 # save with new job name and correct image tag
-yq w -i submit_e2e_job_k8s.yml metadata.name $new_job_name
-yq w -i submit_e2e_job_k8s.yml spec.template.spec.containers[0].image $1
+yq w -i $JOB_YML metadata.name $new_job_name
+yq w -i $JOB_YML spec.template.spec.containers[0].image $1
 
 # submit job
-kubectl apply -f submit_e2e_job_k8s.yml
+kubectl apply -f $JOB_YML
 
 # Sleep while job is active
 timeout=$(date -ud "30 minutes" +%s)
