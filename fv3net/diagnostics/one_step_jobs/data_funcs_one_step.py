@@ -10,6 +10,10 @@ import logging
 from fv3net.diagnostics.one_step_jobs import thermo
 from fv3net.pipelines.common import subsample_timesteps_at_interval
 from fv3net.pipelines.create_training_data.helpers import load_hires_prog_diag
+from fv3net.diagnostics.data_funcs import net_heating_from_dataset
+
+from vcm import net_precipitation
+
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +37,8 @@ VARS_FOR_PLOTS = [
     "ULWRFtoa",
     "ULWRFsfc",
     "latent_heat_flux",
-    "sensible_heat_flux"
+    "sensible_heat_flux",
+    "total_precipitation"
 ]
 VAR_TYPE_DIM = 'var_type'
 SFC_VARIABLES = (
@@ -126,7 +131,7 @@ def insert_hi_res_diags(ds: xr.Dataset, hi_res_diags_path: str) -> xr.Dataset:
 def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
     
     ds = ds.assign({
-        'total_water' : thermo.total_water(
+        'total_water': thermo.total_water(
             ds['specific_humidity'],
             ds['cloud_ice_mixing_ratio'],
             ds['cloud_water_mixing_ratio'],
@@ -135,7 +140,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             ds['graupel_mixing_ratio'],
             ds['pressure_thickness_of_atmospheric_layer']
         ),
-        'psurf' : thermo.psurf_from_delp(
+        'psurf': thermo.psurf_from_delp(
             ds['pressure_thickness_of_atmospheric_layer']
         ),
         'precipitable_water': thermo.precipitable_water(
@@ -145,6 +150,13 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
         'total_heat' : thermo.total_heat(
             ds['air_temperature'],
             ds['pressure_thickness_of_atmospheric_layer']
+        ),
+        'net_precipitation_physics': net_precipitation(
+            ds['latent_heat_flux'],
+            ds['total_precipitation']
+        ),
+        'net_heating_physics': net_heating(
+            ds['']
         )
     })
     
