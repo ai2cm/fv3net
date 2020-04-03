@@ -19,6 +19,8 @@ CF_TO_NUDGE = {
     "northward_wind_after_physics": "v_dt_nudge",
 }
 
+DIMENSION_DICT = {"grid_xt": "x", "grid_yt": "y", "pfull": "z"}
+
 
 def _ensure_Julian(date):
     return cftime.DatetimeJulian(
@@ -51,20 +53,33 @@ def apply_nudging_tendency(nudging_state, dt, communicator):
 
 def open_nudging_tendency(url, communicator, variables):
     rename_dict = {CF_TO_NUDGE[var]: var for var in variables}
+    rename_dict.update(DIMENSION_DICT)
     nudging_state = {}
-    mapper = fsspec.get_mapper(url)
     rank = communicator.rank
     tile = communicator.partitioner.tile_index(rank)
     if communicator.tile.rank == 0:
         logger.info(f"Loading tile-{tile} nudging tendencies on rank {rank}")
-        ds_nudging = xr.open_zarr(mapper).isel(tile=tile, time=0)
+        mapper = fsspec.get_mapper(url)
+        ds_nudging = xr.open_zarr(mapper).isel(tile=tile)
+        nudging_time = ds_nudging["time"].load()
         ds_nudging = ds_nudging.rename(rename_dict)
         ds_nudging = ds_nudging[variables].load()
+        if rank == 0:
+            logger.info(f"Here is ds_nudging {ds_nudging}")
+            logger.info(f"Here is nudging_time {nudging_time}")
         nudging_state = {
             variable: fv3util.Quantity.from_data_array(ds_nudging[variable])
             for variable in variables
         }
+    if rank == 0:
+        logger.info(f"Nudging tendency keys before scatter are {nudging_state.keys()}")
     nudging_state = communicator.tile.scatter_state(nudging_state)
+    # following handles a current bug in fv3gfs-python
+    while "time" in nudging_state:
+        nudging_state.pop("time")
+    if rank == 0:
+        logger.info(f"Nudging tendency keys after scatter are {nudging_state.keys()}")
+        logger.info(f"Nudging state is {nudging_state}")
     return nudging_state
 
 
