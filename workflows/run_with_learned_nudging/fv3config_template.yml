@@ -17,8 +17,8 @@ namelist:
     - 0
     - 0
     - 0
-    days: 0
-    minutes: 15
+    days: 91
+    minutes: 0
     seconds: 0
     dt_atmos: 900  # seconds
     dt_ocean: 900  # seconds
