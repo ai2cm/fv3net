@@ -18,9 +18,9 @@ WORKDIR $FV3NET
 
 USER $NB_UID
 
-RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME
+RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME && conda clean -tpi
 ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
-RUN jupyter labextension install @pyviz/jupyterlab_pyviz && conda clean -tpi
+RUN jupyter labextension install @pyviz/jupyterlab_pyviz
 
 USER root 
 # install gcloud sdk
@@ -30,8 +30,8 @@ RUN cd / && \
 ENV PATH=/google-cloud-sdk/bin:${PATH}
 RUN gcloud components install kubectl && \
     gcloud config set project vcm-ml
-COPY docker/fv3net/init_kubeconfig.sh /tmp/init_kubeconfig.sh
-RUN chmod +x /tmp/init_kubeconfig.sh
+COPY docker/fv3net/init_kubeconfig.sh init_kubeconfig.sh
+RUN chmod +x init_kubeconfig.sh
 
 # Add rest of fv3net directory
 ADD . $FV3NET
@@ -41,5 +41,5 @@ USER $NB_UID
 
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
-ENTRYPOINT [ "/tmp/init_kubeconfig.sh" ]
+ENTRYPOINT [ "./init_kubeconfig.sh" ]
 CMD ["/bin/bash"]
