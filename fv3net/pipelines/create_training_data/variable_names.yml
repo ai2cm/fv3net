@@ -1,0 +1,104 @@
+# suffixes that denote whether flux variable is from the coarsened
+# high resolution prognostic run or the coarse res one step train data run
+suffix_hires: "prog"
+suffix_coarse_train: "train"
+
+# maps data variable to its source term name
+var_source_name_map:
+    "x_wind": "dQU"
+    "y_wind": "dQV"
+    "air_temperature": "dQ1"
+    "specific_humidity": "dQ2"      
+
+init_time_dim: "initial_time"
+forecast_time_dim: "forecast_time"
+step_time_dim: "step"
+coord_begin_step: "begin"
+
+coord_x_center : "x"   
+coord_y_center : "y"    
+coord_z_center : "z"
+
+var_lon_center: "lon"
+var_lat_center: "lat"
+var_lon_outer: "lonb"
+var_lat_outer: "latb"
+
+renamed_dims: 
+  grid_xt: "x"
+  grid_yt: "y"
+  grid_x: "x_interface"
+  grid_y: "y_interface"
+  initialization_time: "initial_time"
+
+edge_dims:
+  - "x_interface"
+  - "y_interface"
+
+edge_to_center_dims:
+  "x_interface": "x"
+  "y_interface": "y"
+
+grid_vars:
+  - "area"
+  - "latb"
+  - "lonb"
+  - "lat"
+  - "lon"
+
+var_x_wind: "x_wind"
+var_y_wind: "y_wind"
+var_temp: "air_temperature"
+var_sphum: "specific_humidity"
+
+# data variables from one step output used as features and targets
+one_step_vars: 
+  - "dQU"
+  - "dQV"
+  - "dQ1"
+  - "dQ2"
+  - "total_precipitation"
+  - "surface_temperature"
+  - "land_sea_mask"
+  - "latent_heat_flux_train"
+  - "sensible_heat_flux_train"
+  - "mean_cos_zenith_angle"
+  - "surface_geopotential"
+  - "vertical_thickness_of_atmospheric_layer"
+  - "vertical_wind"
+  - "pressure_thickness_of_atmospheric_layer"
+  - "specific_humidity"
+  - "air_temperature"
+  - "DSWRFtoa_train"
+  - "DSWRFsfc_train"
+  - "USWRFtoa_train"
+  - "USWRFsfc_train"
+  - "DLWRFsfc_train"
+  - "ULWRFtoa_train"
+  - "ULWRFsfc_train"
+
+# data variables from high res data kept in final dataset
+# these are names from coarsened SHiELD output, before renaming
+high_res_data_variables:
+  - "DSWRFtoa_coarse"
+  - "DSWRFsfc_coarse"
+  - "USWRFtoa_coarse"
+  - "USWRFsfc_coarse"
+  - "DLWRFsfc_coarse"
+  - "ULWRFtoa_coarse"
+  - "ULWRFsfc_coarse"
+  - "SHTFLsfc"
+  - "LHTFLsfc"
+
+flux_vars:
+  - "DSWRFtoa"
+  - "DSWRFsfc"
+  - "USWRFtoa"
+  - "USWRFsfc"
+  - "DLWRFsfc"
+  - "ULWRFtoa"
+  - "ULWRFsfc"
+  - "SHTFLsfc"
+  - "LHTFLsfc"
+  - "sensible_heat_flux"
+  - "latent_heat_flux"
