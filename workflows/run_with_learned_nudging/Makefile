@@ -9,7 +9,7 @@ TEMPLATE = nudge_mean_template.yml
 run_all_remote: run_remote_T run_remote_T_ps run_remote_T_ps_u_v
 
 run_remote_%: prepare_%
-	python submit_to_kubernetes.py $(FV3CONFIG) $(GCS_OUTDIR)
+	python submit_to_k8s.py --dockerimage $(IMAGE) --runfile $(RUNFILE) $(FV3CONFIG) $(GCS_OUTDIR)
 
 run_local_%: prepare_%
 	fv3run --dockerimage $(IMAGE) --runfile $(RUNFILE) $(FV3CONFIG) $(LOCAL_OUTDIR)
