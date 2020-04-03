@@ -125,8 +125,8 @@ def _align_sfc_step_dim(da: xr.DataArray) -> xr.DataArray:
 
     da_shift = da.shift(shifts={"time": 1})
     da_begin = da_shift.expand_dims({"step": ["begin"]})
-    da_after_dynamics = da_shift.expand_dims({"step": ["after_physics"]})
-    da_after_physics = da.expand_dims({"step": ["after_dynamics"]})
+    da_after_dynamics = da_shift.expand_dims({"step": ["after_dynamics"]})
+    da_after_physics = da.expand_dims({"step": ["after_physics"]})
     da_all = xr.concat([da_begin, da_after_dynamics, da_after_physics], dim="step")
 
     # assign coordinate dtype, otherwise it's cast to object and zarr will choke
