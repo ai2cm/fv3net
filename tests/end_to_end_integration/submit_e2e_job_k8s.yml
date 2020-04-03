@@ -38,5 +38,5 @@ spec:
       volumes:
       - name: gcp-key-secret
         secret:
-          defaultMode: 420
+          defaultMode: 424
           secretName: gcp-key
