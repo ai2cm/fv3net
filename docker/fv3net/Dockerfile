@@ -8,8 +8,7 @@ ENV PROJECT_NAME=fv3net
 # Install dependencies (slow)
 USER root
 RUN apt-get update && \
-    apt-get install -y gfortran && \
-    apt-get install jq -y
+    apt-get install -y gfortran jq
 ADD environment.yml  $FV3NET/
 ADD .environment-scripts $ENVIRONMENT_SCRIPTS
 ADD .circleci $FV3NET/.circleci
