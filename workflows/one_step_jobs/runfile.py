@@ -127,11 +127,8 @@ def _align_sfc_step_dim(da: xr.DataArray) -> xr.DataArray:
     da_begin = da_shift.expand_dims({"step": ["begin"]})
     da_after_dynamics = da_shift.expand_dims({"step": ["after_dynamics"]})
     da_after_physics = da.expand_dims({"step": ["after_physics"]})
-    da_all = xr.concat([da_begin, da_after_dynamics, da_after_physics], dim="step")
 
-    # assign coordinate dtype, otherwise it's cast to object and zarr will choke
-
-    return da_all.assign_coords({"step": da_all["step"].values.astype("<U14")})
+    return xr.concat([da_begin, da_after_dynamics, da_after_physics], dim="step")
 
 
 def init_data_var(group: zarr.Group, array: xr.DataArray, nt: int):
@@ -243,6 +240,8 @@ def post_process(
     )
 
     merged = xr.merge([sfc, ds])
+    # assign step coordinate dtype, otherwise it's cast to object and zarr will choke
+    merged = merged.assign_coords({"step": merged["step"].values.astype("<U14")})
     mapper = fsspec.get_mapper(store_url)
 
     if init:
