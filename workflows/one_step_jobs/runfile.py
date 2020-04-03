@@ -129,7 +129,7 @@ def _align_sfc_step_dim(da: xr.DataArray) -> xr.DataArray:
     da_after_physics = da.expand_dims({"step": ["after_dynamics"]})
     da_all = xr.concat([da_begin, da_after_dynamics, da_after_physics], dim="step")
 
-    # need to assign coordiante dtype otherwise it's cast to object and zarr will choke
+    # assign coordinate dtype, otherwise it's cast to object and zarr will choke
 
     return da_all.assign_coords({"step": da_all["step"].values.astype("<U14")})
 

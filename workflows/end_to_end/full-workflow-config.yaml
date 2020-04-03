@@ -1,17 +1,16 @@
 storage_proto: gs
 storage_root: vcm-ml-data/orchestration-testing
 experiment:
-  name: test-experiment-brianh
+  name: test-experiment
   unique_id: True
   steps_to_run:
-#     - coarsen_restarts
+    - coarsen_restarts
 #     - coarsen_diagnostics
     - one_step_run
-#     - one_step_diags
-#     - create_training_data
-#     - train_sklearn_model
-#     - test_sklearn_model
-#     - prognostic_run
+    - create_training_data
+    - train_sklearn_model
+    - test_sklearn_model
+    - prognostic_run
 #     - diags_prognostic_run
   
   steps_config:
@@ -37,20 +36,11 @@ experiment:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
       args:
         restart_data:
-#           from: coarsen_restarts
-          location: gs://vcm-ml-data/orchestration-testing/test-andrep-723812fa/coarsen_restarts_source-resolution_384_target-resolution_48_runner_DataflowRunner
-        experiment_yaml: ./workflows/one_step_jobs/all-physics-on.yml
+          from: coarsen_restarts
+        experiment_yaml: ./workflows/one_step_jobs/all-physics-off.yml
         docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.0-a1
         --config-version: v0.3    
-    
-    one_step_diags:
-      command: python -m fv3net.diagnostics.one_step_jobs
-      args:
-        one_step_run:
-          location: gs://vcm-ml-data/orchestration-testing/test-experiment-e20c72b7/one_step_run_experiment_yaml_all-physics-off.yml_docker_image_prognostic_run:v0.1.0-a1_config-version_v0.3
-        --start_ind: 3
-        --n_inits_sample: 2
-        
+
     create_training_data:
       command: python -m fv3net.pipelines.create_training_data
       args:
