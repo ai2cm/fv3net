@@ -7,7 +7,14 @@ from vcm.convenience import parse_datetime_from_str
 from datetime import datetime, timedelta
 import logging
 
-from fv3net.diagnostics.one_step_jobs import thermo
+from fv3net.diagnostics.one_step_jobs import (
+    INIT_TIME_DIM,
+    FORECAST_TIME_DIM,
+    DELTA_DIM,
+    VAR_TYPE_DIM,
+    STEP_DIM,
+    thermo
+)
 from fv3net.pipelines.common import subsample_timesteps_at_interval
 from fv3net.pipelines.create_training_data.helpers import load_hires_prog_diag
 from fv3net.diagnostics.data_funcs import net_heating_from_dataset
@@ -16,40 +23,6 @@ from vcm import net_precipitation
 
 
 logger = logging.getLogger(__name__)
-
-INIT_TIME_DIM = 'initial_time'
-FORECAST_TIME_DIM = 'forecast_time'
-DELTA_DIM = 'model_run'
-VARS_FOR_PLOTS = [
-    'psurf',
-    'total_heat',
-    'precipitable_water',
-    'total_water',
-    'specific_humidity',
-    'vertical_wind',
-    'air_temperature',
-    'pressure_thickness_of_atmospheric_layer',
-    "DSWRFtoa",
-    "DSWRFsfc",
-    "USWRFtoa",
-    "USWRFsfc",
-    "DLWRFsfc",
-    "ULWRFtoa",
-    "ULWRFsfc",
-    "latent_heat_flux",
-    "sensible_heat_flux",
-    "total_precipitation"
-]
-VAR_TYPE_DIM = 'var_type'
-SFC_VARIABLES = (
-    "DSWRFtoa",
-    "DSWRFsfc",
-    "USWRFtoa",
-    "USWRFsfc",
-    "DLWRFsfc",
-    "ULWRFtoa",
-    "ULWRFsfc"
-)
 
 
 def time_inds_to_open(time_coord: xr.DataArray, n_sample: int) -> Sequence:
@@ -110,7 +83,7 @@ def time_coord_to_datetime(ds: xr.Dataset, time_coord: str = INIT_TIME_DIM) -> x
     return ds
 
 
-def insert_hi_res_diags(ds: xr.Dataset, hi_res_diags_path: str) -> xr.Dataset:
+def insert_hi_res_diags(ds: xr.Dataset, hi_res_diags_path: str, varnames: Sequence) -> xr.Dataset:
     
     new_dims = {'grid_xt': 'x', 'grid_yt': 'y', 'initialization_time': INIT_TIME_DIM}
     
@@ -118,11 +91,11 @@ def insert_hi_res_diags(ds: xr.Dataset, hi_res_diags_path: str) -> xr.Dataset:
     ds_hires_diags = load_hires_prog_diag(hi_res_diags_path, datetimes).rename(new_dims)
     
     new_vars = {}
-    for name in SFC_VARIABLES:
+    for name in varnames:
         hires_name = name + '_coarse'
         hires_var = ds_hires_diags[hires_name].transpose(INIT_TIME_DIM, 'tile', 'y', 'x')
         coarse_var = ds[name].load()
-        coarse_var.loc[{FORECAST_TIME_DIM: 0, 'step': 'begin'}] = hires_var
+        coarse_var.loc[{FORECAST_TIME_DIM: 0, STEP_DIM: 'begin'}] = hires_var
         new_vars[name] = coarse_var
     
     return ds.assign(new_vars)
@@ -155,8 +128,9 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             ds['latent_heat_flux'],
             ds['total_precipitation']
         ),
-        'net_heating_physics': net_heating(
-            ds['']
+        'net_heating_physics': net_heating_from_dataset(ds.rename({
+            'sensible_heat_flux': 'SHTFLsfc',
+            'total_precipitation': 'PRATEsfc'})
         )
     })
     
@@ -169,15 +143,15 @@ def _align_time_and_concat(ds_hires: xr.Dataset, ds_coarse: xr.Dataset) -> xr.Da
         ds_coarse
         .isel({INIT_TIME_DIM : [0]})
         .assign_coords({DELTA_DIM : 'coarse'})
-        .drop(labels = 'step')
+        .drop(labels = STEP_DIM)
         .squeeze()
     )
 
     ds_hires = (
         ds_hires
         .isel({FORECAST_TIME_DIM : [0]})
-        .sel({'step': 'begin'})
-        .drop(labels = 'step')
+        .sel({STEP_DIM: 'begin'})
+        .drop(labels = STEP_DIM)
         .assign_coords({DELTA_DIM : 'hi-res'})
         .squeeze()
     )
@@ -191,10 +165,10 @@ def _align_time_and_concat(ds_hires: xr.Dataset, ds_coarse: xr.Dataset) -> xr.Da
 def _compute_both_tendencies_and_concat(ds: xr.Dataset) -> xr.Dataset:
     
     dt_init = ds[INIT_TIME_DIM].diff(INIT_TIME_DIM).isel({INIT_TIME_DIM: 0})/np.timedelta64(1,'s')
-    tendencies_hires = ds[VARS_FOR_PLOTS].diff(INIT_TIME_DIM, label = 'lower')/dt_init
+    tendencies_hires = ds.diff(INIT_TIME_DIM, label = 'lower')/dt_init
 
     dt_forecast = ds[FORECAST_TIME_DIM].diff(FORECAST_TIME_DIM).isel({FORECAST_TIME_DIM: 0})
-    tendencies_coarse = ds[VARS_FOR_PLOTS].diff('step', label = 'lower')/dt_forecast
+    tendencies_coarse = ds.diff(STEP_DIM, label = 'lower')/dt_forecast
     
     tendencies_both = _align_time_and_concat(tendencies_hires, tendencies_coarse)
     
@@ -203,8 +177,8 @@ def _compute_both_tendencies_and_concat(ds: xr.Dataset) -> xr.Dataset:
 
 def _select_both_states_and_concat(ds: xr.Dataset) -> xr.Dataset:
     
-    states_hires = ds[VARS_FOR_PLOTS].isel({INIT_TIME_DIM: slice(None, -1)})
-    states_coarse = ds[VARS_FOR_PLOTS].sel({'step': "begin"}) 
+    states_hires = ds.isel({INIT_TIME_DIM: slice(None, -1)})
+    states_coarse = ds.sel({STEP_DIM: "begin"}) 
     states_both = _align_time_and_concat(states_hires, states_coarse)
     
     return states_both

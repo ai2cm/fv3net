@@ -1,0 +1,7 @@
+INIT_TIME_DIM = 'initial_time'
+FORECAST_TIME_DIM = 'forecast_time'
+DELTA_DIM = 'model_run'
+VAR_TYPE_DIM = 'var_type'
+STEP_DIM = 'step'
+OUTPUT_NC_FILENAME = 'one_step_diag_data.nc'
+ONE_STEP_ZARR = 'big.zarr'
