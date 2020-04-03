@@ -20,7 +20,7 @@ CF_TO_NUDGE = {
     "northward_wind_after_physics": "v_dt_nudge",
 }
 
-DIMENSION_DICT = {"grid_xt": "x", "grid_yt": "y", "pfull": "z"}
+DIMENSION_RENAME_DICT = {"grid_xt": "x", "grid_yt": "y", "pfull": "z"}
 
 
 def _ensure_Julian(date):
@@ -32,25 +32,20 @@ def _ensure_Julian(date):
 def get_current_nudging_tendency(nudging_tendency, nudging_time, model_time):
     nudging_year = nudging_time.values[0].year
     model_time_Julian = _ensure_Julian(model_time)
-    model_time_Julian.replace(year=nudging_year)
-    time_index = np.argmin(np.abs(nudging_time - model_time)).values.item()
-    return nudging_tendency[time_index, ...]
+    model_time_Julian = model_time_Julian.replace(year=nudging_year)
+    time_index = np.argmin(np.abs(nudging_time - model_time_Julian)).values.item()
+    variables = nudging_tendency.keys()
+    return {var: nudging_tendency[var].sel(time=time_index) for var in variables}
 
 
-def apply_nudging_tendency(nudging_tendency, nudging_time, dt):
-    variables = list(nudging_tendency.keys())
-    state = fv3gfs.get_state(names=["time"] + variables)
-    current_tendency = get_current_nudging_tendency(
-        nudging_tendency, nudging_time, state["time"]
-    )
-    for variable in variables:
-        state[variable].view[:] += current_tendency[variable].view[:] * dt
-    fv3gfs.set_state(state)
+def apply_nudging_tendency(state, nudging_tendency, dt):
+    for variable in nudging_tendency:
+        state[variable].view[:] += nudging_tendency[variable] * dt
 
 
 def load_nudging_tendency(url, communicator, variables):
     rename_dict = {CF_TO_NUDGE[var]: var for var in variables}
-    rename_dict.update(DIMENSION_DICT)
+    rename_dict.update(DIMENSION_RENAME_DICT)
     nudging_tendency = {}
     rank = communicator.rank
     tile = communicator.partitioner.tile_index(rank)
@@ -90,10 +85,11 @@ if __name__ == "__main__":
     nudging_tendency = load_nudging_tendency(
         nudging_zarr_url, communicator, variables_to_nudge
     )
-    nudging_time = load_time(nudging_zarr_url)
+    nudging_time_coord = load_time(nudging_zarr_url)
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
         do_logging = rank == 0 and i % 10 == 0
+
         if do_logging:
             logger.info(f"Stepping dynamics for timestep {i}")
         fv3gfs.step_dynamics()
@@ -104,7 +100,12 @@ if __name__ == "__main__":
 
         if do_logging:
             logger.info(f"Adding nudging tendency for timestep {i}")
-        apply_nudging_tendency(nudging_tendency, nudging_time, dt)
+        state = fv3gfs.get_state(names=["time"] + variables_to_nudge)
+        current_tendency = get_current_nudging_tendency(
+            nudging_tendency, nudging_time_coord, state["time"]
+        )
+        apply_nudging_tendency(state, current_tendency, dt)
+        fv3gfs.set_state(state)
 
         if do_logging:
             logger.info(f"Updating atmospheric prognostic state for timestep {i}")
