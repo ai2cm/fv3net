@@ -97,6 +97,7 @@ GRID_VARIABLES = ("lat", "lon", "latb", "lonb", "area")
 
 
 def rename_sfc_dt_atmos(sfc: xr.Dataset) -> xr.Dataset:
+
     DIMS = {
         "grid_xt": "x",
         "grid_yt": "y",
@@ -105,30 +106,41 @@ def rename_sfc_dt_atmos(sfc: xr.Dataset) -> xr.Dataset:
         "time": "forecast_time",
     }
 
-    realigned_sfc_vars = {
-        varname: _align_sfc_step_dim(sfc[varname]) for varname in SFC_VARIABLES
-    }
-    sfc = sfc.drop(SFC_VARIABLES)
-    sfc = sfc.assign(realigned_sfc_vars)
-
     return (
-        sfc[list(SFC_VARIABLES + GRID_VARIABLES)]
+        _safe_get_variables(sfc, SFC_VARIABLES + GRID_VARIABLES)
         .rename(DIMS)
-        .transpose(
-            "step", "forecast_time", "tile", "y", "x", "y_interface", "x_interface"
-        )
+        .transpose("forecast_time", "tile", "y", "x", "y_interface", "x_interface")
         .drop(["forecast_time", "y", "x", "y_interface", "x_interface"])
     )
 
 
-def _align_sfc_step_dim(da: xr.DataArray) -> xr.DataArray:
+def align_sfc_step_ds(sfc: xr.Dataset, step_names: Sequence) -> xr.Dataset:
 
-    da_shift = da.shift(shifts={"time": 1})
-    da_begin = da_shift.expand_dims({"step": ["begin"]})
-    da_after_dynamics = da_shift.expand_dims({"step": ["after_dynamics"]})
-    da_after_physics = da.expand_dims({"step": ["after_physics"]})
+    realigned_sfc_vars = {
+        varname: _align_sfc_step_da(sfc[varname], step_names)
+        for varname in SFC_VARIABLES
+    }
+    sfc = sfc.drop(SFC_VARIABLES)
+    sfc = sfc.assign(realigned_sfc_vars)
 
-    return xr.concat([da_begin, da_after_dynamics, da_after_physics], dim="step")
+    return sfc
+
+
+def _align_sfc_step_da(da: xr.DataArray, step_names: Sequence) -> xr.DataArray:
+
+    da_shift = da.shift(shifts={"forecast_time": 1})
+    da_list = []
+    for step in step_names:
+        if step != "after_physics":
+            new_da = da_shift.expand_dims({"step": [step]})
+        else:
+            new_da = da.expand_dims({"step": [step]})
+        da_list.append(new_da)
+    #     da_begin = da_shift.expand_dims({"step": ["begin"]})
+    #     da_after_dynamics = da_shift.expand_dims({"step": ["after_dynamics"]})
+    #     da_after_physics = da.expand_dims({"step": ["after_physics"]})
+
+    return xr.concat(da_list, dim="step")
 
 
 def init_data_var(group: zarr.Group, array: xr.DataArray, nt: int):
@@ -213,6 +225,15 @@ def _safe_get_variables(ds: xr.Dataset, variables: Sequence[Hashable]) -> xr.Dat
     return cast(xr.Dataset, ds[variables])
 
 
+def _zarr_safe_string_coord(ds: xr.Dataset, coord_name: str) -> xr.Dataset:
+    """Ensures an xr.Dataset coordinate is of dtype "<U14" instead of object,
+    which is necessary to do for string coordinates so they they may be written
+    to zarr arrays without an object codec.
+    """
+
+    return ds.assign_coords({coord_name: ds[coord_name].values.astype("<U14")})
+
+
 def post_process(
     monitor_paths: Mapping[str, str],
     sfc_pattern: str,
@@ -228,10 +249,11 @@ def post_process(
         )
     logger.info("Post processing model outputs")
 
-    sfc = xr.open_mfdataset(sfc_pattern, concat_dim="tile", combine="nested").pipe(
-        rename_sfc_dt_atmos
+    sfc = (
+        xr.open_mfdataset(sfc_pattern, concat_dim="tile", combine="nested")
+        .pipe(rename_sfc_dt_atmos)
+        .pipe(align_sfc_step_ds, monitor_paths)
     )
-    sfc = _safe_get_variables(sfc, SFC_VARIABLES + GRID_VARIABLES)
 
     ds = (
         _merge_monitor_data(monitor_paths)
@@ -240,8 +262,7 @@ def post_process(
     )
 
     merged = xr.merge([sfc, ds])
-    # assign step coordinate dtype, otherwise it's cast to object and zarr will choke
-    merged = merged.assign_coords({"step": merged["step"].values.astype("<U14")})
+    merged = _zarr_safe_string_coord(merged, coord_name="step")
     mapper = fsspec.get_mapper(store_url)
 
     if init:
