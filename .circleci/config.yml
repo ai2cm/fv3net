@@ -72,7 +72,7 @@ jobs:
       - run:
           name: Run tests in fv3net image
           command: |
-              echo $DECODED_GOOGLE_CREDENTIALS > $GOOGLE_APPLICATION_CREDENTIALS
+              echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
               bash docker/fv3net/run_tests_in_image.sh $CIRCLE_TAG
       - run:
           name: Push fv3net images
