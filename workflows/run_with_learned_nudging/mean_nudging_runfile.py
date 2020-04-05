@@ -30,9 +30,11 @@ def _ensure_Julian(date):
 
 
 def get_current_nudging_tendency(nudging_tendency, nudging_time, model_time):
-    nudging_year = nudging_time.values[0].year
+    """Get nudging tendencies for timestep in nudging_tendency dataset closest to 
+    current model_time. Returns a dict of ndarrays."""
+    model_year = model_time.year
+    nudging_time.values = [t.replace(year=model_year) for t in nudging_time.values]
     model_time_Julian = _ensure_Julian(model_time)
-    model_time_Julian = model_time_Julian.replace(year=nudging_year)
     time_index = np.argmin(np.abs(nudging_time - model_time_Julian)).values.item()
     variables = nudging_tendency.keys()
     return {var: nudging_tendency[var].sel(time=time_index) for var in variables}
@@ -44,6 +46,7 @@ def apply_nudging_tendency(state, nudging_tendency, dt):
 
 
 def load_nudging_tendency(url, communicator, variables):
+    """Given url to zarr store of nudging tendencies, load and scatter"""
     rename_dict = {CF_TO_NUDGE[var]: var for var in variables}
     rename_dict.update(DIMENSION_RENAME_DICT)
     nudging_tendency = {}
@@ -54,6 +57,7 @@ def load_nudging_tendency(url, communicator, variables):
         mapper = fsspec.get_mapper(url)
         ds_nudging = xr.open_zarr(mapper).isel(tile=tile)
         ds_nudging = ds_nudging.rename(rename_dict)[variables].load()
+        # convert to Quantities so we can use scatter_state
         nudging_tendency = {
             variable: fv3util.Quantity.from_data_array(ds_nudging[variable])
             for variable in variables
