@@ -37,3 +37,5 @@ namelist:
     nudge_virt: false
     nudge_winds: false
     track_file_name: No_File_specified
+  diag_manager_nml:
+    flush_nc_files: true
