@@ -67,7 +67,7 @@ def run(args, pipeline_args, names):
             | "PreprocessOneStepData"
             >> beam.Map(
                 _preprocess_one_step_data,
-                flux_vars=names["flux_vars"],
+                diag_vars=names["diag_vars"],
                 suffix_coarse_train=names["suffix_coarse_train"],
                 step_time_dim=names["step_time_dim"],
                 forecast_time_dim=names["forecast_time_dim"],
@@ -90,11 +90,12 @@ def run(args, pipeline_args, names):
                 _merge_hires_data,
                 diag_c48_path=args.diag_c48_path,
                 coarsened_diags_zarr_name=COARSENED_DIAGS_ZARR_NAME,
-                flux_vars=names["flux_vars"],
+                diag_vars=names["diag_vars"],
                 suffix_hires=names["suffix_hires"],
                 init_time_dim=names["init_time_dim"],
                 renamed_dims=names["renamed_dims"],
             )
+            | "FillNanValues" >> beam.Map(_fill_na, var_land_sea_mask=names["var_land_sea_mask"])
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
@@ -250,7 +251,7 @@ def _test_train_split(timestep_batches, train_frac):
 
 def _preprocess_one_step_data(
     ds,
-    flux_vars,
+    diag_vars,
     suffix_coarse_train,
     forecast_time_dim,
     step_time_dim,
@@ -260,7 +261,7 @@ def _preprocess_one_step_data(
 ):
     renamed_one_step_vars = {
         var: f"{var}_{suffix_coarse_train}"
-        for var in flux_vars
+        for var in diag_vars
         if var in list(ds.data_vars)
     }
     try:
@@ -308,7 +309,7 @@ def _merge_hires_data(
     ds_run,
     diag_c48_path,
     coarsened_diags_zarr_name,
-    flux_vars,
+    diag_vars,
     suffix_hires,
     init_time_dim,
     renamed_dims,
@@ -317,7 +318,7 @@ def _merge_hires_data(
     renamed_high_res_vars = {
         **{
             f"{var}_coarse": f"{var}_{suffix_hires}"
-            for var in flux_vars
+            for var in diag_vars
             if var in list(ds_run.data_vars)
         },
         "LHTFLsfc_coarse": f"latent_heat_flux_{suffix_hires}",
@@ -338,6 +339,14 @@ def _merge_hires_data(
         return xr.merge([ds_run, features_diags_c48])
     except (KeyError, AttributeError, ValueError, TypeError) as e:
         logger.error(f"Failed to merge in features from high res diagnostics: {e}")
+
+
+def _fill_na(ds, var_land_sea_mask):
+    try:
+        ds[var_land_sea_mask] = ds[var_land_sea_mask].fillna(0).astype(int)
+        return ds
+    except ValueError as e:
+        logger.error(f"Failed at filling nan values: {e}")
 
 
 def _write_remote_train_zarr(

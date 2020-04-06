@@ -50,6 +50,7 @@ var_x_wind: "x_wind"
 var_y_wind: "y_wind"
 var_temp: "air_temperature"
 var_sphum: "specific_humidity"
+var_land_sea_mask: "land_sea_mask"
 
 # data variables from one step output used as features and targets
 one_step_vars: 
@@ -57,12 +58,8 @@ one_step_vars:
   - "dQV"
   - "dQ1"
   - "dQ2"
-  - "total_precipitation"
   - "surface_temperature"
   - "land_sea_mask"
-  - "latent_heat_flux_train"
-  - "sensible_heat_flux_train"
-  - "mean_cos_zenith_angle"
   - "surface_geopotential"
   - "vertical_thickness_of_atmospheric_layer"
   - "vertical_wind"
@@ -77,6 +74,7 @@ one_step_vars:
   - "ULWRFtoa_train"
   - "ULWRFsfc_train"
 
+
 # data variables from high res data kept in final dataset
 # these are names from coarsened SHiELD output, before renaming
 high_res_data_variables:
@@ -89,8 +87,9 @@ high_res_data_variables:
   - "ULWRFsfc_coarse"
   - "SHTFLsfc"
   - "LHTFLsfc"
+  - "PRATEsfc"
 
-flux_vars:
+diag_vars:
   - "DSWRFtoa"
   - "DSWRFsfc"
   - "USWRFtoa"
@@ -100,5 +99,4 @@ flux_vars:
   - "ULWRFsfc"
   - "SHTFLsfc"
   - "LHTFLsfc"
-  - "sensible_heat_flux"
-  - "latent_heat_flux"
+  - "PRATEsfc"
