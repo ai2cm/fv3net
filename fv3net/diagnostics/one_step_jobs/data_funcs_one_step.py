@@ -45,12 +45,13 @@ def _duration_and_interval(timestamp_list: list) -> (int, int):
     
     first_and_last = [datetime.strptime(timestamp_list[i], TIME_FMT) for i in (0, -1)]
     first_and_second = [datetime.strptime(timestamp_list[i], TIME_FMT) for i in (0, 1)]
-    duration_minutes = (first_and_last[1] - first_and_last[0]).seconds/60
+    duration_minutes = (first_and_last[1] - first_and_last[0]).seconds/60 + (first_and_last[1] - first_and_last[0]).days*1440
     n_steps = len(timestamp_list)
     restart_interval_minutes = duration_minutes//(n_steps - 1)
     restart_interval_minutes_first = (first_and_second[1] - first_and_second[0]).seconds/60
     if restart_interval_minutes != restart_interval_minutes_first:
-        raise ValueError('Incomplete initialization set detected in .zarr')
+        logger.warn('Incomplete initialization set detected in .zarr')
+        restart_interval_minutes = restart_interval_minutes_first
         
     return duration_minutes, restart_interval_minutes
     
