@@ -164,11 +164,17 @@ workflows:
       - pytest_default
   build_and_push:
     jobs:
-      # - build_default:
-      #     filters:
-      #       branches:
-      #         only: fix/int-test-on-master
-      - integration_tests:
+      - build_default:
           filters:
+            tags:
+              only: /^v.*/
             branches:
-              only: fix/int-test-on-master
+              only: master
+      - integration_tests:
+          requires:
+            - build_default
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
