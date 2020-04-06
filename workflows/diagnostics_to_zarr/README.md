@@ -1,7 +1,7 @@
 ## Diagnostics-to-zarr workflow
 This workflow takes a path/url to a run directory as an input and saves zarr stores
 of the diagnostic model output to a specified location. This workflow requires a 
-specific xarray version (0.14.0) and so to run locally, one must ensure your 
+specific xarray version (0.15.0) and so to run locally, one must ensure your 
 environment is using that version. For dataflow jobs, a custom setup.py is provided
 which pins this exact version.
 
@@ -17,8 +17,7 @@ optional arguments:
   --rundir RUNDIR       Location of run directory. May be local or remote
                         path.
   --diagnostic-dir DIAGNOSTIC_DIR
-                        Location to save zarr stores. Defaults to the parent
-                        of rundir.
+                        Location to save zarr stores. Defaults to rundir.
   --diagnostic-categories DIAGNOSTIC_CATEGORIES [DIAGNOSTIC_CATEGORIES ...]
                         Optionally specify one or more categories of
                         diagnostic files. Provide part of filename before
