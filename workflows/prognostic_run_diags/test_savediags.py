@@ -51,3 +51,8 @@ def test_dump_nc_no_seek():
 @pytest.mark.parametrize('func', savediags._DIAG_FNS)
 def test_compute_diags_succeeds(func, resampled, verification, grid):
     func(resampled, verification, grid)
+
+
+@pytest.fixture()
+def diags(resampled, verification, grid):
+    return savediags.compute_all_diagnostics(resampled, verification, grid)
