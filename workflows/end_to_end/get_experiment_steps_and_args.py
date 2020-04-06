@@ -65,6 +65,7 @@ def _add_unique_id(config: Mapping):
 def _resolve_output_location(config: Mapping):
     """Get the step output location if one is not specified"""
     root_exp_path = _get_experiment_path(config)
+    max_stubs = config['experiment'].get('max_stubs', 0)
     steps_config = config["experiment"]["steps_config"]
 
     for step_name, step_config in steps_config.items():
@@ -72,7 +73,7 @@ def _resolve_output_location(config: Mapping):
         if "output_location" in step_config:
             continue
         else:
-            output_stub = _generate_output_path_from_config(step_name, step_config)
+            output_stub = _generate_output_path_from_config(step_name, step_config, max_stubs)
             location = os.path.join(root_exp_path, output_stub)
             step_config["output_location"] = location
 
@@ -190,6 +191,7 @@ def _generate_output_path_from_config(
 ):
     """generate an output location stub from a step's argument configuration"""
 
+    print(max_config_stubs)
     output_str = step_name
     arg_config = step_config.get("args", None)
     arg_strs = []
