@@ -1,0 +1,14 @@
+model_type: sklearn_random_forest
+hyperparameters:
+  max_depth: 13
+  n_estimators: 1
+num_batches: 1
+mask_to_surface_type: none
+files_per_batch: 1
+input_variables:
+  - T
+  - sphum
+output_variables:
+  - dQ1
+  - dQ2
+
