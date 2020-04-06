@@ -1,5 +1,4 @@
 **/*.zarr
-**/*.nc
 **/*.pdf
 **/*.png
 argo-fv3net
