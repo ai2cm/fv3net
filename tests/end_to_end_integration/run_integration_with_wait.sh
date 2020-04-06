@@ -2,10 +2,10 @@
 
 SLEEP_TIME=60
 
-JOB_YML= .submit_template/submit_e2e_job_k8s.yml
 # create yaml with unique testing job name
 cd tests/end_to_end_integration
 rand_tag=$(openssl rand -hex 6)
+JOB_YML="./.submit_template/submit_e2e_job_k8s.yml"
 job_name=$(cat $JOB_YML | yq r - metadata.name)
 new_job_name=${job_name}-${rand_tag}
 
