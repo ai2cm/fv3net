@@ -8,17 +8,17 @@ import pytest
 
 @pytest.fixture()
 def verification():
-    return xr.open_dataset("verification.nc")
+    return xr.open_dataset("verification.nc").load()
 
 
 @pytest.fixture()
 def resampled():
-    return xr.open_dataset("resampled.nc")
+    return xr.open_dataset("resampled.nc").load()
 
 
 @pytest.fixture()
 def grid():
-    return xr.open_dataset("grid.nc")
+    return xr.open_dataset("grid.nc").load()
 
 
 def test_dump_nc(tmpdir):

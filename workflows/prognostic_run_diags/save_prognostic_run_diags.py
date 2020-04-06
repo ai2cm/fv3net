@@ -41,6 +41,10 @@ def rms(x, y, w, dims):
     return np.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
 
 
+def bias(truth, prediction, w, dims):
+    return ((truth - prediction) * w).sum(dims) / w.sum(dims)
+
+
 def dump_nc(ds: xr.Dataset, f):
     # to_netcdf closes file, which will delete the buffer
     # need to use a buffer since seek doesn't work with GCSFS file objects
@@ -63,6 +67,19 @@ def rms_errors(resampled, verification_c48, grid):
         diags[f"{lower}_rms_global"] = rms_errors[variable].assign_attrs(
             resampled[variable].attrs
         )
+
+    return diags
+
+
+@add_to_metrics
+def biases(resampled, verification, grid):
+    global_biases = bias(verification, resampled, grid.area,
+                         dims=grid.area.dims)
+
+    diags = {}
+    for variable in global_biases:
+        lower = variable.lower()
+        diags[f"{lower}_bias_global"] = global_biases[variable]
 
     return diags
 
