@@ -143,7 +143,11 @@ jobs:
             kubectl config set-cluster $kube_cluster_name --certificate-authority="./proxy.crt"
       - run:
           name: Submit integration tests
-          command: tests/end_to_end_integration/run_integration_with_wait.sh "${FV3NET_IMAGE}:${CIRCLE_TAG}"
+          command: |
+            if [[ -z $CIRCLE_TAG ]]; then
+              CIRCLE_TAG=latest
+            fi
+            tests/end_to_end_integration/run_integration_with_wait.sh "${FV3NET_IMAGE}:${CIRCLE_TAG}"
       - run:
           name: Firewall rule deletion
           when: always
