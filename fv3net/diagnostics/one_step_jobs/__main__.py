@@ -85,13 +85,14 @@ if __name__ == "__main__":
     timestep_subset_indices = time_inds_to_open(ds_zarr[INIT_TIME_DIM], args.n_inits_sample)
     
     hi_res_diags_zarrpath = os.path.join(args.hi_res_diags_path, COARSENED_DIAGS_ZARR_NAME)
+    hi_res_diags_varnames = SFC_VARIABLES + ['LHTFLsfc', 'SHTFLsfc', 'PRATEsfc']
     
     ds_sample = [(
         ds_zarr[list(VARS_FROM_ZARR)]
         .isel({INIT_TIME_DIM: list(indices)})
         .sel({STEP_DIM: ['begin', 'after_physics']})
         .pipe(time_coord_to_datetime)
-        .pipe(insert_hi_res_diags, hi_res_diags_zarrpath, SFC_VARIABLES)
+        .pipe(insert_hi_res_diags, hi_res_diags_zarrpath, hi_res_diags_varnames)
         .pipe(insert_derived_vars_from_ds_zarr)
     ) for indices in timestep_subset_indices]
     
@@ -129,7 +130,7 @@ if __name__ == "__main__":
     output_nc_path = os.path.join(output_path, OUTPUT_NC_FILENAME)
     fs_out = get_fs(output_nc_path)
     
-    logger.info(f"Writing stats and tendencies to {output_nc_path}")
+    logger.info(f"Writing states and tendencies to {output_nc_path}")
 
     with fs_out.open(output_nc_path, mode="wb") as f:
         dump_nc(states_and_tendencies, f)
