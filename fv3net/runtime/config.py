@@ -17,6 +17,7 @@ def get_runfile_config():
 
 
 def get_config():
+    """Return fv3config dictionary"""
     with open("fv3config.yml") as f:
         config = yaml.safe_load(f)
     return config
