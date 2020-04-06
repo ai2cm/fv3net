@@ -20,6 +20,15 @@ import logging
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
 
+_METRICS_FNS = []
+
+HORIZONTAL_DIMS = ["grid_xt", "grid_yt", "tile"]
+
+
+def add_to_metrics(func):
+    _METRICS_FNS.append(func)
+    return func
+
 
 def rms(x, y, w, dims):
     return np.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
@@ -33,6 +42,41 @@ def dump_nc(ds: xr.Dataset, f):
         ds.to_netcdf(url, engine="h5netcdf")
         with open(url, "rb") as tmp1:
             shutil.copyfileobj(tmp1, f)
+
+
+@add_to_metrics
+def rms_errors(resampled, verification_c48, grid):
+    rms_errors = rms(
+        resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS
+    )
+
+    diags = {}
+    for variable in rms_errors:
+        lower = variable.lower()
+        diags[f"{lower}_rms_global"] = rms_errors[variable].assign_attrs(
+            ds[variable].attrs
+        )
+
+    return diags
+
+
+@add_to_metrics
+def global_averages(resampled, verification, grid):
+    diags = {}
+    area_averages = (resampled * resampled.area).sum(HORIZONTAL_DIMS) / resampled.area.sum(
+        HORIZONTAL_DIMS
+    )
+    for variable in area_averages:
+        lower = variable.lower()
+        diags[f"{lower}_global_avg"] = area_averages[variable].assign_attrs(
+            ds[variable].attrs
+        )
+    return diags
+
+
+def biases(resampled, verification, grid):
+
+
 
 
 if __name__ == "__main__":
@@ -87,27 +131,8 @@ if __name__ == "__main__":
     diags["pwat_run_final"] = ds.PWAT.isel(time=-2)
     diags["pwat_verification_final"] = verification_c48.PWAT.isel(time=-2)
 
-    # RMSE
-    rms_errors = rms(
-        resampled, verification_c48, resampled.area, dims=["grid_xt", "grid_yt", "tile"]
-    )
-
-    for variable in rms_errors:
-        lower = variable.lower()
-        diags[f"{lower}_rms_global"] = rms_errors[variable].assign_attrs(
-            ds[variable].attrs
-        )
-
-    # global averages
-    horz_dims = ["grid_xt", "grid_yt", "tile"]
-    area_averages = (resampled * resampled.area).sum(horz_dims) / resampled.area.sum(
-        horz_dims
-    )
-    for variable in area_averages:
-        lower = variable.lower()
-        diags[f"{lower}_global_avg"] = area_averages[variable].assign_attrs(
-            ds[variable].attrs
-        )
+    for metrics_fn in _METRICS_FNS:
+        diags.update(metrics_fn(resampled, verification_c48, grid_c48))
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)
