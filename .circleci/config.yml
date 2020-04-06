@@ -166,15 +166,9 @@ workflows:
     jobs:
       - build_default:
           filters:
-            tags:
-              only: /^v.*/
-            branches:
-              only: master
+              only: fix/int-test-on-master
       - integration_tests:
           requires:
             - build_default
           filters:
-            tags:
-              only: /^v.*/
-            branches:
-              only: master
+              only: fix/int-test-on-master
