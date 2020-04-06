@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Mapping
 import xarray as xr
 import numpy as np
 from vcm.cubedsphere.constants import TIME_FMT
@@ -84,7 +84,7 @@ def time_coord_to_datetime(ds: xr.Dataset, time_coord: str = INIT_TIME_DIM) -> x
     return ds
 
 
-def insert_hi_res_diags(ds: xr.Dataset, hi_res_diags_path: str, varnames: Sequence) -> xr.Dataset:
+def insert_hi_res_diags(ds: xr.Dataset, hi_res_diags_path: str, varnames_mapping: Mapping) -> xr.Dataset:
     
     new_dims = {'grid_xt': 'x', 'grid_yt': 'y', 'initialization_time': INIT_TIME_DIM}
     
@@ -92,12 +92,12 @@ def insert_hi_res_diags(ds: xr.Dataset, hi_res_diags_path: str, varnames: Sequen
     ds_hires_diags = load_hires_prog_diag(hi_res_diags_path, datetimes).rename(new_dims)
     
     new_vars = {}
-    for name in varnames:
-        hires_name = name + '_coarse'
+    for coarse_name, hires_name in varnames_mapping.items():
+        hires_name = hires_name + '_coarse' # this is confusing...
         hires_var = ds_hires_diags[hires_name].transpose(INIT_TIME_DIM, 'tile', 'y', 'x')
-        coarse_var = ds[name].load()
+        coarse_var = ds[coarse_name].load()
         coarse_var.loc[{FORECAST_TIME_DIM: 0, STEP_DIM: 'begin'}] = hires_var
-        new_vars[name] = coarse_var
+        new_vars[coarse_name] = coarse_var
     
     return ds.assign(new_vars)
 
