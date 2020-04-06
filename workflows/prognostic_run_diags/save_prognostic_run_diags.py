@@ -74,10 +74,6 @@ def global_averages(resampled, verification, grid):
     return diags
 
 
-def biases(resampled, verification, grid):
-
-
-
 
 if __name__ == "__main__":
 
