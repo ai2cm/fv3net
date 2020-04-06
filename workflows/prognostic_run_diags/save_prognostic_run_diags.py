@@ -20,19 +20,19 @@ import logging
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
 
-_METRICS_FNS = []
+_DIAG_FNS = []
 
 HORIZONTAL_DIMS = ["grid_xt", "grid_yt", "tile"]
 
 
-def add_to_metrics(func):
-    _METRICS_FNS.append(func)
+def add_to_diags(func):
+    _DIAG_FNS.append(func)
     return func
 
 
-def compute_all_metrics(resampled, verification, grid):
+def compute_all_diagnostics(resampled, verification, grid):
     diags = {}
-    for metrics_fn in _METRICS_FNS:
+    for metrics_fn in _DIAG_FNS:
         diags.update(metrics_fn(resampled, verification, grid))
     return diags
 
@@ -55,7 +55,7 @@ def dump_nc(ds: xr.Dataset, f):
             shutil.copyfileobj(tmp1, f)
 
 
-@add_to_metrics
+@add_to_diags
 def rms_errors(resampled, verification_c48, grid):
     rms_errors = rms(
         resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS
@@ -71,7 +71,7 @@ def rms_errors(resampled, verification_c48, grid):
     return diags
 
 
-@add_to_metrics
+@add_to_diags
 def biases(resampled, verification, grid):
     global_biases = bias(verification, resampled, grid.area,
                          dims=grid.area.dims)
@@ -84,7 +84,7 @@ def biases(resampled, verification, grid):
     return diags
 
 
-@add_to_metrics
+@add_to_diags
 def global_averages(resampled, verification, grid):
     diags = {}
     area_averages = (resampled * resampled.area).sum(HORIZONTAL_DIMS) / resampled.area.sum(
@@ -96,7 +96,6 @@ def global_averages(resampled, verification, grid):
             resampled[variable].attrs
         )
     return diags
-
 
 
 if __name__ == "__main__":
@@ -151,7 +150,7 @@ if __name__ == "__main__":
     diags["pwat_run_final"] = ds.PWAT.isel(time=-2)
     diags["pwat_verification_final"] = verification_c48.PWAT.isel(time=-2)
 
-    diags.update(compute_all_metrics(resampled, verification_c48, grid_c48))
+    diags.update(compute_all_diagnostics(resampled, verification_c48, grid_c48))
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)
