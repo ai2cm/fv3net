@@ -30,6 +30,13 @@ def add_to_metrics(func):
     return func
 
 
+def compute_all_metrics(resampled, verification, grid):
+    diags = {}
+    for metrics_fn in _METRICS_FNS:
+        diags.update(metrics_fn(resampled, verification, grid))
+    return diags
+
+
 def rms(x, y, w, dims):
     return np.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
 
@@ -54,7 +61,7 @@ def rms_errors(resampled, verification_c48, grid):
     for variable in rms_errors:
         lower = variable.lower()
         diags[f"{lower}_rms_global"] = rms_errors[variable].assign_attrs(
-            ds[variable].attrs
+            resampled[variable].attrs
         )
 
     return diags
@@ -69,7 +76,7 @@ def global_averages(resampled, verification, grid):
     for variable in area_averages:
         lower = variable.lower()
         diags[f"{lower}_global_avg"] = area_averages[variable].assign_attrs(
-            ds[variable].attrs
+            resampled[variable].attrs
         )
     return diags
 
@@ -127,8 +134,7 @@ if __name__ == "__main__":
     diags["pwat_run_final"] = ds.PWAT.isel(time=-2)
     diags["pwat_verification_final"] = verification_c48.PWAT.isel(time=-2)
 
-    for metrics_fn in _METRICS_FNS:
-        diags.update(metrics_fn(resampled, verification_c48, grid_c48))
+    diags.update(compute_all_metrics(resampled, verification_c48, grid_c48))
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)

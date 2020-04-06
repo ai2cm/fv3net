@@ -3,6 +3,23 @@ import xarray as xr
 import fsspec
 from unittest.mock import Mock
 
+import pytest
+
+
+@pytest.fixture()
+def verification():
+    return xr.open_dataset("verification.nc")
+
+
+@pytest.fixture()
+def resampled():
+    return xr.open_dataset("resampled.nc")
+
+
+@pytest.fixture()
+def grid():
+    return xr.open_dataset("grid.nc")
+
 
 def test_dump_nc(tmpdir):
     ds = xr.Dataset({"a": (["x"], [1.0])})
@@ -29,3 +46,8 @@ def test_dump_nc_no_seek():
 
     savediags.dump_nc(ds, m)
     m.seek.assert_not_called()
+
+
+@pytest.mark.parametrize('func', savediags._METRICS_FNS)
+def test_compute_diags_succeeds(func, resampled, verification, grid):
+    func(resampled, verification, grid)
