@@ -5,7 +5,8 @@ History
 
 latest
 ------
-* Add physics on end_to_end workflow configuration yaml. Only does baseline run for now.
+* Added physics on end_to_end workflow configuration yaml. Only does baseline run for now.
+* Added integration tests (tests/end_to_end_integration) that through CircleCI after image builds
 
 
 0.1.1 (2020-03-25)
