@@ -193,7 +193,6 @@ def _generate_output_path_from_config(
 ):
     """generate an output location stub from a step's argument configuration"""
 
-    print(max_config_stubs)
     output_str = step_name
     arg_config = step_config.get("args", None)
     arg_strs = []
