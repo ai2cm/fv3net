@@ -92,8 +92,6 @@ jobs:
       - slack/status:
           fail_only: true
           mentions: 'channel'
-
-
   
   lint:
     docker:
@@ -176,5 +174,3 @@ workflows:
               only: /^v.*/
             branches:
               only: master
-            
-              
