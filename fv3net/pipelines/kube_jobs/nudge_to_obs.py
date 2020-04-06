@@ -85,8 +85,9 @@ def update_config_for_nudging(config: Mapping, config_url: str) -> Mapping:
     Args:
         config: an fv3config configuration dictionary
         config_url: path where text file describing nudging files will be written.
-            File will be written to {config_url}/{input_fname_list} where input_fname_list
-            is a namelist parameter in the fv_nwp_nudge_nml namelist of config.
+            File will be written to {config_url}/{input_fname_list} where
+            input_fname_list is a namelist parameter in the fv_nwp_nudge_nml namelist
+            of config.
 
     Returns:
         config dict updated to include all required nudging files

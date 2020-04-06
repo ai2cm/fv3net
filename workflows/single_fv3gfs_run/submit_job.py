@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os
-import uuid
 import fsspec
 import yaml
 import fv3config

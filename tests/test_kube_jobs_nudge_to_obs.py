@@ -35,7 +35,7 @@ def test__get_first_nudge_file_time(start_time, expected):
 
 
 @pytest.mark.parametrize(
-    "coupler_nml, expected_list_length, expected_first_datetime, expected_last_datetime",
+    "coupler_nml, expected_length, expected_first_datetime, expected_last_datetime",
     [
         (
             {"current_date": [2016, 1, 1, 0, 0, 0], "days": 1},
@@ -64,10 +64,10 @@ def test__get_first_nudge_file_time(start_time, expected):
     ],
 )
 def test__get_nudge_time_list(
-    coupler_nml, expected_list_length, expected_first_datetime, expected_last_datetime
+    coupler_nml, expected_length, expected_first_datetime, expected_last_datetime
 ):
     config = {"namelist": {"coupler_nml": coupler_nml}}
     nudge_file_list = nudge_to_obs._get_nudge_time_list(config)
-    assert len(nudge_file_list) == expected_list_length
+    assert len(nudge_file_list) == expected_length
     assert nudge_file_list[0] == expected_first_datetime
     assert nudge_file_list[-1] == expected_last_datetime

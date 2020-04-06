@@ -30,7 +30,7 @@ def _ensure_Julian(date):
 
 
 def get_current_nudging_tendency(nudging_tendency, nudging_time, model_time):
-    """Get nudging tendencies for timestep in nudging_tendency dataset closest to 
+    """Get nudging tendencies for timestep in nudging_tendency dataset closest to
     current model_time. Returns a dict of ndarrays."""
     model_year = model_time.year
     nudging_time.values = [t.replace(year=model_year) for t in nudging_time.values]
