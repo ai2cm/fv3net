@@ -16,9 +16,6 @@ ARGO_CLUSTER=gke_vcm-ml_us-central1-c_ml-cluster-dev
 # what experiments to do post-processing for
 RUNS="nudge_mean_T nudge_mean_T_ps nudge_mean_T_ps_u_v"
 
-# ensure correct conda environment active
-source activate fv3net
-
 if [ "$DO_REGRID" = true ]; then
     for RUN in $RUNS; do
         # regrid certain monthly-mean variables to lat-lon grid
