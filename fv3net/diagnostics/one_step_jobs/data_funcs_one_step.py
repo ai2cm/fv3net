@@ -208,8 +208,8 @@ def insert_column_integrated_tendencies(ds: xr.Dataset) -> xr.Dataset:
         ).expand_dims({VAR_TYPE_DIM: ['tendencies']}),
         'column_integrated_moistening' : thermo.column_integrated_moistening(
             ds['specific_humidity'].sel({VAR_TYPE_DIM: 'tendencies'}),
-            ds['pressure_thickness_of_atmospheric_layer'].sel({VAR_TYPE_DIM: 'states'}).expand_dims({VAR_TYPE_DIM: ['tendencies']}),
-        )
+            ds['pressure_thickness_of_atmospheric_layer'].sel({VAR_TYPE_DIM: 'states'}),
+        ).expand_dims({VAR_TYPE_DIM: ['tendencies']})
     })
     
     return ds

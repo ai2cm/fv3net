@@ -236,9 +236,7 @@ def mappable_var(ds: xr.Dataset, var_name: str):
     for grid_var in _COORD_VARS:
         new_ds = new_ds.assign_coords(coords={grid_var: ds[grid_var]})
 
-    return new_ds.drop(
-        labels=[COORD_Y_CENTER, COORD_X_CENTER, COORD_Y_OUTER, COORD_X_OUTER]
-    )
+    return new_ds
 
 
 def plot_cube_axes(

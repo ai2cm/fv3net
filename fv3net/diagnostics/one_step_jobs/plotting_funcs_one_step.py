@@ -7,6 +7,8 @@ from fv3net.diagnostics.data_funcs import (
 )
 from fv3net.diagnostics.one_step_jobs import (
     FORECAST_TIME_DIM,
+    VAR_TYPE_DIM,
+    DELTA_DIM,
     ABS_VARS,
     GLOBAL_MEAN_2D_VARS,
     GLOBAL_MEAN_3D_VARS,
@@ -53,11 +55,30 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
             global_mean_time_series_plots.append(plotname)
     report_sections['2-d var global mean time series'] = global_mean_time_series_plots
     
+    # make maps of 2-d vars across forecast time
+    
+    maps_to_make = {
+        "tendencies": ['column_integrated_heating'],
+        "states":  []
+    }
+    i_start = 0
+    i_end = None
+    stride = 2
+
+    maps_across_forecast_time = []
+    for vartype, var_list in maps_to_make.items():
+        for var in var_list:
+            f = plot_model_run_maps_across_time_dim(states_and_tendencies, var, vartype, FORECAST_TIME_DIM, i_start, i_end, stride)
+            plotname = f"{var}_{vartype}_maps.png"
+            f.savefig(os.path.join(output_dir, plotname))
+            maps_across_forecast_time.append(plotname)
+    report_sections['2-d var maps across forecast time'] = maps_across_forecast_time
+    
     return report_sections
 
 
-
 def plot_global_mean_time_series(da_mean: xr.DataArray, da_std:  xr.DataArray, vartype: str = 'tendency') -> plt.figure:
+    
     init_color1 = [0.75, 0.75, 1]
     init_color2 = [0.5, 0.75, 0.5]
     da_mean = da_mean.assign_coords({FORECAST_TIME_DIM: da_mean[FORECAST_TIME_DIM]/60})
@@ -91,4 +112,30 @@ def plot_global_mean_time_series(da_mean: xr.DataArray, da_std:  xr.DataArray, v
     ax.set_title(f"{da_mean.name} {vartype}")
     f.set_size_inches([10, 4])
     f.set_dpi(FIG_DPI)
+    
+    return f
+
+
+def plot_model_run_maps_across_time_dim(ds, var, vartype, multiple_time_dim, start, end, stride):
+    
+    rename_dims = {'x': 'grid_xt', 'y': 'grid_yt', 'x_interface': 'grid_x', 'y_interface': 'grid_y'}
+    ds = ds.assign_coords({FORECAST_TIME_DIM: ds[FORECAST_TIME_DIM]/60})
+    f, axes, _, _, facet_grid = plot_cube(
+        mappable_var(ds.sel({VAR_TYPE_DIM: vartype}).isel({multiple_time_dim: slice(start, end, stride)}).rename(rename_dims), var),
+        col = DELTA_DIM,
+        row = multiple_time_dim,
+        cmap_percentiles_lim=True
+    )
+    n_rows = ds.isel({multiple_time_dim: slice(start, end, stride)}).sizes[multiple_time_dim]
+    f.set_size_inches([10, n_rows*2])
+    f.set_dpi(FIG_DPI)
+    f.suptitle(f"{ds[var].attrs['long_name']} across {multiple_time_dim}")
+    facet_grid.set_titles(template='{value}', maxchar=30)
+    # add units to facetgrid right side (hacky)
+    if multiple_time_dim == FORECAST_TIME_DIM:
+        right_text_objs = [vars(ax)['texts'][0] for ax in axes[:, -1]]
+        for obj in right_text_objs:
+            right_text = obj.get_text()
+            obj.set_text(right_text + ' min')
+    
     return f
