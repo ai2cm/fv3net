@@ -166,15 +166,16 @@ workflows:
     jobs:
       - build_default:
           filters:
-            tags:
-              only: /^v.*/
             branches:
-              only: master
+              only: 
+              - master
+              - /ci-*/
+
       - integration_tests:
           requires:
             - build_default
           filters:
-            tags:
-              only: /^v.*/
             branches:
-              only: master
+              only: 
+              - master
+              - /ci-*/
