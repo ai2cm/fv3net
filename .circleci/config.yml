@@ -79,16 +79,19 @@ jobs:
           command: |
             echo $CIRCLE_BRANCH
             echo $CIRCLE_TAG
-            if [[ "$CIRCLE_BRANCH" == "master" ]]
-            then
+            if [[ "$CIRCLE_BRANCH" == "master" ]]; then
                 echo "pushing untagged images as 'latest'"
                 make push_images VERSION=latest
+            else
+                make push_images VERSION=$CIRCLE_BRANCH
             fi
+
             if [[ ! -z "$CIRCLE_TAG" ]]
             then
                 echo "pushing tagged images $CIRCLE_TAG"
                 make push_images VERSION=$CIRCLE_TAG
             fi
+
       - slack/status:
           fail_only: true
           mentions: 'channel'
@@ -165,17 +168,7 @@ workflows:
   build_and_push:
     jobs:
       - build_default:
-          filters:
-            branches:
-              only: 
-              - master
-              - /ci-.*/
-
+          type: approval
       - integration_tests:
           requires:
             - build_default
-          filters:
-            branches:
-              only: 
-              - master
-              - /ci-.*/
