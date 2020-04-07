@@ -63,7 +63,7 @@ jobs:
             if [[ -z $CIRCLE_TAG ]]; then
               CIRCLE_TAG=latest
             fi
-            ./tests/end_to_end_integration/.test_run_scripts/prepare_integrration_test_configs.sh $CIRCLE_TAG
+            ./tests/end_to_end_integration/.test_run_scripts/prepare_integration_test_configs.sh $CIRCLE_TAG
       - run:
           name: "Pull submodules"
           command: |
