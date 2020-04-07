@@ -177,7 +177,8 @@ workflows:
       - hold:
           type: approval
       - build_default:
-          requires: hold 
+          requires:
+          - hold 
       - integration_tests:
           requires:
-            - build_default
+          - build_default
