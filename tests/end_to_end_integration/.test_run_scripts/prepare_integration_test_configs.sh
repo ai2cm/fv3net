@@ -1,7 +1,7 @@
 #!/bin/bash
 
-PROGNOSTIC_RUN_IMAGE=$(make image_name_prognostic_run VERSION=$1)
-FV3NET_IMAGE=$(make image_name_fv3net VERSION=$1)
+PROGNOSTIC_RUN_IMAGE=$(make -s image_name_prognostic_run VERSION=$1)
+FV3NET_IMAGE=$(make -s image_name_fv3net VERSION=$1)
 JOB_YML="submit_e2e_job_k8s.yml"
 E2E_CONFIG_YML="end_to_end_configuration.yml"
 
