@@ -169,7 +169,7 @@ workflows:
             branches:
               only: 
               - master
-              - /ci-*/
+              - /ci-.*/
 
       - integration_tests:
           requires:
@@ -178,4 +178,4 @@ workflows:
             branches:
               only: 
               - master
-              - /ci-*/
+              - /ci-.*/
