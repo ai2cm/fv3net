@@ -59,8 +59,8 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     # make maps of 2-d vars across forecast time
     
     maps_to_make = {
-        "tendencies": ['column_integrated_heating'],
-        "states":  []
+        "tendencies": ['psurf', 'column_integrated_heating', 'column_integrated_moistening'],
+        "states":  ['vertical_wind_level_40']
     }
     i_start = None
     i_end = None
@@ -69,15 +69,16 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     maps_across_forecast_time = []
     for vartype, var_list in maps_to_make.items():
         for var in var_list:
-            f = plot_model_run_maps_across_time_dim(
-                states_and_tendencies.sel({VAR_TYPE_DIM: vartype}),
-                var,
-                FORECAST_TIME_DIM,
-                stride = stride
-            )
-            plotname = f"{var}_{vartype}_maps.png"
-            f.savefig(os.path.join(output_dir, plotname))
-            maps_across_forecast_time.append(plotname)
+            for subvar in [var, f"{var}_std"]:
+                f = plot_model_run_maps_across_time_dim(
+                    states_and_tendencies.sel({VAR_TYPE_DIM: vartype}),
+                    subvar,
+                    FORECAST_TIME_DIM,
+                    stride = stride
+                )
+                plotname = f"{subvar}_{vartype}_maps.png"
+                f.savefig(os.path.join(output_dir, plotname))
+                maps_across_forecast_time.append(plotname)
     report_sections['2-d var maps across forecast time'] = maps_across_forecast_time
     
     # compare dQ with hi-res diagnostics
@@ -114,7 +115,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
             )
             comparison_ds[hi_res_diag_var] = (
                 comparison_ds[hi_res_diag_var]
-                .assign_attrs({"long_name": hi_res_diag_var, "units": "mm/day"})
+                .assign_attrs({"long_name": hi_res_diag_var})
             )
             f = plot_model_run_maps_across_time_dim(
                 comparison_ds,
@@ -176,7 +177,7 @@ def plot_model_run_maps_across_time_dim(ds, var, multiple_time_dim, start = None
         mappable_var(ds.isel({multiple_time_dim: slice(start, end, stride)}).rename(rename_dims), var),
         col = DELTA_DIM,
         row = multiple_time_dim,
-        cmap_percentiles_lim=False
+        cmap_percentiles_lim=True
     )
     n_rows = ds.isel({multiple_time_dim: slice(start, end, stride)}).sizes[multiple_time_dim]
     f.set_size_inches([10, n_rows*2])

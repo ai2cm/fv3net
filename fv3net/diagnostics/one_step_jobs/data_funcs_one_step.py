@@ -299,7 +299,13 @@ def shrink_ds(ds: xr.Dataset, init_dim: str = INIT_TIME_DIM):
     
     for var in ds:
         if init_dim in ds[var].dims:
-            ds = ds.assign({f"{var}_std": ds[var].std(dim = init_dim, keep_attrs=True)})
+            var_std = ds[var].std(dim = init_dim, keep_attrs=True)
+            if 'long_name' in var_std.attrs:
+                var_std = var_std.assign_attrs(
+                    {'long_name': f"{var_std.attrs['long_name']} std. dev."}
+                )
+            ds = ds.assign({f"{var}_std": var_std})
+            
     ds_mean = ds.mean(dim=INIT_TIME_DIM, keep_attrs=True)
     
     dropvars = []
