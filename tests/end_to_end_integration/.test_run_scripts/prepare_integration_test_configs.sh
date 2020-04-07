@@ -1,6 +1,5 @@
 #!/bin/bash
 
-SLEEP_TIME=60
 PROGNOSTIC_RUN_IMAGE=$(make image_name_prognostic_run VERSION=$1)
 FV3NET_IMAGE=$(make image_name_fv3net VERSION=$1)
 JOB_YML="submit_e2e_job_k8s.yml"
