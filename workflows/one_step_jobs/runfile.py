@@ -141,13 +141,14 @@ def _align_sfc_step_da(da: xr.DataArray, step_names: Sequence) -> xr.DataArray:
 
 
 def init_data_var(group: zarr.Group, array: xr.DataArray, nt: int):
-    logger.info(f"Initializing variable: {array.name}")
+    logger.info(f"Initializing full array variable: {array.name}")
     shape = (nt,) + array.data.shape
     chunks = (1,) + tuple(size[0] for size in array.data.chunks)
-    out_array = group.empty(
-        name=array.name, shape=shape, chunks=chunks, dtype=array.dtype
+    out_array = group.full(
+        name=array.name, shape=shape, chunks=chunks, dtype=array.dtype, fill_value="NaN"
     )
     out_array.attrs.update(array.attrs)
+    print(vars(out_array.attrs))
     out_array.attrs["_ARRAY_DIMENSIONS"] = ["initial_time"] + list(array.dims)
 
 
@@ -167,6 +168,7 @@ def create_zarr_store(
     logger.info("Creating group")
     ds = template
     group.attrs.update(ds.attrs)
+    print(vars(group.attrs))
     nt = len(timesteps)
     for name in ds:
         init_data_var(group, ds[name], nt)
