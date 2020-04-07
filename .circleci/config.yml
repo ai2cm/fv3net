@@ -147,10 +147,17 @@ jobs:
       - run:
           name: Submit integration tests
           command: |
-            if [[ -z $CIRCLE_TAG ]]; then
-              CIRCLE_TAG=latest
+            set -x
+            if [[ $CIRCLE_BRANCH = "master" ]]; then
+              if [[ -z $CIRCLE_TAG ]]; then
+                version=latest
+              else 
+                version=$CIRCLE_TAG
+              fi
+            else
+              version="$CIRCLE_BRANCH" 
             fi
-            tests/end_to_end_integration/run_integration_with_wait.sh "${FV3NET_IMAGE}:${CIRCLE_TAG}"
+            tests/end_to_end_integration/run_integration_with_wait.sh "${FV3NET_IMAGE}:${version}"
       - run:
           name: Firewall rule deletion
           when: always
