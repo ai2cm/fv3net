@@ -154,10 +154,9 @@ jobs:
           # during the build job above
           command: | 
             if [[ -z $CIRCLE_TAG ]]; then
-              CIRCLE_TAG=v0.1.1-test-integration
+              CIRCLE_TAG=latest
             fi
-            ./tests/end_to_end_integration/.test_run_scripts/prepare_integration_test_configs.sh $CIRCLE_TAG
-            ./tests/end_to_end_integration/.test_run_scripts/run_integration_with_wait.sh
+            make run_integration_tests VERSION=$CIRCLE_TAG
       - run:
           name: Firewall rule deletion
           when: always
@@ -174,13 +173,17 @@ workflows:
       - pytest_default
   build_and_push:
     jobs:
-      # - build_default:
-      #     filters:
-      #       tags:
-      #         only: /^v.*/
-      #       branches:
-      #         only: master
-      - integration_tests:
+      - build_default:
           filters:
+            tags:
+              only: /^v.*/
             branches:
-              only: fix/int-test-on-master
+              only: master
+      - integration_tests:
+          requires:
+            - build_default
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
