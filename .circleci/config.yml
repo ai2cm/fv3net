@@ -164,7 +164,18 @@ workflows:
       - pytest_default
   build_and_push:
     jobs:
-      - build_default
+      - build_default:
+          filters:
+            branches:
+              only: 
+              - master
+              - /ci-*/
+
       - integration_tests:
           requires:
             - build_default
+          filters:
+            branches:
+              only: 
+              - master
+              - /ci-*/
