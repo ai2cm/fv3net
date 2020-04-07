@@ -208,7 +208,7 @@ def insert_column_integrated_tendencies(ds: xr.Dataset) -> xr.Dataset:
             ds['pressure_thickness_of_atmospheric_layer'].sel({VAR_TYPE_DIM: 'states'}),
         ).expand_dims({VAR_TYPE_DIM: ['tendencies']}),
         'column_integrated_moistening' : thermo.column_integrated_moistening(
-            ds['specific_humidity'].sel({VAR_TYPE_DIM: 'tendencies'}),
+            -ds['specific_humidity'].sel({VAR_TYPE_DIM: 'tendencies'}),
             ds['pressure_thickness_of_atmospheric_layer'].sel({VAR_TYPE_DIM: 'states'}),
         ).expand_dims({VAR_TYPE_DIM: ['tendencies']})
     })
@@ -249,19 +249,6 @@ def insert_variable_at_model_level(ds: xr.Dataset, varnames: list, level: int):
             })
         else:
             raise ValueError('Invalid variable for model level selection.')
-    
-    return ds
-
-
-def make_init_time_dim_intelligible(ds: xr.Dataset):
-    
-    ds = ds.assign_coords({
-        INIT_TIME_DIM: [
-            datetime
-            .utcfromtimestamp((time - np.datetime64(0, 's'))/np.timedelta64(1, 's'))
-            .strftime(TIME_FMT) for time in ds[INIT_TIME_DIM]
-        ]
-    })
     
     return ds
 

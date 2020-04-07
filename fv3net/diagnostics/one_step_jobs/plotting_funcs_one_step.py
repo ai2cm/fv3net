@@ -9,6 +9,7 @@ from fv3net.diagnostics.one_step_jobs import (
     FORECAST_TIME_DIM,
     VAR_TYPE_DIM,
     DELTA_DIM,
+    GRID_VARS,
     ABS_VARS,
     GLOBAL_MEAN_2D_VARS,
     GLOBAL_MEAN_3D_VARS,
@@ -61,18 +62,69 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
         "tendencies": ['column_integrated_heating'],
         "states":  []
     }
-    i_start = 0
+    i_start = None
     i_end = None
     stride = 2
 
     maps_across_forecast_time = []
     for vartype, var_list in maps_to_make.items():
         for var in var_list:
-            f = plot_model_run_maps_across_time_dim(states_and_tendencies, var, vartype, FORECAST_TIME_DIM, i_start, i_end, stride)
+            f = plot_model_run_maps_across_time_dim(
+                states_and_tendencies.sel({VAR_TYPE_DIM: vartype}),
+                var,
+                FORECAST_TIME_DIM,
+                stride = stride
+            )
             plotname = f"{var}_{vartype}_maps.png"
             f.savefig(os.path.join(output_dir, plotname))
             maps_across_forecast_time.append(plotname)
     report_sections['2-d var maps across forecast time'] = maps_across_forecast_time
+    
+    # compare dQ with hi-res diagnostics
+    
+    dQ_mapping = {
+        'Q1': {
+            'column_integrated_heating': 'net_heating'
+        },
+        'Q2': {
+            'column_integrated_moistening': 'net_precipitation'
+        }
+    }
+    
+    dQ_comparison_maps = []
+    for q_term, mapping in dQ_mapping.items():
+        for coarse_var, hi_res_diag_var in mapping.items():
+            hi_res_diag_var_full = hi_res_diag_var + "_physics"
+            comparison_ds = xr.concat([
+                (
+                    states_and_tendencies[list((hi_res_diag_var_full,) + GRID_VARS)]
+                    .sel({DELTA_DIM: 'hi-res', VAR_TYPE_DIM: 'states'})
+                    .drop([DELTA_DIM, VAR_TYPE_DIM])
+                    .expand_dims({DELTA_DIM: ['hi-res diagnostics']})
+                    .rename({hi_res_diag_var_full: hi_res_diag_var})
+                ),
+                (
+                    states_and_tendencies[list((coarse_var,) + GRID_VARS)]
+                    .sel({DELTA_DIM: 'hi-res - coarse', VAR_TYPE_DIM: 'tendencies'})
+                    .drop([DELTA_DIM, VAR_TYPE_DIM])
+                    .expand_dims({DELTA_DIM: ['tendency-based dQ']})
+                    .rename(mapping)
+                )
+            ], dim=DELTA_DIM
+            )
+            comparison_ds[hi_res_diag_var] = (
+                comparison_ds[hi_res_diag_var]
+                .assign_attrs({"long_name": hi_res_diag_var, "units": "mm/day"})
+            )
+            f = plot_model_run_maps_across_time_dim(
+                comparison_ds,
+                hi_res_diag_var,
+                FORECAST_TIME_DIM,
+                stride = stride)
+            plotname = f"{hi_res_diag_var}_comparison_mapss.png"
+            f.savefig(os.path.join(output_dir, plotname))
+            dQ_comparison_maps.append(plotname)
+    report_sections['dQ vs hi-res diagnostics across forecast time'] = dQ_comparison_maps
     
     return report_sections
 
@@ -116,15 +168,15 @@ def plot_global_mean_time_series(da_mean: xr.DataArray, da_std:  xr.DataArray, v
     return f
 
 
-def plot_model_run_maps_across_time_dim(ds, var, vartype, multiple_time_dim, start, end, stride):
+def plot_model_run_maps_across_time_dim(ds, var, multiple_time_dim, start = None, end = None, stride = None):
     
     rename_dims = {'x': 'grid_xt', 'y': 'grid_yt', 'x_interface': 'grid_x', 'y_interface': 'grid_y'}
     ds = ds.assign_coords({FORECAST_TIME_DIM: ds[FORECAST_TIME_DIM]/60})
     f, axes, _, _, facet_grid = plot_cube(
-        mappable_var(ds.sel({VAR_TYPE_DIM: vartype}).isel({multiple_time_dim: slice(start, end, stride)}).rename(rename_dims), var),
+        mappable_var(ds.isel({multiple_time_dim: slice(start, end, stride)}).rename(rename_dims), var),
         col = DELTA_DIM,
         row = multiple_time_dim,
-        cmap_percentiles_lim=True
+        cmap_percentiles_lim=False
     )
     n_rows = ds.isel({multiple_time_dim: slice(start, end, stride)}).sizes[multiple_time_dim]
     f.set_size_inches([10, n_rows*2])

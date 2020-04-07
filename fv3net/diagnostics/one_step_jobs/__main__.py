@@ -43,25 +43,25 @@ logger.setLevel(logging.INFO)
 def _create_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "one_step_path", type=str, help="One-step zarr path, including .zarr suffix."
+        "one_step_data", type=str, help="One-step zarr path, including .zarr suffix."
     )
     parser.add_argument(
-        "hi_res_diags_path", type=str, help="Output location for diagnostics."
+        "hi_res_diags", type=str, help="Output location for diagnostics."
     )
     parser.add_argument(
-        "netcdf_output_path", type=str, help="Output location for diagnostics netcdf file."
+        "netcdf_output", type=str, help="Output location for diagnostics netcdf file."
     )
     parser.add_argument(
-        "--report_output_path", type=str, default=None,
+        "--report_directory", type=str, default=None,
         help="(Public) bucket path for report and image upload. If omitted, report is"
-        "written to netcdf_output_path."
+        "written to netcdf_output."
     )
     parser.add_argument(
         "--start_ind", type=int, default=0, help="First timestep index to use in "
         "zarr. Earlier spin-up timesteps will be skipped. Defaults to 0."
     )
     parser.add_argument(
-        "--n_inits_sample", type=int, default=10, help="Number of initalization "
+        "--n_sample_inits", type=int, default=10, help="Number of initalization "
         "to use in computing one-step diagnostics."
     )
     
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     
     args = _create_arg_parser().parse_args()
     
-    zarrpath = os.path.join(args.one_step_path, ONE_STEP_ZARR)
+    zarrpath = os.path.join(args.one_step_data, ONE_STEP_ZARR)
     fs = get_fs(zarrpath)
     ds_zarr = (
         xr
@@ -82,17 +82,22 @@ if __name__ == "__main__":
     )
     logger.info(f"Opened .zarr at {zarrpath}")
     
-    timestep_subset_indices = time_inds_to_open(ds_zarr[INIT_TIME_DIM], args.n_inits_sample)
+    timestep_subset_indices = time_inds_to_open(ds_zarr[INIT_TIME_DIM], args.n_sample_inits)
     
-    hi_res_diags_zarrpath = os.path.join(args.hi_res_diags_path, COARSENED_DIAGS_ZARR_NAME)
-    hi_res_diags_varnames = SFC_VARIABLES + ['LHTFLsfc', 'SHTFLsfc', 'PRATEsfc']
+    hi_res_diags_zarrpath = os.path.join(args.hi_res_diags, COARSENED_DIAGS_ZARR_NAME)
+    hi_res_diags_mapping = {name: name for name in SFC_VARIABLES}
+    hi_res_diags_mapping.update({
+        'latent_heat_flux': 'LHTFLsfc',
+        'sensible_heat_flux': 'SHTFLsfc',
+        'total_precipitation': 'PRATEsfc'
+    })
     
     ds_sample = [(
         ds_zarr[list(VARS_FROM_ZARR)]
         .isel({INIT_TIME_DIM: list(indices)})
         .sel({STEP_DIM: ['begin', 'after_physics']})
         .pipe(time_coord_to_datetime)
-        .pipe(insert_hi_res_diags, hi_res_diags_zarrpath, hi_res_diags_varnames)
+        .pipe(insert_hi_res_diags, hi_res_diags_zarrpath, hi_res_diags_mapping)
         .pipe(insert_derived_vars_from_ds_zarr)
     ) for indices in timestep_subset_indices]
     
@@ -126,7 +131,7 @@ if __name__ == "__main__":
     
     print(states_and_tendencies)
     
-    output_path = args.netcdf_output_path
+    output_path = args.netcdf_output
     output_nc_path = os.path.join(output_path, OUTPUT_NC_FILENAME)
     fs_out = get_fs(output_nc_path)
     
@@ -139,8 +144,8 @@ if __name__ == "__main__":
     
     
     # if output path is remote GCS location, save results to local output dir first
-    if args.report_output_path:
-        report_path = args.report_output_path
+    if args.report_directory:
+        report_path = args.report_directory
     else:
         report_path = output_path
     proto = get_protocol(report_path)
