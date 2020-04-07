@@ -95,7 +95,8 @@ def run(args, pipeline_args, names):
                 init_time_dim=names["init_time_dim"],
                 renamed_dims=names["renamed_dims"],
             )
-            | "FillNanValues" >> beam.Map(_fill_na, var_land_sea_mask=names["var_land_sea_mask"])
+            | "FillNanValues"
+            >> beam.Map(_fill_na, var_land_sea_mask=names["var_land_sea_mask"])
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
