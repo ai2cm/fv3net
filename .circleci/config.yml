@@ -106,7 +106,6 @@ jobs:
       - image: google/cloud-sdk
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
-      FV3NET_IMAGE: us.gcr.io/vcm-ml/fv3net
     steps:
       - checkout
       - run:
@@ -147,7 +146,7 @@ jobs:
             if [[ -z $CIRCLE_TAG ]]; then
               CIRCLE_TAG=latest
             fi
-            tests/end_to_end_integration/run_integration_with_wait.sh "${FV3NET_IMAGE}:${CIRCLE_TAG}"
+            tests/end_to_end_integration/run_integration_with_wait.sh "${CIRCLE_TAG}"
       - run:
           name: Firewall rule deletion
           when: always
