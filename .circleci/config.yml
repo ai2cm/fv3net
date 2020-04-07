@@ -54,7 +54,16 @@ jobs:
           gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - checkout
       - run: 
-          sudo apt-get install make
+          sudo apt-get install make jq wget -y
+          wget -qO /bin/yq https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_386
+          chmod +x /bin/yq
+      - run: # adds proper end_to_end_configuration image tags into image for integration testing
+          name: "Set up configuration for end_to_end integration test"
+          command: |
+            if [[ -z $CIRCLE_TAG ]]; then
+              CIRCLE_TAG=latest
+            fi
+            tests/end_to_end_integration/.test_run_scripts/prepare_integrration_test_configs.sh $CIRCLE_TAG
       - run:
           name: "Pull submodules"
           command: |
@@ -111,8 +120,7 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            apt-get install wget -y
-            apt-get install jq -y
+            apt-get install wget jq make -y
             wget -qO /bin/yq https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_386
             chmod +x /bin/yq
       - run:
@@ -142,11 +150,13 @@ jobs:
             kubectl config set-cluster $kube_cluster_name --certificate-authority="./proxy.crt"
       - run:
           name: Submit integration tests
-          command: |
+          # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was 
+          # during the build job above
+          command: | 
             if [[ -z $CIRCLE_TAG ]]; then
               CIRCLE_TAG=latest
             fi
-            tests/end_to_end_integration/run_integration_with_wait.sh "${CIRCLE_TAG}"
+            make run_integration_tests VERSION=$CIRCLE_TAG
       - run:
           name: Firewall rule deletion
           when: always

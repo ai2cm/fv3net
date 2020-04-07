@@ -25,11 +25,12 @@ endif
 # COMMANDS                                                                      #
 #################################################################################
 
-.PHONY: build_images push_image
+.PHONY: build_images push_image run_integration_tests image_name_explicit
 
 image_name = us.gcr.io/vcm-ml/$(1):$(VERSION)
 
-image_name_%:
+image_name_explicit:
+image_name_%: image_name_explicit
 	@echo $(call image_name,$*)
 
 # pattern rule for building docker images
@@ -57,6 +58,10 @@ enter: build_image
 build_ci_image:
 	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
+# run integration tests
+run_integration_tests:
+	./tests/end_to_end_integration/.test_run_scripts/prepare_integration_test_configs.sh $(VERSION)
+	./tests/end_to_end_integration/.test_run_scripts/run_integration_with_wait.sh
 
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images
