@@ -193,7 +193,9 @@ def _convert_time_delta_to_float_seconds(a):
 
 
 def _merge_monitor_data(paths: Mapping[str, str]) -> xr.Dataset:
-    datasets = {key: xr.open_zarr(val, mask_and_scale=False) for key, val in paths.items()}
+    datasets = {
+        key: xr.open_zarr(val, mask_and_scale=False) for key, val in paths.items()
+    }
     time = _get_forecast_time(datasets["begin"].time)
     datasets_no_time = [val.drop("time") for val in datasets.values()]
     steps = list(datasets.keys())
@@ -203,7 +205,6 @@ def _merge_monitor_data(paths: Mapping[str, str]) -> xr.Dataset:
 def _write_to_store(group: zarr.ABSStore, index: int, ds: xr.Dataset):
     for variable in ds:
         logger.info(f"Writing {variable} to {group}")
-        if variable == 'land_sea_mask':
         dims = group[variable].attrs["_ARRAY_DIMENSIONS"][1:]
         dask_arr = ds[variable].transpose(*dims).data
         dask_arr.store(group[variable], regions=(index,))
