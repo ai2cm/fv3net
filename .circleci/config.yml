@@ -174,8 +174,10 @@ workflows:
       - pytest_default
   build_and_push:
     jobs:
-      - build_default:
+      - hold:
           type: approval
+      - build_default:
+          requires: hold 
       - integration_tests:
           requires:
             - build_default
