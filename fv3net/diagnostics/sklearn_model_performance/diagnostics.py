@@ -6,12 +6,6 @@ from scipy.stats import binned_statistic_2d
 import warnings
 import xarray as xr
 
-from vcm.cubedsphere.constants import (
-    INIT_TIME_DIM,
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    VAR_LAT_CENTER,
-)
 import vcm
 from vcm.cubedsphere.regridz import regrid_to_common_pressure
 from vcm.select import mask_to_surface_type
@@ -301,7 +295,7 @@ def _plot_lower_troposphere_stability(
         lat_max=20,
 ):
     warnings.filterwarnings("ignore", message="invalid value encountered in less")
-    lat_mask = abs(ds_test[VAR_LAT_CENTER]) < lat_max
+    lat_mask = abs(ds_test[names["var_lat"]]) < lat_max
 
     ds_test["net_precip_pred"] = ds_pred["net_precipitation"]
     ds_test["net_precip_hires"] = ds_hires["net_precipitation"]
@@ -311,11 +305,11 @@ def _plot_lower_troposphere_stability(
         .stack(sample=names["stack_dims"])
         .dropna("sample")
     )
-    ds_test["pressure"] = vcm.pressure_at_midpoint_log(ds_test["delp"])
+    ds_test["pressure"] = vcm.pressure_at_midpoint_log(ds_test[names["var_pressure_thickness"]])
 
     Q = [
         integrate_for_Q(p, qt)
-        for p, qt in zip(ds_test["pressure"].values.T, ds_test["sphum"].values.T)
+        for p, qt in zip(ds_test["pressure"].values.T, ds_test[names["var_sphum"]].values.T)
     ]
     LTS = lower_tropospheric_stability(
         ds_test[names["var_temp"], 
