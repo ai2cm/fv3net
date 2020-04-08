@@ -10,10 +10,17 @@ var_source_name_map:
     "air_temperature": "dQ1"
     "specific_humidity": "dQ2"      
 
+var_physics_tendency_name_map:
+  "specific_humidity": "pQ2"
+  "air_temperature": "pQ1"
+
 init_time_dim: "initial_time"
 forecast_time_dim: "forecast_time"
+
 step_time_dim: "step"
 coord_begin_step: "begin"
+coord_before_physics: "after_dynamics"
+coord_after_physics: "after_physics"
 
 coord_x_center : "x"   
 coord_y_center : "y"    
@@ -57,6 +64,8 @@ one_step_vars:
   - "dQV"
   - "dQ1"
   - "dQ2"
+  - "pQ1"
+  - "pQ2"
   - "total_precipitation"
   - "surface_temperature"
   - "land_sea_mask"
