@@ -4,6 +4,7 @@ import glob
 import pickle
 import shutil
 import tempfile
+import time
 from pathlib import Path
 from subprocess import CalledProcessError
 
@@ -212,10 +213,14 @@ def test_upload_dir_to_gcs_does_not_upload_subdir(tmpdir):
     uploaded_pickle_url = f"{tmp_gcs_url}/what_a_pickle.pkl"
     not_uploaded_pickle_url = f"{tmp_gcs_url}/extra_dir/extra_pickle.pkl"
 
+    # Sleeps added to reduce api request rate by circleci
+    time.sleep(0.1)
     pkl_blob = gcs.init_blob_from_gcs_url(uploaded_pickle_url)
     nonexistent_pkl_blob = gcs.init_blob_from_gcs_url(not_uploaded_pickle_url)
 
+    time.sleep(0.1)
     assert pkl_blob.exists()
+    time.sleep(0.1)
     pkl_blob.delete()
 
     assert not nonexistent_pkl_blob.exists()

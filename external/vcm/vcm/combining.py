@@ -1,29 +1,29 @@
 from typing import Any, Iterable, Sequence, Tuple
+from collections import defaultdict
+import pandas as pd
 
 import xarray as xr
 
 
-def _reduce_one_key_at_time(func, seqs, dims):
+def _reduce_one_key_at_time(seqs, dims):
     """Turn flat dictionary into nested lists by keys"""
     # first groupby last element of key tuple
     if len(dims) == 0:
         return seqs
     else:
         # groupby everything but final key
-        output = {}
+        output = defaultdict(list)
+        labels = defaultdict(list)
         for key, array in seqs.items():
-            val = output.get(key[:-1], None)
-            output[key[:-1]] = func(val, array, key[-1], dims[-1])
+            output[key[:-1]].append(array)
+            labels[key[:-1]].append(key[-1])
 
-        return _reduce_one_key_at_time(func, output, dims[:-1])
+        # concat the output
+        out2 = {}
+        for key in output:
+            out2[key] = xr.concat(output[key], dim=pd.Index(labels[key], name=dims[-1]))
 
-
-def _concat_binary_op(a, b, coord, dim):
-    temp = b.assign_coords({dim: coord})
-    if a is None:
-        return temp
-    else:
-        return xr.concat([a, temp], dim=dim)
+        return _reduce_one_key_at_time(out2, dims[:-1])
 
 
 def combine_array_sequence(
@@ -77,5 +77,5 @@ def combine_array_sequence(
             a        (letter, number, x) float64 0.0 0.0 0.0 0.0
     """
     datasets_dict = {(name,) + dims: array for name, dims, array in datasets}
-    output = _reduce_one_key_at_time(_concat_binary_op, datasets_dict, labels)
+    output = _reduce_one_key_at_time(datasets_dict, labels)
     return xr.Dataset({key[0]: val for key, val in output.items()})

@@ -10,6 +10,7 @@ from vcm.visualize.masking import (
     _periodic_difference,
 )
 from vcm.visualize.plot_cube import mappable_var, plot_cube_axes, plot_cube
+from vcm.visualize.plot_helpers import _get_var_label
 
 
 @pytest.mark.parametrize(
@@ -268,7 +269,7 @@ def test_plot_cube_axes(sample_dataset, plotting_function):
     "plotting_function", [("pcolormesh"), ("contour"), ("contourf")]
 )
 def test_plot_cube_with_facets(sample_dataset, plotting_function):
-    f, axes, hs, cbar = plot_cube(
+    f, axes, hs, cbar, facet_grid = plot_cube(
         mappable_var(sample_dataset, "t2m"),
         col="time",
         plotting_function=plotting_function,
@@ -280,8 +281,25 @@ def test_plot_cube_with_facets(sample_dataset, plotting_function):
 )
 def test_plot_cube_on_axis(sample_dataset, plotting_function):
     ax = plt.axes(projection=ccrs.Robinson())
-    f, axes, hs, cbar = plot_cube(
+    f, axes, hs, cbar, facet_grid = plot_cube(
         mappable_var(sample_dataset, "t2m").isel(time=0),
         plotting_function=plotting_function,
         ax=ax,
     )
+
+
+@pytest.mark.parametrize(
+    "attrs,var_name,expected_label",
+    [
+        ({}, "temp", "temp"),
+        ({"long_name": "air_temperature"}, "temp", "air_temperature"),
+        ({"units": "degK"}, "temp", "temp [degK]"),
+        (
+            {"long_name": "air_temperature", "units": "degK"},
+            "temp",
+            "air_temperature [degK]",
+        ),
+    ],
+)
+def test__get_var_label(attrs, var_name, expected_label):
+    assert _get_var_label(attrs, var_name) == expected_label

@@ -14,4 +14,4 @@ python -m $PIPELINE  \
     --max_num_workers 5 \
     --disk_size_gb 256 \
     --worker_machine_type n1-highmem-16 \
-    --extra_package external/vcm/dist/vcm-0.1.0.tar.gz
+    --extra_package external/vcm/dist/vcm-0.1.1.tar.gz

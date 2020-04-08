@@ -13,18 +13,15 @@ have a total duration of 15 minutes.
 Workflow call signature:
 ```
 $ python submit_jobs.py -h
-usage: submit_jobs.py [-h] --one-step-yaml ONE_STEP_YAML --input-url INPUT_URL
-                      --output-url OUTPUT_URL [--n-steps N_STEPS] [-o]
+usage: submit_jobs.py [-h] INPUT_URL ONE_STEP_YAML  OUTPUT_URL [--n-steps N_STEPS] [-o]
 
   -h, --help            show this help message and exit
-  --one-step-yaml ONE_STEP_YAML
-                        Path to local run configuration yaml.
-  --input-url INPUT_URL
-                        Remote url to initial conditions. Initial conditions
+  INPUT_URL             Remote url to initial conditions. Initial conditions
                         are assumed to be stored as INPUT_URL/{timestamp}/{tim
                         estamp}.{restart_category}.tile*.nc
-  --output-url OUTPUT_URL
-                        Remote url where model configuration and output will
+  ONE_STEP_YAML         Path to local run configuration yaml.
+  DOCKER_IMAGE          fv3gfs-python model docker image.
+  OUTPUT_URL            Remote url where model configuration and output will
                         be saved. Specifically, configuration files will be
                         saved to OUTPUT_URL/one_step_config and model output
                         to OUTPUT_URL/one_step_output
@@ -33,6 +30,14 @@ usage: submit_jobs.py [-h] --one-step-yaml ONE_STEP_YAML --input-url INPUT_URL
                         do not exist in OUTPUT_URL will be processed. Useful
                         for testing.
   -o, --overwrite       Overwrite successful timesteps in OUTPUT_URL.
+  --init-frequency INIT_FREQUENCY
+                        Frequency (in minutes) to initialize one-step jobs
+                        starting from the first available timestep.
+  --config-version CONFIG_VERSION
+                        Default fv3config.yml version to use as the base
+                        configuration. This should be consistent with the
+                        fv3gfs-python version in the specified docker image.
+                        Defaults to fv3gfs-python v0.2 style configuration.
 ```
 
 
@@ -44,7 +49,7 @@ when submitting from a machine authorized with a non-service Google account.
 
 To submit to the kubernetes cluster on a VM, the kubectl configuration needs to point at a 
 proxy cluster access point and the VM needs to have a firewall rule to allow for communication 
-with the proxy IP. See the long-lived-infrastructure [cluster access README](https://github.com/VulcanClimateModeling/long-lived-infrastructure#cluster-access-on-a-personal-vm) 
+with the proxy IP. See the long-lived-infrastructure [cluster access README](https://github.com/VulcanClimateModeling/long-lived-infrastructure#vm-access-setup) 
 for details on this process, specifically, the make kubeconfig_init command. Most VMs should 
 already have a firewall rule set up, but a good way to test whether everythings working is 
 by running the following command:

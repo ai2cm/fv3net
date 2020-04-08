@@ -16,7 +16,6 @@ STORE_NAMES = [
     'time'
 ]
 
-
 TENDENCY_OUT_FILENAME = "tendencies.zarr"
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))
 

@@ -23,6 +23,7 @@ venv/
 *.egg-info/
 .installed.cfg
 *.egg
+*.whl
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -102,6 +103,7 @@ bilinear*
 # MISC
 *.nc
 scratch/*
+\#*#
 
 # snakemake
 .snakemake/*

@@ -1,4 +1,5 @@
 import numpy as np
+import textwrap
 
 
 def _remove_redundant_dims(ds, required_dims):
@@ -87,7 +88,7 @@ def _infer_color_limits(
     return vmin, vmax, cmap
 
 
-def _get_var_label(attrs: dict, var_name: str):
+def _get_var_label(attrs: dict, var_name: str, max_line_length: int = 30):
     """ Get the label for the variable on the colorbar
 
     Args:
@@ -95,12 +96,18 @@ def _get_var_label(attrs: dict, var_name: str):
             Variable aattribute dict
         var_name (str):
             Short name of variable
+        max_line_length (int, optional):
+            Max number of characters on each line of returned label.
+            Defaults to 30.
 
     Returns:
-        var_name (str)
-            Variable name to be plotted, either short name or annotated name
+        var_label (str)
+            long_name [units], var_name [units] or var_name depending on attrs
     """
-    if "long_name" in attrs and "units" in attrs:
-        return f"{attrs['long_name']} [{attrs['units']}]"
+    if "long_name" in attrs:
+        var_label = attrs["long_name"]
     else:
-        return var_name
+        var_label = var_name
+    if "units" in attrs:
+        var_label += f" [{attrs['units']}]"
+    return "\n".join(textwrap.wrap(var_label, max_line_length))

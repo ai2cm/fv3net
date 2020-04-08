@@ -1,7 +1,7 @@
 kubernetes:
-  docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1
+  docker_image: us.gcr.io/vcm-ml/prognostic-run-orchestration:fv3py_v2.3-mp-off-switch
 fv3config:
-  diag_table: diag_table_one_step
+  diag_table: workflows/one_step_jobs/diag_table_one_step
   namelist:
     atmos_model_nml:
       fhout: 0.01666
@@ -18,8 +18,7 @@ fv3config:
       npz: 79
       k_split: 1
       n_split: 1
-    gfdl_cloud_microphysics_nml:
-      fast_sat_adj: false
     gfs_physics_nml:
       do_deep: false
+      do_gfdl_mp_in_physics: false
       fhzero: 0.01666

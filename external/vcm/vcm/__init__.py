@@ -1,38 +1,24 @@
 from .combining import combine_array_sequence
-
-# from .convenience import open_dataset
-from .cubedsphere import (
-    block_coarsen,
-    block_edge_sum,
-    block_median,
-    edge_weighted_block_average,
-    horizontal_block_reduce,
-    save_tiles_separately,
-    xarray_block_reduce,
-)
+from . import cubedsphere
 from .extract import extract_tarball_to_path
-from .fv3_restarts import open_restarts
-from .convenience import TOP_LEVEL_DIR, parse_timestep_from_path
+from .fv3_restarts import (
+    open_restarts,
+    open_restarts_with_time_coordinates,
+    standardize_metadata,
+)
+from .convenience import (
+    TOP_LEVEL_DIR,
+    parse_timestep_str_from_path,
+    parse_datetime_from_str,
+)
+from .calc import mass_integrate
+from .calc.thermo import (
+    net_heating,
+    net_precipitation,
+    pressure_at_midpoint_log,
+    potential_temperature,
+)
 from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
+from .select import mask_to_surface_type
 from .visualize import plot_cube, mappable_var, plot_cube_axes
-
-
-__all__ = [
-    "combine_array_sequence",
-    "open_restarts",
-    "block_coarsen",
-    "block_edge_sum",
-    "block_median",
-    "edge_weighted_block_average",
-    "save_tiles_separately",
-    "extract_tarball_to_path",
-    "xarray_block_reduce",
-    "horizontal_block_reduce",
-    "TOP_LEVEL_DIR",
-    "parse_timestep_from_path",
-    "coarsen_restarts_on_pressure",
-    "coarsen_restarts_on_sigma",
-    "plot_cube",
-    "mappable_var",
-    "plot_cube_axes",
-]
+from .xarray_loaders import open_tiles, open_delayed

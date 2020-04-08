@@ -18,13 +18,14 @@ dependencies = [
     "pyyaml>=5.0",
     "xgcm",
     "zarr",
+    "kubernetes",
 ]
 
 setup(
     name="fv3net",
     packages=find_packages(),
     install_requires=dependencies,
-    version="0.1.0",
+    version="0.1.1",
     description="Improving the GFDL FV3 model physics with machine learning",
     author="Vulcan Inc.",
     license="MIT",

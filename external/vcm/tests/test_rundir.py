@@ -1,9 +1,11 @@
 import os
 import pytest
 from datetime import datetime, timedelta
+import fsspec
 
 from vcm import open_restarts
-from vcm.fv3_restarts import (
+
+from vcm._rundir import (
     _get_tile,
     _get_file_prefix,
     _is_restart_file,
@@ -13,14 +15,15 @@ from vcm.fv3_restarts import (
     _config_from_fs_namelist,
     _get_current_date_from_coupler_res,
     _get_run_duration,
+    _get_prefixes,
 )
 
 FV_CORE_IN_RESTART = "./RESTART/fv_core.res.tile6.nc"
 FV_CORE_IN_RESTART = "./INPUT/fv_core.res.tile6.nc"
 FV_CORE_IN_RESTART_WITH_TIMESTEP = "./RESTART/20180605.000000.fv_core.res.tile6.nc"
 
-FINAL = "RESTART/"
-INIT = "INPUT/"
+FINAL = "RESTART"
+INIT = "INPUT"
 
 OUTPUT_URL = (
     "gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/"
@@ -78,42 +81,33 @@ def test__parse_category_fails_with_ambiguous_category():
         _parse_category(file)
 
 
-def test__open_restarts_fails_without_input_and_restart_dirs():
-    url = (
-        "gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/"
-        "restarts/C48/20160801.001500"
-    )
-    with pytest.raises(ValueError):
-        open_restarts(url)
-
-
 @pytest.mark.parametrize(
     "url, expected",
     [
         (
             OUTPUT_URL,
-            (
-                "gs",
-                (
-                    "vcm-ml-data/"
-                    "2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/"
-                    "one_step_output/C48/20160801.001500/input.nml"
-                ),
-            ),
+            "vcm-ml-data/"
+            "2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/"
+            "one_step_output/C48/20160801.001500/input.nml",
         )
     ],
 )
-def test__get_namelist_path(url, expected):
-    assert _get_namelist_path(url) == expected
+def test__get_namelist_path(fs, url, expected):
+    assert _get_namelist_path(fs, url) == expected
 
 
 @pytest.fixture()
-def test_config():
-    proto, namelist_path = _get_namelist_path(OUTPUT_URL)
-    return _config_from_fs_namelist(proto, namelist_path)
+def fs():
+    return fsspec.filesystem("gs")
 
 
-def test__get_current_date(test_config):
+@pytest.fixture()
+def test_config(fs):
+    namelist_path = _get_namelist_path(fs, OUTPUT_URL)
+    return _config_from_fs_namelist(fs, namelist_path)
+
+
+def test__get_current_date(fs, test_config):
     expected = datetime(
         **{
             time_unit: value
@@ -123,14 +117,13 @@ def test__get_current_date(test_config):
             )
         }
     )
-    assert _get_current_date(test_config, OUTPUT_URL) == expected
+    assert _get_current_date(test_config, fs, OUTPUT_URL) == expected
 
 
 @pytest.mark.parametrize(
-    "proto, coupler_res_filename, expected",
+    "coupler_res_filename, expected",
     [
         (
-            "gs",
             (
                 "vcm-ml-data/2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
                 "one_step_output/C48/20160801.003000/INPUT/coupler.res"
@@ -139,10 +132,27 @@ def test__get_current_date(test_config):
         )
     ],
 )
-def test__get_current_date_from_coupler_res(proto, coupler_res_filename, expected):
-    assert _get_current_date_from_coupler_res(proto, coupler_res_filename) == expected
+def test__get_current_date_from_coupler_res(fs, coupler_res_filename, expected):
+    assert _get_current_date_from_coupler_res(fs, coupler_res_filename) == expected
 
 
 def test__get_run_duration(test_config):
     expected = timedelta(seconds=900)
     assert _get_run_duration(test_config) == expected
+
+
+def test_get_prefixes():
+    walker = [
+        ("blah/RESTART", [], ["20160101.000015.fv_core.res.tile6.nc"]),
+        ("blah/RESTART", [], ["20160101.000000.fv_core.res.tile6.nc"]),
+        ("blah/INPUT", [], ["fv_core.res.tile6.nc"]),
+        ("blah/RESTART", [], ["fv_core.res.tile6.nc"]),
+    ]
+
+    expected = [
+        "INPUT",
+        "RESTART/20160101.000000",
+        "RESTART/20160101.000015",
+        "RESTART",
+    ]
+    assert _get_prefixes(walker) == expected

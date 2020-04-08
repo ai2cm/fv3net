@@ -69,7 +69,7 @@ namelist:
     - 0
     - 15
     - 0
-    days: 7
+    days: 2
     dt_atmos: 900
     dt_ocean: 900
     hours: 0
@@ -134,8 +134,13 @@ namelist:
     kord_tr: 10
     kord_wz: 10
     layout:
+<<<<<<< HEAD
     - 1
     - 1
+=======
+    - 2
+    - 2
+>>>>>>> master
     make_nh: false
     mountain: true
     n_split: 6

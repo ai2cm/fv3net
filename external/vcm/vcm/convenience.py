@@ -1,23 +1,17 @@
-from datetime import timedelta
-import logging
 import os
-import subprocess
-import tempfile
-from collections import defaultdict
 import pathlib
-from typing import List
+import re
+from collections import defaultdict
+from datetime import datetime, timedelta
 
-import numpy as np
-import dask.array as da
+import cftime
 import intake
 import xarray as xr
 import yaml
-import re
-from dask import delayed
 
 from vcm.cloud import gsutil
 from vcm.cloud.remote_data import open_gfdl_data_with_2d
-from vcm.cloud.fsspec import get_fs
+from vcm.cubedsphere.constants import TIME_FMT
 
 TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
@@ -46,6 +40,33 @@ def round_time(t):
         )
 
 
+def parse_timestep_str_from_path(path: str) -> str:
+    """
+    Get the model timestep timestamp from a given path
+    
+    Args:
+        path: A file or directory path that includes a timestep to extract
+
+    Returns:
+        The extrancted timestep string
+    """
+
+    extracted_time = re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path)
+
+    if extracted_time is not None:
+        return extracted_time.group(1)
+    else:
+        raise ValueError(f"No matching time pattern found in path: {path}")
+
+
+def parse_datetime_from_str(time: str) -> cftime.DatetimeJulian:
+    """
+    Retrieve a datetime object from an FV3GFS timestamp string
+    """
+    t = datetime.strptime(time, TIME_FMT)
+    return cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)
+
+
 def get_root():
     """Returns the absolute path to the root directory for any machine"""
     return str(TOP_LEVEL_DIR)
@@ -57,31 +78,6 @@ def get_shortened_dataset_tags():
         pathlib.Path(TOP_LEVEL_DIR, "configurations") / "short_datatag_defs.yml"
     )
     return yaml.load(short_dset_yaml.open(), Loader=yaml.SafeLoader)
-
-
-def parse_timestep_from_path(path: str):
-    """Get the model timestep timestamp from a given path"""
-
-    extracted_time = re.search(r"(\d\d\d\d\d\d\d\d\.\d\d\d\d\d\d)", path)
-
-    if extracted_time is not None:
-        return extracted_time.group(1)
-    else:
-        raise ValueError(f"No matching time pattern found in path: {path}")
-
-
-def list_timesteps(path: str) -> List[str]:
-    """Returns the unique timesteps at a path
-
-    Args:
-        path: local or remote path to directory containing timesteps
-
-    Returns:
-        sorted list of all timesteps within path
-    """
-    file_list = get_fs(path).ls(path)
-    timesteps = map(parse_timestep_from_path, file_list)
-    return sorted(timesteps)
 
 
 root = get_root()
@@ -193,14 +189,6 @@ def _insert_apparent_heating(ds: xr.Dataset) -> xr.Dataset:
     return ds.assign(q1=apparent_heating(dtemp_dt, ds.w), q2=dqt_dt)
 
 
-@delayed
-def _open_remote_nc(url):
-    with tempfile.NamedTemporaryFile() as fp:
-        logging.info("downloading %s to disk" % url)
-        subprocess.check_call((["gsutil", "-q", "cp", url, fp.name]))
-        return xr.open_dataset(fp.name).load()
-
-
 def file_names_for_time_step(timestep, category, resolution=3072):
     # TODO remove this hardcode
     bucket = f"gs://vcm-ml-data"
@@ -230,27 +218,3 @@ def map_ops(fun, grouped_files, *args):
             seq.append(ds)
         out[key] = seq
     return out
-
-
-def open_remote_nc(path, meta=None):
-    computation = delayed(_open_remote_nc)(path)
-    return open_delayed(computation, schema=meta)
-
-
-def _delayed_to_array(delayed_dataset, key, shape, dtype):
-    null = da.full(shape, np.nan, dtype=dtype)
-    array_delayed = delayed_dataset.get(key, null)
-    return da.from_delayed(array_delayed, shape, dtype)
-
-
-def open_delayed(delayed_dataset, schema=None):
-    """Open dask delayed object with as an xarray with given metadata"""
-    data_vars = {}
-    for key in schema:
-        template_var = schema[key]
-        array = _delayed_to_array(
-            delayed_dataset, key, shape=template_var.shape, dtype=template_var.dtype
-        )
-        data_vars[key] = (template_var.dims, array)
-
-    return xr.Dataset(data_vars, coords=schema.coords)

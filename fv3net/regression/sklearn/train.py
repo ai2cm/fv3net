@@ -1,21 +1,26 @@
 import argparse
 import joblib
+import logging
 import os
 import yaml
 
 from dataclasses import dataclass
-from datetime import datetime
-from shutil import copyfile, rmtree
 from typing import List
 
 from fv3net.regression.dataset_handler import BatchGenerator
 from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
-from vcm.cloud import gsutil
+import vcm.cloud.fsspec
 
 MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+fh = logging.FileHandler("ml_training.log")
+fh.setLevel(logging.INFO)
+logger.addHandler(fh)
 
 
 @dataclass
@@ -32,6 +37,19 @@ class ModelTrainingConfig:
     input_variables: List[str]
     output_variables: List[str]
     gcs_project: str = "vcm-ml"
+    random_seed: int = 1234
+    mask_to_surface_type: str = "none"
+
+    def validate_number_train_batches(self, batch_generator):
+        """ Since number of training files specified may be larger than
+        the actual number available, this adds an attribute num_batches_used
+        that keeps information about the actual number of training batches
+        used.
+        
+        Args:
+            batch_generator (BatchGenerator)
+        """
+        self.num_batches_used = batch_generator.num_batches
 
 
 def load_model_training_config(config_path, gcs_data_dir):
@@ -68,6 +86,8 @@ def load_data_generator(train_config):
         train_config.gcs_data_dir,
         train_config.files_per_batch,
         train_config.num_batches,
+        random_seed=train_config.random_seed,
+        mask_to_surface_type=train_config.mask_to_surface_type,
     )
     return ds_batches
 
@@ -113,36 +133,49 @@ def train_model(batched_data, train_config):
     target_transformer = StandardScaler()
     transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
     batch_regressor = RegressorEnsemble(transform_regressor)
-
     model_wrapper = SklearnWrapper(batch_regressor)
+
+    train_config.validate_number_train_batches(batched_data)
+
     for i, batch in enumerate(batched_data.generate_batches()):
-        print(f"Fitting batch {i}/{batched_data.num_batches}")
-        model_wrapper.fit(
-            input_vars=train_config.input_variables,
-            output_vars=train_config.output_variables,
-            sample_dim="sample",
-            data=batch,
-        )
-        print(f"Batch {i} done fitting.")
+        logger.info(f"Fitting batch {i}/{batched_data.num_batches}")
+        try:
+            model_wrapper.fit(
+                input_vars=train_config.input_variables,
+                output_vars=train_config.output_variables,
+                sample_dim="sample",
+                data=batch,
+            )
+            logger.info(f"Batch {i} done fitting.")
+        except ValueError as e:
+            logger.error(f"Error training on batch {i}: {e}")
+            train_config.num_batches_used -= 1
+            continue
+
     return model_wrapper
+
+
+def save_output(output_url, model, config):
+    fs = vcm.cloud.fsspec.get_fs(output_url)
+    fs.makedirs(output_url, exist_ok=True)
+    model_url = os.path.join(output_url, MODEL_FILENAME)
+    config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
+
+    with fs.open(model_url, "wb") as f:
+        joblib.dump(model, f)
+
+    with fs.open(config_url, "w") as f:
+        yaml.dump(config, f)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("train_data_path", type=str, help="Location of training data")
     parser.add_argument(
-        "--train-config-file",
-        type=str,
-        required=True,
-        help="Path for training configuration yaml file",
+        "train_config_file", type=str, help="Path for training configuration yaml file"
     )
     parser.add_argument(
-        "--train-data-path", type=str, required=True, help="Location of training data",
-    )
-    parser.add_argument(
-        "--remote-output-url",
-        type=str,
-        required=False,
-        help="Optional remote location to save config and trained model.",
+        "output_data_path", type=str, help="Location to save config and trained model."
     )
     parser.add_argument(
         "--delete-local-results-after-upload",
@@ -151,33 +184,12 @@ if __name__ == "__main__":
         help="If results are uploaded to remote storage, "
         "remove local copy after upload.",
     )
-    parser.add_argument(
-        "--output-dir-suffix",
-        type=str,
-        default="sklearn_regression",
-        help="Directory suffix to write files to. Prefixed with today's timestamp.",
-    )
     args = parser.parse_args()
+    args.train_data_path = os.path.join(args.train_data_path, "train")
     train_config = load_model_training_config(
         args.train_config_file, args.train_data_path
     )
     batched_data = load_data_generator(train_config)
 
     model = train_model(batched_data, train_config)
-
-    # model and config are saved with timestamp prefix so that they can be
-    # matched together
-    timestamp = datetime.now().strftime("%Y%m%d.%H%M%S")
-    output_dir = f"{timestamp}_{args.output_dir_suffix}"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    copyfile(
-        args.train_config_file,
-        os.path.join(output_dir, f"{timestamp}_{MODEL_CONFIG_FILENAME}"),
-    )
-    joblib.dump(model, os.path.join(output_dir, f"{timestamp}_{MODEL_FILENAME}"))
-
-    if args.remote_output_url:
-        gsutil.copy(output_dir, args.remote_output_url)
-        if args.delete_local_results_after_upload is True:
-            rmtree(output_dir)
+    save_output(args.output_data_path, model, train_config)

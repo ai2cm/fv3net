@@ -3,6 +3,8 @@
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
+
+VERSION ?= v0.1.1
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
@@ -22,8 +24,22 @@ endif
 #################################################################################
 # COMMANDS                                                                      #
 #################################################################################
-build_image:
-	docker build . -t $(IMAGE) -t $(GCR_IMAGE)
+
+.PHONY: build_images push_image
+
+# pattern rule for building docker images
+build_image_%:
+	docker build . -f docker/$*/Dockerfile -t us.gcr.io/vcm-ml/$*:$(VERSION)
+
+enter_%:
+	docker run -ti -w /fv3net -v $(shell pwd):/fv3net us.gcr.io/vcm-ml/$*:$(VERSION) bash
+
+build_images: build_image_fv3net build_image_prognostic_run
+
+push_images: push_image_prognostic_run push_image_fv3net
+
+push_image_%:
+	docker push us.gcr.io/vcm-ml/$*:$(VERSION)
 
 enter: build_image
 	docker run -it -v $(shell pwd):/code \
@@ -33,8 +49,8 @@ enter: build_image
 #		-e GOOGLE_APPLICATION_CREDENTIALS=/google_creds.json \
 #		-v $(HOME)/.config/gcloud/application_default_credentials.json:/google_creds.json \
 
-push_image: build_image
-	docker push $(GCR_IMAGE)
+build_ci_image:
+	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
 
 ## Make Dataset
@@ -54,8 +70,15 @@ update_submodules:
 	git submodule update --recursive --init
 
 
+install_deps:
+	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
+
+install_local_packages:
+	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
+
 create_environment:
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
+	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
 
 overwrite_baseline_images:
