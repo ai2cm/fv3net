@@ -6,6 +6,9 @@ fv3config:
   diag_table: diag_table_long_nudged
   experiment_name: free-gfs-sst
   initial_conditions: gs://vcm-ml-data/2020-02-10-C48-20150101.00Z_IC
+  gfs_analysis_data:
+    url: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
+    filename_pattern: %Y%m%d_%HZ_T85LR.nc
   namelist:
     atmos_model_nml:
       fhout: 1.0

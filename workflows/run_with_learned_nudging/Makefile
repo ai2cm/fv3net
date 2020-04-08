@@ -11,7 +11,7 @@ GCS_FV3CONFIG = $(GCS_CONFIGDIR)/fv3config.yml
 run_all_remote: run_remote_T run_remote_T_ps run_remote_T_ps_u_v
 
 run_remote_%: prepare_remote_%
-	python submit_to_kubernetes.py --dockerimage $(IMAGE) --runfile $(RUNFILE) $(GCS_FV3CONFIG) $(GCS_OUTDIR)
+	python submit_job.py --dockerimage $(IMAGE) --runfile $(RUNFILE) $(GCS_FV3CONFIG) $(GCS_OUTDIR)
 
 run_local_%: prepare_local_%
 	fv3run --dockerimage $(IMAGE) --runfile $(RUNFILE) $(LOCAL_FV3CONFIG) $(LOCAL_OUTDIR)

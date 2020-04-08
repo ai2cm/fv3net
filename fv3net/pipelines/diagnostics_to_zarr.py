@@ -20,7 +20,7 @@ COMMON_SUFFIX = ".tile1.nc"
 
 def run(args, pipeline_args):
     rundir = args.rundir
-    diagnostic_dir = _parse_diagnostic_dir(args.diagnostic_dir, rundir)
+    diagnostic_dir = _get_diagnostic_dir(args.diagnostic_dir, rundir)
     diagnostic_categories = _parse_categories(args.diagnostic_categories, rundir)
     logger.info(f"Diagnostic zarrs being written to {diagnostic_dir}")
     logger.info(f"Diagnostic categories to convert are {diagnostic_categories}")
@@ -62,7 +62,7 @@ def _parse_categories(diagnostic_categories, rundir):
         return diagnostic_categories
 
 
-def _parse_diagnostic_dir(diagnostic_dir, rundir):
+def _get_diagnostic_dir(diagnostic_dir, rundir):
     if diagnostic_dir is None:
         return rundir
     else:

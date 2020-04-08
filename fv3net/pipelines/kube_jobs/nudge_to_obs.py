@@ -10,56 +10,52 @@ import fv3config
 # this module assumes that analysis files are at 00Z, 06Z, 12Z and 18Z
 SECONDS_IN_HOUR = 60 * 60
 NUDGE_HOURS = np.array([0, 6, 12, 18])  # hours at which analysis data is available
-NUDGE_INTERVAL = 6  # hours
-NUDGE_FILENAME_PATTERN = "%Y%m%d_%HZ_T85LR.nc"
-NUDGE_BUCKET = "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data"
 NUDGE_FILE_TARGET = "INPUT"  # where to put analysis files in rundir
 
 
-def _datetime_from_current_date(current_date: List[int]) -> datetime:
-    """Return datetime object given current_date, FV3GFS's time structure"""
-    year = current_date[0]
-    month = current_date[1]
-    day = current_date[2]
-    hour = current_date[3]
-    minute = current_date[4]
-    second = current_date[5]
-    return datetime(year, month, day, hour, minute, second)
-
-
-def _get_first_nudge_time(start_time: datetime) -> datetime:
+def _most_recent_nudge_time(start_time: datetime) -> datetime:
     """Return datetime object for the last nudging time preceding or concurrent
      with start_time"""
-    first_nudge_hour = NUDGE_HOURS[np.argmax(NUDGE_HOURS > start_time.hour) - 1]
+    first_nudge_hour = _most_recent_hour(start_time.hour)
     return datetime(start_time.year, start_time.month, start_time.day, first_nudge_hour)
+
+
+def _most_recent_hour(current_hour, hour_array=NUDGE_HOURS) -> int:
+    """Return latest hour in hour_array that precedes or is concurrent with
+    current_hour"""
+    first_nudge_hour = hour_array[np.argmax(hour_array > current_hour) - 1]
+    return first_nudge_hour
 
 
 def _get_nudge_time_list(config: Mapping) -> List[datetime]:
     """Return list of datetime objects corresponding to times at which analysis files
     are required for nudging for a given model run configuration"""
     current_date = config["namelist"]["coupler_nml"]["current_date"]
-    start_time = _datetime_from_current_date(current_date)
-    first_nudge_time = _get_first_nudge_time(start_time)
+    start_time = datetime(*current_date)
+    first_nudge_time = _most_recent_nudge_time(start_time)
     run_duration = fv3config.get_run_duration(config)
     nudge_duration = run_duration + (start_time - first_nudge_time)
     nudge_duration_hours = int(
         np.ceil(nudge_duration.total_seconds() / SECONDS_IN_HOUR)
     )
-    nudging_hours = range(0, nudge_duration_hours + NUDGE_INTERVAL, NUDGE_INTERVAL)
+    nudge_interval = NUDGE_HOURS[1] - NUDGE_HOURS[0]
+    nudging_hours = range(0, nudge_duration_hours + nudge_interval, nudge_interval)
     return [first_nudge_time + timedelta(hours=hour) for hour in nudging_hours]
 
 
 def _get_nudge_filename_list(config: Mapping) -> List[str]:
     """Return list of filenames of all nudging files required"""
+    nudge_filename_pattern = config["gfs_analysis_data"]["filename_pattern"]
     time_list = _get_nudge_time_list(config)
-    return [time.strftime(NUDGE_FILENAME_PATTERN) for time in time_list]
+    return [time.strftime(nudge_filename_pattern) for time in time_list]
 
 
 def _get_nudge_files_asset_list(config: Mapping) -> List[Mapping]:
     """Return list of fv3config assets for all nudging files required for a given
     model run configuration"""
+    nudge_url = config["gfs_analysis_data"]["url"]
     return [
-        fv3config.get_asset_dict(NUDGE_BUCKET, file, target_location=NUDGE_FILE_TARGET)
+        fv3config.get_asset_dict(nudge_url, file, target_location=NUDGE_FILE_TARGET)
         for file in _get_nudge_filename_list(config)
     ]
 

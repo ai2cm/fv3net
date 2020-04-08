@@ -3,22 +3,6 @@ from datetime import datetime
 
 from fv3net.pipelines.kube_jobs import nudge_to_obs
 
-HOURS_IN_DAY = 24
-NUDGE_FILES_PER_DAY = HOURS_IN_DAY / nudge_to_obs.NUDGE_INTERVAL
-
-
-@pytest.mark.parametrize(
-    "current_date, expected_datetime",
-    [
-        ([2016, 1, 1, 0, 0, 0], datetime(2016, 1, 1)),
-        ([2016, 1, 1, 1, 0, 0], datetime(2016, 1, 1, 1)),
-        ([2016, 1, 1, 7, 2, 0], datetime(2016, 1, 1, 7, 2)),
-        ([2016, 1, 1, 12, 3, 10], datetime(2016, 1, 1, 12, 3, 10)),
-    ],
-)
-def test__datetime_from_current_date(current_date, expected_datetime):
-    assert nudge_to_obs._datetime_from_current_date(current_date) == expected_datetime
-
 
 @pytest.mark.parametrize(
     "start_time, expected",
@@ -31,7 +15,7 @@ def test__datetime_from_current_date(current_date, expected_datetime):
     ],
 )
 def test__get_first_nudge_file_time(start_time, expected):
-    assert nudge_to_obs._get_first_nudge_time(start_time) == expected
+    assert nudge_to_obs._most_recent_nudge_time(start_time) == expected
 
 
 @pytest.mark.parametrize(
