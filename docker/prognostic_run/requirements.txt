@@ -3,6 +3,5 @@ dask
 joblib
 zarr
 scikit-image
-google-cloud-logging
 gitpython
 backoff

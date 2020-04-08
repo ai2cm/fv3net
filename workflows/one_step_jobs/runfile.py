@@ -1,6 +1,6 @@
 import os
 from typing import Sequence, Mapping, cast, Hashable
-from fv3net import runtime
+import runtime
 import logging
 import time
 
@@ -12,6 +12,7 @@ import zarr
 import xarray as xr
 import numpy as np
 
+runtime.capture_fv3gfs_funcs()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
