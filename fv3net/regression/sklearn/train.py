@@ -139,7 +139,11 @@ def train_model(batched_data, train_config):
 
     train_config.validate_number_train_batches(batched_data)
 
-    for i, batch in enumerate(batched_data.generate_batches(train_config.coord_z_center, train_config.init_time_dim)):
+    for i, batch in enumerate(
+        batched_data.generate_batches(
+            train_config.coord_z_center, train_config.init_time_dim
+        )
+    ):
         logger.info(f"Fitting batch {i}/{batched_data.num_batches}")
         try:
             model_wrapper.fit(

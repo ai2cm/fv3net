@@ -77,7 +77,8 @@ class BatchGenerator:
         for file_batch_urls in grouped_urls:
             try:
                 ds_shuffled = self._create_training_batch_with_retries(
-                    file_batch_urls, coord_z_center, init_time_dim)
+                    file_batch_urls, coord_z_center, init_time_dim
+                )
 
             except ValueError:
                 logger.error(
@@ -92,7 +93,7 @@ class BatchGenerator:
         timestep_paths = [self.fs.get_mapper(url) for url in urls]
         try:
             ds = xr.concat(map(xr.open_zarr, timestep_paths), init_time_dim)
-            ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type, )
+            ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type)
             ds_stacked = stack_and_drop_nan_samples(ds, coord_z_center).unify_chunks()
             ds_shuffled = _shuffled(ds_stacked, SAMPLE_DIM, self.random_seed)
             return ds_shuffled

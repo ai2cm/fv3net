@@ -432,7 +432,7 @@ def _assert_equal_number_of_columns(
 
 
 def _assert_valid_vertical_dimension_sizes(
-    p_in: xr.DataArray, f_in: xr.DataArray, z_dim_outer: str, z_dim_center: str,
+    p_in: xr.DataArray, f_in: xr.DataArray, z_dim_outer: str, z_dim_center: str
 ):
     if f_in.sizes[z_dim_center] != p_in.sizes[z_dim_outer] - 1:
         raise ValueError("f_in must have a vertical dimension one shorter than p_in")

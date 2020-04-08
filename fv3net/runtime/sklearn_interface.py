@@ -22,7 +22,7 @@ def predict(model, state):
 def update(model, state, dt):
     tend = predict(model, state)
     updated = state.assign(
-        specific_humidity=state["specific_humidity"] + tend.dQ2 * dt, 
-        air_temperature=state["air_temperature"] + tend.dQ1 * dt
+        specific_humidity=state["specific_humidity"] + tend.dQ2 * dt,
+        air_temperature=state["air_temperature"] + tend.dQ1 * dt,
     )
     return {key: state[key] for key in updated}, {key: state[key] for key in tend}

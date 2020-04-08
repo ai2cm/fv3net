@@ -194,12 +194,12 @@ def plot_cube(
 
 
 def mappable_var(
-        ds: xr.Dataset,
-        var_name: str,
-        coord_x_center: str = COORD_X_CENTER,
-        coord_y_center: str = COORD_Y_CENTER,
-        coord_vars: dict = _COORD_VARS
-    ):
+    ds: xr.Dataset,
+    var_name: str,
+    coord_x_center: str = COORD_X_CENTER,
+    coord_y_center: str = COORD_Y_CENTER,
+    coord_vars: dict = _COORD_VARS,
+):
     """ Converts a restart or diagnostic dataset into a format for plotting
     across cubed-sphere tiles
 

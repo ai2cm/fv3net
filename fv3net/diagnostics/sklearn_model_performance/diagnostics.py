@@ -42,7 +42,9 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
     ds = xr.concat([ds_pred, ds_fv3, ds_shield], dim="dataset")
 
     # for convenience, separate the land/sea data
-    figs = _map_plot_dQ_versus_total(ds, names["init_time_dim"], names["mappable_var_kwargs"])
+    figs = _map_plot_dQ_versus_total(
+        ds, names["init_time_dim"], names["mappable_var_kwargs"]
+    )
     fig_pe_ml, fig_pe_ml_frac, fig_heating_ml, fig_heating_ml_frac = figs
     fig_pe_ml.savefig(os.path.join(output_dir, "dQ2_vertical_integral_map.png"))
     fig_pe_ml_frac.savefig(os.path.join(output_dir, "dQ2_frac_of_PE.png"))
@@ -57,9 +59,9 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
     ]
 
     # LTS
-    _plot_lower_troposphere_stability(ds_pred, ds_fv3, ds_shield, names, lat_max=20).savefig(
-        os.path.join(output_dir, "LTS_vs_Q.png"), dpi=dpi_figures["LTS"]
-    )
+    _plot_lower_troposphere_stability(
+        ds_pred, ds_fv3, ds_shield, names, lat_max=20
+    ).savefig(os.path.join(output_dir, "LTS_vs_Q.png"), dpi=dpi_figures["LTS"])
     report_sections["Lower tropospheric stability vs humidity"] = ["LTS_vs_Q.png"]
 
     # Vertical dQ2 profiles over land and ocean
@@ -68,7 +70,9 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
             vcm.mask_to_surface_type(ds_pred, sfc_type)["dQ2"],
             vcm.mask_to_surface_type(ds_fv3, sfc_type)["dQ2"],
             vcm.mask_to_surface_type(ds_shield, sfc_type)["net_precipitation"],
-            delp=vcm.mask_to_surface_type(ds_pred, sfc_type)[names["var_pressure_thickness"]],
+            delp=vcm.mask_to_surface_type(ds_pred, sfc_type)[
+                names["var_pressure_thickness"]
+            ],
             stack_dims=names["stack_dims"],
             coord_z_center=names["coord_z_center"],
             units="[kg/kg/s]",
@@ -81,15 +85,26 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         "vertical_profile_dQ2_land.png",
         "vertical_profile_dQ2_sea.png",
     ]
-    plt.close('all')
+    plt.close("all")
 
     # plot P-E across the diurnal cycle
     grid = ds[[names["var_lat"], names["var_lon"]]]
-    local_coords = get_latlon_grid_coords_set(grid, EXAMPLE_CLIMATE_LATLON_COORDS, var_lat=names["var_lat"], var_lon=names["var_lon"], coord_x_center=names["coord_x_center"], coord_y_center=names["coord_y_center"])
-    ds["local_time"] = vcm.local_time(ds, time=names["init_time_dim"], lon_var=names["var_lon"])
+    local_coords = get_latlon_grid_coords_set(
+        grid,
+        EXAMPLE_CLIMATE_LATLON_COORDS,
+        var_lat=names["var_lat"],
+        var_lon=names["var_lon"],
+        coord_x_center=names["coord_x_center"],
+        coord_y_center=names["coord_y_center"],
+    )
+    ds["local_time"] = vcm.local_time(
+        ds, time=names["init_time_dim"], lon_var=names["var_lon"]
+    )
 
     plot_diurnal_cycle(
-        mask_to_surface_type(ds[["net_precipitation", names["var_land_sea_mask"], "local_time"]], "sea"),
+        mask_to_surface_type(
+            ds[["net_precipitation", names["var_land_sea_mask"], "local_time"]], "sea"
+        ),
         "net_precipitation",
         stack_dims=names["stack_dims"],
         title="ocean",
@@ -98,7 +113,9 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         dpi=dpi_figures["diurnal_cycle"],
     )
     plot_diurnal_cycle(
-        mask_to_surface_type(ds[["net_precipitation", names["var_land_sea_mask"], "local_time"]], "land"),
+        mask_to_surface_type(
+            ds[["net_precipitation", names["var_land_sea_mask"], "local_time"]], "land"
+        ),
         "net_precipitation",
         stack_dims=names["stack_dims"],
         title="land",
@@ -121,11 +138,13 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         "diurnal_cycle_P-E_sea.png",
         "diurnal_cycle_P-E_land.png",
     ] + [f"diurnal_cycle_P-E_{location_name}.png" for location_name in local_coords]
-    plt.close('all')
+    plt.close("all")
 
     # plot column heating across the diurnal cycle
     plot_diurnal_cycle(
-        mask_to_surface_type(ds[["net_heating", names["var_land_sea_mask"], "local_time"]], "sea"),
+        mask_to_surface_type(
+            ds[["net_heating", names["var_land_sea_mask"], "local_time"]], "sea"
+        ),
         "net_heating",
         stack_dims=names["stack_dims"],
         title="sea",
@@ -134,7 +153,9 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         dpi=dpi_figures["diurnal_cycle"],
     )
     plot_diurnal_cycle(
-        mask_to_surface_type(ds[["net_heating", names["var_land_sea_mask"], "local_time"]], "land"),
+        mask_to_surface_type(
+            ds[["net_heating", names["var_land_sea_mask"], "local_time"]], "land"
+        ),
         "net_heating",
         stack_dims=names["stack_dims"],
         title="land",
@@ -158,7 +179,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         "diurnal_cycle_heating_sea.png",
         "diurnal_cycle_heating_land.png",
     ] + [f"diurnal_cycle_heating_{location_name}.png" for location_name in local_coords]
-    plt.close('all')
+    plt.close("all")
 
     # map plot variables and compare across prediction/ C48 /coarsened high res data
     _plot_comparison_maps(
@@ -210,13 +231,21 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         "column_heating_time_avg.png",
         "column_heating_snapshots.png",
     ]
-    plt.close('all')
+    plt.close("all")
     return report_sections
 
 
 # Below are plotting functions specific to this diagnostic workflow
 
-def _plot_comparison_maps(ds, var, init_time_dim="initial_time", time_index_selection=None, map_var_kwargs=None, plot_cube_kwargs=None):
+
+def _plot_comparison_maps(
+    ds,
+    var,
+    init_time_dim="initial_time",
+    time_index_selection=None,
+    map_var_kwargs=None,
+    plot_cube_kwargs=None,
+):
     # map plot a variable and compare across prediction/ C48 /coarsened high res data
     matplotlib.rcParams["figure.dpi"] = 200
     plt.clf()
@@ -225,7 +254,9 @@ def _plot_comparison_maps(ds, var, init_time_dim="initial_time", time_index_sele
     if not time_index_selection:
         map_var = mappable_var(ds.mean(init_time_dim), var, **map_var_kwargs)
     else:
-        map_var = mappable_var(ds.isel({init_time_dim: time_index_selection}), var, **map_var_kwargs)
+        map_var = mappable_var(
+            ds.isel({init_time_dim: time_index_selection}), var, **map_var_kwargs
+        )
         plot_cube_kwargs["row"] = init_time_dim
     fig = plot_cube(map_var, col="dataset", **plot_cube_kwargs)[0]
     if isinstance(time_index_selection, int):
@@ -239,7 +270,14 @@ def _plot_comparison_maps(ds, var, init_time_dim="initial_time", time_index_sele
 
 
 def _make_vertical_profile_plots(
-    da_pred, da_fv3, da_high_res_split_var, delp, units, stack_dims, coord_z_center, title=None
+    da_pred,
+    da_fv3,
+    da_high_res_split_var,
+    delp,
+    units,
+    stack_dims,
+    coord_z_center,
+    title=None,
 ):
     """Creates vertical profile plots of dQ2 for drying/moistening columns
 
@@ -291,13 +329,7 @@ def _make_vertical_profile_plots(
     return fig
 
 
-def _plot_lower_troposphere_stability(
-        ds_pred, 
-        ds_test, 
-        ds_hires, 
-        names,
-        lat_max=20,
-):
+def _plot_lower_troposphere_stability(ds_pred, ds_test, ds_hires, names, lat_max=20):
     warnings.filterwarnings("ignore", message="invalid value encountered in less")
     lat_mask = abs(ds_test[names["var_lat"]]) < lat_max
 
@@ -309,17 +341,22 @@ def _plot_lower_troposphere_stability(
         .stack(sample=names["stack_dims"])
         .dropna("sample")
     )
-    ds_test["pressure"] = vcm.pressure_at_midpoint_log(ds_test[names["var_pressure_thickness"]], dim=names["coord_z_center"])
+    ds_test["pressure"] = vcm.pressure_at_midpoint_log(
+        ds_test[names["var_pressure_thickness"]], dim=names["coord_z_center"]
+    )
 
     Q = [
         integrate_for_Q(p, qt)
-        for p, qt in zip(ds_test["pressure"].values.T, ds_test[names["var_sphum"]].values.T)
+        for p, qt in zip(
+            ds_test["pressure"].values.T, ds_test[names["var_sphum"]].values.T
+        )
     ]
     LTS = lower_tropospheric_stability(
-        ds_test[names["var_temp"]], 
-        ds_test[names["var_pressure_thickness"]], 
-        ds_test[names["var_sfc_temp"]], 
-        names["coord_z_center"])
+        ds_test[names["var_temp"]],
+        ds_test[names["var_pressure_thickness"]],
+        ds_test[names["var_sfc_temp"]],
+        names["coord_z_center"],
+    )
     fig = plt.figure(figsize=(16, 4))
 
     ax1 = fig.add_subplot(131)
@@ -376,11 +413,14 @@ def _map_plot_dQ_versus_total(ds, init_time_dim, map_var_kwargs):
         }
     )
     fig_pe_ml = plot_cube(
-        mappable_var(ds, "net_precipitation_ml", **map_var_kwargs).mean(init_time_dim), col="dataset"
+        mappable_var(ds, "net_precipitation_ml", **map_var_kwargs).mean(init_time_dim),
+        col="dataset",
     )[0]
     fig_pe_ml.suptitle("P-E [mm/d]: residual dQ2")
     fig_pe_ml_frac = plot_cube(
-        mappable_var(ds, "net_precipitation_ml_frac_of_total", **map_var_kwargs).mean(init_time_dim),
+        mappable_var(ds, "net_precipitation_ml_frac_of_total", **map_var_kwargs).mean(
+            init_time_dim
+        ),
         col="dataset",
         vmin=-1,
         vmax=1,
@@ -388,11 +428,14 @@ def _map_plot_dQ_versus_total(ds, init_time_dim, map_var_kwargs):
     fig_pe_ml_frac.suptitle("P-E: dQ residual as fraction of total")
 
     fig_heating_ml = plot_cube(
-        mappable_var(ds, "net_heating_ml", **map_var_kwargs).mean(init_time_dim), col="dataset"
+        mappable_var(ds, "net_heating_ml", **map_var_kwargs).mean(init_time_dim),
+        col="dataset",
     )[0]
     fig_heating_ml.suptitle("heating [W/m$^2$], ML contribution")
     fig_heating_ml_frac = plot_cube(
-        mappable_var(ds, "net_heating_ml_frac_of_total", **map_var_kwargs).mean(init_time_dim),
+        mappable_var(ds, "net_heating_ml_frac_of_total", **map_var_kwargs).mean(
+            init_time_dim
+        ),
         col="dataset",
         vmin=-1,
         vmax=1,
