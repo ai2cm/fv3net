@@ -42,44 +42,6 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     
     report_sections = {}
     
-    # make 2-d var global mean time series
-    global_mean_time_series_plots = []
-    for var in GLOBAL_MEAN_2D_VARS:
-        for vartype in ['tendencies', 'states']:
-            f = plot_global_mean_time_series(
-                states_and_tendencies.sel(var_type = vartype)[var + "_global_mean"],
-                states_and_tendencies.sel(var_type = vartype)[var + "_global_mean_std"],
-                vartype
-            )
-            plotname = f"{var}_{vartype}_global_mean_time_series.png"
-            f.savefig(os.path.join(output_dir, plotname))
-            global_mean_time_series_plots.append(plotname)
-    report_sections['2-d var global mean time series'] = global_mean_time_series_plots
-    
-    # make maps of 2-d vars across forecast time
-    
-    maps_to_make = {
-        "tendencies": ['psurf', 'column_integrated_heating', 'column_integrated_moistening'],
-        "states":  ['vertical_wind_level_40']
-    }
-    i_start = None
-    i_end = None
-    stride = 2
-
-    maps_across_forecast_time = []
-    for vartype, var_list in maps_to_make.items():
-        for var in var_list:
-            for subvar in [var, f"{var}_std"]:
-                f = plot_model_run_maps_across_time_dim(
-                    states_and_tendencies.sel({VAR_TYPE_DIM: vartype}),
-                    subvar,
-                    FORECAST_TIME_DIM,
-                    stride = stride
-                )
-                plotname = f"{subvar}_{vartype}_maps.png"
-                f.savefig(os.path.join(output_dir, plotname))
-                maps_across_forecast_time.append(plotname)
-    report_sections['2-d var maps across forecast time'] = maps_across_forecast_time
     
     # compare dQ with hi-res diagnostics
     
@@ -122,10 +84,69 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
                 hi_res_diag_var,
                 FORECAST_TIME_DIM,
                 stride = stride)
-            plotname = f"{hi_res_diag_var}_comparison_mapss.png"
+            plotname = f"{hi_res_diag_var}_comparison_maps.png"
             f.savefig(os.path.join(output_dir, plotname))
             dQ_comparison_maps.append(plotname)
     report_sections['dQ vs hi-res diagnostics across forecast time'] = dQ_comparison_maps
+    
+    
+    # make time-height plots of mean 3-D variables
+    
+    averages = ['global', 'sea', 'land']
+
+    mean_time_height_plots = []
+    for var in GLOBAL_MEAN_3D_VARS:
+        for vartype in ['states', 'tendencies']:
+            for average in averages:
+                f, _ = plot_mean_time_height(
+                    states_and_tendencies.sel({VAR_TYPE_DIM: vartype})[f"{var}_{average}_mean"],
+                    vartype
+                )
+                plotname = f"{var}_{vartype}_{average}_mean_time_height"
+                f.savefig(os.path.join(output_dir, plotname))
+                mean_time_height_plots.append(plotname)
+    report_sections['3-d var mean time height'] = mean_time_height_plots
+    
+    # make 2-d var global mean time series
+    
+    global_mean_time_series_plots = []
+    for var in GLOBAL_MEAN_2D_VARS:
+        for vartype in ['tendencies', 'states']:
+            f = plot_global_mean_time_series(
+                states_and_tendencies.sel(var_type = vartype)[var + "_global_mean"],
+                states_and_tendencies.sel(var_type = vartype)[var + "_global_mean_std"],
+                vartype
+            )
+            plotname = f"{var}_{vartype}_global_mean_time_series.png"
+            f.savefig(os.path.join(output_dir, plotname))
+            global_mean_time_series_plots.append(plotname)
+    report_sections['2-d var global mean time series'] = global_mean_time_series_plots
+    
+    
+    # make maps of 2-d vars across forecast time
+    
+    maps_to_make = {
+        "tendencies": ['psurf', 'column_integrated_heating', 'column_integrated_moistening'],
+        "states":  ['vertical_wind_level_40']
+    }
+    i_start = None
+    i_end = None
+    stride = 2
+
+    maps_across_forecast_time = []
+    for vartype, var_list in maps_to_make.items():
+        for var in var_list:
+            for subvar in [var, f"{var}_std"]:
+                f = plot_model_run_maps_across_time_dim(
+                    states_and_tendencies.sel({VAR_TYPE_DIM: vartype}),
+                    subvar,
+                    FORECAST_TIME_DIM,
+                    stride = stride
+                )
+                plotname = f"{subvar}_{vartype}_maps.png"
+                f.savefig(os.path.join(output_dir, plotname))
+                maps_across_forecast_time.append(plotname)
+    report_sections['2-d var maps across forecast time'] = maps_across_forecast_time
     
     return report_sections
 
