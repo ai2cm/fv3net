@@ -38,6 +38,7 @@ def insert_timestep(
     output[time, tile] = data.to_dataset()
 
 
+@retry.with_exponential_backoff(num_retries=3)
 def get_schema(fs: fsspec.AbstractFileSystem, url: str) -> xr.Dataset:
     logging.info(f"Grabbing schema from {url}")
     with fs.open(url, "rb") as f:

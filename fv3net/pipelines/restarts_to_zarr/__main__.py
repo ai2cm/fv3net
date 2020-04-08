@@ -23,13 +23,13 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--url", help="root directory of time steps")
-    parser.add_argument("--output", help="Location of output zarr")
+    parser.add_argument("src-url", help="root directory of time steps")
+    parser.add_argument("output", help="Location of output zarr")
     parser.add_argument("-s", "--n-steps", default=-1, type=int)
     parser.add_argument("--no-init", action="store_true")
     args, pipeline_args = parser.parse_known_args()
 
-    times = list_timesteps(args.url)
+    times = list_timesteps(args.src_url)
     if args.n_steps != -1:
         times = times[: args.n_steps]
 
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         time: str = times[0]
         schema = xr.merge(
             [
-                funcs.get_schema(fs, funcs._file(args.url, time, category, tile=1))
+                funcs.get_schema(fs, funcs._file(args.src_url, time, category, tile=1))
                 for category in categories
             ]
         )
@@ -62,7 +62,7 @@ if __name__ == "__main__":
         (
             p
             | beam.Create(items)
-            | "OpenFiles" >> beam.ParDo(funcs.get_timestep, fs, args.url)
+            | "OpenFiles" >> beam.ParDo(funcs.get_timestep, fs, args.src_url)
             | "Insert" >> beam.Map(funcs.insert_timestep, args.output)
         )
 
