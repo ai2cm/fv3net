@@ -4,6 +4,9 @@ init_time_dim: "initial_time"
 
 coord_z_center: "z"
 
+var_lat: "lat"
+var_lon: "lon"
+
 grid_vars:
   - "lat"
   - "lon"
@@ -11,13 +14,16 @@ grid_vars:
   - "lonb"
   - "area"
 
-  stack_dims:
+stack_dims:
   - "tile"
   - "initial_time"
   - "x"
   - "y"
 
 suffix_coarse_train_diag: "train"
+
+
+
 
 var_temp: "air_temperature"
 var_sfc_temp: "surface_temperature"
@@ -52,3 +58,23 @@ data_vars:
   - "net_heating_ml"
   - "pressure_thickness_of_atmospheric_layer"
   
+  mappable_var_kwargs:
+  coord_x_center: "x"
+  coord_y_center: "y"
+  coord_vars:
+    "lonb": 
+      - "y_interface"
+      - "x_interface"
+      - "tile"
+    "latb":
+      - "y_interface"
+      - "x_interface"
+      - "tile"
+    "lon":
+      - "y"
+      - "x"
+      - "tile"
+    "lat":
+      - "y"
+      - "x"
+      - "tile"

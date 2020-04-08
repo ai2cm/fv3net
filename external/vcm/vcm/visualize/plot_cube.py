@@ -193,7 +193,13 @@ def plot_cube(
     return fig, axes, handles, cbar, facet_grid
 
 
-def mappable_var(ds: xr.Dataset, var_name: str):
+def mappable_var(
+        ds: xr.Dataset,
+        var_name: str,
+        coord_x_center: str = COORD_X_CENTER,
+        coord_y_center: str = COORD_Y_CENTER,
+        coord_vars: dict = _COORD_VARS
+    ):
     """ Converts a restart or diagnostic dataset into a format for plotting
     across cubed-sphere tiles
 
@@ -224,21 +230,19 @@ def mappable_var(ds: xr.Dataset, var_name: str):
 
         )
     """
-    for var, dims in _COORD_VARS.items():
+    for var, dims in coord_vars.items():
         ds[var] = _remove_redundant_dims(ds[var], required_dims=dims)
         ds[var] = ds[var].transpose(*dims)
 
-    first_dims = [COORD_Y_CENTER, COORD_X_CENTER, "tile"]
+    first_dims = [coord_y_center, coord_x_center, "tile"]
     rest = [dim for dim in ds[[var_name]].dims if dim not in first_dims]
     xpose_dims = first_dims + rest
     new_ds = ds[[var_name]].copy().transpose(*xpose_dims)
 
-    for grid_var in _COORD_VARS:
+    for grid_var in coord_vars:
         new_ds = new_ds.assign_coords(coords={grid_var: ds[grid_var]})
 
-    return new_ds.drop(
-        labels=[COORD_Y_CENTER, COORD_X_CENTER, COORD_Y_OUTER, COORD_X_OUTER]
-    )
+    return new_ds
 
 
 def plot_cube_axes(
