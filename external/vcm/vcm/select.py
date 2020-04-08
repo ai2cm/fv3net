@@ -42,7 +42,7 @@ def get_latlon_grid_coords(
     lon,
     var_lat=VAR_LAT_CENTER,
     var_lon=VAR_LON_CENTER,
-    coord_x_center=COORD_Y_CENTER,
+    coord_x_center=COORD_X_CENTER,
     coord_y_center=COORD_Y_CENTER,
     init_search_width=0.5,
     search_width_increment=0.5,

@@ -7,7 +7,6 @@ import xarray as xr
 
 import vcm
 from vcm.cloud.fsspec import get_fs
-from vcm.cubedsphere.constants import COORD_Z_CENTER, INIT_TIME_DIM
 
 SAMPLE_DIM = "sample"
 
