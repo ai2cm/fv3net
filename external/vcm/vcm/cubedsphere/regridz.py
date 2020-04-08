@@ -27,7 +27,7 @@ else:
     _mappm_installed = True
 
 
-def regrid_to_common_pressure(da_var, delp):
+def regrid_to_common_pressure(da_var, delp, coord_z_center="pfull"):
     """ Convenience function that uses regrid_to_shared_coords() for a common
     usage of interpolating to a pressure grid
 
@@ -42,9 +42,9 @@ def regrid_to_common_pressure(da_var, delp):
     return regrid_to_shared_coords(
         da_var,
         np.array(PRESSURE_GRID),
-        pressure_at_midpoint_log(delp),
+        pressure_at_midpoint_log(delp, dim=coord_z_center),
         regrid_dim_name="pressure",
-        replace_dim_name="pfull",
+        replace_dim_name=coord_z_center,
     )
 
 
