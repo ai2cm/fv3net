@@ -4,6 +4,19 @@ init_time_dim: "initial_time"
 
 coord_z_center: "z"
 
+grid_vars:
+  - "lat"
+  - "lon"
+  - "latb"
+  - "lonb"
+  - "area"
+
+  stack_dims:
+  - "tile"
+  - "initial_time"
+  - "x"
+  - "y"
+
 suffix_coarse_train_diag: "train"
 
 var_temp: "air_temperature"

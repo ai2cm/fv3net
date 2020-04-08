@@ -11,7 +11,7 @@ from vcm.convenience import round_time
 SAMPLE_DIM = "sample"
 
 
-def load_test_dataset(test_data_path, init_time_dim="initial_time", num_files_to_load=50, downsample_time_factor=1):
+def load_test_dataset(test_data_path, init_time_dim="initial_time", coord_z_center="z", num_files_to_load=50, downsample_time_factor=1):
     """
 
     Args:
@@ -39,7 +39,7 @@ def load_test_dataset(test_data_path, init_time_dim="initial_time", num_files_to
     ds_test = ds_test.assign_coords(
         {init_time_dim: [round_time(t) for t in ds_test[init_time_dim].values]}
     )
-    ds_stacked = stack_and_drop_nan_samples(ds_test)
+    ds_stacked = stack_and_drop_nan_samples(ds_test, coord_z_center)
     return ds_stacked
 
 
@@ -66,6 +66,9 @@ def predict_dataset(sk_wrapped_model, ds_stacked, vars_to_keep):
         Unstacked prediction dataset
     """
     ds_keep_vars = ds_stacked[vars_to_keep]
+    for var in sk_wrapped_model.input_vars_:
+        print(var)
+        print(ds_keep_vars[var].values[:10])
     ds_pred = sk_wrapped_model.predict(
         ds_stacked[sk_wrapped_model.input_vars_], SAMPLE_DIM
     )

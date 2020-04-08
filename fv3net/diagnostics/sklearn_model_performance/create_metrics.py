@@ -4,13 +4,7 @@ import xarray as xr
 import vcm
 from vcm.calc import r2_score
 from vcm.cubedsphere.regridz import regrid_to_common_pressure
-from vcm.cubedsphere.constants import (
-    INIT_TIME_DIM,
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    PRESSURE_GRID,
-    GRID_VARS,
-)
+from vcm.cubedsphere.constants import PRESSURE_GRID
 
 SAMPLE_DIM = "sample"
 
@@ -18,7 +12,7 @@ SAMPLE_DIM = "sample"
 def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
 
     ds_metrics = _r2_global_values(ds_pred, ds_fv3, ds_shield, names["stack_dims"])
-    for grid_var in GRID_VARS:
+    for grid_var in names["grid_vars"]:
         ds_metrics[grid_var] = ds_pred[grid_var]
 
     for sfc_type in ["global", "sea", "land"]:
@@ -45,13 +39,13 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
             target_label = ds_target.dataset.values.item()
             ds_metrics[
                 f"rmse_{var}_vs_{target_label}"
-            ] = _root_mean_squared_error_metrics(ds_target[var], ds_pred[var])
+            ] = _root_mean_squared_error_metrics(ds_target[var], ds_pred[var], names["init_time_dim"])
             
     return ds_metrics
 
 
-def _root_mean_squared_error_metrics(da_target, da_pred):
-    rmse = np.sqrt((da_target - da_pred) ** 2).mean(INIT_TIME_DIM)
+def _root_mean_squared_error_metrics(da_target, da_pred, init_time_dim="initial_time"):
+    rmse = np.sqrt((da_target - da_pred) ** 2).mean(init_time_dim)
     return rmse
 
 
