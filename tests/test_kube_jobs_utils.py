@@ -216,11 +216,13 @@ def test_job_failed(func, status, expected):
     assert func(job) == expected
 
 
-@pytest.mark.parametrize('statuses, expected',[
-    ([complete_status, complete_status, complete_status], True),
-    ([complete_status, inprogress_status, complete_status], False),
-    ([inprogress_status, inprogress_status, inprogress_status], False),
-]
+@pytest.mark.parametrize(
+    "statuses, expected",
+    [
+        ([complete_status, complete_status, complete_status], True),
+        ([complete_status, inprogress_status, complete_status], False),
+        ([inprogress_status, inprogress_status, inprogress_status], False),
+    ],
 )
 def test__handle_jobs_completed(statuses, expected):
     jobs = [
