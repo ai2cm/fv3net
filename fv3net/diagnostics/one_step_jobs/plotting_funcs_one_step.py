@@ -53,6 +53,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
             'column_integrated_moistening': 'net_precipitation'
         }
     }
+    stride = 2
     
     dQ_comparison_maps = []
     for q_term, mapping in dQ_mapping.items():
@@ -129,9 +130,6 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
         "tendencies": ['psurf', 'column_integrated_heating', 'column_integrated_moistening'],
         "states":  ['vertical_wind_level_40']
     }
-    i_start = None
-    i_end = None
-    stride = 2
 
     maps_across_forecast_time = []
     for vartype, var_list in maps_to_make.items():
@@ -213,3 +211,41 @@ def plot_model_run_maps_across_time_dim(ds, var, multiple_time_dim, start = None
             obj.set_text(right_text + ' min')
     
     return f
+
+
+def plot_mean_time_height(th_da: xr.DataArray, vartype: str) -> plt.figure:
+    th_da = th_da.assign_coords({FORECAST_TIME_DIM: th_da[FORECAST_TIME_DIM]/60})
+    if vartype == 'tendencies':
+        if 'long_name' in th_da.attrs:
+            th_da.attrs.update({
+                'long_name' : f"{th_da.attrs['long_name']} tendency",
+                'units' : f"{th_da.attrs['units']}/s"
+            })
+        else:
+            th_da.attrs.update({
+                'long_name' : f"{th_da.name} tendency",
+                'units' : f"{th_da.attrs['units']}/s"
+            })
+    elif 'long_name' not in th_da.attrs:
+        th_da.attrs.update({
+            'long_name' : f"{th_da.name}"
+        })
+    facetgrid = th_da.plot(
+        x=FORECAST_TIME_DIM,
+        y='z',
+        col=DELTA_DIM,
+        yincrease=False,
+    )    
+    plt.suptitle(f"{th_da.attrs['long_name']} across {FORECAST_TIME_DIM}")
+    for ax in facetgrid.axes.flatten():
+        ax.set_xlabel(f"{FORECAST_TIME_DIM} [minutes]")
+        ax.set_xlim([
+            th_da[FORECAST_TIME_DIM].values[0] - 0.5,
+            th_da[FORECAST_TIME_DIM].values[-1] + 0.5
+        ])
+        ax.set_xticks(th_da[FORECAST_TIME_DIM])
+    f = facetgrid.fig
+    f.set_dpi(FIG_DPI)
+    f.set_size_inches([12, 5])
+    
+    return f, facetgrid
