@@ -33,11 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 def timesteps_to_process(
-    input_url: str,
-    output_url: str,
-    n_steps: int,
-    overwrite: bool,
-    subsample_frequency: int = None,
+    input_url: str, n_steps: int, subsample_frequency: int = None,
 ) -> List[str]:
     """
     Return list of timesteps left to process. This is all the timesteps in
@@ -45,20 +41,20 @@ def timesteps_to_process(
     successfully completed timesteps in output_url. List is
     also limited to a length of n_steps (which can be None, i.e. no limit)
     """
-    rundirs_url = os.path.join(output_url)
     to_do = list_timesteps(input_url)
     if subsample_frequency is not None:
         to_do = subsample_timesteps_at_interval(to_do, subsample_frequency)
-    done = check_runs_complete(rundirs_url)
-    if overwrite:
-        _delete_logs_of_done_timesteps(output_url, done)
-        done = []
-    timestep_list = sorted(list(set(to_do) - set(done)))[:n_steps]
+    timestep_list = sorted(to_do)[:n_steps]
 
-    logger.info(f"Number of input times: {len(to_do)}")
-    logger.info(f"Number of completed times: {min(len(done), len(to_do))}")
     logger.info(f"Number of times to process: {len(timestep_list)}")
     return timestep_list
+
+
+def _delete_logs_of_done_timesteps(output_url: str, timesteps: List[str]):
+    fs = get_fs(output_url)
+    for timestep in timesteps:
+        rundir_url = os.path.join(output_url, timestep)
+        fs.rm(os.path.join(rundir_url, STDOUT_FILENAME))
 
 
 def _current_date_from_timestep(timestep: str) -> List[int]:
@@ -72,30 +68,6 @@ def _current_date_from_timestep(timestep: str) -> List[int]:
     return [year, month, day, hour, minute, second]
 
 
-def _delete_logs_of_done_timesteps(output_url: str, timesteps: List[str]):
-    fs = get_fs(output_url)
-    for timestep in timesteps:
-        rundir_url = os.path.join(output_url, timestep)
-        fs.rm(os.path.join(rundir_url, STDOUT_FILENAME))
-
-
-# Run Completion Checks
-def check_runs_complete(rundir_url: str):
-    """Checks for existence of stdout.log and tail of said logfile to see if run
-    successfully completed"""
-    # TODO: Ideally this would check some sort of model exit code
-    timestep_check_args = [
-        (curr_timestep, os.path.join(rundir_url, curr_timestep, STDOUT_FILENAME))
-        for curr_timestep in list_timesteps(rundir_url)
-    ]
-    pool = Pool(processes=16)
-    complete = set(pool.map(_check_run_complete_unpacker, timestep_check_args))
-    pool.close()
-    if None in complete:
-        complete.remove(None)
-    return complete
-
-
 def _check_run_complete_unpacker(arg: tuple) -> str:
     return _check_run_complete_func(*arg)
 
@@ -105,62 +77,6 @@ def _check_run_complete_func(timestep: str, logfile_path: str) -> str:
         return timestep
     else:
         return None
-
-
-def _check_log_tail(gcs_log_file: str) -> bool:
-    """
-    Check the tail of an FV3GFS stdout log for output we expect upon successful
-    completion.
-    """
-
-    output_timing_header = [
-        "tmin",
-        "tmax",
-        "tavg",
-        "tstd",
-        "tfrac",
-        "grain",
-        "pemin",
-        "pemax\n",
-    ]
-    output_timing_row_lead = [
-        "Total",
-        "Initialization",
-        "FV",
-        "FV",
-        "FV",
-        "GFS",
-        "GFS",
-        "GFS",
-        "Dynamics",
-        "Dynamics",
-        "FV3",
-        "Main",
-        "Termination",
-    ]
-    with fsspec.open(gcs_log_file, "r") as f:
-        log_output = f.readlines()[-15:]
-    headers = [word for word in log_output[0].split(" ") if word]
-    top_check = _check_header_categories(output_timing_header, headers)
-    row_headers = [line.split(" ")[0] for line in log_output[1:-1]]
-    row_check = _check_header_categories(output_timing_row_lead, row_headers)
-    return top_check and row_check
-
-
-def _check_header_categories(
-    target_categories: List[str], source_categories: List[str]
-) -> bool:
-    if not source_categories:
-        return False
-    elif len(source_categories) != len(target_categories):
-        return False
-    for i, target in enumerate(target_categories):
-        if target != source_categories[i]:
-            return False
-    return True
-
-
-# Configuration Handling
 
 
 def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
@@ -286,7 +202,7 @@ def submit_jobs(
     logger.info(pprint.pformat(locals()))
     # kube kwargs are shared by all jobs
     kube_kwargs = get_run_kubernetes_kwargs(one_step_config["kubernetes"], config_url)
-    kube_kwargs['capture_output'] = False
+    kube_kwargs["capture_output"] = False
 
     def config_factory(**kwargs):
         timestep = timestep_list[kwargs["index"]]
@@ -336,3 +252,5 @@ def submit_jobs(
         else:
             logger.info(f"Submitting job for timestep {timestep}")
             run_job(index=k, init=False)
+
+    successful, _ = kube_jobs.wait_for_complete(job_label)

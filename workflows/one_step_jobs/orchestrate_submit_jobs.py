@@ -34,13 +34,6 @@ def _create_arg_parser():
         "output_url", type=str, help="Remote url where model output will be saved."
     )
     parser.add_argument(
-        "-o",
-        "--overwrite",
-        required=False,
-        action="store_true",
-        help="Overwrite successful timesteps in OUTPUT_URL.",
-    )
-    parser.add_argument(
         "--n-steps",
         type=int,
         default=None,
@@ -96,11 +89,7 @@ if __name__ == "__main__":
         config_url = args.config_url
 
     timestep_list = one_step.timesteps_to_process(
-        args.input_url,
-        args.output_url,
-        args.n_steps,
-        args.overwrite,
-        subsample_frequency=args.init_frequency,
+        args.input_url, args.n_steps, subsample_frequency=args.init_frequency,
     )
 
     one_step_config["kubernetes"]["runfile"] = RUNFILE
@@ -118,7 +107,3 @@ if __name__ == "__main__":
         job_labels=job_label,
         local_vertical_grid_file=local_vgrid_file,
     )
-
-    successful, _ = kube_jobs.wait_for_complete(job_label)
-    if successful:
-        kube_jobs.delete_job_pods(successful)

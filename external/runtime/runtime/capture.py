@@ -10,7 +10,6 @@ import time
 import logging
 
 
-
 @contextlib.contextmanager
 def capture_stream(stream):
     """fork is not compatible with mpi so this won't work
@@ -30,7 +29,7 @@ def capture_stream(stream):
         os.close(r)
         try:
             orig_file_handle = os.dup(stream.fileno())
-            # overwrite the streams fileno with a the pipe to be read by the forked 
+            # overwrite the streams fileno with a the pipe to be read by the forked
             # process below
             os.dup2(w, stream.fileno())
             yield
@@ -58,7 +57,7 @@ def capture_stream_mpi(stream, logger_name="fv3gfs"):
     with tempfile.TemporaryFile() as out:
         try:
             orig_file_handle = os.dup(stream.fileno())
-            # overwrite the streams fileno with a the pipe to be read by the forked 
+            # overwrite the streams fileno with a the pipe to be read by the forked
             # process below
             os.dup2(out.fileno(), stream.fileno())
             yield
@@ -70,13 +69,14 @@ def capture_stream_mpi(stream, logger_name="fv3gfs"):
             logger = logging.getLogger(logger_name)
             out.seek(0)
             for line in out:
-                logger.debug(line.strip().decode('UTF-8'))
+                logger.debug(line.strip().decode("UTF-8"))
 
 
 def captured_stream(func):
     def myfunc(*args, **kwargs):
         with capture_stream_mpi(sys.stdout):
             return func(*args, **kwargs)
+
     return myfunc
 
 
@@ -84,7 +84,7 @@ def capture_fv3gfs_funcs():
     """Surpress stderr and stdout from all fv3gfs functions"""
     import fv3gfs
 
-    for func in ['step_dynamics', 'step_physics', 'initialize', 'cleanup']:
+    for func in ["step_dynamics", "step_physics", "initialize", "cleanup"]:
         setattr(fv3gfs, func, captured_stream(getattr(fv3gfs, func)))
 
 

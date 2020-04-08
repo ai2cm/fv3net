@@ -16,17 +16,17 @@ sys.path.insert(0, "/fv3net/workflows/one_step_jobs")
 import capture
 
 
-
 def captured_stream(func):
     def myfunc(*args, **kwargs):
         with capture.capture_stream_mpi(sys.stdout):
             return func(*args, **kwargs)
+
     return myfunc
 
 
 def capture_fv3gfs_funcs():
     """Surpress stderr and stdout from all fv3gfs functions"""
-    for func in ['step_dynamics', 'step_physics', 'initialize', 'cleanup']:
+    for func in ["step_dynamics", "step_physics", "initialize", "cleanup"]:
         setattr(fv3gfs, func, captured_stream(getattr(fv3gfs, func)))
 
 
