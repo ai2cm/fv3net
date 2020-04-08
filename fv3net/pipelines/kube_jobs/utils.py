@@ -116,7 +116,8 @@ def wait_for_complete(
         sleep_interval: time interval between active job check queries
 
     Raises:
-        ValueError if any of the jobs fail. This error when the failed jobs are first detected.
+        ValueError if any of the jobs fail. This error when the failed jobs are
+        first detected.
 
 
     """
@@ -197,7 +198,7 @@ def job_complete(job):
 
 def delete_completed_jobs(job_labels: Mapping[str, str], client: BatchV1Api = None):
     client = _initialize_batch_client() if client is None else client
-    
+
     logger.info("Deleting succesful jobs.")
     jobs = list_jobs(client, job_labels)
     for job in jobs:

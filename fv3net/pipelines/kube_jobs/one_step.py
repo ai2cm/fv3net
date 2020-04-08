@@ -7,7 +7,6 @@ import uuid
 import yaml
 import re
 from copy import deepcopy
-from multiprocessing import Pool
 from typing import List, Dict
 
 import fv3config
@@ -66,17 +65,6 @@ def _current_date_from_timestep(timestep: str) -> List[int]:
     minute = int(timestep[11:13])
     second = int(timestep[13:15])
     return [year, month, day, hour, minute, second]
-
-
-def _check_run_complete_unpacker(arg: tuple) -> str:
-    return _check_run_complete_func(*arg)
-
-
-def _check_run_complete_func(timestep: str, logfile_path: str) -> str:
-    if get_fs(logfile_path).exists(logfile_path) and _check_log_tail(logfile_path):
-        return timestep
-    else:
-        return None
 
 
 def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
@@ -204,10 +192,12 @@ def submit_jobs(
     kube_kwargs = get_run_kubernetes_kwargs(one_step_config["kubernetes"], config_url)
     kube_kwargs["capture_output"] = False
     logger.info(
-        f"To view job statuses: `kubectl get jobs -lorchestrator-jobs={job_labels['orchestrator-jobs']}`"
+        "To view job statuses: "
+        f"`kubectl get jobs -lorchestrator-jobs={job_labels['orchestrator-jobs']}`"
     )
     logger.info(
-        f"To clean up jobs: `kubectl delete jobs -lorchestrator-jobs={job_labels['orchestrator-jobs']}`"
+        "To clean up jobs: "
+        f"`kubectl delete jobs -lorchestrator-jobs={job_labels['orchestrator-jobs']}`"
     )
 
     def config_factory(**kwargs):

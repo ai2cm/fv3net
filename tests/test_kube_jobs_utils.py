@@ -13,8 +13,6 @@ import kubernetes
 
 from kubernetes.client import V1Job, V1JobStatus, V1ObjectMeta
 
-import datetime
-
 
 failed_condition = kubernetes.client.V1JobCondition(type="Failed", status="True")
 

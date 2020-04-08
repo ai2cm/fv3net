@@ -2,12 +2,7 @@ import logging
 import contextlib
 import tempfile
 import sys
-import io
 import os
-import sys
-import threading
-import time
-import logging
 
 
 @contextlib.contextmanager
@@ -82,7 +77,7 @@ def captured_stream(func):
 
 def capture_fv3gfs_funcs():
     """Surpress stderr and stdout from all fv3gfs functions"""
-    import fv3gfs
+    import fv3gfs  # noqa
 
     for func in ["step_dynamics", "step_physics", "initialize", "cleanup"]:
         setattr(fv3gfs, func, captured_stream(getattr(fv3gfs, func)))

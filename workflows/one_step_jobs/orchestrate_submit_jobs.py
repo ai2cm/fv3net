@@ -4,7 +4,6 @@ import logging
 import yaml
 from pathlib import Path
 
-import fv3net.pipelines.kube_jobs as kube_jobs
 from fv3net.pipelines.kube_jobs import one_step
 from fv3net.pipelines.common import get_alphanumeric_unique_tag
 

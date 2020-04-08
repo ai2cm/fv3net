@@ -1,19 +1,11 @@
-from mpi4py import MPI
+from mpi4py import MPI  # noqa
 import fv3gfs
 import logging
-import contextlib
-import tempfile
 import sys
-import io
-import os
-import sys
-import threading
-import time
-import logging
-import sys
+import capture
+
 
 sys.path.insert(0, "/fv3net/workflows/one_step_jobs")
-import capture
 
 
 def captured_stream(func):
