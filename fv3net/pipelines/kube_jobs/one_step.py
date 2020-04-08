@@ -245,7 +245,7 @@ def submit_jobs(
     for k, timestep in enumerate(timestep_list):
         if k == 0:
             logger.info("Running the first time step to initialize the zarr store")
-            # run_job(index=k, init=True, wait=True, timesteps=timestep_list)
+            run_job(index=k, init=True, wait=True, timesteps=timestep_list)
         else:
             logger.info(f"Submitting job for timestep {timestep}")
             run_job(index=k, init=False)
