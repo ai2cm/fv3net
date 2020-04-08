@@ -38,10 +38,12 @@ import logging
 import sys
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("one_step_diags")
 logger.setLevel(logging.INFO)
 out_hdlr = logging.StreamHandler(sys.stdout)
-out_hdlr.setFormatter(logging.Formatter('%(asctime)s: %(name)s L%(lineno)d %(message)s'))
+out_hdlr.setFormatter(logging.Formatter(
+    '%(name)s %(asctime)s: %(module)s/L%(lineno)d %(message)s'
+))
 out_hdlr.setLevel(logging.INFO)
 logger.addHandler(out_hdlr)
 
