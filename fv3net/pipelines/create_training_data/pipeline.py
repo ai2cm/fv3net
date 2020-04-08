@@ -258,19 +258,20 @@ def _test_train_split(timestep_batches, train_frac):
 
 
 def _add_physics_tendencies(
-        ds, 
-        var_physics_tendency_name_map, 
-        forecast_time_dim,
-        step_dim, 
-        coord_before_physics, 
-        coord_after_physics
-    ):
+    ds,
+    var_physics_tendency_name_map,
+    forecast_time_dim,
+    step_dim,
+    coord_before_physics,
+    coord_after_physics,
+):
     # physics timestep is same as forecast time step [s]
-    dt = ds[forecast_time_dim].values[1] 
+    dt = ds[forecast_time_dim].values[1]
     for var, tendency in var_physics_tendency_name_map.items():
         ds[tendency] = (
-            ds[var].sel({step_dim: coord_after_physics}) - ds[var].sel({step_dim: coord_before_physics})
-            ) / dt
+            ds[var].sel({step_dim: coord_after_physics})
+            - ds[var].sel({step_dim: coord_before_physics})
+        ) / dt
 
     return ds
 
