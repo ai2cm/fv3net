@@ -6,10 +6,7 @@ import os
 from ..dataset_handler import stack_and_drop_nan_samples
 from .train import MODEL_FILENAME
 from vcm.convenience import round_time
-from fv3net.pipelines.create_training_data import (
-    RENAMED_PROG_DIAG_VARS,
-    RENAMED_TRAIN_DIAG_VARS,
-)
+
 
 SAMPLE_DIM = "sample"
 
