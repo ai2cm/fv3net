@@ -2,6 +2,7 @@ import logging
 import os
 import time
 import kubernetes
+from kubernetes.client import BatchV1Api
 import fsspec
 import yaml
 from typing import Sequence, Mapping, Tuple
@@ -194,23 +195,13 @@ def job_complete(job):
     return False
 
 
-def delete_job_pods(
-    job_list: Sequence[JobInfo], batch_client: kubernetes.client.BatchV1Api = None
-):
-    """
-    Delete specified job pods on the kubernetes cluster.
-
-    Args:
-        job_list: List of (job_name, job_namespace) tuples to delete from the
-            cluster.
-        client: A BatchV1Api client to communicate with the cluster
-    """
-
-    if batch_client is None:
-        batch_client = _initialize_batch_client()
-
-    logger.info("Deleting successful jobs.")
-    for delete_args in job_list:
-        jobname, namespace = delete_args
-        logger.info(f"Deleting -- {jobname}")
-        batch_client.delete_namespaced_job(jobname, namespace)
+def delete_completed_jobs(job_labels: Mapping[str, str], client: BatchV1Api = None):
+    client = _initialize_batch_client() if client is None else client
+    
+    logger.info("Deleting succesful jobs.")
+    jobs = list_jobs(client, job_labels)
+    for job in jobs:
+        if job_complete(job):
+            name = job.metadata.name
+            logger.info(f"Deleting completed job: {name}")
+            client.delete_namespaced_job(name, namespace=job.metadata.namespace)

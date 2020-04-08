@@ -146,3 +146,4 @@ if __name__ == "__main__":
 
     if not args.detach:
         kube_jobs.wait_for_complete(job_label)
+        kube_jobs.delete_completed_jobs(job_label)
