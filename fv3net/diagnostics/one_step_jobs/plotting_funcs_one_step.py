@@ -16,9 +16,19 @@ from fv3net.diagnostics.one_step_jobs import (
 )
 from scipy.stats import binned_statistic_2d
 import xarray as xr
+import numpy as np
 from matplotlib import pyplot as plt
 import os
 from typing import Mapping
+import logging
+import sys
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+out_hdlr = logging.StreamHandler(sys.stdout)
+out_hdlr.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+out_hdlr.setLevel(logging.INFO)
+logger.addHandler(out_hdlr)
 
 
 FIG_DPI = 100
@@ -44,6 +54,9 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     
     
     # compare dQ with hi-res diagnostics
+    
+    section_name = 'dQ vs hi-res diagnostics across forecast time'
+    logger.info(f'Plotting {section_name}')
     
     dQ_mapping = {
         'Q1': {
@@ -87,11 +100,55 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
                 stride = stride)
             plotname = f"{hi_res_diag_var}_comparison_maps.png"
             f.savefig(os.path.join(output_dir, plotname))
+            plt.close(f)
             dQ_comparison_maps.append(plotname)
-    report_sections['dQ vs hi-res diagnostics across forecast time'] = dQ_comparison_maps
+    report_sections[section_name] = dQ_comparison_maps
     
+    
+    # make vertical profiles of dQ terms across forecast time
+    
+    section_name = 'dQ profiles across forecast time'
+    logger.info(f'Plotting {section_name}')
+    
+    dQ_PROFILE_MAPPING = {
+        'air_temperature': {
+            'name': 'dQ1',
+            VAR_TYPE_DIM: 'tendencies'
+        },
+        'specific_humidity': {
+            'name': 'dQ2',
+            VAR_TYPE_DIM: 'tendencies'
+        },
+        'vertical_wind': {
+            'name': 'dW',
+            VAR_TYPE_DIM: 'states'
+        },
+    }
+    
+    composites = ['pos_PminusE_land_mean', 'neg_PminusE_land_mean', 'pos_PminusE_sea_mean', 'neg_PminusE_sea_mean', ]
+    dQ_profile_maps = []
+    for ds_name, dQ_info in dQ_PROFILE_MAPPING.items():
+        dQ_name = dQ_info['name']
+        dQ_type = dQ_info[VAR_TYPE_DIM]
+        f = plot_dQ_vertical_profiles(
+            states_and_tendencies.sel({VAR_TYPE_DIM: dQ_type, DELTA_DIM: 'hi-res - coarse'}),
+            ds_name,
+            dQ_name,
+            dQ_type,
+            composites,
+            stride = 2
+        )
+        plotname = f"{dQ_name}_profiles.png"
+        f.savefig(os.path.join(output_dir, plotname))
+        plt.close(f)
+        dQ_profile_maps.append(plotname)
+    report_sections[section_name] = dQ_profile_maps
+
     
     # make time-height plots of mean 3-D variables
+    
+    section_name = '3-d var mean time height'
+    logger.info(f'Plotting {section_name}')
     
     averages = ['global', 'sea', 'land']
 
@@ -103,12 +160,17 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
                     states_and_tendencies.sel({VAR_TYPE_DIM: vartype})[f"{var}_{average}_mean"],
                     vartype
                 )
-                plotname = f"{var}_{vartype}_{average}_mean_time_height"
+                plotname = f"{var}_{vartype}_{average}_mean_time_height.png"
                 f.savefig(os.path.join(output_dir, plotname))
+                plt.close(f)
                 mean_time_height_plots.append(plotname)
-    report_sections['3-d var mean time height'] = mean_time_height_plots
+    report_sections[section_name] = mean_time_height_plots
+    
     
     # make 2-d var global mean time series
+    
+    section_name = '2-d var global mean time series'
+    logger.info(f'Plotting {section_name}')
     
     global_mean_time_series_plots = []
     for var in GLOBAL_MEAN_2D_VARS:
@@ -120,11 +182,15 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
             )
             plotname = f"{var}_{vartype}_global_mean_time_series.png"
             f.savefig(os.path.join(output_dir, plotname))
+            plt.close(f)
             global_mean_time_series_plots.append(plotname)
-    report_sections['2-d var global mean time series'] = global_mean_time_series_plots
+    report_sections[section_name] = global_mean_time_series_plots
     
     
     # make maps of 2-d vars across forecast time
+    
+    section_name = '2-d var maps across forecast time'
+    logger.info(f'Plotting {section_name}')
     
     maps_to_make = {
         "tendencies": ['psurf', 'column_integrated_heating', 'column_integrated_moistening'],
@@ -143,8 +209,9 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
                 )
                 plotname = f"{subvar}_{vartype}_maps.png"
                 f.savefig(os.path.join(output_dir, plotname))
+                plt.close(f)
                 maps_across_forecast_time.append(plotname)
-    report_sections['2-d var maps across forecast time'] = maps_across_forecast_time
+    report_sections[section_name] = maps_across_forecast_time
     
     return report_sections
 
@@ -249,3 +316,62 @@ def plot_mean_time_height(th_da: xr.DataArray, vartype: str) -> plt.figure:
     f.set_size_inches([12, 5])
     
     return f, facetgrid
+
+
+def plot_dQ_vertical_profiles(
+    ds: xr.DataArray,
+    ds_name: str,
+    dQ_name: str,
+    dQ_type: str,
+    composites: list,
+    start: int = None,
+    end: int = None,
+    stride: int = None
+) -> plt.figure:
+    
+    ds = ds.assign_coords({FORECAST_TIME_DIM: (ds[FORECAST_TIME_DIM]/60).astype(int)})
+    varnames = ['_'.join([ds_name, suffix]) for suffix in composites]
+    ds_across_vars = xr.Dataset({dQ_name: xr.concat([
+        ds[var].expand_dims({'dQ_composite': [suffix]}) for var, suffix in zip(varnames, composites)
+    ], dim='dQ_composite')})
+    
+    if dQ_type == 'tendencies':
+        ds_across_vars[dQ_name] = ds_across_vars[dQ_name].assign_attrs({
+            'long_name': dQ_name + ' tendency',
+            'units': ds[varnames[0]].attrs['units'] + '/s'
+        })
+
+    def _facet_line_plot(arr: np.ndarray):
+        ax = plt.gca()
+        ax.set_prop_cycle(color=['b', [1, 0.5, 0], 'b', [1, 0.5, 0]],
+                          linestyle=['-', '-', '--', '--']
+                         )
+        nz = arr.shape[1] + 1.
+        h = ax.plot(arr.T, np.arange(1., nz))
+        ax.plot([0, 0], [1, nz], 'k--')
+        return h
+    
+    facetgrid = xr.plot.FacetGrid(
+        data=ds_across_vars.isel({FORECAST_TIME_DIM: slice(start, end, stride)}),
+        col = FORECAST_TIME_DIM,
+        col_wrap = 4
+    )
+    
+    facetgrid = facetgrid.map(_facet_line_plot, dQ_name)
+    facetgrid.axes.flatten()[0].invert_yaxis()
+    facetgrid.axes.flatten()[0].set_ylim([ds.sizes['z'], 1])
+    legend_ax = facetgrid.axes.flatten()[-2]
+    handles = legend_ax.get_lines()
+    legend_ax.legend(handles[:-1], composites, loc=2)
+    facetgrid.set_titles(template='{value} minutes')
+    for ax in facetgrid.axes[-1, :]:
+        ax.set_xlabel(f"{dQ_name} [{ds_across_vars[dQ_name].attrs['units']}]")
+    for ax in facetgrid.axes[:, 0]:
+        ax.set_ylabel('model level')
+    n_rows = facetgrid.axes.shape[0]
+    f = facetgrid.fig
+    f.set_size_inches([12, n_rows*4])
+    f.set_dpi(FIG_DPI)
+    f.suptitle(f"{dQ_name}")
+    
+    return facetgrid.fig

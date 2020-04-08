@@ -6,6 +6,7 @@ from vcm.select import mask_to_surface_type
 from vcm.convenience import parse_datetime_from_str
 from datetime import datetime, timedelta
 import logging
+import sys
 
 from fv3net.diagnostics.one_step_jobs import (
     INIT_TIME_DIM,
@@ -23,6 +24,11 @@ from vcm import net_precipitation
 
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+out_hdlr = logging.StreamHandler(sys.stdout)
+out_hdlr.setFormatter(logging.Formatter('%(asctime)s %(message)s'))
+out_hdlr.setLevel(logging.INFO)
+logger.addHandler(out_hdlr)
 
 
 def time_inds_to_open(time_coord: xr.DataArray, n_sample: int) -> Sequence:
@@ -50,7 +56,7 @@ def _duration_and_interval(timestamp_list: list) -> (int, int):
     restart_interval_minutes = duration_minutes//(n_steps - 1)
     restart_interval_minutes_first = (first_and_second[1] - first_and_second[0]).seconds/60
     if restart_interval_minutes != restart_interval_minutes_first:
-        logger.warn('Incomplete initialization set detected in .zarr')
+        logger.info('Incomplete initialization set detected in .zarr')
         restart_interval_minutes = restart_interval_minutes_first
         
     return duration_minutes, restart_interval_minutes
@@ -253,15 +259,55 @@ def insert_variable_at_model_level(ds: xr.Dataset, varnames: list, level: int):
     return ds
 
 
+def _mask_to_PminusE_sign(
+    ds: xr.Dataset,
+    sign: str,
+    PminusE_varname: str,
+    PminusE_dataset: str = 'hi-res'
+) -> xr.Dataset:
+    """
+    Args:
+        ds: xarray dataset
+        sign: one of ['positive', 'negative']
+        PminusE_varname: Name of the P - E var in ds.
+        PminusE_dataset: Name of the P - E dataset to use, optional.
+            Defaults to 'hi-res'.
+    Returns:
+        input dataset masked to the P - E sign specified
+    """
+    if sign in ["none", "None", None]:
+        warnings.warn("surface_type provided as None: no mask applied.")
+        return ds
+    elif sign not in ['positive', 'negative']:
+        raise ValueError("Must mask to either positive or negative.")
+        
+    PminusE = ds[PminusE_varname].sel({DELTA_DIM: 'hi-res'})
+    mask = PminusE > 0 if sign == 'positive' else PminusE < 0
+    
+    return ds.where(mask)
+
+
+def _weighted_mean(ds: xr.Dataset, weights: xr.DataArray, dims = ['tile', 'x', 'y']) -> xr.Dataset:
+    """Compute weighted mean of a dataset
+    Args:
+        ds: dataset to be averaged
+        weights: xr.DataArray of weights of the dataset, must be broadcastable to ds
+        dims: dimension names over which to average
+    Returns
+        weighted mean average ds
+    """
+    
+    return (ds*weights).sum(dim = dims)/weights.sum(dim = dims)
+
+
 def insert_weighted_mean_vars(
     ds: xr.Dataset,
     weights: xr.DataArray,
     varnames: list,
-    mask_name = 'land_sea_mask',
-    dims = ['tile', 'x', 'y']
+    mask_names: list
 ) -> xr.Dataset:
     
-    wm = (ds*weights).sum(dim = dims)/weights.sum(dim = dims)
+    wm = _weighted_mean(ds, weights)
     for var in varnames:
         if var in ds:
             new_name = f"{var}_global_mean"
@@ -270,13 +316,16 @@ def insert_weighted_mean_vars(
         else:
             raise ValueError('Variable for global mean calculations not in dataset.')
         
-    if mask_name == 'land_sea_mask':
-        ds_land = mask_to_surface_type(ds.merge(weights), 'land', surface_type_varname = mask_name)
+    if 'land_sea_mask' in mask_names:
+        
+        ds_land = mask_to_surface_type(ds.merge(weights), 'land', surface_type_varname = 'land_sea_mask')
         weights_land = ds_land['area']
-        wm_land = (ds_land*weights_land).sum(dim = dims)/weights_land.sum(dim = dims)
-        ds_sea = mask_to_surface_type(ds.merge(weights), 'sea', surface_type_varname = mask_name)
+        wm_land = _weighted_mean(ds_land, weights_land)
+        
+        ds_sea = mask_to_surface_type(ds.merge(weights), 'sea', surface_type_varname = 'land_sea_mask')
         weights_sea = ds_sea['area']
-        wm_sea = (ds_sea*weights_sea).sum(dim = dims)/weights_sea.sum(dim = dims)
+        wm_sea = _weighted_mean(ds_sea, weights_sea)
+        
         for var in varnames:
             if var in ds:
                 land_new_name = f"{var}_land_mean"
@@ -288,9 +337,69 @@ def insert_weighted_mean_vars(
                 ds[land_new_name] = ds[land_new_name].assign_attrs(ds[var].attrs)
                 ds[sea_new_name] = ds[sea_new_name].assign_attrs(ds[var].attrs)
             else:
-                raise ValueError('Variable for global mean calculations not in dataset.')
-    else:
-        raise ValueError('Only "land_sea_mask" is suppored as a mask.')
+                raise ValueError('Variable for land/sea mean calculations not in dataset.')
+                
+    if 'net_precipitation_physics' in mask_names:
+    
+        ds_pos_PminusE = _mask_to_PminusE_sign(ds, 'positive', 'net_precipitation_physics')
+        weights_pos_PminusE = ds_pos_PminusE['area']
+        wm_pos_PminusE = _weighted_mean(ds_pos_PminusE, weights_pos_PminusE)
+        
+        ds_neg_PminusE = _mask_to_PminusE_sign(ds, 'negative', 'net_precipitation_physics')
+        weights_neg_PminusE = ds_neg_PminusE['area']
+        wm_neg_PminusE = _weighted_mean(ds_neg_PminusE, weights_neg_PminusE)
+        
+        for var in varnames:
+            if var in ds:
+                pos_new_name = f"{var}_pos_PminusE_mean"
+                neg_new_name = f"{var}_neg_PminusE_mean"
+                ds = ds.assign({
+                    pos_new_name: wm_pos_PminusE[var],
+                    neg_new_name: wm_neg_PminusE[var]
+                })
+                ds[pos_new_name] = ds[pos_new_name].assign_attrs(ds[var].attrs)
+                ds[neg_new_name] = ds[neg_new_name].assign_attrs(ds[var].attrs)
+            else:
+                raise ValueError('Variable for sign(P - E) mean calculations not in dataset.')
+                
+                
+    if 'net_precipitation_physics' in mask_names and 'land_sea_mask' in mask_names:
+    
+        ds_pos_PminusE_land = mask_to_surface_type(ds_pos_PminusE.merge(weights), 'land', surface_type_varname = 'land_sea_mask')
+        weights_pos_PminusE_land = ds_pos_PminusE_land['area']
+        wm_pos_PminusE_land = _weighted_mean(ds_pos_PminusE_land, weights_pos_PminusE_land)
+        
+        ds_pos_PminusE_sea = mask_to_surface_type(ds_pos_PminusE.merge(weights), 'sea', surface_type_varname = 'land_sea_mask')
+        weights_pos_PminusE_sea = ds_pos_PminusE_sea['area']
+        wm_pos_PminusE_sea = _weighted_mean(ds_pos_PminusE_sea, weights_pos_PminusE_sea)
+        
+        ds_neg_PminusE_land = mask_to_surface_type(ds_neg_PminusE.merge(weights), 'land', surface_type_varname = 'land_sea_mask')
+        weights_neg_PminusE_land = ds_neg_PminusE_land['area']
+        wm_neg_PminusE_land = _weighted_mean(ds_neg_PminusE_land, weights_neg_PminusE_land)
+        
+        ds_neg_PminusE_sea = mask_to_surface_type(ds_neg_PminusE.merge(weights), 'sea', surface_type_varname = 'land_sea_mask')
+        weights_neg_PminusE_sea = ds_neg_PminusE_sea['area']
+        wm_neg_PminusE_sea = _weighted_mean(ds_neg_PminusE_sea, weights_neg_PminusE_sea)
+        
+        for var in varnames:
+            if 'z' in ds[var].dims:
+                pos_land_new_name = f"{var}_pos_PminusE_land_mean"
+                neg_land_new_name = f"{var}_neg_PminusE_land_mean"
+                pos_sea_new_name = f"{var}_pos_PminusE_sea_mean"
+                neg_sea_new_name = f"{var}_neg_PminusE_sea_mean"
+                ds = ds.assign({
+                    pos_land_new_name: wm_pos_PminusE_land[var],
+                    neg_land_new_name: wm_neg_PminusE_land[var],
+                    pos_sea_new_name: wm_pos_PminusE_sea[var],
+                    neg_sea_new_name: wm_neg_PminusE_sea[var]
+                })
+                ds[pos_land_new_name] = ds[pos_land_new_name].assign_attrs(ds[var].attrs)
+                ds[neg_land_new_name] = ds[neg_land_new_name].assign_attrs(ds[var].attrs)
+                ds[pos_sea_new_name] = ds[pos_sea_new_name].assign_attrs(ds[var].attrs)
+                ds[neg_sea_new_name] = ds[neg_sea_new_name].assign_attrs(ds[var].attrs)
+    
+    if any([mask not in ["land_sea_mask", "net_precipitation_physics"] for mask in mask_names]):
+        raise ValueError('Only "land_sea_mask" and "net_precipitation_physics" are suppored as masks.')
             
     return ds
 

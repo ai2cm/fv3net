@@ -32,12 +32,18 @@ from fv3net.pipelines.common import dump_nc
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 import argparse
 import xarray as xr
+import numpy as np
 import os
 import logging
+import sys
 
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+out_hdlr = logging.StreamHandler(sys.stdout)
+out_hdlr.setFormatter(logging.Formatter('%(asctime)s: %(name)s L%(lineno)d %(message)s'))
+out_hdlr.setLevel(logging.INFO)
+logger.addHandler(out_hdlr)
 
 
 def _create_arg_parser():
@@ -96,12 +102,14 @@ if __name__ == "__main__":
         ds_zarr[list(VARS_FROM_ZARR)]
         .isel({INIT_TIME_DIM: list(indices)})
         .sel({STEP_DIM: ['begin', 'after_physics']})
+        .assign_coords({'z': np.arange(1., ds_zarr.sizes['z'] + 1.)})
         .pipe(time_coord_to_datetime)
         .pipe(insert_hi_res_diags, hi_res_diags_zarrpath, hi_res_diags_mapping)
         .pipe(insert_derived_vars_from_ds_zarr)
     ) for indices in timestep_subset_indices]
     
-    logger.info(f"Sampled {len(ds_sample)} initializations.")
+    logger.info(f"Sampling {len(ds_sample)} initializations at: "
+                f"{[ds[INIT_TIME_DIM].values[0] for ds in ds_sample]}")
     
     states_and_tendencies = (
         get_states_and_tendencies(ds_sample)
@@ -117,19 +125,20 @@ if __name__ == "__main__":
         STEP_DIM: 0
     }).drop_vars([STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
     
+    logger.info('Subsetting dataset and loading')
+    
     states_and_tendencies = (
         states_and_tendencies
         .merge(grid)
         .pipe(
             insert_weighted_mean_vars,
             grid['area'],
-            GLOBAL_MEAN_2D_VARS + GLOBAL_MEAN_3D_VARS
+            GLOBAL_MEAN_2D_VARS + GLOBAL_MEAN_3D_VARS,
+            ['land_sea_mask', 'net_precipitation_physics']
         )
         .pipe(shrink_ds)
         .load()
     )
-    
-    print(states_and_tendencies)
     
     output_path = args.netcdf_output
     output_nc_path = os.path.join(output_path, OUTPUT_NC_FILENAME)
