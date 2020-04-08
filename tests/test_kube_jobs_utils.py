@@ -165,7 +165,7 @@ def test_wait_for_complete(mock_batch_api):
 
 def test_get_base_fv3config():
 
-    config = get_base_fv3config("v0.2")
+    config = get_base_fv3config("v0.3")
     assert isinstance(config, Mapping)
 
 

@@ -53,6 +53,7 @@ storage_root: vcm-ml-data/orchestration-testing
 experiment:
   name: test-experiment
   unique_id: True
+  max_stubs: 1
   steps_to_run:
     - coarsen_restarts
     - coarsen_diagnostics
@@ -93,6 +94,7 @@ experiment:
 
 - **name**: name of experiment
 - **unique_id**: a UUID is appended to experiment name if True; if false, the `name` field is used directly. True is reccommended for safety as it will not be likely to clobber old experiments, whereas False allows for specifying an existing experiment to rerun or start from an intermediate step.
+- **max_stubs**: (Optional) If supplied, the number of args to include in the output step directory names. If not supplied, defaults to 0 (step name only). 
 - **steps_to_run**: a YAML list of workflow steps to execute for this experiment
 
 #### Step level arguments:

@@ -3,7 +3,7 @@ from scipy.interpolate import UnivariateSpline
 import xarray as xr
 
 import fv3net
-from ..data_funcs import net_heating_from_dataset
+from ..data import net_heating_from_dataset
 from fv3net.pipelines.create_training_data import (
     SUFFIX_COARSE_TRAIN_DIAG,
     VAR_Q_HEATING_ML,
@@ -16,6 +16,7 @@ from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     COORD_X_CENTER,
     COORD_Y_CENTER,
+    COORD_Z_CENTER,
     TILE_COORDS,
 )
 from vcm.regrid import regrid_to_shared_coords
@@ -145,7 +146,7 @@ def lower_tropospheric_stability(ds):
             [70000],
             pressure,
             regrid_dim_name="p700mb",
-            replace_dim_name="pfull",
+            replace_dim_name=COORD_Z_CENTER,
         )
         .squeeze()
         .drop("p700mb")

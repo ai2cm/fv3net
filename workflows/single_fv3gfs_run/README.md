@@ -1,3 +1,4 @@
+## Single FV3GFS Run
 ```
 usage: submit_job.py [-h] --bucket BUCKET --run-yaml RUN_YAML
 
@@ -25,3 +26,16 @@ examples do not specify the `runfile`, and hence use the default.
 
 Note that all configuration assets except the `diag_table` and `runfile` are assumed to already
 be on GCS. This includes any initial conditions or patch file assets.
+
+The below table summarizes the configurations available. It has a good chance of being out of date.
+
+| config | start date | length | nudged vars | default repo | SST |
+|--------|------------|--------|-------------|--------------|-----|
+| long_free.yml | 1 Jan 2016 | 1 year | none | fv3gfs | clim |
+| long_nudged.yml | 1 Jan 2016 | 1 year | T, ps, u, v | fv3gfs | clim |
+| 40day_free.yml | 1 Aug 2016 | 40 days | none | fv3atm | GFS analysis |
+| 40day_nudged.yml | 1 Aug 2016 | 40 days | T, ps, u, v | fv3atm | GFS analysis |
+| free_GFS_SST_2015.yml | 1 Jan 2015 | 1 year | none | fv3atm | GFS analysis |
+| nudge_T_2015.yml | 1 Jan 2015 | 1 year | T | fv3atm | GFS analysis |
+| nudge_T_ps_2015.yml | 1 Jan 2015 | 1 year | T, ps | fv3atm | GFS analysis |
+| nudge_T_ps_u_v_2015.yml | 1 Jan 2015 | 1 year | T, ps, u, v | fv3atm | GFS analysis |
