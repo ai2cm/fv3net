@@ -73,6 +73,21 @@ def capture_stream_mpi(stream, logger_name="fv3gfs"):
                 logger.debug(line.strip().decode('UTF-8'))
 
 
+def captured_stream(func):
+    def myfunc(*args, **kwargs):
+        with capture.capture_stream_mpi(sys.stdout):
+            return func(*args, **kwargs)
+    return myfunc
+
+
+def capture_fv3gfs_funcs():
+    """Surpress stderr and stdout from all fv3gfs functions"""
+    import fv3gfs
+
+    for func in ['step_dynamics', 'step_physics', 'initialize', 'cleanup']:
+        setattr(fv3gfs, func, captured_stream(getattr(fv3gfs, func)))
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
