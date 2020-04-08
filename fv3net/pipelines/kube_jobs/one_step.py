@@ -286,6 +286,7 @@ def submit_jobs(
     logger.info(pprint.pformat(locals()))
     # kube kwargs are shared by all jobs
     kube_kwargs = get_run_kubernetes_kwargs(one_step_config["kubernetes"], config_url)
+    kube_kwargs['capture_output'] = False
 
     def config_factory(**kwargs):
         timestep = timestep_list[kwargs["index"]]

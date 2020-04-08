@@ -75,7 +75,7 @@ def capture_stream_mpi(stream, logger_name="fv3gfs"):
 
 def captured_stream(func):
     def myfunc(*args, **kwargs):
-        with capture.capture_stream_mpi(sys.stdout):
+        with capture_stream_mpi(sys.stdout):
             return func(*args, **kwargs)
     return myfunc
 
