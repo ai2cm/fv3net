@@ -151,10 +151,10 @@ if __name__ == "__main__":
 
     ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires)
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
-    metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES)
+    metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES, names)
 
     diag_report_sections = plot_diagnostics(
-        ds_pred, ds_test, ds_hires, output_dir=output_dir, dpi_figures=DPI_FIGURES, names=names
+        ds_pred, ds_test, ds_hires, output_dir, DPI_FIGURES, names
     )
 
     combined_report_sections = {**metrics_plot_sections, **diag_report_sections}
