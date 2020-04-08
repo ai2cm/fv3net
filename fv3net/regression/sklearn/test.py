@@ -6,21 +6,15 @@ import os
 from ..dataset_handler import stack_and_drop_nan_samples
 from .train import MODEL_FILENAME
 from vcm.convenience import round_time
-from vcm.cubedsphere.constants import INIT_TIME_DIM
 from fv3net.pipelines.create_training_data import (
     RENAMED_PROG_DIAG_VARS,
     RENAMED_TRAIN_DIAG_VARS,
 )
 
 SAMPLE_DIM = "sample"
-KEEP_VARS = (
-    ["delp"]
-    + list(RENAMED_TRAIN_DIAG_VARS.values())
-    + list(RENAMED_PROG_DIAG_VARS.values())
-)
 
 
-def load_test_dataset(test_data_path, num_files_to_load=50, downsample_time_factor=1):
+def load_test_dataset(test_data_path, init_time_dim="initial_time", num_files_to_load=50, downsample_time_factor=1):
     """
 
     Args:
@@ -43,10 +37,10 @@ def load_test_dataset(test_data_path, num_files_to_load=50, downsample_time_fact
             xr.open_zarr(fs.get_mapper(file_path), consolidated=True)
             for file_path in zarrs_in_test_dir[:num_files_to_load]
         ],
-        INIT_TIME_DIM,
+        init_time_dim,
     )
     ds_test = ds_test.assign_coords(
-        {INIT_TIME_DIM: [round_time(t) for t in ds_test[INIT_TIME_DIM].values]}
+        {init_time_dim: [round_time(t) for t in ds_test[init_time_dim].values]}
     )
     ds_stacked = stack_and_drop_nan_samples(ds_test)
     return ds_stacked
@@ -61,19 +55,20 @@ def load_downsampled_time_range(fs, test_data_path, downsample_time_factor):
     return downsampled_urls
 
 
-def predict_dataset(sk_wrapped_model, ds_stacked):
+def predict_dataset(sk_wrapped_model, ds_stacked, vars_to_keep):
     """
 
     Args:
         sk_wrapped_model_path: location of trained model wrapped in the SklearnWrapper
         ds_stacked: dataset with features and targets data variables, stacked in a
         single sample dimension
+        vars_to_keep: features and other variables to keep (e.g. delp) with prediction
         stack_dim: dimension to stack along
 
     Returns:
         Unstacked prediction dataset
     """
-    ds_keep_vars = ds_stacked[KEEP_VARS]
+    ds_keep_vars = ds_stacked[vars_to_keep]
     ds_pred = sk_wrapped_model.predict(
         ds_stacked[sk_wrapped_model.input_vars_], SAMPLE_DIM
     )
