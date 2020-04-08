@@ -52,6 +52,9 @@ build_ci_image:
 	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
 
+test:
+	pytest external/* tests
+
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images
 data:

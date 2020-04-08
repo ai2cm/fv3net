@@ -15,8 +15,6 @@ for package in ${poetry_packages[@]}
 do
   (
     cd $package
-    rm -f dist/*.whl
-    poetry build
-    pip install dist/*.whl
+    conda develop .
   )
 done

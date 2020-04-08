@@ -12,7 +12,6 @@ import zarr
 import xarray as xr
 import numpy as np
 
-runtime.capture_fv3gfs_funcs()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -275,6 +274,8 @@ def post_process(
 if __name__ == "__main__":
     import fv3gfs
     from mpi4py import MPI
+
+    runtime.capture_fv3gfs_funcs()
 
     RUN_DIR = os.path.dirname(os.path.realpath(__file__))
 
