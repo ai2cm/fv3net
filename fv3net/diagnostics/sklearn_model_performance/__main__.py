@@ -6,7 +6,6 @@ import yaml
 
 from vcm.cloud.fsspec import get_fs, get_protocol
 from vcm.cloud.gsutil import copy
-from vcm.cubedsphere.constants import INIT_TIME_DIM
 
 from ..create_report import create_report
 from ..data import merge_comparison_datasets
@@ -19,20 +18,6 @@ from .diagnostics import plot_diagnostics
 from .create_metrics import create_metrics_dataset
 from .plot_metrics import plot_metrics
 
-DATA_VARS = [
-    "dQ1",
-    "dQ2",
-    "sphum",
-    "T",
-    "tsea",
-    "net_precipitation",
-    "net_heating",
-    "net_precipitation_physics",
-    "net_heating_physics",
-    "net_precipitation_ml",
-    "net_heating_ml",
-    "delp",
-]
 DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
 DATASET_NAME_SHIELD_HIRES = "coarsened_high_res"
@@ -116,26 +101,38 @@ if __name__ == "__main__":
         args.model_path,
         args.num_test_zarrs,
         names["pred_vars_to_keep"],
+        names["init_time_dim"],
         args.model_type,
         args.downsample_time_factor,
-        names["initial_time"],
     )
 
     fs_input = get_fs(args.test_data_path)
     fs_output = get_fs(args.output_path)
 
-    add_column_heating_moistening(ds_test)
-    add_column_heating_moistening(ds_pred)
+    add_column_heating_moistening(
+        ds_test,
+        names["suffix_coarse_train_diag"],
+        names["var_pressure_thickness"],
+        names["var_q_moistening_ml"],
+        names["var_q_heating_ml"])
+    add_column_heating_moistening(
+        ds_pred,
+        names["suffix_coarse_train_diag"],
+        names["var_pressure_thickness"],
+        names["var_q_moistening_ml"],
+        names["var_q_heating_ml"])
+        
     init_times = list(set(ds_test[names["init_time_dim"]].values))
-    ds_hires = load_high_res_diag_dataset(args.high_res_data_path, init_times, init_time_dim=names["init_time_dim_hires"])
+    ds_hires = load_high_res_diag_dataset(
+        args.high_res_data_path, init_times, init_time_dim=names["init_time_dim_hires"])
 
     grid_path = os.path.join(os.path.dirname(args.test_data_path), "grid_spec.zarr")
 
     grid = xr.open_zarr(fs_input.get_mapper(grid_path))
-    slmsk = ds_test["slmsk"].isel({INIT_TIME_DIM: 0})
+    slmsk = ds_test[names["var_land_sea_mask"]].isel({names["init_time_dim"]: 0})
 
     ds = merge_comparison_datasets(
-        data_vars=DATA_VARS,
+        data_vars=names["data_vars"],
         datasets=[ds_pred, ds_test, ds_hires],
         dataset_labels=[
             DATASET_NAME_PREDICTION,

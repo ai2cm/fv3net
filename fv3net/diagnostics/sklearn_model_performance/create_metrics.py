@@ -12,7 +12,6 @@ from vcm.cubedsphere.constants import (
     GRID_VARS,
 )
 
-METRICS_PRESSURE_LEVELS = [20000., 50000., 85000.]
 SAMPLE_DIM = "sample"
 
 
@@ -47,16 +46,7 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
             ds_metrics[
                 f"rmse_{var}_vs_{target_label}"
             ] = _root_mean_squared_error_metrics(ds_target[var], ds_pred[var])
-
-    for var in ["dQ1", "dQ2"]:
-        var_rmse_pressure_levels = _rms_var_at_pressures(
-            ds_target[var], 
-            ds_pred[var], 
-            ds_target[names["var_pressure_thickness"]], 
-            METRICS_PRESSURE_LEVELS)
-        for p in METRICS_PRESSURE_LEVELS:
-            ds_metrics[f"rmse_{var}_{int(p/100)}hpa"] = var_rmse_pressure_levels.sel(pressure=p)
-
+            
     return ds_metrics
 
 
@@ -102,23 +92,4 @@ def _r2_global_values(ds_pred, ds_fv3, ds_shield, stack_dims):
                     "sample",
                 ).values.item()
     return r2_summary
-
-
-def _rms_var_at_pressures(da_var_pred, da_var_target, delp, pressure_grid):
-    """
-    
-    Args:
-        da_var_pred (xr data array): predictied value
-        da_var_target (xr data array): target value
-        delp (xr data array): pressure level thickness
-        pressure_grid (list(float)): pressures to interpolate to [pascals]
-    
-    Returns:
-        xr data array: global mean RMSE of variable at each pressure
-            in arg pressure_grid
-    """
-    target = regrid_to_common_pressure(da_var_target, delp, pressure_grid)
-    pred = regrid_to_common_pressure(da_var_pred, delp, pressure_grid)
-    rmse = _root_mean_squared_error_metrics(target, pred)
-    return rmse.mean([dim for dim in rmse.dims if dim != "pressure"])
 
