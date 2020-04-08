@@ -69,10 +69,10 @@ namelist:
     - 0
     - 15
     - 0
-    days: 0
+    days: 7
     dt_atmos: 900
     dt_ocean: 900
-    hours: 1
+    hours: 0
     memuse_verbose: true
     minutes: 0
     months: 0
@@ -134,8 +134,8 @@ namelist:
     kord_tr: 10
     kord_wz: 10
     layout:
-    - 2
-    - 2
+    - 1
+    - 1
     make_nh: false
     mountain: true
     n_split: 6

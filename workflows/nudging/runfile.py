@@ -2,10 +2,19 @@ import os
 import functools
 from datetime import datetime, timedelta
 import yaml
+import fsspec
 
 if __name__ == "__main__":
     import fv3gfs
     from mpi4py import MPI
+
+
+STORE_NAMES = [
+    'x_wind', 'y_wind',
+    'air_temperature',
+    'specific_humidity',
+    'time'
+]
 
 
 TENDENCY_OUT_FILENAME = "tendencies.zarr"
@@ -40,16 +49,13 @@ def get_restart_directory(reference_dir, label):
     return os.path.join(reference_dir, label)
 
 
-def get_reference_state(time, reference_dir, partitioner, only_names):
+def get_reference_state(time, reference_dir, communicator, only_names):
     label = time_to_label(time)
     dirname = get_restart_directory(reference_dir, label)
-    return fv3gfs.open_restart(dirname, partitioner, label=label, only_names=only_names)
+    return fv3gfs.open_restart(dirname, communicator, label=label, only_names=only_names)
 
 
-def nudge_to_reference(state, partitioner, reference_dir, timescales, timestep):
-    reference = get_reference_state(
-        state["time"], reference_dir, partitioner, only_names=timescales.keys()
-    )
+def nudge_to_reference(state, reference, timescales, timestep):
     tendencies = fv3gfs.apply_nudging(state, reference, timescales, timestep)
     tendencies = append_key_label(tendencies, "_tendency_due_to_nudging")
     tendencies["time"] = state["time"]
@@ -63,40 +69,87 @@ def append_key_label(d, suffix):
     return return_dict
 
 
-if __name__ == "__main__":
-    rank = MPI.COMM_WORLD.Get_rank()
-    current_dir = os.getcwd()
+class StageMonitor:
+
+    def __init__(self, root_dirname, partitioner, mode="w"):
+        self._root_dirname = root_dirname
+        self._monitors = {}
+        self._mode = mode
+
+    def store(self, state, stage):
+        monitor = self._get_monitor(stage)
+        monitor.store(state)
+
+    def _get_monitor(self, stage_name):
+        if stage_name not in self._monitors:
+            store = master_only(lambda: fsspec.get_mapper(os.path.join(self._root_dirname, stage_name + '.zarr')))()
+            self._monitors[stage_name] = fv3gfs.ZarrMonitor(
+                store,
+                partitioner,
+                mode=self._mode,
+                mpi_comm=MPI.COMM_WORLD
+            )
+        return self._monitors[stage_name]
+
+
+def master_only(func):
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            result = func(*args, **kwargs)
+        else:
+            result = None
+        return MPI.COMM_WORLD.bcast(result)
+    return wrapped
+
+
+@master_only
+def load_config(filename):
     with open("fv3config.yml", "r") as config_file:
         config = yaml.safe_load(config_file)
+    return config
+
+
+if __name__ == "__main__":
+    config = load_config("fv3config.yml")
     reference_dir = config["nudging"]["restarts_path"]
-    MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
     partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
+    communicator = fv3gfs.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
     nudging_timescales = get_timescales_from_config(config)
+    nudging_names = list(nudging_timescales.keys())
+    store_names = list(set(["time"] + nudging_names + STORE_NAMES))
     timestep = get_timestep(config)
 
     nudge = functools.partial(
         nudge_to_reference,
-        partitioner=partitioner,
-        reference_dir=reference_dir,
         timescales=nudging_timescales,
         timestep=timestep,
     )
 
-    tendency_monitor = fv3gfs.ZarrMonitor(
-        os.path.join(RUN_DIR, TENDENCY_OUT_FILENAME),
+    monitor = StageMonitor(
+        RUN_DIR,
         partitioner,
         mode="w",
-        mpi_comm=MPI.COMM_WORLD,
     )
 
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
+        state = fv3gfs.get_state(names=store_names)
+        start = datetime.utcnow()
+        monitor.store(state, stage="before_dynamics")
+        print(f"STORE_ZARR time elapsed = {datetime.utcnow() - start}")
         fv3gfs.step_dynamics()
+        monitor.store(fv3gfs.get_state(names=store_names), stage="after_dynamics")
         fv3gfs.step_physics()
+        state = fv3gfs.get_state(names=store_names)
+        monitor.store(state, stage="after_physics")
         fv3gfs.save_intermediate_restart_if_enabled()
-
-        state = fv3gfs.get_state(names=["time"] + list(nudging_timescales.keys()))
-        tendencies = nudge(state)
-        tendency_monitor.store(tendencies)
+        reference = get_reference_state(
+            state["time"], reference_dir, communicator, only_names=nudging_names
+        )
+        tendencies = nudge(state, reference)
+        monitor.store(reference, stage="reference")
+        monitor.store(tendencies, stage="nudging_tendencies")
+        monitor.store(state, stage="after_nudging")
         fv3gfs.set_state(state)
     fv3gfs.cleanup()
