@@ -22,7 +22,7 @@ def parse_args():
     parser.add_argument('runfile', type=str, help="google cloud storage location of python model run file")
     parser.add_argument('output_url', type=str, help="google cloud storage location to upload the resulting run directory")
     parser.add_argument('docker_image', type=str, help="docker image with fv3gfs-python to run the model")
-    parser.add_argument('job_prefix', type=str, default=DEFAULT_JOB_PREFIX, help="prefix to use in creating the job name")
+    parser.add_argument('--job_prefix', type=str, default=DEFAULT_JOB_PREFIX, help="prefix to use in creating the job name")
     parser.add_argument(
         "-d",
         "--detach",
