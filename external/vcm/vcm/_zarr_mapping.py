@@ -11,7 +11,12 @@ def _set_dims(array: zarr.Array, dims: Sequence[Hashable]):
     array.attrs["_ARRAY_DIMENSIONS"] = list(dims)
 
 
-def _create_zarr(dims: Sequence[str], coords: Mapping[str, Sequence], group: zarr.Group, template: xr.Dataset):
+def _create_zarr(
+    dims: Sequence[str],
+    coords: Mapping[str, Sequence],
+    group: zarr.Group,
+    template: xr.Dataset,
+):
     ds = template
     group.attrs.update(ds.attrs)
 
@@ -69,21 +74,23 @@ def _index(coord, val) -> int:
 class ZarrMapping:
     """A database like front end to zarr
 
-    This object can be initialized once at the start of job, and then data inserted
-    into it by multiple workers such as in a large Map-reduce like job.
+    This object can be initialized once at the start of job, and then data
+    inserted into it by multiple workers such as in a large Map-reduce like
+    job.
 
-    This object should be initialized from a template xarray object (see :ref:`from_schema`),
-    and a list of dimensions and corresponding coordinate labels that will be managed by the
-    ZarrMapping.
+    This object should be initialized from a template xarray object (see
+    :ref:`from_schema`), and a list of dimensions and corresponding coordinate
+    labels that will be managed by the ZarrMapping.
 
-    Once initialized, xarray datasets with the exact same dimensions and coordinates
-    as the template array, can be inserted into it using index like notation::
+    Once initialized, xarray datasets with the exact same dimensions and
+    coordinates as the template array, can be inserted into it using index like
+    notation::
 
         mapping[(key1, key2)] = data
 
-    A chunk size of 1 is used along the dimensions managed by ZarrMapping. This allows
-    independent workers to write concurrently to the ZarrMapping without race
-    conditions, provided they each have unique key.
+    A chunk size of 1 is used along the dimensions managed by ZarrMapping. This
+    allows independent workers to write concurrently to the ZarrMapping without
+    race conditions, provided they each have unique key.
 
     Example:
 
@@ -92,7 +99,7 @@ class ZarrMapping:
         >>> import numpy as  np
         >>> template = xr.Dataset({'a': (['x'], np.ones(10))})
         >>> store = {}
-        >>> mapping = vcm.ZarrMapping.from_schema(store, template, dims=['time'], coords={'time': [0, 1, 2, 3]})
+        >>> mapping = vcm.ZarrMapping.from_schema(store, template, dims=['time'], coords={'time': [0, 1, 2, 3]}) # noqa
         >>> mapping[(0,)] = template
         >>> mapping[(1,)] = template
         >>> mapping[(2,)] = template
@@ -133,15 +140,23 @@ class ZarrMapping:
         return {dim: g[dim][:] for dim in self.dims}
 
     @staticmethod
-    def from_schema(store: zarr.ABSStore, schema: xr.Dataset, dims: Sequence[str], coords: Mapping[str, Sequence]) -> "ZarrMapping":
+    def from_schema(
+        store: zarr.ABSStore,
+        schema: xr.Dataset,
+        dims: Sequence[str],
+        coords: Mapping[str, Sequence],
+    ) -> "ZarrMapping":
         """Initialize a ZarrMapping using an xarray dataset as a template
 
         Args:
-            store: A object implementing the mutable mapping interface required by zarr.open_group
-            schema: A template for the datasets that will be inserted into the ZarrMapping.
-            dims: The list of dimensions that will be managed by the zarr mapping. The zarr dataset
-                produced by ZarrMapping will have these dimensions pre-pendended to the list of
-                dimensions of each variable in the schema object. 
+            store: A object implementing the mutable mapping interface required
+                by zarr.open_group
+            schema: A template for the datasets that will be inserted into the
+                ZarrMapping.
+            dims: The list of dimensions that will be managed by the zarr
+                mapping. The zarr dataset produced by ZarrMapping will have
+                these dimensions pre-pendended to the list of dimensions of
+                each variable in the schema object.
             coords: the coordinate labels corresponding to the dimensions in dims
 
         Returns:

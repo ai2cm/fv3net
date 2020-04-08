@@ -40,7 +40,7 @@ def test_datetime_from_string():
 
 
 def test_convert_timestamps():
-    arr = xr.DataArray(['20190101.000000', '20160604.011500'], attrs={'foo': 'bar'})
+    arr = xr.DataArray(["20190101.000000", "20160604.011500"], attrs={"foo": "bar"})
     out = vcm.convert_timestamps(arr)
     assert isinstance(out[0].item(), cftime.DatetimeJulian)
     assert out.attrs == arr.attrs

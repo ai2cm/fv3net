@@ -3,7 +3,6 @@ import pathlib
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import TypeVar, Union, Sequence
 
 import cftime
 import intake
