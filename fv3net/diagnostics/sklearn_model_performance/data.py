@@ -8,13 +8,6 @@ from ..data import net_heating_from_dataset
 import vcm
 from vcm.cloud.fsspec import get_fs
 from vcm.convenience import round_time
-from vcm.cubedsphere.constants import (
-    INIT_TIME_DIM,
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    COORD_Z_CENTER,
-    TILE_COORDS,
-)
 from vcm.regrid import regrid_to_shared_coords
 from vcm.constants import (
     kg_m2s_to_mm_day,
@@ -24,7 +17,6 @@ from vcm.constants import (
 )
 
 SAMPLE_DIM = "sample"
-STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 THERMO_DATA_VAR_ATTRS = {
     "net_precipitation": {"long_name": "net column precipitation", "units": "mm/day"},
@@ -46,6 +38,7 @@ def predict_on_test_data(
     num_test_zarrs,
     pred_vars_to_keep,
     init_time_dim="initial_time",
+    coord_z_center="z",
     model_type="rf",
     downsample_time_factor=1,
 ):
@@ -57,7 +50,7 @@ def predict_on_test_data(
         )
 
         ds_test = load_test_dataset(
-            test_data_path, init_time_dim, num_test_zarrs, downsample_time_factor
+            test_data_path, init_time_dim, coord_z_center, num_test_zarrs, downsample_time_factor
         )
         sk_wrapped_model = load_model(model_path)
         ds_pred = predict_dataset(sk_wrapped_model, ds_test, pred_vars_to_keep)
@@ -69,7 +62,7 @@ def predict_on_test_data(
         )
 
 
-def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times):
+def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times, init_time_dim="initial_time"):
     fs = get_fs(coarsened_hires_diags_path)
     ds_hires = xr.open_zarr(
         # fs.get_mapper functions like a zarr store
@@ -77,17 +70,17 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times):
             os.path.join(coarsened_hires_diags_path, fv3net.COARSENED_DIAGS_ZARR_NAME)
         ),
         consolidated=True,
-    ).rename({"time": INIT_TIME_DIM})
+    ).rename({"time": init_time_dim})
     ds_hires = ds_hires.assign_coords(
         {
-            INIT_TIME_DIM: [round_time(t) for t in ds_hires[INIT_TIME_DIM].values],
-            "tile": TILE_COORDS,
+            init_time_dim: [round_time(t) for t in ds_hires[init_time_dim].values],
+            "tile": range(6),
         }
     )
-    ds_hires = ds_hires.sel({INIT_TIME_DIM: list(set(init_times))})
-    if set(ds_hires[INIT_TIME_DIM].values) != set(init_times):
+    ds_hires = ds_hires.sel({init_time_dim: list(set(init_times))})
+    if set(ds_hires[init_time_dim].values) != set(init_times):
         raise ValueError(
-            f"Timesteps {set(init_times)-set(ds_hires[INIT_TIME_DIM].values)}"
+            f"Timesteps {set(init_times)-set(ds_hires[init_time_dim].values)}"
             f"are not matched in high res dataset."
         )
 
@@ -142,18 +135,18 @@ def integrate_for_Q(P, sphum, lower_bound=55000, upper_bound=85000):
     return (spline.integral(lower_bound, upper_bound) / GRAVITY) * kg_m2_to_mm
 
 
-def lower_tropospheric_stability(ds):
-    pressure = vcm.pressure_at_midpoint_log(ds.delp)
+def lower_tropospheric_stability(da_T, da_delp, da_Tsfc, coord_z_center="z"):
+    pressure = vcm.pressure_at_midpoint_log(da_delp)
     T_at_700mb = (
         regrid_to_shared_coords(
-            ds["T"],
+            da_T,
             [70000],
             pressure,
             regrid_dim_name="p700mb",
-            replace_dim_name=COORD_Z_CENTER,
+            replace_dim_name=coord_z_center,
         )
         .squeeze()
         .drop("p700mb")
     )
     theta_700mb = vcm.potential_temperature(70000, T_at_700mb)
-    return theta_700mb - ds["tsea"]
+    return theta_700mb - da_Tsfc

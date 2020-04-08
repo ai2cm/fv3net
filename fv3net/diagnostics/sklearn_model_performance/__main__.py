@@ -102,6 +102,7 @@ if __name__ == "__main__":
         args.num_test_zarrs,
         names["pred_vars_to_keep"],
         names["init_time_dim"],
+        names["coord_z_center"],
         args.model_type,
         args.downsample_time_factor,
     )
@@ -153,7 +154,7 @@ if __name__ == "__main__":
     metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES)
 
     diag_report_sections = plot_diagnostics(
-        ds_pred, ds_test, ds_hires, output_dir=output_dir, dpi_figures=DPI_FIGURES
+        ds_pred, ds_test, ds_hires, output_dir=output_dir, dpi_figures=DPI_FIGURES, names=names
     )
 
     combined_report_sections = {**metrics_plot_sections, **diag_report_sections}

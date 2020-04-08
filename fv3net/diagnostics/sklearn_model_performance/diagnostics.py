@@ -43,7 +43,7 @@ matplotlib.use("Agg")
 matplotlib.use("Agg")
 
 
-def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures):
+def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names):
     """ Makes figures for predictions on test data
 
     Args:
@@ -77,7 +77,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures):
     ]
 
     # LTS
-    _plot_lower_troposphere_stability(ds_pred, ds_fv3, ds_shield, lat_max=20).savefig(
+    _plot_lower_troposphere_stability(ds_pred, ds_fv3, ds_shield, names, lat_max=20).savefig(
         os.path.join(output_dir, "LTS_vs_Q.png"), dpi=dpi_figures["LTS"]
     )
     report_sections["Lower tropospheric stability vs humidity"] = ["LTS_vs_Q.png"]
@@ -293,7 +293,13 @@ def _make_vertical_profile_plots(
     return fig
 
 
-def _plot_lower_troposphere_stability(ds_pred, ds_test, ds_hires, lat_max=20):
+def _plot_lower_troposphere_stability(
+        ds_pred, 
+        ds_test, 
+        ds_hires, 
+        names,
+        lat_max=20,
+):
     warnings.filterwarnings("ignore", message="invalid value encountered in less")
     lat_mask = abs(ds_test[VAR_LAT_CENTER]) < lat_max
 
@@ -311,7 +317,11 @@ def _plot_lower_troposphere_stability(ds_pred, ds_test, ds_hires, lat_max=20):
         integrate_for_Q(p, qt)
         for p, qt in zip(ds_test["pressure"].values.T, ds_test["sphum"].values.T)
     ]
-    LTS = lower_tropospheric_stability(ds_test)
+    LTS = lower_tropospheric_stability(
+        ds_test[names["var_temp"], 
+        ds_test[names["var_pressure_thickness"], 
+        ds_test[names["var_sfc_temp"], 
+        names["coord_z_center"])
     fig = plt.figure(figsize=(16, 4))
 
     ax1 = fig.add_subplot(131)

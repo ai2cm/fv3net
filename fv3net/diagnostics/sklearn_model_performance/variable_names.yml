@@ -1,5 +1,13 @@
   
+init_time_dim_hires: "initialization_time"
+init_time_dim: "initial_time"
+
+coord_z_center: "z"
+
 suffix_coarse_train_diag: "train"
+
+var_temp: "air_temperature"
+var_sfc_temp: "surface_temperature"
 var_pressure_thickness: "pressure_thickness_of_atmospheric_layer"
 var_q_heating_ml: "dQ1"
 var_q_moistening_ml: "dQ2"
@@ -14,10 +22,7 @@ pred_vars_to_keep:
   - "specific_humidity"
   - "air_temperature"
   - "surface_temperature"
-
-
-init_time_dim_hires: "initialization_time"
-init_time_dim: "initial_time"
+  - "DSWRFtoa_train"
 
 data_vars:
   - "dQ1"
