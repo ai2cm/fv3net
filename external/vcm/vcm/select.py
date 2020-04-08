@@ -2,7 +2,6 @@
 This module is for functions that select subsets of the data
 """
 import numpy as np
-import warnings
 
 from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
@@ -20,8 +19,7 @@ def mask_to_surface_type(ds, surface_type, surface_type_var="land_sea_mask"):
     Returns:
         input dataset masked to the surface_type specified
     """
-    if surface_type in ["none", "None", None]:
-        warnings.warn("surface_type provided as None: no mask applied.")
+    if surface_type in ["none", "None", None, "global"]:
         return ds
     elif surface_type not in ["sea", "land", "seaice"]:
         raise ValueError("Must mask to surface_type in ['sea', 'land', 'seaice'].")

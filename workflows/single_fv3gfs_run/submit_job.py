@@ -111,17 +111,11 @@ def submit_job(bucket, run_config, base_model_config):
         bucket, run_config, base_model_config
     )
     job_name = run_config["fv3config"]["experiment_name"] + f".{uuid.uuid4()}"
+    run_config["kubernetes"]["jobname"] = job_name
     fv3config.run_kubernetes(
         os.path.join(config_bucket, "fv3config.yml"),
         os.path.join(bucket, "output"),
-        run_config["kubernetes"]["docker_image"],
-        runfile=run_config["kubernetes"]["runfile"],
-        jobname=job_name,
-        namespace=run_config["kubernetes"]["namespace"],
-        memory_gb=run_config["kubernetes"]["memory_gb"],
-        cpu_count=run_config["kubernetes"]["cpu_count"],
-        gcp_secret=run_config["kubernetes"]["gcp_secret"],
-        image_pull_policy=run_config["kubernetes"]["image_pull_policy"],
+        **run_config["kubernetes"],
     )
     logger.info(f"Submitted {job_name}")
 
@@ -146,7 +140,7 @@ if __name__ == "__main__":
         "--config-version",
         type=str,
         required=False,
-        default="v0.2",
+        default="v0.3",
         help="Default fv3config.yml version to use as the base configuration. "
         "This should be consistent with the fv3gfs-python version in the specified "
         "docker image.",

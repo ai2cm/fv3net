@@ -1,6 +1,6 @@
-### Training and testing sklearn models
+## Training and testing sklearn models
 
-#### Training
+### Training
 To train a sklearn regression model, create a training configuration yaml and execute 
 the script `train_sklearn.sh`. The script will create a timestamped directory and save
 the trained model output as well as a copy of the model configuration.
@@ -43,7 +43,7 @@ Note that the total number of trees in the random forest will be
 `hyperparameters.n_estimators * num_batches`.
 
 
-#### Testing
+### Testing
 The script `test_sklearn.sh` will use a trained model to predict diagnostics on a test
 dataset. The resulting figures as well as a consolidated html report will be saved to
 a timestamped output directory. 

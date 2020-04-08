@@ -37,12 +37,11 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "--no-target-subdir",
+        "--add-target-subdir",
         action="store_true",
         help=(
-            "Do not add subdirectory with C{target-resolution} to the destination "
-            "directory. If --gcs-dst-dir is not specified, then the subdir is "
-            "automatically added."
+            "Add subdirectory with C{target-resolution} to the specified "
+            "destination directory. "
         ),
     )
 

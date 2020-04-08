@@ -11,7 +11,7 @@ from .convenience import (
     parse_timestep_str_from_path,
     parse_datetime_from_str,
 )
-from .calc import mass_integrate
+from .calc import mass_integrate, r2_score, local_time
 from .calc.thermo import (
     net_heating,
     net_precipitation,
@@ -22,3 +22,5 @@ from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .select import mask_to_surface_type
 from .visualize import plot_cube, mappable_var, plot_cube_axes
 from .xarray_loaders import open_tiles, open_delayed
+
+__all__ = [item for item in dir() if not item.startswith("_")]
