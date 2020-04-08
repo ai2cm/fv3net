@@ -1,3 +1,4 @@
+import numpy as np
 import os
 from scipy.interpolate import UnivariateSpline
 import xarray as xr
@@ -62,7 +63,7 @@ def predict_on_test_data(
         )
 
 
-def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times, init_time_dim="initial_time"):
+def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times, init_time_dim, renamed_hires_grid_vars):
     fs = get_fs(coarsened_hires_diags_path)
     ds_hires = xr.open_zarr(
         # fs.get_mapper functions like a zarr store
@@ -70,7 +71,7 @@ def load_high_res_diag_dataset(coarsened_hires_diags_path, init_times, init_time
             os.path.join(coarsened_hires_diags_path, fv3net.COARSENED_DIAGS_ZARR_NAME)
         ),
         consolidated=True,
-    ).rename({"time": init_time_dim})
+    ).rename({"time": init_time_dim, **renamed_hires_grid_vars})
     ds_hires = ds_hires.assign_coords(
         {
             init_time_dim: [round_time(t) for t in ds_hires[init_time_dim].values],
@@ -98,6 +99,7 @@ def add_column_heating_moistening(
         var_pressure_thickness,
         var_q_moistening_ml,
         var_q_heating_ml,
+        coord_z_center,
     ):
     """ Integrates column dQ1, dQ2 and sum with model's heating/moistening to calculate
     heating and P-E. Modifies in place.
@@ -108,26 +110,44 @@ def add_column_heating_moistening(
     """
 
     ds["net_precipitation_ml"] = (
-        vcm.mass_integrate(-ds[var_q_moistening_ml], ds[var_pressure_thickness]) * kg_m2s_to_mm_day
+        vcm.mass_integrate(-ds[var_q_moistening_ml], ds[var_pressure_thickness], dim=coord_z_center) * kg_m2s_to_mm_day
     )
-    ds["net_precipitation_physics"] = vcm.net_precipitation(
-        ds[f"LHTFLsfc_{suffix_coarse_train_diag}"],
-        ds[f"PRATEsfc_{suffix_coarse_train_diag}"],
-    )
-
-    ds["net_precipitation"] = (
-        ds["net_precipitation_ml"] + ds["net_precipitation_physics"]
-    )
+    if f"LHTFLsfc_{suffix_coarse_train_diag}" in ds.data_vars and f"PRATEsfc_{suffix_coarse_train_diag}" in ds.data_vars:
+        ds["net_precipitation_physics"] = vcm.net_precipitation(
+            ds[f"LHTFLsfc_{suffix_coarse_train_diag}"],
+            ds[f"PRATEsfc_{suffix_coarse_train_diag}"],
+        )
+        ds["net_precipitation"] = (
+            ds["net_precipitation_ml"] + ds["net_precipitation_physics"]
+        )
+    else:
+        # fill in zeros for physics values if all physics off configured data
+        ds = _fill_zero_da_from_template(ds, "net_precipitation_physics", ds["net_precipitation_ml"])
+        ds["net_precipitation"] = ds["net_precipitation_ml"]
 
     ds["net_heating_ml"] = SPECIFIC_HEAT_CONST_PRESSURE * vcm.mass_integrate(
-        ds[var_q_heating_ml], ds[var_pressure_thickness]
+        ds[var_q_heating_ml], ds[var_pressure_thickness], dim=coord_z_center
     )
-    ds["net_heating_physics"] = net_heating_from_dataset(
-        ds, suffix=suffix_coarse_train_diag
-    )
-    ds["net_heating"] = ds["net_heating_ml"] + ds["net_heating_physics"]
+    if f"SHTFLsfc_{suffix_coarse_train_diag}" in ds.data_vars:
+        ds["net_heating_physics"] = net_heating_from_dataset(
+            ds, suffix=suffix_coarse_train_diag
+        )
+        ds["net_heating"] = ds["net_heating_ml"] + ds["net_heating_physics"]
+    else:
+         # fill in zeros for physics values if all physics off configured data
+        ds = _fill_zero_da_from_template(ds, "net_heating_physics", ds["net_heating_ml"])
+        ds["net_heating"] = ds["net_heating_ml"]
+       
     for data_var, data_attrs in THERMO_DATA_VAR_ATTRS.items():
         ds[data_var].attrs = data_attrs
+
+    return ds
+
+    
+def _fill_zero_da_from_template(ds, zero_da_name, template_dataarray):
+    da_fill = np.empty(template_dataarray.shape)
+    da_fill[:] = 0.
+    return ds.assign({zero_da_name: (template_dataarray.dims, da_fill)})
 
 
 def integrate_for_Q(P, sphum, lower_bound=55000, upper_bound=85000):
@@ -136,7 +156,7 @@ def integrate_for_Q(P, sphum, lower_bound=55000, upper_bound=85000):
 
 
 def lower_tropospheric_stability(da_T, da_delp, da_Tsfc, coord_z_center="z"):
-    pressure = vcm.pressure_at_midpoint_log(da_delp)
+    pressure = vcm.pressure_at_midpoint_log(da_delp, dim=coord_z_center)
     T_at_700mb = (
         regrid_to_shared_coords(
             da_T,

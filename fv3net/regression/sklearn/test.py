@@ -66,9 +66,6 @@ def predict_dataset(sk_wrapped_model, ds_stacked, vars_to_keep):
         Unstacked prediction dataset
     """
     ds_keep_vars = ds_stacked[vars_to_keep]
-    for var in sk_wrapped_model.input_vars_:
-        print(var)
-        print(ds_keep_vars[var].values[:10])
     ds_pred = sk_wrapped_model.predict(
         ds_stacked[sk_wrapped_model.input_vars_], SAMPLE_DIM
     )

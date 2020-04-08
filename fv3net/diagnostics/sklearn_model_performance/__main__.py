@@ -110,27 +110,35 @@ if __name__ == "__main__":
     fs_input = get_fs(args.test_data_path)
     fs_output = get_fs(args.output_path)
 
-    add_column_heating_moistening(
+    ds_test = add_column_heating_moistening(
         ds_test,
         names["suffix_coarse_train_diag"],
         names["var_pressure_thickness"],
         names["var_q_moistening_ml"],
-        names["var_q_heating_ml"])
-    add_column_heating_moistening(
+        names["var_q_heating_ml"],
+        names["coord_z_center"])
+
+    ds_pred = add_column_heating_moistening(
         ds_pred,
         names["suffix_coarse_train_diag"],
         names["var_pressure_thickness"],
         names["var_q_moistening_ml"],
-        names["var_q_heating_ml"])
-        
+        names["var_q_heating_ml"],
+        names["coord_z_center"]
+        )
+
     init_times = list(set(ds_test[names["init_time_dim"]].values))
     ds_hires = load_high_res_diag_dataset(
-        args.high_res_data_path, init_times, init_time_dim=names["init_time_dim_hires"])
+        args.high_res_data_path, 
+        init_times, 
+        init_time_dim=names["init_time_dim"],
+        renamed_hires_grid_vars=names["renamed_hires_grid_vars"])
 
     grid_path = os.path.join(os.path.dirname(args.test_data_path), "grid_spec.zarr")
 
     grid = xr.open_zarr(fs_input.get_mapper(grid_path))
-    slmsk = ds_test[names["var_land_sea_mask"]].isel({names["init_time_dim"]: 0})
+    slmsk = ds_test[names["var_land_sea_mask"]] \
+        .isel({names["init_time_dim"]: 0}).drop(names["init_time_dim"])
 
     ds = merge_comparison_datasets(
         data_vars=names["data_vars"],
@@ -149,7 +157,7 @@ if __name__ == "__main__":
     ds_test = ds.sel(dataset=DATASET_NAME_FV3_TARGET)
     ds_hires = ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)
 
-    ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires)
+    ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires, names)
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
     metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES, names)
 

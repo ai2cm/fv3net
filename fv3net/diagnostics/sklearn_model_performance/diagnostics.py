@@ -70,6 +70,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
             vcm.mask_to_surface_type(ds_shield, sfc_type)["net_precipitation"],
             delp=vcm.mask_to_surface_type(ds_pred, sfc_type)[names["var_pressure_thickness"]],
             stack_dims=names["stack_dims"],
+            coord_z_center=names["coord_z_center"],
             units="[kg/kg/s]",
             title=f"{sfc_type}: dQ2 vertical profile",
         ).savefig(
@@ -80,10 +81,11 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         "vertical_profile_dQ2_land.png",
         "vertical_profile_dQ2_sea.png",
     ]
+    plt.close('all')
 
     # plot P-E across the diurnal cycle
     grid = ds[[names["var_lat"], names["var_lon"]]]
-    local_coords = get_latlon_grid_coords_set(grid, EXAMPLE_CLIMATE_LATLON_COORDS)
+    local_coords = get_latlon_grid_coords_set(grid, EXAMPLE_CLIMATE_LATLON_COORDS, var_lat=names["var_lat"], var_lon=names["var_lon"], coord_x_center=names["coord_x_center"], coord_y_center=names["coord_y_center"])
     ds["local_time"] = vcm.local_time(ds, time=names["init_time_dim"], lon_var=names["var_lon"])
 
     plot_diurnal_cycle(
@@ -119,6 +121,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         "diurnal_cycle_P-E_sea.png",
         "diurnal_cycle_P-E_land.png",
     ] + [f"diurnal_cycle_P-E_{location_name}.png" for location_name in local_coords]
+    plt.close('all')
 
     # plot column heating across the diurnal cycle
     plot_diurnal_cycle(
@@ -155,6 +158,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         "diurnal_cycle_heating_sea.png",
         "diurnal_cycle_heating_land.png",
     ] + [f"diurnal_cycle_heating_{location_name}.png" for location_name in local_coords]
+    plt.close('all')
 
     # map plot variables and compare across prediction/ C48 /coarsened high res data
     _plot_comparison_maps(
@@ -206,13 +210,13 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         "column_heating_time_avg.png",
         "column_heating_snapshots.png",
     ]
-
+    plt.close('all')
     return report_sections
 
 
 # Below are plotting functions specific to this diagnostic workflow
 
-def _plot_comparison_maps(ds, var, init_time_dim="initial_time", time_index_selection=None, map_var_kwargs, plot_cube_kwargs=None):
+def _plot_comparison_maps(ds, var, init_time_dim="initial_time", time_index_selection=None, map_var_kwargs=None, plot_cube_kwargs=None):
     # map plot a variable and compare across prediction/ C48 /coarsened high res data
     matplotlib.rcParams["figure.dpi"] = 200
     plt.clf()
@@ -235,7 +239,7 @@ def _plot_comparison_maps(ds, var, init_time_dim="initial_time", time_index_sele
 
 
 def _make_vertical_profile_plots(
-    da_pred, da_fv3, da_high_res_split_var, delp, units, stack_dims, title=None
+    da_pred, da_fv3, da_high_res_split_var, delp, units, stack_dims, coord_z_center, title=None
 ):
     """Creates vertical profile plots of dQ2 for drying/moistening columns
 
@@ -255,8 +259,8 @@ def _make_vertical_profile_plots(
     plt.clf()
     fig = plt.figure()
     pos_mask, neg_mask = (da_high_res_split_var > 0, da_high_res_split_var < 0)
-    da_pred = regrid_to_common_pressure(da_pred, delp)
-    da_fv3 = regrid_to_common_pressure(da_fv3, delp)
+    da_pred = regrid_to_common_pressure(da_pred, delp, coord_z_center)
+    da_fv3 = regrid_to_common_pressure(da_fv3, delp, coord_z_center)
 
     da_pred_pos_PE = da_pred.where(pos_mask)
     da_pred_neg_PE = da_pred.where(neg_mask)
@@ -305,16 +309,16 @@ def _plot_lower_troposphere_stability(
         .stack(sample=names["stack_dims"])
         .dropna("sample")
     )
-    ds_test["pressure"] = vcm.pressure_at_midpoint_log(ds_test[names["var_pressure_thickness"]])
+    ds_test["pressure"] = vcm.pressure_at_midpoint_log(ds_test[names["var_pressure_thickness"]], dim=names["coord_z_center"])
 
     Q = [
         integrate_for_Q(p, qt)
         for p, qt in zip(ds_test["pressure"].values.T, ds_test[names["var_sphum"]].values.T)
     ]
     LTS = lower_tropospheric_stability(
-        ds_test[names["var_temp"], 
-        ds_test[names["var_pressure_thickness"], 
-        ds_test[names["var_sfc_temp"], 
+        ds_test[names["var_temp"]], 
+        ds_test[names["var_pressure_thickness"]], 
+        ds_test[names["var_sfc_temp"]], 
         names["coord_z_center"])
     fig = plt.figure(figsize=(16, 4))
 

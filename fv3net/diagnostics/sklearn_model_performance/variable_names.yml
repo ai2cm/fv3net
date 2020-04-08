@@ -1,7 +1,8 @@
   
-init_time_dim_hires: "initialization_time"
 init_time_dim: "initial_time"
 
+coord_x_center: "x"
+coord_y_center: "y"
 coord_z_center: "z"
 
 var_lat: "lat"
@@ -31,7 +32,12 @@ var_q_heating_ml: "dQ1"
 var_q_moistening_ml: "dQ2"
 var_land_sea_mask: "land_sea_mask"
 
-  # features for prediction and other variables to keep
+renamed_hires_grid_vars:
+  "grid_xt": "x"
+  "grid_yt": "y"
+
+
+# features for prediction and other variables to keep
 pred_vars_to_keep:
   - "surface_temperature"
   - "land_sea_mask"
@@ -40,15 +46,14 @@ pred_vars_to_keep:
   - "specific_humidity"
   - "air_temperature"
   - "surface_temperature"
-  - "DSWRFtoa_train"
+#  - "DSWRFtoa_train"
 
 data_vars:
   - "dQ1"
   - "dQ2"
-  - "pQ1"
-  - "pQ2"
   - "specific_humidity"
   - "air_temperature"
+  - "surface_temperature"
   - "net_precipitation"
   - "net_heating"
   - "net_precipitation_physics"
