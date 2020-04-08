@@ -203,8 +203,12 @@ def submit_jobs(
     # kube kwargs are shared by all jobs
     kube_kwargs = get_run_kubernetes_kwargs(one_step_config["kubernetes"], config_url)
     kube_kwargs["capture_output"] = False
-    logger.info(f"To view job statuses: `kubectl get jobs -lorchestrator-jobs={job_labels['orchestrator-jobs']}`")
-    logger.info(f"To clean up jobs: `kubectl delete jobs -lorchestrator-jobs={job_labels['orchestrator-jobs']}`")
+    logger.info(
+        f"To view job statuses: `kubectl get jobs -lorchestrator-jobs={job_labels['orchestrator-jobs']}`"
+    )
+    logger.info(
+        f"To clean up jobs: `kubectl delete jobs -lorchestrator-jobs={job_labels['orchestrator-jobs']}`"
+    )
 
     def config_factory(**kwargs):
         timestep = timestep_list[kwargs["index"]]
