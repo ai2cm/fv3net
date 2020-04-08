@@ -1,0 +1,18 @@
+  
+suffix_coarse_train_diag: "train"
+var_pressure_thickness: "pressure_thickness_of_atmospheric_layer"
+var_Q_heating_ml: "dQ1"
+var_Q_moistening_ml: "dQ2"
+
+  # features for prediction and other variables to keep
+  pred_vars_to_keep:
+  - "surface_temperature"
+  - "land_sea_mask"
+  - "surface_geopotential"
+  - "pressure_thickness_of_atmospheric_layer"
+  - "specific_humidity"
+  - "air_temperature"
+
+
+  init_time_dim_hires: "initialization_time"
+  init_time_dim: "initial_time"
