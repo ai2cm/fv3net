@@ -121,7 +121,10 @@ def list_timesteps(path: str) -> List[str]:
     Returns:
         sorted list of all timesteps within path
     """
-    file_list = get_fs(path).ls(path)
+    try:
+        file_list = get_fs(path).ls(path)
+    except FileNotFoundError:
+        file_list = []
     timesteps = []
     for current_file in file_list:
         try:

@@ -1,5 +1,6 @@
 from typing import Any, Generator, Tuple
 import os
+import fsspec
 import xarray as xr
 from dask.delayed import delayed
 
@@ -17,12 +18,11 @@ FILE_PREFIX_DIM = "file_prefix"
 
 
 def open_diagnostic(url, category):
-    fs = get_fs(url)
     diag_tiles = []
     for tile in TILE_COORDS_FILENAMES:
         tile_file = f"{category}.tile{tile}.nc"
-        with fs.open(os.path.join(url, tile_file), "rb") as f:
-            diag_tiles.append(xr.open_dataset(f))
+        with fsspec.open(os.path.join(url, tile_file), "rb") as f:
+            diag_tiles.append(xr.open_dataset(f).load())
     return xr.concat(diag_tiles, "tile")
 
 
