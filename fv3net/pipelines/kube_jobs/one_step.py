@@ -191,6 +191,7 @@ def submit_jobs(
     # kube kwargs are shared by all jobs
     kube_kwargs = get_run_kubernetes_kwargs(one_step_config["kubernetes"], config_url)
     kube_kwargs["capture_output"] = False
+    kube_kwargs["memory_gb"] = 6.0
     logger.info(
         "To view job statuses: "
         f"`kubectl get jobs -lorchestrator-jobs={job_labels['orchestrator-jobs']}`"
@@ -244,7 +245,10 @@ def submit_jobs(
     for k, timestep in enumerate(timestep_list):
         if k == 0:
             logger.info("Running the first time step to initialize the zarr store")
-            run_job(index=k, init=True, wait=True, timesteps=timestep_list)
+            # run_job(index=k, init=True, wait=True, timesteps=timestep_list)
         else:
             logger.info(f"Submitting job for timestep {timestep}")
             run_job(index=k, init=False)
+
+    utils.wait_for_complete(job_labels)
+    utils.delete_completed_jobs(job_labels)
