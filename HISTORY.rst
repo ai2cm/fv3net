@@ -11,7 +11,7 @@ latest
 * Add `run_with_learned_nudging` workflow
 * Update fv3config submodule to v0.3.1
 * Add `get_config()` function to fv3net.runtime
-* Change API of `diagnostic_to_zarr` workflow so that is saves output zarrs in the given run directory
+* Change API of `diagnostics_to_zarr` workflow so that it saves output zarrs in the given run directory
 * Add `nudge_to_obs` module to `kube_jobs`, which helps with the configuration of FV3GFS model runs that are nudged towards GFS analysis
 
 
