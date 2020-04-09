@@ -60,18 +60,19 @@ def _get_nudge_files_asset_list(config: Mapping) -> List[Mapping]:
     ]
 
 
-def _get_and_write_nudge_files_description_asset(
-    config: Mapping, config_url: str
-) -> Mapping:
-    """Write a text file with list of all nudging files required  (which the
-    model requires to know what the nudging files are called) and return an fv3config
-    asset pointing to this text file."""
+def _get_nudge_files_description_asset(config: Mapping, config_url: str) -> Mapping:
+    """Return an fv3config asset pointing to the text file that the
+    model requires to describe the list of nudging files."""
     fname_list_filename = config["namelist"]["fv_nwp_nudge_nml"]["input_fname_list"]
-    fname_list_url = os.path.join(config_url, fname_list_filename)
-    fname_list_contents = "\n".join(_get_nudge_filename_list(config))
-    with fsspec.open(fname_list_url, "w") as f:
-        f.write(fname_list_contents)
     return fv3config.get_asset_dict(config_url, fname_list_filename)
+
+
+def _write_nudge_files_description(config: Mapping, url: str):
+    """Write a text file with list of all nudging files (which the
+    model requires to know what the nudging files are called)."""
+    fname_list_contents = "\n".join(_get_nudge_filename_list(config))
+    with fsspec.open(url, "w") as f:
+        f.write(fname_list_contents)
 
 
 def update_config_for_nudging(config: Mapping, config_url: str) -> Mapping:
@@ -88,10 +89,14 @@ def update_config_for_nudging(config: Mapping, config_url: str) -> Mapping:
     Returns:
         config dict updated to include all required nudging files
     """
+    nudge_files_description = _get_nudge_files_description_asset(config, config_url)
+    nudge_files_description_url = os.path.join(
+        nudge_files_description["source_location"],
+        nudge_files_description["source_name"],
+    )
+    _write_nudge_files_description(config, nudge_files_description_url)
     if "patch_files" not in config:
         config["patch_files"] = []
-    config["patch_files"].append(
-        _get_and_write_nudge_files_description_asset(config, config_url)
-    )
+    config["patch_files"].append(nudge_files_description)
     config["patch_files"].extend(_get_nudge_files_asset_list(config))
     return config

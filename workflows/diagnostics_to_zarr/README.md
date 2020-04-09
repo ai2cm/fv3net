@@ -1,7 +1,7 @@
 ## Diagnostics-to-zarr workflow
 This workflow takes a path/url to a run directory as an input and saves zarr stores
-of the diagnostic model output to a specified location. This workflow requires a 
-specific xarray version (0.15.0) and so to run locally, one must ensure your 
+of the diagnostic model output to a specified location. This workflow requires a
+specific xarray version and so to run locally, one must ensure your
 environment is using that version. For dataflow jobs, a custom setup.py is provided
 which pins this exact version.
 

@@ -1,4 +1,4 @@
-IMAGE = us.gcr.io/vcm-ml/prognostic_run:mean_nudging
+IMAGE = us.gcr.io/vcm-ml/learned_nudging_run:v0.1.1
 RUNFILE = mean_nudging_runfile.py
 TEMPLATE = fv3config_template.yml
 LOCAL_OUTDIR = rundir/nudge_mean_$*
