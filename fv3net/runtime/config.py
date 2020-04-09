@@ -1,5 +1,6 @@
 import yaml
 import f90nml
+import fv3config
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 
@@ -18,19 +19,10 @@ def get_runfile_config():
     return dotdict(config["scikit_learn"])
 
 
-# TODO: refactor to use fv3config.config_from_yaml
 def get_config():
     """Return fv3config dictionary"""
-    with open(FV3CONFIG_FILENAME) as f:
-        config = yaml.safe_load(f)
-    return config
+    return fv3config.config_from_yaml(FV3CONFIG_FILENAME)
 
 
 def get_namelist():
     return f90nml.read("input.nml")
-
-
-# TODO: delete and replace usages with fv3config.get_timestep()
-def get_timestep():
-    """Return model timestep in seconds"""
-    return get_namelist()["coupler_nml"]["dt_atmos"]

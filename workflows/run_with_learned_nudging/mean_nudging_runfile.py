@@ -2,6 +2,7 @@ import logging
 import numpy as np
 
 import fv3gfs
+import fv3config
 import fv3util
 from mpi4py import MPI
 from fv3net import runtime
@@ -42,7 +43,7 @@ def get_current_nudging_tendency(nudging_tendency, nudging_time, model_time):
 
 def apply_nudging_tendency(state, nudging_tendency, dt):
     for variable in nudging_tendency:
-        state[variable].view[:] += nudging_tendency[variable] * dt
+        state[variable].view[:] += nudging_tendency[variable] * dt.total_seconds()
 
 
 def load_mean_nudging_tendency(url, communicator, variables):
@@ -78,7 +79,7 @@ if __name__ == "__main__":
     config = runtime.get_config()
     nudging_zarr_url = config["runtime"]["nudging_zarr_url"]
     variables_to_nudge = config["runtime"]["variables_to_nudge"]
-    dt = runtime.get_timestep()
+    dt = fv3config.get_timestep(config)
     communicator = fv3gfs.CubedSphereCommunicator(
         MPI.COMM_WORLD, fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
     )
