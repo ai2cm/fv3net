@@ -65,6 +65,8 @@ data_vars:
 mappable_var_kwargs:
   coord_x_center: "x"
   coord_y_center: "y"
+  coord_x_outer: "x_interface"
+  coord_y_outer: "y_interface"
   coord_vars:
     "lonb": 
       - "y_interface"

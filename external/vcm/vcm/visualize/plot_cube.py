@@ -198,6 +198,8 @@ def mappable_var(
     var_name: str,
     coord_x_center: str = COORD_X_CENTER,
     coord_y_center: str = COORD_Y_CENTER,
+    coord_x_outer: str = COORD_X_OUTER,
+    coord_y_outer: str = COORD_Y_OUTER,
     coord_vars: dict = _COORD_VARS,
 ):
     """ Converts a restart or diagnostic dataset into a format for plotting
@@ -242,7 +244,9 @@ def mappable_var(
     for grid_var in coord_vars:
         new_ds = new_ds.assign_coords(coords={grid_var: ds[grid_var]})
 
-    return new_ds
+    return new_ds.drop(
+        labels=[coord_y_center, coord_x_center, coord_y_outer, coord_x_outer]
+    )
 
 
 def plot_cube_axes(
