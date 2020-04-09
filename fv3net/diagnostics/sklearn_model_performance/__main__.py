@@ -95,6 +95,7 @@ if __name__ == "__main__":
     args.test_data_path = os.path.join(args.test_data_path, "test")
 
     # if output path is remote GCS location, save results to local output dir first
+    # TODO I bet this output preparation could be cleaned up.
     proto = get_protocol(args.output_path)
     if proto == "" or proto == "file":
         output_dir = args.output_path
@@ -102,6 +103,9 @@ if __name__ == "__main__":
         remote_data_path, output_dir = os.path.split(args.output_path.strip("/"))
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)
+
+    # TODO this function mixes I/O and computation
+    # Should just be 1. load_data, 2. make a prediction
     ds_test, ds_pred = predict_on_test_data(
         args.test_data_path,
         args.model_path,
@@ -113,15 +117,20 @@ if __name__ == "__main__":
     fs_input = get_fs(args.test_data_path)
     fs_output = get_fs(args.output_path)
 
+    # TODO these should be pure functions rather than mutating their arguments
     add_column_heating_moistening(ds_test)
     add_column_heating_moistening(ds_pred)
+
+    # TODO Do all data merginig and loading before computing anything
     init_times = list(set(ds_test[INIT_TIME_DIM].values))
     ds_hires = load_high_res_diag_dataset(args.high_res_data_path, init_times)
     grid_path = os.path.join(os.path.dirname(args.test_data_path), "grid_spec.zarr")
 
+    # TODO ditto: do all merging of data before computing anything
     grid = xr.open_zarr(fs_input.get_mapper(grid_path))
     slmsk = ds_test["slmsk"].isel({INIT_TIME_DIM: 0})
 
+    # TODO ditto: do all merging of data before computing anything
     ds = merge_comparison_datasets(
         data_vars=DATA_VARS,
         datasets=[ds_pred, ds_test, ds_hires],
@@ -139,8 +148,10 @@ if __name__ == "__main__":
     ds_test = ds.sel(dataset=DATASET_NAME_FV3_TARGET)
     ds_hires = ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)
 
-    ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires)
+    ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires).load()
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
+
+    # TODO This should be another script
     metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES)
 
     diag_report_sections = plot_diagnostics(
