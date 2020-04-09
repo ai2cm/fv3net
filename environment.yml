@@ -17,6 +17,7 @@ dependencies:
   - gcsfs==0.6.0  # 0.6.1 changes filesystem.ls (errors when no files / doesn't exist)
   - google-cloud-storage
   - h5netcdf
+  - nodejs
   - h5py>=2.10
   - hypothesis
   - pandas=1.0.1
