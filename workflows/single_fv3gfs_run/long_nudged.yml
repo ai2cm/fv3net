@@ -8,7 +8,7 @@ fv3config:
   initial_conditions: gs://vcm-ml-data/2019-12-03-C48-20160101.00Z_IC
   gfs_analysis_data:
     url: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
-    filename_pattern: %Y%m%d_%HZ_T85LR.nc
+    filename_pattern: '%Y%m%d_%HZ_T85LR.nc'
   namelist:
     atmos_model_nml:
       fhout: 1.0
