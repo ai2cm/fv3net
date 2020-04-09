@@ -8,7 +8,7 @@ logging.getLogger('backoff')
 
 class FSWithBackoff(gcsfs.GCSFileSystem):
     
-    @backoff.on_exception(backoff.constant(), (AssertionError, RuntimeError), max_tries=10)
+    @backoff.on_exception(backoff.constant, (AssertionError, RuntimeError), max_tries=10)
     def cat(self, key):
         getter = lambda: super(gcsfs.GCSFileSystem, self).cat(key)
         return getter()
