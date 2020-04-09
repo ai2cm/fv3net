@@ -13,6 +13,7 @@ from fv3net.diagnostics.one_step_jobs import (
     ABS_VARS,
     GLOBAL_MEAN_2D_VARS,
     GLOBAL_MEAN_3D_VARS,
+    DIURNAL_VAR_MAPPING,
     MAPPABLE_VAR_KWARGS
 )
 from scipy.stats import binned_statistic_2d
@@ -209,6 +210,25 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
                 maps_across_forecast_time.append(plotname)
     report_sections[section_name] = maps_across_forecast_time
     
+    
+    # make diurnal cycle comparisons between datasets
+    
+    section_name = 'diurnal cycle comparisons'
+    logger.info(f'Plotting {section_name}')
+    
+    averages = ['land', 'sea']
+
+    diurnal_cycle_comparisons = []
+    for var in DIURNAL_VAR_MAPPING:
+        for domain in averages:
+            f = plot_diurnal_cycles(states_and_tendencies, '_'.join([var, domain]), stride = 2)
+            plotname = f"{var}_{domain}.png"
+            f.savefig(os.path.join(output_dir, plotname))
+            plt.close(f)
+            diurnal_cycle_comparisons.append(plotname)
+    report_sections[section_name] = diurnal_cycle_comparisons
+    
+    
     return report_sections
 
 
@@ -366,8 +386,49 @@ def plot_dQ_vertical_profiles(
         ax.set_ylabel('model level')
     n_rows = facetgrid.axes.shape[0]
     f = facetgrid.fig
-    f.set_size_inches([12, n_rows*4])
+    f.set_size_inches([14, n_rows*4])
     f.set_dpi(FIG_DPI)
     f.suptitle(f"{dQ_name}")
+    
+    return facetgrid.fig
+
+
+def plot_diurnal_cycles(
+    ds: xr.Dataset,
+    var: str,
+    start: int = None,
+    end: int = None,
+    stride: int = None
+) -> plt.figure:
+    
+    ds = ds.assign_coords({FORECAST_TIME_DIM: (ds[FORECAST_TIME_DIM]/60).astype(int)})
+
+    def _facet_line_plot(arr: np.ndarray):
+        ax = plt.gca()
+        ax.set_prop_cycle(color=['b', [1, 0.5, 0]])
+        h = ax.plot(arr.T)
+        return h
+    
+    facetgrid = xr.plot.FacetGrid(
+        data = ds.isel({FORECAST_TIME_DIM: slice(start, end, stride), DELTA_DIM: slice(None, 2)}),
+        col = FORECAST_TIME_DIM,
+        col_wrap = 4
+    )
+    
+    facetgrid = facetgrid.map(_facet_line_plot, var)
+    facetgrid.axes.flatten()[0].set_xlim([0, 24])
+    legend_ax = facetgrid.axes.flatten()[-2]
+    handles = legend_ax.get_lines()
+    legend_ax.legend(handles, ['hi-res diags', 'coarse tendencies'], loc=2)
+    facetgrid.set_titles(template='{value} minutes')
+    for ax in facetgrid.axes[-1, :]:
+        ax.set_xlabel("mean local time [hrs]")
+    for ax in facetgrid.axes[:, 0]:
+        ax.set_ylabel(f"{var}")
+    n_rows = facetgrid.axes.shape[0]
+    f = facetgrid.fig
+    f.set_size_inches([14, n_rows*4])
+    f.set_dpi(FIG_DPI)
+    f.suptitle(f"{var}")
     
     return facetgrid.fig
