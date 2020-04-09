@@ -249,8 +249,6 @@ def mappable_var(
             new_ds = new_ds.drop(coord)
 
     return new_ds
-        labels=[coord_y_center, coord_x_center, coord_y_outer, coord_x_outer]
-    )
 
 
 def plot_cube_axes(
