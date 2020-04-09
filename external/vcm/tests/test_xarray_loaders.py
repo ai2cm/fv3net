@@ -37,7 +37,7 @@ def test_open_tiles(tmpdir, ds):
     for i in range(6):
         ds.isel(tile=i).to_netcdf(tmpdir.join(f"prefix.tile{i+1}.nc"))
 
-    loaded = vcm.open_tiles(str(tmpdir.join("prefix")))
+    loaded = vcm.open_tiles(str(tmpdir.join("prefix"))).load()
 
     xr.testing.assert_equal(ds, loaded)
     assert_attributes_equal(ds, loaded)

@@ -7,12 +7,16 @@ latest
 ------
 * Added physics on end_to_end workflow configuration yaml. Only does baseline run for now.
 * Added integration tests (tests/end_to_end_integration) that through CircleCI after image builds
+* Fixed integration tests to use same version tags of the `fv3net` and `prognostic_run` images
+* Added makefile targets to submit integration tests to cluster from local machine and to get docker image names
 * Made simple step output directory names the default in the orchestrator
 * Add `run_with_learned_nudging` workflow
 * Update fv3config submodule to v0.3.1
 * Add `get_config()` function to fv3net.runtime
 * Change API of `diagnostics_to_zarr` workflow so that it saves output zarrs in the given run directory
 * Add `nudge_to_obs` module to `kube_jobs`, which helps with the configuration of FV3GFS model runs that are nudged towards GFS analysis
+* Add public function: vcm.convert_timestamps
+* Add pipeline to load C384 restart data into a zarr
 
 
 0.1.1 (2020-03-25)
