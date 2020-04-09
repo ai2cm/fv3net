@@ -138,7 +138,15 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
         )
     })
     
-    return ds
+    return ds.drop(
+        labels=[
+            'cloud_ice_mixing_ratio',
+            'cloud_water_mixing_ratio',
+            'rain_mixing_ratio',
+            'snow_mixing_ratio',
+            'graupel_mixing_ratio'
+        ]
+    )
 
 
 def _align_time_and_concat(ds_hires: xr.Dataset, ds_coarse: xr.Dataset) -> xr.Dataset:
