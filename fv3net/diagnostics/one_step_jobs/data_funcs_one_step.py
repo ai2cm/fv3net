@@ -1,9 +1,11 @@
 from typing import Sequence, Tuple, Mapping
 import xarray as xr
 import numpy as np
+from scipy.stats import binned_statistic
 from vcm.cubedsphere.constants import TIME_FMT
 from vcm.select import mask_to_surface_type
 from vcm.convenience import parse_datetime_from_str
+from vcm import local_time
 from datetime import datetime, timedelta
 import logging
 import sys
@@ -14,11 +16,12 @@ from fv3net.diagnostics.one_step_jobs import (
     DELTA_DIM,
     VAR_TYPE_DIM,
     STEP_DIM,
+    DIURNAL_VAR_MAPPING,
     thermo
 )
 from fv3net.pipelines.common import subsample_timesteps_at_interval
 from fv3net.pipelines.create_training_data.helpers import load_hires_prog_diag
-from fv3net.diagnostics.data_funcs import net_heating_from_dataset
+from fv3net.diagnostics.data import net_heating_from_dataset
 
 from vcm import net_precipitation
 
@@ -253,6 +256,81 @@ def insert_variable_at_model_level(ds: xr.Dataset, varnames: list, level: int):
     return ds
 
 
+def mean_diurnal_cycle(da: xr.DataArray, local_time: xr.DataArray, stack_dims: list = ['x','y','tile']) -> xr.DataArray:
+    
+    local_time = local_time.stack(dimensions={'sample': stack_dims}).dropna("sample")
+    da = da.stack(dimensions={'sample': stack_dims}).dropna("sample")
+    other_dims = [dim for dim in da.dims if dim != 'sample']
+    diurnal_coords = [(dim, da[dim]) for dim in other_dims] + [('mean_local_time', np.arange(0., 24.))]
+    diurnal_da = xr.DataArray(coords=diurnal_coords)
+    for init_time in local_time[INIT_TIME_DIM]:
+        lt = local_time.sel({INIT_TIME_DIM: init_time})
+        for valid_time in da[FORECAST_TIME_DIM]:
+            da_single_time = da.sel({INIT_TIME_DIM: init_time, FORECAST_TIME_DIM: valid_time})
+            bin_means, _, _ = binned_statistic(
+                lt.values, da_single_time.values, bins=np.arange(0., 25.)
+            )
+            diurnal_da.loc[{INIT_TIME_DIM: init_time, FORECAST_TIME_DIM: valid_time}] = bin_means
+    
+    return diurnal_da
+
+
+def insert_diurnal_means(
+    ds: xr.Dataset,
+    var_mapping: Mapping = DIURNAL_VAR_MAPPING,
+    mask: str = 'land_sea_mask'
+) -> xr.Dataset:
+
+    ds = ds.assign({'local_time' : local_time(ds, time = INIT_TIME_DIM)})
+    
+    for var, attrs in var_mapping.items():
+        
+        coarse_name = attrs["coarse"]["name"]
+        coarse_type = attrs["coarse"][VAR_TYPE_DIM]
+        hires_name = attrs["hi-res"]["name"]
+        hires_type = attrs["hi-res"][VAR_TYPE_DIM]
+        
+        ds_land = mask_to_surface_type(
+            ds[[coarse_name, hires_name, 'local_time', mask]],
+            'land',
+            surface_type_varname = mask
+        )
+        da_coarse_land = mean_diurnal_cycle(
+            ds_land[coarse_name].sel({DELTA_DIM: 'coarse', VAR_TYPE_DIM: coarse_type}),
+            ds_land["local_time"]
+        )
+        da_hires_land = mean_diurnal_cycle(
+            ds_land[hires_name].sel({DELTA_DIM: 'hi-res', VAR_TYPE_DIM: hires_type}),
+            ds_land["local_time"]
+        )
+        ds = ds.assign({
+            f"{var}_land": xr.concat(
+                [da_hires_land, da_coarse_land], dim=DELTA_DIM
+            ).assign_coords({DELTA_DIM: ['hi-res', 'coarse']})
+        })
+        
+        ds_sea = mask_to_surface_type(
+            ds[[coarse_name, hires_name, 'local_time', mask]],
+            'sea',
+            surface_type_varname = mask
+        )
+        da_coarse_sea = mean_diurnal_cycle(
+            ds_sea[coarse_name].sel({DELTA_DIM: 'coarse', VAR_TYPE_DIM: coarse_type}),
+            ds_sea["local_time"]
+        )
+        da_hires_sea = mean_diurnal_cycle(
+            ds_sea[hires_name].sel({DELTA_DIM: 'hi-res', VAR_TYPE_DIM: hires_type}),
+            ds_sea["local_time"]
+        )
+        ds = ds.assign({
+            f"{var}_sea": xr.concat(
+                [da_hires_sea, da_coarse_sea], dim=DELTA_DIM
+            ).assign_coords({DELTA_DIM: ['hi-res', 'coarse']})
+        })
+
+    return ds
+
+
 def _mask_to_PminusE_sign(
     ds: xr.Dataset,
     sign: str,
@@ -294,7 +372,7 @@ def _weighted_mean(ds: xr.Dataset, weights: xr.DataArray, dims = ['tile', 'x', '
     return (ds*weights).sum(dim = dims)/weights.sum(dim = dims)
 
 
-def insert_weighted_mean_vars(
+def insert_area_means(
     ds: xr.Dataset,
     weights: xr.DataArray,
     varnames: list,

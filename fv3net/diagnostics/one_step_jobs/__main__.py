@@ -10,7 +10,8 @@ from fv3net.diagnostics.one_step_jobs.data_funcs_one_step import (
     insert_model_run_differences,
     insert_abs_vars, 
     insert_variable_at_model_level,
-    insert_weighted_mean_vars,
+    insert_diurnal_means,
+    insert_area_means,
     shrink_ds
 )
 from fv3net.diagnostics.one_step_jobs.plotting_funcs_one_step import make_all_plots
@@ -26,6 +27,7 @@ from fv3net.diagnostics.one_step_jobs import (
     ABS_VARS,
     GLOBAL_MEAN_2D_VARS,
     GLOBAL_MEAN_3D_VARS,
+    DIURNAL_VAR_MAPPING
 )
 from fv3net.diagnostics.create_report import create_report
 from fv3net.pipelines.common import dump_nc
@@ -132,8 +134,9 @@ if __name__ == "__main__":
     states_and_tendencies = (
         states_and_tendencies
         .merge(grid)
+        .pipe(insert_diurnal_means)
         .pipe(
-            insert_weighted_mean_vars,
+            insert_area_means,
             grid['area'],
             GLOBAL_MEAN_2D_VARS + GLOBAL_MEAN_3D_VARS,
             ['land_sea_mask', 'net_precipitation_physics']

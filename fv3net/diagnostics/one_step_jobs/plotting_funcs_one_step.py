@@ -1,7 +1,7 @@
 from vcm.calc.calc import local_time
 from vcm.visualize import plot_cube, mappable_var
 from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
-from fv3net.diagnostics.data_funcs import (
+from fv3net.diagnostics.data import (
     get_latlon_grid_coords_set,
     EXAMPLE_CLIMATE_LATLON_COORDS,
 )
@@ -13,6 +13,7 @@ from fv3net.diagnostics.one_step_jobs import (
     ABS_VARS,
     GLOBAL_MEAN_2D_VARS,
     GLOBAL_MEAN_3D_VARS,
+    MAPPABLE_VAR_KWARGS
 )
 from scipy.stats import binned_statistic_2d
 import xarray as xr
@@ -255,7 +256,7 @@ def plot_model_run_maps_across_time_dim(ds, var, multiple_time_dim, start = None
     rename_dims = {'x': 'grid_xt', 'y': 'grid_yt', 'x_interface': 'grid_x', 'y_interface': 'grid_y'}
     ds = ds.assign_coords({FORECAST_TIME_DIM: ds[FORECAST_TIME_DIM]/60})
     f, axes, _, _, facet_grid = plot_cube(
-        mappable_var(ds.isel({multiple_time_dim: slice(start, end, stride)}).rename(rename_dims), var),
+        mappable_var(ds.isel({multiple_time_dim: slice(start, end, stride)}), var, **MAPPABLE_VAR_KWARGS),
         col = DELTA_DIM,
         row = multiple_time_dim,
         cmap_percentiles_lim=True

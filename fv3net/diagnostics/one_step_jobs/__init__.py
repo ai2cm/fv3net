@@ -32,3 +32,47 @@ VARS_FROM_ZARR = (
 ABS_VARS = ['psurf', 'precipitable_water', 'total_heat']
 GLOBAL_MEAN_2D_VARS = ['psurf_abs', 'precipitable_water_abs', 'total_heat_abs', 'precipitable_water', 'total_heat']
 GLOBAL_MEAN_3D_VARS = ["specific_humidity", "air_temperature", "vertical_wind"]
+DIURNAL_VAR_MAPPING = {
+    "net_heating_diurnal": {
+        "coarse": {
+            "name": "column_integrated_heating",
+            VAR_TYPE_DIM: 'tendencies'
+        },
+        "hi-res": {
+            "name": "net_heating_physics",
+            VAR_TYPE_DIM: "states"
+        }
+    },
+    "net_precipitation_diurnal": {
+        "coarse": {
+            "name": "column_integrated_moistening",
+            VAR_TYPE_DIM: 'tendencies'
+        },
+        "hi-res": {
+            "name": "net_precipitation_physics",
+            VAR_TYPE_DIM: "states"
+        }
+    },
+    "vertical_wind_diurnal": {
+        "coarse": {
+            "name": "vertical_wind_level_40",
+            VAR_TYPE_DIM: 'states'
+        },
+        "hi-res": {
+            "name": "vertical_wind_level_40",
+            VAR_TYPE_DIM: "states"
+        }
+    },
+}
+MAPPABLE_VAR_KWARGS = {
+    "coord_x_center": "x",
+    "coord_y_center": "y",
+    "coord_x_outer": "x_interface",
+    "coord_y_outer": "y_interface",
+    "coord_vars": {
+        "lonb": ["y_interface", "x_interface", "tile"],
+        "latb": ["y_interface", "x_interface", "tile"],
+        "lon": ["y", "x", "tile"],
+        "lat": ["y", "x", "tile"] 
+    }
+}
