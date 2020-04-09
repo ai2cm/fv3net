@@ -1,4 +1,4 @@
-from vcm.cloud.fsspec import get_fs, get_protocol
+from vcm.cloud.fsspec import get_fs, get_fs_with_retry_cat, get_protocol
 from vcm.cloud.gsutil import copy
 from fv3net.diagnostics.one_step_jobs.data_funcs_one_step import (
     time_inds_to_open,
@@ -41,7 +41,7 @@ import sys
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("one_step_diags")
-# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 out_hdlr = logging.StreamHandler(sys.stdout)
 out_hdlr.setFormatter(logging.Formatter(
     '%(name)s %(asctime)s: %(module)s/L%(lineno)d %(message)s'
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     args = _create_arg_parser().parse_args()
     
     zarrpath = os.path.join(args.one_step_data, ONE_STEP_ZARR)
-    fs = get_fs(zarrpath)
+    fs = get_fs_with_retry_cat(zarrpath)
     ds_zarr = (
         xr
         .open_zarr(fs.get_mapper(zarrpath))
