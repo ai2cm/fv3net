@@ -41,6 +41,14 @@ def _create_arg_parser():
         help="Overwrite successful timesteps in OUTPUT_URL.",
     )
     parser.add_argument(
+        "--i-start",
+        type=int,
+        default=None,
+        required=False,
+        help="Index of timestep at which to start. By default starts at first "
+        f"timestep. Useful for testing.",
+    )
+    parser.add_argument(
         "--n-steps",
         type=int,
         default=None,
@@ -98,6 +106,7 @@ if __name__ == "__main__":
     timestep_list = one_step.timesteps_to_process(
         args.input_url,
         args.output_url,
+        args.i_start,
         args.n_steps,
         args.overwrite,
         subsample_frequency=args.init_frequency,
