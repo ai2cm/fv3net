@@ -4,8 +4,18 @@ import yaml
 import string
 import secrets
 import fv3net.pipelines.kube_jobs as kube_jobs
+import logging
+import sys
 
-DEFAULT_JOB_PREFIX = "nudge_to_high_res"
+logger = logging.getLogger('nudging')
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+DEFAULT_JOB_PREFIX = "nudge-to-high-res"
 ORCHESTRATOR_JOBS_LABEL = "orchestrator-jobs"
 
 KUBERNETES_DEFAULT = {
@@ -38,12 +48,12 @@ def random_tag(length):
 
 
 if __name__ == '__main__':
+    logger.setLevel(logging.INFO)
     args = parse_args()
-    with open(args.config, 'r') as f:
-        config = yaml.safe_load(f)
     kube_opts = KUBERNETES_DEFAULT.copy()
     job_name = '{}-{}'.format(args.job_prefix, random_tag(8))
     job_label = {ORCHESTRATOR_JOBS_LABEL: job_name}
+    logger.info(f"submitting job with name {job_name}")
     fv3config.run_kubernetes(
         config_location=args.config,
         outdir=args.output_url,
@@ -53,6 +63,10 @@ if __name__ == '__main__':
         **kube_opts,
     )
 
-    if not args.detach:
+    if args.detach:
+        logger.info("job submitted, detaching.")
+    else:
+        logger.info("job submitted, waiting for completion...")
         successful, _ = kube_jobs.wait_for_complete(job_label)
+        logger.info("job completed.")
         kube_jobs.delete_job_pods(successful)
