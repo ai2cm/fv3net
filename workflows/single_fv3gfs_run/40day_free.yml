@@ -1,0 +1,32 @@
+kubernetes:
+  docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.3.1
+  memory_gb: 14
+  cpu_count: 24
+fv3config:
+  diag_table: diag_table_long_free
+  experiment_name: free-40day
+  initial_conditions: gfs_example
+  namelist:
+    atmos_model_nml:
+      fhout: 1.0
+      fhmax: 10000
+    coupler_nml:
+      current_date:
+        - 2016
+        - 8
+        - 1
+        - 0
+        - 0
+        - 0
+      days: 5
+      minutes: 0
+      seconds: 0
+      dt_atmos: 900  # seconds
+      dt_ocean: 900  # seconds
+    fv_core_nml:
+      layout:
+        - 2
+        - 2
+    gfs_physics_nml:
+      fhzero: 1.0
+      use_analysis_sst: true

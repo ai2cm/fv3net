@@ -1,5 +1,5 @@
 kubernetes:
-  docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1
+  docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.3.1
 fv3config:
   diag_table: workflows/one_step_jobs/diag_table_one_step
   namelist:
@@ -18,5 +18,4 @@ fv3config:
       k_split: 1
       n_split: 1
     gfs_physics_nml:
-      do_deep: true
       fhzero: 0.01666

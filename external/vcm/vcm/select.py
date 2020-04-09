@@ -2,7 +2,6 @@
 This module is for functions that select subsets of the data
 """
 import numpy as np
-import warnings
 import xarray as xr
 
 from vcm.cubedsphere.constants import (
@@ -31,8 +30,7 @@ def mask_to_surface_type(
     Returns:
         input dataset masked to the surface_type specified
     """
-    if surface_type in ["none", "None", None]:
-        warnings.warn("surface_type provided as None: no mask applied.")
+    if surface_type in ["none", "None", None, "global"]:
         return ds
     elif surface_type not in enumeration:
         raise ValueError("Must mask to surface_type in enumeration.")

@@ -1,10 +1,8 @@
-Nudging workflow
-================
+## Nudging workflow
 
 This workflow performs a nudged run, nudging to reference data stored on GCS.
 
-Quickstart
-----------
+### Quickstart
 
 Pull the docker image from GCS:
 
@@ -16,8 +14,7 @@ Run the workflow:
 
 The output directory should now be present in `output`.
 
-Building the image
-------------------
+### Building the image
 
 Build requires an `fv3gfs-python` base image. If you don't have one with the
 correct version tag, it will be automatically pulled by `make build`. It then produces an image
@@ -28,8 +25,7 @@ Building the `-nudging` image requires `GOOGLE_APPLICATION_CREDENTIALS` to be se
 These credentials are copied into an intermediate image to download the data cache.
 The credentials are not included in the final `-nudging` image.
 
-More details
-------------
+### More details
 
 The nudging and run are configured in `fv3config_base.yml`. This gets converted into
 `fv3config.yml` automatically in order to specify the full filenames for initial

@@ -66,7 +66,7 @@ def _create_arg_parser():
         "--config-version",
         type=str,
         required=False,
-        default="v0.2",
+        default="v0.3",
         help="Default fv3config.yml version to use as the base configuration. "
         "This should be consistent with the fv3gfs-python version in the specified "
         "docker image.",
