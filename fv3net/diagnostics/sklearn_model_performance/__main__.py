@@ -48,12 +48,12 @@ if __name__ == "__main__":
         help="Path to C48 coarsened high res diagnostic data.",
     )
     parser.add_argument(
+        "variable_names_file", type=str, help="yml with variable name information"
+    )
+    parser.add_argument(
         "output_path",
         type=str,
         help="Output dir to write results to. Can be local or a GCS path.",
-    )
-    parser.add_argument(
-        "variable_names_file", type=str, help="yml with variable name information"
     )
     parser.add_argument(
         "--num_test_zarrs",
