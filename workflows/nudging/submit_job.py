@@ -29,7 +29,7 @@ KUBERNETES_DEFAULT = {
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('config', type=str, help="google cloud storage location of fv3config yaml configuration file")
-    parser.add_argument('runfile', type=str, help="google cloud storage location of python model run file")
+    parser.add_argument('runfile', type=str, default=None, help="google cloud storage location of python model run file")
     parser.add_argument('output_url', type=str, help="google cloud storage location to upload the resulting run directory")
     parser.add_argument('docker_image', type=str, help="docker image with fv3gfs-python to run the model")
     parser.add_argument('--job_prefix', type=str, default=DEFAULT_JOB_PREFIX, help="prefix to use in creating the job name")
@@ -60,6 +60,7 @@ if __name__ == '__main__':
         jobname=job_name,
         docker_image=args.docker_image,
         job_labels=job_label,
+        runfile=args.runfile,
         **kube_opts,
     )
 
