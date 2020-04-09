@@ -179,11 +179,11 @@ workflows:
               only: /^v.*/
             branches:
               only: master
-      - integration_tests:
-          requires:
-            - build_default
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              only: master
+      # - integration_tests:
+      #     requires:
+      #       - build_default
+      #     filters:
+      #       tags:
+      #         only: /^v.*/
+      #       branches:
+      #         only: master
