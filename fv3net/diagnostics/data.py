@@ -60,7 +60,14 @@ def merge_comparison_datasets(
     return ds_comparison
 
 
-def get_latlon_grid_coords_set(grid, climate_latlon_coords):
+def get_latlon_grid_coords_set(
+    grid,
+    climate_latlon_coords,
+    var_lat="lat",
+    var_lon="lon",
+    coord_x_center="x",
+    coord_y_center="y",
+):
     """ Create a dict of {location: ds.sel dict args} out of an
     input dict of {location: [lat, lon]}. This is useful for
     showing data in a fixed location.
@@ -79,7 +86,13 @@ def get_latlon_grid_coords_set(grid, climate_latlon_coords):
     climate_grid_coords = {}
     for climate, latlon_coords in climate_latlon_coords.items():
         climate_grid_coords[climate] = get_latlon_grid_coords(
-            grid, lat=latlon_coords[0], lon=latlon_coords[1]
+            grid,
+            latlon_coords[0],
+            latlon_coords[1],
+            var_lat,
+            var_lon,
+            coord_x_center,
+            coord_y_center,
         )
     return climate_grid_coords
 

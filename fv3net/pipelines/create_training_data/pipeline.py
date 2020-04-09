@@ -67,7 +67,7 @@ def run(args, pipeline_args, names):
             | "PreprocessOneStepData"
             >> beam.Map(
                 _preprocess_one_step_data,
-                flux_vars=names["flux_vars"],
+                flux_vars=names["diag_vars"],
                 suffix_coarse_train=names["suffix_coarse_train"],
                 step_time_dim=names["step_time_dim"],
                 forecast_time_dim=names["forecast_time_dim"],
@@ -90,7 +90,7 @@ def run(args, pipeline_args, names):
                 _merge_hires_data,
                 diag_c48_path=args.diag_c48_path,
                 coarsened_diags_zarr_name=COARSENED_DIAGS_ZARR_NAME,
-                flux_vars=names["flux_vars"],
+                flux_vars=names["diag_vars"],
                 suffix_hires=names["suffix_hires"],
                 init_time_dim=names["init_time_dim"],
                 renamed_dims=names["renamed_dims"],
@@ -264,7 +264,8 @@ def _preprocess_one_step_data(
         if var in list(ds.data_vars)
     }
     try:
-        ds = ds.sel({step_time_dim: coord_begin_step}).rename(renamed_one_step_vars)
+        ds = ds.sel({step_time_dim: coord_begin_step}).drop(step_time_dim)
+        ds = ds.rename(renamed_one_step_vars)
         ds = helpers._convert_forecast_time_to_timedelta(ds, forecast_time_dim)
         # center vars located on cell edges
         for wind_var in wind_vars:

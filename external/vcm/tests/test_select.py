@@ -11,7 +11,7 @@ def test_surface_type_grid():
     slmsk_grid = xr.DataArray(
         [[0, 1, 2]], dims=[COORD_Y_CENTER, COORD_X_CENTER], coords=centered_coords
     )
-    ds_slmsk = xr.Dataset({"slmsk": slmsk_grid, "checkvar": slmsk_grid})
+    ds_slmsk = xr.Dataset({"land_sea_mask": slmsk_grid, "checkvar": slmsk_grid})
 
     return ds_slmsk
 

@@ -7,7 +7,6 @@ import xarray as xr
 
 import vcm
 from vcm.cloud.fsspec import get_fs
-from vcm.cubedsphere.constants import COORD_Z_CENTER, INIT_TIME_DIM
 
 SAMPLE_DIM = "sample"
 
@@ -64,7 +63,7 @@ class BatchGenerator:
             for batch_num in range(self.num_batches)
         ]
 
-    def generate_batches(self):
+    def generate_batches(self, coord_z_center, init_time_dim):
         """
 
         Args:
@@ -76,7 +75,10 @@ class BatchGenerator:
         grouped_urls = self.train_file_batches
         for file_batch_urls in grouped_urls:
             try:
-                ds_shuffled = self._create_training_batch_with_retries(file_batch_urls)
+                ds_shuffled = self._create_training_batch_with_retries(
+                    file_batch_urls, coord_z_center, init_time_dim
+                )
+
             except ValueError:
                 logger.error(
                     f"Failed to generate batch from files {file_batch_urls}."
@@ -86,12 +88,12 @@ class BatchGenerator:
             yield ds_shuffled
 
     @backoff.on_exception(backoff.expo, RemoteDataError, max_tries=3)
-    def _create_training_batch_with_retries(self, urls):
+    def _create_training_batch_with_retries(self, urls, coord_z_center, init_time_dim):
         timestep_paths = [self.fs.get_mapper(url) for url in urls]
         try:
-            ds = xr.concat(map(xr.open_zarr, timestep_paths), INIT_TIME_DIM)
+            ds = xr.concat(map(xr.open_zarr, timestep_paths), init_time_dim)
             ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type)
-            ds_stacked = stack_and_drop_nan_samples(ds).unify_chunks()
+            ds_stacked = stack_and_drop_nan_samples(ds, coord_z_center).unify_chunks()
             ds_shuffled = _shuffled(ds_stacked, SAMPLE_DIM, self.random_seed)
             return ds_shuffled
         except ValueError as e:
@@ -149,7 +151,7 @@ def _shuffled(dataset, dim, random_seed):
     return dataset.isel({dim: shuffled_inds})
 
 
-def stack_and_drop_nan_samples(ds):
+def stack_and_drop_nan_samples(ds, coord_z_center):
     """
 
     Args:
@@ -160,8 +162,8 @@ def stack_and_drop_nan_samples(ds):
          (the masked out land/sea type)
     """
     ds = (
-        ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != COORD_Z_CENTER]})
-        .transpose(SAMPLE_DIM, COORD_Z_CENTER)
+        ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != coord_z_center]})
+        .transpose(SAMPLE_DIM, coord_z_center)
         .dropna(SAMPLE_DIM)
     )
     return ds
