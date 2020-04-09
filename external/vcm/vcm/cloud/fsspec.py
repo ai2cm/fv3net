@@ -7,7 +7,7 @@ class FSWithBackoff(gcsfs.GCSFileSystem):
     
     @backoff.on_exception(backoff.expo, AssertionError)
     def cat(self, key):
-        getter = lambda: super(GCSFileSystem, self).cat(key)
+        getter = lambda: super(gcsfs.GCSFileSystem, self).cat(key)
         return getter()
     
 
