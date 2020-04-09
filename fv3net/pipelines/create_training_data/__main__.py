@@ -9,7 +9,7 @@ if __name__ == "__main__":
         "gcs_input_data_path",
         type=str,
         help="Location of input data in Google Cloud Storage bucket. "
-        "Don't include bucket in path.",
+        "Don't include bucket or big.zarr in path.",
     )
     parser.add_argument(
         "diag_c48_path",

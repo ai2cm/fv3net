@@ -17,6 +17,7 @@ logger.setLevel(logging.INFO)
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 GRID_SPEC_FILENAME = "grid_spec.zarr"
+ZARR_NAME = "big.zarr"
 
 # forecast time step used to calculate the FV3 run tendency
 FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
@@ -36,7 +37,8 @@ def run(args, pipeline_args, names):
             by the pipeline.
     """
     fs = get_fs(args.gcs_input_data_path)
-    ds_full = xr.open_zarr(fs.get_mapper(args.gcs_input_data_path))
+    ds_full = xr.open_zarr(
+        fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME)))
     ds_full = _str_time_dim_to_datetime(ds_full, names["init_time_dim"])
     _save_grid_spec(
         ds_full,
