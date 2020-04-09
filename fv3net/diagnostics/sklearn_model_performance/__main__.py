@@ -144,11 +144,15 @@ if __name__ == "__main__":
     )
     # separate datasets will now have common grid/sfc_type variables and
     # an identifying dataset coordinate
+
+    # force loading now to avoid I/O issues down the line
+    # This could lead to OOM errors (but those sound like an issue anyway)
+    ds = ds.load()
     ds_pred = ds.sel(dataset=DATASET_NAME_PREDICTION)
     ds_test = ds.sel(dataset=DATASET_NAME_FV3_TARGET)
     ds_hires = ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)
 
-    ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires).load()
+    ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires)
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
 
     # TODO This should be another script
