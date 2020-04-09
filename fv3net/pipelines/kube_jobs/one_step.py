@@ -49,13 +49,6 @@ def timesteps_to_process(
     return timestep_list
 
 
-def _delete_logs_of_done_timesteps(output_url: str, timesteps: List[str]):
-    fs = get_fs(output_url)
-    for timestep in timesteps:
-        rundir_url = os.path.join(output_url, timestep)
-        fs.rm(os.path.join(rundir_url, STDOUT_FILENAME))
-
-
 def _current_date_from_timestep(timestep: str) -> List[int]:
     """Return timestep in the format required by fv3gfs namelist"""
     year = int(timestep[:4])
