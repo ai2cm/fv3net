@@ -4,22 +4,15 @@ import xarray as xr
 import vcm
 from vcm.calc import r2_score
 from vcm.cubedsphere.regridz import regrid_to_common_pressure
-from vcm.cubedsphere.constants import (
-    INIT_TIME_DIM,
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    PRESSURE_GRID,
-    GRID_VARS,
-)
+from vcm.cubedsphere.constants import PRESSURE_GRID
 
-STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 SAMPLE_DIM = "sample"
 
 
-def create_metrics_dataset(ds_pred, ds_fv3, ds_shield):
+def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
 
-    ds_metrics = _r2_global_values(ds_pred, ds_fv3, ds_shield)
-    for grid_var in GRID_VARS:
+    ds_metrics = _r2_global_values(ds_pred, ds_fv3, ds_shield, names["stack_dims"])
+    for grid_var in names["grid_vars"]:
         ds_metrics[grid_var] = ds_pred[grid_var]
 
     for sfc_type in ["global", "sea", "land"]:
@@ -29,7 +22,11 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield):
             ] = _r2_pressure_level_metrics(
                 vcm.mask_to_surface_type(ds_fv3, sfc_type)[var],
                 vcm.mask_to_surface_type(ds_pred, sfc_type)[var],
-                vcm.mask_to_surface_type(ds_fv3, sfc_type)["delp"],
+                vcm.mask_to_surface_type(ds_fv3, sfc_type)[
+                    names["var_pressure_thickness"]
+                ],
+                names["stack_dims"],
+                names["coord_z_center"],
             )
     # add a coordinate for target datasets so that the plot_metrics functions
     # can use it for labels
@@ -45,20 +42,26 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield):
             target_label = ds_target.dataset.values.item()
             ds_metrics[
                 f"rmse_{var}_vs_{target_label}"
-            ] = _root_mean_squared_error_metrics(ds_target[var], ds_pred[var])
+            ] = _root_mean_squared_error_metrics(
+                ds_target[var], ds_pred[var], names["init_time_dim"]
+            )
 
     return ds_metrics
 
 
-def _root_mean_squared_error_metrics(da_target, da_pred):
-    rmse = np.sqrt((da_target - da_pred) ** 2).mean(INIT_TIME_DIM)
+def _root_mean_squared_error_metrics(da_target, da_pred, init_time_dim="initial_time"):
+    rmse = np.sqrt((da_target - da_pred) ** 2).mean(init_time_dim)
     return rmse
 
 
-def _r2_pressure_level_metrics(da_target, da_pred, delp):
+def _r2_pressure_level_metrics(da_target, da_pred, delp, stack_dims, coord_z_center):
     pressure = np.array(PRESSURE_GRID) / 100
-    target = regrid_to_common_pressure(da_target, delp).stack(sample=STACK_DIMS)
-    prediction = regrid_to_common_pressure(da_pred, delp).stack(sample=STACK_DIMS)
+    target = regrid_to_common_pressure(da_target, delp, coord_z_center).stack(
+        sample=stack_dims
+    )
+    prediction = regrid_to_common_pressure(da_pred, delp, coord_z_center).stack(
+        sample=stack_dims
+    )
     da = xr.DataArray(
         r2_score(target, prediction, "sample"),
         dims=["pressure"],
@@ -67,7 +70,7 @@ def _r2_pressure_level_metrics(da_target, da_pred, delp):
     return da
 
 
-def _r2_global_values(ds_pred, ds_fv3, ds_shield):
+def _r2_global_values(ds_pred, ds_fv3, ds_shield, stack_dims):
     """ Calculate global R^2 for net precipitation and heating against
     target FV3 dataset and coarsened high res dataset
     
@@ -82,13 +85,14 @@ def _r2_global_values(ds_pred, ds_fv3, ds_shield):
         for sfc_type in ["global", "sea", "land"]:
             for ds_target in [ds_fv3, ds_shield]:
                 target_label = ds_target.dataset.values.item()
-                r2_summary[f"R2_{sfc_type}_{var}_vs_{target_label}"] = r2_score(
+                r2 = r2_score(
                     vcm.mask_to_surface_type(ds_target, sfc_type)[var].stack(
-                        sample=STACK_DIMS
+                        sample=stack_dims
                     ),
                     vcm.mask_to_surface_type(ds_pred, sfc_type)[var].stack(
-                        sample=STACK_DIMS
+                        sample=stack_dims
                     ),
                     "sample",
-                ).values.item()
+                )
+                r2_summary[f"R2_{sfc_type}_{var}_vs_{target_label}"] = r2.values.item()
     return r2_summary

@@ -39,6 +39,8 @@ class ModelTrainingConfig:
     gcs_project: str = "vcm-ml"
     random_seed: int = 1234
     mask_to_surface_type: str = "none"
+    coord_z_center: str = "z"
+    init_time_dim: str = "initial_time"
 
     def validate_number_train_batches(self, batch_generator):
         """ Since number of training files specified may be larger than
@@ -137,7 +139,11 @@ def train_model(batched_data, train_config):
 
     train_config.validate_number_train_batches(batched_data)
 
-    for i, batch in enumerate(batched_data.generate_batches()):
+    for i, batch in enumerate(
+        batched_data.generate_batches(
+            train_config.coord_z_center, train_config.init_time_dim
+        )
+    ):
         logger.info(f"Fitting batch {i}/{batched_data.num_batches}")
         try:
             model_wrapper.fit(

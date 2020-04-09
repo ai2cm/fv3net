@@ -50,6 +50,10 @@ def get_latlon_grid_coords(
     grid,
     lat,
     lon,
+    var_lat=VAR_LAT_CENTER,
+    var_lon=VAR_LON_CENTER,
+    coord_x_center=COORD_X_CENTER,
+    coord_y_center=COORD_Y_CENTER,
     init_search_width=0.5,
     search_width_increment=0.5,
     max_search_width=3.0,
@@ -71,20 +75,20 @@ def get_latlon_grid_coords(
     """
     search_width = init_search_width
     while search_width <= max_search_width:
-        lat_mask = (grid[VAR_LAT_CENTER] > lat - 1) & (grid[VAR_LAT_CENTER] < lat + 1)
-        lon_mask = (grid[VAR_LON_CENTER] > lon - 1) & (grid[VAR_LON_CENTER] < lon + 1)
+        lat_mask = (grid[var_lat] > lat - 1) & (grid[var_lat] < lat + 1)
+        lon_mask = (grid[var_lon] > lon - 1) & (grid[var_lon] < lon + 1)
         local_pt = (
-            grid[[VAR_LAT_CENTER, VAR_LON_CENTER]]
+            grid[[var_lat, var_lon]]
             .where(lat_mask)
             .where(lon_mask)
-            .stack(sample=[COORD_X_CENTER, COORD_Y_CENTER, "tile"])
+            .stack(sample=[coord_x_center, coord_y_center, "tile"])
             .dropna("sample")
         )
         if len(local_pt.sample.values) > 0:
             return {
                 "tile": local_pt["tile"].values[0],
-                COORD_X_CENTER: local_pt[COORD_X_CENTER].values[0],
-                COORD_Y_CENTER: local_pt[COORD_Y_CENTER].values[0],
+                coord_x_center: local_pt[coord_x_center].values[0],
+                coord_y_center: local_pt[coord_y_center].values[0],
             }
         else:
             search_width += search_width_increment

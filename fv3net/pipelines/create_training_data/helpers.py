@@ -20,7 +20,7 @@ logger.setLevel(logging.INFO)
 
 
 def _convert_forecast_time_to_timedelta(ds, forecast_time_dim):
-    timedelta_coords = ds[forecast_time_dim].astype("timedelta64[ns]")
+    timedelta_coords = ds[forecast_time_dim].astype("timedelta64[s]")
     return ds.assign_coords({forecast_time_dim: timedelta_coords})
 
 
