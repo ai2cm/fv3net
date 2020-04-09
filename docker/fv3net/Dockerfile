@@ -2,6 +2,7 @@ FROM continuumio/miniconda:4.7.12 as build
 
 COPY environment.yml  /tmp/
 RUN conda env create -p /opt/python -f /tmp/environment.yml
+ENV PATH=/opt/python/bin:${PATH}
 RUN jupyter labextension install @pyviz/jupyterlab_pyviz
 
 FROM google/cloud-sdk:288.0.0
