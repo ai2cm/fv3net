@@ -45,7 +45,7 @@ DPI_FIGURES = {
 }
 
 
-def compute_metrics_and_plot(ds, output_dir, cleanup=True):
+def compute_metrics_and_plot(ds, output_dir):
     # TODO refactor this "and" function into two routines
     ds_pred = ds.sel(dataset=DATASET_NAME_PREDICTION)
     ds_test = ds.sel(dataset=DATASET_NAME_FV3_TARGET)
