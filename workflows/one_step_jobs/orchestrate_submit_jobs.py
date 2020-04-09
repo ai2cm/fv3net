@@ -46,7 +46,7 @@ def _create_arg_parser():
         default=None,
         required=False,
         help="Index of timestep at which to start. By default starts at first "
-        f"timestep. Useful for testing.",
+        "timestep. Useful for testing.",
     )
     parser.add_argument(
         "--n-steps",
