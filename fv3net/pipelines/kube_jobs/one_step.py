@@ -35,6 +35,7 @@ logger = logging.getLogger(__name__)
 def timesteps_to_process(
     input_url: str,
     output_url: str,
+    i_start: int,
     n_steps: int,
     overwrite: bool,
     subsample_frequency: int = None,
@@ -53,7 +54,14 @@ def timesteps_to_process(
     if overwrite:
         _delete_logs_of_done_timesteps(output_url, done)
         done = []
-    timestep_list = sorted(list(set(to_do) - set(done)))[:n_steps]
+
+    if n_steps is None:
+        i_end = None
+    elif i_start is None:
+        i_end = n_steps
+    else:
+        i_end = i_start + n_steps
+    timestep_list = sorted(list(set(to_do) - set(done)))[i_start:i_end]
 
     logger.info(f"Number of input times: {len(to_do)}")
     logger.info(f"Number of completed times: {min(len(done), len(to_do))}")
