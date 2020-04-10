@@ -12,9 +12,11 @@ from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
 import vcm.cloud.fsspec
+import vcm
 
 MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
+TIMESTEPS_USED_FILENAME = "timesteps_used.txt"
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -138,6 +140,8 @@ def train_model(batched_data, train_config):
     model_wrapper = SklearnWrapper(batch_regressor)
 
     train_config.validate_number_train_batches(batched_data)
+    training_urls_to_attempt = batched_data.train_file_batches
+    training_urls_used = []
 
     for i, batch in enumerate(
         batched_data.generate_batches(
@@ -153,25 +157,30 @@ def train_model(batched_data, train_config):
                 data=batch,
             )
             logger.info(f"Batch {i} done fitting.")
+            training_urls_used += training_urls_to_attempt[i]
         except ValueError as e:
             logger.error(f"Error training on batch {i}: {e}")
             train_config.num_batches_used -= 1
             continue
 
-    return model_wrapper
+    return model_wrapper, training_urls_used
 
 
-def save_output(output_url, model, config):
+def save_output(output_url, model, config, timesteps):
     fs = vcm.cloud.fsspec.get_fs(output_url)
     fs.makedirs(output_url, exist_ok=True)
     model_url = os.path.join(output_url, MODEL_FILENAME)
     config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
+    timesteps_url = os.path.join(output_url, TIMESTEPS_USED_FILENAME)
 
     with fs.open(model_url, "wb") as f:
         joblib.dump(model, f)
 
     with fs.open(config_url, "w") as f:
         yaml.dump(vars(config), f)
+
+    with fs.open(timesteps_url, "w") as f:
+        f.writelines([f"{t}\n" for t in timesteps])
 
 
 if __name__ == "__main__":
@@ -197,5 +206,6 @@ if __name__ == "__main__":
     )
     batched_data = load_data_generator(train_config)
 
-    model = train_model(batched_data, train_config)
-    save_output(args.output_data_path, model, train_config)
+    model, training_urls_used = train_model(batched_data, train_config)
+    timesteps_used = map(vcm.parse_timestep_str_from_path, training_urls_used)
+    save_output(args.output_data_path, model, train_config, timesteps_used)

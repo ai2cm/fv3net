@@ -4,9 +4,11 @@ import os
 import shutil
 import xarray as xr
 import yaml
+from datetime import datetime
 
 from vcm.cloud.fsspec import get_fs, get_protocol
 from vcm.cloud.gsutil import copy
+import vcm
 
 from ..create_report import create_report
 from ..data import merge_comparison_datasets
@@ -18,7 +20,8 @@ from .data import (
 from .diagnostics import plot_diagnostics
 from .create_metrics import create_metrics_dataset
 from .plot_metrics import plot_metrics
-from fv3net.regression.sklearn.train import MODEL_CONFIG_FILENAME
+from .plot_metadata import plot_metadata
+from fv3net.regression.sklearn.train import MODEL_CONFIG_FILENAME, TIMESTEPS_USED_FILENAME
 
 DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
@@ -32,6 +35,16 @@ DPI_FIGURES = {
     "map_plot_3col": 120,
     "map_plot_single": 100,
 }
+
+
+def get_timesteps_used(path, ds):
+    """Given path to ML model and test dataset, return lists of datetimes for
+    training and testing times"""
+    with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME), "r") as f:
+        timesteps_train = f.read().splitlines()
+    datetimes_train = list(map(vcm.parse_datetime_from_str, timesteps_train))
+    datetimes_test = ds[names["init_time_dim"]].values
+    return datetimes_train, datetimes_test
 
 
 if __name__ == "__main__":
@@ -172,8 +185,14 @@ if __name__ == "__main__":
 
     with fsspec.open(os.path.join(args.model_path, MODEL_CONFIG_FILENAME)) as f:
         model_config = yaml.safe_load(f)
+
+    timesteps_train, timesteps_test = get_timesteps_used(args.model_path, ds_test)
+    print(timesteps_train)
+    print(timesteps_test)
+    metadata_plot_sections = plot_metadata(timesteps_train, timesteps_test, output_dir)
+
     metadata = {**model_config, **vars(args)}
-    combined_report_sections = {**metrics_plot_sections, **diag_report_sections}
+    combined_report_sections = {**metadata_plot_sections, **metrics_plot_sections, **diag_report_sections}
     create_report(
         combined_report_sections,
         "ml_offline_diagnostics",
