@@ -129,7 +129,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("url")
     parser.add_argument("output")
-    parser.add_argument("metrics_output", help="path to save json metrics at")
     parser.add_argument(
         "--grid-spec",
         default="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/grid_spec",
