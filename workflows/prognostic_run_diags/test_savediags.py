@@ -48,7 +48,7 @@ def test_dump_nc_no_seek():
     m.seek.assert_not_called()
 
 
-@pytest.mark.parametrize('func', savediags._DIAG_FNS)
+@pytest.mark.parametrize("func", savediags._DIAG_FNS)
 def test_compute_diags_succeeds(func, resampled, verification, grid):
     func(resampled, verification, grid)
 

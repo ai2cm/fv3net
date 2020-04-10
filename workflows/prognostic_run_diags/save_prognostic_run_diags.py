@@ -63,9 +63,7 @@ def dump_nc(ds: xr.Dataset, f):
 
 @add_to_diags
 def rms_errors(resampled, verification_c48, grid):
-    rms_errors = rms(
-        resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS
-    )
+    rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
     diags = {}
     for variable in rms_errors:
@@ -80,9 +78,9 @@ def rms_errors(resampled, verification_c48, grid):
 @add_to_diags
 def global_averages(resampled, verification, grid):
     diags = {}
-    area_averages = (resampled * resampled.area).sum(HORIZONTAL_DIMS) / resampled.area.sum(
+    area_averages = (resampled * resampled.area).sum(
         HORIZONTAL_DIMS
-    )
+    ) / resampled.area.sum(HORIZONTAL_DIMS)
     for variable in area_averages:
         lower = variable.lower()
         diags[f"{lower}_global_avg"] = area_averages[variable].assign_attrs(
@@ -91,9 +89,7 @@ def global_averages(resampled, verification, grid):
     return diags
 
 
-def load_data(
-    url, grid_spec, catalog
-):
+def load_data(url, grid_spec, catalog):
     logger.info(f"Processing run directory at {url}")
 
     # open grid
@@ -140,9 +136,7 @@ if __name__ == "__main__":
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 
-    resampled, verification, grid = load_data(
-        args.url, args.grid_spec, args.catalog
-    )
+    resampled, verification, grid = load_data(args.url, args.grid_spec, args.catalog)
 
     # begin constructing diags
     diags = {}
