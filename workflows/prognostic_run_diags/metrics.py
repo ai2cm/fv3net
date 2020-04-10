@@ -1,6 +1,5 @@
 from typing import Callable, Mapping
 import xarray as xr
-import pprint
 from toolz import curry
 
 _METRICS = []
@@ -79,15 +78,12 @@ def drift_3day(diags):
     return drift
 
 
-path = "workflows/prognostic_run_diags/diags.nc"
-diags = xr.open_dataset(path)
+if __name__ == "__main__":
+    import sys
 
-
-# convert to lead time
-diags["time"] = diags.time - diags.time[0]
-metrics = compute_all_metrics(diags)
-pprint.pprint(metrics)
-
-# rms3_metrics = {f'rmse_3day/{variable}': value.item() for rmse_3day.items}
-
-# for key in rms_global_daily:
+    path = sys.argv[1]
+    diags = xr.open_dataset(path)
+    diags["time"] = diags.time - diags.time[0]
+    metrics = compute_all_metrics(diags)
+    # print to stdout, use pipes to save
+    print(metrics)

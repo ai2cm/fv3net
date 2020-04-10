@@ -6,7 +6,6 @@ This script computes diagnostics for prognostic runs.
 Diagnostics are multiple dimensional curves that can be visualized to give
 a more detailed look into the data underlying the metrics.
 """
-from typing import Mapping
 import argparse
 import os
 import sys
