@@ -3,92 +3,114 @@ kind: Workflow
 metadata:
   generateName: prognostic-run-diags-
 spec:
+  # arguments:
+  #   parameters:
+  #     - name: runs
+  # entrypoint: all
+  entrypoint: metrics
   arguments:
+    artifacts:
+    - name: diags-netcdf
+      gcs:
+        bucket: vcm-ml-data
+        key: "{{workflows.parameters.output_url}}/deep-off-rf.nc"
     parameters:
-    - name: runs
-  entrypoint: all
+    - name: runid
+      value: deep-off-rf
   volumes:
-  - name: gcp-credentials-user-gcp-sa
-    secret:
-      secretName: gcp-key
+    - name: gcp-credentials-user-gcp-sa
+      secret:
+        secretName: gcp-key
   templates:
-   - name: all
-     steps:
-      - - name: regrid-step
-          withParam: "{{workflow.parameters.runs}}"
-          template: regrid
-          arguments:
-            parameters:
-              - name: run
-                value: "{{item.url}}"
-              - name: output
-                value: "{{workflow.parameters.output_url}}/{{item.name}}.nc"
-      - - name: generate-notebook
-          template: notebook
-   - name: notebook
-     tolerations:
-     - key: "dedicated"
-       operator: "Equal"
-       value: "climate-sim-pool"
-       effect: "NoSchedule"
-     container:
-      image: us.gcr.io/vcm-ml/fv3net:v0.1.1
-      command: ['bash', 'upload_report.sh']
-      workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
-      env:
-      - name: GOOGLE_APPLICATION_CREDENTIALS
-        value: /secret/gcp-credentials/key.json
-      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
-        value: /secret/gcp-credentials/key.json
-      volumeMounts:
-      - mountPath: /secret/gcp-credentials
-        name: gcp-credentials-user-gcp-sa
-      resources:
-        requests:
-            memory: "6Gi"
-            cpu: "1000m"
-        limits:
-            memory: "6Gi"
-            cpu: "1000m"
-       
-   - name: save-diagnostics
-     inputs:
-      parameters:
-      - name: run
-      - name: output
-     tolerations:
-     - key: "dedicated"
-       operator: "Equal"
-       value: "climate-sim-pool"
-       effect: "NoSchedule"
-     container:
-      image: us.gcr.io/vcm-ml/fv3net:v0.1.1
-      command:
-      - 'python'
-      - '-m'
-      - 'fv3net.pipelines.save_prognostic_run_diags'
-      - '{{inputs.parameters.run}}'
-      - '{{inputs.parameters.output}}'
-      workingDir: /home/jovyan/fv3net
-      env:
-      - name: GOOGLE_APPLICATION_CREDENTIALS
-        value: /secret/gcp-credentials/key.json
-      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
-        value: /secret/gcp-credentials/key.json
-      volumeMounts:
-      - mountPath: /secret/gcp-credentials
-        name: gcp-credentials-user-gcp-sa
-      resources:
-        requests:
-            memory: "6Gi"
-            cpu: "1000m"
-        limits:
-            memory: "6Gi"
-            cpu: "1000m"
-    - name: compute metrics
+
+    # - name: all
+    #   steps:
+        # - - name: regrid-step
+        #     withParam: "{{workflow.parameters.runs}}"
+        #     template: regrid
+        #     arguments:
+        #       parameters:
+        #         - name: run
+        #           value: "{{item.url}}"
+        #         - name: output
+        #           value: "{{workflow.parameters.output_url}}/{{item.name}}.nc"
+        # - - name: generate-notebook
+        #     template: notebook
+    - name: notebook
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "climate-sim-pool"
+          effect: "NoSchedule"
       container:
         image: us.gcr.io/vcm-ml/fv3net:v0.1.1
-      inputs: 
+        command: ['bash', 'upload_report.sh']
+        workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-credentials-user-gcp-sa
+        resources:
+          requests:
+            memory: "6Gi"
+            cpu: "1000m"
+          limits:
+            memory: "6Gi"
+            cpu: "1000m"
+    - name: regrid
+      inputs:
+        parameters:
+          - name: run
+          - name: output
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "climate-sim-pool"
+          effect: "NoSchedule"
+      container:
+        image: us.gcr.io/vcm-ml/fv3net:v0.1.1
+        command:
+          - 'python'
+          - '-m'
+          - 'fv3net.pipelines.save_prognostic_run_diags'
+          - '{{inputs.parameters.run}}'
+          - '{{inputs.parameters.output}}'
+        workingDir: /home/jovyan/fv3net
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-credentials-user-gcp-sa
+        resources:
+          requests:
+            memory: "6Gi"
+            cpu: "1000m"
+          limits:
+            memory: "6Gi"
+            cpu: "1000m"
+    - name: metrics
+      inputs:
+        parameters:
+          - name: runid
         artifacts:
-        - name: diags
-          path: '{{inputs.para'
+          - name: diags-netcdf
+            path: /diags.nc
+      outputs:
+        artifacts:
+          - name: metrics_json
+            path: /metrics.json
+            gcs:
+              bucket: vcm-ml-data
+              key: "{{workflows.parameters.output_url}}/{{inputs.parameters.runid}}.json"
+      container:
+        image: us.gcr.io/vcm-ml/metrics:v0.1.0
+        command: ["bash", "-c"]
+        args:
+          - python3 /metrics.py /diags.nc > /metrics.json
