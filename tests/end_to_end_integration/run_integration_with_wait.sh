@@ -34,15 +34,13 @@ function waitForComplete {
     fi
 }
 
+export PROGNOSTIC_RUN_IMAGE=$1
+export FV3NET_IMAGE=$2
 
 TESTDIR=tests/end_to_end_integration/
-
 NAMESPACE=integration-tests
-
 export JOBNAME=integration-test-$(date +%F)-$(openssl rand -hex 6)
 export CONFIGMAP=integration-test-$(date +%F)-$(openssl rand -hex 6)
-export PROGNOSTIC_RUN_IMAGE=$(make -s image_name_prognostic_run VERSION=$1)
-export FV3NET_IMAGE=$(make -s image_name_fv3net VERSION=$1)
 
 K8S_TEMPLATE=$TESTDIR/job.yml
 E2E_TEMPLATE=$TESTDIR/end_to_end_configuration.yml

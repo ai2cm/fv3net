@@ -15,6 +15,9 @@ DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1de
 IMAGE = fv3net
 GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
 
+FV3NET_IMAGE = us.gcr.io/vcm-ml/fv3net
+PROGNOSTIC_RUN_IMAGE = us.gcr.io/vcm-ml/prognostic_run
+
 ifeq (,$(shell which conda))
 HAS_CONDA=False
 else
@@ -27,16 +30,10 @@ endif
 
 .PHONY: build_images push_image run_integration_tests image_name_explicit
 
-image_name = us.gcr.io/vcm-ml/$(1):$(VERSION)
-
-image_name_explicit:
-image_name_%: image_name_explicit
-	@echo $(call image_name,$*)
-
 # pattern rule for building docker images
 build_image_%:
-	docker build . -f docker/$*/Dockerfile -t $(call image_name,$*)
-
+	docker build . -f docker/$*/Dockerfile  -t $*
+	
 enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $(call image_name,$*) bash
 
@@ -45,7 +42,8 @@ build_images: build_image_fv3net build_image_prognostic_run
 push_images: push_image_prognostic_run push_image_fv3net
 
 push_image_%:
-	docker push $(call image_name,$*)
+	docker tag $* us.gcr.io/vcm-ml/$*:$(VERSION)
+	docker push us.gcr.io/vcm-ml/$*:$(VERSION)
 
 enter: build_image
 	docker run -it -v $(shell pwd):/code \
@@ -60,7 +58,10 @@ build_ci_image:
 
 # run integration tests
 run_integration_tests:
-	./tests/end_to_end_integration/run_integration_with_wait.sh $(VERSION)
+	./tests/end_to_end_integration/run_integration_with_wait.sh \
+	    $(PROGNOSTIC_RUN_IMAGE):$(VERSION) \
+	    $(FV3NET_IMAGE):$(VERSION) \
+
 
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images

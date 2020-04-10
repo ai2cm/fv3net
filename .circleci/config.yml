@@ -60,13 +60,7 @@ jobs:
       - run:
           name: Build fv3net images 
           command: |
-            if [[ -z "$CIRCLE_TAG" ]]
-            then
-                use_version="latest"
-            else
-                use_version=$CIRCLE_TAG
-            fi
-            make build_images VERSION=$use_version
+            make build_images
       - run:
           name: Run tests in fv3net image
           command: |
@@ -82,11 +76,15 @@ jobs:
                 echo "pushing untagged images as 'latest'"
                 make push_images VERSION=latest
             fi
-            if [[ ! -z "$CIRCLE_TAG" ]]
+
+            if [[ -z $CIRCLE_TAG ]]
             then
-                echo "pushing tagged images $CIRCLE_TAG"
-                make push_images VERSION=$CIRCLE_TAG
+              make push_images VERSION=$CIRCLE_TAG
             fi
+
+            # push all images with sha for testing later on
+            echo "pushing tagged images $CIRCLE_SHA1"
+            make push_images VERSION=$CIRCLE_SHA1
       - slack/status:
           fail_only: true
           mentions: 'channel'
@@ -142,10 +140,7 @@ jobs:
           # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was 
           # during the build job above
           command: | 
-            if [[ -z $CIRCLE_TAG ]]; then
-              CIRCLE_TAG=latest
-            fi
-            make run_integration_tests VERSION=$CIRCLE_TAG
+            make run_integration_tests VERSION=$CIRCLE_SHA1
       - run:
           name: Firewall rule deletion
           when: always
@@ -160,14 +155,11 @@ workflows:
     jobs:
       - lint
       - pytest_default
-  build_and_push:
-    jobs:
+      - hold:
+          type: approval
       - build_default:
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              only: master
+          requires:
+          - hold
       - integration_tests:
           requires:
             - build_default
