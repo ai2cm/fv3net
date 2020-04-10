@@ -53,7 +53,7 @@ jobs:
       - gcp-gcr/gcr-auth:
           gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - checkout
-      - run: sudo apt-get install -y make
+      - run: sudo apt-get install -y make jq
       - run:
           name: "Pull submodules"
           command: |
@@ -158,6 +158,9 @@ workflows:
       - pytest_default
       - hold:
           type: approval
+          requires:
+          - lint
+          - pytest_default
       - build_default:
           requires:
           - hold
