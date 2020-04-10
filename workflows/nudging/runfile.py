@@ -13,7 +13,10 @@ STORE_NAMES = [
     'x_wind', 'y_wind',
     'air_temperature',
     'specific_humidity',
-    'time'
+    'time',
+    "pressure_thickness_of_atmospheric_layer",
+    "vertical_thickness_of_atmospheric_layer",
+    "vertical_wind"
 ]
 
 TENDENCY_OUT_FILENAME = "tendencies.zarr"
@@ -144,7 +147,7 @@ if __name__ == "__main__":
         monitor.store(state, stage="after_physics")
         fv3gfs.save_intermediate_restart_if_enabled()
         reference = get_reference_state(
-            state["time"], reference_dir, communicator, only_names=nudging_names
+            state["time"], reference_dir, communicator, only_names=store_names
         )
         tendencies = nudge(state, reference)
         monitor.store(reference, stage="reference")
