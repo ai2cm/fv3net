@@ -64,7 +64,6 @@ def plot_diurnal_cycle(
     plt.legend(loc="lower left")
     if title:
         plt.title(title)
-    plt.show()
     return fig
 
 
@@ -126,4 +125,3 @@ def plot_time_series(
     if title:
         plt.title(title)
     plt.savefig(os.path.join(output_dir, plot_filename))
-    plt.show()
