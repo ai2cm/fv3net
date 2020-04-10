@@ -31,6 +31,7 @@ DATASET_NAME_FV3_TARGET = "C48_target"
 DATASET_NAME_SHIELD_HIRES = "coarsened_high_res"
 
 DPI_FIGURES = {
+    "timestep_histogram": 90,
     "LTS": 100,
     "dQ2_pressure_profiles": 100,
     "R2_pressure_profiles": 100,
@@ -187,7 +188,7 @@ if __name__ == "__main__":
     )
 
     timesteps_train, timesteps_test = get_timesteps_used(args.model_path, ds_test)
-    timesteps_plots = plot_timestep_counts(timesteps_train, timesteps_test, output_dir)
+    timesteps_plots = plot_timestep_counts(timesteps_train, timesteps_test, output_dir, DPI_FIGURES)
     combined_report_sections = {
         **timesteps_plots,
         **metrics_plot_sections,
