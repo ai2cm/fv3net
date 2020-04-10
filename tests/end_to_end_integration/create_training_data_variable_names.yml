@@ -66,13 +66,6 @@ one_step_vars:
   - "pressure_thickness_of_atmospheric_layer"
   - "specific_humidity"
   - "air_temperature"
-  - "DSWRFtoa_train"
-  - "DSWRFsfc_train"
-  - "USWRFtoa_train"
-  - "USWRFsfc_train"
-  - "DLWRFsfc_train"
-  - "ULWRFtoa_train"
-  - "ULWRFsfc_train"
 
 
 # data variables from high res data kept in final dataset

@@ -4,7 +4,7 @@ hyperparameters:
   n_estimators: 1
 num_batches: 2
 mask_to_surface_type: none
-files_per_batch: 1
+files_per_batch: 2
 input_variables:
   - air_temperature
   - specific_humidity
