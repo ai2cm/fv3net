@@ -47,7 +47,7 @@ class ModelTrainingConfig:
         the actual number available, this adds an attribute num_batches_used
         that keeps information about the actual number of training batches
         used.
-        
+
         Args:
             batch_generator (BatchGenerator)
         """
@@ -171,7 +171,7 @@ def save_output(output_url, model, config):
         joblib.dump(model, f)
 
     with fs.open(config_url, "w") as f:
-        yaml.dump(config, f)
+        yaml.dump(vars(config), f)
 
 
 if __name__ == "__main__":
