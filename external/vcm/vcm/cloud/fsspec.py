@@ -37,12 +37,12 @@ def get_fs(path: str) -> fsspec.AbstractFileSystem:
     return fsspec.filesystem(get_protocol(path))
 
 
-def get_fs_with_retry_cat(path):
+def get_fs_with_retry_cat(path, project = 'vcm-ml'):
 
     protocol = get_protocol(path)
     
     if protocol == 'gs':
-        fs = FSWithBackoff('vcm-ml')
+        fs = FSWithBackoff(project)
     else: 
         fs = fsspec.filesystem(protocol)
     return fs
