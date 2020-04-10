@@ -104,6 +104,37 @@ def global_averages(resampled, verification, grid):
     return diags
 
 
+def load_data(
+    url, grid_spec, catalog
+):
+    logger.info(f"Processing run directory at {url}")
+
+    # open grid
+    logger.info("Opening Grid Spec")
+    grid_c384 = vcm.open_tiles(grid_spec)
+
+    # open verification
+    catalog = intake.open_catalog(catalog)
+    verification = catalog["40day_c384_atmos_8xdaily"].to_dask()
+    verification = verification.merge(grid_c384)
+    # block average data
+    verification_c48 = vcm.cubedsphere.weighted_block_average(
+        verification, verification.area, 8, x_dim="grid_xt", y_dim="grid_yt"
+    )
+
+    # open data
+    atmos_diag_url = os.path.join(url, "atmos_dt_atmos")
+    ds = vcm.open_tiles(atmos_diag_url).load()
+    resampled = ds.resample(time="3H", label="right").nearest()
+    grid_c48 = resampled[vcm.cubedsphere.constants.GRID_VARS]
+
+    verification_c48 = verification_c48.sel(
+        time=resampled.time[:-1]
+    )  # don't use last time point. there is some trouble
+
+    return ds, verification_c48, grid_c48
+
+
 if __name__ == "__main__":
 
     CATALOG = str(fv3net.TOP_LEVEL_DIR / "catalog.yml")
@@ -123,31 +154,9 @@ if __name__ == "__main__":
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 
-    url = args.url
-    logger.info(f"Processing run directory at {url}")
-
-    # open grid
-    logger.info("Opening Grid Spec")
-    grid_c384 = vcm.open_tiles(args.grid_spec)
-
-    # open verification
-    catalog = intake.open_catalog(args.catalog)
-    verification = catalog["40day_c384_atmos_8xdaily"].to_dask()
-    verification = verification.merge(grid_c384)
-    # block average data
-    verification_c48 = vcm.cubedsphere.weighted_block_average(
-        verification, verification.area, 8, x_dim="grid_xt", y_dim="grid_yt"
+    ds, verification, grid = load_data(
+        args.url, args.grid_spec, args.catalog
     )
-
-    # open data
-    atmos_diag_url = os.path.join(url, "atmos_dt_atmos")
-    ds = vcm.open_tiles(atmos_diag_url).load()
-    resampled = ds.resample(time="3H", label="right").nearest()
-    grid_c48 = resampled[vcm.cubedsphere.constants.GRID_VARS]
-
-    verification_c48 = verification_c48.sel(
-        time=resampled.time[:-1]
-    )  # don't use last time point. there is some trouble
 
     # begin constructing diags
     diags = {}
