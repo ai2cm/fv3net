@@ -78,19 +78,6 @@ def rms_errors(resampled, verification_c48, grid):
 
 
 @add_to_diags
-def biases(resampled, verification, grid):
-    global_biases = bias(verification, resampled, grid.area,
-                         dims=grid.area.dims)
-
-    diags = {}
-    for variable in global_biases:
-        lower = variable.lower()
-        diags[f"{lower}_bias_global"] = global_biases[variable]
-
-    return diags
-
-
-@add_to_diags
 def global_averages(resampled, verification, grid):
     diags = {}
     area_averages = (resampled * resampled.area).sum(HORIZONTAL_DIMS) / resampled.area.sum(
@@ -132,7 +119,7 @@ def load_data(
         time=resampled.time[:-1]
     )  # don't use last time point. there is some trouble
 
-    return ds, verification_c48, grid_c48
+    return resampled, verification_c48, grid_c48
 
 
 if __name__ == "__main__":
@@ -154,7 +141,7 @@ if __name__ == "__main__":
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 
-    ds, verification, grid = load_data(
+    resampled, verification, grid = load_data(
         args.url, args.grid_spec, args.catalog
     )
 
@@ -162,15 +149,15 @@ if __name__ == "__main__":
     diags = {}
 
     # maps
-    diags["pwat_run_initial"] = ds.PWAT.isel(time=0)
-    diags["pwat_run_final"] = ds.PWAT.isel(time=-2)
-    diags["pwat_verification_final"] = verification_c48.PWAT.isel(time=-2)
+    diags["pwat_run_initial"] = resampled.PWAT.isel(time=0)
+    diags["pwat_run_final"] = resampled.PWAT.isel(time=-2)
+    diags["pwat_verification_final"] = verification.PWAT.isel(time=-2)
 
-    diags.update(compute_all_diagnostics(resampled, verification_c48, grid_c48))
+    diags.update(compute_all_diagnostics(resampled, verification, grid))
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)
-    diags = diags.merge(grid_c48)
+    diags = diags.merge(grid)
 
     logger.info(f"Saving data to {args.output}")
     with fsspec.open(args.output, mode="wb") as f:
