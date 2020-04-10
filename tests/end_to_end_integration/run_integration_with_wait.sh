@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 SLEEP_TIME=60
 
 function waitForComplete {
