@@ -77,7 +77,7 @@ jobs:
                 make push_images VERSION=latest
             fi
 
-            if [[ -z $CIRCLE_TAG ]]
+            if [[ ! -z "$CIRCLE_TAG" ]]
             then
               make push_images VERSION=$CIRCLE_TAG
             fi
