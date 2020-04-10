@@ -1,3 +1,15 @@
+import logging
+import sys
+
+out_hdlr = logging.StreamHandler(sys.stdout)
+out_hdlr.setFormatter(logging.Formatter(
+    '%(name)s %(asctime)s: %(module)s/L%(lineno)d %(message)s'
+))
+out_hdlr.setLevel(logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, handlers=[out_hdlr])
+logger = logging.getLogger("one_step_diags")
+logger.setLevel(logging.DEBUG)
+
 from vcm.cloud.fsspec import get_fs, get_fs_with_retry_cat, get_protocol
 from vcm.cloud.gsutil import copy
 from fv3net.diagnostics.one_step_jobs.data_funcs_one_step import (
@@ -36,18 +48,6 @@ import argparse
 import xarray as xr
 import numpy as np
 import os
-import logging
-import sys
-
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger("one_step_diags")
-logger.setLevel(logging.DEBUG)
-out_hdlr = logging.StreamHandler(sys.stdout)
-out_hdlr.setFormatter(logging.Formatter(
-    '%(name)s %(asctime)s: %(module)s/L%(lineno)d %(message)s'
-))
-out_hdlr.setLevel(logging.DEBUG)
-logger.addHandler(out_hdlr)
 
 
 def _create_arg_parser():
