@@ -1,4 +1,5 @@
 import argparse
+import fsspec
 import os
 import shutil
 import xarray as xr
@@ -17,6 +18,7 @@ from .data import (
 from .diagnostics import plot_diagnostics
 from .create_metrics import create_metrics_dataset
 from .plot_metrics import plot_metrics
+from fv3net.regression.sklearn.train import MODEL_CONFIG_FILENAME
 
 DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
@@ -48,12 +50,12 @@ if __name__ == "__main__":
         help="Path to C48 coarsened high res diagnostic data.",
     )
     parser.add_argument(
+        "variable_names_file", type=str, help="yml with variable name information"
+    )
+    parser.add_argument(
         "output_path",
         type=str,
         help="Output dir to write results to. Can be local or a GCS path.",
-    )
-    parser.add_argument(
-        "variable_names_file", type=str, help="yml with variable name information"
     )
     parser.add_argument(
         "--num_test_zarrs",
@@ -168,8 +170,16 @@ if __name__ == "__main__":
         ds_pred, ds_test, ds_hires, output_dir, DPI_FIGURES, names
     )
 
+    with fsspec.open(os.path.join(args.model_path, MODEL_CONFIG_FILENAME)) as f:
+        model_config = yaml.safe_load(f)
+    metadata = {**model_config, **vars(args)}
     combined_report_sections = {**metrics_plot_sections, **diag_report_sections}
-    create_report(combined_report_sections, "ml_offline_diagnostics", output_dir)
+    create_report(
+        combined_report_sections,
+        "ml_offline_diagnostics",
+        output_dir,
+        metadata=metadata,
+    )
 
     fs_output = get_fs(args.output_path)
     if proto == "gs":
