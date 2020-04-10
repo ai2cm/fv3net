@@ -5,7 +5,6 @@ import zarr
 import fv3gfs
 from fv3gfs._wrapper import get_time
 from fv3net import runtime
-import fv3util
 from mpi4py import MPI
 
 logging.basicConfig(level=logging.DEBUG)

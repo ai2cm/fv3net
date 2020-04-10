@@ -32,4 +32,4 @@ def update(model, state, dt):
         specific_humidity=state["specific_humidity"] + tend["dQ2"] * dt,
         air_temperature=state["air_temperature"] + tend["dQ1"] * dt,
     )
-    return {key: state[key] for key in updated}, {key: state[key] for key in tend}
+    return {key: updated[key] for key in updated}, {key: tend[key] for key in tend}
