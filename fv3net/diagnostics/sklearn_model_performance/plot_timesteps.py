@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 
 
-def plot_metadata(train_times, test_times, output_dir):
+def plot_timestep_counts(train_times, test_times, output_dir):
     report_sections = {}
     _plot_daily_hourly_count(train_times, "Training data").savefig(
         os.path.join(output_dir, f"count_of_training_times_used.png")

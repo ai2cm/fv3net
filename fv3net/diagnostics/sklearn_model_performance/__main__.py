@@ -20,8 +20,11 @@ from .data import (
 from .diagnostics import plot_diagnostics
 from .create_metrics import create_metrics_dataset
 from .plot_metrics import plot_metrics
-from .plot_metadata import plot_metadata
-from fv3net.regression.sklearn.train import MODEL_CONFIG_FILENAME, TIMESTEPS_USED_FILENAME
+from .plot_timesteps import plot_timestep_counts
+from fv3net.regression.sklearn.train import (
+    MODEL_CONFIG_FILENAME,
+    TIMESTEPS_USED_FILENAME,
+)
 
 DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
@@ -183,16 +186,18 @@ if __name__ == "__main__":
         ds_pred, ds_test, ds_hires, output_dir, DPI_FIGURES, names
     )
 
+    timesteps_train, timesteps_test = get_timesteps_used(args.model_path, ds_test)
+    timesteps_plots = plot_timestep_counts(timesteps_train, timesteps_test, output_dir)
+    combined_report_sections = {
+        **timesteps_plots,
+        **metrics_plot_sections,
+        **diag_report_sections,
+    }
+
     with fsspec.open(os.path.join(args.model_path, MODEL_CONFIG_FILENAME)) as f:
         model_config = yaml.safe_load(f)
-
-    timesteps_train, timesteps_test = get_timesteps_used(args.model_path, ds_test)
-    print(timesteps_train)
-    print(timesteps_test)
-    metadata_plot_sections = plot_metadata(timesteps_train, timesteps_test, output_dir)
-
     metadata = {**model_config, **vars(args)}
-    combined_report_sections = {**metadata_plot_sections, **metrics_plot_sections, **diag_report_sections}
+
     create_report(
         combined_report_sections,
         "ml_offline_diagnostics",
