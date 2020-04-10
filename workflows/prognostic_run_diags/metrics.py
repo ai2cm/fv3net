@@ -1,3 +1,10 @@
+"""Compute and print metrics from diagonstic output
+
+Usage:
+
+    metrics.py <path to diagnostics>
+
+"""
 from typing import Callable, Mapping
 import xarray as xr
 from toolz import curry
@@ -81,7 +88,12 @@ def drift_3day(diags):
 if __name__ == "__main__":
     import sys
 
-    path = sys.argv[1]
+    try:
+        path = sys.argv[1]
+    except IndexError:
+        print(__doc__, file=sys.stderr)
+        sys.exit(1)
+
     diags = xr.open_dataset(path)
     diags["time"] = diags.time - diags.time[0]
     metrics = compute_all_metrics(diags)
