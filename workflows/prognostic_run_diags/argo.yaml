@@ -51,7 +51,7 @@ spec:
             memory: "6Gi"
             cpu: "1000m"
        
-   - name: regrid
+   - name: save-diagnostics
      inputs:
       parameters:
       - name: run
@@ -85,3 +85,10 @@ spec:
         limits:
             memory: "6Gi"
             cpu: "1000m"
+    - name: compute metrics
+      container:
+        image: us.gcr.io/vcm-ml/fv3net:v0.1.1
+      inputs: 
+        artifacts:
+        - name: diags
+          path: '{{inputs.para'

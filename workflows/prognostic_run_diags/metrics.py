@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Compute and print metrics from diagonstic output
 
 Usage:
