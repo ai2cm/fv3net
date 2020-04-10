@@ -53,17 +53,6 @@ jobs:
       - gcp-gcr/gcr-auth:
           gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - checkout
-      - run: |
-          sudo apt-get install make jq wget -y
-          sudo wget -qO /bin/yq https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_386
-          sudo chmod +x /bin/yq
-      - run: # adds proper end_to_end_configuration image tags into image for integration testing
-          name: "Set up configuration for end_to_end integration test"
-          command: |
-            if [[ -z $CIRCLE_TAG ]]; then
-              CIRCLE_TAG=latest
-            fi
-            ./tests/end_to_end_integration/.test_run_scripts/prepare_integration_test_configs.sh $CIRCLE_TAG
       - run:
           name: "Pull submodules"
           command: |

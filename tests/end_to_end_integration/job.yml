@@ -3,8 +3,7 @@ kind: Job
 metadata:
   labels:
     app: integration-test
-  name: end-to-end-integration
-  namespace: default
+  name: $JOBNAME
 spec:
   backoffLimit: 0
   template:
@@ -14,8 +13,8 @@ spec:
           - /usr/bin/init_kubeconfig.sh
         args:
           - workflows/end_to_end/submit_workflow.sh
-          - tests/end_to_end_integration/end_to_end_configuration.yml
-        image: us.gcr.io/vcm-ml/fv3net:latest
+          - /etc/config/end-to-end.yml
+        image: $FV3NET_IMAGE
         imagePullPolicy: Always
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -31,6 +30,8 @@ spec:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
             readOnly: true
+          - mountPath:  /etc/config
+            name: end-to-end-config
       restartPolicy: Never
       terminationGracePeriodSeconds: 30
       tolerations:
@@ -42,3 +43,7 @@ spec:
           secret:
             defaultMode: 444
             secretName: gcp-key
+        - name: end-to-end-config
+          configMap:
+            name: $CONFIGMAP
+            

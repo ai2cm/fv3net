@@ -60,8 +60,7 @@ build_ci_image:
 
 # run integration tests
 run_integration_tests:
-	./tests/end_to_end_integration/.test_run_scripts/prepare_integration_test_configs.sh $(VERSION)
-	./tests/end_to_end_integration/.test_run_scripts/run_integration_with_wait.sh
+	./tests/end_to_end_integration/run_integration_with_wait.sh $(VERSION)
 
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images

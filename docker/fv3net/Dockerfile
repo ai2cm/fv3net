@@ -8,7 +8,7 @@ RUN jupyter labextension install @pyviz/jupyterlab_pyviz
 FROM google/cloud-sdk:288.0.0
 
 RUN apt-get update && \
-    apt-get install -y gfortran jq curl kubectl
+    apt-get install -y gfortran jq curl kubectl gettext
 
 # setup docker
 COPY --from=build /opt/python /opt/python
@@ -24,8 +24,8 @@ RUN chmod +x /usr/bin/entrypoint.sh
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 
 # Add rest of fv3net directory
-COPY . /opt/fv3net
-WORKDIR /opt/fv3net
+COPY . /fv3net
+WORKDIR /fv3net
 
 # setup the local python packages
 RUN pip install --no-deps -e . external/fv3config external/vcm external/vcm/external/mappm
