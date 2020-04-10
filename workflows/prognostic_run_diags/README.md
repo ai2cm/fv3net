@@ -4,7 +4,7 @@
 
 | metric |  description| |
 |-|-|-|
-|rmse3day/{variable} | average RMSE. (average of 3 hourly RMSE)| z500 |
+|rmse_3day/{variable} | average RMSE. (average of 3 hourly RMSE)| z500 |
 |drift3day/{variable} |  Day 3 average - Day 1 average | tmplowest |
 
 
