@@ -108,7 +108,8 @@ spec:
             path: /metrics.json
             gcs:
               bucket: vcm-ml-data
-              key: "{{workflows.parameters.output_url}}/{{inputs.parameters.runid}}.json"
+              # key: "{{workflows.parameters.output_url}}/{{inputs.parameters.runid}}.json"
+              key: "out.json"
       container:
         image: us.gcr.io/vcm-ml/metrics:v0.1.0
         command: ["bash", "-c"]
