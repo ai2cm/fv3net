@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
-kind: Workflow
+kind: WorkflowTemplate
 metadata:
-  generateName: prognostic-metrics-
+  name: prognostic-metrics
 spec:
   entrypoint: metrics
   templates:
