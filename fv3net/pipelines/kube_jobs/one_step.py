@@ -26,6 +26,8 @@ KUBERNETES_CONFIG_DEFAULT = {
     "cpu_count": 6,
     "gcp_secret": "gcp-key",
     "image_pull_policy": "Always",
+    "capture_output":  False,
+    "memory_gb" : 6.0,
 }
 
 logger = logging.getLogger(__name__)
@@ -183,8 +185,6 @@ def submit_jobs(
     logger.info(pprint.pformat(locals()))
     # kube kwargs are shared by all jobs
     kube_kwargs = get_run_kubernetes_kwargs(one_step_config["kubernetes"], config_url)
-    kube_kwargs["capture_output"] = False
-    kube_kwargs["memory_gb"] = 6.0
     logger.info(
         "To view job statuses: "
         f"`kubectl get jobs -lorchestrator-jobs={job_labels['orchestrator-jobs']}`"
