@@ -80,6 +80,8 @@ def load_data_and_predict_with_ml(
         model_path,
         num_test_zarrs,
         names["pred_vars_to_keep"],
+        names["init_time_dim"],
+        names["coord_z_center"],
         model_type,
         downsample_time_factor,
     )
