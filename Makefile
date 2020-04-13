@@ -24,21 +24,27 @@ endif
 # COMMANDS                                                                      #
 #################################################################################
 
-.PHONY: build_images push_image
+.PHONY: build_images push_image run_integration_tests image_name_explicit
+
+image_name = us.gcr.io/vcm-ml/$(1):$(VERSION)
+
+image_name_explicit:
+image_name_%: image_name_explicit
+	@echo $(call image_name,$*)
 
 # pattern rule for building docker images
 build_image_%:
-	docker build . -f docker/$*/Dockerfile -t us.gcr.io/vcm-ml/$*:$(VERSION)
+	docker build . -f docker/$*/Dockerfile -t $(call image_name,$*)
 
 enter_%:
-	docker run -ti -w /fv3net -v $(shell pwd):/fv3net us.gcr.io/vcm-ml/$*:$(VERSION) bash
+	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $(call image_name,$*) bash
 
 build_images: build_image_fv3net build_image_prognostic_run
 
 push_images: push_image_prognostic_run push_image_fv3net
 
 push_image_%:
-	docker push us.gcr.io/vcm-ml/$*:$(VERSION)
+	docker push $(call image_name,$*)
 
 enter: build_image
 	docker run -it -v $(shell pwd):/code \
@@ -51,6 +57,10 @@ enter: build_image
 build_ci_image:
 	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
+# run integration tests
+run_integration_tests:
+	./tests/end_to_end_integration/.test_run_scripts/prepare_integration_test_configs.sh $(VERSION)
+	./tests/end_to_end_integration/.test_run_scripts/run_integration_with_wait.sh
 
 test:
 	pytest external/* tests

@@ -11,7 +11,6 @@ from typing import List, Dict
 
 import fv3config
 from . import utils
-from ..common import list_timesteps, subsample_timesteps_at_interval
 from vcm.cloud.fsspec import get_fs
 
 STDOUT_FILENAME = "stdout.log"
@@ -31,24 +30,6 @@ KUBERNETES_CONFIG_DEFAULT = {
 }
 
 logger = logging.getLogger(__name__)
-
-
-def timesteps_to_process(
-    input_url: str, n_steps: int, subsample_frequency: int = None,
-) -> List[str]:
-    """
-    Return list of timesteps left to process. This is all the timesteps in
-    input_url at the subsampling frequency (if specified) minus the
-    successfully completed timesteps in output_url. List is
-    also limited to a length of n_steps (which can be None, i.e. no limit)
-    """
-    to_do = list_timesteps(input_url)
-    if subsample_frequency is not None:
-        to_do = subsample_timesteps_at_interval(to_do, subsample_frequency)
-    timestep_list = sorted(to_do)[:n_steps]
-
-    logger.info(f"Number of times to process: {len(timestep_list)}")
-    return timestep_list
 
 
 def _current_date_from_timestep(timestep: str) -> List[int]:

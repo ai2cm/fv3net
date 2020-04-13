@@ -141,11 +141,11 @@ def _align_sfc_step_da(da: xr.DataArray, step_names: Sequence) -> xr.DataArray:
 
 
 def init_data_var(group: zarr.Group, array: xr.DataArray, nt: int):
-    logger.info(f"Initializing variable: {array.name}")
+    logger.info(f"Initializing full array variable: {array.name}")
     shape = (nt,) + array.data.shape
     chunks = (1,) + tuple(size[0] for size in array.data.chunks)
-    out_array = group.empty(
-        name=array.name, shape=shape, chunks=chunks, dtype=array.dtype
+    out_array = group.full(
+        name=array.name, shape=shape, chunks=chunks, dtype=array.dtype, fill_value="NaN"
     )
     out_array.attrs.update(array.attrs)
     out_array.attrs["_ARRAY_DIMENSIONS"] = ["initial_time"] + list(array.dims)
@@ -193,7 +193,9 @@ def _convert_time_delta_to_float_seconds(a):
 
 
 def _merge_monitor_data(paths: Mapping[str, str]) -> xr.Dataset:
-    datasets = {key: xr.open_zarr(val) for key, val in paths.items()}
+    datasets = {
+        key: xr.open_zarr(val, mask_and_scale=False) for key, val in paths.items()
+    }
     time = _get_forecast_time(datasets["begin"].time)
     datasets_no_time = [val.drop("time") for val in datasets.values()]
     steps = list(datasets.keys())

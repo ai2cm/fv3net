@@ -1,10 +1,10 @@
-# Usage
+## fregrid workflow
 
 This workflow can be used to regrid cubed sphere FV3 data using GFDL's `fregrid` utility using [argo][1]. In this workflow, you specify the input data (the prefix before `.tile?.nc`), the destination for the regridded outputs, and a comma separated list of variables to regrid from the source file.
 
 Note: an image of this workflow is currently uploaded and usable under Kubeflow as the pipeline `regrid_individual_file`.  If the pipeline is not available please follow the process for building a docker image below.
 
-## Building a docker image for Kubeflow
+### Building a docker image for Kubeflow
 
 To build the docker image for this workflow and push it to GCR run
     
@@ -16,7 +16,7 @@ Assuming kubectl is configured correctly, and the argo CLI is installed locally,
 
 The other parameters describe below can be passed with the -p flags.
 
-# Parameters
+### Parameters
 
 A description of user defined parameters used for the `regrid_individual_file` pipeline.
 

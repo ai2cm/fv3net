@@ -5,7 +5,7 @@ import yaml
 from pathlib import Path
 
 from fv3net.pipelines.kube_jobs import one_step
-from fv3net.pipelines.common import get_alphanumeric_unique_tag
+from fv3net.pipelines.common import get_alphanumeric_unique_tag, list_timesteps
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
@@ -33,6 +33,14 @@ def _create_arg_parser():
         "output_url", type=str, help="Remote url where model output will be saved."
     )
     parser.add_argument(
+        "--i-start",
+        type=int,
+        default=None,
+        required=False,
+        help="Index of timestep at which to start. By default starts at first "
+        "timestep. Useful for testing.",
+    )
+    parser.add_argument(
         "--n-steps",
         type=int,
         default=None,
@@ -58,7 +66,7 @@ def _create_arg_parser():
         "--config-version",
         type=str,
         required=False,
-        default="v0.2",
+        default="v0.3",
         help="Default fv3config.yml version to use as the base configuration. "
         "This should be consistent with the fv3gfs-python version in the specified "
         "docker image.",
@@ -87,16 +95,16 @@ if __name__ == "__main__":
     else:
         config_url = args.config_url
 
-    timestep_list = one_step.timesteps_to_process(
-        args.input_url, args.n_steps, subsample_frequency=args.init_frequency,
-    )
+    timesteps = list_timesteps(args.input_url)[
+        args.i_start : args.i_start + args.n_steps
+    ]
 
     one_step_config["kubernetes"]["runfile"] = RUNFILE
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
 
     local_vgrid_file = os.path.join(PWD, one_step.VERTICAL_GRID_FILENAME)
     one_step.submit_jobs(
-        timestep_list,
+        timesteps,
         workflow_name,
         one_step_config,
         args.input_url,

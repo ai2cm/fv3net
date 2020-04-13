@@ -1,9 +1,11 @@
-#### Usage
+## Coarsen C384 Diagnostics
+
+### Usage
 Run 
 `workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.sh`
 `  {INPUT_LOCATION} {CONFIG_LOCATION} {OUTPUT_LOCATION}`
 
-#### Description
+### Description
 This script coarsens a subset of diagnostic variables from the high resolution runs
 and saves them as a zarr in a coarsened resolution. Input data must be in the form
 of coarsened C384 SHiELD diagnostic .zarrs. The input and output locations
