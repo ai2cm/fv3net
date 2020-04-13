@@ -4,6 +4,7 @@ import datetime
 
 report_html = Template(
     """
+    <h1>{{report_name}}</h1>
     Report created {{now}}
     {% if metadata is not none %}
         <h2>Metadata</h2>
@@ -31,7 +32,8 @@ def create_report(report_sections, report_name, output_dir, metadata=None):
 
     Args:
         report_sections: dict {section name: [figure filenames in section]}
-        report_name: prepended to .html for final report file
+        report_name: prepended to .html for final report file and used as a title
+            at top of report with underscores replaced by spaces
         output_dir: dir in which figure files are located and where report html
         will be saved
         metadata (dict, optional): metadata to be printed at top of report.
@@ -42,6 +44,9 @@ def create_report(report_sections, report_name, output_dir, metadata=None):
     """
     with open(f"{output_dir}/{report_name}.html", "w") as f:
         html = report_html.render(
-            sections=report_sections, metadata=metadata, now=datetime.datetime.now()
+            report_name=report_name.replace("_", " "),
+            sections=report_sections,
+            metadata=metadata,
+            now=datetime.datetime.now(),
         )
         f.write(html)
