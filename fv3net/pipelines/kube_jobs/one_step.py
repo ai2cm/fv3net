@@ -31,6 +31,8 @@ KUBERNETES_CONFIG_DEFAULT = {
     "memory_gb": 6.0,
 }
 
+KUBERNETES_NAMESPACE = "default"
+
 logger = logging.getLogger(__name__)
 
 
@@ -162,7 +164,9 @@ def _get_job(config_url, tmp_dir, labels, **kwargs) -> V1Job:
     job.spec.backoff_limit = 3
 
     # make the name better
+    job.metadata.name = None
     job.metadata.generate_name = "one-steps-"
+    print(job)
 
     return job
 
@@ -235,10 +239,10 @@ def submit_jobs(
         # avoids this unecessary upload step.
         local_tmp_dir = "/tmp/null"
 
-        job = _get_job(model_config_url, local_tmp_dir, job_labels, **kwargs)
+        job = _get_job(model_config_url, local_tmp_dir, job_labels, **kube_kwargs)
 
         # submit the k8s job
-        client.create_namespaced_job(job)
+        client.create_namespaced_job(KUBERNETES_NAMESPACE, job)
 
         if wait:
             utils.wait_for_complete(labels, sleep_interval=10)
