@@ -153,11 +153,7 @@ def get_run_kubernetes_kwargs(user_kubernetes_config, config_url):
 
 def _get_job(config_url, tmp_dir, labels, **kwargs) -> V1Job:
     job: V1Job = fv3config.run_kubernetes(
-        config_url,
-        tmp_dir,
-        job_labels=labels,
-        submit=False,
-        **kwargs,
+        config_url, tmp_dir, job_labels=labels, submit=False, **kwargs,
     )
 
     # increase back off limit
