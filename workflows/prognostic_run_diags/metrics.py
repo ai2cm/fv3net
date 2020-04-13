@@ -9,6 +9,7 @@ Usage:
 from typing import Callable, Mapping
 import xarray as xr
 from toolz import curry
+import json
 
 _METRICS = []
 
@@ -99,4 +100,4 @@ if __name__ == "__main__":
     diags["time"] = diags.time - diags.time[0]
     metrics = compute_all_metrics(diags)
     # print to stdout, use pipes to save
-    print(metrics)
+    print(json.dumps(metrics))
