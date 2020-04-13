@@ -17,8 +17,7 @@ latest
 * Add `nudge_to_obs` module to `kube_jobs`, which helps with the configuration of FV3GFS model runs that are nudged towards GFS analysis
 * Add public function: vcm.convert_timestamps
 * Add pipeline to load C384 restart data into a zarr
-* Change output format of the one step run workflow to big.zarr (instead of individual dirs for each timestep)
-* Train data pipeline ingests big zarr from one step output
+* One step run workflow outputs a single zarr as output (instead of individual directories for each timestep), downstream workflows are adjusted to use this data format
 * Train data pipeline and offline diagnostics workflow read in variable names information from yaml provided to python
 * Force load data in diagnostics workflow before compute and plot
 * Improved logging when running FV3 model
