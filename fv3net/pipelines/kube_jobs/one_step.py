@@ -8,6 +8,8 @@ import yaml
 import re
 from copy import deepcopy
 from typing import List, Dict
+import kubernetes
+from kubernetes.client import V1Job
 
 import fv3config
 from . import utils
@@ -25,8 +27,8 @@ KUBERNETES_CONFIG_DEFAULT = {
     "cpu_count": 6,
     "gcp_secret": "gcp-key",
     "image_pull_policy": "Always",
-    "capture_output":  False,
-    "memory_gb" : 6.0,
+    "capture_output": False,
+    "memory_gb": 6.0,
 }
 
 logger = logging.getLogger(__name__)
@@ -147,6 +149,24 @@ def get_run_kubernetes_kwargs(user_kubernetes_config, config_url):
     return kubernetes_config
 
 
+def _get_job(config_url, tmp_dir, labels, **kwargs) -> V1Job:
+    job: V1Job = fv3config.run_kubernetes(
+        config_url,
+        tmp_dir,
+        job_labels=labels,
+        submit=False,
+        **kwargs,
+    )
+
+    # increase back off limit
+    job.spec.backoff_limit = 3
+
+    # make the name better
+    job.metadata.generate_name = "one-steps-"
+
+    return job
+
+
 def submit_jobs(
     timestep_list: List[str],
     workflow_name: str,
@@ -159,6 +179,10 @@ def submit_jobs(
     local_vertical_grid_file=None,
 ) -> None:
     """Submit one-step job for all timesteps in timestep_list"""
+
+    # load API objects needed to submit jobs
+    kubernetes.config.load_kube_config()
+    client = kubernetes.client.BatchV1Api()
 
     zarr_url = os.path.join(output_url, "big.zarr")
 
@@ -210,9 +234,12 @@ def submit_jobs(
         # since all the data is in the big zarr. Setting outdir to a pod-local path
         # avoids this unecessary upload step.
         local_tmp_dir = "/tmp/null"
-        fv3config.run_kubernetes(
-            model_config_url, local_tmp_dir, job_labels=labels, **kube_kwargs
-        )
+
+        job = _get_job(model_config_url, local_tmp_dir, job_labels, **kwargs)
+
+        # submit the k8s job
+        client.create_namespaced_job(job)
+
         if wait:
             utils.wait_for_complete(job_labels, sleep_interval=10)
 
