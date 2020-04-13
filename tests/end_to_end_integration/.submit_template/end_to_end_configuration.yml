@@ -49,6 +49,7 @@ experiment:
           from: one_step_run
         diagnostics_data:
           from: coarsen_diagnostics
+        variable_filename: tests/end_to_end_integration/create_training_data_variable_names.yml
         --timesteps-per-output-file: 1
         --train-fraction: 0.5
         
@@ -68,6 +69,7 @@ experiment:
           from: create_training_data
         diagnostics_data:
           from: coarsen_diagnostics
+        variable_filename: tests/end_to_end_integration/test_sklearn_variable_names.yml
         --num_test_zarrs: 2
 
     prognostic_run:

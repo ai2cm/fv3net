@@ -6,8 +6,8 @@ num_batches: 10
 mask_to_surface_type: none
 files_per_batch: 13
 input_variables:
-  - T
-  - sphum
+  - air_temperature
+  - specific_humidity
 output_variables:
   - dQ1
   - dQ2

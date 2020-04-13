@@ -1,10 +1,11 @@
 import argparse
 import os
+import tempfile
 import xarray as xr
+import yaml
+
 from vcm.cloud.fsspec import get_fs
 from vcm.cloud.gsutil import copy
-import tempfile
-from vcm.cubedsphere.constants import INIT_TIME_DIM
 
 from ..create_report import create_report
 from ..data import merge_comparison_datasets
@@ -17,20 +18,6 @@ from .diagnostics import plot_diagnostics
 from .create_metrics import create_metrics_dataset
 from .plot_metrics import plot_metrics
 
-DATA_VARS = [
-    "dQ1",
-    "dQ2",
-    "sphum",
-    "T",
-    "tsea",
-    "net_precipitation",
-    "net_heating",
-    "net_precipitation_physics",
-    "net_heating_physics",
-    "net_precipitation_ml",
-    "net_heating_ml",
-    "delp",
-]
 DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
 DATASET_NAME_SHIELD_HIRES = "coarsened_high_res"
@@ -45,28 +32,33 @@ DPI_FIGURES = {
 }
 
 
-def compute_metrics_and_plot(ds, output_dir):
+def _is_remote(path):
+    return path.startswith("gs://")
+
+
+def compute_metrics_and_plot(ds, output_dir, names):
     # TODO refactor this "and" function into two routines
     ds_pred = ds.sel(dataset=DATASET_NAME_PREDICTION)
     ds_test = ds.sel(dataset=DATASET_NAME_FV3_TARGET)
     ds_hires = ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)
 
-    ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires)
+    ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires, names)
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
 
     # TODO This should be another script
-    metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES)
+    metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES, names)
 
     diag_report_sections = plot_diagnostics(
-        ds_pred, ds_test, ds_hires, output_dir=output_dir, dpi_figures=DPI_FIGURES
+        ds_pred,
+        ds_test,
+        ds_hires,
+        output_dir=output_dir,
+        dpi_figures=DPI_FIGURES,
+        names=names,
     )
 
     combined_report_sections = {**metrics_plot_sections, **diag_report_sections}
     create_report(combined_report_sections, "ml_offline_diagnostics", output_dir)
-
-
-def _is_remote(path):
-    return path.startswith("gs://")
 
 
 def load_data_and_predict_with_ml(
@@ -76,6 +68,7 @@ def load_data_and_predict_with_ml(
     num_test_zarrs,
     model_type,
     downsample_time_factor,
+    names,
 ):
 
     # if output path is remote GCS location, save results to local output dir first
@@ -83,27 +76,53 @@ def load_data_and_predict_with_ml(
     # TODO this function mixes I/O and computation
     # Should just be 1. load_data, 2. make a prediction
     ds_test, ds_pred = predict_on_test_data(
-        test_data_path, model_path, num_test_zarrs, model_type, downsample_time_factor,
+        test_data_path,
+        model_path,
+        num_test_zarrs,
+        names["pred_vars_to_keep"],
+        names["init_time_dim"],
+        names["coord_z_center"],
+        model_type,
+        downsample_time_factor,
     )
 
     fs_input = get_fs(args.test_data_path)
 
-    # TODO these should be pure functions rather than mutating their arguments
-    add_column_heating_moistening(ds_test)
-    add_column_heating_moistening(ds_pred)
+    ds_test = add_column_heating_moistening(
+        ds_test,
+        names["suffix_coarse_train_diag"],
+        names["var_pressure_thickness"],
+        names["var_q_moistening_ml"],
+        names["var_q_heating_ml"],
+        names["coord_z_center"],
+    )
+
+    ds_pred = add_column_heating_moistening(
+        ds_pred,
+        names["suffix_coarse_train_diag"],
+        names["var_pressure_thickness"],
+        names["var_q_moistening_ml"],
+        names["var_q_heating_ml"],
+        names["coord_z_center"],
+    )
 
     # TODO Do all data merginig and loading before computing anything
-    init_times = list(set(ds_test[INIT_TIME_DIM].values))
-    ds_hires = load_high_res_diag_dataset(high_res_data_path, init_times)
+    init_times = list(set(ds_test[names["init_time_dim"]].values))
+    ds_hires = load_high_res_diag_dataset(
+        high_res_data_path,
+        init_times,
+        names["init_time_dim"],
+        names["renamed_hires_grid_vars"],
+    )
     grid_path = os.path.join(os.path.dirname(test_data_path), "grid_spec.zarr")
 
     # TODO ditto: do all merging of data before computing anything
     grid = xr.open_zarr(fs_input.get_mapper(grid_path))
-    slmsk = ds_test["slmsk"].isel({INIT_TIME_DIM: 0})
+    slmsk = ds_test[names["var_land_sea_mask"]].isel({names["init_time_dim"]: 0})
 
     # TODO ditto: do all merging of data before computing anything
     return merge_comparison_datasets(
-        data_vars=DATA_VARS,
+        data_vars=names["data_vars"],
         datasets=[ds_pred, ds_test, ds_hires],
         dataset_labels=[
             DATASET_NAME_PREDICTION,
@@ -129,6 +148,9 @@ if __name__ == "__main__":
         "high_res_data_path",
         type=str,
         help="Path to C48 coarsened high res diagnostic data.",
+    )
+    parser.add_argument(
+        "variable_names_file", type=str, help="yml with variable name information"
     )
     parser.add_argument(
         "output_path",
@@ -157,6 +179,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     args.test_data_path = os.path.join(args.test_data_path, "test")
 
+    with open(args.variable_names_file, "r") as f:
+        names = yaml.safe_load(f)
+
     # remove trailing slash since in GCS some/path// is different than some/path/
     output_dir = args.output_path.rstrip("/")
 
@@ -171,6 +196,7 @@ if __name__ == "__main__":
         args.num_test_zarrs,
         args.model_type,
         args.downsample_time_factor,
+        names,
     )
 
     # force loading now to avoid I/O issues down the line
@@ -180,7 +206,7 @@ if __name__ == "__main__":
     if _is_remote(args.output_path):
         with tempfile.TemporaryDirectory() as local_dir:
             # TODO another "and" indicates this needs to be refactored.
-            compute_metrics_and_plot(ds, local_dir)
+            compute_metrics_and_plot(ds, local_dir, names)
             copy(local_dir, output_dir)
     else:
-        compute_metrics_and_plot(ds, args.output_path)
+        compute_metrics_and_plot(ds, args.output_path, names)

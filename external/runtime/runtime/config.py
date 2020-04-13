@@ -1,6 +1,6 @@
+from typing import Dict
 import yaml
 import f90nml
-import fv3config
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 
@@ -13,16 +13,11 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
 
-def get_runfile_config():
-    with open(FV3CONFIG_FILENAME) as f:
+def get_config() -> Dict:
+    with open("fv3config.yml") as f:
         config = yaml.safe_load(f)
-    return dotdict(config["scikit_learn"])
+    return config
 
 
-def get_config():
-    """Return fv3config dictionary"""
-    return fv3config.config_from_yaml(FV3CONFIG_FILENAME)
-
-
-def get_namelist():
+def get_namelist() -> f90nml.Namelist:
     return f90nml.read("input.nml")
