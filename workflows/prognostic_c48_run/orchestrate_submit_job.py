@@ -72,7 +72,8 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
 def _get_onestep_config(restart_path, timestep):
     config_path = os.path.join(
-        restart_path, "one_step_config", timestep, CONFIG_FILENAME)
+        restart_path, "one_step_config", timestep, CONFIG_FILENAME
+    )
     fs = get_fs(config_path)
     with fs.open(config_path) as f:
         config = yaml.safe_load(f)

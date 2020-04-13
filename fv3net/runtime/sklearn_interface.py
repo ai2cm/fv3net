@@ -7,6 +7,7 @@ import xarray as xr
 __all__ = ["open_model", "predict", "update"]
 
 import logging
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 

@@ -38,7 +38,8 @@ def run(args, pipeline_args, names):
     """
     fs = get_fs(args.gcs_input_data_path)
     ds_full = xr.open_zarr(
-        fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME)))
+        fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
+    )
     ds_full = _str_time_dim_to_datetime(ds_full, names["init_time_dim"])
     _save_grid_spec(
         ds_full,
