@@ -41,14 +41,12 @@ DPI_FIGURES = {
 }
 
 
-def get_timesteps_used(path, ds):
-    """Given path to ML model and test dataset, return lists of datetimes for
-    training and testing times"""
+def get_model_training_timesteps(path):
+    """Given path to directory containing ML model and return list of datetimes for
+    training times"""
     with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME), "r") as f:
-        timesteps_train = f.read().splitlines()
-    datetimes_train = list(map(vcm.parse_datetime_from_str, timesteps_train))
-    datetimes_test = ds[names["init_time_dim"]].values
-    return datetimes_train, datetimes_test
+        timesteps = f.read().splitlines()
+    return list(map(vcm.parse_datetime_from_str, timesteps))
 
 
 if __name__ == "__main__":
@@ -187,12 +185,12 @@ if __name__ == "__main__":
         ds_pred, ds_test, ds_hires, output_dir, DPI_FIGURES, names
     )
 
-    timesteps_train, timesteps_test = get_timesteps_used(args.model_path, ds_test)
-    timesteps_plots = plot_timestep_counts(
-        timesteps_train, timesteps_test, output_dir, DPI_FIGURES
+    timesteps_train = get_model_training_timesteps(args.model_path)
+    timesteps_plot_section = plot_timestep_counts(
+        timesteps_train, init_times, output_dir, DPI_FIGURES
     )
     combined_report_sections = {
-        **timesteps_plots,
+        **timesteps_plot_section,
         **metrics_plot_sections,
         **diag_report_sections,
     }
