@@ -5,10 +5,10 @@ suffix_coarse_train: "train"
 
 # maps data variable to its source term name
 var_source_name_map:
-    "x_wind": "dQU"
-    "y_wind": "dQV"
-    "air_temperature": "dQ1"
-    "specific_humidity": "dQ2"      
+  "x_wind": "dQU"
+  "y_wind": "dQV"
+  "air_temperature": "dQ1"
+  "specific_humidity": "dQ2"      
 
 init_time_dim: "initial_time"
 forecast_time_dim: "forecast_time"
