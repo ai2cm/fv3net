@@ -153,7 +153,7 @@ def get_run_kubernetes_kwargs(user_kubernetes_config, config_url):
 
 def _get_job(config_url, tmp_dir, labels, **kwargs) -> V1Job:
     job: V1Job = fv3config.run_kubernetes(
-        config_url, tmp_dir, job_labels=labels, submit=False, **kwargs,
+        config_url, tmp_dir, submit=False, **kwargs,
     )
 
     # increase back off limit
@@ -162,7 +162,9 @@ def _get_job(config_url, tmp_dir, labels, **kwargs) -> V1Job:
     # make the name better
     job.metadata.name = None
     job.metadata.generate_name = "one-steps-"
-    print(job)
+
+    job.metadata.labels = labels
+    job.spec.template.metadata.labels = labels
 
     return job
 
@@ -235,7 +237,7 @@ def submit_jobs(
         # avoids this unecessary upload step.
         local_tmp_dir = "/tmp/null"
 
-        job = _get_job(model_config_url, local_tmp_dir, job_labels, **kube_kwargs)
+        job = _get_job(model_config_url, local_tmp_dir, labels=labels, **kube_kwargs)
 
         # submit the k8s job
         client.create_namespaced_job(KUBERNETES_NAMESPACE, job)

@@ -3,7 +3,6 @@ import pytest
 from typing import Mapping
 
 from fv3net.pipelines.kube_jobs import (
-    wait_for_complete,
     get_base_fv3config,
     job_failed,
     job_complete,
