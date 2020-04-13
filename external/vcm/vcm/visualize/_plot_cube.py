@@ -1,3 +1,4 @@
+from typing import Callable
 from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
     COORD_Y_CENTER,
@@ -241,6 +242,116 @@ def mappable_var(ds: xr.Dataset, var_name: str):
     )
 
 
+def plot_cube_ndarray(
+    plotting_function, lat, lon, array, central_longitude=0.0, **kwargs
+    ):
+    """ Plots tiled cubed sphere for a given subplot axis,
+        using np.ndarrays for all data
+
+    Args:
+        plotting_function (callable):
+            Plotting function to call. May be a method on an ax object, such as `ax.pcolormesh`.
+            Name of matplotlib 2-d plotting function. Available options are
+            "pcolormesh", "contour", and "contourf". Defaults to "pcolormesh".
+        lat (np.ndarray):
+            Array of latitudes with dimensions (tile, y, x). Should be given at cell
+            centers for contour-like functions, or cell corners for pcolormesh.
+        lon (np.ndarray):
+            Array of longitudes with dimensions (tile, y, x). Should be given at cell
+            centers for contour-like functions, or cell corners for pcolormesh.
+        array (np.ndarray):
+            Array of variables values at cell centers, of dimensions (tile, ny, nx)
+        central_longitude (float, optional):
+            Central longitude of the projection. Needed to correct plotting artifacts
+            at boundaries.
+        **kwargs:
+            Keyword arguments to be passed to plotting function.
+
+    Returns:
+        p_handle (obj):
+            matplotlib object handle associated with map subplot
+
+    Example:
+        _, ax = plt.subplots(1, 1, subplot_kw = {'projection': ccrs.Robinson()})
+        h = plot_cube_axes(
+            ds['lat'].values,
+            ds['lon'].values,
+            ds['latb'].values,
+            ds['lonb'].values,
+            ds['T'].isel(time = 0, pfull = 40).values
+            ax.contour,
+        )
+    """
+    masked_array = np.where(
+        _mask_antimeridian_quads(lon, central_longitude), array, np.nan
+    )
+
+    for tile in range(6):
+        # if plotting_function == "pcolormesh":
+        #     x = lonb[tile, :, :]
+        #     y = latb[tile, :, :]
+        # else:
+        #     # contouring
+        x = center_longitudes(lon[tile, :, :])
+        y = lat[tile, :, :]
+        # with warnings.catch_warnings():
+        #     warnings.simplefilter("ignore")
+        p_handle = plotting_function(
+            x, y, masked_array[tile, :, :], **kwargs
+        )
+
+    return p_handle
+
+
+def center_longitudes(lon_array, central_longitude):
+    return np.where(
+        lon_array < (central_longitude + 180.0) % 360.0,
+        lon_array,
+        lon_array - 360.0,
+    )
+
+
+def _validate_cube_shape(lat_shape, lon_shape, latb_shape, lonb_shape, array_shape):
+    if (lon_shape[-1] != 6) or (lat_shape[-1] != 6) or (array_shape[-1] != 6):
+        raise ValueError(
+            """Last axis of each array must have six elements for
+            cubed-sphere tiles."""
+        )
+
+    if (
+        (lon_shape[0] != lat_shape[0])
+        or (lat_shape[0] != array_shape[0])
+        or (lon_shape[1] != lat_shape[1])
+        or (lat_shape[1] != array_shape[1])
+    ):
+        raise ValueError(
+            """Horizontal axis lengths of lat and lon must be equal to
+            those of array."""
+        )
+
+    if (len(lonb_shape) != 3) or (len(latb_shape) != 3) or (len(array_shape) != 3):
+        raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
+
+    if (lonb_shape[-1] != 6) or (latb_shape[-1] != 6) or (array_shape[-1] != 6):
+        raise ValueError(
+            "Tile axis of each array must have six elements for cubed-sphere tiles."
+        )
+
+    if (
+        (lonb_shape[0] != latb_shape[0])
+        or (latb_shape[0] != (array_shape[0] + 1))
+        or (lonb_shape[1] != latb_shape[1])
+        or (latb_shape[1] != (array_shape[1] + 1))
+    ):
+        raise ValueError(
+            """Horizontal axis lengths of latb and lonb
+            must be one greater than those of array."""
+        )
+
+    if (len(lon_shape) != 3) or (len(lat_shape) != 3) or (len(array_shape) != 3):
+        raise ValueError("Lon, lat, and data_var each must be 3-dimensional.")
+
+
 def plot_cube_axes(
     array: np.ndarray,
     lat: np.ndarray,
@@ -293,44 +404,7 @@ def plot_cube_axes(
             ax
         )
     """
-    if (lon.shape[-1] != 6) or (lat.shape[-1] != 6) or (array.shape[-1] != 6):
-        raise ValueError(
-            """Last axis of each array must have six elements for
-            cubed-sphere tiles."""
-        )
-
-    if (
-        (lon.shape[0] != lat.shape[0])
-        or (lat.shape[0] != array.shape[0])
-        or (lon.shape[1] != lat.shape[1])
-        or (lat.shape[1] != array.shape[1])
-    ):
-        raise ValueError(
-            """First and second axes lengths of lat and lon must be equal to
-            those of array."""
-        )
-
-    if (len(lonb.shape) != 3) or (len(latb.shape) != 3) or (len(array.shape) != 3):
-        raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
-
-    if (lonb.shape[-1] != 6) or (latb.shape[-1] != 6) or (array.shape[-1] != 6):
-        raise ValueError(
-            "Last axis of each array must have six elements for cubed-sphere tiles."
-        )
-
-    if (
-        (lonb.shape[0] != latb.shape[0])
-        or (latb.shape[0] != (array.shape[0] + 1))
-        or (lonb.shape[1] != latb.shape[1])
-        or (latb.shape[1] != (array.shape[1] + 1))
-    ):
-        raise ValueError(
-            """First and second axes lengths of latb and lonb
-            must be one greater than those of array."""
-        )
-
-    if (len(lon.shape) != 3) or (len(lat.shape) != 3) or (len(array.shape) != 3):
-        raise ValueError("Lonb, latb, and data_var each must be 3-dimensional.")
+    _validate_cube_shape(lon.shape, lat.shape, lonb.shape, latb.shape, array.shape)
 
     if ax is None:
         ax = plt.gca()
@@ -369,11 +443,7 @@ def plot_cube_axes(
         else:
             # contouring
             lon_tile = lon[:, :, tile]
-            x = np.where(
-                lon_tile < (central_longitude + 180.0) % 360.0,
-                lon_tile,
-                lon_tile - 360.0,
-            )
+            x = center_longitudes(lon[tile, :, :])
             y = lat[:, :, tile]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
