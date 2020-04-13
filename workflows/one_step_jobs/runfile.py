@@ -1,6 +1,6 @@
 import os
 from typing import Sequence, Mapping, cast, Hashable
-from fv3net import runtime
+import runtime
 import logging
 import time
 
@@ -276,6 +276,8 @@ def post_process(
 if __name__ == "__main__":
     import fv3gfs
     from mpi4py import MPI
+
+    runtime.capture_fv3gfs_funcs()
 
     RUN_DIR = os.path.dirname(os.path.realpath(__file__))
 
