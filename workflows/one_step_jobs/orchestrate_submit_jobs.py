@@ -35,7 +35,7 @@ def _create_arg_parser():
     parser.add_argument(
         "--i-start",
         type=int,
-        default=None,
+        default=0,
         required=False,
         help="Index of timestep at which to start. By default starts at first "
         "timestep. Useful for testing.",
@@ -54,13 +54,6 @@ def _create_arg_parser():
         type=str,
         required=False,
         help="Storage path for job configuration files",
-    )
-    parser.add_argument(
-        "--init-frequency",
-        type=int,
-        required=False,
-        help="Frequency (in minutes) to initialize one-step jobs starting from"
-        " the first available timestep.",
     )
     parser.add_argument(
         "--config-version",
@@ -95,9 +88,9 @@ if __name__ == "__main__":
     else:
         config_url = args.config_url
 
-    timesteps = list_timesteps(args.input_url)[
-        args.i_start : args.i_start + args.n_steps
-    ]
+    timesteps = list_timesteps(args.input_url)
+    i_stop = None if args.n_steps is None else args.i_start + args.n_steps
+    timesteps = timesteps[slice(args.i_start, i_stop)]
 
     one_step_config["kubernetes"]["runfile"] = RUNFILE
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
