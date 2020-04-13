@@ -203,7 +203,7 @@ if __name__ == "__main__":
 
     create_report(
         combined_report_sections,
-        "ml_offline_diagnostics",
+        "ML_offline_diagnostics",
         output_dir,
         metadata=metadata,
     )
