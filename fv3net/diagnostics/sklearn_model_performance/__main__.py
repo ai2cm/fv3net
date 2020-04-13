@@ -80,6 +80,8 @@ def load_data_and_predict_with_ml(
         model_path,
         num_test_zarrs,
         names["pred_vars_to_keep"],
+        names["init_time_dim"],
+        names["coord_z_center"],
         model_type,
         downsample_time_factor,
     )
@@ -106,7 +108,12 @@ def load_data_and_predict_with_ml(
 
     # TODO Do all data merginig and loading before computing anything
     init_times = list(set(ds_test[names["init_time_dim"]].values))
-    ds_hires = load_high_res_diag_dataset(high_res_data_path, init_times)
+    ds_hires = load_high_res_diag_dataset(
+        high_res_data_path,
+        init_times,
+        names["init_time_dim"],
+        names["renamed_hires_grid_vars"],
+    )
     grid_path = os.path.join(os.path.dirname(test_data_path), "grid_spec.zarr")
 
     # TODO ditto: do all merging of data before computing anything
