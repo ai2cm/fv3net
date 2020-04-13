@@ -9,7 +9,7 @@ if __name__ == "__main__":
         "gcs_input_data_path",
         type=str,
         help="Location of input data in Google Cloud Storage bucket. "
-        "Don't include bucket in path.",
+        "Don't include bucket or big.zarr in path.",
     )
     parser.add_argument(
         "diag_c48_path",
@@ -18,16 +18,16 @@ if __name__ == "__main__":
         "for features (SHF, LHF, etc.) that are not saved in restarts.",
     )
     parser.add_argument(
-        "gcs_output_data_dir",
-        type=str,
-        help="Write path for train data in Google Cloud Storage bucket. "
-        "Don't include bucket in path.",
-    )
-    parser.add_argument(
         "variable_namefile",
         type=str,
         default=None,
         help="yaml file for providing data variable names",
+    )
+    parser.add_argument(
+        "gcs_output_data_dir",
+        type=str,
+        help="Write path for train data in Google Cloud Storage bucket. "
+        "Don't include bucket in path.",
     )
     parser.add_argument(
         "--timesteps-per-output-file",
