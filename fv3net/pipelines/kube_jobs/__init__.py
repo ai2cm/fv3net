@@ -7,3 +7,4 @@ from .utils import (
     job_failed,
     job_complete,
 )
+from .nudge_to_obs import update_config_for_nudging

@@ -46,6 +46,9 @@ def plot_diurnal_cycle(
     if "dataset" not in merged_ds.dims:
         merged_ds = xr.concat([merged_ds], "dataset")
     for label in merged_ds["dataset"].values:
+        # TODO this function mixes computation, plotting, and implicitly
+        # I/O via deferred  dask calculations.
+        # and should be extensively refactored.
         ds = merged_ds.sel(dataset=label)
         if len([dim for dim in ds.dims if dim in stack_dims]) > 1:
             ds = ds.stack(sample=stack_dims).dropna("sample")

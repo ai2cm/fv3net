@@ -164,13 +164,6 @@ if __name__ == "__main__":
         "The only type implemented right now is 'rf'.",
     )
     parser.add_argument(
-        "--delete-local-results-after-upload",
-        type=bool,
-        default=False,
-        help="If uploading to a remote results dir, delete the local copies"
-        " after upload.",
-    )
-    parser.add_argument(
         "--downsample-time-factor",
         type=int,
         default=1,

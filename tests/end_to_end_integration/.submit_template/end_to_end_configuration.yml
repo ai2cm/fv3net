@@ -71,7 +71,6 @@ experiment:
           from: coarsen_diagnostics
         variable_filename: tests/end_to_end_integration/test_sklearn_variable_names.yml
         --num_test_zarrs: 2
-        --delete-local-results-after-upload: true
 
     prognostic_run:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py

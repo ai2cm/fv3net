@@ -1,6 +1,9 @@
 from typing import Dict
 import yaml
 import f90nml
+import fv3config
+
+FV3CONFIG_FILENAME = "fv3config.yml"
 
 
 class dotdict(dict):
