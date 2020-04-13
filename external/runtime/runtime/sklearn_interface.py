@@ -6,11 +6,6 @@ import xarray as xr
 
 __all__ = ["open_model", "predict", "update"]
 
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
 
 def open_model(url):
     # Load the model
@@ -22,7 +17,6 @@ def predict(model, state):
     stacked = state.stack(sample=["x", "y"])
     with parallel_backend("threading", n_jobs=1):
         output = model.predict(stacked, "sample").unstack("sample")
-    logger.info(output)
     return output
 
 
