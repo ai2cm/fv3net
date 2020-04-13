@@ -282,9 +282,12 @@ def plot_cube_ndarray(
             ax.contour,
         )
     """
-    masked_array = np.where(
-        _mask_antimeridian_quads(lon, central_longitude), array, np.nan
-    )
+    if lon.shape == array.shape:
+        masked_array = np.where(
+            _mask_antimeridian_quads(lon, central_longitude), array, np.nan
+        )
+    else:
+        masked_array = array
 
     for tile in range(6):
         # if plotting_function == "pcolormesh":
