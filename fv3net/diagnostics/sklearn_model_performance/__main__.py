@@ -178,7 +178,11 @@ if __name__ == "__main__":
     ds_hires = ds.sel(dataset=DATASET_NAME_SHIELD_HIRES)
 
     ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires, names)
+
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
+    with fsspec.open(os.path.join(output_dir, "timesteps_used.txt"), "w") as f:
+        f.writelines([f"{str(t)}\n" for t in init_times])
+
     metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES, names)
 
     diag_report_sections = plot_diagnostics(
@@ -189,6 +193,7 @@ if __name__ == "__main__":
     timesteps_plot_section = plot_timestep_counts(
         timesteps_train, init_times, output_dir, DPI_FIGURES
     )
+
     combined_report_sections = {
         **timesteps_plot_section,
         **metrics_plot_sections,
