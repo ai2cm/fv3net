@@ -177,7 +177,10 @@ def save_output(output_url, model, config, timesteps):
         joblib.dump(model, f)
 
     with fs.open(config_url, "w") as f:
-        yaml.dump(vars(config), f)
+        # config is usually a ModelTrainingConfig object. Need to convert it to a
+        # regular dict before dumping to yaml in order to make yaml readable.
+        config_out = config if isinstance(config, dict) else vars(config)
+        yaml.dump(config_out, f)
 
     with fs.open(timesteps_url, "w") as f:
         f.writelines([f"{t}\n" for t in timesteps])
