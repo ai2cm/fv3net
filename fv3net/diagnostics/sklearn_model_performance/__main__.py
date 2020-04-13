@@ -24,6 +24,7 @@ from .plot_timesteps import plot_timestep_counts
 from fv3net.regression.sklearn.train import (
     MODEL_CONFIG_FILENAME,
     TIMESTEPS_USED_FILENAME,
+    TIME_FORMAT,
 )
 
 DATASET_NAME_PREDICTION = "prediction"
@@ -46,7 +47,7 @@ def get_model_training_timesteps(path):
     training times"""
     with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME), "r") as f:
         timesteps = f.read().splitlines()
-    return list(map(vcm.parse_datetime_from_str, timesteps))
+    return [datetime.strptime(t, TIME_FORMAT) for t in timesteps]
 
 
 if __name__ == "__main__":
@@ -181,7 +182,7 @@ if __name__ == "__main__":
 
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
     with fsspec.open(os.path.join(output_dir, "timesteps_used.txt"), "w") as f:
-        f.writelines([f"{str(t)}\n" for t in init_times])
+        f.writelines([f"{t.strftime(TIME_FORMAT)}\n" for t in init_times])
 
     metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES, names)
 

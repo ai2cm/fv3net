@@ -17,6 +17,7 @@ import vcm
 MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
 TIMESTEPS_USED_FILENAME = "timesteps_used.txt"
+TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -178,12 +179,16 @@ def save_output(output_url, model, config, timesteps):
 
     with fs.open(config_url, "w") as f:
         # config is usually a ModelTrainingConfig object. Need to convert it to a
-        # regular dict before dumping to yaml in order to make yaml readable.
+        # regular dict before dumping to yaml in order to ensure yaml is readable.
         config_out = config if isinstance(config, dict) else vars(config)
         yaml.dump(config_out, f)
 
     with fs.open(timesteps_url, "w") as f:
-        f.writelines([f"{t}\n" for t in timesteps])
+        f.writelines([f"{t.strftime(TIME_FORMAT)}\n" for t in timesteps])
+
+
+def _url_to_datetime(url):
+    return vcm.parse_datetime_from_str(vcm.parse_timestep_str_from_path(url))
 
 
 if __name__ == "__main__":
@@ -210,5 +215,5 @@ if __name__ == "__main__":
     batched_data = load_data_generator(train_config)
 
     model, training_urls_used = train_model(batched_data, train_config)
-    timesteps_used = map(vcm.parse_timestep_str_from_path, training_urls_used)
+    timesteps_used = map(_url_to_datetime, training_urls_used)
     save_output(args.output_data_path, model, train_config, timesteps_used)
