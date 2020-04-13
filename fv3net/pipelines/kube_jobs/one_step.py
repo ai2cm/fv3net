@@ -241,7 +241,7 @@ def submit_jobs(
         client.create_namespaced_job(job)
 
         if wait:
-            utils.wait_for_complete(job_labels, sleep_interval=10)
+            utils.wait_for_complete(labels, sleep_interval=10)
 
     for k, timestep in enumerate(timestep_list):
         if k == 0:
