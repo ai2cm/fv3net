@@ -1,5 +1,5 @@
 IMG_NAME=us.gcr.io/vcm-ml/fv3gfs-python
-IMG_VERSION=v0.4.0
+IMG_VERSION=v0.4.0-nudging-beta
 REMOTE_ROOT?=gs://vcm-ml-data/mcgibbon-testing
 RUNFILE=./runfile.py
 REMOTE_RUNFILE=$(REMOTE_ROOT)/runfile.py
@@ -17,7 +17,7 @@ SUBMIT_JOB_PY=submit_job.py
 all: run
 
 run: $(CONFIG_FILE)
-	fv3run $(CONFIG_FILE) $(OUTDIR) --dockerimage $(BASE_IMG) --runfile $(RUNFILE) $(FV3RUN_FLAGS)
+	fv3run $(CONFIG_FILE) $(REMOTE_OUTDIR) --dockerimage $(BASE_IMG) --runfile $(RUNFILE) $(FV3RUN_FLAGS)
 
 run_kubernetes: $(CONFIG_FILE)
 	gsutil cp $(CONFIG_FILE) $(REMOTE_CONFIG_FILE)

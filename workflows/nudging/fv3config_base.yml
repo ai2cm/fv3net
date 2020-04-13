@@ -69,10 +69,10 @@ namelist:
     - 0
     - 15
     - 0
-    days: 2
+    days: 0
     dt_atmos: 900
     dt_ocean: 900
-    hours: 0
+    hours: 1
     memuse_verbose: true
     minutes: 0
     months: 0
