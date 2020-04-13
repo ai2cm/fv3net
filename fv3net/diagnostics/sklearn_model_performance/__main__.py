@@ -188,7 +188,9 @@ if __name__ == "__main__":
     )
 
     timesteps_train, timesteps_test = get_timesteps_used(args.model_path, ds_test)
-    timesteps_plots = plot_timestep_counts(timesteps_train, timesteps_test, output_dir, DPI_FIGURES)
+    timesteps_plots = plot_timestep_counts(
+        timesteps_train, timesteps_test, output_dir, DPI_FIGURES
+    )
     combined_report_sections = {
         **timesteps_plots,
         **metrics_plot_sections,
@@ -211,3 +213,4 @@ if __name__ == "__main__":
         copy(output_dir, args.output_path)
         if args.delete_local_results_after_upload is True:
             shutil.rmtree(output_dir)
+
