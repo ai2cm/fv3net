@@ -21,6 +21,7 @@ KUBERNETES_DEFAULT = {
     "memory_gb": 3.6,
     "gcp_secret": "gcp-key",
     "image_pull_policy": "Always",
+    "capture_output": False,
 }
 
 
