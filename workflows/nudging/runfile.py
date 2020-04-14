@@ -7,17 +7,39 @@ import fsspec
 if __name__ == "__main__":
     import fv3gfs
     from mpi4py import MPI
+else:
+    fv3gfs = None
+    MPI = None
 
 
+# probably also store C-grid winds from physics?
 STORE_NAMES = [
     'x_wind', 'y_wind',
+    "vertical_wind",
     'air_temperature',
     'specific_humidity',
     'time',
     "pressure_thickness_of_atmospheric_layer",
     "vertical_thickness_of_atmospheric_layer",
-    "vertical_wind"
+    "land_sea_mask",
+    "surface_temperature",
+    "surface_geopotential",
+    "sensible_heat_flux",
+    "latent_heat_flux",
+    "total_precipitation",
 ]
+
+
+def get_radiation_names():
+    radiation_names = []
+    for properties in fv3gfs.PHYSICS_PROPERTIES:
+        if properties['container'] == "Radtend":
+            radiation_names.append(properties['name'])
+    assert len(radiation_names) > 0
+    return radiation_names
+
+if fv3gfs is not None:
+    STORE_NAMES.append(get_radiation_names())
 
 TENDENCY_OUT_FILENAME = "tendencies.zarr"
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -30,7 +52,7 @@ def get_timestep(config):
 def get_timescales_from_config(config):
     return_dict = {}
     for name, hours in config["nudging"]["timescale_hours"].items():
-        return_dict[name] = timedelta(hours=hours)
+        return_dict[name] = timedelta(seconds=int(hours * 60 * 60))
     return return_dict
 
 
@@ -54,7 +76,9 @@ def get_restart_directory(reference_dir, label):
 def get_reference_state(time, reference_dir, communicator, only_names):
     label = time_to_label(time)
     dirname = get_restart_directory(reference_dir, label)
-    return fv3gfs.open_restart(dirname, communicator, label=label, only_names=only_names)
+    state = fv3gfs.open_restart(dirname, communicator, label=label, only_names=only_names)
+    state['time'] = time
+    return state
 
 
 def nudge_to_reference(state, reference, timescales, timestep):
@@ -139,7 +163,6 @@ if __name__ == "__main__":
         state = fv3gfs.get_state(names=store_names)
         start = datetime.utcnow()
         monitor.store(state, stage="before_dynamics")
-        print(f"STORE_ZARR time elapsed = {datetime.utcnow() - start}")
         fv3gfs.step_dynamics()
         monitor.store(fv3gfs.get_state(names=store_names), stage="after_dynamics")
         fv3gfs.step_physics()
@@ -152,6 +175,6 @@ if __name__ == "__main__":
         tendencies = nudge(state, reference)
         monitor.store(reference, stage="reference")
         monitor.store(tendencies, stage="nudging_tendencies")
-        monitor.store(state, stage="after_nudging")
+#        monitor.store(state, stage="after_nudging") redundant
         fv3gfs.set_state(state)
     fv3gfs.cleanup()
