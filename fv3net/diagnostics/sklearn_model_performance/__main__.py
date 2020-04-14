@@ -74,7 +74,7 @@ def compute_metrics_and_plot(ds, output_dir, names):
         names=names,
     )
 
-    init_times = ds[names["init_dim_dim"]].values
+    init_times = ds[names["init_time_dim"]].values
     with fsspec.open(os.path.join(output_dir, "timesteps_used.txt"), "w") as f:
         f.writelines([f"{t.strftime(TIME_FORMAT)}\n" for t in init_times])
 
