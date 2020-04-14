@@ -18,6 +18,8 @@ init_time_dim: "initial_time"
 forecast_time_dim: "forecast_time"
 step_time_dim: "step"
 coord_begin_step: "begin"
+coord_before_physics: "after_dynamics"
+coord_after_physics: "after_physics"
 
 coord_x_center : "x"   
 coord_y_center : "y"    
