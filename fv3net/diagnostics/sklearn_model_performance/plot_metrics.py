@@ -12,8 +12,7 @@ def plot_metrics(ds_metrics, output_dir, dpi_figures, names):
     # R^2 vs pressure
     filename = "r2_pressure_levels.png"
     _plot_r2_pressure_profile(ds_metrics).savefig(
-        os.path.join(output_dir, filename),
-        dpi=dpi_figures["R2_pressure_profiles"],
+        os.path.join(output_dir, filename), dpi=dpi_figures["R2_pressure_profiles"]
     )
     report_sections["R^2 vs pressure levels"] = [filename]
 
