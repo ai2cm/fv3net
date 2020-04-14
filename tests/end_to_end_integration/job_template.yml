@@ -8,9 +8,10 @@ spec:
   backoffLimit: 0
   template:
     spec:
+      serviceAccountName: integration-tests
       containers:
       - command: # initializes kubectl config and service account
-          - /usr/bin/init_kubeconfig.sh
+          - /usr/bin/entrypoint.sh
         args:
           - workflows/end_to_end/submit_workflow.sh
           - /etc/config/end-to-end.yml
