@@ -11,7 +11,7 @@ SAMPLE_DIM = "sample"
 
 def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
 
-    ds_metrics = _r2_global_values(ds_pred, ds_fv3, ds_shield, names["stack_dims"])
+    ds_metrics = _r2_global_mean_values(ds_pred, ds_fv3, ds_shield, names["stack_dims"])
     for grid_var in names["grid_vars"]:
         ds_metrics[grid_var] = ds_pred[grid_var]
 
@@ -46,12 +46,81 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
                 ds_target[var], ds_pred[var], names["init_time_dim"]
             )
 
-    return ds_metrics
+    return ds_metrics 
+
+
+def calc_scalar_metrics(ds_pred, ds_fv3, ds_shield, init_time_dim, var_area, var_pressure_thickness):
+    rms_2d_vars = _rmse_2d_global_mean(ds_pred, ds_fv3, ds_shield, var_area)
+    rms_3d_vars = _rmse_3d_col_weighted(
+        ds_pred,
+        ds_fv3,
+        var_pressure_thickness, 
+        var_area)
+    return {**rms_2d_vars, **rms_3d_vars}
 
 
 def _root_mean_squared_error_metrics(da_target, da_pred, init_time_dim="initial_time"):
     rmse = np.sqrt((da_target - da_pred) ** 2).mean(init_time_dim)
     return rmse
+
+
+def _rmse_2d_global_mean(ds_pred, ds_fv3, ds_shield, var_area="area"):
+    rmse_metrics = {}
+    area_weights = ds_pred[[var_area]] / ds_pred[var_area].mean()
+    pred_labels = ["ML", "modelphysics", "globalmean"]
+    for var in ["net_precipitation", "net_heating"]:
+        for ds_comp_target, target_label in zip(
+            [ds_fv3, ds_shield], ["target", "hires"]
+        ):
+            for ds_comp_pred, pred_label in zip(
+                [ds_pred, ds_fv3[[f"{var}_physics"]], ds_comp_target[var].mean()],
+                pred_labels,
+            ):
+                # compare to ML predicion, model physics only prediction, variable average
+                global_rmse = _root_mean_squared_error_metrics(
+                    ds_comp_target[var], ds_comp_pred[var]
+                )
+                rmse_metrics[f"rms/{var}/{pred_label}_vs_{target_label}"] = (
+                    global_rmse * area_weights
+                )
+    return rmse_metrics
+
+
+def _rmse_mass_avg(
+    da_target,
+    da_pred,
+    delp,
+    area,
+    coord_z_center="z",
+    coord_x_center="x",
+    coord_y_center="y",
+):
+    mse = (da_target - da_pred) ** 2
+    num2 = ((mse * delp).sum([coord_z_center]) * area).sum(
+        [coord_x_center, coord_y_center]
+    )
+    denom2 = (delp.sum([coord_z_center]) * area).sum([coord_x_center, coord_y_center])
+    return np.sqrt(num2 / denom2).item()
+
+
+def _rmse_3d_col_weighted(
+    ds_pred,
+    ds_fv3,
+    var_pressure_thickness="pressure_thickness_of_atmospheric_layer",
+    var_area="area",
+):
+    rmse_metrics = {}
+    delp, area = ds_pred[var_pressure_thickness], ds_pred[var_area]
+    pred_labels = ["ML", "modelphysics", "globalmean"]
+    for total_var, phys_var in zip(["Q1", "Q2"], ["pQ1", "pQ2"]):
+        da_target = ds_fv3[total_var]
+        for da_pred, pred_label in zip(
+            [ds_pred[total_var], ds_fv3[phys_var], ds_fv3[total_var].mean()],
+            pred_labels,
+        ):
+            rmse_weighted = _rmse_mass_avg(da_target, da_pred, delp, area)
+            rmse_metrics[f"{rms_col_int}/{total_var}/{pred_label}_vs_target"] = rmse_weighted
+    return rmse_metrics
 
 
 def _r2_pressure_level_metrics(da_target, da_pred, delp, stack_dims, coord_z_center):
@@ -70,7 +139,7 @@ def _r2_pressure_level_metrics(da_target, da_pred, delp, stack_dims, coord_z_cen
     return da
 
 
-def _r2_global_values(ds_pred, ds_fv3, ds_shield, stack_dims):
+def _r2_global_mean_values(ds_pred, ds_fv3, ds_shield, stack_dims):
     """ Calculate global R^2 for net precipitation and heating against
     target FV3 dataset and coarsened high res dataset
     
