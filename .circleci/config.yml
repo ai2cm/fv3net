@@ -154,9 +154,6 @@ workflows:
       - pytest_default
       - hold:
           type: approval
-          requires:
-          - lint
-          - pytest_default
       - build_default:
           requires:
           - hold
