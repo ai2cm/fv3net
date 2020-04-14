@@ -136,7 +136,7 @@ jobs:
           # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was 
           # during the build job above
           command: | 
-            kubectl apply -f manifests
+                  #kubectl apply -f manifests
             make run_integration_tests VERSION=$CIRCLE_SHA1
       - run:
           name: Firewall rule deletion
