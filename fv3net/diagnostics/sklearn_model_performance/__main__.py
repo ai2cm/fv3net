@@ -20,7 +20,7 @@ from .diagnostics import plot_diagnostics
 from .create_metrics import create_metrics_dataset
 from .plot_metrics import plot_metrics
 from .plot_timesteps import plot_timestep_counts
-from fv3net.regression.sklearn.train import (
+from ...regression.sklearn.train import (
     MODEL_CONFIG_FILENAME,
     TIMESTEPS_USED_FILENAME,
     TIME_FORMAT,
@@ -42,18 +42,25 @@ DPI_FIGURES = {
 
 
 def get_model_training_timesteps(path):
-    """Given path to directory containing ML model and return list of datetimes for
+    """Given path to directory containing ML model, return list of datetimes for
     training times"""
     with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME), "r") as f:
         timesteps = f.read().splitlines()
     return [datetime.strptime(t, TIME_FORMAT) for t in timesteps]
 
 
+def open_model_config(path):
+    """Given path to directory containing ML model, return model config yaml"""
+    with fsspec.open(os.path.join(path, MODEL_CONFIG_FILENAME)) as f:
+        config = yaml.safe_load(f)
+    return config
+
+
 def _is_remote(path):
     return path.startswith("gs://")
 
 
-def compute_metrics_and_plot(ds, output_dir, names):
+def compute_metrics_and_plot(ds, output_dir, names, metadata, timesteps_training):
     # TODO refactor this "and" function into two routines
     ds_pred = ds.sel(dataset=DATASET_NAME_PREDICTION)
     ds_test = ds.sel(dataset=DATASET_NAME_FV3_TARGET)
@@ -61,6 +68,15 @@ def compute_metrics_and_plot(ds, output_dir, names):
 
     ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires, names)
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
+
+    # write out text file of timesteps used for testing model
+    init_times = ds[names["init_time_dim"]].values
+    with fsspec.open(os.path.join(output_dir, TIMESTEPS_USED_FILENAME), "w") as f:
+        f.writelines([f"{t.strftime(TIME_FORMAT)}\n" for t in init_times])
+
+    timesteps_plot_section = plot_timestep_counts(
+        timesteps_training, init_times, output_dir, DPI_FIGURES
+    )
 
     # TODO This should be another script
     metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES, names)
@@ -74,25 +90,11 @@ def compute_metrics_and_plot(ds, output_dir, names):
         names=names,
     )
 
-    init_times = ds[names["init_time_dim"]].values
-    with fsspec.open(os.path.join(output_dir, "timesteps_used.txt"), "w") as f:
-        f.writelines([f"{t.strftime(TIME_FORMAT)}\n" for t in init_times])
-
-    timesteps_train = get_model_training_timesteps(args.model_path)
-    timesteps_plot_section = plot_timestep_counts(
-        timesteps_train, init_times, output_dir, DPI_FIGURES
-    )
-
     combined_report_sections = {
         **timesteps_plot_section,
         **metrics_plot_sections,
         **diag_report_sections,
     }
-
-    with fsspec.open(os.path.join(args.model_path, MODEL_CONFIG_FILENAME)) as f:
-        model_config = yaml.safe_load(f)
-
-    metadata = {**model_config, **vars(args)}
 
     create_report(
         combined_report_sections,
@@ -243,10 +245,14 @@ if __name__ == "__main__":
     # This could lead to OOM errors (but those sound like an issue anyway)
     ds = ds.load()
 
+    model_config = open_model_config(args.model_path)
+    timesteps_train = get_model_training_timesteps(args.model_path)
+    metadata = {**model_config, **vars(args)}
+
     if _is_remote(args.output_path):
         with tempfile.TemporaryDirectory() as local_dir:
             # TODO another "and" indicates this needs to be refactored.
-            compute_metrics_and_plot(ds, local_dir, names)
+            compute_metrics_and_plot(ds, local_dir, names, metadata, timesteps_train)
             copy(local_dir, output_dir)
     else:
-        compute_metrics_and_plot(ds, args.output_path, names)
+        compute_metrics_and_plot(ds, args.output_path, names, metadata, timesteps_train)
