@@ -39,6 +39,7 @@ import argparse
 import xarray as xr
 import numpy as np
 import os
+import shutil
 import logging
 import sys
 from typing import Sequence, Mapping, Any
@@ -88,7 +89,7 @@ def _insert_derived_vars(
     """dataflow pipeline func for adding derived variables to the raw dataset
     """
     
-    try: d
+    try: 
         logger.info(f"Inserting derived variables for timestep "
                      f"{ds[INIT_TIME_DIM].values[0]}")
         ds = (
@@ -205,7 +206,7 @@ def _write_ds(ds: xr.Dataset, filename: str):
     logger.info("Writing final dataset to netcdf.")
     for var in ds.variables:
         if ds[var].dtype == 'O':
-            ds = ds.assign({var: ds[var].astype('S14')})
+            ds = ds.assign({var: ds[var].astype('S15').astype('unicode_')})
     ds.to_netcdf(filename)
 
 
@@ -249,16 +250,16 @@ if __name__ == "__main__":
     # if netcdf and report output paths are GCS location, save results to local output dirs first
     
     output_path = args.netcdf_output
-    output_nc_path = os.path.join(output_path, OUTPUT_NC_FILENAME)
-    proto = get_protocol(output_nc_path)
+    proto = get_protocol(output_path)
     if proto == "" or proto == "file":
         output_nc_dir = output_path
     elif proto == "gs":
-        remote_data_path, output_nc_dir = os.path.split(output_nc_path.strip("/"))
-    if not os.path.exists(output_nc_dir):
-        os.mkdir(output_nc_dir)
-    if proto == "gs":
-        copy(output_nc_dir, remote_data_path)
+        remote_data_path, output_nc_dir = os.path.split(output_path.strip("/"))
+    if os.path.exists(output_nc_dir):
+        shutil.rmtree(output_nc_dir)
+    os.mkdir(output_nc_dir)
+    
+    output_nc_path = os.path.join(output_nc_dir, OUTPUT_NC_FILENAME)
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
@@ -273,6 +274,9 @@ if __name__ == "__main__":
             | "MeanAndStdDev" >> beam.Map(_mean_and_std)
             | "WriteDS" >> beam.Map(_write_ds, output_nc_path)
         )
+        
+    if proto == "gs":
+        copy(output_nc_dir, remote_data_path)
 
     states_and_tendencies = xr.open_dataset(output_nc_path)
     
@@ -285,12 +289,14 @@ if __name__ == "__main__":
         output_report_dir = report_path
     elif proto == "gs":
         remote_report_path, output_report_dir = os.path.split(report_path.strip("/"))
-    if not os.path.exists(output_report_dir):
-        os.mkdir(output_report_dir)
+    if os.path.exists(output_report_dir):
+        shutil.rmtree(output_report_dir)
+    os.mkdir(output_report_dir)
         
     logger.info(f"Writing diagnostics plots report to {report_path}")
     
     report_sections = make_all_plots(states_and_tendencies, output_report_dir)
     create_report(report_sections, "one_step_diagnostics", output_report_dir)
+    
     if proto == "gs":
-        copy(output_report_dir, remote_data_path)
+        copy(output_report_dir, remote_report_path)
