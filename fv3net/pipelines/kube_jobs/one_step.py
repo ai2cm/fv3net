@@ -183,12 +183,8 @@ def submit_jobs(
     """Submit one-step job for all timesteps in timestep_list"""
 
     # load API objects needed to submit jobs
-    try:
-        kubernetes.config.load_kube_config()
-    except TypeError:
-        kubernetes.config.load_incluster_config()
 
-    client = kubernetes.client.BatchV1Api()
+    client = utils.initialize_batch_client()
 
     zarr_url = os.path.join(output_url, "big.zarr")
 

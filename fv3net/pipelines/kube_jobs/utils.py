@@ -92,9 +92,13 @@ def update_tiled_asset_names(
     return assets
 
 
-def _initialize_batch_client() -> kubernetes.client.BatchV1Api:
+def initialize_batch_client() -> kubernetes.client.BatchV1Api:
 
-    kubernetes.config.load_kube_config()
+    try:
+        kubernetes.config.load_kube_config()
+    except TypeError:
+        config.load_incluster_config()
+
     batch_client = kubernetes.client.BatchV1Api()
 
     return batch_client
