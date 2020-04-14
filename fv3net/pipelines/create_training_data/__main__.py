@@ -30,12 +30,6 @@ if __name__ == "__main__":
         "Don't include bucket in path.",
     )
     parser.add_argument(
-        "variable_namefile",
-        type=str,
-        default=None,
-        help="yaml file for providing data variable names",
-    )
-    parser.add_argument(
         "--timesteps-per-output-file",
         type=int,
         default=1,

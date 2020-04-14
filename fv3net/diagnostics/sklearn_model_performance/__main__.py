@@ -222,9 +222,6 @@ if __name__ == "__main__":
     with open(args.variable_names_file, "r") as f:
         names = yaml.safe_load(f)
 
-    with open(args.variable_names_file, "r") as f:
-        names = yaml.safe_load(f)
-
     # remove trailing slash since in GCS some/path// is different than some/path/
     output_dir = args.output_path.rstrip("/")
 
@@ -237,9 +234,6 @@ if __name__ == "__main__":
         args.model_path,
         args.high_res_data_path,
         args.num_test_zarrs,
-        names["pred_vars_to_keep"],
-        names["init_time_dim"],
-        names["coord_z_center"],
         args.model_type,
         args.downsample_time_factor,
         names,
