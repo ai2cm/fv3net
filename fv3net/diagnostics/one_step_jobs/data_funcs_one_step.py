@@ -1,4 +1,3 @@
-from typing import Sequence, Tuple, Mapping
 import xarray as xr
 import numpy as np
 from scipy.stats import binned_statistic
@@ -9,6 +8,7 @@ from vcm import local_time
 from datetime import datetime, timedelta
 import logging
 import sys
+from typing import Sequence, Tuple, Mapping
 
 from fv3net.diagnostics.one_step_jobs import (
     INIT_TIME_DIM,
@@ -85,6 +85,7 @@ def time_coord_to_datetime(ds: xr.Dataset, time_coord: str = INIT_TIME_DIM) -> x
     ds = ds.assign_coords({time_coord: init_datetime_coords})
     
     return ds
+
 
 
 def insert_hi_res_diags(ds: xr.Dataset, hi_res_diags_path: str, varnames_mapping: Mapping) -> xr.Dataset:
@@ -196,15 +197,10 @@ def _select_both_states_and_concat(ds: xr.Dataset) -> xr.Dataset:
     return states_both
 
 
-def get_states_and_tendencies(ds_sample: Sequence[xr.Dataset]) -> xr.Dataset:
+def get_states_and_tendencies(ds: xr.Dataset) -> xr.Dataset:
     
-    tendencies_both_sample = [_compute_both_tendencies_and_concat(ds) for ds in ds_sample]
-    tendencies = xr.concat([tendencies_both for tendencies_both in tendencies_both_sample],
-                             dim = INIT_TIME_DIM)
-    
-    states_both_sample = [_select_both_states_and_concat(ds) for ds in ds_sample]
-    states = xr.concat([states_both for states_both in states_both_sample], dim = INIT_TIME_DIM)
-
+    tendencies = _compute_both_tendencies_and_concat(ds)
+    states = _select_both_states_and_concat(ds)
     states_and_tendencies = xr.concat([states, tendencies], dim=VAR_TYPE_DIM)
     states_and_tendencies = states_and_tendencies.assign_coords({VAR_TYPE_DIM: ['states', 'tendencies']})
     
@@ -271,14 +267,12 @@ def mean_diurnal_cycle(da: xr.DataArray, local_time: xr.DataArray, stack_dims: l
     other_dims = [dim for dim in da.dims if dim != 'sample']
     diurnal_coords = [(dim, da[dim]) for dim in other_dims] + [('mean_local_time', np.arange(0., 24.))]
     diurnal_da = xr.DataArray(coords=diurnal_coords)
-    for init_time in local_time[INIT_TIME_DIM]:
-        lt = local_time.sel({INIT_TIME_DIM: init_time})
-        for valid_time in da[FORECAST_TIME_DIM]:
-            da_single_time = da.sel({INIT_TIME_DIM: init_time, FORECAST_TIME_DIM: valid_time})
-            bin_means, _, _ = binned_statistic(
-                lt.values, da_single_time.values, bins=np.arange(0., 25.)
-            )
-            diurnal_da.loc[{INIT_TIME_DIM: init_time, FORECAST_TIME_DIM: valid_time}] = bin_means
+    for valid_time in da[FORECAST_TIME_DIM]:
+        da_single_time = da.sel({FORECAST_TIME_DIM: valid_time})
+        bin_means, _, _ = binned_statistic(
+            local_time.values, da_single_time.values, bins=np.arange(0., 25.)
+        )
+        diurnal_da.loc[{FORECAST_TIME_DIM: valid_time}] = bin_means
     
     return diurnal_da
 
@@ -484,23 +478,12 @@ def insert_area_means(
     return ds
 
 
-def shrink_ds(ds: xr.Dataset, init_dim: str = INIT_TIME_DIM):
-    
-    for var in ds:
-        if init_dim in ds[var].dims:
-            var_std = ds[var].std(dim = init_dim, keep_attrs=True)
-            if 'long_name' in var_std.attrs:
-                var_std = var_std.assign_attrs(
-                    {'long_name': f"{var_std.attrs['long_name']} std. dev."}
-                )
-            ds = ds.assign({f"{var}_std": var_std})
-            
-    ds_mean = ds.mean(dim=INIT_TIME_DIM, keep_attrs=True)
+def shrink_ds(ds: xr.Dataset, vertical_dim = 'z'):
     
     dropvars = []
-    for var in ds_mean:
-        if 'z' in ds[var].dims and 'tile' in ds[var].dims:
+    for var in ds:
+        if vertical_dim in ds[var].dims and 'tile' in ds[var].dims:
             dropvars.append(var)
             
-    return ds_mean.drop_vars(dropvars)
+    return ds.drop_vars(dropvars)
                                            
