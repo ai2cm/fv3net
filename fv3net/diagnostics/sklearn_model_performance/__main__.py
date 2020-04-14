@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import tempfile
 import xarray as xr
@@ -15,7 +16,7 @@ from .data import (
     add_column_heating_moistening,
 )
 from .diagnostics import plot_diagnostics
-from .create_metrics import create_metrics_dataset
+from .create_metrics import create_metrics_dataset, calc_scalar_metrics
 from .plot_metrics import plot_metrics
 
 DATASET_NAME_PREDICTION = "prediction"
@@ -44,6 +45,13 @@ def compute_metrics_and_plot(ds, output_dir, names):
 
     ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires, names)
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
+    scalar_metrics = calc_scalar_metrics(
+        ds_pred, ds_test, ds_hires, 
+        init_time_dim=names["init_time_dim"], 
+        var_area=names["var_area"], 
+        var_pressure_thickness=names["var_pressure_thickness"])
+    with open(os.join(output_dir, "metrics_scalars.json"), "w") as f:
+        json.dump(scalar_metrics, f)
 
     # TODO This should be another script
     metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES, names)

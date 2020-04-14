@@ -51,6 +51,8 @@ var_y_wind: "y_wind"
 var_temp: "air_temperature"
 var_sphum: "specific_humidity"
 var_land_sea_mask: "land_sea_mask"
+var_area: "area"
+var_pressure_thickness: "pressure_thickness_of_atmospheric_layer"
 
 # data variables from one step output used as features and targets
 one_step_vars: 
