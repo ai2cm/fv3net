@@ -244,7 +244,7 @@ def mappable_var(ds: xr.Dataset, var_name: str):
 
 def plot_cube_ndarray(
     plotting_function, lat, lon, array, central_longitude=0.0, **kwargs
-    ):
+):
     """ Plots tiled cubed sphere for a given subplot axis,
         using np.ndarrays for all data
 
@@ -282,23 +282,15 @@ def plot_cube_ndarray(
             ax.contour,
         )
     """
-    if lon.shape == array.shape:
-        masked_array = np.where(
-            _mask_antimeridian_quads(lon, central_longitude), array, np.nan
-        )
-    else:
-        masked_array = array
+    masked_array = np.where(
+        _mask_antimeridian_quads(lon.T, central_longitude), array.T, np.nan
+    ).T
+    kwargs["vmin"] = kwargs.get("vmin", np.nanmin(array))
+    kwargs["vmax"] = kwargs.get("vmax", np.nanmax(array))
 
     for tile in range(6):
-        # if plotting_function == "pcolormesh":
-        #     x = lonb[tile, :, :]
-        #     y = latb[tile, :, :]
-        # else:
-        #     # contouring
-        x = center_longitudes(lon[tile, :, :])
+        x = center_longitudes(lon[tile, :, :], central_longitude)
         y = lat[tile, :, :]
-        # with warnings.catch_warnings():
-        #     warnings.simplefilter("ignore")
         p_handle = plotting_function(
             x, y, masked_array[tile, :, :], **kwargs
         )

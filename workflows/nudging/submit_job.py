@@ -61,6 +61,7 @@ if __name__ == '__main__':
         docker_image=args.docker_image,
         job_labels=job_label,
         runfile=args.runfile,
+        capture_output=False,
         **kube_opts,
     )
 

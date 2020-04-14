@@ -19,7 +19,7 @@ PREPARE_CONFIG_PY=prepare_config.py
 all: run
 
 run: $(CONFIG_FILE)
-	fv3run $(CONFIG_FILE) $(OUTDIR) --dockerimage $(BASE_IMG) --runfile $(RUNFILE) $(FV3RUN_FLAGS)
+	fv3run $(CONFIG_FILE) $(REMOTE_OUTDIR) --dockerimage $(BASE_IMG) --runfile $(RUNFILE) $(FV3RUN_FLAGS)
 
 run_kubernetes: $(SUBMIT_JOB_PY) $(CONFIG_FILE)
 	gsutil cp $(CONFIG_FILE) $(REMOTE_CONFIG_FILE)
