@@ -1,31 +1,44 @@
-FROM continuumio/miniconda:4.7.12 as build
+FROM jupyter/base-notebook
 
-COPY environment.yml  /tmp/
-RUN conda env create -p /opt/python -f /tmp/environment.yml
-ENV PATH=/opt/python/bin:${PATH}
+ENV FV3NET=/home/$NB_USER/fv3net
+
+ENV ENVIRONMENT_SCRIPTS=$FV3NET/.environment-scripts
+ENV PROJECT_NAME=fv3net
+
+# Install dependencies (slow)
+USER root
+RUN apt-get update && \
+    apt-get install -y gfortran jq
+ADD environment.yml  $FV3NET/
+ADD .environment-scripts $ENVIRONMENT_SCRIPTS
+ADD .circleci $FV3NET/.circleci
+RUN fix-permissions $FV3NET
+WORKDIR $FV3NET
+
+USER $NB_UID
+
+RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME && conda clean -tpi
+ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
 RUN jupyter labextension install @pyviz/jupyterlab_pyviz
 
-FROM google/cloud-sdk:288.0.0
-
-RUN apt-get update && \
-    apt-get install -y gfortran jq curl kubectl gettext
-
-# setup docker
-COPY --from=build /opt/python /opt/python
-ENV PATH=/opt/python/bin:${PATH}
-
-RUN gcloud config set project vcm-ml
-
-# What uses this?
-ADD .circleci $FV3NET/.circleci
-
-COPY docker/fv3net/entrypoint.sh /usr/bin/entrypoint.sh
-RUN chmod +x /usr/bin/entrypoint.sh
-ENTRYPOINT ["/usr/bin/entrypoint.sh"]
+USER root 
+# install gcloud sdk
+RUN cd / && \
+    curl  https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-284.0.0-linux-x86_64.tar.gz |\
+    tar xz
+ENV PATH=/google-cloud-sdk/bin:${PATH}
+RUN gcloud components install kubectl && \
+    gcloud config set project vcm-ml
+COPY docker/fv3net/init_kubeconfig.sh /usr/bin/init_kubeconfig.sh
+RUN chmod +x /usr/bin/init_kubeconfig.sh
 
 # Add rest of fv3net directory
-COPY . /fv3net
-WORKDIR /fv3net
+ADD . $FV3NET
+
+RUN fix-permissions $FV3NET && fix-permissions /home/$NB_USER/.config/gcloud/
+USER $NB_UID
 
 # setup the local python packages
-RUN pip install --no-deps -e . external/fv3config external/vcm external/vcm/external/mappm
+RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
+ENTRYPOINT [ "/usr/bin/init_kubeconfig.sh" ]
+CMD ["/bin/bash"]
