@@ -34,6 +34,9 @@ RUN rm -f /opt/conda/envs/uwnet/gsutil
 
 # Add rest of fv3net directory
 COPY . $FV3NET
+USER root
+RUN fix-permissions $FV3NET
+USER $NB_UID
 
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME

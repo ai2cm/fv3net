@@ -11,9 +11,9 @@ spec:
       serviceAccountName: integration-tests
       containers:
       - command: ["/bin/bash", "-c"]
-        args:
-          - workflows/end_to_end/submit_workflow.sh
-          - /etc/config/end-to-end.yml
+        args: 
+          - |
+              workflows/end_to_end/submit_workflow.sh /etc/config/end-to-end.yml
         image: $FV3NET_IMAGE
         imagePullPolicy: Always
         env:
