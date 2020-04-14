@@ -67,7 +67,7 @@ def run(args, pipeline_args, names):
             | "AddPhysicsTendencies"
             >> beam.Map(
                 _add_physics_tendencies,
-                var_physics_tendency_name_map=names["var_physics_tendency_name_map"],
+                physics_tendency_names=names["physics_tendency_names"],
                 forecast_time_dim=names["forecast_time_dim"],
                 step_dim=names["step_time_dim"],
                 coord_before_physics=names["coord_before_physics"],
@@ -259,7 +259,7 @@ def _test_train_split(timestep_batches, train_frac):
 
 def _add_physics_tendencies(
     ds,
-    var_physics_tendency_name_map,
+    physics_tendency_names,
     forecast_time_dim,
     step_dim,
     coord_before_physics,
@@ -267,7 +267,7 @@ def _add_physics_tendencies(
 ):
     # physics timestep is same as forecast time step [s]
     dt = ds[forecast_time_dim].values[1]
-    for var, tendency in var_physics_tendency_name_map.items():
+    for var, tendency in physics_tendency_names.items():
         ds[tendency] = (
             ds[var].sel({step_dim: coord_after_physics})
             - ds[var].sel({step_dim: coord_before_physics})

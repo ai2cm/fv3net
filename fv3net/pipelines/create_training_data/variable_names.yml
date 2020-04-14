@@ -10,7 +10,7 @@ var_source_name_map:
     "air_temperature": "dQ1"
     "specific_humidity": "dQ2"      
 
-var_physics_tendency_name_map:
+physics_tendency_names:
   "specific_humidity": "pQ2"
   "air_temperature": "pQ1"
 
