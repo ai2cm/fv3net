@@ -17,6 +17,7 @@ logger.setLevel(logging.INFO)
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 GRID_SPEC_FILENAME = "grid_spec.zarr"
+ZARR_NAME = "big.zarr"
 
 # forecast time step used to calculate the FV3 run tendency
 FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
@@ -27,7 +28,7 @@ FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
 def run(args, pipeline_args, names):
     """ Divide full one step output data into batches to be sent
     through a beam pipeline, which writes training/test data zarrs
-    
+
     Args:
         args ([arg namespace]): for named args in the main function
         pipeline_args ([arg namespace]): additional args for the pipeline
@@ -36,7 +37,9 @@ def run(args, pipeline_args, names):
             by the pipeline.
     """
     fs = get_fs(args.gcs_input_data_path)
-    ds_full = xr.open_zarr(fs.get_mapper(args.gcs_input_data_path))
+    ds_full = xr.open_zarr(
+        fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
+    )
     ds_full = _str_time_dim_to_datetime(ds_full, names["init_time_dim"])
     _save_grid_spec(
         ds_full,
@@ -122,7 +125,7 @@ def _divide_data_batches(
         ds_full (xr dataset): dataset read in from the big zarr of all one step outputs
         timesteps_per_output_file (int): number of timesteps to save per train batch
         train_fraction (float): fraction of initial timesteps to use as training
-    
+
     Returns:
         tuple (
             list of datasets selected to the timesteps for each output,
