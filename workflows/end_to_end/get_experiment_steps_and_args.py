@@ -4,10 +4,11 @@ import json
 import os
 import uuid
 from typing import List, Mapping, Any, Hashable
-from dataflow import COARSEN_RESTARTS_DATAFLOW_ARGS, CREATE_TRAINING_DATAFLOW_ARGS
+from dataflow import COARSEN_RESTARTS_DATAFLOW_ARGS, CREATE_TRAINING_DATAFLOW_ARGS, ONE_STEP_DIAGS_DATAFLOW_ARGS
 
 DATAFLOW_ARGS_MAPPING = {
     "coarsen_restarts": COARSEN_RESTARTS_DATAFLOW_ARGS,
+    "one_step_diags": ONE_STEP_DIAGS_DATAFLOW_ARGS,
     "create_training_data": CREATE_TRAINING_DATAFLOW_ARGS,
 }
 

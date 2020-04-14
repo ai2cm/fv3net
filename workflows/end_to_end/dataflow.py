@@ -19,6 +19,21 @@ COARSEN_RESTARTS_DATAFLOW_ARGS = {
     ],
 }
 
+ONE_STEP_DIAGS_DATAFLOW_ARGS = COARSEN_RESTARTS_DATAFLOW_ARGS.copy()
+ONE_STEP_DIAGS_DATAFLOW_ARGS.update(
+    {
+        "--job_name": (
+            f"one-step-diags-{getuser().lower()}-"
+            f"{get_alphanumeric_unique_tag(7)}"
+        ),
+        "--num_workers": 4,
+        "--max_num_workers": 30,
+        "--disk_size_gb": 30,
+        "--worker_machine_type": "n1-standard-1",
+        "--extra_package": "external/vcm/dist/vcm-0.1.0.tar.gz",
+    }
+)
+
 CREATE_TRAINING_DATAFLOW_ARGS = COARSEN_RESTARTS_DATAFLOW_ARGS.copy()
 CREATE_TRAINING_DATAFLOW_ARGS.update(
     {
@@ -33,3 +48,5 @@ CREATE_TRAINING_DATAFLOW_ARGS.update(
         "--extra_package": "external/vcm/dist/vcm-0.1.1.tar.gz",
     }
 )
+
+
