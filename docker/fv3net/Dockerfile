@@ -29,8 +29,8 @@ RUN cd / && \
 ENV PATH=/google-cloud-sdk/bin:${PATH}
 RUN gcloud components install kubectl && \
     gcloud config set project vcm-ml
-COPY docker/fv3net/init_kubeconfig.sh /usr/bin/init_kubeconfig.sh
-RUN chmod +x /usr/bin/init_kubeconfig.sh
+COPY docker/fv3net/entrypoint.sh /usr/bin/entrypoint.sh
+RUN chmod +x /usr/bin/entrypoint.sh
 
 # Add rest of fv3net directory
 ADD . $FV3NET
@@ -40,5 +40,5 @@ USER $NB_UID
 
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
-ENTRYPOINT [ "/usr/bin/init_kubeconfig.sh" ]
+ENTRYPOINT [ "/usr/bin/entrypoint.sh" ]
 CMD ["/bin/bash"]
