@@ -88,9 +88,9 @@ def _insert_derived_vars(
     """dataflow pipeline func for adding derived variables to the raw dataset
     """
     
-    try:
-        logging.info(f"Inserting derived variables for timestep "
-                     f"{ds[INIT_TIME_DIM].values[0].strftime(TIME_FMT)}")
+    try: d
+        logger.info(f"Inserting derived variables for timestep "
+                     f"{ds[INIT_TIME_DIM].values[0]}")
         ds = (
             ds
             .assign_coords({'z': np.arange(1., ds_zarr.sizes['z'] + 1.)})
@@ -110,7 +110,7 @@ def _insert_states_and_tendencies(ds: xr.Dataset) -> xr.Dataset:
     """
 
     try:
-        logging.info(f"Inserting states and tendencies for timestep "
+        logger.info(f"Inserting states and tendencies for timestep "
                      f"{ds[INIT_TIME_DIM].values[0].strftime(TIME_FMT)}")
         ds = (
             get_states_and_tendencies(ds)
@@ -133,7 +133,7 @@ def _insert_means_and_shrink(ds: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
     """
     
     try:
-        logging.info(f"Inserting means and shrinking timestep "
+        logger.info(f"Inserting means and shrinking timestep "
                      f"{ds[INIT_TIME_DIM].item().strftime(TIME_FMT)}")
         ds = (
             ds
@@ -163,7 +163,7 @@ def _merge_ds(pc: Sequence[xr.Dataset]) -> xr.Dataset:
     """
     
     try:
-        logging.info("Aggregating data across timesteps.")
+        logger.info("Aggregating data across timesteps.")
         inits = []
         for ds in pc:
             if isinstance(ds, xr.Dataset):
@@ -182,6 +182,7 @@ def _mean_and_std(ds: xr.Dataset) -> xr.Dataset:
     initialization time dimension of aggregated diagnostic dataset
     """
     try:
+        logger.info("Computing aggregated means and std. devs.")
         for var in ds:
             if INIT_TIME_DIM in ds[var].dims and var not in GRID_VARS:
                 var_std = ds[var].std(dim = INIT_TIME_DIM, keep_attrs=True)
@@ -201,6 +202,7 @@ def _mean_and_std(ds: xr.Dataset) -> xr.Dataset:
 def _write_ds(ds: xr.Dataset, filename: str):
     """dataflow pipeline func for writing out final netcdf"""
     
+    logger.info("Writing final dataset to netcdf.")
     for var in ds.variables:
         if ds[var].dtype == 'O':
             ds = ds.assign({var: ds[var].astype('S14')})
@@ -243,10 +245,20 @@ if __name__ == "__main__":
         STEP_DIM: 0
     }).drop_vars([STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
     
+    
+    # if netcdf and report output paths are GCS location, save results to local output dirs first
+    
     output_path = args.netcdf_output
     output_nc_path = os.path.join(output_path, OUTPUT_NC_FILENAME)
-    if os.path.isfile(output_nc_path):
-        os.remove(output_nc_path)
+    proto = get_protocol(output_nc_path)
+    if proto == "" or proto == "file":
+        output_nc_dir = output_path
+    elif proto == "gs":
+        remote_data_path, output_nc_dir = os.path.split(output_nc_path.strip("/"))
+    if not os.path.exists(output_nc_dir):
+        os.mkdir(output_nc_dir)
+    if proto == "gs":
+        copy(output_nc_dir, remote_data_path)
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
@@ -262,30 +274,23 @@ if __name__ == "__main__":
             | "WriteDS" >> beam.Map(_write_ds, output_nc_path)
         )
 
+    states_and_tendencies = xr.open_dataset(output_nc_path)
     
-#     fs_out = get_fs(output_nc_path)
-    
-    logger.info(f"Writing states and tendencies to {output_nc_path}")
-
-#     with fs_out.open(output_nc_path, mode="wb") as f:
-#         dump_nc(states_and_tendencies, f)
-        
-    logger.info(f"Writing diagnostics plots report to {output_nc_path}")
-    
-    
-    # if output path is remote GCS location, save results to local output dir first
     if args.report_directory:
         report_path = args.report_directory
     else:
         report_path = output_path
     proto = get_protocol(report_path)
     if proto == "" or proto == "file":
-        output_dir = report_path
+        output_report_dir = report_path
     elif proto == "gs":
-        remote_data_path, output_dir = os.path.split(report_path.strip("/"))
-    if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
-    report_sections = make_all_plots(states_and_tendencies, output_dir)
-    create_report(report_sections, "one_step_diagnostics", output_dir)
+        remote_report_path, output_report_dir = os.path.split(report_path.strip("/"))
+    if not os.path.exists(output_report_dir):
+        os.mkdir(output_report_dir)
+        
+    logger.info(f"Writing diagnostics plots report to {report_path}")
+    
+    report_sections = make_all_plots(states_and_tendencies, output_report_dir)
+    create_report(report_sections, "one_step_diagnostics", output_report_dir)
     if proto == "gs":
-        copy(output_dir, remote_data_path)
+        copy(output_report_dir, remote_data_path)
