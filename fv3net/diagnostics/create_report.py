@@ -1,6 +1,9 @@
 from jinja2 import Template
 import datetime
+from pytz import timezone
 
+PACIFIC_TZ = "US/Pacific"
+NOW_FORMAT = "%Y-%m-%d %H:%M:%S %Z"
 
 report_html = Template(
     """
@@ -42,11 +45,12 @@ def create_report(report_sections, report_name, output_dir, metadata=None):
     Returns:
         None
     """
+    now = datetime.datetime.now().astimezone(timezone(PACIFIC_TZ))
     with open(f"{output_dir}/{report_name}.html", "w") as f:
         html = report_html.render(
             report_name=report_name.replace("_", " "),
             sections=report_sections,
             metadata=metadata,
-            now=datetime.datetime.now(),
+            now=now.strftime(NOW_FORMAT),
         )
         f.write(html)
