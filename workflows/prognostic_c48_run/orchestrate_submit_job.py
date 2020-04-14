@@ -21,6 +21,7 @@ KUBERNETES_DEFAULT = {
     "memory_gb": 3.6,
     "gcp_secret": "gcp-key",
     "image_pull_policy": "Always",
+    "capture_output": False,
 }
 
 
@@ -71,8 +72,9 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
 
 def _get_onestep_config(restart_path, timestep):
-
-    config_path = os.path.join(restart_path, timestep, CONFIG_FILENAME)
+    config_path = os.path.join(
+        restart_path, "one_step_config", timestep, CONFIG_FILENAME
+    )
     fs = get_fs(config_path)
     with fs.open(config_path) as f:
         config = yaml.safe_load(f)
@@ -145,5 +147,5 @@ if __name__ == "__main__":
     )
 
     if not args.detach:
-        successful, _ = kube_jobs.wait_for_complete(job_label)
-        kube_jobs.delete_job_pods(successful)
+        kube_jobs.wait_for_complete(job_label)
+        kube_jobs.delete_completed_jobs(job_label)

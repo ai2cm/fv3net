@@ -1,5 +1,7 @@
 import argparse
-from fv3net.pipelines.create_training_data.pipeline import run
+import yaml
+
+from .pipeline import run
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -7,13 +9,19 @@ if __name__ == "__main__":
         "gcs_input_data_path",
         type=str,
         help="Location of input data in Google Cloud Storage bucket. "
-        "Don't include bucket in path.",
+        "Don't include bucket or big.zarr in path.",
     )
     parser.add_argument(
         "diag_c48_path",
         type=str,
         help="Directory containing diagnostic zarr directory coarsened from C384 "
         "for features (SHF, LHF, etc.) that are not saved in restarts.",
+    )
+    parser.add_argument(
+        "variable_namefile",
+        type=str,
+        default=None,
+        help="yaml file for providing data variable names",
     )
     parser.add_argument(
         "gcs_output_data_dir",
@@ -38,7 +46,8 @@ if __name__ == "__main__":
         "Output zarr files will be saved in either 'train' or 'test' subdir of "
         "gcs-output-data-dir",
     )
+
     args, pipeline_args = parser.parse_known_args()
-    print(args)
-    """Main function"""
-    run(args=args, pipeline_args=pipeline_args)
+    with open(args.variable_namefile, "r") as stream:
+        names = yaml.safe_load(stream)
+    run(args=args, pipeline_args=pipeline_args, names=names)
