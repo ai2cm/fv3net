@@ -8,7 +8,6 @@ import yaml
 import re
 from copy import deepcopy
 from typing import List, Dict
-import kubernetes
 from kubernetes.client import V1Job
 
 import fv3config
