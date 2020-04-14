@@ -106,6 +106,23 @@ sources:
         access: read_only
       urlpath: "gs://vcm-ml-data/2020-02-25-additional-november-C3072-simulation-C384-diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
 
+  GFS_analysis_T85_2015_2016:
+    description: 4x daily GFS analysis data at approximately 2deg resolution, typically used for nudging FV3GFS. Spans 2015-01-01T00:00:00 to 2017-01-01T00:00:00.
+    driver: zarr
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-data/2020-03-27-T85-GFS-nudging-data-as-zarr/nudging_data_2015-2016.zarr"
+
+  GFS_analysis_T85_2015_2016_1M_mean:
+    description: Monthly mean GFS analysis data at approximately 2deg resolution. Spans 2015-01 to 2016-12.
+    driver: zarr
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-data/2020-03-27-T85-GFS-nudging-data-as-zarr/nudging_data_mean_1M.zarr"
 
   ## Local Data Intake ##
   # TODO: Could this be replicated with intake caching? Or switch to an ignored file?

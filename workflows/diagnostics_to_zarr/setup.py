@@ -11,7 +11,7 @@ dependencies = [
     "numba",
     "scikit-image",
     "netCDF4",
-    "xarray==0.14.0",
+    "xarray==0.15.0",
     "partd",
     "pyyaml>=5.0",
     "xgcm",
@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 setup(
-    name="fv3net",
+    name="diags-to-zarr",
     packages=find_packages(),
     install_requires=dependencies,
     version="0.1.0",

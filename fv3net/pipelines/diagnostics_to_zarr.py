@@ -16,12 +16,11 @@ logger = logging.getLogger(__name__)
 INITIAL_CHUNKS = {"time": 192}
 TILES = range(1, 7)
 COMMON_SUFFIX = ".tile1.nc"
-DEFAULT_DIAGNOSTIC_DIR = "diagnostic_zarr"
 
 
 def run(args, pipeline_args):
     rundir = args.rundir
-    diagnostic_dir = _parse_diagnostic_dir(args.diagnostic_dir, rundir)
+    diagnostic_dir = rundir if args.diagnostic_dir is None else args.diagnostic_dir
     diagnostic_categories = _parse_categories(args.diagnostic_categories, rundir)
     logger.info(f"Diagnostic zarrs being written to {diagnostic_dir}")
     logger.info(f"Diagnostic categories to convert are {diagnostic_categories}")
@@ -38,7 +37,7 @@ def run(args, pipeline_args):
 
 
 def open_convert_save(diagnostic_category, rundir, diagnostic_dir):
-    remote_zarr = os.path.join(diagnostic_dir, diagnostic_category)
+    remote_zarr = os.path.join(diagnostic_dir, f"{diagnostic_category}.zarr")
     with tempfile.TemporaryDirectory() as local_zarr:
         for tile in TILES:
             logger.info(f"Converting category {diagnostic_category} tile {tile}")
@@ -63,13 +62,6 @@ def _parse_categories(diagnostic_categories, rundir):
         return diagnostic_categories
 
 
-def _parse_diagnostic_dir(diagnostic_dir, rundir):
-    if diagnostic_dir is None:
-        return os.path.join(_get_parent_dir(rundir), DEFAULT_DIAGNOSTIC_DIR)
-    else:
-        return diagnostic_dir
-
-
 def _get_all_diagnostic_categories(rundir, fs):
     """ get full paths for all files in rundir that end in COMMON_SUFFIX """
     full_paths = fs.glob(os.path.join(rundir, f"*{COMMON_SUFFIX}"))
@@ -80,12 +72,6 @@ def _get_category_from_path(path):
     """ get part of filename before COMMON_SUFFIX """
     basename = os.path.basename(path)
     return basename[: -len(COMMON_SUFFIX)]
-
-
-def _get_parent_dir(path):
-    if path[-1] == "/":
-        path = path[:-1]
-    return os.path.split(path)[0]
 
 
 def _get_fs(path):
@@ -108,7 +94,7 @@ if __name__ == "__main__":
         "--diagnostic-dir",
         type=str,
         default=None,
-        help="Location to save zarr stores. Defaults to the parent of rundir.",
+        help="Location to save zarr stores. Defaults to rundir.",
     )
     parser.add_argument(
         "--diagnostic-categories",

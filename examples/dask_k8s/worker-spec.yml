@@ -1,0 +1,35 @@
+kind: Pod
+metadata:
+  labels:
+    dask-job: dask
+spec:
+  restartPolicy: Never
+  volumes:
+  - name: gcp-credentials-user-gcp-sa
+    secret:
+      secretName: gcp-key
+  tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "climate-sim-pool"
+    effect: "NoSchedule"
+  containers:
+  - image: us.gcr.io/vcm-ml/restarts_to_zarr
+    #imagePullPolicy: Never
+    args: [dask-worker, --nthreads, '2', --no-bokeh, --memory-limit, 3GB, --death-timeout, '60']
+    name: dask
+    resources:
+      limits:
+        cpu: "2"
+        memory: 3G
+      requests:
+        cpu: "2"
+        memory: 3G
+    env:
+    - name: GOOGLE_APPLICATION_CREDENTIALS
+      value: /secret/gcp-credentials/key.json
+    - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+      value: /secret/gcp-credentials/key.json
+    volumeMounts:
+    - mountPath: /secret/gcp-credentials
+      name: gcp-credentials-user-gcp-sa

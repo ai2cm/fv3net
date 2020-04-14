@@ -1,5 +1,4 @@
 **/*.zarr
-**/*.nc
 **/*.pdf
 **/*.png
 argo-fv3net
@@ -34,3 +33,4 @@ vcm-ml-data
 dataflow/*/env
 external/vcm/venv
 Dockerfile
+outdir/

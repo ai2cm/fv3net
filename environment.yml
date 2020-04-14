@@ -14,7 +14,7 @@ dependencies:
   - black=19.10b0
   - isort
   - flake8
-  - gcsfs
+  - gcsfs==0.6.0  # 0.6.1 changes filesystem.ls (errors when no files / doesn't exist)
   - google-cloud-storage
   - h5netcdf
   - h5py>=2.10
@@ -47,7 +47,9 @@ dependencies:
   - bokeh=1.4
   - backoff
   - pip:
+    - poetry
     - gsutil
     - nc-time-axis>=1.2.0
+    - gitpython
     - bump2version>=0.5.11
     - yq

@@ -4,12 +4,13 @@ import logging
 import yaml
 from pathlib import Path
 
-import fv3net.pipelines.kube_jobs as kube_jobs
 from fv3net.pipelines.kube_jobs import one_step
-from fv3net.pipelines.common import get_alphanumeric_unique_tag
+from fv3net.pipelines.common import get_alphanumeric_unique_tag, list_timesteps
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
+
+RUNFILE = os.path.join(PWD, "runfile.py")
 
 
 def _create_arg_parser():
@@ -32,11 +33,12 @@ def _create_arg_parser():
         "output_url", type=str, help="Remote url where model output will be saved."
     )
     parser.add_argument(
-        "-o",
-        "--overwrite",
+        "--i-start",
+        type=int,
+        default=0,
         required=False,
-        action="store_true",
-        help="Overwrite successful timesteps in OUTPUT_URL.",
+        help="Index of timestep at which to start. By default starts at first "
+        "timestep. Useful for testing.",
     )
     parser.add_argument(
         "--n-steps",
@@ -52,13 +54,6 @@ def _create_arg_parser():
         type=str,
         required=False,
         help="Storage path for job configuration files",
-    )
-    parser.add_argument(
-        "--init-frequency",
-        type=int,
-        required=False,
-        help="Frequency (in minutes) to initialize one-step jobs starting from"
-        " the first available timestep.",
     )
     parser.add_argument(
         "--config-version",
@@ -83,26 +78,26 @@ if __name__ == "__main__":
         one_step_config = yaml.load(file, Loader=yaml.FullLoader)
     workflow_name = Path(args.one_step_yaml).with_suffix("").name
     short_id = get_alphanumeric_unique_tag(8)
-    job_label = {"orchestrator-jobs": f"{workflow_name}-{short_id}"}
+    job_label = {
+        "orchestrator-jobs": f"{workflow_name}-{short_id}",
+        "workflow": "one_step_jobs",
+    }
 
     if not args.config_url:
         config_url = os.path.join(args.output_url, CONFIG_DIRECTORY_NAME)
     else:
         config_url = args.config_url
 
-    timestep_list = one_step.timesteps_to_process(
-        args.input_url,
-        args.output_url,
-        args.n_steps,
-        args.overwrite,
-        subsample_frequency=args.init_frequency,
-    )
+    timesteps = list_timesteps(args.input_url)
+    i_stop = None if args.n_steps is None else args.i_start + args.n_steps
+    timesteps = timesteps[slice(args.i_start, i_stop)]
 
+    one_step_config["kubernetes"]["runfile"] = RUNFILE
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
 
     local_vgrid_file = os.path.join(PWD, one_step.VERTICAL_GRID_FILENAME)
     one_step.submit_jobs(
-        timestep_list,
+        timesteps,
         workflow_name,
         one_step_config,
         args.input_url,
@@ -112,7 +107,3 @@ if __name__ == "__main__":
         job_labels=job_label,
         local_vertical_grid_file=local_vgrid_file,
     )
-
-    successful, _ = kube_jobs.wait_for_complete(job_label)
-    if successful:
-        kube_jobs.delete_job_pods(successful)
