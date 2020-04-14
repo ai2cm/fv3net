@@ -10,6 +10,10 @@ var_source_name_map:
     "air_temperature": "dQ1"
     "specific_humidity": "dQ2"      
 
+physics_tendency_names:
+  "specific_humidity": "pQ2"
+  "air_temperature": "pQ1"
+
 init_time_dim: "initial_time"
 forecast_time_dim: "forecast_time"
 step_time_dim: "step"
