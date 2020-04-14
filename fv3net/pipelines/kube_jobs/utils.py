@@ -97,7 +97,7 @@ def initialize_batch_client() -> kubernetes.client.BatchV1Api:
     try:
         kubernetes.config.load_kube_config()
     except TypeError:
-        config.load_incluster_config()
+        kubernetes.config.load_incluster_config()
 
     batch_client = kubernetes.client.BatchV1Api()
 
