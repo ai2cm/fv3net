@@ -127,7 +127,7 @@ def wait_for_complete(
     """
 
     if batch_client is None:
-        batch_client = _initialize_batch_client()
+        batch_client = initialize_batch_client()
 
     # Check active jobs
     while True:
@@ -201,7 +201,7 @@ def job_complete(job):
 
 
 def delete_completed_jobs(job_labels: Mapping[str, str], client: BatchV1Api = None):
-    client = _initialize_batch_client() if client is None else client
+    client = initialize_batch_client() if client is None else client
 
     logger.info("Deleting succesful jobs.")
     jobs = list_jobs(client, job_labels)
