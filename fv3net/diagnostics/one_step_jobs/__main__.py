@@ -1,4 +1,4 @@
-from vcm.cloud.fsspec import get_fs, get_fs_with_retry_cat, get_protocol
+from vcm.cloud.fsspec import get_fs, get_protocol
 from vcm.cloud.gsutil import copy
 from vcm.cubedsphere.constants import TIME_FMT
 from fv3net.diagnostics.one_step_jobs.data_funcs_one_step import (
@@ -40,6 +40,7 @@ import xarray as xr
 import numpy as np
 import os
 import shutil
+from tempfile import TemporaryDirectory
 import logging
 import sys
 from typing import Sequence, Mapping, Any
@@ -134,8 +135,8 @@ def _insert_means_and_shrink(ds: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
     """
     
     try:
-        logger.info(f"Inserting means and shrinking timestep "
-                     f"{ds[INIT_TIME_DIM].item().strftime(TIME_FMT)}")
+        timestep = ds[INIT_TIME_DIM].item().strftime(TIME_FMT)
+        logger.info(f"Inserting means and shrinking timestep {timestep}")
         ds = (
             ds
             .merge(grid)
@@ -148,6 +149,7 @@ def _insert_means_and_shrink(ds: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
             )
             .pipe(shrink_ds)
         )
+        logger.info(f"Finished shrinking timestep {timestep}")
     except Exception as e:
         ds = None
         logger.warning(e)
@@ -200,14 +202,18 @@ def _mean_and_std(ds: xr.Dataset) -> xr.Dataset:
     return ds_mean
 
 
-def _write_ds(ds: xr.Dataset, filename: str):
+def _write_ds(ds: xr.Dataset, fullpath: str):
     """dataflow pipeline func for writing out final netcdf"""
     
     logger.info("Writing final dataset to netcdf.")
     for var in ds.variables:
         if ds[var].dtype == 'O':
             ds = ds.assign({var: ds[var].astype('S15').astype('unicode_')})
-    ds.to_netcdf(filename)
+    with TemporaryDirectory() as tmpdir:
+        pathname, filename = os.path.split(fullpath)
+        tmppath = os.path.join(tmpdir, filename)
+        ds.to_netcdf(tmppath)
+        copy(tmppath, fullpath)
 
 
 if __name__ == "__main__":
@@ -245,21 +251,18 @@ if __name__ == "__main__":
         FORECAST_TIME_DIM: 0,
         STEP_DIM: 0
     }).drop_vars([STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
+
     
+#     output_path = args.netcdf_output
+#     if proto == "" or proto == "file":
+#         output_nc_dir = output_path
+#     elif proto == "gs":
+#         remote_data_path, output_nc_dir = os.path.split(output_path.strip("/"))
+#     if os.path.exists(output_nc_dir):
+#         shutil.rmtree(output_nc_dir)
+#     os.mkdir(output_nc_dir)
     
-    # if netcdf and report output paths are GCS location, save results to local output dirs first
-    
-    output_path = args.netcdf_output
-    proto = get_protocol(output_path)
-    if proto == "" or proto == "file":
-        output_nc_dir = output_path
-    elif proto == "gs":
-        remote_data_path, output_nc_dir = os.path.split(output_path.strip("/"))
-    if os.path.exists(output_nc_dir):
-        shutil.rmtree(output_nc_dir)
-    os.mkdir(output_nc_dir)
-    
-    output_nc_path = os.path.join(output_nc_dir, OUTPUT_NC_FILENAME)
+    output_nc_path = os.path.join(args.netcdf_output, OUTPUT_NC_FILENAME)
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
@@ -275,10 +278,14 @@ if __name__ == "__main__":
             | "WriteDS" >> beam.Map(_write_ds, output_nc_path)
         )
         
+    proto = get_protocol(output_nc_path)
     if proto == "gs":
-        copy(output_nc_dir, remote_data_path)
-
-    states_and_tendencies = xr.open_dataset(output_nc_path)
+        fs_nc = get_fs(output_nc_path)
+        states_and_tendencies = xr.open_dataset(fs_nc.get_mapper(output_nc_path))
+    elif proto == "" or proto == "file":
+        states_and_tendencies = xr.open_dataset(output_nc_path)
+    
+    # if report output path is GCS location, save results to local output dir first
     
     if args.report_directory:
         report_path = args.report_directory
