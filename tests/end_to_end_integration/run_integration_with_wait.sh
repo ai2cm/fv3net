@@ -40,7 +40,7 @@ export PROGNOSTIC_RUN_IMAGE=$1
 export FV3NET_IMAGE=$2
 
 TESTDIR=$(pwd)/tests/end_to_end_integration
-NAMESPACE=integration-tests
+NAMESPACE=default
 JOBNAME=integration-test-$(date +%F)-$(openssl rand -hex 6)
 CONFIGMAP=integration-test-$(date +%F)-$(openssl rand -hex 6)
 export JOBNAME CONFIGMAP
