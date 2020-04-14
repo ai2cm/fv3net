@@ -42,29 +42,29 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
             target_label = ds_target.dataset.values.item()
             ds_metrics[
                 f"rmse_{var}_vs_{target_label}"
-            ] = _root_mean_squared_error_metrics(
-                ds_target[var], ds_pred[var], names["init_time_dim"]
-            )
+            ] = _rmse(
+                ds_target[var], ds_pred[var]
+            ).mean(names["init_time_dim"])
 
-    return ds_metrics 
+    return ds_metrics
 
 
-def calc_scalar_metrics(ds_pred, ds_fv3, ds_shield, init_time_dim, var_area, var_pressure_thickness):
-    rms_2d_vars = _rmse_2d_global_mean(ds_pred, ds_fv3, ds_shield, var_area)
+def calc_scalar_metrics(
+    ds_pred, ds_fv3, ds_shield, init_time_dim, var_area, var_pressure_thickness
+):
+    rms_2d_vars = _rmse_2d_global_mean(ds_pred, ds_fv3, ds_shield, var_area, init_time_dim)
     rms_3d_vars = _rmse_3d_col_weighted(
-        ds_pred,
-        ds_fv3,
-        var_pressure_thickness, 
-        var_area)
+        ds_pred, ds_fv3, var_pressure_thickness, var_area
+    )
     return {**rms_2d_vars, **rms_3d_vars}
 
 
-def _root_mean_squared_error_metrics(da_target, da_pred, init_time_dim="initial_time"):
-    rmse = np.sqrt((da_target - da_pred) ** 2).mean(init_time_dim)
+def _rmse(da_target, da_pred):
+    rmse = np.sqrt((da_target - da_pred) ** 2)
     return rmse
 
 
-def _rmse_2d_global_mean(ds_pred, ds_fv3, ds_shield, var_area="area"):
+def _rmse_2d_global_mean(ds_pred, ds_fv3, ds_shield, var_area="area", init_time_dim="initial_time"):
     rmse_metrics = {}
     area_weights = ds_pred[[var_area]] / ds_pred[var_area].mean()
     pred_labels = ["ML", "modelphysics", "globalmean"]
@@ -77,9 +77,9 @@ def _rmse_2d_global_mean(ds_pred, ds_fv3, ds_shield, var_area="area"):
                 pred_labels,
             ):
                 # compare to ML predicion, model physics only prediction, variable average
-                global_rmse = _root_mean_squared_error_metrics(
+                global_rmse = _rmse(
                     ds_comp_target[var], ds_comp_pred[var]
-                )
+                ).mean(init_time_dim)
                 rmse_metrics[f"rms/{var}/{pred_label}_vs_{target_label}"] = (
                     global_rmse * area_weights
                 )
@@ -119,7 +119,9 @@ def _rmse_3d_col_weighted(
             pred_labels,
         ):
             rmse_weighted = _rmse_mass_avg(da_target, da_pred, delp, area)
-            rmse_metrics[f"{rms_col_int}/{total_var}/{pred_label}_vs_target"] = rmse_weighted
+            rmse_metrics[
+                f"{rms_col_int}/{total_var}/{pred_label}_vs_target"
+            ] = rmse_weighted
     return rmse_metrics
 
 
