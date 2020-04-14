@@ -4,7 +4,7 @@
 # GLOBALS                                                                       #
 #################################################################################
 
-VERSION ?= v0.1.1
+VERSION ?= $(shell git rev-parse HEAD)
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')

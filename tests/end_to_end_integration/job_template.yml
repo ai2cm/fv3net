@@ -10,8 +10,7 @@ spec:
     spec:
       serviceAccountName: integration-tests
       containers:
-      - command: # initializes kubectl config and service account
-          - /usr/bin/entrypoint.sh
+      - command: ["/bin/bash", "-c"]
         args:
           - workflows/end_to_end/submit_workflow.sh
           - /etc/config/end-to-end.yml
