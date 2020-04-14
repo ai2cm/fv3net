@@ -46,10 +46,13 @@ def compute_metrics_and_plot(ds, output_dir, names):
     ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires, names)
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
     scalar_metrics = calc_scalar_metrics(
-        ds_pred, ds_test, ds_hires, 
-        init_time_dim=names["init_time_dim"], 
-        var_area=names["var_area"], 
-        var_pressure_thickness=names["var_pressure_thickness"])
+        ds_pred,
+        ds_test,
+        ds_hires,
+        init_time_dim=names["init_time_dim"],
+        var_area=names["var_area"],
+        var_pressure_thickness=names["var_pressure_thickness"],
+    )
     with open(os.join(output_dir, "metrics_scalars.json"), "w") as f:
         json.dump(scalar_metrics, f)
 
