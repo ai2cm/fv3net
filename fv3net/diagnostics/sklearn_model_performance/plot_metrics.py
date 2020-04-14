@@ -10,11 +10,12 @@ matplotlib.use("Agg")
 def plot_metrics(ds_metrics, output_dir, dpi_figures, names):
     report_sections = {}
     # R^2 vs pressure
+    filename = "r2_pressure_levels.png"
     _plot_r2_pressure_profile(ds_metrics).savefig(
-        os.path.join(output_dir, f"r2_pressure_levels.png"),
+        os.path.join(output_dir, filename),
         dpi=dpi_figures["R2_pressure_profiles"],
     )
-    report_sections["R^2 vs pressure levels"] = ["r2_vs_pressure_levels.png"]
+    report_sections["R^2 vs pressure levels"] = [filename]
 
     # RMSE maps
     report_sections["Root mean squared error maps"] = []
@@ -58,7 +59,7 @@ def _plot_r2_pressure_profile(ds):
                 linestyle=surface_line,
                 label=f"{var}, {surface}",
             )
-    plt.xlabel("pressure [HPa]")
+    plt.xlabel("pressure [hPa]")
     plt.ylabel("$R^2$")
     plt.legend()
     return fig
