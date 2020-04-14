@@ -17,7 +17,6 @@ dependencies:
   - gcsfs==0.6.0  # 0.6.1 changes filesystem.ls (errors when no files / doesn't exist)
   - google-cloud-storage
   - h5netcdf
-  - nodejs
   - h5py>=2.10
   - hypothesis
   - pandas=1.0.1
@@ -48,6 +47,9 @@ dependencies:
   - bokeh=1.4
   - backoff
   - pip:
+    - poetry
+    - gsutil
     - nc-time-axis>=1.2.0
+    - gitpython
     - bump2version>=0.5.11
     - yq
