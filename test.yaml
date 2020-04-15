@@ -1,0 +1,61 @@
+# TODO delete this before merging
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: integration-test
+  generateName: integration-debugging-
+  namespace: default
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  template:
+    spec:
+      containers:
+      - args:
+        - |
+                python -m fv3net.pipelines.create_training_data gs://vcm-ml-data/test-end-to-end-integration/end_to_end_test-95424b2e/one_step_run_ gs://vcm-ml-data/test-end-to-end-integration/end_to_end_test-95424b2e/coarsen_diagnostics_ tests/end_to_end_integration/create_training_data_variable_names.yml gs://vcm-ml-data/test-end-to-end-integration/end_to_end_test-95424b2e/create_training_data_ --timesteps-per-output-file 1 --train-fraction 0.5
+        command:
+        - /bin/bash
+        - -c
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
+        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+          value: /secret/gcp-credentials/key.json
+        image: us.gcr.io/vcm-ml/fv3net:41e24bfb33446ec9ca1358f217ef8057d37fd871
+        imagePullPolicy: Always
+        name: integration-test
+        resources:
+          requests:
+            cpu: "2"
+            memory: 2G
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /secret/gcp-credentials
+          name: gcp-key-secret
+          readOnly: true
+        - mountPath: /etc/config
+          name: end-to-end-config
+      dnsPolicy: ClusterFirst
+      restartPolicy: Never
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: integration-tests
+      serviceAccountName: integration-tests
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        key: dedicated
+        value: climate-sim-pool
+      volumes:
+      - name: gcp-key-secret
+        secret:
+          defaultMode: 444
+          secretName: gcp-key
+      - configMap:
+          defaultMode: 420
+          name: integration-test-2020-04-15-0107dd17f461
+        name: end-to-end-config
