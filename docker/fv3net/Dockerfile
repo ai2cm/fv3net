@@ -30,7 +30,7 @@ RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME && conda clean 
 ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
 
 # delete any gsutil's installed by conda
-RUN rm -f /opt/conda/envs/uwnet/gsutil
+RUN rm -f /opt/conda/envs/$PROJECT_NAME/gsutil
 
 # Add rest of fv3net directory
 COPY . $FV3NET
