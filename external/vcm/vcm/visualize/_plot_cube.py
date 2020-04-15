@@ -242,17 +242,12 @@ def mappable_var(ds: xr.Dataset, var_name: str):
     )
 
 
-def plot_cube_ndarray(
-    plotting_function, lat, lon, array, central_longitude=0.0, **kwargs
+def pcolormesh_cube(
+    lat, lon, array, ax=None, **kwargs
 ):
-    """ Plots tiled cubed sphere for a given subplot axis,
-        using np.ndarrays for all data
+    """Plots tiled cubed sphere.
 
     Args:
-        plotting_function (callable):
-            Plotting function to call. May be a method on an ax object, such as `ax.pcolormesh`.
-            Name of matplotlib 2-d plotting function. Available options are
-            "pcolormesh", "contour", and "contourf". Defaults to "pcolormesh".
         lat (np.ndarray):
             Array of latitudes with dimensions (tile, y, x). Should be given at cell
             centers for contour-like functions, or cell corners for pcolormesh.
@@ -261,41 +256,64 @@ def plot_cube_ndarray(
             centers for contour-like functions, or cell corners for pcolormesh.
         array (np.ndarray):
             Array of variables values at cell centers, of dimensions (tile, ny, nx)
-        central_longitude (float, optional):
-            Central longitude of the projection. Needed to correct plotting artifacts
-            at boundaries.
+        ax (plt.axes, optional)
+            Matplotlib geoaxes object onto which plotting function will be
+            called. Default None uses current axes.
         **kwargs:
             Keyword arguments to be passed to plotting function.
 
     Returns:
         p_handle (obj):
-            matplotlib object handle associated with map subplot
-
-    Example:
-        _, ax = plt.subplots(1, 1, subplot_kw = {'projection': ccrs.Robinson()})
-        h = plot_cube_axes(
-            ds['lat'].values,
-            ds['lon'].values,
-            ds['latb'].values,
-            ds['lonb'].values,
-            ds['T'].isel(time = 0, pfull = 40).values
-            ax.contour,
-        )
+            matplotlib object handle associated with a segment of the map subplot
     """
-    masked_array = np.where(
-        _mask_antimeridian_quads(lon.T, central_longitude), array.T, np.nan
+    if lat.shape != lon.shape:
+        raise ValueError("lat and lon should have the same shape")
+    if ax is None:
+        ax = plt.gca()
+    central_longitude = ax.projection.proj4_params["lon_0"]
+    array_mask, lon_mask = _mask_antimeridian_quads(lon.T, central_longitude)
+    array = np.where(
+        array_mask, array.T, np.nan
     ).T
     kwargs["vmin"] = kwargs.get("vmin", np.nanmin(array))
     kwargs["vmax"] = kwargs.get("vmax", np.nanmax(array))
 
-    for tile in range(6):
+    for tile in range(array.shape[0]):
         x = center_longitudes(lon[tile, :, :], central_longitude)
         y = lat[tile, :, :]
-        p_handle = plotting_function(
-            x, y, masked_array[tile, :, :], **kwargs
+        p_handle = _segmented_plot(
+            ax.pcolormesh, x, y, array[tile, :, :], **kwargs
         )
-
     return p_handle
+
+
+def _segmented_plot(plotting_function, x, y, masked_array, **kwargs):
+    """Plots only the non-nan parts of a nan-masked array by splitting it into
+    contiguous non-nan rectangles and plotting each of them.
+    """
+    is_nan = np.isnan(masked_array)
+    if np.sum(is_nan) == 0:  # contiguous section, just plot it
+        return_value = plotting_function(x, y, masked_array, **kwargs)
+    else:
+        x_nans = np.sum(is_nan, axis=1) / is_nan.shape[1]
+        y_nans = np.sum(is_nan, axis=0) / is_nan.shape[0]
+        if x_nans.max() >= y_nans.max():  # most nan-y line is in first dimension
+            i_split = x_nans.argmax()
+            if x_nans[i_split] == 1.0:  # split cleanly along line
+                _segmented_plot(plotting_function, x[:i_split+1, :], y[:i_split+1, :], masked_array[:i_split, :], **kwargs)
+                return_value = _segmented_plot(plotting_function, x[i_split+1:, :], y[i_split+1:, :], masked_array[i_split+1:, :], **kwargs)
+            else:  # split to create segments of complete nans which subsequent recursive calls will split on
+                i_start = 0
+                i_end = 1
+                while i_end < is_nan.shape[1]:
+                    while i_end < is_nan.shape[1] and is_nan[i_split, i_start] == is_nan[i_split, i_end]:
+                        i_end += 1
+                    # we have a largest-possible contiguous segment of nans/not nans
+                    return_value = _segmented_plot(plotting_function, x[:, i_start:i_end+1], y[:, i_start:i_end+1], masked_array[:, i_start:i_end], **kwargs)
+                    i_start = i_end # start the next segment
+        else:  # put most nan-y line in first dimension so the first part of this if block catches it
+            return_value = _segmented_plot(plotting_function, x.T, y.T, masked_array.T, **kwargs)
+    return return_value  # just return any handle, they all contain the same colorbar info
 
 
 def center_longitudes(lon_array, central_longitude):
@@ -437,8 +455,7 @@ def plot_cube_axes(
             y = latb[:, :, tile]
         else:
             # contouring
-            lon_tile = lon[:, :, tile]
-            x = center_longitudes(lon[tile, :, :])
+            x = center_longitudes(lon[:, :, tile])
             y = lat[:, :, tile]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
