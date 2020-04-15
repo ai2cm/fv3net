@@ -127,10 +127,11 @@ def run(args, pipeline_args, names):
 
 
 def _assert_no_nans(ds):
-    nans = np.isnan(ds).count()
+    nans = np.isnan(ds).isnull().sum().compute()
     nan_counts = {key: nans[key].item() for key in nans}
     if any(count > 0 for count in nan_counts.values()):
-        raise ValueError(f"NaNs detected in input data: {nan_counts}")
+        nan_counts = {key: nans[key].item() for key in nans}
+        raise ValueError(f"NaNs detected in data to be saved: {nan_counts}")
     return ds
 
 
