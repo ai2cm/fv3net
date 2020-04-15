@@ -11,6 +11,7 @@ from vcm.cloud import gsutil
 from vcm.cloud.fsspec import get_fs
 from vcm import parse_datetime_from_str
 from fv3net import COARSENED_DIAGS_ZARR_NAME
+import numpy as np
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -107,6 +108,8 @@ def run(args, pipeline_args, names):
                 init_time_dim=names["init_time_dim"],
                 renamed_dims=names["renamed_dims"],
             )
+            | "LoadData" >> beam.Map(lambda ds: ds.load())
+            | "QuitOnNaN" >> beam.Map(_assert_no_nans)
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
@@ -116,6 +119,14 @@ def run(args, pipeline_args, names):
                 train_test_labels=train_test_labels,
             )
         )
+
+
+def _assert_no_nans(ds):
+    nans = np.isnan(ds).count()
+    nan_counts = {key: nans[key].item() for key in nans}
+    if any(count > 0 for count in nan_counts.values()):
+        raise ValueError(f"NaNs detected in input data: {nan_counts}")
+    return ds
 
 
 def _str_time_dim_to_datetime(ds, time_dim):
