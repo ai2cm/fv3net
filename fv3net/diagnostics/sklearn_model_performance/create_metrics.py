@@ -69,16 +69,16 @@ def _rmse_2d_global_mean(ds_pred, ds_fv3, ds_shield, var_area="area", init_time_
     area_weights = ds_pred[[var_area]] / ds_pred[var_area].mean()
     pred_labels = ["ML", "modelphysics", "globalmean"]
     for var in ["net_precipitation", "net_heating"]:
-        for ds_comp_target, target_label in zip(
-            [ds_fv3, ds_shield], ["target", "hires"]
+        for ds_target, target_label in zip(
+            [ds_fv3[[var]], ds_shield[[var]]], ["target", "hires"]
         ):
-            for ds_comp_pred, pred_label in zip(
-                [ds_pred, ds_fv3[[f"{var}_physics"]], ds_comp_target[var].mean()],
+            for da_pred, pred_label in zip(
+                [ds_pred[var], ds_fv3[f"{var}_physics"], ds_target[var].mean()],
                 pred_labels,
             ):
                 # compare to ML predicion, model physics only prediction, variable average
                 global_rmse = _rmse(
-                    ds_comp_target[var], ds_comp_pred[var]
+                    ds_target[var], da_pred
                 ).mean(init_time_dim)
                 rmse_metrics[f"rms/{var}/{pred_label}_vs_{target_label}"] = (
                     global_rmse * area_weights
@@ -120,7 +120,7 @@ def _rmse_3d_col_weighted(
         ):
             rmse_weighted = _rmse_mass_avg(da_target, da_pred, delp, area)
             rmse_metrics[
-                f"{rms_col_int}/{total_var}/{pred_label}_vs_target"
+                f"rms_col_int/{total_var}/{pred_label}_vs_target"
             ] = rmse_weighted
     return rmse_metrics
 

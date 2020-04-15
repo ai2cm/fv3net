@@ -43,6 +43,7 @@ def predict_on_test_data(
     model_type="rf",
     downsample_time_factor=1,
 ):
+
     if model_type == "rf":
         from fv3net.regression.sklearn.test import (
             load_test_dataset,
@@ -97,7 +98,13 @@ def load_high_res_diag_dataset(
     ds_hires["net_heating"] = net_heating_from_dataset(ds_hires, suffix="coarse")
 
     return ds_hires
+    
 
+def total_Q(ds, vars=["Q1", "Q2"]):
+    for var in vars:
+        ds[var] = ds[f"d{var}"] + ds[f"p{var}"]
+    return ds
+    
 
 def add_column_heating_moistening(
     ds,
