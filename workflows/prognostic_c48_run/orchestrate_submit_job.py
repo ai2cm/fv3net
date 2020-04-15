@@ -137,7 +137,7 @@ if __name__ == "__main__":
     with fsspec.open(job_config_path, "w") as f:
         f.write(yaml.dump(model_config))
 
-    # need to initialized the client differently than 
+    # need to initialized the client differently than
     # run_kubernetes when running in a pod.
     client = kube_jobs.initialize_batch_client()
     job = fv3config.run_kubernetes(
