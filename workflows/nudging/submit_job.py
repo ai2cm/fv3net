@@ -1,6 +1,5 @@
 import fv3config
 import argparse
-import yaml
 import string
 import secrets
 import fv3net.pipelines.kube_jobs as kube_jobs
