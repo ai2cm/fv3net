@@ -14,8 +14,10 @@ DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1de
 IMAGE = fv3net
 GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
 
-FV3NET_IMAGE = us.gcr.io/vcm-ml/fv3net
-PROGNOSTIC_RUN_IMAGE = us.gcr.io/vcm-ml/prognostic_run
+GCR_BASE  = us.gcr.io/vcm-ml
+FV3NET_IMAGE = $(GCR_BASE)/fv3net
+PROGNOSTIC_RUN_IMAGE = $(GCR_BASE)/prognostic_run
+
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -41,8 +43,8 @@ build_images: build_image_fv3net build_image_prognostic_run
 push_images: push_image_prognostic_run push_image_fv3net
 
 push_image_%:
-	docker tag $* us.gcr.io/vcm-ml/$*:$(VERSION)
-	docker push us.gcr.io/vcm-ml/$*:$(VERSION)
+	docker tag $* $(GCR_BASE)/$*:$(VERSION)
+	docker push $(GCR_BASE)/$*:$(VERSION)
 
 enter: build_image
 	docker run -it -v $(shell pwd):/code \
