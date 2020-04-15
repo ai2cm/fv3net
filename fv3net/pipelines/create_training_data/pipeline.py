@@ -294,18 +294,15 @@ def _preprocess_one_step_data(
         for var in flux_vars
         if var in list(ds.data_vars)
     }
-    try:
-        ds = ds.sel({step_time_dim: coord_begin_step}).drop(step_time_dim)
-        ds = ds.rename(renamed_one_step_vars)
-        ds = helpers._convert_forecast_time_to_timedelta(ds, forecast_time_dim)
-        # center vars located on cell edges
-        for wind_var in wind_vars:
-            ds[wind_var] = helpers._shift_edge_var_to_center(
-                ds[wind_var], edge_to_center_dims
-            )
-        return ds
-    except (KeyError, ValueError) as e:
-        logger.error(f"Failed step PreprocessTrainData: {e}")
+    ds = ds.sel({step_time_dim: coord_begin_step}).drop(step_time_dim)
+    ds = ds.rename(renamed_one_step_vars)
+    ds = helpers._convert_forecast_time_to_timedelta(ds, forecast_time_dim)
+    # center vars located on cell edges
+    for wind_var in wind_vars:
+        ds[wind_var] = helpers._shift_edge_var_to_center(
+            ds[wind_var], edge_to_center_dims
+        )
+    return ds
 
 
 def _add_apparent_sources(
@@ -316,24 +313,21 @@ def _add_apparent_sources(
     forecast_time_dim,
     var_source_name_map,
 ):
-    try:
-        for var_name, source_name in var_source_name_map.items():
-            ds[source_name] = apparent_source(
-                ds[var_name],
-                coarse_tstep_idx=tendency_tstep_onestep,
-                highres_tstep_idx=tendency_tstep_highres,
-                t_dim=init_time_dim,
-                s_dim=forecast_time_dim,
-            )
-        ds = ds.isel(
-            {
-                init_time_dim: slice(None, ds.sizes[init_time_dim] - 1),
-                forecast_time_dim: 0,
-            }
-        ).drop(forecast_time_dim)
-        return ds
-    except (ValueError, TypeError) as e:
-        logger.error(f"Failed step CreateTrainingCols: {e}")
+    for var_name, source_name in var_source_name_map.items():
+        ds[source_name] = apparent_source(
+            ds[var_name],
+            coarse_tstep_idx=tendency_tstep_onestep,
+            highres_tstep_idx=tendency_tstep_highres,
+            t_dim=init_time_dim,
+            s_dim=forecast_time_dim,
+        )
+    ds = ds.isel(
+        {
+            init_time_dim: slice(None, ds.sizes[init_time_dim] - 1),
+            forecast_time_dim: 0,
+        }
+    ).drop(forecast_time_dim)
+    return ds
 
 
 def _merge_hires_data(
@@ -357,19 +351,16 @@ def _merge_hires_data(
     }
     if not diag_c48_path:
         return ds_run
-    try:
-        init_times = ds_run[init_time_dim].values
-        full_zarr_path = os.path.join(diag_c48_path, coarsened_diags_zarr_name)
-        diags_c48 = helpers.load_hires_prog_diag(full_zarr_path, init_times)[
-            list(renamed_high_res_vars.keys())
-        ]
-        renamed_dims = {
-            dim: renamed_dims[dim] for dim in renamed_dims if dim in diags_c48.dims
-        }
-        features_diags_c48 = diags_c48.rename({**renamed_high_res_vars, **renamed_dims})
-        return xr.merge([ds_run, features_diags_c48])
-    except (KeyError, AttributeError, ValueError, TypeError) as e:
-        logger.error(f"Failed to merge in features from high res diagnostics: {e}")
+    init_times = ds_run[init_time_dim].values
+    full_zarr_path = os.path.join(diag_c48_path, coarsened_diags_zarr_name)
+    diags_c48 = helpers.load_hires_prog_diag(full_zarr_path, init_times)[
+        list(renamed_high_res_vars.keys())
+    ]
+    renamed_dims = {
+        dim: renamed_dims[dim] for dim in renamed_dims if dim in diags_c48.dims
+    }
+    features_diags_c48 = diags_c48.rename({**renamed_high_res_vars, **renamed_dims})
+    return xr.merge([ds_run, features_diags_c48])
 
 
 def _write_remote_train_zarr(
@@ -391,16 +382,13 @@ def _write_remote_train_zarr(
     Returns:
         None
     """
-    try:
-        if not zarr_name:
-            zarr_name = helpers._path_from_first_timestep(
-                ds, init_time_dim, time_fmt, train_test_labels
-            )
-            ds = ds.chunk(chunk_sizes)
-        output_path = os.path.join(gcs_output_dir, zarr_name)
-        ds.to_zarr(zarr_name, mode="w", consolidated=True)
-        gsutil.copy(zarr_name, output_path)
-        logger.info(f"Done writing zarr to {output_path}")
-        shutil.rmtree(zarr_name)
-    except (ValueError, AttributeError, TypeError, RuntimeError) as e:
-        logger.error(f"Failed to write zarr: {e}")
+    if not zarr_name:
+        zarr_name = helpers._path_from_first_timestep(
+            ds, init_time_dim, time_fmt, train_test_labels
+        )
+        ds = ds.chunk(chunk_sizes)
+    output_path = os.path.join(gcs_output_dir, zarr_name)
+    ds.to_zarr(zarr_name, mode="w", consolidated=True)
+    gsutil.copy(zarr_name, output_path)
+    logger.info(f"Done writing zarr to {output_path}")
+    shutil.rmtree(zarr_name)
