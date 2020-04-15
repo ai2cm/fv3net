@@ -6,7 +6,7 @@ from pytz import timezone
 PACIFIC_TZ = "US/Pacific"
 NOW_FORMAT = "%Y-%m-%d %H:%M:%S %Z"
 
-report_html = Template(
+HTML_TEMPLATE = Template(
     """
     <h1>{{title}}</h1>
     Report created {{now}}
@@ -31,11 +31,11 @@ report_html = Template(
 )
 
 
-def create_html(report_sections, title, metadata=None):
+def create_html(sections, title, metadata=None):
     """Return html report of figures described in report_sections
 
     Args:
-        report_sections (dict): description of figures to include in report. Dict with
+        sections (dict): description of figures to include in report. Dict with
             section names as keys and lists of figure filenames as values:
             {section name: [figure filenames in section]}
         title (str): title at top of report
@@ -46,10 +46,11 @@ def create_html(report_sections, title, metadata=None):
         (str) html report
     """
     now = datetime.datetime.now().astimezone(timezone(PACIFIC_TZ))
-    html = report_html.render(
+    now_str = now.strftime(NOW_FORMAT)
+    html = HTML_TEMPLATE.render(
         title=title,
-        sections=report_sections,
+        sections=sections,
         metadata=metadata,
-        now=now.strftime(NOW_FORMAT),
+        now=now_str,
     )
     return html
