@@ -57,7 +57,8 @@ workdir=$(mktemp -d)
     envsubst < "$K8S_TEMPLATE" > job.yml
 
     # use config map to make the end to end yaml available to the job
-    kubectl create configmap -n $NAMESPACE "$CONFIGMAP" --from-file=end-to-end.yml --from-file $TESTDIR/create_training_data_variable_names.yml
+    kubectl create configmap -n $NAMESPACE "$CONFIGMAP" --from-file=end-to-end.yml --from-file $TESTDIR/create_training_data_variable_names.yml \
+        --from-file $TESTDIR/train_sklearn_model.yml
     kubectl apply -n $NAMESPACE -f job.yml
     waitForComplete "$JOBNAME" "$NAMESPACE"
 )
