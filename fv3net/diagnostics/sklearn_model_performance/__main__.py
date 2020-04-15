@@ -37,21 +37,6 @@ DPI_FIGURES = {
 }
 
 
-# def get_model_training_timesteps(path):
-#    """Given path to directory containing ML model, return list of datetimes for
-#    training times"""
-#    with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME), "r") as f:
-#        timesteps = f.read().splitlines()
-#    return [datetime.strptime(t, TIME_FORMAT) for t in timesteps]
-
-
-# def open_model_config(path):
-#    """Given path to directory containing ML model, return model config yaml"""
-#    with fsspec.open(os.path.join(path, MODEL_CONFIG_FILENAME)) as f:
-#        config = yaml.safe_load(f)
-#    return config
-
-
 def _is_remote(path):
     return path.startswith("gs://")
 
