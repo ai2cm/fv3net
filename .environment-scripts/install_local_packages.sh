@@ -10,7 +10,7 @@ do
   pip install --no-deps -e $package
 done
 
-poetry_packages=( external/runtime )
+poetry_packages=( external/runtime external/report )
 for package in ${poetry_packages[@]}
 do
   (
