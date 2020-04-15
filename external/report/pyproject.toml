@@ -7,7 +7,7 @@ authors = ["Oliver Watt-Meyer <oliwm@vulcan.com>"]
 [tool.poetry.dependencies]
 jinja2 = "^2.11"
 python = "^3.7"
-pytz "^2019.3"
+pytz = "^2019.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
