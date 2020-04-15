@@ -48,9 +48,6 @@ def create_html(sections, title, metadata=None):
     now = datetime.datetime.now().astimezone(timezone(PACIFIC_TZ))
     now_str = now.strftime(NOW_FORMAT)
     html = HTML_TEMPLATE.render(
-        title=title,
-        sections=sections,
-        metadata=metadata,
-        now=now_str,
+        title=title, sections=sections, metadata=metadata, now=now_str,
     )
     return html

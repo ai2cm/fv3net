@@ -15,4 +15,3 @@ def plot_timestep_counts(timesteps_used_filename, output_dir, dpi_figures):
         dpi=dpi_figures["timestep_histogram"],
     )
     return {"Time distribution of testing samples": [TIMESTEPS_FIG_FILENAME]}
-

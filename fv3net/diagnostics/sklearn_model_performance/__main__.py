@@ -37,7 +37,7 @@ DPI_FIGURES = {
 }
 
 
-#def get_model_training_timesteps(path):
+# def get_model_training_timesteps(path):
 #    """Given path to directory containing ML model, return list of datetimes for
 #    training times"""
 #    with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME), "r") as f:
@@ -45,7 +45,7 @@ DPI_FIGURES = {
 #    return [datetime.strptime(t, TIME_FORMAT) for t in timesteps]
 
 
-#def open_model_config(path):
+# def open_model_config(path):
 #    """Given path to directory containing ML model, return model config yaml"""
 #    with fsspec.open(os.path.join(path, MODEL_CONFIG_FILENAME)) as f:
 #        config = yaml.safe_load(f)
@@ -101,9 +101,7 @@ def compute_metrics_and_plot(ds, output_dir, names, metadata):
     }
 
     html_report = report.create_html(
-        combined_report_sections,
-        "ML offline diagnostics",
-        metadata=metadata,
+        combined_report_sections, "ML offline diagnostics", metadata=metadata,
     )
 
     with open(os.path.join(output_dir, "ML_offline_diagnostics.html"), "w") as f:
