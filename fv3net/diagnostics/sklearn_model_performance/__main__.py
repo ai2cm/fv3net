@@ -96,12 +96,14 @@ def compute_metrics_and_plot(ds, output_dir, names, metadata, timesteps_training
         **diag_report_sections,
     }
 
-    report.create_html(
+    html_report = report.create_html(
         combined_report_sections,
-        "ML_offline_diagnostics",
-        output_dir,
+        "ML offline diagnostics",
         metadata=metadata,
     )
+
+    with open(os.path.join(output_dir, "ML_offline_diagnostics.html"), "w") as f:
+        f.write(html_report)
 
 
 def load_data_and_predict_with_ml(
