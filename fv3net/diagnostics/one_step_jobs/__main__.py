@@ -205,7 +205,7 @@ def _mean_and_std(ds: xr.Dataset) -> xr.Dataset:
 def _write_ds(ds: xr.Dataset, fullpath: str):
     """dataflow pipeline func for writing out final netcdf"""
     
-    logger.info("Writing final dataset to netcdf.")
+    logger.info("fWriting final dataset to netcdf at {fullpath}.")
     for var in ds.variables:
         if ds[var].dtype == 'O':
             ds = ds.assign({var: ds[var].astype('S15').astype('unicode_')})

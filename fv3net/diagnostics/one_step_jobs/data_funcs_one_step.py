@@ -295,7 +295,7 @@ def insert_diurnal_means(
         ds_land = mask_to_surface_type(
             ds[[coarse_name, hires_name, 'local_time', mask]],
             'land',
-            surface_type_varname = mask
+            surface_type_var = mask
         )
         da_coarse_land = mean_diurnal_cycle(
             ds_land[coarse_name].sel({DELTA_DIM: 'coarse', VAR_TYPE_DIM: coarse_type}),
@@ -314,7 +314,7 @@ def insert_diurnal_means(
         ds_sea = mask_to_surface_type(
             ds[[coarse_name, hires_name, 'local_time', mask]],
             'sea',
-            surface_type_varname = mask
+            surface_type_var = mask
         )
         da_coarse_sea = mean_diurnal_cycle(
             ds_sea[coarse_name].sel({DELTA_DIM: 'coarse', VAR_TYPE_DIM: coarse_type}),
@@ -392,11 +392,11 @@ def insert_area_means(
         
     if 'land_sea_mask' in mask_names:
         
-        ds_land = mask_to_surface_type(ds.merge(weights), 'land', surface_type_varname = 'land_sea_mask')
+        ds_land = mask_to_surface_type(ds.merge(weights), 'land', surface_type_var = 'land_sea_mask')
         weights_land = ds_land['area']
         wm_land = _weighted_mean(ds_land, weights_land)
         
-        ds_sea = mask_to_surface_type(ds.merge(weights), 'sea', surface_type_varname = 'land_sea_mask')
+        ds_sea = mask_to_surface_type(ds.merge(weights), 'sea', surface_type_var = 'land_sea_mask')
         weights_sea = ds_sea['area']
         wm_sea = _weighted_mean(ds_sea, weights_sea)
         
@@ -439,19 +439,19 @@ def insert_area_means(
                 
     if 'net_precipitation_physics' in mask_names and 'land_sea_mask' in mask_names:
     
-        ds_pos_PminusE_land = mask_to_surface_type(ds_pos_PminusE.merge(weights), 'land', surface_type_varname = 'land_sea_mask')
+        ds_pos_PminusE_land = mask_to_surface_type(ds_pos_PminusE.merge(weights), 'land', surface_type_var = 'land_sea_mask')
         weights_pos_PminusE_land = ds_pos_PminusE_land['area']
         wm_pos_PminusE_land = _weighted_mean(ds_pos_PminusE_land, weights_pos_PminusE_land)
         
-        ds_pos_PminusE_sea = mask_to_surface_type(ds_pos_PminusE.merge(weights), 'sea', surface_type_varname = 'land_sea_mask')
+        ds_pos_PminusE_sea = mask_to_surface_type(ds_pos_PminusE.merge(weights), 'sea', surface_type_var = 'land_sea_mask')
         weights_pos_PminusE_sea = ds_pos_PminusE_sea['area']
         wm_pos_PminusE_sea = _weighted_mean(ds_pos_PminusE_sea, weights_pos_PminusE_sea)
         
-        ds_neg_PminusE_land = mask_to_surface_type(ds_neg_PminusE.merge(weights), 'land', surface_type_varname = 'land_sea_mask')
+        ds_neg_PminusE_land = mask_to_surface_type(ds_neg_PminusE.merge(weights), 'land', surface_type_var = 'land_sea_mask')
         weights_neg_PminusE_land = ds_neg_PminusE_land['area']
         wm_neg_PminusE_land = _weighted_mean(ds_neg_PminusE_land, weights_neg_PminusE_land)
         
-        ds_neg_PminusE_sea = mask_to_surface_type(ds_neg_PminusE.merge(weights), 'sea', surface_type_varname = 'land_sea_mask')
+        ds_neg_PminusE_sea = mask_to_surface_type(ds_neg_PminusE.merge(weights), 'sea', surface_type_var = 'land_sea_mask')
         weights_neg_PminusE_sea = ds_neg_PminusE_sea['area']
         wm_neg_PminusE_sea = _weighted_mean(ds_neg_PminusE_sea, weights_neg_PminusE_sea)
         
