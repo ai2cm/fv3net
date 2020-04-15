@@ -1,4 +1,5 @@
 import argparse
+import fsspec
 import joblib
 import logging
 import os
@@ -7,6 +8,8 @@ import yaml
 from dataclasses import dataclass
 from typing import List
 
+import report
+import gallery
 from fv3net.regression.dataset_handler import BatchGenerator
 from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
@@ -16,8 +19,9 @@ import vcm
 
 MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
-TIMESTEPS_USED_FILENAME = "timesteps_used.txt"
-TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
+REPORT_TITLE = "ML model training report"
+TRAINING_FIG_FILENAME = "figures/count_of_training_times_used.png"
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -178,13 +182,29 @@ def save_output(output_url, model, config, timesteps):
         joblib.dump(model, f)
 
     with fs.open(config_url, "w") as f:
-        # config is usually a ModelTrainingConfig object. Need to convert it to a
-        # regular dict before dumping to yaml in order to ensure yaml is readable.
-        config_out = config if isinstance(config, dict) else vars(config)
-        yaml.dump(config_out, f)
+        yaml.dump(config, f)
 
     with fs.open(timesteps_url, "w") as f:
-        f.writelines([f"{t.strftime(TIME_FORMAT)}\n" for t in timesteps])
+        yaml.dump(timesteps, f)
+
+
+def _create_report_plots(path):
+    """Given path to directory containing timesteps used, create all plots required
+    for html report"""
+    with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME)) as f:
+        timesteps = yaml.safe_load(f)
+    gallery.plot_daily_and_hourly_hist(timesteps, "Training data").savefig(
+        os.path.join(path, TRAINING_FIG_FILENAME), dpi=90,
+    )
+    return {"Time distribution of training samples": TRAINING_FIG_FILENAME}
+
+
+def _write_training_html_report(path, sections, metadata):
+    """Write html report to path, given sections and metadata"""
+    html_report = report.create_html(sections, REPORT_TITLE, metadata=metadata)
+    report_filename = REPORT_TITLE.replace(" ", "_") + ".html"
+    with fsspec.open(os.path.join(path, report_filename), "w") as f:
+        f.write(html_report)
 
 
 def _url_to_datetime(url):
@@ -217,3 +237,6 @@ if __name__ == "__main__":
     model, training_urls_used = train_model(batched_data, train_config)
     timesteps_used = map(_url_to_datetime, training_urls_used)
     save_output(args.output_data_path, model, train_config, timesteps_used)
+    report_sections = _create_report_plots(args.output_data_path)
+    report_metadata = {**vars(args), **vars(train_config)}
+    _write_training_html_report(args.ouput_data_path, report_sections, report_metadata)
