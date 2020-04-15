@@ -39,7 +39,7 @@ experiment:
           #from: coarsen_restarts  # uncomment this line and delete the following to include coarsening in test workflow
           location: gs://vcm-ml-data/test-end-to-end-integration/C48-input-for-one-step-jobs
         experiment_yaml: tests/end_to_end_integration/one_step_jobs_integration.yml
-        docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.1
+        docker_image: $PROGNOSTIC_RUN_IMAGE
         --config-version: v0.3
 
     create_training_data:
@@ -78,7 +78,7 @@ experiment:
         restart_file_dir:
           from: one_step_run
         ic_timestep: "20160801.001500"
-        docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.1
+        docker_image: $PROGNOSTIC_RUN_IMAGE
         --prog_config_yml: tests/end_to_end_integration/prognostic_run_integration.yml
         --model_url:
           from: train_sklearn_model
@@ -89,7 +89,7 @@ experiment:
         restart_file_dir:
           from: one_step_run
         ic_timestep: "20160801.001500"
-        docker_image: us.gcr.io/vcm-ml/prognostic_run:v0.1.1
+        docker_image: $PROGNOSTIC_RUN_IMAGE
         --prog_config_yml: tests/end_to_end_integration/prognostic_run_integration.yml
 
 
