@@ -30,15 +30,17 @@ report_html = Template(
 )
 
 
-def create_report(report_sections, report_name, output_dir, metadata=None):
-    """
+def create_html(report_sections, report_name, output_dir, metadata=None):
+    """Write html report to {output_dir}/{report_name}.html
 
     Args:
-        report_sections: dict {section name: [figure filenames in section]}
-        report_name: prepended to .html for final report file and used as a title
+        report_sections (dict): description of figures to include in report. Dict with
+            section names as keys and lists of figure filenames as values:
+            {section name: [figure filenames in section]}
+        report_name (str): prepended to .html for final report file and used as a title
             at top of report with underscores replaced by spaces
-        output_dir: dir in which figure files are located and where report html
-        will be saved
+        output_dir (str): dir in which figure files are located and where report html
+            will be saved
         metadata (dict, optional): metadata to be printed at top of report.
             Defaults to None, in which case no metadata printed.
 
