@@ -30,7 +30,20 @@ VARS_FROM_ZARR = (
     "total_precipitation"
 ) + SFC_VARIABLES
 ABS_VARS = ['psurf', 'precipitable_water', 'total_heat']
-GLOBAL_MEAN_2D_VARS = ['psurf_abs', 'precipitable_water_abs', 'total_heat_abs', 'precipitable_water', 'total_heat']
+GLOBAL_MEAN_2D_VARS = {
+    'psurf_abs': {
+        VAR_TYPE_DIM: 'tendency',
+        "scale": 0.12
+    },
+    'precipitable_water_abs': {
+        VAR_TYPE_DIM: 'tendency',
+        "scale": 0.00012
+    },
+    'total_heat_abs': {},
+    'precipitable_water': {},
+#     'cloud_water_ice': None,
+    'total_heat': {}
+}
 GLOBAL_MEAN_3D_VARS = ["specific_humidity", "air_temperature", "vertical_wind"]
 DIURNAL_VAR_MAPPING = {
     "net_heating_diurnal": {

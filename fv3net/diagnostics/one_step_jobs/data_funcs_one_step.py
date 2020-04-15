@@ -118,6 +118,15 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             ds['graupel_mixing_ratio'],
             ds['pressure_thickness_of_atmospheric_layer']
         ),
+        'cloud_water_ice_mixing_ratio': (
+            ds['cloud_ice_mixing_ratio']
+            + ds['cloud_water_mixing_ratio']
+        ),
+        'precipitating_water_mixing_ratio': (
+            ds['rain_mixing_ratio'] 
+            + ds['snow_mixing_ratio'] 
+            + ds['graupel_mixing_ratio'] 
+        ),
         'psurf': thermo.psurf_from_delp(
             ds['pressure_thickness_of_atmospheric_layer']
         ),
@@ -136,6 +145,14 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
         'net_heating_physics': net_heating_from_dataset(ds.rename({
             'sensible_heat_flux': 'SHTFLsfc',
             'total_precipitation': 'PRATEsfc'})
+        )
+    })
+    
+    ds = ds.assign({
+        'qt': (
+            ds['specific_humidity'] 
+            + ds['cloud_water_ice_mixing_ratio'] 
+            + ds['precipitating_water_mixing_ratio'] 
         )
     })
     

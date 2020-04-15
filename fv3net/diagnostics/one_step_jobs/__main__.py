@@ -144,7 +144,7 @@ def _insert_means_and_shrink(ds: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
             .pipe(
                 insert_area_means,
                 grid['area'],
-                GLOBAL_MEAN_2D_VARS + GLOBAL_MEAN_3D_VARS,
+                GLOBAL_MEAN_2D_VARS.keys() + GLOBAL_MEAN_3D_VARS,
                 ['land_sea_mask', 'net_precipitation_physics']
             )
             .pipe(shrink_ds)
