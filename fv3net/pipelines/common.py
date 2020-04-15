@@ -152,6 +152,7 @@ def subsample_timesteps_at_interval(
     Returns:
         A subsampled list of the input timesteps at the desired interval.
     """
+    # TODO (noah) this function may be dead...
     logger.info(
         f"Subsampling available timesteps to every {sampling_interval} minutes."
     )

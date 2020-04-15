@@ -17,6 +17,7 @@ logger.setLevel(logging.INFO)
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 GRID_SPEC_FILENAME = "grid_spec.zarr"
+ZARR_NAME = "big.zarr"
 
 # forecast time step used to calculate the FV3 run tendency
 FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
@@ -36,7 +37,9 @@ def run(args, pipeline_args, names):
             by the pipeline.
     """
     fs = get_fs(args.gcs_input_data_path)
-    ds_full = xr.open_zarr(fs.get_mapper(args.gcs_input_data_path))
+    ds_full = xr.open_zarr(
+        fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
+    )
     ds_full = _str_time_dim_to_datetime(ds_full, names["init_time_dim"])
     _save_grid_spec(
         ds_full,
@@ -64,6 +67,15 @@ def run(args, pipeline_args, names):
         (
             p
             | beam.Create(data_batches)
+            | "AddPhysicsTendencies"
+            >> beam.Map(
+                _add_physics_tendencies,
+                physics_tendency_names=names["physics_tendency_names"],
+                forecast_time_dim=names["forecast_time_dim"],
+                step_dim=names["step_time_dim"],
+                coord_before_physics=names["coord_before_physics"],
+                coord_after_physics=names["coord_after_physics"],
+            )
             | "PreprocessOneStepData"
             >> beam.Map(
                 _preprocess_one_step_data,
@@ -246,6 +258,25 @@ def _test_train_split(timestep_batches, train_frac):
         ],
     }
     return labels
+
+
+def _add_physics_tendencies(
+    ds,
+    physics_tendency_names,
+    forecast_time_dim,
+    step_dim,
+    coord_before_physics,
+    coord_after_physics,
+):
+    # physics timestep is same as forecast time step [s]
+    dt = ds[forecast_time_dim].values[1]
+    for var, tendency in physics_tendency_names.items():
+        ds[tendency] = (
+            ds[var].sel({step_dim: coord_after_physics})
+            - ds[var].sel({step_dim: coord_before_physics})
+        ) / dt
+
+    return ds
 
 
 def _preprocess_one_step_data(

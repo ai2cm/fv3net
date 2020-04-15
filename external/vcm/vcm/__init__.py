@@ -10,6 +10,7 @@ from .convenience import (
     TOP_LEVEL_DIR,
     parse_timestep_str_from_path,
     parse_datetime_from_str,
+    convert_timestamps,
 )
 from .calc import mass_integrate, r2_score, local_time
 from .calc.thermo import (
@@ -18,9 +19,11 @@ from .calc.thermo import (
     pressure_at_midpoint_log,
     potential_temperature,
 )
+from ._zarr_mapping import ZarrMapping
 from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .select import mask_to_surface_type
 from .visualize import plot_cube, mappable_var, plot_cube_axes
-from .xarray_loaders import open_tiles, open_delayed
+from .xarray_loaders import open_tiles, open_delayed, open_remote_nc
+
 
 __all__ = [item for item in dir() if not item.startswith("_")]

@@ -17,7 +17,7 @@ SURFACE_TYPE_ENUMERATION = {"sea": 0, "land": 1, "seaice": 2}
 def mask_to_surface_type(
     ds: xr.Dataset,
     surface_type: str,
-    surface_type_varname: str = 'slmsk',
+    surface_type_var: str = "land_sea_mask",
     enumeration: dict = SURFACE_TYPE_ENUMERATION
 ) -> xr.Dataset:
     """
@@ -34,7 +34,7 @@ def mask_to_surface_type(
         return ds
     elif surface_type not in enumeration:
         raise ValueError("Must mask to surface_type in enumeration.")
-    mask = ds[surface_type_varname].astype(int) == enumeration[surface_type]
+    mask = ds[surface_type_var].astype(int) == enumeration[surface_type]
     ds_masked = ds.where(mask)
     return ds_masked
 

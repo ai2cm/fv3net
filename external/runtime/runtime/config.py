@@ -2,6 +2,8 @@ from typing import Dict
 import yaml
 import f90nml
 
+FV3CONFIG_FILENAME = "fv3config.yml"
+
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""

@@ -4,7 +4,7 @@ import zarr
 
 import fv3gfs
 from fv3gfs._wrapper import get_time
-from fv3net import runtime
+import runtime
 from mpi4py import MPI
 
 logging.basicConfig(level=logging.DEBUG)
@@ -30,7 +30,7 @@ def compute_diagnostics(state, diags):
     )
 
 
-args = runtime.get_runfile_config()
+args = runtime.get_config()
 NML = runtime.get_namelist()
 TIMESTEP = NML["coupler_nml"]["dt_atmos"]
 
@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     # open zarr tape for output
     if rank == 0:
-        GROUP = zarr.open_group(args.zarr_output, mode="w")
+        GROUP = zarr.open_group(args["scikit_learn"]["zarr_output"], mode="w")
     else:
         GROUP = None
 
@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     if rank == 0:
         logger.info("Downloading Sklearn Model")
-        MODEL = runtime.sklearn.open_model(args.model)
+        MODEL = runtime.sklearn.open_model(args["scikit_learn"]["model"])
         logger.info("Model downloaded")
     else:
         MODEL = None
