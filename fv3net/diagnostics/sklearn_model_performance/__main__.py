@@ -158,9 +158,6 @@ if __name__ == "__main__":
         help="Output dir to write results to. Can be local or a GCS path.",
     )
     parser.add_argument(
-        "variable_names_file", type=str, help="yml with variable name information"
-    )
-    parser.add_argument(
         "--num_test_zarrs",
         type=int,
         default=4,
@@ -181,8 +178,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     args.test_data_path = os.path.join(args.test_data_path, "test")
-    with open(args.variable_names_file, "r") as f:
-        names = yaml.safe_load(f)
 
     with open(args.variable_names_file, "r") as f:
         names = yaml.safe_load(f)
@@ -199,9 +194,6 @@ if __name__ == "__main__":
         args.model_path,
         args.high_res_data_path,
         args.num_test_zarrs,
-        names["pred_vars_to_keep"],
-        names["init_time_dim"],
-        names["coord_z_center"],
         args.model_type,
         args.downsample_time_factor,
         names,

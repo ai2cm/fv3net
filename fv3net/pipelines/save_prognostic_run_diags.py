@@ -13,7 +13,6 @@ import xarray as xr
 import shutil
 
 import fv3net
-from fv3net.pipelines.common import dump_nc
 import vcm
 
 import logging
@@ -25,6 +24,15 @@ logger.setLevel(logging.INFO)
 def rms(x, y, w, dims):
     return np.sqrt(((x - y) ** 2 * w).sum(dims) / w.sum(dims))
 
+
+def dump_nc(ds: xr.Dataset, f):
+    # to_netcdf closes file, which will delete the buffer
+    # need to use a buffer since seek doesn't work with GCSFS file objects
+    with tempfile.TemporaryDirectory() as dirname:
+        url = os.path.join(dirname, "tmp.nc")
+        ds.to_netcdf(url, engine="h5netcdf")
+        with open(url, "rb") as tmp1:
+            shutil.copyfileobj(tmp1, f)
 
 
 if __name__ == "__main__":

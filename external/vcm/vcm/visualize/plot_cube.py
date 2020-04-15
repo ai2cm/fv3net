@@ -243,10 +243,6 @@ def mappable_var(
 
     for grid_var in coord_vars:
         new_ds = new_ds.assign_coords(coords={grid_var: ds[grid_var]})
-        
-    for coord in [coord_y_center, coord_x_center, coord_y_outer, coord_x_outer]:
-        if coord in new_ds.coords:
-            new_ds = new_ds.drop(coord)
 
     for coord in [coord_y_center, coord_x_center, coord_y_outer, coord_x_outer]:
         if coord in new_ds.coords:
