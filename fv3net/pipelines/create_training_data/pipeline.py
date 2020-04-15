@@ -65,6 +65,11 @@ def run(args, pipeline_args, names):
     logger.info(f"Processing {len(data_batches)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
+        # TODO this code will be cleaner if we get rid of "data batches" as a concept
+        # also it would cleaner to have separately loading piplines for each data source
+        # that are merged by a beam.CoGroupBY operation.
+        # currently, there is no place easy place for me to put a load operation 
+        # and check for NaNs
         (
             p
             | beam.Create(data_batches)
