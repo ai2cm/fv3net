@@ -74,7 +74,7 @@ class BatchGenerator:
         """
         grouped_urls = self.train_file_batches
         for file_batch_urls in grouped_urls:
-            ds_shuffled = self._create_training_batch_with_retries(
+            yield self._create_training_batch(
                 file_batch_urls, coord_z_center, init_time_dim
             )
 
@@ -83,7 +83,7 @@ class BatchGenerator:
         timestep_paths = [self.fs.get_mapper(url) for url in urls]
         return [xr.open_zarr(path).load() for path in timestep_paths]
 
-    def _create_training_batch_with_retries(self, urls, coord_z_center, init_time_dim):
+    def _create_training_batch(self, urls, coord_z_center, init_time_dim):
         # TODO refactor this I/O
         data = self._load_datasets(urls)
         ds = xr.concat(data, init_time_dim)
