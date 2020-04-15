@@ -20,15 +20,11 @@ from .diagnostics import plot_diagnostics
 from .create_metrics import create_metrics_dataset
 from .plot_metrics import plot_metrics
 from .plot_timesteps import plot_timestep_counts
-from ...regression.sklearn.train import (
-    MODEL_CONFIG_FILENAME,
-    TIMESTEPS_USED_FILENAME,
-    TIME_FORMAT,
-)
 
 DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
 DATASET_NAME_SHIELD_HIRES = "coarsened_high_res"
+TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 
 DPI_FIGURES = {
     "timestep_histogram": 90,
@@ -41,26 +37,32 @@ DPI_FIGURES = {
 }
 
 
-def get_model_training_timesteps(path):
-    """Given path to directory containing ML model, return list of datetimes for
-    training times"""
-    with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME), "r") as f:
-        timesteps = f.read().splitlines()
-    return [datetime.strptime(t, TIME_FORMAT) for t in timesteps]
+#def get_model_training_timesteps(path):
+#    """Given path to directory containing ML model, return list of datetimes for
+#    training times"""
+#    with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME), "r") as f:
+#        timesteps = f.read().splitlines()
+#    return [datetime.strptime(t, TIME_FORMAT) for t in timesteps]
 
 
-def open_model_config(path):
-    """Given path to directory containing ML model, return model config yaml"""
-    with fsspec.open(os.path.join(path, MODEL_CONFIG_FILENAME)) as f:
-        config = yaml.safe_load(f)
-    return config
+#def open_model_config(path):
+#    """Given path to directory containing ML model, return model config yaml"""
+#    with fsspec.open(os.path.join(path, MODEL_CONFIG_FILENAME)) as f:
+#        config = yaml.safe_load(f)
+#    return config
 
 
 def _is_remote(path):
     return path.startswith("gs://")
 
 
-def compute_metrics_and_plot(ds, output_dir, names, metadata, timesteps_training):
+def _ensure_datetime(d):
+    """Ensure d is a python datetime object (as opposed to cftime.DatetimeJulian
+    for example)"""
+    return datetime(d.year, d.month, d.day, d.hour, d.minute, d.second)
+
+
+def compute_metrics_and_plot(ds, output_dir, names, metadata):
     # TODO refactor this "and" function into two routines
     ds_pred = ds.sel(dataset=DATASET_NAME_PREDICTION)
     ds_test = ds.sel(dataset=DATASET_NAME_FV3_TARGET)
@@ -69,13 +71,15 @@ def compute_metrics_and_plot(ds, output_dir, names, metadata, timesteps_training
     ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires, names)
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
 
-    # write out text file of timesteps used for testing model
+    # write out yaml file of timesteps used for testing model
     init_times = ds[names["init_time_dim"]].values
+    init_times = [_ensure_datetime(t) for t in init_times]
     with fsspec.open(os.path.join(output_dir, TIMESTEPS_USED_FILENAME), "w") as f:
-        f.writelines([f"{t.strftime(TIME_FORMAT)}\n" for t in init_times])
+        yaml.dump(init_times, f)
 
+    # TODO: move this function to another script which creates all the plots
     timesteps_plot_section = plot_timestep_counts(
-        timesteps_training, init_times, output_dir, DPI_FIGURES
+        output_dir, TIMESTEPS_USED_FILENAME, DPI_FIGURES
     )
 
     # TODO This should be another script
@@ -247,14 +251,10 @@ if __name__ == "__main__":
     # This could lead to OOM errors (but those sound like an issue anyway)
     ds = ds.load()
 
-    model_config = open_model_config(args.model_path)
-    timesteps_train = get_model_training_timesteps(args.model_path)
-    metadata = {**model_config, **vars(args)}
-
     if _is_remote(args.output_path):
         with tempfile.TemporaryDirectory() as local_dir:
             # TODO another "and" indicates this needs to be refactored.
-            compute_metrics_and_plot(ds, local_dir, names, metadata, timesteps_train)
+            compute_metrics_and_plot(ds, local_dir, names, vars(args))
             copy(local_dir, output_dir)
     else:
-        compute_metrics_and_plot(ds, args.output_path, names, metadata, timesteps_train)
+        compute_metrics_and_plot(ds, args.output_path, names, vars(args))
