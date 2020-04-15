@@ -14,6 +14,7 @@ from fv3net.diagnostics.one_step_jobs import (
     GLOBAL_MEAN_2D_VARS,
     GLOBAL_MEAN_3D_VARS,
     DIURNAL_VAR_MAPPING,
+    DQ_MAPPING,
     MAPPABLE_VAR_KWARGS
 )
 from scipy.stats import binned_statistic_2d
@@ -48,7 +49,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     """
     
     report_sections = {}
-    stride = 2
+    stride = 7
     
     # make 2-d var global mean time series
     
@@ -95,50 +96,44 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     section_name = 'dQ vs hi-res diagnostics across forecast time'
     logger.info(f'Plotting {section_name}')
     
-    dQ_mapping = {
-        'Q1': {
-            'column_integrated_heating': 'net_heating'
-        },
-        'Q2': {
-            'column_integrated_moistening': 'net_precipitation'
-        }
-    }
-    stride = 2
-    
     dQ_comparison_maps = []
-    for q_term, mapping in dQ_mapping.items():
-        for coarse_var, hi_res_diag_var in mapping.items():
-            hi_res_diag_var_full = hi_res_diag_var + "_physics"
-            comparison_ds = xr.concat([
-                (
-                    states_and_tendencies[list((hi_res_diag_var_full,) + GRID_VARS)]
-                    .sel({DELTA_DIM: 'hi-res', VAR_TYPE_DIM: 'states'})
-                    .drop([DELTA_DIM, VAR_TYPE_DIM])
-                    .expand_dims({DELTA_DIM: ['hi-res diagnostics']})
-                    .rename({hi_res_diag_var_full: hi_res_diag_var})
-                ),
-                (
-                    states_and_tendencies[list((coarse_var,) + GRID_VARS)]
-                    .sel({DELTA_DIM: 'hi-res - coarse', VAR_TYPE_DIM: 'tendencies'})
-                    .drop([DELTA_DIM, VAR_TYPE_DIM])
-                    .expand_dims({DELTA_DIM: ['tendency-based dQ']})
-                    .rename(mapping)
-                )
-            ], dim=DELTA_DIM
+    for q_term, mapping in DQ_MAPPING.items():
+        coarse_var = mapping['coarse_name']
+        hi_res_diag_var = mapping['hi-res_name']
+        scale = mapping['scale']
+        hi_res_diag_var_full = hi_res_diag_var + "_physics"
+        comparison_ds = xr.concat([
+            (
+                states_and_tendencies[list((hi_res_diag_var_full,) + GRID_VARS)]
+                .sel({DELTA_DIM: 'hi-res', VAR_TYPE_DIM: 'states'})
+                .drop([DELTA_DIM, VAR_TYPE_DIM])
+                .expand_dims({DELTA_DIM: ['hi-res diagnostics']})
+                .rename({hi_res_diag_var_full: hi_res_diag_var})
+            ),
+            (
+                states_and_tendencies[list((coarse_var,) + GRID_VARS)]
+                .sel({DELTA_DIM: 'hi-res - coarse', VAR_TYPE_DIM: 'tendencies'})
+                .drop([DELTA_DIM, VAR_TYPE_DIM])
+                .expand_dims({DELTA_DIM: ['tendency-based dQ']})
+                .rename({coarse_var: hi_res_diag_var})
             )
-            comparison_ds[hi_res_diag_var] = (
-                comparison_ds[hi_res_diag_var]
-                .assign_attrs({"long_name": hi_res_diag_var})
-            )
-            f = plot_model_run_maps_across_time_dim(
-                comparison_ds,
-                hi_res_diag_var,
-                FORECAST_TIME_DIM,
-                stride = stride)
-            plotname = f"{hi_res_diag_var}_comparison_maps.png"
-            f.savefig(os.path.join(output_dir, plotname))
-            plt.close(f)
-            dQ_comparison_maps.append(plotname)
+        ], dim=DELTA_DIM
+        )
+        comparison_ds[hi_res_diag_var] = (
+            comparison_ds[hi_res_diag_var]
+            .assign_attrs({"long_name": hi_res_diag_var})
+        )
+        f = plot_model_run_maps_across_time_dim(
+            comparison_ds,
+            hi_res_diag_var,
+            FORECAST_TIME_DIM,
+            stride = stride,
+            scale = scale
+        )
+        plotname = f"{q_term}_comparison_maps.png"
+        f.savefig(os.path.join(output_dir, plotname))
+        plt.close(f)
+        dQ_comparison_maps.append(plotname)
     report_sections[section_name] = dQ_comparison_maps
     
     
@@ -270,7 +265,7 @@ def plot_global_mean_time_series(
     ax.set_xlabel(f"{FORECAST_TIME_DIM} [m]")
     ax.set_xlim([da_mean[FORECAST_TIME_DIM].values[0], da_mean[FORECAST_TIME_DIM].values[-1]])
     ax.set_xticks(da_mean[FORECAST_TIME_DIM])
-    ax.set_ylabel(f"{da_mean.attrs['long_name']} [{da_mean.attrs.get('units')}]")
+    ax.set_ylabel(f"{da_mean.name} [{da_mean.attrs.get('units', None)}]")
     if scale is not None:
         ax.set_ylim([-scale, scale])
     ax.set_title(f"{da_mean.name} {vartype}")
@@ -280,7 +275,15 @@ def plot_global_mean_time_series(
     return f
 
 
-def plot_model_run_maps_across_time_dim(ds, var, multiple_time_dim, start = None, end = None, stride = None):
+def plot_model_run_maps_across_time_dim(
+    ds: xr.Dataset,
+    var: str,
+    multiple_time_dim: str,
+    start: int = None,
+    end: int = None,
+    stride: int = None,
+    scale: float = None
+):
     
     rename_dims = {'x': 'grid_xt', 'y': 'grid_yt', 'x_interface': 'grid_x', 'y_interface': 'grid_y'}
     ds = ds.assign_coords({FORECAST_TIME_DIM: ds[FORECAST_TIME_DIM]/60})
@@ -288,7 +291,7 @@ def plot_model_run_maps_across_time_dim(ds, var, multiple_time_dim, start = None
         mappable_var(ds.isel({multiple_time_dim: slice(start, end, stride)}), var, **MAPPABLE_VAR_KWARGS),
         col = DELTA_DIM,
         row = multiple_time_dim,
-        cmap_percentiles_lim=True
+        vmax = scale
     )
     n_rows = ds.isel({multiple_time_dim: slice(start, end, stride)}).sizes[multiple_time_dim]
     f.set_size_inches([10, n_rows*2])
@@ -301,6 +304,7 @@ def plot_model_run_maps_across_time_dim(ds, var, multiple_time_dim, start = None
         for obj in right_text_objs:
             right_text = obj.get_text()
             obj.set_text(right_text + ' min')
+    
     
     return f
 
@@ -441,7 +445,7 @@ def plot_diurnal_cycles(
         ax.set_ylim([-scale, scale])
     n_rows = facetgrid.axes.shape[0]
     f = facetgrid.fig
-    f.set_size_inches([14, n_rows*4])
+    f.set_size_inches([12, n_rows*4])
     f.set_dpi(FIG_DPI)
     f.suptitle(f"{var}")
     

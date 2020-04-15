@@ -38,6 +38,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 import argparse
 import xarray as xr
 import numpy as np
+import yaml
 import os
 import shutil
 from tempfile import TemporaryDirectory
@@ -213,7 +214,7 @@ def _write_ds(ds: xr.Dataset, fullpath: str):
     with TemporaryDirectory() as tmpdir:
         pathname, filename = os.path.split(fullpath)
         tmppath = os.path.join(tmpdir, filename)
-        ds.to_netcdf(tmppath)
+        ds.to_netcdf(tmppath, engine="h5netcdf")
         copy(tmppath, fullpath)
         
 
@@ -258,16 +259,6 @@ if __name__ == "__main__":
         FORECAST_TIME_DIM: 0,
         STEP_DIM: 0
     }).drop_vars([STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
-
-    
-#     output_path = args.netcdf_output
-#     if proto == "" or proto == "file":
-#         output_nc_dir = output_path
-#     elif proto == "gs":
-#         remote_data_path, output_nc_dir = os.path.split(output_path.strip("/"))
-#     if os.path.exists(output_nc_dir):
-#         shutil.rmtree(output_nc_dir)
-#     os.mkdir(output_nc_dir)
     
     output_nc_path = os.path.join(args.netcdf_output, OUTPUT_NC_FILENAME)
 
@@ -309,7 +300,13 @@ if __name__ == "__main__":
     logger.info(f"Writing diagnostics plots report to {report_path}")
     
     report_sections = make_all_plots(states_and_tendencies, output_report_dir)
-    create_report(report_sections, "one_step_diagnostics", output_report_dir)
+    with open(os.path.join(output_report_dir, 'figure_metadata.yml'), mode='w') as f:
+        yaml.dump(report_sections, f)
+    metadata = vars(args)
+    metadata.update({'initializations': states_and_tendencies.attrs[INIT_TIME_DIM]})
+    with open(os.path.join(output_report_dir, 'step_metadata_table.yml'), mode='w') as f:
+        yaml.dump(metadata, f)
+    create_report(report_sections, "one_step_diagnostics", output_report_dir, metadata)
     
     if proto == "gs":
         copy(output_report_dir, remote_report_path)

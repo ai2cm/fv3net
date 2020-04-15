@@ -43,7 +43,69 @@ GLOBAL_MEAN_2D_VARS = {
         VAR_TYPE_DIM: ['tendencies', 'states'],
         "scale": [1000, None]
     },
+    "latent_heat_flux": {
+        VAR_TYPE_DIM: ['states'],
+        "scale": [None]
+    },
+    "sensible_heat_flux": {
+        VAR_TYPE_DIM: ['states'],
+        "scale": [None]
+    },
+    "total_precipitation": {
+        VAR_TYPE_DIM: ['states'],
+        "scale": [None]
+    },
 }
+
+DIURNAL_VAR_MAPPING = {
+    "net_heating_diurnal": {
+        "coarse": {
+            "name": "column_integrated_heating",
+            VAR_TYPE_DIM: 'tendencies',
+        },
+        "hi-res": {
+            "name": "net_heating_physics",
+            VAR_TYPE_DIM: "states"
+        },
+        "scale": 500
+    },
+    "net_precipitation_diurnal": {
+        "coarse": {
+            "name": "column_integrated_moistening",
+            VAR_TYPE_DIM: 'tendencies'
+        },
+        "hi-res": {
+            "name": "net_precipitation_physics",
+            VAR_TYPE_DIM: "states"
+        },
+        "scale": 10
+    },
+    "vertical_wind_diurnal": {
+        "coarse": {
+            "name": "vertical_wind_level_40",
+            VAR_TYPE_DIM: 'states'
+        },
+        "hi-res": {
+            "name": "vertical_wind_level_40",
+            VAR_TYPE_DIM: "states"
+        },
+        "scale": 0.05
+    },
+}
+
+DQ_MAPPING = {
+        'Q1': {
+            'hi-res_name': 'net_heating',
+            'coarse_name': 'column_integrated_heating',
+            'scale': 500
+        },
+        'Q2': {
+            'hi-res_name': 'net_precipitation',
+            'coarse_name': 'column_integrated_moistening',
+            'scale': 10
+        }
+    }
+
 GLOBAL_MEAN_3D_VARS = ["specific_humidity", "air_temperature", "vertical_wind"]
 
 #     'cloud_water_ice_mixing_ratio': {
@@ -55,41 +117,7 @@ GLOBAL_MEAN_3D_VARS = ["specific_humidity", "air_temperature", "vertical_wind"]
 #         "scale": 1.0e-6
 #     },
         
-DIURNAL_VAR_MAPPING = {
-    "net_heating_diurnal": {
-        "coarse": {
-            "name": "column_integrated_heating",
-            VAR_TYPE_DIM: 'tendencies',
-        },
-        "hi-res": {
-            "name": "net_heating_physics",
-            VAR_TYPE_DIM: "states"
-        },
-        "scale": 1000
-    },
-    "net_precipitation_diurnal": {
-        "coarse": {
-            "name": "column_integrated_moistening",
-            VAR_TYPE_DIM: 'tendencies'
-        },
-        "hi-res": {
-            "name": "net_precipitation_physics",
-            VAR_TYPE_DIM: "states"
-        },
-        "scale": 50
-    },
-    "vertical_wind_diurnal": {
-        "coarse": {
-            "name": "vertical_wind_level_40",
-            VAR_TYPE_DIM: 'states'
-        },
-        "hi-res": {
-            "name": "vertical_wind_level_40",
-            VAR_TYPE_DIM: "states"
-        },
-        "scale": 0.01
-    },
-}
+
 MAPPABLE_VAR_KWARGS = {
     "coord_x_center": "x",
     "coord_y_center": "y",

@@ -61,7 +61,7 @@ def _duration_and_interval(timestamp_list: list) -> (int, int):
 
 def _sampling_interval_minutes(duration_minutes: int, restart_interval_minutes: int, n_sample: int) -> int:
     try: 
-        interval_minutes = restart_interval_minutes*((duration_minutes/(n_sample - 1))//restart_interval_minutes)
+        interval_minutes = restart_interval_minutes*max((duration_minutes/(n_sample - 1))//restart_interval_minutes, 1)
     except ZeroDivisionError:
         interval_minutes = None
     return interval_minutes
@@ -107,6 +107,26 @@ def insert_hi_res_diags(ds: xr.Dataset, hi_res_diags_path: str, varnames_mapping
 
 
 def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
+    """Add derived vars (combinations of direct output variables) to dataset"""
+    
+    cloud_water_ice_mixing_ratio = (
+        ds['cloud_ice_mixing_ratio']
+        + ds['cloud_water_mixing_ratio']
+    )
+    cloud_water_ice_mixing_ratio.attrs.update({
+        'long_name': "cloud water and ice mixing ratio",
+        'units': 'kg/kg'
+    })
+        
+    precipitating_water_mixing_ratio = (
+        ds['rain_mixing_ratio'] 
+        + ds['snow_mixing_ratio'] 
+        + ds['graupel_mixing_ratio'] 
+    )
+    precipitating_water_mixing_ratio.attrs.update({
+        'long_name': "precipitating water mixing ratio",
+        'units': 'kg/kg'
+    })
     
     ds = ds.assign({
         'total_water': thermo.total_water(
@@ -118,15 +138,8 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             ds['graupel_mixing_ratio'],
             ds['pressure_thickness_of_atmospheric_layer']
         ),
-        'cloud_water_ice_mixing_ratio': (
-            ds['cloud_ice_mixing_ratio']
-            + ds['cloud_water_mixing_ratio']
-        ),
-        'precipitating_water_mixing_ratio': (
-            ds['rain_mixing_ratio'] 
-            + ds['snow_mixing_ratio'] 
-            + ds['graupel_mixing_ratio'] 
-        ),
+        "precipitating_water": precipitating_water_mixing_ratio,
+        "cloud_water_ice": cloud_water_ice_mixing_ratio,
         'psurf': thermo.psurf_from_delp(
             ds['pressure_thickness_of_atmospheric_layer']
         ),
@@ -145,14 +158,6 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
         'net_heating_physics': net_heating_from_dataset(ds.rename({
             'sensible_heat_flux': 'SHTFLsfc',
             'total_precipitation': 'PRATEsfc'})
-        )
-    })
-    
-    ds = ds.assign({
-        'qt': (
-            ds['specific_humidity'] 
-            + ds['cloud_water_ice_mixing_ratio'] 
-            + ds['precipitating_water_mixing_ratio'] 
         )
     })
     
