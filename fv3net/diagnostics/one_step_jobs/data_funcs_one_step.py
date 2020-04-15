@@ -255,7 +255,10 @@ def insert_abs_vars(ds: xr.Dataset, varnames: Sequence) -> xr.Dataset:
     for var in varnames:
         if var in ds:
             ds[var + '_abs'] = np.abs(ds[var])
-            ds[var + '_abs'].attrs.update({'long_name' : f"absolute {ds[var].attrs['long_name']}"})
+            ds[var + '_abs'].attrs.update({
+                'long_name': f"absolute {ds[var].attrs['long_name']}",
+                'units': ds[var].attrs['units']
+            })
         else:
             raise ValueError('Invalid variable name for absolute tendencies.')
     
@@ -327,6 +330,7 @@ def insert_diurnal_means(
                 [da_hires_land, da_coarse_land], dim=DELTA_DIM
             ).assign_coords({DELTA_DIM: ['hi-res', 'coarse']})
         })
+        ds[f"{var}_land"].attrs.update(ds[coarse_name].attrs)
         
         ds_sea = mask_to_surface_type(
             ds[[coarse_name, hires_name, 'local_time', mask]],
@@ -346,6 +350,7 @@ def insert_diurnal_means(
                 [da_hires_sea, da_coarse_sea], dim=DELTA_DIM
             ).assign_coords({DELTA_DIM: ['hi-res', 'coarse']})
         })
+        ds[f"{var}_sea"].attrs.update(ds[coarse_name].attrs)
 
     return ds
 

@@ -48,6 +48,46 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     """
     
     report_sections = {}
+    stride = 2
+    
+    # make 2-d var global mean time series
+    
+    section_name = '2-d var global mean time series'
+    logger.info(f'Plotting {section_name}')
+    
+    global_mean_time_series_plots = []
+    for var, specs in GLOBAL_MEAN_2D_VARS.items():
+        for vartype, scale in zip(specs[VAR_TYPE_DIM], specs['scale']):
+            f = plot_global_mean_time_series(
+                states_and_tendencies.sel({VAR_TYPE_DIM: vartype})[var + "_global_mean"],
+                states_and_tendencies.sel({VAR_TYPE_DIM: vartype})[var + "_global_mean_std"],
+                vartype = vartype,
+                scale = scale
+            )
+            plotname = f"{var}_{vartype}_global_mean_time_series.png"
+            f.savefig(os.path.join(output_dir, plotname))
+            plt.close(f)
+            global_mean_time_series_plots.append(plotname)
+    report_sections[section_name] = global_mean_time_series_plots
+    
+    
+    # make diurnal cycle comparisons between datasets
+    
+    section_name = 'diurnal cycle comparisons'
+    logger.info(f'Plotting {section_name}')
+    
+    averages = ['land', 'sea']
+
+    diurnal_cycle_comparisons = []
+    for var, spec in DIURNAL_VAR_MAPPING.items():
+        scale = spec['scale']
+        for domain in averages:
+            f = plot_diurnal_cycles(states_and_tendencies, '_'.join([var, domain]), stride = stride, scale = scale)
+            plotname = f"{var}_{domain}.png"
+            f.savefig(os.path.join(output_dir, plotname))
+            plt.close(f)
+            diurnal_cycle_comparisons.append(plotname)
+    report_sections[section_name] = diurnal_cycle_comparisons
     
     
     # compare dQ with hi-res diagnostics
@@ -133,7 +173,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
             dQ_name,
             dQ_type,
             composites,
-            stride = 2
+            stride = stride
         )
         plotname = f"{dQ_name}_profiles.png"
         f.savefig(os.path.join(output_dir, plotname))
@@ -162,27 +202,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
                 plt.close(f)
                 mean_time_height_plots.append(plotname)
     report_sections[section_name] = mean_time_height_plots
-    
-    
-    # make 2-d var global mean time series
-    
-    section_name = '2-d var global mean time series'
-    logger.info(f'Plotting {section_name}')
-    
-    global_mean_time_series_plots = []
-    for var in GLOBAL_MEAN_2D_VARS:
-        for vartype in ['tendencies', 'states']:
-            f = plot_global_mean_time_series(
-                states_and_tendencies.sel(var_type = vartype)[var + "_global_mean"],
-                states_and_tendencies.sel(var_type = vartype)[var + "_global_mean_std"],
-                vartype
-            )
-            plotname = f"{var}_{vartype}_global_mean_time_series.png"
-            f.savefig(os.path.join(output_dir, plotname))
-            plt.close(f)
-            global_mean_time_series_plots.append(plotname)
-    report_sections[section_name] = global_mean_time_series_plots
-    
+
     
     # make maps of 2-d vars across forecast time
     
@@ -197,42 +217,28 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     maps_across_forecast_time = []
     for vartype, var_list in maps_to_make.items():
         for var in var_list:
-            for subvar in [var, f"{var}_std"]:
-                f = plot_model_run_maps_across_time_dim(
-                    states_and_tendencies.sel({VAR_TYPE_DIM: vartype}),
-                    subvar,
-                    FORECAST_TIME_DIM,
-                    stride = stride
-                )
-                plotname = f"{subvar}_{vartype}_maps.png"
-                f.savefig(os.path.join(output_dir, plotname))
-                plt.close(f)
-                maps_across_forecast_time.append(plotname)
-    report_sections[section_name] = maps_across_forecast_time
-    
-    
-    # make diurnal cycle comparisons between datasets
-    
-    section_name = 'diurnal cycle comparisons'
-    logger.info(f'Plotting {section_name}')
-    
-    averages = ['land', 'sea']
-
-    diurnal_cycle_comparisons = []
-    for var in DIURNAL_VAR_MAPPING:
-        for domain in averages:
-            f = plot_diurnal_cycles(states_and_tendencies, '_'.join([var, domain]), stride = 2)
-            plotname = f"{var}_{domain}.png"
+            f = plot_model_run_maps_across_time_dim(
+                states_and_tendencies.sel({VAR_TYPE_DIM: vartype}),
+                var,
+                FORECAST_TIME_DIM,
+                stride = stride
+            )
+            plotname = f"{var}_{vartype}_maps.png"
             f.savefig(os.path.join(output_dir, plotname))
             plt.close(f)
-            diurnal_cycle_comparisons.append(plotname)
-    report_sections[section_name] = diurnal_cycle_comparisons
+            maps_across_forecast_time.append(plotname)
+    report_sections[section_name] = maps_across_forecast_time
     
     
     return report_sections
 
 
-def plot_global_mean_time_series(da_mean: xr.DataArray, da_std:  xr.DataArray, vartype: str = 'tendency') -> plt.figure:
+def plot_global_mean_time_series(
+    da_mean: xr.DataArray,
+    da_std:  xr.DataArray,
+    vartype: str = 'tendency',
+    scale: float = None
+) -> plt.figure:
     
     init_color1 = [0.75, 0.75, 1]
     init_color2 = [0.5, 0.75, 0.5]
@@ -258,12 +264,15 @@ def plot_global_mean_time_series(da_mean: xr.DataArray, da_std:  xr.DataArray, v
     h4, = ax.plot(da_mean[FORECAST_TIME_DIM], da_mean.sel(model_run='hi-res'), 'g-x')
     handles = [h1, h2, h3, h4]
     ax.legend(handles, ['Coarse initializations', 'Coarse mean', 'Hi-res initializations', 'Hi-res mean'])
-    if vartype == 'tendency':
+    if vartype == 'tendencies':
         ax.plot([da_mean[FORECAST_TIME_DIM].values[0], da_mean[FORECAST_TIME_DIM].values[-1]], [0, 0], 'k-')
+        da_mean.attrs['units'] = da_mean.attrs['units'] + '/s'
     ax.set_xlabel(f"{FORECAST_TIME_DIM} [m]")
     ax.set_xlim([da_mean[FORECAST_TIME_DIM].values[0], da_mean[FORECAST_TIME_DIM].values[-1]])
     ax.set_xticks(da_mean[FORECAST_TIME_DIM])
     ax.set_ylabel(f"{da_mean.attrs['long_name']} [{da_mean.attrs.get('units')}]")
+    if scale is not None:
+        ax.set_ylim([-scale, scale])
     ax.set_title(f"{da_mean.name} {vartype}")
     f.set_size_inches([10, 4])
     f.set_dpi(FIG_DPI)
@@ -398,7 +407,8 @@ def plot_diurnal_cycles(
     var: str,
     start: int = None,
     end: int = None,
-    stride: int = None
+    stride: int = None,
+    scale: float = None
 ) -> plt.figure:
     
     ds = ds.assign_coords({FORECAST_TIME_DIM: (ds[FORECAST_TIME_DIM]/60).astype(int)})
@@ -407,6 +417,7 @@ def plot_diurnal_cycles(
         ax = plt.gca()
         ax.set_prop_cycle(color=['b', [1, 0.5, 0]])
         h = ax.plot(arr.T)
+        ax.plot([0, 24.], [0, 0], 'k-')
         return h
     
     facetgrid = xr.plot.FacetGrid(
@@ -423,8 +434,11 @@ def plot_diurnal_cycles(
     facetgrid.set_titles(template='{value} minutes')
     for ax in facetgrid.axes[-1, :]:
         ax.set_xlabel("mean local time [hrs]")
+        ax.set_xticks(np.arange(0., 24., 4.))
     for ax in facetgrid.axes[:, 0]:
-        ax.set_ylabel(f"{var}")
+        ax.set_ylabel(f"{var} [{ds[var].attrs['units']}]")
+    if scale is not None:
+        ax.set_ylim([-scale, scale])
     n_rows = facetgrid.axes.shape[0]
     f = facetgrid.fig
     f.set_size_inches([14, n_rows*4])

@@ -32,29 +32,40 @@ VARS_FROM_ZARR = (
 ABS_VARS = ['psurf', 'precipitable_water', 'total_heat']
 GLOBAL_MEAN_2D_VARS = {
     'psurf_abs': {
-        VAR_TYPE_DIM: 'tendency',
-        "scale": 0.12
+        VAR_TYPE_DIM: ['tendencies'],
+        "scale": [0.12]
     },
     'precipitable_water_abs': {
-        VAR_TYPE_DIM: 'tendency',
-        "scale": 0.00012
+        VAR_TYPE_DIM: ['tendencies'],
+        "scale": [0.0012]
     },
-    'total_heat_abs': {},
-    'precipitable_water': {},
-#     'cloud_water_ice': None,
-    'total_heat': {}
+    'total_heat': {
+        VAR_TYPE_DIM: ['tendencies', 'states'],
+        "scale": [1000, None]
+    },
 }
 GLOBAL_MEAN_3D_VARS = ["specific_humidity", "air_temperature", "vertical_wind"]
+
+#     'cloud_water_ice_mixing_ratio': {
+#         VAR_TYPE_DIM: 'tendency',
+#         "scale": 1.0e-6
+#     },
+#     "precipitating_water_mixing_ratio": {
+#         VAR_TYPE_DIM: 'tendency',
+#         "scale": 1.0e-6
+#     },
+        
 DIURNAL_VAR_MAPPING = {
     "net_heating_diurnal": {
         "coarse": {
             "name": "column_integrated_heating",
-            VAR_TYPE_DIM: 'tendencies'
+            VAR_TYPE_DIM: 'tendencies',
         },
         "hi-res": {
             "name": "net_heating_physics",
             VAR_TYPE_DIM: "states"
-        }
+        },
+        "scale": 1000
     },
     "net_precipitation_diurnal": {
         "coarse": {
@@ -64,7 +75,8 @@ DIURNAL_VAR_MAPPING = {
         "hi-res": {
             "name": "net_precipitation_physics",
             VAR_TYPE_DIM: "states"
-        }
+        },
+        "scale": 50
     },
     "vertical_wind_diurnal": {
         "coarse": {
@@ -74,7 +86,8 @@ DIURNAL_VAR_MAPPING = {
         "hi-res": {
             "name": "vertical_wind_level_40",
             VAR_TYPE_DIM: "states"
-        }
+        },
+        "scale": 0.01
     },
 }
 MAPPABLE_VAR_KWARGS = {

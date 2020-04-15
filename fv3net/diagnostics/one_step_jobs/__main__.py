@@ -144,7 +144,7 @@ def _insert_means_and_shrink(ds: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
             .pipe(
                 insert_area_means,
                 grid['area'],
-                GLOBAL_MEAN_2D_VARS.keys() + GLOBAL_MEAN_3D_VARS,
+                list(GLOBAL_MEAN_2D_VARS) + GLOBAL_MEAN_3D_VARS,
                 ['land_sea_mask', 'net_precipitation_physics']
             )
             .pipe(shrink_ds)
@@ -205,15 +205,22 @@ def _mean_and_std(ds: xr.Dataset) -> xr.Dataset:
 def _write_ds(ds: xr.Dataset, fullpath: str):
     """dataflow pipeline func for writing out final netcdf"""
     
-    logger.info("fWriting final dataset to netcdf at {fullpath}.")
+    logger.info(f"Writing final dataset to netcdf at {fullpath}.")
     for var in ds.variables:
         if ds[var].dtype == 'O':
             ds = ds.assign({var: ds[var].astype('S15').astype('unicode_')})
+    ds.attrs[INIT_TIME_DIM] = ' '.join(ds.attrs[INIT_TIME_DIM])
     with TemporaryDirectory() as tmpdir:
         pathname, filename = os.path.split(fullpath)
         tmppath = os.path.join(tmpdir, filename)
         ds.to_netcdf(tmppath)
         copy(tmppath, fullpath)
+        
+
+def _get_remote_netcdf(filename):
+    fs_nc = get_fs(filename)
+    with fs_nc.open(filename, "rb") as f:
+        return xr.open_dataset(f).load()
 
 
 if __name__ == "__main__":
@@ -280,8 +287,7 @@ if __name__ == "__main__":
         
     proto = get_protocol(output_nc_path)
     if proto == "gs":
-        fs_nc = get_fs(output_nc_path)
-        states_and_tendencies = xr.open_dataset(fs_nc.get_mapper(output_nc_path))
+        states_and_tendencies = _get_remote_netcdf(output_nc_path)
     elif proto == "" or proto == "file":
         states_and_tendencies = xr.open_dataset(output_nc_path)
     
