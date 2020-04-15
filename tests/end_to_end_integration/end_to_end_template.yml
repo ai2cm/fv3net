@@ -1,12 +1,12 @@
 storage_proto: gs
 storage_root: vcm-ml-data/test-end-to-end-integration
 experiment:
-  name: end_to_end_test
-  unique_id: True
+  name: end_to_end_test-95424b2e
+  unique_id: false
   steps_to_run:
     #- coarsen_restarts  # this step is unreliable, so currently not part of integration test
-    - coarsen_diagnostics
-    - one_step_run
+    # - coarsen_diagnostics
+    #- one_step_run
     - create_training_data
     - train_sklearn_model
     - test_sklearn_model
@@ -49,7 +49,7 @@ experiment:
           from: one_step_run
         diagnostics_data:
           from: coarsen_diagnostics
-        variable_filename: tests/end_to_end_integration/create_training_data_variable_names.yml
+        variable_filename: /etc/config/create_training_data_variable_names.yml
         --timesteps-per-output-file: 1
         --train-fraction: 0.5
         
