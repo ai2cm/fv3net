@@ -38,8 +38,9 @@ def get_radiation_names():
     assert len(radiation_names) > 0
     return radiation_names
 
+
 if fv3gfs is not None:
-    STORE_NAMES.append(get_radiation_names())
+    STORE_NAMES.extend(get_radiation_names())
 
 TENDENCY_OUT_FILENAME = "tendencies.zarr"
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -175,6 +176,6 @@ if __name__ == "__main__":
         tendencies = nudge(state, reference)
         monitor.store(reference, stage="reference")
         monitor.store(tendencies, stage="nudging_tendencies")
-#        monitor.store(state, stage="after_nudging") redundant
+        monitor.store(state, stage="after_nudging")
         fv3gfs.set_state(state)
     fv3gfs.cleanup()
