@@ -8,8 +8,8 @@ from datetime import datetime
 
 from vcm.cloud.fsspec import get_fs
 from vcm.cloud.gsutil import copy
+import report
 
-from ..create_report import create_report
 from ..data import merge_comparison_datasets
 from .data import (
     predict_on_test_data,
@@ -96,7 +96,7 @@ def compute_metrics_and_plot(ds, output_dir, names, metadata, timesteps_training
         **diag_report_sections,
     }
 
-    create_report(
+    report.create_html(
         combined_report_sections,
         "ML_offline_diagnostics",
         output_dir,
