@@ -5,6 +5,7 @@ import logging
 import os
 import yaml
 
+from datetime import datetime
 from dataclasses import dataclass
 from typing import List
 
@@ -21,7 +22,7 @@ MODEL_CONFIG_FILENAME = "training_config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 REPORT_TITLE = "ML model training report"
-TRAINING_FIG_FILENAME = "figures/count_of_training_times_used.png"
+TRAINING_FIG_FILENAME = "count_of_training_times_used.png"
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -193,7 +194,7 @@ def _create_report_plots(path):
     for html report"""
     with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME)) as f:
         timesteps = yaml.safe_load(f)
-    gallery.plot_daily_and_hourly_hist(timesteps, "Training data").savefig(
+    gallery.plot_daily_and_hourly_hist(timesteps).savefig(
         os.path.join(path, TRAINING_FIG_FILENAME), dpi=90,
     )
     return {"Time distribution of training samples": TRAINING_FIG_FILENAME}
@@ -208,7 +209,9 @@ def _write_training_html_report(path, sections, metadata):
 
 
 def _url_to_datetime(url):
-    return vcm.parse_datetime_from_str(vcm.parse_timestep_str_from_path(url))
+    dt = vcm.parse_datetime_from_str(vcm.parse_timestep_str_from_path(url))
+    # ensure return a python datetime (i.e. not cftime.DatetimeJulian)
+    return datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
 
 
 if __name__ == "__main__":
@@ -235,7 +238,7 @@ if __name__ == "__main__":
     batched_data = load_data_generator(train_config)
 
     model, training_urls_used = train_model(batched_data, train_config)
-    timesteps_used = map(_url_to_datetime, training_urls_used)
+    timesteps_used = list(map(_url_to_datetime, training_urls_used))
     save_output(args.output_data_path, model, train_config, timesteps_used)
     report_sections = _create_report_plots(args.output_data_path)
     report_metadata = {**vars(args), **vars(train_config)}
