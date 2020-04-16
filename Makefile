@@ -16,7 +16,7 @@ versions:
 	gettext --version
 
 generate_configs:
-	end_to_end/generate_all_configs.sh $(FV3NET_IMAGE) $(PROGNOSTIC_RUN_IMAGE)
+	end_to_end/generate_all_configs.sh $(PROGNOSTIC_RUN_IMAGE) $(FV3NET_IMAGE) 
 
 submit:
 	kubectl apply -f manifests/
