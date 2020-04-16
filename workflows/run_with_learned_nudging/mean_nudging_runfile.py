@@ -5,7 +5,7 @@ import fv3gfs
 import fv3config
 import fv3util
 from mpi4py import MPI
-from fv3net import runtime
+import runtime
 import fsspec
 import xarray as xr
 import cftime
