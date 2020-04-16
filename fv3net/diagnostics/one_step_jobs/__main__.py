@@ -145,7 +145,7 @@ def _insert_means_and_shrink(ds: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
             .pipe(
                 insert_area_means,
                 grid['area'],
-                list(GLOBAL_MEAN_2D_VARS) + GLOBAL_MEAN_3D_VARS,
+                list(GLOBAL_MEAN_2D_VARS) + list(GLOBAL_MEAN_3D_VARS),
                 ['land_sea_mask', 'net_precipitation_physics']
             )
             .pipe(shrink_ds)
@@ -214,7 +214,7 @@ def _write_ds(ds: xr.Dataset, fullpath: str):
     with TemporaryDirectory() as tmpdir:
         pathname, filename = os.path.split(fullpath)
         tmppath = os.path.join(tmpdir, filename)
-        ds.to_netcdf(tmppath, engine="h5netcdf")
+        ds.to_netcdf(tmppath)
         copy(tmppath, fullpath)
         
 

@@ -15,6 +15,8 @@ from fv3net.diagnostics.one_step_jobs import (
     GLOBAL_MEAN_3D_VARS,
     DIURNAL_VAR_MAPPING,
     DQ_MAPPING,
+    DQ_PROFILE_MAPPING,
+    GLOBAL_2D_MAPS,
     MAPPABLE_VAR_KWARGS
 )
 from scipy.stats import binned_statistic_2d
@@ -126,6 +128,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
         f = plot_model_run_maps_across_time_dim(
             comparison_ds,
             hi_res_diag_var,
+            'states',
             FORECAST_TIME_DIM,
             stride = stride,
             scale = scale
@@ -142,33 +145,20 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     section_name = 'dQ profiles across forecast time'
     logger.info(f'Plotting {section_name}')
     
-    dQ_PROFILE_MAPPING = {
-        'air_temperature': {
-            'name': 'dQ1',
-            VAR_TYPE_DIM: 'tendencies'
-        },
-        'specific_humidity': {
-            'name': 'dQ2',
-            VAR_TYPE_DIM: 'tendencies'
-        },
-        'vertical_wind': {
-            'name': 'dW',
-            VAR_TYPE_DIM: 'states'
-        },
-    }
-    
     composites = ['pos_PminusE_land_mean', 'neg_PminusE_land_mean', 'pos_PminusE_sea_mean', 'neg_PminusE_sea_mean', ]
     dQ_profile_maps = []
-    for ds_name, dQ_info in dQ_PROFILE_MAPPING.items():
+    for ds_name, dQ_info in DQ_PROFILE_MAPPING.items():
         dQ_name = dQ_info['name']
         dQ_type = dQ_info[VAR_TYPE_DIM]
+        scale =  dQ_info["scale"]
         f = plot_dQ_vertical_profiles(
             states_and_tendencies.sel({VAR_TYPE_DIM: dQ_type, DELTA_DIM: 'hi-res - coarse'}),
             ds_name,
             dQ_name,
             dQ_type,
             composites,
-            stride = stride
+            stride = stride,
+            scale = scale
         )
         plotname = f"{dQ_name}_profiles.png"
         f.savefig(os.path.join(output_dir, plotname))
@@ -185,17 +175,19 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     averages = ['global', 'sea', 'land']
 
     mean_time_height_plots = []
-    for var in GLOBAL_MEAN_3D_VARS:
-        for vartype in ['states', 'tendencies']:
-            for average in averages:
-                f, _ = plot_mean_time_height(
-                    states_and_tendencies.sel({VAR_TYPE_DIM: vartype})[f"{var}_{average}_mean"],
-                    vartype
-                )
-                plotname = f"{var}_{vartype}_{average}_mean_time_height.png"
-                f.savefig(os.path.join(output_dir, plotname))
-                plt.close(f)
-                mean_time_height_plots.append(plotname)
+    for var, spec in GLOBAL_MEAN_3D_VARS.items():
+        vartype = spec[VAR_TYPE_DIM]
+        scale = spec["scale"]
+        for average in averages:
+            f, _ = plot_mean_time_height(
+                states_and_tendencies.sel({VAR_TYPE_DIM: vartype})[f"{var}_{average}_mean"],
+                vartype,
+                scale
+            )
+            plotname = f"{var}_{vartype}_{average}_mean_time_height.png"
+            f.savefig(os.path.join(output_dir, plotname))
+            plt.close(f)
+            mean_time_height_plots.append(plotname)
     report_sections[section_name] = mean_time_height_plots
 
     
@@ -203,25 +195,23 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     
     section_name = '2-d var maps across forecast time'
     logger.info(f'Plotting {section_name}')
-    
-    maps_to_make = {
-        "tendencies": ['psurf', 'column_integrated_heating', 'column_integrated_moistening'],
-        "states":  ['vertical_wind_level_40']
-    }
 
     maps_across_forecast_time = []
-    for vartype, var_list in maps_to_make.items():
-        for var in var_list:
-            f = plot_model_run_maps_across_time_dim(
-                states_and_tendencies.sel({VAR_TYPE_DIM: vartype}),
-                var,
-                FORECAST_TIME_DIM,
-                stride = stride
-            )
-            plotname = f"{var}_{vartype}_maps.png"
-            f.savefig(os.path.join(output_dir, plotname))
-            plt.close(f)
-            maps_across_forecast_time.append(plotname)
+    for var, spec in GLOBAL_2D_MAPS.items():
+        vartype = spec[VAR_TYPE_DIM]
+        scale = spec["scale"]
+        f = plot_model_run_maps_across_time_dim(
+            states_and_tendencies.sel({VAR_TYPE_DIM: vartype}),
+            var,
+            vartype,
+            FORECAST_TIME_DIM,
+            stride = stride,
+            scale = scale
+        )
+        plotname = f"{var}_{vartype}_maps.png"
+        f.savefig(os.path.join(output_dir, plotname))
+        plt.close(f)
+        maps_across_forecast_time.append(plotname)
     report_sections[section_name] = maps_across_forecast_time
     
     
@@ -278,6 +268,7 @@ def plot_global_mean_time_series(
 def plot_model_run_maps_across_time_dim(
     ds: xr.Dataset,
     var: str,
+    vartype: str,
     multiple_time_dim: str,
     start: int = None,
     end: int = None,
@@ -286,6 +277,8 @@ def plot_model_run_maps_across_time_dim(
 ):
     
     rename_dims = {'x': 'grid_xt', 'y': 'grid_yt', 'x_interface': 'grid_x', 'y_interface': 'grid_y'}
+    if vartype == "tendencies":
+        ds[var].attrs.update({'units': ds[var].attrs['units'] + '/s'})
     ds = ds.assign_coords({FORECAST_TIME_DIM: ds[FORECAST_TIME_DIM]/60})
     f, axes, _, _, facet_grid = plot_cube(
         mappable_var(ds.isel({multiple_time_dim: slice(start, end, stride)}), var, **MAPPABLE_VAR_KWARGS),
@@ -296,7 +289,7 @@ def plot_model_run_maps_across_time_dim(
     n_rows = ds.isel({multiple_time_dim: slice(start, end, stride)}).sizes[multiple_time_dim]
     f.set_size_inches([10, n_rows*2])
     f.set_dpi(FIG_DPI)
-    f.suptitle(f"{ds[var].attrs['long_name']} across {multiple_time_dim}")
+    f.suptitle(f"{var} across {multiple_time_dim}")
     facet_grid.set_titles(template='{value}', maxchar=30)
     # add units to facetgrid right side (hacky)
     if multiple_time_dim == FORECAST_TIME_DIM:
@@ -309,7 +302,11 @@ def plot_model_run_maps_across_time_dim(
     return f
 
 
-def plot_mean_time_height(th_da: xr.DataArray, vartype: str) -> plt.figure:
+def plot_mean_time_height(
+    th_da: xr.DataArray,
+    vartype: str,
+    scale: float = None
+) -> plt.figure:
     th_da = th_da.assign_coords({FORECAST_TIME_DIM: th_da[FORECAST_TIME_DIM]/60})
     if vartype == 'tendencies':
         if 'long_name' in th_da.attrs:
@@ -331,15 +328,16 @@ def plot_mean_time_height(th_da: xr.DataArray, vartype: str) -> plt.figure:
         y='z',
         col=DELTA_DIM,
         yincrease=False,
+        vmax = scale,
     )    
     plt.suptitle(f"{th_da.attrs['long_name']} across {FORECAST_TIME_DIM}")
-    for ax in facetgrid.axes.flatten():
-        ax.set_xlabel(f"{FORECAST_TIME_DIM} [minutes]")
-        ax.set_xlim([
-            th_da[FORECAST_TIME_DIM].values[0] - 0.5,
-            th_da[FORECAST_TIME_DIM].values[-1] + 0.5
-        ])
-        ax.set_xticks(th_da[FORECAST_TIME_DIM])
+    ex_ax = facetgrid.axes.flatten()[0]
+    ex_ax.set_xlabel(f"{FORECAST_TIME_DIM} [minutes]")
+    ex_ax.set_xlim([
+        th_da[FORECAST_TIME_DIM].values[0] - 0.5,
+        th_da[FORECAST_TIME_DIM].values[-1] + 0.5
+    ])
+    ex_ax.set_xticks(th_da[FORECAST_TIME_DIM])
     f = facetgrid.fig
     f.set_dpi(FIG_DPI)
     f.set_size_inches([12, 5])
@@ -355,7 +353,8 @@ def plot_dQ_vertical_profiles(
     composites: list,
     start: int = None,
     end: int = None,
-    stride: int = None
+    stride: int = None,
+    scale: float = None,
 ) -> plt.figure:
     
     ds = ds.assign_coords({FORECAST_TIME_DIM: (ds[FORECAST_TIME_DIM]/60).astype(int)})
@@ -389,6 +388,8 @@ def plot_dQ_vertical_profiles(
     facetgrid = facetgrid.map(_facet_line_plot, dQ_name)
     facetgrid.axes.flatten()[0].invert_yaxis()
     facetgrid.axes.flatten()[0].set_ylim([ds.sizes['z'], 1])
+    if scale is not None:
+        facetgrid.axes.flatten()[0].set_xlim([-scale, scale])
     legend_ax = facetgrid.axes.flatten()[-2]
     handles = legend_ax.get_lines()
     legend_ax.legend(handles[:-1], composites, loc=2)

@@ -97,26 +97,86 @@ DQ_MAPPING = {
         'Q1': {
             'hi-res_name': 'net_heating',
             'coarse_name': 'column_integrated_heating',
-            'scale': 500
+            'scale': 1000
         },
         'Q2': {
             'hi-res_name': 'net_precipitation',
             'coarse_name': 'column_integrated_moistening',
-            'scale': 10
+            'scale': 50
         }
     }
 
-GLOBAL_MEAN_3D_VARS = ["specific_humidity", "air_temperature", "vertical_wind"]
+DQ_PROFILE_MAPPING = {
+    'air_temperature': {
+        'name': 'dQ1',
+        VAR_TYPE_DIM: 'tendencies',
+        "scale": 1.5e-4
+    },
+    'specific_humidity': {
+        'name': 'dQ2',
+        VAR_TYPE_DIM: 'tendencies',
+        "scale": 2e-7
+    },
+    'vertical_wind': {
+        'name': 'dW',
+        VAR_TYPE_DIM: 'states',
+        "scale": 0.05
+    },
+}
 
-#     'cloud_water_ice_mixing_ratio': {
-#         VAR_TYPE_DIM: 'tendency',
-#         "scale": 1.0e-6
-#     },
-#     "precipitating_water_mixing_ratio": {
-#         VAR_TYPE_DIM: 'tendency',
-#         "scale": 1.0e-6
-#     },
-        
+GLOBAL_MEAN_3D_VARS = {
+    "specific_humidity": {
+        VAR_TYPE_DIM: 'tendencies',
+        "scale": 1e-7
+    },
+    "air_temperature": {
+        VAR_TYPE_DIM: 'tendencies',
+        "scale": 1e-4
+    },
+    'cloud_water_ice': {
+        VAR_TYPE_DIM: 'tendencies',
+        "scale": 5e-8
+    },
+    "precipitating_water": {
+        VAR_TYPE_DIM: 'tendencies',
+        "scale": 1e-8
+    },
+    "vertical_wind": {
+        VAR_TYPE_DIM: 'states',
+        "scale": 0.05
+    },
+}
+
+GLOBAL_2D_MAPS = {
+    'psurf': {
+        VAR_TYPE_DIM: 'tendencies',
+        "scale": None,
+    },
+    'column_integrated_heating': {
+        VAR_TYPE_DIM: 'tendencies',
+        "scale": 1000,
+    },
+    'column_integrated_moistening': {
+        VAR_TYPE_DIM: 'tendencies',
+        "scale": 50,
+    },
+    'vertical_wind_level_40': {
+        VAR_TYPE_DIM: 'states',
+        "scale": 0.05,
+    },
+    'total_precipitation': {
+        VAR_TYPE_DIM: 'states',
+        "scale": None,
+    },
+    'latent_heat_flux': {
+        VAR_TYPE_DIM: 'states',
+        "scale": 100,
+    },
+    'sensible_heat_flux': {
+        VAR_TYPE_DIM: 'states',
+        "scale": 100,
+    },
+}
 
 MAPPABLE_VAR_KWARGS = {
     "coord_x_center": "x",

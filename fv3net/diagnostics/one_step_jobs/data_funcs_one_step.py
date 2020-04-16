@@ -11,6 +11,7 @@ import sys
 from typing import Sequence, Tuple, Mapping
 
 from fv3net.diagnostics.one_step_jobs import (
+    SFC_VARIABLES,
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
     DELTA_DIM,
@@ -162,13 +163,13 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
     })
     
     return ds.drop(
-        labels=[
+        labels=(
             'cloud_ice_mixing_ratio',
             'cloud_water_mixing_ratio',
             'rain_mixing_ratio',
             'snow_mixing_ratio',
             'graupel_mixing_ratio'
-        ]
+        ) + SFC_VARIABLES
     )
 
 
