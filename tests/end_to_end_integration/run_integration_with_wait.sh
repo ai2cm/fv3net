@@ -43,7 +43,10 @@ TESTDIR=$(pwd)/tests/end_to_end_integration
 NAMESPACE=default
 JOBNAME=integration-test-$(date +%F)-$(openssl rand -hex 6)
 CONFIGMAP=integration-test-$(date +%F)-$(openssl rand -hex 6)
-export JOBNAME CONFIGMAP
+
+# the config directory to use inside the image
+CONFIG=/etc/config
+export JOBNAME CONFIGMAP CONFIG
 
 K8S_TEMPLATE=$TESTDIR/job_template.yml
 
@@ -52,11 +55,12 @@ workdir=$(mktemp -d)
 (
     cd "$workdir"
     envsubst < "$K8S_TEMPLATE" > job.yml
-
+    end_to_end="$(envsubst < $TESTDIR/end_to_end.yml)"
     # use config map to make the end to end yaml available to the job
     kubectl create configmap -n $NAMESPACE "$CONFIGMAP" --from-file=$TESTDIR/config/ \
 	    --from-literal=PROGNOSTIC_RUN_IMAGE=$PROGNOSTIC_RUN_IMAGE \
-	    --from-literal=FV3NET_IMAGE=$FV3NET_IMAGE
+	    --from-literal=FV3NET_IMAGE=$FV3NET_IMAGE \
+	    --from-literal=end_to_end.yml="$end_to_end"
 
     kubectl apply -n $NAMESPACE -f job.yml
     waitForComplete "$JOBNAME" "$NAMESPACE"

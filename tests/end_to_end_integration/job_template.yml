@@ -13,7 +13,8 @@ spec:
       - command: ["/bin/bash", "-c"]
         args: 
           - |
-              workflows/end_to_end/submit_workflow.sh /etc/config/end-to-end.yml
+              find /etc/config
+              workflows/end_to_end/submit_workflow.sh $(CONFIG)/end_to_end.yml
         image: $FV3NET_IMAGE
         imagePullPolicy: Always
         env:
@@ -31,7 +32,7 @@ spec:
               configMapKeyRef:
                 name: $CONFIGMAP
                 key: FV3NET_IMAGE
-          - name: TESTS
+          - name: CONFIG
             value: /etc/config
         name: integration-test
         resources:
