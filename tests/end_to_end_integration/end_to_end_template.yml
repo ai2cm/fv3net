@@ -2,8 +2,8 @@ storage_proto: gs
 storage_root: vcm-ml-data/test-end-to-end-integration
 experiment:
   # TODO this change is for debugging purposes. undo it before merging
-  name: end_to_end_test-95424b2e
-  unique_id: false
+  name: end_to_end_test
+  unique_id: true
   steps_to_run:
           #- coarsen_restarts  # this step is unreliable, so currently not part of integration test
     - coarsen_diagnostics
@@ -70,7 +70,7 @@ experiment:
           from: create_training_data
         diagnostics_data:
           from: coarsen_diagnostics
-        variable_filename: /etc/config/tests/end_to_end_integration/test_sklearn_variable_names.yml
+        variable_filename: /etc/config/test_sklearn_variable_names.yml
         --num_test_zarrs: 2
 
     prognostic_run:
