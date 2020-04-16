@@ -338,7 +338,7 @@ def _add_apparent_sources(
             s_dim=forecast_time_dim,
         )
     ds = ds.isel(
-        {init_time_dim: slice(None, ds.sizes[init_time_dim] - 1), forecast_time_dim: 0,}
+        {init_time_dim: slice(None, ds.sizes[init_time_dim] - 1), forecast_time_dim: 0}
     ).drop(forecast_time_dim)
     return ds
 
