@@ -17,7 +17,9 @@ physics_tendency_names:
 init_time_dim: "initial_time"
 forecast_time_dim: "forecast_time"
 step_time_dim: "step"
-coord_begin_step: "begin"
+
+step_for_state: "after_dynamics"
+
 coord_before_physics: "after_dynamics"
 coord_after_physics: "after_physics"
 

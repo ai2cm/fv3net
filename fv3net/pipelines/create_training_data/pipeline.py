@@ -68,7 +68,7 @@ def run(args, pipeline_args, names):
         # TODO this code will be cleaner if we get rid of "data batches" as a concept
         # also it would cleaner to have separately loading piplines for each data source
         # that are merged by a beam.CoGroupBY operation.
-        # currently, there is no place easy place for me to put a load operation 
+        # currently, there is no place easy place for me to put a load operation
         # and check for NaNs
         (
             p
@@ -82,14 +82,16 @@ def run(args, pipeline_args, names):
                 coord_before_physics=names["coord_before_physics"],
                 coord_after_physics=names["coord_after_physics"],
             )
+            | "SelectStep"
+            >> beam.Map(
+                lambda ds: ds.sel({names["step_time_dim"]: names["step_for_state"]})
+            )
             | "PreprocessOneStepData"
             >> beam.Map(
                 _preprocess_one_step_data,
                 flux_vars=names["diag_vars"],
                 suffix_coarse_train=names["suffix_coarse_train"],
-                step_time_dim=names["step_time_dim"],
                 forecast_time_dim=names["forecast_time_dim"],
-                coord_begin_step=names["coord_begin_step"],
                 wind_vars=(names["var_x_wind"], names["var_y_wind"]),
                 edge_to_center_dims=names["edge_to_center_dims"],
             )
@@ -301,8 +303,6 @@ def _preprocess_one_step_data(
     flux_vars,
     suffix_coarse_train,
     forecast_time_dim,
-    step_time_dim,
-    coord_begin_step,
     wind_vars,
     edge_to_center_dims,
 ):
@@ -311,7 +311,6 @@ def _preprocess_one_step_data(
         for var in flux_vars
         if var in list(ds.data_vars)
     }
-    ds = ds.sel({step_time_dim: coord_begin_step}).drop(step_time_dim)
     ds = ds.rename(renamed_one_step_vars)
     ds = helpers._convert_forecast_time_to_timedelta(ds, forecast_time_dim)
     # center vars located on cell edges
@@ -339,10 +338,7 @@ def _add_apparent_sources(
             s_dim=forecast_time_dim,
         )
     ds = ds.isel(
-        {
-            init_time_dim: slice(None, ds.sizes[init_time_dim] - 1),
-            forecast_time_dim: 0,
-        }
+        {init_time_dim: slice(None, ds.sizes[init_time_dim] - 1), forecast_time_dim: 0,}
     ).drop(forecast_time_dim)
     return ds
 
