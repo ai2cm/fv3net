@@ -14,11 +14,12 @@ else:
 
 # probably also store C-grid winds from physics?
 STORE_NAMES = [
-    'x_wind', 'y_wind',
+    "x_wind",
+    "y_wind",
     "vertical_wind",
-    'air_temperature',
-    'specific_humidity',
-    'time',
+    "air_temperature",
+    "specific_humidity",
+    "time",
     "pressure_thickness_of_atmospheric_layer",
     "vertical_thickness_of_atmospheric_layer",
     "land_sea_mask",
@@ -33,8 +34,8 @@ STORE_NAMES = [
 def get_radiation_names():
     radiation_names = []
     for properties in fv3gfs.PHYSICS_PROPERTIES:
-        if properties['container'] == "Radtend":
-            radiation_names.append(properties['name'])
+        if properties["container"] == "Radtend":
+            radiation_names.append(properties["name"])
     assert len(radiation_names) > 0
     return radiation_names
 
@@ -77,8 +78,10 @@ def get_restart_directory(reference_dir, label):
 def get_reference_state(time, reference_dir, communicator, only_names):
     label = time_to_label(time)
     dirname = get_restart_directory(reference_dir, label)
-    state = fv3gfs.open_restart(dirname, communicator, label=label, only_names=only_names)
-    state['time'] = time
+    state = fv3gfs.open_restart(
+        dirname, communicator, label=label, only_names=only_names
+    )
+    state["time"] = time
     return state
 
 
@@ -97,7 +100,6 @@ def append_key_label(d, suffix):
 
 
 class StageMonitor:
-
     def __init__(self, root_dirname, partitioner, mode="w"):
         self._root_dirname = root_dirname
         self._monitors = {}
@@ -109,12 +111,13 @@ class StageMonitor:
 
     def _get_monitor(self, stage_name):
         if stage_name not in self._monitors:
-            store = master_only(lambda: fsspec.get_mapper(os.path.join(self._root_dirname, stage_name + '.zarr')))()
+            store = master_only(
+                lambda: fsspec.get_mapper(
+                    os.path.join(self._root_dirname, stage_name + ".zarr")
+                )
+            )()
             self._monitors[stage_name] = fv3gfs.ZarrMonitor(
-                store,
-                partitioner,
-                mode=self._mode,
-                mpi_comm=MPI.COMM_WORLD
+                store, partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
             )
         return self._monitors[stage_name]
 
@@ -127,6 +130,7 @@ def master_only(func):
         else:
             result = None
         return MPI.COMM_WORLD.bcast(result)
+
     return wrapped
 
 
@@ -148,16 +152,10 @@ if __name__ == "__main__":
     timestep = get_timestep(config)
 
     nudge = functools.partial(
-        nudge_to_reference,
-        timescales=nudging_timescales,
-        timestep=timestep,
+        nudge_to_reference, timescales=nudging_timescales, timestep=timestep,
     )
 
-    monitor = StageMonitor(
-        RUN_DIR,
-        partitioner,
-        mode="w",
-    )
+    monitor = StageMonitor(RUN_DIR, partitioner, mode="w",)
 
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):

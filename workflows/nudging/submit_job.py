@@ -6,11 +6,11 @@ import fv3net.pipelines.kube_jobs as kube_jobs
 import logging
 import sys
 
-logger = logging.getLogger('nudging')
+logger = logging.getLogger("nudging")
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -27,11 +27,33 @@ KUBERNETES_DEFAULT = {
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('config', type=str, help="google cloud storage location of fv3config yaml configuration file")
-    parser.add_argument('runfile', type=str, default=None, help="google cloud storage location of python model run file")
-    parser.add_argument('output_url', type=str, help="google cloud storage location to upload the resulting run directory")
-    parser.add_argument('docker_image', type=str, help="docker image with fv3gfs-python to run the model")
-    parser.add_argument('--job_prefix', type=str, default=DEFAULT_JOB_PREFIX, help="prefix to use in creating the job name")
+    parser.add_argument(
+        "config",
+        type=str,
+        help="google cloud storage location of fv3config yaml configuration file",
+    )
+    parser.add_argument(
+        "runfile",
+        type=str,
+        default=None,
+        help="google cloud storage location of python model run file",
+    )
+    parser.add_argument(
+        "output_url",
+        type=str,
+        help="google cloud storage location to upload the resulting run directory",
+    )
+    parser.add_argument(
+        "docker_image",
+        type=str,
+        help="docker image with fv3gfs-python to run the model",
+    )
+    parser.add_argument(
+        "--job_prefix",
+        type=str,
+        default=DEFAULT_JOB_PREFIX,
+        help="prefix to use in creating the job name",
+    )
     parser.add_argument(
         "-d",
         "--detach",
@@ -46,11 +68,11 @@ def random_tag(length):
     return "".join([secrets.choice(use_chars) for i in range(length)])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logger.setLevel(logging.INFO)
     args = parse_args()
     kube_opts = KUBERNETES_DEFAULT.copy()
-    job_name = '{}-{}'.format(args.job_prefix, random_tag(8))
+    job_name = "{}-{}".format(args.job_prefix, random_tag(8))
     job_label = {ORCHESTRATOR_JOBS_LABEL: job_name}
     logger.info(f"submitting job with name {job_name}")
     fv3config.run_kubernetes(
