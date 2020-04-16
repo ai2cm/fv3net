@@ -172,7 +172,7 @@ def train_model(batched_data, train_config):
     return model_wrapper, training_urls_used
 
 
-def save_output(output_url, model, config, timesteps):
+def _save_output(output_url, model, config, timesteps):
     fs = vcm.cloud.fsspec.get_fs(output_url)
     fs.makedirs(output_url, exist_ok=True)
     model_url = os.path.join(output_url, MODEL_FILENAME)
