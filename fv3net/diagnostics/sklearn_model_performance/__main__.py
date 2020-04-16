@@ -239,4 +239,3 @@ if __name__ == "__main__":
     else:
         report_sections = compute_metrics_and_plot(ds, args.output_path, names)
         _write_report(args.output_path, report_sections, vars(args), REPORT_TITLE)
-

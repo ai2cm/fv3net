@@ -199,11 +199,10 @@ def _create_report_plots(path):
     return {"Time distribution of training samples": [TRAINING_FIG_FILENAME]}
 
 
-def _write_training_html_report(path, sections, metadata):
-    """Write html report to path, given sections and metadata"""
-    html_report = report.create_html(sections, REPORT_TITLE, metadata=metadata)
-    report_filename = REPORT_TITLE.replace(" ", "_") + ".html"
-    with fsspec.open(os.path.join(path, report_filename), "w") as f:
+def _write_report(output_dir, sections, metadata, title):
+    filename = title.replace(" ", "_") + ".html"
+    html_report = report.create_html(sections, title, metadata=metadata)
+    with fsspec.open(os.path.join(output_dir, filename), "w") as f:
         f.write(html_report)
 
 
@@ -241,4 +240,4 @@ if __name__ == "__main__":
     save_output(args.output_data_path, model, train_config, timesteps_used)
     report_sections = _create_report_plots(args.output_data_path)
     report_metadata = {**vars(args), **vars(train_config)}
-    _write_training_html_report(args.output_data_path, report_sections, report_metadata)
+    _write_report(args.output_data_path, report_sections, report_metadata, REPORT_TITLE)
