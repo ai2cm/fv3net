@@ -5,6 +5,7 @@ import xarray as xr
 from fv3net.pipelines.create_training_data.pipeline import (
     _add_apparent_sources,
     _add_physics_tendencies,
+    _window_with_overlap,
 )
 from fv3net.pipelines.create_training_data.helpers import (
     _convert_forecast_time_to_timedelta,
@@ -62,3 +63,16 @@ def test__add_physics_tendencies(test_training_raw_ds):
     assert train_ds["pQ1"].isel(initial_time=0).values == pytest.approx(
         np.array([-273 * 2 / 60.0, -274 * 2 / 60.0, -300 * 2 / 60])
     )
+
+
+@pytest.mark.parametrize(
+    "timesteps,n,expected",
+    [
+        (list(range(10)), 4, [[0, 1, 2, 3], [3, 4, 5, 6], [6, 7, 8, 9]]),
+        (list(range(7)), 3, [[0, 1, 2], [2, 3, 4], [4, 5, 6]]),
+    ],
+)
+def test__window_with_overlap(timesteps, n, expected):
+    ans = _window_with_overlap(timesteps, n)
+    assert len(ans[0]) == n
+    assert expected == ans

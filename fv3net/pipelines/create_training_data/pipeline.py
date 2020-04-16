@@ -141,9 +141,8 @@ def _divide_data_batches(
             dict of train and test timesteps
             )
     """
-    timestep_batches = _get_timestep_batches(
-        ds_full, timesteps_per_output_file, init_time_dim
-    )
+    timesteps = sorted(ds_full[init_time_dim].values)
+    timestep_batches = _window_with_overlap(timesteps, timesteps_per_output_file + 1)
     train_test_labels = _test_train_split(timestep_batches, train_fraction)
     timestep_batches_reordered = _reorder_batches(timestep_batches, train_fraction)
     data_batches = [
@@ -206,20 +205,14 @@ def _save_grid_spec(
     return
 
 
-def _get_timestep_batches(ds, timesteps_per_output_file, init_time_dim):
-    """ Groups initalization timesteps into lists of max length
-    (args.timesteps_per_output_file + 1). The last file in each grouping is only
-    used to calculate the hi res tendency, and is dropped from the final
-    batch training zarr.
-
-    Args:
-        gcs_urls: list of urls to be grouped into batches
-        timesteps_per_output_file: number of initialization timesteps that will be in
-        each final train dataset batch
-    Returns:
-        nested list where inner lists are groupings of timesteps
+def _window_with_overlap(seq, window_size):
+    """ Group input sequence into window of size window_size which overlap by 1
     """
-    timesteps = sorted(ds[init_time_dim].values)
+
+    # note this implementation is a relic, but it is tested and works as expected
+
+    timesteps = seq
+    timesteps_per_output_file = window_size - 1
     num_outputs = (len(timesteps) - 1) // timesteps_per_output_file
     timestep_batches = []
     for i in range(num_outputs):
