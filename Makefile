@@ -14,3 +14,6 @@ versions:
 
 generate_configs:
 	end_to_end/generate_all_configs.sh
+
+submit:
+	kubectl apply -f manifests/

@@ -45,6 +45,8 @@ The idea is that these are stable and robust tools that are easy to install. OTO
 
 ```
 
+- experiment-name cannot be an underscore since this name is used to name the k8s job, and k8s does not allow underscore in its metadata.names attributes.
+
 ## Workflows
 
 ### Production
