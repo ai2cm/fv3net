@@ -43,6 +43,7 @@ def _plot_rmse_map(ds, var, target_dataset_name, grid_vars, map_var_kwargs):
         vmin=0,
         vmax=2,
     )[0]
+    fig.suptitle(data_var)
     return fig
 
 

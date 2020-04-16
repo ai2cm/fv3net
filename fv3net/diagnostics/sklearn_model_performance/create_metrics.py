@@ -51,6 +51,10 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
 
 def _root_mean_squared_error_metrics(da_target, da_pred, init_time_dim="initial_time"):
     rmse = np.sqrt((da_target - da_pred) ** 2).mean(init_time_dim)
+    if "units" in da_target.attrs:
+        rmse.attrs["units"] = da_target.attrs["units"]
+    if "long_name" in da_target.attrs:
+        rmse.attrs["long_name"] = "root mean square error of " + da_target.attrs["long_name"]
     return rmse
 
 
@@ -73,10 +77,10 @@ def _r2_pressure_level_metrics(da_target, da_pred, delp, stack_dims, coord_z_cen
 def _r2_global_values(ds_pred, ds_fv3, ds_shield, stack_dims):
     """ Calculate global R^2 for net precipitation and heating against
     target FV3 dataset and coarsened high res dataset
-    
+
     Args:
         ds ([type]): [description]
-    
+
     Returns:
         [type]: [description]
     """
