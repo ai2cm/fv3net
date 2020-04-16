@@ -4,7 +4,6 @@ import os
 import tempfile
 import xarray as xr
 import yaml
-from datetime import datetime
 
 from vcm.cloud.fsspec import get_fs
 from vcm.cloud.gsutil import copy
