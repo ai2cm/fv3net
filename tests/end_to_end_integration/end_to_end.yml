@@ -7,10 +7,11 @@ experiment:
   steps_to_run:
           # TODO uncomment this before final merge
           #- coarsen_restarts  # this step is unreliable, so currently not part of integration test
-          #- coarsen_diagnostics
-          #- one_step_run
-          #- create_training_data
-          #- train_sklearn_model
+    - coarsen_diagnostics
+    - one_step_run
+    - create_training_data
+    # Disabling this workflow (it is introducing NaNs into it's own data)
+    # - train_sklearn_model
     - test_sklearn_model
     - prognostic_run
     - baseline_run
