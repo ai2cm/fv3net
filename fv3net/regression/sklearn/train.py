@@ -145,6 +145,8 @@ def train_model(batched_data, train_config):
     batch_regressor = RegressorEnsemble(transform_regressor)
     model_wrapper = SklearnWrapper(batch_regressor)
 
+    # count number of timesteps used for training within train_model
+    # in case any batches fail
     train_config.validate_number_train_batches(batched_data)
     training_urls_to_attempt = batched_data.train_file_batches
     training_urls_used = []
@@ -237,7 +239,7 @@ if __name__ == "__main__":
 
     model, training_urls_used = train_model(batched_data, train_config)
     timesteps_used = list(map(_url_to_datetime, training_urls_used))
-    save_output(args.output_data_path, model, train_config, timesteps_used)
+    _save_output(args.output_data_path, model, train_config, timesteps_used)
     report_sections = _create_report_plots(args.output_data_path)
     report_metadata = {**vars(args), **vars(train_config)}
     _write_report(args.output_data_path, report_sections, report_metadata, REPORT_TITLE)

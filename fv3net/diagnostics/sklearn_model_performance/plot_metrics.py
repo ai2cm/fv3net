@@ -40,10 +40,9 @@ def _plot_rmse_map(ds, var, target_dataset_name, grid_vars, map_var_kwargs):
     data_var = f"rmse_{var}_vs_{target_dataset_name}"
     fig = vcm.plot_cube(
         vcm.mappable_var(ds[grid_vars + [data_var]], data_var, **map_var_kwargs),
-        vmin=0,
-        vmax=2,
     )[0]
-    fig.suptitle(data_var)
+    fig.axes[0].set_title(data_var)
+    fig.tight_layout()
     return fig
 
 
