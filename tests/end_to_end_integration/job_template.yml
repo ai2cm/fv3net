@@ -13,7 +13,8 @@ spec:
       - command: ["/bin/bash", "-c"]
         args: 
           - |
-              workflows/end_to_end/submit_workflow.sh /etc/config/end-to-end.yml
+              find /etc/config
+              workflows/end_to_end/submit_workflow.sh $(CONFIG)/end_to_end.yml
         image: $FV3NET_IMAGE
         imagePullPolicy: Always
         env:
@@ -21,6 +22,18 @@ spec:
             value: /secret/gcp-credentials/key.json
           - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
             value: /secret/gcp-credentials/key.json
+          - name: PROGNOSTIC_RUN_IMAGE
+            valueFrom:
+              configMapKeyRef:
+                name: $CONFIGMAP
+                key: PROGNOSTIC_RUN_IMAGE
+          - name: FV3NET_IMAGE
+            valueFrom:
+              configMapKeyRef:
+                name: $CONFIGMAP
+                key: FV3NET_IMAGE
+          - name: CONFIG
+            value: /etc/config
         name: integration-test
         resources:
           requests:

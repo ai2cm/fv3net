@@ -5,15 +5,23 @@ suffix_coarse_train: "train"
 
 # maps data variable to its source term name
 var_source_name_map:
-  "x_wind": "dQU"
-  "y_wind": "dQV"
-  "air_temperature": "dQ1"
-  "specific_humidity": "dQ2"      
+    "x_wind": "dQU"
+    "y_wind": "dQV"
+    "air_temperature": "dQ1"
+    "specific_humidity": "dQ2"      
+
+physics_tendency_names:
+  "specific_humidity": "pQ2"
+  "air_temperature": "pQ1"
 
 init_time_dim: "initial_time"
 forecast_time_dim: "forecast_time"
 step_time_dim: "step"
-coord_begin_step: "begin"
+
+step_for_state: "after_physics"
+
+coord_before_physics: "after_dynamics"
+coord_after_physics: "after_physics"
 
 coord_x_center : "x"   
 coord_y_center : "y"    
@@ -58,6 +66,8 @@ one_step_vars:
   - "dQV"
   - "dQ1"
   - "dQ2"
+  - "pQ1"
+  - "pQ2"
   - "surface_temperature"
   - "land_sea_mask"
   - "surface_geopotential"
@@ -66,6 +76,13 @@ one_step_vars:
   - "pressure_thickness_of_atmospheric_layer"
   - "specific_humidity"
   - "air_temperature"
+  - "DSWRFtoa_train"
+  - "DSWRFsfc_train"
+  - "USWRFtoa_train"
+  - "USWRFsfc_train"
+  - "DLWRFsfc_train"
+  - "ULWRFtoa_train"
+  - "ULWRFsfc_train"
 
 
 # data variables from high res data kept in final dataset

@@ -2,15 +2,15 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import logging
 import os
-import shutil
 import xarray as xr
 
 from . import helpers
 from vcm.calc import apparent_source
-from vcm.cloud import gsutil
 from vcm.cloud.fsspec import get_fs
+import fsspec
 from vcm import parse_datetime_from_str
 from fv3net import COARSENED_DIAGS_ZARR_NAME
+import numpy as np
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -64,6 +64,11 @@ def run(args, pipeline_args, names):
     logger.info(f"Processing {len(data_batches)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
+        # TODO this code will be cleaner if we get rid of "data batches" as a concept
+        # also it would cleaner to have separately loading piplines for each data source
+        # that are merged by a beam.CoGroupBY operation.
+        # currently, there is no place easy place for me to put a load operation
+        # and check for NaNs
         (
             p
             | beam.Create(data_batches)
@@ -76,14 +81,16 @@ def run(args, pipeline_args, names):
                 coord_before_physics=names["coord_before_physics"],
                 coord_after_physics=names["coord_after_physics"],
             )
+            | "SelectStep"
+            >> beam.Map(
+                lambda ds: ds.sel({names["step_time_dim"]: names["step_for_state"]})
+            )
             | "PreprocessOneStepData"
             >> beam.Map(
                 _preprocess_one_step_data,
                 flux_vars=names["diag_vars"],
                 suffix_coarse_train=names["suffix_coarse_train"],
-                step_time_dim=names["step_time_dim"],
                 forecast_time_dim=names["forecast_time_dim"],
-                coord_begin_step=names["coord_begin_step"],
                 wind_vars=(names["var_x_wind"], names["var_y_wind"]),
                 edge_to_center_dims=names["edge_to_center_dims"],
             )
@@ -107,6 +114,8 @@ def run(args, pipeline_args, names):
                 init_time_dim=names["init_time_dim"],
                 renamed_dims=names["renamed_dims"],
             )
+            | "LoadData" >> beam.Map(lambda ds: ds.load())
+            | "QuitOnNaN" >> beam.Map(_assert_no_nans)
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
@@ -116,6 +125,15 @@ def run(args, pipeline_args, names):
                 train_test_labels=train_test_labels,
             )
         )
+
+
+def _assert_no_nans(ds):
+    nans = np.isnan(ds).isnull().sum().compute()
+    nan_counts = {key: nans[key].item() for key in nans}
+    if any(count > 0 for count in nan_counts.values()):
+        nan_counts = {key: nans[key].item() for key in nans}
+        raise ValueError(f"NaNs detected in data to be saved: {nan_counts}")
+    return ds
 
 
 def _str_time_dim_to_datetime(ds, time_dim):
@@ -284,8 +302,6 @@ def _preprocess_one_step_data(
     flux_vars,
     suffix_coarse_train,
     forecast_time_dim,
-    step_time_dim,
-    coord_begin_step,
     wind_vars,
     edge_to_center_dims,
 ):
@@ -294,18 +310,14 @@ def _preprocess_one_step_data(
         for var in flux_vars
         if var in list(ds.data_vars)
     }
-    try:
-        ds = ds.sel({step_time_dim: coord_begin_step}).drop(step_time_dim)
-        ds = ds.rename(renamed_one_step_vars)
-        ds = helpers._convert_forecast_time_to_timedelta(ds, forecast_time_dim)
-        # center vars located on cell edges
-        for wind_var in wind_vars:
-            ds[wind_var] = helpers._shift_edge_var_to_center(
-                ds[wind_var], edge_to_center_dims
-            )
-        return ds
-    except (KeyError, ValueError) as e:
-        logger.error(f"Failed step PreprocessTrainData: {e}")
+    ds = ds.rename(renamed_one_step_vars)
+    ds = helpers._convert_forecast_time_to_timedelta(ds, forecast_time_dim)
+    # center vars located on cell edges
+    for wind_var in wind_vars:
+        ds[wind_var] = helpers._shift_edge_var_to_center(
+            ds[wind_var], edge_to_center_dims
+        )
+    return ds
 
 
 def _add_apparent_sources(
@@ -316,24 +328,18 @@ def _add_apparent_sources(
     forecast_time_dim,
     var_source_name_map,
 ):
-    try:
-        for var_name, source_name in var_source_name_map.items():
-            ds[source_name] = apparent_source(
-                ds[var_name],
-                coarse_tstep_idx=tendency_tstep_onestep,
-                highres_tstep_idx=tendency_tstep_highres,
-                t_dim=init_time_dim,
-                s_dim=forecast_time_dim,
-            )
-        ds = ds.isel(
-            {
-                init_time_dim: slice(None, ds.sizes[init_time_dim] - 1),
-                forecast_time_dim: 0,
-            }
-        ).drop(forecast_time_dim)
-        return ds
-    except (ValueError, TypeError) as e:
-        logger.error(f"Failed step CreateTrainingCols: {e}")
+    for var_name, source_name in var_source_name_map.items():
+        ds[source_name] = apparent_source(
+            ds[var_name],
+            coarse_tstep_idx=tendency_tstep_onestep,
+            highres_tstep_idx=tendency_tstep_highres,
+            t_dim=init_time_dim,
+            s_dim=forecast_time_dim,
+        )
+    ds = ds.isel(
+        {init_time_dim: slice(None, ds.sizes[init_time_dim] - 1), forecast_time_dim: 0}
+    ).drop(forecast_time_dim)
+    return ds
 
 
 def _merge_hires_data(
@@ -357,19 +363,16 @@ def _merge_hires_data(
     }
     if not diag_c48_path:
         return ds_run
-    try:
-        init_times = ds_run[init_time_dim].values
-        full_zarr_path = os.path.join(diag_c48_path, coarsened_diags_zarr_name)
-        diags_c48 = helpers.load_hires_prog_diag(full_zarr_path, init_times)[
-            list(renamed_high_res_vars.keys())
-        ]
-        renamed_dims = {
-            dim: renamed_dims[dim] for dim in renamed_dims if dim in diags_c48.dims
-        }
-        features_diags_c48 = diags_c48.rename({**renamed_high_res_vars, **renamed_dims})
-        return xr.merge([ds_run, features_diags_c48])
-    except (KeyError, AttributeError, ValueError, TypeError) as e:
-        logger.error(f"Failed to merge in features from high res diagnostics: {e}")
+    init_times = ds_run[init_time_dim].values
+    full_zarr_path = os.path.join(diag_c48_path, coarsened_diags_zarr_name)
+    diags_c48 = helpers.load_hires_prog_diag(full_zarr_path, init_times)[
+        list(renamed_high_res_vars.keys())
+    ]
+    renamed_dims = {
+        dim: renamed_dims[dim] for dim in renamed_dims if dim in diags_c48.dims
+    }
+    features_diags_c48 = diags_c48.rename({**renamed_high_res_vars, **renamed_dims})
+    return xr.merge([ds_run, features_diags_c48])
 
 
 def _write_remote_train_zarr(
@@ -391,16 +394,11 @@ def _write_remote_train_zarr(
     Returns:
         None
     """
-    try:
-        if not zarr_name:
-            zarr_name = helpers._path_from_first_timestep(
-                ds, init_time_dim, time_fmt, train_test_labels
-            )
-            ds = ds.chunk(chunk_sizes)
-        output_path = os.path.join(gcs_output_dir, zarr_name)
-        ds.to_zarr(zarr_name, mode="w", consolidated=True)
-        gsutil.copy(zarr_name, output_path)
-        logger.info(f"Done writing zarr to {output_path}")
-        shutil.rmtree(zarr_name)
-    except (ValueError, AttributeError, TypeError, RuntimeError) as e:
-        logger.error(f"Failed to write zarr: {e}")
+    if not zarr_name:
+        zarr_name = helpers._path_from_first_timestep(
+            ds, init_time_dim, time_fmt, train_test_labels
+        )
+        ds = ds.chunk(chunk_sizes)
+    output_path = os.path.join(gcs_output_dir, zarr_name)
+    mapper = fsspec.get_mapper(output_path)
+    ds.to_zarr(mapper, mode="w", consolidated=True)

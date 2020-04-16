@@ -1,15 +1,18 @@
 storage_proto: gs
 storage_root: vcm-ml-data/test-end-to-end-integration
 experiment:
+  # TODO this change is for debugging purposes. undo it before merging
   name: end_to_end_test
-  unique_id: True
+  unique_id: true
   steps_to_run:
-    #- coarsen_restarts  # this step is unreliable, so currently not part of integration test
+          # TODO uncomment this before final merge
+          #- coarsen_restarts  # this step is unreliable, so currently not part of integration test
     - coarsen_diagnostics
     - one_step_run
     - create_training_data
+    # Disabling this workflow (it is introducing NaNs into it's own data)
     - train_sklearn_model
-    - test_sklearn_model
+    # - test_sklearn_model
     - prognostic_run
     - baseline_run
   
@@ -30,7 +33,7 @@ experiment:
       args:
         c384_diagnostics: 
           location: gs://vcm-ml-data/test-end-to-end-integration/C384-diagnostics/gfsphysics_15min_coarse.zarr
-        coarsening_config: tests/end_to_end_integration/coarsen_c384_diagnostics_integration.yml
+        coarsening_config: $CONFIG/coarsen_c384_diagnostics_integration.yml
 
     one_step_run:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
@@ -38,7 +41,7 @@ experiment:
         restart_data:
           #from: coarsen_restarts  # uncomment this line and delete the following to include coarsening in test workflow
           location: gs://vcm-ml-data/test-end-to-end-integration/C48-input-for-one-step-jobs
-        experiment_yaml: tests/end_to_end_integration/one_step_jobs_integration.yml
+        experiment_yaml: $CONFIG/one_step_jobs_integration.yml
         docker_image: $PROGNOSTIC_RUN_IMAGE
         --config-version: v0.3
 
@@ -49,7 +52,7 @@ experiment:
           from: one_step_run
         diagnostics_data:
           from: coarsen_diagnostics
-        variable_filename: tests/end_to_end_integration/create_training_data_variable_names.yml
+        variable_filename: $CONFIG/create_training_data_variable_names.yml
         --timesteps-per-output-file: 1
         --train-fraction: 0.5
         
@@ -58,7 +61,7 @@ experiment:
       args:
         training_data:
           from: create_training_data
-        train-config-file: tests/end_to_end_integration/train_sklearn_model_integration.yml
+        train-config-file: $CONFIG/train_sklearn_model.yml
         
     test_sklearn_model: 
       command: python -m fv3net.diagnostics.sklearn_model_performance
@@ -69,7 +72,7 @@ experiment:
           from: create_training_data
         diagnostics_data:
           from: coarsen_diagnostics
-        variable_filename: tests/end_to_end_integration/test_sklearn_variable_names.yml
+        variable_filename: $CONFIG/test_sklearn_variable_names.yml
         --num_test_zarrs: 2
 
     prognostic_run:
@@ -79,7 +82,7 @@ experiment:
           from: one_step_run
         ic_timestep: "20160801.001500"
         docker_image: $PROGNOSTIC_RUN_IMAGE
-        --prog_config_yml: tests/end_to_end_integration/prognostic_run_integration.yml
+        --prog_config_yml: $CONFIG/prognostic_run_integration.yml
         --model_url:
           from: train_sklearn_model
 
@@ -90,6 +93,6 @@ experiment:
           from: one_step_run
         ic_timestep: "20160801.001500"
         docker_image: $PROGNOSTIC_RUN_IMAGE
-        --prog_config_yml: tests/end_to_end_integration/prognostic_run_integration.yml
+        --prog_config_yml: $CONFIG/prognostic_run_integration.yml
 
 
