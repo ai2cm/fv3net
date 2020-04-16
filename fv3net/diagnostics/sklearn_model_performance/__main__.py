@@ -42,8 +42,7 @@ def _is_remote(path):
 
 
 def _ensure_datetime(d):
-    """Ensure d is a python datetime object (as opposed to cftime.DatetimeJulian
-    for example)"""
+    """Ensure d is a python datetime object (and not cftime.DatetimeJulian)"""
     return datetime(d.year, d.month, d.day, d.hour, d.minute, d.second)
 
 

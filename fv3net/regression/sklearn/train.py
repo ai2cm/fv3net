@@ -194,10 +194,9 @@ def _create_report_plots(path):
     for html report"""
     with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME)) as f:
         timesteps = yaml.safe_load(f)
-    gallery.plot_daily_and_hourly_hist(timesteps).savefig(
-        os.path.join(path, TRAINING_FIG_FILENAME), dpi=90,
-    )
-    return {"Time distribution of training samples": TRAINING_FIG_FILENAME}
+    with fsspec.open(os.path.join(path, TRAINING_FIG_FILENAME), "wb") as f:
+        gallery.plot_daily_and_hourly_hist(timesteps).savefig(f, dpi=90)
+    return {"Time distribution of training samples": [TRAINING_FIG_FILENAME]}
 
 
 def _write_training_html_report(path, sections, metadata):
@@ -210,7 +209,7 @@ def _write_training_html_report(path, sections, metadata):
 
 def _url_to_datetime(url):
     dt = vcm.parse_datetime_from_str(vcm.parse_timestep_str_from_path(url))
-    # ensure return a python datetime (i.e. not cftime.DatetimeJulian)
+    # ensure returning a python datetime (i.e. not cftime.DatetimeJulian)
     return datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
 
 
@@ -242,4 +241,4 @@ if __name__ == "__main__":
     save_output(args.output_data_path, model, train_config, timesteps_used)
     report_sections = _create_report_plots(args.output_data_path)
     report_metadata = {**vars(args), **vars(train_config)}
-    _write_training_html_report(args.ouput_data_path, report_sections, report_metadata)
+    _write_training_html_report(args.output_data_path, report_sections, report_metadata)
