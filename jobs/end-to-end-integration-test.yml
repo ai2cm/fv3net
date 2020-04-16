@@ -239,9 +239,9 @@ data:
     export FV3NET_IMAGE PROGNOSTIC_RUN_IMAGE
   end_to_end.yml: "storage_proto: gs\nstorage_root: vcm-ml-data/test-end-to-end-integration\nexperiment:\n
     \ # TODO this change is for debugging purposes. undo it before merging\n  name:
-    end_to_end_test-ef65bc81\n  unique_id: false\n  steps_to_run:\n          # TODO
-    uncomment this before final merge\n          #- coarsen_restarts  # this step
-    is unreliable, so currently not part of integration test\n    - coarsen_diagnostics\n
+    end-to-end-integration-test\n  unique_id: false\n  steps_to_run:\n          #
+    TODO uncomment this before final merge\n          #- coarsen_restarts  # this
+    step is unreliable, so currently not part of integration test\n    - coarsen_diagnostics\n
     \   - one_step_run\n    - create_training_data\n    # Disabling this workflow
     (it is introducing NaNs into it's own data)\n    - train_sklearn_model\n      #
     - test_sklearn_model\n    - prognostic_run\n    - baseline_run\n  \n  steps_config:\n
