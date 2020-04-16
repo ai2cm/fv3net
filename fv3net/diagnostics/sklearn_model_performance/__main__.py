@@ -25,6 +25,7 @@ DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
 DATASET_NAME_SHIELD_HIRES = "coarsened_high_res"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
+REPORT_TITLE = "ML offline diagnostics"
 
 DPI_FIGURES = {
     "timestep_histogram": 90,
@@ -46,7 +47,14 @@ def _ensure_datetime(d):
     return datetime(d.year, d.month, d.day, d.hour, d.minute, d.second)
 
 
-def compute_metrics_and_plot(ds, output_dir, names, metadata):
+def _write_report(output_dir, sections, metadata, title):
+    filename = title.replace(" ", "_") + ".html"
+    html_report = report.create_html(sections, title, metadata=metadata)
+    with open(os.path.join(output_dir, filename), "w") as f:
+        f.write(html_report)
+
+
+def compute_metrics_and_plot(ds, output_dir, names):
     # TODO refactor this "and" function into two routines
     ds_pred = ds.sel(dataset=DATASET_NAME_PREDICTION)
     ds_test = ds.sel(dataset=DATASET_NAME_FV3_TARGET)
@@ -78,18 +86,7 @@ def compute_metrics_and_plot(ds, output_dir, names, metadata):
         names=names,
     )
 
-    combined_report_sections = {
-        **timesteps_plot_section,
-        **metrics_plot_sections,
-        **diag_report_sections,
-    }
-
-    html_report = report.create_html(
-        combined_report_sections, "ML offline diagnostics", metadata=metadata,
-    )
-
-    with open(os.path.join(output_dir, "ML_offline_diagnostics.html"), "w") as f:
-        f.write(html_report)
+    return {**timesteps_plot_section, **metrics_plot_sections, **diag_report_sections}
 
 
 def load_data_and_predict_with_ml(
@@ -236,7 +233,10 @@ if __name__ == "__main__":
     if _is_remote(args.output_path):
         with tempfile.TemporaryDirectory() as local_dir:
             # TODO another "and" indicates this needs to be refactored.
-            compute_metrics_and_plot(ds, local_dir, names, vars(args))
+            report_sections = compute_metrics_and_plot(ds, local_dir, names)
+            _write_report(local_dir, report_sections, vars(args), REPORT_TITLE)
             copy(local_dir, output_dir)
     else:
-        compute_metrics_and_plot(ds, args.output_path, names, vars(args))
+        report_sections = compute_metrics_and_plot(ds, args.output_path, names)
+        _write_report(args.output_path, report_sections, vars(args), REPORT_TITLE)
+
