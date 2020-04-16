@@ -334,26 +334,14 @@ def plot_mean_time_height(
 ) -> plt.figure:
     th_da = th_da.assign_coords({FORECAST_TIME_DIM: th_da[FORECAST_TIME_DIM] / 60})
     if vartype == "tendencies":
+        th_da.attrs.update({"units": f"{th_da.attrs['units']}/s"})
+        th_da.name = f"{th_da.name} tendencies"
         if "long_name" in th_da.attrs:
-            th_da.attrs.update(
-                {
-                    "long_name": f"{th_da.attrs['long_name']} tendency",
-                    "units": f"{th_da.attrs['units']}/s",
-                }
-            )
-        else:
-            th_da.attrs.update(
-                {
-                    "long_name": f"{th_da.name} tendency",
-                    "units": f"{th_da.attrs['units']}/s",
-                }
-            )
-    elif "long_name" not in th_da.attrs:
-        th_da.attrs.update({"long_name": f"{th_da.name}"})
+            th_da.attrs.update({"long_name": f"{th_da.attrs['long_name']} tendencies"})
     facetgrid = th_da.plot(
         x=FORECAST_TIME_DIM, y="z", col=DELTA_DIM, yincrease=False, vmax=scale,
     )
-    plt.suptitle(f"{th_da.attrs['long_name']} across {FORECAST_TIME_DIM}")
+    plt.suptitle(f"{th_da.name} across {FORECAST_TIME_DIM}")
     ex_ax = facetgrid.axes.flatten()[0]
     ex_ax.set_xlabel(f"{FORECAST_TIME_DIM} [minutes]")
     ex_ax.set_xlim(
