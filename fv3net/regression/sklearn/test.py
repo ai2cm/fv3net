@@ -28,6 +28,7 @@ def load_test_dataset(
     Returns:
         xarray dataset created by concatenating test data zarrs
     """
+    # TODO I/O buried very deep in the call stack. This should happen at the entrypoint.
     fs = fsspec.get_fs(test_data_path)
     test_data_urls = load_downsampled_time_range(
         fs, test_data_path, downsample_time_factor
@@ -37,7 +38,7 @@ def load_test_dataset(
         raise ValueError(f"No .zarr files found in  {test_data_path}.")
     ds_test = xr.concat(
         [
-            xr.open_zarr(fs.get_mapper(file_path), consolidated=True)
+            xr.open_zarr(fs.get_mapper(file_path))
             for file_path in zarrs_in_test_dir[:num_files_to_load]
         ],
         init_time_dim,

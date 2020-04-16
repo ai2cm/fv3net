@@ -2,14 +2,15 @@ storage_proto: gs
 storage_root: vcm-ml-data/test-end-to-end-integration
 experiment:
   # TODO this change is for debugging purposes. undo it before merging
-  name: end_to_end_test
-  unique_id: true
+  name: end_to_end_test-ef65bc81
+  unique_id: false
   steps_to_run:
+          # TODO uncomment this before final merge
           #- coarsen_restarts  # this step is unreliable, so currently not part of integration test
-    - coarsen_diagnostics
-    - one_step_run
-    - create_training_data
-    - train_sklearn_model
+          #- coarsen_diagnostics
+          #- one_step_run
+          #- create_training_data
+          #- train_sklearn_model
     - test_sklearn_model
     - prognostic_run
     - baseline_run
