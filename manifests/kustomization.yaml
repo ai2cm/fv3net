@@ -1,0 +1,8 @@
+resources:
+- integration-test-service-account.yml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+- files:
+  - configs/create-training-data-variable-names.yml
+  name: create-training-data
