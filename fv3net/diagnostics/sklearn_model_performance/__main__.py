@@ -36,12 +36,6 @@ def _is_remote(path):
     return path.startswith("gs://")
 
 
-def _check_no_nans(ds):
-    counts = ds.isnull().sum().compute()
-    if any(count.item() > 0 for count in counts.values()):
-        raise ValueError(f"NaNs detected in dataset: {counts}")
-
-
 def compute_metrics_and_plot(ds, output_dir, names):
     # TODO refactor this "and" function into two routines
     ds_pred = ds.sel(dataset=DATASET_NAME_PREDICTION)
@@ -209,8 +203,6 @@ if __name__ == "__main__":
     # force loading now to avoid I/O issues down the line
     # This could lead to OOM errors (but those sound like an issue anyway)
     ds = ds.load()
-
-    _check_no_nans(ds)
 
     if _is_remote(args.output_path):
         with tempfile.TemporaryDirectory() as local_dir:
