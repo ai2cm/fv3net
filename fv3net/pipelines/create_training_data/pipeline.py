@@ -2,12 +2,10 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import logging
 import os
-import shutil
 import xarray as xr
 
 from . import helpers
 from vcm.calc import apparent_source
-from vcm.cloud import gsutil
 from vcm.cloud.fsspec import get_fs
 import fsspec
 from vcm import parse_datetime_from_str
