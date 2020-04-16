@@ -59,7 +59,8 @@ The idea is that these are stable and robust tools that are easy to install. OTO
 
 1. Create a new configuration under end_to_end/configs
 1. Run `make generate_configs` to save these manifests for all the configs and save them into the jobs folder.
-1. Check in the manifests folder to version control, and push these changes to master
+1. Check in the manifests jobs folders into version control. We need to capture our generated configurations.
+1. Run `make submit` to submit these finalized jobs (This should probably be done by CI after peer review).
 
 ### Development
 
