@@ -1,14 +1,27 @@
 from vcm.constants import SPECIFIC_HEAT_CONST_PRESSURE, GRAVITY, kg_m2s_to_mm_day
 from vcm.calc import mass_integrate
+import xarray as xr
 
 
-def psurf_from_delp(delp, p_toa=300):
+def psurf_from_delp(delp: xr.DataArray, p_toa: float = 300.0) -> xr.DataArray:
+    """Compute surface pressure from delp
+    """
     psurf = delp.sum(dim="z") + p_toa
     psurf = psurf.assign_attrs({"long_name": "surface pressure", "units": "Pa"})
     return psurf
 
 
-def total_water(sphum, ice_wat, liq_wat, rainwat, snowwat, graupel, delp):
+def total_water(
+    sphum: xr.DataArray,
+    ice_wat: xr.DataArray,
+    liq_wat: xr.DataArray,
+    rainwat: xr.DataArray,
+    snowwat: xr.DataArray,
+    graupel: xr.DataArray,
+    delp: xr.DataArray,
+) -> xr.DataArray:
+    """Compute total water species mixing ratio
+    """
     total_water = (
         (delp / GRAVITY) * (sphum + ice_wat + liq_wat + rainwat + snowwat + graupel)
     ).sum("z")
@@ -18,13 +31,17 @@ def total_water(sphum, ice_wat, liq_wat, rainwat, snowwat, graupel, delp):
     return total_water
 
 
-def precipitable_water(sphum, delp):
+def precipitable_water(sphum: xr.DataArray, delp: xr.DataArray) -> xr.DataArray:
+    """Compute vertically-integrated precipitable water
+    """
     pw = ((delp / GRAVITY) * sphum).sum("z")
     pw = pw.assign_attrs({"long_name": "precipitable water", "units": "mm"})
     return pw
 
 
-def total_heat(T, delp):
+def total_heat(T: xr.DataArray, delp: xr.DataArray) -> xr.DataArray:
+    """Compute vertically-integrated total heat
+    """
     total_heat = (SPECIFIC_HEAT_CONST_PRESSURE * (delp / GRAVITY) * T).sum("z")
     total_heat = total_heat.assign_attrs(
         {"long_name": "column integrated heat", "units": "J/m**2"}
@@ -32,7 +49,9 @@ def total_heat(T, delp):
     return total_heat
 
 
-def column_integrated_heating(dT_dt, delp):
+def column_integrated_heating(dT_dt: xr.DataArray, delp: xr.DataArray) -> xr.DataArray:
+    """Compute vertically-integrated heat tendencies
+    """
     dT_dt_integrated = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
         dT_dt, delp, dim="z"
     )
@@ -42,7 +61,11 @@ def column_integrated_heating(dT_dt, delp):
     return dT_dt_integrated
 
 
-def column_integrated_moistening(dsphum_dt, delp):
+def column_integrated_moistening(
+    dsphum_dt: xr.DataArray, delp: xr.DataArray
+) -> xr.DataArray:
+    """Compute vertically-integrated moisture tendencies
+    """
     dsphum_dt_integrated = kg_m2s_to_mm_day * mass_integrate(dsphum_dt, delp, dim="z")
     dsphum_dt_integrated = dsphum_dt_integrated.assign_attrs(
         {"long_name": "column integrated moistening", "units": "mm/d"}
