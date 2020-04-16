@@ -1,4 +1,3 @@
-from typing import Callable
 from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
     COORD_Y_CENTER,
@@ -242,9 +241,7 @@ def mappable_var(ds: xr.Dataset, var_name: str):
     )
 
 
-def pcolormesh_cube(
-    lat, lon, array, ax=None, **kwargs
-):
+def pcolormesh_cube(lat, lon, array, ax=None, **kwargs):
     """Plots tiled cubed sphere.
 
     Args:
@@ -271,9 +268,8 @@ def pcolormesh_cube(
     if ax is None:
         ax = plt.gca()
     central_longitude = ax.projection.proj4_params["lon_0"]
-    array_mask, lon_mask = _mask_antimeridian_quads(lon.T, central_longitude)
     array = np.where(
-        array_mask, array.T, np.nan
+        _mask_antimeridian_quads(lon.T, central_longitude), array.T, np.nan
     ).T
     kwargs["vmin"] = kwargs.get("vmin", np.nanmin(array))
     kwargs["vmax"] = kwargs.get("vmax", np.nanmax(array))
@@ -281,15 +277,15 @@ def pcolormesh_cube(
     for tile in range(array.shape[0]):
         x = center_longitudes(lon[tile, :, :], central_longitude)
         y = lat[tile, :, :]
-        p_handle = _segmented_plot(
-            ax.pcolormesh, x, y, array[tile, :, :], **kwargs
-        )
+        p_handle = _segmented_plot(ax.pcolormesh, x, y, array[tile, :, :], **kwargs)
     return p_handle
 
 
 def _segmented_plot(plotting_function, x, y, masked_array, **kwargs):
     """Plots only the non-nan parts of a nan-masked array by splitting it into
-    contiguous non-nan rectangles and plotting each of them.
+    contiguous non-nan rectangles and plotting each of them. x and y should be on
+    cell corners, and masked_array should be in cell centers, with NaN for
+    masked values. Designed for pcolormesh.
     """
     is_nan = np.isnan(masked_array)
     if np.sum(is_nan) == 0:  # contiguous section, just plot it
@@ -300,27 +296,54 @@ def _segmented_plot(plotting_function, x, y, masked_array, **kwargs):
         if x_nans.max() >= y_nans.max():  # most nan-y line is in first dimension
             i_split = x_nans.argmax()
             if x_nans[i_split] == 1.0:  # split cleanly along line
-                _segmented_plot(plotting_function, x[:i_split+1, :], y[:i_split+1, :], masked_array[:i_split, :], **kwargs)
-                return_value = _segmented_plot(plotting_function, x[i_split+1:, :], y[i_split+1:, :], masked_array[i_split+1:, :], **kwargs)
-            else:  # split to create segments of complete nans which subsequent recursive calls will split on
+                _segmented_plot(
+                    plotting_function,
+                    x[: i_split + 1, :],
+                    y[: i_split + 1, :],
+                    masked_array[:i_split, :],
+                    **kwargs,
+                )
+                return_value = _segmented_plot(
+                    plotting_function,
+                    x[i_split + 1 :, :],
+                    y[i_split + 1 :, :],
+                    masked_array[i_split + 1 :, :],
+                    **kwargs,
+                )
+            else:
+                # split to create segments of complete nans
+                # which subsequent recursive calls will split on and remove
                 i_start = 0
                 i_end = 1
                 while i_end < is_nan.shape[1]:
-                    while i_end < is_nan.shape[1] and is_nan[i_split, i_start] == is_nan[i_split, i_end]:
+                    while (
+                        i_end < is_nan.shape[1]
+                        and is_nan[i_split, i_start] == is_nan[i_split, i_end]
+                    ):
                         i_end += 1
                     # we have a largest-possible contiguous segment of nans/not nans
-                    return_value = _segmented_plot(plotting_function, x[:, i_start:i_end+1], y[:, i_start:i_end+1], masked_array[:, i_start:i_end], **kwargs)
-                    i_start = i_end # start the next segment
-        else:  # put most nan-y line in first dimension so the first part of this if block catches it
-            return_value = _segmented_plot(plotting_function, x.T, y.T, masked_array.T, **kwargs)
-    return return_value  # just return any handle, they all contain the same colorbar info
+                    return_value = _segmented_plot(
+                        plotting_function,
+                        x[:, i_start : i_end + 1],
+                        y[:, i_start : i_end + 1],
+                        masked_array[:, i_start:i_end],
+                        **kwargs,
+                    )
+                    i_start = i_end  # start the next segment
+        else:
+            # put most nan-y line in first dimension
+            # so the first part of this if block catches it
+            return_value = _segmented_plot(
+                plotting_function, x.T, y.T, masked_array.T, **kwargs
+            )
+    return (
+        return_value  # just return any handle, they all contain the same colorbar info
+    )
 
 
 def center_longitudes(lon_array, central_longitude):
     return np.where(
-        lon_array < (central_longitude + 180.0) % 360.0,
-        lon_array,
-        lon_array - 360.0,
+        lon_array < (central_longitude + 180.0) % 360.0, lon_array, lon_array - 360.0,
     )
 
 
@@ -455,7 +478,7 @@ def plot_cube_axes(
             y = latb[:, :, tile]
         else:
             # contouring
-            x = center_longitudes(lon[:, :, tile])
+            x = center_longitudes(lon[:, :, tile], central_longitude)
             y = lat[:, :, tile]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
