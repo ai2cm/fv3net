@@ -1,5 +1,4 @@
 import xarray as xr
-import pytest
 import numpy as np
 
 from fv3net.regression.sklearn import train
@@ -18,7 +17,7 @@ def _dataset(sample_dim):
     x = "x"
     sample = sample_dim
     return xr.Dataset(
-        {"a": ([sample, x], np.ones((m, n))), "b": ([sample], np.ones((m))),},
+        {"a": ([sample, x], np.ones((m, n))), "b": ([sample], np.ones((m)))},
         coords={x: np.arange(n), sample_dim: np.arange(m)},
     )
 
@@ -32,4 +31,3 @@ def test__shuffled():
 def test__shuffled_dask():
     dataset = _dataset("sample").chunk()
     _shuffled(dataset, "sample", 1)
-

@@ -139,7 +139,7 @@ def _shuffled_within_chunks(indices, random_seed):
 
 
 def _shuffled(dataset, dim, random_seed):
-    chunks_default = (len(dataset[dim]), )
+    chunks_default = (len(dataset[dim]),)
     chunks = dataset.chunks.get(dim, chunks_default)
     indices = _chunk_indices(chunks)
     shuffled_inds = _shuffled_within_chunks(indices, random_seed)
