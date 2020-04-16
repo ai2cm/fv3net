@@ -243,8 +243,8 @@ data:
     uncomment this before final merge\n          #- coarsen_restarts  # this step
     is unreliable, so currently not part of integration test\n    - coarsen_diagnostics\n
     \   - one_step_run\n    - create_training_data\n    # Disabling this workflow
-    (it is introducing NaNs into it's own data)\n    # - train_sklearn_model\n    -
-    test_sklearn_model\n    - prognostic_run\n    - baseline_run\n  \n  steps_config:\n
+    (it is introducing NaNs into it's own data)\n    - train_sklearn_model\n      #
+    - test_sklearn_model\n    - prognostic_run\n    - baseline_run\n  \n  steps_config:\n
     \   coarsen_restarts:\n      command: python -m fv3net.pipelines.coarsen_restarts\n
     \     args:\n        data_to_coarsen:\n          location: gs://vcm-ml-data/test-end-to-end-integration/C384-restarts\n
     \       grid_spec: \n          location: gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy\n
