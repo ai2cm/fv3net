@@ -1,7 +1,7 @@
 apiVersion: v1
 data:
   FV3NET_IMAGE: ""
-  PROGNOSTIC_RUN_IMAGE: integration_test
+  PROGNOSTIC_RUN_IMAGE: integration-test
   coarsen_c384_diagnostics_integration.yml: |
     hi-res-data-vars:
       - LHTFLsfc_coarse
@@ -248,7 +248,7 @@ data:
     \     args:\n        restart_data:\n          #from: coarsen_restarts  # uncomment
     this line and delete the following to include coarsening in test workflow\n          location:
     gs://vcm-ml-data/test-end-to-end-integration/C48-input-for-one-step-jobs\n        experiment_yaml:
-    /etc/config/one_step_jobs_integration.yml\n        docker_image: integration_test\n
+    /etc/config/one_step_jobs_integration.yml\n        docker_image: integration-test\n
     \       --config-version: v0.3\n\n    create_training_data:\n      command: python
     -m fv3net.pipelines.create_training_data\n      args:\n        one_step_data:\n
     \         from: one_step_run\n        diagnostics_data:\n          from: coarsen_diagnostics\n
@@ -263,11 +263,11 @@ data:
     /etc/config/test_sklearn_variable_names.yml\n        --num_test_zarrs: 2\n\n    prognostic_run:\n
     \     command: python workflows/prognostic_c48_run/orchestrate_submit_job.py\n
     \     args:\n        restart_file_dir:\n          from: one_step_run\n        ic_timestep:
-    \"20160801.001500\"\n        docker_image: integration_test\n        --prog_config_yml:
+    \"20160801.001500\"\n        docker_image: integration-test\n        --prog_config_yml:
     /etc/config/prognostic_run_integration.yml\n        --model_url:\n          from:
     train_sklearn_model\n\n    baseline_run:\n      command: python workflows/prognostic_c48_run/orchestrate_submit_job.py\n
     \     args:\n        restart_file_dir:\n          from: one_step_run\n        ic_timestep:
-    \"20160801.001500\"\n        docker_image: integration_test\n        --prog_config_yml:
+    \"20160801.001500\"\n        docker_image: integration-test\n        --prog_config_yml:
     /etc/config/prognostic_run_integration.yml"
   one_step_jobs_integration.yml: |
     kubernetes:
@@ -354,7 +354,7 @@ data:
 kind: ConfigMap
 metadata:
   creationTimestamp: null
-  name: integration_test
+  name: integration-test
   namespace: default
 ---
 apiVersion: batch/v1
@@ -362,7 +362,7 @@ kind: Job
 metadata:
   labels:
     app: integration-test
-  name: end-to-end-integration_test
+  name: end-to-end-integration-test
 spec:
   backoffLimit: 0
   template:
@@ -384,12 +384,12 @@ spec:
           - name: PROGNOSTIC_RUN_IMAGE
             valueFrom:
               configMapKeyRef:
-                name: integration_test
+                name: integration-test
                 key: PROGNOSTIC_RUN_IMAGE
           - name: FV3NET_IMAGE
             valueFrom:
               configMapKeyRef:
-                name: integration_test
+                name: integration-test
                 key: FV3NET_IMAGE
           - name: CONFIG
             value: /etc/config
@@ -417,5 +417,5 @@ spec:
             secretName: gcp-key
         - name: end-to-end-config
           configMap:
-            name: integration_test
+            name: integration-test
             
