@@ -145,18 +145,13 @@ def train_model(batched_data, train_config):
         )
     ):
         logger.info(f"Fitting batch {i}/{batched_data.num_batches}")
-        try:
-            model_wrapper.fit(
-                input_vars=train_config.input_variables,
-                output_vars=train_config.output_variables,
-                sample_dim="sample",
-                data=batch,
-            )
-            logger.info(f"Batch {i} done fitting.")
-        except ValueError as e:
-            logger.error(f"Error training on batch {i}: {e}")
-            train_config.num_batches_used -= 1
-            continue
+        model_wrapper.fit(
+            input_vars=train_config.input_variables,
+            output_vars=train_config.output_variables,
+            sample_dim="sample",
+            data=batch,
+        )
+        logger.info(f"Batch {i} done fitting.")
 
     return model_wrapper
 

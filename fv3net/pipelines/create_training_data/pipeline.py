@@ -19,11 +19,14 @@ logger.setLevel(logging.INFO)
 TIME_FMT = "%Y%m%d.%H%M%S"
 GRID_SPEC_FILENAME = "grid_spec.zarr"
 ZARR_NAME = "big.zarr"
+OUTPUT_ZARR = "big.zarr"
 
 # forecast time step used to calculate the FV3 run tendency
 FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
 # forecast time step used to calculate the high res tendency
 FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
+
+from vcm.convenience import round_time
 
 
 def run(args, pipeline_args, names):
@@ -41,98 +44,68 @@ def run(args, pipeline_args, names):
     ds_full = xr.open_zarr(
         fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
     )
-    ds_full = _str_time_dim_to_datetime(ds_full, names["init_time_dim"])
-    _save_grid_spec(
+
+    init_time_dim = names["init_time_dim"]
+    ds_full = _str_time_dim_to_datetime(ds_full, init_time_dim)
+
+    # one_step operations
+    # these are all lazy
+    ds = _add_physics_tendencies(
         ds_full,
-        args.gcs_output_data_dir,
-        grid_vars=names["grid_vars"],
-        grid_spec_filename=GRID_SPEC_FILENAME,
-        init_time_dim=names["init_time_dim"],
+        physics_tendency_names=names["physics_tendency_names"],
+        forecast_time_dim=names["forecast_time_dim"],
+        step_dim=names["step_time_dim"],
+        coord_before_physics=names["coord_before_physics"],
+        coord_after_physics=names["coord_after_physics"],
     )
-    data_batches, train_test_labels = _divide_data_batches(
-        ds_full,
-        args.timesteps_per_output_file,
-        args.train_fraction,
-        init_time_dim=names["init_time_dim"],
+    ds = _preprocess_one_step_data(
+        ds,
+        flux_vars=names["diag_vars"],
+        suffix_coarse_train=names["suffix_coarse_train"],
+        step_time_dim=names["step_time_dim"],
+        forecast_time_dim=names["forecast_time_dim"],
+        coord_begin_step=names["coord_begin_step"],
+        wind_vars=(names["var_x_wind"], names["var_y_wind"]),
+        edge_to_center_dims=names["edge_to_center_dims"],
     )
-    chunk_sizes = {
-        "tile": 1,
-        names["init_time_dim"]: 1,
-        names["coord_y_center"]: 24,
-        names["coord_x_center"]: 24,
-        names["coord_z_center"]: 79,
-    }
-    logger.info(f"Processing {len(data_batches)} subsets...")
-    beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
-    with beam.Pipeline(options=beam_options) as p:
-        # TODO this code will be cleaner if we get rid of "data batches" as a concept
-        # also it would cleaner to have separately loading piplines for each data source
-        # that are merged by a beam.CoGroupBY operation.
-        # currently, there is no place easy place for me to put a load operation 
-        # and check for NaNs
-        (
-            p
-            | beam.Create(data_batches)
-            | "AddPhysicsTendencies"
-            >> beam.Map(
-                _add_physics_tendencies,
-                physics_tendency_names=names["physics_tendency_names"],
-                forecast_time_dim=names["forecast_time_dim"],
-                step_dim=names["step_time_dim"],
-                coord_before_physics=names["coord_before_physics"],
-                coord_after_physics=names["coord_after_physics"],
-            )
-            | "PreprocessOneStepData"
-            >> beam.Map(
-                _preprocess_one_step_data,
-                flux_vars=names["diag_vars"],
-                suffix_coarse_train=names["suffix_coarse_train"],
-                step_time_dim=names["step_time_dim"],
-                forecast_time_dim=names["forecast_time_dim"],
-                coord_begin_step=names["coord_begin_step"],
-                wind_vars=(names["var_x_wind"], names["var_y_wind"]),
-                edge_to_center_dims=names["edge_to_center_dims"],
-            )
-            | "AddApparentSources"
-            >> beam.Map(
-                _add_apparent_sources,
-                init_time_dim=names["init_time_dim"],
-                forecast_time_dim=names["forecast_time_dim"],
-                var_source_name_map=names["var_source_name_map"],
-                tendency_tstep_onestep=FORECAST_TIME_INDEX_FOR_C48_TENDENCY,
-                tendency_tstep_highres=FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY,
-            )
-            | "SelectOneStepCols" >> beam.Map(lambda x: x[list(names["one_step_vars"])])
-            | "MergeHiresDiagVars"
-            >> beam.Map(
-                _merge_hires_data,
-                diag_c48_path=args.diag_c48_path,
-                coarsened_diags_zarr_name=COARSENED_DIAGS_ZARR_NAME,
-                flux_vars=names["diag_vars"],
-                suffix_hires=names["suffix_hires"],
-                init_time_dim=names["init_time_dim"],
-                renamed_dims=names["renamed_dims"],
-            )
-            | "LoadData" >> beam.Map(lambda ds: ds.load())
-            | "QuitOnNaN" >> beam.Map(_assert_no_nans)
-            | "WriteToZarr"
-            >> beam.Map(
-                _write_remote_train_zarr,
-                chunk_sizes=chunk_sizes,
-                init_time_dim=names["init_time_dim"],
-                gcs_output_dir=args.gcs_output_data_dir,
-                train_test_labels=train_test_labels,
-            )
-        )
+
+    ds = _add_apparent_sources(
+        ds,
+        init_time_dim=init_time_dim,
+        forecast_time_dim=names["forecast_time_dim"],
+        var_source_name_map=names["var_source_name_map"],
+        tendency_tstep_onestep=FORECAST_TIME_INDEX_FOR_C48_TENDENCY,
+        tendency_tstep_highres=FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY,
+    )
+
+    ds = ds[list(names["one_step_vars"])]
+    ds = ds.rename({"initial_time": "time"})
+
+    # load high-res-data
+    # TODO fix the hard code
+    high_res_mapper = fs.get_mapper(
+        args.diag_c48_path + "/gfsphysics_15min_coarse.zarr"
+    )
+    high_res = xr.open_zarr(high_res_mapper, consolidated=True)
+    times_rounded = [round_time(time) for time in high_res.time.values]
+    high_res_rounded_times = high_res.assign_coords(time=times_rounded)
+
+    hr_rename = names["high_res"]
+    high_res_renamed = high_res_rounded_times[list(hr_rename)].rename(hr_rename)
+
+    # merge
+    merged = xr.merge([high_res_renamed, ds]).chunk(names['output_chunks'])
+    _remove_encoding(merged)
+
+    # save out
+    mapper = fs.get_mapper(os.path.join(args.gcs_output_data_dir, OUTPUT_ZARR))
+    merged.to_zarr(mapper, mode="w")
 
 
-def _assert_no_nans(ds):
-    nans = np.isnan(ds).isnull().sum().compute()
-    nan_counts = {key: nans[key].item() for key in nans}
-    if any(count > 0 for count in nan_counts.values()):
-        nan_counts = {key: nans[key].item() for key in nans}
-        raise ValueError(f"NaNs detected in data to be saved: {nan_counts}")
-    return ds
+def _remove_encoding(ds):
+    ds.encoding = {}
+    for variable in ds:
+        ds[variable].encoding = {}
 
 
 def _str_time_dim_to_datetime(ds, time_dim):
@@ -339,73 +312,6 @@ def _add_apparent_sources(
             s_dim=forecast_time_dim,
         )
     ds = ds.isel(
-        {
-            init_time_dim: slice(None, ds.sizes[init_time_dim] - 1),
-            forecast_time_dim: 0,
-        }
+        {init_time_dim: slice(None, ds.sizes[init_time_dim] - 1), forecast_time_dim: 0,}
     ).drop(forecast_time_dim)
     return ds
-
-
-def _merge_hires_data(
-    ds_run,
-    diag_c48_path,
-    coarsened_diags_zarr_name,
-    flux_vars,
-    suffix_hires,
-    init_time_dim,
-    renamed_dims,
-):
-
-    renamed_high_res_vars = {
-        **{
-            f"{var}_coarse": f"{var}_{suffix_hires}"
-            for var in flux_vars
-            if var in list(ds_run.data_vars)
-        },
-        "LHTFLsfc_coarse": f"latent_heat_flux_{suffix_hires}",
-        "SHTFLsfc_coarse": f"sensible_heat_flux_{suffix_hires}",
-    }
-    if not diag_c48_path:
-        return ds_run
-    init_times = ds_run[init_time_dim].values
-    full_zarr_path = os.path.join(diag_c48_path, coarsened_diags_zarr_name)
-    diags_c48 = helpers.load_hires_prog_diag(full_zarr_path, init_times)[
-        list(renamed_high_res_vars.keys())
-    ]
-    renamed_dims = {
-        dim: renamed_dims[dim] for dim in renamed_dims if dim in diags_c48.dims
-    }
-    features_diags_c48 = diags_c48.rename({**renamed_high_res_vars, **renamed_dims})
-    return xr.merge([ds_run, features_diags_c48])
-
-
-def _write_remote_train_zarr(
-    ds,
-    gcs_output_dir,
-    init_time_dim,
-    time_fmt=TIME_FMT,
-    zarr_name=None,
-    train_test_labels=None,
-    chunk_sizes=None,
-):
-    """Writes temporary zarr on worker and moves it to GCS
-
-    Args:
-        ds: xr dataset for single training batch
-        gcs_dest_path: write location on GCS
-        zarr_filename: name for zarr, use first timestamp as label
-        train_test_labels: optional dict with
-    Returns:
-        None
-    """
-    if not zarr_name:
-        zarr_name = helpers._path_from_first_timestep(
-            ds, init_time_dim, time_fmt, train_test_labels
-        )
-        ds = ds.chunk(chunk_sizes)
-    output_path = os.path.join(gcs_output_dir, zarr_name)
-    ds.to_zarr(zarr_name, mode="w", consolidated=True)
-    gsutil.copy(zarr_name, output_path)
-    logger.info(f"Done writing zarr to {output_path}")
-    shutil.rmtree(zarr_name)

@@ -1,6 +1,5 @@
 # suffixes that denote whether flux variable is from the coarsened
 # high resolution prognostic run or the coarse res one step train data run
-suffix_hires: "prog"
 suffix_coarse_train: "train"
 
 # maps data variable to its source term name
@@ -82,20 +81,20 @@ one_step_vars:
   - "ULWRFtoa_train"
   - "ULWRFsfc_train"
 
-
-# data variables from high res data kept in final dataset
-# these are names from coarsened SHiELD output, before renaming
-high_res_data_variables:
-  - "DSWRFtoa_coarse"
-  - "DSWRFsfc_coarse"
-  - "USWRFtoa_coarse"
-  - "USWRFsfc_coarse"
-  - "DLWRFsfc_coarse"
-  - "ULWRFtoa_coarse"
-  - "ULWRFsfc_coarse"
-  - "SHTFLsfc"
-  - "LHTFLsfc"
-  - "PRATEsfc"
+# names for high-res variables
+high_res:
+  DSWRFtoa_coarse: DSWRFtoa_highres
+  DSWRFsfc_coarse: DSWRFsfc_highres
+  USWRFtoa_coarse: USWRFtoa_highres
+  USWRFsfc_coarse: USWRFsfc_highres
+  DLWRFsfc_coarse: DLWRFsfc_highres
+  ULWRFtoa_coarse: ULWRFtoa_highres
+  ULWRFsfc_coarse: ULWRFsfc_highres
+  SHTFLsfc_coarse: sensible_heat_flux_highres
+  LHTFLsfc_coarse: latent_heat_flux_highres
+  PRATEsfc_coarse: surface_precipitation_rate_highres
+  grid_xt: "x"
+  grid_yt: "y"
 
 diag_vars:
   - "DSWRFtoa"
@@ -108,3 +107,10 @@ diag_vars:
   - "SHTFLsfc"
   - "LHTFLsfc"
   - "PRATEsfc"
+
+output_chunks:
+  tile: 6
+  time: 1
+  x: 48
+  y: 48
+  z: 79
