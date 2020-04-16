@@ -9,6 +9,7 @@ from . import helpers
 from vcm.calc import apparent_source
 from vcm.cloud import gsutil
 from vcm.cloud.fsspec import get_fs
+import fsspec
 from vcm import parse_datetime_from_str
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 import numpy as np
@@ -401,7 +402,5 @@ def _write_remote_train_zarr(
         )
         ds = ds.chunk(chunk_sizes)
     output_path = os.path.join(gcs_output_dir, zarr_name)
-    ds.to_zarr(zarr_name, mode="w", consolidated=True)
-    gsutil.copy(zarr_name, output_path)
-    logger.info(f"Done writing zarr to {output_path}")
-    shutil.rmtree(zarr_name)
+    mapper = fsspec.get_mapper(output_path)
+    ds.to_zarr(mapper, mode="w", consolidated=True)
