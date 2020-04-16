@@ -11,8 +11,8 @@ experiment:
     - one_step_run
     - create_training_data
     # Disabling this workflow (it is introducing NaNs into it's own data)
-    # - train_sklearn_model
-    - test_sklearn_model
+    - train_sklearn_model
+      # - test_sklearn_model
     - prognostic_run
     - baseline_run
   
