@@ -339,7 +339,6 @@ def _plot_lower_troposphere_stability(ds_pred, ds_test, ds_hires, names, lat_max
         vcm.mask_to_surface_type(ds_test, "sea")
         .where(lat_mask)
         .stack(sample=names["stack_dims"])
-        .dropna("sample")
     )
     ds_test["pressure"] = vcm.pressure_at_midpoint_log(
         ds_test[names["var_pressure_thickness"]], dim=names["coord_z_center"]
