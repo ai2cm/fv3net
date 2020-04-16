@@ -19,11 +19,10 @@ configName="$1"
 export PROGNOSTIC_RUN_IMAGE=$1
 export FV3NET_IMAGE=$2
 
-rev=$(git rev-parse HEAD)
 BASE=$(pwd)/end_to_end
 NAMESPACE=default
-JOBNAME=$configName-$rev
-CONFIGMAP=$configName-$rev
+JOBNAME=end-to-end-$configName
+CONFIGMAP=$configName
 
 # the config directory to use inside the image
 CONFIG=/etc/config
