@@ -6,5 +6,6 @@ from .utils import (
     get_base_fv3config,
     job_failed,
     job_complete,
+    initialize_batch_client,
 )
 from .nudge_to_obs import update_config_for_nudging
