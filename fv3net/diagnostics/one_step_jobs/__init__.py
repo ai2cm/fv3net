@@ -90,7 +90,7 @@ GLOBAL_2D_MAPS = {
     "column_integrated_moistening": {VAR_TYPE_DIM: "tendencies", "scale": 50},
     "vertical_wind_level_40": {VAR_TYPE_DIM: "states", "scale": 0.05},
     "total_precipitation": {VAR_TYPE_DIM: "states", "scale": None},
-    "latent_heat_flux": {VAR_TYPE_DIM: "states", "scale": 100},
+    "latent_heat_flux": {VAR_TYPE_DIM: "states", "scale": 200},
     "sensible_heat_flux": {VAR_TYPE_DIM: "states", "scale": 100},
 }
 
