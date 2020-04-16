@@ -1,3 +1,4 @@
+from typing import Sequence, TypeVar, List
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import logging
@@ -41,13 +42,6 @@ def run(args, pipeline_args, names):
         fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
     )
     ds_full = _str_time_dim_to_datetime(ds_full, names["init_time_dim"])
-    _save_grid_spec(
-        ds_full,
-        args.gcs_output_data_dir,
-        grid_vars=names["grid_vars"],
-        grid_spec_filename=GRID_SPEC_FILENAME,
-        init_time_dim=names["init_time_dim"],
-    )
     data_batches, train_test_labels = _divide_data_batches(
         ds_full,
         args.timesteps_per_output_file,
@@ -205,7 +199,9 @@ def _save_grid_spec(
     return
 
 
-def _window_with_overlap(seq, window_size):
+T = TypeVar("Item")
+
+def _window_with_overlap(seq: Sequence[T], window_size: int) -> List[List[T]]:
     """ Group input sequence into window of size window_size which overlap by 1
     """
 
@@ -380,7 +376,8 @@ def _write_remote_train_zarr(
         ds: xr dataset for single training batch
         gcs_dest_path: write location on GCS
         zarr_filename: name for zarr, use first timestamp as label
-        train_test_labels: optional dict with
+        train_test_labels: optional dict with keys ["test", "train"] and values lists of
+            timestep strings that go to each set
     Returns:
         None
     """

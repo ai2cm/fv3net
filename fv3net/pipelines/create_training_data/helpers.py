@@ -3,6 +3,7 @@ import logging
 import os
 import pandas as pd
 import xarray as xr
+from typing import Mapping
 
 from vcm.fv3_restarts import open_diagnostic
 from vcm.cloud.fsspec import get_fs
@@ -24,7 +25,7 @@ def _convert_forecast_time_to_timedelta(ds, forecast_time_dim):
     return ds.assign_coords({forecast_time_dim: timedelta_coords})
 
 
-def _path_from_first_timestep(ds, init_time_dim, time_fmt, train_test_labels=None):
+def _path_from_first_timestep(ds, init_time_dim, time_fmt, train_test_labels: Mapping=None):
     """ Uses first init time as zarr filename, and appends a 'train'/'test' subdir
     if a dict of labels is provided
 
@@ -43,12 +44,6 @@ def _path_from_first_timestep(ds, init_time_dim, time_fmt, train_test_labels=Non
                 train_test_subdir = "train"
             elif timestep in train_test_labels["test"]:
                 train_test_subdir = "test"
-        except KeyError:
-            logger.warning(
-                "train_test_labels dict does not have keys ['train', 'test']."
-                "Will write zarrs directly to gcs_output_dir."
-            )
-            train_test_subdir = ""
     else:
         logger.info(
             "No train_test_labels dict provided."
