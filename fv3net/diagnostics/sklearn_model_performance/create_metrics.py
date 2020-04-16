@@ -54,7 +54,9 @@ def _root_mean_squared_error_metrics(da_target, da_pred, init_time_dim="initial_
     if "units" in da_target.attrs:
         rmse.attrs["units"] = da_target.attrs["units"]
     if "long_name" in da_target.attrs:
-        rmse.attrs["long_name"] = "root mean square error of " + da_target.attrs["long_name"]
+        rmse.attrs["long_name"] = (
+            "root mean square error of " + da_target.attrs["long_name"]
+        )
     return rmse
 
 
