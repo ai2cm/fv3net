@@ -19,14 +19,14 @@ The idea is that these are stable and robust tools that are easy to install. OTO
 
 ## Structure
 
-```
+``` 
 .
 ├── CODEOWNERS
 ├── Makefile
 ├── README.md
-├── end_to_end                                                  # scripts for generating k8s manifests for experiments
+├── end_to_end
 │   ├── configs
-│   │   └── <experiment-name>
+│   │   └── integration-test
 │   │       ├── coarsen_c384_diagnostics_integration.yml
 │   │       ├── create_training_data_variable_names.yml
 │   │       ├── diag_table_prognostic
@@ -36,23 +36,26 @@ The idea is that these are stable and robust tools that are easy to install. OTO
 │   │       └── train_sklearn_model.yml
 │   ├── end_to_end.yml
 │   ├── generate.sh
+│   ├── generate_all_configs.sh
 │   ├── job_template.yml
 │   └── run_integration_with_wait.sh
-└── manifests                                                    # generated manifests go here
+├── jobs
+└── manifests
     └── integration-test-service-account.yml
-
-4 directories, 15 files
 
 ```
 
 - experiment-name cannot be an underscore since this name is used to name the k8s job, and k8s does not allow underscore in its metadata.names attributes.
+- manifests: these are k8s configurations that change infrequently such as permissions
+- generated jobs go into jobs. This folder is deleted with every invocation of `make generate_configs`.
+    - It should be checked into version control for complete reproducibility
 
 ## Workflows
 
 ### Production
 
 1. Create a new configuration under end_to_end/configs
-1. Run `make generate_configs` to save these manifests for all the configs and save them into the manifests folder.
+1. Run `make generate_configs` to save these manifests for all the configs and save them into the jobs folder.
 1. Check in the manifests folder to version control, and push these changes to master
 
 ### Development
