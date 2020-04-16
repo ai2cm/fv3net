@@ -163,9 +163,7 @@ def subsample_timesteps_at_interval(
     try:
         delta = timedelta(minutes=sampling_interval)
     except TypeError:
-        logger.warning(
-            f"No sampling interval specifed, returning first value only."
-        )
+        logger.warning(f"No sampling interval specifed, returning first value only.")
     else:
         while current_time < last_time:
             next_time = current_time + delta

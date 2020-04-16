@@ -18,7 +18,7 @@ def mask_to_surface_type(
     ds: xr.Dataset,
     surface_type: str,
     surface_type_var: str = "land_sea_mask",
-    enumeration: dict = SURFACE_TYPE_ENUMERATION
+    enumeration: dict = SURFACE_TYPE_ENUMERATION,
 ) -> xr.Dataset:
     """
     Args:

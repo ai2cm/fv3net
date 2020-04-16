@@ -87,6 +87,6 @@ def test_subsample_timesteps_at_interval():
 
     # frequency larger than available times, returns first only
     assert subsample_timesteps_at_interval(timesteps, 60) == [timesteps[0]]
-    
+
     # frequency not aligned, return first only
     assert subsample_timesteps_at_interval(timesteps, 7) == [timesteps[0]]

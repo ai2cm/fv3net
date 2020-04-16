@@ -23,8 +23,7 @@ ONE_STEP_DIAGS_DATAFLOW_ARGS = COARSEN_RESTARTS_DATAFLOW_ARGS.copy()
 ONE_STEP_DIAGS_DATAFLOW_ARGS.update(
     {
         "--job_name": (
-            f"one-step-diags-{getuser().lower()}-"
-            f"{get_alphanumeric_unique_tag(7)}"
+            f"one-step-diags-{getuser().lower()}-" f"{get_alphanumeric_unique_tag(7)}"
         ),
         "--num_workers": 4,
         "--max_num_workers": 30,
@@ -48,5 +47,3 @@ CREATE_TRAINING_DATAFLOW_ARGS.update(
         "--extra_package": "external/vcm/dist/vcm-0.1.1.tar.gz",
     }
 )
-
-
