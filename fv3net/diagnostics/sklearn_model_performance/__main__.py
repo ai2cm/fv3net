@@ -121,17 +121,16 @@ def load_data_and_predict_with_ml(
     slmsk = ds_test[names["var_land_sea_mask"]].isel({names["init_time_dim"]: 0})
 
     # TODO ditto: do all merging of data before computing anything
-    return (
-        merge_comparison_datasets(
-            [ds_pred, ds_test, ds_hires],
-            labels=[
-                DATASET_NAME_PREDICTION,
-                DATASET_NAME_FV3_TARGET,
-                DATASET_NAME_SHIELD_HIRES,
-            ],
-        )
-        .merge(grid)
-        .merge(slmsk)
+    return merge_comparison_datasets(
+        data_vars=names["data_vars"],
+        datasets=[ds_pred, ds_test, ds_hires],
+        dataset_labels=[
+            DATASET_NAME_PREDICTION,
+            DATASET_NAME_FV3_TARGET,
+            DATASET_NAME_SHIELD_HIRES,
+        ],
+        grid=grid,
+        additional_dataset=slmsk,
     )
 
 
