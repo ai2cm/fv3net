@@ -133,12 +133,15 @@ def _chunk_indices(chunks):
 
 
 def _shuffled_within_chunks(indices, random_seed):
+    # We should only need to set the random seed once (not every time)
     np.random.seed(random_seed)
     return np.concatenate([np.random.permutation(index) for index in indices])
 
 
 def _shuffled(dataset, dim, random_seed):
-    indices = _chunk_indices(dataset.chunks[dim])
+    chunks_default = (len(dataset[dim]), )
+    chunks = dataset.chunks.get(dim, chunks_default)
+    indices = _chunk_indices(chunks)
     shuffled_inds = _shuffled_within_chunks(indices, random_seed)
     return dataset.isel({dim: shuffled_inds})
 
