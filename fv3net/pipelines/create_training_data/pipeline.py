@@ -83,7 +83,9 @@ def run(args, pipeline_args, names):
             )
             | "SelectStep"
             >> beam.Map(
-                lambda ds: ds.sel({names["step_time_dim"]: names["step_for_state"]})
+                lambda ds: ds.sel(
+                    {names["step_time_dim"]: names["step_for_state"]}
+                ).drop(names["step_time_dim"])
             )
             | "PreprocessOneStepData"
             >> beam.Map(
