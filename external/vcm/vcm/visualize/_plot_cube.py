@@ -246,11 +246,11 @@ def pcolormesh_cube(lat, lon, array, ax=None, **kwargs):
 
     Args:
         lat (np.ndarray):
-            Array of latitudes with dimensions (tile, y, x). Should be given at cell
-            centers for contour-like functions, or cell corners for pcolormesh.
+            Array of latitudes with dimensions (tile, ny + 1, nx + 1).
+            Should be given at cell corners.
         lon (np.ndarray):
-            Array of longitudes with dimensions (tile, y, x). Should be given at cell
-            centers for contour-like functions, or cell corners for pcolormesh.
+            Array of longitudes with dimensions (tile, ny + 1, nx + 1).
+            Should be given at cell corners.
         array (np.ndarray):
             Array of variables values at cell centers, of dimensions (tile, ny, nx)
         ax (plt.axes, optional)
