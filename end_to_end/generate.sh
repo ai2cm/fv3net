@@ -2,13 +2,13 @@
 
 set -e
 
-if [[ $# != 3 ]]; then
+if [[ $# != 1 ]]; then
     echo "Generate kubernetes manifests for an experiment"
     echo "Run this script from the root directory of the project"
     echo ""
     echo "usage:"
     echo ""
-    echo "end_to_end/generate.sh <configName> <prognotic_run_image> <fv3net_image>"
+    echo "end_to_end/generate.sh <configName>"
     echo ""
     echo "configName is a folder in end_to_end/configs"
     exit 1
@@ -29,6 +29,9 @@ CONFIG=/etc/config
 export JOBNAME CONFIGMAP CONFIG
 
 K8S_TEMPLATE=$BASE/job_template.yml
+
+# Need to define prognostic run image in generate.env
+source "$BASE/configs/$configName/docker_images.env"
 
 # echo the configmap
 end_to_end="$(envsubst < $BASE/end_to_end.yml)"

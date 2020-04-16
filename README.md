@@ -30,6 +30,7 @@ The idea is that these are stable and robust tools that are easy to install. OTO
 │   │       ├── coarsen_c384_diagnostics_integration.yml
 │   │       ├── create_training_data_variable_names.yml
 │   │       ├── diag_table_prognostic
+│   │       ├── docker_images.env
 │   │       ├── one_step_jobs_integration.yml
 │   │       ├── prognostic_run_integration.yml
 │   │       ├── test_sklearn_variable_names.yml
@@ -49,6 +50,8 @@ The idea is that these are stable and robust tools that are easy to install. OTO
 - manifests: these are k8s configurations that change infrequently such as permissions
 - generated jobs go into jobs. This folder is deleted with every invocation of `make generate_configs`.
     - It should be checked into version control for complete reproducibility
+- configs/<name>/docker_images.env specifies the docker images need to run the jobs. these cannot be specified by configmaps,
+  and need to be handled via gettext templating.
 
 ## Workflows
 
