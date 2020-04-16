@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import xarray as xr
+from typing import Sequence, Hashable
 
 import vcm
 from vcm.select import drop_nondim_coords, get_latlon_grid_coords
@@ -17,47 +18,30 @@ _KG_M2S_TO_MM_DAY = 86400  # kg/m2/s same as mm/s. Using 1000 km/m3 for H20 dens
 
 
 def merge_comparison_datasets(
-    data_vars,
-    datasets,
-    dataset_labels,
-    grid,
-    concat_dim_name="dataset",
-    additional_dataset=None,
+    datasets, labels, dim="dataset",
 ):
     """ Makes a comparison dataset out of multiple datasets that all have a common
     data variable. They are concatenated with a new dim "dataset" that can be used
     to distinguish each dataset's data values from each other when plotting together.
 
     Args:
-        var: str, data variable of interest that is in all datasets
         datasets: list[xr datasets or data arrays], arrays that will be concatenated
             along the dataset dimension
-        dataset_labels: list[str], same order that corresponds to datasets,
+        labels: list[str], same order that corresponds to datasets,
             is the coords for the "dataset" dimension
-        grid: xr dataset with lat/lon grid vars
-        additional_data: xr data array, any additional data (e.g. slmsk) to merge along
-            with data arrays and grid.
+        dim: xr dataset with lat/lon grid vars
 
     Returns:
         Dataset with new dataset dimension to denote the target vs predicted
         quantities. It is unstacked into the original x,y, time dimensions.
     """
 
-    src_dim_index = pd.Index(dataset_labels, name=concat_dim_name)
-    datasets = [drop_nondim_coords(ds) for ds in datasets]
+    src_dim_index = pd.Index(labels, name=dim)
     # if one of the datasets is missing data variable(s) that are in the others,
     # fill it with an empty data array
+    data_vars = {variable for dataset in datasets for variable in dataset}
     _add_missing_data_vars(data_vars, datasets)
-    datasets_to_merge = [
-        xr.concat(
-            [ds[data_vars].squeeze(drop=True) for ds in datasets], dim=src_dim_index
-        ),
-        grid,
-    ]
-    if additional_dataset is not None:
-        datasets_to_merge.append(additional_dataset)
-    ds_comparison = xr.merge(datasets_to_merge)
-    return ds_comparison
+    return xr.concat(datasets, dim=src_dim_index, coords="minimal")
 
 
 def get_latlon_grid_coords_set(
@@ -190,8 +174,6 @@ def _add_missing_data_vars(data_vars, datasets):
         for ds in datasets:
             if data_var in list(ds.data_vars):
                 array_var = ds[data_var]
-        if array_var is None:
-            raise ValueError(f"None of the datasets contain data array for {data_var}.")
         for i in range(len(datasets)):
             if data_var not in list(datasets[i].data_vars):
                 datasets[i] = _add_empty_dataarray(datasets[i], array_var)
