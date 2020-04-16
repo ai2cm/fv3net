@@ -207,9 +207,9 @@ def _write_report(output_dir, sections, metadata, title):
 
 
 def _url_to_datetime(url):
-    dt = vcm.parse_datetime_from_str(vcm.parse_timestep_str_from_path(url))
-    # ensure returning a python datetime (i.e. not cftime.DatetimeJulian)
-    return datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+    return vcm.cast_to_datetime(
+        vcm.parse_datetime_from_str(vcm.parse_timestep_str_from_path(url))
+    )
 
 
 if __name__ == "__main__":

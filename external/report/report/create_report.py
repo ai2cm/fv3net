@@ -1,4 +1,5 @@
 import datetime
+from typing import Mapping, Sequence, Union
 
 from jinja2 import Template
 from pytz import timezone
@@ -31,19 +32,23 @@ HTML_TEMPLATE = Template(
 )
 
 
-def create_html(sections, title, metadata=None):
-    """Return html report of figures described in report_sections
+def create_html(
+    sections: Mapping[str, Sequence[str]],
+    title: str,
+    metadata: Mapping[str, Union[str, float, int, bool]] = None,
+) -> str:
+    """Return html report of figures described in sections.
 
     Args:
-        sections (dict): description of figures to include in report. Dict with
-            section names as keys and lists of figure filenames as values:
-            {section name: [figure filenames in section]}
-        title (str): title at top of report
-        metadata (dict, optional): metadata to be printed in a table before figures.
+        sections: description of figures to include in report. Dict with
+            section names as keys and lists of figure filenames as values, e.g.:
+            {'First section': ['figure1.png', 'figure2.png']}
+        title: title at top of report
+        metadata (optional): metadata to be printed in a table before figures.
             Defaults to None, in which case no metadata printed.
 
     Returns:
-        (str) html report
+        html report
     """
     now = datetime.datetime.now().astimezone(timezone(PACIFIC_TZ))
     now_str = now.strftime(NOW_FORMAT)

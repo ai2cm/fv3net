@@ -1,8 +1,12 @@
+import datetime
+from typing import Sequence
+
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 
 
-def plot_daily_and_hourly_hist(time_list):
+def plot_daily_and_hourly_hist(time_list: Sequence[datetime.datetime]):
     """Given a list of python datetimes, create and return 2-subplot figure with
     histograms of daily and hourly counts."""
     fig, axes = plt.subplots(1, 2, figsize=(8, 3))
@@ -13,7 +17,7 @@ def plot_daily_and_hourly_hist(time_list):
     return fig
 
 
-def plot_daily_hist(ax, time_list):
+def plot_daily_hist(ax: Axes, time_list: Sequence[datetime.datetime]):
     """Given list of datetimes, plot histogram of count per calendar day on ax"""
     ser = pd.Series(time_list)
     groupby_list = [ser.dt.year, ser.dt.month, ser.dt.day]
@@ -21,7 +25,7 @@ def plot_daily_hist(ax, time_list):
     ax.set_ylabel("Count")
 
 
-def plot_hourly_hist(ax, time_list):
+def plot_hourly_hist(ax: Axes, time_list: Sequence[datetime.datetime]):
     """Given list of datetimes, plot histogram of count per UTC hour on ax"""
     ser = pd.Series(time_list)
     ser.groupby(ser.dt.hour).count().plot(ax=ax, kind="bar", title="Hourly count")

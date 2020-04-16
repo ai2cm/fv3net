@@ -8,6 +8,7 @@ from datetime import datetime
 
 from vcm.cloud.fsspec import get_fs
 from vcm.cloud.gsutil import copy
+import vcm
 import report
 
 from ..data import merge_comparison_datasets
@@ -42,11 +43,6 @@ def _is_remote(path):
     return path.startswith("gs://")
 
 
-def _ensure_datetime(d):
-    """Ensure d is a python datetime object (and not cftime.DatetimeJulian)"""
-    return datetime(d.year, d.month, d.day, d.hour, d.minute, d.second)
-
-
 def _write_report(output_dir, sections, metadata, title):
     filename = title.replace(" ", "_") + ".html"
     html_report = report.create_html(sections, title, metadata=metadata)
@@ -65,7 +61,7 @@ def compute_metrics_and_plot(ds, output_dir, names):
 
     # write out yaml file of timesteps used for testing model
     init_times = ds[names["init_time_dim"]].values
-    init_times = [_ensure_datetime(t) for t in init_times]
+    init_times = [vcm.cast_to_datetime(t) for t in init_times]
     with fsspec.open(os.path.join(output_dir, TIMESTEPS_USED_FILENAME), "w") as f:
         yaml.dump(init_times, f)
 

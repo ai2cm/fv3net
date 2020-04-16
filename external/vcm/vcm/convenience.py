@@ -3,6 +3,7 @@ import pathlib
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta
+from mapping import Union
 
 import cftime
 import intake
@@ -44,7 +45,7 @@ def round_time(t):
 def parse_timestep_str_from_path(path: str) -> str:
     """
     Get the model timestep timestamp from a given path
-    
+
     Args:
         path: A file or directory path that includes a timestep to extract
 
@@ -66,6 +67,19 @@ def parse_datetime_from_str(time: str) -> cftime.DatetimeJulian:
     """
     t = datetime.strptime(time, TIME_FMT)
     return cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)
+
+
+def cast_to_datetime(time: Union[cftime.DatetimeJulian, datetime]) -> datetime:
+    """Cast datetime-like object to python datetime. Assumes calendars are compatible."""
+    return datetime(
+        time.year,
+        time.month,
+        time.day,
+        time.hour,
+        time.minute,
+        time.second,
+        time.microsecond,
+    )
 
 
 def convert_timestamps(coord: xr.DataArray) -> xr.DataArray:
