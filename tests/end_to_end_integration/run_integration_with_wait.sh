@@ -46,19 +46,18 @@ CONFIGMAP=integration-test-$(date +%F)-$(openssl rand -hex 6)
 export JOBNAME CONFIGMAP
 
 K8S_TEMPLATE=$TESTDIR/job_template.yml
-E2E_TEMPLATE=$TESTDIR/end_to_end_template.yml
-
 
 workdir=$(mktemp -d)
 
 (
     cd "$workdir"
-    envsubst < "$E2E_TEMPLATE" > end-to-end.yml
     envsubst < "$K8S_TEMPLATE" > job.yml
 
     # use config map to make the end to end yaml available to the job
-    kubectl create configmap -n $NAMESPACE "$CONFIGMAP" --from-file=end-to-end.yml --from-file $TESTDIR/create_training_data_variable_names.yml \
-        --from-file $TESTDIR/train_sklearn_model.yml
+    kubectl create configmap -n $NAMESPACE "$CONFIGMAP" --from-file=$TESTDIR/config/ \
+	    --from-literal=PROGNOSTIC_RUN_IMAGE=$PROGNOSTIC_RUN_IMAGE \
+	    --from-literal=FV3NET_IMAGE=$FV3NET_IMAGE
+
     kubectl apply -n $NAMESPACE -f job.yml
     waitForComplete "$JOBNAME" "$NAMESPACE"
 )

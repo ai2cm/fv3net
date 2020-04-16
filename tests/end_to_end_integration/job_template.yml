@@ -21,6 +21,18 @@ spec:
             value: /secret/gcp-credentials/key.json
           - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
             value: /secret/gcp-credentials/key.json
+          - name: PROGNOSTIC_RUN_IMAGE
+            valueFrom:
+              configMapKeyRef:
+                name: $CONFIGMAP
+                key: PROGNOSTIC_RUN_IMAGE
+          - name: FV3NET_IMAGE
+            valueFrom:
+              configMapKeyRef:
+                name: $CONFIGMAP
+                key: FV3NET_IMAGE
+          - name: TESTS
+            value: /etc/config
         name: integration-test
         resources:
           requests:
