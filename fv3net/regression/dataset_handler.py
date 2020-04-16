@@ -84,18 +84,21 @@ class BatchGenerator:
         return [xr.open_zarr(path).load() for path in timestep_paths]
 
     def _create_training_batch(self, urls, coord_z_center, init_time_dim):
-        # TODO refactor this I/O. since this logic below it is currently 
+        # TODO refactor this I/O. since this logic below it is currently
         # impossible to test.
         data = self._load_datasets(urls)
         ds = xr.concat(data, init_time_dim)
         ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type)
-        ds_stacked = (ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != coord_z_center]})
-                        .transpose(SAMPLE_DIM, coord_z_center))
+        ds_stacked = ds.stack(
+            {SAMPLE_DIM: [dim for dim in ds.dims if dim != coord_z_center]}
+        ).transpose(SAMPLE_DIM, coord_z_center)
 
         ds_no_nan = ds_stacked.dropna(SAMPLE_DIM)
 
         if len(ds_no_nan[SAMPLE_DIM]) == 0:
-            raise ValueError("No Valid samples detected. Check for errors in the training data.")
+            raise ValueError(
+                "No Valid samples detected. Check for errors in the training data."
+            )
 
         return _shuffled(ds_no_nan, SAMPLE_DIM, self.random_seed)
 
