@@ -3,6 +3,7 @@ kind: Job
 metadata:
   labels:
     app: integration-test
+  # do not use generateName. we want this to be deterministic
   name: $JOBNAME
 spec:
   backoffLimit: 0

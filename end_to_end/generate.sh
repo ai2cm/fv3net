@@ -2,13 +2,13 @@
 
 set -e
 
-if [[ $# != 1 ]]; then
+if [[ $# != 3 ]]; then
     echo "Generate kubernetes manifests for an experiment"
     echo "Run this script from the root directory of the project"
     echo ""
     echo "usage:"
     echo ""
-    echo "end_to_end/generate.sh <configName>"
+    echo "end_to_end/generate.sh <configName> <prognotic_run_image> <fv3net_image>"
     echo ""
     echo "configName is a folder in end_to_end/configs"
     exit 1
@@ -16,8 +16,8 @@ fi
 
 configName="$1"
 
-export PROGNOSTIC_RUN_IMAGE=$1
-export FV3NET_IMAGE=$2
+export PROGNOSTIC_RUN_IMAGE="$2"
+export FV3NET_IMAGE="$3"
 
 BASE=$(pwd)/end_to_end
 NAMESPACE=default
