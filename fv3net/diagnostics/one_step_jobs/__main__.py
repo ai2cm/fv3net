@@ -306,7 +306,7 @@ if __name__ == "__main__":
     metadata.update({'initializations': states_and_tendencies.attrs[INIT_TIME_DIM]})
     with open(os.path.join(output_report_dir, 'step_metadata_table.yml'), mode='w') as f:
         yaml.dump(metadata, f)
-    create_report(report_sections, "one_step_diagnostics", output_report_dir, metadata)
+    create_report(report_sections, "one_step_diagnostics", output_report_dir)
     
     if proto == "gs":
         copy(output_report_dir, remote_report_path)
