@@ -1,12 +1,12 @@
 import backoff
 import logging
 from dataclasses import dataclass
+import fsspec
 from typing import List
 import numpy as np
 import xarray as xr
 
 import select
-from vcm.cloud.fsspec import get_fs
 
 SAMPLE_DIM = "sample"
 
@@ -41,7 +41,7 @@ class BatchGenerator:
             nested list of zarr paths, where inner lists are the sets of zarrs used
             to train each batch
         """
-        self.fs = get_fs(self.gcs_data_dir)
+        self.fs, _, _ = fsspec.get_fs_token_paths(self.gcs_data_dir)
         logger.info(f"Reading data from {self.gcs_data_dir}.")
         zarr_urls = [
             zarr_file
