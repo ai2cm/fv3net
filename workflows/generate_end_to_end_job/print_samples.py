@@ -30,10 +30,10 @@ urls = sorted(fs.ls(url))
 steps = [vcm.parse_timestep_str_from_path(url) for url in urls]
 
 splits = vcm.train_test_split_sample(
-    steps, boundary="20160901.000000", train_samples=48, test_samples=48
+    steps, boundary="20160901.000000", train_samples=2, test_samples=2
 )
 
-all_steps = set(flatten(flatten(splits.values())))
+all_steps = sorted(set(flatten(flatten(splits.values()))))
 # print(all_steps)
 
 data = {
