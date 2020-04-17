@@ -1,4 +1,3 @@
-from typing import Any, Sequence
 from toolz import sliding_window
 import random
 
@@ -9,16 +8,16 @@ def sample(seq, n_samples, window=2):
     return windows[:n_samples]
 
 
-def train_test_split_sample(seq, boundary, train_samples, test_samples):
+def train_test_split_sample(seq, boundary, train_samples, test_samples, seed=0):
     """
     >>> import pprint
     >>> timesteps = [
     ...     "20160101.000000",
     ...     "20160102.000000",
     ...     "20160103.000015",
+    ...     "20160301.000000",
     ...     "20160104.000000",
     ...     "20160201.000000",
-    ...     "20160301.000000",
     ...     "20160401.000000",
     ...     "20160502.000000",
     ... ]
@@ -32,6 +31,9 @@ def train_test_split_sample(seq, boundary, train_samples, test_samples):
     'train': [('20160101.000000', '20160102.000000'),
             ('20160102.000000', '20160103.000015')]}
     """
+    old_state = random.getstate()
+    random.seed(seed, version=1)
+    seq = sorted(seq)
 
     train = filter(lambda t: t < boundary, seq)
     test = filter(lambda t: t >= boundary, seq)
@@ -39,4 +41,6 @@ def train_test_split_sample(seq, boundary, train_samples, test_samples):
     train_steps = sample(train, train_samples)
     test_steps = sample(test, test_samples)
 
+    # restore the seed
+    random.setstate(old_state)
     return {"train": train_steps, "test": test_steps}

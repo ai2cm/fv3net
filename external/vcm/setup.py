@@ -23,6 +23,8 @@ install_requirements = [
     "zarr",
     "xgcm",
     "cftime",
+    "pytest",
+    "pytest-regtest"
 ]
 
 

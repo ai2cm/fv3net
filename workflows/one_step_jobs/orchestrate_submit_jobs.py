@@ -30,9 +30,7 @@ def _create_arg_parser():
         help="Docker image to use for performing the one-step FV3GFS runs.",
     )
     parser.add_argument(
-        "timesteps",
-        type=str,
-        help="Path to list of time-steps in yaml format",
+        "timesteps", type=str, help="Path to list of time-steps in yaml format",
     )
     parser.add_argument(
         "output_url", type=str, help="Remote url where model output will be saved."
