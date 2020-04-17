@@ -2,6 +2,7 @@ import xarray as xr
 import numpy as np
 from scipy.stats import binned_statistic
 from vcm.cubedsphere.constants import TIME_FMT
+from vcm.constants import kg_m2s_to_mm_day
 from vcm.select import mask_to_surface_type
 from vcm.convenience import parse_datetime_from_str
 from vcm import local_time
@@ -188,6 +189,13 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
                     }
                 )
             ),
+            "total_precipitation": (
+                (ds['total_precipitation']*kg_m2s_to_mm_day)
+                .assign_attrs({
+                    "long name": ds['total_precipitation'].attrs.get("long_name", None),
+                    "units": "mm/day"
+                })
+            )
         }
     )
 

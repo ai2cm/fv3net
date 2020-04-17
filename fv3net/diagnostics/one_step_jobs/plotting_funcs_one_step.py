@@ -307,7 +307,7 @@ def plot_model_run_maps_across_time_dim(
     scale: float = None,
 ):
 
-    if vartype == "tendencies":
+    if vartype == "tendencies" and not var.startswith('column_integrated'):
         ds[var].attrs.update({"units": ds[var].attrs["units"] + "/s"})
     ds = ds.assign_coords({FORECAST_TIME_DIM: ds[FORECAST_TIME_DIM] / 60})
     f, axes, _, _, facet_grid = plot_cube(
@@ -340,7 +340,6 @@ def plot_model_run_maps_across_time_dim(
 def plot_mean_time_height(
     th_da: xr.DataArray, vartype: str, scale: float = None
 ) -> plt.figure:
-    print(th_da)
     th_da = th_da.assign_coords({FORECAST_TIME_DIM: th_da[FORECAST_TIME_DIM] / 60})
     if vartype == "tendencies":
         th_da.attrs.update({"units": f"{th_da.attrs['units']}/s"})
@@ -351,15 +350,15 @@ def plot_mean_time_height(
         x=FORECAST_TIME_DIM, y="z", col="composite", yincrease=False, vmax=scale,
     )
     plt.suptitle(f"coarse model {th_da.name} across {FORECAST_TIME_DIM}")
-    ex_ax = facetgrid.axes.flatten()[0]
-    ex_ax.set_xlabel(f"{FORECAST_TIME_DIM} [min]")
-    ex_ax.set_xlim(
-        [
-            th_da[FORECAST_TIME_DIM].values[0] - 0.5,
-            th_da[FORECAST_TIME_DIM].values[-1] + 0.5,
-        ]
-    )
-    ex_ax.set_xticks(th_da[FORECAST_TIME_DIM])
+    for ax in facetgrid.axes.flatten():
+        ax.set_xlabel(f"{FORECAST_TIME_DIM} [min]")
+        ax.set_xlim(
+            [
+                th_da[FORECAST_TIME_DIM].values[0] - 0.5,
+                th_da[FORECAST_TIME_DIM].values[-1] + 0.5,
+            ]
+        )
+        ax.set_xticks(th_da[FORECAST_TIME_DIM])
     f = facetgrid.fig
     f.set_dpi(FIG_DPI)
     f.set_size_inches([12, 5])

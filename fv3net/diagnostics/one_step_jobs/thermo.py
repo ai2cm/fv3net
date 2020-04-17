@@ -68,6 +68,6 @@ def column_integrated_moistening(
     """
     dsphum_dt_integrated = kg_m2s_to_mm_day * mass_integrate(dsphum_dt, delp, dim="z")
     dsphum_dt_integrated = dsphum_dt_integrated.assign_attrs(
-        {"long_name": "column integrated moistening", "units": "mm/d"}
+        {"long_name": "column integrated moistening", "units": "mm/day"}
     )
     return dsphum_dt_integrated
