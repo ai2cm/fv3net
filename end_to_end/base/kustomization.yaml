@@ -8,3 +8,8 @@ configMapGenerator:
   - training_times.json
   - end_to_end.yaml
   name: end-to-end
+images:
+- name: us.gcr.io/vcm-ml/fv3net
+  newName: us.gcr.io/vcm-ml/fv3net
+  # change the tag here
+  newTag: latest
