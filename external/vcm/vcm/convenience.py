@@ -70,7 +70,8 @@ def parse_datetime_from_str(time: str) -> cftime.DatetimeJulian:
 
 
 def cast_to_datetime(time: Union[cftime.DatetimeJulian, datetime]) -> datetime:
-    """Cast datetime-like object to python datetime. Assumes calendars are compatible."""
+    """Cast datetime-like object to python datetime. Assumes calendars are
+    compatible."""
     return datetime(
         time.year,
         time.month,
