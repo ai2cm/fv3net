@@ -53,17 +53,7 @@ jobs:
       - gcp-gcr/gcr-auth:
           gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - checkout
-      - run: |
-          sudo apt-get install make jq wget -y
-          sudo wget -qO /bin/yq https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_386
-          sudo chmod +x /bin/yq
-      - run: # adds proper end_to_end_configuration image tags into image for integration testing
-          name: "Set up configuration for end_to_end integration test"
-          command: |
-            if [[ -z $CIRCLE_TAG ]]; then
-              CIRCLE_TAG=latest
-            fi
-            ./tests/end_to_end_integration/.test_run_scripts/prepare_integration_test_configs.sh $CIRCLE_TAG
+      - run: sudo apt-get install -y make jq
       - run:
           name: "Pull submodules"
           command: |
@@ -71,18 +61,7 @@ jobs:
       - run:
           name: Build fv3net images 
           command: |
-            if [[ -z "$CIRCLE_TAG" ]]
-            then
-                use_version="latest"
-            else
-                use_version=$CIRCLE_TAG
-            fi
-            make build_images VERSION=$use_version
-      - run:
-          name: Run tests in fv3net image
-          command: |
-              echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
-              bash docker/fv3net/run_tests_in_image.sh $CIRCLE_TAG
+            make build_images
       - run:
           name: Push fv3net images
           command: |
@@ -93,11 +72,15 @@ jobs:
                 echo "pushing untagged images as 'latest'"
                 make push_images VERSION=latest
             fi
+
             if [[ ! -z "$CIRCLE_TAG" ]]
             then
-                echo "pushing tagged images $CIRCLE_TAG"
-                make push_images VERSION=$CIRCLE_TAG
+              make push_images VERSION=$CIRCLE_TAG
             fi
+
+            # push all images with sha for testing later on
+            echo "pushing tagged images $CIRCLE_SHA1"
+            make push_images VERSION=$CIRCLE_SHA1
       - slack/status:
           fail_only: true
           mentions: 'channel'
@@ -120,7 +103,7 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            apt-get install wget jq make -y
+            apt-get install -y wget jq make gettext 
             wget -qO /bin/yq https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_386
             chmod +x /bin/yq
       - run:
@@ -153,10 +136,7 @@ jobs:
           # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was 
           # during the build job above
           command: | 
-            if [[ -z $CIRCLE_TAG ]]; then
-              CIRCLE_TAG=latest
-            fi
-            make run_integration_tests VERSION=$CIRCLE_TAG
+            make run_integration_tests VERSION=$CIRCLE_SHA1
       - run:
           name: Firewall rule deletion
           when: always
@@ -171,19 +151,11 @@ workflows:
     jobs:
       - lint
       - pytest_default
-  build_and_push:
-    jobs:
+      - hold:
+          type: approval
       - build_default:
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              only: master
+          requires:
+          - hold
       - integration_tests:
           requires:
             - build_default
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              only: master
