@@ -26,7 +26,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "timesteps_file",
         type=str,
-        help="File containing paired timesteps for test and/or train sets."
+        help="File containing paired timesteps for test and/or train sets.",
     )
     parser.add_argument(
         "gcs_output_data_dir",
