@@ -124,7 +124,9 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
         comparison_ds[hi_res_diag_var] = comparison_ds[hi_res_diag_var].assign_attrs(
             {
                 "long_name": hi_res_diag_var,
-                "units": states_and_tendencies[hi_res_diag_var_full].attrs.get("units", None),
+                "units": states_and_tendencies[hi_res_diag_var_full].attrs.get(
+                    "units", None
+                ),
             }
         )
         f = plot_model_run_maps_across_time_dim(
@@ -185,19 +187,22 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     for var, spec in GLOBAL_MEAN_3D_VARS.items():
         vartype = spec[VAR_TYPE_DIM]
         scale = spec["scale"]
-        combined_ds = xr.concat(
-            [(
-                states_and_tendencies
-                .sel({VAR_TYPE_DIM: vartype, DELTA_DIM: 'coarse'})
-                [f"{var}_{average}_mean"]
-            ) for average in averages],
-            dim='composite'
-        ).assign_coords({'composite': averages}).rename(f"{var} mean")
-        f, _ = plot_mean_time_height(
-            combined_ds,
-            vartype,
-            scale,
+        combined_ds = (
+            xr.concat(
+                [
+                    (
+                        states_and_tendencies.sel(
+                            {VAR_TYPE_DIM: vartype, DELTA_DIM: "coarse"}
+                        )[f"{var}_{average}_mean"]
+                    )
+                    for average in averages
+                ],
+                dim="composite",
             )
+            .assign_coords({"composite": averages})
+            .rename(f"{var} mean")
+        )
+        f, _ = plot_mean_time_height(combined_ds, vartype, scale,)
         plotname = f"{var}_{vartype}_mean_time_height.png"
         f.savefig(os.path.join(output_dir, plotname))
         plt.close(f)
@@ -307,7 +312,7 @@ def plot_model_run_maps_across_time_dim(
     scale: float = None,
 ):
 
-    if vartype == "tendencies" and not var.startswith('column_integrated'):
+    if vartype == "tendencies" and not var.startswith("column_integrated"):
         ds[var].attrs.update({"units": ds[var].attrs["units"] + "/s"})
     ds = ds.assign_coords({FORECAST_TIME_DIM: ds[FORECAST_TIME_DIM] / 60})
     f, axes, _, _, facet_grid = plot_cube(
@@ -458,9 +463,9 @@ def plot_diurnal_cycles(
 
     facetgrid = xr.plot.FacetGrid(
         data=(
-            ds
-            .isel({FORECAST_TIME_DIM: slice(start, end, stride)})
-            .sel({DELTA_DIM: ['hi-res', 'hi-res - coarse']})
+            ds.isel({FORECAST_TIME_DIM: slice(start, end, stride)}).sel(
+                {DELTA_DIM: ["hi-res", "hi-res - coarse"]}
+            )
         ),
         col=FORECAST_TIME_DIM,
         col_wrap=4,
