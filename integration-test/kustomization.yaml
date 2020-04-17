@@ -5,12 +5,6 @@ bases:
 nameSuffix: "-integration-test"
 configMapGenerator:
 - files:
-    - coarsen_c384_diagnostics_integration.yml
-    - create_training_data_variable_names.yml
-    - one_step_jobs_integration.yml
-    - prognostic_run_integration.yml
-    - test_sklearn_variable_names.yml
-    - train_sklearn_model.yml
-    - diag_table_prognostic
+    - time-control.yaml
   name: end-to-end
   behavior: merge # merges with the base configuration generator

@@ -12,8 +12,15 @@ configMapGenerator:
     # this information is not needed to configure the k8s resources
     - PROGNOSTIC_RUN_IMAGE=us.gcr.io/fv3net:ed39c1278c32e1bcc7974211be6a29cba6db31a3
     files:
-    - end_to_end.yaml
-    - time-control.yaml
+      - end_to_end.yaml
+      - time-control.yaml
+      - coarsen_c384_diagnostics_integration.yml
+      - create_training_data_variable_names.yml
+      - one_step_jobs_integration.yml
+      - prognostic_run_integration.yml
+      - test_sklearn_variable_names.yml
+      - train_sklearn_model.yml
+      - diag_table_prognostic
 images:
   # fv3net image is changed here
 - name: us.gcr.io/vcm-ml/fv3net
