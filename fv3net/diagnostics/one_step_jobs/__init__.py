@@ -41,12 +41,18 @@ GLOBAL_MEAN_2D_VARS = {
 
 DIURNAL_VAR_MAPPING = {
     "net_heating_diurnal": {
-        "hi-res - coarse": {"name": "column_integrated_heating", VAR_TYPE_DIM: "tendencies"},
+        "hi-res - coarse": {
+            "name": "column_integrated_heating",
+            VAR_TYPE_DIM: "tendencies",
+        },
         "hi-res": {"name": "net_heating_physics", VAR_TYPE_DIM: "states"},
         "scale": 500,
     },
     "net_precipitation_diurnal": {
-        "hi-res - coarse": {"name": "column_integrated_moistening", VAR_TYPE_DIM: "tendencies"},
+        "hi-res - coarse": {
+            "name": "column_integrated_moistening",
+            VAR_TYPE_DIM: "tendencies",
+        },
         "hi-res": {"name": "net_precipitation_physics", VAR_TYPE_DIM: "states"},
         "scale": 10,
     },

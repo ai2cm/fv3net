@@ -368,7 +368,9 @@ def insert_diurnal_means(
             surface_type_var=mask,
         )
         da_residual_land = mean_diurnal_cycle(
-            ds_land[residual_name].sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: residual_type}),
+            ds_land[residual_name].sel(
+                {DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: residual_type}
+            ),
             ds_land["local_time"],
         )
         da_hires_land = mean_diurnal_cycle(
@@ -390,7 +392,9 @@ def insert_diurnal_means(
             surface_type_var=mask,
         )
         da_residual_sea = mean_diurnal_cycle(
-            ds_sea[residual_name].sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: residual_type}),
+            ds_sea[residual_name].sel(
+                {DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: residual_type}
+            ),
             ds_sea["local_time"],
         )
         da_hires_sea = mean_diurnal_cycle(
