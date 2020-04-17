@@ -29,12 +29,13 @@ def compute_diagnostics(state, diags):
         .sum("z")
         .assign_attrs(units="W/m^2")
         .assign_attrs(description="column integrated ML model heating tendency"),
-        PW=(state[SPHUM] * state[DELP] / gravity).sum("z")
+        PW=(state[SPHUM] * state[DELP] / gravity)
+        .sum("z")
         .assign_attrs(units="mm")
         .assign_attrs(description="column integrated precipitable water (model + ML)"),
         total_precip=(state[TOTAL_PRECIP])
         .assign_attrs(units="mm/s")
-        .assign_attrs(description="total precipitation at surface (model + ML)")
+        .assign_attrs(description="total precipitation at surface (model + ML)"),
     )
 
 
