@@ -21,6 +21,7 @@ latest
 * Train data pipeline and offline diagnostics workflow read in variable names information from yaml provided to python
 * Force load data in diagnostics workflow before compute and plot
 * Improved logging when running FV3 model
+* Adjust diagnostic outputs for prognostic run with name net_moistening instead of net_precip and add total_precipitation to outputs
 
 
 0.1.1 (2020-03-25)
