@@ -6,9 +6,9 @@ from scipy.stats import binned_statistic_2d
 import warnings
 import xarray as xr
 
+import select
 import vcm
 from vcm.cubedsphere.regridz import regrid_to_common_pressure
-from vcm.select import mask_to_surface_type
 from vcm.visualize import plot_cube, mappable_var
 
 from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
@@ -67,10 +67,10 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
     # Vertical dQ2 profiles over land and ocean
     for sfc_type in ["sea", "land"]:
         _make_vertical_profile_plots(
-            vcm.mask_to_surface_type(ds_pred, sfc_type)["dQ2"],
-            vcm.mask_to_surface_type(ds_fv3, sfc_type)["dQ2"],
-            vcm.mask_to_surface_type(ds_shield, sfc_type)["net_precipitation"],
-            delp=vcm.mask_to_surface_type(ds_pred, sfc_type)[
+            select.mask_to_surface_type(ds_pred, sfc_type)["dQ2"],
+            select.mask_to_surface_type(ds_fv3, sfc_type)["dQ2"],
+            select.mask_to_surface_type(ds_shield, sfc_type)["net_precipitation"],
+            delp=select.mask_to_surface_type(ds_pred, sfc_type)[
                 names["var_pressure_thickness"]
             ],
             stack_dims=names["stack_dims"],
@@ -102,7 +102,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
     )
 
     plot_diurnal_cycle(
-        mask_to_surface_type(
+        select.mask_to_surface_type(
             ds[["net_precipitation", names["var_land_sea_mask"], "local_time"]], "sea"
         ),
         "net_precipitation",
@@ -113,7 +113,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         dpi=dpi_figures["diurnal_cycle"],
     )
     plot_diurnal_cycle(
-        mask_to_surface_type(
+        select.mask_to_surface_type(
             ds[["net_precipitation", names["var_land_sea_mask"], "local_time"]], "land"
         ),
         "net_precipitation",
@@ -142,7 +142,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
 
     # plot column heating across the diurnal cycle
     plot_diurnal_cycle(
-        mask_to_surface_type(
+        select.mask_to_surface_type(
             ds[["net_heating", names["var_land_sea_mask"], "local_time"]], "sea"
         ),
         "net_heating",
@@ -153,7 +153,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         dpi=dpi_figures["diurnal_cycle"],
     )
     plot_diurnal_cycle(
-        mask_to_surface_type(
+        select.mask_to_surface_type(
             ds[["net_heating", names["var_land_sea_mask"], "local_time"]], "land"
         ),
         "net_heating",
@@ -336,7 +336,7 @@ def _plot_lower_troposphere_stability(ds_pred, ds_test, ds_hires, names, lat_max
     ds_test["net_precip_pred"] = ds_pred["net_precipitation"]
     ds_test["net_precip_hires"] = ds_hires["net_precipitation"]
     ds_test = (
-        vcm.mask_to_surface_type(ds_test, "sea")
+        select.mask_to_surface_type(ds_test, "sea")
         .where(lat_mask)
         .stack(sample=names["stack_dims"])
         .dropna("sample")

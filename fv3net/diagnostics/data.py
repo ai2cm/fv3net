@@ -3,7 +3,7 @@ import pandas as pd
 import xarray as xr
 
 import vcm
-from vcm.select import drop_nondim_coords, get_latlon_grid_coords
+from select import drop_nondim_coords, get_latlon_grid_coords
 
 # give as [lat, lon]
 EXAMPLE_CLIMATE_LATLON_COORDS = {
@@ -71,11 +71,11 @@ def get_latlon_grid_coords_set(
     """ Create a dict of {location: ds.sel dict args} out of an
     input dict of {location: [lat, lon]}. This is useful for
     showing data in a fixed location.
-    
+
     Args:
         grid (xr dataset): has lat, lon as data variables
         climate_latlon_coords (dict): has format {location: [lat, lon]}
-    
+
     Returns:
         dict: {location: ds.sel dict args},
             e.g. {
@@ -99,7 +99,7 @@ def get_latlon_grid_coords_set(
 
 def periodic_phase(phase):
     """normalize phases to be in [0, 360] deg
-    
+
     Args:
         phase (array): phases in degrees
 
@@ -161,11 +161,11 @@ def _add_empty_dataarray(ds, template_dataarray):
     Args:
         ds (xarray dataset): dataset that will have additional empty data array added
         example_dataarray (data array with the desired dimensions)
-    
+
     Returns:
         original xarray dataset with an empty array assigned to the
         template name dataarray.
-    
+
     """
     da_fill = np.empty(template_dataarray.shape)
     da_fill[:] = np.nan
@@ -175,11 +175,11 @@ def _add_empty_dataarray(ds, template_dataarray):
 def _add_missing_data_vars(data_vars, datasets):
     """ Checks if any dataset in a list to be concated is missing a data variable,
     and returns of kwargs to be provided to _add_empty_dataarray
-    
+
     Args:
         data_vars (list[str]): full list of data vars for final concated ds
         datasets ([type]): datasets to check again
-    
+
     Returns:
         List of dicts {"ds": dataset that needs empty datarray added,
         "example_dataarray": example of data array with dims}
