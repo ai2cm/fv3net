@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
+TOTAL_PRECIP = "total_precipitation"
 VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP]
 
 cp = 1004
@@ -20,13 +21,20 @@ gravity = 9.81
 
 def compute_diagnostics(state, diags):
     return dict(
-        net_precip=(diags["dQ2"] * state[DELP] / gravity)
+        net_moistening=(diags["dQ2"] * state[DELP] / gravity)
         .sum("z")
-        .assign_attrs(units="kg/m^2/s"),
-        PW=(state[SPHUM] * state[DELP] / gravity).sum("z").assign_attrs(units="mm"),
+        .assign_attrs(units="kg/m^2/s")
+        .assign_attrs(description="column integrated ML model moisture tendency"),
         net_heating=(diags["dQ1"] * state[DELP] / gravity * cp)
         .sum("z")
-        .assign_attrs(units="W/m^2"),
+        .assign_attrs(units="W/m^2")
+        .assign_attrs(description="column integrated ML model heating tendency"),
+        PW=(state[SPHUM] * state[DELP] / gravity).sum("z")
+        .assign_attrs(units="mm")
+        .assign_attrs(description="column integrated precipitable water (model + ML)"),
+        total_precip=(state[TOTAL_PRECIP])
+        .assign_attrs(units="mm/s")
+        .assign_attrs(description="total precipitation at surface (model + ML)")
     )
 
 
