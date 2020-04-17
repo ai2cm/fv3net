@@ -38,6 +38,8 @@ all_steps = set(flatten(flatten(splits.values())))
 
 data = {
     "one_step": list(all_steps),
-    "splits": splits['train']
+    "splits": splits
 }
-json.dump(data, sys.stdout)
+
+print(json.dumps(data))
+
