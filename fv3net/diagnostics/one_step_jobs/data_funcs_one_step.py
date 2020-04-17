@@ -605,5 +605,5 @@ def shrink_ds(
     for var in ds:
         if vertical_dim in ds[var].dims and "tile" in ds[var].dims:
             dropvars.append(var)
-            
+
     return ds.drop_vars(dropvars)

@@ -193,7 +193,11 @@ def _mean_and_std(ds: xr.Dataset) -> xr.Dataset:
     try:
         logger.info("Computing aggregated means and std. devs.")
         for var in ds:
-            if INIT_TIME_DIM in ds[var].dims and var not in GRID_VARS and "tile" not in ds[var].dims:
+            if (
+                INIT_TIME_DIM in ds[var].dims
+                and var not in GRID_VARS
+                and "tile" not in ds[var].dims
+            ):
                 var_std = ds[var].std(dim=INIT_TIME_DIM, keep_attrs=True)
                 if "long_name" in var_std.attrs:
                     var_std = var_std.assign_attrs(
