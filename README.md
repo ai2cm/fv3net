@@ -11,10 +11,44 @@ We should be able to manage our workflow configurations with only `kubectl` (v1.
 ## Structure
 
 ``` 
-
+.
+├── CODEOWNERS
+├── README.md
+├── base
+│   ├── end_to_end.yaml
+│   ├── integration-test-service-account.yml
+│   ├── job.yaml
+│   ├── kustomization.yaml
+│   ├── one_step_times.json
+│   └── training_times.json
+├── base-full-sample
+│   ├── kustomization.yaml
+│   ├── one_step_times.json
+│   └── training_times.json
+└── integration-test
+    ├── coarsen_c384_diagnostics_integration.yml
+    ├── create_training_data_variable_names.yml
+    ├── diag_table_prognostic
+    ├── kustomization.yaml
+    ├── one_step_jobs_integration.yml
+    ├── prognostic_run_integration.yml
+    ├── test_sklearn_variable_names.yml
+    └── train_sklearn_model.yml
 ```
 
-- end_to_end
+### Kustomization 
+
+Kustomization is a powerful templating system that is packaged with kubectl. It works by specifying a bases set of resources in `base/kustomization.yaml`, and then allow other workflows to inherit and modify this base configuration in a variety of ways (e.g. add configurations to a configmap, or add a suffix to the k8s job). Configurations to individual workflow steps are mostly controlled by the `.yml` files referred to within the `base/end_to_end.yaml` file. The following resources must be configured by editing the `kustomization.yaml` file in the root of the template directory. The settings in this file are overlayed on top of the configurations in `base/kustomization.yaml`. So go to that file to change settings shared by all the experiments (e.g. the prognostic run image tag and fv3net image tag).
+
+
+## Workflow
+
+1. Copy the "integration-test" folder
+1. edit the workflow step configurations
+1. change entries in the `<new experiments> kustomize.yaml` file:
+    1. "nameSuffix" to change the name of the job
+1. change global options like in the `base` directory.
+1. Deploy the job with using `kustomize`: `kubectl apply -k <new-directory>
 
 ## Troubleshooting
 

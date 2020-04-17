@@ -3,16 +3,20 @@ resources:
 - integration-test-service-account.yml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+# change this after significant changes to this file
+namePrefix: v1
 configMapGenerator:
   - name: end-to-end
     literals:
+    # prognostic_run is changed here
+    # this information is not needed to configure the k8s resources
     - PROGNOSTIC_RUN_IMAGE=us.gcr.io/fv3net:latest
     files:
     - one_step_times.json
     - training_times.json
     - end_to_end.yaml
 images:
+  # fv3net image is changed here
 - name: us.gcr.io/vcm-ml/fv3net
   newName: us.gcr.io/vcm-ml/fv3net
-  # change the tag here
   newTag: latest
