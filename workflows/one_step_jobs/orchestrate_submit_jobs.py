@@ -33,21 +33,9 @@ def _create_arg_parser():
         "output_url", type=str, help="Remote url where model output will be saved."
     )
     parser.add_argument(
-        "--i-start",
-        type=int,
-        default=0,
-        required=False,
-        help="Index of timestep at which to start. By default starts at first "
-        "timestep. Useful for testing.",
-    )
-    parser.add_argument(
-        "--n-steps",
-        type=int,
-        default=None,
-        required=False,
-        help="Number of timesteps to process. By default all timesteps "
-        "found in INPUT_URL for which successful runs do not exist in "
-        "OUTPUT_URL will be processed. Useful for testing.",
+        "timesteps",
+        type=str,
+        help="Path to list of time-steps in yaml format",
     )
     parser.add_argument(
         "--config-url",
@@ -88,7 +76,10 @@ if __name__ == "__main__":
     else:
         config_url = args.config_url
 
-    timesteps = list_timesteps(args.input_url)
+    # open time-steps
+    with open(args.timesteps) as f:
+        timesteps = yaml.safe_load(f)
+
     i_stop = None if args.n_steps is None else args.i_start + args.n_steps
     timesteps = timesteps[slice(args.i_start, i_stop)]
 
