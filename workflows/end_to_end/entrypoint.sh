@@ -5,11 +5,7 @@ ONE_STEP_TIMES="$(pwd)/one_step_times.json"
 
 echo "Generating timesteps:"
 python3 workflows/end_to_end/generate_samples.py  \
-    $TIME_INPUT_URL \
-    $TIME_BOUNDARY \
-    $TIME_TRAIN_SAMPLES \
-    $TIME_TEST_SAMPLES \
-    $TIME_SEED \
+    $CONFIG/time-control.yml \
     > tmpconfig.json
 
 jq .one_step tmpconfig.json > "$ONE_STEP_TIMES"
