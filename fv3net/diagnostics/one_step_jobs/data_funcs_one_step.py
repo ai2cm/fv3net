@@ -18,7 +18,8 @@ from fv3net.diagnostics.one_step_jobs import (
     VAR_TYPE_DIM,
     STEP_DIM,
     DIURNAL_VAR_MAPPING,
-    thermo,
+    DROPVARS_2D,
+    thermo
 )
 from fv3net.pipelines.common import subsample_timesteps_at_interval
 from fv3net.pipelines.create_training_data.helpers import load_hires_prog_diag
@@ -599,9 +600,9 @@ def insert_area_means(
     return ds
 
 
-def shrink_ds(ds: xr.Dataset, vertical_dim="z"):
+def shrink_ds(ds: xr.Dataset, dropvars_2d: Sequence = DROPVARS_2D, vertical_dim: str = "z"):
 
-    dropvars = []
+    dropvars = list(dropvars_2d)
     for var in ds:
         if vertical_dim in ds[var].dims and "tile" in ds[var].dims:
             dropvars.append(var)
