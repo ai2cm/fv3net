@@ -38,7 +38,7 @@ We should be able to manage our workflow configurations with only `kubectl` (v1.
 
 ### Kustomization 
 
-Kustomization is a powerful templating system that is packaged with kubectl. It works by specifying a bases set of resources in `base/kustomization.yaml`, and then allow other workflows to inherit and modify this base configuration in a variety of ways (e.g. add configurations to a configmap, or add a suffix to the k8s job). Configurations to individual workflow steps are mostly controlled by the `.yml` files referred to within the `base/end_to_end.yaml` file. The following resources must be configured by editing the `kustomization.yaml` file in the root of the template directory. The settings in this file are overlayed on top of the configurations in `base/kustomization.yaml`. So go to that file to change settings shared by all the experiments (e.g. the prognostic run image tag and fv3net image tag).
+[kustomization] is a powerful templating system that is packaged with kubectl. It works by specifying a bases set of resources in `base/kustomization.yaml`, and then allow other workflows to inherit and modify this base configuration in a variety of ways (e.g. add configurations to a configmap, or add a suffix to the k8s job). Configurations to individual workflow steps are mostly controlled by the `.yml` files referred to within the `base/end_to_end.yaml` file. The following resources must be configured by editing the `kustomization.yaml` file in the root of the template directory. The settings in this file are overlayed on top of the configurations in `base/kustomization.yaml`. So go to that file to change settings shared by all the experiments (e.g. the prognostic run image tag and fv3net image tag).
 
 
 ## Workflow
@@ -48,7 +48,9 @@ Kustomization is a powerful templating system that is packaged with kubectl. It 
 1. change entries in the `<new experiments> kustomize.yaml` file:
     1. "nameSuffix" to change the name of the job
 1. change global options like in the `base` directory.
-1. Deploy the job with using `kustomize`: `kubectl apply -k <new-directory>
+1. Plan (optional): view the constructed k8s resources using `kubectl apply -k <dirname> --dry-run -o yaml`. `kustomize build <dirname>` will give cleaner output, but requires some [additional installation](https://github.com/kubernetes-sigs/kustomize/blob/master/docs/INSTALL.md).
+1. Deploy the job with using `kustomize`: `kubectl apply -k <dirnmae>`
+
 
 ## Troubleshooting
 
