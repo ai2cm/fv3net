@@ -1,4 +1,3 @@
-from typing import Sequence, TypeVar, List
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import logging
