@@ -124,7 +124,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
         comparison_ds[hi_res_diag_var] = comparison_ds[hi_res_diag_var].assign_attrs(
             {
                 "long_name": hi_res_diag_var,
-                "units": states_and_tendencies[hi_res_diag_var_full].attrs["units"],
+                "units": states_and_tendencies[hi_res_diag_var_full].attrs.get("units", None),
             }
         )
         f = plot_model_run_maps_across_time_dim(
@@ -452,8 +452,10 @@ def plot_diurnal_cycles(
         return h
 
     facetgrid = xr.plot.FacetGrid(
-        data=ds.isel(
-            {FORECAST_TIME_DIM: slice(start, end, stride), DELTA_DIM: slice(None, 2)}
+        data=(
+            ds
+            .isel({FORECAST_TIME_DIM: slice(start, end, stride)})
+            .sel({DELTA_DIM: ['hi-res', 'hi-res - coarse']})
         ),
         col=FORECAST_TIME_DIM,
         col_wrap=4,
