@@ -232,7 +232,8 @@ def latent_heat_flux_to_evaporation(
 
 def net_precipitation(lhf, prate):
     da = (prate - latent_heat_flux_to_evaporation(lhf)) * _SEC_PER_DAY
-    da.attrs = (
-        {"long_name": "net precipitation from model physics", "units": "mm/day"},
-    )
+    da.attrs = {
+        "long_name": "net precipitation from model physics",
+        "units": "mm/day"
+    }
     return da
