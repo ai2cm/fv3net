@@ -24,7 +24,7 @@ install_requirements = [
     "xgcm",
     "cftime",
     "pytest",
-    "pytest-regtest"
+    "pytest-regtest",
 ]
 
 

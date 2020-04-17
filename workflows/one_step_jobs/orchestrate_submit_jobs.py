@@ -5,7 +5,7 @@ import yaml
 from pathlib import Path
 
 from fv3net.pipelines.kube_jobs import one_step
-from fv3net.pipelines.common import get_alphanumeric_unique_tag, list_timesteps
+from fv3net.pipelines.common import get_alphanumeric_unique_tag
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
