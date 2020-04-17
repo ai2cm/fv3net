@@ -30,12 +30,12 @@ def _create_arg_parser():
         help="Docker image to use for performing the one-step FV3GFS runs.",
     )
     parser.add_argument(
-        "output_url", type=str, help="Remote url where model output will be saved."
-    )
-    parser.add_argument(
         "timesteps",
         type=str,
         help="Path to list of time-steps in yaml format",
+    )
+    parser.add_argument(
+        "output_url", type=str, help="Remote url where model output will be saved."
     )
     parser.add_argument(
         "--config-url",
@@ -79,9 +79,6 @@ if __name__ == "__main__":
     # open time-steps
     with open(args.timesteps) as f:
         timesteps = yaml.safe_load(f)
-
-    i_stop = None if args.n_steps is None else args.i_start + args.n_steps
-    timesteps = timesteps[slice(args.i_start, i_stop)]
 
     one_step_config["kubernetes"]["runfile"] = RUNFILE
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
