@@ -2,16 +2,14 @@ import xarray as xr
 import numpy as np
 
 from fv3net.regression.sklearn import train
-from datetime import datetime
 from fv3net.regression.dataset_handler import _shuffled
 
 
-def test_train_save_output_succeeds(tmpdir):
+def test_train_save_model_succeeds(tmpdir):
     model = object()
-    config = {"a": 1}
     url = str(tmpdir)
-    timesteps = [datetime(2016, 8, 1), datetime(2016, 8, 2)]
-    train._save_output(url, model, config, timesteps)
+    filename = "filename.pkl"
+    train.save_model(url, model, filename)
 
 
 def _dataset(sample_dim):

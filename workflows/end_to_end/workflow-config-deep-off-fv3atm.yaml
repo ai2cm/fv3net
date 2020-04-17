@@ -10,7 +10,7 @@ experiment:
     - test_sklearn_model
     - prognostic_run
     - baseline_run
-
+  
   steps_config:
     one_step_run:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
@@ -30,15 +30,15 @@ experiment:
           location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
         --timesteps-per-output-file: 1
         --train-fraction: 0.5
-
+        
     train_sklearn_model:
       command: python -m fv3net.regression.sklearn
       args:
         training_data:
           from: create_training_data
         train-config-file: ./workflows/sklearn_regression/maxdepth_13_rf_config.yml
-
-    test_sklearn_model:
+        
+    test_sklearn_model: 
       command: python -m fv3net.diagnostics.sklearn_model_performance
       args:
         trained_model:
