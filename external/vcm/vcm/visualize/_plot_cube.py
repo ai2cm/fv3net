@@ -273,7 +273,7 @@ def pcolormesh_cube(lat, lon, array, ax=None, **kwargs):
     ).T
     # oddly a PlateCarree transform seems to be needed here even for non-PlateCarree
     # projections?? very puzzling, but it seems to be the case.
-    kwargs['transform'] = kwargs.get('transform', ccrs.PlateCarree())
+    kwargs["transform"] = kwargs.get("transform", ccrs.PlateCarree())
     kwargs["vmin"] = kwargs.get("vmin", np.nanmin(array))
     kwargs["vmax"] = kwargs.get("vmax", np.nanmax(array))
 
