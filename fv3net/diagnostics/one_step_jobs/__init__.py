@@ -41,17 +41,17 @@ GLOBAL_MEAN_2D_VARS = {
 
 DIURNAL_VAR_MAPPING = {
     "net_heating_diurnal": {
-        "coarse": {"name": "column_integrated_heating", VAR_TYPE_DIM: "tendencies"},
+        "hi-res - coarse": {"name": "column_integrated_heating", VAR_TYPE_DIM: "tendencies"},
         "hi-res": {"name": "net_heating_physics", VAR_TYPE_DIM: "states"},
         "scale": 500,
     },
     "net_precipitation_diurnal": {
-        "coarse": {"name": "column_integrated_moistening", VAR_TYPE_DIM: "tendencies"},
+        "hi-res - coarse": {"name": "column_integrated_moistening", VAR_TYPE_DIM: "tendencies"},
         "hi-res": {"name": "net_precipitation_physics", VAR_TYPE_DIM: "states"},
         "scale": 10,
     },
     "vertical_wind_diurnal": {
-        "coarse": {"name": "vertical_wind_level_40", VAR_TYPE_DIM: "states"},
+        "hi-res - coarse": {"name": "vertical_wind_level_40", VAR_TYPE_DIM: "states"},
         "hi-res": {"name": "vertical_wind_level_40", VAR_TYPE_DIM: "states"},
         "scale": 0.05,
     },
@@ -60,12 +60,12 @@ DIURNAL_VAR_MAPPING = {
 DQ_MAPPING = {
     "Q1": {
         "hi-res_name": "net_heating",
-        "coarse_name": "column_integrated_heating",
+        "hi-res - coarse_name": "column_integrated_heating",
         "scale": 1000,
     },
     "Q2": {
         "hi-res_name": "net_precipitation",
-        "coarse_name": "column_integrated_moistening",
+        "hi-res - coarse_name": "column_integrated_moistening",
         "scale": 50,
     },
 }

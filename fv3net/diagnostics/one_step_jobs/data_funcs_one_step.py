@@ -357,18 +357,18 @@ def insert_diurnal_means(
 
     for var, attrs in var_mapping.items():
 
-        coarse_name = attrs["coarse"]["name"]
-        coarse_type = attrs["coarse"][VAR_TYPE_DIM]
+        residual_name = attrs["hi-res - coarse"]["name"]
+        residual_type = attrs["hi-res - coarse"][VAR_TYPE_DIM]
         hires_name = attrs["hi-res"]["name"]
         hires_type = attrs["hi-res"][VAR_TYPE_DIM]
 
         ds_land = mask_to_surface_type(
-            ds[[coarse_name, hires_name, "local_time", mask]],
+            ds[[residual_name, hires_name, "local_time", mask]],
             "land",
             surface_type_var=mask,
         )
-        da_coarse_land = mean_diurnal_cycle(
-            ds_land[coarse_name].sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: coarse_type}),
+        da_residual_land = mean_diurnal_cycle(
+            ds_land[residual_name].sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: residual_type}),
             ds_land["local_time"],
         )
         da_hires_land = mean_diurnal_cycle(
@@ -378,19 +378,19 @@ def insert_diurnal_means(
         ds = ds.assign(
             {
                 f"{var}_land": xr.concat(
-                    [da_hires_land, da_coarse_land], dim=DELTA_DIM
-                ).assign_coords({DELTA_DIM: ["hi-res", "coarse"]})
+                    [da_hires_land, da_residual_land], dim=DELTA_DIM
+                ).assign_coords({DELTA_DIM: ["hi-res - coarse", "coarse"]})
             }
         )
-        ds[f"{var}_land"].attrs.update(ds[coarse_name].attrs)
+        ds[f"{var}_land"].attrs.update(ds[residual_name].attrs)
 
         ds_sea = mask_to_surface_type(
-            ds[[coarse_name, hires_name, "local_time", mask]],
+            ds[[residual_name, hires_name, "local_time", mask]],
             "sea",
             surface_type_var=mask,
         )
-        da_coarse_sea = mean_diurnal_cycle(
-            ds_sea[coarse_name].sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: coarse_type}),
+        da_residual_sea = mean_diurnal_cycle(
+            ds_sea[residual_name].sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: residual_type}),
             ds_sea["local_time"],
         )
         da_hires_sea = mean_diurnal_cycle(
@@ -400,11 +400,11 @@ def insert_diurnal_means(
         ds = ds.assign(
             {
                 f"{var}_sea": xr.concat(
-                    [da_hires_sea, da_coarse_sea], dim=DELTA_DIM
-                ).assign_coords({DELTA_DIM: ["hi-res", "coarse"]})
+                    [da_hires_sea, da_residual_sea], dim=DELTA_DIM
+                ).assign_coords({DELTA_DIM: ["hi-res - coarse", "coarse"]})
             }
         )
-        ds[f"{var}_sea"].attrs.update(ds[coarse_name].attrs)
+        ds[f"{var}_sea"].attrs.update(ds[residual_name].attrs)
 
     return ds
 

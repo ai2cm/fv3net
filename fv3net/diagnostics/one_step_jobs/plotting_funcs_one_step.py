@@ -98,7 +98,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
 
     dQ_comparison_maps = []
     for q_term, mapping in DQ_MAPPING.items():
-        coarse_var = mapping["coarse_name"]
+        residual_var = mapping["hi-res - coarse_name"]
         hi_res_diag_var = mapping["hi-res_name"]
         scale = mapping["scale"]
         hi_res_diag_var_full = hi_res_diag_var + "_physics"
@@ -112,11 +112,11 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
                     .rename({hi_res_diag_var_full: hi_res_diag_var})
                 ),
                 (
-                    states_and_tendencies[list((coarse_var,) + GRID_VARS)]
+                    states_and_tendencies[list((residual_var,) + GRID_VARS)]
                     .sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: "tendencies"})
                     .drop([DELTA_DIM, VAR_TYPE_DIM])
                     .expand_dims({DELTA_DIM: ["tendency-based dQ"]})
-                    .rename({coarse_var: hi_res_diag_var})
+                    .rename({residual_var: hi_res_diag_var})
                 ),
             ],
             dim=DELTA_DIM,
@@ -460,7 +460,7 @@ def plot_diurnal_cycles(
     facetgrid.axes.flatten()[0].set_xlim([0, 24])
     legend_ax = facetgrid.axes.flatten()[-2]
     handles = legend_ax.get_lines()
-    legend_ax.legend(handles, ["hi-res diags", "coarse tendencies"], loc=2)
+    legend_ax.legend(handles, ["hi-res diags", "residual of tendencies"], loc=2)
     facetgrid.set_titles(template="{value} minutes")
     for ax in facetgrid.axes[-1, :]:
         ax.set_xlabel("mean local time [hrs]")
