@@ -185,18 +185,23 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     for var, spec in GLOBAL_MEAN_3D_VARS.items():
         vartype = spec[VAR_TYPE_DIM]
         scale = spec["scale"]
-        for average in averages:
-            f, _ = plot_mean_time_height(
-                states_and_tendencies.sel({VAR_TYPE_DIM: vartype})[
-                    f"{var}_{average}_mean"
-                ],
-                vartype,
-                scale,
+        combined_ds = xr.concat(
+            [(
+                states_and_tendencies
+                .sel({VAR_TYPE_DIM: vartype, DELTA_DIM: 'coarse'})
+                [f"{var}_{average}_mean"]
+            ) for average in averages],
+            dim='composite'
+        ).assign_coords({'composite': averages}).rename(f"{var} mean")
+        f, _ = plot_mean_time_height(
+            combined_ds,
+            vartype,
+            scale,
             )
-            plotname = f"{var}_{vartype}_{average}_mean_time_height.png"
-            f.savefig(os.path.join(output_dir, plotname))
-            plt.close(f)
-            mean_time_height_plots.append(plotname)
+        plotname = f"{var}_{vartype}_mean_time_height.png"
+        f.savefig(os.path.join(output_dir, plotname))
+        plt.close(f)
+        mean_time_height_plots.append(plotname)
     report_sections[section_name] = mean_time_height_plots
 
     # make maps of 2-d vars across forecast time
@@ -276,7 +281,7 @@ def plot_global_mean_time_series(
             "k-",
         )
         da_mean.attrs["units"] = da_mean.attrs["units"] + "/s"
-    ax.set_xlabel(f"{FORECAST_TIME_DIM} [m]")
+    ax.set_xlabel(f"{FORECAST_TIME_DIM} [min]")
     ax.set_xlim(
         [da_mean[FORECAST_TIME_DIM].values[0], da_mean[FORECAST_TIME_DIM].values[-1]]
     )
@@ -335,6 +340,7 @@ def plot_model_run_maps_across_time_dim(
 def plot_mean_time_height(
     th_da: xr.DataArray, vartype: str, scale: float = None
 ) -> plt.figure:
+    print(th_da)
     th_da = th_da.assign_coords({FORECAST_TIME_DIM: th_da[FORECAST_TIME_DIM] / 60})
     if vartype == "tendencies":
         th_da.attrs.update({"units": f"{th_da.attrs['units']}/s"})
@@ -342,11 +348,11 @@ def plot_mean_time_height(
         if "long_name" in th_da.attrs:
             th_da.attrs.update({"long_name": f"{th_da.attrs['long_name']} tendencies"})
     facetgrid = th_da.plot(
-        x=FORECAST_TIME_DIM, y="z", col=DELTA_DIM, yincrease=False, vmax=scale,
+        x=FORECAST_TIME_DIM, y="z", col="composite", yincrease=False, vmax=scale,
     )
-    plt.suptitle(f"{th_da.name} across {FORECAST_TIME_DIM}")
+    plt.suptitle(f"coarse model {th_da.name} across {FORECAST_TIME_DIM}")
     ex_ax = facetgrid.axes.flatten()[0]
-    ex_ax.set_xlabel(f"{FORECAST_TIME_DIM} [minutes]")
+    ex_ax.set_xlabel(f"{FORECAST_TIME_DIM} [min]")
     ex_ax.set_xlim(
         [
             th_da[FORECAST_TIME_DIM].values[0] - 0.5,
@@ -419,7 +425,7 @@ def plot_dQ_vertical_profiles(
     legend_ax = facetgrid.axes.flatten()[-2]
     handles = legend_ax.get_lines()
     legend_ax.legend(handles[:-1], composites, loc=2)
-    facetgrid.set_titles(template="{value} minutes")
+    facetgrid.set_titles(template="{value} min")
     for ax in facetgrid.axes[-1, :]:
         ax.set_xlabel(f"{dQ_name} [{ds_across_vars[dQ_name].attrs['units']}]")
     for ax in facetgrid.axes[:, 0]:
@@ -466,7 +472,7 @@ def plot_diurnal_cycles(
     legend_ax = facetgrid.axes.flatten()[-2]
     handles = legend_ax.get_lines()
     legend_ax.legend(handles, ["hi-res diags", "residual of tendencies"], loc=2)
-    facetgrid.set_titles(template="{value} minutes")
+    facetgrid.set_titles(template="{value} min")
     for ax in facetgrid.axes[-1, :]:
         ax.set_xlabel("mean local time [hrs]")
         ax.set_xticks(np.arange(0.0, 24.0, 4.0))
