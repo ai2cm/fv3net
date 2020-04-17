@@ -6,7 +6,7 @@ This repository contains *declarative* configurations of our workflow, which sho
 
 ## Dependencies
 
-We should be able to manage our workflow configurations with only `kubectl` (v1.16.3). This tool is robust and stable and required for all kubrenetes work anyway. This tool set is intentionally limiting, but not as limiting as it would appear. `kubectl` provides a powerful templating tool called [kustomize] that currently suites our needs well. Any more detailed templating or configuration generation should probably occur inside of the k8s jobs we deploy. If it isn't human readable and editable, then it should be occuring inside of any k8s pods deployed by this repository.
+We should be able to manage our workflow configurations with only `kubectl` (v1.16.3). This tool is robust and stable and required for all kubernetes work anyway. This tool set is intentionally limiting, but not as limiting as it would appear. `kubectl` provides a powerful templating tool called [kustomize] that currently suites our needs well. Any more detailed templating or configuration generation should probably occur inside of the k8s jobs we deploy. If it isn't human readable and editable, then it should be occuring inside of any k8s pods deployed by this repository.
 
 ## Structure
 
@@ -38,7 +38,7 @@ We should be able to manage our workflow configurations with only `kubectl` (v1.
 
 ### Kustomization 
 
-[kustomization] is a powerful templating system that is packaged with kubectl. It works by specifying a bases set of resources in `base/kustomization.yaml`, and then allow other workflows to inherit and modify this base configuration in a variety of ways (e.g. add configurations to a configmap, or add a suffix to the k8s job). Configurations to individual workflow steps are mostly controlled by the `.yml` files referred to within the `base/end_to_end.yaml` file. The following resources must be configured by editing the `kustomization.yaml` file in the root of the template directory. The settings in this file are overlayed on top of the configurations in `base/kustomization.yaml`. So go to that file to change settings shared by all the experiments (e.g. the prognostic run image tag and fv3net image tag).
+[kustomize] is a powerful templating system that is packaged with kubectl. It works by specifying a bases set of resources in `base/kustomization.yaml`, and then allow other workflows to inherit and modify this base configuration in a variety of ways (e.g. add configurations to a configmap, or add a suffix to the k8s job). Configurations to individual workflow steps are mostly controlled by the `.yml` files referred to within the `base/end_to_end.yaml` file. The following resources must be configured by editing the `kustomization.yaml` file in the root of the template directory. The settings in this file are overlayed on top of the configurations in `base/kustomization.yaml`. So go to that file to change settings shared by all the experiments (e.g. the prognostic run image tag and fv3net image tag).
 
 
 ## Workflow
