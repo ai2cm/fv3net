@@ -30,6 +30,11 @@ if __name__ == "__main__":
         "Don't include bucket in path.",
     )
     parser.add_argument(
+        "timesteps_file",
+        type=str,
+        help="File containing list of paired timesteps in test & train sets."
+    )
+    parser.add_argument(
         "--timesteps-per-output-file",
         type=int,
         default=1,
@@ -48,6 +53,8 @@ if __name__ == "__main__":
     )
 
     args, pipeline_args = parser.parse_known_args()
-    with open(args.variable_namefile, "r") as stream:
-        names = yaml.safe_load(stream)
-    run(args=args, pipeline_args=pipeline_args, names=names)
+    with open(args.variable_namefile, "r") as f:
+        names = yaml.safe_load(f)
+    with open(args.timesteps_file, "r") as f:
+        timesteps = yaml.safe_load(f)
+    run(args=args, pipeline_args=pipeline_args, names=names, timesteps=timesteps)

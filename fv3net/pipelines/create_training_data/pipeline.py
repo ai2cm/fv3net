@@ -26,7 +26,7 @@ FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
 FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
 
 
-def run(args, pipeline_args, names):
+def run(args, pipeline_args, names, timesteps):
     """ Divide full one step output data into batches to be sent
     through a beam pipeline, which writes training/test data zarrs
     
@@ -36,18 +36,16 @@ def run(args, pipeline_args, names):
         names ([dict]): Contains information related to the variable
             and dimension names from the one step output and created
             by the pipeline.
+        timesteps([dict]): keys train/test, values are nested list of paired
+         timesteps
     """
     fs = get_fs(args.gcs_input_data_path)
     ds_full = xr.open_zarr(
         fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
     )
-    ds_full = _str_time_dim_to_datetime(ds_full, names["init_time_dim"])
-    data_batches, train_test_labels = _divide_data_batches(
-        ds_full,
-        args.timesteps_per_output_file,
-        args.train_fraction,
-        init_time_dim=names["init_time_dim"],
-    )
+    train_test_labels = {key: value[0] for key, value in timesteps.items()}
+    timestep_pairs = _split_pairs(ds_full, timesteps, names["init_time_dim"])
+    
     chunk_sizes = {
         "tile": 1,
         names["init_time_dim"]: 1,
@@ -55,12 +53,15 @@ def run(args, pipeline_args, names):
         names["coord_x_center"]: 24,
         names["coord_z_center"]: 79,
     }
-    logger.info(f"Processing {len(data_batches)} subsets...")
+
+    logger.info(f"Processing {len(timestep_pairs)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         (
             p
-            | beam.Create(data_batches)
+            | beam.Create(timestep_pairs)
+            | "TimeDimToDatetime"
+            >> beam.Map(_str_time_dim_to_datetime, time_dim=names["init_time_dim"])
             | "AddPhysicsTendencies"
             >> beam.Map(
                 _add_physics_tendencies,
@@ -112,141 +113,19 @@ def run(args, pipeline_args, names):
         )
 
 
+def _split_pairs(ds_full, timesteps, init_time_dim):
+    tstep_pairs = []
+    for key, pairs in timesteps.items():
+        tstep_pairs += pairs
+    ds_pairs = [ds_full.sel(init_time_dim=pair) for pair in tstep_pairs]
+    return ds_pairs
+
+
 def _str_time_dim_to_datetime(ds, time_dim):
     datetime_coords = [
         parse_datetime_from_str(time_str) for time_str in ds[time_dim].values
     ]
     return ds.assign_coords({time_dim: datetime_coords})
-
-
-def _divide_data_batches(
-    ds_full, timesteps_per_output_file, train_fraction, init_time_dim
-):
-    """ Divides the full dataset of one step run outputs into batches designated
-    for training or test sets.
-    Args:
-        ds_full (xr dataset): dataset read in from the big zarr of all one step outputs
-        timesteps_per_output_file (int): number of timesteps to save per train batch
-        train_fraction (float): fraction of initial timesteps to use as training
-    
-    Returns:
-        tuple (
-            list of datasets selected to the timesteps for each output,
-            dict of train and test timesteps
-            )
-    """
-    timesteps = sorted(ds_full[init_time_dim].values)
-    timestep_batches = _window_with_overlap(timesteps, timesteps_per_output_file + 1)
-    train_test_labels = _test_train_split(timestep_batches, train_fraction)
-    timestep_batches_reordered = _reorder_batches(timestep_batches, train_fraction)
-    data_batches = [
-        ds_full.sel({init_time_dim: timesteps})
-        for timesteps in timestep_batches_reordered
-    ]
-    return (data_batches, train_test_labels)
-
-
-def _reorder_batches(sorted_batches, train_frac):
-    """Uniformly distribute the test batches within the list of batches to run,
-    so that they are not all left to the end of the job. This is so that we don't
-    have to run a training data job to completion in order to get the desired
-    train/test ratio.
-
-    Args:
-        sorted_batches (nested list):of run dirs per batch
-        train_frac (float): fraction of batches for use in training
-
-    Returns:
-        nested list of batch urls, reordered so that test times are uniformly
-        distributed in list
-    """
-    num_batches = len(sorted_batches)
-    split_index = int(train_frac * num_batches)
-    train_set = sorted_batches[:split_index]
-    test_set = sorted_batches[split_index:]
-    train_test_ratio = int(train_frac / (1 - train_frac))
-    reordered_batches = []
-    while len(train_set) > 0:
-        if len(test_set) > 0:
-            reordered_batches.append(test_set.pop(0))
-        for i in range(train_test_ratio):
-            if len(train_set) > 0:
-                reordered_batches.append(train_set.pop(0))
-    return reordered_batches
-
-
-def _save_grid_spec(
-    ds, gcs_output_data_dir, grid_vars, grid_spec_filename, init_time_dim
-):
-    """ Reads grid spec from diag files in a run dir and writes to GCS
-
-    Args:
-        fs: GCSFileSystem object
-        run_dir: run dir to read grid data from. Using the first timestep should be fine
-        gcs_output_data_dir: Write path
-
-    Returns:
-        None
-    """
-    grid = ds.isel({init_time_dim: 0})[grid_vars]
-    _write_remote_train_zarr(
-        grid, gcs_output_data_dir, init_time_dim, zarr_name=grid_spec_filename
-    )
-    logger.info(
-        f"Wrote grid spec to "
-        f"{os.path.join(gcs_output_data_dir, grid_spec_filename)}"
-    )
-    return
-
-
-T = TypeVar("Item")
-
-def _window_with_overlap(seq: Sequence[T], window_size: int) -> List[List[T]]:
-    """ Group input sequence into window of size window_size which overlap by 1
-    """
-
-    # note this implementation is a relic, but it is tested and works as expected
-
-    timesteps = seq
-    timesteps_per_output_file = window_size - 1
-    num_outputs = (len(timesteps) - 1) // timesteps_per_output_file
-    timestep_batches = []
-    for i in range(num_outputs):
-        start_ind = timesteps_per_output_file * i
-        stop_ind = timesteps_per_output_file * i + (timesteps_per_output_file + 1)
-        timestep_batches.append(timesteps[start_ind:stop_ind])
-    num_leftover = len(timesteps) % timesteps_per_output_file
-    remainder_urls = [timesteps[-num_leftover:]] if num_leftover > 1 else []
-    timestep_batches += remainder_urls
-    return timestep_batches
-
-
-def _test_train_split(timestep_batches, train_frac):
-    """ Assigns train/test set labels to each batch, split by init timestamp
-
-    Args:
-        url_batches: nested list where inner lists are groupings of input urls,
-        ordered by time
-        train_frac: Float [0, 1]
-
-    Returns:
-        dict lookup for each batch's set to save to
-    """
-    if train_frac > 1:
-        train_frac = 1
-        logger.warning("Train fraction provided > 1. Will set to 1.")
-    num_train_batches = int(len(timestep_batches) * train_frac)
-    labels = {
-        "train": [
-            timesteps[0].strftime(TIME_FMT)
-            for timesteps in timestep_batches[:num_train_batches]
-        ],
-        "test": [
-            timesteps[0].strftime(TIME_FMT)
-            for timesteps in timestep_batches[num_train_batches:]
-        ],
-    }
-    return labels
 
 
 def _add_physics_tendencies(
