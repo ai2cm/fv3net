@@ -14,9 +14,12 @@ spec:
       - command: ["/bin/bash", "-c"]
         args: 
           - |
-              find /etc/config
-              workflows/end_to_end/submit_workflow.sh $(CONFIG)/end_to_end.yml
-        image: $FV3NET_IMAGE
+              echo "running the following end to end configuration:"
+              echo "-------------------------------------------------------------------------------"
+              envsubst $(CONFIG)/end_to_end.yml | tee end-to-end.yml
+              echo "-------------------------------------------------------------------------------"
+              workflows/end_to_end/submit_workflow.sh end-to-end.yml
+        image: us.gcr.io/vcm-ml/fv3net
         imagePullPolicy: Always
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -28,11 +31,6 @@ spec:
               configMapKeyRef:
                 name: $CONFIGMAP
                 key: PROGNOSTIC_RUN_IMAGE
-          - name: FV3NET_IMAGE
-            valueFrom:
-              configMapKeyRef:
-                name: $CONFIGMAP
-                key: FV3NET_IMAGE
           - name: CONFIG
             value: /etc/config
         name: integration-test
@@ -44,7 +42,7 @@ spec:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
             readOnly: true
-          - mountPath:  /etc/config
+          - mountPath:  /etc/config/
             name: end-to-end-config
       restartPolicy: Never
       terminationGracePeriodSeconds: 30
@@ -59,5 +57,8 @@ spec:
             secretName: gcp-key
         - name: end-to-end-config
           configMap:
-            name: $CONFIGMAP
+            name: end-to-end
+        - name: timesteps-config
+          configMap:
+            name: timesteps
             
