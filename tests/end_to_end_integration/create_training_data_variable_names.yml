@@ -14,6 +14,8 @@ init_time_dim: "initial_time"
 forecast_time_dim: "forecast_time"
 step_time_dim: "step"
 coord_begin_step: "begin"
+coord_before_physics: "after_dynamics"
+coord_after_physics: "after_physics"
 
 coord_x_center : "x"   
 coord_y_center : "y"    
@@ -23,6 +25,11 @@ var_lon_center: "lon"
 var_lat_center: "lat"
 var_lon_outer: "lonb"
 var_lat_outer: "latb"
+
+physics_tendency_names:
+  "specific_humidity": "pQ2"
+  "air_temperature": "pQ1"
+
 
 renamed_dims: 
   grid_xt: "x"
@@ -66,7 +73,18 @@ one_step_vars:
   - "pressure_thickness_of_atmospheric_layer"
   - "specific_humidity"
   - "air_temperature"
-
+  - "DSWRFtoa_train"
+  - "DSWRFsfc_train"
+  - "USWRFtoa_train"
+  - "USWRFsfc_train"
+  - "DLWRFsfc_train"
+  - "ULWRFtoa_train"
+  - "ULWRFsfc_train"
+  - "lat"
+  - "lon"
+  - "latb"
+  - "lonb"
+  - "area"
 
 # data variables from high res data kept in final dataset
 # these are names from coarsened SHiELD output, before renaming
