@@ -10,7 +10,7 @@ from vcm.calc.thermo import (
     dz_and_top_to_phis,
     _add_coords_to_interface_variable,
 )
-from vcm.calc.calc import local_time
+from vcm.calc.calc import local_time, apparent_source
 from vcm.cubedsphere.constants import COORD_Z_CENTER, COORD_Z_OUTER
 
 
@@ -85,3 +85,37 @@ def test_solar_time():
     lon = xr.DataArray([0, 180, 270, 360, 0, 270], dims=["x"], coords={"x": range(6)})
     ds_solar_test = xr.Dataset({"initialization_time": t, "lon": lon})
     assert np.allclose(local_time(ds_solar_test), [0, 12, 18, 0, 6, 0])
+
+
+def test_apparent_source():
+    coords = {
+        "initial_time": [
+            cftime.DatetimeJulian(2016, 8, 1, 0, 15, 0),
+            cftime.DatetimeJulian(2016, 8, 1, 0, 30, 0),
+        ],
+        "forecast_time": np.array([0.0, 60.0, 120.0, 180.0, 240.0]).astype(
+            np.dtype("<m8[s]")
+        ),
+    }
+    T = xr.DataArray(
+        [[1, 2, 4, 7, 11.0], [3, 5, 5, 5, 5.0]],
+        dims=["initial_time", "forecast_time"],
+        coords=coords,
+    )
+    # check Q calculated for different forecast time steps
+    Q1_forecast0 = apparent_source(
+        T,
+        coarse_tstep_idx=0,
+        highres_tstep_idx=0,
+        t_dim="initial_time",
+        s_dim="forecast_time",
+    )
+    assert Q1_forecast0 == pytest.approx((2.0 / (15 * 60)) - (1.0 / 60))
+    Q1_forecast3 = apparent_source(
+        T,
+        coarse_tstep_idx=3,
+        highres_tstep_idx=0,
+        t_dim="initial_time",
+        s_dim="forecast_time",
+    )
+    assert Q1_forecast3 == pytest.approx((2.0 / (15 * 60)) - (4.0 / 60))

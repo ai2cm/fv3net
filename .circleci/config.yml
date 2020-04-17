@@ -53,8 +53,7 @@ jobs:
       - gcp-gcr/gcr-auth:
           gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - checkout
-      - run: 
-          sudo apt-get install make
+      - run: sudo apt-get install -y make jq
       - run:
           name: "Pull submodules"
           command: |
@@ -62,18 +61,7 @@ jobs:
       - run:
           name: Build fv3net images 
           command: |
-            if [[ -z "$CIRCLE_TAG" ]]
-            then
-                use_version="latest"
-            else
-                use_version=$CIRCLE_TAG
-            fi
-            make build_images VERSION=$use_version
-      - run:
-          name: Run tests in fv3net image
-          command: |
-              echo $ENCODED_GOOGLE_CREDENTIALS | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
-              bash docker/fv3net/run_tests_in_image.sh $CIRCLE_TAG
+            make build_images
       - run:
           name: Push fv3net images
           command: |
@@ -84,11 +72,15 @@ jobs:
                 echo "pushing untagged images as 'latest'"
                 make push_images VERSION=latest
             fi
+
             if [[ ! -z "$CIRCLE_TAG" ]]
             then
-                echo "pushing tagged images $CIRCLE_TAG"
-                make push_images VERSION=$CIRCLE_TAG
+              make push_images VERSION=$CIRCLE_TAG
             fi
+
+            # push all images with sha for testing later on
+            echo "pushing tagged images $CIRCLE_SHA1"
+            make push_images VERSION=$CIRCLE_SHA1
       - slack/status:
           fail_only: true
           mentions: 'channel'
@@ -106,14 +98,12 @@ jobs:
       - image: google/cloud-sdk
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
-      FV3NET_IMAGE: us.gcr.io/vcm-ml/fv3net
     steps:
       - checkout
       - run:
           name: Install dependencies
           command: |
-            apt-get install wget -y
-            apt-get install jq -y
+            apt-get install -y wget jq make gettext 
             wget -qO /bin/yq https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_386
             chmod +x /bin/yq
       - run:
@@ -143,7 +133,10 @@ jobs:
             kubectl config set-cluster $kube_cluster_name --certificate-authority="./proxy.crt"
       - run:
           name: Submit integration tests
-          command: tests/end_to_end_integration/run_integration_with_wait.sh "${FV3NET_IMAGE}:${CIRCLE_TAG}"
+          # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was 
+          # during the build job above
+          command: | 
+            make run_integration_tests VERSION=$CIRCLE_SHA1
       - run:
           name: Firewall rule deletion
           when: always
@@ -158,19 +151,11 @@ workflows:
     jobs:
       - lint
       - pytest_default
-  build_and_push:
-    jobs:
+      - hold:
+          type: approval
       - build_default:
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              only: master
+          requires:
+          - hold
       - integration_tests:
           requires:
             - build_default
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              only: master

@@ -1,9 +1,8 @@
 import fsspec
-import xarray as xr
 from sklearn.externals import joblib
 from sklearn.utils import parallel_backend
+import xarray as xr
 
-from . import state_io
 
 __all__ = ["open_model", "predict", "update"]
 
@@ -22,13 +21,10 @@ def predict(model, state):
 
 
 def update(model, state, dt):
-    renamed = state_io.rename_to_restart(state)
-    state = xr.Dataset(renamed)
-
+    state = xr.Dataset(state)
     tend = predict(model, state)
-
     updated = state.assign(
-        sphum=state["sphum"] + tend.dQ2 * dt, T=state.T + tend.dQ1 * dt
+        specific_humidity=state["specific_humidity"] + tend["dQ2"] * dt,
+        air_temperature=state["air_temperature"] + tend["dQ1"] * dt,
     )
-
-    return state_io.rename_to_orig(updated), state_io.rename_to_orig(tend)
+    return {key: updated[key] for key in updated}, {key: tend[key] for key in tend}

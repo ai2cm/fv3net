@@ -47,7 +47,9 @@ dependencies:
   - bokeh=1.4
   - backoff
   - pip:
+    - poetry
     - gsutil
     - nc-time-axis>=1.2.0
+    - gitpython
     - bump2version>=0.5.11
     - yq

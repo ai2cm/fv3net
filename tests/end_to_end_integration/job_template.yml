@@ -3,25 +3,37 @@ kind: Job
 metadata:
   labels:
     app: integration-test
-  name: end-to-end-integration
-  namespace: default
+  name: $JOBNAME
 spec:
   backoffLimit: 0
   template:
     spec:
+      serviceAccountName: integration-tests
       containers:
-      - command: # initializes kubectl config and service account
-          - /usr/bin/init_kubeconfig.sh
-        args:
-          - workflows/end_to_end/submit_workflow.sh
-          - tests/end_to_end_integration/end_to_end_configuration.yml
-        image: us.gcr.io/vcm-ml/fv3net:latest
+      - command: ["/bin/bash", "-c"]
+        args: 
+          - |
+              find /etc/config
+              workflows/end_to_end/submit_workflow.sh $(CONFIG)/end_to_end.yml
+        image: $FV3NET_IMAGE
         imagePullPolicy: Always
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
             value: /secret/gcp-credentials/key.json
           - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
             value: /secret/gcp-credentials/key.json
+          - name: PROGNOSTIC_RUN_IMAGE
+            valueFrom:
+              configMapKeyRef:
+                name: $CONFIGMAP
+                key: PROGNOSTIC_RUN_IMAGE
+          - name: FV3NET_IMAGE
+            valueFrom:
+              configMapKeyRef:
+                name: $CONFIGMAP
+                key: FV3NET_IMAGE
+          - name: CONFIG
+            value: /etc/config
         name: integration-test
         resources:
           requests:
@@ -31,6 +43,8 @@ spec:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
             readOnly: true
+          - mountPath:  /etc/config
+            name: end-to-end-config
       restartPolicy: Never
       terminationGracePeriodSeconds: 30
       tolerations:
@@ -42,3 +56,7 @@ spec:
           secret:
             defaultMode: 444
             secretName: gcp-key
+        - name: end-to-end-config
+          configMap:
+            name: $CONFIGMAP
+            

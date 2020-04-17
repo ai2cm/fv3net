@@ -3,8 +3,7 @@
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
-
-VERSION ?= v0.1.1
+VERSION ?= $(shell git rev-parse HEAD)
 ENVIRONMENT_SCRIPTS = .environment-scripts
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BUCKET = [OPTIONAL] your-bucket-for-syncing-data (do not include 's3://')
@@ -14,6 +13,11 @@ PYTHON_INTERPRETER = python3
 DATA = data/interim/advection/2019-07-17-FV3_DYAMOND_0.25deg_15minute_regrid_1degree.zarr.dvc
 IMAGE = fv3net
 GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
+
+GCR_BASE  = us.gcr.io/vcm-ml
+FV3NET_IMAGE = $(GCR_BASE)/fv3net
+PROGNOSTIC_RUN_IMAGE = $(GCR_BASE)/prognostic_run
+
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -25,21 +29,25 @@ endif
 # COMMANDS                                                                      #
 #################################################################################
 
-.PHONY: build_images push_image
+.PHONY: build_images push_image run_integration_tests image_name_explicit
 
 # pattern rule for building docker images
 build_image_%:
-	docker build . -f docker/$*/Dockerfile -t us.gcr.io/vcm-ml/$*:$(VERSION)
-
+	docker build . -f docker/$*/Dockerfile  -t $*
+	
 enter_%:
-	docker run -ti -w /fv3net -v $(shell pwd):/fv3net us.gcr.io/vcm-ml/$*:$(VERSION) bash
+	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $* bash
 
 build_images: build_image_fv3net build_image_prognostic_run
 
 push_images: push_image_prognostic_run push_image_fv3net
 
 push_image_%:
-	docker push us.gcr.io/vcm-ml/$*:$(VERSION)
+	docker tag $* $(GCR_BASE)/$*:$(VERSION)
+	docker push $(GCR_BASE)/$*:$(VERSION)
+
+pull_image_%:
+	docker pull $(GCR_BASE)/$*:$(VERSION)
 
 enter: build_image
 	docker run -it -v $(shell pwd):/code \
@@ -52,6 +60,16 @@ enter: build_image
 build_ci_image:
 	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
 
+
+# run integration tests
+run_integration_tests:
+	./tests/end_to_end_integration/run_integration_with_wait.sh \
+	    $(PROGNOSTIC_RUN_IMAGE):$(VERSION) \
+	    $(FV3NET_IMAGE):$(VERSION) \
+
+
+test:
+	pytest external/* tests
 
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images

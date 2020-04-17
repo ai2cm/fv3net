@@ -3,13 +3,11 @@ import matplotlib.pyplot as plt
 import os
 import vcm
 
-from vcm.cubedsphere.constants import GRID_VARS
-
 
 matplotlib.use("Agg")
 
 
-def plot_metrics(ds_metrics, output_dir, dpi_figures):
+def plot_metrics(ds_metrics, output_dir, dpi_figures, names):
     report_sections = {}
     # R^2 vs pressure
     _plot_r2_pressure_profile(ds_metrics).savefig(
@@ -23,7 +21,13 @@ def plot_metrics(ds_metrics, output_dir, dpi_figures):
     for var in ["net_precipitation", "net_heating"]:
         for target_dataset_name in ds_metrics.target_dataset_names.values:
             filename = f"rmse_map_{var}_{target_dataset_name}.png"
-            _plot_rmse_map(ds_metrics, var, target_dataset_name).savefig(
+            _plot_rmse_map(
+                ds_metrics,
+                var,
+                target_dataset_name,
+                names["grid_vars"],
+                names["mappable_var_kwargs"],
+            ).savefig(
                 os.path.join(output_dir, filename), dpi=dpi_figures["map_plot_single"]
             )
             report_sections["Root mean squared error maps"].append(filename)
@@ -31,11 +35,13 @@ def plot_metrics(ds_metrics, output_dir, dpi_figures):
     return report_sections
 
 
-def _plot_rmse_map(ds, var, target_dataset_name):
+def _plot_rmse_map(ds, var, target_dataset_name, grid_vars, map_var_kwargs):
     plt.close("all")
     data_var = f"rmse_{var}_vs_{target_dataset_name}"
     fig = vcm.plot_cube(
-        vcm.mappable_var(ds[GRID_VARS + [data_var]], data_var), vmin=0, vmax=2
+        vcm.mappable_var(ds[grid_vars + [data_var]], data_var, **map_var_kwargs),
+        vmin=0,
+        vmax=2,
     )[0]
     return fig
 

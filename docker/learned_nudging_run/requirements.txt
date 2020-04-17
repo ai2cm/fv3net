@@ -1,0 +1,6 @@
+scikit-learn==0.22.1
+dask
+zarr
+scikit-image
+google-cloud-logging
+pandas==1.0.1

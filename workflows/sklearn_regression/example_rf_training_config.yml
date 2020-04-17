@@ -1,18 +1,18 @@
 model_type: sklearn_random_forest
 hyperparameters:
-  min_samples_leaf: 8
+  max_depth: 13
   n_estimators: 4
 num_batches: 2
 files_per_batch: 1
 input_variables:
-  - T
-  - sphum
-  - phis
-  - slmsk
-  - tsea
+  - air_temperature
+  - specific_humidity
+  - surface_geopotential
+  - land_sea_mask
+  - surface_temperature
   - DSWRFtoa_train
-  - SHTFLsfc_train
-  - LHTFLsfc_train
 output_variables:
   - dQ1
   - dQ2
+init_time_dim: "initial_time"
+coord_z_center: "z"
