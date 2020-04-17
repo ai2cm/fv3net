@@ -26,7 +26,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "timesteps_file",
         type=str,
-        help="File containing list of paired timesteps in test & train sets."
+        help="File containing paired timesteps for test and/or train sets."
     )
     parser.add_argument(
         "gcs_output_data_dir",
@@ -34,7 +34,6 @@ if __name__ == "__main__":
         help="Write path for train data in Google Cloud Storage bucket. "
         "Don't include bucket in path.",
     )
-
 
     args, pipeline_args = parser.parse_known_args()
     with open(args.variable_namefile, "r") as f:
