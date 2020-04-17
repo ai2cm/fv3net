@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 
+import select
 import vcm
 from vcm.calc import r2_score
 from vcm.cubedsphere.regridz import regrid_to_common_pressure
@@ -20,9 +21,9 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
             ds_metrics[
                 f"r2_{var}_pressure_levels_{sfc_type}"
             ] = _r2_pressure_level_metrics(
-                vcm.mask_to_surface_type(ds_fv3, sfc_type)[var],
-                vcm.mask_to_surface_type(ds_pred, sfc_type)[var],
-                vcm.mask_to_surface_type(ds_fv3, sfc_type)[
+                select.mask_to_surface_type(ds_fv3, sfc_type)[var],
+                select.mask_to_surface_type(ds_pred, sfc_type)[var],
+                select.mask_to_surface_type(ds_fv3, sfc_type)[
                     names["var_pressure_thickness"]
                 ],
                 names["stack_dims"],
@@ -92,10 +93,10 @@ def _r2_global_values(ds_pred, ds_fv3, ds_shield, stack_dims):
             for ds_target in [ds_fv3, ds_shield]:
                 target_label = ds_target.dataset.values.item()
                 r2 = r2_score(
-                    vcm.mask_to_surface_type(ds_target, sfc_type)[var].stack(
+                    select.mask_to_surface_type(ds_target, sfc_type)[var].stack(
                         sample=stack_dims
                     ),
-                    vcm.mask_to_surface_type(ds_pred, sfc_type)[var].stack(
+                    select.mask_to_surface_type(ds_pred, sfc_type)[var].stack(
                         sample=stack_dims
                     ),
                     "sample",

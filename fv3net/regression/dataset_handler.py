@@ -5,7 +5,7 @@ from typing import List
 import numpy as np
 import xarray as xr
 
-import vcm
+import select
 from vcm.cloud.fsspec import get_fs
 
 SAMPLE_DIM = "sample"
@@ -88,7 +88,7 @@ class BatchGenerator:
         # impossible to test.
         data = self._load_datasets(urls)
         ds = xr.concat(data, init_time_dim)
-        ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type)
+        ds = select.mask_to_surface_type(ds, self.mask_to_surface_type)
         ds_stacked = ds.stack(
             {SAMPLE_DIM: [dim for dim in ds.dims if dim != coord_z_center]}
         ).transpose(SAMPLE_DIM, coord_z_center)

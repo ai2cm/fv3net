@@ -1,8 +1,10 @@
 import numpy as np
 import pytest
 import xarray as xr
-from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
-from vcm.select import mask_to_surface_type, get_latlon_grid_coords
+
+from select import __version__, mask_to_surface_type, get_latlon_grid_coords
+
+from ..select.select_funcs import COORD_X_CENTER, COORD_Y_CENTER
 
 
 @pytest.fixture()
@@ -31,6 +33,10 @@ def test_latlon_grid():
     )
     grid = xr.Dataset({"lon": lon, "lat": lat})
     return grid
+
+
+def test_version():
+    assert __version__ == "0.1.0"
 
 
 def test_mask_to_surface_type(test_surface_type_grid):

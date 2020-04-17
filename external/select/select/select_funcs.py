@@ -3,12 +3,10 @@ This module is for functions that select subsets of the data
 """
 import numpy as np
 
-from vcm.cubedsphere.constants import (
-    COORD_X_CENTER,
-    COORD_Y_CENTER,
-    VAR_LAT_CENTER,
-    VAR_LON_CENTER,
-)
+COORD_X_CENTER = "grid_xt"
+COORD_Y_CENTER = "grid_yt"
+VAR_LON_CENTER = "lon"
+VAR_LAT_CENTER = "lat"
 
 
 def mask_to_surface_type(ds, surface_type, surface_type_var="land_sea_mask"):
