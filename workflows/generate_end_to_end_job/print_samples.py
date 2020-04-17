@@ -4,7 +4,7 @@
 >>> min(steps)
 'vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48/20160801.001500/'
 """
-from kubernetes.client import V1ConfigMap, V1ObjectMeta
+from kubernetes.client import V1ConfigMap
 import vcm
 import fsspec
 import json
@@ -40,11 +40,4 @@ data = {
     "one_step": list(all_steps),
     "splits": splits['train']
 }
-
-data = {
-    key: json.dumps(val) for key, val in data
-}
-
-meta = V1ObjectMeta(name="hello")
-cm = V1ConfigMap(metadata=meta, data=data)
-print(jsonify(cm))
+json.dump(data, sys.stdout)

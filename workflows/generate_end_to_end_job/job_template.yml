@@ -1,0 +1,63 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: integration-test
+  # do not use generateName. we want this to be deterministic
+  name: $JOBNAME
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      serviceAccountName: integration-tests
+      containers:
+      - command: ["/bin/bash", "-c"]
+        args: 
+          - |
+              find /etc/config
+              workflows/end_to_end/submit_workflow.sh $(CONFIG)/end_to_end.yml
+        image: $FV3NET_IMAGE
+        imagePullPolicy: Always
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+          - name: PROGNOSTIC_RUN_IMAGE
+            valueFrom:
+              configMapKeyRef:
+                name: $CONFIGMAP
+                key: PROGNOSTIC_RUN_IMAGE
+          - name: FV3NET_IMAGE
+            valueFrom:
+              configMapKeyRef:
+                name: $CONFIGMAP
+                key: FV3NET_IMAGE
+          - name: CONFIG
+            value: /etc/config
+        name: integration-test
+        resources:
+          requests:
+            cpu: "2"
+            memory: 2G
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+            readOnly: true
+          - mountPath:  /etc/config
+            name: end-to-end-config
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      tolerations:
+        - key: dedicated
+          effect: NoSchedule
+          value: climate-sim-pool
+      volumes:
+        - name: gcp-key-secret
+          secret:
+            defaultMode: 444
+            secretName: gcp-key
+        - name: end-to-end-config
+          configMap:
+            name: $CONFIGMAP
+            
