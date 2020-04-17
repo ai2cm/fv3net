@@ -44,7 +44,7 @@ def run(args, pipeline_args, names, timesteps):
         fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
     )
     train_test_labels = _train_test_labels(timesteps)
-    timestep_pairs = _split_pairs(ds_full, timesteps, names["init_time_dim"])
+    timestep_pairs = _split_by_pairs(ds_full, timesteps, names["init_time_dim"])
 
     logger.info(f"Processing {len(timestep_pairs)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
@@ -97,7 +97,6 @@ def run(args, pipeline_args, names, timesteps):
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
-                chunk_sizes=chunk_sizes,
                 init_time_dim=names["init_time_dim"],
                 gcs_output_dir=args.gcs_output_data_dir,
                 train_test_labels=train_test_labels,
@@ -105,7 +104,7 @@ def run(args, pipeline_args, names, timesteps):
         )
 
 
-def _split_pairs(ds_full, timesteps, init_time_dim):
+def _split_by_pairs(ds_full, timesteps, init_time_dim):
     tstep_pairs = []
     for key, pairs in timesteps.items():
         tstep_pairs += pairs
