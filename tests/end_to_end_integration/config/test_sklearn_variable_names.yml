@@ -49,6 +49,10 @@ pred_vars_to_keep:
 #  - "DSWRFtoa_train"
 
 data_vars:
+  - "Q1"
+  - "Q2"
+  - "pQ1"
+  - "pQ2"
   - "dQ1"
   - "dQ2"
   - "specific_humidity"
