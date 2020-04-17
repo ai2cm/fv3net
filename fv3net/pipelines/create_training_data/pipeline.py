@@ -1,3 +1,4 @@
+from typing import Mapping, Sequence, Tuple
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import logging
@@ -25,7 +26,7 @@ FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
 FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
 
 
-def run(args, pipeline_args, names, timesteps):
+def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, str]]]):
     """ Divide full one step output data into batches to be sent
     through a beam pipeline, which writes training/test data zarrs
     
@@ -35,8 +36,10 @@ def run(args, pipeline_args, names, timesteps):
         names ([dict]): Contains information related to the variable
             and dimension names from the one step output and created
             by the pipeline.
-        timesteps([dict]): keys train/test, values are nested list of paired
-         timesteps
+        timesteps:  a collection of time-step pairs to use for testing and training.
+            For example::
+
+                {"train": [("20180601.000000", "20180601.000000"), ...], "test: ...}
     """
     fs = get_fs(args.gcs_input_data_path)
     ds_full = xr.open_zarr(
