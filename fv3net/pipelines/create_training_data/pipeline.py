@@ -43,16 +43,8 @@ def run(args, pipeline_args, names, timesteps):
     ds_full = xr.open_zarr(
         fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
     )
-    train_test_labels = {key: value[0] for key, value in timesteps.items()}
+    train_test_labels = _train_test_labels(timesteps)
     timestep_pairs = _split_pairs(ds_full, timesteps, names["init_time_dim"])
-    
-    chunk_sizes = {
-        "tile": 1,
-        names["init_time_dim"]: 1,
-        names["coord_y_center"]: 24,
-        names["coord_x_center"]: 24,
-        names["coord_z_center"]: 79,
-    }
 
     logger.info(f"Processing {len(timestep_pairs)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
@@ -117,8 +109,17 @@ def _split_pairs(ds_full, timesteps, init_time_dim):
     tstep_pairs = []
     for key, pairs in timesteps.items():
         tstep_pairs += pairs
-    ds_pairs = [ds_full.sel(init_time_dim=pair) for pair in tstep_pairs]
+    ds_pairs = [ds_full.sel({init_time_dim: pair}) for pair in tstep_pairs]
     return ds_pairs
+
+
+def _train_test_labels(timesteps):
+    train_test_labels = {}
+    for key, pairs_list in timesteps.items():
+        train_test_labels[key] = []
+        for pair in pairs_list:
+            train_test_labels[key].append(pair[0])
+    return train_test_labels
 
 
 def _str_time_dim_to_datetime(ds, time_dim):
@@ -247,7 +248,6 @@ def _write_remote_train_zarr(
     time_fmt=TIME_FMT,
     zarr_name=None,
     train_test_labels=None,
-    chunk_sizes=None,
 ):
     """Writes temporary zarr on worker and moves it to GCS
 
@@ -265,7 +265,6 @@ def _write_remote_train_zarr(
             zarr_name = helpers._path_from_first_timestep(
                 ds, init_time_dim, time_fmt, train_test_labels
             )
-            ds = ds.chunk(chunk_sizes)
         output_path = os.path.join(gcs_output_dir, zarr_name)
         ds.to_zarr(zarr_name, mode="w", consolidated=True)
         gsutil.copy(zarr_name, output_path)

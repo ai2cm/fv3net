@@ -81,7 +81,10 @@ one_step_vars:
   - "DLWRFsfc_train"
   - "ULWRFtoa_train"
   - "ULWRFsfc_train"
-
+  - "lat"
+  - "lon"
+  - "latb"
+  - "lonb"
 
 # data variables from high res data kept in final dataset
 # these are names from coarsened SHiELD output, before renaming

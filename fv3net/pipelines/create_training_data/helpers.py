@@ -39,18 +39,16 @@ def _path_from_first_timestep(ds, init_time_dim, time_fmt, train_test_labels: Ma
     """
     timestep = min(ds[init_time_dim].values).strftime(time_fmt)
     if isinstance(train_test_labels, dict):
-        try:
-            if timestep in train_test_labels["train"]:
-                train_test_subdir = "train"
-            elif timestep in train_test_labels["test"]:
-                train_test_subdir = "test"
+        for key, values in train_test_labels.items():
+            if timestep in values:
+                subdir = key
     else:
         logger.info(
             "No train_test_labels dict provided."
             "Will write zarrs directly to gcs_output_dir."
         )
-        train_test_subdir = ""
-    return os.path.join(train_test_subdir, timestep + ".zarr")
+        subdir = ""
+    return os.path.join(subdir, timestep + ".zarr")
 
 
 def _set_relative_forecast_time_coord(ds):
