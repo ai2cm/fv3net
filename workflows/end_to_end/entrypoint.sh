@@ -1,11 +1,13 @@
 #!/bin/bash
 
+set -e
+
 TRAINING_TIMES="$(pwd)/training_times.json"
 ONE_STEP_TIMES="$(pwd)/one_step_times.json"
 
 echo "Generating timesteps:"
 python3 workflows/end_to_end/generate_samples.py  \
-    $CONFIG/time-control.yml \
+    $CONFIG/time-control.yaml \
     > tmpconfig.json
 
 jq .one_step tmpconfig.json > "$ONE_STEP_TIMES"
@@ -21,8 +23,7 @@ echo "--------------------------------------------------------------------------
 echo "running the following end to end configuration:"
 echo "-------------------------------------------------------------------------------"
 export TRAINING_TIMES ONE_STEP_TIMES
-envsubst "$CONFIG/end_to_end.yml" | tee end-to-end.yml
+envsubst < "$CONFIG/end_to_end.yaml" | tee end-to-end.yml
 echo "-------------------------------------------------------------------------------"
 
 workflows/end_to_end/submit_workflow.sh end-to-end.yml
-
