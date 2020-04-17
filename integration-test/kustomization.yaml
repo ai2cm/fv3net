@@ -2,6 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 bases: 
   - "../base"
+nameSuffix: "-integration-test"
 configMapGenerator:
 - files:
     - coarsen_c384_diagnostics_integration.yml
@@ -10,5 +11,6 @@ configMapGenerator:
     - prognostic_run_integration.yml
     - test_sklearn_variable_names.yml
     - train_sklearn_model.yml
+    - diag_table_prognostic
   name: end-to-end
   behavior: merge # merges with the base configuration generator

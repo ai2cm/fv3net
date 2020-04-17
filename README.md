@@ -4,69 +4,17 @@
 
 This repository contains *declarative* configurations of our workflow, which should be cleanly separated from the source code in [fv3net]. Decoupling our source from the configuration will allow us to run experiments against different versions of the fv3net source. As the workflows in that repo become more decoupled and plug-n-play, this will allow us to change swap components out easily without being bound to the current master version of [fv3net].
 
-## Allowed Dependencies
+## Dependencies
 
-We should be able to manage our workflow with the following tools only:
-
-- bash: GNU bash, version 4.4.20(1)-release (x86_64-pc-linux-gnu)
-- jq: jq-1.5-1-a5b5cbe
-- envsubst: envsubst (GNU gettext-runtime) 0.19.8.1.
-    installed via `apt-get install gettext`
-- kubectl - v1.16.3
-
-
-The idea is that these are stable and robust tools that are easy to install. OTOH, managing dependencies with python is very difficult and leads to giant docker images, so python should not be required to *submit* any workflows. Kubernetes provides a very rich declarative framework for managing computational resources, so we should not need any other tools. In the future, we may see if including python and a very minimal dependency set (e.g. kubernetes API, yaml, jinja2) will be helpful. 
+We should be able to manage our workflow configurations with only `kubectl` (v1.16.3). This tool is robust and stable and required for all kubrenetes work anyway. This tool set is intentionally limiting, but not as limiting as it would appear. `kubectl` provides a powerful templating tool called [kustomize] that currently suites our needs well. Any more detailed templating or configuration generation should probably occur inside of the k8s jobs we deploy. If it isn't human readable and editable, then it should be occuring inside of any k8s pods deployed by this repository.
 
 ## Structure
 
 ``` 
-.
-├── CODEOWNERS
-├── Makefile
-├── README.md
-├── end_to_end
-│   ├── configs
-│   │   └── integration-test
-│   │       ├── coarsen_c384_diagnostics_integration.yml
-│   │       ├── create_training_data_variable_names.yml
-│   │       ├── diag_table_prognostic
-│   │       ├── docker_images.env
-│   │       ├── one_step_jobs_integration.yml
-│   │       ├── prognostic_run_integration.yml
-│   │       ├── test_sklearn_variable_names.yml
-│   │       └── train_sklearn_model.yml
-│   ├── end_to_end.yml
-│   ├── generate.sh
-│   ├── generate_all_configs.sh
-│   ├── job_template.yml
-│   └── run_integration_with_wait.sh
-├── jobs
-└── manifests
-    └── integration-test-service-account.yml
 
 ```
 
-- experiment-name cannot be an underscore since this name is used to name the k8s job, and k8s does not allow underscore in its metadata.names attributes.
-- manifests: these are k8s configurations that change infrequently such as permissions
-- generated jobs go into jobs. This folder is deleted with every invocation of `make generate_configs`.
-    - It should be checked into version control for complete reproducibility
-- configs/<name>/docker_images.env specifies the docker images need to run the jobs. these cannot be specified by configmaps,
-  and need to be handled via gettext templating.
-
-## Workflows
-
-### Production
-
-1. Create a new configuration under end_to_end/configs
-1. Run `make generate_configs` to save these manifests for all the configs and save them into the jobs folder.
-1. Check in the manifests jobs folders into version control. We need to capture our generated configurations.
-1. Run `make submit` to submit these finalized jobs (This should probably be done by CI after peer review).
-
-### Development
-
-1. Create a new configuration under end_to_end/configs
-1. run script `end_to_end/generate.sh` from the to view the generated manifests, pipe this output to disk if you want to use it
-1. Submit scripts using `kubectl apply`
+- end_to_end
 
 ## Troubleshooting
 
@@ -76,4 +24,17 @@ This workflow *might* work if your versions deviate from the ones listed above. 
 
 to show how your versions deviate from these.
 
+### Trouble creating the job
+
+If you get an error:
+
+```
+configmap/end-to-end-integration-test-g9m8dkg5mb configured
+The Job "end-to-end-integration-test" is invalid: spec.template: Invalid value: core.PodTemplateSpec{ObjectMeta:v1.ObjectMeta{Name:"integration-test-pod", GenerateName:"", Namespace:"", SelfLink:"", UID:"", ResourceVersion:"", Generation:0, CreationTimestamp:v1.Time{Time:time.Time{wall:0x0, ext:0, loc:(*time.Location)(nil)}}, DeletionTimestamp:(*v1.Time)(nil), DeletionGracePeriodSeconds:(*int64)(nil), Labels:map[string]string{"controller-uid":"0a6491f2-8029-11ea-874b-42010a3c000c", "job-name":"end-to-end-integration-test"}, Annotations:map[string]string(nil), OwnerReferences:[]v1.OwnerReference(nil), Initializers:(*v1.Initializers)(nil), Finalizers:[]string(nil), ClusterName:"", ManagedFields:[]v1.ManagedFieldsEntry(nil)}, Spec:core.PodSpec{Volumes:[]core.Volume{core.Volume{Name:"gcp-key-secret", VolumeSource:core.VolumeSource{HostPath:(*core.HostPathVolumeSource)(nil), EmptyDir:(*core.EmptyDirVolumeSource)(nil), GCEPersistentDisk:(*core.GCEPersistentDiskVolumeSource)(nil), AWSElasticBlockStore:(*core.AWSElasticBlockStoreVolumeSource)(nil), GitRepo:(*core.GitRepoVolumeSource)(nil), Secret:(*core.SecretVolumeSource)(0xc005c74dc0), NFS:(*core.NFSVolumeSource)(nil), ISCSI:(*core.ISCSIVolumeSource)(nil), Glusterfs:(*core.GlusterfsVolumeSource)(nil), PersistentVolumeClaim:(*core.PersistentVolumeClaimVolumeSource)(nil), RBD:(*core.RBDVolumeSource)(nil), Quobyte:(*core.QuobyteVolumeSource)(nil), FlexVolume:(*core.FlexVolumeSource)(nil), Cinder:(*core.CinderVolumeSource)(nil), CephFS:(*core.CephFSVolumeSource)(nil), Flocker:(*core.FlockerVolumeSource)(nil), DownwardAPI:(*core.DownwardAPIVolumeSource)(nil), FC:(*core.FCVolumeSource)(nil), AzureFile:(*core.AzureFileVolumeSource)(nil), ConfigMap:(*core.ConfigMapVolumeSource)(nil), VsphereVolume:(*core.VsphereVirtualDiskVolumeSource)(nil), AzureDisk:(*core.AzureDiskVolumeSource)(nil), PhotonPersistentDisk:(*core.PhotonPersistentDiskVolumeSource)(nil), Projected:(*core.ProjectedVolumeSource)(nil), PortworxVolume:(*core.PortworxVolumeSource)(nil), ScaleIO:(*core.ScaleIOVolumeSource)(nil), StorageOS:(*core.StorageOSVolumeSource)(nil), CSI:(*core.CSIVolumeSource)(nil)}}, core.Volume{Name:"end-to-end-config", VolumeSource:core.VolumeSource{HostPath:(*core.HostPathVolumeSource)(nil), EmptyDir:(*core.EmptyDirVolumeSource)(nil), GCEPersistentDisk:(*core.GCEPersistentDiskVolumeSource)(nil), AWSElasticBlockStore:(*core.AWSElasticBlockStoreVolumeSource)(nil), GitRepo:(*core.GitRepoVolumeSource)(nil), Secret:(*core.SecretVolumeSource)(nil), NFS:(*core.NFSVolumeSource)(nil), ISCSI:(*core.ISCSIVolumeSource)(nil), Glusterfs:(*core.GlusterfsVolumeSource)(nil), PersistentVolumeClaim:(*core.PersistentVolumeClaimVolumeSource)(nil), RBD:(*core.RBDVolumeSource)(nil), Quobyte:(*core.QuobyteVolumeSource)(nil), FlexVolume:(*core.FlexVolumeSource)(nil), Cinder:(*core.CinderVolumeSource)(nil), CephFS:(*core.CephFSVolumeSource)(nil), Flocker:(*core.FlockerVolumeSource)(nil), DownwardAPI:(*core.DownwardAPIVolumeSource)(nil), FC:(*core.FCVolumeSource)(nil), AzureFile:(*core.AzureFileVolumeSource)(nil), ConfigMap:(*core.ConfigMapVolumeSource)(0xc005c74f40), VsphereVolume:(*core.VsphereVirtualDiskVolumeSource)(nil), AzureDisk:(*core.AzureDiskVolumeSource)(nil), PhotonPersistentDisk:(*core.PhotonPersistentDiskVolumeSource)(nil), Projected:(*core.ProjectedVolumeSource)(nil), PortworxVolume:(*core.PortworxVolumeSource)(nil), ScaleIO:(*core.ScaleIOVolumeSource)(nil), StorageOS:(*core.StorageOSVolumeSource)(nil), CSI:(*core.CSIVolumeSource)(nil)}}}, InitContainers:[]core.Container(nil), Containers:[]core.Container{core.Container{Name:"integration-test", Image:"us.gcr.io/vcm-ml/fv3net:latest", Command:[]string{"/bin/bash", "-c"}, Args:[]string{"echo \"running the following end to end configuration:\"\necho \"-------------------------------------------------------------------------------\"\nenvsubst $(CONFIG)/end_to_end.yml | tee end-to-end.yml\necho \"-------------------------------------------------------------------------------\"\nworkflows/end_to_end/submit_workflow.sh end-to-end.yml\n"}, WorkingDir:"", Ports:[]core.ContainerPort(nil), EnvFrom:[]core.EnvFromSource(nil), Env:[]core.EnvVar{core.EnvVar{Name:"GOOGLE_APPLICATION_CREDENTIALS", Value:"/secret/gcp-credentials/key.json", ValueFrom:(*core.EnvVarSource)(nil)}, core.EnvVar{Name:"CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE", Value:"/secret/gcp-credentials/key.json", ValueFrom:(*core.EnvVarSource)(nil)}, core.EnvVar{Name:"PROGNOSTIC_RUN_IMAGE", Value:"", ValueFrom:(*core.EnvVarSource)(0xc00e566fa0)}, core.EnvVar{Name:"CONFIG", Value:"/etc/config", ValueFrom:(*core.EnvVarSource)(nil)}}, Resources:core.ResourceRequirements{Limits:core.ResourceList(nil), Requests:core.ResourceList{"cpu":resource.Quantity{i:resource.int64Amount{value:2, scale:0}, d:resource.infDecAmount{Dec:(*inf.Dec)(nil)}, s:"2", Format:"DecimalSI"}, "memory":resource.Quantity{i:resource.int64Amount{value:2, scale:9}, d:resource.infDecAmount{Dec:(*inf.Dec)(nil)}, s:"2G", Format:"DecimalSI"}}}, VolumeMounts:[]core.VolumeMount{core.VolumeMount{Name:"gcp-key-secret", ReadOnly:true, MountPath:"/secret/gcp-credentials", SubPath:"", MountPropagation:(*core.MountPropagationMode)(nil), SubPathExpr:""}, core.VolumeMount{Name:"end-to-end-config", ReadOnly:false, MountPath:"/etc/config/", SubPath:"", MountPropagation:(*core.MountPropagationMode)(nil), SubPathExpr:""}}, VolumeDevices:[]core.VolumeDevice(nil), LivenessProbe:(*core.Probe)(nil), ReadinessProbe:(*core.Probe)(nil), Lifecycle:(*core.Lifecycle)(nil), TerminationMessagePath:"/dev/termination-log", TerminationMessagePolicy:"File", ImagePullPolicy:"Always", SecurityContext:(*core.SecurityContext)(nil), Stdin:false, StdinOnce:false, TTY:false}}, RestartPolicy:"Never", TerminationGracePeriodSeconds:(*int64)(0xc007582de0), ActiveDeadlineSeconds:(*int64)(nil), DNSPolicy:"ClusterFirst", NodeSelector:map[string]string(nil), ServiceAccountName:"integration-tests", AutomountServiceAccountToken:(*bool)(nil), NodeName:"", SecurityContext:(*core.PodSecurityContext)(0xc015d50a10), ImagePullSecrets:[]core.LocalObjectReference(nil), Hostname:"", Subdomain:"", Affinity:(*core.Affinity)(nil), SchedulerName:"default-scheduler", Tolerations:[]core.Toleration{core.Toleration{Key:"dedicated", Operator:"", Value:"climate-sim-pool", Effect:"NoSchedule", TolerationSeconds:(*int64)(nil)}}, HostAliases:[]core.HostAlias(nil), PriorityClassName:"", Priority:(*int32)(nil), DNSConfig:(*core.PodDNSConfig)(nil), ReadinessGates:[]core.PodReadinessGate(nil), RuntimeClassName:(*string)(nil), EnableServiceLinks:(*bool)(nil)}}: field is immutable
+```
+
+This mess means that the job-name already exists in the cluster. You could delete it with `kubectl delete job <jobname>`, but it is probably preferable to keep the job in the cluster for posterity. For production use, it is better to change the `nameSuffix` in the `kustomization.yaml` folder, which will generate a unique name.
+
+
 [fv3net]: https://github.com/VulcanClimateModeling/fv3net
+[kustomize]: https://kustomize.io/ 

@@ -3,11 +3,12 @@ kind: Job
 metadata:
   labels:
     app: integration-test
-  # do not use generateName. we want this to be deterministic
-  name: $JOBNAME
+  name: end-to-end
 spec:
   backoffLimit: 0
   template:
+    metadata:
+      generateName: end-to-end-pod-
     spec:
       serviceAccountName: integration-tests
       containers:
@@ -29,7 +30,7 @@ spec:
           - name: PROGNOSTIC_RUN_IMAGE
             valueFrom:
               configMapKeyRef:
-                name: $CONFIGMAP
+                name: end-to-end
                 key: PROGNOSTIC_RUN_IMAGE
           - name: CONFIG
             value: /etc/config
@@ -43,7 +44,7 @@ spec:
             name: gcp-key-secret
             readOnly: true
           - mountPath:  /etc/config/
-            name: end-to-end-config
+            name: config-vol
       restartPolicy: Never
       terminationGracePeriodSeconds: 30
       tolerations:
@@ -55,10 +56,7 @@ spec:
           secret:
             defaultMode: 444
             secretName: gcp-key
-        - name: end-to-end-config
+        - name: config-vol
           configMap:
             name: end-to-end
-        - name: timesteps-config
-          configMap:
-            name: timesteps
             
