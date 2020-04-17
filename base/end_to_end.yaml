@@ -43,7 +43,7 @@ experiment:
           location: gs://vcm-ml-data/test-end-to-end-integration/C48-input-for-one-step-jobs
         experiment_yaml: $CONFIG/one_step_jobs_integration.yml
         docker_image: $PROGNOSTIC_RUN_IMAGE
-        timesteps: $(CONFIG)/one_step_times.json
+        timesteps: $ONE_STEP_TIMES
         --config-version: v0.3
 
     create_training_data:
@@ -54,7 +54,7 @@ experiment:
         diagnostics_data:
           from: coarsen_diagnostics
         variable_filename: $CONFIG/create_training_data_variable_names.yml
-        # timestep_splits: $(CONFIG)/training_times.json
+        timestep_splits: $TRAINING_TIMES
         --timesteps-per-output-file: 1
         --train-fraction: 0.5
         

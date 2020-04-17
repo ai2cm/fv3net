@@ -10,13 +10,14 @@ configMapGenerator:
     literals:
     # prognostic_run is changed here
     # this information is not needed to configure the k8s resources
-    - PROGNOSTIC_RUN_IMAGE=us.gcr.io/fv3net:latest
+    - PROGNOSTIC_RUN_IMAGE=us.gcr.io/fv3net:09aa6537560051eefcec5b694c22fa94cee3e478
     files:
     - one_step_times.json
     - training_times.json
     - end_to_end.yaml
+    - time-control.yaml
 images:
   # fv3net image is changed here
 - name: us.gcr.io/vcm-ml/fv3net
   newName: us.gcr.io/vcm-ml/fv3net
-  newTag: latest
+  newTag: 09aa6537560051eefcec5b694c22fa94cee3e478
