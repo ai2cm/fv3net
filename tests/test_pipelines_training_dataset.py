@@ -5,7 +5,6 @@ import xarray as xr
 from fv3net.pipelines.create_training_data.pipeline import (
     _add_apparent_sources,
     _add_physics_tendencies,
-    _window_with_overlap,
 )
 from fv3net.pipelines.create_training_data.helpers import (
     _convert_forecast_time_to_timedelta,
