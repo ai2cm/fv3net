@@ -113,4 +113,11 @@ MAPPABLE_VAR_KWARGS = {
     },
 }
 
-DROPVARS_2D = ('total_water', 'precipitable_water', 'total_heat', 'psurf_abs', 'precipitable_water_abs', 'total_heat_abs')
+DROPVARS_2D = (
+    "total_water",
+    "precipitable_water",
+    "total_heat",
+    "psurf_abs",
+    "precipitable_water_abs",
+    "total_heat_abs",
+)

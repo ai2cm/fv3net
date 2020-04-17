@@ -19,7 +19,7 @@ from fv3net.diagnostics.one_step_jobs import (
     STEP_DIM,
     DIURNAL_VAR_MAPPING,
     DROPVARS_2D,
-    thermo
+    thermo,
 )
 from fv3net.pipelines.common import subsample_timesteps_at_interval
 from fv3net.pipelines.create_training_data.helpers import load_hires_prog_diag
@@ -192,10 +192,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             ),
             "total_precipitation": (
                 (ds["total_precipitation"] * kg_m2s_to_mm_day).assign_attrs(
-                    {
-                        "long name": "total precipitation",
-                        "units": "mm/day",
-                    }
+                    {"long name": "total precipitation", "units": "mm/day"}
                 )
             ),
         }
@@ -600,7 +597,9 @@ def insert_area_means(
     return ds
 
 
-def shrink_ds(ds: xr.Dataset, dropvars_2d: Sequence = DROPVARS_2D, vertical_dim: str = "z"):
+def shrink_ds(
+    ds: xr.Dataset, dropvars_2d: Sequence = DROPVARS_2D, vertical_dim: str = "z"
+):
 
     dropvars = list(dropvars_2d)
     for var in ds:
