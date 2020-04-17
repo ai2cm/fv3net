@@ -122,7 +122,10 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
             dim=DELTA_DIM,
         )
         comparison_ds[hi_res_diag_var] = comparison_ds[hi_res_diag_var].assign_attrs(
-            {"long_name": hi_res_diag_var}
+            {
+                "long_name": hi_res_diag_var,
+                "units": states_and_tendencies[hi_res_diag_var_full].attrs["units"],
+            }
         )
         f = plot_model_run_maps_across_time_dim(
             comparison_ds,

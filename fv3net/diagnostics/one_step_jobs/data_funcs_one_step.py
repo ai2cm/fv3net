@@ -381,7 +381,7 @@ def insert_diurnal_means(
             {
                 f"{var}_land": xr.concat(
                     [da_hires_land, da_residual_land], dim=DELTA_DIM
-                ).assign_coords({DELTA_DIM: ["hi-res - coarse", "coarse"]})
+                ).assign_coords({DELTA_DIM: ["hi-res", "hi-res - coarse"]})
             }
         )
         ds[f"{var}_land"].attrs.update(ds[residual_name].attrs)
@@ -405,7 +405,7 @@ def insert_diurnal_means(
             {
                 f"{var}_sea": xr.concat(
                     [da_hires_sea, da_residual_sea], dim=DELTA_DIM
-                ).assign_coords({DELTA_DIM: ["hi-res - coarse", "coarse"]})
+                ).assign_coords({DELTA_DIM: ["hi-res", "hi-res - coarse"]})
             }
         )
         ds[f"{var}_sea"].attrs.update(ds[residual_name].attrs)
