@@ -1,9 +1,0 @@
-bases:
-  - "../base"
-
-configMapGenerator:
-- files:
-    - one_step_times.json
-    - training_times.json
-  name: end-to-end
-  behavior: merge
