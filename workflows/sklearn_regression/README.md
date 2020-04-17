@@ -1,19 +1,19 @@
 ## Training and testing sklearn models
 
 ### Training
-To train a sklearn regression model, create a training configuration yaml and execute 
+To train a sklearn regression model, create a training configuration yaml and execute
 the script `train_sklearn.sh`. The script will create a timestamped directory and save
 the trained model output as well as a copy of the model configuration.
 
 Example shell script:
 ```
-python -m fv3net.regression.sklearn.train \
+python -m fv3net.regression.sklearn \
   gs://vcm-ml-data/test_annak/2020-02-05_train_data_pipeline #input data path where "train" folder is located
   example_rf_training_config.yml \
   {output_data_path} \
   --delete-local-results-after-upload True
 ```
-The last two arguments are optional and allow the user to save the output directory to 
+The last two arguments are optional and allow the user to save the output directory to
 a remote storage location instead of a local directory.
 
 Example model configuration YAML:
@@ -39,14 +39,14 @@ output_variables:  # variables to predict
 
 ```
 Currently, only random forests are implemented for training sklearn models in fv3net.
-Note that the total number of trees in the random forest will be 
+Note that the total number of trees in the random forest will be
 `hyperparameters.n_estimators * num_batches`.
 
 
 ### Testing
 The script `test_sklearn.sh` will use a trained model to predict diagnostics on a test
 dataset. The resulting figures as well as a consolidated html report will be saved to
-a timestamped output directory. 
+a timestamped output directory.
 
 Example shell script:
 ```

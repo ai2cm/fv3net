@@ -14,14 +14,14 @@ experiment:
     - test_sklearn_model
     - prognostic_run
     - baseline_run
-  
+
   steps_config:
     coarsen_restarts:
       command: python -m fv3net.pipelines.coarsen_restarts
       args:
         data_to_coarsen:
           location: gs://vcm-ml-data/test-end-to-end-integration/C384-restarts
-        grid_spec: 
+        grid_spec:
           location: gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy
         source-resolution: 384
         target-resolution: 48
@@ -30,7 +30,7 @@ experiment:
     coarsen_diagnostics:
       command: python workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.py
       args:
-        c384_diagnostics: 
+        c384_diagnostics:
           location: gs://vcm-ml-data/test-end-to-end-integration/C384-diagnostics/gfsphysics_15min_coarse.zarr
         coarsening_config: $CONFIG/coarsen_c384_diagnostics_integration.yml
 
@@ -54,15 +54,15 @@ experiment:
         variable_filename: $CONFIG/create_training_data_variable_names.yml
         --timesteps-per-output-file: 1
         --train-fraction: 0.5
-        
+
     train_sklearn_model:
-      command: python -m fv3net.regression.sklearn.train
+      command: python -m fv3net.regression.sklearn
       args:
         training_data:
           from: create_training_data
         train-config-file: $CONFIG/train_sklearn_model.yml
-        
-    test_sklearn_model: 
+
+    test_sklearn_model:
       command: python -m fv3net.diagnostics.sklearn_model_performance
       args:
         trained_model:
