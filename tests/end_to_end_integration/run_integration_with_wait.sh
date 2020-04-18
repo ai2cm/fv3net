@@ -2,25 +2,35 @@
 
 set -e
 
+if [[ $# != 1 ]]
+then
+    echo "usage: tests/end_to_end_integration/run_integration_with_wait.sh <version>"
+    exit 1
+fi
+
 SLEEP_TIME=60
+
+function getJob {
+    kubectl get job -n $1 $2 -o json | jq '.items[0]'
+}
 
 function waitForComplete {
     # Sleep while job is active
     jobName=$1
     NAMESPACE=$2
     timeout=$(date -ud "30 minutes" +%s)
-    job_active=$(kubectl get job -n "$NAMESPACE" "$jobName" -o json | jq --raw-output .status.active)
+    job_active=$(getJob $NAMESPACE $jobName| jq --raw-output .status.active)
     echo "$job_active"
     while [[ $(date +%s) -le $timeout ]] && [[ $job_active == "1" ]]
     do
         echo "$(date \"+%Y-%m-%d %H:%M\")" Job active: "$jobName" ... sleeping ${SLEEP_TIME}s
         sleep $SLEEP_TIME
-        job_active=$(kubectl get job -n "$NAMESPACE" "$jobName" -o json | jq --raw-output .status.active)
+        job_active=$(getJob $NAMESPACE $jobName| jq --raw-output .status.active)
     done
 
     # Check for job success
-    job_succeed=$(kubectl get job -n "$NAMESPACE" "$jobName" -o json | jq --raw-output .status.succeeded)
-    job_fail=$(kubectl get job -n "$NAMESPACE" "$jobName" -o json | jq --raw-output .status.failed)
+    job_succeed=$(getJob $NAMESPACE $jobName | jq --raw-output .status.succeeded)
+    job_fail=$(getJob $NAMESPACE $jobName | jq --raw-output .status.failed)
     if [[ $job_succeed == "1" ]]
     then
         echo Job successful: "$jobName"
@@ -36,30 +46,37 @@ function waitForComplete {
     fi
 }
 
-export PROGNOSTIC_RUN_IMAGE=$1
-export FV3NET_IMAGE=$2
+VERSION=$1
 
-TESTDIR=$(pwd)/tests/end_to_end_integration
-NAMESPACE=default
-JOBNAME=integration-test-$(date +%F)-$(openssl rand -hex 6)
-CONFIGMAP=integration-test-$(date +%F)-$(openssl rand -hex 6)
-export JOBNAME CONFIGMAP
+cd tests/end_to_end_integration/
 
-K8S_TEMPLATE=$TESTDIR/job_template.yml
-E2E_TEMPLATE=$TESTDIR/end_to_end_template.yml
+random=$(openssl rand --hex 6)
+suffix=-integration-test-$random
+jobname=v1end-to-end${suffix}
 
+cat << EOF > kustomization/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+  - "../vcm-workflow-control/base"
+nameSuffix: "$suffix"
+commonLabels: 
+  waitForMe: "$random"
+configMapGenerator:
+- files:
+    - time-control.yaml
+  literals:
+    - PROGNOSTIC_RUN_IMAGE=us.gcr.io/fv3net:$VERSION
+  name: end-to-end
+  behavior: merge
+images:
+- name: us.gcr.io/vcm-ml/fv3net
+  newName: us.gcr.io/vcm-ml/fv3net
+  newTag: $VERSION
+EOF
 
-workdir=$(mktemp -d)
+echo "Running tests with this kustomization.yaml:"
+cat kustomization/kustomization.yaml
 
-(
-    cd "$workdir"
-    envsubst < "$E2E_TEMPLATE" > end-to-end.yml
-    envsubst < "$K8S_TEMPLATE" > job.yml
-
-    # use config map to make the end to end yaml available to the job
-    kubectl create configmap -n $NAMESPACE "$CONFIGMAP" --from-file=end-to-end.yml
-    kubectl apply -n $NAMESPACE -f job.yml
-    waitForComplete "$JOBNAME" "$NAMESPACE"
-)
-
-rm -rf "$workdir"
+kubectl apply -k kustomization
+waitForComplete -lwaitForMe="$random" default

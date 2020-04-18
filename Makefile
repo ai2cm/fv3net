@@ -59,10 +59,7 @@ build_ci_image:
 
 # run integration tests
 run_integration_tests:
-	./tests/end_to_end_integration/run_integration_with_wait.sh \
-	    $(PROGNOSTIC_RUN_IMAGE):$(VERSION) \
-	    $(FV3NET_IMAGE):$(VERSION) \
-
+	./tests/end_to_end_integration/run_integration_with_wait.sh $(VERSION)
 
 test:
 	pytest external/* tests
