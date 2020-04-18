@@ -17,8 +17,14 @@ from fv3net.diagnostics.one_step_jobs import (
     DELTA_DIM,
     VAR_TYPE_DIM,
     STEP_DIM,
+    GLOBAL_MEAN_2D_VARS,
+    GLOBAL_MEAN_3D_VARS,
     DIURNAL_VAR_MAPPING,
-    DROPVARS_2D,
+    DQ_MAPPING,
+    DQ_PROFILE_MAPPING,
+    PROFILE_COMPOSITES,
+    GLOBAL_2D_MAPS,
+    GRID_VARS,
     thermo,
 )
 from fv3net.pipelines.common import subsample_timesteps_at_interval
@@ -597,13 +603,41 @@ def insert_area_means(
     return ds
 
 
-def shrink_ds(
-    ds: xr.Dataset, dropvars_2d: Sequence = DROPVARS_2D, vertical_dim: str = "z"
-):
+def shrink_ds(ds: xr.Dataset):
+    """SHrink the datast to the variables actually used in plotting
+    """
+    keepvars = set(
+        [f"{var}_global_mean" for var in list(GLOBAL_MEAN_2D_VARS)]
+        + [
+            f"{var}_{composite}_mean"
+            for var in list(GLOBAL_MEAN_3D_VARS)
+            for composite in ["global", "sea", "land"]
+        ]
+        + [
+            f"{var}_{domain}"
+            for var in DIURNAL_VAR_MAPPING
+            for domain in ["land", "sea"]
+        ]
+        + [
+            item
+            for spec in DQ_MAPPING.values()
+            for item in [f"{spec['hi-res_name']}_physics", spec["hi-res - coarse_name"]]
+        ]
+        + [
+            f"{dq_var}_{composite}"
+            for dq_var in list(DQ_PROFILE_MAPPING)
+            for composite in list(PROFILE_COMPOSITES)
+        ]
+        + list(GLOBAL_2D_MAPS)
+        + list(GRID_VARS)
+    )
+    print(keepvars)
+    dropvars = set(ds.data_vars).difference(keepvars)
+    print(dropvars)
 
-    dropvars = list(dropvars_2d)
-    for var in ds:
-        if vertical_dim in ds[var].dims and "tile" in ds[var].dims:
-            dropvars.append(var)
+    #     dropvars = list(dropvars_2d)
+    #     for var in ds:
+    #         if vertical_dim in ds[var].dims and "tile" in ds[var].dims:
+    #             dropvars.append(var)
 
     return ds.drop_vars(dropvars)

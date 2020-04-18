@@ -9,6 +9,7 @@ from fv3net.diagnostics.one_step_jobs import (
     DIURNAL_VAR_MAPPING,
     DQ_MAPPING,
     DQ_PROFILE_MAPPING,
+    PROFILE_COMPOSITES,
     GLOBAL_2D_MAPS,
     MAPPABLE_VAR_KWARGS,
 )
@@ -148,12 +149,6 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     section_name = "dQ profiles across forecast time"
     logger.info(f"Plotting {section_name}")
 
-    composites = [
-        "pos_PminusE_land_mean",
-        "neg_PminusE_land_mean",
-        "pos_PminusE_sea_mean",
-        "neg_PminusE_sea_mean",
-    ]
     dQ_profile_maps = []
     for ds_name, dQ_info in DQ_PROFILE_MAPPING.items():
         dQ_name = dQ_info["name"]
@@ -166,7 +161,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
             ds_name,
             dQ_name,
             dQ_type,
-            composites,
+            PROFILE_COMPOSITES,
             stride=stride,
             scale=scale,
         )

@@ -82,6 +82,13 @@ DQ_PROFILE_MAPPING = {
     "vertical_wind": {"name": "dW", VAR_TYPE_DIM: "states", "scale": 0.05},
 }
 
+PROFILE_COMPOSITES = (
+    "pos_PminusE_land_mean",
+    "neg_PminusE_land_mean",
+    "pos_PminusE_sea_mean",
+    "neg_PminusE_sea_mean",
+)
+
 GLOBAL_MEAN_3D_VARS = {
     "specific_humidity": {VAR_TYPE_DIM: "tendencies", "scale": 1e-7},
     "air_temperature": {VAR_TYPE_DIM: "tendencies", "scale": 1e-4},
@@ -112,12 +119,3 @@ MAPPABLE_VAR_KWARGS = {
         "lat": ["y", "x", "tile"],
     },
 }
-
-DROPVARS_2D = (
-    "total_water",
-    "precipitable_water",
-    "total_heat",
-    "psurf_abs",
-    "precipitable_water_abs",
-    "total_heat_abs",
-)
