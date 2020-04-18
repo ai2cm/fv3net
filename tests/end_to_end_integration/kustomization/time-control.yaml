@@ -1,5 +1,7 @@
-url: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48 
-boundary: "20160901.000000"
+# TODO make the url a command line argument, and put it as a literal in the kustomization.yaml
+# This has to match the data specified in the input_data.env currently
+url: gs://vcm-ml-data/test-end-to-end-integration/C48-input-for-one-step-jobs/
+boundary: "20160801.010000"
 train_samples: 3
 test_samples: 3
 seed: "0"
