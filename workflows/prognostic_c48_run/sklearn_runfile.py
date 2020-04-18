@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
 TOTAL_PRECIP = "total_precipitation"
-VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP]
+VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP, TOTAL_PRECIP]
 
 cp = 1004
 gravity = 9.81
