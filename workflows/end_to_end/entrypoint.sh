@@ -2,6 +2,12 @@
 
 set -e
 
+echo "Running and end-to-end pipeline:"
+echo "Environment variables:"
+echo "-------------------------------------------------------------------------------"
+env
+echo "-------------------------------------------------------------------------------"
+
 TRAINING_TIMES="$(pwd)/training_times.json"
 ONE_STEP_TIMES="$(pwd)/one_step_times.json"
 
