@@ -66,6 +66,7 @@ commonLabels:
 configMapGenerator:
 - files:
     - time-control.yaml
+  env: input_data.env
   literals:
     - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:$VERSION
   name: end-to-end
