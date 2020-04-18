@@ -23,7 +23,7 @@ echo "--------------------------------------------------------------------------
 echo "running the following end to end configuration:"
 echo "-------------------------------------------------------------------------------"
 export TRAINING_TIMES ONE_STEP_TIMES
-envsubst < "$CONFIG/end_to_end.yaml" | tee end-to-end.yml
+envsubst < "workflows/end_to_end/end_to_end.yaml" | tee end-to-end.yml
 echo "-------------------------------------------------------------------------------"
 
 workflows/end_to_end/submit_workflow.sh end-to-end.yml
