@@ -54,7 +54,7 @@ def compute_metrics_and_plot(ds, output_dir, names):
         var_area=names["var_area"],
         var_pressure_thickness=names["var_pressure_thickness"],
     )
-    with open(os.join(output_dir, "metrics_scalars.json"), "w") as f:
+    with open(os.path.join(output_dir, "metrics_scalars.json"), "w") as f:
         json.dump(scalar_metrics, f)
 
     # TODO This should be another script
