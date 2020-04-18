@@ -71,6 +71,7 @@ configMapGenerator:
   env: input_data.env
   literals:
     - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:$VERSION
+    - JOBNAME=integration-debug
   name: end-to-end
   behavior: merge
 images:
@@ -82,5 +83,6 @@ EOF
 echo "Running tests with this kustomization.yaml:"
 cat kustomization/kustomization.yaml
 
+# kubectl apply -k  kustomization --dry-run  -o yaml
 kubectl apply -k kustomization
 waitForComplete -lwaitForMe="$random" default
