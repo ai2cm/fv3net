@@ -2,6 +2,23 @@
 # TODO this utility should be refactored to shared micropackage or vcm
 from fv3net.pipelines.kube_jobs import update_nested_dict
 
+# TODO revamp this default dictionary to be more declaretive. It should specify:
+# what the output variables names are, and where each comes from e.g.:
+#
+# - name: surface_geopotential
+#   rename:
+#     from: one_step
+#     name: surface_geopotential # maybe infer from above
+# - name: PRATEsfc_highres
+#   rename:
+#     from: high_res
+#     name: PRATEsfc_coarse
+# - name: dQU
+#   apparent_source:
+#     variable: x_wind
+  
+
+
 DEFAULT = {
     "suffix_hires": "prog",
     "suffix_coarse_train": "train",
