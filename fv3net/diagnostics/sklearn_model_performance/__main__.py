@@ -20,6 +20,7 @@ from .diagnostics import plot_diagnostics
 from .create_metrics import create_metrics_dataset
 from .plot_metrics import plot_metrics
 from .plot_timesteps import plot_timestep_counts
+import logging
 
 DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
@@ -36,6 +37,9 @@ DPI_FIGURES = {
     "map_plot_3col": 120,
     "map_plot_single": 100,
 }
+
+
+logger = logging.getLogger(__file__)
 
 
 def _is_remote(path):
@@ -98,6 +102,7 @@ def load_data_and_predict_with_ml(
     # TODO I bet this output preparation could be cleaned up.
     # TODO this function mixes I/O and computation
     # Should just be 1. load_data, 2. make a prediction
+    logger.info("loading test data and making prediction")
     ds_test, ds_pred = predict_on_test_data(
         test_data_path,
         model_path,
@@ -130,6 +135,7 @@ def load_data_and_predict_with_ml(
     )
 
     # TODO Do all data merginig and loading before computing anything
+    logger.info("Loading high-resolution diagnostics")
     init_times = list(set(ds_test[names["init_time_dim"]].values))
     ds_hires = load_high_res_diag_dataset(
         high_res_data_path,
@@ -199,6 +205,9 @@ if __name__ == "__main__":
         default=1,
         help="Factor by which to downsample test set time steps",
     )
+
+    logging.basicConfig(level=logging.INFO)
+
     args = parser.parse_args()
     args.test_data_path = os.path.join(args.test_data_path, "test")
     with open(args.variable_names_file, "r") as f:

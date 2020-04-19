@@ -43,6 +43,7 @@ experiment:
         experiment_yaml: $CONFIG/one_step_jobs.yml
         docker_image: $PROGNOSTIC_RUN_IMAGE
         timesteps: $ONE_STEP_TIMES
+        # TODO the config-version should be included in the one_step_jobs. Similar to how k8s yamls are.
         --config-version: v0.3
 
     create_training_data:
@@ -53,7 +54,6 @@ experiment:
         diagnostics_data:
           from: coarsen_diagnostics
         timestep_splits: $TRAINING_TIMES
-        --timesteps-per-output-file: 1
         
     train_sklearn_model:
       command: python -m fv3net.regression.sklearn.train

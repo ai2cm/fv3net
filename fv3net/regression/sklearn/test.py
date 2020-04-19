@@ -5,11 +5,12 @@ import os
 
 from ..dataset_handler import stack_and_drop_nan_samples
 from vcm.convenience import round_time
-
+import logging
 
 MODEL_FILENAME = "sklearn_model.pkl"
 SAMPLE_DIM = "sample"
 
+logger = logging.getLogger(__name__)
 
 def load_test_dataset(
     test_data_path,
@@ -28,6 +29,7 @@ def load_test_dataset(
     Returns:
         xarray dataset created by concatenating test data zarrs
     """
+    logger.info("Loading test dataset")
     # TODO I/O buried very deep in the call stack. This should happen at the entrypoint.
     fs = fsspec.get_fs(test_data_path)
     test_data_urls = load_downsampled_time_range(

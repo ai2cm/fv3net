@@ -1,5 +1,40 @@
 from typing import cast, Sequence, Hashable
 import xarray as xr
+import warnings
+from contextlib import contextmanager
+
+
+class Warner:
+    """Class for managing warnings for unsafe functions in commonly used libraries"""
+    def __init__(self):
+        self.warn = True
+
+    @contextmanager
+    def allow(self):
+        self.warn = False
+        yield
+        self.warn = True
+
+    def warn_on_use(self, class_, method):
+        func = getattr(class_, method)
+
+        def myfunc(*args, **kwargs):
+            if self.warn:
+                warnings.warn(name + " is unsafe. Please avoid use in long-running code.")
+            return func(*args, **kwargs)
+
+        name = class_.__name__ + '.' + method
+        setattr(class_, method, myfunc)
+
+
+blacklist = [
+    (xr.Dataset, "stack"),
+    (xr.Dataset, "__getitem__"),
+]
+
+warner = Warner()
+for class_, method in blacklist:
+    warner.warn_on_use(class_, method)
 
 
 def get_variables(ds: xr.Dataset, variables: Sequence[Hashable]) -> xr.Dataset:
@@ -36,4 +71,5 @@ def stack_once(
 ):
     """Stack once raising ValueError if any unexpected broadcasting occurs"""
     _validate_stack_dims(ds, dims, allowed_broadcast_dims)
-    return ds.stack({dim: dims})
+    with warner.allow():
+        return ds.stack({dim: dims})
