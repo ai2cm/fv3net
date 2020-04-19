@@ -2,11 +2,7 @@ import xarray as xr
 import numpy as np
 import pytest
 
-from xarray_safe import __version__
-from xarray_safe.core import _validate_stack_dims
-
-def test_version():
-    assert __version__ == "0.1.0"
+from vcm.safe import _validate_stack_dims, stack_once # noqa
 
 
 def test__validate_stack_dims_ok():
