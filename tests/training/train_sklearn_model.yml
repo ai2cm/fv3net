@@ -1,0 +1,17 @@
+model_type: sklearn_random_forest
+hyperparameters:
+  max_depth: 13
+  n_estimators: 1
+num_batches: 3
+mask_to_surface_type: none
+files_per_batch: 1
+input_variables:
+  - air_temperature
+  - specific_humidity
+output_variables:
+  - dQ1
+  - dQ2
+
+init_time_dim: "initial_time"
+coord_z_center: "z"
+
