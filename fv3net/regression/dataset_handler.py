@@ -17,18 +17,6 @@ fh.setLevel(logging.INFO)
 logger.addHandler(fh)
 
 
-def _validate_stack_dims(ds, dims, allowed_broadcast_dims=()):
-    """Don't broadcast arrays"""
-    for variable in ds:
-        var_dims = ds[variable].dims
-        broadcast_dims = set(dims) - (set(var_dims) | set(allowed_broadcast_dims))
-        if len(broadcast_dims) > 0:
-            raise ValueError(
-                f"{variable} will be broadcast to include unallowed dimensions {broadcast_dims}. "
-                "This could greatly increase the size of dataset."
-            )
-
-
 class RemoteDataError(Exception):
     """ Raised for errors reading data from the cloud that
     may be resolved upon retry.

@@ -70,7 +70,7 @@ def load_model_training_config(config_path, gcs_data_dir):
     return config
 
 
-def load_data_generator(train_config):
+def load_data_generator(train_config) -> BatchGenerator:
     """
 
     Args:
@@ -116,7 +116,7 @@ def _get_regressor(train_config):
     return regressor
 
 
-def train_model(batched_data, train_config):
+def train_model(batched_data: BatchGenerator, train_config):
     """
 
     Args:
@@ -146,20 +146,14 @@ def train_model(batched_data, train_config):
         )
     ):
         logger.info(f"Fitting batch {i}/{batched_data.num_batches}")
-        try:
-            breakpoint()
-            model_wrapper.fit(
-                input_vars=train_config.input_variables,
-                output_vars=train_config.output_variables,
-                sample_dim="sample",
-                data=batch,
-            )
-            logger.info(f"Batch {i} done fitting.")
-            training_urls_used += training_urls_to_attempt[i]
-        except ValueError as e:
-            logger.error(f"Error training on batch {i}: {e}")
-            train_config.num_batches_used -= 1
-            continue
+        model_wrapper.fit(
+            input_vars=train_config.input_variables,
+            output_vars=train_config.output_variables,
+            sample_dim="sample",
+            data=batch,
+        )
+        logger.info(f"Batch {i} done fitting.")
+        training_urls_used += training_urls_to_attempt[i]
 
     return model_wrapper, training_urls_used
 
