@@ -6,6 +6,7 @@ import numpy as np
 import xarray as xr
 
 import vcm
+from vcm import safe
 from vcm.cloud.fsspec import get_fs
 
 SAMPLE_DIM = "sample"
@@ -90,9 +91,12 @@ class BatchGenerator:
         ds = xr.concat(data, init_time_dim)
         ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type)
         stack_dims = [dim for dim in ds.dims if dim != coord_z_center]
-        _validate_stack_dims(
-            ds, stack_dims, allowed_broadcast_dims=[coord_z_center, init_time_dim])
-        ds_stacked = ds.stack({SAMPLE_DIM: stack_dims}).transpose(SAMPLE_DIM, coord_z_center)
+        ds_stacked = safe.stack_once(
+            ds,
+            SAMPLE_DIM,
+            stack_dims,
+            allowed_broadcast_dims=[coord_z_center, init_time_dim],
+        )
 
         ds_no_nan = ds_stacked.dropna(SAMPLE_DIM)
 
