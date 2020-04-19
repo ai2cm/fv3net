@@ -37,6 +37,7 @@ if __name__ == "__main__":
     )
 
     args, pipeline_args = parser.parse_known_args()
+    print(args)
 
     if args.variable_namefile is None:
         updates = {}
