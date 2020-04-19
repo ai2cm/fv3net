@@ -89,6 +89,7 @@ class BatchGenerator:
         # impossible to test.
         data = self._load_datasets(urls)
         ds = xr.concat(data, init_time_dim)
+        ds = safe.get_variables(ds, self.data_vars)
         ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type)
         stack_dims = [dim for dim in ds.dims if dim != coord_z_center]
         ds_stacked = safe.stack_once(
