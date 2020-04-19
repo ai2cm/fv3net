@@ -16,6 +16,8 @@ from fv3net.pipelines.kube_jobs import update_nested_dict
 # - name: dQU
 #   apparent_source:
 #     variable: x_wind
+#
+# I suspect this could be pretty easily parsed into the format below, or the code restructed to use this instead.
   
 
 

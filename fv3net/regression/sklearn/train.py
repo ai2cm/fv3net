@@ -147,6 +147,7 @@ def train_model(batched_data, train_config):
     ):
         logger.info(f"Fitting batch {i}/{batched_data.num_batches}")
         try:
+            breakpoint()
             model_wrapper.fit(
                 input_vars=train_config.input_variables,
                 output_vars=train_config.output_variables,

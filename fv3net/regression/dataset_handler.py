@@ -115,7 +115,7 @@ class BatchGenerator:
             num_train_batches = total_num_input_files // self.files_per_batch
         elif self.num_batches * self.files_per_batch > total_num_input_files:
             if self.num_batches > total_num_input_files:
-                raise ValueError("Fewer input files than number of requested batches.")
+                raise ValueError(f"Number of input_files {total_num_input_files} smaller than {self.num_batches}.")
             num_train_batches = total_num_input_files // self.files_per_batch
         else:
             num_train_batches = self.num_batches
