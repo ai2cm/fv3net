@@ -17,6 +17,18 @@ fh.setLevel(logging.INFO)
 logger.addHandler(fh)
 
 
+def _validate_stack_dims(ds, dims, allowed_broadcast_dims=()):
+    """Don't broadcast arrays"""
+    for variable in ds:
+        var_dims = ds[variable].dims
+        broadcast_dims = set(dims) - (set(var_dims) | set(allowed_broadcast_dims))
+        if len(broadcast_dims) > 0:
+            raise ValueError(
+                f"{variable} will be broadcast to include unallowed dimensions {broadcast_dims}. "
+                "This could greatly increase the size of dataset."
+            )
+
+
 class RemoteDataError(Exception):
     """ Raised for errors reading data from the cloud that
     may be resolved upon retry.
@@ -89,9 +101,10 @@ class BatchGenerator:
         data = self._load_datasets(urls)
         ds = xr.concat(data, init_time_dim)
         ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type)
-        ds_stacked = ds.stack(
-            {SAMPLE_DIM: [dim for dim in ds.dims if dim != coord_z_center]}
-        ).transpose(SAMPLE_DIM, coord_z_center)
+        stack_dims = [dim for dim in ds.dims if dim != coord_z_center]
+        _validate_stack_dims(
+            ds, stack_dims, allowed_broadcast_dims=[coord_z_center, init_time_dim])
+        ds_stacked = ds.stack({SAMPLE_DIM: stack_dims}).transpose(SAMPLE_DIM, coord_z_center)
 
         ds_no_nan = ds_stacked.dropna(SAMPLE_DIM)
 
@@ -115,7 +128,9 @@ class BatchGenerator:
             num_train_batches = total_num_input_files // self.files_per_batch
         elif self.num_batches * self.files_per_batch > total_num_input_files:
             if self.num_batches > total_num_input_files:
-                raise ValueError(f"Number of input_files {total_num_input_files} smaller than {self.num_batches}.")
+                raise ValueError(
+                    f"Number of input_files {total_num_input_files} smaller than {self.num_batches}."
+                )
             num_train_batches = total_num_input_files // self.files_per_batch
         else:
             num_train_batches = self.num_batches
