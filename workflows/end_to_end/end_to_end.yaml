@@ -52,7 +52,6 @@ experiment:
           from: one_step_run
         diagnostics_data:
           from: coarsen_diagnostics
-        variable_filename: $CONFIG/create_training_data_variable_names.yml
         timestep_splits: $TRAINING_TIMES
         --timesteps-per-output-file: 1
         

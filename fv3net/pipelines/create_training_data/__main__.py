@@ -1,10 +1,17 @@
 import argparse
 import yaml
+from .config import get_config
 
 from .pipeline import run
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--variable_namefile",
+        type=str,
+        default=None,
+        help="yaml file for providing data variable names",
+    )
     parser.add_argument(
         "gcs_input_data_path",
         type=str,
@@ -16,12 +23,6 @@ if __name__ == "__main__":
         type=str,
         help="Directory containing diagnostic zarr directory coarsened from C384 "
         "for features (SHF, LHF, etc.) that are not saved in restarts.",
-    )
-    parser.add_argument(
-        "variable_namefile",
-        type=str,
-        default=None,
-        help="yaml file for providing data variable names",
     )
     parser.add_argument(
         "timesteps_file",
@@ -36,8 +37,14 @@ if __name__ == "__main__":
     )
 
     args, pipeline_args = parser.parse_known_args()
-    with open(args.variable_namefile, "r") as f:
-        names = yaml.safe_load(f)
+
+    if args.variable_namefile is None:
+        updates = {}
+    else:
+        with open(args.variable_namefile, "r") as f:
+            updates = yaml.safe_load(f)
+    names = get_config(updates)
+
     with open(args.timesteps_file, "r") as f:
         timesteps = yaml.safe_load(f)
     run(args=args, pipeline_args=pipeline_args, names=names, timesteps=timesteps)
