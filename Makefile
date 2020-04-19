@@ -46,6 +46,9 @@ push_image_%:
 	docker tag $* $(GCR_BASE)/$*:$(VERSION)
 	docker push $(GCR_BASE)/$*:$(VERSION)
 
+pull_image_%:
+	docker pull $(GCR_BASE)/$*:$(VERSION)
+
 enter: build_image
 	docker run -it -v $(shell pwd):/code \
 		-e GOOGLE_CLOUD_PROJECT=vcm-ml \
@@ -56,6 +59,7 @@ enter: build_image
 
 build_ci_image:
 	docker build -t us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest - < .circleci/dockerfile
+
 
 # run integration tests
 run_integration_tests:
