@@ -91,14 +91,10 @@ def compute_metrics_and_plot(ds, output_dir, names):
 
 
 def load_data_and_predict_with_ml(
-    test_data_path,
-    model_path,
-    high_res_data_path,
-    model_type,
-    names,
+    test_data_path, model_path, high_res_data_path, model_type, names,
 ):
     # get grid
-    # because predict_on_test_data loads data and predicts, the easiest way to grab 
+    # because predict_on_test_data loads data and predicts, the easiest way to grab
     # the grid is by loading the test_data again.
     # This redundancy should go away when predict_on_test_data is split apart
     # This is a good demonstration of how functions which do more than one things
@@ -107,8 +103,7 @@ def load_data_and_predict_with_ml(
     test_data_urls = sorted(fs.ls(test_data_path))
     mapper = fs.get_mapper(test_data_urls[0])
     ds = xr.open_zarr(mapper)
-    grid = safe.get_variables(ds, names['grid_vars'])
-
+    grid = safe.get_variables(ds, names["grid_vars"])
 
     # TODO this function mixes I/O and computation
     # Should just be 1. load_data, 2. make a prediction
@@ -120,7 +115,6 @@ def load_data_and_predict_with_ml(
         names["coord_z_center"],
         model_type,
     )
-
 
     ds_test = add_column_heating_moistening(
         ds_test,
@@ -153,15 +147,19 @@ def load_data_and_predict_with_ml(
     slmsk = ds_test[names["var_land_sea_mask"]].isel({names["init_time_dim"]: 0})
 
     # TODO ditto: do all merging of data before computing anything
-    return merge_comparison_datasets(
-        data_vars=names["data_vars"],
-        datasets=[ds_pred, ds_test, ds_hires],
-        dataset_labels=[
-            DATASET_NAME_PREDICTION,
-            DATASET_NAME_FV3_TARGET,
-            DATASET_NAME_SHIELD_HIRES,
-        ],
-    ).merge(slmsk).merge(grid)
+    return (
+        merge_comparison_datasets(
+            data_vars=names["data_vars"],
+            datasets=[ds_pred, ds_test, ds_hires],
+            dataset_labels=[
+                DATASET_NAME_PREDICTION,
+                DATASET_NAME_FV3_TARGET,
+                DATASET_NAME_SHIELD_HIRES,
+            ],
+        )
+        .merge(slmsk)
+        .merge(grid)
+    )
 
 
 if __name__ == "__main__":

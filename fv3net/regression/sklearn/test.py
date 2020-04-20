@@ -12,10 +12,9 @@ SAMPLE_DIM = "sample"
 
 logger = logging.getLogger(__name__)
 
+
 def load_test_dataset(
-    test_data_path,
-    init_time_dim="initial_time",
-    coord_z_center="z",
+    test_data_path, init_time_dim="initial_time", coord_z_center="z",
 ):
     """
 
@@ -37,10 +36,7 @@ def load_test_dataset(
         raise ValueError(f"No .zarr files found in  {test_data_path}.")
 
     ds_test = xr.concat(
-        [
-            xr.open_zarr(fs.get_mapper(file_path))
-            for file_path in zarrs_in_test_dir
-        ],
+        [xr.open_zarr(fs.get_mapper(file_path)) for file_path in zarrs_in_test_dir],
         init_time_dim,
     )
     ds_test = ds_test.assign_coords(
@@ -49,10 +45,10 @@ def load_test_dataset(
 
     # TODO (noah) dropping these variables is needed to avoid out of memory errors
     # when stack broadcasts x_interface and y_interface
-    # Ideally this woudn't be a hard-code, but this code will likely be refactored 
-    # IMO stacking is the responisiblity of the xarray wrapping object, not user code like this
-    # substantially soon, so not worth parameterizing IMO
-    ds_test = ds_test.drop(['lonb', 'latb'])
+    # Ideally this woudn't be a hard-code, but this code will likely be refactored
+    # IMO stacking is the responisiblity of the xarray wrapping object, not user code
+    # like this  substantially soon, so not worth parameterizing IMO
+    ds_test = ds_test.drop(["lonb", "latb"])
     ds_stacked = stack_and_drop_nan_samples(ds_test, coord_z_center)
     return ds_stacked
 

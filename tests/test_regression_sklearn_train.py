@@ -2,9 +2,7 @@ import xarray as xr
 import numpy as np
 
 from fv3net.regression.sklearn import train
-from fv3net.regression.dataset_handler import _shuffled, _validate_stack_dims
-
-import pytest
+from fv3net.regression.dataset_handler import _shuffled
 
 
 def test_train_save_model_succeeds(tmpdir):
@@ -33,4 +31,3 @@ def test__shuffled():
 def test__shuffled_dask():
     dataset = _dataset("sample").chunk()
     _shuffled(dataset, "sample", 1)
-

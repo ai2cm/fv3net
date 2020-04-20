@@ -1,4 +1,3 @@
-
 # TODO this utility should be refactored to shared micropackage or vcm
 from fv3net.pipelines.kube_jobs import update_nested_dict
 
@@ -17,8 +16,8 @@ from fv3net.pipelines.kube_jobs import update_nested_dict
 #   apparent_source:
 #     variable: x_wind
 #
-# I suspect this could be pretty easily parsed into the format below, or the code restructed to use this instead.
-  
+# I suspect this could be pretty easily parsed into the format below,
+# or the code restructed to use this instead.
 
 
 DEFAULT = {
@@ -111,6 +110,7 @@ DEFAULT = {
         "PRATEsfc",
     ],
 }
+
 
 def get_config(updates):
     return update_nested_dict(DEFAULT, updates)

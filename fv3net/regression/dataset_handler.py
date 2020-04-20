@@ -122,7 +122,8 @@ class BatchGenerator:
         elif self.num_batches * self.files_per_batch > total_num_input_files:
             if self.num_batches > total_num_input_files:
                 raise ValueError(
-                    f"Number of input_files {total_num_input_files} smaller than {self.num_batches}."
+                    f"Number of input_files {total_num_input_files} "
+                    f"smaller than {self.num_batches}."
                 )
             num_train_batches = total_num_input_files // self.files_per_batch
         else:
@@ -167,7 +168,8 @@ def stack_and_drop_nan_samples(ds, coord_z_center):
     # TODO delete this function
     ds = (
         safe.stack_once(
-            ds, SAMPLE_DIM, [dim for dim in ds.dims if dim != coord_z_center])
+            ds, SAMPLE_DIM, [dim for dim in ds.dims if dim != coord_z_center]
+        )
         .transpose(SAMPLE_DIM, coord_z_center)
         .dropna(SAMPLE_DIM)
     )

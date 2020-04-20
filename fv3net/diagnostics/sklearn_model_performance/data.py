@@ -51,11 +51,7 @@ def predict_on_test_data(
             predict_dataset,
         )
 
-        ds_test = load_test_dataset(
-            test_data_path,
-            init_time_dim,
-            coord_z_center,
-        )
+        ds_test = load_test_dataset(test_data_path, init_time_dim, coord_z_center,)
         sk_wrapped_model = load_model(model_path)
         logger.info("Making prediction with sklearn model")
         ds_pred = predict_dataset(sk_wrapped_model, ds_test, pred_vars_to_keep)

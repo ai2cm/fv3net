@@ -6,6 +6,7 @@ from contextlib import contextmanager
 
 class Warner:
     """Class for managing warnings for unsafe functions in commonly used libraries"""
+
     def __init__(self):
         self.warn = True
 
@@ -20,10 +21,12 @@ class Warner:
 
         def myfunc(*args, **kwargs):
             if self.warn:
-                warnings.warn(name + " is unsafe. Please avoid use in long-running code.")
+                warnings.warn(
+                    name + " is unsafe. Please avoid use in long-running code."
+                )
             return func(*args, **kwargs)
 
-        name = class_.__name__ + '.' + method
+        name = class_.__name__ + "." + method
         setattr(class_, method, myfunc)
 
 
@@ -58,8 +61,8 @@ def _validate_stack_dims(ds, dims, allowed_broadcast_dims=()):
         broadcast_dims = set(dims) - (set(var_dims) | set(allowed_broadcast_dims))
         if len(broadcast_dims) > 0:
             raise ValueError(
-                f"{variable} will be broadcast to include unallowed dimensions {broadcast_dims}. "
-                "This could greatly increase the size of dataset."
+                f"{variable} will be broadcast to include unallowed dimensions "
+                f"{broadcast_dims}. This could greatly increase the size of dataset."
             )
 
 
