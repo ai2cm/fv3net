@@ -37,7 +37,9 @@ def compute_diagnostics(state, diags):
         .assign_attrs(description="column integrated water vapor"),
         total_precip=(state[TOTAL_PRECIP] - net_moistening)
         .assign_attrs(units="kg/m^s/s")
-        .assign_attrs(description="total precipitation rate at the surface (model + ML)"),
+        .assign_attrs(
+            description="total precipitation rate at the surface (model + ML)"
+        ),
     )
 
 
