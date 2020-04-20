@@ -1,6 +1,6 @@
 [submodule "external/fv3config"]
 	path = external/fv3config
 	url = https://github.com/VulcanClimateModeling/fv3config
-[submodule "tests/end_to_end_integration/vcm-workflow-control"]
-	path = tests/end_to_end_integration/vcm-workflow-control
-	url = git@github.com:VulcanClimateModeling/vcm-workflow-control.git
+#[submodule "tests/end_to_end_integration/vcm-workflow-control"]
+#	path = tests/end_to_end_integration/vcm-workflow-control
+#	url = git@github.com:VulcanClimateModeling/vcm-workflow-control.git
