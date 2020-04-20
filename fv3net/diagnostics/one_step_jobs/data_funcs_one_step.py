@@ -631,13 +631,7 @@ def shrink_ds(ds: xr.Dataset):
         + list(GLOBAL_2D_MAPS)
         + list(GRID_VARS)
     )
-    print(keepvars)
-    dropvars = set(ds.data_vars).difference(keepvars)
-    print(dropvars)
 
-    #     dropvars = list(dropvars_2d)
-    #     for var in ds:
-    #         if vertical_dim in ds[var].dims and "tile" in ds[var].dims:
-    #             dropvars.append(var)
+    dropvars = set(ds.data_vars).difference(keepvars)
 
     return ds.drop_vars(dropvars)

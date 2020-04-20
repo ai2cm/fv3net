@@ -29,8 +29,8 @@ from fv3net.diagnostics.one_step_jobs import (
     GLOBAL_MEAN_2D_VARS,
     GLOBAL_MEAN_3D_VARS,
 )
-from fv3net.diagnostics.create_report import create_report
 from fv3net import COARSENED_DIAGS_ZARR_NAME
+import report
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import argparse
@@ -167,45 +167,86 @@ def _filter_ds(ds: Any):
     return isinstance(ds, xr.Dataset)
 
 
-def _merge_ds(pc: Sequence[xr.Dataset]) -> xr.Dataset:
-    """dataflow pipeline func for aggregating datasets across initialization time
-    """
+# def _merge_ds(pc: Sequence[xr.Dataset]) -> xr.Dataset:
+#     """dataflow pipeline func for aggregating datasets across initialization time
+#     """
 
-    try:
-        logger.info("Aggregating data across timesteps.")
-        inits = []
-        for ds in pc:
-            if isinstance(ds, xr.Dataset):
-                inits = list(set(inits).union(set(ds.attrs[INIT_TIME_DIM])))
-        ds = xr.concat(pc, dim=INIT_TIME_DIM)
-        ds.attrs[INIT_TIME_DIM] = inits
-    except Exception as e:
-        logger.warning(e)
-        ds = []
+#     try:
+#         logger.info("Aggregating data across timesteps.")
+#         inits = []
+#         for ds in pc:
+#             if isinstance(ds, xr.Dataset):
+#                 inits = list(set(inits).union(set(ds.attrs[INIT_TIME_DIM])))
+#         ds = xr.concat(pc, dim=INIT_TIME_DIM)
+#         ds.attrs[INIT_TIME_DIM] = inits
+#     except Exception as e:
+#         logger.warning(e)
+#         ds = []
 
-    return ds
+#     return ds
 
 
-def _mean_and_std(ds: xr.Dataset) -> xr.Dataset:
-    """dataflow pipeline func for taking mean and standard deviation along
+# def _mean_and_std(ds: xr.Dataset) -> xr.Dataset:
+#     """dataflow pipeline func for taking mean and standard deviation along
+#     initialization time dimension of aggregated diagnostic dataset
+#     """
+#     try:
+#         logger.info("Computing aggregated means and std. devs.")
+#         for var in ds:
+#             if var in [f"{var}_global_mean" for var in list(GLOBAL_MEAN_2D_VARS)]:
+#                 var_std = ds[var].std(dim=INIT_TIME_DIM, keep_attrs=True)
+#                 if "long_name" in var_std.attrs:
+#                     var_std = var_std.assign_attrs(
+#                         {"long_name": f"{var_std.attrs['long_name']} std. dev."}
+#                     )
+#                 ds = ds.assign({f"{var}_std": var_std})
+#         ds_mean = ds.mean(dim=INIT_TIME_DIM, keep_attrs=True)
+#     except Exception as e:
+#         logger.info(e)
+#         ds_mean = None
+
+#     return ds_mean
+
+
+class MeanAndStDevFn(beam.CombineFn):
+    
+    """beam CombineFn subclass for taking mean and standard deviation along
     initialization time dimension of aggregated diagnostic dataset
     """
-    try:
-        logger.info("Computing aggregated means and std. devs.")
-        for var in ds:
-            if var in [f"{var}_global_mean" for var in list(GLOBAL_MEAN_2D_VARS)]:
-                var_std = ds[var].std(dim=INIT_TIME_DIM, keep_attrs=True)
-                if "long_name" in var_std.attrs:
-                    var_std = var_std.assign_attrs(
-                        {"long_name": f"{var_std.attrs['long_name']} std. dev."}
-                    )
-                ds = ds.assign({f"{var}_std": var_std})
-        ds_mean = ds.mean(dim=INIT_TIME_DIM, keep_attrs=True)
-    except Exception as e:
-        logger.info(e)
-        ds_mean = None
+    
+    def create_accumulator(self):
+        logger.info("Aggregating data across timesteps.")
+        return (0.0, 0.0, 0)
 
-    return ds_mean
+    def add_input(self, sum_count, input):
+        ds = input.drop(INIT_TIME_DIM)
+        ds_squared = ds**2
+        (sum_x, sum_x2, count) = sum_count
+        return sum_x + ds, sum_x2 + ds_squared, count + 1
+
+    def merge_accumulators(self, accumulators):
+        sum_xs, sum_x2s, counts = zip(*accumulators)
+        return sum(sum_xs), sum(sum_x2s), sum(counts)
+
+    def extract_output(self, sum_count):
+        try:
+            logger.info("Computing aggregated means and std. devs.")
+            (sum_x, sum_x2, count) = sum_count
+            mean = sum_x / count if count else float('NaN')
+            mean_of_squares = sum_x2 / count if count else float('NaN')
+            std_dev = np.sqrt(mean_of_squares - mean**2) if mean and mean_of_squares else float('NaN')
+
+            for var in mean:
+                if var in [f"{var}_global_mean" for var in list(GLOBAL_MEAN_2D_VARS)]:
+                    mean = mean.assign({f"{var}_std": std_dev[var]})
+                    mean[f"{var}_std"].attrs.update(mean[var].attrs)
+                    if "long_name" in mean[var].attrs:
+                        mean[f"{var}_std"].attrs.update({'long_name' : mean[var].attrs['long_name'] + 'std. dev'})
+        except Exception as e:
+            mean = None
+            logger.warning(e)
+        
+        return mean
 
 
 def _write_ds(ds: xr.Dataset, fullpath: str):
@@ -229,98 +270,96 @@ def _get_remote_netcdf(filename):
         return xr.open_dataset(f).load()
 
 
-if __name__ == "__main__":
 
-    args, pipeline_args = _create_arg_parser().parse_known_args()
+args, pipeline_args = _create_arg_parser().parse_known_args()
 
-    zarrpath = os.path.join(args.one_step_data, ONE_STEP_ZARR)
-    fs = get_fs(zarrpath)
-    ds_zarr = xr.open_zarr(fs.get_mapper(zarrpath)).isel(
-        {INIT_TIME_DIM: slice(args.start_ind, None)}
-    )[list(VARS_FROM_ZARR + GRID_VARS)]
-    logger.info(f"Opened .zarr at {zarrpath}")
+zarrpath = os.path.join(args.one_step_data, ONE_STEP_ZARR)
+fs = get_fs(zarrpath)
+ds_zarr = xr.open_zarr(fs.get_mapper(zarrpath)).isel(
+    {INIT_TIME_DIM: slice(args.start_ind, None)}
+)[list(VARS_FROM_ZARR + GRID_VARS)]
 
-    timestamp_subset_indices = time_inds_to_open(
-        ds_zarr[INIT_TIME_DIM], args.n_sample_inits
+logger.info(f"Opened .zarr at {zarrpath}")
+
+timestamp_subset_indices = time_inds_to_open(
+    ds_zarr[INIT_TIME_DIM], args.n_sample_inits
+)
+ds_sample = [
+    (
+        ds_zarr[list(VARS_FROM_ZARR)]
+        .isel({INIT_TIME_DIM: list(indices)})
+        .sel({"step": list(("begin", "after_physics"))})
     )
+    for indices in timestamp_subset_indices
+]
 
-    ds_sample = [
-        (
-            ds_zarr[list(VARS_FROM_ZARR)]
-            .isel({INIT_TIME_DIM: list(indices)})
-            .sel({"step": list(("begin", "after_physics"))})
+hi_res_diags_zarrpath = os.path.join(args.hi_res_diags, COARSENED_DIAGS_ZARR_NAME)
+hi_res_diags_mapping = {name: name for name in SFC_VARIABLES}
+hi_res_diags_mapping.update(
+    {
+        "latent_heat_flux": "LHTFLsfc",
+        "sensible_heat_flux": "SHTFLsfc",
+        "total_precipitation": "PRATEsfc",
+    }
+)
+
+grid = (
+    ds_zarr[list(GRID_VARS)]
+    .isel({INIT_TIME_DIM: 0, FORECAST_TIME_DIM: 0, STEP_DIM: 0})
+    .drop_vars([STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
+)
+
+output_nc_path = os.path.join(args.netcdf_output, OUTPUT_NC_FILENAME)
+
+beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
+with beam.Pipeline(options=beam_options) as p:
+    (
+        p
+        | "CreateDS" >> beam.Create(ds_sample)
+        | "InsertDerivedVars"
+        >> beam.Map(
+            _insert_derived_vars, hi_res_diags_zarrpath, hi_res_diags_mapping
         )
-        for indices in timestamp_subset_indices
-    ]
-
-    hi_res_diags_zarrpath = os.path.join(args.hi_res_diags, COARSENED_DIAGS_ZARR_NAME)
-    hi_res_diags_mapping = {name: name for name in SFC_VARIABLES}
-    hi_res_diags_mapping.update(
-        {
-            "latent_heat_flux": "LHTFLsfc",
-            "sensible_heat_flux": "SHTFLsfc",
-            "total_precipitation": "PRATEsfc",
-        }
+        | "InsertStatesAndTendencies" >> beam.Map(_insert_states_and_tendencies)
+        | "InsertMeanVars" >> beam.Map(_insert_means_and_shrink, grid)
+        | "FilterDS" >> beam.Filter(_filter_ds)
+        | "MeanAndStdDev" >> beam.CombineGlobally(MeanAndStDevFn())
+        | "WriteDS" >> beam.Map(_write_ds, output_nc_path)
     )
 
-    grid = (
-        ds_zarr[list(GRID_VARS)]
-        .isel({INIT_TIME_DIM: 0, FORECAST_TIME_DIM: 0, STEP_DIM: 0})
-        .drop_vars([STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
-    )
+proto = get_protocol(output_nc_path)
+if proto == "gs":
+    states_and_tendencies = _get_remote_netcdf(output_nc_path)
+elif proto == "" or proto == "file":
+    states_and_tendencies = xr.open_dataset(output_nc_path)
 
-    output_nc_path = os.path.join(args.netcdf_output, OUTPUT_NC_FILENAME)
+# if report output path is GCS location, save results to local output dir first
 
-    beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
-    with beam.Pipeline(options=beam_options) as p:
-        (
-            p
-            | "CreateDS" >> beam.Create(ds_sample)
-            | "InsertDerivedVars"
-            >> beam.Map(
-                _insert_derived_vars, hi_res_diags_zarrpath, hi_res_diags_mapping
-            )
-            | "InsertStatesAndTendencies" >> beam.Map(_insert_states_and_tendencies)
-            | "InsertMeanVars" >> beam.Map(_insert_means_and_shrink, grid)
-            | "FilterDS" >> beam.Filter(_filter_ds)
-            | "MergeDS" >> beam.CombineGlobally(_merge_ds)
-            | "MeanAndStdDev" >> beam.Map(_mean_and_std)
-            | "WriteDS" >> beam.Map(_write_ds, output_nc_path)
-        )
+if args.report_directory:
+    report_path = args.report_directory
+else:
+    report_path = output_nc_path
+proto = get_protocol(report_path)
+if proto == "" or proto == "file":
+    output_report_dir = report_path
+elif proto == "gs":
+    remote_report_path, output_report_dir = os.path.split(report_path.strip("/"))
+if os.path.exists(output_report_dir):
+    shutil.rmtree(output_report_dir)
+os.mkdir(output_report_dir)
 
-    proto = get_protocol(output_nc_path)
-    if proto == "gs":
-        states_and_tendencies = _get_remote_netcdf(output_nc_path)
-    elif proto == "" or proto == "file":
-        states_and_tendencies = xr.open_dataset(output_nc_path)
+logger.info(f"Writing diagnostics plots report to {report_path}")
 
-    # if report output path is GCS location, save results to local output dir first
+report_sections = make_all_plots(states_and_tendencies, output_report_dir)
+with open(os.path.join(output_report_dir, "figure_metadata.yml"), mode="w") as f:
+    yaml.dump(report_sections, f)
+metadata = vars(args)
+metadata.update({"initializations": states_and_tendencies.attrs[INIT_TIME_DIM]})
+with open(
+    os.path.join(output_report_dir, "step_metadata_table.yml"), mode="w"
+) as f:
+    yaml.dump(metadata, f)
+create_report(report_sections, "one_step_diagnostics", output_report_dir)
 
-    if args.report_directory:
-        report_path = args.report_directory
-    else:
-        report_path = output_nc_path
-    proto = get_protocol(report_path)
-    if proto == "" or proto == "file":
-        output_report_dir = report_path
-    elif proto == "gs":
-        remote_report_path, output_report_dir = os.path.split(report_path.strip("/"))
-    if os.path.exists(output_report_dir):
-        shutil.rmtree(output_report_dir)
-    os.mkdir(output_report_dir)
-
-    logger.info(f"Writing diagnostics plots report to {report_path}")
-
-    report_sections = make_all_plots(states_and_tendencies, output_report_dir)
-    with open(os.path.join(output_report_dir, "figure_metadata.yml"), mode="w") as f:
-        yaml.dump(report_sections, f)
-    metadata = vars(args)
-    metadata.update({"initializations": states_and_tendencies.attrs[INIT_TIME_DIM]})
-    with open(
-        os.path.join(output_report_dir, "step_metadata_table.yml"), mode="w"
-    ) as f:
-        yaml.dump(metadata, f)
-    create_report(report_sections, "one_step_diagnostics", output_report_dir)
-
-    if proto == "gs":
-        copy(output_report_dir, remote_report_path)
+if proto == "gs":
+    copy(output_report_dir, remote_report_path)
