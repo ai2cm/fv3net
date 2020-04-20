@@ -28,7 +28,7 @@ FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
 def run(args, pipeline_args, names):
     """ Divide full one step output data into batches to be sent
     through a beam pipeline, which writes training/test data zarrs
-    
+
     Args:
         args ([arg namespace]): for named args in the main function
         pipeline_args ([arg namespace]): additional args for the pipeline
@@ -154,7 +154,7 @@ def _divide_data_batches(
         ds_full (xr dataset): dataset read in from the big zarr of all one step outputs
         timesteps_per_output_file (int): number of timesteps to save per train batch
         train_fraction (float): fraction of initial timesteps to use as training
-    
+
     Returns:
         tuple (
             list of datasets selected to the timesteps for each output,

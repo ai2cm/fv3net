@@ -1,4 +1,5 @@
 import argparse
+import fsspec
 import os
 import tempfile
 import xarray as xr
@@ -6,8 +7,9 @@ import yaml
 
 from vcm.cloud.fsspec import get_fs
 from vcm.cloud.gsutil import copy
+import vcm
+import report
 
-from ..create_report import create_report
 from ..data import merge_comparison_datasets
 from .data import (
     predict_on_test_data,
@@ -17,12 +19,16 @@ from .data import (
 from .diagnostics import plot_diagnostics
 from .create_metrics import create_metrics_dataset
 from .plot_metrics import plot_metrics
+from .plot_timesteps import plot_timestep_counts
 
 DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
 DATASET_NAME_SHIELD_HIRES = "coarsened_high_res"
+TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
+REPORT_TITLE = "ML offline diagnostics"
 
 DPI_FIGURES = {
+    "timestep_histogram": 90,
     "LTS": 100,
     "dQ2_pressure_profiles": 100,
     "R2_pressure_profiles": 100,
@@ -36,6 +42,13 @@ def _is_remote(path):
     return path.startswith("gs://")
 
 
+def _write_report(output_dir, sections, metadata, title):
+    filename = title.replace(" ", "_") + ".html"
+    html_report = report.create_html(sections, title, metadata=metadata)
+    with open(os.path.join(output_dir, filename), "w") as f:
+        f.write(html_report)
+
+
 def compute_metrics_and_plot(ds, output_dir, names):
     # TODO refactor this "and" function into two routines
     ds_pred = ds.sel(dataset=DATASET_NAME_PREDICTION)
@@ -44,6 +57,17 @@ def compute_metrics_and_plot(ds, output_dir, names):
 
     ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires, names)
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
+
+    # write out yaml file of timesteps used for testing model
+    init_times = ds[names["init_time_dim"]].values
+    init_times = [vcm.cast_to_datetime(t) for t in init_times]
+    with fsspec.open(os.path.join(output_dir, TIMESTEPS_USED_FILENAME), "w") as f:
+        yaml.dump(init_times, f)
+
+    # TODO: move this function to another script which creates all the plots
+    timesteps_plot_section = plot_timestep_counts(
+        output_dir, TIMESTEPS_USED_FILENAME, DPI_FIGURES
+    )
 
     # TODO This should be another script
     metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES, names)
@@ -57,8 +81,7 @@ def compute_metrics_and_plot(ds, output_dir, names):
         names=names,
     )
 
-    combined_report_sections = {**metrics_plot_sections, **diag_report_sections}
-    create_report(combined_report_sections, "ml_offline_diagnostics", output_dir)
+    return {**timesteps_plot_section, **metrics_plot_sections, **diag_report_sections}
 
 
 def load_data_and_predict_with_ml(
@@ -178,7 +201,6 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     args.test_data_path = os.path.join(args.test_data_path, "test")
-
     with open(args.variable_names_file, "r") as f:
         names = yaml.safe_load(f)
 
@@ -206,7 +228,9 @@ if __name__ == "__main__":
     if _is_remote(args.output_path):
         with tempfile.TemporaryDirectory() as local_dir:
             # TODO another "and" indicates this needs to be refactored.
-            compute_metrics_and_plot(ds, local_dir, names)
+            report_sections = compute_metrics_and_plot(ds, local_dir, names)
+            _write_report(local_dir, report_sections, vars(args), REPORT_TITLE)
             copy(local_dir, output_dir)
     else:
-        compute_metrics_and_plot(ds, args.output_path, names)
+        report_sections = compute_metrics_and_plot(ds, args.output_path, names)
+        _write_report(args.output_path, report_sections, vars(args), REPORT_TITLE)
