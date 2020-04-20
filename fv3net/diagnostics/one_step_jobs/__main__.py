@@ -45,7 +45,7 @@ import logging
 import sys
 from typing import Sequence, Mapping, Any
 
-xr.set_options(keep_attrs=True)
+# xr.set_options(keep_attrs=True)
 
 out_hdlr = logging.StreamHandler(sys.stdout)
 out_hdlr.setFormatter(
@@ -184,28 +184,31 @@ class MeanAndStDevFn(beam.CombineFn):
         ds_squared = ds ** 2
         (sum_x, sum_x2, inits, count) = sum_count
         inits = list(set(inits).union(set(ds.attrs[INIT_TIME_DIM])))
-        return sum_x + ds, sum_x2 + ds_squared, inits, count + 1
+        with xr.set_options(keep_attrs=True):
+            return sum_x + ds, sum_x2 + ds_squared, inits, count + 1
 
     def merge_accumulators(self, accumulators):
         sum_xs, sum_x2s, inits_all, counts = zip(*accumulators)
-        return (
-            sum(sum_xs),
-            sum(sum_x2s),
-            sorted([init for inits in inits_all for init in inits]),
-            sum(counts),
-        )
+        with xr.set_options(keep_attrs=True):
+            return (
+                sum(sum_xs),
+                sum(sum_x2s),
+                sorted([init for inits in inits_all for init in inits]),
+                sum(counts),
+            )
 
     def extract_output(self, sum_count):
         try:
             logger.info("Computing aggregate means and std. devs.")
             (sum_x, sum_x2, inits, count) = sum_count
-            mean = sum_x / count if count else float("NaN")
-            mean_of_squares = sum_x2 / count if count else float("NaN")
-            std_dev = (
-                np.sqrt(mean_of_squares - mean ** 2)
-                if mean and mean_of_squares
-                else float("NaN")
-            )
+            with xr.set_options(keep_attrs=True):
+                mean = sum_x / count if count else float("NaN")
+                mean_of_squares = sum_x2 / count if count else float("NaN")
+                std_dev = (
+                    np.sqrt(mean_of_squares - mean ** 2)
+                    if mean and mean_of_squares
+                    else float("NaN")
+                )
             for var in mean:
                 if var in [f"{var}_global_mean" for var in list(GLOBAL_MEAN_2D_VARS)]:
                     mean = mean.assign({f"{var}_std": std_dev[var]})
