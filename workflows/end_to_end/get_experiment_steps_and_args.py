@@ -199,25 +199,26 @@ def _generate_output_path_from_config(
     """generate an output location stub from a step's argument configuration"""
 
     output_str = step_name
-    arg_config = step_config.get("args", None)
-    arg_strs = []
-    non_map_args = {
-        key: val for key, val in arg_config.items() if not isinstance(val, Mapping)
-    }
-    for n_stubs, (key, val) in enumerate(non_map_args.items(), 1):
-        if n_stubs > max_config_stubs:
-            break
-        val = str(arg_config[key])
+    if max_config_stubs > 0:
+        arg_config = step_config.get("args", None)
+        arg_strs = []
+        non_map_args = {
+            key: val for key, val in arg_config.items() if not isinstance(val, Mapping)
+        }
+        for n_stubs, (key, val) in enumerate(non_map_args.items(), 1):
+            if n_stubs > max_config_stubs:
+                break
+            val = str(arg_config[key])
 
-        # get last part of path so string isn't so long
-        if "/" in val:
-            val = val.split("/")[-1]
+            # get last part of path so string isn't so long
+            if "/" in val:
+                val = val.split("/")[-1]
 
-        key = key.strip("--")  # remove prefix of optional argument
-        key_val = f"{key}_{val}"
-        arg_strs.append(key_val)
-    arg_output_stub = "_".join(arg_strs)
-    output_str += "_" + arg_output_stub
+            key = key.strip("--")  # remove prefix of optional argument
+            key_val = f"{key}_{val}"
+            arg_strs.append(key_val)
+        arg_output_stub = "_".join(arg_strs)
+        output_str += "_" + arg_output_stub
 
     return output_str
 

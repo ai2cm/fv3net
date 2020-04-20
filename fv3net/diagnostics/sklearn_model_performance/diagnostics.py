@@ -78,7 +78,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
             units="[kg/kg/s]",
             title=f"{sfc_type}: dQ2 vertical profile",
         ).savefig(
-            os.path.join(output_dir, "vertical_profile_dQ2_{sfc_type}.png"),
+            os.path.join(output_dir, f"vertical_profile_dQ2_{sfc_type}.png"),
             dpi=dpi_figures["dQ2_pressure_profiles"],
         )
     report_sections["dQ2 pressure level profiles"] = [
@@ -321,7 +321,7 @@ def _make_vertical_profile_plots(
         data_mean = np.mean(np.nan_to_num(data.stack(sample=stack_dims).values), axis=1)
         plt.plot(pressure, data_mean, **kwargs)
 
-    plt.xlabel("Pressure [HPa]")
+    plt.xlabel("Pressure [hPa]")
     plt.ylabel(units)
     if title:
         plt.title(title)
@@ -395,11 +395,11 @@ def _plot_lower_troposphere_stability(ds_pred, ds_test, ds_hires, names, lat_max
 def _map_plot_dQ_versus_total(ds, init_time_dim, map_var_kwargs):
     """ Produces plots of the residual components dQ of column heating
     and moistening for comparison to total quantities
-    
+
     Args:
         ds (xarray dataset): dataset with "dataset" dimension denoting whether
         the dQ quantity was from the high-low res tendency or the ML model prediction
-    
+
     Returns:
         Figure objects for plots of ML predictions of {column heating, P-E}
         for both the absolute ML prediction value as well as the ML
