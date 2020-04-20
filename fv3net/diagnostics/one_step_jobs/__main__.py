@@ -28,6 +28,7 @@ from fv3net.diagnostics.one_step_jobs import (
     ABS_VARS,
     GLOBAL_MEAN_2D_VARS,
     GLOBAL_MEAN_3D_VARS,
+    REPORT_TITLE
 )
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 import report
@@ -359,7 +360,10 @@ with open(
     os.path.join(output_report_dir, "step_metadata_table.yml"), mode="w"
 ) as f:
     yaml.dump(metadata, f)
-create_report(report_sections, "one_step_diagnostics", output_report_dir)
+filename = REPORT_TITLE.replace(" ", "_") + ".html"
+html_report = report.create_html(report_sections, REPORT_TITLE, metadata=metadata)
+with open(os.path.join(output_report_dir, filename), "w") as f:
+    f.write(html_report)
 
 if proto == "gs":
     copy(output_report_dir, remote_report_path)

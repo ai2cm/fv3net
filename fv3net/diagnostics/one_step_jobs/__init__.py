@@ -119,3 +119,5 @@ MAPPABLE_VAR_KWARGS = {
         "lat": ["y", "x", "tile"],
     },
 }
+
+REPORT_TITLE = "One-step diagnostics"
