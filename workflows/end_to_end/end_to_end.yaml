@@ -8,7 +8,7 @@ experiment:
     #- coarsen_restarts  # not doing C384 -> C48 coarsening
     # TOOD uncomment these for production runs
     - coarsen_diagnostics
-      #- one_step_run
+    - one_step_run
     - create_training_data
     - train_sklearn_model
     # - test_sklearn_model
