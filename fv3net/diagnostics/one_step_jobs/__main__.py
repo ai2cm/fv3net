@@ -36,6 +36,7 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import argparse
 import xarray as xr
+xr.set_options(keep_attrs=True)
 import numpy as np
 import yaml
 import os
@@ -168,47 +169,6 @@ def _filter_ds(ds: Any):
     return isinstance(ds, xr.Dataset)
 
 
-# def _merge_ds(pc: Sequence[xr.Dataset]) -> xr.Dataset:
-#     """dataflow pipeline func for aggregating datasets across initialization time
-#     """
-
-#     try:
-#         logger.info("Aggregating data across timesteps.")
-#         inits = []
-#         for ds in pc:
-#             if isinstance(ds, xr.Dataset):
-#                 inits = list(set(inits).union(set(ds.attrs[INIT_TIME_DIM])))
-#         ds = xr.concat(pc, dim=INIT_TIME_DIM)
-#         ds.attrs[INIT_TIME_DIM] = inits
-#     except Exception as e:
-#         logger.warning(e)
-#         ds = []
-
-#     return ds
-
-
-# def _mean_and_std(ds: xr.Dataset) -> xr.Dataset:
-#     """dataflow pipeline func for taking mean and standard deviation along
-#     initialization time dimension of aggregated diagnostic dataset
-#     """
-#     try:
-#         logger.info("Computing aggregated means and std. devs.")
-#         for var in ds:
-#             if var in [f"{var}_global_mean" for var in list(GLOBAL_MEAN_2D_VARS)]:
-#                 var_std = ds[var].std(dim=INIT_TIME_DIM, keep_attrs=True)
-#                 if "long_name" in var_std.attrs:
-#                     var_std = var_std.assign_attrs(
-#                         {"long_name": f"{var_std.attrs['long_name']} std. dev."}
-#                     )
-#                 ds = ds.assign({f"{var}_std": var_std})
-#         ds_mean = ds.mean(dim=INIT_TIME_DIM, keep_attrs=True)
-#     except Exception as e:
-#         logger.info(e)
-#         ds_mean = None
-
-#     return ds_mean
-
-
 class MeanAndStDevFn(beam.CombineFn):
     
     """beam CombineFn subclass for taking mean and standard deviation along
@@ -216,33 +176,33 @@ class MeanAndStDevFn(beam.CombineFn):
     """
     
     def create_accumulator(self):
-        logger.info("Aggregating data across timesteps.")
-        return (0.0, 0.0, 0)
+        return (0.0, 0.0, [], 0)
 
-    def add_input(self, sum_count, input):
-        ds = input.drop(INIT_TIME_DIM)
+    def add_input(self, sum_count, input_ds):
+        ds = input_ds.drop(INIT_TIME_DIM)
         ds_squared = ds**2
-        (sum_x, sum_x2, count) = sum_count
-        return sum_x + ds, sum_x2 + ds_squared, count + 1
+        (sum_x, sum_x2, inits, count) = sum_count
+        inits = list(set(inits).union(set(ds.attrs[INIT_TIME_DIM])))
+        return sum_x + ds, sum_x2 + ds_squared, inits, count + 1
 
     def merge_accumulators(self, accumulators):
-        sum_xs, sum_x2s, counts = zip(*accumulators)
-        return sum(sum_xs), sum(sum_x2s), sum(counts)
+        sum_xs, sum_x2s, inits_all, counts = zip(*accumulators)
+        return sum(sum_xs), sum(sum_x2s), sorted([init for inits in inits_all for init in inits]), sum(counts)
 
     def extract_output(self, sum_count):
         try:
-            logger.info("Computing aggregated means and std. devs.")
-            (sum_x, sum_x2, count) = sum_count
+            logger.info("Computing aggregate means and std. devs.")
+            (sum_x, sum_x2, inits, count) = sum_count
             mean = sum_x / count if count else float('NaN')
             mean_of_squares = sum_x2 / count if count else float('NaN')
             std_dev = np.sqrt(mean_of_squares - mean**2) if mean and mean_of_squares else float('NaN')
-
             for var in mean:
                 if var in [f"{var}_global_mean" for var in list(GLOBAL_MEAN_2D_VARS)]:
                     mean = mean.assign({f"{var}_std": std_dev[var]})
                     mean[f"{var}_std"].attrs.update(mean[var].attrs)
                     if "long_name" in mean[var].attrs:
                         mean[f"{var}_std"].attrs.update({'long_name' : mean[var].attrs['long_name'] + 'std. dev'})
+            mean = mean.assign_attrs({INIT_TIME_DIM: inits})
         except Exception as e:
             mean = None
             logger.warning(e)
@@ -360,7 +320,7 @@ with open(
     os.path.join(output_report_dir, "step_metadata_table.yml"), mode="w"
 ) as f:
     yaml.dump(metadata, f)
-filename = REPORT_TITLE.replace(" ", "_") + ".html"
+filename = REPORT_TITLE.replace(" ", "-").lower() + ".html"
 html_report = report.create_html(report_sections, REPORT_TITLE, metadata=metadata)
 with open(os.path.join(output_report_dir, filename), "w") as f:
     f.write(html_report)
