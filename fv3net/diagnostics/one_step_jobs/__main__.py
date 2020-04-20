@@ -330,7 +330,7 @@ metadata = vars(args)
 metadata.update({"initializations": states_and_tendencies.attrs[INIT_TIME_DIM]})
 with open(os.path.join(output_report_dir, "step_metadata_table.yml"), mode="w") as f:
     yaml.dump(metadata, f)
-filename = REPORT_TITLE.replace(" ", "-").lower() + ".html"
+filename = REPORT_TITLE.replace(" ", "_").replace("-", "_").lower() + ".html"
 html_report = report.create_html(report_sections, REPORT_TITLE, metadata=metadata)
 with open(os.path.join(output_report_dir, filename), "w") as f:
     f.write(html_report)
