@@ -144,7 +144,9 @@ def load_data_and_predict_with_ml(
         names["renamed_hires_grid_vars"],
     )
 
-    slmsk = ds_test[names["var_land_sea_mask"]].isel({names["init_time_dim"]: 0})
+    slmsk: xr.DataArray = ds_test[names["var_land_sea_mask"]].isel(
+        {names["init_time_dim"]: 0}
+    )
 
     # TODO ditto: do all merging of data before computing anything
     return (
@@ -157,7 +159,7 @@ def load_data_and_predict_with_ml(
                 DATASET_NAME_SHIELD_HIRES,
             ],
         )
-        .merge(slmsk)
+        .merge(slmsk.to_dataset())
         .merge(grid)
     )
 
