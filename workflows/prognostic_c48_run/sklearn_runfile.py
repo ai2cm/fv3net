@@ -20,22 +20,24 @@ gravity = 9.81
 
 
 def compute_diagnostics(state, diags):
+
+    net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
+
     return dict(
-        net_moistening=(diags["dQ2"] * state[DELP] / gravity)
-        .sum("z")
+        net_moistening=(net_moistening)
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(description="column integrated ML model moisture tendency"),
         net_heating=(diags["dQ1"] * state[DELP] / gravity * cp)
         .sum("z")
         .assign_attrs(units="W/m^2")
-        .assign_attrs(description="column integrated ML model heating tendency"),
-        PW=(state[SPHUM] * state[DELP] / gravity)
+        .assign_attrs(description="column integrated ML model heating"),
+        water_vapor_path=(state[SPHUM] * state[DELP] / gravity)
         .sum("z")
         .assign_attrs(units="mm")
-        .assign_attrs(description="column integrated precipitable water (model + ML)"),
-        total_precip=(state[TOTAL_PRECIP])
-        .assign_attrs(units="mm/s")
-        .assign_attrs(description="total precipitation at surface (model + ML)"),
+        .assign_attrs(description="column integrated water vapor"),
+        total_precip=(state[TOTAL_PRECIP] - net_moistening)
+        .assign_attrs(units="kg/m^s/s")
+        .assign_attrs(description="total precipitation rate at the surface (model + ML)"),
     )
 
 
