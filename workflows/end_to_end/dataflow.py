@@ -29,7 +29,10 @@ ONE_STEP_DIAGS_DATAFLOW_ARGS.update(
         "--max_num_workers": 30,
         "--disk_size_gb": 30,
         "--worker_machine_type": "n1-highmem-16",
-        "--extra_package": "external/vcm/dist/vcm-0.1.0.tar.gz",
+        "--extra_package": [
+            "external/vcm/dist/vcm-0.1.0.tar.gz",
+            "external/report/dist/report-0.1.0.tar.gz"
+        ]
     }
 )
 
