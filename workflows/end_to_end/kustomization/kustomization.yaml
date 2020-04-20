@@ -1,6 +1,6 @@
 resources:
 - job.yaml
-- service-account.yml
+  #- service-account.yml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 # change this after significant changes to this file
