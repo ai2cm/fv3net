@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: integration-test
+  name: end-to-end
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      generateName: end-to-end-pod-
+    spec:
+      serviceAccountName: integration-tests
+      containers:
+      - command: ["/bin/bash"]
+        args:  ["workflows/end_to_end/entrypoint.sh"]
+        image: us.gcr.io/vcm-ml/fv3net
+        imagePullPolicy: Always
+        envFrom:
+          - configMapRef:
+              name: end-to-end
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+          - name: CONFIG
+            value: /etc/config
+        name: integration-test
+        resources:
+          requests:
+            cpu: "2"
+            memory: 2G
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+            readOnly: true
+          - mountPath:  /etc/config/
+            name: config-vol
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      tolerations:
+        - key: dedicated
+          effect: NoSchedule
+          value: climate-sim-pool
+      volumes:
+        - name: gcp-key-secret
+          secret:
+            defaultMode: 444
+            secretName: gcp-key
+        - name: config-vol
+          configMap:
+            name: end-to-end
+            

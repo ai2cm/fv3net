@@ -59,7 +59,7 @@ cat << EOF > kustomization/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 bases:
-  - "../vcm-workflow-control/base"
+  - "../../../workflows/end_to_end/kustomization"
 nameSuffix: "$suffix"
 commonLabels: 
   waitForMe: "$random"
@@ -83,6 +83,6 @@ EOF
 echo "Running tests with this kustomization.yaml:"
 cat kustomization/kustomization.yaml
 
-# kubectl apply -k  kustomization --dry-run  -o yaml
-kubectl apply -k kustomization
-waitForComplete -lwaitForMe="$random" default
+kubectl apply -k  kustomization --dry-run  -o yaml
+# kubectl apply -k kustomization
+# waitForComplete -lwaitForMe="$random" default

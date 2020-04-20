@@ -1,0 +1,28 @@
+resources:
+- job.yaml
+- service-account.yml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# change this after significant changes to this file
+namePrefix: v1
+configMapGenerator:
+  - name: end-to-end
+    env: input_data.env
+    literals:
+    # prognostic_run is changed here
+    # this information is not needed to configure the k8s resources
+    - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:ed39c1278c32e1bcc7974211be6a29cba6db31a3
+    files:
+      - time-control.yaml
+      - coarsen_c384_diagnostics.yml
+      - one_step_jobs.yml
+      - prognostic_run.yml
+      - test_sklearn_variable_names.yml
+      - train_sklearn_model.yml
+      - diag_table_prognostic
+      - end_to_end.yaml
+images:
+  # fv3net image is changed here
+- name: us.gcr.io/vcm-ml/fv3net
+  newName: us.gcr.io/vcm-ml/fv3net
+  newTag: ed39c1278c32e1bcc7974211be6a29cba6db31a3
