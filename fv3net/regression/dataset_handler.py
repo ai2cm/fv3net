@@ -166,7 +166,8 @@ def stack_and_drop_nan_samples(ds, coord_z_center):
     """
     # TODO delete this function
     ds = (
-        ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != coord_z_center]})
+        safe.stack_once(
+            ds, SAMPLE_DIM, [dim for dim in ds.dims if dim != coord_z_center])
         .transpose(SAMPLE_DIM, coord_z_center)
         .dropna(SAMPLE_DIM)
     )

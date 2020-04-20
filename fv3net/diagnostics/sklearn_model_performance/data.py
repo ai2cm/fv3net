@@ -39,12 +39,10 @@ THERMO_DATA_VAR_ATTRS = {
 def predict_on_test_data(
     test_data_path,
     model_path,
-    num_test_zarrs,
     pred_vars_to_keep,
     init_time_dim="initial_time",
     coord_z_center="z",
     model_type="rf",
-    downsample_time_factor=1,
 ):
     if model_type == "rf":
         from fv3net.regression.sklearn.test import (
@@ -57,8 +55,6 @@ def predict_on_test_data(
             test_data_path,
             init_time_dim,
             coord_z_center,
-            num_test_zarrs,
-            downsample_time_factor,
         )
         sk_wrapped_model = load_model(model_path)
         logger.info("Making prediction with sklearn model")
