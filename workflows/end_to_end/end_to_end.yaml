@@ -11,7 +11,7 @@ experiment:
       #- one_step_run
     - create_training_data
     - train_sklearn_model
-    - test_sklearn_model
+    # - test_sklearn_model
     - prognostic_run
     - baseline_run
   
@@ -72,7 +72,6 @@ experiment:
         diagnostics_data:
           from: coarsen_diagnostics
         variable_filename: $CONFIG/test_sklearn_variable_names.yml
-        --num_test_zarrs: $NUM_TEST_ZARRS  # how does this interact with test_samples from time-control.yaml?
 
     prognostic_run:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
