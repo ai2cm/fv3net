@@ -84,5 +84,5 @@ echo "Running tests with this kustomization.yaml:"
 cat kustomization/kustomization.yaml
 
 kubectl apply -k  kustomization --dry-run  -o yaml
-# kubectl apply -k kustomization
-# waitForComplete -lwaitForMe="$random" default
+kubectl apply -k kustomization
+waitForComplete -lwaitForMe="$random" default
