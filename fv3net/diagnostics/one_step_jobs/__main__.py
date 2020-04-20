@@ -28,7 +28,7 @@ from fv3net.diagnostics.one_step_jobs import (
     ABS_VARS,
     GLOBAL_MEAN_2D_VARS,
     GLOBAL_MEAN_3D_VARS,
-    REPORT_TITLE
+    REPORT_TITLE,
 )
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 import report
@@ -36,7 +36,6 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import argparse
 import xarray as xr
-xr.set_options(keep_attrs=True)
 import numpy as np
 import yaml
 import os
@@ -45,6 +44,8 @@ from tempfile import TemporaryDirectory
 import logging
 import sys
 from typing import Sequence, Mapping, Any
+
+xr.set_options(keep_attrs=True)
 
 out_hdlr = logging.StreamHandler(sys.stdout)
 out_hdlr.setFormatter(
@@ -170,43 +171,54 @@ def _filter_ds(ds: Any):
 
 
 class MeanAndStDevFn(beam.CombineFn):
-    
+
     """beam CombineFn subclass for taking mean and standard deviation along
     initialization time dimension of aggregated diagnostic dataset
     """
-    
+
     def create_accumulator(self):
         return (0.0, 0.0, [], 0)
 
     def add_input(self, sum_count, input_ds):
         ds = input_ds.drop(INIT_TIME_DIM)
-        ds_squared = ds**2
+        ds_squared = ds ** 2
         (sum_x, sum_x2, inits, count) = sum_count
         inits = list(set(inits).union(set(ds.attrs[INIT_TIME_DIM])))
         return sum_x + ds, sum_x2 + ds_squared, inits, count + 1
 
     def merge_accumulators(self, accumulators):
         sum_xs, sum_x2s, inits_all, counts = zip(*accumulators)
-        return sum(sum_xs), sum(sum_x2s), sorted([init for inits in inits_all for init in inits]), sum(counts)
+        return (
+            sum(sum_xs),
+            sum(sum_x2s),
+            sorted([init for inits in inits_all for init in inits]),
+            sum(counts),
+        )
 
     def extract_output(self, sum_count):
         try:
             logger.info("Computing aggregate means and std. devs.")
             (sum_x, sum_x2, inits, count) = sum_count
-            mean = sum_x / count if count else float('NaN')
-            mean_of_squares = sum_x2 / count if count else float('NaN')
-            std_dev = np.sqrt(mean_of_squares - mean**2) if mean and mean_of_squares else float('NaN')
+            mean = sum_x / count if count else float("NaN")
+            mean_of_squares = sum_x2 / count if count else float("NaN")
+            std_dev = (
+                np.sqrt(mean_of_squares - mean ** 2)
+                if mean and mean_of_squares
+                else float("NaN")
+            )
             for var in mean:
                 if var in [f"{var}_global_mean" for var in list(GLOBAL_MEAN_2D_VARS)]:
                     mean = mean.assign({f"{var}_std": std_dev[var]})
                     mean[f"{var}_std"].attrs.update(mean[var].attrs)
                     if "long_name" in mean[var].attrs:
-                        mean[f"{var}_std"].attrs.update({'long_name' : mean[var].attrs['long_name'] + 'std. dev'})
+                        mean[f"{var}_std"].attrs.update(
+                            {"long_name": mean[var].attrs["long_name"] + "std. dev"}
+                        )
             mean = mean.assign_attrs({INIT_TIME_DIM: inits})
         except Exception as e:
             mean = None
             logger.warning(e)
-        
+
         return mean
 
 
@@ -229,7 +241,6 @@ def _get_remote_netcdf(filename):
     fs_nc = get_fs(filename)
     with fs_nc.open(filename, "rb") as f:
         return xr.open_dataset(f).load()
-
 
 
 args, pipeline_args = _create_arg_parser().parse_known_args()
@@ -278,9 +289,7 @@ with beam.Pipeline(options=beam_options) as p:
         p
         | "CreateDS" >> beam.Create(ds_sample)
         | "InsertDerivedVars"
-        >> beam.Map(
-            _insert_derived_vars, hi_res_diags_zarrpath, hi_res_diags_mapping
-        )
+        >> beam.Map(_insert_derived_vars, hi_res_diags_zarrpath, hi_res_diags_mapping)
         | "InsertStatesAndTendencies" >> beam.Map(_insert_states_and_tendencies)
         | "InsertMeanVars" >> beam.Map(_insert_means_and_shrink, grid)
         | "FilterDS" >> beam.Filter(_filter_ds)
@@ -316,9 +325,7 @@ with open(os.path.join(output_report_dir, "figure_metadata.yml"), mode="w") as f
     yaml.dump(report_sections, f)
 metadata = vars(args)
 metadata.update({"initializations": states_and_tendencies.attrs[INIT_TIME_DIM]})
-with open(
-    os.path.join(output_report_dir, "step_metadata_table.yml"), mode="w"
-) as f:
+with open(os.path.join(output_report_dir, "step_metadata_table.yml"), mode="w") as f:
     yaml.dump(metadata, f)
 filename = REPORT_TITLE.replace(" ", "-").lower() + ".html"
 html_report = report.create_html(report_sections, REPORT_TITLE, metadata=metadata)
