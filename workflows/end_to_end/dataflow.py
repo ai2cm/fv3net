@@ -31,8 +31,8 @@ ONE_STEP_DIAGS_DATAFLOW_ARGS.update(
         "--worker_machine_type": "n1-highmem-16",
         "--extra_package": [
             "external/vcm/dist/vcm-0.1.0.tar.gz",
-            "external/report/dist/report-0.1.0.tar.gz"
-        ]
+            "external/report/dist/report-0.1.0.tar.gz",
+        ],
     }
 )
 
