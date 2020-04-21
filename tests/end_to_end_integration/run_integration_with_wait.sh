@@ -34,8 +34,8 @@ function waitForComplete {
     if [[ $job_succeed == "1" ]]
     then
         echo Job successful: "$jobName"
-        echo Deleting job...
-        kubectl delete job "$jobName"
+        #echo Deleting job...
+        #kubectl delete job "$jobName"
     elif [[ $job_fail == "1" ]]
     then
         echo Job failed: "$jobName"
@@ -71,7 +71,7 @@ configMapGenerator:
   env: input_data.env
   literals:
     - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:$VERSION
-    - JOBNAME=integration-debug
+    - JOBNAME=integration-debug-$random
   name: end-to-end
   behavior: merge
 images:
