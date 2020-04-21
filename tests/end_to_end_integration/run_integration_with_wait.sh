@@ -18,12 +18,12 @@ function waitForComplete {
     # Sleep while job is active
     jobName=$1
     NAMESPACE=$2
-    timeout=$(date -ud "30 minutes" +%s)
+    timeout=$(date -ud "50 minutes" +%s)
     job_active=$(getJob $NAMESPACE $jobName| jq --raw-output .status.active)
     echo "$job_active"
     while [[ $(date +%s) -le $timeout ]] && [[ $job_active == "1" ]]
     do
-        echo "$(date \"+%Y-%m-%d %H:%M\")" Job active: "$jobName" ... sleeping ${SLEEP_TIME}s
+        echo "$(date '+%Y-%m-%d %H:%M')" Job active: "$jobName" ... sleeping ${SLEEP_TIME}s
         sleep $SLEEP_TIME
         job_active=$(getJob $NAMESPACE $jobName| jq --raw-output .status.active)
     done
@@ -34,8 +34,6 @@ function waitForComplete {
     if [[ $job_succeed == "1" ]]
     then
         echo Job successful: "$jobName"
-        echo Deleting job...
-        kubectl delete job "$jobName"
     elif [[ $job_fail == "1" ]]
     then
         echo Job failed: "$jobName"
@@ -71,7 +69,7 @@ configMapGenerator:
   env: input_data.env
   literals:
     - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:$VERSION
-    - JOBNAME=integration-debug
+    - JOBNAME=integration-debug-$random
   name: end-to-end
   behavior: merge
 images:
@@ -84,5 +82,7 @@ echo "Running tests with this kustomization.yaml:"
 cat kustomization/kustomization.yaml
 
 kubectl apply -k  kustomization --dry-run  -o yaml
-# kubectl apply -k kustomization
-# waitForComplete -lwaitForMe="$random" default
+kubectl apply -k kustomization
+
+trap "kubectl logs -lwaitForMe=\"$random\"" EXIT
+waitForComplete -lwaitForMe="$random" default

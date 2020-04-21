@@ -51,7 +51,7 @@ def predict_on_test_data(
             predict_dataset,
         )
 
-        ds_test = load_test_dataset(test_data_path, init_time_dim, coord_z_center,)
+        ds_test = load_test_dataset(test_data_path, init_time_dim, coord_z_center)
         sk_wrapped_model = load_model(model_path)
         logger.info("Making prediction with sklearn model")
         ds_pred = predict_dataset(sk_wrapped_model, ds_test, pred_vars_to_keep)
@@ -66,7 +66,7 @@ def predict_on_test_data(
 def load_high_res_diag_dataset(
     coarsened_hires_diags_path, init_times, init_time_dim, renamed_hires_grid_vars
 ):
-    logging.info("load_high_res_diag_dataset")
+    logger.info("load_high_res_diag_dataset")
     fs = get_fs(coarsened_hires_diags_path)
     ds_hires = xr.open_zarr(
         # fs.get_mapper functions like a zarr store

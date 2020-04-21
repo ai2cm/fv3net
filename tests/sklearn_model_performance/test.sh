@@ -9,10 +9,6 @@ DIAG_DATA=gs://vcm-ml-data/testing-noah/ceb320ffa48b8f8507b351387ffa47d1b05cd402
 
 OUTPUT=gs://vcm-ml-data/testing-noah/$(git rev-parse HEAD)/sklearn_model_performance
 
-# mkdir -p data
-# gsutil -m rsync -d -r "$TRAINING_DATA" data
-
-
 python -m fv3net.diagnostics.sklearn_model_performance \
     $TRAINED_MODEL \
     $TRAINING_DATA \

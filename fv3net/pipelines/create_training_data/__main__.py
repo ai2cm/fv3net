@@ -1,11 +1,35 @@
+"""
+Example of timesteps_file input data::
+
+    {
+        "train": [
+            [ "20160801.003000", "20160801.004500" ],
+            [ "20160801.001500", "20160801.003000" ]
+        ],
+        "test": [
+            [ "20160801.011500", "20160801.013000" ],
+            [ "20160801.010000", "20160801.011500" ]
+        ]
+    }⏎
+"""
 import argparse
 import yaml
 from .config import get_config
 
 from .pipeline import run
 
+example_timesteps_file = """
+"""
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(epilog=__doc__)
+    parser.add_argument(
+        "--variable_namefile",
+        type=str,
+        default=None,
+        help="yaml file for updating the default data variable names.",
+    )
     parser.add_argument(
         "--variable_namefile",
         type=str,
@@ -27,7 +51,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "timesteps_file",
         type=str,
-        help="File containing paired timesteps for test and/or train sets.",
+        help=(
+            "File containing paired timesteps for test and/or train sets. See the "
+            "__doc__ of this script for more info."
+        ),
     )
     parser.add_argument(
         "gcs_output_data_dir",
@@ -37,7 +64,6 @@ if __name__ == "__main__":
     )
 
     args, pipeline_args = parser.parse_known_args()
-    print(args)
 
     if args.variable_namefile is None:
         updates = {}
