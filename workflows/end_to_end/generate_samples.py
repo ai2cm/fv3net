@@ -1,3 +1,21 @@
+"""generate_samples.py
+
+Generate a dict describing the timesteps required for one-step jobs
+and the split between training and testing data.
+
+Takes a yaml as an argument, which has the following arguments:
+    url: path to directory containing all available timesteps of initial conditions
+    train_samples: number of samples to use for training
+    test_samples: number of samples to use for testing
+    boundary: timestamp splitting training and testing sets (before and after,
+        respectively)
+    spinup (optional): all times before this will be excluded from training/testing
+        sets. By default, all timestamps at url can be used.
+    force_include_one_step (optional): list of timestamps which will be required
+        to be run for the one-step jobs. Does not affect training/testing samples.
+        Defaults to an empty list.
+    seed (optional): seed for random shuffling of training/testing samples
+"""
 import vcm
 import fsspec
 import json
