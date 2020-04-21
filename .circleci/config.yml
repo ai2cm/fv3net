@@ -154,7 +154,7 @@ workflows:
           type: approval
           filters:
             branches:
-              only:
+              ignore:
                 - master
       - build_default:
           requires:
