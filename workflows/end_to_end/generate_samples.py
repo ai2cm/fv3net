@@ -19,7 +19,7 @@ urls = sorted(fs.ls(url))
 steps = [vcm.parse_timestep_str_from_path(url) for url in urls]
 spinup = args.pop("spinup", steps[0])
 include_one_step = args.pop("force_include_one_step", [])
-steps = vcm.remove_spinup_period(steps, spinup)
+steps = list(filter(lambda t: spinup <= t, steps))
 splits = vcm.train_test_split_sample(steps, **args)
 
 all_steps = sorted(set(flatten(flatten(splits.values()))))
