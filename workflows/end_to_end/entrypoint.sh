@@ -2,7 +2,7 @@
 
 set -e
 
-echo "Running and end-to-end pipeline:"
+echo "Running an end-to-end pipeline:"
 echo "Environment variables:"
 echo "-------------------------------------------------------------------------------"
 env
