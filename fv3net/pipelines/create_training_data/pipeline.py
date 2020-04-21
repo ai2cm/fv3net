@@ -106,7 +106,7 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
                 renamed_dims=names["renamed_dims"],
             )
             | "LoadData" >> beam.Map(lambda ds: ds.load())
-            | "QuitOnNaN" >> beam.Map(_assert_no_nans)
+            | "FilterOnNaN" >> beam.Map(_assert_no_nans)
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
@@ -139,7 +139,8 @@ def _assert_no_nans(ds):
     nan_counts = {key: nans[key].item() for key in nans}
     if any(count > 0 for count in nan_counts.values()):
         nan_counts = {key: nans[key].item() for key in nans}
-        raise ValueError(f"NaNs detected in data to be saved: {nan_counts}")
+        logger.error(f"NaNs detected in data to be saved: {nan_counts}")
+        return False
     return ds
 
 
@@ -266,6 +267,9 @@ def _write_remote_train_zarr(
     Returns:
         None
     """
+    if not ds:
+        logger.error("Failed prior step when checking for NaN values: will not write zarr.")
+        return
     if not zarr_name:
         zarr_name = helpers._path_from_first_timestep(
             ds, init_time_dim, time_fmt, train_test_labels
