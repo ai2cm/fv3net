@@ -106,7 +106,7 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
                 renamed_dims=names["renamed_dims"],
             )
             | "LoadData" >> beam.Map(lambda ds: ds.load())
-            | "FilterOnNaN" >> beam.Map(_assert_no_nans)
+            | "FilterOnNaN" >> beam.Filter(_no_nan_values)
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
@@ -121,6 +121,12 @@ def _split_by_pairs(ds_full, timesteps, init_time_dim):
     tstep_pairs = []
     for key, pairs in timesteps.items():
         tstep_pairs += pairs
+    for pair in tstep_pairs:
+        for tstep in pair:
+            if tstep not in ds_full[init_time_dim].values:
+                print(f"{tstep} not in dataset init times")
+            else:
+                print(f"{tstep} ok")
     ds_pairs = [ds_full.sel({init_time_dim: pair}) for pair in tstep_pairs]
     return ds_pairs
 
@@ -134,7 +140,7 @@ def _train_test_labels(timesteps):
     return train_test_labels
 
 
-def _assert_no_nans(ds):
+def _no_nan_values(ds):
     nans = np.isnan(ds).isnull().sum().compute()
     nan_counts = {key: nans[key].item() for key in nans}
     if any(count > 0 for count in nan_counts.values()):
@@ -267,9 +273,6 @@ def _write_remote_train_zarr(
     Returns:
         None
     """
-    if not ds:
-        logger.error("Failed prior step when checking for NaN values: will not write zarr.")
-        return
     if not zarr_name:
         zarr_name = helpers._path_from_first_timestep(
             ds, init_time_dim, time_fmt, train_test_labels
