@@ -135,11 +135,11 @@ def _train_test_labels(timesteps):
 
 
 def _no_nan_values(ds):
-    nans = np.isnan(ds).isnull().sum().compute()
-    nan_counts = {key: nans[key].item() for key in nans}
-    if any(count > 0 for count in nan_counts.values()):
-        nan_counts = {key: nans[key].item() for key in nans}
-        logger.error(f"NaNs detected in data to be saved: {nan_counts}")
+    nans = np.isnan(ds)
+    nan_in_data_var = {key: True in nans[key].values for key in nans}
+    if any(nan_present is True for var, nan_present in nan_in_data_var.items()):
+        nan_vars = [var for var in nan_in_data_var if nan_in_data_var[var] is True]
+        logger.error(f"NaNs detected in data: {nan_vars}")
         return False
     return ds
 
