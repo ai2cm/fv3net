@@ -141,7 +141,7 @@ fv3net configurations that can be used to run reproducible end to end
 experiments with kubectl alone. 
 
 [kustomize] is a powerful templating system that is packaged with kubectl. It
-works by specifying a bases set of resources,
+works by specifying a base set of resources,
 and then allow other workflows to inherit and modify this base configuration
 in a variety of ways (e.g. add configurations to a configmap, or add a suffix
 to the k8s job). Configurations to individual workflow steps are mostly
