@@ -1,6 +1,6 @@
 """generate_samples.py
 
-Generate a dict describing the timesteps required for one-step jobs
+Output a dict describing the timesteps required for one-step jobs
 and the split between training and testing data.
 
 Takes a yaml as an argument, which has the following arguments:
