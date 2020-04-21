@@ -65,3 +65,4 @@ wcwidth==0.1.7
 xarray==0.14.0
 zipp==0.6.0
 xgcm==0.2.0
+pytest-regtest==1.4.4

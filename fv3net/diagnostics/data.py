@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import xarray as xr
+import warnings
 
 import vcm
 from vcm.select import drop_nondim_coords, get_latlon_grid_coords
@@ -17,12 +18,7 @@ _KG_M2S_TO_MM_DAY = 86400  # kg/m2/s same as mm/s. Using 1000 km/m3 for H20 dens
 
 
 def merge_comparison_datasets(
-    data_vars,
-    datasets,
-    dataset_labels,
-    grid,
-    concat_dim_name="dataset",
-    additional_dataset=None,
+    data_vars, datasets, dataset_labels, concat_dim_name="dataset",
 ):
     """ Makes a comparison dataset out of multiple datasets that all have a common
     data variable. They are concatenated with a new dim "dataset" that can be used
@@ -42,22 +38,20 @@ def merge_comparison_datasets(
         Dataset with new dataset dimension to denote the target vs predicted
         quantities. It is unstacked into the original x,y, time dimensions.
     """
+    warnings.warn(
+        DeprecationWarning(
+            "merge_comparison_datasets is unsafe since it adds missing data variables."
+        )
+    )
 
     src_dim_index = pd.Index(dataset_labels, name=concat_dim_name)
     datasets = [drop_nondim_coords(ds) for ds in datasets]
     # if one of the datasets is missing data variable(s) that are in the others,
     # fill it with an empty data array
     _add_missing_data_vars(data_vars, datasets)
-    datasets_to_merge = [
-        xr.concat(
-            [ds[data_vars].squeeze(drop=True) for ds in datasets], dim=src_dim_index
-        ),
-        grid,
-    ]
-    if additional_dataset is not None:
-        datasets_to_merge.append(additional_dataset)
-    ds_comparison = xr.merge(datasets_to_merge)
-    return ds_comparison
+    return xr.concat(
+        [ds[data_vars].squeeze(drop=True) for ds in datasets], dim=src_dim_index
+    )
 
 
 def get_latlon_grid_coords_set(

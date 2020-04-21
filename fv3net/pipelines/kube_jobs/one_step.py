@@ -225,7 +225,7 @@ def submit_jobs(
         """Run a run_kubernetes job
 
         kwargs are passed workflows/one_step_jobs/runfile.py:post_process
-        
+
         """
         uid = str(uuid.uuid4())
         labels = assoc(job_labels, "jobid", uid)

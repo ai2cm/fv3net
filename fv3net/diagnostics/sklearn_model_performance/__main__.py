@@ -4,10 +4,14 @@ import tempfile
 import xarray as xr
 import yaml
 
-from vcm.cloud.fsspec import get_fs
+import fsspec
+from vcm.cloud import get_fs
 from vcm.cloud.gsutil import copy
+import vcm
+from vcm import safe
 
-from ..create_report import create_report
+import report
+
 from ..data import merge_comparison_datasets
 from .data import (
     predict_on_test_data,
@@ -17,12 +21,17 @@ from .data import (
 from .diagnostics import plot_diagnostics
 from .create_metrics import create_metrics_dataset
 from .plot_metrics import plot_metrics
+from .plot_timesteps import plot_timestep_counts
+import logging
 
 DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
 DATASET_NAME_SHIELD_HIRES = "coarsened_high_res"
+TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
+REPORT_TITLE = "ML offline diagnostics"
 
 DPI_FIGURES = {
+    "timestep_histogram": 90,
     "LTS": 100,
     "dQ2_pressure_profiles": 100,
     "R2_pressure_profiles": 100,
@@ -32,8 +41,18 @@ DPI_FIGURES = {
 }
 
 
+logger = logging.getLogger(__file__)
+
+
 def _is_remote(path):
     return path.startswith("gs://")
+
+
+def _write_report(output_dir, sections, metadata, title):
+    filename = title.replace(" ", "_") + ".html"
+    html_report = report.create_html(sections, title, metadata=metadata)
+    with open(os.path.join(output_dir, filename), "w") as f:
+        f.write(html_report)
 
 
 def compute_metrics_and_plot(ds, output_dir, names):
@@ -44,6 +63,17 @@ def compute_metrics_and_plot(ds, output_dir, names):
 
     ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires, names)
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
+
+    # write out yaml file of timesteps used for testing model
+    init_times = ds[names["init_time_dim"]].values
+    init_times = [vcm.cast_to_datetime(t) for t in init_times]
+    with fsspec.open(os.path.join(output_dir, TIMESTEPS_USED_FILENAME), "w") as f:
+        yaml.dump(init_times, f)
+
+    # TODO: move this function to another script which creates all the plots
+    timesteps_plot_section = plot_timestep_counts(
+        output_dir, TIMESTEPS_USED_FILENAME, DPI_FIGURES
+    )
 
     # TODO This should be another script
     metrics_plot_sections = plot_metrics(ds_metrics, output_dir, DPI_FIGURES, names)
@@ -57,36 +87,34 @@ def compute_metrics_and_plot(ds, output_dir, names):
         names=names,
     )
 
-    combined_report_sections = {**metrics_plot_sections, **diag_report_sections}
-    create_report(combined_report_sections, "ml_offline_diagnostics", output_dir)
+    return {**timesteps_plot_section, **metrics_plot_sections, **diag_report_sections}
 
 
 def load_data_and_predict_with_ml(
-    test_data_path,
-    model_path,
-    high_res_data_path,
-    num_test_zarrs,
-    model_type,
-    downsample_time_factor,
-    names,
+    test_data_path, model_path, high_res_data_path, model_type, names,
 ):
+    # get grid
+    # because predict_on_test_data loads data and predicts, the easiest way to grab
+    # the grid is by loading the test_data again.
+    # This redundancy should go away when predict_on_test_data is split apart
+    # This is a good demonstration of how functions which do more than one things
+    # are inflexible and hard to adapt
+    fs = get_fs(test_data_path)
+    test_data_urls = sorted(fs.ls(test_data_path))
+    mapper = fs.get_mapper(test_data_urls[0])
+    ds = xr.open_zarr(mapper)
+    grid = safe.get_variables(ds, names["grid_vars"])
 
-    # if output path is remote GCS location, save results to local output dir first
-    # TODO I bet this output preparation could be cleaned up.
     # TODO this function mixes I/O and computation
     # Should just be 1. load_data, 2. make a prediction
     ds_test, ds_pred = predict_on_test_data(
         test_data_path,
         model_path,
-        num_test_zarrs,
         names["pred_vars_to_keep"],
         names["init_time_dim"],
         names["coord_z_center"],
         model_type,
-        downsample_time_factor,
     )
-
-    fs_input = get_fs(args.test_data_path)
 
     ds_test = add_column_heating_moistening(
         ds_test,
@@ -107,6 +135,7 @@ def load_data_and_predict_with_ml(
     )
 
     # TODO Do all data merginig and loading before computing anything
+    logger.info("Loading high-resolution diagnostics")
     init_times = list(set(ds_test[names["init_time_dim"]].values))
     ds_hires = load_high_res_diag_dataset(
         high_res_data_path,
@@ -114,23 +143,24 @@ def load_data_and_predict_with_ml(
         names["init_time_dim"],
         names["renamed_hires_grid_vars"],
     )
-    grid_path = os.path.join(os.path.dirname(test_data_path), "grid_spec.zarr")
+
+    slmsk: xr.DataArray = ds_test[names["var_land_sea_mask"]].isel(
+        {names["init_time_dim"]: 0}
+    )
 
     # TODO ditto: do all merging of data before computing anything
-    grid = xr.open_zarr(fs_input.get_mapper(grid_path))
-    slmsk = ds_test[names["var_land_sea_mask"]].isel({names["init_time_dim"]: 0})
-
-    # TODO ditto: do all merging of data before computing anything
-    return merge_comparison_datasets(
-        data_vars=names["data_vars"],
-        datasets=[ds_pred, ds_test, ds_hires],
-        dataset_labels=[
-            DATASET_NAME_PREDICTION,
-            DATASET_NAME_FV3_TARGET,
-            DATASET_NAME_SHIELD_HIRES,
-        ],
-        grid=grid,
-        additional_dataset=slmsk,
+    return (
+        merge_comparison_datasets(
+            data_vars=names["data_vars"],
+            datasets=[ds_pred, ds_test, ds_hires],
+            dataset_labels=[
+                DATASET_NAME_PREDICTION,
+                DATASET_NAME_FV3_TARGET,
+                DATASET_NAME_SHIELD_HIRES,
+            ],
+        )
+        .merge(slmsk.to_dataset())
+        .merge(grid)
     )
 
 
@@ -158,12 +188,6 @@ if __name__ == "__main__":
         help="Output dir to write results to. Can be local or a GCS path.",
     )
     parser.add_argument(
-        "--num_test_zarrs",
-        type=int,
-        default=4,
-        help="Number of zarrs to concat together for use as test set.",
-    )
-    parser.add_argument(
         "--model-type",
         type=str,
         default="rf",
@@ -176,9 +200,11 @@ if __name__ == "__main__":
         default=1,
         help="Factor by which to downsample test set time steps",
     )
+
+    logging.basicConfig(level=logging.INFO)
+
     args = parser.parse_args()
     args.test_data_path = os.path.join(args.test_data_path, "test")
-
     with open(args.variable_names_file, "r") as f:
         names = yaml.safe_load(f)
 
@@ -193,9 +219,7 @@ if __name__ == "__main__":
         args.test_data_path,
         args.model_path,
         args.high_res_data_path,
-        args.num_test_zarrs,
         args.model_type,
-        args.downsample_time_factor,
         names,
     )
 
@@ -206,7 +230,9 @@ if __name__ == "__main__":
     if _is_remote(args.output_path):
         with tempfile.TemporaryDirectory() as local_dir:
             # TODO another "and" indicates this needs to be refactored.
-            compute_metrics_and_plot(ds, local_dir, names)
+            report_sections = compute_metrics_and_plot(ds, local_dir, names)
+            _write_report(local_dir, report_sections, vars(args), REPORT_TITLE)
             copy(local_dir, output_dir)
     else:
-        compute_metrics_and_plot(ds, args.output_path, names)
+        report_sections = compute_metrics_and_plot(ds, args.output_path, names)
+        _write_report(args.output_path, report_sections, vars(args), REPORT_TITLE)
