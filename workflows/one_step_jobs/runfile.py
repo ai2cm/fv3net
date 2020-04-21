@@ -313,10 +313,10 @@ def post_process(
     merged = xr.merge([sfc, ds])
     merged = _zarr_safe_string_coord(merged, coord_name="step")
 
-    with tempfile.TemporaryDirectory() as path:
+    with tempfile.TemporaryDirectory(), ThreadPool(10) as (path, pool):
         local_store = zarr.DirectoryStore(path)
         remote_store = fsspec.get_mapper(store_url)
-        store = CachedStore(local_store, remote_store)
+        store = CachedStore(local_store, remote_store, pool)
 
         if init:
             logging.info("initializing zarr store")
