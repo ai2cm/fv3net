@@ -1,6 +1,6 @@
 url: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48  # TODO: parameterize as $C48_RESTARTS
-spinup: "20160805.000000"
-boundary: "20160901.000000"
+spinup: "20160805.000000"  # all times before this will be excluded from training/testing sets
+boundary: "20160901.000000"  # timestamp splitting training and testing sets (before and after, respectively)
 train_samples: 130
 test_samples: 48
 seed: "0"
