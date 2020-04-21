@@ -108,6 +108,7 @@ def wait_for_complete(
     job_labels: Mapping[str, str],
     batch_client: kubernetes.client.BatchV1Api = None,
     sleep_interval: int = 30,
+    raise_on_fail: bool = True,
 ):
     """
     Function to block operation until a group of submitted kubernetes jobs complete.
@@ -118,10 +119,11 @@ def wait_for_complete(
             "key1=value1,key2=value2,..."
         client: A BatchV1Api client to communicate with the cluster.
         sleep_interval: time interval between active job check queries
+        raise_on_bool: flag for whether to raise error if any job has failed.
 
     Raises:
-        ValueError if any of the jobs fail. This error when the failed jobs are
-        first detected.
+        ValueError if any of the jobs fail, ff raise_on_fail is True, when the
+        failed jobs are first detected.
 
 
     """
@@ -133,7 +135,7 @@ def wait_for_complete(
     while True:
         time.sleep(sleep_interval)
         jobs = list_jobs(batch_client, job_labels)
-        job_done = _handle_jobs(jobs)
+        job_done = _handle_jobs(jobs, raise_on_fail)
 
         if job_done:
             break
@@ -141,7 +143,7 @@ def wait_for_complete(
     logger.info("All kubernetes jobs succesfully complete!")
 
 
-def _handle_jobs(jobs) -> bool:
+def _handle_jobs(jobs: Sequence, raise_on_fail: bool) -> bool:
 
     failed = {}
     complete = {}
@@ -158,9 +160,12 @@ def _handle_jobs(jobs) -> bool:
 
     if len(failed) > 0:
         failed_job_names = list(failed)
-#         raise ValueError(f"These jobs have failed: {failed_job_names}")
-        logger.info(f"These jobs have failed: {failed_job_names}")
-    elif len(active) == 0:
+        if raise_on_fail:
+            raise ValueError(f"These jobs have failed: {failed_job_names}")
+        else:
+            logger.warning(f"These jobs have failed: {failed_job_names}")
+
+    if len(active) == 0:
         return True
     else:
         log_active_jobs(active)
