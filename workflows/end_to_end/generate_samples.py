@@ -22,6 +22,6 @@ steps = vcm.remove_spinup_period(steps, spinup)
 splits = vcm.train_test_split_sample(steps, **args)
 
 all_steps = sorted(set(flatten(flatten(splits.values()))))
-data = {"one_step": list(all_steps), "train": splits}
+data = {"one_step": list(all_steps), "train_and_test": splits}
 
 print(json.dumps(data))
