@@ -18,7 +18,7 @@ function waitForComplete {
     # Sleep while job is active
     jobName=$1
     NAMESPACE=$2
-    timeout=$(date -ud "30 minutes" +%s)
+    timeout=$(date -ud "50 minutes" +%s)
     job_active=$(getJob $NAMESPACE $jobName| jq --raw-output .status.active)
     echo "$job_active"
     while [[ $(date +%s) -le $timeout ]] && [[ $job_active == "1" ]]
