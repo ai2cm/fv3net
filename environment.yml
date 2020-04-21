@@ -36,7 +36,7 @@ dependencies:
   - toolz
   - xarray>=0.14
   - jupyterlab
-  - zarr
+  - zarr==2.4.0
   - pip
   - xgcm=0.2
   - jupyterlab

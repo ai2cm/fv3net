@@ -98,5 +98,5 @@ wcwidth==0.1.8
 websocket-client==0.57.0
 xarray==0.13.0
 xgcm==0.3.0
-zarr==2.3.2
+zarr==2.4.0
 zipp==0.5.2
