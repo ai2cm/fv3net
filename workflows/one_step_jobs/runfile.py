@@ -3,6 +3,8 @@ from typing import Sequence, Mapping, cast, Hashable
 import runtime
 import logging
 import time
+from multiprocessing.pool import ThreadPool
+import dask.array
 
 # avoid out of memory errors
 # dask.config.set(scheduler='single-threaded')
@@ -203,11 +205,16 @@ def _merge_monitor_data(paths: Mapping[str, str]) -> xr.Dataset:
 
 
 def _write_to_store(group: zarr.ABSStore, index: int, ds: xr.Dataset):
+    work = []
     for variable in ds:
         logger.info(f"Writing {variable} to {group}")
         dims = group[variable].attrs["_ARRAY_DIMENSIONS"][1:]
         dask_arr = ds[variable].transpose(*dims).data
-        dask_arr.store(group[variable], regions=(index,))
+        region = (index, )
+        work.append((group[variable], dask_arr, region))
+    
+    targets, sources, regions = zip(*work)
+    dask.array.store(sources, targets, regions=regions)
 
 
 def _safe_get_variables(ds: xr.Dataset, variables: Sequence[Hashable]) -> xr.Dataset:
