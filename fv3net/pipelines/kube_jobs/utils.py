@@ -119,11 +119,11 @@ def wait_for_complete(
             "key1=value1,key2=value2,..."
         client: A BatchV1Api client to communicate with the cluster.
         sleep_interval: time interval between active job check queries
-        raise_on_bool: flag for whether to raise error if any job has failed.
+        raise_on_bool: flag for whether to raise error if any job has failed
 
     Raises:
-        ValueError if any of the jobs fail, ff raise_on_fail is True, when the
-        failed jobs are first detected.
+        ValueError if any of the jobs fail, when the
+        failed jobs are first detected (if raise_on_fail is True)
 
 
     """
