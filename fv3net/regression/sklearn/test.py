@@ -46,8 +46,8 @@ def load_test_dataset(
     # TODO (noah) dropping these variables is needed to avoid out of memory errors
     # when stack broadcasts x_interface and y_interface
     # Ideally this woudn't be a hard-code, but this code will likely be refactored
-    # IMO stacking is the responisiblity of the xarray wrapping object, not user code
-    # like this  substantially soon, so not worth parameterizing IMO
+    # substantially soon, so not worth parameterizing.  IMO stacking is the 
+    # responsibility of the xarray wrapping object, not user code like this.
     ds_test = ds_test.drop(["lonb", "latb"])
     ds_stacked = stack_and_drop_nan_samples(ds_test, coord_z_center)
     return ds_stacked
