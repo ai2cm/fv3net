@@ -28,6 +28,9 @@ latest
 * new external package `report` created, which handles generation of workflow reports
 * new external package `gallery` created, which generates figures which can be used by multiple workflows
 * add __main__.py to fv3net/regression/sklearn in order to better separate model training from I/O and report generation
+* Build `prognostic_run` image from v0.3.3 of `fv3gfs-python`
+* Adjust diagnostic outputs for prognostic run with name net_moistening instead of net_precip and add total_precipitation to outputs
+
 
 
 0.1.1 (2020-03-25)

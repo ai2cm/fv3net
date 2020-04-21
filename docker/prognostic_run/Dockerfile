@@ -1,4 +1,4 @@
-FROM us.gcr.io/vcm-ml/fv3gfs-python:v0.3.1
+FROM us.gcr.io/vcm-ml/fv3gfs-python:v0.3.3
 
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 RUN pip3 install wheel && pip3 install -r /tmp/requirements.txt
