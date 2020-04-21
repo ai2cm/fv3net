@@ -158,7 +158,8 @@ def _handle_jobs(jobs) -> bool:
 
     if len(failed) > 0:
         failed_job_names = list(failed)
-        raise ValueError(f"These jobs have failed: {failed_job_names}")
+#         raise ValueError(f"These jobs have failed: {failed_job_names}")
+        logger.info(f"These jobs have failed: {failed_job_names}")
     elif len(active) == 0:
         return True
     else:
