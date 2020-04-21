@@ -3,6 +3,7 @@ import zarr
 import xarray as xr
 import numpy as np
 import fsspec
+from multiprocessing.pool import ThreadPool
 
 import pytest
 
@@ -52,11 +53,21 @@ def dest(request):
         return zarr.MemoryStore()
 
 
-def test__copy_store(dest):
-    src = {}
-    for key in ["a", "b", "c", "d"]:
-        src[key] = b"ad9fa9df"
-    runfile._copy_store_threaded(src, dest)
+def test__cached_store_zarr_integration():
+    src = zarr.MemoryStore()
+    dest = zarr.MemoryStore()
+    with ThreadPool(10) as pool:
+        cache = runfile.CachedStore(src, dest, pool)
+        zarr.open_group(cache, mode="w")
 
-    for key in src:
-        assert src[key] == dest[key]
+
+def test__cached_store_insert():
+    src = {}
+    dest = {}
+    with ThreadPool(10) as pool:
+        cache = runfile.CachedStore(src, dest, pool, cache_size=2)
+        cache[0] = 0
+        cache[1] = 1
+        cache[2] = 2
+    assert dict(src) == {}
+    assert len(dest) == 3

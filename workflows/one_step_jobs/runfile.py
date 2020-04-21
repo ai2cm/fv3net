@@ -4,6 +4,7 @@ import runtime
 import logging
 import time
 import tempfile
+import collections
 
 
 import fsspec
@@ -97,11 +98,12 @@ SFC_VARIABLES = (
 GRID_VARIABLES = ("lat", "lon", "latb", "lonb", "area")
 
 
-class CachedStore:
-    def __init__(self, cache, dest, cache_size=20):
+class CachedStore(collections.abc.MutableMapping):
+    def __init__(self, cache, dest, pool, cache_size=20):
         self.cache_size = cache_size
         self.cache = cache
         self.dest = dest
+        self.pool = pool
 
     def __getitem__(self, key):
         try:
@@ -109,8 +111,20 @@ class CachedStore:
         except KeyError:
             return self.dest[key]
 
+    def __delitem__(self, key):
+        try:
+            del self.cache[key]
+        except KeyError:
+            del self.dest[key]
+
+    def __iter__(self, key):
+        return self
+
+    def __len__(self, key):
+        return len(self.cache) + len(self.dest)
+
     def flush(self):
-        _copy_store_threaded(self.cache, self.dest)
+        _copy_store_threaded(self.cache, self.dest, self.pool)
         for key in list(self.cache):
             del self.cache[key]
 
@@ -124,17 +138,12 @@ class CachedStore:
         yield from self.cache
         yield from self.dest
 
-    def __del__(self):
-        self.flush()
 
-
-def _copy_store_threaded(src: Mapping, dest: MutableMapping, num_threads=20):
+def _copy_store_threaded(src: Mapping, dest: MutableMapping, pool):
     def _copy_key(key):
         logger.debug(f"copying {key}")
         dest[key] = src[key]
-
-    with ThreadPool(num_threads) as pool:
-        pool.map(_copy_key, src)
+    pool.map(_copy_key, src)
 
 
 def rename_sfc_dt_atmos(sfc: xr.Dataset) -> xr.Dataset:
