@@ -152,6 +152,9 @@ workflows:
       - pytest_default
       - hold:
           type: approval
+          branches:
+            only:
+              - master
       - build_default:
           requires:
           - hold
