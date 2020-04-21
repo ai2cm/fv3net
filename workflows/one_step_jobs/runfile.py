@@ -97,7 +97,6 @@ GRID_VARIABLES = ("lat", "lon", "latb", "lonb", "area")
 
 
 def _copy_store_threaded(src: Mapping, dest: MutableMapping, num_threads=20):
-
     def _copy_key(key):
         logger.debug(f"copying {key}")
         dest[key] = src[key]
