@@ -91,7 +91,7 @@ def compute_metrics_and_plot(ds, output_dir, names):
 
 
 def load_data_and_predict_with_ml(
-    test_data_path, model_path, high_res_data_path, model_type, names,
+    test_data_path, model_path, high_res_data_path, model_type, names
 ):
     # get grid
     # because predict_on_test_data loads data and predicts, the easiest way to grab
@@ -108,7 +108,7 @@ def load_data_and_predict_with_ml(
         .isel({names["init_time_dim"]: 0})
         .drop(names["init_time_dim"])
     )
-    
+
     # TODO this function mixes I/O and computation
     # Should just be 1. load_data, 2. make a prediction
     ds_test, ds_pred = predict_on_test_data(
