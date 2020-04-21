@@ -31,12 +31,6 @@ if __name__ == "__main__":
         help="yaml file for updating the default data variable names.",
     )
     parser.add_argument(
-        "--variable_namefile",
-        type=str,
-        default=None,
-        help="yaml file for providing data variable names",
-    )
-    parser.add_argument(
         "gcs_input_data_path",
         type=str,
         help="Location of input data in Google Cloud Storage bucket. "
