@@ -34,8 +34,6 @@ function waitForComplete {
     if [[ $job_succeed == "1" ]]
     then
         echo Job successful: "$jobName"
-        #echo Deleting job...
-        #kubectl delete job "$jobName"
     elif [[ $job_fail == "1" ]]
     then
         echo Job failed: "$jobName"
