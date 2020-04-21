@@ -121,12 +121,6 @@ def _split_by_pairs(ds_full, timesteps, init_time_dim):
     tstep_pairs = []
     for key, pairs in timesteps.items():
         tstep_pairs += pairs
-    for pair in tstep_pairs:
-        for tstep in pair:
-            if tstep not in ds_full[init_time_dim].values:
-                print(f"{tstep} not in dataset init times")
-            else:
-                print(f"{tstep} ok")
     ds_pairs = [ds_full.sel({init_time_dim: pair}) for pair in tstep_pairs]
     return ds_pairs
 
