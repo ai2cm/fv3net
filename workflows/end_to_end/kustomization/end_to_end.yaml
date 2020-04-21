@@ -53,7 +53,7 @@ experiment:
           from: one_step_run
         diagnostics_data:
           from: coarsen_diagnostics
-        timestep_splits: $TRAINING_TIMES
+        timestep_splits: $TRAIN_AND_TEST_TIMES
         
     train_sklearn_model:
       command: python -m fv3net.regression.sklearn
