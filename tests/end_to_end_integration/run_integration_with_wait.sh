@@ -23,7 +23,7 @@ function waitForComplete {
     echo "$job_active"
     while [[ $(date +%s) -le $timeout ]] && [[ $job_active == "1" ]]
     do
-        echo "$(date \"+%Y-%m-%d %H:%M\")" Job active: "$jobName" ... sleeping ${SLEEP_TIME}s
+        echo "$(date '+%Y-%m-%d %H:%M')" Job active: "$jobName" ... sleeping ${SLEEP_TIME}s
         sleep $SLEEP_TIME
         job_active=$(getJob $NAMESPACE $jobName| jq --raw-output .status.active)
     done
@@ -85,4 +85,6 @@ cat kustomization/kustomization.yaml
 
 kubectl apply -k  kustomization --dry-run  -o yaml
 kubectl apply -k kustomization
+
+trap "kubectl logs -lwaitForMe=\"$random\"" EXIT
 waitForComplete -lwaitForMe="$random" default
