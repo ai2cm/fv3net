@@ -44,7 +44,3 @@ def train_test_split_sample(seq, boundary, train_samples, test_samples, seed=0):
     # restore the seed
     random.setstate(old_state)
     return {"train": train_steps, "test": test_steps}
-
-
-def remove_spinup_period(seq, spinup):
-    return list(filter(lambda t: spinup <= t, seq))
