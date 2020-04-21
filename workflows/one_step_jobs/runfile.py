@@ -1,16 +1,15 @@
 import os
-from typing import Sequence, Mapping, cast, Hashable
+from typing import Sequence, Mapping, cast, Hashable, MutableMapping
 import runtime
 import logging
 import time
 
-# avoid out of memory errors
-# dask.config.set(scheduler='single-threaded')
 
 import fsspec
 import zarr
 import xarray as xr
 import numpy as np
+
 
 
 logging.basicConfig(level=logging.INFO)
@@ -94,6 +93,15 @@ SFC_VARIABLES = (
 )
 
 GRID_VARIABLES = ("lat", "lon", "latb", "lonb", "area")
+
+
+def _copy_store_threaded(src: Mapping, dest: MutableMapping, num_threads=20):
+
+    def _copy_key(key):
+        dest[key] = src[key]
+
+    with ThreadPool(num_threads) as pool:
+        pool.map(_copy_key, src)
 
 
 def rename_sfc_dt_atmos(sfc: xr.Dataset) -> xr.Dataset:
@@ -262,15 +270,18 @@ def post_process(
 
     merged = xr.merge([sfc, ds])
     merged = _zarr_safe_string_coord(merged, coord_name="step")
-    mapper = fsspec.get_mapper(store_url)
+
+    local_store = zarr.MemoryStore()
+    remote_store = fsspec.get_mapper(store_url)
 
     if init:
         logging.info("initializing zarr store")
-        group = zarr.open_group(mapper, mode="w")
+        group = zarr.open_group(local_store, mode="w")
         create_zarr_store(timesteps, group, merged)
 
-    group = zarr.open_group(mapper, mode="a")
+    group = zarr.open_group(local_store, mode="a")
     _write_to_store(group, index, merged)
+    _copy_store_threaded(local_store, remote_store)
 
 
 if __name__ == "__main__":
