@@ -1,0 +1,5 @@
+spinup: "20160805.000000"
+boundary: "20160901.000000"
+train_samples: 130
+test_samples: 48
+seed: "0"

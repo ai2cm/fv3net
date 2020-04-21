@@ -3,35 +3,27 @@ kind: Job
 metadata:
   labels:
     app: integration-test
-  name: $JOBNAME
+  name: end-to-end
 spec:
   backoffLimit: 0
   template:
+    metadata:
+      generateName: end-to-end-pod-
     spec:
       serviceAccountName: integration-tests
       containers:
-      - command: ["/bin/bash", "-c"]
-        args: 
-          - |
-              find /etc/config
-              workflows/end_to_end/submit_workflow.sh $(CONFIG)/end_to_end.yml
-        image: $FV3NET_IMAGE
+      - command: ["/bin/bash"]
+        args:  ["workflows/end_to_end/entrypoint.sh"]
+        image: us.gcr.io/vcm-ml/fv3net
         imagePullPolicy: Always
+        envFrom:
+          - configMapRef:
+              name: end-to-end
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
             value: /secret/gcp-credentials/key.json
           - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
             value: /secret/gcp-credentials/key.json
-          - name: PROGNOSTIC_RUN_IMAGE
-            valueFrom:
-              configMapKeyRef:
-                name: $CONFIGMAP
-                key: PROGNOSTIC_RUN_IMAGE
-          - name: FV3NET_IMAGE
-            valueFrom:
-              configMapKeyRef:
-                name: $CONFIGMAP
-                key: FV3NET_IMAGE
           - name: CONFIG
             value: /etc/config
         name: integration-test
@@ -43,8 +35,8 @@ spec:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
             readOnly: true
-          - mountPath:  /etc/config
-            name: end-to-end-config
+          - mountPath:  /etc/config/
+            name: config-vol
       restartPolicy: Never
       terminationGracePeriodSeconds: 30
       tolerations:
@@ -56,7 +48,7 @@ spec:
           secret:
             defaultMode: 444
             secretName: gcp-key
-        - name: end-to-end-config
+        - name: config-vol
           configMap:
-            name: $CONFIGMAP
+            name: end-to-end
             
