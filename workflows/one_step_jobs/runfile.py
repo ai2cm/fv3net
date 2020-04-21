@@ -97,6 +97,37 @@ SFC_VARIABLES = (
 GRID_VARIABLES = ("lat", "lon", "latb", "lonb", "area")
 
 
+class CachedStore:
+    def __init__(self, cache, dest, cache_size=20):
+        self.cache_size = cache_size
+        self.cache = cache
+        self.dest = dest
+
+    def __getitem__(self, key):
+        try:
+            return self.cache[key]
+        except KeyError:
+            return self.dest[key]
+
+    def flush(self):
+        _copy_store_threaded(self.cache, self.dest)
+        for key in list(self.cache):
+            del self.cache[key]
+
+    def __setitem__(self, key, val):
+        self.cache[key] = val
+
+        if len(self.cache) > self.cache_size:
+            self.flush()
+
+    def keys(self):
+        yield from self.cache
+        yield from self.dest
+
+    def __del__(self):
+        self.flush()
+
+
 def _copy_store_threaded(src: Mapping, dest: MutableMapping, num_threads=20):
     def _copy_key(key):
         logger.debug(f"copying {key}")
@@ -276,15 +307,16 @@ def post_process(
     with tempfile.TemporaryDirectory() as path:
         local_store = zarr.DirectoryStore(path)
         remote_store = fsspec.get_mapper(store_url)
+        store = CachedStore(local_store, remote_store)
 
         if init:
             logging.info("initializing zarr store")
-            group = zarr.open_group(local_store, mode="w")
+            group = zarr.open_group(store, mode="w")
             create_zarr_store(timesteps, group, merged)
 
-        group = zarr.open_group(local_store, mode="a")
+        group = zarr.open_group(store, mode="a")
         _write_to_store(group, index, merged)
-        _copy_store_threaded(local_store, remote_store)
+        store.flush()
 
 
 if __name__ == "__main__":
