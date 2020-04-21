@@ -10,6 +10,7 @@ import zarr
 import xarray as xr
 import numpy as np
 
+from multiprocessing.pool import ThreadPool
 
 
 logging.basicConfig(level=logging.INFO)
@@ -98,6 +99,7 @@ GRID_VARIABLES = ("lat", "lon", "latb", "lonb", "area")
 def _copy_store_threaded(src: Mapping, dest: MutableMapping, num_threads=20):
 
     def _copy_key(key):
+        logger.debug(f"copying {key}")
         dest[key] = src[key]
 
     with ThreadPool(num_threads) as pool:

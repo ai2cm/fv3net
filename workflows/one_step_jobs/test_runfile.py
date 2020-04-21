@@ -2,6 +2,9 @@ import runfile
 import zarr
 import xarray as xr
 import numpy as np
+import fsspec
+
+import pytest
 
 
 def test_init_coord():
@@ -39,3 +42,21 @@ def test_init_coord():
 
     loaded = xr.open_zarr(store)
     np.testing.assert_equal(loaded.time.values, ds_lead_time.time.values)
+
+
+@pytest.fixture(params=["gcsfs", "memory"])
+def dest(request):
+    if request.param == "gcsfs":
+        return fsspec.get_mapper("gs://vcm-ml-data/testing-noah/temporarydeleteme/")
+    elif request.param == "memory":
+        return zarr.MemoryStore()
+
+
+def test__copy_store(dest):
+    src = {}
+    for key in ["a", "b", "c", "d"]:
+        src[key] = b"ad9fa9df"
+    runfile._copy_store_threaded(src, dest)
+
+    for key in src:
+        assert src[key] == dest[key]
