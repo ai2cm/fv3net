@@ -12,21 +12,34 @@ logger = logging.getLogger(__name__)
 
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
-VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP]
+TOTAL_PRECIP = "total_precipitation"
+VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP, TOTAL_PRECIP]
 
 cp = 1004
 gravity = 9.81
 
 
 def compute_diagnostics(state, diags):
+
+    net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
+
     return dict(
-        net_precip=(diags["dQ2"] * state[DELP] / gravity)
-        .sum("z")
-        .assign_attrs(units="kg/m^2/s"),
-        PW=(state[SPHUM] * state[DELP] / gravity).sum("z").assign_attrs(units="mm"),
+        net_moistening=(net_moistening)
+        .assign_attrs(units="kg/m^2/s")
+        .assign_attrs(description="column integrated ML model moisture tendency"),
         net_heating=(diags["dQ1"] * state[DELP] / gravity * cp)
         .sum("z")
-        .assign_attrs(units="W/m^2"),
+        .assign_attrs(units="W/m^2")
+        .assign_attrs(description="column integrated ML model heating"),
+        water_vapor_path=(state[SPHUM] * state[DELP] / gravity)
+        .sum("z")
+        .assign_attrs(units="mm")
+        .assign_attrs(description="column integrated water vapor"),
+        total_precip=(state[TOTAL_PRECIP] - net_moistening)
+        .assign_attrs(units="kg/m^s/s")
+        .assign_attrs(
+            description="total precipitation rate at the surface (model + ML)"
+        ),
     )
 
 
