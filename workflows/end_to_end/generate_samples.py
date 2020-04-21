@@ -17,6 +17,8 @@ fs = fsspec.filesystem("gs")
 url = args.pop("url")
 urls = sorted(fs.ls(url))
 steps = [vcm.parse_timestep_str_from_path(url) for url in urls]
+spinup = args.pop("spinup", steps[0])
+steps = vcm.remove_spinup_period(steps, spinup)
 splits = vcm.train_test_split_sample(steps, **args)
 
 all_steps = sorted(set(flatten(flatten(splits.values()))))

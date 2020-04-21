@@ -1,3 +1,4 @@
+import pytest
 import vcm
 
 
@@ -14,3 +15,16 @@ def test_train_test_split_sample_invariant_to_unsorted(regtest):
     out2 = vcm.train_test_split_sample(seq2, 3, train_samples=1, test_samples=1, seed=0)
 
     assert out1 == out2
+
+
+@pytest.mark.parametrize(
+    "seq, spinup",
+    [
+        (list(range(10)), 4),
+        (list(range(10)), 4.5),
+    ],
+)
+def test_remove_spinup_period(seq, spinup):
+    out = vcm.remove_spinup_period(seq, spinup)
+    assert isinstance(out, list)
+    assert all([t >= spinup for t in out])
