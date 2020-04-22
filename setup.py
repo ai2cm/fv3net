@@ -18,8 +18,16 @@ dependencies = [
 ]
 
 
-packages = find_packages() + find_packages("external/vcm", exclude="tests") + find_packages("external/fv3config", exclude="tests")
-package_dir = {"vcm": f"external/vcm/vcm/", "fv3config": "external/fv3config/fv3config", "fv3net": "fv3net"}
+packages = (
+    find_packages()
+    + find_packages("external/vcm", exclude="tests")
+    + find_packages("external/fv3config", exclude="tests")
+)
+package_dir = {
+    "vcm": f"external/vcm/vcm/",
+    "fv3config": "external/fv3config/fv3config",
+    "fv3net": "fv3net",
+}
 
 print(f"Found packages: {packages}")
 setup(
