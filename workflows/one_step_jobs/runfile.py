@@ -143,6 +143,7 @@ def _copy_store_threaded(src: Mapping, dest: MutableMapping, pool):
     def _copy_key(key):
         logger.debug(f"copying {key}")
         dest[key] = src[key]
+
     pool.map(_copy_key, src)
 
 
