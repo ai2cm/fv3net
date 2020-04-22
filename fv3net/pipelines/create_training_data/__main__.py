@@ -13,6 +13,7 @@ Example of timesteps_file input data::
     }⏎
 """
 import argparse
+import logging
 import yaml
 from .config import get_config
 
@@ -58,6 +59,7 @@ if __name__ == "__main__":
     )
 
     args, pipeline_args = parser.parse_known_args()
+    logging.basicConfig(level=logging.INFO)
 
     if args.variable_namefile is None:
         updates = {}
