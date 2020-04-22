@@ -9,6 +9,7 @@ python = "^3.7"
 vcm = {path = "../../external/vcm"}
 apache_beam = {extras = ["gcp"], version = "^2.20.0"}
 kubernetes = "^11.0.0"
+zarr = "^2.4"
 
 [tool.poetry.dev-dependencies]
 
