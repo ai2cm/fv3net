@@ -1,6 +1,7 @@
 from setuptools import find_packages, setup
 
 dependencies = [
+    "kubernetes==11.0.0",
     "dask==2.13.0",
     "f90nml==1.1.2",
     "fsspec==0.7.1",
