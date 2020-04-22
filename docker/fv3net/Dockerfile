@@ -40,4 +40,5 @@ USER $NB_UID
 
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
+RUN pip install apache_beam[gcp] six==1.12.0
 CMD ["/bin/bash"]
