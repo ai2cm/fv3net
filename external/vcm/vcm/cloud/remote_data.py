@@ -19,7 +19,7 @@ def open_gfdl_data(catalog):
     )
 
 
-def open_gfdl_data_with_2d(catalog: intake.Catalog) -> xr.Dataset:
+def open_gfdl_data_with_2d(catalog: intake.catalog.Catalog) -> xr.Dataset:
     """Open the initial DYAMOND prototype data merging the 2D and 3D data
 
     The snapshot of the 2D data closest to the 3D time output time is included.
@@ -32,7 +32,7 @@ def open_gfdl_data_with_2d(catalog: intake.Catalog) -> xr.Dataset:
 
 
 def open_gfdl_15_minute_SHiELD(
-    catalog: intake.Catalog, dataset_name: str
+    catalog: intake.catalog.Catalog, dataset_name: str
 ) -> xr.Dataset:
     """Open the initial SHiELD prototype data."""
 

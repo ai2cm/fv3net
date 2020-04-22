@@ -114,7 +114,7 @@ paths = {
 
 
 def open_catalog():
-    return intake.Catalog(f"{root}/catalog.yml")
+    return intake.catalog.Catalog(f"{root}/catalog.yml")
 
 
 def open_dataset(tag) -> xr.Dataset:
