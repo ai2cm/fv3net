@@ -44,7 +44,6 @@ class ModelTrainingConfig:
         if "random_state" not in self.hyperparameters:
             self.hyperparameters["random_state"] = 0
 
-
     def validate_number_train_batches(self, batch_generator):
         """ Since number of training files specified may be larger than
         the actual number available, this adds an attribute num_batches_used
