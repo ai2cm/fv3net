@@ -14,7 +14,8 @@ from fv3net import COARSENED_DIAGS_ZARR_NAME
 import numpy as np
 import dask
 import zarr
-dask.config.set(scheduler='single-threaded')
+
+dask.config.set(scheduler="single-threaded")
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
 
 def _load_pair(timesteps, store, init_time_dim):
     ds = xr.open_zarr(store, consolidated=True)
-    yield ds.sel({init_time_dim: timesteps}) 
+    yield ds.sel({init_time_dim: timesteps})
 
 
 def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, str]]]):
@@ -50,12 +51,11 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
     """
     fs = get_fs(args.gcs_input_data_path)
     mapper = fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
-    if '.zmetadata' not in mapper:
+    if ".zmetadata" not in mapper:
         logger.info("Consolidating metadata")
         zarr.consolidate_metadata(mapper)
     train_test_labels = _train_test_labels(timesteps)
-    timestep_pairs = timesteps['train'] + timesteps['test']
-    timestep_pairs = timestep_pairs
+    timestep_pairs = timesteps["train"] + timesteps["test"]
 
     logger.info(f"Processing {len(timestep_pairs)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
@@ -68,7 +68,8 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
         (
             p
             | beam.Create(timestep_pairs)
-            | "SelectInitialTimes" >> beam.ParDo(_load_pair, mapper, names['init_time_dim'])
+            | "SelectInitialTimes"
+            >> beam.ParDo(_load_pair, mapper, names["init_time_dim"])
             | "TimeDimToDatetime"
             >> beam.Map(_str_time_dim_to_datetime, time_dim=names["init_time_dim"])
             | "AddPhysicsTendencies"
