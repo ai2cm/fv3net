@@ -45,8 +45,6 @@ import logging
 import sys
 from typing import Sequence, Mapping, Any
 
-# xr.set_options(keep_attrs=True)
-
 out_hdlr = logging.StreamHandler(sys.stdout)
 out_hdlr.setFormatter(
     logging.Formatter("%(name)s %(asctime)s: %(module)s/L%(lineno)d %(message)s")
@@ -59,10 +57,10 @@ logger = logging.getLogger("one_step_diags")
 def _create_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "one_step_data", type=str, help="One-step zarr path, including .zarr suffix."
+        "one_step_data", type=str, help="One-step zarr path, not including zarr name."
     )
     parser.add_argument(
-        "hi_res_diags", type=str, help="Output location for diagnostics."
+        "hi_res_diags", type=str, help="C384 diagnostics zarr path, not including zarr name."
     )
     parser.add_argument(
         "netcdf_output", type=str, help="Output location for diagnostics netcdf file."
@@ -87,6 +85,15 @@ def _create_arg_parser():
         default=10,
         help="Number of initalization " "to use in computing one-step diagnostics.",
     )
+    parser.add_argument(
+        "--timesteps_file",
+        type=str,
+        default=None,
+        help=(
+            "File containing paired timesteps for test and/or train sets. See the "
+            "__doc__ of this script for more info."
+        ),
+    
 
     return parser
 
