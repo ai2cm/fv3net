@@ -1,8 +1,4 @@
-FROM jupyter/base-notebook
-
-
-# Install dependencies (slow)
-USER root
+FROM ubuntu:18.04
 
 # install gcloud
 RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext
@@ -13,31 +9,14 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.
 
 RUN apt-get update && apt-get install -y google-cloud-sdk jq python3-dev python3-pip kubectl gfortran
 
-# install gcloud sdk
-RUN gcloud config set project vcm-ml
+COPY docker/fv3net/requirements.txt /tmp/requirements.txt
+RUN pip3 install wheel && pip3 install -r /tmp/requirements.txt
 
-ENV FV3NET=/home/$NB_USER/fv3net
-ENV ENVIRONMENT_SCRIPTS=$FV3NET/environment-scripts
-ENV PROJECT_NAME=fv3net
+# cache external package installation
+COPY external/fv3config /fv3net/external/fv3config
+COPY external/vcm /fv3net/external/vcm
+RUN pip3 install -e /fv3net/external/vcm -e /fv3net/external/fv3config
 
-WORKDIR $FV3NET
-USER $NB_UID
-
-ADD .environment-scripts $ENVIRONMENT_SCRIPTS
-ADD environment.yml  environment.yml
-
-RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME && conda clean -tpi
-ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
-
-# delete any gsutil's installed by conda
-RUN rm -f /opt/conda/envs/$PROJECT_NAME/gsutil
-
-# Add rest of fv3net directory
-COPY . $FV3NET
-USER root
-RUN fix-permissions $FV3NET
-USER $NB_UID
-
-# setup the local python packages
-RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
-CMD ["/bin/bash"]
+COPY . /fv3net
+RUN pip3 install --no-deps -e /fv3net
+ENV PYTHONPATH=/fv3net/external/runtime:${PYTHONPATH}
