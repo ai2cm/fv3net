@@ -144,7 +144,6 @@ jobs:
       - slack/status:
           fail_only: true
           mentions: 'channel'
-  
 workflows:
   version: 2
   test_and_lint:
@@ -153,9 +152,29 @@ workflows:
       - pytest_default
       - hold:
           type: approval
+          filters:
+            branches:
+              ignore:
+                - master
       - build_default:
           requires:
           - hold
       - integration_tests:
           requires:
             - build_default
+  build_and_push:
+    jobs:
+      - build_default:
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
+      - integration_tests:
+          requires:
+            - build_default
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master

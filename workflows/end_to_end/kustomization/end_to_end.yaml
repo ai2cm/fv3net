@@ -1,28 +1,28 @@
 storage_proto: gs
+#TODO: update storage_root to bucket for production runs
 storage_root: vcm-ml-data/test-end-to-end-integration
 experiment:
-  # TODO this change is for debugging purposes. undo it before merging
-  name: end_to_end_test
-  unique_id: true
+  name: $JOBNAME
+  unique_id: false
   steps_to_run:
-          # TODO uncomment this before final merge
-          #- coarsen_restarts  # this step is unreliable, so currently not part of integration test
+    #- coarsen_restarts  # not doing C384 -> C48 coarsening
+    # TOOD uncomment these for production runs
     - coarsen_diagnostics
     - one_step_run
     - create_training_data
     - train_sklearn_model
-    - test_sklearn_model
+    # - test_sklearn_model
     - prognostic_run
     - baseline_run
-
+  
   steps_config:
     coarsen_restarts:
       command: python -m fv3net.pipelines.coarsen_restarts
       args:
         data_to_coarsen:
-          location: gs://vcm-ml-data/test-end-to-end-integration/C384-restarts
-        grid_spec:
-          location: gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy
+          location: $C384_RESTARTS
+        grid_spec: 
+          location: $GRIDSPEC
         source-resolution: 384
         target-resolution: 48
         --runner: DataflowRunner
@@ -31,17 +31,19 @@ experiment:
       command: python workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.py
       args:
         c384_diagnostics:
-          location: gs://vcm-ml-data/test-end-to-end-integration/C384-diagnostics/gfsphysics_15min_coarse.zarr
-        coarsening_config: $CONFIG/coarsen_c384_diagnostics_integration.yml
+          location: $C384_DIAGNOSTICS
+        coarsening_config: $CONFIG/coarsen_c384_diagnostics.yml
 
     one_step_run:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
       args:
         restart_data:
           #from: coarsen_restarts  # uncomment this line and delete the following to include coarsening in test workflow
-          location: gs://vcm-ml-data/test-end-to-end-integration/C48-input-for-one-step-jobs
-        experiment_yaml: $CONFIG/one_step_jobs_integration.yml
+          location: $C48_RESTARTS
+        experiment_yaml: $CONFIG/one_step_jobs.yml
         docker_image: $PROGNOSTIC_RUN_IMAGE
+        timesteps: $ONE_STEP_TIMES
+        # TODO the config-version should be included in the one_step_jobs. Similar to how k8s yamls are.
         --config-version: v0.3
 
     create_training_data:
@@ -51,18 +53,16 @@ experiment:
           from: one_step_run
         diagnostics_data:
           from: coarsen_diagnostics
-        variable_filename: $CONFIG/create_training_data_variable_names.yml
-        --timesteps-per-output-file: 1
-        --train-fraction: 0.5
-
+        timestep_splits: $TRAIN_AND_TEST_TIMES
+        
     train_sklearn_model:
       command: python -m fv3net.regression.sklearn
       args:
         training_data:
           from: create_training_data
         train-config-file: $CONFIG/train_sklearn_model.yml
-
-    test_sklearn_model:
+        
+    test_sklearn_model: 
       command: python -m fv3net.diagnostics.sklearn_model_performance
       args:
         trained_model:
@@ -72,16 +72,15 @@ experiment:
         diagnostics_data:
           from: coarsen_diagnostics
         variable_filename: $CONFIG/test_sklearn_variable_names.yml
-        --num_test_zarrs: 2
 
     prognostic_run:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
       args:
         restart_file_dir:
           from: one_step_run
-        ic_timestep: "20160801.001500"
+        ic_timestep: $IC_TIMESTEP  # TODO: ensure this timestep is run for one-step jobs
         docker_image: $PROGNOSTIC_RUN_IMAGE
-        --prog_config_yml: $CONFIG/prognostic_run_integration.yml
+        --prog_config_yml: $CONFIG/prognostic_run.yml
         --model_url:
           from: train_sklearn_model
 
@@ -90,8 +89,6 @@ experiment:
       args:
         restart_file_dir:
           from: one_step_run
-        ic_timestep: "20160801.001500"
+        ic_timestep: $IC_TIMESTEP 
         docker_image: $PROGNOSTIC_RUN_IMAGE
-        --prog_config_yml: $CONFIG/prognostic_run_integration.yml
-
-
+        --prog_config_yml: $CONFIG/prognostic_run.yml

@@ -5,7 +5,7 @@ import yaml
 from pathlib import Path
 
 from fv3net.pipelines.kube_jobs import one_step
-from fv3net.pipelines.common import get_alphanumeric_unique_tag, list_timesteps
+from fv3net.pipelines.common import get_alphanumeric_unique_tag
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
@@ -30,24 +30,10 @@ def _create_arg_parser():
         help="Docker image to use for performing the one-step FV3GFS runs.",
     )
     parser.add_argument(
+        "timesteps", type=str, help="Path to list of time-steps in yaml format",
+    )
+    parser.add_argument(
         "output_url", type=str, help="Remote url where model output will be saved."
-    )
-    parser.add_argument(
-        "--i-start",
-        type=int,
-        default=0,
-        required=False,
-        help="Index of timestep at which to start. By default starts at first "
-        "timestep. Useful for testing.",
-    )
-    parser.add_argument(
-        "--n-steps",
-        type=int,
-        default=None,
-        required=False,
-        help="Number of timesteps to process. By default all timesteps "
-        "found in INPUT_URL for which successful runs do not exist in "
-        "OUTPUT_URL will be processed. Useful for testing.",
     )
     parser.add_argument(
         "--config-url",
@@ -55,6 +41,7 @@ def _create_arg_parser():
         required=False,
         help="Storage path for job configuration files",
     )
+    # TODO This should be contained within the one_step_yaml
     parser.add_argument(
         "--config-version",
         type=str,
@@ -88,9 +75,9 @@ if __name__ == "__main__":
     else:
         config_url = args.config_url
 
-    timesteps = list_timesteps(args.input_url)
-    i_stop = None if args.n_steps is None else args.i_start + args.n_steps
-    timesteps = timesteps[slice(args.i_start, i_stop)]
+    # open time-steps
+    with open(args.timesteps) as f:
+        timesteps = yaml.safe_load(f)
 
     one_step_config["kubernetes"]["runfile"] = RUNFILE
     one_step_config["kubernetes"]["docker_image"] = args.docker_image

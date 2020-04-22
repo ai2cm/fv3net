@@ -1,13 +1,15 @@
 import argparse
-import fsspec
 import os
 import tempfile
 import xarray as xr
 import yaml
 
-from vcm.cloud.fsspec import get_fs
+import fsspec
+from vcm.cloud import get_fs
 from vcm.cloud.gsutil import copy
 import vcm
+from vcm import safe
+
 import report
 
 from ..data import merge_comparison_datasets
@@ -20,6 +22,7 @@ from .diagnostics import plot_diagnostics
 from .create_metrics import create_metrics_dataset
 from .plot_metrics import plot_metrics
 from .plot_timesteps import plot_timestep_counts
+import logging
 
 DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
@@ -36,6 +39,9 @@ DPI_FIGURES = {
     "map_plot_3col": 120,
     "map_plot_single": 100,
 }
+
+
+logger = logging.getLogger(__file__)
 
 
 def _is_remote(path):
@@ -85,31 +91,30 @@ def compute_metrics_and_plot(ds, output_dir, names):
 
 
 def load_data_and_predict_with_ml(
-    test_data_path,
-    model_path,
-    high_res_data_path,
-    num_test_zarrs,
-    model_type,
-    downsample_time_factor,
-    names,
+    test_data_path, model_path, high_res_data_path, model_type, names,
 ):
+    # get grid
+    # because predict_on_test_data loads data and predicts, the easiest way to grab
+    # the grid is by loading the test_data again.
+    # This redundancy should go away when predict_on_test_data is split apart
+    # This is a good demonstration of how functions which do more than one things
+    # are inflexible and hard to adapt
+    fs = get_fs(test_data_path)
+    test_data_urls = sorted(fs.ls(test_data_path))
+    mapper = fs.get_mapper(test_data_urls[0])
+    ds = xr.open_zarr(mapper)
+    grid = safe.get_variables(ds, names["grid_vars"])
 
-    # if output path is remote GCS location, save results to local output dir first
-    # TODO I bet this output preparation could be cleaned up.
     # TODO this function mixes I/O and computation
     # Should just be 1. load_data, 2. make a prediction
     ds_test, ds_pred = predict_on_test_data(
         test_data_path,
         model_path,
-        num_test_zarrs,
         names["pred_vars_to_keep"],
         names["init_time_dim"],
         names["coord_z_center"],
         model_type,
-        downsample_time_factor,
     )
-
-    fs_input = get_fs(args.test_data_path)
 
     ds_test = add_column_heating_moistening(
         ds_test,
@@ -130,6 +135,7 @@ def load_data_and_predict_with_ml(
     )
 
     # TODO Do all data merginig and loading before computing anything
+    logger.info("Loading high-resolution diagnostics")
     init_times = list(set(ds_test[names["init_time_dim"]].values))
     ds_hires = load_high_res_diag_dataset(
         high_res_data_path,
@@ -137,23 +143,24 @@ def load_data_and_predict_with_ml(
         names["init_time_dim"],
         names["renamed_hires_grid_vars"],
     )
-    grid_path = os.path.join(os.path.dirname(test_data_path), "grid_spec.zarr")
+
+    slmsk: xr.DataArray = ds_test[names["var_land_sea_mask"]].isel(
+        {names["init_time_dim"]: 0}
+    )
 
     # TODO ditto: do all merging of data before computing anything
-    grid = xr.open_zarr(fs_input.get_mapper(grid_path))
-    slmsk = ds_test[names["var_land_sea_mask"]].isel({names["init_time_dim"]: 0})
-
-    # TODO ditto: do all merging of data before computing anything
-    return merge_comparison_datasets(
-        data_vars=names["data_vars"],
-        datasets=[ds_pred, ds_test, ds_hires],
-        dataset_labels=[
-            DATASET_NAME_PREDICTION,
-            DATASET_NAME_FV3_TARGET,
-            DATASET_NAME_SHIELD_HIRES,
-        ],
-        grid=grid,
-        additional_dataset=slmsk,
+    return (
+        merge_comparison_datasets(
+            data_vars=names["data_vars"],
+            datasets=[ds_pred, ds_test, ds_hires],
+            dataset_labels=[
+                DATASET_NAME_PREDICTION,
+                DATASET_NAME_FV3_TARGET,
+                DATASET_NAME_SHIELD_HIRES,
+            ],
+        )
+        .merge(slmsk.to_dataset())
+        .merge(grid)
     )
 
 
@@ -181,12 +188,6 @@ if __name__ == "__main__":
         help="Output dir to write results to. Can be local or a GCS path.",
     )
     parser.add_argument(
-        "--num_test_zarrs",
-        type=int,
-        default=4,
-        help="Number of zarrs to concat together for use as test set.",
-    )
-    parser.add_argument(
         "--model-type",
         type=str,
         default="rf",
@@ -199,6 +200,9 @@ if __name__ == "__main__":
         default=1,
         help="Factor by which to downsample test set time steps",
     )
+
+    logging.basicConfig(level=logging.INFO)
+
     args = parser.parse_args()
     args.test_data_path = os.path.join(args.test_data_path, "test")
     with open(args.variable_names_file, "r") as f:
@@ -215,9 +219,7 @@ if __name__ == "__main__":
         args.test_data_path,
         args.model_path,
         args.high_res_data_path,
-        args.num_test_zarrs,
         args.model_type,
-        args.downsample_time_factor,
         names,
     )
 

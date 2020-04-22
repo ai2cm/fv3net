@@ -53,3 +53,4 @@ dependencies:
     - gitpython
     - bump2version>=0.5.11
     - yq
+    - pytest-regtest
