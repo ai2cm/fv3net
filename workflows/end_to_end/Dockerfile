@@ -8,7 +8,7 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.
 
 RUN apt-get update && apt-get install -y google-cloud-sdk jq kubectl gfortran
 
-COPY docker/fv3net/requirements.txt /tmp/requirements.txt
+COPY workflows/end_to_end/requirements.txt /tmp/requirements.txt
 RUN pip install wheel && pip3 install -r /tmp/requirements.txt
 
 RUN mkdir -p /fv3net
