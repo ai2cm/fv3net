@@ -29,10 +29,6 @@ ADD environment.yml  environment.yml
 RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME && conda clean -tpi
 ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
 
-# more python depdencies
-# TODO need to combine with above
-RUN pip install 'zarr>=2.4.0' pytest-regtest
-
 # delete any gsutil's installed by conda
 RUN rm -f /opt/conda/envs/$PROJECT_NAME/gsutil
 
