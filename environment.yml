@@ -36,7 +36,6 @@ dependencies:
   - toolz
   - xarray>=0.14
   - jupyterlab
-  - zarr
   - pip
   - xgcm=0.2
   - jupyterlab
@@ -47,6 +46,7 @@ dependencies:
   - bokeh=1.4
   - backoff
   - pip:
+    - zarr>=2.4
     - poetry
     - gsutil
     - nc-time-axis>=1.2.0
