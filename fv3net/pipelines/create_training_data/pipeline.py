@@ -12,9 +12,11 @@ import fsspec
 from vcm import parse_datetime_from_str
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 import numpy as np
+import dask
+import zarr
+dask.config.set(scheduler='single-threaded')
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 GRID_SPEC_FILENAME = "grid_spec.zarr"
@@ -24,6 +26,11 @@ ZARR_NAME = "big.zarr"
 FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
 # forecast time step used to calculate the high res tendency
 FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
+
+
+def _load_pair(timesteps, store, init_time_dim):
+    ds = xr.open_zarr(store, consolidated=True)
+    yield ds.sel({init_time_dim: timesteps}) 
 
 
 def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, str]]]):
@@ -42,11 +49,13 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
                 {"train": [("20180601.000000", "20180601.000000"), ...], "test: ...}
     """
     fs = get_fs(args.gcs_input_data_path)
-    ds_full = xr.open_zarr(
-        fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
-    )
+    mapper = fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
+    if '.zmetadata' not in mapper:
+        logger.info("Consolidating metadata")
+        zarr.consolidate_metadata(mapper)
     train_test_labels = _train_test_labels(timesteps)
-    timestep_pairs = _split_by_pairs(ds_full, timesteps, names["init_time_dim"])
+    timestep_pairs = timesteps['train'] + timesteps['test']
+    timestep_pairs = timestep_pairs
 
     logger.info(f"Processing {len(timestep_pairs)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
@@ -59,6 +68,7 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
         (
             p
             | beam.Create(timestep_pairs)
+            | "SelectInitialTimes" >> beam.ParDo(_load_pair, mapper, names['init_time_dim'])
             | "TimeDimToDatetime"
             >> beam.Map(_str_time_dim_to_datetime, time_dim=names["init_time_dim"])
             | "AddPhysicsTendencies"
@@ -115,14 +125,6 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
                 train_test_labels=train_test_labels,
             )
         )
-
-
-def _split_by_pairs(ds_full, timesteps, init_time_dim):
-    tstep_pairs = []
-    for key, pairs in timesteps.items():
-        tstep_pairs += pairs
-    ds_pairs = [ds_full.sel({init_time_dim: pair}) for pair in tstep_pairs]
-    return ds_pairs
 
 
 def _train_test_labels(timesteps):
