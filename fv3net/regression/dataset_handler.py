@@ -18,14 +18,6 @@ fh.setLevel(logging.INFO)
 logger.addHandler(fh)
 
 
-class RemoteDataError(Exception):
-    """ Raised for errors reading data from the cloud that
-    may be resolved upon retry.
-    """
-
-    pass
-
-
 @dataclass
 class BatchGenerator:
     data_vars: List[str]
@@ -79,7 +71,7 @@ class BatchGenerator:
                 file_batch_urls, coord_z_center, init_time_dim
             )
 
-    @backoff.on_exception(backoff.expo, RemoteDataError, max_tries=3)
+    @backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
     def _load_datasets(self, urls):
         timestep_paths = [self.fs.get_mapper(url) for url in urls]
         return [xr.open_zarr(path).load() for path in timestep_paths]
