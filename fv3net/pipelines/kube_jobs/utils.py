@@ -3,10 +3,12 @@ import os
 import time
 import kubernetes
 from kubernetes.client import BatchV1Api
+from kubernetes.config.config_exception import ConfigException
 import fsspec
 import yaml
 from typing import Sequence, Mapping, Tuple
 from pathlib import Path
+
 
 import fv3config
 
@@ -96,7 +98,7 @@ def initialize_batch_client() -> kubernetes.client.BatchV1Api:
 
     try:
         kubernetes.config.load_kube_config()
-    except TypeError:
+    except (TypeError, ConfigException):
         kubernetes.config.load_incluster_config()
 
     batch_client = kubernetes.client.BatchV1Api()
