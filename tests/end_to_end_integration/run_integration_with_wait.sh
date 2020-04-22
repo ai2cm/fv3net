@@ -73,7 +73,7 @@ configMapGenerator:
   name: end-to-end
   behavior: merge
 images:
-- name: us.gcr.io/vcm-ml/fv3net
+- name: us.gcr.io/vcm-ml/e2e
   newName: us.gcr.io/vcm-ml/e2e
   newTag: $VERSION
 EOF
