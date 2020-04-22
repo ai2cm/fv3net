@@ -74,7 +74,7 @@ configMapGenerator:
   behavior: merge
 images:
 - name: us.gcr.io/vcm-ml/fv3net
-  newName: us.gcr.io/vcm-ml/fv3net
+  newName: us.gcr.io/vcm-ml/e2e
   newTag: $VERSION
 EOF
 

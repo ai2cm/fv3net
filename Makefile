@@ -34,13 +34,16 @@ endif
 # pattern rule for building docker images
 build_image_%:
 	docker build . -f docker/$*/Dockerfile  -t $*
+
+build_image_e2e:
+	make -C workflows/end_to_end
 	
 enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $* bash
 
-build_images: build_image_fv3net build_image_prognostic_run
+build_images: build_image_e2e build_image_prognostic_run
 
-push_images: push_image_prognostic_run push_image_fv3net
+push_images: push_image_prognostic_run push_image_e2e
 
 push_image_%:
 	docker tag $* $(GCR_BASE)/$*:$(VERSION)
