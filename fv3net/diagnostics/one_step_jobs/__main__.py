@@ -75,14 +75,14 @@ def _create_arg_parser():
     parser.add_argument(
         "--start_ind",
         type=int,
-        default=0,
+        default=None,
         help="First timestep index to use in "
         "zarr. Earlier spin-up timesteps will be skipped. Defaults to 0.",
     )
     parser.add_argument(
         "--n_sample_inits",
         type=int,
-        default=10,
+        default=None,
         help="Number of initalization " "to use in computing one-step diagnostics.",
     )
     parser.add_argument(
@@ -90,9 +90,10 @@ def _create_arg_parser():
         type=str,
         default=None,
         help=(
-            "File containing paired timesteps for test and/or train sets. See the "
-            "__doc__ of this script for more info."
+            "File containing paired timesteps for train sets. See documentation "
+            "in one-steps scripts for more information."
         ),
+    )
     
 
     return parser
@@ -251,29 +252,72 @@ def _get_remote_netcdf(filename):
     fs_nc = get_fs(filename)
     with fs_nc.open(filename, "rb") as f:
         return xr.open_dataset(f).load()
+        
+        
 
-
+# start routine
+    
 args, pipeline_args = _create_arg_parser().parse_known_args()
+        
+# parse optional args
+        
+if (
+    (args.start_ind is not None or args.n_sample_inits is not None)
+    and args.timesteps_file is not None
+):
+    raise ValueError(
+        'timesteps_file cannot be specified with either n_sample_inits or start_ind'
+    )
 
 zarrpath = os.path.join(args.one_step_data, ONE_STEP_ZARR)
 fs = get_fs(zarrpath)
-ds_zarr = xr.open_zarr(fs.get_mapper(zarrpath)).isel(
-    {INIT_TIME_DIM: slice(args.start_ind, None)}
-)[list(VARS_FROM_ZARR + GRID_VARS)]
+ds_zarr_template = xr.open_zarr(fs.get_mapper(zarrpath))[list(GRID_VARS) + [INIT_TIME_DIM]]
+    
+if args.timesteps_file is None:
+    
+    # get subsampling from zarr times and specified parameters
+    
 
-logger.info(f"Opened .zarr at {zarrpath}")
+    ds_zarr_times = ds_zarr_template.isel(
+        {INIT_TIME_DIM: slice(args.start_ind, None)}
+    )[INIT_TIME_DIM]
 
-timestamp_subset_indices = time_inds_to_open(
-    ds_zarr[INIT_TIME_DIM], args.n_sample_inits
-)
-ds_sample = [
-    (
-        ds_zarr[list(VARS_FROM_ZARR)]
-        .isel({INIT_TIME_DIM: list(indices)})
-        .sel({"step": list(("begin", "after_physics"))})
+    logger.info(f"Opened .zarr at {zarrpath}")
+
+    if args.n_sample_inits is None:
+        n_sample_inits = ds_zarr_times.sizes[INIT_TIME_DIM]
+    else:
+        n_sample_inits = args.n_sample_inits
+    timestamp_subset_indices = time_inds_to_open(
+        ds_zarr_times, n_sample_inits
     )
-    for indices in timestamp_subset_indices
-]
+#     for indices in timestamp_subset_indices:
+#         print(indices)
+#     print(timestamp_subset_indices)
+    
+    timestamp_pairs_subset = [
+        [ds_zarr_times.isel({INIT_TIME_DIM: indices[0]}).item(),
+         ds_zarr_times.isel({INIT_TIME_DIM: indices[1]}).item()]
+        for indices in timestamp_subset_indices
+    ]
+    
+    print(timestamp_pairs_subset)
+else:
+    with open(args.timesteps_file, "r") as f:
+        timesteps = yaml.safe_load(f)
+    timesteps_pairs_subset = timesteps['train']
+    print(timesteps_pairs_subset)
+
+
+
+# ds_sample = [
+#     (
+#         ds_zarr[list(VARS_FROM_ZARR)]
+#         .isel({INIT_TIME_DIM: list(indices)})
+#         .sel({"step": list(("begin", "after_physics"))})
+#     )
+#     for indices in timestamp_subset_indices
+# ]
 
 hi_res_diags_zarrpath = os.path.join(args.hi_res_diags, COARSENED_DIAGS_ZARR_NAME)
 hi_res_diags_mapping = {name: name for name in SFC_VARIABLES}
@@ -286,9 +330,9 @@ hi_res_diags_mapping.update(
 )
 
 grid = (
-    ds_zarr[list(GRID_VARS)]
+    ds_zarr_template
     .isel({INIT_TIME_DIM: 0, FORECAST_TIME_DIM: 0, STEP_DIM: 0})
-    .drop_vars([STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
+    .drop([STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
 )
 
 output_nc_path = os.path.join(args.netcdf_output, OUTPUT_NC_FILENAME)
