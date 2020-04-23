@@ -171,8 +171,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
                 ds["cloud_water_mixing_ratio"],
                 ds["rain_mixing_ratio"],
                 ds["snow_mixing_ratio"],
-                ds["graupel_mixing_ratio"],
-                ds["pressure_thickness_of_atmospheric_layer"],
+                ds["graupel_mixing_ratio"]
             ),
             "precipitating_water": precipitating_water_mixing_ratio,
             "cloud_water_ice": cloud_water_ice_mixing_ratio,
@@ -316,7 +315,7 @@ def insert_abs_vars(ds: xr.Dataset, varnames: Sequence) -> xr.Dataset:
             ds[var + "_abs"] = np.abs(ds[var])
             ds[var + "_abs"].attrs.update(
                 {
-                    "long_name": f"absolute {ds[var].attrs['long_name']}",
+                    "long_name": f"absolute {ds[var].attrs['long_name']}" if 'long_name' in ds[var].attrs else None,
                     "units": ds[var].attrs["units"],
                 }
             )
@@ -326,13 +325,14 @@ def insert_abs_vars(ds: xr.Dataset, varnames: Sequence) -> xr.Dataset:
     return ds
 
 
-def insert_variable_at_model_level(ds: xr.Dataset, varnames: list, level: int):
+def insert_variable_at_model_level(ds: xr.Dataset, varnames: Sequence, levels: Sequence):
 
     for var in varnames:
         if var in ds:
-            new_name = f"{var}_level_{level}"
-            ds = ds.assign({new_name: ds[var].sel({"z": level})})
-            ds[new_name].attrs.update({"long_name": f"{var} at model level {level}"})
+            for level in levels:
+                new_name = f"{var}_level_{level}"
+                ds = ds.assign({new_name: ds[var].sel({"z": level})})
+                ds[new_name].attrs.update({"long_name": f"{var} at model level {level}"})
         else:
             raise ValueError("Invalid variable for model level selection.")
 

@@ -160,7 +160,7 @@ def _insert_states_and_tendencies(ds: xr.Dataset) -> xr.Dataset:
             .pipe(insert_column_integrated_tendencies)
             .pipe(insert_model_run_differences)
             .pipe(insert_abs_vars, ABS_VARS)
-            .pipe(insert_variable_at_model_level, ["vertical_wind"], 40)
+            .pipe(insert_variable_at_model_level, ["vertical_wind", "vertical_wind_abs"], [40, 40])
         )
         ds.attrs[INIT_TIME_DIM] = [ds[INIT_TIME_DIM].item().strftime(TIME_FMT)]
     except Exception as e:

@@ -29,11 +29,14 @@ VARS_FROM_ZARR = (
     "sensible_heat_flux",
     "total_precipitation",
 ) + SFC_VARIABLES
-ABS_VARS = ["psurf", "precipitable_water", "total_heat"]
+ABS_VARS = ["psurf", "precipitable_water", "total_heat", "vertical_wind"]
 GLOBAL_MEAN_2D_VARS = {
     "psurf_abs": {VAR_TYPE_DIM: ["tendencies"], "scale": [0.12]},
     "precipitable_water_abs": {VAR_TYPE_DIM: ["tendencies"], "scale": [0.0012]},
+    "precipitable_water": {VAR_TYPE_DIM: ["tendencies"], "scale": [0.0012]},
     "total_heat": {VAR_TYPE_DIM: ["tendencies", "states"], "scale": [1000, None]},
+    "total_heat_abs": {VAR_TYPE_DIM: ["tendencies"], "scale": [None]},
+    'vertical_wind_abs_level_40': {VAR_TYPE_DIM: ["states"], "scale": [0.05]},
     "latent_heat_flux": {VAR_TYPE_DIM: ["states"], "scale": [None]},
     "sensible_heat_flux": {VAR_TYPE_DIM: ["states"], "scale": [None]},
     "total_precipitation": {VAR_TYPE_DIM: ["states"], "scale": [None]},
@@ -77,9 +80,9 @@ DQ_MAPPING = {
 }
 
 DQ_PROFILE_MAPPING = {
-    "air_temperature": {"name": "dQ1", VAR_TYPE_DIM: "tendencies", "scale": 1.5e-4},
-    "specific_humidity": {"name": "dQ2", VAR_TYPE_DIM: "tendencies", "scale": 2e-7},
-    "vertical_wind": {"name": "dW", VAR_TYPE_DIM: "states", "scale": 0.05},
+    "air_temperature": {"name": "dQ1", VAR_TYPE_DIM: "tendencies", "scale": 5e-5},
+    "specific_humidity": {"name": "dQ2", VAR_TYPE_DIM: "tendencies", "scale": 1e-7},
+    "vertical_wind": {"name": "dW", VAR_TYPE_DIM: "states", "scale": 0.025},
 }
 
 PROFILE_COMPOSITES = (
@@ -94,6 +97,7 @@ GLOBAL_MEAN_3D_VARS = {
     "air_temperature": {VAR_TYPE_DIM: "tendencies", "scale": 1e-4},
     "cloud_water_ice": {VAR_TYPE_DIM: "tendencies", "scale": 5e-8},
     "precipitating_water": {VAR_TYPE_DIM: "tendencies", "scale": 1e-8},
+    "total_water": {VAR_TYPE_DIM: "tendencies", "scale": 1e-7},
     "vertical_wind": {VAR_TYPE_DIM: "states", "scale": 0.05},
 }
 

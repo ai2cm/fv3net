@@ -18,15 +18,12 @@ def total_water(
     rainwat: xr.DataArray,
     snowwat: xr.DataArray,
     graupel: xr.DataArray,
-    delp: xr.DataArray,
 ) -> xr.DataArray:
     """Compute total water species mixing ratio
     """
-    total_water = (
-        (delp / GRAVITY) * (sphum + ice_wat + liq_wat + rainwat + snowwat + graupel)
-    ).sum("z")
+    total_water = sphum + ice_wat + liq_wat + rainwat + snowwat + graupel
     total_water = total_water.assign_attrs(
-        {"long_name": "total water species", "units": "mm"}
+        {"long_name": "total water species mixing ratio", "units": "kg/kg"}
     )
     return total_water
 

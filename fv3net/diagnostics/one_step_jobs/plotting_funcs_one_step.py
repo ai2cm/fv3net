@@ -135,8 +135,10 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
             hi_res_diag_var,
             "states",
             FORECAST_TIME_DIM,
-            stride=stride,
-            scale=scale,
+#             stride=stride,
+#             scale=scale,
+            7,
+            14
         )
         plotname = f"{q_term}_comparison_maps.png"
         f.savefig(os.path.join(output_dir, plotname))
@@ -214,12 +216,14 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
         vartype = spec[VAR_TYPE_DIM]
         scale = spec["scale"]
         f = plot_model_run_maps_across_time_dim(
-            states_and_tendencies.sel({VAR_TYPE_DIM: vartype}),
+            states_and_tendencies.sel({VAR_TYPE_DIM: vartype, DELTA_DIM: ['hi-res', 'coarse']}),
             var,
             vartype,
             FORECAST_TIME_DIM,
-            stride=stride,
-            scale=scale,
+            7,
+            14
+#             stride=stride,
+#             scale=scale,
         )
         plotname = f"{var}_{vartype}_maps.png"
         f.savefig(os.path.join(output_dir, plotname))
@@ -288,7 +292,10 @@ def plot_global_mean_time_series(
     ax.set_xticks(da_mean[FORECAST_TIME_DIM])
     ax.set_ylabel(f"{da_mean.name} [{da_mean.attrs.get('units', None)}]")
     if scale is not None:
-        ax.set_ylim([-scale, scale])
+        if "abs" in da_mean.name:
+            ax.set_ylim([0, scale])
+        else:
+            ax.set_ylim([-scale, scale])
     ax.set_title(f"{da_mean.name} {vartype}")
     f.set_size_inches([10, 4])
     f.set_dpi(FIG_DPI)
@@ -301,9 +308,11 @@ def plot_model_run_maps_across_time_dim(
     var: str,
     vartype: str,
     multiple_time_dim: str,
-    start: int = None,
-    end: int = None,
-    stride: int = None,
+    i_time_1 = int,
+    i_time_2 = int,
+#     start: int = None,
+#     end: int = None,
+#     stride: int = None,
     scale: float = None,
 ):
 
@@ -312,7 +321,7 @@ def plot_model_run_maps_across_time_dim(
     ds = ds.assign_coords({FORECAST_TIME_DIM: ds[FORECAST_TIME_DIM] / 60})
     f, axes, _, _, facet_grid = plot_cube(
         mappable_var(
-            ds.isel({multiple_time_dim: slice(start, end, stride)}),
+            ds.isel({multiple_time_dim: [i_time_1]}),
             var,
             **MAPPABLE_VAR_KWARGS,
         ),
@@ -320,7 +329,7 @@ def plot_model_run_maps_across_time_dim(
         row=multiple_time_dim,
         vmax=scale,
     )
-    n_rows = ds.isel({multiple_time_dim: slice(start, end, stride)}).sizes[
+    n_rows = ds.isel({multiple_time_dim: [i_time_1]}).sizes[
         multiple_time_dim
     ]
     f.set_size_inches([10, n_rows * 2])
