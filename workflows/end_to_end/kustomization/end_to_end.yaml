@@ -11,7 +11,7 @@ experiment:
     - one_step_run
     - create_training_data
     - train_sklearn_model
-    # - test_sklearn_model
+    - test_sklearn_model
     - prognostic_run
     - baseline_run
   
