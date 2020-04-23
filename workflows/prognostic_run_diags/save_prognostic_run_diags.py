@@ -23,7 +23,6 @@ import vcm
 import logging
 
 logger = logging.getLogger(__file__)
-logger.setLevel(logging.INFO)
 
 _DIAG_FNS = []
 
@@ -37,7 +36,9 @@ def add_to_diags(func):
 
 def compute_all_diagnostics(resampled, verification, grid):
     diags = {}
+    logger.info("Computing all metrics")
     for metrics_fn in _DIAG_FNS:
+        logger.info("Computing {metrics_fn}")
         diags.update(metrics_fn(resampled, verification, grid))
     return diags
 
@@ -96,16 +97,19 @@ def load_data(url, grid_spec, catalog):
     grid_c384 = vcm.open_tiles(grid_spec)
 
     # open verification
+    logger.info("Opening verification data")
     catalog = intake.open_catalog(catalog)
     verification = catalog["40day_c384_atmos_8xdaily"].to_dask()
     verification = verification.merge(grid_c384)
     # block average data
+    logger.info("Block averaging the verification data")
     verification_c48 = vcm.cubedsphere.weighted_block_average(
         verification, verification.area, 8, x_dim="grid_xt", y_dim="grid_yt"
     )
 
     # open data
     atmos_diag_url = os.path.join(url, "atmos_dt_atmos")
+    logger.info(f"Opening diagnostic data at {atmos_diag_url}")
     ds = vcm.open_tiles(atmos_diag_url).load()
     resampled = ds.resample(time="3H", label="right").nearest()
     grid_c48 = resampled[vcm.cubedsphere.constants.GRID_VARS]
@@ -129,6 +133,7 @@ if __name__ == "__main__":
         default="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/grid_spec",
     )
     parser.add_argument("--catalog", default=CATALOG)
+    logging.basicConfig(level=logging.INFO)
 
     args = parser.parse_args()
 
