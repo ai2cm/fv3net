@@ -278,22 +278,29 @@ def get_states_and_tendencies(ds: xr.Dataset) -> xr.Dataset:
 
 def insert_column_integrated_tendencies(ds: xr.Dataset) -> xr.Dataset:
 
-    ds = ds.assign(
-        {
-            "column_integrated_heating": thermo.column_integrated_heating(
-                ds["air_temperature"].sel({VAR_TYPE_DIM: "tendencies"}),
-                ds["pressure_thickness_of_atmospheric_layer"].sel(
-                    {VAR_TYPE_DIM: "states"}
-                ),
-            ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
-            "column_integrated_moistening": thermo.column_integrated_moistening(
-                -ds["specific_humidity"].sel({VAR_TYPE_DIM: "tendencies"}),
-                ds["pressure_thickness_of_atmospheric_layer"].sel(
-                    {VAR_TYPE_DIM: "states"}
-                ),
-            ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
-        }
-    )
+    ds = ds.assign({
+        "column_integrated_heating": thermo.column_integrated_heating(
+            ds["air_temperature"].sel({VAR_TYPE_DIM: "tendencies"}),
+            ds["pressure_thickness_of_atmospheric_layer"].sel(
+                {VAR_TYPE_DIM: "states"}
+            ),
+        ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
+        "column_integrated_moistening": thermo.column_integrated_moistening(
+            ds["specific_humidity"].sel({VAR_TYPE_DIM: "tendencies"}),
+            ds["pressure_thickness_of_atmospheric_layer"].sel(
+                {VAR_TYPE_DIM: "states"}
+            ),
+        ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
+    })
+    
+#     ds = ds.assign({
+#         "net_heating_total": (
+#             ds["column_integrated_heating"] + ds['net_heating_physics']
+#         ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
+#         "net_precipitation_total": (
+#             -ds["column_integrated_moistening"] + ds['net_precipitation_physics']
+#         ).expand_dims({VAR_TYPE_DIM: ["tendencies"]})
+#     })
 
     return ds
 
@@ -372,53 +379,53 @@ def insert_diurnal_means(
 
         residual_name = attrs["hi-res - coarse"]["name"]
         residual_type = attrs["hi-res - coarse"][VAR_TYPE_DIM]
-        hires_name = attrs["hi-res"]["name"]
-        hires_type = attrs["hi-res"][VAR_TYPE_DIM]
+        physics_name = attrs["physics"]["name"]
+        physics_type = attrs["physics"][VAR_TYPE_DIM]
 
         ds_land = mask_to_surface_type(
-            ds[[residual_name, hires_name, "local_time", mask]],
+            ds[[residual_name, physics_name, "local_time", mask]],
             "land",
             surface_type_var=mask,
         )
         da_residual_land = mean_diurnal_cycle(
             ds_land[residual_name].sel(
-                {DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: residual_type}
+                {DELTA_DIM: ["hi-res - coarse"], VAR_TYPE_DIM: residual_type}
             ),
             ds_land["local_time"],
         )
-        da_hires_land = mean_diurnal_cycle(
-            ds_land[hires_name].sel({DELTA_DIM: "hi-res", VAR_TYPE_DIM: hires_type}),
+        da_physics_land = mean_diurnal_cycle(
+            ds_land[physics_name].sel({DELTA_DIM: ["hi-res", "coarse"], VAR_TYPE_DIM: physics_type}),
             ds_land["local_time"],
         )
         ds = ds.assign(
             {
                 f"{var}_land": xr.concat(
-                    [da_hires_land, da_residual_land], dim=DELTA_DIM
-                ).assign_coords({DELTA_DIM: ["hi-res", "hi-res - coarse"]})
+                    [da_physics_land, da_residual_land], dim=DELTA_DIM
+                )#.assign_coords({DELTA_DIM: ["hi-res", "coarse", "hi-res - coarse"]})
             }
         )
         ds[f"{var}_land"].attrs.update(ds[residual_name].attrs)
 
         ds_sea = mask_to_surface_type(
-            ds[[residual_name, hires_name, "local_time", mask]],
+            ds[[residual_name, physics_name, "local_time", mask]],
             "sea",
             surface_type_var=mask,
         )
         da_residual_sea = mean_diurnal_cycle(
             ds_sea[residual_name].sel(
-                {DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: residual_type}
+                {DELTA_DIM: ["hi-res - coarse"], VAR_TYPE_DIM: residual_type}
             ),
             ds_sea["local_time"],
         )
-        da_hires_sea = mean_diurnal_cycle(
-            ds_sea[hires_name].sel({DELTA_DIM: "hi-res", VAR_TYPE_DIM: hires_type}),
+        da_physics_sea = mean_diurnal_cycle(
+            ds_sea[physics_name].sel({DELTA_DIM: ["hi-res", "coarse"], VAR_TYPE_DIM: physics_type}),
             ds_sea["local_time"],
         )
         ds = ds.assign(
             {
                 f"{var}_sea": xr.concat(
-                    [da_hires_sea, da_residual_sea], dim=DELTA_DIM
-                ).assign_coords({DELTA_DIM: ["hi-res", "hi-res - coarse"]})
+                    [da_physics_sea, da_residual_sea], dim=DELTA_DIM
+                )#.assign_coords({DELTA_DIM: ["hi-res", "coarse", "hi-res - coarse"]})
             }
         )
         ds[f"{var}_sea"].attrs.update(ds[residual_name].attrs)

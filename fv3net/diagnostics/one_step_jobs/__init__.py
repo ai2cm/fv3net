@@ -48,7 +48,7 @@ DIURNAL_VAR_MAPPING = {
             "name": "column_integrated_heating",
             VAR_TYPE_DIM: "tendencies",
         },
-        "hi-res": {"name": "net_heating_physics", VAR_TYPE_DIM: "states"},
+        "physics": {"name": "net_heating_physics", VAR_TYPE_DIM: "states"},
         "scale": 500,
     },
     "net_precipitation_diurnal": {
@@ -56,12 +56,12 @@ DIURNAL_VAR_MAPPING = {
             "name": "column_integrated_moistening",
             VAR_TYPE_DIM: "tendencies",
         },
-        "hi-res": {"name": "net_precipitation_physics", VAR_TYPE_DIM: "states"},
+        "physics": {"name": "net_precipitation_physics", VAR_TYPE_DIM: "states"},
         "scale": 10,
     },
     "vertical_wind_diurnal": {
         "hi-res - coarse": {"name": "vertical_wind_level_40", VAR_TYPE_DIM: "states"},
-        "hi-res": {"name": "vertical_wind_level_40", VAR_TYPE_DIM: "states"},
+        "physics": {"name": "vertical_wind_level_40", VAR_TYPE_DIM: "states"},
         "scale": 0.05,
     },
 }

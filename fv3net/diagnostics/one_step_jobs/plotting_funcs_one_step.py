@@ -460,7 +460,7 @@ def plot_diurnal_cycles(
 
     def _facet_line_plot(arr: np.ndarray):
         ax = plt.gca()
-        ax.set_prop_cycle(color=["b", [1, 0.5, 0]])
+        ax.set_prop_cycle(color=["b", 'g', [1, 0.5, 0]])
         h = ax.plot(arr.T)
         ax.plot([0, 24.0], [0, 0], "k-")
         return h
@@ -468,7 +468,7 @@ def plot_diurnal_cycles(
     facetgrid = xr.plot.FacetGrid(
         data=(
             ds.isel({FORECAST_TIME_DIM: slice(start, end, stride)}).sel(
-                {DELTA_DIM: ["hi-res", "hi-res - coarse"]}
+                {DELTA_DIM: ["hi-res", "coarse", "hi-res - coarse"]}
             )
         ),
         col=FORECAST_TIME_DIM,
@@ -479,7 +479,7 @@ def plot_diurnal_cycles(
     facetgrid.axes.flatten()[0].set_xlim([0, 24])
     legend_ax = facetgrid.axes.flatten()[-2]
     handles = legend_ax.get_lines()
-    legend_ax.legend(handles, ["hi-res diags", "residual of tendencies"], loc=2)
+    legend_ax.legend(handles, ["hi-res diags", "coarse_physics", "residual of tendencies"], loc=2)
     facetgrid.set_titles(template="{value} min")
     for ax in facetgrid.axes[-1, :]:
         ax.set_xlabel("mean local time [hrs]")

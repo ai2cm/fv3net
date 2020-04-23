@@ -220,6 +220,7 @@ class MeanAndStDevFn(beam.CombineFn):
 
     def merge_accumulators(self, accumulators):
         sum_xs, sum_x2s, inits_all, counts = zip(*accumulators)
+        logger.info(f"Merging accumulations of size: {counts}")
         with xr.set_options(keep_attrs=True):
             return (
                 sum(sum_xs),
