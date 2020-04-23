@@ -26,7 +26,7 @@ setup(
     packages=packages,
     install_requires=dependencies,
     package_dir=package_dir,
-    version="0.1.1",
+    version="0.2.0",
     description="Improving the GFDL FV3 model physics with machine learning",
     author="Vulcan Inc.",
     license="MIT",
