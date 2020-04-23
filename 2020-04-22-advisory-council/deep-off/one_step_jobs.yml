@@ -1,0 +1,22 @@
+kubernetes: {}
+fv3config:
+  diag_table: workflows/one_step_jobs/diag_table_one_step  # TODO: move this diag_table into vcm-workflow-control
+  namelist:
+    atmos_model_nml:
+      fhout: 0.01666
+    coupler_nml:
+      days: 0
+      minutes: 15
+      seconds: 0
+      dt_atmos: 60  # seconds
+      dt_ocean: 60  # seconds
+      restart_secs: 60
+    fv_core_nml:
+      do_sat_adj: false
+      external_eta: true
+      npz: 79
+      k_split: 1
+      n_split: 1
+    gfs_physics_nml:
+      do_deep: false
+      fhzero: 0.01666

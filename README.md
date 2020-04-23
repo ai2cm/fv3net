@@ -14,26 +14,16 @@ We should be able to manage our workflow configurations with only `kubectl` (v1.
 .
 ├── CODEOWNERS
 ├── README.md
-├── base
-│   ├── end_to_end.yaml
-│   ├── integration-test-service-account.yml
-│   ├── job.yaml
-│   ├── kustomization.yaml
-│   ├── one_step_times.json
-│   └── training_times.json
-├── base-full-sample
-│   ├── kustomization.yaml
-│   ├── one_step_times.json
-│   └── training_times.json
-└── integration-test
-    ├── coarsen_c384_diagnostics_integration.yml
-    ├── create_training_data_variable_names.yml
-    ├── diag_table_prognostic
-    ├── kustomization.yaml
-    ├── one_step_jobs_integration.yml
-    ├── prognostic_run_integration.yml
-    ├── test_sklearn_variable_names.yml
-    └── train_sklearn_model.yml
+├── 2020-04-22-advisory-council
+│   ├── base
+│   │   ├── configuration files common to all experiments in 2020-04-22-advisory-council
+│   ├── deep-off
+│   │   ├── configuration files specific to deep-off
+│   ├── deep-shallow-mp-off-clearsky
+│   ├── physics-off
+│   ├── physics-on
+├── external
+│   ├── fv3net
 ```
 
 ### Kustomization 
@@ -43,10 +33,11 @@ We should be able to manage our workflow configurations with only `kubectl` (v1.
 
 ## Workflow
 
-1. Copy the "integration-test" folder
-1. edit the workflow step configurations
-1. change entries in the `<new experiments> kustomize.yaml` file:
+1. Copy the "2020-04-22-advisory-council" folder
+1. Edit the workflow step configuration file(s) in the new experiment folder.
+1. Change entries in the `<new experiments> kustomization.yaml` file:
     1. "nameSuffix" to change the name of the job
+    2. add config file names under configMapGenerator[files] in kustomization.yaml
 1. change global options like in the `base` directory.
 1. Plan (optional): view the constructed k8s resources using `kubectl apply -k <dirname> --dry-run -o yaml`. `kustomize build <dirname>` will give cleaner output, but requires some [additional installation](https://github.com/kubernetes-sigs/kustomize/blob/master/docs/INSTALL.md).
 1. Deploy the job with using `kustomize`: `kubectl apply -k <dirnmae>`

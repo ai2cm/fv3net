@@ -1,0 +1,3 @@
+[submodule "external/fv3net"]
+	path = external/fv3net
+	url = git@github.com:VulcanClimateModeling/fv3net.git

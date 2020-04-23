@@ -1,5 +1,0 @@
-url: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48 
-boundary: "20160901.000000"
-train_samples: 3
-test_samples: 3
-seed: "0"

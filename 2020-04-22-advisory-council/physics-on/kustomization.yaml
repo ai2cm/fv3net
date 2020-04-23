@@ -2,9 +2,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 bases: 
   - "../base"
-nameSuffix: "-integration-test"
+nameSuffix: "-physics-on"
 configMapGenerator:
 - files:
-    - time-control.yaml
+    - one_step_jobs.yml
   name: end-to-end
+  literals:
+    - JOBNAME=physics-on
   behavior: merge # merges with the base configuration generator
