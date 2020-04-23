@@ -252,5 +252,5 @@ def submit_jobs(
             logger.info(f"Submitting job for timestep {timestep}")
             run_job(index=k, init=False)
 
-    utils.wait_for_complete(job_labels)
+    utils.wait_for_complete(job_labels, raise_on_fail=False)
     utils.delete_completed_jobs(job_labels)

@@ -11,7 +11,5 @@ input_variables:
 output_variables:
   - dQ1
   - dQ2
-
 init_time_dim: "initial_time"
 coord_z_center: "z"
-
