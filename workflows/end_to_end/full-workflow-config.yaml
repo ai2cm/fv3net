@@ -46,13 +46,15 @@ experiment:
       command: python -m fv3net.diagnostics.one_step_jobs
       args:
         one_step_data:
-          from: one_step_run
+#           from: one_step_run
+          location: gs://vcm-ml-data/test-brianh/one-step-run-all-physics-on-9f007ce7/one_step_run_ #all physics on
         hi_res_diags:
           location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
-        --report_directory: gs://vcm-ml-public/
+        --report_directory: gs://vcm-ml-public/test-brianh/one-step-diagnostics/all-physics-on
         --start_ind: 0
-        --n_sample_inits: 12
+        --n_sample_inits: 24
         --runner: DataflowRunner
+#         --timesteps_file: training_times.json
 
     create_training_data:
       command: python -m fv3net.pipelines.create_training_data
