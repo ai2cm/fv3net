@@ -13,11 +13,7 @@ from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
 
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-fh = logging.FileHandler("ml_training.log")
-fh.setLevel(logging.INFO)
-logger.addHandler(fh)
+logger = logging.getLogger(__file__)
 
 
 @dataclass
@@ -34,10 +30,15 @@ class ModelTrainingConfig:
     input_variables: List[str]
     output_variables: List[str]
     gcs_project: str = "vcm-ml"
-    random_seed: int = 1234
+    random_seed: int = 0
     mask_to_surface_type: str = "none"
     coord_z_center: str = "z"
     init_time_dim: str = "initial_time"
+
+    def __post_init__(self):
+        # set default random_state for sklearn model if not specified
+        if "random_state" not in self.hyperparameters:
+            self.hyperparameters["random_state"] = 0
 
     def validate_number_train_batches(self, batch_generator):
         """ Since number of training files specified may be larger than

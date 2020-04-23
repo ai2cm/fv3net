@@ -2,13 +2,15 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   labels:
-    app: integration-test
+    app: end-to-end
   name: end-to-end
 spec:
   backoffLimit: 0
   template:
     metadata:
       generateName: end-to-end-pod-
+      labels:
+        app: end-to-end
     spec:
       serviceAccountName: integration-tests
       containers:
@@ -51,4 +53,14 @@ spec:
         - name: config-vol
           configMap:
             name: end-to-end
-            
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: e2e-pdb
+spec:
+  # will prevent voluntary evictions
+  minAvailable: 100%
+  selector:
+    matchLabels:
+      app: end-to-end

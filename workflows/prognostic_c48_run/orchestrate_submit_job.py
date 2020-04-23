@@ -103,7 +103,10 @@ if __name__ == "__main__":
 
     short_id = get_alphanumeric_unique_tag(8)
     job_name = f"prognostic-run-{short_id}"
-    job_label = {"orchestrator-jobs": f"prognostic-group-{short_id}"}
+    job_label = {
+        "orchestrator-jobs": f"prognostic-group-{short_id}",
+        "app": "end-to-end",
+    }
 
     model_config = _get_onestep_config(args.initial_condition_url, args.ic_timestep)
 

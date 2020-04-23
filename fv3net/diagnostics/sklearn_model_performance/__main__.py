@@ -91,7 +91,7 @@ def compute_metrics_and_plot(ds, output_dir, names):
 
 
 def load_data_and_predict_with_ml(
-    test_data_path, model_path, high_res_data_path, model_type, names,
+    test_data_path, model_path, high_res_data_path, model_type, names
 ):
     # get grid
     # because predict_on_test_data loads data and predicts, the easiest way to grab
@@ -103,7 +103,14 @@ def load_data_and_predict_with_ml(
     test_data_urls = sorted(fs.ls(test_data_path))
     mapper = fs.get_mapper(test_data_urls[0])
     ds = xr.open_zarr(mapper)
-    grid = safe.get_variables(ds, names["grid_vars"])
+
+    # Drop init time dim that originates from its source in train data
+    # vcm.select.get_latlon_grid_coords grid input shouldn't have this dim
+    grid = (
+        safe.get_variables(ds, names["grid_vars"])
+        .isel({names["init_time_dim"]: 0})
+        .drop(names["init_time_dim"])
+    )
 
     # TODO this function mixes I/O and computation
     # Should just be 1. load_data, 2. make a prediction

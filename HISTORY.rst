@@ -5,6 +5,10 @@ History
 
 latest
 ------
+
+
+0.2.0 (2020-04-23)
+------------------
 * Added physics on end_to_end workflow configuration yaml. Only does baseline run for now.
 * Added integration tests (tests/end_to_end_integration) that through CircleCI after image builds
 * Fixed integration tests to use same version tags of the `fv3net` and `prognostic_run` images
@@ -28,8 +32,9 @@ latest
 * new external package `report` created, which handles generation of workflow reports
 * new external package `gallery` created, which generates figures which can be used by multiple workflows
 * add __main__.py to fv3net/regression/sklearn in order to better separate model training from I/O and report generation
-* Build `prognostic_run` image from v0.3.3 of `fv3gfs-python`
+* Build `prognostic_run` image from v0.3.5 of `fv3gfs-python`
 * Adjust diagnostic outputs for prognostic run with name net_moistening instead of net_precip and add total_precipitation to outputs
+* final adjustments and fixes for advisory council results
 
 
 
