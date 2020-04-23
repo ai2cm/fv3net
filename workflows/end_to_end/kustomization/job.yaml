@@ -57,7 +57,7 @@ kind: PodDisruptionBudget
 metadata:
   name: e2e-pdb
 spec:
-  # will ensure that not voluntary evictions occur
+  # will prevent voluntary evictions
   minAvailable: 100%
   selector:
     matchLabels:
