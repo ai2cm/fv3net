@@ -125,7 +125,7 @@ jobs:
       - run:
           name: Setup kubectl
           command: |
-            cluster_name=$(gcloud container clusters list --format="value(name)")
+            cluster_name="ml-cluster-dev"
             gcloud container clusters get-credentials --zone us-central1-c  $cluster_name
             kube_cluster_name=$(kubectl config get-clusters | tail -n 1)
             kubectl config set-cluster $kube_cluster_name --server="https://"$proxy_ip
