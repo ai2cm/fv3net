@@ -62,7 +62,7 @@ def calc_scalar_metrics(
 
 
 def _bias(da_target, da_pred):
-    return np.mean(da_pred - da_pred)
+    return np.mean(da_pred - da_target)
 
 
 def _rmse(da_target, da_pred):
@@ -103,14 +103,13 @@ def _rmse_mass_avg(
     delp,
     area,
     coord_z_center="z",
-    coord_x_center="x",
-    coord_y_center="y",
+    coords_horizontal=["x", "y", "tile"]
 ):
     mse = (da_target - da_pred) ** 2
     num2 = ((mse * delp).sum([coord_z_center]) * area).sum(
-        [coord_x_center, coord_y_center, "tile"]
+        coords_horizontal
     )
-    denom2 = (delp.sum([coord_z_center]) * area).sum([coord_x_center, coord_y_center, "tile"])
+    denom2 = (delp.sum([coord_z_center]) * area).sum(coords_horizontal)
     return np.sqrt(num2 / denom2)
 
 

@@ -3,6 +3,7 @@ import pytest
 import xarray as xr
 
 from fv3net.diagnostics.sklearn_model_performance.create_metrics import (
+    _bias,
     _rmse,
     _rmse_mass_avg
 )
@@ -36,7 +37,12 @@ def test_ds():
         "target": da_target,
         "pred": da_pred}
     )
-    
+
+
+def test__bias(test_ds):
+    bias = _bias(test_ds.target, test_ds.pred)
+    assert bias == pytest.approx((1. + 4. - 3. - 4.) / 4)
+
 
 def test__rmse(test_ds):
     rmse = _rmse(test_ds.target, test_ds.pred).isel({"x": 0, "y": 0})
@@ -50,6 +56,7 @@ def test__rmse_mass_avg(test_ds):
         test_ds.target,
         test_ds.pred,
         test_ds.delp,
-        test_ds.area,)
+        test_ds.area,
+        coords_horizontal=["x", "y"])
     assert rmse == pytest.approx(np.sqrt(num2/denom2))
 
