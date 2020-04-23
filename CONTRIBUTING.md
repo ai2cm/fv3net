@@ -6,7 +6,7 @@ compatibility so we can appropriately adjust the versioning.
 
 ## fv3net
 
-- Only imports to `vcm`, `vcm.cubedsphere`, and `vcm.cloud` are allowed. No
+- Only imports to `vcm`, `vcm.cubedsphere`, `vcm.safe`, and `vcm.cloud` are allowed. No
   deeper nesting (e.g. `vcm.cloud.fsspec`) or imports to other modules are
   allowed.
 

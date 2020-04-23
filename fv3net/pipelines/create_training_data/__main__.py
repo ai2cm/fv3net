@@ -1,10 +1,36 @@
+"""
+Example of timesteps_file input data::
+
+    {
+        "train": [
+            [ "20160801.003000", "20160801.004500" ],
+            [ "20160801.001500", "20160801.003000" ]
+        ],
+        "test": [
+            [ "20160801.011500", "20160801.013000" ],
+            [ "20160801.010000", "20160801.011500" ]
+        ]
+    }⏎
+"""
 import argparse
+import logging
 import yaml
+from .config import get_config
 
 from .pipeline import run
 
+example_timesteps_file = """
+"""
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(epilog=__doc__)
+    parser.add_argument(
+        "--variable_namefile",
+        type=str,
+        default=None,
+        help="yaml file for updating the default data variable names.",
+    )
     parser.add_argument(
         "gcs_input_data_path",
         type=str,
@@ -18,10 +44,12 @@ if __name__ == "__main__":
         "for features (SHF, LHF, etc.) that are not saved in restarts.",
     )
     parser.add_argument(
-        "variable_namefile",
+        "timesteps_file",
         type=str,
-        default=None,
-        help="yaml file for providing data variable names",
+        help=(
+            "File containing paired timesteps for test and/or train sets. See the "
+            "__doc__ of this script for more info."
+        ),
     )
     parser.add_argument(
         "gcs_output_data_dir",
@@ -29,25 +57,17 @@ if __name__ == "__main__":
         help="Write path for train data in Google Cloud Storage bucket. "
         "Don't include bucket in path.",
     )
-    parser.add_argument(
-        "--timesteps-per-output-file",
-        type=int,
-        default=1,
-        help="Number of consecutive timesteps to calculate features/targets for in "
-        "a single process and save to output file."
-        "When the full output is shuffled at the data generator step, these"
-        "timesteps will always be in the same training data batch.",
-    )
-    parser.add_argument(
-        "--train-fraction",
-        type=float,
-        default=0.5,
-        help="Fraction of batches to save as training set. "
-        "Output zarr files will be saved in either 'train' or 'test' subdir of "
-        "gcs-output-data-dir",
-    )
 
     args, pipeline_args = parser.parse_known_args()
-    with open(args.variable_namefile, "r") as stream:
-        names = yaml.safe_load(stream)
-    run(args=args, pipeline_args=pipeline_args, names=names)
+    logging.basicConfig(level=logging.INFO)
+
+    if args.variable_namefile is None:
+        updates = {}
+    else:
+        with open(args.variable_namefile, "r") as f:
+            updates = yaml.safe_load(f)
+    names = get_config(updates)
+
+    with open(args.timesteps_file, "r") as f:
+        timesteps = yaml.safe_load(f)
+    run(args=args, pipeline_args=pipeline_args, names=names, timesteps=timesteps)

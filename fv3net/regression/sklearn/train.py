@@ -1,4 +1,4 @@
-import argparse
+import fsspec
 import joblib
 import logging
 import os
@@ -11,16 +11,9 @@ from fv3net.regression.dataset_handler import BatchGenerator
 from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
-import vcm.cloud.fsspec
 
-MODEL_CONFIG_FILENAME = "training_config.yml"
-MODEL_FILENAME = "sklearn_model.pkl"
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-fh = logging.FileHandler("ml_training.log")
-fh.setLevel(logging.INFO)
-logger.addHandler(fh)
+logger = logging.getLogger(__file__)
 
 
 @dataclass
@@ -37,17 +30,22 @@ class ModelTrainingConfig:
     input_variables: List[str]
     output_variables: List[str]
     gcs_project: str = "vcm-ml"
-    random_seed: int = 1234
+    random_seed: int = 0
     mask_to_surface_type: str = "none"
     coord_z_center: str = "z"
     init_time_dim: str = "initial_time"
+
+    def __post_init__(self):
+        # set default random_state for sklearn model if not specified
+        if "random_state" not in self.hyperparameters:
+            self.hyperparameters["random_state"] = 0
 
     def validate_number_train_batches(self, batch_generator):
         """ Since number of training files specified may be larger than
         the actual number available, this adds an attribute num_batches_used
         that keeps information about the actual number of training batches
         used.
-        
+
         Args:
             batch_generator (BatchGenerator)
         """
@@ -73,7 +71,7 @@ def load_model_training_config(config_path, gcs_data_dir):
     return config
 
 
-def load_data_generator(train_config):
+def load_data_generator(train_config) -> BatchGenerator:
     """
 
     Args:
@@ -119,7 +117,7 @@ def _get_regressor(train_config):
     return regressor
 
 
-def train_model(batched_data, train_config):
+def train_model(batched_data: BatchGenerator, train_config):
     """
 
     Args:
@@ -137,7 +135,11 @@ def train_model(batched_data, train_config):
     batch_regressor = RegressorEnsemble(transform_regressor)
     model_wrapper = SklearnWrapper(batch_regressor)
 
+    # count number of timesteps used for training within train_model
+    # in case any batches fail
     train_config.validate_number_train_batches(batched_data)
+    training_urls_to_attempt = batched_data.train_file_batches
+    training_urls_used = []
 
     for i, batch in enumerate(
         batched_data.generate_batches(
@@ -145,57 +147,22 @@ def train_model(batched_data, train_config):
         )
     ):
         logger.info(f"Fitting batch {i}/{batched_data.num_batches}")
-        try:
-            model_wrapper.fit(
-                input_vars=train_config.input_variables,
-                output_vars=train_config.output_variables,
-                sample_dim="sample",
-                data=batch,
-            )
-            logger.info(f"Batch {i} done fitting.")
-        except ValueError as e:
-            logger.error(f"Error training on batch {i}: {e}")
-            train_config.num_batches_used -= 1
-            continue
+        model_wrapper.fit(
+            input_vars=train_config.input_variables,
+            output_vars=train_config.output_variables,
+            sample_dim="sample",
+            data=batch,
+        )
+        logger.info(f"Batch {i} done fitting.")
+        training_urls_used += training_urls_to_attempt[i]
 
-    return model_wrapper
+    return model_wrapper, training_urls_used
 
 
-def save_output(output_url, model, config):
-    fs = vcm.cloud.fsspec.get_fs(output_url)
+def save_model(output_url, model, model_filename):
+    """Save model to {output_url}/{model_filename} using joblib.dump"""
+    fs, _, _ = fsspec.get_fs_token_paths(output_url)
     fs.makedirs(output_url, exist_ok=True)
-    model_url = os.path.join(output_url, MODEL_FILENAME)
-    config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
-
+    model_url = os.path.join(output_url, model_filename)
     with fs.open(model_url, "wb") as f:
         joblib.dump(model, f)
-
-    with fs.open(config_url, "w") as f:
-        yaml.dump(config, f)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("train_data_path", type=str, help="Location of training data")
-    parser.add_argument(
-        "train_config_file", type=str, help="Path for training configuration yaml file"
-    )
-    parser.add_argument(
-        "output_data_path", type=str, help="Location to save config and trained model."
-    )
-    parser.add_argument(
-        "--delete-local-results-after-upload",
-        type=bool,
-        default=True,
-        help="If results are uploaded to remote storage, "
-        "remove local copy after upload.",
-    )
-    args = parser.parse_args()
-    args.train_data_path = os.path.join(args.train_data_path, "train")
-    train_config = load_model_training_config(
-        args.train_config_file, args.train_data_path
-    )
-    batched_data = load_data_generator(train_config)
-
-    model = train_model(batched_data, train_config)
-    save_output(args.output_data_path, model, train_config)

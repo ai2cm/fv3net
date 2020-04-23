@@ -1,3 +1,4 @@
+from typing import Mapping, Sequence, Tuple
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import logging
@@ -11,9 +12,12 @@ import fsspec
 from vcm import parse_datetime_from_str
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 import numpy as np
+import dask
+import zarr
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+dask.config.set(scheduler="single-threaded")
+
+logger = logging.getLogger(__name__)
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 GRID_SPEC_FILENAME = "grid_spec.zarr"
@@ -25,43 +29,35 @@ FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
 FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
 
 
-def run(args, pipeline_args, names):
+def _load_pair(timesteps, store, init_time_dim):
+    ds = xr.open_zarr(store, consolidated=True)
+    yield ds.sel({init_time_dim: timesteps})
+
+
+def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, str]]]):
     """ Divide full one step output data into batches to be sent
     through a beam pipeline, which writes training/test data zarrs
-    
+
     Args:
         args ([arg namespace]): for named args in the main function
         pipeline_args ([arg namespace]): additional args for the pipeline
         names ([dict]): Contains information related to the variable
             and dimension names from the one step output and created
             by the pipeline.
+        timesteps:  a collection of time-step pairs to use for testing and training.
+            For example::
+
+                {"train": [("20180601.000000", "20180601.000000"), ...], "test: ...}
     """
     fs = get_fs(args.gcs_input_data_path)
-    ds_full = xr.open_zarr(
-        fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
-    )
-    ds_full = _str_time_dim_to_datetime(ds_full, names["init_time_dim"])
-    _save_grid_spec(
-        ds_full,
-        args.gcs_output_data_dir,
-        grid_vars=names["grid_vars"],
-        grid_spec_filename=GRID_SPEC_FILENAME,
-        init_time_dim=names["init_time_dim"],
-    )
-    data_batches, train_test_labels = _divide_data_batches(
-        ds_full,
-        args.timesteps_per_output_file,
-        args.train_fraction,
-        init_time_dim=names["init_time_dim"],
-    )
-    chunk_sizes = {
-        "tile": 1,
-        names["init_time_dim"]: 1,
-        names["coord_y_center"]: 24,
-        names["coord_x_center"]: 24,
-        names["coord_z_center"]: 79,
-    }
-    logger.info(f"Processing {len(data_batches)} subsets...")
+    mapper = fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
+    if ".zmetadata" not in mapper:
+        logger.info("Consolidating metadata")
+        zarr.consolidate_metadata(mapper)
+    train_test_labels = _train_test_labels(timesteps)
+    timestep_pairs = timesteps["train"] + timesteps["test"]
+
+    logger.info(f"Processing {len(timestep_pairs)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
         # TODO this code will be cleaner if we get rid of "data batches" as a concept
@@ -71,7 +67,11 @@ def run(args, pipeline_args, names):
         # and check for NaNs
         (
             p
-            | beam.Create(data_batches)
+            | beam.Create(timestep_pairs)
+            | "SelectInitialTimes"
+            >> beam.ParDo(_load_pair, mapper, names["init_time_dim"])
+            | "TimeDimToDatetime"
+            >> beam.Map(_str_time_dim_to_datetime, time_dim=names["init_time_dim"])
             | "AddPhysicsTendencies"
             >> beam.Map(
                 _add_physics_tendencies,
@@ -117,11 +117,10 @@ def run(args, pipeline_args, names):
                 renamed_dims=names["renamed_dims"],
             )
             | "LoadData" >> beam.Map(lambda ds: ds.load())
-            | "QuitOnNaN" >> beam.Map(_assert_no_nans)
+            | "FilterOnNaN" >> beam.Filter(_no_nan_values)
             | "WriteToZarr"
             >> beam.Map(
                 _write_remote_train_zarr,
-                chunk_sizes=chunk_sizes,
                 init_time_dim=names["init_time_dim"],
                 gcs_output_dir=args.gcs_output_data_dir,
                 train_test_labels=train_test_labels,
@@ -129,12 +128,22 @@ def run(args, pipeline_args, names):
         )
 
 
-def _assert_no_nans(ds):
-    nans = np.isnan(ds).isnull().sum().compute()
-    nan_counts = {key: nans[key].item() for key in nans}
-    if any(count > 0 for count in nan_counts.values()):
-        nan_counts = {key: nans[key].item() for key in nans}
-        raise ValueError(f"NaNs detected in data to be saved: {nan_counts}")
+def _train_test_labels(timesteps):
+    train_test_labels = {}
+    for key, pairs_list in timesteps.items():
+        train_test_labels[key] = []
+        for pair in pairs_list:
+            train_test_labels[key].append(pair[0])
+    return train_test_labels
+
+
+def _no_nan_values(ds):
+    nans = np.isnan(ds)
+    nan_in_data_var = {key: True in nans[key].values for key in nans}
+    if any(nan_present is True for var, nan_present in nan_in_data_var.items()):
+        nan_vars = [var for var in nan_in_data_var if nan_in_data_var[var] is True]
+        logger.error(f"NaNs detected in data: {nan_vars}")
+        return False
     return ds
 
 
@@ -143,141 +152,6 @@ def _str_time_dim_to_datetime(ds, time_dim):
         parse_datetime_from_str(time_str) for time_str in ds[time_dim].values
     ]
     return ds.assign_coords({time_dim: datetime_coords})
-
-
-def _divide_data_batches(
-    ds_full, timesteps_per_output_file, train_fraction, init_time_dim
-):
-    """ Divides the full dataset of one step run outputs into batches designated
-    for training or test sets.
-    Args:
-        ds_full (xr dataset): dataset read in from the big zarr of all one step outputs
-        timesteps_per_output_file (int): number of timesteps to save per train batch
-        train_fraction (float): fraction of initial timesteps to use as training
-    
-    Returns:
-        tuple (
-            list of datasets selected to the timesteps for each output,
-            dict of train and test timesteps
-            )
-    """
-    timestep_batches = _get_timestep_batches(
-        ds_full, timesteps_per_output_file, init_time_dim
-    )
-    train_test_labels = _test_train_split(timestep_batches, train_fraction)
-    timestep_batches_reordered = _reorder_batches(timestep_batches, train_fraction)
-    data_batches = [
-        ds_full.sel({init_time_dim: timesteps})
-        for timesteps in timestep_batches_reordered
-    ]
-    return (data_batches, train_test_labels)
-
-
-def _reorder_batches(sorted_batches, train_frac):
-    """Uniformly distribute the test batches within the list of batches to run,
-    so that they are not all left to the end of the job. This is so that we don't
-    have to run a training data job to completion in order to get the desired
-    train/test ratio.
-
-    Args:
-        sorted_batches (nested list):of run dirs per batch
-        train_frac (float): fraction of batches for use in training
-
-    Returns:
-        nested list of batch urls, reordered so that test times are uniformly
-        distributed in list
-    """
-    num_batches = len(sorted_batches)
-    split_index = int(train_frac * num_batches)
-    train_set = sorted_batches[:split_index]
-    test_set = sorted_batches[split_index:]
-    train_test_ratio = int(train_frac / (1 - train_frac))
-    reordered_batches = []
-    while len(train_set) > 0:
-        if len(test_set) > 0:
-            reordered_batches.append(test_set.pop(0))
-        for i in range(train_test_ratio):
-            if len(train_set) > 0:
-                reordered_batches.append(train_set.pop(0))
-    return reordered_batches
-
-
-def _save_grid_spec(
-    ds, gcs_output_data_dir, grid_vars, grid_spec_filename, init_time_dim
-):
-    """ Reads grid spec from diag files in a run dir and writes to GCS
-
-    Args:
-        fs: GCSFileSystem object
-        run_dir: run dir to read grid data from. Using the first timestep should be fine
-        gcs_output_data_dir: Write path
-
-    Returns:
-        None
-    """
-    grid = ds.isel({init_time_dim: 0})[grid_vars]
-    _write_remote_train_zarr(
-        grid, gcs_output_data_dir, init_time_dim, zarr_name=grid_spec_filename
-    )
-    logger.info(
-        f"Wrote grid spec to "
-        f"{os.path.join(gcs_output_data_dir, grid_spec_filename)}"
-    )
-    return
-
-
-def _get_timestep_batches(ds, timesteps_per_output_file, init_time_dim):
-    """ Groups initalization timesteps into lists of max length
-    (args.timesteps_per_output_file + 1). The last file in each grouping is only
-    used to calculate the hi res tendency, and is dropped from the final
-    batch training zarr.
-
-    Args:
-        gcs_urls: list of urls to be grouped into batches
-        timesteps_per_output_file: number of initialization timesteps that will be in
-        each final train dataset batch
-    Returns:
-        nested list where inner lists are groupings of timesteps
-    """
-    timesteps = sorted(ds[init_time_dim].values)
-    num_outputs = (len(timesteps) - 1) // timesteps_per_output_file
-    timestep_batches = []
-    for i in range(num_outputs):
-        start_ind = timesteps_per_output_file * i
-        stop_ind = timesteps_per_output_file * i + (timesteps_per_output_file + 1)
-        timestep_batches.append(timesteps[start_ind:stop_ind])
-    num_leftover = len(timesteps) % timesteps_per_output_file
-    remainder_urls = [timesteps[-num_leftover:]] if num_leftover > 1 else []
-    timestep_batches += remainder_urls
-    return timestep_batches
-
-
-def _test_train_split(timestep_batches, train_frac):
-    """ Assigns train/test set labels to each batch, split by init timestamp
-
-    Args:
-        url_batches: nested list where inner lists are groupings of input urls,
-        ordered by time
-        train_frac: Float [0, 1]
-
-    Returns:
-        dict lookup for each batch's set to save to
-    """
-    if train_frac > 1:
-        train_frac = 1
-        logger.warning("Train fraction provided > 1. Will set to 1.")
-    num_train_batches = int(len(timestep_batches) * train_frac)
-    labels = {
-        "train": [
-            timesteps[0].strftime(TIME_FMT)
-            for timesteps in timestep_batches[:num_train_batches]
-        ],
-        "test": [
-            timesteps[0].strftime(TIME_FMT)
-            for timesteps in timestep_batches[num_train_batches:]
-        ],
-    }
-    return labels
 
 
 def _add_physics_tendencies(
@@ -384,7 +258,6 @@ def _write_remote_train_zarr(
     time_fmt=TIME_FMT,
     zarr_name=None,
     train_test_labels=None,
-    chunk_sizes=None,
 ):
     """Writes temporary zarr on worker and moves it to GCS
 
@@ -392,7 +265,8 @@ def _write_remote_train_zarr(
         ds: xr dataset for single training batch
         gcs_dest_path: write location on GCS
         zarr_filename: name for zarr, use first timestamp as label
-        train_test_labels: optional dict with
+        train_test_labels: optional dict with keys ["test", "train"] and values lists of
+            timestep strings that go to each set
     Returns:
         None
     """
@@ -400,7 +274,7 @@ def _write_remote_train_zarr(
         zarr_name = helpers._path_from_first_timestep(
             ds, init_time_dim, time_fmt, train_test_labels
         )
-        ds = ds.chunk(chunk_sizes)
     output_path = os.path.join(gcs_output_dir, zarr_name)
     mapper = fsspec.get_mapper(output_path)
     ds.to_zarr(mapper, mode="w", consolidated=True)
+    logger.info(f"Done writing zarr to {output_path}")

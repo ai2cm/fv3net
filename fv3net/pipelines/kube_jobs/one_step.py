@@ -225,7 +225,7 @@ def submit_jobs(
         """Run a run_kubernetes job
 
         kwargs are passed workflows/one_step_jobs/runfile.py:post_process
-        
+
         """
         uid = str(uuid.uuid4())
         labels = assoc(job_labels, "jobid", uid)
@@ -252,5 +252,5 @@ def submit_jobs(
             logger.info(f"Submitting job for timestep {timestep}")
             run_job(index=k, init=False)
 
-    utils.wait_for_complete(job_labels)
+    utils.wait_for_complete(job_labels, raise_on_fail=False)
     utils.delete_completed_jobs(job_labels)

@@ -134,7 +134,7 @@ trying to submit the dataflow job, do `gcloud auth application-default login` fi
 
 
 
-## Deploying on k8s with fv3net
+## Running fv3gfs with Kubernetes
 
 Docker images with the python-wrapped model and fv3run are available from the
 [fv3gfs-python](https://github.com/VulcanClimateModeling/fv3gfs-python) repo.

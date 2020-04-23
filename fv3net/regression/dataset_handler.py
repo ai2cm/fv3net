@@ -6,6 +6,7 @@ import numpy as np
 import xarray as xr
 
 import vcm
+from vcm import safe
 from vcm.cloud.fsspec import get_fs
 
 SAMPLE_DIM = "sample"
@@ -15,14 +16,6 @@ logger.setLevel(logging.INFO)
 fh = logging.FileHandler("dataset_handler.log")
 fh.setLevel(logging.INFO)
 logger.addHandler(fh)
-
-
-class RemoteDataError(Exception):
-    """ Raised for errors reading data from the cloud that
-    may be resolved upon retry.
-    """
-
-    pass
 
 
 @dataclass
@@ -78,7 +71,7 @@ class BatchGenerator:
                 file_batch_urls, coord_z_center, init_time_dim
             )
 
-    @backoff.on_exception(backoff.expo, RemoteDataError, max_tries=3)
+    @backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
     def _load_datasets(self, urls):
         timestep_paths = [self.fs.get_mapper(url) for url in urls]
         return [xr.open_zarr(path).load() for path in timestep_paths]
@@ -88,10 +81,15 @@ class BatchGenerator:
         # impossible to test.
         data = self._load_datasets(urls)
         ds = xr.concat(data, init_time_dim)
+        ds = safe.get_variables(ds, self.data_vars)
         ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type)
-        ds_stacked = ds.stack(
-            {SAMPLE_DIM: [dim for dim in ds.dims if dim != coord_z_center]}
-        ).transpose(SAMPLE_DIM, coord_z_center)
+        stack_dims = [dim for dim in ds.dims if dim != coord_z_center]
+        ds_stacked = safe.stack_once(
+            ds,
+            SAMPLE_DIM,
+            stack_dims,
+            allowed_broadcast_dims=[coord_z_center, init_time_dim],
+        )
 
         ds_no_nan = ds_stacked.dropna(SAMPLE_DIM)
 
@@ -115,7 +113,10 @@ class BatchGenerator:
             num_train_batches = total_num_input_files // self.files_per_batch
         elif self.num_batches * self.files_per_batch > total_num_input_files:
             if self.num_batches > total_num_input_files:
-                raise ValueError("Fewer input files than number of requested batches.")
+                raise ValueError(
+                    f"Number of input_files {total_num_input_files} "
+                    f"smaller than {self.num_batches}."
+                )
             num_train_batches = total_num_input_files // self.files_per_batch
         else:
             num_train_batches = self.num_batches
@@ -158,7 +159,9 @@ def stack_and_drop_nan_samples(ds, coord_z_center):
     """
     # TODO delete this function
     ds = (
-        ds.stack({SAMPLE_DIM: [dim for dim in ds.dims if dim != coord_z_center]})
+        safe.stack_once(
+            ds, SAMPLE_DIM, [dim for dim in ds.dims if dim != coord_z_center]
+        )
         .transpose(SAMPLE_DIM, coord_z_center)
         .dropna(SAMPLE_DIM)
     )

@@ -5,7 +5,7 @@ FROM jupyter/base-notebook
 USER root
 
 # install gcloud
-RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl
+RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext
 
 RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
     curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
@@ -40,4 +40,5 @@ USER $NB_UID
 
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
+RUN pip install apache_beam[gcp] six==1.12.0
 CMD ["/bin/bash"]

@@ -1,14 +1,15 @@
 model_type: sklearn_random_forest
 hyperparameters:
-  min_samples_leaf: 15
+  max_depth: 13
   n_estimators: 1
-num_batches: 10
+num_batches: 13
 mask_to_surface_type: none
-files_per_batch: 13
+files_per_batch: 10
 input_variables:
   - air_temperature
   - specific_humidity
 output_variables:
   - dQ1
   - dQ2
-
+init_time_dim: "initial_time"
+coord_z_center: "z"

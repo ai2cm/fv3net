@@ -16,6 +16,9 @@ from vcm.constants import (
     SPECIFIC_HEAT_CONST_PRESSURE,
     GRAVITY,
 )
+import logging
+
+logger = logging.getLogger(__file__)
 
 SAMPLE_DIM = "sample"
 
@@ -36,12 +39,10 @@ THERMO_DATA_VAR_ATTRS = {
 def predict_on_test_data(
     test_data_path,
     model_path,
-    num_test_zarrs,
     pred_vars_to_keep,
     init_time_dim="initial_time",
     coord_z_center="z",
     model_type="rf",
-    downsample_time_factor=1,
 ):
 
     if model_type == "rf":
@@ -51,14 +52,9 @@ def predict_on_test_data(
             predict_dataset,
         )
 
-        ds_test = load_test_dataset(
-            test_data_path,
-            init_time_dim,
-            coord_z_center,
-            num_test_zarrs,
-            downsample_time_factor,
-        )
+        ds_test = load_test_dataset(test_data_path, init_time_dim, coord_z_center)
         sk_wrapped_model = load_model(model_path)
+        logger.info("Making prediction with sklearn model")
         ds_pred = predict_dataset(sk_wrapped_model, ds_test, pred_vars_to_keep)
         return ds_test.unstack(), ds_pred
     else:
@@ -71,6 +67,7 @@ def predict_on_test_data(
 def load_high_res_diag_dataset(
     coarsened_hires_diags_path, init_times, init_time_dim, renamed_hires_grid_vars
 ):
+    logger.info("load_high_res_diag_dataset")
     fs = get_fs(coarsened_hires_diags_path)
     ds_hires = xr.open_zarr(
         # fs.get_mapper functions like a zarr store
@@ -121,6 +118,7 @@ def add_column_heating_moistening(
         ds (xarray dataset): train/test or prediction dataset
             that has dQ1, dQ2, delp, precip and LHF data variables
     """
+    logger.info("add_column_heating_moistening")
 
     ds["net_precipitation_ml"] = (
         vcm.mass_integrate(
