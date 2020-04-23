@@ -9,6 +9,8 @@ spec:
   template:
     metadata:
       generateName: end-to-end-pod-
+      labels:
+        app: end-to-end
     spec:
       serviceAccountName: integration-tests
       containers:
