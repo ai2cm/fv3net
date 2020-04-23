@@ -103,7 +103,10 @@ if __name__ == "__main__":
 
     short_id = get_alphanumeric_unique_tag(8)
     job_name = f"prognostic-run-{short_id}"
-    job_label = {"orchestrator-jobs": f"prognostic-group-{short_id}"}
+    job_label = {
+        "orchestrator-jobs": f"prognostic-group-{short_id}",
+        "app": "end-to-end",
+    }
 
     model_config = _get_onestep_config(args.initial_condition_url, args.ic_timestep)
 
@@ -137,14 +140,19 @@ if __name__ == "__main__":
     with fsspec.open(job_config_path, "w") as f:
         f.write(yaml.dump(model_config))
 
-    fv3config.run_kubernetes(
+    # need to initialized the client differently than
+    # run_kubernetes when running in a pod.
+    client = kube_jobs.initialize_batch_client()
+    job = fv3config.run_kubernetes(
         config_location=job_config_path,
         outdir=args.output_url,
         jobname=job_name,
         docker_image=args.docker_image,
         job_labels=job_label,
+        submit=False,
         **kube_opts,
     )
+    client.create_namespaced_job(namespace="default", body=job)
 
     if not args.detach:
         kube_jobs.wait_for_complete(job_label)

@@ -8,7 +8,6 @@ import yaml
 import re
 from copy import deepcopy
 from typing import List, Dict
-import kubernetes
 from kubernetes.client import V1Job
 
 import fv3config
@@ -183,8 +182,8 @@ def submit_jobs(
     """Submit one-step job for all timesteps in timestep_list"""
 
     # load API objects needed to submit jobs
-    kubernetes.config.load_kube_config()
-    client = kubernetes.client.BatchV1Api()
+
+    client = utils.initialize_batch_client()
 
     zarr_url = os.path.join(output_url, "big.zarr")
 
@@ -226,7 +225,7 @@ def submit_jobs(
         """Run a run_kubernetes job
 
         kwargs are passed workflows/one_step_jobs/runfile.py:post_process
-        
+
         """
         uid = str(uuid.uuid4())
         labels = assoc(job_labels, "jobid", uid)
@@ -253,5 +252,5 @@ def submit_jobs(
             logger.info(f"Submitting job for timestep {timestep}")
             run_job(index=k, init=False)
 
-    utils.wait_for_complete(job_labels)
+    utils.wait_for_complete(job_labels, raise_on_fail=False)
     utils.delete_completed_jobs(job_labels)

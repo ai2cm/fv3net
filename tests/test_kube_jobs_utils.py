@@ -55,19 +55,20 @@ def test_job_failed(func, status, expected):
 
 
 @pytest.mark.parametrize(
-    "statuses, expected",
+    "statuses, raise_on_fail, expected",
     [
-        ([complete_status, complete_status, complete_status], True),
-        ([complete_status, inprogress_status, complete_status], False),
-        ([inprogress_status, inprogress_status, inprogress_status], False),
+        ([complete_status, complete_status, complete_status], True, True),
+        ([complete_status, inprogress_status, complete_status], True, False),
+        ([complete_status, inprogress_status, failed_status], False, False),
+        ([inprogress_status, inprogress_status, inprogress_status], True, False),
     ],
 )
-def test__handle_jobs_completed(statuses, expected):
+def test__handle_jobs_completed(statuses, raise_on_fail, expected):
     jobs = [
         V1Job(metadata=V1ObjectMeta(name=str(k)), status=status)
         for k, status in enumerate(statuses)
     ]
-    assert _handle_jobs(jobs) == expected
+    assert _handle_jobs(jobs, raise_on_fail) == expected
 
 
 def test__handle_jobs_raises_error():
@@ -78,4 +79,4 @@ def test__handle_jobs_raises_error():
     ]
 
     with pytest.raises(ValueError):
-        _handle_jobs(jobs)
+        _handle_jobs(jobs, True)
