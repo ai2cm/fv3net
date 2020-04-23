@@ -1,4 +1,5 @@
 import numpy as np
+from typing import Callable
 import xarray as xr
 
 import vcm
@@ -18,7 +19,7 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
     for sfc_type in ["global", "sea", "land"]:
         for var in ["dQ1", "dQ2"]:
             ds_metrics[
-                f"r2_{var}_pressure_levels_{sfc_type}"
+                f"R2/{var}/pressure_levels/{sfc_type}"
             ] = _r2_pressure_level_metrics(
                 vcm.mask_to_surface_type(ds_fv3, sfc_type)[var],
                 vcm.mask_to_surface_type(ds_pred, sfc_type)[var],
@@ -41,7 +42,7 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
         for ds_target in [ds_fv3, ds_shield]:
             target_label = ds_target.dataset.values.item()
             ds_metrics[
-                f"rmse_{var}_vs_{target_label}"
+                f"rmse/{var}_vs_{target_label}"
             ] = _rmse(
                 ds_target[var], ds_pred[var]
             ).mean(names["init_time_dim"])
@@ -52,11 +53,16 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
 def calc_scalar_metrics(
     ds_pred, ds_fv3, ds_shield, init_time_dim, var_area, var_pressure_thickness
 ):
-    rms_2d_vars = _rmse_2d_global_mean(ds_pred, ds_fv3, ds_shield, var_area, init_time_dim)
+    rms_2d_vars = _metric_2d_global_mean(_rmse, ds_pred, ds_fv3, ds_shield, var_area, init_time_dim)
+    bias_2d_vars = _metric_2d_global_mean(_bias, ds_pred, ds_fv3, ds_shield, var_area, init_time_dim)
     rms_3d_vars = _rmse_3d_col_weighted(
         ds_pred, ds_fv3, var_pressure_thickness, var_area, init_time_dim
     )
-    return {**rms_2d_vars, **rms_3d_vars}
+    return {**rms_2d_vars, **rms_3d_vars, **bias_2d_vars}
+
+
+def _bias(da_target, da_pred):
+    return np.mean(da_pred - da_pred)
 
 
 def _rmse(da_target, da_pred):
@@ -64,27 +70,31 @@ def _rmse(da_target, da_pred):
     return rmse
 
 
-def _rmse_2d_global_mean(ds_pred, ds_fv3, ds_shield, var_area="area", init_time_dim="initial_time"):
-    rmse_metrics = {}
+def _metric_2d_global_mean(
+    metric_func: Callable[[xr.DataArray, xr.DataArray], xr.DataArray],
+    ds_pred: xr.Dataset, 
+    ds_fv3: xr.Dataset, 
+    ds_shield: xr.Dataset, 
+    var_area: str="area", 
+    init_time_dim: str="initial_time"
+):
+    metric_name = metric_func.__name__.strip("_")
+    metrics = {}
     area_weights = ds_pred[var_area] / (ds_pred[var_area].mean())
-    pred_labels = ["ML", "modelphysics", "globalmean"]
+    pred_labels = ["ML+physics", "physics", "globalmean"]
     for var in ["net_precipitation", "net_heating"]:
-        # outermost loop is over dataset so that mean can be taken for one of the comparisons
-        for ds_target, target_label in zip(
-            [ds_fv3[[var]], ds_shield[[var]]], ["target", "hires"]
-        ):
+        # this loop is over target dataset so that mean can be taken for one of the comparisons
+        for da_target, target_label in zip([ds_fv3[var], ds_shield[var]], ["target", "hires"]):
             for da_pred, pred_label in zip(
-                [ds_pred[var], ds_fv3[f"{var}_physics"], ds_target[var].mean().values.item()],
+                [ds_pred[var], ds_fv3[f"{var}_physics"], da_target.mean().values.item()],
                 pred_labels,
             ):
-                da_target = ds_target[var]
                 # compare to ML predicion, model physics only prediction, variable average
-                global_rmse = (_rmse(
+                global_metric = (metric_func(
                     da_target, da_pred
                 ) * area_weights).mean().values.item()
-                rmse_metrics[f"rms/{var}/{pred_label}_vs_{target_label}"] = global_rmse
-                
-    return rmse_metrics
+                metrics[f"{metric_name}/{var}/{pred_label}_vs_{target_label}"] = global_metric
+    return metrics
 
 
 def _rmse_mass_avg(
@@ -113,7 +123,7 @@ def _rmse_3d_col_weighted(
 ):
     rmse_metrics = {}
     delp, area = ds_pred[var_pressure_thickness], ds_pred[var_area]
-    pred_labels = ["ML", "modelphysics", "globalmean"]
+    pred_labels = ["ML+physics", "physics", "globalmean"]
     for total_var, phys_var in zip(["Q1", "Q2"], ["pQ1", "pQ2"]):
         da_target = ds_fv3[total_var]
         for da_pred, pred_label in zip(
@@ -167,5 +177,5 @@ def _r2_global_mean_values(ds_pred, ds_fv3, ds_shield, stack_dims):
                     ),
                     "sample",
                 )
-                r2_summary[f"R2_{sfc_type}_{var}_vs_{target_label}"] = r2.values.item()
+                r2_summary[f"R2/{var}/{sfc_type}/ML+physics_vs_{target_label}"] = r2.values.item()
     return r2_summary
