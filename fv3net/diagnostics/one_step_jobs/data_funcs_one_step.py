@@ -171,7 +171,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
                 ds["cloud_water_mixing_ratio"],
                 ds["rain_mixing_ratio"],
                 ds["snow_mixing_ratio"],
-                ds["graupel_mixing_ratio"]
+                ds["graupel_mixing_ratio"],
             ),
             "precipitating_water": precipitating_water_mixing_ratio,
             "cloud_water_ice": cloud_water_ice_mixing_ratio,
@@ -278,29 +278,31 @@ def get_states_and_tendencies(ds: xr.Dataset) -> xr.Dataset:
 
 def insert_column_integrated_tendencies(ds: xr.Dataset) -> xr.Dataset:
 
-    ds = ds.assign({
-        "column_integrated_heating": thermo.column_integrated_heating(
-            ds["air_temperature"].sel({VAR_TYPE_DIM: "tendencies"}),
-            ds["pressure_thickness_of_atmospheric_layer"].sel(
-                {VAR_TYPE_DIM: "states"}
-            ),
-        ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
-        "column_integrated_moistening": thermo.column_integrated_moistening(
-            ds["specific_humidity"].sel({VAR_TYPE_DIM: "tendencies"}),
-            ds["pressure_thickness_of_atmospheric_layer"].sel(
-                {VAR_TYPE_DIM: "states"}
-            ),
-        ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
-    })
-    
-#     ds = ds.assign({
-#         "net_heating_total": (
-#             ds["column_integrated_heating"] + ds['net_heating_physics']
-#         ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
-#         "net_precipitation_total": (
-#             -ds["column_integrated_moistening"] + ds['net_precipitation_physics']
-#         ).expand_dims({VAR_TYPE_DIM: ["tendencies"]})
-#     })
+    ds = ds.assign(
+        {
+            "column_integrated_heating": thermo.column_integrated_heating(
+                ds["air_temperature"].sel({VAR_TYPE_DIM: "tendencies"}),
+                ds["pressure_thickness_of_atmospheric_layer"].sel(
+                    {VAR_TYPE_DIM: "states"}
+                ),
+            ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
+            "column_integrated_moistening": thermo.column_integrated_moistening(
+                ds["specific_humidity"].sel({VAR_TYPE_DIM: "tendencies"}),
+                ds["pressure_thickness_of_atmospheric_layer"].sel(
+                    {VAR_TYPE_DIM: "states"}
+                ),
+            ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
+        }
+    )
+
+    #     ds = ds.assign({
+    #         "net_heating_total": (
+    #             ds["column_integrated_heating"] + ds['net_heating_physics']
+    #         ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
+    #         "net_precipitation_total": (
+    #             -ds["column_integrated_moistening"] + ds['net_precipitation_physics']
+    #         ).expand_dims({VAR_TYPE_DIM: ["tendencies"]})
+    #     })
 
     return ds
 
@@ -322,7 +324,9 @@ def insert_abs_vars(ds: xr.Dataset, varnames: Sequence) -> xr.Dataset:
             ds[var + "_abs"] = np.abs(ds[var])
             ds[var + "_abs"].attrs.update(
                 {
-                    "long_name": f"absolute {ds[var].attrs['long_name']}" if 'long_name' in ds[var].attrs else None,
+                    "long_name": f"absolute {ds[var].attrs['long_name']}"
+                    if "long_name" in ds[var].attrs
+                    else None,
                     "units": ds[var].attrs["units"],
                 }
             )
@@ -332,14 +336,18 @@ def insert_abs_vars(ds: xr.Dataset, varnames: Sequence) -> xr.Dataset:
     return ds
 
 
-def insert_variable_at_model_level(ds: xr.Dataset, varnames: Sequence, levels: Sequence):
+def insert_variable_at_model_level(
+    ds: xr.Dataset, varnames: Sequence, levels: Sequence
+):
 
     for var in varnames:
         if var in ds:
             for level in levels:
                 new_name = f"{var}_level_{level}"
                 ds = ds.assign({new_name: ds[var].sel({"z": level})})
-                ds[new_name].attrs.update({"long_name": f"{var} at model level {level}"})
+                ds[new_name].attrs.update(
+                    {"long_name": f"{var} at model level {level}"}
+                )
         else:
             raise ValueError("Invalid variable for model level selection.")
 
@@ -394,14 +402,16 @@ def insert_diurnal_means(
             ds_land["local_time"],
         )
         da_physics_land = mean_diurnal_cycle(
-            ds_land[physics_name].sel({DELTA_DIM: ["hi-res", "coarse"], VAR_TYPE_DIM: physics_type}),
+            ds_land[physics_name].sel(
+                {DELTA_DIM: ["hi-res", "coarse"], VAR_TYPE_DIM: physics_type}
+            ),
             ds_land["local_time"],
         )
         ds = ds.assign(
             {
                 f"{var}_land": xr.concat(
                     [da_physics_land, da_residual_land], dim=DELTA_DIM
-                )#.assign_coords({DELTA_DIM: ["hi-res", "coarse", "hi-res - coarse"]})
+                )
             }
         )
         ds[f"{var}_land"].attrs.update(ds[residual_name].attrs)
@@ -418,15 +428,13 @@ def insert_diurnal_means(
             ds_sea["local_time"],
         )
         da_physics_sea = mean_diurnal_cycle(
-            ds_sea[physics_name].sel({DELTA_DIM: ["hi-res", "coarse"], VAR_TYPE_DIM: physics_type}),
+            ds_sea[physics_name].sel(
+                {DELTA_DIM: ["hi-res", "coarse"], VAR_TYPE_DIM: physics_type}
+            ),
             ds_sea["local_time"],
         )
         ds = ds.assign(
-            {
-                f"{var}_sea": xr.concat(
-                    [da_physics_sea, da_residual_sea], dim=DELTA_DIM
-                )#.assign_coords({DELTA_DIM: ["hi-res", "coarse", "hi-res - coarse"]})
-            }
+            {f"{var}_sea": xr.concat([da_physics_sea, da_residual_sea], dim=DELTA_DIM)}
         )
         ds[f"{var}_sea"].attrs.update(ds[residual_name].attrs)
 

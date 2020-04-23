@@ -136,10 +136,10 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
             hi_res_diag_var,
             "states",
             FORECAST_TIME_DIM,
-#             stride=stride,
-#             scale=scale,
+            #             stride=stride,
+            #             scale=scale,
             7,
-            14
+            14,
         )
         plotname = f"{q_term}_comparison_maps.png"
         f.savefig(os.path.join(output_dir, plotname))
@@ -217,14 +217,16 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
         vartype = spec[VAR_TYPE_DIM]
         scale = spec["scale"]
         f = plot_model_run_maps_across_time_dim(
-            states_and_tendencies.sel({VAR_TYPE_DIM: vartype, DELTA_DIM: ['hi-res', 'coarse']}),
+            states_and_tendencies.sel(
+                {VAR_TYPE_DIM: vartype, DELTA_DIM: ["hi-res", "coarse"]}
+            ),
             var,
             vartype,
             FORECAST_TIME_DIM,
             7,
             14
-#             stride=stride,
-#             scale=scale,
+            #             stride=stride,
+            #             scale=scale,
         )
         plotname = f"{var}_{vartype}_maps.png"
         f.savefig(os.path.join(output_dir, plotname))
@@ -309,11 +311,11 @@ def plot_model_run_maps_across_time_dim(
     var: str,
     vartype: str,
     multiple_time_dim: str,
-    i_time_1 = int,
-    i_time_2 = int,
-#     start: int = None,
-#     end: int = None,
-#     stride: int = None,
+    i_time_1=int,
+    i_time_2=int,
+    #     start: int = None,
+    #     end: int = None,
+    #     stride: int = None,
     scale: float = None,
 ):
 
@@ -322,17 +324,13 @@ def plot_model_run_maps_across_time_dim(
     ds = ds.assign_coords({FORECAST_TIME_DIM: ds[FORECAST_TIME_DIM] / 60})
     f, axes, _, _, facet_grid = plot_cube(
         mappable_var(
-            ds.isel({multiple_time_dim: [i_time_1]}),
-            var,
-            **MAPPABLE_VAR_KWARGS,
+            ds.isel({multiple_time_dim: [i_time_1]}), var, **MAPPABLE_VAR_KWARGS,
         ),
         col=DELTA_DIM,
         row=multiple_time_dim,
         vmax=scale,
     )
-    n_rows = ds.isel({multiple_time_dim: [i_time_1]}).sizes[
-        multiple_time_dim
-    ]
+    n_rows = ds.isel({multiple_time_dim: [i_time_1]}).sizes[multiple_time_dim]
     f.set_size_inches([10, n_rows * 2])
     f.set_dpi(FIG_DPI)
     f.suptitle(f"{var} across {multiple_time_dim}")
@@ -461,7 +459,7 @@ def plot_diurnal_cycles(
 
     def _facet_line_plot(arr: np.ndarray):
         ax = plt.gca()
-        ax.set_prop_cycle(color=["b", 'g', [1, 0.5, 0]])
+        ax.set_prop_cycle(color=["b", "g", [1, 0.5, 0]])
         h = ax.plot(arr.T)
         ax.plot([0, 24.0], [0, 0], "k-")
         return h
@@ -480,7 +478,9 @@ def plot_diurnal_cycles(
     facetgrid.axes.flatten()[0].set_xlim([0, 24])
     legend_ax = facetgrid.axes.flatten()[-2]
     handles = legend_ax.get_lines()
-    legend_ax.legend(handles, ["hi-res diags", "coarse_physics", "residual of tendencies"], loc=2)
+    legend_ax.legend(
+        handles, ["hi-res diags", "coarse_physics", "residual of tendencies"], loc=2
+    )
     facetgrid.set_titles(template="{value} min")
     for ax in facetgrid.axes[-1, :]:
         ax.set_xlabel("mean local time [hrs]")

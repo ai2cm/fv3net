@@ -61,7 +61,9 @@ def _create_arg_parser():
         "one_step_data", type=str, help="One-step zarr path, not including zarr name."
     )
     parser.add_argument(
-        "hi_res_diags", type=str, help="C384 diagnostics zarr path, not including zarr name."
+        "hi_res_diags",
+        type=str,
+        help="C384 diagnostics zarr path, not including zarr name.",
     )
     parser.add_argument(
         "netcdf_output", type=str, help="Output location for diagnostics netcdf file."
@@ -95,31 +97,26 @@ def _create_arg_parser():
             "in one-steps scripts for more information."
         ),
     )
-    
 
     return parser
 
 
-def _open_timestamp_pairs(timestamp_pairs: Sequence, mapper: MutableMapping) -> xr.Dataset:
+def _open_timestamp_pairs(
+    timestamp_pairs: Sequence, mapper: MutableMapping
+) -> xr.Dataset:
     """dataflow pipeline func for opening datasets of paired initial times"""
-    
+
     try:
-        logger.info(
-            f"Opening the following timesteps: {timestamp_pairs}"
-        )
-        
+        logger.info(f"Opening the following timesteps: {timestamp_pairs}")
+
         ds = xr.open_zarr(mapper)
-        ds_pair = (
-            ds[list(VARS_FROM_ZARR)]
-            .sel({
-                INIT_TIME_DIM: timestamp_pairs,
-                "step": list(["begin", "after_physics"])
-            })
+        ds_pair = ds[list(VARS_FROM_ZARR)].sel(
+            {INIT_TIME_DIM: timestamp_pairs, "step": list(["begin", "after_physics"])}
         )
     except Exception as e:
         logger.warning(e)
         ds_pair = None
-    
+
     return ds_pair
 
 
@@ -161,7 +158,11 @@ def _insert_states_and_tendencies(ds: xr.Dataset) -> xr.Dataset:
             .pipe(insert_column_integrated_tendencies)
             .pipe(insert_model_run_differences)
             .pipe(insert_abs_vars, ABS_VARS)
-            .pipe(insert_variable_at_model_level, ["vertical_wind", "vertical_wind_abs"], [40, 40])
+            .pipe(
+                insert_variable_at_model_level,
+                ["vertical_wind", "vertical_wind_abs"],
+                [40, 40],
+            )
         )
         ds.attrs[INIT_TIME_DIM] = [ds[INIT_TIME_DIM].item().strftime(TIME_FMT)]
     except Exception as e:
@@ -277,21 +278,19 @@ def _get_remote_netcdf(filename):
     fs_nc = get_fs(filename)
     with fs_nc.open(filename, "rb") as f:
         return xr.open_dataset(f).load()
-        
-        
+
 
 # start routine
-    
+
 args, pipeline_args = _create_arg_parser().parse_known_args()
-        
+
 # parse optional args
-        
+
 if (
-    (args.start_ind is not None or args.n_sample_inits is not None)
-    and args.timesteps_file is not None
-):
+    args.start_ind is not None or args.n_sample_inits is not None
+) and args.timesteps_file is not None:
     raise ValueError(
-        'timesteps_file cannot be specified with either n_sample_inits or start_ind'
+        "timesteps_file cannot be specified with either n_sample_inits or start_ind"
     )
 
 zarrpath = os.path.join(args.one_step_data, ONE_STEP_ZARR)
@@ -301,14 +300,14 @@ if ".zmetadata" not in mapper:
     logger.info("Consolidating metadata.")
     zarr.consolidate_metadata(mapper)
 ds_zarr_template = xr.open_zarr(mapper)[list(GRID_VARS) + [INIT_TIME_DIM]]
-    
+
 if args.timesteps_file is None:
-    
+
     # get subsampling from zarr times and specified parameters
-    
-    ds_zarr_times = ds_zarr_template.isel(
-        {INIT_TIME_DIM: slice(args.start_ind, None)}
-    )[INIT_TIME_DIM]
+
+    ds_zarr_times = ds_zarr_template.isel({INIT_TIME_DIM: slice(args.start_ind, None)})[
+        INIT_TIME_DIM
+    ]
 
     logger.info(f"Opened .zarr at {zarrpath}")
 
@@ -316,21 +315,20 @@ if args.timesteps_file is None:
         n_sample_inits = ds_zarr_times.sizes[INIT_TIME_DIM]
     else:
         n_sample_inits = args.n_sample_inits
-    timestamp_subset_indices = time_inds_to_open(
-        ds_zarr_times, n_sample_inits
-    )
-    
+    timestamp_subset_indices = time_inds_to_open(ds_zarr_times, n_sample_inits)
+
     timestamp_pairs_subset = [
-        [ds_zarr_times.isel({INIT_TIME_DIM: indices[0]}).item(),
-         ds_zarr_times.isel({INIT_TIME_DIM: indices[1]}).item()]
+        [
+            ds_zarr_times.isel({INIT_TIME_DIM: indices[0]}).item(),
+            ds_zarr_times.isel({INIT_TIME_DIM: indices[1]}).item(),
+        ]
         for indices in timestamp_subset_indices
     ]
-    
+
 else:
     with open(args.timesteps_file, "r") as f:
         timesteps = yaml.safe_load(f)
-    timestamp_pairs_subset = timesteps['train']
-
+    timestamp_pairs_subset = timesteps["train"]
 
 
 # ds_sample = [
@@ -352,11 +350,9 @@ hi_res_diags_mapping.update(
     }
 )
 
-grid = (
-    ds_zarr_template
-    .isel({INIT_TIME_DIM: 0, FORECAST_TIME_DIM: 0, STEP_DIM: 0})
-    .drop([STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
-)
+grid = ds_zarr_template.isel(
+    {INIT_TIME_DIM: 0, FORECAST_TIME_DIM: 0, STEP_DIM: 0}
+).drop([STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
 
 output_nc_path = os.path.join(args.netcdf_output, OUTPUT_NC_FILENAME)
 

@@ -36,7 +36,7 @@ GLOBAL_MEAN_2D_VARS = {
     "precipitable_water": {VAR_TYPE_DIM: ["tendencies"], "scale": [0.0012]},
     "total_heat": {VAR_TYPE_DIM: ["tendencies", "states"], "scale": [1000, None]},
     "total_heat_abs": {VAR_TYPE_DIM: ["tendencies"], "scale": [None]},
-    'vertical_wind_abs_level_40': {VAR_TYPE_DIM: ["states"], "scale": [0.05]},
+    "vertical_wind_abs_level_40": {VAR_TYPE_DIM: ["states"], "scale": [0.05]},
     "latent_heat_flux": {VAR_TYPE_DIM: ["states"], "scale": [None]},
     "sensible_heat_flux": {VAR_TYPE_DIM: ["states"], "scale": [None]},
     "total_precipitation": {VAR_TYPE_DIM: ["states"], "scale": [None]},
