@@ -43,7 +43,7 @@ import shutil
 from tempfile import TemporaryDirectory
 import logging
 import sys
-from typing import Sequence, Mapping, Any
+from typing import Sequence, Mapping, Any, MutableMapping
 
 out_hdlr = logging.StreamHandler(sys.stdout)
 out_hdlr.setFormatter(
@@ -99,6 +99,29 @@ def _create_arg_parser():
     return parser
 
 
+def _open_timestamp_pairs(timestamp_pairs: Sequence, mapper: MutableMapping) -> xr.Dataset:
+    """dataflow pipeline func for opening datasets of paired initial times"""
+    
+    try:
+        logger.info(
+            f"Opening the following timesteps: {timestamp_pairs}"
+        )
+        
+        ds = xr.open_zarr(mapper)
+        ds_pair = (
+            ds[list(VARS_FROM_ZARR)]
+            .sel({
+                INIT_TIME_DIM: timestamp_pairs,
+                "step": list(["begin", "after_physics"])
+            })
+        )
+    except Exception as e:
+        logger.warning(e)
+        ds_pair = None
+    
+    return ds_pair
+
+
 def _insert_derived_vars(
     ds: xr.Dataset, hi_res_diags_zarrpath: Sequence, hi_res_diags_mapping: Mapping
 ) -> xr.Dataset:
@@ -111,7 +134,7 @@ def _insert_derived_vars(
             f"{ds[INIT_TIME_DIM].values[0]}"
         )
         ds = (
-            ds.assign_coords({"z": np.arange(1.0, ds_zarr.sizes["z"] + 1.0)})
+            ds.assign_coords({"z": np.arange(1.0, ds.sizes["z"] + 1.0)})
             .pipe(time_coord_to_datetime)
             .pipe(insert_hi_res_diags, hi_res_diags_zarrpath, hi_res_diags_mapping)
             .pipe(insert_derived_vars_from_ds_zarr)
@@ -271,13 +294,16 @@ if (
 
 zarrpath = os.path.join(args.one_step_data, ONE_STEP_ZARR)
 fs = get_fs(zarrpath)
-ds_zarr_template = xr.open_zarr(fs.get_mapper(zarrpath))[list(GRID_VARS) + [INIT_TIME_DIM]]
+mapper = fs.get_mapper(zarrpath)
+if ".zmetadata" not in mapper:
+    logger.info("Consolidating metadata.")
+    zarr.consolidate_metadata(mapper)
+ds_zarr_template = xr.open_zarr(mapper)[list(GRID_VARS) + [INIT_TIME_DIM]]
     
 if args.timesteps_file is None:
     
     # get subsampling from zarr times and specified parameters
     
-
     ds_zarr_times = ds_zarr_template.isel(
         {INIT_TIME_DIM: slice(args.start_ind, None)}
     )[INIT_TIME_DIM]
@@ -291,9 +317,6 @@ if args.timesteps_file is None:
     timestamp_subset_indices = time_inds_to_open(
         ds_zarr_times, n_sample_inits
     )
-#     for indices in timestamp_subset_indices:
-#         print(indices)
-#     print(timestamp_subset_indices)
     
     timestamp_pairs_subset = [
         [ds_zarr_times.isel({INIT_TIME_DIM: indices[0]}).item(),
@@ -301,12 +324,10 @@ if args.timesteps_file is None:
         for indices in timestamp_subset_indices
     ]
     
-    print(timestamp_pairs_subset)
 else:
     with open(args.timesteps_file, "r") as f:
         timesteps = yaml.safe_load(f)
-    timesteps_pairs_subset = timesteps['train']
-    print(timesteps_pairs_subset)
+    timestamp_pairs_subset = timesteps['train']
 
 
 
@@ -341,7 +362,8 @@ beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
 with beam.Pipeline(options=beam_options) as p:
     (
         p
-        | "CreateDS" >> beam.Create(ds_sample)
+        | "CreateDS" >> beam.Create(timestamp_pairs_subset)
+        | "OpenDSPairs" >> beam.Map(_open_timestamp_pairs, mapper)
         | "InsertDerivedVars"
         >> beam.Map(_insert_derived_vars, hi_res_diags_zarrpath, hi_res_diags_mapping)
         | "InsertStatesAndTendencies" >> beam.Map(_insert_states_and_tendencies)
