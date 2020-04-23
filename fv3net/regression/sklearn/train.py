@@ -13,11 +13,7 @@ from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
 
 
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-fh = logging.FileHandler("ml_training.log")
-fh.setLevel(logging.INFO)
-logger.addHandler(fh)
+logger = logging.getLogger(__file__)
 
 
 @dataclass

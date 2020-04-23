@@ -2,6 +2,7 @@ import argparse
 import os
 import fsspec
 import yaml
+import logging
 import gallery
 import report
 import vcm
@@ -78,6 +79,7 @@ if __name__ == "__main__":
         args.train_config_file, args.train_data_path
     )
     batched_data = load_data_generator(train_config)
+    logging.basicConfig(level=logging.INFO)
 
     model, training_urls_used = train_model(batched_data, train_config)
     save_model(args.output_data_path, model, MODEL_FILENAME)
