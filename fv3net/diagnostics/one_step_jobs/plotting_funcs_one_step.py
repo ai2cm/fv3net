@@ -106,14 +106,14 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
         comparison_ds = xr.concat(
             [
                 (
-                    states_and_tendencies[list((hi_res_diag_var_full,) + GRID_VARS)]
+                    states_and_tendencies[[hi_res_diag_var_full]]
                     .sel({DELTA_DIM: "hi-res", VAR_TYPE_DIM: "states"})
                     .drop([DELTA_DIM, VAR_TYPE_DIM])
                     .expand_dims({DELTA_DIM: ["hi-res diagnostics"]})
                     .rename({hi_res_diag_var_full: hi_res_diag_var})
                 ),
                 (
-                    states_and_tendencies[list((residual_var,) + GRID_VARS)]
+                    states_and_tendencies[[residual_var]]
                     .sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: "tendencies"})
                     .drop([DELTA_DIM, VAR_TYPE_DIM])
                     .expand_dims({DELTA_DIM: ["tendency-based dQ"]})
@@ -122,6 +122,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
             ],
             dim=DELTA_DIM,
         )
+        comparison_ds = comparison_ds.merge(states_and_tendencies[list(GRID_VARS)])
         comparison_ds[hi_res_diag_var] = comparison_ds[hi_res_diag_var].assign_attrs(
             {
                 "long_name": hi_res_diag_var,

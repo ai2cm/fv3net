@@ -36,6 +36,7 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import argparse
 import xarray as xr
+import zarr
 import numpy as np
 import yaml
 import os
