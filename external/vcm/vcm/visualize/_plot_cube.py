@@ -280,38 +280,36 @@ def pcolormesh_cube(lat, lon, array, ax=None, **kwargs):
     for tile in range(array.shape[0]):
         x = center_longitudes(lon[tile, :, :], central_longitude)
         y = lat[tile, :, :]
-        p_handle = _segmented_plot(ax.pcolormesh, x, y, array[tile, :, :], **kwargs)
+        for x_plot, y_plot, array_plot in _segment_plot_inputs(x, y, array[tile, :, :]):
+            p_handle = ax.pcolormesh(x_plot, y_plot, array_plot, **kwargs)
     return p_handle
 
 
-def _segmented_plot(plotting_function, x, y, masked_array, **kwargs):
-    """Plots only the non-nan parts of a nan-masked array by splitting it into
-    contiguous non-nan rectangles and plotting each of them. x and y should be on
-    cell corners, and masked_array should be in cell centers, with NaN for
-    masked values. Designed for pcolormesh.
+def _segment_plot_inputs(x, y, masked_array):
+    """Takes in two arrays at corners of grid cells and an array at grid cell centers
+    which may contain NaNs. Yields 3-tuples of rectangular segments of
+    these arrays which cover all non-nan points without duplicates, and don't contain
+    NaNs.
     """
     is_nan = np.isnan(masked_array)
     if np.sum(is_nan) == 0:  # contiguous section, just plot it
-        return_value = plotting_function(x, y, masked_array, **kwargs)
+        if np.product(masked_array.shape) > 0:
+            yield (x, y, masked_array)
     else:
         x_nans = np.sum(is_nan, axis=1) / is_nan.shape[1]
         y_nans = np.sum(is_nan, axis=0) / is_nan.shape[0]
         if x_nans.max() >= y_nans.max():  # most nan-y line is in first dimension
             i_split = x_nans.argmax()
             if x_nans[i_split] == 1.0:  # split cleanly along line
-                _segmented_plot(
-                    plotting_function,
+                yield from _segment_plot_inputs(
                     x[: i_split + 1, :],
                     y[: i_split + 1, :],
                     masked_array[:i_split, :],
-                    **kwargs,
                 )
-                return_value = _segmented_plot(
-                    plotting_function,
+                yield from _segment_plot_inputs(
                     x[i_split + 1 :, :],
                     y[i_split + 1 :, :],
                     masked_array[i_split + 1 :, :],
-                    **kwargs,
                 )
             else:
                 # split to create segments of complete nans
@@ -325,23 +323,18 @@ def _segmented_plot(plotting_function, x, y, masked_array, **kwargs):
                     ):
                         i_end += 1
                     # we have a largest-possible contiguous segment of nans/not nans
-                    return_value = _segmented_plot(
-                        plotting_function,
+                    yield from _segment_plot_inputs(
                         x[:, i_start : i_end + 1],
                         y[:, i_start : i_end + 1],
                         masked_array[:, i_start:i_end],
-                        **kwargs,
                     )
                     i_start = i_end  # start the next segment
         else:
             # put most nan-y line in first dimension
             # so the first part of this if block catches it
-            return_value = _segmented_plot(
-                plotting_function, x.T, y.T, masked_array.T, **kwargs
+            yield from _segment_plot_inputs(
+                x.T, y.T, masked_array.T,
             )
-    return (
-        return_value  # just return any handle, they all contain the same colorbar info
-    )
 
 
 def center_longitudes(lon_array, central_longitude):
