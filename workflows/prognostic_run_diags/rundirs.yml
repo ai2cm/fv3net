@@ -1,16 +1,16 @@
-- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-off/baseline_run/
+- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-off/baseline_run
   name: deep-off-baseline
-- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-off/prognostic_run/
+- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-off/prognostic_run
   name: deep-off-rf
-- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/baseline_run/
+- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/baseline_run
   name: deep-shallow-mp-off-clearsky-baseline
-- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/prognostic_run/
+- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/prognostic_run
   name: deep-shallow-mp-off-clearsky-rf
-- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/physics-off/baseline_run/
+- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/physics-off/baseline_run
   name: physics-off-baseline
-- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/physics-off/prognostic_run/
+- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/physics-off/prognostic_run
   name: physics-off-rf
-- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/physics-on/baseline_run/
+- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/physics-on/baseline_run
   name: physics-on-baseline
-- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/physics-on/prognostic_run/
+- url: gs://vcm-ml-experiments/2020-04-22-advisory-council/physics-on/prognostic_run
   name: physics-on-rf
