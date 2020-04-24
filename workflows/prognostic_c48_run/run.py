@@ -4,6 +4,7 @@ import yaml
 import fsspec
 import logging
 from pathlib import Path
+import tempfile
 
 import fv3config
 import fv3kube
@@ -15,14 +16,6 @@ PWD = Path(os.path.abspath(__file__)).parent
 RUNFILE = os.path.join(PWD, "sklearn_runfile.py")
 CONFIG_FILENAME = "fv3config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
-
-KUBERNETES_DEFAULT = {
-    "cpu_count": 6,
-    "memory_gb": 3.6,
-    "gcp_secret": "gcp-key",
-    "image_pull_policy": "Always",
-    "capture_output": False,
-}
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -37,11 +30,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "ic_timestep",
         type=str,
         help="Time step to grab from the initial conditions url.",
-    )
-    parser.add_argument(
-        "docker_image",
-        type=str,
-        help="Docker image to pull for the prognostic run kubernetes pod.",
     )
     parser.add_argument(
         "output_url",
@@ -61,13 +49,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Path to a config update YAML file specifying the changes (e.g., "
         "diag_table, runtime, ...) from the one-step runs for the prognostic run.",
     )
-    parser.add_argument(
-        "-d",
-        "--detach",
-        action="store_true",
-        help="Do not wait for the k8s job to complete.",
-    )
-
     return parser
 
 
@@ -88,7 +69,7 @@ def _update_with_prognostic_model_config(model_config, prognostic_config):
     """
 
     with open(prognostic_config, "r") as f:
-        prognostic_model_config = yaml.load(f, Loader=yaml.FullLoader)
+        prognostic_model_config = yaml.safe_load(f)
 
     vcm.update_nested_dict(model_config, prognostic_model_config)
 
@@ -114,11 +95,6 @@ if __name__ == "__main__":
     model_config = _update_with_prognostic_model_config(
         model_config, args.prog_config_yml
     )
-
-    kube_opts = KUBERNETES_DEFAULT.copy()
-    if "kubernetes" in model_config:
-        user_kube_config = model_config.pop("kubernetes")
-        kube_opts.update(user_kube_config)
 
     job_config_filename = "fv3config.yml"
     config_dir = os.path.join(args.output_url, "job_config")
