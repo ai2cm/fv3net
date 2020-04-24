@@ -36,7 +36,9 @@ fi
 [[ -n $GOOGLE_APPLICATION_CREDENTIALS ]] && gcloud auth activate-service-account --key-file $GOOGLE_APPLICATION_CREDENTIALS
 
 rundir=$1
-output=$2
+
+# strip trailing slash
+output=${2%/}
 
 cwd=$PWD
 

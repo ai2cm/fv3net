@@ -78,9 +78,9 @@ def rms_errors(resampled, verification_c48, grid):
 @add_to_diags
 def global_averages(resampled, verification, grid):
     diags = {}
-    area_averages = (resampled * resampled.area).sum(
+    area_averages = (resampled * grid.area).sum(
         HORIZONTAL_DIMS
-    ) / resampled.area.sum(HORIZONTAL_DIMS)
+    ) / grid.area.sum(HORIZONTAL_DIMS)
     for variable in area_averages:
         lower = variable.lower()
         diags[f"{lower}_global_avg"] = area_averages[variable].assign_attrs(
@@ -116,13 +116,12 @@ def load_data(url, grid_spec, catalog):
     logger.info(f"Opening diagnostic data at {atmos_diag_url}")
     ds = open_tiles(atmos_diag_url).load()
     resampled = ds.resample(time="3H", label="right").nearest()
-    grid_c48 = resampled[vcm.cubedsphere.constants.GRID_VARS]
 
     verification_c48 = verification_c48.sel(
         time=resampled.time[:-1]
     )  # don't use last time point. there is some trouble
 
-    return resampled, verification_c48, grid_c48
+    return resampled, verification_c48, verification_c48[['area']]
 
 
 if __name__ == "__main__":
