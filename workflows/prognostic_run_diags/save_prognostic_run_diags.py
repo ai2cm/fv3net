@@ -38,7 +38,7 @@ def compute_all_diagnostics(resampled, verification, grid):
     diags = {}
     logger.info("Computing all metrics")
     for metrics_fn in _DIAG_FNS:
-        logger.info("Computing {metrics_fn}")
+        logger.info(f"Computing {metrics_fn}")
         diags.update(metrics_fn(resampled, verification, grid))
     return diags
 
@@ -156,6 +156,8 @@ if __name__ == "__main__":
     diags = xr.Dataset(diags, attrs=attrs)
     diags = diags.merge(grid)
 
+    logger.info("Forcing computation.")
+    diags =  diags.load()
+
     logger.info(f"Saving data to {args.output}")
-    with fsspec.open(args.output, mode="wb") as f:
-        dump_nc(diags, f)
+    diags.to_netcdf(args.output)

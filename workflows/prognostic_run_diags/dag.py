@@ -3,17 +3,28 @@ from kfp import dsl
 
 TAG = "738f327e3e5cdf31dc1eae630cc1f790873a58f9"
 
+
+copy_from_gcs = kfp.components.load_component_from_url("https://raw.githubusercontent.com/kubeflow/pipelines/master/components/google-cloud/storage/download_dir/component.yaml")
+GRID = "gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/grid_spec"
+
 @dsl.pipeline(name='my-pipeline')
-def pipeline(grid_spec: str, rundir: str, output: str):
+def pipeline(rundir: str, output: str, grid:str = GRID):
+
+    dl_atmos_op = copy_from_gcs("%s/atmos_dt_atmos.tile?.nc"%rundir)
+    dl_grid_spec = copy_from_gcs("%s.tile?.nc"%grid)
 
     compute_diags_op = dsl.ContainerOp(
         name="compute diagnostics",
         image=f"us.gcr.io/vcm-ml/fv3net:{TAG}",
         command=["python", "workflows/prognostic_run_diags/save_prognostic_run_diags.py"],
         arguments=[
-            "--grid-spec", grid_spec,
-            rundir, output
-        ]
+            "--grid-spec", "%s/grid_spec"%dl_grid_spec.output,
+            dl_atmos_op.output,
+            "/diags.nc"
+        ],
+        file_outputs={
+            "diags": "/diags.nc"
+        }
     )
 
     metrics_op = dsl.ContainerOp(
@@ -23,14 +34,12 @@ def pipeline(grid_spec: str, rundir: str, output: str):
         arguments=[
             """
             python3 /metrics.py %s > /metrics.json
-            """%(output)
+            """%(compute_diags_op.output)
         ],
         file_outputs={
             'output': '/metrics.json'
         }
     )
-
-    metrics_op.after(compute_diags_op)
 
 if __name__ == '__main__':
     kfp.compiler.Compiler().compile(pipeline, __file__ + '.yaml')
