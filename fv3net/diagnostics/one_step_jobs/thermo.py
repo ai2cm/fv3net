@@ -1,6 +1,9 @@
 from vcm.constants import SPECIFIC_HEAT_CONST_PRESSURE, GRAVITY, kg_m2s_to_mm_day
 from vcm.calc import mass_integrate
+from vcm.calc.thermo import latent_heat_vaporization, _SPECIFIC_HEAT_CONST_PRESSURE
 import xarray as xr
+
+_LATENT_HEAT_FUSION = 3.34e5
 
 
 def psurf_from_delp(delp: xr.DataArray, p_toa: float = 300.0) -> xr.DataArray:
@@ -36,6 +39,33 @@ def precipitable_water(sphum: xr.DataArray, delp: xr.DataArray) -> xr.DataArray:
     return pw
 
 
+def liquid_ice_temperature(
+    T: xr.DataArray,
+    ice_wat: xr.DataArray,
+    liq_wat: xr.DataArray,
+    rainwat: xr.DataArray,
+    snowwat: xr.DataArray,
+    graupel: xr.DataArray,
+) -> xr.DataArray:
+
+    liquid_ice_temperature = (
+        T
+        - (latent_heat_vaporization(T) / _SPECIFIC_HEAT_CONST_PRESSURE)
+        * (rainwat + liq_wat)
+        - (
+            (latent_heat_vaporization(T) + _LATENT_HEAT_FUSION)
+            / _SPECIFIC_HEAT_CONST_PRESSURE
+        )
+        * (ice_wat + snowwat + graupel)
+    )
+
+    liquid_ice_temperature = liquid_ice_temperature.assign_attrs(
+        {"long_name": "liquid ice temperature", "units": "K"}
+    )
+
+    return liquid_ice_temperature
+
+
 def total_heat(T: xr.DataArray, delp: xr.DataArray) -> xr.DataArray:
     """Compute vertically-integrated total heat
     """
@@ -58,13 +88,15 @@ def column_integrated_heating(dT_dt: xr.DataArray, delp: xr.DataArray) -> xr.Dat
     return dT_dt_integrated
 
 
-def column_integrated_moistening(
-    dsphum_dt: xr.DataArray, delp: xr.DataArray
+def minus_column_integrated_moistening(
+    minus_dsphum_dt: xr.DataArray, delp: xr.DataArray
 ) -> xr.DataArray:
-    """Compute vertically-integrated moisture tendencies
+    """Compute negative of vertically-integrated moisture tendencies
     """
-    dsphum_dt_integrated = kg_m2s_to_mm_day * mass_integrate(dsphum_dt, delp, dim="z")
-    dsphum_dt_integrated = dsphum_dt_integrated.assign_attrs(
-        {"long_name": "column integrated moistening", "units": "mm/day"}
+    minus_dsphum_dt_integrated = kg_m2s_to_mm_day * mass_integrate(
+        minus_dsphum_dt, delp, dim="z"
     )
-    return dsphum_dt_integrated
+    minus_dsphum_dt_integrated = minus_dsphum_dt_integrated.assign_attrs(
+        {"long_name": "negative column integrated moistening", "units": "mm/day"}
+    )
+    return minus_dsphum_dt_integrated

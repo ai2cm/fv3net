@@ -331,7 +331,7 @@ def plot_model_run_maps_across_time_dim(
         vmax=scale,
     )
     n_rows = ds.isel({multiple_time_dim: [i_time_1]}).sizes[multiple_time_dim]
-    f.set_size_inches([10, n_rows * 2])
+    f.set_size_inches([10, n_rows * 3])
     f.set_dpi(FIG_DPI)
     f.suptitle(f"{var} across {multiple_time_dim}")
     facet_grid.set_titles(template="{value}", maxchar=30)
@@ -460,8 +460,8 @@ def plot_diurnal_cycles(
     def _facet_line_plot(arr: np.ndarray):
         ax = plt.gca()
         ax.set_prop_cycle(color=["b", "g", [1, 0.5, 0]])
-        h = ax.plot(arr.T)
-        ax.plot([0, 24.0], [0, 0], "k-")
+        h = ax.plot(np.arange(0.5, 24.5), arr.T)
+        ax.plot([0.0, 24.0], [0, 0], "k-")
         return h
 
     facetgrid = xr.plot.FacetGrid(
@@ -484,15 +484,17 @@ def plot_diurnal_cycles(
     facetgrid.set_titles(template="{value} min")
     for ax in facetgrid.axes[-1, :]:
         ax.set_xlabel("mean local time [hrs]")
-        ax.set_xticks(np.arange(0.0, 24.0, 4.0))
+        ax.set_xticks(np.arange(0.0, 25.0, 4.0))
+        ax.set_xlim([0.0, 24.0])
     for ax in facetgrid.axes[:, 0]:
         ax.set_ylabel(f"{var} [{ds[var].attrs['units']}]")
     if scale is not None:
         ax.set_ylim([-scale, scale])
     n_rows = facetgrid.axes.shape[0]
     f = facetgrid.fig
+    f.tight_layout()
     f.set_size_inches([12, n_rows * 4])
     f.set_dpi(FIG_DPI)
     f.suptitle(f"{var}")
 
-    return facetgrid.fig
+    return f

@@ -128,6 +128,13 @@ def insert_hi_res_diags(
     ds: xr.Dataset, hi_res_diags_path: str, varnames_mapping: Mapping
 ) -> xr.Dataset:
 
+    # temporary kluge for cumulative surface longwave from coarse diag netcdfs
+    cumulative_vars = ["DLWRFsfc", "ULWRFsfc"]
+    surface_longwave = (
+        ds[cumulative_vars].fillna(value=0).diff(dim=FORECAST_TIME_DIM, label="upper")
+    )
+    ds = ds.drop(labels=cumulative_vars).merge(surface_longwave)
+
     new_dims = {"grid_xt": "x", "grid_yt": "y", "initialization_time": INIT_TIME_DIM}
 
     datetimes = list(ds[INIT_TIME_DIM].values)
@@ -143,7 +150,9 @@ def insert_hi_res_diags(
         coarse_var.loc[{FORECAST_TIME_DIM: 0, STEP_DIM: "begin"}] = hires_var
         new_vars[coarse_name] = coarse_var
 
-    return ds.assign(new_vars)
+    ds = ds.assign(new_vars)
+
+    return ds
 
 
 def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
@@ -175,6 +184,14 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             ),
             "precipitating_water": precipitating_water_mixing_ratio,
             "cloud_water_ice": cloud_water_ice_mixing_ratio,
+            "liquid_ice_temperature": thermo.liquid_ice_temperature(
+                ds["air_temperature"],
+                ds["cloud_ice_mixing_ratio"],
+                ds["cloud_water_mixing_ratio"],
+                ds["rain_mixing_ratio"],
+                ds["snow_mixing_ratio"],
+                ds["graupel_mixing_ratio"],
+            ),
             "psurf": thermo.psurf_from_delp(
                 ds["pressure_thickness_of_atmospheric_layer"]
             ),
@@ -286,23 +303,16 @@ def insert_column_integrated_tendencies(ds: xr.Dataset) -> xr.Dataset:
                     {VAR_TYPE_DIM: "states"}
                 ),
             ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
-            "column_integrated_moistening": thermo.column_integrated_moistening(
-                ds["specific_humidity"].sel({VAR_TYPE_DIM: "tendencies"}),
-                ds["pressure_thickness_of_atmospheric_layer"].sel(
-                    {VAR_TYPE_DIM: "states"}
-                ),
-            ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
+            "minus_column_integrated_moistening": (
+                thermo.minus_column_integrated_moistening(
+                    -ds["specific_humidity"].sel({VAR_TYPE_DIM: "tendencies"}),
+                    ds["pressure_thickness_of_atmospheric_layer"].sel(
+                        {VAR_TYPE_DIM: "states"}
+                    ),
+                ).expand_dims({VAR_TYPE_DIM: ["tendencies"]})
+            ),
         }
     )
-
-    #     ds = ds.assign({
-    #         "net_heating_total": (
-    #             ds["column_integrated_heating"] + ds['net_heating_physics']
-    #         ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
-    #         "net_precipitation_total": (
-    #             -ds["column_integrated_moistening"] + ds['net_precipitation_physics']
-    #         ).expand_dims({VAR_TYPE_DIM: ["tendencies"]})
-    #     })
 
     return ds
 

@@ -35,7 +35,7 @@ GLOBAL_MEAN_2D_VARS = {
     "precipitable_water_abs": {VAR_TYPE_DIM: ["tendencies"], "scale": [0.0012]},
     "precipitable_water": {VAR_TYPE_DIM: ["tendencies"], "scale": [0.0012]},
     "total_heat": {VAR_TYPE_DIM: ["tendencies", "states"], "scale": [1000, None]},
-    "total_heat_abs": {VAR_TYPE_DIM: ["tendencies"], "scale": [None]},
+    "total_heat_abs": {VAR_TYPE_DIM: ["tendencies"], "scale": [2500]},
     "vertical_wind_abs_level_40": {VAR_TYPE_DIM: ["states"], "scale": [0.05]},
     "latent_heat_flux": {VAR_TYPE_DIM: ["states"], "scale": [None]},
     "sensible_heat_flux": {VAR_TYPE_DIM: ["states"], "scale": [None]},
@@ -53,7 +53,7 @@ DIURNAL_VAR_MAPPING = {
     },
     "net_precipitation_diurnal": {
         "hi-res - coarse": {
-            "name": "column_integrated_moistening",
+            "name": "minus_column_integrated_moistening",
             VAR_TYPE_DIM: "tendencies",
         },
         "physics": {"name": "net_precipitation_physics", VAR_TYPE_DIM: "states"},
@@ -74,7 +74,7 @@ DQ_MAPPING = {
     },
     "Q2": {
         "hi-res_name": "net_precipitation",
-        "hi-res - coarse_name": "column_integrated_moistening",
+        "hi-res - coarse_name": "minus_column_integrated_moistening",
         "scale": 50,
     },
 }
@@ -95,6 +95,7 @@ PROFILE_COMPOSITES = (
 GLOBAL_MEAN_3D_VARS = {
     "specific_humidity": {VAR_TYPE_DIM: "tendencies", "scale": 1e-7},
     "air_temperature": {VAR_TYPE_DIM: "tendencies", "scale": 1e-4},
+    "liquid_ice_temperature": {VAR_TYPE_DIM: "tendencies", "scale": 1e-4},
     "cloud_water_ice": {VAR_TYPE_DIM: "tendencies", "scale": 5e-8},
     "precipitating_water": {VAR_TYPE_DIM: "tendencies", "scale": 1e-8},
     "total_water": {VAR_TYPE_DIM: "tendencies", "scale": 1e-7},
@@ -104,7 +105,7 @@ GLOBAL_MEAN_3D_VARS = {
 GLOBAL_2D_MAPS = {
     "psurf": {VAR_TYPE_DIM: "tendencies", "scale": None},
     "column_integrated_heating": {VAR_TYPE_DIM: "tendencies", "scale": 1000},
-    "column_integrated_moistening": {VAR_TYPE_DIM: "tendencies", "scale": 50},
+    "minus_column_integrated_moistening": {VAR_TYPE_DIM: "tendencies", "scale": 50},
     "vertical_wind_level_40": {VAR_TYPE_DIM: "states", "scale": 0.05},
     "total_precipitation": {VAR_TYPE_DIM: "states", "scale": None},
     "latent_heat_flux": {VAR_TYPE_DIM: "states", "scale": 200},

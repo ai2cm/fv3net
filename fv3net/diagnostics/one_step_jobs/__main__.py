@@ -330,16 +330,6 @@ else:
         timesteps = yaml.safe_load(f)
     timestamp_pairs_subset = timesteps["train"]
 
-
-# ds_sample = [
-#     (
-#         ds_zarr[list(VARS_FROM_ZARR)]
-#         .isel({INIT_TIME_DIM: list(indices)})
-#         .sel({"step": list(("begin", "after_physics"))})
-#     )
-#     for indices in timestamp_subset_indices
-# ]
-
 hi_res_diags_zarrpath = os.path.join(args.hi_res_diags, COARSENED_DIAGS_ZARR_NAME)
 hi_res_diags_mapping = {name: name for name in SFC_VARIABLES}
 hi_res_diags_mapping.update(
