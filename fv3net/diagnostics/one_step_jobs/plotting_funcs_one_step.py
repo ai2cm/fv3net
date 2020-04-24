@@ -132,14 +132,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
             }
         )
         f = plot_model_run_maps_across_time_dim(
-            comparison_ds,
-            hi_res_diag_var,
-            "states",
-            FORECAST_TIME_DIM,
-            #             stride=stride,
-            #             scale=scale,
-            7,
-            14,
+            comparison_ds, hi_res_diag_var, "states", FORECAST_TIME_DIM, 7, 14,
         )
         plotname = f"{q_term}_comparison_maps.png"
         f.savefig(os.path.join(output_dir, plotname))
@@ -313,9 +306,6 @@ def plot_model_run_maps_across_time_dim(
     multiple_time_dim: str,
     i_time_1=int,
     i_time_2=int,
-    #     start: int = None,
-    #     end: int = None,
-    #     stride: int = None,
     scale: float = None,
 ):
 
@@ -479,7 +469,7 @@ def plot_diurnal_cycles(
     legend_ax = facetgrid.axes.flatten()[-2]
     handles = legend_ax.get_lines()
     legend_ax.legend(
-        handles, ["hi-res diags", "coarse_physics", "residual of tendencies"], loc=2
+        handles, ["hi-res physics", "coarse physics", "residual of tendencies"], loc=2
     )
     facetgrid.set_titles(template="{value} min")
     for ax in facetgrid.axes[-1, :]:

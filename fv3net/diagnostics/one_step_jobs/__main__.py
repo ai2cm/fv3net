@@ -39,6 +39,7 @@ import xarray as xr
 import zarr
 import numpy as np
 import yaml
+import random
 import os
 import shutil
 from tempfile import TemporaryDirectory
@@ -284,15 +285,6 @@ def _get_remote_netcdf(filename):
 
 args, pipeline_args = _create_arg_parser().parse_known_args()
 
-# parse optional args
-
-if (
-    args.start_ind is not None or args.n_sample_inits is not None
-) and args.timesteps_file is not None:
-    raise ValueError(
-        "timesteps_file cannot be specified with either n_sample_inits or start_ind"
-    )
-
 zarrpath = os.path.join(args.one_step_data, ONE_STEP_ZARR)
 fs = get_fs(zarrpath)
 mapper = fs.get_mapper(zarrpath)
@@ -326,9 +318,22 @@ if args.timesteps_file is None:
     ]
 
 else:
+
+    # get subsampling from json file and specified parameters
+
     with open(args.timesteps_file, "r") as f:
         timesteps = yaml.safe_load(f)
-    timestamp_pairs_subset = timesteps["train"]
+    timestamp_pairs_train = timesteps["train"]
+
+    if args.n_sample_inits:
+        old_state = random.getstate()
+        random.seed(0, version=1)
+        timestamp_pairs_subset = random.sample(
+            timestamp_pairs_train[args.start_ind :], args.n_sample_inits
+        )
+        random.setstate(old_state)
+    else:
+        timestamp_pairs_subset = timestamp_pairs_train[args.start_ind :]
 
 hi_res_diags_zarrpath = os.path.join(args.hi_res_diags, COARSENED_DIAGS_ZARR_NAME)
 hi_res_diags_mapping = {name: name for name in SFC_VARIABLES}
