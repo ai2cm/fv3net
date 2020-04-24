@@ -306,9 +306,7 @@ def _segment_plot_inputs(x, y, masked_array):
             i_split = x_nans.argmax()
             if x_nans[i_split] == 1.0:  # split cleanly along line
                 yield from _segment_plot_inputs(
-                    x[: i_split + 1, :],
-                    y[: i_split + 1, :],
-                    masked_array[:i_split, :],
+                    x[: i_split + 1, :], y[: i_split + 1, :], masked_array[:i_split, :],
                 )
                 yield from _segment_plot_inputs(
                     x[i_split + 1 :, :],

@@ -24,7 +24,11 @@ def array(shape, nan_fraction):
     array_1d = array.ravel()
     n_values = array_1d.shape[0]
     array_1d[:] = np.arange(n_values)
-    array_1d[np.random.choice(np.arange(n_values), size=min(n_values - 1, int(nan_fraction * n_values)))] = np.nan
+    array_1d[
+        np.random.choice(
+            np.arange(n_values), size=min(n_values - 1, int(nan_fraction * n_values))
+        )
+    ] = np.nan
     return array
 
 
