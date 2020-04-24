@@ -104,6 +104,7 @@ class StageMonitor:
         self._root_dirname = root_dirname
         self._monitors = {}
         self._mode = mode
+        self.partitioner = partitioner
 
     def store(self, state, stage):
         monitor = self._get_monitor(stage)
@@ -117,7 +118,7 @@ class StageMonitor:
                 )
             )()
             self._monitors[stage_name] = fv3gfs.ZarrMonitor(
-                store, partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
+                store, self.partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
             )
         return self._monitors[stage_name]
 
