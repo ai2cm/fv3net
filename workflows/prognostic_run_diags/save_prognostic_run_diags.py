@@ -89,12 +89,16 @@ def global_averages(resampled, verification, grid):
     return diags
 
 
+def open_tiles(path):
+    return xr.open_mfdataset(path + '.tile?.nc', concat_dim='tile', combine='nested')
+
+
 def load_data(url, grid_spec, catalog):
     logger.info(f"Processing run directory at {url}")
 
     # open grid
     logger.info("Opening Grid Spec")
-    grid_c384 = vcm.open_tiles(grid_spec)
+    grid_c384 = open_tiles(grid_spec)
 
     # open verification
     logger.info("Opening verification data")
@@ -110,7 +114,7 @@ def load_data(url, grid_spec, catalog):
     # open data
     atmos_diag_url = os.path.join(url, "atmos_dt_atmos")
     logger.info(f"Opening diagnostic data at {atmos_diag_url}")
-    ds = vcm.open_tiles(atmos_diag_url).load()
+    ds = open_tiles(atmos_diag_url).load()
     resampled = ds.resample(time="3H", label="right").nearest()
     grid_c48 = resampled[vcm.cubedsphere.constants.GRID_VARS]
 
@@ -130,7 +134,7 @@ if __name__ == "__main__":
     parser.add_argument("output")
     parser.add_argument(
         "--grid-spec",
-        default="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/grid_spec",
+        default="./grid_spec",
     )
     parser.add_argument("--catalog", default=CATALOG)
     logging.basicConfig(level=logging.INFO)
