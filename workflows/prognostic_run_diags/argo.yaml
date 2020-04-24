@@ -40,6 +40,10 @@ spec:
         value: /secret/gcp-credentials/key.json
       - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
         value: /secret/gcp-credentials/key.json
+      - name: OUTPUT
+        value: "gs://vcm-ml-public/2020-04-22-advisory-council/prognostic_run_diags.html"
+      - name: INPUT
+        value: "{{workflow.parameters.output_url}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-credentials-user-gcp-sa
@@ -50,7 +54,6 @@ spec:
         limits:
             memory: "6Gi"
             cpu: "1000m"
-       
    - name: regrid
      inputs:
       parameters:
