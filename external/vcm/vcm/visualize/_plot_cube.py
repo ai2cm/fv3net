@@ -244,6 +244,10 @@ def mappable_var(ds: xr.Dataset, var_name: str):
 def pcolormesh_cube(lat, lon, array, ax=None, **kwargs):
     """Plots tiled cubed sphere.
 
+    This function applies nan to gridcells which cross the antimeridian, and then
+    iteratively plots rectangles of array which avoid nan gridcells. This is done to
+    avoid artifacts when plotting gridlines with the `edgecolor` argument.
+
     Args:
         lat (np.ndarray):
             Array of latitudes with dimensions (tile, ny + 1, nx + 1).
@@ -396,6 +400,9 @@ def plot_cube_axes(
 ):
     """ Plots tiled cubed sphere for a given subplot axis,
         using np.ndarrays for all data
+
+    The `edgecolor` argument produces artifacts with this approach for pcolormesh.
+    To plot pcolormesh, you should consider using `pcolormesh_cube`.
 
     Args:
         array (np.ndarray):
