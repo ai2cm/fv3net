@@ -10,7 +10,6 @@ import argparse
 import os
 import sys
 
-import fsspec
 import tempfile
 import intake
 import numpy as np
@@ -78,9 +77,9 @@ def rms_errors(resampled, verification_c48, grid):
 @add_to_diags
 def global_averages(resampled, verification, grid):
     diags = {}
-    area_averages = (resampled * grid.area).sum(
+    area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
         HORIZONTAL_DIMS
-    ) / grid.area.sum(HORIZONTAL_DIMS)
+    )
     for variable in area_averages:
         lower = variable.lower()
         diags[f"{lower}_global_avg"] = area_averages[variable].assign_attrs(
@@ -90,7 +89,7 @@ def global_averages(resampled, verification, grid):
 
 
 def open_tiles(path):
-    return xr.open_mfdataset(path + '.tile?.nc', concat_dim='tile', combine='nested')
+    return xr.open_mfdataset(path + ".tile?.nc", concat_dim="tile", combine="nested")
 
 
 def load_data(url, grid_spec, catalog):
@@ -121,7 +120,7 @@ def load_data(url, grid_spec, catalog):
         time=resampled.time[:-1]
     )  # don't use last time point. there is some trouble
 
-    return resampled, verification_c48, verification_c48[['area']]
+    return resampled, verification_c48, verification_c48[["area"]]
 
 
 if __name__ == "__main__":
@@ -132,8 +131,7 @@ if __name__ == "__main__":
     parser.add_argument("url")
     parser.add_argument("output")
     parser.add_argument(
-        "--grid-spec",
-        default="./grid_spec",
+        "--grid-spec", default="./grid_spec",
     )
     parser.add_argument("--catalog", default=CATALOG)
     logging.basicConfig(level=logging.INFO)
@@ -160,7 +158,7 @@ if __name__ == "__main__":
     diags = diags.merge(grid)
 
     logger.info("Forcing computation.")
-    diags =  diags.load()
+    diags = diags.load()
 
     logger.info(f"Saving data to {args.output}")
     diags.to_netcdf(args.output)
