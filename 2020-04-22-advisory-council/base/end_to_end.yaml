@@ -69,7 +69,8 @@ experiment:
         testing_data:
           from: create_training_data
         diagnostics_data:
-          from: coarsen_diagnostics
+          #from: coarsen_diagnostics
+          location: $C48_DIAGNOSTICS
         variable_filename: $CONFIG/test_sklearn_variable_names.yml
 
     prognostic_run:
