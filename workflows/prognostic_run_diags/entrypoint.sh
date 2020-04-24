@@ -28,26 +28,28 @@ done
 
 if [[ $# != 2 ]]; then
 	echo $usage
+exit 2
 fi
 
 
 rundir=$1
 output=$2
 
+cwd=$PWD
+
 # make a local working directory based on input hash
 # this will allow this script to be resumable
-localWorkDir=$(md5 -q -s $rundir)
+localWorkDir=.cache/$(md5 -q -s $rundir)
 mkdir -p $localWorkDir
-(
-	cd $localWorkDir
-	gridSpec=gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/grid_spec
 
-	downloadTiles $1/atmos_dt_atmos atmos_dt_atmos
-	downloadTiles $gridSpec grid_spec
+cd $localWorkDir
+gridSpec=gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/grid_spec
 
-	[[ -f diags.nc ]] || python ../save_prognostic_run_diags.py --grid-spec $gridSpec ./ diags.nc
-	python ../metrics.py diags.nc > metrics.json
+downloadTiles $1/atmos_dt_atmos atmos_dt_atmos
+downloadTiles $gridSpec grid_spec
 
-	gsutil cp diags.nc $output/diags.nc
-	gsutil cp metrics.json $output/metrics.json
-)
+[[ -f diags.nc ]] || python $cwd/save_prognostic_run_diags.py --grid-spec $gridSpec ./ diags.nc
+python $cwd/metrics.py diags.nc > metrics.json
+
+gsutil cp diags.nc $output/diags.nc
+gsutil cp metrics.json $output/metrics.json
