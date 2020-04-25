@@ -323,7 +323,7 @@ else:
 
     with open(args.timesteps_file, "r") as f:
         timesteps = yaml.safe_load(f)
-    timestamp_pairs_train = timesteps["train"]
+    timestamp_pairs_train = timesteps["test"]
 
     if args.n_sample_inits:
         old_state = random.getstate()

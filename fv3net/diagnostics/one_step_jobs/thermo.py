@@ -1,6 +1,6 @@
 from vcm.constants import SPECIFIC_HEAT_CONST_PRESSURE, GRAVITY, kg_m2s_to_mm_day
 from vcm.calc import mass_integrate
-from vcm.calc.thermo import latent_heat_vaporization, _SPECIFIC_HEAT_CONST_PRESSURE
+from vcm.calc.thermo import latent_heat_vaporization, _SPECIFIC_HEAT_CONST_PRESSURE, latent_heat_flux_to_evaporation
 import xarray as xr
 
 _LATENT_HEAT_FUSION = 3.34e5
@@ -100,3 +100,14 @@ def minus_column_integrated_moistening(
         {"long_name": "negative column integrated moistening", "units": "mm/day"}
     )
     return minus_dsphum_dt_integrated
+
+
+def evaporation(latent_heat_flux: xr.DataArray) -> xr.DataArray:
+    """Compute surface evaporation in mm/day from latent heat flux"""
+    
+    evaporation = kg_m2s_to_mm_day*latent_heat_flux_to_evaporation(latent_heat_flux)
+    evaporation = evaporation.assign_attrs(
+        {"long_name": "surface evaporation", "units": "mm/day"}
+    )
+    
+    return evaporation

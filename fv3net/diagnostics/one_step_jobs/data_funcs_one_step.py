@@ -30,7 +30,6 @@ from fv3net.diagnostics.one_step_jobs import (
 from fv3net.pipelines.common import subsample_timesteps_at_interval
 from fv3net.pipelines.create_training_data.helpers import load_hires_prog_diag
 from fv3net.diagnostics.data import net_heating_from_dataset
-
 from vcm import net_precipitation
 
 logger = logging.getLogger("one_step_diags")
@@ -203,6 +202,9 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             ),
             "net_precipitation_physics": net_precipitation(
                 ds["latent_heat_flux"], ds["total_precipitation"]
+            ),
+            "evaporation": thermo.evaporation(
+                ds["latent_heat_flux"]
             ),
             "net_heating_physics": net_heating_from_dataset(
                 ds.rename(
@@ -381,6 +383,7 @@ def mean_diurnal_cycle(
             local_time.values, da_single_time.values, bins=np.arange(0.0, 25.0)
         )
         diurnal_da.loc[{FORECAST_TIME_DIM: valid_time}] = bin_means
+    diurnal_da.name = da.name
 
     return diurnal_da
 
@@ -392,61 +395,48 @@ def insert_diurnal_means(
 ) -> xr.Dataset:
 
     ds = ds.assign({"local_time": local_time(ds, time=INIT_TIME_DIM)})
+    
+    for domain in ['global', 'land', 'sea']:
+        
+        logger.info(f"Computing diurnal means for {domain}")
 
-    for var, attrs in var_mapping.items():
+        if domain in ['land', 'sea']:
+            ds_domain = mask_to_surface_type(
+                ds,
+                domain,
+                surface_type_var=mask,
+            )
+        else:
+            ds_domain = ds
 
-        residual_name = attrs["hi-res - coarse"]["name"]
-        residual_type = attrs["hi-res - coarse"][VAR_TYPE_DIM]
-        physics_name = attrs["physics"]["name"]
-        physics_type = attrs["physics"][VAR_TYPE_DIM]
+        for var, attrs in var_mapping.items():
 
-        ds_land = mask_to_surface_type(
-            ds[[residual_name, physics_name, "local_time", mask]],
-            "land",
-            surface_type_var=mask,
-        )
-        da_residual_land = mean_diurnal_cycle(
-            ds_land[residual_name].sel(
-                {DELTA_DIM: ["hi-res - coarse"], VAR_TYPE_DIM: residual_type}
-            ),
-            ds_land["local_time"],
-        )
-        da_physics_land = mean_diurnal_cycle(
-            ds_land[physics_name].sel(
-                {DELTA_DIM: ["hi-res", "coarse"], VAR_TYPE_DIM: physics_type}
-            ),
-            ds_land["local_time"],
-        )
-        ds = ds.assign(
-            {
-                f"{var}_land": xr.concat(
-                    [da_physics_land, da_residual_land], dim=DELTA_DIM
-                )
-            }
-        )
-        ds[f"{var}_land"].attrs.update(ds[residual_name].attrs)
+            residual_name = attrs["hi-res - coarse"]["name"]
+            residual_type = attrs["hi-res - coarse"][VAR_TYPE_DIM]
+            physics_name = attrs["physics"]["name"]
+            physics_type = attrs["physics"][VAR_TYPE_DIM]
+    
 
-        ds_sea = mask_to_surface_type(
-            ds[[residual_name, physics_name, "local_time", mask]],
-            "sea",
-            surface_type_var=mask,
-        )
-        da_residual_sea = mean_diurnal_cycle(
-            ds_sea[residual_name].sel(
-                {DELTA_DIM: ["hi-res - coarse"], VAR_TYPE_DIM: residual_type}
-            ),
-            ds_sea["local_time"],
-        )
-        da_physics_sea = mean_diurnal_cycle(
-            ds_sea[physics_name].sel(
-                {DELTA_DIM: ["hi-res", "coarse"], VAR_TYPE_DIM: physics_type}
-            ),
-            ds_sea["local_time"],
-        )
-        ds = ds.assign(
-            {f"{var}_sea": xr.concat([da_physics_sea, da_residual_sea], dim=DELTA_DIM)}
-        )
-        ds[f"{var}_sea"].attrs.update(ds[residual_name].attrs)
+            da_residual_domain = mean_diurnal_cycle(
+                ds_domain[residual_name].sel(
+                    {DELTA_DIM: ["hi-res - coarse"], VAR_TYPE_DIM: residual_type}
+                ),
+                ds_domain["local_time"],
+            )
+            da_physics_domain = mean_diurnal_cycle(
+                ds_domain[physics_name].sel(
+                    {DELTA_DIM: ["hi-res", "coarse"], VAR_TYPE_DIM: physics_type}
+                ),
+                ds_domain["local_time"],
+            )
+            ds = ds.assign(
+                {
+                    f"{var}_{domain}": xr.concat(
+                        [da_physics_domain, da_residual_domain], dim=DELTA_DIM
+                    )
+                }
+            )
+            ds[f"{var}_{domain}"].attrs.update(ds[residual_name].attrs)
 
     return ds
 
@@ -505,6 +495,8 @@ def insert_area_means(
             raise ValueError("Variable for global mean calculations not in dataset.")
 
     if "land_sea_mask" in mask_names:
+        
+        logger.info(f"Computing domain means.")
 
         ds_land = mask_to_surface_type(
             ds.merge(weights), "land", surface_type_var="land_sea_mask"
@@ -531,6 +523,8 @@ def insert_area_means(
                 )
 
     if "net_precipitation_physics" in mask_names:
+        
+        logger.info(f"Computing P-E means.")
 
         ds_pos_PminusE = _mask_to_PminusE_sign(
             ds, "positive", "net_precipitation_physics"
@@ -562,6 +556,8 @@ def insert_area_means(
                 )
 
     if "net_precipitation_physics" in mask_names and "land_sea_mask" in mask_names:
+        
+        logger.info(f"Computing domain + P-E means.")
 
         ds_pos_PminusE_land = mask_to_surface_type(
             ds_pos_PminusE.merge(weights), "land", surface_type_var="land_sea_mask"
@@ -641,12 +637,12 @@ def shrink_ds(ds: xr.Dataset):
         + [
             f"{var}_{domain}"
             for var in DIURNAL_VAR_MAPPING
-            for domain in ["land", "sea"]
+            for domain in ["land", "sea", "global"]
         ]
         + [
             item
             for spec in DQ_MAPPING.values()
-            for item in [f"{spec['hi-res_name']}_physics", spec["hi-res - coarse_name"]]
+            for item in [f"{spec['physics_name']}_physics", spec["tendency_diff_name"]]
         ]
         + [
             f"{dq_var}_{composite}"
