@@ -203,9 +203,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             "net_precipitation_physics": net_precipitation(
                 ds["latent_heat_flux"], ds["total_precipitation"]
             ),
-            "evaporation": thermo.evaporation(
-                ds["latent_heat_flux"]
-            ),
+            "evaporation": thermo.evaporation(ds["latent_heat_flux"]),
             "net_heating_physics": net_heating_from_dataset(
                 ds.rename(
                     {
@@ -395,17 +393,13 @@ def insert_diurnal_means(
 ) -> xr.Dataset:
 
     ds = ds.assign({"local_time": local_time(ds, time=INIT_TIME_DIM)})
-    
-    for domain in ['global', 'land', 'sea']:
-        
+
+    for domain in ["global", "land", "sea"]:
+
         logger.info(f"Computing diurnal means for {domain}")
 
-        if domain in ['land', 'sea']:
-            ds_domain = mask_to_surface_type(
-                ds,
-                domain,
-                surface_type_var=mask,
-            )
+        if domain in ["land", "sea"]:
+            ds_domain = mask_to_surface_type(ds, domain, surface_type_var=mask,)
         else:
             ds_domain = ds
 
@@ -415,7 +409,6 @@ def insert_diurnal_means(
             residual_type = attrs["hi-res - coarse"][VAR_TYPE_DIM]
             physics_name = attrs["physics"]["name"]
             physics_type = attrs["physics"][VAR_TYPE_DIM]
-    
 
             da_residual_domain = mean_diurnal_cycle(
                 ds_domain[residual_name].sel(
@@ -495,7 +488,7 @@ def insert_area_means(
             raise ValueError("Variable for global mean calculations not in dataset.")
 
     if "land_sea_mask" in mask_names:
-        
+
         logger.info(f"Computing domain means.")
 
         ds_land = mask_to_surface_type(
@@ -523,7 +516,7 @@ def insert_area_means(
                 )
 
     if "net_precipitation_physics" in mask_names:
-        
+
         logger.info(f"Computing P-E means.")
 
         ds_pos_PminusE = _mask_to_PminusE_sign(
@@ -556,7 +549,7 @@ def insert_area_means(
                 )
 
     if "net_precipitation_physics" in mask_names and "land_sea_mask" in mask_names:
-        
+
         logger.info(f"Computing domain + P-E means.")
 
         ds_pos_PminusE_land = mask_to_surface_type(

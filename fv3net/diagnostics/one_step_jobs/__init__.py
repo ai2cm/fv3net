@@ -45,57 +45,33 @@ GLOBAL_MEAN_2D_VARS = {
 DIURNAL_VAR_MAPPING = {
     "net_heating_diurnal": {
         "hi-res - coarse": {
-            "name":  "column_integrated_heating" ,
-            VAR_TYPE_DIM:  "tendencies" 
+            "name": "column_integrated_heating",
+            VAR_TYPE_DIM: "tendencies",
         },
-        "physics": {
-            "name":  "net_heating_physics" ,
-            VAR_TYPE_DIM:  "states" 
-        },
+        "physics": {"name": "net_heating_physics", VAR_TYPE_DIM: "states"},
         "scale": 500,
     },
     "net_precipitation_diurnal": {
         "hi-res - coarse": {
-            "name":  "minus_column_integrated_moistening" ,
-            VAR_TYPE_DIM:  "tendencies" 
+            "name": "minus_column_integrated_moistening",
+            VAR_TYPE_DIM: "tendencies",
         },
-        "physics": {
-            "name":  "net_precipitation_physics" ,
-            VAR_TYPE_DIM:  "states" 
-        },
+        "physics": {"name": "net_precipitation_physics", VAR_TYPE_DIM: "states"},
         "scale": 10,
     },
     "total_precipitaton_diurnal": {
-        "hi-res - coarse": {
-            "name":  "total_precipitation" ,
-            VAR_TYPE_DIM:  "states" 
-        },
-        "physics": {
-            "name":  "total_precipitation" ,
-            VAR_TYPE_DIM:  "states" 
-        },
+        "hi-res - coarse": {"name": "total_precipitation", VAR_TYPE_DIM: "states"},
+        "physics": {"name": "total_precipitation", VAR_TYPE_DIM: "states"},
         "scale": 10,
     },
     "evaporation_diurnal": {
-        "hi-res - coarse": {
-            "name":  "evaporation" ,
-            VAR_TYPE_DIM:  "states" 
-        },
-        "physics": {
-            "name":  "evaporation" ,
-            VAR_TYPE_DIM:  "states" 
-        },
+        "hi-res - coarse": {"name": "evaporation", VAR_TYPE_DIM: "states"},
+        "physics": {"name": "evaporation", VAR_TYPE_DIM: "states"},
         "scale": 10,
     },
     "vertical_wind_diurnal": {
-        "hi-res - coarse": {
-            "name":  "vertical_wind_level_40" ,
-            VAR_TYPE_DIM:  "states" 
-        },
-        "physics": {
-            "name":  "vertical_wind_level_40" ,
-            VAR_TYPE_DIM:  "states" 
-        },
+        "hi-res - coarse": {"name": "vertical_wind_level_40", VAR_TYPE_DIM: "states"},
+        "physics": {"name": "vertical_wind_level_40", VAR_TYPE_DIM: "states"},
         "scale": 0.05,
     },
 }
