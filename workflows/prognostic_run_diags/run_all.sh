@@ -7,4 +7,4 @@ fi
 
 #gsutil cp rundirs.yml $output_url/rundirs.yml
 runs=$(yq . rundirs.yml)
-argo submit argo.yaml -p runs="$runs" -p output_url="$output_url"
+argo submit argo.yaml -p runs="$runs" -p output_url="$1"
