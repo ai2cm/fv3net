@@ -100,6 +100,10 @@ if __name__ == "__main__":
         if rank == 0:
             logger.debug("Computing RF updated variables")
         preds, diags = runtime.sklearn.update(MODEL, state, dt=TIMESTEP)
+
+        if "DSWRFtoa_train" in preds:
+            preds[DSWRFtoa] = preds.pop("DSWRFtoa_train")
+
         if rank == 0:
             logger.debug("Setting Fortran State")
         fv3gfs.set_state(preds)
