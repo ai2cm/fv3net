@@ -11,9 +11,13 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 SPHUM = "specific_humidity"
+TEMP = "air_temperature"
 DELP = "pressure_thickness_of_atmospheric_layer"
+TS = "surface_temperature"
+PHIS = "surface_geopotential"
+DSWRFtoa = "total_sky_downward_shortwave_flux_at_top_of_atmosphere"
 TOTAL_PRECIP = "total_precipitation"
-VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP, TOTAL_PRECIP]
+VARIABLES = [DELP, TOTAL_PRECIP, SPHUM, TEMP, TS, PHIS, DSWRFtoa]
 
 cp = 1004
 gravity = 9.81
@@ -89,6 +93,9 @@ if __name__ == "__main__":
         if rank == 0:
             logger.debug(f"Getting state variables: {VARIABLES}")
         state = fv3gfs.get_state(names=VARIABLES)
+
+        if DSWRFtoa in state:
+            state["DSWRFtoa_train"] = state.pop(DSWRFtoa)
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
