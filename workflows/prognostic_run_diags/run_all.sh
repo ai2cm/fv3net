@@ -6,5 +6,6 @@ if [ "$#" -lt 1 ]; then
 fi
 
 #gsutil cp rundirs.yml $output_url/rundirs.yml
-runs=$(yq . rundirs.yml)
-argo submit argo.yaml -p runs="$runs" -p output_url="$1"
+runs=$(yq . $1)
+shift
+argo submit argo.yaml -p runs="$runs" $@

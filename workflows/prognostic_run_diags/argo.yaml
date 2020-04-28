@@ -6,6 +6,8 @@ spec:
   arguments:
     parameters:
     - name: runs
+    - name: diag_output
+    - name: output
   entrypoint: all
   volumes:
   - name: gcp-credentials-user-gcp-sa
@@ -22,7 +24,7 @@ spec:
               - name: run
                 value: "{{item.url}}"
               - name: output
-                value: "{{workflow.parameters.output_url}}/{{item.name}}/"
+                value: "{{workflow.parameters.diag_output}}/{{item.name}}/"
       - - name: generate-notebook
           template: notebook
    - name: notebook
@@ -41,9 +43,9 @@ spec:
       - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
         value: /secret/gcp-credentials/key.json
       - name: OUTPUT
-        value: "gs://vcm-ml-public/2020-04-22-advisory-council/prognostic_run_diags.html"
+        value: "{{workflow.parameters.output}}"
       - name: INPUT
-        value: "{{workflow.parameters.output_url}}"
+        value: "{{workflow.parameters.diag_output}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-credentials-user-gcp-sa
