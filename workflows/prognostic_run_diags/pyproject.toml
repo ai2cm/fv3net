@@ -11,7 +11,7 @@ xarray = "^0.15.1"
 fsspec = "^0.7.3"
 gcsfs = "^0.6.1"
 bokeh = "^2.0.2"
-report = {path = "../../external/report"}
+report = {path = "../../external/report", extras = ["holoviews"]}
 h5netcdf = "^0.8.0"
 cftime = "^1.1.2"
 

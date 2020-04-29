@@ -45,29 +45,31 @@ HTML_TEMPLATE = Template(
 
 class Plot:
     @staticmethod
-    def create(obj):
+    def create(obj) -> "Plot":
+        """Factory method for creating different kinds of plots
+        """
         if isinstance(obj, Plot):
             return obj
 
         return ImagePlot(obj)
 
-    def render(self):
+    def render(self) -> str:
         raise NotImplementedError
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.render()
 
 
 class ImagePlot(Plot):
-    def __init__(self, path):
+    def __init__(self, path: str):
         self.path = path
 
-    def render(self):
+    def render(self) -> str:
         return f'<img src="{self.path}" />'
 
 
 class HTMLPlot(Plot):
-    def __init__(self, html):
+    def __init__(self, html: str):
         self.html = html
 
     def render(self):

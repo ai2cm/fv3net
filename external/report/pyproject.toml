@@ -9,6 +9,12 @@ jinja2 = "^2.11"
 python = "^3.7"
 pytz = "^2019.3"
 
+# optional deps
+holoviews = { version="^1.13", optional=true }
+
+[tool.poetry.extras]
+holoviews = ["holoviews"]
+
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
 
