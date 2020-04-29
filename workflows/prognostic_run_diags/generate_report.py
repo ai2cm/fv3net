@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import json
+from typing import Mapping
 import yaml
 import os
 import xarray as xr
@@ -10,10 +11,46 @@ from pathlib import Path
 import argparse
 import holoviews as hv
 from report import create_html, HTMLPlot, Plot
+from bokeh.embed import components
 
 hv.extension("bokeh")
 
 units = {}
+
+_bokeh_html_header = """
+<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.0.2.min.js" integrity="sha384-ufR9RFnRs6lniiaFvtJziE0YeidtAgBRH6ux2oUItHw5WTvE1zuk9uzhUU/FJXDp" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.0.2.min.js" integrity="sha384-8QM/PGWBT+IssZuRcDcjzwIh1mkOmJSoNMmyYDZbCfXJg3Ap1lEvdVgFuSAwhb/J" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://unpkg.com/@holoviz/panel@^0.9.5/dist/panel.min.js" integrity="sha384-" crossorigin="anonymous"></script>
+"""
+
+
+class DiagnosticManager:
+    def __init__(self, plot_factory=None):
+        self._diags = []
+        self.plot_factory = Plot.create if plot_factory is None else plot_factory
+
+    def register(self, func):
+        self._diags.append(func)
+        return func
+
+    def make_plots(self, data):
+        for func in self._diags:
+            yield self.plot_factory(func(data))
+
+
+class HVPlot(HTMLPlot):
+    def __init__(self, hvplot):
+        self._plot = hvplot
+
+    def render(self):
+        # It took hours to find this combinitation of commands!
+        # it was really hard finding a combintation that
+        # 1. embedded the data for an entire HoloMap object
+        # 2. exported the html as a div which can easily be embedded in the reports.
+        r = hv.renderer("bokeh")
+        html, _ = r.components(self._plot)
+        html = html["text/html"]
+        return html
 
 
 def get_ts(ds):
@@ -95,83 +132,72 @@ def holomap_filter(time_series, varfilter):
     return hmap.opts(norm={"framewise": True}, plot=dict(width=700, height=500))
 
 
-from bokeh.embed import components
-
-section = []
-
-
-class HVPlot(HTMLPlot):
-    def __init__(self, hvplot):
-        self._plot = hvplot
-
-    def render(self):
-        # It took hours to find this combinitation of commands!
-        # it was really hard finding a combintation that
-        # 1. embedded the data for an entire HoloMap object
-        # 2. exported the html as a div which can easily be embedded in the reports.
-        r = hv.renderer("bokeh")
-        html, _ = r.components(self._plot)
-        html = html["text/html"]
-        return html
+diag_plot_manager = DiagnosticManager(HVPlot)
+metrics_plot_manager = DiagnosticManager(HVPlot)
 
 
-def save(layout):
-    """
-    # https://github.com/holoviz/holoviews/issues/1819
-    """
-    return section.append(HVPlot(layout))
+@diag_plot_manager.register
+def rms_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
+    return holomap_filter(time_series, varfilter="rms").overlay("run")
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("input")
-
-args = parser.parse_args()
-
-# BUCKET = os.getenv("INPUT", "gs://vcm-ml-data/experiments-2020-03/prognostic_run_diags")
-
-diags = load_diags(args.input)
-
-time_series = {
-    key: convert_time_index_to_datetime(get_ts(ds), "time") for key, ds in diags.items()
-}
-renderer = hv.renderer("bokeh")
-
-hmap = holomap_filter(time_series, varfilter="rms").overlay("run")
-save(hmap)
-
-hmap = holomap_filter(time_series, "global_avg").overlay("run")
-save(hmap)
-
-# metrics plots
-df = load_metrics(args.input)
-
-bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
-
-# collect data into a holoviews object
-hmap = hv.HoloMap(kdims=["metric"])
-bias = hv.HoloMap(kdims=["metric"])
-
-for metric in df.metric.unique():
-    s = df[df.metric == metric]
-    bars = hv.Bars((s.one_step, s.baseline, s.value), kdims=["one_step", "type"])
-
-    if metric.startswith("rmse"):
-        hmap[metric] = bars
-    elif metric.startswith("drift"):
-        bias[metric] = bars
+@diag_plot_manager.register
+def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
+    return holomap_filter(time_series, varfilter="global_avg").overlay("run")
 
 
-save(hmap.opts(**bar_opts))
-save(bias.opts(**bar_opts))
+@metrics_plot_manager.register
+def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+    hmap = hv.HoloMap(kdims=["metric"])
+    bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
+    for metric in metrics.metric.unique():
+        s = metrics[metrics.metric == metric]
+        bars = hv.Bars((s.one_step, s.baseline, s.value), kdims=["one_step", "type"])
+        if metric.startswith("rmse"):
+            hmap[metric] = bars
+    return hmap.opts(**bar_opts)
 
-sections = {"Diagnostics": section}
 
-header = """
-        <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.0.2.min.js" integrity="sha384-ufR9RFnRs6lniiaFvtJziE0YeidtAgBRH6ux2oUItHw5WTvE1zuk9uzhUU/FJXDp" crossorigin="anonymous"></script>
-        <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.0.2.min.js" integrity="sha384-8QM/PGWBT+IssZuRcDcjzwIh1mkOmJSoNMmyYDZbCfXJg3Ap1lEvdVgFuSAwhb/J" crossorigin="anonymous"></script>
-        <script type="text/javascript" src="https://unpkg.com/@holoviz/panel@^0.9.5/dist/panel.min.js" integrity="sha384-" crossorigin="anonymous"></script>
-"""
+@metrics_plot_manager.register
+def bias_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
+    hmap = hv.HoloMap(kdims=["metric"])
+    bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
+    for metric in metrics.metric.unique():
+        s = metrics[metrics.metric == metric]
+        bars = hv.Bars((s.one_step, s.baseline, s.value), kdims=["one_step", "type"])
+        if metric.startswith("drift"):
+            hmap[metric] = bars
+    return hmap.opts(**bar_opts)
 
-html = create_html(title="Prognostic run report", sections=sections, html_header=header)
-with open("index.html", "w") as f:
-    f.write(html)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input")
+    parser.add_argument("output")
+
+    args = parser.parse_args()
+
+    # load data
+    diags = load_diags(args.input)
+    diagnostics = {
+        key: convert_time_index_to_datetime(get_ts(ds), "time") for key, ds in diags.items()
+    }
+    metrics = load_metrics(args.input)
+
+    # generate all plots
+    section = [
+        *diag_plot_manager.make_plots(diagnostics),
+        *metrics_plot_manager.make_plots(metrics),
+    ]
+
+    sections = {"Diagnostics": section}
+
+    html = create_html(
+        title="Prognostic run report", sections=sections, html_header=_bokeh_html_header
+    )
+    with fsspec.open(args.output, "w") as f:
+        f.write(html)
+
+
+if __name__ == "__main__":
+    main()
