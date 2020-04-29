@@ -9,7 +9,7 @@ configMapGenerator:
   - time-control.yaml
   - create_training_data_variable_names.yml
   literals:
-  - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:v0.2.0
+  - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run@sha256:a8b68b6292460ae315b413d0d634c2fc23642e4ff6a449f9e7f0ee7badc2ffc9
   name: end-to-end
 bases:
 - ../../external/fv3net/workflows/end_to_end/kustomization
