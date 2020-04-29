@@ -1,6 +1,4 @@
-from vcm.visualize import plot_cube, mappable_var  # , plot_cube_axes
-
-# from cartopy import crs as ccrs
+from vcm.visualize import plot_cube, mappable_var
 from fv3net.diagnostics.one_step_jobs import (
     FORECAST_TIME_DIM,
     VAR_TYPE_DIM,
@@ -18,13 +16,14 @@ from fv3net.diagnostics.one_step_jobs import (
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.transforms import Bbox
 import os
 from typing import Mapping
 import logging
 
 logger = logging.getLogger("one_step_diags")
 
-FIG_DPI = 300
+FIG_DPI = 100
 
 
 def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mapping:
@@ -483,7 +482,7 @@ def plot_dQ_vertical_profiles(
         ax.set_ylabel("model level")
     n_rows = facetgrid.axes.shape[0]
     f = facetgrid.fig
-    f.set_size_inches([14, n_rows * 4])
+    f.set_size_inches([10, n_rows * 4])
     f.set_dpi(FIG_DPI)
     f.suptitle(f"{dQ_name}")
 
@@ -503,9 +502,9 @@ def plot_diurnal_cycles(
 
     def _facet_line_plot(arr: np.ndarray):
         ax = plt.gca()
+        ax.plot([0.0, 24.0], [0, 0], "k-")
         ax.set_prop_cycle(color=["b", "g", [1, 0.5, 0]])
         h = ax.plot(np.arange(0.5, 24.5), arr.T)
-        ax.plot([0.0, 24.0], [0, 0], "k-")
         return h
 
     facetgrid = xr.plot.FacetGrid(
@@ -514,30 +513,35 @@ def plot_diurnal_cycles(
                 {DELTA_DIM: ["hi-res", "coarse", "hi-res - coarse"]}
             )
         ),
-        col=FORECAST_TIME_DIM,
-        col_wrap=4,
+        col=FORECAST_TIME_DIM
     )
 
     facetgrid = facetgrid.map(_facet_line_plot, var)
     facetgrid.axes.flatten()[0].set_xlim([0, 24])
     legend_ax = facetgrid.axes.flatten()[-2]
-    handles = legend_ax.get_lines()
+    handles = legend_ax.get_lines()[1:]
+    if var.startswith('net'):
+        residual_label = 'residual of tendencies'
+    else:
+        residual_label = 'differences of physics'
     legend_ax.legend(
-        handles, ["hi-res physics", "coarse physics", "residual of tendencies"], loc=2
+        handles, ["hi-res physics", "coarse physics", residual_label], loc=2
     )
     facetgrid.set_titles(template="{value} min")
-    for ax in facetgrid.axes[-1, :]:
+    for ax in facetgrid.axes.flatten():
         ax.set_xlabel("mean local time [hrs]")
         ax.set_xticks(np.arange(0.0, 25.0, 4.0))
         ax.set_xlim([0.0, 24.0])
+        points = ax.get_position().get_points()
+        points[1,1] = 1 
+        ax.set_position(Bbox(points))
     for ax in facetgrid.axes[:, 0]:
         ax.set_ylabel(f"{var} [{ds[var].attrs['units']}]")
     if scale is not None:
         ax.set_ylim([-scale, scale])
-    n_rows = facetgrid.axes.shape[0]
     f = facetgrid.fig
+    f.set_size_inches([12, 4])
     f.tight_layout()
-    f.set_size_inches([12, n_rows * 4])
     f.set_dpi(FIG_DPI)
     f.suptitle(f"{var}")
 
