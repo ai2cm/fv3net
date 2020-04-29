@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 import json
-from typing import Mapping, Iterable, Any
-import yaml
+from typing import Mapping, Iterable
 import os
 import xarray as xr
 import fsspec
@@ -12,17 +11,16 @@ import argparse
 import holoviews as hv
 from report import create_html, Plot
 from report.holoviews import HVPlot
-from bokeh.embed import components
 
 hv.extension("bokeh")
 
 units = {}
 
 _bokeh_html_header = """
-        <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.0.2.min.js" integrity="sha384-ufR9RFnRs6lniiaFvtJziE0YeidtAgBRH6ux2oUItHw5WTvE1zuk9uzhUU/FJXDp" crossorigin="anonymous"></script>
-        <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.0.2.min.js" integrity="sha384-8QM/PGWBT+IssZuRcDcjzwIh1mkOmJSoNMmyYDZbCfXJg3Ap1lEvdVgFuSAwhb/J" crossorigin="anonymous"></script>
-        <script type="text/javascript" src="https://unpkg.com/@holoviz/panel@^0.9.5/dist/panel.min.js" integrity="sha384-" crossorigin="anonymous"></script>
-"""
+<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.0.2.min.js" integrity="sha384-ufR9RFnRs6lniiaFvtJziE0YeidtAgBRH6ux2oUItHw5WTvE1zuk9uzhUU/FJXDp" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.0.2.min.js" integrity="sha384-8QM/PGWBT+IssZuRcDcjzwIh1mkOmJSoNMmyYDZbCfXJg3Ap1lEvdVgFuSAwhb/J" crossorigin="anonymous"></script>
+<script type="text/javascript" src="https://unpkg.com/@holoviz/panel@^0.9.5/dist/panel.min.js" integrity="sha384-" crossorigin="anonymous"></script>
+"""  # noqa
 
 
 class PlotManager:
@@ -30,7 +28,7 @@ class PlotManager:
 
     New plotting functions can be registered using the ``register`` method.
 
-    All plotting functions registered by the object will be called in sequence on 
+    All plotting functions registered by the object will be called in sequence on
     the data passed to `make_plots``.
 
     We could extend this class in the future to have even more features
@@ -42,7 +40,7 @@ class PlotManager:
         self._diags = []
 
     def register(self, func):
-        """Register a given function as a diagnostic 
+        """Register a given function as a diagnostic
 
         This can be used to generate a new set of plots to appear the html reports
         """
@@ -119,7 +117,7 @@ def holomap_filter(time_series, varfilter):
             if varfilter in varname:
                 try:
                     v = ds[varname]
-                except:
+                except KeyError:
                     pass
                 else:
                     if run.endswith("baseline"):

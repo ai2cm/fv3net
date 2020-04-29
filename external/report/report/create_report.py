@@ -1,4 +1,3 @@
-import os
 import datetime
 from typing import Mapping, Sequence, Union
 
@@ -91,7 +90,8 @@ def create_html(
         title: title at top of report
         metadata (optional): metadata to be printed in a table before figures.
             Defaults to None, in which case no metadata printed.
-        html_header: string to include within the <head></head> tags of the compiled html file
+        html_header: string to include within the <head></head> tags of the compiled
+            html file.
 
     Returns:
         html report

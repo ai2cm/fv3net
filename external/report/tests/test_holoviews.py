@@ -3,6 +3,7 @@ from report.holoviews import HVPlot
 
 def test_HVPlot():
     import holoviews as hv
+
     hv.extension("bokeh")
     m = hv.HoloMap()
     p = hv.Curve([(0, 1), (1, 0)])
