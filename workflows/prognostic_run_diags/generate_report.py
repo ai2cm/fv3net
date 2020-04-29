@@ -9,6 +9,7 @@ import pandas as pd
 from pathlib import Path
 import argparse
 import holoviews as hv
+from report import create_html, HTMLPlot
 
 hv.extension("bokeh")
 
@@ -94,6 +95,21 @@ def holomap_filter(time_series, varfilter):
     return hmap.opts(norm={"framewise": True}, plot=dict(width=700, height=500))
 
 
+from bokeh.embed import components
+
+section = []
+
+
+def save(layout):
+    """
+    # https://github.com/holoviz/holoviews/issues/1819
+    """
+    renderer = hv.renderer("bokeh")
+    # https://github.com/holoviz/holoviews/issues/1975#issuecomment-335145141
+    html = renderer.static_html(layout)
+    return section.append(HTMLPlot(html))
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument("input")
 
@@ -102,7 +118,6 @@ args = parser.parse_args()
 # BUCKET = os.getenv("INPUT", "gs://vcm-ml-data/experiments-2020-03/prognostic_run_diags")
 
 diags = load_diags(args.input)
-print(diags)
 
 time_series = {
     key: convert_time_index_to_datetime(get_ts(ds), "time") for key, ds in diags.items()
@@ -110,10 +125,10 @@ time_series = {
 renderer = hv.renderer("bokeh")
 
 hmap = holomap_filter(time_series, varfilter="rms").overlay("run")
-renderer.save(hmap, "rmse")
+save(hmap)
 
 hmap = holomap_filter(time_series, "global_avg").overlay("run")
-renderer.save(hmap, "average")
+save(hmap)
 
 # metrics plots
 df = load_metrics(args.input)
@@ -133,19 +148,24 @@ for metric in df.metric.unique():
     elif metric.startswith("drift"):
         bias[metric] = bars
 
-renderer.save(hmap.opts(**bar_opts), "rmse-metric")
-renderer.save(bias.opts(**bar_opts), "bias-metric")
 
-# hmap = hv.HoloMap(kdims=["metric"])
-# bias = hv.HoloMap(kdims=["metric"])
+save(hmap.opts(**bar_opts))
+save(bias.opts(**bar_opts))
 
-# for metric in df.metric.unique():
-#     s = df[df.metric == metric]
-#     bars = hv.Bars((s.one_step, s.baseline, s.value), kdims=["one_step", "type"]).redim(
-#         y=units[metric]
-#     )
+sections = {"Diagnostics": section}
 
-#     if metric.startswith("rmse"):
-#         hmap[metric] = bars
-#     elif metric.startswith("drift"):
-#         bias[metric] = bars
+header = """
+<script src="https://cdn.bokeh.org/bokeh/release/bokeh-1.4.0.min.js"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-1.4.0.min.js"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-1.4.0.min.js"
+        crossorigin="anonymous"></script>
+"""
+
+html = create_html(title="Prognostic run report", sections=sections, html_header=header)
+from IPython import embed
+embed()
+
+with open("index.html", "w") as f:
+    f.write(html)
