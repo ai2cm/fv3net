@@ -100,17 +100,22 @@ from bokeh.embed import components
 section = []
 
 class HVPlot(HTMLPlot):
-    """Renderer for holoviews plot"""
     def __init__(self, hvplot):
         self._plot = hvplot
     
     def render(self):
-        # I spent hours trying to find this combination of lines
+        # It took hours to find this combinitation of commands!
         r = hv.renderer('bokeh')
         html, _ = r.components(self._plot)
         html = html['text/html']
         return html
 
+
+def save(layout):
+    """
+    # https://github.com/holoviz/holoviews/issues/1819
+    """
+    return section.append(HVPlot(layout))
 
 
 parser = argparse.ArgumentParser()
