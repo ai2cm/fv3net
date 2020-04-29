@@ -6,7 +6,8 @@ from bokeh.resources import CDN
 import json
 import panel
 from bokeh.resources import CDN
-hv.extension('bokeh')
+
+hv.extension("bokeh")
 
 
 template = """
@@ -27,11 +28,10 @@ Bokeh.embed.embed_item(item)
 """
 
 m = hv.HoloMap()
-p = hv.Curve([(0,1), (1,0)])
-m['a'] = p
-p = hv.Curve([(0,2), (2,0)])
-m['b'] = p
-
+p = hv.Curve([(0, 1), (1, 0)])
+m["a"] = p
+p = hv.Curve([(0, 2), (2, 0)])
+m["b"] = p
 
 
 # save with holoviews
@@ -44,14 +44,14 @@ pane = panel.panel(m)
 # save all holomaps
 pane.embed()
 model = pane.get_root()
-s = json.dumps(json_item(model, 'myplot'))
+s = json.dumps(json_item(model, "myplot"))
 out = template.format(s)
-with open('index.html', 'w') as f:
+with open("index.html", "w") as f:
     f.write(out)
 
 # save with bokeh file_html
 # interaction doesn't work
-with open('index_file_html.html', 'w') as f:
+with open("index_file_html.html", "w") as f:
     f.write(file_html(model, resources=CDN))
 
 
@@ -70,7 +70,7 @@ template = """
 </body>
 </html>
 """
-r = hv.renderer('bokeh')
+r = hv.renderer("bokeh")
 html, js = r.components(m)
 with open("index_hv_rendered_components.html", "w") as f:
-    f.write(template.format(html['text/html']))
+    f.write(template.format(html["text/html"]))
