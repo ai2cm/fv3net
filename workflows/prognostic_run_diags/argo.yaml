@@ -7,7 +7,9 @@ spec:
     parameters:
     - name: runs
     - name: diag_output
+      value: gs://vcm-ml-scratch/argo/{{workflow.name}}
     - name: output
+      value: gs://vcm-ml-public/argo/{{workflow.name}}/index.html
   entrypoint: all
   volumes:
   - name: gcp-credentials-user-gcp-sa
@@ -34,8 +36,12 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net:1d735d1ea0574f53af00235916925039f2a9444a
-      command: ['bash', 'upload_report.sh']
+      image: us.gcr.io/vcm-ml/fv3net:427eb0e3097c3ff057f46253ff64879ba53441b7
+      command:
+      - python
+      - generate_report.py
+      - $(INPUT)
+      - $(OUTPUT)
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -67,7 +73,7 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net:1d735d1ea0574f53af00235916925039f2a9444a
+      image: us.gcr.io/vcm-ml/fv3net:427eb0e3097c3ff057f46253ff64879ba53441b7
       command: ["bash", "-x", "-e"]
       args:
       - entrypoint.sh

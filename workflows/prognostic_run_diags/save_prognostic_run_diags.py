@@ -29,6 +29,18 @@ HORIZONTAL_DIMS = ["grid_xt", "grid_yt", "tile"]
 
 
 def add_to_diags(func):
+    """Add a function to the list of diagnostics to be computed
+
+    Args:
+        func: a function which computes a set of diagnostics. 
+        It needs to have the following signature::
+
+            func(resampled_prog_run_data, verificiation_c48, grid)
+
+        and should return an xarray Dataset of diagnostics. 
+        This output will be merged with all other decoratored functions, 
+        so some care must be taken to avoid variable and coordinate clashes.
+    """
     _DIAG_FNS.append(func)
     return func
 
