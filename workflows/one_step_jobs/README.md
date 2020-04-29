@@ -1,3 +1,5 @@
+## One Step Jobs
+
 Workflow to perform many short FV3GFS runs initialized from sequential timesteps.
 
 Specific model configurations can be specified through the `one-step-yaml` argument.
@@ -10,38 +12,36 @@ microphysics)
 Both of these configurations use a one-minute timestep with no dynamics substepping and
 have a total duration of 15 minutes.
 
-Workflow call signature:
-```
-$ python submit_jobs.py -h
-usage: submit_jobs.py [-h] INPUT_URL ONE_STEP_YAML  OUTPUT_URL [--n-steps N_STEPS] [-o]
+This workflow can be submitted with the [orchestrate_submit_jobs.py] script.
+This script is self-documenting and its help can be seen by running:
 
-  -h, --help            show this help message and exit
-  INPUT_URL             Remote url to initial conditions. Initial conditions
-                        are assumed to be stored as INPUT_URL/{timestamp}/{tim
-                        estamp}.{restart_category}.tile*.nc
-  ONE_STEP_YAML         Path to local run configuration yaml.
-  DOCKER_IMAGE          fv3gfs-python model docker image.
-  OUTPUT_URL            Remote url where model configuration and output will
-                        be saved. Specifically, configuration files will be
-                        saved to OUTPUT_URL/one_step_config and model output
-                        to OUTPUT_URL/one_step_output
-  --n-steps N_STEPS     Number of timesteps to process. By default all
-                        timesteps found in INPUT_URL for which successful runs
-                        do not exist in OUTPUT_URL will be processed. Useful
-                        for testing.
-  -o, --overwrite       Overwrite successful timesteps in OUTPUT_URL.
-  --init-frequency INIT_FREQUENCY
-                        Frequency (in minutes) to initialize one-step jobs
-                        starting from the first available timestep.
-  --config-version CONFIG_VERSION
-                        Default fv3config.yml version to use as the base
-                        configuration. This should be consistent with the
-                        fv3gfs-python version in the specified docker image.
-                        Defaults to fv3gfs-python v0.2 style configuration.
+    python orchestrate_submit_jobs.py -h
+
+
+# Minimal example
+
+Here is a minimal exmaple for how to run this script on a limited set of sample images.
+
+```sh
+workdir=$(pwd)
+src=gs://vcm-ml-data/orchestration-testing/test-andrep/coarsen_restarts_source-resolution_384_target-resolution_48/
+output=gs://vcm-ml-data/testing-noah/one-step
+VERSION=<image version>
+image=us.gcr.io/vcm-ml/prognostic_run:$VERSION
+yaml=$PWD/deep-conv-off.yml
+
+gsutil -m rm -r $output > /dev/null
+ (
+    cd ../../
+    python $workdir/orchestrate_submit_jobs.py \
+        $src $yaml $image $output -o  \
+	--config-version v0.3
+ )
+
 ```
 
 
-### Kubernetes VM access troubleshooting
+# Kubernetes VM access troubleshooting
 
 To process many (> around 40) runs at once, it is recommended to submit this workflow
 from a VM authorized with a service account. Users have had issues with API request errors
@@ -64,3 +64,13 @@ Use the following command to view your current configuration. It should point to
 ```
 kubectl config view
 ```
+
+# Out of Memory errors
+
+The one step jobs can be fail with OOMKilled errors if too many dask workers
+are used. These errors can typically be avoided by using the single-threaded
+dask scheduler. You can enable for this debugging purposes by adding the
+following lines to the top of [runfile.py](./runfile.py):
+
+    import dask
+    dask.config.set(scheduler='single-threaded')

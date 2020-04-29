@@ -1,9 +1,10 @@
+## Scale snakemake 
 
-# Install ARGO 
+### Install ARGO 
 
 https://github.com/argoproj/argo/blob/master/demo.md
 
-# Adding GCS credentials to K8s
+### Adding GCS credentials to K8s
 
 https://kubernetes.io/docs/concepts/configuration/secret/
 
@@ -52,13 +53,13 @@ TODO: I don't think the `gcloud auth` command should be necessary, but only sett
 
 In principle, this won't be necessary if we set up the service account for the cluster in the right way, potentially using terraform.
 
-# Build and push the fv3net image to GCR
+### Build and push the fv3net image to GCR
 
 In the root of fv3net run 
 
     make push_image
 
-# Run the argo workflow
+### Run the argo workflow
 
 There is a makefile target for submitting the workflow. It depends on the push_image rule, so that it doesn't use a stale workflow.
 

@@ -5,7 +5,7 @@ import secrets
 import string
 import logging
 from datetime import timedelta
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Mapping
 from typing.io import BinaryIO
 
 import apache_beam as beam
@@ -121,7 +121,10 @@ def list_timesteps(path: str) -> List[str]:
     Returns:
         sorted list of all timesteps within path
     """
-    file_list = get_fs(path).ls(path)
+    try:
+        file_list = get_fs(path).ls(path)
+    except FileNotFoundError:
+        file_list = []
     timesteps = []
     for current_file in file_list:
         try:
@@ -133,8 +136,21 @@ def list_timesteps(path: str) -> List[str]:
     return sorted(timesteps)
 
 
+def update_nested_dict(source_dict: Mapping, update_dict: Mapping) -> Mapping:
+    """
+    Recursively update a dictionary with new values.  Used to update
+    configuration dicts with partial specifications.
+    """
+    for key in update_dict:
+        if key in source_dict and isinstance(source_dict[key], Mapping):
+            update_nested_dict(source_dict[key], update_dict[key])
+        else:
+            source_dict[key] = update_dict[key]
+    return source_dict
+
+
 def subsample_timesteps_at_interval(
-    timesteps: List[str], sampling_interval: int,
+    timesteps: List[str], sampling_interval: int
 ) -> List[str]:
     """
     Subsample a list of timesteps at the specified interval (in minutes). Raises
@@ -149,6 +165,7 @@ def subsample_timesteps_at_interval(
     Returns:
         A subsampled list of the input timesteps at the desired interval.
     """
+    # TODO (noah) this function may be dead...
     logger.info(
         f"Subsampling available timesteps to every {sampling_interval} minutes."
     )

@@ -1,8 +1,12 @@
 import pytest
 from datetime import datetime
+import xarray as xr
+import cftime
 
+import vcm
 from vcm.cubedsphere.constants import TIME_FMT
 from vcm.convenience import (
+    cast_to_datetime,
     parse_timestep_str_from_path,
     parse_datetime_from_str,
 )
@@ -34,3 +38,27 @@ def test_datetime_from_string():
     assert parsed_datetime.hour == current_time.hour
     assert parsed_datetime.minute == current_time.minute
     assert parsed_datetime.second == current_time.second
+
+
+def test_convert_timestamps():
+    arr = xr.DataArray(["20190101.000000", "20160604.011500"], attrs={"foo": "bar"})
+    out = vcm.convert_timestamps(arr)
+    assert isinstance(out[0].item(), cftime.DatetimeJulian)
+    assert out.attrs == arr.attrs
+
+
+@pytest.mark.parametrize(
+    "input_time, expected",
+    [
+        (datetime(2016, 1, 1, 1, 1, 1, 1), datetime(2016, 1, 1, 1, 1, 1, 1)),
+        (
+            cftime.DatetimeJulian(2016, 1, 1, 1, 1, 1, 1),
+            datetime(2016, 1, 1, 1, 1, 1, 1),
+        ),
+        (cftime.DatetimeJulian(2016, 1, 1), datetime(2016, 1, 1)),
+    ],
+)
+def test__cast_to_datetime(input_time, expected):
+    casted_input_time = cast_to_datetime(input_time)
+    assert casted_input_time == expected
+    assert isinstance(casted_input_time, datetime)

@@ -4,7 +4,7 @@ import zarr
 
 import fv3gfs
 from fv3gfs._wrapper import get_time
-from fv3net import runtime
+import runtime
 from mpi4py import MPI
 
 logging.basicConfig(level=logging.DEBUG)
@@ -12,25 +12,38 @@ logger = logging.getLogger(__name__)
 
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
-VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP]
+TOTAL_PRECIP = "total_precipitation"
+VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP, TOTAL_PRECIP]
 
 cp = 1004
 gravity = 9.81
 
 
 def compute_diagnostics(state, diags):
+
+    net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
+
     return dict(
-        net_precip=(diags["dQ2"] * state[DELP] / gravity)
-        .sum("z")
-        .assign_attrs(units="kg/m^2/s"),
-        PW=(state[SPHUM] * state[DELP] / gravity).sum("z").assign_attrs(units="mm"),
+        net_moistening=(net_moistening)
+        .assign_attrs(units="kg/m^2/s")
+        .assign_attrs(description="column integrated ML model moisture tendency"),
         net_heating=(diags["dQ1"] * state[DELP] / gravity * cp)
         .sum("z")
-        .assign_attrs(units="W/m^2"),
+        .assign_attrs(units="W/m^2")
+        .assign_attrs(description="column integrated ML model heating"),
+        water_vapor_path=(state[SPHUM] * state[DELP] / gravity)
+        .sum("z")
+        .assign_attrs(units="mm")
+        .assign_attrs(description="column integrated water vapor"),
+        total_precip=(state[TOTAL_PRECIP] - net_moistening)
+        .assign_attrs(units="kg/m^s/s")
+        .assign_attrs(
+            description="total precipitation rate at the surface (model + ML)"
+        ),
     )
 
 
-args = runtime.get_runfile_config()
+args = runtime.get_config()
 NML = runtime.get_namelist()
 TIMESTEP = NML["coupler_nml"]["dt_atmos"]
 
@@ -45,7 +58,7 @@ if __name__ == "__main__":
 
     # open zarr tape for output
     if rank == 0:
-        GROUP = zarr.open_group(args.zarr_output, mode="w")
+        GROUP = zarr.open_group(args["scikit_learn"]["zarr_output"], mode="w")
     else:
         GROUP = None
 
@@ -53,7 +66,7 @@ if __name__ == "__main__":
 
     if rank == 0:
         logger.info("Downloading Sklearn Model")
-        MODEL = runtime.sklearn.open_model(args.model)
+        MODEL = runtime.sklearn.open_model(args["scikit_learn"]["model"])
         logger.info("Model downloaded")
     else:
         MODEL = None

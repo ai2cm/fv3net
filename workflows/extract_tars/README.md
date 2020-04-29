@@ -1,10 +1,10 @@
-fv3net.pipelines.extract_tars
-=============================
+## fv3net.pipelines.extract_tars
+
 
 This portion of the pipeline is used to deploy our tar extraction workflow 
 through Apache Beam using Google's Dataflow system.
 
-# Installation
+### Installation
 
 Install `fv3net` and the required packages for deployment using:
 
@@ -24,7 +24,7 @@ using
 which will be used by the `submit_job.sh` script.
 
 
-# Usage
+### Usage
 
 To deploy a job to dataflow there are a couple parameters in `submit_job.sh` that should
 be specified relating to the source GCS directory for tarballs to extract and the

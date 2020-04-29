@@ -1,0 +1,44 @@
+runtime:
+  nudging_zarr_url: placeholder
+  variables_to_nudge: placeholder
+diag_table: gs://vcm-fv3config/config/diag_table/control_run/v1.0/diag_table
+experiment_name: template
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+initial_conditions: gs://vcm-ml-data/2019-12-03-C48-20160101.00Z_IC
+gfs_analysis_data:
+  url: gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data
+  filename_pattern: '%Y%m%d_%HZ_T85LR.nc'
+namelist:
+  atmos_model_nml:
+    fhout: 1.0
+    fhmax: 10000
+  coupler_nml:
+    current_date:
+    - 2016
+    - 1
+    - 1
+    - 0
+    - 0
+    - 0
+    days: 91
+    minutes: 0
+    seconds: 0
+    dt_atmos: 900  # seconds
+    dt_ocean: 900  # seconds
+  fv_core_nml:
+    nudge: true  # only doing this in order to be able to use GFS analysis SST
+    layout:
+    - 2
+    - 2
+  gfs_physics_nml:
+    fhzero: 1.0
+    use_analysis_sst: true
+  fv_nwp_nudge_nml:
+    input_fname_list: nudging_file_list
+    nudge_hght: false
+    nudge_ps: false
+    nudge_virt: false
+    nudge_winds: false
+    track_file_name: No_File_specified
+  diag_manager_nml:
+    flush_nc_files: true

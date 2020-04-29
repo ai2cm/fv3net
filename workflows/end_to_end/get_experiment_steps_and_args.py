@@ -65,6 +65,7 @@ def _add_unique_id(config: Mapping):
 def _resolve_output_location(config: Mapping):
     """Get the step output location if one is not specified"""
     root_exp_path = _get_experiment_path(config)
+    max_stubs = config["experiment"].get("max_stubs", 0)
     steps_config = config["experiment"]["steps_config"]
 
     for step_name, step_config in steps_config.items():
@@ -72,7 +73,9 @@ def _resolve_output_location(config: Mapping):
         if "output_location" in step_config:
             continue
         else:
-            output_stub = _generate_output_path_from_config(step_name, step_config)
+            output_stub = _generate_output_path_from_config(
+                step_name, step_config, max_stubs
+            )
             location = os.path.join(root_exp_path, output_stub)
             step_config["output_location"] = location
 
@@ -191,25 +194,26 @@ def _generate_output_path_from_config(
     """generate an output location stub from a step's argument configuration"""
 
     output_str = step_name
-    arg_config = step_config.get("args", None)
-    arg_strs = []
-    non_map_args = {
-        key: val for key, val in arg_config.items() if not isinstance(val, Mapping)
-    }
-    for n_stubs, (key, val) in enumerate(non_map_args.items(), 1):
-        if n_stubs > max_config_stubs:
-            break
-        val = str(arg_config[key])
+    if max_config_stubs > 0:
+        arg_config = step_config.get("args", None)
+        arg_strs = []
+        non_map_args = {
+            key: val for key, val in arg_config.items() if not isinstance(val, Mapping)
+        }
+        for n_stubs, (key, val) in enumerate(non_map_args.items(), 1):
+            if n_stubs > max_config_stubs:
+                break
+            val = str(arg_config[key])
 
-        # get last part of path so string isn't so long
-        if "/" in val:
-            val = val.split("/")[-1]
+            # get last part of path so string isn't so long
+            if "/" in val:
+                val = val.split("/")[-1]
 
-        key = key.strip("--")  # remove prefix of optional argument
-        key_val = f"{key}_{val}"
-        arg_strs.append(key_val)
-    arg_output_stub = "_".join(arg_strs)
-    output_str += "_" + arg_output_stub
+            key = key.strip("--")  # remove prefix of optional argument
+            key_val = f"{key}_{val}"
+            arg_strs.append(key_val)
+        arg_output_stub = "_".join(arg_strs)
+        output_str += "_" + arg_output_stub
 
     return output_str
 

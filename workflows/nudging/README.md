@@ -1,10 +1,8 @@
-Nudging workflow
-================
+## Nudging workflow
 
 This workflow performs a nudged run, nudging to reference data stored on GCS.
 
-Quickstart
-----------
+### Quickstart
 
 Pull the docker image from GCS, if you don't have it already:
 
@@ -16,9 +14,7 @@ Run the workflow:
 
 The output directory should now be present in `output`.
 
-
-Running on Kubernetes
----------------------
+### Running on Kubernetes
 
 The workflow can be submitted to kubernetes using:
 
@@ -28,16 +24,13 @@ You should probably specify the remote output directory to use, as follows:
 
     REMOTE_ROOT=gs://my-bucket/ make run_kubernetes
 
-
-Configuration
--------------
+### Configuration
 
 The reference restart location and variables to nudge are stored in `fv3config_base.yml`.
 The nudging timescales in that file are ignored, and instead replaced with the
 TIMESCALE_HOURS variable set in the makefile (which you can pass manually).
 
-More details
-------------
+### More details
 
 The nudging and run are configured in `fv3config_base.yml`. This gets converted into
 `fv3config.yml` automatically in order to specify the full filenames for initial

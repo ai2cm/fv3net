@@ -2,6 +2,7 @@ import logging
 import os
 import time
 import kubernetes
+from kubernetes.client import BatchV1Api
 import fsspec
 import yaml
 from typing import Sequence, Mapping, Tuple
@@ -91,9 +92,13 @@ def update_tiled_asset_names(
     return assets
 
 
-def _initialize_batch_client() -> kubernetes.client.BatchV1Api:
+def initialize_batch_client() -> kubernetes.client.BatchV1Api:
 
-    kubernetes.config.load_kube_config()
+    try:
+        kubernetes.config.load_kube_config()
+    except TypeError:
+        kubernetes.config.load_incluster_config()
+
     batch_client = kubernetes.client.BatchV1Api()
 
     return batch_client
@@ -103,7 +108,8 @@ def wait_for_complete(
     job_labels: Mapping[str, str],
     batch_client: kubernetes.client.BatchV1Api = None,
     sleep_interval: int = 30,
-) -> Tuple[Sequence[JobInfo], Sequence[JobInfo]]:
+    raise_on_fail: bool = True,
+):
     """
     Function to block operation until a group of submitted kubernetes jobs complete.
 
@@ -113,77 +119,100 @@ def wait_for_complete(
             "key1=value1,key2=value2,..."
         client: A BatchV1Api client to communicate with the cluster.
         sleep_interval: time interval between active job check queries
+        raise_on_bool: flag for whether to raise error if any job has failed
 
-    Returns:
-        Job information for successful and failing jobs that match the given labels.
+    Raises:
+        ValueError if any of the jobs fail, when the
+        failed jobs are first detected (if raise_on_fail is True)
+
+
     """
 
-    selector_format_labels = [f"{key}={value}" for key, value in job_labels.items()]
-    combined_selectors = ",".join(selector_format_labels)
-
     if batch_client is None:
-        batch_client = _initialize_batch_client()
+        batch_client = initialize_batch_client()
 
     # Check active jobs
     while True:
+        time.sleep(sleep_interval)
+        jobs = list_jobs(batch_client, job_labels)
+        job_done = _handle_jobs(jobs, raise_on_fail)
 
-        jobs = batch_client.list_job_for_all_namespaces(
-            label_selector=combined_selectors
-        )
-        active_jobs = [
-            job_info.metadata.name for job_info in jobs.items if job_info.status.active
-        ]
-
-        if active_jobs:
-            logger.info(
-                f"Active Jobs at {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                + "\n".join(active_jobs)
-            )
-            time.sleep(sleep_interval)
-            continue
-        else:
-            logger.info("All kubernetes jobs finished!")
+        if job_done:
             break
 
-    # Get failed and successful jobs
-    failed = []
-    success = []
-    for job_info in jobs.items:
-        job_id_info = (job_info.metadata.name, job_info.metadata.namespace)
-        if job_info.status.failed:
-            failed.append(job_id_info)
-        elif job_info.status.succeeded:
-            # tuples for delete operation
-            success.append(job_id_info)
+    logger.info("All kubernetes jobs succesfully complete!")
 
-    if failed:
-        fail_names = list(zip(*failed))[0]
+
+def _handle_jobs(jobs: Sequence, raise_on_fail: bool) -> bool:
+
+    failed = {}
+    complete = {}
+    active = {}
+
+    for job in jobs:
+        name = job.metadata.name
+        if job_failed(job):
+            failed[name] = job
+        elif job_complete(job):
+            complete[name] = job
+        else:
+            active[name] = job
+
+    if len(failed) > 0:
+        failed_job_names = list(failed)
+        if raise_on_fail:
+            raise ValueError(f"These jobs have failed: {failed_job_names}")
+        else:
+            logger.warning(f"These jobs have failed: {failed_job_names}")
+
+    if len(active) == 0:
+        return True
     else:
-        fail_names = []
-    logger.info(
-        f"Failed Jobs  (labels: {combined_selectors}):\n" + "\n".join(fail_names)
-    )
-
-    return success, failed
+        log_active_jobs(active)
+        return False
 
 
-def delete_job_pods(
-    job_list: Sequence[JobInfo], batch_client: kubernetes.client.BatchV1Api = None
-):
-    """
-    Delete specified job pods on the kubernetes cluster.
+def log_active_jobs(active):
+    if len(active) > 0:
+        jobs = list(active.keys())
+        logger.info(
+            f"Active Jobs at {time.strftime('%Y-%m-%d %H:%M:%S')}\n" + "\n".join(jobs)
+        )
 
-    Args:
-        job_list: List of (job_name, job_namespace) tuples to delete from the
-            cluster.
-        client: A BatchV1Api client to communicate with the cluster
-    """
 
-    if batch_client is None:
-        batch_client = _initialize_batch_client()
+def list_jobs(client, job_labels):
+    selector_format_labels = [f"{key}={value}" for key, value in job_labels.items()]
+    combined_selectors = ",".join(selector_format_labels)
+    jobs = client.list_job_for_all_namespaces(label_selector=combined_selectors)
 
-    logger.info("Deleting successful jobs.")
-    for delete_args in job_list:
-        jobname, namespace = delete_args
-        logger.info(f"Deleting -- {jobname}")
-        batch_client.delete_namespaced_job(jobname, namespace)
+    return jobs.items
+
+
+def job_failed(job):
+    conds = job.status.conditions
+    conditions = [] if conds is None else conds
+    for cond in conditions:
+        if cond.status == "True":
+            return cond.type == "Failed"
+    return False
+
+
+def job_complete(job):
+    conds = job.status.conditions
+    conditions = [] if conds is None else conds
+    for cond in conditions:
+        if cond.status == "True":
+            return cond.type == "Complete"
+    return False
+
+
+def delete_completed_jobs(job_labels: Mapping[str, str], client: BatchV1Api = None):
+    client = initialize_batch_client() if client is None else client
+
+    logger.info("Deleting succesful jobs.")
+    jobs = list_jobs(client, job_labels)
+    for job in jobs:
+        if job_complete(job):
+            name = job.metadata.name
+            logger.info(f"Deleting completed job: {name}")
+            client.delete_namespaced_job(name, namespace=job.metadata.namespace)
