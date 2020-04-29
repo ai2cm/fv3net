@@ -1,6 +1,6 @@
 from vcm.visualize import plot_cube, mappable_var  # , plot_cube_axes
 
-from cartopy import crs as ccrs
+# from cartopy import crs as ccrs
 from fv3net.diagnostics.one_step_jobs import (
     FORECAST_TIME_DIM,
     VAR_TYPE_DIM,
@@ -120,11 +120,6 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
                         .rename({residual_var: physics_var})
                         .sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: "tendencies"})
                         .drop([DELTA_DIM, VAR_TYPE_DIM])
-#                         + states_and_tendencies[[physics_var_full]]  # coarse physics
-#                         .rename({physics_var_full: physics_var})
-#                         .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: "tendencies"})
-#                         .drop([DELTA_DIM, VAR_TYPE_DIM])
-#                     ).expand_dims({DELTA_DIM: ["dQ + pQ"]})
                     ).expand_dims({DELTA_DIM: ["tendencies"]})
                 ),
             ],
@@ -330,52 +325,56 @@ def plot_model_run_maps_across_time_dim(
         pos = ax.get_position().bounds
         pos_new = [pos[0], 0.5, pos[2], pos[3]]
         ax.set_position(pos_new)
-        ax2 = f.add_subplot(2, 2, 3, projection=ccrs.Robinson())
-        plot_cube(
-            (
-                mappable_var(
-                    (ds.isel({multiple_time_dim: i_time_1, DELTA_DIM: 0})),
-                    var,
-                    **MAPPABLE_VAR_KWARGS
-                ) - mappable_var(
-                    (ds.isel({multiple_time_dim: i_time_1, DELTA_DIM: 1})),
-                    var,
-                    **MAPPABLE_VAR_KWARGS
-                )
-            ),
-            ax=ax2,
-            vmax=scale,
-            colorbar=None
-        )
-        ax2.set_title(
-            f'{ds[DELTA_DIM].isel({DELTA_DIM: 0}).item()} - '
-            f'{ds[DELTA_DIM].isel({DELTA_DIM: 1}).item()} '
-            f'at {ds[FORECAST_TIME_DIM].isel({FORECAST_TIME_DIM: i_time_1}).item()}'
-            f' min'
-        )
-        ax3 = f.add_subplot(2, 2, 4, projection=ccrs.Robinson())
-        plot_cube(
-            (
-                mappable_var(
-                    (ds.isel({multiple_time_dim: i_time_2, DELTA_DIM: 1})),
-                    var,
-                    **MAPPABLE_VAR_KWARGS
-                ) - mappable_var(
-                    (ds.isel({multiple_time_dim: i_time_1, DELTA_DIM: 1})),
-                    var,
-                    **MAPPABLE_VAR_KWARGS
-                )
-            ),
-            ax=ax3,
-            vmax=scale,
-            colorbar=None
-        )
-        ax3.set_title(
-            f'{ds[DELTA_DIM].isel({DELTA_DIM: 1}).item()} at '
-            f'{ds[FORECAST_TIME_DIM].isel({FORECAST_TIME_DIM: i_time_2}).item()} min'
-            f' - {ds[DELTA_DIM].isel({DELTA_DIM: 1}).item()} at '
-            f'{ds[FORECAST_TIME_DIM].isel({FORECAST_TIME_DIM: i_time_1}).item()} min'
-        )
+    #         ax2 = f.add_subplot(2, 2, 3, projection=ccrs.Robinson())
+    #         plot_cube(
+    #             (
+    #                 mappable_var(
+    #                     (ds.isel({multiple_time_dim: i_time_1, DELTA_DIM: 0})),
+    #                     var,
+    #                     **MAPPABLE_VAR_KWARGS
+    #                 ) - mappable_var(
+    #                     (ds.isel({multiple_time_dim: i_time_1, DELTA_DIM: 1})),
+    #                     var,
+    #                     **MAPPABLE_VAR_KWARGS
+    #                 )
+    #             ),
+    #             ax=ax2,
+    #             vmax=scale,
+    #             colorbar=None
+    #         )
+    #         ax2.set_title(
+    #             f'{ds[DELTA_DIM].isel({DELTA_DIM: 0}).item()} - '
+    #             f'{ds[DELTA_DIM].isel({DELTA_DIM: 1}).item()} '
+    #             f'at {ds[FORECAST_TIME_DIM].isel(
+    # {FORECAST_TIME_DIM: i_time_1}).item()}'
+    #             f' min'
+    #         )
+    #         ax3 = f.add_subplot(2, 2, 4, projection=ccrs.Robinson())
+    #         plot_cube(
+    #             (
+    #                 mappable_var(
+    #                     (ds.isel({multiple_time_dim: i_time_2, DELTA_DIM: 1})),
+    #                     var,
+    #                     **MAPPABLE_VAR_KWARGS
+    #                 ) - mappable_var(
+    #                     (ds.isel({multiple_time_dim: i_time_1, DELTA_DIM: 1})),
+    #                     var,
+    #                     **MAPPABLE_VAR_KWARGS
+    #                 )
+    #             ),
+    #             ax=ax3,
+    #             vmax=scale,
+    #             colorbar=None
+    #         )
+    #         ax3.set_title(
+    #             f'{ds[DELTA_DIM].isel({DELTA_DIM: 1}).item()} at '
+    #             f'{ds[FORECAST_TIME_DIM].isel(
+    # {FORECAST_TIME_DIM: i_time_2}).item()} min'
+    #             f' - {ds[DELTA_DIM].isel(
+    # {DELTA_DIM: 1}).item()} at '
+    #             f'{ds[FORECAST_TIME_DIM].isel(
+    # {FORECAST_TIME_DIM: i_time_1}).item()} min'
+    #         )
     f.set_size_inches([10, 6])
     f.set_dpi(FIG_DPI)
     f.suptitle(f"{var} across {multiple_time_dim}")

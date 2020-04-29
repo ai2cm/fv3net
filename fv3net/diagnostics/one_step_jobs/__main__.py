@@ -138,6 +138,10 @@ def _insert_derived_vars(
             .pipe(insert_hi_res_diags, hi_res_diags_zarrpath, hi_res_diags_mapping)
             .pipe(insert_derived_vars_from_ds_zarr)
         )
+        logger.info(
+            f"Finished inserting derived variables for timestep "
+            f"{ds[INIT_TIME_DIM].values[0]}"
+        )
     except Exception as e:
         logger.warning(e)
         ds = None
@@ -150,10 +154,8 @@ def _insert_states_and_tendencies(ds: xr.Dataset) -> xr.Dataset:
     """
 
     try:
-        logger.info(
-            f"Inserting states and tendencies for timestep "
-            f"{ds[INIT_TIME_DIM].values[0].strftime(TIME_FMT)}"
-        )
+        timestep = ds[INIT_TIME_DIM].values[0].strftime(TIME_FMT)
+        logger.info(f"Inserting states and tendencies for timestep {timestep}")
         ds = (
             get_states_and_tendencies(ds)
             .pipe(insert_column_integrated_tendencies)
@@ -166,6 +168,9 @@ def _insert_states_and_tendencies(ds: xr.Dataset) -> xr.Dataset:
             )
         )
         ds.attrs[INIT_TIME_DIM] = [ds[INIT_TIME_DIM].item().strftime(TIME_FMT)]
+        logger.info(
+            f"Finished inserting states and tendencies for timestep " f"{timestep}"
+        )
     except Exception as e:
         ds = None
         logger.warning(e)
@@ -191,6 +196,7 @@ def _insert_means_and_shrink(ds: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
                 ["land_sea_mask", "net_precipitation_physics"],
             )
             .pipe(shrink_ds)
+            .load()
         )
         logger.info(f"Finished shrinking timestep {timestep}")
     except Exception as e:
@@ -201,6 +207,11 @@ def _insert_means_and_shrink(ds: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
 
 
 def _filter_ds(ds: Any):
+    try:
+        timestep = ds[INIT_TIME_DIM].item().strftime(TIME_FMT)
+        logger.info(f"Including timestep {timestep}")
+    except Exception:
+        logger.warning(f"Excluding failed timestep.")
     return isinstance(ds, xr.Dataset)
 
 
