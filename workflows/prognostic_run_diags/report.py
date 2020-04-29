@@ -52,6 +52,9 @@ def flatten(metrics):
             elif run.endswith(rf_s):
                 one_step = run[: -len(rf_s)]
                 baseline = "RF"
+            else:
+                one_step = run
+                baseline = "misc"
             units[name] = metrics[run][name]["units"]
             yield one_step, baseline, name, metrics[run][name]["value"]
 
@@ -115,6 +118,8 @@ renderer.save(hmap, "average")
 # metrics plots
 df = load_metrics(args.input)
 
+bar_opts = dict(norm=dict(framewise=True), plot=dict(width=600))
+
 # collect data into a holoviews object
 hmap = hv.HoloMap(kdims=["metric"])
 bias = hv.HoloMap(kdims=["metric"])
@@ -128,8 +133,8 @@ for metric in df.metric.unique():
     elif metric.startswith("drift"):
         bias[metric] = bars
 
-renderer.save(hmap, "rmse-metric")
-renderer.save(bias, "bias-metric")
+renderer.save(hmap.opts(**bar_opts), "rmse-metric")
+renderer.save(bias.opts(**bar_opts), "bias-metric")
 
 # hmap = hv.HoloMap(kdims=["metric"])
 # bias = hv.HoloMap(kdims=["metric"])
