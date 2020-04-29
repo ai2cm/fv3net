@@ -9,7 +9,7 @@ import pandas as pd
 from pathlib import Path
 import argparse
 import holoviews as hv
-from report import create_html, HTMLPlot
+from report import create_html, HTMLPlot, Plot
 
 hv.extension("bokeh")
 
@@ -99,15 +99,18 @@ from bokeh.embed import components
 
 section = []
 
+class HVPlot(HTMLPlot):
+    """Renderer for holoviews plot"""
+    def __init__(self, hvplot):
+        self._plot = hvplot
+    
+    def render(self):
+        # I spent hours trying to find this combination of lines
+        r = hv.renderer('bokeh')
+        html, _ = r.components(self._plot)
+        html = html['text/html']
+        return html
 
-def save(layout):
-    """
-    # https://github.com/holoviz/holoviews/issues/1819
-    """
-    renderer = hv.renderer("bokeh")
-    # https://github.com/holoviz/holoviews/issues/1975#issuecomment-335145141
-    html = renderer.static_html(layout)
-    return section.append(HTMLPlot(html))
 
 
 parser = argparse.ArgumentParser()
@@ -155,17 +158,11 @@ save(bias.opts(**bar_opts))
 sections = {"Diagnostics": section}
 
 header = """
-<script src="https://cdn.bokeh.org/bokeh/release/bokeh-1.4.0.min.js"
-        crossorigin="anonymous"></script>
-<script src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-1.4.0.min.js"
-        crossorigin="anonymous"></script>
-<script src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-1.4.0.min.js"
-        crossorigin="anonymous"></script>
+        <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.0.2.min.js" integrity="sha384-ufR9RFnRs6lniiaFvtJziE0YeidtAgBRH6ux2oUItHw5WTvE1zuk9uzhUU/FJXDp" crossorigin="anonymous"></script>
+        <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.0.2.min.js" integrity="sha384-8QM/PGWBT+IssZuRcDcjzwIh1mkOmJSoNMmyYDZbCfXJg3Ap1lEvdVgFuSAwhb/J" crossorigin="anonymous"></script>
+        <script type="text/javascript" src="https://unpkg.com/@holoviz/panel@^0.9.5/dist/panel.min.js" integrity="sha384-" crossorigin="anonymous"></script>
 """
 
 html = create_html(title="Prognostic run report", sections=sections, html_header=header)
-from IPython import embed
-embed()
-
 with open("index.html", "w") as f:
     f.write(html)
