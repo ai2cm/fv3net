@@ -1,16 +1,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  name: prognostic-run-diags
   generateName: prognostic-run-diags-
 spec:
   arguments:
     parameters:
     - name: runs
-    - name: diag_output
-      value: gs://vcm-ml-scratch/argo/{{workflow.name}}
-    - name: output
-      value: gs://vcm-ml-public/argo/{{workflow.name}}/index.html
   entrypoint: all
   volumes:
   - name: gcp-credentials-user-gcp-sa
@@ -27,7 +22,7 @@ spec:
               - name: run
                 value: "{{item.url}}"
               - name: output
-                value: "{{workflow.parameters.diag_output}}/{{item.name}}/"
+                value: "gs://vcm-ml-scratch/argo/{{workflow.name}}/{{item.name}}/"
       - - name: generate-notebook
           template: notebook
    - name: notebook
@@ -50,9 +45,10 @@ spec:
       - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
         value: /secret/gcp-credentials/key.json
       - name: OUTPUT
-        value: "{{workflow.parameters.output}}"
+        # value: "{{workflow.parameters.output}}"
+        value: "gs://vcm-ml-public/argo/{{workflow.name}}/index.html"
       - name: INPUT
-        value: "{{workflow.parameters.diag_output}}"
+        value: "gs://vcm-ml-scratch/argo/{{workflow.name}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-credentials-user-gcp-sa
