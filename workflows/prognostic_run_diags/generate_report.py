@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import json
-from typing import Mapping
+from typing import Mapping, Iterable, Any
 import yaml
 import os
 import xarray as xr
@@ -10,7 +10,7 @@ import pandas as pd
 from pathlib import Path
 import argparse
 import holoviews as hv
-from report import create_html, HTMLPlot, Plot
+from report import create_html, Plot
 from bokeh.embed import components
 
 hv.extension("bokeh")
@@ -18,31 +18,46 @@ hv.extension("bokeh")
 units = {}
 
 _bokeh_html_header = """
-<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.0.2.min.js" integrity="sha384-ufR9RFnRs6lniiaFvtJziE0YeidtAgBRH6ux2oUItHw5WTvE1zuk9uzhUU/FJXDp" crossorigin="anonymous"></script>
-<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.0.2.min.js" integrity="sha384-8QM/PGWBT+IssZuRcDcjzwIh1mkOmJSoNMmyYDZbCfXJg3Ap1lEvdVgFuSAwhb/J" crossorigin="anonymous"></script>
-<script type="text/javascript" src="https://unpkg.com/@holoviz/panel@^0.9.5/dist/panel.min.js" integrity="sha384-" crossorigin="anonymous"></script>
+        <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.0.2.min.js" integrity="sha384-ufR9RFnRs6lniiaFvtJziE0YeidtAgBRH6ux2oUItHw5WTvE1zuk9uzhUU/FJXDp" crossorigin="anonymous"></script>
+        <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.0.2.min.js" integrity="sha384-8QM/PGWBT+IssZuRcDcjzwIh1mkOmJSoNMmyYDZbCfXJg3Ap1lEvdVgFuSAwhb/J" crossorigin="anonymous"></script>
+        <script type="text/javascript" src="https://unpkg.com/@holoviz/panel@^0.9.5/dist/panel.min.js" integrity="sha384-" crossorigin="anonymous"></script>
 """
 
 
-class DiagnosticManager:
-    def __init__(self, plot_factory=None):
+class PlotManager:
+    """An object for managing lists of plots in an extensible way
+
+    New plotting functions can be registered using the ``register`` method.
+
+    All plotting functions registered by the object will be called in sequence on 
+    the data passed to `make_plots``.
+
+    """
+
+    def __init__(self):
         self._diags = []
-        self.plot_factory = Plot.create if plot_factory is None else plot_factory
 
     def register(self, func):
+        """Register a given function as a diagnostic 
+
+        This can be used to generate a new set of plots to appear the html reports
+        """
         self._diags.append(func)
         return func
 
-    def make_plots(self, data):
+    def make_plots(self, data) -> Iterable[Plot]:
         for func in self._diags:
-            yield self.plot_factory(func(data))
+            yield func(data)
 
 
-class HVPlot(HTMLPlot):
+class HVPlot(Plot):
+    """Renders holoviews plots to HTML for use in the diagnostic reports
+    """
+
     def __init__(self, hvplot):
         self._plot = hvplot
 
-    def render(self):
+    def render(self) -> str:
         # It took hours to find this combinitation of commands!
         # it was really hard finding a combintation that
         # 1. embedded the data for an entire HoloMap object
@@ -132,20 +147,26 @@ def holomap_filter(time_series, varfilter):
     return hmap.opts(norm={"framewise": True}, plot=dict(width=700, height=500))
 
 
-diag_plot_manager = DiagnosticManager(HVPlot)
-metrics_plot_manager = DiagnosticManager(HVPlot)
+# Initialize diagnostic managers
+# diag_plot_manager will be passed the data from the diags.nc files
+diag_plot_manager = PlotManager()
+# this will be passed the data from the metrics.json files
+metrics_plot_manager = PlotManager()
 
 
+# Routines for plotting the "diagnostics"
 @diag_plot_manager.register
 def rms_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
-    return holomap_filter(time_series, varfilter="rms").overlay("run")
+    return HVPlot(holomap_filter(time_series, varfilter="rms").overlay("run"))
 
 
 @diag_plot_manager.register
 def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
-    return holomap_filter(time_series, varfilter="global_avg").overlay("run")
+    return HVPlot(holomap_filter(time_series, varfilter="global_avg").overlay("run"))
 
 
+# Routines for plotting the "metrics"
+# New plotting routines can be registered here.
 @metrics_plot_manager.register
 def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
     hmap = hv.HoloMap(kdims=["metric"])
@@ -155,7 +176,7 @@ def rmse_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
         bars = hv.Bars((s.one_step, s.baseline, s.value), kdims=["one_step", "type"])
         if metric.startswith("rmse"):
             hmap[metric] = bars
-    return hmap.opts(**bar_opts)
+    return HVPlot(hmap.opts(**bar_opts))
 
 
 @metrics_plot_manager.register
@@ -167,7 +188,7 @@ def bias_metrics(metrics: pd.DataFrame) -> hv.HoloMap:
         bars = hv.Bars((s.one_step, s.baseline, s.value), kdims=["one_step", "type"])
         if metric.startswith("drift"):
             hmap[metric] = bars
-    return hmap.opts(**bar_opts)
+    return HVPlot(hmap.opts(**bar_opts))
 
 
 def main():
@@ -180,17 +201,16 @@ def main():
     # load data
     diags = load_diags(args.input)
     diagnostics = {
-        key: convert_time_index_to_datetime(get_ts(ds), "time") for key, ds in diags.items()
+        key: convert_time_index_to_datetime(get_ts(ds), "time")
+        for key, ds in diags.items()
     }
     metrics = load_metrics(args.input)
 
     # generate all plots
-    section = [
-        *diag_plot_manager.make_plots(diagnostics),
-        *metrics_plot_manager.make_plots(metrics),
-    ]
-
-    sections = {"Diagnostics": section}
+    sections = {
+        "Diagnostics": list(diag_plot_manager.make_plots(diagnostics)),
+        "Metrics": list(metrics_plot_manager.make_plots(metrics)),
+    }
 
     html = create_html(
         title="Prognostic run report", sections=sections, html_header=_bokeh_html_header
