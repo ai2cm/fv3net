@@ -97,6 +97,8 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
 
     section_name = "dQ vs hi-res diagnostics across forecast time"
     logger.info(f"Plotting {section_name}")
+    time1 = 7
+    time2 = 14
 
     dQ_comparison_maps = []
     for q_term, mapping in DQ_MAPPING.items():
@@ -109,17 +111,59 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
                 (
                     states_and_tendencies[[physics_var_full]]  # hi-res physics
                     .sel({DELTA_DIM: "hi-res", VAR_TYPE_DIM: "states"})
-                    .drop([DELTA_DIM, VAR_TYPE_DIM])
-                    .expand_dims({DELTA_DIM: ["hi-res physics"]})
+                    .isel({FORECAST_TIME_DIM: time1})
+                    .drop(DELTA_DIM)
+                    .expand_dims({DELTA_DIM: [f"hi-res physics at {time1} min"]})
                     .rename({physics_var_full: physics_var})
                 ),
                 (
                     (
-                        states_and_tendencies[[residual_var]]  # tendency diff
+                        states_and_tendencies[[physics_var_full]]  # coarse physics
+                        .rename({physics_var_full: physics_var})
+                        .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: "states"})
+                        + states_and_tendencies[[residual_var]]  # tendency diff
                         .rename({residual_var: physics_var})
                         .sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: "tendencies"})
-                        .drop([DELTA_DIM, VAR_TYPE_DIM])
-                    ).expand_dims({DELTA_DIM: ["tendencies"]})
+                    )
+                    .isel({FORECAST_TIME_DIM: time1})
+                    .expand_dims({DELTA_DIM: [f"(pQ + dQ) at {time1} min"]})
+                ),
+                (
+                    (
+                        states_and_tendencies[[physics_var_full]]  # hi-res physics
+                        .sel({DELTA_DIM: "hi-res", VAR_TYPE_DIM: "states"})
+                        .rename({physics_var_full: physics_var})
+                        - states_and_tendencies[[physics_var_full]]  # coarse physics
+                        .rename({physics_var_full: physics_var})
+                        .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: "states"})
+                        - states_and_tendencies[[residual_var]]  # tendency diff
+                        .rename({residual_var: physics_var})
+                        .sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: "tendencies"})
+                    )
+                    .drop(DELTA_DIM)
+                    .isel({FORECAST_TIME_DIM: time1})
+                    .expand_dims({DELTA_DIM: [f"hi-res physics - (pQ + dQ) at {time1} min"]})
+                ),
+                (
+                    (
+                        states_and_tendencies[[physics_var_full]]  # coarse physics
+                        .rename({physics_var_full: physics_var})
+                        .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: "states"})
+                        .isel({FORECAST_TIME_DIM: time2})
+                        + states_and_tendencies[[residual_var]]  # tendency diff
+                        .rename({residual_var: physics_var})
+                        .sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: "tendencies"})
+                        .isel({FORECAST_TIME_DIM: time2})
+                        - states_and_tendencies[[physics_var_full]]  # coarse physics
+                        .rename({physics_var_full: physics_var})
+                        .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: "states"})
+                        .isel({FORECAST_TIME_DIM: time1})
+                        - states_and_tendencies[[residual_var]]  # tendency diff
+                        .rename({residual_var: physics_var})
+                        .sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: "tendencies"})
+                        .isel({FORECAST_TIME_DIM: time1})
+                    )
+                    .expand_dims({DELTA_DIM: [f"(pQ + dQ) at {time2} min - at {time1} min"]})
                 ),
             ],
             dim=DELTA_DIM,
@@ -313,77 +357,15 @@ def plot_model_run_maps_across_time_dim(
         ds[var].attrs.update({"units": ds[var].attrs["units"] + "/s"})
     ds = ds.assign_coords({FORECAST_TIME_DIM: ds[FORECAST_TIME_DIM] / 60})
     f, axes, _, _, facet_grid = plot_cube(
-        mappable_var(
-            ds.isel({multiple_time_dim: [i_time_1]}), var, **MAPPABLE_VAR_KWARGS,
-        ),
+        mappable_var(ds, var, **MAPPABLE_VAR_KWARGS),
         col=DELTA_DIM,
-        row=multiple_time_dim,
+        col_wrap=2,
         vmax=scale,
     )
-    for ax in axes.flatten():
-        pos = ax.get_position().bounds
-        pos_new = [pos[0], 0.5, pos[2], pos[3]]
-        ax.set_position(pos_new)
-    #         ax2 = f.add_subplot(2, 2, 3, projection=ccrs.Robinson())
-    #         plot_cube(
-    #             (
-    #                 mappable_var(
-    #                     (ds.isel({multiple_time_dim: i_time_1, DELTA_DIM: 0})),
-    #                     var,
-    #                     **MAPPABLE_VAR_KWARGS
-    #                 ) - mappable_var(
-    #                     (ds.isel({multiple_time_dim: i_time_1, DELTA_DIM: 1})),
-    #                     var,
-    #                     **MAPPABLE_VAR_KWARGS
-    #                 )
-    #             ),
-    #             ax=ax2,
-    #             vmax=scale,
-    #             colorbar=None
-    #         )
-    #         ax2.set_title(
-    #             f'{ds[DELTA_DIM].isel({DELTA_DIM: 0}).item()} - '
-    #             f'{ds[DELTA_DIM].isel({DELTA_DIM: 1}).item()} '
-    #             f'at {ds[FORECAST_TIME_DIM].isel(
-    # {FORECAST_TIME_DIM: i_time_1}).item()}'
-    #             f' min'
-    #         )
-    #         ax3 = f.add_subplot(2, 2, 4, projection=ccrs.Robinson())
-    #         plot_cube(
-    #             (
-    #                 mappable_var(
-    #                     (ds.isel({multiple_time_dim: i_time_2, DELTA_DIM: 1})),
-    #                     var,
-    #                     **MAPPABLE_VAR_KWARGS
-    #                 ) - mappable_var(
-    #                     (ds.isel({multiple_time_dim: i_time_1, DELTA_DIM: 1})),
-    #                     var,
-    #                     **MAPPABLE_VAR_KWARGS
-    #                 )
-    #             ),
-    #             ax=ax3,
-    #             vmax=scale,
-    #             colorbar=None
-    #         )
-    #         ax3.set_title(
-    #             f'{ds[DELTA_DIM].isel({DELTA_DIM: 1}).item()} at '
-    #             f'{ds[FORECAST_TIME_DIM].isel(
-    # {FORECAST_TIME_DIM: i_time_2}).item()} min'
-    #             f' - {ds[DELTA_DIM].isel(
-    # {DELTA_DIM: 1}).item()} at '
-    #             f'{ds[FORECAST_TIME_DIM].isel(
-    # {FORECAST_TIME_DIM: i_time_1}).item()} min'
-    #         )
     f.set_size_inches([10, 6])
     f.set_dpi(FIG_DPI)
     f.suptitle(f"{var} across {multiple_time_dim}")
-    facet_grid.set_titles(template="{value}", maxchar=30)
-    # add units to facetgrid right side (hacky)
-    if multiple_time_dim == FORECAST_TIME_DIM:
-        right_text_objs = [vars(ax)["texts"][0] for ax in axes[:, -1]]
-        for obj in right_text_objs:
-            right_text = obj.get_text()
-            obj.set_text("forecast time: " + right_text + " min")
+    facet_grid.set_titles(template="{value}", maxchar=40)
 
     return f
 
