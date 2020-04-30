@@ -13,15 +13,16 @@ def open_model(url):
         return joblib.load(f)
 
 
-def predict(model, state):
+def predict(model: SklearnWrapper, state: xr.Dataset) -> xr.Dataset:
     stacked = state.stack(sample=["x", "y"])
     with parallel_backend("threading", n_jobs=1):
         output = model.predict(stacked, "sample").unstack("sample")
     return output
 
 
-def update(model, state, dt):
-    state = xr.Dataset(state)
+def update(
+    model: SklearnWrapper, state: xr.Dataset, dt: float
+) -> (xr.Dataset, xr.Dataset):
     tend = predict(model, state)
     updated = state.assign(
         specific_humidity=state["specific_humidity"] + tend["dQ2"] * dt,
