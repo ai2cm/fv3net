@@ -4,9 +4,9 @@ This workflow performs a nudged run, nudging to reference data stored on GCS.
 
 ### Quickstart
 
-Pull the docker image from GCS:
+Pull the docker image from GCS, if you don't have it already:
 
-    docker pull us.gcr.io/vcm-ml/fv3gfs-python:0.3.1-nudging
+    docker pull us.gcr.io/vcm-ml/fv3gfs-python:0.4.1
 
 Run the workflow:
 
@@ -14,16 +14,21 @@ Run the workflow:
 
 The output directory should now be present in `output`.
 
-### Building the image
+### Running on Kubernetes
 
-Build requires an `fv3gfs-python` base image. If you don't have one with the
-correct version tag, it will be automatically pulled by `make build`. It then produces an image
-tagged with `-nudging` which contains the cached data needed to create the nudging rundir,
-and any additional python packages needed.
+The workflow can be submitted to kubernetes using:
 
-Building the `-nudging` image requires `GOOGLE_APPLICATION_CREDENTIALS` to be set.
-These credentials are copied into an intermediate image to download the data cache.
-The credentials are not included in the final `-nudging` image.
+    make run_kubernetes
+
+You should probably specify the remote output directory to use, as follows:
+
+    REMOTE_ROOT=gs://my-bucket/ make run_kubernetes
+
+### Configuration
+
+The reference restart location and variables to nudge are stored in `fv3config_base.yml`.
+The nudging timescales in that file are ignored, and instead replaced with the
+TIMESCALE_HOURS variable set in the makefile (which you can pass manually).
 
 ### More details
 
@@ -31,11 +36,4 @@ The nudging and run are configured in `fv3config_base.yml`. This gets converted 
 `fv3config.yml` automatically in order to specify the full filenames for initial
 conditions on GCS that has been prepended with the timestamp.
 
-`retry.sh` performs a rebuild of the `fv3gfs-python` base image, a rebuild of the
-nudging image, and then repeats the workflow, showing the error log if an error
-occurs. It requires an environment variable `FV3GFS_PYTHON_DIR` which points to
-the directory where the `fv3gfs-python` repo is stored. It assumes that the repo is
-checked out to the correct version of `fv3gfs-python`.
-
-If you want to run the workflow on a different image, for example on the image
-without cached data, you can use `NUDGING_IMG=<image name> make run`
+If you want to run the workflow on a different image, you can set `IMG_NAME` and `IMG_VERSION` when you call `make`.

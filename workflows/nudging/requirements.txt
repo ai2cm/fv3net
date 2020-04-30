@@ -1,4 +1,4 @@
-fv3config
+fv3config==0.3.2
 pyyaml==5.1.2
 h5netcdf==0.8.0
 h5py==2.10.0

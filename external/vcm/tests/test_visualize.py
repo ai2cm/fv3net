@@ -9,7 +9,7 @@ from vcm.visualize.masking import (
     _periodic_greater_than,
     _periodic_difference,
 )
-from vcm.visualize.plot_cube import mappable_var, plot_cube_axes, plot_cube
+from vcm.visualize import mappable_var, plot_cube_axes, plot_cube
 from vcm.visualize.plot_helpers import _get_var_label
 
 
