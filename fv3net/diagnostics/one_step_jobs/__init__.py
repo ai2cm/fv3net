@@ -85,7 +85,7 @@ DQ_MAPPING = {
     "Q2": {
         "physics_name": "net_precipitation",
         "tendency_diff_name": "minus_column_integrated_moistening",
-        "scale": 50,
+        "scale": 10,
     },
 }
 
@@ -113,9 +113,9 @@ GLOBAL_MEAN_3D_VARS = {
 }
 
 GLOBAL_2D_MAPS = {
-    "psurf": {VAR_TYPE_DIM: "tendencies", "scale": None},
+    "psurf": {VAR_TYPE_DIM: "tendencies", "scale": 0.1},
     "column_integrated_heating": {VAR_TYPE_DIM: "tendencies", "scale": 1000},
-    "minus_column_integrated_moistening": {VAR_TYPE_DIM: "tendencies", "scale": 50},
+    "minus_column_integrated_moistening": {VAR_TYPE_DIM: "tendencies", "scale": 10},
     "vertical_wind_level_40": {VAR_TYPE_DIM: "states", "scale": 0.05},
     "total_precipitation": {VAR_TYPE_DIM: "states", "scale": None},
     "latent_heat_flux": {VAR_TYPE_DIM: "states", "scale": 200},

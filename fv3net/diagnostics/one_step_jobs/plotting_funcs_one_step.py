@@ -16,7 +16,6 @@ from fv3net.diagnostics.one_step_jobs import (
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
-from matplotlib.transforms import Bbox
 import os
 from typing import Mapping
 import logging
@@ -45,6 +44,8 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
 
     report_sections = {}
     stride = 7
+    time1 = 7
+    time2 = 14
 
     # make 2-d var global mean time series
 
@@ -97,8 +98,6 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
 
     section_name = "dQ vs hi-res diagnostics across forecast time"
     logger.info(f"Plotting {section_name}")
-    time1 = 7
-    time2 = 14
 
     dQ_comparison_maps = []
     for q_term, mapping in DQ_MAPPING.items():
@@ -106,6 +105,9 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
         physics_var = mapping["physics_name"]
         scale = mapping["scale"]
         physics_var_full = physics_var + "_physics"
+
+        # manufacture a dataset with a "dimension" that's really a set of
+        # diverse subpanel plots
         comparison_ds = xr.concat(
             [
                 (
@@ -142,7 +144,9 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
                     )
                     .drop(DELTA_DIM)
                     .isel({FORECAST_TIME_DIM: time1})
-                    .expand_dims({DELTA_DIM: [f"hi-res physics - (pQ + dQ) at {time1} min"]})
+                    .expand_dims(
+                        {DELTA_DIM: [f"hi-res physics - (pQ + dQ) at {time1} min"]}
+                    )
                 ),
                 (
                     (
@@ -162,8 +166,9 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
                         .rename({residual_var: physics_var})
                         .sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: "tendencies"})
                         .isel({FORECAST_TIME_DIM: time1})
+                    ).expand_dims(
+                        {DELTA_DIM: [f"(pQ + dQ) at {time2} min - at {time1} min"]}
                     )
-                    .expand_dims({DELTA_DIM: [f"(pQ + dQ) at {time2} min - at {time1} min"]})
                 ),
             ],
             dim=DELTA_DIM,
@@ -177,8 +182,9 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
                 ),
             }
         )
-        f = plot_model_run_maps_across_time_dim(
-            comparison_ds, physics_var, "states", FORECAST_TIME_DIM, 14, 14,
+
+        f = plot_model_run_maps_across_forecast_time(
+            comparison_ds, physics_var, DELTA_DIM, scale=scale
         )
         plotname = f"{q_term}_comparison_maps.png"
         f.savefig(os.path.join(output_dir, plotname))
@@ -255,20 +261,78 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     for var, spec in GLOBAL_2D_MAPS.items():
         vartype = spec[VAR_TYPE_DIM]
         scale = spec["scale"]
-        f = plot_model_run_maps_across_time_dim(
-            states_and_tendencies.sel(
-                {VAR_TYPE_DIM: vartype, DELTA_DIM: ["hi-res", "coarse"]}
-            ),
-            var,
-            vartype,
-            FORECAST_TIME_DIM,
-            7,
-            14,
+
+        # manufacture a dataset with a "dimension" that's really a set of
+        # diverse subpanel plots
+        comparison_ds = xr.concat(
+            [
+                (
+                    states_and_tendencies[[var]]  # hi-res
+                    .sel({DELTA_DIM: "hi-res", VAR_TYPE_DIM: vartype})
+                    .isel({FORECAST_TIME_DIM: time1})
+                    .drop([DELTA_DIM, FORECAST_TIME_DIM])
+                    .expand_dims({DELTA_DIM: [f"hi-res at {time1} min"]})
+                ),
+                (
+                    states_and_tendencies[[var]]  # coarse
+                    .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: vartype})
+                    .isel({FORECAST_TIME_DIM: time1})
+                    .drop([DELTA_DIM, FORECAST_TIME_DIM])
+                    .expand_dims({DELTA_DIM: [f"coarse at {time1} min"]})
+                ),
+                (
+                    (
+                        states_and_tendencies[[var]].sel(  # hi-res
+                            {DELTA_DIM: "hi-res", VAR_TYPE_DIM: vartype}
+                        )
+                        - states_and_tendencies[[var]].sel(  # coarse
+                            {DELTA_DIM: "coarse", VAR_TYPE_DIM: vartype}
+                        )
+                    )
+                    .isel({FORECAST_TIME_DIM: time1})
+                    .drop(FORECAST_TIME_DIM)
+                    .expand_dims({DELTA_DIM: [f"hi-res - coarse at {time1} min"]})
+                ),
+                (
+                    (
+                        states_and_tendencies[[var]].isel(  # coarse at time2
+                            {FORECAST_TIME_DIM: time2}
+                        )
+                        - states_and_tendencies[[var]].isel(  # coarse at time1
+                            {FORECAST_TIME_DIM: time1}
+                        )
+                    )
+                    .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: vartype})
+                    .drop(DELTA_DIM)
+                    .expand_dims(
+                        {DELTA_DIM: [f"coarse at {time2} min - coarse at {time1} min"]}
+                    )
+                ),
+            ],
+            dim=DELTA_DIM,
         )
-        plotname = f"{var}_{vartype}_maps.png"
+
+        if vartype == "tendencies" and "column_integrated" not in var:
+            if "long_name" in comparison_ds[var].attrs:
+                comparison_ds[var].attrs.update(
+                    {"long_name": comparison_ds[var].attrs["long_name"] + " tendency"}
+                )
+            comparison_ds[var].attrs.update(
+                {"units": comparison_ds[var].attrs["units"] + "/s"}
+            )
+            comparison_ds = comparison_ds.rename({var: f"{var}_tendencies"})
+            var = f"{var}_tendencies"
+
+        comparison_ds = comparison_ds.merge(states_and_tendencies[list(GRID_VARS)])
+
+        f = plot_model_run_maps_across_forecast_time(
+            comparison_ds, var, DELTA_DIM, scale=scale
+        )
+        plotname = f"{var}_maps.png"
         f.savefig(os.path.join(output_dir, plotname))
         plt.close(f)
         maps_across_forecast_time.append(plotname)
+
     report_sections[section_name] = maps_across_forecast_time
 
     return report_sections
@@ -343,28 +407,19 @@ def plot_global_mean_time_series(
     return f
 
 
-def plot_model_run_maps_across_time_dim(
-    ds: xr.Dataset,
-    var: str,
-    vartype: str,
-    multiple_time_dim: str,
-    i_time_1=int,
-    i_time_2=int,
-    scale: float = None,
+def plot_model_run_maps_across_forecast_time(
+    ds: xr.Dataset, var: str, subpanel_dim: str, scale: float = None,
 ):
 
-    if vartype == "tendencies" and not var.startswith("column_integrated"):
-        ds[var].attrs.update({"units": ds[var].attrs["units"] + "/s"})
-    ds = ds.assign_coords({FORECAST_TIME_DIM: ds[FORECAST_TIME_DIM] / 60})
     f, axes, _, _, facet_grid = plot_cube(
         mappable_var(ds, var, **MAPPABLE_VAR_KWARGS),
-        col=DELTA_DIM,
+        col=subpanel_dim,
         col_wrap=2,
         vmax=scale,
     )
     f.set_size_inches([10, 6])
     f.set_dpi(FIG_DPI)
-    f.suptitle(f"{var} across {multiple_time_dim}")
+    f.suptitle(f"{var} across forecast time")
     facet_grid.set_titles(template="{value}", maxchar=40)
 
     return f
@@ -495,17 +550,17 @@ def plot_diurnal_cycles(
                 {DELTA_DIM: ["hi-res", "coarse", "hi-res - coarse"]}
             )
         ),
-        col=FORECAST_TIME_DIM
+        col=FORECAST_TIME_DIM,
     )
 
     facetgrid = facetgrid.map(_facet_line_plot, var)
     facetgrid.axes.flatten()[0].set_xlim([0, 24])
     legend_ax = facetgrid.axes.flatten()[-2]
     handles = legend_ax.get_lines()[1:]
-    if var.startswith('net'):
-        residual_label = 'residual of tendencies'
+    if var.startswith("net"):
+        residual_label = "residual of tendencies"
     else:
-        residual_label = 'differences of physics'
+        residual_label = "differences of physics"
     legend_ax.legend(
         handles, ["hi-res physics", "coarse physics", residual_label], loc=2
     )
@@ -514,9 +569,9 @@ def plot_diurnal_cycles(
         ax.set_xlabel("mean local time [hrs]")
         ax.set_xticks(np.arange(0.0, 25.0, 4.0))
         ax.set_xlim([0.0, 24.0])
-        points = ax.get_position().get_points()
-        points[1,1] = 1 
-        ax.set_position(Bbox(points))
+        pos = ax.get_position().bounds
+        pos_new = [pos[0], pos[1], pos[2], 0.75]
+        ax.set_position(pos_new)
     for ax in facetgrid.axes[:, 0]:
         ax.set_ylabel(f"{var} [{ds[var].attrs['units']}]")
     if scale is not None:
