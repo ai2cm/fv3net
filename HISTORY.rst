@@ -6,6 +6,9 @@ History
 latest
 ------
 
+* Prognostic run report: compute and plot scalar metrics, generate report via
+  python script, change output location (#226)
+* Multithreaded uploading in one-step jobs (#260)
 
 0.2.0 (2020-04-23)
 ------------------
