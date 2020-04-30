@@ -23,6 +23,21 @@ _bokeh_html_header = """
 """  # noqa
 
 
+def upload(html: str, url: str, content_type: str = "text/html"):
+    """Upload to a local or remote path, setting the content type if remote
+    
+    Setting the content type is necessary for viewing the uploaded object in a
+    the web browser (e.g. it is a webpage or image).
+    
+    """
+    with fsspec.open(url, "w") as f:
+        f.write(html)
+
+    if url.startswith("gs"):
+        fs = fsspec.filesystem("gs")
+        fs.setxattrs(url, content_type=content_type)
+
+
 class PlotManager:
     """An object for managing lists of plots in an extensible way
 
@@ -199,8 +214,7 @@ def main():
     html = create_html(
         title="Prognostic run report", sections=sections, html_header=_bokeh_html_header
     )
-    with fsspec.open(args.output, "w") as f:
-        f.write(html)
+    upload(html, args.output, content_type="text/html")
 
 
 if __name__ == "__main__":
