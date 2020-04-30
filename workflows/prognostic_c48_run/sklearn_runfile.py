@@ -4,6 +4,7 @@ import zarr
 
 import fv3gfs
 from fv3gfs._wrapper import get_time
+import fv3util
 import runtime
 from mpi4py import MPI
 
@@ -92,10 +93,14 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
-        preds, diags = runtime.sklearn.update(MODEL, state, dt=TIMESTEP)
+        preds, diags = runtime.sklearn.update(
+            MODEL, fv3util.to_dataset(state), dt=TIMESTEP
+        )
         if rank == 0:
             logger.debug("Setting Fortran State")
-        fv3gfs.set_state(preds)
+        fv3gfs.set_state(
+            {key: fv3util.Quantity.from_data_array(preds[key]) for key in preds}
+        )
         if rank == 0:
             logger.debug("Setting Fortran State")
 
