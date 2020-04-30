@@ -29,7 +29,19 @@ simply run
 
     bash run_all.sh rundirs.yml
 
-from this directory. This job can be monitored by running
+This command will make output like this:
+
+    Name:                prognostic-run-diags-sps8h
+    Namespace:           default
+    ServiceAccount:      default
+    Status:              Pending
+    Created:             Thu Apr 30 12:01:17 -0700 (now)
+
+The data are stored at a directory based on the "Name" above. Specifically, the computed outputs wil be located at `gs://vcm-ml-scratch/argo/{{workflow.name}}`. The published report will be available at the url:
+
+    http://storage.googleapis.com/vcm-ml-public/argo/{{workflow.name}}/indx.html
+
+This job can be monitored by running
 
     argo watch <name of pod in last command>
 
@@ -37,6 +49,7 @@ from this directory. This job can be monitored by running
 
 Simply add a new item to rundirs.yml and resubmit the job. All the steps will be
 re-run, which is redundant, but the process isn't that slow.
+
 
 [1]: http://storage.googleapis.com/vcm-ml-public/experiments-2020-03/prognostic_run_diags/combined.html
 
