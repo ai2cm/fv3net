@@ -1,6 +1,4 @@
-from generate_report import (
-    upload
-)
+from generate_report import upload
 
 import pytest
 from google.cloud.storage.client import Client
@@ -10,7 +8,7 @@ import uuid
 @pytest.fixture()
 def client():
     return Client()
-    
+
 
 def test_upload_html_local(tmpdir):
     url = str(tmpdir.join("index.html"))
