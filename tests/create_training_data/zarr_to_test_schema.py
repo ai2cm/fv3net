@@ -112,7 +112,7 @@ class VariableSchema:
     dims: Sequence[str]
     array: Array
 
-    def generate(self, chunks):
+    def generate(self):
         return xr.DataArray(
             self.array.generate(self.domain), dims=self.dims, name=self.name
         )
