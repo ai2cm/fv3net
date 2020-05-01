@@ -1,6 +1,7 @@
 import fsspec
 from sklearn.externals import joblib
 from sklearn.utils import parallel_backend
+import xarray as xr
 
 
 __all__ = ["open_model", "predict", "update"]
@@ -40,8 +41,9 @@ def update(model, state, dt):
         (xr.Dataset, xr.Dataset): tuple of updated state and predicted tendencies
     """
     tend = predict(model, state)
-    updated = state.assign(
-        specific_humidity=state["specific_humidity"] + tend["dQ2"] * dt,
-        air_temperature=state["air_temperature"] + tend["dQ1"] * dt,
-    )
+    with xr.set_options(keep_attrs=True):
+        updated = state.assign(
+            specific_humidity=state["specific_humidity"] + tend["dQ2"] * dt,
+            air_temperature=state["air_temperature"] + tend["dQ1"] * dt,
+        )
     return updated, tend
