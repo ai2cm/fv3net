@@ -2,9 +2,9 @@ import xarray as xr
 import numpy as np
 from scipy.stats import binned_statistic
 from vcm.cubedsphere.constants import TIME_FMT
-from vcm.constants import kg_m2s_to_mm_day
 from vcm.select import mask_to_surface_type
 from vcm.convenience import parse_datetime_from_str
+from vcm import thermo
 from vcm import local_time
 from datetime import datetime, timedelta
 import logging
@@ -24,8 +24,7 @@ from fv3net.diagnostics.one_step_jobs import (
     DQ_PROFILE_MAPPING,
     PROFILE_COMPOSITES,
     GLOBAL_2D_MAPS,
-    GRID_VARS,
-    thermo,
+    GRID_VARS
 )
 from fv3net.pipelines.common import subsample_timesteps_at_interval
 from fv3net.pipelines.create_training_data.helpers import load_hires_prog_diag
@@ -191,19 +190,19 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
                 ds["snow_mixing_ratio"],
                 ds["graupel_mixing_ratio"],
             ),
-            "psurf": thermo.psurf_from_delp(
+            "psurf": thermo.surface_pressure_from_delp(
                 ds["pressure_thickness_of_atmospheric_layer"]
             ),
             "precipitable_water": thermo.precipitable_water(
                 ds["specific_humidity"], ds["pressure_thickness_of_atmospheric_layer"]
             ),
-            "total_heat": thermo.total_heat(
+            "column_integrated_heat": thermo.column_integrated_heat(
                 ds["air_temperature"], ds["pressure_thickness_of_atmospheric_layer"]
             ),
             "net_precipitation_physics": net_precipitation(
                 ds["latent_heat_flux"], ds["total_precipitation"]
             ),
-            "evaporation": thermo.evaporation(ds["latent_heat_flux"]),
+            "evaporation": thermo.surface_evaporation_mm_day_from_latent_heat_flux(ds["latent_heat_flux"]),
             "net_heating_physics": net_heating_from_dataset(
                 ds.rename(
                     {

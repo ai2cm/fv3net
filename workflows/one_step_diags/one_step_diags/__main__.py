@@ -1,7 +1,7 @@
 from vcm.cloud.fsspec import get_fs, get_protocol
 from vcm.cloud.gsutil import copy
 from vcm.cubedsphere.constants import TIME_FMT
-from fv3net.diagnostics.one_step_jobs.data_funcs_one_step import (
+from .data_funcs_one_step import (
     time_inds_to_open,
     time_coord_to_datetime,
     insert_hi_res_diags,
@@ -15,8 +15,8 @@ from fv3net.diagnostics.one_step_jobs.data_funcs_one_step import (
     insert_area_means,
     shrink_ds,
 )
-from fv3net.diagnostics.one_step_jobs.plotting_funcs_one_step import make_all_plots
-from fv3net.diagnostics.one_step_jobs import (
+from .plotting_funcs_one_step import make_all_plots
+from .constants import (
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
     STEP_DIM,
@@ -25,10 +25,7 @@ from fv3net.diagnostics.one_step_jobs import (
     SFC_VARIABLES,
     GRID_VARS,
     VARS_FROM_ZARR,
-    ABS_VARS,
-    GLOBAL_MEAN_2D_VARS,
-    GLOBAL_MEAN_3D_VARS,
-    REPORT_TITLE,
+    REPORT_TITLE
 )
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 import report
@@ -70,6 +67,14 @@ def _create_arg_parser():
         "netcdf_output", type=str, help="Output location for diagnostics netcdf file."
     )
     parser.add_argument(
+        "timesteps_file",
+        type=str,
+        help=(
+            "File containing paired timesteps for train sets. See documentation "
+            "in one-steps scripts for more information."
+        ),
+    )
+    parser.add_argument(
         "--report_directory",
         type=str,
         default=None,
@@ -89,17 +94,17 @@ def _create_arg_parser():
         default=None,
         help="Number of initalization " "to use in computing one-step diagnostics.",
     )
-    parser.add_argument(
-        "--timesteps_file",
-        type=str,
-        default=None,
-        help=(
-            "File containing paired timesteps for train sets. See documentation "
-            "in one-steps scripts for more information."
-        ),
-    )
 
     return parser
+
+
+def _open_diags_config(config_yaml_path: str) -> Mapping:
+    
+        ABS_VARS,
+    GLOBAL_MEAN_2D_VARS,
+    GLOBAL_MEAN_3D_VARS,
+    
+    return dict()
 
 
 def _open_timestamp_pairs(

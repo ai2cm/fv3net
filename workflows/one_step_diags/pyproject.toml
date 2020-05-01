@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "one_step_diags"
+version = "0.1.0"
+description = ""
+authors = ["Brian Henn <brianh@vulcan.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+xarray = "0.15.1"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
