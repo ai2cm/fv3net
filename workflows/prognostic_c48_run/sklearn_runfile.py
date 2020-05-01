@@ -1,11 +1,16 @@
 import logging
 
+import fsspec
 import zarr
+from sklearn.externals import joblib
+from sklearn.utils import parallel_backend
+import xarray as xr
 
 import fv3gfs
 from fv3gfs._wrapper import get_time
 import fv3util
 import runtime
+from fv3net.regression.sklearn.wrapper import SklearnWrapper
 from mpi4py import MPI
 
 logging.basicConfig(level=logging.DEBUG)
@@ -44,6 +49,33 @@ def compute_diagnostics(state, diags):
     )
 
 
+def open_model(url):
+    # Load the model
+    with fsspec.open(url, "rb") as f:
+        return joblib.load(f)
+
+
+def predict(model: SklearnWrapper, state: xr.Dataset) -> xr.Dataset:
+    """Given ML model and state, make tendency prediction."""
+    stacked = state.stack(sample=["x", "y"])
+    with parallel_backend("threading", n_jobs=1):
+        output = model.predict(stacked, "sample").unstack("sample")
+    return output
+
+
+def update(
+    model: SklearnWrapper, state: xr.Dataset, dt: float
+) -> (xr.Dataset, xr.Dataset):
+    """Given ML model and state, return updated state and predicted tendencies."""
+    tend = predict(model, state)
+    with xr.set_options(keep_attrs=True):
+        updated = state.assign(
+            specific_humidity=state["specific_humidity"] + tend["dQ2"] * dt,
+            air_temperature=state["air_temperature"] + tend["dQ1"] * dt,
+        )
+    return updated, tend
+
+
 args = runtime.get_config()
 NML = runtime.get_namelist()
 TIMESTEP = NML["coupler_nml"]["dt_atmos"]
@@ -67,7 +99,7 @@ if __name__ == "__main__":
 
     if rank == 0:
         logger.info("Downloading Sklearn Model")
-        MODEL = runtime.sklearn.open_model(args["scikit_learn"]["model"])
+        MODEL = open_model(args["scikit_learn"]["model"])
         logger.info("Model downloaded")
     else:
         MODEL = None
@@ -93,7 +125,7 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
-        preds, diags = runtime.sklearn.update(MODEL, state, dt=TIMESTEP)
+        preds, diags = update(MODEL, state, dt=TIMESTEP)
         if rank == 0:
             logger.debug("Setting Fortran State")
         fv3gfs.set_state(
