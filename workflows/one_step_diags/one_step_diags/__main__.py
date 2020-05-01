@@ -25,6 +25,7 @@ from .constants import (
     SFC_VARIABLES,
     GRID_VARS,
     VARS_FROM_ZARR,
+    MAPPABLE_VAR_KWARGS,
     REPORT_TITLE
 )
 from fv3net import COARSENED_DIAGS_ZARR_NAME
@@ -70,7 +71,7 @@ def _create_arg_parser():
         "timesteps_file",
         type=str,
         help=(
-            "File containing paired timesteps for train sets. See documentation "
+            "File containing paired timesteps for test set. See documentation "
             "in one-steps scripts for more information."
         ),
     )

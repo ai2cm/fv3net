@@ -30,3 +30,15 @@ VARS_FROM_ZARR = (
     "total_precipitation",
 ) + SFC_VARIABLES
 REPORT_TITLE = "One-step diagnostics"
+MAPPABLE_VAR_KWARGS = {
+    "coord_x_center": "x",
+    "coord_y_center": "y",
+    "coord_x_outer": "x_interface",
+    "coord_y_outer": "y_interface",
+    "coord_vars": {
+        "lonb": ["y_interface", "x_interface", "tile"],
+        "latb": ["y_interface", "x_interface", "tile"],
+        "lon": ["y", "x", "tile"],
+        "lat": ["y", "x", "tile"],
+    },
+}
