@@ -92,7 +92,7 @@ class Array:
     shape: Sequence[int]
     dtype: np.dtype
 
-    def generate(self, domain: Domain) -> np.ndarray:
+    def generate(self, domain: Domain):
         return domain.generate_array(self.shape, self.dtype)
 
 
@@ -102,7 +102,7 @@ class ChunkedArray(Array):
     dtype: np.dtype
     chunks: Tuple[Tuple[int]]
 
-    def generate(self, domain: Domain) -> da.Array:
+    def generate(self, domain: Domain):
         return domain.generate_chunked(self.shape, self.chunks, self.dtype)
 
 
@@ -111,6 +111,7 @@ class VariableSchema:
     name: str
     dims: Sequence[str]
     array: Array
+    domain: Domain
 
     def generate(self):
         return xr.DataArray(
