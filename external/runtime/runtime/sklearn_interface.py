@@ -1,7 +1,6 @@
 import fsspec
 from sklearn.externals import joblib
 from sklearn.utils import parallel_backend
-import xarray as xr
 
 
 __all__ = ["open_model", "predict", "update"]
