@@ -2,6 +2,10 @@ import runfile
 import zarr
 import xarray as xr
 import numpy as np
+import fsspec
+from multiprocessing.pool import ThreadPool
+
+import pytest
 
 
 def test_init_coord():
@@ -39,3 +43,31 @@ def test_init_coord():
 
     loaded = xr.open_zarr(store)
     np.testing.assert_equal(loaded.time.values, ds_lead_time.time.values)
+
+
+@pytest.fixture(params=["gcsfs", "memory"])
+def dest(request):
+    if request.param == "gcsfs":
+        return fsspec.get_mapper("gs://vcm-ml-data/testing-noah/temporarydeleteme/")
+    elif request.param == "memory":
+        return zarr.MemoryStore()
+
+
+def test__cached_store_zarr_integration():
+    src = zarr.MemoryStore()
+    dest = zarr.MemoryStore()
+    with ThreadPool(10) as pool:
+        cache = runfile.CachedStore(src, dest, pool)
+        zarr.open_group(cache, mode="w")
+
+
+def test__cached_store_insert():
+    src = {}
+    dest = {}
+    with ThreadPool(10) as pool:
+        cache = runfile.CachedStore(src, dest, pool, cache_size=2)
+        cache[0] = 0
+        cache[1] = 1
+        cache[2] = 2
+    assert dict(src) == {}
+    assert len(dest) == 3

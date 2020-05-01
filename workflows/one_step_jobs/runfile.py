@@ -1,16 +1,18 @@
 import os
-from typing import Sequence, Mapping, cast, Hashable
+from typing import Sequence, Mapping, cast, Hashable, MutableMapping
 import runtime
 import logging
 import time
+import tempfile
+import collections
 
-# avoid out of memory errors
-# dask.config.set(scheduler='single-threaded')
 
 import fsspec
 import zarr
 import xarray as xr
 import numpy as np
+
+from multiprocessing.pool import ThreadPool
 
 
 logging.basicConfig(level=logging.INFO)
@@ -94,6 +96,55 @@ SFC_VARIABLES = (
 )
 
 GRID_VARIABLES = ("lat", "lon", "latb", "lonb", "area")
+
+
+class CachedStore(collections.abc.MutableMapping):
+    def __init__(self, cache, dest, pool, cache_size=20):
+        self.cache_size = cache_size
+        self.cache = cache
+        self.dest = dest
+        self.pool = pool
+
+    def __getitem__(self, key):
+        try:
+            return self.cache[key]
+        except KeyError:
+            return self.dest[key]
+
+    def __delitem__(self, key):
+        try:
+            del self.cache[key]
+        except KeyError:
+            del self.dest[key]
+
+    def __iter__(self, key):
+        return self
+
+    def __len__(self, key):
+        return len(self.cache) + len(self.dest)
+
+    def flush(self):
+        _copy_store_threaded(self.cache, self.dest, self.pool)
+        for key in list(self.cache):
+            del self.cache[key]
+
+    def __setitem__(self, key, val):
+        self.cache[key] = val
+
+        if len(self.cache) > self.cache_size:
+            self.flush()
+
+    def keys(self):
+        yield from self.cache
+        yield from self.dest
+
+
+def _copy_store_threaded(src: Mapping, dest: MutableMapping, pool):
+    def _copy_key(key):
+        logger.debug(f"copying {key}")
+        dest[key] = src[key]
+
+    pool.map(_copy_key, src)
 
 
 def rename_sfc_dt_atmos(sfc: xr.Dataset) -> xr.Dataset:
@@ -262,15 +313,20 @@ def post_process(
 
     merged = xr.merge([sfc, ds])
     merged = _zarr_safe_string_coord(merged, coord_name="step")
-    mapper = fsspec.get_mapper(store_url)
 
-    if init:
-        logging.info("initializing zarr store")
-        group = zarr.open_group(mapper, mode="w")
-        create_zarr_store(timesteps, group, merged)
+    with tempfile.TemporaryDirectory() as path, ThreadPool(10) as pool:
+        local_store = zarr.DirectoryStore(path)
+        remote_store = fsspec.get_mapper(store_url)
+        store = CachedStore(local_store, remote_store, pool)
 
-    group = zarr.open_group(mapper, mode="a")
-    _write_to_store(group, index, merged)
+        if init:
+            logging.info("initializing zarr store")
+            group = zarr.open_group(store, mode="w")
+            create_zarr_store(timesteps, group, merged)
+
+        group = zarr.open_group(store, mode="a")
+        _write_to_store(group, index, merged)
+        store.flush()
 
 
 if __name__ == "__main__":
