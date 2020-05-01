@@ -89,13 +89,11 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug(f"Getting state variables: {VARIABLES}")
-        state = fv3gfs.get_state(names=VARIABLES)
+        state = fv3util.to_dataset(fv3gfs.get_state(names=VARIABLES))
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
-        preds, diags = runtime.sklearn.update(
-            MODEL, fv3util.to_dataset(state), dt=TIMESTEP
-        )
+        preds, diags = runtime.sklearn.update(MODEL, state, dt=TIMESTEP)
         if rank == 0:
             logger.debug("Setting Fortran State")
         fv3gfs.set_state(
