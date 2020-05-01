@@ -42,7 +42,7 @@ def create_metrics_dataset(ds_pred, ds_fv3, ds_shield, names):
         for ds_target in [ds_fv3, ds_shield]:
             target_label = ds_target.dataset.values.item()
             ds_metrics[
-                f"rms_{var}_vs_{target_label}"
+                f"rmse_{var}_vs_{target_label}"
             ] = _rmse(
                 ds_target[var], ds_pred[var]
             ).mean(names["init_time_dim"])
