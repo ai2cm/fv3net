@@ -97,7 +97,7 @@ def load_high_res_diag_dataset(
     return ds_hires
     
 
-def total_Q(ds, vars=["Q1", "Q2"]):
+def add_total_Q(ds, vars=["Q1", "Q2"]):
     for var in vars:
         ds[var] = ds[f"d{var}"] + ds[f"p{var}"]
     return ds

@@ -18,7 +18,7 @@ from .data import (
     predict_on_test_data,
     load_high_res_diag_dataset,
     add_column_heating_moistening,
-    total_Q,
+    add_total_Q,
 )
 from .diagnostics import plot_diagnostics
 from .create_metrics import create_metrics_dataset, calc_scalar_metrics
@@ -143,7 +143,7 @@ def load_data_and_predict_with_ml(
         names["var_q_heating_ml"],
         names["coord_z_center"],
     )
-    ds_test = total_Q(ds_test, vars=["Q1", "Q2"])
+    ds_test = add_total_Q(ds_test, vars=["Q1", "Q2"])
 
     ds_pred = add_column_heating_moistening(
         ds_pred,
@@ -153,7 +153,7 @@ def load_data_and_predict_with_ml(
         names["var_q_heating_ml"],
         names["coord_z_center"],
     )
-    ds_pred = total_Q(ds_pred, vars=["Q1", "Q2"])
+    ds_pred = add_total_Q(ds_pred, vars=["Q1", "Q2"])
 
     # TODO Do all data merginig and loading before computing anything
     logger.info("Loading high-resolution diagnostics")
