@@ -16,6 +16,9 @@ hv.extension("bokeh")
 
 units = {}
 
+# TODO: These versions might change, so it would be good to automate them somehow.
+# If no plots are appearing in the final reports, this would be a good place to
+# fix.
 _bokeh_html_header = """
 <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.0.2.min.js" integrity="sha384-ufR9RFnRs6lniiaFvtJziE0YeidtAgBRH6ux2oUItHw5WTvE1zuk9uzhUU/FJXDp" crossorigin="anonymous"></script>
 <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.0.2.min.js" integrity="sha384-8QM/PGWBT+IssZuRcDcjzwIh1mkOmJSoNMmyYDZbCfXJg3Ap1lEvdVgFuSAwhb/J" crossorigin="anonymous"></script>
@@ -67,8 +70,8 @@ class PlotManager:
             yield func(data)
 
 
-def get_ts(ds):
-    return ds.drop([key for key in ds if set(ds[key].dims) != {"time"}])
+def get_variables_with_dims(ds, dims):
+    return ds.drop([key for key in ds if set(ds[key].dims) != set(dims)])
 
 
 def convert_time_index_to_datetime(ds, dim):
@@ -200,7 +203,9 @@ def main():
     # load data
     diags = load_diags(args.input)
     diagnostics = {
-        key: convert_time_index_to_datetime(get_ts(ds), "time")
+        key: convert_time_index_to_datetime(
+            get_variables_with_dims(ds, ["time"]), "time"
+        )
         for key, ds in diags.items()
     }
     metrics = load_metrics(args.input)
