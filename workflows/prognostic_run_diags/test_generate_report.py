@@ -1,4 +1,4 @@
-from generate_report import upload
+from generate_report import upload, _parse_metatdata
 
 import pytest
 from google.cloud.storage.client import Client
@@ -32,3 +32,9 @@ def test_upload_html_gcs(client: Client):
     bucket = client.bucket(bucket_name)
     blob = bucket.get_blob(blob)
     blob.content_type == "text/html"
+
+
+def test__parse_metatdata():
+    run = "blah-blah-baseline"
+    out = list(_parse_metatdata(run))[0]
+    assert out == {"run": run, "baseline": Baseline, "one_step": "blah-blah"}
