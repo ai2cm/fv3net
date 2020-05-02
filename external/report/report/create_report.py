@@ -42,37 +42,19 @@ HTML_TEMPLATE = Template(
 )
 
 
-class Plot:
-    @staticmethod
-    def create(obj) -> "Plot":
-        """Factory method for creating different kinds of plots
-        """
-        if isinstance(obj, Plot):
-            return obj
-
-        return ImagePlot(obj)
-
-    def render(self) -> str:
-        raise NotImplementedError
-
-    def __repr__(self) -> str:
-        return self.render()
-
-
-class ImagePlot(Plot):
+class ImagePlot:
     def __init__(self, path: str):
         self.path = path
 
-    def render(self) -> str:
+    def __repr__(self) -> str:
         return f'<img src="{self.path}" />'
 
 
-class HTMLPlot(Plot):
-    def __init__(self, html: str):
-        self.html = html
-
-    def render(self):
-        return self.html
+def resolve_plot(obj):
+    if isinstance(obj, str):
+        return ImagePlot(obj)
+    else:
+        return obj
 
 
 def create_html(
@@ -100,7 +82,7 @@ def create_html(
     now_str = now.strftime(NOW_FORMAT)
 
     resolved_sections = {
-        header: [Plot.create(path) for path in section]
+        header: [resolve_plot(path) for path in section]
         for header, section in sections.items()
     }
 

@@ -9,18 +9,21 @@ import pytest
 @pytest.fixture()
 def verification():
     pytest.skip()
+    # TODO replace these fixtures with synthetic data generation
     return xr.open_dataset("verification.nc").load()
 
 
 @pytest.fixture()
 def resampled():
     pytest.skip()
+    # TODO replace these fixtures with synthetic data generation
     return xr.open_dataset("resampled.nc").load()
 
 
 @pytest.fixture()
 def grid():
     pytest.skip()
+    # TODO replace these fixtures with synthetic data generation
     return xr.open_dataset("grid.nc").load()
 
 
@@ -54,8 +57,3 @@ def test_dump_nc_no_seek():
 @pytest.mark.parametrize("func", savediags._DIAG_FNS)
 def test_compute_diags_succeeds(func, resampled, verification, grid):
     func(resampled, verification, grid)
-
-
-@pytest.fixture()
-def diags(resampled, verification, grid):
-    return savediags.compute_all_diagnostics(resampled, verification, grid)
