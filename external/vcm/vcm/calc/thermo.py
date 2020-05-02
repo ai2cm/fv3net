@@ -8,8 +8,8 @@ from .calc import mass_integrate
 _GRAVITY = 9.80665  # m /s2
 _RDGAS = 287.05  # J / K / kg
 _RVGAS = 461.5  # J / K / kg
-_LATENT_HEAT_VAPORIZATION_0_C = 2.5e6 # J/kg
-_LATENT_HEAT_FUSION = 3.3358e5 # J/kg
+_LATENT_HEAT_VAPORIZATION_0_C = 2.5e6  # J/kg
+_LATENT_HEAT_FUSION = 3.3358e5  # J/kg
 _SPECIFIC_ENTHALPY_LIQUID = 4185.5
 _SPECIFIC_ENTHALPY_VAP0R = 1846
 _SPECIFIC_HEAT_CONST_PRESSURE = 1004
@@ -25,6 +25,7 @@ _REVERSE = slice(None, None, -1)
 _SEC_PER_DAY = 86400
 _KG_M2S_TO_MM_DAY = (1e3 * 86400) / 997.0
 _KG_M2_TO_MM = 1000.0 / 997
+
 
 def potential_temperature(P, T):
     return T * (_REFERENCE_SURFACE_PRESSURE / P) ** _POISSON_CONST
@@ -233,7 +234,9 @@ def latent_heat_flux_to_evaporation(
     return lhf / latent_heat_vaporization(surface_temperature)
 
 
-def surface_evaporation_mm_day_from_latent_heat_flux(latent_heat_flux: xr.DataArray) -> xr.DataArray:
+def surface_evaporation_mm_day_from_latent_heat_flux(
+    latent_heat_flux: xr.DataArray,
+) -> xr.DataArray:
     """Compute surface evaporation in mm/day from latent heat flux
     
     Args:
@@ -243,7 +246,9 @@ def surface_evaporation_mm_day_from_latent_heat_flux(latent_heat_flux: xr.DataAr
         evaporation: DataArray of surface evaporation in mm/day
     """
 
-    surface_evaporation = kg_m2s_to_mm_day * latent_heat_flux_to_evaporation(latent_heat_flux)
+    surface_evaporation = _KG_M2S_TO_MM_DAY * latent_heat_flux_to_evaporation(
+        latent_heat_flux
+    )
     surface_evaporation = surface_evaporation.assign_attrs(
         {"long_name": "surface evaporation", "units": "mm/day"}
     )
@@ -257,7 +262,9 @@ def net_precipitation(lhf, prate):
     return da
 
 
-def surface_pressure_from_delp(delp: xr.DataArray, p_toa: float=300.0, vertical_dim: str='z') -> xr.DataArray:
+def surface_pressure_from_delp(
+    delp: xr.DataArray, p_toa: float = 300.0, vertical_dim: str = "z"
+) -> xr.DataArray:
     """Compute surface pressure from delp in Pa
     
     Args:
@@ -268,10 +275,12 @@ def surface_pressure_from_delp(delp: xr.DataArray, p_toa: float=300.0, vertical_
     Returns:
         surface_pressure: DataArray of surface pressure in Pa
     """
-    
+
     surface_pressure = delp.sum(dim=vertical_dim) + p_toa
-    surface_pressure = surface_pressure.assign_attrs({"long_name": "surface pressure", "units": "Pa"})
-    
+    surface_pressure = surface_pressure.assign_attrs(
+        {"long_name": "surface pressure", "units": "Pa"}
+    )
+
     return surface_pressure
 
 
@@ -296,16 +305,25 @@ def total_water(
     Returns:
         total_water: DataArray of total water mixing ratio in kg/kg
     """
-    
-    total_water = specific_humidity + ice_water + liquid_water + rain_water + snow_water + graupel_water
+
+    total_water = (
+        specific_humidity
+        + ice_water
+        + liquid_water
+        + rain_water
+        + snow_water
+        + graupel_water
+    )
     total_water = total_water.assign_attrs(
         {"long_name": "total water species mixing ratio", "units": "kg/kg"}
     )
-    
+
     return total_water
 
 
-def precipitable_water(specific_humidity: xr.DataArray, delp: xr.DataArray, vertical_dimension: str='z') -> xr.DataArray:
+def precipitable_water(
+    specific_humidity: xr.DataArray, delp: xr.DataArray, vertical_dimension: str = "z"
+) -> xr.DataArray:
     """Compute vertically-integrated precipitable water
     
     Args:
@@ -316,10 +334,14 @@ def precipitable_water(specific_humidity: xr.DataArray, delp: xr.DataArray, vert
     Returns:
         precipitable_water: DataArray of precipitable water in mm
     """
-    
-    precipitable_water = _KG_M2_TO_MM*((delp / GRAVITY) * specific_humidity).sum(vertical_dimension)
-    precipitable_water = precipitable_water.assign_attrs({"long_name": "precipitable water", "units": "mm"})
-    
+
+    precipitable_water = _KG_M2_TO_MM * ((delp / _GRAVITY) * specific_humidity).sum(
+        vertical_dimension
+    )
+    precipitable_water = precipitable_water.assign_attrs(
+        {"long_name": "precipitable water", "units": "mm"}
+    )
+
     return precipitable_water
 
 
@@ -363,7 +385,9 @@ def liquid_ice_temperature(
     return liquid_ice_temperature
 
 
-def column_integrated_heat(temperature: xr.DataArray, delp: xr.DataArray, vertical_dim: str='z') -> xr.DataArray:
+def column_integrated_heat(
+    temperature: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
+) -> xr.DataArray:
     """Compute vertically-integrated total heat
     
     Args:
@@ -374,16 +398,20 @@ def column_integrated_heat(temperature: xr.DataArray, delp: xr.DataArray, vertic
     Returns:
         column_integrated_heat: DataArray of column total heat in J/m**2
     """
-    
-    column_integrated_heat = (SPECIFIC_HEAT_CONST_PRESSURE * (delp / GRAVITY) * temperature).sum(vertical_dim)
-    column_integrated_heat = total_heat.assign_attrs(
+
+    column_integrated_heat = (
+        _SPECIFIC_HEAT_CONST_PRESSURE * (delp / _GRAVITY) * temperature
+    ).sum(vertical_dim)
+    column_integrated_heat = column_integrated_heat.assign_attrs(
         {"long_name": "column integrated heat", "units": "J/m**2"}
     )
-    
+
     return column_integrated_heat
 
 
-def column_integrated_heating(dtemperature_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str='z') -> xr.DataArray:
+def column_integrated_heating(
+    dtemperature_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
+) -> xr.DataArray:
     """Compute vertically-integrated heat tendencies
     
     Args:
@@ -394,19 +422,19 @@ def column_integrated_heating(dtemperature_dt: xr.DataArray, delp: xr.DataArray,
     Returns:
         column_integrated_heating: DataArray of column total heat tendencies in W/m**2
     """
-    
-    column_integrated_heating = SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
+
+    column_integrated_heating = _SPECIFIC_HEAT_CONST_PRESSURE * mass_integrate(
         dtemperature_dt, delp, dim=vertical_dim
     )
     column_integrated_heating = column_integrated_heating.assign_attrs(
         {"long_name": "column integrated heating", "units": "W/m**2"}
     )
-    
+
     return column_integrated_heating
 
 
 def minus_column_integrated_moistening(
-    minus_dsphum_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str='z'
+    minus_dsphum_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
 ) -> xr.DataArray:
     """Compute negative of vertically-integrated moisture tendencies
     
@@ -418,12 +446,12 @@ def minus_column_integrated_moistening(
     Returns:
         column_integrated_heating: DataArray of negative of column total moisture tendencies in mm/day
     """
-    
-    minus_column_integrated_moistening = kg_m2s_to_mm_day * mass_integrate(
+
+    minus_column_integrated_moistening = _KG_M2S_TO_MM_DAY * mass_integrate(
         minus_dsphum_dt, delp, dim=vertical_dim
     )
     minus_column_integrated_moistening = minus_column_integrated_moistening.assign_attrs(
         {"long_name": "negative of column integrated moistening", "units": "mm/day"}
     )
-    
+
     return minus_column_integrated_moistening

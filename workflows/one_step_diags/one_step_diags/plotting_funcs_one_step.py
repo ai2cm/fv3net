@@ -1,16 +1,9 @@
 from vcm.visualize import plot_cube, mappable_var
-from fv3net.diagnostics.one_step_jobs import (
+from .constants import (
     FORECAST_TIME_DIM,
     VAR_TYPE_DIM,
     DELTA_DIM,
     GRID_VARS,
-    GLOBAL_MEAN_2D_VARS,
-    GLOBAL_MEAN_3D_VARS,
-    DIURNAL_VAR_MAPPING,
-    DQ_MAPPING,
-    DQ_PROFILE_MAPPING,
-    PROFILE_COMPOSITES,
-    GLOBAL_2D_MAPS,
     MAPPABLE_VAR_KWARGS,
 )
 import xarray as xr
@@ -23,6 +16,15 @@ import logging
 logger = logging.getLogger("one_step_diags")
 
 FIG_DPI = 100
+
+
+#     GLOBAL_MEAN_2D_VARS,
+#     GLOBAL_MEAN_3D_VARS,
+#     DIURNAL_VAR_MAPPING,
+#     DQ_MAPPING,
+#     DQ_PROFILE_MAPPING,
+#     PROFILE_COMPOSITES,
+#     GLOBAL_2D_MAPS,
 
 
 def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mapping:

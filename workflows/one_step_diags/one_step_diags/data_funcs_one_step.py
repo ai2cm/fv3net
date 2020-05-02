@@ -4,110 +4,110 @@ from scipy.stats import binned_statistic
 from vcm.cubedsphere.constants import TIME_FMT
 from vcm.select import mask_to_surface_type
 from vcm.convenience import parse_datetime_from_str
-from vcm import thermo
-from vcm import local_time
+from vcm import thermo, local_time, net_precipitation
 from datetime import datetime, timedelta
 import logging
 from typing import Sequence, Tuple, Mapping
 
-from fv3net.diagnostics.one_step_jobs import (
+from .constants import (
     SFC_VARIABLES,
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
     DELTA_DIM,
     VAR_TYPE_DIM,
     STEP_DIM,
-    GLOBAL_MEAN_2D_VARS,
-    GLOBAL_MEAN_3D_VARS,
-    DIURNAL_VAR_MAPPING,
-    DQ_MAPPING,
-    DQ_PROFILE_MAPPING,
-    PROFILE_COMPOSITES,
-    GLOBAL_2D_MAPS,
-    GRID_VARS
+    GRID_VARS,
 )
-from fv3net.pipelines.common import subsample_timesteps_at_interval
-from fv3net.pipelines.create_training_data.helpers import load_hires_prog_diag
+
+# from fv3net.pipelines.common import subsample_timesteps_at_interval
+from fv3net.pipelines.common import load_hires_prog_diag
 from fv3net.diagnostics.data import net_heating_from_dataset
-from vcm import net_precipitation
+
+#     GLOBAL_MEAN_2D_VARS,
+#     GLOBAL_MEAN_3D_VARS,
+#     DIURNAL_VAR_MAPPING,
+#     DQ_MAPPING,
+#     DQ_PROFILE_MAPPING,
+#     PROFILE_COMPOSITES,
+#     GLOBAL_2D_MAPS,
 
 logger = logging.getLogger("one_step_diags")
 
 
-def time_inds_to_open(time_coord: xr.DataArray, n_sample: int) -> Sequence:
+# def time_inds_to_open(time_coord: xr.DataArray, n_sample: int) -> Sequence:
 
-    timestamp_list = list(time_coord[INIT_TIME_DIM].values)
-    timestamp_list_no_last = timestamp_list[:-1]
-    duration_minutes, restart_interval_minutes = _duration_and_interval(
-        timestamp_list_no_last
-    )
-    sampling_interval_minutes = _sampling_interval_minutes(
-        duration_minutes, restart_interval_minutes, n_sample
-    )
-    timestamp_subset = subsample_timesteps_at_interval(
-        timestamp_list_no_last, sampling_interval_minutes
-    )
-    timestamp_subset_indices = [
-        _timestamp_pairs_indices(timestamp_list, timestamp, restart_interval_minutes)
-        for timestamp in timestamp_subset
-    ]
-    timestep_subset_indices = filter(
-        lambda x: True if x[0] is not None else False, timestamp_subset_indices
-    )
+#     timestamp_list = list(time_coord[INIT_TIME_DIM].values)
+#     timestamp_list_no_last = timestamp_list[:-1]
+#     duration_minutes, restart_interval_minutes = _duration_and_interval(
+#         timestamp_list_no_last
+#     )
+#     sampling_interval_minutes = _sampling_interval_minutes(
+#         duration_minutes, restart_interval_minutes, n_sample
+#     )
+#     timestamp_subset = subsample_timesteps_at_interval(
+#         timestamp_list_no_last, sampling_interval_minutes
+#     )
+#     timestamp_subset_indices = [
+#         _timestamp_pairs_indices(timestamp_list, timestamp, restart_interval_minutes)
+#         for timestamp in timestamp_subset
+#     ]
+#     timestep_subset_indices = filter(
+#         lambda x: True if x[0] is not None else False, timestamp_subset_indices
+#     )
 
-    return timestep_subset_indices
-
-
-def _duration_and_interval(timestamp_list: list) -> (int, int):
-
-    first_and_last = [datetime.strptime(timestamp_list[i], TIME_FMT) for i in (0, -1)]
-    first_and_second = [datetime.strptime(timestamp_list[i], TIME_FMT) for i in (0, 1)]
-    duration_minutes = (first_and_last[1] - first_and_last[0]).seconds / 60 + (
-        first_and_last[1] - first_and_last[0]
-    ).days * 1440
-    n_steps = len(timestamp_list)
-    restart_interval_minutes = duration_minutes // (n_steps - 1)
-    restart_interval_minutes_first = (
-        first_and_second[1] - first_and_second[0]
-    ).seconds / 60
-    if restart_interval_minutes != restart_interval_minutes_first:
-        logger.info("Incomplete initialization set detected in .zarr")
-        restart_interval_minutes = restart_interval_minutes_first
-
-    return duration_minutes, restart_interval_minutes
+#     return timestep_subset_indices
 
 
-def _sampling_interval_minutes(
-    duration_minutes: int, restart_interval_minutes: int, n_sample: int
-) -> int:
-    try:
-        interval_minutes = restart_interval_minutes * max(
-            (duration_minutes / (n_sample - 1)) // restart_interval_minutes, 1
-        )
-    except ZeroDivisionError:
-        interval_minutes = None
-    return interval_minutes
+# def _duration_and_interval(timestamp_list: list) -> (int, int):
+
+#     first_and_last = [datetime.strptime(timestamp_list[i], TIME_FMT) for i in (0, -1)]
+#     first_and_second = [datetime.strptime(timestamp_list[i], TIME_FMT) for i in (0, 1)]
+#     duration_minutes = (first_and_last[1] - first_and_last[0]).seconds / 60 + (
+#         first_and_last[1] - first_and_last[0]
+#     ).days * 1440
+#     n_steps = len(timestamp_list)
+#     restart_interval_minutes = duration_minutes // (n_steps - 1)
+#     restart_interval_minutes_first = (
+#         first_and_second[1] - first_and_second[0]
+#     ).seconds / 60
+#     if restart_interval_minutes != restart_interval_minutes_first:
+#         logger.info("Incomplete initialization set detected in .zarr")
+#         restart_interval_minutes = restart_interval_minutes_first
+
+#     return duration_minutes, restart_interval_minutes
 
 
-def _timestamp_pairs_indices(
-    timestamp_list: list,
-    timestamp: str,
-    time_fmt: str = TIME_FMT,
-    time_interval_minutes: int = 15,
-) -> Tuple:
+# def _sampling_interval_minutes(
+#     duration_minutes: int, restart_interval_minutes: int, n_sample: int
+# ) -> int:
+#     try:
+#         interval_minutes = restart_interval_minutes * max(
+#             (duration_minutes / (n_sample - 1)) // restart_interval_minutes, 1
+#         )
+#     except ZeroDivisionError:
+#         interval_minutes = None
+#     return interval_minutes
 
-    timestamp1 = datetime.strftime(
-        datetime.strptime(timestamp, TIME_FMT)
-        + timedelta(minutes=time_interval_minutes),
-        TIME_FMT,
-    )
-    try:
-        index0 = timestamp_list.index(timestamp)
-        index1 = timestamp_list.index(timestamp1)
-        pairs = index0, index1
-    except ValueError:
-        pairs = None, None
-    return pairs
+
+# def _timestamp_pairs_indices(
+#     timestamp_list: list,
+#     timestamp: str,
+#     time_fmt: str = TIME_FMT,
+#     time_interval_minutes: int = 15,
+# ) -> Tuple:
+
+#     timestamp1 = datetime.strftime(
+#         datetime.strptime(timestamp, TIME_FMT)
+#         + timedelta(minutes=time_interval_minutes),
+#         TIME_FMT,
+#     )
+#     try:
+#         index0 = timestamp_list.index(timestamp)
+#         index1 = timestamp_list.index(timestamp1)
+#         pairs = index0, index1
+#     except ValueError:
+#         pairs = None, None
+#     return pairs
 
 
 def time_coord_to_datetime(
@@ -202,7 +202,9 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             "net_precipitation_physics": net_precipitation(
                 ds["latent_heat_flux"], ds["total_precipitation"]
             ),
-            "evaporation": thermo.surface_evaporation_mm_day_from_latent_heat_flux(ds["latent_heat_flux"]),
+            "evaporation": thermo.surface_evaporation_mm_day_from_latent_heat_flux(
+                ds["latent_heat_flux"]
+            ),
             "net_heating_physics": net_heating_from_dataset(
                 ds.rename(
                     {
@@ -386,9 +388,7 @@ def mean_diurnal_cycle(
 
 
 def insert_diurnal_means(
-    ds: xr.Dataset,
-    var_mapping: Mapping = DIURNAL_VAR_MAPPING,
-    mask: str = "land_sea_mask",
+    ds: xr.Dataset, var_mapping: Mapping, mask: str = "land_sea_mask",
 ) -> xr.Dataset:
 
     ds = ds.assign({"local_time": local_time(ds, time=INIT_TIME_DIM)})
@@ -616,33 +616,33 @@ def insert_area_means(
     return ds
 
 
-def shrink_ds(ds: xr.Dataset):
+def shrink_ds(ds: xr.Dataset, config):
     """SHrink the datast to the variables actually used in plotting
     """
     keepvars = set(
-        [f"{var}_global_mean" for var in list(GLOBAL_MEAN_2D_VARS)]
+        [f"{var}_global_mean" for var in list(config["GLOBAL_MEAN_2D_VARS"])]
         + [
             f"{var}_{composite}_mean"
-            for var in list(GLOBAL_MEAN_3D_VARS)
+            for var in list(config["GLOBAL_MEAN_3D_VARS"])
             for composite in ["global", "sea", "land"]
         ]
         + [
             f"{var}_{domain}"
-            for var in DIURNAL_VAR_MAPPING
+            for var in config["DIURNAL_VAR_MAPPING"]
             for domain in ["land", "sea", "global"]
         ]
         + [
             item
-            for spec in DQ_MAPPING.values()
+            for spec in config["DQ_MAPPING"].values()
             for item in [f"{spec['physics_name']}_physics", spec["tendency_diff_name"]]
         ]
         + [
             f"{dq_var}_{composite}"
-            for dq_var in list(DQ_PROFILE_MAPPING)
-            for composite in list(PROFILE_COMPOSITES)
+            for dq_var in list(config["DQ_PROFILE_MAPPING"])
+            for composite in list(config["PROFILE_COMPOSITES"])
         ]
-        + list(GLOBAL_2D_MAPS)
-        + list(GRID_VARS)
+        + list(config["GLOBAL_2D_MAPS"])
+        + list(config["GRID_VARS"])
     )
 
     dropvars = set(ds.data_vars).difference(keepvars)

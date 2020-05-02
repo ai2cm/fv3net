@@ -1,20 +1,7 @@
 from vcm.cloud.fsspec import get_fs, get_protocol
 from vcm.cloud.gsutil import copy
 from vcm.cubedsphere.constants import TIME_FMT
-from .data_funcs_one_step import (
-    time_inds_to_open,
-    time_coord_to_datetime,
-    insert_hi_res_diags,
-    insert_derived_vars_from_ds_zarr,
-    get_states_and_tendencies,
-    insert_column_integrated_tendencies,
-    insert_model_run_differences,
-    insert_abs_vars,
-    insert_variable_at_model_level,
-    insert_diurnal_means,
-    insert_area_means,
-    shrink_ds,
-)
+from . import data_funcs_one_step as data_funcs
 from .plotting_funcs_one_step import make_all_plots
 from .constants import (
     INIT_TIME_DIM,
@@ -26,9 +13,11 @@ from .constants import (
     GRID_VARS,
     VARS_FROM_ZARR,
     MAPPABLE_VAR_KWARGS,
-    REPORT_TITLE
+    REPORT_TITLE,
 )
-from fv3net import COARSENED_DIAGS_ZARR_NAME
+from . import config
+
+# from fv3net import COARSENED_DIAGS_ZARR_NAME
 import report
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -65,15 +54,23 @@ def _create_arg_parser():
         help="C384 diagnostics zarr path, not including zarr name.",
     )
     parser.add_argument(
-        "netcdf_output", type=str, help="Output location for diagnostics netcdf file."
-    )
-    parser.add_argument(
         "timesteps_file",
         type=str,
         help=(
             "File containing paired timesteps for test set. See documentation "
             "in one-steps scripts for more information."
         ),
+    )
+    #     parser.add_argument(
+    #         "diags_config",
+    #         type=str,
+    #         help=(
+    #             "File containing paired timesteps for test set. See documentation "
+    #             "in one-steps scripts for more information."
+    #         ),
+    #     )
+    parser.add_argument(
+        "netcdf_output", type=str, help="Output location for diagnostics netcdf file."
     )
     parser.add_argument(
         "--report_directory",
@@ -95,17 +92,27 @@ def _create_arg_parser():
         default=None,
         help="Number of initalization " "to use in computing one-step diagnostics.",
     )
+    parser.add_argument(
+        "--coarsened_diags_zarr_name",
+        type=str,
+        default="gfsphysics_15min_coarse.zarr",
+        help="(Public) bucket path for report and image upload. If omitted, report is"
+        "written to netcdf_output.",
+    )
 
     return parser
 
 
-def _open_diags_config(config_yaml_path: str) -> Mapping:
-    
-        ABS_VARS,
-    GLOBAL_MEAN_2D_VARS,
-    GLOBAL_MEAN_3D_VARS,
-    
-    return dict()
+#         ABS_VARS,
+#     GLOBAL_MEAN_2D_VARS,
+#     GLOBAL_MEAN_3D_VARS,
+
+# def _open_diags_config(config_yaml_path: str) -> Mapping:
+
+#     with open(config_yaml_path, mode='r') as f:
+#         diags_config = yaml.safe_load(f)
+
+#     return diags_config
 
 
 def _open_timestamp_pairs(
@@ -140,9 +147,13 @@ def _insert_derived_vars(
         )
         ds = (
             ds.assign_coords({"z": np.arange(1.0, ds.sizes["z"] + 1.0)})
-            .pipe(time_coord_to_datetime)
-            .pipe(insert_hi_res_diags, hi_res_diags_zarrpath, hi_res_diags_mapping)
-            .pipe(insert_derived_vars_from_ds_zarr)
+            .pipe(data_funcs.time_coord_to_datetime)
+            .pipe(
+                data_funcs.insert_hi_res_diags,
+                hi_res_diags_zarrpath,
+                hi_res_diags_mapping,
+            )
+            .pipe(data_funcs.insert_derived_vars_from_ds_zarr)
         )
         logger.info(
             f"Finished inserting derived variables for timestep "
@@ -155,7 +166,7 @@ def _insert_derived_vars(
     return ds
 
 
-def _insert_states_and_tendencies(ds: xr.Dataset) -> xr.Dataset:
+def _insert_states_and_tendencies(ds: xr.Dataset, abs_vars: Sequence) -> xr.Dataset:
     """dataflow pipeline func for adding states and tendencies
     """
 
@@ -163,12 +174,12 @@ def _insert_states_and_tendencies(ds: xr.Dataset) -> xr.Dataset:
         timestep = ds[INIT_TIME_DIM].values[0].strftime(TIME_FMT)
         logger.info(f"Inserting states and tendencies for timestep {timestep}")
         ds = (
-            get_states_and_tendencies(ds)
-            .pipe(insert_column_integrated_tendencies)
-            .pipe(insert_model_run_differences)
-            .pipe(insert_abs_vars, ABS_VARS)
+            data_funcs.get_states_and_tendencies(ds)
+            .pipe(data_funcs.insert_column_integrated_tendencies)
+            .pipe(data_funcs.insert_model_run_differences)
+            .pipe(data_funcs.insert_abs_vars, abs_vars)
             .pipe(
-                insert_variable_at_model_level,
+                data_funcs.insert_variable_at_model_level,
                 ["vertical_wind", "vertical_wind_abs"],
                 [40, 40],
             )
@@ -184,7 +195,9 @@ def _insert_states_and_tendencies(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def _insert_means_and_shrink(ds: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
+def _insert_means_and_shrink(
+    ds: xr.Dataset, grid: xr.Dataset, config: Mapping
+) -> xr.Dataset:
     """dataflow pipeline func for adding mean variables and shrinking dataset to
     managable size for aggregation and saving
     """
@@ -194,14 +207,15 @@ def _insert_means_and_shrink(ds: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
         logger.info(f"Inserting means and shrinking timestep {timestep}")
         ds = (
             ds.merge(grid)
-            .pipe(insert_diurnal_means)
+            .pipe(data_funcs.insert_diurnal_means, config["DIURNAL_VAR_MAPPING"])
             .pipe(
-                insert_area_means,
+                data_funcs.insert_area_means,
                 grid["area"],
-                list(GLOBAL_MEAN_2D_VARS) + list(GLOBAL_MEAN_3D_VARS),
+                list(config["GLOBAL_MEAN_2D_VARS"])
+                + list(config["GLOBAL_MEAN_3D_VARS"]),
                 ["land_sea_mask", "net_precipitation_physics"],
             )
-            .pipe(shrink_ds)
+            .pipe(data_funcs.shrink_ds, config)
             .load()
         )
         logger.info(f"Finished shrinking timestep {timestep}")
@@ -226,6 +240,9 @@ class MeanAndStDevFn(beam.CombineFn):
     """beam CombineFn subclass for taking mean and standard deviation along
     initialization time dimension of aggregated diagnostic dataset
     """
+
+    def __init__(self, std_vars: Sequence = None):
+        self.std_vars = std_vars
 
     def create_accumulator(self):
         return (0.0, 0.0, [], 0)
@@ -262,7 +279,7 @@ class MeanAndStDevFn(beam.CombineFn):
                     else float("NaN")
                 )
             for var in mean:
-                if var in [f"{var}_global_mean" for var in list(GLOBAL_MEAN_2D_VARS)]:
+                if var in [f"{var}_global_mean" for var in self.std_vars]:
                     mean = mean.assign({f"{var}_std": std_dev[var]})
                     mean[f"{var}_std"].attrs.update(mean[var].attrs)
                     if "long_name" in mean[var].attrs:
@@ -302,6 +319,9 @@ def _get_remote_netcdf(filename):
 
 args, pipeline_args = _create_arg_parser().parse_known_args()
 
+# diags_config = _open_diags_config(args.diags_config)
+config = {key: getattr(config, key) for key in config.__all__}
+
 zarrpath = os.path.join(args.one_step_data, ONE_STEP_ZARR)
 fs = get_fs(zarrpath)
 mapper = fs.get_mapper(zarrpath)
@@ -310,49 +330,49 @@ if ".zmetadata" not in mapper:
     zarr.consolidate_metadata(mapper)
 ds_zarr_template = xr.open_zarr(mapper)[list(GRID_VARS) + [INIT_TIME_DIM]]
 
-if args.timesteps_file is None:
+# if args.timesteps_file is None:
 
-    # get subsampling from zarr times and specified parameters
+#     # get subsampling from zarr times and specified parameters
 
-    ds_zarr_times = ds_zarr_template.isel({INIT_TIME_DIM: slice(args.start_ind, None)})[
-        INIT_TIME_DIM
-    ]
+#     ds_zarr_times = ds_zarr_template.isel({INIT_TIME_DIM: slice(args.start_ind, None)})[
+#         INIT_TIME_DIM
+#     ]
 
-    logger.info(f"Opened .zarr at {zarrpath}")
+#     logger.info(f"Opened .zarr at {zarrpath}")
 
-    if args.n_sample_inits is None:
-        n_sample_inits = ds_zarr_times.sizes[INIT_TIME_DIM]
-    else:
-        n_sample_inits = args.n_sample_inits
-    timestamp_subset_indices = time_inds_to_open(ds_zarr_times, n_sample_inits)
+#     if args.n_sample_inits is None:
+#         n_sample_inits = ds_zarr_times.sizes[INIT_TIME_DIM]
+#     else:
+#         n_sample_inits = args.n_sample_inits
+#     timestamp_subset_indices = time_inds_to_open(ds_zarr_times, n_sample_inits)
 
-    timestamp_pairs_subset = [
-        [
-            ds_zarr_times.isel({INIT_TIME_DIM: indices[0]}).item(),
-            ds_zarr_times.isel({INIT_TIME_DIM: indices[1]}).item(),
-        ]
-        for indices in timestamp_subset_indices
-    ]
+#     timestamp_pairs_subset = [
+#         [
+#             ds_zarr_times.isel({INIT_TIME_DIM: indices[0]}).item(),
+#             ds_zarr_times.isel({INIT_TIME_DIM: indices[1]}).item(),
+#         ]
+#         for indices in timestamp_subset_indices
+#     ]
 
+# else:
+
+# get subsampling from json file and specified parameters
+
+with open(args.timesteps_file, "r") as f:
+    timesteps = yaml.safe_load(f)
+timestamp_pairs_train = timesteps["test"]
+
+if args.n_sample_inits:
+    old_state = random.getstate()
+    random.seed(0, version=1)
+    timestamp_pairs_subset = random.sample(
+        timestamp_pairs_train[args.start_ind :], args.n_sample_inits
+    )
+    random.setstate(old_state)
 else:
+    timestamp_pairs_subset = timestamp_pairs_train[args.start_ind :]
 
-    # get subsampling from json file and specified parameters
-
-    with open(args.timesteps_file, "r") as f:
-        timesteps = yaml.safe_load(f)
-    timestamp_pairs_train = timesteps["test"]
-
-    if args.n_sample_inits:
-        old_state = random.getstate()
-        random.seed(0, version=1)
-        timestamp_pairs_subset = random.sample(
-            timestamp_pairs_train[args.start_ind :], args.n_sample_inits
-        )
-        random.setstate(old_state)
-    else:
-        timestamp_pairs_subset = timestamp_pairs_train[args.start_ind :]
-
-hi_res_diags_zarrpath = os.path.join(args.hi_res_diags, COARSENED_DIAGS_ZARR_NAME)
+hi_res_diags_zarrpath = os.path.join(args.hi_res_diags, args.coarsened_diags_zarr_name)
 hi_res_diags_mapping = {name: name for name in SFC_VARIABLES}
 hi_res_diags_mapping.update(
     {
@@ -376,10 +396,12 @@ with beam.Pipeline(options=beam_options) as p:
         | "OpenDSPairs" >> beam.Map(_open_timestamp_pairs, mapper)
         | "InsertDerivedVars"
         >> beam.Map(_insert_derived_vars, hi_res_diags_zarrpath, hi_res_diags_mapping)
-        | "InsertStatesAndTendencies" >> beam.Map(_insert_states_and_tendencies)
-        | "InsertMeanVars" >> beam.Map(_insert_means_and_shrink, grid)
+        | "InsertStatesAndTendencies"
+        >> beam.Map(_insert_states_and_tendencies, config["ABS_VARS"])
+        | "InsertMeanVars" >> beam.Map(_insert_means_and_shrink, grid, config)
         | "FilterDS" >> beam.Filter(_filter_ds)
-        | "MeanAndStdDev" >> beam.CombineGlobally(MeanAndStDevFn())
+        | "MeanAndStdDev"
+        >> beam.CombineGlobally(MeanAndStDevFn(std_vars=config["GLOBAL_MEAN_2D_VARS"]))
         | "WriteDS" >> beam.Map(_write_ds, output_nc_path)
     )
 
