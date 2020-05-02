@@ -27,7 +27,7 @@ FIG_DPI = 100
 #     GLOBAL_2D_MAPS,
 
 
-def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mapping:
+def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_dir: str) -> Mapping:
     """ Makes figures for predictions on test data
 
     Args:
@@ -37,6 +37,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
             variables, global/land/sea mean time series, and global/land/sea
             mean time-height series, i=output from
             fv3net.diagnostics.one_step_jobs
+        config: diagnostics configuration dict specifying plots
         output_dir: location to write figures to
 
     Returns:
@@ -55,7 +56,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     logger.info(f"Plotting {section_name}")
 
     global_mean_time_series_plots = []
-    for var, specs in GLOBAL_MEAN_2D_VARS.items():
+    for var, specs in config["GLOBAL_MEAN_2D_VARS"].items():
         for vartype, scale in zip(specs[VAR_TYPE_DIM], specs["scale"]):
             f = plot_global_mean_time_series(
                 states_and_tendencies.sel({VAR_TYPE_DIM: vartype})[
@@ -81,7 +82,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     averages = ["global", "land", "sea"]
 
     diurnal_cycle_comparisons = []
-    for var, spec in DIURNAL_VAR_MAPPING.items():
+    for var, spec in config["DIURNAL_VAR_MAPPING"].items():
         scale = spec["scale"]
         for domain in averages:
             f = plot_diurnal_cycles(
@@ -102,7 +103,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     logger.info(f"Plotting {section_name}")
 
     dQ_comparison_maps = []
-    for q_term, mapping in DQ_MAPPING.items():
+    for q_term, mapping in config["DQ_MAPPING"].items():
         residual_var = mapping["tendency_diff_name"]
         physics_var = mapping["physics_name"]
         scale = mapping["scale"]
@@ -200,7 +201,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     logger.info(f"Plotting {section_name}")
 
     dQ_profile_maps = []
-    for ds_name, dQ_info in DQ_PROFILE_MAPPING.items():
+    for ds_name, dQ_info in config["DQ_PROFILE_MAPPING"].items():
         dQ_name = dQ_info["name"]
         dQ_type = dQ_info[VAR_TYPE_DIM]
         scale = dQ_info["scale"]
@@ -229,7 +230,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     averages = ["global", "sea", "land"]
 
     mean_time_height_plots = []
-    for var, spec in GLOBAL_MEAN_3D_VARS.items():
+    for var, spec in config["GLOBAL_MEAN_3D_VARS"].items():
         vartype = spec[VAR_TYPE_DIM]
         scale = spec["scale"]
         combined_ds = (
@@ -260,7 +261,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, output_dir: str) -> Mappin
     logger.info(f"Plotting {section_name}")
 
     maps_across_forecast_time = []
-    for var, spec in GLOBAL_2D_MAPS.items():
+    for var, spec in config["GLOBAL_2D_MAPS"].items():
         vartype = spec[VAR_TYPE_DIM]
         scale = spec["scale"]
 

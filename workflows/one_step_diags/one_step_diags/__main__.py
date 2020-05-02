@@ -1,6 +1,7 @@
 from vcm.cloud.fsspec import get_fs, get_protocol
 from vcm.cloud.gsutil import copy
 from vcm.cubedsphere.constants import TIME_FMT
+from fv3net.pipelines.common import update_nested_dict
 from . import data_funcs_one_step as data_funcs
 from .plotting_funcs_one_step import make_all_plots
 from .constants import (
@@ -16,8 +17,6 @@ from .constants import (
     REPORT_TITLE,
 )
 from . import config
-
-# from fv3net import COARSENED_DIAGS_ZARR_NAME
 import report
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -30,9 +29,9 @@ import random
 import os
 import shutil
 from tempfile import TemporaryDirectory
+from typing import Sequence, Mapping, Any, MutableMapping
 import logging
 import sys
-from typing import Sequence, Mapping, Any, MutableMapping
 
 out_hdlr = logging.StreamHandler(sys.stdout)
 out_hdlr.setFormatter(
@@ -40,7 +39,9 @@ out_hdlr.setFormatter(
 )
 out_hdlr.setLevel(logging.INFO)
 logging.basicConfig(handlers=[out_hdlr])
+
 logger = logging.getLogger("one_step_diags")
+logger.setLevel(logging.INFO)
 
 
 def _create_arg_parser():
@@ -61,14 +62,6 @@ def _create_arg_parser():
             "in one-steps scripts for more information."
         ),
     )
-    #     parser.add_argument(
-    #         "diags_config",
-    #         type=str,
-    #         help=(
-    #             "File containing paired timesteps for test set. See documentation "
-    #             "in one-steps scripts for more information."
-    #         ),
-    #     )
     parser.add_argument(
         "netcdf_output", type=str, help="Output location for diagnostics netcdf file."
     )
@@ -80,20 +73,29 @@ def _create_arg_parser():
         "written to netcdf_output.",
     )
     parser.add_argument(
-        "--start_ind",
+        "--diags-config",
+        type=str,
+        default=None,
+        help=(
+            "File containing paired timesteps for test set. See documentation "
+            "in one-steps scripts for more information."
+        ),
+    )
+    parser.add_argument(
+        "--start-ind",
         type=int,
         default=None,
         help="First timestep index to use in "
         "zarr. Earlier spin-up timesteps will be skipped. Defaults to 0.",
     )
     parser.add_argument(
-        "--n_sample_inits",
+        "--n-sample-inits",
         type=int,
         default=None,
         help="Number of initalization " "to use in computing one-step diagnostics.",
     )
     parser.add_argument(
-        "--coarsened_diags_zarr_name",
+        "--coarsened-diags-zarr-name",
         type=str,
         default="gfsphysics_15min_coarse.zarr",
         help="(Public) bucket path for report and image upload. If omitted, report is"
@@ -103,16 +105,12 @@ def _create_arg_parser():
     return parser
 
 
-#         ABS_VARS,
-#     GLOBAL_MEAN_2D_VARS,
-#     GLOBAL_MEAN_3D_VARS,
+def _open_diags_config(config_yaml_path: str) -> Mapping:
 
-# def _open_diags_config(config_yaml_path: str) -> Mapping:
+    with open(config_yaml_path, mode='r') as f:
+        diags_config = yaml.safe_load(f)
 
-#     with open(config_yaml_path, mode='r') as f:
-#         diags_config = yaml.safe_load(f)
-
-#     return diags_config
+    return diags_config
 
 
 def _open_timestamp_pairs(
@@ -319,8 +317,13 @@ def _get_remote_netcdf(filename):
 
 args, pipeline_args = _create_arg_parser().parse_known_args()
 
-# diags_config = _open_diags_config(args.diags_config)
-config = {key: getattr(config, key) for key in config.__all__}
+default_config = {key: getattr(config, key) for key in config.__all__}
+if args.diags_config is not None:
+    supplemental_config = _open_diags_config(args.diags_config)
+    config = update_nested_dict(default_config, supplemental_config)
+else:
+    config = default_config
+print(config)
 
 zarrpath = os.path.join(args.one_step_data, ONE_STEP_ZARR)
 fs = get_fs(zarrpath)
@@ -330,37 +333,11 @@ if ".zmetadata" not in mapper:
     zarr.consolidate_metadata(mapper)
 ds_zarr_template = xr.open_zarr(mapper)[list(GRID_VARS) + [INIT_TIME_DIM]]
 
-# if args.timesteps_file is None:
-
-#     # get subsampling from zarr times and specified parameters
-
-#     ds_zarr_times = ds_zarr_template.isel({INIT_TIME_DIM: slice(args.start_ind, None)})[
-#         INIT_TIME_DIM
-#     ]
-
-#     logger.info(f"Opened .zarr at {zarrpath}")
-
-#     if args.n_sample_inits is None:
-#         n_sample_inits = ds_zarr_times.sizes[INIT_TIME_DIM]
-#     else:
-#         n_sample_inits = args.n_sample_inits
-#     timestamp_subset_indices = time_inds_to_open(ds_zarr_times, n_sample_inits)
-
-#     timestamp_pairs_subset = [
-#         [
-#             ds_zarr_times.isel({INIT_TIME_DIM: indices[0]}).item(),
-#             ds_zarr_times.isel({INIT_TIME_DIM: indices[1]}).item(),
-#         ]
-#         for indices in timestamp_subset_indices
-#     ]
-
-# else:
-
 # get subsampling from json file and specified parameters
 
 with open(args.timesteps_file, "r") as f:
     timesteps = yaml.safe_load(f)
-timestamp_pairs_train = timesteps["test"]
+timestamp_pairs_train = timesteps["train"]
 
 if args.n_sample_inits:
     old_state = random.getstate()
@@ -428,7 +405,7 @@ os.mkdir(output_report_dir)
 
 logger.info(f"Writing diagnostics plots report to {report_path}")
 
-report_sections = make_all_plots(states_and_tendencies, output_report_dir)
+report_sections = make_all_plots(states_and_tendencies, config, output_report_dir)
 with open(os.path.join(output_report_dir, "figure_metadata.yml"), mode="w") as f:
     yaml.dump(report_sections, f)
 metadata = vars(args)

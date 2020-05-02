@@ -7,7 +7,7 @@ MODEL_VERSION=deep-off
 ONE_STEP_DATA=gs://vcm-ml-experiments/2020-04-22-advisory-council/${MODEL_VERSION}/one_step_run
 HI_RES_DIAGS=gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
 TIMESTEPS_FILE=./train_and_test_times.json
-DIAGS_CONFIG=./workflows/one_step_diags/one_step_diags_config.yaml
+DIAGS_CONFIG=./workflows/one_step_diags/one_step_diags_ex_config.yaml
 NETCDF_OUTPUT=gs://vcm-ml-scratch/brianh/one-step-diags-testing/${MODEL_VERSION}-${STAMP}
 REPORT_DIRECTORY=gs://vcm-ml-public/2020-04-22-advisory-council/${MODEL_VERSION}-test/one-step-diagnostics
 
@@ -24,8 +24,8 @@ python -m one_step_diags \
 $ONE_STEP_DATA \
 $HI_RES_DIAGS \
 $TIMESTEPS_FILE \
-$DIAGS_CONFIG \
 $NETCDF_OUTPUT \
---report_directory $REPORT_DIRECTORY \
---n_sample_inits "2" \
+--report-directory $REPORT_DIRECTORY \
+--diags-config $DIAGS_CONFIG \
+--n-sample-inits 2 \
 --runner "DirectRunner"

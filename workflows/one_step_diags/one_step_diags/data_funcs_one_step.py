@@ -19,95 +19,15 @@ from .constants import (
     GRID_VARS,
 )
 
-# from fv3net.pipelines.common import subsample_timesteps_at_interval
 from fv3net.pipelines.common import load_hires_prog_diag
 from fv3net.diagnostics.data import net_heating_from_dataset
 
-#     GLOBAL_MEAN_2D_VARS,
-#     GLOBAL_MEAN_3D_VARS,
-#     DIURNAL_VAR_MAPPING,
-#     DQ_MAPPING,
-#     DQ_PROFILE_MAPPING,
-#     PROFILE_COMPOSITES,
-#     GLOBAL_2D_MAPS,
+
 
 logger = logging.getLogger("one_step_diags")
 
+_KG_M2S_TO_MM_DAY = (1e3 * 86400) / 997.0
 
-# def time_inds_to_open(time_coord: xr.DataArray, n_sample: int) -> Sequence:
-
-#     timestamp_list = list(time_coord[INIT_TIME_DIM].values)
-#     timestamp_list_no_last = timestamp_list[:-1]
-#     duration_minutes, restart_interval_minutes = _duration_and_interval(
-#         timestamp_list_no_last
-#     )
-#     sampling_interval_minutes = _sampling_interval_minutes(
-#         duration_minutes, restart_interval_minutes, n_sample
-#     )
-#     timestamp_subset = subsample_timesteps_at_interval(
-#         timestamp_list_no_last, sampling_interval_minutes
-#     )
-#     timestamp_subset_indices = [
-#         _timestamp_pairs_indices(timestamp_list, timestamp, restart_interval_minutes)
-#         for timestamp in timestamp_subset
-#     ]
-#     timestep_subset_indices = filter(
-#         lambda x: True if x[0] is not None else False, timestamp_subset_indices
-#     )
-
-#     return timestep_subset_indices
-
-
-# def _duration_and_interval(timestamp_list: list) -> (int, int):
-
-#     first_and_last = [datetime.strptime(timestamp_list[i], TIME_FMT) for i in (0, -1)]
-#     first_and_second = [datetime.strptime(timestamp_list[i], TIME_FMT) for i in (0, 1)]
-#     duration_minutes = (first_and_last[1] - first_and_last[0]).seconds / 60 + (
-#         first_and_last[1] - first_and_last[0]
-#     ).days * 1440
-#     n_steps = len(timestamp_list)
-#     restart_interval_minutes = duration_minutes // (n_steps - 1)
-#     restart_interval_minutes_first = (
-#         first_and_second[1] - first_and_second[0]
-#     ).seconds / 60
-#     if restart_interval_minutes != restart_interval_minutes_first:
-#         logger.info("Incomplete initialization set detected in .zarr")
-#         restart_interval_minutes = restart_interval_minutes_first
-
-#     return duration_minutes, restart_interval_minutes
-
-
-# def _sampling_interval_minutes(
-#     duration_minutes: int, restart_interval_minutes: int, n_sample: int
-# ) -> int:
-#     try:
-#         interval_minutes = restart_interval_minutes * max(
-#             (duration_minutes / (n_sample - 1)) // restart_interval_minutes, 1
-#         )
-#     except ZeroDivisionError:
-#         interval_minutes = None
-#     return interval_minutes
-
-
-# def _timestamp_pairs_indices(
-#     timestamp_list: list,
-#     timestamp: str,
-#     time_fmt: str = TIME_FMT,
-#     time_interval_minutes: int = 15,
-# ) -> Tuple:
-
-#     timestamp1 = datetime.strftime(
-#         datetime.strptime(timestamp, TIME_FMT)
-#         + timedelta(minutes=time_interval_minutes),
-#         TIME_FMT,
-#     )
-#     try:
-#         index0 = timestamp_list.index(timestamp)
-#         index1 = timestamp_list.index(timestamp1)
-#         pairs = index0, index1
-#     except ValueError:
-#         pairs = None, None
-#     return pairs
 
 
 def time_coord_to_datetime(
@@ -137,7 +57,7 @@ def insert_hi_res_diags(
 
     datetimes = list(ds[INIT_TIME_DIM].values)
     ds_hires_diags = load_hires_prog_diag(hi_res_diags_path, datetimes).rename(new_dims)
-
+    
     new_vars = {}
     for coarse_name, hires_name in varnames_mapping.items():
         hires_name = hires_name + "_coarse"  # this is confusing...
@@ -214,7 +134,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
                 )
             ),
             "total_precipitation": (
-                (ds["total_precipitation"] * kg_m2s_to_mm_day).assign_attrs(
+                (ds["total_precipitation"] * _KG_M2S_TO_MM_DAY).assign_attrs(
                     {"long name": "total precipitation", "units": "mm/day"}
                 )
             ),
@@ -368,7 +288,7 @@ def insert_variable_at_model_level(
 def mean_diurnal_cycle(
     da: xr.DataArray, local_time: xr.DataArray, stack_dims: list = ["x", "y", "tile"]
 ) -> xr.DataArray:
-
+    
     local_time = local_time.stack(dimensions={"sample": stack_dims}).dropna("sample")
     da = da.stack(dimensions={"sample": stack_dims}).dropna("sample")
     other_dims = [dim for dim in da.dims if dim != "sample"]
@@ -642,7 +562,7 @@ def shrink_ds(ds: xr.Dataset, config):
             for composite in list(config["PROFILE_COMPOSITES"])
         ]
         + list(config["GLOBAL_2D_MAPS"])
-        + list(config["GRID_VARS"])
+        + list(GRID_VARS)
     )
 
     dropvars = set(ds.data_vars).difference(keepvars)
