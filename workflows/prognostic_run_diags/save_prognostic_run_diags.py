@@ -15,6 +15,7 @@ import intake
 import numpy as np
 import xarray as xr
 import shutil
+import warnings
 
 import fv3net
 import vcm
@@ -50,8 +51,21 @@ def compute_all_diagnostics(resampled, verification, grid):
     logger.info("Computing all metrics")
     for metrics_fn in _DIAG_FNS:
         logger.info(f"Computing {metrics_fn}")
-        diags.update(metrics_fn(resampled, verification, grid))
+        current_diags = metrics_fn(resampled, verification, grid)
+        _warn_on_overlap(diags, current_diags)
+        diags.update(current_diags)
     return diags
+
+
+def _warn_on_overlap(old, new):
+    overlap = set(old) & set(new)
+    if len(overlap) > 0:
+        warnings.warn(
+            UserWarning(
+                f"Overlapping keys detected: {overlap}. Updates will overwrite "
+                "pre-existing keys."
+            )
+        )
 
 
 def rms(x, y, w, dims):

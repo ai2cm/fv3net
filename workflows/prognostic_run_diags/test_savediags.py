@@ -57,3 +57,15 @@ def test_dump_nc_no_seek():
 @pytest.mark.parametrize("func", savediags._DIAG_FNS)
 def test_compute_diags_succeeds(func, resampled, verification, grid):
     func(resampled, verification, grid)
+
+
+def test__warn_on_overlap_warns():
+    with pytest.warns(UserWarning):
+        savediags._warn_on_overlap([1, 2], [1, 4])
+
+
+def test__warn_on_overlap_no_warning():
+    with pytest.warns(None) as record:
+        savediags._warn_on_overlap([1, 2], [3, 4])
+
+    assert len(record) == 0
