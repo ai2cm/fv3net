@@ -145,12 +145,12 @@ def holomap_filter(time_series, varfilter):
                 except KeyError:
                     pass
                 else:
-                    if ds.attrs['baseline'] == "Baseline":
+                    if ds.attrs["baseline"] == "Baseline":
                         style = "solid"
                     else:
                         style = "dashed"
-                    
-                    run = ds.attrs['run']
+
+                    run = ds.attrs["run"]
                     long_name = ds[varname].long_name
                     hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
                         line_dash=style, color=p
