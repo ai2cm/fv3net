@@ -107,21 +107,21 @@ def _yield_metric_rows(metrics):
             }
 
 
-def _parse_metadata(run_names: Iterable[str]):
+def _parse_metadata(run: str):
     baseline_s = "-baseline"
     rf_s = "-rf"
-    for run in run_names:
-        if run.endswith(baseline_s):
-            baseline = "Baseline"
-            one_step = run[: -len(baseline_s)]
-        elif run.endswith(rf_s):
-            one_step = run[: -len(rf_s)]
-            baseline = "RF"
-        else:
-            one_step = run
-            baseline = "misc"
 
-        yield {"run": run, "one_step": one_step, "baseline": baseline}
+    if run.endswith(baseline_s):
+        baseline = "Baseline"
+        one_step = run[: -len(baseline_s)]
+    elif run.endswith(rf_s):
+        one_step = run[: -len(rf_s)]
+        baseline = "RF"
+    else:
+        one_step = run
+        baseline = "misc"
+
+    return {"run": run, "one_step": one_step, "baseline": baseline}
 
 
 def load_metrics(bucket, rundirs):
@@ -212,7 +212,7 @@ def main():
 
     # get run information
     rundirs = detect_rundirs(bucket)
-    run_table = pd.DataFrame.from_records(_parse_metadata(rundirs))
+    run_table = pd.DataFrame.from_records(_parse_metadata(run) for run in rundirs)
     run_table_lookup = run_table.set_index("run")
 
     # load diagnostics

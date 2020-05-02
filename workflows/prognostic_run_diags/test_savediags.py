@@ -1,3 +1,4 @@
+import os 
 import save_prognostic_run_diags as savediags
 import xarray as xr
 import fsspec
@@ -69,3 +70,7 @@ def test__warn_on_overlap_no_warning():
         savediags._warn_on_overlap([1, 2], [3, 4])
 
     assert len(record) == 0
+
+
+def test__catalog():
+    assert os.path.isfile(savediags._catalog())

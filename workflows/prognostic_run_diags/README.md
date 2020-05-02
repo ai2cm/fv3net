@@ -35,6 +35,12 @@ This job can be monitored by running
 
     argo watch <name of pod in last command>
 
+### Dependencies
+
+- md5sum. Usually available on linux. To install on mac run: `brew install md5sha1sum`.
+- argo CLI
+- yq
+
 ### Generating a new report
 
 Simply add a new item to rundirs.yml and resubmit the job. All the steps will be

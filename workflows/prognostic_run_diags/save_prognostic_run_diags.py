@@ -17,7 +17,8 @@ import xarray as xr
 import shutil
 import warnings
 
-import fv3net
+from pathlib import Path
+
 import vcm
 
 import logging
@@ -127,7 +128,6 @@ def load_data(url, grid_spec, catalog):
 
     # open verification
     logger.info("Opening verification data")
-    catalog = intake.open_catalog(catalog)
     verification = catalog["40day_c384_atmos_8xdaily"].to_dask()
     verification = verification.merge(grid_c384)
     # block average data
@@ -149,9 +149,14 @@ def load_data(url, grid_spec, catalog):
     return resampled, verification_c48, verification_c48[["area"]]
 
 
+def _catalog():
+    TOP_LEVEL_DIR = Path(__file__).parent.parent.parent
+    return str(TOP_LEVEL_DIR / "catalog.yml")
+
+
 if __name__ == "__main__":
 
-    CATALOG = str(fv3net.TOP_LEVEL_DIR / "catalog.yml")
+    CATALOG = _catalog()
 
     parser = argparse.ArgumentParser()
     parser.add_argument("url")
@@ -167,7 +172,8 @@ if __name__ == "__main__":
     attrs = vars(args)
     attrs["history"] = " ".join(sys.argv)
 
-    resampled, verification, grid = load_data(args.url, args.grid_spec, args.catalog)
+    catalog = intake.open_catalog(args.catalog)
+    resampled, verification, grid = load_data(args.url, args.grid_spec, catalog)
 
     # begin constructing diags
     diags = {}
