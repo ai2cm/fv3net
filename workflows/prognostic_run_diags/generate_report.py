@@ -14,7 +14,6 @@ from report.holoviews import HVPlot
 
 hv.extension("bokeh")
 
-units = {}
 
 # TODO: These versions might change, so it would be good to automate them somehow.
 # If no plots are appearing in the final reports, this would be a good place to
@@ -96,22 +95,40 @@ def load_diags(bucket):
     return metrics
 
 
-def flatten(metrics):
+def _yield_metric_rows(metrics):
+    """yield rows to be combined into a dataframe
+    """
     for run in metrics:
         for name in metrics[run]:
-            baseline_s = "-baseline"
-            rf_s = "-rf"
-            if run.endswith(baseline_s):
-                baseline = "Baseline"
-                one_step = run[: -len(baseline_s)]
-            elif run.endswith(rf_s):
-                one_step = run[: -len(rf_s)]
-                baseline = "RF"
-            else:
-                one_step = run
-                baseline = "misc"
-            units[name] = metrics[run][name]["units"]
-            yield one_step, baseline, name, metrics[run][name]["value"]
+            yield {
+                "run:": run,
+                "metric": name,
+                "value": metrics[run][name]["value"],
+                "units": metrics[run][name]["units"],
+            }
+
+
+def _parse_metadata(run_names: Iterable[str]):
+    baseline_s = "-baseline"
+    rf_s = "-rf"
+    for run in run_names:
+        if run.endswith(baseline_s):
+            baseline = "Baseline"
+            one_step = run[: -len(baseline_s)]
+        elif run.endswith(rf_s):
+            one_step = run[: -len(rf_s)]
+            baseline = "RF"
+        else:
+            one_step = run
+            baseline = "misc"
+
+        yield {"run": run, "one_step": one_step, "baseline": baseline}
+
+
+def combine_metrics(metrics) -> pd.DataFrame:
+    run_table = pd.DataFrame.from_records(_parse_metadata(metrics.keys()))
+    metric_table = pd.DataFrame.from_records(_yield_metric_rows(metrics))
+    return pd.merge(run_table, metric_table, on="run")
 
 
 def load_metrics(bucket):
@@ -122,9 +139,7 @@ def load_metrics(bucket):
         with fsspec.open(path, "rb") as f:
             metrics[rundir] = json.load(f)
 
-    return pd.DataFrame(
-        flatten(metrics), columns=["one_step", "baseline", "metric", "value"]
-    )
+    return metrics
 
 
 def holomap_filter(time_series, varfilter):
@@ -208,7 +223,7 @@ def main():
         )
         for key, ds in diags.items()
     }
-    metrics = load_metrics(args.input)
+    metrics = combine_metrics(load_metrics(args.input))
 
     # generate all plots
     sections = {
