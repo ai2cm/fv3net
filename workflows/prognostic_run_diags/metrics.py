@@ -1,9 +1,12 @@
 #!/usr/bin/env python
-"""Compute and print metrics from diagonstic output
+"""Compute and print metrics from the output of save_prognostic_run_diags.py
+
+This functions computes a list of named scalar performance metrics, that are useful for
+comparing across models.
 
 Usage:
 
-    metrics.py <path to diagnostics>
+    metrics.py <diagnostics netCDF file>
 
 """
 from typing import Callable, Mapping
@@ -40,7 +43,15 @@ def prepend_to_key(d, prefix):
 
 
 @curry
-def metric(metricname: str, func: Callable[[xr.Dataset], Mapping[str, float]]):
+def add_to_metrics(metricname: str, func: Callable[[xr.Dataset], xr.Dataset]):
+    """Register a function to be used for computing metrics
+
+    This function will be passed the diagnostics xarray dataset,
+    and should return a Dataset of scalar quantities.
+
+    See rmse_3day below for an example.
+
+    """
     def myfunc(diags):
         metrics = func(diags)
         return prepend_to_key(to_dict(metrics), f"{metricname}/")
@@ -56,7 +67,7 @@ def compute_all_metrics(diags: xr.Dataset) -> Mapping[str, float]:
     return out
 
 
-@metric("rmse_3day")
+@add_to_metrics("rmse_3day")
 def rmse_3day(diags):
     rms_global = grab_diag(diags, "rms_global").drop("area")
 
@@ -72,7 +83,7 @@ def rmse_3day(diags):
     return rms_global_daily.isel(time=3)
 
 
-@metric("drift_3day")
+@add_to_metrics("drift_3day")
 def drift_3day(diags):
     averages = grab_diag(diags, "global_avg").drop(
         ["latb", "lonb", "area"], errors="ignore"
