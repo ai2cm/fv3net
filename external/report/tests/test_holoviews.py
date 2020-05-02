@@ -12,7 +12,7 @@ def test_HVPlot():
     m["b"] = p
 
     plot = HVPlot(m)
-    out = plot.render()
+    out = repr(plot)
     assert isinstance(out, str)
 
     # ensure that this output only contains a div and script

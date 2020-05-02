@@ -9,7 +9,7 @@ import pandas as pd
 from pathlib import Path
 import argparse
 import holoviews as hv
-from report import create_html, Plot
+from report import create_html
 from report.holoviews import HVPlot
 
 hv.extension("bokeh")
@@ -64,7 +64,7 @@ class PlotManager:
         self._diags.append(func)
         return func
 
-    def make_plots(self, data) -> Iterable[Plot]:
+    def make_plots(self, data) -> Iterable:
         for func in self._diags:
             yield func(data)
 
@@ -85,8 +85,7 @@ def detect_rundirs(bucket):
     return [Path(url).parent.name for url in diag_ncs]
 
 
-def load_diags(bucket):
-    rundirs = detect_rundirs(bucket)
+def load_diags(bucket, rundirs):
     metrics = {}
     for rundir in rundirs:
         path = os.path.join(bucket, rundir, "diags.nc")
@@ -101,7 +100,7 @@ def _yield_metric_rows(metrics):
     for run in metrics:
         for name in metrics[run]:
             yield {
-                "run:": run,
+                "run": run,
                 "metric": name,
                 "value": metrics[run][name]["value"],
                 "units": metrics[run][name]["units"],
@@ -125,14 +124,7 @@ def _parse_metadata(run_names: Iterable[str]):
         yield {"run": run, "one_step": one_step, "baseline": baseline}
 
 
-def combine_metrics(metrics) -> pd.DataFrame:
-    run_table = pd.DataFrame.from_records(_parse_metadata(metrics.keys()))
-    metric_table = pd.DataFrame.from_records(_yield_metric_rows(metrics))
-    return pd.merge(run_table, metric_table, on="run")
-
-
-def load_metrics(bucket):
-    rundirs = detect_rundirs(bucket)
+def load_metrics(bucket, rundirs):
     metrics = {}
     for rundir in rundirs:
         path = os.path.join(bucket, rundir, "metrics.json")
@@ -145,7 +137,7 @@ def load_metrics(bucket):
 def holomap_filter(time_series, varfilter):
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
-    for run, ds in time_series.items():
+    for ds in time_series:
         for varname in ds:
             if varfilter in varname:
                 try:
@@ -153,10 +145,12 @@ def holomap_filter(time_series, varfilter):
                 except KeyError:
                     pass
                 else:
-                    if run.endswith("baseline"):
-                        style = "dashed"
-                    else:
+                    if ds.attrs['baseline'] == "Baseline":
                         style = "solid"
+                    else:
+                        style = "dashed"
+                    
+                    run = ds.attrs['run']
                     long_name = ds[varname].long_name
                     hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
                         line_dash=style, color=p
@@ -214,16 +208,26 @@ def main():
     parser.add_argument("output")
 
     args = parser.parse_args()
+    bucket = args.input
 
-    # load data
-    diags = load_diags(args.input)
-    diagnostics = {
-        key: convert_time_index_to_datetime(
+    # get run information
+    rundirs = detect_rundirs(bucket)
+    run_table = pd.DataFrame.from_records(_parse_metadata(rundirs))
+    run_table_lookup = run_table.set_index("run")
+
+    # load diagnostics
+    diags = load_diags(bucket, rundirs)
+    diagnostics = [
+        convert_time_index_to_datetime(
             get_variables_with_dims(ds, ["time"]), "time"
-        )
+        ).assign_attrs(run=key, **run_table_lookup.loc[key])
         for key, ds in diags.items()
-    }
-    metrics = combine_metrics(load_metrics(args.input))
+    ]
+
+    # load metrics
+    nested_metrics = load_metrics(bucket, rundirs)
+    metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
+    metrics = pd.merge(run_table, metric_table, on="run")
 
     # generate all plots
     sections = {
