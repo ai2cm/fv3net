@@ -14,18 +14,18 @@ spec:
   templates:
    - name: all
      steps:
-      - - name: regrid-step
+      - - name: diagnostics-step
           withParam: "{{workflow.parameters.runs}}"
-          template: regrid
+          template: diagnostics
           arguments:
             parameters:
               - name: run
                 value: "{{item.url}}"
               - name: output
                 value: "gs://vcm-ml-scratch/argo/{{workflow.name}}/{{item.name}}/"
-      - - name: generate-notebook
-          template: notebook
-   - name: notebook
+      - - name: generate-report
+          template: report
+   - name: report
      tolerations:
      - key: "dedicated"
        operator: "Equal"
@@ -59,7 +59,7 @@ spec:
         limits:
             memory: "6Gi"
             cpu: "1000m"
-   - name: regrid
+   - name: diagnostics
      inputs:
       parameters:
       - name: run

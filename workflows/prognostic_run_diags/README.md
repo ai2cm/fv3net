@@ -29,7 +29,7 @@ This command will make output like this:
 
 The data are stored at a directory based on the "Name" above. Specifically, the computed outputs wil be located at `gs://vcm-ml-scratch/argo/{{workflow.name}}`. The published report will be available at the url:
 
-    http://storage.googleapis.com/vcm-ml-public/argo/{{workflow.name}}/indx.html
+    http://storage.googleapis.com/vcm-ml-public/argo/{{workflow.name}}/index.html
 
 This job can be monitored by running
 
