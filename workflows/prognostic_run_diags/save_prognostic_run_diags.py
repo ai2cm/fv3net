@@ -150,7 +150,7 @@ def load_data(url, grid_spec, catalog):
 
 
 def _catalog():
-    TOP_LEVEL_DIR = Path(__file__).parent.parent.parent
+    TOP_LEVEL_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
     return str(TOP_LEVEL_DIR / "catalog.yml")
 
 
