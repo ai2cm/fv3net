@@ -7,17 +7,7 @@
 |rmse_3day/{variable} | average RMSE. (average of 3 hourly RMSE)| z500 |
 |drift3day/{variable} |  Day 3 average - Day 1 average | tmplowest |
 
-### Docker Images
-
-There is one workflow-specific docker image `us.gcr.io/vcm-ml/metrics` needed for this workflow. It can be built by typing
-    
-    make build
-
-or built and pushed to GCR with
-
-    make push
-
-### Structure
+### Usage
 
 This folder contains a workflow for saving prognostic run metrics to netCDF
 files and then uploading [this report][1] to a public bucket. 
