@@ -28,6 +28,7 @@ import io
 logger = logging.getLogger(__file__)
 
 
+# TODO can probably delete
 def sample_xr(variable: xr.DataArray, vary_dims=(), num_samples=100) -> xr.DataArray:
     """Sample a variable along vary_dims (stacking is non-ideal since it combines chunks)
     """
@@ -39,12 +40,14 @@ def sample_xr(variable: xr.DataArray, vary_dims=(), num_samples=100) -> xr.DataA
     )
 
 
+# TODO can probably delete
 def fit_xr(rv, sample: xr.DataArray) -> xr.DataArray:
     arr = np.asarray(sample)
     stats = np.apply_along_axis(rv.fit, sample)
     return xr.DataArray(stats, dims=["feature"], coords={"feature": sample.feature})
 
 
+# TODO can probably delete
 def sample(variable: zarr.Array, sample_axes=(), num_samples=100) -> np.ndarray:
     """Sample a variable along the first axis listed in sample_axes
 
@@ -67,6 +70,7 @@ def sample(variable: zarr.Array, sample_axes=(), num_samples=100) -> np.ndarray:
     return np.moveaxis(arr, sample_axis, 0)
 
 
+# TODO rename
 class MyEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, np.ndarray):
@@ -80,6 +84,8 @@ class MyEncoder(json.JSONEncoder):
 
 
 class Domain:
+    # TODO don't use this double dispatch mechanism for generating
+    # It seems a little over-engineered at this point
     def generate_chunked(self, shape, chunks, dtype):
         raise NotImplementedError
 
@@ -119,6 +125,8 @@ class ChunkedArray(Array):
     dtype: np.dtype
     chunks: Tuple[Tuple[int]]
 
+    # TODO probably remove these generating functions
+    # seems a poor separation of concerns. 
     def generate(self, domain: Domain):
         return domain.generate_chunked(self.shape, self.chunks, self.dtype)
 
@@ -127,7 +135,10 @@ class ChunkedArray(Array):
 class VariableSchema:
     name: str
     dims: Sequence[str]
+    # TODO cast array to a list or tuple to avoid serializing numpy arrays
     array: Array
+
+    # TODO probably want to decouple "Domain" from the schema object
     domain: Domain
 
     def generate(self):
@@ -247,4 +258,3 @@ if __name__ == "__main__":
 
     schema = read_schema_from_zarr(group)
     dump(schema, sys.stdout)
-
