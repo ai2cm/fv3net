@@ -120,3 +120,18 @@ def test_generate_and_pickle_integration():
     ds = DatasetSchema(coords=[x], variables=[a])
     d = ds.generate()
     pickle.dumps(d)
+
+
+def test_generate_regression(regtest):
+    x = CoordinateSchema("x", ["x"], np.array([1, 2, 3]))
+    a = VariableSchema(
+        "a",
+        ["x"],
+        ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
+        domain=Range(0, 10),
+    )
+
+    ds = DatasetSchema(coords=[x], variables=[a])
+    d = ds.generate()
+    arr = d.a.values
+    print(arr, file=regtest)

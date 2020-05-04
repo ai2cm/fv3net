@@ -106,6 +106,9 @@ class Range(Domain):
         return darr.map_blocks(self._generate_like)
 
     def generate_array(self, shape, dtype) -> np.ndarray:
+        # need to set random seed here
+        # to make this generation deterministic
+        np.random.seed(0)
         return np.random.uniform(low=self.min, high=self.max, size=shape).astype(dtype)
 
 
