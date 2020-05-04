@@ -5,6 +5,7 @@ History
 
 latest
 ------
+* Updated fv3gfs-python to v0.4.1. As part of this, refactored sklearn_interface functions from runtime to the prognostic run runfile.
 
 
 0.2.0 (2020-04-23)
