@@ -1,4 +1,5 @@
 import logging
+from typing import Mapping
 
 import fsspec
 import zarr
@@ -64,16 +65,17 @@ def predict(model: SklearnWrapper, state: xr.Dataset) -> xr.Dataset:
 
 
 def update(
-    model: SklearnWrapper, state: xr.Dataset, dt: float
-) -> (xr.Dataset, xr.Dataset):
+    model: SklearnWrapper, state: Mapping[str, xr.DataArray], dt: float
+) -> (Mapping[str, xr.DataArray], Mapping[str, xr.DataArray]):
     """Given ML model and state, return updated state and predicted tendencies."""
+    state = xr.Dataset(state)
     tend = predict(model, state)
     with xr.set_options(keep_attrs=True):
         updated = state.assign(
             specific_humidity=state["specific_humidity"] + tend["dQ2"] * dt,
             air_temperature=state["air_temperature"] + tend["dQ1"] * dt,
         )
-    return updated, tend
+    return {key: updated[key] for key in updated}, {key: tend[key] for key in tend}
 
 
 args = runtime.get_config()
@@ -121,7 +123,10 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug(f"Getting state variables: {VARIABLES}")
-        state = fv3util.to_dataset(fv3gfs.get_state(names=VARIABLES))
+        state = {
+            key: value.data_array
+            for key, value in fv3gfs.get_state(names=VARIABLES).items()
+        }
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
