@@ -24,8 +24,7 @@ import zarr
 from .config import get_config
 from .pipeline import run
 
-example_timesteps_file = """
-"""
+logger = logging.getLogger(__file__)
 
 ZARR_NAME = "big.zarr"
 

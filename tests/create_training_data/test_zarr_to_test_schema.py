@@ -12,6 +12,7 @@ from zarr_to_test_schema import (
     dumps,
     loads
 )
+import pickle
 
 import pytest
 
@@ -106,3 +107,16 @@ def test_DatasetSchemaLoads():
     assert isinstance(v, VariableSchema)
     assert isinstance(v.domain, Domain)
 
+
+def test_generate_and_pickle_integration():
+    x = CoordinateSchema("x", ["x"], np.array([1, 2, 3]))
+    a = VariableSchema(
+        "a",
+        ["x"],
+        ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
+        domain=Range(0, 10),
+    )
+
+    ds = DatasetSchema(coords=[x], variables=[a])
+    d = ds.generate()
+    pickle.dumps(d)

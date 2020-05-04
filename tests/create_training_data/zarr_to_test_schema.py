@@ -98,13 +98,12 @@ class Range(Domain):
     min: float
     max: float
 
+    def _generate_like(self, x):
+        return self.generate_array(x.shape, x.dtype)
+
     def generate_chunked(self, shape, chunks, dtype) -> da.Array:
         darr = da.empty(shape, chunks=chunks, dtype=dtype)
-
-        def func(x):
-            return self.generate_array(x.shape, x.dtype)
-
-        return darr.map_blocks(func)
+        return darr.map_blocks(self._generate_like)
 
     def generate_array(self, shape, dtype) -> np.ndarray:
         return np.random.uniform(low=self.min, high=self.max, size=shape).astype(dtype)
