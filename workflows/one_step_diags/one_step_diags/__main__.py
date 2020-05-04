@@ -73,29 +73,31 @@ def _create_arg_parser():
         "written to netcdf_output.",
     )
     parser.add_argument(
-        "--diags-config",
+        "--diags_config",
         type=str,
         default=None,
         help=(
-            "File containing paired timesteps for test set. See documentation "
-            "in one-steps scripts for more information."
+            "File containing one-step diagnostics configuration mapping to guide "
+            "plot creation. Plots are specified using configurationn in .config.py"
+            " but additional plots can be added by creating entries in the "
+            "diags_config yaml."
         ),
     )
     parser.add_argument(
-        "--start-ind",
+        "--start_ind",
         type=int,
         default=None,
         help="First timestep index to use in "
         "zarr. Earlier spin-up timesteps will be skipped. Defaults to 0.",
     )
     parser.add_argument(
-        "--n-sample-inits",
+        "--n_sample_inits",
         type=int,
         default=None,
-        help="Number of initalization " "to use in computing one-step diagnostics.",
+        help="Number of initalizations to use in computing one-step diagnostics.",
     )
     parser.add_argument(
-        "--coarsened-diags-zarr-name",
+        "--coarsened_diags_zarr_name",
         type=str,
         default="gfsphysics_15min_coarse.zarr",
         help="(Public) bucket path for report and image upload. If omitted, report is"
@@ -317,13 +319,15 @@ def _get_remote_netcdf(filename):
 
 args, pipeline_args = _create_arg_parser().parse_known_args()
 
+print(args)
+print(pipeline_args)
+
 default_config = {key: getattr(config, key) for key in config.__all__}
 if args.diags_config is not None:
     supplemental_config = _open_diags_config(args.diags_config)
     config = update_nested_dict(default_config, supplemental_config)
 else:
     config = default_config
-print(config)
 
 zarrpath = os.path.join(args.one_step_data, ONE_STEP_ZARR)
 fs = get_fs(zarrpath)

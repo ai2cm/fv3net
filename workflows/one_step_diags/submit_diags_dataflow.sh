@@ -21,11 +21,21 @@ exec > >(tee ${LOGFILE}) 2>&1
 export PYTHONPATH="./workflows/one_step_diags/"
 
 python -m one_step_diags \
-$ONE_STEP_DATA \
-$HI_RES_DIAGS \
-$TIMESTEPS_FILE \
-$NETCDF_OUTPUT \
---report-directory $REPORT_DIRECTORY \
---diags-config $DIAGS_CONFIG \
---n-sample-inits 2 \
---runner "DirectRunner"
+    $ONE_STEP_DATA \
+    $HI_RES_DIAGS \
+    $TIMESTEPS_FILE \
+    $NETCDF_OUTPUT \
+    --report_directory $REPORT_DIRECTORY \
+    --diags_config $DIAGS_CONFIG \
+    --n_sample_inits 48 \
+    --runner DataflowRunner \
+    --job_name one-step-diags-${USER}-$(uuid | head -c 7) \
+    --project vcm-ml \
+    --region us-central1 \
+    --temp_location gs://vcm-ml-data/tmp_dataflow \
+    --num_workers 4 \
+    --max_num_workers 30 \
+    --disk_size_gb 250 \
+    --worker_machine_type n2-highmem-4 \
+    --setup_file ./setup.py \
+    --extra_package external/report/dist/report-0.1.0.tar.gz

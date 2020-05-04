@@ -18,17 +18,8 @@ logger = logging.getLogger("one_step_diags")
 FIG_DPI = 100
 
 
-#     GLOBAL_MEAN_2D_VARS,
-#     GLOBAL_MEAN_3D_VARS,
-#     DIURNAL_VAR_MAPPING,
-#     DQ_MAPPING,
-#     DQ_PROFILE_MAPPING,
-#     PROFILE_COMPOSITES,
-#     GLOBAL_2D_MAPS,
-
-
 def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_dir: str) -> Mapping:
-    """ Makes figures for predictions on test data
+    """ Makes figures for one-step diagnostics
 
     Args:
         states_and_tendencies: processed dataset of outputs from one-step
@@ -37,8 +28,8 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
             variables, global/land/sea mean time series, and global/land/sea
             mean time-height series, i=output from
             fv3net.diagnostics.one_step_jobs
-        config: diagnostics configuration dict specifying plots
-        output_dir: location to write figures to
+        config: diagnostics configuration dict specifying plots to make
+        output_dir: location for writing figures
 
     Returns:
         dict of header keys and image path list values for passing to the html
@@ -212,7 +203,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
             ds_name,
             dQ_name,
             dQ_type,
-            PROFILE_COMPOSITES,
+            config["PROFILE_COMPOSITES"],
             stride=stride,
             scale=scale,
         )
