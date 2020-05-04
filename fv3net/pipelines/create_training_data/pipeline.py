@@ -7,7 +7,6 @@ import xarray as xr
 
 from . import helpers
 from vcm.calc import apparent_source
-from vcm.cloud.fsspec import get_fs
 import fsspec
 from vcm import parse_datetime_from_str
 from fv3net import COARSENED_DIAGS_ZARR_NAME
@@ -21,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 GRID_SPEC_FILENAME = "grid_spec.zarr"
-ZARR_NAME = "big.zarr"
 
 # forecast time step used to calculate the FV3 run tendency
 FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
@@ -34,23 +32,14 @@ def _load_pair(timesteps, store, init_time_dim):
     yield ds.sel({init_time_dim: timesteps})
 
 
-def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, str]]]):
-    """ Divide full one step output data into batches to be sent
-    through a beam pipeline, which writes training/test data zarrs
-
-    Args:
-        args ([arg namespace]): for named args in the main function
-        pipeline_args ([arg namespace]): additional args for the pipeline
-        names ([dict]): Contains information related to the variable
-            and dimension names from the one step output and created
-            by the pipeline.
-        timesteps:  a collection of time-step pairs to use for testing and training.
-            For example::
-
-                {"train": [("20180601.000000", "20180601.000000"), ...], "test: ...}
-    """
-    fs = get_fs(args.gcs_input_data_path)
-    mapper = fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
+def run(
+    mapper: Mapping,
+    diag_c48_path: str,
+    output_dir: str,
+    pipeline_args,
+    names,
+    timesteps: Mapping[str, Sequence[Tuple[str, str]]],
+):
     if ".zmetadata" not in mapper:
         logger.info("Consolidating metadata")
         zarr.consolidate_metadata(mapper)
@@ -109,7 +98,7 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
             | "MergeHiresDiagVars"
             >> beam.Map(
                 _merge_hires_data,
-                diag_c48_path=args.diag_c48_path,
+                diag_c48_path=diag_c48_path,
                 coarsened_diags_zarr_name=COARSENED_DIAGS_ZARR_NAME,
                 flux_vars=names["diag_vars"],
                 suffix_hires=names["suffix_hires"],
@@ -122,7 +111,7 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
             >> beam.Map(
                 _write_remote_train_zarr,
                 init_time_dim=names["init_time_dim"],
-                gcs_output_dir=args.gcs_output_data_dir,
+                gcs_output_dir=output_dir,
                 train_test_labels=train_test_labels,
             )
         )

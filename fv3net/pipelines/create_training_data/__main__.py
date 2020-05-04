@@ -12,15 +12,21 @@ Example of timesteps_file input data::
         ]
     }⏎
 """
+import os
 import argparse
 import logging
+
 import yaml
+import fsspec
+
 from .config import get_config
 
 from .pipeline import run
 
 example_timesteps_file = """
 """
+
+ZARR_NAME = "big.zarr"
 
 
 if __name__ == "__main__":
@@ -31,6 +37,8 @@ if __name__ == "__main__":
         default=None,
         help="yaml file for updating the default data variable names.",
     )
+    # TODO would be cleaner to point directly to the big zarr rather
+    # than the directory containing it. Then we could remove the ZARR_NAME global.
     parser.add_argument(
         "gcs_input_data_path",
         type=str,
@@ -52,7 +60,7 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "gcs_output_data_dir",
+        "output_dir",
         type=str,
         help="Write path for train data in Google Cloud Storage bucket. "
         "Don't include bucket in path.",
@@ -70,4 +78,9 @@ if __name__ == "__main__":
 
     with open(args.timesteps_file, "r") as f:
         timesteps = yaml.safe_load(f)
-    run(args=args, pipeline_args=pipeline_args, names=names, timesteps=timesteps)
+
+    big_zarr_path = os.path.join(args.gcs_input_data_path, ZARR_NAME)
+    mapper = fsspec.get_mapper(big_zarr_path)
+
+    # TODO Basic io of diag_c48_path should be lifted here as well
+    run(mapper, args.diag_c48_path, args.output_dir, pipeline_args, names, timesteps)
