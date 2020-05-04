@@ -189,6 +189,8 @@ def read_schema_from_zarr(
         else:
             n = sample(arr)
 
+            # TODO arr.chunks is a not of ints, so the properties of 
+            # chunked array are not accurate
             array = ChunkedArray(arr.shape, arr.dtype, arr.chunks)
 
             m, M = n.min(), n.max()
