@@ -17,10 +17,12 @@ from mpi4py import MPI
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+# following variables are required no matter what feature set is being used
+TEMP = "air_temperature"
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
 TOTAL_PRECIP = "total_precipitation"
-VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP, TOTAL_PRECIP]
+REQUIRED_VARIABLES = [TEMP, SPHUM, DELP, TOTAL_PRECIP]
 
 cp = 1004
 gravity = 9.81
@@ -107,11 +109,11 @@ if __name__ == "__main__":
         MODEL = None
 
     MODEL = comm.bcast(MODEL, root=0)
+    variables = list(set(REQUIRED_VARIABLES + MODEL.input_vars_))
 
     if rank == 0:
         logger.info(f"Timestep: {TIMESTEP}")
 
-    # Calculate factor for relaxing humidity to zero
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
         if rank == 0:
@@ -122,10 +124,10 @@ if __name__ == "__main__":
         fv3gfs.step_physics()
 
         if rank == 0:
-            logger.debug(f"Getting state variables: {VARIABLES}")
+            logger.debug(f"Getting state variables: {variables}")
         state = {
             key: value.data_array
-            for key, value in fv3gfs.get_state(names=VARIABLES).items()
+            for key, value in fv3gfs.get_state(names=variables).items()
         }
 
         if rank == 0:
