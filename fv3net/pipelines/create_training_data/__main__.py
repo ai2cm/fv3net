@@ -18,9 +18,10 @@ import logging
 
 import yaml
 import fsspec
+import xarray as xr
+import zarr
 
 from .config import get_config
-
 from .pipeline import run
 
 example_timesteps_file = """
@@ -81,6 +82,10 @@ if __name__ == "__main__":
 
     big_zarr_path = os.path.join(args.gcs_input_data_path, ZARR_NAME)
     mapper = fsspec.get_mapper(big_zarr_path)
+    if ".zmetadata" not in mapper:
+        logger.info("Consolidating metadata")
+        zarr.consolidate_metadata(mapper)
+    ds = xr.open_zarr(mapper, consolidated=True)
 
     # TODO Basic io of diag_c48_path should be lifted here as well
-    run(mapper, args.diag_c48_path, args.output_dir, pipeline_args, names, timesteps)
+    run(ds, args.diag_c48_path, args.output_dir, pipeline_args, names, timesteps)

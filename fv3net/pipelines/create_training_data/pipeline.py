@@ -27,22 +27,18 @@ FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
 FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
 
 
-def _load_pair(timesteps, store, init_time_dim):
-    ds = xr.open_zarr(store, consolidated=True)
+def _load_pair(timesteps, ds, init_time_dim):
     yield ds.sel({init_time_dim: timesteps})
 
 
 def run(
-    mapper: Mapping,
+    ds: xr.Dataset,
     diag_c48_path: str,
     output_dir: str,
     pipeline_args,
     names,
     timesteps: Mapping[str, Sequence[Tuple[str, str]]],
 ):
-    if ".zmetadata" not in mapper:
-        logger.info("Consolidating metadata")
-        zarr.consolidate_metadata(mapper)
     train_test_labels = _train_test_labels(timesteps)
     timestep_pairs = timesteps["train"] + timesteps["test"]
 
@@ -58,7 +54,7 @@ def run(
             p
             | beam.Create(timestep_pairs)
             | "SelectInitialTimes"
-            >> beam.ParDo(_load_pair, mapper, names["init_time_dim"])
+            >> beam.ParDo(_load_pair, ds, names["init_time_dim"])
             | "TimeDimToDatetime"
             >> beam.Map(_str_time_dim_to_datetime, time_dim=names["init_time_dim"])
             | "AddPhysicsTendencies"
