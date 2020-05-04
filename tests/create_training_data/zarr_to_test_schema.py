@@ -13,14 +13,19 @@ chunks: (we need to be to generate chunked data)
 
 """
 from typing import Sequence, Tuple
+import json
 import fsspec
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import zarr
 from scipy.stats import uniform
 import dask.array as da
 import numpy as np
 import xarray as xr
 from toolz import first
+import logging
+import io
+
+logger = logging.getLogger(__file__)
 
 
 def sample_xr(variable: xr.DataArray, vary_dims=(), num_samples=100) -> xr.DataArray:
@@ -60,6 +65,18 @@ def sample(variable: zarr.Array, sample_axes=(), num_samples=100) -> np.ndarray:
     idx = list(axes[i] for i in range(len(axes)))
     arr = variable[idx]
     return np.moveaxis(arr, sample_axis, 0)
+
+
+class MyEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+        try:
+            return o.str
+        except AttributeError:
+            pass
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, o)
 
 
 class Domain:
@@ -141,35 +158,93 @@ class DatasetSchema:
         )
 
 
+def read_schema_from_zarr(
+    group,
+    default_range=Range(-1000, 1000),
+    sample=lambda arr: arr[-1, 0, 0, 0],
+    coords=("forecast_time", "initial_time", "tile", "step", "z", "y", "x"),
+):
+
+    variables = []
+    coord_schemes = []
+
+    for variable in group:
+        logger.info(f"Reading {variable}")
+        arr = group[variable]
+
+        if variable in coords:
+            scheme = CoordinateSchema(variable, [variable], arr[:])
+            coord_schemes.append(scheme)
+        else:
+            n = sample(arr)
+
+            array = ChunkedArray(arr.shape, arr.dtype, arr.chunks)
+
+            m, M = n.min(), n.max()
+            if np.isnan(m) or np.isnan(M):
+                range_ = default_range
+            else:
+                range_ = Range(m.item(), M.item())
+
+            scheme = VariableSchema(
+                variable, arr.attrs["_ARRAY_DIMENSIONS"], array, domain=range_
+            )
+            variables.append(scheme)
+
+    return DatasetSchema(coord_schemes, variables)
+
+
+def dump(schema: DatasetSchema, fp):
+    json.dump(asdict(schema), fp, cls=MyEncoder)
+
+
+def dumps(schema: DatasetSchema):
+    fp = io.StringIO()
+    dump(schema, fp)
+    return fp.getvalue()
+
+
+def load(fp):
+    d = json.load(fp)
+
+    coords = []
+    for coord in d['coords']:
+        coords.append(
+            CoordinateSchema(
+                name=coord['name'],
+                dims=coord['dims'],
+                value=np.array(coord['value'])
+            )
+        )
+    
+    variables = []
+    for variable in d['variables']:
+        array = ChunkedArray(**variable.pop('array'))
+        variables.append(
+            VariableSchema(
+                array=array,
+                **variable
+            )
+        )
+
+    return DatasetSchema(coords=coords, variables=variables)
+
+
+def loads(s):
+    fp = io.StringIO(s)
+    return load(fp)
+
+    
 
 if __name__ == "__main__":
+    import sys
+    logging.basicConfig(level=logging.INFO)
     url = "gs://vcm-ml-data/test-end-to-end-integration/integration-debug/one_step_run_/big.zarr"
 
     mapper = fsspec.get_mapper(url)
     group = zarr.open_group(mapper)
     rv = {}
 
-    coords = ["forecast_time", "initial_time", "tile", "step", "z", "y", "x"]
+    schema = read_schema_from_zarr(group)
+    dump(schema, sys.stdout)
 
-    variables = []
-    coord_schemes = []
-
-    for variable in group:
-        arr = group[variable]
-
-        if variable in coords:
-            scheme = CoordinateSchema(variable, [variable], arr.shape, arr[:])
-            coord_schemes.append(scheme)
-        else:
-            n = arr[-1, 0, 0, 0]
-
-            scheme = VariableSchema(
-                variable,
-                arr.attrs["_ARRAY_DIMENSIONS"],
-                arr.shape,
-                Range(dtype=arr.dtype, min=n.min(), max=n.max()),
-            )
-            variables.append(scheme)
-
-    schema = DatasetSchema(coord_schemes, variables)
-    print(schema)

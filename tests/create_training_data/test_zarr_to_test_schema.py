@@ -1,5 +1,16 @@
 import numpy as np
-from zarr_to_test_schema import *
+from zarr_to_test_schema import (
+    sample,
+    Range,
+    Array,
+    ChunkedArray,
+    MyEncoder,
+    CoordinateSchema,
+    VariableSchema,
+    DatasetSchema,
+    dumps,
+    loads
+)
 
 import pytest
 
@@ -24,7 +35,7 @@ def test_sample_multiple_sample_axes_reorder():
 
 def test_generate_array():
     r = Range(0, 1)
-    a = Array(shape=(1,2), dtype=np.float32)
+    a = Array(shape=(1, 2), dtype=np.float32)
     out = a.generate(r)
 
     assert out.dtype == a.dtype
@@ -33,9 +44,68 @@ def test_generate_array():
 
 def test_generate_chunked_array():
     r = Range(0, 1)
-    a = ChunkedArray(shape=(10,10), dtype=np.float32, chunks=((5, 5), (5,5)))
+    a = ChunkedArray(shape=(10, 10), dtype=np.float32, chunks=((5, 5), (5, 5)))
     out = a.generate(r)
 
     assert out.dtype == a.dtype
     assert out.shape == a.shape
     assert out.chunks == a.chunks
+
+
+def test_encoder_dtype():
+    e = MyEncoder()
+    assert e.encode(np.dtype("float32")) == '"' + np.dtype("float32").str + '"'
+
+
+def test_encoder_array():
+    e = MyEncoder()
+    assert e.encode(np.array([1, 2, 3])) == "[1, 2, 3]"
+
+
+def test_DatasetSchema_dumps():
+
+    x = CoordinateSchema("x", ["x"], np.array([1, 2, 3]))
+    a = VariableSchema(
+        "a",
+        ["x"],
+        ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
+        domain=Range(0, 10),
+    )
+
+    ds = DatasetSchema(coords=[x], variables=[a])
+
+    val  = dumps(ds)
+    assert isinstance(val, str)
+
+
+def test_DatasetSchema_dumps_regression(regtest):
+    x = CoordinateSchema("x", ["x"], np.array([1, 2, 3]))
+    a = VariableSchema(
+        "a",
+        ["x"],
+        ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
+        domain=Range(0, 10),
+    )
+
+    ds = DatasetSchema(coords=[x], variables=[a])
+
+    val  = dumps(ds)
+    print(val, file=regtest)
+
+
+def test_DatasetSchemaLoads():
+    encoded_data = """
+    {"coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3]}], "variables": [{"name": "a", "dims": ["x"], "array": {"shape": [3], "dtype": "<f4", "chunks": [1]}, "domain": {"min": 0, "max": 10}}]}
+    """ # noqa
+
+    x = CoordinateSchema("x", ["x"], np.array([1, 2, 3]))
+    a = VariableSchema(
+        "a",
+        ["x"],
+        ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
+        domain=Range(0, 10),
+    )
+
+    ds = DatasetSchema(coords=[x], variables=[a])
+
+    assert loads(encoded_data) == ds
