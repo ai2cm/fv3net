@@ -231,9 +231,14 @@ def load(fp):
     variables = []
     for variable in d['variables']:
         array = ChunkedArray(**variable.pop('array'))
+        # TODO this should work with any subtype of Domain
+        # Maybe add an attribute to the encoder? Or maybe this is over-engineering, 
+        # and we can only use Range
+        range_ = Range(**variable.pop('domain'))
         variables.append(
             VariableSchema(
                 array=array,
+                domain=range_,
                 **variable
             )
         )

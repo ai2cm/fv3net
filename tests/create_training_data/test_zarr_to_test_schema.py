@@ -1,6 +1,7 @@
 import numpy as np
 from zarr_to_test_schema import (
     sample,
+    Domain,
     Range,
     Array,
     ChunkedArray,
@@ -9,7 +10,7 @@ from zarr_to_test_schema import (
     VariableSchema,
     DatasetSchema,
     dumps,
-    loads,
+    loads
 )
 
 import pytest
@@ -74,7 +75,7 @@ def test_DatasetSchema_dumps():
 
     ds = DatasetSchema(coords=[x], variables=[a])
 
-    val = dumps(ds)
+    val  = dumps(ds)
     assert isinstance(val, str)
 
 
@@ -89,13 +90,19 @@ def test_DatasetSchema_dumps_regression(regtest):
 
     ds = DatasetSchema(coords=[x], variables=[a])
 
-    val = dumps(ds)
+    val  = dumps(ds)
     print(val, file=regtest)
 
 
 def test_DatasetSchemaLoads():
     encoded_data = """
     {"coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3]}], "variables": [{"name": "a", "dims": ["x"], "array": {"shape": [3], "dtype": "<f4", "chunks": [1]}, "domain": {"min": 0, "max": 10}}]}
-    """  # noqa
+    """ # noqa
 
-    assert isinstance(loads(encoded_data), DatasetSchema)
+    ds = loads(encoded_data)
+    assert isinstance(ds, DatasetSchema)
+
+    v = ds.variables[0]
+    assert isinstance(v, VariableSchema)
+    assert isinstance(v.domain, Domain)
+
