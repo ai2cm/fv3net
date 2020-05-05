@@ -1,4 +1,4 @@
-from report.holoviews import HVPlot
+from report.holoviews import HVPlot, get_html_header
 
 
 def test_HVPlot():
@@ -18,3 +18,10 @@ def test_HVPlot():
     # ensure that this output only contains a div and script
     # not a complete html page
     assert "<html/>" not in out
+
+
+def test_get_html_header():
+    html = get_html_header()
+
+    assert "<html" not in html
+    assert "<script" in html

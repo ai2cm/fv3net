@@ -1,3 +1,8 @@
+import io
+import re
+from pyquery import PyQuery as pq
+import xml.etree.ElementTree as ET
+
 import holoviews as hv
 
 
@@ -17,3 +22,29 @@ class HVPlot:
         html, _ = r.components(self._plot)
         html = html["text/html"]
         return html
+
+
+def get_html_header() -> str:
+    """Return the javascript includes needed to render holoviews plots
+    """
+    hv.extension('bokeh')
+    hmap = hv.HoloMap()
+    hmap['a'] = hv.Curve([(0,1), (0, 1)])
+
+    fp = io.BytesIO()
+    hv.save(hmap, fp, fmt='html')
+    html = fp.getvalue().decode('UTF-8')
+    
+    # need to add root tag to parse with lxml
+    doc = pq(html)
+    header = []
+
+    for script in doc("script"):
+        try:
+            script.attrib["type"]
+        except KeyError:
+            pass
+        else:
+            header.append(ET.tostring(script).decode('UTF-8'))
+
+    return '\n'.join(header)
