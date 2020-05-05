@@ -83,17 +83,16 @@ VARIABLES = (
     "soil_temperature",
     "total_soil_moisture",
     "liquid_soil_moisture",
+    "total_sky_downward_shortwave_flux_at_surface",
+    "total_sky_upward_shortwave_flux_at_surface",
+    "total_sky_downward_longwave_flux_at_surface",
+    "total_sky_upward_longwave_flux_at_surface",
+    "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
+    "total_sky_upward_longwave_flux_at_top_of_atmosphere",
 ) + TRACERS
 
-SFC_VARIABLES = (
-    "DSWRFtoa",
-    "DSWRFsfc",
-    "USWRFtoa",
-    "USWRFsfc",
-    "DLWRFsfc",
-    "ULWRFtoa",
-    "ULWRFsfc",
-)
+SFC_VARIABLES = ()
 
 GRID_VARIABLES = ("lat", "lon", "latb", "lonb", "area")
 
