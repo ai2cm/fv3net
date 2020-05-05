@@ -6,13 +6,26 @@ Other concerns
    - make sure the grid isn't getting a time dim
 - is there a significant cost increase for copying data to the local drive, then reading from there, then delete after use? this is much faster that loading from GCS and we don't have to worry about retrying upon read errors
 - just hardcode the x/y/tile coords for the particular location points in the constants rather than doing the lat/lon lookup each time this runs.
+- naming convention when refering to the data source: pred/target/hires
  
  
- 
-contents of `fv3net.diagnostics`
-- time avg map plot of dQ1/2, cols are prediction vs target
-- 
- 
+diagnostics
+- time avg col integrated map plot of dQ1/2, Q1/2, precip, where cols are prediction vs target
+- snapshot map plots for a couple timesteps of dQ1, dQ2, Q1, 
+- vertical profiled dQ1/2 for pos/neg heating columns
+- diurnal cycles of P-E, net heating over land/sea/global
+
+
+metrics
+- RMSE, bias for column integrated Q2, Q1
+- mass weighted RMSE for dQ1, dQ2
+
+
+`config_diagnostics.yaml`
+- contains list of diagnostics and variables that each diagnostic is calculated for
+- used by diagnostics and plotting to iterate over datasets/plots to create
+
+
 `names.py`
 - replaces the `variable_names.yml` file
 - import var names, constants, ect. from here in submodules (as an example, see one step diags workflow)
@@ -22,9 +35,15 @@ contents of `fv3net.diagnostics`
 - load test data
 - load model
 - model.predict(test_data)
-- standardize_data(test_data, predict_data)
-   - dataset for each var that has >1 source, with coords for source
-- create_diagnostics(high res, test, predict datasets)
+- data_arrays: create dict to organize all the data arrays for quantities used in metrics/diagnostics 
+   - referenced by keys "{var}_{source}" e.g. "dQ1_target"
+   - if a new quantity is needed for diagnostics, e.g. local time, calculations occur at this step to insert 
+   it as another data array 
+   - this dict get passed to the the functions that create metrics/diagnostics
+- create and save datasets for metrics and diagnostics
+- save plots, plot functions take in datasets from previous step
+- save report
+
  
 `create_metrics.py`
 - metrics needs:
@@ -39,13 +58,12 @@ contents of `fv3net.diagnostics`
   
 `create_diagnostics.py`
 - diagnostics needs:
- 
    - T, sphum, sfc_temp: these are only used in the lower tropospheric stability calculation
    - grid
    - land_sea_mask
    - local time
-   - 
-- `
+   - dQ1/2, Q1/2
+
  
 `plotting.py`: No calculations, just save plots and return the dict used by the report {section: [figures]}
 - instead of hard coding in every variable/mask combo in the main plot all function, use config a la one step diags workflow that 
