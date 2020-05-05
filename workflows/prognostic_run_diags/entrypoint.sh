@@ -3,32 +3,32 @@
 set -e
 
 function downloadTiles() {
-	baseName=$(basename $2)
-	if [[ ! -f "$baseName.tile1.nc" ]]; then
-		gsutil -m cp "$1.tile?.nc" .
-	else
-		echo "$baseName already exists locally"
-	fi
+    baseName=$(basename $2)
+    if [[ ! -f "$baseName.tile1.nc" ]]; then
+        gsutil -m cp "$1.tile?.nc" .
+    else
+        echo "$baseName already exists locally"
+    fi
 }
 
 usage="Usage: entrypoint.sh [ -g grid_spec_path ] rundir output"
 
 while getopts "g:" OPTION; do
-	case $OPTION in
-	g)
-		shift
-		gridSpec=$OPTARG
-		;;
-	*)
-		echo $usage
-		exit 1
-		;;
-	esac
+    case $OPTION in
+        g)
+            shift
+            gridSpec=$OPTARG
+        ;;
+        *)
+            echo $usage
+            exit 1
+        ;;
+    esac
 done
 
 if [[ $# != 2 ]]; then
-	echo $usage
-	exit 2
+    echo $usage
+    exit 2
 fi
 
 [[ -n $GOOGLE_APPLICATION_CREDENTIALS ]] && gcloud auth activate-service-account --key-file $GOOGLE_APPLICATION_CREDENTIALS
