@@ -13,7 +13,7 @@ contents of `fv3net.diagnostics`
 - time avg map plot of dQ1/2, cols are prediction vs target
 - 
  
-`constants.py`
+`names.py`
 - replaces the `variable_names.yml` file
 - import var names, constants, ect. from here in submodules (as an example, see one step diags workflow)
 
@@ -65,8 +65,7 @@ specifies all the usages of a given function
 - `load_test_data()`
    - should work with future data loader design
  
-- `load_grid(test_data)` directly from results 
- 
+
 - `standardize_data()`
    - not sure if right name- but the job of this is to get high res / target / prediction data into the format that lets subsequent functions do their thing.
    - e.g. same names across datasets for surface fluxes, radiation, etc.

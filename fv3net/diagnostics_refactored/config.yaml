@@ -1,0 +1,21 @@
+
+# for each variable, plot data_arrays["{var}_{source}"] as columns
+TIME_AVG_MAPS:
+    net_precipitation_total:
+        sources:
+          - target
+          - pred
+          - hires
+    net_heating_total:
+        sources:
+          - target
+          - pred
+          - hires
+    column_integrated_dQ1:
+      sources:
+          - target
+          - pred
+    column_integrated_dQ2:
+      sources:
+          - target
+          - pred
