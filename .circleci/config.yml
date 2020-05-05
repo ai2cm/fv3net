@@ -30,7 +30,7 @@ jobs:
           name: "Install fv3net dependencies"
           command: |
             make install_deps
-            cat .circleci/.installed_build_env_deps
+            cat .circleci/environment.lock
       - save_cache:
           key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}
           paths:
