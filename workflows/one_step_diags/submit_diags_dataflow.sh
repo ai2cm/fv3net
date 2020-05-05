@@ -38,4 +38,5 @@ python -m one_step_diags \
     --disk_size_gb 250 \
     --worker_machine_type n2-highmem-4 \
     --setup_file ./setup.py \
-    --extra_package external/report/dist/report-0.1.0.tar.gz
+    --extra_package ./external/report/dist/report-0.1.0.tar.gz \
+    --extra_package ./workflows/one_step_diags/dist/one_step_diags-0.1.0.tar.gz
