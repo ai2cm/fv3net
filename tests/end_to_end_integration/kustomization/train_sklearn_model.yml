@@ -8,6 +8,7 @@ files_per_batch: 2
 input_variables:
   - air_temperature
   - specific_humidity
+  - total_sky_downward_shortwave_flux_at_top_of_atmosphere
 output_variables:
   - dQ1
   - dQ2

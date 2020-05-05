@@ -92,7 +92,15 @@ VARIABLES = (
     "total_sky_upward_longwave_flux_at_top_of_atmosphere",
 ) + TRACERS
 
-SFC_VARIABLES = ("HPBLsfc",)  # one step jobs fail if SFC_VARIABLES is empty
+SFC_VARIABLES = (
+    "DSWRFtoa",
+     "DSWRFsfc",
+     "USWRFtoa",
+     "USWRFsfc",
+     "DLWRFsfc",
+     "ULWRFtoa",
+     "ULWRFsfc",
+)
 
 GRID_VARIABLES = ("lat", "lon", "latb", "lonb", "area")
 
