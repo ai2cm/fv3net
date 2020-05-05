@@ -47,6 +47,7 @@ dependencies:
   - holoviews
   - bokeh=1.4
   - backoff
+  - pip
   - pip:
     - poetry
     - gsutil
