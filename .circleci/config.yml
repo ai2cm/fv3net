@@ -21,11 +21,11 @@ jobs:
       - run: make update_submodules
       - run:
           name: "Concatenate package dependency files"
-          command: cat environment.yml .circleci/.installed_build_env_deps > combined_deps.txt
+          command: cat environment.yml .circleci/environment.lock > combined_deps.txt
       - restore_cache:
           keys:
             # change this string to invalidate cache
-            - v3-fv3net-env-{{ checksum "combined_deps.txt" }}
+            - v2-fv3net-env-{{ checksum "combined_deps.txt" }}
       - run:
           name: "Install fv3net dependencies"
           command: |
