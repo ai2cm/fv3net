@@ -44,6 +44,12 @@ def parse_args():
     )
     parser.add_argument("basefile", type=str, help="base yaml file to configure")
     parser.add_argument("outfile", type=str, help="location to write yaml file")
+    parser.add_argument(
+        "--timescale-hours",
+        type=float,
+        default=None,
+        help="timescale for nudging in hours",
+    )
     return parser.parse_args()
 
 
@@ -56,5 +62,8 @@ if __name__ == "__main__":
     label = runfile.time_to_label(time)
     config["initial_conditions"] = get_initial_condition_assets(reference_dir, label)
     config["initial_conditions"].append(FV_CORE_ASSET)
+    if args.timescale_hours is not None:
+        for varname in config["nudging"]["timescale_hours"]:
+            config["nudging"]["timescale_hours"][varname] = args.timescale_hours
     with open(args.outfile, "w") as f:
         f.write(yaml.dump(config))

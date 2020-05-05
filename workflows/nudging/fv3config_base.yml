@@ -6,9 +6,10 @@ initial_conditions: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coa
 nudging:
   restarts_path: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48
   timescale_hours:
-    air_temperature: 3
-    x_wind: 24
-    y_wind: 24
+    air_temperature: 12
+    specific_humidity: 12
+    x_wind: 12
+    y_wind: 12
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -69,10 +70,10 @@ namelist:
     - 0
     - 15
     - 0
-    days: 0
+    days: 7
     dt_atmos: 900
     dt_ocean: 900
-    hours: 1
+    hours: 0
     memuse_verbose: true
     minutes: 0
     months: 0
@@ -134,8 +135,8 @@ namelist:
     kord_tr: 10
     kord_wz: 10
     layout:
-    - 2
-    - 2
+    - 1
+    - 1
     make_nh: false
     mountain: true
     n_split: 6
