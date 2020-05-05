@@ -14,10 +14,10 @@ files and then uploading [this report][1] to a public bucket.
 
 This workflow depends on an up-to-date fv3net image. It also requires that argo be installed and the kubectl tool is properly configured.
 
-To generate reports for all the directories in `rundirs.yml` to the cluster,
+To generate reports for all the directories in `rundirs.json` to the cluster,
 simply run
 
-    bash run_all.sh rundirs.yml
+    bash run_all.sh rundirs.json
 
 This command will make output like this:
 
