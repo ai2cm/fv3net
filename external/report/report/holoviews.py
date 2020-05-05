@@ -28,7 +28,9 @@ def get_html_header() -> str:
     """
     hv.extension("bokeh")
     hmap = hv.HoloMap()
+    # need at least two plots in the holoviews for it to work
     hmap["a"] = hv.Curve([(0, 1), (0, 1)])
+    hmap["b"] = hv.Curve([(0, 1), (0, 1)])
 
     fp = io.BytesIO()
     hv.save(hmap, fp, fmt="html")
@@ -36,14 +38,17 @@ def get_html_header() -> str:
 
     # need to add root tag to parse with lxml
     doc = pq(html)
-    header = []
-
+    header = ""
     for script in doc("script"):
         try:
-            script.attrib["type"]
+            script.attrib["src"]
         except KeyError:
             pass
         else:
-            header.append(ET.tostring(script).decode("UTF-8"))
+            # need to prevent self-closing script tags <src ... /> does not work in
+            # Firefox (and maybe other browsers)
+            header += (
+                ET.tostring(script, short_empty_elements=False).decode("UTF-8").strip()
+            )
 
-    return "\n".join(header)
+    return header

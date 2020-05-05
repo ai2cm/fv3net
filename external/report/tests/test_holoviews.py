@@ -25,3 +25,5 @@ def test_get_html_header():
 
     assert "<html" not in html
     assert "<script" in html
+    # self closing script not allowed in html
+    assert " />" not in html
