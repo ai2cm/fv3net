@@ -94,12 +94,12 @@ VARIABLES = (
 
 SFC_VARIABLES = (
     "DSWRFtoa",
-     "DSWRFsfc",
-     "USWRFtoa",
-     "USWRFsfc",
-     "DLWRFsfc",
-     "ULWRFtoa",
-     "ULWRFsfc",
+    "DSWRFsfc",
+    "USWRFtoa",
+    "USWRFsfc",
+    "DLWRFsfc",
+    "ULWRFtoa",
+    "ULWRFsfc",
 )
 
 GRID_VARIABLES = ("lat", "lon", "latb", "lonb", "area")
