@@ -1,5 +1,4 @@
 import io
-import re
 from pyquery import PyQuery as pq
 import xml.etree.ElementTree as ET
 
@@ -27,14 +26,14 @@ class HVPlot:
 def get_html_header() -> str:
     """Return the javascript includes needed to render holoviews plots
     """
-    hv.extension('bokeh')
+    hv.extension("bokeh")
     hmap = hv.HoloMap()
-    hmap['a'] = hv.Curve([(0,1), (0, 1)])
+    hmap["a"] = hv.Curve([(0, 1), (0, 1)])
 
     fp = io.BytesIO()
-    hv.save(hmap, fp, fmt='html')
-    html = fp.getvalue().decode('UTF-8')
-    
+    hv.save(hmap, fp, fmt="html")
+    html = fp.getvalue().decode("UTF-8")
+
     # need to add root tag to parse with lxml
     doc = pq(html)
     header = []
@@ -45,6 +44,6 @@ def get_html_header() -> str:
         except KeyError:
             pass
         else:
-            header.append(ET.tostring(script).decode('UTF-8'))
+            header.append(ET.tostring(script).decode("UTF-8"))
 
-    return '\n'.join(header)
+    return "\n".join(header)

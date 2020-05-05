@@ -10,19 +10,9 @@ from pathlib import Path
 import argparse
 import holoviews as hv
 from report import create_html
-from report.holoviews import HVPlot
+from report.holoviews import HVPlot, get_html_header
 
 hv.extension("bokeh")
-
-
-# TODO: These versions might change, so it would be good to automate them somehow.
-# If no plots are appearing in the final reports, this would be a good place to
-# fix.
-_bokeh_html_header = """
-<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.0.2.min.js" integrity="sha384-ufR9RFnRs6lniiaFvtJziE0YeidtAgBRH6ux2oUItHw5WTvE1zuk9uzhUU/FJXDp" crossorigin="anonymous"></script>
-<script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.0.2.min.js" integrity="sha384-8QM/PGWBT+IssZuRcDcjzwIh1mkOmJSoNMmyYDZbCfXJg3Ap1lEvdVgFuSAwhb/J" crossorigin="anonymous"></script>
-<script type="text/javascript" src="https://unpkg.com/@holoviz/panel@^0.9.5/dist/panel.min.js" integrity="sha384-" crossorigin="anonymous"></script>
-"""  # noqa
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -236,7 +226,7 @@ def main():
     }
 
     html = create_html(
-        title="Prognostic run report", sections=sections, html_header=_bokeh_html_header
+        title="Prognostic run report", sections=sections, html_header=get_html_header()
     )
     upload(html, args.output, content_type="text/html")
 
