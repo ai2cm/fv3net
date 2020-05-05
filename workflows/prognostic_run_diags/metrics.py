@@ -52,6 +52,7 @@ def add_to_metrics(metricname: str, func: Callable[[xr.Dataset], xr.Dataset]):
     See rmse_3day below for an example.
 
     """
+
     def myfunc(diags):
         metrics = func(diags)
         return prepend_to_key(to_dict(metrics), f"{metricname}/")
