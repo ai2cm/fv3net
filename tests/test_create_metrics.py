@@ -43,10 +43,26 @@ def test__bias(test_ds):
     bias = _bias(test_ds.target, test_ds.pred)
     assert bias == pytest.approx((1.0 + 4.0 - 3.0 - 4.0) / 4)
 
+    area_weights = test_ds.area / test_ds.area.mean()  # [[0.4, 1.6]]
+    weighted_bias = _bias(test_ds.target, test_ds.pred, weights=area_weights)
+    assert weighted_bias == pytest.approx(
+        (1.0 * 0.4 + 4.0 * 0.4 - 3.0 * 1.6 - 4.0 * 1.6) / 4
+    )
+
 
 def test__rmse(test_ds):
-    rmse = _rmse(test_ds.target, test_ds.pred).isel({"x": 0, "y": 0})
-    np.testing.assert_array_almost_equal(rmse, np.array([1.0, 4.0]))
+    rmse = _rmse(
+        test_ds.target.isel({"x": 0, "y": 0}),
+        test_ds.pred.isel({"x": 0, "y": 0}),
+        mean_dims=["z"],
+    )
+    assert rmse == pytest.approx(np.sqrt((1 + 16.0) / 2))
+
+    area_weights = test_ds.area / test_ds.area.mean()  # [[0.4, 1.6]]
+    weighted_rmse = _rmse(
+        test_ds.target.isel(z=0), test_ds.pred.isel(z=0), weights=area_weights
+    )
+    assert weighted_rmse == pytest.approx(np.sqrt((1 * 0.4 + 9.0 * 1.6) / 2.0))
 
 
 def test__rmse_mass_avg(test_ds):
