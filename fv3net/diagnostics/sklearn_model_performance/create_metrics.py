@@ -110,14 +110,13 @@ def _metric_2d_global_mean(
     area_weights = ds_pred[var_area] / (ds_pred[var_area].mean())
     pred_labels = ["ML+physics", "physics"]
     for var, units in zip(["net_precipitation", "net_heating"], ["mm/d", "W/m^2"]):
-        # this loop is over target dataset so that mean can be taken for one of the comparisons
         for da_target, target_label in zip(
             [ds_fv3[var], ds_shield[var]], ["test data target", "hires"]
         ):
             for da_pred, pred_label in zip(
                 [ds_pred[var], ds_fv3[f"{var}_physics"]], pred_labels
             ):
-                # compare to ML predicion, model physics only prediction, variable average
+                # compare to ML predicion, model physics only prediction
                 global_metric = (
                     (metric_func(da_target, da_pred) * area_weights)
                     .mean()
