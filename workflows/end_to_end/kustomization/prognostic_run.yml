@@ -1,7 +1,7 @@
 kubernetes:
   cpu_count: 6
   memory_gb: 5.
-variable_rename_map:
+variable_ML_to_CF_rename_map:
   DSWRFtoa_train: total_sky_downward_shortwave_flux_at_top_of_atmosphere
 diag_table: /etc/config/diag_table_prognostic
 namelist:

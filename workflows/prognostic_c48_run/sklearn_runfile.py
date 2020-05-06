@@ -80,12 +80,6 @@ def update(
     return {key: updated[key] for key in updated}, {key: tend[key] for key in tend}
 
 
-def rename_state_variables(
-    state: Mapping[str, xr.DataArray], variable_rename_map: Mapping[str, str]
-) -> Mapping[str, xr.DataArray]:
-    return {variable_rename_map.get(key, key): state[key] for key in state}
-
-
 args = runtime.get_config()
 NML = runtime.get_namelist()
 TIMESTEP = NML["coupler_nml"]["dt_atmos"]
@@ -116,12 +110,16 @@ if __name__ == "__main__":
 
     MODEL = comm.bcast(MODEL, root=0)
     variables = list(set(REQUIRED_VARIABLES + MODEL.input_vars_))
+    if rank == 0:
+        logger.debug(f"Prognostic run requires variables: {variables}")
 
-    if "variable_rename_map" in args:
-        rename_map = args["variable_rename_map"]
+    if "variable_ML_to_CF_rename_map" in args:
+        rename_map = args["variable_ML_to_CF_rename_map"]
     else:
         rename_map = {}
     rename_map_inverse = dict(zip(rename_map.values(), rename_map.keys()))
+    if rank == 0:
+        logger.debug(f"Renaming following variables for ML prediction: {rename_map}")
 
     variables = [rename_map.get(var, var) for var in variables]
 
@@ -143,15 +141,16 @@ if __name__ == "__main__":
             key: value.data_array
             for key, value in fv3gfs.get_state(names=variables).items()
         }
-        state = rename_state_variables(state, rename_map_inverse)
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
-        preds, diags = update(MODEL, state, dt=TIMESTEP)
+        preds, diags = update(
+            MODEL, runtime.rename_keys(state, rename_map_inverse), dt=TIMESTEP
+        )
 
         if rank == 0:
             logger.debug("Setting Fortran State")
-        state = rename_state_variables(state, rename_map)
+        preds = runtime.rename_keys(preds, rename_map)
         fv3gfs.set_state(
             {key: fv3util.Quantity.from_data_array(preds[key]) for key in preds}
         )
