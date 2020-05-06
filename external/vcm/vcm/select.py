@@ -2,7 +2,6 @@
 This module is for functions that select subsets of the data
 """
 import numpy as np
-import xarray as xr
 
 from vcm.cubedsphere.constants import (
     COORD_X_CENTER,
@@ -11,30 +10,21 @@ from vcm.cubedsphere.constants import (
     VAR_LON_CENTER,
 )
 
-SURFACE_TYPE_ENUMERATION = {"sea": 0, "land": 1, "seaice": 2}
 
-
-def mask_to_surface_type(
-    ds: xr.Dataset,
-    surface_type: str,
-    surface_type_var: str = "land_sea_mask",
-    enumeration: dict = SURFACE_TYPE_ENUMERATION,
-) -> xr.Dataset:
+def mask_to_surface_type(ds, surface_type, surface_type_var="land_sea_mask"):
     """
     Args:
-        ds: xarray dataset
+        ds: xarray dataset, must have variable slmsk
         surface_type: one of ['sea', 'land', 'seaice']
-        surface_type_varname: Name of the surface type var in ds, optional.
-            Defaults to 'slmsk'
-        enumeration: mapping of surface type names to values
     Returns:
         input dataset masked to the surface_type specified
     """
     if surface_type in ["none", "None", None, "global"]:
         return ds
-    elif surface_type not in enumeration:
-        raise ValueError("Must mask to surface_type in enumeration.")
-    mask = ds[surface_type_var].astype(int) == enumeration[surface_type]
+    elif surface_type not in ["sea", "land", "seaice"]:
+        raise ValueError("Must mask to surface_type in ['sea', 'land', 'seaice'].")
+    surface_type_codes = {"sea": 0, "land": 1, "seaice": 2}
+    mask = ds[surface_type_var].astype(int) == surface_type_codes[surface_type]
     ds_masked = ds.where(mask)
     return ds_masked
 
