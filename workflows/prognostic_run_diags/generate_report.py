@@ -165,6 +165,10 @@ def rms_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
 def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
     return HVPlot(holomap_filter(time_series, varfilter="global_avg").overlay("run"))
 
+@diag_plot_manager.register
+def diurnal_cycle_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
+    return HVPlot(holomap_filter(time_series, varfilter="diurnal")).overlay("run")
+
 
 # Routines for plotting the "metrics"
 # New plotting routines can be registered here.
@@ -210,6 +214,12 @@ def main():
     diagnostics = [
         convert_time_index_to_datetime(
             get_variables_with_dims(ds, ["time"]), "time"
+        ).assign_attrs(run=key, **run_table_lookup.loc[key])
+        for key, ds in diags.items()
+    ]
+    diagnostics += [
+        get_variables_with_dims(
+            ds, ["mean_local_time"]
         ).assign_attrs(run=key, **run_table_lookup.loc[key])
         for key, ds in diags.items()
     ]
