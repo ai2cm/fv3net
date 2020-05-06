@@ -93,6 +93,11 @@ if __name__ == "__main__":
     # change into run directoryy
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
 
+    rename_map = args.get("ML_to_CF_variable_rename_map", {})
+    rename_map_inverse = dict(zip(rename_map.values(), rename_map.keys()))
+    if rank == 0:
+        logger.debug(f"Renaming variables for ML prediction using: {rename_map}")
+
     # open zarr tape for output
     if rank == 0:
         GROUP = zarr.open_group(args["scikit_learn"]["zarr_output"], mode="w")
@@ -110,18 +115,9 @@ if __name__ == "__main__":
 
     MODEL = comm.bcast(MODEL, root=0)
     variables = list(set(REQUIRED_VARIABLES + MODEL.input_vars_))
+    variables = [rename_map.get(var, var) for var in variables]
     if rank == 0:
         logger.debug(f"Prognostic run requires variables: {variables}")
-
-    if "variable_ML_to_CF_rename_map" in args:
-        rename_map = args["variable_ML_to_CF_rename_map"]
-    else:
-        rename_map = {}
-    rename_map_inverse = dict(zip(rename_map.values(), rename_map.keys()))
-    if rank == 0:
-        logger.debug(f"Renaming following variables for ML prediction: {rename_map}")
-
-    variables = [rename_map.get(var, var) for var in variables]
 
     if rank == 0:
         logger.info(f"Timestep: {TIMESTEP}")
