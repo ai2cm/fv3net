@@ -106,7 +106,7 @@ def bias(truth, prediction, w, dims):
 def calc_ds_diurnal_cycle(ds):
     """
     Calculates the diurnal cycle on moisture variables.  Expects
-    time dimension and longitude variable "lon".
+    time dimension and longitude variable "grid_lont".
     """
     # TODO: switch to vcm.safe dataset usage
     moist_vars = ["LHTFLsfc", "PRATEsfc", "net_moistening"]
@@ -229,8 +229,8 @@ def _join_sfc_zarr_coords(sfc_nc, sfc_zarr):
     return joined
 
 
-def load_data(url, grid_spec, catalog):
-    logger.info(f"Processing run directory at {url}")
+def load_data_3H(url, grid_spec, catalog):
+    logger.info(f"Processing 3H data from run directory at {url}")
 
     # open grid
     logger.info("Opening Grid Spec")
@@ -240,16 +240,6 @@ def load_data(url, grid_spec, catalog):
     logger.info("Opening verification data")
     verification = catalog["40day_c384_atmos_8xdaily"].to_dask()
     verification = verification.merge(grid_c384)
-    
-    # load moisture vars for diurnal cycle
-    moisture_vars = ["PRATEsfc", "LHTFLsfc"]
-    moist_verif = catalog["40day_c384_diags_time_avg"].to_dask()
-    moist_verif = _round_time_coord(moist_verif)
-    moist_verif = _remove_name_suffix(moist_verif, "_coarse")
-    moist_verif = moist_verif.assign_coords({"tile": np.arange(6)})
-    # including grid_lont because lon output is empty in prog_run diag file :(
-    moist_verif = moist_verif[moisture_vars + ["grid_lont"]]
-    verification = verification.merge(moist_verif, join="inner")  # merges to 3H
 
     # block average data
     logger.info("Block averaging the verification data")
@@ -262,6 +252,36 @@ def load_data(url, grid_spec, catalog):
     logger.info(f"Opening diagnostic data at {atmos_diag_url}")
     ds = open_tiles(atmos_diag_url).load()
     resampled = ds.resample(time="3H", label="right").nearest()
+
+    verification_c48 = verification_c48.sel(
+        time=resampled.time[:-1]
+    )  # don't use last time point. there is some trouble
+
+    return resampled, verification_c48, verification_c48[["area"]]
+
+
+def load_data_15min(url, grid_spec, catalog):
+    logger.info(f"Processing 15min data from run directory at {url}")
+
+    # open grid
+    logger.info("Opening Grid Spec")
+    grid_c384 = open_tiles(grid_spec)
+    
+    # load moisture vars for diurnal cycle
+    moisture_vars = ["PRATEsfc", "LHTFLsfc"]
+    moist_verif = catalog["40day_c384_diags_time_avg"].to_dask()
+    moist_verif = _round_time_coord(moist_verif)
+    moist_verif = _remove_name_suffix(moist_verif, "_coarse")
+    moist_verif = moist_verif.assign_coords({"tile": np.arange(6)})
+    # including grid_lont because lon output is empty in prog_run diag file :(
+    moist_verif = moist_verif[moisture_vars + ["grid_lont"]]
+    moist_verif = moist_verif.merge(grid_c384)
+
+    # block average data
+    logger.info("Block averaging the verification data")
+    moist_verif_c48 = vcm.cubedsphere.weighted_block_average(
+        moist_verif, moist_verif.area, 8, x_dim="grid_xt", y_dim="grid_yt"
+    )
 
     # load sfc diagnostics
     sfc_diag_url = os.path.join(url, "sfc_dt_atmos")
@@ -276,13 +296,9 @@ def load_data(url, grid_spec, catalog):
             moisture_vars += ["net_moistening"]
     
     sfc_diag = sfc_diag[moisture_vars + ["SLMSKsfc"]]
-    resampled = resampled.merge(sfc_diag, join="inner")
-
-    verification_c48 = verification_c48.sel(
-        time=resampled.time[:-1]
-    )  # don't use last time point. there is some trouble
-
-    return resampled, verification_c48, verification_c48[["area"]]
+    sfc_diag["grid_lont"] = moist_verif["grid_lont"]
+    
+    return sfc_diag, moist_verif_c48, moist_verif_c48[["area"]]
 
 
 def _catalog():
@@ -309,7 +325,10 @@ if __name__ == "__main__":
     attrs["history"] = " ".join(sys.argv)
 
     catalog = intake.open_catalog(args.catalog)
-    resampled, verification, grid = load_data(args.url, args.grid_spec, catalog)
+    input_data = {}
+    resampled, verification, grid = load_data_3H(args.url, args.grid_spec, catalog)
+    input_data["3H"] = (resampled, verification, grid)
+    input_data["15min"] = load_data_15min(args.url, args.grid_spec, catalog)
 
     # begin constructing diags
     diags = {}
@@ -319,7 +338,7 @@ if __name__ == "__main__":
     diags["pwat_run_final"] = resampled.PWAT.isel(time=-2)
     diags["pwat_verification_final"] = verification.PWAT.isel(time=-2)
 
-    diags.update(compute_all_diagnostics(resampled, verification, grid))
+    diags.update(compute_all_diagnostics(input_data))
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)
