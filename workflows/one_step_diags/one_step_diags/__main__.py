@@ -32,6 +32,7 @@ from tempfile import NamedTemporaryFile
 from typing import Sequence, Mapping, Any
 import logging
 import sys
+import warnings
 
 out_hdlr = logging.StreamHandler(sys.stdout)
 out_hdlr.setFormatter(
@@ -42,6 +43,14 @@ logging.basicConfig(handlers=[out_hdlr], level=logging.INFO)
 logger = logging.getLogger("one_step_diags")
 
 dask.config.set(scheduler="single-threaded")
+
+warnings.filterwarnings(
+    "ignore",
+    message="Dataset.__getitem__ is unsafe. Please avoid use in long-running code.",
+)
+warnings.filterwarnings(
+    "ignore", message="Dataset.stack is unsafe. Please avoid use in long-running code."
+)
 
 
 def _create_arg_parser():
@@ -139,21 +148,21 @@ def _open_timestamp_pairs(timestamp_pairs: Sequence, mapper: Mapping) -> xr.Data
 
     logger.info(f"Opening the following timesteps: {timestamp_pairs}")
 
-    try:
-        ds = xr.open_zarr(mapper)
-        ds_pair = get_variables(ds, config["VARS_FROM_ZARR"]).sel(
-            {
-                INIT_TIME_DIM: timestamp_pairs,
-                ZARR_STEP_DIM: [
-                    ZARR_STEP_NAMES["begin"],
-                    ZARR_STEP_NAMES["after_physics"],
-                ],
-            }
-        )
-        logger.info(f"Finished opening the following timesteps: {timestamp_pairs}")
-    except RuntimeError as e:
-        logger.warning(e)
-        ds_pair = None
+    #     try:
+    ds = xr.open_zarr(mapper)
+    ds_pair = get_variables(ds, config["VARS_FROM_ZARR"]).sel(
+        {
+            INIT_TIME_DIM: timestamp_pairs,
+            ZARR_STEP_DIM: [
+                ZARR_STEP_NAMES["begin"],
+                ZARR_STEP_NAMES["after_physics"],
+            ],
+        }
+    )
+    logger.info(f"Finished opening the following timesteps: {timestamp_pairs}")
+    #     except (RuntimeError, AssertionError) as e:
+    #         logger.warning(e)
+    #         ds_pair = None
 
     return ds_pair
 
@@ -168,26 +177,19 @@ def _insert_derived_vars(
         f"Inserting derived variables for timestep " f"{ds[INIT_TIME_DIM].values[0]}"
     )
 
-    ds = ds.assign_coords({"z": np.arange(1.0, ds.sizes["z"] + 1.0)}).pipe(
-        data_funcs.time_coord_to_datetime
-    )
-
-    try:
-        ds = data_funcs.insert_hi_res_diags(
-            ds, hi_res_diags_zarrpath, hi_res_diags_mapping
+    ds = (
+        ds.assign_coords({"z": np.arange(1.0, ds.sizes["z"] + 1.0)})
+        .pipe(data_funcs.time_coord_to_datetime)
+        .pipe(
+            data_funcs.insert_hi_res_diags, hi_res_diags_zarrpath, hi_res_diags_mapping
         )
-    except RuntimeError as e:
-        logger.warning(e)
-        return None
-
-    ds = data_funcs.insert_derived_vars_from_ds_zarr(ds)
+        .pipe(data_funcs.insert_derived_vars_from_ds_zarr)
+    )
 
     logger.info(
         f"Finished inserting derived variables for timestep "
         f"{ds[INIT_TIME_DIM].values[0]}"
     )
-
-    print(ds)
 
     return ds
 
@@ -212,8 +214,6 @@ def _insert_states_and_tendencies(ds: xr.Dataset, abs_vars: Sequence) -> xr.Data
     ds.attrs[INIT_TIME_DIM] = [ds[INIT_TIME_DIM].item().strftime(TIME_FMT)]
     logger.info(f"Finished inserting states and tendencies for timestep " f"{timestep}")
 
-    print(ds)
-
     return ds
 
 
@@ -225,26 +225,21 @@ def _insert_means_and_shrink(
     """
     timestep = ds[INIT_TIME_DIM].item().strftime(TIME_FMT)
     logger.info(f"Inserting means and shrinking timestep {timestep}")
-    try:
+    ds = ds.merge(grid)
+    ds = data_funcs.insert_diurnal_means(ds, config["DIURNAL_VAR_MAPPING"])
+    if ds is not None:
         ds = (
-            ds.merge(grid)
-            .pipe(data_funcs.insert_diurnal_means, config["DIURNAL_VAR_MAPPING"])
-            .pipe(
+            ds.pipe(
                 data_funcs.insert_area_means,
                 grid["area"],
                 list(config["GLOBAL_MEAN_2D_VARS"])
                 + list(config["GLOBAL_MEAN_3D_VARS"]),
                 ["land_sea_mask", "net_precipitation_physics"],
             )
+            .pipe(data_funcs.shrink_ds, config)
+            .load()
         )
-    except RuntimeError as e:
-        logger.warn(e)
-        ds = None
-    else:
-        ds = data_funcs.shrink_ds(ds, config).load()
         logger.info(f"Finished shrinking timestep {timestep}")
-
-    print(ds)
 
     return ds
 
@@ -390,16 +385,14 @@ with beam.Pipeline(options=beam_options) as p:
         p
         | "CreateDS" >> beam.Create(timestamp_pairs_subset)
         | "OpenDSPairs" >> beam.Map(_open_timestamp_pairs, mapper)
-        | "FilterOpenDS" >> beam.Filter(_filter_ds)
         | "InsertDerivedVars"
         >> beam.Map(
             _insert_derived_vars, hi_res_diags_zarrpath, config["HI_RES_DIAGS_MAPPING"]
         )
-        | "FilterDerivedDS" >> beam.Filter(_filter_ds)
         | "InsertStatesAndTendencies"
         >> beam.Map(_insert_states_and_tendencies, config["ABS_VARS"])
         | "InsertMeanVars" >> beam.Map(_insert_means_and_shrink, grid, config)
-        | "FilterMeanDS" >> beam.Filter(_filter_ds)
+        | "FilterDS" >> beam.Filter(_filter_ds)
         | "MeanAndStdDev"
         >> beam.CombineGlobally(MeanAndStDevFn(std_vars=config["GLOBAL_MEAN_2D_VARS"]))
         | "WriteDS" >> beam.Map(_write_ds, output_nc_path)

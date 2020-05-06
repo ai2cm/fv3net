@@ -35,7 +35,7 @@ $NETCDF_OUTPUT \
 --temp_location gs://vcm-ml-data/tmp_dataflow \
 --num_workers 4 \
 --max_num_workers 30 \
---disk_size_gb 250 \
+--disk_size_gb 50 \
 --worker_machine_type n2-highmem-4 \
 --setup_file ./setup.py \
 --extra_package ./external/report/dist/report-0.1.0.tar.gz \

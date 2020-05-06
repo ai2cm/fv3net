@@ -106,72 +106,71 @@ def make_all_plots(
 
         # manufacture a dataset with a "dimension" that's really a set of
         # diverse subpanel plots
-        comparison_ds = xr.concat(
-            [
-                (
-                    states_and_tendencies[[physics_var_full]]  # hi-res physics
-                    .sel({DELTA_DIM: "hi-res", "var_type": "states"})
-                    .isel({FORECAST_TIME_DIM: time1})
-                    .drop(DELTA_DIM)
-                    .expand_dims({DELTA_DIM: [f"hi-res physics at {time1} min"]})
-                    .rename({physics_var_full: physics_var})
-                ),
-                (
-                    (
-                        states_and_tendencies[[physics_var_full]]  # coarse physics
-                        .rename({physics_var_full: physics_var})
-                        .sel({DELTA_DIM: "coarse", "var_type": "states"})
-                        + states_and_tendencies[[residual_var]]  # tendency diff
-                        .rename({residual_var: physics_var})
-                        .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
-                    )
-                    .isel({FORECAST_TIME_DIM: time1})
-                    .expand_dims({DELTA_DIM: [f"(pQ + dQ) at {time1} min"]})
-                ),
-                (
-                    (
-                        states_and_tendencies[[physics_var_full]]  # hi-res physics
-                        .sel({DELTA_DIM: "hi-res", "var_type": "states"})
-                        .rename({physics_var_full: physics_var})
-                        - states_and_tendencies[[physics_var_full]]  # coarse physics
-                        .rename({physics_var_full: physics_var})
-                        .sel({DELTA_DIM: "coarse", "var_type": "states"})
-                        - states_and_tendencies[[residual_var]]  # tendency diff
-                        .rename({residual_var: physics_var})
-                        .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
-                    )
-                    .drop(DELTA_DIM)
-                    .isel({FORECAST_TIME_DIM: time1})
-                    .expand_dims(
-                        {DELTA_DIM: [f"hi-res physics - (pQ + dQ) at {time1} min"]}
-                    )
-                ),
-                (
-                    (
-                        states_and_tendencies[[physics_var_full]]  # coarse physics
-                        .rename({physics_var_full: physics_var})
-                        .sel({DELTA_DIM: "coarse", "var_type": "states"})
-                        .isel({FORECAST_TIME_DIM: time2})
-                        + states_and_tendencies[[residual_var]]  # tendency diff
-                        .rename({residual_var: physics_var})
-                        .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
-                        .isel({FORECAST_TIME_DIM: time2})
-                        - states_and_tendencies[[physics_var_full]]  # coarse physics
-                        .rename({physics_var_full: physics_var})
-                        .sel({DELTA_DIM: "coarse", "var_type": "states"})
-                        .isel({FORECAST_TIME_DIM: time1})
-                        - states_and_tendencies[[residual_var]]  # tendency diff
-                        .rename({residual_var: physics_var})
-                        .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
-                        .isel({FORECAST_TIME_DIM: time1})
-                    ).expand_dims(
-                        {DELTA_DIM: [f"(pQ + dQ) at {time2} min - at {time1} min"]}
-                    )
-                ),
-            ],
-            dim=DELTA_DIM,
+
+        hi_res_time1 = (
+            states_and_tendencies[physics_var_full]
+            .sel({DELTA_DIM: "hi-res", "var_type": "states"})
+            .isel({FORECAST_TIME_DIM: time1})
+            .drop(DELTA_DIM)
+            .rename(physics_var)
         )
-        comparison_ds = comparison_ds.merge(states_and_tendencies[list(GRID_VARS)])
+
+        pQ_plus_dQ_time1 = (
+            (
+                states_and_tendencies[physics_var_full].sel(
+                    {DELTA_DIM: "coarse", "var_type": "states"}
+                )
+                + states_and_tendencies[residual_var].sel(
+                    {DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"}
+                )
+            )
+            .isel({FORECAST_TIME_DIM: time1})
+            .rename(f"(pQ + dQ) at {time1} min")
+        )
+
+        hi_res_minus_pQ_plus_dQ_time1 = (
+            (
+                states_and_tendencies[physics_var_full].sel(
+                    {DELTA_DIM: "hi-res", "var_type": "states"}
+                )
+                - states_and_tendencies[physics_var_full].sel(
+                    {DELTA_DIM: "coarse", "var_type": "states"}
+                )
+                - states_and_tendencies[residual_var].sel(
+                    {DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"}
+                )
+            )
+            .drop(DELTA_DIM)
+            .isel({FORECAST_TIME_DIM: time1})
+            .rename(f"hi-res physics - (pQ + dQ) at {time1} min")
+        )
+
+        pQ_plus_dQ_time2_minus_time1 = (
+            states_and_tendencies[physics_var_full]
+            .sel({DELTA_DIM: "coarse", "var_type": "states"})
+            .isel({FORECAST_TIME_DIM: time2})
+            + states_and_tendencies[residual_var]
+            .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
+            .isel({FORECAST_TIME_DIM: time2})
+            - states_and_tendencies[physics_var_full]
+            .sel({DELTA_DIM: "coarse", "var_type": "states"})
+            .isel({FORECAST_TIME_DIM: time1})
+            - states_and_tendencies[residual_var]
+            .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
+            .isel({FORECAST_TIME_DIM: time1})
+        ).rename(f"(pQ + dQ) at {time2} min - at {time1} min")
+
+        comparison_ds = xr.merge(
+            [
+                hi_res_time1,
+                pQ_plus_dQ_time1,
+                hi_res_minus_pQ_plus_dQ_time1,
+                pQ_plus_dQ_time2_minus_time1,
+            ]
+        ).to_array(dim=DELTA_DIM, name=physics_var)
+        comparison_ds = xr.merge(
+            [comparison_ds, states_and_tendencies[list(GRID_VARS)]]
+        )
         comparison_ds[physics_var] = comparison_ds[physics_var].assign_attrs(
             {
                 "long_name": physics_var,
@@ -262,54 +261,61 @@ def make_all_plots(
 
         # manufacture a dataset with a "dimension" that's really a set of
         # diverse subpanel plots
-        comparison_ds = xr.concat(
-            [
-                (
-                    states_and_tendencies[[var]]  # hi-res
-                    .sel({DELTA_DIM: "hi-res", "var_type": vartype})
-                    .isel({FORECAST_TIME_DIM: time1})
-                    .drop([DELTA_DIM, FORECAST_TIME_DIM])
-                    .expand_dims({DELTA_DIM: [f"hi-res at {time1} min"]})
-                ),
-                (
-                    states_and_tendencies[[var]]  # coarse
-                    .sel({DELTA_DIM: "coarse", "var_type": vartype})
-                    .isel({FORECAST_TIME_DIM: time1})
-                    .drop([DELTA_DIM, FORECAST_TIME_DIM])
-                    .expand_dims({DELTA_DIM: [f"coarse at {time1} min"]})
-                ),
-                (
-                    (
-                        states_and_tendencies[[var]].sel(  # hi-res
-                            {DELTA_DIM: "hi-res", "var_type": vartype}
-                        )
-                        - states_and_tendencies[[var]].sel(  # coarse
-                            {DELTA_DIM: "coarse", "var_type": vartype}
-                        )
-                    )
-                    .isel({FORECAST_TIME_DIM: time1})
-                    .drop(FORECAST_TIME_DIM)
-                    .expand_dims({DELTA_DIM: [f"hi-res - coarse at {time1} min"]})
-                ),
-                (
-                    (
-                        states_and_tendencies[[var]].isel(  # coarse at time2
-                            {FORECAST_TIME_DIM: time2}
-                        )
-                        - states_and_tendencies[[var]].isel(  # coarse at time1
-                            {FORECAST_TIME_DIM: time1}
-                        )
-                    )
-                    .sel({DELTA_DIM: "coarse", "var_type": vartype})
-                    .drop(DELTA_DIM)
-                    .expand_dims(
-                        {DELTA_DIM: [f"coarse at {time2} min - coarse at {time1} min"]}
-                    )
-                ),
-            ],
-            dim=DELTA_DIM,
+
+        hi_res_time1 = (
+            states_and_tendencies[var]
+            .sel({DELTA_DIM: "hi-res", "var_type": vartype})
+            .isel({FORECAST_TIME_DIM: time1})
+            .drop([DELTA_DIM, FORECAST_TIME_DIM])
+            .rename(f"hi-res at {time1} min")
         )
 
+        coarse_time1 = (
+            states_and_tendencies[var]
+            .sel({DELTA_DIM: "coarse", "var_type": vartype})
+            .isel({FORECAST_TIME_DIM: time1})
+            .drop([DELTA_DIM, FORECAST_TIME_DIM])
+            .rename(f"coarse at {time1} min")
+        )
+
+        hi_res_minus_coarse_time1 = (
+            (
+                states_and_tendencies[var].sel(
+                    {DELTA_DIM: "hi-res", "var_type": vartype}
+                )
+                - states_and_tendencies[var].sel(
+                    {DELTA_DIM: "coarse", "var_type": vartype}
+                )
+            )
+            .isel({FORECAST_TIME_DIM: time1})
+            .drop(FORECAST_TIME_DIM)
+            .rename(f"hi-res - coarse at {time1} min")
+        )
+
+        coarse_time2_minus_time1 = (
+            (
+                states_and_tendencies[var].isel({FORECAST_TIME_DIM: time2})
+                - states_and_tendencies[var].isel({FORECAST_TIME_DIM: time1})
+            )
+            .sel({DELTA_DIM: "coarse", "var_type": vartype})
+            .drop(DELTA_DIM)
+            .rename(f"coarse at {time2} min - coarse at {time1} min")
+        )
+
+        comparison_ds = xr.merge(
+            [
+                hi_res_time1,
+                coarse_time1,
+                hi_res_minus_coarse_time1,
+                coarse_time2_minus_time1,
+            ]
+        ).to_array(dim=DELTA_DIM, name=var)
+        comparison_ds = xr.merge(
+            [comparison_ds, states_and_tendencies[list(GRID_VARS)]]
+        )
+        comparison_ds[var].attrs.update(
+            {"units": states_and_tendencies[var].attrs["units"]}
+        )
         if vartype == "tendencies" and "column_integrated" not in var:
             if "long_name" in comparison_ds[var].attrs:
                 comparison_ds[var].attrs.update(
@@ -320,8 +326,6 @@ def make_all_plots(
             )
             comparison_ds = comparison_ds.rename({var: f"{var}_tendencies"})
             var = f"{var}_tendencies"
-
-        comparison_ds = comparison_ds.merge(states_and_tendencies[list(GRID_VARS)])
 
         f = plot_model_run_maps_across_forecast_time(
             comparison_ds, var, DELTA_DIM, scale=scale

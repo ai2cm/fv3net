@@ -3,9 +3,10 @@ import numpy as np
 from scipy.stats import binned_statistic
 from vcm.select import mask_to_surface_type
 from vcm.convenience import parse_datetime_from_str
+
+# from vcm.safe import get_variables
 from vcm import thermo, local_time, net_precipitation
 import logging
-import warnings
 from typing import Sequence, Mapping
 from .config import SFC_VARIABLES
 from .constants import (
@@ -287,17 +288,16 @@ def mean_diurnal_cycle(
     da: xr.DataArray, local_time: xr.DataArray, stack_dims: list = ["x", "y", "tile"]
 ) -> xr.DataArray:
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        local_time = (
-            local_time.stack(dimensions={"sample": stack_dims}).load().dropna("sample")
-        )
-        da = da.stack(dimensions={"sample": stack_dims}).load().dropna("sample")
+    local_time = (
+        local_time.stack(dimensions={"sample": stack_dims}).load().dropna("sample")
+    )
+    da = da.stack(dimensions={"sample": stack_dims}).load().dropna("sample")
     other_dims = [dim for dim in da.dims if dim != "sample"]
     diurnal_coords = [(dim, da[dim]) for dim in other_dims] + [
         ("local_hour_of_day", np.arange(0.0, 24.0))
     ]
     diurnal_da = xr.DataArray(coords=diurnal_coords)
+    diurnal_da.name = da.name
     for valid_time in da[FORECAST_TIME_DIM]:
         da_single_time = da.sel({FORECAST_TIME_DIM: valid_time})
         try:
@@ -305,14 +305,14 @@ def mean_diurnal_cycle(
                 local_time.values, da_single_time.values, bins=np.arange(0.0, 25.0)
             )
             diurnal_da.loc[{FORECAST_TIME_DIM: valid_time}] = bin_means
-        except AttributeError as e:
+        except AttributeError:
             logger.warn(
-                f"Diurnal mean computation failed for {da.name} "
-                f"and {valid_time.item()} due to null values."
+                f"Diurnal mean computation failed for initial time "
+                f"{da[INIT_TIME_DIM].item()} for {da.name} "
+                f"and forecast time {valid_time.item()} due to null values."
             )
-            logger.warn(e)
-
-    diurnal_da.name = da.name
+            diurnal_da = None
+            break
 
     return diurnal_da
 
@@ -351,14 +351,17 @@ def insert_diurnal_means(
                 ),
                 ds_domain["local_time"],
             )
-            ds = ds.assign(
-                {
-                    f"{var}_{domain}": xr.concat(
-                        [da_physics_domain, da_residual_domain], dim=DELTA_DIM
-                    )
-                }
-            )
-            ds[f"{var}_{domain}"].attrs.update(ds[residual_name].attrs)
+            if da_residual_domain is None or da_physics_domain is None:
+                return None
+            else:
+                ds = ds.assign(
+                    {
+                        f"{var}_{domain}": xr.concat(
+                            [da_physics_domain, da_residual_domain], dim=DELTA_DIM
+                        )
+                    }
+                )
+                ds[f"{var}_{domain}"].attrs.update(ds[residual_name].attrs)
 
     return ds
 
