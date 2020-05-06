@@ -25,9 +25,9 @@ def _dataset(sample_dim):
 def test__shuffled():
     dataset = _dataset("sample")
     dataset.isel(sample=1)
-    _shuffled(dataset, "sample", 1)
+    _shuffled(dataset, "sample", np.random.RandomState(1))
 
 
 def test__shuffled_dask():
     dataset = _dataset("sample").chunk()
-    _shuffled(dataset, "sample", 1)
+    _shuffled(dataset, "sample", np.random.RandomState(1))
