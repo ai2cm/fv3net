@@ -28,7 +28,7 @@ class ModelTrainingConfig:
     batch_kwargs: dict
 
 
-def load_model_training_config(config_path):
+def load_model_training_config(config_path: str) -> ModelTrainingConfig:
     """
 
     Args:
@@ -45,11 +45,11 @@ def load_model_training_config(config_path):
     return ModelTrainingConfig(**config_dict)
 
 
-def load_data_sequence(data_path, train_config) -> dataset_handler.BatchSequence:
+def load_data_sequence(data_path: str, train_config: ModelTrainingConfig) -> dataset_handler.BatchSequence:
     """
 
     Args:
-        train_config: ModelTrainingConfig object
+        train_config: model training configuration
 
     Returns:
         iterator that generates xr datasets for training batches
@@ -64,12 +64,12 @@ def load_data_sequence(data_path, train_config) -> dataset_handler.BatchSequence
     return ds_batches
 
 
-def _get_regressor(train_config):
+def _get_regressor(train_config: ModelTrainingConfig):
     """Reads the model type from the model training config and initializes a regressor
     with hyperparameters from config.
 
     Args:
-        train_config: ModelTrainingConfig object
+        train_config: model training configuration
 
     Returns:
         regressor (varies depending on model type)
@@ -92,12 +92,12 @@ def _get_regressor(train_config):
     return regressor
 
 
-def train_model(batched_data: dataset_handler.BatchSequence, train_config: dict):
+def train_model(batched_data: dataset_handler.BatchSequence, train_config: ModelTrainingConfig):
     """
 
     Args:
         batched_data: iterator that yields training batch datasets
-        train_config: model training options
+        train_config: model training configuration
         targets_for_normalization: array of sample output data used to save norm and std
             dev to the StandardScaler transformer
 
@@ -123,7 +123,7 @@ def train_model(batched_data: dataset_handler.BatchSequence, train_config: dict)
     return model_wrapper
 
 
-def save_model(output_url, model, model_filename):
+def save_model(output_url: str, model, model_filename: str):
     """Save model to {output_url}/{model_filename} using joblib.dump"""
     fs, _, _ = fsspec.get_fs_token_paths(output_url)
     fs.makedirs(output_url, exist_ok=True)
