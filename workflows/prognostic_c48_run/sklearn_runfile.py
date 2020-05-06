@@ -93,7 +93,7 @@ if __name__ == "__main__":
     # change into run directoryy
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
 
-    rename_ML_to_CF = args.get("ML_to_CF_variable_rename_map", {})
+    rename_ML_to_CF = args["scikit_learn"].get("input_variable_standard_names", {})
     rename_CF_to_ML = dict(zip(rename_ML_to_CF.values(), rename_ML_to_CF.keys()))
     if rank == 0:
         logger.debug(f"Renaming variables for ML prediction using: {rename_CF_to_ML}")

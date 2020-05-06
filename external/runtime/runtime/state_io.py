@@ -9,10 +9,10 @@ logger = logging.getLogger(__name__)
 
 
 def rename_keys(
-    input_dict: Mapping[str, Any], key_rename_map: Mapping[str, str]
+    input: Mapping[str, Any], key_rename: Mapping[str, str]
 ) -> Mapping[str, Any]:
-    """Rename keys of input_dict to new values from key_rename_map, if present"""
-    return {key_rename_map.get(key, key): input_dict[key] for key in input_dict}
+    """Rename keys of input to new values from key_rename, if present"""
+    return {key_rename.get(key, key): input[key] for key in input}
 
 
 def dump(state, f):

@@ -31,10 +31,11 @@ scikit_learn:
   zarr_output: diags.zarr
 ```
 
-If the variables names used for input variables in the scikit-learn model are inconsistent with the variable names used by the python wrapper, this can be handled by the `ML_to_CF_variable_rename_map` entry in the config yaml:
+If some variables names used for input variables in the scikit-learn model are inconsistent with the variable names used by the python wrapper, this can be handled by the optional `input_variable_standard_names` entry in the `scikit_learn` entry of the config yaml:
 ```
-ML_to_CF_variable_rename_map:
-  DSWRFtoa_train: total_sky_downward_shortwave_flux_at_top_of_atmosphere
+scikit_learn:
+  input_variable_standard_names:
+    DSWRFtoa_train: total_sky_downward_shortwave_flux_at_top_of_atmosphere
 ```
 
 Prognostic Run in End-to-End Workflow
