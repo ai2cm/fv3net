@@ -7,6 +7,7 @@ import xarray as xr
 
 from . import helpers
 from vcm.calc import apparent_source
+from vcm import safe
 import fsspec
 from vcm import parse_datetime_from_str
 from fv3net import COARSENED_DIAGS_ZARR_NAME
@@ -41,6 +42,13 @@ def run(
 ):
     train_test_labels = _train_test_labels(timesteps)
     timestep_pairs = timesteps["train"] + timesteps["test"]
+
+
+    # TODO refactor up to main
+    full_zarr_path = os.path.join(diag_c48_path, COARSENED_DIAGS_ZARR_NAME)
+    mapper = fsspec.get_mapper(full_zarr_path)
+    ds_diag = xr.open_zarr(mapper, consolidated=True)
+
 
     logger.info(f"Processing {len(timestep_pairs)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
@@ -93,8 +101,7 @@ def run(
             | "MergeHiresDiagVars"
             >> beam.Map(
                 _merge_hires_data,
-                diag_c48_path=diag_c48_path,
-                coarsened_diags_zarr_name=COARSENED_DIAGS_ZARR_NAME,
+                ds_diag,
                 flux_vars=names["diag_vars"],
                 suffix_hires=names["suffix_hires"],
                 init_time_dim=names["init_time_dim"],
@@ -204,13 +211,14 @@ def _add_apparent_sources(
 
 def _merge_hires_data(
     ds_run,
-    diag_c48_path,
-    coarsened_diags_zarr_name,
+    ds_diag,
     flux_vars,
     suffix_hires,
     init_time_dim,
     renamed_dims,
 ):
+    from vcm.convenience import round_time
+    from vcm.cubedsphere.constants import INIT_TIME_DIM, TILE_COORDS
 
     renamed_high_res_vars = {
         **{
@@ -221,13 +229,22 @@ def _merge_hires_data(
         "LHTFLsfc_coarse": f"latent_heat_flux_{suffix_hires}",
         "SHTFLsfc_coarse": f"sensible_heat_flux_{suffix_hires}",
     }
-    if not diag_c48_path:
-        return ds_run
+
     init_times = ds_run[init_time_dim].values
-    full_zarr_path = os.path.join(diag_c48_path, coarsened_diags_zarr_name)
-    diags_c48 = helpers.load_hires_prog_diag(full_zarr_path, init_times)[
-        list(renamed_high_res_vars.keys())
-    ]
+    ds_diag = ds_diag.rename(
+        {"time": INIT_TIME_DIM}
+    )
+    ds_diag = ds_diag.assign_coords(
+        {
+            INIT_TIME_DIM: [round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
+            "tile": TILE_COORDS,
+        }
+    )
+
+    diags_c48 = ds_diag.sel({INIT_TIME_DIM: init_times})
+
+    diags_c48 = safe.get_variables(diags_c48, renamed_high_res_vars.keys())
+
     renamed_dims = {
         dim: renamed_dims[dim] for dim in renamed_dims if dim in diags_c48.dims
     }
