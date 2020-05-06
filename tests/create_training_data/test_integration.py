@@ -1,4 +1,4 @@
-from zarr_to_test_schema import load
+import synth
 from fv3net.pipelines.create_training_data.config import get_config
 from fv3net.pipelines.create_training_data.pipeline import run
 
@@ -17,7 +17,7 @@ timesteps = {
 
 def test_create_training_data_regression():
     with open("schema.json") as f:
-        schema = load(f)
+        schema = synth.load(f)
 
     big_zarr = schema.generate()
     pipeline_args = []

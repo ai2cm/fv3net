@@ -17,9 +17,8 @@ import json
 import fsspec
 from dataclasses import dataclass, asdict
 import zarr
-from scipy.stats import uniform
-import dask.array as da
 import numpy as np
+import dask.array as da
 import xarray as xr
 from toolz import first
 import logging

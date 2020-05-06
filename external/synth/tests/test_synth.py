@@ -1,25 +1,16 @@
-from synth import __version__
+import pickle
+
+import numpy as np
+
+import pytest
+from synth import (Array, ChunkedArray, CoordinateSchema, DatasetSchema,
+                   Domain, MyEncoder, Range, VariableSchema, __version__,
+                   dumps, loads, sample)
 
 
 def test_version():
     assert __version__ == '0.1.0'
-import numpy as np
-from zarr_to_test_schema import (
-    sample,
-    Domain,
-    Range,
-    Array,
-    ChunkedArray,
-    MyEncoder,
-    CoordinateSchema,
-    VariableSchema,
-    DatasetSchema,
-    dumps,
-    loads
-)
-import pickle
 
-import pytest
 
 
 def test_sample_middle_dim():
