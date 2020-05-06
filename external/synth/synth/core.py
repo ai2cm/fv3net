@@ -255,14 +255,3 @@ def loads(s):
 
     
 
-if __name__ == "__main__":
-    import sys
-    logging.basicConfig(level=logging.INFO)
-    url = "gs://vcm-ml-data/test-end-to-end-integration/integration-debug/one_step_run_/big.zarr"
-
-    mapper = fsspec.get_mapper(url)
-    group = zarr.open_group(mapper)
-    rv = {}
-
-    schema = read_schema_from_zarr(group)
-    dump(schema, sys.stdout)

@@ -1,6 +1,10 @@
+import os
 import synth
+from distutils import dir_util
 from fv3net.pipelines.create_training_data.config import get_config
 from fv3net.pipelines.create_training_data.pipeline import run
+
+import pytest
 
 
 timesteps = {
@@ -15,8 +19,28 @@ timesteps = {
 }
 
 
-def test_create_training_data_regression():
-    with open("schema.json") as f:
+@pytest.fixture
+def datadir(tmpdir, request):
+    '''
+    Fixture responsible for searching a folder with the same name of test
+    module and, if available, moving all contents to a temporary directory so
+    tests can use them freely.
+
+    Credit: https://stackoverflow.com/questions/29627341/pytest-where-to-store-expected-data
+    '''
+    filename = request.module.__file__
+    test_dir, _ = os.path.splitext(filename)
+
+    if os.path.isdir(test_dir):
+        dir_util.copy_tree(test_dir, str(tmpdir))
+
+    return tmpdir
+
+
+@pytest.mark.regression()
+def test_create_training_data_regression(datadir):
+    path = datadir.join("schema.json")
+    with open(str(path)) as f:
         schema = synth.load(f)
 
     big_zarr = schema.generate()
