@@ -20,12 +20,18 @@ exec > >(tee ${LOGFILE}) 2>&1
 
 export PYTHONPATH="./workflows/one_step_diags/"
 
-python -m one_step_diags \
-    $ONE_STEP_DATA \
-    $HI_RES_DIAGS \
-    $TIMESTEPS_FILE \
-    $NETCDF_OUTPUT \
-    --report_directory $REPORT_DIRECTORY \
-    --diags_config $DIAGS_CONFIG \
-    --n_sample_inits 2 \
-    --runner DirectRunner
+CMD="python -m one_step_diags \
+$ONE_STEP_DATA \
+$HI_RES_DIAGS \
+$TIMESTEPS_FILE \
+$NETCDF_OUTPUT \
+--report_directory $REPORT_DIRECTORY \
+--diags_config $DIAGS_CONFIG \
+--n_sample_inits 2 \
+--runner DirectRunner
+"
+    
+echo "Running command:"
+echo ${CMD}
+
+$CMD

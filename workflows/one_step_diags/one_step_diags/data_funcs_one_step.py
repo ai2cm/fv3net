@@ -1,33 +1,28 @@
 import xarray as xr
 import numpy as np
 from scipy.stats import binned_statistic
-from vcm.cubedsphere.constants import TIME_FMT
 from vcm.select import mask_to_surface_type
 from vcm.convenience import parse_datetime_from_str
 from vcm import thermo, local_time, net_precipitation
-from datetime import datetime, timedelta
 import logging
-from typing import Sequence, Tuple, Mapping
-
+import warnings
+from typing import Sequence, Mapping
+from .config import SFC_VARIABLES, KEEPVARS
 from .constants import (
-    SFC_VARIABLES,
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
     DELTA_DIM,
-    VAR_TYPE_DIM,
-    STEP_DIM,
-    GRID_VARS,
+    ZARR_STEP_DIM,
+    ZARR_STEP_NAMES,
 )
 
 from fv3net.pipelines.common import load_hires_prog_diag
 from fv3net.diagnostics.data import net_heating_from_dataset
 
 
-
 logger = logging.getLogger("one_step_diags")
 
 _KG_M2S_TO_MM_DAY = (1e3 * 86400) / 997.0
-
 
 
 def time_coord_to_datetime(
@@ -54,10 +49,11 @@ def insert_hi_res_diags(
     ds = ds.drop(labels=cumulative_vars).merge(surface_longwave)
 
     new_dims = {"grid_xt": "x", "grid_yt": "y", "initialization_time": INIT_TIME_DIM}
-
     datetimes = list(ds[INIT_TIME_DIM].values)
-    ds_hires_diags = load_hires_prog_diag(hi_res_diags_path, datetimes).rename(new_dims)
-    
+    ds_hires_diags = (
+        load_hires_prog_diag(hi_res_diags_path, datetimes).rename(new_dims).load()
+    )
+
     new_vars = {}
     for coarse_name, hires_name in varnames_mapping.items():
         hires_name = hires_name + "_coarse"  # this is confusing...
@@ -65,7 +61,9 @@ def insert_hi_res_diags(
             INIT_TIME_DIM, "tile", "y", "x"
         )
         coarse_var = ds[coarse_name].load()
-        coarse_var.loc[{FORECAST_TIME_DIM: 0, STEP_DIM: "begin"}] = hires_var
+        coarse_var.loc[
+            {FORECAST_TIME_DIM: 0, ZARR_STEP_DIM: ZARR_STEP_NAMES["begin"]}
+        ] = hires_var
         new_vars[coarse_name] = coarse_var
 
     ds = ds.assign(new_vars)
@@ -110,7 +108,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
                 ds["snow_mixing_ratio"],
                 ds["graupel_mixing_ratio"],
             ),
-            "psurf": thermo.surface_pressure_from_delp(
+            "surface_pressure": thermo.surface_pressure_from_delp(
                 ds["pressure_thickness_of_atmospheric_layer"]
             ),
             "precipitable_water": thermo.precipitable_water(
@@ -142,13 +140,13 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
     )
 
     return ds.drop(
-        labels=(
+        labels=[
             "cloud_ice_mixing_ratio",
             "cloud_water_mixing_ratio",
             "rain_mixing_ratio",
             "snow_mixing_ratio",
             "graupel_mixing_ratio",
-        )
+        ]
         + SFC_VARIABLES
     )
 
@@ -158,14 +156,14 @@ def _align_time_and_concat(ds_hires: xr.Dataset, ds_coarse: xr.Dataset) -> xr.Da
     ds_coarse = (
         ds_coarse.isel({INIT_TIME_DIM: [0]})
         .assign_coords({DELTA_DIM: "coarse"})
-        .drop(labels=STEP_DIM)
+        .drop(labels=ZARR_STEP_DIM)
         .squeeze()
     )
 
     ds_hires = (
         ds_hires.isel({FORECAST_TIME_DIM: [0]})
-        .sel({STEP_DIM: "begin"})
-        .drop(labels=STEP_DIM)
+        .sel({ZARR_STEP_DIM: ZARR_STEP_NAMES["begin"]})
+        .drop(labels=ZARR_STEP_DIM)
         .assign_coords({DELTA_DIM: "hi-res"})
         .squeeze()
     )
@@ -186,7 +184,7 @@ def _compute_both_tendencies_and_concat(ds: xr.Dataset) -> xr.Dataset:
     dt_forecast = (
         ds[FORECAST_TIME_DIM].diff(FORECAST_TIME_DIM).isel({FORECAST_TIME_DIM: 0})
     )
-    tendencies_coarse = ds.diff(STEP_DIM, label="lower") / dt_forecast
+    tendencies_coarse = ds.diff(ZARR_STEP_DIM, label="lower") / dt_forecast
 
     tendencies_both = _align_time_and_concat(tendencies_hires, tendencies_coarse)
 
@@ -196,7 +194,7 @@ def _compute_both_tendencies_and_concat(ds: xr.Dataset) -> xr.Dataset:
 def _select_both_states_and_concat(ds: xr.Dataset) -> xr.Dataset:
 
     states_hires = ds.isel({INIT_TIME_DIM: slice(None, -1)})
-    states_coarse = ds.sel({STEP_DIM: "begin"})
+    states_coarse = ds.sel({ZARR_STEP_DIM: ZARR_STEP_NAMES["begin"]})
     states_both = _align_time_and_concat(states_hires, states_coarse)
 
     return states_both
@@ -206,9 +204,9 @@ def get_states_and_tendencies(ds: xr.Dataset) -> xr.Dataset:
 
     tendencies = _compute_both_tendencies_and_concat(ds)
     states = _select_both_states_and_concat(ds)
-    states_and_tendencies = xr.concat([states, tendencies], dim=VAR_TYPE_DIM)
+    states_and_tendencies = xr.concat([states, tendencies], dim="var_type")
     states_and_tendencies = states_and_tendencies.assign_coords(
-        {VAR_TYPE_DIM: ["states", "tendencies"]}
+        {"var_type": ["states", "tendencies"]}
     )
 
     return states_and_tendencies
@@ -219,18 +217,18 @@ def insert_column_integrated_tendencies(ds: xr.Dataset) -> xr.Dataset:
     ds = ds.assign(
         {
             "column_integrated_heating": thermo.column_integrated_heating(
-                ds["air_temperature"].sel({VAR_TYPE_DIM: "tendencies"}),
+                ds["air_temperature"].sel({"var_type": "tendencies"}),
                 ds["pressure_thickness_of_atmospheric_layer"].sel(
-                    {VAR_TYPE_DIM: "states"}
+                    {"var_type": "states"}
                 ),
-            ).expand_dims({VAR_TYPE_DIM: ["tendencies"]}),
+            ).expand_dims({"var_type": ["tendencies"]}),
             "minus_column_integrated_moistening": (
                 thermo.minus_column_integrated_moistening(
-                    -ds["specific_humidity"].sel({VAR_TYPE_DIM: "tendencies"}),
+                    ds["specific_humidity"].sel({"var_type": "tendencies"}),
                     ds["pressure_thickness_of_atmospheric_layer"].sel(
-                        {VAR_TYPE_DIM: "states"}
+                        {"var_type": "states"}
                     ),
-                ).expand_dims({VAR_TYPE_DIM: ["tendencies"]})
+                ).expand_dims({"var_type": ["tendencies"]})
             ),
         }
     )
@@ -288,20 +286,32 @@ def insert_variable_at_model_level(
 def mean_diurnal_cycle(
     da: xr.DataArray, local_time: xr.DataArray, stack_dims: list = ["x", "y", "tile"]
 ) -> xr.DataArray:
-    
-    local_time = local_time.stack(dimensions={"sample": stack_dims}).dropna("sample")
-    da = da.stack(dimensions={"sample": stack_dims}).dropna("sample")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        local_time = (
+            local_time.stack(dimensions={"sample": stack_dims}).load().dropna("sample")
+        )
+        da = da.stack(dimensions={"sample": stack_dims}).load().dropna("sample")
     other_dims = [dim for dim in da.dims if dim != "sample"]
     diurnal_coords = [(dim, da[dim]) for dim in other_dims] + [
-        ("mean_local_time", np.arange(0.0, 24.0))
+        ("local_hour_of_day", np.arange(0.0, 24.0))
     ]
     diurnal_da = xr.DataArray(coords=diurnal_coords)
     for valid_time in da[FORECAST_TIME_DIM]:
         da_single_time = da.sel({FORECAST_TIME_DIM: valid_time})
-        bin_means, _, _ = binned_statistic(
-            local_time.values, da_single_time.values, bins=np.arange(0.0, 25.0)
-        )
-        diurnal_da.loc[{FORECAST_TIME_DIM: valid_time}] = bin_means
+        try:
+            bin_means, bin_edges, _ = binned_statistic(
+                local_time.values, da_single_time.values, bins=np.arange(0.0, 25.0)
+            )
+            diurnal_da.loc[{FORECAST_TIME_DIM: valid_time}] = bin_means
+        except AttributeError as e:
+            logger.warn(
+                f"Diurnal mean computation failed for {da.name} "
+                f"and {valid_time.item()} due to null values."
+            )
+            logger.warn(e)
+
     diurnal_da.name = da.name
 
     return diurnal_da
@@ -318,26 +328,26 @@ def insert_diurnal_means(
         logger.info(f"Computing diurnal means for {domain}")
 
         if domain in ["land", "sea"]:
-            ds_domain = mask_to_surface_type(ds, domain, surface_type_var=mask,)
+            ds_domain = mask_to_surface_type(ds, domain, surface_type_var=mask)
         else:
             ds_domain = ds
 
         for var, attrs in var_mapping.items():
 
             residual_name = attrs["hi-res - coarse"]["name"]
-            residual_type = attrs["hi-res - coarse"][VAR_TYPE_DIM]
+            residual_type = attrs["hi-res - coarse"]["var_type"]
             physics_name = attrs["physics"]["name"]
-            physics_type = attrs["physics"][VAR_TYPE_DIM]
+            physics_type = attrs["physics"]["var_type"]
 
             da_residual_domain = mean_diurnal_cycle(
                 ds_domain[residual_name].sel(
-                    {DELTA_DIM: ["hi-res - coarse"], VAR_TYPE_DIM: residual_type}
+                    {DELTA_DIM: ["hi-res - coarse"], "var_type": residual_type}
                 ),
                 ds_domain["local_time"],
             )
             da_physics_domain = mean_diurnal_cycle(
                 ds_domain[physics_name].sel(
-                    {DELTA_DIM: ["hi-res", "coarse"], VAR_TYPE_DIM: physics_type}
+                    {DELTA_DIM: ["hi-res", "coarse"], "var_type": physics_type}
                 ),
                 ds_domain["local_time"],
             )
@@ -536,35 +546,9 @@ def insert_area_means(
     return ds
 
 
-def shrink_ds(ds: xr.Dataset, config):
+def shrink_ds(ds: xr.Dataset, keepvars=KEEPVARS):
     """SHrink the datast to the variables actually used in plotting
     """
-    keepvars = set(
-        [f"{var}_global_mean" for var in list(config["GLOBAL_MEAN_2D_VARS"])]
-        + [
-            f"{var}_{composite}_mean"
-            for var in list(config["GLOBAL_MEAN_3D_VARS"])
-            for composite in ["global", "sea", "land"]
-        ]
-        + [
-            f"{var}_{domain}"
-            for var in config["DIURNAL_VAR_MAPPING"]
-            for domain in ["land", "sea", "global"]
-        ]
-        + [
-            item
-            for spec in config["DQ_MAPPING"].values()
-            for item in [f"{spec['physics_name']}_physics", spec["tendency_diff_name"]]
-        ]
-        + [
-            f"{dq_var}_{composite}"
-            for dq_var in list(config["DQ_PROFILE_MAPPING"])
-            for composite in list(config["PROFILE_COMPOSITES"])
-        ]
-        + list(config["GLOBAL_2D_MAPS"])
-        + list(GRID_VARS)
-    )
-
     dropvars = set(ds.data_vars).difference(keepvars)
 
     return ds.drop_vars(dropvars)

@@ -1,11 +1,6 @@
 from vcm.visualize import plot_cube, mappable_var
-from .constants import (
-    FORECAST_TIME_DIM,
-    VAR_TYPE_DIM,
-    DELTA_DIM,
-    GRID_VARS,
-    MAPPABLE_VAR_KWARGS,
-)
+from .constants import FORECAST_TIME_DIM, DELTA_DIM
+from .config import MAPPABLE_VAR_KWARGS, GRID_VARS
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
@@ -18,7 +13,14 @@ logger = logging.getLogger("one_step_diags")
 FIG_DPI = 100
 
 
-def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_dir: str) -> Mapping:
+def make_all_plots(
+    states_and_tendencies: xr.Dataset,
+    config: Mapping,
+    output_dir: str,
+    stride: int = 7,
+    time1: int = 7,
+    time2: int = 14,
+) -> Mapping:
     """ Makes figures for one-step diagnostics
 
     Args:
@@ -26,10 +28,17 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
             jobs, containing states and tendencies of both the hi-res and
             coarse model, averaged across initial times for various 2-D,
             variables, global/land/sea mean time series, and global/land/sea
-            mean time-height series, i=output from
+            mean time-height series, output from
             fv3net.diagnostics.one_step_jobs
         config: diagnostics configuration dict specifying plots to make
         output_dir: location for writing figures
+        stride: int stride for subplotting along forecast time dimension;
+            default 7
+        time1: int index of first forecast time to plot in 2x2 map plot format;
+            default 7
+        time2: int index of second forecast time to plot in 2x2 map plot format;
+            default 14
+        
 
     Returns:
         dict of header keys and image path list values for passing to the html
@@ -37,9 +46,6 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
     """
 
     report_sections = {}
-    stride = 7
-    time1 = 7
-    time2 = 14
 
     # make 2-d var global mean time series
 
@@ -48,12 +54,10 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
 
     global_mean_time_series_plots = []
     for var, specs in config["GLOBAL_MEAN_2D_VARS"].items():
-        for vartype, scale in zip(specs[VAR_TYPE_DIM], specs["scale"]):
+        for vartype, scale in zip(specs["var_type"], specs["scale"]):
             f = plot_global_mean_time_series(
-                states_and_tendencies.sel({VAR_TYPE_DIM: vartype})[
-                    var + "_global_mean"
-                ],
-                states_and_tendencies.sel({VAR_TYPE_DIM: vartype})[
+                states_and_tendencies.sel({"var_type": vartype})[var + "_global_mean"],
+                states_and_tendencies.sel({"var_type": vartype})[
                     var + "_global_mean_std"
                 ],
                 vartype=vartype,
@@ -106,7 +110,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
             [
                 (
                     states_and_tendencies[[physics_var_full]]  # hi-res physics
-                    .sel({DELTA_DIM: "hi-res", VAR_TYPE_DIM: "states"})
+                    .sel({DELTA_DIM: "hi-res", "var_type": "states"})
                     .isel({FORECAST_TIME_DIM: time1})
                     .drop(DELTA_DIM)
                     .expand_dims({DELTA_DIM: [f"hi-res physics at {time1} min"]})
@@ -116,10 +120,10 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
                     (
                         states_and_tendencies[[physics_var_full]]  # coarse physics
                         .rename({physics_var_full: physics_var})
-                        .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: "states"})
+                        .sel({DELTA_DIM: "coarse", "var_type": "states"})
                         + states_and_tendencies[[residual_var]]  # tendency diff
                         .rename({residual_var: physics_var})
-                        .sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: "tendencies"})
+                        .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
                     )
                     .isel({FORECAST_TIME_DIM: time1})
                     .expand_dims({DELTA_DIM: [f"(pQ + dQ) at {time1} min"]})
@@ -127,14 +131,14 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
                 (
                     (
                         states_and_tendencies[[physics_var_full]]  # hi-res physics
-                        .sel({DELTA_DIM: "hi-res", VAR_TYPE_DIM: "states"})
+                        .sel({DELTA_DIM: "hi-res", "var_type": "states"})
                         .rename({physics_var_full: physics_var})
                         - states_and_tendencies[[physics_var_full]]  # coarse physics
                         .rename({physics_var_full: physics_var})
-                        .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: "states"})
+                        .sel({DELTA_DIM: "coarse", "var_type": "states"})
                         - states_and_tendencies[[residual_var]]  # tendency diff
                         .rename({residual_var: physics_var})
-                        .sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: "tendencies"})
+                        .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
                     )
                     .drop(DELTA_DIM)
                     .isel({FORECAST_TIME_DIM: time1})
@@ -146,19 +150,19 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
                     (
                         states_and_tendencies[[physics_var_full]]  # coarse physics
                         .rename({physics_var_full: physics_var})
-                        .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: "states"})
+                        .sel({DELTA_DIM: "coarse", "var_type": "states"})
                         .isel({FORECAST_TIME_DIM: time2})
                         + states_and_tendencies[[residual_var]]  # tendency diff
                         .rename({residual_var: physics_var})
-                        .sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: "tendencies"})
+                        .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
                         .isel({FORECAST_TIME_DIM: time2})
                         - states_and_tendencies[[physics_var_full]]  # coarse physics
                         .rename({physics_var_full: physics_var})
-                        .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: "states"})
+                        .sel({DELTA_DIM: "coarse", "var_type": "states"})
                         .isel({FORECAST_TIME_DIM: time1})
                         - states_and_tendencies[[residual_var]]  # tendency diff
                         .rename({residual_var: physics_var})
-                        .sel({DELTA_DIM: "hi-res - coarse", VAR_TYPE_DIM: "tendencies"})
+                        .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
                         .isel({FORECAST_TIME_DIM: time1})
                     ).expand_dims(
                         {DELTA_DIM: [f"(pQ + dQ) at {time2} min - at {time1} min"]}
@@ -194,11 +198,11 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
     dQ_profile_maps = []
     for ds_name, dQ_info in config["DQ_PROFILE_MAPPING"].items():
         dQ_name = dQ_info["name"]
-        dQ_type = dQ_info[VAR_TYPE_DIM]
+        dQ_type = dQ_info["var_type"]
         scale = dQ_info["scale"]
         f = plot_dQ_vertical_profiles(
             states_and_tendencies.sel(
-                {VAR_TYPE_DIM: dQ_type, DELTA_DIM: "hi-res - coarse"}
+                {"var_type": dQ_type, DELTA_DIM: "hi-res - coarse"}
             ),
             ds_name,
             dQ_name,
@@ -222,14 +226,14 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
 
     mean_time_height_plots = []
     for var, spec in config["GLOBAL_MEAN_3D_VARS"].items():
-        vartype = spec[VAR_TYPE_DIM]
+        vartype = spec["var_type"]
         scale = spec["scale"]
         combined_ds = (
             xr.concat(
                 [
                     (
                         states_and_tendencies.sel(
-                            {VAR_TYPE_DIM: vartype, DELTA_DIM: "coarse"}
+                            {"var_type": vartype, DELTA_DIM: "coarse"}
                         )[f"{var}_{average}_mean"]
                     )
                     for average in averages
@@ -253,7 +257,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
 
     maps_across_forecast_time = []
     for var, spec in config["GLOBAL_2D_MAPS"].items():
-        vartype = spec[VAR_TYPE_DIM]
+        vartype = spec["var_type"]
         scale = spec["scale"]
 
         # manufacture a dataset with a "dimension" that's really a set of
@@ -262,14 +266,14 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
             [
                 (
                     states_and_tendencies[[var]]  # hi-res
-                    .sel({DELTA_DIM: "hi-res", VAR_TYPE_DIM: vartype})
+                    .sel({DELTA_DIM: "hi-res", "var_type": vartype})
                     .isel({FORECAST_TIME_DIM: time1})
                     .drop([DELTA_DIM, FORECAST_TIME_DIM])
                     .expand_dims({DELTA_DIM: [f"hi-res at {time1} min"]})
                 ),
                 (
                     states_and_tendencies[[var]]  # coarse
-                    .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: vartype})
+                    .sel({DELTA_DIM: "coarse", "var_type": vartype})
                     .isel({FORECAST_TIME_DIM: time1})
                     .drop([DELTA_DIM, FORECAST_TIME_DIM])
                     .expand_dims({DELTA_DIM: [f"coarse at {time1} min"]})
@@ -277,10 +281,10 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
                 (
                     (
                         states_and_tendencies[[var]].sel(  # hi-res
-                            {DELTA_DIM: "hi-res", VAR_TYPE_DIM: vartype}
+                            {DELTA_DIM: "hi-res", "var_type": vartype}
                         )
                         - states_and_tendencies[[var]].sel(  # coarse
-                            {DELTA_DIM: "coarse", VAR_TYPE_DIM: vartype}
+                            {DELTA_DIM: "coarse", "var_type": vartype}
                         )
                     )
                     .isel({FORECAST_TIME_DIM: time1})
@@ -296,7 +300,7 @@ def make_all_plots(states_and_tendencies: xr.Dataset, config: Mapping, output_di
                             {FORECAST_TIME_DIM: time1}
                         )
                     )
-                    .sel({DELTA_DIM: "coarse", VAR_TYPE_DIM: vartype})
+                    .sel({DELTA_DIM: "coarse", "var_type": vartype})
                     .drop(DELTA_DIM)
                     .expand_dims(
                         {DELTA_DIM: [f"coarse at {time2} min - coarse at {time1} min"]}
@@ -495,7 +499,7 @@ def plot_dQ_vertical_profiles(
     facetgrid = xr.plot.FacetGrid(
         data=ds_across_vars.isel({FORECAST_TIME_DIM: slice(start, end, stride)}),
         col=FORECAST_TIME_DIM,
-        col_wrap=4,
+        col_wrap=3,
     )
 
     facetgrid = facetgrid.map(_facet_line_plot, dQ_name)
@@ -513,7 +517,8 @@ def plot_dQ_vertical_profiles(
         ax.set_ylabel("model level")
     n_rows = facetgrid.axes.shape[0]
     f = facetgrid.fig
-    f.set_size_inches([10, n_rows * 4])
+    f.set_size_inches([12, n_rows * 4])
+    f.tight_layout()
     f.set_dpi(FIG_DPI)
     f.suptitle(f"{dQ_name}")
 

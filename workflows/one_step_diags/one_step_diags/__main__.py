@@ -1,19 +1,17 @@
-from vcm.cloud.fsspec import get_fs, get_protocol
+from vcm.cloud import get_protocol
 from vcm.cloud.gsutil import copy
 from vcm.cubedsphere.constants import TIME_FMT
+from vcm.safe import get_variables
 from fv3net.pipelines.common import update_nested_dict
 from . import data_funcs_one_step as data_funcs
 from .plotting_funcs_one_step import make_all_plots
 from .constants import (
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
-    STEP_DIM,
     ONE_STEP_ZARR,
+    ZARR_STEP_DIM,
+    ZARR_STEP_NAMES,
     OUTPUT_NC_FILENAME,
-    SFC_VARIABLES,
-    GRID_VARS,
-    VARS_FROM_ZARR,
-    MAPPABLE_VAR_KWARGS,
     REPORT_TITLE,
 )
 from . import config
@@ -23,13 +21,15 @@ from apache_beam.options.pipeline_options import PipelineOptions
 import argparse
 import xarray as xr
 import zarr
+import dask
 import numpy as np
+import fsspec
 import yaml
 import random
 import os
 import shutil
-from tempfile import TemporaryDirectory
-from typing import Sequence, Mapping, Any, MutableMapping
+from tempfile import NamedTemporaryFile
+from typing import Sequence, Mapping, Any
 import logging
 import sys
 
@@ -38,10 +38,10 @@ out_hdlr.setFormatter(
     logging.Formatter("%(name)s %(asctime)s: %(module)s/L%(lineno)d %(message)s")
 )
 out_hdlr.setLevel(logging.INFO)
-logging.basicConfig(handlers=[out_hdlr])
-
+logging.basicConfig(handlers=[out_hdlr], level=logging.INFO)
 logger = logging.getLogger("one_step_diags")
-logger.setLevel(logging.INFO)
+
+dask.config.set(scheduler="single-threaded")
 
 
 def _create_arg_parser():
@@ -84,6 +84,15 @@ def _create_arg_parser():
         ),
     )
     parser.add_argument(
+        "--data_fold",
+        type=str,
+        default=None,
+        help=(
+            "Whether to use 'train', 'test', or both (None) sets of data in "
+            "diagnostics."
+        ),
+    )
+    parser.add_argument(
         "--start_ind",
         type=int,
         default=None,
@@ -109,25 +118,40 @@ def _create_arg_parser():
 
 def _open_diags_config(config_yaml_path: str) -> Mapping:
 
-    with open(config_yaml_path, mode='r') as f:
+    with open(config_yaml_path, mode="r") as f:
         diags_config = yaml.safe_load(f)
 
     return diags_config
 
 
-def _open_timestamp_pairs(
-    timestamp_pairs: Sequence, mapper: MutableMapping
-) -> xr.Dataset:
+def _get_random_subset(timestep_pairs: Sequence, n_samples: int) -> Sequence:
+
+    old_state = random.getstate()
+    random.seed(0, version=1)
+    timestamp_pairs_subset = random.sample(timestep_pairs, n_samples)
+    random.setstate(old_state)
+
+    return timestamp_pairs_subset
+
+
+def _open_timestamp_pairs(timestamp_pairs: Sequence, mapper: Mapping) -> xr.Dataset:
     """dataflow pipeline func for opening datasets of paired initial times"""
 
-    try:
-        logger.info(f"Opening the following timesteps: {timestamp_pairs}")
+    logger.info(f"Opening the following timesteps: {timestamp_pairs}")
 
+    try:
         ds = xr.open_zarr(mapper)
-        ds_pair = ds[list(VARS_FROM_ZARR)].sel(
-            {INIT_TIME_DIM: timestamp_pairs, "step": list(["begin", "after_physics"])}
+        ds_pair = get_variables(ds, config["VARS_FROM_ZARR"]).sel(
+            {
+                INIT_TIME_DIM: timestamp_pairs,
+                ZARR_STEP_DIM: [
+                    ZARR_STEP_NAMES["begin"],
+                    ZARR_STEP_NAMES["after_physics"],
+                ],
+            }
         )
-    except Exception as e:
+        logger.info(f"Finished opening the following timesteps: {timestamp_pairs}")
+    except RuntimeError as e:
         logger.warning(e)
         ds_pair = None
 
@@ -135,33 +159,33 @@ def _open_timestamp_pairs(
 
 
 def _insert_derived_vars(
-    ds: xr.Dataset, hi_res_diags_zarrpath: Sequence, hi_res_diags_mapping: Mapping
+    ds: xr.Dataset, hi_res_diags_zarrpath: str, hi_res_diags_mapping: Mapping
 ) -> xr.Dataset:
     """dataflow pipeline func for adding derived variables to the raw dataset
     """
 
+    logger.info(
+        f"Inserting derived variables for timestep " f"{ds[INIT_TIME_DIM].values[0]}"
+    )
+
+    ds = ds.assign_coords({"z": np.arange(1.0, ds.sizes["z"] + 1.0)}).pipe(
+        data_funcs.time_coord_to_datetime
+    )
+
     try:
-        logger.info(
-            f"Inserting derived variables for timestep "
-            f"{ds[INIT_TIME_DIM].values[0]}"
+        ds = data_funcs.insert_hi_res_diags(
+            ds, hi_res_diags_zarrpath, hi_res_diags_mapping
         )
-        ds = (
-            ds.assign_coords({"z": np.arange(1.0, ds.sizes["z"] + 1.0)})
-            .pipe(data_funcs.time_coord_to_datetime)
-            .pipe(
-                data_funcs.insert_hi_res_diags,
-                hi_res_diags_zarrpath,
-                hi_res_diags_mapping,
-            )
-            .pipe(data_funcs.insert_derived_vars_from_ds_zarr)
-        )
-        logger.info(
-            f"Finished inserting derived variables for timestep "
-            f"{ds[INIT_TIME_DIM].values[0]}"
-        )
-    except Exception as e:
+    except RuntimeError as e:
         logger.warning(e)
-        ds = None
+        return None
+
+    ds = data_funcs.insert_derived_vars_from_ds_zarr(ds)
+
+    logger.info(
+        f"Finished inserting derived variables for timestep "
+        f"{ds[INIT_TIME_DIM].values[0]}"
+    )
 
     return ds
 
@@ -170,27 +194,21 @@ def _insert_states_and_tendencies(ds: xr.Dataset, abs_vars: Sequence) -> xr.Data
     """dataflow pipeline func for adding states and tendencies
     """
 
-    try:
-        timestep = ds[INIT_TIME_DIM].values[0].strftime(TIME_FMT)
-        logger.info(f"Inserting states and tendencies for timestep {timestep}")
-        ds = (
-            data_funcs.get_states_and_tendencies(ds)
-            .pipe(data_funcs.insert_column_integrated_tendencies)
-            .pipe(data_funcs.insert_model_run_differences)
-            .pipe(data_funcs.insert_abs_vars, abs_vars)
-            .pipe(
-                data_funcs.insert_variable_at_model_level,
-                ["vertical_wind", "vertical_wind_abs"],
-                [40, 40],
-            )
+    timestep = ds[INIT_TIME_DIM].values[0].strftime(TIME_FMT)
+    logger.info(f"Inserting states and tendencies for timestep {timestep}")
+    ds = (
+        data_funcs.get_states_and_tendencies(ds)
+        .pipe(data_funcs.insert_column_integrated_tendencies)
+        .pipe(data_funcs.insert_model_run_differences)
+        .pipe(data_funcs.insert_abs_vars, abs_vars)
+        .pipe(
+            data_funcs.insert_variable_at_model_level,
+            ["vertical_wind", "vertical_wind_abs"],
+            [40, 40],
         )
-        ds.attrs[INIT_TIME_DIM] = [ds[INIT_TIME_DIM].item().strftime(TIME_FMT)]
-        logger.info(
-            f"Finished inserting states and tendencies for timestep " f"{timestep}"
-        )
-    except Exception as e:
-        ds = None
-        logger.warning(e)
+    )
+    ds.attrs[INIT_TIME_DIM] = [ds[INIT_TIME_DIM].item().strftime(TIME_FMT)]
+    logger.info(f"Finished inserting states and tendencies for timestep " f"{timestep}")
 
     return ds
 
@@ -201,10 +219,9 @@ def _insert_means_and_shrink(
     """dataflow pipeline func for adding mean variables and shrinking dataset to
     managable size for aggregation and saving
     """
-
+    timestep = ds[INIT_TIME_DIM].item().strftime(TIME_FMT)
+    logger.info(f"Inserting means and shrinking timestep {timestep}")
     try:
-        timestep = ds[INIT_TIME_DIM].item().strftime(TIME_FMT)
-        logger.info(f"Inserting means and shrinking timestep {timestep}")
         ds = (
             ds.merge(grid)
             .pipe(data_funcs.insert_diurnal_means, config["DIURNAL_VAR_MAPPING"])
@@ -215,24 +232,26 @@ def _insert_means_and_shrink(
                 + list(config["GLOBAL_MEAN_3D_VARS"]),
                 ["land_sea_mask", "net_precipitation_physics"],
             )
-            .pipe(data_funcs.shrink_ds, config)
-            .load()
         )
-        logger.info(f"Finished shrinking timestep {timestep}")
-    except Exception as e:
+    except RuntimeError as e:
+        logger.warn(e)
         ds = None
-        logger.warning(e)
+    else:
+        ds = ds.pipe(data_funcs.shrink_ds, config).load()
+        logger.info(f"Finished shrinking timestep {timestep}")
 
     return ds
 
 
 def _filter_ds(ds: Any):
-    try:
-        timestep = ds[INIT_TIME_DIM].item().strftime(TIME_FMT)
-        logger.info(f"Including timestep {timestep}")
-    except Exception:
-        logger.warning(f"Excluding failed timestep.")
-    return isinstance(ds, xr.Dataset)
+    """ dataflow pipeline func for filtering out timestamp pairs that failed to
+    load due to runtime errors
+    """
+    if isinstance(ds, xr.Dataset):
+        return True
+    else:
+        logger.warning(f"Excluding timestep that failed due to runtime error.")
+        return False
 
 
 class MeanAndStDevFn(beam.CombineFn):
@@ -248,16 +267,20 @@ class MeanAndStDevFn(beam.CombineFn):
         return (0.0, 0.0, [], 0)
 
     def add_input(self, sum_count, input_ds):
+
         ds = input_ds.drop(INIT_TIME_DIM)
         ds_squared = ds ** 2
         (sum_x, sum_x2, inits, count) = sum_count
         inits = list(set(inits).union(set(ds.attrs[INIT_TIME_DIM])))
+
         with xr.set_options(keep_attrs=True):
             return sum_x + ds, sum_x2 + ds_squared, inits, count + 1
 
     def merge_accumulators(self, accumulators):
+
         sum_xs, sum_x2s, inits_all, counts = zip(*accumulators)
         logger.info(f"Merging accumulations of size: {counts}")
+
         with xr.set_options(keep_attrs=True):
             return (
                 sum(sum_xs),
@@ -267,9 +290,10 @@ class MeanAndStDevFn(beam.CombineFn):
             )
 
     def extract_output(self, sum_count):
-        try:
-            logger.info("Computing aggregate means and std. devs.")
-            (sum_x, sum_x2, inits, count) = sum_count
+
+        logger.info("Computing aggregate means and std. devs.")
+        (sum_x, sum_x2, inits, count) = sum_count
+        if count:
             with xr.set_options(keep_attrs=True):
                 mean = sum_x / count if count else float("NaN")
                 mean_of_squares = sum_x2 / count if count else float("NaN")
@@ -287,9 +311,8 @@ class MeanAndStDevFn(beam.CombineFn):
                             {"long_name": mean[var].attrs["long_name"] + "std. dev"}
                         )
             mean = mean.assign_attrs({INIT_TIME_DIM: inits})
-        except Exception as e:
+        else:
             mean = None
-            logger.warning(e)
 
         return mean
 
@@ -299,28 +322,19 @@ def _write_ds(ds: xr.Dataset, fullpath: str):
 
     logger.info(f"Writing final dataset to netcdf at {fullpath}.")
     for var in ds.variables:
+        # convert string coordinates unicode strings or else xr.to_netcdf will fail
         if ds[var].dtype == "O":
             ds = ds.assign({var: ds[var].astype("S15").astype("unicode_")})
     ds.attrs[INIT_TIME_DIM] = " ".join(ds.attrs[INIT_TIME_DIM])
-    with TemporaryDirectory() as tmpdir:
-        pathname, filename = os.path.split(fullpath)
-        tmppath = os.path.join(tmpdir, filename)
-        ds.to_netcdf(tmppath)
-        copy(tmppath, fullpath)
 
-
-def _get_remote_netcdf(filename):
-    fs_nc = get_fs(filename)
-    with fs_nc.open(filename, "rb") as f:
-        return xr.open_dataset(f).load()
+    with NamedTemporaryFile() as tmpfile:
+        ds.to_netcdf(tmpfile.name)
+        copy(tmpfile.name, fullpath)
 
 
 # start routine
 
 args, pipeline_args = _create_arg_parser().parse_known_args()
-
-print(args)
-print(pipeline_args)
 
 default_config = {key: getattr(config, key) for key in config.__all__}
 if args.diags_config is not None:
@@ -330,42 +344,37 @@ else:
     config = default_config
 
 zarrpath = os.path.join(args.one_step_data, ONE_STEP_ZARR)
-fs = get_fs(zarrpath)
-mapper = fs.get_mapper(zarrpath)
+mapper = fsspec.get_mapper(zarrpath)
 if ".zmetadata" not in mapper:
     logger.info("Consolidating metadata.")
     zarr.consolidate_metadata(mapper)
-ds_zarr_template = xr.open_zarr(mapper)[list(GRID_VARS) + [INIT_TIME_DIM]]
+ds_zarr_template = get_variables(
+    xr.open_zarr(mapper), config["GRID_VARS"] + [INIT_TIME_DIM]
+)
 
 # get subsampling from json file and specified parameters
 
 with open(args.timesteps_file, "r") as f:
     timesteps = yaml.safe_load(f)
-timestamp_pairs_train = timesteps["train"]
+if args.data_fold is not None:
+    timestamp_pairs = timesteps[args.data_fold]
+else:
+    timestamp_pairs = [
+        timestep_pair for data_fold in timesteps.values() for timestep_pair in data_fold
+    ]
 
 if args.n_sample_inits:
-    old_state = random.getstate()
-    random.seed(0, version=1)
-    timestamp_pairs_subset = random.sample(
-        timestamp_pairs_train[args.start_ind :], args.n_sample_inits
+    timestamp_pairs_subset = _get_random_subset(
+        timestamp_pairs[(args.start_ind) :], args.n_sample_inits
     )
-    random.setstate(old_state)
 else:
-    timestamp_pairs_subset = timestamp_pairs_train[args.start_ind :]
+    timestamp_pairs_subset = timestamp_pairs[(args.start_ind) :]
 
 hi_res_diags_zarrpath = os.path.join(args.hi_res_diags, args.coarsened_diags_zarr_name)
-hi_res_diags_mapping = {name: name for name in SFC_VARIABLES}
-hi_res_diags_mapping.update(
-    {
-        "latent_heat_flux": "LHTFLsfc",
-        "sensible_heat_flux": "SHTFLsfc",
-        "total_precipitation": "PRATEsfc",
-    }
-)
 
 grid = ds_zarr_template.isel(
-    {INIT_TIME_DIM: 0, FORECAST_TIME_DIM: 0, STEP_DIM: 0}
-).drop([STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
+    {INIT_TIME_DIM: 0, FORECAST_TIME_DIM: 0, ZARR_STEP_DIM: 0}
+).drop([ZARR_STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
 
 output_nc_path = os.path.join(args.netcdf_output, OUTPUT_NC_FILENAME)
 
@@ -375,22 +384,24 @@ with beam.Pipeline(options=beam_options) as p:
         p
         | "CreateDS" >> beam.Create(timestamp_pairs_subset)
         | "OpenDSPairs" >> beam.Map(_open_timestamp_pairs, mapper)
+        | "FilterOpenDS" >> beam.Filter(_filter_ds)
         | "InsertDerivedVars"
-        >> beam.Map(_insert_derived_vars, hi_res_diags_zarrpath, hi_res_diags_mapping)
+        >> beam.Map(
+            _insert_derived_vars, hi_res_diags_zarrpath, config["HI_RES_DIAGS_MAPPING"]
+        )
+        | "FilterDerivedDS" >> beam.Filter(_filter_ds)
         | "InsertStatesAndTendencies"
         >> beam.Map(_insert_states_and_tendencies, config["ABS_VARS"])
         | "InsertMeanVars" >> beam.Map(_insert_means_and_shrink, grid, config)
-        | "FilterDS" >> beam.Filter(_filter_ds)
+        | "FilterMeanDS" >> beam.Filter(_filter_ds)
         | "MeanAndStdDev"
         >> beam.CombineGlobally(MeanAndStDevFn(std_vars=config["GLOBAL_MEAN_2D_VARS"]))
         | "WriteDS" >> beam.Map(_write_ds, output_nc_path)
     )
 
-proto = get_protocol(output_nc_path)
-if proto == "gs":
-    states_and_tendencies = _get_remote_netcdf(output_nc_path)
-elif proto == "" or proto == "file":
-    states_and_tendencies = xr.open_dataset(output_nc_path)
+with fsspec.open(output_nc_path) as ncfile:
+    states_and_tendencies = xr.open_dataset(ncfile).load()
+
 
 # if report output path is GCS location, save results to local output dir first
 

@@ -1,10 +1,54 @@
-ABS_VARS = ["psurf", "precipitable_water", "column_integrated_heat", "vertical_wind"]
+SFC_VARIABLES = [
+    "DSWRFtoa",
+    "DSWRFsfc",
+    "USWRFtoa",
+    "USWRFsfc",
+    "DLWRFsfc",
+    "ULWRFtoa",
+    "ULWRFsfc",
+]
+
+VARS_FROM_ZARR = [
+    "specific_humidity",
+    "cloud_ice_mixing_ratio",
+    "cloud_water_mixing_ratio",
+    "rain_mixing_ratio",
+    "snow_mixing_ratio",
+    "graupel_mixing_ratio",
+    "vertical_wind",
+    "air_temperature",
+    "pressure_thickness_of_atmospheric_layer",
+    "latent_heat_flux",
+    "sensible_heat_flux",
+    "total_precipitation",
+] + SFC_VARIABLES
+
+GRID_VARS = ["lat", "lon", "latb", "lonb", "area", "land_sea_mask"]
+
+HI_RES_DIAGS_MAPPING = {name: name for name in SFC_VARIABLES}
+HI_RES_DIAGS_MAPPING.update(
+    {
+        "latent_heat_flux": "LHTFLsfc",
+        "sensible_heat_flux": "SHTFLsfc",
+        "total_precipitation": "PRATEsfc",
+    }
+)
+
+ABS_VARS = [
+    "surface_pressure",
+    "precipitable_water",
+    "column_integrated_heat",
+    "vertical_wind",
+]
 
 GLOBAL_MEAN_2D_VARS = {
-    "psurf_abs": {"var_type": ["tendencies"], "scale": [0.12]},
+    "surface_pressure_abs": {"var_type": ["tendencies"], "scale": [0.12]},
     "precipitable_water_abs": {"var_type": ["tendencies"], "scale": [0.0012]},
     "precipitable_water": {"var_type": ["tendencies"], "scale": [0.0012]},
-    "column_integrated_heat": {"var_type": ["tendencies", "states"], "scale": [1000, None]},
+    "column_integrated_heat": {
+        "var_type": ["tendencies", "states"],
+        "scale": [1000, None],
+    },
     "column_integrated_heat_abs": {"var_type": ["tendencies"], "scale": [2500]},
     "vertical_wind_abs_level_40": {"var_type": ["states"], "scale": [0.05]},
     "latent_heat_flux": {"var_type": ["states"], "scale": [None]},
@@ -83,7 +127,7 @@ GLOBAL_MEAN_3D_VARS = {
 }
 
 GLOBAL_2D_MAPS = {
-    "psurf": {"var_type": "tendencies", "scale": 0.1},
+    "surface_pressure": {"var_type": "tendencies", "scale": 0.1},
     "column_integrated_heating": {"var_type": "tendencies", "scale": 1000},
     "minus_column_integrated_moistening": {"var_type": "tendencies", "scale": 10},
     "vertical_wind_level_40": {"var_type": "states", "scale": 0.05},
@@ -92,8 +136,51 @@ GLOBAL_2D_MAPS = {
     "sensible_heat_flux": {"var_type": "states", "scale": 100},
 }
 
+KEEPVARS = set(
+    [f"{var}_global_mean" for var in list(GLOBAL_MEAN_2D_VARS)]
+    + [
+        f"{var}_{composite}_mean"
+        for var in list(GLOBAL_MEAN_3D_VARS)
+        for composite in ["global", "sea", "land"]
+    ]
+    + [
+        f"{var}_{domain}"
+        for var in DIURNAL_VAR_MAPPING
+        for domain in ["land", "sea", "global"]
+    ]
+    + [
+        item
+        for spec in DQ_MAPPING.values()
+        for item in [f"{spec['physics_name']}_physics", spec["tendency_diff_name"]]
+    ]
+    + [
+        f"{dq_var}_{composite}"
+        for dq_var in list(DQ_PROFILE_MAPPING)
+        for composite in list(PROFILE_COMPOSITES)
+    ]
+    + list(GLOBAL_2D_MAPS)
+    + GRID_VARS
+)
+
+MAPPABLE_VAR_KWARGS = {
+    "coord_x_center": "x",
+    "coord_y_center": "y",
+    "coord_x_outer": "x_interface",
+    "coord_y_outer": "y_interface",
+    "coord_vars": {
+        "lonb": ["y_interface", "x_interface", "tile"],
+        "latb": ["y_interface", "x_interface", "tile"],
+        "lon": ["y", "x", "tile"],
+        "lat": ["y", "x", "tile"],
+    },
+}
+
 
 __all__ = [
+    "SFC_VARIABLES",
+    "HI_RES_DIAGS_MAPPING",
+    "VARS_FROM_ZARR",
+    "GRID_VARS",
     "ABS_VARS",
     "GLOBAL_MEAN_2D_VARS",
     "DIURNAL_VAR_MAPPING",
@@ -101,5 +188,7 @@ __all__ = [
     "DQ_PROFILE_MAPPING",
     "PROFILE_COMPOSITES",
     "GLOBAL_MEAN_3D_VARS",
-    "GLOBAL_2D_MAPS"
+    "GLOBAL_2D_MAPS",
+    "KEEPVARS",
+    "MAPPABLE_VAR_KWARGS",
 ]

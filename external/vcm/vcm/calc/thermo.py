@@ -434,24 +434,25 @@ def column_integrated_heating(
 
 
 def minus_column_integrated_moistening(
-    minus_dsphum_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
+    dsphum_dt: xr.DataArray, delp: xr.DataArray, vertical_dim: str = "z"
 ) -> xr.DataArray:
     """Compute negative of vertically-integrated moisture tendencies
     
     Args:
-        minus_dsphum_dt: DataArray of specific humidity tendencies in kg/kg/s
+        dsphum_dt: DataArray of (positive) specific humidity tendencies in kg/kg/s
         delp: DataArray of pressure layer thicknesses in Pa (NOT tendencies)
         vertical_dim: Name of vertical dimension; defaults to 'z'
           
     Returns:
-        column_integrated_heating: DataArray of negative of column total moisture tendencies in mm/day
+        column_integrated_heating: DataArray of negative of column total moisture
+        tendencies in mm/day
     """
 
-    minus_column_integrated_moistening = _KG_M2S_TO_MM_DAY * mass_integrate(
-        minus_dsphum_dt, delp, dim=vertical_dim
+    minus_col_int_moistening = _KG_M2S_TO_MM_DAY * mass_integrate(
+        -dsphum_dt, delp, dim=vertical_dim
     )
-    minus_column_integrated_moistening = minus_column_integrated_moistening.assign_attrs(
+    minus_col_int_moistening = minus_col_int_moistening.assign_attrs(
         {"long_name": "negative of column integrated moistening", "units": "mm/day"}
     )
 
-    return minus_column_integrated_moistening
+    return minus_col_int_moistening
