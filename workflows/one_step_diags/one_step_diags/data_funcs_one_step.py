@@ -7,7 +7,7 @@ from vcm import thermo, local_time, net_precipitation
 import logging
 import warnings
 from typing import Sequence, Mapping
-from .config import SFC_VARIABLES, KEEPVARS
+from .config import SFC_VARIABLES
 from .constants import (
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
@@ -546,9 +546,44 @@ def insert_area_means(
     return ds
 
 
-def shrink_ds(ds: xr.Dataset, keepvars=KEEPVARS):
+def shrink_ds(ds: xr.Dataset, config: Mapping):
     """SHrink the datast to the variables actually used in plotting
     """
+
+    keepvars = _keepvars(config)
     dropvars = set(ds.data_vars).difference(keepvars)
 
     return ds.drop_vars(dropvars)
+
+
+def _keepvars(config: Mapping) -> set:
+    """Determine final variables in netcdf based on config
+    """
+
+    keepvars = set(
+        [f"{var}_global_mean" for var in list(config["GLOBAL_MEAN_2D_VARS"])]
+        + [
+            f"{var}_{composite}_mean"
+            for var in list(config["GLOBAL_MEAN_3D_VARS"])
+            for composite in ["global", "sea", "land"]
+        ]
+        + [
+            f"{var}_{domain}"
+            for var in config["DIURNAL_VAR_MAPPING"]
+            for domain in ["land", "sea", "global"]
+        ]
+        + [
+            item
+            for spec in config["DQ_MAPPING"].values()
+            for item in [f"{spec['physics_name']}_physics", spec["tendency_diff_name"]]
+        ]
+        + [
+            f"{dq_var}_{composite}"
+            for dq_var in list(config["DQ_PROFILE_MAPPING"])
+            for composite in list(config["PROFILE_COMPOSITES"])
+        ]
+        + list(config["GLOBAL_2D_MAPS"])
+        + config["GRID_VARS"]
+    )
+
+    return keepvars

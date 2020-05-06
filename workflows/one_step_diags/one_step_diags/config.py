@@ -136,32 +136,6 @@ GLOBAL_2D_MAPS = {
     "sensible_heat_flux": {"var_type": "states", "scale": 100},
 }
 
-KEEPVARS = set(
-    [f"{var}_global_mean" for var in list(GLOBAL_MEAN_2D_VARS)]
-    + [
-        f"{var}_{composite}_mean"
-        for var in list(GLOBAL_MEAN_3D_VARS)
-        for composite in ["global", "sea", "land"]
-    ]
-    + [
-        f"{var}_{domain}"
-        for var in DIURNAL_VAR_MAPPING
-        for domain in ["land", "sea", "global"]
-    ]
-    + [
-        item
-        for spec in DQ_MAPPING.values()
-        for item in [f"{spec['physics_name']}_physics", spec["tendency_diff_name"]]
-    ]
-    + [
-        f"{dq_var}_{composite}"
-        for dq_var in list(DQ_PROFILE_MAPPING)
-        for composite in list(PROFILE_COMPOSITES)
-    ]
-    + list(GLOBAL_2D_MAPS)
-    + GRID_VARS
-)
-
 MAPPABLE_VAR_KWARGS = {
     "coord_x_center": "x",
     "coord_y_center": "y",
@@ -189,6 +163,5 @@ __all__ = [
     "PROFILE_COMPOSITES",
     "GLOBAL_MEAN_3D_VARS",
     "GLOBAL_2D_MAPS",
-    "KEEPVARS",
     "MAPPABLE_VAR_KWARGS",
 ]

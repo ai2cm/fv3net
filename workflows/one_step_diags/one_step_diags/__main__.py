@@ -187,6 +187,8 @@ def _insert_derived_vars(
         f"{ds[INIT_TIME_DIM].values[0]}"
     )
 
+    print(ds)
+
     return ds
 
 
@@ -209,6 +211,8 @@ def _insert_states_and_tendencies(ds: xr.Dataset, abs_vars: Sequence) -> xr.Data
     )
     ds.attrs[INIT_TIME_DIM] = [ds[INIT_TIME_DIM].item().strftime(TIME_FMT)]
     logger.info(f"Finished inserting states and tendencies for timestep " f"{timestep}")
+
+    print(ds)
 
     return ds
 
@@ -237,8 +241,10 @@ def _insert_means_and_shrink(
         logger.warn(e)
         ds = None
     else:
-        ds = ds.pipe(data_funcs.shrink_ds, config).load()
+        ds = data_funcs.shrink_ds(ds, config).load()
         logger.info(f"Finished shrinking timestep {timestep}")
+
+    print(ds)
 
     return ds
 
