@@ -10,7 +10,6 @@ from vcm.calc import apparent_source
 from vcm import safe
 import fsspec
 from vcm import parse_datetime_from_str
-from fv3net import COARSENED_DIAGS_ZARR_NAME
 import numpy as np
 import dask
 import zarr
@@ -34,7 +33,7 @@ def _load_pair(timesteps, ds, init_time_dim):
 
 def run(
     ds: xr.Dataset,
-    diag_c48_path: str,
+    ds_diag: xr.Dataset,
     output_dir: str,
     pipeline_args,
     names,
@@ -42,12 +41,6 @@ def run(
 ):
     train_test_labels = _train_test_labels(timesteps)
     timestep_pairs = timesteps["train"] + timesteps["test"]
-
-
-    # TODO refactor up to main
-    full_zarr_path = os.path.join(diag_c48_path, COARSENED_DIAGS_ZARR_NAME)
-    mapper = fsspec.get_mapper(full_zarr_path)
-    ds_diag = xr.open_zarr(mapper, consolidated=True)
 
 
     logger.info(f"Processing {len(timestep_pairs)} subsets...")

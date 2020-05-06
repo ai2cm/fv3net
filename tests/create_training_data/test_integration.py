@@ -43,11 +43,25 @@ def test_create_training_data_regression(datadir):
     with open(str(path)) as f:
         schema = synth.load(f)
 
+    path = datadir.join("diag.json")
+    with open(str(path)) as f:
+        diag_schema = synth.load(f)
+
     big_zarr = schema.generate()
+    ds_diag = diag_schema.generate()
     pipeline_args = []
     names = get_config({})
 
-    diag_c48_path = "gs://vcm-ml-data/testing-noah/2020-04-18/25b5ec1a1b8a9524d2a0211985aa95219747b3c6/coarsen_diagnostics/"
     output_dir = "./out"
 
-    run(big_zarr, diag_c48_path, output_dir, pipeline_args, names, timesteps)
+    # import fsspec
+    # import xarray as xr
+
+    # diag_c48_path = "gs://vcm-ml-data/testing-noah/2020-04-18/25b5ec1a1b8a9524d2a0211985aa95219747b3c6/coarsen_diagnostics/"
+    # COARSENED_DIAGS_ZARR_NAME = "gfsphysics_15min_coarse.zarr"
+    # full_zarr_path = os.path.join(diag_c48_path, COARSENED_DIAGS_ZARR_NAME)
+    # mapper = fsspec.get_mapper(full_zarr_path)
+    # ds_diag = xr.open_zarr(mapper, consolidated=True)
+
+
+    run(big_zarr, ds_diag, output_dir, pipeline_args, names, timesteps)

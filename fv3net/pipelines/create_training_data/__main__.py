@@ -27,7 +27,7 @@ from .pipeline import run
 logger = logging.getLogger(__file__)
 
 ZARR_NAME = "big.zarr"
-
+COARSENED_DIAGS_ZARR_NAME = "gfsphysics_15min_coarse.zarr"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(epilog=__doc__)
@@ -86,5 +86,10 @@ if __name__ == "__main__":
         zarr.consolidate_metadata(mapper)
     ds = xr.open_zarr(mapper, consolidated=True)
 
+    # TODO refactor up to main
+    full_zarr_path = os.path.join(args.diag_c48_path, COARSENED_DIAGS_ZARR_NAME)
+    mapper = fsspec.get_mapper(full_zarr_path)
+    ds_diag = xr.open_zarr(mapper, consolidated=True)
+
     # TODO Basic io of diag_c48_path should be lifted here as well
-    run(ds, args.diag_c48_path, args.output_dir, pipeline_args, names, timesteps)
+    run(ds, ds_diag, args.output_dir, pipeline_args, names, timesteps)
