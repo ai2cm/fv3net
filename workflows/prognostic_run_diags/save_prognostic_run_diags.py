@@ -116,7 +116,7 @@ def calc_ds_diurnal_cycle(ds):
     local_time = np.floor(local_time)  # equivalent to hourly binning
     ds["mean_local_time"] = local_time
     # TODO: groupby is pretty slow, appears to be single-threaded op
-    diurnal_ds = ds.groupby("mean_local_time").mean().compute()
+    diurnal_ds = ds.groupby("mean_local_time").mean()
 
     return diurnal_ds
 
@@ -133,7 +133,7 @@ def dump_nc(ds: xr.Dataset, f):
 
 @add_to_diags("3H")
 def rms_errors(resampled, verification_c48, grid):
-    logger.info("Computing rms errors")
+    logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
     diags = {}
@@ -148,7 +148,7 @@ def rms_errors(resampled, verification_c48, grid):
 
 @add_to_diags("3H")
 def global_averages(resampled, verification, grid):
-    logger.info("Computing global averages")
+    logger.info("Preparing global averages")
     diags = {}
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
         HORIZONTAL_DIMS
@@ -164,7 +164,7 @@ def global_averages(resampled, verification, grid):
 @add_to_diags("15min")
 def diurnal_cycles(resampled, verification, grid):
 
-    logger.info("Calculating diurnal cycle diagnostics")
+    logger.info("Preparing diurnal cycle diagnostics")
 
     diags = {}
 
