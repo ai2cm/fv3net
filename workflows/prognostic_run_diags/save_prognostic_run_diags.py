@@ -19,6 +19,8 @@ import warnings
 
 from pathlib import Path
 from datetime import timedelta
+from collections import defaultdict
+from typing import Tuple
 
 import vcm
 
@@ -26,36 +28,59 @@ import logging
 
 logger = logging.getLogger(__file__)
 
-_DIAG_FNS = []
+_DIAG_FNS = defaultdict(list)
 
 HORIZONTAL_DIMS = ["grid_xt", "grid_yt", "tile"]
 
 
-def add_to_diags(func):
-    """Add a function to the list of diagnostics to be computed
+def add_to_diags(diags_key):
+    """
+    Add a function to the list of diagnostics to be computed
+    for a specified group.
 
     Args:
+        diags_key: A key for a group of diagnostics
         func: a function which computes a set of diagnostics.
-        It needs to have the following signature::
+            It needs to have the following signature::
 
-            func(resampled_prog_run_data, verificiation_c48, grid)
+                func(resampled_prog_run_data, verificiation_c48, grid)
 
-        and should return an xarray Dataset of diagnostics.
-        This output will be merged with all other decoratored functions,
-        so some care must be taken to avoid variable and coordinate clashes.
+            and should return an xarray Dataset of diagnostics.
+            This output will be merged with all other decoratored functions,
+            so some care must be taken to avoid variable and coordinate clashes.
     """
-    _DIAG_FNS.append(func)
-    return func
+
+    def wrap(func):
+        _DIAG_FNS[diags_key].append(func)
+        return func
+    return wrap
 
 
-def compute_all_diagnostics(resampled, verification, grid):
+def compute_all_diagnostics(input_datasets: dict[str, Tuple[xr.Dataset]]):
+    """
+    Compute all diagnostics for input data.
+
+    Args
+    ----
+    input_datasets:
+        A key value pair where the key relates to the target diagnostics key
+        in _DIAG_FNS, and the value is a tuple of datasets to be provided as
+        positional arguments to the diagnostic functions.
+    """
+
     diags = {}
-    logger.info("Computing all metrics")
-    for metrics_fn in _DIAG_FNS:
-        logger.info(f"Computing {metrics_fn}")
-        current_diags = metrics_fn(resampled, verification, grid)
-        _warn_on_overlap(diags, current_diags)
-        diags.update(current_diags)
+    logger.info("Computing all diagnostics")
+
+    for key, input_args in input_datasets.items():
+
+        if key not in _DIAG_FNS:
+            raise KeyError(f"No target diagnostics found for input data group: {key}")
+
+        for func in _DIAG_FNS[key]:
+            current_diags = func(*input_args)
+            _warn_on_overlap(diags, current_diags)
+            diags.update(current_diags)
+
     return diags
 
 
@@ -105,8 +130,9 @@ def dump_nc(ds: xr.Dataset, f):
             shutil.copyfileobj(tmp1, f)
 
 
-@add_to_diags
+@add_to_diags("3H")
 def rms_errors(resampled, verification_c48, grid):
+    logger.info("Computing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
     diags = {}
@@ -119,8 +145,9 @@ def rms_errors(resampled, verification_c48, grid):
     return diags
 
 
-@add_to_diags
+@add_to_diags("3H")
 def global_averages(resampled, verification, grid):
+    logger.info("Computing global averages")
     diags = {}
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
         HORIZONTAL_DIMS
@@ -133,8 +160,10 @@ def global_averages(resampled, verification, grid):
     return diags
 
 
-@add_to_diags
+@add_to_diags("15min")
 def diurnal_cycles(resampled, verification, grid):
+
+    logger.info("Calculating diurnal cycle diagnostics")
 
     diags = {}
 
