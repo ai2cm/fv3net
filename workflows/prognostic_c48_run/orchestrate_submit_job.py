@@ -130,10 +130,12 @@ if __name__ == "__main__":
 
     # Add prognostic config section
     if args.model_url:
-        model_config["scikit_learn"] = {
-            "model": os.path.join(args.model_url, MODEL_FILENAME),
-            "zarr_output": "diags.zarr",
-        }
+        scikit_learn_config = model_config.get("scikit_learn", {})
+        scikit_learn_config.update(
+            model=os.path.join(args.model_url, MODEL_FILENAME),
+            zarr_output="diags.zarr",
+        )
+        model_config["scikit_learn"] = scikit_learn_config
         kube_opts["runfile"] = kube_jobs.transfer_local_to_remote(RUNFILE, config_dir)
 
     # Upload the new prognostic config
