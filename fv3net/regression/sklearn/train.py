@@ -13,42 +13,6 @@ from sklearn.preprocessing import StandardScaler
 logger = logging.getLogger(__file__)
 
 
-# @dataclass
-# class ModelTrainingConfig:
-#     """Convenience wrapper for model training parameters and file info
-
-#     """
-
-#     model_type: str
-#     gcs_data_dir: str
-#     hyperparameters: dict
-#     num_batches: int
-#     files_per_batch: int
-#     input_variables: List[str]
-#     output_variables: List[str]
-#     gcs_project: str = "vcm-ml"
-#     random_seed: int = 0
-#     mask_to_surface_type: str = "none"
-#     coord_z_center: str = "z"
-#     init_time_dim: str = "initial_time"
-
-#     def __post_init__(self):
-#         # set default random_state for sklearn model if not specified
-#         if "random_state" not in self.hyperparameters:
-#             self.hyperparameters["random_state"] = 0
-
-#     def validate_number_train_batches(self, batch_generator):
-#         """ Since number of training files specified may be larger than
-#         the actual number available, this adds an attribute num_batches_used
-#         that keeps information about the actual number of training batches
-#         used.
-
-#         Args:
-#             batch_generator (BatchGenerator)
-#         """
-#         self.num_batches_used = batch_generator.num_batches
-
-
 def load_model_training_config(config_path, gcs_data_dir):
     """
 
@@ -63,8 +27,6 @@ def load_model_training_config(config_path, gcs_data_dir):
             config_dict = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             raise ValueError(f"Bad yaml config: {exc}")
-    # config_dict["gcs_data_dir"] = gcs_data_dir
-    # config = ModelTrainingConfig(**config_dict)
     return config_dict
 
 
@@ -84,16 +46,6 @@ def load_data_sequence(train_config) -> dataset_handler.BatchSequence:
         **train_config.batch_kwargs,
     )
     return ds_batches
-    # data_vars = train_config.input_variables + train_config.output_variables
-    # ds_batches = BatchGenerator(
-    #     data_vars,
-    #     train_config.gcs_data_dir,
-    #     train_config.files_per_batch,
-    #     train_config.num_batches,
-    #     random_seed=train_config.random_seed,
-    #     mask_to_surface_type=train_config.mask_to_surface_type,
-    # )
-    # return ds_batches
 
 
 def _get_regressor(train_config):
@@ -110,7 +62,10 @@ def _get_regressor(train_config):
     if "rf" in model_type or "randomforest" in model_type:
         from sklearn.ensemble import RandomForestRegressor
 
-        regressor = RandomForestRegressor(**train_config.hyperparameters, n_jobs=-1)
+        train_config.hyperparameters["n_jobs"] = train_config.hyperparameters.get(
+            "n_jobs", -1
+        )
+        regressor = RandomForestRegressor(**train_config.hyperparameters)
     else:
         raise ValueError(
             f"Model type {train_config.model_type} not implemented. "

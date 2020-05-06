@@ -178,7 +178,8 @@ class BatchGenerator:
             to train each batch
         """
         warnings.warn(
-            "BatchGenerator has been deprecated and will be removed, use a function which returns a BatchSequence instead",
+            "BatchGenerator has been deprecated and will be removed, "
+            "use a function which returns a BatchSequence instead",
             warnings.DeprecationWarning,
         )
         self.fs = get_fs(self.gcs_data_dir)

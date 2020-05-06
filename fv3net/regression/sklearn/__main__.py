@@ -46,11 +46,12 @@ def _write_report(output_dir, sections, metadata, title):
         f.write(html_report)
 
 
-if __name__ == "__main__":
+def parse_args():
     parser = argparse.ArgumentParser()
-    # parser.add_argument("train_data_path", type=str, help="Location of training data")
     parser.add_argument(
-        "train_config_file", type=str, help="Path for training configuration yaml file"
+        "train_config_file",
+        type=str,
+        help="Local path for training configuration yaml file",
     )
     parser.add_argument(
         "output_data_path", type=str, help="Location to save config and trained model."
@@ -62,11 +63,12 @@ if __name__ == "__main__":
         help="If results are uploaded to remote storage, "
         "remove local copy after upload.",
     )
-    args = parser.parse_args()
-    # args.train_data_path = os.path.join(args.train_data_path, "train")
-    train_config = train.load_model_training_config(
-        args.train_config_file  # , args.train_data_path
-    )
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    train_config = train.load_model_training_config(args.train_config_file)
     batched_data, time_list = train.load_data_sequence(train_config)
     _save_config_output(args.output_data_path, train_config, time_list)
 
