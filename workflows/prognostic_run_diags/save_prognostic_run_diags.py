@@ -172,7 +172,9 @@ def diurnal_cycles(resampled, verification, grid):
     diurnal_verif = calc_ds_diurnal_cycle(verification)
     for var in diurnal_verif:
         lower = var.lower()
-        diags[f"{lower}_verif_diurnal"] = diurnal_verif[var]
+        diags[f"{lower}_verif_diurnal"] = diurnal_verif[var].assign_attrs(
+            verification[var].attrs
+        )
     
     # calc diurnal cycle on model run
     lon = verification["grid_lont"]
@@ -180,7 +182,9 @@ def diurnal_cycles(resampled, verification, grid):
     diurnal_resampled = calc_ds_diurnal_cycle(resampled)
     for var in diurnal_resampled:
         lower = var.lower()
-        diags[f"{lower}_run_diurnal"] = diurnal_resampled[var]
+        diags[f"{lower}_run_diurnal"] = diurnal_resampled[var].assign_attrs(
+            resampled[var].attrs
+        )
     
     return diags
 
@@ -298,6 +302,16 @@ def load_data_15min(url, grid_spec, catalog):
     
     sfc_diag = sfc_diag[moisture_vars + ["SLMSKsfc"]]
     sfc_diag["grid_lont"] = moist_verif["grid_lont"]
+
+    # Merge naming attributes
+    for var in sfc_diag:
+        if (
+            var in moist_verif_c48
+            and not moist_verif_c48[var].attrs
+            and sfc_diag[var].attrs
+        ):
+            attrs = sfc_diag[var].attrs
+            moist_verif_c48[var] = moist_verif_c48[var].assign_attrs(attrs)
     
     return sfc_diag, moist_verif_c48, moist_verif_c48[["area"]]
 
