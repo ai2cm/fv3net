@@ -93,10 +93,10 @@ if __name__ == "__main__":
     # change into run directoryy
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
 
-    rename_map = args.get("ML_to_CF_variable_rename_map", {})
-    rename_map_inverse = dict(zip(rename_map.values(), rename_map.keys()))
+    rename_ML_to_CF = args.get("ML_to_CF_variable_rename_map", {})
+    rename_CF_to_ML = dict(zip(rename_ML_to_CF.values(), rename_ML_to_CF.keys()))
     if rank == 0:
-        logger.debug(f"Renaming variables for ML prediction using: {rename_map}")
+        logger.debug(f"Renaming variables for ML prediction using: {rename_CF_to_ML}")
 
     # open zarr tape for output
     if rank == 0:
@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
     MODEL = comm.bcast(MODEL, root=0)
     variables = list(set(REQUIRED_VARIABLES + MODEL.input_vars_))
-    variables = [rename_map.get(var, var) for var in variables]
+    variables = [rename_ML_to_CF.get(var, var) for var in variables]
     if rank == 0:
         logger.debug(f"Prognostic run requires variables: {variables}")
 
@@ -141,12 +141,12 @@ if __name__ == "__main__":
         if rank == 0:
             logger.debug("Computing RF updated variables")
         preds, diags = update(
-            MODEL, runtime.rename_keys(state, rename_map_inverse), dt=TIMESTEP
+            MODEL, runtime.rename_keys(state, rename_CF_to_ML), dt=TIMESTEP
         )
 
         if rank == 0:
             logger.debug("Setting Fortran State")
-        preds = runtime.rename_keys(preds, rename_map)
+        preds = runtime.rename_keys(preds, rename_ML_to_CF)
         fv3gfs.set_state(
             {key: fv3util.Quantity.from_data_array(preds[key]) for key in preds}
         )
