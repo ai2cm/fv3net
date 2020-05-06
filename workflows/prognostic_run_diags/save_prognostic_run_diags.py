@@ -121,6 +121,37 @@ def calc_ds_diurnal_cycle(ds):
     return diurnal_ds
 
 
+def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
+
+    ds_verif["total_P"] = ds_verif["PRATEsfc"]
+    
+    total_P = ds_run["PRATEsfc"]
+    if "net_moistening" in ds_run:
+        total_P = total_P - ds_run["net_moistening"]  # P - dQ2
+    total_P.assign_attrs(ds_run["PRATEsfc"].attrs)
+    ds_run["total_P"] = total_P
+
+    # TODO: add function into top-level import
+    E_run = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_run["LHTFLsfc"])
+    E_verif = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_verif["LHTFLsfc"])
+    E_diff = E_run - E_verif
+    P_diff = ds_run["total_P"] - ds_verif["total_P"]
+
+    ds_run["evap_diff_run_verif"] = E_diff.assign_attrs({
+        "long_name": "diurnal sfc evap difference between run and verification"
+    })
+    ds_run["precip_diff_run_verif"] = P_diff.assign_attrs({
+        "long_name": "diurnal total precip difference between run and verification"
+    })
+
+    net_precip_diff = (P_diff - E_diff)
+    ds_run["net_precip_diff_run_verif"] = net_precip_diff.assign_attrs({
+        "long_name": "diurnal net precip difference between run and verification"
+    })
+
+    return ds_run, ds_verif
+
+
 def dump_nc(ds: xr.Dataset, f):
     # to_netcdf closes file, which will delete the buffer
     # need to use a buffer since seek doesn't work with GCSFS file objects
@@ -168,24 +199,28 @@ def diurnal_cycles(resampled, verification, grid):
 
     diags = {}
 
-    # calc diurnal cycle on verification
     diurnal_verif = calc_ds_diurnal_cycle(verification)
+    lon = verification["grid_lont"]
+    resampled["grid_lont"] = lon
+    diurnal_resampled = calc_ds_diurnal_cycle(resampled)
+
+    diurnal_resampled, diurnal_verif = _add_derived_moisture_diurnal_quantities(
+        diurnal_resampled, diurnal_verif
+    )
+
+    # Add to diagnostics
     for var in diurnal_verif:
         lower = var.lower()
         diags[f"{lower}_verif_diurnal"] = diurnal_verif[var].assign_attrs(
             verification[var].attrs
         )
     
-    # calc diurnal cycle on model run
-    lon = verification["grid_lont"]
-    resampled["grid_lont"] = lon
-    diurnal_resampled = calc_ds_diurnal_cycle(resampled)
     for var in diurnal_resampled:
         lower = var.lower()
         diags[f"{lower}_run_diurnal"] = diurnal_resampled[var].assign_attrs(
             resampled[var].attrs
         )
-    
+
     return diags
 
 
@@ -302,6 +337,7 @@ def load_data_15min(url, grid_spec, catalog):
     
     sfc_diag = sfc_diag[moisture_vars + ["SLMSKsfc"]]
     sfc_diag["grid_lont"] = moist_verif["grid_lont"]
+    sfc_diag.load()  # Force load of zarr
 
     # Merge naming attributes
     for var in sfc_diag:
@@ -312,6 +348,11 @@ def load_data_15min(url, grid_spec, catalog):
         ):
             attrs = sfc_diag[var].attrs
             moist_verif_c48[var] = moist_verif_c48[var].assign_attrs(attrs)
+
+        # TODO: xarray prognostic output currently uses description for long name
+        long_name = sfc_diag[var].attrs.get("description", None)
+        if long_name:
+            sfc_diag[var] = sfc_diag[var].assign_attrs({"long_name": long_name})
     
     return sfc_diag, moist_verif_c48, moist_verif_c48[["area"]]
 
