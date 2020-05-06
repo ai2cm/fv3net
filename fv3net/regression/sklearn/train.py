@@ -78,7 +78,11 @@ def load_data_sequence(train_config) -> dataset_handler.BatchSequence:
         iterator that generates xr datasets for training batches
     """
     batch_function = getattr(dataset_handler, train_config.batch_function)
-    ds_batches = batch_function(train_config.input_variables, train_config.output_variables, **train_config.batch_kwargs)
+    ds_batches = batch_function(
+        train_config.input_variables,
+        train_config.output_variables,
+        **train_config.batch_kwargs,
+    )
     return ds_batches
     # data_vars = train_config.input_variables + train_config.output_variables
     # ds_batches = BatchGenerator(

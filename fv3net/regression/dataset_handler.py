@@ -1,4 +1,5 @@
 import collections
+import warnings
 import backoff
 import functools
 import logging
@@ -21,7 +22,6 @@ logger.addHandler(fh)
 
 
 class BatchSequence(collections.abc.Sequence):
-
     def __init__(self, loader_function, args_sequence):
         """Create a sequence of Batch objects from a function which produces a single
         batch, and a sequence of arguments to that function.
@@ -50,16 +50,17 @@ def get_time_list(url_list_sequence):
 
 
 def load_one_step_batches(
-        input_variables: Iterable[str],
-        output_variables: Iterable[str],
-        gcs_data_dir: str,
-        files_per_batch: int,
-        num_batches: int = None,
-        random_seed: int = 1234,
-        mask_to_surface_type: str = "none",
-        init_time_dim_name="initial_time",
-        z_dim_name="z",
-        rename_variables=None):
+    input_variables: Iterable[str],
+    output_variables: Iterable[str],
+    gcs_data_dir: str,
+    files_per_batch: int,
+    num_batches: int = None,
+    random_seed: int = 1234,
+    mask_to_surface_type: str = "none",
+    init_time_dim_name="initial_time",
+    z_dim_name="z",
+    rename_variables=None,
+):
     """Get a sequence of batches from one-step output.
 
     Args:
@@ -75,23 +76,41 @@ def load_one_step_batches(
     fs = get_fs(gcs_data_dir)
     logger.info(f"Reading data from {gcs_data_dir}.")
     zarr_urls = [
-        zarr_file
-        for zarr_file in fs.ls(gcs_data_dir)
-        if "grid_spec" not in zarr_file
+        zarr_file for zarr_file in fs.ls(gcs_data_dir) if "grid_spec" not in zarr_file
     ]
     logger.info(f"Number of .zarrs in GCS train data dir: {len(zarr_urls)}.")
     random = np.random.RandomState(random_seed)
     random.shuffle(zarr_urls)
     num_batches = _validated_num_batches(len(zarr_urls), files_per_batch, num_batches)
     logger.info(f"{num_batches} data batches generated for model training.")
-    url_list_sequence = ((zarr_urls[
-        batch_num * files_per_batch: (batch_num + 1) * files_per_batch
-    ],) for batch_num in range(num_batches))
-    load_batch = functools.partial(_load_one_step_batch, data_vars, rename_variables, init_time_dim_name, z_dim_name, mask_to_surface_type, random)
-    return BatchSequence(load_batch, url_list_sequence), get_time_list(url_list_sequence)
+    url_list_sequence = (
+        (zarr_urls[batch_num * files_per_batch : (batch_num + 1) * files_per_batch],)
+        for batch_num in range(num_batches)
+    )
+    load_batch = functools.partial(
+        _load_one_step_batch,
+        data_vars,
+        rename_variables,
+        init_time_dim_name,
+        z_dim_name,
+        mask_to_surface_type,
+        random,
+    )
+    return (
+        BatchSequence(load_batch, url_list_sequence),
+        get_time_list(url_list_sequence),
+    )
 
 
-def _load_one_step_batch(data_vars, rename_variables, init_time_dim_name, z_dim_name, mask_to_surface_type, random, url_list):
+def _load_one_step_batch(
+    data_vars,
+    rename_variables,
+    init_time_dim_name,
+    z_dim_name,
+    mask_to_surface_type,
+    random,
+    url_list,
+):
     # TODO refactor this I/O. since this logic below it is currently
     # impossible to test.
     data = _load_datasets(url_list)
@@ -158,6 +177,10 @@ class BatchGenerator:
             nested list of zarr paths, where inner lists are the sets of zarrs used
             to train each batch
         """
+        warnings.warn(
+            "BatchGenerator has been deprecated and will be removed, use a function which returns a BatchSequence instead",
+            warnings.DeprecationWarning,
+        )
         self.fs = get_fs(self.gcs_data_dir)
         logger.info(f"Reading data from {self.gcs_data_dir}.")
         zarr_urls = [
