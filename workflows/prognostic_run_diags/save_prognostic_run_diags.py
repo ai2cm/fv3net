@@ -20,7 +20,7 @@ import warnings
 from pathlib import Path
 from datetime import timedelta
 from collections import defaultdict
-from typing import Tuple
+from typing import Tuple, Dict
 
 import vcm
 
@@ -56,7 +56,7 @@ def add_to_diags(diags_key):
     return wrap
 
 
-def compute_all_diagnostics(input_datasets: dict[str, Tuple[xr.Dataset]]):
+def compute_all_diagnostics(input_datasets: Dict[str, Tuple[xr.Dataset]]):
     """
     Compute all diagnostics for input data.
 
@@ -115,6 +115,7 @@ def calc_ds_diurnal_cycle(ds):
     ds = ds[[var for var in moist_vars if var in ds]]
     local_time = np.floor(local_time)  # equivalent to hourly binning
     ds["mean_local_time"] = local_time
+    # TODO: groupby is pretty slow, appears to be single-threaded op
     diurnal_ds = ds.groupby("mean_local_time").mean().compute()
 
     return diurnal_ds
