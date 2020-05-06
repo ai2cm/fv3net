@@ -2,7 +2,7 @@ model_type: sklearn_random_forest
 hyperparameters:
   max_depth: 13
   n_estimators: 4
-batch_function: load_one_step_batches
+batch_function: load_zarr_batches
 input_variables:
   - air_temperature
   - specific_humidity

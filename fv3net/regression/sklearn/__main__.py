@@ -48,6 +48,7 @@ def _write_report(output_dir, sections, metadata, title):
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("train_data_path", type=str, help="Location of training data")
     parser.add_argument(
         "train_config_file",
         type=str,
@@ -68,8 +69,9 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+    data_path = os.path.join(args.train_data_path, "train")
     train_config = train.load_model_training_config(args.train_config_file)
-    batched_data, time_list = train.load_data_sequence(train_config)
+    batched_data, time_list = train.load_data_sequence(data_path, train_config)
     _save_config_output(args.output_data_path, train_config, time_list)
 
     logging.basicConfig(level=logging.INFO)

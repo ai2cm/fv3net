@@ -3,6 +3,8 @@ import joblib
 import logging
 import os
 import yaml
+from dataclasses import dataclass
+from typing import Iterable
 
 from fv3net.regression import dataset_handler
 from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
@@ -13,7 +15,20 @@ from sklearn.preprocessing import StandardScaler
 logger = logging.getLogger(__file__)
 
 
-def load_model_training_config(config_path, gcs_data_dir):
+@dataclass
+class ModelTrainingConfig:
+    """Convenience wrapper for model training parameters and file info
+    """
+
+    model_type: str
+    hyperparameters: dict
+    input_variables: Iterable[str]
+    output_variables: Iterable[str]
+    batch_function: str
+    batch_kwargs: dict
+
+
+def load_model_training_config(config_path):
     """
 
     Args:
@@ -27,10 +42,10 @@ def load_model_training_config(config_path, gcs_data_dir):
             config_dict = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             raise ValueError(f"Bad yaml config: {exc}")
-    return config_dict
+    return ModelTrainingConfig(**config_dict)
 
 
-def load_data_sequence(train_config) -> dataset_handler.BatchSequence:
+def load_data_sequence(data_path, train_config) -> dataset_handler.BatchSequence:
     """
 
     Args:
@@ -41,6 +56,7 @@ def load_data_sequence(train_config) -> dataset_handler.BatchSequence:
     """
     batch_function = getattr(dataset_handler, train_config.batch_function)
     ds_batches = batch_function(
+        data_path,
         train_config.input_variables,
         train_config.output_variables,
         **train_config.batch_kwargs,

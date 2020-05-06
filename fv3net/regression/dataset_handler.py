@@ -1,10 +1,8 @@
 import collections
-import warnings
 import backoff
 import functools
 import logging
-from dataclasses import dataclass
-from typing import List, Iterable
+from typing import Iterable
 import numpy as np
 import xarray as xr
 
@@ -49,10 +47,10 @@ def get_time_list(url_list_sequence):
     return time_list
 
 
-def load_one_step_batches(
+def load_zarr_batches(
+    data_path: str,
     input_variables: Iterable[str],
     output_variables: Iterable[str],
-    gcs_data_dir: str,
     files_per_batch: int,
     num_batches: int = None,
     random_seed: int = 1234,
@@ -73,10 +71,10 @@ def load_one_step_batches(
     if rename_variables is None:
         rename_variables = {}
     data_vars = list(input_variables) + list(output_variables)
-    fs = get_fs(gcs_data_dir)
-    logger.info(f"Reading data from {gcs_data_dir}.")
+    fs = get_fs(data_path)
+    logger.info(f"Reading data from {data_path}.")
     zarr_urls = [
-        zarr_file for zarr_file in fs.ls(gcs_data_dir) if "grid_spec" not in zarr_file
+        zarr_file for zarr_file in fs.ls(data_path) if "grid_spec" not in zarr_file
     ]
     logger.info(f"Number of .zarrs in GCS train data dir: {len(zarr_urls)}.")
     random = np.random.RandomState(random_seed)
@@ -161,114 +159,12 @@ def _validated_num_batches(total_num_input_files, files_per_batch, num_batches=N
     return num_train_batches
 
 
-@dataclass
-class BatchGenerator:
-    data_vars: List[str]
-    gcs_data_dir: str
-    files_per_batch: int
-    num_batches: int = None
-    random_seed: int = 1234
-    mask_to_surface_type: str = "none"
-
-    def __post_init__(self):
-        """ Group the input zarrs into batches for training
-
-        Returns:
-            nested list of zarr paths, where inner lists are the sets of zarrs used
-            to train each batch
-        """
-        warnings.warn(
-            "BatchGenerator has been deprecated and will be removed, "
-            "use a function which returns a BatchSequence instead",
-            warnings.DeprecationWarning,
-        )
-        self.fs = get_fs(self.gcs_data_dir)
-        logger.info(f"Reading data from {self.gcs_data_dir}.")
-        zarr_urls = [
-            zarr_file
-            for zarr_file in self.fs.ls(self.gcs_data_dir)
-            if "grid_spec" not in zarr_file
-        ]
-        total_num_input_files = len(zarr_urls)
-        logger.info(f"Number of .zarrs in GCS train data dir: {total_num_input_files}.")
-        np.random.seed(self.random_seed)
-        np.random.shuffle(zarr_urls)
-        self.num_batches = self._validated_num_batches(total_num_input_files)
-        logger.info(f"{self.num_batches} data batches generated for model training.")
-        self.train_file_batches = [
-            zarr_urls[
-                batch_num
-                * self.files_per_batch : (batch_num + 1)
-                * self.files_per_batch
-            ]
-            for batch_num in range(self.num_batches)
-        ]
-
-    def generate_batches(self, coord_z_center, init_time_dim):
-        """
-
-        Args:
-            batch_type: train or test
-
-        Returns:
-            dataset of vertical columns shuffled within each training batch
-        """
-        grouped_urls = self.train_file_batches
-        for file_batch_urls in grouped_urls:
-            yield self._create_training_batch(
-                file_batch_urls, coord_z_center, init_time_dim
-            )
-
-    @backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
-    def _load_datasets(self, urls):
-        timestep_paths = [self.fs.get_mapper(url) for url in urls]
-        return [xr.open_zarr(path).load() for path in timestep_paths]
-
-    def _create_training_batch(self, urls, coord_z_center, init_time_dim):
-        # TODO refactor this I/O. since this logic below it is currently
-        # impossible to test.
-        data = self._load_datasets(urls)
-        ds = xr.concat(data, init_time_dim)
-        ds = safe.get_variables(ds, self.data_vars)
-        ds = vcm.mask_to_surface_type(ds, self.mask_to_surface_type)
-        stack_dims = [dim for dim in ds.dims if dim != coord_z_center]
-        ds_stacked = safe.stack_once(
-            ds,
-            SAMPLE_DIM,
-            stack_dims,
-            allowed_broadcast_dims=[coord_z_center, init_time_dim],
-        )
-
-        ds_no_nan = ds_stacked.dropna(SAMPLE_DIM)
-
-        if len(ds_no_nan[SAMPLE_DIM]) == 0:
-            raise ValueError(
-                "No Valid samples detected. Check for errors in the training data."
-            )
-
-        return _shuffled(ds_no_nan, SAMPLE_DIM, self.random_seed)
-
-    def _validated_num_batches(self, total_num_input_files):
-        """ check that the number of batches (if provided) and the number of
-        files per batch are reasonable given the number of zarrs in the input data dir.
-        If their product is greater than the number of input files, number of batches
-        is changed so that (num_batches * files_per_batch) < total files.
-
-        Returns:
-            Number of batches to use for training
-        """
-        if not self.num_batches:
-            num_train_batches = total_num_input_files // self.files_per_batch
-        elif self.num_batches * self.files_per_batch > total_num_input_files:
-            if self.num_batches > total_num_input_files:
-                raise ValueError(
-                    f"Number of input_files {total_num_input_files} "
-                    f"smaller than {self.num_batches}."
-                )
-            num_train_batches = total_num_input_files // self.files_per_batch
-        else:
-            num_train_batches = self.num_batches
-        return num_train_batches
+def _shuffled(dataset, dim, random):
+    chunks_default = (len(dataset[dim]),)
+    chunks = dataset.chunks.get(dim, chunks_default)
+    indices = _chunk_indices(chunks)
+    shuffled_inds = _shuffled_within_chunks(indices, random)
+    return dataset.isel({dim: shuffled_inds})
 
 
 def _chunk_indices(chunks):
@@ -284,14 +180,6 @@ def _chunk_indices(chunks):
 def _shuffled_within_chunks(indices, random):
     # We should only need to set the random seed once (not every time)
     return np.concatenate([random.permutation(index) for index in indices])
-
-
-def _shuffled(dataset, dim, random):
-    chunks_default = (len(dataset[dim]),)
-    chunks = dataset.chunks.get(dim, chunks_default)
-    indices = _chunk_indices(chunks)
-    shuffled_inds = _shuffled_within_chunks(indices, random)
-    return dataset.isel({dim: shuffled_inds})
 
 
 def stack_and_drop_nan_samples(ds, coord_z_center):

@@ -2,14 +2,21 @@ model_type: sklearn_random_forest
 hyperparameters:
   max_depth: 13
   n_estimators: 1
-num_batches: 13
-mask_to_surface_type: none
-files_per_batch: 10
+batch_function: load_zarr_batches
 input_variables:
   - air_temperature
   - specific_humidity
+  - surface_geopotential
+  - land_sea_mask
+  - surface_temperature
+  - total_sky_downward_shortwave_flux_at_top_of_atmosphere
 output_variables:
   - dQ1
   - dQ2
-init_time_dim: "initial_time"
-coord_z_center: "z"
+batch_kwargs:
+  num_batches: 13
+  files_per_batch: 10
+  rename_variables:
+    DSWRFtoa_train: total_sky_downward_shortwave_flux_at_top_of_atmosphere
+  init_time_dim: "initial_time"
+  coord_z_center: "z"
