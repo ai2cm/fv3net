@@ -14,13 +14,11 @@ chunks: (we need to be to generate chunked data)
 """
 from typing import Sequence, Tuple
 import json
-import fsspec
 from dataclasses import dataclass, asdict
 import zarr
 import numpy as np
 import dask.array as da
 import xarray as xr
-from toolz import first
 import logging
 import io
 
@@ -170,6 +168,7 @@ class DatasetSchema:
         )
 
 
+# TODO test this function
 def read_schema_from_zarr(
     group,
     default_range=Range(-1000, 1000),
