@@ -16,30 +16,11 @@ from synth import (
     __version__,
     dumps,
     loads,
-    sample,
 )
 
 
 def test_version():
     assert __version__ == "0.1.0"
-
-
-def test_sample_middle_dim():
-    arr = np.ones((3, 4, 5))
-    expected = sample(arr, sample_axes=[1], num_samples=2)
-    assert expected.shape == (2, 3, 5)
-
-
-def test_sample_multiple_sample_axes():
-    arr = np.ones((3, 4, 5))
-    expected = sample(arr, sample_axes=[1, 2], num_samples=2)
-    assert expected.shape == (2, 3)
-
-
-def test_sample_multiple_sample_axes_reorder():
-    arr = np.ones((4, 5, 3))
-    expected = sample(arr, sample_axes=[0, 1], num_samples=2)
-    assert expected.shape == (2, 3)
 
 
 def test_generate_array():

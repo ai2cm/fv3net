@@ -11,7 +11,6 @@ from .core import (
     loads,
     load,
     dump,
-    sample,
     read_schema_from_zarr,
 )
 
