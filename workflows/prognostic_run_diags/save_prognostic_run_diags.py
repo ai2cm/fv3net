@@ -78,6 +78,23 @@ def bias(truth, prediction, w, dims):
     return ((truth - prediction) * w).sum(dims) / w.sum(dims)
 
 
+def calc_ds_diurnal_cycle(ds):
+    """
+    Calculates the diurnal cycle on moisture variables.  Expects
+    time dimension and longitude variable "lon".
+    """
+    # TODO: switch to vcm.safe dataset usage
+    moist_vars = ["LHTFLsfc", "PRATEsfc", "net_moistening"]
+    local_time = vcm.local_time(ds, time="time", lon_var="grid_lont")
+
+    ds = ds[[var for var in moist_vars if var in ds]]
+    local_time = np.floor(local_time)  # equivalent to hourly binning
+    ds["mean_local_time"] = local_time
+    diurnal_ds = ds.groupby("mean_local_time").mean().compute()
+
+    return diurnal_ds
+
+
 def dump_nc(ds: xr.Dataset, f):
     # to_netcdf closes file, which will delete the buffer
     # need to use a buffer since seek doesn't work with GCSFS file objects
@@ -117,8 +134,25 @@ def global_averages(resampled, verification, grid):
 
 
 @add_to_diags
-def diurnal_cycle(resampled, verification, grid):
-    moist_vars = ["LHTFLsfc", "PRATEsfc"]
+def diurnal_cycles(resampled, verification, grid):
+
+    diags = {}
+
+    # calc diurnal cycle on verification
+    diurnal_verif = calc_ds_diurnal_cycle(verification)
+    for var in diurnal_verif:
+        lower = var.lower()
+        diags[f"{lower}_verif_diurnal"] = diurnal_verif[var]
+    
+    # calc diurnal cycle on model run
+    lon = verification["grid_lont"]
+    resampled["grid_lont"] = lon
+    diurnal_resampled = calc_ds_diurnal_cycle(resampled)
+    for var in diurnal_resampled:
+        lower = var.lower()
+        diags[f"{lower}_run_diurnal"] = diurnal_resampled[var]
+    
+    return diags
 
 
 def open_tiles(path):
@@ -177,14 +211,17 @@ def load_data(url, grid_spec, catalog):
     logger.info("Opening verification data")
     verification = catalog["40day_c384_atmos_8xdaily"].to_dask()
     verification = verification.merge(grid_c384)
+    
     # load moisture vars for diurnal cycle
+    moisture_vars = ["PRATEsfc", "LHTFLsfc"]
     moist_verif = catalog["40day_c384_diags_time_avg"].to_dask()
     moist_verif = _round_time_coord(moist_verif)
     moist_verif = _remove_name_suffix(moist_verif, "_coarse")
     moist_verif = moist_verif.assign_coords({"tile": np.arange(6)})
-    moisture_vars = ["PRATEsfc", "LHTFLsfc"]
-    moist_verif = moist_verif[moisture_vars]
-    verification = verification.merge(moist_verif, join="inner") # merges to 3H
+    # including grid_lont because lon output is empty in prog_run diag file :(
+    moist_verif = moist_verif[moisture_vars + ["grid_lont"]]
+    verification = verification.merge(moist_verif, join="inner")  # merges to 3H
+
     # block average data
     logger.info("Block averaging the verification data")
     verification_c48 = vcm.cubedsphere.weighted_block_average(
@@ -209,7 +246,7 @@ def load_data(url, grid_spec, catalog):
         if "net_moistening" in sfc_diag:
             moisture_vars += ["net_moistening"]
     
-    sfc_diag = sfc_diag[moisture_vars]
+    sfc_diag = sfc_diag[moisture_vars + ["SLMSKsfc"]]
     resampled = resampled.merge(sfc_diag, join="inner")
 
     verification_c48 = verification_c48.sel(
