@@ -67,7 +67,7 @@ succesfully, the fv3net environment can be activated with
     conda activate fv3net
 
 The `build_environment.sh` script also outputs a list of all installed dependencies
-with their version under `.circleci/.installed_build_env_deps`.  This file is used
+with their version under `.circleci/environment.lock`.  This file is used
 along with `environment.yml` as a key for caching the `fv3net` dependencies.  Whenver
 `make create_environment` or the build script is run, this file will be updated
 and committed to keep track of versions over time.
