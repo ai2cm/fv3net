@@ -12,9 +12,9 @@ chunks: (we need to be to generate chunked data)
 
 
 """
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Mapping
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 import zarr
 import numpy as np
 import dask.array as da
@@ -119,7 +119,7 @@ class Array:
 
 
 @dataclass
-class ChunkedArray(Array):
+class ChunkedArray:
     shape: Sequence[int]
     dtype: np.dtype
     chunks: Tuple[Tuple[int]]
@@ -140,9 +140,12 @@ class VariableSchema:
     # TODO probably want to decouple "Domain" from the schema object
     domain: Domain
 
+    attrs: Mapping = field(default_factory=dict)
+
     def generate(self):
         return xr.DataArray(
             self.array.generate(self.domain), dims=self.dims, name=self.name
+            ,attrs=self.attrs,
         )
 
 
@@ -151,9 +154,10 @@ class CoordinateSchema:
     name: str
     dims: Sequence[str]
     value: np.ndarray
+    attrs: Mapping = field(default_factory=dict)
 
     def generate(self):
-        return xr.DataArray(self.value, dims=self.dims, name=self.name)
+        return xr.DataArray(self.value, dims=self.dims, name=self.name, attrs=self.attrs)
 
 
 @dataclass
@@ -182,9 +186,12 @@ def read_schema_from_zarr(
     for variable in group:
         logger.info(f"Reading {variable}")
         arr = group[variable]
+        attrs = dict(arr.attrs)
+
+        dims = attrs.pop("_ARRAY_DIMENSIONS")
 
         if variable in coords:
-            scheme = CoordinateSchema(variable, [variable], arr[:])
+            scheme = CoordinateSchema(variable, [variable], arr[:], attrs)
             coord_schemes.append(scheme)
         else:
             n = sample(arr)
@@ -200,7 +207,8 @@ def read_schema_from_zarr(
                 range_ = Range(m.item(), M.item())
 
             scheme = VariableSchema(
-                variable, arr.attrs["_ARRAY_DIMENSIONS"], array, domain=range_
+                variable, dims, array, domain=range_,
+                attrs=attrs,
             )
             variables.append(scheme)
 

@@ -1,9 +1,11 @@
 import pickle
 
 import numpy as np
+import zarr
 
 import pytest
 from synth import (
+    read_schema_from_zarr,
     Array,
     ChunkedArray,
     CoordinateSchema,
@@ -141,3 +143,29 @@ def test_generate_regression(regtest):
     d = ds.generate()
     arr = d.a.values
     print(arr, file=regtest)
+
+
+def test_cftime_generate():
+    julian_time_attrs = {
+        "calendar": "julian",
+        "calendar_type": "JULIAN",
+        "cartesian_axis": "T",
+        "long_name": "time",
+        "units": "seconds since 2016-08-01T00:15:00.000026",
+    }
+
+    store = {}
+
+    group = zarr.open_group(store, mode='w')
+    arr = group.zeros("time", shape=[1], dtype=np.float64)
+    arr.attrs.update(julian_time_attrs)
+    arr.attrs["_ARRAY_DIMENSIONS"] = ["time"]
+
+    schema = read_schema_from_zarr(group, coords=["time"])
+    ds = schema.generate()
+
+    assert dict(ds.time.attrs) == dict(julian_time_attrs)
+
+
+
+    
