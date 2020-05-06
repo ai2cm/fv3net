@@ -18,6 +18,7 @@ import shutil
 import warnings
 
 from pathlib import Path
+from datetime import timedelta
 
 import vcm
 
@@ -115,8 +116,54 @@ def global_averages(resampled, verification, grid):
     return diags
 
 
+@add_to_diags
+def diurnal_cycle(resampled, verification, grid):
+    moist_vars = ["LHTFLsfc", "PRATEsfc"]
+
+
 def open_tiles(path):
     return xr.open_mfdataset(path + ".tile?.nc", concat_dim="tile", combine="nested")
+
+
+def _round_microseconds(dt):
+    inc = timedelta(seconds=round(dt.microsecond * 1e-6))
+    dt = dt.replace(microsecond=0)
+    dt += inc
+    return dt
+
+
+def _round_time_coord(ds, time_coord="time"):
+    
+    new_times = np.array(list(map(_round_microseconds, ds.time.values)))
+    ds = ds.assign_coords({time_coord: new_times})
+    return ds
+
+
+def _remove_name_suffix(ds, target):
+    replace_names = {vname: vname.replace(target, "")
+                     for vname in ds if target in vname}
+    replace_names.update(
+        {dim: dim.replace(target, "")
+         for dim in ds.dims if target in dim}
+    )
+    ds = ds.rename(replace_names)
+    return ds
+
+
+def _join_sfc_zarr_coords(sfc_nc, sfc_zarr):
+    sfc_nc = sfc_nc.assign_coords({"tile": np.arange(6)})
+    
+    # If prog run crashes there's one less
+    if len(sfc_nc.time) < len(sfc_zarr.time):
+        sfc_zarr = sfc_zarr.isel(time=slice(0, -1))
+
+    # TODO: should adjust how the zarr is saved to make this easier
+    sfc_zarr = sfc_zarr.rename({"x": "grid_xt", "y": "grid_yt", "rank": "tile"})
+    sfc_zarr = sfc_zarr.assign_coords(sfc_nc.coords)
+
+    joined = sfc_nc.merge(sfc_zarr, join="inner")
+
+    return joined
 
 
 def load_data(url, grid_spec, catalog):
@@ -130,6 +177,14 @@ def load_data(url, grid_spec, catalog):
     logger.info("Opening verification data")
     verification = catalog["40day_c384_atmos_8xdaily"].to_dask()
     verification = verification.merge(grid_c384)
+    # load moisture vars for diurnal cycle
+    moist_verif = catalog["40day_c384_diags_time_avg"].to_dask()
+    moist_verif = _round_time_coord(moist_verif)
+    moist_verif = _remove_name_suffix(moist_verif, "_coarse")
+    moist_verif = moist_verif.assign_coords({"tile": np.arange(6)})
+    moisture_vars = ["PRATEsfc", "LHTFLsfc"]
+    moist_verif = moist_verif[moisture_vars]
+    verification = verification.merge(moist_verif, join="inner") # merges to 3H
     # block average data
     logger.info("Block averaging the verification data")
     verification_c48 = vcm.cubedsphere.weighted_block_average(
@@ -141,6 +196,21 @@ def load_data(url, grid_spec, catalog):
     logger.info(f"Opening diagnostic data at {atmos_diag_url}")
     ds = open_tiles(atmos_diag_url).load()
     resampled = ds.resample(time="3H", label="right").nearest()
+
+    # load sfc diagnostics
+    sfc_diag_url = os.path.join(url, "sfc_dt_atmos")
+    sfc_diag = open_tiles(sfc_diag_url)
+    sfc_diag = sfc_diag.assign_coords({"tile": np.arange(6)})
+
+    sfc_zarr_url = os.path.join(url, "diags.zarr")
+    if os.path.exists(sfc_zarr_url):
+        sfc_zarr = xr.open_zarr(sfc_zarr_url)
+        sfc_diag = _join_sfc_zarr_coords(sfc_diag, sfc_zarr)
+        if "net_moistening" in sfc_diag:
+            moisture_vars += ["net_moistening"]
+    
+    sfc_diag = sfc_diag[moisture_vars]
+    resampled = resampled.merge(sfc_diag, join="inner")
 
     verification_c48 = verification_c48.sel(
         time=resampled.time[:-1]
