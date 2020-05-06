@@ -25,48 +25,6 @@ import io
 logger = logging.getLogger(__file__)
 
 
-# TODO can probably delete
-def sample_xr(variable: xr.DataArray, vary_dims=(), num_samples=100) -> xr.DataArray:
-    """Sample a variable along vary_dims (stacking is non-ideal since it combines chunks)
-    """
-    sample_dims = list(set(variable.dims) - set(vary_dims))
-    return (
-        variable.stack(feature=vary_dims, sample=sample_dims)
-        .isel(sample=slice(0, num_samples))
-        .transpose("feature", "sample")
-    )
-
-
-# TODO can probably delete
-def fit_xr(rv, sample: xr.DataArray) -> xr.DataArray:
-    arr = np.asarray(sample)
-    stats = np.apply_along_axis(rv.fit, sample)
-    return xr.DataArray(stats, dims=["feature"], coords={"feature": sample.feature})
-
-
-# TODO can probably delete
-def sample(variable: zarr.Array, sample_axes=(), num_samples=100) -> np.ndarray:
-    """Sample a variable along the first axis listed in sample_axes
-
-    Samples are enumerated along the first axis of the resulting numpy array
-    """
-
-    sample_axes = list(sample_axes)
-
-    idx = slice(0, 10)
-    sample_axis = min(sample_axes)
-    axes = {}
-    for i in range(variable.ndim):
-        if i in sample_axes:
-            axes[i] = slice(num_samples) if i == sample_axis else 0
-        else:
-            axes[i] = slice(None)
-
-    idx = list(axes[i] for i in range(len(axes)))
-    arr = variable[idx]
-    return np.moveaxis(arr, sample_axis, 0)
-
-
 # TODO rename
 class MyEncoder(json.JSONEncoder):
     def default(self, o):
@@ -144,8 +102,10 @@ class VariableSchema:
 
     def generate(self):
         return xr.DataArray(
-            self.array.generate(self.domain), dims=self.dims, name=self.name
-            ,attrs=self.attrs,
+            self.array.generate(self.domain),
+            dims=self.dims,
+            name=self.name,
+            attrs=self.attrs,
         )
 
 
@@ -157,7 +117,9 @@ class CoordinateSchema:
     attrs: Mapping = field(default_factory=dict)
 
     def generate(self):
-        return xr.DataArray(self.value, dims=self.dims, name=self.name, attrs=self.attrs)
+        return xr.DataArray(
+            self.value, dims=self.dims, name=self.name, attrs=self.attrs
+        )
 
 
 @dataclass
@@ -174,7 +136,7 @@ class DatasetSchema:
 
 # TODO test this function
 def read_schema_from_zarr(
-    group,
+    group: zarr.Group,
     default_range=Range(-1000, 1000),
     sample=lambda arr: arr[-1, 0, 0, 0],
     coords=("forecast_time", "initial_time", "tile", "step", "z", "y", "x"),
@@ -206,10 +168,7 @@ def read_schema_from_zarr(
             else:
                 range_ = Range(m.item(), M.item())
 
-            scheme = VariableSchema(
-                variable, dims, array, domain=range_,
-                attrs=attrs,
-            )
+            scheme = VariableSchema(variable, dims, array, domain=range_, attrs=attrs,)
             variables.append(scheme)
 
     return DatasetSchema(coord_schemes, variables)
@@ -230,11 +189,7 @@ def load(fp):
 
     coords = []
     for coord in d["coords"]:
-        coords.append(
-            CoordinateSchema(
-                **coord
-            )
-        )
+        coords.append(CoordinateSchema(**coord))
 
     variables = []
     for variable in d["variables"]:

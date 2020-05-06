@@ -27,7 +27,8 @@ def datadir(tmpdir, request):
     module and, if available, moving all contents to a temporary directory so
     tests can use them freely.
 
-    Credit: https://stackoverflow.com/questions/29627341/pytest-where-to-store-expected-data
+    Credit:
+    https://stackoverflow.com/questions/29627341/pytest-where-to-store-expected-data
     """
     filename = request.module.__file__
     test_dir, _ = os.path.splitext(filename)
@@ -40,6 +41,9 @@ def datadir(tmpdir, request):
 
 @pytest.mark.regression()
 def test_create_training_data_regression(datadir):
+
+    output_dir = str(datadir.join("out"))
+
     path = datadir.join("schema.json")
     with open(str(path)) as f:
         schema = synth.load(f)
@@ -55,17 +59,5 @@ def test_create_training_data_regression(datadir):
 
     pipeline_args = []
     names = get_config({})
-
-    output_dir = "./out"
-
-    # import fsspec
-    # import xarray as xr
-
-    # diag_c48_path = "gs://vcm-ml-data/testing-noah/2020-04-18/25b5ec1a1b8a9524d2a0211985aa95219747b3c6/coarsen_diagnostics/"
-    # COARSENED_DIAGS_ZARR_NAME = "gfsphysics_15min_coarse.zarr"
-    # full_zarr_path = os.path.join(diag_c48_path, COARSENED_DIAGS_ZARR_NAME)
-    # mapper = fsspec.get_mapper(full_zarr_path)
-    # ds_diag = xr.open_zarr(mapper, consolidated=True)
-
 
     run(big_zarr, ds_diag_decoded, output_dir, pipeline_args, names, timesteps)

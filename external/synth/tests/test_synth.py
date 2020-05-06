@@ -3,7 +3,6 @@ import pickle
 import numpy as np
 import zarr
 
-import pytest
 from synth import (
     read_schema_from_zarr,
     Array,
@@ -158,7 +157,7 @@ def test_cftime_generate():
 
     store = {}
 
-    group = zarr.open_group(store, mode='w')
+    group = zarr.open_group(store, mode="w")
     arr = group.zeros("time", shape=[1], dtype=np.float64)
     arr.attrs.update(julian_time_attrs)
     arr.attrs["_ARRAY_DIMENSIONS"] = ["time"]

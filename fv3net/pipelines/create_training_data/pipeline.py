@@ -12,7 +12,6 @@ import fsspec
 from vcm import parse_datetime_from_str
 import numpy as np
 import dask
-import zarr
 
 dask.config.set(scheduler="single-threaded")
 
@@ -41,7 +40,6 @@ def run(
 ):
     train_test_labels = _train_test_labels(timesteps)
     timestep_pairs = timesteps["train"] + timesteps["test"]
-
 
     logger.info(f"Processing {len(timestep_pairs)} subsets...")
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
@@ -203,12 +201,7 @@ def _add_apparent_sources(
 
 
 def _merge_hires_data(
-    ds_run,
-    ds_diag,
-    flux_vars,
-    suffix_hires,
-    init_time_dim,
-    renamed_dims,
+    ds_run, ds_diag, flux_vars, suffix_hires, init_time_dim, renamed_dims,
 ):
     from vcm.convenience import round_time
     from vcm.cubedsphere.constants import INIT_TIME_DIM, TILE_COORDS
@@ -224,9 +217,7 @@ def _merge_hires_data(
     }
 
     init_times = ds_run[init_time_dim].values
-    ds_diag = ds_diag.rename(
-        {"time": INIT_TIME_DIM}
-    )
+    ds_diag = ds_diag.rename({"time": INIT_TIME_DIM})
     ds_diag = ds_diag.assign_coords(
         {
             INIT_TIME_DIM: [round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
