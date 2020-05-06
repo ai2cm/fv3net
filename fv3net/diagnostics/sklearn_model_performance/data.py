@@ -50,6 +50,7 @@ def predict_on_test_data(
             load_model,
             predict_dataset,
         )
+
         ds_test = load_test_dataset(test_data_path, init_time_dim, coord_z_center)
         sk_wrapped_model = load_model(model_path)
         logger.info("Making prediction with sklearn model")
@@ -90,7 +91,12 @@ def load_high_res_diag_dataset(
     ds_hires["net_precipitation"] = vcm.net_precipitation(
         ds_hires[f"LHTFLsfc_coarse"], ds_hires[f"PRATEsfc_coarse"]
     )
-    ds_hires["net_heating"] = net_heating_from_dataset(ds_hires, suffix="coarse", shf_var="SHTFLsfc_coarse", precip_var="PRATEsfc_coarse")
+    ds_hires["net_heating"] = net_heating_from_dataset(
+        ds_hires,
+        suffix="coarse",
+        shf_var="SHTFLsfc_coarse",
+        precip_var="PRATEsfc_coarse",
+    )
 
     return ds_hires
 
@@ -119,8 +125,7 @@ def add_column_heating_moistening(
     )
 
     ds["net_precipitation_physics"] = vcm.net_precipitation(
-        ds[f"latent_heat_flux"],
-        ds[f"total_precipitation"],
+        ds[f"latent_heat_flux"], ds[f"total_precipitation"]
     )
     ds["net_precipitation"] = (
         ds["net_precipitation_ml"] + ds["net_precipitation_physics"]

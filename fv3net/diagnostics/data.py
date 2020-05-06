@@ -112,7 +112,11 @@ def periodic_phase(phase):
 
 
 def net_heating_from_dataset(
-    ds: xr.Dataset, suffix: str = None, shf_var="sensible_heat_flux", precip_var="total_precipitation") -> xr.DataArray:
+    ds: xr.Dataset,
+    suffix: str = None,
+    shf_var="sensible_heat_flux",
+    precip_var="total_precipitation",
+) -> xr.DataArray:
     """Compute the net heating from a dataset of diagnostic output
 
     This should be equivalent to the vertical integral (i.e. <>) of Q1::
