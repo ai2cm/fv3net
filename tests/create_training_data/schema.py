@@ -4,4 +4,4 @@ from zarr_to_test_schema import DatasetSchema, CoordinateSchema, Range, Variable
 
 def construct_schema():
 
-    return 
+    return

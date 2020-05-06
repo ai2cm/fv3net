@@ -125,7 +125,7 @@ class ChunkedArray(Array):
     chunks: Tuple[Tuple[int]]
 
     # TODO probably remove these generating functions
-    # seems a poor separation of concerns. 
+    # seems a poor separation of concerns.
     def generate(self, domain: Domain):
         return domain.generate_chunked(self.shape, self.chunks, self.dtype)
 
@@ -189,7 +189,7 @@ def read_schema_from_zarr(
         else:
             n = sample(arr)
 
-            # TODO arr.chunks is a not of ints, so the properties of 
+            # TODO arr.chunks is a not of ints, so the properties of
             # chunked array are not accurate
             array = ChunkedArray(arr.shape, arr.dtype, arr.chunks)
 
@@ -221,29 +221,21 @@ def load(fp):
     d = json.load(fp)
 
     coords = []
-    for coord in d['coords']:
+    for coord in d["coords"]:
         coords.append(
             CoordinateSchema(
-                name=coord['name'],
-                dims=coord['dims'],
-                value=np.array(coord['value'])
+                name=coord["name"], dims=coord["dims"], value=np.array(coord["value"])
             )
         )
-    
+
     variables = []
-    for variable in d['variables']:
-        array = ChunkedArray(**variable.pop('array'))
+    for variable in d["variables"]:
+        array = ChunkedArray(**variable.pop("array"))
         # TODO this should work with any subtype of Domain
-        # Maybe add an attribute to the encoder? Or maybe this is over-engineering, 
+        # Maybe add an attribute to the encoder? Or maybe this is over-engineering,
         # and we can only use Range
-        range_ = Range(**variable.pop('domain'))
-        variables.append(
-            VariableSchema(
-                array=array,
-                domain=range_,
-                **variable
-            )
-        )
+        range_ = Range(**variable.pop("domain"))
+        variables.append(VariableSchema(array=array, domain=range_, **variable))
 
     return DatasetSchema(coords=coords, variables=variables)
 
@@ -251,6 +243,3 @@ def load(fp):
 def loads(s):
     fp = io.StringIO(s)
     return load(fp)
-
-    
-

@@ -3,14 +3,24 @@ import pickle
 import numpy as np
 
 import pytest
-from synth import (Array, ChunkedArray, CoordinateSchema, DatasetSchema,
-                   Domain, MyEncoder, Range, VariableSchema, __version__,
-                   dumps, loads, sample)
+from synth import (
+    Array,
+    ChunkedArray,
+    CoordinateSchema,
+    DatasetSchema,
+    Domain,
+    MyEncoder,
+    Range,
+    VariableSchema,
+    __version__,
+    dumps,
+    loads,
+    sample,
+)
 
 
 def test_version():
-    assert __version__ == '0.1.0'
-
+    assert __version__ == "0.1.0"
 
 
 def test_sample_middle_dim():
@@ -72,7 +82,7 @@ def test_DatasetSchema_dumps():
 
     ds = DatasetSchema(coords=[x], variables=[a])
 
-    val  = dumps(ds)
+    val = dumps(ds)
     assert isinstance(val, str)
 
 
@@ -87,14 +97,14 @@ def test_DatasetSchema_dumps_regression(regtest):
 
     ds = DatasetSchema(coords=[x], variables=[a])
 
-    val  = dumps(ds)
+    val = dumps(ds)
     print(val, file=regtest)
 
 
 def test_DatasetSchemaLoads():
     encoded_data = """
     {"coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3]}], "variables": [{"name": "a", "dims": ["x"], "array": {"shape": [3], "dtype": "<f4", "chunks": [1]}, "domain": {"min": 0, "max": 10}}]}
-    """ # noqa
+    """  # noqa
 
     ds = loads(encoded_data)
     assert isinstance(ds, DatasetSchema)

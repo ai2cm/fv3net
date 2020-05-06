@@ -6,8 +6,10 @@ import synth
 
 logging.basicConfig(level=logging.INFO)
 
+
 def sample(arr):
     return arr[-1, 0, 0, 0]
+
 
 url = "gs://vcm-ml-data/test-end-to-end-integration/integration-debug/one_step_run_/big.zarr"
 mapper = fsspec.get_mapper(url)

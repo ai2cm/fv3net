@@ -53,8 +53,7 @@ def run(
         (
             p
             | beam.Create(timestep_pairs)
-            | "SelectInitialTimes"
-            >> beam.ParDo(_load_pair, ds, names["init_time_dim"])
+            | "SelectInitialTimes" >> beam.ParDo(_load_pair, ds, names["init_time_dim"])
             | "TimeDimToDatetime"
             >> beam.Map(_str_time_dim_to_datetime, time_dim=names["init_time_dim"])
             | "AddPhysicsTendencies"
