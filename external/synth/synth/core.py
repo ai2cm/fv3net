@@ -232,7 +232,7 @@ def load(fp):
     for coord in d["coords"]:
         coords.append(
             CoordinateSchema(
-                name=coord["name"], dims=coord["dims"], value=np.array(coord["value"])
+                **coord
             )
         )
 

@@ -105,7 +105,7 @@ def test_DatasetSchema_dumps_regression(regtest):
 
 def test_DatasetSchemaLoads():
     encoded_data = """
-    {"coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3]}], "variables": [{"name": "a", "dims": ["x"], "array": {"shape": [3], "dtype": "<f4", "chunks": [1]}, "domain": {"min": 0, "max": 10}}]}
+    {"coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3], "attrs": [1]}], "variables": [{"name": "a", "dims": ["x"], "array": {"shape": [3], "dtype": "<f4", "chunks": [1]}, "domain": {"min": 0, "max": 10}}]}
     """  # noqa
 
     ds = loads(encoded_data)
@@ -114,6 +114,8 @@ def test_DatasetSchemaLoads():
     v = ds.variables[0]
     assert isinstance(v, VariableSchema)
     assert isinstance(v.domain, Domain)
+
+    assert ds.coords[0].attrs == [1]
 
 
 def test_generate_and_pickle_integration():
@@ -165,7 +167,3 @@ def test_cftime_generate():
     ds = schema.generate()
 
     assert dict(ds.time.attrs) == dict(julian_time_attrs)
-
-
-
-    

@@ -1,4 +1,5 @@
 import os
+import xarray as xr
 import synth
 from distutils import dir_util
 from fv3net.pipelines.create_training_data.config import get_config
@@ -49,6 +50,9 @@ def test_create_training_data_regression(datadir):
 
     big_zarr = schema.generate()
     ds_diag = diag_schema.generate()
+    # need to decode the time coordinate.
+    ds_diag_decoded = xr.decode_cf(ds_diag)
+
     pipeline_args = []
     names = get_config({})
 
@@ -64,4 +68,4 @@ def test_create_training_data_regression(datadir):
     # ds_diag = xr.open_zarr(mapper, consolidated=True)
 
 
-    run(big_zarr, ds_diag, output_dir, pipeline_args, names, timesteps)
+    run(big_zarr, ds_diag_decoded, output_dir, pipeline_args, names, timesteps)
