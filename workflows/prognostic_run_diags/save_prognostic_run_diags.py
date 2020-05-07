@@ -322,6 +322,8 @@ def load_data_15min(url, grid_spec, catalog):
     # load moisture vars for diurnal cycle
     moisture_vars = ["PRATEsfc", "LHTFLsfc"]
     moist_verif = catalog["40day_c384_diags_time_avg"].to_dask()
+    # limit to 10-day segment starting 1-day in
+    moist_verif = moist_verif.isel(time=slice(96, 1056))
     moist_verif = _round_time_coord(moist_verif)
     moist_verif = _remove_name_suffix(moist_verif, "_coarse")
     moist_verif = moist_verif.assign_coords({"tile": np.arange(6)})
@@ -349,6 +351,7 @@ def load_data_15min(url, grid_spec, catalog):
     
     sfc_diag = sfc_diag[moisture_vars + ["SLMSKsfc"]]
     sfc_diag["grid_lont"] = moist_verif["grid_lont"]
+    sfc_diag = sfc_diag.isel(time=slice(96, None))  # Omit first day for spin up
     sfc_diag.load()  # Force load of zarr
 
     # Merge naming attributes
