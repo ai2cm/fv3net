@@ -123,13 +123,16 @@ def calc_ds_diurnal_cycle(ds):
 
 def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
 
-    ds_verif["total_P"] = ds_verif["PRATEsfc"]
+    ds_verif["total_P"] = ds_verif["PRATEsfc"].assign_attrs({
+        "long_name": "Diurnal cycle of precipitation from verification"
+    })
     
     total_P = ds_run["PRATEsfc"]
     if "net_moistening" in ds_run:
         total_P = total_P - ds_run["net_moistening"]  # P - dQ2
-    total_P.assign_attrs(ds_run["PRATEsfc"].attrs)
-    ds_run["total_P"] = total_P
+    ds_run["total_P"] = total_P.assign_attrs({
+        "long_name": "Diurnal cycle of precipitation from model run"
+    })
 
     # TODO: add thermo function into top-level import?
     E_run = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_run["LHTFLsfc"])
@@ -202,7 +205,7 @@ def global_averages(resampled, verification, grid):
 def diurnal_cycles(resampled, verification, grid):
 
     logger.info("Preparing diurnal cycle diagnostics")
-    
+
     # TODO: Add in different masked diurnal cycles
 
     diurnal_verif = calc_ds_diurnal_cycle(verification)
