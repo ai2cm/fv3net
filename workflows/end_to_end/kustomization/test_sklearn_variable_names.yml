@@ -35,7 +35,8 @@ renamed_hires_grid_vars:
   "grid_xt": "x"
   "grid_yt": "y"
 
-
+# TODO: right now it is not obvious what these following similar looking lists do;
+# their usage will be refactored in a future PR
 # features for prediction and other variables to keep
 pred_vars_to_keep:
   - "surface_temperature"
@@ -55,11 +56,16 @@ pred_vars_to_keep:
   - "DLWRFsfc_train"
   - "ULWRFtoa_train"
   - "ULWRFsfc_train"
-
+  - "pQ1"
+  - "pQ2"
 
 data_vars:
   - "dQ1"
   - "dQ2"
+  - "pQ1"
+  - "pQ2"
+  - "Q1"
+  - "Q2"
   - "specific_humidity"
   - "air_temperature"
   - "surface_temperature"
@@ -70,7 +76,7 @@ data_vars:
   - "net_precipitation_ml"
   - "net_heating_ml"
   - "pressure_thickness_of_atmospheric_layer"
-  
+
 
 mappable_var_kwargs:
   coord_x_center: "x"

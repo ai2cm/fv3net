@@ -44,6 +44,7 @@ def predict_on_test_data(
     coord_z_center="z",
     model_type="rf",
 ):
+
     if model_type == "rf":
         from fv3net.regression.sklearn.test import (
             load_test_dataset,
@@ -99,6 +100,12 @@ def load_high_res_diag_dataset(
     )
 
     return ds_hires
+
+
+def add_total_Q(ds, vars=["Q1", "Q2"]):
+    for var in vars:
+        ds[var] = ds[f"d{var}"] + ds[f"p{var}"]
+    return ds
 
 
 def add_column_heating_moistening(
