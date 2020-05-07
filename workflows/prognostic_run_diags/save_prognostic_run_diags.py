@@ -131,7 +131,7 @@ def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
     total_P.assign_attrs(ds_run["PRATEsfc"].attrs)
     ds_run["total_P"] = total_P
 
-    # TODO: add function into top-level import
+    # TODO: add thermo function into top-level import?
     E_run = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_run["LHTFLsfc"])
     E_verif = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_verif["LHTFLsfc"])
     E_diff = E_run - E_verif
@@ -162,43 +162,47 @@ def dump_nc(ds: xr.Dataset, f):
             shutil.copyfileobj(tmp1, f)
 
 
+def _vars_to_diags(suffix, ds, src_ds):
+    # converts dataset variables into diagnostics dict
+    # and assigns attrs from src_ds if none are set
+
+    diags = {}
+    for variable in ds:
+        lower = variable.lower()
+        da = ds[variable]
+        attrs = da.attrs
+        if not attrs:
+            src_attrs = src_ds[variable].attrs
+            da = da.assign_attrs(src_attrs)
+
+        diags[f"{lower}_{suffix}"] = da
+
+    return diags
+
+
 @add_to_diags("3H")
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
-    diags = {}
-    for variable in rms_errors:
-        lower = variable.lower()
-        diags[f"{lower}_rms_global"] = rms_errors[variable].assign_attrs(
-            resampled[variable].attrs
-        )
-
-    return diags
+    return _vars_to_diags("rms_global", rms_errors, resampled)
 
 
 @add_to_diags("3H")
 def global_averages(resampled, verification, grid):
     logger.info("Preparing global averages")
-    diags = {}
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
         HORIZONTAL_DIMS
     )
-    for variable in area_averages:
-        lower = variable.lower()
-        diags[f"{lower}_global_avg"] = area_averages[variable].assign_attrs(
-            resampled[variable].attrs
-        )
-    return diags
+
+    return _vars_to_diags("global_avg", area_averages, resampled)
 
 
 @add_to_diags("15min")
 def diurnal_cycles(resampled, verification, grid):
 
     logger.info("Preparing diurnal cycle diagnostics")
-
-    diags = {}
-
+    
     # TODO: Add in different masked diurnal cycles
 
     diurnal_verif = calc_ds_diurnal_cycle(verification)
@@ -211,19 +215,10 @@ def diurnal_cycles(resampled, verification, grid):
     )
 
     # Add to diagnostics
-    for var in diurnal_verif:
-        lower = var.lower()
-        diags[f"{lower}_verif_diurnal"] = diurnal_verif[var].assign_attrs(
-            verification[var].attrs
-        )
-    
-    for var in diurnal_resampled:
-        lower = var.lower()
-        diags[f"{lower}_run_diurnal"] = diurnal_resampled[var].assign_attrs(
-            resampled[var].attrs
-        )
+    verif_diags = _vars_to_diags("verif_diurnal", diurnal_verif, verification)
+    resampled_diags = _vars_to_diags("run_diurnal", diurnal_resampled, resampled)
 
-    return diags
+    return dict(**verif_diags, **resampled_diags)
 
 
 def open_tiles(path):
