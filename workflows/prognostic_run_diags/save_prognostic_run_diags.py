@@ -147,7 +147,7 @@ def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
     E_run = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_run["LHTFLsfc"])
     E_verif = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_verif["LHTFLsfc"])
     E_diff = E_run - E_verif
-    P_diff = ds_run["total_P"] - ds_verif["total_P"]
+    P_diff = ds_run[f"total_P_{filter_flag}"] - ds_verif[f"total_P_{filter_flag}"]
 
     ds_run[f"evap_diff_from_verif_{filter_flag}"] = E_diff.assign_attrs({
         "long_name": "diurnal diff: evap_coarse - evap_hires",
