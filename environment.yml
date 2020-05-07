@@ -36,17 +36,19 @@ dependencies:
   - toolz
   - xarray>=0.14
   - jupyterlab
-  - zarr
   - pip
   - xgcm=0.2
   - jupyterlab
   - apache-beam
   - matplotlib=3.1
+  - pyquery>=1.4.0
   - python=3.7
   - holoviews
-  - bokeh=1.4
+  - bokeh>=2.0
   - backoff
+  - pip
   - pip:
+    - zarr>=2.4
     - poetry
     - gsutil
     - nc-time-axis>=1.2.0

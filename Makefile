@@ -93,8 +93,11 @@ install_local_packages:
 
 create_environment:
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
+	$(MAKE) .circleci/environment.lock
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
+.circleci/environment.lock: 
+	conda list -n $(PROJECT_NAME) > $@
 
 overwrite_baseline_images:
 	pytest tests/test_diagnostics_plots.py --mpl-generate-path tests/baseline_images

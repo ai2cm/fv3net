@@ -8,6 +8,11 @@ authors = ["Oliver Watt-Meyer <oliwm@vulcan.com>"]
 jinja2 = "^2.11"
 python = "^3.7"
 pytz = "^2019.3"
+holoviews = { version="^1.13", optional=true }
+pyquery = "^1.4.1"
+
+[tool.poetry.extras]
+holoviews = ["holoviews"]
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

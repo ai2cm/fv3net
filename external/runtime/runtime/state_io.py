@@ -1,28 +1,18 @@
 import logging
 import pickle
+from typing import Any, Mapping
 
 import numpy as np
 import xarray as xr
 
 logger = logging.getLogger(__name__)
 
-CF_TO_RESTART_MAP = {"specific_humidity": "sphum", "air_temperature": "T"}
 
-RESTART_TO_CF_MAP = dict(zip(CF_TO_RESTART_MAP.values(), CF_TO_RESTART_MAP.keys()))
-
-
-def rename_to_restart(state):
-    return {
-        CF_TO_RESTART_MAP.get(key, key): state[key].rename({"z": "pfull"})
-        for key in state
-    }
-
-
-def rename_to_orig(state):
-    return {
-        RESTART_TO_CF_MAP.get(key, key): state[key].rename({"pfull": "z"})
-        for key in state
-    }
+def rename_keys(
+    input: Mapping[str, Any], key_rename: Mapping[str, str]
+) -> Mapping[str, Any]:
+    """Rename keys of input to new values from key_rename, if present"""
+    return {key_rename.get(key, key): input[key] for key in input}
 
 
 def dump(state, f):
