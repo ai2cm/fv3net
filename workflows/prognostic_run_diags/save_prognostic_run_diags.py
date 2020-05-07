@@ -137,15 +137,15 @@ def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
     E_diff = E_run - E_verif
     P_diff = ds_run["total_P"] - ds_verif["total_P"]
 
-    ds_run["evap_diff_with_verif"] = E_diff.assign_attrs({
+    ds_run["evap_diff_from_verif"] = E_diff.assign_attrs({
         "long_name": "diurnal sfc evap difference between run and verification"
     })
-    ds_run["precip_diff_wwith_verif"] = P_diff.assign_attrs({
+    ds_run["precip_diff_from_verif"] = P_diff.assign_attrs({
         "long_name": "diurnal total precip difference between run and verification"
     })
 
     net_precip_diff = (P_diff - E_diff)
-    ds_run["net_precip_diff_with_verif"] = net_precip_diff.assign_attrs({
+    ds_run["net_precip_diff_from_verif"] = net_precip_diff.assign_attrs({
         "long_name": "diurnal net precip difference between run and verification"
     })
 
