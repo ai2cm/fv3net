@@ -34,6 +34,12 @@ HI_RES_DIAGS_MAPPING.update(
     }
 )
 
+HI_RES_DIAGS_DIMS = {
+    "grid_xt": "x",
+    "grid_yt": "y",
+    "initialization_time": "initial_time",
+}
+
 ABS_VARS = [
     "surface_pressure",
     "precipitable_water",
@@ -153,6 +159,7 @@ MAPPABLE_VAR_KWARGS = {
 __all__ = [
     "SFC_VARIABLES",
     "HI_RES_DIAGS_MAPPING",
+    "HI_RES_DIAGS_DIMS",
     "VARS_FROM_ZARR",
     "GRID_VARS",
     "ABS_VARS",

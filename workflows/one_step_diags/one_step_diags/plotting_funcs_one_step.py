@@ -1,9 +1,11 @@
 from vcm.visualize import plot_cube, mappable_var
-from .constants import FORECAST_TIME_DIM, DELTA_DIM
+from .constants import FORECAST_TIME_DIM, DELTA_DIM, INIT_TIME_DIM
 from .config import MAPPABLE_VAR_KWARGS, GRID_VARS
+import gallery
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
+from datetime import datetime
 import os
 from typing import Mapping
 import logging
@@ -11,6 +13,7 @@ import logging
 logger = logging.getLogger("one_step_diags")
 
 FIG_DPI = 100
+TIME_FMT = "%Y%m%d.%H%M%S"
 
 
 def make_all_plots(
@@ -46,6 +49,19 @@ def make_all_plots(
     """
 
     report_sections = {}
+
+    # timesteps dist
+
+    timestep_strings = (states_and_tendencies.attrs[INIT_TIME_DIM]).split(" ")
+    timesteps = [
+        datetime.strptime(timestep_string, TIME_FMT)
+        for timestep_string in timestep_strings
+    ]
+    f = plot_timestep_counts(timesteps)
+    plotname = "timesteps_distribution.png"
+    f.savefig(os.path.join(output_dir, plotname))
+    plt.close(f)
+    report_sections["timestep distribution"] = [plotname]
 
     # make 2-d var global mean time series
 
@@ -517,6 +533,9 @@ def plot_dQ_vertical_profiles(
     facetgrid.set_titles(template="{value} min")
     for ax in facetgrid.axes[-1, :]:
         ax.set_xlabel(f"{dQ_name} [{ds_across_vars[dQ_name].attrs['units']}]")
+        pos = ax.get_position().bounds
+        pos_new = [pos[0], pos[1], pos[2], 0.75]
+        ax.set_position(pos_new)
     for ax in facetgrid.axes[:, 0]:
         ax.set_ylabel("model level")
     n_rows = facetgrid.axes.shape[0]
@@ -584,5 +603,15 @@ def plot_diurnal_cycles(
     f.tight_layout()
     f.set_dpi(FIG_DPI)
     f.suptitle(f"{var}")
+
+    return f
+
+
+def plot_timestep_counts(timesteps):
+    """Create and save plots of distribution of training and test timesteps"""
+
+    f = gallery.plot_daily_and_hourly_hist(timesteps)
+    f.set_size_inches([10, 4])
+    f.set_dpi(FIG_DPI)
 
     return f

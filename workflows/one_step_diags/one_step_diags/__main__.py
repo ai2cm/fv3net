@@ -13,6 +13,8 @@ from .constants import (
     ZARR_STEP_NAMES,
     OUTPUT_NC_FILENAME,
     REPORT_TITLE,
+    FIGURE_METADATA_FILE,
+    METADATA_TABLE_FILE,
 )
 from . import config
 import report
@@ -148,7 +150,6 @@ def _open_timestamp_pairs(timestamp_pairs: Sequence, mapper: Mapping) -> xr.Data
 
     logger.info(f"Opening the following timesteps: {timestamp_pairs}")
 
-    #     try:
     ds = xr.open_zarr(mapper)
     ds_pair = get_variables(ds, config["VARS_FROM_ZARR"]).sel(
         {
@@ -160,15 +161,12 @@ def _open_timestamp_pairs(timestamp_pairs: Sequence, mapper: Mapping) -> xr.Data
         }
     )
     logger.info(f"Finished opening the following timesteps: {timestamp_pairs}")
-    #     except (RuntimeError, AssertionError) as e:
-    #         logger.warning(e)
-    #         ds_pair = None
 
     return ds_pair
 
 
 def _insert_derived_vars(
-    ds: xr.Dataset, hi_res_diags_zarrpath: str, hi_res_diags_mapping: Mapping
+    ds: xr.Dataset, hi_res_diags_zarrpath: str, config: Mapping
 ) -> xr.Dataset:
     """dataflow pipeline func for adding derived variables to the raw dataset
     """
@@ -180,9 +178,7 @@ def _insert_derived_vars(
     ds = (
         ds.assign_coords({"z": np.arange(1.0, ds.sizes["z"] + 1.0)})
         .pipe(data_funcs.time_coord_to_datetime)
-        .pipe(
-            data_funcs.insert_hi_res_diags, hi_res_diags_zarrpath, hi_res_diags_mapping
-        )
+        .pipe(data_funcs.insert_hi_res_diags, hi_res_diags_zarrpath, config)
         .pipe(data_funcs.insert_derived_vars_from_ds_zarr)
     )
 
@@ -333,6 +329,17 @@ def _write_ds(ds: xr.Dataset, fullpath: str):
         copy(tmpfile.name, fullpath)
 
 
+def _write_report(output_report_dir, report_sections, metadata):
+    with open(os.path.join(output_report_dir, FIGURE_METADATA_FILE), mode="w") as f:
+        yaml.dump(report_sections, f)
+    with open(os.path.join(output_report_dir, METADATA_TABLE_FILE), mode="w") as f:
+        yaml.dump(metadata, f)
+    filename = REPORT_TITLE.replace(" ", "_").replace("-", "_").lower() + ".html"
+    html_report = report.create_html(report_sections, REPORT_TITLE, metadata=metadata)
+    with open(os.path.join(output_report_dir, filename), "w") as f:
+        f.write(html_report)
+
+
 # start routine
 
 args, pipeline_args = _create_arg_parser().parse_known_args()
@@ -386,9 +393,7 @@ with beam.Pipeline(options=beam_options) as p:
         | "CreateDS" >> beam.Create(timestamp_pairs_subset)
         | "OpenDSPairs" >> beam.Map(_open_timestamp_pairs, mapper)
         | "InsertDerivedVars"
-        >> beam.Map(
-            _insert_derived_vars, hi_res_diags_zarrpath, config["HI_RES_DIAGS_MAPPING"]
-        )
+        >> beam.Map(_insert_derived_vars, hi_res_diags_zarrpath, config)
         | "InsertStatesAndTendencies"
         >> beam.Map(_insert_states_and_tendencies, config["ABS_VARS"])
         | "InsertMeanVars" >> beam.Map(_insert_means_and_shrink, grid, config)
@@ -401,18 +406,19 @@ with beam.Pipeline(options=beam_options) as p:
 with fsspec.open(output_nc_path) as ncfile:
     states_and_tendencies = xr.open_dataset(ncfile).load()
 
-
 # if report output path is GCS location, save results to local output dir first
 
 if args.report_directory:
     report_path = args.report_directory
 else:
-    report_path = output_nc_path
+    report_path = args.netcdf_output
+
 proto = get_protocol(report_path)
 if proto == "" or proto == "file":
     output_report_dir = report_path
 elif proto == "gs":
     remote_report_path, output_report_dir = os.path.split(report_path.strip("/"))
+
 if os.path.exists(output_report_dir):
     shutil.rmtree(output_report_dir)
 os.mkdir(output_report_dir)
@@ -420,16 +426,14 @@ os.mkdir(output_report_dir)
 logger.info(f"Writing diagnostics plots report to {report_path}")
 
 report_sections = make_all_plots(states_and_tendencies, config, output_report_dir)
-with open(os.path.join(output_report_dir, "figure_metadata.yml"), mode="w") as f:
-    yaml.dump(report_sections, f)
 metadata = vars(args)
-metadata.update({"initializations": states_and_tendencies.attrs[INIT_TIME_DIM]})
-with open(os.path.join(output_report_dir, "step_metadata_table.yml"), mode="w") as f:
-    yaml.dump(metadata, f)
-filename = REPORT_TITLE.replace(" ", "_").replace("-", "_").lower() + ".html"
-html_report = report.create_html(report_sections, REPORT_TITLE, metadata=metadata)
-with open(os.path.join(output_report_dir, filename), "w") as f:
-    f.write(html_report)
+metadata.update(
+    {"initializations_processed": states_and_tendencies.attrs[INIT_TIME_DIM]}
+)
+_write_report(output_report_dir, report_sections, metadata)
 
+# copy report directory to necessary locations
 if proto == "gs":
     copy(output_report_dir, remote_report_path)
+if args.report_directory:
+    copy(output_report_dir, args.netcdf_output)

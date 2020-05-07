@@ -3,8 +3,7 @@ import numpy as np
 from scipy.stats import binned_statistic
 from vcm.select import mask_to_surface_type
 from vcm.convenience import parse_datetime_from_str
-
-# from vcm.safe import get_variables
+from vcm.safe import get_variables
 from vcm import thermo, local_time, net_precipitation
 import logging
 from typing import Sequence, Mapping
@@ -39,7 +38,7 @@ def time_coord_to_datetime(
 
 
 def insert_hi_res_diags(
-    ds: xr.Dataset, hi_res_diags_path: str, varnames_mapping: Mapping
+    ds: xr.Dataset, hi_res_diags_path: str, config: Mapping
 ) -> xr.Dataset:
 
     # temporary kluge for cumulative surface longwave from coarse diag netcdfs
@@ -49,14 +48,14 @@ def insert_hi_res_diags(
     )
     ds = ds.drop(labels=cumulative_vars).merge(surface_longwave)
 
-    new_dims = {"grid_xt": "x", "grid_yt": "y", "initialization_time": INIT_TIME_DIM}
+    new_dims = config["HI_RES_DIAGS_DIMS"]
     datetimes = list(ds[INIT_TIME_DIM].values)
     ds_hires_diags = (
         load_hires_prog_diag(hi_res_diags_path, datetimes).rename(new_dims).load()
     )
 
     new_vars = {}
-    for coarse_name, hires_name in varnames_mapping.items():
+    for coarse_name, hires_name in config["HI_RES_DIAGS_MAPPING"].items():
         hires_name = hires_name + "_coarse"  # this is confusing...
         hires_var = ds_hires_diags[hires_name].transpose(
             INIT_TIME_DIM, "tile", "y", "x"
@@ -392,30 +391,30 @@ def _mask_to_PminusE_sign(
 
 
 def _weighted_mean(
-    ds: xr.Dataset, weights: xr.DataArray, dims=["tile", "x", "y"]
-) -> xr.Dataset:
-    """Compute weighted mean of a dataset
+    da: xr.DataArray, weights: xr.DataArray, dims=["tile", "x", "y"]
+) -> xr.DataArray:
+    """Compute weighted mean of a DataArray
     Args:
-        ds: dataset to be averaged
+        da: xr.DataArray to be averaged
         weights: xr.DataArray of weights of the dataset, must be broadcastable to ds
         dims: dimension names over which to average
     Returns
-        weighted mean average ds
+        weighted mean average da
     """
 
-    return (ds * weights).sum(dim=dims) / weights.sum(dim=dims)
+    wm = (da * weights).sum(dim=dims) / weights.sum(dim=dims)
+
+    return wm.assign_attrs(da.attrs)
 
 
 def insert_area_means(
     ds: xr.Dataset, weights: xr.DataArray, varnames: list, mask_names: list
 ) -> xr.Dataset:
 
-    wm = _weighted_mean(ds, weights)
     for var in varnames:
         if var in ds:
             new_name = f"{var}_global_mean"
-            ds = ds.assign({new_name: wm[var]})
-            ds[new_name] = ds[new_name].assign_attrs(ds[var].attrs)
+            ds = ds.assign({new_name: _weighted_mean(ds[var], weights)})
         else:
             raise ValueError("Variable for global mean calculations not in dataset.")
 
@@ -423,25 +422,28 @@ def insert_area_means(
 
         logger.info(f"Computing domain means.")
 
-        ds_land = mask_to_surface_type(
-            ds.merge(weights), "land", surface_type_var="land_sea_mask"
-        )
-        weights_land = ds_land["area"]
-        wm_land = _weighted_mean(ds_land, weights_land)
+        weights_land = mask_to_surface_type(
+            get_variables(ds, ["land_sea_mask"]).merge(weights),
+            "land",
+            surface_type_var="land_sea_mask",
+        )["area"]
 
-        ds_sea = mask_to_surface_type(
-            ds.merge(weights), "sea", surface_type_var="land_sea_mask"
-        )
-        weights_sea = ds_sea["area"]
-        wm_sea = _weighted_mean(ds_sea, weights_sea)
+        weights_sea = mask_to_surface_type(
+            get_variables(ds, ["land_sea_mask"]).merge(weights),
+            "sea",
+            surface_type_var="land_sea_mask",
+        )["area"]
 
         for var in varnames:
             if var in ds:
                 land_new_name = f"{var}_land_mean"
                 sea_new_name = f"{var}_sea_mean"
-                ds = ds.assign({land_new_name: wm_land[var], sea_new_name: wm_sea[var]})
-                ds[land_new_name] = ds[land_new_name].assign_attrs(ds[var].attrs)
-                ds[sea_new_name] = ds[sea_new_name].assign_attrs(ds[var].attrs)
+                ds = ds.assign(
+                    {
+                        land_new_name: _weighted_mean(ds[var], weights_land),
+                        sea_new_name: _weighted_mean(ds[var], weights_sea),
+                    }
+                )
             else:
                 raise ValueError(
                     "Variable for land/sea mean calculations not in dataset."
@@ -451,17 +453,17 @@ def insert_area_means(
 
         logger.info(f"Computing P-E means.")
 
-        ds_pos_PminusE = _mask_to_PminusE_sign(
-            ds, "positive", "net_precipitation_physics"
-        )
-        weights_pos_PminusE = ds_pos_PminusE["area"]
-        wm_pos_PminusE = _weighted_mean(ds_pos_PminusE, weights_pos_PminusE)
+        weights_pos_PminusE = _mask_to_PminusE_sign(
+            get_variables(ds, ["net_precipitation_physics"]).merge(weights),
+            "positive",
+            "net_precipitation_physics",
+        )["area"]
 
-        ds_neg_PminusE = _mask_to_PminusE_sign(
-            ds, "negative", "net_precipitation_physics"
-        )
-        weights_neg_PminusE = ds_neg_PminusE["area"]
-        wm_neg_PminusE = _weighted_mean(ds_neg_PminusE, weights_neg_PminusE)
+        weights_neg_PminusE = _mask_to_PminusE_sign(
+            get_variables(ds, ["net_precipitation_physics"]).merge(weights),
+            "negative",
+            "net_precipitation_physics",
+        )["area"]
 
         for var in varnames:
             if var in ds:
@@ -469,12 +471,10 @@ def insert_area_means(
                 neg_new_name = f"{var}_neg_PminusE_mean"
                 ds = ds.assign(
                     {
-                        pos_new_name: wm_pos_PminusE[var],
-                        neg_new_name: wm_neg_PminusE[var],
+                        pos_new_name: _weighted_mean(ds[var], weights_pos_PminusE),
+                        neg_new_name: _weighted_mean(ds[var], weights_neg_PminusE),
                     }
                 )
-                ds[pos_new_name] = ds[pos_new_name].assign_attrs(ds[var].attrs)
-                ds[neg_new_name] = ds[neg_new_name].assign_attrs(ds[var].attrs)
             else:
                 raise ValueError(
                     "Variable for sign(P - E) mean calculations not in dataset."
@@ -484,56 +484,33 @@ def insert_area_means(
 
         logger.info(f"Computing domain + P-E means.")
 
-        ds_pos_PminusE_land = mask_to_surface_type(
-            ds_pos_PminusE.merge(weights), "land", surface_type_var="land_sea_mask"
-        )
-        weights_pos_PminusE_land = ds_pos_PminusE_land["area"]
-        wm_pos_PminusE_land = _weighted_mean(
-            ds_pos_PminusE_land, weights_pos_PminusE_land
-        )
+        for domain in ["land", "sea"]:
+            weights_pos_PminusE_domain = mask_to_surface_type(
+                get_variables(ds, ["land_sea_mask"]).merge(weights_pos_PminusE),
+                domain,
+                surface_type_var="land_sea_mask",
+            )["area"]
+            weights_neg_PminusE_domain = mask_to_surface_type(
+                get_variables(ds, ["land_sea_mask"]).merge(weights_neg_PminusE),
+                domain,
+                surface_type_var="land_sea_mask",
+            )["area"]
 
-        ds_pos_PminusE_sea = mask_to_surface_type(
-            ds_pos_PminusE.merge(weights), "sea", surface_type_var="land_sea_mask"
-        )
-        weights_pos_PminusE_sea = ds_pos_PminusE_sea["area"]
-        wm_pos_PminusE_sea = _weighted_mean(ds_pos_PminusE_sea, weights_pos_PminusE_sea)
+            for var in varnames:
+                if "z" in ds[var].dims:  # only do these composites for 3D vars
 
-        ds_neg_PminusE_land = mask_to_surface_type(
-            ds_neg_PminusE.merge(weights), "land", surface_type_var="land_sea_mask"
-        )
-        weights_neg_PminusE_land = ds_neg_PminusE_land["area"]
-        wm_neg_PminusE_land = _weighted_mean(
-            ds_neg_PminusE_land, weights_neg_PminusE_land
-        )
-
-        ds_neg_PminusE_sea = mask_to_surface_type(
-            ds_neg_PminusE.merge(weights), "sea", surface_type_var="land_sea_mask"
-        )
-        weights_neg_PminusE_sea = ds_neg_PminusE_sea["area"]
-        wm_neg_PminusE_sea = _weighted_mean(ds_neg_PminusE_sea, weights_neg_PminusE_sea)
-
-        for var in varnames:
-            if "z" in ds[var].dims:
-                pos_land_new_name = f"{var}_pos_PminusE_land_mean"
-                neg_land_new_name = f"{var}_neg_PminusE_land_mean"
-                pos_sea_new_name = f"{var}_pos_PminusE_sea_mean"
-                neg_sea_new_name = f"{var}_neg_PminusE_sea_mean"
-                ds = ds.assign(
-                    {
-                        pos_land_new_name: wm_pos_PminusE_land[var],
-                        neg_land_new_name: wm_neg_PminusE_land[var],
-                        pos_sea_new_name: wm_pos_PminusE_sea[var],
-                        neg_sea_new_name: wm_neg_PminusE_sea[var],
-                    }
-                )
-                ds[pos_land_new_name] = ds[pos_land_new_name].assign_attrs(
-                    ds[var].attrs
-                )
-                ds[neg_land_new_name] = ds[neg_land_new_name].assign_attrs(
-                    ds[var].attrs
-                )
-                ds[pos_sea_new_name] = ds[pos_sea_new_name].assign_attrs(ds[var].attrs)
-                ds[neg_sea_new_name] = ds[neg_sea_new_name].assign_attrs(ds[var].attrs)
+                    pos_domain_new_name = f"{var}_pos_PminusE_{domain}_mean"
+                    neg_domain_new_name = f"{var}_neg_PminusE_{domain}_mean"
+                    ds = ds.assign(
+                        {
+                            pos_domain_new_name: _weighted_mean(
+                                ds[var], weights_pos_PminusE_domain
+                            ),
+                            neg_domain_new_name: _weighted_mean(
+                                ds[var], weights_neg_PminusE_domain
+                            ),
+                        }
+                    )
 
     if any(
         [

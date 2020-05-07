@@ -6,3 +6,5 @@ ONE_STEP_ZARR = "big.zarr"
 ZARR_STEP_DIM = "step"
 ZARR_STEP_NAMES = {"begin": "begin", "after_physics": "after_physics"}
 REPORT_TITLE = "One-step diagnostics"
+FIGURE_METADATA_FILE = "figure_metadata.yml"
+METADATA_TABLE_FILE = "metadata_table.yml"
