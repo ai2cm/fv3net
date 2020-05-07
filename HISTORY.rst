@@ -5,7 +5,11 @@ History
 
 latest
 ------
+* Updated fv3gfs-python to v0.4.1. As part of this, refactored sklearn_interface functions from runtime to the prognostic run runfile.
 
+* Prognostic run report: compute and plot scalar metrics, generate report via
+  python script, change output location (#226)
+* Multithreaded uploading in one-step jobs (#260)
 
 0.2.0 (2020-04-23)
 ------------------
