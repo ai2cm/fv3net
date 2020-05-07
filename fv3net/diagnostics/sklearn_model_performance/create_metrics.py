@@ -113,12 +113,12 @@ def _metric_2d_global_mean(
         for da_target, target_label in zip(
             [ds_fv3[var], ds_shield[var]], ["test data target", "hires"]
         ):
-            for da_pred, pred_label in zip(
+            for function_prediction_arg, pred_label in zip(
                 [ds_pred[var], ds_fv3[f"{var}_physics"]], pred_labels
             ):
                 # compare to ML predicion, model physics only prediction
                 global_metric = (
-                    (metric_func(da_target, da_pred) * area_weights)
+                    (metric_func(da_target, function_prediction_arg) * area_weights)
                     .mean()
                     .values.item()
                 )
