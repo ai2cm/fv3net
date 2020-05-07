@@ -16,20 +16,6 @@ COARSEN_RESTARTS_DATAFLOW_ARGS = {
     "--extra_package": ["external/vcm/external/mappm/dist/mappm-0.0.0.tar.gz"],
 }
 
-ONE_STEP_DIAGS_DATAFLOW_ARGS = COARSEN_RESTARTS_DATAFLOW_ARGS.copy()
-ONE_STEP_DIAGS_DATAFLOW_ARGS.update(
-    {
-        "--job_name": (
-            f"one-step-diags-{getuser().lower()}-" f"{get_alphanumeric_unique_tag(7)}"
-        ),
-        "--num_workers": 4,
-        "--max_num_workers": 30,
-        "--disk_size_gb": 250,
-        "--worker_machine_type": "n2-highmem-4",
-        "--extra_package": ["external/report/dist/report-0.1.0.tar.gz"],
-    }
-)
-
 CREATE_TRAINING_DATAFLOW_ARGS = COARSEN_RESTARTS_DATAFLOW_ARGS.copy()
 CREATE_TRAINING_DATAFLOW_ARGS.update(
     {

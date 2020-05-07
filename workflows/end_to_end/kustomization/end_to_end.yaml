@@ -9,7 +9,6 @@ experiment:
     # TOOD uncomment these for production runs
     - coarsen_diagnostics
     - one_step_run
-#     - one_step_diags
     - create_training_data
     - train_sklearn_model
     - test_sklearn_model
@@ -46,20 +45,6 @@ experiment:
         timesteps: $ONE_STEP_TIMES
         # TODO the config-version should be included in the one_step_jobs. Similar to how k8s yamls are.
         --config-version: v0.3
-        
-        
-# leaving this commented out until we have a decision on including it in the integration tests and experiments        
-#     one_step_diags:
-#       command: python -m fv3net.diagnostics.one_step_jobs
-#       args:
-#         one_step_data:
-#           from: one_step_run
-#         hi_res_diags:
-#           location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
-#         --report_directory: $ONESTEP_REPORT_DIR
-#         --n_sample_inits: 24
-#         --runner: DataflowRunner
-#         --timesteps_file: $TRAIN_AND_TEST_TIMES
 
     create_training_data:
       command: python -m fv3net.pipelines.create_training_data

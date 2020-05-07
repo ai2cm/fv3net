@@ -14,8 +14,7 @@ from apache_beam.io import filesystems
 
 from vcm.cloud.fsspec import get_fs
 from vcm import parse_timestep_str_from_path, parse_datetime_from_str
-from vcm.cubedsphere.constants import TIME_FMT, INIT_TIME_DIM, TILE_COORDS
-from vcm.convenience import round_time
+from vcm.cubedsphere.constants import TIME_FMT
 
 logger = logging.getLogger(__name__)
 
@@ -173,26 +172,23 @@ def subsample_timesteps_at_interval(
     current_time = parse_datetime_from_str(timesteps[0])
     last_time = parse_datetime_from_str(timesteps[-1])
     available_times = set(timesteps)
-    subsampled_timesteps = [timesteps[0]]
-    try:
-        delta = timedelta(minutes=sampling_interval)
-    except TypeError:
-        logger.warning(f"No sampling interval specifed, returning first value only.")
-    else:
-        while current_time < last_time:
-            next_time = current_time + delta
-            next_time_str = next_time.strftime(TIME_FMT)
-            if next_time_str in available_times:
-                subsampled_timesteps.append(next_time_str)
+    delta = timedelta(minutes=sampling_interval)
 
-            current_time = next_time
-        num_subsampled = len(subsampled_timesteps)
-        if num_subsampled < 2:
-            logger.warning(
-                f"Desired subsampling interval of {sampling_interval} minutes "
-                f"longer than sequence duration, or is misaligned with the "
-                f"dataset interval. Using only first timestep."
-            )
+    subsampled_timesteps = [timesteps[0]]
+    while current_time < last_time:
+        next_time = current_time + delta
+        next_time_str = next_time.strftime(TIME_FMT)
+        if next_time_str in available_times:
+            subsampled_timesteps.append(next_time_str)
+
+        current_time = next_time
+
+    num_subsampled = len(subsampled_timesteps)
+    if num_subsampled < 2:
+        raise ValueError(
+            f"No available timesteps found matching desired subsampling interval"
+            f" of {sampling_interval} minutes."
+        )
 
     return subsampled_timesteps
 
