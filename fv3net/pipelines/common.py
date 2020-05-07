@@ -14,7 +14,8 @@ from apache_beam.io import filesystems
 
 from vcm.cloud.fsspec import get_fs
 from vcm import parse_timestep_str_from_path, parse_datetime_from_str
-from vcm.cubedsphere.constants import TIME_FMT
+from vcm.cubedsphere.constants import TIME_FMT, INIT_TIME_DIM, TILE_COORDS
+from vcm.convenience import round_time
 
 logger = logging.getLogger(__name__)
 
