@@ -347,6 +347,7 @@ def load_data_15min(url, grid_spec, catalog):
             and sfc_diag[var].attrs
         ):
             attrs = sfc_diag[var].attrs
+            attrs["long_name"] = "verification " + attrs["long_name"]
             moist_verif_c48[var] = moist_verif_c48[var].assign_attrs(attrs)
 
         # TODO: xarray prognostic output currently uses description for long name

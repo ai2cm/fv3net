@@ -141,7 +141,10 @@ def holomap_filter(time_series, varfilter):
                         style = "dashed"
 
                     run = ds.attrs["run"]
-                    long_name = ds[varname].long_name
+                    if hasattr(ds[varname], "long_name"):
+                        long_name = ds[varname].long_name
+                    else:
+                        long_name = varname
                     hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
                         line_dash=style, color=p
                     )
@@ -167,7 +170,7 @@ def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
 
 @diag_plot_manager.register
 def diurnal_cycle_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
-    return HVPlot(holomap_filter(time_series, varfilter="diurnal")).overlay("run")
+    return HVPlot(holomap_filter(time_series, varfilter="diurnal").overlay("run"))
 
 
 # Routines for plotting the "metrics"
@@ -225,14 +228,14 @@ def main():
     ]
 
     # load metrics
-    nested_metrics = load_metrics(bucket, rundirs)
-    metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
-    metrics = pd.merge(run_table, metric_table, on="run")
+    # nested_metrics = load_metrics(bucket, rundirs)
+    # metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
+    # metrics = pd.merge(run_table, metric_table, on="run")
 
     # generate all plots
     sections = {
         "Diagnostics": list(diag_plot_manager.make_plots(diagnostics)),
-        "Metrics": list(metrics_plot_manager.make_plots(metrics)),
+        # "Metrics": list(metrics_plot_manager.make_plots(metrics)),
     }
 
     html = create_html(
