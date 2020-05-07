@@ -103,7 +103,7 @@ DEFAULT = {
         "SHTFLsfc_coarse": "sensible_heat_flux_prog",
         "LHTFLsfc_coarse": "latent_heat_flux_prog",
         "PRATEsfc_coarse": "total_precipitation_prog",
-},
+    },
     "diag_vars": [
         "DSWRFtoa",
         "DSWRFsfc",
