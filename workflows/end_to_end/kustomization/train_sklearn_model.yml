@@ -1,7 +1,7 @@
 model_type: sklearn_random_forest
 hyperparameters:
-  max_depth: 13
-  n_estimators: 1
+  max_depth: 4
+  n_estimators: 2
 batch_function: load_zarr_batches
 input_variables:
   - air_temperature
@@ -14,9 +14,9 @@ output_variables:
   - dQ1
   - dQ2
 batch_kwargs:
-  num_batches: 13
-  files_per_batch: 10
+  num_batches: 2
+  files_per_batch: 2
   rename_variables:
     DSWRFtoa_train: total_sky_downward_shortwave_flux_at_top_of_atmosphere
-  init_time_dim: "initial_time"
-  coord_z_center: "z"
+  init_time_dim_name: "initial_time"
+  z_dim_name: "z"
