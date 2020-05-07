@@ -66,7 +66,7 @@ DEFAULT = {
         "dQV",
         "dQ1",
         "dQ2",
-        "pQ1", 
+        "pQ1",
         "pQ2",
         "surface_temperature",
         "land_sea_mask",
