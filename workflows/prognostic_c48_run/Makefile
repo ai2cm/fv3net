@@ -1,4 +1,4 @@
-IMAGE = us.gcr.io/vcm-ml/prognostic_run:v0.1.0
+IMAGE = us.gcr.io/vcm-ml/prognostic_run:latest
 KEY_ARGS= -v $(GOOGLE_APPLICATION_CREDENTIALS):/key.json \
 	  -e GOOGLE_APPLICATION_CREDENTIALS=/key.json
 LOCAL_DIR_ARGS = -w /code -v $(shell pwd):/code
@@ -14,18 +14,11 @@ all: sklearn_run
 dev:
 	 $(RUN_INTERACTIVE) bash
 
-test_run_sklearn: state.pkl
-	$(RUN) python3 -m sklearn_interface state.pkl $(SKLEARN_MODEL)
-
-state.pkl:
-	fv3run --dockerimage test-image --runfile save_state_runfile.py $(FV3CONFIG) save_state/
-	cp save_state/state.pkl .
-	
-sklearn_run_local: #rundir
+sklearn_run: pull_image
 	fv3run --dockerimage $(IMAGE) --runfile sklearn_runfile.py $(FV3CONFIG) rundir
 
-sklearn_run: #rundir
-	fv3run --dockerimage us.gcr.io/vcm-ml/prognostic-run-orchestration --runfile sklearn_runfile.py $(FV3CONFIG) ../../scratch/rundir
+pull_image:
+	docker pull $(IMAGE)
 
 clean:
 	rm -rf net_precip net_heating/ PW
