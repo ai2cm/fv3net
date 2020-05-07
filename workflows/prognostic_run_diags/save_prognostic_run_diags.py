@@ -122,16 +122,25 @@ def calc_ds_diurnal_cycle(ds):
 
 
 def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
+    """
+    Adds moisture quantites for the individual component comparison
+    of the diurnal cycle  moisture
+    """
 
-    ds_verif["total_P"] = ds_verif["PRATEsfc"].assign_attrs({
-        "long_name": "Diurnal cycle of precipitation from verification"
+    # For easy filtering into plot component
+    filter_flag = "moistvar_comp"
+
+    ds_verif[f"total_P_{filter_flag}"] = ds_verif["PRATEsfc"].assign_attrs({
+        "long_name": "diurnal precipitation from verification",
+        "units": "kg/m^2/s"
     })
     
     total_P = ds_run["PRATEsfc"]
     if "net_moistening" in ds_run:
         total_P = total_P - ds_run["net_moistening"]  # P - dQ2
-    ds_run["total_P"] = total_P.assign_attrs({
-        "long_name": "Diurnal cycle of precipitation from model run"
+    ds_run[f"total_P_{filter_flag}"] = total_P.assign_attrs({
+        "long_name": "diurnal precipitation from coarse model run",
+        "units": "kg/m^2/s"
     })
 
     # TODO: add thermo function into top-level import?
@@ -140,16 +149,19 @@ def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
     E_diff = E_run - E_verif
     P_diff = ds_run["total_P"] - ds_verif["total_P"]
 
-    ds_run["evap_diff_from_verif"] = E_diff.assign_attrs({
-        "long_name": "diurnal sfc evap difference between run and verification"
+    ds_run[f"evap_diff_from_verif_{filter_flag}"] = E_diff.assign_attrs({
+        "long_name": "diurnal diff: evap_coarse - evap_hires",
+        "units": "kg/m^2/s"
     })
-    ds_run["precip_diff_from_verif"] = P_diff.assign_attrs({
-        "long_name": "diurnal total precip difference between run and verification"
+    ds_run[f"precip_diff_from_verif_{filter_flag}"] = P_diff.assign_attrs({
+        "long_name": "diurnal diff: precip_coarse - precip_hires",
+        "units": "kg/m^2/s"
     })
 
     net_precip_diff = (P_diff - E_diff)
-    ds_run["net_precip_diff_from_verif"] = net_precip_diff.assign_attrs({
-        "long_name": "diurnal net precip difference between run and verification"
+    ds_run[f"net_precip_diff_from_verif_{filter_flag}"] = net_precip_diff.assign_attrs({
+        "long_name": "diurnal diff: net_precip_coarse - net_precip_hires",
+        "units": "kg/m^2/s"
     })
 
     return ds_run, ds_verif
