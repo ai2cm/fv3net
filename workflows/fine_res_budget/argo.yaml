@@ -1,0 +1,59 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: restarts-to-zarr-
+spec:
+  entrypoint: restarts-to-zarr
+  volumes:
+  - name: gcp-credentials-user-gcp-sa
+    secret:
+      secretName: gcp-key
+  templates:
+   - name: restarts-to-zarr
+     tolerations:
+     - key: "dedicated"
+       operator: "Equal"
+       value: "climate-sim-pool"
+       effect: "NoSchedule"
+     container:
+      image: us.gcr.io/vcm-ml/fv3net:eea56be96af7ec828a62cf8f3400f521e42c1ba1
+      command: ["bash", "-c"]
+      args:
+      - |
+        NUM_WORKERS=256
+
+        python -m fv3net.pipelines.restarts_to_zarr  \
+            --setup $(pwd)/setup.py \
+            --job_name test-$(uuid) \
+            --project vcm-ml \
+            --region us-central1 \
+            --runner DataFlow \
+            --temp_location gs://vcm-ml-data/tmp_dataflow \
+            --num_workers 32 \
+            --autoscaling_algorithm=NONE \
+            --worker_machine_type n1-standard-1 \
+            --disk_size_gb 30 \
+            --url gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files \
+            --output gs://vcm-ml-scratch/noah/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files.zarr
+
+      workingDir: /home/jovyan/fv3net
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      - name: OUTPUT
+        # value: "{{workflow.parameters.output}}"
+        value: "gs://vcm-ml-public/argo/{{workflow.name}}/index.html"
+      - name: INPUT
+        value: "gs://vcm-ml-scratch/argo/{{workflow.name}}"
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-credentials-user-gcp-sa
+      resources:
+        requests:
+            memory: "6Gi"
+            cpu: "1000m"
+        limits:
+            memory: "6Gi"
+            cpu: "1000m"
