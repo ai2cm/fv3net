@@ -39,7 +39,9 @@ $NETCDF_OUTPUT \
 --worker_machine_type n2-highmem-4 \
 --setup_file ./setup.py \
 --extra_package ./external/report/dist/report-0.1.0.tar.gz \
---extra_package ./workflows/one_step_diags/dist/one_step_diags-0.1.0.tar.gz
+--extra_package ./external/gallery/dist/gallery-0.1.0.tar.gz \
+--extra_package ./workflows/one_step_diags/dist/one_step_diags-0.1.0.tar.gz \
+--extra_package ./external/vcm/dist/vcm-0.1.0.tar.gz \
 "
     
 echo "Running command:"
