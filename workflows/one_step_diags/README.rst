@@ -8,11 +8,13 @@ A poetry micropackage for creating diagnostic report on the one-step jobs
 
 Entrypoints are provided for launching jobs locally or on Dataflow:
 
-./workflows/one_step_diags/submit_diags_direct.sh
+./workflows/one_step_diags/submit_diags_direct.sh {MODEL_CONFIGURATION}
 
-./workflows/one_step_diags/submit_diags_dataflow.sh
+./workflows/one_step_diags/submit_diags_dataflow.sh {MODEL_CONFIGURATION}
 
-The module's usage is:::
+where MODEL_CONFIGURATION is the experiment configuration, e.g., 'deep-off'
+
+To see the module's usage run ``python -m one_step_diags -h`` in this directory; example::
 
     usage: python -m one_step_diags [-h] [--report_directory REPORT_DIRECTORY] [--diags_config DIAGS_CONFIG] [--data_fold DATA_FOLD] [--start_ind START_IND] [--n_sample_inits N_SAMPLE_INITS] [--coarsened_diags_zarr_name COARSENED_DIAGS_ZARR_NAME] one_step_data hi_res_diags timesteps_file netcdf_output
 
