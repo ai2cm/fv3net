@@ -23,12 +23,19 @@ timesteps = {
 @pytest.fixture
 def datadir(tmpdir, request):
     """
-    Fixture responsible for searching a folder with the same name of test
-    module and, if available, moving all contents to a temporary directory so
-    tests can use them freely.
+    Fixture to help load data files into a test based on the name of the
+    module containing the test function.
+
+    For example, if the name of the test file is named
+    ``path/to/test_integration.py``, then and data in
+    ``path/to/test_integration/`` will be copied into the temporary directory
+    returned by this fixture.
+
+    Returns:
+        tmpdir (a temporary directory)
 
     Credit:
-    https://stackoverflow.com/questions/29627341/pytest-where-to-store-expected-data
+        https://stackoverflow.com/questions/29627341/pytest-where-to-store-expected-data
     """
     filename = request.module.__file__
     test_dir, _ = os.path.splitext(filename)
