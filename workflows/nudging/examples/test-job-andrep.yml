@@ -18,32 +18,67 @@ spec:
         job-name: nudge-to-high-res-andrep
         orchestrator-jobs: nudge-to-high-res-andrep
     spec:
+      initContainers:
+        - name: fv3gfs
+          command:
+          # - python
+          # - -m
+          # - fv3config.fv3run._native_main
+          # - '[["gs://vcm-ml-scratch/andrep/nudging/config/fv3config_final.yml", "/mnt/data/"],
+          #   {"runfile": "gs://vcm-ml-scratch/andrep/nudging/runfile.py", "capture_output":
+          #   false}]'
+            - touch 
+            - /mnt/data/text.txt
+          env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+          image: us.gcr.io/vcm-ml/fv3net-nudging:latest
+          imagePullPolicy: Always
+          resources:
+            limits:
+              memory: 3600M
+            requests:
+              cpu: "6"
+              memory: 3600M
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - name: data
+            mountPath: /mnt/data
+            readOnly: false
+          - name: gcp-key-secret
+            mountPath: /secret/gcp-credentials
+            readOnly: true
       containers:
-      - name: fv3gfs
-        args:
-        - -c
-        - |
-          python -m fv3config.fv3run._native_main  '[["gs://vcm-ml-scratch/andrep/nudging/config/fv3config_final.yml", "/tmp/nudging_output_3h"], {"runfile": "gs://vcm-ml-scratch/andrep/nudging/runfile.py", "capture_output": false}]' && \
-          gsutil -m rsync -r /tmp/nudging_output_3h gs://vcm-ml-scratch/andrep/nudging/output/
-        env:
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          value: /secret/gcp-credentials/key.json
-        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
-          value: /secret/gcp-credentials/key.json
-        image: us.gcr.io/vcm-ml/fv3net-nudging:latest
-        imagePullPolicy: Always
-        resources:
-          limits:
-            memory: 3600M
-          requests:
-            cpu: "6"
-            memory: 3600M
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        volumeMounts:
-        - mountPath: /secret/gcp-credentials
-          name: gcp-key-secret
-          readOnly: true
+        - name: test
+          image: google/cloud-sdk:latest
+          command: ["/bin/bash"]
+          args:
+            - -c  
+            - |
+              gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS && \
+              gsutil -m rsync -r /mnt/data/ gs://vcm-ml-scratch/andrep/nudging/output/
+          env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          imagePullPolicy: Always
+          resources:
+            limits:
+              memory: 2000M
+            requests:
+              cpu: "2"
+              memory: 2000M
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - name: data
+            mountPath: /mnt/data
+          - name: gcp-key-secret
+            mountPath: /secret/gcp-credentials
+            readOnly: true
+ 
       dnsPolicy: ClusterFirst
       restartPolicy: Never
       schedulerName: default-scheduler
@@ -54,6 +89,8 @@ spec:
         key: dedicated
         value: climate-sim-pool
       volumes:
+      - name: data
+        emptyDir: {}
       - name: gcp-key-secret
         secret:
           defaultMode: 420
