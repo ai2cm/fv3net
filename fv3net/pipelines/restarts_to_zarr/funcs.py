@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 from itertools import product
@@ -11,7 +12,6 @@ from apache_beam.utils import retry
 
 import vcm
 from fv3net.pipelines.common import list_timesteps
-
 
 CATEGORIES = (
     "fv_srf_wnd_coarse.res",
@@ -61,7 +61,16 @@ def _get_store(output: str):
     return fsspec.get_mapper(output)
 
 
-def run(args, pipeline_args):
+def main(argv):
+
+    logging.basicConfig(level=logging.INFO)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("url", help="root directory of time steps")
+    parser.add_argument("output", help="Location of output zarr")
+    parser.add_argument("-s", "--n-steps", default=-1, type=int)
+    parser.add_argument("--no-init", action="store_true")
+    args, pipeline_args = parser.parse_known_args(argv)
 
     times = list_timesteps(args.url)
     if args.n_steps != -1:
