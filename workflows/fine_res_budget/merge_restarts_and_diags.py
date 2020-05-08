@@ -6,15 +6,17 @@
 >>> restarts = open_restart_data(restart_url)
 >>> diag = open_diagnostic_output(url)
 """
-import xarray as xr
-import vcm
-from vcm.convenience import round_time
-import os
 import datetime
+import logging
+import os
+
 import fsspec
 import numpy as np
+import xarray as xr
 import zarr
-import logging
+
+import vcm
+from vcm.convenience import round_time
 
 logger = logging.getLogger(__file__)
 
@@ -49,15 +51,20 @@ def open_diagnostic_output(url):
     ds = xr.open_zarr(fsspec.get_mapper(url))
     # TODO need to implement a correct version of round time
     times = np.vectorize(round_time)(ds.time)
-    return ds.assign(time=times).pipe(remove_coarse_name).pipe(rename_dims).pipe(rename_latlon)
+    return (
+        ds.assign(time=times)
+        .pipe(remove_coarse_name)
+        .pipe(rename_dims)
+        .pipe(rename_latlon)
+    )
 
 
 def open_restart_data(RESTART_ZARR):
     logger.info(f"Opening restart data at {RESTART_ZARR}")
-    coords_names = ['grid_x', 'grid_y', 'grid_xt', 'grid_yt', 'pfull', 'tile']
+    coords_names = ["grid_x", "grid_y", "grid_xt", "grid_yt", "pfull", "tile"]
     store = fsspec.get_mapper(RESTART_ZARR)
 
-    if '.zmetadata' not in store:
+    if ".zmetadata" not in store:
         zarr.consolidate_metadata(store)
 
     restarts = xr.open_zarr(store, consolidated=True)
@@ -67,15 +74,12 @@ def open_restart_data(RESTART_ZARR):
 
 def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
     time = restarts.time
-    begin = restarts.assign(time=time+dt)
-    end = restarts.assign(time=time-dt)
+    begin = restarts.assign(time=time + dt)
+    end = restarts.assign(time=time - dt)
 
-
-    return xr.concat([
-        begin,
-        (begin + end) / 2,
-        end
-    ], dim=xr.IndexVariable('step', ['begin', 'middle', 'end'])
+    return xr.concat(
+        [begin, (begin + end) / 2, end],
+        dim=xr.IndexVariable("step", ["begin", "middle", "end"]),
     )
 
 
@@ -85,7 +89,14 @@ def open_merged_data(restart_url, atmos_coarse_ave_url):
 
     restarts = shift(restarts)
 
-    return xr.merge([
-        diag.drop('delp'),
-        restarts,
-    ], join='inner').drop(['grid_x', 'grid_xt', 'grid_yt', 'grid_y'], errors='ignore')
+    return xr.merge([diag.drop("delp"), restarts,], join="inner").drop(
+        ["grid_x", "grid_xt", "grid_yt", "grid_y"], errors="ignore"
+    )
+
+
+def merge(restarts, diag):
+    restarts = shift(restarts)
+
+    return xr.merge([diag.drop("delp"), restarts,], join="inner").drop(
+        ["grid_x", "grid_xt", "grid_yt", "grid_y"], errors="ignore"
+    )

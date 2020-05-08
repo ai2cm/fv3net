@@ -1,29 +1,26 @@
-import numpy as np
-
-import vcm
 import os
-import fsspec
-import xarray as xr
-import vcm
+from dataclasses import dataclass
 
-from vcm.cubedsphere.regridz import (
-    regrid_vertical,
-    _regrid_given_delp,
-    regrid_to_area_weighted_pressure,
-)
-from vcm.cubedsphere.coarsen import (
-    block_upsample_like,
-    block_coarsen,
-    weighted_block_average,
-    block_upsample,
-)
+import fsspec
+import numpy as np
+import xarray as xr
+
+import vcm
 from vcm.calc.thermo import pressure_at_interface
+from vcm.cubedsphere.coarsen import (
+    block_coarsen,
+    block_upsample,
+    block_upsample_like,
+    weighted_block_average,
+)
 
 # TODO make a PR which exposes this function as public API
 from vcm.cubedsphere.regridz import (
-    regrid_vertical,
-    pressure_at_interface,
+    _regrid_given_delp,
     block_upsample_like,
+    pressure_at_interface,
+    regrid_to_area_weighted_pressure,
+    regrid_vertical,
 )
 
 
@@ -43,10 +40,9 @@ def divergence(eddy, delp, dim="p"):
         delp,
         input_core_dims=[[dim], [dim]],
         output_core_dims=[[dim]],
+        dask='parallelized',
+        output_dtypes=[eddy.dtype]
     )
-
-
-from dataclasses import dataclass
 
 
 @dataclass
@@ -299,8 +295,8 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         - averaged_vars["omega"] * averaged_vars["T"]
     )
 
-    div_q = grid.vertical_divergence(eddy_flux_q.load(), delp_c.drop("pfull").load())
-    div_T = grid.vertical_divergence(eddy_flux_t.load(), delp_c.drop("pfull").load())
+    div_q = grid.vertical_divergence(eddy_flux_q, delp_c.drop("pfull"))
+    div_T = grid.vertical_divergence(eddy_flux_t, delp_c.drop("pfull"))
 
     t_budget_coarse = {
         "storage": averaged_vars["storage_T"],
@@ -319,9 +315,9 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
 
     return xr.Dataset(
         {
-            "air_temperature": variables_to_average["T"],
-            "specific_humidity": variables_to_average["sphum"],
-            "omega": variables_to_average["omega"],
+            "air_temperature": averaged_vars["T"],
+            "specific_humidity": averaged_vars["sphum"],
+            "omega": averaged_vars["omega"],
             "air_temperature_tendency": dict_to_array(
                 t_budget_coarse, "budget"
             ).assign_attrs(units="K/s"),
@@ -331,3 +327,5 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
             "delp": delp_c,
         }
     )
+
+   
