@@ -45,7 +45,9 @@ def load_model_training_config(config_path: str) -> ModelTrainingConfig:
     return ModelTrainingConfig(**config_dict)
 
 
-def load_data_sequence(data_path: str, train_config: ModelTrainingConfig) -> dataset_handler.BatchSequence:
+def load_data_sequence(
+    data_path: str, train_config: ModelTrainingConfig
+) -> dataset_handler.BatchSequence:
     """
 
     Args:
@@ -92,7 +94,9 @@ def _get_regressor(train_config: ModelTrainingConfig):
     return regressor
 
 
-def train_model(batched_data: dataset_handler.BatchSequence, train_config: ModelTrainingConfig):
+def train_model(
+    batched_data: dataset_handler.BatchSequence, train_config: ModelTrainingConfig
+):
     """
 
     Args:
