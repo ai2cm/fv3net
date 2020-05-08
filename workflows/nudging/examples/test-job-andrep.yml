@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: fv3run
+    job-name: nudge-to-high-res-andrep
+    orchestrator-jobs: nudge-to-high-res-andrep
+  name: nudge-to-high-res-andrep
+  namespace: default
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        app: fv3run
+        job-name: nudge-to-high-res-andrep
+        orchestrator-jobs: nudge-to-high-res-andrep
+    spec:
+      containers:
+      - name: fv3gfs
+        args:
+        - -c
+        - |
+          python -m fv3config.fv3run._native_main  '[["gs://vcm-ml-scratch/andrep/nudging/config/fv3config_final.yml", "/tmp/nudging_output_3h"], {"runfile": "gs://vcm-ml-scratch/andrep/nudging/runfile.py", "capture_output": false}]' && \
+          gsutil -m rsync -r /tmp/nudging_output_3h gs://vcm-ml-scratch/andrep/nudging/output/
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
+        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+          value: /secret/gcp-credentials/key.json
+        image: us.gcr.io/vcm-ml/fv3net-nudging:latest
+        imagePullPolicy: Always
+        resources:
+          limits:
+            memory: 3600M
+          requests:
+            cpu: "6"
+            memory: 3600M
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /secret/gcp-credentials
+          name: gcp-key-secret
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      restartPolicy: Never
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      tolerations:
+      - effect: NoSchedule
+        key: dedicated
+        value: climate-sim-pool
+      volumes:
+      - name: gcp-key-secret
+        secret:
+          defaultMode: 420
+          secretName: gcp-key
