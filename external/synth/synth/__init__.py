@@ -4,7 +4,6 @@ from .core import (
     CoordinateSchema,
     DatasetSchema,
     Domain,
-    MyEncoder,
     Range,
     VariableSchema,
     dumps,

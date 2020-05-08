@@ -25,8 +25,7 @@ import io
 logger = logging.getLogger(__file__)
 
 
-# TODO rename
-class MyEncoder(json.JSONEncoder):
+class _Encoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, np.ndarray):
             return o.tolist()
@@ -162,7 +161,7 @@ def read_schema_from_zarr(
 
 
 def dump(schema: DatasetSchema, fp):
-    json.dump(asdict(schema), fp, cls=MyEncoder)
+    json.dump(asdict(schema), fp, cls=_Encoder)
 
 
 def dumps(schema: DatasetSchema):
