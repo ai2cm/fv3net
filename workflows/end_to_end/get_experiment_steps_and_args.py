@@ -229,6 +229,9 @@ def _resolve_arg_values(key: Hashable, value: Any) -> Hashable:
         else:
             if key.startswith("--"):
                 arg_values = " ".join([key, str(location_value)])
+            # argo parameters are passed as "-p parameter_name=parameter_value"
+            elif key.startswith("-p"):
+                arg_values = f"{key}{location_value}"
             else:
                 arg_values = str(location_value)
     elif isinstance(value, List):
@@ -241,6 +244,8 @@ def _resolve_arg_values(key: Hashable, value: Any) -> Hashable:
     else:
         if key.startswith("--"):
             arg_values = " ".join([key, str(value)])
+        elif key.startswith("-p"):
+            arg_values = f"{key}{location_value}"
         else:
             arg_values = str(value)
     return arg_values
