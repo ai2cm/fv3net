@@ -113,6 +113,13 @@ def test_generate_and_pickle_integration():
 
 
 def test_generate_regression(regtest):
+    """
+    Note:
+
+        regtest fixture provided by pytest-regtest plugin:
+        https://pypi.org/project/pytest-regtest/
+
+    """
     x = CoordinateSchema("x", ["x"], np.array([1, 2, 3]))
     a = VariableSchema(
         "a",
