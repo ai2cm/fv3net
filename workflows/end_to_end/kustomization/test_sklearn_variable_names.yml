@@ -23,6 +23,7 @@ stack_dims:
 
 suffix_coarse_train_diag: "train"
 
+var_area: "area"
 var_temp: "air_temperature"
 var_sfc_temp: "surface_temperature"
 var_sphum: "specific_humidity"
