@@ -38,18 +38,8 @@ class MyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
-class Domain:
-    # TODO don't use this double dispatch mechanism for generating
-    # It seems a little over-engineered at this point
-    def generate_chunked(self, shape, chunks, dtype):
-        raise NotImplementedError
-
-    def generate_array(self, shape, dtype):
-        raise NotImplementedError
-
-
 @dataclass
-class Range(Domain):
+class Range:
     min: float
     max: float
 
@@ -72,8 +62,8 @@ class Array:
     shape: Sequence[int]
     dtype: np.dtype
 
-    def generate(self, domain: Domain):
-        return domain.generate_array(self.shape, self.dtype)
+    def generate(self, range: Range):
+        return range.generate_array(self.shape, self.dtype)
 
 
 @dataclass
@@ -84,25 +74,22 @@ class ChunkedArray:
 
     # TODO probably remove these generating functions
     # seems a poor separation of concerns.
-    def generate(self, domain: Domain):
-        return domain.generate_chunked(self.shape, self.chunks, self.dtype)
+    def generate(self, range: Range):
+        return range.generate_chunked(self.shape, self.chunks, self.dtype)
 
 
 @dataclass
 class VariableSchema:
     name: str
     dims: Sequence[str]
-    # TODO cast array to a list or tuple to avoid serializing numpy arrays
     array: Array
-
-    # TODO probably want to decouple "Domain" from the schema object
-    domain: Domain
+    range: Range
 
     attrs: Mapping = field(default_factory=dict)
 
     def generate(self):
         return xr.DataArray(
-            self.array.generate(self.domain),
+            self.array.generate(self.range),
             dims=self.dims,
             name=self.name,
             attrs=self.attrs,
@@ -168,7 +155,7 @@ def read_schema_from_zarr(
             else:
                 range_ = Range(m.item(), M.item())
 
-            scheme = VariableSchema(variable, dims, array, domain=range_, attrs=attrs,)
+            scheme = VariableSchema(variable, dims, array, range=range_, attrs=attrs,)
             variables.append(scheme)
 
     return DatasetSchema(coord_schemes, variables)
@@ -194,11 +181,11 @@ def load(fp):
     variables = []
     for variable in d["variables"]:
         array = ChunkedArray(**variable.pop("array"))
-        # TODO this should work with any subtype of Domain
+        # TODO this should work with any subtype of Range
         # Maybe add an attribute to the encoder? Or maybe this is over-engineering,
         # and we can only use Range
-        range_ = Range(**variable.pop("domain"))
-        variables.append(VariableSchema(array=array, domain=range_, **variable))
+        range_ = Range(**variable.pop("range"))
+        variables.append(VariableSchema(array=array, range=range_, **variable))
 
     return DatasetSchema(coords=coords, variables=variables)
 
