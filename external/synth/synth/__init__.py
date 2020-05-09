@@ -3,7 +3,6 @@ from .core import (
     ChunkedArray,
     CoordinateSchema,
     DatasetSchema,
-    Domain,
     Range,
     VariableSchema,
     dumps,
