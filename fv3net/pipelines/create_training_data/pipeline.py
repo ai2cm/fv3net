@@ -1,21 +1,20 @@
-from typing import Mapping, Sequence, Tuple
-import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
 import logging
 import os
+from typing import Mapping, Sequence, Tuple
+
+import apache_beam as beam
+import dask
+import fsspec
+import numpy as np
 import xarray as xr
+from apache_beam.options.pipeline_options import PipelineOptions
 
-from . import helpers
+from vcm import parse_datetime_from_str, safe
 from vcm.calc import apparent_source
-from vcm import safe
-
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import INIT_TIME_DIM, TILE_COORDS
 
-import fsspec
-from vcm import parse_datetime_from_str
-import numpy as np
-import dask
+from . import helpers
 
 dask.config.set(scheduler="single-threaded")
 
@@ -206,7 +205,6 @@ def _add_apparent_sources(
 def _merge_hires_data(
     ds_run, ds_diag, renamed_high_res_vars, init_time_dim, renamed_dims
 ):
-
 
     init_times = ds_run[init_time_dim].values
     ds_diag = ds_diag.rename({"time": INIT_TIME_DIM})
