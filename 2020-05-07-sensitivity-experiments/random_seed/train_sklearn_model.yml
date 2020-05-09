@@ -1,0 +1,18 @@
+model_type: sklearn_random_forest
+hyperparameters:
+  max_depth: 13
+  n_estimators: 1
+  random_state: 100  # when bash script iterates for the multiple random seed trials it will change this entry
+  max_features: 0.6
+  max_samples: 0.6
+num_batches: 13
+mask_to_surface_type: none
+files_per_batch: 10
+input_variables:
+  - air_temperature
+  - specific_humidity
+output_variables:
+  - dQ1
+  - dQ2
+init_time_dim: "initial_time"
+coord_z_center: "z"

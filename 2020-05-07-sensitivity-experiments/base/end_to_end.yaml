@@ -1,0 +1,95 @@
+storage_proto: gs
+storage_root: vcm-ml-experiments/2020-04-22-advisory-council
+experiment:
+  name: $JOBNAME
+  unique_id: false
+  steps_to_run:
+    #- coarsen_restarts  # not doing C384 -> C48 coarsening
+    #- coarsen_diagnostics
+    #- one_step_run
+    #- create_training_data
+    - train_sklearn_model
+    - test_sklearn_model
+    - prognostic_run
+    #- baseline_run
+  
+  steps_config:
+    coarsen_restarts:
+      command: python -m fv3net.pipelines.coarsen_restarts
+      args:
+        data_to_coarsen:
+          location: $C384_RESTARTS
+        grid_spec: 
+          location: $GRIDSPEC
+        source-resolution: 384
+        target-resolution: 48
+
+    coarsen_diagnostics:
+      command: python workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.py
+      args:
+        c384_diagnostics:
+          location: $C384_DIAGNOSTICS
+        coarsening_config: $CONFIG/coarsen_c384_diagnostics.yml
+
+    one_step_run:
+      command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
+      args:
+        restart_data:
+          #from: coarsen_restarts  # uncomment this line and delete the following to include coarsening in test workflow
+          location: $C48_RESTARTS
+        experiment_yaml: $CONFIG/one_step_jobs.yml
+        docker_image: $PROGNOSTIC_RUN_IMAGE
+        timesteps: $ONE_STEP_TIMES
+        # TODO the config-version should be included in the one_step_jobs. Similar to how k8s yamls are.
+        --config-version: v0.3
+
+    create_training_data:
+      command: python -m fv3net.pipelines.create_training_data
+      args:
+        one_step_data:
+          from: one_step_run
+        diagnostics_data:
+          location: $C48_DIAGNOSTICS
+        timestep_splits: $TRAIN_AND_TEST_TIMES
+        --variable_namefile: $CONFIG/create_training_data_variable_names.yml
+        --runner: DataflowRunner
+        
+    train_sklearn_model:
+      command: python -m fv3net.regression.sklearn
+      args:
+        training_data:
+          from: create_training_data
+        train-config-file: $CONFIG/train_sklearn_model.yml
+        
+    test_sklearn_model: 
+    # placeholder yaml name- this is not in fv3net yet.
+      command: argo submit test_sklearn_model.yaml
+      args:
+        # these should correspond to the names in the job yaml
+        "- p trained_model=":
+          from: train_sklearn_model
+        "-p testing_data=":
+          from: create_training_data
+        "-p diagnostics_data=":
+          from: coarsen_diagnostics
+        "-p variable_filename=": $CONFIG/test_sklearn_variable_names.yml
+
+    prognostic_run:
+      command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
+      args:
+        restart_file_dir:
+          from: one_step_run
+        ic_timestep: $IC_TIMESTEP  # TODO: ensure this timestep is run for one-step jobs
+        docker_image: $PROGNOSTIC_RUN_IMAGE
+        --prog_config_yml: $CONFIG/prognostic_run.yml
+        --model_url:
+          from: train_sklearn_model
+
+    baseline_run:
+      command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
+      args:
+        restart_file_dir:
+          from: one_step_run
+        ic_timestep: $IC_TIMESTEP 
+        docker_image: $PROGNOSTIC_RUN_IMAGE
+        --prog_config_yml: $CONFIG/prognostic_run.yml
