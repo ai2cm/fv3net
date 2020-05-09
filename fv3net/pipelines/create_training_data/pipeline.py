@@ -37,10 +37,24 @@ def run(
     ds: xr.Dataset,
     ds_diag: xr.Dataset,
     output_dir: str,
-    pipeline_args,
-    names,
+    pipeline_args: Sequence[str],
+    names: dict,
     timesteps: Mapping[str, Sequence[Tuple[str, str]]],
 ):
+    """ Divide full one step output data into batches to be sent
+    through a beam pipeline, which writes training/test data zarrs
+
+    Args:
+        ds: The one-step runs xarray dataset
+        ds_diag: The coarsened diagnostic data from ShiELD at C48 resolution
+        output_dir: the output location in GCS or local
+        pipeline_args: argument to be handled by apache beam.
+        names: Configuration for output variable names
+        timesteps:  a collection of time-step pairs to use for testing and training.
+            For example::
+
+                {"train": [("20180601.000000", "20180601.000000"), ...], "test: ...}
+    """
     train_test_labels = _train_test_labels(timesteps)
     timestep_pairs = timesteps["train"] + timesteps["test"]
 
