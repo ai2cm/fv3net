@@ -3,14 +3,14 @@ import pickle
 import numpy as np
 import zarr
 
+from synth.core import _Encoder
+
 from synth import (
     read_schema_from_zarr,
     Array,
     ChunkedArray,
     CoordinateSchema,
     DatasetSchema,
-    Domain,
-    MyEncoder,
     Range,
     VariableSchema,
     __version__,
@@ -43,12 +43,12 @@ def test_generate_chunked_array():
 
 
 def test_encoder_dtype():
-    e = MyEncoder()
+    e = _Encoder()
     assert e.encode(np.dtype("float32")) == '"' + np.dtype("float32").str + '"'
 
 
 def test_encoder_array():
-    e = MyEncoder()
+    e = _Encoder()
     assert e.encode(np.array([1, 2, 3])) == "[1, 2, 3]"
 
 
@@ -59,7 +59,7 @@ def test_DatasetSchema_dumps():
         "a",
         ["x"],
         ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
-        domain=Range(0, 10),
+        range=Range(0, 10),
     )
 
     ds = DatasetSchema(coords=[x], variables=[a])
@@ -74,7 +74,7 @@ def test_DatasetSchema_dumps_regression(regtest):
         "a",
         ["x"],
         ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
-        domain=Range(0, 10),
+        range=Range(0, 10),
     )
 
     ds = DatasetSchema(coords=[x], variables=[a])
@@ -85,7 +85,7 @@ def test_DatasetSchema_dumps_regression(regtest):
 
 def test_DatasetSchemaLoads():
     encoded_data = """
-    {"coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3], "attrs": [1]}], "variables": [{"name": "a", "dims": ["x"], "array": {"shape": [3], "dtype": "<f4", "chunks": [1]}, "domain": {"min": 0, "max": 10}}]}
+    {"coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3], "attrs": [1]}], "variables": [{"name": "a", "dims": ["x"], "array": {"shape": [3], "dtype": "<f4", "chunks": [1]}, "range": {"min": 0, "max": 10}}]}
     """  # noqa
 
     ds = loads(encoded_data)
@@ -93,7 +93,7 @@ def test_DatasetSchemaLoads():
 
     v = ds.variables[0]
     assert isinstance(v, VariableSchema)
-    assert isinstance(v.domain, Domain)
+    assert isinstance(v.range, Range)
 
     assert ds.coords[0].attrs == [1]
 
@@ -104,7 +104,7 @@ def test_generate_and_pickle_integration():
         "a",
         ["x"],
         ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
-        domain=Range(0, 10),
+        range=Range(0, 10),
     )
 
     ds = DatasetSchema(coords=[x], variables=[a])
@@ -125,7 +125,7 @@ def test_generate_regression(regtest):
         "a",
         ["x"],
         ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
-        domain=Range(0, 10),
+        range=Range(0, 10),
     )
 
     ds = DatasetSchema(coords=[x], variables=[a])
