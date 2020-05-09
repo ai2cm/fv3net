@@ -2,35 +2,37 @@
 
 set -e
 
-usage="usage: submit_job.py [-h] [-j --job_prefix JOB_PREFIX] \
-       [-d --detach] config runfile output_url docker_image"
+usage="usage: submit_job.py [-h] [-j JOB_PREFIX] \
+       [-d] config runfile output_url docker_image \n\
+       -j JOB_PREFIX: job name prefix for k8s submission \n\
+       -d: detach job from terminal session" 
 detach=0
 job_prefix="nudge-to-highres"
 
-while getopts "j:hd" OPTION; do
+while getopts "j:dh" OPTION; do
     case $OPTION in
-        j | job_prefix)
+        j)
             job_prefix=$OPTARG
         ;;
         h)
-            echo $usage
+            echo -e $usage
             exit 1
         ;;
-        d | detach)
+        d)
             detach=1
         ;;
         *)
-            echo $usage
+            echo -e $usage
             exit 1
         ;;
     esac
 done
 
-echo $OPTIND
-shift "$(($OPTIND -1))"
+shift $(($OPTIND - 1))
 
 if [ $# -lt 4 ]; then
-    echo $usage
+    echo -e $usage
+    exit 1
 fi
 
 rand_tag=$(openssl rand --hex 4)
@@ -60,10 +62,10 @@ function waitForComplete {
     NAMESPACE=$1
     JOBNAME=$2
     job_active=$(getJob $NAMESPACE $JOBNAME| jq --raw-output .status.active)
-    echo "$job_active"
+    echo -e "$job_active"
     while [[ $job_active == "1" ]]
     do
-        echo "$(date '+%Y-%m-%d %H:%M')" Job active: "$JOBNAME" ... sleeping ${SLEEP_TIME}s
+        echo -e "$(date '+%Y-%m-%d %H:%M')" Job active: "$JOBNAME" ... sleeping ${SLEEP_TIME}s
         sleep $SLEEP_TIME
         job_active=$(getJob $NAMESPACE $JOBNAME| jq --raw-output .status.active)
     done
@@ -73,13 +75,13 @@ function waitForComplete {
     job_fail=$(getJob $NAMESPACE $JOBNAME | jq --raw-output .status.failed)
     if [[ $job_succeed == "1" ]]
     then
-        echo Job successful: "$JOBNAME"
+        echo -e Job successful: "$JOBNAME"
     elif [[ $job_fail == "1" ]]
     then
-        echo Job failed: "$JOBNAME"
+        echo -e Job failed: "$JOBNAME"
         exit 1
     else
-        echo Job success ambiguous: "$JOBNAME"
+        echo -e Job success ambiguous: "$JOBNAME"
         exit 1
     fi
 }
