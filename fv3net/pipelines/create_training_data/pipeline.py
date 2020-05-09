@@ -8,6 +8,10 @@ import xarray as xr
 from . import helpers
 from vcm.calc import apparent_source
 from vcm import safe
+
+from vcm.convenience import round_time
+from vcm.cubedsphere.constants import INIT_TIME_DIM, TILE_COORDS
+
 import fsspec
 from vcm import parse_datetime_from_str
 import numpy as np
@@ -93,8 +97,7 @@ def run(
             >> beam.Map(
                 _merge_hires_data,
                 ds_diag,
-                flux_vars=names["diag_vars"],
-                suffix_hires=names["suffix_hires"],
+                renamed_high_res_vars=names["renamed_high_res_data_variables"],
                 init_time_dim=names["init_time_dim"],
                 renamed_dims=names["renamed_dims"],
             )
@@ -201,20 +204,9 @@ def _add_apparent_sources(
 
 
 def _merge_hires_data(
-    ds_run, ds_diag, flux_vars, suffix_hires, init_time_dim, renamed_dims,
+    ds_run, ds_diag, renamed_high_res_vars, init_time_dim, renamed_dims
 ):
-    from vcm.convenience import round_time
-    from vcm.cubedsphere.constants import INIT_TIME_DIM, TILE_COORDS
 
-    renamed_high_res_vars = {
-        **{
-            f"{var}_coarse": f"{var}_{suffix_hires}"
-            for var in flux_vars
-            if var in list(ds_run.data_vars)
-        },
-        "LHTFLsfc_coarse": f"latent_heat_flux_{suffix_hires}",
-        "SHTFLsfc_coarse": f"sensible_heat_flux_{suffix_hires}",
-    }
 
     init_times = ds_run[init_time_dim].values
     ds_diag = ds_diag.rename({"time": INIT_TIME_DIM})

@@ -31,6 +31,7 @@ var_pressure_thickness: "pressure_thickness_of_atmospheric_layer"
 var_q_heating_ml: "dQ1"
 var_q_moistening_ml: "dQ2"
 var_land_sea_mask: "land_sea_mask"
+var_area: "area"
 
 renamed_hires_grid_vars:
   "grid_xt": "x"
@@ -46,9 +47,15 @@ pred_vars_to_keep:
   - "specific_humidity"
   - "air_temperature"
   - "surface_temperature"
+  - "pQ1"
+  - "pQ2"
 #  - "DSWRFtoa_train"
 
 data_vars:
+  - "Q1"
+  - "Q2"
+  - "pQ1"
+  - "pQ2"
   - "dQ1"
   - "dQ2"
   - "specific_humidity"
