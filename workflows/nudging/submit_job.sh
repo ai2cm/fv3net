@@ -2,8 +2,8 @@
 
 set -e
 
-usage="usage: submit_job.py [-h] [-j --job_prefix JOB_PREFIX] [-d]\
-       config runfile output_url docker_image"
+usage="usage: submit_job.py [-h] [-j --job_prefix JOB_PREFIX] \
+       [-d --detach] config runfile output_url docker_image"
 detach=0
 job_prefix="nudge-to-highres"
 
@@ -16,7 +16,7 @@ while getopts "j:hd" OPTION; do
             echo $usage
             exit 1
         ;;
-        d)
+        d | detach)
             detach=1
         ;;
         *)

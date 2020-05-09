@@ -55,7 +55,7 @@ spec:
             - -c  
             - |
               gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS && \
-              gsutil -m cp -r /mnt/data/ ${OUTPUT_URL}
+              gsutil -m rsync -r -e /mnt/data/ ${OUTPUT_URL}
           env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
             value: /secret/gcp-credentials/key.json
