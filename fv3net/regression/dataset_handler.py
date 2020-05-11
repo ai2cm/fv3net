@@ -82,7 +82,7 @@ def load_zarr_batches(
     num_batches = _validated_num_batches(len(zarr_urls), files_per_batch, num_batches)
     logger.info(f"{num_batches} data batches generated for model training.")
     url_list_sequence = list(
-        zarr_urls[batch_num * files_per_batch: (batch_num + 1) * files_per_batch]
+        zarr_urls[batch_num * files_per_batch : (batch_num + 1) * files_per_batch]
         for batch_num in range(num_batches)
     )
     load_batch = functools.partial(
