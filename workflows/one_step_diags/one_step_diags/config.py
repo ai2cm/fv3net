@@ -38,7 +38,13 @@ VARS_FROM_ZARR = [
 GRID_VARS = ["lat", "lon", "latb", "lonb", "area", "land_sea_mask"]
 
 HI_RES_DIAGS_MAPPING = {name: name for name in SFC_VARIABLES}
-HI_RES_DIAGS_MAPPING.update({"latent_heat_flux": "LHTFLsfc"})
+HI_RES_DIAGS_MAPPING.update(
+    {
+        "latent_heat_flux": "LHTFLsfc",
+        "sensible_heat_flux": "SHTFLsfc",
+        "total_precipitation": "PRATEsfc",
+    }
+)
 
 HI_RES_DIAGS_DIMS = {"grid_xt": "x", "grid_yt": "y"}
 
