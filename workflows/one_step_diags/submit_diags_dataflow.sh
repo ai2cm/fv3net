@@ -19,6 +19,24 @@ fi
 LOGFILE="${LOGDIR}/one-step-diags-${STAMP}.log"
 exec >>${LOGFILE} 2>&1
 
+# extra packages for dataflow
+(
+  cd workflows/one_step_diags
+  poetry build --format sdist
+)
+(
+  cd external/gallery
+  poetry build --format sdist
+)
+(
+  cd external/report
+  poetry build --format sdist
+)
+(
+  cd external/vcm
+  python setup.py sdist
+)
+
 export PYTHONPATH="./workflows/one_step_diags/"
 
 CMD="python -m one_step_diags \
