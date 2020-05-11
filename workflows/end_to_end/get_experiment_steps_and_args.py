@@ -168,8 +168,9 @@ def _resolve_dataflow_args(config: Mapping):
 
 def _resolve_command(step_config: Mapping):
     command = [key for key in step_config if key in COMMAND_TYPES]
-    assert len(command)==1, \
-        f"Command line arg should specified once as member of set {COMMAND_TYPES}."
+    assert (
+        len(command) == 1
+    ), f"Command line arg should specified once as member of set {COMMAND_TYPES}."
     return command[0]
 
 
@@ -281,7 +282,7 @@ def _resolve_arg_values(key: Hashable, value: Any) -> Hashable:
         else:
             arg_values = str(value)
     return arg_values
-    
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -295,5 +296,3 @@ if __name__ == "__main__":
 
     # Print JSON to stdout to be consumed by shell script
     print(exp_args)
-
-
