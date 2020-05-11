@@ -13,7 +13,7 @@ dependencies:
   - f90nml
   - black=19.10b0
   - isort
-  - flake8
+  - flake8=3.7.9
   - gcsfs==0.6.0  # 0.6.1 changes filesystem.ls (errors when no files / doesn't exist)
   - google-cloud-storage
   - h5netcdf
