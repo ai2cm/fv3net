@@ -18,7 +18,7 @@ Entrypoints are provided for launching jobs locally or on Dataflow:
 
 where MODEL_CONFIGURATION is the experiment configuration, e.g., 'deep-off'
 
-Note that the local (testing) script both runs the data pipeline and generates the report, while the Dataflow script only runs the data pipeline, and the report generation script must be run separately. 
+Note that the local (testing) script both runs the data pipeline and generates the report, while the Dataflow script only runs the data pipeline, and the report generation script must be run separately. The data output location for the Dataflow job can be found in the logs.
 
 To see the pipeline module's usage run ``python -m one_step_diags -h`` in this directory; example::
 

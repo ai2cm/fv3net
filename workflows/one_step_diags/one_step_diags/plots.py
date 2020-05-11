@@ -146,7 +146,7 @@ def make_all_plots(
                 )
             )
             .isel({FORECAST_TIME_DIM: time1})
-            .rename(f"(pQ - dQ) at {time1} min")
+            .rename(f"(<pQ> - <dQ>) at {time1} min")
         )
 
         hi_res_minus_pQ_plus_dQ_time1 = (
@@ -163,7 +163,7 @@ def make_all_plots(
             )
             .drop(DELTA_DIM)
             .isel({FORECAST_TIME_DIM: time1})
-            .rename(f"hi-res physics - (pQ - dQ) at {time1} min")
+            .rename(f"hi-res physics - (<pQ> - <dQ>) at {time1} min")
         )
 
         pQ_plus_dQ_time2_minus_time1 = (
@@ -179,7 +179,7 @@ def make_all_plots(
             - states_and_tendencies[residual_var]
             .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
             .isel({FORECAST_TIME_DIM: time1})
-        ).rename(f"(pQ - dQ) at {time2} min - at {time1} min")
+        ).rename(f"(<pQ> - <dQ>) at {time2} min - at {time1} min")
 
         comparison_ds = xr.merge(
             [
@@ -212,7 +212,7 @@ def make_all_plots(
 
     # make vertical profiles of dQ terms across forecast time
 
-    section_name = "dQ profiles across forecast time"
+    section_name = "<dQ> profiles across forecast time"
     logger.info(f"Plotting {section_name}")
 
     dQ_profile_maps = []
@@ -586,11 +586,13 @@ def plot_diurnal_cycles(
     handles = legend_ax.get_lines()[1:]
     if var.startswith("net"):
         residual_label = "residual of tendencies"
+        hi_res_label = "hi-res physics"
+        coarse_label = "coarse physics"
     else:
-        residual_label = "differences of physics"
-    legend_ax.legend(
-        handles, ["hi-res physics", "coarse physics", residual_label], loc=2
-    )
+        residual_label = "difference"
+        hi_res_label = "hi-res"
+        coarse_label = "coarse"
+    legend_ax.legend(handles, [hi_res_label, coarse_label, residual_label], loc=2)
     facetgrid.set_titles(template="{value} min")
     for ax in facetgrid.axes.flatten():
         ax.set_xlabel("mean local time [hrs]")
