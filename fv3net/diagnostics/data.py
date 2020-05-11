@@ -18,7 +18,7 @@ _KG_M2S_TO_MM_DAY = 86400  # kg/m2/s same as mm/s. Using 1000 km/m3 for H20 dens
 
 
 def merge_comparison_datasets(
-    data_vars, datasets, dataset_labels, concat_dim_name="dataset",
+    data_vars, datasets, dataset_labels, concat_dim_name="dataset"
 ):
     """ Makes a comparison dataset out of multiple datasets that all have a common
     data variable. They are concatenated with a new dim "dataset" that can be used
@@ -111,7 +111,12 @@ def periodic_phase(phase):
     return cond(phase)
 
 
-def net_heating_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.DataArray:
+def net_heating_from_dataset(
+    ds: xr.Dataset,
+    suffix: str = None,
+    shf_var="sensible_heat_flux",
+    precip_var="total_precipitation",
+) -> xr.DataArray:
     """Compute the net heating from a dataset of diagnostic output
 
     This should be equivalent to the vertical integral (i.e. <>) of Q1::
@@ -139,8 +144,8 @@ def net_heating_from_dataset(ds: xr.Dataset, suffix: str = None) -> xr.DataArray
         ds["USWRFsfc" + suffix],
         ds["USWRFtoa" + suffix],
         ds["DSWRFtoa" + suffix],
-        ds["SHTFLsfc" + suffix],
-        ds["PRATEsfc" + suffix],
+        ds[shf_var],
+        ds[precip_var],
     )
     return vcm.net_heating(*fluxes)
 

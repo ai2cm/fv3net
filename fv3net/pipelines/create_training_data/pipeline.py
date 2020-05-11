@@ -111,8 +111,7 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
                 _merge_hires_data,
                 diag_c48_path=args.diag_c48_path,
                 coarsened_diags_zarr_name=COARSENED_DIAGS_ZARR_NAME,
-                flux_vars=names["diag_vars"],
-                suffix_hires=names["suffix_hires"],
+                renamed_high_res_vars=names["renamed_high_res_data_variables"],
                 init_time_dim=names["init_time_dim"],
                 renamed_dims=names["renamed_dims"],
             )
@@ -222,21 +221,10 @@ def _merge_hires_data(
     ds_run,
     diag_c48_path,
     coarsened_diags_zarr_name,
-    flux_vars,
-    suffix_hires,
+    renamed_high_res_vars,
     init_time_dim,
     renamed_dims,
 ):
-
-    renamed_high_res_vars = {
-        **{
-            f"{var}_coarse": f"{var}_{suffix_hires}"
-            for var in flux_vars
-            if var in list(ds_run.data_vars)
-        },
-        "LHTFLsfc_coarse": f"latent_heat_flux_{suffix_hires}",
-        "SHTFLsfc_coarse": f"sensible_heat_flux_{suffix_hires}",
-    }
     if not diag_c48_path:
         return ds_run
     init_times = ds_run[init_time_dim].values

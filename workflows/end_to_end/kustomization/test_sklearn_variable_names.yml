@@ -23,7 +23,7 @@ stack_dims:
 
 suffix_coarse_train_diag: "train"
 
-
+var_area: "area"
 var_temp: "air_temperature"
 var_sfc_temp: "surface_temperature"
 var_sphum: "specific_humidity"
@@ -36,7 +36,8 @@ renamed_hires_grid_vars:
   "grid_xt": "x"
   "grid_yt": "y"
 
-
+# TODO: right now it is not obvious what these following similar looking lists do;
+# their usage will be refactored in a future PR
 # features for prediction and other variables to keep
 pred_vars_to_keep:
   - "surface_temperature"
@@ -46,11 +47,26 @@ pred_vars_to_keep:
   - "specific_humidity"
   - "air_temperature"
   - "surface_temperature"
-#  - "DSWRFtoa_train"
+  - "latent_heat_flux"
+  - "sensible_heat_flux"
+  - "total_precipitation"
+  - "DSWRFtoa_train"
+  - "DSWRFsfc_train"
+  - "USWRFtoa_train"
+  - "USWRFsfc_train"
+  - "DLWRFsfc_train"
+  - "ULWRFtoa_train"
+  - "ULWRFsfc_train"
+  - "pQ1"
+  - "pQ2"
 
 data_vars:
   - "dQ1"
   - "dQ2"
+  - "pQ1"
+  - "pQ2"
+  - "Q1"
+  - "Q2"
   - "specific_humidity"
   - "air_temperature"
   - "surface_temperature"
@@ -61,7 +77,8 @@ data_vars:
   - "net_precipitation_ml"
   - "net_heating_ml"
   - "pressure_thickness_of_atmospheric_layer"
-  
+
+
 mappable_var_kwargs:
   coord_x_center: "x"
   coord_y_center: "y"
