@@ -43,7 +43,7 @@ export OUTPUT_URL=$3
 export DOCKER_IMAGE=$4
 export JOBNAME=$job_prefix-$rand_tag
 
-cat examples/job_template.yaml | \
+cat job_template.yaml | \
     envsubst '$CONFIG $RUNFILE $OUTPUT_URL $DOCKER_IMAGE $JOBNAME' | \
     tee job.yaml
 
