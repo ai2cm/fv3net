@@ -87,6 +87,7 @@ def load_zarr_batches(
     )
     load_batch = functools.partial(
         _load_one_step_batch,
+        fs,
         data_vars,
         rename_variables,
         init_time_dim_name,
@@ -102,6 +103,7 @@ def load_zarr_batches(
 
 
 def _load_one_step_batch(
+    fs,
     data_vars,
     rename_variables,
     init_time_dim_name,
@@ -112,7 +114,7 @@ def _load_one_step_batch(
 ):
     # TODO refactor this I/O. since this logic below it is currently
     # impossible to test.
-    data = _load_datasets(url_list)
+    data = _load_datasets(fs, url_list)
     ds = xr.concat(data, init_time_dim_name)
     ds = ds.rename(rename_variables)
     ds = safe.get_variables(ds, data_vars)
@@ -136,19 +138,12 @@ def _load_one_step_batch(
 
 
 @backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
-def _load_datasets(urls):
-    print(urls)
-    if len(urls) > 0:
-        fs = get_fs(urls[0])
-    # timestep_paths = [fs.get_mapper(url) for url in urls]
-    # print(timestep_paths)
-    # return [xr.open_zarr(path).load() for path in timestep_paths]
+def _load_datasets(fs, urls):
     return_list = []
     for url in urls:
-        print(url)
         mapper = fs.get_mapper(url)
         ds = xr.open_zarr(mapper)
-        return_list.append(ds.load())
+        return_list.append(ds)
     return return_list
 
 
