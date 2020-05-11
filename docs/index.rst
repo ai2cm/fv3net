@@ -20,6 +20,7 @@ Other VCM Projects
    workflows
    vcm
    science
+   regression-testing
 
 
 .. _fv3gfs-python: https://github.com/VulcanClimateModeling/fv3gfs-python
