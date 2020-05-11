@@ -81,8 +81,8 @@ def load_zarr_batches(
     random.shuffle(zarr_urls)
     num_batches = _validated_num_batches(len(zarr_urls), files_per_batch, num_batches)
     logger.info(f"{num_batches} data batches generated for model training.")
-    url_list_sequence = (
-        (zarr_urls[batch_num * files_per_batch : (batch_num + 1) * files_per_batch],)
+    url_list_sequence = list(
+        zarr_urls[batch_num * files_per_batch: (batch_num + 1) * files_per_batch]
         for batch_num in range(num_batches)
     )
     load_batch = functools.partial(
@@ -94,8 +94,9 @@ def load_zarr_batches(
         mask_to_surface_type,
         random,
     )
+    args_sequence = [(item,) for item in url_list_sequence]
     return (
-        BatchSequence(load_batch, url_list_sequence),
+        BatchSequence(load_batch, args_sequence),
         get_time_list(url_list_sequence),
     )
 
@@ -135,9 +136,20 @@ def _load_one_step_batch(
 
 
 @backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
-def _load_datasets(self, urls):
-    timestep_paths = [self.fs.get_mapper(url) for url in urls]
-    return [xr.open_zarr(path).load() for path in timestep_paths]
+def _load_datasets(urls):
+    print(urls)
+    if len(urls) > 0:
+        fs = get_fs(urls[0])
+    # timestep_paths = [fs.get_mapper(url) for url in urls]
+    # print(timestep_paths)
+    # return [xr.open_zarr(path).load() for path in timestep_paths]
+    return_list = []
+    for url in urls:
+        print(url)
+        mapper = fs.get_mapper(url)
+        ds = xr.open_zarr(mapper)
+        return_list.append(ds.load())
+    return return_list
 
 
 def _validated_num_batches(total_num_input_files, files_per_batch, num_batches=None):
