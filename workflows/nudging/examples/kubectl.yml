@@ -1,4 +1,4 @@
-# Original kubernets job yaml from Jeremy
+# Original kubernetes job yaml from JeremyM
 apiVersion: batch/v1
 kind: Job
 metadata:

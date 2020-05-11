@@ -62,10 +62,10 @@ spec:
           imagePullPolicy: Always
           resources:
             limits:
-              memory: 2000M
+              memory: 3600M
             requests:
-              cpu: "2"
-              memory: 2000M
+              cpu: "6"
+              memory: 3600M
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
