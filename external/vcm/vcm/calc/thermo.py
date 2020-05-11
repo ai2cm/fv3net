@@ -321,10 +321,10 @@ def total_water(
     return total_water
 
 
-def precipitable_water(
+def column_integrated_liquid_water_equivalent(
     specific_humidity: xr.DataArray, delp: xr.DataArray, vertical_dimension: str = "z"
 ) -> xr.DataArray:
-    """Compute vertically-integrated precipitable water
+    """Compute column-integrated liquid water equivalent from specific humidity
     
     Args:
         specific_humidity: DataArray of specific humidity in kg/kg
@@ -332,17 +332,17 @@ def precipitable_water(
         vertical_dim: Name of vertical dimension; defaults to 'z'
 
     Returns:
-        precipitable_water: DataArray of precipitable water in mm
+        ci_liquid_water_equivalent: DataArray of water equivalent in mm
     """
 
-    precipitable_water = _KG_M2_TO_MM * ((delp / _GRAVITY) * specific_humidity).sum(
-        vertical_dimension
-    )
-    precipitable_water = precipitable_water.assign_attrs(
+    ci_liquid_water_equivalent = _KG_M2_TO_MM * (
+        (delp / _GRAVITY) * specific_humidity
+    ).sum(vertical_dimension)
+    ci_liquid_water_equivalent = ci_liquid_water_equivalent.assign_attrs(
         {"long_name": "precipitable water", "units": "mm"}
     )
 
-    return precipitable_water
+    return ci_liquid_water_equivalent
 
 
 def liquid_ice_temperature(
@@ -353,30 +353,33 @@ def liquid_ice_temperature(
     snow_water: xr.DataArray,
     graupel_water: xr.DataArray,
 ) -> xr.DataArray:
-    """Compute liquid-ice temperature given temperature and hydrometeor mixing ratios
+    """Compute liquid-ice temperature given temperature and hydrometeor mixing ratios,
+    according to:
+        T_LI = T - Lv ( ql + qr)  - (Lf + Lv)(qs + qg + qi),
+    where Lv and Lf are latent heats of vaporization and fusion, respectively
     
     Args:
-        temperature: DataArray of specific humidity mixing ratio in kg/kg
-        ice_water: DataArray of ice water mixing ratio in kg/kg
-        liquid_water: DataArray of liquid water mixing ratio in kg/kg
-        rain_water: DataArray of rain water mixing ratio in kg/kg
-        snow_water: DataArray of snow water mixing ratio in kg/kg
-        graupel_water: DataArray of graupel water mixing ratio in kg/kg
+        temperature (T): DataArray of specific humidity mixing ratio in kg/kg
+        ice_water (qi): DataArray of ice water mixing ratio in kg/kg
+        liquid_water (ql): DataArray of liquid water mixing ratio in kg/kg
+        rain_water (qr): DataArray of rain water mixing ratio in kg/kg
+        snow_water (qs): DataArray of snow water mixing ratio in kg/kg
+        graupel_water (qg): DataArray of graupel water mixing ratio in kg/kg
           
     Returns:
-        liquid_ice_temperature: DataArray of liquid-ice temperature in K
+        liquid_ice_temperature (T_LI): DataArray of liquid-ice temperature in K
     """
 
-    liquid_ice_temperature = (
-        temperature
-        - (latent_heat_vaporization(temperature) / _SPECIFIC_HEAT_CONST_PRESSURE)
-        * (rain_water + liquid_water)
-        - (
-            (latent_heat_vaporization(temperature) + _LATENT_HEAT_FUSION)
-            / _SPECIFIC_HEAT_CONST_PRESSURE
-        )
-        * (ice_water + snow_water + graupel_water)
-    )
+    liquid_adjustment = (
+        latent_heat_vaporization(temperature) / _SPECIFIC_HEAT_CONST_PRESSURE
+    ) * (rain_water + liquid_water)
+
+    ice_adjustment = (
+        (latent_heat_vaporization(temperature) + _LATENT_HEAT_FUSION)
+        / _SPECIFIC_HEAT_CONST_PRESSURE
+    ) * (ice_water + snow_water + graupel_water)
+
+    liquid_ice_temperature = temperature - liquid_adjustment - ice_adjustment
 
     liquid_ice_temperature = liquid_ice_temperature.assign_attrs(
         {"long_name": "liquid-ice temperature", "units": "K"}

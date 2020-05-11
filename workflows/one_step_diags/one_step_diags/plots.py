@@ -1,6 +1,11 @@
 from vcm.visualize import plot_cube, mappable_var
-from .constants import FORECAST_TIME_DIM, DELTA_DIM, INIT_TIME_DIM
-from .config import MAPPABLE_VAR_KWARGS, GRID_VARS
+from .config import (
+    MAPPABLE_VAR_KWARGS,
+    GRID_VARS,
+    FORECAST_TIME_DIM,
+    DELTA_DIM,
+    INIT_TIME_DIM,
+)
 import gallery
 import xarray as xr
 import numpy as np
@@ -110,7 +115,7 @@ def make_all_plots(
 
     # compare dQ with hi-res diagnostics
 
-    section_name = "dQ vs hi-res diagnostics across forecast time"
+    section_name = "<dQ> vs hi-res physics across forecast time"
     logger.info(f"Plotting {section_name}")
 
     dQ_comparison_maps = []
@@ -141,7 +146,7 @@ def make_all_plots(
                 )
             )
             .isel({FORECAST_TIME_DIM: time1})
-            .rename(f"(pQ + dQ) at {time1} min")
+            .rename(f"(pQ - dQ) at {time1} min")
         )
 
         hi_res_minus_pQ_plus_dQ_time1 = (
@@ -158,7 +163,7 @@ def make_all_plots(
             )
             .drop(DELTA_DIM)
             .isel({FORECAST_TIME_DIM: time1})
-            .rename(f"hi-res physics - (pQ + dQ) at {time1} min")
+            .rename(f"hi-res physics - (pQ - dQ) at {time1} min")
         )
 
         pQ_plus_dQ_time2_minus_time1 = (
@@ -174,7 +179,7 @@ def make_all_plots(
             - states_and_tendencies[residual_var]
             .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
             .isel({FORECAST_TIME_DIM: time1})
-        ).rename(f"(pQ + dQ) at {time2} min - at {time1} min")
+        ).rename(f"(pQ - dQ) at {time2} min - at {time1} min")
 
         comparison_ds = xr.merge(
             [

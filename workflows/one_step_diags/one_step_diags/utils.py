@@ -1,22 +1,22 @@
 import xarray as xr
 import numpy as np
+import fsspec
 from scipy.stats import binned_statistic
+from vcm.cubedsphere.constants import TILE_COORDS
 from vcm.select import mask_to_surface_type
-from vcm.convenience import parse_datetime_from_str
+from vcm.convenience import parse_datetime_from_str, round_time
 from vcm.safe import get_variables
 from vcm import thermo, local_time, net_precipitation
 import logging
 from typing import Sequence, Mapping
-from .config import SFC_VARIABLES
-from .constants import (
+from .config import (
+    SFC_VARIABLES,
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
     DELTA_DIM,
     ZARR_STEP_DIM,
     ZARR_STEP_NAMES,
 )
-
-from fv3net.pipelines.common import load_hires_prog_diag
 from fv3net.diagnostics.data import net_heating_from_dataset
 
 
@@ -35,6 +35,29 @@ def time_coord_to_datetime(
     ds = ds.assign_coords({time_coord: init_datetime_coords})
 
     return ds
+
+
+def load_hires_prog_diag(diag_data_path, init_times):
+    """Loads coarsened diagnostic variables from the prognostic high res run.
+    
+    Args:
+        diag_data_path (str): path to directory containing coarsened high res
+            diagnostic data
+        init_times (list(datetime)): list of datetimes to filter diagnostic data to
+    
+    Returns:
+        xarray dataset: prognostic high res diagnostic variables
+    """
+    ds_diag = xr.open_zarr(fsspec.get_mapper(diag_data_path), consolidated=True).rename(
+        {"time": INIT_TIME_DIM}
+    )
+    ds_diag = ds_diag.assign_coords(
+        {
+            INIT_TIME_DIM: [round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
+            "tile": TILE_COORDS,
+        }
+    )
+    return ds_diag.sel({INIT_TIME_DIM: init_times})
 
 
 def insert_hi_res_diags(
@@ -111,8 +134,11 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             "surface_pressure": thermo.surface_pressure_from_delp(
                 ds["pressure_thickness_of_atmospheric_layer"]
             ),
-            "precipitable_water": thermo.precipitable_water(
-                ds["specific_humidity"], ds["pressure_thickness_of_atmospheric_layer"]
+            "liquid_water_equivalent": (
+                thermo.column_integrated_liquid_water_equivalent(
+                    ds["specific_humidity"],
+                    ds["pressure_thickness_of_atmospheric_layer"],
+                )
             ),
             "column_integrated_heat": thermo.column_integrated_heat(
                 ds["air_temperature"], ds["pressure_thickness_of_atmospheric_layer"]
@@ -265,18 +291,13 @@ def insert_abs_vars(ds: xr.Dataset, varnames: Sequence) -> xr.Dataset:
     return ds
 
 
-def insert_variable_at_model_level(
-    ds: xr.Dataset, varnames: Sequence, levels: Sequence
-):
+def insert_variable_at_model_level(ds: xr.Dataset, level_vars: Sequence):
 
-    for var in varnames:
+    for var, level in level_vars:
         if var in ds:
-            for level in levels:
-                new_name = f"{var}_level_{level}"
-                ds = ds.assign({new_name: ds[var].sel({"z": level})})
-                ds[new_name].attrs.update(
-                    {"long_name": f"{var} at model level {level}"}
-                )
+            new_name = f"{var}_level_{level}"
+            ds = ds.assign({new_name: ds[var].sel({"z": level})})
+            ds[new_name].attrs.update({"long_name": f"{var} at model level {level}"})
         else:
             raise ValueError("Invalid variable for model level selection.")
 

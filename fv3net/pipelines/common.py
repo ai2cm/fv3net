@@ -14,8 +14,7 @@ from apache_beam.io import filesystems
 
 from vcm.cloud.fsspec import get_fs
 from vcm import parse_timestep_str_from_path, parse_datetime_from_str
-from vcm.cubedsphere.constants import TIME_FMT, INIT_TIME_DIM, TILE_COORDS
-from vcm.convenience import round_time
+from vcm.cubedsphere.constants import TIME_FMT
 
 logger = logging.getLogger(__name__)
 
@@ -203,27 +202,3 @@ def get_alphanumeric_unique_tag(tag_length: int) -> str:
     use_chars = string.ascii_lowercase + string.digits
     short_id = "".join([secrets.choice(use_chars) for i in range(tag_length)])
     return short_id
-
-
-def load_hires_prog_diag(diag_data_path, init_times):
-    """Loads coarsened diagnostic variables from the prognostic high res run.
-    
-    Args:
-        diag_data_path (str): path to directory containing coarsened high res
-            diagnostic data
-        init_times (list(datetime)): list of datetimes to filter diagnostic data to
-    
-    Returns:
-        xarray dataset: prognostic high res diagnostic variables
-    """
-    fs = get_fs(diag_data_path)
-    ds_diag = xr.open_zarr(fs.get_mapper(diag_data_path), consolidated=True).rename(
-        {"time": INIT_TIME_DIM}
-    )
-    ds_diag = ds_diag.assign_coords(
-        {
-            INIT_TIME_DIM: [round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
-            "tile": TILE_COORDS,
-        }
-    )
-    return ds_diag.sel({INIT_TIME_DIM: init_times})

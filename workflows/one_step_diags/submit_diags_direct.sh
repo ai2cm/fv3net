@@ -17,7 +17,7 @@ if [ ! -d $LOGDIR ]; then
   mkdir $LOGDIR
 fi
 LOGFILE="${LOGDIR}/one-step-diags-${STAMP}.log"
-exec >>${LOGFILE} 2>&1
+exec > >(tee ${LOGFILE}) 2>&1
 
 export PYTHONPATH="./workflows/one_step_diags/"
 
@@ -35,4 +35,4 @@ $NETCDF_OUTPUT \
 echo "Running command:"
 echo ${CMD}
 
-nohup $CMD &
+$CMD

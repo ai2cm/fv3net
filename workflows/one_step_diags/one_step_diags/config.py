@@ -1,3 +1,14 @@
+INIT_TIME_DIM = "initial_time"
+FORECAST_TIME_DIM = "forecast_time"
+DELTA_DIM = "model_run"
+OUTPUT_NC_FILENAME = "one_step_diag_data.nc"
+ONE_STEP_ZARR = "big.zarr"
+ZARR_STEP_DIM = "step"
+ZARR_STEP_NAMES = {"begin": "begin", "after_physics": "after_physics"}
+REPORT_TITLE = "One-step diagnostics"
+FIGURE_METADATA_FILE = "figure_metadata.yml"
+METADATA_TABLE_FILE = "metadata_table.yml"
+
 SFC_VARIABLES = [
     "DSWRFtoa",
     "DSWRFsfc",
@@ -34,23 +45,24 @@ HI_RES_DIAGS_MAPPING.update(
     }
 )
 
-HI_RES_DIAGS_DIMS = {
-    "grid_xt": "x",
-    "grid_yt": "y",
-    "initialization_time": "initial_time",
-}
+HI_RES_DIAGS_DIMS = {"grid_xt": "x", "grid_yt": "y"}
 
 ABS_VARS = [
     "surface_pressure",
-    "precipitable_water",
+    "liquid_water_equivalent",
     "column_integrated_heat",
     "vertical_wind",
 ]
 
+LEVEL_VARS = [
+    ("vertical_wind", 40),
+    ("vertical_wind_abs", 40),
+]
+
 GLOBAL_MEAN_2D_VARS = {
     "surface_pressure_abs": {"var_type": ["tendencies"], "scale": [0.12]},
-    "precipitable_water_abs": {"var_type": ["tendencies"], "scale": [0.0012]},
-    "precipitable_water": {"var_type": ["tendencies"], "scale": [0.0012]},
+    "liquid_water_equivalent_abs": {"var_type": ["tendencies"], "scale": [0.0006]},
+    "liquid_water_equivalent": {"var_type": ["tendencies"], "scale": [0.0006]},
     "column_integrated_heat": {
         "var_type": ["tendencies", "states"],
         "scale": [1000, None],
@@ -79,7 +91,7 @@ DIURNAL_VAR_MAPPING = {
         "physics": {"name": "net_precipitation_physics", "var_type": "states"},
         "scale": 10,
     },
-    "total_precipitaton_diurnal": {
+    "total_precipitation_diurnal": {
         "hi-res - coarse": {"name": "total_precipitation", "var_type": "states"},
         "physics": {"name": "total_precipitation", "var_type": "states"},
         "scale": 10,
@@ -129,7 +141,7 @@ GLOBAL_MEAN_3D_VARS = {
     "cloud_water_ice": {"var_type": "tendencies", "scale": 5e-8},
     "precipitating_water": {"var_type": "tendencies", "scale": 1e-8},
     "total_water": {"var_type": "tendencies", "scale": 1e-7},
-    "vertical_wind": {"var_type": "states", "scale": 0.05},
+    "vertical_wind": {"var_type": "states", "scale": 0.02},
 }
 
 GLOBAL_2D_MAPS = {
@@ -163,6 +175,7 @@ __all__ = [
     "VARS_FROM_ZARR",
     "GRID_VARS",
     "ABS_VARS",
+    "LEVEL_VARS",
     "GLOBAL_MEAN_2D_VARS",
     "DIURNAL_VAR_MAPPING",
     "DQ_MAPPING",
