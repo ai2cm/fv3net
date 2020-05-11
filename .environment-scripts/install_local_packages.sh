@@ -10,7 +10,8 @@ do
   pip install --no-deps -e $package
 done
 
-poetry_packages=( external/runtime external/report external/gallery . external/fv3config external/vcm external/vcm/external/mappm  )
+poetry_packages=( external/runtime external/report external/gallery . external/fv3config external/vcm external/vcm/external/mappm external/synth workflows/one_step_diags )
+
 for package in ${poetry_packages[@]}
 do
   (
