@@ -1,5 +1,5 @@
 from vcm.visualize import plot_cube, mappable_var
-from .config import (
+from config import (
     MAPPABLE_VAR_KWARGS,
     GRID_VARS,
     FORECAST_TIME_DIM,

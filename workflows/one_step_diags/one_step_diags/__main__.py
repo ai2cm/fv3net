@@ -1,10 +1,8 @@
-from vcm.cloud import get_protocol
 from vcm.cloud.gsutil import copy
 from vcm.cubedsphere.constants import TIME_FMT
 from vcm.safe import get_variables
 from fv3net.pipelines.common import update_nested_dict
 from . import utils
-from .plots import make_all_plots
 from .config import (
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
@@ -12,12 +10,9 @@ from .config import (
     ZARR_STEP_DIM,
     ZARR_STEP_NAMES,
     OUTPUT_NC_FILENAME,
-    REPORT_TITLE,
-    FIGURE_METADATA_FILE,
-    METADATA_TABLE_FILE,
+    CONFIG_FILENAME,
 )
 from . import config
-import report
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 import argparse
@@ -29,7 +24,6 @@ import fsspec
 import yaml
 import random
 import os
-import shutil
 from tempfile import NamedTemporaryFile
 from typing import Sequence, Mapping, Any
 import logging
@@ -75,13 +69,6 @@ def _create_arg_parser():
     )
     parser.add_argument(
         "netcdf_output", type=str, help="Output location for diagnostics netcdf file."
-    )
-    parser.add_argument(
-        "--report_directory",
-        type=str,
-        default=None,
-        help="(Public) bucket path for report and image upload. If omitted, report is"
-        "written to netcdf_output.",
     )
     parser.add_argument(
         "--diags_config",
@@ -327,17 +314,6 @@ def _write_ds(ds: xr.Dataset, fullpath: str):
         copy(tmpfile.name, fullpath)
 
 
-def _write_report(output_report_dir, report_sections, metadata):
-    with open(os.path.join(output_report_dir, FIGURE_METADATA_FILE), mode="w") as f:
-        yaml.dump(report_sections, f)
-    with open(os.path.join(output_report_dir, METADATA_TABLE_FILE), mode="w") as f:
-        yaml.dump(metadata, f)
-    filename = REPORT_TITLE.replace(" ", "_").replace("-", "_").lower() + ".html"
-    html_report = report.create_html(report_sections, REPORT_TITLE, metadata=metadata)
-    with open(os.path.join(output_report_dir, filename), "w") as f:
-        f.write(html_report)
-
-
 # start routine
 
 args, pipeline_args = _create_arg_parser().parse_known_args()
@@ -403,37 +379,8 @@ with beam.Pipeline(options=beam_options) as p:
         | "WriteDS" >> beam.Map(_write_ds, output_nc_path)
     )
 
-with fsspec.open(output_nc_path) as ncfile:
-    states_and_tendencies = xr.open_dataset(ncfile).load()
-
-# if report output path is GCS location, save results to local output dir first
-
-if args.report_directory:
-    report_path = args.report_directory
-else:
-    report_path = args.netcdf_output
-
-proto = get_protocol(report_path)
-if proto == "" or proto == "file":
-    output_report_dir = report_path
-elif proto == "gs":
-    remote_report_path, output_report_dir = os.path.split(report_path.strip("/"))
-
-if os.path.exists(output_report_dir):
-    shutil.rmtree(output_report_dir)
-os.mkdir(output_report_dir)
-
-logger.info(f"Writing diagnostics plots report to {report_path}")
-
-report_sections = make_all_plots(states_and_tendencies, config, output_report_dir)
-metadata = vars(args)
-metadata.update(
-    {"initializations_processed": states_and_tendencies.attrs[INIT_TIME_DIM]}
-)
-_write_report(output_report_dir, report_sections, metadata)
-
-# copy report directory to necessary locations
-if proto == "gs":
-    copy(output_report_dir, remote_report_path)
-if args.report_directory:
-    copy(output_report_dir, args.netcdf_output)
+# write config to output location
+with fsspec.open(
+    os.path.join(args.netcdf_output, CONFIG_FILENAME), "w"
+) as config_output_file:
+    yaml.dump(config, config_output_file)

@@ -26,13 +26,22 @@ $ONE_STEP_DATA \
 $HI_RES_DIAGS \
 $TIMESTEPS_FILE \
 $NETCDF_OUTPUT \
---report_directory $REPORT_DIRECTORY \
 --diags_config $DIAGS_CONFIG \
 --n_sample_inits 2 \
---runner DirectRunner
-"
+--runner DirectRunner"
     
 echo "Running command:"
 echo ${CMD}
 
 $CMD
+
+REPORT_CMD="python ./workflows/one_step_diags/one_step_diags/generate_report.py \
+$NETCDF_OUTPUT \
+--report_directory $REPORT_DIRECTORY"
+
+echo "Completed processing pipeline. Now generating report with command:"
+echo ${REPORT_CMD}
+
+$REPORT_CMD
+
+echo "Completed successfully."

@@ -5,6 +5,7 @@ OUTPUT_NC_FILENAME = "one_step_diag_data.nc"
 ONE_STEP_ZARR = "big.zarr"
 ZARR_STEP_DIM = "step"
 ZARR_STEP_NAMES = {"begin": "begin", "after_physics": "after_physics"}
+CONFIG_FILENAME = "one_step_diags_config.yml"
 REPORT_TITLE = "One-step diagnostics"
 FIGURE_METADATA_FILE = "figure_metadata.yml"
 METADATA_TABLE_FILE = "metadata_table.yml"
@@ -37,13 +38,7 @@ VARS_FROM_ZARR = [
 GRID_VARS = ["lat", "lon", "latb", "lonb", "area", "land_sea_mask"]
 
 HI_RES_DIAGS_MAPPING = {name: name for name in SFC_VARIABLES}
-HI_RES_DIAGS_MAPPING.update(
-    {
-        "latent_heat_flux": "LHTFLsfc",
-        "sensible_heat_flux": "SHTFLsfc",
-        "total_precipitation": "PRATEsfc",
-    }
-)
+HI_RES_DIAGS_MAPPING.update({"latent_heat_flux": "LHTFLsfc"})
 
 HI_RES_DIAGS_DIMS = {"grid_xt": "x", "grid_yt": "y"}
 
@@ -55,8 +50,8 @@ ABS_VARS = [
 ]
 
 LEVEL_VARS = [
-    ("vertical_wind", 40),
-    ("vertical_wind_abs", 40),
+    {"name": "vertical_wind", "level": 40},
+    {"name": "vertical_wind_abs", "level": 40},
 ]
 
 GLOBAL_MEAN_2D_VARS = {
@@ -127,12 +122,12 @@ DQ_PROFILE_MAPPING = {
     "vertical_wind": {"name": "dW", "var_type": "states", "scale": 0.025},
 }
 
-PROFILE_COMPOSITES = (
+PROFILE_COMPOSITES = [
     "pos_PminusE_land_mean",
     "neg_PminusE_land_mean",
     "pos_PminusE_sea_mean",
     "neg_PminusE_sea_mean",
-)
+]
 
 GLOBAL_MEAN_3D_VARS = {
     "specific_humidity": {"var_type": "tendencies", "scale": 1e-7},

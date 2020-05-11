@@ -4,6 +4,10 @@ one_step_diags
 
 A poetry micropackage for creating diagnostic report on the one-step jobs
 
+The module provides two functionalities: 1) processing one-step data in to a diagnostic dataset, and 2) generating plots from that data.
+
+The processing pipeline is called via the ``python -m one_step_diags`` module, while the report generation is called with ``python .one_step_diags/generate_report.py``
+
 **Usage**
 
 Entrypoints are provided for launching jobs locally or on Dataflow:
@@ -14,7 +18,9 @@ Entrypoints are provided for launching jobs locally or on Dataflow:
 
 where MODEL_CONFIGURATION is the experiment configuration, e.g., 'deep-off'
 
-To see the module's usage run ``python -m one_step_diags -h`` in this directory; example::
+Note that the local (testing) script both runs the data pipeline and generates the report, while the Dataflow script only runs the data pipeline, and the report generation script must be run separately. 
+
+To see the pipeline module's usage run ``python -m one_step_diags -h`` in this directory; example::
 
     usage: python -m one_step_diags [-h] [--report_directory REPORT_DIRECTORY] [--diags_config DIAGS_CONFIG] [--data_fold DATA_FOLD] [--start_ind START_IND] [--n_sample_inits N_SAMPLE_INITS] [--coarsened_diags_zarr_name COARSENED_DIAGS_ZARR_NAME] one_step_data hi_res_diags timesteps_file netcdf_output
 
@@ -39,3 +45,16 @@ To see the module's usage run ``python -m one_step_diags -h`` in this directory;
                             Number of initalizations to use in computing one-step diagnostics.
       --coarsened_diags_zarr_name COARSENED_DIAGS_ZARR_NAME
                             (Public) bucket path for report and image upload. If omitted, report iswritten to netcdf_output.
+
+Usage for the report generation script is given by `python ./one_step_diags/generate_report.py -h`; example::
+
+    usage: generate_report.py [-h] [--report_directory REPORT_DIRECTORY] netcdf_path
+
+    positional arguments:
+      netcdf_path           Location of diagnostics netcdf file output from diags workflow.
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      --report_directory REPORT_DIRECTORY
+                            (Public) bucket path for report and image upload. If omitted, report iswritten to netcdf_path.
+    

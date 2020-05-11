@@ -6,7 +6,7 @@ from vcm.cubedsphere.constants import TILE_COORDS
 from vcm.select import mask_to_surface_type
 from vcm.convenience import parse_datetime_from_str, round_time
 from vcm.safe import get_variables
-from vcm import thermo, local_time, net_precipitation
+from vcm import thermo, local_time, net_precipitation, net_heating
 import logging
 from typing import Sequence, Mapping
 from .config import (
@@ -17,7 +17,6 @@ from .config import (
     ZARR_STEP_DIM,
     ZARR_STEP_NAMES,
 )
-from fv3net.diagnostics.data import net_heating_from_dataset
 
 
 logger = logging.getLogger("one_step_diags")
@@ -35,6 +34,30 @@ def time_coord_to_datetime(
     ds = ds.assign_coords({time_coord: init_datetime_coords})
 
     return ds
+
+
+def net_heating_from_hi_res_physics(ds: xr.Dataset) -> xr.DataArray:
+    """Compute the net heating from a dataset of diagnostic output
+    This should be equivalent to the vertical integral (i.e. <>) of Q1::
+        cp <Q1>
+    Args:
+        ds: a datasets with the names for the heat fluxes and precipitation used
+            by the ML pipeline
+    Returns:
+        the total net heating, the rate of change of the dry enthalpy <c_p T>
+    """
+    fluxes = (
+        ds["DLWRFsfc"],
+        ds["DSWRFsfc"],
+        ds["ULWRFsfc"],
+        ds["ULWRFtoa"],
+        ds["USWRFsfc"],
+        ds["USWRFtoa"],
+        ds["DSWRFtoa"],
+        ds["SHTFLsfc"],
+        ds["PRATEsfc"],
+    )
+    return net_heating(*fluxes)
 
 
 def load_hires_prog_diag(diag_data_path, init_times):
@@ -149,7 +172,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             "evaporation": thermo.surface_evaporation_mm_day_from_latent_heat_flux(
                 ds["latent_heat_flux"]
             ),
-            "net_heating_physics": net_heating_from_dataset(
+            "net_heating_physics": net_heating_from_hi_res_physics(
                 ds.rename(
                     {
                         "sensible_heat_flux": "SHTFLsfc",
@@ -293,7 +316,9 @@ def insert_abs_vars(ds: xr.Dataset, varnames: Sequence) -> xr.Dataset:
 
 def insert_variable_at_model_level(ds: xr.Dataset, level_vars: Sequence):
 
-    for var, level in level_vars:
+    for level_var in level_vars:
+        var = level_var["name"]
+        level = level_var["level"]
         if var in ds:
             new_name = f"{var}_level_{level}"
             ds = ds.assign({new_name: ds[var].sel({"z": level})})

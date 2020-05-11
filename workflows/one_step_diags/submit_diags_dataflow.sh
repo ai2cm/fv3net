@@ -10,7 +10,6 @@ HI_RES_DIAGS=gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-
 TIMESTEPS_FILE=./train_and_test_times.json
 DIAGS_CONFIG=./workflows/one_step_diags/one_step_diags_ex_config.yaml
 NETCDF_OUTPUT=gs://vcm-ml-scratch/brianh/one-step-diags-testing/${MODEL_CONFIGURATION}-${STAMP}
-REPORT_DIRECTORY=gs://vcm-ml-public/2020-04-22-advisory-council/${MODEL_CONFIGURATION}/one-step-diagnostics-${STAMP}
 
 LOGDIR="./logs"
 if [ ! -d $LOGDIR ]; then
@@ -44,7 +43,6 @@ $ONE_STEP_DATA \
 $HI_RES_DIAGS \
 $TIMESTEPS_FILE \
 $NETCDF_OUTPUT \
---report_directory $REPORT_DIRECTORY \
 --diags_config $DIAGS_CONFIG \
 --n_sample_inits 48 \
 --runner DataflowRunner \
