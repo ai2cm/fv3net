@@ -10,6 +10,7 @@ latest
 * Prognostic run report: compute and plot scalar metrics, generate report via
   python script, change output location (#226)
 * Multithreaded uploading in one-step jobs (#260)
+* Made nudging run upload more robust using k8s yaml templating submission and gsutil container upload
 
 0.2.0 (2020-04-23)
 ------------------
