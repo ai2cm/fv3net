@@ -10,6 +10,8 @@ DATAFLOW_ARGS_MAPPING = {
     "coarsen_restarts": COARSEN_RESTARTS_DATAFLOW_ARGS,
     "create_training_data": CREATE_TRAINING_DATAFLOW_ARGS,
 }
+# allowed keys that specify a base command
+COMMAND_TYPES = ["command", "python", "argo"]
 
 
 def get_experiment_steps_and_args(config_file: str):
@@ -164,17 +166,30 @@ def _resolve_dataflow_args(config: Mapping):
             )
 
 
+def _resolve_command(step_config: Mapping):
+    command = [key for key in step_config if key in COMMAND_TYPES]
+    assert len(command)==1, \
+        f"Command line arg should specified once as member of set {COMMAND_TYPES}."
+    return command[0]
+
+
 def _get_all_step_arguments(config: Mapping):
     """Get a dictionary of each step with i/o and methedological arguments"""
-
     steps_config = config["experiment"]["steps_config"]
     all_step_arguments = {}
+    command_to_arg_format = {
+        "command": _resolve_arg_values,
+        "python": _resolve_arg_values,
+        "argo": _resolve_arg_values_argo,
+    }
     for step, step_config in steps_config.items():
-        step_args = [step_config["command"]]
+        command = _resolve_command(step_config)
+        step_args = [command]
+        arg_resolver = command_to_arg_format[command]
         required_args = []
         optional_args = []
         for key, value in step_config["args"].items():
-            arg_string = _resolve_arg_values(key, value)
+            arg_string = arg_resolver(key, value)
             if arg_string.startswith("--"):
                 optional_args.append(arg_string)
             else:
@@ -218,8 +233,30 @@ def _generate_output_path_from_config(
     return output_str
 
 
+def _resolve_arg_values_argo(key: Hashable, value: Any) -> Hashable:
+    """ take a step args key-value pair and process into an appropriate arg string
+    returns argo submit command with formatted args, e.g.
+     > argo submit some.yaml -p param_name=param_value --arg_name arg_value
+    """
+    # argo parameters are passed as "-p parameter_name=parameter_name"
+    if isinstance(value, Mapping):
+        # only situation for when the arg is a dict is when is {"location" : path}
+        location_value = value.get("location", None)
+        if location_value is None:
+            raise ValueError("Argument 'location' value not specified.")
+        else:
+            value = location_value
+    if key.startswith("--"):
+        arg_str = " ".join([key, str(value)])
+    else:
+        arg_str = f"-p {key}={value}"
+    return arg_str
+
+
 def _resolve_arg_values(key: Hashable, value: Any) -> Hashable:
-    """take a step args key-value pair and process into an appropriate arg string"
+    """ take a step args key-value pair and process into an appropriate arg string
+    returns general formatted command e.g.
+     > commmand required_arg --optional_arg optional_arg_value
     """
     if isinstance(value, Mapping):
         # case for when the arg is a dict {"location" : path}
@@ -229,9 +266,6 @@ def _resolve_arg_values(key: Hashable, value: Any) -> Hashable:
         else:
             if key.startswith("--"):
                 arg_values = " ".join([key, str(location_value)])
-            # argo parameters are passed as "-p parameter_name=parameter_value"
-            elif key.startswith("-p"):
-                arg_values = f"{key}{location_value}"
             else:
                 arg_values = str(location_value)
     elif isinstance(value, List):
@@ -244,12 +278,10 @@ def _resolve_arg_values(key: Hashable, value: Any) -> Hashable:
     else:
         if key.startswith("--"):
             arg_values = " ".join([key, str(value)])
-        elif key.startswith("-p"):
-            arg_values = f"{key}{location_value}"
         else:
             arg_values = str(value)
     return arg_values
-
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -263,3 +295,5 @@ if __name__ == "__main__":
 
     # Print JSON to stdout to be consumed by shell script
     print(exp_args)
+
+
