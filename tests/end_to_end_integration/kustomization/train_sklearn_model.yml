@@ -1,1 +1,24 @@
-../../../workflows/sklearn_regression/example_rf_training_config.yml
+model_type: sklearn_random_forest
+hyperparameters:
+  max_depth: 4
+  n_estimators: 2
+batch_function: load_one_step_batches
+input_variables:
+  - air_temperature
+  - specific_humidity
+  - surface_geopotential
+  - land_sea_mask
+  - surface_temperature
+  - surface_latent_heat_flux
+  - surface_sensible_heat_flux
+output_variables:
+  - dQ1
+  - dQ2
+batch_kwargs:
+  num_batches: 2
+  files_per_batch: 1
+  rename_variables:
+    latent_heat_flux_prog: surface_latent_heat_flux
+    sensible_heat_flux_prog: surface_sensible_heat_flux
+  init_time_dim_name: "initial_time"
+  z_dim_name: "z"
