@@ -48,7 +48,7 @@ def rename_latlon(ds):
 def open_diagnostic_output(url):
     logger.info(f"Opening Diagnostic data at {url}")
     # open diagnostic output
-    ds = xr.open_zarr(fsspec.get_mapper(url))
+    ds = xr.open_zarr(fsspec.get_mapper(url), consolidated=True)
     # TODO need to implement a correct version of round time
     times = np.vectorize(round_time)(ds.time)
     return (
@@ -71,6 +71,21 @@ def open_restart_data(RESTART_ZARR):
     times = np.vectorize(vcm.parse_datetime_from_str)(restarts.time)
     return restarts.assign(time=times).drop(coords_names)
 
+
+def standardize_restart_metadata(restarts):
+    coords_names = ["grid_x", "grid_y", "grid_xt", "grid_yt", "pfull", "tile"]
+    times = np.vectorize(vcm.parse_datetime_from_str)(restarts.time)
+    return restarts.assign(time=times).drop(coords_names)
+
+
+def standardize_diagnostic_metadata(ds):
+    times = np.vectorize(round_time)(ds.time)
+    return (
+        ds.assign(time=times)
+        .pipe(remove_coarse_name)
+        .pipe(rename_dims)
+        .pipe(rename_latlon)
+    )
 
 def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
     time = restarts.time
