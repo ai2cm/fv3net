@@ -2,7 +2,7 @@ import collections
 import backoff
 import functools
 import logging
-from typing import Iterable
+from typing import Iterable, List, Sequence
 import numpy as np
 import xarray as xr
 
@@ -42,7 +42,14 @@ def _url_to_datetime(url):
     )
 
 
-def get_time_list(url_list_sequence):
+def get_time_list(url_list_sequence: Sequence[List[str]]):
+    """Given a sequence of lists of URLs, return a list of times present in those
+    lists.
+    
+    [description]
+    [arguments]
+    [returns]
+    """
     time_list = []
     for url_list in url_list_sequence:
         time_list.extend(map(_url_to_datetime, url_list))
@@ -56,19 +63,25 @@ def load_one_step_batches(
     files_per_batch: int,
     num_batches: int = None,
     random_seed: int = 1234,
-    mask_to_surface_type: str = "none",
-    init_time_dim_name="initial_time",
-    z_dim_name="z",
-    rename_variables=None,
-) -> collections.abc.Sequence:
+    mask_to_surface_type: str = None,
+    init_time_dim_name: str = "initial_time",
+    z_dim_name: str = "z",
+    rename_variables: collections.Mapping = None,
+) -> Sequence:
     """Get a sequence of batches from one-step zarr stores.
 
     Args:
-        data_vars: variable names to load
-        gcs_data_dir: gcs location of data
-        files_per_batch: number of files used to create each batch
+        data_path: location of directory containing zarr stores
+        input_variables: names of inputs
+        output_variables: names of outputs
+        files_per_batch: number of zarr stores used to create each batch
         num_batches (optional): number of batches to create. By default, use all the
             available trianing data.
+        random_seed (optional): seed value for random number generator
+        mask_to_surface_type: mask data points to ony include the indicated surface type
+        init_time_dim_name: name of the initialization time dimension
+        z_dim_name: name of the vertical dimension
+        rename_variables: mapping of variables to rename, from data names to standard names
     """
     if rename_variables is None:
         rename_variables = {}
@@ -120,7 +133,8 @@ def _load_one_step_batch(
     ds = xr.concat(data, init_time_dim_name)
     ds = ds.rename(rename_variables)
     ds = safe.get_variables(ds, data_vars)
-    ds = vcm.mask_to_surface_type(ds, mask_to_surface_type)
+    if mask_to_surface_type is not None:
+        ds = vcm.mask_to_surface_type(ds, mask_to_surface_type)
     stack_dims = [dim for dim in ds.dims if dim != z_dim_name]
     ds_stacked = safe.stack_once(
         ds,
@@ -135,8 +149,8 @@ def _load_one_step_batch(
         raise ValueError(
             "No Valid samples detected. Check for errors in the training data."
         )
-
-    return _shuffled(ds_no_nan, SAMPLE_DIM, random)
+    ds = ds_no_nan.load()
+    return _shuffled(ds, SAMPLE_DIM, random)
 
 
 @backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
