@@ -8,7 +8,7 @@ files_per_batch: 10
 input_variables:
   - air_temperature
   - specific_humidity
-  - DSWRFtoa_train
+  - DSWRFtoa_train  # changed parameter
 output_variables:
   - dQ1
   - dQ2

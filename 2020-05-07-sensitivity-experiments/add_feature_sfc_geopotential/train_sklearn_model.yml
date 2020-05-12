@@ -8,7 +8,7 @@ files_per_batch: 10
 input_variables:
   - air_temperature
   - specific_humidity
-  - surface_geopotential
+  - surface_geopotential # changed parameter
 output_variables:
   - dQ1
   - dQ2
