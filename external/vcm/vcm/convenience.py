@@ -26,7 +26,8 @@ def round_time(t, to=timedelta(seconds=1)):
 
     Args:
         t: datetime or cftime object
-        to: size of increment to round off to. By default round to closest integer second.
+        to: size of increment to round off to. By default round to closest integer
+            second.
 
     Returns:
         datetime or cftime object rounded to nearest minute
@@ -44,6 +45,10 @@ def round_time(t, to=timedelta(seconds=1)):
     rounded_time_since_midnight = closest_multiple_of_to * to
 
     return midnight + rounded_time_since_midnight
+
+
+def encode_time(time: cftime.DatetimeJulian) -> str:
+    return time.strftime(TIME_FMT)
 
 
 def parse_timestep_str_from_path(path: str) -> str:
