@@ -21,7 +21,8 @@ from .config import (
 
 logger = logging.getLogger("one_step_diags")
 
-_KG_M2S_TO_MM_DAY = (1e3 * 86400) / 997.0
+_SECONDS_PER_DAY = 86400
+_MM_PER_M = 1000
 
 
 def time_coord_to_datetime(
@@ -83,6 +84,29 @@ def load_hires_prog_diag(diag_data_path, init_times):
     return ds_diag.sel({INIT_TIME_DIM: init_times})
 
 
+def _precipitation_rate_from_total_precipitation(
+    total_precipitation: xr.DataArray, time_dim: str = FORECAST_TIME_DIM
+) -> xr.DataArray:
+    """Compute precipitation rate from wrapper total_precipitation variable
+    
+    Args:
+        total_precipitation, timestep precipitation in m
+        time_dim, name of time dimension coordinate variabke, which must provide
+            output times in seconds
+    
+    Returns:
+        precipitation_rate, precipitation rate in mm/day
+    """
+
+    dt_seconds = total_precipitation[time_dim].diff(time_dim).isel({time_dim: 0})
+    precipitation_rate = _MM_PER_M * _SECONDS_PER_DAY * total_precipitation / dt_seconds
+    precipitation_rate = precipitation_rate.assign_attrs(
+        {"long name": "precipitation rate", "units": "mm/day"}
+    )
+
+    return precipitation_rate
+
+
 def insert_hi_res_diags(
     ds: xr.Dataset, hi_res_diags_path: str, config: Mapping
 ) -> xr.Dataset:
@@ -93,6 +117,16 @@ def insert_hi_res_diags(
         ds[cumulative_vars].fillna(value=0).diff(dim=FORECAST_TIME_DIM, label="upper")
     )
     ds = ds.drop(labels=cumulative_vars).merge(surface_longwave)
+
+    # create precipitation_rate variable here so that it's equivalent to hi-res
+    # PRATE
+    ds = ds.assign(
+        {
+            "precipitation_rate": _precipitation_rate_from_total_precipitation(
+                ds["total_precipitation"]
+            )
+        }
+    )
 
     new_dims = config["HI_RES_DIAGS_DIMS"]
     datetimes = list(ds[INIT_TIME_DIM].values)
@@ -167,7 +201,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
                 ds["air_temperature"], ds["pressure_thickness_of_atmospheric_layer"]
             ),
             "net_precipitation_physics": net_precipitation(
-                ds["latent_heat_flux"], ds["total_precipitation"]
+                ds["latent_heat_flux"], ds["precipitation_rate"] / _SECONDS_PER_DAY
             ),
             "evaporation": thermo.surface_evaporation_mm_day_from_latent_heat_flux(
                 ds["latent_heat_flux"]
@@ -178,11 +212,6 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
                         "sensible_heat_flux": "SHTFLsfc",
                         "total_precipitation": "PRATEsfc",
                     }
-                )
-            ),
-            "total_precipitation": (
-                (ds["total_precipitation"] * _KG_M2S_TO_MM_DAY).assign_attrs(
-                    {"long name": "total precipitation", "units": "mm/day"}
                 )
             ),
         }

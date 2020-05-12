@@ -42,7 +42,7 @@ HI_RES_DIAGS_MAPPING.update(
     {
         "latent_heat_flux": "LHTFLsfc",
         "sensible_heat_flux": "SHTFLsfc",
-        "total_precipitation": "PRATEsfc",
+        "precipitation_rate": "PRATEsfc",
     }
 )
 
@@ -72,7 +72,7 @@ GLOBAL_MEAN_2D_VARS = {
     "vertical_wind_abs_level_40": {"var_type": ["states"], "scale": [0.05]},
     "latent_heat_flux": {"var_type": ["states"], "scale": [None]},
     "sensible_heat_flux": {"var_type": ["states"], "scale": [None]},
-    "total_precipitation": {"var_type": ["states"], "scale": [None]},
+    "precipitation_rate": {"var_type": ["states"], "scale": [None]},
 }
 
 DIURNAL_VAR_MAPPING = {
@@ -92,9 +92,9 @@ DIURNAL_VAR_MAPPING = {
         "physics": {"name": "net_precipitation_physics", "var_type": "states"},
         "scale": 10,
     },
-    "total_precipitation_diurnal": {
-        "hi-res - coarse": {"name": "total_precipitation", "var_type": "states"},
-        "physics": {"name": "total_precipitation", "var_type": "states"},
+    "precipitation_rate_diurnal": {
+        "hi-res - coarse": {"name": "precipitation_rate", "var_type": "states"},
+        "physics": {"name": "precipitation_rate", "var_type": "states"},
         "scale": 10,
     },
     "evaporation_diurnal": {
@@ -150,7 +150,7 @@ GLOBAL_2D_MAPS = {
     "column_integrated_heating": {"var_type": "tendencies", "scale": 1000},
     "minus_column_integrated_moistening": {"var_type": "tendencies", "scale": 10},
     "vertical_wind_level_40": {"var_type": "states", "scale": 0.05},
-    "total_precipitation": {"var_type": "states", "scale": None},
+    "precipitation_rate": {"var_type": "states", "scale": None},
     "latent_heat_flux": {"var_type": "states", "scale": 200},
     "sensible_heat_flux": {"var_type": "states", "scale": 100},
 }
