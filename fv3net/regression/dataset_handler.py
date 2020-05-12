@@ -10,6 +10,8 @@ import vcm
 from vcm import safe
 from vcm.cloud.fsspec import get_fs
 
+__all__ = ["load_one_step_batches"]
+
 SAMPLE_DIM = "sample"
 
 logger = logging.getLogger()
@@ -47,7 +49,7 @@ def get_time_list(url_list_sequence):
     return time_list
 
 
-def load_zarr_batches(
+def load_one_step_batches(
     data_path: str,
     input_variables: Iterable[str],
     output_variables: Iterable[str],
@@ -58,8 +60,8 @@ def load_zarr_batches(
     init_time_dim_name="initial_time",
     z_dim_name="z",
     rename_variables=None,
-):
-    """Get a sequence of batches from one-step output.
+) -> collections.abc.Sequence:
+    """Get a sequence of batches from one-step zarr stores.
 
     Args:
         data_vars: variable names to load
