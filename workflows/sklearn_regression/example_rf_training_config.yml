@@ -16,7 +16,7 @@ output_variables:
   - dQ2
 batch_kwargs:
   num_batches: 2
-  files_per_batch: 2
+  files_per_batch: 1
   rename_variables:
     latent_heat_flux_prog: surface_latent_heat_flux
     sensible_heat_flux_prog: surface_sensible_heat_flux
