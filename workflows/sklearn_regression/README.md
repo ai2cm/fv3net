@@ -9,14 +9,14 @@ Example shell script:
 ```
 python -m fv3net.regression.sklearn \
   gs://vcm-ml-data/test_annak/2020-02-05_train_data_pipeline #input data path where "train" folder is located
-  example_rf_training_config.yml \
+  train_sklearn_model.yml \
   {output_data_path} \
   --delete-local-results-after-upload True
 ```
 The last two arguments are optional and allow the user to save the output directory to
 a remote storage location instead of a local directory.
 
-For an example model configuration file see example_rf_training_config.yml in the workflow directory.
+For an example model configuration file see train_sklearn_model.yml in the workflow directory.
 
 Currently, only random forests are implemented for training sklearn models in fv3net.
 Note that the total number of trees in the random forest will be

@@ -2,7 +2,7 @@ import collections
 import backoff
 import functools
 import logging
-from typing import Iterable, List, Sequence
+from typing import Iterable, List, Sequence, Callable, Mapping
 import numpy as np
 import xarray as xr
 
@@ -22,7 +22,7 @@ logger.addHandler(fh)
 
 
 class BatchSequence(collections.abc.Sequence):
-    def __init__(self, loader_function, args_sequence):
+    def __init__(self, loader_function: Callable, args_sequence: Sequence[Iterable]):
         """Create a sequence of Batch objects from a function which produces a single
         batch, and a sequence of arguments to that function.
         """
@@ -45,10 +45,6 @@ def _url_to_datetime(url):
 def get_time_list(url_list_sequence: Sequence[List[str]]):
     """Given a sequence of lists of URLs, return a list of times present in those
     lists.
-    
-    [description]
-    [arguments]
-    [returns]
     """
     time_list = []
     for url_list in url_list_sequence:
@@ -66,7 +62,7 @@ def load_one_step_batches(
     mask_to_surface_type: str = None,
     init_time_dim_name: str = "initial_time",
     z_dim_name: str = "z",
-    rename_variables: collections.Mapping = None,
+    rename_variables: Mapping[str, str] = None,
 ) -> Sequence:
     """Get a sequence of batches from one-step zarr stores.
 
@@ -120,13 +116,13 @@ def load_one_step_batches(
 
 def _load_one_step_batch(
     fs,
-    data_vars,
-    rename_variables,
-    init_time_dim_name,
-    z_dim_name,
-    mask_to_surface_type,
+    data_vars: Iterable[str],
+    rename_variables: Mapping[str, str],
+    init_time_dim_name: str,
+    z_dim_name: str,
+    mask_to_surface_type: str,
     random,
-    url_list,
+    url_list: Iterable[str],
 ):
     # TODO refactor this I/O. since this logic below it is currently
     # impossible to test.

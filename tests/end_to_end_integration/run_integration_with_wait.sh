@@ -65,7 +65,7 @@ configMapGenerator:
 - files:
     - time-control.yaml
     - prognostic_run.yml
-    - train_sklearn_model.yml
+    - ../../../workflows/sklearn_regression/train_sklearn_model.yml
   env: input_data.env
   literals:
     - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:$VERSION
