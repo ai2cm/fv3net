@@ -212,7 +212,7 @@ def make_all_plots(
 
     # make vertical profiles of dQ terms across forecast time
 
-    section_name = "&lt;dQ&gt; profiles across forecast time"
+    section_name = "dQ profiles across forecast time"
     logger.info(f"Plotting {section_name}")
 
     dQ_profile_maps = []
