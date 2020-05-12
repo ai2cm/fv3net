@@ -78,18 +78,24 @@ def save(keyval, area):
     joblib.dump((keyval, area), fname)
 
 
-def budget(kv):
-    keyval, area = kv
+def budget(keyval, area):
     (time, tile), val = keyval
 
-    grid = ['grid_xt', 'grid_yt', 'tile']
+    grid = ["grid_xt", "grid_yt", "tile"]
     area = area.sel(tile=tile).drop(grid)
 
     begin = xr.merge(val["begin"])
     end = xr.merge(val["end"])
     phys = xr.merge(val["phys"]).drop(grid)
-    coarse = budgets.compute_recoarsened_budget_v2(begin, end, phys, area)
+    return keyval, budgets.compute_recoarsened_budget_v2(begin, end, phys, area)
 
+
+def is_complete(kv):
+    _, d = kv
+    for name in d:
+        if len(d[name]) == 0:
+            return False
+    return True
 
 
 if __name__ == "__main__":
@@ -113,7 +119,7 @@ if __name__ == "__main__":
         "qv_dt_gfdlmp",
         "qv_dt_phys",
         "eddy_flux_omega_sphum",
-        "eddy_flux_omega_temp"
+        "eddy_flux_omega_temp",
     ]
 
     FROM_DIAG_RENAME = {""}
@@ -156,15 +162,9 @@ if __name__ == "__main__":
         begin = restarts_ | "Shift Forward" >> beam.Map(shift_time, -dt)
         end = restarts_ | "Shift Back" >> beam.Map(shift_time, dt)
 
-        # begin | "Save Restarts" >> beam.Map(write_to_disk, path="out")
-        # physics_data | "Save Physics" >> beam.Map(write_to_disk, path="out")
-        # end | "Save End" >> beam.Map(write_to_disk, path="out")
-
-        {
-            "end": end,
-            "begin": begin,
-            "phys": physics_data,
-        } | beam.CoGroupByKey() | "Save" >> beam.Map(
-            save, beam.pvalue.AsSingleton(area)
+        (
+            {"end": end, "begin": begin, "phys": physics_data,}
+            | beam.CoGroupByKey()
+            | "FilterComplete" >> beam.Filter(is_complete)
+            | "Save" >> beam.Map(save, beam.pvalue.AsSingleton(area))
         )
-
