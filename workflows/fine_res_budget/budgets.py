@@ -100,7 +100,7 @@ def storage(qv, dt):
     return (qv.sel(step="end") - qv.sel(step="begin")) / dt
 
 
-def compute_recoarsened_budget_v2(merged: xr.Dataset, dt=15 * 60, factor=8):
+def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
     """Compute the recoarse-grained budget information
 
     merged needs to be in the following format:
@@ -112,6 +112,7 @@ def compute_recoarsened_budget_v2(merged: xr.Dataset, dt=15 * 60, factor=8):
 
     middle = merged.sel(step="middle")
 
+    omega = middle.omega
     area = middle.area
     delp = middle.delp
     delp_c = grid.weighted_block_average(middle.delp, middle.area, factor=factor)
@@ -132,17 +133,12 @@ def compute_recoarsened_budget_v2(merged: xr.Dataset, dt=15 * 60, factor=8):
     variables_to_average["eddy_q"] = middle.eddy_flux_omega_sphum
     variables_to_average["eddy_T"] = middle.eddy_flux_omega_temp
 
-    def avg_dict(d, delp, delp_c, area, factor):
-        return dict(
-            zip(
-                d.keys(),
-                grid.pressure_level_average(
-                    delp, delp_c, area, *d.values(), factor=factor
-                ),
-            )
+    averaged_vars = {}
+    for key in variables_to_average:
+        averaged_vars[key] = grid.pressure_level_average(
+            delp, delp_c, area, variables_to_average[key], factor=8
         )
 
-    averaged_vars = avg_dict(variables_to_average, delp, delp_c, area, factor=factor)
     eddy_flux_q = (
         averaged_vars["eddy_q"]
         + averaged_vars["wq"]
@@ -188,6 +184,16 @@ def compute_recoarsened_budget_v2(merged: xr.Dataset, dt=15 * 60, factor=8):
     )
 
 
+def coarsen_eddy(delp, area, omega, x, factor=8):
+    return coarsen(delp, area, omega * x, factor=8)
+
+
+def coarsen(delp, area, x, factor=8):
+    grid = Grid("grid_xt", "grid_yt", "pfull", "grid_x", "grid_y", "pfulli")
+    delp_c = grid.weighted_block_average(delp, area, factor=factor)
+    return grid.pressure_level_average(delp, delp_c, area, omega * x, factor=8)
+
+
 def compute_recoarsened_budget_v2(
     begin: xr.Dataset, end: xr.Dataset, physics: xr.Dataset, area, dt=15 * 60, factor=8
 ):
@@ -217,10 +223,9 @@ def compute_recoarsened_budget_v2(
     variables_to_average["sphum"] = middle.sphum
     variables_to_average["T"] = middle.T
     variables_to_average["wq"] = middle.sphum * omega
-    variables_to_average["wT"] = middle.sphum * middle.T
+    variables_to_average["wT"] = middle.sphum * omega
     variables_to_average["eddy_q"] = physics.eddy_flux_omega_sphum
     variables_to_average["eddy_T"] = physics.eddy_flux_omega_temp
-
 
     averaged_vars = {}
     for key in variables_to_average:
@@ -271,4 +276,3 @@ def compute_recoarsened_budget_v2(
             "delp": delp_c,
         }
     )
-

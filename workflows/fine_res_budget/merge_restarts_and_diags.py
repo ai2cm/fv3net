@@ -87,6 +87,7 @@ def standardize_diagnostic_metadata(ds):
         .pipe(rename_latlon)
     )
 
+
 def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
     time = restarts.time
     begin = restarts.assign(time=time + dt)
