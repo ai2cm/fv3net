@@ -81,7 +81,8 @@ def load_one_step_batches(
         mask_to_surface_type: mask data points to ony include the indicated surface type
         init_time_dim_name: name of the initialization time dimension
         z_dim_name: name of the vertical dimension
-        rename_variables: mapping of variables to rename, from data names to standard names
+        rename_variables: mapping of variables to rename,
+            from data names to standard names
     """
     if rename_variables is None:
         rename_variables = {}

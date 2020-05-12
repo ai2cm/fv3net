@@ -22,7 +22,9 @@ def mask_to_surface_type(ds, surface_type, surface_type_var="land_sea_mask"):
     if surface_type == "global":
         return ds
     elif surface_type not in ["sea", "land", "seaice"]:
-        raise ValueError("Must mask to surface_type in ['sea', 'land', 'seaice', 'global'].")
+        raise ValueError(
+            "Must mask to surface_type in ['sea', 'land', 'seaice', 'global']."
+        )
     surface_type_codes = {"sea": 0, "land": 1, "seaice": 2}
     mask = ds[surface_type_var].astype(int) == surface_type_codes[surface_type]
     ds_masked = ds.where(mask)
