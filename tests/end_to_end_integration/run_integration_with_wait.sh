@@ -47,7 +47,6 @@ function waitForComplete {
 VERSION=$1
 
 cd tests/end_to_end_integration/
-cp ../../workflows/sklearn_regression/train_sklearn_model.yml kustomization/train_sklearn_model.yml
 
 random=$(openssl rand --hex 6)
 suffix=-integration-test-$random
@@ -66,7 +65,6 @@ configMapGenerator:
 - files:
     - time-control.yaml
     - prognostic_run.yml
-    - train_sklearn_model.yml
   env: input_data.env
   literals:
     - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:$VERSION
