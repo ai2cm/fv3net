@@ -9,8 +9,7 @@ input_variables:
   - surface_geopotential
   - land_sea_mask
   - surface_temperature
-  - surface_latent_heat_flux
-  - surface_sensible_heat_flux
+  - total_sky_downward_shortwave_flux_at_top_of_atmosphere
 output_variables:
   - dQ1
   - dQ2
@@ -18,7 +17,6 @@ batch_kwargs:
   num_batches: 2
   files_per_batch: 1
   rename_variables:
-    latent_heat_flux_prog: surface_latent_heat_flux
-    sensible_heat_flux_prog: surface_sensible_heat_flux
+    DSWRFtoa_train: total_sky_downward_shortwave_flux_at_top_of_atmosphere
   init_time_dim_name: "initial_time"
   z_dim_name: "z"
