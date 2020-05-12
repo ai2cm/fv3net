@@ -18,7 +18,7 @@ configMapGenerator:
       - one_step_jobs.yml
       - prognostic_run.yml
       - test_sklearn_variable_names.yml
-      - ../../sklearn_regression/train_sklearn_model.yml
+      - train_sklearn_model.yml
       - diag_table_prognostic
       - end_to_end.yaml
 images:
