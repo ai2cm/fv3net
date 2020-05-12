@@ -12,16 +12,22 @@ Example of timesteps_file input data::
         ]
     }⏎
 """
+import os
 import argparse
 import logging
-import yaml
-from .config import get_config
 
+import yaml
+import fsspec
+import xarray as xr
+import zarr
+
+from .config import get_config
 from .pipeline import run
 
-example_timesteps_file = """
-"""
+logger = logging.getLogger(__file__)
 
+ZARR_NAME = "big.zarr"
+COARSENED_DIAGS_ZARR_NAME = "gfsphysics_15min_coarse.zarr"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(epilog=__doc__)
@@ -31,6 +37,8 @@ if __name__ == "__main__":
         default=None,
         help="yaml file for updating the default data variable names.",
     )
+    # TODO would be cleaner to point directly to the big zarr rather
+    # than the directory containing it. Then we could remove the ZARR_NAME global.
     parser.add_argument(
         "gcs_input_data_path",
         type=str,
@@ -52,7 +60,7 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "gcs_output_data_dir",
+        "output_dir",
         type=str,
         help="Write path for train data in Google Cloud Storage bucket. "
         "Don't include bucket in path.",
@@ -70,4 +78,18 @@ if __name__ == "__main__":
 
     with open(args.timesteps_file, "r") as f:
         timesteps = yaml.safe_load(f)
-    run(args=args, pipeline_args=pipeline_args, names=names, timesteps=timesteps)
+
+    big_zarr_path = os.path.join(args.gcs_input_data_path, ZARR_NAME)
+    mapper = fsspec.get_mapper(big_zarr_path)
+    if ".zmetadata" not in mapper:
+        logger.info("Consolidating metadata")
+        zarr.consolidate_metadata(mapper)
+    ds = xr.open_zarr(mapper, consolidated=True)
+
+    # TODO refactor up to main
+    full_zarr_path = os.path.join(args.diag_c48_path, COARSENED_DIAGS_ZARR_NAME)
+    mapper = fsspec.get_mapper(full_zarr_path)
+    ds_diag = xr.open_zarr(mapper, consolidated=True)
+
+    # TODO Basic io of diag_c48_path should be lifted here as well
+    run(ds, ds_diag, args.output_dir, pipeline_args, names, timesteps)

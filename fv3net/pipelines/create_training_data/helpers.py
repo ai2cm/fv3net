@@ -6,13 +6,10 @@ import xarray as xr
 from typing import Mapping
 
 from vcm.fv3_restarts import open_diagnostic
-from vcm.cloud.fsspec import get_fs
-from vcm.convenience import round_time
 from vcm.cubedsphere.constants import (
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
     TIME_FMT,
-    TILE_COORDS,
 )
 
 
@@ -61,30 +58,6 @@ def _set_relative_forecast_time_coord(ds):
     return ds.assign_coords(
         {FORECAST_TIME_DIM: [timedelta(seconds=0), delta_t_forecast]}
     )
-
-
-def load_hires_prog_diag(diag_data_path, init_times):
-    """Loads coarsened diagnostic variables from the prognostic high res run.
-    
-    Args:
-        diag_data_path (str): path to directory containing coarsened high res
-            diagnostic data
-        init_times (list(datetime)): list of datetimes to filter diagnostic data to
-    
-    Returns:
-        xarray dataset: prognostic high res diagnostic variables
-    """
-    fs = get_fs(diag_data_path)
-    ds_diag = xr.open_zarr(fs.get_mapper(diag_data_path), consolidated=True).rename(
-        {"time": INIT_TIME_DIM}
-    )
-    ds_diag = ds_diag.assign_coords(
-        {
-            INIT_TIME_DIM: [round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
-            "tile": TILE_COORDS,
-        }
-    )
-    return ds_diag.sel({INIT_TIME_DIM: init_times})
 
 
 def load_train_diag(top_level_dir, init_times):
