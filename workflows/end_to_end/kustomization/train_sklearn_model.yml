@@ -6,9 +6,6 @@ batch_function: load_one_step_batches
 input_variables:
   - air_temperature
   - specific_humidity
-  - surface_geopotential
-  - land_sea_mask
-  - surface_temperature
 output_variables:
   - dQ1
   - dQ2
