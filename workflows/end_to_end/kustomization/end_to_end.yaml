@@ -63,7 +63,7 @@ experiment:
         train-config-file: $CONFIG/train_sklearn_model.yml
         
     test_sklearn_model: 
-      command: python -m fv3net.diagnostics.sklearn_model_performance
+      argo: argo submit $CONFIG/argo_offline_diagnostics.yml
       args:
         trained_model:
           from: train_sklearn_model
@@ -71,7 +71,7 @@ experiment:
           from: create_training_data
         diagnostics_data:
           from: coarsen_diagnostics
-        variable_filename: $CONFIG/test_sklearn_variable_names.yml
+        docker_image: $FV3NET_IMAGE
 
     prognostic_run:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
