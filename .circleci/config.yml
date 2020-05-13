@@ -13,7 +13,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: key.json
     steps:
       - checkout
-      - run: sudo apt-get update && sudo apt-get install -y uuid
+      - run: apt-get update && apt-get install -y uuid
       - run:
           name: "Save GCS for tests."
           command: |
