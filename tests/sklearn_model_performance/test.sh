@@ -10,9 +10,9 @@ VARIABLE_NAMES_FILE=workflows/end_to_end/kustomization/test_sklearn_variable_nam
 IMAGE=us.gcr.io/vcm-ml/fv3net:6f59138183398745b84ab582d6fcaebe208f5d6a
 OUTPUT=gs://vcm-ml-scratch/annak/2020-05-12/argo_test
 
-argo submit argo.yaml \
-    -p trained_model=$TRAINED_MODEL \
-    -p testing_data=$TEST_DATA_PATH \
-    -p diagnostics_data=$HIGH_RES_DATA_PATH \
-    -p output=$OUTPUT \
-    -p image=$IMAGE
+argo submit argo_offline_diagnostics.yml \
+    -p trained-model=$TRAINED_MODEL \
+    -p testing-data=$TEST_DATA_PATH \
+    -p diagnostics-data=$HIGH_RES_DATA_PATH \
+    -p output-location=$OUTPUT \
+    -p docker-image=$IMAGE

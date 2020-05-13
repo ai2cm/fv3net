@@ -5,10 +5,11 @@ metadata:
 spec:
   arguments:
     parameters:
-      - name: trained_model
-      - name: testing_data
-      - name: diagnostics_data
-      - name: output
+      - name: trained-model
+      - name: testing-data
+      - name: diagnostics-data
+      - name: output-location
+      - name: docker-image
   entrypoint: create-offline-diags
   volumes:
   - name: gcp-credentials-user-gcp-sa
@@ -22,16 +23,16 @@ spec:
       value: "climate-sim-pool"
       effect: "NoSchedule"
     container:
-      image: us.gcr.io/vcm-ml/fv3net:6f59138183398745b84ab582d6fcaebe208f5d6a
+      image: '{{workflow.parameters.docker-image}}'
       command:
       - python 
       - -m
       - fv3net.diagnostics.sklearn_model_performance
-      - '{{workflow.parameters.trained_model}}'
-      - '{{workflow.parameters.testing_data}}'
-      - '{{workflow.parameters.diagnostics_data}}'
+      - '{{workflow.parameters.trained-model}}'
+      - '{{workflow.parameters.testing-data}}'
+      - '{{workflow.parameters.diagnostics-data}}'
       - workflows/end_to_end/kustomization/test_sklearn_variable_names.yml
-      - '{{workflow.parameters.output}}'
+      - '{{workflow.parameters.output-location}}'
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
