@@ -1,6 +1,6 @@
 
 
-python dataflow.py \
+python -m src \
     gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr/ \
     gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files.zarr \
     gs://vcm-ml-scratch/noah/2020-05-12/

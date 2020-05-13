@@ -5,9 +5,8 @@ import datetime
 import os
 from itertools import product
 import vcm
-from fv3net.pipelines.common import WriteToNetCDFs
 from vcm import safe
-from merge_restarts_and_diags import open_restart_data, open_diagnostic_output, merge
+from .data import open_restart_data, open_diagnostic_output, merge
 from apache_beam.utils import retry
 from apache_beam.io.filesystems import FileSystems
 
@@ -17,7 +16,7 @@ import argparse
 
 # from vcm import safe
 import dask
-import budgets
+from . import budgets
 
 dask.config.set(scheduler="single-threaded")
 
