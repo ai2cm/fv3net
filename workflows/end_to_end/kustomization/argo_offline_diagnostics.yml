@@ -10,7 +10,7 @@ spec:
       - name: testing-data
       - name: diagnostics-data
       #- name: variable_filename  # str of yaml file that got read in as var (ex in prog diags) , can echo to file and pass to python command
-      - name: output
+      - name: output-location
       - name: docker-image
   entrypoint: create-offline-diags
   volumes:
@@ -29,7 +29,7 @@ spec:
       - '{{workflow.parameters.testing-data}}'
       - '{{workflow.parameters.diagnostics-data}}'
       - workflows/end_to_end/kustomization/test_sklearn_variable_names.yml
-      - '{{workflow.parameters.output}}'
+      - '{{workflow.parameters.output-location}}'
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json

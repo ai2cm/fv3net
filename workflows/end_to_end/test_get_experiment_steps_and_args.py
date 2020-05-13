@@ -25,7 +25,7 @@ def test__get_all_step_arguments(test_config):
     all_commands = _get_all_step_arguments(test_config)
     assert set(all_commands.keys())==set(test_config["experiment"]["steps_config"].keys())
     assert all_commands["argo_step"] == \
-        "argo submit some.yaml -p required_arg=required_arg_value -p required_location_arg=data_location -p output_location=output_location --optional_arg optional_arg_value"
+        "argo submit some.yaml -p required_arg=required_arg_value -p required_location_arg=data_location -p output-location=output_location --optional_arg optional_arg_value"
     assert all_commands["python_step"] == \
         "python -m test_script required_arg_value data_location output_location --optional_arg optional_arg_value"
 
