@@ -95,7 +95,7 @@ def _precipitation_rate_from_total_precipitation(
             output times in seconds
     
     Returns:
-        precipitation_rate, precipitation rate in mm/day
+        precipitation_rate, precipitation rate in mm/s
     """
 
     dt_seconds = total_precipitation[time_dim].diff(time_dim).isel({time_dim: 0})
@@ -214,7 +214,9 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
                     }
                 )
             ),
-            "precipitation_rate": _SECONDS_PER_DAY * ds["precipitation_rate"],
+            "precipitation_rate": (
+                _SECONDS_PER_DAY * ds["precipitation_rate"]
+            ).assign_attrs({"long name": "precipitation rate", "units": "mm/s"}),
         }
     )
 
