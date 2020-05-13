@@ -162,16 +162,18 @@ example of how to use this base configuration.
 
 ### Argo workfow steps
 Argo workflows can be run as steps in the end to end pipeline; the command value is the `argo submit` statement and parameters for Argo can be specified in the step's entry in the end to end yaml in the same fashion as for python commands. The orchestrator will take care of parameterizing the submit commmand.
+
+Note that parameter names cannot have underscores, dashes are ok.
 ```
     test_sklearn_model: 
       command: argo submit test_sklearn_model.yaml
       args:
-        trained_model:
+        trained-model:
           from: train_sklearn_model
-        testing_data:
+        testing-data:
           from: create_training_data
-        diagnostics_data:
+        diagnostics-data:
           location: $C48_DIAGNOSTICS
-        variable_filename: $CONFIG/test_sklearn_variable_names.yml 
+        docker-image: $FV3NET_IMAGE
 ```
 will run as the following full command: `argo submit test_sklearn_model.yaml -p trained_model=<path from train_sklearn_model_output> ...`.
