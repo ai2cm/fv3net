@@ -101,7 +101,7 @@ experiment:
 
 For each step in `steps_to_run`, its configuration is set by its equivalently named block in `step_config`. Step configuration can still be defined here but it will not be executed if it is excluded from `steps_to_run`. *Note:* the order of parameters correspond to the positional commandline arguments appended to the job `command`.  Parameters are translated to arguments in the order of _args_, _output_. 
 
-- **{command, python, argo}**: command to execute the step, e.g., a python, bash, or Argo command and script/yaml that executes the step (without its arguments).
+- **{command, argo}**: command to execute the step, e.g., a python, bash, or Argo command and script/yaml that executes the step (without its arguments).
 - **args**: a dict of positional and optional argument key-value pairs for the _command_ above. Arguments are used to specify step input data, configuration files, and parameters. Values may be literals, names of previous steps which to use output as input for the current step, paths to pre-existing data sources, or lists of multiple values for a given key; each value in the args dict must be one of the following types:
   - **value/hashable**: A single argument value
   - **dict**: if the arg value is a dict, it is for specifying the source of input data to the step. Supported keys in the dict are as follows (only one may be used for a given step argument):

@@ -11,7 +11,7 @@ DATAFLOW_ARGS_MAPPING = {
     "create_training_data": CREATE_TRAINING_DATAFLOW_ARGS,
 }
 # allowed keys that specify a base command
-COMMAND_TYPES = ["command", "python", "argo"]
+COMMAND_TYPES = ["command", "argo"]
 
 
 def get_experiment_steps_and_args(config_file: str):
@@ -208,7 +208,6 @@ def _get_all_step_arguments(config: Mapping):
         step_args.append(output_location)
         step_args.extend(optional_args)
         all_step_arguments[step] = " ".join(step_args)
-        print(" ".join(step_args))
     return all_step_arguments
 
 
