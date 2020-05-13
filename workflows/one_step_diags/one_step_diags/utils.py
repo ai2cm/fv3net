@@ -201,7 +201,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
                 ds["air_temperature"], ds["pressure_thickness_of_atmospheric_layer"]
             ),
             "net_precipitation_physics": net_precipitation(
-                ds["latent_heat_flux"], ds["precipitation_rate"] / _SECONDS_PER_DAY
+                ds["latent_heat_flux"], ds["precipitation_rate"]
             ),
             "evaporation": thermo.surface_evaporation_mm_day_from_latent_heat_flux(
                 ds["latent_heat_flux"]
@@ -216,7 +216,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             ),
             "precipitation_rate": (
                 _SECONDS_PER_DAY * ds["precipitation_rate"]
-            ).assign_attrs({"long name": "precipitation rate", "units": "mm/s"}),
+            ).assign_attrs({"long name": "precipitation rate", "units": "mm/day"}),
         }
     )
 
