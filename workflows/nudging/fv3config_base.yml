@@ -70,7 +70,7 @@ namelist:
     - 0
     - 15
     - 0
-    days: 7
+    days: 5
     dt_atmos: 900
     dt_ocean: 900
     hours: 0

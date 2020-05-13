@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import tempfile
 import xarray as xr
@@ -17,9 +18,10 @@ from .data import (
     predict_on_test_data,
     load_high_res_diag_dataset,
     add_column_heating_moistening,
+    add_total_Q,
 )
 from .diagnostics import plot_diagnostics
-from .create_metrics import create_metrics_dataset
+from .create_metrics import create_metrics_dataset, calc_scalar_metrics
 from .plot_metrics import plot_metrics
 from .plot_timesteps import plot_timestep_counts
 import logging
@@ -63,6 +65,16 @@ def compute_metrics_and_plot(ds, output_dir, names):
 
     ds_metrics = create_metrics_dataset(ds_pred, ds_test, ds_hires, names)
     ds_metrics.to_netcdf(os.path.join(output_dir, "metrics.nc"))
+    scalar_metrics = calc_scalar_metrics(
+        ds_pred,
+        ds_test,
+        ds_hires,
+        init_time_dim=names["init_time_dim"],
+        var_area=names["var_area"],
+        var_pressure_thickness=names["var_pressure_thickness"],
+    )
+    with open(os.path.join(output_dir, "metrics_scalars.json"), "w") as f:
+        json.dump(scalar_metrics, f)
 
     # write out yaml file of timesteps used for testing model
     init_times = ds[names["init_time_dim"]].values
@@ -131,6 +143,7 @@ def load_data_and_predict_with_ml(
         names["var_q_heating_ml"],
         names["coord_z_center"],
     )
+    ds_test = add_total_Q(ds_test, vars=["Q1", "Q2"])
 
     ds_pred = add_column_heating_moistening(
         ds_pred,
@@ -140,6 +153,7 @@ def load_data_and_predict_with_ml(
         names["var_q_heating_ml"],
         names["coord_z_center"],
     )
+    ds_pred = add_total_Q(ds_pred, vars=["Q1", "Q2"])
 
     # TODO Do all data merginig and loading before computing anything
     logger.info("Loading high-resolution diagnostics")

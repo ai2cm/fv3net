@@ -21,15 +21,16 @@ jobs:
       - run: make update_submodules
       - run:
           name: "Concatenate package dependency files"
-          command: cat environment.yml .circleci/.installed_build_env_deps > combined_deps.txt
+          command: cat environment.yml .circleci/environment.lock > combined_deps.txt
       - restore_cache:
           keys:
+            # change this string to invalidate cache
             - v2-fv3net-env-{{ checksum "combined_deps.txt" }}
       - run:
           name: "Install fv3net dependencies"
           command: |
             make install_deps
-            cat .circleci/.installed_build_env_deps
+            cat .circleci/environment.lock
       - save_cache:
           key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}
           paths:
@@ -40,6 +41,11 @@ jobs:
       - run: | 
           source activate fv3net
           pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+      - run:
+          name: Regression Tests
+          command: |
+            source activate fv3net
+            pytest -m regression
 
   build_default:
     machine:

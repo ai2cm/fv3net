@@ -1,19 +1,20 @@
-from typing import Mapping, Sequence, Tuple
-import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
 import logging
 import os
+from typing import Mapping, Sequence, Tuple
+
+import apache_beam as beam
+import dask
+import fsspec
+import numpy as np
 import xarray as xr
+from apache_beam.options.pipeline_options import PipelineOptions
+
+from vcm import parse_datetime_from_str, safe
+from vcm.calc import apparent_source
+from vcm.convenience import round_time
+from vcm.cubedsphere.constants import INIT_TIME_DIM, TILE_COORDS
 
 from . import helpers
-from vcm.calc import apparent_source
-from vcm.cloud.fsspec import get_fs
-import fsspec
-from vcm import parse_datetime_from_str
-from fv3net import COARSENED_DIAGS_ZARR_NAME
-import numpy as np
-import dask
-import zarr
 
 dask.config.set(scheduler="single-threaded")
 
@@ -21,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 TIME_FMT = "%Y%m%d.%H%M%S"
 GRID_SPEC_FILENAME = "grid_spec.zarr"
-ZARR_NAME = "big.zarr"
 
 # forecast time step used to calculate the FV3 run tendency
 FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
@@ -29,31 +29,32 @@ FORECAST_TIME_INDEX_FOR_C48_TENDENCY = 13
 FORECAST_TIME_INDEX_FOR_HIRES_TENDENCY = FORECAST_TIME_INDEX_FOR_C48_TENDENCY
 
 
-def _load_pair(timesteps, store, init_time_dim):
-    ds = xr.open_zarr(store, consolidated=True)
+def _load_pair(timesteps, ds, init_time_dim):
     yield ds.sel({init_time_dim: timesteps})
 
 
-def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, str]]]):
+def run(
+    ds: xr.Dataset,
+    ds_diag: xr.Dataset,
+    output_dir: str,
+    pipeline_args: Sequence[str],
+    names: dict,
+    timesteps: Mapping[str, Sequence[Tuple[str, str]]],
+):
     """ Divide full one step output data into batches to be sent
     through a beam pipeline, which writes training/test data zarrs
 
     Args:
-        args ([arg namespace]): for named args in the main function
-        pipeline_args ([arg namespace]): additional args for the pipeline
-        names ([dict]): Contains information related to the variable
-            and dimension names from the one step output and created
-            by the pipeline.
+        ds: The one-step runs xarray dataset
+        ds_diag: The coarsened diagnostic data from ShiELD at C48 resolution
+        output_dir: the output location in GCS or local
+        pipeline_args: argument to be handled by apache beam.
+        names: Configuration for output variable names
         timesteps:  a collection of time-step pairs to use for testing and training.
             For example::
 
                 {"train": [("20180601.000000", "20180601.000000"), ...], "test: ...}
     """
-    fs = get_fs(args.gcs_input_data_path)
-    mapper = fs.get_mapper(os.path.join(args.gcs_input_data_path, ZARR_NAME))
-    if ".zmetadata" not in mapper:
-        logger.info("Consolidating metadata")
-        zarr.consolidate_metadata(mapper)
     train_test_labels = _train_test_labels(timesteps)
     timestep_pairs = timesteps["train"] + timesteps["test"]
 
@@ -68,8 +69,7 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
         (
             p
             | beam.Create(timestep_pairs)
-            | "SelectInitialTimes"
-            >> beam.ParDo(_load_pair, mapper, names["init_time_dim"])
+            | "SelectInitialTimes" >> beam.ParDo(_load_pair, ds, names["init_time_dim"])
             | "TimeDimToDatetime"
             >> beam.Map(_str_time_dim_to_datetime, time_dim=names["init_time_dim"])
             | "AddPhysicsTendencies"
@@ -109,10 +109,8 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
             | "MergeHiresDiagVars"
             >> beam.Map(
                 _merge_hires_data,
-                diag_c48_path=args.diag_c48_path,
-                coarsened_diags_zarr_name=COARSENED_DIAGS_ZARR_NAME,
-                flux_vars=names["diag_vars"],
-                suffix_hires=names["suffix_hires"],
+                ds_diag,
+                renamed_high_res_vars=names["renamed_high_res_data_variables"],
                 init_time_dim=names["init_time_dim"],
                 renamed_dims=names["renamed_dims"],
             )
@@ -122,7 +120,7 @@ def run(args, pipeline_args, names, timesteps: Mapping[str, Sequence[Tuple[str, 
             >> beam.Map(
                 _write_remote_train_zarr,
                 init_time_dim=names["init_time_dim"],
-                gcs_output_dir=args.gcs_output_data_dir,
+                gcs_output_dir=output_dir,
                 train_test_labels=train_test_labels,
             )
         )
@@ -219,31 +217,22 @@ def _add_apparent_sources(
 
 
 def _merge_hires_data(
-    ds_run,
-    diag_c48_path,
-    coarsened_diags_zarr_name,
-    flux_vars,
-    suffix_hires,
-    init_time_dim,
-    renamed_dims,
+    ds_run, ds_diag, renamed_high_res_vars, init_time_dim, renamed_dims
 ):
 
-    renamed_high_res_vars = {
-        **{
-            f"{var}_coarse": f"{var}_{suffix_hires}"
-            for var in flux_vars
-            if var in list(ds_run.data_vars)
-        },
-        "LHTFLsfc_coarse": f"latent_heat_flux_{suffix_hires}",
-        "SHTFLsfc_coarse": f"sensible_heat_flux_{suffix_hires}",
-    }
-    if not diag_c48_path:
-        return ds_run
     init_times = ds_run[init_time_dim].values
-    full_zarr_path = os.path.join(diag_c48_path, coarsened_diags_zarr_name)
-    diags_c48 = helpers.load_hires_prog_diag(full_zarr_path, init_times)[
-        list(renamed_high_res_vars.keys())
-    ]
+    ds_diag = ds_diag.rename({"time": INIT_TIME_DIM})
+    ds_diag = ds_diag.assign_coords(
+        {
+            INIT_TIME_DIM: [round_time(t) for t in ds_diag[INIT_TIME_DIM].values],
+            "tile": TILE_COORDS,
+        }
+    )
+
+    diags_c48 = ds_diag.sel({INIT_TIME_DIM: init_times})
+
+    diags_c48 = safe.get_variables(diags_c48, renamed_high_res_vars.keys())
+
     renamed_dims = {
         dim: renamed_dims[dim] for dim in renamed_dims if dim in diags_c48.dims
     }
