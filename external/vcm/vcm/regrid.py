@@ -40,7 +40,7 @@ def regrid_to_shared_coords(
     )
     da_var_to_regrid = da_var_to_regrid.transpose(*dims_order)
     da_old_coords = da_old_coords.transpose(*dims_order)
-    interp_values = interpolate_1d_nd_target(
+    interp_values = interpolate_1d(
         new_coord_grid, da_old_coords.values, da_var_to_regrid.values, axis=0
     )
     new_dims = [regrid_dim_name] + list(da_var_to_regrid.dims[1:])
