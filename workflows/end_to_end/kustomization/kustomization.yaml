@@ -22,6 +22,7 @@ configMapGenerator:
       - train_sklearn_model.yml
       - diag_table_prognostic
       - end_to_end.yaml
+      - argo_offline_diagnostics.yml
 images:
   # fv3net image is changed here
 - name: us.gcr.io/vcm-ml/fv3net
