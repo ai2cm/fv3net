@@ -2,8 +2,13 @@ import subprocess
 import pytest
 
 submission = """
+poetry build
+
+sdist="dist/fv3net*.tar.gz"
+
 python tests/simple_dataflow.py  \
-    --setup $(pwd)/setup.py \
+    --extra_package $sdist \
+    --save_main_session \
     --job_name test-$(uuid) \
     --project vcm-ml \
     --region us-central1 \
@@ -18,4 +23,4 @@ python tests/simple_dataflow.py  \
 
 @pytest.mark.regression()
 def test_submit_dataflow():
-    subprocess.check_call(["bash", "-c", submission])
+    subprocess.check_call([submission], shell=True)
