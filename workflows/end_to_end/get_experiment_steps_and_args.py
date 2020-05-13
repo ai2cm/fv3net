@@ -11,7 +11,7 @@ DATAFLOW_ARGS_MAPPING = {
     "create_training_data": CREATE_TRAINING_DATAFLOW_ARGS,
 }
 # allowed keys that specify a base command
-COMMAND_TYPES = ["command", "python", "argo"]
+COMMAND_TYPES = ["command", "argo"]
 
 
 def get_experiment_steps_and_args(config_file: str):
@@ -168,9 +168,10 @@ def _resolve_dataflow_args(config: Mapping):
 
 def _resolve_command(step_config: Mapping):
     command = [key for key in step_config if key in COMMAND_TYPES]
-    assert (
-        len(command) == 1
-    ), f"Command line arg should specified once as member of set {COMMAND_TYPES}."
+    if len(command) != 1:
+        raise ValueError(
+            f"Command line arg should specified once as member of set {COMMAND_TYPES}."
+        )
     return command[0]
 
 
@@ -179,14 +180,19 @@ def _get_all_step_arguments(config: Mapping):
     steps_config = config["experiment"]["steps_config"]
     all_step_arguments = {}
     command_to_arg_format = {
-        "command": _resolve_arg_values,
-        "python": _resolve_arg_values,
-        "argo": _resolve_arg_values_argo,
+        "command": {
+            "arg_resolver": _resolve_arg_values,
+            "output_location_format": "{path}",
+        },
+        "argo": {
+            "arg_resolver": _resolve_arg_values_argo,
+            "output_location_format": "-p output_location={path}",
+        },
     }
     for step, step_config in steps_config.items():
-        command = _resolve_command(step_config)
-        step_args = [command]
-        arg_resolver = command_to_arg_format[command]
+        command_type = _resolve_command(step_config)
+        step_args = [step_config[command_type]]
+        arg_resolver = command_to_arg_format[command_type]["arg_resolver"]
         required_args = []
         optional_args = []
         for key, value in step_config["args"].items():
@@ -195,12 +201,13 @@ def _get_all_step_arguments(config: Mapping):
                 optional_args.append(arg_string)
             else:
                 required_args.append(arg_string)
-        output_location = step_config["output_location"]
+        output_location = command_to_arg_format[command_type][
+            "output_location_format"
+        ].format(path=step_config["output_location"])
         step_args.extend(required_args)
         step_args.append(output_location)
         step_args.extend(optional_args)
         all_step_arguments[step] = " ".join(step_args)
-
     return all_step_arguments
 
 
