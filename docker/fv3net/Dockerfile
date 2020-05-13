@@ -46,5 +46,5 @@ RUN pip install apache_beam[gcp] six==1.12.0
 CMD ["/bin/bash"]
 
 # install Argo CLI
-RUN curl -sSL -o /usr/bin/argo https://github.com/argoproj/argo/releases/download/v2.2.1/argo-linux-amd64
+RUN curl -sLO https://github.com/argoproj/argo/releases/download/v2.8.0/argo-linux-amd64
 RUN chmod +x /usr/bin/argo
