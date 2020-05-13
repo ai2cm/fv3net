@@ -11,6 +11,8 @@ latest
   python script, change output location (#226)
 * Multithreaded uploading in one-step jobs (#260)
 * Made nudging run upload more robust using k8s yaml templating submission and gsutil container upload
+* The key for commands in the end to end config YAML can be given as either `command` or `argo`, and the arguments will be parsed into the appropriate format for either type.
+
 
 0.2.0 (2020-04-23)
 ------------------
