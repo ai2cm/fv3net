@@ -210,7 +210,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
                 ds.rename(
                     {
                         "sensible_heat_flux": "SHTFLsfc",
-                        "total_precipitation": "PRATEsfc",
+                        "precipitation_rate": "PRATEsfc",
                     }
                 )
             ),
