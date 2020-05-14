@@ -73,6 +73,16 @@ GLOBAL_MEAN_2D_VARS = {
     "latent_heat_flux": {"var_type": ["states"], "scale": [None]},
     "sensible_heat_flux": {"var_type": ["states"], "scale": [None]},
     "precipitation_rate": {"var_type": ["states"], "scale": [None]},
+    "column_integrated_heating": {"var_type": ["tendencies"], "scale": [None]},
+    "minus_column_integrated_moistening": {"var_type": ["tendencies"], "scale": [None]},
+    "minus_column_integrated_total_water_tendency": {
+        "var_type": ["tendencies"],
+        "scale": [None],
+    },
+    "minus_column_integrated_hydrometeor_tendency": {
+        "var_type": ["tendencies"],
+        "scale": [None],
+    },
 }
 
 DIURNAL_VAR_MAPPING = {
@@ -87,6 +97,22 @@ DIURNAL_VAR_MAPPING = {
     "net_precipitation_diurnal": {
         "hi-res - coarse": {
             "name": "minus_column_integrated_moistening",
+            "var_type": "tendencies",
+        },
+        "physics": {"name": "net_precipitation_physics", "var_type": "states"},
+        "scale": 10,
+    },
+    "net_precipitation_diurnal_total_water": {
+        "hi-res - coarse": {
+            "name": "minus_column_integrated_total_water_tendency",
+            "var_type": "tendencies",
+        },
+        "physics": {"name": "net_precipitation_physics", "var_type": "states"},
+        "scale": 10,
+    },
+    "net_precipitation_diurnal_hydrometeors": {
+        "hi-res - coarse": {
+            "name": "minus_column_integrated_hydrometeor_tendency",
             "var_type": "tendencies",
         },
         "physics": {"name": "net_precipitation_physics", "var_type": "states"},
@@ -141,6 +167,7 @@ GLOBAL_MEAN_3D_VARS = {
     "liquid_ice_temperature": {"var_type": "tendencies", "scale": 1e-4},
     "cloud_water_ice": {"var_type": "tendencies", "scale": 5e-8},
     "precipitating_water": {"var_type": "tendencies", "scale": 1e-8},
+    "hydrometeors": {"var_type": "states", "scale": 1e-7},
     "total_water": {"var_type": "tendencies", "scale": 1e-7},
     "vertical_wind": {"var_type": "states", "scale": 0.02},
 }
@@ -149,6 +176,14 @@ GLOBAL_2D_MAPS = {
     "surface_pressure": {"var_type": "tendencies", "scale": 0.1},
     "column_integrated_heating": {"var_type": "tendencies", "scale": 1000},
     "minus_column_integrated_moistening": {"var_type": "tendencies", "scale": 10},
+    "minus_column_integrated_total_water_tendency": {
+        "var_type": "tendencies",
+        "scale": 10,
+    },
+    "minus_column_integrated_hydrometeor_tendency": {
+        "var_type": "tendencies",
+        "scale": 10,
+    },
     "vertical_wind_level_40": {"var_type": "states", "scale": 0.05},
     "precipitation_rate": {"var_type": "states", "scale": None},
     "latent_heat_flux": {"var_type": "states", "scale": 200},

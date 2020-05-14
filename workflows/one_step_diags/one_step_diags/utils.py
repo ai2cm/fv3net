@@ -168,6 +168,13 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
         {"long_name": "precipitating water mixing ratio", "units": "kg/kg"}
     )
 
+    hydrometeor_mixing_ratio = (
+        cloud_water_ice_mixing_ratio + precipitating_water_mixing_ratio
+    )
+    hydrometeor_mixing_ratio.attrs.update(
+        {"long_name": "all hydrometeors mixing ratio", "units": "kg/kg"}
+    )
+
     ds = ds.assign(
         {
             "total_water": thermo.total_water(
@@ -180,6 +187,7 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             ),
             "precipitating_water": precipitating_water_mixing_ratio,
             "cloud_water_ice": cloud_water_ice_mixing_ratio,
+            "hydrometeors": hydrometeor_mixing_ratio,
             "liquid_ice_temperature": thermo.liquid_ice_temperature(
                 ds["air_temperature"],
                 ds["cloud_ice_mixing_ratio"],
@@ -310,6 +318,30 @@ def insert_column_integrated_tendencies(ds: xr.Dataset) -> xr.Dataset:
                         {"var_type": "states"}
                     ),
                 ).expand_dims({"var_type": ["tendencies"]})
+            ),
+            "minus_column_integrated_total_water_tendency": (
+                thermo.minus_column_integrated_moistening(
+                    ds["total_water"].sel({"var_type": "tendencies"}),
+                    ds["pressure_thickness_of_atmospheric_layer"].sel(
+                        {"var_type": "states"}
+                    ),
+                )
+                .expand_dims({"var_type": ["tendencies"]})
+                .assign_attrs(
+                    {"long_name": "negative of column integrated total water"}
+                )
+            ),
+            "minus_column_integrated_hydrometeor_tendency": (
+                thermo.minus_column_integrated_moistening(
+                    ds["hydrometeors"].sel({"var_type": "tendencies"}),
+                    ds["pressure_thickness_of_atmospheric_layer"].sel(
+                        {"var_type": "states"}
+                    ),
+                )
+                .expand_dims({"var_type": ["tendencies"]})
+                .assign_attrs(
+                    {"long_name": "negative of column integrated hydrometeors"}
+                )
             ),
         }
     )
