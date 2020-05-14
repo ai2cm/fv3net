@@ -21,16 +21,18 @@ logger = logging.getLogger(__name__)
 TEMP = "air_temperature"
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
-TOTAL_PRECIP = "total_precipitation"
-REQUIRED_VARIABLES = [TEMP, SPHUM, DELP, TOTAL_PRECIP]
+PRECIP_RATE = "surface_precipitation_rate"
+REQUIRED_VARIABLES = [TEMP, SPHUM, DELP, PRECIP_RATE]
 
 cp = 1004
 gravity = 9.81
+WATER_DENSITY = 1000  # kg/m^3
 
 
 def compute_diagnostics(state, diags):
 
     net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
+    physics_precip = WATER_DENSITY * state[PRECIP_RATE]  # state[PRECIP_RATE] is in units of m/s
 
     return dict(
         net_moistening=(net_moistening)
@@ -44,10 +46,15 @@ def compute_diagnostics(state, diags):
         .sum("z")
         .assign_attrs(units="mm")
         .assign_attrs(description="column integrated water vapor"),
-        total_precip=(state[TOTAL_PRECIP] - net_moistening)
-        .assign_attrs(units="kg/m^s/s")
+        physics_precipitation_rate=(physics_precip)
+        .assign_attrs(units="kg/m^2/s")
         .assign_attrs(
-            description="total precipitation rate at the surface (model + ML)"
+            description="surface precipitation rate due to parameterized physics"
+        ),
+        total_precip=(physics_precip - net_moistening)
+        .assign_attrs(units="kg/m^2/s")
+        .assign_attrs(
+            description="total surface precipitation rate (physics + ML)"
         ),
     )
 
