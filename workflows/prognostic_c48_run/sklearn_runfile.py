@@ -46,7 +46,7 @@ def compute_diagnostics(state, diags):
         .sum("z")
         .assign_attrs(units="mm")
         .assign_attrs(description="column integrated water vapor"),
-        physics_precipitation_rate=(physics_precip)
+        physics_precip=(physics_precip)
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(
             description="surface precipitation rate due to parameterized physics"
