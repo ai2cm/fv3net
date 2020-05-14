@@ -1,25 +1,16 @@
-import os
 from dataclasses import dataclass
 
-import fsspec
 import numpy as np
 import xarray as xr
 
-import vcm
-from vcm.calc.thermo import pressure_at_interface
 from vcm.cubedsphere.coarsen import (
-    block_coarsen,
     block_upsample,
-    block_upsample_like,
     weighted_block_average,
 )
 
 # TODO make a PR which exposes this function as public API
 from vcm.cubedsphere.regridz import (
-    _regrid_given_delp,
-    block_upsample_like,
     pressure_at_interface,
-    regrid_to_area_weighted_pressure,
     regrid_vertical,
 )
 
@@ -182,16 +173,6 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
             "delp": delp_c,
         }
     )
-
-
-def coarsen_eddy(delp, area, omega, x, factor=8):
-    return coarsen(delp, area, omega * x, factor=8)
-
-
-def coarsen(delp, area, x, factor=8):
-    grid = Grid("grid_xt", "grid_yt", "pfull", "grid_x", "grid_y", "pfulli")
-    delp_c = grid.weighted_block_average(delp, area, factor=factor)
-    return grid.pressure_level_average(delp, delp_c, area, omega * x, factor=8)
 
 
 def compute_recoarsened_budget_v2(

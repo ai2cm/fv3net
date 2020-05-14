@@ -1,26 +1,23 @@
-import apache_beam as beam
-import joblib
-import xarray as xr
-import datetime
-import os
-from itertools import product
-import vcm
-from vcm import safe
-from .data import open_restart_data, open_diagnostic_output, merge
-from apache_beam.utils import retry
-from apache_beam.io.filesystems import FileSystems
-
-from apache_beam.options.pipeline_options import PipelineOptions
-
 import argparse
+import logging
+from itertools import product
+
+import apache_beam as beam
 
 # from vcm import safe
 import dask
+from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.utils import retry
+
+import vcm
+from vcm import safe
+
 from . import budgets
+from .data import merge, open_diagnostic_output, open_restart_data
 
 dask.config.set(scheduler="single-threaded")
 
-import logging
 
 logger = logging.getLogger(__file__)
 

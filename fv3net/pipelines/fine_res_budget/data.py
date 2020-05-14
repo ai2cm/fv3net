@@ -5,10 +5,9 @@
 
 >>> restarts = open_restart_data(restart_url)
 >>> diag = open_diagnostic_output(url)
-"""
+"""  # noqa
 import datetime
 import logging
-import os
 
 import fsspec
 import numpy as np
@@ -105,7 +104,7 @@ def open_merged_data(restart_url, atmos_coarse_ave_url):
 
     restarts = shift(restarts)
 
-    return xr.merge([diag.drop("delp"), restarts,], join="inner").drop(
+    return xr.merge([diag.drop("delp"), restarts], join="inner").drop(
         ["grid_x", "grid_xt", "grid_yt", "grid_y"], errors="ignore"
     )
 
@@ -113,6 +112,6 @@ def open_merged_data(restart_url, atmos_coarse_ave_url):
 def merge(restarts, diag):
     restarts = shift(restarts)
 
-    return xr.merge([diag.drop("delp"), restarts,], join="inner").drop(
+    return xr.merge([diag.drop("delp"), restarts], join="inner").drop(
         ["grid_x", "grid_xt", "grid_yt", "grid_y"], errors="ignore"
     )
