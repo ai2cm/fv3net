@@ -14,7 +14,7 @@ from .convenience import (
     cast_to_datetime,
     encode_time,
 )
-from .calc import mass_integrate, r2_score, local_time
+from .calc import mass_integrate, r2_score, local_time, thermo
 from .calc.thermo import (
     net_heating,
     net_precipitation,
