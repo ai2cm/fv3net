@@ -4,6 +4,7 @@ import pytest
 submission = """
 python tests/simple_dataflow.py  \
     --setupfile $(pwd)/setup.py \
+    --extra_package $sdist \
     --save_main_session \
     --job_name test-$(uuid) \
     --project vcm-ml \
