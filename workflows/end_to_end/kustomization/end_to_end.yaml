@@ -63,7 +63,7 @@ experiment:
         train-config-file: $CONFIG/train_sklearn_model.yml
         
     test_sklearn_model: 
-      argo: argo submit $CONFIG/argo_offline_diagnostics.yml
+      argo: argo submit workflows/argo/offline_diagnostics.yml
       args:
         trained-model:
           from: train_sklearn_model

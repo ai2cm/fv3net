@@ -3,16 +3,15 @@
 set -x
 set -e
 
-TRAINED_MODEL=gs://vcm-ml-data/test-end-to-end-integration/physics-off/train_sklearn_model
-TEST_DATA_PATH=gs://vcm-ml-scratch/annak/temp_data
-HIGH_RES_DATA_PATH=gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
-VARIABLE_NAMES_FILE=workflows/end_to_end/kustomization/test_sklearn_variable_names.yml
-IMAGE=us.gcr.io/vcm-ml/fv3net:6f59138183398745b84ab582d6fcaebe208f5d6a
-OUTPUT=gs://vcm-ml-scratch/annak/2020-05-12/argo_test
+TRAINED_MODEL=gs://vcm-ml-data/testing-noah/075f154fb633469e56be48faedc196756e67179a/sklearn_train/
+TRAINING_DATA=gs://vcm-ml-data/testing-noah/7563d34ad7dd6bcc716202a0f0c8123653f50ca4/training_data/
+DIAG_DATA=gs://vcm-ml-data/testing-noah/ceb320ffa48b8f8507b351387ffa47d1b05cd402/coarsen_diagnostics/
 
-argo submit argo_offline_diagnostics.yml \
-    -p trained-model=$TRAINED_MODEL \
-    -p testing-data=$TEST_DATA_PATH \
-    -p diagnostics-data=$HIGH_RES_DATA_PATH \
-    -p output-location=$OUTPUT \
-    -p docker-image=$IMAGE
+OUTPUT=gs://vcm-ml-data/testing-noah/$(git rev-parse HEAD)/sklearn_model_performance
+
+python -m fv3net.diagnostics.sklearn_model_performance \
+    $TRAINED_MODEL \
+    $TRAINING_DATA \
+    $DIAG_DATA \
+    test_sklearn_variable_names.yml \
+    $OUTPUT

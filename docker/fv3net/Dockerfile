@@ -4,7 +4,6 @@ FROM jupyter/base-notebook
 # Install dependencies (slow)
 USER root
 
-
 # install gcloud
 RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext
 
@@ -17,7 +16,6 @@ RUN apt-get update && apt-get install -y google-cloud-sdk jq python3-dev python3
 # install Argo CLI
 RUN curl -sSL -o /usr/local/bin/argo https://github.com/argoproj/argo/releases/download/v2.2.1/argo-linux-amd64
 RUN chmod +x /usr/local/bin/argo
-
 
 # install gcloud sdk
 RUN gcloud config set project vcm-ml
@@ -50,4 +48,3 @@ USER $NB_UID
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
 RUN pip install apache_beam[gcp] six==1.12.0
 CMD ["/bin/bash"]
-
