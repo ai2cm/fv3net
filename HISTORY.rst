@@ -5,6 +5,7 @@ History
 
 latest
 ------
+* Added surface_precipitation_rate to one-step outputs and corrected prognostic runfile diagnostic calculations.
 * Updated fv3gfs-python to v0.4.2.
 * Updated fv3gfs-python to v0.4.1. As part of this, refactored sklearn_interface functions from runtime to the prognostic run runfile.
 * Prognostic run report: compute and plot scalar metrics, generate report via

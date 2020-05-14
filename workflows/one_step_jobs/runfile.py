@@ -73,6 +73,7 @@ VARIABLES = (
     "ice_fraction_over_open_water",
     "surface_temperature_over_ice_fraction",
     "total_precipitation",
+    "surface_precipitation_rate",
     "snow_rain_flag",
     "snow_depth_water_equivalent",
     "minimum_fractional_coverage_of_green_vegetation",
