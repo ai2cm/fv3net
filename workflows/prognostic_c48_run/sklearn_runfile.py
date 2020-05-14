@@ -32,7 +32,7 @@ WATER_DENSITY = 1000  # kg/m^3
 def compute_diagnostics(state, diags):
 
     net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
-    physics_precip = WATER_DENSITY * state[PRECIP_RATE]  # state[PRECIP_RATE] is in units of m/s
+    physics_precip = WATER_DENSITY * state[PRECIP_RATE]  # PRECIP_RATE in units of m/s
 
     return dict(
         net_moistening=(net_moistening)
@@ -53,9 +53,7 @@ def compute_diagnostics(state, diags):
         ),
         total_precip=(physics_precip - net_moistening)
         .assign_attrs(units="kg/m^2/s")
-        .assign_attrs(
-            description="total surface precipitation rate (physics + ML)"
-        ),
+        .assign_attrs(description="total surface precipitation rate (physics + ML)"),
     )
 
 
