@@ -26,21 +26,19 @@ experiment:
       command: python -m fv3net.regression.sklearn
       args:
         training_data:
-          location: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/create_training_data/
+          location: gs://vcm-ml-experiments/vcm-ml-experiments/2020-05-07-clouds-off-training-data/create_training_data/
         train-config-file: $CONFIG/train_sklearn_model.yml
         
     test_sklearn_model: 
-      # must denote argo command by using key 'argo'
-      argo: argo submit test_sklearn_model.yaml
+      argo: argo submit workflows/argo/offline_diagnostics.yml
       args:
-        # these should correspond to the names in the job yaml
-        trained_model:
+        trained-model:
           from: train_sklearn_model
-        testing_data:
-          location: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/create_training_data/
-        diagnostics_data:
+        testing-data:
+          from: create_training_data
+        diagnostics-data:
           from: coarsen_diagnostics
-        variable_filename: $CONFIG/test_sklearn_variable_names.yml
+        docker-image: $FV3NET_IMAGE
 
     prognostic_run:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py

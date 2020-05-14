@@ -1,0 +1,8 @@
+url: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48  #TODO: parameterize as $C48_RESTARTS
+spinup: "20160805.000000"
+boundary: "20160901.000000"
+train_samples: 130
+test_samples: 96
+seed: "0"
+force_include_one_step:
+- "20160803.061500"  #TODO: parameterize as $IC_TIMESTEP, or simply remove once prog run does not depend on one-step
