@@ -18,7 +18,6 @@ def fake_data(_):
     vcm.net_heating
     return xr.Dataset({"a": (["x"], np.ones(10))})
 
-
 logging.basicConfig(level=logging.INFO)
 
 with beam.Pipeline(options=PipelineOptions()) as p:
