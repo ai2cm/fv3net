@@ -2,8 +2,11 @@ import subprocess
 import pytest
 
 submission = """
+poetry build
+
+sdist="dist/fv3net*.tar.gz"
+
 python tests/simple_dataflow.py  \
-    --setupfile $(pwd)/setup.py \
     --extra_package $sdist \
     --save_main_session \
     --job_name test-$(uuid) \
