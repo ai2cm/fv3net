@@ -74,16 +74,15 @@ def predict(model: SklearnWrapper, state: xr.Dataset) -> xr.Dataset:
 def update(
     model: SklearnWrapper, state: Mapping[str, xr.DataArray], dt: float
 ) -> (Mapping[str, xr.DataArray], Mapping[str, xr.DataArray]):
-    """Given ML model and state, return updated state and predicted tendencies.
-    Returned state only includes variables updated by ML model."""
+    """Given ML model and state, return updated state and predicted tendencies."""
     state = xr.Dataset(state)
     tend = predict(model, state)
     with xr.set_options(keep_attrs=True):
-        updated = {
-            SPHUM: state[SPHUM] + tend["dQ2"] * dt,
-            TEMP: state[TEMP] + tend["dQ1"] * dt,
-        }
-    return updated, {key: tend[key] for key in tend}
+        updated = dict(
+            specific_humidity=state["specific_humidity"] + tend["dQ2"] * dt,
+            air_temperature=state["air_temperature"] + tend["dQ1"] * dt,
+        )
+    return {key: updated[key] for key in updated}, {key: tend[key] for key in tend}
 
 
 args = runtime.get_config()
@@ -153,6 +152,7 @@ if __name__ == "__main__":
         if rank == 0:
             logger.debug("Setting Fortran State")
         preds = runtime.rename_keys(preds, rename_ML_to_CF)
+        preds.pop(PRECIP_RATE, None)
         fv3gfs.set_state(
             {key: fv3util.Quantity.from_data_array(preds[key]) for key in preds}
         )
