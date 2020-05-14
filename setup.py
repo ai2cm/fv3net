@@ -18,7 +18,7 @@ dependencies = [
 
 
 packages = find_packages() + find_packages("external/vcm", exclude="tests")
-package_dir = {"": ["*"]}
+package_dir = {"vcm": "external/vcm/vcm", "": "."}
 
 print(f"Found packages: {packages}")
 setup(
