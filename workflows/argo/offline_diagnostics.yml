@@ -1,4 +1,3 @@
-# see run_all.sh in prognostic run diags for how to get yaml config into pod 
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
@@ -9,7 +8,6 @@ spec:
       - name: trained-model
       - name: testing-data
       - name: diagnostics-data
-      #- name: variable_filename  # str of yaml file that got read in as var (ex in prog diags) , can echo to file and pass to python command
       - name: output-location
       - name: docker-image
   entrypoint: create-offline-diags
@@ -18,8 +16,13 @@ spec:
     secret:
       secretName: gcp-key
   templates:
-   - name: create-offline-diags
-     container:
+  - name: create-offline-diags
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "climate-sim-pool"
+      effect: "NoSchedule"
+    container:
       image: '{{workflow.parameters.docker-image}}'
       command:
       - python 
@@ -40,8 +43,8 @@ spec:
         name: gcp-credentials-user-gcp-sa
       resources:
         requests:
-            memory: "6Gi"
+            memory: "10Gi"
             cpu: "1000m"
         limits:
-            memory: "6Gi"
+            memory: "30Gi"
             cpu: "1000m"
