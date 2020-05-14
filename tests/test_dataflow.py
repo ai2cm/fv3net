@@ -20,25 +20,3 @@ python tests/simple_dataflow.py  \
 @pytest.mark.regression()
 def test_submit_dataflow():
     subprocess.check_call([submission], shell=True)
-
-
-build_sdist = """#!/bin/bash
-
-set -e
-
-rm -rf dist/
-python setup.py sdist
-
-d=$(mktemp -d)
-trap "rm -r \"$d\"" EXIT
-
-python -m venv $d
-source $d/bin/activate
-
-pip install dist/*.tar.gz
-
-python -c 'import vcm; import xarray'
-"""
-
-def test_build_sddist():
-    subprocess.check_call(["bash", "-c", build_sdist])
