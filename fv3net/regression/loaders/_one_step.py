@@ -2,9 +2,10 @@ import backoff
 import functools
 import logging
 from typing import Iterable, List, Sequence, Mapping
+import copy
+
 import numpy as np
 import xarray as xr
-
 import vcm
 from vcm import cloud, safe
 from ._sequences import FunctionOutputSequence
@@ -38,9 +39,8 @@ def get_time_list(url_list_sequence: Sequence[List[str]]):
 
 def load_one_step_batches(
     data_path: str,
-    input_variables: Iterable[str],
-    output_variables: Iterable[str],
-    files_per_batch: int,
+    *variable_names: Iterable[str],
+    files_per_batch: int = 1,
     num_batches: int = None,
     random_seed: int = 1234,
     mask_to_surface_type: str = None,
@@ -52,11 +52,12 @@ def load_one_step_batches(
 
     Args:
         data_path: location of directory containing zarr stores
-        input_variables: names of inputs
-        output_variables: names of outputs
-        files_per_batch: number of zarr stores used to create each batch
+        *variable_names: any number of sequences of variable names. One Sequence will be
+            returned for each of the given sequences. The "sample" dimension will be
+            identical across each of these sequences.
+        files_per_batch: number of zarr stores used to create each batch, defaults to 1
         num_batches (optional): number of batches to create. By default, use all the
-            available trianing data.
+            available training data.
         random_seed (optional): seed value for random number generator
         mask_to_surface_type: mask data points to ony include the indicated surface type
         init_time_dim_name: name of the initialization time dimension
@@ -66,7 +67,6 @@ def load_one_step_batches(
     """
     if rename_variables is None:
         rename_variables = {}
-    data_vars = list(input_variables) + list(output_variables)
     fs = cloud.get_fs(data_path)
     logger.info(f"Reading data from {data_path}.")
     zarr_urls = [
@@ -81,21 +81,21 @@ def load_one_step_batches(
         zarr_urls[batch_num * files_per_batch : (batch_num + 1) * files_per_batch]
         for batch_num in range(num_batches)
     )
-    load_batch = functools.partial(
-        _load_one_step_batch,
-        fs,
-        data_vars,
-        rename_variables,
-        init_time_dim_name,
-        z_dim_name,
-        mask_to_surface_type,
-        random,
-    )
     args_sequence = [(item,) for item in url_list_sequence]
-    return (
-        FunctionOutputSequence(load_batch, args_sequence),
-        get_time_list(url_list_sequence),
-    )
+    output_list = []
+    for data_vars in variable_names:
+        load_batch = functools.partial(
+            _load_one_step_batch,
+            fs,
+            data_vars,
+            rename_variables,
+            init_time_dim_name,
+            z_dim_name,
+            mask_to_surface_type,
+            copy.deepcopy(random),  # each sequence must be shuffled the same!
+        )
+        output_list.append(FunctionOutputSequence(load_batch, args_sequence))
+    return output_list
 
 
 def _load_one_step_batch(

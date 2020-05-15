@@ -25,6 +25,7 @@ class ModelTrainingConfig:
     hyperparameters: dict
     input_variables: Iterable[str]
     output_variables: Iterable[str]
+    time_name: str
     batch_function: str
     batch_kwargs: dict
 
@@ -56,13 +57,13 @@ def load_data_sequence(data_path: str, train_config: ModelTrainingConfig) -> Seq
         sequence: xr datasets for training batches
     """
     batch_function = getattr(loaders, train_config.batch_function)
-    ds_batches = batch_function(
+    ds_batches, (times,) = batch_function(
         data_path,
-        train_config.input_variables,
-        train_config.output_variables,
+        list(train_config.input_variables) + list(train_config.output_variables),
+        [train_config.time_name],
         **train_config.batch_kwargs,
     )
-    return ds_batches
+    return ds_batches, times
 
 
 def _get_regressor(train_config: ModelTrainingConfig):

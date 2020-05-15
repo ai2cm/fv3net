@@ -9,6 +9,7 @@ input_variables:
 output_variables:
   - dQ1
   - dQ2
+time_name: "initial_time"
 batch_kwargs:
   num_batches: 2
   files_per_batch: 1
