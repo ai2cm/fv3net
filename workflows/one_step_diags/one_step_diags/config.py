@@ -33,6 +33,10 @@ VARS_FROM_ZARR = [
     "latent_heat_flux",
     "sensible_heat_flux",
     "total_precipitation",
+    "friction_velocity",
+    "eastward_wind_at_surface",
+    "surface_temperature",
+    "surface_roughness"
 ] + SFC_VARIABLES
 
 GRID_VARS = ["lat", "lon", "latb", "lonb", "area", "land_sea_mask"]
@@ -83,6 +87,10 @@ GLOBAL_MEAN_2D_VARS = {
         "var_type": ["tendencies"],
         "scale": [None],
     },
+    "friction_velocity": {"var_type": ["states"], "scale": [None]},
+    "eastward_wind_at_surface": {"var_type": ["states"], "scale": [None]},
+    "surface_temperature": {"var_type": ["states"], "scale": [None]},
+    "surface_roughness": {"var_type": ["states"], "scale": [None]},
 }
 
 DIURNAL_VAR_MAPPING = {
@@ -188,6 +196,10 @@ GLOBAL_2D_MAPS = {
     "precipitation_rate": {"var_type": "states", "scale": None},
     "latent_heat_flux": {"var_type": "states", "scale": 200},
     "sensible_heat_flux": {"var_type": "states", "scale": 100},
+    "friction_velocity": {"var_type": "states", "scale": None},
+    "eastward_wind_at_surface": {"var_type": "states", "scale": None},
+    "surface_temperature": {"var_type": "states", "scale": None},
+    "surface_roughness": {"var_type": "states", "scale": None},
 }
 
 MAPPABLE_VAR_KWARGS = {
