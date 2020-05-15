@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: offline-diags-
+spec:
+  arguments:
+    parameters:
+      - name: trained-model
+      - name: testing-data
+      - name: diagnostics-data
+      - name: output-location
+      - name: docker-image
+  entrypoint: create-offline-diags
+  volumes:
+  - name: gcp-credentials-user-gcp-sa
+    secret:
+      secretName: gcp-key
+  templates:
+  - name: create-offline-diags
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "climate-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: '{{workflow.parameters.docker-image}}'
+      command:
+      - python 
+      - -m
+      - fv3net.diagnostics.sklearn_model_performance
+      - '{{workflow.parameters.trained-model}}'
+      - '{{workflow.parameters.testing-data}}'
+      - '{{workflow.parameters.diagnostics-data}}'
+      - workflows/end_to_end/kustomization/test_sklearn_variable_names.yml
+      - '{{workflow.parameters.output-location}}'
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-credentials-user-gcp-sa
+      resources:
+        requests:
+            memory: "10Gi"
+            cpu: "1000m"
+        limits:
+            memory: "30Gi"
+            cpu: "1000m"
