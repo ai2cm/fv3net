@@ -3,9 +3,12 @@ import pickle
 import numpy as np
 import zarr
 
+import pytest
+
 from synth.core import _Encoder
 
 from synth import (
+    generate,
     read_schema_from_zarr,
     Array,
     ChunkedArray,
@@ -17,7 +20,7 @@ from synth import (
     dumps,
 )
 
-from synth.core import dict_to_schema_v1
+from synth.core import dict_to_schema
 
 
 def test_version():
@@ -57,12 +60,8 @@ def test_DatasetSchema_dumps():
 
     x = CoordinateSchema("x", ["x"], np.array([1, 2, 3]))
     a = VariableSchema(
-        "a",
-        ["x"],
-        ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
-        range=Range(0, 10),
+        "a", ["x"], ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
     )
-
     ds = DatasetSchema(coords=[x], variables=[a])
 
     val = dumps(ds)
@@ -72,10 +71,7 @@ def test_DatasetSchema_dumps():
 def test_DatasetSchema_dumps_regression(regtest):
     x = CoordinateSchema("x", ["x"], np.array([1, 2, 3]))
     a = VariableSchema(
-        "a",
-        ["x"],
-        ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
-        range=Range(0, 10),
+        "a", ["x"], ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
     )
 
     ds = DatasetSchema(coords=[x], variables=[a])
@@ -84,40 +80,53 @@ def test_DatasetSchema_dumps_regression(regtest):
     print(val, file=regtest)
 
 
-def test_DatasetSchemaLoads():
-    mock_dict_schema_v1 = {
+mock_dict_schema_v1 = {
+    "coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3], "attrs": [1]}],
+    "variables": [
+        {
+            "name": "a",
+            "dims": ["x"],
+            "array": {"shape": [3], "dtype": "<f4", "chunks": [1]},
+            "range": {"min": 0, "max": 10},
+        }
+    ],
+}
+
+mock_dict_schema_v2alpha = {
+    "version": "v2alpha",
+    "schema": {
         "coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3], "attrs": [1]}],
         "variables": [
             {
                 "name": "a",
                 "dims": ["x"],
                 "array": {"shape": [3], "dtype": "<f4", "chunks": [1]},
-                "range": {"min": 0, "max": 10},
             }
         ],
-    }
+    },
+}
 
-    ds = dict_to_schema_v1(mock_dict_schema_v1)
+
+@pytest.mark.parametrize("d", [mock_dict_schema_v1, mock_dict_schema_v2alpha])
+def test_DatasetSchemaLoads(d):
+    ds = dict_to_schema(d)
     assert isinstance(ds, DatasetSchema)
 
     v = ds.variables[0]
     assert isinstance(v, VariableSchema)
-    assert isinstance(v.range, Range)
-
     assert ds.coords[0].attrs == [1]
 
 
 def test_generate_and_pickle_integration():
     x = CoordinateSchema("x", ["x"], np.array([1, 2, 3]))
     a = VariableSchema(
-        "a",
-        ["x"],
-        ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
-        range=Range(0, 10),
+        "a", ["x"], ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32"))
     )
 
+    ranges = {"a": Range(0, 10)}
+
     ds = DatasetSchema(coords=[x], variables=[a])
-    d = ds.generate()
+    d = generate(ds, ranges)
     pickle.dumps(d)
 
 
@@ -131,14 +140,13 @@ def test_generate_regression(regtest):
     """
     x = CoordinateSchema("x", ["x"], np.array([1, 2, 3]))
     a = VariableSchema(
-        "a",
-        ["x"],
-        ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
-        range=Range(0, 10),
+        "a", ["x"], ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
     )
 
+    ranges = {"a": Range(0, 10)}
+
     ds = DatasetSchema(coords=[x], variables=[a])
-    d = ds.generate()
+    d = generate(ds, ranges)
     arr = d.a.values
     print(arr, file=regtest)
 
@@ -160,6 +168,6 @@ def test_cftime_generate():
     arr.attrs["_ARRAY_DIMENSIONS"] = ["time"]
 
     schema = read_schema_from_zarr(group, coords=["time"])
-    ds = schema.generate()
+    ds = generate(schema, {})
 
     assert dict(ds.time.attrs) == dict(julian_time_attrs)

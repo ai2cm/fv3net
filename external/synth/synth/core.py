@@ -21,10 +21,11 @@ import dask.array as da
 import xarray as xr
 import logging
 import io
+from functools import singledispatch
 
 logger = logging.getLogger(__file__)
 
-SCHEMA_VERSION = "v1"
+SCHEMA_VERSION = "v2alpha"
 
 
 class _Encoder(json.JSONEncoder):
@@ -84,17 +85,8 @@ class VariableSchema:
     name: str
     dims: Sequence[str]
     array: Array
-    range: Range
 
     attrs: Mapping = field(default_factory=dict)
-
-    def generate(self):
-        return xr.DataArray(
-            self.array.generate(self.range),
-            dims=self.dims,
-            name=self.name,
-            attrs=self.attrs,
-        )
 
 
 @dataclass
@@ -104,29 +96,46 @@ class CoordinateSchema:
     value: np.ndarray
     attrs: Mapping = field(default_factory=dict)
 
-    def generate(self):
-        return xr.DataArray(
-            self.value, dims=self.dims, name=self.name, attrs=self.attrs
-        )
-
 
 @dataclass
 class DatasetSchema:
     coords: Sequence[CoordinateSchema]
     variables: Sequence[VariableSchema]
 
-    def generate(self):
-        return xr.Dataset(
-            {v.name: v.generate() for v in self.variables},
-            coords={v.name: v.generate() for v in self.coords},
-        )
+
+@singledispatch
+def generate(_):
+    pass
+
+
+@generate.register
+def _(self: CoordinateSchema):
+    return xr.DataArray(self.value, dims=self.dims, name=self.name, attrs=self.attrs)
+
+
+@generate.register
+def _(self: VariableSchema, range: Range):
+    return xr.DataArray(
+        self.array.generate(range), dims=self.dims, name=self.name, attrs=self.attrs,
+    )
+
+
+@generate.register
+def _(self: DatasetSchema, ranges: Mapping[str, Range] = None):
+    ranges = {} if ranges is None else ranges
+    default_range = Range(-1000, 1000)
+    return xr.Dataset(
+        {
+            v.name: generate(v, ranges.get(v.name, default_range))
+            for v in self.variables
+        },
+        coords={v.name: generate(v) for v in self.coords},
+    )
 
 
 # TODO test this function
 def read_schema_from_zarr(
     group: zarr.Group,
-    default_range=Range(-1000, 1000),
-    sample=lambda arr: arr[-1, 0, 0, 0],
     coords=("forecast_time", "initial_time", "tile", "step", "z", "y", "x"),
 ):
 
@@ -144,19 +153,8 @@ def read_schema_from_zarr(
             scheme = CoordinateSchema(variable, [variable], arr[:], attrs)
             coord_schemes.append(scheme)
         else:
-            n = sample(arr)
-
-            # TODO arr.chunks is a not of ints, so the properties of
-            # chunked array are not accurate
             array = ChunkedArray(arr.shape, arr.dtype, arr.chunks)
-
-            m, M = n.min(), n.max()
-            if np.isnan(m) or np.isnan(M):
-                range_ = default_range
-            else:
-                range_ = Range(m.item(), M.item())
-
-            scheme = VariableSchema(variable, dims, array, range=range_, attrs=attrs,)
+            scheme = VariableSchema(variable, dims, array, attrs=attrs)
             variables.append(scheme)
 
     return DatasetSchema(coord_schemes, variables)
@@ -173,9 +171,9 @@ def dumps(schema: DatasetSchema):
     return fp.getvalue()
 
 
-# To bump the version make a new parser named 
+# To bump the version make a new parser named
 # dict_to_schema_<version>
-def dict_to_schema_v1(d):
+def dict_to_schema_v1_v2(d):
 
     coords = []
     for coord in d["coords"]:
@@ -184,24 +182,39 @@ def dict_to_schema_v1(d):
     variables = []
     for variable in d["variables"]:
         array = ChunkedArray(**variable.pop("array"))
-        range_ = Range(**variable.pop("range"))
-        variables.append(VariableSchema(array=array, range=range_, **variable))
+        variables.append(
+            VariableSchema(
+                array=array,
+                name=variable["name"],
+                dims=variable["dims"],
+                attrs=variable.get("attrs"),
+            )
+        )
 
     return DatasetSchema(coords=coords, variables=variables)
 
 
+def infer_version(d):
+    try:
+        return d["version"]
+    except KeyError:
+        return "v1"
+
+
+def dict_to_schema(d):
+    version = infer_version(d)
+
+    if version == "v1":
+        return dict_to_schema_v1_v2(d)
+    elif version == "v2alpha":
+        return dict_to_schema_v1_v2(d["schema"])
+    else:
+        raise NotImplementedError(f"Version {version} is not supported.")
+
+
 def load(fp):
     d = json.load(fp)
-
-    try:
-        version = d["version"]
-        schema = d["schema"]
-    except KeyError:
-        version = "v1"
-        schema = d
-
-    loader = globals()["dict_to_schema_" + version]
-    return loader(schema)
+    return dict_to_schema(d)
 
 
 def loads(s):
