@@ -90,12 +90,12 @@ def _precipitation_rate_from_total_precipitation(
     """Compute precipitation rate from wrapper total_precipitation variable
     
     Args:
-        total_precipitation, timestep precipitation in m
-        time_dim, name of time dimension coordinate variabke, which must provide
+        total_precipitation: timestep precipitation in m
+        time_dim: name of time dimension coordinate variable, which must provide
             output times in seconds
     
     Returns:
-        precipitation_rate, precipitation rate in mm/s
+        precipitation_rate: precipitation rate in mm/s
     """
 
     dt_seconds = total_precipitation[time_dim].diff(time_dim).isel({time_dim: 0})
