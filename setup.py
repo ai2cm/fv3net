@@ -8,6 +8,7 @@ dependencies = [
     "intake==0.5.4",
     "scikit-image==0.16.2",
     "MetPy==0.12.0",
+    "pooch>=0.1.1",
     "toolz==0.10.0",
     "xarray==0.15.1",
     "xgcm==0.3.0",
