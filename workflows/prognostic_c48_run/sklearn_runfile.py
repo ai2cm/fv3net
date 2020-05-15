@@ -152,7 +152,6 @@ if __name__ == "__main__":
         if rank == 0:
             logger.debug("Setting Fortran State")
         preds = runtime.rename_keys(preds, rename_ML_to_CF)
-        preds.pop(PRECIP_RATE, None)
         fv3gfs.set_state(
             {key: fv3util.Quantity.from_data_array(preds[key]) for key in preds}
         )
