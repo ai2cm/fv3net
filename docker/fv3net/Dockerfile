@@ -13,6 +13,10 @@ RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.
 
 RUN apt-get update && apt-get install -y google-cloud-sdk jq python3-dev python3-pip kubectl gfortran
 
+# install Argo CLI
+RUN curl -sSL -o /usr/local/bin/argo https://github.com/argoproj/argo/releases/download/v2.2.1/argo-linux-amd64
+RUN chmod +x /usr/local/bin/argo
+
 # install gcloud sdk
 RUN gcloud config set project vcm-ml
 

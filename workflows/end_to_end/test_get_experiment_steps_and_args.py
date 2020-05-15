@@ -55,7 +55,7 @@ def test__get_all_step_arguments(test_config):
         "argo submit some.yaml "
         "-p required_arg=required_arg_value "
         "-p required_location_arg=data_location "
-        "-p output_location=output_location "
+        "-p output-location=output_location "
         "--optional_arg optional_arg_value"
     )
     assert all_commands["python_step"] == (

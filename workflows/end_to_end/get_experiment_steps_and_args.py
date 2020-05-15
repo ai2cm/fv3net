@@ -186,7 +186,7 @@ def _get_all_step_arguments(config: Mapping):
         },
         "argo": {
             "arg_resolver": _resolve_arg_values_argo,
-            "output_location_format": "-p output_location={path}",
+            "output_location_format": "-p output-location={path}",
         },
     }
     for step, step_config in steps_config.items():
