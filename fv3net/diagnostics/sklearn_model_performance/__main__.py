@@ -2,7 +2,6 @@ import argparse
 import atexit
 import json
 import os
-import shutil
 import tempfile
 import xarray as xr
 import yaml
@@ -50,7 +49,7 @@ logger = logging.getLogger(__file__)
 
 
 def _cleanup_temp_dir(temp_dir):
-    logger.info(f"Cleaning up temp dir {temp_dir}")
+    logger.info(f"Cleaning up temp dir {temp_dir.name}")
     temp_dir.cleanup()
 
 
@@ -257,7 +256,7 @@ if __name__ == "__main__":
     # (potential target for refactor) At least it is clear
     # that this can be improved now.
     # Ideally, ML prediction and loading should be refactored to a separate routine
-    
+
     ds = load_data_and_predict_with_ml(
         args.test_data_path,
         args.model_path,
@@ -279,4 +278,3 @@ if __name__ == "__main__":
     else:
         report_sections = compute_metrics_and_plot(ds, args.output_path, names)
         _write_report(args.output_path, report_sections, vars(args), REPORT_TITLE)
-    logg
