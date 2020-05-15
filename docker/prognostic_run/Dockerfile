@@ -9,5 +9,4 @@ COPY external/vcm /fv3net/external/vcm
 RUN pip3 install -e /fv3net/external/vcm -e /fv3net/external/fv3config
 
 COPY . /fv3net
-RUN pip3 install --no-deps -e /fv3net
-ENV PYTHONPATH=/fv3net/external/runtime:${PYTHONPATH}
+ENV PYTHONPATH=/fv3net/external/runtime:/fv3net:${PYTHONPATH}
