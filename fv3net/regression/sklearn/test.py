@@ -3,8 +3,8 @@ import joblib
 import xarray as xr
 import os
 
-from ..dataset_handler import stack_and_drop_nan_samples
 from vcm.convenience import round_time
+from vcm import safe
 import logging
 
 MODEL_FILENAME = "sklearn_model.pkl"
@@ -49,8 +49,29 @@ def load_test_dataset(
     # substantially soon, so not worth parameterizing.  IMO stacking is the
     # responsibility of the xarray wrapping object, not user code like this.
     ds_test = ds_test.drop(["lonb", "latb"])
-    ds_stacked = stack_and_drop_nan_samples(ds_test, coord_z_center)
+    ds_stacked = _stack_and_drop_nan_samples(ds_test, coord_z_center)
     return ds_stacked
+
+
+def _stack_and_drop_nan_samples(ds, coord_z_center):
+    """
+
+    Args:
+        ds: xarray dataset
+
+    Returns:
+        xr dataset stacked into sample dimension and with NaN elements dropped
+         (the masked out land/sea type)
+    """
+    # TODO delete this function
+    ds = (
+        safe.stack_once(
+            ds, SAMPLE_DIM, [dim for dim in ds.dims if dim != coord_z_center]
+        )
+        .transpose(SAMPLE_DIM, coord_z_center)
+        .dropna(SAMPLE_DIM)
+    )
+    return ds
 
 
 def predict_dataset(sk_wrapped_model, ds_stacked, vars_to_keep):

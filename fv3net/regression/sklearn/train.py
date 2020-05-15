@@ -4,7 +4,7 @@ import logging
 import os
 import yaml
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Sequence
 
 from fv3net.regression import loaders
 from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
@@ -48,14 +48,14 @@ def load_model_training_config(config_path: str) -> ModelTrainingConfig:
 
 def load_data_sequence(
     data_path: str, train_config: ModelTrainingConfig
-) -> dataset_handler.BatchSequence:
+) -> Sequence:
     """
-
     Args:
+        data_path: data location
         train_config: model training configuration
 
     Returns:
-        iterator that generates xr datasets for training batches
+        sequence: xr datasets for training batches
     """
     batch_function = getattr(loaders, train_config.batch_function)
     ds_batches = batch_function(
@@ -106,12 +106,11 @@ def _get_transformed_batch_regressor(train_config, i_batch):
 
 
 def train_model(
-    batched_data: dataset_handler.BatchSequence, train_config: ModelTrainingConfig
+    batched_data: Sequence, train_config: ModelTrainingConfig
 ):
     """
-
     Args:
-        batched_data: iterator that yields training batch datasets
+        batched_data: training batch datasets
         train_config: model training configuration
         targets_for_normalization: array of sample output data used to save norm and std
             dev to the StandardScaler transformer

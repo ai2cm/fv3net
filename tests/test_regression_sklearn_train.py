@@ -2,7 +2,14 @@ import xarray as xr
 import numpy as np
 
 from fv3net.regression.sklearn import train
-from fv3net.regression.dataset_handler import _shuffled
+from fv3net.regression.loaders._one_step import _shuffled, _chunk_indices
+
+
+def test__chunk_indices():
+    chunks = (2, 3)
+    expected = [[0, 1], [2, 3, 4]]
+    ans = _chunk_indices(chunks)
+    assert ans == expected
 
 
 def test_train_save_model_succeeds(tmpdir):

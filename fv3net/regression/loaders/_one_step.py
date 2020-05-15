@@ -1,14 +1,13 @@
-import collections
 import backoff
 import functools
 import logging
-from typing import Iterable, List, Sequence, Callable, Mapping
+from typing import Iterable, List, Sequence, Mapping
 import numpy as np
 import xarray as xr
 
 import vcm
-from vcm import safe
-from vcm.cloud.fsspec import get_fs
+from vcm import cloud, safe
+from ._sequences import FunctionOutputSequence
 
 __all__ = ["load_one_step_batches"]
 
@@ -19,21 +18,6 @@ logger.setLevel(logging.INFO)
 fh = logging.FileHandler("dataset_handler.log")
 fh.setLevel(logging.INFO)
 logger.addHandler(fh)
-
-
-class BatchSequence(collections.abc.Sequence):
-    def __init__(self, loader_function: Callable, args_sequence: Sequence[Iterable]):
-        """Create a sequence of Batch objects from a function which produces a single
-        batch, and a sequence of arguments to that function.
-        """
-        self._loader = loader_function
-        self._args = args_sequence
-
-    def __getitem__(self, item):
-        return self._loader(*self._args[item])
-
-    def __len__(self):
-        return len(self._args)
 
 
 def _url_to_datetime(url):
@@ -83,7 +67,7 @@ def load_one_step_batches(
     if rename_variables is None:
         rename_variables = {}
     data_vars = list(input_variables) + list(output_variables)
-    fs = get_fs(data_path)
+    fs = cloud.get_fs(data_path)
     logger.info(f"Reading data from {data_path}.")
     zarr_urls = [
         zarr_file for zarr_file in fs.ls(data_path) if "grid_spec" not in zarr_file
@@ -109,7 +93,7 @@ def load_one_step_batches(
     )
     args_sequence = [(item,) for item in url_list_sequence]
     return (
-        BatchSequence(load_batch, args_sequence),
+        FunctionOutputSequence(load_batch, args_sequence),
         get_time_list(url_list_sequence),
     )
 
@@ -200,24 +184,3 @@ def _chunk_indices(chunks):
 def _shuffled_within_chunks(indices, random):
     # We should only need to set the random seed once (not every time)
     return np.concatenate([random.permutation(index) for index in indices])
-
-
-def stack_and_drop_nan_samples(ds, coord_z_center):
-    """
-
-    Args:
-        ds: xarray dataset
-
-    Returns:
-        xr dataset stacked into sample dimension and with NaN elements dropped
-         (the masked out land/sea type)
-    """
-    # TODO delete this function
-    ds = (
-        safe.stack_once(
-            ds, SAMPLE_DIM, [dim for dim in ds.dims if dim != coord_z_center]
-        )
-        .transpose(SAMPLE_DIM, coord_z_center)
-        .dropna(SAMPLE_DIM)
-    )
-    return ds
