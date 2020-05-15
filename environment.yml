@@ -27,7 +27,7 @@ dependencies:
   - numba
   - numpy
   - partd
-  - pooch>=1.1.1
+  - pooch==1.1.1
   - pyyaml==5.3
   - pytest
   - pytest-mpl
