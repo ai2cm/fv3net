@@ -362,10 +362,6 @@ requests = ">=2.18.0,<3.0.0dev"
 setuptools = ">=34.0.0"
 six = ">=1.10.0"
 
-[package.dependencies.grpcio]
-optional = true
-version = ">=1.8.2,<2.0dev"
-
 [package.extras]
 grpc = ["grpcio (>=1.8.2,<2.0dev)"]
 grpcgcp = ["grpcio-gcp (>=0.2.2)"]
@@ -542,7 +538,7 @@ google-cloud-core = ">=1.0.3,<2.0dev"
 grpc-google-iam-v1 = ">=0.12.3,<0.13dev"
 
 [package.dependencies.google-api-core]
-extras = ["grpcgcp", "grpc"]
+extras = ["grpc", "grpcgcp"]
 version = ">=1.14.0,<2.0.0dev"
 
 [[package]]
@@ -595,10 +591,6 @@ version = "1.51.0"
 
 [package.dependencies]
 protobuf = ">=3.6.0"
-
-[package.dependencies.grpcio]
-optional = true
-version = ">=1.0.0"
 
 [package.extras]
 grpc = ["grpcio (>=1.0.0)"]
@@ -1328,6 +1320,27 @@ version = "1.14.0"
 
 [[package]]
 category = "main"
+description = ""
+develop = true
+name = "synth"
+optional = false
+python-versions = "^3.7"
+version = "0.1.0"
+
+[package.dependencies]
+dask = "^2.15.0"
+fsspec = "^0.7.3"
+toolz = "^0.10.0"
+xarray = "^0.15.1"
+zarr = "^2.4.0"
+
+[package.source]
+reference = ""
+type = "directory"
+url = "../../external/synth"
+
+[[package]]
+category = "main"
 description = "Read and write TIFF(r) files"
 name = "tifffile"
 optional = false
@@ -1488,7 +1501,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "01f7487f152aa4aa9c41343aeafb566881ed9426b1c26480a6bec885ab816474"
+content-hash = "cb6a4b161f6aa80c0a9632814d121d075e99c10ed32e91c6068f871255028f2e"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -2322,6 +2335,7 @@ six = [
     {file = "six-1.14.0-py2.py3-none-any.whl", hash = "sha256:8f3cd2e254d8f793e7f3d6d9df77b92252b52637291d0f0da013c76ea2724b6c"},
     {file = "six-1.14.0.tar.gz", hash = "sha256:236bdbdce46e6e6a3d61a337c0f8b763ca1e8717c03b369e87a7ec7ce1319c0a"},
 ]
+synth = []
 tifffile = [
     {file = "tifffile-2020.5.11-py3-none-any.whl", hash = "sha256:2e110ea3a6381df534261a85091490a5678faa4535aa14cc11b8ea8379dcbf01"},
     {file = "tifffile-2020.5.11.tar.gz", hash = "sha256:abfce379f2b4b97759796c1489ea0e73c349fc71bf09bea2a5d076cbe7cfd4eb"},
