@@ -19,6 +19,8 @@ from vcm.convenience import round_time
 
 logger = logging.getLogger(__file__)
 
+GRID_VARIABLES = ["grid_x", "grid_y", "grid_xt", "grid_yt", "pfull", "tile"]
+
 
 def remove_coarse_name(ds):
     name_dict = {}
@@ -48,35 +50,23 @@ def open_diagnostic_output(url):
     logger.info(f"Opening Diagnostic data at {url}")
     # open diagnostic output
     ds = xr.open_zarr(fsspec.get_mapper(url), consolidated=True)
-    # TODO use standardize_diagnostic_metadata
-    times = np.vectorize(round_time)(ds.time)
-    return (
-        ds.assign(time=times)
-        .pipe(remove_coarse_name)
-        .pipe(rename_dims)
-        .pipe(rename_latlon)
-    )
+    return standardize_diagnostic_metadata(ds)
 
 
 def open_restart_data(RESTART_ZARR):
     logger.info(f"Opening restart data at {RESTART_ZARR}")
-    coords_names = ["grid_x", "grid_y", "grid_xt", "grid_yt", "pfull", "tile"]
     store = fsspec.get_mapper(RESTART_ZARR)
 
     if ".zmetadata" not in store:
         zarr.consolidate_metadata(store)
 
-    # TODO use standardize_restart_metadata
     restarts = xr.open_zarr(store, consolidated=True)
-    times = np.vectorize(vcm.parse_datetime_from_str)(restarts.time)
-    return restarts.assign(time=times).drop(coords_names)
+    return standardize_restart_metadata(restarts)
 
 
 def standardize_restart_metadata(restarts):
-    # TODO replace this hard-code
-    coords_names = ["grid_x", "grid_y", "grid_xt", "grid_yt", "pfull", "tile"]
     times = np.vectorize(vcm.parse_datetime_from_str)(restarts.time)
-    return restarts.assign(time=times).drop(coords_names)
+    return restarts.assign(time=times).drop(GRID_VARIABLES)
 
 
 def standardize_diagnostic_metadata(ds):
@@ -100,20 +90,9 @@ def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
     )
 
 
-def open_merged_data(restart_url, atmos_coarse_ave_url):
-    restarts = open_restart_data(restart_url)
-    diag = open_diagnostic_output(atmos_coarse_ave_url)
-
-    restarts = shift(restarts)
-
-    return xr.merge([diag.drop("delp"), restarts], join="inner").drop(
-        ["grid_x", "grid_xt", "grid_yt", "grid_y"], errors="ignore"
-    )
-
-
 def merge(restarts, diag):
     restarts = shift(restarts)
 
     return xr.merge([diag.drop("delp"), restarts], join="inner").drop(
-        ["grid_x", "grid_xt", "grid_yt", "grid_y"], errors="ignore"
+        GRID_VARIABLES, errors="ignore"
     )
