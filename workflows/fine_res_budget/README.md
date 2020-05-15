@@ -5,9 +5,14 @@ vertical eddy-fluxes which are resolved in C3072 but not at C48.
 
 ### Local usage
 
+
 Execute this from the current directory:
 
-    python -m src \
+    poetry install
+
+Run inside the poetry environmentj
+
+    poetry run python -m src \
         gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr/ \
         gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files.zarr \
         gs://vcm-ml-scratch/noah/2020-05-12/

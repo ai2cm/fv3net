@@ -141,8 +141,8 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         - averaged_vars["omega"] * averaged_vars["T"]
     )
 
-    div_q = grid.vertical_divergence(eddy_flux_q, delp_c.drop("pfull"))
-    div_T = grid.vertical_divergence(eddy_flux_t, delp_c.drop("pfull"))
+    div_q = grid.vertical_divergence(eddy_flux_q, delp_c)
+    div_T = grid.vertical_divergence(eddy_flux_t, delp_c)
 
     t_budget_coarse = {
         "storage": averaged_vars["storage_T"],
