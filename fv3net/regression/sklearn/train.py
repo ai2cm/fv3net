@@ -6,7 +6,7 @@ import yaml
 from dataclasses import dataclass
 from typing import Iterable
 
-from fv3net.regression import dataset_handler
+from fv3net.regression import loaders
 from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
@@ -57,7 +57,7 @@ def load_data_sequence(
     Returns:
         iterator that generates xr datasets for training batches
     """
-    batch_function = getattr(dataset_handler, train_config.batch_function)
+    batch_function = getattr(loaders, train_config.batch_function)
     ds_batches = batch_function(
         data_path,
         train_config.input_variables,
