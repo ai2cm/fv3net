@@ -46,13 +46,13 @@ $NETCDF_OUTPUT \
 --diags_config $DIAGS_CONFIG \
 --n_sample_inits 48 \
 --runner DataflowRunner \
---job_name one-step-diags-${USER}-$(uuid | head -c 7) \
+--job_name one-step-diags-${USER}-${STAMP} \
 --project vcm-ml \
 --region us-central1 \
 --temp_location gs://vcm-ml-data/tmp_dataflow \
 --num_workers 4 \
 --max_num_workers 30 \
---disk_size_gb 150 \
+--disk_size_gb 200 \
 --worker_machine_type n2-highmem-4 \
 --setup_file ./setup.py \
 --extra_package ./external/report/dist/report-0.1.0.tar.gz \
