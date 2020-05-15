@@ -10,6 +10,7 @@ from fv3net.regression import dataset_handler
 from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestRegressor
 
 
 logger = logging.getLogger(__file__)
@@ -78,8 +79,9 @@ def _get_regressor(train_config: ModelTrainingConfig):
     """
     model_type = train_config.model_type.replace(" ", "").replace("_", "")
     if "rf" in model_type or "randomforest" in model_type:
-        from sklearn.ensemble import RandomForestRegressor
-
+        train_config.hyperparameters["random_state"] = train_config.hyperparameters.get(
+            "random_state", 0
+        )
         train_config.hyperparameters["n_jobs"] = train_config.hyperparameters.get(
             "n_jobs", -1
         )
@@ -92,6 +94,15 @@ def _get_regressor(train_config: ModelTrainingConfig):
             "or 'random forest') "
         )
     return regressor
+
+
+def _get_transformed_batch_regressor(train_config, i_batch):
+    base_regressor = _get_regressor(train_config)
+    target_transformer = StandardScaler()
+    transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
+    batch_regressor = RegressorEnsemble(transform_regressor)
+    model_wrapper = SklearnWrapper(batch_regressor)
+    return model_wrapper
 
 
 def train_model(
@@ -108,12 +119,8 @@ def train_model(
     Returns:
         trained sklearn model wrapper object
     """
-    base_regressor = _get_regressor(train_config)
-    target_transformer = StandardScaler()
-    transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
-    batch_regressor = RegressorEnsemble(transform_regressor)
-    model_wrapper = SklearnWrapper(batch_regressor)
 
+    model_wrapper = _get_transformed_batch_regressor(train_config)
     for i, batch in enumerate(batched_data):
         logger.info(f"Fitting batch {i}/{batched_data.num_batches}")
         model_wrapper.fit(
