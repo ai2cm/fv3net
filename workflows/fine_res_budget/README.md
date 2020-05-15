@@ -10,6 +10,8 @@ Execute this from the current directory:
 
     poetry install
 
+You might need to deactivate any active conda environments or other virtualenvs beforehand.
+
 Run inside the poetry environmentj
 
     poetry run python -m src \
