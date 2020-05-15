@@ -42,6 +42,7 @@ VARIABLES = (
     "vertical_thickness_of_atmospheric_layer",
     "surface_geopotential",
     "eastward_wind_at_surface",
+    "northward_wind_at_surface",
     "mean_cos_zenith_angle",
     "sensible_heat_flux",
     "latent_heat_flux",
