@@ -4,10 +4,8 @@ configMapGenerator:
 - behavior: merge
   env: input_data.env
   files:
-  - diag_table_prognostic
   - end_to_end.yaml
   - time-control.yaml
-  - create_training_data_variable_names.yml
   literals:
   - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:NEED_TO_FILL_IN_SHA
   - FV3NET_IMAGE=us.gcr.io/vcm-ml/prognostic_run:NEED_TO_FILL_IN_SHA
