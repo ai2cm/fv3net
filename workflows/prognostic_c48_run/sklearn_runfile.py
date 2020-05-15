@@ -26,13 +26,12 @@ REQUIRED_VARIABLES = [TEMP, SPHUM, DELP, PRECIP_RATE]
 
 cp = 1004
 gravity = 9.81
-WATER_DENSITY = 1000  # kg/m^3
 
 
 def compute_diagnostics(state, diags):
 
     net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
-    physics_precip = WATER_DENSITY * state[PRECIP_RATE]  # PRECIP_RATE in units of m/s
+    physics_precip = state[PRECIP_RATE]
 
     return dict(
         net_moistening=(net_moistening)
