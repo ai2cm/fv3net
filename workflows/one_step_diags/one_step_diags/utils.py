@@ -174,6 +174,20 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
     hydrometeor_mixing_ratio.attrs.update(
         {"long_name": "all hydrometeors mixing ratio", "units": "kg/kg"}
     )
+    
+    net_radiation_toa = (
+        ds["DSWRFtoa"] - ds["USWRFtoa"] - ds["ULWRFtoa"]
+    )
+    net_radiation_toa.attrs.update(
+        {"long_name": "net radiative flux at TOA", "units": "W/m**2"}
+    )
+    
+    net_radiation_sfc = (
+        ds["DSWRFsfc"] - ds["USWRFsfc"] + ds["DLWRFsfc"] - ds["ULWRFsfc"]
+    )
+    net_radiation_sfc.attrs.update(
+        {"long_name": "net radiative flux at surface", "units": "W/m**2"}
+    )
 
     ds = ds.assign(
         {
@@ -225,6 +239,8 @@ def insert_derived_vars_from_ds_zarr(ds: xr.Dataset) -> xr.Dataset:
             "precipitation_rate": (
                 _SECONDS_PER_DAY * ds["precipitation_rate"]
             ).assign_attrs({"long name": "precipitation rate", "units": "mm/day"}),
+            "net_radiation_sfc": net_radiation_sfc,
+            "net_radiation_toa": net_radiation_toa,
         }
     )
 

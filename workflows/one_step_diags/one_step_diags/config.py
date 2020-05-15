@@ -91,6 +91,8 @@ GLOBAL_MEAN_2D_VARS = {
     "eastward_wind_at_surface": {"var_type": ["states"], "scale": [None]},
     "surface_temperature": {"var_type": ["states"], "scale": [None]},
     "surface_roughness": {"var_type": ["states"], "scale": [None]},
+    "net_radiation_sfc": {"var_type": ["states"], "scale": [None]},
+    "net_radiation_toa": {"var_type": ["states"], "scale": [None]},
 }
 
 DIURNAL_VAR_MAPPING = {
@@ -171,11 +173,13 @@ PROFILE_COMPOSITES = [
 
 GLOBAL_MEAN_3D_VARS = {
     "specific_humidity": {"var_type": "tendencies", "scale": 1e-7},
+    "specific_humidity": {"var_type": "states", "scale": None},
     "air_temperature": {"var_type": "tendencies", "scale": 1e-4},
     "liquid_ice_temperature": {"var_type": "tendencies", "scale": 1e-4},
     "cloud_water_ice": {"var_type": "tendencies", "scale": 5e-8},
     "precipitating_water": {"var_type": "tendencies", "scale": 1e-8},
-    "hydrometeors": {"var_type": "states", "scale": 1e-7},
+    "hydrometeors": {"var_type": "tendencies", "scale": 1e-8},
+    "hydrometeors": {"var_type": "states", "scale": None},
     "total_water": {"var_type": "tendencies", "scale": 1e-7},
     "vertical_wind": {"var_type": "states", "scale": 0.02},
 }
@@ -200,6 +204,8 @@ GLOBAL_2D_MAPS = {
     "eastward_wind_at_surface": {"var_type": "states", "scale": None},
     "surface_temperature": {"var_type": "states", "scale": None},
     "surface_roughness": {"var_type": "states", "scale": None},
+    "net_radiation_sfc": {"var_type": "states", "scale": None},
+    "net_radiation_toa": {"var_type": "states", "scale": None},
 }
 
 MAPPABLE_VAR_KWARGS = {
