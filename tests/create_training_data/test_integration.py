@@ -59,8 +59,8 @@ def test_create_training_data_regression(datadir):
     with open(str(path)) as f:
         diag_schema = synth.load(f)
 
-    big_zarr = schema.generate()
-    ds_diag = diag_schema.generate()
+    big_zarr = synth.generate(schema)
+    ds_diag = synth.generate(diag_schema)
     # need to decode the time coordinate.
     ds_diag_decoded = xr.decode_cf(ds_diag)
 

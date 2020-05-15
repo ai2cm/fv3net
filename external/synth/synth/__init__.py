@@ -7,6 +7,7 @@ from .core import (
     VariableSchema,
     dumps,
     loads,
+    generate,
     load,
     dump,
     read_schema_from_zarr,
