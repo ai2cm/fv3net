@@ -95,7 +95,7 @@ def _get_regressor(train_config: ModelTrainingConfig):
     return regressor
 
 
-def _get_transformed_batch_regressor(train_config, i_batch):
+def _get_transformed_batch_regressor(train_config):
     base_regressor = _get_regressor(train_config)
     target_transformer = StandardScaler()
     transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
