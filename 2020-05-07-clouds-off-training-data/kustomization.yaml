@@ -10,6 +10,7 @@ configMapGenerator:
   literals:
   - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:NEED_TO_FILL_IN_SHA
   - FV3NET_IMAGE=us.gcr.io/vcm-ml/prognostic_run:NEED_TO_FILL_IN_SHA
+  - JOBNAME=create-clouds-off-data
   name: end-to-end
 bases:
 - ../../external/fv3net/workflows/end_to_end/kustomization
