@@ -55,7 +55,7 @@ def _cleanup_temp_dir(temp_dir):
 
 def _download_remote_data(remote_path, local_dir):
     copy(os.path.join(remote_path, "*"), local_dir)
-    if os.listdir(local_dir) == 0:
+    if len(os.listdir(local_dir)) == 0:
         raise IOError(f"No data downloaded from remote input path {remote_path}")
 
 
