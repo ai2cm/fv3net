@@ -26,6 +26,8 @@ from .plot_metrics import plot_metrics
 from .plot_timesteps import plot_timestep_counts
 import logging
 
+DOWNLOAD_DATA_PATH = "offline_test_data"
+
 DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
 DATASET_NAME_SHIELD_HIRES = "coarsened_high_res"
@@ -45,6 +47,13 @@ DPI_FIGURES = {
 
 logger = logging.getLogger(__file__)
 
+
+def _download_remote_data(remote_path, local_dir=DOWNLOAD_DATA_PATH):
+    os.mkdir(local_dir)
+    copy(os.path.join(remote_path, "*"), local_dir)
+    if os.listdir(local_dir) == 0:
+        raise IOError(f"No data downloaded from remote input path {remote_path}")
+    
 
 def _is_remote(path):
     return path.startswith("gs://")
@@ -226,6 +235,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     args.test_data_path = os.path.join(args.test_data_path, "test")
+    if _is_remote(args.test_data_path):
+        _download_remote_data(args.test_data_path, DOWNLOAD_DATA_PATH)
+        args.test_data_path = DOWNLOAD_DATA_PATH
+
     with open(args.variable_names_file, "r") as f:
         names = yaml.safe_load(f)
 
