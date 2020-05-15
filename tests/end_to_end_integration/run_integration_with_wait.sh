@@ -69,6 +69,7 @@ configMapGenerator:
   env: input_data.env
   literals:
     - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:$VERSION
+    - FV3NET_IMAGE=us.gcr.io/vcm-ml/fv3net:$VERSION
     - JOBNAME=integration-debug-$random
   name: end-to-end
   behavior: merge
