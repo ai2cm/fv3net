@@ -24,6 +24,8 @@ import io
 
 logger = logging.getLogger(__file__)
 
+SCHEMA_VERSION = "v1"
+
 
 class _Encoder(json.JSONEncoder):
     def default(self, o):
@@ -161,7 +163,8 @@ def read_schema_from_zarr(
 
 
 def dump(schema: DatasetSchema, fp):
-    json.dump(asdict(schema), fp, cls=_Encoder)
+    output = {"version": SCHEMA_VERSION, "schema": asdict(schema)}
+    json.dump(output, fp, cls=_Encoder)
 
 
 def dumps(schema: DatasetSchema):
@@ -170,8 +173,9 @@ def dumps(schema: DatasetSchema):
     return fp.getvalue()
 
 
-def load(fp):
-    d = json.load(fp)
+# To bump the version make a new parser named 
+# dict_to_schema_<version>
+def dict_to_schema_v1(d):
 
     coords = []
     for coord in d["coords"]:
@@ -184,6 +188,20 @@ def load(fp):
         variables.append(VariableSchema(array=array, range=range_, **variable))
 
     return DatasetSchema(coords=coords, variables=variables)
+
+
+def load(fp):
+    d = json.load(fp)
+
+    try:
+        version = d["version"]
+        schema = d["schema"]
+    except KeyError:
+        version = "v1"
+        schema = d
+
+    loader = globals()["dict_to_schema_" + version]
+    return loader(schema)
 
 
 def loads(s):

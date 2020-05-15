@@ -1,1 +1,1 @@
-{"coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3], "attrs": {}}], "variables": [{"name": "a", "dims": ["x"], "array": {"shape": [3], "dtype": "<f4", "chunks": [1]}, "range": {"min": 0, "max": 10}, "attrs": {}}]}
+{"version": "v1", "schema": {"coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3], "attrs": {}}], "variables": [{"name": "a", "dims": ["x"], "array": {"shape": [3], "dtype": "<f4", "chunks": [1]}, "range": {"min": 0, "max": 10}, "attrs": {}}]}}

@@ -15,8 +15,9 @@ from synth import (
     VariableSchema,
     __version__,
     dumps,
-    loads,
 )
+
+from synth.core import dict_to_schema_v1
 
 
 def test_version():
@@ -84,11 +85,19 @@ def test_DatasetSchema_dumps_regression(regtest):
 
 
 def test_DatasetSchemaLoads():
-    encoded_data = """
-    {"coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3], "attrs": [1]}], "variables": [{"name": "a", "dims": ["x"], "array": {"shape": [3], "dtype": "<f4", "chunks": [1]}, "range": {"min": 0, "max": 10}}]}
-    """  # noqa
+    mock_dict_schema_v1 = {
+        "coords": [{"name": "x", "dims": ["x"], "value": [1, 2, 3], "attrs": [1]}],
+        "variables": [
+            {
+                "name": "a",
+                "dims": ["x"],
+                "array": {"shape": [3], "dtype": "<f4", "chunks": [1]},
+                "range": {"min": 0, "max": 10},
+            }
+        ],
+    }
 
-    ds = loads(encoded_data)
+    ds = dict_to_schema_v1(mock_dict_schema_v1)
     assert isinstance(ds, DatasetSchema)
 
     v = ds.variables[0]
