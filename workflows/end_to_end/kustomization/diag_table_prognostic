@@ -130,8 +130,14 @@ default_experiment
  "gfs_phys",  "ULWRFtoa",       "ULWRFtoa",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "ULWRF",          "ULWRFsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "DLWRF",          "DLWRFsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "DSWRFI",      "DSWRFsfc_inst",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "USWRFI",      "USWRFsfc_inst",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "ULWRFI",      "ULWRFsfc_inst",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "DLWRFI",      "DLWRFsfc_inst",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "lhtfl_ave",      "LHTFLsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "shtfl_ave",      "SHTFLsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "lhtfl",      "LHTFLsfc_inst",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "shtfl",      "SHTFLsfc_inst",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "hpbl",           "HPBLsfc",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_sfc",   "fice",           "ICECsfc",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_sfc",   "SLMSKsfc",       "SLMSKsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
