@@ -78,7 +78,7 @@ def update(
     state = xr.Dataset(state)
     tend = predict(model, state)
     with xr.set_options(keep_attrs=True):
-        updated = dict(
+        updated = state.assign(
             specific_humidity=state["specific_humidity"] + tend["dQ2"] * dt,
             air_temperature=state["air_temperature"] + tend["dQ1"] * dt,
         )
