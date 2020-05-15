@@ -48,7 +48,7 @@ def open_diagnostic_output(url):
     logger.info(f"Opening Diagnostic data at {url}")
     # open diagnostic output
     ds = xr.open_zarr(fsspec.get_mapper(url), consolidated=True)
-    # TODO need to implement a correct version of round time
+    # TODO use standardize_diagnostic_metadata
     times = np.vectorize(round_time)(ds.time)
     return (
         ds.assign(time=times)
@@ -66,12 +66,14 @@ def open_restart_data(RESTART_ZARR):
     if ".zmetadata" not in store:
         zarr.consolidate_metadata(store)
 
+    # TODO use standardize_restart_metadata
     restarts = xr.open_zarr(store, consolidated=True)
     times = np.vectorize(vcm.parse_datetime_from_str)(restarts.time)
     return restarts.assign(time=times).drop(coords_names)
 
 
 def standardize_restart_metadata(restarts):
+    # TODO replace this hard-code
     coords_names = ["grid_x", "grid_y", "grid_xt", "grid_yt", "pfull", "tile"]
     times = np.vectorize(vcm.parse_datetime_from_str)(restarts.time)
     return restarts.assign(time=times).drop(coords_names)
