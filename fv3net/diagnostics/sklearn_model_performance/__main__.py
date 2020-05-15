@@ -53,7 +53,7 @@ def _download_remote_data(remote_path, local_dir=DOWNLOAD_DATA_PATH):
     copy(os.path.join(remote_path, "*"), local_dir)
     if os.listdir(local_dir) == 0:
         raise IOError(f"No data downloaded from remote input path {remote_path}")
-    
+
 
 def _is_remote(path):
     return path.startswith("gs://")
