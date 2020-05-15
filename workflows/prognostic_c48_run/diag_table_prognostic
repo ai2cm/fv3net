@@ -116,6 +116,11 @@ default_experiment
  "gfs_phys",  "totice_ave",     "ICEsfc",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "totsnw_ave",     "SNOWsfc",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "totgrp_ave",     "GRAUPELsfc", "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "cnvprcpb_ave",   "CPRATsfc_bucket",   "sfc_dt_atmos",  "all",  .false.,  "none",  2
+ "gfs_phys",  "totprcpb_ave",   "PRATEsfc_bucket",   "sfc_dt_atmos",  "all",  .false.,  "none",  2
+ "gfs_phys",  "toticeb_ave",    "ICEsfc_bucket",     "sfc_dt_atmos",  "all",  .false.,  "none",  2
+ "gfs_phys",  "totsnwb_ave",    "SNOWsfc_bucket",    "sfc_dt_atmos",  "all",  .false.,  "none",  2
+ "gfs_phys",  "totgrpb_ave",    "GRAUPELsfc_bucket", "sfc_dt_atmos",  "all",  .false.,  "none",  2
  "gfs_phys",  "DSWRF",          "DSWRFsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "USWRF",          "USWRFsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "DSWRFtoa",       "DSWRFtoa",   "sfc_dt_atmos",         "all",  .false.,  "none",  2

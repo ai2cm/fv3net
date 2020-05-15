@@ -64,7 +64,7 @@ DEFAULT = {
     "one_step_vars": [
         "latent_heat_flux",
         "sensible_heat_flux",
-        "total_precipitation",
+        "surface_precipitation_rate",
         "dQU",
         "dQV",
         "dQ1",
@@ -102,7 +102,7 @@ DEFAULT = {
         "ULWRFsfc_coarse": "ULWRFsfc_prog",
         "SHTFLsfc_coarse": "sensible_heat_flux_prog",
         "LHTFLsfc_coarse": "latent_heat_flux_prog",
-        "PRATEsfc_coarse": "total_precipitation_prog",
+        "PRATEsfc_coarse": "surface_precipitation_rate_prog",
     },
     "diag_vars": [
         "DSWRFtoa",
