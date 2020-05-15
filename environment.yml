@@ -13,7 +13,7 @@ dependencies:
   - f90nml
   - black=19.10b0
   - isort
-  - flake8
+  - flake8=3.7.9
   - gcsfs==0.6.0  # 0.6.1 changes filesystem.ls (errors when no files / doesn't exist)
   - google-cloud-storage
   - h5netcdf
@@ -41,10 +41,12 @@ dependencies:
   - jupyterlab
   - apache-beam
   - matplotlib=3.1
+  - pyquery>=1.4.0
   - python=3.7
   - holoviews
-  - bokeh=1.4
+  - bokeh>=2.0
   - backoff
+  - pip
   - pip:
     - zarr>=2.4
     - poetry

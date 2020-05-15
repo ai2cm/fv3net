@@ -14,32 +14,41 @@ spec:
   templates:
    - name: all
      steps:
-      - - name: regrid-step
+      - - name: diagnostics-step
           withParam: "{{workflow.parameters.runs}}"
-          template: regrid
+          template: diagnostics
           arguments:
             parameters:
               - name: run
                 value: "{{item.url}}"
               - name: output
-                value: "{{workflow.parameters.output_url}}/{{item.name}}.nc"
-      - - name: generate-notebook
-          template: notebook
-   - name: notebook
+                value: "gs://vcm-ml-scratch/argo/{{workflow.name}}/{{item.name}}/"
+      - - name: generate-report
+          template: report
+   - name: report
      tolerations:
      - key: "dedicated"
        operator: "Equal"
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net:v0.2.0
-      command: ['bash', 'upload_report.sh']
+      image: us.gcr.io/vcm-ml/fv3net:eea56be96af7ec828a62cf8f3400f521e42c1ba1
+      command:
+      - python
+      - generate_report.py
+      - $(INPUT)
+      - $(OUTPUT)
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json
       - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
         value: /secret/gcp-credentials/key.json
+      - name: OUTPUT
+        # value: "{{workflow.parameters.output}}"
+        value: "gs://vcm-ml-public/argo/{{workflow.name}}/index.html"
+      - name: INPUT
+        value: "gs://vcm-ml-scratch/argo/{{workflow.name}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-credentials-user-gcp-sa
@@ -50,8 +59,7 @@ spec:
         limits:
             memory: "6Gi"
             cpu: "1000m"
-       
-   - name: regrid
+   - name: diagnostics
      inputs:
       parameters:
       - name: run
@@ -62,14 +70,13 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net:v0.2.0
-      command:
-      - 'python'
-      - '-m'
-      - 'fv3net.pipelines.save_prognostic_run_diags'
+      image: us.gcr.io/vcm-ml/fv3net:eea56be96af7ec828a62cf8f3400f521e42c1ba1
+      command: ["bash", "-x", "-e"]
+      args:
+      - entrypoint.sh
       - '{{inputs.parameters.run}}'
       - '{{inputs.parameters.output}}'
-      workingDir: /home/jovyan/fv3net
+      workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
       - name: GOOGLE_APPLICATION_CREDENTIALS
         value: /secret/gcp-credentials/key.json

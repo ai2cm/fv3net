@@ -13,7 +13,7 @@ from .convenience import (
     convert_timestamps,
     cast_to_datetime,
 )
-from .calc import mass_integrate, r2_score, local_time
+from .calc import mass_integrate, r2_score, local_time, thermo
 from .calc.thermo import (
     net_heating,
     net_precipitation,

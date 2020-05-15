@@ -122,7 +122,7 @@ def train_model(
 
     model_wrapper = _get_transformed_batch_regressor(train_config)
     for i, batch in enumerate(batched_data):
-        logger.info(f"Fitting batch {i}/{batched_data.num_batches}")
+        logger.info(f"Fitting batch {i}/{len(batched_data)}")
         model_wrapper.fit(
             input_vars=train_config.input_variables,
             output_vars=train_config.output_variables,

@@ -2,13 +2,15 @@ import collections
 import backoff
 import functools
 import logging
-from typing import Iterable
+from typing import Iterable, List, Sequence, Callable, Mapping
 import numpy as np
 import xarray as xr
 
 import vcm
 from vcm import safe
 from vcm.cloud.fsspec import get_fs
+
+__all__ = ["load_one_step_batches"]
 
 SAMPLE_DIM = "sample"
 
@@ -20,7 +22,7 @@ logger.addHandler(fh)
 
 
 class BatchSequence(collections.abc.Sequence):
-    def __init__(self, loader_function, args_sequence):
+    def __init__(self, loader_function: Callable, args_sequence: Sequence[Iterable]):
         """Create a sequence of Batch objects from a function which produces a single
         batch, and a sequence of arguments to that function.
         """
@@ -40,33 +42,43 @@ def _url_to_datetime(url):
     )
 
 
-def get_time_list(url_list_sequence):
+def get_time_list(url_list_sequence: Sequence[List[str]]):
+    """Given a sequence of lists of URLs, return a list of times present in those
+    lists.
+    """
     time_list = []
     for url_list in url_list_sequence:
         time_list.extend(map(_url_to_datetime, url_list))
     return time_list
 
 
-def load_zarr_batches(
+def load_one_step_batches(
     data_path: str,
     input_variables: Iterable[str],
     output_variables: Iterable[str],
     files_per_batch: int,
     num_batches: int = None,
     random_seed: int = 1234,
-    mask_to_surface_type: str = "none",
-    init_time_dim_name="initial_time",
-    z_dim_name="z",
-    rename_variables=None,
-):
-    """Get a sequence of batches from one-step output.
+    mask_to_surface_type: str = None,
+    init_time_dim_name: str = "initial_time",
+    z_dim_name: str = "z",
+    rename_variables: Mapping[str, str] = None,
+) -> Sequence:
+    """Get a sequence of batches from one-step zarr stores.
 
     Args:
-        data_vars: variable names to load
-        gcs_data_dir: gcs location of data
-        files_per_batch: number of files used to create each batch
+        data_path: location of directory containing zarr stores
+        input_variables: names of inputs
+        output_variables: names of outputs
+        files_per_batch: number of zarr stores used to create each batch
         num_batches (optional): number of batches to create. By default, use all the
             available trianing data.
+        random_seed (optional): seed value for random number generator
+        mask_to_surface_type: mask data points to ony include the indicated surface type
+        init_time_dim_name: name of the initialization time dimension
+        z_dim_name: name of the vertical dimension
+        rename_variables: mapping of variables to rename,
+            from data names to standard names
     """
     if rename_variables is None:
         rename_variables = {}
@@ -82,11 +94,12 @@ def load_zarr_batches(
     num_batches = _validated_num_batches(len(zarr_urls), files_per_batch, num_batches)
     logger.info(f"{num_batches} data batches generated for model training.")
     url_list_sequence = list(
-        zarr_urls[batch_num * files_per_batch: (batch_num + 1) * files_per_batch]
+        zarr_urls[batch_num * files_per_batch : (batch_num + 1) * files_per_batch]
         for batch_num in range(num_batches)
     )
     load_batch = functools.partial(
         _load_one_step_batch,
+        fs,
         data_vars,
         rename_variables,
         init_time_dim_name,
@@ -102,21 +115,23 @@ def load_zarr_batches(
 
 
 def _load_one_step_batch(
-    data_vars,
-    rename_variables,
-    init_time_dim_name,
-    z_dim_name,
-    mask_to_surface_type,
+    fs,
+    data_vars: Iterable[str],
+    rename_variables: Mapping[str, str],
+    init_time_dim_name: str,
+    z_dim_name: str,
+    mask_to_surface_type: str,
     random,
-    url_list,
+    url_list: Iterable[str],
 ):
     # TODO refactor this I/O. since this logic below it is currently
     # impossible to test.
-    data = _load_datasets(url_list)
+    data = _load_datasets(fs, url_list)
     ds = xr.concat(data, init_time_dim_name)
     ds = ds.rename(rename_variables)
     ds = safe.get_variables(ds, data_vars)
-    ds = vcm.mask_to_surface_type(ds, mask_to_surface_type)
+    if mask_to_surface_type is not None:
+        ds = vcm.mask_to_surface_type(ds, mask_to_surface_type)
     stack_dims = [dim for dim in ds.dims if dim != z_dim_name]
     ds_stacked = safe.stack_once(
         ds,
@@ -131,24 +146,17 @@ def _load_one_step_batch(
         raise ValueError(
             "No Valid samples detected. Check for errors in the training data."
         )
-
-    return _shuffled(ds_no_nan, SAMPLE_DIM, random)
+    ds = ds_no_nan.load()
+    return _shuffled(ds, SAMPLE_DIM, random)
 
 
 @backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
-def _load_datasets(urls):
-    print(urls)
-    if len(urls) > 0:
-        fs = get_fs(urls[0])
-    # timestep_paths = [fs.get_mapper(url) for url in urls]
-    # print(timestep_paths)
-    # return [xr.open_zarr(path).load() for path in timestep_paths]
+def _load_datasets(fs, urls):
     return_list = []
     for url in urls:
-        print(url)
         mapper = fs.get_mapper(url)
         ds = xr.open_zarr(mapper)
-        return_list.append(ds.load())
+        return_list.append(ds)
     return return_list
 
 
