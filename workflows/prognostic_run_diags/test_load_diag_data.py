@@ -48,3 +48,42 @@ def test__rename_coords():
         fixed_ds = load_diags._rename_coords(ds)
         fixed_coord_keys = fixed_ds.coords.keys()
         _check_keys_equivalent(good_coord_keys, fixed_coord_keys)
+
+
+@pytest.fixture
+def xr_darray():
+    data = np.arange(20).reshape(4, 5)
+    x = np.arange(4)
+    y = np.arange(5)
+
+    da = xr.DataArray(
+        data,
+        coords={"x": x, "y": y},
+        dims=["x", "y"],
+    )
+
+    return da
+
+
+@pytest.mark.parametrize("attrs",
+    [
+        {},
+        {"units": "best units"},
+        {"long_name": "name is long!"},
+        {"units": "trees", "long_name": "number of U.S. trees"},
+    ]
+)
+def test__set_missing_attrs(attrs, xr_darray):
+
+    xr_darray.attrs.update(attrs)
+    res = load_diags._set_missing_attrs(xr_darray.to_dataset(name="data"))
+    assert "long_name" in res.data.attrs
+    assert "units" in res.data.attrs
+
+
+def test__set_missing_attrs_description(xr_darray):
+
+    attrs = {"description": "a description will be converted to a longname"}
+    xr_darray.attrs.update(attrs)
+    res = load_diags._set_missing_attrs(xr_darray.to_dataset(name="data"))
+    assert res.data.attrs["long_name"] == attrs["description"]
