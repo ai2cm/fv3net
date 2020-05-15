@@ -132,7 +132,7 @@ def add_column_heating_moistening(
     )
 
     ds["net_precipitation_physics"] = vcm.net_precipitation(
-        ds[f"latent_heat_flux"], ds[f"surface_precipitation_rate"]
+        ds["latent_heat_flux"], ds["surface_precipitation_rate"]
     )
     ds["net_precipitation"] = (
         ds["net_precipitation_ml"] + ds["net_precipitation_physics"]
