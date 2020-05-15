@@ -46,9 +46,7 @@ def load_model_training_config(config_path: str) -> ModelTrainingConfig:
     return ModelTrainingConfig(**config_dict)
 
 
-def load_data_sequence(
-    data_path: str, train_config: ModelTrainingConfig
-) -> Sequence:
+def load_data_sequence(data_path: str, train_config: ModelTrainingConfig) -> Sequence:
     """
     Args:
         data_path: data location
@@ -105,9 +103,7 @@ def _get_transformed_batch_regressor(train_config, i_batch):
     return model_wrapper
 
 
-def train_model(
-    batched_data: Sequence, train_config: ModelTrainingConfig
-):
+def train_model(batched_data: Sequence, train_config: ModelTrainingConfig):
     """
     Args:
         batched_data: training batch datasets
