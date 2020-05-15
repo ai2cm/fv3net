@@ -26,7 +26,7 @@ experiment:
       command: python -m fv3net.regression.sklearn
       args:
         training_data:
-          location: gs://vcm-ml-experiments/vcm-ml-experiments/2020-05-07-clouds-off-training-data/create_training_data/
+          location: $TRAINING_DATA
         train-config-file: $CONFIG/train_sklearn_model.yml
         
     test_sklearn_model: 

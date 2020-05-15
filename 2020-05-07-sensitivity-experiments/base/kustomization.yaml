@@ -15,6 +15,6 @@ configMapGenerator:
 bases:
 - ../../external/fv3net/workflows/end_to_end/kustomization
 images:  # fill with commit tag after all required changed are made to fv3net
-- name: #us.gcr.io/vcm-ml/fv3net
-  newName: #us.gcr.io/vcm-ml/fv3net
-  newTag: #v0.2.0
+- name: us.gcr.io/vcm-ml/fv3net
+  newName: us.gcr.io/vcm-ml/fv3net
+  newTag: NEED_TO_FILL_IN_SHA
