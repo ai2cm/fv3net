@@ -23,6 +23,12 @@ def test_run(tmpdir):
         "qv_dt_phys_coarse",
         "eddy_flux_omega_sphum",
         "eddy_flux_omega_temp",
+        "grid_lat_coarse",
+        "grid_latt_coarse",
+        "grid_lon_coarse",
+        "grid_lont_coarse",
+        "omega_coarse",
+        "area_coarse"
     ]
 
     selectors = dict(tile=slice(0, 1), time=slice(0, 3))

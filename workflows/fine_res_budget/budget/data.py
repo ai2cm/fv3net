@@ -49,18 +49,14 @@ def rename_latlon(ds):
 def open_diagnostic_output(url):
     logger.info(f"Opening Diagnostic data at {url}")
     # open diagnostic output
-    ds = xr.open_zarr(fsspec.get_mapper(url), consolidated=True)
+    ds = xr.open_zarr(fsspec.get_mapper(url))
     return standardize_diagnostic_metadata(ds)
 
 
 def open_restart_data(RESTART_ZARR):
     logger.info(f"Opening restart data at {RESTART_ZARR}")
     store = fsspec.get_mapper(RESTART_ZARR)
-
-    if ".zmetadata" not in store:
-        zarr.consolidate_metadata(store)
-
-    restarts = xr.open_zarr(store, consolidated=True)
+    restarts = xr.open_zarr(store)
     return standardize_restart_metadata(restarts)
 
 
@@ -93,6 +89,6 @@ def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
 def merge(restarts, diag):
     restarts = shift(restarts)
 
-    return xr.merge([diag.drop("delp"), restarts], join="inner").drop(
+    return xr.merge([restarts, diag], join="inner", compat="override").drop(
         GRID_VARIABLES, errors="ignore"
     )
