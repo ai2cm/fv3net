@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 
 from vcm.safe import _validate_stack_dims, stack_once, warner  # noqa
+from vcm import testing
 
 
 def test__validate_stack_dims_ok():
@@ -34,8 +35,6 @@ def test_warnings():
     with pytest.warns(UserWarning):
         ds[["a", "b"]]
 
-    with pytest.warns(None) as record:
+    with testing.no_warning(None):
         with warner.allow():
             ds["a"]
-    # ensure no warnings were called
-    assert len(record) == 0
