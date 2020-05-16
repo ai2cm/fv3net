@@ -64,12 +64,6 @@ class Grid:
         )
 
     def pressure_level_average(self, delp, delp_c, area, arg, factor):
-        """
-        
-        Returns
-            total flux, coarse-grained w, coarse-grained f, delpc
-        
-        """
         pi = self.pressure_at_interface(delp)
         pi_c = self.pressure_at_interface(delp_c)
         pi_c_up = self.block_upsample(pi_c, factor=factor)
