@@ -83,11 +83,13 @@ def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
     return xr.concat(
         [begin, (begin + end) / 2, end],
         dim=xr.IndexVariable("step", ["begin", "middle", "end"]),
+        join='inner'
     )
 
 
 def merge(restarts, diag):
     restarts = shift(restarts)
+    print(restarts)
 
     return xr.merge([restarts, diag], join="inner", compat="override").drop(
         GRID_VARIABLES, errors="ignore"

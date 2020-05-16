@@ -1,8 +1,10 @@
 import synth
 from pathlib import Path
 import xarray as xr
+import logging
 from vcm import safe
 import sys
+import subprocess
 
 from budget.pipeline import run
 
@@ -19,6 +21,8 @@ def open_schema(localpath):
 
 
 def test_run(tmpdir):
+
+    logging.basicConfig(level=logging.INFO)
 
     variables = [
         "t_dt_gfdlmp_coarse",
@@ -48,4 +52,8 @@ def test_run(tmpdir):
     diag_schema.to_zarr(diag_path, mode="w")
     restart.to_zarr(restart_path, mode="w")
 
-    run(restart_path, diag_path, output_path)
+    # run(restart_path, diag_path, output_path)
+    subprocess.check_call([
+        sys.executable, "-m", "budget",
+        diag_path, restart_path, output_path
+    ])
