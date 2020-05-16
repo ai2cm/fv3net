@@ -126,7 +126,7 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
     averaged_vars = {}
     for key in variables_to_average:
         averaged_vars[key] = grid.pressure_level_average(
-            delp, delp_c, area, variables_to_average[key], factor=8
+            delp, delp_c, area, variables_to_average[key], factor=factor
         )
 
     eddy_flux_q = (
