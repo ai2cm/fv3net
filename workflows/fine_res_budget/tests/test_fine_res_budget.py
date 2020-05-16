@@ -5,16 +5,18 @@ import logging
 from vcm import safe
 import sys
 import subprocess
+import cftime
+import datetime
 
-from budget.pipeline import run
-
+from budget.data import shift
 
 ranges = {
     # Need to use a small range here to avoid SEGFAULTS in the mappm
     # if delp varies to much then the mean pressures may lie completely out of bounds
     # an individual column
-    "delp": synth.Range(.99, 1.01)
+    "delp": synth.Range(0.99, 1.01)
 }
+
 
 def open_schema(localpath):
     path = Path(__file__)
@@ -59,7 +61,27 @@ def test_run(tmpdir):
 
     # TODO see if I can run w/o the subprocess
     # run(restart_path, diag_path, output_path)
-    subprocess.check_call([
-        sys.executable, "-m", "budget",
-        diag_path, restart_path, output_path
-    ])
+    subprocess.check_call(
+        [sys.executable, "-m", "budget", diag_path, restart_path, output_path]
+    )
+
+
+def test_shift():
+    initial_time = cftime.DatetimeJulian(
+        year=2016, month=8, day=5, hour=12, minute=7, second=30
+    )
+    dt = datetime.timedelta(minutes=15)
+    times = [initial_time, initial_time + dt, initial_time + 2 * dt]
+
+    arr = [0.0, 1.0, 2.0]
+    ds = xr.Dataset({"a": (["time"], arr)}, coords={"time": times})
+
+    steps = ["begin", "middle", "end"]
+    expected_times = [initial_time + dt / 2, initial_time + 3 * dt / 2]
+    expected = xr.Dataset(
+        {"a": (["step", "time"], [[0.0, 1.0], [0.5, 1.5], [1.0, 2.0]])},
+        coords={"time": expected_times, "step": steps},
+    )
+    shifted = shift(ds, dt=dt / 2)
+
+    xr.testing.assert_equal(shifted, expected)

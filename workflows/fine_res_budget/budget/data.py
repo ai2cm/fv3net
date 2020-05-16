@@ -12,7 +12,6 @@ import logging
 import fsspec
 import numpy as np
 import xarray as xr
-import zarr
 
 import vcm
 from vcm.convenience import round_time
@@ -83,7 +82,7 @@ def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
     return xr.concat(
         [begin, (begin + end) / 2, end],
         dim=xr.IndexVariable("step", ["begin", "middle", "end"]),
-        join='inner'
+        join="inner",
     )
 
 
