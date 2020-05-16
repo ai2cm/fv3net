@@ -47,6 +47,7 @@ dependencies:
   - holoviews
   - bokeh>=2.0
   - backoff
+  - sphinx=2
   - pip
   - pip:
     - zarr>=2.4
