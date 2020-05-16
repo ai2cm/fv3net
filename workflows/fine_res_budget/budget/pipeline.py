@@ -68,7 +68,9 @@ def load(ds):
     return ds.load()
 
 
-def run(restart_url, physics_url, output_dir, options=PipelineOptions([])):
+def run(restart_url, physics_url, output_dir, extra_args=()):
+
+    options = PipelineOptions(extra_args)
 
     with beam.Pipeline(options=options) as p:
         merged = (
@@ -84,18 +86,3 @@ def run(restart_url, physics_url, output_dir, options=PipelineOptions([])):
             | "Load" >> beam.Map(load)
             | "Save" >> beam.Map(save, base=output_dir)
         )
-
-
-if __name__ == "__main__":
-
-    logging.basicConfig(level=logging.INFO)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("physics_url")
-    parser.add_argument("restart_url")
-    parser.add_argument("output_dir")
-
-    args, extra_args = parser.parse_known_args()
-    options = PipelineOptions(extra_args)
-
-    run(args.restart_url, args.physics_url, args.output_dir, options=options)

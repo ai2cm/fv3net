@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "fine_res_budget"
+name = "budget"
 version = "0.1.0"
 description = ""
 authors = ["Noah D. Brenowitz <nbren12@gmail.com>"]
