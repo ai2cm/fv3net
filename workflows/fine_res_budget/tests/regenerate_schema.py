@@ -8,7 +8,7 @@ import synth
 logging.basicConfig(level=logging.INFO)
 
 
-diagurl = "gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr"
+diagurl = "gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr"  # noqa
 restart_url = "gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files.zarr"  # noqa
 
 lo_res_coords = ("time", "tile", "grid_xt", "grid_yt", "pfull")
