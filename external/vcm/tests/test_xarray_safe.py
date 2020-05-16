@@ -4,10 +4,8 @@ import pytest
 
 from vcm.safe import (
     _validate_stack_dims,
-    stack_once,
     warner,
     _is_in_module,
-    get_variables,
 )
 from vcm import testing
 
