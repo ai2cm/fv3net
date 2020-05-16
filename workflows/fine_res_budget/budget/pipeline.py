@@ -59,13 +59,19 @@ def save(ds, base):
 
     path = f"{base}/{time}.tile{tile}.nc"
     logger.info(f"saving data to {path}")
+
+    try:
+        FileSystems.mkdirs(base)
+    except IOError:
+        pass
+
     with FileSystems.create(path) as f:
         vcm.dump_nc(ds, f)
 
 
 @retry.with_exponential_backoff(num_retries=7)
 def load(ds):
-    return ds.load()
+    return ds.compute()
 
 
 def run(restart_url, physics_url, output_dir, extra_args=()):
