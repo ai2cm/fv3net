@@ -49,7 +49,7 @@ def yield_all(merged):
     times = merged.time.values.tolist()
     tiles = merged.tile.values.tolist()
     for time, tile in product(times, tiles):
-        yield merged.sel(time=time, tile=tile)
+        yield merged.sel(time=time).isel(tile=tile).assign_coords(tile=tile)
 
 
 @retry.with_exponential_backoff(num_retries=7)

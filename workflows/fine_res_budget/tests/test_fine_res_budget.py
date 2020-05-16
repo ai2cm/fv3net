@@ -2,15 +2,20 @@ import synth
 from pathlib import Path
 import xarray as xr
 from vcm import safe
+import sys
 
 from budget.pipeline import run
 
+
+ranges = {
+    "delp": synth.Range(1, 10)
+}
 
 def open_schema(localpath):
     path = Path(__file__)
     diag_path = path.parent / localpath
     with open(diag_path) as f:
-        return synth.generate(synth.load(f))
+        return synth.generate(synth.load(f), ranges)
 
 
 def test_run(tmpdir):
