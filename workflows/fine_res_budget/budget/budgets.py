@@ -3,16 +3,10 @@ from dataclasses import dataclass
 import numpy as np
 import xarray as xr
 
-from vcm.cubedsphere.coarsen import (
-    block_upsample,
-    weighted_block_average,
-)
+from vcm.cubedsphere.coarsen import block_upsample, weighted_block_average
 
 # TODO make a PR which exposes this function as public API
-from vcm.cubedsphere.regridz import (
-    pressure_at_interface,
-    regrid_vertical,
-)
+from vcm.cubedsphere.regridz import pressure_at_interface, regrid_vertical
 
 
 def _divergence(eddy, delp):

@@ -2,7 +2,6 @@ import logging
 from itertools import product
 
 import apache_beam as beam
-
 import dask
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions

@@ -1,13 +1,15 @@
-import synth
-from pathlib import Path
-import xarray as xr
-import logging
-from vcm import safe
-import cftime
 import datetime
+import logging
+from pathlib import Path
 
+import cftime
+import pytest
+import xarray as xr
+
+import synth
 from budget.data import shift
 from budget.pipeline import run
+from vcm import safe
 
 ranges = {
     # Need to use a small range here to avoid SEGFAULTS in the mappm
@@ -24,6 +26,7 @@ def open_schema(localpath):
         return synth.generate(synth.load(f), ranges)
 
 
+@pytest.mark.regression
 def test_run(tmpdir):
 
     logging.basicConfig(level=logging.INFO)
@@ -44,12 +47,21 @@ def test_run(tmpdir):
         "area_coarse",
     ]
 
-    selectors = dict(tile=slice(0, 1), time=slice(0, 3))
+    # use a small tile for much faster testing
+    n = 48
+
+    diag_selectors = dict(
+        tile=[0], time=[0, 1], grid_xt_coarse=slice(0, n), grid_yt_coarse=slice(0, n)
+    )
+
+    restart_selectors = dict(
+        tile=[0], time=[0, 1, 2], grid_xt=slice(0, n), grid_yt=slice(0, n)
+    )
 
     diag_schema = safe.get_variables(open_schema("diag.json"), variables).isel(
-        selectors
+        diag_selectors
     )
-    restart = open_schema("restart.json").isel(selectors)
+    restart = open_schema("restart.json").isel(restart_selectors)
 
     diag_path = str(tmpdir.join("diag.zarr"))
     restart_path = str(tmpdir.join("restart.zarr"))

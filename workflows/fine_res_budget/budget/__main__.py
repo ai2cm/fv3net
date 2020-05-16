@@ -1,5 +1,5 @@
-import logging
 import argparse
+import logging
 
 from .pipeline import run
 

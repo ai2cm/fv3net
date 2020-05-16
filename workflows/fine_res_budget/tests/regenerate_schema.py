@@ -1,6 +1,8 @@
+import logging
+
 import fsspec
 import zarr
-import logging
+
 import synth
 
 logging.basicConfig(level=logging.INFO)
