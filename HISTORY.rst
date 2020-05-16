@@ -2,8 +2,11 @@
 History
 =======
 
-
 latest
+------
+
+
+0.2.1 (2020-05-15)
 ------
 * Add surface_precipitation_rate to one-step outputs, create training and test steps.
 * Correct prognostic runfile diagnostic calculations.
@@ -14,7 +17,7 @@ latest
 * Multithreaded uploading in one-step jobs (#260)
 * Made nudging run upload more robust using k8s yaml templating submission and gsutil container upload
 * The key for commands in the end to end config YAML can be given as either `command` or `argo`, and the arguments will be parsed into the appropriate format for either type.
-
+* Offline diags workflow now downloads the test data to a local temp dir to speed reading and prevent remote read errors.
 
 0.2.0 (2020-04-23)
 ------------------
