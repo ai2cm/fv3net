@@ -2,7 +2,13 @@ import xarray as xr
 import numpy as np
 import pytest
 
-from vcm.safe import _validate_stack_dims, stack_once, warner  # noqa
+from vcm.safe import (
+    _validate_stack_dims,
+    stack_once,
+    warner,
+    _is_in_module,
+    get_variables,
+)
 from vcm import testing
 
 
@@ -38,3 +44,26 @@ def test_warnings():
     with testing.no_warning(None):
         with warner.allow():
             ds["a"]
+
+
+@pytest.mark.parametrize(
+    "path, module, expected",
+    [
+        (xr.__file__, xr, True),
+        (xr.testing.__file__, xr, True),
+        # Test long file name to make sure path inequality works as expected
+        ("aadjfoaisdjfa/" * 20 + "localfile.py", xr, False),
+        ("localfile.py", xr, False),
+    ],
+)
+def test__is_in_module(path, module, expected):
+    assert _is_in_module(path, module)
+
+
+def test__internal_usage_doesnt_warn():
+    """Internal usages of blacklisted functions within xarray should not emit warnings
+    """
+    ds = xr.Dataset({"a": (["x", "y"], np.ones((10, 5)))})
+    a = ds["a"]
+    with testing.no_warning(None):
+        a.stack(new=["x", "y"])
