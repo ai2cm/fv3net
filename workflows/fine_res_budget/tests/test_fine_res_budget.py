@@ -3,12 +3,11 @@ from pathlib import Path
 import xarray as xr
 import logging
 from vcm import safe
-import sys
-import subprocess
 import cftime
 import datetime
 
 from budget.data import shift
+from budget.pipeline import run
 
 ranges = {
     # Need to use a small range here to avoid SEGFAULTS in the mappm
@@ -59,11 +58,7 @@ def test_run(tmpdir):
     diag_schema.to_zarr(diag_path, mode="w")
     restart.to_zarr(restart_path, mode="w")
 
-    # TODO see if I can run w/o the subprocess
-    # run(restart_path, diag_path, output_path)
-    subprocess.check_call(
-        [sys.executable, "-m", "budget", diag_path, restart_path, output_path]
-    )
+    run(restart_path, diag_path, output_path)
 
 
 def test_shift():
