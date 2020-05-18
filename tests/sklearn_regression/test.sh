@@ -11,5 +11,5 @@ gsutil -m rsync -d -r "$TRAINING_DATA" data
 
 python -m fv3net.regression.sklearn \
     data \
-    train_sklearn_model.yml \
+    ../../workflows/end_to_end_integration/train_sklearn_model.yml \
     $OUTPUT
