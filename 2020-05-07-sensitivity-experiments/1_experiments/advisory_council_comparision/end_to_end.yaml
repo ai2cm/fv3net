@@ -7,6 +7,7 @@ experiment:
     - train_sklearn_model
     - test_sklearn_model
     - prognostic_run
+    - baseline_run
   
   steps_config:
     train_sklearn_model:
@@ -37,4 +38,12 @@ experiment:
         --prog_config_yml: $CONFIG/prognostic_run.yml
         --model_url:
           from: train_sklearn_model
-    
+ 
+    baseline_run:
+      command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
+      args:
+        restart_file_dir:
+          location: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/one_step_run
+        ic_timestep: $IC_TIMESTEP 
+        docker_image: $PROGNOSTIC_RUN_IMAGE
+        --prog_config_yml: $CONFIG/prognostic_run.yml   
