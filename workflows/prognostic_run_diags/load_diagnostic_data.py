@@ -20,6 +20,9 @@ COORD_RENAME_INVERSE_MAP = {
     "tile": {"rank"},
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
+DIAGS_ZARR = "diags.zarr"
+DIAGS_ATMOS_NC = "atmos_dt_atmos"
+DIAGS_SFC_NC = "sfc_dt_atmos"
 
 _DS_TRANSFORMS = []
 _DIAG_OUTPUT_LOADERS = []
@@ -217,8 +220,37 @@ def add_to_diag_loaders(func):
 @add_to_diag_loaders
 def _load_diags_zarr(url):
 
-    pass
+    path = os.path.join(url, DIAGS_ZARR)
+    ds = standardize_dataset(xr.open_zarr(path))
+
+    return ds
+
+
+@add_to_diag_loaders
+def _load_diags_sfc(url):
+
+    path = os.path.join(url, DIAGS_SFC_NC)
+    ds = standardize_dataset(_open_tiles(path))
+
+    return ds
+
+
+@add_to_diag_loaders
+def _load_diags_atmos(url):
+
+    path = os.path.join(url, DIAGS_ATMOS_NC)
+    ds = standardize_dataset(_open_tiles(path))
+
+    return ds
 
 
 def load_diagnostics(url):
-    pass
+
+    diagnostic_data = []
+    for load_func in _DIAG_OUTPUT_LOADERS:
+        diagnostic_data.append(load_func(url))
+
+    # Zarr has unset dimension coordinates, need to mesh
+
+    return xr.merge(diagnostic_data, join="inner")
+
