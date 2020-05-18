@@ -6,9 +6,10 @@ experiment:
   steps_to_run:
     - one_step_run
     - create_training_data
-  
-  steps_config:
+    - baseline_run
 
+  steps_config:
+  
     one_step_run:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
       args:
@@ -29,3 +30,12 @@ experiment:
           location: $C48_DIAGNOSTICS
         timestep_splits: $TRAIN_AND_TEST_TIMES
         --runner: DataflowRunner
+
+    baseline_run:
+      command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
+      args:
+        restart_file_dir:
+          from: one_step_run
+        ic_timestep: $IC_TIMESTEP 
+        docker_image: $PROGNOSTIC_RUN_IMAGE
+        --prog_config_yml: $CONFIG/prognostic_run.yml
