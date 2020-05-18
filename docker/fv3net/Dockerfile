@@ -39,9 +39,7 @@ RUN rm -f /opt/conda/envs/$PROJECT_NAME/gsutil
 # Add rest of fv3net directory
 COPY . $FV3NET
 USER root
-RUN fix-permissions $FV3NET
-RUN mkdir -p /home/jovyan/.config
-RUN fix-permissions /home/jovyan/.config
+RUN fix-permissions /home/jovyan
 USER $NB_UID
 
 # setup the local python packages
