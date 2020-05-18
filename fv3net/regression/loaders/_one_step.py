@@ -6,6 +6,7 @@ import copy
 
 import numpy as np
 import xarray as xr
+
 import vcm
 from vcm import cloud, safe
 from ._sequences import FunctionOutputSequence
@@ -52,12 +53,20 @@ def load_one_step_batches(
 
     Args:
         data_path: location of directory containing zarr stores
+<<<<<<< HEAD
         *variable_names: any number of sequences of variable names. One Sequence will be
             returned for each of the given sequences. The "sample" dimension will be
             identical across each of these sequences.
         files_per_batch: number of zarr stores used to create each batch, defaults to 1
         num_batches (optional): number of batches to create. By default, use all the
             available training data.
+=======
+        input_variables: names of inputs
+        output_variables: names of outputs
+        files_per_batch: number of zarr stores used to create each batch
+        num_batches (optional): number of batches to create. By default, use all the
+            available trianing data.
+>>>>>>> master
         random_seed (optional): seed value for random number generator
         mask_to_surface_type: mask data points to ony include the indicated surface type
         init_time_dim_name: name of the initialization time dimension
@@ -67,8 +76,8 @@ def load_one_step_batches(
     """
     if rename_variables is None:
         rename_variables = {}
-    fs = cloud.get_fs(data_path)
     logger.info(f"Reading data from {data_path}.")
+    fs = cloud.get_fs(data_path)
     zarr_urls = [
         zarr_file for zarr_file in fs.ls(data_path) if "grid_spec" not in zarr_file
     ]
