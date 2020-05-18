@@ -1,0 +1,103 @@
+  
+init_time_dim: "initial_time"
+
+coord_x_center: "x"
+coord_y_center: "y"
+coord_z_center: "z"
+
+var_lat: "lat"
+var_lon: "lon"
+
+grid_vars:
+  - "lat"
+  - "lon"
+  - "latb"
+  - "lonb"
+  - "area"
+
+stack_dims:
+  - "tile"
+  - "initial_time"
+  - "x"
+  - "y"
+
+suffix_coarse_train_diag: "train"
+
+var_area: "area"
+var_temp: "air_temperature"
+var_sfc_temp: "surface_temperature"
+var_sphum: "specific_humidity"
+var_pressure_thickness: "pressure_thickness_of_atmospheric_layer"
+var_q_heating_ml: "dQ1"
+var_q_moistening_ml: "dQ2"
+var_land_sea_mask: "land_sea_mask"
+
+renamed_hires_grid_vars:
+  "grid_xt": "x"
+  "grid_yt": "y"
+
+# TODO: right now it is not obvious what these following similar looking lists do;
+# their usage will be refactored in a future PR
+# features for prediction and other variables to keep
+pred_vars_to_keep:
+  - "surface_temperature"
+  - "land_sea_mask"
+  - "surface_geopotential"
+  - "pressure_thickness_of_atmospheric_layer"
+  - "specific_humidity"
+  - "air_temperature"
+  - "surface_temperature"
+  - "latent_heat_flux"
+  - "sensible_heat_flux"
+  - "surface_precipitation_rate"
+  - "DSWRFtoa_train"
+  - "DSWRFsfc_train"
+  - "USWRFtoa_train"
+  - "USWRFsfc_train"
+  - "DLWRFsfc_train"
+  - "ULWRFtoa_train"
+  - "ULWRFsfc_train"
+  - "pQ1"
+  - "pQ2"
+
+data_vars:
+  - "dQ1"
+  - "dQ2"
+  - "pQ1"
+  - "pQ2"
+  - "Q1"
+  - "Q2"
+  - "specific_humidity"
+  - "air_temperature"
+  - "surface_temperature"
+  - "net_precipitation"
+  - "net_heating"
+  - "net_precipitation_physics"
+  - "net_heating_physics"
+  - "net_precipitation_ml"
+  - "net_heating_ml"
+  - "pressure_thickness_of_atmospheric_layer"
+
+
+mappable_var_kwargs:
+  coord_x_center: "x"
+  coord_y_center: "y"
+  coord_x_outer: "x_interface"
+  coord_y_outer: "y_interface"
+  coord_vars:
+    "lonb": 
+      - "y_interface"
+      - "x_interface"
+      - "tile"
+    "latb":
+      - "y_interface"
+      - "x_interface"
+      - "tile"
+    "lon":
+      - "y"
+      - "x"
+      - "tile"
+    "lat":
+      - "y"
+      - "x"
+      - "tile"
