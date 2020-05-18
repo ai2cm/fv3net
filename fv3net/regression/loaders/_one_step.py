@@ -69,7 +69,7 @@ def load_one_step_batches(
     if rename_variables is None:
         rename_variables = {}
     if len(variable_names) == 0:
-        raise TypeError('At least one value must be given for variable_names')
+        raise TypeError("At least one value must be given for variable_names")
     logger.info(f"Reading data from {data_path}.")
     fs = cloud.get_fs(data_path)
     zarr_urls = [

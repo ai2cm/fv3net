@@ -14,7 +14,7 @@ class FunctionOutputSequence(collections.abc.Sequence):
             result_sequence: a sequence of function results
         """
         if not isinstance(args_sequence, collections.Sequence):
-            raise TypeError(f'args_sequence must be a sequence, got {args_sequence}')
+            raise TypeError(f"args_sequence must be a sequence, got {args_sequence}")
         self._func = func
         self._args = args_sequence
 
