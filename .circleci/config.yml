@@ -41,6 +41,7 @@ jobs:
       - run: | 
           source activate fv3net
           pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+          make docs
       - run:
           name: Regression Tests
           command: |

@@ -78,6 +78,10 @@ clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 
+.PHONY: docs
+docs:
+	$(MAKE) -C docs html
+
 
 ## Set up python interpreter environment
 update_submodules:
