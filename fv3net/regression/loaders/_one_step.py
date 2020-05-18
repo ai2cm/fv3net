@@ -68,6 +68,8 @@ def load_one_step_batches(
     """
     if rename_variables is None:
         rename_variables = {}
+    if len(variable_names) == 0:
+        raise TypeError('At least one value must be given for variable_names')
     logger.info(f"Reading data from {data_path}.")
     fs = cloud.get_fs(data_path)
     zarr_urls = [
@@ -95,7 +97,10 @@ def load_one_step_batches(
             copy.deepcopy(random),  # each sequence must be shuffled the same!
         )
         output_list.append(FunctionOutputSequence(load_batch, url_list_sequence))
-    return output_list
+    if len(output_list) > 1:
+        return tuple(output_list)
+    else:
+        return output_list[0]
 
 
 def _load_one_step_batch(
