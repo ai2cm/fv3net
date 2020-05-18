@@ -1,6 +1,6 @@
 kubernetes: {}
 fv3config:
-  diag_table: workflows/one_step_jobs/diag_table_one_step  # TODO: move this diag_table into vcm-workflow-control
+  diag_table: workflows/one_step_jobs/diag_table_one_step
   namelist:
     atmos_model_nml:
       fhout: 0.01666
