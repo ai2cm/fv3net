@@ -9,7 +9,7 @@ configMapGenerator:
   - time-control.yaml
   literals:
   - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:v0.2.1
-  - FV3NET_IMAGE=us.gcr.io/vcm-ml/prognostic_run:v0.2.1
+  - FV3NET_IMAGE=us.gcr.io/vcm-ml/fv3net:v0.2.1
   - JOBNAME=create-clouds-off-data
   name: end-to-end
 bases:
