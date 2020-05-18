@@ -8,8 +8,8 @@ configMapGenerator:
   - end_to_end.yaml
   - time-control.yaml
   literals:
-  - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:NEED_TO_FILL_IN_SHA
-  - FV3NET_IMAGE=us.gcr.io/vcm-ml/prognostic_run:NEED_TO_FILL_IN_SHA
+  - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:v0.2.1
+  - FV3NET_IMAGE=us.gcr.io/vcm-ml/fv3net:v0.2.1
   - JOBNAME=control-baseline
   name: end-to-end
 bases:
@@ -17,4 +17,4 @@ bases:
 images:  # fill with commit tag after all required changed are made to fv3net
 - name: us.gcr.io/vcm-ml/fv3net
   newName: us.gcr.io/vcm-ml/fv3net
-  newTag: NEED_TO_FILL_IN_SHA
+  newTag: v0.2.1
