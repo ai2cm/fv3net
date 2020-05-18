@@ -13,7 +13,7 @@ configMapGenerator:
   - JOBNAME=create-clouds-off-data
   name: end-to-end
 bases:
-- ../../external/fv3net/workflows/end_to_end/kustomization
+- ../base
 images:
 - name: us.gcr.io/vcm-ml/fv3net
   newName: us.gcr.io/vcm-ml/fv3net
