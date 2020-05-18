@@ -53,20 +53,12 @@ def load_one_step_batches(
 
     Args:
         data_path: location of directory containing zarr stores
-<<<<<<< HEAD
         *variable_names: any number of sequences of variable names. One Sequence will be
             returned for each of the given sequences. The "sample" dimension will be
             identical across each of these sequences.
         files_per_batch: number of zarr stores used to create each batch, defaults to 1
         num_batches (optional): number of batches to create. By default, use all the
             available training data.
-=======
-        input_variables: names of inputs
-        output_variables: names of outputs
-        files_per_batch: number of zarr stores used to create each batch
-        num_batches (optional): number of batches to create. By default, use all the
-            available trianing data.
->>>>>>> master
         random_seed (optional): seed value for random number generator
         mask_to_surface_type: mask data points to ony include the indicated surface type
         init_time_dim_name: name of the initialization time dimension
@@ -90,7 +82,6 @@ def load_one_step_batches(
         zarr_urls[batch_num * files_per_batch : (batch_num + 1) * files_per_batch]
         for batch_num in range(num_batches)
     )
-    args_sequence = [(item,) for item in url_list_sequence]
     output_list = []
     for data_vars in variable_names:
         load_batch = functools.partial(
@@ -103,7 +94,7 @@ def load_one_step_batches(
             mask_to_surface_type,
             copy.deepcopy(random),  # each sequence must be shuffled the same!
         )
-        output_list.append(FunctionOutputSequence(load_batch, args_sequence))
+        output_list.append(FunctionOutputSequence(load_batch, url_list_sequence))
     return output_list
 
 
