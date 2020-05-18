@@ -46,6 +46,7 @@ dependencies:
   - python=3.7
   - holoviews
   - bokeh>=2.0
+  - sphinx_rtd_theme=0.4
   - backoff
   - sphinx=2
   - m2r
