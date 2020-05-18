@@ -15,7 +15,6 @@ import intake
 import numpy as np
 import xarray as xr
 import shutil
-import warnings
 
 from pathlib import Path
 from datetime import timedelta
@@ -23,6 +22,7 @@ from collections import defaultdict
 from typing import Tuple, Dict
 
 import vcm
+import load_diagnostic_data as load_diags
 
 import logging
 
@@ -78,21 +78,10 @@ def compute_all_diagnostics(input_datasets: Dict[str, Tuple[xr.Dataset]]):
 
         for func in _DIAG_FNS[key]:
             current_diags = func(*input_args)
-            _warn_on_overlap(diags, current_diags)
+            load_diags.warn_on_overwrite(diags, current_diags)
             diags.update(current_diags)
 
     return diags
-
-
-def _warn_on_overlap(old, new):
-    overlap = set(old) & set(new)
-    if len(overlap) > 0:
-        warnings.warn(
-            UserWarning(
-                f"Overlapping keys detected: {overlap}. Updates will overwrite "
-                "pre-existing keys."
-            )
-        )
 
 
 def rms(x, y, w, dims):

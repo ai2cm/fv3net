@@ -5,6 +5,7 @@ import numpy as np
 
 import load_diagnostic_data as load_diags
 
+
 @pytest.mark.parametrize("ds",
     [
         xr.Dataset(coords={"tile": np.arange(1, 7)}),
@@ -87,3 +88,30 @@ def test__set_missing_attrs_description(xr_darray):
     xr_darray.attrs.update(attrs)
     res = load_diags._set_missing_attrs(xr_darray.to_dataset(name="data"))
     assert res.data.attrs["long_name"] == attrs["description"]
+
+
+def test_warn_on_overwrite_duplicates():
+
+    old = {"key"}
+    new = ["duplicate", "duplicate"]
+    with pytest.warns(UserWarning):
+        load_diags.warn_on_overwrite(old, new)
+
+
+def test_warn_on_overwrite_overlap():
+
+    old = {"key"}
+    new = ["key", "duplicate"]
+    with pytest.warns(UserWarning):
+        load_diags.warn_on_overwrite(old, new)
+
+
+def test_warn_on_overwrite_no_warning():
+
+    old = {"key"}
+    new = {"new_key"}
+
+    with pytest.warns(None) as record:
+        load_diags.warn_on_overwrite(old, new)
+
+    assert len(record) == 0
