@@ -146,7 +146,7 @@ def make_all_plots(
                 )
             )
             .isel({FORECAST_TIME_DIM: time1})
-            .rename(f"(<pQ> - <dQ>) at {time1} min")
+            .rename(f"-(<pQ> + <dQ>) at {time1} min")
         )
 
         hi_res_minus_pQ_plus_dQ_time1 = (
@@ -163,7 +163,7 @@ def make_all_plots(
             )
             .drop(DELTA_DIM)
             .isel({FORECAST_TIME_DIM: time1})
-            .rename(f"hi-res physics - (<pQ> - <dQ>) at {time1} min")
+            .rename(f"hi-res physics - (<pQ> + <dQ>) at {time1} min")
         )
 
         pQ_plus_dQ_time2_minus_time1 = (
@@ -179,7 +179,7 @@ def make_all_plots(
             - states_and_tendencies[residual_var]
             .sel({DELTA_DIM: "hi-res - coarse", "var_type": "tendencies"})
             .isel({FORECAST_TIME_DIM: time1})
-        ).rename(f"(<pQ> - <dQ>) at {time2} min - at {time1} min")
+        ).rename(f"-(<pQ> + <dQ>) at {time2} min - at {time1} min")
 
         comparison_ds = xr.merge(
             [
@@ -212,7 +212,7 @@ def make_all_plots(
 
     # make vertical profiles of dQ terms across forecast time
 
-    section_name = "&lt;dQ&gt; profiles across forecast time"
+    section_name = "dQ profiles across forecast time"
     logger.info(f"Plotting {section_name}")
 
     dQ_profile_maps = []

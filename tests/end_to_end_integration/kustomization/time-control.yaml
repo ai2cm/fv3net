@@ -2,6 +2,6 @@
 # This has to match the data specified in the input_data.env currently
 url: gs://vcm-ml-data/test-end-to-end-integration/C48-input-for-one-step-jobs/
 boundary: "20160801.010000"
-train_samples: 3
+train_samples: 4
 test_samples: 3
 seed: "0"

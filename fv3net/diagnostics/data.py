@@ -115,7 +115,7 @@ def net_heating_from_dataset(
     ds: xr.Dataset,
     suffix: str = None,
     shf_var="sensible_heat_flux",
-    precip_var="total_precipitation",
+    precip_var="surface_precipitation_rate",
 ) -> xr.DataArray:
     """Compute the net heating from a dataset of diagnostic output
 

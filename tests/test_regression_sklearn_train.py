@@ -2,7 +2,14 @@ import xarray as xr
 import numpy as np
 
 from fv3net.regression.sklearn import train
-from fv3net.regression.dataset_handler import _shuffled
+from fv3net.regression.loaders._one_step import _shuffled, _chunk_indices
+
+
+def test__chunk_indices():
+    chunks = (2, 3)
+    expected = [[0, 1], [2, 3, 4]]
+    ans = _chunk_indices(chunks)
+    assert ans == expected
 
 
 def test_train_save_model_succeeds(tmpdir):
@@ -25,9 +32,9 @@ def _dataset(sample_dim):
 def test__shuffled():
     dataset = _dataset("sample")
     dataset.isel(sample=1)
-    _shuffled(dataset, "sample", 1)
+    _shuffled(dataset, "sample", np.random.RandomState(1))
 
 
 def test__shuffled_dask():
     dataset = _dataset("sample").chunk()
-    _shuffled(dataset, "sample", 1)
+    _shuffled(dataset, "sample", np.random.RandomState(1))
