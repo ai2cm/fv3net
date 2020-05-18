@@ -49,6 +49,7 @@ dependencies:
   - backoff
   - sphinx=2
   - m2r=2
+  - conda-build
   - pip
   - pip:
     - zarr>=2.4
