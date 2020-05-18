@@ -87,5 +87,6 @@ def run(restart_url, physics_url, output_dir, extra_args=()):
             | "Yield all tiles" >> beam.ParDo(yield_all)
             | "Compute Budget" >> beam.Map(budgets.compute_recoarsened_budget, factor=8)
             | "Load" >> beam.Map(load)
+            | "Reshuffle" >> beam.Reshuffle()  # distribute to workers
             | "Save" >> beam.Map(save, base=output_dir)
         )
