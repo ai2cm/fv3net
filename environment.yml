@@ -48,7 +48,7 @@ dependencies:
   - bokeh>=2.0
   - backoff
   - sphinx=2
-  - m2r=2
+  - m2r
   - conda-build
   - pip
   - pip:
