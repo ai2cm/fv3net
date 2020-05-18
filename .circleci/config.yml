@@ -29,7 +29,8 @@ jobs:
       - run:
           name: "Install fv3net dependencies"
           command: |
-            make install_deps
+            # don't kill script if install_deps fails because the environment exists
+            make install_deps || true
             cat .circleci/environment.lock
       - save_cache:
           key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}
