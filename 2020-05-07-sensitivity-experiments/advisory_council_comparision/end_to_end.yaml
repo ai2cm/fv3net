@@ -22,7 +22,7 @@ experiment:
         trained-model:
           from: train_sklearn_model
         testing-data:
-          location: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/create_training_data
+          location: $TRAINING_DATA
         diagnostics-data:
           location: $C48_DIAGNOSTICS
         docker-image: $FV3NET_IMAGE
