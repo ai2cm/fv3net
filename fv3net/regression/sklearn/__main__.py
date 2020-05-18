@@ -15,7 +15,7 @@ REPORT_TITLE = "ML model training report"
 TRAINING_FIG_FILENAME = "count_of_training_times_used.png"
 
 
-def _save_config_output(output_url, config, timesteps):
+def _save_config_output(output_url, config):
     fs = vcm.cloud.fsspec.get_fs(output_url)
     fs.makedirs(output_url, exist_ok=True)
     config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
