@@ -67,7 +67,7 @@ Finally, a fake xarray dataset can be created::
 
 The data for each chunk will be identically generated from a uniform distribution.
 The upper and lower bounds of this distribution are set by default in the code, but can 
-be overrided using the `ranges` argument of `synth`.
+be overrided using the ``ranges`` argument of ``synth.generate``.
 
 Marking pytest functions as regression tests
 --------------------------------------------
