@@ -54,7 +54,7 @@ def yield_indices(merged):
 @retry.with_exponential_backoff(num_retries=7)
 def save(ds, base):
     time = vcm.encode_time(ds.time.item())
-    tile = ds.tile.item() + 1
+    tile = ds.tile.item()
 
     path = f"{base}/{time}.tile{tile}.nc"
     logger.info(f"saving data to {path}")
