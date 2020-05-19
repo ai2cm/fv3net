@@ -7,6 +7,10 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
 
+from fv3net.pipelines.common import (
+    chunks_1d_to_slices
+)
+
 import vcm
 from vcm import safe
 
@@ -45,12 +49,14 @@ def open_merged(restart_url, physics_url):
     return data.assign_coords(tile=tiles)
 
 
-def yield_indices(merged):
+def yield_indices(merged, dims):
     logger.info("Yielding Indices")
-    times = merged["time"].values.tolist()
-    tiles = merged["tile"].values.tolist()
-    for time, tile in product(times, tiles):
-        yield {"time": time, "tile": tile}
+    indexes = [
+        merged[dim].values.tolist()
+        for dim in dims
+    ]
+    for time, tile in product(*indexes):
+        yield dict(zip(dims, indexes))
 
 
 @retry.with_exponential_backoff(num_retries=7)
@@ -85,17 +91,38 @@ class FunctionSource(beam.PTransform):
         return pcoll | beam.Create([None]) | beam.Map(lambda _: self.fn(*self.args))
 
 
-class ChunkByTimeTile(beam.PTransform):
+class TimeTiles(beam.PTransform):
+    def __init__(self, dims):
+        self.dims = dims
     def expand(self, merged):
         return (
             merged
-            | beam.ParDo(yield_indices)
+            | beam.ParDo(yield_indices, self.dims)
             # reshuffle to ensure that data is distributed to workers
             | "Reshuffle Tiles" >> beam.Reshuffle()
             | "Select Data"
             >> beam.Map(
                 lambda index, ds: ds.sel(index), beam.pvalue.AsSingleton(merged)
             )
+        )
+
+
+def yield_time_physics_time_slices(merged):
+    # grab a physics variable
+    omega = merged['omega']
+    time_slices = chunks_1d_to_slices(omega.chunks['time'])
+
+    for slice_ in time_slices:
+        for tile in merged.tiles.values.tolist():
+            yield {'time': slice_, 'tile': tile}
+
+
+class OpenTimeChunks(beam.PTransform):
+    def expand(self, merged):
+        time_tiles = merged | beam.Map(yield_time_physics_time_slices)
+
+        chunk_inds = (
+            merged | beam
         )
 
 
@@ -108,7 +135,7 @@ def run(restart_url, physics_url, output_dir, extra_args=()):
         (
             p
             | FunctionSource(open_merged, restart_url, physics_url)
-            | ChunkByTimeTile()
+            | TimeTiles(dims=['time', 'tile'])
             | "Compute Budget" >> beam.Map(budgets.compute_recoarsened_budget, factor=8)
             | "Load" >> beam.Map(load)
             | "Save" >> beam.Map(save, base=output_dir)

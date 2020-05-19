@@ -22,7 +22,7 @@ from vcm.cubedsphere.constants import TIME_FMT
 logger = logging.getLogger(__name__)
 
 
-def _chunks_1d_to_slices(chunks):
+def chunks_1d_to_slices(chunks):
     start = 0
     for chunk in chunks:
         end = start + chunk
@@ -38,7 +38,7 @@ def _chunk_dataset(ds, dims):
 
 
 def chunk_indices(chunks):
-    iterators = [list(_chunks_1d_to_slices(chunks[dim])) for dim in chunks]
+    iterators = [list(chunks_1d_to_slices(chunks[dim])) for dim in chunks]
     for slices in itertools.product(*iterators):
         yield dict(zip(chunks, slices))
 
