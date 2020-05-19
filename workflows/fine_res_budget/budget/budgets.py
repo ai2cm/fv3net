@@ -167,11 +167,35 @@ def rename_recoarsened_budget(budget: xr.Dataset, field_name: str):
 
 
 def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
-    """Compute the recoarse-grained budget information
+    """Compute the recoarse-grained budgets of temperature and humidity
 
-    merged needs to be in the following format:
+    Example output for a single tile::
 
-    """
+        <xarray.Dataset>
+        Dimensions:                         (grid_xt: 6, grid_yt: 6, pfull: 79)
+        Coordinates:
+            step                            object ...
+            tile                            int64 ...
+            time                            object ...
+        Dimensions without coordinates: grid_xt, grid_yt, pfull
+        Data variables:
+            air_temperature                 (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            air_temperature_convergence     (grid_yt, grid_xt, pfull) float32 dask.array<chunksize=(6, 6, 79), meta=np.ndarray>
+            air_temperature_eddy            (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            air_temperature_microphysics    (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            air_temperature_nudging         (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            air_temperature_physics         (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            air_temperature_resolved        (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            air_temperature_storage         (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            specific_humidity               (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            specific_humidity_convergence   (grid_yt, grid_xt, pfull) float32 dask.array<chunksize=(6, 6, 79), meta=np.ndarray>
+            specific_humidity_eddy          (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            specific_humidity_microphysics  (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            specific_humidity_physics       (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            specific_humidity_resolved      (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            specific_humidity_storage       (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+
+    """  # noqa
 
     logger.info("Re-coarsegraining the budget")
 
