@@ -40,7 +40,9 @@ def open_merged(_, restart_url, physics_url):
     restarts = open_restart_data(restart_url)
     diag = open_diagnostic_output(physics_url)
     data = safe.get_variables(merge(restarts, diag), PHYSICS_VARIABLES)
-    return data.assign_coords(tile=[1,2,3,4,5,6])
+    num_tiles = len(data.tile)
+    tiles = range(1, num_tiles + 1)
+    return data.assign_coords(tile=tiles)
 
 
 def yield_indices(merged):
