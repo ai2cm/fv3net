@@ -27,6 +27,7 @@ FV3CONFIG_DEFAULTS_BY_VERSION = {
 TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
 RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer.res", "fv_srf_wnd.res"]
 
+
 def update_nested_dict(source_dict: Mapping, update_dict: Mapping) -> Mapping:
     """
     Recursively update a dictionary with new values.  Used to update
