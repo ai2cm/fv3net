@@ -7,9 +7,12 @@ from typing import Union
 
 import cftime
 import intake
-import xarray as xr
 import numpy as np
+import xarray as xr
 import yaml
+
+# SpencerC added this function, it is not public API, but we need it
+from xarray.core.resample_cftime import exact_cftime_datetime_difference
 
 from vcm.cloud import gsutil
 from vcm.cloud.remote_data import open_gfdl_data_with_2d
@@ -34,7 +37,7 @@ def round_time(t, to=timedelta(seconds=1)):
     """
     midnight = t.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    time_since_midnight = t - midnight
+    time_since_midnight = exact_cftime_datetime_difference(midnight, t)
     remainder = time_since_midnight % to
     quotient = time_since_midnight // to
     if remainder <= to / 2:
