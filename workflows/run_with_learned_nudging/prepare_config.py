@@ -3,11 +3,7 @@ import logging
 import os
 import fsspec
 import yaml
-from fv3net.pipelines.kube_jobs import (
-    get_base_fv3config,
-    update_nested_dict,
-    update_config_for_nudging,
-)
+import fv3kube
 import vcm
 
 logger = logging.getLogger("run_jobs")
@@ -41,12 +37,12 @@ EXPERIMENT_NAME = {
 
 def prepare_config(template, base_config, nudge_label, config_url):
     """Get config objects for current job and upload as necessary"""
-    config = update_nested_dict(base_config, template)
+    config = fv3kube.update_nested_dict(base_config, template)
     config["runtime"]["nudging_zarr_url"] = NUDGING_TENDENCY_URL[nudge_label]
     config["runtime"]["variables_to_nudge"] = VARIABLES_TO_NUDGE[nudge_label]
     config["experiment_name"] = EXPERIMENT_NAME[nudge_label]
     if config["namelist"]["fv_core_nml"].get("nudge", False):
-        config = update_config_for_nudging(config, config_url)
+        config = fv3kube.update_config_for_nudging(config, config_url)
     return config
 
 
@@ -77,7 +73,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     config_url = args.config_url
-    base_config = get_base_fv3config(args.config_version)
+    base_config = fv3kube.get_base_fv3config(args.config_version)
     with open(args.config_template) as f:
         template = yaml.load(f, Loader=yaml.FullLoader)
     if vcm.cloud.get_protocol(config_url) == "file":
