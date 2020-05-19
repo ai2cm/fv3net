@@ -17,10 +17,6 @@ from vcm.cloud import get_fs
 STDOUT_FILENAME = "stdout.log"
 VERTICAL_GRID_FILENAME = "fv_core.res.nc"
 
-SECONDS_IN_MINUTE = 60
-SECONDS_IN_HOUR = SECONDS_IN_MINUTE * 60
-SECONDS_IN_DAY = SECONDS_IN_HOUR * 24
-
 KUBERNETES_CONFIG_DEFAULT = {
     "docker_image": "us.gcr.io/vcm-ml/fv3gfs-python",
     "cpu_count": 6,
