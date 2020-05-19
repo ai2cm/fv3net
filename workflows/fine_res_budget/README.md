@@ -12,7 +12,7 @@ Execute this from the current directory:
 
 You might need to deactivate any active conda environments or other virtualenvs beforehand.
 
-Run inside the poetry environmentj
+Run inside the poetry environment
 
     poetry run python -m src \
         gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr/ \
@@ -50,4 +50,3 @@ Remote example:
         --autoscaling_algorithm=NONE \
         --worker_machine_type n1-standard-2 \
         --disk_size_gb 30
-
