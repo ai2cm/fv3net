@@ -88,6 +88,12 @@ minute = timedelta(minutes=1)
             _example_with_second(second=0, minute=8),
             second,
         ),
+        # cftime arithmetic is not associative so need to check this case
+        (
+            _example_with_second(second=59, minute=7, microsecond=986368),
+            _example_with_second(second=59, minute=7, microsecond=986368),
+            timedelta(microseconds=1),
+        ),
         (
             _example_with_second(minute=7, microsecond=186267),
             _example_with_second(minute=7),
