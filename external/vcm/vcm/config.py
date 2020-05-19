@@ -1,14 +1,21 @@
 from typing import Mapping
 
 
-def update_nested_dict(source_dict: Mapping, update_dict: Mapping) -> Mapping:
+def update_nested_dict(source: Mapping, update: Mapping) -> Mapping:
+    """Recursively update a mapping with new values.
+
+    Args:
+        source: Mapping to be updated.
+        update: Mapping whose key-value pairs will update those in source_dict.
+            Key-value pairs will be inserted for keys in update_dict that do not exist
+            in source_dict.
+
+    Returns:
+        Recursively updated mapping.
     """
-    Recursively update a dictionary with new values.  Used to update
-    configuration dicts with partial specifications.
-    """
-    for key in update_dict:
-        if key in source_dict and isinstance(source_dict[key], Mapping):
-            update_nested_dict(source_dict[key], update_dict[key])
+    for key in update:
+        if key in source and isinstance(source[key], Mapping):
+            update_nested_dict(source[key], update[key])
         else:
-            source_dict[key] = update_dict[key]
-    return source_dict
+            source[key] = update[key]
+    return source
