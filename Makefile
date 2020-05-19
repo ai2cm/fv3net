@@ -17,6 +17,7 @@ GCR_IMAGE = us.gcr.io/vcm-ml/fv3net
 GCR_BASE  = us.gcr.io/vcm-ml
 FV3NET_IMAGE = $(GCR_BASE)/fv3net
 PROGNOSTIC_RUN_IMAGE = $(GCR_BASE)/prognostic_run
+GITHOOKS_DIR = githooks
 
 
 ifeq (,$(shell which conda))
@@ -128,6 +129,10 @@ lint: check_file_size
 
 reformat:
 	black $(PYTHON_FILES) $(PYTHON_INIT_FILES)
+
+install-githooks:
+	cp $(GITHOOKS_DIR)/* .git/hooks/
+
 
 #################################################################################
 # Self Documenting Commands                                                     #
