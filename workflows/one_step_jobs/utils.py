@@ -12,6 +12,7 @@ from kubernetes.client import V1Job
 
 import fv3config
 import fv3kube
+import vcm
 from vcm.cloud import get_fs
 
 STDOUT_FILENAME = "stdout.log"
@@ -87,7 +88,7 @@ def _update_config(
     to prepare for fv3gfs one-step runs.
     """
     base_model_config = fv3kube.get_base_fv3config(base_config_version)
-    model_config = fv3kube.update_nested_dict(base_model_config, user_model_config)
+    model_config = vcm.update_nested_dict(base_model_config, user_model_config)
 
     model_config = fv3config.enable_restart(model_config)
     model_config["experiment_name"] = _get_experiment_name(workflow_name, timestep)
@@ -133,7 +134,7 @@ def _upload_config_files(
 
 def get_run_kubernetes_kwargs(user_kubernetes_config, config_url):
 
-    kubernetes_config = fv3kube.update_nested_dict(
+    kubernetes_config = vcm.update_nested_dict(
         deepcopy(KUBERNETES_CONFIG_DEFAULT), user_kubernetes_config
     )
 

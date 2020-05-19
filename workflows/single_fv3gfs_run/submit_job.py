@@ -5,6 +5,7 @@ import fsspec
 import yaml
 import fv3config
 import fv3kube
+import vcm
 
 logger = logging.getLogger("run_jobs")
 
@@ -21,13 +22,13 @@ KUBERNETES_CONFIG_DEFAULT = {
 
 def get_kubernetes_config(config_update):
     """Get default kubernetes config and update with provided config_update"""
-    return fv3kube.update_nested_dict(KUBERNETES_CONFIG_DEFAULT, config_update)
+    return vcm.update_nested_dict(KUBERNETES_CONFIG_DEFAULT, config_update)
 
 
 def _get_and_upload_run_config(bucket, run_config, base_model_config):
     """Get config objects for current job and upload as necessary"""
     config_bucket = os.path.join(bucket, "config")
-    model_config = fv3kube.update_nested_dict(
+    model_config = vcm.update_nested_dict(
         base_model_config, run_config["fv3config"]
     )
     kubernetes_config = get_kubernetes_config(run_config["kubernetes"])

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import fv3config
 import fv3kube
+import vcm
 from vcm.cloud import get_fs
 
 logger = logging.getLogger(__name__)
@@ -89,7 +90,7 @@ def _update_with_prognostic_model_config(model_config, prognostic_config):
     with open(prognostic_config, "r") as f:
         prognostic_model_config = yaml.load(f, Loader=yaml.FullLoader)
 
-    fv3kube.update_nested_dict(model_config, prognostic_model_config)
+    vcm.update_nested_dict(model_config, prognostic_model_config)
 
     return model_config
 

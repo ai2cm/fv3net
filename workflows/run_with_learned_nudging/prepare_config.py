@@ -37,7 +37,7 @@ EXPERIMENT_NAME = {
 
 def prepare_config(template, base_config, nudge_label, config_url):
     """Get config objects for current job and upload as necessary"""
-    config = fv3kube.update_nested_dict(base_config, template)
+    config = vcm.update_nested_dict(base_config, template)
     config["runtime"]["nudging_zarr_url"] = NUDGING_TENDENCY_URL[nudge_label]
     config["runtime"]["variables_to_nudge"] = VARIABLES_TO_NUDGE[nudge_label]
     config["experiment_name"] = EXPERIMENT_NAME[nudge_label]

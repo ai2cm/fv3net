@@ -30,19 +30,6 @@ TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
 RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer.res", "fv_srf_wnd.res"]
 
 
-def update_nested_dict(source_dict: Mapping, update_dict: Mapping) -> Mapping:
-    """
-    Recursively update a dictionary with new values.  Used to update
-    configuration dicts with partial specifications.
-    """
-    for key in update_dict:
-        if key in source_dict and isinstance(source_dict[key], Mapping):
-            update_nested_dict(source_dict[key], update_dict[key])
-        else:
-            source_dict[key] = update_dict[key]
-    return source_dict
-
-
 def get_base_fv3config(version_key: str) -> Mapping:
     """
     Get base configuration dictionary specific to an fv3gfs-python version.
