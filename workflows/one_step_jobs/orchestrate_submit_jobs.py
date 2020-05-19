@@ -4,7 +4,7 @@ import logging
 import yaml
 from pathlib import Path
 
-from . import one_step
+from . import utils
 from fv3net.pipelines.common import get_alphanumeric_unique_tag
 
 PWD = os.path.dirname(os.path.abspath(__file__))
@@ -82,8 +82,8 @@ if __name__ == "__main__":
     one_step_config["kubernetes"]["runfile"] = RUNFILE
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
 
-    local_vgrid_file = os.path.join(PWD, one_step.VERTICAL_GRID_FILENAME)
-    one_step.submit_jobs(
+    local_vgrid_file = os.path.join(PWD, utils.VERTICAL_GRID_FILENAME)
+    utils.submit_jobs(
         timesteps,
         workflow_name,
         one_step_config,
