@@ -177,6 +177,8 @@ def read_schema_from_dataset(dataset: xr.Dataset):
         logger.info(f"Reading {variable}")
         arr = dataset[variable].values
         chunks = dataset[variable].chunks
+        if chunks is None:
+            chunks = dataset[variable].values.shape
         attrs = dict(dataset[variable].attrs)
         dims = [dim for dim in dataset[variable].dims]
         array = ChunkedArray(arr.shape, arr.dtype, chunks)
