@@ -8,6 +8,8 @@ from datetime import timedelta
 from typing import Any, Callable, List, Mapping
 from typing.io import BinaryIO
 
+import itertools
+
 import apache_beam as beam
 import xarray as xr
 from apache_beam.io import filesystems
@@ -17,6 +19,40 @@ from vcm import parse_timestep_str_from_path, parse_datetime_from_str
 from vcm.cubedsphere.constants import TIME_FMT
 
 logger = logging.getLogger(__name__)
+
+
+def _chunks_1d_to_slices(chunks):
+    start = 0
+    for chunk in chunks:
+        end = start + chunk
+        yield slice(start, end)
+        start = end
+
+
+def _chunk_indices(ds, dims):
+    # can generalize to splittable pardo for performance
+    iterators = [list(_chunks_1d_to_slices(ds.chunks[dim])) for dim in dims]
+    for slices in itertools.product(*iterators):
+        indexer = dict(zip(dims, slices))
+        yield indexer, ds.isel(indexer)
+
+
+class ChunkXarray(beam.PTransform):
+    """Expand xarray datasets into a list of chunks
+    
+    outputs a pcollection of key, value pairs, for example::
+
+        [
+            ({'x': slice(0, 2)}, dataset_chunks)
+        ]
+    
+    """
+    # TODO add typehinting
+    def __init__(self, dims):
+        self.dims = dims
+
+    def expand(self, pcoll):
+        return pcoll | beam.ParDo(_chunk_indices, self.dims) | beam.Reshuffle()
 
 
 class CombineSubtilesByKey(beam.PTransform):
