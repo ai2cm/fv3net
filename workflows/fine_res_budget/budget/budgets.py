@@ -6,6 +6,9 @@ import xarray as xr
 from vcm import pressure_at_interface
 from vcm.cubedsphere import block_upsample, weighted_block_average, regrid_vertical
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 def _divergence(eddy, delp):
     """Eddy is cell centered here"""
@@ -90,6 +93,8 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
     merged needs to be in the following format:
 
     """
+
+    logger.info("Re-coarsegraining the budget")
 
     grid = Grid("grid_xt", "grid_yt", "pfull", "grid_x", "grid_y", "pfulli")
     VARIABLES = ["t_dt_gfdlmp", "t_dt_nudge", "t_dt_phys", "qv_dt_gfdlmp", "qv_dt_phys"]

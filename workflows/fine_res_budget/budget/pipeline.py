@@ -39,14 +39,16 @@ PHYSICS_VARIABLES = [
 def open_merged(_, restart_url, physics_url):
     restarts = open_restart_data(restart_url)
     diag = open_diagnostic_output(physics_url)
-    return safe.get_variables(merge(restarts, diag), PHYSICS_VARIABLES)
+    data = safe.get_variables(merge(restarts, diag), PHYSICS_VARIABLES)
+    return data.assign_coords(tile=[1,2,3,4,5,6])
 
 
-def yield_all(merged):
-    times = merged.time.values.tolist()
-    tiles = merged.tile.values.tolist()
+def yield_indices(merged):
+    logger.info("Yielding Indices")
+    times = merged['time'].values.tolist()
+    tiles = merged['tile'].values.tolist()
     for time, tile in product(times, tiles):
-        yield merged.sel(time=time).isel(tile=tile).assign_coords(tile=tile)
+        yield {'time': time, 'tile': tile}
 
 
 @retry.with_exponential_backoff(num_retries=7)
@@ -68,6 +70,7 @@ def save(ds, base):
 
 @retry.with_exponential_backoff(num_retries=7)
 def load(ds):
+    logger.info(f"Loading {ds}")
     return ds.compute()
 
 
@@ -82,10 +85,14 @@ def run(restart_url, physics_url, output_dir, extra_args=()):
             | "OpenMerged" >> beam.Map(open_merged, restart_url, physics_url)
         )
 
+        indices = merged | beam.ParDo(yield_indices)
+
         (
-            merged
-            | "Yield all tiles" >> beam.ParDo(yield_all)
-            | "Reshuffle" >> beam.Reshuffle()  # distribute to workers
+            indices
+            # reshuffle to ensure that data is distributed to workers
+            | "Reshuffle Tiles" >> beam.Reshuffle()
+            | "Select Data" >> beam.Map(
+                lambda index, ds: ds.sel(index), beam.pvalue.AsSingleton(merged))
             | "Compute Budget" >> beam.Map(budgets.compute_recoarsened_budget, factor=8)
             | "Load" >> beam.Map(load)
             | "Save" >> beam.Map(save, base=output_dir)
