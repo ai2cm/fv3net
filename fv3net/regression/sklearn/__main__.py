@@ -67,18 +67,20 @@ def parse_args():
     return parser.parse_args()
 
 
-def times_from_batches(time_batches):
-    ds = xr.concat(time_batches, SAMPLE_DIM_NAME)
-    return ds[TIME_NAME]
+def times_from_batches(batched_data):
+    return_list = []
+    ds = xr.concat(batched_data, SAMPLE_DIM_NAME)
+    for time in ds[TIME_NAME].values:
+        return_list.append(vcm.cast_to_datetime(time))
+    return return_list
 
 
 if __name__ == "__main__":
     args = parse_args()
     data_path = os.path.join(args.train_data_path, "train")
     train_config = train.load_model_training_config(args.train_config_file)
-    batched_data, time_batches = train.load_data_sequence(data_path, train_config)
+    batched_data = train.load_data_sequence(data_path, train_config)
     _save_config_output(args.output_data_path, train_config)
-    print(times_from_batches(time_batches))
 
     logging.basicConfig(level=logging.INFO)
 
@@ -87,6 +89,6 @@ if __name__ == "__main__":
     report_metadata = {**vars(args), **vars(train_config)}
     report_sections = _create_report_plots(
         args.output_data_path,
-        times_from_batches(time_batches)
+        times_from_batches(batched_data),
     )
     _write_report(args.output_data_path, report_sections, report_metadata, REPORT_TITLE)

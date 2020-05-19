@@ -10,7 +10,7 @@ import xarray as xr
 import vcm
 from vcm import cloud, safe
 from ._sequences import FunctionOutputSequence
-from ..constants import SAMPLE_DIM_NAME
+from ..constants import SAMPLE_DIM_NAME, TIME_NAME
 
 __all__ = ["load_one_step_batches"]
 
@@ -116,8 +116,11 @@ def _load_one_step_batch(
     # impossible to test.
     data = _load_datasets(fs, url_list)
     ds = xr.concat(data, init_time_dim_name)
+    # need to use standardized time dimension name
+    rename_variables[init_time_dim_name] = rename_variables.get(
+        init_time_dim_name, TIME_NAME
+    )
     ds = ds.rename(rename_variables)
-    ds = safe.get_variables(ds, data_vars)
     if mask_to_surface_type is not None:
         ds = vcm.mask_to_surface_type(ds, mask_to_surface_type)
     stack_dims = [dim for dim in ds.dims if dim != z_dim_name]
@@ -134,7 +137,7 @@ def _load_one_step_batch(
         raise ValueError(
             "No Valid samples detected. Check for errors in the training data."
         )
-    ds = ds_no_nan.load()
+    ds = safe.get_variables(ds_no_nan, data_vars).load()
     return _shuffled(ds, SAMPLE_DIM_NAME, random)
 
 

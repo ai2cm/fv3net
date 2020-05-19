@@ -14,5 +14,3 @@ batch_kwargs:
   files_per_batch: 1
   init_time_dim_name: "initial_time"
   z_dim_name: "z"
-  rename_variables:
-    initial_time: time
