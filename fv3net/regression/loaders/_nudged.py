@@ -90,7 +90,7 @@ def _load_nudging_batch(
     batch_slice: slice
 ) -> xr.Dataset:
     
-    batch = stacked_ds.isel(SAMPLE_DIM=batch_slice)
+    batch = stacked_ds.isel({SAMPLE_DIM: batch_slice})
     batch_no_nan = batch.dropna(SAMPLE_DIM)
 
     if len(batch_no_nan[SAMPLE_DIM]) == 0:
