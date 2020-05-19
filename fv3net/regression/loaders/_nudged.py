@@ -73,7 +73,7 @@ def load_nudging_batches(
 
     total_samples = combined_stacked.sizes[SAMPLE_DIM]
 
-    batch_slices = _get_batches(
+    batch_slices = _get_batch_slices(
         total_samples, num_samples_in_batch, num_batches=num_batches
     )
     random = np.random.RandomState(random_seed)
@@ -84,7 +84,11 @@ def load_nudging_batches(
     return FunctionOutputSequence(loader_func, batch_slices)
 
 
-def _load_nudging_batch(stacked_ds: xr.Dataset, random: np.random.RandomState, batch_slice: slice):
+def _load_nudging_batch(
+    stacked_ds: xr.Dataset,
+    random: np.random.RandomState,
+    batch_slice: slice
+) -> xr.Dataset:
     
     batch = stacked_ds.isel(SAMPLE_DIM=batch_slice)
     batch_no_nan = batch.dropna(SAMPLE_DIM)
@@ -99,7 +103,7 @@ def _load_nudging_batch(stacked_ds: xr.Dataset, random: np.random.RandomState, b
     return _shuffled(final_batch, SAMPLE_DIM, random)
     
 
-def _get_batches(num_samples: int, samples_per_batch: int, num_batches: int = None):
+def _get_batch_slices(num_samples: int, samples_per_batch: int, num_batches: int = None):
 
     if num_batches is not None:
         batch_size = num_samples // num_batches
