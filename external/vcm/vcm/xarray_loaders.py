@@ -1,4 +1,7 @@
 import logging
+import tempfile
+import os
+import shutil
 
 import dask.array as da
 import numpy as np
@@ -92,3 +95,13 @@ def open_delayed(delayed_dataset, schema: xr.Dataset) -> xr.Dataset:
         )
         data_vars[key] = (template_var.dims, array, template_var.attrs)
     return xr.Dataset(data_vars, coords=schema.coords, attrs=schema.attrs)
+
+
+def dump_nc(ds: xr.Dataset, f):
+    # to_netcdf closes file, which will delete the buffer
+    # need to use a buffer since seek doesn't work with GCSFS file objects
+    with tempfile.TemporaryDirectory() as dirname:
+        url = os.path.join(dirname, "tmp.nc")
+        ds.to_netcdf(url, engine="h5netcdf")
+        with open(url, "rb") as tmp1:
+            shutil.copyfileobj(tmp1, f)
