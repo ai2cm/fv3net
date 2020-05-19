@@ -7,7 +7,7 @@ import synth
 logging.basicConfig(level=logging.INFO)
 
 
-url = "gs://vcm-ml-data/testing-noah/2020-04-18/25b5ec1a1b8a9524d2a0211985aa95219747b3c6/coarsen_diagnostics/gfsphysics_15min_coarse.zarr/"  # noqa
+url = "gs://vcm-ml-scratch/brianh/one-step-diags-testing/deep-off-testing/hi-res-diags-subset.zarr"  # noqa
 mapper = fsspec.get_mapper(url)
 group = zarr.open_group(mapper)
 schema = synth.read_schema_from_zarr(
