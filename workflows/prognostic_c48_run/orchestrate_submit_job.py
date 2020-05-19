@@ -7,7 +7,7 @@ from pathlib import Path
 
 import fv3config
 import fv3kube
-from vcm.cloud.fsspec import get_fs
+from vcm.cloud import get_fs
 
 logger = logging.getLogger(__name__)
 PWD = Path(os.path.abspath(__file__)).parent
