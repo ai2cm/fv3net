@@ -10,7 +10,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def _divergence(eddy, delp):
+def _convergence(eddy, delp):
     """Eddy is cell centered here"""
     padding = [(0, 0)] * eddy.ndim
     padding[-1] = (1, 1)
@@ -19,9 +19,9 @@ def _divergence(eddy, delp):
     return -np.diff(eddy_interface, axis=-1) / delp
 
 
-def divergence(eddy, delp, dim="p"):
+def convergence(eddy, delp, dim="p"):
     return xr.apply_ufunc(
-        _divergence,
+        _convergence,
         eddy,
         delp,
         input_core_dims=[[dim], [dim]],
@@ -66,25 +66,25 @@ class Grid:
             *args, z_dim_center=self.z, z_dim_outer=self.zi, **kwargs
         )
 
-    def pressure_level_average(self, delp, delp_c, area, arg, factor):
-        pi = self.pressure_at_interface(delp)
-        pi_c = self.pressure_at_interface(delp_c)
+    def pressure_level_average(self, delp_fine, delp_coarse, area, field, factor):
+        pi = self.pressure_at_interface(delp_fine)
+        pi_c = self.pressure_at_interface(delp_coarse)
         pi_c_up = self.block_upsample(pi_c, factor=factor)
 
-        fg = self.regrid_vertical(pi, arg, pi_c_up)
+        fg = self.regrid_vertical(pi, field, pi_c_up)
         avg = self.weighted_block_average(fg, area, factor)
         return avg.drop([self.x, self.y, self.z], errors="ignore")
 
-    def vertical_divergence(self, f, delp):
-        return divergence(f, delp, dim=self.z)
+    def vertical_convergence(self, f, delp):
+        return convergence(f, delp, dim=self.z)
 
 
 def dict_to_array(d, dim):
     return xr.concat(d.values(), dim=dim).assign_coords({dim: list(d.keys())})
 
 
-def storage(qv, dt):
-    return (qv.sel(step="end") - qv.sel(step="begin")) / dt
+def storage(field: xr.DataArray, time_step: float) -> xr.DataArray:
+    return (field.sel(step="end") - field.sel(step="begin")) / time_step
 
 
 def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
@@ -139,8 +139,8 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         - averaged_vars["omega"] * averaged_vars["T"]
     )
 
-    div_q = grid.vertical_divergence(eddy_flux_q, delp_c)
-    div_T = grid.vertical_divergence(eddy_flux_t, delp_c)
+    div_q = grid.vertical_convergence(eddy_flux_q, delp_c)
+    div_T = grid.vertical_convergence(eddy_flux_t, delp_c)
 
     t_budget_coarse = {
         "storage": averaged_vars["storage_T"],
