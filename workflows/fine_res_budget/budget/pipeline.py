@@ -36,7 +36,7 @@ PHYSICS_VARIABLES = [
 ]
 
 
-def open_merged(_, restart_url, physics_url):
+def open_merged(restart_url, physics_url):
     restarts = open_restart_data(restart_url)
     diag = open_diagnostic_output(physics_url)
     data = safe.get_variables(merge(restarts, diag), PHYSICS_VARIABLES)
@@ -76,27 +76,39 @@ def load(ds):
     return ds.compute()
 
 
-def run(restart_url, physics_url, output_dir, extra_args=()):
+class FunctionSource(beam.PTransform):
+    def __init__(self, fn, *args):
+        self.fn = fn
+        self.args = args
 
-    options = PipelineOptions(extra_args)
+    def expand(self, pcoll):
+        return pcoll | beam.Create([None]) | beam.Map(lambda _: self.fn(*self.args))
 
-    with beam.Pipeline(options=options) as p:
-        merged = (
-            p
-            | beam.Create([None])
-            | "OpenMerged" >> beam.Map(open_merged, restart_url, physics_url)
-        )
 
-        indices = merged | beam.ParDo(yield_indices)
-
-        (
-            indices
+class ChunkByTimeTile(beam.PTransform):
+    def expand(self, merged):
+        return (
+            merged
+            | beam.ParDo(yield_indices)
             # reshuffle to ensure that data is distributed to workers
             | "Reshuffle Tiles" >> beam.Reshuffle()
             | "Select Data"
             >> beam.Map(
                 lambda index, ds: ds.sel(index), beam.pvalue.AsSingleton(merged)
             )
+        )
+
+
+def run(restart_url, physics_url, output_dir, extra_args=()):
+
+    options = PipelineOptions(extra_args)
+
+    with beam.Pipeline(options=options) as p:
+
+        (
+            p
+            | FunctionSource(open_merged, restart_url, physics_url)
+            | ChunkByTimeTile()
             | "Compute Budget" >> beam.Map(budgets.compute_recoarsened_budget, factor=8)
             | "Load" >> beam.Map(load)
             | "Save" >> beam.Map(save, base=output_dir)
