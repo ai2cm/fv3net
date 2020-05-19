@@ -4,7 +4,7 @@ import logging
 import yaml
 from pathlib import Path
 
-from .utils import submit_jobs, VERTICAL_GRID_FILENAME
+import one_step_utils
 import fv3kube
 
 PWD = os.path.dirname(os.path.abspath(__file__))
@@ -82,8 +82,8 @@ if __name__ == "__main__":
     one_step_config["kubernetes"]["runfile"] = RUNFILE
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
 
-    local_vgrid_file = os.path.join(PWD, VERTICAL_GRID_FILENAME)
-    submit_jobs(
+    local_vgrid_file = os.path.join(PWD, one_step_utils.VERTICAL_GRID_FILENAME)
+    one_step_utils.submit_jobs(
         timesteps,
         workflow_name,
         one_step_config,
