@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def _convergence(eddy, delp):
-    """Compute vertical convergence of a flux.
+    """Compute vertical convergence of a cell-centered flux.
     
     This flux is assumed to vanish at the vertical boundaries
     """
