@@ -1,10 +1,8 @@
-from typing import Iterable
 from dataclasses import dataclass
 
 import numpy as np
 import xarray as xr
 
-from vcm import safe
 from vcm import pressure_at_interface
 from vcm.cubedsphere import block_upsample, weighted_block_average, regrid_vertical
 
@@ -76,7 +74,7 @@ class Grid:
 
         fg = self.regrid_vertical(pi, field, pi_c_up)
         avg = self.weighted_block_average(fg, area, factor)
-        return avg.drop([self.x, self.y, self.z], errors="ignore")
+        return avg.drop([self.x, self.y, self.z], errors="ignore").rename(field.name)
 
     def vertical_convergence(self, f, delp):
         return convergence(f, delp, dim=self.z)
@@ -100,10 +98,10 @@ def compute_recoarsened_budget_field(
     omega_c: xr.DataArray,
     field: xr.DataArray,
     unresolved_flux: xr.DataArray,
+    storage: xr.DataArray,
     microphysics: xr.DataArray,
     physics: xr.DataArray,
     nudging: xr.DataArray = None,
-    dt: float = 15 * 60,
     factor: int = 8,
 ):
     """Compute the recoarse-grained budget information
@@ -135,7 +133,8 @@ def compute_recoarsened_budget_field(
             yield nudging.rename("nudging")
         yield unresolved_flux.rename(unresolved_flux_name)
         yield (field * omega).rename(resolved_flux_name)
-        yield storage(field, dt=dt).rename(storage_name)
+        yield storage.rename(storage_name)
+        yield field.rename(field_name)
 
     def averaged_variables():
         for array in variables_to_average():
@@ -177,7 +176,6 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
     logger.info("Re-coarsegraining the budget")
 
     grid = Grid("grid_xt", "grid_yt", "pfull", "grid_x", "grid_y", "pfulli")
-    VARIABLES = ["t_dt_gfdlmp", "t_dt_nudge", "t_dt_phys", "qv_dt_gfdlmp", "qv_dt_phys"]
 
     middle = merged.sel(step="middle")
 
@@ -194,12 +192,12 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         omega,
         omega_c,
         middle["T"],
+        storage=storage(merged["T"], dt),
         unresolved_flux=middle["eddy_flux_omega_temp"],
         microphysics=middle["t_dt_gfdlmp"],
         nudging=middle["t_dt_nudge"],
         physics=middle["t_dt_phys"],
         factor=factor,
-        dt=dt,
     ).pipe(rename_recoarsened_budget, "air_temperature")
 
     q_budget_coarse = compute_recoarsened_budget_field(
@@ -209,11 +207,11 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         omega,
         omega_c,
         middle["sphum"],
+        storage=storage(merged["sphum"], dt),
         unresolved_flux=middle["eddy_flux_omega_sphum"],
         microphysics=middle["qv_dt_gfdlmp"],
         physics=middle["qv_dt_phys"],
         factor=factor,
-        dt=dt,
     ).pipe(rename_recoarsened_budget, "specific_humidity")
 
     return xr.merge([t_budget_coarse, q_budget_coarse])

@@ -72,6 +72,9 @@ def test_run(tmpdir):
 
     run(restart_path, diag_path, output_path)
 
+    ds = xr.open_mfdataset(f"{output_path}/*.nc")
+    print(ds)
+
 
 def test_shift():
     initial_time = cftime.DatetimeJulian(

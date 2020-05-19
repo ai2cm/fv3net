@@ -47,10 +47,10 @@ def open_merged(_, restart_url, physics_url):
 
 def yield_indices(merged):
     logger.info("Yielding Indices")
-    times = merged['time'].values.tolist()
-    tiles = merged['tile'].values.tolist()
+    times = merged["time"].values.tolist()
+    tiles = merged["tile"].values.tolist()
     for time, tile in product(times, tiles):
-        yield {'time': time, 'tile': tile}
+        yield {"time": time, "tile": tile}
 
 
 @retry.with_exponential_backoff(num_retries=7)
@@ -93,8 +93,10 @@ def run(restart_url, physics_url, output_dir, extra_args=()):
             indices
             # reshuffle to ensure that data is distributed to workers
             | "Reshuffle Tiles" >> beam.Reshuffle()
-            | "Select Data" >> beam.Map(
-                lambda index, ds: ds.sel(index), beam.pvalue.AsSingleton(merged))
+            | "Select Data"
+            >> beam.Map(
+                lambda index, ds: ds.sel(index), beam.pvalue.AsSingleton(merged)
+            )
             | "Compute Budget" >> beam.Map(budgets.compute_recoarsened_budget, factor=8)
             | "Load" >> beam.Map(load)
             | "Save" >> beam.Map(save, base=output_dir)

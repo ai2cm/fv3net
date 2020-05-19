@@ -84,7 +84,7 @@ def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
 
     The restart data (r?) are defined at the edges of time intervals ("x"),
     but sometimes we want to do computations with them at the centers of these
-    time intervals ("o"). 
+    time intervals ("o").
 
         x-------o--------x-------o-------x
         -------r1.5------------r2.5-------
