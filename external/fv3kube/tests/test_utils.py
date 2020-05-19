@@ -2,12 +2,12 @@ import pytest
 
 from typing import Mapping
 
-from fv3net.pipelines.kube_jobs import (
+from fv3kube import (
     get_base_fv3config,
     job_failed,
     job_complete,
 )
-from fv3net.pipelines.kube_jobs.utils import _handle_jobs
+from fv3kube.utils import _handle_jobs
 import kubernetes
 
 from kubernetes.client import V1Job, V1JobStatus, V1ObjectMeta
