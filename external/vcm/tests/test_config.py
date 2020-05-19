@@ -13,7 +13,7 @@ from vcm import update_nested_dict
         ({"foo": "bar"}, {"foo": "biz"}, {"foo": "biz"}),
         ({"foo": {"fee": "bar"}}, {"foo": {"fee": "biz"}}, {"foo": {"fee": "biz"}}),
         ({"foo": "bar", "fee": "bee"}, {"foo": "biz"}, {"foo": "biz", "fee": "bee"}),
-    ]
+    ],
 )
 def test_update_nested_dict(source, update, expected_output):
     output = update_nested_dict(source, update)
