@@ -63,7 +63,7 @@ def load_nudging_batches(
     if mask_to_surface_type is not None:
         ds = vcm.mask_to_surface_type(combined, mask_to_surface_type)
 
-    stack_dims = [dim for dim in ds.dims if dim != z_dim_name]
+    stack_dims = [dim for dim in combined.dims if dim != z_dim_name]
     combined_stacked = safe.stack_once(
         combined,
         SAMPLE_DIM,
@@ -73,15 +73,15 @@ def load_nudging_batches(
 
     total_samples = combined_stacked.sizes[SAMPLE_DIM]
 
-    batch_slices = _get_batch_slices(
+    func_args = _get_batch_func_args(
         total_samples, num_samples_in_batch, num_batches=num_batches
     )
     random = np.random.RandomState(random_seed)
-    random.shuffle(batch_slices)
+    random.shuffle(func_args)
 
     loader_func = partial(_load_nudging_batch, combined_stacked, random)
 
-    return FunctionOutputSequence(loader_func, batch_slices)
+    return FunctionOutputSequence(loader_func, func_args)
 
 
 def _load_nudging_batch(
@@ -103,7 +103,7 @@ def _load_nudging_batch(
     return _shuffled(final_batch, SAMPLE_DIM, random)
     
 
-def _get_batch_slices(num_samples: int, samples_per_batch: int, num_batches: int = None):
+def _get_batch_func_args(num_samples: int, samples_per_batch: int, num_batches: int = None):
 
     if num_batches is not None:
         batch_size = num_samples // num_batches
@@ -124,7 +124,9 @@ def _get_batch_slices(num_samples: int, samples_per_batch: int, num_batches: int
         end = start + batch_size
         slices.append(slice(start, end))
 
-    return slices
+    args = [(item,) for item in slices]
+
+    return args
 
 
 def _shuffled(dataset, dim, random):
