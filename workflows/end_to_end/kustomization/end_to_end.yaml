@@ -5,7 +5,7 @@ experiment:
   name: $JOBNAME
   unique_id: false
   steps_to_run:
-    #- coarsen_restarts  # not doing C384 -> C48 coarsening
+    - coarsen_restarts  # not doing C384 -> C48 coarsening
     # TOOD uncomment these for production runs
     - coarsen_diagnostics
     - one_step_run
@@ -24,22 +24,22 @@ experiment:
         grid_spec: 
           location: $GRIDSPEC
         source-resolution: 384
-        target-resolution: 48
+        target-resolution: 12
         --runner: DataflowRunner
 
     coarsen_diagnostics:
       command: python workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.py
       args:
         c384_diagnostics:
-          location: $C384_DIAGNOSTICS
+          location:
+            from: coarsen_restarts
         coarsening_config: $CONFIG/coarsen_c384_diagnostics.yml
 
     one_step_run:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
       args:
         restart_data:
-          #from: coarsen_restarts  # uncomment this line and delete the following to include coarsening in test workflow
-          location: $C48_RESTARTS
+          from: coarsen_restarts  # uncomment this line and delete the following to include coarsening in test workflow
         experiment_yaml: $CONFIG/one_step_jobs.yml
         docker_image: $PROGNOSTIC_RUN_IMAGE
         timesteps: $ONE_STEP_TIMES

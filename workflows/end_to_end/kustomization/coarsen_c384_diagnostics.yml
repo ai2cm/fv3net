@@ -9,4 +9,4 @@ hi-res-data-vars:
   - DLWRFsfc_coarse
   - ULWRFtoa_coarse
   - ULWRFsfc_coarse
-target_resolution: 48
+target_resolution: 12

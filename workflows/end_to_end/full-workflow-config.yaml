@@ -22,7 +22,7 @@ experiment:
         grid_spec:
           location: gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy
         source-resolution: 384
-        target-resolution: 48
+        target-resolution: 12
         --runner: DataflowRunner
 
     coarsen_diagnostics:
