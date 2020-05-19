@@ -31,7 +31,8 @@ def _save_config_output(output_url, config):
 
 
 def _create_report_plots(
-        path: str, times: Union[Sequence[np.datetime64], Sequence[datetime]]):
+    path: str, times: Union[Sequence[np.datetime64], Sequence[datetime]]
+):
     """Given path to output directory and times used, create all plots required
     for html report"""
     with fsspec.open(os.path.join(path, TRAINING_FIG_FILENAME), "wb") as f:
@@ -88,7 +89,6 @@ if __name__ == "__main__":
     train.save_model(args.output_data_path, model, MODEL_FILENAME)
     report_metadata = {**vars(args), **vars(train_config)}
     report_sections = _create_report_plots(
-        args.output_data_path,
-        times_from_batches(batched_data),
+        args.output_data_path, times_from_batches(batched_data),
     )
     _write_report(args.output_data_path, report_sections, report_metadata, REPORT_TITLE)
