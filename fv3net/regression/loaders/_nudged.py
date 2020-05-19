@@ -53,7 +53,7 @@ def load_nudging_batches(
     """
     data_path = os.path.join(
         data_path,
-        TIMESCALE_OUTDIR_TEMPLATE.format(NUDGING_TENDENCY_ZARR),
+        TIMESCALE_OUTDIR_TEMPLATE.format(nuding_timescale),
     )
 
     combined = _load_nudging_zarr(
