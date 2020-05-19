@@ -14,14 +14,10 @@ import pytest
 import os
 
 timesteps = {
-    "train": [
-        ["20160801.003000", "20160801.004500"],
-        ["20160801.001500", "20160801.003000"],
-    ],
     "test": [
-        ["20160801.011500", "20160801.013000"],
-        ["20160801.010000", "20160801.011500"],
-    ],
+        ["20160811.090000", "20160811.091500"],
+        ["20160828.060000", "20160828.061500"],
+    ]
 }
 
 
@@ -75,19 +71,19 @@ def test_one_step_diags_regression(datadir):
 
     ranges = {}
 
-    one_step_dataset = one_step_schema.generate(ranges=ranges)
+    one_step_dataset = synth.generate(one_step_schema, ranges=ranges)
     one_step_dataset.to_zarr(one_step_zarrpath)
 
     grid = one_step_dataset.isel(
         {INIT_TIME_DIM: 0, FORECAST_TIME_DIM: 0, ZARR_STEP_DIM: 0}
     ).drop([ZARR_STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
 
-    hi_res_diags_dataset = hi_res_diags_schema.generate(ranges=ranges)
+    hi_res_diags_dataset = synth.generate(hi_res_diags_schema, ranges=ranges)
     # need to decode the time coordinate.
     hi_res_diags_dataset = xr.decode_cf(hi_res_diags_dataset)
     hi_res_diags_dataset.to_zarr(hi_res_diags_zarrpath)
 
-    one_step_diags_dataset = one_step_diags_schema.generate(ranges=ranges)
+    one_step_diags_dataset = synth.generate(one_step_diags_schema, ranges=ranges)
 
     pipeline_args = []
 
