@@ -10,10 +10,9 @@ import xarray as xr
 import vcm
 from vcm import cloud, safe
 from ._sequences import FunctionOutputSequence
+from .. import SAMPLE_DIM_NAME
 
 __all__ = ["load_one_step_batches"]
-
-SAMPLE_DIM = "sample"
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -124,19 +123,19 @@ def _load_one_step_batch(
     stack_dims = [dim for dim in ds.dims if dim != z_dim_name]
     ds_stacked = safe.stack_once(
         ds,
-        SAMPLE_DIM,
+        SAMPLE_DIM_NAME,
         stack_dims,
         allowed_broadcast_dims=[z_dim_name, init_time_dim_name],
     )
 
-    ds_no_nan = ds_stacked.dropna(SAMPLE_DIM)
+    ds_no_nan = ds_stacked.dropna(SAMPLE_DIM_NAME)
 
-    if len(ds_no_nan[SAMPLE_DIM]) == 0:
+    if len(ds_no_nan[SAMPLE_DIM_NAME]) == 0:
         raise ValueError(
             "No Valid samples detected. Check for errors in the training data."
         )
     ds = ds_no_nan.load()
-    return _shuffled(ds, SAMPLE_DIM, random)
+    return _shuffled(ds, SAMPLE_DIM_NAME, random)
 
 
 @backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
