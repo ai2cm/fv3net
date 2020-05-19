@@ -27,6 +27,8 @@ def load_nudging_batches(
     mask_to_surface_type: str = None,
     z_dim_name: str = "z",
     rename_variables: Mapping[str, str] = None,
+    initial_time_skip: int = 0,
+    include_ntimes: int = None,
 ) -> Sequence:
     """
     Get a sequence of batches from a nudged-run zarr store.
@@ -41,15 +43,19 @@ def load_nudging_batches(
             in a single batch item.  Overridden by num_batches
         num_batches (optional): number of batches to split the
             input samples into.  Overrides num_samples_in_batch.
-        random_seed: A seed for the RNG state used in shuffling operations
-        mask_to_surface_type: Flag selector for surface type masking.  Requires
-            "land_sea_mask" exists in the loaded dataset.  Note: as currently
+        random_seed (optional): A seed for the RNG state used in shuffling operations
+        mask_to_surface_type (optional): Flag selector for surface type masking.
+            Requires "land_sea_mask" exists in the loaded dataset.  Note: as currently
             implemented NaN drop may reduce the batch size under requested
             number of samples.
-        z_dim_name: vertical dimension name to retain in the dimension stacking
-            procedure
-        rename_variables: A mapping to update any variable names in the dataset prior
-            to the selection of input/output variables
+        z_dim_name (optional): vertical dimension name to retain in the dimension
+            stacking procedure
+        rename_variables (optional): A mapping to update any variable names in the
+            dataset prior to the selection of input/output variables
+        initial_time_skip (optional): Number of initial time indices to skip to avoid
+            spin-up samples
+        include_ntimes (optional): Number of times (by index) to include in the
+            batch resampling operation
     """
     data_path = os.path.join(
         data_path,
@@ -61,7 +67,7 @@ def load_nudging_batches(
     )
 
     if mask_to_surface_type is not None:
-        ds = vcm.mask_to_surface_type(combined, mask_to_surface_type)
+        combined = vcm.mask_to_surface_type(combined, mask_to_surface_type)
 
     stack_dims = [dim for dim in combined.dims if dim != z_dim_name]
     combined_stacked = safe.stack_once(
