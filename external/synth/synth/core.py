@@ -160,6 +160,32 @@ def read_schema_from_zarr(
     return DatasetSchema(coord_schemes, variables)
 
 
+def read_schema_from_dataset(dataset: xr.Dataset):
+
+    variables = []
+    coord_schemes = []
+
+    for coord in dataset.coords:
+        logger.info(f"Reading coordinate {coord}")
+        arr = dataset[coord].values
+        attrs = dict(dataset[coord].attrs)
+        dims = [dim for dim in dataset[coord].dims]
+        scheme = CoordinateSchema(coord, dims, arr, attrs)
+        coord_schemes.append(scheme)
+
+    for variable in dataset:
+        logger.info(f"Reading {variable}")
+        arr = dataset[variable].values
+        chunks = dataset[variable].chunks
+        attrs = dict(dataset[variable].attrs)
+        dims = [dim for dim in dataset[variable].dims]
+        array = ChunkedArray(arr.shape, arr.dtype, chunks)
+        scheme = VariableSchema(variable, dims, array, attrs=attrs)
+        variables.append(scheme)
+
+    return DatasetSchema(coord_schemes, variables)
+
+
 def dump(schema: DatasetSchema, fp):
     output = {"version": SCHEMA_VERSION, "schema": asdict(schema)}
     json.dump(output, fp, cls=_Encoder)

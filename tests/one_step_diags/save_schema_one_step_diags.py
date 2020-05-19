@@ -2,13 +2,13 @@ import sys
 import fsspec
 import logging
 import synth
+import xarray as xr
 
 logging.basicConfig(level=logging.INFO)
 
 
-# url = "gs://vcm-ml-data/test-end-to-end-integration/integration-debug-4c4c163556d0/one_step_run/big.zarr"  # noqa
-url = "gs://vcm-ml-scratch/brianh/one-step-diags-testing/physics-off-80a8e4" # noqa
-mapper = fsspec.get_mapper(url)
-group = zarr.open_group(mapper)
-schema = synth.read_schema_from_zarr(group)
+url = "gs://vcm-ml-scratch/brianh/one-step-diags-testing/physics-off-80a8e4/one_step_diag_data.nc"  # noqa
+with fsspec.open(url, mode="rb") as f:
+    dataset = xr.open_dataset(f)
+schema = synth.read_schema_from_dataset(dataset)
 synth.dump(schema, sys.stdout)
