@@ -12,12 +12,21 @@ logger = logging.getLogger(__name__)
 
 
 def _convergence(eddy, delp):
-    """Eddy is cell centered here"""
+    """Compute vertical convergence of a flux.
+    
+    This flux is assumed to vanish at the vertical boundaries
+    """
+
+    eddy_interface = (eddy[..., 1:] + eddy[..., :-1]) / 2
+
+    # pad interfaces assuming eddy = 0 at edges
     padding = [(0, 0)] * eddy.ndim
     padding[-1] = (1, 1)
-    padded = np.pad(eddy, pad_width=padding)
-    eddy_interface = (padded[..., 1:] + padded[..., :-1]) / 2
-    return -np.diff(eddy_interface, axis=-1) / delp
+    padded = np.pad(
+        eddy_interface, pad_width=padding, model="constant", constant_values=0
+    )
+
+    return -np.diff(padded, axis=-1) / delp
 
 
 def convergence(eddy, delp, dim="p"):
