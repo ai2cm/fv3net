@@ -101,11 +101,11 @@ def eddy_flux_coarse(unresolved_flux, total_resolved_flux, omega, field):
 
 def compute_recoarsened_budget_field(
     area: xr.DataArray,
-    delp: xr.DataArray,
-    delp_c: xr.DataArray,
-    omega: xr.DataArray,
-    omega_c: xr.DataArray,
-    field: xr.DataArray,
+    delp_fine: xr.DataArray,
+    delp_coarse: xr.DataArray,
+    omega_fine: xr.DataArray,
+    omega_coarse: xr.DataArray,
+    field_fine: xr.DataArray,
     unresolved_flux: xr.DataArray,
     storage: xr.DataArray,
     microphysics: xr.DataArray,
@@ -141,24 +141,28 @@ def compute_recoarsened_budget_field(
         if nudging is not None:
             yield nudging.rename("nudging")
         yield unresolved_flux.rename(unresolved_flux_name)
-        yield (field * omega).rename(resolved_flux_name)
+        yield (field_fine * omega_fine).rename(resolved_flux_name)
         yield storage.rename(storage_name)
-        yield field.rename(field_name)
+        yield field_fine.rename(field_name)
 
     def averaged_variables():
         for array in variables_to_average():
-            yield grid.pressure_level_average(delp, delp_c, area, array, factor=factor)
+            yield grid.pressure_level_average(
+                delp_fine, delp_coarse, area, array, factor=factor
+            )
 
     averaged = xr.merge(averaged_variables())
 
     eddy_flux = eddy_flux_coarse(
         averaged[unresolved_flux_name],
         averaged[resolved_flux_name],
-        omega_c,
+        omega_coarse,
         averaged[field_name],
     )
 
-    convergence = grid.vertical_convergence(eddy_flux, delp_c).rename(convergence_name)
+    convergence = grid.vertical_convergence(eddy_flux, delp_coarse).rename(
+        convergence_name
+    )
 
     return xr.merge([convergence, averaged])
 
@@ -212,18 +216,22 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
 
     middle = merged.sel(step="middle")
 
-    omega = middle.omega
+    omega_fine = middle.omega
     area = middle.area
-    delp = middle.delp
-    delp_c = grid.weighted_block_average(middle.delp, middle.area, factor=factor)
-    omega_c = grid.pressure_level_average(delp, delp_c, area, omega, factor=factor)
+    delp_fine = middle.delp
+    delp_coarse = grid.weighted_block_average(
+        delp_fine, middle.area, factor=factor
+    )
+    omega_coarse = grid.pressure_level_average(
+        delp_fine, delp_coarse, area, omega_fine, factor=factor
+    )
 
     t_budget_coarse = compute_recoarsened_budget_field(
         area,
-        delp,
-        delp_c,
-        omega,
-        omega_c,
+        delp_fine,
+        delp_coarse,
+        omega_fine,
+        omega_coarse,
         middle["T"],
         storage=storage(merged["T"], dt),
         unresolved_flux=middle["eddy_flux_omega_temp"],
@@ -235,10 +243,10 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
 
     q_budget_coarse = compute_recoarsened_budget_field(
         area,
-        delp,
-        delp_c,
-        omega,
-        omega_c,
+        delp_fine,
+        delp_coarse,
+        omega_fine,
+        omega_coarse,
         middle["sphum"],
         storage=storage(merged["sphum"], dt),
         unresolved_flux=middle["eddy_flux_omega_sphum"],
