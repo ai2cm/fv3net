@@ -13,8 +13,8 @@ def test_version():
     [
         [datetime(2016, 8, 1), datetime(2016, 8, 2)],
         (datetime(2016, 8, 1), datetime(2016, 8, 2)),
-        [np.datetime64('2016-08-01'), np.datetime64('2016-08-02')],
-        np.array(['2016-08-01', '2016-08-02'], dtype='datetime64'),
+        [np.datetime64("2016-08-01"), np.datetime64("2016-08-02")],
+        np.array(["2016-08-01", "2016-08-02"], dtype="datetime64"),
     ],
 )
 def test_plot_daily_and_hourly_hist(timesteps):
