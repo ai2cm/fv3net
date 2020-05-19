@@ -85,7 +85,7 @@ def test_run(tmpdir):
 
     run(restart_path, diag_path, output_path)
 
-    ds = xr.open_mfdataset(f"{output_path}/*.nc")
+    ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
     print(ds)
 
 

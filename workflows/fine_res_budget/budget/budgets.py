@@ -81,7 +81,9 @@ class Grid:
 
         fg = self.regrid_vertical(pi, field, pi_c_up)
         avg = self.weighted_block_average(fg, area, factor)
-        return avg.drop([self.x, self.y, self.z], errors="ignore").rename(field.name)
+        return avg.drop_vars([self.x, self.y, self.z], errors="ignore").rename(
+            field.name
+        )
 
     def vertical_convergence(self, f, delp):
         return convergence(f, delp, dim=self.z)
