@@ -1,6 +1,6 @@
 import datetime
 import logging
-from pathlib import Path
+import os
 
 import cftime
 import pytest
@@ -20,9 +20,8 @@ ranges = {
 
 
 def open_schema(localpath):
-    path = Path(__file__)
-    diag_path = path.parent / localpath
-    with open(diag_path) as f:
+    path = os.path.abspath(localpath)
+    with open(path) as f:
         return synth.generate(synth.load(f), ranges)
 
 
