@@ -11,4 +11,4 @@ from .utils import (
 )
 from .nudge_to_obs import update_config_for_nudging
 
-__version__ = '0.1.0'
+__version__ = "0.1.0"

@@ -28,7 +28,9 @@ def get_kubernetes_config(config_update):
 def _get_and_upload_run_config(bucket, run_config, base_model_config):
     """Get config objects for current job and upload as necessary"""
     config_bucket = os.path.join(bucket, "config")
-    model_config = fv3kube.update_nested_dict(base_model_config, run_config["fv3config"])
+    model_config = fv3kube.update_nested_dict(
+        base_model_config, run_config["fv3config"]
+    )
     kubernetes_config = get_kubernetes_config(run_config["kubernetes"])
     # if necessary, upload runfile and diag_table. In future, this should be
     # replaced with an fv3config function to do the same for all elements of config
