@@ -6,6 +6,7 @@ from one_step_diags import (
     OUTPUT_NC_FILENAME,
     ZARR_STEP_DIM,
 )
+from vcm.safe import get_variables
 import synth
 import xarray as xr
 import fsspec
@@ -13,12 +14,10 @@ from distutils import dir_util
 import pytest
 import os
 
-timesteps = {
-    "test": [
-        ["20160811.090000", "20160811.091500"],
-        ["20160828.060000", "20160828.061500"],
-    ]
-}
+timesteps = [
+    ["20160811.090000", "20160811.091500"],
+    ["20160828.060000", "20160828.061500"],
+]
 
 
 @pytest.fixture
@@ -72,16 +71,18 @@ def test_one_step_diags_regression(datadir):
     ranges = {}
 
     one_step_dataset = synth.generate(one_step_schema, ranges=ranges)
-    one_step_dataset.to_zarr(one_step_zarrpath)
+    one_step_dataset.to_zarr(one_step_zarrpath, consolidated=True)
 
-    grid = one_step_dataset.isel(
-        {INIT_TIME_DIM: 0, FORECAST_TIME_DIM: 0, ZARR_STEP_DIM: 0}
-    ).drop([ZARR_STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
+    grid = (
+        get_variables(one_step_dataset, default_config["GRID_VARS"])
+        .isel({INIT_TIME_DIM: 0, FORECAST_TIME_DIM: 0, ZARR_STEP_DIM: 0})
+        .drop([ZARR_STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
+    )
 
     hi_res_diags_dataset = synth.generate(hi_res_diags_schema, ranges=ranges)
     # need to decode the time coordinate.
     hi_res_diags_dataset = xr.decode_cf(hi_res_diags_dataset)
-    hi_res_diags_dataset.to_zarr(hi_res_diags_zarrpath)
+    hi_res_diags_dataset.to_zarr(hi_res_diags_zarrpath, consolidated=True)
 
     one_step_diags_dataset = synth.generate(one_step_diags_schema, ranges=ranges)
 
