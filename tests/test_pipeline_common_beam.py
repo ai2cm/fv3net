@@ -4,8 +4,10 @@ import pytest
 import xarray as xr
 import numpy as np
 from fv3net.pipelines.common import (
+    ChunkSingleXarray,
     ChunkXarray,
-    _chunk_indices
+    _chunk_indices,
+    _chunk_dataset,
 )
 
 
@@ -19,12 +21,14 @@ class _Dataset(beam.PTransform):
         return pcoll | beam.Create([None]) | beam.Map(_dataset) 
 
 
-def test__chunk_indices():
+def test__chunk_dataset():
     ds = _dataset()
-    output = list(_chunk_indices(ds, ['x']))
+    output = list(_chunk_dataset(ds, ['x']))
     assert len(output) == 4
 
-def test_ChunkXarray():
+
+@pytest.mark.parametrize('chunker', [ChunkXarray, ChunkSingleXarray])
+def test_ChunkXarray(chunker):
 
     def _assert_single_chunk(_, ds: xr.Dataset):
         for dim, chunks in ds.chunks.items():
@@ -35,5 +39,5 @@ def test_ChunkXarray():
         assert list(key.values()) == ['x']
 
     with TestPipeline() as p:
-        chunks = p | _Dataset() | ChunkXarray(['x'])
+        chunks = p | _Dataset() | chunker(['x'])
         _ = chunks | beam.MapTuple(_assert_single_chunk)
