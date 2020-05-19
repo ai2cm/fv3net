@@ -2,7 +2,6 @@ import pytest
 import tempfile
 import pathlib
 import os
-import re
 from typing import Iterable
 from fv3net.pipelines.common import (
     list_timesteps,
