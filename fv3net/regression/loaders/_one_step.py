@@ -10,7 +10,7 @@ import xarray as xr
 import vcm
 from vcm import cloud, safe
 from ._sequences import FunctionOutputSequence
-from .. import SAMPLE_DIM_NAME
+from ..constants import SAMPLE_DIM_NAME
 
 __all__ = ["load_one_step_batches"]
 

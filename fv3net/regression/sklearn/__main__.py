@@ -11,7 +11,7 @@ import vcm
 import numpy as np
 import xarray as xr
 from . import train
-from .. import SAMPLE_DIM_NAME, TIME_NAME
+from ..constants import SAMPLE_DIM_NAME, TIME_NAME
 
 
 MODEL_FILENAME = "sklearn_model.pkl"
@@ -78,6 +78,7 @@ if __name__ == "__main__":
     train_config = train.load_model_training_config(args.train_config_file)
     batched_data, time_batches = train.load_data_sequence(data_path, train_config)
     _save_config_output(args.output_data_path, train_config)
+    print(times_from_batches(time_batches))
 
     logging.basicConfig(level=logging.INFO)
 

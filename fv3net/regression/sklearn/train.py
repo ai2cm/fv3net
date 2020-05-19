@@ -6,8 +6,9 @@ import yaml
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
-from fv3net.regression import loaders, TIME_NAME
-from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
+from .. import loaders
+from ..constants import TIME_NAME
+from .wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
