@@ -18,6 +18,7 @@ from vcm.cloud.fsspec import get_fs
 from vcm import parse_timestep_str_from_path, parse_datetime_from_str
 from vcm.cubedsphere.constants import TIME_FMT
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,11 +33,11 @@ def _chunks_1d_to_slices(chunks):
 def _chunk_dataset(ds, dims):
     # can generalize to splittable pardo for performance
     chunks = {dim: ds.chunks[dim] for dim in dims}
-    for index in _chunk_indices(chunks):
+    for index in chunk_indices(chunks):
         yield index, ds.isel(index)
 
 
-def _chunk_indices(chunks):
+def chunk_indices(chunks):
     iterators = [list(_chunks_1d_to_slices(chunks[dim])) for dim in chunks]
     for slices in itertools.product(*iterators):
         yield dict(zip(chunks, slices))
@@ -75,7 +76,7 @@ class ChunkSingleXarray(beam.PTransform):
         return (
             pcoll
             | beam.Map(lambda ds: {key: ds.chunks[key] for key in self.dims})
-            | beam.ParDo(_chunk_indices)
+            | beam.ParDo(chunk_indices)
             | beam.Reshuffle()
             | beam.Map(
                 lambda index, ds: (index, ds.isel(index)),
