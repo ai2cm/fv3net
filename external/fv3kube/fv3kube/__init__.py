@@ -2,6 +2,7 @@ from .utils import (
     wait_for_complete,
     transfer_local_to_remote,
     update_nested_dict,
+    update_tiled_asset_names,
     delete_completed_jobs,
     get_base_fv3config,
     job_failed,
