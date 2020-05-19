@@ -6,7 +6,6 @@ import numpy as np
 from fv3net.pipelines.common import (
     ChunkSingleXarray,
     ChunkXarray,
-    _chunk_indices,
     _chunk_dataset,
 )
 
