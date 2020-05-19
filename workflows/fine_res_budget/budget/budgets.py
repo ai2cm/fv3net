@@ -1,14 +1,17 @@
+from typing import Iterable
 from dataclasses import dataclass
 
 import numpy as np
 import xarray as xr
 
+from vcm import safe
 from vcm import pressure_at_interface
 from vcm.cubedsphere import block_upsample, weighted_block_average, regrid_vertical
 
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 def _convergence(eddy, delp):
     """Eddy is cell centered here"""
@@ -79,12 +82,89 @@ class Grid:
         return convergence(f, delp, dim=self.z)
 
 
-def dict_to_array(d, dim):
-    return xr.concat(d.values(), dim=dim).assign_coords({dim: list(d.keys())})
-
-
 def storage(field: xr.DataArray, time_step: float) -> xr.DataArray:
     return (field.sel(step="end") - field.sel(step="begin")) / time_step
+
+
+def eddy_flux_coarse(unresolved_flux, total_resolved_flux, omega, field):
+    """Compute re-coarsened eddy flux divergence from re-coarsed data
+    """
+    return unresolved_flux + (total_resolved_flux - omega * field)
+
+
+def compute_recoarsened_budget_field(
+    area: xr.DataArray,
+    delp: xr.DataArray,
+    delp_c: xr.DataArray,
+    omega: xr.DataArray,
+    omega_c: xr.DataArray,
+    field: xr.DataArray,
+    unresolved_flux: xr.DataArray,
+    microphysics: xr.DataArray,
+    physics: xr.DataArray,
+    nudging: xr.DataArray = None,
+    dt: float = 15 * 60,
+    factor: int = 8,
+):
+    """Compute the recoarse-grained budget information
+
+
+    Returns:
+
+        xr.Dataset with keys: storage, eddy, field, resolved, convergence,
+            microphysics, physics, nudging
+    Note:
+        Need to pass in coarsened omega and delp to save computational cost
+
+    """
+    logger.info("Re-coarsegraining the budget")
+
+    storage_name = "storage"
+    unresolved_flux_name = "eddy"
+    field_name = "field"
+    resolved_flux_name = "resolved"
+    convergence_name = "convergence"
+
+    grid = Grid("grid_xt", "grid_yt", "pfull", "grid_x", "grid_y", "pfulli")
+
+    # Make iterator of all the variables to average
+    def variables_to_average():
+        yield microphysics.rename("microphysics")
+        yield physics.rename("physics")
+        if nudging is not None:
+            yield nudging.rename("nudging")
+        yield unresolved_flux.rename(unresolved_flux_name)
+        yield (field * omega).rename(resolved_flux_name)
+        yield storage(field, dt=dt).rename(storage_name)
+
+    def averaged_variables():
+        for array in variables_to_average():
+            yield grid.pressure_level_average(delp, delp_c, area, array, factor=factor)
+
+    averaged = xr.merge(averaged_variables())
+
+    eddy_flux = eddy_flux_coarse(
+        averaged[unresolved_flux_name],
+        averaged[resolved_flux_name],
+        omega_c,
+        averaged[field_name],
+    )
+
+    convergence = grid.vertical_convergence(eddy_flux, delp_c).rename(convergence_name)
+
+    return xr.merge([convergence, averaged])
+
+
+def rename_recoarsened_budget(budget: xr.Dataset, field_name: str):
+    rename = {}
+    rename["field"] = field_name
+    for variable in budget:
+        if variable == "field":
+            rename[variable] = field_name
+        else:
+            rename[variable] = field_name + "_" + variable
+
+    return budget.rename(rename)
 
 
 def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
@@ -105,69 +185,35 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
     area = middle.area
     delp = middle.delp
     delp_c = grid.weighted_block_average(middle.delp, middle.area, factor=factor)
+    omega_c = grid.pressure_level_average(delp, delp_c, area, omega, factor=factor)
 
-    # Collect all variables
-    variables_to_average = {}
-    for key in VARIABLES:
-        variables_to_average[key] = middle[key]
+    t_budget_coarse = compute_recoarsened_budget_field(
+        area,
+        delp,
+        delp_c,
+        omega,
+        omega_c,
+        middle["T"],
+        unresolved_flux=middle["eddy_flux_omega_temp"],
+        microphysics=middle["t_dt_gfdlmp"],
+        nudging=middle["t_dt_nudge"],
+        physics=middle["t_dt_phys"],
+        factor=factor,
+        dt=dt,
+    ).pipe(rename_recoarsened_budget, "air_temperature")
 
-    variables_to_average["storage_T"] = storage(merged.T, dt=dt)
-    variables_to_average["storage_q"] = storage(merged.sphum, dt=dt)
+    q_budget_coarse = compute_recoarsened_budget_field(
+        area,
+        delp,
+        delp_c,
+        omega,
+        omega_c,
+        middle["sphum"],
+        unresolved_flux=middle["eddy_flux_omega_sphum"],
+        microphysics=middle["qv_dt_gfdlmp"],
+        physics=middle["qv_dt_phys"],
+        factor=factor,
+        dt=dt,
+    ).pipe(rename_recoarsened_budget, "specific_humidity")
 
-    variables_to_average["omega"] = omega
-    variables_to_average["sphum"] = middle.sphum
-    variables_to_average["T"] = middle.T
-    variables_to_average["wq"] = middle.sphum * omega
-    variables_to_average["wT"] = middle.T * omega
-    variables_to_average["eddy_q"] = middle.eddy_flux_omega_sphum
-    variables_to_average["eddy_T"] = middle.eddy_flux_omega_temp
-
-    averaged_vars = {}
-    for key in variables_to_average:
-        averaged_vars[key] = grid.pressure_level_average(
-            delp, delp_c, area, variables_to_average[key], factor=factor
-        )
-
-    eddy_flux_q = (
-        averaged_vars["eddy_q"]
-        + averaged_vars["wq"]
-        - averaged_vars["omega"] * averaged_vars["sphum"]
-    )
-    eddy_flux_t = (
-        averaged_vars["eddy_T"]
-        + averaged_vars["wT"]
-        - averaged_vars["omega"] * averaged_vars["T"]
-    )
-
-    div_q = grid.vertical_convergence(eddy_flux_q, delp_c)
-    div_T = grid.vertical_convergence(eddy_flux_t, delp_c)
-
-    t_budget_coarse = {
-        "storage": averaged_vars["storage_T"],
-        "microphysics": averaged_vars["t_dt_gfdlmp"],
-        "nudging": averaged_vars["t_dt_nudge"],
-        "physics": averaged_vars["t_dt_phys"],
-        "vertical_eddy_fluxdiv": div_T,
-    }
-
-    q_budget_coarse = {
-        "storage": averaged_vars["storage_q"],
-        "microphysics": averaged_vars["qv_dt_gfdlmp"],
-        "physics": averaged_vars["qv_dt_phys"],
-        "vertical_eddy_fluxdiv": div_q,
-    }
-
-    return xr.Dataset(
-        {
-            "air_temperature": averaged_vars["T"],
-            "specific_humidity": averaged_vars["sphum"],
-            "omega": averaged_vars["omega"],
-            "air_temperature_tendency": dict_to_array(
-                t_budget_coarse, "budget"
-            ).assign_attrs(units="K/s"),
-            "specific_humidity_tendency": dict_to_array(
-                q_budget_coarse, "budget"
-            ).assign_attrs(units="kg/kg/s"),
-            "delp": delp_c,
-        }
-    )
+    return xr.merge([t_budget_coarse, q_budget_coarse])
