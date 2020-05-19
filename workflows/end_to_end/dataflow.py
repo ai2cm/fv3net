@@ -1,5 +1,5 @@
 from getpass import getuser
-from fv3net.pipelines.common import get_alphanumeric_unique_tag
+from fv3kube import get_alphanumeric_unique_tag
 
 COARSEN_RESTARTS_DATAFLOW_ARGS = {
     "--job_name": (

@@ -1,11 +1,13 @@
 import pytest
 
+import re
 from typing import Mapping
 
 from fv3kube import (
     get_base_fv3config,
     job_failed,
     job_complete,
+    get_alphanumeric_unique_tag,
 )
 from fv3kube.utils import _handle_jobs
 import kubernetes
@@ -80,3 +82,25 @@ def test__handle_jobs_raises_error():
 
     with pytest.raises(ValueError):
         _handle_jobs(jobs, True)
+
+
+def test_alphanumeric_unique_tag_length():
+
+    tlen = 8
+    tag = get_alphanumeric_unique_tag(tlen)
+    assert len(tag) == tlen
+
+    with pytest.raises(ValueError):
+        get_alphanumeric_unique_tag(0)
+
+
+def test_alphanumeric_uniq_tag_is_lowercase_alphanumeric():
+    """
+    Generate a really long tag to be reasonably certain character restrictions
+    are enforced.
+    """
+
+    tag = get_alphanumeric_unique_tag(250)
+    pattern = "^[a-z0-9]+$"
+    res = re.match(pattern, tag)
+    assert res is not None

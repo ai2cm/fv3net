@@ -1,5 +1,7 @@
 import logging
 import os
+import secrets
+import string
 import time
 import kubernetes
 from kubernetes.client import BatchV1Api
@@ -218,3 +220,14 @@ def delete_completed_jobs(job_labels: Mapping[str, str], client: BatchV1Api = No
             name = job.metadata.name
             logger.info(f"Deleting completed job: {name}")
             client.delete_namespaced_job(name, namespace=job.metadata.namespace)
+
+
+def get_alphanumeric_unique_tag(tag_length: int) -> str:
+    """Generates a random alphanumeric string (a-z0-9) of a specified length"""
+
+    if tag_length < 1:
+        raise ValueError("Unique tag length should be 1 or greater.")
+
+    use_chars = string.ascii_lowercase + string.digits
+    short_id = "".join([secrets.choice(use_chars) for i in range(tag_length)])
+    return short_id

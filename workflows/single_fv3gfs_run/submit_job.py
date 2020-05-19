@@ -5,7 +5,6 @@ import fsspec
 import yaml
 import fv3config
 import fv3kube
-from fv3net.pipelines.common import get_alphanumeric_unique_tag
 
 logger = logging.getLogger("run_jobs")
 
@@ -52,7 +51,7 @@ def submit_job(bucket, run_config, base_model_config):
     run_config, config_bucket = _get_and_upload_run_config(
         bucket, run_config, base_model_config
     )
-    tag = get_alphanumeric_unique_tag(8)
+    tag = fv3kube.get_alphanumeric_unique_tag(8)
     job_name = run_config["fv3config"]["experiment_name"] + f"-{tag}"
     run_config["kubernetes"]["jobname"] = job_name
     fv3config.run_kubernetes(

@@ -5,7 +5,7 @@ import yaml
 from pathlib import Path
 
 from .utils import submit_jobs, VERTICAL_GRID_FILENAME
-from fv3net.pipelines.common import get_alphanumeric_unique_tag
+import fv3kube
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     with open(args.one_step_yaml) as file:
         one_step_config = yaml.load(file, Loader=yaml.FullLoader)
     workflow_name = Path(args.one_step_yaml).with_suffix("").name
-    short_id = get_alphanumeric_unique_tag(8)
+    short_id = fv3kube.get_alphanumeric_unique_tag(8)
     job_label = {
         "orchestrator-jobs": f"{workflow_name}-{short_id}",
         "workflow": "one_step_jobs",

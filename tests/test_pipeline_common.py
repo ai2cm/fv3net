@@ -6,7 +6,6 @@ import re
 from typing import Iterable
 from fv3net.pipelines.common import (
     list_timesteps,
-    get_alphanumeric_unique_tag,
     subsample_timesteps_at_interval,
 )
 
@@ -49,28 +48,6 @@ def test_timestep_lister_nonexistent_dir():
 
     res = list_timesteps("/nonexistent/directory/")
     assert not res and isinstance(res, Iterable)
-
-
-def test_alphanumeric_unique_tag_length():
-
-    tlen = 8
-    tag = get_alphanumeric_unique_tag(tlen)
-    assert len(tag) == tlen
-
-    with pytest.raises(ValueError):
-        get_alphanumeric_unique_tag(0)
-
-
-def test_alphanumeric_uniq_tag_is_lowercase_alphanumeric():
-    """
-    Generate a really long tag to be reasonably certain character restrictions
-    are enforced.
-    """
-
-    tag = get_alphanumeric_unique_tag(250)
-    pattern = "^[a-z0-9]+$"
-    res = re.match(pattern, tag)
-    assert res is not None
 
 
 def test_subsample_timesteps_at_interval():

@@ -1,8 +1,6 @@
 import os
 import shutil
 import tempfile
-import secrets
-import string
 import logging
 from datetime import timedelta
 from typing import Any, Callable, List, Mapping
@@ -191,14 +189,3 @@ def subsample_timesteps_at_interval(
         )
 
     return subsampled_timesteps
-
-
-def get_alphanumeric_unique_tag(tag_length: int) -> str:
-    """Generates a random alphanumeric string (a-z0-9) of a specified length"""
-
-    if tag_length < 1:
-        raise ValueError("Unique tag length should be 1 or greater.")
-
-    use_chars = string.ascii_lowercase + string.digits
-    short_id = "".join([secrets.choice(use_chars) for i in range(tag_length)])
-    return short_id
