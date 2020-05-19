@@ -121,6 +121,7 @@ def _load_one_step_batch(
         init_time_dim_name, TIME_NAME
     )
     ds = ds.rename(rename_variables)
+    ds = safe.get_variables(ds, data_vars)
     if mask_to_surface_type is not None:
         ds = vcm.mask_to_surface_type(ds, mask_to_surface_type)
     stack_dims = [dim for dim in ds.dims if dim != z_dim_name]
@@ -137,7 +138,7 @@ def _load_one_step_batch(
         raise ValueError(
             "No Valid samples detected. Check for errors in the training data."
         )
-    ds = safe.get_variables(ds_no_nan, data_vars).load()
+    ds = ds_no_nan.load()
     return _shuffled(ds, SAMPLE_DIM_NAME, random)
 
 
