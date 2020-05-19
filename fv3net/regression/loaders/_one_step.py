@@ -56,7 +56,7 @@ def load_one_step_batches(
         output_variables: names of outputs
         files_per_batch: number of zarr stores used to create each batch
         num_batches (optional): number of batches to create. By default, use all the
-            available trianing data.
+            available training data.
         random_seed (optional): seed value for random number generator
         mask_to_surface_type: mask data points to ony include the indicated surface type
         init_time_dim_name: name of the initialization time dimension
