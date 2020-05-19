@@ -29,12 +29,17 @@ def _chunks_1d_to_slices(chunks):
         start = end
 
 
-def _chunk_indices(ds, dims):
+def _chunk_dataset(ds, dims):
     # can generalize to splittable pardo for performance
-    iterators = [list(_chunks_1d_to_slices(ds.chunks[dim])) for dim in dims]
+    chunks = {dim: ds.chunks[dim] for dim in dims}
+    for index in _chunk_indices(chunks):
+        yield index, ds.isel(index)
+
+
+def _chunk_indices(chunks):
+    iterators = [list(_chunks_1d_to_slices(chunks[dim])) for dim in chunks]
     for slices in itertools.product(*iterators):
-        indexer = dict(zip(dims, slices))
-        yield indexer, ds.isel(indexer)
+        yield dict(zip(chunks, slices))
 
 
 class ChunkXarray(beam.PTransform):
@@ -47,12 +52,36 @@ class ChunkXarray(beam.PTransform):
         ]
     
     """
+
     # TODO add typehinting
     def __init__(self, dims):
         self.dims = dims
 
     def expand(self, pcoll):
-        return pcoll | beam.ParDo(_chunk_indices, self.dims) | beam.Reshuffle()
+        return pcoll | beam.ParDo(_chunk_dataset, self.dims) | beam.Reshuffle()
+
+
+class ChunkSingleXarray(beam.PTransform):
+    """A more efficient implementation of ChunkXarray
+
+    This defers the slow xarray isel step until after the reshuffle, allowing for
+    better parallelism
+    """
+
+    def __init__(self, dims):
+        self.dims = dims
+
+    def expand(self, pcoll):
+        return (
+            pcoll
+            | beam.Map(lambda ds: {key: ds.chunks[key] for key in self.dims})
+            | beam.ParDo(_chunk_indices)
+            | beam.Reshuffle()
+            | beam.Map(
+                lambda index, ds: (index, ds.isel(index)),
+                beam.pvalue.AsSingleton(pcoll),
+            )
+        )
 
 
 class CombineSubtilesByKey(beam.PTransform):
