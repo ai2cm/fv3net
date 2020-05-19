@@ -25,7 +25,7 @@ jobs:
       - restore_cache:
           keys:
             # change this string to invalidate cache
-            - v2-fv3net-env-{{ checksum "combined_deps.txt" }}
+            - v3-fv3net-env-{{ checksum "combined_deps.txt" }}
       - run:
           name: "Install fv3net dependencies"
           command: |
