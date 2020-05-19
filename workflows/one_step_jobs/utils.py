@@ -12,7 +12,7 @@ from kubernetes.client import V1Job
 
 import fv3config
 import fv3kube
-from vcm.cloud.fsspec import get_fs
+from vcm.cloud import get_fs
 
 STDOUT_FILENAME = "stdout.log"
 VERTICAL_GRID_FILENAME = "fv_core.res.nc"

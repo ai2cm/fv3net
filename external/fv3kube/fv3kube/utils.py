@@ -10,8 +10,7 @@ from pathlib import Path
 
 import fv3config
 
-from vcm.cubedsphere.constants import RESTART_CATEGORIES, TILE_COORDS_FILENAMES
-from vcm.cloud.fsspec import get_protocol, get_fs
+from vcm.cloud import get_protocol, get_fs
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +24,8 @@ FV3CONFIG_DEFAULTS_BY_VERSION = {
     "v0.3": os.path.join(PWD, "default_yamls/v0.3/fv3config.yml"),
 }
 
+TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
+RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer.res", "fv_srf_wnd.res"]
 
 def update_nested_dict(source_dict: Mapping, update_dict: Mapping) -> Mapping:
     """
