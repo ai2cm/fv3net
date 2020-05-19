@@ -16,16 +16,14 @@ def _convergence(eddy, delp):
     
     This flux is assumed to vanish at the vertical boundaries
     """
-
     eddy_interface = (eddy[..., 1:] + eddy[..., :-1]) / 2
 
     # pad interfaces assuming eddy = 0 at edges
     padding = [(0, 0)] * eddy.ndim
     padding[-1] = (1, 1)
     padded = np.pad(
-        eddy_interface, pad_width=padding, model="constant", constant_values=0
+        eddy_interface, pad_width=padding, mode="constant", constant_values=0
     )
-
     return -np.diff(padded, axis=-1) / delp
 
 
@@ -219,9 +217,7 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
     omega_fine = middle.omega
     area = middle.area
     delp_fine = middle.delp
-    delp_coarse = grid.weighted_block_average(
-        delp_fine, middle.area, factor=factor
-    )
+    delp_coarse = grid.weighted_block_average(delp_fine, middle.area, factor=factor)
     omega_coarse = grid.pressure_level_average(
         delp_fine, delp_coarse, area, omega_fine, factor=factor
     )

@@ -5,10 +5,13 @@ from pathlib import Path
 import cftime
 import pytest
 import xarray as xr
+import numpy as np
 
 import synth
 from budget.data import shift
 from budget.pipeline import run
+from budget.budgets import _convergence
+
 from vcm import safe
 
 ranges = {
@@ -24,6 +27,16 @@ def open_schema(path_relative_to_file):
     abspath = path.parent / path_relative_to_file
     with open(abspath) as f:
         return synth.generate(synth.load(f), ranges)
+
+
+def test__convergence():
+    nz = 5
+    delp = np.ones(nz).reshape((1, 1, nz))
+
+    expected = np.array([-1, 0, 0, 0, 1]).reshape((1, 1, nz))
+
+    ans = _convergence(delp, delp)
+    np.testing.assert_almost_equal(ans, expected)
 
 
 @pytest.mark.regression
