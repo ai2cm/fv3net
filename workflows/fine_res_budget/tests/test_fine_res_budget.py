@@ -19,10 +19,10 @@ ranges = {
 }
 
 
-def open_schema(localpath):
+def open_schema(path_relative_to_file):
     path = Path(__file__)
-    diag_path = path.parent / localpath
-    with open(diag_path) as f:
+    abspath = path.parent / path_relative_to_file
+    with open(abspath) as f:
         return synth.generate(synth.load(f), ranges)
 
 
