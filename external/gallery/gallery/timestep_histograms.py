@@ -1,13 +1,16 @@
 import datetime
-from typing import Sequence
+from typing import Sequence, Union
 
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
 
-def plot_daily_and_hourly_hist(time_list: Sequence[datetime.datetime]):
-    """Given a list of python datetimes, create and return 2-subplot figure with
+def plot_daily_and_hourly_hist(
+    time_list: Sequence[Union[datetime.datetime, np.datetime64]]
+) -> plt.figure:
+    """Given a sequence of datetime-like objects, create and return 2-subplot figure with
     histograms of daily and hourly counts."""
     fig, axes = plt.subplots(1, 2, figsize=(8, 3))
     plot_daily_hist(axes[0], time_list)
