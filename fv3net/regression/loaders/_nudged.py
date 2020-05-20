@@ -20,13 +20,14 @@ def load_nudging_batches(
     data_path: str,
     input_variables: Iterable[str],
     output_variables: Iterable[str],
-    nuding_timescale: int,
+    nudging_timescale: int,
     num_samples_in_batch: int = 13824,
     num_batches: int = None,
     random_seed: int = 0,
     mask_to_surface_type: str = None,
     z_dim_name: str = "z",
     rename_variables: Mapping[str, str] = None,
+    time_dim_name: str = "time",
     initial_time_skip: int = 0,
     include_ntimes: int = None,
 ) -> Sequence:
@@ -52,6 +53,7 @@ def load_nudging_batches(
             stacking procedure
         rename_variables (optional): A mapping to update any variable names in the
             dataset prior to the selection of input/output variables
+        time_dim
         initial_time_skip (optional): Number of initial time indices to skip to avoid
             spin-up samples
         include_ntimes (optional): Number of times (by index) to include in the
@@ -59,12 +61,14 @@ def load_nudging_batches(
     """
     data_path = os.path.join(
         data_path,
-        TIMESCALE_OUTDIR_TEMPLATE.format(nuding_timescale),
+        TIMESCALE_OUTDIR_TEMPLATE.format(nudging_timescale),
     )
 
     combined = _load_nudging_zarr(
         data_path, input_variables, output_variables, rename_variables
     )
+
+    combined = combined.isel({time_dim_name: slice(initial_time_skip, include_ntimes)})
 
     if mask_to_surface_type is not None:
         combined = vcm.mask_to_surface_type(combined, mask_to_surface_type)
