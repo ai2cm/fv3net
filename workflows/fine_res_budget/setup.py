@@ -7,14 +7,7 @@ packages = \
 package_data = \
 {'': ['*']}
 
-install_requires = \
-['apache_beam[gcp]>=2.20.0,<3.0.0',
- 'fsspec>=0.7.3,<0.8.0',
- 'gcsfs>=0.6.2,<0.7.0',
- 'mappm',
- 'vcm',
- 'xarray>=0.15.1,<0.16.0',
- 'zarr>=2.4.0,<3.0.0']
+install_requires = []
 
 setup_kwargs = {
     'name': 'budget',
