@@ -8,8 +8,6 @@ from datetime import timedelta
 from typing import Any, Callable, List, Mapping
 from typing.io import BinaryIO
 
-import itertools
-
 import apache_beam as beam
 import xarray as xr
 from apache_beam.io import filesystems
@@ -18,71 +16,7 @@ from vcm.cloud.fsspec import get_fs
 from vcm import parse_timestep_str_from_path, parse_datetime_from_str
 from vcm.cubedsphere.constants import TIME_FMT
 
-
 logger = logging.getLogger(__name__)
-
-
-def chunks_1d_to_slices(chunks):
-    start = 0
-    for chunk in chunks:
-        end = start + chunk
-        yield slice(start, end)
-        start = end
-
-
-def _chunk_dataset(ds, dims):
-    # can generalize to splittable pardo for performance
-    chunks = {dim: ds.chunks[dim] for dim in dims}
-    for index in chunk_indices(chunks):
-        yield index, ds.isel(index)
-
-
-def chunk_indices(chunks):
-    iterators = [list(chunks_1d_to_slices(chunks[dim])) for dim in chunks]
-    for slices in itertools.product(*iterators):
-        yield dict(zip(chunks, slices))
-
-
-class ChunkXarray(beam.PTransform):
-    """Expand xarray datasets into a list of chunks
-    
-    outputs a pcollection of key, value pairs, for example::
-
-        [
-            ({'x': slice(0, 2)}, dataset_chunks)
-        ]
-    
-    """
-
-    # TODO add typehinting
-    def __init__(self, dims):
-        self.dims = dims
-
-    def expand(self, pcoll):
-        return pcoll | beam.ParDo(_chunk_dataset, self.dims) | beam.Reshuffle()
-
-
-class ChunkSingleXarray(beam.PTransform):
-    """A more efficient implementation of ChunkXarray
-
-    This defers the slow xarray isel step until after the reshuffle, allowing for
-    better parallelism
-    """
-
-    def __init__(self, dims):
-        self.dims = dims
-
-    def expand(self, pcoll):
-        return (
-            pcoll
-            | beam.Map(lambda ds: {key: ds.chunks[key] for key in self.dims})
-            | beam.ParDo(chunk_indices)
-            | beam.Reshuffle()
-            | beam.Map(
-                lambda index, ds: (index, ds.isel(index)),
-                beam.pvalue.AsSingleton(pcoll),
-            )
-        )
 
 
 class CombineSubtilesByKey(beam.PTransform):

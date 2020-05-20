@@ -10,7 +10,6 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
 
-from fv3net.pipelines.common import chunks_1d_to_slices
 
 import vcm
 from vcm import safe
@@ -39,6 +38,14 @@ PHYSICS_VARIABLES = [
     "T",
     "area",
 ]
+
+
+def chunks_1d_to_slices(chunks):
+    start = 0
+    for chunk in chunks:
+        end = start + chunk
+        yield slice(start, end)
+        start = end
 
 
 def open_merged(restart_url, physics_url):
