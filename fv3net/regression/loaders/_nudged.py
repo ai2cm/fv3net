@@ -68,7 +68,9 @@ def load_nudging_batches(
         data_path, input_variables, output_variables, rename_variables
     )
 
-    combined = combined.isel({time_dim_name: slice(initial_time_skip, include_ntimes)})
+    start = initial_time_skip
+    end = start + include_ntimes
+    combined = combined.isel({time_dim_name: slice(start, end)})
 
     if mask_to_surface_type is not None:
         combined = vcm.mask_to_surface_type(combined, mask_to_surface_type)

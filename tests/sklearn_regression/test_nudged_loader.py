@@ -67,6 +67,14 @@ def test_load_nudging_batches(datadir):
     init_time_skip = 48
     num_batches = 14
 
+    rename = {
+        "air_temperature_tendency_due_to_nudging": "dQ1",
+        "specific_humidity_tendency_due_to_nudging": "dQ2"
+    }
+    input_vars = ["air_temperature", "specific_humidity"]
+    output_vars = ["dQ1", "dQ2"]
+    data_vars = input_vars + list(rename.keys())
+
     synth_data = ["nudging_tendencies", "before_dynamics"]
     for key in synth_data:
         schema_path = datadir.join(f"{key}.json")
@@ -77,17 +85,11 @@ def test_load_nudging_batches(datadir):
             schema = synth.load(f)
             
         xr_zarr = synth.generate(schema)
-        decoded = xr.decode_cf(xr_zarr)
-        # limit data for efficiency (144 x 6 x 79 x 10 x 10)
+        reduced_ds = xr_zarr[[var for var in data_vars if var in xr_zarr]]
+        decoded = xr.decode_cf(reduced_ds)
+        # limit data for efficiency (144 x 6 x 2 x 10 x 10)
         decoded = decoded.isel(time=slice(0, tlim), x=slice(0, xlim), y=slice(0, ylim), z=slice(0, zlim))
         decoded.to_zarr(str(zarr_out))
-
-    rename = {
-        "air_temperature_tendency_due_to_nudging": "dQ1",
-        "specific_humidity_tendency_due_to_nudging": "dQ2"
-    }
-    input_vars = ["air_temperature", "specific_humidity"]
-    output_vars = ["dQ1", "dQ2"]
 
     # skips first 48 timesteps, only use 90 timesteps
     sequence = load_nudging_batches(
@@ -104,12 +106,13 @@ def test_load_nudging_batches(datadir):
     # 14 batches requested
     assert len(sequence._args) == num_batches
 
-    num_samples = 0
+    batch_samples_total = 0
     for batch in sequence:
-        num_samples += batch.sizes["sample"]
-    assert num_samples == (tlim * 6 * xlim * ylim)
-    
+        batch_samples_total += batch.sizes["sample"]
 
+    total_samples = (ntimes * 6 * xlim * ylim)
+    expected_num_samples = (total_samples // num_batches) * num_batches
+    assert batch_samples_total == expected_num_samples
 
 
 @pytest.mark.parametrize(
