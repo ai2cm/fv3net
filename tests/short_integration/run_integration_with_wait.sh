@@ -61,7 +61,7 @@ echo "Running tests with this kustomization.yaml:"
 cat kustomization/kustomization.yaml
 
 kubectl apply -k  kustomization --dry-run=client  -o yaml
-# kubectl apply -k kustomization
+kubectl apply -k kustomization
 
-# trap "kubectl logs -lwaitForMe=\"$random\"" EXIT
-# waitForComplete -lwaitForMe="$random" default
+trap "kubectl logs -lwaitForMe=\"$RANDOM_TAG\"" EXIT
+waitForComplete -lwaitForMe="$RANDOM_TAG" default
