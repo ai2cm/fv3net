@@ -11,9 +11,10 @@ Usage
 
 This packages allows the user to build up a "schema" describing their data. 
 A schema is a reduced description of a zarr/xarray dataset that can
+
 1. be easily serialized to disk and loaded again
-1. used to generate a random dataset
-1. validate an existing dataset
+2. used to generate a random dataset
+3. validate an existing dataset
 
 This package defines a set of dataclasses defining a schema.
 
@@ -81,8 +82,9 @@ A dataset can be validated by checking its schema against a reference schema::
     assert zarr_schema == ref_schema
 
 Note that the equality operator ``==`` checks only the following:
+
 1. the dataset has the same coordinates in terms of names, dimension names, and values
-1. the dataset has the same variables in terms of names, dimension names, and data shape
+2. the dataset has the same variables in terms of names, dimension names, and data shape
 
 The equality operator can also be used directly on coordinate and variable schema. 
 
