@@ -1,0 +1,20 @@
+model_type: sklearn_random_forest
+hyperparameters:
+  max_depth: 4
+  n_estimators: 2
+batch_function: load_nudging_batches
+input_variables:
+  - air_temperature
+  - specific_humidity
+output_variables:
+  - dQ1
+  - dQ2
+batch_kwargs:
+  nudging_timescale: 3
+  num_batches: 2
+  z_dim_name: "z"
+  rename_variables:
+    air_temperature_tendency_due_to_nudging: dQ1
+    specific_humidity_tendency_due_to_nudging: dQ2
+  initial_time_skip: 96
+  include_ntimes: 46

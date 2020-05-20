@@ -1,0 +1,26 @@
+storage_proto: gs
+#TODO: update storage_root to bucket for production runs
+storage_root: vcm-ml-scratch/andrep/nudging
+experiment:
+  name: $JOBNAME
+  unique_id: false
+  steps_to_run:
+    - create_training_data
+  
+  steps_config:
+
+    # create_training_data:
+    #   command: python -m fv3net.pipelines.create_training_data
+    #   args:
+    #     one_step_data:
+    #       from: one_step_run
+    #     diagnostics_data:
+    #       from: coarsen_diagnostics
+    #     timestep_splits: $TRAIN_AND_TEST_TIMES
+
+    train_sklearn_model:
+      command: python -m fv3net.regression.sklearn
+      args:
+        training_data:
+          location: gs://vcm-ml-data/andrep/nudging/2020-05-09-nudge-5day
+        train-config-file: $CONFIG/train_sklearn_model.yml
