@@ -13,7 +13,7 @@ This packages allows the user to build up a "schema" describing their data.
 A schema is a reduced description of a zarr/xarray dataset that can
 1. be easily serialized to disk and loaded again
 1. used to generate a random dataset
-1. validated an existing dataset (not implemented yet)
+1. validate an existing dataset
 
 This package defines a set of dataclasses defining a schema.
 
@@ -61,13 +61,31 @@ test script like this::
     with open("schema.json" , "r") as f:
         schema = synth.load(f)
     
-Finally, a fake xarray dataset can be created::
+A fake xarray dataset can be created::
 
     ds = synth.generate(schema)
 
 The data for each chunk will be identically generated from a uniform distribution.
 The upper and lower bounds of this distribution are set by default in the code, but can 
 be overrided using the ``ranges`` argument of ``synth.generate``.
+
+A dataset can be validated by checking its schema against a reference schema::
+
+    with open("schema.json" , "r") as f:
+        ref_schema = synth.load(f)
+
+    zarr_schema = synth.read_schema_from_zarr(
+        group, coords=("time", "tile", "grid_xt", "grid_yt")
+    )
+    
+    assert zarr_schema == ref_schema
+
+Note that the equality operator ``==`` checks only the following:
+1. the dataset has the same coordinates in terms of names, dimension names, and values
+1. the dataset has the same variables in terms of names, dimension names, and data shape
+
+The equality operator can also be used directly on coordinate and variable schema. 
+
 
 Marking pytest functions as regression tests
 --------------------------------------------
