@@ -75,7 +75,7 @@ def save(ds, base):
     time = vcm.encode_time(ds.time.item())
     tile = ds.tile.item()
 
-    path = f"{base}/{time}.tile{tile}.nc"
+    path = os.path.join(base, f"{time}.tile{tile}.nc")
     logger.info(f"saving data to {path}")
 
     try:
