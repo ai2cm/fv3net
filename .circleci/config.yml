@@ -46,7 +46,7 @@ jobs:
           name: Regression Tests
           command: |
             source activate fv3net
-            pytest -m regression
+            pytest -vv -m regression -s
 
   build_default:
     machine:
