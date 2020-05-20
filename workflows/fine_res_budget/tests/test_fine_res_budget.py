@@ -6,10 +6,14 @@ import cftime
 import pytest
 import xarray as xr
 import numpy as np
+import dask.array as da
 
 import synth
+
+import apache_beam as beam
+from apache_beam.testing.test_pipeline import TestPipeline
 from budget.data import shift
-from budget.pipeline import run
+from budget.pipeline import run, OpenTimeChunks
 from budget.budgets import _convergence
 
 from vcm import safe
@@ -27,6 +31,37 @@ def open_schema(path_relative_to_file):
     abspath = path.parent / path_relative_to_file
     with open(abspath) as f:
         return synth.generate(synth.load(f), ranges)
+
+
+def test_OpenTimeChunks():
+    def _data():
+        shape = t, tile, x = (12, 6, 10)
+        chunks_big = (12, 1, 1)
+        chunks_small = (1, 1, 1)
+
+        dims = ["time", "tile", "x"]
+        coords = {dim: np.arange(n) for n, dim in zip(shape, dims)}
+
+        arr_big_chunk = da.ones(shape, chunks=chunks_big, dtype=np.float32)
+        arr_small_chunk = da.ones(shape, chunks=chunks_small, dtype=np.float32)
+        return xr.Dataset(
+            {"omega": (dims, arr_big_chunk), "restart_field": (dims, arr_small_chunk)},
+            coords=coords,
+        )
+
+    import logging
+
+    logging.basicConfig(level=logging.DEBUG)
+
+    def _assert_no_time_or_tile(ds):
+        assert set(ds.dims) & {"time", "tile"} == set()
+
+    with TestPipeline() as p:
+        chunks = (
+            p | beam.Create([None]) | beam.Map(lambda _: _data()) | OpenTimeChunks()
+        )
+
+        chunks | "Assert no time or tile" >> beam.Map(_assert_no_time_or_tile)
 
 
 def test__convergence():

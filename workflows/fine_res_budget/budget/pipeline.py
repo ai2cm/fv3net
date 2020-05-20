@@ -7,9 +7,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import retry
 
-from fv3net.pipelines.common import (
-    chunks_1d_to_slices
-)
+from fv3net.pipelines.common import chunks_1d_to_slices
 
 import vcm
 from vcm import safe
@@ -51,12 +49,14 @@ def open_merged(restart_url, physics_url):
 
 def yield_indices(merged, dims):
     logger.info("Yielding Indices")
-    indexes = [
-        merged[dim].values.tolist()
-        for dim in dims
-    ]
-    for time, tile in product(*indexes):
-        yield dict(zip(dims, indexes))
+    indexes = [merged[dim].values.tolist() for dim in dims]
+    for index in product(*indexes):
+        yield dict(zip(dims, index))
+
+
+def split_by_dim(merged, dims):
+    for index in yield_indices(merged, dims):
+        yield merged.sel(index)
 
 
 @retry.with_exponential_backoff(num_retries=7)
@@ -94,6 +94,7 @@ class FunctionSource(beam.PTransform):
 class TimeTiles(beam.PTransform):
     def __init__(self, dims):
         self.dims = dims
+
     def expand(self, merged):
         return (
             merged
@@ -109,20 +110,26 @@ class TimeTiles(beam.PTransform):
 
 def yield_time_physics_time_slices(merged):
     # grab a physics variable
-    omega = merged['omega']
-    time_slices = chunks_1d_to_slices(omega.chunks['time'])
+    omega = merged["omega"]
+    chunks = omega.chunks[omega.get_axis_num("time")]
+    time_slices = chunks_1d_to_slices(chunks)
 
     for slice_ in time_slices:
-        for tile in merged.tiles.values.tolist():
-            yield {'time': slice_, 'tile': tile}
+        for tile in range(len(merged.tile)):
+            yield {"time": slice_, "tile": slice(tile, tile + 1)}
 
 
 class OpenTimeChunks(beam.PTransform):
     def expand(self, merged):
-        time_tiles = merged | beam.Map(yield_time_physics_time_slices)
-
-        chunk_inds = (
-            merged | beam
+        return (
+            merged
+            | "YieldPhysicsChunk" >> beam.ParDo(yield_time_physics_time_slices)
+            | beam.Reshuffle()
+            | beam.Map(
+                lambda index, ds: ds.isel(index), beam.pvalue.AsSingleton(merged)
+            )
+            | "LoadData" >> beam.Map(lambda ds: ds.load())
+            | "SplitDataByTime" >> beam.ParDo(split_by_dim, ["time", "tile"])
         )
 
 
@@ -135,7 +142,8 @@ def run(restart_url, physics_url, output_dir, extra_args=()):
         (
             p
             | FunctionSource(open_merged, restart_url, physics_url)
-            | TimeTiles(dims=['time', 'tile'])
+            # | TimeTiles(dims=["time", "tile"])
+            | OpenTimeChunks()
             | "Compute Budget" >> beam.Map(budgets.compute_recoarsened_budget, factor=8)
             | "Load" >> beam.Map(load)
             | "Save" >> beam.Map(save, base=output_dir)
