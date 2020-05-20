@@ -10,9 +10,7 @@ rand=$(openssl rand -hex 6)
         --region us-central1 \
         --runner DataFlow \
         --temp_location gs://vcm-ml-data/tmp_dataflow \
-        --num_workers 1 \
+        --num_workers 64 \
         --autoscaling_algorithm=NONE \
-        --worker_machine_type n1-highmem-2 \
-        --number_of_worker_harness_threads 1 \
-        --experiment use_runner_v2
+        --worker_machine_type n1-highmem-2
 

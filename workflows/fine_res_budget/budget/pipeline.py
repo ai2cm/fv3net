@@ -1,5 +1,8 @@
 import logging
 from itertools import product
+import tempfile
+import os
+import xarray as xr
 
 import apache_beam as beam
 import dask
@@ -125,9 +128,31 @@ def _load(ds):
     return ds.load()
 
 
-def _load_and_split(ds, dims):
-    ds = _load(ds)
-    yield from split_by_dim(ds, dims)
+def _clear_encoding(ds):
+    ds.encoding = {}
+    for variable in ds:
+        ds[variable].encoding = {}
+    
+
+def _load_and_split(ds: xr.Dataset, dims):
+    # cache on disk to avoid OOM
+    with tempfile.TemporaryDirectory() as dir_:
+        path = os.path.join(dir_, 'data.zarr')
+        chunks = dict(zip(dims, [1] * len(dims)))
+        rechunked = ds.chunk(chunks)
+        _clear_encoding(rechunked)
+        logger.info("Saving data to disk")
+
+        # Save variable by variable to avoid OOM
+        for variable in rechunked:
+            logger.info(f"Writing {variable} to disk")
+            rechunked[variable].to_dataset().to_zarr(path, mode='a')
+
+        # open data
+        ds = xr.open_zarr(path)
+        for data in split_by_dim(ds, dims):
+            logger.info(f"Yielding {data}")
+            yield data.load()
 
 
 class OpenTimeChunks(beam.PTransform):
