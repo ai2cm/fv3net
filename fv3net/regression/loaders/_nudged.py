@@ -70,7 +70,7 @@ def load_nudging_batches(
     start = initial_time_skip
     end = start + include_ntimes
     combined = combined.isel({time_dim_name: slice(start, end)})
-    
+
     # attempt to speed up batcher for remote at cost of local memory storage.
     # TODO: probably should be a function with backoff decorator
     combined = combined.load()
@@ -108,8 +108,6 @@ def _load_nudging_batch(
             "No Valid samples detected. Check for errors in the training data."
         )
 
-    # TODO: backoff here?
-    # final_batch = batch_no_nan.load()  # TODO: Or is it already loaded from dropna?
     return _shuffled(batch_no_nan, SAMPLE_DIM, random)
 
 

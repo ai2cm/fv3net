@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
     model = train.train_model(batched_data, train_config)
     train.save_model(args.output_data_path, model, MODEL_FILENAME)
-    # These will be fixed by Jeremy's PR waiting for merge to master
+    # TODO: These will be fixed by Jeremy's PR which is almost merged to master
     # report_sections = _create_report_plots(args.output_data_path)
     # report_metadata = {**vars(args), **vars(train_config)}
     # _write_report(args.output_data_path, report_sections, report_metadata, REPORT_TITLE)
