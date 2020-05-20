@@ -1,4 +1,5 @@
 import logging
+from typing import *
 from itertools import product
 import tempfile
 import os
@@ -39,8 +40,10 @@ PHYSICS_VARIABLES = [
     "area",
 ]
 
+Dims = Sequence[Hashable]
 
-def chunks_1d_to_slices(chunks):
+
+def chunks_1d_to_slices(chunks: Iterable[int]) -> Iterable[slice]:
     start = 0
     for chunk in chunks:
         end = start + chunk
@@ -48,30 +51,31 @@ def chunks_1d_to_slices(chunks):
         start = end
 
 
-def open_merged(restart_url, physics_url):
+def open_merged(restart_url: str, physics_url: str) -> xr.Dataset:
     restarts = open_restart_data(restart_url)
     diag = open_diagnostic_output(physics_url)
     data = safe.get_variables(merge(restarts, diag), PHYSICS_VARIABLES)
     num_tiles = len(data.tile)
-    tiles = range(1, num_tiles + 1)
+    # tiles = range(1, num_tiles + 1)
+    tiles = object()
     return data.assign_coords(tile=tiles)
 
 
-def yield_indices(merged, dims):
+def yield_indices(merged: xr.Dataset, dims: Dims) -> Iterable[Mapping[Hashable, slice]]:
     logger.info("Yielding Indices")
-    indexes = [merged[dim].values.tolist() for dim in dims]
+    indexes = [merged[dim].values.tolist() for dim in dims]  # type: ignore
     for index in product(*indexes):
         yield dict(zip(dims, index))
 
 
-def split_by_dim(merged, dims):
+def split_by_dim(merged, dims: Dims) -> Iterable[xr.Dataset]:
     for index in yield_indices(merged, dims):
         logger.info(f"split_by_dim: {index}")
         yield merged.sel(index)
 
 
 @retry.with_exponential_backoff(num_retries=7)
-def save(ds, base):
+def save(ds: xr.Dataset, base: str):
     time = vcm.encode_time(ds.time.item())
     tile = ds.tile.item()
 
@@ -88,18 +92,24 @@ def save(ds, base):
 
 
 @retry.with_exponential_backoff(num_retries=7)
-def load(ds):
+def load(ds: xr.Dataset) -> xr.Dataset:
     logger.info(f"Loading {ds}")
     return ds.compute()
 
 
+@beam.typehints.with_input_types(Any)
+@beam.typehints.with_output_types(xr.Dataset)
 class FunctionSource(beam.PTransform):
     def __init__(self, fn, *args):
         self.fn = fn
         self.args = args
 
     def expand(self, pcoll):
-        return pcoll | beam.Create([None]) | beam.Map(lambda _: self.fn(*self.args))
+        return (
+            pcoll
+            | beam.Create([None]).with_output_types(None)
+            | beam.Map(lambda _: self.fn(*self.args)).with_output_types(xr.Dataset)
+        )
 
 
 class TimeTiles(beam.PTransform):
@@ -119,7 +129,7 @@ class TimeTiles(beam.PTransform):
         )
 
 
-def yield_time_physics_time_slices(merged):
+def yield_time_physics_time_slices(merged: xr.Dataset) -> Iterable[Mapping[str, slice]]:
     # grab a physics variable
     omega = merged["omega"]
     chunks = omega.chunks[omega.get_axis_num("time")]
@@ -141,12 +151,12 @@ def _clear_encoding(ds):
         ds[variable].encoding = {}
 
 
-def _load_and_split(ds: xr.Dataset, dims):
+def _load_and_split(ds: xr.Dataset, dims: Sequence[str]) -> Iterable[xr.Dataset]:
     # cache on disk to avoid OOM
     with tempfile.TemporaryDirectory() as dir_:
         path = os.path.join(dir_, "data.zarr")
         chunks = dict(zip(dims, [1] * len(dims)))
-        rechunked = ds.chunk(chunks)
+        rechunked = ds.chunk(chunks=chunks)  # type: ignore
         _clear_encoding(rechunked)
         logger.info("Saving data to disk")
 
@@ -178,7 +188,6 @@ class OpenTimeChunks(beam.PTransform):
 def run(restart_url, physics_url, output_dir, extra_args=()):
 
     options = PipelineOptions(extra_args)
-
     with beam.Pipeline(options=options) as p:
 
         (
