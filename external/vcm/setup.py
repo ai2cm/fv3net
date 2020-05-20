@@ -26,7 +26,7 @@ install_requirements = [
     "cftime",
     "pytest",
     "pytest-regtest",
-    "h5netcdf>=0.8"
+    "h5netcdf>=0.8",
 ]
 
 
