@@ -56,6 +56,7 @@ def yield_indices(merged, dims):
 
 def split_by_dim(merged, dims):
     for index in yield_indices(merged, dims):
+        logger.info(f"split_by_dim: {index}")
         yield merged.sel(index)
 
 
@@ -119,6 +120,11 @@ def yield_time_physics_time_slices(merged):
             yield {"time": slice_, "tile": slice(tile, tile + 1)}
 
 
+def _load(ds):
+    logger.info(f"Loading {ds}")
+    return ds.load()
+
+
 class OpenTimeChunks(beam.PTransform):
     def expand(self, merged):
         return (
@@ -128,7 +134,7 @@ class OpenTimeChunks(beam.PTransform):
             | beam.Map(
                 lambda index, ds: ds.isel(index), beam.pvalue.AsSingleton(merged)
             )
-            | "LoadData" >> beam.Map(lambda ds: ds.load())
+            | "LoadData" >> beam.Map(_load)
             | "SplitDataByTime" >> beam.ParDo(split_by_dim, ["time", "tile"])
         )
 

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# TODO need to generate sdists with setup.py files with no requirements
+
 NUMCODECS_WHEEL=/home/noahb/tmp/numcodecs-0.6.4-cp37-cp37m-linux_x86_64.whl
 root=$(pwd)
 

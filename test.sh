@@ -12,5 +12,5 @@ rand=$(openssl rand -hex 6)
         --temp_location gs://vcm-ml-data/tmp_dataflow \
         --num_workers 1 \
         --autoscaling_algorithm=NONE \
-        --worker_machine_type n2-standard-2 \
-        --disk_size_gb 60
+        --worker_machine_type n2-standard-4 \
+        --disk_size_gb 100
