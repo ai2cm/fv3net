@@ -13,12 +13,12 @@ def update_nested_dict(source: Mapping, update: Mapping) -> Mapping:
     Returns:
         Recursively updated mapping.
     """
-    if not isinstance(source, Mapping):
-        raise TypeError(f"Expected source to be a mapping, got: {type(source)}")
-    if not isinstance(update, Mapping):
-        raise TypeError(f"Expected update to be a mapping, got: {type(update)}")
     for key in update:
-        if key in source and isinstance(source[key], Mapping):
+        if (
+            key in source
+            and isinstance(source[key], Mapping)
+            and isinstance(update[key], Mapping)
+        ):
             update_nested_dict(source[key], update[key])
         else:
             source[key] = update[key]
