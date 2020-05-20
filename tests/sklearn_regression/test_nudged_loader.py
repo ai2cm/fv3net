@@ -24,7 +24,7 @@ def xr_dataset():
             "x": np.arange(2),
             "y": np.arange(3),
             "z": np.arange(4),
-        }
+        },
     )
 
     return ds
@@ -69,7 +69,7 @@ def test_load_nudging_batches(datadir):
 
     rename = {
         "air_temperature_tendency_due_to_nudging": "dQ1",
-        "specific_humidity_tendency_due_to_nudging": "dQ2"
+        "specific_humidity_tendency_due_to_nudging": "dQ2",
     }
     input_vars = ["air_temperature", "specific_humidity"]
     output_vars = ["dQ1", "dQ2"]
@@ -80,15 +80,17 @@ def test_load_nudging_batches(datadir):
         schema_path = datadir.join(f"{key}.json")
         # output directory with nudging timescale expected
         zarr_out = datadir.join(f"outdir-3h/{key}.zarr")
-        
+
         with open(str(schema_path)) as f:
             schema = synth.load(f)
-            
+
         xr_zarr = synth.generate(schema)
         reduced_ds = xr_zarr[[var for var in data_vars if var in xr_zarr]]
         decoded = xr.decode_cf(reduced_ds)
         # limit data for efficiency (144 x 6 x 2 x 10 x 10)
-        decoded = decoded.isel(time=slice(0, tlim), x=slice(0, xlim), y=slice(0, ylim), z=slice(0, zlim))
+        decoded = decoded.isel(
+            time=slice(0, tlim), x=slice(0, xlim), y=slice(0, ylim), z=slice(0, zlim)
+        )
         decoded.to_zarr(str(zarr_out))
 
     # skips first 48 timesteps, only use 90 timesteps
@@ -100,7 +102,7 @@ def test_load_nudging_batches(datadir):
         num_batches=num_batches,
         rename_variables=rename,
         initial_time_skip=init_time_skip,
-        include_ntimes=ntimes
+        include_ntimes=ntimes,
     )
 
     # 14 batches requested
@@ -110,14 +112,13 @@ def test_load_nudging_batches(datadir):
     for batch in sequence:
         batch_samples_total += batch.sizes["sample"]
 
-    total_samples = (ntimes * 6 * xlim * ylim)
+    total_samples = ntimes * 6 * xlim * ylim
     expected_num_samples = (total_samples // num_batches) * num_batches
     assert batch_samples_total == expected_num_samples
 
 
 @pytest.mark.parametrize(
-    "num_samples,samples_per_batch,num_batches",
-    [(5, 2, None), (5, 4, 2)]
+    "num_samples,samples_per_batch,num_batches", [(5, 2, None), (5, 4, 2)]
 )
 def test__get_batch_func_args(num_samples, samples_per_batch, num_batches):
 
@@ -127,8 +128,7 @@ def test__get_batch_func_args(num_samples, samples_per_batch, num_batches):
 
 
 @pytest.mark.parametrize(
-    "num_samples,samples_per_batch,num_batches",
-    [(5, 6, None), (5, 2, 6)]
+    "num_samples,samples_per_batch,num_batches", [(5, 6, None), (5, 2, 6)]
 )
 def test__get_batch_func_args_failure(num_samples, samples_per_batch, num_batches):
     with pytest.raises(ValueError):

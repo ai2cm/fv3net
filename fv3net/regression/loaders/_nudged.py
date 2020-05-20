@@ -60,8 +60,7 @@ def load_nudging_batches(
             batch resampling operation
     """
     data_path = os.path.join(
-        data_path,
-        TIMESCALE_OUTDIR_TEMPLATE.format(nudging_timescale),
+        data_path, TIMESCALE_OUTDIR_TEMPLATE.format(nudging_timescale),
     )
 
     combined = _load_nudging_zarr(
@@ -77,10 +76,7 @@ def load_nudging_batches(
 
     stack_dims = [dim for dim in combined.dims if dim != z_dim_name]
     combined_stacked = safe.stack_once(
-        combined,
-        SAMPLE_DIM,
-        stack_dims,
-        allowed_broadcast_dims=[z_dim_name]
+        combined, SAMPLE_DIM, stack_dims, allowed_broadcast_dims=[z_dim_name]
     )
 
     total_samples = combined_stacked.sizes[SAMPLE_DIM]
@@ -97,11 +93,9 @@ def load_nudging_batches(
 
 
 def _load_nudging_batch(
-    stacked_ds: xr.Dataset,
-    random: np.random.RandomState,
-    batch_slice: slice
+    stacked_ds: xr.Dataset, random: np.random.RandomState, batch_slice: slice
 ) -> xr.Dataset:
-    
+
     batch = stacked_ds.isel({SAMPLE_DIM: batch_slice})
     batch_no_nan = batch.dropna(SAMPLE_DIM)
 
@@ -113,9 +107,11 @@ def _load_nudging_batch(
     # TODO: backoff here?
     final_batch = batch_no_nan.load()  # TODO: Or is it already loaded from dropna?
     return _shuffled(final_batch, SAMPLE_DIM, random)
-    
 
-def _get_batch_func_args(num_samples: int, samples_per_batch: int, num_batches: int = None):
+
+def _get_batch_func_args(
+    num_samples: int, samples_per_batch: int, num_batches: int = None
+):
 
     if num_batches is not None:
         batch_size = num_samples // num_batches
@@ -164,7 +160,7 @@ def _shuffled_within_chunks(indices, random):
     return np.concatenate([random.permutation(index) for index in indices])
 
 
-def _load_nudging_zarr(path, input_vars, output_vars, rename_variables):    
+def _load_nudging_zarr(path, input_vars, output_vars, rename_variables):
     fs = cloud.get_fs(path)
     input_data = _open_zarr(fs, os.path.join(path, INPUT_ZARR))
     input_data = _rename_ds_variables(input_data, rename_variables)
@@ -189,8 +185,11 @@ def _open_zarr(fs, url):
 
 def _rename_ds_variables(ds, rename_variables):
 
-    to_rename = {var_name: darray for var_name, darray in rename_variables.items()
-                 if var_name in ds}
+    to_rename = {
+        var_name: darray
+        for var_name, darray in rename_variables.items()
+        if var_name in ds
+    }
     ds = ds.rename(to_rename)
 
     return ds
