@@ -18,3 +18,10 @@ from vcm import update_nested_dict
 def test_update_nested_dict(source, update, expected_output):
     output = update_nested_dict(source, update)
     assert expected_output == output
+
+
+def test_update_nested_dict_raises_errors():
+    with pytest.raises(TypeError):
+        update_nested_dict({"foo": "bar"}, "not a mapping")
+    with pytest.raises(TypeError):
+        update_nested_dict("not a mapping", {"foo": "bar"})
