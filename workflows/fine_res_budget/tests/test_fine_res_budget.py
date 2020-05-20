@@ -1,5 +1,4 @@
 import datetime
-import logging
 from pathlib import Path
 
 import cftime
@@ -49,10 +48,6 @@ def test_OpenTimeChunks():
             coords=coords,
         )
 
-    import logging
-
-    logging.basicConfig(level=logging.DEBUG)
-
     def _assert_no_time_or_tile(ds):
         assert set(ds.dims) & {"time", "tile"} == set()
 
@@ -76,8 +71,6 @@ def test__convergence():
 
 @pytest.mark.regression
 def test_run(tmpdir):
-
-    logging.basicConfig(level=logging.INFO)
 
     variables = [
         "t_dt_gfdlmp_coarse",
