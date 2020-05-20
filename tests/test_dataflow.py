@@ -2,18 +2,13 @@ import subprocess
 import pytest
 
 submission = """
-poetry build
-
-sdist="dist/fv3net*.tar.gz"
-
-python tests/simple_dataflow.py  \
-    --extra_package $sdist \
+bash -x dataflow.sh submit $(pwd)/tests/simple_dataflow.py  \
     --save_main_session \
     --job_name test-$(uuid) \
     --project vcm-ml \
     --region us-central1 \
     --runner DataFlow \
-    --temp_location gs://vcm-ml-data/tmp_dataflow \
+    --temp_location gs://vcm-ml-scratch/tmp_dataflow \
     --num_workers 1 \
     --autoscaling_algorithm=NONE \
     --worker_machine_type n1-standard-1 \

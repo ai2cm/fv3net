@@ -5,10 +5,9 @@ set -e
 # TODO need to generate sdists with setup.py files with no requirements
 
 poetry_packages=(
-  . 
-  external/vcm 
-  external/vcm/external/mappm
-  workflows/fine_res_budget
+  $(pwd)
+  $(pwd)/external/vcm 
+  $(pwd)/external/vcm/external/mappm
 )
 
 function buildSdist {
@@ -38,7 +37,6 @@ function checkInstallation {
   pip install apache_beam
   pip install dists/mappm*.tar.gz
   pip install dists/vcm*.tar.gz
-  pip install dists/budget*.tar.gz
 }
 
 function runRemote {
@@ -48,7 +46,6 @@ function runRemote {
   --extra_package dists/mappm*.tar.gz \
   --extra_package dists/vcm*.tar.gz \
   --extra_package dists/fv3net*.tar.gz \
-  --extra_package dists/budget*.tar.gz \
   "
   
   cmd="python $* $packageArgs"
