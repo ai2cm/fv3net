@@ -1,12 +1,15 @@
 import pytest
+import os
 import xarray as xr
 import numpy as np
+from distutils import dir_util
 
 import synth
 
 from fv3net.regression.loaders._nudged import (
     _rename_ds_variables,
     _get_batch_func_args,
+    load_nudging_batches,
 )
 
 
@@ -56,7 +59,57 @@ def datadir(tmpdir, request):
 @pytest.mark.regression
 def test_load_nudging_batches(datadir):
 
-    pass
+    xlim = 10
+    ylim = 10
+    zlim = 2
+    tlim = 144
+    ntimes = 90
+    init_time_skip = 48
+    num_batches = 14
+
+    synth_data = ["nudging_tendencies", "before_dynamics"]
+    for key in synth_data:
+        schema_path = datadir.join(f"{key}.json")
+        # output directory with nudging timescale expected
+        zarr_out = datadir.join(f"outdir-3h/{key}.zarr")
+        
+        with open(str(schema_path)) as f:
+            schema = synth.load(f)
+            
+        xr_zarr = synth.generate(schema)
+        decoded = xr.decode_cf(xr_zarr)
+        # limit data for efficiency (144 x 6 x 79 x 10 x 10)
+        decoded = decoded.isel(time=slice(0, tlim), x=slice(0, xlim), y=slice(0, ylim), z=slice(0, zlim))
+        decoded.to_zarr(str(zarr_out))
+
+    rename = {
+        "air_temperature_tendency_due_to_nudging": "dQ1",
+        "specific_humidity_tendency_due_to_nudging": "dQ2"
+    }
+    input_vars = ["air_temperature", "specific_humidity"]
+    output_vars = ["dQ1", "dQ2"]
+
+    # skips first 48 timesteps, only use 90 timesteps
+    sequence = load_nudging_batches(
+        str(datadir),
+        input_vars,
+        output_vars,
+        nudging_timescale=3,
+        num_batches=num_batches,
+        rename_variables=rename,
+        initial_time_skip=init_time_skip,
+        include_ntimes=ntimes
+    )
+
+    # 14 batches requested
+    assert len(sequence._args) == num_batches
+
+    num_samples = 0
+    for batch in sequence:
+        num_samples += batch.sizes["sample"]
+    assert num_samples == (tlim * 6 * xlim * ylim)
+    
+
 
 
 @pytest.mark.parametrize(
