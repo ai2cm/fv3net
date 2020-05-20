@@ -89,5 +89,5 @@ if __name__ == "__main__":
     # TODO: These will be fixed by Jeremy's PR which is almost merged to master
     # report_sections = _create_report_plots(args.output_data_path)
     # report_metadata = {**vars(args), **vars(train_config)}
-    # _write_report(args.output_data_path, report_sections, report_metadata, 
-    #     REPORT_TITLE)
+    # _write_report(args.output_data_path, report_sections, report_metadata,
+    # REPORT_TITLE)
