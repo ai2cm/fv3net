@@ -1,6 +1,6 @@
 rand=$(openssl rand -hex 6)
 
-    bash submit_job_local.sh  \
+    ./dataflow.sh submit  \
         -m budget \
         gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr/ \
         gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files.zarr \
