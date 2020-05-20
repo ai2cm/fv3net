@@ -3,6 +3,8 @@ import numpy as np
 import pytest
 import xarray as xr
 from dask.delayed import delayed
+import fsspec
+from unittest.mock import Mock
 
 import vcm
 
@@ -80,3 +82,30 @@ def test_open_delayed_fills_nans(dataset):
     assert np.all(np.isnan(b))
     assert b.dims == dataset["b"].dims
     assert b.dtype == dataset["b"].dtype
+
+
+def test_dump_nc(tmpdir):
+    ds = xr.Dataset({"a": (["x"], [1.0])})
+
+    path = str(tmpdir.join("data.nc"))
+    with fsspec.open(path, "wb") as f:
+        vcm.dump_nc(ds, f)
+
+    ds_compare = xr.open_dataset(path)
+    xr.testing.assert_equal(ds, ds_compare)
+
+
+def test_dump_nc_no_seek():
+    """
+    GCSFS file objects raise an error when seek is called in write mode::
+
+        if not self.mode == "rb":
+            raise ValueError("Seek only available in read mode")
+            ValueError: Seek only available in read mode
+
+    """
+    ds = xr.Dataset({"a": (["x"], [1.0])})
+    m = Mock()
+
+    vcm.dump_nc(ds, m)
+    m.seek.assert_not_called()

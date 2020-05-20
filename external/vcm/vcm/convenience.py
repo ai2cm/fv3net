@@ -7,9 +7,12 @@ from typing import Union
 
 import cftime
 import intake
-import xarray as xr
 import numpy as np
+import xarray as xr
 import yaml
+
+# SpencerC added this function, it is not public API, but we need it
+from xarray.core.resample_cftime import exact_cftime_datetime_difference
 
 from vcm.cloud import gsutil
 from vcm.cloud.remote_data import open_gfdl_data_with_2d
@@ -18,7 +21,7 @@ from vcm.cubedsphere.constants import TIME_FMT
 TOP_LEVEL_DIR = pathlib.Path(__file__).parent.parent.absolute()
 
 
-def round_time(t):
+def round_time(t, to=timedelta(seconds=1)):
     """ cftime will introduces noise when decoding values into date objects.
     This rounds time in the date object to the nearest second, assuming the init time
     is at most 1 sec away from a round minute. This is used when merging datasets so
@@ -26,20 +29,29 @@ def round_time(t):
 
     Args:
         t: datetime or cftime object
+        to: size of increment to round off to. By default round to closest integer
+            second.
 
     Returns:
         datetime or cftime object rounded to nearest minute
     """
-    if t.second == 0:
-        return t.replace(microsecond=0)
-    elif t.second == 59:
-        return t.replace(microsecond=0) + timedelta(seconds=1)
+    midnight = t.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    time_since_midnight = exact_cftime_datetime_difference(midnight, t)
+    remainder = time_since_midnight % to
+    quotient = time_since_midnight // to
+    if remainder <= to / 2:
+        closest_multiple_of_to = quotient
     else:
-        raise ValueError(
-            f"Time value > 1 second from 1 minute timesteps for "
-            "C48 initialization time {t}. Are you sure you're joining "
-            "the correct high res data?"
-        )
+        closest_multiple_of_to = quotient + 1
+
+    rounded_time_since_midnight = closest_multiple_of_to * to
+
+    return midnight + rounded_time_since_midnight
+
+
+def encode_time(time: cftime.DatetimeJulian) -> str:
+    return time.strftime(TIME_FMT)
 
 
 def parse_timestep_str_from_path(path: str) -> str:
