@@ -6,12 +6,7 @@ import logging
 import gallery
 import report
 import vcm
-from .train import (
-    load_data_generator,
-    load_model_training_config,
-    train_model,
-    save_model,
-)
+from . import train
 
 
 MODEL_FILENAME = "sklearn_model.pkl"
@@ -51,17 +46,13 @@ def _write_report(output_dir, sections, metadata, title):
         f.write(html_report)
 
 
-def _url_to_datetime(url):
-    return vcm.cast_to_datetime(
-        vcm.parse_datetime_from_str(vcm.parse_timestep_str_from_path(url))
-    )
-
-
-if __name__ == "__main__":
+def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("train_data_path", type=str, help="Location of training data")
     parser.add_argument(
-        "train_config_file", type=str, help="Path for training configuration yaml file"
+        "train_config_file",
+        type=str,
+        help="Local path for training configuration yaml file",
     )
     parser.add_argument(
         "output_data_path", type=str, help="Location to save config and trained model."
@@ -73,18 +64,20 @@ if __name__ == "__main__":
         help="If results are uploaded to remote storage, "
         "remove local copy after upload.",
     )
-    args = parser.parse_args()
-    args.train_data_path = os.path.join(args.train_data_path, "train")
-    train_config = load_model_training_config(
-        args.train_config_file, args.train_data_path
-    )
-    batched_data = load_data_generator(train_config)
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    data_path = os.path.join(args.train_data_path, "train")
+    train_config = train.load_model_training_config(args.train_config_file)
+    batched_data, time_list = train.load_data_sequence(data_path, train_config)
+    _save_config_output(args.output_data_path, train_config, time_list)
+
     logging.basicConfig(level=logging.INFO)
 
-    model, training_urls_used = train_model(batched_data, train_config)
-    save_model(args.output_data_path, model, MODEL_FILENAME)
-    timesteps_used = list(map(_url_to_datetime, training_urls_used))
-    _save_config_output(args.output_data_path, train_config, timesteps_used)
+    model = train.train_model(batched_data, train_config)
+    train.save_model(args.output_data_path, model, MODEL_FILENAME)
     report_sections = _create_report_plots(args.output_data_path)
     report_metadata = {**vars(args), **vars(train_config)}
     _write_report(args.output_data_path, report_sections, report_metadata, REPORT_TITLE)

@@ -2,7 +2,7 @@ import xarray as xr
 import numpy as np
 import pytest
 
-from vcm.safe import _validate_stack_dims, stack_once, warner  # noqa
+from vcm.safe import _validate_stack_dims
 
 
 def test__validate_stack_dims_ok():
@@ -22,20 +22,3 @@ def test__validate_stack_dims_not_ok():
         _validate_stack_dims(ds, ["x", "y", "z"])
 
     _validate_stack_dims(ds, ["x", "y", "z"], allowed_broadcast_dims=["z"])
-
-
-def test_warnings():
-    arr_2d = np.ones((10, 10))
-    ds = xr.Dataset({"a": (["x", "y"], arr_2d), "b": (["x", "y"], arr_2d)})
-
-    with pytest.warns(UserWarning):
-        ds["a"]
-
-    with pytest.warns(UserWarning):
-        ds[["a", "b"]]
-
-    with pytest.warns(None) as record:
-        with warner.allow():
-            ds["a"]
-    # ensure no warnings were called
-    assert len(record) == 0

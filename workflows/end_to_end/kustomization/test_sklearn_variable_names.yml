@@ -49,7 +49,7 @@ pred_vars_to_keep:
   - "surface_temperature"
   - "latent_heat_flux"
   - "sensible_heat_flux"
-  - "total_precipitation"
+  - "surface_precipitation_rate"
   - "DSWRFtoa_train"
   - "DSWRFsfc_train"
   - "USWRFtoa_train"

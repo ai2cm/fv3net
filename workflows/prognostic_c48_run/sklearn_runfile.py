@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 TEMP = "air_temperature"
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
-TOTAL_PRECIP = "total_precipitation"
-REQUIRED_VARIABLES = [TEMP, SPHUM, DELP, TOTAL_PRECIP]
+PRECIP_RATE = "surface_precipitation_rate"
+REQUIRED_VARIABLES = [TEMP, SPHUM, DELP, PRECIP_RATE]
 
 cp = 1004
 gravity = 9.81
@@ -31,6 +31,7 @@ gravity = 9.81
 def compute_diagnostics(state, diags):
 
     net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
+    physics_precip = state[PRECIP_RATE]
 
     return dict(
         net_moistening=(net_moistening)
@@ -44,11 +45,14 @@ def compute_diagnostics(state, diags):
         .sum("z")
         .assign_attrs(units="mm")
         .assign_attrs(description="column integrated water vapor"),
-        total_precip=(state[TOTAL_PRECIP] - net_moistening)
-        .assign_attrs(units="kg/m^s/s")
+        physics_precip=(physics_precip)
+        .assign_attrs(units="kg/m^2/s")
         .assign_attrs(
-            description="total precipitation rate at the surface (model + ML)"
+            description="surface precipitation rate due to parameterized physics"
         ),
+        total_precip=(physics_precip - net_moistening)
+        .assign_attrs(units="kg/m^2/s")
+        .assign_attrs(description="total surface precipitation rate (physics + ML)"),
     )
 
 
@@ -69,15 +73,16 @@ def predict(model: SklearnWrapper, state: xr.Dataset) -> xr.Dataset:
 def update(
     model: SklearnWrapper, state: Mapping[str, xr.DataArray], dt: float
 ) -> (Mapping[str, xr.DataArray], Mapping[str, xr.DataArray]):
-    """Given ML model and state, return updated state and predicted tendencies."""
+    """Given ML model and state, return updated state and predicted tendencies.
+    Returned state only includes variables updated by ML model."""
     state = xr.Dataset(state)
     tend = predict(model, state)
     with xr.set_options(keep_attrs=True):
-        updated = state.assign(
-            specific_humidity=state["specific_humidity"] + tend["dQ2"] * dt,
-            air_temperature=state["air_temperature"] + tend["dQ1"] * dt,
-        )
-    return {key: updated[key] for key in updated}, {key: tend[key] for key in tend}
+        updated = {
+            SPHUM: state[SPHUM] + tend["dQ2"] * dt,
+            TEMP: state[TEMP] + tend["dQ1"] * dt,
+        }
+    return updated, {key: tend[key] for key in tend}
 
 
 args = runtime.get_config()

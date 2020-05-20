@@ -9,39 +9,19 @@ Example shell script:
 ```
 python -m fv3net.regression.sklearn \
   gs://vcm-ml-data/test_annak/2020-02-05_train_data_pipeline #input data path where "train" folder is located
-  example_rf_training_config.yml \
+  train_sklearn_model.yml \
   {output_data_path} \
   --delete-local-results-after-upload True
 ```
 The last two arguments are optional and allow the user to save the output directory to
 a remote storage location instead of a local directory.
 
-Example model configuration YAML:
-```
-model_type: sklearn_random_forest
-hyperparameters:
-  min_samples_leaf: 8
-  n_estimators: 4   # number of estimators to train FOR EACH BATCH
-num_batches: 3  # number of batches to train
-files_per_batch: 5  # number of input zarr files to concatenate for each train batch
-input_variables:  # features to use in prediction
-  - T
-  - sphum
-  - phis
-  - slmsk
-  - tsea
-  - insolation
-  - SHF
-  - LHF
-output_variables:  # variables to predict
-  - Q1
-  - Q2
+For an example model configuration file see train_sklearn_model.yml in the workflow directory.
 
-```
 Currently, only random forests are implemented for training sklearn models in fv3net.
 Note that the total number of trees in the random forest will be
-`hyperparameters.n_estimators * num_batches`.
-
+`hyperparameters.n_estimators * num_batches`, as a separate model is trained on each
+batch using the given hyperparameters.
 
 ### Testing
 The script `test_sklearn.sh` will use a trained model to predict diagnostics on a test

@@ -92,6 +92,7 @@ netCDF files.
             https://beam.apache.org/releases/pydoc/2.6.0/apache_beam.io.filesystems.html#apache_beam.io.filesystems.FileSystems
 
         """
+        # TODO refactor this or replace with dump_nc
         path = self.name_fn(key)
         dest: BinaryIO = filesystems.FileSystems.create(path)
 

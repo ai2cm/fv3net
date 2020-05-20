@@ -1,4 +1,5 @@
 import argparse
+import atexit
 import json
 import os
 import tempfile
@@ -26,6 +27,7 @@ from .plot_metrics import plot_metrics
 from .plot_timesteps import plot_timestep_counts
 import logging
 
+
 DATASET_NAME_PREDICTION = "prediction"
 DATASET_NAME_FV3_TARGET = "C48_target"
 DATASET_NAME_SHIELD_HIRES = "coarsened_high_res"
@@ -44,6 +46,17 @@ DPI_FIGURES = {
 
 
 logger = logging.getLogger(__file__)
+
+
+def _cleanup_temp_dir(temp_dir):
+    logger.info(f"Cleaning up temp dir {temp_dir.name}")
+    temp_dir.cleanup()
+
+
+def _download_remote_data(remote_path, local_dir):
+    copy(os.path.join(remote_path, "*"), local_dir)
+    if len(os.listdir(local_dir)) == 0:
+        raise IOError(f"No data downloaded from remote input path {remote_path}")
 
 
 def _is_remote(path):
@@ -226,6 +239,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     args.test_data_path = os.path.join(args.test_data_path, "test")
+    if _is_remote(args.test_data_path):
+        temp_download_dir = tempfile.TemporaryDirectory()
+        logger.info(f"Temp dir for data download: {temp_download_dir}")
+        _download_remote_data(args.test_data_path, temp_download_dir.name)
+        args.test_data_path = temp_download_dir.name
+        atexit.register(_cleanup_temp_dir, temp_download_dir)
+
     with open(args.variable_names_file, "r") as f:
         names = yaml.safe_load(f)
 
@@ -236,6 +256,7 @@ if __name__ == "__main__":
     # (potential target for refactor) At least it is clear
     # that this can be improved now.
     # Ideally, ML prediction and loading should be refactored to a separate routine
+
     ds = load_data_and_predict_with_ml(
         args.test_data_path,
         args.model_path,

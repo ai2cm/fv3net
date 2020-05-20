@@ -29,6 +29,9 @@ class RegressorEnsemble:
 
         """
         new_regressor = copy(self.base_regressor)
+        # each regressor needs different randomness
+        if hasattr(new_regressor, "random_state"):
+            new_regressor.random_state += len(self.regressors)
         new_regressor.fit(features, outputs)
         self.regressors.append(new_regressor)
 

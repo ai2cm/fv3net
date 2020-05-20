@@ -40,10 +40,7 @@ def test_mask_to_surface_type(test_surface_type_grid):
     np.testing.assert_equal(land, np.array([[np.nan, 1, np.nan]]))
     seaice = mask_to_surface_type(test_surface_type_grid, "seaice").checkvar.values
     np.testing.assert_equal(seaice, np.array([[np.nan, np.nan, 2]]))
-
-    no_mask = mask_to_surface_type(test_surface_type_grid, None).checkvar.values
-    np.testing.assert_equal(no_mask, np.array([[0, 1, 2]]))
-    no_mask = mask_to_surface_type(test_surface_type_grid, "none").checkvar.values
+    no_mask = mask_to_surface_type(test_surface_type_grid, "global").checkvar.values
     np.testing.assert_equal(no_mask, np.array([[0, 1, 2]]))
 
 
