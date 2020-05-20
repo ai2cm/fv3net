@@ -46,6 +46,74 @@ def test_generate_chunked_array():
     assert out.chunks == a.chunks
 
 
+coord1 = CoordinateSchema("x", ["x"], np.array([1, 2, 3]))
+coord2 = CoordinateSchema("x", ["x"], np.array([1, 2, 3]), attrs={"attr1": "something"})
+coord3 = CoordinateSchema("y", ["y"], np.array([1, 2, 3]))
+coord4 = CoordinateSchema("x", ["x"], np.array([0, 1, 2]))
+
+
+@pytest.mark.parametrize(
+    "coordA,coordB,expected",
+    [
+        (coord1, coord1, True),
+        (coord1, coord2, True),
+        (coord1, coord3, False),
+        (coord1, coord4, False),
+    ],
+)
+def test_coord_schema_equivalence(coordA, coordB, expected):
+    assert (coordA == coordB) == expected
+
+
+variable1 = VariableSchema(
+    "a", ["x"], ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32"))
+)
+variable2 = VariableSchema(
+    "a",
+    ["x"],
+    ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
+    attrs={"attr1": "something"},
+)
+variable3 = VariableSchema(
+    "a", ["x"], ChunkedArray(shape=[3, 2], chunks=[1, 1], dtype=np.dtype("float32"))
+)
+variable4 = VariableSchema(
+    "b", ["x"], ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32"))
+)
+
+
+@pytest.mark.parametrize(
+    "variableA,variableB,expected",
+    [
+        (variable1, variable1, True),
+        (variable1, variable2, True),
+        (variable1, variable3, False),
+        (variable1, variable4, False),
+    ],
+)
+def test_variable_schema_equivalence(variableA, variableB, expected):
+    assert (variableA == variableB) == expected
+
+
+dataset1 = DatasetSchema([coord1], [variable1])
+dataset2 = DatasetSchema([coord2], [variable2])
+dataset3 = DatasetSchema([coord1], [variable3])
+dataset4 = DatasetSchema([coord1], [variable1, variable4])
+
+
+@pytest.mark.parametrize(
+    "datasetA,datasetB,expected",
+    [
+        (dataset1, dataset1, True),
+        (dataset1, dataset2, True),
+        (dataset1, dataset3, False),
+        (dataset1, dataset4, False),
+    ],
+)
+def test_dataset_schema_equivalence(datasetA, datasetB, expected):
+    assert (datasetA == datasetB) == expected
+
+
 def test_encoder_dtype():
     e = _Encoder()
     assert e.encode(np.dtype("float32")) == '"' + np.dtype("float32").str + '"'

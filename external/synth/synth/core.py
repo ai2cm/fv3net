@@ -123,8 +123,6 @@ class CoordinateSchema:
         if self.name != other.name:
             return False
 
-        print(self.dims, other.dims)
-
         if len(self.dims) != len(other.dims):
             return False
 
