@@ -101,37 +101,19 @@ For a dataflow pipeline, jobs can be tested locally using a DirectRunner, e.g.,
 
     python -m fv3net.pipelines.extract_tars test_tars test_output_dir --runner DirectRunner
 
-Once you have verified the the pipeline works locally, you can submit the Dataflow job from the top 
-level of `fv3net` using:
-
-    python -m fv3net.pipelines.extract_tars \
-        test_tars \
-        test_outputs \
-        --job_name test-job \   
-        --project vcm-ml \
-        --region us-central1 \
-        --runner DataflowRunner \
-        --temp_location gs://vcm-ml-data/tmp_dataflow \
-        --num_workers 4 \
-        --max_num_workers 20 \
-        --disk_size_gb 50 \
-        --type_check_strictness 'ALL_REQUIRED' \
-        --worker_machine_type n1-standard-1 \
-        --setup_file ./setup.py
-
-
-All the combined dependencies of `vcm` and `fv3net` that are not pre-installed in dataflow workers (see 
+Remote dataflow jobs should be submitted with the `dataflow.sh` script in the
+root directory. Other forms of dataflow submission are not reproducible, and
+are strongly discouraged. This script is tested by CI and handles the
+difficult task of bundling VCM private packages, and specifying all the
+combined dependencies that are not pre-installed in dataflow workers (see
 [this
-webpage](https://cloud.google.com/dataflow/docs/concepts/sdk-worker-dependencies))
-should be listed in the `setup.py` file.
+webpage](https://cloud.google.com/dataflow/docs/concepts/sdk-worker-dependencies)).
 
-We provide configurable job submission scripts under workflows to expedite this process. E.g.,
+### Troubleshooting
 
-    workflows/extract_tars/submit_job.sh
-
-If you get an error `Could not create workflow; user does not have write access to project` upon
-trying to submit the dataflow job, do `gcloud auth application-default login` first and then retry.
-
+If you get an error `Could not create workflow; user does not have write
+access to project` upon trying to submit the dataflow job, do `gcloud auth
+application-default login` first and then retry.
 
 
 ## Running fv3gfs with Kubernetes
