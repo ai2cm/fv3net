@@ -7,9 +7,14 @@ from .coarsen import (
     horizontal_block_reduce,
     weighted_block_average,
     xarray_block_reduce,
+    block_upsample,
 )
 from .io import all_filenames, open_cubed_sphere, save_tiles_separately
-from .regridz import regrid_to_area_weighted_pressure, regrid_to_edge_weighted_pressure
+from .regridz import (
+    regrid_to_area_weighted_pressure,
+    regrid_to_edge_weighted_pressure,
+    regrid_vertical,
+)
 from .xgcm import create_fv3_grid
 
 __all__ = [item for item in dir() if not item.startswith("_")]

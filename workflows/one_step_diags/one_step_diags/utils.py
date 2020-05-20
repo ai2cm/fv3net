@@ -337,7 +337,7 @@ def insert_abs_vars(ds: xr.Dataset, varnames: Sequence) -> xr.Dataset:
                     "long_name": f"absolute {ds[var].attrs['long_name']}"
                     if "long_name" in ds[var].attrs
                     else None,
-                    "units": ds[var].attrs["units"],
+                    "units": ds[var].attrs.get("units", None),
                 }
             )
         else:

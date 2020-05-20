@@ -112,3 +112,7 @@ scratch/*
 tests/end_to_end_integration/end_to_end_configuration.yml
 tests/end_to_end_integration/submit_e2e_job_k8s.yml
 *.zarr/
+
+# large files
+*.png
+*.ipynb
