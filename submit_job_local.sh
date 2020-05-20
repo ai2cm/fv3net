@@ -54,11 +54,13 @@ function runLocalIsolate {
 function runRemote {
   extraPackages=( dists/*.tar.gz )
 
-  packageArgs=""
-  for pkg in "${extraPackages[@]}"
-  do
-    packageArgs+=" --extra_package $pkg"
-  done
+  packageArgs=" \
+  --extra_package dists/mappm*.tar.gz \
+  --extra_package dists/numcodecs*.whl \
+  --extra_package dists/vcm*.tar.gz \
+  --extra_package dists/fv3net*.tar.gz \
+  --extra_package dists/budget*.tar.gz \
+  "
   
   
   cmd="python $@ $packageArgs"
