@@ -13,6 +13,9 @@ import fsspec
 from distutils import dir_util
 import pytest
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 timesteps = [
     ["20160811.090000", "20160811.091500"],
@@ -84,8 +87,6 @@ def test_one_step_diags_regression(datadir):
     hi_res_diags_dataset = xr.decode_cf(hi_res_diags_dataset)
     hi_res_diags_dataset.to_zarr(hi_res_diags_zarrpath, consolidated=True)
 
-    one_step_diags_dataset = synth.generate(one_step_diags_schema, ranges=ranges)
-
     pipeline_args = []
 
     run(
@@ -99,7 +100,11 @@ def test_one_step_diags_regression(datadir):
     )
 
     with fsspec.open(output_nc_path, "rb") as f:
-        pipeline_output_dataset = xr.open_dataset(f)
+        pipeline_output_dataset = xr.open_dataset(f).load()
 
-    print(one_step_diags_dataset)
-    print(pipeline_output_dataset)
+    output_schema = synth.read_schema_from_dataset(pipeline_output_dataset)
+
+    print(output_schema)
+    print(one_step_diags_schema)
+
+    assert output_schema == one_step_diags_schema
