@@ -18,10 +18,15 @@ dependencies = [
 ]
 
 
+packages = find_packages() + find_packages("external/vcm", exclude="tests")
+package_dir = {"vcm": f"external/vcm/vcm/", "fv3net": "fv3net"}
+
+print(f"Found packages: {packages}")
 setup(
     name="fv3net",
-    packages=find_packages(),
+    packages=packages,
     install_requires=dependencies,
+    package_dir=package_dir,
     version="0.2.1",
     description="Improving the GFDL FV3 model physics with machine learning",
     author="Vulcan Inc.",
