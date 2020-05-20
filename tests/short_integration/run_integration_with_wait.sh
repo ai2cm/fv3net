@@ -44,24 +44,27 @@ function waitForComplete {
     fi
 }
 
-export VERSION=$1
+VERSION=$1
 SUBFOLDER=$2
 
 cd tests/short_integration/$SUBFOLDER
 
-export RANDOM_TAG="$(openssl rand --hex 6)"
-# export RANDOM_TAG="-${rand}"
-export SUFFIX="integr-${RANDOM_TAG}"
-export JOBNAME=${SUBFOLDER}-integration-${RANDOM_TAG}
+random=$(openssl rand --hex 6)
+suffix=-integration-test-$random
+jobname=v1end-to-end${suffix}
 
-echo $RANDOM_TAG
 (./kustomize_template.sh)
 
 echo "Running tests with this kustomization.yaml:"
 cat kustomization/kustomization.yaml
 
+<<<<<<< HEAD
 kubectl apply -k  kustomization --dry-run=client  -o yaml
 kubectl apply -k kustomization
+=======
+kubectl apply -k  kustomization --dry-run  -o yaml
+# kubectl apply -k kustomization
+>>>>>>> parent of de35438f... Add test training only integration
 
 trap "kubectl logs -lwaitForMe=\"$RANDOM_TAG\"" EXIT
 waitForComplete -lwaitForMe="$RANDOM_TAG" default
