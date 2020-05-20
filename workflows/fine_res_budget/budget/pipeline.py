@@ -125,6 +125,11 @@ def _load(ds):
     return ds.load()
 
 
+def _load_and_split(ds, dims):
+    ds = _load(ds)
+    yield from split_by_dim(ds, dims)
+
+
 class OpenTimeChunks(beam.PTransform):
     def expand(self, merged):
         return (
@@ -134,8 +139,7 @@ class OpenTimeChunks(beam.PTransform):
             | beam.Map(
                 lambda index, ds: ds.isel(index), beam.pvalue.AsSingleton(merged)
             )
-            | "LoadData" >> beam.Map(_load)
-            | "SplitDataByTime" >> beam.ParDo(split_by_dim, ["time", "tile"])
+            | "LoadData" >> beam.ParDo(_load_and_split, ["time", "tile"])
         )
 
 
