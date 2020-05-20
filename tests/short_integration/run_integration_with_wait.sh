@@ -44,21 +44,23 @@ function waitForComplete {
     fi
 }
 
-VERSION=$1
+export VERSION=$1
 SUBFOLDER=$2
 
 cd tests/short_integration/$SUBFOLDER
 
-random=$(openssl rand --hex 6)
-suffix=-integration-test-$random
-jobname=v1end-to-end${suffix}
+export RANDOM_TAG="$(openssl rand --hex 6)"
+# export RANDOM_TAG="-${rand}"
+export SUFFIX="integr-${RANDOM_TAG}"
+export JOBNAME=${SUBFOLDER}-integration-${RANDOM_TAG}
 
+echo $RANDOM_TAG
 (./kustomize_template.sh)
 
 echo "Running tests with this kustomization.yaml:"
 cat kustomization/kustomization.yaml
 
-kubectl apply -k  kustomization --dry-run  -o yaml
+kubectl apply -k  kustomization --dry-run=client  -o yaml
 # kubectl apply -k kustomization
 
 # trap "kubectl logs -lwaitForMe=\"$random\"" EXIT
