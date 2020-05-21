@@ -66,25 +66,25 @@ def load_nudging_batches(
         data_path, TIMESCALE_OUTDIR_TEMPLATE.format(timescale_hours),
     )
 
-    combined_all_datasets = _load_requested_datasets(
+    datasets_to_batch = _load_requested_datasets(
         data_path, variable_names, rename_variables
     )
 
     batched_sequences = []
-    for combined in combined_all_datasets:
+    for dataset in datasets_to_batch:
         start = initial_time_skip
         end = start + n_times
-        combined = combined.isel({time_dim_name: slice(start, end)})
+        dataset = dataset.isel({time_dim_name: slice(start, end)})
 
         if mask_to_surface_type is not None:
-            combined = vcm.mask_to_surface_type(combined, mask_to_surface_type)
+            dataset = vcm.mask_to_surface_type(dataset, mask_to_surface_type)
 
-        stack_dims = [dim for dim in combined.dims if dim != z_dim_name]
-        combined_stacked = safe.stack_once(
-            combined, SAMPLE_DIM, stack_dims, allowed_broadcast_dims=[z_dim_name]
+        stack_dims = [dim for dim in dataset.dims if dim != z_dim_name]
+        ds_stacked = safe.stack_once(
+            dataset, SAMPLE_DIM, stack_dims, allowed_broadcast_dims=[z_dim_name]
         )
 
-        total_samples = combined_stacked.sizes[SAMPLE_DIM]
+        total_samples = ds_stacked.sizes[SAMPLE_DIM]
 
         sample_slice_sequence = _get_batch_slices(
             total_samples, num_samples_in_batch, num_batches=num_batches
@@ -92,7 +92,7 @@ def load_nudging_batches(
         random = np.random.RandomState(random_seed)
         random.shuffle(sample_slice_sequence)
 
-        loader_func = partial(_load_nudging_batch, combined_stacked, random)
+        loader_func = partial(_load_nudging_batch, ds_stacked, random)
 
         batched_sequences.append(
             FunctionOutputSequence(loader_func, sample_slice_sequence)
@@ -184,11 +184,11 @@ def _load_requested_datasets(
     output_data = _open_zarr(fs, os.path.join(path, NUDGING_TENDENCY_ZARR))
     output_data = _rename_ds_variables(output_data, rename_variables)
 
-    combined = xr.merge([input_data, output_data], join="inner")
+    dataset = xr.merge([input_data, output_data], join="inner")
 
     all_datasets = []
     for vars_sequence in variable_names:
-        ds = safe.get_variables(combined, vars_sequence)
+        ds = safe.get_variables(dataset, vars_sequence)
         all_datasets.append(ds)
 
     return all_datasets
