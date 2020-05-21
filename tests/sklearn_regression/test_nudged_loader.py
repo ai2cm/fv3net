@@ -73,7 +73,8 @@ def test_load_nudging_batches(datadir):
     }
     input_vars = ["air_temperature", "specific_humidity"]
     output_vars = ["dQ1", "dQ2"]
-    data_vars = input_vars + list(rename.keys())
+    data_vars = input_vars + output_vars
+    local_vars_for_storag = input_vars + list(rename.keys())
 
     synth_data = ["nudging_tendencies", "before_dynamics"]
     for key in synth_data:
@@ -85,7 +86,7 @@ def test_load_nudging_batches(datadir):
             schema = synth.load(f)
 
         xr_zarr = synth.generate(schema)
-        reduced_ds = xr_zarr[[var for var in data_vars if var in xr_zarr]]
+        reduced_ds = xr_zarr[[var for var in local_vars_for_storag if var in xr_zarr]]
         decoded = xr.decode_cf(reduced_ds)
         # limit data for efficiency (144 x 6 x 2 x 10 x 10)
         decoded = decoded.isel(
@@ -94,10 +95,9 @@ def test_load_nudging_batches(datadir):
         decoded.to_zarr(str(zarr_out))
 
     # skips first 48 timesteps, only use 90 timesteps
-    sequence = load_nudging_batches(
+    sequence, = load_nudging_batches(
         str(datadir),
-        input_vars,
-        output_vars,
+        data_vars,
         nudging_timescale=3,
         num_batches=num_batches,
         rename_variables=rename,
@@ -122,7 +122,7 @@ def test_load_nudging_batches(datadir):
 )
 def test__get_batch_func_args(num_samples, samples_per_batch, num_batches):
 
-    expected = [(slice(0, 2),), (slice(2, 4),)]
+    expected = [slice(0, 2), slice(2, 4)]
     args = _get_batch_func_args(num_samples, samples_per_batch, num_batches=num_batches)
     assert args == expected
 

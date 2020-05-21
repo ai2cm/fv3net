@@ -138,9 +138,7 @@ def _get_batch_func_args(
         end = start + batch_size
         slices.append(slice(start, end))
 
-    args = [(item,) for item in slices]
-
-    return args
+    return slices
 
 
 def _shuffled(dataset, dim, random):
