@@ -25,7 +25,7 @@ from functools import singledispatch
 
 logger = logging.getLogger(__file__)
 
-SCHEMA_VERSION = "v2alpha"
+SCHEMA_VERSION = "v3"
 
 
 class _Encoder(json.JSONEncoder):
@@ -82,85 +82,87 @@ class ChunkedArray:
 
 @dataclass
 class VariableSchema:
-    name: str
-    dims: Sequence[str]
-    array: Array
+    name: str = field(compare=True)
+    dims: Sequence[str] = field(compare=True)
+    array: Array = field(compare=False)
+    attrs: Mapping = field(default_factory=dict, compare=False)
 
-    attrs: Mapping = field(default_factory=dict)
 
-    def __eq__(self, other):
+#     def __eq__(self, other):
 
-        if not isinstance(other, VariableSchema):
-            return False
+#         if not isinstance(other, VariableSchema):
+#             return False
 
-        if self.name != other.name:
-            return False
+#         if self.name != other.name:
+#             return False
 
-        if len(self.dims) != len(other.dims):
-            return False
+#         if len(self.dims) != len(other.dims):
+#             return False
 
-        if sorted(self.dims) != sorted(other.dims):
-            return False
+#         if sorted(self.dims) != sorted(other.dims):
+#             return False
 
-        if sorted(self.array.shape) != sorted(other.array.shape):
-            return False
+#         if sorted(self.array.shape) != sorted(other.array.shape):
+#             return False
 
-        return True
+#         return True
 
 
 @dataclass
 class CoordinateSchema:
-    name: str
-    dims: Sequence[str]
-    value: np.ndarray
-    attrs: Mapping = field(default_factory=dict)
+    name: str = field(compare=True)
+    dims: Sequence[str] = field(compare=True)
+    value: np.ndarray = field(compare=False)
+    attrs: Mapping = field(default_factory=dict, compare=False)
 
-    def __eq__(self, other):
 
-        if not isinstance(other, CoordinateSchema):
-            return False
+#     def __eq__(self, other):
 
-        if self.name != other.name:
-            return False
+#         if not isinstance(other, CoordinateSchema):
+#             return False
 
-        if len(self.dims) != len(other.dims):
-            return False
+#         if self.name != other.name:
+#             return False
 
-        if sorted(self.dims) != sorted(other.dims):
-            return False
+#         if len(self.dims) != len(other.dims):
+#             return False
 
-        if len(self.value) != len(other.value):
-            return False
+#         if sorted(self.dims) != sorted(other.dims):
+#             return False
 
-        if not np.array_equal(self.value, other.value):
-            return False
+#         if len(self.value) != len(other.value):
+#             return False
 
-        return True
+#         if not np.array_equal(self.value, other.value):
+#             return False
+
+#         return True
 
 
 @dataclass
 class DatasetSchema:
-    coords: Sequence[CoordinateSchema]
-    variables: Sequence[VariableSchema]
+    coords: Mapping[str, CoordinateSchema]
+    variables: Mapping[str, VariableSchema]
 
-    def __eq__(self, other):
 
-        if not isinstance(other, DatasetSchema):
-            return False
+#     def __eq__(self, other):
 
-        if (len(self.coords) != len(other.coords)) or not (
-            sorted(self.coords, key=lambda x: x.name)
-            == sorted(other.coords, key=lambda x: x.name)
-        ):
-            return False
+#         if not isinstance(other, DatasetSchema):
+#             return False
 
-        if (len(self.variables) != len(other.variables)) or not (
-            sorted(self.variables, key=lambda x: x.name)
-            == sorted(other.variables, key=lambda x: x.name)
-        ):
-            return False
+#         if (len(self.coords) != len(other.coords)) or not (
+#             sorted(self.coords, key=lambda x: x.name)
+#             == sorted(other.coords, key=lambda x: x.name)
+#         ):
+#             return False
 
-        return True
+#         if (len(self.variables) != len(other.variables)) or not (
+#             sorted(self.variables, key=lambda x: x.name)
+#             == sorted(other.variables, key=lambda x: x.name)
+#         ):
+#             return False
+
+#         return True
 
 
 @singledispatch
@@ -186,10 +188,10 @@ def _(self: DatasetSchema, ranges: Mapping[str, Range] = None):
     default_range = Range(-1000, 1000)
     return xr.Dataset(
         {
-            v.name: generate(v, ranges.get(v.name, default_range))
-            for v in self.variables
+            variable: generate(schema, ranges.get(variable, default_range))
+            for variable, schema in self.variables.items()
         },
-        coords={v.name: generate(v) for v in self.coords},
+        coords={coord: generate(schema) for coord, schema in self.coords.items()},
     )
 
 
@@ -199,8 +201,8 @@ def read_schema_from_zarr(
     coords=("forecast_time", "initial_time", "tile", "step", "z", "y", "x"),
 ):
 
-    variables = []
-    coord_schemes = []
+    variables = {}
+    coord_schemes = {}
 
     for variable in group:
         logger.info(f"Reading {variable}")
@@ -211,19 +213,19 @@ def read_schema_from_zarr(
 
         if variable in coords:
             scheme = CoordinateSchema(variable, [variable], arr[:], attrs)
-            coord_schemes.append(scheme)
+            coord_schemes[variable] = scheme
         else:
             array = ChunkedArray(arr.shape, arr.dtype, arr.chunks)
             scheme = VariableSchema(variable, dims, array, attrs=attrs)
-            variables.append(scheme)
+            variables[variable] = scheme
 
     return DatasetSchema(coord_schemes, variables)
 
 
 def read_schema_from_dataset(dataset: xr.Dataset):
 
-    variables = []
-    coord_schemes = []
+    variables = {}
+    coord_schemes = {}
 
     for coord in dataset.coords:
         logger.info(f"Reading coordinate {coord}")
@@ -231,7 +233,7 @@ def read_schema_from_dataset(dataset: xr.Dataset):
         attrs = dict(dataset[coord].attrs)
         dims = [dim for dim in dataset[coord].dims]
         scheme = CoordinateSchema(coord, dims, arr, attrs)
-        coord_schemes.append(scheme)
+        coord_schemes[coord] = scheme
 
     for variable in dataset:
         logger.info(f"Reading {variable}")
@@ -243,7 +245,7 @@ def read_schema_from_dataset(dataset: xr.Dataset):
         dims = [dim for dim in dataset[variable].dims]
         array = ChunkedArray(arr.shape, arr.dtype, chunks)
         scheme = VariableSchema(variable, dims, array, attrs=attrs)
-        variables.append(scheme)
+        variables[variable] = scheme
 
     return DatasetSchema(coord_schemes, variables)
 
@@ -263,20 +265,37 @@ def dumps(schema: DatasetSchema):
 # dict_to_schema_<version>
 def dict_to_schema_v1_v2(d):
 
-    coords = []
+    coords = {}
     for coord in d["coords"]:
-        coords.append(CoordinateSchema(**coord))
+        coords[coord["name"]] = CoordinateSchema(**coord)
 
-    variables = []
+    variables = {}
     for variable in d["variables"]:
         array = ChunkedArray(**variable.pop("array"))
-        variables.append(
-            VariableSchema(
-                array=array,
-                name=variable["name"],
-                dims=variable["dims"],
-                attrs=variable.get("attrs"),
-            )
+        variables[variable["name"]] = VariableSchema(
+            array=array,
+            name=variable["name"],
+            dims=variable["dims"],
+            attrs=variable.get("attrs"),
+        )
+
+    return DatasetSchema(coords=coords, variables=variables)
+
+
+def dict_to_schema_v3(d):
+
+    coords = {}
+    for coord_name, coord in d["coords"].items():
+        coords[coord_name] = CoordinateSchema(**coord)
+
+    variables = {}
+    for variable_name, variable in d["variables"].items():
+        array = ChunkedArray(**variable.pop("array"))
+        variables[variable_name] = VariableSchema(
+            array=array,
+            name=variable["name"],
+            dims=variable["dims"],
+            attrs=variable.get("attrs"),
         )
 
     return DatasetSchema(coords=coords, variables=variables)
@@ -296,6 +315,8 @@ def dict_to_schema(d):
         return dict_to_schema_v1_v2(d)
     elif version == "v2alpha":
         return dict_to_schema_v1_v2(d["schema"])
+    elif version == "v3":
+        return dict_to_schema_v3(d["schema"])
     else:
         raise NotImplementedError(f"Version {version} is not supported.")
 

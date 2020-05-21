@@ -48,21 +48,22 @@ def test_generate_chunked_array():
 
 coord1 = CoordinateSchema("x", ["x"], np.array([1, 2, 3]))
 coord2 = CoordinateSchema("x", ["x"], np.array([1, 2, 3]), attrs={"attr1": "something"})
-coord3 = CoordinateSchema("y", ["y"], np.array([1, 2, 3]))
-coord4 = CoordinateSchema("x", ["x"], np.array([0, 1, 2]))
+coord3 = CoordinateSchema("y", ["x"], np.array([1, 2, 3]))
+coord4 = CoordinateSchema("x", ["y"], np.array([1, 2, 3]))
 
 
 @pytest.mark.parametrize(
-    "coordA,coordB,expected",
-    [
-        (coord1, coord1, True),
-        (coord1, coord2, True),
-        (coord1, coord3, False),
-        (coord1, coord4, False),
-    ],
+    "coordA,coordB", [(coord1, coord1), (coord1, coord2)],
 )
-def test_coord_schema_equivalence(coordA, coordB, expected):
-    assert (coordA == coordB) == expected
+def test_coord_schema_equivalence(coordA, coordB):
+    assert coordA == coordB
+
+
+@pytest.mark.parametrize(
+    "coordA,coordB", [(coord1, coord3), (coord1, coord4)],
+)
+def test_coord_schema_not_equivalent(coordA, coordB):
+    assert coordA != coordB
 
 
 variable1 = VariableSchema(
@@ -75,7 +76,9 @@ variable2 = VariableSchema(
     attrs={"attr1": "something"},
 )
 variable3 = VariableSchema(
-    "a", ["x"], ChunkedArray(shape=[3, 2], chunks=[1, 1], dtype=np.dtype("float32"))
+    "a",
+    ["x", "y"],
+    ChunkedArray(shape=[3, 2], chunks=[1, 1], dtype=np.dtype("float32")),
 )
 variable4 = VariableSchema(
     "b", ["x"], ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32"))
@@ -83,22 +86,23 @@ variable4 = VariableSchema(
 
 
 @pytest.mark.parametrize(
-    "variableA,variableB,expected",
-    [
-        (variable1, variable1, True),
-        (variable1, variable2, True),
-        (variable1, variable3, False),
-        (variable1, variable4, False),
-    ],
+    "variableA,variableB", [(variable1, variable1), (variable1, variable2)],
 )
-def test_variable_schema_equivalence(variableA, variableB, expected):
-    assert (variableA == variableB) == expected
+def test_variable_schema_equivalence(variableA, variableB):
+    assert variableA == variableB
 
 
-dataset1 = DatasetSchema([coord1], [variable1])
-dataset2 = DatasetSchema([coord2], [variable2])
-dataset3 = DatasetSchema([coord1], [variable3])
-dataset4 = DatasetSchema([coord1], [variable1, variable4])
+@pytest.mark.parametrize(
+    "variableA,variableB", [(variable1, variable3), (variable1, variable4)],
+)
+def test_variable_schema_not_equivalent(variableA, variableB):
+    assert variableA != variableB
+
+
+dataset1 = DatasetSchema({"x": coord1}, {"a": variable1})
+dataset2 = DatasetSchema({"x": coord2}, {"a": variable2})
+dataset3 = DatasetSchema({"y": coord1}, {"a": variable3})
+dataset4 = DatasetSchema({"x": coord1}, {"a": variable1, "b": variable4})
 
 
 @pytest.mark.parametrize(
@@ -142,7 +146,7 @@ def test_DatasetSchema_dumps_regression(regtest):
         "a", ["x"], ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32")),
     )
 
-    ds = DatasetSchema(coords=[x], variables=[a])
+    ds = DatasetSchema(coords={x.name: x}, variables={a.name: a})
 
     val = dumps(ds)
     print(val, file=regtest)
@@ -174,15 +178,34 @@ mock_dict_schema_v2alpha = {
     },
 }
 
+mock_dict_schema_v3 = {
+    "version": "v3",
+    "schema": {
+        "coords": {"x": {"name": "x", "dims": ["x"], "value": [1, 2, 3], "attrs": [1]}},
+        "variables": {
+            "a": {
+                "name": "a",
+                "dims": ["x"],
+                "array": {"shape": [3], "dtype": "<f4", "chunks": [1]},
+            }
+        },
+    },
+}
 
-@pytest.mark.parametrize("d", [mock_dict_schema_v1, mock_dict_schema_v2alpha])
+
+@pytest.mark.parametrize(
+    "d", [mock_dict_schema_v1, mock_dict_schema_v2alpha, mock_dict_schema_v3]
+)
 def test_DatasetSchemaLoads(d):
+
     ds = dict_to_schema(d)
     assert isinstance(ds, DatasetSchema)
 
-    v = ds.variables[0]
+    v = ds.variables["a"]
     assert isinstance(v, VariableSchema)
-    assert ds.coords[0].attrs == [1]
+
+    c = ds.coords["x"]
+    assert c.attrs == [1]
 
 
 def test_generate_and_pickle_integration():
@@ -193,7 +216,7 @@ def test_generate_and_pickle_integration():
 
     ranges = {"a": Range(0, 10)}
 
-    ds = DatasetSchema(coords=[x], variables=[a])
+    ds = DatasetSchema(coords={x.name: x}, variables={a.name: a})
     d = generate(ds, ranges)
     pickle.dumps(d)
 
@@ -213,7 +236,7 @@ def test_generate_regression(regtest):
 
     ranges = {"a": Range(0, 10)}
 
-    ds = DatasetSchema(coords=[x], variables=[a])
+    ds = DatasetSchema(coords={x.name: x}, variables={a.name: a})
     d = generate(ds, ranges)
     arr = d.a.values
     print(arr, file=regtest)
