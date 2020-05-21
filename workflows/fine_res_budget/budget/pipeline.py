@@ -111,23 +111,6 @@ class FunctionSource(beam.PTransform):
         )
 
 
-class TimeTiles(beam.PTransform):
-    def __init__(self, dims):
-        self.dims = dims
-
-    def expand(self, merged):
-        return (
-            merged
-            | beam.ParDo(yield_indices, self.dims)
-            # reshuffle to ensure that data is distributed to workers
-            | "Reshuffle Tiles" >> beam.Reshuffle()
-            | "Select Data"
-            >> beam.Map(
-                lambda index, ds: ds.sel(index), beam.pvalue.AsSingleton(merged)
-            )
-        )
-
-
 def yield_time_physics_time_slices(merged: xr.Dataset) -> Iterable[Mapping[str, slice]]:
     # grab a physics variable
     omega = merged["omega"]
@@ -187,7 +170,6 @@ def run(restart_url, physics_url, output_dir, extra_args=()):
         (
             p
             | FunctionSource(open_merged, restart_url, physics_url)
-            # | TimeTiles(dims=["time", "tile"])
             | OpenTimeChunks()
             | "Compute Budget" >> beam.Map(budgets.compute_recoarsened_budget, factor=8)
             | "Load" >> beam.Map(load)
