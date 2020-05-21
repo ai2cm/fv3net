@@ -101,7 +101,8 @@ def load_one_step_batches(
         )
         output_list.append(
             FunctionOutputSequence(
-                input_formatted_batch(load_batch, url_list_sequence)))
+                lambda x: input_formatted_batch(load_batch(x)),
+                url_list_sequence))
     if len(output_list) > 1:
         return tuple(output_list)
     else:
