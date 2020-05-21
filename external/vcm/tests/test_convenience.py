@@ -60,7 +60,7 @@ def test_convert_timestamps():
         (cftime.DatetimeJulian(2016, 1, 1), datetime(2016, 1, 1)),
         (
             np.datetime64(datetime(2016, 1, 1, 1, 1, 1, 1)),
-            datetime(2016, 1, 1, 1, 1, 1, 1)
+            datetime(2016, 1, 1, 1, 1, 1, 1),
         ),
     ],
 )
