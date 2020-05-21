@@ -73,10 +73,6 @@ def load_nudging_batches(
         end = start + include_ntimes
         combined = combined.isel({time_dim_name: slice(start, end)})
 
-        # attempt to speed up batcher for remote at cost of local memory storage.
-        # TODO: maybe add function with backoff decorator
-        combined = combined.load()
-
         if mask_to_surface_type is not None:
             combined = vcm.mask_to_surface_type(combined, mask_to_surface_type)
 
@@ -97,7 +93,10 @@ def load_nudging_batches(
 
         batched_sequences.append(FunctionOutputSequence(loader_func, func_args))
 
-    return batched_sequences
+    if len(batched_sequences) > 1:
+        return tuple(batched_sequences)
+    else:
+        return batched_sequences[0]
 
 
 def _load_nudging_batch(
@@ -105,6 +104,7 @@ def _load_nudging_batch(
 ) -> xr.Dataset:
 
     batch = stacked_ds.isel({SAMPLE_DIM: batch_slice})
+    batch = batch.load()
     batch_no_nan = batch.dropna(SAMPLE_DIM)
 
     if len(batch_no_nan[SAMPLE_DIM]) == 0:
