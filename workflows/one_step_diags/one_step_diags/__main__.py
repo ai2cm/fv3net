@@ -20,7 +20,6 @@ import os
 from typing import Sequence, Mapping
 import logging
 import sys
-import warnings
 
 out_hdlr = logging.StreamHandler(sys.stdout)
 out_hdlr.setFormatter(
@@ -29,14 +28,6 @@ out_hdlr.setFormatter(
 out_hdlr.setLevel(logging.INFO)
 logging.basicConfig(handlers=[out_hdlr], level=logging.INFO)
 logger = logging.getLogger("one_step_diags")
-
-warnings.filterwarnings(
-    "ignore",
-    message="Dataset.__getitem__ is unsafe. Please avoid use in long-running code.",
-)
-warnings.filterwarnings(
-    "ignore", message="Dataset.stack is unsafe. Please avoid use in long-running code."
-)
 
 
 def _create_arg_parser():

@@ -1,11 +1,11 @@
-from one_step_diags import (
-    config,
-    run,
+from one_step_diags import config
+from one_step_diags.config import (
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,
     OUTPUT_NC_FILENAME,
     ZARR_STEP_DIM,
 )
+from one_step_diags.pipeline import run
 from vcm.safe import get_variables
 import synth
 import xarray as xr
