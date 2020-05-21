@@ -8,7 +8,7 @@ import synth
 
 from fv3net.regression.loaders._nudged import (
     _rename_ds_variables,
-    _get_batch_func_args,
+    _get_batch_slices,
     load_nudging_batches,
 )
 
@@ -98,11 +98,11 @@ def test_load_nudging_batches(datadir):
     sequence = load_nudging_batches(
         str(datadir),
         data_vars,
-        nudging_timescale=3,
+        timescale_hours=3,
         num_batches=num_batches,
         rename_variables=rename,
         initial_time_skip=init_time_skip,
-        include_ntimes=ntimes,
+        n_times=ntimes,
     )
 
     # 14 batches requested
@@ -120,19 +120,19 @@ def test_load_nudging_batches(datadir):
 @pytest.mark.parametrize(
     "num_samples,samples_per_batch,num_batches", [(5, 2, None), (5, 4, 2)]
 )
-def test__get_batch_func_args(num_samples, samples_per_batch, num_batches):
+def test__get_batch_slices(num_samples, samples_per_batch, num_batches):
 
     expected = [slice(0, 2), slice(2, 4)]
-    args = _get_batch_func_args(num_samples, samples_per_batch, num_batches=num_batches)
+    args = _get_batch_slices(num_samples, samples_per_batch, num_batches=num_batches)
     assert args == expected
 
 
 @pytest.mark.parametrize(
     "num_samples,samples_per_batch,num_batches", [(5, 6, None), (5, 2, 6)]
 )
-def test__get_batch_func_args_failure(num_samples, samples_per_batch, num_batches):
+def test__get_batch_slices_failure(num_samples, samples_per_batch, num_batches):
     with pytest.raises(ValueError):
-        _get_batch_func_args(num_samples, samples_per_batch, num_batches=num_batches)
+        _get_batch_slices(num_samples, samples_per_batch, num_batches=num_batches)
 
 
 def test__rename_ds_variables(xr_dataset):

@@ -66,7 +66,7 @@ def load_nudging_batches(
         data_path, TIMESCALE_OUTDIR_TEMPLATE.format(timescale_hours),
     )
 
-    combined_all_datasets = _load_all_requested_datasets(
+    combined_all_datasets = _load_requested_datasets(
         data_path, variable_names, rename_variables
     )
 
@@ -169,7 +169,11 @@ def _shuffled_within_chunks(indices, random):
     return np.concatenate([random.permutation(index) for index in indices])
 
 
-def _load_requested_datasets(path, variable_names, rename_variables):
+def _load_requested_datasets(
+    path: str,
+    variable_names: Iterable[Iterable[str]],
+    rename_variables: Mapping[str, str]
+) -> Sequence[xr.Dataset]:
     """
     Prepares an xr.Dataset for each sequence of variable names within
     variable_names.
@@ -182,9 +186,10 @@ def _load_requested_datasets(path, variable_names, rename_variables):
 
     combined = xr.merge([input_data, output_data], join="inner")
 
-    all_datasets = [
-        safe.get_variables(combined, vars_sequence) for vars_sequence in variable_names
-    ]
+    all_datasets = []
+    for vars_sequence in variable_names:
+        ds = safe.get_variables(combined, vars_sequence)
+        all_datasets.append(ds)
 
     return all_datasets
 
