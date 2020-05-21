@@ -121,6 +121,7 @@ class FunctionSource(beam.PTransform):
     .. _profiling: https://gist.github.com/nbren12/948ef9a5248c43537bb50db49c8851f9
 
     """
+
     def __init__(self, fn, *args):
         self.fn = fn
         self.args = args
