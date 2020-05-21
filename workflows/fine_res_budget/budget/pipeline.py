@@ -139,11 +139,6 @@ def yield_time_physics_time_slices(merged: xr.Dataset) -> Iterable[Mapping[str, 
             yield {"time": slice_, "tile": slice(tile, tile + 1)}
 
 
-def _load(ds):
-    logger.info(f"Loading {ds}")
-    return ds.load()
-
-
 def _clear_encoding(ds):
     ds.encoding = {}
     for variable in ds:
