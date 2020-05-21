@@ -10,9 +10,10 @@ jobs:
           username: _json_key
           password: $DECODED_GOOGLE_CREDENTIALS
         environment:
-          GOOGLE_APPLICATION_CREDENTIALS: key.json
+          GOOGLE_APPLICATION_CREDENTIALS: /etc/key.json
     steps:
       - checkout
+      - run: apt-get update && apt-get install -y uuid
       - run:
           name: "Save GCS for tests."
           command: |
@@ -45,7 +46,7 @@ jobs:
           name: Regression Tests
           command: |
             source activate fv3net
-            pytest -m regression
+            pytest -vv -m regression -s
 
   build_default:
     machine:
