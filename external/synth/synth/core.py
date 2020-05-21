@@ -88,26 +88,6 @@ class VariableSchema:
     attrs: Mapping = field(default_factory=dict, compare=False)
 
 
-#     def __eq__(self, other):
-
-#         if not isinstance(other, VariableSchema):
-#             return False
-
-#         if self.name != other.name:
-#             return False
-
-#         if len(self.dims) != len(other.dims):
-#             return False
-
-#         if sorted(self.dims) != sorted(other.dims):
-#             return False
-
-#         if sorted(self.array.shape) != sorted(other.array.shape):
-#             return False
-
-#         return True
-
-
 @dataclass
 class CoordinateSchema:
     name: str = field(compare=True)
@@ -116,53 +96,10 @@ class CoordinateSchema:
     attrs: Mapping = field(default_factory=dict, compare=False)
 
 
-#     def __eq__(self, other):
-
-#         if not isinstance(other, CoordinateSchema):
-#             return False
-
-#         if self.name != other.name:
-#             return False
-
-#         if len(self.dims) != len(other.dims):
-#             return False
-
-#         if sorted(self.dims) != sorted(other.dims):
-#             return False
-
-#         if len(self.value) != len(other.value):
-#             return False
-
-#         if not np.array_equal(self.value, other.value):
-#             return False
-
-#         return True
-
-
 @dataclass
 class DatasetSchema:
     coords: Mapping[str, CoordinateSchema]
     variables: Mapping[str, VariableSchema]
-
-
-#     def __eq__(self, other):
-
-#         if not isinstance(other, DatasetSchema):
-#             return False
-
-#         if (len(self.coords) != len(other.coords)) or not (
-#             sorted(self.coords, key=lambda x: x.name)
-#             == sorted(other.coords, key=lambda x: x.name)
-#         ):
-#             return False
-
-#         if (len(self.variables) != len(other.variables)) or not (
-#             sorted(self.variables, key=lambda x: x.name)
-#             == sorted(other.variables, key=lambda x: x.name)
-#         ):
-#             return False
-
-#         return True
 
 
 @singledispatch
@@ -199,7 +136,7 @@ def _(self: DatasetSchema, ranges: Mapping[str, Range] = None):
 def read_schema_from_zarr(
     group: zarr.Group,
     coords=("forecast_time", "initial_time", "tile", "step", "z", "y", "x"),
-):
+) -> DatasetSchema:
 
     variables = {}
     coord_schemes = {}
@@ -222,7 +159,7 @@ def read_schema_from_zarr(
     return DatasetSchema(coord_schemes, variables)
 
 
-def read_schema_from_dataset(dataset: xr.Dataset):
+def read_schema_from_dataset(dataset: xr.Dataset) -> DatasetSchema:
 
     variables = {}
     coord_schemes = {}
