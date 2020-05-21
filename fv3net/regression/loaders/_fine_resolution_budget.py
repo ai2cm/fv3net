@@ -1,8 +1,10 @@
 import os
 import re
 import vcm
+from typing import Mapping, Callable, Any, TypeVar, Hashable, Tuple
 import xarray as xr
 from toolz import groupby
+from ._transform import GroupByKey
 
 
 class FineResolutionBudgetTiles:
@@ -38,14 +40,11 @@ class FineResolutionBudgetTiles:
         return len(self.keys())
 
 
-# TODO this name is too specific. This operation will work for any Mapping keyed by
-# (time, tile) tuples
-class FineResolutionBudget:
-    """
+def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
+    """Open a mapping interface to the fine resolution budget data
 
     Example:
-
-        >>> loader = loaders.FineResolutionBudget.from_url('gs://vcm-ml-scratch/noah/2020-05-19/')
+        >>> loader = open_fine_resolution_budget('gs://vcm-ml-scratch/noah/2020-05-19/')
         >>> loader['20160805.202230']
         <xarray.Dataset>
         Dimensions:                         (grid_xt: 48, grid_yt: 48, pfull: 79, tile: 6)
@@ -71,22 +70,5 @@ class FineResolutionBudget:
             specific_humidity_resolved      (tile, pfull, grid_yt, grid_xt) float32 6.4418755e-09 ... 2.0072384e-05
             specific_humidity_storage       (tile, pfull, grid_yt, grid_xt) float32 -6.422655e-11 ... -5.3609618e-08
     """
-
-    def __init__(self, tiles: FineResolutionBudgetTiles) -> "FineResolutionBudget":
-        self._tiles = tiles
-        self._time_lookup = groupby(lambda x: x[0], self._tiles.keys())
-
-    def keys(self):
-        return self._time_lookup.keys()
-
-    def __len__(self):
-        return len(self.keys())
-
-    def __getitem__(self, time: str) -> xr.Dataset:
-        tiles = list(range(1, 7))
-        datasets = [self._tiles[key] for key in self._time_lookup[time]]
-        return xr.concat(datasets, dim="tile").assign_coords(tile=tiles)
-
-    @classmethod
-    def from_url(cls, url: str) -> "FineResolutionBudget":
-        return cls(FineResolutionBudgetTiles(url))
+    tiles = FineResolutionBudgetTiles(url)
+    return GroupByKey(tiles, lambda x: x[0])
