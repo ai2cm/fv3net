@@ -173,8 +173,9 @@ def _load_nudging_zarr_groups(path, variable_names, rename_variables):
 
     combined = xr.merge([input_data, output_data], join="inner")
 
-    groups = [safe.get_variables(combined, vars_grouped)
-              for vars_grouped in variable_names]
+    groups = [
+        safe.get_variables(combined, vars_grouped) for vars_grouped in variable_names
+    ]
 
     return groups
 
