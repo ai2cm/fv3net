@@ -91,11 +91,17 @@ def load_one_step_batches(
             data_vars,
             rename_variables,
             init_time_dim_name,
+        )
+        input_formatted_batch = functools.partial(
+            _stack_and_format,
+            init_time_dim_name,
             z_dim_name,
             mask_to_surface_type,
             copy.deepcopy(random),  # each sequence must be shuffled the same!
         )
-        output_list.append(FunctionOutputSequence(load_batch, url_list_sequence))
+        output_list.append(
+            FunctionOutputSequence(
+                input_formatted_batch(load_batch, url_list_sequence)))
     if len(output_list) > 1:
         return tuple(output_list)
     else:
@@ -107,9 +113,6 @@ def _load_one_step_batch(
     data_vars: Iterable[str],
     rename_variables: Mapping[str, str],
     init_time_dim_name: str,
-    z_dim_name: str,
-    mask_to_surface_type: str,
-    random,
     url_list: Iterable[str],
 ):
     # TODO refactor this I/O. since this logic below it is currently
@@ -122,6 +125,16 @@ def _load_one_step_batch(
     )
     ds = ds.rename(rename_variables)
     ds = safe.get_variables(ds, data_vars)
+    return ds.load()
+
+
+def _stack_and_format(
+    init_time_dim_name: str,
+    z_dim_name: str,
+    mask_to_surface_type: str,
+    random,
+    ds: xr.Dataset,
+) -> xr.Dataset:
     if mask_to_surface_type is not None:
         ds = vcm.mask_to_surface_type(ds, mask_to_surface_type)
     stack_dims = [dim for dim in ds.dims if dim != z_dim_name]
@@ -140,6 +153,7 @@ def _load_one_step_batch(
         )
     ds = ds_no_nan.load()
     return _shuffled(ds, SAMPLE_DIM_NAME, random)
+
 
 
 @backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
