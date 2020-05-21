@@ -3,7 +3,7 @@ import re
 import vcm
 from typing import Mapping
 import xarray as xr
-from ._transform import GroupByKey
+from ._transform import GroupByTime
 
 
 class FineResolutionBudgetTiles:
@@ -70,4 +70,4 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
             specific_humidity_storage       (tile, pfull, grid_yt, grid_xt) float32 -6.422655e-11 ... -5.3609618e-08
     """  # noqa
     tiles = FineResolutionBudgetTiles(url)
-    return GroupByKey(tiles, lambda x: x[0])
+    return GroupByTime(tiles)

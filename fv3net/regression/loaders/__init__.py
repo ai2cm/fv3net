@@ -2,4 +2,3 @@
 # model training configuration
 from ._one_step import load_one_step_batches
 from ._fine_resolution_budget import open_fine_resolution_budget
-from ._transform import GroupByKey
