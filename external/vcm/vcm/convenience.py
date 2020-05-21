@@ -3,6 +3,7 @@ import pathlib
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import Union
 from functools import singledispatch
 
 import cftime
@@ -83,7 +84,9 @@ def parse_datetime_from_str(time: str) -> cftime.DatetimeJulian:
 
 # use typehints to dispatch to overloaded datetime casting function
 @singledispatch
-def cast_to_datetime(time: cftime.DatetimeJulian) -> datetime:
+def cast_to_datetime(
+    time: Union[datetime, cftime.DatetimeJulian, np.datetime64]
+) -> datetime:
     """Cast datetime-like object to python datetime. Assumes calendars are
     compatible."""
     return datetime(
