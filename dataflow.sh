@@ -4,7 +4,7 @@ set -e
 
 # TODO need to generate sdists with setup.py files with no requirements
 
-poetry_packages=(
+vcmPackages=(
   $(pwd)
   $(pwd)/external/vcm 
   $(pwd)/external/vcm/external/mappm
@@ -22,7 +22,7 @@ function buildSdist {
 function buildPackages {
   rm -rf "$1"
   mkdir -p "$1"
-  for package in "${poetry_packages[@]}"
+  for package in "${vcmPackages[@]}"
   do
     >&2 echo "Building $package"
     buildSdist "$package" "$1"
