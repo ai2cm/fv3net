@@ -95,7 +95,7 @@ def test_load_nudging_batches(datadir):
         decoded.to_zarr(str(zarr_out))
 
     # skips first 48 timesteps, only use 90 timesteps
-    sequence, = load_nudging_batches(
+    sequence = load_nudging_batches(
         str(datadir),
         data_vars,
         nudging_timescale=3,
