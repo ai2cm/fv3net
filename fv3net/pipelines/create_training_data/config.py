@@ -1,7 +1,4 @@
-# TODO this utility should be refactored to shared micropackage or vcm
-# right now kubernetes and fv3config are added to setup.py
-# for this dependency- when refactored, remove them from there
-from fv3net.pipelines.common import update_nested_dict
+from vcm import update_nested_dict
 
 # TODO revamp this default dictionary to be more declaretive. It should specify:
 # what the output variables names are, and where each comes from e.g.:

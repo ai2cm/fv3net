@@ -1,5 +1,7 @@
 import logging
 import os
+import secrets
+import string
 import time
 import kubernetes
 from kubernetes.client import BatchV1Api
@@ -10,8 +12,7 @@ from pathlib import Path
 
 import fv3config
 
-from vcm.cubedsphere.constants import RESTART_CATEGORIES, TILE_COORDS_FILENAMES
-from vcm.cloud.fsspec import get_protocol, get_fs
+from vcm.cloud import get_protocol, get_fs
 
 logger = logging.getLogger(__name__)
 
@@ -25,18 +26,8 @@ FV3CONFIG_DEFAULTS_BY_VERSION = {
     "v0.3": os.path.join(PWD, "default_yamls/v0.3/fv3config.yml"),
 }
 
-
-def update_nested_dict(source_dict: Mapping, update_dict: Mapping) -> Mapping:
-    """
-    Recursively update a dictionary with new values.  Used to update
-    configuration dicts with partial specifications.
-    """
-    for key in update_dict:
-        if key in source_dict and isinstance(source_dict[key], Mapping):
-            update_nested_dict(source_dict[key], update_dict[key])
-        else:
-            source_dict[key] = update_dict[key]
-    return source_dict
+TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
+RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer.res", "fv_srf_wnd.res"]
 
 
 def get_base_fv3config(version_key: str) -> Mapping:
@@ -216,3 +207,14 @@ def delete_completed_jobs(job_labels: Mapping[str, str], client: BatchV1Api = No
             name = job.metadata.name
             logger.info(f"Deleting completed job: {name}")
             client.delete_namespaced_job(name, namespace=job.metadata.namespace)
+
+
+def get_alphanumeric_unique_tag(tag_length: int) -> str:
+    """Generates a random alphanumeric string (a-z0-9) of a specified length"""
+
+    if tag_length < 1:
+        raise ValueError("Unique tag length should be 1 or greater.")
+
+    use_chars = string.ascii_lowercase + string.digits
+    short_id = "".join([secrets.choice(use_chars) for i in range(tag_length)])
+    return short_id

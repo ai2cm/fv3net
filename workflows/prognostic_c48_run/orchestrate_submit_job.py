@@ -6,9 +6,9 @@ import logging
 from pathlib import Path
 
 import fv3config
-import fv3net.pipelines.kube_jobs as kube_jobs
-from vcm.cloud.fsspec import get_fs
-from fv3net.pipelines.common import get_alphanumeric_unique_tag
+import fv3kube
+import vcm
+from vcm.cloud import get_fs
 
 logger = logging.getLogger(__name__)
 PWD = Path(os.path.abspath(__file__)).parent
@@ -90,7 +90,7 @@ def _update_with_prognostic_model_config(model_config, prognostic_config):
     with open(prognostic_config, "r") as f:
         prognostic_model_config = yaml.load(f, Loader=yaml.FullLoader)
 
-    kube_jobs.update_nested_dict(model_config, prognostic_model_config)
+    vcm.update_nested_dict(model_config, prognostic_model_config)
 
     return model_config
 
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     parser = _create_arg_parser()
     args = parser.parse_args()
 
-    short_id = get_alphanumeric_unique_tag(8)
+    short_id = fv3kube.get_alphanumeric_unique_tag(8)
     job_name = f"prognostic-run-{short_id}"
     job_label = {
         "orchestrator-jobs": f"prognostic-group-{short_id}",
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     config_dir = os.path.join(args.output_url, "job_config")
     job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
 
-    model_config["diag_table"] = kube_jobs.transfer_local_to_remote(
+    model_config["diag_table"] = fv3kube.transfer_local_to_remote(
         model_config["diag_table"], config_dir
     )
 
@@ -136,7 +136,7 @@ if __name__ == "__main__":
             zarr_output="diags.zarr",
         )
         model_config["scikit_learn"] = scikit_learn_config
-        kube_opts["runfile"] = kube_jobs.transfer_local_to_remote(RUNFILE, config_dir)
+        kube_opts["runfile"] = fv3kube.transfer_local_to_remote(RUNFILE, config_dir)
 
     # Upload the new prognostic config
     with fsspec.open(job_config_path, "w") as f:
@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
     # need to initialized the client differently than
     # run_kubernetes when running in a pod.
-    client = kube_jobs.initialize_batch_client()
+    client = fv3kube.initialize_batch_client()
     job = fv3config.run_kubernetes(
         config_location=job_config_path,
         outdir=args.output_url,
@@ -157,5 +157,5 @@ if __name__ == "__main__":
     client.create_namespaced_job(namespace="default", body=job)
 
     if not args.detach:
-        kube_jobs.wait_for_complete(job_label)
-        kube_jobs.delete_completed_jobs(job_label)
+        fv3kube.wait_for_complete(job_label)
+        fv3kube.delete_completed_jobs(job_label)

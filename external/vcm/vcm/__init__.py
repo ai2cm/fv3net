@@ -28,6 +28,7 @@ from .select import mask_to_surface_type
 from .visualize import plot_cube, mappable_var, plot_cube_axes, pcolormesh_cube
 from .xarray_loaders import open_tiles, open_delayed, open_remote_nc, dump_nc
 from .sampling import train_test_split_sample
+from .utils import update_nested_dict
 
 
 __all__ = [item for item in dir() if not item.startswith("_")]

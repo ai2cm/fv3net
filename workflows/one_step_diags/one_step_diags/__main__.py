@@ -1,7 +1,7 @@
 from vcm.cloud.gsutil import copy
 from vcm.cubedsphere.constants import TIME_FMT
 from vcm.safe import get_variables
-from fv3net.pipelines.common import update_nested_dict
+from vcm import update_nested_dict
 from . import utils
 from .config import (
     INIT_TIME_DIM,

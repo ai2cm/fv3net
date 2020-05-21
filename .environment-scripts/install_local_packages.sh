@@ -16,6 +16,7 @@ poetry_packages=( external/runtime external/report external/gallery .
   external/fv3config 
   external/vcm 
   external/synth 
+  external/fv3kube
   workflows/one_step_diags 
   workflows/fine_res_budget
 )
