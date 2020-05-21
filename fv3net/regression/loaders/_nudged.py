@@ -2,7 +2,7 @@ import os
 import zarr
 import xarray as xr
 import numpy as np
-from typing import Sequence, Iterable, Mapping
+from typing import Sequence, Iterable, Mapping, Union
 from functools import partial
 
 import vcm
@@ -15,11 +15,13 @@ TIMESCALE_OUTDIR_TEMPLATE = "outdir-{}h"
 
 SAMPLE_DIM = "sample"
 
+BatchSequence = Sequence[xr.Dataset]
+
 
 def load_nudging_batches(
     data_path: str,
     *variable_names: Iterable[str],
-    nudging_timescale: int = 3,
+    timescale_hours: Union[int, float] = 3,
     num_samples_in_batch: int = 13824,
     num_batches: int = None,
     random_seed: int = 0,
@@ -28,8 +30,8 @@ def load_nudging_batches(
     rename_variables: Mapping[str, str] = None,
     time_dim_name: str = "time",
     initial_time_skip: int = 0,
-    include_ntimes: int = None,
-) -> Sequence:
+    n_times: int = None,
+) -> Union[Sequence[BatchSequence], BatchSequence]:
     """
     Get a sequence of batches from a nudged-run zarr store.
 
@@ -38,7 +40,7 @@ def load_nudging_batches(
         *variable_names: any number of sequences of variable names. One Sequence will be
             returned for each of the given sequences. The "sample" dimension will be
             identical across each of these sequences.
-        nudging_timescale (optional): timescale of the nudging for the simulation
+        timescale_hours (optional): timescale of the nudging for the simulation
             being used as input.
         num_samples_in_batch (optional): number of samples to include
             in a single batch item.  Overridden by num_batches
@@ -53,24 +55,25 @@ def load_nudging_batches(
             stacking procedure
         rename_variables (optional): A mapping to update any variable names in the
             dataset prior to the selection of input/output variables
-        time_dim
+        time_dim_name (optional): Time dimension name to use for selection from input
+            date
         initial_time_skip (optional): Number of initial time indices to skip to avoid
             spin-up samples
-        include_ntimes (optional): Number of times (by index) to include in the
+        n_times (optional): Number of times (by index) to include in the
             batch resampling operation
     """
     data_path = os.path.join(
-        data_path, TIMESCALE_OUTDIR_TEMPLATE.format(nudging_timescale),
+        data_path, TIMESCALE_OUTDIR_TEMPLATE.format(timescale_hours),
     )
 
-    combined_groups = _load_nudging_zarr_groups(
+    combined_all_datasets = _load_all_requested_datasets(
         data_path, variable_names, rename_variables
     )
 
     batched_sequences = []
-    for combined in combined_groups:
+    for combined in combined_all_datasets:
         start = initial_time_skip
-        end = start + include_ntimes
+        end = start + n_times
         combined = combined.isel({time_dim_name: slice(start, end)})
 
         if mask_to_surface_type is not None:
@@ -83,18 +86,20 @@ def load_nudging_batches(
 
         total_samples = combined_stacked.sizes[SAMPLE_DIM]
 
-        func_args = _get_batch_func_args(
+        sample_slice_sequence = _get_batch_slices(
             total_samples, num_samples_in_batch, num_batches=num_batches
         )
         random = np.random.RandomState(random_seed)
-        random.shuffle(func_args)
+        random.shuffle(sample_slice_sequence)
 
         loader_func = partial(_load_nudging_batch, combined_stacked, random)
 
-        batched_sequences.append(FunctionOutputSequence(loader_func, func_args))
+        batched_sequences.append(
+            FunctionOutputSequence(loader_func, sample_slice_sequence)
+        )
 
     if len(batched_sequences) > 1:
-        return tuple(batched_sequences)
+        return batched_sequences
     else:
         return batched_sequences[0]
 
@@ -115,7 +120,7 @@ def _load_nudging_batch(
     return _shuffled(batch_no_nan, SAMPLE_DIM, random)
 
 
-def _get_batch_func_args(
+def _get_batch_slices(
     num_samples: int, samples_per_batch: int, num_batches: int = None
 ):
 
@@ -164,7 +169,11 @@ def _shuffled_within_chunks(indices, random):
     return np.concatenate([random.permutation(index) for index in indices])
 
 
-def _load_nudging_zarr_groups(path, variable_names, rename_variables):
+def _load_requested_datasets(path, variable_names, rename_variables):
+    """
+    Prepares an xr.Dataset for each sequence of variable names within
+    variable_names.
+    """
     fs = cloud.get_fs(path)
     input_data = _open_zarr(fs, os.path.join(path, INPUT_ZARR))
     input_data = _rename_ds_variables(input_data, rename_variables)
@@ -173,11 +182,11 @@ def _load_nudging_zarr_groups(path, variable_names, rename_variables):
 
     combined = xr.merge([input_data, output_data], join="inner")
 
-    groups = [
-        safe.get_variables(combined, vars_grouped) for vars_grouped in variable_names
+    all_datasets = [
+        safe.get_variables(combined, vars_sequence) for vars_sequence in variable_names
     ]
 
-    return groups
+    return all_datasets
 
 
 def _open_zarr(fs, url):
