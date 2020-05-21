@@ -57,7 +57,7 @@ function usage {
   echo "Submit a dataflow job"
   echo ""
   echo "Usage:"
-  echo "  dataflow.sh submit <dataflow_args>..."
+  echo "  dataflow.sh submit (-m <module> | <absolute_path>) <args>..."
   echo "  dataflow.sh check"
   echo "  dataflow.sh -h"
   echo ""
@@ -68,7 +68,6 @@ function usage {
   echo ""
   echo "Options:"
   echo "  -h         Show the help"
-  echo ""
 }
 
 function prepareWorkingDirectory {
