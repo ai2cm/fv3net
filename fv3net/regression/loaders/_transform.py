@@ -1,4 +1,4 @@
-from typing import Mapping, Callable, TypeVar, Hashable, Tuple
+from typing import Mapping, Callable, TypeVar, Hashable
 import xarray as xr
 from toolz import groupby
 

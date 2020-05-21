@@ -1,9 +1,8 @@
 import os
 import re
 import vcm
-from typing import Mapping, Callable, Any, TypeVar, Hashable, Tuple
+from typing import Mapping
 import xarray as xr
-from toolz import groupby
 from ._transform import GroupByKey
 
 
@@ -69,6 +68,6 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
             specific_humidity_physics       (tile, pfull, grid_yt, grid_xt) float32 -1.961625e-14 ... 5.385441e-09
             specific_humidity_resolved      (tile, pfull, grid_yt, grid_xt) float32 6.4418755e-09 ... 2.0072384e-05
             specific_humidity_storage       (tile, pfull, grid_yt, grid_xt) float32 -6.422655e-11 ... -5.3609618e-08
-    """
+    """  # noqa
     tiles = FineResolutionBudgetTiles(url)
     return GroupByKey(tiles, lambda x: x[0])
