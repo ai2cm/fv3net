@@ -180,11 +180,10 @@ def _load_requested_datasets(
     """
     fs = cloud.get_fs(path)
     input_data = _open_zarr(fs, os.path.join(path, INPUT_ZARR))
-    input_data = _rename_ds_variables(input_data, rename_variables)
     output_data = _open_zarr(fs, os.path.join(path, NUDGING_TENDENCY_ZARR))
-    output_data = _rename_ds_variables(output_data, rename_variables)
 
     dataset = xr.merge([input_data, output_data], join="inner")
+    dataset = dataset.rename(rename_variables)
 
     all_datasets = []
     for vars_sequence in variable_names:
@@ -200,15 +199,3 @@ def _open_zarr(fs, url):
     cached_mapper = zarr.storage.LRUStoreCache(mapper, max_size=None)
 
     return xr.open_zarr(cached_mapper)
-
-
-def _rename_ds_variables(ds, rename_variables):
-
-    to_rename = {
-        var_name: darray
-        for var_name, darray in rename_variables.items()
-        if var_name in ds
-    }
-    ds = ds.rename(to_rename)
-
-    return ds
