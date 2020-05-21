@@ -18,9 +18,8 @@ SAMPLE_DIM = "sample"
 
 def load_nudging_batches(
     data_path: str,
-    input_variables: Iterable[str],
-    output_variables: Iterable[str],
-    nudging_timescale: int,
+    *variable_names: Iterable[str],
+    nudging_timescale: int = 3,
     num_samples_in_batch: int = 13824,
     num_batches: int = None,
     random_seed: int = 0,
@@ -36,9 +35,10 @@ def load_nudging_batches(
 
     Args:
         data_path: location of directory containing zarr stores
-        input_variables: names of inputs
-        output_variables: names of outputs
-        nudging_timescale: timescale of the nudging for the simulation
+        *variable_names: any number of sequences of variable names. One Sequence will be
+            returned for each of the given sequences. The "sample" dimension will be
+            identical across each of these sequences.
+        nudging_timescale (optional): timescale of the nudging for the simulation
             being used as input.
         num_samples_in_batch (optional): number of samples to include
             in a single batch item.  Overridden by num_batches
@@ -63,37 +63,41 @@ def load_nudging_batches(
         data_path, TIMESCALE_OUTDIR_TEMPLATE.format(nudging_timescale),
     )
 
-    combined = _load_nudging_zarr(
-        data_path, input_variables, output_variables, rename_variables
+    combined_groups = _load_nudging_zarr_groups(
+        data_path, variable_names, rename_variables
     )
 
-    start = initial_time_skip
-    end = start + include_ntimes
-    combined = combined.isel({time_dim_name: slice(start, end)})
+    batched_sequences = []
+    for combined in combined_groups:
+        start = initial_time_skip
+        end = start + include_ntimes
+        combined = combined.isel({time_dim_name: slice(start, end)})
 
-    # attempt to speed up batcher for remote at cost of local memory storage.
-    # TODO: probably should be a function with backoff decorator
-    combined = combined.load()
+        # attempt to speed up batcher for remote at cost of local memory storage.
+        # TODO: maybe add function with backoff decorator
+        combined = combined.load()
 
-    if mask_to_surface_type is not None:
-        combined = vcm.mask_to_surface_type(combined, mask_to_surface_type)
+        if mask_to_surface_type is not None:
+            combined = vcm.mask_to_surface_type(combined, mask_to_surface_type)
 
-    stack_dims = [dim for dim in combined.dims if dim != z_dim_name]
-    combined_stacked = safe.stack_once(
-        combined, SAMPLE_DIM, stack_dims, allowed_broadcast_dims=[z_dim_name]
-    )
+        stack_dims = [dim for dim in combined.dims if dim != z_dim_name]
+        combined_stacked = safe.stack_once(
+            combined, SAMPLE_DIM, stack_dims, allowed_broadcast_dims=[z_dim_name]
+        )
 
-    total_samples = combined_stacked.sizes[SAMPLE_DIM]
+        total_samples = combined_stacked.sizes[SAMPLE_DIM]
 
-    func_args = _get_batch_func_args(
-        total_samples, num_samples_in_batch, num_batches=num_batches
-    )
-    random = np.random.RandomState(random_seed)
-    random.shuffle(func_args)
+        func_args = _get_batch_func_args(
+            total_samples, num_samples_in_batch, num_batches=num_batches
+        )
+        random = np.random.RandomState(random_seed)
+        random.shuffle(func_args)
 
-    loader_func = partial(_load_nudging_batch, combined_stacked, random)
+        loader_func = partial(_load_nudging_batch, combined_stacked, random)
 
-    return FunctionOutputSequence(loader_func, func_args)
+        batched_sequences.append(FunctionOutputSequence(loader_func, func_args))
+
+    return batched_sequences
 
 
 def _load_nudging_batch(
@@ -162,19 +166,19 @@ def _shuffled_within_chunks(indices, random):
     return np.concatenate([random.permutation(index) for index in indices])
 
 
-def _load_nudging_zarr(path, input_vars, output_vars, rename_variables):
+def _load_nudging_zarr_groups(path, variable_names, rename_variables):
     fs = cloud.get_fs(path)
     input_data = _open_zarr(fs, os.path.join(path, INPUT_ZARR))
     input_data = _rename_ds_variables(input_data, rename_variables)
     output_data = _open_zarr(fs, os.path.join(path, NUDGING_TENDENCY_ZARR))
     output_data = _rename_ds_variables(output_data, rename_variables)
 
-    inputs = safe.get_variables(input_data, input_vars)
-    outputs = safe.get_variables(output_data, output_vars)
+    combined = xr.merge([input_data, output_data], join="inner")
 
-    combined = xr.merge([inputs, outputs], join="inner")
+    groups = [safe.get_variables(combined, vars_grouped)
+              for vars_grouped in variable_names]
 
-    return combined
+    return groups
 
 
 def _open_zarr(fs, url):
