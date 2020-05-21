@@ -20,6 +20,7 @@ namelist:
   diag_manager_nml:
     flush_nc_files: true
   gfs_physics_nml:
+    do_deep: false
     fhzero: 0.25  # hours - frequency at which precip is set back to zero
   fv_core_nml:
     n_split: 6   # num dynamics steps per physics step
