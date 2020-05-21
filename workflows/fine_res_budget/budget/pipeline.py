@@ -1,5 +1,5 @@
 import logging
-from typing import *
+from typing import Iterable, Sequence, Hashable, Mapping, Any
 from itertools import product
 import tempfile
 import os
@@ -56,8 +56,7 @@ def open_merged(restart_url: str, physics_url: str) -> xr.Dataset:
     diag = open_diagnostic_output(physics_url)
     data = safe.get_variables(merge(restarts, diag), PHYSICS_VARIABLES)
     num_tiles = len(data.tile)
-    # tiles = range(1, num_tiles + 1)
-    tiles = object()
+    tiles = range(1, num_tiles + 1)
     return data.assign_coords(tile=tiles)
 
 
