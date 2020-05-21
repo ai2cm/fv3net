@@ -4,11 +4,11 @@ set -e
 
 # TODO need to generate sdists with setup.py files with no requirements
 
-poetry_packages=(
+vcmPackages=(
   $(pwd)
   $(pwd)/external/vcm 
-  $(pwd)/workflows/fine_res_budget
   $(pwd)/external/vcm/external/mappm
+  $(pwd)/workflows/fine_res_budget
 )
 
 function buildSdist {
@@ -23,7 +23,7 @@ function buildSdist {
 function buildPackages {
   rm -rf "$1"
   mkdir -p "$1"
-  for package in "${poetry_packages[@]}"
+  for package in "${vcmPackages[@]}"
   do
     >&2 echo "Building $package"
     buildSdist "$package" "$1"
@@ -60,7 +60,7 @@ function usage {
   echo "Submit a dataflow job"
   echo ""
   echo "Usage:"
-  echo "  dataflow.sh submit <dataflow_args>..."
+  echo "  dataflow.sh submit (-m <module> | <absolute_path>) <args>..."
   echo "  dataflow.sh check"
   echo "  dataflow.sh -h"
   echo ""
@@ -71,7 +71,6 @@ function usage {
   echo ""
   echo "Options:"
   echo "  -h         Show the help"
-  echo ""
 }
 
 function prepareWorkingDirectory {
