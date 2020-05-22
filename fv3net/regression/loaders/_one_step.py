@@ -139,7 +139,7 @@ def _load_one_step_batch(
 @backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
 def _load_datasets(
         timestep_mapper: Mapping[str, xr.Dataset], 
-        times: Iterable[str]) -> xr.Dataset:
+        times: Iterable[str]) -> Iterable[xr.Dataset]:
     return_list = []
     for time in times:
         ds = timestep_mapper[time]
