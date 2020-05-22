@@ -9,6 +9,7 @@ from pathlib import Path
 
 import vcm
 from vcm import cloud, safe
+from . import _transforms as transform
 from ._sequences import FunctionOutputSequence
 
 INPUT_ZARR = "after_physics.zarr"
@@ -125,7 +126,7 @@ def _load_nudging_batch(
             "No Valid samples detected. Check for errors in the training data."
         )
 
-    return _shuffled(batch_no_nan, SAMPLE_DIM, random)
+    return transform.shuffled(batch_no_nan, SAMPLE_DIM, random)
 
 
 def _get_batch_slices(
@@ -152,29 +153,6 @@ def _get_batch_slices(
         slices.append(slice(start, end))
 
     return slices
-
-
-def _shuffled(dataset, dim, random):
-    chunks_default = (len(dataset[dim]),)
-    chunks = dataset.chunks.get(dim, chunks_default)
-    indices = _chunk_indices(chunks)
-    shuffled_inds = _shuffled_within_chunks(indices, random)
-    return dataset.isel({dim: shuffled_inds})
-
-
-def _chunk_indices(chunks):
-    indices = []
-
-    start = 0
-    for chunk in chunks:
-        indices.append(list(range(start, start + chunk)))
-        start += chunk
-    return indices
-
-
-def _shuffled_within_chunks(indices, random):
-    # We should only need to set the random seed once (not every time)
-    return np.concatenate([random.permutation(index) for index in indices])
 
 
 def _load_requested_datasets(
