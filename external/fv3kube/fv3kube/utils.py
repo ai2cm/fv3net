@@ -7,7 +7,7 @@ import kubernetes
 from kubernetes.client import BatchV1Api
 import fsspec
 import yaml
-from typing import Sequence, Mapping, Tuple
+from typing import Sequence, Mapping, Tuple, List
 from pathlib import Path
 
 import fv3config
@@ -82,6 +82,21 @@ def update_tiled_asset_names(
     ]
 
     return assets
+
+
+def current_date_from_timestamp(timestamp: str) -> List[int]:
+    """Return timestamp (e.g. 20160801.001500) in format required by fv3gfs namelist"""
+    if len(timestamp) != 15:
+        raise ValueError(
+            f"Expected timestamp of form 'YYYYMMDD.HHMMSS', got {timestamp}"
+        )
+    year = int(timestamp[:4])
+    month = int(timestamp[4:6])
+    day = int(timestamp[6:8])
+    hour = int(timestamp[9:11])
+    minute = int(timestamp[11:13])
+    second = int(timestamp[13:15])
+    return [year, month, day, hour, minute, second]
 
 
 def initialize_batch_client() -> kubernetes.client.BatchV1Api:

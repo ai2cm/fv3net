@@ -32,17 +32,6 @@ KUBERNETES_NAMESPACE = "default"
 logger = logging.getLogger(__name__)
 
 
-def _current_date_from_timestep(timestep: str) -> List[int]:
-    """Return timestep in the format required by fv3gfs namelist"""
-    year = int(timestep[:4])
-    month = int(timestep[4:6])
-    day = int(timestep[6:8])
-    hour = int(timestep[9:11])
-    minute = int(timestep[11:13])
-    second = int(timestep[13:15])
-    return [year, month, day, hour, minute, second]
-
-
 def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
     """
     Get list of assets representing initial conditions for this timestep to pipeline.
@@ -98,7 +87,7 @@ def _update_config(
     model_config["initial_conditions"].append(_get_vertical_grid_asset(config_url))
     model_config["namelist"]["coupler_nml"].update(
         {
-            "current_date": _current_date_from_timestep(timestep),
+            "current_date": fv3kube.current_date_from_timestamp(timestep),
             "force_date_from_namelist": True,
         }
     )

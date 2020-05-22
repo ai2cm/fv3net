@@ -4,7 +4,6 @@ import yaml
 import fsspec
 import logging
 from pathlib import Path
-from typing import List
 
 import fv3config
 import fv3kube
@@ -77,17 +76,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _current_date_from_timestep(timestep: str) -> List[int]:
-    """Return timestep in the format required by fv3gfs namelist"""
-    year = int(timestep[:4])
-    month = int(timestep[4:6])
-    day = int(timestep[6:8])
-    hour = int(timestep[9:11])
-    minute = int(timestep[11:13])
-    second = int(timestep[13:15])
-    return [year, month, day, hour, minute, second]
-
-
 def _get_prognostic_model_config(prog_config_path, ic_url, ic_timestep):
     """
     Return fv3config object pointing to specified initial conditions and
@@ -108,7 +96,7 @@ def _get_prognostic_model_config(prog_config_path, ic_url, ic_timestep):
     model_config["initial_conditions"].append(FV_CORE_ASSET)
     model_config["namelist"]["coupler_nml"].update(
         {
-            "current_date": _current_date_from_timestep(ic_timestep),
+            "current_date": fv3kube.current_date_from_timestamp(ic_timestep),
             "force_date_from_namelist": True,
         }
     )
