@@ -1,6 +1,7 @@
 import backoff
 import functools
 import logging
+import os
 from typing import Iterable, List, Sequence, Mapping
 import copy
 
@@ -11,7 +12,7 @@ import vcm
 from vcm import cloud, safe
 from ._sequences import FunctionOutputSequence
 from ._transforms import stack_and_format
-from ..constants import SAMPLE_DIM_NAME, TIME_NAME
+from ..constants import TIME_NAME
 
 __all__ = ["load_one_step_batches"]
 
@@ -20,6 +21,30 @@ logger.setLevel(logging.INFO)
 fh = logging.FileHandler("dataset_handler.log")
 fh.setLevel(logging.INFO)
 logger.addHandler(fh)
+
+
+class TimestepMapper:
+    def __init__(self, timesteps_dir):
+        self._timesteps_dir = timesteps_dir
+        self._fs = cloud.get_fs(timesteps_dir)
+        self.zarrs = self._fs.glob(os.path.join(timesteps_dir, "*.zarr"))
+        if len(self.zarrs) == 0:
+            raise ValueError(f"No zarrs found in {timesteps_dir}")
+            
+    def __getitem__(self, key: str) -> xr.Dataset:
+        zarr_path = os.path.join(self._timesteps_dir, f"{key}.zarr")
+        mapper = self._fs.get_mapper(zarr_path)
+        consolidated = True if ".zmetadata" in mapper else False
+        return xr.open_zarr(self._fs.get_mapper(zarr_path), consolidated=consolidated)
+
+    def keys(self):
+        return [vcm.parse_timestep_str_from_path(zarr) for zarr in self.zarrs]
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __len__(self):
+        return len(self.keys())
 
 
 def _url_to_datetime(url):
@@ -69,24 +94,24 @@ def load_one_step_batches(
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
     logger.info(f"Reading data from {data_path}.")
-    fs = cloud.get_fs(data_path)
-    zarr_urls = [
-        zarr_file for zarr_file in fs.ls(data_path) if "grid_spec" not in zarr_file
-    ]
-    logger.info(f"Number of .zarrs in GCS train data dir: {len(zarr_urls)}.")
+    
+    timestep_mapper = TimestepMapper(data_path)
+    timesteps = timestep_mapper.keys()
+
+    logger.info(f"Number of .zarrs in GCS train data dir: {len(timestep_mapper)}.")
     random = np.random.RandomState(random_seed)
-    random.shuffle(zarr_urls)
-    num_batches = _validated_num_batches(len(zarr_urls), files_per_batch, num_batches)
+    random.shuffle(timesteps)
+    num_batches = _validated_num_batches(len(timesteps), files_per_batch, num_batches)
     logger.info(f"{num_batches} data batches generated for model training.")
-    url_list_sequence = list(
-        zarr_urls[batch_num * files_per_batch : (batch_num + 1) * files_per_batch]
+    timesteps_list_sequence = list(
+        timesteps[batch_num * files_per_batch : (batch_num + 1) * files_per_batch]
         for batch_num in range(num_batches)
     )
     output_list = []
     for data_vars in variable_names:
         load_batch = functools.partial(
             _load_one_step_batch,
-            fs,
+            timestep_mapper,
             data_vars,
             rename_variables,
             init_time_dim_name,
@@ -100,7 +125,7 @@ def load_one_step_batches(
         output_list.append(
             FunctionOutputSequence(
                 lambda x: input_formatted_batch(load_batch(x)),
-                url_list_sequence))
+                timesteps_list_sequence))
     if len(output_list) > 1:
         return tuple(output_list)
     else:
@@ -108,15 +133,15 @@ def load_one_step_batches(
 
 
 def _load_one_step_batch(
-    fs,
+    timestep_mapper,
     data_vars: Iterable[str],
     rename_variables: Mapping[str, str],
     init_time_dim_name: str,
-    url_list: Iterable[str],
+    timestep_list: Iterable[str],
 ):
     # TODO refactor this I/O. since this logic below it is currently
     # impossible to test.
-    data = _load_datasets(fs, url_list)
+    data = _load_datasets(timestep_mapper, timestep_list)
     ds = xr.concat(data, init_time_dim_name)
     # need to use standardized time dimension name
     rename_variables[init_time_dim_name] = rename_variables.get(
@@ -127,13 +152,13 @@ def _load_one_step_batch(
     return ds.load()
 
 
-
 @backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
-def _load_datasets(fs, urls):
+def _load_datasets(
+        timestep_mapper: Mapping[str, xr.Dataset], 
+        times: Iterable[str]) -> xr.Dataset:
     return_list = []
-    for url in urls:
-        mapper = fs.get_mapper(url)
-        ds = xr.open_zarr(mapper)
+    for time in times:
+        ds = timestep_mapper[time]
         return_list.append(ds)
     return return_list
 
