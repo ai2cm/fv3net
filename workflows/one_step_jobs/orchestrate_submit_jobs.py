@@ -4,8 +4,8 @@ import logging
 import yaml
 from pathlib import Path
 
-from fv3net.pipelines.kube_jobs import one_step
-from fv3net.pipelines.common import get_alphanumeric_unique_tag
+import one_step_utils
+import fv3kube
 
 PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     with open(args.one_step_yaml) as file:
         one_step_config = yaml.load(file, Loader=yaml.FullLoader)
     workflow_name = Path(args.one_step_yaml).with_suffix("").name
-    short_id = get_alphanumeric_unique_tag(8)
+    short_id = fv3kube.get_alphanumeric_unique_tag(8)
     job_label = {
         "orchestrator-jobs": f"{workflow_name}-{short_id}",
         "workflow": "one_step_jobs",
@@ -82,8 +82,8 @@ if __name__ == "__main__":
     one_step_config["kubernetes"]["runfile"] = RUNFILE
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
 
-    local_vgrid_file = os.path.join(PWD, one_step.VERTICAL_GRID_FILENAME)
-    one_step.submit_jobs(
+    local_vgrid_file = os.path.join(PWD, one_step_utils.VERTICAL_GRID_FILENAME)
+    one_step_utils.submit_jobs(
         timesteps,
         workflow_name,
         one_step_config,

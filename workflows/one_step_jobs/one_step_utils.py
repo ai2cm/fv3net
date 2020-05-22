@@ -11,15 +11,12 @@ from typing import List, Dict
 from kubernetes.client import V1Job
 
 import fv3config
-from . import utils
-from vcm.cloud.fsspec import get_fs
+import fv3kube
+import vcm
+from vcm.cloud import get_fs
 
 STDOUT_FILENAME = "stdout.log"
 VERTICAL_GRID_FILENAME = "fv_core.res.nc"
-
-SECONDS_IN_MINUTE = 60
-SECONDS_IN_HOUR = SECONDS_IN_MINUTE * 60
-SECONDS_IN_DAY = SECONDS_IN_HOUR * 24
 
 KUBERNETES_CONFIG_DEFAULT = {
     "docker_image": "us.gcr.io/vcm-ml/fv3gfs-python",
@@ -50,7 +47,7 @@ def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
     """
     Get list of assets representing initial conditions for this timestep to pipeline.
     """
-    initial_condition_assets = utils.update_tiled_asset_names(
+    initial_condition_assets = fv3kube.update_tiled_asset_names(
         source_url=input_url,
         source_filename="{timestep}.{category}.tile{tile}.nc",
         target_url="INPUT",
@@ -90,8 +87,8 @@ def _update_config(
     Update kubernetes and fv3 configurations with user inputs
     to prepare for fv3gfs one-step runs.
     """
-    base_model_config = utils.get_base_fv3config(base_config_version)
-    model_config = utils.update_nested_dict(base_model_config, user_model_config)
+    base_model_config = fv3kube.get_base_fv3config(base_config_version)
+    model_config = vcm.update_nested_dict(base_model_config, user_model_config)
 
     model_config = fv3config.enable_restart(model_config)
     model_config["experiment_name"] = _get_experiment_name(workflow_name, timestep)
@@ -119,7 +116,7 @@ def _upload_config_files(
     Upload any files to remote paths necessary for fv3config and the
     fv3gfs one-step runs.
     """
-    model_config["diag_table"] = utils.transfer_local_to_remote(
+    model_config["diag_table"] = fv3kube.transfer_local_to_remote(
         model_config["diag_table"], config_url
     )
 
@@ -137,13 +134,13 @@ def _upload_config_files(
 
 def get_run_kubernetes_kwargs(user_kubernetes_config, config_url):
 
-    kubernetes_config = utils.update_nested_dict(
+    kubernetes_config = vcm.update_nested_dict(
         deepcopy(KUBERNETES_CONFIG_DEFAULT), user_kubernetes_config
     )
 
     if "runfile" in kubernetes_config:
         runfile_path = kubernetes_config["runfile"]
-        kubernetes_config["runfile"] = utils.transfer_local_to_remote(
+        kubernetes_config["runfile"] = fv3kube.transfer_local_to_remote(
             runfile_path, config_url
         )
 
@@ -183,7 +180,7 @@ def submit_jobs(
 
     # load API objects needed to submit jobs
 
-    client = utils.initialize_batch_client()
+    client = fv3kube.initialize_batch_client()
 
     zarr_url = os.path.join(output_url, "big.zarr")
 
@@ -242,7 +239,7 @@ def submit_jobs(
         client.create_namespaced_job(KUBERNETES_NAMESPACE, job)
 
         if wait:
-            utils.wait_for_complete(labels, sleep_interval=10)
+            fv3kube.wait_for_complete(labels, sleep_interval=10)
 
     for k, timestep in enumerate(timestep_list):
         if k == 0:
@@ -252,5 +249,5 @@ def submit_jobs(
             logger.info(f"Submitting job for timestep {timestep}")
             run_job(index=k, init=False)
 
-    utils.wait_for_complete(job_labels, raise_on_fail=False)
-    utils.delete_completed_jobs(job_labels)
+    fv3kube.wait_for_complete(job_labels, raise_on_fail=False)
+    fv3kube.delete_completed_jobs(job_labels)
