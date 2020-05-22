@@ -10,8 +10,8 @@ K = Tuple[Time, Tile]
 class GroupByTime:
     def __init__(self, tiles: Mapping[K, xr.Dataset]) -> Mapping[K, xr.Dataset]:
         def fn(key):
-            _, tile = key
-            return tile
+            time, _ = key
+            return time
 
         self._tiles = tiles
         self._time_lookup = groupby(fn, self._tiles.keys())

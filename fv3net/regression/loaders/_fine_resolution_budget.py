@@ -43,13 +43,17 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
     """Open a mapping interface to the fine resolution budget data
 
     Example:
+ 
+        >>> from fv3net.regression.loaders import *
         >>> loader = open_fine_resolution_budget('gs://vcm-ml-scratch/noah/2020-05-19/')
+        >>> len(loader)
+        479
         >>> loader['20160805.202230']
         <xarray.Dataset>
         Dimensions:                         (grid_xt: 48, grid_yt: 48, pfull: 79, tile: 6)
         Coordinates:
-            step                            <U6 'middle'
             time                            object 2016-08-05 20:22:30
+            step                            <U6 'middle'
         * tile                            (tile) int64 1 2 3 4 5 6
         Dimensions without coordinates: grid_xt, grid_yt, pfull
         Data variables:
@@ -68,6 +72,7 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
             specific_humidity_physics       (tile, pfull, grid_yt, grid_xt) float32 -1.961625e-14 ... 5.385441e-09
             specific_humidity_resolved      (tile, pfull, grid_yt, grid_xt) float32 6.4418755e-09 ... 2.0072384e-05
             specific_humidity_storage       (tile, pfull, grid_yt, grid_xt) float32 -6.422655e-11 ... -5.3609618e-08
+            Example:
     """  # noqa
     tiles = FineResolutionBudgetTiles(url)
     return GroupByTime(tiles)
