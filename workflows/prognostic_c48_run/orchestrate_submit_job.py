@@ -50,12 +50,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Docker image to pull for the prognostic run kubernetes pod.",
     )
     parser.add_argument(
-        "prog_config_yml",
-        type=str,
-        help="Path to a config update YAML file specifying the changes (e.g., "
-        "diag_table, runtime, ...) from the fv3config base for the prognostic run.",
-    )
-    parser.add_argument(
         "output_url",
         type=str,
         help="Remote storage location for prognostic run output.",
@@ -65,6 +59,13 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         help="Remote url to a trained sklearn model.",
+    )
+    parser.add_argument(
+        "--prog_config_yml",
+        type=str,
+        default="prognostic_config.yml",
+        help="Path to a config update YAML file specifying the changes from the base"
+             "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
     )
     parser.add_argument(
         "-d",
