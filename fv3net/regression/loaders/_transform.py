@@ -23,7 +23,6 @@ class GroupByTime:
         return len(self.keys())
 
     def __getitem__(self, time: Time) -> xr.Dataset:
-        # TODO generalize this function
-        tiles = list(range(1, 7))
         datasets = [self._tiles[key] for key in self._time_lookup[time]]
+        tiles = range(len(datasets))
         return xr.concat(datasets, dim="tile").assign_coords(tile=tiles)
