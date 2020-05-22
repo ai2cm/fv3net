@@ -44,9 +44,10 @@ def test_one_step_diags_regression(datadir):
     with open(str(path)) as f:
         one_step_diags_schema = synth.load(f)
 
-    ranges = {}
+    # necessary so that things don't break in one-step diags
+    grid_ranges = {"land_sea_mask": synth.Range(0, 2)}
 
-    one_step_dataset = synth.generate(one_step_schema, ranges=ranges)
+    one_step_dataset = synth.generate(one_step_schema, ranges=grid_ranges)
     one_step_dataset.to_zarr(one_step_zarrpath, consolidated=True)
 
     grid = (
@@ -55,7 +56,7 @@ def test_one_step_diags_regression(datadir):
         .drop([ZARR_STEP_DIM, INIT_TIME_DIM, FORECAST_TIME_DIM])
     )
 
-    hi_res_diags_dataset = synth.generate(hi_res_diags_schema, ranges=ranges)
+    hi_res_diags_dataset = synth.generate(hi_res_diags_schema)
     # need to decode the time coordinate.
     hi_res_diags_dataset = xr.decode_cf(hi_res_diags_dataset)
     hi_res_diags_dataset.to_zarr(hi_res_diags_zarrpath, consolidated=True)
@@ -76,8 +77,5 @@ def test_one_step_diags_regression(datadir):
         pipeline_output_dataset = xr.open_dataset(f).load()
 
     output_schema = synth.read_schema_from_dataset(pipeline_output_dataset)
-
-    print(output_schema)
-    print(one_step_diags_schema)
 
     assert output_schema == one_step_diags_schema
