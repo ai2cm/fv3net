@@ -4,6 +4,7 @@ import xarray as xr
 import numpy as np
 from typing import Sequence, Iterable, Mapping, Union
 from functools import partial
+from pathlib import Path
 
 import vcm
 from vcm import cloud, safe
@@ -11,7 +12,7 @@ from ._sequences import FunctionOutputSequence
 
 INPUT_ZARR = "after_physics.zarr"
 NUDGING_TENDENCY_ZARR = "nudging_tendencies.zarr"
-TIMESCALE_OUTDIR_TEMPLATE = "outdir-{}h"
+TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
 SIMULATION_TIMESTEPS_PER_HOUR = 4
 
 SAMPLE_DIM = "sample"
@@ -63,9 +64,6 @@ def load_nudging_batches(
         n_times (optional): Number of times (by index) to include in the
             batch resampling operation
     """
-    data_path = os.path.join(
-        data_path, TIMESCALE_OUTDIR_TEMPLATE.format(timescale_hours),
-    )
 
     datasets_to_batch = _load_requested_datasets(
         data_path, variable_names, rename_variables
@@ -192,6 +190,33 @@ def _load_requested_datasets(
         all_datasets.append(ds)
 
     return all_datasets
+
+
+def _load_nudging_xr(path):
+    pass
+
+
+def _get_path_for_nudging_timescale(fs, path, timescale_hours, tol=1e-5):
+    """
+    Timescales are allowed to be floats which makes finding correct output
+    directory a bit trickier.  Currently checking by looking for difference
+    between parsed timescale from folder name and requested timescale that
+    is approximately zero (with requested tolerance).
+    """
+
+    glob_url = os.path.join(path, TIMESCALE_OUTDIR_TEMPLATE)
+    nudged_output_dirs = fs.glob(glob_url)
+    
+    for dirpath in nudged_output_dirs:
+        dirname = Path(dirpath).name
+        avail_timescale = float(dirname.split("-")[-1].strip("h"))
+        if abs(timescale_hours - avail_timescale) < tol:
+            return dirname
+    else:
+        raise KeyError(
+            "Could not find nudged output directory appropriate for timescale: "
+            "{timescale_hours}"
+        )
 
 
 def _open_zarr(fs, url):
