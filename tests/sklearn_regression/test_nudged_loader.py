@@ -10,7 +10,7 @@ import synth
 from fv3net.regression.loaders._nudged import (
     _get_batch_slices,
     load_nudging_batches,
-    _get_path_for_nudging_timescale
+    _get_path_for_nudging_timescale,
 )
 
 
@@ -142,7 +142,6 @@ def test__get_batch_slices_failure(num_samples, samples_per_batch, num_batches):
         _get_batch_slices(num_samples, samples_per_batch, num_batches=num_batches)
 
 
-
 @pytest.fixture
 def nudging_output_dirs(tmpdir):
 
@@ -156,24 +155,26 @@ def nudging_output_dirs(tmpdir):
 
     return (tmpdir, timescale_out_dirs)
 
-@pytest.mark.parametrize("timescale, expected_key",
-    [(1, "1.00"), (1.0, "1.00"), (1.5, "1.5"), (1.500001, "1.5")]
+
+@pytest.mark.parametrize(
+    "timescale, expected_key",
+    [(1, "1.00"), (1.0, "1.00"), (1.5, "1.5"), (1.500001, "1.5")],
 )
-def test__get_path_for_nudging_timescale(nudging_output_dirs, local_fs, timescale, expected_key):
+def test__get_path_for_nudging_timescale(
+    nudging_output_dirs, local_fs, timescale, expected_key
+):
 
     tmpdir, output_dir_map = nudging_output_dirs
     expected_path = os.path.join(tmpdir, output_dir_map[expected_key])
-    result_path = _get_path_for_nudging_timescale(
-        local_fs, tmpdir, timescale, tol=1e-5
-    )
+    result_path = _get_path_for_nudging_timescale(local_fs, tmpdir, timescale, tol=1e-5)
     assert result_path == expected_path
 
 
 @pytest.mark.parametrize("timescale", [1.1, 1.00001])
-def test__get_path_for_nudging_timescale_failure(nudging_output_dirs, local_fs, timescale):
-    
+def test__get_path_for_nudging_timescale_failure(
+    nudging_output_dirs, local_fs, timescale
+):
+
     tmpdir, output_dir_map = nudging_output_dirs
     with pytest.raises(KeyError):
-        _get_path_for_nudging_timescale(
-            local_fs, tmpdir, timescale, tol=1e-5
-        )
+        _get_path_for_nudging_timescale(local_fs, tmpdir, timescale, tol=1e-5)

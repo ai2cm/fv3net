@@ -23,10 +23,8 @@ def schema_to_file(data_url, output_filepath):
 
 
 schema_to_file(
-    after_physics,
-    os.path.join(script_path, "test_nudged_loader", "after_physics.json")
+    after_physics, os.path.join(script_path, "test_nudged_loader", "after_physics.json")
 )
 schema_to_file(
-    nudge,
-    os.path.join(script_path, "test_nudged_loader", "nudging_tendencies.json")
+    nudge, os.path.join(script_path, "test_nudged_loader", "nudging_tendencies.json")
 )

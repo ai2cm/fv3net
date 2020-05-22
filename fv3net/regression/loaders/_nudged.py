@@ -60,15 +60,13 @@ def load_nudging_batches(
             dataset prior to the selection of input/output variables
         time_dim_name (optional): Time dimension name to use for selection from input
             date
-        initial_time_skip_hr (optional): Length of model inititialization (in hours) 
+        initial_time_skip_hr (optional): Length of model inititialization (in hours)
             to omit from the batching operation
         n_times (optional): Number of times (by index) to include in the
             batch resampling operation
     """
     fs = cloud.get_fs(data_path)
-    nudged_output_path = _get_path_for_nudging_timescale(
-        fs, data_path, timescale_hours
-    )
+    nudged_output_path = _get_path_for_nudging_timescale(fs, data_path, timescale_hours)
 
     datasets_to_batch = _load_requested_datasets(
         fs, nudged_output_path, variable_names, rename_variables
@@ -177,7 +175,7 @@ def _load_requested_datasets(
     fs: fsspec.AbstractFileSystem,
     path: str,
     variable_names: Iterable[Iterable[str]],
-    rename_variables: Mapping[str, str]
+    rename_variables: Mapping[str, str],
 ) -> Sequence[xr.Dataset]:
     """
     Prepares an xr.Dataset for each sequence of variable names within
@@ -208,7 +206,7 @@ def _get_path_for_nudging_timescale(fs, path, timescale_hours, tol=1e-5):
     """
     glob_url = os.path.join(path, TIMESCALE_OUTDIR_TEMPLATE)
     nudged_output_dirs = fs.glob(glob_url)
-    
+
     for dirpath in nudged_output_dirs:
         dirname = Path(dirpath).name
         avail_timescale = float(dirname.split("-")[-1].strip("h"))
