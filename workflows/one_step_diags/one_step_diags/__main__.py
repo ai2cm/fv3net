@@ -1,5 +1,5 @@
 from vcm.safe import get_variables
-from fv3net.pipelines.common import update_nested_dict
+from vcm import update_nested_dict
 from .config import (
     INIT_TIME_DIM,
     FORECAST_TIME_DIM,

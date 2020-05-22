@@ -1,12 +1,17 @@
+from typing import Union, Sequence
+from datetime import datetime
 import argparse
 import os
 import fsspec
 import yaml
 import logging
-import gallery
 import report
+import gallery
 import vcm
+import numpy as np
+import xarray as xr
 from . import train
+from ..constants import SAMPLE_DIM_NAME, TIME_NAME
 
 
 MODEL_FILENAME = "sklearn_model.pkl"
@@ -16,26 +21,22 @@ REPORT_TITLE = "ML model training report"
 TRAINING_FIG_FILENAME = "count_of_training_times_used.png"
 
 
-def _save_config_output(output_url, config, timesteps):
+def _save_config_output(output_url, config):
     fs = vcm.cloud.fsspec.get_fs(output_url)
     fs.makedirs(output_url, exist_ok=True)
     config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
-    timesteps_url = os.path.join(output_url, TIMESTEPS_USED_FILENAME)
 
     with fs.open(config_url, "w") as f:
         yaml.dump(config, f)
 
-    with fs.open(timesteps_url, "w") as f:
-        yaml.dump(timesteps, f)
 
-
-def _create_report_plots(path):
-    """Given path to directory containing timesteps used, create all plots required
+def _create_report_plots(
+    path: str, times: Union[Sequence[np.datetime64], Sequence[datetime]]
+):
+    """Given path to output directory and times used, create all plots required
     for html report"""
-    with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME)) as f:
-        timesteps = yaml.safe_load(f)
     with fsspec.open(os.path.join(path, TRAINING_FIG_FILENAME), "wb") as f:
-        gallery.plot_daily_and_hourly_hist(timesteps).savefig(f, dpi=90)
+        gallery.plot_daily_and_hourly_hist(times).savefig(f, dpi=90)
     return {"Time distribution of training samples": [TRAINING_FIG_FILENAME]}
 
 
@@ -67,17 +68,27 @@ def parse_args():
     return parser.parse_args()
 
 
+def times_from_batches(batched_data):
+    return_list = []
+    ds = xr.concat(batched_data, SAMPLE_DIM_NAME)
+    for time in ds[TIME_NAME].values:
+        return_list.append(vcm.cast_to_datetime(time))
+    return return_list
+
+
 if __name__ == "__main__":
     args = parse_args()
     data_path = os.path.join(args.train_data_path, "train")
     train_config = train.load_model_training_config(args.train_config_file)
-    batched_data, time_list = train.load_data_sequence(data_path, train_config)
-    _save_config_output(args.output_data_path, train_config, time_list)
+    batched_data = train.load_data_sequence(data_path, train_config)
+    _save_config_output(args.output_data_path, train_config)
 
     logging.basicConfig(level=logging.INFO)
 
     model = train.train_model(batched_data, train_config)
     train.save_model(args.output_data_path, model, MODEL_FILENAME)
-    report_sections = _create_report_plots(args.output_data_path)
     report_metadata = {**vars(args), **vars(train_config)}
+    report_sections = _create_report_plots(
+        args.output_data_path, times_from_batches(batched_data),
+    )
     _write_report(args.output_data_path, report_sections, report_metadata, REPORT_TITLE)

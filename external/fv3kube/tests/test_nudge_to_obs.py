@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime
 
-from fv3net.pipelines.kube_jobs import nudge_to_obs
+from fv3kube import nudge_to_obs
 
 
 @pytest.mark.parametrize(

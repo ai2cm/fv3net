@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "fv3kube"
+version = "0.1.0"
+description = ""
+authors = ["Oliver Watt-Meyer <oliwm@vulcan.com>"]
+
+[tool.poetry.dependencies]
+fsspec = "^0.6"
+fv3config = { path = "../fv3config/" }
+python = "^3.7"
+numpy = "^1.14"
+kubernetes = "^11"
+pyyaml = "^5.3"
+vcm = { path = "../vcm/" }
+
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"

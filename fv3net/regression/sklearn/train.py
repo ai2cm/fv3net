@@ -6,8 +6,8 @@ import yaml
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
-from fv3net.regression import loaders
-from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
+from .. import loaders
+from .wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
@@ -58,8 +58,7 @@ def load_data_sequence(data_path: str, train_config: ModelTrainingConfig) -> Seq
     batch_function = getattr(loaders, train_config.batch_function)
     ds_batches = batch_function(
         data_path,
-        train_config.input_variables,
-        train_config.output_variables,
+        list(train_config.input_variables) + list(train_config.output_variables),
         **train_config.batch_kwargs,
     )
     return ds_batches
