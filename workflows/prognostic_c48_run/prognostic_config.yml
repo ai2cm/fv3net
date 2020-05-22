@@ -17,4 +17,6 @@ namelist:
   gfs_physics_nml:
     fhzero: 0.25  # hours - frequency at which precip is set back to zero
   fv_core_nml:
+    external_eta: true
+    npz: 79
     n_split: 6   # num dynamics steps per physics step

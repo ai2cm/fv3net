@@ -100,7 +100,7 @@ def _get_prognostic_model_config(prog_config_path, ic_url, ic_timestep):
     model_config = vcm.update_nested_dict(base_config, prog_config)
     model_config = fv3config.enable_restart(model_config)
     model_config["initial_conditions"] = fv3kube.update_tiled_asset_names(
-        source_url=ic_url,
+        source_url=os.path.join(ic_url, ic_timestep),
         source_filename="{timestep}.{category}.tile{tile}.nc",
         target_url="INPUT",
         target_filename="{category}.tile{tile}.nc",
