@@ -2,7 +2,9 @@ import xarray as xr
 import numpy as np
 
 
-def shuffled(dataset: xr.Dataset, dim: str, random: np.random.RandomState) -> xr.Dataset:
+def shuffled(
+    dataset: xr.Dataset, dim: str, random: np.random.RandomState
+) -> xr.Dataset:
     """
     Shuffles dataset along a dimension within chunks if chunking is present
 

@@ -1,6 +1,3 @@
-import xarray as xr
-import numpy as np
-
 from fv3net.regression.sklearn import train
 
 
