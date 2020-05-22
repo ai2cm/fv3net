@@ -59,7 +59,7 @@ def load_nudging_batches(
         rename_variables (optional): A mapping to update any variable names in the
             dataset prior to the selection of input/output variables
         time_dim_name (optional): Time dimension name to use for selection from input
-            date
+            data
         initial_time_skip_hr (optional): Length of model inititialization (in hours)
             to omit from the batching operation
         n_times (optional): Number of times (by index) to include in the
