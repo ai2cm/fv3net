@@ -65,7 +65,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         type=str,
         default="prognostic_config.yml",
         help="Path to a config update YAML file specifying the changes from the base"
-             "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
+        "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
     )
     parser.add_argument(
         "-d",
