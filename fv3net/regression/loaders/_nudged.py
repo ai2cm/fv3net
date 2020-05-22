@@ -202,6 +202,8 @@ def _get_path_for_nudging_timescale(fs, path, timescale_hours, tol=1e-5):
     directory a bit trickier.  Currently checking by looking for difference
     between parsed timescale from folder name and requested timescale that
     is approximately zero (with requested tolerance).
+
+    Built on assumed outdir-{timescale}h format
     """
 
     glob_url = os.path.join(path, TIMESCALE_OUTDIR_TEMPLATE)
@@ -211,7 +213,7 @@ def _get_path_for_nudging_timescale(fs, path, timescale_hours, tol=1e-5):
         dirname = Path(dirpath).name
         avail_timescale = float(dirname.split("-")[-1].strip("h"))
         if abs(timescale_hours - avail_timescale) < tol:
-            return dirname
+            return dirpath
     else:
         raise KeyError(
             "Could not find nudged output directory appropriate for timescale: "

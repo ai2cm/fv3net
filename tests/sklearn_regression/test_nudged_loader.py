@@ -2,14 +2,15 @@ import pytest
 import os
 import xarray as xr
 import numpy as np
+import fsspec
 from distutils import dir_util
 
 import synth
 
 from fv3net.regression.loaders._nudged import (
-    _rename_ds_variables,
     _get_batch_slices,
     load_nudging_batches,
+    _get_path_for_nudging_timescale
 )
 
 
@@ -56,6 +57,12 @@ def datadir(tmpdir, request):
     return tmpdir
 
 
+@pytest.fixture(scope="module")
+def local_fs():
+
+    return fsspec.filesystem("file")
+
+
 @pytest.mark.regression
 def test_load_nudging_batches(datadir):
 
@@ -64,7 +71,7 @@ def test_load_nudging_batches(datadir):
     zlim = 2
     tlim = 144
     ntimes = 90
-    init_time_skip = 48
+    init_time_skip_hr = 12  # 48 15-min timesteps
     num_batches = 14
 
     rename = {
@@ -101,7 +108,7 @@ def test_load_nudging_batches(datadir):
         timescale_hours=3,
         num_batches=num_batches,
         rename_variables=rename,
-        initial_time_skip=init_time_skip,
+        initial_time_skip_hr=init_time_skip_hr,
         n_times=ntimes,
     )
 
@@ -135,11 +142,38 @@ def test__get_batch_slices_failure(num_samples, samples_per_batch, num_batches):
         _get_batch_slices(num_samples, samples_per_batch, num_batches=num_batches)
 
 
-def test__rename_ds_variables(xr_dataset):
 
-    rename_vars = {"data": "new_data", "nonexistent": "doesntmatter"}
+@pytest.fixture
+def nudging_output_dirs(tmpdir):
 
-    renamed = _rename_ds_variables(xr_dataset, rename_vars)
+    # nudging dirs which might be confusing for parser
+    dirs = ["1.00", "1.5", "15"]
 
-    assert "new_data" in renamed
-    assert "doesntmatter" not in renamed
+    for item in dirs:
+        os.mkdir(os.path.join(tmpdir, f"outdir-{item}h"))
+
+    timescale_out_dirs = {val: f"outdir-{val}h" for val in dirs}
+
+    return (tmpdir, timescale_out_dirs)
+
+@pytest.mark.parametrize("timescale, expected_key",
+    [(1, "1.00"), (1.0, "1.00"), (1.5, "1.5"), (1.500001, "1.5")]
+)
+def test__get_path_for_nudging_timescale(nudging_output_dirs, local_fs, timescale, expected_key):
+
+    tmpdir, output_dir_map = nudging_output_dirs
+    expected_path = os.path.join(tmpdir, output_dir_map[expected_key])
+    result_path = _get_path_for_nudging_timescale(
+        local_fs, tmpdir, timescale, tol=1e-5
+    )
+    assert result_path == expected_path
+
+
+@pytest.mark.parametrize("timescale", [1.1, 1.00001])
+def test__get_path_for_nudging_timescale_failure(nudging_output_dirs, local_fs, timescale):
+    
+    tmpdir, output_dir_map = nudging_output_dirs
+    with pytest.raises(KeyError):
+        _get_path_for_nudging_timescale(
+            local_fs, tmpdir, timescale, tol=1e-5
+        )
