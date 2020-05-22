@@ -1,5 +1,6 @@
 import os
 import zarr
+import fsspec
 import xarray as xr
 import numpy as np
 from typing import Sequence, Iterable, Mapping, Union
@@ -64,9 +65,13 @@ def load_nudging_batches(
         n_times (optional): Number of times (by index) to include in the
             batch resampling operation
     """
+    fs = cloud.get_fs(data_path)
+    nudged_output_path = _get_path_for_nudging_timescale(
+        fs, data_path, timescale_hours
+    )
 
     datasets_to_batch = _load_requested_datasets(
-        data_path, variable_names, rename_variables
+        nudged_output_path, variable_names, rename_variables
     )
 
     batched_sequences = []
@@ -192,10 +197,6 @@ def _load_requested_datasets(
     return all_datasets
 
 
-def _load_nudging_xr(path):
-    pass
-
-
 def _get_path_for_nudging_timescale(fs, path, timescale_hours, tol=1e-5):
     """
     Timescales are allowed to be floats which makes finding correct output
@@ -205,7 +206,6 @@ def _get_path_for_nudging_timescale(fs, path, timescale_hours, tol=1e-5):
 
     Built on assumed outdir-{timescale}h format
     """
-
     glob_url = os.path.join(path, TIMESCALE_OUTDIR_TEMPLATE)
     nudged_output_dirs = fs.glob(glob_url)
     

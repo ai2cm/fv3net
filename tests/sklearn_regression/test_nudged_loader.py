@@ -83,7 +83,7 @@ def test_load_nudging_batches(datadir):
     data_vars = input_vars + output_vars
     local_vars_for_storag = input_vars + list(rename.keys())
 
-    synth_data = ["nudging_tendencies", "before_dynamics"]
+    synth_data = ["nudging_tendencies", "after_physics"]
     for key in synth_data:
         schema_path = datadir.join(f"{key}.json")
         # output directory with nudging timescale expected

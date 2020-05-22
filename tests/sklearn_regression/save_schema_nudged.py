@@ -8,7 +8,7 @@ script_path = str(Path(__file__).parent)
 
 url = "gs://vcm-ml-scratch/andrep/nudging/2020-05-09-nudge-5day/outdir-3h"
 
-pre_dynamics = os.path.join(url, "before_dynamics.zarr")
+after_physics = os.path.join(url, "after_physics.zarr")
 nudge = os.path.join(url, "nudging_tendencies.zarr")
 
 
@@ -22,5 +22,11 @@ def schema_to_file(data_url, output_filepath):
         synth.dump(schema, stream)
 
 
-schema_to_file(pre_dynamics, os.path.join(script_path, "before_dynamics.json"))
-schema_to_file(nudge, os.path.join(script_path, "nudging_tendencies.json"))
+schema_to_file(
+    after_physics,
+    os.path.join(script_path, "test_nudged_loader", "after_physics.json")
+)
+schema_to_file(
+    nudge,
+    os.path.join(script_path, "test_nudged_loader", "nudging_tendencies.json")
+)
