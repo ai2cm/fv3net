@@ -70,9 +70,9 @@ class Array:
 
 @dataclass
 class ChunkedArray:
-    shape: Sequence[int]
-    dtype: np.dtype
-    chunks: Tuple[Tuple[int]]
+    shape: Sequence[int] = field(compare=True)
+    dtype: np.dtype = field(compare=True)
+    chunks: Tuple[Tuple[int]] = field(compare=True)
 
     # TODO probably remove these generating functions
     # seems a poor separation of concerns.
@@ -84,7 +84,7 @@ class ChunkedArray:
 class VariableSchema:
     name: str = field(compare=True)
     dims: Sequence[str] = field(compare=True)
-    array: ChunkedArray = field(compare=False)
+    array: ChunkedArray = field(compare=True)
     attrs: Mapping = field(default_factory=dict, compare=False)
 
 
@@ -208,7 +208,15 @@ def dict_to_schema_v1_v2(d):
 
     variables = {}
     for variable in d["variables"]:
-        array = ChunkedArray(**variable.pop("array"))
+        array_spec = variable.pop("array")
+        array_spec.update(
+            {
+                "shape": tuple(array_spec["shape"]),
+                "dtype": np.dtype(array_spec["dtype"]),
+                "chunks": tuple(array_spec["chunks"]),
+            }
+        )
+        array = ChunkedArray(**array_spec)
         variables[variable["name"]] = VariableSchema(
             array=array,
             name=variable["name"],
@@ -227,7 +235,15 @@ def dict_to_schema_v3(d):
 
     variables = {}
     for variable_name, variable in d["variables"].items():
-        array = ChunkedArray(**variable.pop("array"))
+        array_spec = variable.pop("array")
+        array_spec.update(
+            {
+                "shape": tuple(array_spec["shape"]),
+                "dtype": np.dtype(array_spec["dtype"]),
+                "chunks": tuple(array_spec["chunks"]),
+            }
+        )
+        array = ChunkedArray(**array_spec)
         variables[variable_name] = VariableSchema(
             array=array,
             name=variable["name"],

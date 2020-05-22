@@ -81,13 +81,14 @@ A dataset can be validated by checking its schema against a reference schema::
     
     assert zarr_schema == ref_schema
 
-Note that the equality operator ``==`` checks only the following:
+Note that the equality operator ``==`` checks the following:
 
 1. the dataset has the same coordinates in terms of names and dimension names
-2. the dataset has the same variables in terms of names and dimension names.
+2. the dataset has the same variables in terms of names, dimension names, and data shape, type, and chunks.
 
-Coordinate and variable values and shapes are not checked. The equality operator can 
-also be used directly on coordinate and variable schema. 
+Note that coordinate shapes and values and dataset, coordinate, and variable attributes 
+are not compared. The equality operator can also be used directly on coordinate and 
+variable schema. 
 
 
 Marking pytest functions as regression tests
