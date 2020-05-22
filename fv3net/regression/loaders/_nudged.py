@@ -71,7 +71,7 @@ def load_nudging_batches(
     )
 
     datasets_to_batch = _load_requested_datasets(
-        nudged_output_path, variable_names, rename_variables
+        fs, nudged_output_path, variable_names, rename_variables
     )
 
     batched_sequences = []
@@ -174,6 +174,7 @@ def _shuffled_within_chunks(indices, random):
 
 
 def _load_requested_datasets(
+    fs: fsspec.AbstractFileSystem,
     path: str,
     variable_names: Iterable[Iterable[str]],
     rename_variables: Mapping[str, str]
@@ -182,7 +183,6 @@ def _load_requested_datasets(
     Prepares an xr.Dataset for each sequence of variable names within
     variable_names.
     """
-    fs = cloud.get_fs(path)
     input_data = _open_zarr(fs, os.path.join(path, INPUT_ZARR))
     output_data = _open_zarr(fs, os.path.join(path, NUDGING_TENDENCY_ZARR))
 
