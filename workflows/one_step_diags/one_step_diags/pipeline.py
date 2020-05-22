@@ -227,6 +227,13 @@ def _write_ds(ds: xr.Dataset, fullpath: str):
         # convert string coordinates unicode strings or else xr.to_netcdf will fail
         if ds[var].dtype == "O":
             ds = ds.assign({var: ds[var].astype("S15").astype("unicode_")})
+        # enforce dimension order for 2-D vars
+        spatial_dims = ["tile", "y", "x"]
+        if "x" in ds[var].dims:
+            non_spatial_dims = [dim for dim in ds[var].dims if dim not in spatial_dims]
+            transpose_dims = non_spatial_dims + spatial_dims
+            ds[var] = ds[var].transpose(*transpose_dims)
+
     ds.attrs[INIT_TIME_DIM] = " ".join(ds.attrs[INIT_TIME_DIM])
 
     with NamedTemporaryFile() as tmpfile:
