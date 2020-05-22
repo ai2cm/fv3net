@@ -83,10 +83,11 @@ A dataset can be validated by checking its schema against a reference schema::
 
 Note that the equality operator ``==`` checks only the following:
 
-1. the dataset has the same coordinates in terms of names, dimension names, and values
-2. the dataset has the same variables in terms of names, dimension names, and data shape
+1. the dataset has the same coordinates in terms of names and dimension names
+2. the dataset has the same variables in terms of names and dimension names.
 
-The equality operator can also be used directly on coordinate and variable schema. 
+Coordinate and variable values and shapes are not checked. The equality operator can 
+also be used directly on coordinate and variable schema. 
 
 
 Marking pytest functions as regression tests

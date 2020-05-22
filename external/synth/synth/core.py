@@ -84,7 +84,7 @@ class ChunkedArray:
 class VariableSchema:
     name: str = field(compare=True)
     dims: Sequence[str] = field(compare=True)
-    array: Array = field(compare=False)
+    array: ChunkedArray = field(compare=False)
     attrs: Mapping = field(default_factory=dict, compare=False)
 
 
