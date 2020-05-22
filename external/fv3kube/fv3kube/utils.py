@@ -19,11 +19,12 @@ logger = logging.getLogger(__name__)
 JobInfo = Tuple[str, str]
 
 
-# Map for configuration defaults required for different fv3gfs-python versions
+# Map for different base fv3config dictionaries
 PWD = Path(os.path.abspath(__file__)).parent
-FV3CONFIG_DEFAULTS_BY_VERSION = {
-    "v0.2": os.path.join(PWD, "default_yamls/v0.2/fv3config.yml"),
-    "v0.3": os.path.join(PWD, "default_yamls/v0.3/fv3config.yml"),
+BASE_FV3CONFIG_BY_VERSION = {
+    "v0.2": os.path.join(PWD, "base_yamls/v0.2/fv3config.yml"),
+    "v0.3": os.path.join(PWD, "base_yamls/v0.3/fv3config.yml"),
+    "v0.4": os.path.join(PWD, "base_yamls/v0.4/fv3config.yml"),
 }
 
 TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
@@ -32,9 +33,9 @@ RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer.res", "fv_srf_wnd.re
 
 def get_base_fv3config(version_key: str) -> Mapping:
     """
-    Get base configuration dictionary specific to an fv3gfs-python version.
+    Get base configuration dictionary labeled by version_key.
     """
-    config_path = FV3CONFIG_DEFAULTS_BY_VERSION[version_key]
+    config_path = BASE_FV3CONFIG_BY_VERSION[version_key]
     with fsspec.open(config_path) as f:
         base_yaml = yaml.safe_load(f)
 

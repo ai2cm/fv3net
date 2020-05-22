@@ -1,8 +1,9 @@
+# base config for initializing from GFS analysis on 2018-08-01T00:00:00 with fv3gfs-python v0.2.x
 data_table: default
 diag_table: default
 experiment_name: default_experiment
-forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
-initial_conditions: ''
+forcing: default
+initial_conditions: gfs_example
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -20,39 +21,6 @@ namelist:
     fhmaxhf: -1.0
     fhout: 0.25
     fhouthf: 0.0
-  cires_ugwp_nml:
-    knob_ugwp_azdir:
-    - 2
-    - 4
-    - 4
-    - 4
-    knob_ugwp_doaxyz: 1
-    knob_ugwp_doheat: 1
-    knob_ugwp_dokdis: 0
-    knob_ugwp_effac:
-    - 1
-    - 1
-    - 1
-    - 1
-    knob_ugwp_ndx4lh: 4
-    knob_ugwp_solver: 2
-    knob_ugwp_source:
-    - 1
-    - 1
-    - 1
-    - 0
-    knob_ugwp_stoch:
-    - 0
-    - 0
-    - 0
-    - 0
-    knob_ugwp_version: 0
-    knob_ugwp_wvspec:
-    - 1
-    - 32
-    - 32
-    - 32
-    launch_level: 55
   coupler_nml:
     atmos_nthreads: 1
     calendar: julian
@@ -61,7 +29,7 @@ namelist:
     - 8
     - 1
     - 0
-    - 15
+    - 0
     - 0
     days: 0
     dt_atmos: 900
@@ -107,7 +75,7 @@ namelist:
     do_sat_adj: true
     do_vort_damp: true
     dwind_2d: false
-    external_ic: false
+    external_ic: true
     fill: true
     fv_debug: false
     fv_sg_adj: 900
@@ -130,19 +98,18 @@ namelist:
     layout:
     - 1
     - 1
-    make_nh: false
-    mountain: true
+    make_nh: true
+    mountain: false
     n_split: 6
     n_sponge: 4
-    na_init: 0
+    na_init: 1
     ncep_ic: false
-    nggps_ic: false
+    nggps_ic: true
     no_dycore: false
     nord: 2
     npx: 49
     npy: 49
-    npz: 79
-    external_eta: true
+    npz: 63
     ntiles: 6
     nudge: false
     nudge_qv: true
@@ -157,7 +124,7 @@ namelist:
     tau: 5.0
     use_hydro_pressure: false
     vtdm4: 0.06
-    warm_start: true
+    warm_start: false
     z_tracer: true
   fv_grid_nml: {}
   gfdl_cloud_microphysics_nml:
@@ -235,6 +202,7 @@ namelist:
     isubc_sw: 2
     ivegsrc: 1
     ldiag3d: false
+    lprecip_accu: false
     lwhtr: true
     ncld: 5
     nst_anl: true
@@ -249,10 +217,6 @@ namelist:
     use_ufo: true
   interpolator_nml:
     interp_method: conserve_great_circle
-  nam_stochy:
-    lat_s: 96
-    lon_s: 192
-    ntrunc: 94
   namsfc:
     fabsl: 99999
     faisl: 99999
