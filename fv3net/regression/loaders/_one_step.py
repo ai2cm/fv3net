@@ -11,7 +11,7 @@ import xarray as xr
 import vcm
 from vcm import cloud, safe
 from ._sequences import FunctionOutputSequence
-from ._transforms import stack_and_format
+from ._transform import stack_and_format
 from ..constants import TIME_NAME
 
 __all__ = ["load_one_step_batches"]
@@ -45,22 +45,6 @@ class TimestepMapper:
 
     def __len__(self):
         return len(self.keys())
-
-
-def _url_to_datetime(url):
-    return vcm.cast_to_datetime(
-        vcm.parse_datetime_from_str(vcm.parse_timestep_str_from_path(url))
-    )
-
-
-def get_time_list(url_list_sequence: Sequence[List[str]]):
-    """Given a sequence of lists of URLs, return a list of times present in those
-    lists.
-    """
-    time_list = []
-    for url_list in url_list_sequence:
-        time_list.extend(map(_url_to_datetime, url_list))
-    return time_list
 
 
 def load_one_step_batches(
