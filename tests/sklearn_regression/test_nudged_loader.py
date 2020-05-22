@@ -2,7 +2,6 @@ import pytest
 import os
 import xarray as xr
 import numpy as np
-import fsspec
 from distutils import dir_util
 
 import synth
@@ -55,12 +54,6 @@ def datadir(tmpdir, request):
         dir_util.copy_tree(test_dir, str(tmpdir))
 
     return tmpdir
-
-
-@pytest.fixture(scope="module")
-def local_fs():
-
-    return fsspec.filesystem("file")
 
 
 @pytest.mark.regression
@@ -148,33 +141,29 @@ def nudging_output_dirs(tmpdir):
     # nudging dirs which might be confusing for parser
     dirs = ["1.00", "1.5", "15"]
 
+    nudging_dirs = {}
     for item in dirs:
-        os.mkdir(os.path.join(tmpdir, f"outdir-{item}h"))
+        curr_dir = os.path.join(tmpdir, f"outdir-{item}h")
+        os.mkdir(curr_dir)
+        nudging_dirs[item] = curr_dir
 
-    timescale_out_dirs = {val: f"outdir-{val}h" for val in dirs}
-
-    return (tmpdir, timescale_out_dirs)
+    return nudging_dirs
 
 
 @pytest.mark.parametrize(
     "timescale, expected_key",
     [(1, "1.00"), (1.0, "1.00"), (1.5, "1.5"), (1.500001, "1.5")],
 )
-def test__get_path_for_nudging_timescale(
-    nudging_output_dirs, local_fs, timescale, expected_key
-):
+def test__get_path_for_nudging_timescale(nudging_output_dirs, timescale, expected_key):
 
-    tmpdir, output_dir_map = nudging_output_dirs
-    expected_path = os.path.join(tmpdir, output_dir_map[expected_key])
-    result_path = _get_path_for_nudging_timescale(local_fs, tmpdir, timescale, tol=1e-5)
+    expected_path = nudging_output_dirs[expected_key]
+    result_path = _get_path_for_nudging_timescale(
+        nudging_output_dirs.values(), timescale, tol=1e-5
+    )
     assert result_path == expected_path
 
 
 @pytest.mark.parametrize("timescale", [1.1, 1.00001])
-def test__get_path_for_nudging_timescale_failure(
-    nudging_output_dirs, local_fs, timescale
-):
-
-    tmpdir, output_dir_map = nudging_output_dirs
+def test__get_path_for_nudging_timescale_failure(nudging_output_dirs, timescale):
     with pytest.raises(KeyError):
-        _get_path_for_nudging_timescale(local_fs, tmpdir, timescale, tol=1e-5)
+        _get_path_for_nudging_timescale(nudging_output_dirs, timescale, tol=1e-5)

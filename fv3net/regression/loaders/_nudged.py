@@ -66,7 +66,13 @@ def load_nudging_batches(
             batch resampling operation
     """
     fs = cloud.get_fs(data_path)
-    nudged_output_path = _get_path_for_nudging_timescale(fs, data_path, timescale_hours)
+
+    glob_url = os.path.join(data_path, TIMESCALE_OUTDIR_TEMPLATE)
+    nudged_output_dirs = fs.glob(glob_url)
+
+    nudged_output_path = _get_path_for_nudging_timescale(
+        nudged_output_dirs, timescale_hours
+    )
 
     datasets_to_batch = _load_requested_datasets(
         fs, nudged_output_path, variable_names, rename_variables
@@ -195,7 +201,7 @@ def _load_requested_datasets(
     return all_datasets
 
 
-def _get_path_for_nudging_timescale(fs, path, timescale_hours, tol=1e-5):
+def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-5):
     """
     Timescales are allowed to be floats which makes finding correct output
     directory a bit trickier.  Currently checking by looking for difference
@@ -204,8 +210,6 @@ def _get_path_for_nudging_timescale(fs, path, timescale_hours, tol=1e-5):
 
     Built on assumed outdir-{timescale}h format
     """
-    glob_url = os.path.join(path, TIMESCALE_OUTDIR_TEMPLATE)
-    nudged_output_dirs = fs.glob(glob_url)
 
     for dirpath in nudged_output_dirs:
         dirname = Path(dirpath).name
