@@ -41,16 +41,6 @@ def _create_arg_parser():
         required=False,
         help="Storage path for job configuration files",
     )
-    # TODO This should be contained within the one_step_yaml
-    parser.add_argument(
-        "--config-version",
-        type=str,
-        required=False,
-        default="v0.3",
-        help="Default fv3config.yml version to use as the base configuration. "
-        "This should be consistent with the fv3gfs-python version in the specified "
-        "docker image.",
-    )
 
     return parser
 
@@ -90,7 +80,7 @@ if __name__ == "__main__":
         args.input_url,
         args.output_url,
         config_url,
-        args.config_version,
+        one_step_config["base_config_version"],
         job_labels=job_label,
         local_vertical_grid_file=local_vgrid_file,
     )

@@ -4,13 +4,10 @@ Workflow to perform many short FV3GFS runs initialized from sequential timesteps
 
 Specific model configurations can be specified through the `one-step-yaml` argument.
 
-Included configurations are:
-- `all-physics-off.yml` (model will not do any physics or
-microphysics)
-- `deep-and-mp-off.yml` (model will not do microphysics or deep convection).
+An example configuration is included:
+- `deep-off.yml` (model will not do deep convection)
 
-Both of these configurations use a one-minute timestep with no dynamics substepping and
-have a total duration of 15 minutes.
+More examples can be found in the `vcm-workflow-control` repository.
 
 This workflow can be submitted with the [orchestrate_submit_jobs.py] script.
 This script is self-documenting and its help can be seen by running:
@@ -35,7 +32,6 @@ gsutil -m rm -r $output > /dev/null
     cd ../../
     python $workdir/orchestrate_submit_jobs.py \
         $src $yaml $image $output -o  \
-	--config-version v0.3
  )
 
 ```
