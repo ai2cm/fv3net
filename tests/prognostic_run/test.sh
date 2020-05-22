@@ -7,8 +7,8 @@ IC=20160801.001500
 image=us.gcr.io/vcm-ml/prognostic_run:v0.2.1
 
 python ../../workflows/prognostic_c48_run/orchestrate_submit_job.py \
-	--model_url  $TRAINED_MODEL \
 	--prog_config_yml prognostic_run.yml  \
+	--model_url  $TRAINED_MODEL \
 	$IC_URL \
 	$IC \
 	$image \
