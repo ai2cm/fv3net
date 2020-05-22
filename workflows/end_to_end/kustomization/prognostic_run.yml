@@ -1,7 +1,7 @@
 kubernetes:
   cpu_count: 6
   memory_gb: 5.
-base_config_version: v0.3
+base_config_version: v0.4
 scikit_learn:
   input_variable_standard_names:
     DSWRFtoa_train: total_sky_downward_shortwave_flux_at_top_of_atmosphere
@@ -23,6 +23,4 @@ namelist:
     do_deep: false
     fhzero: 0.25  # hours - frequency at which precip is set back to zero
   fv_core_nml:
-    external_eta: true
-    npz: 79
     n_split: 6   # num dynamics steps per physics step
