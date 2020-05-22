@@ -98,7 +98,6 @@ def _get_prognostic_model_config(prog_config_path, ic_url, ic_timestep):
     base_config_version = prog_config["base_config_version"]
     base_config = fv3kube.get_base_fv3config(base_config_version)
     model_config = vcm.update_nested_dict(base_config, prog_config)
-    model_config = fv3config.enable_restart(model_config)
     model_config["initial_conditions"] = fv3kube.update_tiled_asset_names(
         source_url=os.path.join(ic_url, ic_timestep),
         source_filename="{timestep}.{category}.tile{tile}.nc",
