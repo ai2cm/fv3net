@@ -9,7 +9,7 @@ import xarray as xr
 
 from fv3net.regression.loaders._one_step import _load_one_step_batch, _load_datasets, load_one_step_batches
 
-ONE_STEP_ZARR_SCHEMA = "one_step_zarr_schema.json"
+ONE_STEP_ZARR_SCHEMA = "tests/loaders/one_step_zarr_schema.json"
 Z_DIM_SIZE = 79
 TEMP_DIR = tempfile.TemporaryDirectory()
 
