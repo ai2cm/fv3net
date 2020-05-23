@@ -2,7 +2,7 @@ import xarray as xr
 import numpy as np
 
 from fv3net.regression.sklearn import train
-from fv3net.regression.loader._one_step import _shuffled, _chunk_indices
+from fv3net.regression.loaders._transform import _shuffled, _chunk_indices
 
 
 def test__chunk_indices():
