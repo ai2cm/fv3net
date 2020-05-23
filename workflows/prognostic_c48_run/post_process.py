@@ -112,9 +112,14 @@ def convert_data(input_dir: str, output_dir: str):
 
 
 @click.command()
-@click.argument("rundir")
-@click.argument("destination")
-def post_process(rundir, destination):
+@click.argument("rundir", help="URL for FV3 run directory in GCS")
+@click.argument("destination", help="output URL in GCS")
+def post_process(rundir: str, destination: str):
+    """Post-process raw FV3GFS-Python output in the GCS
+
+    This script rechunks the python zarr output and converts the netCDF
+    outputs to zarr.
+    """
     logger.info("Post-processing the run")
 
     for dir_ in directories_to_copy:
