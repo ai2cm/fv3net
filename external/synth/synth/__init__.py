@@ -11,6 +11,7 @@ from .core import (
     load,
     dump,
     read_schema_from_zarr,
+    read_schema_from_dataset,
 )
 
 

@@ -4,6 +4,7 @@ import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Union
+from functools import singledispatch
 
 import cftime
 import intake
@@ -81,7 +82,11 @@ def parse_datetime_from_str(time: str) -> cftime.DatetimeJulian:
     return cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)
 
 
-def cast_to_datetime(time: Union[cftime.DatetimeJulian, datetime]) -> datetime:
+# use typehints to dispatch to overloaded datetime casting function
+@singledispatch
+def cast_to_datetime(
+    time: Union[datetime, cftime.DatetimeJulian, np.datetime64]
+) -> datetime:
     """Cast datetime-like object to python datetime. Assumes calendars are
     compatible."""
     return datetime(
@@ -93,6 +98,16 @@ def cast_to_datetime(time: Union[cftime.DatetimeJulian, datetime]) -> datetime:
         time.second,
         time.microsecond,
     )
+
+
+@cast_to_datetime.register
+def _(time: datetime) -> datetime:
+    return time
+
+
+@cast_to_datetime.register
+def _(time: np.datetime64):
+    return time.astype(datetime)
 
 
 def convert_timestamps(coord: xr.DataArray) -> xr.DataArray:

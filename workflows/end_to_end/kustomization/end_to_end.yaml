@@ -90,3 +90,9 @@ experiment:
         ic_timestep: $IC_TIMESTEP 
         docker_image: $PROGNOSTIC_RUN_IMAGE
         --prog_config_yml: $CONFIG/prognostic_run.yml
+
+    prognostic_run_clean:
+      command: python workflows/prognostic_c48_run/post_process.py
+      args:
+        rundir:
+          from: prognostic_run
