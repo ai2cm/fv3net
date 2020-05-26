@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime, timedelta
 import xarray as xr
 import cftime
+import numpy as np
 
 import vcm
 from vcm.cubedsphere.constants import TIME_FMT
@@ -57,6 +58,10 @@ def test_convert_timestamps():
             datetime(2016, 1, 1, 1, 1, 1, 1),
         ),
         (cftime.DatetimeJulian(2016, 1, 1), datetime(2016, 1, 1)),
+        (
+            np.datetime64(datetime(2016, 1, 1, 1, 1, 1, 1)),
+            datetime(2016, 1, 1, 1, 1, 1, 1),
+        ),
     ],
 )
 def test__cast_to_datetime(input_time, expected):
