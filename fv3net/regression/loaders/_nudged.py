@@ -75,7 +75,7 @@ def load_nudging_batches(
         nudged_output_dirs, timescale_hours
     )
 
-    datasets_to_batch = _load_requested_datasets(
+    datasets_to_batch = _load_datasets(
         fs, nudged_output_path, variable_names, rename_variables
     )
 
@@ -155,7 +155,7 @@ def _get_batch_slices(
     return slices
 
 
-def _load_requested_datasets(
+def _load_datasets(
     fs: fsspec.AbstractFileSystem,
     path: str,
     variable_names: Iterable[Iterable[str]],
