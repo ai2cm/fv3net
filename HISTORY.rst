@@ -4,7 +4,9 @@ History
 
 latest
 ------
-
+* Modify submission of prognostic run so that its configuration is specified independently of one-step jobs
+* Add `base_fv3config_version` parameter to one-step and prognostic run yamls
+* Add new `v0.4` base fv3config which is a configuration set up for being initialized from coarsened SHiELD restart fiels
 
 0.2.1 (2020-05-15)
 ------
