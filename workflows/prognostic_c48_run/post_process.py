@@ -8,9 +8,8 @@ import click
 
 logger = logging.getLogger(__file__)
 
-CHUNKS_2D = {"time": 100}
-CHUNKS_ATMOS = {"time": 100}
-CHUNKS_SFC = {"time": 100}
+CHUNKS_2D = {"time": 96}
+CHUNKS_3D = {"time": 8}
 
 
 def open_tiles(pattern):
@@ -19,9 +18,9 @@ def open_tiles(pattern):
 
 paths_openers = [
     ("diags.zarr", "diags.zarr", xr.open_zarr, CHUNKS_2D),
-    ("atmos_dt_atmos.zarr", "atmos_dt_atmos", open_tiles, CHUNKS_ATMOS),
-    ("sfc_dt_atmos.zarr", "sfc_dt_atmos", open_tiles, CHUNKS_SFC),
-    ("atmos_8xdaily.zarr", "atmos_8xdaily", open_tiles, CHUNKS_ATMOS),
+    ("atmos_dt_atmos.zarr", "atmos_dt_atmos", open_tiles, CHUNKS_2D),
+    ("sfc_dt_atmos.zarr", "sfc_dt_atmos", open_tiles, CHUNKS_2D),
+    ("atmos_8xdaily.zarr", "atmos_8xdaily", open_tiles, CHUNKS_3D),
 ]
 
 files_to_copy = [
