@@ -1,12 +1,12 @@
 import numpy as np
 import xarray as xr
-from fv3net.regression.loaders._transforms import shuffled, _chunk_indices
+from fv3net.regression.loaders._transforms import shuffled, _get_chunk_indices
 
 
-def test__chunk_indices():
+def test__get_chunk_indices():
     chunks = (2, 3)
     expected = [[0, 1], [2, 3, 4]]
-    ans = _chunk_indices(chunks)
+    ans = _get_chunk_indices(chunks)
     assert ans == expected
 
 
