@@ -118,9 +118,7 @@ def submit_jobs(
         kwargs["url"] = zarr_url
         config["one_step"] = kwargs
 
-        model_config = fv3kube.get_full_config(
-            config, input_url, timestep,
-        )
+        model_config = fv3kube.get_full_config(config, input_url, timestep,)
         return _upload_config_files(model_config, curr_config_url)
 
     def run_job(wait=False, **kwargs):
