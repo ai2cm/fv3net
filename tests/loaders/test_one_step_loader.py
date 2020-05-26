@@ -10,9 +10,9 @@ from fv3net.regression.loaders._one_step import (
     _load_one_step_batch,
     _load_datasets,
     load_one_step_batches,
-    TimestepMapper, 
-    _shuffled, 
-    _chunk_indices
+    TimestepMapper,
+    _shuffled,
+    _chunk_indices,
 )
 
 ONE_STEP_ZARR_SCHEMA = "tests/loaders/one_step_zarr_schema.json"
@@ -77,6 +77,7 @@ def test_load_one_step_batches():
 # The tests below are for the stack/shuffle transform that will
 # be refactored to common usage for all data sources.
 # Currently they remain in _one_step.py
+
 
 def test__chunk_indices():
     chunks = (2, 3)

@@ -1,4 +1,3 @@
-
 import backoff
 import functools
 import logging
@@ -165,7 +164,6 @@ def _validated_num_batches(total_num_input_files, files_per_batch, num_batches=N
     else:
         num_train_batches = num_batches
     return num_train_batches
-
 
 
 def stack_and_format(
