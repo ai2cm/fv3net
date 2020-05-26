@@ -2,7 +2,7 @@ import backoff
 import functools
 import logging
 import os
-from typing import Iterable, List, Sequence, Mapping
+from typing import Iterable, Sequence, Mapping
 import copy
 
 import numpy as np
