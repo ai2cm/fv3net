@@ -1,36 +1,22 @@
-import backoff
-import functools
-import logging
-import os
-from typing import Iterable, List, Sequence, Mapping
-import copy
-
-import numpy as np
-import xarray as xr
-
-import vcm
-from vcm import cloud, safe
-from ._sequences import FunctionOutputSequence
-from ._transform import stack_and_format
-from ..constants import TIME_NAME
-
-__all__ = ["load_one_step_batches"]
-
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-fh = logging.FileHandler("dataset_handler.log")
-fh.setLevel(logging.INFO)
-logger.addHandler(fh)
+def load
 
 
-class TimestepMapper:
+
+
+class BatchLoader():
+    def __init__(self, data_path):
+        self.data_path = data_path
+
+
+
+class OnestepMapper:
     def __init__(self, timesteps_dir):
         self._timesteps_dir = timesteps_dir
         self._fs = cloud.get_fs(timesteps_dir)
         self.zarrs = self._fs.glob(os.path.join(timesteps_dir, "*.zarr"))
         if len(self.zarrs) == 0:
             raise ValueError(f"No zarrs found in {timesteps_dir}")
-
+            
     def __getitem__(self, key: str) -> xr.Dataset:
         zarr_path = os.path.join(self._timesteps_dir, f"{key}.zarr")
         mapper = self._fs.get_mapper(zarr_path)
@@ -47,7 +33,7 @@ class TimestepMapper:
         return len(self.keys())
 
 
-def load_one_step_batches(
+def _load_batches(
     data_path: str,
     *variable_names: Iterable[str],
     files_per_batch: int = 1,
@@ -56,6 +42,7 @@ def load_one_step_batches(
     mask_to_surface_type: str = None,
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
+    loader_function,
 ) -> Sequence:
     """Get a sequence of batches from one-step zarr stores.
 
@@ -78,7 +65,7 @@ def load_one_step_batches(
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
     logger.info(f"Reading data from {data_path}.")
-
+    
     timestep_mapper = TimestepMapper(data_path)
     timesteps = timestep_mapper.keys()
 
@@ -94,7 +81,7 @@ def load_one_step_batches(
     output_list = []
     for data_vars in variable_names:
         load_batch = functools.partial(
-            _load_one_step_batch,
+            loader_function,
             timestep_mapper,
             data_vars,
             rename_variables,
@@ -108,60 +95,9 @@ def load_one_step_batches(
         )
         output_list.append(
             FunctionOutputSequence(
-                lambda x: input_formatted_batch(load_batch(x)), timesteps_list_sequence
-            )
-        )
+                lambda x: input_formatted_batch(load_batch(x)),
+                timesteps_list_sequence))
     if len(output_list) > 1:
         return tuple(output_list)
     else:
         return output_list[0]
-
-
-def _load_one_step_batch(
-    timestep_mapper,
-    data_vars: Iterable[str],
-    rename_variables: Mapping[str, str],
-    init_time_dim_name: str,
-    timestep_list: Iterable[str],
-):
-    # TODO refactor this I/O. since this logic below it is currently
-    # impossible to test.
-    data = _load_datasets(timestep_mapper, timestep_list)
-    ds = xr.concat(data, init_time_dim_name)
-    # need to use standardized time dimension name
-    rename_variables[init_time_dim_name] = rename_variables.get(
-        init_time_dim_name, TIME_NAME
-    )
-    ds = ds.rename(rename_variables)
-    ds = safe.get_variables(ds, data_vars)
-    return ds.load()
-
-
-@backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
-def _load_datasets(
-    timestep_mapper: Mapping[str, xr.Dataset], times: Iterable[str]
-) -> Iterable[xr.Dataset]:
-    return_list = []
-    for time in times:
-        ds = timestep_mapper[time]
-        return_list.append(ds)
-    return return_list
-
-
-def _validated_num_batches(total_num_input_files, files_per_batch, num_batches=None):
-    """ check that the number of batches (if provided) and the number of
-    files per batch are reasonable given the number of zarrs in the input data dir.
-
-    Returns:
-        Number of batches to use for training
-    """
-    if num_batches is None:
-        num_train_batches = total_num_input_files // files_per_batch
-    elif num_batches * files_per_batch > total_num_input_files:
-        raise ValueError(
-            f"Number of input_files {total_num_input_files} "
-            f"cannot create {num_batches} batches of size {files_per_batch}."
-        )
-    else:
-        num_train_batches = num_batches
-    return num_train_batches

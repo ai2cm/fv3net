@@ -1,4 +1,3 @@
-
 import numpy as np
 import xarray as xr
 import vcm
@@ -7,10 +6,7 @@ from ..constants import SAMPLE_DIM_NAME, Z_DIM_NAME
 
 
 def stack_and_format(
-    init_time_dim_name: str,
-    mask_to_surface_type: str,
-    random,
-    ds: xr.Dataset,
+    init_time_dim_name: str, mask_to_surface_type: str, random, ds: xr.Dataset,
 ) -> xr.Dataset:
     if mask_to_surface_type is not None:
         ds = vcm.mask_to_surface_type(ds, mask_to_surface_type)
