@@ -11,6 +11,7 @@ PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
 
 RUNFILE = os.path.join(PWD, "runfile.py")
+DEFAULT_BASE_CONFIG_VERSION = "v0.3"  # for backwards compatibility
 
 
 def _create_arg_parser():
@@ -80,7 +81,7 @@ if __name__ == "__main__":
         args.input_url,
         args.output_url,
         config_url,
-        one_step_config["base_config_version"],
+        one_step_config.get("base_config_version", DEFAULT_BASE_CONFIG_VERSION),
         job_labels=job_label,
         local_vertical_grid_file=local_vgrid_file,
     )
