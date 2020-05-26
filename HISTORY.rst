@@ -4,6 +4,7 @@ History
 
 latest
 ------
+* Add a batched loader for nudging data using FunctionOutputSequence interface
 
 
 0.2.1 (2020-05-15)
