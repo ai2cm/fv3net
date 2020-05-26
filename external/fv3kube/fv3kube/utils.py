@@ -1,102 +1,14 @@
 import logging
-import os
 import secrets
 import string
 import time
 import kubernetes
 from kubernetes.client import BatchV1Api
-import fsspec
-import yaml
-from typing import Sequence, Mapping, Tuple, List
-from pathlib import Path
-
-import fv3config
-
-from vcm.cloud import get_protocol, get_fs
+from typing import Sequence, Mapping, Tuple
 
 logger = logging.getLogger(__name__)
 
 JobInfo = Tuple[str, str]
-
-
-# Map for different base fv3config dictionaries
-PWD = Path(os.path.abspath(__file__)).parent
-BASE_FV3CONFIG_BY_VERSION = {
-    "v0.2": os.path.join(PWD, "base_yamls/v0.2/fv3config.yml"),
-    "v0.3": os.path.join(PWD, "base_yamls/v0.3/fv3config.yml"),
-    "v0.4": os.path.join(PWD, "base_yamls/v0.4/fv3config.yml"),
-}
-
-TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
-RESTART_CATEGORIES = ["fv_core.res", "sfc_data", "fv_tracer.res", "fv_srf_wnd.res"]
-
-
-def get_base_fv3config(version_key: str) -> Mapping:
-    """
-    Get base configuration dictionary labeled by version_key.
-    """
-    config_path = BASE_FV3CONFIG_BY_VERSION[version_key]
-    with fsspec.open(config_path) as f:
-        base_yaml = yaml.safe_load(f)
-
-    return base_yaml
-
-
-def transfer_local_to_remote(path: str, remote_url: str) -> str:
-    """
-    Transfer a local file to a remote path and return that remote path.
-    If path is already remote, this does nothing.
-    """
-    if get_protocol(path) == "file":
-        remote_path = os.path.join(remote_url, os.path.basename(path))
-        get_fs(remote_url).put(path, remote_path)
-        path = remote_path
-    return path
-
-
-def update_tiled_asset_names(
-    source_url: str,
-    source_filename: str,
-    target_url: str,
-    target_filename: str,
-    **kwargs,
-) -> Sequence[dict]:
-
-    """
-    Update tile-based fv3config assets with new names.  Uses format to update
-    any data in filename strings with category, tile, and provided keyword
-    arguments.
-
-    Filename strings should include any specified variable name inserts to
-    be updated with a format. E.g., "{timestep}.{category}.tile{tile}.nc"
-    """
-    assets = [
-        fv3config.get_asset_dict(
-            source_url,
-            source_filename.format(category=category, tile=tile, **kwargs),
-            target_location=target_url,
-            target_name=target_filename.format(category=category, tile=tile, **kwargs),
-        )
-        for category in RESTART_CATEGORIES
-        for tile in TILE_COORDS_FILENAMES
-    ]
-
-    return assets
-
-
-def current_date_from_timestamp(timestamp: str) -> List[int]:
-    """Return timestamp (e.g. 20160801.001500) in format required by fv3gfs namelist"""
-    if len(timestamp) != 15:
-        raise ValueError(
-            f"Expected timestamp of form 'YYYYMMDD.HHMMSS', got {timestamp}"
-        )
-    year = int(timestamp[:4])
-    month = int(timestamp[4:6])
-    day = int(timestamp[6:8])
-    hour = int(timestamp[9:11])
-    minute = int(timestamp[11:13])
-    second = int(timestamp[13:15])
-    return [year, month, day, hour, minute, second]
 
 
 def initialize_batch_client() -> kubernetes.client.BatchV1Api:

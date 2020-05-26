@@ -11,7 +11,6 @@ PWD = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIRECTORY_NAME = "one_step_config"
 
 RUNFILE = os.path.join(PWD, "runfile.py")
-DEFAULT_BASE_CONFIG_VERSION = "v0.3"  # for backwards compatibility
 
 
 def _create_arg_parser():
@@ -73,7 +72,6 @@ if __name__ == "__main__":
     one_step_config["kubernetes"]["runfile"] = RUNFILE
     one_step_config["kubernetes"]["docker_image"] = args.docker_image
 
-    local_vgrid_file = os.path.join(PWD, one_step_utils.VERTICAL_GRID_FILENAME)
     one_step_utils.submit_jobs(
         timesteps,
         workflow_name,
@@ -81,7 +79,5 @@ if __name__ == "__main__":
         args.input_url,
         args.output_url,
         config_url,
-        one_step_config.get("base_config_version", DEFAULT_BASE_CONFIG_VERSION),
         job_labels=job_label,
-        local_vertical_grid_file=local_vgrid_file,
     )

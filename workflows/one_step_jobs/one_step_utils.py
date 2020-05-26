@@ -5,18 +5,13 @@ import pprint
 from toolz import assoc
 import uuid
 import yaml
-import re
 from copy import deepcopy
-from typing import List, Dict
+from typing import List
 from kubernetes.client import V1Job
 
 import fv3config
 import fv3kube
 import vcm
-from vcm.cloud import get_fs
-
-STDOUT_FILENAME = "stdout.log"
-VERTICAL_GRID_FILENAME = "fv_core.res.nc"
 
 KUBERNETES_CONFIG_DEFAULT = {
     "docker_image": "us.gcr.io/vcm-ml/fv3gfs-python",
@@ -32,74 +27,8 @@ KUBERNETES_NAMESPACE = "default"
 logger = logging.getLogger(__name__)
 
 
-def _get_initial_condition_assets(input_url: str, timestep: str) -> List[dict]:
-    """
-    Get list of assets representing initial conditions for this timestep to pipeline.
-    """
-    initial_condition_assets = fv3kube.update_tiled_asset_names(
-        source_url=input_url,
-        source_filename="{timestep}.{category}.tile{tile}.nc",
-        target_url="INPUT",
-        target_filename="{category}.tile{tile}.nc",
-        timestep=timestep,
-    )
-
-    return initial_condition_assets
-
-
-def _get_vertical_grid_asset(config_url: str) -> dict:
-    """Get asset corresponding to fv_core.res.nc which describes vertical coordinate"""
-    return fv3config.get_asset_dict(
-        config_url,
-        VERTICAL_GRID_FILENAME,
-        target_location="INPUT",
-        target_name=VERTICAL_GRID_FILENAME,
-    )
-
-
-def _get_experiment_name(first_tag: str, second_tag: str) -> str:
-    """Return unique experiment name with only alphanumeric, hyphen or dot"""
-    uuid_short = str(uuid.uuid4())[:8]
-    exp_name = f"one-step.{first_tag}.{second_tag}.{uuid_short}"
-    return re.sub(r"[^a-zA-Z0-9.\-]", "", exp_name)
-
-
-def _update_config(
-    workflow_name: str,
-    base_config_version: str,
-    user_model_config: dict,
-    input_url: str,
-    config_url: str,
-    timestep: str,
-) -> Dict:
-    """
-    Update kubernetes and fv3 configurations with user inputs
-    to prepare for fv3gfs one-step runs.
-    """
-    base_model_config = fv3kube.get_base_fv3config(base_config_version)
-    model_config = vcm.update_nested_dict(base_model_config, user_model_config)
-
-    model_config = fv3config.enable_restart(model_config)
-    model_config["experiment_name"] = _get_experiment_name(workflow_name, timestep)
-    model_config["initial_conditions"] = _get_initial_condition_assets(
-        input_url, timestep
-    )
-    model_config["initial_conditions"].append(_get_vertical_grid_asset(config_url))
-    model_config["namelist"]["coupler_nml"].update(
-        {
-            "current_date": fv3kube.current_date_from_timestamp(timestep),
-            "force_date_from_namelist": True,
-        }
-    )
-
-    return model_config
-
-
 def _upload_config_files(
-    model_config: dict,
-    config_url: str,
-    local_vertical_grid_file,
-    upload_config_filename="fv3config.yml",
+    model_config: dict, config_url: str, upload_config_filename="fv3config.yml",
 ) -> str:
     """
     Upload any files to remote paths necessary for fv3config and the
@@ -108,11 +37,6 @@ def _upload_config_files(
     model_config["diag_table"] = fv3kube.transfer_local_to_remote(
         model_config["diag_table"], config_url
     )
-
-    if local_vertical_grid_file is not None:
-        fs = get_fs(config_url)
-        vfile_path = os.path.join(config_url, VERTICAL_GRID_FILENAME)
-        fs.put(local_vertical_grid_file, vfile_path)
 
     config_path = os.path.join(config_url, upload_config_filename)
     with fsspec.open(config_path, "w") as config_file:
@@ -188,24 +112,16 @@ def submit_jobs(
 
     def config_factory(**kwargs):
         timestep = timestep_list[kwargs["index"]]
-        curr_input_url = os.path.join(input_url, timestep)
         curr_config_url = os.path.join(config_url, timestep)
 
         config = deepcopy(one_step_config)
         kwargs["url"] = zarr_url
         config["fv3config"]["one_step"] = kwargs
 
-        model_config = _update_config(
-            workflow_name,
-            base_config_version,
-            config["fv3config"],
-            curr_input_url,
-            curr_config_url,
-            timestep,
+        model_config = fv3kube.get_full_config(
+            config["fv3config"], input_url, timestep,
         )
-        return _upload_config_files(
-            model_config, curr_config_url, local_vertical_grid_file
-        )
+        return _upload_config_files(model_config, curr_config_url)
 
     def run_job(wait=False, **kwargs):
         """Run a run_kubernetes job

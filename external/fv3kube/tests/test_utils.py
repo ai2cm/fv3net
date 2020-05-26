@@ -8,7 +8,6 @@ from fv3kube import (
     job_failed,
     job_complete,
     get_alphanumeric_unique_tag,
-    current_date_from_timestamp,
 )
 from fv3kube.utils import _handle_jobs
 import kubernetes
@@ -105,15 +104,3 @@ def test_alphanumeric_uniq_tag_is_lowercase_alphanumeric():
     pattern = "^[a-z0-9]+$"
     res = re.match(pattern, tag)
     assert res is not None
-
-
-def test_current_date_from_timestamp():
-    timestamp = "20160801.001500"
-    expected_current_date = [2016, 8, 1, 0, 15, 0]
-    assert expected_current_date == current_date_from_timestamp(timestamp)
-
-
-def test_current_date_from_timestamp_bad_input():
-    timestamp = "20160801.001500_extra_chars"
-    with pytest.raises(ValueError):
-        current_date_from_timestamp(timestamp)

@@ -7,7 +7,6 @@ from pathlib import Path
 
 import fv3config
 import fv3kube
-import vcm
 
 logger = logging.getLogger(__name__)
 PWD = Path(os.path.abspath(__file__)).parent
@@ -22,12 +21,6 @@ KUBERNETES_DEFAULT = {
     "image_pull_policy": "Always",
     "capture_output": False,
 }
-
-FV_CORE_ASSET = fv3config.get_asset_dict(
-    "gs://vcm-fv3config/data/initial_conditions/fv_core_79_levels/v1.0/",
-    "fv_core.res.nc",
-    target_location="INPUT",
-)
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -76,33 +69,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _get_prognostic_model_config(prog_config_path, ic_url, ic_timestep):
-    """
-    Return fv3config object pointing to specified initial conditions and
-    updated with items in prog_config_yml.
-    """
-    with open(prog_config_path, "r") as f:
-        prog_config = yaml.load(f, Loader=yaml.FullLoader)
-    base_config_version = prog_config["base_config_version"]
-    base_config = fv3kube.get_base_fv3config(base_config_version)
-    model_config = vcm.update_nested_dict(base_config, prog_config)
-    model_config["initial_conditions"] = fv3kube.update_tiled_asset_names(
-        source_url=os.path.join(ic_url, ic_timestep),
-        source_filename="{timestep}.{category}.tile{tile}.nc",
-        target_url="INPUT",
-        target_filename="{category}.tile{tile}.nc",
-        timestep=ic_timestep,
-    )
-    model_config["initial_conditions"].append(FV_CORE_ASSET)
-    model_config["namelist"]["coupler_nml"].update(
-        {
-            "current_date": fv3kube.current_date_from_timestamp(ic_timestep),
-            "force_date_from_namelist": True,
-        }
-    )
-    return model_config
-
-
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
@@ -117,8 +83,10 @@ if __name__ == "__main__":
     }
 
     # Get model config with prognostic run updates
-    model_config = _get_prognostic_model_config(
-        args.prog_config_yml, args.initial_condition_url, args.ic_timestep
+    with open(args.prog_config_yml, "r") as f:
+        prog_config_update = yaml.safe_load(f)
+    model_config = fv3kube.get_full_config(
+        prog_config_update, args.initial_condition_url, args.ic_timestep
     )
 
     kube_opts = KUBERNETES_DEFAULT.copy()
