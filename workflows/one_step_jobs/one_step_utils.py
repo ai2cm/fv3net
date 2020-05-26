@@ -85,7 +85,6 @@ def submit_jobs(
     input_url: str,
     output_url: str,
     config_url: str,
-    base_config_version: str,
     job_labels=None,
     local_vertical_grid_file=None,
 ) -> None:
