@@ -116,10 +116,10 @@ def submit_jobs(
 
         config = deepcopy(one_step_config)
         kwargs["url"] = zarr_url
-        config["fv3config"]["one_step"] = kwargs
+        config["one_step"] = kwargs
 
         model_config = fv3kube.get_full_config(
-            config["fv3config"], input_url, timestep,
+            config, input_url, timestep,
         )
         return _upload_config_files(model_config, curr_config_url)
 
