@@ -11,7 +11,7 @@ import vcm
 from vcm import cloud, safe
 from ._sequences import FunctionOutputSequence
 from ..constants import SAMPLE_DIM_NAME, TIME_NAME
-from . import _transforms as transform
+from . import _transform as transform
 
 __all__ = ["load_one_step_batches"]
 

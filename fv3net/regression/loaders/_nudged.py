@@ -9,7 +9,7 @@ from pathlib import Path
 
 import vcm
 from vcm import cloud, safe
-from . import _transforms as transform
+from . import _transform as transform
 from ._sequences import FunctionOutputSequence
 
 INPUT_ZARR = "after_physics.zarr"

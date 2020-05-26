@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from fv3net.regression.loaders._transforms import shuffled, _get_chunk_indices
+from fv3net.regression.loaders._transform import shuffled, _get_chunk_indices
 
 
 def test__get_chunk_indices():
