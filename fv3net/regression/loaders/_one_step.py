@@ -32,12 +32,7 @@ class TimestepMapper:
 
     def __getitem__(self, key: str) -> xr.Dataset:
         zarr_path = os.path.join(self._timesteps_dir, f"{key}.zarr")
-        # TODO: even if .zmetadata exists, open fails with consolidated=True
-        # Uncomment below lines when fixed.
-        # mapper = self._fs.get_mapper(zarr_path)
-        # consolidated = True if ".zmetadata" in mapper else False
-        consolidated = False
-        return xr.open_zarr(self._fs.get_mapper(zarr_path), consolidated=consolidated)
+        return xr.open_zarr(self._fs.get_mapper(zarr_path))
 
     def keys(self):
         return [vcm.parse_timestep_str_from_path(zarr) for zarr in self.zarrs]
