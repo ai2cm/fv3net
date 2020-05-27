@@ -72,8 +72,6 @@ def _coarsen_data(
 
     from vcm.coarsen import _open_restart_categories
 
-    output_data_prefix = os.path.join(local_coarsen_dir, filename_prefix)
-
     # open grid spec
     grid_spec_prefix = os.path.join(local_spec_dir, "grid_spec")
     grid_spec = _open_grid_spec(grid_spec_prefix)
@@ -89,13 +87,18 @@ def _coarsen_data(
     for category, data in vcm.coarsen_restarts_on_pressure(
         coarsen_factor, grid_spec, source
     ).items():
-        save_data(output_data_prefix, category, data)
+        yield timestep_name, category, data
 
 
-def save_data(prefix: str, category: str, coarsen: xr.Dataset):
+def output_filename(directory: str, time: str, category: str, tile: int) -> str:
+    assert tile in [1, 2, 3, 4, 5, 6]
+    return os.path.join(directory, time, f"{time}.{category}.tile{tile}.nc")
+
+
+def save_data(time: str, category: str, coarsen: xr.Dataset, directory: str = "."):
     for tile in range(6):
         data = coarsen.isel(tile=tile)
-        filename = f"{prefix}{category}.tile{tile}.nc"
+        filename = output_filename(directory, time, category, tile)
         logger.info(f"Saving to {filename}")
         with FileSystems.create(filename) as f:
             vcm.dump_nc(data, f)
@@ -108,9 +111,7 @@ def _upload_data(gcs_output_dir, local_coarsen_dir):
     gcs.upload_dir_to_gcs(bucket_name, blob_prefix, Path(local_coarsen_dir))
 
 
-def coarsen_timestep(
-    timestep_gcs_url: str, output_dir: str, coarsen_factor: int, gridspec_path: str
-):
+def coarsen_timestep(timestep_gcs_url: str, coarsen_factor: int, gridspec_path: str):
 
     curr_timestep = parse_timestep_str_from_path(timestep_gcs_url)
     logger.info(f"Coarsening timestep: {curr_timestep}")
@@ -125,16 +126,13 @@ def coarsen_timestep(
         _copy_restart(tmp_timestep_dir, timestep_gcs_url)
 
         local_coarsen_dir = os.path.join(tmpdir, "local_coarse_dir", curr_timestep)
-        _coarsen_data(
+        yield from _coarsen_data(
             local_coarsen_dir,
             curr_timestep,
             coarsen_factor,
             local_spec_dir,
             tmp_timestep_dir,
         )
-
-        timestep_output_dir = os.path.join(output_dir, curr_timestep)
-        _upload_data(timestep_output_dir, local_coarsen_dir)
 
 
 def run(args, pipeline_args=None):
@@ -165,8 +163,8 @@ def run(args, pipeline_args=None):
             | "CoarsenTStep"
             >> beam.ParDo(
                 coarsen_timestep,
-                output_dir=output_dir_prefix,
                 coarsen_factor=coarsen_factor,
                 gridspec_path=gridspec_path,
             )
+            | "Saving Data" >> beam.MapTuple(save_data, directory=output_dir_prefix)
         )
