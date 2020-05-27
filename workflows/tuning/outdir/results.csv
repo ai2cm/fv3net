@@ -1,0 +1,5 @@
+Trial-ID,Status,Iteration,timesteps_per_batch,training_timesteps,Objective
+1,INTERMEDIATE,1,1,4,1
+1,COMPLETED,1,1,4,1
+2,INTERMEDIATE,1,4,4,1
+2,COMPLETED,1,4,4,1

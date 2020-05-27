@@ -1,0 +1,14 @@
+algorithm:
+  name: GridSearch
+  kwargs:
+    num_grid_points: 2
+constants:
+  training_timesteps: 4
+parameters:
+  - name: training_timesteps
+    type: choice
+    range: [4]
+  - name: timesteps_per_batch
+    type: discrete
+    range: [1, 4]
+    scale: linear
