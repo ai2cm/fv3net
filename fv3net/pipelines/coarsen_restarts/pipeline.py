@@ -5,9 +5,12 @@ import logging
 import gcsfs
 from pathlib import Path
 
+import pandas as pd
+import xarray as xr
+
 # from apache_beam.options.pipeline_options import PipelineOptions
 
-from fv3net.pipelines.common import list_timesteps
+from fv3net.pipelines.common import list_timesteps, FunctionSource
 import vcm
 from vcm.cloud import gcs
 from vcm import parse_timestep_str_from_path
@@ -50,6 +53,12 @@ def _copy_restart(local_timestep_dir, timestep_gcs_path):
     gcs.download_all_bucket_files(timestep_gcs_path, local_timestep_dir)
 
 
+def _open_grid_spec(grid_spec_prefix):
+    tiles = pd.Index(range(6), name="tile")
+    filename = grid_spec_prefix + ".tile*.nc"
+    return xr.open_mfdataset(filename, concat_dim=[tiles], combine="nested")
+
+
 def _coarsen_data(
     local_coarsen_dir, timestep_name, coarsen_factor, local_spec_dir, local_timestep_dir
 ):
@@ -58,15 +67,11 @@ def _coarsen_data(
     logger.debug(f"Directory for coarsening files: {local_coarsen_dir}")
     filename_prefix = f"{timestep_name}."
 
-    import pandas as pd
-    import xarray as xr
     from vcm.coarsen import _open_restart_categories, _save_restart_categories
 
     # open grid spec
     grid_spec_prefix = os.path.join(local_spec_dir, "grid_spec")
-    tiles = pd.Index(range(6), name="tile")
-    filename = grid_spec_prefix + ".tile*.nc"
-    grid_spec = xr.open_mfdataset(filename, concat_dim=[tiles], combine="nested")
+    grid_spec = _open_grid_spec(grid_spec_prefix)
 
     # open source
     source_data_prefix = os.path.join(
@@ -75,10 +80,14 @@ def _coarsen_data(
     data_pattern = "{prefix}{category}.tile{tile}.nc"
     source = _open_restart_categories(source_data_prefix, data_pattern=data_pattern)
 
+    # import computation
     coarsened = vcm.coarsen_restarts_on_pressure(coarsen_factor, grid_spec, source)
 
+    # save output
     output_data_prefix = os.path.join(local_coarsen_dir, filename_prefix)
     _save_restart_categories(coarsened, output_data_prefix, data_pattern)
+
+    # logging
     logger.info(f"Coarsening completed. ({timestep_name})")
 
 
@@ -138,6 +147,7 @@ def run(args, pipeline_args=None):
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
+        grid_spec_prefix = os.path.join(local_spec_dir, "grid_spec")
         (
             p
             | "CreateTStepURLs" >> beam.Create(timestep_urls)
