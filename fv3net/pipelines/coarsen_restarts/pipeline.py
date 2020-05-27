@@ -1,10 +1,11 @@
-import apache_beam as beam
+# import apache_beam as beam
 import tempfile
 import os
 import logging
 import gcsfs
 from pathlib import Path
-from apache_beam.options.pipeline_options import PipelineOptions
+
+# from apache_beam.options.pipeline_options import PipelineOptions
 
 from fv3net.pipelines.common import list_timesteps
 import vcm
@@ -80,6 +81,7 @@ def coarsen_timestep(
     logger.info(f"Coarsening timestep: {curr_timestep}")
 
     with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = "test-outputs"
 
         local_spec_dir = os.path.join(tmpdir, "local_grid_spec")
         _copy_gridspec(local_spec_dir, gridspec_path)
@@ -101,6 +103,7 @@ def coarsen_timestep(
 
 
 def run(args, pipeline_args=None):
+    logging.basicConfig(level=logging.DEBUG)
 
     source_timestep_dir = args.gcs_src_dir
     gridspec_path = args.gcs_grid_spec_path
@@ -112,7 +115,7 @@ def run(args, pipeline_args=None):
         output_dir_prefix = os.path.join(output_dir_prefix, f"C{target_resolution}")
 
     coarsen_factor = source_resolution // target_resolution
-    available_timesteps = list_timesteps(source_timestep_dir)
+    available_timesteps = list_timesteps(source_timestep_dir)[:1]
     timestep_urls = [
         os.path.join(source_timestep_dir, tstep) for tstep in available_timesteps
     ]
@@ -122,8 +125,8 @@ def run(args, pipeline_args=None):
         (
             p
             | "CreateTStepURLs" >> beam.Create(timestep_urls)
-            | "CheckCompleteTSteps"
-            >> beam.Filter(check_coarsen_incomplete, output_dir_prefix)
+            # | "CheckCompleteTSteps"
+            # >> beam.Filter(check_coarsen_incomplete, output_dir_prefix)
             | "CoarsenTStep"
             >> beam.ParDo(
                 coarsen_timestep,
