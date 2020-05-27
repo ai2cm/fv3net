@@ -11,23 +11,26 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _convergence(eddy, delp):
+def _center_to_interface(f: np.ndarray) -> np.ndarray:
+    """Interpolate vertically cell centered data to the interface
+    with linearly extrapolated inputs"""
+    f_low = 2 * f[..., 0] - f[..., 1]
+    f_high = 2 * f[..., -1] - f[..., -2]
+    pad = np.concatenate([f_low[..., np.newaxis], f, f_high[..., np.newaxis]], axis=-1)
+    return (pad[..., :-1] + pad[..., 1:]) / 2
+
+
+def _convergence(eddy: np.ndarray, delp: np.ndarray) -> np.ndarray:
     """Compute vertical convergence of a cell-centered flux.
     
     This flux is assumed to vanish at the vertical boundaries
     """
-    eddy_interface = (eddy[..., 1:] + eddy[..., :-1]) / 2
-
+    padded = _center_to_interface(eddy)
     # pad interfaces assuming eddy = 0 at edges
-    padding = [(0, 0)] * eddy.ndim
-    padding[-1] = (1, 1)
-    padded = np.pad(
-        eddy_interface, pad_width=padding, mode="constant", constant_values=0
-    )
     return -np.diff(padded, axis=-1) / delp
 
 
-def convergence(eddy, delp, dim="p"):
+def convergence(eddy: xr.DataArray, delp: xr.DataArray, dim: str = "p") -> xr.DataArray:
     return xr.apply_ufunc(
         _convergence,
         eddy,
