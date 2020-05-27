@@ -8,11 +8,14 @@ from pathlib import Path
 import pandas as pd
 import xarray as xr
 
+from apache_beam.io.filesystems import FileSystems
+
 from apache_beam.options.pipeline_options import PipelineOptions
 
 from fv3net.pipelines.common import list_timesteps, FunctionSource
 import vcm
 from vcm.cloud import gcs
+from vcm.coarsen import _save_restart_categories
 from vcm import parse_timestep_str_from_path
 
 logger = logging.getLogger("CoarsenPipeline")
@@ -67,7 +70,9 @@ def _coarsen_data(
     logger.debug(f"Directory for coarsening files: {local_coarsen_dir}")
     filename_prefix = f"{timestep_name}."
 
-    from vcm.coarsen import _open_restart_categories, _save_restart_categories
+    from vcm.coarsen import _open_restart_categories
+
+    output_data_prefix = os.path.join(local_coarsen_dir, filename_prefix)
 
     # open grid spec
     grid_spec_prefix = os.path.join(local_spec_dir, "grid_spec")
@@ -81,14 +86,19 @@ def _coarsen_data(
     source = _open_restart_categories(source_data_prefix, data_pattern=data_pattern)
 
     # import computation
-    coarsened = vcm.coarsen_restarts_on_pressure(coarsen_factor, grid_spec, source)
+    for category, data in vcm.coarsen_restarts_on_pressure(
+        coarsen_factor, grid_spec, source
+    ).items():
+        save_data(output_data_prefix, category, data)
 
-    # save output
-    output_data_prefix = os.path.join(local_coarsen_dir, filename_prefix)
-    _save_restart_categories(coarsened, output_data_prefix, data_pattern)
 
-    # logging
-    logger.info(f"Coarsening completed. ({timestep_name})")
+def save_data(prefix: str, category: str, coarsen: xr.Dataset):
+    for tile in range(6):
+        data = coarsen.isel(tile=tile)
+        filename = f"{prefix}{category}.tile{tile}.nc"
+        logger.info(f"Saving to {filename}")
+        with FileSystems.create(filename) as f:
+            vcm.dump_nc(data, f)
 
 
 def _upload_data(gcs_output_dir, local_coarsen_dir):
