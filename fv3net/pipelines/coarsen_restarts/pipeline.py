@@ -1,4 +1,4 @@
-# import apache_beam as beam
+import apache_beam as beam
 import tempfile
 import os
 import logging
@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 import xarray as xr
 
-# from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 from fv3net.pipelines.common import list_timesteps, FunctionSource
 import vcm
@@ -147,7 +147,6 @@ def run(args, pipeline_args=None):
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
-        grid_spec_prefix = os.path.join(local_spec_dir, "grid_spec")
         (
             p
             | "CreateTStepURLs" >> beam.Create(timestep_urls)
