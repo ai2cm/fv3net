@@ -11,6 +11,7 @@ import xarray as xr
 import vcm
 from vcm import cloud, safe
 from ._sequences import FunctionOutputSequence
+from ._transform import stack_and_format
 from ..constants import TIME_NAME
 
 __all__ = ["load_one_step_batches"]

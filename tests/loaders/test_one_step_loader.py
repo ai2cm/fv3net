@@ -11,8 +11,6 @@ from fv3net.regression.loaders._one_step import (
     _load_datasets,
     load_one_step_batches,
     TimestepMapper,
-    _shuffled,
-    _chunk_indices,
 )
 
 ONE_STEP_ZARR_SCHEMA = "tests/loaders/one_step_zarr_schema.json"
@@ -72,36 +70,3 @@ def test_load_one_step_batches():
     assert len(batched_data_sequence) == 2
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
-
-
-# The tests below are for the stack/shuffle transform that will
-# be refactored to common usage for all data sources.
-# Currently they remain in _one_step.py
-
-
-def test__chunk_indices():
-    chunks = (2, 3)
-    expected = [[0, 1], [2, 3, 4]]
-    ans = _chunk_indices(chunks)
-    assert ans == expected
-
-
-def _dataset(sample_dim):
-    m, n = 10, 2
-    x = "x"
-    sample = sample_dim
-    return xr.Dataset(
-        {"a": ([sample, x], np.ones((m, n))), "b": ([sample], np.ones((m)))},
-        coords={x: np.arange(n), sample_dim: np.arange(m)},
-    )
-
-
-def test__shuffled():
-    dataset = _dataset("sample")
-    dataset.isel(sample=1)
-    _shuffled(dataset, "sample", np.random.RandomState(1))
-
-
-def test__shuffled_dask():
-    dataset = _dataset("sample").chunk()
-    _shuffled(dataset, "sample", np.random.RandomState(1))
