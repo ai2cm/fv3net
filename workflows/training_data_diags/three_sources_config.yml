@@ -1,0 +1,32 @@
+one_step_tendencies: 
+  path: gs://vcm-ml-experiments/2020-05-07-clouds-off-training-data/create-clouds-off-data/create_training_data/train
+  mapping_function: open_onestep_mapping
+  variables:
+    - dQ1
+    - dQ2
+    - pQ1
+    - pQ2
+  batch_kwargs:
+    num_batches: 2
+    files_per_batch: 1
+    init_time_dim_name: "initial_time"
+fine_res_apparent_sources: 
+  path: gs://vcm-ml-scratch/noah/2020-05-19
+  mapping_function: open_fine_resolution_budget_mapping
+  variables:
+    - dQ1
+    - dQ2
+  batch_kwargs:
+    num_batches: 2
+    files_per_batch: 1
+    init_time_dim_name: "initial_time"
+nudging_tendencies: 
+  path: gs://vcm-ml-data/mcgibbon-testing/outdir
+  mapping_function: load_one_step_batches
+  variables:
+    - dQ1
+    - dQ2
+  batch_kwargs:
+    num_batches: 2
+    files_per_batch: 1
+    init_time_dim_name: "initial_time"
