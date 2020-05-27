@@ -125,7 +125,29 @@ def test_run(tmpdir):
     run(restart_path, diag_path, output_path)
 
     ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
-    print(ds)
+
+    expected_variables = [
+        "air_temperature",
+        "air_temperature_convergence",
+        "air_temperature_eddy",
+        "air_temperature_microphysics",
+        "air_temperature_nudging",
+        "air_temperature_physics",
+        "air_temperature_resolved",
+        "air_temperature_storage",
+        "delp",
+        "omega",
+        "specific_humidity",
+        "specific_humidity_convergence",
+        "specific_humidity_eddy",
+        "specific_humidity_microphysics",
+        "specific_humidity_physics",
+        "specific_humidity_resolved",
+        "specific_humidity_storage",
+    ]
+
+    for variable in expected_variables:
+        assert variable in ds
 
 
 def test_shift():
