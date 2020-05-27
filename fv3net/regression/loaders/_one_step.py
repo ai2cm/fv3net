@@ -32,8 +32,11 @@ class TimestepMapper:
 
     def __getitem__(self, key: str) -> xr.Dataset:
         zarr_path = os.path.join(self._timesteps_dir, f"{key}.zarr")
-        mapper = self._fs.get_mapper(zarr_path)
-        consolidated = True if ".zmetadata" in mapper else False
+        # TODO: even if .zmetadata exists, open fails with consolidated=True
+        # Uncomment below lines when fixed.
+        # mapper = self._fs.get_mapper(zarr_path)
+        # consolidated = True if ".zmetadata" in mapper else False
+        consolidated = False
         return xr.open_zarr(self._fs.get_mapper(zarr_path), consolidated=consolidated)
 
     def keys(self):
@@ -80,7 +83,6 @@ def load_one_step_batches(
 
     timestep_mapper = TimestepMapper(data_path)
     timesteps = timestep_mapper.keys()
-
     logger.info(f"Number of .zarrs in GCS train data dir: {len(timestep_mapper)}.")
     random = np.random.RandomState(random_seed)
     random.shuffle(timesteps)
