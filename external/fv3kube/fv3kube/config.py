@@ -81,7 +81,9 @@ def update_tiled_asset_names(
     return assets
 
 
-def get_full_config(config_update: FV3Config, ic_url: str, ic_timestep: str) -> FV3Config:
+def get_full_config(
+    config_update: FV3Config, ic_url: str, ic_timestep: str
+) -> FV3Config:
     """Given config_update return full fv3config object pointing to initial conditions
     at {ic_url}/{ic_timestep}. Initial condition filenames assumed to include prepended
     timestamp.
