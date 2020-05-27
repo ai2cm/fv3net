@@ -632,11 +632,7 @@ def coarsen_restarts_on_sigma(
 
 
 def coarsen_restarts_on_pressure(
-    coarsening_factor,
-    grid_spec_prefix,
-    source_data_prefix,
-    output_data_prefix,
-    data_pattern=DATA_PATTERN,
+    coarsening_factor: int, grid_spec: xr.Dataset, source: xr.Dataset,
 ):
     """ Coarsen a complete set of restart files, averaging on pressure levels and
     using the 'complex' surface coarsening method
@@ -652,11 +648,7 @@ def coarsen_restarts_on_pressure(
             convention. Defaults to "{prefix}{category}.tile{tile}.nc". Must include
             {prefix}, {category} and {tile}.
     """
-    tiles = pd.Index(range(6), name="tile")
-    filename = grid_spec_prefix + ".tile*.nc"
-    grid_spec = xr.open_mfdataset(filename, concat_dim=[tiles], combine="nested")
 
-    source = _open_restart_categories(source_data_prefix, data_pattern=data_pattern)
     coarsened = {}
 
     coarsened["fv_core.res"] = coarse_grain_fv_core_on_pressure(
@@ -705,7 +697,8 @@ def coarsen_restarts_on_pressure(
 
     for category in CATEGORY_LIST:
         sync_dimension_order(coarsened[category], source[category])
-    _save_restart_categories(coarsened, output_data_prefix, data_pattern)
+
+    return coarsened
 
 
 def _open_restart_categories(prefix, data_pattern=DATA_PATTERN):

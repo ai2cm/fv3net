@@ -57,12 +57,28 @@ def _coarsen_data(
     os.makedirs(local_coarsen_dir, exist_ok=True)
     logger.debug(f"Directory for coarsening files: {local_coarsen_dir}")
     filename_prefix = f"{timestep_name}."
-    vcm.coarsen_restarts_on_pressure(
-        coarsen_factor,
-        os.path.join(local_spec_dir, "grid_spec"),
-        os.path.join(local_timestep_dir, timestep_name, filename_prefix),
-        os.path.join(local_coarsen_dir, filename_prefix),
+
+    import pandas as pd
+    import xarray as xr
+    from vcm.coarsen import _open_restart_categories, _save_restart_categories
+
+    # open grid spec
+    grid_spec_prefix = os.path.join(local_spec_dir, "grid_spec")
+    tiles = pd.Index(range(6), name="tile")
+    filename = grid_spec_prefix + ".tile*.nc"
+    grid_spec = xr.open_mfdataset(filename, concat_dim=[tiles], combine="nested")
+
+    # open source
+    source_data_prefix = os.path.join(
+        local_timestep_dir, timestep_name, filename_prefix
     )
+    data_pattern = "{prefix}{category}.tile{tile}.nc"
+    source = _open_restart_categories(source_data_prefix, data_pattern=data_pattern)
+
+    coarsened = vcm.coarsen_restarts_on_pressure(coarsen_factor, grid_spec, source)
+
+    output_data_prefix = os.path.join(local_coarsen_dir, filename_prefix)
+    _save_restart_categories(coarsened, output_data_prefix, data_pattern)
     logger.info(f"Coarsening completed. ({timestep_name})")
 
 
