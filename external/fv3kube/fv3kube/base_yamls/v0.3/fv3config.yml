@@ -1,7 +1,8 @@
+# base config for initializing from GFS analysis on 2018-08-01T00:00:00 with fv3gfs-python v0.3+
 data_table: default
 diag_table: default
 experiment_name: default_experiment
-forcing: default
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 initial_conditions: gfs_example
 namelist:
   amip_interp_nml:
@@ -20,6 +21,39 @@ namelist:
     fhmaxhf: -1.0
     fhout: 0.25
     fhouthf: 0.0
+  cires_ugwp_nml:
+    knob_ugwp_azdir:
+    - 2
+    - 4
+    - 4
+    - 4
+    knob_ugwp_doaxyz: 1
+    knob_ugwp_doheat: 1
+    knob_ugwp_dokdis: 0
+    knob_ugwp_effac:
+    - 1
+    - 1
+    - 1
+    - 1
+    knob_ugwp_ndx4lh: 4
+    knob_ugwp_solver: 2
+    knob_ugwp_source:
+    - 1
+    - 1
+    - 1
+    - 0
+    knob_ugwp_stoch:
+    - 0
+    - 0
+    - 0
+    - 0
+    knob_ugwp_version: 0
+    knob_ugwp_wvspec:
+    - 1
+    - 32
+    - 32
+    - 32
+    launch_level: 55
   coupler_nml:
     atmos_nthreads: 1
     calendar: julian
@@ -201,7 +235,6 @@ namelist:
     isubc_sw: 2
     ivegsrc: 1
     ldiag3d: false
-    lprecip_accu: false
     lwhtr: true
     ncld: 5
     nst_anl: true
@@ -216,6 +249,10 @@ namelist:
     use_ufo: true
   interpolator_nml:
     interp_method: conserve_great_circle
+  nam_stochy:
+    lat_s: 96
+    lon_s: 192
+    ntrunc: 94
   namsfc:
     fabsl: 99999
     faisl: 99999

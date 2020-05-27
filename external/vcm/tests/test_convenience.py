@@ -8,6 +8,7 @@ import vcm
 from vcm.cubedsphere.constants import TIME_FMT
 from vcm.convenience import (
     cast_to_datetime,
+    parse_current_date_from_str,
     parse_timestep_str_from_path,
     round_time,
     parse_datetime_from_str,
@@ -40,6 +41,12 @@ def test_datetime_from_string():
     assert parsed_datetime.hour == current_time.hour
     assert parsed_datetime.minute == current_time.minute
     assert parsed_datetime.second == current_time.second
+
+
+def test_current_date_from_string():
+    timestamp = "20160801.001500"
+    expected_current_date = [2016, 8, 1, 0, 15, 0]
+    assert expected_current_date == parse_current_date_from_str(timestamp)
 
 
 def test_convert_timestamps():
