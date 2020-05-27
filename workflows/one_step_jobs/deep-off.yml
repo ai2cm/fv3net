@@ -1,7 +1,7 @@
 kubernetes:
-  docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.3.1
+  docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.2.1
 base_version: v0.4
-diag_table: workflows/one_step_jobs/diag_table_one_step  # TODO: move this diag_table into vcm-workflow-control
+diag_table: workflows/one_step_jobs/diag_table_one_step
 namelist:
   atmos_model_nml:
     fhout: 0.01666
@@ -13,7 +13,6 @@ namelist:
     dt_ocean: 60  # seconds
     restart_secs: 60
   fv_core_nml:
-    do_sat_adj: false
     k_split: 1
     n_split: 1
   gfs_physics_nml:

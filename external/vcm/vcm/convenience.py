@@ -3,7 +3,7 @@ import pathlib
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Union
+from typing import List, Union
 from functools import singledispatch
 
 import cftime
@@ -80,6 +80,13 @@ def parse_datetime_from_str(time: str) -> cftime.DatetimeJulian:
     """
     t = datetime.strptime(time, TIME_FMT)
     return cftime.DatetimeJulian(t.year, t.month, t.day, t.hour, t.minute, t.second)
+
+
+def parse_current_date_from_str(time: str) -> List[int]:
+    """Retrieve the 'current_date' in the format required by fv3gfs namelist
+    from timestamp string."""
+    t = parse_datetime_from_str(time)
+    return [t.year, t.month, t.day, t.hour, t.minute, t.second]
 
 
 # use typehints to dispatch to overloaded datetime casting function
