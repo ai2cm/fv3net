@@ -256,4 +256,4 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         factor=factor,
     ).pipe(rename_recoarsened_budget, "specific_humidity")
 
-    return xr.merge([t_budget_coarse, q_budget_coarse])
+    return xr.merge([t_budget_coarse, q_budget_coarse, omega_coarse, delp_coarse])
