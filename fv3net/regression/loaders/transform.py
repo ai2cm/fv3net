@@ -14,11 +14,9 @@ K = Tuple[Time, Tile]
 
 
 def transform_train_data(
-    init_time_dim_name: str, mask_to_surface_type: str, random_seed: int, ds: xr.Dataset,
+    init_time_dim_name: str, random_seed: int, ds: xr.Dataset,
 ) -> xr.Dataset:
     random = np.random.RandomState(random_seed)
-    if mask_to_surface_type is not None:
-        ds = vcm.mask_to_surface_type(ds, mask_to_surface_type)
     stack_dims = [dim for dim in ds.dims if dim != Z_DIM_NAME]
     ds_stacked = safe.stack_once(
         ds,
@@ -26,9 +24,7 @@ def transform_train_data(
         stack_dims,
         allowed_broadcast_dims=[Z_DIM_NAME, init_time_dim_name],
     )
-
     ds_no_nan = ds_stacked.dropna(SAMPLE_DIM_NAME)
-
     if len(ds_no_nan[SAMPLE_DIM_NAME]) == 0:
         raise ValueError(
             "No Valid samples detected. Check for errors in the training data."

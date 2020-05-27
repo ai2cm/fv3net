@@ -6,7 +6,7 @@ from typing import Iterable, Sequence, Mapping, Callable
 import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
-from ._transform import transform_train_data
+from .transform import transform_train_data
 from ..constants import TIME_NAME, SAMPLE_DIM_NAME, Z_DIM_NAME
 
 logger = logging.getLogger()
@@ -31,25 +31,29 @@ def load_batches(
         files_per_batch,
         num_batches,
         random_seed)
+    transform = functools.partial(
+        transform_train_data,
+        init_time_dim_name, 
+        random_seed)
     output_list = []
     for data_vars in variable_names:
-        partial_load_batch = functools.partial(
+        load_batch = functools.partial(
             _load_batch,
             data_mapping,
             data_vars,
             rename_variables,
             init_time_dim_name,
         )
-        output_list.append(
-            FunctionOutputSequence(
-                lambda x: transform_train_data(partial_load_batch(x)),
-                batched_timesteps
-            )
-        )
+        batch_func = _compose(transform, load_batch)
+        output_list.append(FunctionOutputSequence(batch_func, batched_timesteps))
     if len(output_list) > 1:
         return tuple(output_list)
     else:
         return output_list[0]
+
+
+def _compose(outer_func, inner_func):
+    return lambda x: outer_func(inner_func(x))
 
 
 def _select_batch_timesteps(
