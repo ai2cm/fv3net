@@ -11,6 +11,7 @@ import vcm
 from vcm import cloud, safe
 from ._sequences import FunctionOutputSequence
 from ..constants import SAMPLE_DIM_NAME, TIME_NAME
+from . import _transform as transform
 
 __all__ = ["load_one_step_batches"]
 
@@ -139,7 +140,7 @@ def _load_one_step_batch(
             "No Valid samples detected. Check for errors in the training data."
         )
     ds = ds_no_nan.load()
-    return _shuffled(ds, SAMPLE_DIM_NAME, random)
+    return transform.shuffled(ds, SAMPLE_DIM_NAME, random)
 
 
 @backoff.on_exception(backoff.expo, (ValueError, RuntimeError), max_tries=3)
@@ -169,26 +170,3 @@ def _validated_num_batches(total_num_input_files, files_per_batch, num_batches=N
     else:
         num_train_batches = num_batches
     return num_train_batches
-
-
-def _shuffled(dataset, dim, random):
-    chunks_default = (len(dataset[dim]),)
-    chunks = dataset.chunks.get(dim, chunks_default)
-    indices = _chunk_indices(chunks)
-    shuffled_inds = _shuffled_within_chunks(indices, random)
-    return dataset.isel({dim: shuffled_inds})
-
-
-def _chunk_indices(chunks):
-    indices = []
-
-    start = 0
-    for chunk in chunks:
-        indices.append(list(range(start, start + chunk)))
-        start += chunk
-    return indices
-
-
-def _shuffled_within_chunks(indices, random):
-    # We should only need to set the random seed once (not every time)
-    return np.concatenate([random.permutation(index) for index in indices])
