@@ -22,6 +22,10 @@ def load_batches(
         init_time_dim_name: str = "initial_time",
         rename_variables: Mapping[str, str] = None,
 ):
+    if rename_variables is None:
+        rename_variables = {}
+    if len(variable_names) == 0:
+        raise TypeError("At least one value must be given for variable_names")
     batched_timesteps = _select_batch_timesteps(
         data_mapping.keys(),
         files_per_batch,
@@ -41,7 +45,10 @@ def load_batches(
                 lambda x: transform_func(partial_load_batch(x)), batched_timesteps
             )
         )
-    return output_list
+    if len(output_list) > 1:
+        return tuple(output_list)
+    else:
+        return output_list[0]
 
 
 def _select_batch_timesteps(

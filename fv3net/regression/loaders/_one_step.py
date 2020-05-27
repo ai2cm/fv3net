@@ -26,6 +26,7 @@ logger.addHandler(fh)
 def open_onestep_mapping(url: str) -> Mapping[str, xr.Dataset]:
     return TimestepMapper(url)
     
+    
 class TimestepMapper:
     def __init__(self, timesteps_dir):
         self._timesteps_dir = timesteps_dir
@@ -36,8 +37,9 @@ class TimestepMapper:
 
     def __getitem__(self, key: str) -> xr.Dataset:
         zarr_path = os.path.join(self._timesteps_dir, f"{key}.zarr")
-        mapper = self._fs.get_mapper(zarr_path)
-        consolidated = True if ".zmetadata" in mapper else False
+        # mapper = self._fs.get_mapper(zarr_path)
+        # consolidated = True if ".zmetadata" in mapper else False
+        consolidated=False
         return xr.open_zarr(self._fs.get_mapper(zarr_path), consolidated=consolidated)
 
     def keys(self):
