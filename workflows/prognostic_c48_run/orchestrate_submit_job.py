@@ -7,8 +7,6 @@ from pathlib import Path
 
 import fv3config
 import fv3kube
-import vcm
-from vcm.cloud import get_fs
 
 logger = logging.getLogger(__name__)
 PWD = Path(os.path.abspath(__file__)).parent
@@ -58,8 +56,8 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "--prog_config_yml",
         type=str,
         default="prognostic_config.yml",
-        help="Path to a config update YAML file specifying the changes (e.g., "
-        "diag_table, runtime, ...) from the one-step runs for the prognostic run.",
+        help="Path to a config update YAML file specifying the changes from the base"
+        "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
     )
     parser.add_argument(
         "-d",
@@ -69,30 +67,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     )
 
     return parser
-
-
-def _get_onestep_config(restart_path, timestep):
-    config_path = os.path.join(
-        restart_path, "one_step_config", timestep, CONFIG_FILENAME
-    )
-    fs = get_fs(config_path)
-    with fs.open(config_path) as f:
-        config = yaml.safe_load(f)
-
-    return config
-
-
-def _update_with_prognostic_model_config(model_config, prognostic_config):
-    """
-    Update the default model config with the prognostic run.
-    """
-
-    with open(prognostic_config, "r") as f:
-        prognostic_model_config = yaml.load(f, Loader=yaml.FullLoader)
-
-    vcm.update_nested_dict(model_config, prognostic_model_config)
-
-    return model_config
 
 
 if __name__ == "__main__":
@@ -108,11 +82,11 @@ if __name__ == "__main__":
         "app": "end-to-end",
     }
 
-    model_config = _get_onestep_config(args.initial_condition_url, args.ic_timestep)
-
-    # Get model config with one-step and prognistic run updates
-    model_config = _update_with_prognostic_model_config(
-        model_config, args.prog_config_yml
+    # Get model config with prognostic run updates
+    with open(args.prog_config_yml, "r") as f:
+        prog_config_update = yaml.safe_load(f)
+    model_config = fv3kube.get_full_config(
+        prog_config_update, args.initial_condition_url, args.ic_timestep
     )
 
     kube_opts = KUBERNETES_DEFAULT.copy()
@@ -120,7 +94,6 @@ if __name__ == "__main__":
         user_kube_config = model_config.pop("kubernetes")
         kube_opts.update(user_kube_config)
 
-    job_config_filename = "fv3config.yml"
     config_dir = os.path.join(args.output_url, "job_config")
     job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
 
@@ -128,7 +101,7 @@ if __name__ == "__main__":
         model_config["diag_table"], config_dir
     )
 
-    # Add prognostic config section
+    # Add scikit learn ML model config section
     if args.model_url:
         scikit_learn_config = model_config.get("scikit_learn", {})
         scikit_learn_config.update(
