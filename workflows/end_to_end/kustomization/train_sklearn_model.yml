@@ -2,7 +2,7 @@ model_type: sklearn_random_forest
 hyperparameters:
   max_depth: 4
   n_estimators: 2
-batch_function: load_one_step_batches
+mapping_function: open_onestep_mapping
 input_variables:
   - air_temperature
   - specific_humidity
@@ -13,3 +13,8 @@ batch_kwargs:
   num_batches: 2
   files_per_batch: 1
   init_time_dim_name: "initial_time"
+transform_sequence:
+  - mask_stack_shuffle:
+    - "time"
+    - "global"
+    - 0

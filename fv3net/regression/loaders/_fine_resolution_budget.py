@@ -3,7 +3,7 @@ import re
 import vcm
 from typing import Mapping
 import xarray as xr
-from ._transform import GroupByTime
+from .transform import GroupByTime
 
 
 class FineResolutionBudgetTiles:
@@ -39,7 +39,7 @@ class FineResolutionBudgetTiles:
         return len(self.keys())
 
 
-def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
+def open_fine_resolution_budget_mapping(url: str) -> Mapping[str, xr.Dataset]:
     """Open a mapping interface to the fine resolution budget data
 
     Example:

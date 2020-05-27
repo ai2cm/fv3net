@@ -22,6 +22,10 @@ fh.setLevel(logging.INFO)
 logger.addHandler(fh)
 
 
+
+def open_onestep_mapping(url: str) -> Mapping[str, xr.Dataset]:
+    return TimestepMapper(url)
+    
 class TimestepMapper:
     def __init__(self, timesteps_dir):
         self._timesteps_dir = timesteps_dir
