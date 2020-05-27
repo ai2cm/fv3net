@@ -10,23 +10,26 @@ TRIAL_PY_FILENAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tr
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('configfile', help='configuration yaml location', type=str)
-    parser.add_argument('outdir', help='output location for scheduler and database files', type=str)
-    parser.add_argument('--max_concurrent',
-                        help='Number of concurrent processes',
-                        type=int, default=1)
+    parser.add_argument("configfile", help="configuration yaml location", type=str)
+    parser.add_argument(
+        "outdir", help="output location for scheduler and database files", type=str
+    )
+    parser.add_argument(
+        "--max_concurrent", help="Number of concurrent processes", type=int, default=1
+    )
     return parser.parse_args()
 
 
 def get_study(outdir, config):
-    with open(args.configfile, 'r') as f:
+    with open(args.configfile, "r") as f:
         config = yaml.safe_load(f)
     algorithm_name = config["algorithm"]["name"]
     if not hasattr(sherpa.algorithms, algorithm_name):
-        raise ValueError(f"No sherpa algorithm {algorithm_name} exists, is there a typo?")
+        raise ValueError(
+            f"No sherpa algorithm {algorithm_name} exists, is there a typo?"
+        )
     algorithm = getattr(sherpa.algorithms, algorithm_name)(
-        *config["algorithm"].get("args", []),
-        **config["algorithm"].get("kwargs", {})
+        *config["algorithm"].get("args", []), **config["algorithm"].get("kwargs", {})
     )
     parameters = []
     for parameter_config in config["parameters"]:
@@ -74,9 +77,9 @@ def run_study(study, max_jobs=1):
     study.save()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = parse_args()
-    with open(args.configfile, 'r') as f:
+    with open(args.configfile, "r") as f:
         config = yaml.safe_load(f)
     study = get_study(args.outdir, config)
     run_study(study, max_jobs=args.max_concurrent)
