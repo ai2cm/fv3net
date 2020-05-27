@@ -14,6 +14,7 @@ K = Tuple[Time, Tile]
 
 
 def construct_data_transform(transform_configs) -> Callable:
+    # constructs a partial function by composing multiple partials
     transform = lambda x: x
     for transform_config in transform_configs:
         transform_name, args = list(transform_config.items())[0]
