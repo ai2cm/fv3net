@@ -28,32 +28,33 @@ cp = 1004
 gravity = 9.81
 
 
-def compute_diagnostics(state, diags):
+def compute_diagnostics(state, diags, diagnostic_ml):
 
     net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
     physics_precip = state[PRECIP_RATE]
+    ml_variable_prefix = "diagnostic_" if diagnostic_ml else ""
 
-    return dict(
-        net_moistening=(net_moistening)
+    return {
+        f"{ml_variable_prefix}net_moistening": (net_moistening)
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(description="column integrated ML model moisture tendency"),
-        net_heating=(diags["dQ1"] * state[DELP] / gravity * cp)
+        f"{ml_variable_prefix}net_heating": (diags["dQ1"] * state[DELP] / gravity * cp)
         .sum("z")
         .assign_attrs(units="W/m^2")
         .assign_attrs(description="column integrated ML model heating"),
-        water_vapor_path=(state[SPHUM] * state[DELP] / gravity)
+        "water_vapor_path": (state[SPHUM] * state[DELP] / gravity)
         .sum("z")
         .assign_attrs(units="mm")
         .assign_attrs(description="column integrated water vapor"),
-        physics_precip=(physics_precip)
+        "physics_precip": (physics_precip)
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(
             description="surface precipitation rate due to parameterized physics"
         ),
-        total_precip=(physics_precip - net_moistening)
+        f"{ml_variable_prefix}total_precip": (physics_precip - net_moistening)
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(description="total surface precipitation rate (physics + ML)"),
-    )
+    }
 
 
 def open_model(url):
@@ -119,6 +120,7 @@ if __name__ == "__main__":
         MODEL = None
 
     MODEL = comm.bcast(MODEL, root=0)
+    diagnostic_ml = args["scikit_learn"]["diagnostic_ml"]
     variables = list(set(REQUIRED_VARIABLES + MODEL.input_vars_))
     variables = [rename_ML_to_CF.get(var, var) for var in variables]
     if rank == 0:
@@ -149,14 +151,15 @@ if __name__ == "__main__":
             MODEL, runtime.rename_keys(state, rename_CF_to_ML), dt=TIMESTEP
         )
 
-        if rank == 0:
-            logger.debug("Setting Fortran State")
-        preds = runtime.rename_keys(preds, rename_ML_to_CF)
-        fv3gfs.set_state(
-            {key: fv3util.Quantity.from_data_array(preds[key]) for key in preds}
-        )
+        if not diagnostic_ml:
+            if rank == 0:
+                logger.debug("Setting Fortran State")
+            preds = runtime.rename_keys(preds, rename_ML_to_CF)
+            fv3gfs.set_state(
+                {key: fv3util.Quantity.from_data_array(preds[key]) for key in preds}
+            )
 
-        diagnostics = compute_diagnostics(state, diags)
+        diagnostics = compute_diagnostics(state, diags, diagnostic_ml)
 
         if i == 0:
             writers = runtime.init_writers(GROUP, comm, diagnostics)

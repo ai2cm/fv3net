@@ -90,6 +90,9 @@ experiment:
         ic_timestep: $IC_TIMESTEP 
         docker_image: $PROGNOSTIC_RUN_IMAGE
         --prog_config_yml: $CONFIG/prognostic_run.yml
+        --diagnostic_ML: ''  # hack for allowing flags in end-to-end orchestrator
+        --model_url:
+          from: train_sklearn_model
 
     prognostic_run_clean:
       command: python workflows/prognostic_c48_run/post_process.py
