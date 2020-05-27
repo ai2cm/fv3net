@@ -26,15 +26,13 @@ def test_timestep_mapper(datadir):
     one_step_dataset = synth.generate(schema)
     for timestep in TIMESTEP_LIST:
         output_path = os.path.join(datadir, f"{timestep}.zarr")
-        one_step_dataset.to_zarr(output_path, consolidated=True)    
+        one_step_dataset.to_zarr(output_path, consolidated=True)
     timestep_mapper = TimestepMapper(str(datadir))
     return timestep_mapper
 
 
 def test_load_datasets(test_timestep_mapper):
-    ds_list = _load_datasets(
-        test_timestep_mapper, TIMESTEP_LIST[:2]
-    )
+    ds_list = _load_datasets(test_timestep_mapper, TIMESTEP_LIST[:2])
     assert len(ds_list) == 2
 
 
@@ -51,10 +49,7 @@ def test__load_one_step_batch(test_timestep_mapper):
 
 def test_load_one_step_batches(datadir, test_timestep_mapper):
     batched_data_sequence = load_one_step_batches(
-        str(datadir),
-        DATA_VARS,
-        files_per_batch=2,
-        num_batches=2,
+        str(datadir), DATA_VARS, files_per_batch=2, num_batches=2,
     )
     assert len(batched_data_sequence) == 2
     for i, batch in enumerate(batched_data_sequence):

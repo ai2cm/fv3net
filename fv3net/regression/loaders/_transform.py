@@ -85,5 +85,3 @@ def _get_chunk_indices(chunks):
         indices.append(list(range(start, start + chunk)))
         start += chunk
     return indices
-
-
