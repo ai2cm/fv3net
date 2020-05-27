@@ -17,6 +17,44 @@ from vcm.cubedsphere.constants import TIME_FMT
 logger = logging.getLogger(__name__)
 
 
+@beam.typehints.with_input_types(Any)
+@beam.typehints.with_output_types(xr.Dataset)
+class FunctionSource(beam.PTransform):
+    """Create a pcollection by evaluating a single function
+
+    Careful profiling_ indicates that xarray datasets should be loaded within
+    a beam ParDo rather than loaded outside the beam graph and passed in by pickling.
+
+    For example, the following naive code is painfully slow::
+
+        ds: Dataset = load_dataset(url)
+        p = Pipeline()
+        p | beam.Create([ds])
+        p.run()
+
+    This equivalent code is about 100 times faster::
+
+        p = Pipeline()
+        p | beam.Create([None]) | beam.Map(lambda _, url : load_dataset(url), url)
+
+    This PTransform implements this pattern
+
+    .. _profiling: https://gist.github.com/nbren12/948ef9a5248c43537bb50db49c8851f9
+
+    """
+
+    def __init__(self, fn, *args):
+        self.fn = fn
+        self.args = args
+
+    def expand(self, pcoll):
+        return (
+            pcoll
+            | beam.Create([None]).with_output_types(None)
+            | beam.Map(lambda _: self.fn(*self.args)).with_output_types(xr.Dataset)
+        )
+
+
 class CombineSubtilesByKey(beam.PTransform):
     """Transform for combining subtiles of cubed-sphere data in a beam PCollection.
 
