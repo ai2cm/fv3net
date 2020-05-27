@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Sequence, Mapping
+from typing import Any, Sequence, Mapping
 import fsspec
 import yaml
 
@@ -25,9 +25,10 @@ FV_CORE_ASSET = fv3config.get_asset_dict(
     "fv_core.res.nc",
     target_location="INPUT",
 )
+FV3Config = Mapping[str, Any]
 
 
-def get_base_fv3config(version_key: str) -> Mapping:
+def get_base_fv3config(version_key: str) -> FV3Config:
     """
     Get base configuration dictionary labeled by version_key.
     """
@@ -56,7 +57,7 @@ def update_tiled_asset_names(
     target_url: str,
     target_filename: str,
     **kwargs,
-) -> Sequence[dict]:
+) -> Sequence[Mapping[str, str]]:
 
     """
     Update tile-based fv3config assets with new names.  Uses format to update
@@ -80,7 +81,7 @@ def update_tiled_asset_names(
     return assets
 
 
-def get_full_config(config_update: Mapping, ic_url: str, ic_timestep: str) -> Mapping:
+def get_full_config(config_update: FV3Config, ic_url: str, ic_timestep: str) -> FV3Config:
     """Given config_update return full fv3config object pointing to initial conditions
     at {ic_url}/{ic_timestep}. Initial condition filenames assumed to include prepended
     timestamp.
