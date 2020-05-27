@@ -1,10 +1,6 @@
-import atexit
 import os
-import numpy as np
 import pytest
 import synth
-import tempfile
-import xarray as xr
 
 from fv3net.regression.loaders._one_step import (
     _load_one_step_batch,
