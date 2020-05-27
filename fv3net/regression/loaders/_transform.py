@@ -13,24 +13,7 @@ Tile = int
 K = Tuple[Time, Tile]
 
 
-def construct_data_transform(transform_configs) -> Callable:
-    # constructs a partial function by composing multiple partials
-    transform = lambda x: x
-    for transform_config in transform_configs:
-        transform_name, args = list(transform_config.items())[0]
-        transform_func = globals()[transform_name]
-        partial_transform = partial(transform_func, *args)
-        transform = _compose(partial_transform, transform)
-    return transform
-           
-
-def _compose(outer_func, inner_func):
-    return lambda x: outer_func(inner_func(x))
-
-
-# TODO: reformat to clean separation of the three transforms that
-# can be passed in order to the TransformData object
-def mask_stack_shuffle(
+def transform_train_data(
     init_time_dim_name: str, mask_to_surface_type: str, random_seed: int, ds: xr.Dataset,
 ) -> xr.Dataset:
     random = np.random.RandomState(random_seed)

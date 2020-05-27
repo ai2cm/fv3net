@@ -9,7 +9,6 @@ from typing import Iterable, Sequence, Mapping
 from .. import loaders
 # TODO: address awkward imports here from deeper levels which occur b/c the top level
 # loaders imports is reserved for allowed source mapping functions only
-from ..loaders.transform import construct_data_transform
 from ..loaders.batch import load_batches
 from .wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
@@ -24,14 +23,12 @@ logger = logging.getLogger(__file__)
 class ModelTrainingConfig:
     """Convenience wrapper for model training parameters and file info
     """
-
     model_type: str
     hyperparameters: dict
     input_variables: Iterable[str]
     output_variables: Iterable[str]
     mapping_function: str
     batch_kwargs: dict
-    transform_sequence: Iterable[Mapping[str, Iterable]]  # sequence of {function name: args}
 
 
 def load_model_training_config(config_path: str) -> ModelTrainingConfig:
@@ -62,10 +59,8 @@ def load_data_sequence(data_path: str, train_config: ModelTrainingConfig) -> Seq
     """
     mapping_function = getattr(loaders, train_config.mapping_function)
     data_mapping = mapping_function(data_path)
-    data_transform = construct_data_transform(train_config.transform_sequence)
     ds_batches = load_batches(
-        data_mapping, 
-        data_transform,
+        data_mapping,
         list(train_config.input_variables) + list(train_config.output_variables),
         **train_config.batch_kwargs)
     return ds_batches

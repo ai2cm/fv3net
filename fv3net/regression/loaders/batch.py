@@ -6,6 +6,7 @@ from typing import Iterable, Sequence, Mapping, Callable
 import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
+from ._transform import transform_train_data
 from ..constants import TIME_NAME, SAMPLE_DIM_NAME, Z_DIM_NAME
 
 logger = logging.getLogger()
@@ -14,7 +15,6 @@ logger.setLevel(logging.INFO)
 
 def load_batches(
         data_mapping: Mapping[str, xr.Dataset],
-        transform_func: Callable,
         *variable_names: Iterable[str],
         files_per_batch: int = 1,
         num_batches: int = None,
@@ -42,7 +42,8 @@ def load_batches(
         )
         output_list.append(
             FunctionOutputSequence(
-                lambda x: transform_func(partial_load_batch(x)), batched_timesteps
+                lambda x: transform_train_data(partial_load_batch(x)),
+                batched_timesteps
             )
         )
     if len(output_list) > 1:
