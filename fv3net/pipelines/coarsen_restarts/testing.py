@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 
 
-class RestartCategorySchema:
+class RestartCategorySchemaFactory:
     def __init__(self, x, xi, y, yi, z, n, nz):
         self.x = x
         self.y = y
@@ -15,6 +15,83 @@ class RestartCategorySchema:
         self.z = z
         self.n = n
         self.nz = nz
+
+    @property
+    def x_coord(self):
+        x = self.x
+        n = self.n
+        return (
+            CoordinateSchema(
+                name=x,
+                dims=[x],
+                value=np.arange(n),
+                attrs={"long_name": x, "units": "none", "cartesian_axis": "X"},
+            ),
+        )
+
+    @property
+    def xi_coord(self):
+        n = self.n
+        xi = self.xi
+        return CoordinateSchema(
+            name=xi,
+            dims=[xi],
+            value=np.arange(n + 1),
+            attrs={"long_name": xi, "units": "none", "cartesian_axis": "X"},
+        )
+
+    @property
+    def yi_coord(self):
+        yi = self.yi
+        n = self.n
+        return CoordinateSchema(
+            name=yi,
+            dims=[yi],
+            value=np.arange(n + 1),
+            attrs={"long_name": yi, "units": "none", "cartesian_axis": "Y"},
+        )
+
+    @property
+    def y_coord(self):
+
+        y = self.y
+        n = self.n
+        return (
+            CoordinateSchema(
+                name=y,
+                dims=[y],
+                value=np.arange(n),
+                attrs={"long_name": y, "units": "none", "cartesian_axis": "Y"},
+            ),
+        )
+
+    @property
+    def z_coord(self):
+        z = self.z
+        nz = self.nz
+        return (
+            CoordinateSchema(
+                name=z,
+                dims=[z],
+                value=np.arange(nz),
+                attrs={"long_name": z, "units": "none", "cartesian_axis": "Z"},
+            ),
+        )
+
+    @property
+    def time_coord(self):
+        return (
+            CoordinateSchema(
+                name="Time",
+                dims=["Time"],
+                value=np.array([1.0], dtype=np.float32),
+                attrs={
+                    "long_name": "Time",
+                    "units": "time level",
+                    "cartesian_axis": "T",
+                },
+            ),
+        )
 
     def CENTERED(self, name: str):
         return VariableSchema(
@@ -94,61 +171,56 @@ class RestartCategorySchema:
 
         return output
 
+    def _generate_coords(
+        self,
+        centered: Iterable[str],
+        x_outer: Iterable[str],
+        y_outer: Iterable[str],
+        surface: Iterable[str],
+    ) -> Mapping[str, CoordinateSchema]:
+        output = {}
+        if len(centered) > 0:
+            output[self.x] = self.x_coord
+            output[self.y] = self.y_coord
+            output[self.z] = self.z_coord
 
-def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
+        if len(x_outer) > 0:
+            output[self.xi] = self.xi_coord
+            output[self.y] = self.y_coord
+            output[self.z] = self.z_coord
 
-    self = RestartCategorySchema(x, xi, y, yi, z, n, nz)
-    variables = self._generate_variables(
+        if len(y_outer) > 0:
+            output[self.x] = self.x_coord
+            output[self.yi] = self.yi_coord
+            output[self.z] = self.z_coord
+
+        if len(surface) > 0:
+            output[self.x] = self.x_coord
+            output[self.y] = self.y_coord
+
+        return output
+
+    def generate(
+        self,
+        centered: Iterable[str],
+        x_outer: Iterable[str],
+        y_outer: Iterable[str],
+        surface: Iterable[str],
+    ) -> DatasetSchema:
+        coords = self._generate_coords(centered, x_outer, y_outer, surface)
+        variables = self._generate_coords(centered, x_outer, y_outer, surface)
+
+        return DatasetSchema(variables=variables, coords=coords)
+
+
+def fv_core_schema(n: int, nz: int):
+    return RestartCategorySchemaFactory(
+        n=n, nz=nz, x="xaxis_1", xi="xaxis_2", y="yaxis_2", yi="yaxis_1", z="zaxis_1"
+    ).generate(
         centered=["W", "DZ", "T", "delp"],
         x_outer=["u"],
         y_outer=["v"],
         surface=["delp"],
-    )
-
-    return DatasetSchema(
-        coords={
-            x: CoordinateSchema(
-                name=x,
-                dims=[x],
-                value=np.arange(n),
-                attrs={"long_name": x, "units": "none", "cartesian_axis": "X"},
-            ),
-            xi: CoordinateSchema(
-                name=xi,
-                dims=[xi],
-                value=np.arange(n + 1),
-                attrs={"long_name": xi, "units": "none", "cartesian_axis": "X"},
-            ),
-            yi: CoordinateSchema(
-                name=yi,
-                dims=[yi],
-                value=np.arange(n + 1),
-                attrs={"long_name": yi, "units": "none", "cartesian_axis": "Y"},
-            ),
-            y: CoordinateSchema(
-                name=y,
-                dims=[y],
-                value=np.arange(n),
-                attrs={"long_name": y, "units": "none", "cartesian_axis": "Y"},
-            ),
-            z: CoordinateSchema(
-                name=z,
-                dims=[z],
-                value=np.arange(nz),
-                attrs={"long_name": z, "units": "none", "cartesian_axis": "Z"},
-            ),
-            "Time": CoordinateSchema(
-                name="Time",
-                dims=["Time"],
-                value=np.array([1.0], dtype=np.float32),
-                attrs={
-                    "long_name": "Time",
-                    "units": "time level",
-                    "cartesian_axis": "T",
-                },
-            ),
-        },
-        variables=variables,
     )
 
 
