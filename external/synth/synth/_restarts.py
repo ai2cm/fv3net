@@ -11,7 +11,7 @@ from collections import namedtuple
 
 
 def _range(n) -> List[float]:
-    return np.arange(1, n + 1).astype(float).tolist()
+    return np.arange(1, n + 1).astype("f4")
 
 
 class _RestartCategorySchemaFactory:
@@ -94,7 +94,7 @@ class _RestartCategorySchemaFactory:
         return CoordinateSchema(
             name="Time",
             dims=["Time"],
-            value=[1.0],
+            value=np.array([1.0], dtype="f4"),
             attrs={"long_name": "Time", "units": "time level", "cartesian_axis": "T",},
         )
 
