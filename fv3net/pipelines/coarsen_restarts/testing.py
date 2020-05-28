@@ -1,5 +1,6 @@
 import vcm
 import synth
+from typing import Iterable, Mapping
 from synth import DatasetSchema, CoordinateSchema, ChunkedArray, VariableSchema
 import numpy as np
 import xarray as xr
@@ -70,23 +71,39 @@ class RestartCategorySchema:
             attrs={"long_name": name, "units": "none",},
         )
 
+    def _generate_variables(
+        self,
+        centered: Iterable[str],
+        x_outer: Iterable[str],
+        y_outer: Iterable[str],
+        surface: Iterable[str],
+    ) -> Mapping[str, VariableSchema]:
+        output = {}
+
+        for variable in centered:
+            output[variable] = self.CENTERED(variable)
+
+        for variable in x_outer:
+            output[variable] = self.X_OUTER(variable)
+
+        for variable in y_outer:
+            output[variable] = self.Y_OUTER(variable)
+
+        for variable in surface:
+            output[variable] = self.SURFACE(variable)
+
+        return output
+
 
 def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
 
     self = RestartCategorySchema(x, xi, y, yi, z, n, nz)
-    variables_spec = [
-        ("u", self.X_OUTER),
-        ("v", self.Y_OUTER),
-        ("W", self.CENTERED),
-        ("DZ", self.CENTERED),
-        ("T", self.CENTERED),
-        ("delp", self.CENTERED),
-        ("phis", self.SURFACE),
-    ]
-
-    variables = {}
-    for name, func in variables_spec:
-        variables[name] = func(name)
+    variables = self._generate_variables(
+        centered=["W", "DZ", "T", "delp"],
+        x_outer=["u"],
+        y_outer=["v"],
+        surface=["delp"],
+    )
 
     return DatasetSchema(
         coords={
