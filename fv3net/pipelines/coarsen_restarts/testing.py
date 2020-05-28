@@ -5,30 +5,46 @@ import numpy as np
 import xarray as xr
 
 
-def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
-    def CENTERED(name: str):
-        return VariableSchema(
-            name=name,
-            dims=["Time", z, y, x],
-            array=ChunkedArray(
-                shape=(1, nz, n, n), dtype=np.dtype("float32"), chunks=(1, nz, n, n),
-            ),
-            attrs={"long_name": name, "units": "none",},
-        )
+class RestartCategorySchema:
+    def __init__(self, x, xi, y, yi, z, n, nz):
+        self.x = x
+        self.y = y
+        self.xi = xi
+        self.yi = yi
+        self.z = z
+        self.n = n
+        self.nz = nz
 
-    def Y_OUTER(name: str):
+    def CENTERED(self, name: str):
         return VariableSchema(
             name=name,
-            dims=["Time", z, y, xi],
+            dims=["Time", self.z, self.y, self.x],
             array=ChunkedArray(
-                shape=(1, nz, n, n + 1),
+                shape=(1, self.nz, self.n, self.n),
                 dtype=np.dtype("float32"),
-                chunks=(1, nz, n, n + 1),
+                chunks=(1, self.nz, self.n, self.n),
             ),
             attrs={"long_name": name, "units": "none",},
         )
 
-    def X_OUTER(name: str):
+    def Y_OUTER(self, name: str):
+        return VariableSchema(
+            name=name,
+            dims=["Time", self.z, self.y, self.xi],
+            array=ChunkedArray(
+                shape=(1, self.nz, self.n, self.n + 1),
+                dtype=np.dtype("float32"),
+                chunks=(1, self.nz, self.n, self.n + 1),
+            ),
+            attrs={"long_name": name, "units": "none",},
+        )
+
+    def X_OUTER(self, name: str):
+        n = self.n
+        nz = self.nz
+        z = self.z
+        yi = self.yi
+        x = self.x
         return VariableSchema(
             name=name,
             dims=["Time", z, yi, x],
@@ -40,7 +56,11 @@ def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
             attrs={"long_name": name, "units": "none",},
         )
 
-    def SURFACE(name: str):
+    def SURFACE(self, name: str):
+        n = self.n
+        y = self.y
+        x = self.x
+
         return VariableSchema(
             name=name,
             dims=["Time", y, x],
@@ -50,14 +70,18 @@ def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
             attrs={"long_name": name, "units": "none",},
         )
 
+
+def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
+
+    self = RestartCategorySchema(x, xi, y, yi, z, n, nz)
     variables_spec = [
-        ("u", X_OUTER),
-        ("v", Y_OUTER),
-        ("W", CENTERED),
-        ("DZ", CENTERED),
-        ("T", CENTERED),
-        ("delp", CENTERED),
-        ("phis", SURFACE),
+        ("u", self.X_OUTER),
+        ("v", self.Y_OUTER),
+        ("W", self.CENTERED),
+        ("DZ", self.CENTERED),
+        ("T", self.CENTERED),
+        ("delp", self.CENTERED),
+        ("phis", self.SURFACE),
     ]
 
     variables = {}
