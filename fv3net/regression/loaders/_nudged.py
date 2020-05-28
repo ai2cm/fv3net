@@ -36,15 +36,48 @@ TimestepMappeer = Mapping[str, xr.Dataset]
 
 
 def load_nudging_batches(
+    url: str,
+    data_vars: Iterable[str],
+    num_times_in_batch: int = 10,
+    num_batches: int = None,
+    random_seed: int = 0,
+    mask_to_surface_type: str = None,
+    rename_variables: Mapping[str, str] = None,
+    initial_time_skip_hr: int = 0,
+    n_times: int = None,
+    nudging_timescale_hr: Union[int, float],
+):
+    """temporary loader while transforms being developed"""
+
+    mapper = open_nudged_mapper(
+        url,
+        nudging_timescale_hr,
+        initial_time_skip_hr=initial_time_skip_hr,
+        n_times=ntimes,
+    )
+    tstep_mapper = mapper.merge_sources(["after_physics", "nudging_tendencies"])
+
+    return _load_nudging_batch(
+        tstep_mapper,
+        data_vars,
+        num_times_in_batch=num_times_in_batch,
+        num_batches=num_batches,
+        random_seed=random_seed,
+        mask_to_surface_type=mask_to_surface_type,
+        rename_variables=rename_variables,
+        initial_time_skip_hr=initial_time_skip_hr,
+        n_times=n_times,
+    )
+
+
+def _load_nudging_batches(
     nudged_tstep_mapper: TimestepMappeer,
     data_vars: Iterable[str],
     num_times_in_batch: int = 10,
     num_batches: int = None,
     random_seed: int = 0,
     mask_to_surface_type: str = None,
-    z_dim_name: str = "z",
     rename_variables: Mapping[str, str] = None,
-    time_dim_name: str = "time",
     initial_time_skip_hr: int = 0,
     n_times: int = None,
 ) -> Union[Sequence[BatchSequence], BatchSequence]:
