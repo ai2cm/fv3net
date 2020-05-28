@@ -32,12 +32,12 @@ NUDGED_TIME_DIM = "time"
 Z_DIM = "z"
 
 BatchSequence = Sequence[xr.Dataset]
+TimestepMappeer = Mapping[str, xr.Dataset]
 
 
 def load_nudging_batches(
-    data_path: str,
+    nudged_tstep_mapper: TimestepMappeer,
     data_vars: Iterable[str],
-    timescale_hours: Union[int, float] = 3,
     num_times_in_batch: int = 10,
     num_batches: int = None,
     random_seed: int = 0,
@@ -52,10 +52,9 @@ def load_nudging_batches(
     Get a sequence of batches from a nudged-run zarr store.
 
     Args:
-        data_path: location of directory containing zarr stores
-        data_vars: names of variables to include in the output batched dataset 
-        timescale_hours (optional): timescale of the nudging for the simulation
-            being used as input.
+        nudged_tstep_mapper: Mapping object from fv3 time strings to nudged fv3
+            output data
+        data_vars: Variable names used to subset batched datasets
         num_times_in_batch (optional): number of times to include
             in a single batch item.  Overridden by num_batches
         num_batches (optional): number of batches to split the
@@ -73,12 +72,9 @@ def load_nudging_batches(
             batch resampling operation
     """
 
-    logger.info(f"Loading nudged mapper from sources in {data_path}")
-    nudged_mapper = open_nudged_mapper(data_path, timescale_hours, initial_time_skip_hr, n_times)
-    nudged_tstep_mapper = nudged_mapper.merge_sources(["after_physics", "nudging_tendencies"])
-
     random = np.random.RandomState(random_seed)
-    timesteps = random.shuffle(nudged_tstep_mapper.keys())
+    timesteps = nudged_tstep_mapper.keys()
+    random.shuffle(timesteps)
 
     # TODO: Overlaps with _validated_num_batches in _one_step
     if num_batches is None:
@@ -116,14 +112,15 @@ def _load_nudging_batch(
     batch = [timestep_mapper[timestep] for timestep in tstep_keys]
     batch_ds = xr.concat(batch, NUDGED_TIME_DIM)
     batch_ds = batch_ds.rename(rename_variables)
-    batch_ds = vcm.mask_to_surface_type(batch_ds, mask_to_surface_type) 
+    if mask_to_surface_type is not None:
+        batch_ds = vcm.mask_to_surface_type(batch_ds, mask_to_surface_type) 
     batch_ds = safe.get_variables(batch_ds, data_vars)
 
     # Into memory we go
     batch_ds = batch_ds.load()
 
     stack_dims = [dim for dim in batch_ds.dims if dim != Z_DIM]
-    stacked_batch_ds = safe.stack(batch_ds, SAMPLE_DIM, stack_dims, allowed_broadcast_dims=[Z_DIM])
+    stacked_batch_ds = safe.stack_once(batch_ds, SAMPLE_DIM, stack_dims, allowed_broadcast_dims=[Z_DIM])
     stacked_batch_ds = stacked_batch_ds.dropna(SAMPLE_DIM)
 
     if len(stacked_batch_ds[SAMPLE_DIM]) == 0:
