@@ -7,6 +7,21 @@ import xarray as xr
 
 def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
 
+    CENTERED = 0
+    X_OUTER = 1
+    Y_OUTER = 2
+    SURFACE = 3
+
+    variables = [
+        ("u", X_OUTER),
+        ("v", Y_OUTER),
+        ("W", CENTERED),
+        ("DZ", CENTERED),
+        ("T", CENTERED),
+        ("delp", CENTERED),
+        ("phis", SURFACE),
+    ]
+
     return DatasetSchema(
         coords={
             x: CoordinateSchema(
@@ -59,11 +74,7 @@ def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
                     dtype=np.dtype("float32"),
                     chunks=(1, nz, n + 1, n),
                 ),
-                attrs={
-                    "long_name": "u",
-                    "units": "none",
-                    "checksum": "61E9EC149EA76D64",
-                },
+                attrs={"long_name": "u", "units": "none",},
             ),
             "v": VariableSchema(
                 name="v",
@@ -73,11 +84,7 @@ def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
                     dtype=np.dtype("float32"),
                     chunks=(1, nz, n, n + 1),
                 ),
-                attrs={
-                    "long_name": "v",
-                    "units": "none",
-                    "checksum": "EB861B394529209B",
-                },
+                attrs={"long_name": "v", "units": "none",},
             ),
             "W": VariableSchema(
                 name="W",
@@ -87,11 +94,7 @@ def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
                     dtype=np.dtype("float32"),
                     chunks=(1, nz, n, n),
                 ),
-                attrs={
-                    "long_name": "W",
-                    "units": "none",
-                    "checksum": "9238BEBCAD91DA31",
-                },
+                attrs={"long_name": "W", "units": "none",},
             ),
             "DZ": VariableSchema(
                 name="DZ",
@@ -101,11 +104,7 @@ def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
                     dtype=np.dtype("float32"),
                     chunks=(1, nz, n, n),
                 ),
-                attrs={
-                    "long_name": "DZ",
-                    "units": "none",
-                    "checksum": "A0E2B6B530BBD16F",
-                },
+                attrs={"long_name": "DZ", "units": "none",},
             ),
             "T": VariableSchema(
                 name="T",
@@ -115,11 +114,7 @@ def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
                     dtype=np.dtype("float32"),
                     chunks=(1, nz, n, n),
                 ),
-                attrs={
-                    "long_name": "T",
-                    "units": "none",
-                    "checksum": "1CE4FC9FF8237F91",
-                },
+                attrs={"long_name": "T", "units": "none",},
             ),
             "delp": VariableSchema(
                 name="delp",
@@ -129,11 +124,7 @@ def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
                     dtype=np.dtype("float32"),
                     chunks=(1, nz, n, n),
                 ),
-                attrs={
-                    "long_name": "delp",
-                    "units": "none",
-                    "checksum": "674B269C950EF9E1",
-                },
+                attrs={"long_name": "delp", "units": "none",},
             ),
             "phis": VariableSchema(
                 name="phis",
@@ -141,11 +132,7 @@ def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
                 array=ChunkedArray(
                     shape=(1, n, n), dtype=np.dtype("float32"), chunks=(1, n, n)
                 ),
-                attrs={
-                    "long_name": "phis",
-                    "units": "none",
-                    "checksum": "86624B29A22B1115",
-                },
+                attrs={"long_name": "phis", "units": "none",},
             ),
         },
     )
