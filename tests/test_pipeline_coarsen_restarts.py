@@ -1,5 +1,6 @@
 import pytest
 import os
+import xarray as xr
 
 from fv3net.pipelines.coarsen_restarts.testing import (
     fv_core_schema,
