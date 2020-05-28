@@ -83,6 +83,7 @@ def run(
             | beam.Create([src_dir]).with_output_types(str)
             | "ListTimes" >> beam.ParDo(list_timesteps)
             | "ParseTimeString" >> beam.Map(vcm.parse_timestep_str_from_path)
+            | "Reshuffle 1" >> beam.Reshuffle()
             | "OpenRestartLazy" >> beam.Map(_open_restart_categories, src_dir)
             | "CoarsenTStep"
             >> beam.ParDo(
