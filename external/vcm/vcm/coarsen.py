@@ -10,6 +10,8 @@ import pandas as pd
 import xarray as xr
 from toolz import curry
 
+import dask
+
 from .complex_sfc_data_coarsening import coarse_grain_sfc_data_complex
 from .cubedsphere import (
     block_coarsen,
@@ -39,6 +41,8 @@ from vcm.cubedsphere.constants import (
     FV_TRACER_Y_CENTER,
     RESTART_Z_CENTER,
 )
+
+dask.config.set(scheduler="single-threaded")
 
 TILES = range(1, 7)
 DATA_PATTERN = "{prefix}{category}.tile{tile}.nc"
