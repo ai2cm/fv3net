@@ -1,3 +1,4 @@
+import os
 import argparse
 import logging
 from .pipeline import run
@@ -9,6 +10,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
+    # TODO Remove "gcs" from these names. It's not longer true
     parser.add_argument(
         "gcs_src_dir",
         type=str,
@@ -44,7 +46,29 @@ if __name__ == "__main__":
             "destination directory. "
         ),
     )
+    logging.basicConfig(level=logging.DEBUG)
 
     args, pipeline_args = parser.parse_known_args()
-    print(args)
-    run(args=args, pipeline_args=pipeline_args)
+
+    gridspec_path = os.path.join(args.gcs_grid_spec_path, "grid_spec")
+
+    output_dir_prefix = args.gcs_dst_dir
+    if args.add_target_subdir:
+        output_dir_prefix = os.path.join(
+            output_dir_prefix, f"C{args.target_resolution}"
+        )
+
+    # TODO change this CLI. Why use 2 args (which might not eveny divide) when
+    # 1 will do?
+    factor = args.source_resolution // args.target_resolution
+
+    prefix = args.gcs_dst_dir
+    tmp_timestep_dir = os.path.join(prefix, "local_fine_dir")
+
+    run(
+        gridspec_path,
+        args.gcs_src_dir,
+        output_dir_prefix,
+        factor,
+        pipeline_args=pipeline_args,
+    )

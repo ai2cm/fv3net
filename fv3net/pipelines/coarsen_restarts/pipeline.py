@@ -60,26 +60,14 @@ def split_by_tiles(kv):
         yield key + (tile + 1,), ds.isel(tile=tile)
 
 
-def run(args, pipeline_args=None):
-    logging.basicConfig(level=logging.DEBUG)
-
-    gridspec_path = os.path.join(args.gcs_grid_spec_path, "grid_spec")
-    source_resolution = args.source_resolution
-    target_resolution = args.target_resolution
-
-    output_dir_prefix = args.gcs_dst_dir
-    if args.add_target_subdir:
-        output_dir_prefix = os.path.join(output_dir_prefix, f"C{target_resolution}")
-
-    # TODO why pass two arguments rather than 1? just pass the coarsening factor.
-    coarsen_factor = source_resolution // target_resolution
+def run(
+    gridspec_path: str, src_dir: str, output_dir: str, factor: int, pipeline_args=None,
+):
 
     timesteps = ["20160801.001500"]
 
-    prefix = "test-outputs"
-    tmp_timestep_dir = os.path.join(prefix, "local_fine_dir")
-
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
+
     with beam.Pipeline(options=beam_options) as p:
         grid_spec = p | FunctionSource(
             lambda x: vcm.open_tiles(x).load(), gridspec_path
@@ -87,11 +75,11 @@ def run(args, pipeline_args=None):
         (
             p
             | "CreateTStepURLs" >> beam.Create(timesteps)
-            | "OpenRestartLazy" >> beam.Map(_open_restart_categories, tmp_timestep_dir)
+            | "OpenRestartLazy" >> beam.Map(_open_restart_categories, src_dir)
             | "CoarsenTStep"
             >> beam.ParDo(
                 coarsen_timestep,
-                coarsen_factor=coarsen_factor,
+                coarsen_factor=factor,
                 grid_spec=beam.pvalue.AsSingleton(grid_spec),
             )
             # Reduce problem size by splitting by tiles
@@ -101,5 +89,5 @@ def run(args, pipeline_args=None):
             # It distributes the work
             | "Reshuffle" >> beam.Reshuffle()
             | "Force evaluation" >> beam.MapTuple(lambda key, val: (key, val.load()))
-            | WriteToNetCDFs(output_filename, output_dir_prefix)
+            | WriteToNetCDFs(output_filename, output_dir)
         )
