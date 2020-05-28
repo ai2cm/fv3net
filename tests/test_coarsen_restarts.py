@@ -25,7 +25,7 @@ def save_restarts(restarts, outdir, time):
 def restart_dir(tmpdir):
     time = "20160101.000000"
     output = tmpdir.mkdir(time)
-    restarts = synth.generate_restart_data()
+    restarts = synth.generate_restart_data(n=384)
     save_restarts(restarts, output, time)
     return tmpdir
 
@@ -33,8 +33,8 @@ def restart_dir(tmpdir):
 def test_regression_coarsen_restarts(restart_dir):
     grid_spec_path = "gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/"
     src_path = str(restart_dir)
-    in_res = "48"
-    out_res = "16"
+    in_res = "384"
+    out_res = "48"
     dest = str(restart_dir.join("output"))
 
     main(
