@@ -236,6 +236,32 @@ class NudgedMapperAllSources(BaseMapper):
             keys.extend(product((key,), timestep_keys))
         return keys
 
+    def merge_sources(self, source_names: Iterable[str]) -> NudgedTimestepMapper:
+        """
+        Combine nudging data sources into single dataset
+        """
+
+        combined_ds = xr.Dataset()
+        for source in source_names:
+            ds = self._nudged_ds[source]
+            self._check_dvar_overlap(combined_ds, ds)
+
+            combined_ds = combined_ds.merge(ds)
+
+        return NudgedTimestepMapper(combined_ds)         
+
+    @staticmethod
+    def _check_dvar_overlap(ds1, ds2):
+
+        ds1_vars = set(ds1.datavars.keys())
+        ds2_vars = set(ds2.data_vars.keys())
+        overlap = ds1_vars & ds2_vars
+        if overlap:
+            raise ValueError(
+                "Could not combine requested nudged data sources due to "
+                f"overlapping variables {overlap}"
+            )
+
 
 def open_nudged_mapper(
     url: str,
