@@ -1,9 +1,17 @@
 import vcm
 import synth
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, List
 from synth import DatasetSchema, CoordinateSchema, ChunkedArray, VariableSchema
 import numpy as np
 import xarray as xr
+
+from toolz import valmap
+
+from collections import namedtuple
+
+
+def _range(n) -> List[float]:
+    return np.arange(1, n + 1).astype(float).tolist()
 
 
 class RestartCategorySchemaFactory:
@@ -24,7 +32,7 @@ class RestartCategorySchemaFactory:
             CoordinateSchema(
                 name=x,
                 dims=[x],
-                value=np.arange(n),
+                value=_range(n),
                 attrs={"long_name": x, "units": "none", "cartesian_axis": "X"},
             ),
         )
@@ -36,7 +44,7 @@ class RestartCategorySchemaFactory:
         return CoordinateSchema(
             name=xi,
             dims=[xi],
-            value=np.arange(n + 1),
+            value=_range(n + 1),
             attrs={"long_name": xi, "units": "none", "cartesian_axis": "X"},
         )
 
@@ -47,7 +55,7 @@ class RestartCategorySchemaFactory:
         return CoordinateSchema(
             name=yi,
             dims=[yi],
-            value=np.arange(n + 1),
+            value=_range(n + 1),
             attrs={"long_name": yi, "units": "none", "cartesian_axis": "Y"},
         )
 
@@ -60,7 +68,7 @@ class RestartCategorySchemaFactory:
             CoordinateSchema(
                 name=y,
                 dims=[y],
-                value=np.arange(n),
+                value=_range(n),
                 attrs={"long_name": y, "units": "none", "cartesian_axis": "Y"},
             ),
         )
@@ -73,7 +81,7 @@ class RestartCategorySchemaFactory:
             CoordinateSchema(
                 name=z,
                 dims=[z],
-                value=np.arange(nz),
+                value=_range(nz),
                 attrs={"long_name": z, "units": "none", "cartesian_axis": "Z"},
             ),
         )
@@ -84,7 +92,7 @@ class RestartCategorySchemaFactory:
             CoordinateSchema(
                 name="Time",
                 dims=["Time"],
-                value=np.array([1.0], dtype=np.float32),
+                value=[1.0],
                 attrs={
                     "long_name": "Time",
                     "units": "time level",
@@ -202,13 +210,13 @@ class RestartCategorySchemaFactory:
 
     def generate(
         self,
-        centered: Iterable[str],
-        y_outer: Iterable[str],
-        x_outer: Iterable[str],
-        surface: Iterable[str],
+        centered: Iterable[str] = (),
+        y_outer: Iterable[str] = (),
+        x_outer: Iterable[str] = (),
+        surface: Iterable[str] = (),
     ) -> DatasetSchema:
         coords = self._generate_coords(centered, x_outer, y_outer, surface)
-        variables = self._generate_coords(centered, x_outer, y_outer, surface)
+        variables = self._generate_variables(centered, x_outer, y_outer, surface)
 
         return DatasetSchema(variables=variables, coords=coords)
 
@@ -242,12 +250,70 @@ def fv_tracer_schema(n: int, nz: int):
     )
 
 
-def fv_srf_wnd_schema(n: int, nz: int):
-    return RestartCategorySchemaFactory(n=n, nz=nz, x="xaxis_1", y="yaxis_1").generate()
+def fv_srf_wnd_schema(n: int):
+    return RestartCategorySchemaFactory(n=n, x="xaxis_1", y="yaxis_1").generate(
+        surface=["u_srf", "v_srf"]
+    )
 
 
-def generate_restart_directory(output: str, resolution: str = "C48"):
-    pass
+def sfc_data(n: int, n_soil: int):
+    return RestartCategorySchemaFactory(
+        n=n, nz=n_soil, x="xaxis_1", y="yaxis_1", z="zaxis_1"
+    ).generate(
+        surface=[
+            "slmsk",
+            "tsea",
+            "sheleg",
+            "tg3",
+            "zorl",
+            "alvsf",
+            "alvwf",
+            "alnsf",
+            "alnwf",
+            "facsf",
+            "facwf",
+            "vfrac",
+            "canopy",
+            "f10m",
+            "t2m",
+            "q2m",
+            "vtype",
+            "stype",
+            "uustar",
+            "ffmm",
+            "ffhh",
+            "hice",
+            "fice",
+            "tisfc",
+            "tprcp",
+            "srflag",
+            "snwdph",
+            "shdmin",
+            "shdmax",
+            "slope",
+            "snoalb",
+            "sncovr",
+        ],
+        centered=["stc", "smc", "slc",],
+    )
+
+
+def generate_restart_data(
+    n=48, nz=79, n_soil=4
+) -> Mapping[str, Mapping[int, xr.Dataset]]:
+    tiles = [1, 2, 3, 4, 5, 6]
+
+    def _generate_from_schema(schema: DatasetSchema):
+        return {tile: synth.generate(schema) for tile in tiles}
+
+    schema = {
+        "fv_core.res": fv_core_schema(n, nz),
+        "sfc_data": sfc_data(n, n_soil),
+        "fv_tracer.res": fv_tracer_schema(n, nz),
+        "fv_src_wnd.res": fv_srf_wnd_schema(n),
+    }
+
+    return valmap(_generate_from_schema, schema)
 
 
 def _read_metadata_remote(fs, url):
