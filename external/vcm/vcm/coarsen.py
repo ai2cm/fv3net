@@ -83,70 +83,6 @@ def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Datase
     )
 
 
-# TODO: fix this name. it loads the data with area
-def load_tile_proc(tile, subtile, path, grid_path):
-    grid_spec_to_data_renaming = {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
-    grid = xr.open_dataset(grid_path)
-
-    area = grid.area.rename(grid_spec_to_data_renaming)
-    pane = xr.open_dataset(path)
-
-    data = xr.merge([pane, area])
-
-    return data
-
-
-# TODO use vcm.cubedsphere for this
-def _combine_subtiles(tiles):
-    combined = xr.concat(tiles, dim="io").sum("io")
-    return combined.assign_attrs(tiles[0].attrs)
-
-
-def combine_subtiles(args_list):
-    tile, args_list = args_list
-    subtiles = [arg[1] for arg in args_list]
-    return tile, _combine_subtiles(subtiles).assign(tile=tile)
-
-
-def tile(args):
-    return args[0][0]
-
-
-@curry
-def save_tile_to_disk(output_dir, args):
-    tile, data = args
-    output_name = f"sfc_data.tile{tile}.nc"
-    output_path = join(output_dir, output_name)
-    data.to_netcdf(output_path)
-    return output_path
-
-
-def coarsen_sfc_data_in_directory(files, **kwargs):
-    """Process surface data in directory
-
-    Args:
-        files: list of (tile, subtile, sfc_data_path, grid_spec_path) tuples
-
-    Returns:
-        xarray of concatenated data
-    """
-
-    def process(args):
-        logging.info(f"Coarsening {args}")
-        data = load_tile_proc(*args)
-        coarsened = coarsen_sfc_data(data, **kwargs)
-        return args, coarsened
-
-    bag = db.from_sequence(files)
-
-    # res = bag.map(process)
-    # res = res.compute(scheduler='single-threaded')
-
-    procs = bag.map(process).groupby(tile).map(combine_subtiles).map(lambda x: x[1])
-
-    return xr.concat(procs.compute(), dim="tile")
-
-
 def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
     """Coarse grain a set of fv_core restart files.
 
@@ -529,28 +465,6 @@ def sync_dimension_order(a, b):
     return a
 
 
-def coarsen_grid_spec(
-    input_grid_spec,
-    coarsening_factor,
-    output_filename,
-    x_dim_unstaggered=COORD_X_CENTER,
-    y_dim_unstaggered=COORD_Y_CENTER,
-    x_dim_staggered=COORD_X_OUTER,
-    y_dim_staggered=COORD_Y_OUTER,
-):
-    tile = pd.Index(TILES, name="tile")
-    native_grid_spec = xr.open_mfdataset(input_grid_spec, concat_dim=tile)
-    result = coarse_grain_grid_spec(
-        native_grid_spec,
-        coarsening_factor,
-        x_dim_unstaggered,
-        y_dim_unstaggered,
-        x_dim_staggered,
-        y_dim_staggered,
-    )
-    result.to_netcdf(output_filename)
-
-
 def coarsen_restarts_on_sigma(
     coarsening_factor,
     grid_spec_prefix,
@@ -572,6 +486,7 @@ def coarsen_restarts_on_sigma(
             convention. Defaults to "{prefix}{category}.tile{tile}.nc". Must include
             {prefix}, {category} and {tile}.
     """
+    # TODO fix this code (or delete), there is a lot of copy paste in this module
     tiles = pd.Index(range(6), name="tile")
     filename = grid_spec_prefix + ".tile*.nc"
     grid_spec = xr.open_mfdataset(filename, concat_dim=[tiles], combine="nested")
