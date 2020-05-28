@@ -319,7 +319,7 @@ def generate_restart_data(
         "fv_core.res": _fv_core_schema(n, nz),
         "sfc_data": _sfc_data(n, n_soil),
         "fv_tracer.res": _fv_tracer_schema(n, nz),
-        "fv_src_wnd.res": _fv_srf_wnd_schema(n),
+        "fv_srf_wnd.res": _fv_srf_wnd_schema(n),
     }
 
     return valmap(_generate_from_schema, schema)
