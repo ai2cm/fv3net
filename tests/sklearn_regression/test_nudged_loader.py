@@ -8,7 +8,7 @@ import synth
 
 from fv3net.regression.loaders._nudged import (
     NUDGED_TIME_DIM,
-    load_nudging_batches,
+    _load_nudging_batches,
     _get_path_for_nudging_timescale,
     NudgedTimestepMapper,
 )
@@ -31,32 +31,60 @@ def xr_dataset():
     return ds
 
 
-# TODO session scoped
-@pytest.fixture
-def nudged_tstep_mapper(datadir):
+def _gen_synth_ds(json_path):
 
+    with open(str(json_path)) as f:
+        schema = synth.load(f)
+
+    xr_dataset = synth.generate(schema)
+
+
+@pytest.fixture
+def nudged_output_ds_dict(datadir):
+
+    nudged_datasets = {}
     ntimes = 144
 
-    synth_data = ["nudging_tendencies", "after_physics"]
-    combined_ds = xr.Dataset()
-    for key in synth_data:
-        schema_path = datadir.join(f"{key}.json")
+    nudging_tendency_path = datadir.join("nudging_tendencies.json")
+    with open(nudging_tendency_path) as f:
+        nudging_schema = synth.load(f)
+    nudging_tend_ds = synth.generate(nudging_schema)
 
-        with open(str(schema_path)) as f:
-            schema = synth.load(f)
+    nudged_datasets["nudging_tendencies"] = nudging_tend_ds
 
-        xr_zarr = synth.generate(schema)
-        xr_zarr = xr_zarr.isel({NUDGED_TIME_DIM: slice(0, ntimes)})
+    # Create identically schema'd datasets to mimic before-after fv3 states
+    fv3_state_schema_path = datadir.join(f"after_physics.json")
+
+    with open(str(fv3_state_schema_path)) as f:
+        fv3_state_schema = synth.load(f)
+
+    datasets_sources = ["before_dynamics", "after_dynamics", "after_physics"]
+    for source in datasets_sources:
+        ds = synth.generate(fv3_state_schema)
 
         # convert back to datetimes from int64
-        time = xr_zarr[NUDGED_TIME_DIM].values
-        xr_zarr = xr_zarr.assign_coords({NUDGED_TIME_DIM: pd.to_datetime(time)})
+        time = ds[NUDGED_TIME_DIM].values
+        ds = ds.assign_coords({NUDGED_TIME_DIM: pd.to_datetime(time)})
 
-        combined_ds = combined_ds.merge(xr_zarr)
+        nudged_datasets[source] = ds.isel({NUDGED_TIME_DIM: slice(0, ntimes)})
+
+    return nudged_datasets
+
+
+# TODO session scoped
+@pytest.fixture
+def nudged_tstep_mapper(nudged_output_ds_dict):
+
+    to_combine = ["nudging_tendencies", "after_physics"]
+    combined_ds = xr.Dataset()
+    for source in to_combine:
+        ds = nudged_output_ds_dict[source]
+        combined_ds = combined_ds.merge(ds)
 
     timestep_mapper = NudgedTimestepMapper(combined_ds)
 
     return timestep_mapper
+
 
 # Note: datadir fixture in conftest.py
 @pytest.mark.regression
@@ -127,3 +155,11 @@ def test__get_path_for_nudging_timescale(nudging_output_dirs, timescale, expecte
 def test__get_path_for_nudging_timescale_failure(nudging_output_dirs, timescale):
     with pytest.raises(KeyError):
         _get_path_for_nudging_timescale(nudging_output_dirs, timescale, tol=1e-5)
+
+
+def test_NudgedTimestepMapper():
+    pass
+
+
+def test_NudgedMapperAllSources():
+    pass
