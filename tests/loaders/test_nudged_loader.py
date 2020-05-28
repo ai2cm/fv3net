@@ -2,7 +2,6 @@ import pytest
 import os
 import xarray as xr
 import numpy as np
-from distutils import dir_util
 
 import synth
 
