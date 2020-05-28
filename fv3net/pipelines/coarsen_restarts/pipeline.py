@@ -4,6 +4,7 @@ import os
 import logging
 import gcsfs
 from pathlib import Path
+import dask
 
 import pandas as pd
 import xarray as xr
@@ -63,7 +64,7 @@ def _open_grid_spec(grid_spec_prefix):
 
 
 def _coarsen_data(
-    local_coarsen_dir, timestep_name, coarsen_factor, local_spec_dir, local_timestep_dir
+    local_coarsen_dir, timestep_name, coarsen_factor, grid_spec, local_timestep_dir
 ):
 
     os.makedirs(local_coarsen_dir, exist_ok=True)
@@ -71,10 +72,6 @@ def _coarsen_data(
     filename_prefix = f"{timestep_name}."
 
     from vcm.coarsen import _open_restart_categories
-
-    # open grid spec
-    grid_spec_prefix = os.path.join(local_spec_dir, "grid_spec")
-    grid_spec = _open_grid_spec(grid_spec_prefix)
 
     # open source
     source_data_prefix = os.path.join(
@@ -98,48 +95,34 @@ def output_filename(directory: str, time: str, category: str, tile: int) -> str:
 def save_data(time: str, category: str, coarsen: xr.Dataset, directory: str = "."):
     for tile in range(6):
         data = coarsen.isel(tile=tile)
-        filename = output_filename(directory, time, category, tile)
+        filename = output_filename(directory, time, category, tile + 1)
         logger.info(f"Saving to {filename}")
+
+        try:
+            FileSystems.mkdirs(os.path.dirname(filename))
+        except IOError:
+            pass
+
         with FileSystems.create(filename) as f:
             vcm.dump_nc(data, f)
 
 
-def _upload_data(gcs_output_dir, local_coarsen_dir):
+def coarsen_timestep(
+    curr_timestep, coarsen_factor: int, gridspec: xr.Dataset, prefix="."
+):
 
-    logger.info(f"Uploading coarsened data to {gcs_output_dir}")
-    bucket_name, blob_prefix = gcs.parse_gcs_url(gcs_output_dir)
-    gcs.upload_dir_to_gcs(bucket_name, blob_prefix, Path(local_coarsen_dir))
+    tmp_timestep_dir = os.path.join(prefix, "local_fine_dir")
+    local_coarsen_dir = os.path.join(prefix, "local_coarse_dir", curr_timestep)
 
-
-def coarsen_timestep(timestep_gcs_url: str, coarsen_factor: int, gridspec_path: str):
-
-    curr_timestep = parse_timestep_str_from_path(timestep_gcs_url)
-    logger.info(f"Coarsening timestep: {curr_timestep}")
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = "test-outputs"
-
-        local_spec_dir = os.path.join(tmpdir, "local_grid_spec")
-        _copy_gridspec(local_spec_dir, gridspec_path)
-
-        tmp_timestep_dir = os.path.join(tmpdir, "local_fine_dir")
-        _copy_restart(tmp_timestep_dir, timestep_gcs_url)
-
-        local_coarsen_dir = os.path.join(tmpdir, "local_coarse_dir", curr_timestep)
-        yield from _coarsen_data(
-            local_coarsen_dir,
-            curr_timestep,
-            coarsen_factor,
-            local_spec_dir,
-            tmp_timestep_dir,
-        )
+    yield from _coarsen_data(
+        local_coarsen_dir, curr_timestep, coarsen_factor, gridspec, tmp_timestep_dir,
+    )
 
 
 def run(args, pipeline_args=None):
     logging.basicConfig(level=logging.DEBUG)
 
-    source_timestep_dir = args.gcs_src_dir
-    gridspec_path = args.gcs_grid_spec_path
+    gridspec_path = os.path.join(args.gcs_grid_spec_path, "grid_spec")
     source_resolution = args.source_resolution
     target_resolution = args.target_resolution
 
@@ -148,23 +131,28 @@ def run(args, pipeline_args=None):
         output_dir_prefix = os.path.join(output_dir_prefix, f"C{target_resolution}")
 
     coarsen_factor = source_resolution // target_resolution
-    available_timesteps = list_timesteps(source_timestep_dir)[:1]
-    timestep_urls = [
-        os.path.join(source_timestep_dir, tstep) for tstep in available_timesteps
-    ]
+
+    timesteps = ["20160801.001500"]
+
+    prefix = "test-outputs"
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
+        grid_spec = p | FunctionSource(
+            lambda x: vcm.open_tiles(x).load(), gridspec_path
+        )
         (
             p
-            | "CreateTStepURLs" >> beam.Create(timestep_urls)
+            | "CreateTStepURLs" >> beam.Create(timesteps)
             # | "CheckCompleteTSteps"
             # >> beam.Filter(check_coarsen_incomplete, output_dir_prefix)
             | "CoarsenTStep"
             >> beam.ParDo(
                 coarsen_timestep,
                 coarsen_factor=coarsen_factor,
-                gridspec_path=gridspec_path,
+                gridspec=beam.pvalue.AsSingleton(grid_spec),
+                # TODO remove this argument
+                prefix=prefix,
             )
             | "Saving Data" >> beam.MapTuple(save_data, directory=output_dir_prefix)
         )
