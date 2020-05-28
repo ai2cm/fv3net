@@ -213,8 +213,8 @@ class _RestartCategorySchemaFactory:
         x_outer: Sequence[str] = (),
         surface: Sequence[str] = (),
     ) -> DatasetSchema:
-        coords = self._generate_coords(centered, x_outer, y_outer, surface)
-        variables = self._generate_variables(centered, x_outer, y_outer, surface)
+        coords = self._generate_coords(centered, y_outer, x_outer, surface)
+        variables = self._generate_variables(centered, y_outer, x_outer, surface)
 
         return DatasetSchema(variables=variables, coords=coords)
 

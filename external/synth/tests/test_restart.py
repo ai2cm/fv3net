@@ -49,3 +49,7 @@ def _yield_all_variables_and_coords(output):
 def test_all_data_float32(output):
     for variable, array in _yield_all_variables_and_coords(output):
         assert array.dtype == np.float32, variable
+
+
+def test_u_correct(output):
+    assert output["fv_core.res"][1].u.dims == ("Time", "zaxis_1", "yaxis_1", "xaxis_1")
