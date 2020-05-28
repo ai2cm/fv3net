@@ -4,7 +4,7 @@ import logging
 import os
 import yaml
 from dataclasses import dataclass
-from typing import Iterable, Sequence, Mapping
+from typing import Iterable, Sequence
 
 from .. import loaders
 
