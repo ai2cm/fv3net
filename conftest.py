@@ -2,8 +2,6 @@ import pytest
 import os
 from distutils import dir_util
 
-ONE_STEP_ZARR_SCHEMA = "tests/loaders/one_step_zarr_schema.json"
-
 
 @pytest.fixture
 def datadir(tmpdir, request):

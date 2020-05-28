@@ -2,13 +2,12 @@ import backoff
 import functools
 import logging
 import numpy as np
-from typing import Iterable, Sequence, Mapping, Callable
+from typing import Iterable, Sequence, Mapping
 import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
 from .transform import transform_train_data
-from ..constants import TIME_NAME, SAMPLE_DIM_NAME, Z_DIM_NAME
-
+from ..constants import TIME_NAME
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -80,8 +79,6 @@ def _load_batch(
     init_time_dim_name: str,
     timestep_list: Iterable[str],
 ):
-    # TODO refactor this I/O. since this logic below it is currently
-    # impossible to test.
     data = _load_datasets(timestep_mapper, timestep_list)
     ds = xr.concat(data, init_time_dim_name)
     # need to use standardized time dimension name
