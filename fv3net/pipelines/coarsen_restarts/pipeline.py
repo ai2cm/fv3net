@@ -72,6 +72,7 @@ def run(
     gridspec_path: str, src_dir: str, output_dir: str, factor: int, pipeline_args=None,
 ):
 
+    # TODO detect time-steps automatically
     timesteps = ["20160801.001500"]
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
