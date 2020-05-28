@@ -25,6 +25,7 @@ def save_restarts(restarts, outdir, time):
 def restart_dir(tmpdir):
     time = "20160101.000000"
     output = tmpdir.mkdir(time)
+    tmpdir.mkdir("output").mkdir(time)
     restarts = synth.generate_restart_data(n=384)
     save_restarts(restarts, output, time)
     return tmpdir
