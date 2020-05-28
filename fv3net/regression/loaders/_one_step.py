@@ -1,23 +1,17 @@
-import logging
 import os
 from typing import Mapping
-
 import xarray as xr
 
 import vcm
 from vcm import cloud
 
-__all__ = ["load_one_step_batches"]
-
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-fh = logging.FileHandler("dataset_handler.log")
-fh.setLevel(logging.INFO)
-logger.addHandler(fh)
-
 
 def open_onestep_mapping(url: str) -> Mapping[str, xr.Dataset]:
     return TimestepMapper(url)
+
+    def __getitem__(self, key: str) -> xr.Dataset:
+        zarr_path = os.path.join(self._timesteps_dir, f"{key}.zarr")
+        return xr.open_zarr(self._fs.get_mapper(zarr_path))
 
 
 class TimestepMapper:
