@@ -641,6 +641,7 @@ def coarsen_restarts_on_pressure(
             convention. Defaults to "{prefix}{category}.tile{tile}.nc". Must include
             {prefix}, {category} and {tile}.
     """
+    # TODO correct this docstring
 
     coarsened = {}
 

@@ -1,89 +1,30 @@
 import apache_beam as beam
-import tempfile
 import os
 import logging
-import gcsfs
-from pathlib import Path
-import dask
-from typing import Mapping
+from typing import Mapping, Iterable, Tuple
 
-import pandas as pd
 import xarray as xr
 
-from apache_beam.io.filesystems import FileSystems
 
 from apache_beam.options.pipeline_options import PipelineOptions
 
-from fv3net.pipelines.common import list_timesteps, FunctionSource
+from fv3net.pipelines.common import list_timesteps, FunctionSource, WriteToNetCDFs
 import vcm
-from vcm.cloud import gcs
 from vcm import parse_timestep_str_from_path
 
 logger = logging.getLogger("CoarsenPipeline")
 logger.setLevel(logging.DEBUG)
 
-NUM_FILES_IN_COARSENED_DIR = 24
 
-
-def check_coarsen_incomplete(gcs_url, output_prefix):
-
-    timestep = parse_timestep_str_from_path(gcs_url)
-    output_timestep_dir = os.path.join(output_prefix, timestep)
-
-    fs = gcsfs.GCSFileSystem()
-    timestep_exists = fs.exists(output_timestep_dir)
-
-    if timestep_exists:
-        timestep_files = fs.ls(output_timestep_dir)
-        incorrect_num_files = len(timestep_files) != NUM_FILES_IN_COARSENED_DIR
-        return incorrect_num_files
-    else:
-        return True
-
-
-def _copy_gridspec(local_spec_dir, gridspec_gcs_path):
-
-    os.makedirs(local_spec_dir, exist_ok=True)
-    logger.debug(f"Copying gridspec to {local_spec_dir}")
-    gcs.download_all_bucket_files(
-        gridspec_gcs_path, local_spec_dir, include_parent_in_stem=False
-    )
-
-
-def _copy_restart(local_timestep_dir, timestep_gcs_path):
-
-    os.makedirs(local_timestep_dir, exist_ok=True)
-    logger.debug(f"Copying restart files to {local_timestep_dir}")
-    gcs.download_all_bucket_files(timestep_gcs_path, local_timestep_dir)
-
-
-def _open_grid_spec(grid_spec_prefix):
-    tiles = pd.Index(range(6), name="tile")
-    filename = grid_spec_prefix + ".tile*.nc"
-    return xr.open_mfdataset(filename, concat_dim=[tiles], combine="nested")
-
-
-def output_filename(directory: str, time: str, category: str, tile: int) -> str:
+def output_filename(arg: Tuple[str, str, int], directory: str) -> str:
+    time, category, tile = arg
     assert tile in [1, 2, 3, 4, 5, 6]
     return os.path.join(directory, time, f"{time}.{category}.tile{tile}.nc")
 
 
-def save_data(time: str, category: str, coarsen: xr.Dataset, directory: str = "."):
-    for tile in range(6):
-        data = coarsen.isel(tile=tile)
-        filename = output_filename(directory, time, category, tile + 1)
-        logger.info(f"Saving to {filename}")
-
-        try:
-            FileSystems.mkdirs(os.path.dirname(filename))
-        except IOError:
-            pass
-
-        with FileSystems.create(filename) as f:
-            vcm.dump_nc(data, f)
-
-
-def _open_restart_categories(time: str, prefix: str) -> Mapping[str, xr.Dataset]:
+def _open_restart_categories(
+    time: str, prefix: str
+) -> Tuple[str, Mapping[str, xr.Dataset]]:
     source = {}
 
     OUTPUT_CATEGORY_NAMES = {
@@ -97,20 +38,26 @@ def _open_restart_categories(time: str, prefix: str) -> Mapping[str, xr.Dataset]
         input_category = OUTPUT_CATEGORY_NAMES[output_category]
         tile_prefix = os.path.join(prefix, time, f"{time}.{input_category}")
         source[output_category] = vcm.open_tiles(tile_prefix)
-    return source
+    return time, source
 
 
 def coarsen_timestep(
-    curr_timestep, coarsen_factor: int, grid_spec: xr.Dataset, prefix="."
-):
-    tmp_timestep_dir = os.path.join(prefix, "local_fine_dir")
-    source = _open_restart_categories(curr_timestep, tmp_timestep_dir)
+    arg: Tuple[str, Mapping[str, xr.Dataset]],
+    coarsen_factor: int,
+    grid_spec: xr.Dataset,
+) -> Iterable[Tuple[Tuple[str, str], Mapping[str, xr.Dataset]]]:
 
-    # import computation
+    time, source = arg
     for category, data in vcm.coarsen_restarts_on_pressure(
         coarsen_factor, grid_spec, source
     ).items():
-        yield curr_timestep, category, data
+        yield (time, category), data
+
+
+def split_by_tiles(kv):
+    key, ds = kv
+    for tile in range(6):
+        yield key + (tile + 1,), ds.isel(tile=tile)
 
 
 def run(args, pipeline_args=None):
@@ -124,11 +71,13 @@ def run(args, pipeline_args=None):
     if args.add_target_subdir:
         output_dir_prefix = os.path.join(output_dir_prefix, f"C{target_resolution}")
 
+    # TODO why pass two arguments rather than 1? just pass the coarsening factor.
     coarsen_factor = source_resolution // target_resolution
 
     timesteps = ["20160801.001500"]
 
     prefix = "test-outputs"
+    tmp_timestep_dir = os.path.join(prefix, "local_fine_dir")
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
     with beam.Pipeline(options=beam_options) as p:
@@ -138,16 +87,19 @@ def run(args, pipeline_args=None):
         (
             p
             | "CreateTStepURLs" >> beam.Create(timesteps)
-            # | "CheckCompleteTSteps"
-            # >> beam.Filter(check_coarsen_incomplete, output_dir_prefix)
+            | "OpenRestartLazy" >> beam.Map(_open_restart_categories, tmp_timestep_dir)
             | "CoarsenTStep"
             >> beam.ParDo(
                 coarsen_timestep,
                 coarsen_factor=coarsen_factor,
                 grid_spec=beam.pvalue.AsSingleton(grid_spec),
-                # TODO remove this argument
-                prefix=prefix,
             )
+            # Reduce problem size by splitting by tiles
+            # This will results in repeated reads to each fv_core file
+            | "Split By Tiles" >> beam.ParDo(split_by_tiles)
+            # Data is still lazy at this point so reshuffle is not too costly
+            # It distributes the work
             | "Reshuffle" >> beam.Reshuffle()
-            | "Saving Data" >> beam.MapTuple(save_data, directory=output_dir_prefix)
+            | "Force evaluation" >> beam.MapTuple(lambda key, val: (key, val.load()))
+            | WriteToNetCDFs(output_filename, output_dir_prefix)
         )

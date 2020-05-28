@@ -116,8 +116,9 @@ netCDF files.
 
     """
 
-    def __init__(self, name_fn: Callable[[Any], str]):
+    def __init__(self, name_fn: Callable[[Any], str], *args):
         self.name_fn = name_fn
+        self.args = args
 
     def _process(self, key, elm: xr.Dataset):
         """Save a netCDF to a path which is determined from `key`
@@ -129,7 +130,8 @@ netCDF files.
 
         """
         # TODO refactor this or replace with dump_nc
-        path = self.name_fn(key)
+        path = self.name_fn(key, *self.args)
+        logger.info(f"saving to {path}")
         dest: BinaryIO = filesystems.FileSystems.create(path)
 
         # use a file-system backed buffer in case the data is too large to fit in memory
