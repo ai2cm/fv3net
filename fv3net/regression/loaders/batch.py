@@ -109,7 +109,12 @@ def _validated_num_batches(total_num_input_files, files_per_batch, num_batches=N
         Number of batches to use for training
     """
     if num_batches is None:
-        num_train_batches = total_num_input_files // files_per_batch
+        if total_num_input_files >= files_per_batch:
+            num_train_batches = total_num_input_files // files_per_batch
+        else:
+            raise ValueError(
+                f"Number of input_files {total_num_input_files} "
+                f"must be greater than files_per_batch {files_per_batch}")
     elif num_batches * files_per_batch > total_num_input_files:
         raise ValueError(
             f"Number of input_files {total_num_input_files} "
