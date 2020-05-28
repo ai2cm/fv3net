@@ -14,7 +14,7 @@ def _range(n) -> List[float]:
     return np.arange(1, n + 1).astype(float).tolist()
 
 
-class RestartCategorySchemaFactory:
+class _RestartCategorySchemaFactory:
     def __init__(self, x=None, xi=None, y=None, yi=None, z=None, n=None, nz=None):
         self.x = x
         self.y = y
@@ -210,8 +210,8 @@ class RestartCategorySchemaFactory:
         return DatasetSchema(variables=variables, coords=coords)
 
 
-def fv_core_schema(n: int, nz: int) -> DatasetSchema:
-    return RestartCategorySchemaFactory(
+def _fv_core_schema(n: int, nz: int) -> DatasetSchema:
+    return _RestartCategorySchemaFactory(
         n=n, nz=nz, x="xaxis_1", xi="xaxis_2", y="yaxis_2", yi="yaxis_1", z="zaxis_1"
     ).generate(
         centered=["W", "DZ", "T", "delp"],
@@ -221,8 +221,8 @@ def fv_core_schema(n: int, nz: int) -> DatasetSchema:
     )
 
 
-def fv_tracer_schema(n: int, nz: int) -> DatasetSchema:
-    return RestartCategorySchemaFactory(
+def _fv_tracer_schema(n: int, nz: int) -> DatasetSchema:
+    return _RestartCategorySchemaFactory(
         n=n, nz=nz, x="xaxis_1", y="yaxis_1", z="zaxis_1"
     ).generate(
         centered=[
@@ -239,14 +239,14 @@ def fv_tracer_schema(n: int, nz: int) -> DatasetSchema:
     )
 
 
-def fv_srf_wnd_schema(n: int) -> DatasetSchema:
-    return RestartCategorySchemaFactory(n=n, x="xaxis_1", y="yaxis_1").generate(
+def _fv_srf_wnd_schema(n: int) -> DatasetSchema:
+    return _RestartCategorySchemaFactory(n=n, x="xaxis_1", y="yaxis_1").generate(
         surface=["u_srf", "v_srf"]
     )
 
 
-def sfc_data(n: int, n_soil: int) -> DatasetSchema:
-    return RestartCategorySchemaFactory(
+def _sfc_data(n: int, n_soil: int) -> DatasetSchema:
+    return _RestartCategorySchemaFactory(
         n=n, nz=n_soil, x="xaxis_1", y="yaxis_1", z="zaxis_1"
     ).generate(
         surface=[
@@ -296,10 +296,10 @@ def generate_restart_data(
         return {tile: synth.generate(schema) for tile in tiles}
 
     schema = {
-        "fv_core.res": fv_core_schema(n, nz),
-        "sfc_data": sfc_data(n, n_soil),
-        "fv_tracer.res": fv_tracer_schema(n, nz),
-        "fv_src_wnd.res": fv_srf_wnd_schema(n),
+        "fv_core.res": _fv_core_schema(n, nz),
+        "sfc_data": _sfc_data(n, n_soil),
+        "fv_tracer.res": _fv_tracer_schema(n, nz),
+        "fv_src_wnd.res": _fv_srf_wnd_schema(n),
     }
 
     return valmap(_generate_from_schema, schema)
@@ -308,9 +308,3 @@ def generate_restart_data(
 def _read_metadata_remote(fs, url):
     with fs.open(url, "rb") as f:
         return xr.open_dataset(f)
-
-
-def remote_nc_to_schema(url: str) -> synth.DatasetSchema:
-    fs = vcm.cloud.get_fs(url)
-    meta = _read_metadata_remote(fs, url)
-    return synth.read_schema_from_dataset(meta)
