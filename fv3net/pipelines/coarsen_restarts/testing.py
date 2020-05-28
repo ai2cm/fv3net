@@ -6,13 +6,51 @@ import xarray as xr
 
 
 def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
+    def CENTERED(name: str):
+        return VariableSchema(
+            name=name,
+            dims=["Time", z, y, x],
+            array=ChunkedArray(
+                shape=(1, nz, n, n), dtype=np.dtype("float32"), chunks=(1, nz, n, n),
+            ),
+            attrs={"long_name": name, "units": "none",},
+        )
 
-    CENTERED = 0
-    X_OUTER = 1
-    Y_OUTER = 2
-    SURFACE = 3
+    def Y_OUTER(name: str):
+        return VariableSchema(
+            name=name,
+            dims=["Time", z, y, xi],
+            array=ChunkedArray(
+                shape=(1, nz, n, n + 1),
+                dtype=np.dtype("float32"),
+                chunks=(1, nz, n, n + 1),
+            ),
+            attrs={"long_name": name, "units": "none",},
+        )
 
-    variables = [
+    def X_OUTER(name: str):
+        return VariableSchema(
+            name=name,
+            dims=["Time", z, yi, x],
+            array=ChunkedArray(
+                shape=(1, nz, n + 1, n),
+                dtype=np.dtype("float32"),
+                chunks=(1, nz, n + 1, n),
+            ),
+            attrs={"long_name": name, "units": "none",},
+        )
+
+    def SURFACE(name: str):
+        return VariableSchema(
+            name=name,
+            dims=["Time", y, x],
+            array=ChunkedArray(
+                shape=(1, n, n), dtype=np.dtype("float32"), chunks=(1, n, n)
+            ),
+            attrs={"long_name": name, "units": "none",},
+        )
+
+    variables_spec = [
         ("u", X_OUTER),
         ("v", Y_OUTER),
         ("W", CENTERED),
@@ -21,6 +59,10 @@ def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
         ("delp", CENTERED),
         ("phis", SURFACE),
     ]
+
+    variables = {}
+    for name, func in variables_spec:
+        variables[name] = func(name)
 
     return DatasetSchema(
         coords={
@@ -65,76 +107,7 @@ def fv_core_schema(n: int, nz: int, x, xi, y, yi, z):
                 },
             ),
         },
-        variables={
-            "u": VariableSchema(
-                name="u",
-                dims=["Time", z, yi, x],
-                array=ChunkedArray(
-                    shape=(1, nz, n + 1, n),
-                    dtype=np.dtype("float32"),
-                    chunks=(1, nz, n + 1, n),
-                ),
-                attrs={"long_name": "u", "units": "none",},
-            ),
-            "v": VariableSchema(
-                name="v",
-                dims=["Time", z, y, xi],
-                array=ChunkedArray(
-                    shape=(1, nz, n, n + 1),
-                    dtype=np.dtype("float32"),
-                    chunks=(1, nz, n, n + 1),
-                ),
-                attrs={"long_name": "v", "units": "none",},
-            ),
-            "W": VariableSchema(
-                name="W",
-                dims=["Time", z, y, x],
-                array=ChunkedArray(
-                    shape=(1, nz, n, n),
-                    dtype=np.dtype("float32"),
-                    chunks=(1, nz, n, n),
-                ),
-                attrs={"long_name": "W", "units": "none",},
-            ),
-            "DZ": VariableSchema(
-                name="DZ",
-                dims=["Time", z, y, x],
-                array=ChunkedArray(
-                    shape=(1, nz, n, n),
-                    dtype=np.dtype("float32"),
-                    chunks=(1, nz, n, n),
-                ),
-                attrs={"long_name": "DZ", "units": "none",},
-            ),
-            "T": VariableSchema(
-                name="T",
-                dims=["Time", z, y, x],
-                array=ChunkedArray(
-                    shape=(1, nz, n, n),
-                    dtype=np.dtype("float32"),
-                    chunks=(1, nz, n, n),
-                ),
-                attrs={"long_name": "T", "units": "none",},
-            ),
-            "delp": VariableSchema(
-                name="delp",
-                dims=["Time", z, y, x],
-                array=ChunkedArray(
-                    shape=(1, nz, n, n),
-                    dtype=np.dtype("float32"),
-                    chunks=(1, nz, n, n),
-                ),
-                attrs={"long_name": "delp", "units": "none",},
-            ),
-            "phis": VariableSchema(
-                name="phis",
-                dims=["Time", y, x],
-                array=ChunkedArray(
-                    shape=(1, n, n), dtype=np.dtype("float32"), chunks=(1, n, n)
-                ),
-                attrs={"long_name": "phis", "units": "none",},
-            ),
-        },
+        variables=variables,
     )
 
 
