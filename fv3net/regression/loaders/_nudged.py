@@ -1,5 +1,4 @@
 import os
-import fsspec
 import logging
 import xarray as xr
 import pandas as pd
@@ -13,7 +12,6 @@ from pathlib import Path
 import vcm
 from vcm import cloud, safe
 from vcm.cubedsphere.constants import TIME_FMT
-from . import _transform as transform
 from ._sequences import FunctionOutputSequence
 
 logger = logging.getLogger(__name__)
@@ -24,7 +22,7 @@ NUDGING_FILES = [
     "before_dynamics",
     "after_dynamics",
     "after_physics",
-    "nudging_tendencies"
+    "nudging_tendencies",
 ]
 
 SAMPLE_DIM = "sample"
@@ -38,6 +36,7 @@ TimestepMappeer = Mapping[str, xr.Dataset]
 def load_nudging_batches(
     url: str,
     data_vars: Iterable[str],
+    nudging_timescale_hr: Union[int, float] = 3,
     num_times_in_batch: int = 10,
     num_batches: int = None,
     random_seed: int = 0,
@@ -45,7 +44,6 @@ def load_nudging_batches(
     rename_variables: Mapping[str, str] = None,
     initial_time_skip_hr: int = 0,
     n_times: int = None,
-    nudging_timescale_hr: Union[int, float],
 ):
     """temporary loader while transforms being developed"""
 
@@ -53,7 +51,7 @@ def load_nudging_batches(
         url,
         nudging_timescale_hr,
         initial_time_skip_hr=initial_time_skip_hr,
-        n_times=ntimes,
+        n_times=n_times,
     )
     tstep_mapper = mapper.merge_sources(["after_physics", "nudging_tendencies"])
 
@@ -134,6 +132,7 @@ def _load_nudging_batches(
     )
     return FunctionOutputSequence(batch_loader, batched_timesteps)
 
+
 # TODO: changed toplevel constants to shared constants
 
 
@@ -146,14 +145,16 @@ def _load_nudging_batch(
     batch_ds = xr.concat(batch, NUDGED_TIME_DIM)
     batch_ds = batch_ds.rename(rename_variables)
     if mask_to_surface_type is not None:
-        batch_ds = vcm.mask_to_surface_type(batch_ds, mask_to_surface_type) 
+        batch_ds = vcm.mask_to_surface_type(batch_ds, mask_to_surface_type)
     batch_ds = safe.get_variables(batch_ds, data_vars)
 
     # Into memory we go
     batch_ds = batch_ds.load()
 
     stack_dims = [dim for dim in batch_ds.dims if dim != Z_DIM]
-    stacked_batch_ds = safe.stack_once(batch_ds, SAMPLE_DIM, stack_dims, allowed_broadcast_dims=[Z_DIM])
+    stacked_batch_ds = safe.stack_once(
+        batch_ds, SAMPLE_DIM, stack_dims, allowed_broadcast_dims=[Z_DIM]
+    )
     stacked_batch_ds = stacked_batch_ds.dropna(SAMPLE_DIM)
 
     if len(stacked_batch_ds[SAMPLE_DIM]) == 0:
@@ -187,7 +188,6 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
 
 
 class BaseMapper:
-
     def __init__(self, *args):
         raise NotImplementedError("Don't use the base class!")
 
@@ -205,7 +205,6 @@ class BaseMapper:
 
 
 class NudgedTimestepMapper(BaseMapper):
-
     def __init__(self, ds, time_dim_name=NUDGED_TIME_DIM):
         self.ds = ds
         self.time_dim = time_dim_name
@@ -276,9 +275,9 @@ def open_nudged_mapper(
     url: str,
     nudging_timescale_hr: Union[int, float],
     initial_time_skip_hr: int = 0,
-    n_times: int = None
+    n_times: int = None,
 ) -> Mapping[str, xr.Dataset]:
-    
+
     fs = cloud.get_fs(url)
 
     glob_url = os.path.join(url, TIMESCALE_OUTDIR_TEMPLATE)
@@ -287,7 +286,7 @@ def open_nudged_mapper(
     nudged_url = _get_path_for_nudging_timescale(
         nudged_output_dirs, nudging_timescale_hr
     )
-    
+
     datasets = {}
     for source in NUDGING_FILES:
         mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}.zarr"))
