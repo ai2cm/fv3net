@@ -1,12 +1,10 @@
-from functools import partial
 import numpy as np
-from typing import Callable, Mapping, Tuple, List
+from typing import Mapping, Tuple
 import xarray as xr
 from toolz import groupby
 
-import vcm
 from vcm import safe
-from ..constants import TIME_NAME, SAMPLE_DIM_NAME, Z_DIM_NAME
+from ..constants import SAMPLE_DIM_NAME, Z_DIM_NAME
 
 Time = str
 Tile = int
@@ -62,7 +60,6 @@ def _get_chunk_indices(chunks):
         indices.append(list(range(start, start + chunk)))
         start += chunk
     return indices
-
 
 
 class GroupByTime:

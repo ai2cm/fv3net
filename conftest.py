@@ -27,4 +27,3 @@ def datadir(tmpdir, request):
         dir_util.copy_tree(test_dir, str(tmpdir))
 
     return tmpdir
-

@@ -2,7 +2,11 @@ import numpy as np
 import pytest
 import xarray as xr
 from fv3net.regression.loaders.transform import (
-    shuffled, _get_chunk_indices, transform_train_data)
+    shuffled,
+    _get_chunk_indices,
+    transform_train_data,
+)
+
 
 @pytest.fixture
 def test_gridded_dataset():
@@ -18,7 +22,7 @@ def test_gridded_dataset():
 def test_transform_train_data(test_gridded_dataset):
     ds = test_gridded_dataset
     da = ds["var"]
-    ds["var"] = da.where(da != 0)   # assign 10/100 nan values
+    ds["var"] = da.where(da != 0)  # assign 10/100 nan values
     ds_train = transform_train_data(
         init_time_dim_name="initial_time", random_seed=0, ds=ds
     )

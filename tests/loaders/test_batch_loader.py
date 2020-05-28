@@ -66,7 +66,8 @@ def test__load_datasets(test_mapper):
 
 def test_load_batches(test_mapper):
     batched_data_sequence = load_batches(
-        test_mapper, DATA_VARS, files_per_batch=2, num_batches=2)
+        test_mapper, DATA_VARS, files_per_batch=2, num_batches=2
+    )
     assert len(batched_data_sequence) == 2
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
@@ -74,18 +75,32 @@ def test_load_batches(test_mapper):
 
 
 def test__validated_num_batches():
-    assert _validated_num_batches(
-        total_num_input_files=5, files_per_batch=1, num_batches=None) == 5
-    assert _validated_num_batches(
-        total_num_input_files=5, files_per_batch=2, num_batches=None) == 2
-    assert _validated_num_batches(
-        total_num_input_files=5, files_per_batch=2, num_batches=1) == 1
+    assert (
+        _validated_num_batches(
+            total_num_input_files=5, files_per_batch=1, num_batches=None
+        )
+        == 5
+    )
+    assert (
+        _validated_num_batches(
+            total_num_input_files=5, files_per_batch=2, num_batches=None
+        )
+        == 2
+    )
+    assert (
+        _validated_num_batches(
+            total_num_input_files=5, files_per_batch=2, num_batches=1
+        )
+        == 1
+    )
     with pytest.raises(ValueError):
         _validated_num_batches(
-            total_num_input_files=2, files_per_batch=6, num_batches=None)
+            total_num_input_files=2, files_per_batch=6, num_batches=None
+        )
     with pytest.raises(ValueError):
         _validated_num_batches(
-            total_num_input_files=2, files_per_batch=1, num_batches=3)
+            total_num_input_files=2, files_per_batch=1, num_batches=3
+        )
 
 
 def test__select_batch_timesteps():
@@ -93,7 +108,8 @@ def test__select_batch_timesteps():
         timesteps=[str(i) for i in range(12)],
         files_per_batch=3,
         num_batches=4,
-        random_seed=0)
+        random_seed=0,
+    )
     assert len(batched_times) == 4
     for batch in batched_times:
         assert len(batch) == 3
@@ -102,4 +118,5 @@ def test__select_batch_timesteps():
             timesteps=[str(i) for i in range(12)],
             files_per_batch=3,
             num_batches=5,
-            random_seed=0)
+            random_seed=0,
+        )

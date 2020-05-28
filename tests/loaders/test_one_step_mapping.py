@@ -14,9 +14,11 @@ def test_open_onestep_mapping(datadir):
         schema = synth.load(f)
     one_step_dataset = synth.generate(schema)
     for i, timestep in enumerate(TIMESTEP_LIST):
-        one_step_dataset = one_step_dataset.assign({"test_var": one_step_dataset.area * 0 + i})
+        one_step_dataset = one_step_dataset.assign(
+            {"test_var": one_step_dataset.area * 0 + i}
+        )
         output_path = os.path.join(datadir, f"{timestep}.zarr")
         one_step_dataset.to_zarr(output_path, consolidated=True)
-    timestep_mapper = open_onestep_mapping(str(datadir))    
+    timestep_mapper = open_onestep_mapping(str(datadir))
     assert set(timestep_mapper.keys()) == set(TIMESTEP_LIST)
     assert timestep_mapper[TIMESTEP_LIST[2]]["test_var"].values == pytest.approx(2)
