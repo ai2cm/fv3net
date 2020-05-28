@@ -9,7 +9,7 @@ from pathlib import Path
 
 import vcm
 from vcm import cloud, safe
-from . import transform
+from ._transform import shuffled
 from ._sequences import FunctionOutputSequence
 
 INPUT_ZARR = "after_physics.zarr"
@@ -126,7 +126,7 @@ def _load_nudging_batch(
             "No Valid samples detected. Check for errors in the training data."
         )
 
-    return transform.shuffled(batch_no_nan, SAMPLE_DIM, random)
+    return shuffled(batch_no_nan, SAMPLE_DIM, random)
 
 
 def _get_batch_slices(

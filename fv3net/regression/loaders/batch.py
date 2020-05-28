@@ -6,7 +6,7 @@ from typing import Iterable, Sequence, Mapping
 import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
-from .transform import transform_train_data
+from ._transform import transform_train_data
 from ..constants import TIME_NAME
 
 logger = logging.getLogger()
