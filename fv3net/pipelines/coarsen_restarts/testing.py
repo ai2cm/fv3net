@@ -290,6 +290,17 @@ def _sfc_data(n: int, n_soil: int) -> DatasetSchema:
 def generate_restart_data(
     n: int = 48, nz: int = 79, n_soil: int = 4
 ) -> Mapping[str, Mapping[int, xr.Dataset]]:
+    """Generate a set of fake restart data for testing purposes
+
+    Args:
+        n: the extent of tile. For instance for C48, n=48
+        nz: the number of height levels
+        n_soil: the number of soil levels
+
+    Returns:
+        collection of restart data
+
+    """
     tiles = [1, 2, 3, 4, 5, 6]
 
     def _generate_from_schema(schema: DatasetSchema):
