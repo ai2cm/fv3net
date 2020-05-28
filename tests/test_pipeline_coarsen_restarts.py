@@ -1,6 +1,7 @@
 import pytest
 import os
 import xarray as xr
+import synth
 
 from fv3net.pipelines.coarsen_restarts.testing import (
     fv_core_schema,
@@ -15,3 +16,8 @@ def test_fv_core_schema(regtest):
 def test_generate_restart_data():
     output = generate_restart_data(n=48, n_soil=4, nz=79)
     assert isinstance(output["fv_core.res"][1], xr.Dataset)
+
+
+def test_generate_fv_core_integration():
+    schema = fv_core_schema(n=2, nz=3)
+    synth.generate(schema)

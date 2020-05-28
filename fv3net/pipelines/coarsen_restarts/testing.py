@@ -1,6 +1,6 @@
 import vcm
 import synth
-from typing import Iterable, Mapping, List
+from typing import Iterable, Mapping, List, Sized, Sequence
 from synth import DatasetSchema, CoordinateSchema, ChunkedArray, VariableSchema
 import numpy as np
 import xarray as xr
@@ -25,20 +25,18 @@ class RestartCategorySchemaFactory:
         self.nz = nz
 
     @property
-    def x_coord(self):
+    def x_coord(self) -> CoordinateSchema:
         x = self.x
         n = self.n
-        return (
-            CoordinateSchema(
-                name=x,
-                dims=[x],
-                value=_range(n),
-                attrs={"long_name": x, "units": "none", "cartesian_axis": "X"},
-            ),
+        return CoordinateSchema(
+            name=x,
+            dims=[x],
+            value=_range(n),
+            attrs={"long_name": x, "units": "none", "cartesian_axis": "X"},
         )
 
     @property
-    def xi_coord(self):
+    def xi_coord(self) -> CoordinateSchema:
         n = self.n
         xi = self.xi
         return CoordinateSchema(
@@ -49,7 +47,7 @@ class RestartCategorySchemaFactory:
         )
 
     @property
-    def yi_coord(self):
+    def yi_coord(self) -> CoordinateSchema:
         yi = self.yi
         n = self.n
         return CoordinateSchema(
@@ -60,48 +58,38 @@ class RestartCategorySchemaFactory:
         )
 
     @property
-    def y_coord(self):
+    def y_coord(self) -> CoordinateSchema:
 
         y = self.y
         n = self.n
-        return (
-            CoordinateSchema(
-                name=y,
-                dims=[y],
-                value=_range(n),
-                attrs={"long_name": y, "units": "none", "cartesian_axis": "Y"},
-            ),
+        return CoordinateSchema(
+            name=y,
+            dims=[y],
+            value=_range(n),
+            attrs={"long_name": y, "units": "none", "cartesian_axis": "Y"},
         )
 
     @property
-    def z_coord(self):
+    def z_coord(self) -> CoordinateSchema:
         z = self.z
         nz = self.nz
-        return (
-            CoordinateSchema(
-                name=z,
-                dims=[z],
-                value=_range(nz),
-                attrs={"long_name": z, "units": "none", "cartesian_axis": "Z"},
-            ),
+        return CoordinateSchema(
+            name=z,
+            dims=[z],
+            value=_range(nz),
+            attrs={"long_name": z, "units": "none", "cartesian_axis": "Z"},
         )
 
     @property
-    def time_coord(self):
-        return (
-            CoordinateSchema(
-                name="Time",
-                dims=["Time"],
-                value=[1.0],
-                attrs={
-                    "long_name": "Time",
-                    "units": "time level",
-                    "cartesian_axis": "T",
-                },
-            ),
+    def time_coord(self) -> CoordinateSchema:
+        return CoordinateSchema(
+            name="Time",
+            dims=["Time"],
+            value=[1.0],
+            attrs={"long_name": "Time", "units": "time level", "cartesian_axis": "T",},
         )
 
-    def centered(self, name: str):
+    def centered(self, name: str) -> VariableSchema:
         return VariableSchema(
             name=name,
             dims=["Time", self.z, self.y, self.x],
@@ -113,7 +101,7 @@ class RestartCategorySchemaFactory:
             attrs={"long_name": name, "units": "none",},
         )
 
-    def x_outer(self, name: str):
+    def x_outer(self, name: str) -> VariableSchema:
         return VariableSchema(
             name=name,
             dims=["Time", self.z, self.y, self.xi],
@@ -125,7 +113,7 @@ class RestartCategorySchemaFactory:
             attrs={"long_name": name, "units": "none",},
         )
 
-    def y_outer(self, name: str):
+    def y_outer(self, name: str) -> VariableSchema:
         n = self.n
         nz = self.nz
         z = self.z
@@ -142,7 +130,7 @@ class RestartCategorySchemaFactory:
             attrs={"long_name": name, "units": "none",},
         )
 
-    def surface(self, name: str):
+    def surface(self, name: str) -> VariableSchema:
         n = self.n
         y = self.y
         x = self.x
@@ -181,10 +169,10 @@ class RestartCategorySchemaFactory:
 
     def _generate_coords(
         self,
-        centered: Iterable[str],
-        y_outer: Iterable[str],
-        x_outer: Iterable[str],
-        surface: Iterable[str],
+        centered: Sequence[str],
+        y_outer: Sequence[str],
+        x_outer: Sequence[str],
+        surface: Sequence[str],
     ) -> Mapping[str, CoordinateSchema]:
         output = {}
         if len(centered) > 0:
@@ -210,10 +198,10 @@ class RestartCategorySchemaFactory:
 
     def generate(
         self,
-        centered: Iterable[str] = (),
-        y_outer: Iterable[str] = (),
-        x_outer: Iterable[str] = (),
-        surface: Iterable[str] = (),
+        centered: Sequence[str] = (),
+        y_outer: Sequence[str] = (),
+        x_outer: Sequence[str] = (),
+        surface: Sequence[str] = (),
     ) -> DatasetSchema:
         coords = self._generate_coords(centered, x_outer, y_outer, surface)
         variables = self._generate_variables(centered, x_outer, y_outer, surface)
@@ -221,7 +209,7 @@ class RestartCategorySchemaFactory:
         return DatasetSchema(variables=variables, coords=coords)
 
 
-def fv_core_schema(n: int, nz: int):
+def fv_core_schema(n: int, nz: int) -> DatasetSchema:
     return RestartCategorySchemaFactory(
         n=n, nz=nz, x="xaxis_1", xi="xaxis_2", y="yaxis_2", yi="yaxis_1", z="zaxis_1"
     ).generate(
@@ -232,7 +220,7 @@ def fv_core_schema(n: int, nz: int):
     )
 
 
-def fv_tracer_schema(n: int, nz: int):
+def fv_tracer_schema(n: int, nz: int) -> DatasetSchema:
     return RestartCategorySchemaFactory(
         n=n, nz=nz, x="xaxis_1", y="yaxis_1", z="zaxis_1"
     ).generate(
@@ -250,13 +238,13 @@ def fv_tracer_schema(n: int, nz: int):
     )
 
 
-def fv_srf_wnd_schema(n: int):
+def fv_srf_wnd_schema(n: int) -> DatasetSchema:
     return RestartCategorySchemaFactory(n=n, x="xaxis_1", y="yaxis_1").generate(
         surface=["u_srf", "v_srf"]
     )
 
 
-def sfc_data(n: int, n_soil: int):
+def sfc_data(n: int, n_soil: int) -> DatasetSchema:
     return RestartCategorySchemaFactory(
         n=n, nz=n_soil, x="xaxis_1", y="yaxis_1", z="zaxis_1"
     ).generate(
@@ -299,7 +287,7 @@ def sfc_data(n: int, n_soil: int):
 
 
 def generate_restart_data(
-    n=48, nz=79, n_soil=4
+    n: int = 48, nz: int = 79, n_soil: int = 4
 ) -> Mapping[str, Mapping[int, xr.Dataset]]:
     tiles = [1, 2, 3, 4, 5, 6]
 
