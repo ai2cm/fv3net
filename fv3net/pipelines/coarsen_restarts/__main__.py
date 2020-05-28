@@ -46,7 +46,7 @@ if __name__ == "__main__":
             "destination directory. "
         ),
     )
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     args, pipeline_args = parser.parse_known_args()
 
