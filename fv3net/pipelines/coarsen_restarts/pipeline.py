@@ -1,7 +1,7 @@
 import apache_beam as beam
 import os
 import logging
-from typing import Mapping, Iterable, Tuple
+from typing import Mapping, Iterable, Tuple, List, TypeVar
 
 import xarray as xr
 
@@ -54,10 +54,18 @@ def coarsen_timestep(
         yield (time, category), data
 
 
-def split_by_tiles(kv):
+def split_by_tiles(kv: Tuple[Tuple, xr.Dataset]) -> Iterable[Tuple[Tuple, xr.Dataset]]:
     key, ds = kv
     for tile in range(6):
         yield key + (tile + 1,), ds.isel(tile=tile)
+
+
+T = TypeVar("T")
+
+
+def load(kv: Tuple[T, xr.Dataset]) -> Tuple[T, xr.Dataset]:
+    key, val = kv
+    return key, val.load()
 
 
 def run(
@@ -74,7 +82,7 @@ def run(
         )
         (
             p
-            | "CreateTStepURLs" >> beam.Create(timesteps)
+            | "CreateTStepURLs" >> beam.Create(timesteps).with_output_types(str)
             | "OpenRestartLazy" >> beam.Map(_open_restart_categories, src_dir)
             | "CoarsenTStep"
             >> beam.ParDo(
@@ -88,6 +96,6 @@ def run(
             # Data is still lazy at this point so reshuffle is not too costly
             # It distributes the work
             | "Reshuffle" >> beam.Reshuffle()
-            | "Force evaluation" >> beam.MapTuple(lambda key, val: (key, val.load()))
+            | "Force evaluation" >> beam.Map(load)
             | WriteToNetCDFs(output_filename, output_dir)
         )

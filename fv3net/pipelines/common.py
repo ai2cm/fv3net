@@ -3,7 +3,7 @@ import shutil
 import tempfile
 import logging
 from datetime import timedelta
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Tuple, TypeVar
 from typing.io import BinaryIO
 
 import apache_beam as beam
@@ -72,6 +72,11 @@ class CombineSubtilesByKey(beam.PTransform):
         return key, xr.combine_by_coords(datasets)
 
 
+T = TypeVar("T")
+
+
+@beam.typehints.with_input_types(Tuple[T, xr.Dataset])
+@beam.typehints.with_output_types(Any)
 class WriteToNetCDFs(beam.PTransform):
     """Transform for writing xarray Datasets to netCDF either remote or local
 netCDF files.
@@ -116,11 +121,11 @@ netCDF files.
 
     """
 
-    def __init__(self, name_fn: Callable[[Any], str], *args):
+    def __init__(self, name_fn: Callable[[T], str], *args):
         self.name_fn = name_fn
         self.args = args
 
-    def _process(self, key, elm: xr.Dataset):
+    def _process(self, kv: Tuple[T, xr.Dataset]) -> None:
         """Save a netCDF to a path which is determined from `key`
 
         This works for any url support by apache-beam's built-in FileSystems_ class.
@@ -129,6 +134,7 @@ netCDF files.
             https://beam.apache.org/releases/pydoc/2.6.0/apache_beam.io.filesystems.html#apache_beam.io.filesystems.FileSystems
 
         """
+        key, elm = kv
         # TODO refactor this or replace with dump_nc
         path = self.name_fn(key, *self.args)
         logger.info(f"saving to {path}")
@@ -145,7 +151,7 @@ netCDF files.
             os.unlink(tmp)
 
     def expand(self, pcoll):
-        return pcoll | beam.MapTuple(self._process)
+        return pcoll | beam.ParDo(self._process)
 
 
 def list_timesteps(path: str) -> List[str]:
