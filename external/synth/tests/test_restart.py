@@ -3,7 +3,7 @@ import os
 import xarray as xr
 import synth
 
-from fv3net.pipelines.coarsen_restarts.testing import generate_restart_data
+from synth import generate_restart_data
 
 
 def test_generate_restart_data():
