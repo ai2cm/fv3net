@@ -20,7 +20,7 @@ time=$(openssl rand -hex 6)
     --project vcm-ml \
     --region us-central1 \
     --temp_location gs://vcm-ml-data/tmp_dataflow \
-    --num_workers 1 \
-    --max_num_workers 1 \
+    --num_workers 128 \
+    --max_num_workers 128 \
     --disk_size_gb 50 \
     --worker_machine_type n1-highmem-2 \
