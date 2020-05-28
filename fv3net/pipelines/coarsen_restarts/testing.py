@@ -175,6 +175,7 @@ class RestartCategorySchemaFactory:
         surface: Sequence[str],
     ) -> Mapping[str, CoordinateSchema]:
         output = {}
+        output["Time"] = self.time_coord
         if len(centered) > 0:
             output[self.x] = self.x_coord
             output[self.y] = self.y_coord
