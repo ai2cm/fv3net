@@ -7,7 +7,7 @@ import xarray as xr
 
 
 class RestartCategorySchemaFactory:
-    def __init__(self, x, xi, y, yi, z, n, nz):
+    def __init__(self, x=None, xi=None, y=None, yi=None, z=None, n=None, nz=None):
         self.x = x
         self.y = y
         self.xi = xi
@@ -222,6 +222,28 @@ def fv_core_schema(n: int, nz: int):
         y_outer=["v"],
         surface=["delp"],
     )
+
+
+def fv_tracer_schema(n: int, nz: int):
+    return RestartCategorySchemaFactory(
+        n=n, nz=nz, x="xaxis_1", y="yaxis_1", z="zaxis_1"
+    ).generate(
+        centered=[
+            "sphum",
+            "liq_wat",
+            "rainwat",
+            "ice_wat",
+            "snowwat",
+            "graupel",
+            "o3mr",
+            "sgs_tke",
+            "cld_amt",
+        ],
+    )
+
+
+def fv_srf_wnd_schema(n: int, nz: int):
+    return RestartCategorySchemaFactory(n=n, nz=nz, x="xaxis_1", y="yaxis_1").generate()
 
 
 def generate_restart_directory(output: str, resolution: str = "C48"):
