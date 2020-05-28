@@ -7,9 +7,6 @@ from dataclasses import dataclass
 from typing import Iterable, Sequence
 
 from .. import loaders
-
-# TODO: address awkward imports here from deeper levels which occur b/c the top level
-# loaders imports is reserved for allowed source mapping functions only
 from ..loaders.batch import load_batches
 from .wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
