@@ -1,21 +1,28 @@
 import os
 import fsspec
 import xarray as xr
+import pandas as pd
 import numpy as np
 import zarr.storage as zstore
 from typing import Sequence, Iterable, Mapping, Union
 from functools import partial
+from itertools import product
 from pathlib import Path
 
 import vcm
 from vcm import cloud, safe
+from vcm.cubedsphere.constants import TIME_FMT
 from . import _transform as transform
 from ._sequences import FunctionOutputSequence
 
-INPUT_ZARR = "after_physics.zarr"
-NUDGING_TENDENCY_ZARR = "nudging_tendencies.zarr"
 TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
 SIMULATION_TIMESTEPS_PER_HOUR = 4
+NUDGING_FILES = [
+    "before_dynamics",
+    "after_dynamics",
+    "after_physics",
+    "nudging_tendencies"
+]
 
 SAMPLE_DIM = "sample"
 NUDGED_TIME_DIM = "time"
@@ -152,30 +159,6 @@ def _get_batch_slices(
     return slices
 
 
-def _load_datasets(
-    fs: fsspec.AbstractFileSystem,
-    path: str,
-    variable_names: Iterable[Iterable[str]],
-    rename_variables: Mapping[str, str],
-) -> Sequence[xr.Dataset]:
-    """
-    Prepares an xr.Dataset for each sequence of variable names within
-    variable_names.
-    """
-    input_data = _open_zarr(fs, os.path.join(path, INPUT_ZARR))
-    output_data = _open_zarr(fs, os.path.join(path, NUDGING_TENDENCY_ZARR))
-
-    dataset = xr.merge([input_data, output_data], join="inner")
-    dataset = dataset.rename(rename_variables)
-
-    all_datasets = []
-    for vars_sequence in variable_names:
-        ds = safe.get_variables(dataset, vars_sequence)
-        all_datasets.append(ds)
-
-    return all_datasets
-
-
 def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-5):
     """
     Timescales are allowed to be floats which makes finding correct output
@@ -198,25 +181,10 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
         )
 
 
-def _load_nudged(url):
+class BaseMapper:
 
-    fs = cloud.get_fs(url)
-    input_mapper = fs.get_mapper(os.path.join(url, INPUT_ZARR))
-    nudging_mapper = fs.get_mapper(os.path.join(url, NUDGING_TENDENCY_ZARR))
-
-    input_ds = xr.open_zarr(zstore.LRUStoreCache(input_mapper))
-    nudging_ds = xr.open_zarr(zstore.LRUStoreCache(nudging_mapper))
-
-    dataset = xr.merge([input_ds, nudging_ds], join="inner")
-
-    return dataset
-
-
-class NudgedTimestepMapper:
-
-    def __init__(self, ds, time_dim_name=NUDGED_TIME_DIM):
-        self.ds = ds
-        self.time_dim = time_dim_name
+    def __init__(self, *args):
+        raise NotImplementedError("Don't use the base class!")
 
     def __len__(self):
         return len(self.keys())
@@ -225,25 +193,77 @@ class NudgedTimestepMapper:
         return iter(self.keys())
 
     def __getitem__(self, key: str) -> xr.Dataset:
-        return self.ds.sel({self.time_dim: key})
+        raise NotImplementedError()
 
     def keys(self):
-        return [time.values for time in self.ds[self.time_dim]]
+        raise NotImplementedError()
 
 
-def open_nudged_data(url: str, nudging_timescale_hr: Union[int, float]) -> Mapping[str, xr.Dataset]:
+class NudgedTimestepMapper(BaseMapper):
+
+    def __init__(self, ds, time_dim_name=NUDGED_TIME_DIM):
+        self.ds = ds
+        self.time_dim = time_dim_name
+
+    def __getitem__(self, key: str) -> xr.Dataset:
+        dt64 = np.datetime64(vcm.parse_datetime_from_str(key))
+        return self.ds.sel({self.time_dim: dt64})
+
+    def keys(self):
+        return [
+            time.strftime(TIME_FMT)
+            for time in pd.to_datetime(self.ds[self.time_dim].values)
+        ]
+
+
+class NudgedMapperAllSources(BaseMapper):
+    """
+    Get all nudged output zarr datasets.
+    Accessible by, e.g., mapper[("before_dynamics", "20160801.001500")]
+    """
+
+    def __init__(self, ds_map: Mapping[str, xr.Dataset]):
+
+        self._nudged_ds = {key: NudgedTimestepMapper(ds) for key, ds in ds_map.items()}
+
+    def __getitem__(self, key):
+        return self._nudged_ds[key[0]][key[1]]
+
+    def keys(self):
+        keys = []
+        for key, mapper in self._nudged_ds.items():
+            timestep_keys = mapper.keys()
+            keys.extend(product((key,), timestep_keys))
+        return keys
+
+
+def open_nudged_mapper(
+    url: str,
+    nudging_timescale_hr: Union[int, float],
+    initial_time_skip_hr: int = 0,
+    n_times: int = None
+) -> Mapping[str, xr.Dataset]:
     
     fs = cloud.get_fs(url)
 
     glob_url = os.path.join(url, TIMESCALE_OUTDIR_TEMPLATE)
     nudged_output_dirs = fs.glob(glob_url)
 
-    nudged_url = _get_path_for_nudging_timescale(nudged_output_dirs, nudging_timescale_hr)
-    nudged_ds = _load_nudged(nudged_url)
+    nudged_url = _get_path_for_nudging_timescale(
+        nudged_output_dirs, nudging_timescale_hr
+    )
+    
+    datasets = {}
+    for source in NUDGING_FILES:
+        mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}.zarr"))
+        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
 
-    std_time = vcm.convert_timestamps(nudged_ds[NUDGED_TIME_DIM])
-    nudged_ds = nudged_ds.assign_coords({NUDGED_TIME_DIM: std_time})
+        start = initial_time_skip_hr * SIMULATION_TIMESTEPS_PER_HOUR
+        end = None if n_times is None else start + n_times
+        ds = ds.isel({NUDGED_TIME_DIM: slice(start, end)})
 
-    nudged_mapper = NudgedTimestepMapper(nudged_ds)
+        datasets[source] = ds
+
+    nudged_mapper = NudgedMapperAllSources(datasets)
 
     return nudged_mapper
