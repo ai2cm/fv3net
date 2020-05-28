@@ -226,7 +226,7 @@ def _fv_core_schema(n: int, nz: int) -> DatasetSchema:
         centered=["W", "DZ", "T", "delp"],
         y_outer=["u"],
         x_outer=["v"],
-        surface=["delp"],
+        surface=["phis"],
     )
 
 
