@@ -83,7 +83,9 @@ def run(
             | beam.Create([src_dir]).with_output_types(str)
             | "ListTimes" >> beam.ParDo(list_timesteps)
             | "ParseTimeString" >> beam.Map(vcm.parse_timestep_str_from_path)
-            | "Reshuffle 1" >> beam.Reshuffle()
+            # Data is still lazy at this point so reshuffle is not too costly
+            # It distributes the work
+            | "Reshuffle" >> beam.Reshuffle()
             | "OpenRestartLazy" >> beam.Map(_open_restart_categories, src_dir)
             | "CoarsenTStep"
             >> beam.ParDo(
@@ -94,9 +96,6 @@ def run(
             # Reduce problem size by splitting by tiles
             # This will results in repeated reads to each fv_core file
             | "Split By Tiles" >> beam.ParDo(split_by_tiles)
-            # Data is still lazy at this point so reshuffle is not too costly
-            # It distributes the work
-            | "Reshuffle" >> beam.Reshuffle()
             | "Force evaluation" >> beam.Map(load)
             | WriteToNetCDFs(output_filename, output_dir)
         )
