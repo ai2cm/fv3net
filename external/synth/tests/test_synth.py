@@ -4,6 +4,7 @@ import numpy as np
 import zarr
 
 import pytest
+import xarray as xr
 
 from synth.core import _Encoder
 
@@ -264,19 +265,7 @@ def test_cftime_generate():
     assert dict(ds.time.attrs) == dict(julian_time_attrs)
 
 
-def test_generate_fails_simple():
-    schema = DatasetSchema(
-        coords={
-            "zaxis_1": (
-                CoordinateSchema(name="zaxis_1", dims=["zaxis_1"], value=[1.0],),
-            ),
-        },
-        variables={
-            "DZ": VariableSchema(
-                name="DZ",
-                dims=["zaxis_1"],
-                array=ChunkedArray(shape=(1,), dtype=np.dtype("float32"), chunks=(1,)),
-            ),
-        },
-    )
-    generate(schema)
+def test_generate_coord():
+    s = CoordinateSchema(name="zaxis_1", dims=["zaxis_1"], value=[1.0],)
+    expected = xr.DataArray(name="zaxis_1", dims=["zaxis_1"], data=[1.0])
+    xr.testing.assert_equal(generate(s), expected)
