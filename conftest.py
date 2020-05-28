@@ -30,35 +30,3 @@ def datadir(tmpdir, request):
 
     return tmpdir
 
-
-class MockDatasetMapper:
-    # mocks up the mappings except for the part where it opens the 
-    def __init__(self, timesteps_dir):
-        self._generate_mapping()
-
-    def _generate_mapping(self):
-        with open(ONE_STEP_ZARR_SCHEMA) as f:
-            schema = synth.load(f)
-        one_step_dataset = synth.generate(schema)
-        self.mapping = {}
-        for i in range(4):
-            self.mapping[f"2020050{i}.000000"] = one_step_dataset
-
-    def __getitem__(self, key: str) -> xr.Dataset:
-        return self.mapping[key]
-
-    def keys(self):
-        return list(self.mapping.keys())
-
-    def __iter__(self):
-        return iter(self.keys())
-
-    def __len__(self):
-        return len(self.keys())
-
-
-
-
-@pytest.fixture
-def test_dataset_mapper():
-    return MockDatasetMapper
