@@ -8,9 +8,11 @@ import synth
 
 from fv3net.regression.loaders._nudged import (
     NUDGED_TIME_DIM,
+    TIME_FMT,
     _load_nudging_batches,
     _get_path_for_nudging_timescale,
     NudgedTimestepMapper,
+    NudgedMapperAllSources,
 )
 
 
@@ -31,14 +33,7 @@ def xr_dataset():
     return ds
 
 
-def _gen_synth_ds(json_path):
-
-    with open(str(json_path)) as f:
-        schema = synth.load(f)
-
-    xr_dataset = synth.generate(schema)
-
-
+# TODO session scoped
 @pytest.fixture
 def nudged_output_ds_dict(datadir):
 
@@ -71,7 +66,6 @@ def nudged_output_ds_dict(datadir):
     return nudged_datasets
 
 
-# TODO session scoped
 @pytest.fixture
 def nudged_tstep_mapper(nudged_output_ds_dict):
 
@@ -104,7 +98,7 @@ def test_load_nudging_batches(nudged_tstep_mapper):
     data_vars = input_vars + output_vars
 
     # skips first 48 timesteps, only use 90 timesteps
-    sequence = load_nudging_batches(
+    sequence = _load_nudging_batches(
         nudged_tstep_mapper,
         data_vars,
         num_batches=num_batches,
@@ -157,9 +151,59 @@ def test__get_path_for_nudging_timescale_failure(nudging_output_dirs, timescale)
         _get_path_for_nudging_timescale(nudging_output_dirs, timescale, tol=1e-5)
 
 
-def test_NudgedTimestepMapper():
-    pass
+def test_NudgedTimestepMapper(nudged_output_ds_dict):
+    single_ds = nudged_output_ds_dict["after_physics"]
+
+    mapper = NudgedTimestepMapper(single_ds)
+
+    assert len(mapper) == single_ds.sizes["time"]
+
+    single_time = single_ds["time"].values[0]
+    item = single_ds.isel({"time": single_time})
+    time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
+    xr.testing.assert_equal(item, mapper[time_key])
 
 
-def test_NudgedMapperAllSources():
-    pass
+def test_NudgedMapperAllSources(nudged_output_ds_dict):
+
+    mapper = NudgedMapperAllSources(nudged_output_ds_dict)
+
+    ds_len = sum([ds.sizes["time"] for ds in nudged_output_ds_dict.values()])
+    assert len(mapper) == ds_len
+
+    single_item = nudged_output_ds_dict["after_physics"].isel(time=0)
+    time_key = pd.to_datetime(single_item.time.values[0]).strftime(TIME_FMT)
+    item_key = ("after_physics", time_key)
+    xr.testing.assert_equal(mapper[item_key], single_item)
+
+
+def test_NudgedMapperAllSources_merge_sources(nudged_output_ds_dict):
+
+    mapper = NudgedMapperAllSources(nudged_output_ds_dict)
+    merged_tstep_mapper = mapper.merge_sources(["after_physics", "nudging_tendencies"])
+
+    after_phys = mapper._nudged_ds["after_physics"]
+    nudge_tend = mapper._nudged_ds["nudging_tendencies"]
+    assert len(merged_tstep_mapper) == max(len(after_phys), len(nudge_tend))
+
+    after_phys_item = after_phys[after_phys.keys()[0]]
+    nudge_tend_item = nudge_tend[nudge_tend.keys()[0]]
+    merged_item = merged_tstep_mapper[merged_tstep_mapper.keys()[0]]
+
+    source_vars = list(after_phys_item.data_vars.keys())
+    source_vars.extend(list(nudge_tend_item.data_vars.keys()))
+    for var in source_vars:
+        assert var in merged_item
+
+
+def test_NudgedMapperAllSources_fail_merge(nudged_output_ds_dict):
+
+    mapper = NudgedMapperAllSources(nudged_output_ds_dict)
+
+    with pytest.raises(ValueError):
+        mapper.merge_sources(["after_physics", "before_dynamics"])
+
+    with pytest.raises(ValueError):
+        mapper.merge_sources(
+            ["nudging_tendencies", "after_physics", "before_dynamics"]
+        )
