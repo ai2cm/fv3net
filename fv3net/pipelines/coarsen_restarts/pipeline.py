@@ -5,6 +5,7 @@ import logging
 import gcsfs
 from pathlib import Path
 import dask
+from typing import Mapping
 
 import pandas as pd
 import xarray as xr
@@ -16,7 +17,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from fv3net.pipelines.common import list_timesteps, FunctionSource
 import vcm
 from vcm.cloud import gcs
-from vcm.coarsen import _save_restart_categories
 from vcm import parse_timestep_str_from_path
 
 logger = logging.getLogger("CoarsenPipeline")
@@ -63,30 +63,6 @@ def _open_grid_spec(grid_spec_prefix):
     return xr.open_mfdataset(filename, concat_dim=[tiles], combine="nested")
 
 
-def _coarsen_data(
-    local_coarsen_dir, timestep_name, coarsen_factor, grid_spec, local_timestep_dir
-):
-
-    os.makedirs(local_coarsen_dir, exist_ok=True)
-    logger.debug(f"Directory for coarsening files: {local_coarsen_dir}")
-    filename_prefix = f"{timestep_name}."
-
-    from vcm.coarsen import _open_restart_categories
-
-    # open source
-    source_data_prefix = os.path.join(
-        local_timestep_dir, timestep_name, filename_prefix
-    )
-    data_pattern = "{prefix}{category}.tile{tile}.nc"
-    source = _open_restart_categories(source_data_prefix, data_pattern=data_pattern)
-
-    # import computation
-    for category, data in vcm.coarsen_restarts_on_pressure(
-        coarsen_factor, grid_spec, source
-    ).items():
-        yield timestep_name, category, data
-
-
 def output_filename(directory: str, time: str, category: str, tile: int) -> str:
     assert tile in [1, 2, 3, 4, 5, 6]
     return os.path.join(directory, time, f"{time}.{category}.tile{tile}.nc")
@@ -107,16 +83,34 @@ def save_data(time: str, category: str, coarsen: xr.Dataset, directory: str = ".
             vcm.dump_nc(data, f)
 
 
+def _open_restart_categories(time: str, prefix: str) -> Mapping[str, xr.Dataset]:
+    source = {}
+
+    OUTPUT_CATEGORY_NAMES = {
+        "fv_core.res": "fv_core_coarse.res",
+        "fv_srf_wnd.res": "fv_srf_wnd_coarse.res",
+        "fv_tracer.res": "fv_tracer_coarse.res",
+        "sfc_data": "sfc_data_coarse",
+    }
+
+    for output_category in OUTPUT_CATEGORY_NAMES:
+        input_category = OUTPUT_CATEGORY_NAMES[output_category]
+        tile_prefix = os.path.join(prefix, time, f"{time}.{input_category}")
+        source[output_category] = vcm.open_tiles(tile_prefix)
+    return source
+
+
 def coarsen_timestep(
-    curr_timestep, coarsen_factor: int, gridspec: xr.Dataset, prefix="."
+    curr_timestep, coarsen_factor: int, grid_spec: xr.Dataset, prefix="."
 ):
-
     tmp_timestep_dir = os.path.join(prefix, "local_fine_dir")
-    local_coarsen_dir = os.path.join(prefix, "local_coarse_dir", curr_timestep)
+    source = _open_restart_categories(curr_timestep, tmp_timestep_dir)
 
-    yield from _coarsen_data(
-        local_coarsen_dir, curr_timestep, coarsen_factor, gridspec, tmp_timestep_dir,
-    )
+    # import computation
+    for category, data in vcm.coarsen_restarts_on_pressure(
+        coarsen_factor, grid_spec, source
+    ).items():
+        yield curr_timestep, category, data
 
 
 def run(args, pipeline_args=None):
@@ -150,9 +144,10 @@ def run(args, pipeline_args=None):
             >> beam.ParDo(
                 coarsen_timestep,
                 coarsen_factor=coarsen_factor,
-                gridspec=beam.pvalue.AsSingleton(grid_spec),
+                grid_spec=beam.pvalue.AsSingleton(grid_spec),
                 # TODO remove this argument
                 prefix=prefix,
             )
+            | "Reshuffle" >> beam.Reshuffle()
             | "Saving Data" >> beam.MapTuple(save_data, directory=output_dir_prefix)
         )

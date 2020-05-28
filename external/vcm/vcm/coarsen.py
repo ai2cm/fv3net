@@ -41,13 +41,6 @@ from vcm.cubedsphere.constants import (
 )
 
 TILES = range(1, 7)
-OUTPUT_CATEGORY_NAMES = {
-    "fv_core.res": "fv_core_coarse.res",
-    "fv_srf_wnd.res": "fv_srf_wnd_coarse.res",
-    "fv_tracer.res": "fv_tracer_coarse.res",
-    "sfc_data": "sfc_data_coarse",
-}
-SOURCE_DATA_PATTERN = "{timestep}/{timestep}.{category}"
 DATA_PATTERN = "{prefix}{category}.tile{tile}.nc"
 CATEGORY_LIST = ["fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", "sfc_data"]
 
@@ -699,25 +692,3 @@ def coarsen_restarts_on_pressure(
         sync_dimension_order(coarsened[category], source[category])
 
     return coarsened
-
-
-def _open_restart_categories(prefix, data_pattern=DATA_PATTERN):
-    source = {}
-    tiles = pd.Index(range(6), name="tile")
-    for category in CATEGORY_LIST:
-        filename = data_pattern.format(
-            prefix=prefix, category=OUTPUT_CATEGORY_NAMES[category], tile="*",
-        )
-        logger.debug(f"Restart MF Category Filename: {filename}")
-        source[category] = xr.open_mfdataset(
-            filename, concat_dim=[tiles], combine="nested"
-        )
-    return source
-
-
-def _save_restart_categories(coarsened, prefix, data_pattern):
-    for category in CATEGORY_LIST:
-        ds = coarsened[category]
-        for tile in TILES:
-            filename = data_pattern.format(prefix=prefix, category=category, tile=tile)
-            ds.isel(tile=tile - 1).drop("tile", errors="ignore").to_netcdf(filename)
