@@ -72,9 +72,6 @@ def run(
     gridspec_path: str, src_dir: str, output_dir: str, factor: int, pipeline_args=None,
 ):
 
-    # TODO detect time-steps automatically
-    timesteps = ["20160801.001500"]
-
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
 
     with beam.Pipeline(options=beam_options) as p:
@@ -83,7 +80,9 @@ def run(
         )
         (
             p
-            | "CreateTStepURLs" >> beam.Create(timesteps).with_output_types(str)
+            | beam.Create([src_dir]).with_output_types(str)
+            | "ListTimes" >> beam.ParDo(list_timesteps)
+            | "ParseTimeString" >> beam.Map(vcm.parse_timestep_str_from_path)
             | "OpenRestartLazy" >> beam.Map(_open_restart_categories, src_dir)
             | "CoarsenTStep"
             >> beam.ParDo(
