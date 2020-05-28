@@ -15,7 +15,16 @@ def _range(n) -> List[float]:
 
 
 class _RestartCategorySchemaFactory:
-    def __init__(self, x=None, xi=None, y=None, yi=None, z=None, n=None, nz=None):
+    def __init__(
+        self,
+        x: str = None,
+        xi: str = None,
+        y: str = None,
+        yi: str = None,
+        z: str = None,
+        n: str = None,
+        nz: str = None,
+    ):
         self.x = x
         self.y = y
         self.xi = xi
