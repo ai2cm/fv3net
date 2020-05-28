@@ -93,7 +93,7 @@ class RestartCategorySchemaFactory:
             ),
         )
 
-    def CENTERED(self, name: str):
+    def centered(self, name: str):
         return VariableSchema(
             name=name,
             dims=["Time", self.z, self.y, self.x],
@@ -105,7 +105,7 @@ class RestartCategorySchemaFactory:
             attrs={"long_name": name, "units": "none",},
         )
 
-    def Y_OUTER(self, name: str):
+    def x_outer(self, name: str):
         return VariableSchema(
             name=name,
             dims=["Time", self.z, self.y, self.xi],
@@ -117,7 +117,7 @@ class RestartCategorySchemaFactory:
             attrs={"long_name": name, "units": "none",},
         )
 
-    def X_OUTER(self, name: str):
+    def y_outer(self, name: str):
         n = self.n
         nz = self.nz
         z = self.z
@@ -134,7 +134,7 @@ class RestartCategorySchemaFactory:
             attrs={"long_name": name, "units": "none",},
         )
 
-    def SURFACE(self, name: str):
+    def surface(self, name: str):
         n = self.n
         y = self.y
         x = self.x
@@ -151,31 +151,31 @@ class RestartCategorySchemaFactory:
     def _generate_variables(
         self,
         centered: Iterable[str],
-        x_outer: Iterable[str],
         y_outer: Iterable[str],
+        x_outer: Iterable[str],
         surface: Iterable[str],
     ) -> Mapping[str, VariableSchema]:
         output = {}
 
         for variable in centered:
-            output[variable] = self.CENTERED(variable)
+            output[variable] = self.centered(variable)
 
         for variable in x_outer:
-            output[variable] = self.X_OUTER(variable)
+            output[variable] = self.x_outer(variable)
 
         for variable in y_outer:
-            output[variable] = self.Y_OUTER(variable)
+            output[variable] = self.y_outer(variable)
 
         for variable in surface:
-            output[variable] = self.SURFACE(variable)
+            output[variable] = self.surface(variable)
 
         return output
 
     def _generate_coords(
         self,
         centered: Iterable[str],
-        x_outer: Iterable[str],
         y_outer: Iterable[str],
+        x_outer: Iterable[str],
         surface: Iterable[str],
     ) -> Mapping[str, CoordinateSchema]:
         output = {}
@@ -203,8 +203,8 @@ class RestartCategorySchemaFactory:
     def generate(
         self,
         centered: Iterable[str],
-        x_outer: Iterable[str],
         y_outer: Iterable[str],
+        x_outer: Iterable[str],
         surface: Iterable[str],
     ) -> DatasetSchema:
         coords = self._generate_coords(centered, x_outer, y_outer, surface)
@@ -218,8 +218,8 @@ def fv_core_schema(n: int, nz: int):
         n=n, nz=nz, x="xaxis_1", xi="xaxis_2", y="yaxis_2", yi="yaxis_1", z="zaxis_1"
     ).generate(
         centered=["W", "DZ", "T", "delp"],
-        x_outer=["u"],
-        y_outer=["v"],
+        y_outer=["u"],
+        x_outer=["v"],
         surface=["delp"],
     )
 
