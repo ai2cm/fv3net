@@ -9,6 +9,10 @@ latest
 * Add new `v0.4` base fv3config which is a configuration set up for being initialized from coarsened SHiELD restart fields
 * Modify format of one-step yamls to not include explicit fv3config key (making them consistent with prognostic run yaml)
 * Add a batched loader for nudging data using FunctionOutputSequence interface
+* Refactor training data batch loading to use a common batch loader for all data sources. To load from a specific
+ data source (e.g. one step, nudging), the function name `open_*_mapping` (selected from the available functions in loaders.__init__)
+ should be specified in the training configuration YAML.
+
 
 0.2.1 (2020-05-15)
 ------
