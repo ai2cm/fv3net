@@ -18,31 +18,31 @@ logger = logging.getLogger("training_data_diags")
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
-    
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "datasets_config_yml",
         type=str,
         help="Config file with dataset paths, mapping functions, and batch specifications.",
     )
-    
+
     return parser.parse_args()
 
 
 def _open_config(config_path: Hashable) -> Mapping:
-    
-    with open(config_path, 'r') as f:
+
+    with open(config_path, "r") as f:
         try:
             datasets_config = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             raise ValueError(f"Bad yaml config: {exc}")
-    
+
     return datasets_config
 
 
 # start routine
 
-logger.info('Starting diagnostics routine.')
+logger.info("Starting diagnostics routine.")
 
 args = _create_arg_parser()
 
@@ -52,23 +52,13 @@ dataset_names = []
 dataset_transforms = {}
 for dataset_name, config in datasets_config.items():
     dataset_names.append(dataset_name)
-    print(config['mapping_function'])
-    mapping_function = getattr(loaders, config['mapping_function'])
-    mapper = mapping_function(config['path'])
+    mapping_function = getattr(loaders, config["mapping_function"])
+    mapper = mapping_function(config["path"])
     ds_batches = load_batches(
         mapper,
         construct_data_transform(dataset_transforms),
-        config['variables'],
-        **config['batch_kwargs']
+        config["variables"],
+        **config["batch_kwargs"],
     )
-    ds_time_averaged = utils.time_average(ds_batches)
-    print(ds_time_averaged)
-    
-    
-
-
-
-    
-    
-
-
+    ds_diagnostic = utils.reduce_to_diagnostic(ds_batches)
+    print(ds_diagnostic)
