@@ -21,7 +21,7 @@ def generate_restart_data(
         collection of restart data
 
     """
-    tiles = [1, 2, 3, 4, 5, 6]
+    tiles = range(1, 7)
     ranges = {
         # Need to use a small range here to avoid SEGFAULTS in the mappm
         # if delp varies to much then the mean pressures may lie completely out
