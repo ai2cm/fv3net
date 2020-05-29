@@ -35,20 +35,20 @@ def xr_dataset():
 
 # TODO session scoped
 @pytest.fixture
-def nudged_output_ds_dict(datadir):
+def nudged_output_ds_dict(datadir_session):
 
     nudged_datasets = {}
     ntimes = 144
 
-    nudging_tendency_path = datadir.join("nudging_tendencies.json")
+    nudging_tendency_path = datadir_session.join("nudging_tendencies.json")
     with open(nudging_tendency_path) as f:
         nudging_schema = synth.load(f)
     nudging_tend_ds = synth.generate(nudging_schema)
-
+    nudging_tend_ds = _int64_to_datetime(nudging_tend_ds)
     nudged_datasets["nudging_tendencies"] = nudging_tend_ds
 
     # Create identically schema'd datasets to mimic before-after fv3 states
-    fv3_state_schema_path = datadir.join(f"after_physics.json")
+    fv3_state_schema_path = datadir_session.join(f"after_physics.json")
 
     with open(str(fv3_state_schema_path)) as f:
         fv3_state_schema = synth.load(f)
@@ -56,31 +56,36 @@ def nudged_output_ds_dict(datadir):
     datasets_sources = ["before_dynamics", "after_dynamics", "after_physics"]
     for source in datasets_sources:
         ds = synth.generate(fv3_state_schema)
-
-        # convert back to datetimes from int64
-        time = ds[NUDGED_TIME_DIM].values
-        ds = ds.assign_coords({NUDGED_TIME_DIM: pd.to_datetime(time)})
-
+        ds = _int64_to_datetime(ds)
         nudged_datasets[source] = ds.isel({NUDGED_TIME_DIM: slice(0, ntimes)})
 
     return nudged_datasets
+
+
+def _int64_to_datetime(ds):
+    time = pd.to_datetime(ds[NUDGED_TIME_DIM].values)
+    time = time.round('S')
+    return ds.assign_coords({NUDGED_TIME_DIM: time})
 
 
 @pytest.fixture
 def nudged_tstep_mapper(nudged_output_ds_dict):
 
     to_combine = ["nudging_tendencies", "after_physics"]
-    combined_ds = xr.Dataset()
-    for source in to_combine:
+    for i, source in enumerate(to_combine):
         ds = nudged_output_ds_dict[source]
-        combined_ds = combined_ds.merge(ds)
+
+        if i == 0:
+            combined_ds = ds
+        else:
+            combined_ds = combined_ds.merge(ds, join="inner")
 
     timestep_mapper = NudgedTimestepMapper(combined_ds)
 
     return timestep_mapper
 
 
-# Note: datadir fixture in conftest.py
+# Note: datadir_session fixture in conftest.py
 @pytest.mark.regression
 def test_load_nudging_batches(nudged_tstep_mapper):
 
