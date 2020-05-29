@@ -5,6 +5,7 @@ dependencies:
   - backoff
   - cartopy
   - click
+  - pytest-xdist=1
   - conda-build
   - cloudpickle
   - crcmod
