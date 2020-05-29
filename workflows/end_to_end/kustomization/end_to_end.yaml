@@ -1,12 +1,10 @@
 storage_proto: gs
-#TODO: update storage_root to bucket for production runs
 storage_root: vcm-ml-data/test-end-to-end-integration
 experiment:
   name: $JOBNAME
   unique_id: false
   steps_to_run:
-    - coarsen_restarts  # not doing C384 -> C48 coarsening
-    # TOOD uncomment these for production runs
+      #- coarsen_restarts  # not doing C384 -> C48 coarsening
     - coarsen_diagnostics
     - one_step_run
     - create_training_data
@@ -31,15 +29,15 @@ experiment:
       command: python workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.py
       args:
         c384_diagnostics:
-          location:
-            from: coarsen_restarts
+          location: $C384_DIAGNOSTICS
         coarsening_config: $CONFIG/coarsen_c384_diagnostics.yml
 
     one_step_run:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
       args:
         restart_data:
-          from: coarsen_restarts  # uncomment this line and delete the following to include coarsening in test workflow
+          #from: coarsen_restarts  # uncomment this line and delete the following to include coarsening in test workflow
+          location: $C12_RESTARTS
         experiment_yaml: $CONFIG/one_step_jobs.yml
         docker_image: $PROGNOSTIC_RUN_IMAGE
         timesteps: $ONE_STEP_TIMES
@@ -75,7 +73,7 @@ experiment:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
       args:
         restart_data:
-          location: $C48_RESTARTS
+          location: $C12_RESTARTS
         ic_timestep: $IC_TIMESTEP
         docker_image: $PROGNOSTIC_RUN_IMAGE
         --prog_config_yml: $CONFIG/prognostic_run.yml
@@ -86,7 +84,7 @@ experiment:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
       args:
         restart_data:
-          location: $C48_RESTARTS
+          location: $C12_RESTARTS
         ic_timestep: $IC_TIMESTEP 
         docker_image: $PROGNOSTIC_RUN_IMAGE
         --prog_config_yml: $CONFIG/prognostic_run.yml

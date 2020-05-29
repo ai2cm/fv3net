@@ -13,6 +13,8 @@ namelist:
     dt_ocean: 60  # seconds
     restart_secs: 60
   fv_core_nml:
+    npx: 13
+    npy: 13
     do_sat_adj: false
     k_split: 1
     n_split: 1

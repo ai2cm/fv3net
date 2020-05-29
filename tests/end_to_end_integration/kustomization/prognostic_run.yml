@@ -9,8 +9,8 @@ diag_table: /etc/config/diag_table_prognostic
 namelist:
   coupler_nml:
     days: 0  # total length
-    hours: 1
-    minutes: 0
+    hours: 0
+    minutes: 30
     seconds: 0
     dt_atmos: 900  # seconds
     dt_ocean: 900
@@ -21,4 +21,6 @@ namelist:
     do_deep: false
     fhzero: 0.25  # hours - frequency at which precip is set back to zero
   fv_core_nml:
+    npx: 13
+    npy: 13
     n_split: 6   # num dynamics steps per physics step
