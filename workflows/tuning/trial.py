@@ -38,24 +38,25 @@ def sigterm_handler(_signo, _stack_frame):
 
 def cancel_jobs():
     for job in JOB_LIST:
-        BATCH_CLIENT.delete_namespaced_job(job.metadata.name, namespace=job.metadata.namespace)
+        BATCH_CLIENT.delete_namespaced_job(
+            job.metadata.name, namespace=job.metadata.namespace
+        )
         pass
 
 
 def load_config(config_dir):
     config = {}
     for filename in os.listdir(config_dir):
-        if filename[-4:] == '.yml':
-            with open(os.path.join(config_dir, filename), 'r') as f:
+        if filename[-4:] == ".yml":
+            with open(os.path.join(config_dir, filename), "r") as f:
                 config[filename[:-4]] = ConfigFile(filename, yaml.load(f))
-        elif filename[-5:] == '.yaml':
-            with open(os.path.join(config_dir, filename), 'r') as f:
+        elif filename[-5:] == ".yaml":
+            with open(os.path.join(config_dir, filename), "r") as f:
                 config[filename[:-5]] = ConfigFile(filename, yaml.load(f))
     return config
 
 
 class ConfigFile:
-
     def __init__(self, filename, config):
         self.filename = filename
         self.config = config
@@ -93,13 +94,16 @@ def update_config_from_parameters(config, parameters):
 
 def get_experiment_name(parameters):
     base_name = "-".join(
-        [f"{name}={value}" for name, value in sorted(parameters.items(), key=lambda x: x[0])]
+        [
+            f"{name}={value}"
+            for name, value in sorted(parameters.items(), key=lambda x: x[0])
+        ]
     )
     jobname = os.environ.get("JOBNAME")
     if jobname is not None:
-        return '-'.join([base_name, jobname, UID[:8]])
+        return "-".join([base_name, jobname, UID[:8]])
     else:
-        return '-'.join([base_name, UID[:8]])
+        return "-".join([base_name, UID[:8]])
 
 
 def list_jobs(client, job_labels):
@@ -110,24 +114,18 @@ def list_jobs(client, job_labels):
 
 
 def get_job(experiment_name):
-    labels = {
-        "app": "sherpa",
-        "name": experiment_name
-    }
+    labels = {"app": "sherpa", "name": experiment_name}
     job_list = fv3kube.list_jobs(BATCH_CLIENT, labels)
     if len(job_list) > 0:
         cancel_jobs()
-        raise RuntimeError(
-            f"unexpectedly got {len(job_list)} jobs for labels {labels}"
-        )
+        raise RuntimeError(f"unexpectedly got {len(job_list)} jobs for labels {labels}")
 
 
 def get_objective(experiment_name):
     outdir = os.path.join("gs://vcm-ml-scratch/sherpa/", experiment_name)
-    
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # must terminate remote jobs if Sherpa terminates the trial
     signal.signal(signal.SIGTERM, sigterm_handler)
 
