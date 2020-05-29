@@ -1,15 +1,14 @@
-import apache_beam as beam
-import os
+import argparse
 import logging
-from typing import Mapping, Iterable, Tuple, TypeVar
+import os
+from typing import Iterable, Mapping, Tuple, TypeVar
 
+import apache_beam as beam
 import xarray as xr
-
-
 from apache_beam.options.pipeline_options import PipelineOptions
 
-from fv3net.pipelines.common import list_timesteps, FunctionSource, WriteToNetCDFs
 import vcm
+from fv3net.pipelines.common import FunctionSource, WriteToNetCDFs, list_timesteps
 
 logger = logging.getLogger("CoarsenPipeline")
 logger.setLevel(logging.DEBUG)
@@ -101,7 +100,6 @@ def run(
 
 
 def main(argv):
-    import argparse
 
     logger = logging.getLogger("CoarsenTimesteps")
     logger.setLevel(logging.INFO)
