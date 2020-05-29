@@ -7,6 +7,41 @@ import xarray as xr
 from toolz import valmap
 
 
+def generate_restart_data(
+    n: int = 48, nz: int = 79, n_soil: int = 4
+) -> Mapping[str, Mapping[int, xr.Dataset]]:
+    """Generate a set of fake restart data for testing purposes
+
+    Args:
+        n: the extent of tile. For instance for C48, n=48
+        nz: the number of height levels
+        n_soil: the number of soil levels
+
+    Returns:
+        collection of restart data
+
+    """
+    tiles = [1, 2, 3, 4, 5, 6]
+    ranges = {
+        # Need to use a small range here to avoid SEGFAULTS in the mappm
+        # if delp varies to much then the mean pressures may lie completely out
+        # of bounds an individual column
+        "delp": synth.Range(0.99, 1.01)
+    }
+
+    def _generate_from_schema(schema: DatasetSchema):
+        return {tile: synth.generate(schema, ranges) for tile in tiles}
+
+    schema = {
+        "fv_core.res": _fv_core_schema(n, nz),
+        "sfc_data": _sfc_data(n, n_soil),
+        "fv_tracer.res": _fv_tracer_schema(n, nz),
+        "fv_srf_wnd.res": _fv_srf_wnd_schema(n),
+    }
+
+    return valmap(_generate_from_schema, schema)
+
+
 def _range(n) -> List[float]:
     return np.arange(1, n + 1).astype("f4")
 
@@ -19,8 +54,8 @@ class _RestartCategorySchemaFactory:
         y: str = None,
         yi: str = None,
         z: str = None,
-        n: str = None,
-        nz: str = None,
+        n: int = None,
+        nz: int = None,
     ):
         self.x = x
         self.y = y
@@ -291,41 +326,6 @@ def _sfc_data(n: int, n_soil: int) -> DatasetSchema:
         ],
         centered=["stc", "smc", "slc"],
     )
-
-
-def generate_restart_data(
-    n: int = 48, nz: int = 79, n_soil: int = 4
-) -> Mapping[str, Mapping[int, xr.Dataset]]:
-    """Generate a set of fake restart data for testing purposes
-
-    Args:
-        n: the extent of tile. For instance for C48, n=48
-        nz: the number of height levels
-        n_soil: the number of soil levels
-
-    Returns:
-        collection of restart data
-
-    """
-    tiles = [1, 2, 3, 4, 5, 6]
-    ranges = {
-        # Need to use a small range here to avoid SEGFAULTS in the mappm
-        # if delp varies to much then the mean pressures may lie completely out
-        # of bounds an individual column
-        "delp": synth.Range(0.99, 1.01)
-    }
-
-    def _generate_from_schema(schema: DatasetSchema):
-        return {tile: synth.generate(schema, ranges) for tile in tiles}
-
-    schema = {
-        "fv_core.res": _fv_core_schema(n, nz),
-        "sfc_data": _sfc_data(n, n_soil),
-        "fv_tracer.res": _fv_tracer_schema(n, nz),
-        "fv_srf_wnd.res": _fv_srf_wnd_schema(n),
-    }
-
-    return valmap(_generate_from_schema, schema)
 
 
 def _read_metadata_remote(fs, url):
