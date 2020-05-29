@@ -1,7 +1,7 @@
 import logging
 from os.path import join
 
-import numpy as np
+import numpy as np  # type: ignore
 import xarray as xr
 
 from vcm.cubedsphere.coarsen import NUM_TILES, SUBTILE_FILE_PATTERN
