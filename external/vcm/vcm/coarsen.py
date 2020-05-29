@@ -2,6 +2,7 @@
 Utilities for coarse-graining restart data and directories
 """
 import logging
+from typing import Mapping
 
 import numpy as np
 import xarray as xr
@@ -466,16 +467,28 @@ def sync_dimension_order(a, b):
 
 
 def coarsen_restarts_on_sigma(
-    coarsening_factor: int, grid_spec: xr.Dataset, source: xr.Dataset,
-):
-    """ Coarsen a complete set of restart files, averaging on model levels and
+    coarsening_factor: int, grid_spec: xr.Dataset, restarts: Mapping[str, xr.Dataset]
+) -> Mapping[str, xr.Dataset]:
+    """ Coarsen a complete set of restart data, averaging on model levels and
     using the 'complex' surface coarsening method
+
+    Args:
+        coarsening_factor: the amount of coarsening to apply. C384 to C48 is a factor
+            of 8.
+        grid_spec: Dataset containing the variables area, dx, dy.
+        restarts: dictionary of restart data. Must have the keys
+            "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
+
+    Returns:
+        restarts_coarse: a dictionary with the same format as restarts but
+            coarsening_factor times coarser.
+        
     """
     coarsened = {}
 
     coarsened["fv_core.res"] = coarse_grain_fv_core(
-        source["fv_core.res"],
-        source["fv_core.res"].delp,
+        restarts["fv_core.res"],
+        restarts["fv_core.res"].delp,
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_CORE_X_CENTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
         ),
@@ -489,7 +502,7 @@ def coarsen_restarts_on_sigma(
     )
 
     coarsened["fv_srf_wnd.res"] = coarse_grain_fv_srf_wnd(
-        source["fv_srf_wnd.res"],
+        restarts["fv_srf_wnd.res"],
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_SRF_WND_X_CENTER, COORD_Y_CENTER: FV_SRF_WND_Y_CENTER}
         ),
@@ -497,8 +510,8 @@ def coarsen_restarts_on_sigma(
     )
 
     coarsened["fv_tracer.res"] = coarse_grain_fv_tracer(
-        source["fv_tracer.res"],
-        source["fv_core.res"].delp.rename({FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}),
+        restarts["fv_tracer.res"],
+        restarts["fv_core.res"].delp.rename({FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}),
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_TRACER_X_CENTER, COORD_Y_CENTER: FV_TRACER_Y_CENTER}
         ),
@@ -506,7 +519,7 @@ def coarsen_restarts_on_sigma(
     )
 
     coarsened["sfc_data"] = coarse_grain_sfc_data_complex(
-        source["sfc_data"],
+        restarts["sfc_data"],
         grid_spec.area.rename(
             {COORD_X_CENTER: SFC_DATA_X_CENTER, COORD_Y_CENTER: SFC_DATA_Y_CENTER}
         ),
@@ -514,24 +527,34 @@ def coarsen_restarts_on_sigma(
     )
 
     for category in CATEGORY_LIST:
-        sync_dimension_order(coarsened[category], source[category])
+        sync_dimension_order(coarsened[category], restarts[category])
 
     return coarsened
 
 
 def coarsen_restarts_on_pressure(
-    coarsening_factor: int, grid_spec: xr.Dataset, source: xr.Dataset,
-):
+    coarsening_factor: int, grid_spec: xr.Dataset, restarts: Mapping[str, xr.Dataset],
+) -> Mapping[str, xr.Dataset]:
     """ Coarsen a complete set of restart files, averaging on pressure levels and
     using the 'complex' surface coarsening method
+
+    Args:
+        coarsening_factor: the amount of coarsening to apply. C384 to C48 is a factor
+            of 8.
+        grid_spec: Dataset containing the variables area, dx, dy.
+        restarts: dictionary of restart data. Must have the keys
+            "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
+
+    Returns:
+        restarts_coarse: a dictionary with the same format as restarts but
+            coarsening_factor times coarser.
     """
-    # TODO correct this docstring
 
     coarsened = {}
 
     coarsened["fv_core.res"] = coarse_grain_fv_core_on_pressure(
-        source["fv_core.res"],
-        source["fv_core.res"].delp,
+        restarts["fv_core.res"],
+        restarts["fv_core.res"].delp,
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_CORE_X_CENTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
         ),
@@ -545,7 +568,7 @@ def coarsen_restarts_on_pressure(
     )
 
     coarsened["fv_srf_wnd.res"] = coarse_grain_fv_srf_wnd(
-        source["fv_srf_wnd.res"],
+        restarts["fv_srf_wnd.res"],
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_SRF_WND_X_CENTER, COORD_Y_CENTER: FV_SRF_WND_Y_CENTER}
         ),
@@ -553,8 +576,8 @@ def coarsen_restarts_on_pressure(
     )
 
     coarsened["fv_tracer.res"] = coarse_grain_fv_tracer_on_pressure(
-        source["fv_tracer.res"],
-        source["fv_core.res"].delp.rename({FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}),
+        restarts["fv_tracer.res"],
+        restarts["fv_core.res"].delp.rename({FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}),
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_TRACER_X_CENTER, COORD_Y_CENTER: FV_TRACER_Y_CENTER}
         ),
@@ -562,7 +585,7 @@ def coarsen_restarts_on_pressure(
     )
 
     coarsened["sfc_data"] = coarse_grain_sfc_data_complex(
-        source["sfc_data"],
+        restarts["sfc_data"],
         grid_spec.area.rename(
             {COORD_X_CENTER: SFC_DATA_X_CENTER, COORD_Y_CENTER: SFC_DATA_Y_CENTER}
         ),
@@ -574,6 +597,6 @@ def coarsen_restarts_on_pressure(
     )
 
     for category in CATEGORY_LIST:
-        sync_dimension_order(coarsened[category], source[category])
+        sync_dimension_order(coarsened[category], restarts[category])
 
     return coarsened

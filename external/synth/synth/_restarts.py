@@ -1,5 +1,5 @@
 import synth
-from typing import Iterable, Mapping, List, Sequence
+from typing import Iterable, Mapping, Sequence
 from synth import DatasetSchema, CoordinateSchema, ChunkedArray, VariableSchema
 import numpy as np
 import xarray as xr
@@ -195,10 +195,11 @@ class _RestartCategorySchemaFactory:
         output = {}
 
         for variable_list, schema_func in (
-                (centered, self.centered),
-                (x_outer, self.x_outer),
-                (y_outer, self.y_outer),
-                (surface, self.surface)):
+            (centered, self.centered),
+            (x_outer, self.x_outer),
+            (y_outer, self.y_outer),
+            (surface, self.surface),
+        ):
             for variable in variable_list:
                 output[variable] = schema_func(variable)
 
