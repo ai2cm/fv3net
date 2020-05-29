@@ -92,7 +92,7 @@ def run(
                 grid_spec=beam.pvalue.AsSingleton(grid_spec),
             )
             # Reduce problem size by splitting by tiles
-            # This will results in repeated reads to each fv_core file
+            # This will result in repeated reads to each fv_core file
             | "Split By Tiles" >> beam.ParDo(split_by_tiles)
             | "Force evaluation" >> beam.Map(load)
             | WriteToNetCDFs(output_filename, output_dir)
