@@ -1,0 +1,28 @@
+storage_proto: gs
+#TODO: update storage_root to bucket for production runs
+storage_root: vcm-ml-scratch/sherpa
+experiment:
+  name: None  # to be filled by script
+  unique_id: false
+  steps_to_run:
+    - train_sklearn_model
+    # - test_sklearn_model
+  
+  steps_config:
+    train_sklearn_model:
+      command: python -m fv3net.regression.sklearn
+      args:
+        training_data:
+          from: create_training_data
+        train-config-file: $CONFIG/train_sklearn_model.yml
+        
+    test_sklearn_model: 
+      command: python -m fv3net.diagnostics.sklearn_model_performance
+      args:
+        trained_model:
+          from: train_sklearn_model
+        testing_data:
+          from: create_training_data
+        diagnostics_data:
+          location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
+        variable_filename: $CONFIG/test_sklearn_variable_names.yml
