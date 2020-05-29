@@ -8,7 +8,7 @@ from toolz import valmap
 
 
 def generate_restart_data(
-    n: int = 48, nz: int = 79, n_soil: int = 4
+    nx: int = 48, nz: int = 79, n_soil: int = 4
 ) -> Mapping[str, Mapping[int, xr.Dataset]]:
     """Generate a set of fake restart data for testing purposes
 
@@ -30,10 +30,10 @@ def generate_restart_data(
     }
 
     schema = {
-        "fv_core.res": _fv_core_schema(n, nz),
-        "sfc_data": _sfc_data(n, n_soil),
-        "fv_tracer.res": _fv_tracer_schema(n, nz),
-        "fv_srf_wnd.res": _fv_srf_wnd_schema(n),
+        "fv_core.res": _fv_core_schema(nx, nz),
+        "sfc_data": _sfc_data(nx, n_soil),
+        "fv_tracer.res": _fv_tracer_schema(nx, nz),
+        "fv_srf_wnd.res": _fv_srf_wnd_schema(nx),
     }
 
     def _generate_from_schema(schema: DatasetSchema):
@@ -42,7 +42,7 @@ def generate_restart_data(
     return valmap(_generate_from_schema, schema)
 
 
-def _range(n) -> List[float]:
+def _range(n):
     return np.arange(1, n + 1).astype("f4")
 
 
