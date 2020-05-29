@@ -29,15 +29,15 @@ def generate_restart_data(
         "delp": synth.Range(0.99, 1.01)
     }
 
-    def _generate_from_schema(schema: DatasetSchema):
-        return {tile: synth.generate(schema, ranges) for tile in tiles}
-
     schema = {
         "fv_core.res": _fv_core_schema(n, nz),
         "sfc_data": _sfc_data(n, n_soil),
         "fv_tracer.res": _fv_tracer_schema(n, nz),
         "fv_srf_wnd.res": _fv_srf_wnd_schema(n),
     }
+
+    def _generate_from_schema(schema: DatasetSchema):
+        return {tile: synth.generate(schema, ranges) for tile in tiles}
 
     return valmap(_generate_from_schema, schema)
 
