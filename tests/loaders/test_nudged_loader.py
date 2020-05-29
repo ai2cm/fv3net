@@ -7,7 +7,7 @@ import pandas as pd
 import synth
 
 from fv3net.regression.loaders._nudged import (
-    NUDGED_TIME_DIM,
+    TIME_NAME,
     TIME_FMT,
     _load_nudging_batches,
     _get_path_for_nudging_timescale,
@@ -16,24 +16,6 @@ from fv3net.regression.loaders._nudged import (
 )
 
 
-@pytest.fixture
-def xr_dataset():
-
-    dat = np.arange(120).reshape(5, 2, 3, 4)
-    ds = xr.Dataset(
-        data_vars={"data": (("time", "x", "y", "z"), dat)},
-        coords={
-            "time": np.arange(5),
-            "x": np.arange(2),
-            "y": np.arange(3),
-            "z": np.arange(4),
-        },
-    )
-
-    return ds
-
-
-# TODO session scoped
 @pytest.fixture
 def nudged_output_ds_dict(datadir_session):
 
@@ -57,15 +39,15 @@ def nudged_output_ds_dict(datadir_session):
     for source in datasets_sources:
         ds = synth.generate(fv3_state_schema)
         ds = _int64_to_datetime(ds)
-        nudged_datasets[source] = ds.isel({NUDGED_TIME_DIM: slice(0, ntimes)})
+        nudged_datasets[source] = ds.isel({TIME_NAME: slice(0, ntimes)})
 
     return nudged_datasets
 
 
 def _int64_to_datetime(ds):
-    time = pd.to_datetime(ds[NUDGED_TIME_DIM].values)
+    time = pd.to_datetime(ds[TIME_NAME].values)
     time = time.round('S')
-    return ds.assign_coords({NUDGED_TIME_DIM: time})
+    return ds.assign_coords({TIME_NAME: time})
 
 
 @pytest.fixture
@@ -161,10 +143,10 @@ def test_NudgedTimestepMapper(nudged_output_ds_dict):
 
     mapper = NudgedTimestepMapper(single_ds)
 
-    assert len(mapper) == single_ds.sizes["time"]
+    assert len(mapper) == single_ds.sizes[TIME_NAME]
 
-    single_time = single_ds["time"].values[0]
-    item = single_ds.sel({"time": single_time})
+    single_time = single_ds[TIME_NAME].values[0]
+    item = single_ds.sel({TIME_NAME: single_time})
     time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
     xr.testing.assert_equal(item, mapper[time_key])
 
@@ -173,7 +155,7 @@ def test_NudgedMapperAllSources(nudged_output_ds_dict):
 
     mapper = NudgedMapperAllSources(nudged_output_ds_dict)
 
-    ds_len = sum([ds.sizes["time"] for ds in nudged_output_ds_dict.values()])
+    ds_len = sum([ds.sizes[TIME_NAME] for ds in nudged_output_ds_dict.values()])
     assert len(mapper) == ds_len
 
     single_item = nudged_output_ds_dict["after_physics"].isel(time=0)
