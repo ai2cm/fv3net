@@ -1,14 +1,14 @@
 import argparse
+from typing import Iterable, Tuple
 import logging
 import os
 from itertools import product
-from typing import Tuple
 
-import apache_beam as beam
-import fsspec
+import apache_beam as beam  # type: ignore
+import fsspec  # type: ignore
 import xarray as xr
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.utils import retry
+from apache_beam.options.pipeline_options import PipelineOptions  # type: ignore
+from apache_beam.utils import retry  # type: ignore
 
 import vcm
 from fv3net.pipelines.common import list_timesteps
@@ -25,8 +25,13 @@ def _file(url: str, time: str, category: str, tile: int) -> str:
     return os.path.join(url, time, f"{time}.{category}.tile{tile}.nc")
 
 
+Key = Tuple[str, str, int]
+
+
 @retry.with_exponential_backoff(num_retries=3)
-def get_timestep(key, fs, url) -> xr.Dataset:
+def get_timestep(
+    key: Key, fs: fsspec.AbstractFileSystem, url: str
+) -> Iterable[Tuple[Key, xr.DataArray]]:
     time, category, tile = key
     location = _file(url, time, category, tile)
     logging.info(f"Opening {location}")
