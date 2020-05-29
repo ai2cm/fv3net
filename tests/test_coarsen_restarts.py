@@ -31,6 +31,7 @@ def restart_dir(tmpdir):
     return tmpdir
 
 
+@pytest.mark.regression
 def test_regression_coarsen_restarts(restart_dir):
     grid_spec_path = "gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/"
     src_path = str(restart_dir)
