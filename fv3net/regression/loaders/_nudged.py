@@ -13,6 +13,7 @@ import vcm
 from vcm import cloud, safe
 from vcm.cubedsphere.constants import TIME_FMT
 from ._sequences import FunctionOutputSequence
+from ..constants import Z_DIM_NAME, SAMPLE_DIM_NAME, TIME_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +25,6 @@ NUDGING_FILES = [
     "after_physics",
     "nudging_tendencies"
 ]
-
-SAMPLE_DIM = "sample"
-NUDGED_TIME_DIM = "time"
-Z_DIM = "z"
 
 BatchSequence = Sequence[xr.Dataset]
 TimestepMappeer = Mapping[str, xr.Dataset]
@@ -141,7 +138,7 @@ def _load_nudging_batch(
 
     logger.debug(f"Loading batch with mapper keys: {tstep_keys}")
     batch = [timestep_mapper[timestep] for timestep in tstep_keys]
-    batch_ds = xr.concat(batch, NUDGED_TIME_DIM)
+    batch_ds = xr.concat(batch, TIME_NAME)
     batch_ds = batch_ds.rename(rename_variables)
     if mask_to_surface_type is not None:
         batch_ds = vcm.mask_to_surface_type(batch_ds, mask_to_surface_type)
@@ -150,13 +147,13 @@ def _load_nudging_batch(
     # Into memory we go
     batch_ds = batch_ds.load()
 
-    stack_dims = [dim for dim in batch_ds.dims if dim != Z_DIM]
+    stack_dims = [dim for dim in batch_ds.dims if dim != Z_DIM_NAME]
     stacked_batch_ds = safe.stack_once(
-        batch_ds, SAMPLE_DIM, stack_dims, allowed_broadcast_dims=[Z_DIM]
+        batch_ds, SAMPLE_DIM_NAME, stack_dims, allowed_broadcast_dims=[Z_DIM_NAME]
     )
-    stacked_batch_ds = stacked_batch_ds.dropna(SAMPLE_DIM)
+    stacked_batch_ds = stacked_batch_ds.dropna(SAMPLE_DIM_NAME)
 
-    if len(stacked_batch_ds[SAMPLE_DIM]) == 0:
+    if len(stacked_batch_ds[SAMPLE_DIM_NAME]) == 0:
         raise ValueError(
             "No Valid samples detected. Check for errors in the training data."
         )
@@ -206,7 +203,7 @@ class FV3OutMapper:
 
 class NudgedTimestepMapper(FV3OutMapper):
 
-    def __init__(self, ds, time_dim_name=NUDGED_TIME_DIM):
+    def __init__(self, ds, time_dim_name=TIME_NAME):
         self.ds = ds
         self.time_dim = time_dim_name
 
@@ -301,7 +298,7 @@ def open_nudged_mapper(
 
         start = initial_time_skip_hr * SIMULATION_TIMESTEPS_PER_HOUR
         end = None if n_times is None else start + n_times
-        ds = ds.isel({NUDGED_TIME_DIM: slice(start, end)})
+        ds = ds.isel({TIME_NAME: slice(start, end)})
 
         datasets[source] = ds
 
