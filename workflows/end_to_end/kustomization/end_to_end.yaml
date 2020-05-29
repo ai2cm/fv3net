@@ -15,7 +15,7 @@ experiment:
   
   steps_config:
     coarsen_restarts:
-      command: python -m fv3net.pipelines.coarsen_restarts
+      command: ./dataflow.sh submit -m fv3net.pipelines.coarsen_restarts
       args:
         data_to_coarsen:
           location: $C384_RESTARTS
@@ -43,7 +43,7 @@ experiment:
         timesteps: $ONE_STEP_TIMES
 
     create_training_data:
-      command: python -m fv3net.pipelines.create_training_data
+      command: ./dataflow.sh submit -m fv3net.pipelines.create_training_data
       args:
         one_step_data:
           from: one_step_run
