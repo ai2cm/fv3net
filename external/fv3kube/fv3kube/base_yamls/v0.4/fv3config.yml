@@ -1,8 +1,9 @@
+# base config for initializing from model restart data with fv3gfs-python v0.3+
 data_table: default
 diag_table: default
 experiment_name: default_experiment
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
-initial_conditions: gfs_example
+initial_conditions: ''  # no default provided
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -61,7 +62,7 @@ namelist:
     - 8
     - 1
     - 0
-    - 0
+    - 15
     - 0
     days: 0
     dt_atmos: 900
@@ -107,7 +108,7 @@ namelist:
     do_sat_adj: true
     do_vort_damp: true
     dwind_2d: false
-    external_ic: true
+    external_ic: false
     fill: true
     fv_debug: false
     fv_sg_adj: 900
@@ -130,18 +131,19 @@ namelist:
     layout:
     - 1
     - 1
-    make_nh: true
-    mountain: false
+    make_nh: false
+    mountain: true
     n_split: 6
     n_sponge: 4
-    na_init: 1
+    na_init: 0
     ncep_ic: false
-    nggps_ic: true
+    nggps_ic: false
     no_dycore: false
     nord: 2
     npx: 49
     npy: 49
-    npz: 63
+    npz: 79
+    external_eta: true
     ntiles: 6
     nudge: false
     nudge_qv: true
@@ -156,7 +158,7 @@ namelist:
     tau: 5.0
     use_hydro_pressure: false
     vtdm4: 0.06
-    warm_start: false
+    warm_start: true
     z_tracer: true
   fv_grid_nml: {}
   gfdl_cloud_microphysics_nml:

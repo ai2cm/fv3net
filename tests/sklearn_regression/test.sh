@@ -10,6 +10,6 @@ mkdir -p data
 gsutil -m rsync -d -r "$TRAINING_DATA" data
 
 python -m fv3net.regression.sklearn \
-    data/ \
-    /home/AnnaK/fv3net/workflows/end_to_end/kustomization/train_sklearn_model.yml  \
+    data \
+    ../../workflows/end_to_end/kustomization/train_sklearn_model.yml  \
     $OUTPUT

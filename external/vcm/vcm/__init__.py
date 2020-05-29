@@ -10,6 +10,7 @@ from .convenience import (
     TOP_LEVEL_DIR,
     parse_timestep_str_from_path,
     parse_datetime_from_str,
+    parse_current_date_from_str,
     convert_timestamps,
     cast_to_datetime,
     encode_time,

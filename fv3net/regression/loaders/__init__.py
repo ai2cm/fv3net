@@ -2,3 +2,6 @@
 # model training configuration
 from ._one_step import open_onestep_mapping
 from ._fine_resolution_budget import open_fine_resolution_budget_mapping
+
+# TODO: replace with open mapping func for nudging data source
+from ._nudged import load_nudging_batches

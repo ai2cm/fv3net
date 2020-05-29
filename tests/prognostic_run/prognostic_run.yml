@@ -1,6 +1,7 @@
 kubernetes:
   cpu_count: 6
   memory_gb: 5.
+base_version: v0.4
 diag_table: diag_table_prognostic
 namelist:
   coupler_nml:
@@ -14,6 +15,7 @@ namelist:
   atmos_model_nml:
     fhout: 0.25   # hours - frequency to save physics outputs
   gfs_physics_nml:
+    do_deep: false
     fhzero: 0.25  # hours - frequency at which precip is set back to zero
   fv_core_nml:
     n_split: 6   # num dynamics steps per physics step

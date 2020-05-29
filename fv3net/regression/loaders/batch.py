@@ -2,60 +2,53 @@ import backoff
 import functools
 import logging
 import numpy as np
-from typing import Iterable, Sequence, Mapping, Callable
+from typing import Iterable, Sequence, Mapping
 import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
-from ..constants import TIME_NAME, SAMPLE_DIM_NAME, Z_DIM_NAME
+from ._transform import transform_train_data
+from ..constants import TIME_NAME
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
 def load_batches(
-        data_mapping: Mapping[str, xr.Dataset],
-        transform_func: Callable,
-        *variable_names: Iterable[str],
-        files_per_batch: int = 1,
-        num_batches: int = None,
-        random_seed: int = 0,
-        init_time_dim_name: str = "initial_time",
-        rename_variables: Mapping[str, str] = None,
+    data_mapping: Mapping[str, xr.Dataset],
+    *variable_names: Iterable[str],
+    files_per_batch: int = 1,
+    num_batches: int = None,
+    random_seed: int = 0,
+    init_time_dim_name: str = "initial_time",
+    rename_variables: Mapping[str, str] = None,
 ):
     if rename_variables is None:
         rename_variables = {}
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
     batched_timesteps = _select_batch_timesteps(
-        data_mapping.keys(),
-        files_per_batch,
-        num_batches,
-        random_seed)
+        data_mapping.keys(), files_per_batch, num_batches, random_seed
+    )
+    transform = functools.partial(transform_train_data, init_time_dim_name, random_seed)
     output_list = []
     for data_vars in variable_names:
-        partial_load_batch = functools.partial(
-            _load_batch,
-            data_mapping,
-            data_vars,
-            rename_variables,
-            init_time_dim_name,
+        load_batch = functools.partial(
+            _load_batch, data_mapping, data_vars, rename_variables, init_time_dim_name,
         )
-        output_list.append(
-            FunctionOutputSequence(
-                lambda x: transform_func(partial_load_batch(x)), batched_timesteps
-            )
-        )
+        batch_func = _compose(transform, load_batch)
+        output_list.append(FunctionOutputSequence(batch_func, batched_timesteps))
     if len(output_list) > 1:
         return tuple(output_list)
     else:
         return output_list[0]
 
 
+def _compose(outer_func, inner_func):
+    return lambda x: outer_func(inner_func(x))
+
+
 def _select_batch_timesteps(
-        timesteps: Sequence[str],
-        files_per_batch,
-        num_batches,
-        random_seed,
+    timesteps: Sequence[str], files_per_batch, num_batches, random_seed,
 ) -> Sequence[Sequence[str]]:
     random = np.random.RandomState(random_seed)
     random.shuffle(timesteps)
@@ -64,7 +57,7 @@ def _select_batch_timesteps(
     timesteps_list_sequence = list(
         timesteps[batch_num * files_per_batch : (batch_num + 1) * files_per_batch]
         for batch_num in range(num_batches)
-    ) 
+    )
     return timesteps_list_sequence
 
 
@@ -75,8 +68,6 @@ def _load_batch(
     init_time_dim_name: str,
     timestep_list: Iterable[str],
 ):
-    # TODO refactor this I/O. since this logic below it is currently
-    # impossible to test.
     data = _load_datasets(timestep_mapper, timestep_list)
     ds = xr.concat(data, init_time_dim_name)
     # need to use standardized time dimension name
@@ -107,7 +98,13 @@ def _validated_num_batches(total_num_input_files, files_per_batch, num_batches=N
         Number of batches to use for training
     """
     if num_batches is None:
-        num_train_batches = total_num_input_files // files_per_batch
+        if total_num_input_files >= files_per_batch:
+            num_train_batches = total_num_input_files // files_per_batch
+        else:
+            raise ValueError(
+                f"Number of input_files {total_num_input_files} "
+                f"must be greater than files_per_batch {files_per_batch}"
+            )
     elif num_batches * files_per_batch > total_num_input_files:
         raise ValueError(
             f"Number of input_files {total_num_input_files} "
