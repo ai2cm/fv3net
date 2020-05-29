@@ -72,8 +72,8 @@ def test_load_nudging_batches(nudged_tstep_mapper):
 
     ntimes = 90
     init_time_skip_hr = 12  # 48 15-min timesteps
-    times_per_batch = 45
-    num_batches = 2
+    times_per_batch = 14
+    num_batches = 5
 
     rename = {
         "air_temperature_tendency_due_to_nudging": "dQ1",
