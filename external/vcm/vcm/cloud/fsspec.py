@@ -1,4 +1,4 @@
-import fsspec
+import fsspec  # type: ignore
 
 
 def get_protocol(path: str) -> str:

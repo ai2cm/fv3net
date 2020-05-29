@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Iterable, Tuple
 from urllib import parse
 
-import dask.bag as db
-from google.cloud.storage import Blob, Bucket, Client
+import dask.bag as db  # type: ignore
+from google.cloud.storage import Blob, Bucket, Client  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ def init_blob(bucket_name: str, blob_name: str) -> Blob:
     return Blob(blob_name, bucket)
 
 
-def parse_gcs_url(gcs_url: str) -> Tuple[str]:
+def parse_gcs_url(gcs_url: str) -> Tuple[str, str]:
     parsed_gs_path = parse.urlsplit(gcs_url)
     bucket_name = parsed_gs_path.netloc
     blob_name = parsed_gs_path.path.lstrip("/")
@@ -33,9 +33,9 @@ def init_blob_from_gcs_url(gcs_url: str) -> Blob:
 def download_blob_to_file(source_blob: Blob, out_dir: str, filename: str) -> Path:
     logger.info(f"Downloading ({filename}) from remote storage.")
 
-    out_dir = Path(out_dir)
-    filename = Path(filename)
-    download_path = out_dir.joinpath(filename)
+    out_dir_path = Path(out_dir)
+    filename_path = Path(filename)
+    download_path = out_dir_path.joinpath(filename_path)
     download_path.parent.mkdir(parents=True, exist_ok=True)
     logger.debug(f"File download path: {download_path}")
 
@@ -46,7 +46,7 @@ def download_blob_to_file(source_blob: Blob, out_dir: str, filename: str) -> Pat
 
 
 def download_all_bucket_files(
-    gcs_url: str, out_dir_prefix: str, include_parent_in_stem=True
+    gcs_url: str, out_dir_prefix: str, include_parent_in_stem: bool = True
 ):
     """
     Download all the GCS files and directories within a given GCS directory
@@ -90,7 +90,9 @@ def download_all_bucket_files(
         download_blob_to_file(blob, out_dir, filename)
 
 
-def _get_dir_stem(parent_dirname, full_dirname, include_parent=True):
+def _get_dir_stem(
+    parent_dirname: str, full_dirname: str, include_parent: bool = True
+) -> str:
 
     dir_components = Path(full_dirname).parts
     stem_start_idx = dir_components.index(parent_dirname)
@@ -101,11 +103,11 @@ def _get_dir_stem(parent_dirname, full_dirname, include_parent=True):
     stem_dir = dir_components[stem_start_idx:]
 
     if stem_dir:
-        stem_dir = str(Path(*stem_dir))
+        stem_dir_url = str(Path(*stem_dir))
     else:
-        stem_dir = ""
+        stem_dir_url = ""
 
-    return stem_dir
+    return stem_dir_url
 
 
 def upload_dir_to_gcs(bucket_name: str, blob_prefix: str, source_dir: Path) -> None:

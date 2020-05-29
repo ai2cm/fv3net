@@ -1,5 +1,5 @@
-import gcsfs
-import intake
+import gcsfs  # type: ignore
+import intake  # type: ignore
 import xarray as xr
 
 
