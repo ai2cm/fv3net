@@ -164,7 +164,7 @@ def test_NudgedTimestepMapper(nudged_output_ds_dict):
     assert len(mapper) == single_ds.sizes["time"]
 
     single_time = single_ds["time"].values[0]
-    item = single_ds.isel({"time": single_time})
+    item = single_ds.sel({"time": single_time})
     time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
     xr.testing.assert_equal(item, mapper[time_key])
 
@@ -177,7 +177,7 @@ def test_NudgedMapperAllSources(nudged_output_ds_dict):
     assert len(mapper) == ds_len
 
     single_item = nudged_output_ds_dict["after_physics"].isel(time=0)
-    time_key = pd.to_datetime(single_item.time.values[0]).strftime(TIME_FMT)
+    time_key = pd.to_datetime(single_item.time.values).strftime(TIME_FMT)
     item_key = ("after_physics", time_key)
     xr.testing.assert_equal(mapper[item_key], single_item)
 
@@ -187,9 +187,9 @@ def test_NudgedMapperAllSources_merge_sources(nudged_output_ds_dict):
     mapper = NudgedMapperAllSources(nudged_output_ds_dict)
     merged_tstep_mapper = mapper.merge_sources(["after_physics", "nudging_tendencies"])
 
-    after_phys = mapper._nudged_ds["after_physics"]
-    nudge_tend = mapper._nudged_ds["nudging_tendencies"]
-    assert len(merged_tstep_mapper) == max(len(after_phys), len(nudge_tend))
+    after_phys = mapper._nudged_mappers["after_physics"]
+    nudge_tend = mapper._nudged_mappers["nudging_tendencies"]
+    assert len(merged_tstep_mapper) == min(len(after_phys), len(nudge_tend))
 
     after_phys_item = after_phys[after_phys.keys()[0]]
     nudge_tend_item = nudge_tend[nudge_tend.keys()[0]]

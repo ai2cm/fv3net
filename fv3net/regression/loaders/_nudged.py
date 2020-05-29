@@ -229,14 +229,16 @@ class NudgedMapperAllSources(FV3OutMapper):
 
     def __init__(self, ds_map: Mapping[str, xr.Dataset]):
 
-        self._nudged_ds = {key: NudgedTimestepMapper(ds) for key, ds in ds_map.items()}
+        self._nudged_mappers = {
+            key: NudgedTimestepMapper(ds) for key, ds in ds_map.items()
+        }
 
     def __getitem__(self, key):
-        return self._nudged_ds[key[0]][key[1]]
+        return self._nudged_mappers[key[0]][key[1]]
 
     def keys(self):
         keys = []
-        for key, mapper in self._nudged_ds.items():
+        for key, mapper in self._nudged_mappers.items():
             timestep_keys = mapper.keys()
             keys.extend(product((key,), timestep_keys))
         return keys
@@ -247,7 +249,7 @@ class NudgedMapperAllSources(FV3OutMapper):
         """
 
         to_combine = [
-            self._nudged_ds[source] 
+            self._nudged_mappers[source].ds
             for source in source_names
         ]
         self._check_dvar_overlap(*to_combine)
@@ -261,7 +263,7 @@ class NudgedMapperAllSources(FV3OutMapper):
 
     @staticmethod
     def _check_dvar_overlap(*ds_to_combine):
-        ds_var_sets = [set(ds.datavars.keys()) for ds in ds_to_combine]
+        ds_var_sets = [set(ds.data_vars.keys()) for ds in ds_to_combine]
 
         overlap = set()
         checked = set()
