@@ -214,8 +214,9 @@ def edge_weighted_block_average(
         raise ValueError(f"'edge' most be either 'x' or 'y'; got {edge}.")
 
     coarsen_kwargs = {coarsen_dim: coarsening_factor}
-    coarsened = (spacing * obj).coarsen(coarsen_kwargs, coord_func=coord_func).sum()  # type: ignore # noqa
-    coarsened /= spacing.coarsen(coarsen_kwargs, coord_func=coord_func).sum()  # type: ignore # noqa
+    numerator = (spacing * obj).coarsen(coarsen_kwargs, coord_func=coord_func).sum()  # type: ignore # noqa
+    denominator = spacing.coarsen(coarsen_kwargs, coord_func=coord_func).sum()  # type: ignore # noqa
+    coarsened = numerator / denominator
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
