@@ -194,17 +194,13 @@ class _RestartCategorySchemaFactory:
     ) -> Mapping[str, VariableSchema]:
         output = {}
 
-        for variable in centered:
-            output[variable] = self.centered(variable)
-
-        for variable in x_outer:
-            output[variable] = self.x_outer(variable)
-
-        for variable in y_outer:
-            output[variable] = self.y_outer(variable)
-
-        for variable in surface:
-            output[variable] = self.surface(variable)
+        for variable_list, schema_func in (
+                (centered, self.centered),
+                (x_outer, self.x_outer),
+                (y_outer, self.y_outer),
+                (surface, self.surface)):
+            for variable in variable_list:
+                output[variable] = schema_func(variable)
 
         return output
 
