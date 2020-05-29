@@ -129,8 +129,6 @@ def _load_nudging_batches(
     )
     return FunctionOutputSequence(batch_loader, batched_timesteps)
 
-# TODO: changed toplevel constants to shared constants
-
 
 def _load_nudging_batch(
     timestep_mapper, data_vars, rename_variables, mask_to_surface_type, tstep_keys
@@ -222,6 +220,7 @@ class NudgedMapperAllSources(FV3OutMapper):
     """
     Get all nudged output zarr datasets.
     Accessible by, e.g., mapper[("before_dynamics", "20160801.001500")]
+    Uses NudgedTimestepMappers for individual sources.
     """
 
     def __init__(self, ds_map: Mapping[str, xr.Dataset]):
@@ -281,6 +280,20 @@ def open_nudged_mapper(
     initial_time_skip_hr: int = 0,
     n_times: int = None
 ) -> Mapping[str, xr.Dataset]:
+    """
+    Temporary function for loading mapper from all sources.  Will be standardized
+    with loading of other mappers when transforms are finished.
+
+    Args:
+        url: Path to directory with nudging output (not including the timescale
+            subdirectories, e.g., outdir-3h)
+        timescale_hours: timescale of the nudging for the simulation
+            being used as input.
+        initial_time_skip_hr (optional): Length of model inititialization (in hours)
+            to omit from the batching operation
+        n_times (optional): Number of times (by index) to include in the
+            batch resampling operation
+    """
     
     fs = cloud.get_fs(url)
 
