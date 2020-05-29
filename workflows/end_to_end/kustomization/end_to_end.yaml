@@ -50,6 +50,7 @@ experiment:
         diagnostics_data:
           from: coarsen_diagnostics
         timestep_splits: $TRAIN_AND_TEST_TIMES
+        --runner: DataflowRunner
 
     train_sklearn_model:
       command: python -m fv3net.regression.sklearn
