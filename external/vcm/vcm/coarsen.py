@@ -2,13 +2,9 @@
 Utilities for coarse-graining restart data and directories
 """
 import logging
-from os.path import join
 
-import dask.bag as db
 import numpy as np
-import pandas as pd
 import xarray as xr
-from toolz import curry
 
 import dask
 
@@ -470,32 +466,11 @@ def sync_dimension_order(a, b):
 
 
 def coarsen_restarts_on_sigma(
-    coarsening_factor,
-    grid_spec_prefix,
-    source_data_prefix,
-    output_data_prefix,
-    data_pattern=DATA_PATTERN,
+    coarsening_factor: int, grid_spec: xr.Dataset, source: xr.Dataset,
 ):
     """ Coarsen a complete set of restart files, averaging on model levels and
     using the 'complex' surface coarsening method
-
-    Args:
-        coarsening_factor (int): Amount to coarsen, e.g. 8 for C384 to C48.
-        grid_spec_prefix (str): Path to grid_spec at same resolution as source data.
-            Must include everything up to '.tile*.nc'
-        source_data_prefix (str): Prefix of path to fine-resolution restart files.
-        output_data_prefix (str): Prefix of path where coarsened restart files will be
-            saved.
-        data_pattern (str, optional): pattern for source and output data file naming
-            convention. Defaults to "{prefix}{category}.tile{tile}.nc". Must include
-            {prefix}, {category} and {tile}.
     """
-    # TODO fix this code (or delete), there is a lot of copy paste in this module
-    tiles = pd.Index(range(6), name="tile")
-    filename = grid_spec_prefix + ".tile*.nc"
-    grid_spec = xr.open_mfdataset(filename, concat_dim=[tiles], combine="nested")
-
-    source = _open_restart_categories(source_data_prefix, data_pattern=data_pattern)
     coarsened = {}
 
     coarsened["fv_core.res"] = coarse_grain_fv_core(
@@ -540,7 +515,8 @@ def coarsen_restarts_on_sigma(
 
     for category in CATEGORY_LIST:
         sync_dimension_order(coarsened[category], source[category])
-    _save_restart_categories(coarsened, output_data_prefix, data_pattern)
+
+    return coarsened
 
 
 def coarsen_restarts_on_pressure(
@@ -548,17 +524,6 @@ def coarsen_restarts_on_pressure(
 ):
     """ Coarsen a complete set of restart files, averaging on pressure levels and
     using the 'complex' surface coarsening method
-
-    Args:
-        coarsening_factor (int): Amount to coarsen, e.g. 8 for C384 to C48.
-        grid_spec_prefix (str): Path to grid_spec at same resolution as source data.
-            Must include everything up to '.tile*.nc'
-        source_data_prefix (str): Prefix of path to fine-resolution restart files.
-        output_data_prefix (str): Prefix of path where coarsened restart files will be
-            saved.
-        data_pattern (str, optional): pattern for source and output data file naming
-            convention. Defaults to "{prefix}{category}.tile{tile}.nc". Must include
-            {prefix}, {category} and {tile}.
     """
     # TODO correct this docstring
 

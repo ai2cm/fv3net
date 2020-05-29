@@ -1,5 +1,5 @@
 import logging
-from typing import Iterable, Sequence, Hashable, Mapping, Any
+from typing import Iterable, Sequence, Hashable, Mapping
 from itertools import product
 import tempfile
 import os

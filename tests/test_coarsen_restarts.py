@@ -1,7 +1,6 @@
 import synth
 import os
 import pytest
-import sys
 from fv3net.pipelines.coarsen_restarts.pipeline import main
 
 
@@ -39,6 +38,4 @@ def test_regression_coarsen_restarts(restart_dir):
     out_res = "48"
     dest = str(restart_dir.join("output"))
 
-    main(
-        [src_path, grid_spec_path, in_res, out_res, dest,]
-    )
+    main([src_path, grid_spec_path, in_res, out_res, dest])

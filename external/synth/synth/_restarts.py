@@ -1,13 +1,10 @@
-import vcm
 import synth
-from typing import Iterable, Mapping, List, Sized, Sequence
+from typing import Iterable, Mapping, List, Sequence
 from synth import DatasetSchema, CoordinateSchema, ChunkedArray, VariableSchema
 import numpy as np
 import xarray as xr
 
 from toolz import valmap
-
-from collections import namedtuple
 
 
 def _range(n) -> List[float]:
@@ -95,7 +92,7 @@ class _RestartCategorySchemaFactory:
             name="Time",
             dims=["Time"],
             value=np.array([1.0], dtype="f4"),
-            attrs={"long_name": "Time", "units": "time level", "cartesian_axis": "T",},
+            attrs={"long_name": "Time", "units": "time level", "cartesian_axis": "T"},
         )
 
     def centered(self, name: str) -> VariableSchema:
@@ -107,7 +104,7 @@ class _RestartCategorySchemaFactory:
                 dtype=np.dtype("float32"),
                 chunks=(1, self.nz, self.n, self.n),
             ),
-            attrs={"long_name": name, "units": "none",},
+            attrs={"long_name": name, "units": "none"},
         )
 
     def x_outer(self, name: str) -> VariableSchema:
@@ -119,7 +116,7 @@ class _RestartCategorySchemaFactory:
                 dtype=np.dtype("float32"),
                 chunks=(1, self.nz, self.n, self.n + 1),
             ),
-            attrs={"long_name": name, "units": "none",},
+            attrs={"long_name": name, "units": "none"},
         )
 
     def y_outer(self, name: str) -> VariableSchema:
@@ -136,7 +133,7 @@ class _RestartCategorySchemaFactory:
                 dtype=np.dtype("float32"),
                 chunks=(1, nz, n + 1, n),
             ),
-            attrs={"long_name": name, "units": "none",},
+            attrs={"long_name": name, "units": "none"},
         )
 
     def surface(self, name: str) -> VariableSchema:
@@ -150,7 +147,7 @@ class _RestartCategorySchemaFactory:
             array=ChunkedArray(
                 shape=(1, n, n), dtype=np.dtype("float32"), chunks=(1, n, n)
             ),
-            attrs={"long_name": name, "units": "none",},
+            attrs={"long_name": name, "units": "none"},
         )
 
     def _generate_variables(
@@ -292,7 +289,7 @@ def _sfc_data(n: int, n_soil: int) -> DatasetSchema:
             "snoalb",
             "sncovr",
         ],
-        centered=["stc", "smc", "slc",],
+        centered=["stc", "smc", "slc"],
     )
 
 
@@ -313,8 +310,8 @@ def generate_restart_data(
     tiles = [1, 2, 3, 4, 5, 6]
     ranges = {
         # Need to use a small range here to avoid SEGFAULTS in the mappm
-        # if delp varies to much then the mean pressures may lie completely out of bounds
-        # an individual column
+        # if delp varies to much then the mean pressures may lie completely out
+        # of bounds an individual column
         "delp": synth.Range(0.99, 1.01)
     }
 

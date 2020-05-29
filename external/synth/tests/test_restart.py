@@ -1,7 +1,5 @@
 import pytest
-import os
 import xarray as xr
-import synth
 import numpy as np
 
 from synth import generate_restart_data

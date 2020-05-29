@@ -1,7 +1,7 @@
 import apache_beam as beam
 import os
 import logging
-from typing import Mapping, Iterable, Tuple, List, TypeVar
+from typing import Mapping, Iterable, Tuple, TypeVar
 
 import xarray as xr
 
@@ -10,7 +10,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 from fv3net.pipelines.common import list_timesteps, FunctionSource, WriteToNetCDFs
 import vcm
-from vcm import parse_timestep_str_from_path
 
 logger = logging.getLogger("CoarsenPipeline")
 logger.setLevel(logging.DEBUG)
@@ -160,9 +159,6 @@ def main(argv):
     # TODO change this CLI. Why use 2 args (which might not eveny divide) when
     # 1 will do?
     factor = args.source_resolution // args.target_resolution
-
-    prefix = args.gcs_dst_dir
-    tmp_timestep_dir = os.path.join(prefix, "local_fine_dir")
 
     run(
         gridspec_path,
