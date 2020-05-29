@@ -6,6 +6,7 @@ one_step_tendencies:
     - dQ2
     - pQ1
     - pQ2
+    - pressure_thickness_of_atmospheric_layer
   batch_kwargs:
     num_batches: 2
     files_per_batch: 1

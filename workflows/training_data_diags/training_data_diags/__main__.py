@@ -1,7 +1,9 @@
 from . import utils
+from .config import VARNAMES
 from fv3net.regression import loaders
 from fv3net.regression.loaders.batch import load_batches
 from fv3net.regression.loaders.transform import construct_data_transform
+from vcm import safe
 import argparse
 import yaml
 from typing import Hashable, Mapping
@@ -15,6 +17,10 @@ out_hdlr.setFormatter(
 out_hdlr.setLevel(logging.INFO)
 logging.basicConfig(handlers=[out_hdlr], level=logging.INFO)
 logger = logging.getLogger("training_data_diags")
+
+GRID_VARS = ['latb', 'lonb', 'lat', 'lon', 'area', 'land_sea_mask']
+
+DOMAINS = ['land', 'sea', 'global']
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -50,15 +56,21 @@ datasets_config = _open_config(args.datasets_config_yml)
 
 dataset_names = []
 dataset_transforms = {}
-for dataset_name, config in datasets_config.items():
+for dataset_name, dataset_config in datasets_config.items():
     dataset_names.append(dataset_name)
-    mapping_function = getattr(loaders, config["mapping_function"])
-    mapper = mapping_function(config["path"])
+    mapping_function = getattr(loaders, dataset_config["mapping_function"])
+    mapper = mapping_function(dataset_config["path"])
+    sample_dataset = mapper[mapper.keys()[0]]
+    grid = (
+        safe.get_variables(sample_dataset, GRID_VARS)
+        .squeeze()
+        .drop(labels=VARNAMES['time_dim'])
+    )
     ds_batches = load_batches(
         mapper,
         construct_data_transform(dataset_transforms),
-        config["variables"],
-        **config["batch_kwargs"],
+        dataset_config["variables"],
+        **dataset_config["batch_kwargs"],
     )
-    ds_diagnostic = utils.reduce_to_diagnostic(ds_batches)
-    print(ds_diagnostic)
+    ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
+    print(ds_diagnostic.load())
