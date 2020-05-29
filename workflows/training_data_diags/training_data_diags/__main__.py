@@ -54,18 +54,27 @@ args = _create_arg_parser()
 
 datasets_config = _open_config(args.datasets_config_yml)
 
+mapping_function = getattr(loaders, datasets_config['one_step_tendencies']["mapping_function"])
+mapper = mapping_function(datasets_config['one_step_tendencies']["path"])
+sample_dataset = mapper[list(mapper.keys())[0]]
+grid = (
+    safe.get_variables(sample_dataset, GRID_VARS)
+    .squeeze()
+    .drop(labels=VARNAMES['time_dim'])
+)
+
 dataset_names = []
 dataset_transforms = {}
 for dataset_name, dataset_config in datasets_config.items():
     dataset_names.append(dataset_name)
     mapping_function = getattr(loaders, dataset_config["mapping_function"])
     mapper = mapping_function(dataset_config["path"])
-    sample_dataset = mapper[mapper.keys()[0]]
-    grid = (
-        safe.get_variables(sample_dataset, GRID_VARS)
-        .squeeze()
-        .drop(labels=VARNAMES['time_dim'])
-    )
+#     sample_dataset = mapper[list(mapper.keys())[0]]
+#     grid = (
+#         safe.get_variables(sample_dataset, GRID_VARS)
+#         .squeeze()
+#         .drop(labels=VARNAMES['time_dim'])
+#     )
     ds_batches = load_batches(
         mapper,
         construct_data_transform(dataset_transforms),

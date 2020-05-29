@@ -135,7 +135,7 @@ def snap_mask_to_type(
 ) -> xr.DataArray:
     """Convert float surface type array to categorical surface type array"""
 
-    types = np.empty_like(float_mask.values)
+    types = np.full(float_mask.shape, np.nan)
     for type_name, type_number in enumeration.items():
         types = np.where(np.isclose(float_mask.values, type_number, atol), type_name, types)
     
