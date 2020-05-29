@@ -20,7 +20,7 @@ def test_generate_restart_data_contains_time(output):
 
 def test_generate_restart_data_all_tiles_present(output):
     for _, val in output.items():
-        assert set(val.keys()) == {1, 2, 3, 4, 5, 6}
+        assert set(val.keys()) == set(range(1, 7))
 
 
 def test_generate_restart_data_all_keys_present(output):
