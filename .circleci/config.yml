@@ -97,7 +97,7 @@ jobs:
     - image: circleci/python:3.7
     steps:
     - checkout
-    - run: sudo pip install black==19.10b0 flake8==3.7.9 mypy==0.770
+    - run: sudo pip install black==19.10b0 flake8==3.7.9
     - run: make lint
 
   integration_tests:
