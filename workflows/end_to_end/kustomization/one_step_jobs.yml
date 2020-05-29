@@ -2,6 +2,7 @@ kubernetes:
   docker_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.3.1
 base_version: v0.4
 diag_table: workflows/one_step_jobs/diag_table_one_step  # TODO: move this diag_table into vcm-workflow-control
+orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 namelist:
   atmos_model_nml:
     fhout: 0.01666

@@ -6,6 +6,7 @@ scikit_learn:
   input_variable_standard_names:
     DSWRFtoa_train: total_sky_downward_shortwave_flux_at_top_of_atmosphere
 diag_table: /etc/config/diag_table_prognostic
+orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 namelist:
   coupler_nml:
     days: 10  # total length
