@@ -311,9 +311,15 @@ def generate_restart_data(
 
     """
     tiles = [1, 2, 3, 4, 5, 6]
+    ranges = {
+        # Need to use a small range here to avoid SEGFAULTS in the mappm
+        # if delp varies to much then the mean pressures may lie completely out of bounds
+        # an individual column
+        "delp": synth.Range(0.99, 1.01)
+    }
 
     def _generate_from_schema(schema: DatasetSchema):
-        return {tile: synth.generate(schema) for tile in tiles}
+        return {tile: synth.generate(schema, ranges) for tile in tiles}
 
     schema = {
         "fv_core.res": _fv_core_schema(n, nz),
