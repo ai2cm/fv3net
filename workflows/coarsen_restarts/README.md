@@ -5,7 +5,7 @@ This workflow provides a reusuable Dataflow module to coarsen a set of restart
 timesteps in a directory on cloud storage.  The workflow performs the coarsening
 using pressure-level coarsening defined in `vcm.coarsen`.
 
-Here is an example of how to submit this script via dataflow:
+To submit via dataflow run the following commands from the fv3net root:
 
 ```
 #!/bin/sh
