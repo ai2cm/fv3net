@@ -36,8 +36,10 @@ class FunctionSource(beam.PTransform):
 
         p = Pipeline()
         p | beam.Create([None]) | beam.Map(lambda _, url : load_dataset(url), url)
+    
+    This PTransform implements this pattern, allowing the following clean syntax::
 
-    This PTransform implements this pattern
+        p | FunctionSource(load_dataset, url)
 
     .. _profiling: https://gist.github.com/nbren12/948ef9a5248c43537bb50db49c8851f9
 

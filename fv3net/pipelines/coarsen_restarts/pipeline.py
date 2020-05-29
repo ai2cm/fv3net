@@ -154,8 +154,6 @@ def main(argv):
             output_dir_prefix, f"C{args.target_resolution}"
         )
 
-    # TODO change this CLI. Why use 2 args (which might not eveny divide) when
-    # 1 will do?
     factor = args.source_resolution // args.target_resolution
 
     run(
