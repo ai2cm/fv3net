@@ -22,7 +22,7 @@ NUDGING_FILES = [
     "before_dynamics",
     "after_dynamics",
     "after_physics",
-    "nudging_tendencies",
+    "nudging_tendencies"
 ]
 
 SAMPLE_DIM = "sample"
@@ -132,7 +132,6 @@ def _load_nudging_batches(
     )
     return FunctionOutputSequence(batch_loader, batched_timesteps)
 
-
 # TODO: changed toplevel constants to shared constants
 
 
@@ -187,7 +186,8 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
         )
 
 
-class BaseMapper:
+class FV3OutMapper:
+
     def __init__(self, *args):
         raise NotImplementedError("Don't use the base class!")
 
@@ -204,7 +204,8 @@ class BaseMapper:
         raise NotImplementedError()
 
 
-class NudgedTimestepMapper(BaseMapper):
+class NudgedTimestepMapper(FV3OutMapper):
+
     def __init__(self, ds, time_dim_name=NUDGED_TIME_DIM):
         self.ds = ds
         self.time_dim = time_dim_name
@@ -220,7 +221,7 @@ class NudgedTimestepMapper(BaseMapper):
         ]
 
 
-class NudgedMapperAllSources(BaseMapper):
+class NudgedMapperAllSources(FV3OutMapper):
     """
     Get all nudged output zarr datasets.
     Accessible by, e.g., mapper[("before_dynamics", "20160801.001500")]
@@ -245,12 +246,12 @@ class NudgedMapperAllSources(BaseMapper):
         Combine nudging data sources into single dataset
         """
 
-        combined_ds = xr.Dataset()
-        for source in source_names:
-            ds = self._nudged_ds[source]
-            self._check_dvar_overlap(combined_ds, ds)
-
-            combined_ds = combined_ds.merge(ds)
+        to_combine = [
+            self._nudged_ds[source] 
+            for source in source_names
+        ]
+        self._check_dvar_overlap(*to_combine)
+        combined_ds = xr.merge(to_combine, join="inner")
 
         return NudgedTimestepMapper(combined_ds)
 
@@ -259,11 +260,15 @@ class NudgedMapperAllSources(BaseMapper):
     #   groupby time needs merged ds for all timesteps
 
     @staticmethod
-    def _check_dvar_overlap(ds1, ds2):
+    def _check_dvar_overlap(*ds_to_combine):
+        ds_var_sets = [set(ds.datavars.keys()) for ds in ds_to_combine]
 
-        ds1_vars = set(ds1.datavars.keys())
-        ds2_vars = set(ds2.data_vars.keys())
-        overlap = ds1_vars & ds2_vars
+        overlap = set()
+        checked = set()
+        for data_var in ds_var_sets:
+            overlap |= data_var & checked
+            checked |= data_var
+
         if overlap:
             raise ValueError(
                 "Could not combine requested nudged data sources due to "
@@ -275,9 +280,9 @@ def open_nudged_mapper(
     url: str,
     nudging_timescale_hr: Union[int, float],
     initial_time_skip_hr: int = 0,
-    n_times: int = None,
+    n_times: int = None
 ) -> Mapping[str, xr.Dataset]:
-
+    
     fs = cloud.get_fs(url)
 
     glob_url = os.path.join(url, TIMESCALE_OUTDIR_TEMPLATE)
@@ -286,7 +291,7 @@ def open_nudged_mapper(
     nudged_url = _get_path_for_nudging_timescale(
         nudged_output_dirs, nudging_timescale_hr
     )
-
+    
     datasets = {}
     for source in NUDGING_FILES:
         mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}.zarr"))
