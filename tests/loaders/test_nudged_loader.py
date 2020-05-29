@@ -1,7 +1,6 @@
 import pytest
 import os
 import xarray as xr
-import numpy as np
 import pandas as pd
 
 import synth
@@ -46,7 +45,7 @@ def nudged_output_ds_dict(datadir_session):
 
 def _int64_to_datetime(ds):
     time = pd.to_datetime(ds[TIME_NAME].values)
-    time = time.round('S')
+    time = time.round("S")
     return ds.assign_coords({TIME_NAME: time})
 
 
@@ -191,6 +190,4 @@ def test_NudgedMapperAllSources_fail_merge(nudged_output_ds_dict):
         mapper.merge_sources(["after_physics", "before_dynamics"])
 
     with pytest.raises(ValueError):
-        mapper.merge_sources(
-            ["nudging_tendencies", "after_physics", "before_dynamics"]
-        )
+        mapper.merge_sources(["nudging_tendencies", "after_physics", "before_dynamics"])

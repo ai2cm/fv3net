@@ -23,7 +23,7 @@ NUDGING_FILES = [
     "before_dynamics",
     "after_dynamics",
     "after_physics",
-    "nudging_tendencies"
+    "nudging_tendencies",
 ]
 
 BatchSequence = Sequence[xr.Dataset]
@@ -182,7 +182,6 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
 
 
 class FV3OutMapper:
-
     def __init__(self, *args):
         raise NotImplementedError("Don't use the base class!")
 
@@ -200,7 +199,6 @@ class FV3OutMapper:
 
 
 class NudgedTimestepMapper(FV3OutMapper):
-
     def __init__(self, ds, time_dim_name=TIME_NAME):
         self.ds = ds
         self.time_dim = time_dim_name
@@ -244,10 +242,7 @@ class NudgedMapperAllSources(FV3OutMapper):
         Combine nudging data sources into single dataset
         """
 
-        to_combine = [
-            self._nudged_mappers[source].ds
-            for source in source_names
-        ]
+        to_combine = [self._nudged_mappers[source].ds for source in source_names]
         self._check_dvar_overlap(*to_combine)
         combined_ds = xr.merge(to_combine, join="inner")
 
@@ -278,7 +273,7 @@ def open_nudged_mapper(
     url: str,
     nudging_timescale_hr: Union[int, float],
     initial_time_skip_hr: int = 0,
-    n_times: int = None
+    n_times: int = None,
 ) -> Mapping[str, xr.Dataset]:
     """
     Temporary function for loading mapper from all sources.  Will be standardized
@@ -294,7 +289,7 @@ def open_nudged_mapper(
         n_times (optional): Number of times (by index) to include in the
             batch resampling operation
     """
-    
+
     fs = cloud.get_fs(url)
 
     glob_url = os.path.join(url, TIMESCALE_OUTDIR_TEMPLATE)
@@ -303,7 +298,7 @@ def open_nudged_mapper(
     nudged_url = _get_path_for_nudging_timescale(
         nudged_output_dirs, nudging_timescale_hr
     )
-    
+
     datasets = {}
     for source in NUDGING_FILES:
         mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}.zarr"))
