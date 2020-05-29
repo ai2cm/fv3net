@@ -47,6 +47,7 @@ dependencies:
   - holoviews
   - bokeh>=2.0
   - backoff
+  - mypy=0.770
   - pip
   - pip:
     - zarr>=2.4
