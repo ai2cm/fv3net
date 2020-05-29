@@ -4,7 +4,7 @@ experiment:
   name: $JOBNAME
   unique_id: false
   steps_to_run:
-      #- coarsen_restarts  # not doing C384 -> C48 coarsening
+    #- coarsen_restarts  # not doing C384 -> C12 coarsening
     - coarsen_diagnostics
     - one_step_run
     - create_training_data
