@@ -20,19 +20,50 @@ def save_restarts(restarts, outdir, time):
             dataset.to_netcdf(filename)
 
 
+def _grid_spec(datadir, nx):
+    scaling_factor = 384 / nx
+    ranges = {
+        "dx": synth.Range(20000 * scaling_factor, 28800 * scaling_factor),
+        "dy": synth.Range(20000 * scaling_factor, 28800 * scaling_factor),
+        "area": synth.Range(
+            3.6205933e08 * scaling_factor ** 2, 8.3428736e08 * scaling_factor ** 2
+        ),
+    }
+    path = str(datadir.join("grid_spec.json"))
+    with open(path) as f:
+        schema = synth.load(f)
+
+    ds = synth.generate(schema, ranges)
+    subset = ds.isel(
+        grid_xt=slice(nx), grid_yt=slice(nx), grid_x=slice(nx + 1), grid_y=slice(nx + 1)
+    )
+
+    return subset
+
+
 @pytest.fixture()
-def restart_dir(tmpdir):
+def restart_dir(tmpdir, datadir):
+
+    nx = 48
+
     time = "20160101.000000"
     output = tmpdir.mkdir(time)
+    tmpdir.mkdir("grid_spec")
     tmpdir.mkdir("output").mkdir(time)
-    restarts = synth.generate_restart_data(nx=384)
+    restarts = synth.generate_restart_data(nx=nx)
     save_restarts(restarts, output, time)
+
+    grid_spec = _grid_spec(datadir, nx)
+    for i in range(6):
+        path = str(tmpdir.join(f"grid_spec/grid_spec.tile{i+1}.nc"))
+        grid_spec.to_netcdf(path)
+
     return tmpdir
 
 
 @pytest.mark.regression
 def test_regression_coarsen_restarts(restart_dir):
-    grid_spec_path = "gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/"
+    grid_spec_path = str(restart_dir.join("grid_spec"))
     src_path = str(restart_dir)
     in_res = "384"
     out_res = "48"
