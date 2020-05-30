@@ -65,8 +65,8 @@ def restart_dir(tmpdir, datadir):
 def test_regression_coarsen_restarts(restart_dir):
     grid_spec_path = str(restart_dir.join("grid_spec"))
     src_path = str(restart_dir)
-    in_res = "384"
-    out_res = "48"
+    in_res = "48"
+    out_res = "6"
     dest = str(restart_dir.join("output"))
 
     main([src_path, grid_spec_path, in_res, out_res, dest])
