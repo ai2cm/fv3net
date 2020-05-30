@@ -7,7 +7,7 @@ from synth import generate_restart_data
 
 @pytest.fixture()
 def output():
-    return generate_restart_data(n=48, n_soil=4, nz=79)
+    return generate_restart_data(nx=48, n_soil=4, nz=79)
 
 
 def test_generate_restart_data(output):
