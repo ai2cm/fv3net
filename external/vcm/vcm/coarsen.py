@@ -42,7 +42,6 @@ from vcm.cubedsphere.constants import (
 dask.config.set(scheduler="single-threaded")
 
 TILES = range(1, 7)
-DATA_PATTERN = "{prefix}{category}.tile{tile}.nc"
 CATEGORY_LIST = ["fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", "sfc_data"]
 
 logger = logging.getLogger("vcm.coarsen")

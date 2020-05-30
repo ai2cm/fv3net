@@ -106,18 +106,15 @@ def main(argv):
 
     parser = argparse.ArgumentParser()
 
-    # TODO Remove "gcs" from these names. It's not longer true
     parser.add_argument(
-        "gcs_src_dir",
-        type=str,
-        help="Full GCS path to input data for downloading timesteps.",
+        "src_dir", type=str, help="Full path to input data for downloading timesteps.",
     )
     parser.add_argument(
-        "gcs_grid_spec_path",
+        "grid_spec_path",
         type=str,
         help=(
-            "Full path with file wildcard 'grid_spec.tile*.nc' to select grid spec"
-            " files with same resolution as the source data."
+            "Full path to directory containing files matching 'grid_spec.tile*.nc' to "
+            "select grid specfiles with same resolution as the source data."
         ),
     )
     parser.add_argument(
@@ -127,10 +124,10 @@ def main(argv):
         "target_resolution", type=int, help="Target coarsening resolution to output.",
     )
     parser.add_argument(
-        "gcs_dst_dir",
+        "dst_dir",
         type=str,
         help=(
-            "Full GCS path to output coarsened timestep data. Defaults to input path"
+            "Full path to output coarsened timestep data. Defaults to input path"
             "with target resolution appended as a directory"
         ),
     )
@@ -146,9 +143,9 @@ def main(argv):
 
     args, pipeline_args = parser.parse_known_args(argv)
 
-    gridspec_path = os.path.join(args.gcs_grid_spec_path, "grid_spec")
+    gridspec_path = os.path.join(args.grid_spec_path, "grid_spec")
 
-    output_dir_prefix = args.gcs_dst_dir
+    output_dir_prefix = args.dst_dir
     if args.add_target_subdir:
         output_dir_prefix = os.path.join(
             output_dir_prefix, f"C{args.target_resolution}"
@@ -158,7 +155,7 @@ def main(argv):
 
     run(
         gridspec_path,
-        args.gcs_src_dir,
+        args.src_dir,
         output_dir_prefix,
         factor,
         pipeline_args=pipeline_args,
