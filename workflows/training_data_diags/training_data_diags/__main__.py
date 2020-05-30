@@ -1,8 +1,7 @@
 from . import utils
 from .config import VARNAMES
 from fv3net.regression import loaders
-from fv3net.regression.loaders.batch import load_batches
-from fv3net.regression.loaders.transform import construct_data_transform
+from fv3net.regression.loaders.batch import load_batches, load_sequence_for_diagnostics
 from vcm import safe
 import argparse
 import yaml
@@ -75,11 +74,16 @@ for dataset_name, dataset_config in datasets_config.items():
 #         .squeeze()
 #         .drop(labels=VARNAMES['time_dim'])
 #     )
-    ds_batches = load_batches(
+    ds_batches = load_sequence_for_diagnostics(
         mapper,
-        construct_data_transform(dataset_transforms),
         dataset_config["variables"],
         **dataset_config["batch_kwargs"],
     )
+#     ds_batches = load_batches(
+#         mapper,
+#         dataset_config["variables"],
+#         **dataset_config["batch_kwargs"],
+#     )
+    print(ds_batches[0])
     ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
     print(ds_diagnostic.load())

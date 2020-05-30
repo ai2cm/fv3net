@@ -9,10 +9,6 @@ from vcm import cloud
 def open_onestep_mapping(url: str) -> Mapping[str, xr.Dataset]:
     return TimestepMapper(url)
 
-    def __getitem__(self, key: str) -> xr.Dataset:
-        zarr_path = os.path.join(self._timesteps_dir, f"{key}.zarr")
-        return xr.open_zarr(self._fs.get_mapper(zarr_path))
-
 
 class TimestepMapper:
     def __init__(self, timesteps_dir):
