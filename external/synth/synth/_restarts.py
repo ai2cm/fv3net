@@ -323,8 +323,3 @@ def _sfc_data(n: int, n_soil: int) -> DatasetSchema:
         ],
         centered=["stc", "smc", "slc"],
     )
-
-
-def _read_metadata_remote(fs, url):
-    with fs.open(url, "rb") as f:
-        return xr.open_dataset(f)
