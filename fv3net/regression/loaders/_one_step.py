@@ -6,7 +6,7 @@ import vcm
 from vcm import cloud
 
 
-def open_onestep_mapping(url: str) -> Mapping[str, xr.Dataset]:
+def open_one_step(url: str) -> Mapping[str, xr.Dataset]:
     return TimestepMapper(url)
 
 

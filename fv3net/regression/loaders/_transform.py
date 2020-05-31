@@ -1,26 +1,27 @@
 import numpy as np
+from numpy.random import RandomState
 from typing import Mapping, Tuple
 import xarray as xr
 from toolz import groupby
 
 from vcm import safe
-from ..constants import SAMPLE_DIM_NAME, Z_DIM_NAME
+from ..constants import SAMPLE_DIM_NAME, Z_DIM_NAMES
 
 Time = str
 Tile = int
 K = Tuple[Time, Tile]
 
 
-def transform_train_data(
-    init_time_dim_name: str, random_seed: int, ds: xr.Dataset,
+def stack_dropnan_shuffle(
+    init_time_dim_name: str, random_state: RandomState, ds: xr.Dataset,
 ) -> xr.Dataset:
-    random = np.random.RandomState(random_seed)
-    stack_dims = [dim for dim in ds.dims if dim != Z_DIM_NAME]
+    ds = ds.load()
+    stack_dims = [dim for dim in ds.dims if dim not in Z_DIM_NAMES]
     ds_stacked = safe.stack_once(
         ds,
         SAMPLE_DIM_NAME,
         stack_dims,
-        allowed_broadcast_dims=[Z_DIM_NAME, init_time_dim_name],
+        allowed_broadcast_dims=Z_DIM_NAMES + [init_time_dim_name],
     )
     ds_no_nan = ds_stacked.dropna(SAMPLE_DIM_NAME)
     if len(ds_no_nan[SAMPLE_DIM_NAME]) == 0:
@@ -28,7 +29,7 @@ def transform_train_data(
             "No Valid samples detected. Check for errors in the training data."
         )
     ds = ds_no_nan.load()
-    return shuffled(ds, SAMPLE_DIM_NAME, random)
+    return shuffled(ds, SAMPLE_DIM_NAME, random_state)
 
 
 def shuffled(
@@ -72,7 +73,7 @@ class GroupByTime:
         self._time_lookup = groupby(fn, self._tiles.keys())
 
     def keys(self):
-        return self._time_lookup.keys()
+        return list(self._time_lookup.keys())
 
     def __len__(self):
         return len(self.keys())

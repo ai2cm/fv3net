@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Iterable, Sequence
 
 from .. import loaders
-from ..loaders.batch import load_batches
+from ..loaders._batch import mapper_to_batches
 from .wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
@@ -58,7 +58,7 @@ def load_data_sequence(data_path: str, train_config: ModelTrainingConfig) -> Seq
     """
     mapping_function = getattr(loaders, train_config.mapping_function)
     data_mapping = mapping_function(data_path)
-    ds_batches = load_batches(
+    ds_batches = mapper_to_batches(
         data_mapping,
         list(train_config.input_variables) + list(train_config.output_variables),
         **train_config.batch_kwargs,
