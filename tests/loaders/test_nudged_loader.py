@@ -12,6 +12,7 @@ from fv3net.regression.loaders._nudged import (
     _get_path_for_nudging_timescale,
     NudgedTimestepMapper,
     NudgedMapperAllSources,
+    MergeNudged
 )
 
 
@@ -148,6 +149,10 @@ def test_NudgedTimestepMapper(nudged_output_ds_dict):
     item = single_ds.sel({TIME_NAME: single_time})
     time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
     xr.testing.assert_equal(item, mapper[time_key])
+
+
+def test_MergeNudged_mapper_to_datasets(nudged_output_ds_dict):
+
 
 
 def test_NudgedMapperAllSources(nudged_output_ds_dict):

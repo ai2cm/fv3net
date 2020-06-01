@@ -4,7 +4,7 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import zarr.storage as zstore
-from typing import Sequence, Iterable, Mapping, Union
+from typing import Sequence, Iterable, Mapping, Union, Tuple
 from functools import partial
 from itertools import product
 from pathlib import Path
@@ -181,6 +181,7 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
         )
 
 
+# TODO: change variable naming to omit type
 class FV3OutMapper:
     def __init__(self, *args):
         raise NotImplementedError("Don't use the base class!")
@@ -223,16 +224,16 @@ class NudgedMapperAllSources(FV3OutMapper):
 
     def __init__(self, ds_map: Mapping[str, xr.Dataset]):
 
-        self._nudged_mappers = {
+        self.nudged_mappers = {
             key: NudgedTimestepMapper(ds) for key, ds in ds_map.items()
         }
 
     def __getitem__(self, key):
-        return self._nudged_mappers[key[0]][key[1]]
+        return self.nudged_mappers[key[0]][key[1]]
 
     def keys(self):
         keys = []
-        for key, mapper in self._nudged_mappers.items():
+        for key, mapper in self.nudged_mappers.items():
             timestep_keys = mapper.keys()
             keys.extend(product((key,), timestep_keys))
         return keys
@@ -242,15 +243,42 @@ class NudgedMapperAllSources(FV3OutMapper):
         Combine nudging data sources into single dataset
         """
 
-        to_combine = [self._nudged_mappers[source].ds for source in source_names]
-        self._check_dvar_overlap(*to_combine)
-        combined_ds = xr.merge(to_combine, join="inner")
-
-        return NudgedTimestepMapper(combined_ds)
-
     # TODO: group by operations
     #   groupby source is easy since we could just return the self._nudge_ds mapping
     #   groupby time needs merged ds for all timesteps
+
+
+Source = str
+Time = str
+K = Tuple[Source, Time]
+SourceMapping = Mapping[str, NudgedTimestepMapper]
+XarrayMapping = Mapping[str, xr.Dataset]
+MergeInputs = Union[SourceMapping]
+
+
+class MergeNudged(FV3OutMapper):
+
+    def __init__(
+        self,
+        *nudged_sources: Sequence[Union[NudgedTimestepMapper, xr.Dataset]]
+    ) -> NudgedTimestepMapper:
+
+        nudged_sources = self._mapper_to_datasets(nudged_sources)
+        self._check_dvar_overlap(*nudged_sources)
+        combined_ds = xr.merge(nudged_sources, join="inner")
+
+        return NudgedTimestepMapper(combined_ds)
+
+    @staticmethod
+    def _mapper_to_datasets(data_sources) -> Mapping[str, xr.Dataset]:
+        
+        datasets = []
+        for source in data_sources:
+            if isinstance(source, NudgedTimestepMapper):
+                source = source.ds
+            datasets.append(source)
+
+        return datasets
 
     @staticmethod
     def _check_dvar_overlap(*ds_to_combine):
