@@ -1,38 +1,32 @@
+import numpy as np
 import os
 import pytest
 import synth
 import xarray as xr
 
-from fv3net.regression.loaders.batch import (
-    load_batches,
+from fv3net.regression.loaders._batch import (
+    mapper_to_batches,
     _load_batch,
-    _load_datasets,
+    _get_dataset_list,
     _select_batch_timesteps,
     _validated_num_batches,
 )
 
-ONE_STEP_ZARR_SCHEMA = "one_step_zarr_schema.json"
-TIMESTEP_LIST = [f"2020050{i}.000000" for i in range(4)]
 DATA_VARS = ["air_temperature", "specific_humidity"]
 Z_DIM_SIZE = 79
 
 
 class MockDatasetMapper:
-    def generate_mapping(self, dir):
-        # uses the one step schema but final mapper
-        # functions the same for all data sources
-        with open(os.path.join(dir, ONE_STEP_ZARR_SCHEMA)) as f:
-            schema = synth.load(f)
-        dataset = synth.generate(schema)
-        self.mapping = {}
-        for i in range(4):
-            self.mapping[f"2020050{i}.000000"] = dataset
+    def __init__(self, schema: synth.DatasetSchema):
+        self._schema = schema
+        self._keys = [f"2020050{i}.000000" for i in range(4)]
 
     def __getitem__(self, key: str) -> xr.Dataset:
+        return synth.generate(self._schema)
         return self.mapping[key]
 
     def keys(self):
-        return list(self.mapping.keys())
+        return self._keys
 
     def __iter__(self):
         return iter(self.keys())
@@ -43,8 +37,12 @@ class MockDatasetMapper:
 
 @pytest.fixture
 def test_mapper(datadir):
-    mapper = MockDatasetMapper()
-    mapper.generate_mapping(datadir)
+    one_step_zarr_schema = "one_step_zarr_schema.json"
+    # uses the one step schema but final mapper
+    # functions the same for all data sources
+    with open(os.path.join(datadir, one_step_zarr_schema)) as f:
+        schema = synth.load(f)
+    mapper = MockDatasetMapper(schema)
     return mapper
 
 
@@ -54,19 +52,19 @@ def test__load_batch(test_mapper):
         data_vars=["air_temperature", "specific_humidity"],
         rename_variables={},
         init_time_dim_name="time",
-        timestep_list=TIMESTEP_LIST[:3],
+        timestep_list=test_mapper.keys(),
     )
-    assert len(ds["time"]) == 3
+    assert len(ds["time"]) == 4
 
 
-def test__load_datasets(test_mapper):
-    ds_list = _load_datasets(test_mapper, TIMESTEP_LIST[:2])
-    assert len(ds_list) == 2
+def test__get_dataset_list(test_mapper):
+    ds_list = _get_dataset_list(test_mapper, test_mapper.keys())
+    assert len(ds_list) == 4
 
 
-def test_load_batches(test_mapper):
-    batched_data_sequence = load_batches(
-        test_mapper, DATA_VARS, files_per_batch=2, num_batches=2
+def test_mapper_to_batches(test_mapper):
+    batched_data_sequence = mapper_to_batches(
+        test_mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
     )
     assert len(batched_data_sequence) == 2
     for i, batch in enumerate(batched_data_sequence):
@@ -74,49 +72,55 @@ def test_load_batches(test_mapper):
         assert set(batch.data_vars) == set(DATA_VARS)
 
 
-def test__validated_num_batches():
+@pytest.mark.parametrize("total_times,times_per_batch,num_batches,valid_num_batches", 
+[(5,1,None,5), (5,2,None,2), (5,2,1,1)])
+def test__validated_num_batches(total_times, times_per_batch, num_batches, valid_num_batches):
     assert (
         _validated_num_batches(
-            total_num_input_files=5, files_per_batch=1, num_batches=None
+            total_times, times_per_batch, num_batches,
         )
-        == 5
+        == valid_num_batches
     )
-    assert (
-        _validated_num_batches(
-            total_num_input_files=5, files_per_batch=2, num_batches=None
-        )
-        == 2
-    )
-    assert (
-        _validated_num_batches(
-            total_num_input_files=5, files_per_batch=2, num_batches=1
-        )
-        == 1
-    )
+   
+
+@pytest.mark.parametrize("total_times,times_per_batch,num_batches", 
+[(2,6,None), (2,1,3)])
+def test__validated_num_batches_incompatible_inputs(total_times, times_per_batch, num_batches):
     with pytest.raises(ValueError):
         _validated_num_batches(
-            total_num_input_files=2, files_per_batch=6, num_batches=None
+            total_times, times_per_batch, num_batches,
         )
-    with pytest.raises(ValueError):
-        _validated_num_batches(
-            total_num_input_files=2, files_per_batch=1, num_batches=3
-        )
+    
 
-
-def test__select_batch_timesteps():
+@pytest.mark.parametrize("timesteps_per_batch, num_batches, total_num_timesteps",
+    ([3, 4, 12], [4, 4, 12]))
+def test__select_batch_timesteps(timesteps_per_batch, num_batches, total_num_timesteps):
+    random_state = np.random.RandomState(0)
+    timesteps = [str(i) for i in range(total_num_timesteps)]
     batched_times = _select_batch_timesteps(
-        timesteps=[str(i) for i in range(12)],
-        files_per_batch=3,
-        num_batches=4,
-        random_seed=0,
+        timesteps,
+        timesteps_per_batch,
+        num_batches,
+        random_state,
     )
-    assert len(batched_times) == 4
+    timesteps_seen = []
+    assert len(batched_times) == num_batches
     for batch in batched_times:
-        assert len(batch) == 3
+        assert len(np.unique(batch)) == timesteps_per_batch
+        assert set(batch).isdisjoint(timesteps_seen) and set(batch).issubset(timesteps)
+        timesteps_seen += batch
+
+
+
+@pytest.mark.parametrize("timesteps_per_batch, num_batches, total_num_timesteps",
+    ([3, 5, 12],))
+def test__select_batch_timesteps(timesteps_per_batch, num_batches, total_num_timesteps):
+    random_state = np.random.RandomState(0)
+    timesteps = [str(i) for i in range(total_num_timesteps)]
     with pytest.raises(Exception):
         _select_batch_timesteps(
-            timesteps=[str(i) for i in range(12)],
-            files_per_batch=3,
-            num_batches=5,
-            random_seed=0,
+            timesteps,
+            timesteps_per_batch,
+            num_batches,
+            random_state,
         )

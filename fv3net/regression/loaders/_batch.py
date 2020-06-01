@@ -110,9 +110,15 @@ def _validated_num_batches(total_num_input_times, timesteps_per_batch, num_batch
     Returns:
         Number of batches to use for training
     """
+    if any(arg <=0 for arg in [total_num_input_times, timesteps_per_batch]):
+        raise ValueError(
+            f"Total number of input times {total_num_input_times}, "
+            f"timesteps per batch {timesteps_per_batch}")
+    if num_batches is not None and num_batches <= 0:
+        raise ValueError(f"num batches {num_batches} cannot be 0 or negative.")
     if num_batches is None:
         if total_num_input_times >= timesteps_per_batch:
-            num_train_batches = total_num_input_times // timesteps_per_batch
+            return total_num_input_times // timesteps_per_batch
         else:
             raise ValueError(
                 f"Number of input_times {total_num_input_times} "
@@ -124,5 +130,4 @@ def _validated_num_batches(total_num_input_times, timesteps_per_batch, num_batch
             f"cannot create {num_batches} batches of size {timesteps_per_batch}."
         )
     else:
-        num_train_batches = num_batches
-    return num_train_batches
+        return num_batches
