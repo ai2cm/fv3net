@@ -2,7 +2,7 @@ import os
 import pytest
 import synth
 
-from fv3net.regression.loaders._one_step import open_onestep_mapping
+from fv3net.regression.loaders._one_step import open_one_step
 
 
 def test_open_onestep_mapping(datadir):
@@ -16,6 +16,6 @@ def test_open_onestep_mapping(datadir):
         )
         output_path = os.path.join(datadir, f"{timestep}.zarr")
         one_step_dataset.to_zarr(output_path, consolidated=True)
-    timestep_mapper = open_onestep_mapping(str(datadir))
+    timestep_mapper = open_one_step(str(datadir))
     assert set(timestep_mapper.keys()) == set(timesteps)
     assert timestep_mapper[timesteps[2]]["test_var"].values == pytest.approx(2)

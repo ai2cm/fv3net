@@ -4,7 +4,7 @@ import logging
 import os
 import yaml
 from dataclasses import dataclass
-from typing import Iterable, Sequence
+from typing import Iterable
 
 from .. import loaders
 from ..loaders._sequences import FunctionOutputSequence
