@@ -2,7 +2,7 @@ model_type: sklearn_random_forest
 hyperparameters:
   max_depth: 4
   n_estimators: 2
-mapping_function: open_onestep_mapping
+mapping_function: open_one_step
 input_variables:
   - air_temperature
   - specific_humidity
