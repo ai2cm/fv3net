@@ -82,3 +82,42 @@ class GroupByTime:
         datasets = [self._tiles[key] for key in self._time_lookup[time]]
         tiles = range(len(datasets))
         return xr.concat(datasets, dim="tile").assign_coords(tile=tiles)
+    
+    
+class FineResolutionBudgetTiles:
+    def __init__(self, fine_resolution_time_mapping: Mapping[Time, xr.Dataset]):
+        self._time_mapping = fine_resolution_time_mapping
+    
+    def keys(self):
+        return self._time_mapping.keys()
+    
+    def __getitem__(self, time: Time) -> xr.Dataset:
+        return self._derived_budget_ds(self._time_mapping[Time])
+    
+    def _derived_budget_ds(
+        self,
+        budget_time_ds: xr.Dataset,
+        variable_prefixes_mapping: Mapping[str]={
+            'air_temperature': 'dQ1',
+            'specific_humidity': 'dQ2'
+        }
+    ) -> xr.Dataset:
+        
+        derived_budget_ds = xr.Dataset()
+        for variable, apparent_source in variable_prefixes.items():
+            derived_budget_ds.assign({
+                apparent_source: (
+                    derived_budget_ds[f"{variable}_physics"] + 
+                    derived_budget_ds[f"{variable}_microphysics"] + 
+                    derived_budget_ds[f"{variable}_convergence"]
+                ).assign_attrs({
+                    "name": f"apparent source of {variable}",
+                    "units": (
+                        derived_budget_ds[f"{variable}_physics"]
+                        .attrs.get('units', None)
+                    )
+                })
+            })
+        
+        return derived_budget_ds
+    
