@@ -62,7 +62,7 @@ class BatchMapper(FV3OutMapper):
         num_batches = self._validated_num_batches(
             len(all_timesteps), timesteps_per_batch, num_batches
         )
-        logger.info(f"{num_batches} data batches generated for model training.")
+        logger.info(f"{num_batches} data batches generated.")
         timesteps_list_sequence = list(
             all_timesteps[
                 batch_num * timesteps_per_batch : (batch_num + 1) * timesteps_per_batch
@@ -141,9 +141,6 @@ def mapper_to_batches(
     batch_mapper = BatchMapper(
         data_mapping, timesteps_per_batch, num_batches, random_state, init_time_dim_name
     )
-    #     batched_timesteps = _select_batch_timesteps(
-    #         data_mapping.keys(), timesteps_per_batch, num_batches, random_state
-    #     )
     transform = functools.partial(
         stack_dropnan_shuffle, init_time_dim_name, random_state
     )
@@ -152,58 +149,28 @@ def mapper_to_batches(
     )
 
     return FunctionOutputSequence(
-        lambda x: transform(load_batch(x)), batch_mapper.batches
+        lambda x: transform(load_batch(x)), batch_mapper.keys()
     )
 
 
 def _load_batch(
-    timestep_mapper: Mapping[str, xr.Dataset],
-    data_vars: Iterable[str],
-    rename_variables: Mapping[str, str],
-    init_time_dim_name: str,
-    timestep_list: Iterable[str],
-) -> xr.Dataset:
-    print(timestep_list)
-    data = _get_dataset_list(timestep_mapper, timestep_list)
-    print(data)
-    ds = xr.concat(data, init_time_dim_name)
-    print(ds)
-    # need to use standardized time dimension name
-    rename_variables[init_time_dim_name] = rename_variables.get(
-        init_time_dim_name, TIME_NAME
-    )
-    ds = ds.rename(rename_variables)
-    print(data_vars)
-    ds = safe.get_variables(ds, data_vars)
-    return ds
-
-
-def _get_dataset_list(
-    timestep_mapper: Mapping[str, xr.Dataset], times: Iterable[str]
-) -> Iterable[xr.Dataset]:
-    return_list = []
-    for time in times:
-        ds = timestep_mapper[time]
-        return_list.append(ds)
-    return return_list
-
-
-def _load_sequence(
-    batch_mapper: BatchMapper,
+    batch_mapper: Mapping[int, Sequence[xr.Dataset]],
     data_vars: Iterable[str],
     rename_variables: Mapping[str, str],
     init_time_dim_name: str,
     batch_index: int,
-):
+) -> xr.Dataset:
+
     data = batch_mapper[batch_index]
     ds = xr.concat(data, init_time_dim_name)
+
     # need to use standardized time dimension name
     rename_variables[init_time_dim_name] = rename_variables.get(
         init_time_dim_name, TIME_NAME
     )
     ds = ds.rename(rename_variables)
-    print(data_vars)
     ds = safe.get_variables(ds, data_vars)
+
     return ds
 
 
@@ -228,11 +195,7 @@ def load_sequence_for_diagnostics(
     )
 
     load_sequence = functools.partial(
-        _load_sequence,
-        batch_mapper,
-        variable_names,
-        rename_variables,
-        init_time_dim_name,
+        _load_batch, batch_mapper, variable_names, rename_variables, init_time_dim_name,
     )
 
     return FunctionOutputSequence(load_sequence, batch_mapper.keys())

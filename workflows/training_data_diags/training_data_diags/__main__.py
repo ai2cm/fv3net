@@ -67,10 +67,8 @@ grid = (
     .drop(labels=VARNAMES["time_dim"])
 )
 
-dataset_names = []
-dataset_transforms = {}
+diagnostic_datasets = {}
 for dataset_name, dataset_config in datasets_config.items():
-    dataset_names.append(dataset_name)
     mapping_function = getattr(loaders, dataset_config["mapping_function"])
     mapper = mapping_function(dataset_config["path"])
     #     sample_dataset = mapper[list(mapper.keys())[0]]
@@ -82,11 +80,7 @@ for dataset_name, dataset_config in datasets_config.items():
     ds_batches = load_sequence_for_diagnostics(
         mapper, dataset_config["variables"], **dataset_config["batch_kwargs"],
     )
-    #     ds_batches = load_batches(
-    #         mapper,
-    #         dataset_config["variables"],
-    #         **dataset_config["batch_kwargs"],
-    #     )
-    print(ds_batches[0])
+
     ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
+    diagnostic_datasets[dataset_name] = ds_diagnostic
     print(ds_diagnostic.load())

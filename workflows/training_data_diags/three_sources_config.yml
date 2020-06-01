@@ -1,3 +1,12 @@
+fine_res_apparent_sources: 
+  path: gs://vcm-ml-scratch/noah/2020-05-27
+  mapping_function: open_fine_resolution_budget
+  variables:
+    - delp
+  batch_kwargs:
+    num_batches: 2
+    files_per_batch: 1
+    init_time_dim_name: "initial_time"
 one_step_tendencies: 
   path: gs://vcm-ml-experiments/2020-05-07-clouds-off-training-data/create-clouds-off-data/create_training_data/train
   mapping_function: open_one_step
@@ -7,15 +16,6 @@ one_step_tendencies:
     - pQ1
     - pQ2
     - pressure_thickness_of_atmospheric_layer
-  batch_kwargs:
-    num_batches: 2
-    files_per_batch: 1
-    init_time_dim_name: "initial_time"
-fine_res_apparent_sources: 
-  path: gs://vcm-ml-scratch/noah/2020-05-27
-  mapping_function: open_fine_resolution_budget_mapping
-  variables:
-    - delp
   batch_kwargs:
     num_batches: 2
     files_per_batch: 1
