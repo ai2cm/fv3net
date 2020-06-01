@@ -55,7 +55,9 @@ def mapper_to_batches(
     batched_timesteps = _select_batch_timesteps(
         data_mapping.keys(), timesteps_per_batch, num_batches, random_state
     )
-    transform = functools.partial(stack_dropnan_shuffle, init_time_dim_name, random_state)
+    transform = functools.partial(
+        stack_dropnan_shuffle, init_time_dim_name, random_state
+    )
     load_batch = functools.partial(
         _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
     )
@@ -63,13 +65,20 @@ def mapper_to_batches(
 
 
 def _select_batch_timesteps(
-    timesteps: Sequence[str], timesteps_per_batch: int, num_batches: int, random_state: RandomState,
+    timesteps: Sequence[str],
+    timesteps_per_batch: int,
+    num_batches: int,
+    random_state: RandomState,
 ) -> Sequence[Sequence[str]]:
     random_state.shuffle(timesteps)
-    num_batches = _validated_num_batches(len(timesteps), timesteps_per_batch, num_batches)
+    num_batches = _validated_num_batches(
+        len(timesteps), timesteps_per_batch, num_batches
+    )
     logger.info(f"{num_batches} data batches generated for model training.")
     timesteps_list_sequence = list(
-        timesteps[batch_num * timesteps_per_batch : (batch_num + 1) * timesteps_per_batch]
+        timesteps[
+            batch_num * timesteps_per_batch : (batch_num + 1) * timesteps_per_batch
+        ]
         for batch_num in range(num_batches)
     )
     return timesteps_list_sequence
@@ -103,17 +112,20 @@ def _get_dataset_list(
     return return_list
 
 
-def _validated_num_batches(total_num_input_times, timesteps_per_batch, num_batches=None):
+def _validated_num_batches(
+    total_num_input_times, timesteps_per_batch, num_batches=None
+):
     """ check that the number of batches (if provided) and the number of
     timesteps per batch are reasonable given the number of zarrs in the input data dir.
 
     Returns:
         Number of batches to use for training
     """
-    if any(arg <=0 for arg in [total_num_input_times, timesteps_per_batch]):
+    if any(arg <= 0 for arg in [total_num_input_times, timesteps_per_batch]):
         raise ValueError(
             f"Total number of input times {total_num_input_times}, "
-            f"timesteps per batch {timesteps_per_batch}")
+            f"timesteps per batch {timesteps_per_batch}"
+        )
     if num_batches is not None and num_batches <= 0:
         raise ValueError(f"num batches {num_batches} cannot be 0 or negative.")
     if num_batches is None:

@@ -72,55 +72,66 @@ def test_mapper_to_batches(test_mapper):
         assert set(batch.data_vars) == set(DATA_VARS)
 
 
-@pytest.mark.parametrize("total_times,times_per_batch,num_batches,valid_num_batches", 
-[(5,1,None,5), (5,2,None,2), (5,2,1,1)])
-def test__validated_num_batches(total_times, times_per_batch, num_batches, valid_num_batches):
-    assert (
-        _validated_num_batches(
-            total_times, times_per_batch, num_batches,
+@pytest.mark.parametrize(
+    "total_times,times_per_batch,num_batches,valid_num_batches",
+    [
+        (5, 1, None, 5),
+        (5, 2, None, 2),
+        (5, 2, 1, 1),
+        (2, 6, None, None),
+        (2, 1, 3, None),
+        (0, 5, None, None),
+        (5, 0, None, None),
+    ],
+)
+def test__validated_num_batches(
+    total_times, times_per_batch, num_batches, valid_num_batches
+):
+    if valid_num_batches:
+        assert (
+            _validated_num_batches(total_times, times_per_batch, num_batches,)
+            == valid_num_batches
         )
-        == valid_num_batches
-    )
-   
+    else:
+        with pytest.raises(ValueError):
+            _validated_num_batches(
+                total_times, times_per_batch, num_batches,
+            )
 
-@pytest.mark.parametrize("total_times,times_per_batch,num_batches", 
-[(2,6,None), (2,1,3)])
-def test__validated_num_batches_incompatible_inputs(total_times, times_per_batch, num_batches):
-    with pytest.raises(ValueError):
-        _validated_num_batches(
-            total_times, times_per_batch, num_batches,
-        )
-    
 
-@pytest.mark.parametrize("timesteps_per_batch, num_batches, total_num_timesteps",
-    ([3, 4, 12], [4, 4, 12]))
-def test__select_batch_timesteps(timesteps_per_batch, num_batches, total_num_timesteps):
+@pytest.mark.parametrize(
+    "timesteps_per_batch, num_batches, total_num_timesteps, valid",
+    (
+        [3, 4, 12, True],
+        [4, 2, 12, True],
+        [1, 1, 12, True],
+        [1, 1, 1, True],
+        [4, 2, 0, False],
+        [0, 2, 12, False],
+        [3, 0, 12, False],
+        [3, 5, 12, False],
+        [3, 0, 12, False],
+    ),
+)
+def test__select_batch_timesteps(
+    timesteps_per_batch, num_batches, total_num_timesteps, valid
+):
     random_state = np.random.RandomState(0)
     timesteps = [str(i) for i in range(total_num_timesteps)]
-    batched_times = _select_batch_timesteps(
-        timesteps,
-        timesteps_per_batch,
-        num_batches,
-        random_state,
-    )
-    timesteps_seen = []
-    assert len(batched_times) == num_batches
-    for batch in batched_times:
-        assert len(np.unique(batch)) == timesteps_per_batch
-        assert set(batch).isdisjoint(timesteps_seen) and set(batch).issubset(timesteps)
-        timesteps_seen += batch
-
-
-
-@pytest.mark.parametrize("timesteps_per_batch, num_batches, total_num_timesteps",
-    ([3, 5, 12],))
-def test__select_batch_timesteps(timesteps_per_batch, num_batches, total_num_timesteps):
-    random_state = np.random.RandomState(0)
-    timesteps = [str(i) for i in range(total_num_timesteps)]
-    with pytest.raises(Exception):
-        _select_batch_timesteps(
-            timesteps,
-            timesteps_per_batch,
-            num_batches,
-            random_state,
+    if valid:
+        batched_times = _select_batch_timesteps(
+            timesteps, timesteps_per_batch, num_batches, random_state,
         )
+        timesteps_seen = []
+        assert len(batched_times) == num_batches
+        for batch in batched_times:
+            assert len(np.unique(batch)) == timesteps_per_batch
+            assert set(batch).isdisjoint(timesteps_seen) and set(batch).issubset(
+                timesteps
+            )
+            timesteps_seen += batch
+    else:
+        with pytest.raises(Exception):
+            _select_batch_timesteps(
+                timesteps, timesteps_per_batch, num_batches, random_state,
+            )
