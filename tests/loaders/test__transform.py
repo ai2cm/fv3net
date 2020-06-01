@@ -26,12 +26,7 @@ def test_gridded_dataset(request):
 
 
 @pytest.mark.parametrize(
-    "test_gridded_dataset",
-    [
-        (0, 1, 10, 10),
-        (0, 10, 10, 10),
-    ],
-    indirect=True,
+    "test_gridded_dataset", [(0, 1, 10, 10), (0, 10, 10, 10)], indirect=True,
 )
 def test_stack_dropnan_shuffle_dims(test_gridded_dataset):
     ds_grid = test_gridded_dataset
@@ -43,14 +38,9 @@ def test_stack_dropnan_shuffle_dims(test_gridded_dataset):
     assert len(ds_train["z"]) == len(ds_grid.z)
 
 
-
 @pytest.mark.parametrize(
     "test_gridded_dataset, num_finite_samples",
-    [
-        ((0, 2, 10, 10), 100),
-        ((10, 2, 10, 10), 90),
-        ((110, 2, 10, 10), 0),
-    ],
+    [((0, 2, 10, 10), 100), ((10, 2, 10, 10), 90), ((110, 2, 10, 10), 0)],
     indirect=["test_gridded_dataset"],
 )
 def test_stack_dropnan_shuffle_samples(test_gridded_dataset, num_finite_samples):
