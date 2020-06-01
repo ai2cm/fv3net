@@ -14,7 +14,7 @@ from ._fine_resolution_budget import FineResolutionBudgetTiles
 GenericMapper = Union[TimestepMapper, FineResolutionBudgetTiles]
 
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
@@ -174,7 +174,7 @@ def _load_batch(
     return ds
 
 
-def load_sequence_for_diagnostics(
+def mapper_to_diagnostic_sequence(
     dataset_mapper: GenericMapper,
     variable_names: Sequence[str],
     files_per_batch: int = 1,
@@ -184,7 +184,7 @@ def load_sequence_for_diagnostics(
     rename_variables: Mapping[str, str] = None,
 ) -> Sequence[xr.Dataset]:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
-    as load_batches but without transformation and stacking
+    as mapper_to_batch but without transformation and stacking
     """
     random_state = np.random.RandomState(random_seed)
     if rename_variables is None:
