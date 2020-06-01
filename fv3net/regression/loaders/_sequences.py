@@ -23,6 +23,3 @@ class FunctionOutputSequence(collections.abc.Sequence):
 
     def __len__(self):
         return len(self._args)
-    
-    
-        

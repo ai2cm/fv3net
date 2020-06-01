@@ -1,13 +1,12 @@
-import backoff
 import functools
 import logging
 import numpy as np
 from numpy.random import RandomState
-from typing import Iterable, Sequence, Mapping, Union, Callable
+from typing import Iterable, Sequence, Mapping, Union
 import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
-from ._transform import transform_train_data
+from ._transform import stack_dropnan_shuffle
 from ..constants import TIME_NAME
 from ._one_step import TimestepMapper
 from ._fine_resolution_budget import FineResolutionBudgetTiles
@@ -34,71 +33,47 @@ class FV3OutMapper:
 
     def keys(self):
         raise NotImplementedError()
-    
-    
+
+
 class BatchMapper(FV3OutMapper):
-    
     def __init__(
         self,
         dataset_mapper: GenericMapper,
         files_per_batch: int,
         num_batches: int,
         random_seed: int,
-        init_time_dim_name: str
+        init_time_dim_name: str,
     ):
         self._dataset_mapper = dataset_mapper
-        self._generate_batches(
-            files_per_batch,
-            num_batches,
-            random_seed,
-            init_time_dim_name
-        )
-        
+        self._generate_batches(files_per_batch, num_batches, random_seed)
+
     def __getitem__(self, key: int) -> Sequence[xr.Dataset]:
         return [self._dataset_mapper[timestep] for timestep in self.batches[key]]
-        
+
     def keys(self):
         return list(range(len(self.batches)))
-    
+
     def _generate_batches(
-        self,
-        timesteps_per_batch: int,
-        num_batches: int,
-        random_state: int
-    ):
+        self, timesteps_per_batch: int, num_batches: int, random_state: RandomState
+    ) -> Sequence[Sequence[str]]:
+
         all_timesteps = list(self._dataset_mapper.keys())
-        random_state.shuffle(all_timesteps) 
+        random_state.shuffle(all_timesteps)
         num_batches = self._validated_num_batches(
-            len(all_timesteps),
-            random_state,
-            num_batches
+            len(all_timesteps), timesteps_per_batch, num_batches
         )
         logger.info(f"{num_batches} data batches generated for model training.")
         timesteps_list_sequence = list(
-            all_timesteps[batch_num * timesteps_per_batch : (batch_num + 1) * timesteps_per_batch]
+            all_timesteps[
+                batch_num * timesteps_per_batch : (batch_num + 1) * timesteps_per_batch
+            ]
             for batch_num in range(num_batches)
         )
-        
+
         self.batches = timesteps_list_sequence
-        
-        
-    def _select_batch_timesteps(
-    timesteps: Sequence[str], timesteps_per_batch: int, num_batches: int, random_state: RandomState,
-) -> Sequence[Sequence[str]]:
-    random_state.shuffle(timesteps)
-    num_batches = _validated_num_batches(len(timesteps), timesteps_per_batch, num_batches)
-    logger.info(f"{num_batches} data batches generated for model training.")
-    timesteps_list_sequence = list(
-        timesteps[batch_num * timesteps_per_batch : (batch_num + 1) * timesteps_per_batch]
-        for batch_num in range(num_batches)
-    )
-    return timesteps_list_sequence
-        
+
     def _validated_num_batches(
-        self,
-        total_num_input_times: int,
-        timesteps_per_batch: int,
-        num_batches: int
+        self, total_num_input_times: int, timesteps_per_batch: int, num_batches: int
     ):
         """ check that the number of batches (if provided) and the number of
         files per batch are reasonable given the number of zarrs in the input data dir.
@@ -108,11 +83,11 @@ class BatchMapper(FV3OutMapper):
         """
         if num_batches is None:
             if total_num_input_times >= timesteps_per_batch:
-                num_train_batches = total_num_input_files // timesteps_per_batch
+                num_train_batches = total_num_input_times // timesteps_per_batch
             else:
                 raise ValueError(
                     f"Number of input_files {total_num_input_times} "
-                    f"must be greater than files_per_batch {files_per_batch}"
+                    f"must be greater than files_per_batch {timesteps_per_batch}"
                 )
         elif num_batches * timesteps_per_batch > total_num_input_times:
             raise ValueError(
@@ -129,23 +104,23 @@ def mapper_to_batches(
     variable_names: Iterable[str],
     timesteps_per_batch: int = 1,
     num_batches: int = None,
-    random_state: int = 0,
+    random_seed: int = 0,
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
 ) -> FunctionOutputSequence:
-    """ The function returns a FunctionOutputSequence that is 
+    """ The function returns a FunctionOutputSequence that is
     later iterated over in ..sklearn.train. When iterating over the
     output FunctionOutputSequence, the loading and transformation of data
     is applied to each batch, and it effectively becomes a Sequence[xr.Dataset].
 
     Args:
-        data_mapping (Mapping[str, xr.Dataset]): Interface to select data for 
+        data_mapping (Mapping[str, xr.Dataset]): Interface to select data for
             given timestep keys.
         variable_names (Iterable[str]): data variables to select
         timesteps_per_batch (int, optional): Defaults to 1.
         num_batches (int, optional): Defaults to None.
         random_seed (int, optional): Defaults to 0.
-        init_time_dim_name (str, optional): Name of time dim in data source. 
+        init_time_dim_name (str, optional): Name of time dim in data source.
             Defaults to "initial_time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
 
@@ -153,26 +128,32 @@ def mapper_to_batches(
         TypeError: If no variable_names are provided to select the final datasets
 
     Returns:
-        FunctionOutputSequence: When iterating over the returned object in sklearn.train,
-        the loading and transformation functions are applied for each batch it is 
-        effectively used as a Sequence[xr.Dataset].
+        FunctionOutputSequence: When iterating over the returned object in
+        sklearn.train, the loading and transformation functions are applied for
+        each batch it is effectively used as a Sequence[xr.Dataset].
     """
     random_state = np.random.RandomState(random_seed)
     if rename_variables is None:
         rename_variables = {}
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
-        
-    batch_mapper = BatchMapper(data_mapping, files_per_batch, num_batches, random_seed, init_time_dim_name)
-#     batched_timesteps = _select_batch_timesteps(
-#         data_mapping.keys(), timesteps_per_batch, num_batches, random_state
-#     )
-    transform = functools.partial(stack_dropnan_shuffle, init_time_dim_name, random_state)
+
+    batch_mapper = BatchMapper(
+        data_mapping, timesteps_per_batch, num_batches, random_state, init_time_dim_name
+    )
+    #     batched_timesteps = _select_batch_timesteps(
+    #         data_mapping.keys(), timesteps_per_batch, num_batches, random_state
+    #     )
+    transform = functools.partial(
+        stack_dropnan_shuffle, init_time_dim_name, random_state
+    )
     load_batch = functools.partial(
         _load_batch, batch_mapper, variable_names, rename_variables, init_time_dim_name,
     )
-    
-    return FunctionOutputSequence(lambda x: transform(load_batch(x)), batch_mapper.batches)
+
+    return FunctionOutputSequence(
+        lambda x: transform(load_batch(x)), batch_mapper.batches
+    )
 
 
 def _load_batch(
@@ -235,18 +216,23 @@ def load_sequence_for_diagnostics(
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
 ) -> Sequence[xr.Dataset]:
-    '''Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
+    """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
     as load_batches but without transformation and stacking
-    '''
+    """
+    random_state = np.random.RandomState(random_seed)
     if rename_variables is None:
         rename_variables = {}
-    
+
     batch_mapper = BatchMapper(
-        dataset_mapper, files_per_batch, num_batches, random_seed, init_time_dim_name
+        dataset_mapper, files_per_batch, num_batches, random_state, init_time_dim_name
     )
-    
+
     load_sequence = functools.partial(
-            _load_sequence, batch_mapper, variable_names, rename_variables, init_time_dim_name,
-        )
-    
+        _load_sequence,
+        batch_mapper,
+        variable_names,
+        rename_variables,
+        init_time_dim_name,
+    )
+
     return FunctionOutputSequence(load_sequence, batch_mapper.keys())

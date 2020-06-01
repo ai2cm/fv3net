@@ -1,6 +1,6 @@
 one_step_tendencies: 
   path: gs://vcm-ml-experiments/2020-05-07-clouds-off-training-data/create-clouds-off-data/create_training_data/train
-  mapping_function: open_onestep_mapping
+  mapping_function: open_one_step
   variables:
     - dQ1
     - dQ2

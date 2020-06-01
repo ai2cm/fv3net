@@ -1,7 +1,7 @@
 from . import utils
 from .config import VARNAMES
 from fv3net.regression import loaders
-from fv3net.regression.loaders.batch import load_batches, load_sequence_for_diagnostics
+from fv3net.regression.loaders._batch import load_sequence_for_diagnostics
 from vcm import safe
 import argparse
 import yaml
@@ -17,9 +17,9 @@ out_hdlr.setLevel(logging.INFO)
 logging.basicConfig(handlers=[out_hdlr], level=logging.INFO)
 logger = logging.getLogger("training_data_diags")
 
-GRID_VARS = ['latb', 'lonb', 'lat', 'lon', 'area', 'land_sea_mask']
+GRID_VARS = ["latb", "lonb", "lat", "lon", "area", "land_sea_mask"]
 
-DOMAINS = ['land', 'sea', 'global']
+DOMAINS = ["land", "sea", "global"]
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -28,7 +28,10 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "datasets_config_yml",
         type=str,
-        help="Config file with dataset paths, mapping functions, and batch specifications.",
+        help=(
+            "Config file with dataset paths, mapping functions, and batch"
+            "specifications."
+        ),
     )
 
     return parser.parse_args()
@@ -53,13 +56,15 @@ args = _create_arg_parser()
 
 datasets_config = _open_config(args.datasets_config_yml)
 
-mapping_function = getattr(loaders, datasets_config['one_step_tendencies']["mapping_function"])
-mapper = mapping_function(datasets_config['one_step_tendencies']["path"])
+mapping_function = getattr(
+    loaders, datasets_config["one_step_tendencies"]["mapping_function"]
+)
+mapper = mapping_function(datasets_config["one_step_tendencies"]["path"])
 sample_dataset = mapper[list(mapper.keys())[0]]
 grid = (
     safe.get_variables(sample_dataset, GRID_VARS)
     .squeeze()
-    .drop(labels=VARNAMES['time_dim'])
+    .drop(labels=VARNAMES["time_dim"])
 )
 
 dataset_names = []
@@ -68,22 +73,20 @@ for dataset_name, dataset_config in datasets_config.items():
     dataset_names.append(dataset_name)
     mapping_function = getattr(loaders, dataset_config["mapping_function"])
     mapper = mapping_function(dataset_config["path"])
-#     sample_dataset = mapper[list(mapper.keys())[0]]
-#     grid = (
-#         safe.get_variables(sample_dataset, GRID_VARS)
-#         .squeeze()
-#         .drop(labels=VARNAMES['time_dim'])
-#     )
+    #     sample_dataset = mapper[list(mapper.keys())[0]]
+    #     grid = (
+    #         safe.get_variables(sample_dataset, GRID_VARS)
+    #         .squeeze()
+    #         .drop(labels=VARNAMES['time_dim'])
+    #     )
     ds_batches = load_sequence_for_diagnostics(
-        mapper,
-        dataset_config["variables"],
-        **dataset_config["batch_kwargs"],
+        mapper, dataset_config["variables"], **dataset_config["batch_kwargs"],
     )
-#     ds_batches = load_batches(
-#         mapper,
-#         dataset_config["variables"],
-#         **dataset_config["batch_kwargs"],
-#     )
+    #     ds_batches = load_batches(
+    #         mapper,
+    #         dataset_config["variables"],
+    #         **dataset_config["batch_kwargs"],
+    #     )
     print(ds_batches[0])
     ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
     print(ds_diagnostic.load())
