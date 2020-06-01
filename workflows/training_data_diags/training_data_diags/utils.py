@@ -28,9 +28,15 @@ def reduce_to_diagnostic(
 
     ds_list = []
     for ds in ds_batches:
-        ds_list.append(_insert_column_integrated_vars(ds, primary_vars))
+        ds_list.append(
+            _insert_column_integrated_vars(
+                ds.drop(labels=VARNAMES["time_dim"]), primary_vars
+            )
+        )
 
     ds_time_averaged = _time_average(ds_list).drop(labels=VARNAMES["delp_var"])
+
+    ds_time_averaged = _drop_uninformative_coords(ds_time_averaged)
 
     conditional_datasets = {}
     surface_type_array = snap_mask_to_type(
@@ -62,12 +68,10 @@ def _insert_column_integrated_vars(
     for var in column_integrated_vars:
         column_integrated_name = f"column_integrated_{var}"
         if "Q1" in var:
-            da = thermo.column_integrated_heating(
-                ds[var], ds["pressure_thickness_of_atmospheric_layer"]
-            )
+            da = thermo.column_integrated_heating(ds[var], ds[VARNAMES["delp_var"]])
         elif "Q2" in var:
             da = thermo.minus_column_integrated_moistening(
-                ds[var], ds["pressure_thickness_of_atmospheric_layer"]
+                ds[var], ds[VARNAMES["delp_var"]]
             )
         ds = ds.assign({column_integrated_name: da})
 
@@ -80,6 +84,19 @@ def _time_average(batches: Sequence[xr.Dataset], time_dim="time") -> xr.Dataset:
     ds = xr.concat(batches, dim=time_dim)
 
     return ds.mean(dim=time_dim, keep_attrs=True)
+
+
+def _drop_uninformative_coords(
+    ds: xr.Dataset, uniformative_coords: Sequence[str] = ["tile", "z", "y", "x"]
+) -> xr.Dataset:
+    """Some datasets have uninformative coords (1:n) on spatial dimensions,
+    others do not, so to avoid potential incompatibilities, remove them"""
+
+    for coord in uniformative_coords:
+        if coord in ds.coords:
+            ds = ds.drop(coord)
+
+    return ds
 
 
 def _conditional_average(

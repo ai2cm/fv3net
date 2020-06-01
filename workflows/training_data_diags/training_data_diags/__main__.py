@@ -1,7 +1,5 @@
 from . import utils
-from .config import VARNAMES
 from fv3net.regression import loaders
-from fv3net.regression.loaders._batch import load_sequence_for_diagnostics
 from vcm import safe
 import argparse
 import yaml
@@ -64,23 +62,27 @@ sample_dataset = mapper[list(mapper.keys())[0]]
 grid = (
     safe.get_variables(sample_dataset, GRID_VARS)
     .squeeze()
-    .drop(labels=VARNAMES["time_dim"])
+    .drop(labels=["initial_time", "y", "x", "tile"])
 )
 
 diagnostic_datasets = {}
 for dataset_name, dataset_config in datasets_config.items():
     mapping_function = getattr(loaders, dataset_config["mapping_function"])
     mapper = mapping_function(dataset_config["path"])
+    logger.info(f"Reading dataset {dataset_name}.")
     #     sample_dataset = mapper[list(mapper.keys())[0]]
     #     grid = (
     #         safe.get_variables(sample_dataset, GRID_VARS)
     #         .squeeze()
     #         .drop(labels=VARNAMES['time_dim'])
     #     )
-    ds_batches = load_sequence_for_diagnostics(
-        mapper, dataset_config["variables"], **dataset_config["batch_kwargs"],
+    ds_batches = loaders.mapper_to_diagnostic_sequence(
+        mapper,
+        dataset_config["variables"],
+        rename_variables=dataset_config.get("rename_variables", None),
+        **dataset_config["batch_kwargs"],
     )
 
     ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
     diagnostic_datasets[dataset_name] = ds_diagnostic
-    print(ds_diagnostic.load())
+    logger.info(f"Finished processing dataset {dataset_name}.")
