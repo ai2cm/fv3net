@@ -18,7 +18,14 @@ def generate_restart_data(
         n_soil: the number of soil levels
 
     Returns:
-        collection of restart data
+        restarts: collection of restart data as a dictionary. Each key from "fv_core.res",
+            "fv_tracer.res", "fv_srf_wnd.res", and "sfc_data" contains a
+            dictionary of data for an individal tile. Example::
+
+            category = 'fv_core.res'
+            tile = 4
+            # Fourth tile of fv_core.res data:
+            restarts[category][tile]
 
     """
     tiles = range(1, 7)
