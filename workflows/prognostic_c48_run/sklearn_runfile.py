@@ -98,7 +98,7 @@ if __name__ == "__main__":
     # change into run directoryy
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
 
-    do_only_diagnostic_ml = args["scikit_learn"]["diagnostic_ml"]
+    do_only_diagnostic_ml = args["scikit_learn"].get("diagnostic_ml", False)
     rename_ML_to_CF = args["scikit_learn"].get("input_variable_standard_names", {})
     rename_CF_to_ML = dict(zip(rename_ML_to_CF.values(), rename_ML_to_CF.keys()))
     if rank == 0:
