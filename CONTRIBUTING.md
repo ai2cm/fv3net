@@ -29,4 +29,58 @@ Of course, some workflow-specific code will become useful in other workflows. In
   `vcm.cloud`. All routines to be used externally should be imported into one
    of these namespaces. This rule could change pending future changes to the vcm API.
 
+  
+## Type checking
 
+Type checking with `mypy` can make the code more robust and can help catch
+type-related errors without the need to write unit-tests. For example,
+type-checking can discover if a function is passed the wrong number of
+arguments. A common mistake in long-running pipeline code. In general,
+type-checks + unit tests often very closely predict if a long-running
+integration test will succeed.
+
+By default, mypy will only analyze code that has type hints which allows a
+gradual migration. Unfortunately, many of functions use type-hints
+incorrectly and mypy will catch those errors. For this reason, type-checking
+is only enabled for a subset of modules, see `./check_types.sh` for an
+up-to-date list.
+
+Contributers are encouraged to add type-hints in their code and add the
+modules they are updating to `./check_types.sh`.
+
+### Common mypy errors
+
+#### Import errors
+
+Many python libraries do not have type-hints, so mypy will complain when
+importing them. Add `type: ignore` after the import to ignore these mypy
+errors.
+
+#### xarray errors
+
+Xarray has type-hinting, but it oftentimes is incorrect and not very helpful.
+For the former, a quick `# type: ignore` will help.
+
+Some xarray functions also return Union types, which makes life difficult. For
+example, mypy will fail on this code: 
+```
+
+def func(ds: xr.Dataset):
+    pass
+
+dataset: xr.Dataset = ...
+
+# error:
+# this line will give type error because mypy doesn't know 
+# if ds[['a', 'b]] is Dataset or a DataArray
+func(ds[['a', 'b']])
+
+```
+You can fix this by explicitly, casting `ds[['a', 'b']]` as is done by
+`vcm.safe.get_variables`.
+```
+from vcm import safe
+
+# OK:
+func(safe.get_variables(ds, ['a', 'b']))
+```
