@@ -40,7 +40,7 @@ dependencies:
   - pip
   - xgcm=0.2
   - jupyterlab
-  - apache-beam
+  - apache-beam=2.18
   - matplotlib=3.1
   - pyquery>=1.4.0
   - python=3.7
