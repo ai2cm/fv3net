@@ -14,10 +14,11 @@ from fv3net.regression.loaders._nudged import (
     NudgedTimestepMapper,
     NudgedStateCheckpoints,
     MergeNudged,
-    GroupByCheckpoint
+    GroupByCheckpoint,
 )
 
 NTIMES = 144
+
 
 @pytest.fixture
 def nudge_tendencies(datadir_session):
@@ -161,12 +162,7 @@ def test_NudgedTimestepMapper(general_nudge_output):
     xr.testing.assert_equal(item, mapper[time_key])
 
 
-@pytest.fixture(params=[
-    "dataset_only",
-    "nudged_tstep_mapper_only",
-    "mixed",
-    "empty",
-])
+@pytest.fixture(params=["dataset_only", "nudged_tstep_mapper_only", "mixed", "empty"])
 def mapper_to_ds_case(request, nudge_tendencies, general_nudge_output):
 
     if request.param == "dataset_only":
@@ -222,17 +218,13 @@ def overlap_check_fail_datasets(request, nudge_tendencies, general_nudge_output)
 
 def test_MergeNudged(nudge_tendencies, general_nudge_output):
 
-    merged = MergeNudged(
-        nudge_tendencies,
-        NudgedTimestepMapper(general_nudge_output)
-    )
+    merged = MergeNudged(nudge_tendencies, NudgedTimestepMapper(general_nudge_output))
 
     assert len(merged) == NTIMES
 
     item = merged[merged.keys()[0]]
     source_vars = chain(
-        nudge_tendencies.data_vars.keys(),
-        general_nudge_output.data_vars.keys(),
+        nudge_tendencies.data_vars.keys(), general_nudge_output.data_vars.keys(),
     )
     for var in source_vars:
         assert var in item
@@ -277,11 +269,10 @@ def test_GroupByCheckpoint(checkpoint_mapping):
 
 
 @pytest.mark.parametrize(
-    "time_key, expected_size",
-    [("20160801.001500", 2), ("20160801.003000", 1)]
+    "time_key, expected_size", [("20160801.001500", 2), ("20160801.003000", 1)]
 )
 def test_GroupByCheckpoint_items(time_key, expected_size, checkpoint_mapping):
-    
+
     test_groupby = GroupByCheckpoint(checkpoint_mapping)
 
     item = test_groupby[time_key]

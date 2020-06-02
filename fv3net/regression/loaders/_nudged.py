@@ -209,10 +209,8 @@ class NudgedTimestepMapper(FV3OutMapper):
 
 
 class MergeNudged(NudgedTimestepMapper):
-
     def __init__(
-        self,
-        *nudged_sources: Sequence[Union[NudgedTimestepMapper, xr.Dataset]]
+        self, *nudged_sources: Sequence[Union[NudgedTimestepMapper, xr.Dataset]]
     ):
 
         nudged_sources = self._mapper_to_datasets(nudged_sources)
@@ -221,7 +219,7 @@ class MergeNudged(NudgedTimestepMapper):
 
     @staticmethod
     def _mapper_to_datasets(data_sources) -> Mapping[str, xr.Dataset]:
-        
+
         datasets = []
         for source in data_sources:
             if isinstance(source, NudgedTimestepMapper):
@@ -256,9 +254,7 @@ class NudgedStateCheckpoints(FV3OutMapper):
 
     def __init__(self, ds_map: Mapping[str, xr.Dataset]):
 
-        self.sources = {
-            key: NudgedTimestepMapper(ds) for key, ds in ds_map.items()
-        }
+        self.sources = {key: NudgedTimestepMapper(ds) for key, ds in ds_map.items()}
 
     def __getitem__(self, key):
         return self.sources[key[0]][key[1]]
@@ -280,7 +276,6 @@ class GroupByCheckpoint:
     # TODO: Could be generalized in if useful, similar function in _transform for tiles
 
     def __init__(self, checkpoint_data: Mapping[Checkpoint, xr.Dataset]):
-
         def keyfn(key):
             checkpoint, time = key
             return time
