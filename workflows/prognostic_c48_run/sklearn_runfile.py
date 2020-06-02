@@ -56,8 +56,8 @@ def compute_diagnostics(state, diags):
 
 
 def rename_diagnostics(diags):
-    """Postfix ML outputs with _diagnostic and create zero-valued outputs in their
-    stead. Function operates in place."""
+    """Postfix ML output names with _diagnostic and create zero-valued outputs in
+    their stead. Function operates in place."""
     for variable in ["net_moistening", "net_heating"]:
         attrs = diags[variable].attrs
         diags[f"{variable}_diagnostic"] = diags[variable].assign_attrs(
