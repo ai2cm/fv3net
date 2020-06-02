@@ -20,12 +20,6 @@ logger = logging.getLogger(__name__)
 
 TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
 SIMULATION_TIMESTEPS_PER_HOUR = 4
-NUDGING_FILES = [
-    "before_dynamics",
-    "after_dynamics",
-    "after_physics",
-    "nudging_tendencies",
-]
 
 BatchSequence = Sequence[xr.Dataset]
 TimestepMappeer = Mapping[str, xr.Dataset]
@@ -45,13 +39,12 @@ def load_nudging_batches(
 ):
     """temporary loader while transforms being developed"""
 
-    mapper = open_nudged_mapper(
+    tstep_mapper = open_nudged_mapper(
         url,
         nudging_timescale_hr,
         initial_time_skip_hr=initial_time_skip_hr,
         n_times=n_times,
     )
-    tstep_mapper = mapper.merge_sources(["after_physics", "nudging_tendencies"])
 
     return _load_nudging_batch(
         tstep_mapper,
@@ -338,17 +331,17 @@ def open_nudged_mapper(
         nudged_output_dirs, nudging_timescale_hr
     )
 
-    datasets = {}
-    for source in NUDGING_FILES:
+    datasets = []
+    nudge_files = ["after_physics", "nudging_tendencies"]
+    for source in nudge_files:
         mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}.zarr"))
         ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
 
         start = initial_time_skip_hr * SIMULATION_TIMESTEPS_PER_HOUR
         end = None if n_times is None else start + n_times
         ds = ds.isel({TIME_NAME: slice(start, end)})
+        datasets.append(ds)
 
-        datasets[source] = ds
-
-    nudged_mapper = NudgedMapperAllSources(datasets)
+    nudged_mapper = MergeNudged(*datasets)
 
     return nudged_mapper

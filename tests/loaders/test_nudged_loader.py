@@ -50,9 +50,9 @@ def general_nudge_output(general_nudge_schema):
 
 
 @pytest.fixture
-def nudged_output_ds_dict(nudge_tendencies, general_nudge_schema):
+def nudged_checkpoints(general_nudge_schema):
 
-    nudged_datasets = {"nudging_tendencies": nudge_tendencies}
+    nudged_datasets = {}
     datasets_sources = ["before_dynamics", "after_dynamics", "after_physics"]
     for source in datasets_sources:
         ds = synth.generate(general_nudge_schema)
@@ -149,15 +149,14 @@ def test__get_path_for_nudging_timescale_failure(nudging_output_dirs, timescale)
         _get_path_for_nudging_timescale(nudging_output_dirs, timescale, tol=1e-5)
 
 
-def test_NudgedTimestepMapper(nudged_output_ds_dict):
-    single_ds = nudged_output_ds_dict["after_physics"]
+def test_NudgedTimestepMapper(general_nudge_output):
 
-    mapper = NudgedTimestepMapper(single_ds)
+    mapper = NudgedTimestepMapper(general_nudge_output)
 
-    assert len(mapper) == single_ds.sizes[TIME_NAME]
+    assert len(mapper) == general_nudge_output.sizes[TIME_NAME]
 
-    single_time = single_ds[TIME_NAME].values[0]
-    item = single_ds.sel({TIME_NAME: single_time})
+    single_time = general_nudge_output[TIME_NAME].values[0]
+    item = general_nudge_output.sel({TIME_NAME: single_time})
     time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
     xr.testing.assert_equal(item, mapper[time_key])
 
@@ -183,6 +182,7 @@ def mapper_to_ds_case(request, nudge_tendencies, general_nudge_output):
         sources = ()
 
     return sources
+
 
 def test_MergeNudged__mapper_to_datasets(mapper_to_ds_case):
 
@@ -243,14 +243,14 @@ def test_MergeNudged__check_dvar_overlap_fail(overlap_check_fail_datasets):
         MergeNudged._check_dvar_overlap(*overlap_check_fail_datasets)
 
 
-def test_NudgedStateCheckpoints(nudged_output_ds_dict):
+def test_NudgedStateCheckpoints(nudged_checkpoints):
 
-    mapper = NudgedStateCheckpoints(nudged_output_ds_dict)
+    mapper = NudgedStateCheckpoints(nudged_checkpoints)
 
-    ds_len = sum([ds.sizes[TIME_NAME] for ds in nudged_output_ds_dict.values()])
+    ds_len = sum([ds.sizes[TIME_NAME] for ds in nudged_checkpoints.values()])
     assert len(mapper) == ds_len
 
-    single_item = nudged_output_ds_dict["after_physics"].isel(time=0)
+    single_item = nudged_checkpoints["after_physics"].isel(time=0)
     time_key = pd.to_datetime(single_item.time.values).strftime(TIME_FMT)
     item_key = ("after_physics", time_key)
     xr.testing.assert_equal(mapper[item_key], single_item)
@@ -283,7 +283,7 @@ def test_GroupByCheckpoint(checkpoint_mapping):
 def test_GroupByCheckpoint_items(time_key, expected_size, checkpoint_mapping):
     
     test_groupby = GroupByCheckpoint(checkpoint_mapping)
-    
+
     item = test_groupby[time_key]
     assert "checkpoint" in item.dims
     assert item.sizes["checkpoint"] == expected_size
