@@ -1,6 +1,6 @@
 from typing import Iterable, Iterator
 
-from google.cloud.storage import Blob, Bucket, Client  # type: ignore
+from google.cloud.storage import Blob, Bucket, Client
 from vcm.cloud import gcs
 
 
