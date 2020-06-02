@@ -2,13 +2,12 @@
 Utilities for coarse-graining restart data and directories
 """
 import logging
-from os.path import join
+from typing import Mapping
 
-import dask.bag as db
 import numpy as np
-import pandas as pd
 import xarray as xr
-from toolz import curry
+
+import dask
 
 from .complex_sfc_data_coarsening import coarse_grain_sfc_data_complex
 from .cubedsphere import (
@@ -40,15 +39,9 @@ from vcm.cubedsphere.constants import (
     RESTART_Z_CENTER,
 )
 
+dask.config.set(scheduler="single-threaded")
+
 TILES = range(1, 7)
-OUTPUT_CATEGORY_NAMES = {
-    "fv_core.res": "fv_core_coarse.res",
-    "fv_srf_wnd.res": "fv_srf_wnd_coarse.res",
-    "fv_tracer.res": "fv_tracer_coarse.res",
-    "sfc_data": "sfc_data_coarse",
-}
-SOURCE_DATA_PATTERN = "{timestep}/{timestep}.{category}"
-DATA_PATTERN = "{prefix}{category}.tile{tile}.nc"
 CATEGORY_LIST = ["fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", "sfc_data"]
 
 logger = logging.getLogger("vcm.coarsen")
@@ -88,70 +81,6 @@ def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Datase
     return coarsened.assign_coords(**coarse_coords).assign_attrs(
         {"coarsening_factor": factor, "coarsening_method": method}
     )
-
-
-# TODO: fix this name. it loads the data with area
-def load_tile_proc(tile, subtile, path, grid_path):
-    grid_spec_to_data_renaming = {COORD_X_CENTER: "xaxis_1", COORD_Y_CENTER: "yaxis_1"}
-    grid = xr.open_dataset(grid_path)
-
-    area = grid.area.rename(grid_spec_to_data_renaming)
-    pane = xr.open_dataset(path)
-
-    data = xr.merge([pane, area])
-
-    return data
-
-
-# TODO use vcm.cubedsphere for this
-def _combine_subtiles(tiles):
-    combined = xr.concat(tiles, dim="io").sum("io")
-    return combined.assign_attrs(tiles[0].attrs)
-
-
-def combine_subtiles(args_list):
-    tile, args_list = args_list
-    subtiles = [arg[1] for arg in args_list]
-    return tile, _combine_subtiles(subtiles).assign(tile=tile)
-
-
-def tile(args):
-    return args[0][0]
-
-
-@curry
-def save_tile_to_disk(output_dir, args):
-    tile, data = args
-    output_name = f"sfc_data.tile{tile}.nc"
-    output_path = join(output_dir, output_name)
-    data.to_netcdf(output_path)
-    return output_path
-
-
-def coarsen_sfc_data_in_directory(files, **kwargs):
-    """Process surface data in directory
-
-    Args:
-        files: list of (tile, subtile, sfc_data_path, grid_spec_path) tuples
-
-    Returns:
-        xarray of concatenated data
-    """
-
-    def process(args):
-        logging.info(f"Coarsening {args}")
-        data = load_tile_proc(*args)
-        coarsened = coarsen_sfc_data(data, **kwargs)
-        return args, coarsened
-
-    bag = db.from_sequence(files)
-
-    # res = bag.map(process)
-    # res = res.compute(scheduler='single-threaded')
-
-    procs = bag.map(process).groupby(tile).map(combine_subtiles).map(lambda x: x[1])
-
-    return xr.concat(procs.compute(), dim="tile")
 
 
 def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
@@ -536,59 +465,29 @@ def sync_dimension_order(a, b):
     return a
 
 
-def coarsen_grid_spec(
-    input_grid_spec,
-    coarsening_factor,
-    output_filename,
-    x_dim_unstaggered=COORD_X_CENTER,
-    y_dim_unstaggered=COORD_Y_CENTER,
-    x_dim_staggered=COORD_X_OUTER,
-    y_dim_staggered=COORD_Y_OUTER,
-):
-    tile = pd.Index(TILES, name="tile")
-    native_grid_spec = xr.open_mfdataset(input_grid_spec, concat_dim=tile)
-    result = coarse_grain_grid_spec(
-        native_grid_spec,
-        coarsening_factor,
-        x_dim_unstaggered,
-        y_dim_unstaggered,
-        x_dim_staggered,
-        y_dim_staggered,
-    )
-    result.to_netcdf(output_filename)
-
-
 def coarsen_restarts_on_sigma(
-    coarsening_factor,
-    grid_spec_prefix,
-    source_data_prefix,
-    output_data_prefix,
-    data_pattern=DATA_PATTERN,
-):
-    """ Coarsen a complete set of restart files, averaging on model levels and
+    coarsening_factor: int, grid_spec: xr.Dataset, restarts: Mapping[str, xr.Dataset]
+) -> Mapping[str, xr.Dataset]:
+    """ Coarsen a complete set of restart data, averaging on model levels and
     using the 'complex' surface coarsening method
 
     Args:
-        coarsening_factor (int): Amount to coarsen, e.g. 8 for C384 to C48.
-        grid_spec_prefix (str): Path to grid_spec at same resolution as source data.
-            Must include everything up to '.tile*.nc'
-        source_data_prefix (str): Prefix of path to fine-resolution restart files.
-        output_data_prefix (str): Prefix of path where coarsened restart files will be
-            saved.
-        data_pattern (str, optional): pattern for source and output data file naming
-            convention. Defaults to "{prefix}{category}.tile{tile}.nc". Must include
-            {prefix}, {category} and {tile}.
-    """
-    tiles = pd.Index(range(6), name="tile")
-    filename = grid_spec_prefix + ".tile*.nc"
-    grid_spec = xr.open_mfdataset(filename, concat_dim=[tiles], combine="nested")
+        coarsening_factor: the amount of coarsening to apply. C384 to C48 is a factor
+            of 8.
+        grid_spec: Dataset containing the variables area, dx, dy.
+        restarts: dictionary of restart data. Must have the keys
+            "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
 
-    source = _open_restart_categories(source_data_prefix, data_pattern=data_pattern)
+    Returns:
+        restarts_coarse: a dictionary with the same format as restarts but
+            coarsening_factor times coarser.
+        
+    """
     coarsened = {}
 
     coarsened["fv_core.res"] = coarse_grain_fv_core(
-        source["fv_core.res"],
-        source["fv_core.res"].delp,
+        restarts["fv_core.res"],
+        restarts["fv_core.res"].delp,
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_CORE_X_CENTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
         ),
@@ -602,7 +501,7 @@ def coarsen_restarts_on_sigma(
     )
 
     coarsened["fv_srf_wnd.res"] = coarse_grain_fv_srf_wnd(
-        source["fv_srf_wnd.res"],
+        restarts["fv_srf_wnd.res"],
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_SRF_WND_X_CENTER, COORD_Y_CENTER: FV_SRF_WND_Y_CENTER}
         ),
@@ -610,8 +509,8 @@ def coarsen_restarts_on_sigma(
     )
 
     coarsened["fv_tracer.res"] = coarse_grain_fv_tracer(
-        source["fv_tracer.res"],
-        source["fv_core.res"].delp.rename({FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}),
+        restarts["fv_tracer.res"],
+        restarts["fv_core.res"].delp.rename({FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}),
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_TRACER_X_CENTER, COORD_Y_CENTER: FV_TRACER_Y_CENTER}
         ),
@@ -619,7 +518,7 @@ def coarsen_restarts_on_sigma(
     )
 
     coarsened["sfc_data"] = coarse_grain_sfc_data_complex(
-        source["sfc_data"],
+        restarts["sfc_data"],
         grid_spec.area.rename(
             {COORD_X_CENTER: SFC_DATA_X_CENTER, COORD_Y_CENTER: SFC_DATA_Y_CENTER}
         ),
@@ -627,41 +526,34 @@ def coarsen_restarts_on_sigma(
     )
 
     for category in CATEGORY_LIST:
-        sync_dimension_order(coarsened[category], source[category])
-    _save_restart_categories(coarsened, output_data_prefix, data_pattern)
+        sync_dimension_order(coarsened[category], restarts[category])
+
+    return coarsened
 
 
 def coarsen_restarts_on_pressure(
-    coarsening_factor,
-    grid_spec_prefix,
-    source_data_prefix,
-    output_data_prefix,
-    data_pattern=DATA_PATTERN,
-):
+    coarsening_factor: int, grid_spec: xr.Dataset, restarts: Mapping[str, xr.Dataset],
+) -> Mapping[str, xr.Dataset]:
     """ Coarsen a complete set of restart files, averaging on pressure levels and
     using the 'complex' surface coarsening method
 
     Args:
-        coarsening_factor (int): Amount to coarsen, e.g. 8 for C384 to C48.
-        grid_spec_prefix (str): Path to grid_spec at same resolution as source data.
-            Must include everything up to '.tile*.nc'
-        source_data_prefix (str): Prefix of path to fine-resolution restart files.
-        output_data_prefix (str): Prefix of path where coarsened restart files will be
-            saved.
-        data_pattern (str, optional): pattern for source and output data file naming
-            convention. Defaults to "{prefix}{category}.tile{tile}.nc". Must include
-            {prefix}, {category} and {tile}.
-    """
-    tiles = pd.Index(range(6), name="tile")
-    filename = grid_spec_prefix + ".tile*.nc"
-    grid_spec = xr.open_mfdataset(filename, concat_dim=[tiles], combine="nested")
+        coarsening_factor: the amount of coarsening to apply. C384 to C48 is a factor
+            of 8.
+        grid_spec: Dataset containing the variables area, dx, dy.
+        restarts: dictionary of restart data. Must have the keys
+            "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
 
-    source = _open_restart_categories(source_data_prefix, data_pattern=data_pattern)
+    Returns:
+        restarts_coarse: a dictionary with the same format as restarts but
+            coarsening_factor times coarser.
+    """
+
     coarsened = {}
 
     coarsened["fv_core.res"] = coarse_grain_fv_core_on_pressure(
-        source["fv_core.res"],
-        source["fv_core.res"].delp,
+        restarts["fv_core.res"],
+        restarts["fv_core.res"].delp,
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_CORE_X_CENTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
         ),
@@ -675,7 +567,7 @@ def coarsen_restarts_on_pressure(
     )
 
     coarsened["fv_srf_wnd.res"] = coarse_grain_fv_srf_wnd(
-        source["fv_srf_wnd.res"],
+        restarts["fv_srf_wnd.res"],
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_SRF_WND_X_CENTER, COORD_Y_CENTER: FV_SRF_WND_Y_CENTER}
         ),
@@ -683,8 +575,8 @@ def coarsen_restarts_on_pressure(
     )
 
     coarsened["fv_tracer.res"] = coarse_grain_fv_tracer_on_pressure(
-        source["fv_tracer.res"],
-        source["fv_core.res"].delp.rename({FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}),
+        restarts["fv_tracer.res"],
+        restarts["fv_core.res"].delp.rename({FV_CORE_Y_CENTER: FV_TRACER_Y_CENTER}),
         grid_spec.area.rename(
             {COORD_X_CENTER: FV_TRACER_X_CENTER, COORD_Y_CENTER: FV_TRACER_Y_CENTER}
         ),
@@ -692,7 +584,7 @@ def coarsen_restarts_on_pressure(
     )
 
     coarsened["sfc_data"] = coarse_grain_sfc_data_complex(
-        source["sfc_data"],
+        restarts["sfc_data"],
         grid_spec.area.rename(
             {COORD_X_CENTER: SFC_DATA_X_CENTER, COORD_Y_CENTER: SFC_DATA_Y_CENTER}
         ),
@@ -704,27 +596,6 @@ def coarsen_restarts_on_pressure(
     )
 
     for category in CATEGORY_LIST:
-        sync_dimension_order(coarsened[category], source[category])
-    _save_restart_categories(coarsened, output_data_prefix, data_pattern)
+        sync_dimension_order(coarsened[category], restarts[category])
 
-
-def _open_restart_categories(prefix, data_pattern=DATA_PATTERN):
-    source = {}
-    tiles = pd.Index(range(6), name="tile")
-    for category in CATEGORY_LIST:
-        filename = data_pattern.format(
-            prefix=prefix, category=OUTPUT_CATEGORY_NAMES[category], tile="*",
-        )
-        logger.debug(f"Restart MF Category Filename: {filename}")
-        source[category] = xr.open_mfdataset(
-            filename, concat_dim=[tiles], combine="nested"
-        )
-    return source
-
-
-def _save_restart_categories(coarsened, prefix, data_pattern):
-    for category in CATEGORY_LIST:
-        ds = coarsened[category]
-        for tile in TILES:
-            filename = data_pattern.format(prefix=prefix, category=category, tile=tile)
-            ds.isel(tile=tile - 1).drop("tile", errors="ignore").to_netcdf(filename)
+    return coarsened
