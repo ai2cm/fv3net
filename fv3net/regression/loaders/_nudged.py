@@ -6,7 +6,7 @@ import numpy as np
 import zarr.storage as zstore
 from typing import Sequence, Iterable, Mapping, Union, Tuple
 from functools import partial
-from itertools import product
+from itertools import product, groupby
 from pathlib import Path
 
 import vcm
@@ -253,28 +253,58 @@ class MergeNudged(NudgedTimestepMapper):
             )
 
 
-class NudgedMapperAllSources(FV3OutMapper):
+class NudgedStateCheckpoints(FV3OutMapper):
     """
-    Get all nudged output zarr datasets.
+    Storage for state checkpoints from nudging runs.
     Accessible by, e.g., mapper[("before_dynamics", "20160801.001500")]
     Uses NudgedTimestepMappers for individual sources.
     """
 
     def __init__(self, ds_map: Mapping[str, xr.Dataset]):
 
-        self.nudged_mappers = {
+        self.sources = {
             key: NudgedTimestepMapper(ds) for key, ds in ds_map.items()
         }
 
     def __getitem__(self, key):
-        return self.nudged_mappers[key[0]][key[1]]
+        return self.sources[key[0]][key[1]]
 
     def keys(self):
         keys = []
-        for key, mapper in self.nudged_mappers.items():
+        for key, mapper in self.sources.items():
             timestep_keys = mapper.keys()
             keys.extend(product((key,), timestep_keys))
         return keys
+
+
+Source = str
+Time = str
+Checkpoint = Tuple[Source, Time]
+
+
+class GroupByCheckpoint:
+    # TODO: Could be generalized in if useful, similar function in _transform for tiles
+
+    def __init__(self, checkpoint_data: Mapping[Checkpoint, xr.Dataset]):
+
+        def keyfn(key):
+            checkpoint, time = key
+            return time
+
+        self._checkpoint_data = checkpoint_data
+        self._time_lookup = groupby(self._checkpoint_data.keys(), key=keyfn)
+
+    def keys(self):
+        return self._time_lookup.keys()
+
+    def __len__(self):
+        return len(self.keys())
+
+    def __getitem__(self, time: Time) -> xr.Dataset:
+        checkpoints = [self._checkpoint_data[key] for key in self._time_lookup[time]]
+        checkpoint_names = [key[0] for key in self._time_lookup[time]]
+        ds = xr.concat(checkpoints, dim="checkpoint")
+        return ds.assign_coords(checkpoint=checkpoint_names)
 
 
 def open_nudged_mapper(

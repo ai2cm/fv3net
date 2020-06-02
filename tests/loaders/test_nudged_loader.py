@@ -12,7 +12,7 @@ from fv3net.regression.loaders._nudged import (
     _load_nudging_batches,
     _get_path_for_nudging_timescale,
     NudgedTimestepMapper,
-    NudgedMapperAllSources,
+    NudgedStateCheckpoints,
     MergeNudged
 )
 
@@ -242,9 +242,9 @@ def test_MergeNudged__check_dvar_overlap_fail(overlap_check_fail_datasets):
         MergeNudged._check_dvar_overlap(*overlap_check_fail_datasets)
 
 
-def test_NudgedMapperAllSources(nudged_output_ds_dict):
+def test_NudgedStateCheckpoints(nudged_output_ds_dict):
 
-    mapper = NudgedMapperAllSources(nudged_output_ds_dict)
+    mapper = NudgedStateCheckpoints(nudged_output_ds_dict)
 
     ds_len = sum([ds.sizes[TIME_NAME] for ds in nudged_output_ds_dict.values()])
     assert len(mapper) == ds_len
