@@ -7,10 +7,11 @@ import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
 from ._transform import stack_dropnan_shuffle
-from ..constants import TIME_NAME
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+TIME_NAME = "time"
 
 
 def mapper_to_batches(

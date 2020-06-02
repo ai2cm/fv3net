@@ -5,7 +5,9 @@ import xarray as xr
 from toolz import groupby
 
 from vcm import safe
-from ..constants import SAMPLE_DIM_NAME, Z_DIM_NAMES
+
+SAMPLE_DIM_NAME = "sample"
+Z_DIM_NAMES = ["z", "pfull"]
 
 Time = str
 Tile = int
