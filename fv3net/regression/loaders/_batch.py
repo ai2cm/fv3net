@@ -73,7 +73,7 @@ class BatchMapper(FV3OutMapper):
         self.batches = timesteps_list_sequence
 
     def _validated_num_batches(
-        total_num_input_times, timesteps_per_batch, num_batches=None
+        self, total_num_input_times, timesteps_per_batch, num_batches=None
     ):
         """ check that the number of batches (if provided) and the number of
         timesteps per batch are reasonable given the number of zarrs in the
