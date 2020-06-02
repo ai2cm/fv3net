@@ -105,6 +105,7 @@ jobs:
       - image: google/cloud-sdk
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+      CLUSTER_NAME: ml-cluster-dev
     steps:
       - checkout
       - run:
@@ -121,6 +122,7 @@ jobs:
             gcloud config set project $K8S_PROXY_PROJECT
             gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
             proxy_ip=$(gcloud compute instances list --filter="labels.role=$K8S_PROXY_TARGET_TAG" \
+                --filter="labels.role=$CLUSTER_NAME" \
                 --format="value(networkInterfaces.accessConfigs[0].natIP)")
             firewall_name="ci-to-gke-proxy-"$(openssl rand -hex 5)
             echo 'export firewall_name='$firewall_name >> $BASH_ENV
@@ -132,8 +134,7 @@ jobs:
       - run:
           name: Setup kubectl
           command: |
-            cluster_name="ml-cluster-dev"
-            gcloud container clusters get-credentials --zone us-central1-c  $cluster_name
+            gcloud container clusters get-credentials --zone us-central1-c  $CLUSTER_NAME
             kube_cluster_name=$(kubectl config get-clusters | tail -n 1)
             kubectl config set-cluster $kube_cluster_name --server="https://"$proxy_ip
             echo $K8S_PROXY_ENCODED_CA_CRT | base64 -d > proxy.crt
