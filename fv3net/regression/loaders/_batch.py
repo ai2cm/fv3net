@@ -73,30 +73,37 @@ class BatchMapper(FV3OutMapper):
         self.batches = timesteps_list_sequence
 
     def _validated_num_batches(
-        self, total_num_input_times: int, timesteps_per_batch: int, num_batches: int
+        total_num_input_times, timesteps_per_batch, num_batches=None
     ):
         """ check that the number of batches (if provided) and the number of
-        files per batch are reasonable given the number of zarrs in the input data dir.
+        timesteps per batch are reasonable given the number of zarrs in the
+        input data dir.
 
         Returns:
             Number of batches to use for training
         """
+        if any(arg <= 0 for arg in [total_num_input_times, timesteps_per_batch]):
+            raise ValueError(
+                f"Total number of input times {total_num_input_times}, "
+                f"timesteps per batch {timesteps_per_batch}"
+            )
+        if num_batches is not None and num_batches <= 0:
+            raise ValueError(f"num batches {num_batches} cannot be 0 or negative.")
         if num_batches is None:
             if total_num_input_times >= timesteps_per_batch:
-                num_train_batches = total_num_input_times // timesteps_per_batch
+                return total_num_input_times // timesteps_per_batch
             else:
                 raise ValueError(
-                    f"Number of input_files {total_num_input_times} "
-                    f"must be greater than files_per_batch {timesteps_per_batch}"
+                    f"Number of input_times {total_num_input_times} "
+                    f"must be greater than timesteps_per_batch {timesteps_per_batch}"
                 )
         elif num_batches * timesteps_per_batch > total_num_input_times:
             raise ValueError(
-                f"Number of input_files {total_num_input_times} "
+                f"Number of input_times {total_num_input_times} "
                 f"cannot create {num_batches} batches of size {timesteps_per_batch}."
             )
         else:
-            num_train_batches = num_batches
-        return num_train_batches
+            return num_batches
 
 
 def mapper_to_batches(
@@ -129,8 +136,13 @@ def mapper_to_batches(
 
     Returns:
         FunctionOutputSequence: When iterating over the returned object in
+<<<<<<< HEAD
         sklearn.train, the loading and transformation functions are applied for
         each batch it is effectively used as a Sequence[xr.Dataset].
+=======
+        sklearn.train, the loading and transformation functions are applied
+        for each batch it is effectively used as a Sequence[xr.Dataset].
+>>>>>>> refactor/batch-loader
     """
     random_state = np.random.RandomState(random_seed)
     if rename_variables is None:
