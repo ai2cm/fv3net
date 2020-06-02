@@ -18,24 +18,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class FV3OutMapper:
-    def __init__(self, *args):
-        raise NotImplementedError("Don't use the base class!")
-
-    def __len__(self):
-        return len(self.keys())
-
-    def __iter__(self):
-        return iter(self.keys())
-
-    def __getitem__(self, key: str) -> xr.Dataset:
-        raise NotImplementedError()
-
-    def keys(self):
-        raise NotImplementedError()
-
-
-class BatchMapper(FV3OutMapper):
+class BatchSequence:
     def __init__(
         self,
         dataset_mapper: GenericMapper,
@@ -50,7 +33,7 @@ class BatchMapper(FV3OutMapper):
     def __getitem__(self, key: int) -> Sequence[xr.Dataset]:
         return [self._dataset_mapper[timestep] for timestep in self.batches[key]]
 
-    def keys(self):
+    def indices(self):
         return list(range(len(self.batches)))
 
     def _generate_batches(
@@ -105,6 +88,12 @@ class BatchMapper(FV3OutMapper):
         else:
             return num_batches
 
+    def __len__(self):
+        return len(self.indices())
+
+    def __iter__(self):
+        return self.indices()
+
 
 def mapper_to_batches(
     data_mapping: Mapping[str, xr.Dataset],
@@ -150,18 +139,22 @@ def mapper_to_batches(
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
 
-    batch_mapper = BatchMapper(
+    batch_sequence = BatchSequence(
         data_mapping, timesteps_per_batch, num_batches, random_state, init_time_dim_name
     )
     transform = functools.partial(
         stack_dropnan_shuffle, init_time_dim_name, random_state
     )
     load_batch = functools.partial(
-        _load_batch, batch_mapper, variable_names, rename_variables, init_time_dim_name,
+        _load_batch,
+        batch_sequence,
+        variable_names,
+        rename_variables,
+        init_time_dim_name,
     )
 
     return FunctionOutputSequence(
-        lambda x: transform(load_batch(x)), batch_mapper.keys()
+        lambda x: transform(load_batch(x)), batch_sequence.indices()
     )
 
 
@@ -173,8 +166,8 @@ def _load_batch(
     batch_index: int,
 ) -> xr.Dataset:
 
-    data = batch_mapper[batch_index]
-    ds = xr.concat(data, init_time_dim_name)
+    batch = batch_mapper[batch_index]
+    ds = xr.concat(batch, init_time_dim_name)
 
     # need to use standardized time dimension name
     rename_variables[init_time_dim_name] = rename_variables.get(
@@ -202,12 +195,16 @@ def mapper_to_diagnostic_sequence(
     if rename_variables is None:
         rename_variables = {}
 
-    batch_mapper = BatchMapper(
+    batch_sequence = BatchSequence(
         dataset_mapper, files_per_batch, num_batches, random_state, init_time_dim_name
     )
 
     load_sequence = functools.partial(
-        _load_batch, batch_mapper, variable_names, rename_variables, init_time_dim_name,
+        _load_batch,
+        batch_sequence,
+        variable_names,
+        rename_variables,
+        init_time_dim_name,
     )
 
-    return FunctionOutputSequence(load_sequence, batch_mapper.keys())
+    return FunctionOutputSequence(load_sequence, batch_sequence.indices())
