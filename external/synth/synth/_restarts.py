@@ -18,11 +18,11 @@ def generate_restart_data(
         n_soil: the number of soil levels
 
     Returns:
-        restarts: collection of restart data as a doubly-nested mapping, whose first key is the
-            filename without extension (one of "fv_core.res",
-            "fv_tracer.res", "fv_srf_wnd.res", or "sfc_data"), second key is
-            tile number, and value is the xr.Dataset which would be contained
-            in the file these keys indicate. Example::
+        restarts: collection of restart data as a doubly-nested mapping, whose first
+             key is the filename without extension (one of "fv_core.res",
+             "fv_tracer.res", "fv_srf_wnd.res", or "sfc_data"), second key is
+             tile number, and value is the xr.Dataset which would be
+             contained in the file these keys indicate. Example::
 
                 category = 'fv_core.res'
                 tile = 4
