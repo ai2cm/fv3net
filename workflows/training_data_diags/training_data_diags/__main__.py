@@ -1,4 +1,5 @@
 from . import utils
+from .config import VARNAMES
 from fv3net.regression import loaders
 import intake
 import yaml
@@ -71,6 +72,18 @@ for dataset_name, dataset_config in datasets_config.items():
         rename_variables=dataset_config.get("rename_variables", None),
         **dataset_config["batch_kwargs"],
     )
+    if dataset_name == "one_step_tendencies":
+        # cache the land_sea_mask from the one-steps since this is missing
+        # drom the fine-res budget ds
+        grid = grid.assign(
+            {
+                VARNAMES["surface_type_var"]: (
+                    ds_batches[0][VARNAMES["surface_type_var"]].drop(
+                        labels=VARNAMES["time_dim"]
+                    )
+                )
+            }
+        )
     ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
     diagnostic_datasets[dataset_name] = ds_diagnostic
     logger.info(f"Finished processing dataset {dataset_name}.")
