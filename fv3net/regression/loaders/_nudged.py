@@ -272,8 +272,9 @@ Time = str
 Checkpoint = Tuple[Source, Time]
 
 
-class GroupByCheckpoint:
-    # TODO: Could be generalized in if useful, similar function in _transform for tiles
+class GroupByTime:
+    # TODO: Could be generalized in if useful, nearly identical
+    # function in _transform for tiles
 
     def __init__(self, checkpoint_data: Mapping[Checkpoint, xr.Dataset]):
         def keyfn(key):

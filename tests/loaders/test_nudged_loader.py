@@ -14,7 +14,7 @@ from fv3net.regression.loaders._nudged import (
     NudgedTimestepMapper,
     NudgedStateCheckpoints,
     MergeNudged,
-    GroupByCheckpoint,
+    GroupByTime,
 )
 
 NTIMES = 144
@@ -261,9 +261,9 @@ def checkpoint_mapping(general_nudge_output):
     return checkpoints
 
 
-def test_GroupByCheckpoint(checkpoint_mapping):
+def test_GroupByTime(checkpoint_mapping):
 
-    test_groupby = GroupByCheckpoint(checkpoint_mapping)
+    test_groupby = GroupByTime(checkpoint_mapping)
     assert len(test_groupby) == 2
     assert list(test_groupby.keys()) == ["20160801.001500", "20160801.003000"]
 
@@ -271,9 +271,9 @@ def test_GroupByCheckpoint(checkpoint_mapping):
 @pytest.mark.parametrize(
     "time_key, expected_size", [("20160801.001500", 2), ("20160801.003000", 1)]
 )
-def test_GroupByCheckpoint_items(time_key, expected_size, checkpoint_mapping):
+def test_GroupByTime_items(time_key, expected_size, checkpoint_mapping):
 
-    test_groupby = GroupByCheckpoint(checkpoint_mapping)
+    test_groupby = GroupByTime(checkpoint_mapping)
 
     item = test_groupby[time_key]
     assert "checkpoint" in item.dims
