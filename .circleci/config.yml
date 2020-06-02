@@ -122,7 +122,7 @@ jobs:
             gcloud config set project $K8S_PROXY_PROJECT
             gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
             proxy_ip=$(gcloud compute instances list --filter="labels.role=$K8S_PROXY_TARGET_TAG" \
-                --filter="labels.role=$CLUSTER_NAME" \
+                --filter="labels.cluster=$CLUSTER_NAME" \
                 --format="value(networkInterfaces.accessConfigs[0].natIP)")
             firewall_name="ci-to-gke-proxy-"$(openssl rand -hex 5)
             echo 'export firewall_name='$firewall_name >> $BASH_ENV
