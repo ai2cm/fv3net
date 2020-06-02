@@ -1,6 +1,5 @@
 from . import utils
 from fv3net.regression import loaders
-from vcm import safe
 import intake
 import yaml
 import argparse
@@ -57,21 +56,9 @@ datasets_config = _open_config(args.datasets_config_yml)
 
 # get grid from catalog
 
-cat = intake.open_catalog('catalog.yml')
-grid = cat['grid/c48'].to_dask()
-print(grid)
-grid = grid.drop(labels=['y_interface', "y", 'x_interface', "x"])
-
-# mapping_function = getattr(
-#     loaders, datasets_config["one_step_tendencies"]["mapping_function"]
-# )
-# mapper = mapping_function(datasets_config["one_step_tendencies"]["path"])
-# sample_dataset = mapper[list(mapper.keys())[0]]
-# grid = (
-#     safe.get_variables(sample_dataset, GRID_VARS)
-#     .squeeze()
-#     .drop(labels=["initial_time", "y", "x", "tile"])
-# )
+cat = intake.open_catalog("catalog.yml")
+grid = cat["grid/c48"].to_dask()
+grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
 
 diagnostic_datasets = {}
 for dataset_name, dataset_config in datasets_config.items():
@@ -87,5 +74,3 @@ for dataset_name, dataset_config in datasets_config.items():
     ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
     diagnostic_datasets[dataset_name] = ds_diagnostic
     logger.info(f"Finished processing dataset {dataset_name}.")
-    
-
