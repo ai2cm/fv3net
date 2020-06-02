@@ -52,7 +52,7 @@ def mapper_to_batches(
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
     batched_timesteps = _select_batch_timesteps(
-        data_mapping.keys(), timesteps_per_batch, num_batches, random_state
+        list(data_mapping.keys()), timesteps_per_batch, num_batches, random_state
     )
     transform = functools.partial(
         stack_dropnan_shuffle, init_time_dim_name, random_state

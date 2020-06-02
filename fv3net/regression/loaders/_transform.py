@@ -73,7 +73,7 @@ class GroupByTime:
         self._time_lookup = groupby(fn, self._tiles.keys())
 
     def keys(self):
-        return list(self._time_lookup.keys())
+        return self._time_lookup.keys()
 
     def __len__(self):
         return len(self.keys())
