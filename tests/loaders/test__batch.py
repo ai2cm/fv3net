@@ -37,7 +37,7 @@ class MockDatasetMapper:
 
 
 @pytest.fixture
-def test_mapper(datadir):
+def mapper(datadir):
     one_step_zarr_schema = "one_step_zarr_schema.json"
     # uses the one step schema but final mapper
     # functions the same for all data sources
@@ -47,25 +47,25 @@ def test_mapper(datadir):
     return mapper
 
 
-def test__load_batch(test_mapper):
+def test__load_batch(mapper):
     ds = _load_batch(
-        timestep_mapper=test_mapper,
+        timestep_mapper=mapper,
         data_vars=["air_temperature", "specific_humidity"],
         rename_variables={},
         init_time_dim_name="time",
-        timestep_list=test_mapper.keys(),
+        timestep_list=mapper.keys(),
     )
     assert len(ds["time"]) == 4
 
 
-def test__get_dataset_list(test_mapper):
-    ds_list = _get_dataset_list(test_mapper, test_mapper.keys())
+def test__get_dataset_list(mapper):
+    ds_list = _get_dataset_list(mapper, mapper.keys())
     assert len(ds_list) == 4
 
 
-def test_mapper_to_batches(test_mapper):
+def test_mapper_to_batches(mapper):
     batched_data_sequence = mapper_to_batches(
-        test_mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
+        mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
     )
     assert len(batched_data_sequence) == 2
     for i, batch in enumerate(batched_data_sequence):

@@ -7,11 +7,10 @@ import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
 from ._transform import stack_dropnan_shuffle
+from .constants import TIME_NAME
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-TIME_NAME = "time"
 
 
 def mapper_to_batches(
@@ -43,9 +42,7 @@ def mapper_to_batches(
         TypeError: If no variable_names are provided to select the final datasets
 
     Returns:
-        FunctionOutputSequence: When iterating over the returned object in
-        sklearn.train, the loading and transformation functions are applied
-        for each batch it is effectively used as a Sequence[xr.Dataset].
+        Sequence of xarray datasets for use in training batches.
     """
     random_state = np.random.RandomState(random_seed)
     if rename_variables is None:

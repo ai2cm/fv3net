@@ -11,15 +11,13 @@ import vcm
 import numpy as np
 import xarray as xr
 from . import train
-
+from loaders import TIME_NAME, SAMPLE_DIM_NAME
 
 MODEL_FILENAME = "sklearn_model.pkl"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 REPORT_TITLE = "ML model training report"
 TRAINING_FIG_FILENAME = "count_of_training_times_used.png"
-SAMPLE_DIM_NAME = "sample"
-TIME_NAME = "time"
 
 
 def _save_config_output(output_url, config):
