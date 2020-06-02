@@ -17,6 +17,8 @@ from mpi4py import MPI
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+State = Mapping[str, xr.DataArray]
+
 # following variables are required no matter what feature set is being used
 TEMP = "air_temperature"
 SPHUM = "specific_humidity"
@@ -50,10 +52,18 @@ def compute_diagnostics(state, diags):
         .assign_attrs(
             description="surface precipitation rate due to parameterized physics"
         ),
-        total_precip=(physics_precip - net_moistening)
-        .assign_attrs(units="kg/m^2/s")
-        .assign_attrs(description="total surface precipitation rate (physics + ML)"),
     )
+
+
+def rename_diagnostics(diags):
+    """Postfix ML outputs with _diagnostic and create zero-valued outputs in their
+    stead. Function operates in place."""
+    for variable in ["net_moistening", "net_heating"]:
+        attrs = diags[variable].attrs
+        diags[f"{variable}_diagnostic"] = diags[variable].assign_attrs(
+            description=attrs["description"] + " (diagnostic only)"
+        )
+        diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
 
 
 def open_model(url):
@@ -62,27 +72,23 @@ def open_model(url):
         return joblib.load(f)
 
 
-def predict(model: SklearnWrapper, state: xr.Dataset) -> xr.Dataset:
-    """Given ML model and state, make tendency prediction."""
-    stacked = state.stack(sample=["x", "y"])
+def predict(model: SklearnWrapper, state: State) -> State:
+    """Given ML model and state, return tendency prediction."""
+    stacked = xr.Dataset(state).stack(sample=["x", "y"])
     with parallel_backend("threading", n_jobs=1):
         output = model.predict(stacked, "sample").unstack("sample")
-    return output
+    return {key: output[key] for key in output}
 
 
-def update(
-    model: SklearnWrapper, state: Mapping[str, xr.DataArray], dt: float
-) -> (Mapping[str, xr.DataArray], Mapping[str, xr.DataArray]):
-    """Given ML model and state, return updated state and predicted tendencies.
+def apply(state: State, tendency: State, dt: float) -> State:
+    """Given state and tendency prediction, return updated state.
     Returned state only includes variables updated by ML model."""
-    state = xr.Dataset(state)
-    tend = predict(model, state)
     with xr.set_options(keep_attrs=True):
         updated = {
-            SPHUM: state[SPHUM] + tend["dQ2"] * dt,
-            TEMP: state[TEMP] + tend["dQ1"] * dt,
+            SPHUM: state[SPHUM] + tendency["dQ2"] * dt,
+            TEMP: state[TEMP] + tendency["dQ1"] * dt,
         }
-    return updated, {key: tend[key] for key in tend}
+    return updated
 
 
 args = runtime.get_config()
@@ -146,19 +152,25 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
-        preds, diags = update(
-            MODEL, runtime.rename_keys(state, rename_CF_to_ML), dt=TIMESTEP
+        tendency = predict(MODEL, runtime.rename_keys(state, rename_CF_to_ML))
+
+        if do_only_diagnostic_ml:
+            updated_state = {}
+        else:
+            updated_state = apply(state, tendency, dt=TIMESTEP)
+
+        if rank == 0:
+            logger.debug("Setting Fortran State")
+        fv3gfs.set_state(
+            {
+                key: fv3util.Quantity.from_data_array(value)
+                for key, value in updated_state.items()
+            }
         )
 
-        if not do_only_diagnostic_ml:
-            if rank == 0:
-                logger.debug("Setting Fortran State")
-            preds = runtime.rename_keys(preds, rename_ML_to_CF)
-            fv3gfs.set_state(
-                {key: fv3util.Quantity.from_data_array(preds[key]) for key in preds}
-            )
-
-        diagnostics = compute_diagnostics(state, diags)
+        diagnostics = compute_diagnostics(state, tendency)
+        if do_only_diagnostic_ml:
+            rename_diagnostics(diagnostics)
 
         if i == 0:
             writers = runtime.init_writers(GROUP, comm, diagnostics)
