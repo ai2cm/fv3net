@@ -13,7 +13,8 @@ from fv3net.regression.loaders._nudged import (
     _get_path_for_nudging_timescale,
     NudgedTimestepMapper,
     NudgedStateCheckpoints,
-    MergeNudged
+    MergeNudged,
+    GroupByCheckpoint
 )
 
 NTIMES = 144
@@ -253,3 +254,36 @@ def test_NudgedStateCheckpoints(nudged_output_ds_dict):
     time_key = pd.to_datetime(single_item.time.values).strftime(TIME_FMT)
     item_key = ("after_physics", time_key)
     xr.testing.assert_equal(mapper[item_key], single_item)
+
+
+@pytest.fixture
+def checkpoint_mapping(general_nudge_output):
+
+    item = general_nudge_output.isel(time=slice(0, 1))
+    checkpoints = {
+        ("before_dynamics", "20160801.001500"): item,
+        ("after_dynamics", "20160801.001500"): item,
+        ("after_dynamics", "20160801.003000"): item,
+    }
+
+    return checkpoints
+
+
+def test_GroupByCheckpoint(checkpoint_mapping):
+
+    test_groupby = GroupByCheckpoint(checkpoint_mapping)
+    assert len(test_groupby) == 2
+    assert list(test_groupby.keys()) == ["20160801.001500", "20160801.003000"]
+
+
+@pytest.mark.parametrize(
+    "time_key, expected_size",
+    [("20160801.001500", 2), ("20160801.003000", 1)]
+)
+def test_GroupByCheckpoint_items(time_key, expected_size, checkpoint_mapping):
+    
+    test_groupby = GroupByCheckpoint(checkpoint_mapping)
+    
+    item = test_groupby[time_key]
+    assert "checkpoint" in item.dims
+    assert item.sizes["checkpoint"] == expected_size

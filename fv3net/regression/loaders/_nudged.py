@@ -6,7 +6,8 @@ import numpy as np
 import zarr.storage as zstore
 from typing import Sequence, Iterable, Mapping, Union, Tuple
 from functools import partial
-from itertools import product, groupby
+from itertools import product
+from toolz import groupby
 from pathlib import Path
 
 import vcm
@@ -292,7 +293,7 @@ class GroupByCheckpoint:
             return time
 
         self._checkpoint_data = checkpoint_data
-        self._time_lookup = groupby(self._checkpoint_data.keys(), key=keyfn)
+        self._time_lookup = groupby(keyfn, self._checkpoint_data.keys())
 
     def keys(self):
         return self._time_lookup.keys()
