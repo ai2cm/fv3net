@@ -2,6 +2,7 @@ import pytest
 import os
 import xarray as xr
 import pandas as pd
+from itertools import chain
 
 import synth
 
@@ -15,31 +16,47 @@ from fv3net.regression.loaders._nudged import (
     MergeNudged
 )
 
+NTIMES = 144
 
 @pytest.fixture
-def nudged_output_ds_dict(datadir_session):
+def nudge_tendencies(datadir_session):
 
-    nudged_datasets = {}
-    ntimes = 144
+    tendency_data_schema = datadir_session.join("nudging_tendencies.json")
+    with open(tendency_data_schema) as f:
+        schema = synth.load(f)
+    nudging_tend = synth.generate(schema)
+    nudging_tend = _int64_to_datetime(nudging_tend)
 
-    nudging_tendency_path = datadir_session.join("nudging_tendencies.json")
-    with open(nudging_tendency_path) as f:
-        nudging_schema = synth.load(f)
-    nudging_tend_ds = synth.generate(nudging_schema)
-    nudging_tend_ds = _int64_to_datetime(nudging_tend_ds)
-    nudged_datasets["nudging_tendencies"] = nudging_tend_ds
+    return nudging_tend.isel({TIME_NAME: slice(0, NTIMES)})
 
-    # Create identically schema'd datasets to mimic before-after fv3 states
-    fv3_state_schema_path = datadir_session.join(f"after_physics.json")
 
-    with open(str(fv3_state_schema_path)) as f:
-        fv3_state_schema = synth.load(f)
+@pytest.fixture
+def general_nudge_schema(datadir_session):
+    nudge_data_schema = datadir_session.join(f"after_physics.json")
+    with open(nudge_data_schema) as f:
+        schema = synth.load(f)
 
+    return schema
+
+
+@pytest.fixture
+def general_nudge_output(general_nudge_schema):
+
+    data = synth.generate(general_nudge_schema)
+    data = _int64_to_datetime(data)
+
+    return data.isel({TIME_NAME: slice(0, NTIMES)})
+
+
+@pytest.fixture
+def nudged_output_ds_dict(nudge_tendencies, general_nudge_schema):
+
+    nudged_datasets = {"nudging_tendencies": nudge_tendencies}
     datasets_sources = ["before_dynamics", "after_dynamics", "after_physics"]
     for source in datasets_sources:
-        ds = synth.generate(fv3_state_schema)
+        ds = synth.generate(general_nudge_schema)
         ds = _int64_to_datetime(ds)
-        nudged_datasets[source] = ds.isel({TIME_NAME: slice(0, ntimes)})
+        nudged_datasets[source] = ds.isel({TIME_NAME: slice(0, NTIMES)})
 
     return nudged_datasets
 
@@ -51,16 +68,9 @@ def _int64_to_datetime(ds):
 
 
 @pytest.fixture
-def nudged_tstep_mapper(nudged_output_ds_dict):
+def nudged_tstep_mapper(nudge_tendencies, general_nudge_output):
 
-    to_combine = ["nudging_tendencies", "after_physics"]
-    for i, source in enumerate(to_combine):
-        ds = nudged_output_ds_dict[source]
-
-        if i == 0:
-            combined_ds = ds
-        else:
-            combined_ds = combined_ds.merge(ds, join="inner")
+    combined_ds = xr.merge([nudge_tendencies, general_nudge_output], join="inner")
 
     timestep_mapper = NudgedTimestepMapper(combined_ds)
 
@@ -151,8 +161,85 @@ def test_NudgedTimestepMapper(nudged_output_ds_dict):
     xr.testing.assert_equal(item, mapper[time_key])
 
 
-def test_MergeNudged_mapper_to_datasets(nudged_output_ds_dict):
+@pytest.fixture(params=[
+    "dataset_only",
+    "nudged_tstep_mapper_only",
+    "mixed",
+    "empty",
+])
+def mapper_to_ds_case(request, nudge_tendencies, general_nudge_output):
 
+    if request.param == "dataset_only":
+        sources = (nudge_tendencies, general_nudge_output)
+    elif request.param == "nudged_tstep_mapper_only":
+        sources = (
+            NudgedTimestepMapper(nudge_tendencies),
+            NudgedTimestepMapper(general_nudge_output),
+        )
+    elif request.param == "mixed":
+        sources = (nudge_tendencies, NudgedTimestepMapper(general_nudge_output))
+    elif request.param == "empty":
+        sources = ()
+
+    return sources
+
+def test_MergeNudged__mapper_to_datasets(mapper_to_ds_case):
+
+    datasets = MergeNudged._mapper_to_datasets(mapper_to_ds_case)
+    for source in datasets:
+        assert isinstance(source, xr.Dataset)
+
+
+@pytest.fixture(params=["empty", "single", "no_overlap"])
+def overlap_check_pass_datasets(request, nudge_tendencies, general_nudge_output):
+
+    if request.param == "empty":
+        sources = ()
+    elif request.param == "single":
+        sources = (nudge_tendencies,)
+    elif request.param == "no_overlap":
+        sources = (nudge_tendencies, general_nudge_output)
+
+    return sources
+
+
+def test_MergeNudged__check_dvar_overlap(overlap_check_pass_datasets):
+
+    MergeNudged._check_dvar_overlap(*overlap_check_pass_datasets)
+
+
+@pytest.fixture(params=["single_overlap", "all_overlap"])
+def overlap_check_fail_datasets(request, nudge_tendencies, general_nudge_output):
+
+    if request.param == "single_overlap":
+        sources = (nudge_tendencies, general_nudge_output, general_nudge_output)
+    elif request.param == "all_overlap":
+        sources = (nudge_tendencies, nudge_tendencies, nudge_tendencies)
+
+    return sources
+
+
+def test_MergeNudged(nudge_tendencies, general_nudge_output):
+
+    merged = MergeNudged(
+        nudge_tendencies,
+        NudgedTimestepMapper(general_nudge_output)
+    )
+
+    assert len(merged) == NTIMES
+
+    item = merged[merged.keys()[0]]
+    source_vars = chain(
+        nudge_tendencies.data_vars.keys(),
+        general_nudge_output.data_vars.keys(),
+    )
+    for var in source_vars:
+        assert var in item
+
+
+def test_MergeNudged__check_dvar_overlap_fail(overlap_check_fail_datasets):
+    with pytest.raises(ValueError):
+        MergeNudged._check_dvar_overlap(*overlap_check_fail_datasets)
 
 
 def test_NudgedMapperAllSources(nudged_output_ds_dict):
@@ -166,33 +253,3 @@ def test_NudgedMapperAllSources(nudged_output_ds_dict):
     time_key = pd.to_datetime(single_item.time.values).strftime(TIME_FMT)
     item_key = ("after_physics", time_key)
     xr.testing.assert_equal(mapper[item_key], single_item)
-
-
-def test_NudgedMapperAllSources_merge_sources(nudged_output_ds_dict):
-
-    mapper = NudgedMapperAllSources(nudged_output_ds_dict)
-    merged_tstep_mapper = mapper.merge_sources(["after_physics", "nudging_tendencies"])
-
-    after_phys = mapper._nudged_mappers["after_physics"]
-    nudge_tend = mapper._nudged_mappers["nudging_tendencies"]
-    assert len(merged_tstep_mapper) == min(len(after_phys), len(nudge_tend))
-
-    after_phys_item = after_phys[after_phys.keys()[0]]
-    nudge_tend_item = nudge_tend[nudge_tend.keys()[0]]
-    merged_item = merged_tstep_mapper[merged_tstep_mapper.keys()[0]]
-
-    source_vars = list(after_phys_item.data_vars.keys())
-    source_vars.extend(list(nudge_tend_item.data_vars.keys()))
-    for var in source_vars:
-        assert var in merged_item
-
-
-def test_NudgedMapperAllSources_fail_merge(nudged_output_ds_dict):
-
-    mapper = NudgedMapperAllSources(nudged_output_ds_dict)
-
-    with pytest.raises(ValueError):
-        mapper.merge_sources(["after_physics", "before_dynamics"])
-
-    with pytest.raises(ValueError):
-        mapper.merge_sources(["nudging_tendencies", "after_physics", "before_dynamics"])

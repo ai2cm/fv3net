@@ -200,18 +200,17 @@ class FV3OutMapper:
 
 
 class NudgedTimestepMapper(FV3OutMapper):
-    def __init__(self, ds, time_dim_name=TIME_NAME):
+    def __init__(self, ds):
         self.ds = ds
-        self.time_dim = time_dim_name
 
     def __getitem__(self, key: str) -> xr.Dataset:
         dt64 = np.datetime64(vcm.parse_datetime_from_str(key))
-        return self.ds.sel({self.time_dim: dt64})
+        return self.ds.sel({TIME_NAME: dt64})
 
     def keys(self):
         return [
             time.strftime(TIME_FMT)
-            for time in pd.to_datetime(self.ds[self.time_dim].values)
+            for time in pd.to_datetime(self.ds[TIME_NAME].values)
         ]
 
 
@@ -256,18 +255,16 @@ XarrayMapping = Mapping[str, xr.Dataset]
 MergeInputs = Union[SourceMapping]
 
 
-class MergeNudged(FV3OutMapper):
+class MergeNudged(NudgedTimestepMapper):
 
     def __init__(
         self,
         *nudged_sources: Sequence[Union[NudgedTimestepMapper, xr.Dataset]]
-    ) -> NudgedTimestepMapper:
+    ):
 
         nudged_sources = self._mapper_to_datasets(nudged_sources)
         self._check_dvar_overlap(*nudged_sources)
-        combined_ds = xr.merge(nudged_sources, join="inner")
-
-        return NudgedTimestepMapper(combined_ds)
+        self.ds = xr.merge(nudged_sources, join="inner")
 
     @staticmethod
     def _mapper_to_datasets(data_sources) -> Mapping[str, xr.Dataset]:
