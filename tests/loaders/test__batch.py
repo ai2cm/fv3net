@@ -22,8 +22,9 @@ class MockDatasetMapper:
         self._keys = [f"2020050{i}.000000" for i in range(4)]
 
     def __getitem__(self, key: str) -> xr.Dataset:
-        return synth.generate(self._schema)
-        return self.mapping[key]
+        ds = synth.generate(self._schema)
+        ds.coords["initial_time"] = [key]
+        return ds
 
     def keys(self):
         return self._keys
