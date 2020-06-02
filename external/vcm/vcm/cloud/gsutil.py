@@ -1,7 +1,7 @@
 import logging
 import subprocess
 
-from dask import delayed  # type: ignore
+from dask import delayed
 
 logger = logging.getLogger("gsutil")
 

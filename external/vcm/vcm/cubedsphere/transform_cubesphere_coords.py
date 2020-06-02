@@ -1,5 +1,5 @@
 from typing import Tuple
-import numpy as np  # type: ignore
+import numpy as np
 import xarray as xr
 from vcm.cubedsphere.coarsen import shift_edge_var_to_center
 from vcm.cubedsphere.constants import (

@@ -4,11 +4,11 @@ import logging
 import os
 from itertools import product
 
-import apache_beam as beam  # type: ignore
-import fsspec  # type: ignore
+import apache_beam as beam
+import fsspec
 import xarray as xr
-from apache_beam.options.pipeline_options import PipelineOptions  # type: ignore
-from apache_beam.utils import retry  # type: ignore
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.utils import retry
 
 import vcm
 from fv3net.pipelines.common import list_timesteps

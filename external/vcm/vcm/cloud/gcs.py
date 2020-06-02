@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Iterable, Tuple
 from urllib import parse
 
-import dask.bag as db  # type: ignore
-from google.cloud.storage import Blob, Bucket, Client  # type: ignore
+import dask.bag as db
+from google.cloud.storage import Blob, Bucket, Client
 
 logger = logging.getLogger(__name__)
 

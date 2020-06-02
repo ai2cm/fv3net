@@ -1,5 +1,5 @@
-import dask  # type: ignore
-import numpy as np  # type: ignore
+import dask
+import numpy as np
 import xarray as xr
 
 from typing import Tuple, Union
@@ -20,7 +20,7 @@ from ..regrid import regrid_to_shared_coords
 from .xgcm import create_fv3_grid
 
 try:
-    import mappm  # type: ignore
+    import mappm
 except ImportError:
     _mappm_installed = False
 else:

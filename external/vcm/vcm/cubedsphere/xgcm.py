@@ -1,5 +1,5 @@
 import xarray as xr
-import xgcm  # type: ignore
+import xgcm
 from . import constants
 
 # none of the connecitons are "reversed" in the xgcm parlance
