@@ -214,47 +214,6 @@ class NudgedTimestepMapper(FV3OutMapper):
         ]
 
 
-class NudgedMapperAllSources(FV3OutMapper):
-    """
-    Get all nudged output zarr datasets.
-    Accessible by, e.g., mapper[("before_dynamics", "20160801.001500")]
-    Uses NudgedTimestepMappers for individual sources.
-    """
-
-    def __init__(self, ds_map: Mapping[str, xr.Dataset]):
-
-        self.nudged_mappers = {
-            key: NudgedTimestepMapper(ds) for key, ds in ds_map.items()
-        }
-
-    def __getitem__(self, key):
-        return self.nudged_mappers[key[0]][key[1]]
-
-    def keys(self):
-        keys = []
-        for key, mapper in self.nudged_mappers.items():
-            timestep_keys = mapper.keys()
-            keys.extend(product((key,), timestep_keys))
-        return keys
-
-    def merge_sources(self, source_names: Iterable[str]) -> NudgedTimestepMapper:
-        """
-        Combine nudging data sources into single dataset
-        """
-
-    # TODO: group by operations
-    #   groupby source is easy since we could just return the self._nudge_ds mapping
-    #   groupby time needs merged ds for all timesteps
-
-
-Source = str
-Time = str
-K = Tuple[Source, Time]
-SourceMapping = Mapping[str, NudgedTimestepMapper]
-XarrayMapping = Mapping[str, xr.Dataset]
-MergeInputs = Union[SourceMapping]
-
-
 class MergeNudged(NudgedTimestepMapper):
 
     def __init__(
@@ -292,6 +251,30 @@ class MergeNudged(NudgedTimestepMapper):
                 "Could not combine requested nudged data sources due to "
                 f"overlapping variables {overlap}"
             )
+
+
+class NudgedMapperAllSources(FV3OutMapper):
+    """
+    Get all nudged output zarr datasets.
+    Accessible by, e.g., mapper[("before_dynamics", "20160801.001500")]
+    Uses NudgedTimestepMappers for individual sources.
+    """
+
+    def __init__(self, ds_map: Mapping[str, xr.Dataset]):
+
+        self.nudged_mappers = {
+            key: NudgedTimestepMapper(ds) for key, ds in ds_map.items()
+        }
+
+    def __getitem__(self, key):
+        return self.nudged_mappers[key[0]][key[1]]
+
+    def keys(self):
+        keys = []
+        for key, mapper in self.nudged_mappers.items():
+            timestep_keys = mapper.keys()
+            keys.extend(product((key,), timestep_keys))
+        return keys
 
 
 def open_nudged_mapper(
