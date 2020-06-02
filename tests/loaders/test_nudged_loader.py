@@ -20,10 +20,10 @@ from fv3net.regression.loaders._nudged import (
 NTIMES = 144
 
 
-@pytest.fixture
-def nudge_tendencies(datadir_session):
+@pytest.fixture(scope="module")
+def nudge_tendencies(datadir_module):
 
-    tendency_data_schema = datadir_session.join("nudging_tendencies.json")
+    tendency_data_schema = datadir_module.join("nudging_tendencies.json")
     with open(tendency_data_schema) as f:
         schema = synth.load(f)
     nudging_tend = synth.generate(schema)
@@ -32,16 +32,16 @@ def nudge_tendencies(datadir_session):
     return nudging_tend.isel({TIME_NAME: slice(0, NTIMES)})
 
 
-@pytest.fixture
-def general_nudge_schema(datadir_session):
-    nudge_data_schema = datadir_session.join(f"after_physics.json")
+@pytest.fixture(scope="module")
+def general_nudge_schema(datadir_module):
+    nudge_data_schema = datadir_module.join(f"after_physics.json")
     with open(nudge_data_schema) as f:
         schema = synth.load(f)
 
     return schema
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def general_nudge_output(general_nudge_schema):
 
     data = synth.generate(general_nudge_schema)
@@ -50,7 +50,7 @@ def general_nudge_output(general_nudge_schema):
     return data.isel({TIME_NAME: slice(0, NTIMES)})
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def nudged_checkpoints(general_nudge_schema):
 
     nudged_datasets = {}
@@ -69,7 +69,7 @@ def _int64_to_datetime(ds):
     return ds.assign_coords({TIME_NAME: time})
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def nudged_tstep_mapper(nudge_tendencies, general_nudge_output):
 
     combined_ds = xr.merge([nudge_tendencies, general_nudge_output], join="inner")
@@ -79,7 +79,7 @@ def nudged_tstep_mapper(nudge_tendencies, general_nudge_output):
     return timestep_mapper
 
 
-# Note: datadir_session fixture in conftest.py
+# Note: datadir_module fixture in conftest.py
 @pytest.mark.regression
 def test_load_nudging_batches(nudged_tstep_mapper):
 

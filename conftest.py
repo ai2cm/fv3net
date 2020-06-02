@@ -29,9 +29,9 @@ def datadir(tmpdir, request):
     return tmpdir
 
 
-@pytest.fixture
-def datadir_session(tmpdir_factory, request):
-    """Copy of above but attempt at session scoping"""
+@pytest.fixture(scope="module")
+def datadir_module(tmpdir_factory, request):
+    """Copy of above but attempt at module scoping"""
     filename = request.module.__file__
     test_dir, _ = os.path.splitext(filename)
 
