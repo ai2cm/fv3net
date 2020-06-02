@@ -46,7 +46,7 @@ def load_nudging_batches(
         n_times=n_times,
     )
 
-    return _load_nudging_batch(
+    return _load_nudging_batches(
         tstep_mapper,
         data_vars,
         num_times_in_batch=num_times_in_batch,
