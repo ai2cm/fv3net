@@ -4,7 +4,7 @@ import logging
 import os
 import yaml
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Mapping, Any
 
 from .. import loaders
 from ..loaders._sequences import FunctionOutputSequence
@@ -27,7 +27,6 @@ class ModelTrainingConfig:
     hyperparameters: dict
     input_variables: Iterable[str]
     output_variables: Iterable[str]
-    mapping_function: str
     batch_kwargs: dict
 
 
@@ -60,10 +59,10 @@ def load_data_sequence(
         FunctionOutputSequence: wrapper object that is effectively a
         Sequence[xr.Dataset] when iterated over in training
     """
-    mapping_function = getattr(loaders, train_config.mapping_function)
-    data_mapping = mapping_function(data_path)
+    #mapping_function = getattr(loaders, train_config.mapping_function)
+    #data_mapping = mapping_function(data_path)
     ds_batches = mapper_to_batches(
-        data_mapping,
+        data_path,
         list(train_config.input_variables) + list(train_config.output_variables),
         **train_config.batch_kwargs,
     )
