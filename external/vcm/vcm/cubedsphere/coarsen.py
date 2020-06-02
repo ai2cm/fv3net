@@ -17,6 +17,9 @@ SUBTILE_FILE_PATTERN = "{prefix}.tile{tile:d}.nc.{subtile:04d}"
 STAGGERED_DIMS = [COORD_X_OUTER, COORD_Y_OUTER]
 
 
+CoordFunc = Callable[[Any, Union[int, Tuple[int]]], Any]
+
+
 def rename_centered_xy_coords(cell_centered_da):
     """
     Args:
@@ -79,7 +82,9 @@ def coarsen_coords(
     return result
 
 
-def coarsen_coords_coord_func(coordinate: np.array, axis: Union[int, Tuple[int]] = -1):
+def coarsen_coords_coord_func(
+    coordinate: np.ndarray, axis: Union[int, Tuple[int]] = -1
+) -> np.ndarray:
     """xarray coarsen coord_func version of coarsen_coords.
 
     Note that xarray requires an axis argument for this to work, but it is not
@@ -138,9 +143,7 @@ def weighted_block_average(
     coarsening_factor: int,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_2",
-    coord_func: Union[
-        str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_coords_coord_func,
+    coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset through weighted block averaging.
 
@@ -162,9 +165,9 @@ def weighted_block_average(
         xr.Dataset or xr.DataArray.
     """
     coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-    result = (obj * weights).coarsen(
-        coarsen_kwargs, coord_func=coord_func
-    ).sum() / weights.coarsen(coarsen_kwargs, coord_func=coord_func).sum()
+    numerator = (obj * weights).coarsen(coarsen_kwargs, coord_func=coord_func).sum()  # type: ignore # noqa
+    denominator = weights.coarsen(coarsen_kwargs, coord_func=coord_func).sum()  # type: ignore # noqa
+    result = numerator / denominator
 
     if isinstance(obj, xr.DataArray):
         return result.rename(obj.name)
@@ -179,9 +182,7 @@ def edge_weighted_block_average(
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     edge: str = "x",
-    coord_func: Union[
-        str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_coords_coord_func,
+    coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset along a block edge.
 
@@ -213,9 +214,9 @@ def edge_weighted_block_average(
         raise ValueError(f"'edge' most be either 'x' or 'y'; got {edge}.")
 
     coarsen_kwargs = {coarsen_dim: coarsening_factor}
-    coarsened = (spacing * obj).coarsen(
-        coarsen_kwargs, coord_func=coord_func
-    ).sum() / spacing.coarsen(coarsen_kwargs, coord_func=coord_func).sum()
+    numerator = (spacing * obj).coarsen(coarsen_kwargs, coord_func=coord_func).sum()  # type: ignore # noqa
+    denominator = spacing.coarsen(coarsen_kwargs, coord_func=coord_func).sum()  # type: ignore # noqa
+    coarsened = numerator / denominator
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
@@ -349,9 +350,7 @@ def _xarray_block_reduce_dataarray(
     block_sizes: Mapping[Hashable, int],
     reduction_function: Callable,
     cval: float = np.nan,
-    coord_func: Union[
-        str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_coords_coord_func,
+    coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
 ) -> xr.DataArray:
     """An xarray and dask compatible block_reduce function designed for
     DataArrays.
@@ -420,9 +419,7 @@ def xarray_block_reduce(
     block_sizes: Mapping[Hashable, int],
     reduction_function: Callable,
     cval: float = np.nan,
-    coord_func: Union[
-        str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_coords_coord_func,
+    coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """A generic block reduce function for xarray data structures.
 
@@ -479,9 +476,7 @@ def horizontal_block_reduce(
     reduction_function: Callable,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
-    coord_func: Union[
-        str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_coords_coord_func,
+    coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """A generic horizontal block reduce function for xarray data structures.
 
@@ -517,9 +512,7 @@ def block_median(
     coarsening_factor: int,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
-    coord_func: Union[
-        str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_coords_coord_func,
+    coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by taking the median over blocks.
 
@@ -554,9 +547,7 @@ def block_edge_sum(
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     edge: str = "x",
-    coord_func: Union[
-        str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_coords_coord_func,
+    coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by summing along a block edge.
 
@@ -587,7 +578,7 @@ def block_edge_sum(
         raise ValueError(f"'edge' most be either 'x' or 'y'; got {edge}.")
 
     coarsen_kwargs = {coarsen_dim: coarsening_factor}
-    coarsened = obj.coarsen(coarsen_kwargs, coord_func=coord_func).sum()
+    coarsened = obj.coarsen(coarsen_kwargs, coord_func=coord_func).sum()  # type: ignore
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
@@ -668,9 +659,7 @@ def _block_mode(
     coarsening_factor: int,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
-    coord_func: Union[
-        str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_coords_coord_func,
+    coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
     nan_policy: str = "propagate",
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by taking the mode over blocks.
@@ -704,7 +693,10 @@ def _block_mode(
     )
 
 
-CUSTOM_COARSENING_FUNCTIONS = {"median": block_median, "mode": _block_mode}
+CUSTOM_COARSENING_FUNCTIONS: Dict[str, Callable[..., Any]] = {
+    "median": block_median,
+    "mode": _block_mode,
+}
 
 
 def block_coarsen(
@@ -713,9 +705,7 @@ def block_coarsen(
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     method: str = "sum",
-    coord_func: Union[
-        str, Mapping[Hashable, Union[Callable, str]]
-    ] = coarsen_coords_coord_func,
+    coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
     func_kwargs: Optional[Dict] = None,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by performing an operation over blocks.
@@ -753,7 +743,7 @@ def block_coarsen(
         )
     else:
         coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-        coarsen_object = obj.coarsen(coarsen_kwargs, coord_func=coord_func)
+        coarsen_object = obj.coarsen(coarsen_kwargs, coord_func=coord_func)  # type: ignore # noqa
         return getattr(coarsen_object, method)()
 
 
@@ -849,7 +839,7 @@ def block_upsample_like(
         upsampling_factor = reference_da.sizes[x_dim] // da.sizes[x_dim]
     result = block_upsample(da, upsampling_factor, [x_dim, y_dim])
     if isinstance(da.data, dask_array.Array):
-        result = result.chunk(reference_da.transpose(*result.dims).chunks)
+        result = result.chunk(reference_da.transpose(*result.dims).chunks)  # type: ignore # noqa
     return result.assign_coords(
         {x_dim: reference_da[x_dim], y_dim: reference_da[y_dim]}
     )

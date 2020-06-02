@@ -43,6 +43,11 @@ jobs:
           source activate fv3net
           pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
       - run:
+          name: Type Checks
+          command: |
+            source activate fv3net
+            make typecheck
+      - run:
           name: Regression Tests
           command: |
             source activate fv3net
