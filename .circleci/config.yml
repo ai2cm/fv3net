@@ -143,10 +143,8 @@ jobs:
           name: Submit integration tests
           # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was 
           # during the build job above
-          # $CIRCLE_SHA1
           command: |
-            kubectl config view
-            make run_integration_tests VERSION=31cf185c96e468c62d7f739bba48440257cf183c
+            make run_integration_tests VERSION=$CIRCLE_SHA1
       - run:
           name: Firewall rule deletion
           when: always
@@ -159,19 +157,19 @@ workflows:
   test_and_lint:
     jobs:
       - lint
-      # - pytest_default
-      # - hold:
-      #     type: approval
-      #     filters:
-      #       branches:
-      #         ignore:
-      #           - master
-      # - build_default:
-      #     requires:
-      #     - hold
+      - pytest_default
+      - hold:
+          type: approval
+          filters:
+            branches:
+              ignore:
+                - master
+      - build_default:
+          requires:
+          - hold
       - integration_tests:
           requires:
-            - lint
+            - build_default
   build_and_push:
     jobs:
       - build_default:
