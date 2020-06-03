@@ -119,6 +119,9 @@ PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 check_file_size:
 	./tests/check_for_large_files.sh
 
+typecheck:
+	./check_types.sh
+
 lint: check_file_size
 	black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
 	flake8 $(PYTHON_FILES)
