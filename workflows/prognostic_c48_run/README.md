@@ -44,22 +44,32 @@ Prognostic Run in End-to-End Workflow
 The prognostic run is included in the end-to-end workflow orchestration by `orchestrate_submit_job.py`.  This script takes command-line arguments:
 
 ```
-usage: orchestrate_submit_job.py [-h]
-                                 model_url initial_condition_url output_url
-                                 prog_config_yml ic_timestep docker_image
+usage: orchestrate_submit_job.py [-h] [--model_url MODEL_URL]
+                                 [--prog_config_yml PROG_CONFIG_YML]
+                                 [--diagnostic_ml] [-d]
+                                 initial_condition_url ic_timestep
+                                 docker_image output_url
 
 positional arguments:
-  model_url             Remote url to a trained sklearn model.
   initial_condition_url
                         Remote url to directory holding timesteps with model
                         initial conditions.
-  output_url            Remote storage location for prognostic run output.
-  prog_config_yml       Path to a config update YAML file specifying the
-                        changes (e.g., diag_table, runtime, ...) from the one-
-                        step runs for the prognostic run.
   ic_timestep           Time step to grab from the initial conditions url.
   docker_image          Docker image to pull for the prognostic run kubernetes
                         pod.
+  output_url            Remote storage location for prognostic run output.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --model_url MODEL_URL
+                        Remote url to a trained sklearn model.
+  --prog_config_yml PROG_CONFIG_YML
+                        Path to a config update YAML file specifying the
+                        changes from the basefv3config (e.g. diag_table,
+                        runtime, ...) for the prognostic run.
+  --diagnostic_ml       Compute and save ML predictions but do not apply them
+                        to model state.
+  -d, --detach          Do not wait for the k8s job to complete.
 ```
 
 The prognostic run will grab the fv3config.yml file residing at the `initial_condition_url` and update it with any values specified in `prog_config_yml`, which can also include a `kubernetes`-key section to pass pod resource requests to `fv3run` (example shown below).  The prognostic-run ML configuration section "scikit_learn" is added (or updated if it already exists) to use the ML model specified as a command-line argument to `orchestrate_submit_job.py`.
