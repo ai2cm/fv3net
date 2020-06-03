@@ -10,7 +10,7 @@ logging.getLogger(__name__)
 
 def reduce_to_diagnostic(
     ds_batches: Sequence[xr.Dataset],
-    static_variables: xr.Dataset,
+    grid: xr.Dataset,
     domains: Sequence[str] = SURFACE_TYPE_ENUMERATION.keys(),
     primary_vars: Sequence[str] = ["dQ1", "pQ1", "dQ2", "pQ2"],
 ) -> xr.Dataset:
@@ -18,7 +18,7 @@ def reduce_to_diagnostic(
     
     Args:
         ds_batches: loader sequence of xarray datasets with relevant variables
-        static_variables: xarray dataset containing grid variables
+        grid: xarray dataset containing grid variables
         (latb, lonb, lat, lon, area, land_sea_mask)
         domains: sequence of area domains over which to produce conditional
             averages; defaults to ['sea', 'land', 'seaice']
@@ -36,19 +36,17 @@ def reduce_to_diagnostic(
     ds_time_averaged = _time_average(ds_list).drop(labels=VARNAMES["delp_var"])
     ds_time_averaged = _drop_uninformative_coords(ds_time_averaged)
 
-    static_variables = _drop_uninformative_coords(static_variables)
-    surface_type_array = snap_mask_to_type(
-        static_variables[VARNAMES["surface_type_var"]]
-    )
+    grid = _drop_uninformative_coords(grid)
+    surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type_var"]])
 
     conditional_datasets = {}
     for surface_type in domains:
-        varname = f"ds_{surface_type}_average"
+        varname = f"{surface_type}_average"
         conditional_datasets[varname] = _conditional_average(
             safe.get_variables(ds_time_averaged, primary_vars),
             surface_type_array,
             surface_type,
-            static_variables["area"],
+            grid["area"],
         )
 
     domain_ds = xr.concat(

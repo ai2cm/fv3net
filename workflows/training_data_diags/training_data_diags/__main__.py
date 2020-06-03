@@ -1,12 +1,17 @@
 from . import utils
 from .config import VARNAMES
 from fv3net.regression import loaders
+from vcm.cloud import get_fs
+import fsspec
+import xarray as xr
+from tempfile import NamedTemporaryFile
 import intake
 import yaml
 import argparse
-from typing import Hashable, Mapping
-import logging
+from typing import Mapping
 import sys
+import os
+import logging
 
 out_hdlr = logging.StreamHandler(sys.stdout)
 out_hdlr.setFormatter(
@@ -16,9 +21,8 @@ out_hdlr.setLevel(logging.INFO)
 logging.basicConfig(handlers=[out_hdlr], level=logging.INFO)
 logger = logging.getLogger("training_data_diags")
 
-GRID_VARS = ["latb", "lonb", "lat", "lon", "area", "land_sea_mask"]
-
 DOMAINS = ["land", "sea", "global"]
+OUTPUT_NC_NAME = "diagnostics.nc"
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -32,11 +36,16 @@ def _create_arg_parser() -> argparse.ArgumentParser:
             "specifications."
         ),
     )
+    parser.add_argument(
+        "output_path",
+        type=str,
+        help=("Local or remote path where diagnostic dataset will be written."),
+    )
 
     return parser.parse_args()
 
 
-def _open_config(config_path: Hashable) -> Mapping:
+def _open_config(config_path: str) -> Mapping:
 
     with open(config_path, "r") as f:
         try:
@@ -45,6 +54,13 @@ def _open_config(config_path: Hashable) -> Mapping:
             raise ValueError(f"Bad yaml config: {exc}")
 
     return datasets_config
+
+
+def _write_nc(ds: xr.Dataset, output_path: str):
+    output_file = os.path.join(output_path, OUTPUT_NC_NAME)
+    with NamedTemporaryFile() as tmpfile:
+        ds.to_netcdf(tmpfile.name)
+        get_fs(output_path).put(tmpfile.name, output_file)
 
 
 # start routine
@@ -73,17 +89,27 @@ for dataset_name, dataset_config in datasets_config.items():
         **dataset_config["batch_kwargs"],
     )
     if dataset_name == "one_step_tendencies":
-        # cache the land_sea_mask from the one-steps since this is missing
-        # drom the fine-res budget ds
-        grid = grid.assign(
-            {
-                VARNAMES["surface_type_var"]: (
-                    ds_batches[0][VARNAMES["surface_type_var"]].drop(
-                        labels=VARNAMES["time_dim"]
-                    )
-                )
-            }
+        # cache the land_sea_mask from the one-step data since that variable
+        # is missing from the fine-res budget and grid datasets
+        surface_type = (
+            ds_batches[0][VARNAMES["surface_type_var"]]
+            .squeeze()
+            .drop(labels=VARNAMES["time_dim"])
         )
+        grid = grid.assign({VARNAMES["surface_type_var"]: surface_type})
     ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
+    if dataset_name == "one_step_tendencies":
+        ds_diagnostic = ds_diagnostic.drop(VARNAMES["surface_type_var"])
     diagnostic_datasets[dataset_name] = ds_diagnostic
     logger.info(f"Finished processing dataset {dataset_name}.")
+
+diagnostics_all = xr.concat(
+    [
+        dataset.expand_dims({"data_source": [dataset_name]})
+        for dataset_name, dataset in diagnostic_datasets.items()
+    ],
+    dim="data_source",
+).load()
+print(diagnostics_all)
+
+_write_nc(diagnostics_all, args.output_path)
