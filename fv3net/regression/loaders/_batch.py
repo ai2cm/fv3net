@@ -1,21 +1,23 @@
 import functools
 import logging
-import numpy as np
 from numpy.random import RandomState
-from typing import Iterable, Sequence, Mapping
+from typing import Iterable, Sequence, Mapping, Any
 import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
 from ._transform import stack_dropnan_shuffle
 from .constants import TIME_NAME
+from fv3net.regression import loaders
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-def mapper_to_batches(
-    data_mapping: Mapping[str, xr.Dataset],
+def batches_from_mapper(
+    data_path: str,
     variable_names: Iterable[str],
+    mapping_func_name: str,
+    mapping_kwargs: Mapping[str, Any] = None,
     timesteps_per_batch: int = 1,
     num_batches: int = None,
     random_seed: int = 0,
@@ -44,7 +46,58 @@ def mapper_to_batches(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
-    random_state = np.random.RandomState(random_seed)
+    data_mapping = _create_mapper(data_path, mapping_func_name, mapping_kwargs)
+    batches = _mapper_to_batches(
+        data_mapping,
+        variable_names,
+        timesteps_per_batch,
+        num_batches,
+        random_seed,
+        init_time_dim_name,
+        rename_variables,
+    )
+    return batches
+
+
+def _create_mapper(
+    data_path, mapping_func_name: str, mapping_kwargs: Mapping[str, Any]
+):
+    mapping_func = getattr(loaders, mapping_func_name)
+    mapping_kwargs = mapping_kwargs or {}
+    return mapping_func(data_path, **mapping_kwargs)
+
+
+def _mapper_to_batches(
+    data_mapping: Mapping[str, xr.Dataset],
+    variable_names: Iterable[str],
+    timesteps_per_batch: int = 1,
+    num_batches: int = None,
+    random_seed: int = 0,
+    init_time_dim_name: str = "initial_time",
+    rename_variables: Mapping[str, str] = None,
+) -> FunctionOutputSequence:
+    """ The function returns a FunctionOutputSequence that is
+    later iterated over in ..sklearn.train. When iterating over the
+    output FunctionOutputSequence, the loading and transformation of data
+    is applied to each batch, and it effectively becomes a Sequence[xr.Dataset].
+    Args:
+        data_mapping (Mapping[str, xr.Dataset]): Interface to select data for
+            given timestep keys.
+        variable_names (Iterable[str]): data variables to select
+        timesteps_per_batch (int, optional): Defaults to 1.
+        num_batches (int, optional): Defaults to None.
+        random_seed (int, optional): Defaults to 0.
+        init_time_dim_name (str, optional): Name of time dim in data source.
+            Defaults to "initial_time".
+        rename_variables (Mapping[str, str], optional): Defaults to None.
+    Raises:
+        TypeError: If no variable_names are provided to select the final datasets
+    Returns:
+        FunctionOutputSequence: When iterating over the returned object in
+        sklearn.train, the loading and transformation functions are applied
+        for each batch it is effectively used as a Sequence[xr.Dataset].
+    """
+    random_state = RandomState(random_seed)
     if rename_variables is None:
         rename_variables = {}
     if len(variable_names) == 0:

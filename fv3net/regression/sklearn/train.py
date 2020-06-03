@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import Iterable, Sequence
 
 from .. import loaders
-from ..loaders._batch import mapper_to_batches
 from .wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
@@ -27,8 +26,7 @@ class ModelTrainingConfig:
     hyperparameters: dict
     input_variables: Iterable[str]
     output_variables: Iterable[str]
-    mapping_function: str
-    batch_kwargs: dict
+    batch_loader: dict
 
 
 def load_model_training_config(config_path: str) -> ModelTrainingConfig:
@@ -57,14 +55,15 @@ def load_data_sequence(
         train_config: model training configuration
 
     Returns:
-        Sequence of xarray datasets
+        FunctionOutputSequence: wrapper object that is effectively a
+        Sequence[xr.Dataset] when iterated over in training
     """
-    mapping_function = getattr(loaders, train_config.mapping_function)
-    data_mapping = mapping_function(data_path)
-    ds_batches = mapper_to_batches(
-        data_mapping,
+    batch_function_name = train_config.batch_loader["batch_function"]
+    batch_function = getattr(loaders, batch_function_name)
+    ds_batches = batch_function(
+        data_path,
         list(train_config.input_variables) + list(train_config.output_variables),
-        **train_config.batch_kwargs,
+        **train_config.batch_loader["batch_kwargs"],
     )
     return ds_batches
 
