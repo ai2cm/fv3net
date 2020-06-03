@@ -13,6 +13,8 @@ latest
 * Refactor training data batch loading to use a common batch loader for all data sources. To load from a specific
  data source (e.g. one step, nudging), the function name `open_<data source type>` (selected from the available functions in loaders.__init__)
  should be specified in the training configuration YAML. Works for the currently existing mappers: one step and fine res.
+* Add a training_data_diags poetry package for processing training data from multiple sources into a set of diagnostic
+ variables, and create a BatchSequence class for loading data for either model training or diagnostics
 
 
 0.2.1 (2020-05-15)
