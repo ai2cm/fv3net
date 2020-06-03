@@ -1,6 +1,5 @@
 import functools
 import logging
-import numpy as np
 from numpy.random import RandomState
 from typing import Iterable, Sequence, Mapping, Any
 import xarray as xr
@@ -8,6 +7,7 @@ from vcm import safe
 from ._sequences import FunctionOutputSequence
 from ._transform import stack_dropnan_shuffle
 from .constants import TIME_NAME
+from fv3net.regression import loaders
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -54,14 +54,17 @@ def batches_from_mapper(
         num_batches,
         random_seed,
         init_time_dim_name,
-        rename_variables)
+        rename_variables,
+    )
     return batches
 
 
-def _create_mapper(data_path, mapping_func_name: str, mapping_kwargs: Mapping[str, Any]):
+def _create_mapper(
+    data_path, mapping_func_name: str, mapping_kwargs: Mapping[str, Any]
+):
     mapping_func = getattr(loaders, mapping_func_name)
     mapping_kwargs = mapping_kwargs or {}
-    return mapping_func(data_path, **mapping_kwargs)     
+    return mapping_func(data_path, **mapping_kwargs)
 
 
 def _mapper_to_batches(
@@ -94,6 +97,7 @@ def _mapper_to_batches(
         sklearn.train, the loading and transformation functions are applied
         for each batch it is effectively used as a Sequence[xr.Dataset].
     """
+    random_state = RandomState(random_seed)
     if rename_variables is None:
         rename_variables = {}
     if len(variable_names) == 0:
@@ -128,7 +132,7 @@ def _select_batch_timesteps(
         for batch_num in range(num_batches)
     )
     return timesteps_list_sequence
-    
+
 
 def _load_batch(
     timestep_mapper: Mapping[str, xr.Dataset],
