@@ -60,6 +60,11 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
     )
     parser.add_argument(
+        "--diagnostic_ml",
+        action="store_true",
+        help="Compute and save ML predictions but do not apply them to model state.",
+    )
+    parser.add_argument(
         "-d",
         "--detach",
         action="store_true",
@@ -107,6 +112,7 @@ if __name__ == "__main__":
         scikit_learn_config.update(
             model=os.path.join(args.model_url, MODEL_FILENAME),
             zarr_output="diags.zarr",
+            diagnostic_ml=args.diagnostic_ml,
         )
         model_config["scikit_learn"] = scikit_learn_config
         kube_opts["runfile"] = fv3kube.transfer_local_to_remote(RUNFILE, config_dir)
