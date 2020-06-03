@@ -2,7 +2,6 @@ from . import utils
 from .config import VARNAMES
 from fv3net.regression import loaders
 from vcm.cloud import get_fs
-import fsspec
 import xarray as xr
 from tempfile import NamedTemporaryFile
 import intake

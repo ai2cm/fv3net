@@ -104,12 +104,28 @@ air_temperature_microphysics = xr.DataArray(
 air_temperature_convergence = xr.DataArray(
     [-0.1], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
 )
+specific_humidity = xr.DataArray(
+    [1.0e-3], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg"}
+)
+specific_humidity_physics = xr.DataArray(
+    [1.0e-6], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg/s"}
+)
+specific_humidity_microphysics = xr.DataArray(
+    [2.0e-6], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg/s"}
+)
+specific_humidity_convergence = xr.DataArray(
+    [-1.0e-6], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg/s"}
+)
 budget_ds = xr.Dataset(
     {
         "air_temperature": air_temperature,
         "air_temperature_physics": air_temperature_physics,
         "air_temperature_microphysics": air_temperature_microphysics,
         "air_temperature_convergence": air_temperature_convergence,
+        "specific_humidity": specific_humidity,
+        "specific_humidity_physics": specific_humidity_physics,
+        "specific_humidity_microphysics": specific_humidity_microphysics,
+        "specific_humidity_convergence": specific_humidity_convergence,
     }
 )
 apparent_source_terms = ["physics", "microphysics", "convergence"]
@@ -261,3 +277,14 @@ def test__insert_budget_pQ(ds, variable_name, apparent_source_name, expected):
     )
     xr.testing.assert_allclose(output["pQ1"], expected["pQ1"])
     assert output["pQ1"].attrs == expected["pQ1"].attrs
+
+
+@pytest.fixture
+def fine_res_mapper():
+    return {"20160901.001500": budget_ds}
+
+
+def test_FineResolutionources(fine_res_mapper):
+    fine_res_source_mapper = FineResolutionSources(fine_res_mapper)
+    source_ds = fine_res_source_mapper["20160901.001500"]
+    source_ds[["dQ1", "dQ2", "pQ1", "pQ2"]]

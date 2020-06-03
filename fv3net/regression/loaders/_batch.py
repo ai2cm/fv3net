@@ -24,11 +24,10 @@ class BatchSequence:
         dataset_mapper: GenericMapper,
         files_per_batch: int,
         num_batches: int,
-        random_seed: int,
-        init_time_dim_name: str,
+        random_state: RandomState,
     ):
         self._dataset_mapper = dataset_mapper
-        self._generate_batches(files_per_batch, num_batches, random_seed)
+        self._select_batch_timesteps(files_per_batch, num_batches, random_state)
 
     def __getitem__(self, key: int) -> Sequence[xr.Dataset]:
         return [self._dataset_mapper[timestep] for timestep in self.batches[key]]
@@ -36,7 +35,7 @@ class BatchSequence:
     def indices(self):
         return list(range(len(self.batches)))
 
-    def _generate_batches(
+    def _select_batch_timesteps(
         self, timesteps_per_batch: int, num_batches: int, random_state: RandomState
     ) -> Sequence[Sequence[str]]:
 
@@ -55,8 +54,9 @@ class BatchSequence:
 
         self.batches = timesteps_list_sequence
 
+    @staticmethod
     def _validated_num_batches(
-        self, total_num_input_times, timesteps_per_batch, num_batches=None
+        total_num_input_times, timesteps_per_batch, num_batches=None
     ):
         """ check that the number of batches (if provided) and the number of
         timesteps per batch are reasonable given the number of zarrs in the
@@ -140,7 +140,7 @@ def mapper_to_batches(
         raise TypeError("At least one value must be given for variable_names")
 
     batch_sequence = BatchSequence(
-        data_mapping, timesteps_per_batch, num_batches, random_state, init_time_dim_name
+        data_mapping, timesteps_per_batch, num_batches, random_state
     )
     transform = functools.partial(
         stack_dropnan_shuffle, init_time_dim_name, random_state
@@ -158,31 +158,10 @@ def mapper_to_batches(
     )
 
 
-def _load_batch(
-    batch_mapper: Mapping[int, Sequence[xr.Dataset]],
-    data_vars: Iterable[str],
-    rename_variables: Mapping[str, str],
-    init_time_dim_name: str,
-    batch_index: int,
-) -> xr.Dataset:
-
-    batch = batch_mapper[batch_index]
-    ds = xr.concat(batch, init_time_dim_name)
-
-    # need to use standardized time dimension name
-    rename_variables[init_time_dim_name] = rename_variables.get(
-        init_time_dim_name, TIME_NAME
-    )
-    ds = ds.rename(rename_variables)
-    ds = safe.get_variables(ds, data_vars)
-
-    return ds
-
-
 def mapper_to_diagnostic_sequence(
     dataset_mapper: GenericMapper,
     variable_names: Sequence[str],
-    files_per_batch: int = 1,
+    timesteps_per_batch: int = 1,
     num_batches: int = None,
     random_seed: int = 0,
     init_time_dim_name: str = "initial_time",
@@ -196,7 +175,7 @@ def mapper_to_diagnostic_sequence(
         rename_variables = {}
 
     batch_sequence = BatchSequence(
-        dataset_mapper, files_per_batch, num_batches, random_state, init_time_dim_name
+        dataset_mapper, timesteps_per_batch, num_batches, random_state
     )
 
     load_sequence = functools.partial(
@@ -208,3 +187,24 @@ def mapper_to_diagnostic_sequence(
     )
 
     return FunctionOutputSequence(load_sequence, batch_sequence.indices())
+
+
+def _load_batch(
+    batch_sequence: Sequence[Sequence[xr.Dataset]],
+    data_vars: Iterable[str],
+    rename_variables: Mapping[str, str],
+    init_time_dim_name: str,
+    batch_index: int,
+) -> xr.Dataset:
+
+    batch = batch_sequence[batch_index]
+    ds = xr.concat(batch, init_time_dim_name)
+
+    # need to use standardized time dimension name
+    rename_variables[init_time_dim_name] = rename_variables.get(
+        init_time_dim_name, TIME_NAME
+    )
+    ds = ds.rename(rename_variables)
+    ds = safe.get_variables(ds, data_vars)
+
+    return ds
