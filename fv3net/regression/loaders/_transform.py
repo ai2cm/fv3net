@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.random import RandomState
-from typing import Mapping, Tuple, Sequence
+from typing import Mapping, Tuple
 import xarray as xr
 from toolz import groupby
 
@@ -87,84 +87,3 @@ class GroupByTime:
         datasets = [self._tiles[key] for key in self._time_lookup[time]]
         tiles = range(len(datasets))
         return xr.concat(datasets, dim="tile").assign_coords(tile=tiles)
-
-
-class FineResolutionSources:
-    def __init__(self, fine_resolution_time_mapping: Mapping[Time, xr.Dataset]):
-        self._time_mapping = fine_resolution_time_mapping
-
-    def keys(self):
-        return self._time_mapping.keys()
-
-    def __getitem__(self, time: Time) -> xr.Dataset:
-        return self._derived_budget_ds(self._time_mapping[time])
-
-    def _derived_budget_ds(
-        self,
-        budget_time_ds: xr.Dataset,
-        variable_prefixes: Mapping[str, str] = {
-            "air_temperature": "Q1",
-            "specific_humidity": "Q2",
-        },
-        apparent_source_terms: Sequence[str] = [
-            "physics",
-            "microphysics",
-            "convergence",
-        ],
-    ) -> xr.Dataset:
-
-        for variable_name, apparent_source_name in variable_prefixes.items():
-            budget_time_ds = budget_time_ds.pipe(
-                self._insert_budget_dQ,
-                variable_name,
-                f"d{apparent_source_name}",
-                apparent_source_terms,
-            ).pipe(self._insert_budget_pQ, variable_name, f"p{apparent_source_name}",)
-
-        return budget_time_ds
-
-    @staticmethod
-    def _insert_budget_dQ(
-        budget_time_ds: xr.Dataset,
-        variable_name: str,
-        apparent_source_name: str,
-        apparent_source_terms: Sequence[str],
-    ) -> xr.Dataset:
-        """Insert dQ (really Q) from other budget terms"""
-
-        source_vars = [f"{variable_name}_{term}" for term in apparent_source_terms]
-        apparent_source = (
-            safe.get_variables(budget_time_ds, source_vars)
-            .to_array(dim="variable")
-            .sum(dim="variable")
-        )
-        budget_time_ds = budget_time_ds.assign({apparent_source_name: apparent_source})
-
-        units = budget_time_ds[f"{variable_name}_{apparent_source_terms[0]}"].attrs.get(
-            "units", None
-        )
-        budget_time_ds[apparent_source_name].attrs.update(
-            {"name": f"apparent source of {variable_name}"}
-        )
-        if units is not None:
-            budget_time_ds[apparent_source_name].attrs.update({"units": units})
-
-        return budget_time_ds
-
-    @staticmethod
-    def _insert_budget_pQ(
-        budget_time_ds: xr.Dataset, variable_name: str, apparent_source_name: str,
-    ) -> xr.Dataset:
-        """Insert pQ = 0 in the fine-res budget case"""
-
-        budget_time_ds = budget_time_ds.assign(
-            {apparent_source_name: xr.zeros_like(budget_time_ds[f"{variable_name}"])}
-        )
-        budget_time_ds[apparent_source_name].attrs.update(
-            {"name": f"coarse-res physics tendency of {variable_name}"}
-        )
-        units = budget_time_ds[f"{variable_name}"].attrs.get("units", None)
-        if units is not None:
-            budget_time_ds[apparent_source_name].attrs.update({"units": f"{units}/s"})
-
-        return budget_time_ds

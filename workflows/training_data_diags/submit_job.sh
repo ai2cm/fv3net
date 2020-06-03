@@ -10,7 +10,7 @@ LOGDIR="./logs"
 if [ ! -d $LOGDIR ]; then
   mkdir $LOGDIR
 fi
-LOGFILE="${LOGDIR}/one-step-diags-${STAMP}.log"
+LOGFILE="${LOGDIR}/training_data-diags-$(uuid | head -c 6).log"
 exec > >(tee ${LOGFILE}) 2>&1
 
 export PYTHONPATH="./workflows/training_data_diags/"

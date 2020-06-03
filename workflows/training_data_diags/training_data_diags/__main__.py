@@ -11,6 +11,7 @@ from typing import Mapping
 import sys
 import os
 import logging
+import uuid
 
 out_hdlr = logging.StreamHandler(sys.stdout)
 out_hdlr.setFormatter(
@@ -21,7 +22,7 @@ logging.basicConfig(handlers=[out_hdlr], level=logging.INFO)
 logger = logging.getLogger("training_data_diags")
 
 DOMAINS = ["land", "sea", "global"]
-OUTPUT_NC_NAME = "diagnostics.nc"
+OUTPUT_NC_NAME = "diagnostics"
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -56,10 +57,13 @@ def _open_config(config_path: str) -> Mapping:
 
 
 def _write_nc(ds: xr.Dataset, output_path: str):
-    output_file = os.path.join(output_path, OUTPUT_NC_NAME)
+    output_file = os.path.join(
+        output_path, OUTPUT_NC_NAME + "_" + str(uuid.uuid1())[-6:] + ".nc"
+    )
     with NamedTemporaryFile() as tmpfile:
         ds.to_netcdf(tmpfile.name)
         get_fs(output_path).put(tmpfile.name, output_file)
+    logger.info(f"Writing netcdf to {output_file}")
 
 
 # start routine
