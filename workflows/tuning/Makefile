@@ -1,21 +1,28 @@
-IMAGE_NAME=us.gcr.io/vcm-ml/fv3net-tuning
+SHELL=/bin/bash
+
 CONFIG_FILENAME=example.yml
 OUTDIR=outdir
 RUNNER_FILENAME=runner.py
 TRIAL_FILENAME=trial.py
 MOUNT_LOCATION=/run
 FV3KUBE_DIR=../../external/fv3kube
+BASE_DIR=$(CWD)
 
 ENV_NAME=tuning
 PY_VERSION=3.6
 REQUIREMENTS_FILENAME=requirements.txt
 
-all: build test-docker
+all: clean test
 
 env:
-	conda create -n $(ENV_NAME) python=$(PY_VERSION)
-	conda activate $(ENV_NAME)
-	pip install -e $(FV3KUBE_DIR) && pip install $(REQUIREMENTS_FILENAME)
+	conda create -y -n $(ENV_NAME) python=$(PY_VERSION)
+	source activate $(ENV_NAME) && conda install -y mongodb && pip install -r $(REQUIREMENTS_FILENAME)
+
+
+clean:
+	$(RM) -r $(OUTDIR)
+	mkdir $(OUTDIR)
+	touch $(OUTDIR)/.gitkeep
 
 build:
 	docker build . -f Dockerfile  -t $(IMAGE_NAME)

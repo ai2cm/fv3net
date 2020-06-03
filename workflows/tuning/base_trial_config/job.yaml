@@ -1,10 +1,9 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
+  name: sherpa
   labels:
     app: sherpa
-  name: sherpa
-  namespace: sherpa
 spec:
   backoffLimit: 0
   template:
@@ -15,8 +14,8 @@ spec:
     spec:
       serviceAccountName: integration-tests
       containers:
-      - command: ["/bin/bash"]
-        args:  ["workflows/end_to_end/entrypoint.sh"]
+      - command: ["/bin/bash", "-c"]
+        args:  ["python -m fv3net.regression.sklearn gs://vcm-ml-experiments/2020-04-22-advisory-council/physics-off/create_training_data /etc/config/train_sklearn_model.yml {training_output_dir}"]
         image: us.gcr.io/vcm-ml/fv3net
         imagePullPolicy: Always
         envFrom:
@@ -54,14 +53,3 @@ spec:
         - name: config-vol
           configMap:
             name: sherpa
----
-apiVersion: policy/v1beta1
-kind: PodDisruptionBudget
-metadata:
-  name: e2e-pdb
-spec:
-  # will prevent voluntary evictions
-  minAvailable: 100%
-  selector:
-    matchLabels:
-      app: sherpa

@@ -2,6 +2,8 @@ algorithm:
   name: GridSearch
   kwargs:
     num_grid_points: 2
+command_substitutions:
+  training_input_dir: gs://vcm-ml-experiments/2020-04-22-advisory-council/physics-off/create_training_data
 parameters:
   - name: training_timesteps
     type: choice

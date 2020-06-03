@@ -14,7 +14,7 @@ experiment:
       args:
         training_data:
           from: create_training_data
-        train-config-file: $CONFIG/train_sklearn_model.yml
+        train-config-file: /etc/config/train_sklearn_model.yml
         
     test_sklearn_model: 
       command: python -m fv3net.diagnostics.sklearn_model_performance
@@ -25,4 +25,4 @@ experiment:
           from: create_training_data
         diagnostics_data:
           location: gs://vcm-ml-data/orchestration-testing/shield-coarsened-diags-2019-12-04
-        variable_filename: $CONFIG/test_sklearn_variable_names.yml
+        variable_filename: /etc/config/test_sklearn_variable_names.yml

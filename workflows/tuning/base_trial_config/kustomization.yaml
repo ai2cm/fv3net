@@ -9,7 +9,6 @@ configMapGenerator:
   - name: sherpa
     files:
       - train_sklearn_model.yml
-      - end_to_end.yaml
 images:
   # fv3net image is changed here
 - name: us.gcr.io/vcm-ml/fv3net
