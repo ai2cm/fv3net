@@ -7,7 +7,7 @@ import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
 from ._transform import stack_dropnan_shuffle
-from ..constants import TIME_NAME
+from .constants import TIME_NAME
 from ._one_step import TimestepMapper
 from ._fine_resolution_budget import FineResolutionBudgetTiles
 
@@ -103,12 +103,11 @@ def mapper_to_batches(
     random_seed: int = 0,
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
-) -> FunctionOutputSequence:
+) -> Sequence[xr.Dataset]:
     """ The function returns a FunctionOutputSequence that is
     later iterated over in ..sklearn.train. When iterating over the
     output FunctionOutputSequence, the loading and transformation of data
     is applied to each batch, and it effectively becomes a Sequence[xr.Dataset].
-
     Args:
         data_mapping (Mapping[str, xr.Dataset]): Interface to select data for
             given timestep keys.
@@ -119,19 +118,10 @@ def mapper_to_batches(
         init_time_dim_name (str, optional): Name of time dim in data source.
             Defaults to "initial_time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
-
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
-
     Returns:
-        FunctionOutputSequence: When iterating over the returned object in
-<<<<<<< HEAD
-        sklearn.train, the loading and transformation functions are applied for
-        each batch it is effectively used as a Sequence[xr.Dataset].
-=======
-        sklearn.train, the loading and transformation functions are applied
-        for each batch it is effectively used as a Sequence[xr.Dataset].
->>>>>>> refactor/batch-loader
+        Sequence of xarray datasets for use in training batches.
     """
     random_state = np.random.RandomState(random_seed)
     if rename_variables is None:

@@ -11,5 +11,5 @@ OUTPUT=gs://vcm-ml-scratch/annak/2020-05-22/sklearn_train/
 
 python -m fv3net.regression.sklearn \
     data \
-    /home/AnnaK/fv3net/workflows/end_to_end/kustomization/train_sklearn_model.yml  \
+    ../../workflows/end_to_end/kustomization/train_sklearn_model.yml  \
     $OUTPUT

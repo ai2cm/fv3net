@@ -21,8 +21,9 @@ class MockDatasetMapper:
         self._keys = [f"2020050{i}.000000" for i in range(4)]
 
     def __getitem__(self, key: str) -> xr.Dataset:
-        return synth.generate(self._schema)
-        return self.mapping[key]
+        ds = synth.generate(self._schema)
+        ds.coords["initial_time"] = [key]
+        return ds
 
     def keys(self):
         return self._keys
@@ -35,7 +36,7 @@ class MockDatasetMapper:
 
 
 @pytest.fixture
-def test_mapper(datadir):
+def mapper(datadir):
     one_step_zarr_schema = "one_step_zarr_schema.json"
     # uses the one step schema but final mapper
     # functions the same for all data sources
@@ -51,9 +52,9 @@ def random_state():
 
 
 @pytest.fixture
-def batch_sequence(test_mapper, random_state):
+def batch_sequence(mapper, random_state):
     return BatchSequence(
-        test_mapper, files_per_batch=2, num_batches=2, random_state=random_state
+        mapper, files_per_batch=2, num_batches=2, random_state=random_state
     )
 
 
@@ -68,9 +69,9 @@ def test__load_batch(batch_sequence):
     assert len(ds["time"]) == 2
 
 
-def test_mapper_to_batches(test_mapper):
+def test_mapper_to_batches(mapper):
     batched_data_sequence = mapper_to_batches(
-        test_mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
+        mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
     )
     assert len(batched_data_sequence) == 2
     for i, batch in enumerate(batched_data_sequence):
@@ -78,9 +79,9 @@ def test_mapper_to_batches(test_mapper):
         assert set(batch.data_vars) == set(DATA_VARS)
 
 
-def test_mapper_to_diagnostic_sequence(test_mapper):
+def test_mapper_to_diagnostic_sequence(mapper):
     batched_data_sequence = mapper_to_diagnostic_sequence(
-        test_mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
+        mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
     )
     assert len(batched_data_sequence) == 2
     for i, batch in enumerate(batched_data_sequence):

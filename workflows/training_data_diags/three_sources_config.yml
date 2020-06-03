@@ -10,7 +10,7 @@ one_step_tendencies:
     - land_sea_mask
   batch_kwargs:
     num_batches: 2
-    files_per_batch: 1
+    timesteps_per_batch: 1
     init_time_dim_name: "initial_time"
 fine_res_apparent_sources: 
   path: gs://vcm-ml-scratch/noah/2020-05-27
@@ -29,7 +29,7 @@ fine_res_apparent_sources:
     grid_yt: y
   batch_kwargs:
     num_batches: 2
-    files_per_batch: 1
+    timesteps_per_batch: 1
     init_time_dim_name: "initial_time"
 # nudging_tendencies: 
 #   path: gs://vcm-ml-data/mcgibbon-testing/outdir

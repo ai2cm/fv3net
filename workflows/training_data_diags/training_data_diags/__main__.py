@@ -109,6 +109,5 @@ diagnostics_all = xr.concat(
     ],
     dim="data_source",
 ).load()
-print(diagnostics_all)
 
 _write_nc(diagnostics_all, args.output_path)

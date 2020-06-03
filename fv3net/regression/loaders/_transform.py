@@ -5,7 +5,10 @@ import xarray as xr
 from toolz import groupby
 
 from vcm import safe
-from ..constants import SAMPLE_DIM_NAME, Z_DIM_NAMES
+
+from .constants import SAMPLE_DIM_NAME
+
+Z_DIM_NAMES = ["z", "pfull"]
 
 Time = str
 Tile = int
@@ -17,6 +20,8 @@ def stack_dropnan_shuffle(
 ) -> xr.Dataset:
     ds = ds.load()
     stack_dims = [dim for dim in ds.dims if dim not in Z_DIM_NAMES]
+    if len(set(ds.dims).intersection(Z_DIM_NAMES)) > 1:
+        raise ValueError("Data cannot have >1 feature dimension in {Z_DIM_NAMES}.")
     ds_stacked = safe.stack_once(
         ds,
         SAMPLE_DIM_NAME,
@@ -73,7 +78,7 @@ class GroupByTime:
         self._time_lookup = groupby(fn, self._tiles.keys())
 
     def keys(self):
-        return list(self._time_lookup.keys())
+        return self._time_lookup.keys()
 
     def __len__(self):
         return len(self.keys())
