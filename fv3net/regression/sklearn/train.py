@@ -55,8 +55,7 @@ def load_data_sequence(
         train_config: model training configuration
 
     Returns:
-        FunctionOutputSequence: wrapper object that is effectively a
-        Sequence[xr.Dataset] when iterated over in training
+        sequence of datasets iterated over in training
     """
     batch_function_name = train_config.batch_loader["batch_function"]
     batch_function = getattr(loaders, batch_function_name)

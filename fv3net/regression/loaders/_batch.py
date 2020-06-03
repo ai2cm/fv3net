@@ -61,7 +61,7 @@ def batches_from_mapper(
 
 def _create_mapper(
     data_path, mapping_func_name: str, mapping_kwargs: Mapping[str, Any]
-):
+) -> Mapping[str, xr.Dataset]:
     mapping_func = getattr(loaders, mapping_func_name)
     mapping_kwargs = mapping_kwargs or {}
     return mapping_func(data_path, **mapping_kwargs)
@@ -75,7 +75,7 @@ def _mapper_to_batches(
     random_seed: int = 0,
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
-) -> FunctionOutputSequence:
+) -> Sequence[xr.Dataset]:
     """ The function returns a FunctionOutputSequence that is
     later iterated over in ..sklearn.train. When iterating over the
     output FunctionOutputSequence, the loading and transformation of data
