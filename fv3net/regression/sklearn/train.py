@@ -57,12 +57,7 @@ def load_data_sequence(
         train_config: model training configuration
 
     Returns:
-<<<<<<< HEAD
-        FunctionOutputSequence: wrapper object that is effectively a
-        Sequence[xr.Dataset] when iterated over in training
-=======
         Sequence of xarray datasets
->>>>>>> master
     """
     mapping_function = getattr(loaders, train_config.mapping_function)
     data_mapping = mapping_function(data_path)
