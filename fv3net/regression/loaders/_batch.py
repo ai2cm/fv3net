@@ -21,7 +21,7 @@ def mapper_to_batches(
     random_seed: int = 0,
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
-) -> FunctionOutputSequence:
+) -> Sequence[xr.Dataset]:
     """ The function returns a FunctionOutputSequence that is
     later iterated over in ..sklearn.train. When iterating over the
     output FunctionOutputSequence, the loading and transformation of data
