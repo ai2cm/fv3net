@@ -1,5 +1,6 @@
-FROM us.gcr.io/vcm-ml/fv3net
+FROM 3.8.3-buster
 
+pip install --no-cache-dir pyyaml
 
 # install mongodb and python requirements
 USER root

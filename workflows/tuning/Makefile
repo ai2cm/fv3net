@@ -5,13 +5,22 @@ RUNNER_FILENAME=runner.py
 TRIAL_FILENAME=trial.py
 MOUNT_LOCATION=/run
 
+ENV_NAME=tuning
+PY_VERSION=3.6
+REQUIREMENTS_FILENAME=requirements.txt
+
 all: build test-docker
+
+env:
+	conda create -n $(ENV_NAME) python=$(PY_VERSION)
+	conda activate $(ENV_NAME)
+	pip install $(REQUIREMENTS_FILENAME)
 
 build:
 	docker build . -f Dockerfile  -t $(IMAGE_NAME)
 
 test:
-	python3 $(RUNNER_FILENAME) $(CONFIG_FILENAME) $(OUTDIR)
+	conda run -n $(ENV_NAME) python3 $(RUNNER_FILENAME) $(CONFIG_FILENAME) $(OUTDIR)
 
 test-docker:
 	docker run -v $(PWD)/$(CONFIG_FILENAME):$(MOUNT_LOCATION)/$(CONFIG_FILENAME) \

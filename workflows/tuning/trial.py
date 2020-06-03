@@ -7,7 +7,6 @@ import yaml
 import tempfile
 import subprocess
 import kubernetes
-import fv3kube
 import uuid
 
 BASE_CONFIG_DIR = os.path.join(
@@ -115,7 +114,7 @@ def list_jobs(client, job_labels):
 
 def get_job(experiment_name):
     labels = {"app": "sherpa", "name": experiment_name}
-    job_list = fv3kube.list_jobs(BATCH_CLIENT, labels)
+    job_list = list_jobs(BATCH_CLIENT, labels)
     if len(job_list) > 0:
         cancel_jobs()
         raise RuntimeError(f"unexpectedly got {len(job_list)} jobs for labels {labels}")
@@ -123,6 +122,7 @@ def get_job(experiment_name):
 
 def get_objective(experiment_name):
     outdir = os.path.join("gs://vcm-ml-scratch/sherpa/", experiment_name)
+    return 1
 
 
 if __name__ == "__main__":
