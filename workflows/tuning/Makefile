@@ -4,6 +4,7 @@ OUTDIR=outdir
 RUNNER_FILENAME=runner.py
 TRIAL_FILENAME=trial.py
 MOUNT_LOCATION=/run
+FV3KUBE_DIR=../../external/fv3kube
 
 ENV_NAME=tuning
 PY_VERSION=3.6
@@ -14,7 +15,7 @@ all: build test-docker
 env:
 	conda create -n $(ENV_NAME) python=$(PY_VERSION)
 	conda activate $(ENV_NAME)
-	pip install $(REQUIREMENTS_FILENAME)
+	pip install -e $(FV3KUBE_DIR) && pip install $(REQUIREMENTS_FILENAME)
 
 build:
 	docker build . -f Dockerfile  -t $(IMAGE_NAME)
