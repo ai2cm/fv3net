@@ -16,7 +16,7 @@ logger.setLevel(logging.INFO)
 def batches_from_mapper(
     data_path: str,
     variable_names: Iterable[str],
-    mapping_func_name: str,
+    mapping_function_name: str,
     mapping_kwargs: Mapping[str, Any] = None,
     timesteps_per_batch: int = 1,
     num_batches: int = None,
@@ -46,7 +46,7 @@ def batches_from_mapper(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
-    data_mapping = _create_mapper(data_path, mapping_func_name, mapping_kwargs)
+    data_mapping = _create_mapper(data_path, mapping_function_name, mapping_kwargs)
     batches = _mapper_to_batches(
         data_mapping,
         variable_names,

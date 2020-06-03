@@ -14,4 +14,4 @@ batch_loader:
     num_batches: 2
     timesteps_per_batch: 1
     init_time_dim_name: "time"
-    mapping_func_name: open_fine_resolution_budget
+    mapping_function_name: open_fine_resolution_budget
