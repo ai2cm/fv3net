@@ -5,6 +5,7 @@ from fv3net.regression.loaders._transform import (
     shuffled,
     _get_chunk_indices,
     stack_dropnan_shuffle,
+    FineResolutionSources,
 )
 
 
@@ -91,3 +92,172 @@ def test_shuffled():
 def test_shuffled_dask():
     dataset = _stacked_dataset("sample").chunk()
     shuffled(dataset, "sample", np.random.RandomState(1))
+
+
+air_temperature = xr.DataArray([270.0], [(["x"], [1.0])], ["x"], attrs={"units": "K"})
+air_temperature_physics = xr.DataArray(
+    [0.1], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
+)
+air_temperature_microphysics = xr.DataArray(
+    [0.2], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
+)
+air_temperature_convergence = xr.DataArray(
+    [-0.1], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
+)
+budget_ds = xr.Dataset(
+    {
+        "air_temperature": air_temperature,
+        "air_temperature_physics": air_temperature_physics,
+        "air_temperature_microphysics": air_temperature_microphysics,
+        "air_temperature_convergence": air_temperature_convergence,
+    }
+)
+apparent_source_terms = ["physics", "microphysics", "convergence"]
+
+
+@pytest.mark.parametrize(
+    "ds, variable_name, apparent_source_name, apparent_source_terms, expected",
+    [
+        pytest.param(
+            budget_ds,
+            "air_temperature",
+            "dQ1",
+            apparent_source_terms,
+            budget_ds.assign(
+                {
+                    "dQ1": xr.DataArray(
+                        [0.2],
+                        [(["x"], [1.0])],
+                        ["x"],
+                        attrs={
+                            "name": "apparent source of air_temperature",
+                            "units": "K/s",
+                        },
+                    )
+                }
+            ),
+            id="base case",
+        ),
+        pytest.param(
+            budget_ds,
+            "air_temperature",
+            "dQ1",
+            ["physics", "microphysics"],
+            budget_ds.assign(
+                {
+                    "dQ1": xr.DataArray(
+                        [0.3],
+                        [(["x"], [1.0])],
+                        ["x"],
+                        attrs={
+                            "name": "apparent source of air_temperature",
+                            "units": "K/s",
+                        },
+                    )
+                }
+            ),
+            id="no convergence",
+        ),
+        pytest.param(
+            budget_ds,
+            "air_temperature",
+            "dQ1",
+            [],
+            budget_ds.assign(
+                {
+                    "dQ1": xr.DataArray(
+                        [0.3],
+                        [(["x"], [1.0])],
+                        ["x"],
+                        attrs={
+                            "name": "apparent source of air_temperature",
+                            "units": "K/s",
+                        },
+                    )
+                }
+            ),
+            id="empty list",
+            marks=pytest.mark.xfail,
+        ),
+    ],
+)
+def test__insert_budget_dQ(
+    ds, variable_name, apparent_source_name, apparent_source_terms, expected
+):
+    output = FineResolutionSources._insert_budget_dQ(
+        ds, variable_name, apparent_source_name, apparent_source_terms,
+    )
+    xr.testing.assert_allclose(output["dQ1"], expected["dQ1"])
+    assert output["dQ1"].attrs == expected["dQ1"].attrs
+
+
+@pytest.mark.parametrize(
+    "ds, variable_name, apparent_source_name, expected",
+    [
+        pytest.param(
+            budget_ds,
+            "air_temperature",
+            "pQ1",
+            budget_ds.assign(
+                {
+                    "pQ1": xr.DataArray(
+                        [0.0],
+                        [(["x"], [1.0])],
+                        ["x"],
+                        attrs={
+                            "name": "coarse-res physics tendency of air_temperature",
+                            "units": "K/s",
+                        },
+                    )
+                }
+            ),
+            id="base case",
+        ),
+        pytest.param(
+            xr.Dataset(
+                {"air_temperature": xr.DataArray([270.0], [(["x"], [1.0])], ["x"])}
+            ),
+            "air_temperature",
+            "pQ1",
+            budget_ds.assign(
+                {
+                    "pQ1": xr.DataArray(
+                        [0.0],
+                        [(["x"], [1.0])],
+                        ["x"],
+                        attrs={
+                            "name": "coarse-res physics tendency of air_temperature"
+                        },
+                    )
+                }
+            ),
+            id="no units",
+        ),
+        pytest.param(
+            budget_ds,
+            "air_temperature",
+            "pQ1",
+            budget_ds.assign(
+                {
+                    "pQ1": xr.DataArray(
+                        [0.0],
+                        [(["x"], [1.0])],
+                        ["x"],
+                        attrs={
+                            "name": "coarse-res physics tendency of air_temperature",
+                            "units": "K",
+                        },
+                    )
+                }
+            ),
+            id="wrong units",
+            marks=pytest.mark.xfail,
+        ),
+    ],
+)
+def test__insert_budget_pQ(ds, variable_name, apparent_source_name, expected):
+    output = FineResolutionSources._insert_budget_pQ(
+        ds, variable_name, apparent_source_name
+    )
+    xr.testing.assert_allclose(output["pQ1"], expected["pQ1"])
+    assert output["pQ1"].attrs == expected["pQ1"].attrs

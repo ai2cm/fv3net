@@ -135,16 +135,14 @@ class FineResolutionSources:
         )
         budget_time_ds = budget_time_ds.assign({apparent_source_name: apparent_source})
 
-        budget_time_ds[apparent_source_name].attrs.update(
-            {
-                "name": f"apparent source of {variable_name}",
-                "units": (
-                    budget_time_ds[
-                        f"{variable_name}_{apparent_source_terms[0]}"
-                    ].attrs.get("units", None)
-                ),
-            }
+        units = budget_time_ds[f"{variable_name}_{apparent_source_terms[0]}"].attrs.get(
+            "units", None
         )
+        budget_time_ds[apparent_source_name].attrs.update(
+            {"name": f"apparent source of {variable_name}"}
+        )
+        if units is not None:
+            budget_time_ds[apparent_source_name].attrs.update({"units": units})
 
         return budget_time_ds
 
@@ -155,20 +153,13 @@ class FineResolutionSources:
         """Insert pQ = 0 in the fine-res budget case"""
 
         budget_time_ds = budget_time_ds.assign(
-            {
-                apparent_source_name: xr.zeros_like(
-                    budget_time_ds[f"{variable_name}_physics"]
-                )
-            }
+            {apparent_source_name: xr.zeros_like(budget_time_ds[f"{variable_name}"])}
         )
-
         budget_time_ds[apparent_source_name].attrs.update(
-            {
-                "name": f"coarse-res physics tendency of {variable_name}",
-                "units": (
-                    budget_time_ds[f"{variable_name}_physics"].attrs.get("units", None)
-                ),
-            }
+            {"name": f"coarse-res physics tendency of {variable_name}"}
         )
+        units = budget_time_ds[f"{variable_name}"].attrs.get("units", None)
+        if units is not None:
+            budget_time_ds[apparent_source_name].attrs.update({"units": f"{units}/s"})
 
         return budget_time_ds
