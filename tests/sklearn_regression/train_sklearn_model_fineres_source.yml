@@ -2,14 +2,14 @@ model_type: sklearn_random_forest
 hyperparameters:
   max_depth: 4
   n_estimators: 2
-mapping_function: open_one_step
+mapping_function: open_fine_resolution_budget
 input_variables:
   - air_temperature
   - specific_humidity
 output_variables:
-  - dQ1
-  - dQ2
+  - air_temperature_convergence
+  - specific_humidity_convergence
 batch_kwargs:
   num_batches: 2
   timesteps_per_batch: 1
-  init_time_dim_name: "initial_time"
+  init_time_dim_name: "time"
