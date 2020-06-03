@@ -3,11 +3,11 @@ import joblib
 import logging
 import os
 import yaml
+import xarray as xr
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Sequence
 
 from .. import loaders
-from ..loaders._sequences import FunctionOutputSequence
 from ..loaders._batch import mapper_to_batches
 from .wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
@@ -50,15 +50,14 @@ def load_model_training_config(config_path: str) -> ModelTrainingConfig:
 
 def load_data_sequence(
     data_path: str, train_config: ModelTrainingConfig
-) -> FunctionOutputSequence:
+) -> Sequence[xr.Dataset]:
     """
     Args:
         data_path: data location
         train_config: model training configuration
 
     Returns:
-        FunctionOutputSequence: wrapper object that is effectively a
-        Sequence[xr.Dataset] when iterated over in training
+        Sequence of xarray datasets
     """
     mapping_function = getattr(loaders, train_config.mapping_function)
     data_mapping = mapping_function(data_path)
@@ -108,9 +107,7 @@ def _get_transformed_batch_regressor(train_config):
     return model_wrapper
 
 
-def train_model(
-    batched_data: FunctionOutputSequence, train_config: ModelTrainingConfig
-):
+def train_model(batched_data: Sequence[xr.Dataset], train_config: ModelTrainingConfig):
     """
     Args:
         batched_data: training batch datasets
