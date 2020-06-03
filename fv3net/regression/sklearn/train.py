@@ -56,7 +56,7 @@ def load_data_sequence(
         train_config: model training configuration
 
     Returns:
-        sequence of datasets iterated over in training
+        Sequence of datasets iterated over in training
     """
     batch_function = getattr(loaders, train_config.batch_function)
     ds_batches = batch_function(
