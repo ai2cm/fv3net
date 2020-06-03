@@ -56,7 +56,7 @@ def regrid_to_area_weighted_pressure(
     x_dim: str = FV_CORE_X_CENTER,
     y_dim: str = FV_CORE_Y_CENTER,
     z_dim: str = RESTART_Z_CENTER,
-) -> (xr.Dataset, xr.DataArray):
+) -> Union[xr.Dataset, xr.DataArray]:
     """ Vertically regrid a dataset of cell-centered quantities to coarsened
     pressure levels.
 
@@ -90,7 +90,7 @@ def regrid_to_edge_weighted_pressure(
     y_dim: str = FV_CORE_Y_OUTER,
     z_dim: str = RESTART_Z_CENTER,
     edge: str = "x",
-) -> (xr.Dataset, xr.DataArray):
+) -> Union[xr.Dataset, xr.DataArray]:
     """ Vertically regrid a dataset of edge-valued quantities to coarsened
     pressure levels.
 
@@ -309,7 +309,7 @@ def regrid_vertical(
     # Rename vertical dimension in p_out temporarily to allow for it to have a
     # different size than in p_in.
     z_dim_outer_p_out = f"{z_dim_outer}_p_out"
-    p_out = p_out.rename({z_dim_outer: z_dim_outer_p_out})
+    p_out = p_out.rename({z_dim_outer: z_dim_outer_p_out})  # type: ignore
 
     # Provide a temporary name for the output vertical dimension, again
     # allowing for it to have a different size than the input vertical
