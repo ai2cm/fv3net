@@ -9,7 +9,10 @@ input_variables:
 output_variables:
   - dQ1
   - dQ2
-batch_kwargs:
-  num_batches: 2
-  timesteps_per_batch: 1
-  init_time_dim_name: "initial_time"
+batch_loader:
+  batch_function: batches_from_mapper
+  batch_kwargs:
+    num_batches: 2
+    timesteps_per_batch: 1
+    init_time_dim_name: "initial_time"
+    mapper_func_name: open_one_step
