@@ -37,7 +37,7 @@ DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 
 
 @curry
-def add_to_diags(diags_key: str, func: Callable[DiagArg]):
+def add_to_diags(diags_key: str, func: Callable[[DiagArg], xr.Dataset]):
     """
     Add a function to the list of diagnostics to be computed
     for a specified group of data.
