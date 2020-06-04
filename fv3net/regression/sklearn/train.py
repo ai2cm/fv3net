@@ -3,6 +3,7 @@ import joblib
 import logging
 import os
 import yaml
+import xarray as xr
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
@@ -46,14 +47,16 @@ def load_model_training_config(config_path: str) -> ModelTrainingConfig:
     return ModelTrainingConfig(**config_dict)
 
 
-def load_data_sequence(data_path: str, train_config: ModelTrainingConfig) -> Sequence:
+def load_data_sequence(
+    data_path: str, train_config: ModelTrainingConfig
+) -> Sequence[xr.Dataset]:
     """
     Args:
         data_path: data location
         train_config: model training configuration
 
     Returns:
-        sequence: xr datasets for training batches
+        Sequence of datasets iterated over in training
     """
     batch_function = getattr(loaders, train_config.batch_function)
     ds_batches = batch_function(
@@ -102,7 +105,7 @@ def _get_transformed_batch_regressor(train_config):
     return model_wrapper
 
 
-def train_model(batched_data: Sequence, train_config: ModelTrainingConfig):
+def train_model(batched_data: Sequence[xr.Dataset], train_config: ModelTrainingConfig):
     """
     Args:
         batched_data: training batch datasets
