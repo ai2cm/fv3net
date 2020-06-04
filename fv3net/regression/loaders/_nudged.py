@@ -12,6 +12,7 @@ from pathlib import Path
 
 import vcm
 from vcm import cloud, safe
+from vcm.convenience import round_time
 from vcm.cubedsphere.constants import TIME_FMT
 from ._sequences import FunctionOutputSequence
 from ..constants import Z_DIM_NAME, SAMPLE_DIM_NAME, TIME_NAME
@@ -22,7 +23,7 @@ TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
 SIMULATION_TIMESTEPS_PER_HOUR = 4
 
 BatchSequence = Sequence[xr.Dataset]
-TimestepMappeer = Mapping[str, xr.Dataset]
+TimestepMapper = Mapping[str, xr.Dataset]
 
 
 def load_nudging_batches(
@@ -39,7 +40,7 @@ def load_nudging_batches(
 ):
     """temporary loader while transforms being developed"""
 
-    tstep_mapper = open_nudged_mapper(
+    tstep_mapper = open_nudged(
         url,
         nudging_timescale_hr,
         initial_time_skip_hr=initial_time_skip_hr,
@@ -60,7 +61,7 @@ def load_nudging_batches(
 
 
 def _load_nudging_batches(
-    nudged_tstep_mapper: TimestepMappeer,
+    nudged_tstep_mapper: TimestepMapper,
     data_vars: Iterable[str],
     num_times_in_batch: int = 10,
     num_batches: int = None,
@@ -176,7 +177,7 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
 
 
 # TODO: change variable naming to omit type
-class FV3OutMapper:
+class GeoMapper:
     def __init__(self, *args):
         raise NotImplementedError("Don't use the base class!")
 
@@ -193,7 +194,7 @@ class FV3OutMapper:
         raise NotImplementedError()
 
 
-class NudgedTimestepMapper(FV3OutMapper):
+class NudgedTimestepMapper(GeoMapper):
     def __init__(self, ds):
         self.ds = ds
 
@@ -245,7 +246,7 @@ class MergeNudged(NudgedTimestepMapper):
             )
 
 
-class NudgedStateCheckpoints(FV3OutMapper):
+class NudgedStateCheckpoints(GeoMapper):
     """
     Storage for state checkpoints from nudging runs.
     Accessible by, e.g., mapper[("before_dynamics", "20160801.001500")]
@@ -297,7 +298,7 @@ class GroupByTime:
         return ds.assign_coords(checkpoint=checkpoint_names)
 
 
-def open_nudged_mapper(
+def open_nudged(
     url: str,
     nudging_timescale_hr: Union[int, float],
     initial_time_skip_hr: int = 0,
@@ -332,6 +333,8 @@ def open_nudged_mapper(
     for source in nudge_files:
         mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}.zarr"))
         ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
+        times = np.vectorize(round_time)(ds[TIME_NAME])
+        ds = ds.assign_coords({TIME_NAME: times})
 
         start = initial_time_skip_hr * SIMULATION_TIMESTEPS_PER_HOUR
         end = None if n_times is None else start + n_times
