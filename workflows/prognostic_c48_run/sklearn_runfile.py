@@ -17,10 +17,14 @@ from mpi4py import MPI
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+State = Mapping[str, xr.DataArray]
+
+# following variables are required no matter what feature set is being used
+TEMP = "air_temperature"
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
-TOTAL_PRECIP = "total_precipitation"
-VARIABLES = list(runtime.CF_TO_RESTART_MAP) + [DELP, TOTAL_PRECIP]
+PRECIP_RATE = "surface_precipitation_rate"
+REQUIRED_VARIABLES = [TEMP, SPHUM, DELP, PRECIP_RATE]
 
 cp = 1004
 gravity = 9.81
@@ -29,6 +33,7 @@ gravity = 9.81
 def compute_diagnostics(state, diags):
 
     net_moistening = (diags["dQ2"] * state[DELP] / gravity).sum("z")
+    physics_precip = state[PRECIP_RATE]
 
     return dict(
         net_moistening=(net_moistening)
@@ -42,12 +47,23 @@ def compute_diagnostics(state, diags):
         .sum("z")
         .assign_attrs(units="mm")
         .assign_attrs(description="column integrated water vapor"),
-        total_precip=(state[TOTAL_PRECIP] - net_moistening)
-        .assign_attrs(units="kg/m^s/s")
+        physics_precip=(physics_precip)
+        .assign_attrs(units="kg/m^2/s")
         .assign_attrs(
-            description="total precipitation rate at the surface (model + ML)"
+            description="surface precipitation rate due to parameterized physics"
         ),
     )
+
+
+def rename_diagnostics(diags):
+    """Postfix ML output names with _diagnostic and create zero-valued outputs in
+    their stead. Function operates in place."""
+    for variable in ["net_moistening", "net_heating"]:
+        attrs = diags[variable].attrs
+        diags[f"{variable}_diagnostic"] = diags[variable].assign_attrs(
+            description=attrs["description"] + " (diagnostic only)"
+        )
+        diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
 
 
 def open_model(url):
@@ -56,26 +72,23 @@ def open_model(url):
         return joblib.load(f)
 
 
-def predict(model: SklearnWrapper, state: xr.Dataset) -> xr.Dataset:
-    """Given ML model and state, make tendency prediction."""
-    stacked = state.stack(sample=["x", "y"])
+def predict(model: SklearnWrapper, state: State) -> State:
+    """Given ML model and state, return tendency prediction."""
+    stacked = xr.Dataset(state).stack(sample=["x", "y"])
     with parallel_backend("threading", n_jobs=1):
         output = model.predict(stacked, "sample").unstack("sample")
-    return output
+    return {key: output[key] for key in output}
 
 
-def update(
-    model: SklearnWrapper, state: Mapping[str, xr.DataArray], dt: float
-) -> (Mapping[str, xr.DataArray], Mapping[str, xr.DataArray]):
-    """Given ML model and state, return updated state and predicted tendencies."""
-    state = xr.Dataset(state)
-    tend = predict(model, state)
+def apply(state: State, tendency: State, dt: float) -> State:
+    """Given state and tendency prediction, return updated state.
+    Returned state only includes variables updated by ML model."""
     with xr.set_options(keep_attrs=True):
-        updated = state.assign(
-            specific_humidity=state["specific_humidity"] + tend["dQ2"] * dt,
-            air_temperature=state["air_temperature"] + tend["dQ1"] * dt,
-        )
-    return {key: updated[key] for key in updated}, {key: tend[key] for key in tend}
+        updated = {
+            SPHUM: state[SPHUM] + tendency["dQ2"] * dt,
+            TEMP: state[TEMP] + tendency["dQ1"] * dt,
+        }
+    return updated
 
 
 args = runtime.get_config()
@@ -90,6 +103,12 @@ if __name__ == "__main__":
 
     # change into run directoryy
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
+
+    do_only_diagnostic_ml = args["scikit_learn"].get("diagnostic_ml", False)
+    rename_ML_to_CF = args["scikit_learn"].get("input_variable_standard_names", {})
+    rename_CF_to_ML = dict(zip(rename_ML_to_CF.values(), rename_ML_to_CF.keys()))
+    if rank == 0:
+        logger.debug(f"Renaming variables for ML prediction using: {rename_CF_to_ML}")
 
     # open zarr tape for output
     if rank == 0:
@@ -107,11 +126,14 @@ if __name__ == "__main__":
         MODEL = None
 
     MODEL = comm.bcast(MODEL, root=0)
+    variables = list(set(REQUIRED_VARIABLES + MODEL.input_vars_))
+    variables = [rename_ML_to_CF.get(var, var) for var in variables]
+    if rank == 0:
+        logger.debug(f"Prognostic run requires variables: {variables}")
 
     if rank == 0:
         logger.info(f"Timestep: {TIMESTEP}")
 
-    # Calculate factor for relaxing humidity to zero
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
         if rank == 0:
@@ -122,24 +144,33 @@ if __name__ == "__main__":
         fv3gfs.step_physics()
 
         if rank == 0:
-            logger.debug(f"Getting state variables: {VARIABLES}")
+            logger.debug(f"Getting state variables: {variables}")
         state = {
             key: value.data_array
-            for key, value in fv3gfs.get_state(names=VARIABLES).items()
+            for key, value in fv3gfs.get_state(names=variables).items()
         }
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
-        preds, diags = update(MODEL, state, dt=TIMESTEP)
+        tendency = predict(MODEL, runtime.rename_keys(state, rename_CF_to_ML))
+
+        if do_only_diagnostic_ml:
+            updated_state = {}
+        else:
+            updated_state = apply(state, tendency, dt=TIMESTEP)
+
         if rank == 0:
             logger.debug("Setting Fortran State")
         fv3gfs.set_state(
-            {key: fv3util.Quantity.from_data_array(preds[key]) for key in preds}
+            {
+                key: fv3util.Quantity.from_data_array(value)
+                for key, value in updated_state.items()
+            }
         )
-        if rank == 0:
-            logger.debug("Setting Fortran State")
 
-        diagnostics = compute_diagnostics(state, diags)
+        diagnostics = compute_diagnostics(state, tendency)
+        if do_only_diagnostic_ml:
+            rename_diagnostics(diagnostics)
 
         if i == 0:
             writers = runtime.init_writers(GROUP, comm, diagnostics)

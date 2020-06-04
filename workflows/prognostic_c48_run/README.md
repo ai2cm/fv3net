@@ -1,9 +1,9 @@
 Prognostic model run workflow
 =============================
 
-This workflow makes makes a coupled C48 FV3 run with a scikit-learn model. This workflow mainly
-1. builds a docker image suitable for online prognostic runs with fv3gfs, and
+This workflow makes a coupled C48 FV3 run with a scikit-learn model. This workflow
 1. includes runfile `sklearn_runfile.py` which can be used with `fv3run`
+1. uses the `prognostic_run` docker image, built by `fv3net/docker/prognostic_run/Dockerfile`
 
 (Authenticating) with google cloud
 --------------------------------
@@ -17,47 +17,9 @@ will point to a valid service account key on the host system. For example,
 Quickstart
 ----------
 
-To build the docker image to used, run
-
-	make build
-
-The git revision of the fv3net installed in the docker image can be specified using the `FV3NET_VERSION` flag. For example,
-
-    FV3NET_VERSION=master make build
-    
-will install the master branch of fv3net.
-
-To start a bash shell in this image, run
-
-	make dev
-
-An example prognostic run can be started with 
+An example prognostic run can be started with
 
 	make sklearn_run
-    
-Saving the fv3gfs-python state as a pickle
-------------------------------------------
-
-For prototyping purposes it is useful to be able to save the state as returned
-by `fv3gfs.get_state` so it can be loaded outside the docker image. This can be
-done by running
-
-	make state.pkl
-
-This will create a file `state.pkl`, which can be read in python using 
-	
-```python
-import state_io
-
-with open("state.pkl", "rb") as f:
-    data = state_io.load(f)
-```
-
-The main method of the  `online_modules/sklearn_interface` reads in this file and prints some outputs.
-
-    make test_run_sklearn
-
-Note that the `online_modules` must be in the PYTHONPATH for this make rule to work.
 
 Configure the scikit-learn run
 ------------------------------------------
@@ -69,31 +31,48 @@ scikit_learn:
   zarr_output: diags.zarr
 ```
 
+If some variables names used for input variables in the scikit-learn model are inconsistent with the variable names used by the python wrapper, this can be handled by the optional `input_variable_standard_names` entry in the `scikit_learn` entry of the config yaml:
+```
+scikit_learn:
+  input_variable_standard_names:
+    DSWRFtoa_train: total_sky_downward_shortwave_flux_at_top_of_atmosphere
+```
+
 Prognostic Run in End-to-End Workflow
 -------------------------------------
 
 The prognostic run is included in the end-to-end workflow orchestration by `orchestrate_submit_job.py`.  This script takes command-line arguments:
 
 ```
-usage: orchestrate_submit_job.py [-h]
-                                 model_url initial_condition_url output_url
-                                 prog_config_yml ic_timestep docker_image
+usage: orchestrate_submit_job.py [-h] [--model_url MODEL_URL]
+                                 [--prog_config_yml PROG_CONFIG_YML]
+                                 [--diagnostic_ml] [-d]
+                                 initial_condition_url ic_timestep
+                                 docker_image output_url
 
 positional arguments:
-  model_url             Remote url to a trained sklearn model.
   initial_condition_url
                         Remote url to directory holding timesteps with model
                         initial conditions.
-  output_url            Remote storage location for prognostic run output.
-  prog_config_yml       Path to a config update YAML file specifying the
-                        changes (e.g., diag_table, runtime, ...) from the one-
-                        step runs for the prognostic run.
   ic_timestep           Time step to grab from the initial conditions url.
   docker_image          Docker image to pull for the prognostic run kubernetes
                         pod.
+  output_url            Remote storage location for prognostic run output.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --model_url MODEL_URL
+                        Remote url to a trained sklearn model.
+  --prog_config_yml PROG_CONFIG_YML
+                        Path to a config update YAML file specifying the
+                        changes from the basefv3config (e.g. diag_table,
+                        runtime, ...) for the prognostic run.
+  --diagnostic_ml       Compute and save ML predictions but do not apply them
+                        to model state.
+  -d, --detach          Do not wait for the k8s job to complete.
 ```
 
-The prognostic run will grab the fv3config.yml file residing at the `initial_condition_url` and update it with any values specified in `prog_config_yml`, which can also include a `kubernetes`-key section to pass pod resource requests to `fv3run` (example shown below).  A prognostic-run configuration section ("scikit_learn") is added to the configuration for execution of the ML model within this workflow member.
+The prognostic run will grab the fv3config.yml file residing at the `initial_condition_url` and update it with any values specified in `prog_config_yml`, which can also include a `kubernetes`-key section to pass pod resource requests to `fv3run` (example shown below).  The prognostic-run ML configuration section "scikit_learn" is added (or updated if it already exists) to use the ML model specified as a command-line argument to `orchestrate_submit_job.py`.
 
 ### `prog_config_yml` example
 

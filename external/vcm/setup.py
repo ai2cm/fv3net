@@ -17,6 +17,7 @@ install_requirements = [
     "scipy",
     "scikit-image",
     "metpy",
+    "pooch==1.1.1",
     "numba",
     "intake",
     "gcsfs",
@@ -25,6 +26,7 @@ install_requirements = [
     "cftime",
     "pytest",
     "pytest-regtest",
+    "h5netcdf>=0.8",
 ]
 
 

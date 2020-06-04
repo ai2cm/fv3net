@@ -4,7 +4,7 @@ import os
 import fsspec
 import yaml
 import fv3config
-from fv3net.pipelines.common import get_alphanumeric_unique_tag
+import fv3kube
 import vcm
 
 logger = logging.getLogger("run_jobs")
@@ -17,7 +17,7 @@ def _get_cpu_count_required(config):
 
 def _get_jobname(config):
     experiment_name = config["experiment_name"]
-    unique_tag = get_alphanumeric_unique_tag(8)
+    unique_tag = fv3kube.get_alphanumeric_unique_tag(8)
     return f"{experiment_name}-{unique_tag}"
 
 

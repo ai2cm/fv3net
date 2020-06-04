@@ -2,14 +2,31 @@
 History
 =======
 
-
 latest
 ------
-* Updated fv3gfs-python to v0.4.1. As part of this, refactored sklearn_interface functions from runtime to the prognostic run runfile.
+* Add option to not apply ML predictions to model state in prognostic runs (so-called "piggy-back" runs)
+* Modify submission of prognostic run so that its configuration is specified independently of one-step jobs
+* Add `base_fv3config_version` parameter to one-step and prognostic run yamls
+* Add new `v0.4` base fv3config which is a configuration set up for being initialized from coarsened SHiELD restart fields
+* Modify format of one-step yamls to not include explicit fv3config key (making them consistent with prognostic run yaml)
+* Add a batched loader for nudging data using FunctionOutputSequence interface
+* Refactor training data batch loading to use a common batch loader for all data sources. To load from a specific
+ data source (e.g. one step, nudging), the function name `open_<data source type>` (selected from the available functions in loaders.__init__)
+ should be specified in the training configuration YAML. Works for the currently existing mappers: one step and fine res.
 
+
+0.2.1 (2020-05-15)
+------
+* Add surface_precipitation_rate to one-step outputs, create training and test steps.
+* Correct prognostic runfile diagnostic calculations.
+* Update fv3gfs-python to v0.4.3.
+* Updated fv3gfs-python to v0.4.1. As part of this, refactored sklearn_interface functions from runtime to the prognostic run runfile.
 * Prognostic run report: compute and plot scalar metrics, generate report via
   python script, change output location (#226)
 * Multithreaded uploading in one-step jobs (#260)
+* Made nudging run upload more robust using k8s yaml templating submission and gsutil container upload
+* The key for commands in the end to end config YAML can be given as either `command` or `argo`, and the arguments will be parsed into the appropriate format for either type.
+* Offline diags workflow now downloads the test data to a local temp dir to speed reading and prevent remote read errors.
 
 0.2.0 (2020-04-23)
 ------------------

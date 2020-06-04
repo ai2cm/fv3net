@@ -44,6 +44,7 @@ def predict_on_test_data(
     coord_z_center="z",
     model_type="rf",
 ):
+
     if model_type == "rf":
         from fv3net.regression.sklearn.test import (
             load_test_dataset,
@@ -91,9 +92,20 @@ def load_high_res_diag_dataset(
     ds_hires["net_precipitation"] = vcm.net_precipitation(
         ds_hires[f"LHTFLsfc_coarse"], ds_hires[f"PRATEsfc_coarse"]
     )
-    ds_hires["net_heating"] = net_heating_from_dataset(ds_hires, suffix="coarse")
+    ds_hires["net_heating"] = net_heating_from_dataset(
+        ds_hires,
+        suffix="coarse",
+        shf_var="SHTFLsfc_coarse",
+        precip_var="PRATEsfc_coarse",
+    )
 
     return ds_hires
+
+
+def add_total_Q(ds, vars=["Q1", "Q2"]):
+    for var in vars:
+        ds[var] = ds[f"d{var}"] + ds[f"p{var}"]
+    return ds
 
 
 def add_column_heating_moistening(
@@ -105,52 +117,34 @@ def add_column_heating_moistening(
     coord_z_center,
 ):
     """ Integrates column dQ1, dQ2 and sum with model's heating/moistening to calculate
-    heating and P-E. Modifies in place.
+    heating and P-E.
     
     Args:
         ds (xarray dataset): train/test or prediction dataset
             that has dQ1, dQ2, delp, precip and LHF data variables
     """
     logger.info("add_column_heating_moistening")
-
     ds["net_precipitation_ml"] = (
         vcm.mass_integrate(
             -ds[var_q_moistening_ml], ds[var_pressure_thickness], dim=coord_z_center
         )
         * kg_m2s_to_mm_day
     )
-    if (
-        f"LHTFLsfc_{suffix_coarse_train_diag}" in ds.data_vars
-        and f"PRATEsfc_{suffix_coarse_train_diag}" in ds.data_vars
-    ):
-        ds["net_precipitation_physics"] = vcm.net_precipitation(
-            ds[f"LHTFLsfc_{suffix_coarse_train_diag}"],
-            ds[f"PRATEsfc_{suffix_coarse_train_diag}"],
-        )
-        ds["net_precipitation"] = (
-            ds["net_precipitation_ml"] + ds["net_precipitation_physics"]
-        )
-    else:
-        # fill in zeros for physics values if all physics off configured data
-        ds = _fill_zero_da_from_template(
-            ds, "net_precipitation_physics", ds["net_precipitation_ml"]
-        )
-        ds["net_precipitation"] = ds["net_precipitation_ml"]
+
+    ds["net_precipitation_physics"] = vcm.net_precipitation(
+        ds["latent_heat_flux"], ds["surface_precipitation_rate"]
+    )
+    ds["net_precipitation"] = (
+        ds["net_precipitation_ml"] + ds["net_precipitation_physics"]
+    )
 
     ds["net_heating_ml"] = SPECIFIC_HEAT_CONST_PRESSURE * vcm.mass_integrate(
         ds[var_q_heating_ml], ds[var_pressure_thickness], dim=coord_z_center
     )
-    if f"SHTFLsfc_{suffix_coarse_train_diag}" in ds.data_vars:
-        ds["net_heating_physics"] = net_heating_from_dataset(
-            ds, suffix=suffix_coarse_train_diag
-        )
-        ds["net_heating"] = ds["net_heating_ml"] + ds["net_heating_physics"]
-    else:
-        # fill in zeros for physics values if all physics off configured data
-        ds = _fill_zero_da_from_template(
-            ds, "net_heating_physics", ds["net_heating_ml"]
-        )
-        ds["net_heating"] = ds["net_heating_ml"]
+    ds["net_heating_physics"] = net_heating_from_dataset(
+        ds, suffix=suffix_coarse_train_diag
+    )
+    ds["net_heating"] = ds["net_heating_ml"] + ds["net_heating_physics"]
 
     for data_var, data_attrs in THERMO_DATA_VAR_ATTRS.items():
         ds[data_var].attrs = data_attrs

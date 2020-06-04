@@ -6,9 +6,7 @@ import logging
 from pathlib import Path
 
 import fv3config
-import fv3net.pipelines.kube_jobs as kube_jobs
-from vcm.cloud.fsspec import get_fs
-from fv3net.pipelines.common import get_alphanumeric_unique_tag
+import fv3kube
 
 logger = logging.getLogger(__name__)
 PWD = Path(os.path.abspath(__file__)).parent
@@ -58,8 +56,13 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "--prog_config_yml",
         type=str,
         default="prognostic_config.yml",
-        help="Path to a config update YAML file specifying the changes (e.g., "
-        "diag_table, runtime, ...) from the one-step runs for the prognostic run.",
+        help="Path to a config update YAML file specifying the changes from the base"
+        "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
+    )
+    parser.add_argument(
+        "--diagnostic_ml",
+        action="store_true",
+        help="Compute and save ML predictions but do not apply them to model state.",
     )
     parser.add_argument(
         "-d",
@@ -71,48 +74,24 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _get_onestep_config(restart_path, timestep):
-    config_path = os.path.join(
-        restart_path, "one_step_config", timestep, CONFIG_FILENAME
-    )
-    fs = get_fs(config_path)
-    with fs.open(config_path) as f:
-        config = yaml.safe_load(f)
-
-    return config
-
-
-def _update_with_prognostic_model_config(model_config, prognostic_config):
-    """
-    Update the default model config with the prognostic run.
-    """
-
-    with open(prognostic_config, "r") as f:
-        prognostic_model_config = yaml.load(f, Loader=yaml.FullLoader)
-
-    kube_jobs.update_nested_dict(model_config, prognostic_model_config)
-
-    return model_config
-
-
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
     parser = _create_arg_parser()
     args = parser.parse_args()
 
-    short_id = get_alphanumeric_unique_tag(8)
+    short_id = fv3kube.get_alphanumeric_unique_tag(8)
     job_name = f"prognostic-run-{short_id}"
     job_label = {
         "orchestrator-jobs": f"prognostic-group-{short_id}",
         "app": "end-to-end",
     }
 
-    model_config = _get_onestep_config(args.initial_condition_url, args.ic_timestep)
-
-    # Get model config with one-step and prognistic run updates
-    model_config = _update_with_prognostic_model_config(
-        model_config, args.prog_config_yml
+    # Get model config with prognostic run updates
+    with open(args.prog_config_yml, "r") as f:
+        prog_config_update = yaml.safe_load(f)
+    model_config = fv3kube.get_full_config(
+        prog_config_update, args.initial_condition_url, args.ic_timestep
     )
 
     kube_opts = KUBERNETES_DEFAULT.copy()
@@ -120,21 +99,23 @@ if __name__ == "__main__":
         user_kube_config = model_config.pop("kubernetes")
         kube_opts.update(user_kube_config)
 
-    job_config_filename = "fv3config.yml"
     config_dir = os.path.join(args.output_url, "job_config")
     job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
 
-    model_config["diag_table"] = kube_jobs.transfer_local_to_remote(
+    model_config["diag_table"] = fv3kube.transfer_local_to_remote(
         model_config["diag_table"], config_dir
     )
 
-    # Add prognostic config section
+    # Add scikit learn ML model config section
     if args.model_url:
-        model_config["scikit_learn"] = {
-            "model": os.path.join(args.model_url, MODEL_FILENAME),
-            "zarr_output": "diags.zarr",
-        }
-        kube_opts["runfile"] = kube_jobs.transfer_local_to_remote(RUNFILE, config_dir)
+        scikit_learn_config = model_config.get("scikit_learn", {})
+        scikit_learn_config.update(
+            model=os.path.join(args.model_url, MODEL_FILENAME),
+            zarr_output="diags.zarr",
+            diagnostic_ml=args.diagnostic_ml,
+        )
+        model_config["scikit_learn"] = scikit_learn_config
+        kube_opts["runfile"] = fv3kube.transfer_local_to_remote(RUNFILE, config_dir)
 
     # Upload the new prognostic config
     with fsspec.open(job_config_path, "w") as f:
@@ -142,7 +123,7 @@ if __name__ == "__main__":
 
     # need to initialized the client differently than
     # run_kubernetes when running in a pod.
-    client = kube_jobs.initialize_batch_client()
+    client = fv3kube.initialize_batch_client()
     job = fv3config.run_kubernetes(
         config_location=job_config_path,
         outdir=args.output_url,
@@ -155,5 +136,5 @@ if __name__ == "__main__":
     client.create_namespaced_job(namespace="default", body=job)
 
     if not args.detach:
-        kube_jobs.wait_for_complete(job_label)
-        kube_jobs.delete_completed_jobs(job_label)
+        fv3kube.wait_for_complete(job_label)
+        fv3kube.delete_completed_jobs(job_label)

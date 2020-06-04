@@ -1,7 +1,4 @@
-# TODO this utility should be refactored to shared micropackage or vcm
-# right now kubernetes and fv3config are added to setup.py
-# for this dependency- when refactored, remove them from there
-from fv3net.pipelines.common import update_nested_dict
+from vcm import update_nested_dict
 
 # TODO revamp this default dictionary to be more declaretive. It should specify:
 # what the output variables names are, and where each comes from e.g.:
@@ -62,10 +59,15 @@ DEFAULT = {
     "var_sphum": "specific_humidity",
     "var_land_sea_mask": "land_sea_mask",
     "one_step_vars": [
+        "latent_heat_flux",
+        "sensible_heat_flux",
+        "surface_precipitation_rate",
         "dQU",
         "dQV",
         "dQ1",
         "dQ2",
+        "pQ1",
+        "pQ2",
         "surface_temperature",
         "land_sea_mask",
         "surface_geopotential",
@@ -87,18 +89,18 @@ DEFAULT = {
         "lonb",
         "area",
     ],
-    "high_res_data_variables": [
-        "DSWRFtoa_coarse",
-        "DSWRFsfc_coarse",
-        "USWRFtoa_coarse",
-        "USWRFsfc_coarse",
-        "DLWRFsfc_coarse",
-        "ULWRFtoa_coarse",
-        "ULWRFsfc_coarse",
-        "SHTFLsfc",
-        "LHTFLsfc",
-        "PRATEsfc",
-    ],
+    "renamed_high_res_data_variables": {
+        "DSWRFtoa_coarse": "DSWRFtoa_prog",
+        "DSWRFsfc_coarse": "DSWRFsfc_prog",
+        "USWRFtoa_coarse": "USWRFtoa_prog",
+        "USWRFsfc_coarse": "USWRFsfc_prog",
+        "DLWRFsfc_coarse": "DLWRFsfc_prog",
+        "ULWRFtoa_coarse": "ULWRFtoa_prog",
+        "ULWRFsfc_coarse": "ULWRFsfc_prog",
+        "SHTFLsfc_coarse": "sensible_heat_flux_prog",
+        "LHTFLsfc_coarse": "latent_heat_flux_prog",
+        "PRATEsfc_coarse": "surface_precipitation_rate_prog",
+    },
     "diag_vars": [
         "DSWRFtoa",
         "DSWRFsfc",
@@ -107,9 +109,6 @@ DEFAULT = {
         "DLWRFsfc",
         "ULWRFtoa",
         "ULWRFsfc",
-        "SHTFLsfc",
-        "LHTFLsfc",
-        "PRATEsfc",
     ],
 }
 

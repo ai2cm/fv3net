@@ -1,11 +1,9 @@
 import os
 import shutil
 import tempfile
-import secrets
-import string
 import logging
 from datetime import timedelta
-from typing import Any, Callable, List, Mapping
+from typing import Any, Callable, List, Tuple, TypeVar
 from typing.io import BinaryIO
 
 import apache_beam as beam
@@ -17,6 +15,46 @@ from vcm import parse_timestep_str_from_path, parse_datetime_from_str
 from vcm.cubedsphere.constants import TIME_FMT
 
 logger = logging.getLogger(__name__)
+
+
+@beam.typehints.with_input_types(Any)
+@beam.typehints.with_output_types(xr.Dataset)
+class FunctionSource(beam.PTransform):
+    """Create a pcollection by evaluating a single function
+
+    Careful profiling_ indicates that xarray datasets should be loaded within
+    a beam ParDo rather than loaded outside the beam graph and passed in by pickling.
+
+    For example, the following naive code is painfully slow::
+
+        ds: Dataset = load_dataset(url)
+        p = Pipeline()
+        p | beam.Create([ds])
+        p.run()
+
+    This equivalent code is about 100 times faster::
+
+        p = Pipeline()
+        p | beam.Create([None]) | beam.Map(lambda _, url : load_dataset(url), url)
+    
+    This PTransform implements this pattern, allowing the following clean syntax::
+
+        p | FunctionSource(load_dataset, url)
+
+    .. _profiling: https://gist.github.com/nbren12/948ef9a5248c43537bb50db49c8851f9
+
+    """
+
+    def __init__(self, fn, *args):
+        self.fn = fn
+        self.args = args
+
+    def expand(self, pcoll):
+        return (
+            pcoll
+            | beam.Create([None]).with_output_types(None)
+            | beam.Map(lambda _: self.fn(*self.args)).with_output_types(xr.Dataset)
+        )
 
 
 class CombineSubtilesByKey(beam.PTransform):
@@ -36,6 +74,11 @@ class CombineSubtilesByKey(beam.PTransform):
         return key, xr.combine_by_coords(datasets)
 
 
+T = TypeVar("T")
+
+
+@beam.typehints.with_input_types(Tuple[T, xr.Dataset])
+@beam.typehints.with_output_types(Any)
 class WriteToNetCDFs(beam.PTransform):
     """Transform for writing xarray Datasets to netCDF either remote or local
 netCDF files.
@@ -80,10 +123,11 @@ netCDF files.
 
     """
 
-    def __init__(self, name_fn: Callable[[Any], str]):
+    def __init__(self, name_fn: Callable[[T], str], *args):
         self.name_fn = name_fn
+        self.args = args
 
-    def _process(self, key, elm: xr.Dataset):
+    def _process(self, kv: Tuple[T, xr.Dataset]) -> None:
         """Save a netCDF to a path which is determined from `key`
 
         This works for any url support by apache-beam's built-in FileSystems_ class.
@@ -92,7 +136,10 @@ netCDF files.
             https://beam.apache.org/releases/pydoc/2.6.0/apache_beam.io.filesystems.html#apache_beam.io.filesystems.FileSystems
 
         """
-        path = self.name_fn(key)
+        key, elm = kv
+        # TODO refactor this or replace with dump_nc
+        path = self.name_fn(key, *self.args)
+        logger.info(f"saving to {path}")
         dest: BinaryIO = filesystems.FileSystems.create(path)
 
         # use a file-system backed buffer in case the data is too large to fit in memory
@@ -106,7 +153,7 @@ netCDF files.
             os.unlink(tmp)
 
     def expand(self, pcoll):
-        return pcoll | beam.MapTuple(self._process)
+        return pcoll | beam.ParDo(self._process)
 
 
 def list_timesteps(path: str) -> List[str]:
@@ -134,19 +181,6 @@ def list_timesteps(path: str) -> List[str]:
             # not a timestep directory
             continue
     return sorted(timesteps)
-
-
-def update_nested_dict(source_dict: Mapping, update_dict: Mapping) -> Mapping:
-    """
-    Recursively update a dictionary with new values.  Used to update
-    configuration dicts with partial specifications.
-    """
-    for key in update_dict:
-        if key in source_dict and isinstance(source_dict[key], Mapping):
-            update_nested_dict(source_dict[key], update_dict[key])
-        else:
-            source_dict[key] = update_dict[key]
-    return source_dict
 
 
 def subsample_timesteps_at_interval(
@@ -191,14 +225,3 @@ def subsample_timesteps_at_interval(
         )
 
     return subsampled_timesteps
-
-
-def get_alphanumeric_unique_tag(tag_length: int) -> str:
-    """Generates a random alphanumeric string (a-z0-9) of a specified length"""
-
-    if tag_length < 1:
-        raise ValueError("Unique tag length should be 1 or greater.")
-
-    use_chars = string.ascii_lowercase + string.digits
-    short_id = "".join([secrets.choice(use_chars) for i in range(tag_length)])
-    return short_id

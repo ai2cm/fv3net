@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 import xarray as xr
 from vcm.cubedsphere.coarsen import shift_edge_var_to_center
@@ -11,6 +12,8 @@ from vcm.cubedsphere.constants import (
     VAR_LON_OUTER,
     VAR_LAT_OUTER,
 )
+
+from vcm import safe
 
 
 def rotate_winds_to_lat_lon_coords(
@@ -167,7 +170,9 @@ def _get_local_basis_in_spherical_coords(grid):
     )
 
 
-def get_rotated_centered_winds_from_restarts(ds: xr.Dataset):
+def get_rotated_centered_winds_from_restarts(
+    ds: xr.Dataset,
+) -> Tuple[xr.DataArray, xr.DataArray]:
     """ Get rotated and centered winds from restart wind variables
 
     Args:
@@ -180,8 +185,12 @@ def get_rotated_centered_winds_from_restarts(ds: xr.Dataset):
         u_r, v_r (xr.DataArrays)
             DataArrays of rotated, centered winds
     """
-    u_c = shift_edge_var_to_center(ds["u"].drop(labels=COORD_X_CENTER))
-    v_c = shift_edge_var_to_center(ds["v"].drop(labels=COORD_Y_CENTER))
+    u_c = shift_edge_var_to_center(ds["u"].drop(labels=COORD_X_CENTER))  # type: ignore
+    v_c = shift_edge_var_to_center(ds["v"].drop(labels=COORD_Y_CENTER))  # type: ignore
     return rotate_winds_to_lat_lon_coords(
-        u_c, v_c, ds[[VAR_LON_OUTER, VAR_LON_CENTER, VAR_LAT_OUTER, VAR_LAT_CENTER]]
+        u_c,
+        v_c,
+        safe.get_variables(
+            ds, [VAR_LON_OUTER, VAR_LON_CENTER, VAR_LAT_OUTER, VAR_LAT_CENTER]
+        ),
     )

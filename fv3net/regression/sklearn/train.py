@@ -3,14 +3,15 @@ import joblib
 import logging
 import os
 import yaml
-
+import xarray as xr
 from dataclasses import dataclass
-from typing import List
+from typing import Iterable, Sequence
 
-from fv3net.regression.dataset_handler import BatchGenerator
-from fv3net.regression.sklearn.wrapper import SklearnWrapper, RegressorEnsemble
+from .. import loaders
+from .wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestRegressor
 
 
 logger = logging.getLogger(__file__)
@@ -19,40 +20,17 @@ logger = logging.getLogger(__file__)
 @dataclass
 class ModelTrainingConfig:
     """Convenience wrapper for model training parameters and file info
-
     """
 
     model_type: str
-    gcs_data_dir: str
     hyperparameters: dict
-    num_batches: int
-    files_per_batch: int
-    input_variables: List[str]
-    output_variables: List[str]
-    gcs_project: str = "vcm-ml"
-    random_seed: int = 0
-    mask_to_surface_type: str = "none"
-    coord_z_center: str = "z"
-    init_time_dim: str = "initial_time"
-
-    def __post_init__(self):
-        # set default random_state for sklearn model if not specified
-        if "random_state" not in self.hyperparameters:
-            self.hyperparameters["random_state"] = 0
-
-    def validate_number_train_batches(self, batch_generator):
-        """ Since number of training files specified may be larger than
-        the actual number available, this adds an attribute num_batches_used
-        that keeps information about the actual number of training batches
-        used.
-
-        Args:
-            batch_generator (BatchGenerator)
-        """
-        self.num_batches_used = batch_generator.num_batches
+    input_variables: Iterable[str]
+    output_variables: Iterable[str]
+    batch_function: str
+    batch_kwargs: dict
 
 
-def load_model_training_config(config_path, gcs_data_dir):
+def load_model_training_config(config_path: str) -> ModelTrainingConfig:
     """
 
     Args:
@@ -66,47 +44,48 @@ def load_model_training_config(config_path, gcs_data_dir):
             config_dict = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             raise ValueError(f"Bad yaml config: {exc}")
-    config_dict["gcs_data_dir"] = gcs_data_dir
-    config = ModelTrainingConfig(**config_dict)
-    return config
+    return ModelTrainingConfig(**config_dict)
 
 
-def load_data_generator(train_config) -> BatchGenerator:
+def load_data_sequence(
+    data_path: str, train_config: ModelTrainingConfig
+) -> Sequence[xr.Dataset]:
     """
-
     Args:
-        train_config: ModelTrainingConfig object
+        data_path: data location
+        train_config: model training configuration
 
     Returns:
-        iterator that generates xr datasets for training batches
+        Sequence of datasets iterated over in training
     """
-    data_vars = train_config.input_variables + train_config.output_variables
-    ds_batches = BatchGenerator(
-        data_vars,
-        train_config.gcs_data_dir,
-        train_config.files_per_batch,
-        train_config.num_batches,
-        random_seed=train_config.random_seed,
-        mask_to_surface_type=train_config.mask_to_surface_type,
+    batch_function = getattr(loaders, train_config.batch_function)
+    ds_batches = batch_function(
+        data_path,
+        list(train_config.input_variables) + list(train_config.output_variables),
+        **train_config.batch_kwargs,
     )
     return ds_batches
 
 
-def _get_regressor(train_config):
+def _get_regressor(train_config: ModelTrainingConfig):
     """Reads the model type from the model training config and initializes a regressor
     with hyperparameters from config.
 
     Args:
-        train_config: ModelTrainingConfig object
+        train_config: model training configuration
 
     Returns:
         regressor (varies depending on model type)
     """
     model_type = train_config.model_type.replace(" ", "").replace("_", "")
     if "rf" in model_type or "randomforest" in model_type:
-        from sklearn.ensemble import RandomForestRegressor
-
-        regressor = RandomForestRegressor(**train_config.hyperparameters, n_jobs=-1)
+        train_config.hyperparameters["random_state"] = train_config.hyperparameters.get(
+            "random_state", 0
+        )
+        train_config.hyperparameters["n_jobs"] = train_config.hyperparameters.get(
+            "n_jobs", -1
+        )
+        regressor = RandomForestRegressor(**train_config.hyperparameters)
     else:
         raise ValueError(
             f"Model type {train_config.model_type} not implemented. "
@@ -117,36 +96,30 @@ def _get_regressor(train_config):
     return regressor
 
 
-def train_model(batched_data: BatchGenerator, train_config):
-    """
+def _get_transformed_batch_regressor(train_config):
+    base_regressor = _get_regressor(train_config)
+    target_transformer = StandardScaler()
+    transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
+    batch_regressor = RegressorEnsemble(transform_regressor)
+    model_wrapper = SklearnWrapper(batch_regressor)
+    return model_wrapper
 
+
+def train_model(batched_data: Sequence[xr.Dataset], train_config: ModelTrainingConfig):
+    """
     Args:
-        batched_data: iterator that yields training batch datasets
-        train_config: ModelTrainingConfig object
+        batched_data: training batch datasets
+        train_config: model training configuration
         targets_for_normalization: array of sample output data used to save norm and std
             dev to the StandardScaler transformer
 
     Returns:
         trained sklearn model wrapper object
     """
-    base_regressor = _get_regressor(train_config)
-    target_transformer = StandardScaler()
-    transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
-    batch_regressor = RegressorEnsemble(transform_regressor)
-    model_wrapper = SklearnWrapper(batch_regressor)
 
-    # count number of timesteps used for training within train_model
-    # in case any batches fail
-    train_config.validate_number_train_batches(batched_data)
-    training_urls_to_attempt = batched_data.train_file_batches
-    training_urls_used = []
-
-    for i, batch in enumerate(
-        batched_data.generate_batches(
-            train_config.coord_z_center, train_config.init_time_dim
-        )
-    ):
-        logger.info(f"Fitting batch {i}/{batched_data.num_batches}")
+    model_wrapper = _get_transformed_batch_regressor(train_config)
+    for i, batch in enumerate(batched_data):
+        logger.info(f"Fitting batch {i}/{len(batched_data)}")
         model_wrapper.fit(
             input_vars=train_config.input_variables,
             output_vars=train_config.output_variables,
@@ -154,12 +127,11 @@ def train_model(batched_data: BatchGenerator, train_config):
             data=batch,
         )
         logger.info(f"Batch {i} done fitting.")
-        training_urls_used += training_urls_to_attempt[i]
 
-    return model_wrapper, training_urls_used
+    return model_wrapper
 
 
-def save_model(output_url, model, model_filename):
+def save_model(output_url: str, model, model_filename: str):
     """Save model to {output_url}/{model_filename} using joblib.dump"""
     fs, _, _ = fsspec.get_fs_token_paths(output_url)
     fs.makedirs(output_url, exist_ok=True)
