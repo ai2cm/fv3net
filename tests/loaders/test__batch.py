@@ -7,9 +7,8 @@ import xarray as xr
 from fv3net.regression.loaders._batch import (
     _mapper_to_batches,
     _load_batch,
-    _get_dataset_list,
-    _select_batch_timesteps,
-    _validated_num_batches,
+    BatchSequence,
+    _mapper_to_diagnostic_sequence,
 )
 
 DATA_VARS = ["air_temperature", "specific_humidity"]
@@ -47,24 +46,41 @@ def mapper(datadir):
     return mapper
 
 
-def test__load_batch(mapper):
+@pytest.fixture
+def random_state():
+    return np.random.RandomState(0)
+
+
+@pytest.fixture
+def batch_sequence(mapper, random_state):
+    return BatchSequence(
+        mapper, files_per_batch=2, num_batches=2, random_state=random_state
+    )
+
+
+def test__load_batch(batch_sequence):
     ds = _load_batch(
-        timestep_mapper=mapper,
+        batch_sequence=batch_sequence,
         data_vars=["air_temperature", "specific_humidity"],
         rename_variables={},
         init_time_dim_name="time",
-        timestep_list=mapper.keys(),
+        batch_index=0,
     )
-    assert len(ds["time"]) == 4
-
-
-def test__get_dataset_list(mapper):
-    ds_list = _get_dataset_list(mapper, mapper.keys())
-    assert len(ds_list) == 4
+    assert len(ds["time"]) == 2
 
 
 def test__mapper_to_batches(mapper):
     batched_data_sequence = _mapper_to_batches(
+        mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
+    )
+    assert len(batched_data_sequence) == 2
+    for i, batch in enumerate(batched_data_sequence):
+        assert len(batch["z"]) == Z_DIM_SIZE
+        assert set(batch.data_vars) == set(DATA_VARS)
+
+
+def test__mapper_to_diagnostic_sequence(mapper):
+    batched_data_sequence = _mapper_to_diagnostic_sequence(
         mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
     )
     assert len(batched_data_sequence) == 2
@@ -90,14 +106,34 @@ def test__validated_num_batches(
 ):
     if valid_num_batches:
         assert (
-            _validated_num_batches(total_times, times_per_batch, num_batches,)
+            BatchSequence._validated_num_batches(
+                total_times, times_per_batch, num_batches
+            )
             == valid_num_batches
         )
     else:
         with pytest.raises(ValueError):
-            _validated_num_batches(
+            BatchSequence._validated_num_batches(
                 total_times, times_per_batch, num_batches,
             )
+
+
+class MockDatasetMapperNoData:
+    def __init__(self, n_timesteps):
+        self._keys = [f"2020050{i}.000000" for i in range(n_timesteps)]
+
+    def keys(self):
+        return self._keys
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __len__(self):
+        return len(self.keys())
+
+
+def mapper_timesteps(timesteps):
+    return MockDatasetMapperNoData(timesteps)
 
 
 @pytest.mark.parametrize(
@@ -117,12 +153,14 @@ def test__validated_num_batches(
 def test__select_batch_timesteps(
     timesteps_per_batch, num_batches, total_num_timesteps, valid
 ):
+    mapper = mapper_timesteps(total_num_timesteps)
     random_state = np.random.RandomState(0)
-    timesteps = [str(i) for i in range(total_num_timesteps)]
+    timesteps = mapper.keys()
     if valid:
-        batched_times = _select_batch_timesteps(
-            timesteps, timesteps_per_batch, num_batches, random_state,
+        batch_sequence = BatchSequence(
+            mapper, timesteps_per_batch, num_batches, random_state
         )
+        batched_times = batch_sequence.batches
         timesteps_seen = []
         assert len(batched_times) == num_batches
         for batch in batched_times:
@@ -133,6 +171,6 @@ def test__select_batch_timesteps(
             timesteps_seen += batch
     else:
         with pytest.raises(Exception):
-            _select_batch_timesteps(
-                timesteps, timesteps_per_batch, num_batches, random_state,
+            batch_sequence = BatchSequence(
+                mapper, timesteps_per_batch, num_batches, random_state
             )
