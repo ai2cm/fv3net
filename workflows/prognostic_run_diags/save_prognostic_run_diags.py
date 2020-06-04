@@ -58,7 +58,7 @@ def add_to_diags(diags_key: str, func: Callable[[DiagArg], xr.Dataset]):
     return func
 
 
-def compute_all_diagnostics(input_datasets: Dict[str, Tuple[xr.Dataset]]):
+def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]):
     """
     Compute all diagnostics for input data.
 
