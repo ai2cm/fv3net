@@ -26,7 +26,8 @@ class ModelTrainingConfig:
     hyperparameters: dict
     input_variables: Iterable[str]
     output_variables: Iterable[str]
-    batch_loader: dict
+    batch_function: str
+    batch_kwargs: dict
 
 
 def load_model_training_config(config_path: str) -> ModelTrainingConfig:
@@ -55,14 +56,13 @@ def load_data_sequence(
         train_config: model training configuration
 
     Returns:
-        sequence of datasets iterated over in training
+        Sequence of datasets iterated over in training
     """
-    batch_function_name = train_config.batch_loader["batch_function"]
-    batch_function = getattr(loaders, batch_function_name)
+    batch_function = getattr(loaders.batches, train_config.batch_function)
     ds_batches = batch_function(
         data_path,
         list(train_config.input_variables) + list(train_config.output_variables),
-        **train_config.batch_loader["batch_kwargs"],
+        **train_config.batch_kwargs,
     )
     return ds_batches
 
