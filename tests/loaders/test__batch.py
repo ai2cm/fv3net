@@ -8,7 +8,7 @@ from fv3net.regression.loaders._batch import (
     _mapper_to_batches,
     _load_batch,
     BatchSequence,
-    mapper_to_diagnostic_sequence,
+    _mapper_to_diagnostic_sequence,
 )
 
 DATA_VARS = ["air_temperature", "specific_humidity"]
@@ -79,8 +79,8 @@ def test__mapper_to_batches(mapper):
         assert set(batch.data_vars) == set(DATA_VARS)
 
 
-def test_mapper_to_diagnostic_sequence(mapper):
-    batched_data_sequence = mapper_to_diagnostic_sequence(
+def test__mapper_to_diagnostic_sequence(mapper):
+    batched_data_sequence = _mapper_to_diagnostic_sequence(
         mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
     )
     assert len(batched_data_sequence) == 2

@@ -83,10 +83,9 @@ grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
 diagnostic_datasets = {}
 for dataset_name, dataset_config in datasets_config.items():
     logger.info(f"Reading dataset {dataset_name}.")
-    mapping_function = getattr(loaders, dataset_config["mapping_function"])
-    mapper = mapping_function(dataset_config["path"])
-    ds_batches = loaders.mapper_to_diagnostic_sequence(
-        mapper,
+    batch_function = getattr(loaders, dataset_config["batch_function"])
+    ds_batches = loaders.diagnostic_sequence_from_mapper(
+        dataset_config["path"],
         dataset_config["variables"],
         rename_variables=dataset_config.get("rename_variables", None),
         **dataset_config["batch_kwargs"],

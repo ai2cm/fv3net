@@ -1,6 +1,5 @@
 one_step_tendencies: 
   path: gs://vcm-ml-experiments/2020-05-07-clouds-off-training-data/create-clouds-off-data/create_training_data/train
-  mapping_function: open_one_step
   variables:
     - dQ1
     - dQ2
@@ -8,10 +7,12 @@ one_step_tendencies:
     - pQ2
     - pressure_thickness_of_atmospheric_layer
     - land_sea_mask
+  batch_function: diagnostic_sequence_from_mapper
   batch_kwargs:
     num_batches: 2
     timesteps_per_batch: 1
     init_time_dim_name: "initial_time"
+    mapping_function: open_one_step
 # fine_res_apparent_sources: 
 #   path: gs://vcm-ml-scratch/noah/2020-05-27
 #   path: /home/brianh/dev/fv3net/data/fine_res_budget
