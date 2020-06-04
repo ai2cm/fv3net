@@ -5,7 +5,7 @@ import synth
 import xarray as xr
 
 from fv3net.regression.loaders._batch import (
-    mapper_to_batches,
+    _mapper_to_batches,
     _load_batch,
     BatchSequence,
     mapper_to_diagnostic_sequence,
@@ -69,8 +69,8 @@ def test__load_batch(batch_sequence):
     assert len(ds["time"]) == 2
 
 
-def test_mapper_to_batches(mapper):
-    batched_data_sequence = mapper_to_batches(
+def test__mapper_to_batches(mapper):
+    batched_data_sequence = _mapper_to_batches(
         mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
     )
     assert len(batched_data_sequence) == 2

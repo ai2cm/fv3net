@@ -1,8 +1,7 @@
 import functools
 import logging
-import numpy as np
 from numpy.random import RandomState
-from typing import Iterable, Sequence, Mapping, Union
+from typing import Iterable, Sequence, Mapping, Union, Any
 import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
@@ -10,6 +9,7 @@ from ._transform import stack_dropnan_shuffle
 from .constants import TIME_NAME
 from ._one_step import TimestepMapper
 from ._fine_resolution_budget import FineResolutionBudgetTiles
+from fv3net.regression import loaders
 
 GenericMapper = Union[TimestepMapper, FineResolutionBudgetTiles]
 
@@ -95,19 +95,21 @@ class BatchSequence:
         return self.indices()
 
 
-def mapper_to_batches(
-    data_mapping: Mapping[str, xr.Dataset],
+def batches_from_mapper(
+    data_path: str,
+    #     data_mapping: Mapping[str, xr.Dataset],
     variable_names: Iterable[str],
+    mapping_function: str,
+    mapping_kwargs: Mapping[str, Any] = None,
     timesteps_per_batch: int = 1,
     num_batches: int = None,
     random_seed: int = 0,
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
 ) -> Sequence[xr.Dataset]:
-    """ The function returns a FunctionOutputSequence that is
-    later iterated over in ..sklearn.train. When iterating over the
-    output FunctionOutputSequence, the loading and transformation of data
-    is applied to each batch, and it effectively becomes a Sequence[xr.Dataset].
+    """ The function returns a sequence of datasets that is later
+    iterated over in  ..sklearn.train.
+
     Args:
         data_mapping (Mapping[str, xr.Dataset]): Interface to select data for
             given timestep keys.
@@ -123,7 +125,54 @@ def mapper_to_batches(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
-    random_state = np.random.RandomState(random_seed)
+    data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
+    batches = _mapper_to_batches(
+        data_mapping,
+        variable_names,
+        timesteps_per_batch,
+        num_batches,
+        random_seed,
+        init_time_dim_name,
+        rename_variables,
+    )
+    return batches
+
+
+def _create_mapper(
+    data_path, mapping_func_name: str, mapping_kwargs: Mapping[str, Any]
+) -> Mapping[str, xr.Dataset]:
+    mapping_func = getattr(loaders, mapping_func_name)
+    mapping_kwargs = mapping_kwargs or {}
+    return mapping_func(data_path, **mapping_kwargs)
+
+
+def _mapper_to_batches(
+    data_mapping: Mapping[str, xr.Dataset],
+    variable_names: Iterable[str],
+    timesteps_per_batch: int = 1,
+    num_batches: int = None,
+    random_seed: int = 0,
+    init_time_dim_name: str = "initial_time",
+    rename_variables: Mapping[str, str] = None,
+) -> Sequence[xr.Dataset]:
+    """ The function returns a sequence of datasets that is later
+    iterated over in  ..sklearn.train.
+    Args:
+        data_mapping (Mapping[str, xr.Dataset]): Interface to select data for
+            given timestep keys.
+        variable_names (Iterable[str]): data variables to select
+        timesteps_per_batch (int, optional): Defaults to 1.
+        num_batches (int, optional): Defaults to None.
+        random_seed (int, optional): Defaults to 0.
+        init_time_dim_name (str, optional): Name of time dim in data source.
+            Defaults to "initial_time".
+        rename_variables (Mapping[str, str], optional): Defaults to None.
+    Raises:
+        TypeError: If no variable_names are provided to select the final datasets
+    Returns:
+        Sequence of xarray datasets
+    """
+    random_state = RandomState(random_seed)
     if rename_variables is None:
         rename_variables = {}
     if len(variable_names) == 0:
@@ -160,7 +209,7 @@ def mapper_to_diagnostic_sequence(
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
     as mapper_to_batch but without transformation and stacking
     """
-    random_state = np.random.RandomState(random_seed)
+    random_state = RandomState(random_seed)
     if rename_variables is None:
         rename_variables = {}
 
