@@ -221,22 +221,16 @@ def main():
         ).assign_attrs(run=key, **run_table_lookup.loc[key])
         for key, ds in diags.items()
     ]
-    diagnostics += [
-        get_variables_with_dims(ds, ["mean_local_time"]).assign_attrs(
-            run=key, **run_table_lookup.loc[key]
-        )
-        for key, ds in diags.items()
-    ]
 
     # load metrics
-    # nested_metrics = load_metrics(bucket, rundirs)
-    # metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
-    # metrics = pd.merge(run_table, metric_table, on="run")
+    nested_metrics = load_metrics(bucket, rundirs)
+    metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
+    metrics = pd.merge(run_table, metric_table, on="run")
 
     # generate all plots
     sections = {
         "Diagnostics": list(diag_plot_manager.make_plots(diagnostics)),
-        # "Metrics": list(metrics_plot_manager.make_plots(metrics)),
+        "Metrics": list(metrics_plot_manager.make_plots(metrics)),
     }
 
     html = create_html(
