@@ -102,16 +102,19 @@ class FineResolutionSources:
     def _derived_budget_ds(
         self,
         budget_time_ds: xr.Dataset,
-        variable_prefixes: Mapping[str, str] = {
-            "air_temperature": "Q1",
-            "specific_humidity": "Q2",
-        },
-        apparent_source_terms: Sequence[str] = [
+        variable_prefixes: Mapping[str, str] = None,
+        apparent_source_terms: Sequence[str] = (
             "physics",
             "microphysics",
             "convergence",
-        ],
+        ),
     ) -> xr.Dataset:
+
+        if variable_prefixes is None:
+            variable_prefixes = {
+                "air_temperature": "Q1",
+                "specific_humidity": "Q2",
+            }
 
         for variable_name, apparent_source_name in variable_prefixes.items():
             budget_time_ds = budget_time_ds.pipe(
@@ -160,11 +163,13 @@ class FineResolutionSources:
         budget_time_ds = budget_time_ds.assign(
             {apparent_source_name: xr.zeros_like(budget_time_ds[f"{variable_name}"])}
         )
-        budget_time_ds[apparent_source_name].attrs.update(
-            {"name": f"coarse-res physics tendency of {variable_name}"}
-        )
+
+        budget_time_ds[apparent_source_name].attrs[
+            "name"
+        ] = f"coarse-res physics tendency of {variable_name}"
+
         units = budget_time_ds[f"{variable_name}"].attrs.get("units", None)
         if units is not None:
-            budget_time_ds[apparent_source_name].attrs.update({"units": f"{units}/s"})
+            budget_time_ds[apparent_source_name].attrs["units"] = f"{units}/s"
 
         return budget_time_ds

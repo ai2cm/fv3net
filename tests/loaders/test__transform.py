@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import xarray as xr
+from vcm import safe
 from fv3net.regression.loaders._transform import (
     shuffled,
     _get_chunk_indices,
@@ -284,7 +285,9 @@ def fine_res_mapper():
     return {"20160901.001500": budget_ds}
 
 
-def test_FineResolutionources(fine_res_mapper):
+def test_FineResolutionSources(fine_res_mapper):
     fine_res_source_mapper = FineResolutionSources(fine_res_mapper)
     source_ds = fine_res_source_mapper["20160901.001500"]
-    source_ds[["dQ1", "dQ2", "pQ1", "pQ2"]]
+    safe.get_variables(
+        source_ds, ["dQ1", "dQ2", "pQ1", "pQ2", "air_temperature", "specific_humidity"]
+    )
