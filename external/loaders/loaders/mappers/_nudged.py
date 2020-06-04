@@ -9,11 +9,9 @@ from pathlib import Path
 
 import vcm
 from vcm import cloud, safe
-from . import _transform as transform
-from ._sequences import FunctionOutputSequence
-
-INPUT_ZARR = "after_physics.zarr"
-NUDGING_TENDENCY_ZARR = "nudging_tendencies.zarr"
+from .. import _transform as transform
+# weird import, just here so tests pass. will be removed after nudging mapper is merged
+from ..batches._sequences import FunctionOutputSequence
 TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
 SIMULATION_TIMESTEPS_PER_HOUR = 4
 

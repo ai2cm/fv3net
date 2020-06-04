@@ -5,9 +5,9 @@ from typing import Iterable, Sequence, Mapping, Any
 import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
-from ._transform import stack_dropnan_shuffle
-from .constants import TIME_NAME
-from fv3net.regression import loaders
+from .._transform import stack_dropnan_shuffle
+from ..constants import TIME_NAME
+from loaders import mappers
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -62,7 +62,7 @@ def batches_from_mapper(
 def _create_mapper(
     data_path, mapping_func_name: str, mapping_kwargs: Mapping[str, Any]
 ) -> Mapping[str, xr.Dataset]:
-    mapping_func = getattr(loaders, mapping_func_name)
+    mapping_func = getattr(mappers, mapping_func_name)
     mapping_kwargs = mapping_kwargs or {}
     return mapping_func(data_path, **mapping_kwargs)
 

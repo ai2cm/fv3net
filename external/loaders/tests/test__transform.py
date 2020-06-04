@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import xarray as xr
-from fv3net.regression.loaders._transform import (
+from loaders._transform import (
     shuffled,
     _get_chunk_indices,
     stack_dropnan_shuffle,

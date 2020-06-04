@@ -5,7 +5,7 @@ import numpy as np
 
 import synth
 
-from fv3net.regression.loaders._nudged import (
+from loaders.mappers._nudged import (
     _get_batch_slices,
     load_nudging_batches,
     _get_path_for_nudging_timescale,

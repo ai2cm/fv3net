@@ -11,7 +11,7 @@ import vcm
 import numpy as np
 import xarray as xr
 from . import train
-from ..loaders import TIME_NAME, SAMPLE_DIM_NAME
+from loaders import TIME_NAME, SAMPLE_DIM_NAME
 
 MODEL_FILENAME = "sklearn_model.pkl"
 MODEL_CONFIG_FILENAME = "training_config.yml"

@@ -7,7 +7,7 @@ import xarray as xr
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
-from .. import loaders
+import loaders
 from .wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler

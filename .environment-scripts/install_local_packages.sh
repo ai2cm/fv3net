@@ -14,6 +14,7 @@ done
 
 poetry_packages=( external/runtime external/report external/gallery . 
   external/fv3config 
+  external/loaders
   external/vcm 
   external/synth 
   external/fv3kube
