@@ -256,6 +256,7 @@ def load_diagnostics(url):
     for load_func in _DIAG_OUTPUT_LOADERS:
         diagnostic_data.append(load_func(url))
 
-    # Zarr has unset dimension coordinates, need to mesh
+    # TODO: Zarr currently doesn't contain any coordinates other than time
+    #       and should perhaps be remedied.
 
     return xr.merge(diagnostic_data, join="inner")
