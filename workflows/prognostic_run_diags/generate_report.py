@@ -141,10 +141,7 @@ def holomap_filter(time_series, varfilter, run_attr_name="run"):
                         style = "dashed"
 
                     run = ds.attrs[run_attr_name]
-                    if hasattr(ds[varname], "long_name"):
-                        long_name = ds[varname].long_name
-                    else:
-                        long_name = varname
+                    long_name = ds[varname].long_name
                     hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
                         line_dash=style, color=p
                     )
@@ -169,7 +166,6 @@ def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
     return HVPlot(holomap_filter(time_series, varfilter="global_avg").overlay("run"))
 
 
-@diag_plot_manager.register
 def diurnal_cycle_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
     return HVPlot(holomap_filter(time_series, varfilter="diurnal").overlay("run"))
 
