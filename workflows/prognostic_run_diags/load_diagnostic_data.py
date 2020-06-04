@@ -253,4 +253,3 @@ def load_diagnostics(url):
     # Zarr has unset dimension coordinates, need to mesh
 
     return xr.merge(diagnostic_data, join="inner")
-

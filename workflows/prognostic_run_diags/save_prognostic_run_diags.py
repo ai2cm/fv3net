@@ -17,7 +17,6 @@ import xarray as xr
 import shutil
 
 from pathlib import Path
-from datetime import timedelta
 from collections import defaultdict
 from typing import Tuple, Dict
 
@@ -202,7 +201,6 @@ def global_averages(resampled, verification, grid):
     return _vars_to_diags("global_avg", area_averages, resampled)
 
 
-@add_to_diags("15min")
 def diurnal_cycles(resampled, verification, grid):
 
     logger.info("Preparing diurnal cycle diagnostics")
@@ -227,47 +225,6 @@ def diurnal_cycles(resampled, verification, grid):
 
 def open_tiles(path):
     return xr.open_mfdataset(path + ".tile?.nc", concat_dim="tile", combine="nested")
-
-
-def _round_microseconds(dt):
-    inc = timedelta(seconds=round(dt.microsecond * 1e-6))
-    dt = dt.replace(microsecond=0)
-    dt += inc
-    return dt
-
-
-def _round_time_coord(ds, time_coord="time"):
-    
-    new_times = np.array(list(map(_round_microseconds, ds.time.values)))
-    ds = ds.assign_coords({time_coord: new_times})
-    return ds
-
-
-def _remove_name_suffix(ds, target):
-    replace_names = {vname: vname.replace(target, "")
-                     for vname in ds if target in vname}
-    replace_names.update(
-        {dim: dim.replace(target, "")
-         for dim in ds.dims if target in dim}
-    )
-    ds = ds.rename(replace_names)
-    return ds
-
-
-def _join_sfc_zarr_coords(sfc_nc, sfc_zarr):
-    sfc_nc = sfc_nc.assign_coords({"tile": np.arange(6)})
-    
-    # If prog run crashes there's one less
-    if len(sfc_nc.time) < len(sfc_zarr.time):
-        sfc_zarr = sfc_zarr.isel(time=slice(0, -1))
-
-    # TODO: should adjust how the zarr is saved to make this easier
-    sfc_zarr = sfc_zarr.rename({"x": "grid_xt", "y": "grid_yt", "rank": "tile"})
-    sfc_zarr = sfc_zarr.assign_coords(sfc_nc.coords)
-
-    joined = sfc_nc.merge(sfc_zarr, join="inner")
-
-    return joined
 
 
 def load_data_3H(url, grid_spec, catalog):
@@ -301,67 +258,6 @@ def load_data_3H(url, grid_spec, catalog):
     return resampled, verification_c48, verification_c48[["area"]]
 
 
-def load_data_15min(url, grid_spec, catalog):
-    logger.info(f"Processing 15min data from run directory at {url}")
-
-    # open grid
-    logger.info("Opening Grid Spec")
-    grid_c384 = open_tiles(grid_spec)
-    
-    # load moisture vars for diurnal cycle
-    moisture_vars = ["PRATEsfc", "LHTFLsfc"]
-    moist_verif = catalog["40day_c384_diags_time_avg"].to_dask()
-    # limit to 10-day segment starting 1-day in
-    moist_verif = moist_verif.isel(time=slice(96, 1056))
-    moist_verif = _round_time_coord(moist_verif)
-    moist_verif = _remove_name_suffix(moist_verif, "_coarse")
-    moist_verif = moist_verif.assign_coords({"tile": np.arange(6)})
-    # including grid_lont because lon output is empty in prog_run diag file :(
-    moist_verif = moist_verif[moisture_vars + ["grid_lont"]]
-    moist_verif = moist_verif.merge(grid_c384)
-
-    # block average data
-    logger.info("Block averaging the verification data")
-    moist_verif_c48 = vcm.cubedsphere.weighted_block_average(
-        moist_verif, moist_verif.area, 8, x_dim="grid_xt", y_dim="grid_yt"
-    )
-
-    # load sfc diagnostics
-    sfc_diag_url = os.path.join(url, "sfc_dt_atmos")
-    sfc_diag = open_tiles(sfc_diag_url)
-    sfc_diag = sfc_diag.assign_coords({"tile": np.arange(6)})
-
-    sfc_zarr_url = os.path.join(url, "diags.zarr")
-    if os.path.exists(sfc_zarr_url):
-        sfc_zarr = xr.open_zarr(sfc_zarr_url)
-        sfc_diag = _join_sfc_zarr_coords(sfc_diag, sfc_zarr)
-        if "net_moistening" in sfc_diag:
-            moisture_vars += ["net_moistening"]
-    
-    sfc_diag = sfc_diag[moisture_vars + ["SLMSKsfc"]]
-    sfc_diag["grid_lont"] = moist_verif["grid_lont"]
-    sfc_diag = sfc_diag.isel(time=slice(96, None))  # Omit first day for spin up
-    sfc_diag.load()  # Force load of zarr
-
-    # Merge naming attributes
-    for var in sfc_diag:
-        if (
-            var in moist_verif_c48
-            and not moist_verif_c48[var].attrs
-            and sfc_diag[var].attrs
-        ):
-            attrs = sfc_diag[var].attrs
-            attrs["long_name"] = "verification " + attrs["long_name"]
-            moist_verif_c48[var] = moist_verif_c48[var].assign_attrs(attrs)
-
-        # TODO: xarray prognostic output currently uses description for long name
-        long_name = sfc_diag[var].attrs.get("description", None)
-        if long_name:
-            sfc_diag[var] = sfc_diag[var].assign_attrs({"long_name": long_name})
-    
-    return sfc_diag, moist_verif_c48, moist_verif_c48[["area"]]
-
-
 def _catalog():
     TOP_LEVEL_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
     return str(TOP_LEVEL_DIR / "catalog.yml")
@@ -389,7 +285,11 @@ if __name__ == "__main__":
     input_data = {}
     resampled, verification, grid = load_data_3H(args.url, args.grid_spec, catalog)
     input_data["3H"] = (resampled, verification, grid)
-    input_data["15min"] = load_data_15min(args.url, args.grid_spec, catalog)
+
+    # Data loaded at original time resolution
+    verif_base = load_diags.load_verification(["40day_c384_diags_time_avg"], catalog, 8, grid.area)
+    data_base = load_diags.load_diagnostics(args.url)
+    input_data["base"] = (data_base, verif_base, grid)
 
     # begin constructing diags
     diags = {}
