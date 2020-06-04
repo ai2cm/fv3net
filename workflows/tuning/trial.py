@@ -26,11 +26,15 @@ def preprocess_config(config, parameters):
     config["end_to_end"]["experiment"]["name"] = experiment_name
     config["job"]["metadata"]["labels"]["name"] = experiment_name
     config["job"]["metadata"]["name"] = experiment_name
-    config["job"]["spec"]["template"]["spec"]["containers"][0]["args"] = (
-        config["job"]["spec"]["template"]["spec"]["containers"][0]["args"]).format(
-            training_output_dir=os.path.join(SHERPA_SCRATCH_DIR, experiment_name)
+    config["job"]["spec"]["template"]["spec"]["containers"][0]["args"][0] = (
+        config["job"]["spec"]["template"]["spec"]["containers"][0]["args"][0]).format(
+            training_output_dir=get_experiment_dir(experiment_name)
     )
     update_config_from_parameters(config, parameters)
+
+
+def get_experiment_dir(experiment_name):
+    return os.path.join(SHERPA_SCRATCH_DIR, experiment_name)
 
 
 def update_config_from_parameters(config, parameters):
@@ -70,7 +74,7 @@ def get_experiment_name(parameters):
 
 
 def get_objective(experiment_name):
-    # outdir = os.path.join("gs://vcm-ml-scratch/sherpa/", experiment_name)
+    # outdir = get_experiment_dir(experiment_name)
     return 1
 
 

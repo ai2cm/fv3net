@@ -13,4 +13,4 @@ images:
   # fv3net image is changed here
 - name: us.gcr.io/vcm-ml/fv3net
   newName: us.gcr.io/vcm-ml/fv3net
-  newTag: ed39c1278c32e1bcc7974211be6a29cba6db31a3
+  newTag: f524baff9878ea10802d5917e69d0d20f69c29db
