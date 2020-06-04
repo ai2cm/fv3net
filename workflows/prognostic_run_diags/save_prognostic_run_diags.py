@@ -17,8 +17,9 @@ import xarray as xr
 import shutil
 
 from pathlib import Path
+from toolz import curry
 from collections import defaultdict
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Callable
 
 import vcm
 import load_diagnostic_data as load_diags
@@ -32,27 +33,28 @@ _DIAG_FNS = defaultdict(list)
 HORIZONTAL_DIMS = ["grid_xt", "grid_yt", "tile"]
 
 
-def add_to_diags(diags_key):
+DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
+
+@curry
+def add_to_diags(diags_key: str, func: Callable[DiagArg]):
     """
     Add a function to the list of diagnostics to be computed
-    for a specified group.
+    for a specified group of data.
 
     Args:
         diags_key: A key for a group of diagnostics
         func: a function which computes a set of diagnostics.
             It needs to have the following signature::
 
-                func(resampled_prog_run_data, verificiation_c48, grid)
+                func(prognostic_run_data, verificiation_c48_data, grid)
 
             and should return an xarray Dataset of diagnostics.
             This output will be merged with all other decoratored functions,
             so some care must be taken to avoid variable and coordinate clashes.
     """
+    _DIAG_FNS[diags_key].append(func)
 
-    def wrap(func):
-        _DIAG_FNS[diags_key].append(func)
-        return func
-    return wrap
+    return func
 
 
 def compute_all_diagnostics(input_datasets: Dict[str, Tuple[xr.Dataset]]):
@@ -62,9 +64,8 @@ def compute_all_diagnostics(input_datasets: Dict[str, Tuple[xr.Dataset]]):
     Args
     ----
     input_datasets:
-        A key value pair where the key relates to the target diagnostics key
-        in _DIAG_FNS, and the value is a tuple of datasets to be provided as
-        positional arguments to the diagnostic functions.
+        Input datasets with keys corresponding to the appropriate group of
+        diagnostics (_DIAG_FNS) to be run on each data source.
     """
 
     diags = {}
