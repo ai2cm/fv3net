@@ -66,8 +66,9 @@ def _rename_coords(ds: xr.Dataset) -> xr.Dataset:
         varname_target_registry.update({name: target_name for name in source_names})
 
     vars_to_rename = {
-        var: varname_target_registry[var] 
-        for var in ds.coords if var in varname_target_registry
+        var: varname_target_registry[var]
+        for var in ds.coords
+        if var in varname_target_registry
     }
     ds = ds.rename(vars_to_rename)
     return ds
@@ -82,7 +83,7 @@ def _round_microseconds(dt):
 
 @add_to_transforms
 def _round_time_coord(ds, time_coord="time"):
-    
+
     new_times = np.vectorize(_round_microseconds)(ds.time)
     ds = ds.assign_coords({time_coord: new_times})
     return ds
@@ -97,10 +98,10 @@ def _set_missing_attrs(ds):
         # True for some prognostic zarrs
         if "description" in da.attrs and "long_name" not in da.attrs:
             da.attrs["long_name"] = da.attrs["description"]
-        
+
         if "long_name" not in da.attrs:
             da.attrs["long_name"] = var
-        
+
         if "units" not in da.attrs:
             da.attrs["units"] = "unspecified"
     return ds
@@ -109,8 +110,11 @@ def _set_missing_attrs(ds):
 @add_to_transforms
 def _remove_name_suffix(ds):
     for target in VARNAME_SUFFIX_TO_REMOVE:
-        replace_names = {vname: vname.replace(target, "")
-                         for vname in ds.data_vars if target in vname}
+        replace_names = {
+            vname: vname.replace(target, "")
+            for vname in ds.data_vars
+            if target in vname
+        }
 
         warn_on_overwrite(replace_names.data_vars.keys(), replace_names.values())
         ds = ds.rename(replace_names)
@@ -119,7 +123,7 @@ def _remove_name_suffix(ds):
 
 def warn_on_overwrite(old: Iterable, new: Iterable):
     """
-    Warn if new data keys will overwrite names (e.g., in a xr.Dataset) 
+    Warn if new data keys will overwrite names (e.g., in a xr.Dataset)
     via an overlap with old keys or from duplication in new keys.
 
     Args:
@@ -160,7 +164,7 @@ def load_verification(
     catalog_keys: List[str],
     catalog: intake.Catalog = None,
     coarsen_factor: int = None,
-    area: xr.DataArray = None
+    area: xr.DataArray = None,
 ) -> xr.Dataset:
 
     """
@@ -171,7 +175,7 @@ def load_verification(
         catalog (optional): Intake catalog of available data sources.  Defaults
             to fv3net top-level "catalog.yml" catalog.
         coarsen_factor (optional): Factor to coarsen the loaded verification data
-        area (optional): Grid cell area data for weighting. Required when 
+        area (optional): Grid cell area data for weighting. Required when
             coarsen_factor is set.
 
     Returns:
@@ -186,11 +190,13 @@ def load_verification(
     for dataset_key in catalog_keys:
         ds = catalog[dataset_key].to_dask()
         ds = standardize_dataset(ds)
-        
+
         if coarsen_factor is not None:
             if area is None:
-                raise ValueError("Grid area keyword argument must be provided when"
-                                 " coarsening is requested.")
+                raise ValueError(
+                    "Grid area keyword argument must be provided when"
+                    " coarsening is requested."
+                )
 
             ds = vcm.cubedsphere.weighted_block_average(
                 ds, area, coarsen_factor, x_dim="x", y_dim="y"

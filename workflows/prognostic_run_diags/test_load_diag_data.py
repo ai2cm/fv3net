@@ -6,11 +6,12 @@ import numpy as np
 import load_diagnostic_data as load_diags
 
 
-@pytest.mark.parametrize("ds",
+@pytest.mark.parametrize(
+    "ds",
     [
         xr.Dataset(coords={"tile": np.arange(1, 7)}),
         xr.Dataset(coords={"tile": np.arange(6)}),
-    ]
+    ],
 )
 def test__check_tile_range(ds):
 
@@ -57,22 +58,19 @@ def xr_darray():
     x = np.arange(4)
     y = np.arange(5)
 
-    da = xr.DataArray(
-        data,
-        coords={"x": x, "y": y},
-        dims=["x", "y"],
-    )
+    da = xr.DataArray(data, coords={"x": x, "y": y}, dims=["x", "y"],)
 
     return da
 
 
-@pytest.mark.parametrize("attrs",
+@pytest.mark.parametrize(
+    "attrs",
     [
         {},
         {"units": "best units"},
         {"long_name": "name is long!"},
         {"units": "trees", "long_name": "number of U.S. trees"},
-    ]
+    ],
 )
 def test__set_missing_attrs(attrs, xr_darray):
 

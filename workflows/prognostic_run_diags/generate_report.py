@@ -222,9 +222,9 @@ def main():
         for key, ds in diags.items()
     ]
     diagnostics += [
-        get_variables_with_dims(
-            ds, ["mean_local_time"]
-        ).assign_attrs(run=key, **run_table_lookup.loc[key])
+        get_variables_with_dims(ds, ["mean_local_time"]).assign_attrs(
+            run=key, **run_table_lookup.loc[key]
+        )
         for key, ds in diags.items()
     ]
 

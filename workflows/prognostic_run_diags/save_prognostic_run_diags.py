@@ -35,6 +35,7 @@ HORIZONTAL_DIMS = ["grid_xt", "grid_yt", "tile"]
 
 DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 
+
 @curry
 def add_to_diags(diags_key: str, func: Callable[DiagArg]):
     """
@@ -119,18 +120,19 @@ def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
     # For easy filtering into plot component
     filter_flag = "moistvar_comp"
 
-    ds_verif[f"total_P_{filter_flag}"] = ds_verif["PRATEsfc"].assign_attrs({
-        "long_name": "diurnal precipitation from verification",
-        "units": "kg/m^2/s"
-    })
-    
+    ds_verif[f"total_P_{filter_flag}"] = ds_verif["PRATEsfc"].assign_attrs(
+        {"long_name": "diurnal precipitation from verification", "units": "kg/m^2/s"}
+    )
+
     total_P = ds_run["PRATEsfc"]
     if "net_moistening" in ds_run:
         total_P = total_P - ds_run["net_moistening"]  # P - dQ2
-    ds_run[f"total_P_{filter_flag}"] = total_P.assign_attrs({
-        "long_name": "diurnal precipitation from coarse model run",
-        "units": "kg/m^2/s"
-    })
+    ds_run[f"total_P_{filter_flag}"] = total_P.assign_attrs(
+        {
+            "long_name": "diurnal precipitation from coarse model run",
+            "units": "kg/m^2/s",
+        }
+    )
 
     # TODO: add thermo function into top-level import?
     E_run = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_run["LHTFLsfc"])
@@ -138,20 +140,20 @@ def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
     E_diff = E_run - E_verif
     P_diff = ds_run[f"total_P_{filter_flag}"] - ds_verif[f"total_P_{filter_flag}"]
 
-    ds_run[f"evap_diff_from_verif_{filter_flag}"] = E_diff.assign_attrs({
-        "long_name": "diurnal diff: evap_coarse - evap_hires",
-        "units": "kg/m^2/s"
-    })
-    ds_run[f"precip_diff_from_verif_{filter_flag}"] = P_diff.assign_attrs({
-        "long_name": "diurnal diff: precip_coarse - precip_hires",
-        "units": "kg/m^2/s"
-    })
+    ds_run[f"evap_diff_from_verif_{filter_flag}"] = E_diff.assign_attrs(
+        {"long_name": "diurnal diff: evap_coarse - evap_hires", "units": "kg/m^2/s"}
+    )
+    ds_run[f"precip_diff_from_verif_{filter_flag}"] = P_diff.assign_attrs(
+        {"long_name": "diurnal diff: precip_coarse - precip_hires", "units": "kg/m^2/s"}
+    )
 
-    net_precip_diff = (P_diff - E_diff)
-    ds_run[f"net_precip_diff_from_verif_{filter_flag}"] = net_precip_diff.assign_attrs({
-        "long_name": "diurnal diff: net_precip_coarse - net_precip_hires",
-        "units": "kg/m^2/s"
-    })
+    net_precip_diff = P_diff - E_diff
+    ds_run[f"net_precip_diff_from_verif_{filter_flag}"] = net_precip_diff.assign_attrs(
+        {
+            "long_name": "diurnal diff: net_precip_coarse - net_precip_hires",
+            "units": "kg/m^2/s",
+        }
+    )
 
     return ds_run, ds_verif
 
@@ -288,7 +290,9 @@ if __name__ == "__main__":
     input_data["3H"] = (resampled, verification, grid)
 
     # Data loaded at original time resolution
-    verif_base = load_diags.load_verification(["40day_c384_diags_time_avg"], catalog, 8, grid.area)
+    verif_base = load_diags.load_verification(
+        ["40day_c384_diags_time_avg"], catalog, 8, grid.area
+    )
     data_base = load_diags.load_diagnostics(args.url)
     input_data["base"] = (data_base, verif_base, grid)
 
