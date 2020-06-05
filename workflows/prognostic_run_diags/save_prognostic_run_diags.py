@@ -293,10 +293,10 @@ if __name__ == "__main__":
     input_data["3H"] = (resampled, verification, grid)
 
     # Data loaded at original time resolution
-    verif_base = load_diags.load_verification(
-        ["40day_c384_diags_time_avg"], catalog, 8, grid.area
-    )
-    data_base = load_diags.load_diagnostics(args.url)
+    # verif_base = load_diags.load_verification(
+    #     ["40day_c384_diags_time_avg"], catalog, 8, grid.area
+    # )
+    # data_base = load_diags.load_diagnostics(args.url)
 
     # begin constructing diags
     diags = {}
