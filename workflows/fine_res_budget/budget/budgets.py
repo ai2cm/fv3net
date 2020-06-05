@@ -116,7 +116,6 @@ def compute_recoarsened_budget_field(
     physics: xr.DataArray,
     nudging: xr.DataArray = None,
     factor: int = 8,
-    field: Optional[str] = None,
 ):
     """Compute the recoarse-grained budget information
 
@@ -130,8 +129,6 @@ def compute_recoarsened_budget_field(
 
     """
     logger.info("Re-coarsegraining the budget")
-
-    field = field_fine.name if field is None else field
 
     storage_name = "storage"
     unresolved_flux_name = "eddy"
@@ -174,7 +171,7 @@ def compute_recoarsened_budget_field(
     return xr.merge([convergence, averaged])
 
 
-def add_budget_metadata(budget: xr.Dataset, units: str, field_name: str) -> xr.Dataset:
+def add_budget_metadata(budget: xr.Dataset, units: str, field_name: str):
     tendency_units = units + "/s"
     budget.convergence.attrs.update(
         {"long_name": f"eddy flux convergence of {field_name}", "units": tendency_units}
@@ -290,7 +287,6 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         nudging=middle["t_dt_nudge_coarse"],
         physics=middle["t_dt_phys_coarse"],
         factor=factor,
-        field="air_temperature",
     )
 
     q_budget_coarse = compute_recoarsened_budget_field(
