@@ -27,10 +27,10 @@ logger = logging.getLogger(__file__)
 
 PHYSICS_VARIABLES = [
     # from ShiELD diagnostics
-    "t_dt_gfdlmp_coarse",
+    "t_dt_fv_sat_adj_coarse",
     "t_dt_nudge_coarse",
     "t_dt_phys_coarse",
-    "qv_dt_gfdlmp_coarse",
+    "qv_dt_fv_sat_adj_coarse",
     "qv_dt_phys_coarse",
     "eddy_flux_omega_sphum",
     "eddy_flux_omega_temp",

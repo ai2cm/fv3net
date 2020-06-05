@@ -286,7 +286,7 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         middle["T"],
         storage=storage(merged["T"], dt),
         unresolved_flux=middle["eddy_flux_omega_temp"],
-        saturation_adjustment=middle["t_dt_gfdlmp_coarse"],
+        saturation_adjustment=middle["t_dt_fv_sat_adj_coarse"],
         nudging=middle["t_dt_nudge_coarse"],
         physics=middle["t_dt_phys_coarse"],
         factor=factor,
@@ -302,7 +302,7 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         middle["sphum"],
         storage=storage(merged["sphum"], dt),
         unresolved_flux=middle["eddy_flux_omega_sphum"],
-        saturation_adjustment=middle["qv_dt_gfdlmp_coarse"],
+        saturation_adjustment=middle["qv_dt_fv_sat_adj_coarse"],
         physics=middle["qv_dt_phys_coarse"],
         factor=factor,
     )
