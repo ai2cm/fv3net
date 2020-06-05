@@ -124,7 +124,7 @@ def compute_recoarsened_budget_field(
     Returns:
 
         xr.Dataset with keys: storage, eddy, field, resolved, convergence,
-            microphysics, physics, fv_sat_adj
+            saturation_adjustment, physics, nudging
     Note:
         Need to pass in coarsened omega and delp to save computational cost
 
