@@ -33,6 +33,19 @@ def test__inserted_column_integrated_vars():
     )
 
 
+def test__rechunk_time_z():
+
+    da = xr.DataArray(
+        np.ones((2, 4, 2)),
+        [("time", [0.0, 1.0]), ("z", [0.0, 1.0, 2.0, 3.0]), ("x", [0.0, 1.0])],
+        ["time", "z", "x"],
+    )
+    da_chunked_in_time = da.chunk({"time": 1, "z": 4, "x": 2})
+    expected = da.chunk({"time": 2, "z": 1, "x": 2})
+
+    assert expected.chunks == utils._rechunk_time_z(da_chunked_in_time).chunks
+
+
 da = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])
 da_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
 ds = xr.Dataset({"a": da})
