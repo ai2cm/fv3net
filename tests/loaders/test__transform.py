@@ -125,7 +125,7 @@ budget_ds = xr.Dataset(
         "air_temperature_convergence": air_temperature_convergence,
         "specific_humidity": specific_humidity,
         "specific_humidity_physics": specific_humidity_physics,
-        "specific_humidity_saturation_adjustment": specific_humidity_microphysics,
+        "specific_humidity_saturation_adjustment": specific_humidity_saturation_adjustment,
         "specific_humidity_convergence": specific_humidity_convergence,
     }
 )
