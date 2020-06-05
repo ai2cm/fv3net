@@ -116,7 +116,7 @@ def warn_on_overwrite(old: Iterable, new: Iterable):
         )
 
 
-def standardize_dataset(ds):
+def apply_standardization_transforms(ds):
 
     for func in [
         _adjust_tile_range,
@@ -169,7 +169,7 @@ def load_verification(
     verif_data = []
     for dataset_key in catalog_keys:
         ds = catalog[dataset_key].to_dask()
-        ds = standardize_dataset(ds)
+        ds = apply_standardization_transforms(ds)
 
         if coarsening_factor is not None:
             if area is None:
@@ -209,7 +209,7 @@ def add_to_diag_loaders(func):
 def _load_diags_zarr(url):
 
     path = os.path.join(url, DIAGS_ZARR)
-    ds = standardize_dataset(xr.open_zarr(path))
+    ds = apply_standardization_transforms(xr.open_zarr(path))
 
     return ds
 
@@ -218,7 +218,7 @@ def _load_diags_zarr(url):
 def _load_diags_sfc(url):
 
     path = os.path.join(url, DIAGS_SFC_NC)
-    ds = standardize_dataset(_open_tiles(path))
+    ds = apply_standardization_transforms(_open_tiles(path))
 
     return ds
 
@@ -227,7 +227,7 @@ def _load_diags_sfc(url):
 def _load_diags_atmos(url):
 
     path = os.path.join(url, DIAGS_ATMOS_NC)
-    ds = standardize_dataset(_open_tiles(path))
+    ds = apply_standardization_transforms(_open_tiles(path))
 
     return ds
 
