@@ -230,6 +230,9 @@ def open_tiles(path):
     return xr.open_mfdataset(path + ".tile?.nc", concat_dim="tile", combine="nested")
 
 
+# TODO: This operation has mostly been set up in load_diagnostic_data, still need
+#       to figure out where resampling to 3H makes sense (a transform) and how to
+#       handle multi-timescale verification sources
 def load_data_3H(url, grid_spec, catalog):
     logger.info(f"Processing 3H data from run directory at {url}")
 

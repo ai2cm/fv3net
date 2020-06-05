@@ -202,6 +202,8 @@ def load_verification(
                 ds, area, coarsen_factor, x_dim="x", y_dim="y"
             )
 
+        verif_data.append(ds)
+
     return xr.merge(verif_data, join="outer")
 
 
