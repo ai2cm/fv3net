@@ -2,7 +2,7 @@
 
 set -e
 
-CONFIG_FILE="workflows/training_data_diags/three_sources_config.yml"
+CONFIG_FILE="workflows/training_data_diags/training_data_sources_config.yml"
 OUTPUT_PATH="gs://vcm-ml-scratch/brianh/training-data-diagnostics"
 
 

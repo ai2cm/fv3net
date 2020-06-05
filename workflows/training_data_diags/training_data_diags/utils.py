@@ -7,6 +7,8 @@ from typing import Sequence, Mapping
 
 logging.getLogger(__name__)
 
+UNINFORMATIVE_COORDS = ["tile", "z", "y", "x"]
+
 
 def reduce_to_diagnostic(
     ds_batches: Sequence[xr.Dataset],
@@ -34,9 +36,11 @@ def reduce_to_diagnostic(
             )
         )
     ds_time_averaged = _time_average(ds_list).drop(labels=VARNAMES["delp_var"])
-    ds_time_averaged = _drop_uninformative_coords(ds_time_averaged)
+    ds_time_averaged = ds_time_averaged.drop_vars(
+        names=UNINFORMATIVE_COORDS, errors="ignore"
+    )
 
-    grid = _drop_uninformative_coords(grid)
+    grid = grid.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type_var"]])
 
     conditional_datasets = {}
@@ -59,7 +63,7 @@ def reduce_to_diagnostic(
 def _insert_column_integrated_vars(
     ds: xr.Dataset, column_integrated_vars: Sequence[str]
 ) -> xr.Dataset:
-    """Insert column integreated (<*>) terms,
+    """Insert column integrated (<*>) terms,
     really a wrapper around vcm.thermo funcs"""
 
     for var in column_integrated_vars:
@@ -83,17 +87,17 @@ def _time_average(batches: Sequence[xr.Dataset], time_dim="time") -> xr.Dataset:
     return ds.mean(dim=time_dim, keep_attrs=True)
 
 
-def _drop_uninformative_coords(
-    ds: xr.Dataset, uniformative_coords: Sequence[str] = ["tile", "z", "y", "x"]
-) -> xr.Dataset:
-    """Some datasets have uninformative coords (1:n) on spatial dimensions,
-    others do not, so to avoid potential incompatibilities, remove them"""
+# def _drop_uninformative_coords(
+#     ds: xr.Dataset, uniformative_coords: Sequence[str] = ["tile", "z", "y", "x"]
+# ) -> xr.Dataset:
+#     """Some datasets have uninformative coords (1:n) on spatial dimensions,
+#     others do not, so to avoid potential incompatibilities, remove them"""
 
-    for coord in uniformative_coords:
-        if coord in ds.coords:
-            ds = ds.drop(coord)
+#     for coord in uniformative_coords:
+#         if coord in ds.coords:
+#             ds = ds.drop(coord)
 
-    return ds
+#     return ds
 
 
 def _conditional_average(
