@@ -121,7 +121,7 @@ budget_ds = xr.Dataset(
     {
         "air_temperature": air_temperature,
         "air_temperature_physics": air_temperature_physics,
-        "air_temperature_saturation_adjustment": air_temperature_microphysics,
+        "air_temperature_saturation_adjustment": air_temperature_saturation_adjustment,
         "air_temperature_convergence": air_temperature_convergence,
         "specific_humidity": specific_humidity,
         "specific_humidity_physics": specific_humidity_physics,
