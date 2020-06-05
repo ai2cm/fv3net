@@ -21,10 +21,6 @@ COORD_RENAME_INVERSE_MAP = {
     "tile": {"rank"},
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
-DIAGS_ZARR = "diags.zarr"
-DIAGS_ATMOS_NC = "atmos_dt_atmos"
-DIAGS_SFC_NC = "sfc_dt_atmos"
-
 _DIAG_OUTPUT_LOADERS = []
 
 
@@ -205,10 +201,12 @@ def add_to_diag_loaders(func):
     return func
 
 
+# TODO: If all these sources are converted to zarrs this can be one function
+#       that loops through sources
 @add_to_diag_loaders
 def _load_diags_zarr(url):
 
-    path = os.path.join(url, DIAGS_ZARR)
+    path = os.path.join(url, "diags.zarr")
     ds = apply_standardization_transforms(xr.open_zarr(path))
 
     return ds
@@ -217,7 +215,7 @@ def _load_diags_zarr(url):
 @add_to_diag_loaders
 def _load_diags_sfc(url):
 
-    path = os.path.join(url, DIAGS_SFC_NC)
+    path = os.path.join(url, "sfc_dt_atmos")
     ds = apply_standardization_transforms(_open_tiles(path))
 
     return ds
@@ -226,7 +224,7 @@ def _load_diags_sfc(url):
 @add_to_diag_loaders
 def _load_diags_atmos(url):
 
-    path = os.path.join(url, DIAGS_ATMOS_NC)
+    path = os.path.join(url, "atmos_dt_atmos")
     ds = apply_standardization_transforms(_open_tiles(path))
 
     return ds
