@@ -11,6 +11,15 @@ function downloadTiles() {
     fi
 }
 
+function downloadZarr() {
+    baseName=$(basename $1)
+    if [[ ! -d "$baseName" ]]; then
+        gsutil -m cp -r "$1" . || echo "No diagnostics zarr found at $1"
+    else
+        echo "$baseName already exists locally"
+    fi
+}
+
 usage="Usage: entrypoint.sh [ -g grid_spec_path ] rundir output"
 
 while getopts "g:" OPTION; do
@@ -49,7 +58,9 @@ cd $localWorkDir
 gridSpec=gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/grid_spec
 
 downloadTiles $1/atmos_dt_atmos atmos_dt_atmos
+downloadTiles $1/sfc_dt_atmos sfc_dt_atmos
 downloadTiles $gridSpec grid_spec
+downloadZarr $1/diags.zarr
 
 [[ -f diags.nc ]] || python $cwd/save_prognostic_run_diags.py --grid-spec ./grid_spec ./ diags.nc
 python $cwd/metrics.py diags.nc >metrics.json
