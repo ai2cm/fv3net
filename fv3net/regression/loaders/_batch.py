@@ -9,7 +9,8 @@ from ._transform import stack_dropnan_shuffle
 from .constants import TIME_NAME
 from fv3net.regression import loaders
 
-logger = logging.getLogger()
+
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
@@ -28,19 +29,19 @@ def batches_from_mapper(
     iterated over in  ..sklearn.train.
 
     Args:
-        data_mapping (Mapping[str, xr.Dataset]): Interface to select data for
-            given timestep keys.
+        data_path (str): Path to data store to be loaded via mapper.
         variable_names (Iterable[str]): data variables to select
+        mapping_function (str): Name of a callable which opens a mapper to the data
+        mapping_kwargs (Mapping[str, Any]): mapping of keyword arguments to be
+            passed to the mapping function
         timesteps_per_batch (int, optional): Defaults to 1.
         num_batches (int, optional): Defaults to None.
         random_seed (int, optional): Defaults to 0.
         init_time_dim_name (str, optional): Name of time dim in data source.
             Defaults to "initial_time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
-
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
-
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
@@ -96,6 +97,7 @@ def _mapper_to_batches(
         rename_variables = {}
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
+
     batched_timesteps = _select_batch_timesteps(
         list(data_mapping.keys()), timesteps_per_batch, num_batches, random_state
     )
@@ -105,7 +107,83 @@ def _mapper_to_batches(
     load_batch = functools.partial(
         _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
     )
+
     return FunctionOutputSequence(lambda x: transform(load_batch(x)), batched_timesteps)
+
+
+def diagnostic_sequence_from_mapper(
+    data_path: str,
+    variable_names: Sequence[str],
+    mapping_function: str,
+    mapping_kwargs: Mapping[str, Any] = None,
+    timesteps_per_batch: int = 1,
+    num_batches: int = None,
+    random_seed: int = 0,
+    init_time_dim_name: str = "initial_time",
+    rename_variables: Mapping[str, str] = None,
+) -> Sequence[xr.Dataset]:
+    """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
+    as batches_from_mapper but without transformation and stacking
+    Args:
+        data_path (str): Path to data store to be loaded via mapper.
+        variable_names (Iterable[str]): data variables to select
+        mapping_function (str): Name of a callable which opens a mapper to the data
+        mapping_kwargs (Mapping[str, Any]): mapping of keyword arguments to be
+            passed to the mapping function
+        timesteps_per_batch (int, optional): Defaults to 1.
+        num_batches (int, optional): Defaults to None.
+        random_seed (int, optional): Defaults to 0.
+        init_time_dim_name (str, optional): Name of time dim in data source.
+            Defaults to "initial_time".
+        rename_variables (Mapping[str, str], optional): Defaults to None.
+    Raises:
+        TypeError: If no variable_names are provided to select the final datasets
+    Returns:
+        Sequence of xarray datasets for use in training batches.
+    """
+
+    data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
+
+    sequence = _mapper_to_diagnostic_sequence(
+        data_mapping,
+        variable_names,
+        timesteps_per_batch,
+        num_batches,
+        random_seed,
+        init_time_dim_name,
+        rename_variables,
+    )
+
+    return sequence
+
+
+def _mapper_to_diagnostic_sequence(
+    dataset_mapper: Mapping[str, xr.Dataset],
+    variable_names: Sequence[str],
+    timesteps_per_batch: int = 1,
+    num_batches: int = None,
+    random_seed: int = 0,
+    init_time_dim_name: str = "initial_time",
+    rename_variables: Mapping[str, str] = None,
+) -> Sequence[xr.Dataset]:
+
+    random_state = RandomState(random_seed)
+    if rename_variables is None:
+        rename_variables = {}
+
+    batched_timesteps = _select_batch_timesteps(
+        list(dataset_mapper.keys()), timesteps_per_batch, num_batches, random_state
+    )
+
+    load_batch = functools.partial(
+        _load_batch,
+        dataset_mapper,
+        variable_names,
+        rename_variables,
+        init_time_dim_name,
+    )
+
+    return FunctionOutputSequence(load_batch, batched_timesteps)
 
 
 def _select_batch_timesteps(
@@ -161,7 +239,6 @@ def _validated_num_batches(
 ):
     """ check that the number of batches (if provided) and the number of
     timesteps per batch are reasonable given the number of zarrs in the input data dir.
-
     Returns:
         Number of batches to use for training
     """
