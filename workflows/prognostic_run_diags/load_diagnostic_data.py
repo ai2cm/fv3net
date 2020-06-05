@@ -119,7 +119,7 @@ def warn_on_overwrite(old: Iterable, new: Iterable):
         )
 
 
-def apply_standardization_transforms(ds):
+def standardize_gfsphysics_diagnostics(ds):
 
     for func in [
         _adjust_tile_range,
@@ -174,7 +174,7 @@ def load_verification(
     verif_data = []
     for dataset_key in catalog_keys:
         ds = catalog[dataset_key].to_dask()
-        ds = apply_standardization_transforms(ds)
+        ds = standardize_gfsphysics_diagnostics(ds)
 
         if coarsening_factor is not None:
             if area is None:
@@ -216,7 +216,7 @@ def add_to_diag_loaders(func):
 def _load_diags_zarr(url):
 
     path = os.path.join(url, "diags.zarr")
-    ds = apply_standardization_transforms(xr.open_zarr(path))
+    ds = standardize_gfsphysics_diagnostics(xr.open_zarr(path))
 
     return ds
 
@@ -225,7 +225,7 @@ def _load_diags_zarr(url):
 def _load_diags_sfc(url):
 
     path = os.path.join(url, "sfc_dt_atmos")
-    ds = apply_standardization_transforms(_open_tiles(path))
+    ds = standardize_gfsphysics_diagnostics(_open_tiles(path))
 
     return ds
 
@@ -234,7 +234,7 @@ def _load_diags_sfc(url):
 def _load_diags_atmos(url):
 
     path = os.path.join(url, "atmos_dt_atmos")
-    ds = apply_standardization_transforms(_open_tiles(path))
+    ds = standardize_gfsphysics_diagnostics(_open_tiles(path))
 
     return ds
 
