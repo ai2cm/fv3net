@@ -1,8 +1,7 @@
 import pytest
 import xarray as xr
 import numpy as np
-from training_data_diags import __version__
-from training_data_diags import utils
+from diagnostics_utils import __version__, utils
 from vcm import thermo
 
 
@@ -125,5 +124,5 @@ area = xr.DataArray([1.0, 1.0, 1.0, 1.0], dims=["x"])
 )
 def test__conditional_average(ds, surface_type_da, surface_type, area, expected):
 
-    average = utils._conditional_average(ds, surface_type_da, surface_type, area)
+    average = utils.conditional_average(ds, surface_type_da, surface_type, area)
     xr.testing.assert_allclose(average, expected)

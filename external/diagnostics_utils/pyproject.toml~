@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "training_data_diags"
+name = "diagnostics_utils"
 version = "0.1.0"
 description = ""
 authors = ["brianhenn <brianhenn@gmail.com>"]

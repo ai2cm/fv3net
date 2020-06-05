@@ -17,9 +17,9 @@ poetry_packages=( external/runtime external/report external/gallery .
   external/vcm 
   external/synth 
   external/fv3kube
+  external/diagnostics_utils
   workflows/one_step_diags 
   workflows/fine_res_budget
-  workflows/training_data_diags
 )
 
 for package in "${poetry_packages[@]}"

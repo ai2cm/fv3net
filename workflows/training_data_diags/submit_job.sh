@@ -15,7 +15,7 @@ exec > >(tee ${LOGFILE}) 2>&1
 
 export PYTHONPATH="./workflows/training_data_diags/"
 
-CMD="python -m training_data_diags ${CONFIG_FILE} ${OUTPUT_PATH}"
+CMD="python ./workflows/training_data_diags/compute_diags.py ${CONFIG_FILE} ${OUTPUT_PATH}"
     
 echo "Running command:"
 echo ${CMD}
