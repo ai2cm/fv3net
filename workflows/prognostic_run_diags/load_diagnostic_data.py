@@ -248,7 +248,7 @@ def load_diagnostics(url):
     # TODO: Zarr currently doesn't contain any coordinates other than time
     #       and should perhaps be remedied. Need to handle crashed run extra timestep
     #       in here for now.
-    cutoff_time_index = min([ds.sizes["time"] for ds in diagnostic_data])
+    cutoff_time_index = min([len(ds["time"]) for ds in diagnostic_data])
     diagnostic_data = [
         ds.isel(time=slice(0, cutoff_time_index)) for ds in diagnostic_data
     ]
