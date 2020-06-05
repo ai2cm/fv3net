@@ -87,19 +87,6 @@ def _time_average(batches: Sequence[xr.Dataset], time_dim="time") -> xr.Dataset:
     return ds.mean(dim=time_dim, keep_attrs=True)
 
 
-# def _drop_uninformative_coords(
-#     ds: xr.Dataset, uniformative_coords: Sequence[str] = ["tile", "z", "y", "x"]
-# ) -> xr.Dataset:
-#     """Some datasets have uninformative coords (1:n) on spatial dimensions,
-#     others do not, so to avoid potential incompatibilities, remove them"""
-
-#     for coord in uniformative_coords:
-#         if coord in ds.coords:
-#             ds = ds.drop(coord)
-
-#     return ds
-
-
 def _conditional_average(
     ds: xr.Dataset,
     surface_type_array: xr.DataArray,
