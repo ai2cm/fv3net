@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "training_data_diags"
+name = "diagnostics_utils"
 version = "0.1.0"
 description = ""
-authors = ["brianhenn <brianhenn@gmail.com>"]
+authors = ["brianhenn <brianh@vulcan.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.7"

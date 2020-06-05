@@ -1,17 +1,56 @@
 import pytest
 import xarray as xr
 import numpy as np
-from training_data_diags import __version__
-from training_data_diags import utils
+from diagnostics_utils import __version__, utils
+from vcm import thermo
 
 
 def test_version():
     assert __version__ == "0.1.0"
 
 
+def test__inserted_column_integrated_vars():
+
+    ds = xr.Dataset(
+        {
+            "Q1": xr.DataArray([1.0, 3.0], [("z", [0.0, 1.0])], ["z"]),
+            "pressure_thickness_of_atmospheric_layer": xr.DataArray(
+                [1.0, 1.0], [("z", [0.0, 1.0])], ["z"]
+            ),
+        }
+    )
+
+    expected = ds.assign(
+        {
+            "column_integrated_Q1": thermo.column_integrated_heating(
+                ds["Q1"], ds["pressure_thickness_of_atmospheric_layer"]
+            )
+        }
+    )
+
+    xr.testing.assert_allclose(
+        utils._insert_column_integrated_vars(ds, ["Q1"]), expected
+    )
+
+
+def test__rechunk_time_z():
+
+    da = xr.DataArray(
+        np.ones((2, 4, 2)),
+        [("time", [0.0, 1.0]), ("z", [0.0, 1.0, 2.0, 3.0]), ("x", [0.0, 1.0])],
+        ["time", "z", "x"],
+    )
+    da_chunked_in_time = da.chunk({"time": 1, "z": 4, "x": 2})
+    expected = da.chunk({"time": 2, "z": 1, "x": 2})
+
+    assert expected.chunks == utils._rechunk_time_z(da_chunked_in_time).chunks
+
+
 da = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])
+da_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
 ds = xr.Dataset({"a": da})
 weights = xr.DataArray([0.5, 0.5, 1, 1], dims=["z"])
+weights_nans = xr.DataArray(np.full((4,), np.nan), dims=["z"])
 
 
 @pytest.mark.parametrize(
@@ -19,6 +58,8 @@ weights = xr.DataArray([0.5, 0.5, 1, 1], dims=["z"])
     [
         (da, weights, "z", xr.DataArray(17.0 / 6.0)),
         (ds, weights, "z", xr.Dataset({"a": xr.DataArray(17.0 / 6.0)})),
+        (da_nans, weights, "z", xr.DataArray(0.0)),
+        (da, weights_nans, "z", xr.DataArray(np.nan)),
     ],
 )
 def test_weighted_average(da, weights, dims, expected):
@@ -96,5 +137,5 @@ area = xr.DataArray([1.0, 1.0, 1.0, 1.0], dims=["x"])
 )
 def test__conditional_average(ds, surface_type_da, surface_type, area, expected):
 
-    average = utils._conditional_average(ds, surface_type_da, surface_type, area)
+    average = utils.conditional_average(ds, surface_type_da, surface_type, area)
     xr.testing.assert_allclose(average, expected)

@@ -6,6 +6,7 @@ import xarray as xr
 
 from fv3net.regression.loaders._batch import (
     _mapper_to_batches,
+    _mapper_to_diagnostic_sequence,
     _load_batch,
     BatchSequence,
     _mapper_to_diagnostic_sequence,
@@ -51,14 +52,7 @@ def random_state():
     return np.random.RandomState(0)
 
 
-@pytest.fixture
-def batch_sequence(mapper, random_state):
-    return BatchSequence(
-        mapper, files_per_batch=2, num_batches=2, random_state=random_state
-    )
-
-
-def test__load_batch(batch_sequence):
+def test__load_batch(mapper):
     ds = _load_batch(
         batch_sequence=batch_sequence,
         data_vars=["air_temperature", "specific_humidity"],

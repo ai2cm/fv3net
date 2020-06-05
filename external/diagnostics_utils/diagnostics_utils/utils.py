@@ -3,9 +3,12 @@ from vcm import thermo, safe
 import xarray as xr
 import numpy as np
 import logging
-from typing import Sequence, Mapping
+from typing import Sequence, Mapping, Union
 
 logging.getLogger(__name__)
+
+UNINFORMATIVE_COORDS = ["tile", "z", "y", "x"]
+TIME_DIM = "time"
 
 
 def reduce_to_diagnostic(
@@ -22,27 +25,26 @@ def reduce_to_diagnostic(
         (latb, lonb, lat, lon, area, land_sea_mask)
         domains: sequence of area domains over which to produce conditional
             averages; defaults to ['sea', 'land', 'seaice']
+            
     Returns:
         diagnostic_ds: xarray dataset of reduced diagnostic variables
     """
 
-    ds_list = []
-    for ds in ds_batches:
-        ds_list.append(
-            _insert_column_integrated_vars(
-                ds.drop(labels=VARNAMES["time_dim"]), primary_vars
-            )
-        )
-    ds_time_averaged = _time_average(ds_list).drop(labels=VARNAMES["delp_var"])
-    ds_time_averaged = _drop_uninformative_coords(ds_time_averaged)
+    ds = xr.concat(ds_batches, dim=TIME_DIM)
+    ds = _insert_column_integrated_vars(ds, primary_vars)
+    ds = _rechunk_time_z(ds)
+    ds_time_averaged = ds.mean(dim=TIME_DIM, keep_attrs=True)
+    ds_time_averaged = ds_time_averaged.drop_vars(
+        names=UNINFORMATIVE_COORDS, errors="ignore"
+    )
 
-    grid = _drop_uninformative_coords(grid)
+    grid = grid.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type_var"]])
 
     conditional_datasets = {}
     for surface_type in domains:
         varname = f"{surface_type}_average"
-        conditional_datasets[varname] = _conditional_average(
+        conditional_datasets[varname] = conditional_average(
             safe.get_variables(ds_time_averaged, primary_vars),
             surface_type_array,
             surface_type,
@@ -59,7 +61,7 @@ def reduce_to_diagnostic(
 def _insert_column_integrated_vars(
     ds: xr.Dataset, column_integrated_vars: Sequence[str]
 ) -> xr.Dataset:
-    """Insert column integreated (<*>) terms,
+    """Insert column integrated (<*>) terms,
     really a wrapper around vcm.thermo funcs"""
 
     for var in column_integrated_vars:
@@ -75,34 +77,34 @@ def _insert_column_integrated_vars(
     return ds
 
 
-def _time_average(batches: Sequence[xr.Dataset], time_dim="time") -> xr.Dataset:
-    """Average over time dimension"""
-
-    ds = xr.concat(batches, dim=time_dim)
-
-    return ds.mean(dim=time_dim, keep_attrs=True)
-
-
-def _drop_uninformative_coords(
-    ds: xr.Dataset, uniformative_coords: Sequence[str] = ["tile", "z", "y", "x"]
+def _rechunk_time_z(
+    ds: xr.Dataset, dim_nchunks: Mapping[str, tuple] = None
 ) -> xr.Dataset:
-    """Some datasets have uninformative coords (1:n) on spatial dimensions,
-    others do not, so to avoid potential incompatibilities, remove them"""
 
-    for coord in uniformative_coords:
-        if coord in ds.coords:
-            ds = ds.drop(coord)
+    dim_nchunks = dim_nchunks or {"time": 1, "z": ds.sizes["z"]}
+    ds = ds.unify_chunks()
+    chunks = {dim: ds.sizes[dim] // nchunks for dim, nchunks in dim_nchunks.items()}
 
-    return ds
+    return ds.chunk(chunks)
 
 
-def _conditional_average(
-    ds: xr.Dataset,
+def conditional_average(
+    ds: Union[xr.Dataset, xr.DataArray],
     surface_type_array: xr.DataArray,
     surface_type: str,
     area: xr.DataArray,
 ) -> xr.Dataset:
-    """Average over a conditional type"""
+    """Average over a conditional type
+    
+    Args:
+        ds: xr dataarray or dataset of variables to averaged conditionally
+        surface_type_array: xr datarray of surface type category strings
+        surface_type: str of surface type over which to conditionally average
+        area: xr datarray of grid cell areas for weighted averaging
+            
+    Returns:
+        xr dataarray or dataset of conditionally averaged variables
+    """
 
     all_types = list(np.unique(surface_type_array))
 
@@ -125,8 +127,21 @@ def _weighted_average(array, weights, axis=None):
 
 
 def weighted_average(
-    array: xr.Dataset, weights: xr.DataArray, dims: Sequence[str] = ["tile", "y", "x"]
+    array: Union[xr.Dataset, xr.DataArray],
+    weights: xr.DataArray,
+    dims: Sequence[str] = ["tile", "y", "x"],
 ) -> xr.Dataset:
+    """Compute a weighted average of an array or dataset
+    
+    Args:
+        array: xr dataarray or dataset of variables to averaged
+        weights: xr datarray of grid cell weights for averaging
+        surface_type: str of surface type over which to conditionally average
+        area: xr datarray of grid cell areas for weighted averaging
+            
+    Returns:
+        xr dataarray or dataset of weighted averaged variables
+    """
     if dims is not None:
         kwargs = {"axis": tuple(range(-len(dims), 0))}
     else:
@@ -143,10 +158,20 @@ def weighted_average(
 
 def snap_mask_to_type(
     float_mask: xr.DataArray,
-    enumeration: Mapping = SURFACE_TYPE_ENUMERATION,
+    enumeration: Mapping[str, float] = SURFACE_TYPE_ENUMERATION,
     atol: float = 1e-7,
 ) -> xr.DataArray:
-    """Convert float surface type array to categorical surface type array"""
+    """Convert float surface type array to categorical surface type array
+    
+    Args:
+        float_mask: xr dataarray of float cell types
+        enumeration: mapping of surface type str names to float values
+        atol: absolute tolerance of float value matching
+            
+    Returns:
+        types: xr dataarray of str categorical cell types
+    
+    """
 
     types = np.full(float_mask.shape, np.nan)
     for type_name, type_number in enumeration.items():
