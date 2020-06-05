@@ -1,5 +1,4 @@
 import intake
-import datetime
 import logging
 import warnings
 import os
