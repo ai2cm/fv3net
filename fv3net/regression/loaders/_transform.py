@@ -105,7 +105,7 @@ class FineResolutionSources:
         variable_prefixes: Mapping[str, str] = None,
         apparent_source_terms: Sequence[str] = (
             "physics",
-            "microphysics",
+            "saturation_adjustment",
             "convergence",
         ),
     ) -> xr.Dataset:
