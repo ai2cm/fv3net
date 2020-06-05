@@ -142,7 +142,7 @@ def warn_on_overwrite(old: Iterable, new: Iterable):
 
 def standardize_dataset(ds):
 
-    for func in _DS_TRANSFORMS:
+    for func in [_adjust_tile_range, _rename_coords, _round_time_coord, _set_missing_attrs, _remove_name_suffix]:
         ds = func(ds)
 
     return ds
