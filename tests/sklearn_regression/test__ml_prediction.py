@@ -2,8 +2,8 @@ from vcm import safe
 import xarray as xr
 import pytest
 
-from loaders import SAMPLE_DIM_NAME
-from loaders.mappers._ml_prediction import SklearnPredictionMapper
+from fv3net.regression.loaders import SAMPLE_DIM_NAME
+from fv3net.regression.sklearn._mapper import SklearnPredictionMapper
 
 
 def mock_predict_function(feature_data_arrays):
@@ -12,13 +12,13 @@ def mock_predict_function(feature_data_arrays):
 
 class MockSklearnWrappedModel:
     def __init__(self, input_vars, output_vars):
-        self.input_vars = input_vars
-        self.output_vars = output_vars
+        self.input_vars_ = input_vars
+        self.output_vars_ = output_vars
 
-    def predict(self, ds_stacked):
+    def predict(self, ds_stacked, sample_dim=SAMPLE_DIM_NAME):
         ds_pred = xr.Dataset()
-        for output_var in self.output_vars:
-            feature_vars = [ds_stacked[var] for var in self.input_vars]
+        for output_var in self.output_vars_:
+            feature_vars = [ds_stacked[var] for var in self.input_vars_]
             mock_prediction = mock_predict_function(feature_vars)
             ds_pred[output_var] = mock_prediction
         return ds_pred
@@ -50,14 +50,16 @@ def gridded_dataset():
     coords = {"z": range(zdim), "y": range(ydim), "x": range(xdim), "initial_time": [0]}
     # unique values for ease of set comparison in test
     var = xr.DataArray(
-        [[
-            [[(100 * z) + (10 * y) + x for x in range(xdim)] for y in range(ydim)]
-            for z in range(zdim)
-        ]],
+        [
+            [
+                [[(100 * z) + (10 * y) + x for x in range(xdim)] for y in range(ydim)]
+                for z in range(zdim)
+            ]
+        ],
         dims=["initial_time", "z", "y", "x"],
         coords=coords,
     )
-    ds = xr.Dataset({f"feature{i}": (i+1) * var for i in range(5)})
+    ds = xr.Dataset({f"feature{i}": (i + 1) * var for i in range(5)})
     return ds
 
 
@@ -68,19 +70,21 @@ def base_mapper(gridded_dataset):
 
 @pytest.fixture
 def mock_model(request):
-    input_vars, output_vars = request.params
+    input_vars, output_vars = request.param
     return MockSklearnWrappedModel(input_vars, output_vars)
 
 
-
- def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
+@pytest.mark.parametrize(
+    "mock_model", [[["feature0", "feature1"], ["pred0"]]], indirect=True
+)
+def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
     mapper = SklearnPredictionMapper(
-            base_mapper,
-            mock_model,
-            init_time_dim="initial_time",
-            z_dim="z"
+        base_mapper, mock_model, init_time_dim="initial_time", z_dim="z"
     )
-    target = mock_predict_function(safe.get_variables(base_mapper[key], mock_model.input_vars))
     for key in mapper.keys():
-        for output_var in mock_model.output_vars:
-            assert mapper[output_var] == pytest.approx(target)
+        mapper_output = mapper[key]
+        target = mock_predict_function(
+            [base_mapper[key][var] for var in mock_model.input_vars_]
+        )
+        for var in mock_model.output_vars_:
+            assert sum((mapper_output[var] - target).values) == pytest.approx(0)
