@@ -14,7 +14,7 @@ class FineResolutionBudgetTiles:
         self._url = url
         self.files = self._fs.glob(os.path.join(url, "*.nc"))
         if len(self.files) == 0:
-            raise ValueError("No file detected")
+            raise ValueError(f"No file detected at {url}")
 
     def _parse_file(self, url):
         pattern = r"tile(.)\.nc"
