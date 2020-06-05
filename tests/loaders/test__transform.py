@@ -121,15 +121,15 @@ budget_ds = xr.Dataset(
     {
         "air_temperature": air_temperature,
         "air_temperature_physics": air_temperature_physics,
-        "air_temperature_microphysics": air_temperature_microphysics,
+        "air_temperature_saturation_adjustment": air_temperature_microphysics,
         "air_temperature_convergence": air_temperature_convergence,
         "specific_humidity": specific_humidity,
         "specific_humidity_physics": specific_humidity_physics,
-        "specific_humidity_microphysics": specific_humidity_microphysics,
+        "specific_humidity_saturation_adjustment": specific_humidity_microphysics,
         "specific_humidity_convergence": specific_humidity_convergence,
     }
 )
-apparent_source_terms = ["physics", "microphysics", "convergence"]
+apparent_source_terms = ["physics", "saturation_adjustment", "convergence"]
 
 
 @pytest.mark.parametrize(
@@ -159,7 +159,7 @@ apparent_source_terms = ["physics", "microphysics", "convergence"]
             budget_ds,
             "air_temperature",
             "dQ1",
-            ["physics", "microphysics"],
+            ["physics", "saturation_adjustment"],
             budget_ds.assign(
                 {
                     "dQ1": xr.DataArray(
