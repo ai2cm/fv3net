@@ -6,6 +6,7 @@ import os
 import xarray as xr
 import numpy as np
 from typing import List, Iterable
+from datetime import timedelta
 from pathlib import Path
 
 import vcm
@@ -74,17 +75,14 @@ def _rename_coords(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def _round_microseconds(dt):
-    inc = datetime.timedelta(seconds=round(dt.microsecond * 1e-6))
-    dt = dt.replace(microsecond=0)
-    dt += inc
-    return dt
+def _round_to_nearest_second(dt):
+    return vcm.convenience.round_time(dt, timedelta(seconds=1))
 
 
 @add_to_transforms
 def _round_time_coord(ds, time_coord="time"):
 
-    new_times = np.vectorize(_round_microseconds)(ds.time)
+    new_times = np.vectorize(_round_to_nearest_second)(ds.time)
     ds = ds.assign_coords({time_coord: new_times})
     return ds
 
