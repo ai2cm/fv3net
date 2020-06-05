@@ -1,4 +1,4 @@
-from diagnostics_utils import utils, VARNAMES
+import diagnostics_utils as utils
 from fv3net.regression import loaders
 from vcm.cloud import get_fs
 import xarray as xr
@@ -12,12 +12,12 @@ import os
 import logging
 import uuid
 
-out_hdlr = logging.StreamHandler(sys.stdout)
-out_hdlr.setFormatter(
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(
     logging.Formatter("%(name)s %(asctime)s: %(module)s/L%(lineno)d %(message)s")
 )
-out_hdlr.setLevel(logging.INFO)
-logging.basicConfig(handlers=[out_hdlr], level=logging.INFO)
+handler.setLevel(logging.INFO)
+logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("training_data_diags")
 
 DOMAINS = ["land", "sea", "global"]
@@ -73,8 +73,6 @@ if __name__ == "__main__":
 
     datasets_config = _open_config(args.datasets_config_yml)
 
-    # get grid from catalog
-
     cat = intake.open_catalog("catalog.yml")
     grid = cat["grid/c48"].to_dask()
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
@@ -90,17 +88,17 @@ if __name__ == "__main__":
             **dataset_config["batch_kwargs"],
         )
         if dataset_name == "one_step_tendencies":
-            # cache the land_sea_mask from the one-step data since that variable
+            # hold the land_sea_mask from the one-step data since that variable
             # is missing from the fine-res budget and grid datasets
             surface_type = (
-                ds_batches[0][VARNAMES["surface_type_var"]]
+                ds_batches[0][utils.VARNAMES["surface_type"]]
                 .squeeze()
-                .drop(labels=VARNAMES["time_dim"])
+                .drop(labels=utils.VARNAMES["time_dim"])
             )
-            grid = grid.assign({VARNAMES["surface_type_var"]: surface_type})
+            grid = grid.assign({utils.VARNAMES["surface_type"]: surface_type})
         ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
         if dataset_name == "one_step_tendencies":
-            ds_diagnostic = ds_diagnostic.drop(VARNAMES["surface_type_var"])
+            ds_diagnostic = ds_diagnostic.drop(utils.VARNAMES["surface_type"])
         diagnostic_datasets[dataset_name] = ds_diagnostic
         logger.info(f"Finished processing dataset {dataset_name}.")
 
