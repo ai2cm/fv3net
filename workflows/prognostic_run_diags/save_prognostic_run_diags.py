@@ -297,7 +297,6 @@ if __name__ == "__main__":
         ["40day_c384_diags_time_avg"], catalog, 8, grid.area
     )
     data_base = load_diags.load_diagnostics(args.url)
-    input_data["base"] = (data_base, verif_base, grid)
 
     # begin constructing diags
     diags = {}

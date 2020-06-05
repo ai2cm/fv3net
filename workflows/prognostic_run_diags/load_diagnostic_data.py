@@ -18,6 +18,8 @@ COORD_RENAME_INVERSE_MAP = {
     "x": {"grid_xt", "grid_xt_coarse"},
     "y": {"grid_yt", "grid_yt_coarse"},
     "tile": {"rank"},
+    "xb": {"grid_x_coarse"},
+    "yb": {"grid_y_coarse"},
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 _DIAG_OUTPUT_LOADERS = []
@@ -55,8 +57,12 @@ def _round_to_nearest_second(dt):
 
 def _round_time_coord(ds, time_coord="time"):
 
-    new_times = np.vectorize(_round_to_nearest_second)(ds.time)
-    ds = ds.assign_coords({time_coord: new_times})
+    if time_coord in ds.coords:
+        new_times = np.vectorize(_round_to_nearest_second)(ds.time)
+        ds = ds.assign_coords({time_coord: new_times})
+    else:
+        logger.debug("Round time operation called on dataset missing a time coordinate.")
+
     return ds
 
 
@@ -85,7 +91,7 @@ def _remove_name_suffix(ds):
             if target in vname
         }
 
-        warn_on_overwrite(replace_names.data_vars.keys(), replace_names.values())
+        warn_on_overwrite(ds.data_vars.keys(), replace_names.values())
         ds = ds.rename(replace_names)
     return ds
 
@@ -160,6 +166,8 @@ def load_verification(
 
     if catalog is None:
         catalog = _catalog()
+
+    area = _rename_coords(area)
 
     verif_data = []
     for dataset_key in catalog_keys:
@@ -236,6 +244,11 @@ def load_diagnostics(url):
         diagnostic_data.append(load_func(url))
 
     # TODO: Zarr currently doesn't contain any coordinates other than time
-    #       and should perhaps be remedied.
+    #       and should perhaps be remedied. Need to handle crashed run extra timestep
+    #       in here for now.
+    cutoff_time_index = min([ds.sizes["time"] for ds in diagnostic_data])
+    diagnostic_data = [
+        ds.isel(time=slice(0, cutoff_time_index))for ds in diagnostic_data
+    ]
 
     return xr.merge(diagnostic_data, join="inner")
