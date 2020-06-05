@@ -1,3 +1,4 @@
+from typing import Optional
 from dataclasses import dataclass
 
 import numpy as np
@@ -111,10 +112,11 @@ def compute_recoarsened_budget_field(
     field_fine: xr.DataArray,
     unresolved_flux: xr.DataArray,
     storage: xr.DataArray,
-    microphysics: xr.DataArray,
+    saturation_adjustment: xr.DataArray,
     physics: xr.DataArray,
     nudging: xr.DataArray = None,
     factor: int = 8,
+    field: Optional[str] = None,
 ):
     """Compute the recoarse-grained budget information
 
@@ -122,16 +124,18 @@ def compute_recoarsened_budget_field(
     Returns:
 
         xr.Dataset with keys: storage, eddy, field, resolved, convergence,
-            microphysics, physics, nudging
+            microphysics, physics, fv_sat_adj
     Note:
         Need to pass in coarsened omega and delp to save computational cost
 
     """
     logger.info("Re-coarsegraining the budget")
 
+    field = field_fine.name if field is None else field
+
     storage_name = "storage"
     unresolved_flux_name = "eddy"
-    field_name = "field"
+    field_place_holder_name = "field"
     resolved_flux_name = "resolved"
     convergence_name = "convergence"
 
@@ -139,14 +143,14 @@ def compute_recoarsened_budget_field(
 
     # Make iterator of all the variables to average
     def variables_to_average():
-        yield microphysics.rename("microphysics")
+        yield saturation_adjustment.rename("saturation_adjustment")
         yield physics.rename("physics")
         if nudging is not None:
             yield nudging.rename("nudging")
         yield unresolved_flux.rename(unresolved_flux_name)
         yield (field_fine * omega_fine).rename(resolved_flux_name)
         yield storage.rename(storage_name)
-        yield field_fine.rename(field_name)
+        yield field_fine.rename(field_place_holder_name)
 
     def averaged_variables():
         for array in variables_to_average():
@@ -160,7 +164,7 @@ def compute_recoarsened_budget_field(
         averaged[unresolved_flux_name],
         averaged[resolved_flux_name],
         omega_coarse,
-        averaged[field_name],
+        averaged[field_place_holder_name],
     )
 
     convergence = grid.vertical_convergence(eddy_flux, delp_coarse).rename(
@@ -170,7 +174,53 @@ def compute_recoarsened_budget_field(
     return xr.merge([convergence, averaged])
 
 
-def rename_recoarsened_budget(budget: xr.Dataset, field_name: str):
+def add_budget_metadata(budget: xr.Dataset, units: str, field_name: str) -> xr.Dataset:
+    tendency_units = units + "/s"
+    budget.convergence.attrs.update(
+        {"long_name": f"eddy flux convergence of {field_name}", "units": tendency_units}
+    )
+
+    budget.saturation_adjustment.attrs.update(
+        {
+            "long_name": (
+                f"tendency of {field_name} due to dynamical core "
+                "saturation adjustment"
+            ),
+            "units": tendency_units,
+        }
+    )
+
+    budget.physics.attrs.update(
+        {
+            "long_name": f"tendency of {field_name} due to physics",
+            "description": "sum of microphysics and any other parameterized process",
+            "units": tendency_units,
+        }
+    )
+
+    if "nudging" in budget:
+        budget.nudging.attrs.update(
+            {
+                "long_name": f"tendency of {field_name} due to SHiELD nudging",
+                "units": tendency_units,
+            }
+        )
+
+    budget.storage.attrs.update(
+        {
+            "long_name": f"storage of {field_name}",
+            "description": (
+                f"partial time derivative of {field_name} for fixed x, y, "
+                "and output model level. Sum of all the budget tendencies."
+            ),
+            "units": tendency_units,
+        }
+    )
+
+    budget.field.attrs.update({"units": units})
+
+
+def rename_recoarsened_budget(budget: xr.Dataset, field_name: str) -> str:
     rename = {}
     rename["field"] = field_name
     for variable in budget:
@@ -219,10 +269,10 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
 
     middle = merged.sel(step="middle")
 
-    omega_fine = middle.omega
-    area = middle.area
+    omega_fine = middle.omega_coarse
+    area = middle.area_coarse
     delp_fine = middle.delp
-    delp_coarse = grid.weighted_block_average(delp_fine, middle.area, factor=factor)
+    delp_coarse = grid.weighted_block_average(delp_fine, area, factor=factor)
     omega_coarse = grid.pressure_level_average(
         delp_fine, delp_coarse, area, omega_fine, factor=factor
     )
@@ -236,11 +286,12 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         middle["T"],
         storage=storage(merged["T"], dt),
         unresolved_flux=middle["eddy_flux_omega_temp"],
-        microphysics=middle["t_dt_gfdlmp"],
-        nudging=middle["t_dt_nudge"],
-        physics=middle["t_dt_phys"],
+        saturation_adjustment=middle["t_dt_gfdlmp_coarse"],
+        nudging=middle["t_dt_nudge_coarse"],
+        physics=middle["t_dt_phys_coarse"],
         factor=factor,
-    ).pipe(rename_recoarsened_budget, "air_temperature")
+        field="air_temperature",
+    )
 
     q_budget_coarse = compute_recoarsened_budget_field(
         area,
@@ -251,9 +302,22 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         middle["sphum"],
         storage=storage(merged["sphum"], dt),
         unresolved_flux=middle["eddy_flux_omega_sphum"],
-        microphysics=middle["qv_dt_gfdlmp"],
-        physics=middle["qv_dt_phys"],
+        saturation_adjustment=middle["qv_dt_gfdlmp_coarse"],
+        physics=middle["qv_dt_phys_coarse"],
         factor=factor,
-    ).pipe(rename_recoarsened_budget, "specific_humidity")
+    )
+
+    # metadata adjustments
+    add_budget_metadata(t_budget_coarse, "K", "air_temperature")
+    t_budget_coarse = rename_recoarsened_budget(t_budget_coarse, "air_temperature")
+
+    add_budget_metadata(q_budget_coarse, "kg/kg", "specific_humidity")
+    q_budget_coarse = rename_recoarsened_budget(q_budget_coarse, "specific_humidity")
+
+    omega_coarse = omega_coarse.assign_attrs(
+        {"long_name": "Lagrangian derivative of hydrostatic pressure", "units": "Pa/s"}
+    ).rename("omega")
+
+    delp_coarse = delp_coarse.rename("delp")
 
     return xr.merge([t_budget_coarse, q_budget_coarse, omega_coarse, delp_coarse])

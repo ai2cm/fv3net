@@ -26,19 +26,20 @@ logger = logging.getLogger(__file__)
 
 
 PHYSICS_VARIABLES = [
-    "omega",
-    "t_dt_gfdlmp",
-    "t_dt_nudge",
-    "t_dt_phys",
-    "qv_dt_gfdlmp",
-    "qv_dt_phys",
+    # from ShiELD diagnostics
+    "t_dt_gfdlmp_coarse",
+    "t_dt_nudge_coarse",
+    "t_dt_phys_coarse",
+    "qv_dt_gfdlmp_coarse",
+    "qv_dt_phys_coarse",
     "eddy_flux_omega_sphum",
     "eddy_flux_omega_temp",
-    "omega",
+    "omega_coarse",
+    "area_coarse",
+    # from restarts
     "delp",
     "sphum",
     "T",
-    "area",
 ]
 
 Dims = Sequence[Hashable]
@@ -99,7 +100,7 @@ def load(ds: xr.Dataset) -> xr.Dataset:
 
 def yield_time_physics_time_slices(merged: xr.Dataset) -> Iterable[Mapping[str, slice]]:
     # grab a physics variable
-    omega = merged["omega"]
+    omega = merged["omega_coarse"]
     chunks = omega.chunks[omega.get_axis_num("time")]
     time_slices = chunks_1d_to_slices(chunks)
 
