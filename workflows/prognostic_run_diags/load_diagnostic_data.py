@@ -61,7 +61,9 @@ def _round_time_coord(ds, time_coord="time"):
         new_times = np.vectorize(_round_to_nearest_second)(ds.time)
         ds = ds.assign_coords({time_coord: new_times})
     else:
-        logger.debug("Round time operation called on dataset missing a time coordinate.")
+        logger.debug(
+            "Round time operation called on dataset missing a time coordinate."
+        )
 
     return ds
 
@@ -248,7 +250,7 @@ def load_diagnostics(url):
     #       in here for now.
     cutoff_time_index = min([ds.sizes["time"] for ds in diagnostic_data])
     diagnostic_data = [
-        ds.isel(time=slice(0, cutoff_time_index))for ds in diagnostic_data
+        ds.isel(time=slice(0, cutoff_time_index)) for ds in diagnostic_data
     ]
 
     return xr.merge(diagnostic_data, join="inner")
