@@ -143,7 +143,7 @@ def _catalog():
 def load_verification(
     catalog_keys: List[str],
     catalog: intake.Catalog = None,
-    coarsen_factor: int = None,
+    coarsening_factor: int = None,
     area: xr.DataArray = None,
 ) -> xr.Dataset:
 
@@ -154,9 +154,9 @@ def load_verification(
         catalog_keys: catalog sources to load as verification data
         catalog (optional): Intake catalog of available data sources.  Defaults
             to fv3net top-level "catalog.yml" catalog.
-        coarsen_factor (optional): Factor to coarsen the loaded verification data
+        coarsening_factor (optional): Factor to coarsen the loaded verification data
         area (optional): Grid cell area data for weighting. Required when
-            coarsen_factor is set.
+            coarsening_factor is set.
 
     Returns:
         All specified verification datasources standardized and merged
@@ -171,7 +171,7 @@ def load_verification(
         ds = catalog[dataset_key].to_dask()
         ds = standardize_dataset(ds)
 
-        if coarsen_factor is not None:
+        if coarsening_factor is not None:
             if area is None:
                 raise ValueError(
                     "Grid area keyword argument must be provided when"
@@ -179,7 +179,7 @@ def load_verification(
                 )
 
             ds = vcm.cubedsphere.weighted_block_average(
-                ds, area, coarsen_factor, x_dim="x", y_dim="y"
+                ds, area, coarsening_factor, x_dim="x", y_dim="y"
             )
 
         verif_data.append(ds)
