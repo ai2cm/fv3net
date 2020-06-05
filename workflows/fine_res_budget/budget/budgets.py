@@ -269,7 +269,7 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
 
     middle = merged.sel(step="middle")
 
-    omega_fine = middle.omega_coarse
+    omega_fine = middle.vulcan_omega_coarse
     area = middle.area_coarse
     delp_fine = middle.delp
     delp_coarse = grid.weighted_block_average(delp_fine, area, factor=factor)
@@ -285,7 +285,7 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         omega_coarse,
         middle["T"],
         storage=storage(merged["T"], dt),
-        unresolved_flux=middle["eddy_flux_omega_temp"],
+        unresolved_flux=middle["eddy_flux_vulcan_omega_temp"],
         saturation_adjustment=middle["t_dt_fv_sat_adj_coarse"],
         nudging=middle["t_dt_nudge_coarse"],
         physics=middle["t_dt_phys_coarse"],
@@ -301,7 +301,7 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         omega_coarse,
         middle["sphum"],
         storage=storage(merged["sphum"], dt),
-        unresolved_flux=middle["eddy_flux_omega_sphum"],
+        unresolved_flux=middle["eddy_flux_vulcan_omega_sphum"],
         saturation_adjustment=middle["qv_dt_fv_sat_adj_coarse"],
         physics=middle["qv_dt_phys_coarse"],
         factor=factor,

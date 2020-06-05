@@ -45,7 +45,7 @@ def test_OpenTimeChunks():
         arr_small_chunk = da.ones(shape, chunks=chunks_small, dtype=np.float32)
         return xr.Dataset(
             {
-                "omega_coarse": (dims, arr_big_chunk),
+                "vulcan_omega_coarse": (dims, arr_big_chunk),
                 "restart_field": (dims, arr_small_chunk),
             },
             coords=coords,
@@ -92,13 +92,13 @@ def test_run(tmpdir):
         "t_dt_phys_coarse",
         "qv_dt_fv_sat_adj_coarse",
         "qv_dt_phys_coarse",
-        "eddy_flux_omega_sphum",
-        "eddy_flux_omega_temp",
+        "eddy_flux_vulcan_omega_sphum",
+        "eddy_flux_vulcan_omega_temp",
         "grid_lat_coarse",
         "grid_latt_coarse",
         "grid_lon_coarse",
         "grid_lont_coarse",
-        "omega_coarse",
+        "vulcan_omega_coarse",
         "area_coarse",
     ]
 

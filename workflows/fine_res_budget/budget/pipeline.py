@@ -32,9 +32,9 @@ PHYSICS_VARIABLES = [
     "t_dt_phys_coarse",
     "qv_dt_fv_sat_adj_coarse",
     "qv_dt_phys_coarse",
-    "eddy_flux_omega_sphum",
-    "eddy_flux_omega_temp",
-    "omega_coarse",
+    "eddy_flux_vulcan_omega_sphum",
+    "eddy_flux_vulcan_omega_temp",
+    "vulcan_omega_coarse",
     "area_coarse",
     # from restarts
     "delp",
@@ -100,7 +100,7 @@ def load(ds: xr.Dataset) -> xr.Dataset:
 
 def yield_time_physics_time_slices(merged: xr.Dataset) -> Iterable[Mapping[str, slice]]:
     # grab a physics variable
-    omega = merged["omega_coarse"]
+    omega = merged["vulcan_omega_coarse"]
     chunks = omega.chunks[omega.get_axis_num("time")]
     time_slices = chunks_1d_to_slices(chunks)
 
