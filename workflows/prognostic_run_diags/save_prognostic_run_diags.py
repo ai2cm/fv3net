@@ -15,58 +15,74 @@ import intake
 import numpy as np
 import xarray as xr
 import shutil
-import warnings
 
 from pathlib import Path
+from toolz import curry
+from collections import defaultdict
+from typing import Tuple, Dict, Callable
 
 import vcm
+import load_diagnostic_data as load_diags
 
 import logging
 
 logger = logging.getLogger(__file__)
 
-_DIAG_FNS = []
+_DIAG_FNS = defaultdict(list)
 
 HORIZONTAL_DIMS = ["grid_xt", "grid_yt", "tile"]
 
 
-def add_to_diags(func):
-    """Add a function to the list of diagnostics to be computed
+DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
+
+
+@curry
+def add_to_diags(diags_key: str, func: Callable[[DiagArg], xr.Dataset]):
+    """
+    Add a function to the list of diagnostics to be computed
+    for a specified group of data.
 
     Args:
+        diags_key: A key for a group of diagnostics
         func: a function which computes a set of diagnostics.
-        It needs to have the following signature::
+            It needs to have the following signature::
 
-            func(resampled_prog_run_data, verificiation_c48, grid)
+                func(prognostic_run_data, verificiation_c48_data, grid)
 
-        and should return an xarray Dataset of diagnostics.
-        This output will be merged with all other decoratored functions,
-        so some care must be taken to avoid variable and coordinate clashes.
+            and should return an xarray Dataset of diagnostics.
+            This output will be merged with all other decoratored functions,
+            so some care must be taken to avoid variable and coordinate clashes.
     """
-    _DIAG_FNS.append(func)
+    _DIAG_FNS[diags_key].append(func)
+
     return func
 
 
-def compute_all_diagnostics(resampled, verification, grid):
+def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]):
+    """
+    Compute all diagnostics for input data.
+
+    Args
+    ----
+    input_datasets:
+        Input datasets with keys corresponding to the appropriate group of
+        diagnostics (_DIAG_FNS) to be run on each data source.
+    """
+
     diags = {}
-    logger.info("Computing all metrics")
-    for metrics_fn in _DIAG_FNS:
-        logger.info(f"Computing {metrics_fn}")
-        current_diags = metrics_fn(resampled, verification, grid)
-        _warn_on_overlap(diags, current_diags)
-        diags.update(current_diags)
+    logger.info("Computing all diagnostics")
+
+    for key, input_args in input_datasets.items():
+
+        if key not in _DIAG_FNS:
+            raise KeyError(f"No target diagnostics found for input data group: {key}")
+
+        for func in _DIAG_FNS[key]:
+            current_diags = func(*input_args)
+            load_diags.warn_on_overwrite(diags, current_diags)
+            diags.update(current_diags)
+
     return diags
-
-
-def _warn_on_overlap(old, new):
-    overlap = set(old) & set(new)
-    if len(overlap) > 0:
-        warnings.warn(
-            UserWarning(
-                f"Overlapping keys detected: {overlap}. Updates will overwrite "
-                "pre-existing keys."
-            )
-        )
 
 
 def rms(x, y, w, dims):
@@ -75,6 +91,71 @@ def rms(x, y, w, dims):
 
 def bias(truth, prediction, w, dims):
     return ((truth - prediction) * w).sum(dims) / w.sum(dims)
+
+
+def calc_ds_diurnal_cycle(ds):
+    """
+    Calculates the diurnal cycle on moisture variables.  Expects
+    time dimension and longitude variable "grid_lont".
+    """
+    # TODO: switch to vcm.safe dataset usage
+    moist_vars = ["LHTFLsfc", "PRATEsfc", "net_moistening"]
+    local_time = vcm.local_time(ds, time="time", lon_var="grid_lont")
+
+    ds = ds[[var for var in moist_vars if var in ds]]
+    local_time = np.floor(local_time)  # equivalent to hourly binning
+    ds["mean_local_time"] = local_time
+    # TODO: groupby is pretty slow, appears to be single-threaded op
+    diurnal_ds = ds.groupby("mean_local_time").mean()
+
+    return diurnal_ds
+
+
+def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
+    """
+    Adds moisture quantites for the individual component comparison
+    of the diurnal cycle  moisture
+    """
+
+    # For easy filtering into plot component
+    filter_flag = "moistvar_comp"
+
+    ds_verif[f"total_P_{filter_flag}"] = ds_verif["PRATEsfc"].assign_attrs(
+        {"long_name": "diurnal precipitation from verification", "units": "kg/m^2/s"}
+    )
+
+    total_P = ds_run["PRATEsfc"]
+    if "net_moistening" in ds_run:
+        total_P = total_P - ds_run["net_moistening"]  # P - dQ2
+    ds_run[f"total_P_{filter_flag}"] = total_P.assign_attrs(
+        {
+            "long_name": "diurnal precipitation from coarse model run",
+            "units": "kg/m^2/s",
+        }
+    )
+
+    # TODO: add thermo function into top-level import?
+    E_run = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_run["LHTFLsfc"])
+    E_verif = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_verif["LHTFLsfc"])
+    E_diff = E_run - E_verif
+    P_diff = ds_run[f"total_P_{filter_flag}"] - ds_verif[f"total_P_{filter_flag}"]
+
+    ds_run[f"evap_diff_from_verif_{filter_flag}"] = E_diff.assign_attrs(
+        {"long_name": "diurnal diff: evap_coarse - evap_hires", "units": "kg/m^2/s"}
+    )
+    ds_run[f"precip_diff_from_verif_{filter_flag}"] = P_diff.assign_attrs(
+        {"long_name": "diurnal diff: precip_coarse - precip_hires", "units": "kg/m^2/s"}
+    )
+
+    net_precip_diff = P_diff - E_diff
+    ds_run[f"net_precip_diff_from_verif_{filter_flag}"] = net_precip_diff.assign_attrs(
+        {
+            "long_name": "diurnal diff: net_precip_coarse - net_precip_hires",
+            "units": "kg/m^2/s",
+        }
+    )
+
+    return ds_run, ds_verif
 
 
 def dump_nc(ds: xr.Dataset, f):
@@ -87,40 +168,73 @@ def dump_nc(ds: xr.Dataset, f):
             shutil.copyfileobj(tmp1, f)
 
 
-@add_to_diags
-def rms_errors(resampled, verification_c48, grid):
-    rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
+def _vars_to_diags(suffix, ds, src_ds):
+    # converts dataset variables into diagnostics dict
+    # and assigns attrs from src_ds if none are set
 
     diags = {}
-    for variable in rms_errors:
+    for variable in ds:
         lower = variable.lower()
-        diags[f"{lower}_rms_global"] = rms_errors[variable].assign_attrs(
-            resampled[variable].attrs
-        )
+        da = ds[variable]
+        attrs = da.attrs
+        if not attrs:
+            src_attrs = src_ds[variable].attrs
+            da = da.assign_attrs(src_attrs)
+
+        diags[f"{lower}_{suffix}"] = da
 
     return diags
 
 
-@add_to_diags
+@add_to_diags("3H")
+def rms_errors(resampled, verification_c48, grid):
+    logger.info("Preparing rms errors")
+    rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
+
+    return _vars_to_diags("rms_global", rms_errors, resampled)
+
+
+@add_to_diags("3H")
 def global_averages(resampled, verification, grid):
-    diags = {}
+    logger.info("Preparing global averages")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
         HORIZONTAL_DIMS
     )
-    for variable in area_averages:
-        lower = variable.lower()
-        diags[f"{lower}_global_avg"] = area_averages[variable].assign_attrs(
-            resampled[variable].attrs
-        )
-    return diags
+
+    return _vars_to_diags("global_avg", area_averages, resampled)
+
+
+def diurnal_cycles(resampled, verification, grid):
+
+    logger.info("Preparing diurnal cycle diagnostics")
+
+    # TODO: Add in different masked diurnal cycles
+
+    diurnal_verif = calc_ds_diurnal_cycle(verification)
+    lon = verification["grid_lont"]
+    resampled["grid_lont"] = lon
+    diurnal_resampled = calc_ds_diurnal_cycle(resampled)
+
+    diurnal_resampled, diurnal_verif = _add_derived_moisture_diurnal_quantities(
+        diurnal_resampled, diurnal_verif
+    )
+
+    # Add to diagnostics
+    verif_diags = _vars_to_diags("verif_diurnal", diurnal_verif, verification)
+    resampled_diags = _vars_to_diags("run_diurnal", diurnal_resampled, resampled)
+
+    return dict(**verif_diags, **resampled_diags)
 
 
 def open_tiles(path):
     return xr.open_mfdataset(path + ".tile?.nc", concat_dim="tile", combine="nested")
 
 
-def load_data(url, grid_spec, catalog):
-    logger.info(f"Processing run directory at {url}")
+# TODO: This operation has mostly been set up in load_diagnostic_data, still need
+#       to figure out where resampling to 3H makes sense (a transform) and how to
+#       handle multi-timescale verification sources
+def load_data_3H(url, grid_spec, catalog):
+    logger.info(f"Processing 3H data from run directory at {url}")
 
     # open grid
     logger.info("Opening Grid Spec")
@@ -130,6 +244,7 @@ def load_data(url, grid_spec, catalog):
     logger.info("Opening verification data")
     verification = catalog["40day_c384_atmos_8xdaily"].to_dask()
     verification = verification.merge(grid_c384)
+
     # block average data
     logger.info("Block averaging the verification data")
     verification_c48 = vcm.cubedsphere.weighted_block_average(
@@ -173,7 +288,15 @@ if __name__ == "__main__":
     attrs["history"] = " ".join(sys.argv)
 
     catalog = intake.open_catalog(args.catalog)
-    resampled, verification, grid = load_data(args.url, args.grid_spec, catalog)
+    input_data = {}
+    resampled, verification, grid = load_data_3H(args.url, args.grid_spec, catalog)
+    input_data["3H"] = (resampled, verification, grid)
+
+    # Data loaded at original time resolution
+    # verif_base = load_diags.load_verification(
+    #     ["40day_c384_diags_time_avg"], catalog, 8, grid.area
+    # )
+    # data_base = load_diags.load_diagnostics(args.url)
 
     # begin constructing diags
     diags = {}
@@ -183,7 +306,7 @@ if __name__ == "__main__":
     diags["pwat_run_final"] = resampled.PWAT.isel(time=-2)
     diags["pwat_verification_final"] = verification.PWAT.isel(time=-2)
 
-    diags.update(compute_all_diagnostics(resampled, verification, grid))
+    diags.update(compute_all_diagnostics(input_data))
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)
