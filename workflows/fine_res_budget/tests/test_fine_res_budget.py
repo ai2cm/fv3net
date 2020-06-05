@@ -44,7 +44,10 @@ def test_OpenTimeChunks():
         arr_big_chunk = da.ones(shape, chunks=chunks_big, dtype=np.float32)
         arr_small_chunk = da.ones(shape, chunks=chunks_small, dtype=np.float32)
         return xr.Dataset(
-            {"omega": (dims, arr_big_chunk), "restart_field": (dims, arr_small_chunk)},
+            {
+                "vulcan_omega_coarse": (dims, arr_big_chunk),
+                "restart_field": (dims, arr_small_chunk),
+            },
             coords=coords,
         )
 
@@ -84,18 +87,18 @@ def test__convergence_linear():
 def test_run(tmpdir):
 
     variables = [
-        "t_dt_gfdlmp_coarse",
+        "t_dt_fv_sat_adj_coarse",
         "t_dt_nudge_coarse",
         "t_dt_phys_coarse",
-        "qv_dt_gfdlmp_coarse",
+        "qv_dt_fv_sat_adj_coarse",
         "qv_dt_phys_coarse",
-        "eddy_flux_omega_sphum",
-        "eddy_flux_omega_temp",
+        "eddy_flux_vulcan_omega_sphum",
+        "eddy_flux_vulcan_omega_temp",
         "grid_lat_coarse",
         "grid_latt_coarse",
         "grid_lon_coarse",
         "grid_lont_coarse",
-        "omega_coarse",
+        "vulcan_omega_coarse",
         "area_coarse",
     ]
 
@@ -130,7 +133,7 @@ def test_run(tmpdir):
         "air_temperature",
         "air_temperature_convergence",
         "air_temperature_eddy",
-        "air_temperature_microphysics",
+        "air_temperature_saturation_adjustment",
         "air_temperature_nudging",
         "air_temperature_physics",
         "air_temperature_resolved",
@@ -140,7 +143,7 @@ def test_run(tmpdir):
         "specific_humidity",
         "specific_humidity_convergence",
         "specific_humidity_eddy",
-        "specific_humidity_microphysics",
+        "specific_humidity_saturation_adjustment",
         "specific_humidity_physics",
         "specific_humidity_resolved",
         "specific_humidity_storage",
