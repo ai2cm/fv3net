@@ -25,29 +25,9 @@ DIAGS_ZARR = "diags.zarr"
 DIAGS_ATMOS_NC = "atmos_dt_atmos"
 DIAGS_SFC_NC = "sfc_dt_atmos"
 
-_DS_TRANSFORMS = []
 _DIAG_OUTPUT_LOADERS = []
 
 
-def add_to_transforms(func):
-    """
-    Add to xr.Dataset transform function to the group of
-    transforms to be performed on a loaded dataset.
-    
-    Args:
-        func: A functions which adjusts an xr.Datset.
-            It needs to have the following signature::
-
-                func(ds: xr.Dataset)
-
-            and should return an xarray Dataset.
-    """
-
-    _DS_TRANSFORMS.append(func)
-    return func
-
-
-@add_to_transforms
 def _adjust_tile_range(ds: xr.Dataset) -> xr.Dataset:
 
     if "tile" in ds:
@@ -59,7 +39,6 @@ def _adjust_tile_range(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-@add_to_transforms
 def _rename_coords(ds: xr.Dataset) -> xr.Dataset:
 
     varname_target_registry = {}
@@ -79,7 +58,6 @@ def _round_to_nearest_second(dt):
     return vcm.convenience.round_time(dt, timedelta(seconds=1))
 
 
-@add_to_transforms
 def _round_time_coord(ds, time_coord="time"):
 
     new_times = np.vectorize(_round_to_nearest_second)(ds.time)
@@ -87,7 +65,6 @@ def _round_time_coord(ds, time_coord="time"):
     return ds
 
 
-@add_to_transforms
 def _set_missing_attrs(ds):
 
     for var in ds:
@@ -105,7 +82,6 @@ def _set_missing_attrs(ds):
     return ds
 
 
-@add_to_transforms
 def _remove_name_suffix(ds):
     for target in VARNAME_SUFFIX_TO_REMOVE:
         replace_names = {
@@ -142,7 +118,13 @@ def warn_on_overwrite(old: Iterable, new: Iterable):
 
 def standardize_dataset(ds):
 
-    for func in [_adjust_tile_range, _rename_coords, _round_time_coord, _set_missing_attrs, _remove_name_suffix]:
+    for func in [
+        _adjust_tile_range,
+        _rename_coords,
+        _round_time_coord,
+        _remove_name_suffix,
+        _set_missing_attrs,
+    ]:
         ds = func(ds)
 
     return ds
