@@ -58,19 +58,31 @@ def load_data_sequence(
     Returns:
         Sequence of datasets iterated over in training
     """
+    # process arguments
     kwargs = train_config.batch_kwargs
     func_name = kwargs.pop("mapping_function")
     mapping_kwargs = kwargs.pop("mapping_kwargs", {})
-
+    # TODO is this the correct name?
+    random_seed = kwargs.pop("random_seed", 0)
     # TODO, do we really need to give option to switch the batching func?
     # seems a little over-engineered
     batch_function = getattr(loaders, train_config.batch_function)
     mapping_func = getattr(loaders, func_name)
+
+    # begin larger computations
     data_mapper = mapping_func(data_path, **mapping_kwargs)
 
-    ds_batches = batch_function(
+    subset = loaders.random_sample(
         data_mapper,
+        random_seed,
+        kwargs.pop("num_batches"),
+        kwargs.pop("timesteps_per_batch"),
+    )
+
+    ds_batches = batch_function(
+        subset,
         list(train_config.input_variables) + list(train_config.output_variables),
+        random_seed=random_seed,
         **kwargs,
     )
     return ds_batches

@@ -1,7 +1,7 @@
 import functools
 import logging
 from itertools import chain
-from toolz import partition
+from toolz import partition, compose
 from numpy.random import RandomState
 import random
 from typing import Iterable, Sequence, Mapping, Any, Hashable, TypeVar
@@ -14,6 +14,16 @@ from fv3net.regression import loaders
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+
+def random_sample(mapper, random_seed, num_batches, batch_size):
+    # TODO move to _transform.py
+    # TODO type hint
+    num_timesteps = num_batches * batch_size
+    # TODO maybe raise value error here
+    random.seed(random_seed)
+    times = random.sample(list(mapper), num_timesteps)
+    return Subset(mapper, times)
 
 
 def batches_from_mapper(
@@ -44,24 +54,14 @@ def batches_from_mapper(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
-    num_timesteps = num_batches * timesteps_per_batch
-    # TODO maybe raise value error here
-
     random_state = RandomState(random_seed)
-    random.seed(random_seed)
-
-    times = random.sample(list(data_mapping), num_timesteps)
-
-    subset = Subset(data_mapping, times)
-
-    # TODO After this only depends on subset so could be refactored
-    batched_times = list(partition(timesteps_per_batch, list(subset.keys())))
-
+    # These code depends only on subset
+    batched_times = list(partition(timesteps_per_batch, list(data_mapping.keys())))
     transform = functools.partial(
         stack_dropnan_shuffle, init_time_dim_name, random_state
     )
     load_batch = functools.partial(
-        _load_batch, subset, variable_names, rename_variables, init_time_dim_name,
+        _load_batch, data_mapping, variable_names, init_time_dim_name,
     )
     return FunctionOutputSequence(lambda x: transform(load_batch(x)), batched_times)
 
@@ -100,47 +100,15 @@ def _create_mapper(
     return mapping_func(data_path, **mapping_kwargs)
 
 
-def _mapper_to_batches(
-    data_mapping: Mapping[str, xr.Dataset],
-    variable_names: Iterable[str],
-    random_state: RandomState,
-    batched_timesteps,
-    init_time_dim_name: str = "initial_time",
-    rename_variables: Mapping[str, str] = None,
-) -> Sequence[xr.Dataset]:
-    """ The function returns a sequence of datasets that is later
-    iterated over in  ..sklearn.train.
-    Args:
-        data_mapping (Mapping[str, xr.Dataset]): Interface to select data for
-            given timestep keys.
-        variable_names (Iterable[str]): data variables to select
-        timesteps_per_batch (int, optional): Defaults to 1.
-        num_batches (int, optional): Defaults to None.
-        random_seed (int, optional): Defaults to 0.
-        init_time_dim_name (str, optional): Name of time dim in data source.
-            Defaults to "initial_time".
-        rename_variables (Mapping[str, str], optional): Defaults to None.
-    Raises:
-        TypeError: If no variable_names are provided to select the final datasets
-    Returns:
-        Sequence of xarray datasets
-    """
-
-
 def _load_batch(
     timestep_mapper: Mapping[str, xr.Dataset],
     data_vars: Iterable[str],
-    rename_variables: Mapping[str, str],
     init_time_dim_name: str,
     timestep_list: Iterable[str],
 ) -> xr.Dataset:
     data = _get_dataset_list(timestep_mapper, timestep_list)
     ds = xr.concat(data, init_time_dim_name)
     # need to use standardized time dimension name
-    rename_variables[init_time_dim_name] = rename_variables.get(
-        init_time_dim_name, TIME_NAME
-    )
-    ds = ds.rename(rename_variables)
     ds = safe.get_variables(ds, data_vars)
     return ds
 
