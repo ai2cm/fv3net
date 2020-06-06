@@ -57,7 +57,7 @@ def batches_from_mapper(
     times = random.sample(list(data_mapping), num_timesteps)
 
     subset = Subset(data_mapping, times)
-    batched_times = partition(times, timesteps_per_batch)
+    batched_times = list(partition(timesteps_per_batch, times))
 
     batches = _mapper_to_batches(
         subset,
