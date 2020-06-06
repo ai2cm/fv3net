@@ -173,7 +173,7 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
     else:
         raise KeyError(
             "Could not find nudged output directory appropriate for timescale: "
-            "{timescale_hours}"
+            f"{timescale_hours}"
         )
 
 
