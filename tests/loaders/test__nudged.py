@@ -9,7 +9,6 @@ import synth
 from fv3net.regression.loaders._nudged import (
     TIME_NAME,
     TIME_FMT,
-    _load_nudging_batches,
     _get_path_for_nudging_timescale,
     NudgedTimestepMapper,
     NudgedStateCheckpoints,
@@ -78,43 +77,6 @@ def nudged_tstep_mapper(nudge_tendencies, general_nudge_output):
     timestep_mapper = NudgedTimestepMapper(combined_ds)
 
     return timestep_mapper
-
-
-# Note: datadir_module fixture in conftest.py
-@pytest.mark.regression
-def test_load_nudging_batches(nudged_tstep_mapper):
-
-    ntimes = 90
-    init_time_skip_hr = 12  # 48 15-min timesteps
-    times_per_batch = 14
-    num_batches = 5
-
-    rename = {
-        "air_temperature_tendency_due_to_nudging": "dQ1",
-        "specific_humidity_tendency_due_to_nudging": "dQ2",
-    }
-    input_vars = ["air_temperature", "specific_humidity"]
-    output_vars = ["dQ1", "dQ2"]
-    data_vars = input_vars + output_vars
-
-    # skips first 48 timesteps, only use 90 timesteps
-    sequence = _load_nudging_batches(
-        nudged_tstep_mapper,
-        data_vars,
-        num_batches=num_batches,
-        num_times_in_batch=times_per_batch,
-        rename_variables=rename,
-        initial_time_skip_hr=init_time_skip_hr,
-        n_times=ntimes,
-    )
-
-    # 14 batches requested
-    assert len(sequence._args) == num_batches
-
-    for batch in sequence:
-        assert batch.sizes["sample"] == times_per_batch * 6 * 48 * 48
-        for var in data_vars:
-            assert var in batch
 
 
 @pytest.fixture
