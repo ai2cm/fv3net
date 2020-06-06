@@ -177,7 +177,6 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
         )
 
 
-# TODO: change variable naming to omit type
 class GeoMapper:
     def __init__(self, *args):
         raise NotImplementedError("Don't use the base class!")
@@ -196,6 +195,17 @@ class GeoMapper:
 
 
 class NudgedTimestepMapper(GeoMapper):
+    """
+    Basic mapper across the time dimension for any long-form
+    simulation output.
+    
+    This mapper uses slightly different
+    initialization (a dataset instead of a url) because nudge
+    run information for all timesteps already exists within
+    a single file, i.e., no filesystem grouping is necessary to get
+    an item.
+    """
+
     def __init__(self, ds):
         self.ds = ds
 
@@ -211,6 +221,14 @@ class NudgedTimestepMapper(GeoMapper):
 
 
 class MergeNudged(NudgedTimestepMapper):
+    """
+    Mapper for merging data sources available from a nudged run.
+    
+    Currently used to merge the nudging tendencies with the after
+    physics checkpointed state information. Could be useful for
+    merging prognostic run output by time in the future.
+    """
+
     def __init__(
         self, *nudged_sources: Sequence[Union[NudgedTimestepMapper, xr.Dataset]]
     ):
@@ -339,8 +357,9 @@ def open_nudged(
     n_times: int = None,
 ) -> Mapping[str, xr.Dataset]:
     """
-    Temporary function for loading mapper from all sources.  Will be standardized
-    with loading of other mappers when transforms are finished.
+    Load nudging data mapper for use with training.  Currently merges the
+    two files after_physics and nudging_tendencies, which are required I/O
+    for the training
 
     Args:
         url: Path to directory with nudging output (not including the timescale
