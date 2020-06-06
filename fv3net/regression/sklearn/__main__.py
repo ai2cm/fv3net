@@ -87,7 +87,7 @@ if __name__ == "__main__":
     if not args.no_train_subdir_append:
         data_path = os.path.join(data_path, "train")
     train_config = train.load_model_training_config(args.train_config_file)
-    batched_data = train.load_data_sequence(data_path, train_config)
+    batched_data, metadata = train.load_data_sequence(data_path, train_config)
     _save_config_output(args.output_data_path, train_config)
 
     logging.basicConfig(level=logging.INFO)
@@ -95,7 +95,5 @@ if __name__ == "__main__":
     model = train.train_model(batched_data, train_config)
     train.save_model(args.output_data_path, model, MODEL_FILENAME)
     report_metadata = {**vars(args), **vars(train_config)}
-    report_sections = _create_report_plots(
-        args.output_data_path, times_from_batches(batched_data),
-    )
+    report_sections = _create_report_plots(args.output_data_path, metadata["times"],)
     _write_report(args.output_data_path, report_sections, report_metadata, REPORT_TITLE)

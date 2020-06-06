@@ -13,6 +13,8 @@ from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 
+import vcm
+
 
 logger = logging.getLogger(__file__)
 
@@ -79,13 +81,20 @@ def load_data_sequence(
         kwargs.pop("timesteps_per_batch"),
     )
 
+    # times for later diagnostics (a bit dirty to compute these here and pass
+    # them to another function, but oh well)
+    times = [
+        vcm.parse_datetime_from_str(vcm.parse_timestep_str_from_path(time))
+        for time in subset.keys()
+    ]
+
     ds_batches = batch_function(
         subset,
         list(train_config.input_variables) + list(train_config.output_variables),
         random_seed=random_seed,
         **kwargs,
     )
-    return ds_batches
+    return ds_batches, {"times": times}
 
 
 def _get_regressor(train_config: ModelTrainingConfig):
