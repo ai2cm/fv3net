@@ -1,8 +1,10 @@
 import functools
 import logging
 from itertools import chain
+from toolz import partition
 from numpy.random import RandomState
-from typing import Iterable, Sequence, Mapping, Any, Hashable
+import random
+from typing import Iterable, Sequence, Mapping, Any, Hashable, TypeVar
 import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
@@ -45,20 +47,23 @@ def batches_from_mapper(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
+    num_timesteps = num_batches * timesteps_per_batch
+    # TODO maybe raise value error here
+
     random_state = RandomState(random_seed)
+    random.seed(random_seed)
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
 
-    times = _select_batch_timesteps(
-        list(data_mapping.keys()), timesteps_per_batch, num_batches, random_state
-    )
+    times = random.sample(list(data_mapping), num_timesteps)
 
-    subset = Subset(data_mapping, chain(*times))
+    subset = Subset(data_mapping, times)
+    batched_times = partition(times, timesteps_per_batch)
 
     batches = _mapper_to_batches(
         subset,
         variable_names,
         random_state,
-        times,
+        batched_times,
         init_time_dim_name,
         rename_variables,
     )
@@ -135,28 +140,6 @@ def _mapper_to_batches(
         _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
     )
     return FunctionOutputSequence(lambda x: transform(load_batch(x)), batched_timesteps)
-
-
-def _select_batch_timesteps(
-    timesteps: Sequence[str],
-    timesteps_per_batch: int,
-    num_batches: int,
-    random_state: RandomState,
-) -> Sequence[Sequence[str]]:
-    # TODO these names are very tightly scoped, but the operation is very general
-    # TODO split the batching and the shuffling
-    random_state.shuffle(timesteps)
-    num_batches = _validated_num_batches(
-        len(timesteps), timesteps_per_batch, num_batches
-    )
-    logger.info(f"{num_batches} data batches generated for model training.")
-    timesteps_list_sequence = list(
-        timesteps[
-            batch_num * timesteps_per_batch : (batch_num + 1) * timesteps_per_batch
-        ]
-        for batch_num in range(num_batches)
-    )
-    return timesteps_list_sequence
 
 
 def _load_batch(
