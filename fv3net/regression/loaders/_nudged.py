@@ -233,6 +233,8 @@ def open_nudged(
             subdirectories, e.g., outdir-3h)
         timescale_hours: timescale of the nudging for the simulation
             being used as input.
+        merge_files (optionsl): underlying nudging zarr datasets to combine
+            into a MergeNudged mapper
         initial_time_skip_hr (optional): Length of model inititialization (in hours)
             to omit from the batching operation
         n_times (optional): Number of times (by index) to include in the
@@ -249,8 +251,7 @@ def open_nudged(
     )
 
     datasets = []
-    nudge_files = ["after_physics", "nudging_tendencies"]
-    for source in nudge_files:
+    for source in merge_files:
         mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}.zarr"))
         ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
         times = np.vectorize(round_time)(ds[TIME_NAME])
