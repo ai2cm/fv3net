@@ -24,7 +24,6 @@ def batches_from_mapper(
     num_batches: int = None,
     random_seed: int = 0,
     init_time_dim_name: str = "initial_time",
-    rename_variables: Mapping[str, str] = None,
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -38,7 +37,6 @@ def batches_from_mapper(
         random_seed (int, optional): Defaults to 0.
         init_time_dim_name (str, optional): Name of time dim in data source.
             Defaults to "initial_time".
-        rename_variables (Mapping[str, str], optional): Defaults to None.
 
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
@@ -46,12 +44,6 @@ def batches_from_mapper(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
-    # argument validation
-    if rename_variables is None:
-        rename_variables = {}
-    if len(variable_names) == 0:
-        raise TypeError("At least one value must be given for variable_names")
-
     num_timesteps = num_batches * timesteps_per_batch
     # TODO maybe raise value error here
 
