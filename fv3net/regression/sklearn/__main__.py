@@ -1,4 +1,4 @@
-from typing import Union, Sequence
+from typing import Union, Sequence, List
 from datetime import datetime
 import argparse
 import os
@@ -72,7 +72,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def times_from_batches(batched_data):
+def times_from_batches(batched_data) -> List[datetime]:
     return_list = []
     ds = xr.concat(batched_data, SAMPLE_DIM_NAME)
     for time in ds[TIME_NAME].values:

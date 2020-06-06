@@ -96,6 +96,7 @@ def cast_to_datetime(
 ) -> datetime:
     """Cast datetime-like object to python datetime. Assumes calendars are
     compatible."""
+    breakpoint()
     return datetime(
         time.year,
         time.month,

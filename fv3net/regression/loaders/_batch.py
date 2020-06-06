@@ -1,7 +1,8 @@
 import functools
 import logging
+from itertools import chain
 from numpy.random import RandomState
-from typing import Iterable, Sequence, Mapping, Any
+from typing import Iterable, Sequence, Mapping, Any, Hashable
 import xarray as xr
 from vcm import safe
 from ._sequences import FunctionOutputSequence
@@ -44,17 +45,50 @@ def batches_from_mapper(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
+    random_state = RandomState(random_seed)
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
+
+    times = _select_batch_timesteps(
+        list(data_mapping.keys()), timesteps_per_batch, num_batches, random_state
+    )
+
+    subset = Subset(data_mapping, chain(*times))
+
     batches = _mapper_to_batches(
-        data_mapping,
+        subset,
         variable_names,
-        timesteps_per_batch,
-        num_batches,
-        random_seed,
+        random_state,
+        times,
         init_time_dim_name,
         rename_variables,
     )
     return batches
+
+
+class Subset(Mapping):
+    def __init__(self, mapping: Mapping, keys: Iterable[Hashable]):
+        # TODO add typehints
+        # TODO move to _transforms.py
+        self._mapping = mapping
+        self._keys = list(keys)
+
+    def __getattr__(self, item: str):
+        return getattr(self._mapping, item)
+
+    def __getitem__(self, key):
+        if key not in self.keys():
+            print(self.keys())
+            raise KeyError(f"'{key}' not found")
+        return self._mapping[key]
+
+    def __iter__(self, key):
+        return iter(self.keys())
+
+    def __len__(self):
+        return len(self._list(self.keys()))
+
+    def keys(self):
+        return self._keys
 
 
 def _create_mapper(
@@ -68,9 +102,8 @@ def _create_mapper(
 def _mapper_to_batches(
     data_mapping: Mapping[str, xr.Dataset],
     variable_names: Iterable[str],
-    timesteps_per_batch: int = 1,
-    num_batches: int = None,
-    random_seed: int = 0,
+    random_state: RandomState,
+    batched_timesteps,
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
 ) -> Sequence[xr.Dataset]:
@@ -91,14 +124,10 @@ def _mapper_to_batches(
     Returns:
         Sequence of xarray datasets
     """
-    random_state = RandomState(random_seed)
     if rename_variables is None:
         rename_variables = {}
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
-    batched_timesteps = _select_batch_timesteps(
-        list(data_mapping.keys()), timesteps_per_batch, num_batches, random_state
-    )
     transform = functools.partial(
         stack_dropnan_shuffle, init_time_dim_name, random_state
     )
@@ -114,6 +143,8 @@ def _select_batch_timesteps(
     num_batches: int,
     random_state: RandomState,
 ) -> Sequence[Sequence[str]]:
+    # TODO these names are very tightly scoped, but the operation is very general
+    # TODO split the batching and the shuffling
     random_state.shuffle(timesteps)
     num_batches = _validated_num_batches(
         len(timesteps), timesteps_per_batch, num_batches
