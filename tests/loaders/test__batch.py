@@ -6,6 +6,7 @@ import xarray as xr
 
 from fv3net.regression.loaders._batch import (
     _mapper_to_batches,
+    _mapper_to_diagnostic_sequence,
     _load_batch,
     _get_dataset_list,
     _select_batch_timesteps,
@@ -47,6 +48,11 @@ def mapper(datadir):
     return mapper
 
 
+@pytest.fixture
+def random_state():
+    return np.random.RandomState(0)
+
+
 def test__load_batch(mapper):
     ds = _load_batch(
         timestep_mapper=mapper,
@@ -65,6 +71,16 @@ def test__get_dataset_list(mapper):
 
 def test__mapper_to_batches(mapper):
     batched_data_sequence = _mapper_to_batches(
+        mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
+    )
+    assert len(batched_data_sequence) == 2
+    for i, batch in enumerate(batched_data_sequence):
+        assert len(batch["z"]) == Z_DIM_SIZE
+        assert set(batch.data_vars) == set(DATA_VARS)
+
+
+def test__mapper_to_diagnostic_sequence(mapper):
+    batched_data_sequence = _mapper_to_diagnostic_sequence(
         mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
     )
     assert len(batched_data_sequence) == 2

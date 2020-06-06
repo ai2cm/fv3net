@@ -124,7 +124,7 @@ def load_metrics(bucket, rundirs):
     return metrics
 
 
-def holomap_filter(time_series, varfilter):
+def holomap_filter(time_series, varfilter, run_attr_name="run"):
     p = hv.Cycle("Colorblind")
     hmap = hv.HoloMap(kdims=["variable", "run"])
     for ds in time_series:
@@ -140,7 +140,7 @@ def holomap_filter(time_series, varfilter):
                     else:
                         style = "dashed"
 
-                    run = ds.attrs["run"]
+                    run = ds.attrs[run_attr_name]
                     long_name = ds[varname].long_name
                     hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
                         line_dash=style, color=p
@@ -164,6 +164,10 @@ def rms_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
 @diag_plot_manager.register
 def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
     return HVPlot(holomap_filter(time_series, varfilter="global_avg").overlay("run"))
+
+
+def diurnal_cycle_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
+    return HVPlot(holomap_filter(time_series, varfilter="diurnal").overlay("run"))
 
 
 # Routines for plotting the "metrics"
