@@ -15,6 +15,7 @@ from fv3net.regression.loaders._nudged import (
     NudgedStateCheckpoints,
     MergeNudged,
     GroupByTime,
+    SubsetTimes,
 )
 
 NTIMES = 144
@@ -162,7 +163,7 @@ def test_NudgedTimestepMapper(general_nudge_output):
     xr.testing.assert_equal(item, mapper[time_key])
 
 
-@pytest.fixture(params=["dataset_only", "nudged_tstep_mapper_only", "mixed", "empty"])
+@pytest.fixture(params=["dataset_only", "nudged_tstep_mapper_only", "mixed"])
 def mapper_to_ds_case(request, nudge_tendencies, general_nudge_output):
 
     if request.param == "dataset_only":
@@ -174,8 +175,6 @@ def mapper_to_ds_case(request, nudge_tendencies, general_nudge_output):
         )
     elif request.param == "mixed":
         sources = (nudge_tendencies, NudgedTimestepMapper(general_nudge_output))
-    elif request.param == "empty":
-        sources = ()
 
     return sources
 
@@ -187,22 +186,16 @@ def test_MergeNudged__mapper_to_datasets(mapper_to_ds_case):
         assert isinstance(source, xr.Dataset)
 
 
-@pytest.fixture(params=["empty", "single", "no_overlap"])
-def overlap_check_pass_datasets(request, nudge_tendencies, general_nudge_output):
+@pytest.mark.parametrize("init_args", [(), ("single_arg",)])
+def test_MergeNudged__fail_on_empty_sources(init_args):
 
-    if request.param == "empty":
-        sources = ()
-    elif request.param == "single":
-        sources = (nudge_tendencies,)
-    elif request.param == "no_overlap":
-        sources = (nudge_tendencies, general_nudge_output)
-
-    return sources
+    with pytest.raises(TypeError):
+        MergeNudged(*init_args)
 
 
-def test_MergeNudged__check_dvar_overlap(overlap_check_pass_datasets):
+def test_MergeNudged__check_dvar_overlap(nudge_tendencies, general_nudge_output):
 
-    MergeNudged._check_dvar_overlap(*overlap_check_pass_datasets)
+    MergeNudged._check_dvar_overlap(*(nudge_tendencies, general_nudge_output))
 
 
 @pytest.fixture(params=["single_overlap", "all_overlap"])
@@ -278,3 +271,39 @@ def test_GroupByTime_items(time_key, expected_size, checkpoint_mapping):
     item = test_groupby[time_key]
     assert "checkpoint" in item.dims
     assert item.sizes["checkpoint"] == expected_size
+
+
+def test_SubsetTime(nudged_tstep_mapper):
+
+    ntimestep_skip_hr = 1  # equivalent to 4 timesteps
+    ntimes = 6
+    times = nudged_tstep_mapper.keys()[4:10]
+
+    subset = SubsetTimes(ntimestep_skip_hr, ntimes, nudged_tstep_mapper)
+
+    assert len(subset) == ntimes
+    assert times == subset.keys()
+
+
+def test_SubsetTime_out_of_order_times(nudged_tstep_mapper):
+
+    times = nudged_tstep_mapper.keys()[:5]
+    shuffled_idxs = [4, 0, 2, 3, 1]
+    shuffled_map = {
+        times[i]: nudged_tstep_mapper[times[i]]
+        for i in shuffled_idxs
+    }
+    subset = SubsetTimes(0, 2, shuffled_map)
+
+    for i, key in enumerate(subset.keys()):
+        assert key == times[i]
+        xr.testing.assert_equal(nudged_tstep_mapper[key], subset[key])
+
+
+def test_SubsetTime_fail_on_non_subset_key(nudged_tstep_mapper):
+
+    out_of_bounds = nudged_tstep_mapper.keys()[4]
+    subset = SubsetTimes(0, 4, nudged_tstep_mapper)
+    
+    with pytest.raises(KeyError):
+        subset[out_of_bounds]

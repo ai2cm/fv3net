@@ -15,12 +15,13 @@ from vcm import cloud, safe
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import TIME_FMT
 from ._sequences import FunctionOutputSequence
-from ..constants import Z_DIM_NAME, SAMPLE_DIM_NAME, TIME_NAME
+from .constants import SAMPLE_DIM_NAME, TIME_NAME
 
 logger = logging.getLogger(__name__)
 
 TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
 SIMULATION_TIMESTEPS_PER_HOUR = 4
+Z_DIM_NAME = "z"
 
 BatchSequence = Sequence[xr.Dataset]
 TimestepMapper = Mapping[str, xr.Dataset]
@@ -213,7 +214,8 @@ class MergeNudged(NudgedTimestepMapper):
     def __init__(
         self, *nudged_sources: Sequence[Union[NudgedTimestepMapper, xr.Dataset]]
     ):
-
+        if len(nudged_sources) < 2:
+            raise TypeError("MergeNudged should be instantiated with two or more data sources.")
         nudged_sources = self._mapper_to_datasets(nudged_sources)
         self._check_dvar_overlap(*nudged_sources)
         self.ds = xr.merge(nudged_sources, join="inner")
@@ -298,9 +300,39 @@ class GroupByTime:
         return ds.assign_coords(checkpoint=checkpoint_names)
 
 
+class SubsetTimes(GeoMapper):
+    """
+    Sort and subset a timestep-based mapping to skip spin-up and limit
+    the number of available times.  
+    """
+
+    def __init__(
+        self,
+        initial_time_skip_hr: int,
+        n_times: Union[int, None],
+        nudged_data: Mapping[str, xr.Dataset],
+    ):
+        timestep_keys = list(nudged_data.keys())
+        timestep_keys.sort()
+
+        start = initial_time_skip_hr * SIMULATION_TIMESTEPS_PER_HOUR
+        end = None if n_times is None else start + n_times
+        self._keys = timestep_keys[slice(start, end)]
+        self._nudged_data = nudged_data
+    
+    def keys(self):
+        return list(self._keys)
+
+    def __getitem__(self, time: Time):
+        if time not in self._keys:
+            raise KeyError("Time {time} not found in SubsetTimes mapper.")
+        return self._nudged_data[time]    
+
+
 def open_nudged(
     url: str,
     nudging_timescale_hr: Union[int, float],
+    merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
     initial_time_skip_hr: int = 0,
     n_times: int = None,
 ) -> Mapping[str, xr.Dataset]:
@@ -336,11 +368,9 @@ def open_nudged(
         times = np.vectorize(round_time)(ds[TIME_NAME])
         ds = ds.assign_coords({TIME_NAME: times})
 
-        start = initial_time_skip_hr * SIMULATION_TIMESTEPS_PER_HOUR
-        end = None if n_times is None else start + n_times
-        ds = ds.isel({TIME_NAME: slice(start, end)})
         datasets.append(ds)
 
     nudged_mapper = MergeNudged(*datasets)
+    nudged_mapper = SubsetTimes(initial_time_skip_hr, n_times, nudged_mapper)
 
     return nudged_mapper
