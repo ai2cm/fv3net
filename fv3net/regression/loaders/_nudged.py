@@ -215,7 +215,9 @@ class MergeNudged(NudgedTimestepMapper):
         self, *nudged_sources: Sequence[Union[NudgedTimestepMapper, xr.Dataset]]
     ):
         if len(nudged_sources) < 2:
-            raise TypeError("MergeNudged should be instantiated with two or more data sources.")
+            raise TypeError(
+                "MergeNudged should be instantiated with two or more data sources."
+            )
         nudged_sources = self._mapper_to_datasets(nudged_sources)
         self._check_dvar_overlap(*nudged_sources)
         self.ds = xr.merge(nudged_sources, join="inner")
@@ -303,7 +305,7 @@ class GroupByTime:
 class SubsetTimes(GeoMapper):
     """
     Sort and subset a timestep-based mapping to skip spin-up and limit
-    the number of available times.  
+    the number of available times.
     """
 
     def __init__(
@@ -319,14 +321,14 @@ class SubsetTimes(GeoMapper):
         end = None if n_times is None else start + n_times
         self._keys = timestep_keys[slice(start, end)]
         self._nudged_data = nudged_data
-    
+
     def keys(self):
         return list(self._keys)
 
     def __getitem__(self, time: Time):
         if time not in self._keys:
             raise KeyError("Time {time} not found in SubsetTimes mapper.")
-        return self._nudged_data[time]    
+        return self._nudged_data[time]
 
 
 def open_nudged(

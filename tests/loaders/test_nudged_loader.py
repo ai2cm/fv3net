@@ -289,10 +289,7 @@ def test_SubsetTime_out_of_order_times(nudged_tstep_mapper):
 
     times = nudged_tstep_mapper.keys()[:5]
     shuffled_idxs = [4, 0, 2, 3, 1]
-    shuffled_map = {
-        times[i]: nudged_tstep_mapper[times[i]]
-        for i in shuffled_idxs
-    }
+    shuffled_map = {times[i]: nudged_tstep_mapper[times[i]] for i in shuffled_idxs}
     subset = SubsetTimes(0, 2, shuffled_map)
 
     for i, key in enumerate(subset.keys()):
@@ -304,6 +301,6 @@ def test_SubsetTime_fail_on_non_subset_key(nudged_tstep_mapper):
 
     out_of_bounds = nudged_tstep_mapper.keys()[4]
     subset = SubsetTimes(0, 4, nudged_tstep_mapper)
-    
+
     with pytest.raises(KeyError):
         subset[out_of_bounds]
