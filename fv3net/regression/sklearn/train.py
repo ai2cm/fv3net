@@ -58,11 +58,20 @@ def load_data_sequence(
     Returns:
         Sequence of datasets iterated over in training
     """
+    kwargs = train_config.batch_kwargs
+    func_name = kwargs.pop("mapping_function")
+    mapping_kwargs = kwargs.pop("mapping_kwargs", {})
+
+    # TODO, do we really need to give option to switch the batching func?
+    # seems a little over-engineered
     batch_function = getattr(loaders, train_config.batch_function)
+    mapping_func = getattr(loaders, func_name)
+    data_mapper = mapping_func(data_path, **mapping_kwargs)
+
     ds_batches = batch_function(
-        data_path,
+        data_mapper,
         list(train_config.input_variables) + list(train_config.output_variables),
-        **train_config.batch_kwargs,
+        **kwargs,
     )
     return ds_batches
 

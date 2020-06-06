@@ -17,10 +17,9 @@ logger.setLevel(logging.INFO)
 
 
 def batches_from_mapper(
-    data_path: str,
+    # TODO add type hint
+    data_mapping,
     variable_names: Iterable[str],
-    mapping_function: str,
-    mapping_kwargs: Mapping[str, Any] = None,
     timesteps_per_batch: int = 1,
     num_batches: int = None,
     random_seed: int = 0,
@@ -47,27 +46,32 @@ def batches_from_mapper(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
+    # argument validation
+    if rename_variables is None:
+        rename_variables = {}
+    if len(variable_names) == 0:
+        raise TypeError("At least one value must be given for variable_names")
+
     num_timesteps = num_batches * timesteps_per_batch
     # TODO maybe raise value error here
 
     random_state = RandomState(random_seed)
     random.seed(random_seed)
-    data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
 
     times = random.sample(list(data_mapping), num_timesteps)
 
     subset = Subset(data_mapping, times)
-    batched_times = list(partition(timesteps_per_batch, times))
 
-    batches = _mapper_to_batches(
-        subset,
-        variable_names,
-        random_state,
-        batched_times,
-        init_time_dim_name,
-        rename_variables,
+    # TODO After this only depends on subset so could be refactored
+    batched_times = list(partition(timesteps_per_batch, list(subset.keys())))
+
+    transform = functools.partial(
+        stack_dropnan_shuffle, init_time_dim_name, random_state
     )
-    return batches
+    load_batch = functools.partial(
+        _load_batch, subset, variable_names, rename_variables, init_time_dim_name,
+    )
+    return FunctionOutputSequence(lambda x: transform(load_batch(x)), batched_times)
 
 
 class Subset(Mapping):
@@ -129,17 +133,6 @@ def _mapper_to_batches(
     Returns:
         Sequence of xarray datasets
     """
-    if rename_variables is None:
-        rename_variables = {}
-    if len(variable_names) == 0:
-        raise TypeError("At least one value must be given for variable_names")
-    transform = functools.partial(
-        stack_dropnan_shuffle, init_time_dim_name, random_state
-    )
-    load_batch = functools.partial(
-        _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
-    )
-    return FunctionOutputSequence(lambda x: transform(load_batch(x)), batched_timesteps)
 
 
 def _load_batch(
