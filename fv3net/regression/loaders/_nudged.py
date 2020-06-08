@@ -28,7 +28,7 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
     directory a bit trickier.  Currently checking by looking for difference
     between parsed timescale from folder name and requested timescale that
     is approximately zero (with requested tolerance).
-
+    
     Built on assumed outdir-{timescale}h format
     """
 
@@ -185,12 +185,6 @@ class GroupByTime:
         checkpoint_names = [key[0] for key in self._time_lookup[time]]
         ds = xr.concat(checkpoints, dim="checkpoint")
         return ds.assign_coords(checkpoint=checkpoint_names)
-
-        if overlap:
-            raise ValueError(
-                "Could not combine requested nudged data sources due to "
-                f"overlapping variables {overlap}"
-            )
 
 
 class SubsetTimes(GeoMapper):
