@@ -114,7 +114,11 @@ def _(time: datetime) -> datetime:
 
 @cast_to_datetime.register
 def _(time: np.datetime64):
-    return time.astype(datetime)
+    # https://stackoverflow.com/questions/13703720/converting-between-datetime-timestamp-and-datetime64
+    unix_epoch = np.datetime64(0, 's')
+    one_second = np.timedelta64(1, 's')
+    seconds_since_epoch = (time - unix_epoch) / one_second
+    return datetime.utcfromtimestamp(seconds_since_epoch)
 
 
 def convert_timestamps(coord: xr.DataArray) -> xr.DataArray:
