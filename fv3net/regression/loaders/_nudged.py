@@ -14,12 +14,13 @@ import vcm
 from vcm import cloud, safe
 from vcm.cubedsphere.constants import TIME_FMT
 from ._sequences import FunctionOutputSequence
-from ..constants import Z_DIM_NAME, SAMPLE_DIM_NAME, TIME_NAME
+from .constants import SAMPLE_DIM_NAME, TIME_NAME
 
 logger = logging.getLogger(__name__)
 
 TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
 SIMULATION_TIMESTEPS_PER_HOUR = 4
+Z_DIM_NAME = "z"
 
 BatchSequence = Sequence[xr.Dataset]
 TimestepMappeer = Mapping[str, xr.Dataset]
