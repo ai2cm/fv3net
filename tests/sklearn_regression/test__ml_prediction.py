@@ -1,4 +1,3 @@
-from vcm import safe
 import xarray as xr
 import pytest
 
