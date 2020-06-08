@@ -281,7 +281,7 @@ def open_nudging_checkpoints(
         "after_dynamics.zarr",
         "after_physics.zarr",
         "after_nudging.zarr",
-    )
+    ),
 ) -> Mapping[Checkpoint, xr.Dataset]:
     """
     Load mapper to all checkpoint states and timesteps of a nudging simulation.
