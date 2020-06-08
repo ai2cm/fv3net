@@ -75,7 +75,9 @@ def mock_model(request):
 
 
 @pytest.mark.parametrize(
-    "mock_model", [[["feature0", "feature1"], ["pred0"]]], indirect=True
+    "mock_model, valid",
+    [[["feature0", "feature1"], ["pred0"], True]],
+    indirect="mock_model",
 )
 def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
     mapper = SklearnPredictionMapper(
