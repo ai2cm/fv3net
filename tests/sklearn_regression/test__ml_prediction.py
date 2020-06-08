@@ -76,17 +76,34 @@ def mock_model(request):
 
 @pytest.mark.parametrize(
     "mock_model, valid",
-    [[["feature0", "feature1"], ["pred0"], True]],
-    indirect="mock_model",
+    [
+        ([["feature0", "feature1"], ["pred0"]], True),
+        ([["feature0", "feature1"], ["pred0", "pred1"]], True),
+        ([[], ["pred0"]], False),
+        ([["feature0", "feature10"], ["pred0"]], False),
+    ],
+    indirect=["mock_model"],
 )
-def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
+def test_ml_predict_wrapper(mock_model, valid, base_mapper, gridded_dataset):
+    suffix = "ml"
     mapper = SklearnPredictionMapper(
-        base_mapper, mock_model, init_time_dim="initial_time", z_dim="z"
+        base_mapper,
+        mock_model,
+        init_time_dim="initial_time",
+        z_dim="z",
+        predicted_var_suffix=suffix,
     )
-    for key in mapper.keys():
-        mapper_output = mapper[key]
-        target = mock_predict_function(
-            [base_mapper[key][var] for var in mock_model.input_vars_]
-        )
-        for var in mock_model.output_vars_:
-            assert sum((mapper_output[var] - target).values) == pytest.approx(0)
+    if valid:
+        for key in mapper.keys():
+            mapper_output = mapper[key]
+            target = mock_predict_function(
+                [base_mapper[key][var] for var in mock_model.input_vars_]
+            )
+            for var in mock_model.output_vars_:
+                assert sum(
+                    (mapper_output[var + f"_{suffix}"] - target).values
+                ) == pytest.approx(0)
+    else:
+        with pytest.raises(Exception):
+            for key in mapper.keys():
+                mapper_output = mapper[key]
