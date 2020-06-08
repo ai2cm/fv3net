@@ -216,6 +216,15 @@ class SubsetTimes(GeoMapper):
         return self._nudged_data[time]
 
 
+def _standardize_zarr_time_coord(ds: xr.Dataset):
+    # Vectorize doesn't work on type-dispatched function overloading
+    times = np.array(list(map(vcm.cast_to_datetime, ds[TIME_NAME].values)))
+    times = np.vectorize(round_time)(times)
+    ds = ds.assign_coords({TIME_NAME: times})
+
+    return ds
+
+
 def open_nudged(
     url: str,
     nudging_timescale_hr: Union[int, float],
@@ -252,10 +261,9 @@ def open_nudged(
 
     datasets = []
     for source in merge_files:
-        mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}.zarr"))
+        mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}"))
         ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
-        times = np.vectorize(round_time)(ds[TIME_NAME])
-        ds = ds.assign_coords({TIME_NAME: times})
+        ds = _standardize_zarr_time_coord(ds)
 
         datasets.append(ds)
 
@@ -263,3 +271,46 @@ def open_nudged(
     nudged_mapper = SubsetTimes(initial_time_skip_hr, n_times, nudged_mapper)
 
     return nudged_mapper
+
+
+def open_nudging_checkpoints(
+    url: str,
+    nudging_timescale_hr: Union[int, float],
+    checkpoint_files: Tuple[str] = (
+        "before_dynamics.zarr",
+        "after_dynamics.zarr",
+        "after_physics.zarr",
+        "after_nudging.zarr",
+    ),
+) -> Mapping[Checkpoint, xr.Dataset]:
+    """
+    Load mapper to all checkpoint states and timesteps of a nudging simulation.
+
+    Args:
+        url: Path to directory with nudging output (not including the timescale
+            subdirectories, e.g., outdir-3h)
+        timescale_hours: timescale of the nudging for the simulation
+            being used as input.
+        checkpoint_files (optionsl): nudged simulation checkpoint files to load
+            into the NudgedStateCheckpoints object
+    """
+
+    fs = cloud.get_fs(url)
+
+    glob_url = os.path.join(url, TIMESCALE_OUTDIR_TEMPLATE)
+    nudged_output_dirs = fs.glob(glob_url)
+
+    nudged_url = _get_path_for_nudging_timescale(
+        nudged_output_dirs, nudging_timescale_hr
+    )
+
+    datasets = {}
+    for filename in checkpoint_files:
+        mapper = fs.get_mapper(os.path.join(nudged_url, f"{filename}"))
+        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
+        ds = _standardize_zarr_time_coord(ds)
+
+        source_name = Path(filename).stem
+        datasets[source_name] = ds
+
+    return NudgedStateCheckpoints(datasets)

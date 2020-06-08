@@ -15,9 +15,12 @@ from fv3net.regression.loaders._nudged import (
     MergeNudged,
     GroupByTime,
     SubsetTimes,
+    open_nudged,
+    open_nudging_checkpoints,
 )
 
-NTIMES = 144
+NTIMES = 12
+NUDGE_TIMESCALE = 3
 
 
 @pytest.fixture(scope="module")
@@ -54,13 +57,34 @@ def general_nudge_output(general_nudge_schema):
 def nudged_checkpoints(general_nudge_schema):
 
     nudged_datasets = {}
-    datasets_sources = ["before_dynamics", "after_dynamics", "after_physics"]
+    datasets_sources = [
+        "before_dynamics",
+        "after_dynamics",
+        "after_physics",
+        "after_nudging",
+    ]
     for source in datasets_sources:
         ds = synth.generate(general_nudge_schema)
         ds = _int64_to_datetime(ds)
         nudged_datasets[source] = ds.isel({TIME_NAME: slice(0, NTIMES)})
 
     return nudged_datasets
+
+
+@pytest.fixture(scope="module")
+def nudged_data_dir(datadir_module, nudged_checkpoints, nudge_tendencies):
+
+    all_data = dict(**nudged_checkpoints)
+    all_data.update({"nudging_tendencies": nudge_tendencies})
+
+    timescale_dir = os.path.join(datadir_module, f"outdir-{NUDGE_TIMESCALE}h")
+    os.makedirs(timescale_dir, exist_ok=True)
+
+    for filestem, ds in all_data.items():
+        filepath = os.path.join(timescale_dir, f"{filestem}.zarr")
+        ds.to_zarr(filepath)
+
+    return str(datadir_module)
 
 
 def _int64_to_datetime(ds):
@@ -190,6 +214,21 @@ def test_MergeNudged__check_dvar_overlap_fail(overlap_check_fail_datasets):
         MergeNudged._check_dvar_overlap(*overlap_check_fail_datasets)
 
 
+@pytest.mark.regression
+def test_open_nudged(nudged_data_dir):
+
+    merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
+    mapper = open_nudged(
+        nudged_data_dir,
+        NUDGE_TIMESCALE,
+        merge_files=merge_files,
+        initial_time_skip_hr=1,
+        n_times=6,
+    )
+
+    assert len(mapper) == 6
+
+
 def test_NudgedStateCheckpoints(nudged_checkpoints):
 
     mapper = NudgedStateCheckpoints(nudged_checkpoints)
@@ -201,6 +240,16 @@ def test_NudgedStateCheckpoints(nudged_checkpoints):
     time_key = pd.to_datetime(single_item.time.values).strftime(TIME_FMT)
     item_key = ("after_physics", time_key)
     xr.testing.assert_equal(mapper[item_key], single_item)
+
+
+@pytest.mark.regression
+def test_open_nudging_checkpoints(nudged_data_dir):
+
+    checkpoint_files = ("before_dynamics.zarr", "after_nudging.zarr")
+    mapper = open_nudging_checkpoints(
+        nudged_data_dir, NUDGE_TIMESCALE, checkpoint_files=checkpoint_files
+    )
+    assert len(mapper) == NTIMES * len(checkpoint_files)
 
 
 @pytest.fixture
