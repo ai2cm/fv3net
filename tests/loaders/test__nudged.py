@@ -223,7 +223,7 @@ def test_open_nudged(nudged_data_dir):
         NUDGE_TIMESCALE,
         merge_files=merge_files,
         initial_time_skip_hr=1,
-        n_times=6
+        n_times=6,
     )
 
     assert len(mapper) == 6
