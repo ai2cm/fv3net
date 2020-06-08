@@ -252,9 +252,10 @@ def open_nudged(
 
     datasets = []
     for source in merge_files:
-        mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}.zarr"))
+        mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}"))
         ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
-        times = np.vectorize(round_time)(ds[TIME_NAME])
+        times = np.vectorize(vcm.cast_to_datetime)(ds[TIME_NAME])
+        times = np.vectorize(round_time)(times)
         ds = ds.assign_coords({TIME_NAME: times})
 
         datasets.append(ds)
