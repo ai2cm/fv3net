@@ -96,6 +96,24 @@ if __name__ == "__main__":
                 .drop(labels=utils.VARNAMES["time_dim"])
             )
             grid = grid.assign({utils.VARNAMES["surface_type"]: surface_type})
+        elif dataset_name == "nudging_tendencies":
+            # kludge to add zero arrays for the pQ terms since they are missing
+            # TODO replace this with an open_nudging function that computes them
+            # via a transform or other approach
+            ds_batches_full = []
+            for i, batch in enumerate(ds_batches):
+                #                 print(batch)
+                #                 print(i)
+                #                 print(xr.zeros_like(batch['dQ1']))
+                batch = batch.drop_vars(names=["time"])
+                batch = batch.assign(
+                    {
+                        "pQ1": xr.zeros_like(batch["dQ1"]),
+                        "pQ2": xr.zeros_like(batch["dQ2"]),
+                    }
+                )
+            ds_batches_full.append(batch)
+            ds_batches = ds_batches_full
         ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
         if dataset_name == "one_step_tendencies":
             ds_diagnostic = ds_diagnostic.drop(utils.VARNAMES["surface_type"])

@@ -27,7 +27,7 @@ nudging_tendencies:
     num_batches: 2
     timesteps_per_batch: 1
     init_time_dim_name: "initial_time"
-    mapping_function: open_nudged_mapper
+    mapping_function: open_nudged
     mapping_kwargs:
       nudging_timescale_hr: 3
 fine_res_apparent_sources: 

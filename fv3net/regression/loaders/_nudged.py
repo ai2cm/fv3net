@@ -219,7 +219,7 @@ class SubsetTimes(GeoMapper):
 def open_nudged(
     url: str,
     nudging_timescale_hr: Union[int, float],
-    merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
+    merge_files: Tuple[str] = ("after_physics", "nudging_tendencies"),
     initial_time_skip_hr: int = 0,
     n_times: int = None,
 ) -> Mapping[str, xr.Dataset]:
