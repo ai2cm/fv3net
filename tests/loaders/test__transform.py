@@ -95,41 +95,35 @@ def test_shuffled_dask():
     shuffled(dataset, "sample", np.random.RandomState(1))
 
 
-air_temperature = xr.DataArray([270.0], [(["x"], [1.0])], ["x"], attrs={"units": "K"})
-air_temperature_physics = xr.DataArray(
-    [0.1], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
-)
-air_temperature_microphysics = xr.DataArray(
-    [0.2], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
-)
-air_temperature_convergence = xr.DataArray(
-    [-0.1], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
-)
-specific_humidity = xr.DataArray(
-    [1.0e-3], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg"}
-)
-specific_humidity_physics = xr.DataArray(
-    [1.0e-6], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg/s"}
-)
-specific_humidity_microphysics = xr.DataArray(
-    [2.0e-6], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg/s"}
-)
-specific_humidity_convergence = xr.DataArray(
-    [-1.0e-6], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg/s"}
-)
 budget_ds = xr.Dataset(
-    {
-        "air_temperature": air_temperature,
-        "air_temperature_physics": air_temperature_physics,
-        "air_temperature_microphysics": air_temperature_microphysics,
-        "air_temperature_convergence": air_temperature_convergence,
-        "specific_humidity": specific_humidity,
-        "specific_humidity_physics": specific_humidity_physics,
-        "specific_humidity_microphysics": specific_humidity_microphysics,
-        "specific_humidity_convergence": specific_humidity_convergence,
-    }
+    dict(
+        air_temperature=xr.DataArray(
+            [270.0], [(["x"], [1.0])], ["x"], attrs={"units": "K"}
+        ),
+        air_temperature_physics=xr.DataArray(
+            [0.1], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
+        ),
+        air_temperature_saturation_adjustment=xr.DataArray(
+            [0.2], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
+        ),
+        air_temperature_convergence=xr.DataArray(
+            [-0.1], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
+        ),
+        specific_humidity=xr.DataArray(
+            [1.0e-3], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg"}
+        ),
+        specific_humidity_physics=xr.DataArray(
+            [1.0e-6], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg/s"}
+        ),
+        specific_humidity_saturation_adjustment=xr.DataArray(
+            [2.0e-6], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg/s"}
+        ),
+        specific_humidity_convergence=xr.DataArray(
+            [-1.0e-6], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg/s"}
+        ),
+    )
 )
-apparent_source_terms = ["physics", "microphysics", "convergence"]
+apparent_source_terms = ["physics", "saturation_adjustment", "convergence"]
 
 
 @pytest.mark.parametrize(
@@ -159,7 +153,7 @@ apparent_source_terms = ["physics", "microphysics", "convergence"]
             budget_ds,
             "air_temperature",
             "dQ1",
-            ["physics", "microphysics"],
+            ["physics", "saturation_adjustment"],
             budget_ds.assign(
                 {
                     "dQ1": xr.DataArray(

@@ -1,6 +1,6 @@
 VARNAMES = {
-    "delp_var": "pressure_thickness_of_atmospheric_layer",
-    "surface_type_var": "land_sea_mask",
+    "delp": "pressure_thickness_of_atmospheric_layer",
+    "surface_type": "land_sea_mask",
     "time_dim": "time",
 }
 

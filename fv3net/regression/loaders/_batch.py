@@ -181,7 +181,11 @@ def _mapper_to_diagnostic_sequence(
         list(dataset_mapper.keys()), timesteps_per_batch, num_batches, random_state
     )
 
+<<<<<<< HEAD
     load_sequence = functools.partial(
+=======
+    load_batch = functools.partial(
+>>>>>>> master
         _load_batch,
         dataset_mapper,
         variable_names,
@@ -189,7 +193,11 @@ def _mapper_to_diagnostic_sequence(
         init_time_dim_name,
     )
 
+<<<<<<< HEAD
     return FunctionOutputSequence(load_sequence, batched_timesteps)
+=======
+    return FunctionOutputSequence(load_batch, batched_timesteps)
+>>>>>>> master
 
 
 def _select_batch_timesteps(

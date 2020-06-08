@@ -21,15 +21,6 @@ logger = logging.getLogger(__file__)
 GRID_VARIABLES = ["grid_x", "grid_y", "grid_xt", "grid_yt", "pfull", "tile"]
 
 
-def remove_coarse_name(ds):
-    name_dict = {}
-    for variable in ds:
-        suffix = "_coarse"
-        if variable.endswith(suffix):
-            name_dict[variable] = variable[: -len(suffix)]
-    return ds.rename(name_dict)
-
-
 def rename_dims(ds):
     name_dict = {}
     for variable in ds.dims:
@@ -41,7 +32,12 @@ def rename_dims(ds):
 
 def rename_latlon(ds):
     return ds.rename(
-        {"grid_lat": "latb", "grid_lon": "lonb", "grid_lont": "lon", "grid_latt": "lat"}
+        {
+            "grid_lat_coarse": "latb",
+            "grid_lon_coarse": "lonb",
+            "grid_lont_coarse": "lon",
+            "grid_latt_coarse": "lat",
+        }
     )
 
 
@@ -66,12 +62,7 @@ def standardize_restart_metadata(restarts):
 
 def standardize_diagnostic_metadata(ds):
     times = np.vectorize(round_time)(ds.time)
-    return (
-        ds.assign(time=times)
-        .pipe(remove_coarse_name)
-        .pipe(rename_dims)
-        .pipe(rename_latlon)
-    )
+    return ds.assign(time=times).pipe(rename_dims).pipe(rename_latlon)
 
 
 def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):

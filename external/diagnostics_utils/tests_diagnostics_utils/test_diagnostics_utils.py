@@ -1,12 +1,13 @@
 import pytest
 import xarray as xr
 import numpy as np
-from diagnostics_utils import __version__, utils
+import diagnostics_utils as utils
+from diagnostics_utils.utils import _insert_column_integrated_vars, _rechunk_time_z
 from vcm import thermo
 
 
 def test_version():
-    assert __version__ == "0.1.0"
+    assert utils.__version__ == "0.1.0"
 
 
 def test__inserted_column_integrated_vars():
@@ -28,9 +29,7 @@ def test__inserted_column_integrated_vars():
         }
     )
 
-    xr.testing.assert_allclose(
-        utils._insert_column_integrated_vars(ds, ["Q1"]), expected
-    )
+    xr.testing.assert_allclose(_insert_column_integrated_vars(ds, ["Q1"]), expected)
 
 
 def test__rechunk_time_z():
@@ -43,7 +42,7 @@ def test__rechunk_time_z():
     da_chunked_in_time = da.chunk({"time": 1, "z": 4, "x": 2})
     expected = da.chunk({"time": 2, "z": 1, "x": 2})
 
-    assert expected.chunks == utils._rechunk_time_z(da_chunked_in_time).chunks
+    assert expected.chunks == _rechunk_time_z(da_chunked_in_time).chunks
 
 
 da = xr.DataArray(np.arange(1.0, 5.0), dims=["z"])

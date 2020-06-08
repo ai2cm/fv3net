@@ -39,7 +39,7 @@ def reduce_to_diagnostic(
     )
 
     grid = grid.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
-    surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type_var"]])
+    surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
 
     conditional_datasets = {}
     for surface_type in domains:
@@ -67,10 +67,10 @@ def _insert_column_integrated_vars(
     for var in column_integrated_vars:
         column_integrated_name = f"column_integrated_{var}"
         if "Q1" in var:
-            da = thermo.column_integrated_heating(ds[var], ds[VARNAMES["delp_var"]])
+            da = thermo.column_integrated_heating(ds[var], ds[VARNAMES["delp"]])
         elif "Q2" in var:
             da = thermo.minus_column_integrated_moistening(
-                ds[var], ds[VARNAMES["delp_var"]]
+                ds[var], ds[VARNAMES["delp"]]
             )
         ds = ds.assign({column_integrated_name: da})
 
