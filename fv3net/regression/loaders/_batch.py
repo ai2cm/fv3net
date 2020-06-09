@@ -1,11 +1,10 @@
 import functools
 import logging
 from numpy.random import RandomState
-import numpy as np
 from typing import Iterable, Sequence, Mapping, Any, Hashable
 import xarray as xr
 from vcm import safe
-from toolz import partition, get
+from toolz import partition
 from ._sequences import FunctionOutputSequence
 from ._transform import stack_dropnan_shuffle
 from .constants import TIME_NAME

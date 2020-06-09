@@ -1,6 +1,5 @@
 from typing import Union, Sequence, Mapping
 from datetime import datetime
-from toolz import pipe
 import argparse
 import os
 import fsspec

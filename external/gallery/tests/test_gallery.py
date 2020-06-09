@@ -1,9 +1,7 @@
 from datetime import datetime
-from itertools import product
 
 import matplotlib.pyplot as plt
 import numpy as np
-import cftime
 
 import pytest
 from gallery import (
