@@ -22,6 +22,3 @@ def test__timesteps_to_list_invalid_input():
     for invalid_config in invalid_configs:
         with pytest.raises(Exception):
             _timesteps_to_list(invalid_config)
-
-
-

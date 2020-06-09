@@ -9,7 +9,7 @@ import report
 import gallery
 import vcm
 import numpy as np
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, List
 import xarray as xr
 from . import train
 from ..loaders import TIME_NAME, SAMPLE_DIM_NAME
@@ -92,9 +92,9 @@ def _timesteps_to_list(raw_timesteps: Mapping[str, Sequence]) -> Sequence[str]:
     if "train" not in raw_timesteps or len(raw_timesteps["train"])==0:
         raise KeyError("Timesteps json file must have list of times in 'train' key.")
     train_timesteps = raw_timesteps["train"]
-    if isinstance(train_timesteps[0], Sequence):
+    if isinstance(train_timesteps[0], List):
         # case when one step time config has pairs of timesteps
-        return [sequence[0] for sequence in train_timesteps]
+        return [group[0] for group in train_timesteps]
     else:
         return train_timesteps
 
@@ -106,19 +106,20 @@ if __name__ == "__main__":
     if not args.no_train_subdir_append:
         data_path = os.path.join(data_path, "train")
     train_config = train.load_model_training_config(args.train_config_file)
-    batched_data = train.load_data_sequence(data_path, train_config)
-    _save_config_output(args.output_data_path, train_config)
 
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
             raw_timesteps = yaml.safe_load(f)
         # If timesteps are specified, then num_batches is used to determine size of each batch.
-        # Raise an error if over-specified using "timesteps_per_batch".
-        if "num_batches" in train_config["batch_kwargs"]:
+        # Raises an error if over-specified using "timesteps_per_batch".
+        if "num_batches" in train_config.batch_kwargs:
             raise ValueError(
                 "Do not provide batch kwarg 'num_batches' if timestep set is provided. "
                 "The only batch kwarg used to determine batch size is 'timesteps_per_batch'.")
-        train_config["batch_kwargs"]["timesteps"] = timesteps_to_list(raw_timesteps)
+        train_config.batch_kwargs["timesteps"] = _timesteps_to_list(raw_timesteps)
+
+    batched_data = train.load_data_sequence(data_path, train_config)
+    _save_config_output(args.output_data_path, train_config)
 
     logging.basicConfig(level=logging.INFO)
 

@@ -46,6 +46,7 @@ def batches_from_mapper(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
+    print(f"timesteps: {timesteps}")
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     batches = _mapper_to_batches(
         data_mapping,
@@ -101,7 +102,6 @@ def _mapper_to_batches(
         rename_variables = {}
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
-    
     batched_timesteps = _select_batch_timesteps(
         (timesteps or list(data_mapping.keys())),
         timesteps_per_batch,
