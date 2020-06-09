@@ -87,7 +87,7 @@ def _unique_dim_name(data):
     return "".join(data.dims)
 
 
-def _pack(data: xr.Dataset, sample_dim):
+def _pack(data, sample_dim):
     feature_dim_name = _unique_dim_name(data)
     stacked = data.to_stacked_array(feature_dim_name, sample_dims=[sample_dim])
     return (

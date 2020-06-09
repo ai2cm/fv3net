@@ -5,7 +5,7 @@ import os
 import yaml
 import xarray as xr
 from dataclasses import dataclass
-from typing import Iterable, Sequence
+from typing import Iterable, Sequence, Protocol
 
 from .. import loaders
 from .wrapper import SklearnWrapper, RegressorEnsemble
@@ -49,7 +49,7 @@ def load_model_training_config(config_path: str) -> ModelTrainingConfig:
 
 def load_data_sequence(
     data_path: str, train_config: ModelTrainingConfig
-) -> Sequence[xr.Dataset]:
+) -> loaders.FunctionOutputSequence[xr.Dataset]:
     """
     Args:
         data_path: data location

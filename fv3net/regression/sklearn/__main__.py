@@ -1,4 +1,4 @@
-from typing import Union, Sequence
+from typing import Union, Sequence, Mapping
 from datetime import datetime
 from toolz import pipe
 import argparse
@@ -32,14 +32,14 @@ def _save_config_output(output_url, config):
 
 def _convert_to_datetime(time: Union[str, np.datetime64, datetime]) -> datetime:
     if isinstance(time, str):
-        return vcm.parse_datetime_from_str(vcm.parse_current_date_from_str)
+        return vcm.parse_datetime_from_str(vcm.parse_timestep_str_from_path(time))
     else:
         return time
 
 
 def _create_report_plots(
-    path: str, times: Union[Sequence[np.datetime64], Sequence[datetime]]
-):
+    path: str, times: Sequence[Union[np.datetime64, datetime, str]]
+) -> Mapping[str, Sequence[str]]:
     """Given path to output directory and times used, create all plots required
     for html report"""
     times = [_convert_to_datetime(time) for time in times]
