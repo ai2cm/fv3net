@@ -44,7 +44,7 @@ class RenamingAdapter:
 
     @staticmethod
     def _rename(ds: xr.Dataset, rename: Mapping[str, str]) -> xr.Dataset:
-        all_names = set(ds.data_vars) | set(ds.dims) | set(rename)
+        all_names = set(ds.data_vars) & set(ds.dims) & set(rename)
         rename_restricted = {key: rename[key] for key in all_names}
         return ds.rename(rename_restricted)
 
