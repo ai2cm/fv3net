@@ -24,7 +24,6 @@ def test__timesteps_to_list_invalid_input():
     invalid_configs = [
         {"test": [[i, -i] for i in TRAIN_TIMESTEPS]},
         {"train": []},
-        {"train": [0, 1, -1]},
     ]
     for invalid_config in invalid_configs:
         with pytest.raises(Exception):
