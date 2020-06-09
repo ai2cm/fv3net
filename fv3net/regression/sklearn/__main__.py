@@ -9,9 +9,7 @@ import report
 import gallery
 import vcm
 import numpy as np
-import xarray as xr
 from . import train
-from ..loaders import TIME_NAME, SAMPLE_DIM_NAME
 
 MODEL_FILENAME = "sklearn_model.pkl"
 MODEL_CONFIG_FILENAME = "training_config.yml"
@@ -71,14 +69,6 @@ def parse_args():
         help="Omit the appending of 'train' to the input training data path",
     )
     return parser.parse_args()
-
-
-def times_from_batches(batched_data):
-    return_list = []
-    ds = xr.concat(batched_data, SAMPLE_DIM_NAME)
-    for time in ds[TIME_NAME].values:
-        return_list.append(vcm.cast_to_datetime(time))
-    return return_list
 
 
 if __name__ == "__main__":
