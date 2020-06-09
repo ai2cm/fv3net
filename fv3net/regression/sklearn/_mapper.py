@@ -1,6 +1,5 @@
 from typing import Mapping
 
-from vcm import cloud
 from vcm import safe
 import xarray as xr
 

@@ -103,7 +103,7 @@ def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
 
 @pytest.mark.parametrize(
     "mock_model",
-    [([], ["pred0"]), (["feature0", "feature10"], ["pred0"]),],
+    [([], ["pred0"]), (["feature0", "feature10"], ["pred0"])],
     indirect=True,
 )
 def test_ml_predict_wrapper_invalid_usage(mock_model, base_mapper, gridded_dataset):
@@ -117,4 +117,4 @@ def test_ml_predict_wrapper_invalid_usage(mock_model, base_mapper, gridded_datas
     )
     with pytest.raises(Exception):
         for key in mapper.keys():
-            mapper_output = mapper[key]
+            mapper[key]
