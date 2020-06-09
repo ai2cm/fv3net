@@ -1,5 +1,5 @@
 import logging
-from typing import Mapping, Set
+from typing import Mapping
 
 import fsspec
 import zarr
@@ -12,7 +12,6 @@ from fv3gfs._wrapper import get_time
 import fv3util
 import runtime
 from runtime.adapters import RenamingAdapter
-from fv3net.regression.sklearn.wrapper import SklearnWrapper
 
 from mpi4py import MPI
 
