@@ -188,8 +188,9 @@ def _mapper_to_diagnostic_sequence(
     load_batch = functools.partial(
         _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
     )
-
-    return FunctionOutputSequence(load_batch, batched_timesteps)
+    seq = FunctionOutputSequence(load_batch, batched_timesteps)
+    seq.attrs["times"] = times
+    return seq
 
 
 def _sample(seq: Sequence[Any], n: int, random_state: RandomState) -> Sequence[Any]:
