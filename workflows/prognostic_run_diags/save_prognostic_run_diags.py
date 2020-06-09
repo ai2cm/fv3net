@@ -226,44 +226,6 @@ def diurnal_cycles(resampled, verification, grid):
     return dict(**verif_diags, **resampled_diags)
 
 
-def open_tiles(path):
-    return xr.open_mfdataset(path + ".tile?.nc", concat_dim="tile", combine="nested")
-
-
-# TODO: This operation has mostly been set up in load_diagnostic_data, still need
-#       to figure out where resampling to 3H makes sense (a transform) and how to
-#       handle multi-timescale verification sources
-def load_data_3H(url, grid_spec, catalog):
-    logger.info(f"Processing 3H data from run directory at {url}")
-
-    # open grid
-    logger.info("Opening Grid Spec")
-    grid_c384 = open_tiles(grid_spec)
-
-    # open verification
-    logger.info("Opening verification data")
-    verification = catalog["40day_c384_atmos_8xdaily"].to_dask()
-    verification = verification.merge(grid_c384)
-
-    # block average data
-    logger.info("Block averaging the verification data")
-    verification_c48 = vcm.cubedsphere.weighted_block_average(
-        verification, verification.area, 8, x_dim="grid_xt", y_dim="grid_yt"
-    )
-
-    # open data
-    atmos_diag_url = os.path.join(url, "atmos_dt_atmos")
-    logger.info(f"Opening diagnostic data at {atmos_diag_url}")
-    ds = open_tiles(atmos_diag_url).load()
-    resampled = ds.resample(time="3H", label="right").nearest()
-
-    verification_c48 = verification_c48.sel(
-        time=resampled.time[:-1]
-    )  # don't use last time point. there is some trouble
-
-    return resampled, verification_c48, verification_c48[["area"]]
-
-
 def _catalog():
     TOP_LEVEL_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
     return str(TOP_LEVEL_DIR / "catalog.yml")
@@ -289,7 +251,7 @@ if __name__ == "__main__":
 
     catalog = intake.open_catalog(args.catalog)
     input_data = {}
-    resampled, verification, grid = load_data_3H(args.url, args.grid_spec, catalog)
+    resampled, verification, grid = load_diags.load_data_3H(args.url, args.grid_spec, catalog)
     input_data["3H"] = (resampled, verification, grid)
 
     # Data loaded at original time resolution

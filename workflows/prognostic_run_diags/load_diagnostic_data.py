@@ -6,8 +6,8 @@ import xarray as xr
 import numpy as np
 from typing import List, Iterable
 from datetime import timedelta
-from pathlib import Path
 
+import fsspec
 import vcm
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 COORD_RENAME_INVERSE_MAP = {
     "x": {"grid_xt", "grid_xt_coarse"},
     "y": {"grid_yt", "grid_yt_coarse"},
-    "tile": {"rank"},
+    "tile": {"rank"},  # currently assuming that there is one rank per tile
     "xb": {"grid_x_coarse"},
     "yb": {"grid_y_coarse"},
 }
@@ -137,15 +137,9 @@ def _open_tiles(path):
     return xr.open_mfdataset(path + ".tile?.nc", concat_dim="tile", combine="nested")
 
 
-def _catalog():
-    TOP_LEVEL_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
-    path = str(TOP_LEVEL_DIR / "catalog.yml")
-    return intake.open_catalog(path)
-
-
 def load_verification(
     catalog_keys: List[str],
-    catalog: intake.Catalog = None,
+    catalog: intake.Catalog,
     coarsening_factor: int = None,
     area: xr.DataArray = None,
 ) -> xr.Dataset:
@@ -155,8 +149,7 @@ def load_verification(
 
     Args:
         catalog_keys: catalog sources to load as verification data
-        catalog (optional): Intake catalog of available data sources.  Defaults
-            to fv3net top-level "catalog.yml" catalog.
+        catalog: Intake catalog of available data sources.
         coarsening_factor (optional): Factor to coarsen the loaded verification data
         area (optional): Grid cell area data for weighting. Required when
             coarsening_factor is set.
@@ -165,9 +158,6 @@ def load_verification(
         All specified verification datasources standardized and merged
 
     """
-
-    if catalog is None:
-        catalog = _catalog()
 
     area = _rename_coords(area)
 
@@ -192,65 +182,54 @@ def load_verification(
     return xr.merge(verif_data, join="outer")
 
 
-def add_to_diag_loaders(func):
-    """
-    Add diagnostic output file loader to the group of diagnostic
-    datasets to combine from an FV3GFS run path.
-    
-    Args:
-        func: A functions which loads an xr.Datset.
-            It needs to have the following signature::
-
-                func(path: str)
-
-            and should return an xarray Dataset.
-    """
-
-    _DIAG_OUTPUT_LOADERS.append(func)
-    return func
+def _load_standardized(path):
+    logger.info(f"Loading and standardizing {path}")
+    ds = xr.open_zarr(fsspec.get_mapper(path), consolidated=True).load()
+    return standardize_gfsphysics_diagnostics(ds)
 
 
-# TODO: If all these sources are converted to zarrs this can be one function
-#       that loops through sources
-@add_to_diag_loaders
-def _load_diags_zarr(url):
+def load_prognostic_run_dt_atmos_output(url):
+    """Load, standardize and merge all prognostic run outputs that are saved every
+    model timestep"""
+    prognostic_run_outputs = ["diags.zarr", "atmos_dt_atmos.zarr", "sfc_dt_atmos.zarr"]
+    diagnostic_data = [
+        _load_standardized(os.path.join(url, category))
+        for category in prognostic_run_outputs
+    ]
 
-    path = os.path.join(url, "diags.zarr")
-    ds = standardize_gfsphysics_diagnostics(xr.open_zarr(path))
-
-    return ds
-
-
-@add_to_diag_loaders
-def _load_diags_sfc(url):
-
-    path = os.path.join(url, "sfc_dt_atmos")
-    ds = standardize_gfsphysics_diagnostics(_open_tiles(path))
-
-    return ds
-
-
-@add_to_diag_loaders
-def _load_diags_atmos(url):
-
-    path = os.path.join(url, "atmos_dt_atmos")
-    ds = standardize_gfsphysics_diagnostics(_open_tiles(path))
-
-    return ds
-
-
-def load_diagnostics(url):
-
-    diagnostic_data = []
-    for load_func in _DIAG_OUTPUT_LOADERS:
-        diagnostic_data.append(load_func(url))
-
-    # TODO: Zarr currently doesn't contain any coordinates other than time
-    #       and should perhaps be remedied. Need to handle crashed run extra timestep
-    #       in here for now.
+    # TODO: diags.zarr currently doesn't contain any coordinates and should perhaps be
+    #       remedied. Need to handle crashed run extra timestep in here for now.
     cutoff_time_index = min([len(ds["time"]) for ds in diagnostic_data])
     diagnostic_data = [
         ds.isel(time=slice(0, cutoff_time_index)) for ds in diagnostic_data
     ]
 
     return xr.merge(diagnostic_data, join="inner")
+
+
+def load_data_3H(url, grid_spec, catalog):
+    logger.info(f"Processing 3H data from run directory at {url}")
+
+    # open grid
+    logger.info("Opening Grid Spec")
+    grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
+    grid_c48 = vcm.cubedsphere.weighted_block_average(
+        grid_c384, grid_c384.area, 8, x_dim="x", y_dim="y"
+    )
+
+    # open verification
+    logger.info("Opening verification data")
+    verification_c48 = load_verification(
+        ["40day_c384_atmos_8xdaily"], catalog, coarsening_factor=8, area=grid_c384.area
+    )
+
+    # open data
+    logger.info(f"Opening prognostic run data at {url}")
+    ds = load_prognostic_run_dt_atmos_output(url)
+    resampled = ds.resample(time="3H", label="right").nearest()
+
+    verification_c48 = verification_c48.sel(
+        time=resampled.time[:-1]
+    )  # don't use last time point. there is some trouble
+
+    return resampled, verification_c48, grid_c48[["area"]]
