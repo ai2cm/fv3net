@@ -116,59 +116,6 @@ def _mapper_to_batches(
     return seq
 
 
-def _sample(seq: Sequence[Any], n: int, random_state: RandomState) -> Sequence[Any]:
-    return random_state.choice(list(seq), n, replace=False).tolist()
-
-
-def _load_batch(
-    mapper: Mapping[str, xr.Dataset],
-    data_vars: Iterable[str],
-    rename_variables: Mapping[str, str],
-    init_time_dim_name: str,
-    keys: Iterable[Hashable],
-) -> xr.Dataset:
-    ds = xr.concat([mapper[key] for key in keys], init_time_dim_name)
-    # need to use standardized time dimension name
-    rename_variables[init_time_dim_name] = rename_variables.get(
-        init_time_dim_name, TIME_NAME
-    )
-    ds = ds.rename(rename_variables)
-    ds = safe.get_variables(ds, data_vars)
-    return ds
-
-
-def _validated_num_batches(
-    total_num_input_times, timesteps_per_batch, num_batches=None
-):
-    """ check that the number of batches (if provided) and the number of
-    timesteps per batch are reasonable given the number of zarrs in the input data dir.
-    Returns:
-        Number of batches to use for training
-    """
-    if any(arg <= 0 for arg in [total_num_input_times, timesteps_per_batch]):
-        raise ValueError(
-            f"Total number of input times {total_num_input_times}, "
-            f"timesteps per batch {timesteps_per_batch}"
-        )
-    if num_batches is not None and num_batches <= 0:
-        raise ValueError(f"num batches {num_batches} cannot be 0 or negative.")
-    if num_batches is None:
-        if total_num_input_times >= timesteps_per_batch:
-            return total_num_input_times // timesteps_per_batch
-        else:
-            raise ValueError(
-                f"Number of input_times {total_num_input_times} "
-                f"must be greater than timesteps_per_batch {timesteps_per_batch}"
-            )
-    elif num_batches * timesteps_per_batch > total_num_input_times:
-        raise ValueError(
-            f"Number of input_times {total_num_input_times} "
-            f"cannot create {num_batches} batches of size {timesteps_per_batch}."
-        )
-    else:
-        return num_batches
-
-
 def diagnostic_sequence_from_mapper(
     data_path: str,
     variable_names: Sequence[str],
@@ -239,3 +186,56 @@ def _mapper_to_diagnostic_sequence(
     )
 
     return FunctionOutputSequence(load_batch, batched_timesteps)
+
+
+def _sample(seq: Sequence[Any], n: int, random_state: RandomState) -> Sequence[Any]:
+    return random_state.choice(list(seq), n, replace=False).tolist()
+
+
+def _load_batch(
+    mapper: Mapping[str, xr.Dataset],
+    data_vars: Iterable[str],
+    rename_variables: Mapping[str, str],
+    init_time_dim_name: str,
+    keys: Iterable[Hashable],
+) -> xr.Dataset:
+    ds = xr.concat([mapper[key] for key in keys], init_time_dim_name)
+    # need to use standardized time dimension name
+    rename_variables[init_time_dim_name] = rename_variables.get(
+        init_time_dim_name, TIME_NAME
+    )
+    ds = ds.rename(rename_variables)
+    ds = safe.get_variables(ds, data_vars)
+    return ds
+
+
+def _validated_num_batches(
+    total_num_input_times, timesteps_per_batch, num_batches=None
+):
+    """ check that the number of batches (if provided) and the number of
+    timesteps per batch are reasonable given the number of zarrs in the input data dir.
+    Returns:
+        Number of batches to use for training
+    """
+    if any(arg <= 0 for arg in [total_num_input_times, timesteps_per_batch]):
+        raise ValueError(
+            f"Total number of input times {total_num_input_times}, "
+            f"timesteps per batch {timesteps_per_batch}"
+        )
+    if num_batches is not None and num_batches <= 0:
+        raise ValueError(f"num batches {num_batches} cannot be 0 or negative.")
+    if num_batches is None:
+        if total_num_input_times >= timesteps_per_batch:
+            return total_num_input_times // timesteps_per_batch
+        else:
+            raise ValueError(
+                f"Number of input_times {total_num_input_times} "
+                f"must be greater than timesteps_per_batch {timesteps_per_batch}"
+            )
+    elif num_batches * timesteps_per_batch > total_num_input_times:
+        raise ValueError(
+            f"Number of input_times {total_num_input_times} "
+            f"cannot create {num_batches} batches of size {timesteps_per_batch}."
+        )
+    else:
+        return num_batches
