@@ -143,7 +143,7 @@ if __name__ == "__main__":
         MODEL = None
 
     MODEL = comm.bcast(MODEL, root=0)
-    variables = list(MODEL.variables + REQUIRED_VARIABLES)
+    variables = list(MODEL.variables | REQUIRED_VARIABLES)
     if rank == 0:
         logger.debug(f"Prognostic run requires variables: {variables}")
 
