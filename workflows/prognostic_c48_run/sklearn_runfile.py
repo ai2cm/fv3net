@@ -46,8 +46,8 @@ class RenamingAdapter:
     def variables(self) -> Set[str]:
         return {self.rename_out.get(var, var) for var in self.model.input_vars_}
 
-    def __call__(self, arg: xr.Dataset) -> xr.Dataset:
-        return self.model(arg.rename(self.rename_in)).rename(self.rename_out)
+    def predict(self, arg: xr.Dataset) -> xr.Dataset:
+        return self.model.predict(arg.rename(self.rename_in)).rename(self.rename_out)
 
 
 def compute_diagnostics(state, diags):
