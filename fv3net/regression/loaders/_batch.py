@@ -99,9 +99,11 @@ def _mapper_to_batches(
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
 
+    num_batches = _validated_num_batches(
+        len(data_mapping), timesteps_per_batch, num_batches
+    )
     num_times = timesteps_per_batch * num_batches
     times = _sample(data_mapping.keys(), num_times, random_state)
-    num_batches = _validated_num_batches(len(times), timesteps_per_batch, num_batches)
     batched_timesteps = list(partition(timesteps_per_batch, times))
 
     transform = functools.partial(
@@ -176,9 +178,11 @@ def _mapper_to_diagnostic_sequence(
     if rename_variables is None:
         rename_variables = {}
 
+    num_batches = _validated_num_batches(
+        len(data_mapping), timesteps_per_batch, num_batches
+    )
     num_times = timesteps_per_batch * num_batches
     times = _sample(data_mapping.keys(), num_times, random_state)
-    num_batches = _validated_num_batches(len(times), timesteps_per_batch, num_batches)
     batched_timesteps = list(partition(timesteps_per_batch, times))
 
     load_batch = functools.partial(
