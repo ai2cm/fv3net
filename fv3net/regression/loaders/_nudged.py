@@ -1,182 +1,25 @@
 import os
-import zarr
-import fsspec
+import logging
 import xarray as xr
+import pandas as pd
 import numpy as np
-from typing import Sequence, Iterable, Mapping, Union
-from functools import partial
+import zarr.storage as zstore
+from typing import Sequence, Mapping, Union, Tuple
+from itertools import product
+from toolz import groupby
 from pathlib import Path
 
 import vcm
-from vcm import cloud, safe
-from . import _transform as transform
-from ._sequences import FunctionOutputSequence
+from vcm import cloud
+from vcm.convenience import round_time
+from vcm.cubedsphere.constants import TIME_FMT
+from .constants import TIME_NAME
 
-INPUT_ZARR = "after_physics.zarr"
-NUDGING_TENDENCY_ZARR = "nudging_tendencies.zarr"
+logger = logging.getLogger(__name__)
+
 TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
 SIMULATION_TIMESTEPS_PER_HOUR = 4
-
-SAMPLE_DIM = "sample"
-
-BatchSequence = Sequence[xr.Dataset]
-
-
-def load_nudging_batches(
-    data_path: str,
-    *variable_names: Iterable[str],
-    timescale_hours: Union[int, float] = 3,
-    num_samples_in_batch: int = 13824,
-    num_batches: int = None,
-    random_seed: int = 0,
-    mask_to_surface_type: str = None,
-    z_dim_name: str = "z",
-    rename_variables: Mapping[str, str] = None,
-    time_dim_name: str = "time",
-    initial_time_skip_hr: int = 0,
-    n_times: int = None,
-) -> Union[Sequence[BatchSequence], BatchSequence]:
-    """
-    Get a sequence of batches from a nudged-run zarr store.
-
-    Args:
-        data_path: location of directory containing zarr stores
-        *variable_names: any number of sequences of variable names. One Sequence will be
-            returned for each of the given sequences. The "sample" dimension will be
-            identical across each of these sequences.
-        timescale_hours (optional): timescale of the nudging for the simulation
-            being used as input.
-        num_samples_in_batch (optional): number of samples to include
-            in a single batch item.  Overridden by num_batches
-        num_batches (optional): number of batches to split the
-            input samples into.  Overrides num_samples_in_batch.
-        random_seed (optional): A seed for the RNG state used in shuffling operations
-        mask_to_surface_type (optional): Flag selector for surface type masking.
-            Requires "land_sea_mask" exists in the loaded dataset.  Note: as currently
-            implemented NaN drop may reduce the batch size under requested
-            number of samples.
-        z_dim_name (optional): vertical dimension name to retain in the dimension
-            stacking procedure
-        rename_variables (optional): A mapping to update any variable names in the
-            dataset prior to the selection of input/output variables
-        time_dim_name (optional): Time dimension name to use for selection from input
-            data
-        initial_time_skip_hr (optional): Length of model inititialization (in hours)
-            to omit from the batching operation
-        n_times (optional): Number of times (by index) to include in the
-            batch resampling operation
-    """
-    fs = cloud.get_fs(data_path)
-
-    glob_url = os.path.join(data_path, TIMESCALE_OUTDIR_TEMPLATE)
-    nudged_output_dirs = fs.glob(glob_url)
-
-    nudged_output_path = _get_path_for_nudging_timescale(
-        nudged_output_dirs, timescale_hours
-    )
-
-    datasets_to_batch = _load_datasets(
-        fs, nudged_output_path, variable_names, rename_variables
-    )
-
-    batched_sequences = []
-    for dataset in datasets_to_batch:
-        start = initial_time_skip_hr * SIMULATION_TIMESTEPS_PER_HOUR
-        end = start + n_times
-        dataset = dataset.isel({time_dim_name: slice(start, end)})
-
-        if mask_to_surface_type is not None:
-            dataset = vcm.mask_to_surface_type(dataset, mask_to_surface_type)
-
-        stack_dims = [dim for dim in dataset.dims if dim != z_dim_name]
-        ds_stacked = safe.stack_once(
-            dataset, SAMPLE_DIM, stack_dims, allowed_broadcast_dims=[z_dim_name]
-        )
-
-        total_samples = ds_stacked.sizes[SAMPLE_DIM]
-
-        sample_slice_sequence = _get_batch_slices(
-            total_samples, num_samples_in_batch, num_batches=num_batches
-        )
-        random = np.random.RandomState(random_seed)
-        random.shuffle(sample_slice_sequence)
-
-        loader_func = partial(_load_nudging_batch, ds_stacked, random)
-
-        batched_sequences.append(
-            FunctionOutputSequence(loader_func, sample_slice_sequence)
-        )
-
-    if len(batched_sequences) > 1:
-        return batched_sequences
-    else:
-        return batched_sequences[0]
-
-
-def _load_nudging_batch(
-    stacked_ds: xr.Dataset, random: np.random.RandomState, batch_slice: slice
-) -> xr.Dataset:
-
-    batch = stacked_ds.isel({SAMPLE_DIM: batch_slice})
-    batch = batch.load()
-    batch_no_nan = batch.dropna(SAMPLE_DIM)
-
-    if len(batch_no_nan[SAMPLE_DIM]) == 0:
-        raise ValueError(
-            "No Valid samples detected. Check for errors in the training data."
-        )
-
-    return transform.shuffled(batch_no_nan, SAMPLE_DIM, random)
-
-
-def _get_batch_slices(
-    num_samples: int, samples_per_batch: int, num_batches: int = None
-):
-
-    if num_batches is not None:
-        batch_size = num_samples // num_batches
-    else:
-        batch_size = samples_per_batch
-        num_batches = num_samples // samples_per_batch
-
-    if batch_size == 0 or num_batches == 0:
-        raise ValueError(
-            "The number of input samples is insufficient to create a batch for "
-            f"requested samples_per_batch={samples_per_batch} or "
-            f"requested num_batches={num_batches}."
-        )
-
-    slices = []
-    for i in range(num_batches):
-        start = i * batch_size
-        end = start + batch_size
-        slices.append(slice(start, end))
-
-    return slices
-
-
-def _load_datasets(
-    fs: fsspec.AbstractFileSystem,
-    path: str,
-    variable_names: Iterable[Iterable[str]],
-    rename_variables: Mapping[str, str],
-) -> Sequence[xr.Dataset]:
-    """
-    Prepares an xr.Dataset for each sequence of variable names within
-    variable_names.
-    """
-    input_data = _open_zarr(fs, os.path.join(path, INPUT_ZARR))
-    output_data = _open_zarr(fs, os.path.join(path, NUDGING_TENDENCY_ZARR))
-
-    dataset = xr.merge([input_data, output_data], join="inner")
-    dataset = dataset.rename(rename_variables)
-
-    all_datasets = []
-    for vars_sequence in variable_names:
-        ds = safe.get_variables(dataset, vars_sequence)
-        all_datasets.append(ds)
-
-    return all_datasets
+Z_DIM_NAME = "z"
 
 
 def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-5):
@@ -197,13 +40,277 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
     else:
         raise KeyError(
             "Could not find nudged output directory appropriate for timescale: "
-            "{timescale_hours}"
+            f"{timescale_hours}"
         )
 
 
-def _open_zarr(fs, url):
+class GeoMapper:
+    def __init__(self, *args):
+        raise NotImplementedError("Don't use the base class!")
 
-    mapper = fs.get_mapper(url)
-    cached_mapper = zarr.storage.LRUStoreCache(mapper, max_size=None)
+    def __len__(self):
+        return len(self.keys())
 
-    return xr.open_zarr(cached_mapper)
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __getitem__(self, key: str) -> xr.Dataset:
+        raise NotImplementedError()
+
+    def keys(self):
+        raise NotImplementedError()
+
+
+class NudgedTimestepMapper(GeoMapper):
+    """
+    Basic mapper across the time dimension for any long-form
+    simulation output.
+    
+    This mapper uses slightly different
+    initialization (a dataset instead of a url) because nudge
+    run information for all timesteps already exists within
+    a single file, i.e., no filesystem grouping is necessary to get
+    an item.
+    """
+
+    def __init__(self, ds):
+        self.ds = ds
+
+    def __getitem__(self, key: str) -> xr.Dataset:
+        dt64 = np.datetime64(vcm.parse_datetime_from_str(key))
+        return self.ds.sel({TIME_NAME: dt64})
+
+    def keys(self):
+        return [
+            time.strftime(TIME_FMT)
+            for time in pd.to_datetime(self.ds[TIME_NAME].values)
+        ]
+
+
+class MergeNudged(NudgedTimestepMapper):
+    """
+    Mapper for merging data sources available from a nudged run.
+    
+    Currently used to merge the nudging tendencies with the after
+    physics checkpointed state information. Could be useful for
+    merging prognostic run output by time in the future.
+    """
+
+    def __init__(
+        self, *nudged_sources: Sequence[Union[NudgedTimestepMapper, xr.Dataset]]
+    ):
+        if len(nudged_sources) < 2:
+            raise TypeError(
+                "MergeNudged should be instantiated with two or more data sources."
+            )
+        nudged_sources = self._mapper_to_datasets(nudged_sources)
+        self._check_dvar_overlap(*nudged_sources)
+        self.ds = xr.merge(nudged_sources, join="inner")
+
+    @staticmethod
+    def _mapper_to_datasets(data_sources) -> Mapping[str, xr.Dataset]:
+
+        datasets = []
+        for source in data_sources:
+            if isinstance(source, NudgedTimestepMapper):
+                source = source.ds
+            datasets.append(source)
+
+        return datasets
+
+    @staticmethod
+    def _check_dvar_overlap(*ds_to_combine):
+        ds_var_sets = [set(ds.data_vars.keys()) for ds in ds_to_combine]
+
+        overlap = set()
+        checked = set()
+        for data_var in ds_var_sets:
+            overlap |= data_var & checked
+            checked |= data_var
+
+        if overlap:
+            raise ValueError(
+                "Could not combine requested nudged data sources due to "
+                f"overlapping variables {overlap}"
+            )
+
+
+class NudgedStateCheckpoints(GeoMapper):
+    """
+    Storage for state checkpoints from nudging runs.
+    Accessible by, e.g., mapper[("before_dynamics", "20160801.001500")]
+    Uses NudgedTimestepMappers for individual sources.
+    """
+
+    def __init__(self, ds_map: Mapping[str, xr.Dataset]):
+
+        self.sources = {key: NudgedTimestepMapper(ds) for key, ds in ds_map.items()}
+
+    def __getitem__(self, key):
+        return self.sources[key[0]][key[1]]
+
+    def keys(self):
+        keys = []
+        for key, mapper in self.sources.items():
+            timestep_keys = mapper.keys()
+            keys.extend(product((key,), timestep_keys))
+        return keys
+
+
+Source = str
+Time = str
+Checkpoint = Tuple[Source, Time]
+
+
+class GroupByTime:
+    # TODO: Could be generalized in if useful, nearly identical
+    # function in _transform for tiles
+
+    def __init__(self, checkpoint_data: Mapping[Checkpoint, xr.Dataset]):
+        def keyfn(key):
+            checkpoint, time = key
+            return time
+
+        self._checkpoint_data = checkpoint_data
+        self._time_lookup = groupby(keyfn, self._checkpoint_data.keys())
+
+    def keys(self):
+        return self._time_lookup.keys()
+
+    def __len__(self):
+        return len(self.keys())
+
+    def __getitem__(self, time: Time) -> xr.Dataset:
+        checkpoints = [self._checkpoint_data[key] for key in self._time_lookup[time]]
+        checkpoint_names = [key[0] for key in self._time_lookup[time]]
+        ds = xr.concat(checkpoints, dim="checkpoint")
+        return ds.assign_coords(checkpoint=checkpoint_names)
+
+
+class SubsetTimes(GeoMapper):
+    """
+    Sort and subset a timestep-based mapping to skip spin-up and limit
+    the number of available times.
+    """
+
+    def __init__(
+        self,
+        initial_time_skip_hr: int,
+        n_times: Union[int, None],
+        nudged_data: Mapping[str, xr.Dataset],
+    ):
+        timestep_keys = list(nudged_data.keys())
+        timestep_keys.sort()
+
+        start = initial_time_skip_hr * SIMULATION_TIMESTEPS_PER_HOUR
+        end = None if n_times is None else start + n_times
+        self._keys = timestep_keys[slice(start, end)]
+        self._nudged_data = nudged_data
+
+    def keys(self):
+        return list(self._keys)
+
+    def __getitem__(self, time: Time):
+        if time not in self._keys:
+            raise KeyError("Time {time} not found in SubsetTimes mapper.")
+        return self._nudged_data[time]
+
+
+def _standardize_zarr_time_coord(ds: xr.Dataset):
+    # Vectorize doesn't work on type-dispatched function overloading
+    times = np.array(list(map(vcm.cast_to_datetime, ds[TIME_NAME].values)))
+    times = np.vectorize(round_time)(times)
+    ds = ds.assign_coords({TIME_NAME: times})
+
+    return ds
+
+
+def open_nudged(
+    url: str,
+    nudging_timescale_hr: Union[int, float],
+    merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
+    initial_time_skip_hr: int = 0,
+    n_times: int = None,
+) -> Mapping[str, xr.Dataset]:
+    """
+    Load nudging data mapper for use with training.  Currently merges the
+    two files after_physics and nudging_tendencies, which are required I/O
+    for the training
+
+    Args:
+        url: Path to directory with nudging output (not including the timescale
+            subdirectories, e.g., outdir-3h)
+        timescale_hours: timescale of the nudging for the simulation
+            being used as input.
+        merge_files (optionsl): underlying nudging zarr datasets to combine
+            into a MergeNudged mapper
+        initial_time_skip_hr (optional): Length of model inititialization (in hours)
+            to omit from the batching operation
+        n_times (optional): Number of times (by index) to include in the
+            batch resampling operation
+    """
+
+    fs = cloud.get_fs(url)
+
+    glob_url = os.path.join(url, TIMESCALE_OUTDIR_TEMPLATE)
+    nudged_output_dirs = fs.glob(glob_url)
+
+    nudged_url = _get_path_for_nudging_timescale(
+        nudged_output_dirs, nudging_timescale_hr
+    )
+
+    datasets = []
+    for source in merge_files:
+        mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}"))
+        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
+        ds = _standardize_zarr_time_coord(ds)
+
+        datasets.append(ds)
+
+    nudged_mapper = MergeNudged(*datasets)
+    nudged_mapper = SubsetTimes(initial_time_skip_hr, n_times, nudged_mapper)
+
+    return nudged_mapper
+
+
+def open_nudging_checkpoints(
+    url: str,
+    nudging_timescale_hr: Union[int, float],
+    checkpoint_files: Tuple[str] = (
+        "before_dynamics.zarr",
+        "after_dynamics.zarr",
+        "after_physics.zarr",
+        "after_nudging.zarr",
+    ),
+) -> Mapping[Checkpoint, xr.Dataset]:
+    """
+    Load mapper to all checkpoint states and timesteps of a nudging simulation.
+
+    Args:
+        url: Path to directory with nudging output (not including the timescale
+            subdirectories, e.g., outdir-3h)
+        timescale_hours: timescale of the nudging for the simulation
+            being used as input.
+        checkpoint_files (optionsl): nudged simulation checkpoint files to load
+            into the NudgedStateCheckpoints object
+    """
+
+    fs = cloud.get_fs(url)
+
+    glob_url = os.path.join(url, TIMESCALE_OUTDIR_TEMPLATE)
+    nudged_output_dirs = fs.glob(glob_url)
+
+    nudged_url = _get_path_for_nudging_timescale(
+        nudged_output_dirs, nudging_timescale_hr
+    )
+
+    datasets = {}
+    for filename in checkpoint_files:
+        mapper = fs.get_mapper(os.path.join(nudged_url, f"{filename}"))
+        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
+        ds = _standardize_zarr_time_coord(ds)
+
+        source_name = Path(filename).stem
+        datasets[source_name] = ds
+
+    return NudgedStateCheckpoints(datasets)

@@ -27,3 +27,17 @@ def datadir(tmpdir, request):
         dir_util.copy_tree(test_dir, str(tmpdir))
 
     return tmpdir
+
+
+@pytest.fixture(scope="module")
+def datadir_module(tmpdir_factory, request):
+    """Copy of above but attempt at module scoping"""
+    filename = request.module.__file__
+    test_dir, _ = os.path.splitext(filename)
+
+    tmpdir = tmpdir_factory.mktemp("pytest_data")
+
+    if os.path.isdir(test_dir):
+        dir_util.copy_tree(test_dir, str(tmpdir))
+
+    return tmpdir

@@ -6,10 +6,7 @@ from ._fine_resolution_budget import (
     open_fine_resolution_budget,
     open_fine_res_apparent_sources,
 )
-
 from ._sequences import FunctionOutputSequence
-
-# TODO: replace with open mapping func for nudging data source
-from ._nudged import load_nudging_batches
+from ._nudged import open_nudged
 
 from .constants import TIME_NAME, SAMPLE_DIM_NAME
