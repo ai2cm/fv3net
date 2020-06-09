@@ -2,6 +2,7 @@ import os
 import pytest
 import synth
 import xarray as xr
+import numpy as np
 
 from fv3net.regression.loaders._batch import (
     _mapper_to_batches,
