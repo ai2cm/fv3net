@@ -70,7 +70,7 @@ def parse_args():
         "--timesteps-file",
         type=str,
         default=None,
-        help="Json file that defines train timestep set."
+        help="Json file that defines train timestep set.",
     )
     parser.add_argument(
         "--no-train-subdir-append",
@@ -89,7 +89,7 @@ def times_from_batches(batched_data):
 
 
 def _timesteps_to_list(raw_timesteps: Mapping[str, Sequence]) -> Sequence[str]:
-    if "train" not in raw_timesteps or len(raw_timesteps["train"])==0:
+    if "train" not in raw_timesteps or len(raw_timesteps["train"]) == 0:
         raise KeyError("Timesteps json file must have list of times in 'train' key.")
     train_timesteps = raw_timesteps["train"]
     if isinstance(train_timesteps[0], List):
@@ -115,7 +115,8 @@ if __name__ == "__main__":
         if "num_batches" in train_config.batch_kwargs:
             raise ValueError(
                 "Do not provide batch kwarg 'num_batches' if timestep set is provided. "
-                "The only batch kwarg used to determine batch size is 'timesteps_per_batch'.")
+                "The only batch kwarg used to determine batch size is 'timesteps_per_batch'."
+            )
         train_config.batch_kwargs["timesteps"] = _timesteps_to_list(raw_timesteps)
 
     batched_data = train.load_data_sequence(data_path, train_config)

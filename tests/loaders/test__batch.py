@@ -79,6 +79,14 @@ def test__mapper_to_batches(mapper):
         assert set(batch.data_vars) == set(DATA_VARS)
 
 
+def test__mapper_to_batches_invalid_times(mapper):
+    invalid_times = list(mapper.keys())[:2] + ["20000101.000000", "20000102.000000"]
+    with pytest.raises(ValueError):
+        _mapper_to_batches(
+            mapper, DATA_VARS, timesteps_per_batch=2, timesteps=invalid_times
+        )
+
+
 def test__mapper_to_diagnostic_sequence(mapper):
     batched_data_sequence = _mapper_to_diagnostic_sequence(
         mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
@@ -89,15 +97,11 @@ def test__mapper_to_diagnostic_sequence(mapper):
         assert set(batch.data_vars) == set(DATA_VARS)
 
 
-
 @pytest.mark.parametrize(
-    "total_times,times_per_batch,valid_num_batches",
-    [
-        (3,1,3),
-        (3,2,1)
-    ])
+    "total_times,times_per_batch,valid_num_batches", [(3, 1, 3), (3, 2, 1)]
+)
 def test__mapper_to_batches_timestep_list(
-        mapper, total_times, times_per_batch, valid_num_batches
+    mapper, total_times, times_per_batch, valid_num_batches
 ):
     timestep_list = list(mapper.keys())[:total_times]
     batched_data_sequence = _mapper_to_batches(

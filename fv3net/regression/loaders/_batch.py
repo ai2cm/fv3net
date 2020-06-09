@@ -46,7 +46,6 @@ def batches_from_mapper(
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
-    print(f"timesteps: {timesteps}")
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
     batches = _mapper_to_batches(
         data_mapping,
@@ -97,6 +96,9 @@ def _mapper_to_batches(
     Returns:
         Sequence of xarray datasets
     """
+    if timesteps and set(timesteps).issubset(data_mapping.keys()) is False:
+        raise ValueError("Timesteps specified in file are not present in data: ")
+
     random_state = RandomState(random_seed)
     if rename_variables is None:
         rename_variables = {}
@@ -106,7 +108,7 @@ def _mapper_to_batches(
         (timesteps or list(data_mapping.keys())),
         timesteps_per_batch,
         num_batches,
-        random_state
+        random_state,
     )
     transform = functools.partial(
         stack_dropnan_shuffle, init_time_dim_name, random_state
@@ -172,8 +174,13 @@ def _mapper_to_diagnostic_sequence(
     random_seed: int = 0,
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
+    timesteps: Sequence[str] = None,
 ) -> Sequence[xr.Dataset]:
-
+    if timesteps and set(timesteps).issubset(dataset_mapper.keys()) is False:
+        raise ValueError(
+            "Timesteps specified in file are not present in data: "
+            f"{list(set(timesteps)-set(dataset_mapper.keys()))}"
+        )
     random_state = RandomState(random_seed)
     if rename_variables is None:
         rename_variables = {}
