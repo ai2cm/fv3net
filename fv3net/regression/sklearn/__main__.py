@@ -1,5 +1,6 @@
 from typing import Union, Sequence
 from datetime import datetime
+from toolz import pipe
 import argparse
 import os
 import fsspec
@@ -29,11 +30,19 @@ def _save_config_output(output_url, config):
         yaml.dump(config, f)
 
 
+def _convert_to_datetime(time: Union[str, np.datetime64, datetime]) -> datetime:
+    if isinstance(time, str):
+        return vcm.parse_datetime_from_str(vcm.parse_current_date_from_str)
+    else:
+        return time
+
+
 def _create_report_plots(
     path: str, times: Union[Sequence[np.datetime64], Sequence[datetime]]
 ):
     """Given path to output directory and times used, create all plots required
     for html report"""
+    times = [_convert_to_datetime(time) for time in times]
     with fsspec.open(os.path.join(path, TRAINING_FIG_FILENAME), "wb") as f:
         gallery.plot_daily_and_hourly_hist(times).savefig(f, dpi=90)
     return {"Time distribution of training samples": [TRAINING_FIG_FILENAME]}
@@ -96,6 +105,6 @@ if __name__ == "__main__":
     train.save_model(args.output_data_path, model, MODEL_FILENAME)
     report_metadata = {**vars(args), **vars(train_config)}
     report_sections = _create_report_plots(
-        args.output_data_path, times_from_batches(batched_data),
+        args.output_data_path, batched_data.attrs["times"],
     )
     _write_report(args.output_data_path, report_sections, report_metadata, REPORT_TITLE)
