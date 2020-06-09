@@ -5,7 +5,7 @@ import os
 import yaml
 import xarray as xr
 from dataclasses import dataclass
-from typing import Iterable, Sequence, Protocol
+from typing import Iterable, Sequence
 
 from .. import loaders
 from .wrapper import SklearnWrapper, RegressorEnsemble

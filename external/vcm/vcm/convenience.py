@@ -117,6 +117,11 @@ def _(time: np.datetime64):
     return time.astype(datetime)
 
 
+@cast_to_datetime.register
+def _(time: str):
+    return cast_to_datetime(parse_datetime_from_str(parse_timestep_str_from_path(time)))
+
+
 def convert_timestamps(coord: xr.DataArray) -> xr.DataArray:
     parser = np.vectorize(parse_datetime_from_str)
     return xr.DataArray(parser(coord), dims=coord.dims, attrs=coord.attrs)

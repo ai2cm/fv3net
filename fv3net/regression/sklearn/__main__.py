@@ -30,19 +30,13 @@ def _save_config_output(output_url, config):
         yaml.dump(config, f)
 
 
-def _convert_to_datetime(time: Union[str, np.datetime64, datetime]) -> datetime:
-    if isinstance(time, str):
-        return vcm.parse_datetime_from_str(vcm.parse_timestep_str_from_path(time))
-    else:
-        return time
-
-
 def _create_report_plots(
     path: str, times: Sequence[Union[np.datetime64, datetime, str]]
 ) -> Mapping[str, Sequence[str]]:
     """Given path to output directory and times used, create all plots required
     for html report"""
-    times = [_convert_to_datetime(time) for time in times]
+    times = [vcm.cast_to_datetime(time) for time in times]
+    print(times)
     with fsspec.open(os.path.join(path, TRAINING_FIG_FILENAME), "wb") as f:
         gallery.plot_daily_and_hourly_hist(times).savefig(f, dpi=90)
     return {"Time distribution of training samples": [TRAINING_FIG_FILENAME]}
