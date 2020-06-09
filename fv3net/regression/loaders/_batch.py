@@ -24,6 +24,7 @@ def batches_from_mapper(
     random_seed: int = 0,
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
+    timesteps: Sequence[str] = None,
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -54,6 +55,7 @@ def batches_from_mapper(
         random_seed,
         init_time_dim_name,
         rename_variables,
+        timesteps,
     )
     return batches
 
@@ -74,6 +76,7 @@ def _mapper_to_batches(
     random_seed: int = 0,
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
+    timesteps: Sequence[str] = None,
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -87,6 +90,7 @@ def _mapper_to_batches(
         init_time_dim_name (str, optional): Name of time dim in data source.
             Defaults to "initial_time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
+        timesteps (Sequence[str], optional): List of timesteps to use in training.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
     Returns:
@@ -97,9 +101,12 @@ def _mapper_to_batches(
         rename_variables = {}
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
-
+    
     batched_timesteps = _select_batch_timesteps(
-        list(data_mapping.keys()), timesteps_per_batch, num_batches, random_state
+        (timesteps or list(data_mapping.keys())),
+        timesteps_per_batch,
+        num_batches,
+        random_state
     )
     transform = functools.partial(
         stack_dropnan_shuffle, init_time_dim_name, random_state
@@ -237,7 +244,7 @@ def _get_dataset_list(
 def _validated_num_batches(
     total_num_input_times, timesteps_per_batch, num_batches=None
 ):
-    """ check that the number of batches (if provided) and the number of
+    """ Checks that the number of batches (if provided) and the number of
     timesteps per batch are reasonable given the number of zarrs in the input data dir.
     Returns:
         Number of batches to use for training

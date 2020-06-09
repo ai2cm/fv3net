@@ -89,6 +89,25 @@ def test__mapper_to_diagnostic_sequence(mapper):
         assert set(batch.data_vars) == set(DATA_VARS)
 
 
+
+@pytest.mark.parametrize(
+    "total_times,times_per_batch,valid_num_batches",
+    [
+        (3,1,3),
+        (3,2,1)
+    ])
+def test__mapper_to_batches_timestep_list(
+        mapper, total_times, times_per_batch, valid_num_batches
+):
+    timestep_list = list(mapper.keys())[:total_times]
+    batched_data_sequence = _mapper_to_batches(
+        mapper, DATA_VARS, timesteps_per_batch=times_per_batch, timesteps=timestep_list
+    )
+    assert len(batched_data_sequence) == valid_num_batches
+    timesteps_used = sum(batched_data_sequence._args, [])  # flattens list
+    assert set(timesteps_used).issubset(timestep_list)
+
+
 @pytest.mark.parametrize(
     "total_times,times_per_batch,num_batches,valid_num_batches",
     [
