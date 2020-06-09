@@ -24,5 +24,5 @@ FINE_RES=gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget/
 TRAINED_ML=gs://vcm-ml-experiments/2020-06-02-fine-res/trained_sklearn/
 
 python -m fv3net.regression.sklearn \
-    "$FINE_RES" config.yaml "$TRAINED_ML" \
-    --no-train-subdir-append
+  "$FINE_RES" config.yaml "$TRAINED_ML" \
+  --no-train-subdir-append

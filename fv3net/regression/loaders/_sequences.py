@@ -1,9 +1,15 @@
 import collections
-from typing import Callable, Sequence, Iterable
+from typing import Callable, Sequence, Iterable, Mapping
 
 
 class FunctionOutputSequence(collections.abc.Sequence):
-    """A wrapper over a sequence of function arguments passed into a function."""
+    """A wrapper over a sequence of function arguments passed into a function.
+
+    Attributes:
+        attrs: a dictionary of metadata.
+    """
+
+    attrs: Mapping
 
     def __init__(self, func: Callable, args_sequence: Sequence[Iterable]):
         """
@@ -17,6 +23,7 @@ class FunctionOutputSequence(collections.abc.Sequence):
             raise TypeError(f"args_sequence must be a sequence, got {args_sequence}")
         self._func = func
         self._args = args_sequence
+        self.attrs = {}
 
     def __getitem__(self, item):
         return self._func(self._args[item])
