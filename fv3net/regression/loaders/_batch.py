@@ -10,7 +10,8 @@ from ._transform import stack_dropnan_shuffle
 from .constants import TIME_NAME
 from fv3net.regression import loaders
 
-logger = logging.getLogger()
+
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
@@ -29,19 +30,19 @@ def batches_from_mapper(
     iterated over in  ..sklearn.train.
 
     Args:
-        data_mapping (Mapping[str, xr.Dataset]): Interface to select data for
-            given timestep keys.
+        data_path (str): Path to data store to be loaded via mapper.
         variable_names (Iterable[str]): data variables to select
+        mapping_function (str): Name of a callable which opens a mapper to the data
+        mapping_kwargs (Mapping[str, Any]): mapping of keyword arguments to be
+            passed to the mapping function
         timesteps_per_batch (int, optional): Defaults to 1.
         num_batches (int, optional): Defaults to None.
         random_seed (int, optional): Defaults to 0.
         init_time_dim_name (str, optional): Name of time dim in data source.
             Defaults to "initial_time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
-
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
-
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
@@ -141,7 +142,6 @@ def _validated_num_batches(
 ):
     """ check that the number of batches (if provided) and the number of
     timesteps per batch are reasonable given the number of zarrs in the input data dir.
-
     Returns:
         Number of batches to use for training
     """
