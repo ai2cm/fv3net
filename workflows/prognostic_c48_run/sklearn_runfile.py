@@ -158,7 +158,6 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug("Setting Fortran State")
-        print(updated_state)
         fv3gfs.set_state(
             {
                 key: fv3util.Quantity.from_data_array(value)
