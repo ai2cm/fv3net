@@ -21,7 +21,6 @@ class SklearnPredictionMapper(DatasetMapper):
         z_dim: str = "z",
     ):
         self._base_mapper = base_mapper
-        self._fs = cloud.get_fs(base_mapper)
         self._model = sklearn_wrapped_model
         self._init_time_dim = init_time_dim
         self._z_dim = z_dim
@@ -42,7 +41,7 @@ class SklearnPredictionMapper(DatasetMapper):
                 if var in self._model.input_vars_
             ]
             raise KeyError(
-                f"Model feature variables {missing_vars} " "not present in dataset."
+                f"Model feature variables {missing_vars}  not present in dataset."
             )
 
         ds_ = safe.get_variables(ds, self._model.input_vars_)

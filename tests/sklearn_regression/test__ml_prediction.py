@@ -74,16 +74,14 @@ def mock_model(request):
 
 
 @pytest.mark.parametrize(
-    "mock_model, valid",
+    "mock_model",
     [
-        ([["feature0", "feature1"], ["pred0"]], True),
-        ([["feature0", "feature1"], ["pred0", "pred1"]], True),
-        ([[], ["pred0"]], False),
-        ([["feature0", "feature10"], ["pred0"]], False),
+        (["feature0", "feature1"], ["pred0"]),
+        (["feature0", "feature1"], ["pred0", "pred1"]),
     ],
-    indirect=["mock_model"],
+    indirect=True,
 )
-def test_ml_predict_wrapper(mock_model, valid, base_mapper, gridded_dataset):
+def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
     suffix = "ml"
     mapper = SklearnPredictionMapper(
         base_mapper,
@@ -92,17 +90,31 @@ def test_ml_predict_wrapper(mock_model, valid, base_mapper, gridded_dataset):
         z_dim="z",
         predicted_var_suffix=suffix,
     )
-    if valid:
+    for key in mapper.keys():
+        mapper_output = mapper[key]
+        target = mock_predict_function(
+            [base_mapper[key][var] for var in mock_model.input_vars_]
+        )
+        for var in mock_model.output_vars_:
+            assert sum(
+                (mapper_output[var + f"_{suffix}"] - target).values
+            ) == pytest.approx(0)
+
+
+@pytest.mark.parametrize(
+    "mock_model",
+    [([], ["pred0"]), (["feature0", "feature10"], ["pred0"]),],
+    indirect=True,
+)
+def test_ml_predict_wrapper_invalid_usage(mock_model, base_mapper, gridded_dataset):
+    suffix = "ml"
+    mapper = SklearnPredictionMapper(
+        base_mapper,
+        mock_model,
+        init_time_dim="initial_time",
+        z_dim="z",
+        predicted_var_suffix=suffix,
+    )
+    with pytest.raises(Exception):
         for key in mapper.keys():
             mapper_output = mapper[key]
-            target = mock_predict_function(
-                [base_mapper[key][var] for var in mock_model.input_vars_]
-            )
-            for var in mock_model.output_vars_:
-                assert sum(
-                    (mapper_output[var + f"_{suffix}"] - target).values
-                ) == pytest.approx(0)
-    else:
-        with pytest.raises(Exception):
-            for key in mapper.keys():
-                mapper_output = mapper[key]
