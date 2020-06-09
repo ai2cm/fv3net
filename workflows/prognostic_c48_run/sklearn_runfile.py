@@ -1,5 +1,5 @@
 import logging
-from typing import Mapping
+from typing import Mapping, Set
 
 import fsspec
 import zarr
@@ -12,6 +12,7 @@ from fv3gfs._wrapper import get_time
 import fv3util
 import runtime
 from fv3net.regression.sklearn.wrapper import SklearnWrapper
+
 from mpi4py import MPI
 
 logging.basicConfig(level=logging.DEBUG)
@@ -24,10 +25,29 @@ TEMP = "air_temperature"
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"
-REQUIRED_VARIABLES = [TEMP, SPHUM, DELP, PRECIP_RATE]
+REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE}
 
 cp = 1004
 gravity = 9.81
+
+
+class RenamingAdapter:
+    """Adapter object for renaming"""
+
+    def __init__(self, model: SklearnWrapper, rename_in, rename_out=None):
+        self.model = model
+        self.rename_in = rename_in
+        if rename_out is None:
+            self.rename_out = dict(zip(rename_in.values(), rename_in.keys()))
+        else:
+            self.rename_out = rename_out
+
+    @property
+    def variables(self) -> Set[str]:
+        return {self.rename_out.get(var, var) for var in self.model.input_vars_}
+
+    def __call__(self, arg: xr.Dataset) -> xr.Dataset:
+        return self.model(arg.rename(self.rename_in)).rename(self.rename_out)
 
 
 def compute_diagnostics(state, diags):
@@ -66,13 +86,15 @@ def rename_diagnostics(diags):
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
 
 
-def open_model(url):
+def open_model(config):
     # Load the model
-    with fsspec.open(url, "rb") as f:
-        return joblib.load(f)
+    rename = config.get("input_variable_standard_names", {})
+    with fsspec.open(config["model"], "rb") as f:
+        model = joblib.load(f)
+    return RenamingAdapter(model, rename)
 
 
-def predict(model: SklearnWrapper, state: State) -> State:
+def predict(model: RenamingAdapter, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
     stacked = xr.Dataset(state).stack(sample=["x", "y"])
     with parallel_backend("threading", n_jobs=1):
@@ -91,13 +113,12 @@ def apply(state: State, tendency: State, dt: float) -> State:
     return updated
 
 
-args = runtime.get_config()
-NML = runtime.get_namelist()
-TIMESTEP = NML["coupler_nml"]["dt_atmos"]
-
-times = []
-
 if __name__ == "__main__":
+    args = runtime.get_config()
+    NML = runtime.get_namelist()
+    TIMESTEP = NML["coupler_nml"]["dt_atmos"]
+
+    times = []
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
@@ -105,10 +126,6 @@ if __name__ == "__main__":
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
 
     do_only_diagnostic_ml = args["scikit_learn"].get("diagnostic_ml", False)
-    rename_ML_to_CF = args["scikit_learn"].get("input_variable_standard_names", {})
-    rename_CF_to_ML = dict(zip(rename_ML_to_CF.values(), rename_ML_to_CF.keys()))
-    if rank == 0:
-        logger.debug(f"Renaming variables for ML prediction using: {rename_CF_to_ML}")
 
     # open zarr tape for output
     if rank == 0:
@@ -120,14 +137,13 @@ if __name__ == "__main__":
 
     if rank == 0:
         logger.info("Downloading Sklearn Model")
-        MODEL = open_model(args["scikit_learn"]["model"])
+        MODEL = open_model(args["scikit_learn"])
         logger.info("Model downloaded")
     else:
         MODEL = None
 
     MODEL = comm.bcast(MODEL, root=0)
-    variables = list(set(REQUIRED_VARIABLES + MODEL.input_vars_))
-    variables = [rename_ML_to_CF.get(var, var) for var in variables]
+    variables = list(MODEL.variables + REQUIRED_VARIABLES)
     if rank == 0:
         logger.debug(f"Prognostic run requires variables: {variables}")
 
@@ -152,7 +168,7 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
-        tendency = predict(MODEL, runtime.rename_keys(state, rename_CF_to_ML))
+        tendency = predict(MODEL, state)
 
         if do_only_diagnostic_ml:
             updated_state = {}
@@ -161,6 +177,7 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug("Setting Fortran State")
+        print(updated_state)
         fv3gfs.set_state(
             {
                 key: fv3util.Quantity.from_data_array(value)
