@@ -162,7 +162,7 @@ workflows:
   test_and_lint:
     jobs:
       - lint
-      - pytest_default
+      # - pytest_default
       - hold:
           type: approval
           filters:
