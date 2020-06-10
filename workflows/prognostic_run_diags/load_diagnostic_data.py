@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 COORD_RENAME_INVERSE_MAP = {
     "x": {"grid_xt", "grid_xt_coarse"},
     "y": {"grid_yt", "grid_yt_coarse"},
-    "tile": {"rank"},  # currently assuming that there is one rank per tile
-    "xb": {"grid_x_coarse"},
-    "yb": {"grid_y_coarse"},
+    "tile": {"rank"},
+    "xb": {"grid_x", "grid_x_coarse"},
+    "yb": {"grid_y", "grid_y_coarse"},
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 _DIAG_OUTPUT_LOADERS = []
@@ -44,7 +44,7 @@ def _rename_coords(ds: xr.Dataset) -> xr.Dataset:
 
     vars_to_rename = {
         var: varname_target_registry[var]
-        for var in ds.coords
+        for var in ds.dims
         if var in varname_target_registry
     }
     ds = ds.rename(vars_to_rename)
@@ -184,7 +184,9 @@ def load_verification(
 
 def _load_standardized(path):
     logger.info(f"Loading and standardizing {path}")
-    ds = xr.open_zarr(fsspec.get_mapper(path), consolidated=True).load()
+    ds = xr.open_zarr(
+        fsspec.get_mapper(path), consolidated=True, mask_and_scale=False
+    ).load()
     return standardize_gfsphysics_diagnostics(ds)
 
 
@@ -223,7 +225,7 @@ def load_data_3H(url, grid_spec, catalog):
         ["40day_c384_atmos_8xdaily"], catalog, coarsening_factor=8, area=grid_c384.area
     )
 
-    # open data
+    # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     ds = load_prognostic_run_dt_atmos_output(url)
     resampled = ds.resample(time="3H", label="right").nearest()
