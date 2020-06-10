@@ -19,6 +19,7 @@ class Mock:
     """
 
     input_vars_ = ["renamed_input"]
+    output_vars_ = ["rename_output"]
 
     def predict(self, x, arg2):
         in_ = x["renamed_input"]
@@ -43,14 +44,12 @@ def test_RenamingAdapter_predict_inputs_and_outputs_renamed():
     ],
 )
 def test_RenamingAdapter_predict_renames_dims_correctly(rename_dims, expected):
-
-    ds = xr.Dataset({"x": (["dim_0", "dim_1"], np.ones((5, 10)))})
-
-    rename_dict = {"x": "renamed_input", "y": "rename_output", **rename_dims}
-
-    model = RenamingAdapter(Mock(), rename_dict)
+    m = Mock()
+    ds = xr.Dataset({m.input_vars_[0]: (["dim_0", "dim_1"], np.ones((5, 10)))})
+    model = RenamingAdapter(Mock(), rename_dims)
     out = model.predict(ds, None)
-    assert list(out["y"].dims) == expected
+    output_array = out[m.output_vars_[0]]
+    assert list(output_array.dims) == expected
 
 
 def test_RenamingAdapter_variables():
