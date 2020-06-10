@@ -10,7 +10,6 @@ output_variables:
   - dQ2
 batch_function: batches_from_mapper
 batch_kwargs:
-  num_batches: 2
   timesteps_per_batch: 1
   init_time_dim_name: "initial_time"
   mapping_function: open_one_step
