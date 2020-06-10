@@ -6,6 +6,18 @@ import pytest
 
 
 class Mock:
+    """A predictor that expects these inputs::
+
+        ["renamed_inputs"]
+    
+    and predicts these outputs::
+
+        ["rename_output"]
+
+    RenamingAdapter should be able to rename the input/output variables and
+    dims to make this object work.
+    """
+
     input_vars_ = ["renamed_input"]
 
     def predict(self, x, arg2):
@@ -13,7 +25,7 @@ class Mock:
         return xr.Dataset({"rename_output": in_})
 
 
-def test_RenamingAdapter_predict():
+def test_RenamingAdapter_predict_inputs_and_outputs_renamed():
 
     ds = xr.Dataset({"x": (["dim_0", "dim_1"], np.ones((5, 10)))})
 
@@ -30,15 +42,15 @@ def test_RenamingAdapter_predict():
         ({"dim_0": "xx", "dim_1": "yy"}, ["xx", "yy"]),
     ],
 )
-def test_RenamingAdapter_predict_orig_dims(rename_dims, expected):
+def test_RenamingAdapter_predict_renames_dims_correctly(rename_dims, expected):
 
     ds = xr.Dataset({"x": (["dim_0", "dim_1"], np.ones((5, 10)))})
 
-    rename_dict = {"x": "renamed_input", "y": "rename_output"}
-    rename_dict.update(rename_dims)
+    rename_dict = {"x": "renamed_input", "y": "rename_output", **rename_dims}
+
     model = RenamingAdapter(Mock(), rename_dict)
     out = model.predict(ds, None)
-    assert list(out["y"].dims) == ["dim_0", "dim_1"]
+    assert list(out["y"].dims) == expected
 
 
 def test_RenamingAdapter_variables():
