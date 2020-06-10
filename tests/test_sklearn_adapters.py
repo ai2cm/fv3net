@@ -1,4 +1,4 @@
-from runtime.adapters import RenamingAdapter
+from fv3net.regression.sklearn.adapters import RenamingAdapter
 import xarray as xr
 import numpy as np
 
