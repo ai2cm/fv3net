@@ -8,7 +8,6 @@ from fv3net.regression.loaders._batch import (
     _mapper_to_batches,
     _mapper_to_diagnostic_sequence,
     _load_batch,
-    _validated_num_batches,
 )
 
 DATA_VARS = ["air_temperature", "specific_humidity"]
@@ -64,7 +63,7 @@ def test__load_batch(mapper):
 
 def test__mapper_to_batches(mapper):
     batched_data_sequence = _mapper_to_batches(
-        mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
+        mapper, DATA_VARS, timesteps_per_batch=2
     )
     assert len(batched_data_sequence) == 2
     for i, batch in enumerate(batched_data_sequence):
@@ -98,36 +97,9 @@ def test__mapper_to_batches_invalid_times(mapper):
 
 def test__mapper_to_diagnostic_sequence(mapper):
     batched_data_sequence = _mapper_to_diagnostic_sequence(
-        mapper, DATA_VARS, timesteps_per_batch=2, num_batches=2
+        mapper, DATA_VARS, timesteps_per_batch=2,
     )
-    assert len(batched_data_sequence) == 2
+    assert len(batched_data_sequence) == len(mapper) // 2
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
         assert set(batch.data_vars) == set(DATA_VARS)
-
-
-@pytest.mark.parametrize(
-    "total_times,times_per_batch,num_batches,valid_num_batches",
-    [
-        (5, 1, None, 5),
-        (5, 2, None, 2),
-        (5, 2, 1, 1),
-        (2, 6, None, None),
-        (2, 1, 3, None),
-        (0, 5, None, None),
-        (5, 0, None, None),
-    ],
-)
-def test__validated_num_batches(
-    total_times, times_per_batch, num_batches, valid_num_batches
-):
-    if valid_num_batches:
-        assert (
-            _validated_num_batches(total_times, times_per_batch, num_batches,)
-            == valid_num_batches
-        )
-    else:
-        with pytest.raises(ValueError):
-            _validated_num_batches(
-                total_times, times_per_batch, num_batches,
-            )

@@ -69,7 +69,7 @@ def parse_args():
         "--timesteps-file",
         type=str,
         default=None,
-        help="Json file that defines train timestep set.",
+        help="json file containing a list of timesteps in YYYYMMDD.HHMMSS format",
     )
     parser.add_argument(
         "--no-train-subdir-append",
@@ -77,17 +77,6 @@ def parse_args():
         help="Omit the appending of 'train' to the input training data path",
     )
     return parser.parse_args()
-
-
-def _timesteps_to_list(raw_timesteps: Mapping[str, List]) -> List[str]:
-    if "train" not in raw_timesteps or len(raw_timesteps["train"]) == 0:
-        raise KeyError("Timesteps json file must have list of times in 'train' key.")
-    train_timesteps = raw_timesteps["train"]
-    if isinstance(train_timesteps[0], List):
-        # case when one step time config has pairs of timesteps
-        return [group[0] for group in train_timesteps]
-    else:
-        return train_timesteps
 
 
 if __name__ == "__main__":
@@ -100,15 +89,8 @@ if __name__ == "__main__":
 
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
-            raw_timesteps = yaml.safe_load(f)
-        # If timesteps specified, num_batches is used to determine size of each batch.
-        # Raises an error if over-specified using "timesteps_per_batch".
-        if "num_batches" in train_config.batch_kwargs:
-            raise ValueError(
-                "Do not provide batch kwarg 'num_batches' if timestep set is provided. "
-                "The only arg used to determine batch size is 'timesteps_per_batch'."
-            )
-        train_config.batch_kwargs["timesteps"] = _timesteps_to_list(raw_timesteps)
+            timesteps = yaml.safe_load(f)
+        train_config.batch_kwargs["timesteps"] = timesteps
 
     batched_data = train.load_data_sequence(data_path, train_config)
     _save_config_output(args.output_data_path, train_config)
