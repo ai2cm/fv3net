@@ -4,13 +4,15 @@ import warnings
 import os
 import xarray as xr
 import numpy as np
-from typing import List, Iterable
+from typing import List, Iterable, Tuple
 from datetime import timedelta
 
 import fsspec
 import vcm
 
 logger = logging.getLogger(__name__)
+
+DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 
 # desired name as keys with set containing sources to rename
 # TODO: could this be tied to the registry?
@@ -207,7 +209,19 @@ def _load_prognostic_run_physics_output(url):
     return xr.merge(diagnostic_data, join="inner")
 
 
-def load_dycore(url, grid_spec, catalog):
+def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
+    """Open data required for dycore plots.
+
+    Args:
+        url: path to prognostic run directory
+        grid_spec: path to C384 grid spec (everything up to .tile?.nc)
+        catalog: Intake catalog of available data sources
+
+    Returns:
+        tuple of prognostic run data, verification data and grid variables all at
+        coarsened resolution. Prognostic and verification data contain variables output
+        by the dynamical core.
+    """
     logger.info(f"Processing dycore data from run directory at {url}")
 
     # open grid
@@ -236,7 +250,19 @@ def load_dycore(url, grid_spec, catalog):
     return resampled, verification_c48, grid_c48[["area"]]
 
 
-def load_physics(url, grid_spec, catalog):
+def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
+    """Open data required for physics plots.
+
+        Args:
+            url: path to prognostic run directory
+            grid_spec: path to C384 grid spec (everything up to .tile?.nc)
+            catalog: Intake catalog of available data sources
+
+        Returns:
+            tuple of prognostic run data, verification data and grid variables all at
+            coarsened resolution. Prognostic and verification data contain variables output
+            by the physics routines.
+        """
     logger.info(f"Processing physics data from run directory at {url}")
 
     # open grid
@@ -247,7 +273,7 @@ def load_physics(url, grid_spec, catalog):
     )
 
     # open verification
-    # TODO: load physics diagnostics for SHiELD data when diagnostics require them
+    # TODO: load physics diagnostics for SHiELD data. Currently slow due to chunking.
     verification_c48 = xr.Dataset()
 
     # open prognostic run data

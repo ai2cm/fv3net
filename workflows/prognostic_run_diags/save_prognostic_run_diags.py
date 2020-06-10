@@ -20,7 +20,7 @@ from dask.diagnostics import ProgressBar
 from pathlib import Path
 from toolz import curry
 from collections import defaultdict
-from typing import Tuple, Dict, Callable
+from typing import Tuple, Dict, Callable, Mapping
 
 import vcm
 import load_diagnostic_data as load_diags
@@ -35,10 +35,11 @@ HORIZONTAL_DIMS = ["x", "y", "tile"]
 
 
 DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
+DiagDict = Mapping[str, xr.DataArray]
 
 
 @curry
-def add_to_diags(diags_key: str, func: Callable[[DiagArg], xr.Dataset]):
+def add_to_diags(diags_key: str, func: Callable[[DiagArg], DiagDict]):
     """
     Add a function to the list of diagnostics to be computed
     for a specified group of data.
@@ -48,10 +49,10 @@ def add_to_diags(diags_key: str, func: Callable[[DiagArg], xr.Dataset]):
         func: a function which computes a set of diagnostics.
             It needs to have the following signature::
 
-                func(prognostic_run_data, verificiation_c48_data, grid)
+                func(prognostic_run_data, verification_c48_data, grid)
 
-            and should return an xarray Dataset of diagnostics.
-            This output will be merged with all other decoratored functions,
+            and should return diagnostics as a dict of xr.DataArrays.
+            This output will be merged with all other decorated functions,
             so some care must be taken to avoid variable and coordinate clashes.
     """
     _DIAG_FNS[diags_key].append(func)
@@ -59,15 +60,16 @@ def add_to_diags(diags_key: str, func: Callable[[DiagArg], xr.Dataset]):
     return func
 
 
-def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]):
+def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
     """
     Compute all diagnostics for input data.
 
-    Args
-    ----
-    input_datasets:
-        Input datasets with keys corresponding to the appropriate group of
-        diagnostics (_DIAG_FNS) to be run on each data source.
+    Args:
+        input_datasets: Input datasets with keys corresponding to the appropriate group
+        of diagnostics (_DIAG_FNS) to be run on each data source.
+
+    Returns:
+        all computed diagnostics
     """
 
     diags = {}
@@ -169,7 +171,7 @@ def dump_nc(ds: xr.Dataset, f):
             shutil.copyfileobj(tmp1, f)
 
 
-def _vars_to_diags(suffix, ds, src_ds):
+def _vars_to_diags(suffix: str, ds: xr.Dataset, src_ds: xr.Dataset) -> DiagDict:
     # converts dataset variables into diagnostics dict
     # and assigns attrs from src_ds if none are set
 
