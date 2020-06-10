@@ -1,6 +1,7 @@
 import logging
-from typing import Mapping
+from typing import Mapping, Callable
 
+from functools import partial
 import fsspec
 import zarr
 from sklearn.externals import joblib
@@ -11,7 +12,7 @@ import fv3gfs
 from fv3gfs._wrapper import get_time
 import fv3util
 import runtime
-from runtime.adapters import RenamingAdapter
+from fv3net.regression.sklearn.adapters import RenamingAdapter, StackingAdapter
 
 from mpi4py import MPI
 
@@ -67,19 +68,21 @@ def rename_diagnostics(diags):
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
 
 
-def open_model(config):
+def open_model(config) -> RenamingAdapter:
     # Load the model
     rename = config.get("input_variable_standard_names", {})
     with fsspec.open(config["model"], "rb") as f:
         model = joblib.load(f)
-    return RenamingAdapter(model, rename)
+
+    stacked_predictor = StackingAdapter(model, sample_dims=["y", "x"])
+    return RenamingAdapter(stacked_predictor, rename)
 
 
 def predict(model: RenamingAdapter, state: State) -> State:
+    # TODO fix type hint
     """Given ML model and state, return tendency prediction."""
-    stacked = xr.Dataset(state).stack(sample=["x", "y"])
-    with parallel_backend("threading", n_jobs=1):
-        output = model.predict(stacked, "sample").unstack("sample")
+    ds = xr.Dataset(state)
+    output = model.predict(ds)
     return {key: output[key] for key in output}
 
 
@@ -118,13 +121,13 @@ if __name__ == "__main__":
 
     if rank == 0:
         logger.info("Downloading Sklearn Model")
-        MODEL = open_model(args["scikit_learn"])
+        # MODEL = open_model(args["scikit_learn"])
         logger.info("Model downloaded")
     else:
         MODEL = None
 
-    MODEL = comm.bcast(MODEL, root=0)
-    variables = list(MODEL.variables | REQUIRED_VARIABLES)
+    MODEL: RenamingAdapter = comm.bcast(MODEL, root=0)
+    variables = list(MODEL.input_vars_ | REQUIRED_VARIABLES)
     if rank == 0:
         logger.debug(f"Prognostic run requires variables: {variables}")
 
