@@ -5,16 +5,19 @@ import xarray as xr
 NameDict = Mapping[str, str]
 
 
-class BaseAdapter:
-
-    variables: Sequence[str]
-
-    def predict(self, ds: xr.Dataset) -> xr.Dataset:
-        raise NotImplementedError
+def _invert_dict(d: Mapping) -> Mapping:
+    return dict(zip(d.values(), d.keys()))
 
 
-class RenamingAdapter(BaseAdapter):
-    """Adapter object for renaming"""
+class RenamingAdapter:
+    """Adapter object for renaming
+
+    Attributes:
+        model: a sklearn model to wrap
+        rename_in: mapping from standard names to input names of model
+        rename_out: mapping from standard names to the output names of model
+    
+    """
 
     def __init__(self, model: Any, rename_in: NameDict, rename_out: NameDict = None):
         # unforunately have to use Any with model to avoid dependency on fv3net
@@ -40,11 +43,11 @@ class RenamingAdapter(BaseAdapter):
         return self._rename(ds, self.rename_in)
 
     def _rename_outputs(self, ds: xr.Dataset) -> xr.Dataset:
-        return self._rename(ds, self.rename_out)
+        return self._rename(ds, _invert_dict(self.rename_out))
 
     @property
     def variables(self) -> Set[str]:
-        invert_rename_in = dict(zip(self.rename_in.values(), self.rename_in.keys()))
+        invert_rename_in = _invert_dict(self.rename_in)
         return {invert_rename_in.get(var, var) for var in self.model.input_vars_}
 
     def predict(self, arg: xr.Dataset, sample_dim: str) -> xr.Dataset:
