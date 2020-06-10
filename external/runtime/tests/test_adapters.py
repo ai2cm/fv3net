@@ -55,5 +55,5 @@ def test_RenamingAdapter_predict_renames_dims_correctly(
 
 
 def test_RenamingAdapter_variables():
-    model = RenamingAdapter(Mock(), {"x": "renamed_input", "y": "rename_output"})
+    model = RenamingAdapter(Mock(), {"x": "renamed_input"})
     assert model.variables == {"x"}
