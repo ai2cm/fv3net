@@ -260,8 +260,8 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
 
         Returns:
             tuple of prognostic run data, verification data and grid variables all at
-            coarsened resolution. Prognostic and verification data contain variables output
-            by the physics routines.
+            coarsened resolution. Prognostic and verification data contain variables
+            output by the physics routines.
         """
     logger.info(f"Processing physics data from run directory at {url}")
 
