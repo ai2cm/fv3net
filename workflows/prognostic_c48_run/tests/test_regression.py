@@ -4,14 +4,21 @@ import shutil
 from pathlib import Path
 
 import fv3config
+import xarray as xr
 import pytest
+from fv3net.regression.sklearn import SklearnWrapper
+from sklearn.dummy import DummyRegressor
+import joblib
+import numpy as np
 
-default_fv3config = """
+
+default_fv3config = r"""
 data_table: default
 diag_table: default
-experiment_name: test_experiment
-forcing: gs://vcm-fv3config/data/base_forcing/v1.1
-initial_conditions: gs://vcm-fv3config/data/initial_conditions/restart_initial_conditions/
+experiment_name: restart
+forcing: {}
+orographic_forcing: {}
+initial_conditions: {}
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -70,7 +77,7 @@ namelist:
     - 8
     - 1
     - 0
-    - 15
+    - 0
     - 0
     days: 0
     dt_atmos: 900
@@ -79,7 +86,7 @@ namelist:
     memuse_verbose: true
     minutes: 30
     months: 0
-    ncores_per_node: 32
+    ncores_per_node: 1
     seconds: 0
     use_hyper_thread: true
   diag_manager_nml:
@@ -148,10 +155,9 @@ namelist:
     nggps_ic: false
     no_dycore: false
     nord: 2
-    npx: 49
-    npy: 49
-    npz: 79
-    external_eta: true
+    npx: 13
+    npy: 13
+    npz: 63
     ntiles: 6
     nudge: false
     nudge_qv: true
@@ -309,12 +315,45 @@ namelist:
 def get_config(model):
     config = yaml.safe_load(default_fv3config)
     config["scikit_learn"] = {"model": model, "zarr_output": "diags.zarr"}
+    # use local paths in prognostic_run image. fv3config caching still downloads data
+
+    base = "/inputdata/fv3config-cache/gs/vcm-fv3config/vcm-fv3config/"
+
+    config["forcing"] = f"{base}/data/base_forcing/v1.1"  # noqa
+    config[
+        "initial_conditions"
+    ] = f"{base}/data/initial_conditions/c12_restart_initial_conditions/v1.0"  # noqa
+    config["orographic_forcing"] = f"{base}/data/orographic_data/v1.0"
+
+    config["namelist"]["coupler_nml"].update({"days": 0, "minutes": 30, "seconds": 0})
     return config
 
 
-def test_fv3run(tmpdir):
-    runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
-    config = get_config(
-        "gs://vcm-ml-experiments/2020-06-02-fine-res/trained_sklearn/sklearn_model.pkl"
+@pytest.fixture
+def saved_model(tmpdir):
+    nz = 63
+
+    arr = np.ones((1, nz))
+    dims = ["sample", "z"]
+
+    data = xr.Dataset(
+        {
+            "specific_humidity": (dims, arr),
+            "air_temperature": (dims, arr),
+            "dQ1": (dims, arr),
+            "dQ2": (dims, arr),
+        }
     )
+    estimator = DummyRegressor(strategy="constant", constant=np.zeros(2 * nz))
+    model = SklearnWrapper(estimator)
+    model.fit(["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], "sample", data)
+
+    path = str(tmpdir.join("model.pkl"))
+    joblib.dump(model, path)
+    return path
+
+
+def test_fv3run(saved_model, tmpdir):
+    runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
+    config = get_config(saved_model)
     fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=False)

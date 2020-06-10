@@ -15,7 +15,7 @@ dev:
 	 $(RUN_INTERACTIVE) bash
 
 test:
-	$(RUN) pytest workflows/prognostic_c48_run
+	$(RUN_INTERACTIVE) pytest workflows/prognostic_c48_run
 
 sklearn_run: pull_image
 	fv3run --dockerimage $(IMAGE) --runfile sklearn_runfile.py $(FV3CONFIG) rundir
