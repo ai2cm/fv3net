@@ -82,8 +82,9 @@ def test__mapper_to_batches_timestep_list(
     batched_data_sequence = _mapper_to_batches(
         mapper, DATA_VARS, timesteps_per_batch=times_per_batch, timesteps=timestep_list
     )
+    print(batched_data_sequence._args)
     assert len(batched_data_sequence) == valid_num_batches
-    timesteps_used = sum(batched_data_sequence._args, [])  # flattens list
+    timesteps_used = sum(batched_data_sequence._args, ())  # flattens list
     assert set(timesteps_used).issubset(timestep_list)
 
 

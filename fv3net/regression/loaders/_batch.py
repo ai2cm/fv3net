@@ -1,6 +1,5 @@
 import functools
 import logging
-import numpy as np
 from numpy.random import RandomState
 from typing import Iterable, Sequence, Mapping, Any, Hashable
 import xarray as xr
@@ -101,7 +100,7 @@ def _mapper_to_batches(
     if timesteps and set(timesteps).issubset(data_mapping.keys()) is False:
         raise ValueError(
             "Timesteps specified in file are not present in data: "
-            f"{np.setdiff1d(timesteps, data_mapping.keys())}"
+            f"{list(set(timesteps)-set(data_mapping.keys()))}"
         )
 
     random_state = RandomState(random_seed)
@@ -111,10 +110,10 @@ def _mapper_to_batches(
         raise TypeError("At least one value must be given for variable_names")
 
     num_batches = _validated_num_batches(
-        len(data_mapping), timesteps_per_batch, num_batches
+        len(timesteps or data_mapping), timesteps_per_batch, num_batches
     )
     num_times = timesteps_per_batch * num_batches
-    times = _sample(data_mapping.keys(), num_times, random_state)
+    times = _sample(timesteps or data_mapping.keys(), num_times, random_state)
     batched_timesteps = list(partition(timesteps_per_batch, times))
 
     transform = functools.partial(
@@ -195,7 +194,7 @@ def _mapper_to_diagnostic_sequence(
         rename_variables = {}
 
     num_batches = _validated_num_batches(
-        len(data_mapping), timesteps_per_batch, num_batches
+        len(timesteps or data_mapping), timesteps_per_batch, num_batches
     )
     num_times = timesteps_per_batch * num_batches
     times = _sample(data_mapping.keys(), num_times, random_state)
