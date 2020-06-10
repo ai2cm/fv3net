@@ -9,7 +9,6 @@ import report
 import gallery
 import vcm
 import numpy as np
-from typing import List
 from . import train
 
 
