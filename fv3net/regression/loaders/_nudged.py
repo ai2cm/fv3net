@@ -4,7 +4,7 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import zarr.storage as zstore
-from typing import Sequence, Mapping, Union, Tuple
+from typing import Sequence, Mapping, Union, Tuple, Any
 from itertools import product
 from toolz import groupby
 from pathlib import Path
@@ -14,6 +14,7 @@ from vcm import cloud
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import TIME_FMT
 from .constants import TIME_NAME
+from ._transform import NudgedTendencies
 
 logger = logging.getLogger(__name__)
 
@@ -97,15 +98,18 @@ class MergeNudged(NudgedTimestepMapper):
     """
 
     def __init__(
-        self, *nudged_sources: Sequence[Union[NudgedTimestepMapper, xr.Dataset]]
+        self,
+        *nudged_sources: Sequence[Union[NudgedTimestepMapper, xr.Dataset]],
+        rename_vars: Mapping[str, str] = None,
     ):
+        rename_vars = rename_vars or {}
         if len(nudged_sources) < 2:
             raise TypeError(
                 "MergeNudged should be instantiated with two or more data sources."
             )
         nudged_sources = self._mapper_to_datasets(nudged_sources)
         self._check_dvar_overlap(*nudged_sources)
-        self.ds = xr.merge(nudged_sources, join="inner")
+        self.ds = xr.merge(nudged_sources, join="inner").rename(rename_vars)
 
     @staticmethod
     def _mapper_to_datasets(data_sources) -> Mapping[str, xr.Dataset]:
@@ -221,16 +225,16 @@ def _standardize_zarr_time_coord(ds: xr.Dataset):
     times = np.array(list(map(vcm.cast_to_datetime, ds[TIME_NAME].values)))
     times = np.vectorize(round_time)(times)
     ds = ds.assign_coords({TIME_NAME: times})
-
     return ds
 
 
 def open_nudged(
     url: str,
     nudging_timescale_hr: Union[int, float],
-    merge_files: Tuple[str] = ("after_physics", "nudging_tendencies"),
+    merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
     initial_time_skip_hr: int = 0,
     n_times: int = None,
+    rename_vars: Mapping[str, str] = None,
 ) -> Mapping[str, xr.Dataset]:
     """
     Load nudging data mapper for use with training.  Currently merges the
@@ -248,6 +252,7 @@ def open_nudged(
             to omit from the batching operation
         n_times (optional): Number of times (by index) to include in the
             batch resampling operation
+        rename_vars (optional): mapping of variables to be renamed
     """
 
     fs = cloud.get_fs(url)
@@ -267,7 +272,7 @@ def open_nudged(
 
         datasets.append(ds)
 
-    nudged_mapper = MergeNudged(*datasets)
+    nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
     nudged_mapper = SubsetTimes(initial_time_skip_hr, n_times, nudged_mapper)
 
     return nudged_mapper
@@ -306,7 +311,8 @@ def open_nudging_checkpoints(
 
     datasets = {}
     for filename in checkpoint_files:
-        mapper = fs.get_mapper(os.path.join(nudged_url, f"{filename}"))
+        full_path = os.path.join(nudged_url, f"{filename}")
+        mapper = fs.get_mapper(full_path)
         ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
         ds = _standardize_zarr_time_coord(ds)
 
@@ -314,3 +320,53 @@ def open_nudging_checkpoints(
         datasets[source_name] = ds
 
     return NudgedStateCheckpoints(datasets)
+
+
+def open_nudged_tendencies(
+    url: str,
+    nudging_timescale_hr: Union[int, float],
+    open_nudged_kwargs: Mapping[str, Any] = None,
+    open_checkpoints_kwargs: Mapping[str, Any] = None,
+    difference_checkpoints: Sequence[str] = ("after_dynamics", "after_physics"),
+    tendency_variables: Mapping[str, str] = None,
+    timestep_seconds: int = 900,
+) -> Mapping[str, xr.Dataset]:
+    """
+    Load mapper to nudged dataset containing both dQ and pQ tendency terms
+
+    Args:
+        url: Path to directory with nudging output (not including the timescale
+            subdirectories, e.g., outdir-3h)
+        timescale_hours: timescale of the nudging for the simulation
+            being used as input.
+        open_nudged_kwargs (optional): kwargs mapping to be passed to open_nudged
+        open_checkpoints_kwargs (optional): kwargs mapping to be passed to
+            open_nudging_checkpoints
+        difference_checkpoints (optional): len-2 sequence of checkpoint names
+            for computing physics tendencies, with first checkpoint subtracted
+            from second; defaults to ('after_dynamics', 'after_physics')
+        tendency_variables (optional): mapping of tendency term names to underlying
+            variable names; defaults to
+            {'pQ1': 'air_temperature', 'pQ2': 'specific_humidity'}
+        timestep_seconds (optional): physics timestep in seconds; defaults to 900
+        
+    Returns
+        mapper of timestamps to datasets containing full tendency terms
+    """
+
+    open_nudged_kwargs = open_nudged_kwargs or {}
+    open_checkpoints_kwargs = open_checkpoints_kwargs or {}
+
+    nudged_mapper = open_nudged(url, nudging_timescale_hr, **open_nudged_kwargs)
+
+    checkpoint_mapper = open_nudging_checkpoints(
+        url, nudging_timescale_hr, **open_checkpoints_kwargs
+    )
+
+    return NudgedTendencies(
+        nudged_mapper,
+        checkpoint_mapper,
+        difference_checkpoints,
+        tendency_variables,
+        timestep_seconds,
+    )

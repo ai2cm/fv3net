@@ -6,6 +6,6 @@ from ._fine_resolution_budget import (
     open_fine_resolution_budget,
     open_fine_res_apparent_sources,
 )
-from ._nudged import open_nudged
+from ._nudged import open_nudged, open_nudged_tendencies, open_nudging_checkpoints
 
 from .constants import TIME_NAME, SAMPLE_DIM_NAME

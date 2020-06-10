@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.random import RandomState
-from typing import Mapping, Tuple, Sequence
+from typing import Mapping, Tuple, Sequence, Union
 import xarray as xr
 from toolz import groupby
 
@@ -13,6 +13,8 @@ Z_DIM_NAMES = ["z", "pfull"]
 Time = str
 Tile = int
 K = Tuple[Time, Tile]
+Source = str
+Checkpoint = Tuple[Source, Time]
 
 
 def stack_dropnan_shuffle(
@@ -173,3 +175,64 @@ class FineResolutionSources:
             budget_time_ds[apparent_source_name].attrs["units"] = f"{units}/s"
 
         return budget_time_ds
+
+
+class NudgedTendencies:
+    def __init__(
+        self,
+        nudged_mapper: Mapping[Time, xr.Dataset],
+        checkpoint_mapper: Mapping[Checkpoint, xr.Dataset],
+        difference_datasets: Sequence[str] = ("after_dynamics", "after_physics"),
+        tendency_variables: Mapping[str, str] = None,
+        timestep_seconds: int = 900,
+    ):
+        for source in difference_datasets:
+            if source not in checkpoint_mapper.sources:
+                raise ValueError(
+                    f"Sources must include {' '.join(difference_datasets)}"
+                    f"but {source} is not present."
+                )
+        self._nudged_mapper = nudged_mapper
+        self._checkpoint_mapper = checkpoint_mapper
+        self._difference_datasets = difference_datasets
+        self._tendency_variables = tendency_variables or {
+            "pQ1": "air_temperature",
+            "pQ2": "specific_humidity",
+        }
+        self._timestep_seconds = timestep_seconds
+
+    def keys(self):
+        return self._nudged_mapper.keys()
+
+    def __getitem__(self, time: Time) -> xr.Dataset:
+        return self._derived_ds(time)
+
+    def _derived_ds(self, time: Time):
+
+        physics_tendencies = self._physics_tendencies(
+            time,
+            self._tendency_variables,
+            self._checkpoint_mapper,
+            self._difference_datasets,
+            self._timestep_seconds,
+        )
+
+        return self._nudged_mapper[time].assign(physics_tendencies)
+
+    @staticmethod
+    def _physics_tendencies(
+        time: Time,
+        tendency_variables: Mapping[str, str],
+        checkpoint_mapper: Checkpoint,
+        difference_datasets: Sequence[str],
+        timestep_seconds: Union[int, float],
+    ) -> Mapping[str, xr.DataArray]:
+
+        physics_tendencies = {}
+        for term_name, variable_name in tendency_variables.items():
+            physics_tendencies[term_name] = (
+                checkpoint_mapper[(difference_datasets[1], time)][variable_name]
+                - checkpoint_mapper[(difference_datasets[0], time)][variable_name]
+            ) / timestep_seconds
+
+        return physics_tendencies
