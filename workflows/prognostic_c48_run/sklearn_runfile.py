@@ -70,12 +70,13 @@ def rename_diagnostics(diags):
 
 def open_model(config) -> RenamingAdapter:
     # Load the model
-    rename = config.get("input_variable_standard_names", {})
+    rename_in = config.get("input_standard_names", {})
+    rename_out = config.get("output_standard_names", {})
     with fsspec.open(config["model"], "rb") as f:
         model = joblib.load(f)
 
     stacked_predictor = StackingAdapter(model, sample_dims=["y", "x"])
-    return RenamingAdapter(stacked_predictor, rename)
+    return RenamingAdapter(stacked_predictor, rename_in, rename_out)
 
 
 def predict(model: RenamingAdapter, state: State) -> State:
