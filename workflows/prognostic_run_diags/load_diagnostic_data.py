@@ -257,4 +257,6 @@ def load_physics(url, grid_spec, catalog):
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
 
+    verification_c48 = verification_c48.sel(time=prognostic_output.time)
+
     return prognostic_output, verification_c48, grid_c48[["area"]]
