@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
     if rank == 0:
         logger.info("Downloading Sklearn Model")
-        # MODEL = open_model(args["scikit_learn"])
+        MODEL = open_model(args["scikit_learn"])
         logger.info("Model downloaded")
     else:
         MODEL = None

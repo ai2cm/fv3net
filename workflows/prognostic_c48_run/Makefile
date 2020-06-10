@@ -1,9 +1,9 @@
-IMAGE = us.gcr.io/vcm-ml/prognostic_run:latest
+IMAGE ?= us.gcr.io/vcm-ml/prognostic_run
 KEY_ARGS= -v $(GOOGLE_APPLICATION_CREDENTIALS):/key.json \
 	  -e GOOGLE_APPLICATION_CREDENTIALS=/key.json
-LOCAL_DIR_ARGS = -w /code -v $(shell pwd):/code
+FV3NET = $(shell pwd)/../../
 
-RUN_ARGS = --rm $(KEY_ARGS) $(LOCAL_DIR_ARGS) $(IMAGE)
+RUN_ARGS = --rm $(KEY_ARGS) -w /fv3net -v $(FV3NET):/fv3net $(IMAGE)
 RUN_INTERACTIVE = docker run -ti $(RUN_ARGS)
 RUN ?= docker run $(RUN_ARGS)
 SKLEARN_MODEL = gs://vcm-ml-data/test-annak/ml-pipeline-output/2020-01-17_rf_40d_run.pkl
@@ -13,6 +13,9 @@ all: sklearn_run
 
 dev:
 	 $(RUN_INTERACTIVE) bash
+
+test:
+	$(RUN) pytest workflows/prognostic_c48_run
 
 sklearn_run: pull_image
 	fv3run --dockerimage $(IMAGE) --runfile sklearn_runfile.py $(FV3CONFIG) rundir
