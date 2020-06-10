@@ -68,6 +68,9 @@ run_integration_tests:
 test:
 	pytest external/* tests
 
+test_prognostic_run:
+	IMAGE=prognostic_run $(MAKE) -C workflows/prognostic_c48_run/ test
+
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images
 data:
@@ -118,9 +121,6 @@ PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 
 check_file_size:
 	./tests/check_for_large_files.sh
-
-test_prognostic_run:
-	$(MAKE) -C workflows/prognostic_c48_run/ test
 
 typecheck:
 	./check_types.sh
