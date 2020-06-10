@@ -1,5 +1,6 @@
 import functools
 import logging
+import numpy as np
 from numpy.random import RandomState
 from typing import Iterable, Sequence, Mapping, Any, Hashable
 import xarray as xr
@@ -98,7 +99,10 @@ def _mapper_to_batches(
         Sequence of xarray datasets
     """
     if timesteps and set(timesteps).issubset(data_mapping.keys()) is False:
-        raise ValueError("Timesteps specified in file are not present in data: ")
+        raise ValueError(
+            "Timesteps specified in file are not present in data: "
+            f"{np.setdiff1d(timesteps, data_mapping.keys())}"
+            )
 
     random_state = RandomState(random_seed)
     if rename_variables is None:
