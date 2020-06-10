@@ -1,11 +1,11 @@
-from typing import Mapping, Set, Any, Sequence
+from typing import Mapping, Set, Any, Sequence, Hashable
 
 from sklearn.utils import parallel_backend
 import xarray as xr
 
 from .wrapper import SklearnWrapper
 
-NameDict = Mapping[str, str]
+NameDict = Mapping[Hashable, Hashable]
 
 
 def _invert_dict(d: Mapping) -> Mapping:
@@ -69,7 +69,7 @@ class StackingAdapter:
 
     @property
     def input_vars_(self) -> Set[str]:
-        return self.model.input_vars_
+        return set(self.model.input_vars_)
 
     def predict(self, ds: xr.Dataset) -> xr.Dataset:
         with parallel_backend("threading", n_jobs=1):
