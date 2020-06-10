@@ -1,11 +1,9 @@
 import logging
-from typing import Mapping, Callable
+from typing import Mapping, Hashable, cast
 
-from functools import partial
 import fsspec
 import zarr
 from sklearn.externals import joblib
-from sklearn.utils import parallel_backend
 import xarray as xr
 
 import fv3gfs
@@ -19,7 +17,7 @@ from mpi4py import MPI
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-State = Mapping[str, xr.DataArray]
+State = Mapping[Hashable, xr.DataArray]
 
 # following variables are required no matter what feature set is being used
 TEMP = "air_temperature"
@@ -68,7 +66,7 @@ def rename_diagnostics(diags):
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
 
 
-def open_model(config) -> RenamingAdapter:
+def open_model(config):
     # Load the model
     rename_in = config.get("input_standard_names", {})
     rename_out = config.get("output_standard_names", {})
@@ -82,9 +80,9 @@ def open_model(config) -> RenamingAdapter:
 def predict(model: RenamingAdapter, state: State) -> State:
     # TODO fix type hint
     """Given ML model and state, return tendency prediction."""
-    ds = xr.Dataset(state)
+    ds = xr.Dataset(state)  # type: ignore
     output = model.predict(ds)
-    return {key: output[key] for key in output}
+    return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
 def apply(state: State, tendency: State, dt: float) -> State:
@@ -95,7 +93,7 @@ def apply(state: State, tendency: State, dt: float) -> State:
             SPHUM: state[SPHUM] + tendency["dQ2"] * dt,
             TEMP: state[TEMP] + tendency["dQ1"] * dt,
         }
-    return updated
+    return updated  # type: ignore
 
 
 if __name__ == "__main__":
@@ -127,7 +125,7 @@ if __name__ == "__main__":
     else:
         MODEL = None
 
-    MODEL: RenamingAdapter = comm.bcast(MODEL, root=0)
+    MODEL = comm.bcast(MODEL, root=0)
     variables = list(MODEL.input_vars_ | REQUIRED_VARIABLES)
     if rank == 0:
         logger.debug(f"Prognostic run requires variables: {variables}")
@@ -156,7 +154,7 @@ if __name__ == "__main__":
         tendency = predict(MODEL, state)
 
         if do_only_diagnostic_ml:
-            updated_state = {}
+            updated_state: State = {}
         else:
             updated_state = apply(state, tendency, dt=TIMESTEP)
 

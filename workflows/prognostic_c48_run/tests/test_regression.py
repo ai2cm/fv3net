@@ -1,16 +1,14 @@
-import os
-import yaml
-import shutil
 from pathlib import Path
 
 import fv3config
-import xarray as xr
-import pytest
-from fv3net.regression.sklearn import SklearnWrapper
-from sklearn.dummy import DummyRegressor
 import joblib
 import numpy as np
+import pytest
+import xarray as xr
+import yaml
+from sklearn.dummy import DummyRegressor
 
+from fv3net.regression.sklearn import SklearnWrapper
 
 default_fv3config = r"""
 data_table: default
@@ -315,8 +313,10 @@ namelist:
 def get_config(model):
     config = yaml.safe_load(default_fv3config)
     config["scikit_learn"] = {"model": model, "zarr_output": "diags.zarr"}
-    # use local paths in prognostic_run image. fv3config caching still downloads data
-
+    # use local paths in prognostic_run image. fv3config
+    # downloads data. We should change this once the fixes in
+    # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates
+    # into the prognostic_run image
     base = "/inputdata/fv3config-cache/gs/vcm-fv3config/vcm-fv3config/"
 
     config["forcing"] = f"{base}/data/base_forcing/v1.1"  # noqa
@@ -353,7 +353,7 @@ def saved_model(tmpdir):
     return path
 
 
-def test_fv3run(saved_model, tmpdir):
+def test_fv3run_succeeds(saved_model, tmpdir):
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
     config = get_config(saved_model)
     fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=False)

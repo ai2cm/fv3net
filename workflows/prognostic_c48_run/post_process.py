@@ -103,7 +103,7 @@ def convert_data(input_dir: str, output_dir: str):
     for output, in_, opener, chunks in paths_openers:
         logger.info(f"Processing {in_}")
         path = os.path.join(input_dir, in_)
-        ds = opener(path)
+        ds = opener(path)  # type: ignore
         clear_encoding(ds)
         chunked = rechunk(ds, chunks)
         path_out = os.path.join(output_dir, output)
