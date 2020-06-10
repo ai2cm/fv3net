@@ -90,7 +90,7 @@ def rms(x, y, w, dims):
 
 
 def bias(truth, prediction, w, dims):
-    return ((truth - prediction) * w).sum(dims) / w.sum(dims)
+    return ((prediction - truth) * w).sum(dims) / w.sum(dims)
 
 
 def calc_ds_diurnal_cycle(ds):
@@ -186,7 +186,7 @@ def _vars_to_diags(suffix, ds, src_ds):
     return diags
 
 
-@add_to_diags("3H")
+@add_to_diags("dycore")
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
@@ -194,14 +194,32 @@ def rms_errors(resampled, verification_c48, grid):
     return _vars_to_diags("rms_global", rms_errors, resampled)
 
 
-@add_to_diags("3H")
-def global_averages(resampled, verification, grid):
-    logger.info("Preparing global averages")
+@add_to_diags("dycore")
+def global_averages_dycore(resampled, verification, grid):
+    logger.info("Preparing global averages for dycore variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
         HORIZONTAL_DIMS
     )
 
-    return _vars_to_diags("global_avg", area_averages, resampled)
+    return _vars_to_diags("global_avg_dycore", area_averages, resampled)
+
+
+@add_to_diags("physics")
+def global_averages_physics(resampled, verification, grid):
+    logger.info("Preparing global averages for physics variables")
+    area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
+        HORIZONTAL_DIMS
+    )
+
+    return _vars_to_diags("global_avg_physics", area_averages, resampled)
+
+
+@add_to_diags("physics")
+def global_biases_physics(resampled, verification, grid):
+    logger.info("Preparing global average biases for physics variables")
+    bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+
+    return _vars_to_diags("bias_global_physics", bias_errors, resampled)
 
 
 def diurnal_cycles(resampled, verification, grid):
@@ -251,28 +269,22 @@ if __name__ == "__main__":
 
     catalog = intake.open_catalog(args.catalog)
     input_data = {}
-    resampled, verification, grid = load_diags.load_data_3H(args.url, args.grid_spec, catalog)
-    input_data["3H"] = (resampled, verification, grid)
-
-    # Data loaded at original time resolution
-    # verif_base = load_diags.load_verification(
-    #     ["40day_c384_diags_time_avg"], catalog, 8, grid.area
-    # )
-    # data_base = load_diags.load_diagnostics(args.url)
+    input_data["dycore"] = load_diags.load_dycore(args.url, args.grid_spec, catalog)
+    input_data["physics"] = load_diags.load_physics(args.url, args.grid_spec, catalog)
 
     # begin constructing diags
     diags = {}
 
     # maps
-    diags["pwat_run_initial"] = resampled.PWAT.isel(time=0)
-    diags["pwat_run_final"] = resampled.PWAT.isel(time=-2)
-    diags["pwat_verification_final"] = verification.PWAT.isel(time=-2)
+    diags["pwat_run_initial"] = input_data["dycore"][0].PWAT.isel(time=0)
+    diags["pwat_run_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
+    diags["pwat_verification_final"] = input_data["dycore"][0].PWAT.isel(time=-2)
 
     diags.update(compute_all_diagnostics(input_data))
 
     # add grid vars
     diags = xr.Dataset(diags, attrs=attrs)
-    diags = diags.merge(grid)
+    diags = diags.merge(input_data["dycore"][2])
 
     logger.info("Forcing computation.")
     diags = diags.load()

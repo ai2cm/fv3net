@@ -190,13 +190,12 @@ def _load_standardized(path):
     return standardize_gfsphysics_diagnostics(ds)
 
 
-def load_prognostic_run_dt_atmos_output(url):
-    """Load, standardize and merge all prognostic run outputs that are saved every
-    model timestep"""
-    prognostic_run_outputs = ["diags.zarr", "atmos_dt_atmos.zarr", "sfc_dt_atmos.zarr"]
+def _load_prognostic_run_physics_output(url):
+    """Load, standardize and merge all prognostic run physics outputs"""
+    prognostic_run_physics_outputs = ["diags.zarr", "sfc_dt_atmos.zarr"]
     diagnostic_data = [
         _load_standardized(os.path.join(url, category))
-        for category in prognostic_run_outputs
+        for category in prognostic_run_physics_outputs
     ]
 
     # TODO: diags.zarr currently doesn't contain any coordinates and should perhaps be
@@ -209,8 +208,8 @@ def load_prognostic_run_dt_atmos_output(url):
     return xr.merge(diagnostic_data, join="inner")
 
 
-def load_data_3H(url, grid_spec, catalog):
-    logger.info(f"Processing 3H data from run directory at {url}")
+def load_dycore(url, grid_spec, catalog):
+    logger.info(f"Processing dycore data from run directory at {url}")
 
     # open grid
     logger.info("Opening Grid Spec")
@@ -226,8 +225,9 @@ def load_data_3H(url, grid_spec, catalog):
     )
 
     # open prognostic run data
-    logger.info(f"Opening prognostic run data at {url}")
-    ds = load_prognostic_run_dt_atmos_output(url)
+    path = os.path.join(url, "atmos_dt_atmos.zarr")
+    logger.info(f"Opening prognostic run data at {path}")
+    ds = _load_standardized(path)
     resampled = ds.resample(time="3H", label="right").nearest()
 
     verification_c48 = verification_c48.sel(
@@ -235,3 +235,26 @@ def load_data_3H(url, grid_spec, catalog):
     )  # don't use last time point. there is some trouble
 
     return resampled, verification_c48, grid_c48[["area"]]
+
+
+def load_physics(url, grid_spec, catalog):
+    logger.info(f"Processing physics data from run directory at {url}")
+
+    # open grid
+    logger.info("Opening Grid Spec")
+    grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
+    grid_c48 = vcm.cubedsphere.weighted_block_average(
+        grid_c384, grid_c384.area, 8, x_dim="x", y_dim="y"
+    )
+
+    # open verification
+    logger.info("Opening verification data")
+    verification_c48 = load_verification(
+        ["40day_c384_diags_time_avg"], catalog, coarsening_factor=8, area=grid_c384.area
+    )
+
+    # open prognostic run data
+    logger.info(f"Opening prognostic run data at {url}")
+    prognostic_output = _load_prognostic_run_physics_output(url)
+
+    return prognostic_output, verification_c48, grid_c48[["area"]]
