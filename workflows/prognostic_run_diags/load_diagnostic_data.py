@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # desired name as keys with set containing sources to rename
 # TODO: could this be tied to the registry?
-COORD_RENAME_INVERSE_MAP = {
+DIM_RENAME_INVERSE_MAP = {
     "x": {"grid_xt", "grid_xt_coarse"},
     "y": {"grid_yt", "grid_yt_coarse"},
     "tile": {"rank"},
@@ -36,10 +36,10 @@ def _adjust_tile_range(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def _rename_coords(ds: xr.Dataset) -> xr.Dataset:
+def _rename_dims(ds: xr.Dataset) -> xr.Dataset:
 
     varname_target_registry = {}
-    for target_name, source_names in COORD_RENAME_INVERSE_MAP.items():
+    for target_name, source_names in DIM_RENAME_INVERSE_MAP.items():
         varname_target_registry.update({name: target_name for name in source_names})
 
     vars_to_rename = {
@@ -123,7 +123,7 @@ def standardize_gfsphysics_diagnostics(ds):
 
     for func in [
         _adjust_tile_range,
-        _rename_coords,
+        _rename_dims,
         _round_time_coord,
         _remove_name_suffix,
         _set_missing_attrs,
@@ -159,7 +159,7 @@ def load_verification(
 
     """
 
-    area = _rename_coords(area)
+    area = _rename_dims(area)
 
     verif_data = []
     for dataset_key in catalog_keys:

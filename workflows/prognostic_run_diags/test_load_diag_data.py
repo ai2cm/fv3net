@@ -40,22 +40,22 @@ def _check_keys_equivalent(target_keys, test_keys):
 
 
 @pytest.mark.parametrize("with_coords", [False, True])
-def test__rename_coords(with_coords):
+def test__rename_dims(with_coords):
     """
     Construct DS from combos of source dimension names and check that it gets
     fixed with renaming function. Test datasets with and without coordinates defined.
     """
 
-    good_coord_keys = load_diags.COORD_RENAME_INVERSE_MAP.keys()
-    good_ds = _create_ds_from_dims(*good_coord_keys, with_coords=with_coords)
-    good_ds_renamed = load_diags._rename_coords(good_ds)
-    _check_keys_equivalent(good_coord_keys, good_ds_renamed.dims.keys())
+    good_dim_keys = load_diags.DIM_RENAME_INVERSE_MAP.keys()
+    good_ds = _create_ds_from_dims(*good_dim_keys, with_coords=with_coords)
+    good_ds_renamed = load_diags._rename_dims(good_ds)
+    _check_keys_equivalent(good_dim_keys, good_ds_renamed.dims.keys())
 
-    for bad_dims in itertools.product(*load_diags.COORD_RENAME_INVERSE_MAP.values()):
+    for bad_dims in itertools.product(*load_diags.DIM_RENAME_INVERSE_MAP.values()):
         ds = _create_ds_from_dims(*bad_dims, with_coords=with_coords)
-        fixed_ds = load_diags._rename_coords(ds)
+        fixed_ds = load_diags._rename_dims(ds)
         fixed_coord_keys = fixed_ds.dims.keys()
-        _check_keys_equivalent(good_coord_keys, fixed_coord_keys)
+        _check_keys_equivalent(good_dim_keys, fixed_coord_keys)
 
 
 @pytest.fixture
