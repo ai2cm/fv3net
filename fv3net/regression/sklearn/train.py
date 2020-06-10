@@ -105,7 +105,16 @@ def _get_transformed_batch_regressor(train_config):
     return model_wrapper
 
 
-def train_model(batched_data: Sequence[xr.Dataset], train_config: ModelTrainingConfig):
+def train_model(
+    batched_data: Sequence[xr.Dataset], train_config: ModelTrainingConfig
+) -> SklearnWrapper:
+    """
+    Args:
+        batched_data: Sequence of training batch datasets
+        train_config: model training configuration
+    Returns:
+        trained sklearn model wrapper object
+    """
     model_wrapper = _get_transformed_batch_regressor(train_config)
     for i, batch in enumerate(batched_data):
         logger.info(f"Fitting batch {i}/{len(batched_data)}")

@@ -185,10 +185,10 @@ def _mapper_to_diagnostic_sequence(
     rename_variables: Mapping[str, str] = None,
     timesteps: Sequence[str] = None,
 ) -> Sequence[xr.Dataset]:
-    if timesteps and set(timesteps).issubset(dataset_mapper.keys()) is False:
+    if timesteps and set(timesteps).issubset(data_mapping.keys()) is False:
         raise ValueError(
             "Timesteps specified in file are not present in data: "
-            f"{list(set(timesteps)-set(dataset_mapper.keys()))}"
+            f"{list(set(timesteps)-set(data_mapping.keys()))}"
         )
     random_state = RandomState(random_seed)
     if rename_variables is None:
