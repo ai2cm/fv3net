@@ -7,6 +7,7 @@ from fv3net.regression.loaders._transform import (
     _get_chunk_indices,
     stack_dropnan_shuffle,
     FineResolutionSources,
+    NudgedTendencies,
 )
 
 
@@ -285,3 +286,132 @@ def test_FineResolutionSources(fine_res_mapper):
     safe.get_variables(
         source_ds, ["dQ1", "dQ2", "pQ1", "pQ2", "air_temperature", "specific_humidity"]
     )
+
+
+class MockMergeNudgedMapper:
+    def __init__(self, *nudged_sources):
+        self.ds = xr.merge(nudged_sources, join="inner")
+
+    def __getitem__(self, key: str) -> xr.Dataset:
+        return self.ds.sel({"time": key})
+
+    def keys(self):
+        return self.ds["time"].values
+
+
+@pytest.fixture
+def nudged_source():
+    air_temperature = xr.DataArray(
+        np.full((4, 1), 270.0),
+        {
+            "time": xr.DataArray(
+                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+            ),
+            "x": xr.DataArray([0], dims=["x"]),
+        },
+        ["time", "x"],
+    )
+    specific_humidity = xr.DataArray(
+        np.full((4, 1), 0.01),
+        {
+            "time": xr.DataArray(
+                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+            ),
+            "x": xr.DataArray([0], dims=["x"]),
+        },
+        ["time", "x"],
+    )
+    return xr.Dataset(
+        {"air_temperature": air_temperature, "specific_humidity": specific_humidity}
+    )
+
+
+@pytest.fixture
+def nudged_mapper(nudged_source):
+    return MockMergeNudgedMapper(nudged_source)
+
+
+class MockCheckpointMapper:
+    def __init__(self, ds_map):
+
+        self.sources = {key: MockMergeNudgedMapper(ds) for key, ds in ds_map.items()}
+
+    def __getitem__(self, key):
+        return self.sources[key[0]][key[1]]
+
+
+@pytest.fixture
+def nudged_checkpoint_mapper(request, nudged_source):
+    source_map = {request.param[0]: nudged_source, request.param[1]: nudged_source}
+    return MockCheckpointMapper(source_map)
+
+
+@pytest.mark.parametrize(
+    [
+        "nudged_checkpoint_mapper",
+        "tendency_variables",
+        "difference_checkpoints",
+        "valid",
+        "output_vars",
+    ],
+    [
+        pytest.param(
+            ("after_dynamics", "after_physics"),
+            None,
+            ("after_dynamics", "after_physics"),
+            True,
+            ["pQ1", "pQ2"],
+            id="base",
+        ),
+        pytest.param(
+            ("before_dynamics", "after_physics"),
+            None,
+            ("after_dynamics", "after_physics"),
+            False,
+            ["pQ1", "pQ2"],
+            id="wrong sources",
+        ),
+        pytest.param(
+            ("after_dynamics", "after_physics"),
+            {"Q1": "air_temperature", "Q2": "specific_humidity"},
+            ("after_dynamics", "after_physics"),
+            True,
+            ["Q1", "Q2"],
+            id="different term names",
+        ),
+        pytest.param(
+            ("after_dynamics", "after_physics"),
+            {"pQ1": "air_temperature", "pQ2": "sphum"},
+            ("after_dynamics", "after_physics"),
+            False,
+            ["pQ1", "pQ2"],
+            id="wrong variable name",
+        ),
+    ],
+    indirect=["nudged_checkpoint_mapper"],
+)
+def test_init_nudged_tendencies(
+    nudged_checkpoint_mapper,
+    tendency_variables,
+    difference_checkpoints,
+    valid,
+    output_vars,
+    nudged_mapper,
+):
+    if valid:
+        nudged_tendencies_mapper = NudgedTendencies(
+            nudged_mapper,
+            nudged_checkpoint_mapper,
+            difference_checkpoints,
+            tendency_variables,
+        )
+        safe.get_variables(nudged_tendencies_mapper["20200500.000000"], output_vars)
+    else:
+        with pytest.raises(KeyError):
+            nudged_tendencies_mapper = NudgedTendencies(
+                nudged_mapper,
+                nudged_checkpoint_mapper,
+                difference_checkpoints,
+                tendency_variables,
+            )
+            safe.get_variables(nudged_tendencies_mapper["20200500.000000"], output_vars)
