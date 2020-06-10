@@ -341,14 +341,14 @@ class MockCheckpointMapper:
 
 
 @pytest.fixture
-def nudged_checkpoint_mapper(request, nudged_source):
+def nudged_checkpoint_mapper_param(request, nudged_source):
     source_map = {request.param[0]: nudged_source, request.param[1]: nudged_source}
     return MockCheckpointMapper(source_map)
 
 
 @pytest.mark.parametrize(
     [
-        "nudged_checkpoint_mapper",
+        "nudged_checkpoint_mapper_param",
         "tendency_variables",
         "difference_checkpoints",
         "valid",
@@ -388,10 +388,10 @@ def nudged_checkpoint_mapper(request, nudged_source):
             id="wrong variable name",
         ),
     ],
-    indirect=["nudged_checkpoint_mapper"],
+    indirect=["nudged_checkpoint_mapper_param"],
 )
 def test_init_nudged_tendencies(
-    nudged_checkpoint_mapper,
+    nudged_checkpoint_mapper_param,
     tendency_variables,
     difference_checkpoints,
     valid,
@@ -401,7 +401,7 @@ def test_init_nudged_tendencies(
     if valid:
         nudged_tendencies_mapper = NudgedTendencies(
             nudged_mapper,
-            nudged_checkpoint_mapper,
+            nudged_checkpoint_mapper_param,
             difference_checkpoints,
             tendency_variables,
         )
@@ -410,8 +410,137 @@ def test_init_nudged_tendencies(
         with pytest.raises(KeyError):
             nudged_tendencies_mapper = NudgedTendencies(
                 nudged_mapper,
-                nudged_checkpoint_mapper,
+                nudged_checkpoint_mapper_param,
                 difference_checkpoints,
                 tendency_variables,
             )
             safe.get_variables(nudged_tendencies_mapper["20200500.000000"], output_vars)
+
+
+@pytest.fixture
+def nudged_checkpoint_mapper(request):
+    source_map = {"after_dynamics": request.param[0], "after_physics": request.param[1]}
+    return MockCheckpointMapper(source_map)
+
+
+@pytest.fixture
+def checkpoints():
+    return ("after_dynamics", "after_physics")
+
+
+def air_temperature(value):
+    return xr.DataArray(
+        np.full((4, 1), value),
+        {
+            "time": xr.DataArray(
+                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+            ),
+            "x": xr.DataArray([0], dims=["x"]),
+        },
+        ["time", "x"],
+    )
+
+
+def specific_humidity(value):
+    return xr.DataArray(
+        np.full((4, 1), value),
+        {
+            "time": xr.DataArray(
+                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+            ),
+            "x": xr.DataArray([0], dims=["x"]),
+        },
+        ["time", "x"],
+    )
+
+
+nudged_source_1 = xr.Dataset(
+    {
+        "air_temperature": air_temperature(270.0),
+        "specific_humidity": specific_humidity(0.01),
+    }
+)
+nudged_source_2 = xr.Dataset(
+    {
+        "air_temperature": air_temperature(272.0),
+        "specific_humidity": specific_humidity(0.005),
+    }
+)
+nudged_source_3 = xr.Dataset(
+    {
+        "air_temperature": air_temperature(272.0),
+        "specific_humidity": specific_humidity(np.nan),
+    }
+)
+
+
+@pytest.fixture
+def expected_tendencies(request):
+    return {
+        "pQ1": xr.DataArray(
+            [[request.param[0]]],
+            {
+                "time": xr.DataArray(["20200500.000000"], dims=["time"]),
+                "x": xr.DataArray([0], dims=["x"]),
+            },
+            ["time", "x"],
+        ),
+        "pQ2": xr.DataArray(
+            [[request.param[1]]],
+            {
+                "time": xr.DataArray(["20200500.000000"], dims=["time"]),
+                "x": xr.DataArray([0], dims=["x"]),
+            },
+            ["time", "x"],
+        ),
+    }
+
+
+@pytest.mark.parametrize(
+    ["nudged_checkpoint_mapper", "timestep", "expected_tendencies"],
+    [
+        pytest.param(
+            (nudged_source_1, nudged_source_1), 900, (0.0, 0.0), id="zero tendencies"
+        ),
+        pytest.param(
+            (nudged_source_1, nudged_source_2),
+            900.0,
+            (2.0 / 900.0, -0.005 / 900.0),
+            id="non-zero tendencies",
+        ),
+        pytest.param(
+            (nudged_source_1, nudged_source_2),
+            100.0,
+            (2.0 / 100.0, -0.005 / 100.0),
+            id="different timestep",
+        ),
+        pytest.param(
+            (nudged_source_1, nudged_source_3),
+            100.0,
+            (2.0 / 100.0, np.nan),
+            id="nan data",
+        ),
+    ],
+    indirect=["nudged_checkpoint_mapper", "expected_tendencies"],
+)
+def test__physics_tendencies(
+    nudged_checkpoint_mapper, timestep, expected_tendencies, nudged_mapper, checkpoints
+):
+
+    nudged_tendencies_mapper = NudgedTendencies(nudged_mapper, nudged_checkpoint_mapper)
+
+    time = "20200500.000000"
+
+    tendency_variables = {
+        "pQ1": "air_temperature",
+        "pQ2": "specific_humidity",
+    }
+
+    physics_tendencies = nudged_tendencies_mapper._physics_tendencies(
+        time, tendency_variables, nudged_checkpoint_mapper, checkpoints, timestep,
+    )
+
+    for term in tendency_variables:
+        xr.testing.assert_allclose(
+            physics_tendencies[term], expected_tendencies[term].sel(time=time)
+        )
