@@ -15,7 +15,7 @@ from fv3net.regression.loaders._nudged import (
     MergeNudged,
     GroupByTime,
     SubsetTimes,
-    open_nudged,
+    open_merged_nudged,
     open_nudging_checkpoints,
 )
 
@@ -215,10 +215,10 @@ def test_MergeNudged__check_dvar_overlap_fail(overlap_check_fail_datasets):
 
 
 @pytest.mark.regression
-def test_open_nudged(nudged_data_dir):
+def test_open_merged_nudged(nudged_data_dir):
 
     merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
-    mapper = open_nudged(
+    mapper = open_merged_nudged(
         nudged_data_dir,
         NUDGE_TIMESCALE,
         merge_files=merge_files,

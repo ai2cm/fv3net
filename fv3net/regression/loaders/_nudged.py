@@ -29,7 +29,7 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
     directory a bit trickier.  Currently checking by looking for difference
     between parsed timescale from folder name and requested timescale that
     is approximately zero (with requested tolerance).
-    
+
     Built on assumed outdir-{timescale}h format
     """
 
@@ -225,10 +225,11 @@ def _standardize_zarr_time_coord(ds: xr.Dataset):
     times = np.array(list(map(vcm.cast_to_datetime, ds[TIME_NAME].values)))
     times = np.vectorize(round_time)(times)
     ds = ds.assign_coords({TIME_NAME: times})
+
     return ds
 
 
-def open_nudged(
+def open_merged_nudged(
     url: str,
     nudging_timescale_hr: Union[int, float],
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
@@ -325,7 +326,7 @@ def open_nudging_checkpoints(
 def open_nudged_tendencies(
     url: str,
     nudging_timescale_hr: Union[int, float],
-    open_nudged_kwargs: Mapping[str, Any] = None,
+    open_merged_nudged_kwargs: Mapping[str, Any] = None,
     open_checkpoints_kwargs: Mapping[str, Any] = None,
     difference_checkpoints: Sequence[str] = ("after_dynamics", "after_physics"),
     tendency_variables: Mapping[str, str] = None,
@@ -339,7 +340,8 @@ def open_nudged_tendencies(
             subdirectories, e.g., outdir-3h)
         timescale_hours: timescale of the nudging for the simulation
             being used as input.
-        open_nudged_kwargs (optional): kwargs mapping to be passed to open_nudged
+        open_merged_nudged_kwargs (optional): kwargs mapping to be passed to
+            open_merged_nudged
         open_checkpoints_kwargs (optional): kwargs mapping to be passed to
             open_nudging_checkpoints
         difference_checkpoints (optional): len-2 sequence of checkpoint names
@@ -354,10 +356,12 @@ def open_nudged_tendencies(
         mapper of timestamps to datasets containing full tendency terms
     """
 
-    open_nudged_kwargs = open_nudged_kwargs or {}
+    open_merged_nudged_kwargs = open_merged_nudged_kwargs or {}
     open_checkpoints_kwargs = open_checkpoints_kwargs or {}
 
-    nudged_mapper = open_nudged(url, nudging_timescale_hr, **open_nudged_kwargs)
+    nudged_mapper = open_merged_nudged(
+        url, nudging_timescale_hr, **open_merged_nudged_kwargs
+    )
 
     checkpoint_mapper = open_nudging_checkpoints(
         url, nudging_timescale_hr, **open_checkpoints_kwargs
