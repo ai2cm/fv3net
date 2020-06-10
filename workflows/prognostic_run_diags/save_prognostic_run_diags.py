@@ -30,7 +30,7 @@ logger = logging.getLogger(__file__)
 
 _DIAG_FNS = defaultdict(list)
 
-HORIZONTAL_DIMS = ["grid_xt", "grid_yt", "tile"]
+HORIZONTAL_DIMS = ["x", "y", "tile"]
 
 
 DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
