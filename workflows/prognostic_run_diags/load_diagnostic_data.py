@@ -184,14 +184,13 @@ def load_verification(
 
 def _load_standardized(path):
     logger.info(f"Loading and standardizing {path}")
-    ds = xr.open_zarr(
-        fsspec.get_mapper(path), consolidated=True, mask_and_scale=False
-    ).load()
+    m = fsspec.get_mapper(path)
+    ds = xr.open_zarr(m, consolidated=True, mask_and_scale=False).load()
     return standardize_gfsphysics_diagnostics(ds)
 
 
 def _load_prognostic_run_physics_output(url):
-    """Load, standardize and merge all prognostic run physics outputs"""
+    """Load, standardize and merge prognostic run physics outputs"""
     prognostic_run_physics_outputs = ["diags.zarr", "sfc_dt_atmos.zarr"]
     diagnostic_data = [
         _load_standardized(os.path.join(url, category))

@@ -28,7 +28,7 @@ def _create_ds_from_dims(*dims, with_coords=True):
     else:
         arr = np.zeros([i + 1 for i in range(len(dims))])
         da = xr.DataArray(arr, dims=dims)
-        ds = xr.Dataset({'varname': da})
+        ds = xr.Dataset({"varname": da})
     return ds
 
 

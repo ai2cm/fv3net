@@ -175,11 +175,6 @@ def global_avg_physics_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMa
     )
 
 
-@diag_plot_manager.register
-def global_bias_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
-    return HVPlot(holomap_filter(time_series, varfilter="bias_global").overlay("run"))
-
-
 def diurnal_cycle_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
     return HVPlot(holomap_filter(time_series, varfilter="diurnal").overlay("run"))
 
