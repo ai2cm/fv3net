@@ -50,7 +50,7 @@ class RenamingAdapter:
         invert_rename_in = _invert_dict(self.rename_in)
         return {invert_rename_in.get(var, var) for var in self.model.input_vars_}
 
-    def predict(self, arg: xr.Dataset, sample_dim: str) -> xr.Dataset:
+    def predict(self, arg: xr.Dataset) -> xr.Dataset:
         input_ = self._rename_inputs(arg)
-        prediction = self.model.predict(input_, sample_dim)
+        prediction = self.model.predict(input_)
         return self._rename_outputs(prediction)
