@@ -36,16 +36,18 @@ def test_RenamingAdapter_predict_inputs_and_outputs_renamed():
 
 
 @pytest.mark.parametrize(
-    "rename_dims, expected",
+    "original_dims, rename_dims, expected",
     [
-        ({"dim_0": "xx"}, ["xx", "dim_1"]),
-        ({"dim_1": "yy"}, ["dim_0", "yy"]),
-        ({"dim_0": "xx", "dim_1": "yy"}, ["xx", "yy"]),
+        (["dim_0", "dim_1"], {"dim_0": "xx"}, ["xx", "dim_1"]),
+        (["dim_0", "dim_1"], {"dim_1": "yy"}, ["dim_0", "yy"]),
+        (["dim_0", "dim_1"], {"dim_0": "xx", "dim_1": "yy"}, ["xx", "yy"]),
     ],
 )
-def test_RenamingAdapter_predict_renames_dims_correctly(rename_dims, expected):
+def test_RenamingAdapter_predict_renames_dims_correctly(
+    original_dims, rename_dims, expected
+):
     m = Mock()
-    ds = xr.Dataset({m.input_vars_[0]: (["dim_0", "dim_1"], np.ones((5, 10)))})
+    ds = xr.Dataset({m.input_vars_[0]: (original_dims, np.ones((5, 10)))})
     model = RenamingAdapter(Mock(), rename_dims)
     out = model.predict(ds, None)
     output_array = out[m.output_vars_[0]]
