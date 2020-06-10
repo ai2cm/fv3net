@@ -1,4 +1,4 @@
-from typing import Union, Sequence
+from typing import Union, Sequence, Mapping
 from datetime import datetime
 import argparse
 import os
@@ -9,9 +9,7 @@ import report
 import gallery
 import vcm
 import numpy as np
-import xarray as xr
 from . import train
-from ..loaders import TIME_NAME, SAMPLE_DIM_NAME
 
 MODEL_FILENAME = "sklearn_model.pkl"
 MODEL_CONFIG_FILENAME = "training_config.yml"
@@ -30,10 +28,11 @@ def _save_config_output(output_url, config):
 
 
 def _create_report_plots(
-    path: str, times: Union[Sequence[np.datetime64], Sequence[datetime]]
-):
+    path: str, times: Sequence[Union[np.datetime64, datetime, str]]
+) -> Mapping[str, Sequence[str]]:
     """Given path to output directory and times used, create all plots required
     for html report"""
+    times = [vcm.cast_to_datetime(time) for time in times]
     with fsspec.open(os.path.join(path, TRAINING_FIG_FILENAME), "wb") as f:
         gallery.plot_daily_and_hourly_hist(times).savefig(f, dpi=90)
     return {"Time distribution of training samples": [TRAINING_FIG_FILENAME]}
@@ -72,14 +71,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def times_from_batches(batched_data):
-    return_list = []
-    ds = xr.concat(batched_data, SAMPLE_DIM_NAME)
-    for time in ds[TIME_NAME].values:
-        return_list.append(vcm.cast_to_datetime(time))
-    return return_list
-
-
 if __name__ == "__main__":
     args = parse_args()
 
@@ -96,6 +87,6 @@ if __name__ == "__main__":
     train.save_model(args.output_data_path, model, MODEL_FILENAME)
     report_metadata = {**vars(args), **vars(train_config)}
     report_sections = _create_report_plots(
-        args.output_data_path, times_from_batches(batched_data),
+        args.output_data_path, batched_data.attrs["times"],
     )
     _write_report(args.output_data_path, report_sections, report_metadata, REPORT_TITLE)

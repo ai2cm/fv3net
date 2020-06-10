@@ -1,15 +1,13 @@
-import numpy as np
 import os
 import pytest
 import synth
 import xarray as xr
+import numpy as np
 
 from fv3net.regression.loaders._batch import (
     _mapper_to_batches,
     _mapper_to_diagnostic_sequence,
     _load_batch,
-    _get_dataset_list,
-    _select_batch_timesteps,
     _validated_num_batches,
 )
 
@@ -55,18 +53,13 @@ def random_state():
 
 def test__load_batch(mapper):
     ds = _load_batch(
-        timestep_mapper=mapper,
+        mapper=mapper,
         data_vars=["air_temperature", "specific_humidity"],
         rename_variables={},
         init_time_dim_name="time",
-        timestep_list=mapper.keys(),
+        keys=mapper.keys(),
     )
     assert len(ds["time"]) == 4
-
-
-def test__get_dataset_list(mapper):
-    ds_list = _get_dataset_list(mapper, mapper.keys())
-    assert len(ds_list) == 4
 
 
 def test__mapper_to_batches(mapper):
@@ -113,42 +106,4 @@ def test__validated_num_batches(
         with pytest.raises(ValueError):
             _validated_num_batches(
                 total_times, times_per_batch, num_batches,
-            )
-
-
-@pytest.mark.parametrize(
-    "timesteps_per_batch, num_batches, total_num_timesteps, valid",
-    (
-        [3, 4, 12, True],
-        [4, 2, 12, True],
-        [1, 1, 12, True],
-        [1, 1, 1, True],
-        [4, 2, 0, False],
-        [0, 2, 12, False],
-        [3, 0, 12, False],
-        [3, 5, 12, False],
-        [3, 0, 12, False],
-    ),
-)
-def test__select_batch_timesteps(
-    timesteps_per_batch, num_batches, total_num_timesteps, valid
-):
-    random_state = np.random.RandomState(0)
-    timesteps = [str(i) for i in range(total_num_timesteps)]
-    if valid:
-        batched_times = _select_batch_timesteps(
-            timesteps, timesteps_per_batch, num_batches, random_state,
-        )
-        timesteps_seen = []
-        assert len(batched_times) == num_batches
-        for batch in batched_times:
-            assert len(np.unique(batch)) == timesteps_per_batch
-            assert set(batch).isdisjoint(timesteps_seen) and set(batch).issubset(
-                timesteps
-            )
-            timesteps_seen += batch
-    else:
-        with pytest.raises(Exception):
-            _select_batch_timesteps(
-                timesteps, timesteps_per_batch, num_batches, random_state,
             )
