@@ -248,15 +248,11 @@ def load_physics(url, grid_spec, catalog):
     )
 
     # open verification
-    logger.info("Opening verification data")
-    verification_c48 = load_verification(
-        ["40day_c384_diags_time_avg"], catalog, coarsening_factor=8, area=grid_c384.area
-    )
+    # TODO: load physics diagnostics for SHiELD data when diagnostics require them
+    verification_c48 = xr.Dataset()
 
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
-
-    verification_c48 = verification_c48.sel(time=prognostic_output.time)
 
     return prognostic_output, verification_c48, grid_c48[["area"]]
