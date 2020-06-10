@@ -102,7 +102,7 @@ def _mapper_to_batches(
         raise ValueError(
             "Timesteps specified in file are not present in data: "
             f"{np.setdiff1d(timesteps, data_mapping.keys())}"
-            )
+        )
 
     random_state = RandomState(random_seed)
     if rename_variables is None:
