@@ -105,6 +105,8 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
     """
     area_weighted_vars = ["phis", "delp", "DZ"]
     mass_weighted_vars = ["W", "T"]
+    if "ua" in ds and "va" in ds:
+        mass_weighted_vars.extend(["ua", "va"])
     dx_edge_weighted_vars = ["u"]
     dy_edge_weighted_vars = ["v"]
 
@@ -170,6 +172,8 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
     """
     area_weighted_vars = ["phis", "delp", "DZ"]
     mass_weighted_vars = ["W", "T"]
+    if "ua" in ds and "va" in ds:
+        mass_weighted_vars.extend(["ua", "va"])
     dx_edge_weighted_vars = ["u"]
     dy_edge_weighted_vars = ["v"]
 
