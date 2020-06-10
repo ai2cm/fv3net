@@ -23,7 +23,7 @@ sources:
       mapping_function: open_nudged_tendencies
       mapping_kwargs:
         nudging_timescale_hr: 3
-        open_nudged_kwargs:
+        open_merged_nudged_kwargs:
           rename_vars:
             air_temperature_tendency_due_to_nudging: dQ1
             specific_humidity_tendency_due_to_nudging: dQ2

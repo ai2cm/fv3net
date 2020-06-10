@@ -14,7 +14,6 @@ from vcm import cloud
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import TIME_FMT
 from .constants import TIME_NAME
-from ._transform import NudgedTendencies
 
 logger = logging.getLogger(__name__)
 
@@ -218,6 +217,67 @@ class SubsetTimes(GeoMapper):
         if time not in self._keys:
             raise KeyError("Time {time} not found in SubsetTimes mapper.")
         return self._nudged_data[time]
+
+
+class NudgedTendencies(GeoMapper):
+    def __init__(
+        self,
+        nudged_mapper: Mapping[Time, xr.Dataset],
+        checkpoint_mapper: Mapping[Checkpoint, xr.Dataset],
+        difference_checkpoints: Sequence[str] = ("after_dynamics", "after_physics"),
+        tendency_variables: Mapping[str, str] = None,
+        timestep_seconds: int = 900,
+    ):
+        for source in difference_checkpoints:
+            if source not in checkpoint_mapper.sources:
+                raise KeyError(
+                    f"Sources must include {' '.join(difference_checkpoints)}"
+                    f"but {source} is not present."
+                )
+        self._nudged_mapper = nudged_mapper
+        self._checkpoint_mapper = checkpoint_mapper
+        self._difference_checkpoints = difference_checkpoints
+        self._tendency_variables = tendency_variables or {
+            "pQ1": "air_temperature",
+            "pQ2": "specific_humidity",
+        }
+        self._timestep_seconds = timestep_seconds
+
+    def keys(self):
+        return self._nudged_mapper.keys()
+
+    def __getitem__(self, time: Time) -> xr.Dataset:
+        return self._derived_ds(time)
+
+    def _derived_ds(self, time: Time):
+
+        physics_tendencies = self._physics_tendencies(
+            time,
+            self._tendency_variables,
+            self._checkpoint_mapper,
+            self._difference_checkpoints,
+            self._timestep_seconds,
+        )
+
+        return self._nudged_mapper[time].assign(physics_tendencies)
+
+    @staticmethod
+    def _physics_tendencies(
+        time: Time,
+        tendency_variables: Mapping[str, str],
+        checkpoint_mapper: Checkpoint,
+        difference_checkpoints: Sequence[str],
+        timestep_seconds: Union[int, float],
+    ) -> Mapping[str, xr.DataArray]:
+
+        physics_tendencies = {}
+        for term_name, variable_name in tendency_variables.items():
+            physics_tendencies[term_name] = (
+                checkpoint_mapper[(difference_checkpoints[1], time)][variable_name]
+                - checkpoint_mapper[(difference_checkpoints[0], time)][variable_name]
+            ) / timestep_seconds
+
+        return physics_tendencies
 
 
 def _standardize_zarr_time_coord(ds: xr.Dataset):

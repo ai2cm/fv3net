@@ -79,10 +79,8 @@ if __name__ == "__main__":
     surface_type = cat["grid/c48/land_sea_mask"].to_dask()
     surface_type = surface_type.drop(labels=["y", "x"])
     grid = grid.merge(surface_type)
-    print(grid)
 
     variable_names = datasets_config["variables"]
-    print(variable_names)
 
     diagnostic_datasets = {}
     for dataset_name, dataset_config in datasets_config["sources"].items():
