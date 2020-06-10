@@ -30,7 +30,7 @@ def test_RenamingAdapter_predict_inputs_and_outputs_renamed():
 
     ds = xr.Dataset({"x": (["dim_0", "dim_1"], np.ones((5, 10)))})
 
-    model = RenamingAdapter(Mock(), {"x": "renamed_input", "y": "rename_output"})
+    model = RenamingAdapter(Mock(), {"x": "renamed_input"}, {"rename_output": "y"})
     out = model.predict(ds, None)
     assert "y" in out.data_vars
 

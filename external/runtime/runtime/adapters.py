@@ -1,11 +1,19 @@
-from typing import Mapping, Set, Any
+from typing import Mapping, Set, Any, Sequence
 
 import xarray as xr
 
 NameDict = Mapping[str, str]
 
 
-class RenamingAdapter:
+class BaseAdapter:
+
+    variables: Sequence[str]
+
+    def predict(self, ds: xr.Dataset) -> xr.Dataset:
+        raise NotImplementedError
+
+
+class RenamingAdapter(BaseAdapter):
     """Adapter object for renaming"""
 
     def __init__(self, model: Any, rename_in: NameDict, rename_out: NameDict = None):
@@ -24,7 +32,7 @@ class RenamingAdapter:
         rename_restricted = {key: rename[key] for key in all_names}
         redimed = ds.rename_dims(rename_restricted)
 
-        all_names = set(redimed.data_vars) & set(rename)
+        all_names = set(ds.data_vars) & set(rename)
         rename_restricted = {key: rename[key] for key in all_names}
         return redimed.rename(rename_restricted)
 
@@ -36,7 +44,8 @@ class RenamingAdapter:
 
     @property
     def variables(self) -> Set[str]:
-        return {self.rename_out.get(var, var) for var in self.model.input_vars_}
+        invert_rename_in = dict(zip(self.rename_in.values(), self.rename_in.keys()))
+        return {invert_rename_in.get(var, var) for var in self.model.input_vars_}
 
     def predict(self, arg: xr.Dataset, sample_dim: str) -> xr.Dataset:
         input_ = self._rename_inputs(arg)
