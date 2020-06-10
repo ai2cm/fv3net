@@ -15,6 +15,7 @@ import intake
 import numpy as np
 import xarray as xr
 import shutil
+from dask.diagnostics import ProgressBar
 
 from pathlib import Path
 from toolz import curry
@@ -287,7 +288,8 @@ if __name__ == "__main__":
     diags = diags.merge(input_data["dycore"][2])
 
     logger.info("Forcing computation.")
-    diags = diags.load()
+    with ProgressBar():
+        diags = diags.load()
 
     logger.info(f"Saving data to {args.output}")
     diags.to_netcdf(args.output)
