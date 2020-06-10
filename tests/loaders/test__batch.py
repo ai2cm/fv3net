@@ -62,9 +62,7 @@ def test__load_batch(mapper):
 
 
 def test__mapper_to_batches(mapper):
-    batched_data_sequence = _mapper_to_batches(
-        mapper, DATA_VARS, timesteps_per_batch=2
-    )
+    batched_data_sequence = _mapper_to_batches(mapper, DATA_VARS, timesteps_per_batch=2)
     assert len(batched_data_sequence) == 2
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
