@@ -48,7 +48,7 @@ def test_RenamingAdapter_predict_renames_dims_correctly(
 ):
     m = Mock()
     ds = xr.Dataset({m.input_vars_[0]: (original_dims, np.ones((5, 10)))})
-    model = RenamingAdapter(Mock(), rename_dims)
+    model = RenamingAdapter(m, rename_dims)
     out = model.predict(ds, None)
     output_array = out[m.output_vars_[0]]
     assert list(output_array.dims) == expected

@@ -1,5 +1,4 @@
-from typing import Mapping, Set
-from fv3net.regression.sklearn import SklearnWrapper
+from typing import Mapping, Set, Any
 
 import xarray as xr
 
@@ -9,21 +8,25 @@ NameDict = Mapping[str, str]
 class RenamingAdapter:
     """Adapter object for renaming"""
 
-    def __init__(
-        self, model: SklearnWrapper, rename_in: NameDict, rename_out: NameDict = None
-    ):
+    def __init__(self, model: Any, rename_in: NameDict, rename_out: NameDict = None):
+        # unforunately have to use Any with model to avoid dependency on fv3net
+        # regression. We could also upgraded to python 3.8 to get access to the
+        # Protocol [1] object which allows duck-typed types
+        #
+        # [1]: https://www.python.org/dev/peps/pep-0544/
         self.model = model
         self.rename_in = rename_in
-        if rename_out is None:
-            self.rename_out = dict(zip(rename_in.values(), rename_in.keys()))
-        else:
-            self.rename_out = rename_out
+        self.rename_out = {} if rename_out is None else rename_out
 
-    @staticmethod
-    def _rename(ds: xr.Dataset, rename: Mapping[str, str]) -> xr.Dataset:
-        all_names = (set(ds.data_vars) | set(ds.dims)) & set(rename)
+    def _rename(self, ds: xr.Dataset, rename: NameDict) -> xr.Dataset:
+
+        all_names = set(ds.dims) & set(rename)
         rename_restricted = {key: rename[key] for key in all_names}
-        return ds.rename(rename_restricted)
+        redimed = ds.rename_dims(rename_restricted)
+
+        all_names = set(redimed.data_vars) & set(rename)
+        rename_restricted = {key: rename[key] for key in all_names}
+        return redimed.rename(rename_restricted)
 
     def _rename_inputs(self, ds: xr.Dataset) -> xr.Dataset:
         return self._rename(ds, self.rename_in)
