@@ -3,11 +3,15 @@ from fv3net.regression.sklearn import SklearnWrapper
 
 import xarray as xr
 
+NameDict = Mapping[str, str]
+
 
 class RenamingAdapter:
     """Adapter object for renaming"""
 
-    def __init__(self, model: SklearnWrapper, rename_in, rename_out=None):
+    def __init__(
+        self, model: SklearnWrapper, rename_in: NameDict, rename_out: NameDict = None
+    ):
         self.model = model
         self.rename_in = rename_in
         if rename_out is None:
@@ -21,11 +25,10 @@ class RenamingAdapter:
         rename_restricted = {key: rename[key] for key in all_names}
         return ds.rename(rename_restricted)
 
-    def _rename_inputs(self, ds):
-        # TODO typehints
+    def _rename_inputs(self, ds: xr.Dataset) -> xr.Dataset:
         return self._rename(ds, self.rename_in)
 
-    def _rename_outputs(self, ds):
+    def _rename_outputs(self, ds: xr.Dataset) -> xr.Dataset:
         return self._rename(ds, self.rename_out)
 
     @property
