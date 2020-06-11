@@ -97,7 +97,7 @@ def test__mapper_to_diagnostic_sequence(mapper):
     batched_data_sequence = _mapper_to_diagnostic_sequence(
         mapper, DATA_VARS, timesteps_per_batch=2,
     )
-    assert len(batched_data_sequence) == len(mapper) // 2
+    assert len(batched_data_sequence) == len(mapper) // 2 + len(mapper) % 2
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
         assert set(batch.data_vars) == set(DATA_VARS)
