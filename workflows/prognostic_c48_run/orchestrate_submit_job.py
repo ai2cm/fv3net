@@ -142,5 +142,5 @@ if __name__ == "__main__":
     client.create_namespaced_job(namespace="default", body=job)
 
     if not args.detach:
-        fv3kube.wait_for_complete(job_label, raise_on_fail=not(args.allow_fail))
+        fv3kube.wait_for_complete(job_label, raise_on_fail=not args.allow_fail)
         fv3kube.delete_completed_jobs(job_label)
