@@ -97,7 +97,9 @@ class FineResolutionSources:
         return self._time_mapping.keys()
 
     def __getitem__(self, time: Time) -> xr.Dataset:
-        return self._derived_budget_ds(self._time_mapping[time])
+        return self._derived_budget_ds(self._time_mapping[time]).drop_vars(
+            names=["step"], errors="ignore"
+        )
 
     def _derived_budget_ds(
         self,
