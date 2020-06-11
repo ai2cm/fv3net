@@ -1,9 +1,10 @@
 import functools
 import logging
 from numpy.random import RandomState
-from typing import Iterable, Sequence, Mapping, Any
+from typing import Iterable, Sequence, Mapping, Any, Hashable
 import xarray as xr
 from vcm import safe
+from toolz import partition
 from ._sequences import FunctionOutputSequence
 from ._transform import stack_dropnan_shuffle
 from .constants import TIME_NAME
@@ -103,17 +104,23 @@ def _mapper_to_batches(
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
 
-    batched_timesteps = _select_batch_timesteps(
-        list(data_mapping.keys()), timesteps_per_batch, num_batches, random_state
+    num_batches = _validated_num_batches(
+        len(data_mapping), timesteps_per_batch, num_batches
     )
+    num_times = timesteps_per_batch * num_batches
+    times = _sample(data_mapping.keys(), num_times, random_state)
+    batched_timesteps = list(partition(timesteps_per_batch, times))
+
     transform = functools.partial(
         stack_dropnan_shuffle, init_time_dim_name, random_state
     )
     load_batch = functools.partial(
         _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
     )
+    seq = FunctionOutputSequence(lambda x: transform(load_batch(x)), batched_timesteps)
+    seq.attrs["times"] = times
 
-    return FunctionOutputSequence(lambda x: transform(load_batch(x)), batched_timesteps)
+    return seq
 
 
 def diagnostic_sequence_from_mapper(
@@ -166,7 +173,7 @@ def diagnostic_sequence_from_mapper(
 
 
 def _mapper_to_diagnostic_sequence(
-    dataset_mapper: Mapping[str, xr.Dataset],
+    data_mapping: Mapping[str, xr.Dataset],
     variable_names: Sequence[str],
     timesteps_per_batch: int = 1,
     num_batches: int = None,
@@ -179,50 +186,33 @@ def _mapper_to_diagnostic_sequence(
     if rename_variables is None:
         rename_variables = {}
 
-    batched_timesteps = _select_batch_timesteps(
-        list(dataset_mapper.keys()), timesteps_per_batch, num_batches, random_state
+    num_batches = _validated_num_batches(
+        len(data_mapping), timesteps_per_batch, num_batches
     )
+    num_times = timesteps_per_batch * num_batches
+    times = _sample(data_mapping.keys(), num_times, random_state)
+    batched_timesteps = list(partition(timesteps_per_batch, times))
 
     load_batch = functools.partial(
-        _load_batch,
-        dataset_mapper,
-        variable_names,
-        rename_variables,
-        init_time_dim_name,
+        _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
     )
-
-    return FunctionOutputSequence(load_batch, batched_timesteps)
+    seq = FunctionOutputSequence(load_batch, batched_timesteps)
+    seq.attrs["times"] = times
+    return seq
 
 
-def _select_batch_timesteps(
-    timesteps: Sequence[str],
-    timesteps_per_batch: int,
-    num_batches: int,
-    random_state: RandomState,
-) -> Sequence[Sequence[str]]:
-    random_state.shuffle(timesteps)
-    num_batches = _validated_num_batches(
-        len(timesteps), timesteps_per_batch, num_batches
-    )
-    logger.info(f"{num_batches} data batches generated.")
-    timesteps_list_sequence = list(
-        timesteps[
-            batch_num * timesteps_per_batch : (batch_num + 1) * timesteps_per_batch
-        ]
-        for batch_num in range(num_batches)
-    )
-    return timesteps_list_sequence
+def _sample(seq: Sequence[Any], n: int, random_state: RandomState) -> Sequence[Any]:
+    return random_state.choice(list(seq), n, replace=False).tolist()
 
 
 def _load_batch(
-    timestep_mapper: Mapping[str, xr.Dataset],
+    mapper: Mapping[str, xr.Dataset],
     data_vars: Iterable[str],
     rename_variables: Mapping[str, str],
     init_time_dim_name: str,
-    timestep_list: Iterable[str],
+    keys: Iterable[Hashable],
 ) -> xr.Dataset:
-    data = _get_dataset_list(timestep_mapper, timestep_list)
-    ds = xr.concat(data, init_time_dim_name)
+    ds = xr.concat([mapper[key] for key in keys], init_time_dim_name)
     # need to use standardized time dimension name
     rename_variables[init_time_dim_name] = rename_variables.get(
         init_time_dim_name, TIME_NAME
@@ -230,16 +220,6 @@ def _load_batch(
     ds = ds.rename(rename_variables)
     ds = safe.get_variables(ds, data_vars)
     return ds
-
-
-def _get_dataset_list(
-    timestep_mapper: Mapping[str, xr.Dataset], times: Iterable[str]
-) -> Iterable[xr.Dataset]:
-    return_list = []
-    for time in times:
-        ds = timestep_mapper[time]
-        return_list.append(ds)
-    return return_list
 
 
 def _validated_num_batches(

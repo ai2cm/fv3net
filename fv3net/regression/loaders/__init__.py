@@ -11,5 +11,5 @@ from ._nudged import (
     open_nudged_tendencies,
     open_nudging_checkpoints,
 )
-
+from ._sequences import FunctionOutputSequence
 from .constants import TIME_NAME, SAMPLE_DIM_NAME
