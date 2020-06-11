@@ -4,6 +4,7 @@ import pytest
 import xarray as xr
 
 from fv3net.pipelines.coarsen_restarts.pipeline import main
+from typing import Optional, Set
 
 
 OUTPUT_CATEGORY_NAMES = {
@@ -46,7 +47,27 @@ def _grid_spec(datadir, nx):
 @pytest.fixture(
     params=[False, True], ids=["include_agrid_winds=False", "include_agrid_winds=True"]
 )
-def restart_dir(tmpdir, datadir, request):
+def include_agrid_winds(request):
+    return request.param
+
+
+@pytest.fixture(
+    params=[False, True], ids=["coarsen_agrid_winds=False", "coarsen_agrid_winds=True"]
+)
+def coarsen_agrid_winds(request):
+    return request.param
+
+
+@pytest.fixture()
+def dropped_fv_core_variables(include_agrid_winds, coarsen_agrid_winds):
+    if include_agrid_winds and not coarsen_agrid_winds:
+        return {"ua", "va"}
+    else:
+        return None
+
+
+@pytest.fixture()
+def restart_dir(tmpdir, datadir, include_agrid_winds):
 
     nx = 48
 
@@ -54,7 +75,9 @@ def restart_dir(tmpdir, datadir, request):
     output = tmpdir.mkdir(time)
     tmpdir.mkdir("grid_spec")
     tmpdir.mkdir("output").mkdir(time)
-    restarts = synth.generate_restart_data(nx=nx, include_agrid_winds=request.param)
+    restarts = synth.generate_restart_data(
+        nx=nx, include_agrid_winds=include_agrid_winds
+    )
     save_restarts(restarts, output, time)
 
     grid_spec = _grid_spec(datadir, nx)
@@ -66,7 +89,9 @@ def restart_dir(tmpdir, datadir, request):
 
 
 @pytest.mark.regression
-def test_regression_coarsen_restarts(restart_dir):
+def test_regression_coarsen_restarts(
+    restart_dir, include_agrid_winds, coarsen_agrid_winds, dropped_fv_core_variables
+):
     grid_spec_path = str(restart_dir.join("grid_spec"))
     src_path = str(restart_dir)
     in_res = "48"
@@ -74,25 +99,52 @@ def test_regression_coarsen_restarts(restart_dir):
     time = "20160101.000000"
     dest = str(restart_dir.join("output"))
 
-    main([src_path, grid_spec_path, in_res, out_res, dest])
+    args = [src_path, grid_spec_path, in_res, out_res, dest]
+    if coarsen_agrid_winds:
+        args.append("--coarsen-agrid-winds")
 
-    for destination_category, source_category in OUTPUT_CATEGORY_NAMES.items():
-        assert_all_variables_were_coarsened(
-            source_category, destination_category, time, src_path, dest
-        )
+    if coarsen_agrid_winds and not include_agrid_winds:
+        with pytest.raises(ValueError, match="'ua' and 'va'"):
+            main(args)
+    else:
+        main(args)
+        for destination_category, source_category in OUTPUT_CATEGORY_NAMES.items():
+            if "fv_core" in destination_category:
+                assert_expected_variables_were_coarsened(
+                    source_category,
+                    destination_category,
+                    time,
+                    src_path,
+                    dest,
+                    dropped_fv_core_variables,
+                )
+            else:
+                assert_expected_variables_were_coarsened(
+                    source_category, destination_category, time, src_path, dest
+                )
 
 
-def assert_all_variables_were_coarsened(
-    source_category, destination_category, time, source_dir, destination_dir
+def open_category(category, time, directory):
+    files = os.path.join(directory, time, f"{time}.{category}.tile[1-6].nc")
+    return xr.open_mfdataset(files, concat_dim=["tile"], combine="nested")
+
+
+def assert_expected_variables_were_coarsened(
+    source_category: str,
+    destination_category: str,
+    time: str,
+    source_dir: str,
+    destination_dir: str,
+    dropped_variables: Optional[Set] = None,
 ):
-    """Check that all variables in the original restart files can be found in
+    """Check that expected variables in the original restart files can be found in
     the coarsened restart files."""
-    source_files = os.path.join(
-        source_dir, time, f"{time}.{source_category}.tile[1-6].nc"
-    )
-    result_files = os.path.join(
-        destination_dir, time, f"{time}.{destination_category}.tile[1-6].nc"
-    )
-    source = xr.open_mfdataset(source_files, concat_dim=["tile"], combine="nested")
-    result = xr.open_mfdataset(result_files, concat_dim=["tile"], combine="nested")
-    assert set(source.data_vars.keys()) == set(result.data_vars.keys())
+    source = open_category(source_category, time, source_dir)
+    result = open_category(destination_category, time, destination_dir)
+
+    if dropped_variables is None:
+        dropped_variables = set()
+
+    expected_variables = set(source.data_vars.keys()) - dropped_variables
+    result_variables = set(result.data_vars.keys())
+    assert expected_variables == result_variables
