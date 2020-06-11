@@ -279,5 +279,7 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
+    # resample since 15-minute timeseries data makes report bloated
+    resampled = prognostic_output.resample(time="3H", label="right").nearest()
 
-    return prognostic_output, verification_c48, grid_c48[["area"]]
+    return resampled, verification_c48, grid_c48[["area"]]
