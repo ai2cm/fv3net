@@ -4,6 +4,7 @@ History
 
 latest
 ------
+* Add flag --allow-fail to prognostic run `orchestrate_submit_job.py` so prognostic run crashes don't have to kill e2e workflow
 * makefile target for testing prognostic run: `make test_prognostic_run`
 * Rename dimensions and variable names in input/output of prognostic run, new API for prognostic_run yamls
 * Add option to not apply ML predictions to model state in prognostic runs (so-called "piggy-back" runs)
