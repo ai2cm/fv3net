@@ -13,8 +13,11 @@ import runtime
 from fv3net.regression.sklearn.adapters import RenamingAdapter, StackingAdapter
 
 from mpi4py import MPI
+import cProfile
 
-logging.basicConfig(level=logging.DEBUG)
+runtime.capture_fv3gfs_funcs()
+
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 State = Mapping[Hashable, xr.DataArray]
@@ -81,7 +84,7 @@ def predict(model: RenamingAdapter, state: State) -> State:
     # TODO fix type hint
     """Given ML model and state, return tendency prediction."""
     ds = xr.Dataset(state)  # type: ignore
-    output = model.predict(ds)
+    output = model.predict(ds).reset_coords(drop=True)
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
@@ -96,13 +99,11 @@ def apply(state: State, tendency: State, dt: float) -> State:
     return updated  # type: ignore
 
 
-if __name__ == "__main__":
-    args = runtime.get_config()
+def main(args, comm):
     NML = runtime.get_namelist()
     TIMESTEP = NML["coupler_nml"]["dt_atmos"]
 
     times = []
-    comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
     # change into run directoryy
@@ -128,7 +129,7 @@ if __name__ == "__main__":
     MODEL = comm.bcast(MODEL, root=0)
     variables = list(MODEL.input_vars_ | REQUIRED_VARIABLES)
     if rank == 0:
-        logger.debug(f"Prognostic run requires variables: {variables}")
+        logger.info(f"Prognostic run requires variables: {variables}")
 
     if rank == 0:
         logger.info(f"Timestep: {TIMESTEP}")
@@ -136,21 +137,21 @@ if __name__ == "__main__":
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
         if rank == 0:
-            logger.debug(f"Dynamics Step")
+            logger.info(f"Dynamics Step")
         fv3gfs.step_dynamics()
         if rank == 0:
-            logger.debug(f"Physics Step")
+            logger.info(f"Physics Step")
         fv3gfs.step_physics()
 
         if rank == 0:
-            logger.debug(f"Getting state variables: {variables}")
+            logger.info(f"Getting state variables: {variables}")
         state = {
             key: value.data_array
             for key, value in fv3gfs.get_state(names=variables).items()
         }
 
         if rank == 0:
-            logger.debug("Computing RF updated variables")
+            logger.info("Computing RF updated variables")
         tendency = predict(MODEL, state)
 
         if do_only_diagnostic_ml:
@@ -159,7 +160,8 @@ if __name__ == "__main__":
             updated_state = apply(state, tendency, dt=TIMESTEP)
 
         if rank == 0:
-            logger.debug("Setting Fortran State")
+            logger.info("Setting Fortran State")
+            print(xr.Dataset(updated_state))
         fv3gfs.set_state(
             {
                 key: fv3util.Quantity.from_data_array(value)
@@ -178,3 +180,12 @@ if __name__ == "__main__":
         times.append(get_time())
 
     fv3gfs.cleanup()
+
+if __name__ == "__main__":
+    args = runtime.get_config()
+    comm = MPI.COMM_WORLD
+    profile = args['scikit_learn'].get("profile", True) 
+    if profile:
+        cProfile.run("main(args, comm)", f"profile.{comm.rank}.prof")
+    else:
+        main(args, comm)
