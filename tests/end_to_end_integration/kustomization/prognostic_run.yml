@@ -3,22 +3,22 @@ kubernetes:
   memory_gb: 5.
 base_version: v0.4
 scikit_learn:
-  input_variable_standard_names:
-    DSWRFtoa_train: total_sky_downward_shortwave_flux_at_top_of_atmosphere
+  rename_inputs:
+    total_sky_downward_shortwave_flux_at_top_of_atmosphere: DSWRFtoa_train
 diag_table: /etc/config/diag_table_prognostic
 namelist:
   coupler_nml:
-    days: 0  # total length
+    days: 0 # total length
     hours: 1
     minutes: 0
     seconds: 0
-    dt_atmos: 900  # seconds
+    dt_atmos: 900 # seconds
     dt_ocean: 900
-    restart_secs: 0  # seconds - frequency to save restarts
+    restart_secs: 0 # seconds - frequency to save restarts
   atmos_model_nml:
-    fhout: 0.25   # hours - frequency to save physics outputs
+    fhout: 0.25 # hours - frequency to save physics outputs
   gfs_physics_nml:
     do_deep: false
-    fhzero: 0.25  # hours - frequency at which precip is set back to zero
+    fhzero: 0.25 # hours - frequency at which precip is set back to zero
   fv_core_nml:
-    n_split: 6   # num dynamics steps per physics step
+    n_split: 6 # num dynamics steps per physics step
