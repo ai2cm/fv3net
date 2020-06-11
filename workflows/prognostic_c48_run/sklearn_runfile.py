@@ -1,30 +1,30 @@
 import logging
-from typing import Mapping
+from typing import Mapping, Hashable, cast
 
 import fsspec
 import zarr
 from sklearn.externals import joblib
-from sklearn.utils import parallel_backend
 import xarray as xr
 
 import fv3gfs
 from fv3gfs._wrapper import get_time
 import fv3util
 import runtime
-from fv3net.regression.sklearn.wrapper import SklearnWrapper
+from fv3net.regression.sklearn.adapters import RenamingAdapter, StackingAdapter
+
 from mpi4py import MPI
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-State = Mapping[str, xr.DataArray]
+State = Mapping[Hashable, xr.DataArray]
 
 # following variables are required no matter what feature set is being used
 TEMP = "air_temperature"
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"
-REQUIRED_VARIABLES = [TEMP, SPHUM, DELP, PRECIP_RATE]
+REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE}
 
 cp = 1004
 gravity = 9.81
@@ -66,18 +66,22 @@ def rename_diagnostics(diags):
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
 
 
-def open_model(url):
+def open_model(config):
     # Load the model
-    with fsspec.open(url, "rb") as f:
-        return joblib.load(f)
+    rename_in = config.get("input_standard_names", {})
+    rename_out = config.get("output_standard_names", {})
+    with fsspec.open(config["model"], "rb") as f:
+        model = joblib.load(f)
+
+    stacked_predictor = StackingAdapter(model, sample_dims=["y", "x"])
+    return RenamingAdapter(stacked_predictor, rename_in, rename_out)
 
 
-def predict(model: SklearnWrapper, state: State) -> State:
+def predict(model: RenamingAdapter, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
-    stacked = xr.Dataset(state).stack(sample=["x", "y"])
-    with parallel_backend("threading", n_jobs=1):
-        output = model.predict(stacked, "sample").unstack("sample")
-    return {key: output[key] for key in output}
+    ds = xr.Dataset(state)  # type: ignore
+    output = model.predict(ds)
+    return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
 def apply(state: State, tendency: State, dt: float) -> State:
@@ -88,16 +92,15 @@ def apply(state: State, tendency: State, dt: float) -> State:
             SPHUM: state[SPHUM] + tendency["dQ2"] * dt,
             TEMP: state[TEMP] + tendency["dQ1"] * dt,
         }
-    return updated
+    return updated  # type: ignore
 
-
-args = runtime.get_config()
-NML = runtime.get_namelist()
-TIMESTEP = NML["coupler_nml"]["dt_atmos"]
-
-times = []
 
 if __name__ == "__main__":
+    args = runtime.get_config()
+    NML = runtime.get_namelist()
+    TIMESTEP = NML["coupler_nml"]["dt_atmos"]
+
+    times = []
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
@@ -105,10 +108,6 @@ if __name__ == "__main__":
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
 
     do_only_diagnostic_ml = args["scikit_learn"].get("diagnostic_ml", False)
-    rename_ML_to_CF = args["scikit_learn"].get("input_variable_standard_names", {})
-    rename_CF_to_ML = dict(zip(rename_ML_to_CF.values(), rename_ML_to_CF.keys()))
-    if rank == 0:
-        logger.debug(f"Renaming variables for ML prediction using: {rename_CF_to_ML}")
 
     # open zarr tape for output
     if rank == 0:
@@ -120,14 +119,13 @@ if __name__ == "__main__":
 
     if rank == 0:
         logger.info("Downloading Sklearn Model")
-        MODEL = open_model(args["scikit_learn"]["model"])
+        MODEL = open_model(args["scikit_learn"])
         logger.info("Model downloaded")
     else:
         MODEL = None
 
     MODEL = comm.bcast(MODEL, root=0)
-    variables = list(set(REQUIRED_VARIABLES + MODEL.input_vars_))
-    variables = [rename_ML_to_CF.get(var, var) for var in variables]
+    variables = list(MODEL.input_vars_ | REQUIRED_VARIABLES)
     if rank == 0:
         logger.debug(f"Prognostic run requires variables: {variables}")
 
@@ -152,10 +150,10 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
-        tendency = predict(MODEL, runtime.rename_keys(state, rename_CF_to_ML))
+        tendency = predict(MODEL, state)
 
         if do_only_diagnostic_ml:
-            updated_state = {}
+            updated_state: State = {}
         else:
             updated_state = apply(state, tendency, dt=TIMESTEP)
 

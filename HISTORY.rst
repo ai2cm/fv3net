@@ -4,6 +4,8 @@ History
 
 latest
 ------
+* makefile target for testing prognostic run: `make test_prognostic_run`
+* Rename dimensions and variable names in input/output of prognostic run, new API for prognostic_run yamls
 * Add option to not apply ML predictions to model state in prognostic runs (so-called "piggy-back" runs)
 * Modify submission of prognostic run so that its configuration is specified independently of one-step jobs
 * Add `base_fv3config_version` parameter to one-step and prognostic run yamls
@@ -17,6 +19,10 @@ latest
 training data from multiple sources into a set of diagnostic variables
 * Add a `diagnostic_sequence_from_mapper` to the `loaders` module function for loading data for diagnostics
 * Add nudging data loaders for use in diagnostics and ML training
+* Add a mapper that takes in a model and any base mapper and includes ML prediction
+* Add optional arg `--timesteps-file` to fv3net.regression.sklearn to provide a list of timesteps to use 
+ in conjunction with the config arg `num_timesteps_per_batch`. The training config arg `num_batches` is now
+ deprecated in favor of providing a list of timesteps.
 
 
 0.2.1 (2020-05-15)

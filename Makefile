@@ -68,6 +68,9 @@ run_integration_tests:
 test:
 	pytest external/* tests
 
+test_prognostic_run:
+	IMAGE=prognostic_run $(MAKE) -C workflows/prognostic_c48_run/ test
+
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images
 data:
