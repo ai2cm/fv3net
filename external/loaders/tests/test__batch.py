@@ -1,8 +1,9 @@
 import os
 import pytest
 import synth
-import xarray as xr
 import numpy as np
+
+from loaders import MockDatasetMapper
 
 from loaders.batches._batch import (
     _mapper_to_batches,
@@ -12,26 +13,6 @@ from loaders.batches._batch import (
 
 DATA_VARS = ["air_temperature", "specific_humidity"]
 Z_DIM_SIZE = 79
-
-
-class MockDatasetMapper:
-    def __init__(self, schema: synth.DatasetSchema):
-        self._schema = schema
-        self._keys = [f"2020050{i}.000000" for i in range(4)]
-
-    def __getitem__(self, key: str) -> xr.Dataset:
-        ds = synth.generate(self._schema)
-        ds.coords["initial_time"] = [key]
-        return ds
-
-    def keys(self):
-        return self._keys
-
-    def __iter__(self):
-        return iter(self.keys())
-
-    def __len__(self):
-        return len(self.keys())
 
 
 @pytest.fixture
