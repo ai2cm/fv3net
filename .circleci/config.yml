@@ -74,6 +74,7 @@ jobs:
           name: Build fv3net images 
           command: |
             make build_images
+      - run: make test_prognostic_run
       - run:
           name: Push fv3net images
           command: |

@@ -51,3 +51,11 @@ def test_all_data_float32(output):
 
 def test_u_correct(output):
     assert output["fv_core.res"][1].u.dims == ("Time", "zaxis_1", "yaxis_1", "xaxis_1")
+
+
+@pytest.mark.parametrize("include_agrid_winds", [False, True])
+def test_include_agrid_winds_option(include_agrid_winds):
+    fv_core = generate_restart_data(
+        nx=48, n_soil=4, nz=79, include_agrid_winds=include_agrid_winds
+    )["fv_core.res"][1]
+    assert include_agrid_winds == ("ua" in fv_core and "va" in fv_core)

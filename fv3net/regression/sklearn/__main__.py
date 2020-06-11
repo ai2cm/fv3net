@@ -11,6 +11,7 @@ import vcm
 import numpy as np
 from . import train
 
+
 MODEL_FILENAME = "sklearn_model.pkl"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
@@ -64,6 +65,12 @@ def parse_args():
         "remove local copy after upload.",
     )
     parser.add_argument(
+        "--timesteps-file",
+        type=str,
+        default=None,
+        help="json file containing a list of timesteps in YYYYMMDD.HHMMSS format",
+    )
+    parser.add_argument(
         "--no-train-subdir-append",
         action="store_true",
         help="Omit the appending of 'train' to the input training data path",
@@ -78,6 +85,12 @@ if __name__ == "__main__":
     if not args.no_train_subdir_append:
         data_path = os.path.join(data_path, "train")
     train_config = train.load_model_training_config(args.train_config_file)
+
+    if args.timesteps_file:
+        with open(args.timesteps_file, "r") as f:
+            timesteps = yaml.safe_load(f)
+        train_config.batch_kwargs["timesteps"] = timesteps
+
     batched_data = train.load_data_sequence(data_path, train_config)
     _save_config_output(args.output_data_path, train_config)
 

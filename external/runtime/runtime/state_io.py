@@ -12,6 +12,7 @@ def rename_keys(
     input: Mapping[str, Any], key_rename: Mapping[str, str]
 ) -> Mapping[str, Any]:
     """Rename keys of input to new values from key_rename, if present"""
+    # TODO possibly delete if unused
     return {key_rename.get(key, key): input[key] for key in input}
 
 

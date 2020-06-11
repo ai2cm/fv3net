@@ -43,11 +43,12 @@ def coarsen_timestep(
     arg: Tuple[str, Mapping[str, xr.Dataset]],
     coarsen_factor: int,
     grid_spec: xr.Dataset,
+    coarsen_agrid_winds: bool = False,
 ) -> Iterable[Tuple[Tuple[str, str], Mapping[str, xr.Dataset]]]:
 
     time, source = arg
     for category, data in vcm.coarsen_restarts_on_pressure(
-        coarsen_factor, grid_spec, source
+        coarsen_factor, grid_spec, source, coarsen_agrid_winds
     ).items():
         yield (time, category), data
 
@@ -67,7 +68,12 @@ def load(kv: Tuple[T, xr.Dataset]) -> Tuple[T, xr.Dataset]:
 
 
 def run(
-    gridspec_path: str, src_dir: str, output_dir: str, factor: int, pipeline_args=None,
+    gridspec_path: str,
+    src_dir: str,
+    output_dir: str,
+    factor: int,
+    coarsen_agrid_winds: bool,
+    pipeline_args=None,
 ):
 
     beam_options = PipelineOptions(flags=pipeline_args, save_main_session=True)
@@ -90,6 +96,7 @@ def run(
                 coarsen_timestep,
                 coarsen_factor=factor,
                 grid_spec=beam.pvalue.AsSingleton(grid_spec),
+                coarsen_agrid_winds=coarsen_agrid_winds,
             )
             # Reduce problem size by splitting by tiles
             # This will result in repeated reads to each fv_core file
@@ -139,6 +146,14 @@ def main(argv):
             "destination directory. "
         ),
     )
+    parser.add_argument(
+        "--coarsen-agrid-winds",
+        action="store_true",
+        help=(
+            "Whether to coarse-grain the A-grid winds in the fv_core.res "
+            "restart files."
+        ),
+    )
     logging.basicConfig(level=logging.INFO)
 
     args, pipeline_args = parser.parse_known_args(argv)
@@ -158,5 +173,6 @@ def main(argv):
         args.src_dir,
         output_dir_prefix,
         factor,
+        args.coarsen_agrid_winds,
         pipeline_args=pipeline_args,
     )
