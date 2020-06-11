@@ -65,6 +65,12 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Compute and save ML predictions but do not apply them to model state.",
     )
     parser.add_argument(
+        "-a",
+        "--allow_fail",
+        action="store_true",
+        help="Do not raise error if job fails.",
+    )
+    parser.add_argument(
         "-d",
         "--detach",
         action="store_true",
@@ -136,5 +142,5 @@ if __name__ == "__main__":
     client.create_namespaced_job(namespace="default", body=job)
 
     if not args.detach:
-        fv3kube.wait_for_complete(job_label)
+        fv3kube.wait_for_complete(job_label, raise_on_fail=not(args.allow_fail))
         fv3kube.delete_completed_jobs(job_label)
