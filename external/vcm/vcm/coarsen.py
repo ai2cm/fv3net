@@ -491,7 +491,7 @@ def coarsen_restarts_on_sigma(
     coarsening_factor: int,
     grid_spec: xr.Dataset,
     restarts: Mapping[str, xr.Dataset],
-    include_agrid_winds: bool = False,
+    coarsen_agrid_winds: bool = False,
 ) -> Mapping[str, xr.Dataset]:
     """ Coarsen a complete set of restart data, averaging on model levels and
     using the 'complex' surface coarsening method
@@ -502,7 +502,7 @@ def coarsen_restarts_on_sigma(
         grid_spec: Dataset containing the variables area, dx, dy.
         restarts: dictionary of restart data. Must have the keys
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
-        include_agrid_winds: flag indicating whether to coarsen A-grid winds in
+        coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
             "fv_core.res" restart files (default False).
 
     Returns:
@@ -525,7 +525,7 @@ def coarsen_restarts_on_sigma(
             {COORD_X_OUTER: FV_CORE_X_OUTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
         ),
         coarsening_factor,
-        include_agrid_winds,
+        coarsen_agrid_winds,
     )
 
     coarsened["fv_srf_wnd.res"] = coarse_grain_fv_srf_wnd(
@@ -563,7 +563,7 @@ def coarsen_restarts_on_pressure(
     coarsening_factor: int,
     grid_spec: xr.Dataset,
     restarts: Mapping[str, xr.Dataset],
-    include_agrid_winds: bool = False,
+    coarsen_agrid_winds: bool = False,
 ) -> Mapping[str, xr.Dataset]:
     """ Coarsen a complete set of restart files, averaging on pressure levels and
     using the 'complex' surface coarsening method
@@ -574,7 +574,7 @@ def coarsen_restarts_on_pressure(
         grid_spec: Dataset containing the variables area, dx, dy.
         restarts: dictionary of restart data. Must have the keys
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
-        include_agrid_winds: flag indicating whether to coarsen A-grid winds in
+        coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
             "fv_core.res" restart files (default False).
 
     Returns:
@@ -597,7 +597,7 @@ def coarsen_restarts_on_pressure(
             {COORD_X_OUTER: FV_CORE_X_OUTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
         ),
         coarsening_factor,
-        include_agrid_winds,
+        coarsen_agrid_winds,
     )
 
     coarsened["fv_srf_wnd.res"] = coarse_grain_fv_srf_wnd(
