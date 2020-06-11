@@ -30,9 +30,10 @@ import logging
 logger = logging.getLogger(__file__)
 
 _DIAG_FNS = defaultdict(list)
+_DERIVED_VAR_FNS = defaultdict(list)
 
 HORIZONTAL_DIMS = ["x", "y", "tile"]
-
+SECONDS_PER_DAY = 86400
 
 DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 DiagDict = Mapping[str, xr.DataArray]
@@ -86,6 +87,80 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
             diags.update(current_diags)
 
     return diags
+
+
+@curry
+def add_to_derived_vars(diags_key: str, func: Callable[[xr.Dataset], xr.Dataset]):
+    _DERIVED_VAR_FNS[diags_key].append(func)
+    return func
+
+
+def compute_all_derived_vars(input_datasets: Dict[str, DiagArg]) -> Dict[str, DiagArg]:
+    logger.info("Computing all derived variables")
+    for key, func in _DERIVED_VAR_FNS:
+        prognostic, verification, grid = input_datasets[key]
+        prognostic = func(prognostic)
+        verification = func(verification)
+        input_datasets[key] = prognostic, verification, grid
+    return input_datasets
+
+
+@add_to_derived_vars("physics")
+def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
+    """Compute derived variables for physics datasets"""
+    for func in [_column_pq1, _column_pq2, _column_q1, _column_q2]:
+        try:
+            ds = func(ds)
+        except KeyError:
+            logger.warning(f"Could not evaluate {func} because of missing inputs")
+    return ds
+
+
+def _column_pq1(ds: xr.Dataset) -> xr.Dataset:
+    column_pq1 = vcm.net_heating(
+        ds.DLWRFsfc,
+        ds.DSWRFsfc,
+        ds.ULWRFsfc,
+        ds.ULWRFtoa,
+        ds.USWRFsfc,
+        ds.USWRFtoa,
+        ds.DSWRFtoa,
+        ds.SHTFLsfc,
+        ds.PRATEsfc,
+    )
+    column_pq1.attrs = {
+        "long_name": "<pQ1> column integrated heating from physics",
+        "units": "W/m^2",
+    }
+    return ds.update({"column_integrated_pQ1": column_pq1})
+
+
+def _column_pq2(ds: xr.Dataset) -> xr.Dataset:
+    evap = vcm.thermo.latent_heat_flux_to_evaporation(ds.LHTFLsfc)
+    column_pq2 = SECONDS_PER_DAY * (evap - ds.PRATEsfc)
+    column_pq2.attrs = {
+        "long_name": "<pQ1> column integrated moistening from physics",
+        "units": "mm/day",
+    }
+    return ds.update({"column_integrated_pQ2": column_pq2})
+
+
+def _column_q1(ds: xr.Dataset) -> xr.Dataset:
+    column_q1 = ds.column_integrated_pQ1 + ds.net_heating
+    column_q1.attrs = {
+        "long_name": "<Q1> column integrated heating from physics+ML",
+        "units": "W/m^2",
+    }
+    return ds.update({"column_integrated_Q1": column_q1})
+
+
+def _column_q2(ds: xr.Dataset) -> xr.Dataset:
+    column_q2 = ds.column_integrated_pQ2 + SECONDS_PER_DAY * ds.net_moistening
+    column_q2.attrs = {
+        "long_name": "<Q2> column integrated heating from physics+ML",
+        "units": "mm/day",
+    }
+    return ds.update({"column_integrated_Q2": column_q2})
 
 
 def rms(x, y, w, dims):
@@ -275,6 +350,9 @@ if __name__ == "__main__":
     input_data = {}
     input_data["dycore"] = load_diags.load_dycore(args.url, args.grid_spec, catalog)
     input_data["physics"] = load_diags.load_physics(args.url, args.grid_spec, catalog)
+
+    # add derived variables
+    input_data = compute_all_derived_vars(input_data)
 
     # begin constructing diags
     diags = {}
