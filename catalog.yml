@@ -133,6 +133,15 @@ sources:
         access: read_only
       urlpath: "gs://vcm-ml-data/latLonArea/c48/c48.zarr/"
 
+  landseamask/c48:
+    description: land_sea_mask of C48 data
+    driver: zarr
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-data/latLonArea/c48/land_sea_mask.zarr/"
+
   ## Local Data Intake ##
   # TODO: Could this be replicated with intake caching? Or switch to an ignored file?
   local_2019-09-24-GFDL-SHiELD-15-minute-2-days_regrid_1degree:
