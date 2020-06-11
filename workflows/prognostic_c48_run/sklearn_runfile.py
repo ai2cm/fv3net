@@ -78,7 +78,6 @@ def open_model(config):
 
 
 def predict(model: RenamingAdapter, state: State) -> State:
-    # TODO fix type hint
     """Given ML model and state, return tendency prediction."""
     ds = xr.Dataset(state)  # type: ignore
     output = model.predict(ds)
