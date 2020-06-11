@@ -7,6 +7,7 @@ from loaders._utils import (
     stack_dropnan_shuffle,
 )
 
+
 @pytest.fixture
 def test_gridded_dataset(request):
     num_nans, zdim, ydim, xdim = request.param
