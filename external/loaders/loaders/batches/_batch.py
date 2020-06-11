@@ -6,7 +6,7 @@ import xarray as xr
 from vcm import safe
 from toolz import partition
 from ._sequences import FunctionOutputSequence
-from .._transform import stack_dropnan_shuffle
+from .._utils import stack_dropnan_shuffle
 from ..constants import TIME_NAME
 import loaders
 
