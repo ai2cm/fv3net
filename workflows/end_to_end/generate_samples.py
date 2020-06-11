@@ -34,7 +34,15 @@ with open(sys.argv[1]) as f:
 fs = fsspec.filesystem("gs")
 url = args.pop("url")
 urls = sorted(fs.ls(url))
-steps = [vcm.parse_timestep_str_from_path(url) for url in urls]
+steps = []
+for url in urls:
+    try:
+        steps.append(vcm.parse_timestep_str_from_path(url))
+    except ValueError:
+        print(f"{url} has no time-step info...skipping", file=sys.stderr)
+
+steps = list(set(steps))
+
 spinup = args.pop("spinup", steps[0])
 include_one_step = args.pop("force_include_one_step", [])
 steps = list(filter(lambda t: spinup <= t, steps))
