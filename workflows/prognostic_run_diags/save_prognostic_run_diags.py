@@ -204,7 +204,7 @@ def global_averages_dycore(resampled, verification, grid):
         HORIZONTAL_DIMS
     )
 
-    return _vars_to_diags("global_avg_dycore", area_averages, resampled)
+    return _vars_to_diags("global_avg", area_averages, resampled)
 
 
 @add_to_diags("physics")
@@ -214,7 +214,7 @@ def global_averages_physics(resampled, verification, grid):
         HORIZONTAL_DIMS
     )
 
-    return _vars_to_diags("global_avg_physics", area_averages, resampled)
+    return _vars_to_diags("global_phys_avg", area_averages, resampled)
 
 
 # TODO: enable this diagnostic once SHiELD physics diags can be loaded efficiently

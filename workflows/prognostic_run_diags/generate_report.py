@@ -162,16 +162,14 @@ def rms_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
 
 
 @diag_plot_manager.register
-def global_avg_dycore_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
-    return HVPlot(
-        holomap_filter(time_series, varfilter="global_avg_dycore").overlay("run")
-    )
+def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
+    return HVPlot(holomap_filter(time_series, varfilter="global_avg").overlay("run"))
 
 
 @diag_plot_manager.register
 def global_avg_physics_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
     return HVPlot(
-        holomap_filter(time_series, varfilter="global_avg_physics").overlay("run")
+        holomap_filter(time_series, varfilter="global_phys_avg").overlay("run")
     )
 
 
