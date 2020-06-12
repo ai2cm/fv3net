@@ -279,6 +279,32 @@ def fine_res_mapper():
     return {"20160901.001500": budget_ds}
 
 
+@pytest.mark.parametrize(
+    ["offset", "key", "expected"],
+    [
+        pytest.param(0, "20160901.001500", "20160901.001500", id="zero offset"),
+        pytest.param(60, "20160901.001500", "20160901.001600", id="non-zero offset"),
+    ],
+)
+def test__timestamp_key_to_midpoint(offset, key, expected, fine_res_mapper):
+    fine_res_source_mapper = FineResolutionSources(fine_res_mapper, offset)
+    midpoint_time = fine_res_source_mapper._timestamp_key_to_midpoint(key, offset)
+    assert midpoint_time == expected
+
+
+@pytest.mark.parametrize(
+    ["offset", "midpoint_time", "expected"],
+    [
+        pytest.param(0, "20160901.001500", "20160901.001500", id="zero offset"),
+        pytest.param(60, "20160901.001500", "20160901.001400", id="non-zero offset"),
+    ],
+)
+def test__midpoint_to_timestamp_key(offset, midpoint_time, expected, fine_res_mapper):
+    fine_res_source_mapper = FineResolutionSources(fine_res_mapper, offset)
+    key = fine_res_source_mapper._midpoint_to_timestamp_key(midpoint_time, offset)
+    assert key == expected
+
+
 def test_FineResolutionSources(fine_res_mapper):
     fine_res_source_mapper = FineResolutionSources(fine_res_mapper)
     source_ds = fine_res_source_mapper["20160901.001500"]

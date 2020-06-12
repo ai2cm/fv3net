@@ -1,7 +1,7 @@
 import os
 import re
 import vcm
-from typing import Mapping
+from typing import Mapping, Union
 import xarray as xr
 from ._transform import GroupByTime, FineResolutionSources
 
@@ -78,8 +78,10 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
     return GroupByTime(tiles)
 
 
-def open_fine_res_apparent_sources(url: str) -> Mapping[str, xr.Dataset]:
+def open_fine_res_apparent_sources(
+    url: str, offset_seconds: Union[int, float] = 0
+) -> Mapping[str, xr.Dataset]:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
     """  # noqa
-    return FineResolutionSources(open_fine_resolution_budget(url))
+    return FineResolutionSources(open_fine_resolution_budget(url), offset_seconds)

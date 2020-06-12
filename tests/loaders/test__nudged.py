@@ -216,21 +216,6 @@ def test_MergeNudged__check_dvar_overlap_fail(overlap_check_fail_datasets):
         MergeNudged._check_dvar_overlap(*overlap_check_fail_datasets)
 
 
-@pytest.mark.regression
-def test_open_merged_nudged(nudged_data_dir):
-
-    merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
-    mapper = open_merged_nudged(
-        nudged_data_dir,
-        NUDGE_TIMESCALE,
-        merge_files=merge_files,
-        initial_time_skip_hr=1,
-        n_times=6,
-    )
-
-    assert len(mapper) == 6
-
-
 def test_NudgedStateCheckpoints(nudged_checkpoints):
 
     mapper = NudgedStateCheckpoints(nudged_checkpoints)
@@ -500,6 +485,21 @@ def test__physics_tendencies(
         xr.testing.assert_allclose(
             physics_tendencies[term], expected_tendencies[term].sel(time=time)
         )
+
+
+@pytest.mark.regression
+def test_open_merged_nudged(nudged_data_dir):
+
+    merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
+    mapper = open_merged_nudged(
+        nudged_data_dir,
+        NUDGE_TIMESCALE,
+        merge_files=merge_files,
+        initial_time_skip_hr=1,
+        n_times=6,
+    )
+
+    assert len(mapper) == 6
 
 
 @pytest.mark.regression

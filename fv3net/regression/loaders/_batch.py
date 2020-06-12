@@ -179,7 +179,6 @@ def _mapper_to_diagnostic_sequence(
     data_mapping: Mapping[str, xr.Dataset],
     variable_names: Sequence[str],
     timesteps_per_batch: int = 1,
-    num_batches: int = None,
     random_seed: int = 0,
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
