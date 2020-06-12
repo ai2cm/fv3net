@@ -20,7 +20,7 @@ from dask.diagnostics import ProgressBar
 from pathlib import Path
 from toolz import curry
 from collections import defaultdict
-from typing import Tuple, Dict, Callable, Mapping, Sequence
+from typing import Tuple, Dict, Callable, Mapping
 
 import vcm
 import load_diagnostic_data as load_diags
