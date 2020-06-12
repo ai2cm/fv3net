@@ -1,0 +1,21 @@
+data_path: gs://vcm-ml-scratch/andrep/test-nudging-workflow/nudging
+rename_variables:
+  air_temperature_tendency_due_to_nudging: dQ1
+  specific_humidity_tendency_due_to_nudging: dQ2
+  air_temperature_tendency_due_to_nudging_ml: dQ1_ml
+  specific_humidity_tendency_due_to_nudging_ml: dQ2_ml
+variables:
+  - air_temperature
+  - specific_humidity
+  - dQ1
+  - dQ2
+  - dQ1_ml
+  - dQ2_ml
+  - pressure_thickness_of_atmospheric_layer
+mapping_function: open_nudged
+mapping_kwargs:
+  nudging_timescale_hr: 3
+  initial_time_skip_hr: 0
+batch_kwargs:
+  timesteps_per_batch: 10
+  init_time_dim_name: "initial_time"
