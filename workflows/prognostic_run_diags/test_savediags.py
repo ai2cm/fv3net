@@ -67,10 +67,10 @@ def test__catalog():
 @pytest.mark.parametrize(
     "ds, variables, expected",
     [
-        (xr.Dataset({"foo": 1}), ["foo"], True),
-        (xr.Dataset({"foo": 1}), ["foo", "bar"], False),
-        (xr.Dataset({"foo": 1}), ["bar"], False),
-        (xr.Dataset({"foo": 1, "bar": 2}), ["foo"], True),
+        (xr.Dataset({"foo": 1}), {"foo"}, True),
+        (xr.Dataset({"foo": 1}), {"foo", "bar"}, False),
+        (xr.Dataset({"foo": 1}), {"bar"}, False),
+        (xr.Dataset({"foo": 1, "bar": 2}), {"foo"}, True),
     ],
 )
 def test__missing_var(ds, variables, expected):
