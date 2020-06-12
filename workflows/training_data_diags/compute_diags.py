@@ -81,16 +81,18 @@ if __name__ == "__main__":
     grid = grid.merge(surface_type)
 
     variable_names = datasets_config["variables"]
+    batch_kwargs = datasets_config["batch_kwargs"]
 
     diagnostic_datasets = {}
     for dataset_name, dataset_config in datasets_config["sources"].items():
         logger.info(f"Reading dataset {dataset_name}.")
-        batch_function = getattr(loaders, dataset_config["batch_function"])
         ds_batches = loaders.diagnostic_sequence_from_mapper(
             dataset_config["path"],
             variable_names,
             rename_variables=dataset_config.get("rename_variables", None),
-            **dataset_config["batch_kwargs"],
+            mapping_function=dataset_config["mapping_function"],
+            mapping_kwargs=dataset_config.get("mapping_kwargs", None),
+            **batch_kwargs,
         )
         ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
         diagnostic_datasets[dataset_name] = ds_diagnostic
