@@ -1,5 +1,5 @@
 import diagnostics_utils as utils
-from fv3net.regression import loaders
+from loaders import batches
 from vcm.cloud import get_fs
 import xarray as xr
 from tempfile import NamedTemporaryFile
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     diagnostic_datasets = {}
     for dataset_name, dataset_config in datasets_config["sources"].items():
         logger.info(f"Reading dataset {dataset_name}.")
-        ds_batches = loaders.diagnostic_sequence_from_mapper(
+        ds_batches = batches.diagnostic_sequence_from_mapper(
             dataset_config["path"],
             variable_names,
             rename_variables=dataset_config.get("rename_variables", None),
