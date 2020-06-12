@@ -132,15 +132,6 @@ sources:
         project: 'vcm-ml'
         access: read_only
       urlpath: "gs://vcm-ml-data/latLonArea/c48/c48.zarr/"
-      
-  grid/c48/land_sea_mask:
-    description: land-sea mask array for C48 grid
-    driver: zarr
-    args:
-      storage_options:
-        project: 'vcm-ml'
-        access: read_only
-      urlpath: 'gs://vcm-ml-data/latLonArea/c48/land_sea_mask.zarr'
 
   landseamask/c48:
     description: land_sea_mask of C48 data

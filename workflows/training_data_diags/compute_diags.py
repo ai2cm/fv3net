@@ -76,7 +76,7 @@ if __name__ == "__main__":
     cat = intake.open_catalog("catalog.yml")
     grid = cat["grid/c48"].to_dask()
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
-    surface_type = cat["grid/c48/land_sea_mask"].to_dask()
+    surface_type = cat["landseamask/c48"].to_dask()
     surface_type = surface_type.drop(labels=["y", "x"])
     grid = grid.merge(surface_type)
 
