@@ -6,7 +6,7 @@ import os
 import logging
 import diagnostics_utils as utils
 import intake
-from loaders import batch
+from loaders import batches
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +121,7 @@ def test_compute_diags(datadir):
     cat = intake.open_catalog("catalog.yml")
     grid = cat["grid/c48"].to_dask()
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
-    surface_type = cat["grid/c48/land_sea_mask"].to_dask()
+    surface_type = cat["landseamask/c48"].to_dask()
     surface_type = surface_type.drop(labels=["y", "x"])
     grid = grid.merge(surface_type)
 
@@ -136,14 +136,12 @@ def test_compute_diags(datadir):
     ]
 
     diagnostic_datasets = {}
-    num_batches = 2
     timesteps_per_batch = 1
 
     # one step
-    ds_batches_one_step = batch.diagnostic_sequence_from_mapper(
+    ds_batches_one_step = batches.diagnostic_sequence_from_mapper(
         os.path.join(output_dir, one_step_dir),
         variable_names,
-        num_batches=num_batches,
         timesteps_per_batch=timesteps_per_batch,
         mapping_function="open_one_step",
     )
@@ -166,10 +164,9 @@ def test_compute_diags(datadir):
         },
     }
 
-    ds_batches_nudged = batch.diagnostic_sequence_from_mapper(
+    ds_batches_nudged = batches.diagnostic_sequence_from_mapper(
         output_dir,
         variable_names,
-        num_batches=num_batches,
         timesteps_per_batch=timesteps_per_batch,
         mapping_function="open_nudged_tendencies",
         mapping_kwargs=nudged_mapping_kwargs,
