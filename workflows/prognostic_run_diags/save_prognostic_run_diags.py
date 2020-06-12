@@ -91,14 +91,32 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
 
 @curry
 def add_to_derived_vars(diags_key: str, func: Callable[[xr.Dataset], xr.Dataset]):
+    """Add a function that computes additional derived variables from input datasets.
+    These derived variables should be simple combinations of input variables, not
+    reductions such as global means which are diagnostics to be computed later.
+
+    Args:
+        diags_key: a key for a group of inputs/diagnostics
+        func: a function which adds new variables to a given dataset
+    """
     _DERIVED_VAR_FNS[diags_key] = func
 
 
 def compute_all_derived_vars(input_datasets: Dict[str, DiagArg]) -> Dict[str, DiagArg]:
-    logger.info("Computing all derived variables")
+    """Compute derived variables for all input data sources.
+
+    Args:
+        input_datasets: Input datasets with keys corresponding to the appropriate group
+        of inputs/diagnostics..
+
+    Returns:
+        input datasets with derived variables added to prognostic and verification data
+    """
     for key, func in _DERIVED_VAR_FNS.items():
         prognostic, verification, grid = input_datasets[key]
+        logger.info(f"Preparing all derived variables for {key} prognostic data")
         prognostic = func(prognostic)
+        logger.info(f"Preparing all derived variables for {key} verification data")
         verification = func(verification)
         input_datasets[key] = prognostic, verification, grid
     return input_datasets
@@ -148,7 +166,7 @@ def _column_pq2(ds: xr.Dataset) -> xr.Dataset:
     evap = vcm.thermo.latent_heat_flux_to_evaporation(ds.LHTFLsfc)
     column_pq2 = SECONDS_PER_DAY * (evap - ds.PRATEsfc)
     column_pq2.attrs = {
-        "long_name": "<pQ1> column integrated moistening from physics",
+        "long_name": "<pQ2> column integrated moistening from physics",
         "units": "mm/day",
     }
     return ds.update({"column_integrated_pQ2": column_pq2})
