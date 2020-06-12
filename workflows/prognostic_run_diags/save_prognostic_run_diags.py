@@ -138,7 +138,7 @@ def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
 
 
 def _column_pq1(ds: xr.Dataset) -> xr.Dataset:
-    net_heating_args = [
+    net_heating_arg_labels = [
         "DLWRFsfc",
         "DSWRFsfc",
         "ULWRFsfc",
@@ -149,10 +149,10 @@ def _column_pq1(ds: xr.Dataset) -> xr.Dataset:
         "SHTFLsfc",
         "PRATEsfc",
     ]
-    if not _ds_contains(ds, net_heating_args):
+    if not _ds_contains(ds, set(net_heating_arg_labels)):
         return ds
-    args = [ds[var] for var in net_heating_args]
-    column_pq1 = vcm.net_heating(*args)
+    net_heating_args = [ds[var] for var in net_heating_arg_labels]
+    column_pq1 = vcm.net_heating(*net_heating_args)
     column_pq1.attrs = {
         "long_name": "<pQ1> column integrated heating from physics",
         "units": "W/m^2",
@@ -161,7 +161,7 @@ def _column_pq1(ds: xr.Dataset) -> xr.Dataset:
 
 
 def _column_pq2(ds: xr.Dataset) -> xr.Dataset:
-    if not _ds_contains(ds, ["LHTFLsfc", "PRATEsfc"]):
+    if not _ds_contains(ds, {"LHTFLsfc", "PRATEsfc"}):
         return ds
     evap = vcm.latent_heat_flux_to_evaporation(ds.LHTFLsfc)
     column_pq2 = SECONDS_PER_DAY * (evap - ds.PRATEsfc)
@@ -173,7 +173,7 @@ def _column_pq2(ds: xr.Dataset) -> xr.Dataset:
 
 
 def _column_dq1(ds: xr.Dataset) -> xr.Dataset:
-    if not _ds_contains(ds, ["net_heating"]):
+    if not _ds_contains(ds, {"net_heating"}):
         return ds
     column_dq1 = ds.net_heating
     column_dq1.attrs = {
@@ -184,7 +184,7 @@ def _column_dq1(ds: xr.Dataset) -> xr.Dataset:
 
 
 def _column_dq2(ds: xr.Dataset) -> xr.Dataset:
-    if not _ds_contains(ds, ["net_moistening"]):
+    if not _ds_contains(ds, {"net_moistening"}):
         return ds
     column_dq2 = SECONDS_PER_DAY * ds.net_moistening
     column_dq2.attrs = {
@@ -195,7 +195,7 @@ def _column_dq2(ds: xr.Dataset) -> xr.Dataset:
 
 
 def _column_q1(ds: xr.Dataset) -> xr.Dataset:
-    if not _ds_contains(ds, ["column_integrated_dQ1", "column_integrated_pQ1"]):
+    if not _ds_contains(ds, {"column_integrated_dQ1", "column_integrated_pQ1"}):
         return ds
     column_q1 = ds.column_integrated_dQ1 + ds.column_integrated_pQ1
     column_q1.attrs = {
@@ -206,7 +206,7 @@ def _column_q1(ds: xr.Dataset) -> xr.Dataset:
 
 
 def _column_q2(ds: xr.Dataset) -> xr.Dataset:
-    if not _ds_contains(ds, ["column_integrated_dQ2", "column_integrated_pQ2"]):
+    if not _ds_contains(ds, {"column_integrated_dQ2", "column_integrated_pQ2"}):
         return ds
     column_q2 = ds.column_integrated_dQ2 + ds.column_integrated_pQ2
     column_q2.attrs = {
@@ -216,11 +216,11 @@ def _column_q2(ds: xr.Dataset) -> xr.Dataset:
     return ds.update({"column_integrated_Q2": column_q2})
 
 
-def _ds_contains(ds: xr.Dataset, variables: Sequence) -> bool:
+def _ds_contains(ds: xr.Dataset, variables: set) -> bool:
     data_vars = set(ds.data_vars)
-    ds_contains_variables = set(variables).issubset(data_vars)
+    ds_contains_variables = variables.issubset(data_vars)
     if not ds_contains_variables:
-        logger.warning(f"An input dataset is missing: {set(variables) - data_vars}")
+        logger.warning(f"A dataset is missing variables {variables - data_vars}")
     return ds_contains_variables
 
 
