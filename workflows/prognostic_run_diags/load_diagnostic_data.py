@@ -187,16 +187,16 @@ def load_verification(
 def _load_standardized(path):
     logger.info(f"Loading and standardizing {path}")
     m = fsspec.get_mapper(path)
-    ds = xr.open_zarr(m, consolidated=True, mask_and_scale=False).load()
+    ds = xr.open_zarr(m, consolidated=True).load()
     return standardize_gfsphysics_diagnostics(ds)
 
 
 def _load_prognostic_run_physics_output(url):
     """Load, standardize and merge prognostic run physics outputs"""
-    prognostic_run_physics_outputs = ["diags.zarr", "sfc_dt_atmos.zarr"]
+    # values euqal to zero in diags.zarr get interpreted as nans by xarray, so fix here
     diagnostic_data = [
-        _load_standardized(os.path.join(url, category))
-        for category in prognostic_run_physics_outputs
+        _load_standardized(os.path.join(url, "diags.zarr")).fillna(0.0),
+        _load_standardized(os.path.join(url, "sfc_dt_atmos.zarr")),
     ]
 
     # TODO: diags.zarr currently doesn't contain any coordinates and should perhaps be
@@ -243,9 +243,9 @@ def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     ds = _load_standardized(path)
     resampled = ds.resample(time="3H", label="right").nearest()
 
-    verification_c48 = verification_c48.sel(
-        time=resampled.time[:-1]
-    )  # don't use last time point. there is some trouble
+    # don't use last time point. there is some trouble
+    resampled = resampled.isel(time=slice(None, -1))
+    verification_c48 = verification_c48.sel(time=resampled.time)
 
     return resampled, verification_c48, grid_c48[["area"]]
 
@@ -279,7 +279,10 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
-    # resample since 15-minute timeseries data makes report bloated
+    # resample since 15-minute frequency timeseries makes report bloated
     resampled = prognostic_output.resample(time="3H", label="right").nearest()
+
+    # avoid last time point since it often distorts plot limits
+    resampled = resampled.isel(time=slice(None, -1))
 
     return resampled, verification_c48, grid_c48[["area"]]
