@@ -166,7 +166,7 @@ def _column_pq2(ds: xr.Dataset) -> xr.Dataset:
     evap = vcm.thermo.latent_heat_flux_to_evaporation(ds.LHTFLsfc)
     column_pq2 = SECONDS_PER_DAY * (evap - ds.PRATEsfc)
     column_pq2.attrs = {
-        "long_name": "<pQ1> column integrated moistening from physics",
+        "long_name": "<pQ2> column integrated moistening from physics",
         "units": "mm/day",
     }
     return ds.update({"column_integrated_pQ2": column_pq2})
