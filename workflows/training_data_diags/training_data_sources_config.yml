@@ -9,7 +9,6 @@ batch_kwargs:
   timesteps: ['20160805.084500']
 sources:
   one_step_tendencies: 
-#     path: gs://vcm-ml-experiments-to-regional/2020-04-22-advisory-council/physics-off/create_training_data/train
     path: gs://vcm-ml-experiments-to-regional/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/create_training_data/train
     mapping_function: open_one_step
   nudging_tendencies: 
@@ -22,14 +21,12 @@ sources:
           air_temperature_tendency_due_to_nudging: dQ1
           specific_humidity_tendency_due_to_nudging: dQ2
   fine_res_apparent_sources: 
-  #   path: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget
-  #   path: gs://vcm-ml-scratch/noah/2020-05-27
-    path: /home/brianh/dev/fv3net/data/fine_res_budget
-    rename_variables:
-      delp: pressure_thickness_of_atmospheric_layer
-      pfull: z
-      grid_xt: x
-      grid_yt: y
+    path: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget
     mapping_function: open_fine_res_apparent_sources
     mapping_kwargs:
       offset_seconds: 450
+      rename_vars:
+        delp: pressure_thickness_of_atmospheric_layer
+        pfull: z
+        grid_xt: x
+        grid_yt: y

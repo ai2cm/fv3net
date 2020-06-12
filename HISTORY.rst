@@ -24,7 +24,10 @@ training data from multiple sources into a set of diagnostic variables
 * Add optional arg `--timesteps-file` to fv3net.regression.sklearn to provide a list of timesteps to use 
  in conjunction with the config arg `num_timesteps_per_batch`. The training config arg `num_batches` is now
  deprecated in favor of providing a list of timesteps.
-
+* Add a new transform mapper class `NudgedTendencies` which computes the missing pQ terms to give a full dataset of Q terms for the nudged source; uses existing mapping transforms `MergedNudged` and `NudgedStateCheckpoints`; new helper functions to open the `NudgedStateCheckpoints` and `NudgedTendencies` public nudged classes
+* Add arguments to rename dataset variables and dimensions in the nudged and fine-res helper functions and mapper classes to avoid renaming via the batch functions
+* Adds ability to specify timestep offsets in the `FineResolutionSources` mapper
+* Adds a regression test for the `training_data_diags` workflow step
 
 0.2.1 (2020-05-15)
 ------

@@ -95,9 +95,13 @@ class FineResolutionSources(Mapping):
         self,
         fine_resolution_time_mapping: Mapping[Time, xr.Dataset],
         offset_seconds: Union[int, float] = 0,
+        rename_vars: Mapping[str, str] = None,
+        drop_vars: Sequence[str] = ("step"),
     ):
         self._time_mapping = fine_resolution_time_mapping
         self._offset_seconds = offset_seconds
+        self._rename_vars = rename_vars or {}
+        self._drop_vars = drop_vars
 
     def keys(self):
         return [
@@ -107,8 +111,10 @@ class FineResolutionSources(Mapping):
 
     def __getitem__(self, time: Time) -> xr.Dataset:
         time = self._timestamp_key_to_midpoint(time, self._offset_seconds)
-        return self._derived_budget_ds(self._time_mapping[time]).drop_vars(
-            names=["step"], errors="ignore"
+        return (
+            self._derived_budget_ds(self._time_mapping[time])
+            .drop_vars(names=self._drop_vars, errors="ignore")
+            .rename(self._rename_vars)
         )
 
     def __iter__(self):
