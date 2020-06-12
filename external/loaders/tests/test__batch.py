@@ -4,7 +4,7 @@ import synth
 import xarray as xr
 import numpy as np
 
-from fv3net.regression.loaders._batch import (
+from loaders.batches._batch import (
     _mapper_to_batches,
     _mapper_to_diagnostic_sequence,
     _load_batch,

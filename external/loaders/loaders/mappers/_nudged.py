@@ -13,7 +13,7 @@ import vcm
 from vcm import cloud
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import TIME_FMT
-from .constants import TIME_NAME
+from ..constants import TIME_NAME
 
 logger = logging.getLogger(__name__)
 
