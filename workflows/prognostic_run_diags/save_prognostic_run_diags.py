@@ -163,7 +163,7 @@ def _column_pq1(ds: xr.Dataset) -> xr.Dataset:
 def _column_pq2(ds: xr.Dataset) -> xr.Dataset:
     if not _ds_contains(ds, ["LHTFLsfc", "PRATEsfc"]):
         return ds
-    evap = vcm.thermo.latent_heat_flux_to_evaporation(ds.LHTFLsfc)
+    evap = vcm.latent_heat_flux_to_evaporation(ds.LHTFLsfc)
     column_pq2 = SECONDS_PER_DAY * (evap - ds.PRATEsfc)
     column_pq2.attrs = {
         "long_name": "<pQ2> column integrated moistening from physics",
@@ -273,9 +273,8 @@ def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
         }
     )
 
-    # TODO: add thermo function into top-level import?
-    E_run = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_run["LHTFLsfc"])
-    E_verif = vcm.calc.thermo.latent_heat_flux_to_evaporation(ds_verif["LHTFLsfc"])
+    E_run = vcm.latent_heat_flux_to_evaporation(ds_run["LHTFLsfc"])
+    E_verif = vcm.latent_heat_flux_to_evaporation(ds_verif["LHTFLsfc"])
     E_diff = E_run - E_verif
     P_diff = ds_run[f"total_P_{filter_flag}"] - ds_verif[f"total_P_{filter_flag}"]
 
