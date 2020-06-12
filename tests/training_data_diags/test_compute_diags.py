@@ -6,7 +6,7 @@ import os
 import logging
 import diagnostics_utils as utils
 import intake
-from fv3net.regression import loaders
+from loaders import batch
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +140,7 @@ def test_compute_diags(datadir):
     timesteps_per_batch = 1
 
     # one step
-    ds_batches_one_step = loaders.diagnostic_sequence_from_mapper(
+    ds_batches_one_step = batch.diagnostic_sequence_from_mapper(
         os.path.join(output_dir, one_step_dir),
         variable_names,
         num_batches=num_batches,
@@ -166,7 +166,7 @@ def test_compute_diags(datadir):
         },
     }
 
-    ds_batches_nudged = loaders.diagnostic_sequence_from_mapper(
+    ds_batches_nudged = batch.diagnostic_sequence_from_mapper(
         output_dir,
         variable_names,
         num_batches=num_batches,
