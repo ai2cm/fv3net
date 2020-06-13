@@ -155,7 +155,7 @@ def diagnostic_sequence_from_mapper(
 
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
 
-    sequence = _mapper_to_diagnostic_sequence(
+    sequence = mapper_to_diagnostic_sequence(
         data_mapping,
         variable_names,
         timesteps_per_batch,
@@ -168,7 +168,7 @@ def diagnostic_sequence_from_mapper(
     return sequence
 
 
-def _mapper_to_diagnostic_sequence(
+def mapper_to_diagnostic_sequence(
     data_mapping: Mapping[str, xr.Dataset],
     variable_names: Sequence[str],
     timesteps_per_batch: int = 1,
