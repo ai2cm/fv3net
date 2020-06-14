@@ -1,0 +1,20 @@
+kubernetes:
+  cpu_count: 6
+  memory_gb: 5.
+base_version: v0.4
+diag_table: /etc/config/diag_table_prognostic
+namelist:
+  coupler_nml:
+    days: 10
+    hours: 0
+    minutes: 0
+    seconds: 0
+  diag_manager_nml:
+    flush_nc_files: true
+  gfs_physics_nml:
+    do_deep: false
+    do_gfdl_mp_in_physics: false
+    do_only_clearsky_rad: true
+    shal_cnv: false
+  fv_core_nml:
+    do_sat_adj: false

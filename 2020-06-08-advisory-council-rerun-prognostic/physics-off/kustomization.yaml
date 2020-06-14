@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases: 
+  - "../base"
+nameSuffix: "-physics-off-rerun"
+configMapGenerator:
+- files:
+    - prognostic_run.yml
+  name: end-to-end
+  literals:
+    - JOBNAME=physics-off
+    - ML_MODEL=gs://vcm-ml-experiments/2020-04-22-advisory-council/physics-off/train_sklearn_model
+  behavior: merge # merges with the base configuration generator

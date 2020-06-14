@@ -1,0 +1,8 @@
+# this file is required by end-to-end workflow, even though not doing any
+# training or testing in this specific iteration of the end-to-end
+url: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48
+spinup: "20160805.000000"
+boundary: "20160901.000000"
+train_samples: 130
+test_samples: 96
+seed: "0"

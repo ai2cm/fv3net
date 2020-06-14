@@ -1,0 +1,18 @@
+resources:
+- job.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namePrefix: v1
+configMapGenerator:
+  - name: end-to-end
+    env: input_data.env
+    literals:
+    - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:9c72898a44fef262970f1da93970506f8391a8c2
+    files:
+      - diag_table_prognostic
+      - end_to_end.yaml
+      - time-control.yaml
+images:
+- name: us.gcr.io/vcm-ml/fv3net
+  newName: us.gcr.io/vcm-ml/fv3net
+  newTag: 9c72898a44fef262970f1da93970506f8391a8c2
