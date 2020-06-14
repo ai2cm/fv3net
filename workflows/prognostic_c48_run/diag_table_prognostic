@@ -36,15 +36,16 @@ default_experiment
  "dynamics",  "v200",        "VGRD200",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "v50",         "VGRD50",        "atmos_dt_atmos", "all", .false.,  "none", 2
 ###
- "dynamics",  "tb",          "TMPlowest",    "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "tm",          "TMP500_300",   "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "tb",          "TB",           "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "t850",        "TMP850",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "t500",        "TMP500",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "t200",        "TMP200",       "atmos_dt_atmos", "all", .false.,  "none", 2
 ###
- "dynamics",  "w850",        "VVEL850",       "atmos_dt_atmos", "all", .false.,  "none", 2
- "dynamics",  "w500",        "VVEL500",       "atmos_dt_atmos", "all", .false.,  "none", 2
- "dynamics",  "w200",        "VVEL200",       "atmos_dt_atmos", "all", .false.,  "none", 2
- "dynamics",  "w50",         "VVEL50",        "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "w850",        "w850",       "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "w500",        "w500",       "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "w200",        "w200",       "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "w50",         "w50",        "atmos_dt_atmos", "all", .false.,  "none", 2
 ###
  "dynamics",  "vort850",     "VORT850",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "vort500",     "VORT500",       "atmos_dt_atmos", "all", .false.,  "none", 2
@@ -53,10 +54,6 @@ default_experiment
  "dynamics",  "z850",        "h850",          "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "z500",        "h500",          "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "z200",        "h200",          "atmos_dt_atmos", "all", .false.,  "none", 2
-####
- "dynamics",  "dp1000",       "DPT1000",      "atmos_dt_atmos", "all", .false.,  "none", 2
- "dynamics",  "dp850",        "DPT850",       "atmos_dt_atmos", "all", .false.,  "none", 2
- "dynamics",  "dp500",        "DPT500",       "atmos_dt_atmos", "all", .false.,  "none", 2
 ###
  "dynamics",  "rh1000",       "RH1000",      "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "rh925",        "RH925",       "atmos_dt_atmos", "all", .false.,  "none", 2
@@ -69,15 +66,8 @@ default_experiment
  "dynamics",  "tq",          "PWAT",         "atmos_dt_atmos", "all", .false., "none", 2
  "dynamics",  "lw",          "VIL",          "atmos_dt_atmos", "all", .false., "none", 2
  "dynamics",  "iw",          "iw",           "atmos_dt_atmos", "all", .false., "none", 2
- "dynamics",  "w100m",       "VVEL100m",     "atmos_dt_atmos", "all", .false., "none", 2
- "dynamics",  "w2500m",      "VVEL2500m",    "atmos_dt_atmos", "all", .false., "none", 2
- "dynamics",  "w5km",        "VVEL5km",      "atmos_dt_atmos", "all", .false., "none", 2
- "dynamics", "max_reflectivity",  "REFC",    "atmos_dt_atmos", "all",.false., "none", 2
- "dynamics", "base_reflectivity", "REFD1km", "atmos_dt_atmos", "all",.false., "none", 2
- "dynamics",  "echo_top",    "RETOP",        "atmos_dt_atmos", "all",.false., "none", 2
- "dynamics",  "ctt",         "TMPctp",       "atmos_dt_atmos", "all", .false., "none", 2
- "dynamics",  "ctp",         "PRESctp",      "atmos_dt_atmos", "all", .false., "none", 2
- "dynamics",  "ctz" ,        "HGTctp",       "atmos_dt_atmos", "all", .false., "none", 2
+ "dynamics",  "te",          "total_energy"  "atmos_dt_atmos", "all", .false., "none", 2
+ "dynamics",  "ke",        "kinetic_energy", "atmos_dt_atmos", "all", .false., "none", 2
 ###
 # atmos_8xdaily
 ###
@@ -111,16 +101,11 @@ default_experiment
  "dynamics",  "area",          "area",      "sfc_dt_atmos",         "all",  .false.,  "none", 2
  "gfs_phys",  "dusfci",    "uflx",     "sfc_dt_atmos",   "all",   .false.,  "none", 2
  "gfs_phys",  "dvsfci",    "vflx",     "sfc_dt_atmos",   "all",   .false.,  "none", 2
- "gfs_phys",  "cnvprcp_ave",    "CPRATsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "totprcp_ave",    "PRATEsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "totice_ave",     "ICEsfc",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "totsnw_ave",     "SNOWsfc",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "totgrp_ave",     "GRAUPELsfc", "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "cnvprcpb_ave",   "CPRATsfc_bucket",   "sfc_dt_atmos",  "all",  .false.,  "none",  2
- "gfs_phys",  "totprcpb_ave",   "PRATEsfc_bucket",   "sfc_dt_atmos",  "all",  .false.,  "none",  2
- "gfs_phys",  "toticeb_ave",    "ICEsfc_bucket",     "sfc_dt_atmos",  "all",  .false.,  "none",  2
- "gfs_phys",  "totsnwb_ave",    "SNOWsfc_bucket",    "sfc_dt_atmos",  "all",  .false.,  "none",  2
- "gfs_phys",  "totgrpb_ave",    "GRAUPELsfc_bucket", "sfc_dt_atmos",  "all",  .false.,  "none",  2
+ "gfs_phys",  "cnvprcpb_ave",   "CPRATsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "totprcpb_ave",   "PRATEsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "toticeb_ave",    "ICEsfc",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "totsnwb_ave",    "SNOWsfc",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
+ "gfs_phys",  "totgrpb_ave",    "GRAUPELsfc", "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "DSWRF",          "DSWRFsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "USWRF",          "USWRFsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "DSWRFtoa",       "DSWRFtoa",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
@@ -133,18 +118,12 @@ default_experiment
  "gfs_phys",  "hpbl",           "HPBLsfc",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_sfc",   "fice",           "ICECsfc",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_sfc",   "SLMSKsfc",       "SLMSKsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "TCDC_aveclm",    "TCDCclm",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "TCDC_avehcl",    "TCDChcl",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "TCDC_avelcl",    "TCDClcl",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_phys",  "TCDC_avemcl",    "TCDCmcl",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_sfc",   "q2m",            "SPFH2m",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_sfc",   "t2m",           "TMP2m",      "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_sfc",   "tsfc",          "TMPsfc",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "dpt2m",         "DPT2m",      "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "u10m",           "UGRD10m",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "v10m",           "VGRD10m",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "weasd",          "WEASDsfc",   "sfc_dt_atmos",         "all",  .false.,  "none",  2
- "gfs_sfc",   "snowd",          "SNODsfc",    "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "tmpmax2m",       "TMAX2m",     "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "wind10mmax",     "MAXWIND10m", "sfc_dt_atmos",         "all",  .false.,  "none",  2
  "gfs_phys",  "soilm",          "SOILM",      "sfc_dt_atmos",         "all",  .false.,  "none",  2
