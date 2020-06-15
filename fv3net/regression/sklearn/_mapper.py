@@ -49,11 +49,14 @@ class SklearnPredictionMapper(DatasetMapper):
     
     def _insert_prediction(self, ds, ds_pred):
         predicted_vars = ds_pred.data_vars
-        ds_target = safe.get_variables(ds, predicted_vars).expand_dims(DATA_SOURCE_DIM) \
+        nonpredicted_vars = [var for var in ds.data_vars if var not in predicted_vars]
+        ds_target = safe.get_variables(
+                ds, [var for var in predicted_vars if var in ds.data_vars]) \
+            .expand_dims(DATA_SOURCE_DIM) \
             .assign_coords({DATA_SOURCE_DIM: [TARGET_COORD]})
         ds_pred = ds_pred.expand_dims(DATA_SOURCE_DIM) \
             .assign_coords({DATA_SOURCE_DIM: [PREDICT_COORD]})
-        return xr.merge([ds.drop(predicted_vars), ds_target, ds_pred])
+        return xr.merge([safe.get_variables(ds, nonpredicted_vars), ds_target, ds_pred])
         
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._base_mapper[key]

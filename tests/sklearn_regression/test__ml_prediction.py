@@ -2,7 +2,7 @@ import xarray as xr
 import pytest
 
 from loaders import SAMPLE_DIM_NAME
-from fv3net.regression.sklearn._mapper import SklearnPredictionMapper
+from fv3net.regression.sklearn._mapper import SklearnPredictionMapper, PREDICT_COORD, TARGET_COORD, DATA_SOURCE_DIM
 
 
 def mock_predict_function(feature_data_arrays):
@@ -81,14 +81,33 @@ def mock_model(request):
     ],
     indirect=True,
 )
-def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
-    suffix = "ml"
+def test_ml_predict_wrapper_insert_prediction(mock_model, base_mapper, gridded_dataset):
     mapper = SklearnPredictionMapper(
         base_mapper,
         mock_model,
         init_time_dim="initial_time",
         z_dim="z",
-        predicted_var_suffix=suffix,
+    )
+    for key in mapper.keys():
+        mapper_output = mapper[key]
+        for var in mock_model.output_vars_:
+            assert set(mapper_output[var][DATA_SOURCE_DIM].values) == {TARGET_COORD, PREDICT_COORD}
+
+
+@pytest.mark.parametrize(
+    "mock_model",
+    [
+        (["feature0", "feature1"], ["pred0"]),
+        (["feature0", "feature1"], ["pred0", "pred1"]),
+    ],
+    indirect=True,
+)
+def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
+    mapper = SklearnPredictionMapper(
+        base_mapper,
+        mock_model,
+        init_time_dim="initial_time",
+        z_dim="z",
     )
     for key in mapper.keys():
         mapper_output = mapper[key]
@@ -97,7 +116,7 @@ def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
         )
         for var in mock_model.output_vars_:
             assert sum(
-                (mapper_output[var + f"_{suffix}"] - target).values
+                (mapper_output[var].sel({DATA_SOURCE_DIM: PREDICT_COORD}) - target).values
             ) == pytest.approx(0)
 
 
@@ -107,13 +126,11 @@ def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
     indirect=True,
 )
 def test_ml_predict_wrapper_invalid_usage(mock_model, base_mapper, gridded_dataset):
-    suffix = "ml"
     mapper = SklearnPredictionMapper(
         base_mapper,
         mock_model,
         init_time_dim="initial_time",
         z_dim="z",
-        predicted_var_suffix=suffix,
     )
     with pytest.raises(Exception):
         for key in mapper.keys():

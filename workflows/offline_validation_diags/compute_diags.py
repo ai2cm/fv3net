@@ -105,7 +105,7 @@ if __name__ == "__main__":
     )
 
     ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS,
-        primary_vars=["dQ1", "dQ2", "dQ1_ml", "dQ2_ml"])
+        primary_vars=["dQ1", "dQ2",])
 
     logger.info(f"Finished processing dataset.")
     _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path)

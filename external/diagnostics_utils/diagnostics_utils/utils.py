@@ -115,7 +115,7 @@ def conditional_average(
         area_masked = area.where(surface_type_array == surface_type)
     else:
         raise ValueError(
-            f"surfae type {surface_type} not in provided surface type array "
+            f"surface type {surface_type} not in provided surface type array "
             f"with types {all_types}."
         )
 
