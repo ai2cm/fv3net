@@ -177,8 +177,7 @@ workflows:
               ignore:
                 - master
       - pytest:
-          parameters:
-            kind: test_dataflow
+          kind: test_dataflow
           requires:
             - hold
       - build_default:
