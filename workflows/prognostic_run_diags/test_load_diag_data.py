@@ -35,14 +35,15 @@ def _create_dataset(*dims, with_coords=True):
 @pytest.mark.parametrize(
     "input_dims, rename_inverse, renamed_dims",
     [
-        (["x", "y"], {}, {"x", "y"}),
-        (["x", "y"], {"y_out": {"y"}}, {"x", "y_out"}),
-        (["x", "y"], {"y_out": {"y", "y2"}}, {"x", "y_out"}),
-        (["x", "y"], {"x_out": {"x"}, "y_out": {"y", "y2"}}, {"x_out", "y_out"}),
-        (["x", "y"], {"z_out": {"z"}}, {"x", "y"}),
+        ({"x", "y"}, {}, {"x", "y"}),
+        ({"x", "y"}, {"y_out": {"y"}}, {"x", "y_out"}),
+        ({"x", "y"}, {"y_out": {"y", "y2"}}, {"x", "y_out"}),
+        ({"x", "y"}, {"x_out": {"x"}, "y_out": {"y", "y2"}}, {"x_out", "y_out"}),
+        ({"x", "y"}, {"z_out": {"z"}}, {"x", "y"}),
     ],
 )
 def test__rename_dims(input_dims, rename_inverse, renamed_dims):
+    # datasets can have dimensions with or without coordinates, so cover both cases
     for with_coords in [True, False]:
         ds_in = _create_dataset(*input_dims, with_coords=with_coords)
         ds_out = load_diags._rename_dims(ds_in, rename_inverse=rename_inverse)
