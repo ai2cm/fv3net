@@ -9,7 +9,7 @@ jobs:
         description: "Type of test"
         default: "test_unit"
         type: enum
-        enum: ["test_unit", "test_regression", "typecheck"]
+        enum: ["test_unit", "test_regression", "typecheck", "test_dataflow"]
     docker:
       - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
         auth:
@@ -176,14 +176,28 @@ workflows:
             branches:
               ignore:
                 - master
+      - pytest:
+          parameters:
+            kind: test_dataflow
+          requires:
+            - hold
       - build_default:
           requires:
             - hold
       - integration_tests:
           requires:
             - build_default
-  build_and_push:
-    jobs:
+
+      # dataflow test on master
+      - pytest:
+          name: "Test Dataflow"
+          parameters:
+            kind: test_dataflow
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
       - build_default:
           filters:
             tags:

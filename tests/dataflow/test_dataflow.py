@@ -16,6 +16,6 @@ bash -x dataflow.sh submit $(pwd)/tests/simple_dataflow.py  \
 """
 
 
-@pytest.mark.regression()
+@pytest.mark.e2e()
 def test_submit_dataflow():
     subprocess.check_call([submission], shell=True)
