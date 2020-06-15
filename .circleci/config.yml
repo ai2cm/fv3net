@@ -190,9 +190,8 @@ workflows:
 
       # dataflow test on master
       - pytest:
+          kind: test_dataflow
           name: "Test Dataflow"
-          parameters:
-            kind: test_dataflow
           filters:
             tags:
               only: /^v.*/
