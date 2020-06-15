@@ -78,7 +78,7 @@ test_regression:
 	pytest -vv -m regression -s
 
 test_dataflow:
-	pytest -vv tests/dataflow/
+	pytest -vv tests/dataflow/ -s
 
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images
