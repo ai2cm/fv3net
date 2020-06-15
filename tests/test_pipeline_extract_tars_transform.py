@@ -2,7 +2,8 @@ import pytest
 
 from fv3net.pipelines.extract_tars.transforms import not_finished_with_tar_extract
 
-
+# Extraction no longer used, deleted test data in tmp_dataflow
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "timestep, result",
     [
@@ -33,6 +34,8 @@ def test_not_finished_extract(timestep, result):
     assert is_not_finished == result
 
 
+# Extraction no longer used, deleted test data in tmp_dataflow
+@pytest.mark.skip
 @pytest.mark.parametrize("num_tiles, num_subtiles", [(0, 1), (1, 0), (-1, -1)])
 def test_not_finished_extract_non_positive_tiles(num_tiles, num_subtiles):
     timestep = "20160801.003000"
