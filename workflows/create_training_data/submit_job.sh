@@ -6,7 +6,7 @@ gs://vcm-ml-data/test-annak/2020-03-30_test_bigzarr_train_pipeline \
 --project vcm-ml \
 --region us-central1 \
 --runner DataflowRunner \
---temp_location gs://vcm-ml-data/tmp_dataflow \
+--temp_location gs://vcm-ml-scratch/tmp_dataflow \
 --num_workers 4 \
 --max_num_workers 30 \
 --disk_size_gb 30 \

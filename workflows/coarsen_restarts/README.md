@@ -29,7 +29,7 @@ time=$(openssl rand -hex 6)
     --autoscaling_algorithm=NONE \
     --project vcm-ml \
     --region us-central1 \
-    --temp_location gs://vcm-ml-data/tmp_dataflow \
+    --temp_location gs://vcm-ml-scratch/tmp_dataflow \
     --num_workers 128 \
     --max_num_workers 128 \
     --disk_size_gb 50 \
