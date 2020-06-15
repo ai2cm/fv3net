@@ -8,9 +8,10 @@ num_tiles = 1
 num_subtiles = 1
 
 prefix_src = (
-    "gs://vcm-ml-data/" "2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
+    "gs://vcm-ml-code-testing-data/"
+    "2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
 )
-prefix_dst = "gs://vcm-ml-data/tmp_dataflow/test_data_extract_check/"
+prefix_dst = "gs://vcm-ml-code-testing-data/test_data_extract_check/"
 
 src_template = (
     prefix_src + "{res}/{timestep}/" "{timestep}.{domain}.tile{tile:d}.nc.{subtile:04d}"
@@ -63,7 +64,7 @@ for rm_file in [rm_sfc_file, rm_atm_file]:
 bucket = "vcm-ml-data"
 empty_timestep = "20160801.011500"
 res_list = ["C3702", "C384"]
-blob_name = "tmp_dataflow/test_data_extract_check/" "{res}/{timestep}/"
+blob_name = "test_data_extract_check/" "{res}/{timestep}/"
 for res in res_list:
     curr_blob_name = blob_name.format(timestep=empty_timestep, res=res)
     blob = init_blob(bucket, curr_blob_name)
