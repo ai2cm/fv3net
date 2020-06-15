@@ -1,5 +1,4 @@
 import subprocess
-import pytest
 
 submission = """
 bash -x dataflow.sh submit $(pwd)/tests/simple_dataflow.py  \
