@@ -165,6 +165,7 @@ workflows:
   test_and_lint:
     jobs:
       - lint
+      - mypy
       - pytest:
           matrix:
             parameters:
