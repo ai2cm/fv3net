@@ -108,9 +108,14 @@ if __name__ == "__main__":
     config_dir = os.path.join(args.output_url, "job_config")
     job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
 
-    model_config["diag_table"] = fv3kube.transfer_local_to_remote(
-        model_config["diag_table"], config_dir
-    )
+    try:
+        diag_table = fv3kube.transfer_local_to_remote(
+            model_config["diag_table"], config_dir
+        )
+    except FileNotFoundError:
+        diag_table = model_config["diag_table"]
+
+    model_config["diag_table"] = diag_table
 
     # Add scikit learn ML model config section
     if args.model_url:
@@ -139,7 +144,8 @@ if __name__ == "__main__":
         submit=False,
         **kube_opts,
     )
-    client.create_namespaced_job(namespace="default", body=job)
+    print(job)
+    # client.create_namespaced_job(namespace="default", body=job)
 
     if not args.detach:
         fv3kube.wait_for_complete(job_label, raise_on_fail=not args.allow_fail)
