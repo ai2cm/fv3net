@@ -93,7 +93,13 @@ jobs:
       - slack/status:
           fail_only: true
           mentions: "channel"
-
+  mypy:
+    docker:
+      - image: circleci/python:3.7
+    steps:
+      - checkout
+      - run: sudo pip install mypy==0.770 xarray
+      - run: make typecheck
   lint:
     docker:
       - image: circleci/python:3.7
@@ -162,7 +168,7 @@ workflows:
       - pytest:
           matrix:
             parameters:
-              kind: ["typecheck", "test_unit", "test_regression"]
+              kind: ["test_unit", "test_regression"]
       - hold:
           type: approval
           filters:
