@@ -90,7 +90,7 @@ def test_download_blob_to_file_makes_destination_directories(tmpdir):
 
 @pytest.mark.regression
 def test_download_glob_to_file_nonexistent_blob(tmpdir):
-    nonexistent_gcs_path = "gs://vcm-ml-data/non_existent_dir/non_existent_file.lol"
+    nonexistent_gcs_path = "gs://vcm-ml-code-testing-data/non_existent_dir/non_existent_file.lol"
     blob = gcs.init_blob_from_gcs_url(nonexistent_gcs_path)
 
     with pytest.raises(NotFound):
@@ -151,12 +151,12 @@ def test_extract_tarball_non_existent_tar(tmpdir):
 @pytest.mark.regression
 def test_upload_dir_to_gcs(tmpdir):
     src_dir_to_upload = Path(__file__).parent.joinpath("test_data")
-    gcs.upload_dir_to_gcs("vcm-ml-data", "tmp_dataflow/test_upload", src_dir_to_upload)
+    gcs.upload_dir_to_gcs("vcm-ml-code-testing-data", "test_upload", src_dir_to_upload)
 
     test_files = ["test_datafile.txt", "test_data.tar"]
 
     for filename in test_files:
-        gcs_url = f"gs://vcm-ml-data/tmp_dataflow/test_upload/{filename}"
+        gcs_url = f"gs://vcm-ml-code-testing-data/test_upload/{filename}"
         file_blob = gcs.init_blob_from_gcs_url(gcs_url)
         assert file_blob.exists()
 
@@ -174,7 +174,7 @@ def test_upload_dir_to_gcs_from_nonexistent_dir(tmpdir):
     nonexistent_dir = Path(tmpdir, "non/existent/dir/")
     with pytest.raises(FileNotFoundError):
         gcs.upload_dir_to_gcs(
-            "vcm-ml-data", "tmp_dataflow/test_upload", nonexistent_dir
+            "vcm-ml-code-testing-data", "test_upload", nonexistent_dir
         )
 
 
@@ -184,7 +184,7 @@ def test_upload_dir_to_gcs_dir_is_file():
     with tempfile.NamedTemporaryFile() as f:
         with pytest.raises(ValueError):
             gcs.upload_dir_to_gcs(
-                "vcm-ml-data", "tmp_dataflow/test_upload", Path(f.name)
+                "vcm-ml-code-testing-data", "test_upload", Path(f.name)
             )
 
 
@@ -204,9 +204,9 @@ def test_upload_dir_to_gcs_does_not_upload_subdir(tmpdir):
     # TODO: use pytest fixture to do setup/teardown of temporary gcs dir
 
     upload_dir = "transient"
-    bucket_name = "vcm-ml-data"
+    bucket_name = "vcm-ml-code-testing-data"
     gcs_url_prefix = f"gs://{bucket_name}"
-    tmp_gcs_dir = f"tmp_dataflow/test_upload/{upload_dir}"
+    tmp_gcs_dir = f"test_upload/{upload_dir}"
     tmp_gcs_url = f"{gcs_url_prefix}/{tmp_gcs_dir}"
 
     gcs.upload_dir_to_gcs(bucket_name, tmp_gcs_dir, Path(tmpdir))
@@ -258,5 +258,5 @@ def test_download_all_bucket_files_nonexistant_gcs_url():
 
     with pytest.raises(ValueError):
         gcs.download_all_bucket_files(
-            "gs://vcm-ml-data/non-existent-bucket/doesnt/exist", "/tmp/mytemp"
+            "gs://vcm-ml-code-testing-data/non-existent-bucket/doesnt/exist", "/tmp/mytemp"
         )
