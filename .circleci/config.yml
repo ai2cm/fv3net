@@ -160,11 +160,9 @@ workflows:
     jobs:
       - lint
       - pytest:
-          kind: typecheck
-      - pytest:
-          kind: test_unit
-      - pytest:
-          kind: test_regression
+          matrix:
+            parameters:
+              kind: ["typecheck", "test_unit", "test_regression"]
       - hold:
           type: approval
           filters:
