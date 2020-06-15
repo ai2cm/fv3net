@@ -3,7 +3,13 @@ orbs:
   gcp-gcr: circleci/gcp-gcr@0.6.1
   slack: circleci/slack@3.4.2
 jobs:
-  pytest_default:
+  pytest:
+    parameters:
+      kind:
+        description: "Type of test"
+        default: "unit"
+        type: enum
+        enum: ["test_unit", "test_regression", "typecheck"]
     docker:
       - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
         auth:
@@ -39,19 +45,9 @@ jobs:
       - run:
           name: "Install fv3net packages"
           command: make install_local_packages
-      - run:
-          name: Type Checks
-          command: |
-            source activate fv3net
-            make typecheck
       - run: |
           source activate fv3net
-          make test_unit
-      - run:
-          name: Regression Tests
-          command: |
-            source activate fv3net
-            make test_regression
+          make <<parameters.kind>>
 
   build_default:
     machine:
@@ -163,7 +159,12 @@ workflows:
   test_and_lint:
     jobs:
       - lint
-      - pytest_default
+      - pytest:
+          kind: typecheck
+      - pytest:
+          kind: test_unit
+      - pytest:
+          kind: test_regression
       - hold:
           type: approval
           filters:
