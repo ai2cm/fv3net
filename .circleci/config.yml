@@ -2,43 +2,42 @@ version: 2.1
 orbs:
   gcp-gcr: circleci/gcp-gcr@0.6.1
   slack: circleci/slack@3.4.2
-aliases:
-  - &deps
-    docker:
-      - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
-        auth:
-          username: _json_key
-          password: $DECODED_GOOGLE_CREDENTIALS
-        environment:
-          GOOGLE_APPLICATION_CREDENTIALS: /etc/key.json
-    steps:
-      - checkout
-      - run: apt-get update && apt-get install -y uuid
-      - run:
-          name: "Save GCS for tests."
-          command: |
-            echo $ENCODED_GOOGLE_CREDENTIALS | \
-            base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
-      - run: make update_submodules
-      - run:
-          name: "Concatenate package dependency files"
-          command: cat environment.yml .circleci/environment.lock > combined_deps.txt
-      - restore_cache:
-          keys:
-            # change this string to invalidate cache
-            - v2-fv3net-env-{{ checksum "combined_deps.txt" }}
-      - run:
-          name: "Install fv3net dependencies"
-          command: |
-            make install_deps
-            cat .circleci/environment.lock
-      - save_cache:
-          key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}
-          paths:
-            - /opt/conda/envs/fv3net
-      - run:
-          name: "Install fv3net packages"
-          command: make install_local_packages
+deps: &deps
+  docker:
+    - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
+      auth:
+        username: _json_key
+        password: $DECODED_GOOGLE_CREDENTIALS
+      environment:
+        GOOGLE_APPLICATION_CREDENTIALS: /etc/key.json
+  steps:
+    - checkout
+    - run: apt-get update && apt-get install -y uuid
+    - run:
+        name: "Save GCS for tests."
+        command: |
+          echo $ENCODED_GOOGLE_CREDENTIALS | \
+          base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
+    - run: make update_submodules
+    - run:
+        name: "Concatenate package dependency files"
+        command: cat environment.yml .circleci/environment.lock > combined_deps.txt
+    - restore_cache:
+        keys:
+          # change this string to invalidate cache
+          - v2-fv3net-env-{{ checksum "combined_deps.txt" }}
+    - run:
+        name: "Install fv3net dependencies"
+        command: |
+          make install_deps
+          cat .circleci/environment.lock
+    - save_cache:
+        key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}
+        paths:
+          - /opt/conda/envs/fv3net
+    - run:
+        name: "Install fv3net packages"
+        command: make install_local_packages
 jobs:
   pytest_default:
     <<: *deps
