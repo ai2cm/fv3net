@@ -8,7 +8,8 @@ num_tiles = 1
 num_subtiles = 1
 
 prefix_src = (
-    "gs://vcm-ml-code-testing-data/" "2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
+    "gs://vcm-ml-code-testing-data/"
+    "2019-10-28-X-SHiELD-2019-10-05-multiresolution-extracted/"
 )
 prefix_dst = "gs://vcm-ml-code-testing-data/test_data_extract_check/"
 

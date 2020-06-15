@@ -63,6 +63,7 @@ def test_files_exist_on_gcs(gcs_url):
     blob = gcs.init_blob_from_gcs_url(gcs_url)
     assert blob.exists()
 
+
 @pytest.mark.regression
 def test_download_blob_to_file(tmpdir):
     txt_filename = "test_datafile.txt"
@@ -72,6 +73,7 @@ def test_download_blob_to_file(tmpdir):
     outfile_path = gcs.download_blob_to_file(blob, tmpdir, txt_filename)
 
     assert outfile_path.exists()
+
 
 @pytest.mark.regression
 def test_download_blob_to_file_makes_destination_directories(tmpdir):
@@ -90,7 +92,9 @@ def test_download_blob_to_file_makes_destination_directories(tmpdir):
 
 @pytest.mark.regression
 def test_download_glob_to_file_nonexistent_blob(tmpdir):
-    nonexistent_gcs_path = "gs://vcm-ml-code-testing-data/non_existent_dir/non_existent_file.lol"
+    nonexistent_gcs_path = (
+        "gs://vcm-ml-code-testing-data/non_existent_dir/non_existent_file.lol"
+    )
     blob = gcs.init_blob_from_gcs_url(nonexistent_gcs_path)
 
     with pytest.raises(NotFound):
@@ -258,5 +262,6 @@ def test_download_all_bucket_files_nonexistant_gcs_url():
 
     with pytest.raises(ValueError):
         gcs.download_all_bucket_files(
-            "gs://vcm-ml-code-testing-data/non-existent-bucket/doesnt/exist", "/tmp/mytemp"
+            "gs://vcm-ml-code-testing-data/non-existent-bucket/doesnt/exist",
+            "/tmp/mytemp",
         )
