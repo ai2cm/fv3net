@@ -21,7 +21,7 @@ def test__check_tile_range(ds):
     xr.testing.assert_equal(tile_result, expected_da)
 
 
-def _create_ds_from_dims(*dims, with_coords=True):
+def _create_dataset(*dims, with_coords=True):
     if with_coords:
         coords = {dim: np.arange(i + 1) for i, dim in enumerate(dims)}
         ds = xr.Dataset(coords=coords)
@@ -32,30 +32,21 @@ def _create_ds_from_dims(*dims, with_coords=True):
     return ds
 
 
-def _check_keys_equivalent(target_keys, test_keys):
-
-    assert len(test_keys) == len(target_keys)
-    for key in target_keys:
-        assert key in test_keys
-
-
-@pytest.mark.parametrize("with_coords", [False, True])
-def test__rename_dims(with_coords):
-    """
-    Construct DS from combos of source dimension names and check that it gets
-    fixed with renaming function. Test datasets with and without coordinates defined.
-    """
-
-    good_dim_keys = load_diags.DIM_RENAME_INVERSE_MAP.keys()
-    good_ds = _create_ds_from_dims(*good_dim_keys, with_coords=with_coords)
-    good_ds_renamed = load_diags._rename_dims(good_ds)
-    _check_keys_equivalent(good_dim_keys, good_ds_renamed.dims.keys())
-
-    for bad_dims in itertools.product(*load_diags.DIM_RENAME_INVERSE_MAP.values()):
-        ds = _create_ds_from_dims(*bad_dims, with_coords=with_coords)
-        fixed_ds = load_diags._rename_dims(ds)
-        fixed_coord_keys = fixed_ds.dims.keys()
-        _check_keys_equivalent(good_dim_keys, fixed_coord_keys)
+@pytest.mark.parametrize(
+    "input_dims, rename_inverse, renamed_dims",
+    [
+        (["x", "y"], {}, {"x", "y"}),
+        (["x", "y"], {"y_out": {"y"}}, {"x", "y_out"}),
+        (["x", "y"], {"y_out": {"y", "y2"}}, {"x", "y_out"}),
+        (["x", "y"], {"x_out": {"x"}, "y_out": {"y", "y2"}}, {"x_out", "y_out"}),
+        (["x", "y"], {"z_out": {"z"}}, {"x", "y"}),
+    ],
+)
+def test__rename_dims(input_dims, rename_inverse, renamed_dims):
+    for with_coords in [True, False]:
+        ds_in = _create_dataset(*input_dims, with_coords=with_coords)
+        ds_out = load_diags._rename_dims(ds_in, rename_inverse=rename_inverse)
+        assert set(ds_out.dims) == renamed_dims
 
 
 @pytest.fixture

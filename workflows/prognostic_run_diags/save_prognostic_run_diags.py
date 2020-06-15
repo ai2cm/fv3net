@@ -107,7 +107,7 @@ def compute_all_derived_vars(input_datasets: Dict[str, DiagArg]) -> Dict[str, Di
 
     Args:
         input_datasets: Input datasets with keys corresponding to the appropriate group
-        of inputs/diagnostics..
+        of inputs/diagnostics.
 
     Returns:
         input datasets with derived variables added to prognostic and verification data
@@ -125,6 +125,7 @@ def compute_all_derived_vars(input_datasets: Dict[str, DiagArg]) -> Dict[str, Di
 @add_to_derived_vars("physics")
 def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
     """Compute derived variables for physics datasets"""
+    arrays = []
     for func in [
         _column_pq1,
         _column_pq2,
@@ -133,11 +134,14 @@ def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
         _column_q1,
         _column_q2,
     ]:
-        ds = func(ds)
-    return ds
+        try:
+            arrays.append(func(ds))
+        except (KeyError, AttributeError):  # account for ds[var] and ds.var notations
+            logger.warning(f"Missing variable for calculation in {func.__name__}")
+    return xr.merge(arrays)
 
 
-def _column_pq1(ds: xr.Dataset) -> xr.Dataset:
+def _column_pq1(ds: xr.Dataset) -> xr.DataArray:
     net_heating_arg_labels = [
         "DLWRFsfc",
         "DSWRFsfc",
@@ -149,79 +153,59 @@ def _column_pq1(ds: xr.Dataset) -> xr.Dataset:
         "SHTFLsfc",
         "PRATEsfc",
     ]
-    if not _ds_contains(ds, set(net_heating_arg_labels)):
-        return ds
     net_heating_args = [ds[var] for var in net_heating_arg_labels]
     column_pq1 = vcm.net_heating(*net_heating_args)
     column_pq1.attrs = {
         "long_name": "<pQ1> column integrated heating from physics",
         "units": "W/m^2",
     }
-    return ds.update({"column_integrated_pQ1": column_pq1})
+    return column_pq1.rename("column_integrated_pQ1")
 
 
 def _column_pq2(ds: xr.Dataset) -> xr.Dataset:
-    if not _ds_contains(ds, {"LHTFLsfc", "PRATEsfc"}):
-        return ds
     evap = vcm.latent_heat_flux_to_evaporation(ds.LHTFLsfc)
     column_pq2 = SECONDS_PER_DAY * (evap - ds.PRATEsfc)
     column_pq2.attrs = {
         "long_name": "<pQ2> column integrated moistening from physics",
         "units": "mm/day",
     }
-    return ds.update({"column_integrated_pQ2": column_pq2})
+    return column_pq2.rename("column_integrated_pQ2")
 
 
 def _column_dq1(ds: xr.Dataset) -> xr.Dataset:
-    if not _ds_contains(ds, {"net_heating"}):
-        return ds
     column_dq1 = ds.net_heating
     column_dq1.attrs = {
         "long_name": "<dQ1> column integrated heating from ML",
         "units": "W/m^2",
     }
-    return ds.drop_vars("net_heating").update({"column_integrated_dQ1": column_dq1})
+    return column_dq1.rename("column_integrated_dQ1")
 
 
 def _column_dq2(ds: xr.Dataset) -> xr.Dataset:
-    if not _ds_contains(ds, {"net_moistening"}):
-        return ds
     column_dq2 = SECONDS_PER_DAY * ds.net_moistening
     column_dq2.attrs = {
         "long_name": "<dQ2> column integrated moistening from ML",
         "units": "mm/day",
     }
-    return ds.drop_vars("net_moistening").update({"column_integrated_dQ2": column_dq2})
+    return column_dq2.rename("column_integrated_dQ2")
 
 
 def _column_q1(ds: xr.Dataset) -> xr.Dataset:
-    if not _ds_contains(ds, {"column_integrated_dQ1", "column_integrated_pQ1"}):
-        return ds
-    column_q1 = ds.column_integrated_dQ1 + ds.column_integrated_pQ1
+    column_q1 = _column_pq1(ds) + _column_dq1(ds)
     column_q1.attrs = {
         "long_name": "<Q1> column integrated heating from physics+ML",
         "units": "W/m^2",
     }
-    return ds.update({"column_integrated_Q1": column_q1})
+    return column_q1.rename("column_integrated_Q1")
 
 
 def _column_q2(ds: xr.Dataset) -> xr.Dataset:
-    if not _ds_contains(ds, {"column_integrated_dQ2", "column_integrated_pQ2"}):
-        return ds
-    column_q2 = ds.column_integrated_dQ2 + ds.column_integrated_pQ2
+    column_q2 = _column_pq2(ds) + _column_dq2(ds)
     column_q2.attrs = {
         "long_name": "<Q2> column integrated moistening from physics+ML",
         "units": "mm/day",
     }
-    return ds.update({"column_integrated_Q2": column_q2})
-
-
-def _ds_contains(ds: xr.Dataset, variables: set) -> bool:
-    data_vars = set(ds.data_vars)
-    ds_contains_variables = variables.issubset(data_vars)
-    if not ds_contains_variables:
-        logger.warning(f"A dataset is missing variables {variables - data_vars}")
-    return ds_contains_variables
+    return column_q2.rename("column_integrated_Q2")
 
 
 def rms(x, y, w, dims):

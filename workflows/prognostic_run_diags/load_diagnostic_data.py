@@ -4,7 +4,7 @@ import warnings
 import os
 import xarray as xr
 import numpy as np
-from typing import List, Iterable, Tuple
+from typing import List, Iterable, Tuple, Mapping, Set
 from datetime import timedelta
 
 import fsspec
@@ -38,10 +38,12 @@ def _adjust_tile_range(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def _rename_dims(ds: xr.Dataset) -> xr.Dataset:
+def _rename_dims(
+    ds: xr.Dataset, rename_inverse: Mapping[str, Set[str]] = DIM_RENAME_INVERSE_MAP
+) -> xr.Dataset:
 
     varname_target_registry = {}
-    for target_name, source_names in DIM_RENAME_INVERSE_MAP.items():
+    for target_name, source_names in rename_inverse.items():
         varname_target_registry.update({name: target_name for name in source_names})
 
     vars_to_rename = {

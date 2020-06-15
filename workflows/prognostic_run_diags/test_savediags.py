@@ -63,15 +63,3 @@ def test_compute_diags_succeeds(func, resampled, verification, grid):
 def test__catalog():
     assert os.path.isfile(savediags._catalog())
 
-
-@pytest.mark.parametrize(
-    "ds, variables, expected",
-    [
-        (xr.Dataset({"foo": 1}), {"foo"}, True),
-        (xr.Dataset({"foo": 1}), {"foo", "bar"}, False),
-        (xr.Dataset({"foo": 1}), {"bar"}, False),
-        (xr.Dataset({"foo": 1, "bar": 2}), {"foo"}, True),
-    ],
-)
-def test__missing_var(ds, variables, expected):
-    assert savediags._ds_contains(ds, variables) == expected
