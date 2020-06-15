@@ -2,8 +2,37 @@ version: 2.1
 orbs:
   gcp-gcr: circleci/gcp-gcr@0.6.1
   slack: circleci/slack@3.4.2
+aliases:
+  - &deps
+    - checkout
+    - run: apt-get update && apt-get install -y uuid
+    - run:
+        name: "Save GCS for tests."
+        command: |
+          echo $ENCODED_GOOGLE_CREDENTIALS | \
+          base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
+    - run: make update_submodules
+    - run:
+        name: "Concatenate package dependency files"
+        command: cat environment.yml .circleci/environment.lock > combined_deps.txt
+    - restore_cache:
+        keys:
+          # change this string to invalidate cache
+          - v2-fv3net-env-{{ checksum "combined_deps.txt" }}
+    - run:
+        name: "Install fv3net dependencies"
+        command: |
+          make install_deps
+          cat .circleci/environment.lock
+    - save_cache:
+        key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}
+        paths:
+          - /opt/conda/envs/fv3net
+    - run:
+        name: "Install fv3net packages"
+        command: make install_local_packages
 jobs:
-  pytest_default:    
+  pytest_default:
     docker:
       - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
         auth:
@@ -12,34 +41,8 @@ jobs:
         environment:
           GOOGLE_APPLICATION_CREDENTIALS: /etc/key.json
     steps:
-      - checkout
-      - run: apt-get update && apt-get install -y uuid
-      - run:
-          name: "Save GCS for tests."
-          command: |
-            echo $ENCODED_GOOGLE_CREDENTIALS | \
-            base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
-      - run: make update_submodules
-      - run:
-          name: "Concatenate package dependency files"
-          command: cat environment.yml .circleci/environment.lock > combined_deps.txt
-      - restore_cache:
-          keys:
-            # change this string to invalidate cache
-            - v2-fv3net-env-{{ checksum "combined_deps.txt" }}
-      - run:
-          name: "Install fv3net dependencies"
-          command: |
-            make install_deps
-            cat .circleci/environment.lock
-      - save_cache:
-          key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}
-          paths:
-            - /opt/conda/envs/fv3net
-      - run:
-          name: "Install fv3net packages"
-          command: make install_local_packages
-      - run: | 
+      - run: *deps
+      - run: |
           source activate fv3net
           pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
       - run:
@@ -52,7 +55,6 @@ jobs:
           command: |
             source activate fv3net
             pytest -vv -m regression -s
-
   build_default:
     machine:
       docker_layer_caching: true
@@ -71,7 +73,7 @@ jobs:
           command: |
             git submodule update --init --recursive
       - run:
-          name: Build fv3net images 
+          name: Build fv3net images
           command: |
             make build_images
       - run: make test_prognostic_run
@@ -96,16 +98,15 @@ jobs:
             make push_images VERSION=$CIRCLE_SHA1
       - slack/status:
           fail_only: true
-          mentions: 'channel'
-  
+          mentions: "channel"
+
   lint:
     docker:
-    - image: circleci/python:3.7
+      - image: circleci/python:3.7
     steps:
-    - checkout
-    - run: sudo pip install black==19.10b0 flake8==3.7.9
-    - run: make lint
-
+      - checkout
+      - run: sudo pip install black==19.10b0 flake8==3.7.9
+      - run: make lint
   integration_tests:
     docker:
       - image: google/cloud-sdk
@@ -147,7 +148,7 @@ jobs:
             kubectl config set-cluster $kube_cluster_name --certificate-authority="./proxy.crt"
       - run:
           name: Submit integration tests
-          # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was 
+          # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was
           # during the build job above
           command: |
             make run_integration_tests VERSION=$CIRCLE_SHA1
@@ -157,7 +158,7 @@ jobs:
           command: gcloud compute firewall-rules delete $firewall_name
       - slack/status:
           fail_only: true
-          mentions: 'channel'
+          mentions: "channel"
 workflows:
   version: 2
   test_and_lint:
@@ -172,7 +173,7 @@ workflows:
                 - master
       - build_default:
           requires:
-          - hold
+            - hold
       - integration_tests:
           requires:
             - build_default
