@@ -7,7 +7,7 @@ jobs:
     parameters:
       kind:
         description: "Type of test"
-        default: "unit"
+        default: "test_unit"
         type: enum
         enum: ["test_unit", "test_regression", "typecheck"]
     docker:
