@@ -186,8 +186,8 @@ workflows:
       - integration_tests:
           requires:
             - build_default
-
-      # dataflow test on master
+  master_tests:
+    jobs:
       - pytest:
           kind: test_dataflow
           name: "Test Dataflow"
