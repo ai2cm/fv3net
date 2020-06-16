@@ -29,7 +29,7 @@ python -m fv3net.pipelines.restarts_to_zarr  \
     --project vcm-ml \
     --region us-central1 \
     --runner DataFlow \
-    --temp_location gs://vcm-ml-data/tmp_dataflow \
+    --temp_location gs://vcm-ml-scratch/tmp_dataflow \
     --num_workers $NUM_WORKERS \
     --autoscaling_algorithm=NONE \
     --worker_machine_type n1-standard-1 \

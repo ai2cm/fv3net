@@ -7,7 +7,7 @@ import xarray as xr
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
-from .. import loaders
+from loaders import batches
 from .wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
@@ -49,7 +49,7 @@ def load_model_training_config(config_path: str) -> ModelTrainingConfig:
 
 def load_data_sequence(
     data_path: str, train_config: ModelTrainingConfig
-) -> Sequence[xr.Dataset]:
+) -> batches.FunctionOutputSequence[xr.Dataset]:
     """
     Args:
         data_path: data location
@@ -58,7 +58,7 @@ def load_data_sequence(
     Returns:
         Sequence of datasets iterated over in training
     """
-    batch_function = getattr(loaders, train_config.batch_function)
+    batch_function = getattr(batches, train_config.batch_function)
     ds_batches = batch_function(
         data_path,
         list(train_config.input_variables) + list(train_config.output_variables),
@@ -105,18 +105,16 @@ def _get_transformed_batch_regressor(train_config):
     return model_wrapper
 
 
-def train_model(batched_data: Sequence[xr.Dataset], train_config: ModelTrainingConfig):
+def train_model(
+    batched_data: Sequence[xr.Dataset], train_config: ModelTrainingConfig
+) -> SklearnWrapper:
     """
     Args:
-        batched_data: training batch datasets
+        batched_data: Sequence of training batch datasets
         train_config: model training configuration
-        targets_for_normalization: array of sample output data used to save norm and std
-            dev to the StandardScaler transformer
-
     Returns:
         trained sklearn model wrapper object
     """
-
     model_wrapper = _get_transformed_batch_regressor(train_config)
     for i, batch in enumerate(batched_data):
         logger.info(f"Fitting batch {i}/{len(batched_data)}")
