@@ -31,7 +31,7 @@ def reduce_to_diagnostic(
     """
 
     ds = xr.concat(ds_batches, dim=TIME_DIM)
-    ds = _insert_column_integrated_vars(ds, primary_vars)
+    ds = insert_column_integrated_vars(ds, primary_vars)
     ds = _rechunk_time_z(ds)
     ds_time_averaged = ds.mean(dim=TIME_DIM, keep_attrs=True)
     ds_time_averaged = ds_time_averaged.drop_vars(
@@ -58,7 +58,7 @@ def reduce_to_diagnostic(
     return xr.merge([domain_ds, ds_time_averaged.drop(labels=primary_vars)])
 
 
-def _insert_column_integrated_vars(
+def insert_column_integrated_vars(
     ds: xr.Dataset, column_integrated_vars: Sequence[str]
 ) -> xr.Dataset:
     """Insert column integrated (<*>) terms,

@@ -1,7 +1,7 @@
 import diagnostics_utils as utils
 import loaders
 from fv3net.regression.sklearn import SklearnPredictionMapper
-from vcm.cloud import get_fs
+from vcm.cloud import get_fs, gsutil
 import xarray as xr
 from tempfile import NamedTemporaryFile
 import intake
@@ -13,6 +13,8 @@ import os
 import logging
 import uuid
 import joblib
+import json
+from _metrics import calc_metrics
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
@@ -23,8 +25,8 @@ logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
 DOMAINS = ["land", "sea", "global"]
-OUTPUT_NC_NAME = "offline_diagnostics"
-ML_PREDICTED_VAR_SUFFIX = "ml"
+DIAGS_NC_NAME = "offline_diagnostics.nc"
+METRICS_JSON_NAME = "metrics.json"
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -55,13 +57,14 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser.parse_args()
 
 
-def _write_nc(ds: xr.Dataset, output_path: str):
-    output_file = os.path.join(
-        output_path, OUTPUT_NC_NAME + "_" + str(uuid.uuid1())[-6:] + ".nc"
-    )
+def _write_nc(ds: xr.Dataset, output_dir: str, output_file: str):
+    output_file = output_file.strip(".nc") + "_" + str(uuid.uuid1())[-6:] + ".nc"
+    output_file = os.path.join(output_dir, output_file)
+
     with NamedTemporaryFile() as tmpfile:
         ds.to_netcdf(tmpfile.name)
-        get_fs(output_path).put(tmpfile.name, output_file)
+        gsutil.copy(tmpfile.name, output_file)
+        #get_fs(output_dir).put(tmpfile.name, output_file)
     logger.info(f"Writing netcdf to {output_file}")
 
 
@@ -92,9 +95,8 @@ if __name__ == "__main__":
     with fs_model.open(args.model_path, "rb") as f:
         model = joblib.load(f)
     pred_mapper = SklearnPredictionMapper(
-        base_mapper, 
-        model, 
-        predicted_var_suffix=ML_PREDICTED_VAR_SUFFIX, 
+        base_mapper,
+        model,
     )
 
     ds_batches = loaders.batches.mapper_to_diagnostic_sequence(
@@ -104,8 +106,15 @@ if __name__ == "__main__":
         **config["batch_kwargs"],
     )
 
+    # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
     ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS,
-        primary_vars=["dQ1", "dQ2",])
-
-    logger.info(f"Finished processing dataset.")
-    _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path)
+        primary_vars=["dQ1", "dQ2"])
+    logger.info(f"Finished processing dataset diagnostics.")
+    _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path, DIAGS_NC_NAME)
+    
+    # json of metrics, ex. RMSE and bias
+    metrics = calc_metrics(ds_batches)
+    fs = get_fs(args.output_path)
+    with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
+        json.dump(metrics, f)
+    logger.info(f"Finished processing dataset metrics.")
