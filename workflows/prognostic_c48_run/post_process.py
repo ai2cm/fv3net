@@ -25,6 +25,15 @@ CHUNKS = {
 }
 
 
+def upload_dir(d, dest):
+    subprocess.check_call(["gsutil", "-m", "rsync", "-r", d, dest])
+
+
+def download_directory(dir_, dest):
+    os.makedirs(dest, exist_ok=True)
+    subprocess.check_call(["gsutil", "-m", "rsync", "-r", dir_, dest])
+
+
 def rechunk(ds, chunks):
     true_chunks = {}
     true_chunks.update(chunks)
@@ -33,19 +42,6 @@ def rechunk(ds, chunks):
         if dim not in chunks:
             true_chunks[dim] = len(ds[dim])
     return ds.chunk(true_chunks)
-
-
-def upload_dir(d, dest):
-    subprocess.check_call(["gsutil", "-m", "rsync", "-r", d, dest])
-
-
-def copy_files(files, dest):
-    subprocess.check_call(["gsutil", "-m", "cp", "-r"] + files + [dest])
-
-
-def download_directory(dir_, dest):
-    os.makedirs(dest, exist_ok=True)
-    subprocess.check_call(["gsutil", "-m", "rsync", "-r", dir_, dest])
 
 
 def authenticate():
@@ -95,11 +91,6 @@ def parse_rundir(walker):
         dirs[:] = search_path
 
     return tiles, zarrs, other
-
-
-def download_dir(rundir: str, output: str):
-    os.makedirs(output, exist_ok=True)
-    subprocess.check_call(["gsutil", "rsync", "-r", rundir, output])
 
 
 def open_tiles(tiles: Sequence[str]) -> Iterable[Union[str, xr.Dataset]]:
@@ -154,13 +145,13 @@ def post_process(rundir: str, destination: str):
     with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
 
         if rundir.startswith("gs://"):
-            download_dir(rundir, d_in)
+            download_directory(rundir, d_in)
         else:
             d_in = rundir
 
         tiles, zarrs, other = parse_rundir(os.walk(d_in))
 
-        for item in chain(open_tiles(tiles), zarrs, other):
+        for item in chain(open_tiles(tiles), open_zarrs(zarrs), other):
             process_item(item)
 
         upload_dir(d_out, destination)
