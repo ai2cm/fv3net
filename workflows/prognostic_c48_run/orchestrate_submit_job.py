@@ -1,7 +1,6 @@
 import argparse
 import os
 import yaml
-import fsspec
 import logging
 from pathlib import Path
 
@@ -93,34 +92,22 @@ if __name__ == "__main__":
     parser = _create_arg_parser()
     args = parser.parse_args()
 
+    # Get model config with prognostic run updates
+    with open(args.prog_config_yml, "r") as f:
+        prog_config_update = yaml.safe_load(f)
+    config_dir = os.path.join(args.output_url, "job_config")
+    job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
+
     short_id = fv3kube.get_alphanumeric_unique_tag(8)
     job_label = {
         "orchestrator-jobs": f"prognostic-group-{short_id}",
         "app": "end-to-end",
     }
-
-    # Get model config with prognostic run updates
-    with open(args.prog_config_yml, "r") as f:
-        prog_config_update = yaml.safe_load(f)
     model_config = fv3kube.get_full_config(
         prog_config_update, args.initial_condition_url, args.ic_timestep
     )
 
-    kube_opts = KUBERNETES_DEFAULT.copy()
-    if "kubernetes" in model_config:
-        user_kube_config = model_config.pop("kubernetes")
-        kube_opts.update(user_kube_config)
-
-    config_dir = os.path.join(args.output_url, "job_config")
-    job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
-
-    # try:
-    #     diag_table = fv3kube.transfer_local_to_remote(
-    #         model_config["diag_table"], config_dir
-    #     )
-    # except FileNotFoundError:
-    #     diag_table = model_config["diag_table"]
-
+    # hard-code the diag_table
     model_config[
         "diag_table"
     ] = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
@@ -140,20 +127,8 @@ if __name__ == "__main__":
         scikit_learn_config.update(
             model="model.pkl", diagnostic_ml=args.diagnostic_ml,
         )
-        # TODO uncomment or delete
-        # kube_opts["runfile"] = fv3kube.transfer_local_to_remote(RUNFILE, config_dir)
 
     model_config["scikit_learn"] = scikit_learn_config
-
-    # Upload the new prognostic config
-    with fsspec.open(job_config_path, "w") as f:
-        f.write(yaml.dump(model_config))
-
-    # need to initialized the client differently than
-    # run_kubernetes when running in a pod.
-
-    # TODO need another documented iterative development paradigm if not uploading
-    # runfile
 
     fv3kube.load_kube_config()
     client = CoreV1Api()
