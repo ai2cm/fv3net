@@ -61,14 +61,27 @@ with open("{rundir}/fv3config.yml", "w") as f:
 
 
 def write_rundir_container(
-    config, empty_vol: V1Volume, secret_vol: V1Volume, image: str
+    config, data_vol: V1Volume, secret_vol: V1Volume, image: str
 ) -> V1Container:
+    """Container for writing run-directories with fv3config
+
+    Args:
+        config: an fv3config dictionary
+        data_vol: a k8s volume to store the data in. The data will be written
+            to the location "rundir" in this volume. 
+        secret_vol: a volume contain a GCP service account key at the path
+            ``key.json``
+        image: an docker image with fv3config installed
+    Returns:
+        a k8s container that will write the run directory
+        
+    """
     # TODO Refactor this to the __main__ of an fv3config container
     # this could be on dockerhub
 
     container = V1Container(name="write-rundir")
     container.volume_mounts = [
-        V1VolumeMount(mount_path="/mnt", name=empty_vol.name),
+        V1VolumeMount(mount_path="/mnt", name=data_vol.name),
     ]
 
     # Inject the fv3config and runfile via an environmental variable
@@ -85,10 +98,12 @@ def write_rundir_container(
     return container
 
 
-def fv3_container(empty_vol: V1Volume, image: str) -> V1Container:
-    """
+def fv3_container(data_vol: V1Volume, image: str) -> V1Container:
+    """A container for running a run-directory from a volume
 
     Args:
+        data_vol: A k8s volume containing a path "rundir" with a saved run-directory.
+        image: the prognostic_run docker image
 
     Returns:
         container for running the output. stores data in the volume at path "rundir".
@@ -115,7 +130,7 @@ def fv3_container(empty_vol: V1Volume, image: str) -> V1Container:
     )
 
     fv3_container.volume_mounts = [
-        V1VolumeMount(mount_path="/mnt", name=empty_vol.name),
+        V1VolumeMount(mount_path="/mnt", name=data_vol.name),
     ]
 
     return fv3_container
@@ -165,6 +180,14 @@ def post_processed_fv3_pod_spec(
     fv3_image: str,
     post_process_image: str,
 ) -> V1PodSpec:
+    """A PodSpec for running the prognostic run
+    
+    Runs FV3 with the fv3config object ``model_config`` and saves the post
+    processed output to ``output_url``.
+
+    This orchestrates three containers. The first writes the run-directory,
+    the second runs the model, and third post-processes and uploads the data.
+    """
 
     empty_vol = V1Volume(name="rundir")
     empty_vol.empty_dir = V1EmptyDirVolumeSource()
