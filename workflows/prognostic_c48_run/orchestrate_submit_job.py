@@ -199,7 +199,11 @@ def fv3_container(empty_vol: V1Volume) -> V1Container:
 
 
 def post_process_container(
-    path: str, destination: str, data_vol: V1Volume, secret_vol: V1Volume, image: str
+    path: str,
+    destination: str,
+    data_vol: V1Volume,
+    secret_vol: V1Volume,
+    image: str = "us.gcr.io/vcm-ml/fv3net:9ed905f7f3ec44484370b8f915834744fe49c636",
 ) -> V1Container:
     """Container for post processing fv3 model output for cloud storage
 
@@ -219,7 +223,7 @@ def post_process_container(
 
     rundir = os.path.join("/mnt", path)
     container.image = image
-    container.working_dir = "/fv3net/workflows/prognostic_c48_run"
+    container.working_dir = "/home/jovyan/fv3net/workflows/prognostic_c48_run"
     container.command = ["python", "post_process.py", rundir, destination]
     # Suitable for C48 job
     container.resources = V1ResourceRequirements(
@@ -321,7 +325,7 @@ if __name__ == "__main__":
         ],
         containers=[
             post_process_container(
-                "rundir", args.output_url, empty_vol, secret_vol, args.docker_image
+                "rundir", args.output_url, empty_vol, secret_vol,  # args.docker_image
             )
         ],
         volumes=[empty_vol, secret_vol],

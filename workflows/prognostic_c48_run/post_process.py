@@ -45,7 +45,7 @@ files_to_copy = [
     "sfc_dt_atmos.tile6.nc",
 ]
 
-directories_to_copy = ["job_config/", "INPUT/", "RESTART/"]
+directories_to_copy = ["INPUT/", "RESTART/"]
 
 directories_to_download = ["diags.zarr"]
 
