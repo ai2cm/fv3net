@@ -111,6 +111,8 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 def write_rundir_container(
     config, empty_vol: V1Volume, secret_vol: V1Volume
 ) -> V1Container:
+    # TODO Refactor this to the __main__ of an fv3config container
+    # this could be on dockerhub
 
     container = V1Container(name="write-rundir")
     secret_mount = "gcp-key"
@@ -162,6 +164,10 @@ def fv3_container(empty_vol: V1Volume) -> V1Container:
     ]
 
     return fv3_container
+
+
+def post_process_container():
+    pass
 
 
 if __name__ == "__main__":
