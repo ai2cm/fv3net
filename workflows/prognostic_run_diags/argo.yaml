@@ -32,7 +32,7 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net:574b910d07eaa533ccaccd80630c099c99d49616
+      image: us.gcr.io/vcm-ml/fv3net:2bef18e9b67156fbaedf12c41ac35aea8db0d94a
       command:
       - python
       - generate_report.py
@@ -70,7 +70,7 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net:574b910d07eaa533ccaccd80630c099c99d49616
+      image: us.gcr.io/vcm-ml/fv3net:2bef18e9b67156fbaedf12c41ac35aea8db0d94a
       command: ["bash", "-x", "-e"]
       args:
       - entrypoint.sh
