@@ -1,5 +1,4 @@
 import pytest
-import itertools
 import xarray as xr
 import numpy as np
 
