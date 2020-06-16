@@ -25,6 +25,7 @@ training data from multiple sources into a set of diagnostic variables
  in conjunction with the config arg `num_timesteps_per_batch`. The training config arg `num_batches` is now
  deprecated in favor of providing a list of timesteps.
 * Remove usage of "tmp_dataflow" directory from `vcm.cloud.gcs` testing infrastructure and skip extract tests
+* Add end-to-end orchestration plugin point for nudged simulations
 
 
 0.2.1 (2020-05-15)
