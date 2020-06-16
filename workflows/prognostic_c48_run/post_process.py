@@ -73,6 +73,17 @@ def download_directory(dir_, dest):
     subprocess.check_call(["gsutil", "-m", "rsync", "-r", dir_, dest])
 
 
+def authenticate():
+    try:
+        credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+    except KeyError:
+        pass
+    else:
+        subprocess.check_call(
+            ["gsutil", "auth", "activate-service-account", "--key-file", credentials]
+        )
+
+
 def clear_encoding(ds):
     ds.encoding = {}
     for variable in ds:
@@ -122,13 +133,19 @@ def post_process(rundir: str, destination: str):
     outputs to zarr.
     """
     logger.info("Post-processing the run")
+    authenticate()
 
     for dir_ in directories_to_copy:
         path = os.path.join(rundir, dir_)
         upload_dir(path, os.path.join(destination, dir_))
 
     with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
-        download_rundir(rundir, d_in)
+
+        if rundir.startswith("gs://"):
+            download_rundir(rundir, d_in)
+        else:
+            d_in = rundir
+
         convert_data(d_in, d_out)
         upload_dir(d_out, destination)
 
