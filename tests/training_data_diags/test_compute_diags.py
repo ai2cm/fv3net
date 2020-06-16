@@ -168,7 +168,7 @@ def test_compute_diags(datadir):
         output_dir,
         variable_names,
         timesteps_per_batch=timesteps_per_batch,
-        mapping_function="open_nudged_tendencies",
+        mapping_function="open_merged_nudged_full_tendencies",
         mapping_kwargs=nudged_mapping_kwargs,
     )
     ds_diagnostic_nudged = utils.reduce_to_diagnostic(
