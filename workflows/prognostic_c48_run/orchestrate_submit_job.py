@@ -255,9 +255,7 @@ if __name__ == "__main__":
         tolerations=[climate_sim_toleration],
     )
     pod.metadata = V1ObjectMeta(generate_name="prognostic-run-", labels=job_label)
-
     created_pod = client.create_namespaced_pod("default", body=pod)
-    print(created_pod.metadata.name)
 
     if not args.detach:
         fv3kube.wait_for_complete(job_label, raise_on_fail=not args.allow_fail)
