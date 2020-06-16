@@ -1,18 +1,21 @@
 import synth
 import os
 import pytest
+import xarray as xr
+
 from fv3net.pipelines.coarsen_restarts.pipeline import main
+from typing import Optional, Set
+
+
+OUTPUT_CATEGORY_NAMES = {
+    "fv_core.res": "fv_core_coarse.res",
+    "fv_srf_wnd.res": "fv_srf_wnd_coarse.res",
+    "fv_tracer.res": "fv_tracer_coarse.res",
+    "sfc_data": "sfc_data_coarse",
+}
 
 
 def save_restarts(restarts, outdir, time):
-
-    OUTPUT_CATEGORY_NAMES = {
-        "fv_core.res": "fv_core_coarse.res",
-        "fv_srf_wnd.res": "fv_srf_wnd_coarse.res",
-        "fv_tracer.res": "fv_tracer_coarse.res",
-        "sfc_data": "sfc_data_coarse",
-    }
-
     for category, tiles in restarts.items():
         for tile, dataset in tiles.items():
             out_category = OUTPUT_CATEGORY_NAMES[category]
@@ -41,8 +44,30 @@ def _grid_spec(datadir, nx):
     return subset
 
 
+@pytest.fixture(
+    params=[False, True], ids=["include_agrid_winds=False", "include_agrid_winds=True"]
+)
+def include_agrid_winds(request):
+    return request.param
+
+
+@pytest.fixture(
+    params=[False, True], ids=["coarsen_agrid_winds=False", "coarsen_agrid_winds=True"]
+)
+def coarsen_agrid_winds(request):
+    return request.param
+
+
 @pytest.fixture()
-def restart_dir(tmpdir, datadir):
+def dropped_fv_core_variables(include_agrid_winds, coarsen_agrid_winds):
+    if include_agrid_winds and not coarsen_agrid_winds:
+        return {"ua", "va"}
+    else:
+        return None
+
+
+@pytest.fixture()
+def restart_dir(tmpdir, datadir, include_agrid_winds):
 
     nx = 48
 
@@ -50,7 +75,9 @@ def restart_dir(tmpdir, datadir):
     output = tmpdir.mkdir(time)
     tmpdir.mkdir("grid_spec")
     tmpdir.mkdir("output").mkdir(time)
-    restarts = synth.generate_restart_data(nx=nx)
+    restarts = synth.generate_restart_data(
+        nx=nx, include_agrid_winds=include_agrid_winds
+    )
     save_restarts(restarts, output, time)
 
     grid_spec = _grid_spec(datadir, nx)
@@ -62,11 +89,62 @@ def restart_dir(tmpdir, datadir):
 
 
 @pytest.mark.regression
-def test_regression_coarsen_restarts(restart_dir):
+def test_regression_coarsen_restarts(
+    restart_dir, include_agrid_winds, coarsen_agrid_winds, dropped_fv_core_variables
+):
     grid_spec_path = str(restart_dir.join("grid_spec"))
     src_path = str(restart_dir)
     in_res = "48"
     out_res = "6"
+    time = "20160101.000000"
     dest = str(restart_dir.join("output"))
 
-    main([src_path, grid_spec_path, in_res, out_res, dest])
+    args = [src_path, grid_spec_path, in_res, out_res, dest]
+    if coarsen_agrid_winds:
+        args.append("--coarsen-agrid-winds")
+
+    if coarsen_agrid_winds and not include_agrid_winds:
+        with pytest.raises(ValueError, match="'ua' and 'va'"):
+            main(args)
+    else:
+        main(args)
+        for destination_category, source_category in OUTPUT_CATEGORY_NAMES.items():
+            if "fv_core" in destination_category:
+                assert_expected_variables_were_coarsened(
+                    source_category,
+                    destination_category,
+                    time,
+                    src_path,
+                    dest,
+                    dropped_fv_core_variables,
+                )
+            else:
+                assert_expected_variables_were_coarsened(
+                    source_category, destination_category, time, src_path, dest
+                )
+
+
+def open_category(category, time, directory):
+    files = os.path.join(directory, time, f"{time}.{category}.tile[1-6].nc")
+    return xr.open_mfdataset(files, concat_dim=["tile"], combine="nested")
+
+
+def assert_expected_variables_were_coarsened(
+    source_category: str,
+    destination_category: str,
+    time: str,
+    source_dir: str,
+    destination_dir: str,
+    dropped_variables: Optional[Set] = None,
+):
+    """Check that expected variables in the original restart files can be found in
+    the coarsened restart files."""
+    source = open_category(source_category, time, source_dir)
+    result = open_category(destination_category, time, destination_dir)
+
+    if dropped_variables is None:
+        dropped_variables = set()
+
+    expected_variables = set(source.data_vars.keys()) - dropped_variables
+    result_variables = set(result.data_vars.keys())
+    assert expected_variables == result_variables

@@ -4,6 +4,9 @@ History
 
 latest
 ------
+* Add flag --allow-fail to prognostic run `orchestrate_submit_job.py` so prognostic run crashes don't have to kill e2e workflow
+* makefile target for testing prognostic run: `make test_prognostic_run`
+* Rename dimensions and variable names in input/output of prognostic run, new API for prognostic_run yamls
 * Add option to not apply ML predictions to model state in prognostic runs (so-called "piggy-back" runs)
 * Modify submission of prognostic run so that its configuration is specified independently of one-step jobs
 * Add `base_fv3config_version` parameter to one-step and prognostic run yamls
@@ -13,6 +16,15 @@ latest
 * Refactor training data batch loading to use a common batch loader for all data sources. To load from a specific
  data source (e.g. one step, nudging), the function name `open_<data source type>` (selected from the available functions in loaders.__init__)
  should be specified in the training configuration YAML. Works for the currently existing mappers: one step and fine res.
+* Add a `diagnostics_utils` poetry package in `./external` and a `training_data_diagnostics` workflow step for processing
+training data from multiple sources into a set of diagnostic variables
+* Add a `diagnostic_sequence_from_mapper` to the `loaders` module function for loading data for diagnostics
+* Add nudging data loaders for use in diagnostics and ML training
+* Add a mapper that takes in a model and any base mapper and includes ML prediction
+* Add optional arg `--timesteps-file` to fv3net.regression.sklearn to provide a list of timesteps to use 
+ in conjunction with the config arg `num_timesteps_per_batch`. The training config arg `num_batches` is now
+ deprecated in favor of providing a list of timesteps.
+* Remove usage of "tmp_dataflow" directory from `vcm.cloud.gcs` testing infrastructure and skip extract tests
 
 
 0.2.1 (2020-05-15)

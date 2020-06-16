@@ -7,7 +7,7 @@ COARSEN_RESTARTS_DATAFLOW_ARGS = {
     ),
     "--project": "vcm-ml",
     "--region": "us-central1",
-    "--temp_location": "gs://vcm-ml-data/tmp_dataflow",
+    "--temp_location": "gs://vcm-ml-scratch/tmp_dataflow",
     "--num_workers": 3,
     "--max_num_workers": 50,
     "--disk_size_gb": 50,

@@ -59,6 +59,8 @@ def test_convert_timestamps():
 @pytest.mark.parametrize(
     "input_time, expected",
     [
+        ("20160101.000000", datetime(2016, 1, 1, 0, 0, 0)),
+        ("HDHF/20160101.000000", datetime(2016, 1, 1, 0, 0, 0)),
         (datetime(2016, 1, 1, 1, 1, 1, 1), datetime(2016, 1, 1, 1, 1, 1, 1)),
         (
             cftime.DatetimeJulian(2016, 1, 1, 1, 1, 1, 1),

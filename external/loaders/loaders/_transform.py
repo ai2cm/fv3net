@@ -89,7 +89,7 @@ class GroupByTime:
         return xr.concat(datasets, dim="tile").assign_coords(tile=tiles)
 
 
-class FineResolutionSources:
+class FineResolutionSources(Mapping):
     def __init__(self, fine_resolution_time_mapping: Mapping[Time, xr.Dataset]):
         self._time_mapping = fine_resolution_time_mapping
 
@@ -99,13 +99,21 @@ class FineResolutionSources:
     def __getitem__(self, time: Time) -> xr.Dataset:
         return self._derived_budget_ds(self._time_mapping[time])
 
+    def __iter__(self):
+        # TODO move these implementations into a base mapper, that can be used
+        # by the other classes
+        return iter(self.keys())
+
+    def __len__(self):
+        return len(self.keys())
+
     def _derived_budget_ds(
         self,
         budget_time_ds: xr.Dataset,
         variable_prefixes: Mapping[str, str] = None,
         apparent_source_terms: Sequence[str] = (
             "physics",
-            "microphysics",
+            "saturation_adjustment",
             "convergence",
         ),
     ) -> xr.Dataset:

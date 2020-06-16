@@ -83,7 +83,9 @@ def coarsen_sfc_data(data: xr.Dataset, factor: float, method="sum") -> xr.Datase
     )
 
 
-def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
+def coarse_grain_fv_core(
+    ds, delp, area, dx, dy, coarsening_factor, coarsen_agrid_winds=False
+):
     """Coarse grain a set of fv_core restart files.
 
     Parameters
@@ -98,6 +100,8 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
         y edge lengths
     coarsening_factor : int
         Coarsening factor to use
+    coarsen_agrid_winds : bool
+        Whether to coarse-grain A-grid winds (default False)
 
     Returns
     -------
@@ -105,6 +109,13 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
     """
     area_weighted_vars = ["phis", "delp", "DZ"]
     mass_weighted_vars = ["W", "T"]
+    if coarsen_agrid_winds:
+        if not ("ua" in ds and "va" in ds):
+            raise ValueError(
+                "If 'coarsen_agrid_winds' is active, 'ua' and 'va' "
+                "must be present in the 'fv_core.res' restart files."
+            )
+        mass_weighted_vars.extend(["ua", "va"])
     dx_edge_weighted_vars = ["u"]
     dy_edge_weighted_vars = ["v"]
 
@@ -146,7 +157,9 @@ def coarse_grain_fv_core(ds, delp, area, dx, dy, coarsening_factor):
     return xr.merge([area_weighted, mass_weighted, edge_weighted_x, edge_weighted_y])
 
 
-def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
+def coarse_grain_fv_core_on_pressure(
+    ds, delp, area, dx, dy, coarsening_factor, coarsen_agrid_winds=False
+):
     """Coarse grain a set of fv_core restart files, averaging on surfaces of
     constant pressure (except for delp, DZ and phis which are averaged on model
     surfaces).
@@ -163,6 +176,8 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
         y edge lengths
     coarsening_factor : int
         Coarsening factor to use
+    coarsen_agrid_winds : bool
+        Whether to coarse-grain A-grid winds (default False)
 
     Returns
     -------
@@ -170,6 +185,13 @@ def coarse_grain_fv_core_on_pressure(ds, delp, area, dx, dy, coarsening_factor):
     """
     area_weighted_vars = ["phis", "delp", "DZ"]
     mass_weighted_vars = ["W", "T"]
+    if coarsen_agrid_winds:
+        if not ("ua" in ds and "va" in ds):
+            raise ValueError(
+                "If 'coarsen_agrid_winds' is active, 'ua' and 'va' "
+                "must be present in the 'fv_core.res' restart files."
+            )
+        mass_weighted_vars.extend(["ua", "va"])
     dx_edge_weighted_vars = ["u"]
     dy_edge_weighted_vars = ["v"]
 
@@ -466,7 +488,10 @@ def sync_dimension_order(a, b):
 
 
 def coarsen_restarts_on_sigma(
-    coarsening_factor: int, grid_spec: xr.Dataset, restarts: Mapping[str, xr.Dataset]
+    coarsening_factor: int,
+    grid_spec: xr.Dataset,
+    restarts: Mapping[str, xr.Dataset],
+    coarsen_agrid_winds: bool = False,
 ) -> Mapping[str, xr.Dataset]:
     """ Coarsen a complete set of restart data, averaging on model levels and
     using the 'complex' surface coarsening method
@@ -477,6 +502,8 @@ def coarsen_restarts_on_sigma(
         grid_spec: Dataset containing the variables area, dx, dy.
         restarts: dictionary of restart data. Must have the keys
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
+        coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
+            "fv_core.res" restart files (default False).
 
     Returns:
         restarts_coarse: a dictionary with the same format as restarts but
@@ -498,6 +525,7 @@ def coarsen_restarts_on_sigma(
             {COORD_X_OUTER: FV_CORE_X_OUTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
         ),
         coarsening_factor,
+        coarsen_agrid_winds,
     )
 
     coarsened["fv_srf_wnd.res"] = coarse_grain_fv_srf_wnd(
@@ -532,7 +560,10 @@ def coarsen_restarts_on_sigma(
 
 
 def coarsen_restarts_on_pressure(
-    coarsening_factor: int, grid_spec: xr.Dataset, restarts: Mapping[str, xr.Dataset],
+    coarsening_factor: int,
+    grid_spec: xr.Dataset,
+    restarts: Mapping[str, xr.Dataset],
+    coarsen_agrid_winds: bool = False,
 ) -> Mapping[str, xr.Dataset]:
     """ Coarsen a complete set of restart files, averaging on pressure levels and
     using the 'complex' surface coarsening method
@@ -543,6 +574,8 @@ def coarsen_restarts_on_pressure(
         grid_spec: Dataset containing the variables area, dx, dy.
         restarts: dictionary of restart data. Must have the keys
             "fv_core.res", "fv_srf_wnd.res", "fv_tracer.res", and "sfc_data".
+        coarsen_agrid_winds: flag indicating whether to coarsen A-grid winds in
+            "fv_core.res" restart files (default False).
 
     Returns:
         restarts_coarse: a dictionary with the same format as restarts but
@@ -564,6 +597,7 @@ def coarsen_restarts_on_pressure(
             {COORD_X_OUTER: FV_CORE_X_OUTER, COORD_Y_CENTER: FV_CORE_Y_CENTER}
         ),
         coarsening_factor,
+        coarsen_agrid_winds,
     )
 
     coarsened["fv_srf_wnd.res"] = coarse_grain_fv_srf_wnd(

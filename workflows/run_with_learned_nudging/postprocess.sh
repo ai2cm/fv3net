@@ -37,7 +37,7 @@ if [ "$DO_TO_ZARR" = true ]; then
             --region us-central1 \
             --runner DataflowRunner \
             --setup_file workflows/diagnostics_to_zarr/setup.py \
-            --temp_location gs://vcm-ml-data/tmp_dataflow \
+            --temp_location gs://vcm-ml-scratch/tmp_dataflow \
             --num_workers 1 \
             --max_num_workers 5 \
             --disk_size_gb 500 \

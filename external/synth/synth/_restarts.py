@@ -8,7 +8,7 @@ from toolz import valmap
 
 
 def generate_restart_data(
-    nx: int = 48, nz: int = 79, n_soil: int = 4
+    nx: int = 48, nz: int = 79, n_soil: int = 4, include_agrid_winds: bool = False
 ) -> Mapping[str, Mapping[int, xr.Dataset]]:
     """Generate a set of fake restart data for testing purposes
 
@@ -16,6 +16,7 @@ def generate_restart_data(
         n: the extent of tile. For instance for C48, n=48
         nz: the number of height levels
         n_soil: the number of soil levels
+        include_agrid_winds: whether to include "ua" and "va" in fv_core.res files
 
     Returns:
         restarts: collection of restart data as a doubly-nested mapping, whose first
@@ -39,7 +40,7 @@ def generate_restart_data(
     }
 
     schema = {
-        "fv_core.res": _fv_core_schema(nx, nz),
+        "fv_core.res": _fv_core_schema(nx, nz, include_agrid_winds),
         "sfc_data": _sfc_data(nx, n_soil),
         "fv_tracer.res": _fv_tracer_schema(nx, nz),
         "fv_srf_wnd.res": _fv_srf_wnd_schema(nx),
@@ -257,15 +258,16 @@ class _RestartCategorySchemaFactory:
         return DatasetSchema(variables=variables, coords=coords)
 
 
-def _fv_core_schema(n: int, nz: int) -> DatasetSchema:
+def _fv_core_schema(
+    n: int, nz: int, include_agrid_winds: bool = False
+) -> DatasetSchema:
+    if include_agrid_winds:
+        centered = ["W", "DZ", "T", "delp", "ua", "va"]
+    else:
+        centered = ["W", "DZ", "T", "delp"]
     return _RestartCategorySchemaFactory(
         n=n, nz=nz, x="xaxis_1", xi="xaxis_2", y="yaxis_2", yi="yaxis_1", z="zaxis_1"
-    ).generate(
-        centered=["W", "DZ", "T", "delp"],
-        y_outer=["u"],
-        x_outer=["v"],
-        surface=["phis"],
-    )
+    ).generate(centered=centered, y_outer=["u"], x_outer=["v"], surface=["phis"],)
 
 
 def _fv_tracer_schema(n: int, nz: int) -> DatasetSchema:
