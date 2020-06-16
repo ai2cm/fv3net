@@ -45,7 +45,7 @@ $NETCDF_OUTPUT \
 --job_name one-step-diags-${USER}-${STAMP} \
 --project vcm-ml \
 --region us-central1 \
---temp_location gs://vcm-ml-data/tmp_dataflow \
+--temp_location gs://vcm-ml-scratch/tmp_dataflow \
 --num_workers 4 \
 --max_num_workers 30 \
 --disk_size_gb 200 \

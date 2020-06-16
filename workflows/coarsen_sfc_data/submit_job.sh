@@ -4,7 +4,7 @@ python -m coarsen_surface_data  \
     --region us-central1 \
     --runner DataFlow \
     --setup_file ./setup.py \
-    --temp_location gs://vcm-ml-data/tmp_dataflow \
+    --temp_location gs://vcm-ml-scratch/tmp_dataflow \
     --num_workers 64 \
     --max_num_workers 128 \
     --disk_size_gb 50 \

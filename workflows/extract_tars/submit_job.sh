@@ -19,7 +19,7 @@ python -m fv3net.pipelines.extract_tars \
     --project vcm-ml \
     --region us-central1 \
     --runner DataflowRunner \
-    --temp_location gs://vcm-ml-data/tmp_dataflow \
+    --temp_location gs://vcm-ml-scratch/tmp_dataflow \
     --num_workers $NUM_WORKERS \
     --max_num_workers $MAX_NUM_WORKERS \
     --disk_size_gb 80 \
