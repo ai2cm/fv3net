@@ -44,7 +44,9 @@ This job can be monitored by running
 ### Generating a new report
 
 Simply add a new item to rundirs.yml and resubmit the job. All the steps will be
-re-run, which is redundant, but the process isn't that slow.
+re-run, which is redundant, but the process isn't that slow. The workflow requires
+that provided prognostic runs have been post-processed so that their outputs are
+available in zarr format. See `fv3net/workflows/prognostic_c48_run/post_process.py`.
 
 
 [1]: http://storage.googleapis.com/vcm-ml-public/experiments-2020-03/prognostic_run_diags/combined.html
