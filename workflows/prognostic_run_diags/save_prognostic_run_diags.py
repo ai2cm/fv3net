@@ -115,9 +115,9 @@ def compute_all_derived_vars(input_datasets: Dict[str, DiagArg]) -> Dict[str, Di
     for key, func in _DERIVED_VAR_FNS.items():
         prognostic, verification, grid = input_datasets[key]
         logger.info(f"Preparing all derived variables for {key} prognostic data")
-        prognostic = func(prognostic)
+        prognostic = prognostic.merge(func(prognostic))
         logger.info(f"Preparing all derived variables for {key} verification data")
-        verification = func(verification)
+        verification = verification.merge(func(verification))
         input_datasets[key] = prognostic, verification, grid
     return input_datasets
 
