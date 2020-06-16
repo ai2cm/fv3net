@@ -17,8 +17,8 @@ from loaders.mappers._nudged import (
     SubsetTimes,
     NudgedTendencies,
     open_merged_nudged,
-    open_nudging_checkpoints,
-    open_nudged_tendencies,
+    _open_nudging_checkpoints,
+    open_merged_nudged_full_tendencies,
 )
 
 NTIMES = 12
@@ -503,20 +503,20 @@ def test_open_merged_nudged(nudged_data_dir):
 
 
 @pytest.mark.regression
-def test_open_nudging_checkpoints(nudged_data_dir):
+def test__open_nudging_checkpoints(nudged_data_dir):
 
     checkpoint_files = ("before_dynamics.zarr", "after_nudging.zarr")
-    mapper = open_nudging_checkpoints(
+    mapper = _open_nudging_checkpoints(
         nudged_data_dir, NUDGE_TIMESCALE, checkpoint_files=checkpoint_files
     )
     assert len(mapper) == NTIMES * len(checkpoint_files)
 
 
 @pytest.mark.regression
-def test_open_nudged_tendencies(nudged_data_dir):
+def test_open_merged_nudged_full_tendencies(nudged_data_dir):
 
     open_merged_nudged_kwargs = {"n_times": 6}
-    mapper = open_nudged_tendencies(
+    mapper = open_merged_nudged_full_tendencies(
         nudged_data_dir,
         NUDGE_TIMESCALE,
         open_merged_nudged_kwargs=open_merged_nudged_kwargs,
