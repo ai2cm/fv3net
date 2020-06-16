@@ -10,6 +10,7 @@ from .utils import (
     job_failed,
     job_complete,
     initialize_batch_client,
+    load_kube_config,
     get_alphanumeric_unique_tag,
 )
 from .nudge_to_obs import update_config_for_nudging
