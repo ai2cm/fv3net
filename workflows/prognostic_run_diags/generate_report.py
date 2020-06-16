@@ -145,7 +145,15 @@ def holomap_filter(time_series, varfilter, run_attr_name="run"):
                     hmap[(long_name, run)] = hv.Curve(v, label=varfilter).options(
                         line_dash=style, color=p
                     )
-    return hmap.opts(norm={"framewise": True}, plot=dict(width=700, height=500))
+    return hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
+
+
+def time_series_plot(time_series: Mapping[str, xr.Dataset], varfilter: str) -> HVPlot:
+    return HVPlot(
+        holomap_filter(time_series, varfilter=varfilter)
+        .overlay("run")
+        .opts(legend_position="right")
+    )
 
 
 # Initialize diagnostic managers
@@ -157,16 +165,21 @@ metrics_plot_manager = PlotManager()
 
 # Routines for plotting the "diagnostics"
 @diag_plot_manager.register
-def rms_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
-    return HVPlot(holomap_filter(time_series, varfilter="rms").overlay("run"))
+def rms_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="rms")
 
 
 @diag_plot_manager.register
-def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
-    return HVPlot(holomap_filter(time_series, varfilter="global_avg").overlay("run"))
+def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="global_avg")
 
 
-def diurnal_cycle_plots(time_series: Mapping[str, xr.Dataset]) -> hv.HoloMap:
+@diag_plot_manager.register
+def global_avg_physics_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="global_phys_avg")
+
+
+def diurnal_cycle_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
     return HVPlot(holomap_filter(time_series, varfilter="diurnal").overlay("run"))
 
 

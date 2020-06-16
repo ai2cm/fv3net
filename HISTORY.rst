@@ -26,6 +26,8 @@ training data from multiple sources into a set of diagnostic variables
  deprecated in favor of providing a list of timesteps.
 * Remove usage of "tmp_dataflow" directory from `vcm.cloud.gcs` testing infrastructure and skip extract tests
 * Add end-to-end orchestration plugin point for nudged simulations
+* Update prognostic run report to include global averages of physics variables and heating/moistening
+* Prognostic report requires that prognostic runs have been post-processed before being passed to the report workflow
 
 
 0.2.1 (2020-05-15)

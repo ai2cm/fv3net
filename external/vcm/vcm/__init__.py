@@ -19,6 +19,7 @@ from .calc import mass_integrate, r2_score, local_time, thermo
 from .calc.thermo import (
     net_heating,
     net_precipitation,
+    latent_heat_flux_to_evaporation,
     pressure_at_midpoint_log,
     potential_temperature,
     pressure_at_interface,

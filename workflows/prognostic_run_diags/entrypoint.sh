@@ -57,8 +57,8 @@ mkdir -p $localWorkDir
 cd $localWorkDir
 gridSpec=gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/grid_spec
 
-downloadTiles $1/atmos_dt_atmos atmos_dt_atmos
-downloadTiles $1/sfc_dt_atmos sfc_dt_atmos
+downloadZarr $1/atmos_dt_atmos.zarr
+downloadZarr $1/sfc_dt_atmos.zarr
 downloadTiles $gridSpec grid_spec
 downloadZarr $1/diags.zarr
 
