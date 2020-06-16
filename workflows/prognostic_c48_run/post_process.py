@@ -148,7 +148,7 @@ def post_process(rundir: str, destination: str):
         else:
             d_in = rundir
 
-        tiles, zarrs, other = parse_rundir(os.walk(d_in))
+        tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
 
         for item in chain(open_tiles(tiles), open_zarrs(zarrs), other):
             process_item(item, d_in, d_out)
