@@ -124,7 +124,10 @@ def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str):
         chunked.to_zarr(dest, mode="w")
     else:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
-        shutil.copy(item, dest)  # type: ignore
+        try:
+            shutil.copy(item, dest)  # type: ignore
+        except FileNotFoundError:
+            logger.warning(f"{item} not found. Possibly a broken symlink.")
 
 
 @click.command()

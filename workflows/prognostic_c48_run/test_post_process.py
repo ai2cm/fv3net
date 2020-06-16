@@ -81,3 +81,11 @@ def test_process_item_str_nested(tmpdir):
         process_item(str(path), d_in, d_out)
         with open(d_out + "/nest/afile.txt") as f:
             assert f.read() == txt
+
+
+def test_process_item_broken_symlink(tmpdir):
+    fake_path = str(tmpdir.join("idontexist"))
+    broken_link = str(tmpdir.join("broken_link"))
+    os.symlink(fake_path, broken_link)
+    with tempfile.TemporaryDirectory() as d_out:
+        process_item(broken_link, str(tmpdir), d_out)
