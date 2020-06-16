@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import re
 import xarray as xr
 import tempfile
 import subprocess
@@ -88,6 +89,38 @@ def clear_encoding(ds):
     ds.encoding = {}
     for variable in ds:
         ds[variable].encoding = {}
+
+
+def parse_rundir(walker):
+    """
+    Args:
+        walker: output of os.walk
+    Returns:
+        tiles, zarrs, other
+    """
+    tiles = []
+    zarrs = []
+    other = []
+    for root, dirs, files in walker:
+        for file_ in files:
+            full_name = os.path.join(root, file_)
+            if re.search(r"tile\d\.nc", file_):
+                tiles.append(full_name)
+            elif ".zarr" in root:
+                pass
+            else:
+                other.append(full_name)
+
+        search_path = []
+        for dir_ in dirs:
+            if dir_.endswith(".zarr"):
+                zarrs.append(os.path.join(root, dir_))
+            else:
+                search_path.append(dir_)
+        # only recurse into non-zarrs
+        dirs[:] = search_path
+        
+    return tiles, zarrs, other
 
 
 def download_rundir(rundir: str, output: str):
