@@ -93,7 +93,7 @@ def conditional_average(
     surface_type_array: xr.DataArray,
     surface_type: str,
     area: xr.DataArray,
-    dims: Sequence[str] = ["tile", "y", "x"]
+    dims: Sequence[str] = ["tile", "y", "x"],
 ) -> xr.Dataset:
     """Average over a conditional type
     

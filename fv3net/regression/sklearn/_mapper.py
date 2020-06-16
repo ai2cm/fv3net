@@ -46,20 +46,21 @@ class SklearnPredictionMapper(DatasetMapper):
             allowed_broadcast_dims=[self._z_dim, self._init_time_dim],
         )
         return self._model.predict(ds_stacked, SAMPLE_DIM_NAME).unstack()
-    
+
     def _insert_prediction(self, ds, ds_pred):
         predicted_vars = ds_pred.data_vars
         nonpredicted_vars = [var for var in ds.data_vars if var not in predicted_vars]
-        ds_target = safe.get_variables(
-                ds, [var for var in predicted_vars if var in ds.data_vars]) \
-            .expand_dims(DATA_SOURCE_DIM) \
+        ds_target = (
+            safe.get_variables(
+                ds, [var for var in predicted_vars if var in ds.data_vars]
+            )
+            .expand_dims(DATA_SOURCE_DIM)
             .assign_coords({DATA_SOURCE_DIM: [TARGET_COORD]})
-        ds_pred = ds_pred.expand_dims(DATA_SOURCE_DIM) \
-            .assign_coords({DATA_SOURCE_DIM: [PREDICT_COORD]})
+        )
+        ds_pred = ds_pred.expand_dims(DATA_SOURCE_DIM).assign_coords(
+            {DATA_SOURCE_DIM: [PREDICT_COORD]}
+        )
         return xr.merge([safe.get_variables(ds, nonpredicted_vars), ds_target, ds_pred])
-
-    def _insert_integrated_vars(self):
-        utils.insert_column_integrated_vars()
 
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._base_mapper[key]

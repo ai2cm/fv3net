@@ -34,15 +34,11 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "config_yml",
         type=str,
-        help=(
-            "Config file with dataset and variable specifications"
-        ),
+        help=("Config file with dataset and variable specifications"),
     )
     parser.add_argument(
-        "model_path",
-        type=str,
-        help=("Local or remote path for reading ML model."),
-    )    
+        "model_path", type=str, help=("Local or remote path for reading ML model."),
+    )
     parser.add_argument(
         "output_path",
         type=str,
@@ -64,12 +60,12 @@ def _write_nc(ds: xr.Dataset, output_dir: str, output_file: str):
     with NamedTemporaryFile() as tmpfile:
         ds.to_netcdf(tmpfile.name)
         gsutil.copy(tmpfile.name, output_file)
-        #get_fs(output_dir).put(tmpfile.name, output_file)
+        # get_fs(output_dir).put(tmpfile.name, output_file)
     logger.info(f"Writing netcdf to {output_file}")
 
 
 if __name__ == "__main__":
-    
+
     logger.info("Starting diagnostics routine.")
     args = _create_arg_parser()
 
@@ -89,15 +85,14 @@ if __name__ == "__main__":
         config["batch_kwargs"]["timesteps"] = timesteps
 
     base_mapping_function = getattr(loaders.mappers, config["mapping_function"])
-    base_mapper = base_mapping_function(config["data_path"], **config.get("mapping_kwargs", {}))
-    
+    base_mapper = base_mapping_function(
+        config["data_path"], **config.get("mapping_kwargs", {})
+    )
+
     fs_model = get_fs(args.model_path)
     with fs_model.open(args.model_path, "rb") as f:
         model = joblib.load(f)
-    pred_mapper = SklearnPredictionMapper(
-        base_mapper,
-        model,
-    )
+    pred_mapper = SklearnPredictionMapper(base_mapper, model,)
 
     ds_batches = loaders.batches.mapper_to_diagnostic_sequence(
         pred_mapper,
@@ -107,11 +102,12 @@ if __name__ == "__main__":
     )
 
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
-    ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS,
-        primary_vars=["dQ1", "dQ2"])
+    ds_diagnostic = utils.reduce_to_diagnostic(
+        ds_batches, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
+    )
     logger.info(f"Finished processing dataset diagnostics.")
     _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path, DIAGS_NC_NAME)
-    
+
     # json of metrics, ex. RMSE and bias
     metrics = calc_metrics(ds_batches)
     fs = get_fs(args.output_path)

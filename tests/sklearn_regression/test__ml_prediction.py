@@ -2,7 +2,12 @@ import xarray as xr
 import pytest
 
 from loaders import SAMPLE_DIM_NAME
-from fv3net.regression.sklearn._mapper import SklearnPredictionMapper, PREDICT_COORD, TARGET_COORD, DATA_SOURCE_DIM
+from fv3net.regression.sklearn._mapper import (
+    SklearnPredictionMapper,
+    PREDICT_COORD,
+    TARGET_COORD,
+    DATA_SOURCE_DIM,
+)
 
 
 def mock_predict_function(feature_data_arrays):
@@ -83,15 +88,15 @@ def mock_model(request):
 )
 def test_ml_predict_wrapper_insert_prediction(mock_model, base_mapper, gridded_dataset):
     mapper = SklearnPredictionMapper(
-        base_mapper,
-        mock_model,
-        init_time_dim="initial_time",
-        z_dim="z",
+        base_mapper, mock_model, init_time_dim="initial_time", z_dim="z",
     )
     for key in mapper.keys():
         mapper_output = mapper[key]
         for var in mock_model.output_vars_:
-            assert set(mapper_output[var][DATA_SOURCE_DIM].values) == {TARGET_COORD, PREDICT_COORD}
+            assert set(mapper_output[var][DATA_SOURCE_DIM].values) == {
+                TARGET_COORD,
+                PREDICT_COORD,
+            }
 
 
 @pytest.mark.parametrize(
@@ -104,10 +109,7 @@ def test_ml_predict_wrapper_insert_prediction(mock_model, base_mapper, gridded_d
 )
 def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
     mapper = SklearnPredictionMapper(
-        base_mapper,
-        mock_model,
-        init_time_dim="initial_time",
-        z_dim="z",
+        base_mapper, mock_model, init_time_dim="initial_time", z_dim="z",
     )
     for key in mapper.keys():
         mapper_output = mapper[key]
@@ -116,7 +118,9 @@ def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
         )
         for var in mock_model.output_vars_:
             assert sum(
-                (mapper_output[var].sel({DATA_SOURCE_DIM: PREDICT_COORD}) - target).values
+                (
+                    mapper_output[var].sel({DATA_SOURCE_DIM: PREDICT_COORD}) - target
+                ).values
             ) == pytest.approx(0)
 
 
@@ -127,10 +131,7 @@ def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
 )
 def test_ml_predict_wrapper_invalid_usage(mock_model, base_mapper, gridded_dataset):
     mapper = SklearnPredictionMapper(
-        base_mapper,
-        mock_model,
-        init_time_dim="initial_time",
-        z_dim="z",
+        base_mapper, mock_model, init_time_dim="initial_time", z_dim="z",
     )
     with pytest.raises(Exception):
         for key in mapper.keys():
