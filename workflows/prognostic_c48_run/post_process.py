@@ -111,7 +111,7 @@ def open_zarrs(zarrs: Sequence[str]) -> Iterable[xr.Dataset]:
 
 
 def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str):
-    logger.info("Processing {item}")
+    logger.info(f"Processing {item}")
     try:
         dest = os.path.join(d_out, os.path.relpath(item, d_in))  # type: ignore
     except TypeError:
