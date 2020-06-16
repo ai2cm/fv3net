@@ -3,11 +3,8 @@ import yaml
 from typing import Mapping
 
 from kubernetes.client import (
-    CoreV1Api,
     V1ResourceRequirements,
-    V1Pod,
     V1Toleration,
-    V1ObjectMeta,
     V1PodSpec,
     V1Container,
     V1VolumeMount,
@@ -24,7 +21,7 @@ def insert_gcp_secret(container: V1Container, secret_vol: V1Volume):
     Args:
         container: a container to insert the gcp credentials into
         secret_vol: a volume containg a GCP service account key at
-            ``key.json`` 
+            ``key.json``
             
     """
     if container.volume_mounts is None:
@@ -68,7 +65,7 @@ def write_rundir_container(
     Args:
         config: an fv3config dictionary
         data_vol: a k8s volume to store the data in. The data will be written
-            to the location "rundir" in this volume. 
+            to the location "rundir" in this volume.
         secret_vol: a volume contain a GCP service account key at the path
             ``key.json``
         image: an docker image with fv3config installed
