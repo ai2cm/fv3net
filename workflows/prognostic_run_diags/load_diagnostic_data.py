@@ -4,22 +4,24 @@ import warnings
 import os
 import xarray as xr
 import numpy as np
-from typing import List, Iterable
+from typing import List, Iterable, Tuple, Mapping, Set
 from datetime import timedelta
-from pathlib import Path
 
+import fsspec
 import vcm
 
 logger = logging.getLogger(__name__)
 
+DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
+
 # desired name as keys with set containing sources to rename
 # TODO: could this be tied to the registry?
-COORD_RENAME_INVERSE_MAP = {
+DIM_RENAME_INVERSE_MAP = {
     "x": {"grid_xt", "grid_xt_coarse"},
     "y": {"grid_yt", "grid_yt_coarse"},
     "tile": {"rank"},
-    "xb": {"grid_x_coarse"},
-    "yb": {"grid_y_coarse"},
+    "xb": {"grid_x", "grid_x_coarse"},
+    "yb": {"grid_y", "grid_y_coarse"},
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 _DIAG_OUTPUT_LOADERS = []
@@ -36,15 +38,17 @@ def _adjust_tile_range(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def _rename_coords(ds: xr.Dataset) -> xr.Dataset:
+def _rename_dims(
+    ds: xr.Dataset, rename_inverse: Mapping[str, Set[str]] = DIM_RENAME_INVERSE_MAP
+) -> xr.Dataset:
 
     varname_target_registry = {}
-    for target_name, source_names in COORD_RENAME_INVERSE_MAP.items():
+    for target_name, source_names in rename_inverse.items():
         varname_target_registry.update({name: target_name for name in source_names})
 
     vars_to_rename = {
         var: varname_target_registry[var]
-        for var in ds.coords
+        for var in ds.dims
         if var in varname_target_registry
     }
     ds = ds.rename(vars_to_rename)
@@ -123,7 +127,7 @@ def standardize_gfsphysics_diagnostics(ds):
 
     for func in [
         _adjust_tile_range,
-        _rename_coords,
+        _rename_dims,
         _round_time_coord,
         _remove_name_suffix,
         _set_missing_attrs,
@@ -137,15 +141,9 @@ def _open_tiles(path):
     return xr.open_mfdataset(path + ".tile?.nc", concat_dim="tile", combine="nested")
 
 
-def _catalog():
-    TOP_LEVEL_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
-    path = str(TOP_LEVEL_DIR / "catalog.yml")
-    return intake.open_catalog(path)
-
-
 def load_verification(
     catalog_keys: List[str],
-    catalog: intake.Catalog = None,
+    catalog: intake.Catalog,
     coarsening_factor: int = None,
     area: xr.DataArray = None,
 ) -> xr.Dataset:
@@ -155,8 +153,7 @@ def load_verification(
 
     Args:
         catalog_keys: catalog sources to load as verification data
-        catalog (optional): Intake catalog of available data sources.  Defaults
-            to fv3net top-level "catalog.yml" catalog.
+        catalog: Intake catalog of available data sources.
         coarsening_factor (optional): Factor to coarsen the loaded verification data
         area (optional): Grid cell area data for weighting. Required when
             coarsening_factor is set.
@@ -166,10 +163,7 @@ def load_verification(
 
     """
 
-    if catalog is None:
-        catalog = _catalog()
-
-    area = _rename_coords(area)
+    area = _rename_dims(area)
 
     verif_data = []
     for dataset_key in catalog_keys:
@@ -192,65 +186,105 @@ def load_verification(
     return xr.merge(verif_data, join="outer")
 
 
-def add_to_diag_loaders(func):
-    """
-    Add diagnostic output file loader to the group of diagnostic
-    datasets to combine from an FV3GFS run path.
-    
-    Args:
-        func: A functions which loads an xr.Datset.
-            It needs to have the following signature::
-
-                func(path: str)
-
-            and should return an xarray Dataset.
-    """
-
-    _DIAG_OUTPUT_LOADERS.append(func)
-    return func
+def _load_standardized(path):
+    logger.info(f"Loading and standardizing {path}")
+    m = fsspec.get_mapper(path)
+    ds = xr.open_zarr(m, consolidated=True).load()
+    return standardize_gfsphysics_diagnostics(ds)
 
 
-# TODO: If all these sources are converted to zarrs this can be one function
-#       that loops through sources
-@add_to_diag_loaders
-def _load_diags_zarr(url):
+def _load_prognostic_run_physics_output(url):
+    """Load, standardize and merge prognostic run physics outputs"""
+    # values euqal to zero in diags.zarr get interpreted as nans by xarray, so fix here
+    diagnostic_data = [
+        _load_standardized(os.path.join(url, "diags.zarr")).fillna(0.0),
+        _load_standardized(os.path.join(url, "sfc_dt_atmos.zarr")),
+    ]
 
-    path = os.path.join(url, "diags.zarr")
-    ds = standardize_gfsphysics_diagnostics(xr.open_zarr(path))
-
-    return ds
-
-
-@add_to_diag_loaders
-def _load_diags_sfc(url):
-
-    path = os.path.join(url, "sfc_dt_atmos")
-    ds = standardize_gfsphysics_diagnostics(_open_tiles(path))
-
-    return ds
-
-
-@add_to_diag_loaders
-def _load_diags_atmos(url):
-
-    path = os.path.join(url, "atmos_dt_atmos")
-    ds = standardize_gfsphysics_diagnostics(_open_tiles(path))
-
-    return ds
-
-
-def load_diagnostics(url):
-
-    diagnostic_data = []
-    for load_func in _DIAG_OUTPUT_LOADERS:
-        diagnostic_data.append(load_func(url))
-
-    # TODO: Zarr currently doesn't contain any coordinates other than time
-    #       and should perhaps be remedied. Need to handle crashed run extra timestep
-    #       in here for now.
+    # TODO: diags.zarr currently doesn't contain any coordinates and should perhaps be
+    #       remedied. Need to handle crashed run extra timestep in here for now.
     cutoff_time_index = min([len(ds["time"]) for ds in diagnostic_data])
     diagnostic_data = [
         ds.isel(time=slice(0, cutoff_time_index)) for ds in diagnostic_data
     ]
 
     return xr.merge(diagnostic_data, join="inner")
+
+
+def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
+    """Open data required for dycore plots.
+
+    Args:
+        url: path to prognostic run directory
+        grid_spec: path to C384 grid spec (everything up to .tile?.nc)
+        catalog: Intake catalog of available data sources
+
+    Returns:
+        tuple of prognostic run data, verification data and grid variables all at
+        coarsened resolution. Prognostic and verification data contain variables output
+        by the dynamical core.
+    """
+    logger.info(f"Processing dycore data from run directory at {url}")
+
+    # open grid
+    logger.info("Opening Grid Spec")
+    grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
+    grid_c48 = vcm.cubedsphere.weighted_block_average(
+        grid_c384, grid_c384.area, 8, x_dim="x", y_dim="y"
+    )
+
+    # open verification
+    logger.info("Opening verification data")
+    verification_c48 = load_verification(
+        ["40day_c384_atmos_8xdaily"], catalog, coarsening_factor=8, area=grid_c384.area
+    )
+
+    # open prognostic run data
+    path = os.path.join(url, "atmos_dt_atmos.zarr")
+    logger.info(f"Opening prognostic run data at {path}")
+    ds = _load_standardized(path)
+    resampled = ds.resample(time="3H", label="right").nearest()
+
+    # don't use last time point. there is some trouble
+    resampled = resampled.isel(time=slice(None, -1))
+    verification_c48 = verification_c48.sel(time=resampled.time)
+
+    return resampled, verification_c48, grid_c48[["area"]]
+
+
+def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
+    """Open data required for physics plots.
+
+        Args:
+            url: path to prognostic run directory
+            grid_spec: path to C384 grid spec (everything up to .tile?.nc)
+            catalog: Intake catalog of available data sources
+
+        Returns:
+            tuple of prognostic run data, verification data and grid variables all at
+            coarsened resolution. Prognostic and verification data contain variables
+            output by the physics routines.
+        """
+    logger.info(f"Processing physics data from run directory at {url}")
+
+    # open grid
+    logger.info("Opening Grid Spec")
+    grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
+    grid_c48 = vcm.cubedsphere.weighted_block_average(
+        grid_c384, grid_c384.area, 8, x_dim="x", y_dim="y"
+    )
+
+    # open verification
+    # TODO: load physics diagnostics for SHiELD data. Currently slow due to chunking.
+    verification_c48 = xr.Dataset()
+
+    # open prognostic run data
+    logger.info(f"Opening prognostic run data at {url}")
+    prognostic_output = _load_prognostic_run_physics_output(url)
+    # resample since 15-minute frequency timeseries makes report bloated
+    resampled = prognostic_output.resample(time="3H", label="right").nearest()
+
+    # avoid last time point since it often distorts plot limits
+    resampled = resampled.isel(time=slice(None, -1))
+
+    return resampled, verification_c48, grid_c48[["area"]]

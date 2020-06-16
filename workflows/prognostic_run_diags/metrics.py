@@ -70,7 +70,7 @@ def compute_all_metrics(diags: xr.Dataset) -> Mapping[str, float]:
 
 @add_to_metrics("rmse_3day")
 def rmse_3day(diags):
-    rms_global = grab_diag(diags, "rms_global").drop("area")
+    rms_global = grab_diag(diags, "rms_global").drop("area", errors="ignore")
 
     rms_global_daily = rms_global.resample(time="1D").mean()
 
