@@ -1,12 +1,28 @@
+from typing import Sequence, Optional
 import argparse
 import os
 import yaml
 import fsspec
 import logging
 from pathlib import Path
+import json
 
 import fv3config
 import fv3kube
+from kubernetes.client import (
+    CoreV1Api,
+    V1ResourceRequirements,
+    V1Pod,
+    V1Toleration,
+    V1ObjectMeta,
+    V1PodSpec,
+    V1Container,
+    V1VolumeMount,
+    V1Volume,
+    V1SecretVolumeSource,
+    V1EmptyDirVolumeSource,
+    V1EnvVar,
+)
 
 logger = logging.getLogger(__name__)
 PWD = Path(os.path.abspath(__file__)).parent
@@ -21,6 +37,18 @@ KUBERNETES_DEFAULT = {
     "image_pull_policy": "Always",
     "capture_output": False,
 }
+
+script_template = """
+import fv3config
+import yaml
+import os
+
+model_url = os.environ["MODEL"]
+config = yaml.safe_load(os.environ["FV3CONFIG"])
+fv3config.write_run_directory(config, "{rundir}")
+with open("{rundir}/fv3config.yml", "w") as f:
+    yaml.safe_dump(config, f)
+"""
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -80,6 +108,62 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def write_rundir_container(
+    config, empty_vol: V1Volume, secret_vol: V1Volume
+) -> V1Container:
+
+    container = V1Container(name="write-rundir")
+    secret_mount = "gcp-key"
+    container.volume_mounts = [
+        V1VolumeMount(mount_path="/etc/gcp/", name=secret_vol.name),
+        V1VolumeMount(mount_path="/mnt", name=empty_vol.name),
+    ]
+
+    # Inject the fv3config and runfile via an environmental variable
+    container.env = [
+        V1EnvVar(name="FV3CONFIG", value=yaml.safe_dump(config)),
+        V1EnvVar(name="MODEL", value=yaml.safe_dump(config)),
+        V1EnvVar(name="GOOGLE_APPLICATION_CREDENTIALS", value="/etc/gcp/key.json"),
+        V1EnvVar(
+            name="CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE", value="/etc/gcp/key.json"
+        ),
+    ]
+    container.image = args.docker_image
+    container.command = ["python", "-c"]
+    container.args = [script_template.format(rundir="/mnt/rundir")]
+
+    return container
+
+
+def fv3_container(empty_vol: V1Volume) -> V1Container:
+    runfile_path = "/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py"
+    fv3_container = V1Container(name="fv3")
+    fv3_container.image = args.docker_image
+    fv3_container.working_dir = "/mnt/rundir"
+    fv3_container.command = [
+        "mpirun",
+        "-np",
+        str(6),
+        "--oversubscribe",
+        "--allow-run-as-root",
+        "--mca",
+        "btl_vader_single_copy_mechanism",
+        "none",
+        "python",
+        runfile_path,
+    ]
+    # Suitable for C48 job
+    fv3_container.resources = V1ResourceRequirements(
+        limits=dict(cpu="6", memory="3600M"), requests=dict(cpu="6", memory="3600M"),
+    )
+
+    fv3_container.volume_mounts = [
+        V1VolumeMount(mount_path="/mnt", name=empty_vol.name),
+    ]
+
+    return fv3_container
+
+
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
@@ -87,7 +171,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     short_id = fv3kube.get_alphanumeric_unique_tag(8)
-    job_name = f"prognostic-run-{short_id}"
     job_label = {
         "orchestrator-jobs": f"prognostic-group-{short_id}",
         "app": "end-to-end",
@@ -108,25 +191,36 @@ if __name__ == "__main__":
     config_dir = os.path.join(args.output_url, "job_config")
     job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
 
-    try:
-        diag_table = fv3kube.transfer_local_to_remote(
-            model_config["diag_table"], config_dir
-        )
-    except FileNotFoundError:
-        diag_table = model_config["diag_table"]
+    # try:
+    #     diag_table = fv3kube.transfer_local_to_remote(
+    #         model_config["diag_table"], config_dir
+    #     )
+    # except FileNotFoundError:
+    #     diag_table = model_config["diag_table"]
 
-    model_config["diag_table"] = diag_table
+    model_config[
+        "diag_table"
+    ] = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
 
     # Add scikit learn ML model config section
+    scikit_learn_config = {}
+    scikit_learn_config["zarr_output"] = "diags.zarr"
     if args.model_url:
-        scikit_learn_config = model_config.get("scikit_learn", {})
-        scikit_learn_config.update(
-            model=os.path.join(args.model_url, MODEL_FILENAME),
-            zarr_output="diags.zarr",
-            diagnostic_ml=args.diagnostic_ml,
+
+        # insert the model asset
+        model_url = os.path.join(args.model_url, MODEL_FILENAME)
+        model_asset = fv3config.get_asset_dict(
+            args.model_url, MODEL_FILENAME, target_name="model.pkl"
         )
-        model_config["scikit_learn"] = scikit_learn_config
-        kube_opts["runfile"] = fv3kube.transfer_local_to_remote(RUNFILE, config_dir)
+        model_config.setdefault("patch_files", []).append(model_asset)
+
+        scikit_learn_config.update(
+            model="model.pkl", diagnostic_ml=args.diagnostic_ml,
+        )
+        # TODO uncomment or delete
+        # kube_opts["runfile"] = fv3kube.transfer_local_to_remote(RUNFILE, config_dir)
+
+    model_config["scikit_learn"] = scikit_learn_config
 
     # Upload the new prognostic config
     with fsspec.open(job_config_path, "w") as f:
@@ -134,18 +228,36 @@ if __name__ == "__main__":
 
     # need to initialized the client differently than
     # run_kubernetes when running in a pod.
-    client = fv3kube.initialize_batch_client()
-    job = fv3config.run_kubernetes(
-        config_location=job_config_path,
-        outdir=args.output_url,
-        jobname=job_name,
-        docker_image=args.docker_image,
-        job_labels=job_label,
-        submit=False,
-        **kube_opts,
+
+    # TODO need another documented iterative development paradigm if not uploading
+    # runfile
+
+    fv3kube.load_kube_config()
+    client = CoreV1Api()
+
+    empty_vol = V1Volume(name="rundir")
+    empty_vol.empty_dir = V1EmptyDirVolumeSource()
+
+    secret_vol = V1Volume(name="google-secret")
+    secret_vol.secret = V1SecretVolumeSource(secret_name="gcp-key")
+
+    # Need to add toleration for large jobs
+    climate_sim_toleration = V1Toleration(
+        effect="NoSchedule", value="climate-sim-pool", key="dedicated", operator="Equal"
     )
-    print(job)
-    # client.create_namespaced_job(namespace="default", body=job)
+
+    pod = V1Pod()
+    pod.spec = V1PodSpec(
+        init_containers=[write_rundir_container(model_config, empty_vol, secret_vol)],
+        containers=[fv3_container(empty_vol)],
+        volumes=[empty_vol, secret_vol],
+        restart_policy="Never",
+        tolerations=[climate_sim_toleration],
+    )
+    pod.metadata = V1ObjectMeta(generate_name="prognostic-run-", labels=job_label)
+
+    created_pod = client.create_namespaced_pod("default", body=pod)
+    print(created_pod.metadata.name)
 
     if not args.detach:
         fv3kube.wait_for_complete(job_label, raise_on_fail=not args.allow_fail)
