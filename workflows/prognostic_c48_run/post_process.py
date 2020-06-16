@@ -95,7 +95,6 @@ def parse_rundir(walker):
 
 def open_tiles(tiles: Sequence[str]) -> Iterable[Union[str, xr.Dataset]]:
     grouped_tiles = groupby(lambda x: x[: -len(".tile1.nc")], tiles)
-    unprocessed_files = []
     for key, files in grouped_tiles.items():
         if key in CHUNKS:
             yield xr.open_mfdataset(
@@ -111,13 +110,13 @@ def open_zarrs(zarrs: Sequence[str]) -> Iterable[xr.Dataset]:
         yield xr.open_zarr(zarr).assign_attrs(path=zarr)
 
 
-def process_item(item: Union[xr.Dataset, str], d_in, d_out):
+def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str):
     logger.info("Processing {item}")
     try:
-        dest = os.path.join(d_out, os.path.relpath(item, d_in))
+        dest = os.path.join(d_out, os.path.relpath(item, d_in))  # type: ignore
     except TypeError:
         # is an xarray
-        relpath = os.path.relpath(item.path, d_in)
+        relpath = os.path.relpath(item.path, d_in)  # type: ignore
         chunks = CHUNKS.get(relpath, CHUNKS_2D)
         clear_encoding(item)
         chunked = rechunk(item, chunks)
@@ -125,7 +124,7 @@ def process_item(item: Union[xr.Dataset, str], d_in, d_out):
         chunked.to_zarr(dest, mode="w")
     else:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
-        shutil.copy(item, dest)
+        shutil.copy(item, dest)  # type: ignore
 
 
 @click.command()
@@ -152,7 +151,7 @@ def post_process(rundir: str, destination: str):
         tiles, zarrs, other = parse_rundir(os.walk(d_in))
 
         for item in chain(open_tiles(tiles), open_zarrs(zarrs), other):
-            process_item(item)
+            process_item(item, d_in, d_out)
 
         upload_dir(d_out, destination)
 
