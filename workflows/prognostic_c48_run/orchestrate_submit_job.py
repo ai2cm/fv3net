@@ -108,6 +108,26 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def insert_gcp_secret(container: V1Container, secret_vol: V1Volume):
+    """Insert GCP credentials into a container
+
+    Args:
+        container: a container to insert the gcp credentials into
+        secret_vol: a volume containg a GCP service account key at
+            ``key.json`` 
+            
+    """
+    container.volume_mounts.append(
+        V1VolumeMount(mount_path="/etc/gcp/", name=secret_vol.name)
+    )
+    container.env.append(
+        V1EnvVar(name="GOOGLE_APPLICATION_CREDENTIALS", value="/etc/gcp/key.json"),
+        V1EnvVar(
+            name="CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE", value="/etc/gcp/key.json"
+        ),
+    )
+
+
 def write_rundir_container(
     config, empty_vol: V1Volume, secret_vol: V1Volume
 ) -> V1Container:
@@ -115,9 +135,7 @@ def write_rundir_container(
     # this could be on dockerhub
 
     container = V1Container(name="write-rundir")
-    secret_mount = "gcp-key"
     container.volume_mounts = [
-        V1VolumeMount(mount_path="/etc/gcp/", name=secret_vol.name),
         V1VolumeMount(mount_path="/mnt", name=empty_vol.name),
     ]
 
@@ -125,19 +143,24 @@ def write_rundir_container(
     container.env = [
         V1EnvVar(name="FV3CONFIG", value=yaml.safe_dump(config)),
         V1EnvVar(name="MODEL", value=yaml.safe_dump(config)),
-        V1EnvVar(name="GOOGLE_APPLICATION_CREDENTIALS", value="/etc/gcp/key.json"),
-        V1EnvVar(
-            name="CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE", value="/etc/gcp/key.json"
-        ),
     ]
     container.image = args.docker_image
     container.command = ["python", "-c"]
     container.args = [script_template.format(rundir="/mnt/rundir")]
 
+    insert_gcp_secret(container, secret_vol)
+
     return container
 
 
 def fv3_container(empty_vol: V1Volume) -> V1Container:
+    """
+
+    Args:
+
+    Returns:
+        container for running the output. stores data in the volume at path "rundir".
+    """
     runfile_path = "/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py"
     fv3_container = V1Container(name="fv3")
     fv3_container.image = args.docker_image
@@ -166,8 +189,37 @@ def fv3_container(empty_vol: V1Volume) -> V1Container:
     return fv3_container
 
 
-def post_process_container():
-    pass
+def post_process_container(
+    path: str, destination: str, data_vol: V1Volume, secret_vol: V1Volume, image: str
+) -> V1Container:
+    """Container for post processing fv3 model output for cloud storage
+
+    Args:
+        path: relative path within volume pointing to run-directory
+        destination: uri to desired GCS output directory
+        vol: a K8s volume containing ``path`
+        image: the docker image to use for post processing. Needs to contain
+            the fv3net source tree at the path "/fv3net".
+    Returns
+        a k8s container encapsulating the post-processing.
+    """
+    container = V1Container(name="post")
+    container.volume_mounts = [
+        V1VolumeMount(mount_path="/mnt", name=data_vol.name),
+    ]
+
+    rundir = os.path.join("/mnt", path)
+    container.image = image
+    container.working_dir = "/fv3net/workflows/prognostic_c48_run"
+    container.command = ["python", "post_process.py", rundir, destination]
+    # Suitable for C48 job
+    container.resources = V1ResourceRequirements(
+        limits=dict(cpu="6", memory="3600M"), requests=dict(cpu="6", memory="3600M"),
+    )
+
+    insert_gcp_secret(container, secret_vol)
+
+    return container
 
 
 if __name__ == "__main__":
@@ -254,8 +306,15 @@ if __name__ == "__main__":
 
     pod = V1Pod()
     pod.spec = V1PodSpec(
-        init_containers=[write_rundir_container(model_config, empty_vol, secret_vol)],
-        containers=[fv3_container(empty_vol)],
+        init_containers=[
+            write_rundir_container(model_config, empty_vol, secret_vol),
+            fv3_container(empty_vol),
+        ],
+        containers=[
+            post_process_container(
+                "rundir", args.output_url, empty_vol, secret_vol, args.docker_image
+            )
+        ],
         volumes=[empty_vol, secret_vol],
         restart_policy="Never",
         tolerations=[climate_sim_toleration],
