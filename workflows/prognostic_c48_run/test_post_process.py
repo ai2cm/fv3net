@@ -1,5 +1,8 @@
 import os
-from post_process import parse_rundir
+import numpy as np
+import xarray as xr
+from post_process import parse_rundir, process_item
+import tempfile
 
 
 def test_parse_rundir_mocked_walker():
@@ -43,3 +46,38 @@ def test_parse_rundir_os_walk_integration(tmpdir):
     }
     assert set(zarrs) == {f"{tmpdir}/diags.zarr"}
     assert set(other) == {f"{tmpdir}/INPUT/restart.nc", f"{tmpdir}/randomfile"}
+
+
+def test_process_item_dataset(tmpdir):
+    d_in = str(tmpdir)
+    localpath = str(tmpdir.join("diags.zarr"))
+    ds = xr.Dataset(
+        {"a": (["time", "x"], np.ones((200, 10)))}, attrs={"path": localpath}
+    )
+    with tempfile.TemporaryDirectory() as d_out:
+        process_item(ds, d_in, d_out)
+        xr.open_zarr(d_out + "/diags.zarr")
+
+
+def test_process_item_str(tmpdir):
+    txt = "hello"
+    d_in = str(tmpdir)
+    path = tmpdir.join("afile.txt")
+    path.write(txt)
+
+    with tempfile.TemporaryDirectory() as d_out:
+        process_item(str(path), d_in, d_out)
+        with open(d_out + "/afile.txt") as f:
+            assert f.read() == txt
+
+
+def test_process_item_str_nested(tmpdir):
+    txt = "hello"
+    d_in = str(tmpdir)
+    path = tmpdir.mkdir("nest").join("afile.txt")
+    path.write(txt)
+
+    with tempfile.TemporaryDirectory() as d_out:
+        process_item(str(path), d_in, d_out)
+        with open(d_out + "/nest/afile.txt") as f:
+            assert f.read() == txt
