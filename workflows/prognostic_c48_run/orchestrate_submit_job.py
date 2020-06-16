@@ -117,14 +117,23 @@ def insert_gcp_secret(container: V1Container, secret_vol: V1Volume):
             ``key.json`` 
             
     """
+    if container.volume_mounts is None:
+        container.volume_mounts = []
+
+    if container.env is None:
+        container.env = []
+
     container.volume_mounts.append(
         V1VolumeMount(mount_path="/etc/gcp/", name=secret_vol.name)
     )
-    container.env.append(
-        V1EnvVar(name="GOOGLE_APPLICATION_CREDENTIALS", value="/etc/gcp/key.json"),
-        V1EnvVar(
-            name="CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE", value="/etc/gcp/key.json"
-        ),
+
+    container.env.extend(
+        [
+            V1EnvVar(name="GOOGLE_APPLICATION_CREDENTIALS", value="/etc/gcp/key.json"),
+            V1EnvVar(
+                name="CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE", value="/etc/gcp/key.json"
+            ),
+        ]
     )
 
 
@@ -179,7 +188,7 @@ def fv3_container(empty_vol: V1Volume) -> V1Container:
     ]
     # Suitable for C48 job
     fv3_container.resources = V1ResourceRequirements(
-        limits=dict(cpu="6", memory="3600M"), requests=dict(cpu="6", memory="3600M"),
+        limits=dict(cpu="6", memory="6Gi"), requests=dict(cpu="6", memory="6Gi"),
     )
 
     fv3_container.volume_mounts = [
@@ -321,6 +330,7 @@ if __name__ == "__main__":
     )
     pod.metadata = V1ObjectMeta(generate_name="prognostic-run-", labels=job_label)
     created_pod = client.create_namespaced_pod("default", body=pod)
+    print(created_pod.metadata.name)
 
     if not args.detach:
         fv3kube.wait_for_complete(job_label, raise_on_fail=not args.allow_fail)

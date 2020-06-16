@@ -80,7 +80,7 @@ def authenticate():
         pass
     else:
         subprocess.check_call(
-            ["gsutil", "auth", "activate-service-account", "--key-file", credentials]
+            ["gcloud", "auth", "activate-service-account", "--key-file", credentials]
         )
 
 
