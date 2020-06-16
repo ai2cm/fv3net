@@ -226,7 +226,7 @@ class NudgedTendencies(GeoMapper):
         checkpoint_mapper: Mapping[Checkpoint, xr.Dataset],
         difference_checkpoints: Sequence[str] = ("after_dynamics", "after_physics"),
         tendency_variables: Mapping[str, str] = None,
-        timestep_seconds: int = 900,
+        physics_timestep_seconds: int = 900,
     ):
         for source in difference_checkpoints:
             if source not in checkpoint_mapper.sources:
@@ -241,7 +241,7 @@ class NudgedTendencies(GeoMapper):
             "pQ1": "air_temperature",
             "pQ2": "specific_humidity",
         }
-        self._timestep_seconds = timestep_seconds
+        self._physics_timestep_seconds = physics_timestep_seconds
 
     def keys(self):
         return self._nudged_mapper.keys()
@@ -256,7 +256,7 @@ class NudgedTendencies(GeoMapper):
             self._tendency_variables,
             self._checkpoint_mapper,
             self._difference_checkpoints,
-            self._timestep_seconds,
+            self._physics_timestep_seconds,
         )
 
         return self._nudged_mapper[time].assign(physics_tendencies)
@@ -267,7 +267,7 @@ class NudgedTendencies(GeoMapper):
         tendency_variables: Mapping[str, str],
         checkpoint_mapper: Checkpoint,
         difference_checkpoints: Sequence[str],
-        timestep_seconds: Union[int, float],
+        physics_timestep_seconds: Union[int, float],
     ) -> Mapping[str, xr.DataArray]:
 
         physics_tendencies = {}
@@ -275,7 +275,7 @@ class NudgedTendencies(GeoMapper):
             physics_tendencies[term_name] = (
                 checkpoint_mapper[(difference_checkpoints[1], time)][variable_name]
                 - checkpoint_mapper[(difference_checkpoints[0], time)][variable_name]
-            ) / timestep_seconds
+            ) / physics_timestep_seconds
 
         return physics_tendencies
 
@@ -313,8 +313,14 @@ def open_merged_nudged(
             to omit from the batching operation
         n_times (optional): Number of times (by index) to include in the
             batch resampling operation
-        rename_vars (optional): mapping of variables to be renamed
+        rename_vars (optional): mapping of variables to be renamed; defaults to
+            renaming long nudging names to dQ names
     """
+
+    rename_vars = rename_vars or {
+        "air_temperature_tendency_due_to_nudging": "dQ1",
+        "specific_humidity_tendency_due_to_nudging": "dQ2",
+    }
 
     fs = cloud.get_fs(url)
 
@@ -339,7 +345,7 @@ def open_merged_nudged(
     return nudged_mapper
 
 
-def open_nudging_checkpoints(
+def _open_nudging_checkpoints(
     url: str,
     nudging_timescale_hr: Union[int, float],
     checkpoint_files: Tuple[str] = (
@@ -383,14 +389,14 @@ def open_nudging_checkpoints(
     return NudgedStateCheckpoints(datasets)
 
 
-def open_nudged_tendencies(
+def open_merged_nudged_full_tendencies(
     url: str,
     nudging_timescale_hr: Union[int, float],
     open_merged_nudged_kwargs: Mapping[str, Any] = None,
     open_checkpoints_kwargs: Mapping[str, Any] = None,
     difference_checkpoints: Sequence[str] = ("after_dynamics", "after_physics"),
     tendency_variables: Mapping[str, str] = None,
-    timestep_seconds: int = 900,
+    timestep_physics_seconds: int = 900,
 ) -> Mapping[str, xr.Dataset]:
     """
     Load mapper to nudged dataset containing both dQ and pQ tendency terms
@@ -410,7 +416,8 @@ def open_nudged_tendencies(
         tendency_variables (optional): mapping of tendency term names to underlying
             variable names; defaults to
             {'pQ1': 'air_temperature', 'pQ2': 'specific_humidity'}
-        timestep_seconds (optional): physics timestep in seconds; defaults to 900
+        timestep_physics_seconds (optional): physics timestep in seconds;
+            defaults to 900
         
     Returns
         mapper of timestamps to datasets containing full tendency terms
@@ -423,7 +430,7 @@ def open_nudged_tendencies(
         url, nudging_timescale_hr, **open_merged_nudged_kwargs
     )
 
-    checkpoint_mapper = open_nudging_checkpoints(
+    checkpoint_mapper = _open_nudging_checkpoints(
         url, nudging_timescale_hr, **open_checkpoints_kwargs
     )
 
@@ -432,5 +439,5 @@ def open_nudged_tendencies(
         checkpoint_mapper,
         difference_checkpoints,
         tendency_variables,
-        timestep_seconds,
+        timestep_physics_seconds,
     )

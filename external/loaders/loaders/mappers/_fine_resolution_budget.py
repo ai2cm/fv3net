@@ -90,7 +90,9 @@ def open_fine_res_apparent_sources(
     Args:
         url (str): path to fine res dataset
         offset_seconds (int or float): optional time offset in seconds between
-            access keys and underling data timesamps; defaults to 0
+            access keys and underlying data timestamps, with positive values
+            indicating that the access key is behind the underlying timestamps;
+            defaults to 0
         rename_vars: (mapping): optional mapping of variables to rename in dataset
         drop_vars (sequence): optional list of variable names to drop from dataset
     """
