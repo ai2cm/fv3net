@@ -71,6 +71,15 @@ test:
 test_prognostic_run:
 	IMAGE=prognostic_run $(MAKE) -C workflows/prognostic_c48_run/ test
 
+test_unit:
+	pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+
+test_regression:
+	pytest -vv -m regression -s
+
+test_dataflow:
+	pytest -vv tests/dataflow/ -s
+
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images
 data:

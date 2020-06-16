@@ -46,7 +46,7 @@ rand=$(openssl rand -hex 6)
     --project vcm-ml \
     --region us-central1 \
     --runner DataFlow \
-    --temp_location gs://vcm-ml-data/tmp_dataflow \
+    --temp_location gs://vcm-ml-scratch/tmp_dataflow \
     --num_workers 64 \
     --autoscaling_algorithm=NONE \
     --worker_machine_type n1-highmem-2
