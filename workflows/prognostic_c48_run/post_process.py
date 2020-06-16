@@ -93,13 +93,15 @@ def parse_rundir(walker):
     return tiles, zarrs, other
 
 
-def open_tiles(tiles: Sequence[str]) -> Iterable[Union[str, xr.Dataset]]:
+def open_tiles(tiles: Sequence[str], base: str) -> Iterable[Union[str, xr.Dataset]]:
     grouped_tiles = groupby(lambda x: x[: -len(".tile1.nc")], tiles)
     for key, files in grouped_tiles.items():
-        if key in CHUNKS:
+        path = key + ".zarr"
+        relpath = os.path.relpath(path, base)
+        if relpath in CHUNKS:
             yield xr.open_mfdataset(
                 sorted(files), concat_dim="tile", combine="nested"
-            ).assign_attrs(path=key + ".zarr")
+            ).assign_attrs(path=path)
         else:
             for file in files:
                 yield file
@@ -153,7 +155,7 @@ def post_process(rundir: str, destination: str):
 
         tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
 
-        for item in chain(open_tiles(tiles), open_zarrs(zarrs), other):
+        for item in chain(open_tiles(tiles, d_in), open_zarrs(zarrs), other):
             process_item(item, d_in, d_out)
 
         upload_dir(d_out, destination)
