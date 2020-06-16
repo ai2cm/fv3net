@@ -37,7 +37,7 @@ default_experiment
  "dynamics",  "v50",         "VGRD50",        "atmos_dt_atmos", "all", .false.,  "none", 2
 ###
  "dynamics",  "tm",          "TMP500_300",   "atmos_dt_atmos", "all", .false.,  "none", 2
- "dynamics",  "tb",          "TB",           "atmos_dt_atmos", "all", .false.,  "none", 2
+ "dynamics",  "tb",          "TMPlowest",    "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "t850",        "TMP850",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "t500",        "TMP500",       "atmos_dt_atmos", "all", .false.,  "none", 2
  "dynamics",  "t200",        "TMP200",       "atmos_dt_atmos", "all", .false.,  "none", 2
