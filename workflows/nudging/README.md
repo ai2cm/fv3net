@@ -46,9 +46,9 @@ under `steps_config` and the step name added to `steps_to_run`, e.g.:
             nudging:
                 command: bash workflows/nudging/orchestrate_submit.sh
                 args:
-                    nudge_config: $CONFIG/fv3config_nudge_base.yml
+                    nudge_config: $CONFIG/nudging_config.yaml
                     nudge_timescale_hr: 3
-                    image: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.1
+                    fv3gfs_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.1
 
             ...
 
