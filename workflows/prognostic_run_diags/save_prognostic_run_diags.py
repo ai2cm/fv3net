@@ -296,7 +296,7 @@ def dump_nc(ds: xr.Dataset, f):
             shutil.copyfileobj(tmp1, f)
 
 
-def _vars_to_diags(suffix: str, ds: xr.Dataset, src_ds: xr.Dataset) -> DiagDict:
+def _prepare_diagnostics_dict(suffix: str, ds: xr.Dataset, src_ds: xr.Dataset) -> DiagDict:
     # converts dataset variables into diagnostics dict
     # and assigns attrs from src_ds if none are set
 
@@ -319,7 +319,7 @@ def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
-    return _vars_to_diags("rms_global", rms_errors, resampled)
+    return _prepare_diagnostics_dict("rms_global", rms_errors, resampled)
 
 
 @add_to_diags("dycore")
@@ -329,7 +329,7 @@ def global_averages_dycore(resampled, verification, grid):
         HORIZONTAL_DIMS
     )
 
-    return _vars_to_diags("global_avg", area_averages, resampled)
+    return _prepare_diagnostics_dict("global_avg", area_averages, resampled)
 
 
 @add_to_diags("physics")
@@ -339,7 +339,7 @@ def global_averages_physics(resampled, verification, grid):
         HORIZONTAL_DIMS
     )
 
-    return _vars_to_diags("global_phys_avg", area_averages, resampled)
+    return _prepare_diagnostics_dict("global_phys_avg", area_averages, resampled)
 
 
 # TODO: enable this diagnostic once SHiELD physics diags can be loaded efficiently
@@ -348,7 +348,7 @@ def global_biases_physics(resampled, verification, grid):
     logger.info("Preparing global average biases for physics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
 
-    return _vars_to_diags("bias_global_physics", bias_errors, resampled)
+    return _prepare_diagnostics_dict("bias_global_physics", bias_errors, resampled)
 
 
 def diurnal_cycles(resampled, verification, grid):
@@ -367,8 +367,8 @@ def diurnal_cycles(resampled, verification, grid):
     )
 
     # Add to diagnostics
-    verif_diags = _vars_to_diags("verif_diurnal", diurnal_verif, verification)
-    resampled_diags = _vars_to_diags("run_diurnal", diurnal_resampled, resampled)
+    verif_diags = _prepare_diagnostics_dict("verif_diurnal", diurnal_verif, verification)
+    resampled_diags = _prepare_diagnostics_dict("run_diurnal", diurnal_resampled, resampled)
 
     return dict(**verif_diags, **resampled_diags)
 
