@@ -62,4 +62,3 @@ def test_compute_diags_succeeds(func, resampled, verification, grid):
 
 def test__catalog():
     assert os.path.isfile(savediags._catalog())
-
