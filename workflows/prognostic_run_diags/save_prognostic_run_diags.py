@@ -5,6 +5,12 @@ This script computes diagnostics for prognostic runs.
 
 Diagnostics are multiple dimensional curves that can be visualized to give
 a more detailed look into the data underlying the metrics.
+
+Diagnostics are loaded and saved in groupings corresponding to the source of the data
+and its intended use. E.g. the "dycore" grouping includes diagnostics output by the
+dynamical core of the model and saved in `atmos_dt_atmos.tile*.nc` while the "physics"
+grouping contains outputs from the physics routines (`sfc_dt_atmos.tile*.nc` and
+`diags.zarr`).
 """
 import argparse
 import os
