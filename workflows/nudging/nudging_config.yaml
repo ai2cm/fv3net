@@ -1,4 +1,5 @@
 
+base_version: v0.4
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 initial_conditions: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48/20160801.001500/
 nudging:
