@@ -40,6 +40,6 @@ if __name__ == "__main__":
     if args.timescale_hours is not None:
         for varname in config["nudging"]["timescale_hours"]:
             config["nudging"]["timescale_hours"][varname] = args.timescale_hours
-            
+
     with open(args.outfile, "w") as f:
         f.write(yaml.dump(config))
