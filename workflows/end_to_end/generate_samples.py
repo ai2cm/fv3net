@@ -17,7 +17,6 @@ Takes a yaml as an argument, which has the following arguments:
     seed (optional): seed for random shuffling of training/testing samples
 """
 import vcm
-import fsspec
 import json
 import sys
 import yaml

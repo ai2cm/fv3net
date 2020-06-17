@@ -40,4 +40,3 @@ def test_generate_samples(tmpdir, non_timestep, repeated_timestep):
     assert len(output["train_and_test"]["train"]) == args["train_samples"]
     assert len(output["train_and_test"]["test"]) == args["test_samples"]
     assert _no_repeated_values(output["one_step"])
-
