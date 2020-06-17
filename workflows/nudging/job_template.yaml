@@ -48,7 +48,7 @@ spec:
             mountPath: /secret/gcp-credentials
             readOnly: true
       containers:
-        - name: test
+        - name: upload-data
           image: google/cloud-sdk:latest
           command: ["/bin/bash"]
           args:

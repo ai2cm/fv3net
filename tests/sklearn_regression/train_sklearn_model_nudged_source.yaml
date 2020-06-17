@@ -10,7 +10,6 @@ output_variables:
   - dQ2
 batch_function: batches_from_mapper
 batch_kwargs:
-  num_batches: 2
   timesteps_per_batch: 1
   init_time_dim_name: "time"
   mapping_function: open_nudged_tendencies

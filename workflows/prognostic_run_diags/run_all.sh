@@ -1,10 +1,16 @@
 #!/bin/bash
 
-if [ "$#" -lt 1 ]; then
-    echo "WARNING: no rundirs.json specified for prognostic run diags."
+function usage {
+  echo "Usage: "
+  echo "  run_all.sh rundirs.json docker_image"
+}
+
+if [ "$#" -lt 2 ]; then
+    usage
     exit 1
 fi
 
 runs=$(cat $1)
-shift
-argo submit argo.yaml -p runs="$runs" $@
+docker_image=$2
+shift 2
+argo submit argo.yaml -p docker-image=$docker_image -p runs="$runs" $@
