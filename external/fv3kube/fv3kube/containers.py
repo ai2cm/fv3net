@@ -1,6 +1,6 @@
 import os
 import yaml
-from typing import Mapping
+from typing import Mapping, Optional
 
 from kubernetes.client import (
     V1ResourceRequirements,
@@ -12,6 +12,10 @@ from kubernetes.client import (
     V1SecretVolumeSource,
     V1EmptyDirVolumeSource,
     V1EnvVar,
+    V1ObjectMeta,
+    V1JobSpec,
+    V1Job,
+    V1PodTemplateSpec,
 )
 
 
@@ -211,3 +215,29 @@ def post_processed_fv3_pod_spec(
         restart_policy="Never",
         tolerations=[climate_sim_toleration],
     )
+
+
+def pod_spec_to_job(
+    pod_spec: V1PodSpec,
+    labels: Mapping[str, str],
+    generate_name: Optional[str] = None,
+    name: Optional[str] = None,
+    backoff_limit: int = 0,
+) -> V1Job:
+
+    template_spec = V1PodTemplateSpec(
+        metadata=V1ObjectMeta(labels=labels), spec=pod_spec,
+    )
+    job_spec = V1JobSpec(
+        template=template_spec,
+        backoff_limit=backoff_limit,
+        completions=1,
+        ttl_seconds_after_finished=100,
+    )
+    job = V1Job(
+        api_version="batch/v1",
+        kind="Job",
+        metadata=V1ObjectMeta(name=name, generate_name=generate_name, labels=labels),
+        spec=job_spec,
+    )
+    return job

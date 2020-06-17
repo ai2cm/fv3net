@@ -7,7 +7,6 @@ import copy
 
 import fv3config
 import fv3kube
-from kubernetes.client import CoreV1Api, V1Pod, V1ObjectMeta
 
 logger = logging.getLogger(__name__)
 PWD = Path(os.path.abspath(__file__)).parent
@@ -101,6 +100,7 @@ if __name__ == "__main__":
     short_id = fv3kube.get_alphanumeric_unique_tag(8)
     job_label = {
         "orchestrator-jobs": f"prognostic-group-{short_id}",
+        # needed to use pod-disruption budget
         "app": "end-to-end",
     }
     model_config = fv3kube.get_full_config(
@@ -130,16 +130,16 @@ if __name__ == "__main__":
 
     model_config["scikit_learn"] = scikit_learn_config
     kube_opts = get_kube_opts(prog_config_update, args.image_tag)
-    fv3kube.load_kube_config()
-    client = CoreV1Api()
-    pod = V1Pod(
-        metadata=V1ObjectMeta(generate_name="prognostic-run-", labels=job_label),
-        spec=fv3kube.containers.post_processed_fv3_pod_spec(
-            model_config, args.output_url, **kube_opts
-        ),
+    pod_spec = fv3kube.containers.post_processed_fv3_pod_spec(
+        model_config, args.output_url, **kube_opts
     )
-    created_pod = client.create_namespaced_pod("default", body=pod)
-    print(created_pod.metadata.name)
+    job = fv3kube.containers.pod_spec_to_job(
+        pod_spec, labels=job_label, generate_name="prognostic-run-"
+    )
+
+    client = fv3kube.initialize_batch_client()
+    created_job = client.create_namespaced_job("default", job)
+    logger.info(f"Created job: {created_job.metadata.name}")
 
     if not args.detach:
         fv3kube.wait_for_complete(job_label, raise_on_fail=not args.allow_fail)
