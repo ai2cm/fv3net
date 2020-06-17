@@ -39,8 +39,10 @@ def batches_from_mapper(
         init_time_dim_name (str, optional): Name of time dim in data source.
             Defaults to "initial_time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
+        
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
+        
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
@@ -76,6 +78,7 @@ def _mapper_to_batches(
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
+    
     Args:
         data_mapping (Mapping[str, xr.Dataset]): Interface to select data for
             given timestep keys.
@@ -88,6 +91,7 @@ def _mapper_to_batches(
         timesteps: List of timesteps to use in training.
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
+        
     Returns:
         Sequence of xarray datasets
     """
@@ -133,6 +137,7 @@ def diagnostic_sequence_from_mapper(
 ) -> Sequence[xr.Dataset]:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
     as batches_from_mapper but without transformation and stacking
+    
     Args:
         data_path: Path to data store to be loaded via mapper.
         variable_names (Iterable[str]): data variables to select
@@ -149,6 +154,7 @@ def diagnostic_sequence_from_mapper(
 
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
+        
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
@@ -172,7 +178,6 @@ def _mapper_to_diagnostic_sequence(
     data_mapping: Mapping[str, xr.Dataset],
     variable_names: Sequence[str],
     timesteps_per_batch: int = 1,
-    num_batches: int = None,
     random_seed: int = 0,
     init_time_dim_name: str = "initial_time",
     rename_variables: Mapping[str, str] = None,
