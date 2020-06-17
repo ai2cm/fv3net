@@ -26,7 +26,7 @@ def get_kube_opts(config_update, image_tag=None):
     kube_opts = copy.copy(default)
     kube_opts.update(config_update.get("kubernetes", {}))
     if args.image_tag:
-        for key in ["fv3config_image", "fv3_image", "fv3net_image"]:
+        for key in ["fv3config_image", "fv3_image", "post_process_image"]:
             kube_opts[key] += ":" + args.image_tag
     return kube_opts
 
@@ -43,11 +43,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "ic_timestep",
         type=str,
         help="Time step to grab from the initial conditions url.",
-    )
-    parser.add_argument(
-        "docker_image",
-        type=str,
-        help="Docker image to pull for the prognostic run kubernetes pod.",
     )
     parser.add_argument(
         "output_url",
