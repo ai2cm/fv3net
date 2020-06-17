@@ -33,12 +33,6 @@ class FineResolutionBudgetTiles(GeoMapper):
     def keys(self):
         return [self._parse_file(file) for file in self.files]
 
-    def __iter__(self):
-        return iter(self.keys())
-
-    def __len__(self):
-        return len(self.keys())
-
 
 def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
     """Open a mapping interface to the fine resolution budget data

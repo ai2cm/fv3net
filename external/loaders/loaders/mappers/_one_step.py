@@ -25,9 +25,3 @@ class TimestepMapper(GeoMapper):
 
     def keys(self):
         return [vcm.parse_timestep_str_from_path(zarr) for zarr in self.zarrs]
-
-    def __iter__(self):
-        return iter(self.keys())
-
-    def __len__(self):
-        return len(self.keys())
