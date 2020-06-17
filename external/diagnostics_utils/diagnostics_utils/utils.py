@@ -31,7 +31,7 @@ def reduce_to_diagnostic(
     """
 
     ds = xr.concat(ds_batches, dim=TIME_DIM)
-    ds = insert_column_integrated_vars(ds, primary_vars)
+    ds = _insert_column_integrated_vars(ds, primary_vars)
     ds = _rechunk_time_z(ds)
     ds_time_averaged = ds.mean(dim=TIME_DIM, keep_attrs=True)
     ds_time_averaged = ds_time_averaged.drop_vars(
@@ -58,7 +58,7 @@ def reduce_to_diagnostic(
     return xr.merge([domain_ds, ds_time_averaged.drop(labels=primary_vars)])
 
 
-def insert_column_integrated_vars(
+def _insert_column_integrated_vars(
     ds: xr.Dataset, column_integrated_vars: Sequence[str]
 ) -> xr.Dataset:
     """Insert column integrated (<*>) terms,
@@ -93,7 +93,6 @@ def conditional_average(
     surface_type_array: xr.DataArray,
     surface_type: str,
     area: xr.DataArray,
-    dims: Sequence[str] = ["tile", "y", "x"],
 ) -> xr.Dataset:
     """Average over a conditional type
     
@@ -115,11 +114,11 @@ def conditional_average(
         area_masked = area.where(surface_type_array == surface_type)
     else:
         raise ValueError(
-            f"surface type {surface_type} not in provided surface type array "
+            f"surfae type {surface_type} not in provided surface type array "
             f"with types {all_types}."
         )
 
-    return weighted_average(ds, area_masked, dims)
+    return weighted_average(ds, area_masked)
 
 
 def _weighted_average(array, weights, axis=None):
