@@ -73,9 +73,6 @@ def write_rundir_container(
         a k8s container that will write the run directory
         
     """
-    # TODO Refactor this to the __main__ of an fv3config container
-    # this could be on dockerhub
-
     container = V1Container(name="write-rundir")
     container.volume_mounts = [
         V1VolumeMount(mount_path="/mnt", name=data_vol.name),
