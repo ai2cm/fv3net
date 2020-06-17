@@ -14,6 +14,7 @@ from vcm import cloud
 from vcm.convenience import round_time
 from vcm.cubedsphere.constants import TIME_FMT
 from ..constants import TIME_NAME
+from ._base import GeoMapper
 
 logger = logging.getLogger(__name__)
 
@@ -44,21 +45,7 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
         )
 
 
-class GeoMapper:
-    def __init__(self, *args):
-        raise NotImplementedError("Don't use the base class!")
 
-    def __len__(self):
-        return len(self.keys())
-
-    def __iter__(self):
-        return iter(self.keys())
-
-    def __getitem__(self, key: str) -> xr.Dataset:
-        raise NotImplementedError()
-
-    def keys(self):
-        raise NotImplementedError()
 
 
 class NudgedTimestepMapper(GeoMapper):

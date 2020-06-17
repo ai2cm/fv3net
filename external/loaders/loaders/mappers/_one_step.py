@@ -4,13 +4,14 @@ import xarray as xr
 
 import vcm
 from vcm import cloud
+from ._base import GeoMapper
 
 
 def open_one_step(url: str) -> Mapping[str, xr.Dataset]:
     return TimestepMapper(url)
 
 
-class TimestepMapper:
+class TimestepMapper(GeoMapper):
     def __init__(self, timesteps_dir):
         self._timesteps_dir = timesteps_dir
         self._fs = cloud.get_fs(timesteps_dir)

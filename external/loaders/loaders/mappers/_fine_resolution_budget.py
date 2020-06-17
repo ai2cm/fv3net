@@ -4,9 +4,10 @@ import vcm
 from typing import Mapping
 import xarray as xr
 from .._transform import GroupByTime, FineResolutionSources
+from ._base import GeoMapper
 
 
-class FineResolutionBudgetTiles:
+class FineResolutionBudgetTiles(GeoMapper):
     """An Mapping interface to a fine-res-q1-q2 dataset"""
 
     def __init__(self, url):
