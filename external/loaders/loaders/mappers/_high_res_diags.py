@@ -1,26 +1,22 @@
-import numpy as np
-import pandas as pd
-import vcm
 from vcm.cloud import get_fs
 import xarray as xr
 import zarr.storage as zstore
 
-from .constants import TIME_NAME, TIME_FMT
 from ._base import LongRunMapper
 from .._utils import standardize_zarr_time_coord
 
 
 RENAMED_HIGH_RES_DIAG_VARS = {
-    "DSWRFtoa_coarse": "DSWRFtoa_prog",
-    "DSWRFsfc_coarse": "DSWRFsfc_prog",
-    "USWRFtoa_coarse": "USWRFtoa_prog",
-    "USWRFsfc_coarse": "USWRFsfc_prog",
-    "DLWRFsfc_coarse": "DLWRFsfc_prog",
-    "ULWRFtoa_coarse": "ULWRFtoa_prog",
-    "ULWRFsfc_coarse": "ULWRFsfc_prog",
+    "DSWRFtoa_coarse": "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    "DSWRFsfc_coarse": "total_sky_downward_shortwave_flux_at_surface",
+    "USWRFtoa_coarse": "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
+    "USWRFsfc_coarse": "total_sky_upward_shortwave_flux_at_surface",
+    "DLWRFsfc_coarse": "total_sky_downward_longwave_flux_at_surface",
+    "ULWRFtoa_coarse": "total_sky_upward_longwave_flux_at_top_of_atmosphere",
+    "ULWRFsfc_coarse": "total_sky_upward_longwave_flux_at_surface",
     "SHTFLsfc_coarse": "sensible_heat_flux",
     "LHTFLsfc_coarse": "latent_heat_flux",
-    "PRATEsfc_coarse": "surface_precipitation_rate","
+    "PRATEsfc_coarse": "surface_precipitation_rate",
 }
 
 
