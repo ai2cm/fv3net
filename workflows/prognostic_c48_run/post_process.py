@@ -2,7 +2,7 @@
 import os
 import re
 import shutil
-from typing import Sequence, Iterable, Union
+from typing import Sequence, Iterable, Union, Mapping
 import xarray as xr
 import tempfile
 import subprocess
@@ -93,12 +93,14 @@ def parse_rundir(walker):
     return tiles, zarrs, other
 
 
-def open_tiles(tiles: Sequence[str], base: str) -> Iterable[Union[str, xr.Dataset]]:
+def open_tiles(
+    tiles: Sequence[str], base: str, chunks: Mapping[str, Mapping[str, int]] = CHUNKS
+) -> Iterable[Union[str, xr.Dataset]]:
     grouped_tiles = groupby(lambda x: x[: -len(".tile1.nc")], tiles)
     for key, files in grouped_tiles.items():
         path = key + ".zarr"
         relpath = os.path.relpath(path, base)
-        if relpath in CHUNKS:
+        if relpath in chunks:
             yield xr.open_mfdataset(
                 sorted(files), concat_dim="tile", combine="nested"
             ).assign_attrs(path=path)

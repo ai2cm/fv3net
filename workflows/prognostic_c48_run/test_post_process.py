@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import xarray as xr
-from post_process import parse_rundir, process_item
+from post_process import parse_rundir, process_item, open_tiles
 import tempfile
 
 
@@ -89,3 +89,19 @@ def test_process_item_broken_symlink(tmpdir):
     os.symlink(fake_path, broken_link)
     with tempfile.TemporaryDirectory() as d_out:
         process_item(broken_link, str(tmpdir), d_out)
+
+
+def test_open_tiles_netcdf_data(tmpdir):
+    ds = xr.Dataset({"a": (["time", "x"], np.ones((200, 10)))})
+    tiles = []
+    for i in range(1, 7):
+        path = f"{tmpdir}/a.tile{i}.nc"
+        ds.to_netcdf(path)
+        tiles.append(path)
+
+    out = open_tiles(tiles, str(tmpdir), chunks={"a.zarr": {"time": 5}})
+    saved_ds = list(out)[0]
+
+    assert isinstance(saved_ds, xr.Dataset)
+    # check for variable "a"
+    saved_ds["a"]
