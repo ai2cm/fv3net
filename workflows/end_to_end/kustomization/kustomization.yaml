@@ -11,7 +11,7 @@ configMapGenerator:
     literals:
       # prognostic_run is changed here
       # this information is not needed to configure the k8s resources
-      - TAG=latest
+      - TAG=ed39c1278c32e1bcc7974211be6a29cba6db31a3
       - FV3NET_IMAGE=us.gcr.io/vcm-ml/fv3net:ed39c1278c32e1bcc7974211be6a29cba6db31a3
       - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:ed39c1278c32e1bcc7974211be6a29cba6db31a3
     files:

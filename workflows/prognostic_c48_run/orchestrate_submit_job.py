@@ -113,7 +113,7 @@ if __name__ == "__main__":
     ] = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
 
     # Add scikit learn ML model config section
-    scikit_learn_config = {}
+    scikit_learn_config = model_config.get("scikit_learn", {})
     scikit_learn_config["zarr_output"] = "diags.zarr"
     if args.model_url:
 
