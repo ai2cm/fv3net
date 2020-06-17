@@ -9,14 +9,12 @@ import yaml
 from sklearn.dummy import DummyRegressor
 
 from fv3net.regression.sklearn import SklearnWrapper
+import sys
+import subprocess
 
-try:
-    import fv3gfs  # noqa F401
-except ImportError:
-    FV3GFS_INSTALLED = False
-else:
-    FV3GFS_INSTALLED = True
-
+# need to check if fv3gfs exists in a subprocess, importing fv3gfs into this module
+# causes tests to fail. Not sure why - noah
+FV3GFS_INSTALLED = subprocess.check_call(["python", "-c", "import fv3gfs"]) == 0
 with_fv3gfs = pytest.mark.skipif(not FV3GFS_INSTALLED, reason="fv3gfs not installed")
 
 
