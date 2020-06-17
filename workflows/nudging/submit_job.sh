@@ -2,7 +2,7 @@
 
 set -e
 
-usage="usage: submit_job.py [-h] [-j JOB_PREFIX] \
+usage="usage: submit_job.sh [-h] [-j JOB_PREFIX] \
        [-d] config runfile output_url docker_image \n\
        -j JOB_PREFIX: job name prefix for k8s submission \n\
        -d: detach job from terminal session" 
