@@ -176,6 +176,7 @@ def post_processed_fv3_pod_spec(
     fv3config_image: str,
     fv3_image: str,
     post_process_image: str,
+    gcp_secret_name: str = "gcp-key",
 ) -> V1PodSpec:
     """A PodSpec for running the prognostic run
     
@@ -190,7 +191,7 @@ def post_processed_fv3_pod_spec(
     empty_vol.empty_dir = V1EmptyDirVolumeSource()
 
     secret_vol = V1Volume(name="google-secret")
-    secret_vol.secret = V1SecretVolumeSource(secret_name="gcp-key")
+    secret_vol.secret = V1SecretVolumeSource(secret_name=gcp_secret_name)
 
     # Need to add toleration for large jobs
     climate_sim_toleration = V1Toleration(

@@ -3,6 +3,7 @@ import os
 import yaml
 import logging
 from pathlib import Path
+import copy
 
 import fv3config
 import fv3kube
@@ -14,13 +15,20 @@ RUNFILE = os.path.join(PWD, "sklearn_runfile.py")
 CONFIG_FILENAME = "fv3config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
 
-KUBERNETES_DEFAULT = {
-    "cpu_count": 6,
-    "memory_gb": 3.6,
-    "gcp_secret": "gcp-key",
-    "image_pull_policy": "Always",
-    "capture_output": False,
-}
+
+def get_kube_opts(config_update, image_tag=None):
+    default = {
+        "gcp_secret_name": "gcp-key",
+        "post_process_image": "us.gcr.io/vcm-ml/fv3net",
+        "fv3_image": "us.gcr.io/vcm-ml/prognostic_run",
+        "fv3config_image": "us.gcr.io/vcm-ml/prognostic_run",
+    }
+    kube_opts = copy.copy(default)
+    kube_opts.update(config_update.get("kubernetes", {}))
+    if args.image_tag:
+        for key in ["fv3config_image", "fv3_image", "fv3net_image"]:
+            kube_opts[key] += ":" + args.image_tag
+    return kube_opts
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -53,10 +61,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Remote url to a trained sklearn model.",
     )
     parser.add_argument(
-        "--fv3net-image",
-        type=str,
-        default="us.gcr.io/vcm-ml/fv3net:latest",
-        help="fv3net docker image",
+        "--image-tag", type=str, default=None, help="tag to apply to all default images"
     )
     parser.add_argument(
         "--prog_config_yml",
@@ -129,21 +134,15 @@ if __name__ == "__main__":
         )
 
     model_config["scikit_learn"] = scikit_learn_config
-
+    kube_opts = get_kube_opts(prog_config_update, args.image_tag)
     fv3kube.load_kube_config()
     client = CoreV1Api()
-
     pod = V1Pod(
         metadata=V1ObjectMeta(generate_name="prognostic-run-", labels=job_label),
         spec=fv3kube.containers.post_processed_fv3_pod_spec(
-            model_config,
-            args.output_url,
-            fv3config_image=args.docker_image,
-            fv3_image=args.docker_image,
-            post_process_image=args.fv3net_image,
+            model_config, args.output_url, **kube_opts
         ),
     )
-
     created_pod = client.create_namespaced_pod("default", body=pod)
     print(created_pod.metadata.name)
 
