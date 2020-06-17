@@ -7,14 +7,11 @@ from tempfile import NamedTemporaryFile
 import intake
 import yaml
 import argparse
-from typing import Mapping, List
 import sys
 import os
 import logging
 import uuid
 import joblib
-import json
-from _metrics import calc_metrics
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
@@ -26,7 +23,6 @@ logger = logging.getLogger("offline_diags")
 
 DOMAINS = ["land", "sea", "global"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
-METRICS_JSON_NAME = "metrics.json"
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -107,10 +103,3 @@ if __name__ == "__main__":
     )
     logger.info(f"Finished processing dataset diagnostics.")
     _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path, DIAGS_NC_NAME)
-
-    # json of metrics, ex. RMSE and bias
-    metrics = calc_metrics(ds_batches)
-    fs = get_fs(args.output_path)
-    with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
-        json.dump(metrics, f)
-    logger.info(f"Finished processing dataset metrics.")
