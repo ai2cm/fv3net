@@ -2,7 +2,7 @@ import os
 import pytest
 import synth
 
-from fv3net.regression.loaders._one_step import open_one_step
+from loaders.mappers._one_step import open_one_step
 
 
 def test_open_onestep_mapping(datadir):

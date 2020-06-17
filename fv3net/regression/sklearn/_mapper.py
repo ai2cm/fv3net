@@ -3,7 +3,7 @@ from typing import Mapping
 from vcm import safe
 import xarray as xr
 
-from fv3net.regression.loaders import SAMPLE_DIM_NAME
+from loaders import SAMPLE_DIM_NAME
 from .wrapper import SklearnWrapper
 
 # TODO: import base mapper class after loaders refactored out of fv3net

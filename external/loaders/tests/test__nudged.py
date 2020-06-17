@@ -6,7 +6,7 @@ from itertools import chain
 
 import synth
 
-from fv3net.regression.loaders._nudged import (
+from loaders.mappers._nudged import (
     TIME_NAME,
     TIME_FMT,
     _get_path_for_nudging_timescale,

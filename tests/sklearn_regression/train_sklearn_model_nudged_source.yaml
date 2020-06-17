@@ -10,7 +10,6 @@ output_variables:
   - specific_humidity_tendency_due_to_nudging
 batch_function: batches_from_mapper
 batch_kwargs:
-  num_batches: 2
   timesteps_per_batch: 1
   init_time_dim_name: "time"
   mapping_function: open_nudged

@@ -1,5 +1,4 @@
 import subprocess
-import pytest
 
 submission = """
 bash -x dataflow.sh submit $(pwd)/tests/simple_dataflow.py  \
@@ -16,6 +15,5 @@ bash -x dataflow.sh submit $(pwd)/tests/simple_dataflow.py  \
 """
 
 
-@pytest.mark.regression()
 def test_submit_dataflow():
     subprocess.check_call([submission], shell=True)

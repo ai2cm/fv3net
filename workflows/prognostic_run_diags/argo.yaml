@@ -6,6 +6,7 @@ spec:
   arguments:
     parameters:
     - name: runs
+    - name: docker-image
   entrypoint: all
   volumes:
   - name: gcp-credentials-user-gcp-sa
@@ -22,7 +23,7 @@ spec:
               - name: run
                 value: "{{item.url}}"
               - name: output
-                value: "gs://vcm-ml-scratch/argo/{{workflow.name}}/{{item.name}}/"
+                value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}/"
       - - name: generate-report
           template: report
    - name: report
@@ -32,7 +33,7 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net:1848a736f63b0ca067df7815aba36856ccce274b
+      image: '{{workflow.parameters.docker-image}}'
       command:
       - python
       - generate_report.py
@@ -48,7 +49,7 @@ spec:
         # value: "{{workflow.parameters.output}}"
         value: "gs://vcm-ml-public/argo/{{workflow.name}}/index.html"
       - name: INPUT
-        value: "gs://vcm-ml-scratch/argo/{{workflow.name}}"
+        value: "gs://vcm-ml-public/argo/{{workflow.name}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
         name: gcp-credentials-user-gcp-sa
@@ -70,7 +71,7 @@ spec:
        value: "climate-sim-pool"
        effect: "NoSchedule"
      container:
-      image: us.gcr.io/vcm-ml/fv3net:1848a736f63b0ca067df7815aba36856ccce274b
+      image: '{{workflow.parameters.docker-image}}'
       command: ["bash", "-x", "-e"]
       args:
       - entrypoint.sh

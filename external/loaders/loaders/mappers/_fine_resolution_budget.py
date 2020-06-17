@@ -3,7 +3,7 @@ import re
 import vcm
 from typing import Mapping
 import xarray as xr
-from ._transform import GroupByTime, FineResolutionSources
+from .._transform import GroupByTime, FineResolutionSources
 
 
 class FineResolutionBudgetTiles:
