@@ -1,7 +1,7 @@
 import os
 import re
 import vcm
-from typing import Mapping
+from typing import Mapping, Union, Sequence
 import xarray as xr
 from .._transform import GroupByTime, FineResolutionSources
 
@@ -78,8 +78,24 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
     return GroupByTime(tiles)
 
 
-def open_fine_res_apparent_sources(url: str) -> Mapping[str, xr.Dataset]:
+def open_fine_res_apparent_sources(
+    url: str,
+    offset_seconds: Union[int, float] = 0,
+    rename_vars: Mapping[str, str] = None,
+    drop_vars: Sequence[str] = (),
+) -> Mapping[str, xr.Dataset]:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
-    """  # noqa
-    return FineResolutionSources(open_fine_resolution_budget(url))
+        
+    Args:
+        url (str): path to fine res dataset
+        offset_seconds (int or float): optional time offset in seconds between
+            access keys and underlying data timestamps, with positive values
+            indicating that the access key is behind the underlying timestamps;
+            defaults to 0
+        rename_vars: (mapping): optional mapping of variables to rename in dataset
+        drop_vars (sequence): optional list of variable names to drop from dataset
+    """
+    return FineResolutionSources(
+        open_fine_resolution_budget(url), offset_seconds, rename_vars, drop_vars
+    )

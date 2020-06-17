@@ -1,5 +1,5 @@
 import diagnostics_utils as utils
-from fv3net.regression import loaders
+from loaders import batches
 from vcm.cloud import get_fs
 import xarray as xr
 from tempfile import NamedTemporaryFile
@@ -76,29 +76,25 @@ if __name__ == "__main__":
     cat = intake.open_catalog("catalog.yml")
     grid = cat["grid/c48"].to_dask()
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
+    surface_type = cat["landseamask/c48"].to_dask()
+    surface_type = surface_type.drop(labels=["y", "x"])
+    grid = grid.merge(surface_type)
+
+    variable_names = datasets_config["variables"]
+    batch_kwargs = datasets_config["batch_kwargs"]
 
     diagnostic_datasets = {}
-    for dataset_name, dataset_config in datasets_config.items():
+    for dataset_name, dataset_config in datasets_config["sources"].items():
         logger.info(f"Reading dataset {dataset_name}.")
-        batch_function = getattr(loaders, dataset_config["batch_function"])
-        ds_batches = loaders.diagnostic_sequence_from_mapper(
+        ds_batches = batches.diagnostic_sequence_from_mapper(
             dataset_config["path"],
-            dataset_config["variables"],
+            variable_names,
             rename_variables=dataset_config.get("rename_variables", None),
-            **dataset_config["batch_kwargs"],
+            mapping_function=dataset_config["mapping_function"],
+            mapping_kwargs=dataset_config.get("mapping_kwargs", None),
+            **batch_kwargs,
         )
-        if dataset_name == "one_step_tendencies":
-            # hold the land_sea_mask from the one-step data since that variable
-            # is missing from the fine-res budget and grid datasets
-            surface_type = (
-                ds_batches[0][utils.VARNAMES["surface_type"]]
-                .squeeze()
-                .drop(labels=utils.VARNAMES["time_dim"])
-            )
-            grid = grid.assign({utils.VARNAMES["surface_type"]: surface_type})
         ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
-        if dataset_name == "one_step_tendencies":
-            ds_diagnostic = ds_diagnostic.drop(utils.VARNAMES["surface_type"])
         diagnostic_datasets[dataset_name] = ds_diagnostic
         logger.info(f"Finished processing dataset {dataset_name}.")
 
