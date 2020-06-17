@@ -15,7 +15,7 @@ from loaders.mappers._nudged import (
     MergeNudged,
     GroupByTime,
     SubsetTimes,
-    NudgedTendencies,
+    NudgedFullTendencies,
     open_merged_nudged,
     _open_nudging_checkpoints,
     open_merged_nudged_full_tendencies,
@@ -340,7 +340,7 @@ def test_init_nudged_tendencies(
     nudged_mapper,
 ):
     if valid:
-        nudged_tendencies_mapper = NudgedTendencies(
+        nudged_tendencies_mapper = NudgedFullTendencies(
             nudged_mapper,
             nudged_checkpoint_mapper_param,
             difference_checkpoints,
@@ -349,7 +349,7 @@ def test_init_nudged_tendencies(
         safe.get_variables(nudged_tendencies_mapper["20200500.000000"], output_vars)
     else:
         with pytest.raises(KeyError):
-            nudged_tendencies_mapper = NudgedTendencies(
+            nudged_tendencies_mapper = NudgedFullTendencies(
                 nudged_mapper,
                 nudged_checkpoint_mapper_param,
                 difference_checkpoints,
@@ -468,7 +468,9 @@ def test__physics_tendencies(
     nudged_checkpoint_mapper, timestep, expected_tendencies, nudged_mapper, checkpoints
 ):
 
-    nudged_tendencies_mapper = NudgedTendencies(nudged_mapper, nudged_checkpoint_mapper)
+    nudged_tendencies_mapper = NudgedFullTendencies(
+        nudged_mapper, nudged_checkpoint_mapper
+    )
 
     time = "20200500.000000"
 

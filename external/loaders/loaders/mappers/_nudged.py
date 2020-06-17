@@ -219,7 +219,7 @@ class SubsetTimes(GeoMapper):
         return self._nudged_data[time]
 
 
-class NudgedTendencies(GeoMapper):
+class NudgedFullTendencies(GeoMapper):
     def __init__(
         self,
         nudged_mapper: Mapping[Time, xr.Dataset],
@@ -434,7 +434,7 @@ def open_merged_nudged_full_tendencies(
         url, nudging_timescale_hr, **open_checkpoints_kwargs
     )
 
-    return NudgedTendencies(
+    return NudgedFullTendencies(
         nudged_mapper,
         checkpoint_mapper,
         difference_checkpoints,
