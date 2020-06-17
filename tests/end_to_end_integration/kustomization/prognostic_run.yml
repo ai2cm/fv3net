@@ -1,3 +1,6 @@
+kubernetes:
+  cpu_count: 6
+  memory_gb: 5.
 base_version: v0.4
 scikit_learn:
   rename_inputs:

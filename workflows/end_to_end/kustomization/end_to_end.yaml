@@ -14,14 +14,14 @@ experiment:
     - test_sklearn_model
     - prognostic_run
     - baseline_run
-
+  
   steps_config:
     coarsen_restarts:
       command: python -m fv3net.pipelines.coarsen_restarts
       args:
         data_to_coarsen:
           location: $C384_RESTARTS
-        grid_spec:
+        grid_spec: 
           location: $GRIDSPEC
         source-resolution: 384
         target-resolution: 48
@@ -59,8 +59,8 @@ experiment:
         training_data:
           from: create_training_data
         train-config-file: $CONFIG/train_sklearn_model.yml
-
-    test_sklearn_model:
+        
+    test_sklearn_model: 
       argo: argo submit workflows/argo/offline_diagnostics.yml
       args:
         trained-model:
@@ -77,7 +77,7 @@ experiment:
         restart_data:
           location: $C48_RESTARTS
         ic_timestep: $IC_TIMESTEP
-        --image-tag: $TAG
+        docker_image: $PROGNOSTIC_RUN_IMAGE
         --prog_config_yml: $CONFIG/prognostic_run.yml
         --model_url:
           from: train_sklearn_model
@@ -87,9 +87,15 @@ experiment:
       args:
         restart_data:
           location: $C48_RESTARTS
-        ic_timestep: $IC_TIMESTEP
-        --image-tag: $TAG
+        ic_timestep: $IC_TIMESTEP 
+        docker_image: $PROGNOSTIC_RUN_IMAGE
         --prog_config_yml: $CONFIG/prognostic_run.yml
-        --diagnostic_ml: "" # hack for allowing flags in end-to-end orchestrator
+        --diagnostic_ml: ''  # hack for allowing flags in end-to-end orchestrator
         --model_url:
           from: train_sklearn_model
+
+    prognostic_run_clean:
+      command: python workflows/prognostic_c48_run/post_process.py
+      args:
+        rundir:
+          from: prognostic_run
