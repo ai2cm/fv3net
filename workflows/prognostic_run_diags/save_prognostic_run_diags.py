@@ -332,7 +332,7 @@ def global_averages_dycore(resampled, verification, grid):
     return _prepare_diag_dict("global_avg", area_averages, resampled)
 
 
-@add_to_diags("physics")
+@add_to_diags("physics_3H")
 def global_averages_physics(resampled, verification, grid):
     logger.info("Preparing global averages for physics variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
@@ -343,7 +343,7 @@ def global_averages_physics(resampled, verification, grid):
 
 
 # TODO: enable this diagnostic once SHiELD physics diags can be loaded efficiently
-# @add_to_diags("physics")
+# @add_to_diags("physics_3H")
 def global_biases_physics(resampled, verification, grid):
     logger.info("Preparing global average biases for physics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
@@ -378,6 +378,14 @@ def _catalog():
     return str(TOP_LEVEL_DIR / "catalog.yml")
 
 
+def _resample(arg: DiagArg, freq_label: str, time_slice=slice(None, -1)) -> DiagArg:
+    prognostic, verification, grid = arg
+    prognostic = prognostic.resample(time=freq_label, label="right").nearest()
+    prognostic = prognostic.isel(time=time_slice)
+    verification = verification.sel(time=prognostic.time)
+    return prognostic, verification, grid
+
+
 if __name__ == "__main__":
 
     CATALOG = _catalog()
@@ -397,12 +405,19 @@ if __name__ == "__main__":
     attrs["history"] = " ".join(sys.argv)
 
     catalog = intake.open_catalog(args.catalog)
-    input_data = {}
-    input_data["dycore"] = load_diags.load_dycore(args.url, args.grid_spec, catalog)
-    input_data["physics"] = load_diags.load_physics(args.url, args.grid_spec, catalog)
+    loaded_data = {
+        "dycore": load_diags.load_dycore(args.url, args.grid_spec, catalog),
+        "physics": load_diags.load_physics(args.url, args.grid_spec, catalog),
+    }
+
+    resampled_data = {
+        "dycore": _resample(loaded_data["dycore"], "3H"),
+        "physics_3H": _resample(loaded_data["physics"], "3H"),
+        "physics_15min": _resample(loaded_data["physics"], "15min"),
+    }
 
     # add derived variables
-    input_data = compute_all_derived_vars(input_data)
+    input_data = compute_all_derived_vars(resampled_data)
 
     # begin constructing diags
     diags = {}

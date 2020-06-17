@@ -243,13 +243,8 @@ def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     path = os.path.join(url, "atmos_dt_atmos.zarr")
     logger.info(f"Opening prognostic run data at {path}")
     ds = _load_standardized(path)
-    resampled = ds.resample(time="3H", label="right").nearest()
 
-    # don't use last time point. there is some trouble
-    resampled = resampled.isel(time=slice(None, -1))
-    verification_c48 = verification_c48.sel(time=resampled.time)
-
-    return resampled, verification_c48, grid_c48[["area"]]
+    return ds, verification_c48, grid_c48[["area"]]
 
 
 def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
@@ -281,10 +276,5 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
-    # resample since 15-minute frequency timeseries makes report bloated
-    resampled = prognostic_output.resample(time="3H", label="right").nearest()
 
-    # avoid last time point since it often distorts plot limits
-    resampled = resampled.isel(time=slice(None, -1))
-
-    return resampled, verification_c48, grid_c48[["area"]]
+    return prognostic_output, verification_c48, grid_c48[["area"]]
