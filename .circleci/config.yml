@@ -3,7 +3,13 @@ orbs:
   gcp-gcr: circleci/gcp-gcr@0.6.1
   slack: circleci/slack@3.4.2
 jobs:
-  pytest_default:    
+  pytest:
+    parameters:
+      kind:
+        description: "Type of test"
+        default: "test_unit"
+        type: enum
+        enum: ["test_unit", "test_regression", "typecheck", "test_dataflow"]
     docker:
       - image: us.gcr.io/vcm-ml/circleci-miniconda-gfortran:latest
         auth:
@@ -39,19 +45,9 @@ jobs:
       - run:
           name: "Install fv3net packages"
           command: make install_local_packages
-      - run: | 
+      - run: |
           source activate fv3net
-          pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
-      - run:
-          name: Type Checks
-          command: |
-            source activate fv3net
-            make typecheck
-      - run:
-          name: Regression Tests
-          command: |
-            source activate fv3net
-            pytest -vv -m regression -s
+          make <<parameters.kind>>
 
   build_default:
     machine:
@@ -71,7 +67,7 @@ jobs:
           command: |
             git submodule update --init --recursive
       - run:
-          name: Build fv3net images 
+          name: Build fv3net images
           command: |
             make build_images
       - run: make test_prognostic_run
@@ -96,15 +92,21 @@ jobs:
             make push_images VERSION=$CIRCLE_SHA1
       - slack/status:
           fail_only: true
-          mentions: 'channel'
-  
+          mentions: "channel"
+  mypy:
+    docker:
+      - image: circleci/python:3.7
+    steps:
+      - checkout
+      - run: sudo pip install mypy==0.770 xarray
+      - run: make typecheck
   lint:
     docker:
-    - image: circleci/python:3.7
+      - image: circleci/python:3.7
     steps:
-    - checkout
-    - run: sudo pip install black==19.10b0 flake8==3.7.9
-    - run: make lint
+      - checkout
+      - run: sudo pip install black==19.10b0 flake8==3.7.9
+      - run: make lint
 
   integration_tests:
     docker:
@@ -147,7 +149,7 @@ jobs:
             kubectl config set-cluster $kube_cluster_name --certificate-authority="./proxy.crt"
       - run:
           name: Submit integration tests
-          # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was 
+          # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was
           # during the build job above
           command: |
             make run_integration_tests VERSION=$CIRCLE_SHA1
@@ -157,27 +159,43 @@ jobs:
           command: gcloud compute firewall-rules delete $firewall_name
       - slack/status:
           fail_only: true
-          mentions: 'channel'
+          mentions: "channel"
 workflows:
   version: 2
   test_and_lint:
     jobs:
       - lint
-      - pytest_default
+      - mypy
+      - pytest:
+          matrix:
+            parameters:
+              kind: ["test_unit", "test_regression"]
       - hold:
           type: approval
           filters:
             branches:
               ignore:
                 - master
+      - pytest:
+          kind: test_dataflow
+          requires:
+            - hold
       - build_default:
           requires:
-          - hold
+            - hold
       - integration_tests:
           requires:
             - build_default
-  build_and_push:
+  master_tests:
     jobs:
+      - pytest:
+          kind: test_dataflow
+          name: "Test Dataflow"
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
       - build_default:
           filters:
             tags:
