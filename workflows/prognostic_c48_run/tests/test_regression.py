@@ -10,16 +10,6 @@ from sklearn.dummy import DummyRegressor
 
 from fv3net.regression.sklearn import SklearnWrapper
 
-try:
-    import fv3gfs  # noqa F401
-except ImportError:
-    FV3GFS_INSTALLED = False
-else:
-    FV3GFS_INSTALLED = True
-
-with_fv3gfs = pytest.mark.skipif(not FV3GFS_INSTALLED, reason="fv3gfs not installed")
-
-
 default_fv3config = r"""
 data_table: default
 diag_table: default
@@ -363,7 +353,6 @@ def saved_model(tmpdir):
     return path
 
 
-@with_fv3gfs
 def test_fv3run_succeeds(saved_model, tmpdir):
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
     config = get_config(saved_model)
