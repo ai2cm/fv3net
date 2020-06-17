@@ -21,35 +21,41 @@ import fsspec
 import json
 import sys
 import yaml
+import copy
 
 
 def flatten(seq):
     return [it for subseq in seq for it in subseq]
 
 
-with open(sys.argv[1]) as f:
-    args = yaml.safe_load(f)
+def main(args):
+    args = copy.deepcopy(args)
+
+    url = args.pop("url")
+    fs = vcm.cloud.get_fs(url)
+    urls = sorted(fs.ls(url))
+    steps = []
+    for url in urls:
+        try:
+            steps.append(vcm.parse_timestep_str_from_path(url))
+        except ValueError:
+            print(f"{url} has no time-step info...skipping", file=sys.stderr)
+
+    steps = list(set(steps))
+
+    spinup = args.pop("spinup", steps[0])
+    include_one_step = args.pop("force_include_one_step", [])
+    steps = list(filter(lambda t: spinup <= t, steps))
+    splits = vcm.train_test_split_sample(steps, **args)
+
+    all_steps = sorted(set(flatten(flatten(splits.values()))))
+    all_steps += include_one_step
+    data = {"one_step": list(all_steps), "train_and_test": splits}
+    return data
 
 
-fs = fsspec.filesystem("gs")
-url = args.pop("url")
-urls = sorted(fs.ls(url))
-steps = []
-for url in urls:
-    try:
-        steps.append(vcm.parse_timestep_str_from_path(url))
-    except ValueError:
-        print(f"{url} has no time-step info...skipping", file=sys.stderr)
-
-steps = list(set(steps))
-
-spinup = args.pop("spinup", steps[0])
-include_one_step = args.pop("force_include_one_step", [])
-steps = list(filter(lambda t: spinup <= t, steps))
-splits = vcm.train_test_split_sample(steps, **args)
-
-all_steps = sorted(set(flatten(flatten(splits.values()))))
-all_steps += include_one_step
-data = {"one_step": list(all_steps), "train_and_test": splits}
-
-print(json.dumps(data))
+if __name__ == "__main__":
+    with open(sys.argv[1]) as f:
+        args = yaml.safe_load(f)
+    data = main(args)
+    print(json.dumps(data))
