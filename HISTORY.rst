@@ -25,7 +25,9 @@ training data from multiple sources into a set of diagnostic variables
  in conjunction with the config arg `num_timesteps_per_batch`. The training config arg `num_batches` is now
  deprecated in favor of providing a list of timesteps.
 * Remove usage of "tmp_dataflow" directory from `vcm.cloud.gcs` testing infrastructure and skip extract tests
-* Add a new transform mapper class `NudgedTendencies` which computes the missing pQ terms to give a full dataset of Q terms for the nudged source; uses existing mapping transforms `MergedNudged` and `NudgedStateCheckpoints`; new helper functions to open the `NudgedStateCheckpoints` and `NudgedTendencies` public nudged classes
+* Update prognostic run report to include global averages of physics variables and heating/moistening
+* Prognostic report requires that prognostic runs have been post-processed before being passed to the report workflow
+* Add a new transform mapper class `NudgedTendencies` which computes the missing pQ terms to give a full dataset of Q terms for the nudged source; uses existing mapping transforms `MergedNudged` and `NudgedStateCheckpoints`; new helper function to open the `NudgedTendencies` public nudged class
 * Add arguments to rename dataset variables and dimensions in the nudged and fine-res helper functions and mapper classes to avoid renaming via the batch functions
 * Adds ability to specify timestep offsets in the `FineResolutionSources` mapper
 * Adds a regression test for the `training_data_diags` workflow step
