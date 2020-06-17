@@ -3,15 +3,26 @@ from numpy.random import RandomState
 from typing import Tuple
 import xarray as xr
 
+import vcm
 from vcm import safe
+from vcm.convenience import round_time
 
-from .constants import SAMPLE_DIM_NAME
+from .constants import SAMPLE_DIM_NAME, TIME_NAME
 
 Z_DIM_NAMES = ["z", "pfull"]
 
 Time = str
 Tile = int
 K = Tuple[Time, Tile]
+
+
+def standardize_zarr_time_coord(ds: xr.Dataset):
+    # Vectorize doesn't work on type-dispatched function overloading
+    times = np.array(list(map(vcm.cast_to_datetime, ds[TIME_NAME].values)))
+    times = np.vectorize(round_time)(times)
+    ds = ds.assign_coords({TIME_NAME: times})
+
+    return ds
 
 
 def stack_dropnan_shuffle(
