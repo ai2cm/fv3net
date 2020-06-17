@@ -9,7 +9,6 @@ import yaml
 from sklearn.dummy import DummyRegressor
 
 from fv3net.regression.sklearn import SklearnWrapper
-import sys
 import subprocess
 
 # need to check if fv3gfs exists in a subprocess, importing fv3gfs into this module
