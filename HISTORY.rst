@@ -2,7 +2,7 @@
 History
 =======
 
-latest
+0.2.2 (2020-06-17)
 ------
 * Add flag --allow-fail to prognostic run `orchestrate_submit_job.py` so prognostic run crashes don't have to kill e2e workflow
 * makefile target for testing prognostic run: `make test_prognostic_run`
