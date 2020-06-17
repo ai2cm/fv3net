@@ -21,8 +21,8 @@ def test_generate_samples(tmpdir, non_timestep, repeated_timestep):
     tmpdir.mkdir("20160801.004500")
     # begin test period
     if repeated_timestep:
-        tmpdir.join("20160801.001000.tile1.nc").write("")
-        tmpdir.join("20160801.001000.tile2.nc").write("")
+        tmpdir.join("20160801.010000.tile1.nc").write("")
+        tmpdir.join("20160801.010000.tile2.nc").write("")
     else:
         tmpdir.mkdir("20160801.010000")
     tmpdir.mkdir("20160801.011500")
