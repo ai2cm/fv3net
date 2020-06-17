@@ -13,7 +13,7 @@ import subprocess
 
 # need to check if fv3gfs exists in a subprocess, importing fv3gfs into this module
 # causes tests to fail. Not sure why - noah
-FV3GFS_INSTALLED = subprocess.check_call(["python", "-c", "import fv3gfs"]) == 0
+FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
 with_fv3gfs = pytest.mark.skipif(not FV3GFS_INSTALLED, reason="fv3gfs not installed")
 
 
