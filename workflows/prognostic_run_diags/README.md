@@ -12,12 +12,15 @@
 This folder contains a workflow for saving prognostic run metrics to netCDF
 files and then uploading [this report][1] to a public bucket. 
 
-This workflow depends on an up-to-date fv3net image. It also requires that argo be installed and the kubectl tool is properly configured.
+It requires that argo be installed and the kubectl tool is properly configured.
 
 To generate reports for all the directories in `rundirs.json` to the cluster,
 simply run
 
-    bash run_all.sh rundirs.json
+    bash run_all.sh rundirs.json docker_image
+
+where `docker_image` is full name of the specific fv3net image you wish to generate 
+the report with. Using the latest master commit for the fv3net image is a good bet.
 
 This command will make output like this:
 
@@ -27,7 +30,7 @@ This command will make output like this:
     Status:              Pending
     Created:             Thu Apr 30 12:01:17 -0700 (now)
 
-The data are stored at a directory based on the "Name" above. Specifically, the computed outputs wil be located at `gs://vcm-ml-scratch/argo/{{workflow.name}}`. The published report will be available at the url:
+The data are stored at a directory based on the "Name" above. Specifically, the computed outputs wil be located at `gs://vcm-ml-public/argo/{{workflow.name}}`. The published report will be available at the url:
 
     http://storage.googleapis.com/vcm-ml-public/argo/{{workflow.name}}/index.html
 

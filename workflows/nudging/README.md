@@ -24,6 +24,37 @@ You should probably specify the remote output directory to use, as follows:
 
     REMOTE_ROOT=gs://my-bucket/ make run_kubernetes
 
+
+### Running with the orchestrator
+
+The workflow can also be executed within the end-to-end orchestration.  In
+the `end-to-end.yaml` file a `nudging` section should be added / updated 
+under `steps_config` and the step name added to `steps_to_run`, e.g.: 
+
+    storage_proto: gs
+    storage_root: vcm-ml-scratch/testing-andrep
+    experiment:
+        name: test-nudging-workflow
+        unique_id: false
+        steps_to_run:
+            - nudging
+            - train_sklearn_model
+            - prognostic_run
+    
+        steps_config:
+
+            nudging:
+                command: bash workflows/nudging/orchestrate_submit.sh
+                args:
+                    nudge_config: $CONFIG/nudging_config.yaml
+                    nudge_timescale_hr: 3
+                    fv3gfs_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.1
+
+            ...
+
+Note that there is no need for a "create training" when using nudging 
+unlike the "one-step" end-to-end workflow.
+
 ### Configuration
 
 The reference restart location and variables to nudge are stored in `fv3config_base.yml`.

@@ -6,14 +6,17 @@ input_variables:
   - air_temperature
   - specific_humidity
 output_variables:
-  - air_temperature_tendency_due_to_nudging
-  - specific_humidity_tendency_due_to_nudging
+  - dQ1
+  - dQ2
 batch_function: batches_from_mapper
 batch_kwargs:
-  num_batches: 2
   timesteps_per_batch: 1
   init_time_dim_name: "time"
-  mapping_function: open_nudged
+  mapping_function: open_nudged_tendencies
   mapping_kwargs:
     nudging_timescale_hr: 3
-    initial_time_skip_hr: 1
+    open_merged_nudged_kwargs:
+      initial_time_skip_hr: 1
+      rename_vars:
+        air_temperature_tendency_due_to_nudging: dQ1
+        specific_humidity_tendency_due_to_nudging: dQ2

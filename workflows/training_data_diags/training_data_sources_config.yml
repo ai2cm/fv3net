@@ -1,47 +1,28 @@
-one_step_tendencies: 
-  path: gs://vcm-ml-experiments/2020-05-07-clouds-off-training-data/create-clouds-off-data/create_training_data/train
-  variables:
-    - dQ1
-    - dQ2
-    - pQ1
-    - pQ2
-    - pressure_thickness_of_atmospheric_layer
-    - land_sea_mask
-  batch_function: diagnostic_sequence_from_mapper
-  batch_kwargs:
-    num_batches: 2
-    timesteps_per_batch: 1
-    init_time_dim_name: "initial_time"
+variables:
+  - dQ1
+  - dQ2
+  - pQ1 
+  - pQ2
+  - pressure_thickness_of_atmospheric_layer
+batch_kwargs:
+  timesteps_per_batch: 1
+  timesteps: ['20160805.084500']
+sources:
+  one_step_tendencies: 
+    path: gs://vcm-ml-experiments-to-regional/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/create_training_data/train
     mapping_function: open_one_step
-# fine_res_apparent_sources: 
-#   path: gs://vcm-ml-scratch/noah/2020-05-27
-#   path: /home/brianh/dev/fv3net/data/fine_res_budget
-#   mapping_function: open_fine_res_apparent_sources
-#   variables:
-#     - dQ1
-#     - dQ2
-#     - pQ1
-#     - pQ2
-#     - pressure_thickness_of_atmospheric_layer
-#   rename_variables:
-#     delp: pressure_thickness_of_atmospheric_layer
-#     pfull: z
-#     grid_xt: x
-#     grid_yt: y
-#   batch_kwargs:
-#     num_batches: 2
-#     timesteps_per_batch: 1
-#     init_time_dim_name: "initial_time"
-# nudging_tendencies: 
-#   path: gs://vcm-ml-data/mcgibbon-testing/outdir
-#   mapping_function: load_one_step_batches
-#   variables:
-#     - dQ1
-#     - dQ2
-#     - pQ1
-#     - pQ2
-#     - pressure_thickness_of_atmospheric_layer
-#   batch_kwargs:
-#     num_batches: 2
-#     files_per_batch: 1
-#     init_time_dim_name: "initial_time"
+  nudging_tendencies: 
+    path: gs://vcm-ml-data/mcgibbon-testing
+    mapping_function: open_merged_nudged_full_tendencies
+    mapping_kwargs:
+      nudging_timescale_hr: 3
+  fine_res_apparent_sources: 
+    path: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget
+    mapping_function: open_fine_res_apparent_sources
+    mapping_kwargs:
+      offset_seconds: 450
+      rename_vars:
+        delp: pressure_thickness_of_atmospheric_layer
+        pfull: z
+        grid_xt: x
+        grid_yt: y

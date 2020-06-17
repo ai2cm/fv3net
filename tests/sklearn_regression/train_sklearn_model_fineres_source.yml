@@ -6,11 +6,11 @@ input_variables:
   - air_temperature
   - specific_humidity
 output_variables:
-  - air_temperature_convergence
-  - specific_humidity_convergence
+  - dQ1
+  - dQ2
 batch_function: batches_from_mapper
 batch_kwargs:
   num_batches: 2
   timesteps_per_batch: 1
   init_time_dim_name: "time"
-  mapping_function: open_fine_resolution_budget
+  mapping_function: open_fine_res_apparent_sources
