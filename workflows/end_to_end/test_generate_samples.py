@@ -14,26 +14,25 @@ def test_generate_samples(tmpdir, non_timestep, repeated_timestep):
     if non_timestep:
         tmpdir.join("not_a_timestep").write("")
 
-    if repeated_timestep:
-        tmpdir.join("20160802.003000.tile1.nc").write("")
-        tmpdir.join("20160802.003000.tile2.nc").write("")
-
     tmpdir.mkdir("20160801.000000")
     tmpdir.mkdir("20160801.001500")
+    # spinup period done
     tmpdir.mkdir("20160801.003000")
     tmpdir.mkdir("20160801.004500")
-    tmpdir.mkdir("20160801.010000")
+    # begin test period
+    if repeated_timestep:
+        tmpdir.join("20160801.001000.tile1.nc").write("")
+        tmpdir.join("20160801.001000.tile2.nc").write("")
+    else:
+        tmpdir.mkdir("20160801.010000")
     tmpdir.mkdir("20160801.011500")
-    tmpdir.mkdir("20160801.013000")
-    tmpdir.mkdir("20160801.014500")
-    tmpdir.mkdir("20160801.020000")
 
     args = {
         "url": str(tmpdir),
         "spinup": "20160801.001500",
-        "boundary": "20160801.013000",
-        "train_samples": 2,
-        "test_samples": 2,
+        "boundary": "20160801.004500",
+        "train_samples": 1,
+        "test_samples": 1,
         "seed": "0",
     }
     output = main(args)
