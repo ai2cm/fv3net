@@ -6,6 +6,7 @@ RUN pip3 install wheel && pip3 install -r /tmp/requirements.txt
 # cache external package installation
 COPY external/fv3config /fv3net/external/fv3config
 COPY external/vcm /fv3net/external/vcm
+COPY external/loaders /fv3net/external/loaders
 RUN pip3 install -e /fv3net/external/vcm -e /fv3net/external/fv3config -e /fv3net/external/loaders
 
 COPY . /fv3net
