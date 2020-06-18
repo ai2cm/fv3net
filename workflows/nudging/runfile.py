@@ -11,6 +11,15 @@ else:
     fv3gfs = None
     MPI = None
 
+RADIATION_NAMES = [
+    "total_sky_downward_shortwave_flux_at_surface",
+    "total_sky_upward_shortwave_flux_at_surface",
+    "total_sky_downward_longwave_flux_at_surface",
+    "total_sky_upward_longwave_flux_at_surface",
+    "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
+    "total_sky_upward_longwave_flux_at_top_of_atmosphere",
+]
 
 # probably also store C-grid winds from physics?
 STORE_NAMES = [
@@ -28,20 +37,8 @@ STORE_NAMES = [
     "sensible_heat_flux",
     "latent_heat_flux",
     "total_precipitation",
-]
-
-
-def get_radiation_names():
-    radiation_names = []
-    for properties in fv3gfs.PHYSICS_PROPERTIES:
-        if properties["container"] == "Radtend":
-            radiation_names.append(properties["name"])
-    assert len(radiation_names) > 0
-    return radiation_names
-
-
-if fv3gfs is not None:
-    STORE_NAMES.extend(get_radiation_names())
+    "surface_precipitation_rate",
+] + RADIATION_NAMES
 
 TENDENCY_OUT_FILENAME = "tendencies.zarr"
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))

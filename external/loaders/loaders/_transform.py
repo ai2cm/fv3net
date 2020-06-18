@@ -1,10 +1,11 @@
 import numpy as np
 from numpy.random import RandomState
-from typing import Mapping, Tuple, Sequence
+from typing import Mapping, Tuple, Sequence, Union
 import xarray as xr
 from toolz import groupby
+from datetime import timedelta
 
-from vcm import safe
+from vcm import safe, parse_datetime_from_str
 
 from .constants import SAMPLE_DIM_NAME
 
@@ -90,14 +91,31 @@ class GroupByTime:
 
 
 class FineResolutionSources(Mapping):
-    def __init__(self, fine_resolution_time_mapping: Mapping[Time, xr.Dataset]):
+    def __init__(
+        self,
+        fine_resolution_time_mapping: Mapping[Time, xr.Dataset],
+        offset_seconds: Union[int, float] = 0,
+        rename_vars: Mapping[str, str] = None,
+        drop_vars: Sequence[str] = ("step"),
+    ):
         self._time_mapping = fine_resolution_time_mapping
+        self._offset_seconds = offset_seconds
+        self._rename_vars = rename_vars or {}
+        self._drop_vars = drop_vars
 
     def keys(self):
-        return self._time_mapping.keys()
+        return [
+            self._midpoint_to_timestamp_key(time, self._offset_seconds)
+            for time in self._time_mapping.keys()
+        ]
 
     def __getitem__(self, time: Time) -> xr.Dataset:
-        return self._derived_budget_ds(self._time_mapping[time])
+        time = self._timestamp_key_to_midpoint(time, self._offset_seconds)
+        return (
+            self._derived_budget_ds(self._time_mapping[time])
+            .drop_vars(names=self._drop_vars, errors="ignore")
+            .rename(self._rename_vars)
+        )
 
     def __iter__(self):
         # TODO move these implementations into a base mapper, that can be used
@@ -106,6 +124,22 @@ class FineResolutionSources(Mapping):
 
     def __len__(self):
         return len(self.keys())
+
+    @staticmethod
+    def _timestamp_key_to_midpoint(
+        key: Time, offset_seconds: Union[int, float] = 0
+    ) -> Time:
+        offset = timedelta(seconds=offset_seconds)
+        offset_datetime = parse_datetime_from_str(key) + offset
+        return offset_datetime.strftime("%Y%m%d.%H%M%S")
+
+    @staticmethod
+    def _midpoint_to_timestamp_key(
+        time: Time, offset_seconds: Union[int, float] = 0
+    ) -> Time:
+        offset = timedelta(seconds=offset_seconds)
+        offset_datetime = parse_datetime_from_str(time) - offset
+        return offset_datetime.strftime("%Y%m%d.%H%M%S")
 
     def _derived_budget_ds(
         self,
