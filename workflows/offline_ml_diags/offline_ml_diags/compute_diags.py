@@ -89,7 +89,7 @@ if __name__ == "__main__":
         model = joblib.load(f)
     pred_mapper = SklearnPredictionMapper(base_mapper, model,)
 
-    ds_batches = loaders.batches.mapper_to_diagnostic_sequence(
+    ds_batches = loaders.batches.diagnostic_batches_from_mapper(
         pred_mapper,
         config["variables"],
         rename_variables=config.get("rename_variables", None),
