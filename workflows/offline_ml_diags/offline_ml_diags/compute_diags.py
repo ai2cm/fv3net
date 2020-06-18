@@ -1,13 +1,12 @@
 import diagnostics_utils as utils
 import loaders
 from fv3net.regression.sklearn import SklearnPredictionMapper
-from vcm.cloud import get_fs, gsutil
+from vcm.cloud import get_fs
 import xarray as xr
 from tempfile import NamedTemporaryFile
 import intake
 import yaml
 import argparse
-from typing import Mapping, List
 import sys
 import os
 import logging
@@ -59,8 +58,7 @@ def _write_nc(ds: xr.Dataset, output_dir: str, output_file: str):
 
     with NamedTemporaryFile() as tmpfile:
         ds.to_netcdf(tmpfile.name)
-        gsutil.copy(tmpfile.name, output_file)
-        # get_fs(output_dir).put(tmpfile.name, output_file)
+        get_fs(output_dir).put(tmpfile.name, output_file)
     logger.info(f"Writing netcdf to {output_file}")
 
 
@@ -73,7 +71,7 @@ if __name__ == "__main__":
         config = yaml.safe_load(f)
 
     logger.info("Reading grid...")
-    cat = intake.open_catalog("../../catalog.yml")
+    cat = intake.open_catalog("catalog.yml")
     grid = cat["grid/c48"].to_dask()
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
     land_sea_mask = cat["landseamask/c48"].to_dask()
@@ -94,7 +92,7 @@ if __name__ == "__main__":
         model = joblib.load(f)
     pred_mapper = SklearnPredictionMapper(base_mapper, model,)
 
-    ds_batches = loaders.batches.mapper_to_diagnostic_sequence(
+    ds_batches = loaders.batches.diagnostic_batches_from_mapper(
         pred_mapper,
         config["variables"],
         rename_variables=config.get("rename_variables", None),

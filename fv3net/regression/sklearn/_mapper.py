@@ -6,7 +6,7 @@ import xarray as xr
 from loaders import SAMPLE_DIM_NAME
 from .wrapper import SklearnWrapper
 
-DATA_SOURCE_DIM = "data_source"
+DERIVATION_DIM = "derivation"
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
 
@@ -54,11 +54,11 @@ class SklearnPredictionMapper(DatasetMapper):
             safe.get_variables(
                 ds, [var for var in predicted_vars if var in ds.data_vars]
             )
-            .expand_dims(DATA_SOURCE_DIM)
-            .assign_coords({DATA_SOURCE_DIM: [TARGET_COORD]})
+            .expand_dims(DERIVATION_DIM)
+            .assign_coords({DERIVATION_DIM: [TARGET_COORD]})
         )
-        ds_pred = ds_pred.expand_dims(DATA_SOURCE_DIM).assign_coords(
-            {DATA_SOURCE_DIM: [PREDICT_COORD]}
+        ds_pred = ds_pred.expand_dims(DERIVATION_DIM).assign_coords(
+            {DERIVATION_DIM: [PREDICT_COORD]}
         )
         return xr.merge([safe.get_variables(ds, nonpredicted_vars), ds_target, ds_pred])
 

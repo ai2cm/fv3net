@@ -69,8 +69,11 @@ def insert_column_integrated_vars(
         if "Q1" in var:
             da = thermo.column_integrated_heating(ds[var], ds[VARNAMES["delp"]])
         elif "Q2" in var:
-            da = thermo.minus_column_integrated_moistening(
+            da = -thermo.minus_column_integrated_moistening(
                 ds[var], ds[VARNAMES["delp"]]
+            )
+            da = da.assign_attrs(
+                {"long_name": "column integrated moistening", "units": "mm/day"}
             )
         ds = ds.assign({column_integrated_name: da})
 
