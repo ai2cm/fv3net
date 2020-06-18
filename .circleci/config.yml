@@ -169,42 +169,44 @@ workflows:
       - pytest:
           matrix:
             parameters:
-              kind: ["test_unit"]
-      # - hold:
-      #     type: approval
-      #     filters:
-      #       branches:
-      #         ignore:
-      #           - master
-      # - pytest:
-      #     kind: test_dataflow
-      #     requires:
-      #       - hold
-      - build_default
-      # - integration_tests:
-      #     requires:
-      #       - build_default
-  # master_tests:
-  #   jobs:
-  #     - pytest:
-  #         kind: test_dataflow
-  #         name: "Test Dataflow"
-  #         filters:
-  #           tags:
-  #             only: /^v.*/
-  #           branches:
-  #             only: master
-  #     - build_default:
-  #         filters:
-  #           tags:
-  #             only: /^v.*/
-  #           branches:
-  #             only: master
-  #     - integration_tests:
-  #         requires:
-  #           - build_default
-  #         filters:
-  #           tags:
-  #             only: /^v.*/
-  #           branches:
-  #             only: master
+              kind: ["test_unit", "test_regression"]
+      - hold:
+          type: approval
+          filters:
+            branches:
+              ignore:
+                - master
+      - pytest:
+          kind: test_dataflow
+          requires:
+            - hold
+      - build_default:
+          requires:
+            - hold
+      - integration_tests:
+          requires:
+            - build_default
+  master_tests:
+    jobs:
+      - pytest:
+          kind: test_dataflow
+          name: "Test Dataflow"
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
+      - build_default:
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
+      - integration_tests:
+          requires:
+            - build_default
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: master
