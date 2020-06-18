@@ -139,7 +139,7 @@ def test_compute_diags(datadir):
     timesteps_per_batch = 1
 
     # one step
-    ds_batches_one_step = batches.diagnostic_sequence_from_mapper(
+    ds_batches_one_step = batches.diagnostic_batches_from_geodata(
         os.path.join(output_dir, one_step_dir),
         variable_names,
         timesteps_per_batch=timesteps_per_batch,
@@ -164,7 +164,7 @@ def test_compute_diags(datadir):
         },
     }
 
-    ds_batches_nudged = batches.diagnostic_sequence_from_mapper(
+    ds_batches_nudged = batches.diagnostic_batches_from_geodata(
         output_dir,
         variable_names,
         timesteps_per_batch=timesteps_per_batch,

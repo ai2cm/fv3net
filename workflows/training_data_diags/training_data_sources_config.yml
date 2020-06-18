@@ -9,7 +9,7 @@ batch_kwargs:
   timesteps: ['20160805.084500']
 sources:
   one_step_tendencies: 
-    path: gs://vcm-ml-experiments-to-regional/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/create_training_data/train
+    path: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/create_training_data/train
     mapping_function: open_one_step
   nudging_tendencies: 
     path: gs://vcm-ml-data/mcgibbon-testing

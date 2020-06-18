@@ -1,7 +1,7 @@
 import diagnostics_utils as utils
 import loaders
 from fv3net.regression.sklearn import SklearnPredictionMapper
-from vcm.cloud import get_fs, gsutil
+from vcm.cloud import get_fs
 import xarray as xr
 from tempfile import NamedTemporaryFile
 import intake
