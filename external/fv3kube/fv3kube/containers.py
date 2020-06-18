@@ -96,6 +96,22 @@ def write_rundir_container(
     return container
 
 
+fv3_run_template = """
+2>&1 mpirun -np 6 \
+    --oversubscribe \
+    --allow-run-as-root \
+    --oversubscribe \
+    --allow-run-as-root\
+    --mca btl_vader_single_copy_mechanism none \
+    python {runfile} \
+    | tee logs.txt
+
+echo $? > fv3_exit_status
+# always exit 0 so upload step proceeds
+exit 0
+"""
+
+
 def fv3_container(data_vol: V1Volume, image: str) -> V1Container:
     """A container for running a run-directory from a volume
 
@@ -104,24 +120,18 @@ def fv3_container(data_vol: V1Volume, image: str) -> V1Container:
         image: the prognostic_run docker image
 
     Returns:
-        container for running the output. stores data in the volume at path "rundir".
-    """
+        container for running the output. stores data in the volume at path
+        "rundir". To allow future containers to run, this container will
+        always exit 0, but it will save the exit status to a file
+        ``fv3_exit_status``. The logs will be saved to ``logs.txt``.
+        
+     """
     runfile_path = "/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py"
     fv3_container = V1Container(name="fv3")
     fv3_container.image = image
     fv3_container.working_dir = "/mnt/rundir"
-    fv3_container.command = [
-        "mpirun",
-        "-np",
-        str(6),
-        "--oversubscribe",
-        "--allow-run-as-root",
-        "--mca",
-        "btl_vader_single_copy_mechanism",
-        "none",
-        "python",
-        runfile_path,
-    ]
+    fv3_container.command = ["bash", "-c"]
+    fv3_container.args = [fv3_run_template.format(runfile=runfile_path)]
     # Suitable for C48 job
     fv3_container.resources = V1ResourceRequirements(
         limits=dict(cpu="6", memory="6Gi"), requests=dict(cpu="6", memory="6Gi"),
