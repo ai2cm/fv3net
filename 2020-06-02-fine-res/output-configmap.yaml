@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fine-res-outputs-20200602
+data:
+  RAW_RESTARTS: gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-restart-files
+  C48_RESTARTS: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts/
+  FINE_RES: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget
+  COARSE_AVG: gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr
+  RESTART_ZARR: gs://vcm-ml-experiments/2020-06-02-fine-res/2020-05-27-40-day-X-SHiELD-simulation-C384-restart-files.zarr

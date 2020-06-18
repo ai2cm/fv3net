@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fine-res-q1-q2
+spec:
+  template:
+    spec:
+      volumes:
+        - name: gcp-credentials-user-gcp-sa
+          secret:
+            secretName: gcp-key
+      containers:
+        - name: main
+          image: us.gcr.io/vcm-ml/fv3net:a23fe1a0421f90b4fd081da302d2d43dfb65caae
+          command: ["bash", "-c", "-x"]
+          env:
+            - name: JOB
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OUTPUT
+              value: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget/
+            - name: COARSE_AVG
+              value: gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr
+            - name: RESTART_ZARR
+              value: gs://vcm-ml-experiments/2020-06-02-fine-res/2020-05-27-40-day-X-SHiELD-simulation-C384-restart-files.zarr
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /secret/gcp-credentials/key.json
+            - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+              value: /secret/gcp-credentials/key.json
+          volumeMounts:
+            - mountPath: /secret/gcp-credentials
+              name: gcp-credentials-user-gcp-sa
+          args:
+            - |
+              ./dataflow.sh submit  \
+                  -m budget \
+                  $COARSE_AVG \
+                  $RESTART_ZARR \
+                  $OUTPUT \
+                  --job_name $JOB \
+                  --project vcm-ml \
+                  --region us-central1 \
+                  --runner DataFlow \
+                  --temp_location gs://vcm-ml-scratch/tmp_dataflow \
+                  --num_workers 64 \
+                  --autoscaling_algorithm=NONE \
+                  --worker_machine_type n1-highmem-4
+      restartPolicy: Never
+  backoffLimit: 0

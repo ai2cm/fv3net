@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: coarsen-restarts-alpha3
+spec:
+  volumes:
+    - name: gcp-credentials-user-gcp-sa
+      secret:
+        secretName: gcp-key
+  containers:
+    - name: main
+      image: us.gcr.io/vcm-ml/fv3net:a299ff3337f4ab9ec3cf63189cbe947fe938b72f
+      command: ["bash", "-x", "-c"]
+      env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
+        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+          value: /secret/gcp-credentials/key.json
+      volumeMounts:
+        - mountPath: /secret/gcp-credentials
+          name: gcp-credentials-user-gcp-sa
+      args:
+        - |
+          GCS_SRC="gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-restart-files"
+          GCS_GRIDSPEC="gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy"
+          SRC_RESOLUTION=384
+          TARGET_RESOLUTION=48
+          GCS_DST="gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts/"
+
+          time=$(openssl rand -hex 6)
+
+          ./dataflow.sh submit -m fv3net.pipelines.coarsen_restarts \
+              $GCS_SRC \
+              $GCS_GRIDSPEC \
+              $SRC_RESOLUTION \
+              $TARGET_RESOLUTION \
+              $GCS_DST \
+              --coarsen-agrid-winds \
+              --runner DataflowRunner \
+              --job_name coarsen-restarts-$time \
+              --autoscaling_algorithm=NONE \
+              --project vcm-ml \
+              --region us-central1 \
+              --temp_location gs://vcm-ml-scratch/tmp_dataflow \
+              --num_workers 128 \
+              --max_num_workers 128 \
+              --disk_size_gb 50 \
+              --worker_machine_type n1-highmem-2
+      resources:
+        limits:
+          memory: 2Gi
+          cpu: "1000m"
+        requests:
+          memory: 1Gi
+          cpu: "1000m"
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
+  restartPolicy: Never
