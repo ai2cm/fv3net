@@ -29,7 +29,7 @@ RENAMED_HIGH_RES_DIMS = {
 
 def open_high_res_diags(
         url,
-        renamed_vars: Mapping = RENAMED_HIGH_RES_DIAG_VARS, 
+        renamed_vars: Mapping = RENAMED_HIGH_RES_DIAG_VARS,
         renamed_dims: Mapping = RENAMED_HIGH_RES_DIMS
 ):
     fs = get_fs(url)
