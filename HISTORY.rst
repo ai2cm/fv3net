@@ -35,6 +35,8 @@ training data from multiple sources into a set of diagnostic variables
 * Add arguments to rename dataset variables and dimensions in the nudged and fine-res helper functions and mapper classes to avoid renaming via the batch functions
 * Adds ability to specify timestep offsets in the `FineResolutionSources` mapper
 * Adds a regression test for the `training_data_diags` workflow step
+* Add workflow for producing diagnostics of ML predicted dQ1 & dQ2 (workflows/offline_ml_diags)
+
 
 0.2.1 (2020-05-15)
 ------
