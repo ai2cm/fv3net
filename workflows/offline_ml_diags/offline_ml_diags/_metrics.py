@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Mapping, Sequence, Callable
 import logging
-from fv3net.regression.sklearn import TARGET_COORD, PREDICT_COORD, DATA_SOURCE_DIM
+from fv3net.regression.sklearn import TARGET_COORD, PREDICT_COORD, DERIVATION_DIM
 from diagnostics_utils import insert_column_integrated_vars
 import xarray as xr
 
@@ -80,8 +80,8 @@ def _calc_metric(
     Returns:
         xr.DataArray: data array of metric values
     """
-    da_target = ds[var].sel({DATA_SOURCE_DIM: target_coord})
-    da_predict = ds[var].sel({DATA_SOURCE_DIM: predict_coord})
+    da_target = ds[var].sel({DERIVATION_DIM: target_coord})
+    da_predict = ds[var].sel({DERIVATION_DIM: predict_coord})
     metric = metric_func(da_target, da_predict, **(metric_kwargs or {}))
     metric_name = (
         f"{metric_func.__name__.strip('_')}/{var}/{predict_coord}_vs_{target_coord}"
@@ -91,13 +91,13 @@ def _calc_metric(
 
 def _insert_means(ds: xr.Dataset, vars: Sequence[str]) -> xr.Dataset:
     for var in vars:
-        da = ds[var].sel({DATA_SOURCE_DIM: [TARGET_COORD, PREDICT_COORD]})
+        da = ds[var].sel({DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD]})
         mean = (
-            da.sel({DATA_SOURCE_DIM: TARGET_COORD})
+            da.sel({DERIVATION_DIM: TARGET_COORD})
             .mean()
-            .assign_coords({DATA_SOURCE_DIM: "mean"})
+            .assign_coords({DERIVATION_DIM: "mean"})
         )
-        da = xr.concat([da, mean], dim=DATA_SOURCE_DIM)
+        da = xr.concat([da, mean], dim=DERIVATION_DIM)
         ds = ds.drop([var])
         ds = ds.merge(da)
     return ds

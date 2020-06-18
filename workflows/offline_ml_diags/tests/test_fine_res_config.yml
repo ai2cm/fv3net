@@ -6,6 +6,12 @@ variables:
   - dQ2
   - pressure_thickness_of_atmospheric_layer
 mapping_function: open_fine_res_apparent_sources
+mapping_kwargs:
+  offset_seconds: 450
+  rename_vars:
+    grid_xt: x
+    grid_yt: y
+    pfull: z
 batch_kwargs:
   timesteps_per_batch: 5
   init_time_dim_name: "initial_time"

@@ -13,7 +13,7 @@ import logging
 import uuid
 import joblib
 import json
-from _metrics import calc_metrics
+from ._metrics import calc_metrics
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
@@ -100,12 +100,13 @@ if __name__ == "__main__":
     )
 
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
+    """
     ds_diagnostic = utils.reduce_to_diagnostic(
         ds_batches, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
     logger.info(f"Finished processing dataset diagnostics.")
     _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path, DIAGS_NC_NAME)
-
+    """
     # json of metrics, ex. RMSE and bias
     metrics = calc_metrics(ds_batches)
     fs = get_fs(args.output_path)
