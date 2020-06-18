@@ -9,6 +9,15 @@ import yaml
 from sklearn.dummy import DummyRegressor
 
 from fv3net.regression.sklearn import SklearnWrapper
+import subprocess
+
+# need to check if fv3gfs exists in a subprocess, importing fv3gfs into this module
+# causes tests to fail. Not sure why.
+# See https://github.com/VulcanClimateModeling/fv3gfs-python/issues/79
+# - noah
+FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
+with_fv3gfs = pytest.mark.skipif(not FV3GFS_INSTALLED, reason="fv3gfs not installed")
+
 
 default_fv3config = r"""
 data_table: default
@@ -353,6 +362,7 @@ def saved_model(tmpdir):
     return path
 
 
+@with_fv3gfs
 def test_fv3run_succeeds(saved_model, tmpdir):
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
     config = get_config(saved_model)

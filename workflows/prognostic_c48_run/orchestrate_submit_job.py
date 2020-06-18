@@ -1,9 +1,9 @@
 import argparse
 import os
 import yaml
-import fsspec
 import logging
 from pathlib import Path
+import copy
 
 import fv3config
 import fv3kube
@@ -14,13 +14,20 @@ RUNFILE = os.path.join(PWD, "sklearn_runfile.py")
 CONFIG_FILENAME = "fv3config.yml"
 MODEL_FILENAME = "sklearn_model.pkl"
 
-KUBERNETES_DEFAULT = {
-    "cpu_count": 6,
-    "memory_gb": 3.6,
-    "gcp_secret": "gcp-key",
-    "image_pull_policy": "Always",
-    "capture_output": False,
-}
+
+def get_kube_opts(config_update, image_tag=None):
+    default = {
+        "gcp_secret_name": "gcp-key",
+        "post_process_image": "us.gcr.io/vcm-ml/fv3net",
+        "fv3_image": "us.gcr.io/vcm-ml/prognostic_run",
+        "fv3config_image": "us.gcr.io/vcm-ml/prognostic_run",
+    }
+    kube_opts = copy.copy(default)
+    kube_opts.update(config_update.get("kubernetes", {}))
+    if args.image_tag:
+        for key in ["fv3config_image", "fv3_image", "post_process_image"]:
+            kube_opts[key] += ":" + args.image_tag
+    return kube_opts
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -37,11 +44,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Time step to grab from the initial conditions url.",
     )
     parser.add_argument(
-        "docker_image",
-        type=str,
-        help="Docker image to pull for the prognostic run kubernetes pod.",
-    )
-    parser.add_argument(
         "output_url",
         type=str,
         help="Remote storage location for prognostic run output.",
@@ -51,6 +53,9 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         help="Remote url to a trained sklearn model.",
+    )
+    parser.add_argument(
+        "--image-tag", type=str, default=None, help="tag to apply to all default images"
     )
     parser.add_argument(
         "--prog_config_yml",
@@ -86,60 +91,55 @@ if __name__ == "__main__":
     parser = _create_arg_parser()
     args = parser.parse_args()
 
-    short_id = fv3kube.get_alphanumeric_unique_tag(8)
-    job_name = f"prognostic-run-{short_id}"
-    job_label = {
-        "orchestrator-jobs": f"prognostic-group-{short_id}",
-        "app": "end-to-end",
-    }
-
     # Get model config with prognostic run updates
     with open(args.prog_config_yml, "r") as f:
         prog_config_update = yaml.safe_load(f)
+    config_dir = os.path.join(args.output_url, "job_config")
+    job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
+
+    short_id = fv3kube.get_alphanumeric_unique_tag(8)
+    job_label = {
+        "orchestrator-jobs": f"prognostic-group-{short_id}",
+        # needed to use pod-disruption budget
+        "app": "end-to-end",
+    }
     model_config = fv3kube.get_full_config(
         prog_config_update, args.initial_condition_url, args.ic_timestep
     )
 
-    kube_opts = KUBERNETES_DEFAULT.copy()
-    if "kubernetes" in model_config:
-        user_kube_config = model_config.pop("kubernetes")
-        kube_opts.update(user_kube_config)
-
-    config_dir = os.path.join(args.output_url, "job_config")
-    job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
-
-    model_config["diag_table"] = fv3kube.transfer_local_to_remote(
-        model_config["diag_table"], config_dir
-    )
+    # hard-code the diag_table
+    model_config[
+        "diag_table"
+    ] = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
 
     # Add scikit learn ML model config section
+    scikit_learn_config = model_config.get("scikit_learn", {})
+    scikit_learn_config["zarr_output"] = "diags.zarr"
     if args.model_url:
-        scikit_learn_config = model_config.get("scikit_learn", {})
-        scikit_learn_config.update(
-            model=os.path.join(args.model_url, MODEL_FILENAME),
-            zarr_output="diags.zarr",
-            diagnostic_ml=args.diagnostic_ml,
+
+        # insert the model asset
+        model_url = os.path.join(args.model_url, MODEL_FILENAME)
+        model_asset = fv3config.get_asset_dict(
+            args.model_url, MODEL_FILENAME, target_name="model.pkl"
         )
-        model_config["scikit_learn"] = scikit_learn_config
-        kube_opts["runfile"] = fv3kube.transfer_local_to_remote(RUNFILE, config_dir)
+        model_config.setdefault("patch_files", []).append(model_asset)
 
-    # Upload the new prognostic config
-    with fsspec.open(job_config_path, "w") as f:
-        f.write(yaml.dump(model_config))
+        scikit_learn_config.update(
+            model="model.pkl", diagnostic_ml=args.diagnostic_ml,
+        )
 
-    # need to initialized the client differently than
-    # run_kubernetes when running in a pod.
-    client = fv3kube.initialize_batch_client()
-    job = fv3config.run_kubernetes(
-        config_location=job_config_path,
-        outdir=args.output_url,
-        jobname=job_name,
-        docker_image=args.docker_image,
-        job_labels=job_label,
-        submit=False,
-        **kube_opts,
+    model_config["scikit_learn"] = scikit_learn_config
+    kube_opts = get_kube_opts(prog_config_update, args.image_tag)
+    pod_spec = fv3kube.containers.post_processed_fv3_pod_spec(
+        model_config, args.output_url, **kube_opts
     )
-    client.create_namespaced_job(namespace="default", body=job)
+    job = fv3kube.containers.pod_spec_to_job(
+        pod_spec, labels=job_label, generate_name="prognostic-run-"
+    )
+
+    client = fv3kube.initialize_batch_client()
+    created_job = client.create_namespaced_job("default", job)
+    logger.info(f"Created job: {created_job.metadata.name}")
 
     if not args.detach:
         fv3kube.wait_for_complete(job_label, raise_on_fail=not args.allow_fail)

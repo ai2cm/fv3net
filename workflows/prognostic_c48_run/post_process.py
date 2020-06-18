@@ -1,53 +1,37 @@
 #!/usr/bin/env python
 import os
+import re
+import shutil
+from typing import Sequence, Iterable, Union, Mapping
 import xarray as xr
 import tempfile
 import subprocess
 import logging
 import click
+from toolz import groupby
+from itertools import chain
 
 logger = logging.getLogger(__file__)
+logging.basicConfig(level=logging.INFO)
 
 CHUNKS_2D = {"time": 96}
 CHUNKS_3D = {"time": 8}
 
+CHUNKS = {
+    "diags.zarr": CHUNKS_2D,
+    "atmos_dt_atmos.zarr": CHUNKS_2D,
+    "sfc_dt_atmos.zarr": CHUNKS_2D,
+    "atmos_8xdaily.zarr": CHUNKS_3D,
+}
 
-def open_tiles(pattern):
-    return xr.open_mfdataset(f"{pattern}.tile?.nc", concat_dim="tile", combine="nested")
+
+def upload_dir(d, dest):
+    subprocess.check_call(["gsutil", "-m", "rsync", "-r", d, dest])
 
 
-paths_openers = [
-    ("diags.zarr", "diags.zarr", xr.open_zarr, CHUNKS_2D),
-    ("atmos_dt_atmos.zarr", "atmos_dt_atmos", open_tiles, CHUNKS_2D),
-    ("sfc_dt_atmos.zarr", "sfc_dt_atmos", open_tiles, CHUNKS_2D),
-    ("atmos_8xdaily.zarr", "atmos_8xdaily", open_tiles, CHUNKS_3D),
-]
-
-files_to_copy = [
-    "input.nml",
-    "atmos_8xdaily.tile1.nc",
-    "atmos_8xdaily.tile2.nc",
-    "atmos_8xdaily.tile3.nc",
-    "atmos_8xdaily.tile4.nc",
-    "atmos_8xdaily.tile5.nc",
-    "atmos_8xdaily.tile6.nc",
-    "atmos_dt_atmos.tile1.nc",
-    "atmos_dt_atmos.tile2.nc",
-    "atmos_dt_atmos.tile3.nc",
-    "atmos_dt_atmos.tile4.nc",
-    "atmos_dt_atmos.tile5.nc",
-    "atmos_dt_atmos.tile6.nc",
-    "sfc_dt_atmos.tile1.nc",
-    "sfc_dt_atmos.tile2.nc",
-    "sfc_dt_atmos.tile3.nc",
-    "sfc_dt_atmos.tile4.nc",
-    "sfc_dt_atmos.tile5.nc",
-    "sfc_dt_atmos.tile6.nc",
-]
-
-directories_to_copy = ["job_config/", "INPUT/", "RESTART/"]
-
-directories_to_download = ["diags.zarr"]
+def download_directory(dir_, dest):
+    os.makedirs(dest, exist_ok=True)
+    subprocess.check_call(["gsutil", "-m", "rsync", "-r", dir_, dest])
 
 
 def rechunk(ds, chunks):
@@ -60,17 +44,15 @@ def rechunk(ds, chunks):
     return ds.chunk(true_chunks)
 
 
-def upload_dir(d, dest):
-    subprocess.check_call(["gsutil", "-m", "rsync", "-r", d, dest])
-
-
-def copy_files(files, dest):
-    subprocess.check_call(["gsutil", "-m", "cp", "-r"] + files + [dest])
-
-
-def download_directory(dir_, dest):
-    os.makedirs(dest, exist_ok=True)
-    subprocess.check_call(["gsutil", "-m", "rsync", "-r", dir_, dest])
+def authenticate():
+    try:
+        credentials = os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
+    except KeyError:
+        pass
+    else:
+        subprocess.check_call(
+            ["gcloud", "auth", "activate-service-account", "--key-file", credentials]
+        )
 
 
 def clear_encoding(ds):
@@ -79,35 +61,77 @@ def clear_encoding(ds):
         ds[variable].encoding = {}
 
 
-def download_rundir(rundir: str, output: str):
+def parse_rundir(walker):
+    """
+    Args:
+        walker: output of os.walk
+    Returns:
+        tiles, zarrs, other
+    """
+    tiles = []
+    zarrs = []
+    other = []
+    for root, dirs, files in walker:
+        for file_ in files:
+            full_name = os.path.join(root, file_)
+            if re.search(r"tile\d\.nc", file_):
+                tiles.append(full_name)
+            elif ".zarr" in root:
+                pass
+            else:
+                other.append(full_name)
 
-    os.makedirs(output, exist_ok=True)
+        search_path = []
+        for dir_ in dirs:
+            if dir_.endswith(".zarr"):
+                zarrs.append(os.path.join(root, dir_))
+            else:
+                search_path.append(dir_)
+        # only recurse into non-zarrs
+        dirs[:] = search_path
 
-    # download directories
-    for dir_ in directories_to_download:
-        path_in = os.path.join(rundir, dir_)
-        path_out = os.path.join(output, dir_)
-        download_directory(path_in, path_out)
-        assert os.path.isdir(path_out), path_out
-
-    # download files
-    paths = [os.path.join(rundir, file) for file in files_to_copy]
-    copy_files(paths, output)
+    return tiles, zarrs, other
 
 
-def convert_data(input_dir: str, output_dir: str):
+def open_tiles(
+    tiles: Sequence[str], base: str, chunks: Mapping[str, Mapping[str, int]] = CHUNKS
+) -> Iterable[Union[str, xr.Dataset]]:
+    grouped_tiles = groupby(lambda x: x[: -len(".tile1.nc")], tiles)
+    for key, files in grouped_tiles.items():
+        path = key + ".zarr"
+        relpath = os.path.relpath(path, base)
+        if relpath in chunks:
+            yield xr.open_mfdataset(
+                sorted(files), concat_dim="tile", combine="nested"
+            ).assign_attrs(path=path)
+        else:
+            for file in files:
+                yield file
 
-    os.makedirs(output_dir, exist_ok=True)
 
-    # process zarrs
-    for output, in_, opener, chunks in paths_openers:
-        logger.info(f"Processing {in_}")
-        path = os.path.join(input_dir, in_)
-        ds = opener(path)  # type: ignore
-        clear_encoding(ds)
-        chunked = rechunk(ds, chunks)
-        path_out = os.path.join(output_dir, output)
-        chunked.to_zarr(path_out, consolidated=True, mode="w")
+def open_zarrs(zarrs: Sequence[str]) -> Iterable[xr.Dataset]:
+    for zarr in zarrs:
+        yield xr.open_zarr(zarr).assign_attrs(path=zarr)
+
+
+def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str):
+    logger.info(f"Processing {item}")
+    try:
+        dest = os.path.join(d_out, os.path.relpath(item, d_in))  # type: ignore
+    except TypeError:
+        # is an xarray
+        relpath = os.path.relpath(item.path, d_in)  # type: ignore
+        chunks = CHUNKS.get(relpath, CHUNKS_2D)
+        clear_encoding(item)
+        chunked = rechunk(item, chunks)
+        dest = os.path.join(d_out, relpath)
+        chunked.to_zarr(dest, mode="w")
+    else:
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        try:
+            shutil.copy(item, dest)  # type: ignore
+        except FileNotFoundError:
+            logger.warning(f"{item} not found. Possibly a broken symlink.")
 
 
 @click.command()
@@ -122,14 +146,20 @@ def post_process(rundir: str, destination: str):
     outputs to zarr.
     """
     logger.info("Post-processing the run")
-
-    for dir_ in directories_to_copy:
-        path = os.path.join(rundir, dir_)
-        upload_dir(path, os.path.join(destination, dir_))
+    authenticate()
 
     with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
-        download_rundir(rundir, d_in)
-        convert_data(d_in, d_out)
+
+        if rundir.startswith("gs://"):
+            download_directory(rundir, d_in)
+        else:
+            d_in = rundir
+
+        tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
+
+        for item in chain(open_tiles(tiles, d_in), open_zarrs(zarrs), other):
+            process_item(item, d_in, d_out)
+
         upload_dir(d_out, destination)
 
 
