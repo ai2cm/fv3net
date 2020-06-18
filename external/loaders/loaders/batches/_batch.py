@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def batches_from_mapper(
+def batches_from_geodata(
     data_path: str,
     variable_names: Iterable[str],
     mapping_function: str,
@@ -26,7 +26,9 @@ def batches_from_mapper(
     timesteps: Optional[Sequence[str]] = None,
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
-    iterated over in  ..sklearn.train.
+    iterated over in  ..sklearn.train. The data is assumed to
+    have geospatial dimensions and is accessed through a mapper interface.
+
 
     Args:
         data_path (str): Path to data store to be loaded via mapper.
@@ -120,7 +122,7 @@ def _mapper_to_batches(
     return seq
 
 
-def diagnostic_sequence_from_mapper(
+def diagnostic_batches_from_geodata(
     data_path: str,
     variable_names: Sequence[str],
     mapping_function: str,
@@ -154,8 +156,7 @@ def diagnostic_sequence_from_mapper(
     """
 
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
-
-    sequence = mapper_to_diagnostic_sequence(
+    sequence = mapper_to_diagnostic_batches(
         data_mapping,
         variable_names,
         timesteps_per_batch,
@@ -168,7 +169,7 @@ def diagnostic_sequence_from_mapper(
     return sequence
 
 
-def mapper_to_diagnostic_sequence(
+def mapper_to_diagnostic_batches(
     data_mapping: Mapping[str, xr.Dataset],
     variable_names: Sequence[str],
     timesteps_per_batch: int = 1,

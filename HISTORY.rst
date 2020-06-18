@@ -27,6 +27,7 @@ training data from multiple sources into a set of diagnostic variables
 * Remove usage of "tmp_dataflow" directory from `vcm.cloud.gcs` testing infrastructure and skip extract tests
 * Update prognostic run report to include global averages of physics variables and heating/moistening
 * Prognostic report requires that prognostic runs have been post-processed before being passed to the report workflow
+* Add workflow for producing diagnostics of ML predicted dQ1 & dQ2 (workflows/offline_ml_diags)
 
 
 0.2.1 (2020-05-15)

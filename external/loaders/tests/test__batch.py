@@ -6,7 +6,7 @@ import numpy as np
 
 from loaders.batches._batch import (
     _mapper_to_batches,
-    mapper_to_diagnostic_sequence,
+    mapper_to_diagnostic_batches,
     _load_batch,
 )
 
@@ -93,8 +93,8 @@ def test__mapper_to_batches_invalid_times(mapper):
         )
 
 
-def test_mapper_to_diagnostic_sequence(mapper):
-    batched_data_sequence = mapper_to_diagnostic_sequence(
+def test_mapper_to_diagnostic_batches(mapper):
+    batched_data_sequence = mapper_to_diagnostic_batches(
         mapper, DATA_VARS, timesteps_per_batch=2,
     )
     assert len(batched_data_sequence) == len(mapper) // 2 + len(mapper) % 2

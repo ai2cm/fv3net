@@ -7,7 +7,7 @@ one_step_tendencies:
     - pQ2
     - pressure_thickness_of_atmospheric_layer
     - land_sea_mask
-  batch_function: diagnostic_sequence_from_mapper
+  batch_function: diagnostic_batches_from_mapper
   batch_kwargs:
     num_batches: 2
     timesteps_per_batch: 1
