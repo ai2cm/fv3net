@@ -2,6 +2,9 @@
 History
 =======
 
+latest
+------
+
 0.2.2 (2020-06-18)
 ------
 * Add flag --allow-fail to prognostic run `orchestrate_submit_job.py` so prognostic run crashes don't have to kill e2e workflow
