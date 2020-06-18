@@ -6,7 +6,7 @@ from fv3net.regression.sklearn._mapper import (
     SklearnPredictionMapper,
     PREDICT_COORD,
     TARGET_COORD,
-    DATA_SOURCE_DIM,
+    DERIVATION_DIM,
 )
 
 
@@ -93,7 +93,7 @@ def test_ml_predict_wrapper_insert_prediction(mock_model, base_mapper, gridded_d
     for key in mapper.keys():
         mapper_output = mapper[key]
         for var in mock_model.output_vars_:
-            assert set(mapper_output[var][DATA_SOURCE_DIM].values) == {
+            assert set(mapper_output[var][DERIVATION_DIM].values) == {
                 TARGET_COORD,
                 PREDICT_COORD,
             }
@@ -119,7 +119,7 @@ def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
         for var in mock_model.output_vars_:
             assert sum(
                 (
-                    mapper_output[var].sel({DATA_SOURCE_DIM: PREDICT_COORD}) - target
+                    mapper_output[var].sel({DERIVATION_DIM: PREDICT_COORD}) - target
                 ).values
             ) == pytest.approx(0)
 
