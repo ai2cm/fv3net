@@ -1,4 +1,6 @@
+from typing import Mapping
 from vcm.cloud import get_fs
+from vcm import safe
 import xarray as xr
 import zarr.storage as zstore
 
@@ -19,19 +21,24 @@ RENAMED_HIGH_RES_DIAG_VARS = {
     "PRATEsfc_coarse": "surface_precipitation_rate",
 }
 
+RENAMED_HIGH_RES_DIMS = {
+    "grid_xt": "x",
+    "grid_yt": "y",
+}
 
-def open_high_res_diags(url):
+
+def open_high_res_diags(
+        url,
+        renamed_vars: Mapping = RENAMED_HIGH_RES_DIAG_VARS, 
+        renamed_dims: Mapping = RENAMED_HIGH_RES_DIMS
+):
     fs = get_fs(url)
     mapper = fs.get_mapper(url)
     consolidated = True if ".zmetadata" in mapper else False
     ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024), consolidated=consolidated)
-    return ds
-
-
-class HighResDiags(LongRunMapper):
-    def __init__(
-        self,
-        ds,
-        renamed_vars=RENAMED_HIGH_RES_DIAG_VARS,
-    ):
-        self.ds = standardize_zarr_time_coord(ds).rename(RENAMED_HIGH_RES_DIAG_VARS)
+    ds = standardize_zarr_time_coord(ds)
+    ds = safe.get_variables(
+        ds.rename({**renamed_vars, **renamed_dims}),
+        RENAMED_HIGH_RES_DIAG_VARS.values())
+    ds = ds.assign_coords({"tile": range(6)})
+    return LongRunMapper(ds)
