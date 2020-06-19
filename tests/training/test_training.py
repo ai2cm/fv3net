@@ -7,6 +7,7 @@ import logging
 import diagnostics_utils as utils
 import intake
 from loaders import batches
+from fv3net.regression.sklearn.train import ModelTrainingConfig
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,49 @@ DOMAINS = ["land", "sea", "global"]
 OUTPUT_NC_NAME = "diagnostics.nc"
 
 
-@pytest.mark.regression()
+base_config_dict = {
+    "model_type": "sklearn_random_forest",
+    "hyperparameters": {"max_depth": 4, "n_estimators": 2},
+    "input_variables": ["air_temperature", "specific_humidity"],
+    "output_variables": ["dQ1", "dQ2"],
+    "batch_function": "batches_from_mapper",
+}
+
+
+@pytest.fixture
+def training_config(request):
+    batch_kwargs = request.param[0]
+    config_dict = base_config_dict.copy()
+    config_dict.update({"batch_kwargs": batch_kwargs})
+    return ModelTrainingConfig(**config_dict)
+
+
+one_step_batch_kwargs = {
+    "timesteps_per_batch": 1,
+    "init_time_dim_name": "initial_time",
+    "mapping_function": "open_one_step",
+}
+
+
+@pytest.mark.parametrize(
+    ["training_config"],
+    [pytest.param((one_step_batch_kwargs,), id="base")],
+    indirect=["training_config"],
+)
+@pytest.mark.regression
+def test_sklearn_regression(training_config,):
+    """
+    python -m fv3net.regression.sklearn \
+        $TRAINING_DATA \
+        train_sklearn_model_fineres_source.yml  \
+        $OUTPUT \
+        --no-train-subdir-append
+    """
+
+    assert True
+
+
+@pytest.mark.regression
 def test_compute_diags(datadir):
 
     # load schema and generate input datasets, each with two timesteps
