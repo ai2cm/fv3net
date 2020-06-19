@@ -13,3 +13,11 @@ submit:
 	kubectl apply -k one-step-clouds-off
 	kubectl apply -k one-step-physics-off
 	kubectl apply -f fine-res/
+
+delete:
+	kubectl delete -f time_configmap.yaml || exit 0
+	kubectl delete -k nudging || exit 0
+	kubectl delete -k one-step-clouds-off || exit 0
+	kubectl delete -k one-step-physics-off || exit 0
+	kubectl delete -f fine-res/ || exit 0
+
