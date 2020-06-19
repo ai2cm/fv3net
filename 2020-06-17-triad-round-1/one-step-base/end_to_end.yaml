@@ -16,7 +16,7 @@ experiment:
       args:
         c384_diagnostics:
           location: $C384_DIAGNOSTICS
-        coarsening_config: $CONFIG/coarsen_c384_diagnostics.yml
+        coarsening_config: $CONFIG/coarsen_c384_diagnostics.yaml
 
     one_step_run:
       command: python workflows/one_step_jobs/orchestrate_submit_jobs.py
