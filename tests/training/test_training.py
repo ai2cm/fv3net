@@ -7,54 +7,13 @@ import logging
 import diagnostics_utils as utils
 import intake
 from loaders import batches
-from fv3net.regression.sklearn.train import ModelTrainingConfig
+from fv3net.regression.sklearn import train
+
 
 logger = logging.getLogger(__name__)
 
 DOMAINS = ["land", "sea", "global"]
 OUTPUT_NC_NAME = "diagnostics.nc"
-
-
-base_config_dict = {
-    "model_type": "sklearn_random_forest",
-    "hyperparameters": {"max_depth": 4, "n_estimators": 2},
-    "input_variables": ["air_temperature", "specific_humidity"],
-    "output_variables": ["dQ1", "dQ2"],
-    "batch_function": "batches_from_mapper",
-}
-
-
-@pytest.fixture
-def training_config(request):
-    batch_kwargs = request.param[0]
-    config_dict = base_config_dict.copy()
-    config_dict.update({"batch_kwargs": batch_kwargs})
-    return ModelTrainingConfig(**config_dict)
-
-
-one_step_batch_kwargs = {
-    "timesteps_per_batch": 1,
-    "init_time_dim_name": "initial_time",
-    "mapping_function": "open_one_step",
-}
-
-
-@pytest.mark.parametrize(
-    ["training_config"],
-    [pytest.param((one_step_batch_kwargs,), id="base")],
-    indirect=["training_config"],
-)
-@pytest.mark.regression
-def test_sklearn_regression(training_config,):
-    """
-    python -m fv3net.regression.sklearn \
-        $TRAINING_DATA \
-        train_sklearn_model_fineres_source.yml  \
-        $OUTPUT \
-        --no-train-subdir-append
-    """
-
-    assert True
 
 
 @pytest.fixture(scope="module")
@@ -266,3 +225,103 @@ def test_compute_diags(
         reference_output_schema = synth.load(f)
 
     assert reference_output_schema == diags_output_schema
+
+
+base_config_dict = {
+    "model_type": "sklearn_random_forest",
+    "hyperparameters": {"max_depth": 4, "n_estimators": 2},
+    "input_variables": ["air_temperature", "specific_humidity"],
+    "output_variables": ["dQ1", "dQ2"],
+    "batch_function": "batches_from_mapper",
+}
+
+
+@pytest.fixture
+def one_step_train_config():
+    one_step_config_dict = base_config_dict.copy()
+    one_step_config_dict.update(
+        batch_kwargs={
+            "timesteps_per_batch": 1,
+            "init_time_dim_name": "initial_time",
+            "mapping_function": "open_one_step",
+        }
+    )
+    return train.ModelTrainingConfig(**one_step_config_dict)
+
+
+@pytest.fixture
+def nudging_train_config():
+    nudging_config_dict = base_config_dict.copy()
+    nudging_config_dict.update(
+        batch_kwargs={
+            "timesteps_per_batch": 1,
+            "init_time_dim_name": "time",
+            "mapping_function": "open_merged_nudged",
+            "mapping_kwargs": {
+                "nudging_timescale_hr": 3,
+                "rename_vars": {
+                    "air_temperature_tendency_due_to_nudging": "dQ1",
+                    "specific_humidity_tendency_due_to_nudging": "dQ2",
+                },
+            },
+        }
+    )
+    return train.ModelTrainingConfig(**nudging_config_dict)
+
+
+@pytest.fixture
+def fine_res_train_config():
+    fine_res_config_dict = base_config_dict.copy()
+    fine_res_config_dict.update(
+        batch_kwargs={"timesteps_per_batch": 1, "init_time_dim_name": "time"}
+    )
+    return train.ModelTrainingConfig(**fine_res_config_dict)
+
+
+@pytest.mark.regression
+def test_sklearn_regression_one_step(one_step_dataset, one_step_train_config):
+
+    batched_data = train.load_data_sequence(one_step_dataset, one_step_train_config)
+    assert len(batched_data) == 2
+    model = train.train_model(batched_data, one_step_train_config)
+    print(model)
+
+
+@pytest.mark.regression
+def test_sklearn_regression_nudging(nudging_dataset, nudging_train_config):
+
+    batched_data = train.load_data_sequence(nudging_dataset, nudging_train_config)
+    assert len(batched_data) == 2
+    model = train.train_model(batched_data, nudging_train_config)
+    print(model)
+
+
+@pytest.mark.regression
+def test_sklearn_regression_fine_res(fine_res_dataset, fine_res_train_config):
+
+    # unfortunately have to reimplement train.load_data_sequence a bit here
+    # to get around the different synth format
+    rename_variables = {
+        "delp": "pressure_thickness_of_atmospheric_layer",
+        "pfull": "z",
+        "grid_xt": "x",
+        "grid_yt": "y",
+    }
+    mapper = {
+        "20160901.000000": xr.open_zarr(fine_res_dataset)
+        .isel(time=0)
+        .rename(rename_variables),
+        "20160901.001500": xr.open_zarr(fine_res_dataset)
+        .isel(time=1)
+        .rename(rename_variables),
+    }
+
+    batched_data = batches._batch._mapper_to_batches(
+        mapper,
+        list(fine_res_train_config.input_variables)
+        + list(fine_res_train_config.output_variables),
+        **fine_res_train_config.batch_kwargs,
+    )
+    assert len(batched_data) == 2
+    model = train.train_model(batched_data, fine_res_train_config)
+    print(model)
