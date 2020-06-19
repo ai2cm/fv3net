@@ -49,7 +49,7 @@ def batches_from_geodata(
         Sequence of xarray datasets for use in training batches.
     """
     data_mapping = _create_mapper(data_path, mapping_function, mapping_kwargs)
-    batches = _batches_from_mapper(
+    batches = batches_from_mapper(
         data_mapping,
         variable_names,
         timesteps_per_batch,
@@ -69,7 +69,7 @@ def _create_mapper(
     return mapping_func(data_path, **mapping_kwargs)
 
 
-def _batches_from_mapper(
+def batches_from_mapper(
     data_mapping: Mapping[str, xr.Dataset],
     variable_names: Iterable[str],
     timesteps_per_batch: int = 1,
