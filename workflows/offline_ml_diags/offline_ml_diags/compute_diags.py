@@ -90,23 +90,22 @@ if __name__ == "__main__":
     fs_model = get_fs(args.model_path)
     with fs_model.open(args.model_path, "rb") as f:
         model = joblib.load(f)
-    pred_mapper = SklearnPredictionMapper(base_mapper, model,)
+    pred_mapper = SklearnPredictionMapper(
+        base_mapper, model, **config.get("model_mapper_kwargs", {}))
 
     ds_batches = loaders.batches.diagnostic_batches_from_mapper(
         pred_mapper,
         config["variables"],
-        rename_variables=config.get("rename_variables", None),
         **config["batch_kwargs"],
     )
 
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
-    """
     ds_diagnostic = utils.reduce_to_diagnostic(
         ds_batches, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
     logger.info(f"Finished processing dataset diagnostics.")
     _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path, DIAGS_NC_NAME)
-    """
+
     # json of metrics, ex. RMSE and bias
     metrics = calc_metrics(ds_batches)
     fs = get_fs(args.output_path)
