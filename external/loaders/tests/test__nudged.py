@@ -6,11 +6,10 @@ import pandas as pd
 from itertools import chain
 import synth
 from vcm import safe
+from loaders import TIME_NAME, TIME_FMT
+from loaders.mappers import LongRunMapper
 from loaders.mappers._nudged import (
-    TIME_NAME,
-    TIME_FMT,
     _get_path_for_nudging_timescale,
-    NudgedTimestepMapper,
     NudgedStateCheckpoints,
     MergeNudged,
     GroupByTime,
@@ -94,13 +93,12 @@ def _int64_to_datetime(ds):
     time = time.round("S")
     return ds.assign_coords({TIME_NAME: time})
 
-
 @pytest.fixture(scope="module")
 def nudged_tstep_mapper(nudge_tendencies, general_nudge_output):
 
     combined_ds = xr.merge([nudge_tendencies, general_nudge_output], join="inner")
 
-    timestep_mapper = NudgedTimestepMapper(combined_ds)
+    timestep_mapper = LongRunMapper(combined_ds)
 
     return timestep_mapper
 
@@ -139,18 +137,6 @@ def test__get_path_for_nudging_timescale_failure(nudging_output_dirs, timescale)
         _get_path_for_nudging_timescale(nudging_output_dirs, timescale, tol=1e-5)
 
 
-def test_NudgedTimestepMapper(general_nudge_output):
-
-    mapper = NudgedTimestepMapper(general_nudge_output)
-
-    assert len(mapper) == general_nudge_output.sizes[TIME_NAME]
-
-    single_time = general_nudge_output[TIME_NAME].values[0]
-    item = general_nudge_output.sel({TIME_NAME: single_time})
-    time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
-    xr.testing.assert_equal(item, mapper[time_key])
-
-
 @pytest.fixture(params=["dataset_only", "nudged_tstep_mapper_only", "mixed"])
 def mapper_to_ds_case(request, nudge_tendencies, general_nudge_output):
 
@@ -158,11 +144,11 @@ def mapper_to_ds_case(request, nudge_tendencies, general_nudge_output):
         sources = (nudge_tendencies, general_nudge_output)
     elif request.param == "nudged_tstep_mapper_only":
         sources = (
-            NudgedTimestepMapper(nudge_tendencies),
-            NudgedTimestepMapper(general_nudge_output),
+            LongRunMapper(nudge_tendencies),
+            LongRunMapper(general_nudge_output),
         )
     elif request.param == "mixed":
-        sources = (nudge_tendencies, NudgedTimestepMapper(general_nudge_output))
+        sources = (nudge_tendencies, LongRunMapper(general_nudge_output))
 
     return sources
 
@@ -199,7 +185,7 @@ def overlap_check_fail_datasets(request, nudge_tendencies, general_nudge_output)
 
 def test_MergeNudged(nudge_tendencies, general_nudge_output):
 
-    merged = MergeNudged(nudge_tendencies, NudgedTimestepMapper(general_nudge_output))
+    merged = MergeNudged(nudge_tendencies, LongRunMapper(general_nudge_output))
 
     assert len(merged) == NTIMES
 
