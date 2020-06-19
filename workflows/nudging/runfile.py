@@ -173,5 +173,9 @@ if __name__ == "__main__":
         monitor.store(reference, stage="reference")
         monitor.store(tendencies, stage="nudging_tendencies")
         monitor.store(state, stage="after_nudging")
-        fv3gfs.set_state(state)
+
+        nudged_state_members = {
+            key: quantity for key, quantity in state.items() if key in nudging_names
+        }
+        fv3gfs.set_state(nudged_state_members)
     fv3gfs.cleanup()
