@@ -152,7 +152,7 @@ def test_compute_diags(
 
     # one step
     ds_batches_one_step = batches.diagnostic_batches_from_geodata(
-        os.path.join(output_dir, one_step_dir),
+        one_step_dataset,
         variable_names,
         timesteps_per_batch=timesteps_per_batch,
         mapping_function="open_one_step",
@@ -177,7 +177,7 @@ def test_compute_diags(
     }
 
     ds_batches_nudged = batches.diagnostic_batches_from_geodata(
-        output_dir,
+        nudging_dataset,
         variable_names,
         timesteps_per_batch=timesteps_per_batch,
         mapping_function="open_merged_nudged_full_tendencies",
@@ -283,8 +283,8 @@ def test_sklearn_regression_one_step(one_step_dataset, one_step_train_config):
 
     batched_data = train.load_data_sequence(one_step_dataset, one_step_train_config)
     assert len(batched_data) == 2
-    model = train.train_model(batched_data, one_step_train_config)
-    print(model)
+    wrapper = train.train_model(batched_data, one_step_train_config)
+    assert wrapper.model.n_estimators == 2
 
 
 @pytest.mark.regression
@@ -292,8 +292,8 @@ def test_sklearn_regression_nudging(nudging_dataset, nudging_train_config):
 
     batched_data = train.load_data_sequence(nudging_dataset, nudging_train_config)
     assert len(batched_data) == 2
-    model = train.train_model(batched_data, nudging_train_config)
-    print(model)
+    wrapper = train.train_model(batched_data, nudging_train_config)
+    assert wrapper.model.n_estimators == 2
 
 
 @pytest.mark.regression
@@ -323,5 +323,5 @@ def test_sklearn_regression_fine_res(fine_res_dataset, fine_res_train_config):
         **fine_res_train_config.batch_kwargs,
     )
     assert len(batched_data) == 2
-    model = train.train_model(batched_data, fine_res_train_config)
-    print(model)
+    wrapper = train.train_model(batched_data, fine_res_train_config)
+    assert wrapper.model.n_estimators == 2
