@@ -1,0 +1,31 @@
+
+base_version: v0.4
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+initial_conditions: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts/20160801.001500/
+nudging:
+  restarts_path: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts/
+  timescale_hours:
+    air_temperature: 3
+    specific_humidity: 3
+    x_wind: 3
+    y_wind: 3
+    pressure_thickness_of_atmospheric_layer: 3
+namelist:
+  coupler_nml:
+    calendar: julian
+    current_date:
+    - 2016
+    - 8
+    - 1
+    - 0
+    - 15
+    - 0
+    days: 40
+    hours: 0
+    minutes: 0
+    months: 0
+    seconds: 0
+  fv_core_nml:
+    do_sat_adj: false
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false

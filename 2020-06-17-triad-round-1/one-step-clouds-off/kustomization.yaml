@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+  - "../one-step-base"
+nameSuffix: "-one-step-clouds-off"
+configMapGenerator:
+- files:
+    - one_step_jobs.yaml
+    - prognostic_run.yaml
+  name: end-to-end
+  literals:
+    - JOBNAME=one-step-clouds-off
+  behavior: merge # merges with the base configuration generator

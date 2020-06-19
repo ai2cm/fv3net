@@ -1,0 +1,154 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: triad-round1-fine-res
+spec:
+  entrypoint: all
+  # This spec contains two templates: hello-hello-hello and whalesay
+  arguments:
+    parameters:
+      - name: tag
+        value: v0.2.3
+      - name: trained-ml
+        value: gs://vcm-ml-experiments/2020-06-17-triad-round1/fine-res/train_sklearn_model
+      - name: prognostic-run
+        value: gs://vcm-ml-experiments/2020-06-17-triad-round1/fine-res/prognostic_run
+      - name: initial-condition
+        value: "20160805.000000"
+  serviceAccountName: integration-tests
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
+  volumes:
+    - name: time-volume
+      configMap:
+        name: fine-res-times-20200602
+    - name: gcp-credentials-user-gcp-sa
+      secret:
+        secretName: gcp-key
+  templates:
+    - name: all
+      # Instead of just running a container
+      # This template has a sequence of steps
+      steps:
+        - - name: train # hello1 is run before the following steps
+            template: train-model
+        - - name: progrun # double dash => run after previous step
+            template: prognostic-run
+
+    # This is the same template as from the previous example
+    - name: train-model
+      container:
+        image: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.tag}}"
+        command: ["bash", "-c", "-x"]
+        envFrom:
+          - configMapRef:
+              name: fine-res-outputs-20200618
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-credentials-user-gcp-sa
+          - mountPath: /etc/times
+            name: time-volume
+        args:
+          - |
+            # Put config in a HEREDOC
+            cat <<EOF >config.yaml
+            model_type: sklearn_random_forest
+            hyperparameters:
+              max_depth: 13
+              n_estimators: 1
+            input_variables:
+            - air_temperature
+            - specific_humidity
+            output_variables:
+            - dQ1
+            - dQ2
+            batch_function: batches_from_geodata
+            batch_kwargs:
+              timesteps_per_batch: 10
+              init_time_dim_name: "initial_time"
+              rename_variables:
+                grid_xt: x
+                grid_yt: y
+                pfull: z
+                delp: pressure_thickness_of_atmospheric_layer
+              mapping_function: open_fine_res_apparent_sources
+              mapping_kwargs:
+                offset_seconds: 450
+            EOF
+
+            python -m fv3net.regression.sklearn \
+              "$FINE_RES" config.yaml {{workflow.parameters.trained-ml}} \
+              --timesteps-file /etc/times/train.json \
+              --no-train-subdir-append
+        resources:
+          requests:
+            memory: "6Gi"
+            cpu: "1000m"
+          limits:
+            memory: "6Gi"
+            cpu: "1000m"
+    - name: prognostic-run
+      container:
+        image: us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.tag}}
+        envFrom:
+          - configMapRef:
+              name: fine-res-outputs-20200618
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        command: ["bash", "-c", "-x"]
+        args:
+          - |
+            FV3NET=~/fv3net
+            # TODO pin this version
+            image=us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.tag}}
+            IC={{workflow.parameters.initial-condition}}
+
+            envsubst <<EOF >config.yaml
+            base_version: v0.4
+            scikit_learn:
+              input_standard_names:
+                total_sky_downward_shortwave_flux_at_top_of_atmosphere: DSWRFtoa_train
+            namelist:
+              coupler_nml:
+                days: 10  # total length
+                hours: 0
+                minutes: 0
+                seconds: 0
+                dt_atmos: 900  # seconds
+                dt_ocean: 900
+                restart_secs: 0  # seconds - frequency to save restarts
+              atmos_model_nml:
+                fhout: 0.25   # hours - frequency to save physics outputs
+                dycore_only: true
+              diag_manager_nml:
+                flush_nc_files: true
+              gfs_physics_nml:
+                do_deep: false
+                fhzero: 0.25  # hours - frequency at which precip is set back to zero
+              fv_core_nml:
+                n_split: 6   # num dynamics steps per physics step
+            EOF
+            python $FV3NET/workflows/prognostic_c48_run/orchestrate_submit_job.py \
+              --image-tag {{workflow.parameters.tag}} \
+              --model_url {{workflow.parameters.trained-ml}} \
+              --prog_config_yml config.yaml \
+              $C48_RESTARTS \
+              $IC \
+              {{workflow.parameters.prognostic-run}}
+        resources:
+          requests:
+            memory: "500Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"

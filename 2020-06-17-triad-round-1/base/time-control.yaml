@@ -1,0 +1,9 @@
+# time-step control for one-step jobs
+# not actually used for these experiments
+# see time_configmap.yaml for the actual one-steps
+url: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
+spinup: "20160805.000000"
+boundary: "20160901.000000"
+train_samples: 130
+test_samples: 96
+seed: "0"

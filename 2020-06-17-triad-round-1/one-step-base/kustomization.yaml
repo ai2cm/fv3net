@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+  - "../base"
+configMapGenerator:
+- files:
+    - end_to_end.yaml
+    - coarsen_c384_diagnostics.yaml
+    - train_sklearn.yaml
+  name: end-to-end
+  behavior: merge
