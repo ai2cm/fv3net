@@ -86,7 +86,7 @@ if __name__ == "__main__":
     diagnostic_datasets = {}
     for dataset_name, dataset_config in datasets_config["sources"].items():
         logger.info(f"Reading dataset {dataset_name}.")
-        ds_batches = batches.diagnostic_sequence_from_mapper(
+        ds_batches = batches.diagnostic_batches_from_geodata(
             dataset_config["path"],
             variable_names,
             rename_variables=dataset_config.get("rename_variables", None),

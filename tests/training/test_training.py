@@ -151,8 +151,8 @@ def test_compute_diags(
     timesteps_per_batch = 1
 
     # one step
-    ds_batches_one_step = batches.diagnostic_sequence_from_mapper(
-        one_step_dataset,
+    ds_batches_one_step = batches.diagnostic_batches_from_geodata(
+        os.path.join(output_dir, one_step_dir),
         variable_names,
         timesteps_per_batch=timesteps_per_batch,
         mapping_function="open_one_step",
@@ -176,8 +176,8 @@ def test_compute_diags(
         },
     }
 
-    ds_batches_nudged = batches.diagnostic_sequence_from_mapper(
-        nudging_dataset,
+    ds_batches_nudged = batches.diagnostic_batches_from_geodata(
+        output_dir,
         variable_names,
         timesteps_per_batch=timesteps_per_batch,
         mapping_function="open_merged_nudged_full_tendencies",
@@ -232,7 +232,7 @@ base_config_dict = {
     "hyperparameters": {"max_depth": 4, "n_estimators": 2},
     "input_variables": ["air_temperature", "specific_humidity"],
     "output_variables": ["dQ1", "dQ2"],
-    "batch_function": "batches_from_mapper",
+    "batch_function": "batches_from_geodata",
 }
 
 
@@ -316,7 +316,7 @@ def test_sklearn_regression_fine_res(fine_res_dataset, fine_res_train_config):
         .rename(rename_variables),
     }
 
-    batched_data = batches._batch._mapper_to_batches(
+    batched_data = batches.batches_from_mapper(
         mapper,
         list(fine_res_train_config.input_variables)
         + list(fine_res_train_config.output_variables),
