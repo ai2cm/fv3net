@@ -3,10 +3,9 @@ from typing import Mapping
 from vcm import safe
 import xarray as xr
 
-from loaders import SAMPLE_DIM_NAME
+from loaders import SAMPLE_DIM_NAME, DERIVATION_DIM
 from .wrapper import SklearnWrapper
 
-DERIVATION_DIM = "derivation"
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
 
