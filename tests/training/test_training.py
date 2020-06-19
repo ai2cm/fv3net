@@ -57,16 +57,11 @@ def test_sklearn_regression(training_config,):
     assert True
 
 
-@pytest.mark.regression
-def test_compute_diags(datadir):
+@pytest.fixture(scope="module")
+def one_step_dataset(datadir_module):
 
-    # load schema and generate input datasets, each with two timesteps
-
-    output_dir = str(datadir.join("out"))
-
-    # one steps
-    one_step_dir = "one_step"
-    with open(str(datadir.join("one_step.json"))) as f:
+    one_step_dir = os.path.join(datadir_module, "one_step")
+    with open(str(datadir_module.join("one_step.json"))) as f:
         one_step_schema = synth.load(f)
     one_step_dataset = synth.generate(one_step_schema)
     one_step_dataset_1 = one_step_dataset.assign_coords(
@@ -76,20 +71,21 @@ def test_compute_diags(datadir):
         {"initial_time": ["20160901.001500"]}
     )
     one_step_dataset_1.to_zarr(
-        os.path.join(output_dir, one_step_dir, "20160901.000000.zarr"),
-        consolidated=True,
+        os.path.join(one_step_dir, "20160901.000000.zarr"), consolidated=True,
     )
     one_step_dataset_2.to_zarr(
-        os.path.join(output_dir, one_step_dir, "20160901.001500.zarr"),
-        consolidated=True,
+        os.path.join(one_step_dir, "20160901.001500.zarr"), consolidated=True,
     )
 
-    # nudging
-    nudging_dir = "outdir-3h"
-    nudging_after_dynamics_zarrpath = os.path.join(
-        output_dir, nudging_dir, "after_dynamics.zarr"
-    )
-    with open(str(datadir.join("after_dynamics.json"))) as f:
+    return one_step_dir
+
+
+@pytest.fixture(scope="module")
+def nudging_dataset(datadir_module):
+
+    nudging_dir = os.path.join(datadir_module, "nudging", "outdir-3h")
+    nudging_after_dynamics_zarrpath = os.path.join(nudging_dir, "after_dynamics.zarr")
+    with open(str(datadir_module.join("after_dynamics.json"))) as f:
         nudging_after_dynamics_schema = synth.load(f)
     nudging_after_dynamics_dataset = synth.generate(
         nudging_after_dynamics_schema
@@ -105,10 +101,8 @@ def test_compute_diags(datadir):
         nudging_after_dynamics_zarrpath, consolidated=True
     )
 
-    nudging_after_physics_zarrpath = os.path.join(
-        output_dir, nudging_dir, "after_physics.zarr"
-    )
-    with open(str(datadir.join("after_physics.json"))) as f:
+    nudging_after_physics_zarrpath = os.path.join(nudging_dir, "after_physics.zarr")
+    with open(str(datadir_module.join("after_physics.json"))) as f:
         nudging_after_physics_schema = synth.load(f)
     nudging_after_physics_dataset = synth.generate(
         nudging_after_physics_schema
@@ -124,10 +118,8 @@ def test_compute_diags(datadir):
         nudging_after_physics_zarrpath, consolidated=True
     )
 
-    nudging_tendencies_zarrpath = os.path.join(
-        output_dir, nudging_dir, "nudging_tendencies.zarr"
-    )
-    with open(str(datadir.join("nudging_tendencies.json"))) as f:
+    nudging_tendencies_zarrpath = os.path.join(nudging_dir, "nudging_tendencies.zarr")
+    with open(str(datadir_module.join("nudging_tendencies.json"))) as f:
         nudging_tendencies_schema = synth.load(f)
     nudging_tendencies_dataset = synth.generate(
         nudging_tendencies_schema
@@ -141,11 +133,21 @@ def test_compute_diags(datadir):
     )
     nudging_tendencies_dataset.to_zarr(nudging_tendencies_zarrpath, consolidated=True)
 
-    # fine res
+    return os.path.join(datadir_module, "nudging")
+
+
+@pytest.fixture(scope="module")
+def fine_res_dataset(datadir_module):
+    """ Note that this does not follow the pattern of the other two datasets
+    in that the synthetic data are not stored in the original format of the
+    fine res data (tiled netcdfs), but instead as a zarr, because synth does
+    not currently support generating netcdfs or splitting by tile
+    """
+
     fine_res_zarrpath = os.path.join(
-        output_dir, "fine_res_budget", "fine_res_budget.zarr"
+        datadir_module, "fine_res_budget", "fine_res_budget.zarr"
     )
-    with open(str(datadir.join("fine_res_budget.json"))) as f:
+    with open(str(datadir_module.join("fine_res_budget.json"))) as f:
         fine_res_budget_schema = synth.load(f)
     fine_res_budget_dataset = synth.generate(fine_res_budget_schema)
     fine_res_budget_dataset_1 = fine_res_budget_dataset.assign_coords(
@@ -158,6 +160,14 @@ def test_compute_diags(datadir):
         [fine_res_budget_dataset_1, fine_res_budget_dataset_2], dim="time"
     )
     fine_res_budget_dataset.to_zarr(fine_res_zarrpath, consolidated=True)
+
+    return fine_res_zarrpath
+
+
+@pytest.mark.regression
+def test_compute_diags(
+    datadir_module, one_step_dataset, nudging_dataset, fine_res_dataset
+):
 
     # load the grid
 
@@ -183,7 +193,7 @@ def test_compute_diags(datadir):
 
     # one step
     ds_batches_one_step = batches.diagnostic_sequence_from_mapper(
-        os.path.join(output_dir, one_step_dir),
+        one_step_dataset,
         variable_names,
         timesteps_per_batch=timesteps_per_batch,
         mapping_function="open_one_step",
@@ -208,7 +218,7 @@ def test_compute_diags(datadir):
     }
 
     ds_batches_nudged = batches.diagnostic_sequence_from_mapper(
-        output_dir,
+        nudging_dataset,
         variable_names,
         timesteps_per_batch=timesteps_per_batch,
         mapping_function="open_merged_nudged_full_tendencies",
@@ -229,8 +239,8 @@ def test_compute_diags(datadir):
         "grid_yt": "y",
     }
     ds_batches_fine_res = [
-        xr.open_zarr(fine_res_zarrpath).isel(time=0).rename(rename_variables),
-        xr.open_zarr(fine_res_zarrpath).isel(time=1).rename(rename_variables),
+        xr.open_zarr(fine_res_dataset).isel(time=0).rename(rename_variables),
+        xr.open_zarr(fine_res_dataset).isel(time=1).rename(rename_variables),
     ]
     ds_diagnostic_fine_res = utils.reduce_to_diagnostic(
         ds_batches_fine_res, grid, domains=DOMAINS
@@ -252,7 +262,7 @@ def test_compute_diags(datadir):
 
     # test against reference
 
-    with open(str(datadir.join("diags_reference.json"))) as f:
+    with open(str(datadir_module.join("diags_reference.json"))) as f:
         reference_output_schema = synth.load(f)
 
     assert reference_output_schema == diags_output_schema
