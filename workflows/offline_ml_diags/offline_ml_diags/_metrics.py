@@ -19,7 +19,7 @@ VERTICAL_PROFILE_MEAN_DIMS = ["time", "x", "y", "tile"]
 def calc_metrics(
     dataset_sequence: Sequence[xr.Dataset],
 ) -> Mapping[str, Mapping[str, float]]:
-    """Calculate metrics over a sequence of batches and return the 
+    """Calculate metrics over a sequence of batches and return the
     mean/std over all batches.
 
     Args:
@@ -27,7 +27,8 @@ def calc_metrics(
         iterated over to calculate batch metrics and their mean/std
 
     Returns:
-        Mapping[str, Mapping[str, float]]: Dict of metrics and their mean/std over batches
+        Mapping[str, Mapping[str, float]]: Dict of metrics and their mean/std
+        over batches
     """
     metrics_batch_collection = []
     for i, ds_batch in enumerate(dataset_sequence):
@@ -65,16 +66,18 @@ def _calc_metric(
     predict_coord: str,
     metric_kwargs: Mapping = None,
 ) -> xr.DataArray:
-    """helper function to calculate arbitrary metrics given the variable, target, and prediction coords
+    """helper function to calculate arbitrary metrics given the variable, target, and
+    prediction coords
 
     Args:
-        ds (xr.Dataset): Dataset with variables to calculate metrics on. Variables should have a DATA_SOURCE
-            dim with coords denoting the sets for comparison, e.g. "prediction", "target"
-        metric_func (Callable[[xr.DataArray, xr.DataArray, xr.DataArray, Sequence[str]], xr.DataArray]):
-            metric calculation function. One of {_rmse, _biase}.
+        ds (xr.Dataset): Dataset with variables to calculate metrics on. Variables
+            should have a DERIVATION dim with coords denoting the sets for comparison,
+            e.g. "prediction", "target"
+        metric_func (Callable, xr.DataArray]): metric calculation function.
+            One of {_rmse, _biase}.
         var (str): Variable name to calculate metric for
-        target_coord (str): DATA_SOURCE coord for "target" values in metric comparison.
-        predict_coord (str): DATA_SOURCE coord for "prediction".
+        target_coord (str): DERIVATION coord for "target" values in metric comparison.
+        predict_coord (str): DERIVATION coord for "prediction".
         metric_kwargs (Mapping, optional): [description]. Defaults to None.
 
     Returns:

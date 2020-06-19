@@ -7,7 +7,7 @@ from offline_ml_diags._metrics import (
     _rmse,
     _calc_batch_metrics,
     calc_metrics,
-    DATA_SOURCE_DIM,
+    DERIVATION_DIM,
     TARGET_COORD,
     PREDICT_COORD,
 )
@@ -17,8 +17,8 @@ from offline_ml_diags._metrics import (
 def ds_mock():
     da = xr.DataArray(
         [[0.0, 1.0]],
-        dims=["z", DATA_SOURCE_DIM],
-        coords={"z": [0], DATA_SOURCE_DIM: [TARGET_COORD, PREDICT_COORD]},
+        dims=["z", DERIVATION_DIM],
+        coords={"z": [0], DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD]},
     )
     delp = xr.DataArray([1.0], dims=["z"], coords={"z": [0]})
     return xr.Dataset(
