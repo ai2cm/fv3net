@@ -18,6 +18,7 @@ VERTICAL_PROFILE_MEAN_DIMS = ["time", "x", "y", "tile"]
 
 def calc_metrics(
     dataset_sequence: Sequence[xr.Dataset],
+    area: xr.DataArray
 ) -> Mapping[str, Mapping[str, float]]:
     """Calculate metrics over a sequence of batches and return the
     mean/std over all batches.
@@ -25,6 +26,7 @@ def calc_metrics(
     Args:
         dataset_sequence (Sequence[xr.Dataset]): Sequence of batched data to be
         iterated over to calculate batch metrics and their mean/std
+        area: dataarray for grid area variable
 
     Returns:
         Mapping[str, Mapping[str, float]]: Dict of metrics and their mean/std
@@ -33,7 +35,7 @@ def calc_metrics(
     metrics_batch_collection = []
     for i, ds_batch in enumerate(dataset_sequence):
         # batch metrics are kept in dataset format for ease of concatting
-        ds = ds_batch.load()
+        ds = xr.merge([area, ds_batch]).load()
         batch_metrics = _calc_batch_metrics(ds).assign_coords({"batch": i})
         metrics_batch_collection.append(batch_metrics)
     ds = xr.concat(metrics_batch_collection, dim="batch")
@@ -45,13 +47,15 @@ def calc_metrics(
 
 
 def _calc_batch_metrics(ds: xr.Dataset) -> xr.Dataset:
+    area_weights = ds["area"] / (ds["area"].mean())
     ds = insert_column_integrated_vars(ds, ML_VARS)
-    ds = _insert_means(ds, METRIC_VARS)
+    ds = _insert_means(ds, METRIC_VARS, area_weights)
     metrics = xr.Dataset()
+    metric_kwargs = {"weights": area_weights}
     for var in METRIC_VARS:
         for metric_func in [_bias, _rmse]:
             for comparison in METRIC_COMPARISON_COORDS:
-                metric = _calc_metric(ds, metric_func, var, *comparison)
+                metric = _calc_metric(ds, metric_func, var, *comparison, metric_kwargs)
                 metrics[metric.name] = metric
     return metrics
 
@@ -92,11 +96,13 @@ def _calc_metric(
     return metric.rename(metric_name)
 
 
-def _insert_means(ds: xr.Dataset, vars: Sequence[str]) -> xr.Dataset:
+def _insert_means(
+        ds: xr.Dataset, vars: Sequence[str], weights: xr.DataArray=None) -> xr.Dataset:
     for var in vars:
         da = ds[var].sel({DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD]})
+        weights = 1. if weights is None else weights
         mean = (
-            da.sel({DERIVATION_DIM: TARGET_COORD})
+            (da.sel({DERIVATION_DIM: TARGET_COORD}) * weights)
             .mean()
             .assign_coords({DERIVATION_DIM: "mean"})
         )

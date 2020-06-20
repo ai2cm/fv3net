@@ -105,6 +105,7 @@ def conditional_average(
         surface_type_array: xr datarray of surface type category strings
         surface_type: str of surface type over which to conditionally average
         area: xr datarray of grid cell areas for weighted averaging
+        dims: dimensions to average over
             
     Returns:
         xr dataarray or dataset of conditionally averaged variables
@@ -140,8 +141,7 @@ def weighted_average(
     Args:
         array: xr dataarray or dataset of variables to averaged
         weights: xr datarray of grid cell weights for averaging
-        surface_type: str of surface type over which to conditionally average
-        area: xr datarray of grid cell areas for weighted averaging
+        dims: dimensions to average over
             
     Returns:
         xr dataarray or dataset of weighted averaged variables
