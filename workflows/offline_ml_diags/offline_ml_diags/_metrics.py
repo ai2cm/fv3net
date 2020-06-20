@@ -97,7 +97,7 @@ def _calc_metric(
 
 
 def _insert_means(
-        ds: xr.Dataset, vars: Sequence[str], weights: xr.DataArray=None) -> xr.Dataset:
+        ds: xr.Dataset, vars: Sequence[str], weights: xr.DataArray = None) -> xr.Dataset:
     for var in vars:
         da = ds[var].sel({DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD]})
         weights = 1. if weights is None else weights
