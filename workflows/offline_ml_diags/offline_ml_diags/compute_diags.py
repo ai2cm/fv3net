@@ -12,6 +12,8 @@ import os
 import logging
 import uuid
 import joblib
+import json
+from ._metrics import calc_metrics
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
@@ -23,6 +25,7 @@ logger = logging.getLogger("offline_diags")
 
 DOMAINS = ["land", "sea", "global"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
+METRICS_JSON_NAME = "metrics.json"
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -87,13 +90,12 @@ if __name__ == "__main__":
     fs_model = get_fs(args.model_path)
     with fs_model.open(args.model_path, "rb") as f:
         model = joblib.load(f)
-    pred_mapper = SklearnPredictionMapper(base_mapper, model,)
+    pred_mapper = SklearnPredictionMapper(
+        base_mapper, model, **config.get("model_mapper_kwargs", {})
+    )
 
     ds_batches = loaders.batches.diagnostic_batches_from_mapper(
-        pred_mapper,
-        config["variables"],
-        rename_variables=config.get("rename_variables", None),
-        **config["batch_kwargs"],
+        pred_mapper, config["variables"], **config["batch_kwargs"],
     )
 
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
@@ -102,3 +104,9 @@ if __name__ == "__main__":
     )
     logger.info(f"Finished processing dataset diagnostics.")
     _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path, DIAGS_NC_NAME)
+    # json of metrics, ex. RMSE and bias
+    metrics = calc_metrics(ds_batches, area=grid["area"])
+    fs = get_fs(args.output_path)
+    with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
+        json.dump(metrics, f)
+    logger.info(f"Finished processing dataset metrics.")

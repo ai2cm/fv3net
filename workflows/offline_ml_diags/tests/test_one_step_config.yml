@@ -1,0 +1,11 @@
+data_path: gs://vcm-ml-data/testing-noah/7563d34ad7dd6bcc716202a0f0c8123653f50ca4/training_data/test
+variables:
+  - air_temperature
+  - specific_humidity
+  - dQ1
+  - dQ2
+  - pressure_thickness_of_atmospheric_layer
+mapping_function: open_one_step
+batch_kwargs:
+  timesteps_per_batch: 1
+  init_time_dim_name: "initial_time"

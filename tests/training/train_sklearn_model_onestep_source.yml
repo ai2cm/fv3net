@@ -8,7 +8,7 @@ input_variables:
 output_variables:
   - dQ1
   - dQ2
-batch_function: batches_from_mapper
+batch_function: batches_from_geodata
 batch_kwargs:
   timesteps_per_batch: 1
   init_time_dim_name: "initial_time"
