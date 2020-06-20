@@ -6,8 +6,10 @@ import os
 import logging
 import diagnostics_utils as utils
 import intake
-from loaders import batches
+from loaders import mappers, batches, SAMPLE_DIM_NAME
 from fv3net.regression.sklearn import train
+from fv3net.regression.sklearn._mapper import SklearnPredictionMapper
+from offline_ml_diags._metrics import calc_metrics
 
 
 logger = logging.getLogger(__name__)
@@ -123,19 +125,21 @@ def fine_res_dataset(datadir_module):
     return fine_res_zarrpath
 
 
-@pytest.mark.regression
-def test_compute_diags(
-    datadir_module, one_step_dataset, nudging_dataset, fine_res_dataset
-):
-
-    # load the grid
+@pytest.fixture
+def grid_dataset():
 
     cat = intake.open_catalog("catalog.yml")
     grid = cat["grid/c48"].to_dask()
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
     surface_type = cat["landseamask/c48"].to_dask()
     surface_type = surface_type.drop(labels=["y", "x"])
-    grid = grid.merge(surface_type)
+    return grid.merge(surface_type)
+
+
+@pytest.mark.regression
+def test_compute_training_diags(
+    datadir_module, one_step_dataset, nudging_dataset, fine_res_dataset, grid_dataset
+):
 
     # compute the diagnostics for each source
 
@@ -158,7 +162,7 @@ def test_compute_diags(
         mapping_function="open_one_step",
     )
     ds_diagnostic_one_step = utils.reduce_to_diagnostic(
-        ds_batches_one_step, grid, domains=DOMAINS
+        ds_batches_one_step, grid_dataset, domains=DOMAINS
     )
     diagnostic_datasets["one_step_tendencies"] = ds_diagnostic_one_step
 
@@ -184,7 +188,7 @@ def test_compute_diags(
         mapping_kwargs=nudged_mapping_kwargs,
     )
     ds_diagnostic_nudged = utils.reduce_to_diagnostic(
-        ds_batches_nudged, grid, domains=DOMAINS
+        ds_batches_nudged, grid_dataset, domains=DOMAINS
     )
     diagnostic_datasets["nudged_tendencies"] = ds_diagnostic_nudged
 
@@ -202,7 +206,7 @@ def test_compute_diags(
         xr.open_zarr(fine_res_dataset).isel(time=1).rename(rename_variables),
     ]
     ds_diagnostic_fine_res = utils.reduce_to_diagnostic(
-        ds_batches_fine_res, grid, domains=DOMAINS
+        ds_batches_fine_res, grid_dataset, domains=DOMAINS
     )
     diagnostic_datasets["fine_res_apparent_sources"] = ds_diagnostic_fine_res
 
@@ -325,3 +329,83 @@ def test_sklearn_regression_fine_res(fine_res_dataset, fine_res_train_config):
     assert len(batched_data) == 2
     wrapper = train.train_model(batched_data, fine_res_train_config)
     assert wrapper.model.n_estimators == 2
+
+
+def mock_predict_function(feature_data_arrays):
+    return sum(feature_data_arrays)
+
+
+class MockSklearnWrappedModel:
+    def __init__(self, input_vars, output_vars):
+        self.input_vars_ = input_vars
+        self.output_vars_ = output_vars
+
+    def predict(self, ds_stacked, sample_dim=SAMPLE_DIM_NAME):
+        ds_pred = xr.Dataset()
+        for output_var in self.output_vars_:
+            feature_vars = [ds_stacked[var] for var in self.input_vars_]
+            mock_prediction = mock_predict_function(feature_vars)
+            ds_pred[output_var] = mock_prediction
+        return ds_pred
+
+
+input_vars = ("air_temperature", "specific_humidity")
+output_vars = ("dQ1", "dQ2")
+
+
+@pytest.fixture
+def mock_model():
+    return MockSklearnWrappedModel(input_vars, output_vars)
+
+
+@pytest.fixture
+def one_step_offline_config():
+    config = {
+        "variables": [
+            "air_temperature",
+            "specific_humidity",
+            "dQ1",
+            "dQ2",
+            "pressure_thickness_of_atmospheric_layer",
+        ],
+        "mapping_function": "open_one_step",
+        "batch_kwargs": {
+            "timesteps_per_batch": 1,
+            "init_time_dim_name": "initial_time",
+        },
+    }
+
+    return config
+
+
+@pytest.mark.regression
+def test_compute_offline_diags_one_step(
+    one_step_dataset, mock_model, one_step_offline_config, grid_dataset
+):
+
+    base_mapping_function = getattr(
+        mappers, one_step_offline_config["mapping_function"]
+    )
+    base_mapper = base_mapping_function(
+        one_step_dataset, **one_step_offline_config.get("mapping_kwargs", {})
+    )
+
+    pred_mapper = SklearnPredictionMapper(
+        base_mapper,
+        mock_model,
+        **one_step_offline_config.get("model_mapper_kwargs", {}),
+    )
+
+    ds_batches = batches.diagnostic_batches_from_mapper(
+        pred_mapper,
+        one_step_offline_config["variables"],
+        **one_step_offline_config["batch_kwargs"],
+    )
+
+    # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
+    ds_diagnostic = utils.reduce_to_diagnostic(
+        ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
+    )
+    print(ds_diagnostic)
+    metrics = calc_metrics(ds_batches, area=grid_dataset["area"])
+    print(metrics)
