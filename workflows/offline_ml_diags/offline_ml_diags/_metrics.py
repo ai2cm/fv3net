@@ -17,8 +17,7 @@ VERTICAL_PROFILE_MEAN_DIMS = ["time", "x", "y", "tile"]
 
 
 def calc_metrics(
-    dataset_sequence: Sequence[xr.Dataset],
-    area: xr.DataArray
+    dataset_sequence: Sequence[xr.Dataset], area: xr.DataArray
 ) -> Mapping[str, Mapping[str, float]]:
     """Calculate metrics over a sequence of batches and return the
     mean/std over all batches.
@@ -97,10 +96,11 @@ def _calc_metric(
 
 
 def _insert_means(
-        ds: xr.Dataset, vars: Sequence[str], weights: xr.DataArray = None) -> xr.Dataset:
+    ds: xr.Dataset, vars: Sequence[str], weights: xr.DataArray = None
+) -> xr.Dataset:
     for var in vars:
         da = ds[var].sel({DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD]})
-        weights = 1. if weights is None else weights
+        weights = 1.0 if weights is None else weights
         mean = (
             (da.sel({DERIVATION_DIM: TARGET_COORD}) * weights)
             .mean()

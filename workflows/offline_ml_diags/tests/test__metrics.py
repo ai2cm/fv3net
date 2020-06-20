@@ -28,7 +28,7 @@ def ds_mock():
 
 @pytest.fixture()
 def area():
-    return xr.DataArray([1], dims=[ "x"], coords={"x": [0]}).rename("area")
+    return xr.DataArray([1], dims=["x"], coords={"x": [0]}).rename("area")
 
 
 def test__calc_batch_metrics(ds_mock, area):

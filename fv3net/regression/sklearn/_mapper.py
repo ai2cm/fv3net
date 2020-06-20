@@ -21,7 +21,7 @@ class SklearnPredictionMapper(DatasetMapper):
         sklearn_wrapped_model: SklearnWrapper,
         init_time_dim: str = "initial_time",
         z_dim: str = "z",
-        rename_vars: Mapping[str, str] = None
+        rename_vars: Mapping[str, str] = None,
     ):
         self._base_mapper = base_mapper
         self._model = sklearn_wrapped_model
