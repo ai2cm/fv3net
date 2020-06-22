@@ -406,12 +406,12 @@ def test_compute_offline_diags_one_step(
     ds_diagnostic = utils.reduce_to_diagnostic(
         ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
-    
+
     diags_output_schema_raw = synth.read_schema_from_dataset(ds_diagnostic)
     # TODO standardize schema encoding in synth to avoid the casting that makes
     # the following line necessary (arrays vs lists)
     diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
-    
+
     # test against reference
     with open(str(datadir_module.join("offline_diags_reference.json"))) as f:
         reference_output_schema = synth.load(f)
@@ -421,8 +421,8 @@ def test_compute_offline_diags_one_step(
     # compute metrics
     metrics = calc_metrics(ds_batches, area=grid_dataset["area"])
     print(metrics)
-    
-    
+
+
 @pytest.fixture
 def nudging_offline_config():
     config = {
@@ -433,28 +433,23 @@ def nudging_offline_config():
             "dQ2",
             "pressure_thickness_of_atmospheric_layer",
         ],
-        'mapping_function': 'open_merged_nudged',
-        'mapping_kwargs': {
-            'nudging_timescale_hr': 3,
-            'initial_time_skip_hr': 0
+        "mapping_function": "open_merged_nudged",
+        "mapping_kwargs": {"nudging_timescale_hr": 3, "initial_time_skip_hr": 0},
+        "batch_kwargs": {
+            "timesteps_per_batch": 1,
+            "init_time_dim_name": "initial_time",
         },
-        'batch_kwargs': {
-            'timesteps_per_batch': 1,
-            'init_time_dim_name': "initial_time"
-        }
     }
 
     return config
 
-    
+
 @pytest.mark.regression
 def test_compute_offline_diags_nudging(
     datadir_module, nudging_dataset, mock_model, nudging_offline_config, grid_dataset
 ):
 
-    base_mapping_function = getattr(
-        mappers, nudging_offline_config["mapping_function"]
-    )
+    base_mapping_function = getattr(mappers, nudging_offline_config["mapping_function"])
     base_mapper = base_mapping_function(
         nudging_dataset, **nudging_offline_config.get("mapping_kwargs", {})
     )
@@ -476,12 +471,12 @@ def test_compute_offline_diags_nudging(
     ds_diagnostic = utils.reduce_to_diagnostic(
         ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
-    
+
     diags_output_schema_raw = synth.read_schema_from_dataset(ds_diagnostic)
     # TODO standardize schema encoding in synth to avoid the casting that makes
     # the following line necessary (arrays vs lists)
     diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
-    
+
     # test against reference
     with open(str(datadir_module.join("offline_diags_reference.json"))) as f:
         reference_output_schema = synth.load(f)
@@ -491,8 +486,8 @@ def test_compute_offline_diags_nudging(
     # compute metrics
     metrics = calc_metrics(ds_batches, area=grid_dataset["area"])
     print(metrics)
-    
-    
+
+
 @pytest.fixture
 def fine_res_offline_config():
     config = {
@@ -503,30 +498,26 @@ def fine_res_offline_config():
             "dQ2",
             "pressure_thickness_of_atmospheric_layer",
         ],
-        'model_mapper_kwargs': {
-            'z_dim': "pfull"
+        "model_mapper_kwargs": {"z_dim": "pfull"},
+        "mapping_function": "open_fine_res_apparent_sources",
+        "mapping_kwargs": {
+            "offset_seconds": 450,
+            "rename_vars": {
+                "grid_xt": "x",
+                "grid_yt": "y",
+                "delp": "pressure_thickness_of_atmospheric_layer",
+            },
         },
-        'mapping_function': 'open_fine_res_apparent_sources',
-        'mapping_kwargs': {
-            'offset_seconds': 450,
-            'rename_vars': {
-                'grid_xt': 'x',
-                'grid_yt': 'y',
-                'delp': 'pressure_thickness_of_atmospheric_layer'
-            }
+        "batch_kwargs": {
+            "timesteps_per_batch": 1,
+            "init_time_dim_name": "initial_time",
+            "rename_variables": {"pfull": "z"},
         },
-        'batch_kwargs': {
-            'timesteps_per_batch': 1,
-            'init_time_dim_name': "initial_time",
-            'rename_variables': {
-                'pfull': 'z'
-            }
-        }
     }
 
     return config
-    
-    
+
+
 @pytest.mark.regression
 def test_compute_offline_diags_fine_res(
     datadir_module, fine_res_dataset, mock_model, fine_res_offline_config, grid_dataset
@@ -555,12 +546,12 @@ def test_compute_offline_diags_fine_res(
     ds_diagnostic = utils.reduce_to_diagnostic(
         ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
-    
+
     diags_output_schema_raw = synth.read_schema_from_dataset(ds_diagnostic)
     # TODO standardize schema encoding in synth to avoid the casting that makes
     # the following line necessary (arrays vs lists)
     diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
-    
+
     # test against reference
     with open(str(datadir_module.join("offline_diags_reference.json"))) as f:
         reference_output_schema = synth.load(f)

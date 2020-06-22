@@ -104,6 +104,7 @@ if __name__ == "__main__":
     )
     logger.info(f"Finished processing dataset diagnostics.")
     _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path, DIAGS_NC_NAME)
+
     # json of metrics, ex. RMSE and bias
     metrics = calc_metrics(ds_batches, area=grid["area"])
     fs = get_fs(args.output_path)
