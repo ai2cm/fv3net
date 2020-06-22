@@ -225,7 +225,7 @@ def test_compute_training_diags(
 
     # test against reference
 
-    with open(str(datadir_module.join("diags_reference.json"))) as f:
+    with open(str(datadir_module.join("training_diags_reference.json"))) as f:
         reference_output_schema = synth.load(f)
 
     assert reference_output_schema == diags_output_schema
@@ -380,7 +380,7 @@ def one_step_offline_config():
 
 @pytest.mark.regression
 def test_compute_offline_diags_one_step(
-    one_step_dataset, mock_model, one_step_offline_config, grid_dataset
+    datadir_module, one_step_dataset, mock_model, one_step_offline_config, grid_dataset
 ):
 
     base_mapping_function = getattr(
@@ -406,6 +406,167 @@ def test_compute_offline_diags_one_step(
     ds_diagnostic = utils.reduce_to_diagnostic(
         ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
-    print(ds_diagnostic)
+    
+    diags_output_schema_raw = synth.read_schema_from_dataset(ds_diagnostic)
+    # TODO standardize schema encoding in synth to avoid the casting that makes
+    # the following line necessary (arrays vs lists)
+    diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
+    
+    # test against reference
+    with open(str(datadir_module.join("offline_diags_reference.json"))) as f:
+        reference_output_schema = synth.load(f)
+
+    assert reference_output_schema == diags_output_schema
+
+    # compute metrics
+    metrics = calc_metrics(ds_batches, area=grid_dataset["area"])
+    print(metrics)
+    
+    
+@pytest.fixture
+def nudging_offline_config():
+    config = {
+        "variables": [
+            "air_temperature",
+            "specific_humidity",
+            "dQ1",
+            "dQ2",
+            "pressure_thickness_of_atmospheric_layer",
+        ],
+        'mapping_function': 'open_merged_nudged',
+        'mapping_kwargs': {
+            'nudging_timescale_hr': 3,
+            'initial_time_skip_hr': 0
+        },
+        'batch_kwargs': {
+            'timesteps_per_batch': 1,
+            'init_time_dim_name': "initial_time"
+        }
+    }
+
+    return config
+
+    
+@pytest.mark.regression
+def test_compute_offline_diags_nudging(
+    datadir_module, nudging_dataset, mock_model, nudging_offline_config, grid_dataset
+):
+
+    base_mapping_function = getattr(
+        mappers, nudging_offline_config["mapping_function"]
+    )
+    base_mapper = base_mapping_function(
+        nudging_dataset, **nudging_offline_config.get("mapping_kwargs", {})
+    )
+
+    pred_mapper = SklearnPredictionMapper(
+        base_mapper,
+        mock_model,
+        **nudging_offline_config.get("model_mapper_kwargs", {}),
+    )
+
+    ds_batches = batches.diagnostic_batches_from_mapper(
+        pred_mapper,
+        nudging_offline_config["variables"],
+        **nudging_offline_config["batch_kwargs"],
+    )
+    print(ds_batches[0])
+
+    # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
+    ds_diagnostic = utils.reduce_to_diagnostic(
+        ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
+    )
+    
+    diags_output_schema_raw = synth.read_schema_from_dataset(ds_diagnostic)
+    # TODO standardize schema encoding in synth to avoid the casting that makes
+    # the following line necessary (arrays vs lists)
+    diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
+    
+    # test against reference
+    with open(str(datadir_module.join("offline_diags_reference.json"))) as f:
+        reference_output_schema = synth.load(f)
+
+    assert reference_output_schema == diags_output_schema
+
+    # compute metrics
+    metrics = calc_metrics(ds_batches, area=grid_dataset["area"])
+    print(metrics)
+    
+    
+@pytest.fixture
+def fine_res_offline_config():
+    config = {
+        "variables": [
+            "air_temperature",
+            "specific_humidity",
+            "dQ1",
+            "dQ2",
+            "pressure_thickness_of_atmospheric_layer",
+        ],
+        'model_mapper_kwargs': {
+            'z_dim': "pfull"
+        },
+        'mapping_function': 'open_fine_res_apparent_sources',
+        'mapping_kwargs': {
+            'offset_seconds': 450,
+            'rename_vars': {
+                'grid_xt': 'x',
+                'grid_yt': 'y',
+                'delp': 'pressure_thickness_of_atmospheric_layer'
+            }
+        },
+        'batch_kwargs': {
+            'timesteps_per_batch': 1,
+            'init_time_dim_name': "initial_time",
+            'rename_variables': {
+                'pfull': 'z'
+            }
+        }
+    }
+
+    return config
+    
+    
+@pytest.mark.regression
+def test_compute_offline_diags_fine_res(
+    datadir_module, fine_res_dataset, mock_model, fine_res_offline_config, grid_dataset
+):
+
+    base_mapping_function = getattr(
+        mappers, fine_res_offline_config["mapping_function"]
+    )
+    base_mapper = base_mapping_function(
+        fine_res_dataset, **fine_res_offline_config.get("mapping_kwargs", {})
+    )
+
+    pred_mapper = SklearnPredictionMapper(
+        base_mapper,
+        mock_model,
+        **fine_res_offline_config.get("model_mapper_kwargs", {}),
+    )
+
+    ds_batches = batches.diagnostic_batches_from_mapper(
+        pred_mapper,
+        fine_res_offline_config["variables"],
+        **fine_res_offline_config["batch_kwargs"],
+    )
+
+    # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
+    ds_diagnostic = utils.reduce_to_diagnostic(
+        ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
+    )
+    
+    diags_output_schema_raw = synth.read_schema_from_dataset(ds_diagnostic)
+    # TODO standardize schema encoding in synth to avoid the casting that makes
+    # the following line necessary (arrays vs lists)
+    diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
+    
+    # test against reference
+    with open(str(datadir_module.join("offline_diags_reference.json"))) as f:
+        reference_output_schema = synth.load(f)
+
+    assert reference_output_schema == diags_output_schema
+
+    # compute metrics
     metrics = calc_metrics(ds_batches, area=grid_dataset["area"])
     print(metrics)
