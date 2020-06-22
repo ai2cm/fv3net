@@ -402,14 +402,17 @@ def test_compute_offline_diags_one_step(
         **one_step_offline_config["batch_kwargs"],
     )
 
-    # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
     ds_diagnostic = utils.reduce_to_diagnostic(
         ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
 
-    diags_output_schema_raw = synth.read_schema_from_dataset(ds_diagnostic)
     # TODO standardize schema encoding in synth to avoid the casting that makes
-    # the following line necessary (arrays vs lists)
+    # the following lines necessary
+    output_file = os.path.join(datadir_module, "offline_diags.nc")
+    xr.merge([grid_dataset, ds_diagnostic]).to_netcdf(output_file)
+    with open(output_file, "rb") as f:
+        ds = xr.open_dataset(f).load()
+    diags_output_schema_raw = synth.read_schema_from_dataset(ds)
     diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
 
     # test against reference
@@ -436,7 +439,7 @@ def nudging_offline_config():
         "mapping_function": "open_merged_nudged",
         "mapping_kwargs": {"nudging_timescale_hr": 3, "initial_time_skip_hr": 0},
         "batch_kwargs": {
-            "timesteps_per_batch": 1,
+            "timesteps_per_batch": 2,
             "init_time_dim_name": "initial_time",
         },
     }
@@ -465,16 +468,18 @@ def test_compute_offline_diags_nudging(
         nudging_offline_config["variables"],
         **nudging_offline_config["batch_kwargs"],
     )
-    print(ds_batches[0])
 
-    # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
     ds_diagnostic = utils.reduce_to_diagnostic(
         ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
 
-    diags_output_schema_raw = synth.read_schema_from_dataset(ds_diagnostic)
     # TODO standardize schema encoding in synth to avoid the casting that makes
-    # the following line necessary (arrays vs lists)
+    # the following lines necessary
+    output_file = os.path.join(datadir_module, "offline_diags.nc")
+    xr.merge([grid_dataset, ds_diagnostic]).to_netcdf(output_file)
+    with open(output_file, "rb") as f:
+        ds = xr.open_dataset(f).load()
+    diags_output_schema_raw = synth.read_schema_from_dataset(ds)
     diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
 
     # test against reference
@@ -499,19 +504,9 @@ def fine_res_offline_config():
             "pressure_thickness_of_atmospheric_layer",
         ],
         "model_mapper_kwargs": {"z_dim": "pfull"},
-        "mapping_function": "open_fine_res_apparent_sources",
-        "mapping_kwargs": {
-            "offset_seconds": 450,
-            "rename_vars": {
-                "grid_xt": "x",
-                "grid_yt": "y",
-                "delp": "pressure_thickness_of_atmospheric_layer",
-            },
-        },
         "batch_kwargs": {
-            "timesteps_per_batch": 1,
+            "timesteps_per_batch": 2,
             "init_time_dim_name": "initial_time",
-            "rename_variables": {"pfull": "z"},
         },
     }
 
@@ -523,12 +518,20 @@ def test_compute_offline_diags_fine_res(
     datadir_module, fine_res_dataset, mock_model, fine_res_offline_config, grid_dataset
 ):
 
-    base_mapping_function = getattr(
-        mappers, fine_res_offline_config["mapping_function"]
-    )
-    base_mapper = base_mapping_function(
-        fine_res_dataset, **fine_res_offline_config.get("mapping_kwargs", {})
-    )
+    rename_variables = {
+        "delp": "pressure_thickness_of_atmospheric_layer",
+        "pfull": "z",
+        "grid_xt": "x",
+        "grid_yt": "y",
+    }
+    base_mapper = {
+        "20160901.000000": xr.open_zarr(fine_res_dataset)
+        .isel(time=0)
+        .rename(rename_variables),
+        "20160901.001500": xr.open_zarr(fine_res_dataset)
+        .isel(time=1)
+        .rename(rename_variables),
+    }
 
     pred_mapper = SklearnPredictionMapper(
         base_mapper,
@@ -542,18 +545,21 @@ def test_compute_offline_diags_fine_res(
         **fine_res_offline_config["batch_kwargs"],
     )
 
-    # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
     ds_diagnostic = utils.reduce_to_diagnostic(
         ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
 
-    diags_output_schema_raw = synth.read_schema_from_dataset(ds_diagnostic)
     # TODO standardize schema encoding in synth to avoid the casting that makes
-    # the following line necessary (arrays vs lists)
+    # the following lines necessary
+    output_file = os.path.join(datadir_module, "offline_diags.nc")
+    xr.merge([grid_dataset, ds_diagnostic]).to_netcdf(output_file)
+    with open(output_file, "rb") as f:
+        ds = xr.open_dataset(f).load()
+    diags_output_schema_raw = synth.read_schema_from_dataset(ds)
     diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
 
     # test against reference
-    with open(str(datadir_module.join("offline_diags_reference.json"))) as f:
+    with open(str(datadir_module.join("offline_diags_reference_fine_res.json"))) as f:
         reference_output_schema = synth.load(f)
 
     assert reference_output_schema == diags_output_schema
