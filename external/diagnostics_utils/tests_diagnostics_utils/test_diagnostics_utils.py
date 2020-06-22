@@ -2,7 +2,7 @@ import pytest
 import xarray as xr
 import numpy as np
 import diagnostics_utils as utils
-from diagnostics_utils.utils import _insert_column_integrated_vars, _rechunk_time_z
+from diagnostics_utils.utils import insert_column_integrated_vars, _rechunk_time_z
 from vcm import thermo
 
 
@@ -29,7 +29,7 @@ def test__inserted_column_integrated_vars():
         }
     )
 
-    xr.testing.assert_allclose(_insert_column_integrated_vars(ds, ["Q1"]), expected)
+    xr.testing.assert_allclose(insert_column_integrated_vars(ds, ["Q1"]), expected)
 
 
 def test__rechunk_time_z():
