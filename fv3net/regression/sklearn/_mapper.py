@@ -3,10 +3,8 @@ from typing import Mapping
 from vcm import safe
 import xarray as xr
 
-from loaders import SAMPLE_DIM_NAME, DERIVATION_DIM
-from loaders.mappers import GeoMapper
 from .wrapper import SklearnWrapper
-
+from loaders import GeoMapper, SAMPLE_DIM_NAME, DERIVATION_DIM
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
 
@@ -18,11 +16,13 @@ class SklearnPredictionMapper(GeoMapper):
         sklearn_wrapped_model: SklearnWrapper,
         init_time_dim: str = "initial_time",
         z_dim: str = "z",
+        rename_vars: Mapping[str, str] = None,
     ):
         self._base_mapper = base_mapper
         self._model = sklearn_wrapped_model
         self._init_time_dim = init_time_dim
         self._z_dim = z_dim
+        self.rename_vars = rename_vars or {}
 
     def _predict(self, ds):
         if set(self._model.input_vars_).issubset(ds.data_vars) is False:
@@ -42,7 +42,8 @@ class SklearnPredictionMapper(GeoMapper):
             [dim for dim in ds_.dims if dim != self._z_dim],
             allowed_broadcast_dims=[self._z_dim, self._init_time_dim],
         )
-        return self._model.predict(ds_stacked, SAMPLE_DIM_NAME).unstack()
+        ds_pred = self._model.predict(ds_stacked, SAMPLE_DIM_NAME).unstack()
+        return ds_pred.rename(self.rename_vars)
 
     def _insert_prediction(self, ds, ds_pred):
         predicted_vars = ds_pred.data_vars

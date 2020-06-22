@@ -6,6 +6,7 @@ from .utils import (
     conditional_average,
     weighted_average,
     snap_mask_to_type,
+    insert_column_integrated_vars,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "conditional_average",
     "weighted_average",
     "snap_mask_to_type",
+    "insert_column_integrated_vars",
 ]
