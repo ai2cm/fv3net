@@ -9,6 +9,7 @@ experiment:
     - create_training_data
     - train_sklearn_model
     - prognostic_run
+    - baseline_run
 
   steps_config:
     coarsen_diagnostics:
@@ -49,7 +50,20 @@ experiment:
         restart_data:
           location: $C48_RESTARTS
         ic_timestep: $IC_TIMESTEP
-        --image_tag: $TAG
+        --image-tag: $TAG
+        --allow_fail: ''
         --prog_config_yml: $CONFIG/prognostic_run.yaml
+        --model_url:
+          from: train_sklearn_model
+
+    baseline_run:
+      command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
+      args:
+        restart_data:
+          location: $C48_RESTARTS
+        ic_timestep: $IC_TIMESTEP
+        --image-tag: $TAG
+        --prog_config_yml: $CONFIG/prognostic_run.yaml
+        --diagnostic_ml: ''
         --model_url:
           from: train_sklearn_model
