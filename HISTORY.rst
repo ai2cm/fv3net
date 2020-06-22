@@ -4,6 +4,7 @@ History
 
 latest
 ------
+* Add regression tests for model training and offline ML diagnostic steps
 
 0.2.3 (2020-06-19)
 ------------------
