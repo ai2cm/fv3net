@@ -125,7 +125,7 @@ def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str):
         clear_encoding(item)
         chunked = rechunk(item, chunks)
         dest = os.path.join(d_out, relpath)
-        chunked.to_zarr(dest, mode="w")
+        chunked.to_zarr(dest, mode="w", consolidated=True)
     else:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         try:
