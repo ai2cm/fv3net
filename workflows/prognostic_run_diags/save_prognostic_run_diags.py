@@ -128,7 +128,6 @@ def compute_all_derived_vars(input_datasets: Dict[str, DiagArg]) -> Dict[str, Di
     return input_datasets
 
 
-@add_to_derived_vars("physics_3H", "physics_15min")
 def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
     """Compute derived variables for physics datasets"""
     arrays = []
@@ -145,6 +144,16 @@ def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
         except (KeyError, AttributeError):  # account for ds[var] and ds.var notations
             logger.warning(f"Missing variable for calculation in {func.__name__}")
     return xr.merge(arrays)
+
+
+@add_to_derived_vars("physics_3H")
+def derived_physics_variables_copy(ds: xr.Dataset) -> xr.Dataset:
+    return derived_physics_variables(ds)
+
+
+@add_to_derived_vars("physics_15min")
+def derived_physics_variables_copy(ds: xr.Dataset) -> xr.Dataset:
+    return derived_physics_variables(ds)
 
 
 def _column_pq1(ds: xr.Dataset) -> xr.DataArray:
@@ -227,16 +236,11 @@ def calc_ds_diurnal_cycle(ds):
     Calculates the diurnal cycle on moisture variables.  Expects
     time dimension and longitude variable "lon".
     """
-    # TODO: switch to vcm.safe dataset usage
-    diurnal_cycle_vars = [
-        f"column_integrated_{a}Q{b}" for a in ["p", "q", ""] for b in ["1", "2"]
-    ]
     local_time = vcm.local_time(ds, time="time", lon_var="lon")
+    local_time.attrs = {"long_name": "local time", "units": "hour"}
 
-    ds = ds[[var for var in diurnal_cycle_vars if var in ds]]
     local_time = np.floor(local_time)  # equivalent to hourly binning
     ds["local_time"] = local_time
-    # TODO: groupby is pretty slow, appears to be single-threaded op
     diurnal_ds = ds.groupby("local_time").mean()
 
     return diurnal_ds
@@ -312,11 +316,22 @@ def diurnal_cycles(resampled, verification, grid):
 
     logger.info("Preparing diurnal cycle diagnostics")
 
-    # TODO: Add in different masked diurnal cycles
-    resampled["lon"] = grid["lon"]
-    diurnal_resampled = calc_ds_diurnal_cycle(resampled)
+    diurnal_cycle_vars = [
+        f"column_integrated_{a}Q{b}" for a in ["d", "p", ""] for b in ["1", "2"]
+    ] + ["SLMSKsfc"]
+    resampled = resampled[[var for var in diurnal_cycle_vars if var in resampled]]
 
-    return _prepare_diag_dict("diurnal_global", diurnal_resampled, resampled)
+    resampled["lon"] = grid["lon"]
+    diag_dicts = {}
+    for surface_name in ["global", "land", "sea", "seaice"]:
+        masked = vcm.mask_to_surface_type(
+            resampled, surface_name, surface_type_var="SLMSKsfc"
+        )
+        diurnal_ds = calc_ds_diurnal_cycle(masked)
+        diag_dicts.update(
+            _prepare_diag_dict(f"diurnal_{surface_name}", diurnal_ds, resampled)
+        )
+    return diag_dicts
 
 
 def _catalog():

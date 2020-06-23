@@ -21,7 +21,7 @@ DIM_RENAME_INVERSE_MAP = {
     "y": {"grid_yt", "grid_yt_coarse"},
     "tile": {"rank"},
     "xb": {"grid_x", "grid_x_coarse", "x_interface"},
-    "yb": {"grid_y", "grid_y_coarse", "x_interface"},
+    "yb": {"grid_y", "grid_y_coarse", "y_interface"},
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 _DIAG_OUTPUT_LOADERS = []
