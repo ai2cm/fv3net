@@ -42,9 +42,10 @@ export RUNFILE=$2
 export OUTPUT_URL=$3
 export DOCKER_IMAGE=$4
 export JOBNAME=$job_prefix-$rand_tag
+export DYNAMIC_VOLUME="nudging-dynamic-vol-"$rand_tag
 
 cat job_template.yaml | \
-    envsubst '$CONFIG $RUNFILE $OUTPUT_URL $DOCKER_IMAGE $JOBNAME' | \
+    envsubst '$CONFIG $RUNFILE $OUTPUT_URL $DOCKER_IMAGE $JOBNAME $DYNAMIC_VOLUME' | \
     tee job.yaml
 
 kubectl apply -f job.yaml
@@ -76,6 +77,7 @@ function waitForComplete {
     if [[ $job_succeed == "1" ]]
     then
         echo -e Job successful: "$JOBNAME"
+        kubectl delete pvc ${DYNAMIC_VOLUME}
     elif [[ $job_fail == "1" ]]
     then
         echo -e Job failed: "$JOBNAME"
