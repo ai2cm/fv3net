@@ -20,8 +20,8 @@ DIM_RENAME_INVERSE_MAP = {
     "x": {"grid_xt", "grid_xt_coarse"},
     "y": {"grid_yt", "grid_yt_coarse"},
     "tile": {"rank"},
-    "xb": {"grid_x", "grid_x_coarse"},
-    "yb": {"grid_y", "grid_y_coarse"},
+    "xb": {"grid_x", "grid_x_coarse", "x_interface"},
+    "yb": {"grid_y", "grid_y_coarse", "x_interface"},
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 _DIAG_OUTPUT_LOADERS = []
@@ -229,9 +229,7 @@ def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     # open grid
     logger.info("Opening Grid Spec")
     grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
-    grid_c48 = vcm.cubedsphere.weighted_block_average(
-        grid_c384, grid_c384.area, 8, x_dim="x", y_dim="y"
-    )
+    grid_c48 = standardize_gfsphysics_diagnostics(catalog['grid/c48'].to_dask())
 
     # open verification
     logger.info("Opening verification data")
@@ -244,7 +242,7 @@ def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     logger.info(f"Opening prognostic run data at {path}")
     ds = _load_standardized(path)
 
-    return ds, verification_c48, grid_c48[["area"]]
+    return ds, verification_c48, grid_c48
 
 
 def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
@@ -265,9 +263,7 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     # open grid
     logger.info("Opening Grid Spec")
     grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
-    grid_c48 = vcm.cubedsphere.weighted_block_average(
-        grid_c384, grid_c384.area, 8, x_dim="x", y_dim="y"
-    )
+    grid_c48 = standardize_gfsphysics_diagnostics(catalog['grid/c48'].to_dask())
 
     # open verification
     # TODO: load physics diagnostics for SHiELD data. Currently slow due to chunking.
@@ -277,4 +273,4 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
 
-    return prognostic_output, verification_c48, grid_c48[["area"]]
+    return prognostic_output, verification_c48, grid_c48

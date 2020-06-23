@@ -128,7 +128,7 @@ def compute_all_derived_vars(input_datasets: Dict[str, DiagArg]) -> Dict[str, Di
     return input_datasets
 
 
-@add_to_derived_vars("physics")
+@add_to_derived_vars("physics_3H", "physics_15min")
 def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
     """Compute derived variables for physics datasets"""
     arrays = []
@@ -225,65 +225,21 @@ def bias(truth, prediction, w, dims):
 def calc_ds_diurnal_cycle(ds):
     """
     Calculates the diurnal cycle on moisture variables.  Expects
-    time dimension and longitude variable "grid_lont".
+    time dimension and longitude variable "lon".
     """
     # TODO: switch to vcm.safe dataset usage
-    moist_vars = ["LHTFLsfc", "PRATEsfc", "net_moistening"]
-    local_time = vcm.local_time(ds, time="time", lon_var="grid_lont")
+    diurnal_cycle_vars = [
+        f"column_integrated_{a}Q{b}" for a in ["p", "q", ""] for b in ["1", "2"]
+    ]
+    local_time = vcm.local_time(ds, time="time", lon_var="lon")
 
-    ds = ds[[var for var in moist_vars if var in ds]]
+    ds = ds[[var for var in diurnal_cycle_vars if var in ds]]
     local_time = np.floor(local_time)  # equivalent to hourly binning
-    ds["mean_local_time"] = local_time
+    ds["local_time"] = local_time
     # TODO: groupby is pretty slow, appears to be single-threaded op
-    diurnal_ds = ds.groupby("mean_local_time").mean()
+    diurnal_ds = ds.groupby("local_time").mean()
 
     return diurnal_ds
-
-
-def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
-    """
-    Adds moisture quantites for the individual component comparison
-    of the diurnal cycle  moisture
-    """
-
-    # For easy filtering into plot component
-    filter_flag = "moistvar_comp"
-
-    ds_verif[f"total_P_{filter_flag}"] = ds_verif["PRATEsfc"].assign_attrs(
-        {"long_name": "diurnal precipitation from verification", "units": "kg/m^2/s"}
-    )
-
-    total_P = ds_run["PRATEsfc"]
-    if "net_moistening" in ds_run:
-        total_P = total_P - ds_run["net_moistening"]  # P - dQ2
-    ds_run[f"total_P_{filter_flag}"] = total_P.assign_attrs(
-        {
-            "long_name": "diurnal precipitation from coarse model run",
-            "units": "kg/m^2/s",
-        }
-    )
-
-    E_run = vcm.latent_heat_flux_to_evaporation(ds_run["LHTFLsfc"])
-    E_verif = vcm.latent_heat_flux_to_evaporation(ds_verif["LHTFLsfc"])
-    E_diff = E_run - E_verif
-    P_diff = ds_run[f"total_P_{filter_flag}"] - ds_verif[f"total_P_{filter_flag}"]
-
-    ds_run[f"evap_diff_from_verif_{filter_flag}"] = E_diff.assign_attrs(
-        {"long_name": "diurnal diff: evap_coarse - evap_hires", "units": "kg/m^2/s"}
-    )
-    ds_run[f"precip_diff_from_verif_{filter_flag}"] = P_diff.assign_attrs(
-        {"long_name": "diurnal diff: precip_coarse - precip_hires", "units": "kg/m^2/s"}
-    )
-
-    net_precip_diff = P_diff - E_diff
-    ds_run[f"net_precip_diff_from_verif_{filter_flag}"] = net_precip_diff.assign_attrs(
-        {
-            "long_name": "diurnal diff: net_precip_coarse - net_precip_hires",
-            "units": "kg/m^2/s",
-        }
-    )
-
-    return ds_run, ds_verif
 
 
 def dump_nc(ds: xr.Dataset, f):
@@ -351,26 +307,16 @@ def global_biases_physics(resampled, verification, grid):
     return _prepare_diag_dict("bias_global_physics", bias_errors, resampled)
 
 
+@add_to_diags("physics_15min")
 def diurnal_cycles(resampled, verification, grid):
 
     logger.info("Preparing diurnal cycle diagnostics")
 
     # TODO: Add in different masked diurnal cycles
-
-    diurnal_verif = calc_ds_diurnal_cycle(verification)
-    lon = verification["grid_lont"]
-    resampled["grid_lont"] = lon
+    resampled["lon"] = grid["lon"]
     diurnal_resampled = calc_ds_diurnal_cycle(resampled)
 
-    diurnal_resampled, diurnal_verif = _add_derived_moisture_diurnal_quantities(
-        diurnal_resampled, diurnal_verif
-    )
-
-    # Add to diagnostics
-    verif_diags = _prepare_diag_dict("verif_diurnal", diurnal_verif, verification)
-    resampled_diags = _prepare_diag_dict("run_diurnal", diurnal_resampled, resampled)
-
-    return dict(**verif_diags, **resampled_diags)
+    return _prepare_diag_dict("diurnal_global", diurnal_resampled, resampled)
 
 
 def _catalog():
@@ -378,11 +324,14 @@ def _catalog():
     return str(TOP_LEVEL_DIR / "catalog.yml")
 
 
-def _resample(arg: DiagArg, freq_label: str, time_slice=slice(None, -1)) -> DiagArg:
+def _resample_time(
+    arg: DiagArg, freq_label: str, time_slice=slice(None, -1)
+) -> DiagArg:
     prognostic, verification, grid = arg
     prognostic = prognostic.resample(time=freq_label, label="right").nearest()
     prognostic = prognostic.isel(time=time_slice)
-    verification = verification.sel(time=prognostic.time)
+    if "time" in verification:  # verification might be an empty dataset
+        verification = verification.sel(time=prognostic.time)
     return prognostic, verification, grid
 
 
@@ -411,9 +360,9 @@ if __name__ == "__main__":
     }
 
     resampled_data = {
-        "dycore": _resample(loaded_data["dycore"], "3H"),
-        "physics_3H": _resample(loaded_data["physics"], "3H"),
-        "physics_15min": _resample(loaded_data["physics"], "15min"),
+        "dycore": _resample_time(loaded_data["dycore"], "3H"),
+        "physics_3H": _resample_time(loaded_data["physics"], "3H"),
+        "physics_15min": _resample_time(loaded_data["physics"], "15min"),
     }
 
     # add derived variables
