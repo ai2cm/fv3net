@@ -19,10 +19,12 @@ namelist:
     - 0
     - 15
     - 0
-    days: 5
-    hours: 0
+    days: 0
+    hours: 3
     minutes: 0
     months: 0
     seconds: 0
   fv_core_nml:
     do_sat_adj: false
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false

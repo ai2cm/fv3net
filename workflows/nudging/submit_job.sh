@@ -44,6 +44,22 @@ export DOCKER_IMAGE=$4
 export JOBNAME=$job_prefix-$rand_tag
 export DYNAMIC_VOLUME="nudging-dynamic-vol-"$rand_tag
 
+cat <<EOF > dynamic_volume.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${DYNAMIC_VOLUME}
+spec:
+  storageClassName: fast
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Ti
+EOF
+
+kubectl apply -f dynamic_volume.yaml
+
 cat job_template.yaml | \
     envsubst '$CONFIG $RUNFILE $OUTPUT_URL $DOCKER_IMAGE $JOBNAME $DYNAMIC_VOLUME' | \
     tee job.yaml
