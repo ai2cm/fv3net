@@ -4,6 +4,7 @@ History
 
 latest
 ------
+* Increase nudging run memory limits and add a high-capacity dynamic volume for nudging output 
 
 0.2.3 (2020-06-19)
 ------------------
