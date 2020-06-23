@@ -41,11 +41,14 @@ class MergeOverlappingData(GeoMapper):
         ds_nonoverlap = xr.merge([ds.drop(self._var_overlap) for ds in datasets])
         overlapping = []
         for ds, source_coord in zip(datasets, self._source_names):
-            overlapping.append(
-                safe.get_variables(ds, self._var_overlap) \
-                    .expand_dims(self._overlap_dim) \
-                    .assign_coords({self._overlap_dim: [source_coord]})
-            )
+            if self._overlap_dim in ds.dims:
+                overlapping.append(safe.get_variables(ds, self._var_overlap))
+            else:
+                overlapping.append(
+                    safe.get_variables(ds, self._var_overlap) \
+                        .expand_dims(self._overlap_dim) \
+                        .assign_coords({self._overlap_dim: [source_coord]})
+                )
         return xr.merge(overlapping + [ds_nonoverlap])
 
     @staticmethod
