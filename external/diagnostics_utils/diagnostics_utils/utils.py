@@ -31,7 +31,7 @@ def reduce_to_diagnostic(
     """
 
     ds = xr.concat(ds_batches, dim=TIME_DIM)
-    ds = _insert_column_integrated_vars(ds, primary_vars)
+    ds = insert_column_integrated_vars(ds, primary_vars)
     ds = _rechunk_time_z(ds)
     ds_time_averaged = ds.mean(dim=TIME_DIM, keep_attrs=True)
     ds_time_averaged = ds_time_averaged.drop_vars(
@@ -58,7 +58,7 @@ def reduce_to_diagnostic(
     return xr.merge([domain_ds, ds_time_averaged.drop(labels=primary_vars)])
 
 
-def _insert_column_integrated_vars(
+def insert_column_integrated_vars(
     ds: xr.Dataset, column_integrated_vars: Sequence[str]
 ) -> xr.Dataset:
     """Insert column integrated (<*>) terms,
@@ -69,8 +69,11 @@ def _insert_column_integrated_vars(
         if "Q1" in var:
             da = thermo.column_integrated_heating(ds[var], ds[VARNAMES["delp"]])
         elif "Q2" in var:
-            da = thermo.minus_column_integrated_moistening(
+            da = -thermo.minus_column_integrated_moistening(
                 ds[var], ds[VARNAMES["delp"]]
+            )
+            da = da.assign_attrs(
+                {"long_name": "column integrated moistening", "units": "mm/day"}
             )
         ds = ds.assign({column_integrated_name: da})
 
@@ -93,6 +96,7 @@ def conditional_average(
     surface_type_array: xr.DataArray,
     surface_type: str,
     area: xr.DataArray,
+    dims: Sequence[str] = ["tile", "y", "x"],
 ) -> xr.Dataset:
     """Average over a conditional type
     
@@ -101,6 +105,7 @@ def conditional_average(
         surface_type_array: xr datarray of surface type category strings
         surface_type: str of surface type over which to conditionally average
         area: xr datarray of grid cell areas for weighted averaging
+        dims: dimensions to average over
             
     Returns:
         xr dataarray or dataset of conditionally averaged variables
@@ -114,11 +119,11 @@ def conditional_average(
         area_masked = area.where(surface_type_array == surface_type)
     else:
         raise ValueError(
-            f"surfae type {surface_type} not in provided surface type array "
+            f"surface type {surface_type} not in provided surface type array "
             f"with types {all_types}."
         )
 
-    return weighted_average(ds, area_masked)
+    return weighted_average(ds, area_masked, dims)
 
 
 def _weighted_average(array, weights, axis=None):
@@ -136,8 +141,7 @@ def weighted_average(
     Args:
         array: xr dataarray or dataset of variables to averaged
         weights: xr datarray of grid cell weights for averaging
-        surface_type: str of surface type over which to conditionally average
-        area: xr datarray of grid cell areas for weighted averaging
+        dims: dimensions to average over
             
     Returns:
         xr dataarray or dataset of weighted averaged variables

@@ -11,13 +11,16 @@ logger = logging.getLogger(__name__)
 JobInfo = Tuple[str, str]
 
 
-def initialize_batch_client() -> kubernetes.client.BatchV1Api:
-
+def load_kube_config():
     try:
         kubernetes.config.load_kube_config()
     except (TypeError, kubernetes.config.config_exception.ConfigException):
         kubernetes.config.load_incluster_config()
 
+
+def initialize_batch_client() -> kubernetes.client.BatchV1Api:
+
+    load_kube_config()
     batch_client = kubernetes.client.BatchV1Api()
 
     return batch_client
