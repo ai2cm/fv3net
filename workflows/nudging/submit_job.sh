@@ -49,6 +49,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: ${DYNAMIC_VOLUME}
+  labels:
+    group: nudging-storage
 spec:
   storageClassName: fast
   accessModes:

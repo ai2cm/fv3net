@@ -1,7 +1,7 @@
 IMG_NAME?=us.gcr.io/vcm-ml/fv3gfs-python
 IMG_VERSION?=v0.4.3
 TIMESCALE_HOURS?=3
-REMOTE_ROOT?=gs://vcm-ml-scratch/andrep/test_dynamic_vol
+REMOTE_ROOT?=gs://vcm-ml-scratch/andrep/test-nudging
 OUTDIR?=outdir
 FV3RUN_FLAGS?=
 
