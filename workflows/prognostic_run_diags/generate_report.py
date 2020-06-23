@@ -179,8 +179,19 @@ def global_avg_physics_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="global_phys_avg")
 
 
-def diurnal_cycle_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
-    return HVPlot(holomap_filter(time_series, varfilter="diurnal").overlay("run"))
+@diag_plot_manager.register
+def diurnal_cycle_global_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="diurnal_global")
+
+
+@diag_plot_manager.register
+def diurnal_cycle_land_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="diurnal_land")
+
+
+@diag_plot_manager.register
+def diurnal_cycle_sea_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="diurnal_sea")
 
 
 # Routines for plotting the "metrics"
