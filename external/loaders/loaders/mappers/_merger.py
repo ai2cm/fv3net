@@ -13,7 +13,7 @@ def get_sample_dataset(mapper):
 
 class MergeOverlappingData(GeoMapper):
     """
-    Mapper for merging data sources that have overlapping data vars. 
+    Mapper for merging data sources that have overlapping data vars.
     The overlapping variable will be given an additional data_source
     coordinate to be used in reference a given dataset's variable.
     """
@@ -87,7 +87,7 @@ class MergeOverlappingData(GeoMapper):
                         if overlap_dim not in ds[var]:
                             vars_missing_dim.append(var)
             raise ValueError(
-                "If overlap dimension {overlap_dim} already exists in one of the mappers "
-                "it must be present for all overlapping variables. "
+                "If overlap dimension {overlap_dim} already exists in "
+                "one of the mappers it must be present for all overlapping variables. "
                 f"Variables {vars_missing_dim} are missing dimension {overlap_dim}."
             )

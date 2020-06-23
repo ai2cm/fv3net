@@ -86,9 +86,7 @@ def test_merged_var_overlap(mock_mapper_different_times, overlapping_times):
 def test_fail_initialization(num_base_mappers, source_names):
     mapper = MockBaseMapper(dataset(["var0", "var1"]))
     with pytest.raises(Exception):
-        merged = MergeOverlappingData(
-            [mapper for i in range(num_base_mappers)], source_names
-        )
+        MergeOverlappingData([mapper for i in range(num_base_mappers)], source_names)
 
 
 def test__check_overlap_vars_dims():
