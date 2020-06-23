@@ -95,7 +95,7 @@ function waitForComplete {
     if [[ $job_succeed == "1" ]]
     then
         echo -e Job successful: "$JOBNAME"
-        kubectl delete job ${JOBNAME}
+        kubectl delete pod $(kubectl get pod -l job-name=$JOBNAME -o json | jq --raw-output .items[].metadata.name)
         kubectl delete pvc ${DYNAMIC_VOLUME}
     elif [[ $job_fail == "1" ]]
     then
