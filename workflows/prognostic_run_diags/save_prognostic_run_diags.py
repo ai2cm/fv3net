@@ -323,7 +323,7 @@ def diurnal_cycles(resampled, verification, grid):
 
     resampled["lon"] = grid["lon"]
     diag_dicts = {}
-    for surface_name in ["global", "land", "sea", "seaice"]:
+    for surface_name in ["global", "land", "sea"]:
         masked = vcm.mask_to_surface_type(
             resampled, surface_name, surface_type_var="SLMSKsfc"
         )
