@@ -9,4 +9,3 @@ from ._high_res_diags import open_high_res_diags
 
 # mapper classes used externally
 from ._base import GeoMapper, LongRunMapper
-from ._merger import MergeOverlappingData
