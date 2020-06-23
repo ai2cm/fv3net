@@ -92,3 +92,13 @@ def test_fail_initialization(num_base_mappers, source_names):
     mapper = MockBaseMapper(dataset(["var0", "var1"]))
     with pytest.raises(Exception):
         merged = MergeOverlappingData([mapper for i in range(num_base_mappers)], source_names) 
+
+
+def test__check_overlap_vars_dims():
+    overlap_vars = ["var0", "var1"]
+    invalid_dataset = xr.Dataset(
+        {"var0": da, "var1": da_overlap_dim}
+    )
+    ds = dataset(overlap_vars)
+    with pytest.raises(Exception):
+        MergeOverlappingData._check_overlap_vars_dims([invalid_dataset, ds], overlap_vars, overlap_dim=OVERLAP_DIM)

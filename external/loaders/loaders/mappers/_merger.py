@@ -6,6 +6,10 @@ from ._base import GeoMapper
 from ..constants import DERIVATION_DIM
 
 
+def get_sample_dataset(mapper):
+    sample_key = list(mapper.keys())[0]
+    return mapper[sample_key]
+
 class MergeOverlappingData(GeoMapper):
     """
     Mapper for merging data sources that have overlapping data vars. 
@@ -30,6 +34,7 @@ class MergeOverlappingData(GeoMapper):
         self._source_names = source_names
         self._var_overlap = self._get_var_overlap(self._mappers)
         self._overlap_dim = overlap_dim
+        
         
     def keys(self):
         mappers_keys = [mapper.keys() for mapper in self._mappers]
@@ -57,11 +62,29 @@ class MergeOverlappingData(GeoMapper):
     def _get_var_overlap(mappers_to_combine):
         ds_var_sets = []
         for mapper in mappers_to_combine:
-            sample_key = list(mapper.keys())[0]
-            ds_var_sets.append(set(mapper[sample_key].data_vars))
+            ds_var_sets.append(set(get_sample_dataset(mapper).data_vars))
         overlap = set()
         checked = set()
         for data_var in ds_var_sets:
             overlap |= data_var & checked
             checked |= data_var
         return overlap
+    
+    @staticmethod
+    def _check_overlap_vars_dims(mappers, overlap_vars, overlap_dim):
+        datasets = [get_sample_dataset(mapper) for mapper in mappers]
+        overlap_var_dims = [safe.get_variables(ds, overlap_vars).dims for ds in datasets]
+        if not all(x == overlap_var_dims[0] for x in overlap_var_dims):
+            vars_missing_dim = []
+            # if a dataset already has overlap dim, get names of dataarrays
+            # that are missing this dimension
+            for ds in datasets:
+                ds_overlap_vars = safe.get_variables(ds, overlap_vars)
+                if overlap_dim in ds_overlap_vars.dims:
+                    for var in overlap_vars:
+                        if overlap_dim not in ds[var]:
+                            vars_missing_dim.append(var)
+            raise ValueError(
+                "If overlap dimension {overlap_dim} already exists in one of the mappers "
+                "it must be present for all overlapping variables. "
+                f"Variables {vars_missing_dim} are missing dimension {overlap_dim}.")

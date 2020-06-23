@@ -4,7 +4,8 @@ from vcm import safe
 import xarray as xr
 
 from .wrapper import SklearnWrapper
-from loaders import GeoMapper, SAMPLE_DIM_NAME, DERIVATION_DIM
+from loaders.mappers import GeoMapper
+from loaders import SAMPLE_DIM_NAME, DERIVATION_DIM
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
 
