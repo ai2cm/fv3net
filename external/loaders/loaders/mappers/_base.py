@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import vcm
@@ -47,4 +46,3 @@ class LongRunMapper(GeoMapper):
             time.strftime(TIME_FMT)
             for time in pd.to_datetime(self.ds[TIME_NAME].values)
         ]
-

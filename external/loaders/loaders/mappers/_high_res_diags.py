@@ -28,9 +28,9 @@ RENAMED_HIGH_RES_DIMS = {
 
 
 def open_high_res_diags(
-        url,
-        renamed_vars: Mapping = RENAMED_HIGH_RES_DIAG_VARS,
-        renamed_dims: Mapping = RENAMED_HIGH_RES_DIMS
+    url,
+    renamed_vars: Mapping = RENAMED_HIGH_RES_DIAG_VARS,
+    renamed_dims: Mapping = RENAMED_HIGH_RES_DIMS,
 ):
     fs = get_fs(url)
     mapper = fs.get_mapper(url)
@@ -38,7 +38,7 @@ def open_high_res_diags(
     ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024), consolidated=consolidated)
     ds = standardize_zarr_time_coord(ds)
     ds = safe.get_variables(
-        ds.rename({**renamed_vars, **renamed_dims}),
-        RENAMED_HIGH_RES_DIAG_VARS.values())
+        ds.rename({**renamed_vars, **renamed_dims}), RENAMED_HIGH_RES_DIAG_VARS.values()
+    )
     ds = ds.assign_coords({"tile": range(6)})
     return LongRunMapper(ds)
