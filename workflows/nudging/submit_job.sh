@@ -57,7 +57,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1Ti
+      storage: 1.3Ti
 EOF
 
 kubectl apply -f dynamic_volume.yaml
