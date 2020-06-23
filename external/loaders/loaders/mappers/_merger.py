@@ -22,8 +22,10 @@ class MergeOverlappingData(GeoMapper):
     ):
         if len(mappers) < 2:
             raise TypeError(
-                "MergeData should be instantiated with two or more data sources."
+                "MergeData should be instantiated with two or more mappers."
             )
+        if len(source_names) != len(mappers):
+            raise ValueError("Need to provide same number of source names as mappers.")
         self._mappers = mappers
         self._source_names = source_names
         self._var_overlap = self._get_var_overlap(self._mappers)
