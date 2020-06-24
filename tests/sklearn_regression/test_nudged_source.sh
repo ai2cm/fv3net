@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TRAINING_DATA=gs://vcm-ml-scratch/andrep/test-nudging-workflow/nudging
+TRAINING_DATA=gs://vcm-ml-code-testing-data/andrep/test-nudging-workflow/nudging
 OUTPUT=gs://vcm-ml-scratch/annak/test-nudging-workflow/test-training/
 
 gsutil -m rm -r $OUTPUT
