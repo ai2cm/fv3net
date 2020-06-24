@@ -4,6 +4,7 @@ History
 
 latest
 ------
+* Add regression tests for model training and offline ML diagnostic steps
 * Stop e2e orchestrator from adding `extra_package` and `setup_file` arguments to Dataflow jobs. This allows use of `./dataflow.sh` script in e2e workflows.
 * Increase nudging run memory limits and add a high-capacity dynamic volume for nudging output 
 

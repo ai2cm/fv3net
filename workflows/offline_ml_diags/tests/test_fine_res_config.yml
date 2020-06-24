@@ -14,8 +14,10 @@ mapping_kwargs:
     grid_xt: x
     grid_yt: y
     delp: pressure_thickness_of_atmospheric_layer
+  drop_vars: 
+    - step
 batch_kwargs:
-  timesteps_per_batch: 5
+  timesteps_per_batch: 2
   init_time_dim_name: "initial_time"
   rename_variables:
     pfull: z
