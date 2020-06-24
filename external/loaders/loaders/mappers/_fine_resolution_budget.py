@@ -1,10 +1,36 @@
 import os
 import re
 import vcm
-from typing import Mapping, Union, Sequence
+from typing import Mapping, Union, Sequence, Tuple
 import xarray as xr
-from .._transform import GroupByTime
+from toolz import groupby
+from datetime import timedelta
 from ._base import GeoMapper
+
+Time = str
+Tile = int
+K = Tuple[Time, Tile]
+
+
+class GroupByTime:
+    def __init__(self, tiles: Mapping[K, xr.Dataset]) -> Mapping[K, xr.Dataset]:
+        def fn(key):
+            time, _ = key
+            return time
+
+        self._tiles = tiles
+        self._time_lookup = groupby(fn, self._tiles.keys())
+
+    def keys(self):
+        return self._time_lookup.keys()
+
+    def __len__(self):
+        return len(self.keys())
+
+    def __getitem__(self, time: Time) -> xr.Dataset:
+        datasets = [self._tiles[key] for key in self._time_lookup[time]]
+        tiles = range(len(datasets))
+        return xr.concat(datasets, dim="tile").assign_coords(tile=tiles)
 
 
 class FineResolutionBudgetTiles(GeoMapper):
