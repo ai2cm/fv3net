@@ -10,7 +10,6 @@ import argparse
 import sys
 import os
 import logging
-import uuid
 import joblib
 import json
 from ._metrics import calc_metrics
@@ -53,7 +52,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
 
 def _write_nc(ds: xr.Dataset, output_dir: str, output_file: str):
-    output_file = output_file.strip(".nc") + "_" + str(uuid.uuid1())[-6:] + ".nc"
     output_file = os.path.join(output_dir, output_file)
 
     with NamedTemporaryFile() as tmpfile:

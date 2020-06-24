@@ -8,9 +8,12 @@ import xarray as xr
 logging.getLogger(__name__)
 
 # Variables predicted by model
-ML_VARS = ["dQ1", "dQ2"]
+ML_VARS = ["dQ1", "dQ2", "Q1", "Q2"]
 # Variables to calculate RMSE and bias of
-METRIC_VARS = ["dQ1", "dQ2", "column_integrated_dQ1", "column_integrated_dQ2"]
+METRIC_VARS = [
+    "Q1", "Q2", "dQ1", "dQ2", 
+    "column_integrated_dQ1", "column_integrated_dQ2",
+    "column_integrated_Q1", "column_integrated_Q2"]
 # Comparison pairs for RMSE and bias. Truth/target first.
 METRIC_COMPARISON_COORDS = [(TARGET_COORD, PREDICT_COORD), (TARGET_COORD, "mean")]
 VERTICAL_PROFILE_MEAN_DIMS = ["time", "x", "y", "tile"]
@@ -47,8 +50,12 @@ def calc_metrics(
 
 def _calc_batch_metrics(ds: xr.Dataset) -> xr.Dataset:
     area_weights = ds["area"] / (ds["area"].mean())
+    ds = ds.assign({
+        "Q1": ds["pQ1"] + ds["dQ1"],
+        "Q2": ds["pQ2"] + ds["dQ2"]})
     ds = insert_column_integrated_vars(ds, ML_VARS)
     ds = _insert_means(ds, METRIC_VARS, area_weights)
+
     metrics = xr.Dataset()
     metric_kwargs = {"weights": area_weights}
     for var in METRIC_VARS:
