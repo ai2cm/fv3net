@@ -4,15 +4,16 @@ variables:
   - specific_humidity
   - dQ1
   - dQ2
+  - pQ1
+  - pQ2
   - pressure_thickness_of_atmospheric_layer
 model_mapper_kwargs:
   rename_vars:
     air_temperature_tendency_due_to_nudging: dQ1
     specific_humidity_tendency_due_to_nudging: dQ2
-mapping_function: open_merged_nudged
+mapping_function: open_merged_nudged_full_tendencies
 mapping_kwargs:
   nudging_timescale_hr: 3
-  initial_time_skip_hr: 0
 batch_kwargs:
   timesteps_per_batch: 5
   init_time_dim_name: "initial_time"
