@@ -417,7 +417,7 @@ def mock_model():
 
 
 @pytest.fixture
-def one_step_offline_config():
+def one_step_offline_diags_config():
     config = {
         "variables": [
             "air_temperature",
@@ -437,7 +437,7 @@ def one_step_offline_config():
 
 
 @pytest.fixture
-def nudging_offline_config():
+def nudging_offline_diags_config():
     config = {
         "variables": [
             "air_temperature",
@@ -458,7 +458,7 @@ def nudging_offline_config():
 
 
 @pytest.fixture
-def fine_res_offline_config():
+def fine_res_offline_diags_config():
     config = {
         "variables": [
             "air_temperature",
@@ -483,9 +483,9 @@ def data_source_path_and_offline_config(
     one_step_dataset_path,
     nudging_dataset_path,
     fine_res_dataset_path,
-    one_step_offline_config,
-    nudging_offline_config,
-    fine_res_offline_config,
+    one_step_offline_diags_config,
+    nudging_offline_diags_config,
+    fine_res_offline_diags_config,
 ):
     data_path_mapping = {
         "one_step_tendencies": one_step_dataset_path,
@@ -493,9 +493,9 @@ def data_source_path_and_offline_config(
         "fine_res_apparent_sources": fine_res_dataset_path,
     }
     data_config_mapping = {
-        "one_step_tendencies": one_step_offline_config,
-        "nudging_tendencies": nudging_offline_config,
-        "fine_res_apparent_sources": fine_res_offline_config,
+        "one_step_tendencies": one_step_offline_diags_config,
+        "nudging_tendencies": nudging_offline_diags_config,
+        "fine_res_apparent_sources": fine_res_offline_diags_config,
     }
     return (
         data_source_name,
