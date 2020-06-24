@@ -10,9 +10,9 @@ spec:
       - name: tag
         value: v0.2.3
       - name: trained-ml
-        value: gs://vcm-ml-experiments/2020-06-17-triad-round1/fine-res/train_sklearn_model
+        value: gs://vcm-ml-experiments/2020-06-17-triad-round-1/fine-res/train_sklearn_model
       - name: prognostic-run
-        value: gs://vcm-ml-experiments/2020-06-17-triad-round1/fine-res/prognostic_run
+        value: gs://vcm-ml-experiments/2020-06-17-triad-round-1/fine-res/prognostic_run
       - name: initial-condition
         value: "20160805.000000"
   serviceAccountName: integration-tests
@@ -124,19 +124,12 @@ spec:
                 hours: 0
                 minutes: 0
                 seconds: 0
-                dt_atmos: 900  # seconds
-                dt_ocean: 900
-                restart_secs: 0  # seconds - frequency to save restarts
               atmos_model_nml:
-                fhout: 0.25   # hours - frequency to save physics outputs
                 dycore_only: true
               diag_manager_nml:
                 flush_nc_files: true
-              gfs_physics_nml:
-                do_deep: false
-                fhzero: 0.25  # hours - frequency at which precip is set back to zero
               fv_core_nml:
-                n_split: 6   # num dynamics steps per physics step
+                do_sat_adj: false
             EOF
             python $FV3NET/workflows/prognostic_c48_run/orchestrate_submit_job.py \
               --image-tag {{workflow.parameters.tag}} \
