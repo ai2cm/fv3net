@@ -42,9 +42,28 @@ export RUNFILE=$2
 export OUTPUT_URL=$3
 export DOCKER_IMAGE=$4
 export JOBNAME=$job_prefix-$rand_tag
+export DYNAMIC_VOLUME="nudging-dynamic-vol-"$rand_tag
+
+cat <<EOF > dynamic_volume.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${DYNAMIC_VOLUME}
+  labels:
+    group: nudging-storage
+spec:
+  storageClassName: fast
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1.3Ti
+EOF
+
+kubectl apply -f dynamic_volume.yaml
 
 cat job_template.yaml | \
-    envsubst '$CONFIG $RUNFILE $OUTPUT_URL $DOCKER_IMAGE $JOBNAME' | \
+    envsubst '$CONFIG $RUNFILE $OUTPUT_URL $DOCKER_IMAGE $JOBNAME $DYNAMIC_VOLUME' | \
     tee job.yaml
 
 kubectl apply -f job.yaml
@@ -76,6 +95,8 @@ function waitForComplete {
     if [[ $job_succeed == "1" ]]
     then
         echo -e Job successful: "$JOBNAME"
+        kubectl delete pod $(kubectl get pod -l job-name=$JOBNAME -o json | jq --raw-output .items[].metadata.name)
+        kubectl delete pvc ${DYNAMIC_VOLUME}
     elif [[ $job_fail == "1" ]]
     then
         echo -e Job failed: "$JOBNAME"
