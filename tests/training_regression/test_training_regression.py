@@ -3,6 +3,7 @@ import xarray as xr
 import numpy as np
 import pytest
 import os
+import tempfile
 import logging
 import diagnostics_utils as utils
 import intake
@@ -18,10 +19,8 @@ DOMAINS = ["land", "sea", "global"]
 OUTPUT_NC_NAME = "diagnostics.nc"
 
 
-@pytest.fixture(scope="module")
-def one_step_dataset(datadir_module):
+def generate_one_step_dataset(datadir_module, one_step_dir):
 
-    one_step_dir = os.path.join(datadir_module, "one_step")
     with open(str(datadir_module.join("one_step.json"))) as f:
         one_step_schema = synth.load(f)
     one_step_dataset = synth.generate(one_step_schema)
@@ -38,14 +37,20 @@ def one_step_dataset(datadir_module):
         os.path.join(one_step_dir, "20160901.001500.zarr"), consolidated=True,
     )
 
-    return one_step_dir
-
 
 @pytest.fixture(scope="module")
-def nudging_dataset(datadir_module):
+def one_step_dataset_path(datadir_module):
 
-    nudging_dir = os.path.join(datadir_module, "nudging", "outdir-3h")
-    nudging_after_dynamics_zarrpath = os.path.join(nudging_dir, "after_dynamics.zarr")
+    with tempfile.TemporaryDirectory() as one_step_dir:
+        generate_one_step_dataset(datadir_module, one_step_dir)
+        yield one_step_dir
+
+
+def generate_nudging_dataset(datadir_module, nudging_dir):
+
+    nudging_after_dynamics_zarrpath = os.path.join(
+        nudging_dir, "outdir-3h", "after_dynamics.zarr"
+    )
     with open(str(datadir_module.join("after_dynamics.json"))) as f:
         nudging_after_dynamics_schema = synth.load(f)
     nudging_after_dynamics_dataset = synth.generate(
@@ -62,7 +67,9 @@ def nudging_dataset(datadir_module):
         nudging_after_dynamics_zarrpath, consolidated=True
     )
 
-    nudging_after_physics_zarrpath = os.path.join(nudging_dir, "after_physics.zarr")
+    nudging_after_physics_zarrpath = os.path.join(
+        nudging_dir, "outdir-3h", "after_physics.zarr"
+    )
     with open(str(datadir_module.join("after_physics.json"))) as f:
         nudging_after_physics_schema = synth.load(f)
     nudging_after_physics_dataset = synth.generate(
@@ -79,7 +86,9 @@ def nudging_dataset(datadir_module):
         nudging_after_physics_zarrpath, consolidated=True
     )
 
-    nudging_tendencies_zarrpath = os.path.join(nudging_dir, "nudging_tendencies.zarr")
+    nudging_tendencies_zarrpath = os.path.join(
+        nudging_dir, "outdir-3h", "nudging_tendencies.zarr"
+    )
     with open(str(datadir_module.join("nudging_tendencies.json"))) as f:
         nudging_tendencies_schema = synth.load(f)
     nudging_tendencies_dataset = synth.generate(
@@ -94,20 +103,23 @@ def nudging_dataset(datadir_module):
     )
     nudging_tendencies_dataset.to_zarr(nudging_tendencies_zarrpath, consolidated=True)
 
-    return os.path.join(datadir_module, "nudging")
-
 
 @pytest.fixture(scope="module")
-def fine_res_dataset(datadir_module):
+def nudging_dataset_path(datadir_module):
+
+    with tempfile.TemporaryDirectory() as nudging_dir:
+        generate_nudging_dataset(datadir_module, nudging_dir)
+        yield nudging_dir
+
+
+def generate_fine_res_dataset(datadir_module, fine_res_dir):
     """ Note that this does not follow the pattern of the other two datasets
     in that the synthetic data are not stored in the original format of the
     fine res data (tiled netcdfs), but instead as a zarr, because synth does
     not currently support generating netcdfs or splitting by tile
     """
 
-    fine_res_zarrpath = os.path.join(
-        datadir_module, "fine_res_budget", "fine_res_budget.zarr"
-    )
+    fine_res_zarrpath = os.path.join(fine_res_dir, "fine_res_budget.zarr")
     with open(str(datadir_module.join("fine_res_budget.json"))) as f:
         fine_res_budget_schema = synth.load(f)
     fine_res_budget_dataset = synth.generate(fine_res_budget_schema)
@@ -125,21 +137,66 @@ def fine_res_dataset(datadir_module):
     return fine_res_zarrpath
 
 
+@pytest.fixture(scope="module")
+def fine_res_dataset_path(datadir_module):
+
+    with tempfile.TemporaryDirectory() as fine_res_dir:
+        fine_res_zarrpath = generate_fine_res_dataset(datadir_module, fine_res_dir)
+        yield fine_res_zarrpath
+
+
 @pytest.fixture
 def grid_dataset():
 
     cat = intake.open_catalog("catalog.yml")
     grid = cat["grid/c48"].to_dask()
-    grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
+    grid = grid.drop_vars(names=["y_interface", "y", "x_interface", "x"])
     surface_type = cat["landseamask/c48"].to_dask()
-    surface_type = surface_type.drop(labels=["y", "x"])
+    surface_type = surface_type.drop_vars(names=["y", "x"])
+
     return grid.merge(surface_type)
+
+
+@pytest.fixture
+def one_step_training_diags_config():
+    return {"mapping_function": "open_one_step", "mapping_function_kwargs": {}}
+
+
+@pytest.fixture
+def nudging_training_diags_config():
+    return {
+        "mapping_function": "open_merged_nudged_full_tendencies",
+        "mapping_function_kwargs": {
+            "nudging_timescale_hr": 3,
+            "open_merged_nudged_kwargs": {
+                "rename_vars": {
+                    "air_temperature_tendency_due_to_nudging": "dQ1",
+                    "specific_humidity_tendency_due_to_nudging": "dQ2",
+                }
+            },
+            "open_checkpoints_kwargs": {
+                "checkpoint_files": ("after_dynamics.zarr", "after_physics.zarr")
+            },
+        },
+    }
 
 
 @pytest.mark.regression
 def test_compute_training_diags(
-    datadir_module, one_step_dataset, nudging_dataset, fine_res_dataset, grid_dataset
+    datadir_module,
+    one_step_dataset_path,
+    nudging_dataset_path,
+    fine_res_dataset_path,
+    one_step_training_diags_config,
+    nudging_training_diags_config,
+    grid_dataset,
 ):
+
+    data_config_mapping = {
+        "one_step_tendencies": (one_step_dataset_path, one_step_training_diags_config),
+        "nudging_tendencies": (nudging_dataset_path, nudging_training_diags_config),
+        "fine_res_apparent_sources": (fine_res_dataset_path, None),
+    }
 
     # compute the diagnostics for each source
 
@@ -154,66 +211,41 @@ def test_compute_training_diags(
     diagnostic_datasets = {}
     timesteps_per_batch = 1
 
-    # one step
-    ds_batches_one_step = batches.diagnostic_batches_from_geodata(
-        one_step_dataset,
-        variable_names,
-        timesteps_per_batch=timesteps_per_batch,
-        mapping_function="open_one_step",
-    )
-    ds_diagnostic_one_step = utils.reduce_to_diagnostic(
-        ds_batches_one_step, grid_dataset, domains=DOMAINS
-    )
-    diagnostic_datasets["one_step_tendencies"] = ds_diagnostic_one_step
-
-    # nudged
-    nudged_mapping_kwargs = {
-        "nudging_timescale_hr": 3,
-        "open_merged_nudged_kwargs": {
-            "rename_vars": {
-                "air_temperature_tendency_due_to_nudging": "dQ1",
-                "specific_humidity_tendency_due_to_nudging": "dQ2",
+    for (
+        data_source_name,
+        (data_source_path, data_source_config),
+    ) in data_config_mapping.items():
+        if data_source_name != "fine_res_apparent_sources":
+            ds_batches_one_step = batches.diagnostic_batches_from_geodata(
+                data_source_path,
+                variable_names,
+                timesteps_per_batch=timesteps_per_batch,
+                mapping_function=data_source_config["mapping_function"],
+                mapping_kwargs=data_source_config["mapping_function_kwargs"],
+            )
+            ds_diagnostic = utils.reduce_to_diagnostic(
+                ds_batches_one_step, grid_dataset, domains=DOMAINS
+            )
+        else:
+            rename_variables = {
+                "delp": "pressure_thickness_of_atmospheric_layer",
+                "pfull": "z",
+                "grid_xt": "x",
+                "grid_yt": "y",
             }
-        },
-        "open_checkpoints_kwargs": {
-            "checkpoint_files": ("after_dynamics.zarr", "after_physics.zarr")
-        },
-    }
-
-    ds_batches_nudged = batches.diagnostic_batches_from_geodata(
-        nudging_dataset,
-        variable_names,
-        timesteps_per_batch=timesteps_per_batch,
-        mapping_function="open_merged_nudged_full_tendencies",
-        mapping_kwargs=nudged_mapping_kwargs,
-    )
-    ds_diagnostic_nudged = utils.reduce_to_diagnostic(
-        ds_batches_nudged, grid_dataset, domains=DOMAINS
-    )
-    diagnostic_datasets["nudged_tendencies"] = ds_diagnostic_nudged
-
-    # fine res, open without batch loader since synth format isn't easily
-    # compatible with actual data
-
-    rename_variables = {
-        "delp": "pressure_thickness_of_atmospheric_layer",
-        "pfull": "z",
-        "grid_xt": "x",
-        "grid_yt": "y",
-    }
-    ds_batches_fine_res = [
-        xr.open_zarr(fine_res_dataset).isel(time=0).rename(rename_variables),
-        xr.open_zarr(fine_res_dataset).isel(time=1).rename(rename_variables),
-    ]
-    ds_diagnostic_fine_res = utils.reduce_to_diagnostic(
-        ds_batches_fine_res, grid_dataset, domains=DOMAINS
-    )
-    diagnostic_datasets["fine_res_apparent_sources"] = ds_diagnostic_fine_res
+            ds_batches_fine_res = [
+                xr.open_zarr(data_source_path).isel(time=0).rename(rename_variables),
+                xr.open_zarr(data_source_path).isel(time=1).rename(rename_variables),
+            ]
+            ds_diagnostic = utils.reduce_to_diagnostic(
+                ds_batches_fine_res, grid_dataset, domains=DOMAINS
+            )
+        diagnostic_datasets[data_source_name] = ds_diagnostic
 
     diagnostics_all = xr.concat(
         [
-            dataset.expand_dims({"data_source": [dataset_name]})
-            for dataset_name, dataset in diagnostic_datasets.items()
+            dataset.expand_dims({"data_source": [data_source_name]})
+            for data_source_name, dataset in diagnostic_datasets.items()
         ],
         dim="data_source",
     ).load()
@@ -229,6 +261,13 @@ def test_compute_training_diags(
         reference_output_schema = synth.load(f)
 
     assert reference_output_schema == diags_output_schema
+
+
+@pytest.fixture(
+    params=["one_step_tendencies", "nudging_tendencies", "fine_res_apparent_sources"]
+)
+def data_source_name(request):
+    return request.param
 
 
 base_config_dict = {
@@ -282,52 +321,71 @@ def fine_res_train_config():
     return train.ModelTrainingConfig(**fine_res_config_dict)
 
 
-@pytest.mark.regression
-def test_sklearn_regression_one_step(one_step_dataset, one_step_train_config):
-
-    batched_data = train.load_data_sequence(one_step_dataset, one_step_train_config)
-    assert len(batched_data) == 2
-    wrapper = train.train_model(batched_data, one_step_train_config)
-    assert wrapper.model.n_estimators == 2
-
-
-@pytest.mark.regression
-def test_sklearn_regression_nudging(nudging_dataset, nudging_train_config):
-
-    batched_data = train.load_data_sequence(nudging_dataset, nudging_train_config)
-    assert len(batched_data) == 2
-    wrapper = train.train_model(batched_data, nudging_train_config)
-    assert wrapper.model.n_estimators == 2
-
-
-@pytest.mark.regression
-def test_sklearn_regression_fine_res(fine_res_dataset, fine_res_train_config):
-
-    # unfortunately have to reimplement train.load_data_sequence a bit here
-    # to get around the different synth format
-    rename_variables = {
-        "delp": "pressure_thickness_of_atmospheric_layer",
-        "pfull": "z",
-        "grid_xt": "x",
-        "grid_yt": "y",
+@pytest.fixture
+def data_source_path_and_train_config(
+    data_source_name,
+    one_step_dataset_path,
+    nudging_dataset_path,
+    fine_res_dataset_path,
+    one_step_train_config,
+    nudging_train_config,
+    fine_res_train_config,
+):
+    data_path_mapping = {
+        "one_step_tendencies": one_step_dataset_path,
+        "nudging_tendencies": nudging_dataset_path,
+        "fine_res_apparent_sources": fine_res_dataset_path,
     }
-    mapper = {
-        "20160901.000000": xr.open_zarr(fine_res_dataset)
-        .isel(time=0)
-        .rename(rename_variables),
-        "20160901.001500": xr.open_zarr(fine_res_dataset)
-        .isel(time=1)
-        .rename(rename_variables),
+    data_config_mapping = {
+        "one_step_tendencies": one_step_train_config,
+        "nudging_tendencies": nudging_train_config,
+        "fine_res_apparent_sources": fine_res_train_config,
     }
-
-    batched_data = batches.batches_from_mapper(
-        mapper,
-        list(fine_res_train_config.input_variables)
-        + list(fine_res_train_config.output_variables),
-        **fine_res_train_config.batch_kwargs,
+    return (
+        data_source_name,
+        data_path_mapping[data_source_name],
+        data_config_mapping[data_source_name],
     )
+
+
+@pytest.mark.regression
+def test_sklearn_regression(data_source_path_and_train_config):
+
+    (
+        data_source_name,
+        data_source_path,
+        data_source_train_config,
+    ) = data_source_path_and_train_config
+
+    if data_source_name != "fine_res_apparent_sources":
+        batched_data = train.load_data_sequence(
+            data_source_path, data_source_train_config
+        )
+    else:
+        rename_variables = {
+            "delp": "pressure_thickness_of_atmospheric_layer",
+            "pfull": "z",
+            "grid_xt": "x",
+            "grid_yt": "y",
+        }
+        mapper = {
+            "20160901.000000": xr.open_zarr(data_source_path)
+            .isel(time=0)
+            .rename(rename_variables),
+            "20160901.001500": xr.open_zarr(data_source_path)
+            .isel(time=1)
+            .rename(rename_variables),
+        }
+
+        batched_data = batches.batches_from_mapper(
+            mapper,
+            list(data_source_train_config.input_variables)
+            + list(data_source_train_config.output_variables),
+            **data_source_train_config.batch_kwargs,
+        )
+
     assert len(batched_data) == 2
-    wrapper = train.train_model(batched_data, fine_res_train_config)
+    wrapper = train.train_model(batched_data, data_source_train_config)
     assert wrapper.model.n_estimators == 2
 
 
@@ -378,54 +436,6 @@ def one_step_offline_config():
     return config
 
 
-@pytest.mark.regression
-def test_compute_offline_diags_one_step(
-    datadir_module, one_step_dataset, mock_model, one_step_offline_config, grid_dataset
-):
-
-    base_mapping_function = getattr(
-        mappers, one_step_offline_config["mapping_function"]
-    )
-    base_mapper = base_mapping_function(
-        one_step_dataset, **one_step_offline_config.get("mapping_kwargs", {})
-    )
-
-    pred_mapper = SklearnPredictionMapper(
-        base_mapper,
-        mock_model,
-        **one_step_offline_config.get("model_mapper_kwargs", {}),
-    )
-
-    ds_batches = batches.diagnostic_batches_from_mapper(
-        pred_mapper,
-        one_step_offline_config["variables"],
-        **one_step_offline_config["batch_kwargs"],
-    )
-
-    ds_diagnostic = utils.reduce_to_diagnostic(
-        ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
-    )
-
-    # TODO standardize schema encoding in synth to avoid the casting that makes
-    # the following lines necessary
-    output_file = os.path.join(datadir_module, "offline_diags.nc")
-    xr.merge([grid_dataset, ds_diagnostic]).to_netcdf(output_file)
-    with open(output_file, "rb") as f:
-        ds = xr.open_dataset(f).load()
-    diags_output_schema_raw = synth.read_schema_from_dataset(ds)
-    diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
-
-    # test against reference
-    with open(str(datadir_module.join("offline_diags_reference.json"))) as f:
-        reference_output_schema = synth.load(f)
-
-    assert reference_output_schema == diags_output_schema
-
-    # compute metrics
-    metrics = calc_metrics(ds_batches, area=grid_dataset["area"])
-    print(metrics)
-
-
 @pytest.fixture
 def nudging_offline_config():
     config = {
@@ -445,52 +455,6 @@ def nudging_offline_config():
     }
 
     return config
-
-
-@pytest.mark.regression
-def test_compute_offline_diags_nudging(
-    datadir_module, nudging_dataset, mock_model, nudging_offline_config, grid_dataset
-):
-
-    base_mapping_function = getattr(mappers, nudging_offline_config["mapping_function"])
-    base_mapper = base_mapping_function(
-        nudging_dataset, **nudging_offline_config.get("mapping_kwargs", {})
-    )
-
-    pred_mapper = SklearnPredictionMapper(
-        base_mapper,
-        mock_model,
-        **nudging_offline_config.get("model_mapper_kwargs", {}),
-    )
-
-    ds_batches = batches.diagnostic_batches_from_mapper(
-        pred_mapper,
-        nudging_offline_config["variables"],
-        **nudging_offline_config["batch_kwargs"],
-    )
-
-    ds_diagnostic = utils.reduce_to_diagnostic(
-        ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
-    )
-
-    # TODO standardize schema encoding in synth to avoid the casting that makes
-    # the following lines necessary
-    output_file = os.path.join(datadir_module, "offline_diags.nc")
-    xr.merge([grid_dataset, ds_diagnostic]).to_netcdf(output_file)
-    with open(output_file, "rb") as f:
-        ds = xr.open_dataset(f).load()
-    diags_output_schema_raw = synth.read_schema_from_dataset(ds)
-    diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
-
-    # test against reference
-    with open(str(datadir_module.join("offline_diags_reference.json"))) as f:
-        reference_output_schema = synth.load(f)
-
-    assert reference_output_schema == diags_output_schema
-
-    # compute metrics
-    metrics = calc_metrics(ds_batches, area=grid_dataset["area"])
-    print(metrics)
 
 
 @pytest.fixture
@@ -513,36 +477,79 @@ def fine_res_offline_config():
     return config
 
 
+@pytest.fixture
+def data_source_path_and_offline_config(
+    data_source_name,
+    one_step_dataset_path,
+    nudging_dataset_path,
+    fine_res_dataset_path,
+    one_step_offline_config,
+    nudging_offline_config,
+    fine_res_offline_config,
+):
+    data_path_mapping = {
+        "one_step_tendencies": one_step_dataset_path,
+        "nudging_tendencies": nudging_dataset_path,
+        "fine_res_apparent_sources": fine_res_dataset_path,
+    }
+    data_config_mapping = {
+        "one_step_tendencies": one_step_offline_config,
+        "nudging_tendencies": nudging_offline_config,
+        "fine_res_apparent_sources": fine_res_offline_config,
+    }
+    return (
+        data_source_name,
+        data_path_mapping[data_source_name],
+        data_config_mapping[data_source_name],
+    )
+
+
 @pytest.mark.regression
-def test_compute_offline_diags_fine_res(
-    datadir_module, fine_res_dataset, mock_model, fine_res_offline_config, grid_dataset
+def test_compute_offline_diags(
+    datadir_module, mock_model, data_source_path_and_offline_config, grid_dataset
 ):
 
-    rename_variables = {
-        "delp": "pressure_thickness_of_atmospheric_layer",
-        "pfull": "z",
-        "grid_xt": "x",
-        "grid_yt": "y",
-    }
-    base_mapper = {
-        "20160901.000000": xr.open_zarr(fine_res_dataset)
-        .isel(time=0)
-        .rename(rename_variables),
-        "20160901.001500": xr.open_zarr(fine_res_dataset)
-        .isel(time=1)
-        .rename(rename_variables),
-    }
+    (
+        data_source_name,
+        data_source_path,
+        data_source_offline_config,
+    ) = data_source_path_and_offline_config
+
+    if data_source_name != "fine_res_apparent_sources":
+        base_mapping_function = getattr(
+            mappers, data_source_offline_config["mapping_function"]
+        )
+        base_mapper = base_mapping_function(
+            data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
+        )
+        reference_schema_file = "offline_diags_reference.json"
+    else:
+        rename_variables = {
+            "delp": "pressure_thickness_of_atmospheric_layer",
+            "pfull": "z",
+            "grid_xt": "x",
+            "grid_yt": "y",
+        }
+        base_mapper = {
+            "20160901.000000": xr.open_zarr(data_source_path)
+            .isel(time=0)
+            .rename(rename_variables),
+            "20160901.001500": xr.open_zarr(data_source_path)
+            .isel(time=1)
+            .rename(rename_variables),
+        }
+        reference_schema_file = "offline_diags_reference_fine_res.json"
 
     pred_mapper = SklearnPredictionMapper(
         base_mapper,
         mock_model,
-        **fine_res_offline_config.get("model_mapper_kwargs", {}),
+        **data_source_offline_config.get("model_mapper_kwargs", {}),
     )
 
     ds_batches = batches.diagnostic_batches_from_mapper(
         pred_mapper,
-        fine_res_offline_config["variables"],
-        **fine_res_offline_config["batch_kwargs"],
+        data_source_offline_config["variables"],
+        **data_source_offline_config["batch_kwargs"],
     )
 
     ds_diagnostic = utils.reduce_to_diagnostic(
@@ -559,11 +566,11 @@ def test_compute_offline_diags_fine_res(
     diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
 
     # test against reference
-    with open(str(datadir_module.join("offline_diags_reference_fine_res.json"))) as f:
+    with open(str(datadir_module.join(reference_schema_file))) as f:
         reference_output_schema = synth.load(f)
 
     assert reference_output_schema == diags_output_schema
 
     # compute metrics
     metrics = calc_metrics(ds_batches, area=grid_dataset["area"])
-    print(metrics)
+    assert metrics
