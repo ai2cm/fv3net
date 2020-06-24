@@ -1,0 +1,15 @@
+model_type: sklearn_random_forest
+hyperparameters:
+  max_depth: 4
+  n_estimators: 2
+input_variables:
+  - air_temperature
+  - specific_humidity
+output_variables:
+  - dQ1
+  - dQ2
+batch_function: batches_from_geodata
+batch_kwargs:
+  timesteps_per_batch: 1
+  init_time_dim_name: "time"
+  mapping_function: open_fine_res_apparent_sources

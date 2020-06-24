@@ -1,12 +1,13 @@
-import synth
 import xarray as xr
 import numpy as np
 import pytest
+import yaml
 import os
 import tempfile
 import logging
 import diagnostics_utils as utils
 import intake
+import synth
 from loaders import mappers, batches, SAMPLE_DIM_NAME
 from fv3net.regression.sklearn import train
 from fv3net.regression.sklearn._mapper import SklearnPredictionMapper
@@ -158,26 +159,17 @@ def grid_dataset():
 
 
 @pytest.fixture
-def one_step_training_diags_config():
-    return {"mapping_function": "open_one_step", "mapping_function_kwargs": {}}
+def training_data_diags_config():
+    path = "./workflows/training_data_diags/training_data_sources_config.yml"
+    with open(path, "r") as f:
+        yield yaml.safe_load(f)
 
 
-@pytest.fixture
-def nudging_training_diags_config():
+def get_data_source_training_diags_config(config, data_source_name):
+    source_config = config["sources"][data_source_name]
     return {
-        "mapping_function": "open_merged_nudged_full_tendencies",
-        "mapping_function_kwargs": {
-            "nudging_timescale_hr": 3,
-            "open_merged_nudged_kwargs": {
-                "rename_vars": {
-                    "air_temperature_tendency_due_to_nudging": "dQ1",
-                    "specific_humidity_tendency_due_to_nudging": "dQ2",
-                }
-            },
-            "open_checkpoints_kwargs": {
-                "checkpoint_files": ("after_dynamics.zarr", "after_physics.zarr")
-            },
-        },
+        "mapping_function": source_config["mapping_function"],
+        "mapping_kwargs": source_config.get("mapping_kwargs", {}),
     }
 
 
@@ -187,18 +179,22 @@ def test_compute_training_diags(
     one_step_dataset_path,
     nudging_dataset_path,
     fine_res_dataset_path,
-    one_step_training_diags_config,
-    nudging_training_diags_config,
+    training_data_diags_config,
     grid_dataset,
 ):
+
+    one_step_training_diags_config = get_data_source_training_diags_config(
+        training_data_diags_config, "one_step_tendencies"
+    )
+    nudging_training_diags_config = get_data_source_training_diags_config(
+        training_data_diags_config, "nudging_tendencies"
+    )
 
     data_config_mapping = {
         "one_step_tendencies": (one_step_dataset_path, one_step_training_diags_config),
         "nudging_tendencies": (nudging_dataset_path, nudging_training_diags_config),
         "fine_res_apparent_sources": (fine_res_dataset_path, None),
     }
-
-    # compute the diagnostics for each source
 
     variable_names = [
         "dQ1",
@@ -221,7 +217,7 @@ def test_compute_training_diags(
                 variable_names,
                 timesteps_per_batch=timesteps_per_batch,
                 mapping_function=data_source_config["mapping_function"],
-                mapping_kwargs=data_source_config["mapping_function_kwargs"],
+                mapping_kwargs=data_source_config["mapping_kwargs"],
             )
             ds_diagnostic = utils.reduce_to_diagnostic(
                 ds_batches_one_step, grid_dataset, domains=DOMAINS
@@ -270,55 +266,29 @@ def data_source_name(request):
     return request.param
 
 
-base_config_dict = {
-    "model_type": "sklearn_random_forest",
-    "hyperparameters": {"max_depth": 4, "n_estimators": 2},
-    "input_variables": ["air_temperature", "specific_humidity"],
-    "output_variables": ["dQ1", "dQ2"],
-    "batch_function": "batches_from_geodata",
-}
-
-
 @pytest.fixture
 def one_step_train_config():
-    one_step_config_dict = base_config_dict.copy()
-    one_step_config_dict.update(
-        batch_kwargs={
-            "timesteps_per_batch": 1,
-            "init_time_dim_name": "initial_time",
-            "mapping_function": "open_one_step",
-        }
-    )
-    return train.ModelTrainingConfig(**one_step_config_dict)
+    path = "./tests/training/train_sklearn_model_onestep_source.yml"
+    with open(path, "r") as f:
+        config = yaml.safe_load(f)
+    return train.ModelTrainingConfig(**config)
 
 
 @pytest.fixture
 def nudging_train_config():
-    nudging_config_dict = base_config_dict.copy()
-    nudging_config_dict.update(
-        batch_kwargs={
-            "timesteps_per_batch": 1,
-            "init_time_dim_name": "time",
-            "mapping_function": "open_merged_nudged",
-            "mapping_kwargs": {
-                "nudging_timescale_hr": 3,
-                "rename_vars": {
-                    "air_temperature_tendency_due_to_nudging": "dQ1",
-                    "specific_humidity_tendency_due_to_nudging": "dQ2",
-                },
-            },
-        }
-    )
-    return train.ModelTrainingConfig(**nudging_config_dict)
+    path = "./tests/training/train_sklearn_model_nudged_source.yaml"
+    with open(path, "r") as f:
+        config = yaml.safe_load(f)
+    return train.ModelTrainingConfig(**config)
 
 
 @pytest.fixture
 def fine_res_train_config():
-    fine_res_config_dict = base_config_dict.copy()
-    fine_res_config_dict.update(
-        batch_kwargs={"timesteps_per_batch": 1, "init_time_dim_name": "time"}
-    )
-    return train.ModelTrainingConfig(**fine_res_config_dict)
+    path = "./tests/training/train_sklearn_model_fineres_source.yml"
+    with open(path, "r") as f:
+        config = yaml.safe_load(f)
+    config["batch_kwargs"].pop("mapping_function", None)
+    return train.ModelTrainingConfig(**config)
 
 
 @pytest.fixture
@@ -418,62 +388,25 @@ def mock_model():
 
 @pytest.fixture
 def one_step_offline_diags_config():
-    config = {
-        "variables": [
-            "air_temperature",
-            "specific_humidity",
-            "dQ1",
-            "dQ2",
-            "pressure_thickness_of_atmospheric_layer",
-        ],
-        "mapping_function": "open_one_step",
-        "batch_kwargs": {
-            "timesteps_per_batch": 1,
-            "init_time_dim_name": "initial_time",
-        },
-    }
-
+    path = "./workflows/offline_ml_diags/tests/test_one_step_config.yml"
+    with open(path, "r") as f:
+        config = yaml.safe_load(f)
     return config
 
 
 @pytest.fixture
 def nudging_offline_diags_config():
-    config = {
-        "variables": [
-            "air_temperature",
-            "specific_humidity",
-            "dQ1",
-            "dQ2",
-            "pressure_thickness_of_atmospheric_layer",
-        ],
-        "mapping_function": "open_merged_nudged",
-        "mapping_kwargs": {"nudging_timescale_hr": 3, "initial_time_skip_hr": 0},
-        "batch_kwargs": {
-            "timesteps_per_batch": 2,
-            "init_time_dim_name": "initial_time",
-        },
-    }
-
+    path = "./workflows/offline_ml_diags/tests/test_nudging_config.yml"
+    with open(path, "r") as f:
+        config = yaml.safe_load(f)
     return config
 
 
 @pytest.fixture
 def fine_res_offline_diags_config():
-    config = {
-        "variables": [
-            "air_temperature",
-            "specific_humidity",
-            "dQ1",
-            "dQ2",
-            "pressure_thickness_of_atmospheric_layer",
-        ],
-        "model_mapper_kwargs": {"z_dim": "pfull"},
-        "batch_kwargs": {
-            "timesteps_per_batch": 2,
-            "init_time_dim_name": "initial_time",
-        },
-    }
-
+    path = "./workflows/offline_ml_diags/tests/test_fine_res_config.yml"
+    with open(path, "r") as f:
+        config = yaml.safe_load(f)
     return config
 
 
@@ -526,7 +459,6 @@ def test_compute_offline_diags(
     else:
         rename_variables = {
             "delp": "pressure_thickness_of_atmospheric_layer",
-            "pfull": "z",
             "grid_xt": "x",
             "grid_yt": "y",
         }
