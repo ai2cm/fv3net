@@ -8,8 +8,8 @@ from toolz import groupby
 from pathlib import Path
 
 from vcm import cloud
-from .._utils import standardize_zarr_time_coord
 from ._base import GeoMapper, LongRunMapper
+from .._utils import standardize_zarr_time_coord
 
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ class MergeNudged(LongRunMapper):
         for source in data_sources:
             if isinstance(source, LongRunMapper):
                 source = source.ds
-            datasets.append(source)
+            datasets.append(standardize_zarr_time_coord(source))
 
         return datasets
 
@@ -280,7 +280,6 @@ def open_merged_nudged(
     for source in merge_files:
         mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}"))
         ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
-        ds = standardize_zarr_time_coord(ds)
 
         datasets.append(ds)
 
@@ -326,7 +325,6 @@ def _open_nudging_checkpoints(
         full_path = os.path.join(nudged_url, f"{filename}")
         mapper = fs.get_mapper(full_path)
         ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
-        ds = standardize_zarr_time_coord(ds)
 
         source_name = Path(filename).stem
         datasets[source_name] = ds
