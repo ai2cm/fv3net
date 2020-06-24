@@ -34,10 +34,10 @@ spec:
           imagePullPolicy: Always
           resources:
             limits:
-              memory: 8Mi
+              memory: 8Gi
             requests:
               cpu: "6"
-              memory: 8Mi
+              memory: 8Gi
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
@@ -61,10 +61,10 @@ spec:
           imagePullPolicy: Always
           resources:
             limits:
-              memory: 8Mi
+              memory: 8Gi
             requests:
               cpu: "6"
-              memory: 8Mi
+              memory: 8Gi
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
