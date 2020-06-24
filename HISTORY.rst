@@ -4,6 +4,7 @@ History
 
 latest
 ------
+* Stop e2e orchestrator from adding `extra_package` and `setup_file` arguments to Dataflow jobs. This allows use of `./dataflow.sh` script in e2e workflows.
 
 0.2.3 (2020-06-19)
 ------------------
