@@ -1,12 +1,10 @@
 storage_proto: gs
-#TODO: update storage_root to bucket for production runs
 storage_root: vcm-ml-data/test-end-to-end-integration
 experiment:
   name: $JOBNAME
   unique_id: false
   steps_to_run:
     #- coarsen_restarts  # not doing C384 -> C48 coarsening
-    # TOOD uncomment these for production runs
     - coarsen_diagnostics
     - one_step_run
     - create_training_data
@@ -17,7 +15,7 @@ experiment:
 
   steps_config:
     coarsen_restarts:
-      command: python -m fv3net.pipelines.coarsen_restarts
+      command: ./dataflow.sh submit -m fv3net.pipelines.coarsen_restarts
       args:
         data_to_coarsen:
           location: $C384_RESTARTS
@@ -52,6 +50,7 @@ experiment:
         diagnostics_data:
           from: coarsen_diagnostics
         timestep_splits: $TRAIN_AND_TEST_TIMES
+        --runner: DirectRunner
 
     train_sklearn_model:
       command: python -m fv3net.regression.sklearn
