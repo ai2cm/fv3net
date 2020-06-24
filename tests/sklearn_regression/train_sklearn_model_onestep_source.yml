@@ -13,3 +13,6 @@ batch_kwargs:
   timesteps_per_batch: 1
   init_time_dim_name: "initial_time"
   mapping_function: open_one_step
+  timesteps:
+    - "20160801.001500"
+    - "20160801.003000"

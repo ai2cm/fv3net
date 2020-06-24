@@ -2,7 +2,6 @@ import numpy as np
 from numpy.random import RandomState
 from typing import Tuple
 import xarray as xr
-
 import vcm
 from vcm import safe
 from vcm.convenience import round_time
@@ -16,12 +15,21 @@ Tile = int
 K = Tuple[Time, Tile]
 
 
-def standardize_zarr_time_coord(ds: xr.Dataset):
+def standardize_zarr_time_coord(ds: xr.Dataset) -> xr.Dataset:
+    """ Casts a datetime coord to to python datetime and rounds to
+    nearest even second (because cftime coords have small rounding
+    errors that makes it hard to other datasets join on time)
+
+    Args:
+        ds (xr.Dataset): time coordinate is datetime-like object
+
+    Returns:
+        xr.Dataset with standardized time coordinates
+    """
     # Vectorize doesn't work on type-dispatched function overloading
     times = np.array(list(map(vcm.cast_to_datetime, ds[TIME_NAME].values)))
     times = np.vectorize(round_time)(times)
     ds = ds.assign_coords({TIME_NAME: times})
-
     return ds
 
 
