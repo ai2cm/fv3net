@@ -74,14 +74,19 @@ def rmse_3day(diags):
 
     rms_global_daily = rms_global.resample(time="1D").mean()
 
-    for variable in rms_global_daily:
+    try:
+        rms_at_day_3 = rms_global_daily.isel(time=3)
+    except IndexError:  # don't compute metric if run didn't make it to 3 days
+        rms_at_day_3 = xr.Dataset()
+
+    for variable in rms_at_day_3:
         try:
             orig_unit = rms_global[variable].attrs["units"]
         except KeyError:
             raise KeyError(f"{variable} does not have units")
 
-        rms_global_daily[variable].attrs["units"] = orig_unit
-    return rms_global_daily.isel(time=3)
+        rms_at_day_3[variable].attrs["units"] = orig_unit
+    return rms_at_day_3
 
 
 @add_to_metrics("drift_3day")
@@ -91,7 +96,11 @@ def drift_3day(diags):
     )
 
     daily = averages.resample(time="1D").mean()
-    drift = (daily.isel(time=3) - daily.isel(time=0)) / 3
+
+    try:
+        drift = (daily.isel(time=3) - daily.isel(time=0)) / 3
+    except IndexError:  # don't compute metric if run didn't make it to 3 days
+        drift = xr.Dataset()
 
     for variable in drift:
         orig_unit = averages[variable].attrs["units"]
