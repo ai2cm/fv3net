@@ -12,12 +12,6 @@ def get_sample_dataset(mapper):
 
 
 class MergeOverlappingData(GeoMapper):
-    """
-    Mapper for merging data sources that have overlapping data vars.
-    The overlapping variable will be given an additional data_source
-    coordinate to be used in reference a given dataset's variable.
-    """
-
     def __init__(
         self,
         mappers: Sequence,
@@ -25,6 +19,22 @@ class MergeOverlappingData(GeoMapper):
         overlap_dim: str = DERIVATION_DIM,
         variables: Sequence[str] = None,
     ):
+        """ Initialize mapper for merging data sources that have overlapping
+        data vars. The overlapping variable will be given an additional overlap_dim
+        coordinate to be used in reference a given dataset's variable.
+        The coordinates of this dimension are the elements of the source_names
+        arg. They must be given in the order corresponding to the mappers arg.
+        Args:
+            mappers (Sequence): mappers to merge
+            source_names (Sequence[str]): source names for the mappers to be merged,
+                these are used as coordinates for overlapping variables in the merged
+                dataset if there is no existing overlap_dim coordinate for those
+                variables. Must be provided in order corresponding to mappers arg.
+            overlap_dim (str, optional): name of dimension for variable overlaps.
+                Defaults to DERIVATION_DIM.
+            variables (Sequence[str], optional): Subset of variables to return from
+                data. Defaults to None (return all variables).
+        """
         if len(mappers) < 2:
             raise TypeError(
                 "MergeData should be instantiated with two or more mappers."
