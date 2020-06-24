@@ -4,20 +4,17 @@ from vcm import safe
 import xarray as xr
 
 from .wrapper import SklearnWrapper
+from loaders.mappers import GeoMapper
+from loaders import SAMPLE_DIM_NAME, DERIVATION_DIM
 
-SAMPLE_DIM_NAME = "sample"
-DERIVATION_DIM = "derivation"
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
 
-# TODO: import base mapper class after loaders refactored out of fv3net
-DatasetMapper = Mapping[str, xr.Dataset]
 
-
-class SklearnPredictionMapper(DatasetMapper):
+class SklearnPredictionMapper(GeoMapper):
     def __init__(
         self,
-        base_mapper: DatasetMapper,
+        base_mapper: GeoMapper,
         sklearn_wrapped_model: SklearnWrapper,
         init_time_dim: str = "initial_time",
         z_dim: str = "z",

@@ -19,23 +19,24 @@ logger = logging.getLogger(__name__)
 DOMAINS = ["land", "sea", "global"]
 OUTPUT_NC_NAME = "diagnostics.nc"
 
+timestep1 = "20160801.001500"
+timestep1_npdatetime_fmt = "2016-08-01T00:15:00"
+timestep2 = "20160801.003000"
+timestep2_npdatetime_fmt = "2016-08-01T00:30:00"
+
 
 def generate_one_step_dataset(datadir_module, one_step_dir):
 
     with open(str(datadir_module.join("one_step.json"))) as f:
         one_step_schema = synth.load(f)
     one_step_dataset = synth.generate(one_step_schema)
-    one_step_dataset_1 = one_step_dataset.assign_coords(
-        {"initial_time": ["20160901.000000"]}
-    )
-    one_step_dataset_2 = one_step_dataset.assign_coords(
-        {"initial_time": ["20160901.001500"]}
-    )
+    one_step_dataset_1 = one_step_dataset.assign_coords({"initial_time": [timestep1]})
+    one_step_dataset_2 = one_step_dataset.assign_coords({"initial_time": [timestep2]})
     one_step_dataset_1.to_zarr(
-        os.path.join(one_step_dir, "20160901.000000.zarr"), consolidated=True,
+        os.path.join(one_step_dir, f"{timestep1}.zarr"), consolidated=True,
     )
     one_step_dataset_2.to_zarr(
-        os.path.join(one_step_dir, "20160901.001500.zarr"), consolidated=True,
+        os.path.join(one_step_dir, f"{timestep2}.zarr"), consolidated=True,
     )
 
 
@@ -59,8 +60,8 @@ def generate_nudging_dataset(datadir_module, nudging_dir):
     ).assign_coords(
         {
             "time": [
-                np.datetime64("2016-09-01T00:00:00"),
-                np.datetime64("2016-09-01T00:15:00"),
+                np.datetime64(timestep1_npdatetime_fmt),
+                np.datetime64(timestep2_npdatetime_fmt),
             ]
         }
     )
@@ -78,8 +79,8 @@ def generate_nudging_dataset(datadir_module, nudging_dir):
     ).assign_coords(
         {
             "time": [
-                np.datetime64("2016-09-01T00:00:00"),
-                np.datetime64("2016-09-01T00:15:00"),
+                np.datetime64(timestep1_npdatetime_fmt),
+                np.datetime64(timestep2_npdatetime_fmt),
             ]
         }
     )
@@ -97,8 +98,8 @@ def generate_nudging_dataset(datadir_module, nudging_dir):
     ).assign_coords(
         {
             "time": [
-                np.datetime64("2016-09-01T00:00:00"),
-                np.datetime64("2016-09-01T00:15:00"),
+                np.datetime64(timestep1_npdatetime_fmt),
+                np.datetime64(timestep2_npdatetime_fmt),
             ]
         }
     )
@@ -125,10 +126,10 @@ def generate_fine_res_dataset(datadir_module, fine_res_dir):
         fine_res_budget_schema = synth.load(f)
     fine_res_budget_dataset = synth.generate(fine_res_budget_schema)
     fine_res_budget_dataset_1 = fine_res_budget_dataset.assign_coords(
-        {"time": ["20160901.000000"]}
+        {"time": [timestep1]}
     )
     fine_res_budget_dataset_2 = fine_res_budget_dataset.assign_coords(
-        {"time": ["20160901.001500"]}
+        {"time": [timestep2]}
     )
     fine_res_budget_dataset = xr.concat(
         [fine_res_budget_dataset_1, fine_res_budget_dataset_2], dim="time"
@@ -288,6 +289,7 @@ def fine_res_train_config():
     with open(path, "r") as f:
         config = yaml.safe_load(f)
     config["batch_kwargs"].pop("mapping_function", None)
+    config["batch_kwargs"].pop("mapping_kwargs", None)
     return train.ModelTrainingConfig(**config)
 
 
@@ -332,19 +334,9 @@ def test_sklearn_regression(data_source_path_and_train_config):
             data_source_path, data_source_train_config
         )
     else:
-        rename_variables = {
-            "delp": "pressure_thickness_of_atmospheric_layer",
-            "pfull": "z",
-            "grid_xt": "x",
-            "grid_yt": "y",
-        }
         mapper = {
-            "20160901.000000": xr.open_zarr(data_source_path)
-            .isel(time=0)
-            .rename(rename_variables),
-            "20160901.001500": xr.open_zarr(data_source_path)
-            .isel(time=1)
-            .rename(rename_variables),
+            timestep1: xr.open_zarr(data_source_path).isel(time=0),
+            timestep2: xr.open_zarr(data_source_path).isel(time=1),
         }
 
         batched_data = batches.batches_from_mapper(

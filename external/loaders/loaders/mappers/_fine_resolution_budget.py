@@ -4,9 +4,10 @@ import vcm
 from typing import Mapping, Union, Sequence
 import xarray as xr
 from .._transform import GroupByTime, FineResolutionSources
+from ._base import GeoMapper
 
 
-class FineResolutionBudgetTiles:
+class FineResolutionBudgetTiles(GeoMapper):
     """An Mapping interface to a fine-res-q1-q2 dataset"""
 
     def __init__(self, url):
@@ -31,12 +32,6 @@ class FineResolutionBudgetTiles:
 
     def keys(self):
         return [self._parse_file(file) for file in self.files]
-
-    def __iter__(self):
-        return iter(self.keys())
-
-    def __len__(self):
-        return len(self.keys())
 
 
 def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:

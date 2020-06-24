@@ -1,7 +1,7 @@
 model_type: sklearn_random_forest
 hyperparameters:
-  max_depth: 4
-  n_estimators: 2
+  max_depth: 13
+  n_estimators: 1
 input_variables:
   - air_temperature
   - specific_humidity
@@ -11,5 +11,15 @@ output_variables:
 batch_function: batches_from_geodata
 batch_kwargs:
   timesteps_per_batch: 1
-  init_time_dim_name: "time"
+  timesteps:
+    - "20160801.001500"
+    - "20160801.003000"
+  init_time_dim_name: "initial_time"
+  rename_variables:
+    grid_xt: x
+    grid_yt: y
+    pfull: z
+    delp: pressure_thickness_of_atmospheric_layer
   mapping_function: open_fine_res_apparent_sources
+  mapping_kwargs:
+    offset_seconds: 450

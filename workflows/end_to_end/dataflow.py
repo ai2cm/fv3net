@@ -12,8 +12,6 @@ COARSEN_RESTARTS_DATAFLOW_ARGS = {
     "--max_num_workers": 50,
     "--disk_size_gb": 50,
     "--worker_machine_type": "n1-highmem-4",
-    "--setup_file": "./setup.py",
-    "--extra_package": ["external/vcm/external/mappm/dist/mappm-0.0.0.tar.gz"],
 }
 
 CREATE_TRAINING_DATAFLOW_ARGS = COARSEN_RESTARTS_DATAFLOW_ARGS.copy()
