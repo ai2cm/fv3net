@@ -505,4 +505,11 @@ def test_compute_offline_diags(
 
     # compute metrics
     metrics = calc_metrics(ds_batches, area=grid_dataset["area"])
-    assert metrics
+    assert isinstance(metrics, dict)
+    assert len(metrics) == 16
+    for metric, metric_dict in metrics.items():
+        assert isinstance(metric, str)
+        assert isinstance(metric_dict, dict)
+        for metric_key, metric_value in metric_dict.items():
+            assert isinstance(metric_key, str)
+            assert isinstance(metric_value, float)
