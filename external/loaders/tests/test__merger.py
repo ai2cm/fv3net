@@ -88,12 +88,7 @@ def test_fail_when_source_name_given_for_existing_dims():
     left_mapper = MockBaseMapper(dataset(["var0", "var1"]))
     right_mapper = MockBaseMapper(dataset(["overlap_var0", "overlap_var1"]))
     with pytest.raises(Exception):
-        MergeOverlappingData(
-            left_mapper,
-            right_mapper,
-            "left",
-            "right"
-        )
+        MergeOverlappingData(left_mapper, right_mapper, "left", "right")
 
 
 def test__check_overlap_vars_dims():
