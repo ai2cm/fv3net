@@ -15,6 +15,11 @@ Tile = int
 K = Tuple[Time, Tile]
 
 
+def get_sample_dataset(mapper):
+    sample_key = list(mapper.keys())[0]
+    return mapper[sample_key]
+
+
 def standardize_zarr_time_coord(ds: xr.Dataset) -> xr.Dataset:
     """ Casts a datetime coord to to python datetime and rounds to
     nearest even second (because cftime coords have small rounding
