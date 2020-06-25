@@ -25,6 +25,14 @@ timestep2 = "20160801.003000"
 timestep2_npdatetime_fmt = "2016-08-01T00:30:00"
 
 
+@pytest.fixture
+def training_diags_reference_schema(datadir_module):
+
+    with open(str(datadir_module.join("training_diags_reference.json"))) as f:
+        reference_output_schema = synth.load(f)
+        yield reference_output_schema
+
+
 def generate_one_step_dataset(datadir_module, one_step_dir):
 
     with open(str(datadir_module.join("one_step.json"))) as f:
@@ -176,7 +184,7 @@ def get_data_source_training_diags_config(config, data_source_name):
 
 @pytest.mark.regression
 def test_compute_training_diags(
-    datadir_module,
+    training_diags_reference_schema,
     one_step_dataset_path,
     nudging_dataset_path,
     fine_res_dataset_path,
@@ -252,12 +260,7 @@ def test_compute_training_diags(
     # the following line necessary (arrays vs lists)
     diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
 
-    # test against reference
-
-    with open(str(datadir_module.join("training_diags_reference.json"))) as f:
-        reference_output_schema = synth.load(f)
-
-    assert reference_output_schema == diags_output_schema
+    assert training_diags_reference_schema == diags_output_schema
 
 
 @pytest.fixture(
@@ -267,8 +270,7 @@ def data_source_name(request):
     return request.param
 
 
-@pytest.fixture
-def one_step_train_config():
+def _one_step_train_config():
     path = "./tests/training/train_sklearn_model_onestep_source.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
@@ -276,7 +278,11 @@ def one_step_train_config():
 
 
 @pytest.fixture
-def nudging_train_config():
+def one_step_train_config():
+    return _one_step_train_config()
+
+
+def _nudging_train_config():
     path = "./tests/training/train_sklearn_model_nudged_source.yaml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
@@ -284,7 +290,11 @@ def nudging_train_config():
 
 
 @pytest.fixture
-def fine_res_train_config():
+def nudging_train_config():
+    return _nudging_train_config()
+
+
+def _fine_res_train_config():
     path = "./tests/training/train_sklearn_model_fineres_source.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
@@ -294,46 +304,50 @@ def fine_res_train_config():
 
 
 @pytest.fixture
-def data_source_path_and_train_config(
-    data_source_name,
-    one_step_dataset_path,
-    nudging_dataset_path,
-    fine_res_dataset_path,
-    one_step_train_config,
-    nudging_train_config,
-    fine_res_train_config,
-):
-    data_path_mapping = {
-        "one_step_tendencies": one_step_dataset_path,
-        "nudging_tendencies": nudging_dataset_path,
-        "fine_res_apparent_sources": fine_res_dataset_path,
-    }
-    data_config_mapping = {
-        "one_step_tendencies": one_step_train_config,
-        "nudging_tendencies": nudging_train_config,
-        "fine_res_apparent_sources": fine_res_train_config,
-    }
-    return (
-        data_source_name,
-        data_path_mapping[data_source_name],
-        data_config_mapping[data_source_name],
-    )
+def fine_res_train_config():
+    return _fine_res_train_config()
 
 
-@pytest.mark.regression
-def test_sklearn_regression(data_source_path_and_train_config):
+@pytest.fixture
+def data_source_path(datadir_module, data_source_name):
+    with tempfile.TemporaryDirectory() as data_dir:
+        if data_source_name == "one_step_tendencies":
+            generate_one_step_dataset(datadir_module, data_dir)
+            data_source_path = data_dir
+        elif data_source_name == "nudging_tendencies":
+            generate_nudging_dataset(datadir_module, data_dir)
+            data_source_path = data_dir
+        elif data_source_name == "fine_res_apparent_sources":
+            fine_res_zarrpath = generate_fine_res_dataset(datadir_module, data_dir)
+            data_source_path = fine_res_zarrpath
+        else:
+            raise NotImplementedError()
+        yield data_source_path
 
-    (
-        data_source_name,
-        data_source_path,
-        data_source_train_config,
-    ) = data_source_path_and_train_config
+
+@pytest.fixture
+def data_source_train_config(data_source_name):
+    if data_source_name == "one_step_tendencies":
+        data_source_train_config = _one_step_train_config()
+    elif data_source_name == "nudging_tendencies":
+        data_source_train_config = _nudging_train_config()
+    elif data_source_name == "fine_res_apparent_sources":
+        data_source_train_config = _fine_res_train_config()
+    else:
+        raise NotImplementedError()
+    return data_source_train_config
+
+
+@pytest.fixture
+def training_batches(data_source_name, data_source_path, data_source_train_config):
 
     if data_source_name != "fine_res_apparent_sources":
         batched_data = train.load_data_sequence(
             data_source_path, data_source_train_config
         )
     else:
+        # train.load_data_sequence is incompatible with synth's zarrs
+        # (it looks for netCDFs); this is a patch until synth supports netCDF
         mapper = {
             timestep1: xr.open_zarr(data_source_path).isel(time=0),
             timestep2: xr.open_zarr(data_source_path).isel(time=1),
@@ -346,9 +360,29 @@ def test_sklearn_regression(data_source_path_and_train_config):
             **data_source_train_config.batch_kwargs,
         )
 
-    assert len(batched_data) == 2
-    wrapper = train.train_model(batched_data, data_source_train_config)
+    return batched_data
+
+
+@pytest.mark.regression
+def test_sklearn_regression(training_batches, data_source_train_config):
+
+    assert len(training_batches) == 2
+    wrapper = train.train_model(training_batches, data_source_train_config)
     assert wrapper.model.n_estimators == 2
+
+
+@pytest.fixture
+def offline_diags_reference_schema(data_source_name, datadir_module):
+
+    if data_source_name != "fine_res_apparent_sources":
+        reference_schema_file = "offline_diags_reference.json"
+    else:
+        reference_schema_file = "offline_diags_reference_fine_res.json"
+
+    # test against reference
+    with open(str(datadir_module.join(reference_schema_file))) as f:
+        reference_output_schema = synth.load(f)
+        yield reference_output_schema
 
 
 def mock_predict_function(feature_data_arrays):
@@ -378,8 +412,7 @@ def mock_model():
     return MockSklearnWrappedModel(input_vars, output_vars)
 
 
-@pytest.fixture
-def one_step_offline_diags_config():
+def _one_step_offline_diags_config():
     path = "./workflows/offline_ml_diags/tests/test_one_step_config.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
@@ -387,7 +420,11 @@ def one_step_offline_diags_config():
 
 
 @pytest.fixture
-def nudging_offline_diags_config():
+def one_step_offline_diags_config():
+    return _one_step_offline_diags_config()
+
+
+def _nudging_offline_diags_config():
     path = "./workflows/offline_ml_diags/tests/test_nudging_config.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
@@ -395,7 +432,11 @@ def nudging_offline_diags_config():
 
 
 @pytest.fixture
-def fine_res_offline_diags_config():
+def nudging_offline_diags_config():
+    return _nudging_offline_diags_config()
+
+
+def _fine_res_offline_diags_config():
     path = "./workflows/offline_ml_diags/tests/test_fine_res_config.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
@@ -403,42 +444,27 @@ def fine_res_offline_diags_config():
 
 
 @pytest.fixture
-def data_source_path_and_offline_config(
-    data_source_name,
-    one_step_dataset_path,
-    nudging_dataset_path,
-    fine_res_dataset_path,
-    one_step_offline_diags_config,
-    nudging_offline_diags_config,
-    fine_res_offline_diags_config,
+def fine_res_offline_diags_config():
+    return _fine_res_offline_diags_config()
+
+
+@pytest.fixture
+def data_source_offline_config(data_source_name):
+    if data_source_name == "one_step_tendencies":
+        data_source_offline_config = _one_step_offline_diags_config()
+    elif data_source_name == "nudging_tendencies":
+        data_source_offline_config = _nudging_offline_diags_config()
+    elif data_source_name == "fine_res_apparent_sources":
+        data_source_offline_config = _fine_res_offline_diags_config()
+    else:
+        raise NotImplementedError()
+    return data_source_offline_config
+
+
+@pytest.fixture
+def prediction_mapper(
+    mock_model, data_source_name, data_source_path, data_source_offline_config
 ):
-    data_path_mapping = {
-        "one_step_tendencies": one_step_dataset_path,
-        "nudging_tendencies": nudging_dataset_path,
-        "fine_res_apparent_sources": fine_res_dataset_path,
-    }
-    data_config_mapping = {
-        "one_step_tendencies": one_step_offline_diags_config,
-        "nudging_tendencies": nudging_offline_diags_config,
-        "fine_res_apparent_sources": fine_res_offline_diags_config,
-    }
-    return (
-        data_source_name,
-        data_path_mapping[data_source_name],
-        data_config_mapping[data_source_name],
-    )
-
-
-@pytest.mark.regression
-def test_compute_offline_diags(
-    datadir_module, mock_model, data_source_path_and_offline_config, grid_dataset
-):
-
-    (
-        data_source_name,
-        data_source_path,
-        data_source_offline_config,
-    ) = data_source_path_and_offline_config
 
     if data_source_name != "fine_res_apparent_sources":
         base_mapping_function = getattr(
@@ -447,8 +473,9 @@ def test_compute_offline_diags(
         base_mapper = base_mapping_function(
             data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
         )
-        reference_schema_file = "offline_diags_reference.json"
     else:
+        # open_fine_res_apparent_sources is incompatible with synth's zarrs
+        # (it looks for netCDFs); this is a patch until synth supports netCDF
         rename_variables = {
             "delp": "pressure_thickness_of_atmospheric_layer",
             "grid_xt": "x",
@@ -462,41 +489,53 @@ def test_compute_offline_diags(
             .isel(time=1)
             .rename(rename_variables),
         }
-        reference_schema_file = "offline_diags_reference_fine_res.json"
 
-    pred_mapper = SklearnPredictionMapper(
+    prediction_mapper = SklearnPredictionMapper(
         base_mapper,
         mock_model,
         **data_source_offline_config.get("model_mapper_kwargs", {}),
     )
 
-    ds_batches = batches.diagnostic_batches_from_mapper(
-        pred_mapper,
+    return prediction_mapper
+
+
+@pytest.fixture
+def diagnostic_batches(prediction_mapper, data_source_offline_config):
+
+    diagnostic_batches = batches.diagnostic_batches_from_mapper(
+        prediction_mapper,
         data_source_offline_config["variables"],
         **data_source_offline_config["batch_kwargs"],
     )
 
+    return diagnostic_batches
+
+
+@pytest.mark.regression
+def test_compute_offline_diags(
+    offline_diags_reference_schema, diagnostic_batches, grid_dataset
+):
+
     ds_diagnostic = utils.reduce_to_diagnostic(
-        ds_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
+        diagnostic_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
 
     # TODO standardize schema encoding in synth to avoid the casting that makes
     # the following lines necessary
-    output_file = os.path.join(datadir_module, "offline_diags.nc")
-    xr.merge([grid_dataset, ds_diagnostic]).to_netcdf(output_file)
-    with open(output_file, "rb") as f:
-        ds = xr.open_dataset(f).load()
-    diags_output_schema_raw = synth.read_schema_from_dataset(ds)
-    diags_output_schema = synth.loads(synth.dumps(diags_output_schema_raw))
+    with tempfile.TemporaryDirectory() as output_dir:
+        output_file = os.path.join(output_dir, "offline_diags.nc")
+        xr.merge([grid_dataset, ds_diagnostic]).to_netcdf(output_file)
+        with open(output_file, "rb") as f:
+            ds = xr.open_dataset(f).load()
+    offline_diags_output_schema_raw = synth.read_schema_from_dataset(ds)
+    offline_diags_output_schema = synth.loads(
+        synth.dumps(offline_diags_output_schema_raw)
+    )
 
-    # test against reference
-    with open(str(datadir_module.join(reference_schema_file))) as f:
-        reference_output_schema = synth.load(f)
-
-    assert reference_output_schema == diags_output_schema
+    assert offline_diags_reference_schema == offline_diags_output_schema
 
     # compute metrics
-    metrics = calc_metrics(ds_batches, area=grid_dataset["area"])
+    metrics = calc_metrics(diagnostic_batches, area=grid_dataset["area"])
     assert isinstance(metrics, dict)
     assert len(metrics) == 16
     for metric, metric_dict in metrics.items():
