@@ -36,27 +36,31 @@ class MockBaseMapper(GeoMapper):
 
 
 @pytest.fixture
-def mock_mapper_different_vars(request):
+def mapper_different_vars(request):
     left_vars, right_vars = request.param
     left_mapper = MockBaseMapper(dataset(left_vars))
     right_mapper = MockBaseMapper(dataset(right_vars))
-    return MergeOverlappingData([left_mapper, right_mapper], ["left", "right"])
+    left_name = "left" if "overlap" not in "".join(left_vars) else None
+    right_name = "right" if "overlap" not in "".join(right_vars) else None
+    print(left_name, right_name)
+    return MergeOverlappingData(left_mapper, right_mapper, left_name, right_name)
 
 
 @pytest.mark.parametrize(
-    "mock_mapper_different_vars, overlapping_vars",
+    "mapper_different_vars, overlapping_vars",
     (
         [[["var0"], ["var1"]], []],
         [[["var0", "var1"], ["var1"]], ["var1"]],
         [[["var0", "overlap_var1"], ["var1"]], ["var1"]],
     ),
-    indirect=["mock_mapper_different_vars"],
+    indirect=["mapper_different_vars"],
 )
-def test_merged_time_overlap(mock_mapper_different_vars, overlapping_vars):
-    test_key = list(mock_mapper_different_vars.keys())[0]
+def test_merged_time_overlap(mapper_different_vars, overlapping_vars):
+    test_key = list(mapper_different_vars.keys())[0]
+    print(mapper_different_vars._var_overlap)
     for overlap_var in overlapping_vars:
-        assert overlap_var in list(mock_mapper_different_vars[test_key].data_vars)
-        assert OVERLAP_DIM in mock_mapper_different_vars[test_key][overlap_var].dims
+        assert overlap_var in list(mapper_different_vars[test_key].data_vars)
+        assert OVERLAP_DIM in mapper_different_vars[test_key][overlap_var].dims
 
 
 @pytest.fixture
@@ -64,7 +68,7 @@ def mock_mapper_different_times(request):
     left_start, left_end, right_start, right_end = request.param
     left_mapper = MockBaseMapper(dataset(["var0", "var1"]), left_start, left_end)
     right_mapper = MockBaseMapper(dataset(["var0", "var1"]), right_start, right_end)
-    return MergeOverlappingData([left_mapper, right_mapper], ["left", "right"])
+    return MergeOverlappingData(left_mapper, right_mapper, "left", "right")
 
 
 @pytest.mark.parametrize(
@@ -80,13 +84,16 @@ def test_merged_var_overlap(mock_mapper_different_times, overlapping_times):
     assert set(mock_mapper_different_times.keys()) == set(overlapping_times)
 
 
-@pytest.mark.parametrize(
-    "num_base_mappers, source_names", ([1, ["left", "right"]], [2, ["left"]],)
-)
-def test_fail_initialization(num_base_mappers, source_names):
-    mapper = MockBaseMapper(dataset(["var0", "var1"]))
+def test_fail_when_source_name_given_for_existing_dims():
+    left_mapper = MockBaseMapper(dataset(["var0", "var1"]))
+    right_mapper = MockBaseMapper(dataset(["overlap_var0", "overlap_var1"]))
     with pytest.raises(Exception):
-        MergeOverlappingData([mapper for i in range(num_base_mappers)], source_names)
+        MergeOverlappingData(
+            left_mapper,
+            right_mapper,
+            "left",
+            "right"
+        )
 
 
 def test__check_overlap_vars_dims():

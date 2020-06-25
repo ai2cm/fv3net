@@ -56,7 +56,7 @@ class MergeOverlappingData(GeoMapper):
         return self._merge_with_overlap(datasets_to_merge)
 
     def _merge_with_overlap(self, datasets: Sequence[xr.Dataset]) -> xr.Dataset:
-        ds_nonoverlap = xr.merge([ds.drop(self._var_overlap) for ds in datasets])
+        ds_nonoverlap = xr.merge([ds.drop(list(self._var_overlap)) for ds in datasets])
         overlapping = []
         for ds, source_coord in zip(datasets, self._source_names):
             if self._overlap_dim in ds.dims:
