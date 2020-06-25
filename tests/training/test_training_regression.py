@@ -309,18 +309,20 @@ def fine_res_train_config():
 
 
 @pytest.fixture
-def data_source_path(
-    data_source_name, one_step_dataset_path, nudging_dataset_path, fine_res_dataset_path
-):
-    data_path_mapping = {
-        "one_step_tendencies": one_step_dataset_path,
-        "nudging_tendencies": nudging_dataset_path,
-        "fine_res_apparent_sources": fine_res_dataset_path,
-    }
-    data_source_path = data_path_mapping.get(data_source_name, None)
-    if data_source_path is None:
-        raise NotImplementedError()
-    return data_source_path
+def data_source_path(datadir_module, data_source_name):
+    with tempfile.TemporaryDirectory() as data_dir:
+        if data_source_name == "one_step_tendencies":
+            generate_one_step_dataset(datadir_module, data_dir)
+            data_source_path = data_dir
+        elif data_source_name == "nudging_tendencies":
+            generate_nudging_dataset(datadir_module, data_dir)
+            data_source_path = data_dir
+        elif data_source_name == "fine_res_apparent_sources":
+            fine_res_zarrpath = generate_fine_res_dataset(datadir_module, data_dir)
+            data_source_path = fine_res_zarrpath
+        else:
+            raise NotImplementedError()
+        yield data_source_path
 
 
 @pytest.fixture
@@ -344,6 +346,8 @@ def training_batches(data_source_name, data_source_path, data_source_train_confi
             data_source_path, data_source_train_config
         )
     else:
+        # train.load_data_sequence is incompatible with synth's zarrs
+        # (it looks for netCDFs); this is a patch until synth supports netCDF
         mapper = {
             timestep1: xr.open_zarr(data_source_path).isel(time=0),
             timestep2: xr.open_zarr(data_source_path).isel(time=1),
@@ -470,6 +474,8 @@ def prediction_mapper(
             data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
         )
     else:
+        # open_fine_res_apparent_sources is incompatible with synth's zarrs
+        # (it looks for netCDFs); this is a patch until synth supports netCDF
         rename_variables = {
             "delp": "pressure_thickness_of_atmospheric_layer",
             "grid_xt": "x",
