@@ -31,6 +31,7 @@ class MergeOverlappingData(GeoMapper):
                 dimension in left mapper. If overlap_dim exists, give as None.
                 Defaults to None.
             source_name_right (str): Same as source_name_left but for right mapper.
+            overlap_dim (str): name of dimension to concat overlapping variables along.
         """
         self._mappers = [mapper_left, mapper_right]
         self._source_names = [source_name_left, source_name_right]
