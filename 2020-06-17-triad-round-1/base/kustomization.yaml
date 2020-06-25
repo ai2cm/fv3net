@@ -7,11 +7,11 @@ configMapGenerator:
     name: end-to-end
     env: input_data.env
     literals:
-      - TAG=v0.2.3
-      - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:v0.2.3
+      - TAG=62811685c0545bdb57cf5c69e0941fc5e065578e
+      - PROGNOSTIC_RUN_IMAGE=us.gcr.io/vcm-ml/prognostic_run:62811685c0545bdb57cf5c69e0941fc5e065578e
 resources:
   - job.yaml
 images:
   - name: us.gcr.io/vcm-ml/fv3net
     newName: us.gcr.io/vcm-ml/fv3net
-    newTag: v0.2.3
+    newTag: 62811685c0545bdb57cf5c69e0941fc5e065578e

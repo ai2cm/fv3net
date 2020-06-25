@@ -44,7 +44,7 @@ experiment:
         restart_data:
           location: $C48_RESTARTS
         ic_timestep: $IC_TIMESTEP
-        --image_tag: $TAG
+        --image-tag: $TAG
         --prog_config_yml: $CONFIG/prognostic_run.yaml
         --diagnostic_ml: ''
         --model_url:
