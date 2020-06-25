@@ -16,6 +16,10 @@ sources:
     mapping_function: open_merged_nudged_full_tendencies
     mapping_kwargs:
       nudging_timescale_hr: 3
+      open_checkpoints_kwargs: 
+        checkpoint_files: 
+          - after_dynamics.zarr
+          - after_physics.zarr
   fine_res_apparent_sources: 
     path: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget
     mapping_function: open_fine_res_apparent_sources
