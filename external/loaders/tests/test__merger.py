@@ -42,25 +42,25 @@ def mapper_different_vars(request):
     right_mapper = MockBaseMapper(dataset(right_vars))
     left_name = "left" if "overlap" not in "".join(left_vars) else None
     right_name = "right" if "overlap" not in "".join(right_vars) else None
-    print(left_name, right_name)
     return MergeOverlappingData(left_mapper, right_mapper, left_name, right_name)
 
 
 @pytest.mark.parametrize(
-    "mapper_different_vars, overlapping_vars",
+    "mapper_different_vars, overlapping_vars, overlap_coords",
     (
-        [[["var0"], ["var1"]], []],
-        [[["var0", "var1"], ["var1"]], ["var1"]],
-        [[["var0", "overlap_var1"], ["var1"]], ["var1"]],
+        [[["var0"], ["var1"]], [], {}],
+        [[["var0", "var1"], ["var1"]], ["var1"], {"left", "right"}],
+        [[["var0", "overlap_var1"], ["var1"]], ["var1"], {"existing", "right"}],
     ),
     indirect=["mapper_different_vars"],
 )
-def test_merged_time_overlap(mapper_different_vars, overlapping_vars):
+def test_merged_time_overlap(mapper_different_vars, overlapping_vars, overlap_coords):
     test_key = list(mapper_different_vars.keys())[0]
-    print(mapper_different_vars._var_overlap)
+    test_ds = mapper_different_vars[test_key]
     for overlap_var in overlapping_vars:
-        assert overlap_var in list(mapper_different_vars[test_key].data_vars)
-        assert OVERLAP_DIM in mapper_different_vars[test_key][overlap_var].dims
+        assert overlap_var in list(test_ds.data_vars)
+        assert OVERLAP_DIM in test_ds[overlap_var].dims
+        assert set(test_ds[OVERLAP_DIM].values) == overlap_coords
 
 
 @pytest.fixture

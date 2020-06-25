@@ -4,11 +4,7 @@ from vcm import safe
 
 from ._base import GeoMapper
 from ..constants import DERIVATION_DIM
-
-
-def get_sample_dataset(mapper):
-    sample_key = list(mapper.keys())[0]
-    return mapper[sample_key]
+from .._utils import get_sample_dataset
 
 
 class MergeOverlappingData(GeoMapper):
@@ -19,7 +15,6 @@ class MergeOverlappingData(GeoMapper):
         source_name_left: str = None,
         source_name_right: str = None,
         overlap_dim: str = DERIVATION_DIM,
-        variables: Sequence[str] = None,
     ):
         """ Initialize mapper for merging data sources that have overlapping
         data vars. The overlapping variable will be given an additional overlap_dim
@@ -36,8 +31,6 @@ class MergeOverlappingData(GeoMapper):
                 dimension in left mapper. If overlap_dim exists, give as None.
                 Defaults to None.
             source_name_right (str): Same as source_name_left but for right mapper.
-            variables (Sequence[str], optional): Subset of variables to return from
-                data. Defaults to None (return all variables).
         """
         self._mappers = [mapper_left, mapper_right]
         self._source_names = [source_name_left, source_name_right]
