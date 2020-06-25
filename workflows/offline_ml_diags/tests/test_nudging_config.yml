@@ -17,3 +17,6 @@ mapping_kwargs:
 batch_kwargs:
   timesteps_per_batch: 5
   init_time_dim_name: "initial_time"
+  timesteps:
+    - "20160801.030000"
+    - "20160801.031500"

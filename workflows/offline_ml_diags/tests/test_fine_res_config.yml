@@ -4,6 +4,8 @@ variables:
   - specific_humidity
   - dQ1
   - dQ2
+  - pQ1
+  - pQ2
   - pressure_thickness_of_atmospheric_layer
 model_mapper_kwargs:
   z_dim: "pfull"

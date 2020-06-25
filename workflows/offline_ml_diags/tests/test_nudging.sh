@@ -7,5 +7,4 @@ gsutil -m rm -r $OUTPUT
 python -m offline_ml_diags.compute_diags \
     workflows/offline_ml_diags/tests/test_nudging_config.yml \
     $MODEL \
-    $OUTPUT \
-   --timesteps-file workflows/offline_ml_diags/tests/times_nudging.json
+    $OUTPUT 
