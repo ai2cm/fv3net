@@ -13,8 +13,8 @@ batch_kwargs:
   init_time_dim_name: "time"
   timesteps_per_batch: 1
   timesteps:
+    - "20160801.001500"
     - "20160801.003000"
-    - "20160801.004500"
   mapping_function: open_merged_nudged
   mapping_kwargs:
     nudging_timescale_hr: 3
