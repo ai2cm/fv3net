@@ -26,7 +26,7 @@ from dask.diagnostics import ProgressBar
 from pathlib import Path
 from toolz import curry
 from collections import defaultdict
-from typing import Tuple, Dict, Callable, Mapping
+from typing import Tuple, Dict, Callable, Mapping, Sequence
 
 import vcm
 import load_diagnostic_data as load_diags
@@ -116,9 +116,28 @@ def mask_to_sfc_type(arg: DiagArg, surface_type: str, mask_var_name: str = "SLMS
     return masked_prognostic, masked_verification, grid
 
 
+def apply_transform(transform_params, func):
+
+    transform_key, transform_args, transform_kwargs = transform_params
+    if transform_key not in _TRANSFORM_FNS:
+        raise KeyError(f"Unrecognized transform, {transform_key} requested for {func.__name__}")
+
+    transform_func = _TRANSFORM_FNS[transform_key]
+    def transform(*args):
+
+        transformed_args = transform_func(*args)
+
+        return func(*transformed_args)
+    
+    return transform
+
+
 @curry
 def add_to_diags(
-    diags_key: str, func: Callable[[DiagArg], DiagDict], var_suffix: str = None
+    diags_key: str,
+    func: Callable[[DiagArg], DiagDict],
+    var_suffix: str = None,
+    input_transforms: Tuple[str, Sequence, Mapping] = None,
 ):
     """
     Add a function to the list of diagnostics to be computed
@@ -134,8 +153,19 @@ def add_to_diags(
             and should return diagnostics as a dict of xr.DataArrays.
             This output will be merged with all other decorated functions,
             so some care must be taken to avoid variable and coordinate clashes.
+        var_suffix:  A suffix passed to the diagnostic finalizer which appends
+            to the end of all variable names in the diagnostic.  Useful for
+            preventing overlap with diagnostics names that are 1-to-1 with the
+            input data
+        input_pre_transforms: List of transform functions with arguments to
+            apply to input data before diagnostic is calculated.  this paremter
+            should follow this structure (transform_fn_name, args, kwargs)
     """
     _DIAG_FNS[diags_key].append(func)
+
+    if input_transforms is not None:
+        for transform_params in input_transforms:
+            func = apply_transform(transform_params, func)
 
     # Prepare non-overlapping variable names and transfer attributes from source
     if var_suffix is not None:
