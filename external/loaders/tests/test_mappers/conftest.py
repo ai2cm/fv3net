@@ -7,3 +7,10 @@ from synth import (  # noqa: F401
     data_source_path,
     grid_dataset,
 )
+
+# test mapper fixtures
+from ._test_mapper_fixtures import (
+    training_mapper,
+    training_mapper_helper_function,
+    training_mapper_helper_function_kwargs,
+)

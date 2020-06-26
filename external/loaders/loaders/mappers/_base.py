@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 import vcm
-from collections.abc import Mapping
+from typing import Mapping
 
 
 from ..constants import TIME_NAME, TIME_FMT
