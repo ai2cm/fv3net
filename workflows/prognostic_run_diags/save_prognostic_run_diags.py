@@ -45,8 +45,52 @@ DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 DiagDict = Mapping[str, xr.DataArray]
 
 
+def _prepare_diag_dict(
+    suffix: str, new_diags: xr.Dataset, src_ds: xr.Dataset
+) -> DiagDict:
+    """
+    Take a diagnostic dict add a suffix to all variable names and transfer attributes
+    from a source dataset.  This is useful when the calculated diagnostics are a 1-to-1
+    mapping from the source.
+    """
+
+    diags = {}
+    for variable in new_diags:
+        lower = variable.lower()
+        da = new_diags[variable]
+        attrs = da.attrs
+        if not attrs and variable in src_ds:
+            logger.debug(
+                "Transferring missing diagnostic attributes from source for "
+                f"{variable}."
+            )
+            src_attrs = src_ds[variable].attrs
+            da = da.assign_attrs(src_attrs)
+        else:
+            logger.debug(
+                f"Diagnostic variable ({variable}) missing attributes. This "
+                "may cause issues with automated report generation."
+            )
+
+        diags[f"{lower}_{suffix}"] = da
+
+    return diags
+
+
+def diag_finalizer(var_suffix, func):
+    def finalize(prognostic, verification, grid):
+
+        diags = func(prognostic, verification, grid)
+
+        return _prepare_diag_dict(var_suffix, diags, prognostic)
+
+    return finalize
+
+
 @curry
-def add_to_diags(diags_key: str, func: Callable[[DiagArg], DiagDict]):
+def add_to_diags(
+    diags_key: str, func: Callable[[DiagArg], DiagDict], var_suffix: str = None
+):
     """
     Add a function to the list of diagnostics to be computed
     for a specified group of data.
@@ -63,6 +107,10 @@ def add_to_diags(diags_key: str, func: Callable[[DiagArg], DiagDict]):
             so some care must be taken to avoid variable and coordinate clashes.
     """
     _DIAG_FNS[diags_key].append(func)
+
+    # Prepare non-overlapping variable names and transfer attributes from source
+    if var_suffix is not None:
+        func = diag_finalizer(var_suffix, func)
 
     return func
 
@@ -231,21 +279,6 @@ def bias(truth, prediction, w, dims):
     return ((prediction - truth) * w).sum(dims) / w.sum(dims)
 
 
-def calc_ds_diurnal_cycle(ds):
-    """
-    Calculates the diurnal cycle on moisture variables.  Expects
-    time dimension and longitude variable "lon".
-    """
-    local_time = vcm.local_time(ds, time="time", lon_var="lon")
-    local_time.attrs = {"long_name": "local time", "units": "hour"}
-
-    local_time = np.floor(local_time)  # equivalent to hourly binning
-    ds["local_time"] = local_time
-    diurnal_ds = ds.groupby("local_time").mean()
-
-    return diurnal_ds
-
-
 def dump_nc(ds: xr.Dataset, f):
     # to_netcdf closes file, which will delete the buffer
     # need to use a buffer since seek doesn't work with GCSFS file objects
@@ -256,82 +289,45 @@ def dump_nc(ds: xr.Dataset, f):
             shutil.copyfileobj(tmp1, f)
 
 
-def _prepare_diag_dict(suffix: str, ds: xr.Dataset, src_ds: xr.Dataset) -> DiagDict:
-    # converts dataset variables into diagnostics dict
-    # and assigns attrs from src_ds if none are set
-
-    diags = {}
-    for variable in ds:
-        lower = variable.lower()
-        da = ds[variable]
-        attrs = da.attrs
-        if not attrs:
-            src_attrs = src_ds[variable].attrs
-            da = da.assign_attrs(src_attrs)
-
-        diags[f"{lower}_{suffix}"] = da
-
-    return diags
-
-
-@add_to_diags("dycore")
+@add_to_diags("dycore", var_suffix="rms_global")
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
-    return _prepare_diag_dict("rms_global", rms_errors, resampled)
+    return rms_errors
 
 
-@add_to_diags("dycore")
+@add_to_diags("dycore", var_suffix="global_avg")
 def global_averages_dycore(resampled, verification, grid):
     logger.info("Preparing global averages for dycore variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
         HORIZONTAL_DIMS
     )
 
-    return _prepare_diag_dict("global_avg", area_averages, resampled)
+    return area_averages
 
 
-@add_to_diags("physics_3H")
+@add_to_diags("physics_3H", var_suffix="global_phys_avg")
 def global_averages_physics(resampled, verification, grid):
     logger.info("Preparing global averages for physics variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
         HORIZONTAL_DIMS
     )
 
-    return _prepare_diag_dict("global_phys_avg", area_averages, resampled)
+    return area_averages
 
 
 # TODO: enable this diagnostic once SHiELD physics diags can be loaded efficiently
-# @add_to_diags("physics_3H")
+# @add_to_diags("physics_3H", var_suffix="bias_global_physics")
 def global_biases_physics(resampled, verification, grid):
     logger.info("Preparing global average biases for physics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
 
-    return _prepare_diag_dict("bias_global_physics", bias_errors, resampled)
+    return bias_errors
 
 
-@add_to_diags("physics_15min")
-def diurnal_cycles(resampled, verification, grid):
-
-    logger.info("Preparing diurnal cycle diagnostics")
-
-    diurnal_cycle_vars = [
-        f"column_integrated_{a}Q{b}" for a in ["d", "p", ""] for b in ["1", "2"]
-    ] + ["SLMSKsfc"]
-    resampled = resampled[[var for var in diurnal_cycle_vars if var in resampled]]
-
-    resampled["lon"] = grid["lon"]
-    diag_dicts = {}
-    for surface_name in ["global", "land", "sea"]:
-        masked = vcm.mask_to_surface_type(
-            resampled, surface_name, surface_type_var="SLMSKsfc"
-        )
-        diurnal_ds = calc_ds_diurnal_cycle(masked)
-        diag_dicts.update(
-            _prepare_diag_dict(f"diurnal_{surface_name}", diurnal_ds, resampled)
-        )
-    return diag_dicts
+# @add_to_diags("physics_15min")
+# pass
 
 
 def _catalog():
