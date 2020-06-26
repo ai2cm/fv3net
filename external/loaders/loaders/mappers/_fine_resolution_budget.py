@@ -13,27 +13,6 @@ Tile = int
 K = Tuple[Time, Tile]
 
 
-class GroupByTime:
-    def __init__(self, tiles: Mapping[K, xr.Dataset]) -> Mapping[K, xr.Dataset]:
-        def fn(key):
-            time, _ = key
-            return time
-
-        self._tiles = tiles
-        self._time_lookup = groupby(fn, self._tiles.keys())
-
-    def keys(self):
-        return self._time_lookup.keys()
-
-    def __len__(self):
-        return len(self.keys())
-
-    def __getitem__(self, time: Time) -> xr.Dataset:
-        datasets = [self._tiles[key] for key in self._time_lookup[time]]
-        tiles = range(len(datasets))
-        return xr.concat(datasets, dim="tile").assign_coords(tile=tiles)
-
-
 class FineResolutionBudgetTiles(GeoMapper):
     """An Mapping interface to a fine-res-q1-q2 dataset"""
 
@@ -61,7 +40,25 @@ class FineResolutionBudgetTiles(GeoMapper):
         return [self._parse_file(file) for file in self.files]
 
 
-class FineResolutionSources(Mapping):
+class GroupByTime(GeoMapper):
+    def __init__(self, tiles: Mapping[K, xr.Dataset]) -> Mapping[K, xr.Dataset]:
+        def fn(key):
+            time, _ = key
+            return time
+
+        self._tiles = tiles
+        self._time_lookup = groupby(fn, self._tiles.keys())
+
+    def keys(self):
+        return self._time_lookup.keys()
+
+    def __getitem__(self, time: Time) -> xr.Dataset:
+        datasets = [self._tiles[key] for key in self._time_lookup[time]]
+        tiles = range(len(datasets))
+        return xr.concat(datasets, dim="tile").assign_coords(tile=tiles)
+
+
+class FineResolutionSources(GeoMapper):
     def __init__(
         self,
         fine_resolution_time_mapping: Mapping[Time, xr.Dataset],
@@ -87,14 +84,6 @@ class FineResolutionSources(Mapping):
             .drop_vars(names=self._drop_vars, errors="ignore")
             .rename(self._rename_vars)
         )
-
-    def __iter__(self):
-        # TODO move these implementations into a base mapper, that can be used
-        # by the other classes
-        return iter(self.keys())
-
-    def __len__(self):
-        return len(self.keys())
 
     @staticmethod
     def _timestamp_key_to_midpoint(

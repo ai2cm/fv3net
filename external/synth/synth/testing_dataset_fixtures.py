@@ -4,6 +4,7 @@ import numpy as np
 import xarray as xr
 import intake
 import pytest
+from distutils import dir_util
 
 from .core import load, generate
 
@@ -14,6 +15,22 @@ timestep2 = "20160801.003000"
 timestep2_npdatetime_fmt = "2016-08-01T00:30:00"
 
 
+@pytest.fixture(scope="module")
+def test_training_datadir(tmpdir_factory, request):
+    """Creates a temporary directory with the contents of the
+    synth testing datasets directory for use in sessions"""
+    #     __file__
+    #     test_dir = './external/synth/synth/testing_datasets'
+    test_dir, _ = os.path.splitext(__file__)
+
+    tmpdir = tmpdir_factory.mktemp("pytest_data")
+
+    if os.path.isdir(test_dir):
+        dir_util.copy_tree(test_dir, str(tmpdir))
+
+    return tmpdir
+
+
 @pytest.fixture(
     params=["one_step_tendencies", "nudging_tendencies", "fine_res_apparent_sources"]
 )
@@ -22,10 +39,10 @@ def data_source_name(request):
 
 
 @pytest.fixture(scope="module")
-def one_step_dataset_path(datadir_module):
+def one_step_dataset_path(test_training_datadir):
 
     with tempfile.TemporaryDirectory() as one_step_dir:
-        _generate_one_step_dataset(datadir_module, one_step_dir)
+        _generate_one_step_dataset(test_training_datadir, one_step_dir)
         yield one_step_dir
 
 
@@ -45,10 +62,10 @@ def _generate_one_step_dataset(datadir, one_step_dir):
 
 
 @pytest.fixture(scope="module")
-def nudging_dataset_path(datadir_module):
+def nudging_dataset_path(test_training_datadir):
 
     with tempfile.TemporaryDirectory() as nudging_dir:
-        _generate_nudging_dataset(datadir_module, nudging_dir)
+        _generate_nudging_dataset(test_training_datadir, nudging_dir)
         yield nudging_dir
 
 
@@ -109,10 +126,12 @@ def _generate_nudging_dataset(datadir, nudging_dir):
 
 
 @pytest.fixture(scope="module")
-def fine_res_dataset_path(datadir_module):
+def fine_res_dataset_path(test_training_datadir):
 
     with tempfile.TemporaryDirectory() as fine_res_dir:
-        fine_res_zarrpath = _generate_fine_res_dataset(datadir_module, fine_res_dir)
+        fine_res_zarrpath = _generate_fine_res_dataset(
+            test_training_datadir, fine_res_dir
+        )
         yield fine_res_zarrpath
 
 
@@ -142,16 +161,18 @@ def _generate_fine_res_dataset(datadir, fine_res_dir):
 
 
 @pytest.fixture
-def data_source_path(datadir_module, data_source_name):
+def data_source_path(test_training_datadir, data_source_name):
     with tempfile.TemporaryDirectory() as data_dir:
         if data_source_name == "one_step_tendencies":
-            _generate_one_step_dataset(datadir_module, data_dir)
+            _generate_one_step_dataset(test_training_datadir, data_dir)
             data_source_path = data_dir
         elif data_source_name == "nudging_tendencies":
-            _generate_nudging_dataset(datadir_module, data_dir)
+            _generate_nudging_dataset(test_training_datadir, data_dir)
             data_source_path = data_dir
         elif data_source_name == "fine_res_apparent_sources":
-            fine_res_zarrpath = _generate_fine_res_dataset(datadir_module, data_dir)
+            fine_res_zarrpath = _generate_fine_res_dataset(
+                test_training_datadir, data_dir
+            )
             data_source_path = fine_res_zarrpath
         else:
             raise NotImplementedError()
