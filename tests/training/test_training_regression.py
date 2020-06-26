@@ -1,12 +1,10 @@
 import xarray as xr
-import numpy as np
 import pytest
 import yaml
 import os
 import tempfile
 import logging
 import diagnostics_utils as utils
-import intake
 import synth
 from loaders import mappers, batches, SAMPLE_DIM_NAME
 from fv3net.regression.sklearn import train

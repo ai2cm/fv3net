@@ -27,8 +27,8 @@ def one_step_dataset_path(datadir_module):
     with tempfile.TemporaryDirectory() as one_step_dir:
         _generate_one_step_dataset(datadir_module, one_step_dir)
         yield one_step_dir
-        
-    
+
+
 def _generate_one_step_dataset(datadir, one_step_dir):
 
     with open(str(datadir.join("one_step.json"))) as f:
@@ -50,8 +50,8 @@ def nudging_dataset_path(datadir_module):
     with tempfile.TemporaryDirectory() as nudging_dir:
         _generate_nudging_dataset(datadir_module, nudging_dir)
         yield nudging_dir
-        
-        
+
+
 def _generate_nudging_dataset(datadir, nudging_dir):
 
     nudging_after_dynamics_zarrpath = os.path.join(
@@ -97,9 +97,7 @@ def _generate_nudging_dataset(datadir, nudging_dir):
     )
     with open(str(datadir.join("nudging_tendencies.json"))) as f:
         nudging_tendencies_schema = load(f)
-    nudging_tendencies_dataset = generate(
-        nudging_tendencies_schema
-    ).assign_coords(
+    nudging_tendencies_dataset = generate(nudging_tendencies_schema).assign_coords(
         {
             "time": [
                 np.datetime64(timestep1_npdatetime_fmt),
@@ -116,7 +114,7 @@ def fine_res_dataset_path(datadir_module):
     with tempfile.TemporaryDirectory() as fine_res_dir:
         fine_res_zarrpath = _generate_fine_res_dataset(datadir_module, fine_res_dir)
         yield fine_res_zarrpath
-        
+
 
 def _generate_fine_res_dataset(datadir, fine_res_dir):
     """ Note that this does not follow the pattern of the other two datasets
@@ -141,7 +139,6 @@ def _generate_fine_res_dataset(datadir, fine_res_dir):
     fine_res_budget_dataset.to_zarr(fine_res_zarrpath, consolidated=True)
 
     return fine_res_zarrpath
-
 
 
 @pytest.fixture

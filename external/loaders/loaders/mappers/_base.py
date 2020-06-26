@@ -2,13 +2,14 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 import vcm
+from collections.abc import Mapping
 
 
 from ..constants import TIME_NAME, TIME_FMT
 from .._utils import standardize_zarr_time_coord
 
 
-class GeoMapper:
+class GeoMapper(Mapping):
     def __init__(self, *args):
         raise NotImplementedError("Don't use the base class!")
 
