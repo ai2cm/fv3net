@@ -37,6 +37,7 @@ logger = logging.getLogger(__file__)
 
 _DIAG_FNS = defaultdict(list)
 _DERIVED_VAR_FNS = defaultdict(Callable)
+_TRANSFORM_FNS = {}
 
 HORIZONTAL_DIMS = ["x", "y", "tile"]
 SECONDS_PER_DAY = 86400
@@ -85,6 +86,34 @@ def diag_finalizer(var_suffix, func):
         return _prepare_diag_dict(var_suffix, diags, prognostic)
 
     return finalize
+
+
+def add_to_input_transform_fns(func):
+
+    _TRANSFORM_FNS[func.__name__] = func
+
+    return func
+
+
+@add_to_input_transform_fns
+def resample_time(
+    arg: DiagArg, freq_label: str, time_slice=slice(None, -1)
+) -> DiagArg:
+    prognostic, verification, grid = arg
+    prognostic = prognostic.resample(time=freq_label, label="right").nearest()
+    prognostic = prognostic.isel(time=time_slice)
+    if "time" in verification:  # verification might be an empty dataset
+        verification = verification.sel(time=prognostic.time)
+    return prognostic, verification, grid
+
+
+@add_to_input_transform_fns
+def mask_to_sfc_type(arg: DiagArg, surface_type: str, mask_var_name: str = "SLMSKsfc") -> DiagArg:
+    prognostic, verification, grid = arg
+    masked_prognostic = vcm.mask_to_surface_type(prognostic, surface_type, surface_type_var=mask_var_name)
+    masked_verification = vcm.mask_to_surface_type(verification, surface_type, surface_type=mask_var_name)
+
+    return masked_prognostic, masked_verification, grid
 
 
 @curry
@@ -333,17 +362,6 @@ def global_biases_physics(resampled, verification, grid):
 def _catalog():
     TOP_LEVEL_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
     return str(TOP_LEVEL_DIR / "catalog.yml")
-
-
-def _resample_time(
-    arg: DiagArg, freq_label: str, time_slice=slice(None, -1)
-) -> DiagArg:
-    prognostic, verification, grid = arg
-    prognostic = prognostic.resample(time=freq_label, label="right").nearest()
-    prognostic = prognostic.isel(time=time_slice)
-    if "time" in verification:  # verification might be an empty dataset
-        verification = verification.sel(time=prognostic.time)
-    return prognostic, verification, grid
 
 
 if __name__ == "__main__":
