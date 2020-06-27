@@ -146,8 +146,8 @@ def apply_transform(transform_params, func):
 @curry
 def add_to_diags(
     diags_key: str,
+    var_suffix: str,
     func: Callable[[DiagArg], DiagDict],
-    var_suffix: str = None,
     input_transforms: Tuple[str, Sequence, Mapping] = None,
 ):
     """
@@ -156,6 +156,10 @@ def add_to_diags(
 
     Args:
         diags_key: A key for a group of diagnostics
+        var_suffix:  A suffix passed to the diagnostic finalizer which appends
+            to the end of all variable names in the diagnostic.  Useful for
+            preventing overlap with diagnostics names that are 1-to-1 with the
+            input data
         func: a function which computes a set of diagnostics.
             It needs to have the following signature::
 
@@ -164,13 +168,10 @@ def add_to_diags(
             and should return diagnostics as a dict of xr.DataArrays.
             This output will be merged with all other decorated functions,
             so some care must be taken to avoid variable and coordinate clashes.
-        var_suffix:  A suffix passed to the diagnostic finalizer which appends
-            to the end of all variable names in the diagnostic.  Useful for
-            preventing overlap with diagnostics names that are 1-to-1 with the
-            input data
         input_pre_transforms: List of transform functions with arguments to
-            apply to input data before diagnostic is calculated.  this paremter
-            should follow this structure (transform_fn_name, args, kwargs)
+            apply to input data before diagnostic is calculated.  Each tuple
+            should contain the following items: transform function name,
+            transform arguments, transform keyword arguments.
     """
     _DIAG_FNS[diags_key].append(func)
 
@@ -244,6 +245,7 @@ def compute_all_derived_vars(input_datasets: Dict[str, DiagArg]) -> Dict[str, Di
         verification = verification.merge(func(verification))
         input_datasets[key] = prognostic, verification, grid
     return input_datasets
+
 
 @add_to_derived_vars("physics")
 def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
@@ -353,7 +355,9 @@ transform_3h = ("resample_time", "3H", {})
 transform_15min = ("resample_time", "15min", {})
 
 
-@add_to_diags("dycore", var_suffix="rms_global", input_transforms=[transform_3h])
+@add_to_diags(
+    diags_key="dycore", var_suffix="rms_global", input_transforms=[transform_3h]
+)
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
@@ -361,7 +365,9 @@ def rms_errors(resampled, verification_c48, grid):
     return rms_errors
 
 
-@add_to_diags("dycore", var_suffix="global_avg", input_transforms=[transform_3h])
+@add_to_diags(
+    diags_key="dycore", var_suffix="global_avg", input_transforms=[transform_3h]
+)
 def global_averages_dycore(resampled, verification, grid):
     logger.info("Preparing global averages for dycore variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
@@ -371,7 +377,9 @@ def global_averages_dycore(resampled, verification, grid):
     return area_averages
 
 
-@add_to_diags("physics", var_suffix="global_phys_avg", input_transforms=[transform_3h])
+@add_to_diags(
+    diags_key="physics", var_suffix="global_phys_avg", input_transforms=[transform_3h]
+)
 def global_averages_physics(resampled, verification, grid):
     logger.info("Preparing global averages for physics variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
@@ -382,7 +390,7 @@ def global_averages_physics(resampled, verification, grid):
 
 
 # TODO: enable this diagnostic once SHiELD physics diags can be loaded efficiently
-# @add_to_diags("physics", var_suffix="bias_global_physics", input_transforms=[transform_3h])
+# @add_to_diags(diags_key="physics", var_suffix="bias_global_physics", input_transforms=[transform_3h])
 def global_biases_physics(resampled, verification, grid):
     logger.info("Preparing global average biases for physics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
@@ -391,9 +399,15 @@ def global_biases_physics(resampled, verification, grid):
 
 
 for mask_type in ["global", "land", "sea"]:
-    @add_to_diags("physics", var_suffix=f"diurnal_{mask_type}", input_transforms=[transform_15min, ("mask_to_sfc_type", mask_type, {})])
+    @add_to_diags(
+        diags_key="physics",
+        var_suffix=f"diurnal_{mask_type}",
+        input_transforms=[transform_15min, ("mask_to_sfc_type", mask_type, {})]
+    )
     def _diurnal_func(resampled, verification, grid):
-        logger.info(f"Preparing diurnal cycle info for physics variables with mask={mask_type}")
+        logger.info(
+            f"Preparing diurnal cycle info for physics variables with mask={mask_type}"
+        )
         diurnal_cycles = diurnal.diurnal_cycles(resampled, verification, grid)
 
         return diurnal_cycles
