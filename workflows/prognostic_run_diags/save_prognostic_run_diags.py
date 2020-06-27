@@ -31,7 +31,7 @@ from typing import Tuple, Dict, Callable, Mapping, Sequence
 
 import vcm
 import load_diagnostic_data as load_diags
-import diurnal
+import diurnal_cycle
 
 import logging
 
@@ -408,9 +408,9 @@ for mask_type in ["global", "land", "sea"]:
         logger.info(
             f"Preparing diurnal cycle info for physics variables with mask={mask_type}"
         )
-        diurnal_cycles = diurnal.diurnal_cycles(resampled, verification, grid)
+        diurnal = diurnal_cycle.calc_diagnostics(resampled, verification, grid)
 
-        return diurnal_cycles
+        return diurnal
 
 
 def _catalog():

@@ -6,7 +6,7 @@ import vcm
 logger = logging.getLogger(__name__)
 
 
-def diurnal_cycles(prognostic, verification, grid):
+def calc_diagnostics(prognostic, verification, grid):
 
     logger.info("Preparing diurnal cycle diagnostics")
 
