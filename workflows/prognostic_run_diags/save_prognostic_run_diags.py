@@ -390,7 +390,7 @@ def global_averages_physics(resampled, verification, grid):
 
 
 # TODO: enable this diagnostic once SHiELD physics diags can be loaded efficiently
-# @add_to_diags(diags_key="physics", var_suffix="bias_global_physics", input_transforms=[transform_3h])
+# @add_to_diags(diags_key="physics", var_suffix="bias_global_physics", input_transforms=[transform_3h]) # noqa
 def global_biases_physics(resampled, verification, grid):
     logger.info("Preparing global average biases for physics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
@@ -399,10 +399,11 @@ def global_biases_physics(resampled, verification, grid):
 
 
 for mask_type in ["global", "land", "sea"]:
+
     @add_to_diags(
         diags_key="physics",
         var_suffix=f"diurnal_{mask_type}",
-        input_transforms=[transform_15min, ("mask_to_sfc_type", mask_type, {})]
+        input_transforms=[transform_15min, ("mask_to_sfc_type", mask_type, {})],
     )
     def _diurnal_func(resampled, verification, grid):
         logger.info(

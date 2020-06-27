@@ -262,7 +262,7 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
 
     # open grid
     logger.info("Opening Grid Spec")
-    grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
+    # grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
 
     # open verification

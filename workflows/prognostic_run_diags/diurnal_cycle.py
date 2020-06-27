@@ -17,7 +17,7 @@ def calc_diagnostics(prognostic, verification, grid):
 
     prognostic["lon"] = grid["lon"]
     diurnal_ds = _calc_ds_diurnal_cycle(prognostic)
-    
+
     return diurnal_ds
 
 
