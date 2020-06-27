@@ -26,10 +26,12 @@ from dask.diagnostics import ProgressBar
 from pathlib import Path
 from toolz import curry
 from collections import defaultdict
+from functools import lru_cache
 from typing import Tuple, Dict, Callable, Mapping, Sequence
 
 import vcm
 import load_diagnostic_data as load_diags
+import diurnal
 
 import logging
 
@@ -96,9 +98,8 @@ def add_to_input_transform_fns(func):
 
 
 @add_to_input_transform_fns
-def resample_time(
-    arg: DiagArg, freq_label: str, time_slice=slice(None, -1)
-) -> DiagArg:
+@lru_cache(max_size=32)
+def resample_time(arg: DiagArg, freq_label: str, time_slice=slice(None, -1)) -> DiagArg:
     prognostic, verification, grid = arg
     prognostic = prognostic.resample(time=freq_label, label="right").nearest()
     prognostic = prognostic.isel(time=time_slice)
@@ -108,10 +109,17 @@ def resample_time(
 
 
 @add_to_input_transform_fns
-def mask_to_sfc_type(arg: DiagArg, surface_type: str, mask_var_name: str = "SLMSKsfc") -> DiagArg:
+@lru_cache(max_size=32)
+def mask_to_sfc_type(
+    arg: DiagArg, surface_type: str, mask_var_name: str = "SLMSKsfc"
+) -> DiagArg:
     prognostic, verification, grid = arg
-    masked_prognostic = vcm.mask_to_surface_type(prognostic, surface_type, surface_type_var=mask_var_name)
-    masked_verification = vcm.mask_to_surface_type(verification, surface_type, surface_type=mask_var_name)
+    masked_prognostic = vcm.mask_to_surface_type(
+        prognostic, surface_type, surface_type_var=mask_var_name
+    )
+    masked_verification = vcm.mask_to_surface_type(
+        verification, surface_type, surface_type=mask_var_name
+    )
 
     return masked_prognostic, masked_verification, grid
 
@@ -120,15 +128,18 @@ def apply_transform(transform_params, func):
 
     transform_key, transform_args, transform_kwargs = transform_params
     if transform_key not in _TRANSFORM_FNS:
-        raise KeyError(f"Unrecognized transform, {transform_key} requested for {func.__name__}")
+        raise KeyError(
+            f"Unrecognized transform, {transform_key} requested for {func.__name__}"
+        )
 
     transform_func = _TRANSFORM_FNS[transform_key]
+
     def transform(*args):
 
         transformed_args = transform_func(*args)
 
         return func(*transformed_args)
-    
+
     return transform
 
 
@@ -234,7 +245,7 @@ def compute_all_derived_vars(input_datasets: Dict[str, DiagArg]) -> Dict[str, Di
         input_datasets[key] = prognostic, verification, grid
     return input_datasets
 
-
+@add_to_derived_vars("physics")
 def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
     """Compute derived variables for physics datasets"""
     arrays = []
@@ -251,16 +262,6 @@ def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
         except (KeyError, AttributeError):  # account for ds[var] and ds.var notations
             logger.warning(f"Missing variable for calculation in {func.__name__}")
     return xr.merge(arrays)
-
-
-@add_to_derived_vars("physics_3H")
-def derived_physics_variables_copy(ds: xr.Dataset) -> xr.Dataset:
-    return derived_physics_variables(ds)
-
-
-@add_to_derived_vars("physics_15min")
-def derived_physics_variables_copy(ds: xr.Dataset) -> xr.Dataset:
-    return derived_physics_variables(ds)
 
 
 def _column_pq1(ds: xr.Dataset) -> xr.DataArray:
@@ -348,7 +349,11 @@ def dump_nc(ds: xr.Dataset, f):
             shutil.copyfileobj(tmp1, f)
 
 
-@add_to_diags("dycore", var_suffix="rms_global")
+transform_3h = ("resample_time", "3H", {})
+transform_15min = ("resample_time", "15min", {})
+
+
+@add_to_diags("dycore", var_suffix="rms_global", input_transforms=[transform_3h])
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
@@ -356,7 +361,7 @@ def rms_errors(resampled, verification_c48, grid):
     return rms_errors
 
 
-@add_to_diags("dycore", var_suffix="global_avg")
+@add_to_diags("dycore", var_suffix="global_avg", input_transforms=[transform_3h])
 def global_averages_dycore(resampled, verification, grid):
     logger.info("Preparing global averages for dycore variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
@@ -366,7 +371,7 @@ def global_averages_dycore(resampled, verification, grid):
     return area_averages
 
 
-@add_to_diags("physics_3H", var_suffix="global_phys_avg")
+@add_to_diags("physics", var_suffix="global_phys_avg", input_transforms=[transform_3h])
 def global_averages_physics(resampled, verification, grid):
     logger.info("Preparing global averages for physics variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
@@ -377,7 +382,7 @@ def global_averages_physics(resampled, verification, grid):
 
 
 # TODO: enable this diagnostic once SHiELD physics diags can be loaded efficiently
-# @add_to_diags("physics_3H", var_suffix="bias_global_physics")
+# @add_to_diags("physics", var_suffix="bias_global_physics", input_transforms=[transform_3h])
 def global_biases_physics(resampled, verification, grid):
     logger.info("Preparing global average biases for physics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
@@ -385,8 +390,13 @@ def global_biases_physics(resampled, verification, grid):
     return bias_errors
 
 
-# @add_to_diags("physics_15min")
-# pass
+for mask_type in ["global", "land", "sea"]:
+    @add_to_diags("physics", var_suffix=f"diurnal_{mask_type}", input_transforms=[transform_15min, ("mask_to_sfc_type", mask_type, {})])
+    def _diurnal_func(resampled, verification, grid):
+        logger.info(f"Preparing diurnal cycle info for physics variables with mask={mask_type}")
+        diurnal_cycles = diurnal.diurnal_cycles(resampled, verification, grid)
+
+        return diurnal_cycles
 
 
 def _catalog():
@@ -418,14 +428,8 @@ if __name__ == "__main__":
         "physics": load_diags.load_physics(args.url, args.grid_spec, catalog),
     }
 
-    resampled_data = {
-        "dycore": _resample_time(loaded_data["dycore"], "3H"),
-        "physics_3H": _resample_time(loaded_data["physics"], "3H"),
-        "physics_15min": _resample_time(loaded_data["physics"], "15min"),
-    }
-
     # add derived variables
-    input_data = compute_all_derived_vars(resampled_data)
+    input_data = compute_all_derived_vars(loaded_data)
 
     # begin constructing diags
     diags = {}
