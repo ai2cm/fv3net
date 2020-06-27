@@ -48,48 +48,6 @@ DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 DiagDict = Mapping[str, xr.DataArray]
 
 
-def _prepare_diag_dict(
-    suffix: str, new_diags: xr.Dataset, src_ds: xr.Dataset
-) -> DiagDict:
-    """
-    Take a diagnostic dict add a suffix to all variable names and transfer attributes
-    from a source dataset.  This is useful when the calculated diagnostics are a 1-to-1
-    mapping from the source.
-    """
-
-    diags = {}
-    for variable in new_diags:
-        lower = variable.lower()
-        da = new_diags[variable]
-        attrs = da.attrs
-        if not attrs and variable in src_ds:
-            logger.debug(
-                "Transferring missing diagnostic attributes from source for "
-                f"{variable}."
-            )
-            src_attrs = src_ds[variable].attrs
-            da = da.assign_attrs(src_attrs)
-        else:
-            logger.debug(
-                f"Diagnostic variable ({variable}) missing attributes. This "
-                "may cause issues with automated report generation."
-            )
-
-        diags[f"{lower}_{suffix}"] = da
-
-    return diags
-
-
-def diag_finalizer(var_suffix, func):
-    def finalize(prognostic, verification, grid):
-
-        diags = func(prognostic, verification, grid)
-
-        return _prepare_diag_dict(var_suffix, diags, prognostic)
-
-    return finalize
-
-
 def add_to_input_transform_fns(func):
 
     _TRANSFORM_FNS[func.__name__] = func
@@ -141,6 +99,48 @@ def apply_transform(transform_params, func):
         return func(*transformed_args)
 
     return transform
+
+
+def _prepare_diag_dict(
+    suffix: str, new_diags: xr.Dataset, src_ds: xr.Dataset
+) -> DiagDict:
+    """
+    Take a diagnostic dict add a suffix to all variable names and transfer attributes
+    from a source dataset.  This is useful when the calculated diagnostics are a 1-to-1
+    mapping from the source.
+    """
+
+    diags = {}
+    for variable in new_diags:
+        lower = variable.lower()
+        da = new_diags[variable]
+        attrs = da.attrs
+        if not attrs and variable in src_ds:
+            logger.debug(
+                "Transferring missing diagnostic attributes from source for "
+                f"{variable}."
+            )
+            src_attrs = src_ds[variable].attrs
+            da = da.assign_attrs(src_attrs)
+        else:
+            logger.debug(
+                f"Diagnostic variable ({variable}) missing attributes. This "
+                "may cause issues with automated report generation."
+            )
+
+        diags[f"{lower}_{suffix}"] = da
+
+    return diags
+
+
+def diag_finalizer(var_suffix, func):
+    def finalize(prognostic, verification, grid):
+
+        diags = func(prognostic, verification, grid)
+
+        return _prepare_diag_dict(var_suffix, diags, prognostic)
+
+    return finalize
 
 
 @curry
