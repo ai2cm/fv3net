@@ -26,7 +26,7 @@ from dask.diagnostics import ProgressBar
 from pathlib import Path
 from toolz import curry
 from collections import defaultdict
-from functools import lru_cache
+from toolz import memoize
 from typing import Tuple, Dict, Callable, Mapping, Sequence
 
 import vcm
@@ -55,8 +55,19 @@ def add_to_input_transform_fns(func):
     return func
 
 
+def _args_to_hashable_key(args, kwargs):
+    # Convert unhashable diags to a hashable string
+    # Doesn't explicitly represent full dataset but enough for us to
+    # cache the relatively unchanging input datasets to transform operations
+    diag_arg = "".join([str(ds) for ds in args[0]])
+    hargs = [diag_arg] + list(args[1:])
+    hkwargs = [(key, kwargs[key]) for key in sorted(kwargs.keys())]
+    hashable_key = tuple(hargs + hkwargs)
+    return hashable_key
+
+
 @add_to_input_transform_fns
-@lru_cache(max_size=32)
+@memoize(key=_args_to_hashable_key)
 def resample_time(arg: DiagArg, freq_label: str, time_slice=slice(None, -1)) -> DiagArg:
     prognostic, verification, grid = arg
     prognostic = prognostic.resample(time=freq_label, label="right").nearest()
@@ -66,25 +77,44 @@ def resample_time(arg: DiagArg, freq_label: str, time_slice=slice(None, -1)) -> 
     return prognostic, verification, grid
 
 
+def _mask_vars_with_horiz_dims(ds, surface_type, mask_var_name):
+
+    spatial_ds_varnames = [
+        var_name
+        for var_name in ds.datavars
+        if set(HORIZONTAL_DIMS).issubset(set(ds[var_name].dims))
+    ]
+    spatial = ds[spatial_ds_varnames + [mask_var_name]]
+    masked = vcm.mask_to_surface_type(spatial, surface_type, mask_var_name)
+
+    return masked
+
+
 @add_to_input_transform_fns
-@lru_cache(max_size=32)
+@memoize(key=_args_to_hashable_key)
 def mask_to_sfc_type(
     arg: DiagArg, surface_type: str, mask_var_name: str = "SLMSKsfc"
 ) -> DiagArg:
     prognostic, verification, grid = arg
-    masked_prognostic = vcm.mask_to_surface_type(
+    masked_prognostic = _mask_vars_with_horiz_dims(
         prognostic, surface_type, surface_type_var=mask_var_name
     )
-    masked_verification = vcm.mask_to_surface_type(
-        verification, surface_type, surface_type=mask_var_name
+    masked_verification = _mask_vars_with_horiz_dims(
+        verification, surface_type, surface_type_var=mask_var_name
     )
 
     return masked_prognostic, masked_verification, grid
 
 
 def apply_transform(transform_params, func):
+    """
+    Wrapper to apply transform to input diagnostic arguments (tuple of three datasets).
+    Transform arguments are specified per diagnostic function to enable a query-style
+    operation on input data.  I tried memoizing the current transforms but am unsure
+    if it will work on highly mutable datasets.
+    """
 
-    transform_key, transform_args, transform_kwargs = transform_params
+    transform_key, transform_args_partial, transform_kwargs = transform_params
     if transform_key not in _TRANSFORM_FNS:
         raise KeyError(
             f"Unrecognized transform, {transform_key} requested for {func.__name__}"
@@ -92,11 +122,14 @@ def apply_transform(transform_params, func):
 
     transform_func = _TRANSFORM_FNS[transform_key]
 
-    def transform(*args):
+    def transform(*diag_args):
+        
+        # prepend diagnostic function input to be transformed
+        transform_args = (diag_args, *transform_args_partial)
 
-        transformed_args = transform_func(*args)
+        transformed_diag_args = transform_func(*transform_args, **transform_kwargs)
 
-        return func(*transformed_args)
+        return func(*transformed_diag_args)
 
     return transform
 
@@ -134,6 +167,10 @@ def _prepare_diag_dict(
 
 
 def diag_finalizer(var_suffix, func):
+    """
+    Wrapper to update dictionary to final variable names and attributes
+    before returning
+    """
     def finalize(prognostic, verification, grid):
 
         diags = func(prognostic, verification, grid)
@@ -173,7 +210,6 @@ def add_to_diags(
             should contain the following items: transform function name,
             transform arguments, transform keyword arguments.
     """
-    _DIAG_FNS[diags_key].append(func)
 
     if input_transforms is not None:
         for transform_params in input_transforms:
@@ -182,6 +218,8 @@ def add_to_diags(
     # Prepare non-overlapping variable names and transfer attributes from source
     if var_suffix is not None:
         func = diag_finalizer(var_suffix, func)
+
+    _DIAG_FNS[diags_key].append(func)
 
     return func
 
@@ -208,7 +246,7 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
 
         for func in _DIAG_FNS[key]:
             current_diags = func(*input_args)
-            load_diags.warn_on_overwrite(diags, current_diags)
+            load_diags.warn_on_overwrite(diags.keys(), current_diags.keys())
             diags.update(current_diags)
 
     return diags
@@ -351,12 +389,13 @@ def dump_nc(ds: xr.Dataset, f):
             shutil.copyfileobj(tmp1, f)
 
 
-transform_3h = ("resample_time", "3H", {})
-transform_15min = ("resample_time", "15min", {})
+# Common arguments for requested transforms
+transform_3h = ("resample_time", ("3H",), {})
+transform_15min = ("resample_time", ("15min",), {})
 
 
 @add_to_diags(
-    diags_key="dycore", var_suffix="rms_global", input_transforms=[transform_3h]
+    "dycore", "rms_global", input_transforms=[transform_3h]
 )
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
@@ -366,7 +405,7 @@ def rms_errors(resampled, verification_c48, grid):
 
 
 @add_to_diags(
-    diags_key="dycore", var_suffix="global_avg", input_transforms=[transform_3h]
+    "dycore", "global_avg", input_transforms=[transform_3h]
 )
 def global_averages_dycore(resampled, verification, grid):
     logger.info("Preparing global averages for dycore variables")
@@ -378,7 +417,7 @@ def global_averages_dycore(resampled, verification, grid):
 
 
 @add_to_diags(
-    diags_key="physics", var_suffix="global_phys_avg", input_transforms=[transform_3h]
+    "physics", "global_phys_avg", input_transforms=[transform_3h]
 )
 def global_averages_physics(resampled, verification, grid):
     logger.info("Preparing global averages for physics variables")
@@ -390,7 +429,7 @@ def global_averages_physics(resampled, verification, grid):
 
 
 # TODO: enable this diagnostic once SHiELD physics diags can be loaded efficiently
-# @add_to_diags(diags_key="physics", var_suffix="bias_global_physics", input_transforms=[transform_3h]) # noqa
+# @add_to_diags("physics", "bias_global_physics", input_transforms=[transform_3h]) # noqa
 def global_biases_physics(resampled, verification, grid):
     logger.info("Preparing global average biases for physics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
@@ -401,9 +440,9 @@ def global_biases_physics(resampled, verification, grid):
 for mask_type in ["global", "land", "sea"]:
 
     @add_to_diags(
-        diags_key="physics",
-        var_suffix=f"diurnal_{mask_type}",
-        input_transforms=[transform_15min, ("mask_to_sfc_type", mask_type, {})],
+        "physics",
+        f"diurnal_{mask_type}",
+        input_transforms=[transform_15min, ("mask_to_sfc_type", (mask_type,), {})],
     )
     def _diurnal_func(resampled, verification, grid):
         logger.info(
