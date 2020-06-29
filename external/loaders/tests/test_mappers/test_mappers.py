@@ -16,7 +16,7 @@ from loaders.mappers._merged import MergeOverlappingData
 from loaders._utils import get_sample_dataset
 from vcm import cast_to_datetime
 from datetime import datetime
-from typing import Mapping
+from typing import Mapping, Tuple
 
 geo_mapper_subclasses = [
     GeoMapper,
@@ -66,24 +66,42 @@ TRAINING_REQUIRED_VARS = [
 
 def test_training_mapper_variables(training_mapper):
     sample_ds = get_sample_dataset(training_mapper)
+    #     print(sample_ds.data_vars)
     for var in TRAINING_REQUIRED_VARS:
         assert var in sample_ds.data_vars
 
 
-REQUIRED_DIMENSIONS = [
-    ("tile"),
-    ("z"),
+TWO_D_REQUIRED_DIMENSIONS = (
+    ("tile",),
     ("y", "y_interface"),
     ("x", "x_interface"),
-]
+)
+
+
+THREE_D_REQUIRED_DIMENSIONS = (
+    ("tile",),
+    ("z",),
+    ("y", "y_interface"),
+    ("x", "x_interface"),
+)
+
+
+def _test_dimension_match(var_dims: Tuple[str], required_dims: Tuple[Tuple[str]]):
+    if len(var_dims) != len(required_dims):
+        return False
+    for var_dim, required_dim in zip(var_dims, required_dims):
+        if var_dim not in required_dim:
+            return False
+    return True
 
 
 def test_training_mapper_dimensions(training_mapper):
     sample_ds = get_sample_dataset(training_mapper)
     for var in sample_ds.data_vars:
-        assert len(sample_ds[var].dims) == len(REQUIRED_DIMENSIONS)
-        for mapper_dim, required_dim in zip(sample_ds[var].dims, REQUIRED_DIMENSIONS):
-            assert mapper_dim in required_dim
+        #         print(sample_ds[var].dims)
+        assert _test_dimension_match(
+            sample_ds[var].dims, TWO_D_REQUIRED_DIMENSIONS
+        ) or _test_dimension_match(sample_ds[var].dims, THREE_D_REQUIRED_DIMENSIONS)
 
 
 def test_training_mapper_keys(training_mapper):

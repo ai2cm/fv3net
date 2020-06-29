@@ -8,6 +8,8 @@ from toolz import groupby
 from datetime import timedelta
 from ._base import GeoMapper
 
+DIMENSION_ORDER = ("tile", "z", "y", "x")
+
 Time = str
 Tile = int
 K = Tuple[Time, Tile]
@@ -64,18 +66,22 @@ class FineResolutionSources(GeoMapper):
         fine_resolution_time_mapping: Mapping[Time, xr.Dataset],
         offset_seconds: Union[int, float] = 0,
         rename_vars: Mapping[str, str] = None,
-        drop_vars: Sequence[str] = ("step"),
+        drop_vars: Sequence[str] = ("step", "time"),
+        dim_order: Sequence[str] = DIMENSION_ORDER,
     ):
         self._time_mapping = fine_resolution_time_mapping
         self._offset_seconds = offset_seconds
         self._rename_vars = rename_vars or {}
         self._drop_vars = drop_vars
+        self._dim_order = dim_order
 
     def keys(self):
-        return [
-            self._midpoint_to_timestamp_key(time, self._offset_seconds)
-            for time in self._time_mapping.keys()
-        ]
+        return set(
+            [
+                self._midpoint_to_timestamp_key(time, self._offset_seconds)
+                for time in self._time_mapping.keys()
+            ]
+        )
 
     def __getitem__(self, time: Time) -> xr.Dataset:
         time = self._timestamp_key_to_midpoint(time, self._offset_seconds)
@@ -83,6 +89,7 @@ class FineResolutionSources(GeoMapper):
             self._derived_budget_ds(self._time_mapping[time])
             .drop_vars(names=self._drop_vars, errors="ignore")
             .rename(self._rename_vars)
+            .transpose(*self._dim_order)
         )
 
     @staticmethod
@@ -221,6 +228,7 @@ def open_fine_res_apparent_sources(
     offset_seconds: Union[int, float] = 0,
     rename_vars: Mapping[str, str] = None,
     drop_vars: Sequence[str] = (),
+    dim_order: Sequence[str] = None,
 ) -> Mapping[str, xr.Dataset]:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
@@ -235,5 +243,9 @@ def open_fine_res_apparent_sources(
         drop_vars (sequence): optional list of variable names to drop from dataset
     """
     return FineResolutionSources(
-        open_fine_resolution_budget(url), offset_seconds, rename_vars, drop_vars
+        open_fine_resolution_budget(url),
+        offset_seconds,
+        rename_vars,
+        drop_vars,
+        dim_order,
     )

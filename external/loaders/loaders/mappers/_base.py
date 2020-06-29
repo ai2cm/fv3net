@@ -46,7 +46,9 @@ class LongRunMapper(GeoMapper):
         return self.ds.sel({TIME_NAME: dt64})
 
     def keys(self):
-        return [
-            time.strftime(TIME_FMT)
-            for time in pd.to_datetime(self.ds[TIME_NAME].values)
-        ]
+        return set(
+            [
+                time.strftime(TIME_FMT)
+                for time in pd.to_datetime(self.ds[TIME_NAME].values)
+            ]
+        )

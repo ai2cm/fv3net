@@ -111,7 +111,7 @@ class NudgedStateCheckpoints(GeoMapper):
         for key, mapper in self.sources.items():
             timestep_keys = mapper.keys()
             keys.extend(product((key,), timestep_keys))
-        return keys
+        return set(keys)
 
 
 Source = str
@@ -165,7 +165,7 @@ class SubsetTimes(GeoMapper):
         self._nudged_data = nudged_data
 
     def keys(self):
-        return list(self._keys)
+        return set(self._keys)
 
     def __getitem__(self, time: Time):
         if time not in self._keys:
