@@ -90,7 +90,9 @@ def _mask_vars_with_horiz_dims(ds, surface_type, mask_var_name):
         if set(HORIZONTAL_DIMS).issubset(set(ds[var_name].dims))
     ]
     spatial = ds[spatial_ds_varnames + [mask_var_name]]
-    masked = vcm.mask_to_surface_type(spatial, surface_type, surface_type_var=mask_var_name)
+    masked = vcm.mask_to_surface_type(
+        spatial, surface_type, surface_type_var=mask_var_name
+    )
 
     return ds.update(masked)
 
@@ -119,7 +121,9 @@ def apply_transform(transform_params, func):
     """
     Wrapper to apply transform to input diagnostic arguments (tuple of three datasets).
     Transform arguments are specified per diagnostic function to enable a query-style
-    operation on input data.  I tried memoizing the current transforms but am unsure
+    operation on input data.
+    
+    Note: I tried memoizing the current transforms but am unsure
     if it will work on highly mutable datasets.
     """
 
@@ -134,11 +138,12 @@ def apply_transform(transform_params, func):
     def transform(*diag_args):
 
         logger.debug(
-            f"Adding transform, {transform_key}, to diagnostic function: {func.__name__}"
+            f"Adding transform, {transform_key}, "
+            f"to diagnostic function: {func.__name__}"
             f"\n\targs: {transform_args_partial}"
             f"\n\tkwargs: {transform_kwargs}"
         )
-        
+
         # prepend diagnostic function input to be transformed
         transform_args = (diag_args, *transform_args_partial)
 
@@ -411,9 +416,7 @@ transform_3h = ("resample_time", ("3H",), {})
 transform_15min = ("resample_time", ("15min",), {})
 
 
-@add_to_diags(
-    "dycore", "rms_global", input_transforms=[transform_3h]
-)
+@add_to_diags("dycore", "rms_global", input_transforms=[transform_3h])
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
@@ -421,9 +424,7 @@ def rms_errors(resampled, verification_c48, grid):
     return rms_errors
 
 
-@add_to_diags(
-    "dycore", "global_avg", input_transforms=[transform_3h]
-)
+@add_to_diags("dycore", "global_avg", input_transforms=[transform_3h])
 def global_averages_dycore(resampled, verification, grid):
     logger.info("Preparing global averages for dycore variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
@@ -433,9 +434,7 @@ def global_averages_dycore(resampled, verification, grid):
     return area_averages
 
 
-@add_to_diags(
-    "physics", "global_phys_avg", input_transforms=[transform_3h]
-)
+@add_to_diags("physics", "global_phys_avg", input_transforms=[transform_3h])
 def global_averages_physics(resampled, verification, grid):
     logger.info("Preparing global averages for physics variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
