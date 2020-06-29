@@ -50,6 +50,8 @@ DiagDict = Mapping[str, xr.DataArray]
 
 def add_to_input_transform_fns(func):
 
+    logger.debug(f"Adding func to transforms: {func.__name__}")
+
     _TRANSFORM_FNS[func.__name__] = func
 
     return func
@@ -78,16 +80,21 @@ def resample_time(arg: DiagArg, freq_label: str, time_slice=slice(None, -1)) -> 
 
 
 def _mask_vars_with_horiz_dims(ds, surface_type, mask_var_name):
+    """
+    Subset data to variables with specified dimensions before masking
+    to prevent odd behavior from variables with non-compliant dims
+    (e.g., interfaces)
+    """
 
     spatial_ds_varnames = [
         var_name
-        for var_name in ds.datavars
+        for var_name in ds.data_vars
         if set(HORIZONTAL_DIMS).issubset(set(ds[var_name].dims))
     ]
     spatial = ds[spatial_ds_varnames + [mask_var_name]]
-    masked = vcm.mask_to_surface_type(spatial, surface_type, mask_var_name)
+    masked = vcm.mask_to_surface_type(spatial, surface_type, surface_type_var=mask_var_name)
 
-    return masked
+    return ds.update(masked)
 
 
 @add_to_input_transform_fns
@@ -97,11 +104,15 @@ def mask_to_sfc_type(
 ) -> DiagArg:
     prognostic, verification, grid = arg
     masked_prognostic = _mask_vars_with_horiz_dims(
-        prognostic, surface_type, surface_type_var=mask_var_name
+        prognostic, surface_type, mask_var_name
     )
-    masked_verification = _mask_vars_with_horiz_dims(
-        verification, surface_type, surface_type_var=mask_var_name
-    )
+    try:
+        masked_verification = _mask_vars_with_horiz_dims(
+            verification, surface_type, mask_var_name
+        )
+    except KeyError:
+        logger.error("Empty verification dataset provided. TODO: fix this by loading")
+        masked_verification = verification
 
     return masked_prognostic, masked_verification, grid
 
@@ -119,6 +130,12 @@ def apply_transform(transform_params, func):
         raise KeyError(
             f"Unrecognized transform, {transform_key} requested for {func.__name__}"
         )
+
+    logger.debug(
+        f"Adding transform, {transform_key}, to diagnostic function: {func.__name__}"
+        f"\n\targs: {transform_args_partial}"
+        f"\n\tkwargs: {transform_kwargs}"
+    )
 
     transform_func = _TRANSFORM_FNS[transform_key]
 
@@ -171,6 +188,8 @@ def diag_finalizer(var_suffix, func):
     Wrapper to update dictionary to final variable names and attributes
     before returning
     """
+    logger.debug(f"Adding diag finalizer wrapper to {func.__name__}")
+
     def finalize(prognostic, verification, grid):
 
         diags = func(prognostic, verification, grid)
@@ -469,7 +488,7 @@ if __name__ == "__main__":
         "--grid-spec", default="./grid_spec",
     )
     parser.add_argument("--catalog", default=CATALOG)
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
 
     args = parser.parse_args()
 
