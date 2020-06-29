@@ -1,6 +1,7 @@
 import diagnostics_utils as utils
 import loaders
 from fv3net.regression.sklearn import SklearnPredictionMapper
+
 from vcm.cloud import get_fs
 import xarray as xr
 from tempfile import NamedTemporaryFile
@@ -10,7 +11,6 @@ import argparse
 import sys
 import os
 import logging
-import uuid
 import joblib
 import json
 from ._metrics import calc_metrics
@@ -49,11 +49,16 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help="Json file that defines train timestep set.",
     )
+    parser.add_argument(
+        "--num-batches",
+        type=int,
+        default=None,
+        help="Number of batches to use in reduce_to_diagnostics"
+    )
     return parser.parse_args()
 
 
 def _write_nc(ds: xr.Dataset, output_dir: str, output_file: str):
-    output_file = output_file.strip(".nc") + "_" + str(uuid.uuid1())[-6:] + ".nc"
     output_file = os.path.join(output_dir, output_file)
 
     with NamedTemporaryFile() as tmpfile:
@@ -73,14 +78,14 @@ if __name__ == "__main__":
     logger.info("Reading grid...")
     cat = intake.open_catalog("catalog.yml")
     grid = cat["grid/c48"].to_dask()
+    grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
     land_sea_mask = cat["landseamask/c48"].to_dask()
     grid = grid.assign({utils.VARNAMES["surface_type"]: land_sea_mask["land_sea_mask"]})
-    grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
 
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
-        config["batch_kwargs"]["timesteps"] = timesteps
+        config["batch_kwargs"]["timesteps"] = timesteps[:50]
 
     base_mapping_function = getattr(loaders.mappers, config["mapping_function"])
     base_mapper = base_mapping_function(
@@ -98,13 +103,20 @@ if __name__ == "__main__":
         pred_mapper, config["variables"], **config["batch_kwargs"],
     )
 
+    num_batches = args.num_batches or len(ds_batches)
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
-    ds_diagnostic = utils.reduce_to_diagnostic(
-        ds_batches, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
-    )
+    for i, ds in enumerate(ds_batches):
+        batches_diags = []
+        logger.info(f"Working on batch {i} diagnostics ...")
+        ds_diagnostic_batch = utils.reduce_to_diagnostic(
+            ds, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
+        )
+        batches_diags.append(ds_diagnostic_batch)
+        logger.info(f"Processed batch {i} diagnostics netcdf output.")
+    ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
+    _write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
     logger.info(f"Finished processing dataset diagnostics.")
-    _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path, DIAGS_NC_NAME)
-
+    
     # json of metrics, ex. RMSE and bias
     metrics = calc_metrics(ds_batches, area=grid["area"])
     fs = get_fs(args.output_path)
