@@ -32,6 +32,7 @@ import load_diagnostic_data as load_diags
 import diurnal_cycle
 import derived
 import transform
+from constants import HORIZONTAL_DIMS, DiagArg
 
 import logging
 
@@ -39,9 +40,6 @@ logger = logging.getLogger("SaveDiags")
 
 _DIAG_FNS = defaultdict(list)
 
-HORIZONTAL_DIMS = ["x", "y", "tile"]
-
-DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 DiagDict = Mapping[str, xr.DataArray]
 
 
@@ -233,6 +231,7 @@ for mask_type in ["global", "land", "sea"]:
         input_transforms=[transform_15min, ("mask_to_sfc_type", (mask_type,), {})],
     )
     def _diurnal_func(resampled, verification, grid, mask_type=mask_type):
+        # mask_type is added as a kwarg solely to give the logging access to the info
         logger.info(
             f"Preparing diurnal cycle info for physics variables with mask={mask_type}"
         )

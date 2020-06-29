@@ -5,9 +5,7 @@ from toolz import curry
 from typing import Callable, Dict
 
 import vcm
-import save_prognostic_run_diags
-
-DiagArg = save_prognostic_run_diags.DiagArg
+from constants import DiagArg
 
 _DERIVED_VAR_FNS = defaultdict(Callable)
 SECONDS_PER_DAY = 86400

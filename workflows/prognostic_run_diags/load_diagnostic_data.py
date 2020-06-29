@@ -4,15 +4,14 @@ import warnings
 import os
 import xarray as xr
 import numpy as np
-from typing import List, Iterable, Tuple, Mapping, Set
+from typing import List, Iterable, Mapping, Set
 from datetime import timedelta
 
 import fsspec
 import vcm
+from constants import DiagArg
 
 logger = logging.getLogger(__name__)
-
-DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 
 # desired name as keys with set containing sources to rename
 # TODO: could this be tied to the registry?

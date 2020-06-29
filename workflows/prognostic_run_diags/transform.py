@@ -1,14 +1,21 @@
+"""
+Transforms operate on diagnostic function inputs to adjust data before
+diagnostic values are calculated.
+
+A transform should take in the diagnostic function arguments tuple
+in as the first argument followed by transform specific args, kwargs,
+and return the adjusted diagnostic function arguments.
+"""
+
 import logging
 
 from toolz import memoize
 
-import save_prognostic_run_diags
 import vcm
+from constants import HORIZONTAL_DIMS, DiagArg
 
 _TRANSFORM_FNS = {}
-HORIZONTAL_DIMS = save_prognostic_run_diags.HORIZONTAL_DIMS
 
-DiagArg = save_prognostic_run_diags.DiagArg
 logger = logging.getLogger(__name__)
 
 
@@ -33,6 +40,16 @@ def _args_to_hashable_key(args, kwargs):
 @add_to_input_transform_fns
 @memoize(key=_args_to_hashable_key)
 def resample_time(arg: DiagArg, freq_label: str, time_slice=slice(None, -1)) -> DiagArg:
+    """
+    Subset times in prognostic and verification data
+
+    Args:
+        arg: input arguments to transform prior to the diagnostic calculation
+        freq_label: Time resampling frequency label (should be valid input for xarray's
+            resampling function)
+        time_slice: Index slice to reduce times after frequency resampling.  Omits final
+            time by default to work with crashed simulations. 
+    """
     prognostic, verification, grid = arg
     prognostic = prognostic.resample(time=freq_label, label="right").nearest()
     prognostic = prognostic.isel(time=time_slice)
@@ -66,6 +83,14 @@ def _mask_vars_with_horiz_dims(ds, surface_type, mask_var_name):
 def mask_to_sfc_type(
     arg: DiagArg, surface_type: str, mask_var_name: str = "SLMSKsfc"
 ) -> DiagArg:
+    """
+    Mask prognostic run and verification data to the specified surface type
+
+    Args:
+        arg: input arguments to transform prior to the diagnostic calculation
+        surface_type:  Type of surface grid locations to leave unmasked
+        mask_var_name: Name of the datasets variable holding surface type info
+    """
     prognostic, verification, grid = arg
     masked_prognostic = _mask_vars_with_horiz_dims(
         prognostic, surface_type, mask_var_name
