@@ -1,5 +1,5 @@
 from synth import (  # noqa: F401
-    test_training_datadir,
+    dataset_fixtures_dir,
     data_source_name,
     one_step_dataset_path,
     nudging_dataset_path,

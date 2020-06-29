@@ -16,8 +16,8 @@ from .core import (
 
 from ._restarts import generate_restart_data
 
-from .testing_dataset_fixtures import (
-    test_training_datadir,
+from ._dataset_fixtures import (
+    dataset_fixtures_dir,
     data_source_name,
     one_step_dataset_path,
     nudging_dataset_path,

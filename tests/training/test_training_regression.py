@@ -19,9 +19,9 @@ OUTPUT_NC_NAME = "diagnostics.nc"
 
 
 @pytest.fixture
-def training_diags_reference_schema(test_training_datadir):
+def training_diags_reference_schema():
 
-    with open(str(test_training_datadir.join("training_diags_reference.json"))) as f:
+    with open("./tests/training/training_diags_reference.json") as f:
         reference_output_schema = synth.load(f)
         yield reference_output_schema
 
@@ -208,15 +208,15 @@ def test_sklearn_regression(training_batches, data_source_train_config):
 
 
 @pytest.fixture
-def offline_diags_reference_schema(data_source_name, test_training_datadir):
+def offline_diags_reference_schema(data_source_name):
 
     if data_source_name != "fine_res_apparent_sources":
-        reference_schema_file = "offline_diags_reference.json"
+        reference_schema_file = "./tests/training/offline_diags_reference.json"
     else:
-        reference_schema_file = "offline_diags_reference_fine_res.json"
+        reference_schema_file = "./tests/training/offline_diags_reference_fine_res.json"
 
     # test against reference
-    with open(str(test_training_datadir.join(reference_schema_file))) as f:
+    with open(reference_schema_file) as f:
         reference_output_schema = synth.load(f)
         yield reference_output_schema
 
