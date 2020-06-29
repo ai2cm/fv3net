@@ -7,6 +7,10 @@ logger = logging.getLogger(__name__)
 
 
 def calc_diagnostics(prognostic, verification, grid):
+    """
+    Diagnostic function for calculating diurnal all diurnal cycle
+    information from physics output.
+    """
 
     logger.info("Preparing diurnal cycle diagnostics")
 
@@ -23,7 +27,7 @@ def calc_diagnostics(prognostic, verification, grid):
 
 def _calc_ds_diurnal_cycle(ds):
     """
-    Calculates the diurnal cycle on moisture variables.  Expects
+    Calculates the diurnal cycle for all variables.  Expects
     time dimension and longitude variable "lon".
     """
     local_time = vcm.local_time(ds, time="time", lon_var="lon")
