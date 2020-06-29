@@ -32,17 +32,16 @@ from typing import Tuple, Dict, Callable, Mapping, Sequence
 import vcm
 import load_diagnostic_data as load_diags
 import diurnal_cycle
+import derived
 
 import logging
 
 logger = logging.getLogger("SaveDiags")
 
 _DIAG_FNS = defaultdict(list)
-_DERIVED_VAR_FNS = defaultdict(Callable)
 _TRANSFORM_FNS = {}
 
 HORIZONTAL_DIMS = ["x", "y", "tile"]
-SECONDS_PER_DAY = 86400
 
 DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 DiagDict = Mapping[str, xr.DataArray]
@@ -169,10 +168,10 @@ def _prepare_diag_dict(
         da = new_diags[variable]
         attrs = da.attrs
         if not attrs and variable in src_ds:
-            # logger.debug(
-            #     "Transferring missing diagnostic attributes from source for "
-            #     f"{variable}."
-            # )
+            logger.debug(
+                "Transferring missing diagnostic attributes from source for "
+                f"{variable}."
+            )
             src_attrs = src_ds[variable].attrs
             da = da.assign_attrs(src_attrs)
         else:
@@ -272,125 +271,6 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
             diags.update(current_diags)
 
     return diags
-
-
-@curry
-def add_to_derived_vars(diags_key: str, func: Callable[[xr.Dataset], xr.Dataset]):
-    """Add a function that computes additional derived variables from input datasets.
-    These derived variables should be simple combinations of input variables, not
-    reductions such as global means which are diagnostics to be computed later.
-
-    Args:
-        diags_key: a key for a group of inputs/diagnostics
-        func: a function which adds new variables to a given dataset
-    """
-    _DERIVED_VAR_FNS[diags_key] = func
-
-
-def compute_all_derived_vars(input_datasets: Dict[str, DiagArg]) -> Dict[str, DiagArg]:
-    """Compute derived variables for all input data sources.
-
-    Args:
-        input_datasets: Input datasets with keys corresponding to the appropriate group
-        of inputs/diagnostics.
-
-    Returns:
-        input datasets with derived variables added to prognostic and verification data
-    """
-    for key, func in _DERIVED_VAR_FNS.items():
-        prognostic, verification, grid = input_datasets[key]
-        logger.info(f"Preparing all derived variables for {key} prognostic data")
-        prognostic = prognostic.merge(func(prognostic))
-        logger.info(f"Preparing all derived variables for {key} verification data")
-        verification = verification.merge(func(verification))
-        input_datasets[key] = prognostic, verification, grid
-    return input_datasets
-
-
-@add_to_derived_vars("physics")
-def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
-    """Compute derived variables for physics datasets"""
-    arrays = []
-    for func in [
-        _column_pq1,
-        _column_pq2,
-        _column_dq1,
-        _column_dq2,
-        _column_q1,
-        _column_q2,
-    ]:
-        try:
-            arrays.append(func(ds))
-        except (KeyError, AttributeError):  # account for ds[var] and ds.var notations
-            logger.warning(f"Missing variable for calculation in {func.__name__}")
-    return xr.merge(arrays)
-
-
-def _column_pq1(ds: xr.Dataset) -> xr.DataArray:
-    net_heating_arg_labels = [
-        "DLWRFsfc",
-        "DSWRFsfc",
-        "ULWRFsfc",
-        "ULWRFtoa",
-        "USWRFsfc",
-        "USWRFtoa",
-        "DSWRFtoa",
-        "SHTFLsfc",
-        "PRATEsfc",
-    ]
-    net_heating_args = [ds[var] for var in net_heating_arg_labels]
-    column_pq1 = vcm.net_heating(*net_heating_args)
-    column_pq1.attrs = {
-        "long_name": "<pQ1> column integrated heating from physics",
-        "units": "W/m^2",
-    }
-    return column_pq1.rename("column_integrated_pQ1")
-
-
-def _column_pq2(ds: xr.Dataset) -> xr.Dataset:
-    evap = vcm.latent_heat_flux_to_evaporation(ds.LHTFLsfc)
-    column_pq2 = SECONDS_PER_DAY * (evap - ds.PRATEsfc)
-    column_pq2.attrs = {
-        "long_name": "<pQ2> column integrated moistening from physics",
-        "units": "mm/day",
-    }
-    return column_pq2.rename("column_integrated_pQ2")
-
-
-def _column_dq1(ds: xr.Dataset) -> xr.Dataset:
-    column_dq1 = ds.net_heating
-    column_dq1.attrs = {
-        "long_name": "<dQ1> column integrated heating from ML",
-        "units": "W/m^2",
-    }
-    return column_dq1.rename("column_integrated_dQ1")
-
-
-def _column_dq2(ds: xr.Dataset) -> xr.Dataset:
-    column_dq2 = SECONDS_PER_DAY * ds.net_moistening
-    column_dq2.attrs = {
-        "long_name": "<dQ2> column integrated moistening from ML",
-        "units": "mm/day",
-    }
-    return column_dq2.rename("column_integrated_dQ2")
-
-
-def _column_q1(ds: xr.Dataset) -> xr.Dataset:
-    column_q1 = _column_pq1(ds) + _column_dq1(ds)
-    column_q1.attrs = {
-        "long_name": "<Q1> column integrated heating from physics+ML",
-        "units": "W/m^2",
-    }
-    return column_q1.rename("column_integrated_Q1")
-
-
-def _column_q2(ds: xr.Dataset) -> xr.Dataset:
-    column_q2 = _column_pq2(ds) + _column_dq2(ds)
-    column_q2.attrs = {
-        "long_name": "<Q2> column integrated moistening from physics+ML",
-        "units": "mm/day",
-    }
-    return column_q2.rename("column_integrated_Q2")
 
 
 def rms(x, y, w, dims):
@@ -503,7 +383,7 @@ if __name__ == "__main__":
     }
 
     # add derived variables
-    input_data = compute_all_derived_vars(loaded_data)
+    input_data = derived.compute_all_derived_vars(loaded_data)
 
     # begin constructing diags
     diags = {}
