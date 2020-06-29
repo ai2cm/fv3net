@@ -35,7 +35,7 @@ import diurnal_cycle
 
 import logging
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger("SaveDiags")
 
 _DIAG_FNS = defaultdict(list)
 _DERIVED_VAR_FNS = defaultdict(Callable)
@@ -49,8 +49,6 @@ DiagDict = Mapping[str, xr.DataArray]
 
 
 def add_to_input_transform_fns(func):
-
-    logger.debug(f"Adding func to transforms: {func.__name__}")
 
     _TRANSFORM_FNS[func.__name__] = func
 
@@ -131,15 +129,15 @@ def apply_transform(transform_params, func):
             f"Unrecognized transform, {transform_key} requested for {func.__name__}"
         )
 
-    logger.debug(
-        f"Adding transform, {transform_key}, to diagnostic function: {func.__name__}"
-        f"\n\targs: {transform_args_partial}"
-        f"\n\tkwargs: {transform_kwargs}"
-    )
-
     transform_func = _TRANSFORM_FNS[transform_key]
 
     def transform(*diag_args):
+
+        logger.debug(
+            f"Adding transform, {transform_key}, to diagnostic function: {func.__name__}"
+            f"\n\targs: {transform_args_partial}"
+            f"\n\tkwargs: {transform_kwargs}"
+        )
         
         # prepend diagnostic function input to be transformed
         transform_args = (diag_args, *transform_args_partial)
@@ -166,10 +164,10 @@ def _prepare_diag_dict(
         da = new_diags[variable]
         attrs = da.attrs
         if not attrs and variable in src_ds:
-            logger.debug(
-                "Transferring missing diagnostic attributes from source for "
-                f"{variable}."
-            )
+            # logger.debug(
+            #     "Transferring missing diagnostic attributes from source for "
+            #     f"{variable}."
+            # )
             src_attrs = src_ds[variable].attrs
             da = da.assign_attrs(src_attrs)
         else:
@@ -188,9 +186,9 @@ def diag_finalizer(var_suffix, func):
     Wrapper to update dictionary to final variable names and attributes
     before returning
     """
-    logger.debug(f"Adding diag finalizer wrapper to {func.__name__}")
 
     def finalize(prognostic, verification, grid):
+        logger.debug(f"Finalizing wrapper to {func.__name__}")
 
         diags = func(prognostic, verification, grid)
 
@@ -463,7 +461,7 @@ for mask_type in ["global", "land", "sea"]:
         f"diurnal_{mask_type}",
         input_transforms=[transform_15min, ("mask_to_sfc_type", (mask_type,), {})],
     )
-    def _diurnal_func(resampled, verification, grid):
+    def _diurnal_func(resampled, verification, grid, mask_type=mask_type):
         logger.info(
             f"Preparing diurnal cycle info for physics variables with mask={mask_type}"
         )
@@ -488,7 +486,11 @@ if __name__ == "__main__":
         "--grid-spec", default="./grid_spec",
     )
     parser.add_argument("--catalog", default=CATALOG)
-    logging.basicConfig(level=logging.DEBUG)
+
+    handler = logging.StreamHandler(sys.stderr)
+    log_filter = logging.Filter("SaveDiags")
+    handler.addFilter(log_filter)
+    logging.basicConfig(level=logging.DEBUG, handlers=[handler])
 
     args = parser.parse_args()
 
