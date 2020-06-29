@@ -15,7 +15,6 @@ from .._utils import standardize_zarr_time_coord
 logger = logging.getLogger(__name__)
 
 TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
-SIMULATION_TIMESTEPS_PER_HOUR = 4
 Z_DIM_NAME = "z"
 
 
@@ -152,16 +151,15 @@ class SubsetTimes(GeoMapper):
 
     def __init__(
         self,
-        initial_time_skip_hr: int,
+        i_start: int,
         n_times: Union[int, None],
         nudged_data: Mapping[str, xr.Dataset],
     ):
         timestep_keys = list(nudged_data.keys())
         timestep_keys.sort()
 
-        start = initial_time_skip_hr * SIMULATION_TIMESTEPS_PER_HOUR
-        end = None if n_times is None else start + n_times
-        self._keys = timestep_keys[slice(start, end)]
+        i_end = None if n_times is None else i_start + n_times
+        self._keys = timestep_keys[slice(i_start, i_end)]
         self._nudged_data = nudged_data
 
     def keys(self):
@@ -238,7 +236,7 @@ def open_merged_nudged(
     url: str,
     nudging_timescale_hr: Union[int, float],
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
-    initial_time_skip_hr: int = 0,
+    i_start: int = 0,
     n_times: int = None,
     rename_vars: Mapping[str, str] = None,
 ) -> Mapping[str, xr.Dataset]:
@@ -254,8 +252,8 @@ def open_merged_nudged(
             being used as input.
         merge_files (optionsl): underlying nudging zarr datasets to combine
             into a MergeNudged mapper
-        initial_time_skip_hr (optional): Length of model inititialization (in hours)
-            to omit from the batching operation
+        i_start (optional): Index of sorted timesteps at which to start including
+            data in the batch resampling operation
         n_times (optional): Number of times (by index) to include in the
             batch resampling operation
         rename_vars (optional): mapping of variables to be renamed; defaults to
@@ -284,7 +282,7 @@ def open_merged_nudged(
         datasets.append(ds)
 
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
-    nudged_mapper = SubsetTimes(initial_time_skip_hr, n_times, nudged_mapper)
+    nudged_mapper = SubsetTimes(i_start, n_times, nudged_mapper)
 
     return nudged_mapper
 
