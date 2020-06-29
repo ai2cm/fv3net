@@ -19,6 +19,7 @@ def _open_zarr(url):
     m = fsspec.get_mapper(url)
     return xr.open_zarr(m, consolidated=True)
 
+
 def _catalog():
     TOP_LEVEL_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
     return str(TOP_LEVEL_DIR / "catalog.yml")
@@ -38,13 +39,13 @@ def _compute_q_vars(ds):
     return xr.merge(arrays)
 
 
-plot_lims = {
-    'column_integrated_pQ1': (-600, 600),
-    'column_integrated_dQ1': (-600, 600),
-    'column_integrated_Q1': (-600, 600),
-    'column_integrated_pQ2': (-20, 20),
-    'column_integrated_dQ2': (-20, 20),
-    'column_integrated_Q2': (-20, 20),
+HEATING_MOISTENING_PLOT_KWARGS = {
+    "column_integrated_pQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
+    "column_integrated_dQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
+    "column_integrated_Q1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
+    "column_integrated_pQ2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
+    "column_integrated_dQ2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
+    "column_integrated_Q2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
 }
 
 COORD_NAMES = {
@@ -65,25 +66,27 @@ SUBPLOT_KW = {"projection": ccrs.Robinson()}
 
 
 def _six_panel_heating_moistening(ds, axes):
-    i = 0
-    for var, vlims in plot_lims.items():
+    for i, var, plot_kwargs in enumerate(HEATING_MOISTENING_PLOT_KWARGS.items()):
         ax = axes.flatten()[i]
         mv = vcm.mappable_var(ds, var, coord_vars=_COORD_VARS, **COORD_NAMES)
-        vcm.plot_cube(mv, ax=ax, vmin=vlims[0], vmax=vlims[1], cmap='RdBu_r')
+        vcm.plot_cube(mv, ax=ax, **plot_kwargs)
         ax.set_title(var.replace("_", " "))
-        i += 1
 
 
-def _plot_and_save(t):
+def _save_heating_moistening_figure(arg):
+    t, ds, output = arg
     fig_filename = f"heating_and_moistening_{t:05}.png"
-    plotme = plot_vars.isel(time=t)
     fig, axes = plt.subplots(2, 3, figsize=(15, 5.3), subplot_kw=SUBPLOT_KW)
-    _six_panel_heating_moistening(plotme, axes)
-    fig.suptitle(plotme.time.values.item())
+    _six_panel_heating_moistening(ds, axes)
+    fig.suptitle(ds.time.values.item())
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    with fsspec.open(os.path.join(args.output, fig_filename), "wb") as fig_file:
+    with fsspec.open(os.path.join(output, fig_filename), "wb") as fig_file:
         fig.savefig(fig_file, dpi=100)
     plt.close(fig)
+
+
+def _arg_packer(ds, T, output):
+    return [(t, ds.isel(time=t), output) for t in range(T)]
 
 
 if __name__ == "__main__":
@@ -101,13 +104,12 @@ if __name__ == "__main__":
 
     catalog = intake.open_catalog(CATALOG)
 
-    grid = catalog['grid/c48'].to_dask().load()
+    grid = catalog["grid/c48"].to_dask().load()
     ds = load_diags._load_prognostic_run_physics_output(args.url)
     plot_vars = _compute_q_vars(ds)
     plot_vars = plot_vars.merge(grid)
     T = plot_vars.sizes["time"]
+    plot_func_inputs = _arg_packer(plot_vars, T, args.output)
     logger.info(f"Saving {T} still images to {args.output}")
     with Pool(8) as p:
-        p.map(_plot_and_save, range(T))
-
-
+        p.map(_save_heating_moistening_figure, plot_func_inputs)
