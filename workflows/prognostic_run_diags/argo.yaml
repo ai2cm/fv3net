@@ -26,6 +26,15 @@ spec:
                 value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}/"
       - - name: generate-report
           template: report
+      - - name: movie-step
+          withParam: "{{workflow.parameters.runs}}"
+          template: movie
+          arguments:
+            parameters:
+              - name: run
+                value: "{{item.url}}"
+              - name: output
+                value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}/"
    - name: report
      tolerations:
      - key: "dedicated"
@@ -93,3 +102,36 @@ spec:
         limits:
             memory: "6Gi"
             cpu: "1000m"
+   - name: movie
+     inputs:
+      parameters:
+      - name: run
+      - name: output
+     tolerations:
+     - key: "dedicated"
+       operator: "Equal"
+       value: "climate-sim-pool"
+       effect: "NoSchedule"
+     container:
+      image: '{{workflow.parameters.docker-image}}'
+      command: ["bash", "-x", "-e"]
+      args:
+      - entrypoint_movie.sh
+      - '{{inputs.parameters.run}}'
+      - '{{inputs.parameters.output}}'
+      workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
+      env:
+      - name: GOOGLE_APPLICATION_CREDENTIALS
+        value: /secret/gcp-credentials/key.json
+      - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+        value: /secret/gcp-credentials/key.json
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-credentials-user-gcp-sa
+      resources:
+        requests:
+            memory: "6Gi"
+            cpu: "8000m"
+        limits:
+            memory: "6Gi"
+            cpu: "8000m"
