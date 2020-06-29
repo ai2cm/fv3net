@@ -253,9 +253,10 @@ def open_merged_nudged(
         merge_files (optionsl): underlying nudging zarr datasets to combine
             into a MergeNudged mapper
         i_start (optional): Index of sorted timesteps at which to start including
-            data in the batch resampling operation
-        n_times (optional): Number of times (by index) to include in the
-            batch resampling operation
+            data in the batch resampling operation; defaults to 0
+        n_times (optional): Number of sorted times (by index) to include in the
+            batch resampling operation, starting with i_start and ending at
+            (i_start + n_times)
         rename_vars (optional): mapping of variables to be renamed; defaults to
             renaming long nudging names to dQ names
     """

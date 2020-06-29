@@ -71,14 +71,14 @@ def test_training_mapper_variables(training_mapper):
         assert var in sample_ds.data_vars
 
 
-TWO_D_REQUIRED_DIMENSIONS = (
+REQUIRED_DIMENSIONS_2D_VARS = (
     ("tile",),
     ("y", "y_interface"),
     ("x", "x_interface"),
 )
 
 
-THREE_D_REQUIRED_DIMENSIONS = (
+REQUIRED_DIMENSIONS_3D_VARS = (
     ("tile",),
     ("z",),
     ("y", "y_interface"),
@@ -100,8 +100,8 @@ def test_training_mapper_dimensions(training_mapper):
     for var in sample_ds.data_vars:
         #         print(sample_ds[var].dims)
         assert _test_dimension_match(
-            sample_ds[var].dims, TWO_D_REQUIRED_DIMENSIONS
-        ) or _test_dimension_match(sample_ds[var].dims, THREE_D_REQUIRED_DIMENSIONS)
+            sample_ds[var].dims, REQUIRED_DIMENSIONS_2D_VARS
+        ) or _test_dimension_match(sample_ds[var].dims, REQUIRED_DIMENSIONS_3D_VARS)
 
 
 def test_training_mapper_keys(training_mapper):
