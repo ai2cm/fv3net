@@ -77,8 +77,8 @@ def _prepare_diag_dict(
 
 def diag_finalizer(var_suffix, func):
     """
-    Wrapper to update dictionary to final variable names and attributes
-    before returning
+    Wrapper to update dictionary to final variable names (with var_suffix)
+    and attributes before returning.
     """
 
     def finalize(prognostic, verification, grid):
@@ -257,10 +257,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--catalog", default=CATALOG)
 
-    handler = logging.StreamHandler(sys.stderr)
-    log_filter = logging.Filter("SaveDiags")
-    handler.addFilter(log_filter)
-    logging.basicConfig(level=logging.DEBUG, handlers=[handler])
+    logging.basicConfig(level=logging.INFO)
 
     args = parser.parse_args()
 

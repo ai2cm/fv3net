@@ -27,13 +27,17 @@ def add_to_input_transform_fns(func):
 
 
 def _args_to_hashable_key(args, kwargs):
-    # Convert unhashable diags to a hashable string
+    # Convert unhashable DiagArg (first argument) to a hashable string
     # Doesn't explicitly represent full dataset but enough for us to
     # cache the relatively unchanging input datasets to transform operations
     diag_arg = "".join([str(ds) for ds in args[0]])
+
+    # Assume the rest of the arguments into the transform are hashable
     hargs = [diag_arg] + list(args[1:])
     hkwargs = [(key, kwargs[key]) for key in sorted(kwargs.keys())]
+
     hashable_key = tuple(hargs + hkwargs)
+
     return hashable_key
 
 
@@ -48,7 +52,7 @@ def resample_time(arg: DiagArg, freq_label: str, time_slice=slice(None, -1)) -> 
         freq_label: Time resampling frequency label (should be valid input for xarray's
             resampling function)
         time_slice: Index slice to reduce times after frequency resampling.  Omits final
-            time by default to work with crashed simulations. 
+            time by default to work with crashed simulations.
     """
     prognostic, verification, grid = arg
     prognostic = prognostic.resample(time=freq_label, label="right").nearest()
@@ -88,19 +92,21 @@ def mask_to_sfc_type(
 
     Args:
         arg: input arguments to transform prior to the diagnostic calculation
-        surface_type:  Type of surface grid locations to leave unmasked
+        surface_type:  Type of grid locations to leave unmasked
         mask_var_name: Name of the datasets variable holding surface type info
     """
     prognostic, verification, grid = arg
     masked_prognostic = _mask_vars_with_horiz_dims(
         prognostic, surface_type, mask_var_name
     )
+
+    # TODO: Make the try/except unnecessary by loading high-res physics verifcation
     try:
         masked_verification = _mask_vars_with_horiz_dims(
             verification, surface_type, mask_var_name
         )
     except KeyError:
-        logger.error("Empty verification dataset provided. TODO: fix this by loading")
+        logger.error("Empty verification dataset provided.")
         masked_verification = verification
 
     return masked_prognostic, masked_verification, grid

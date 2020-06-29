@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 def calc_diagnostics(prognostic, verification, grid):
     """
-    Diagnostic function for calculating diurnal all diurnal cycle
+    Diagnostic function for calculating all diurnal cycle
     information from physics output.
     """
 
