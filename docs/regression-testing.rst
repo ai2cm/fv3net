@@ -114,7 +114,7 @@ tendenciecs, nudging tendencies, and fine-res apparent sources. The fixtures in
 ``synth._dataset_fixtures`` may be imported into a ``conftest.py`` file and then
 used in testing mappers and other functions that load or use these data::
     from synth import (
-        test_training_datadir,
+        dataset_fixtures_dir,
         data_source_name,
         one_step_dataset_path,
         nudging_dataset_path,
