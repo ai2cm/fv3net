@@ -42,6 +42,8 @@ def _bin_diurnal_cycle(
     da_var: xr.DataArray, local_time: xr.DataArray, n_bins,
 ):
     bins = np.linspace(0, 24, n_bins + 1)
+    print(da_var)
+    print(len(local_time.values.flatten()), len(da_var.values.flatten()))
     bin_means = binned_statistic(
         local_time.values.flatten(),
         da_var.values.flatten(),

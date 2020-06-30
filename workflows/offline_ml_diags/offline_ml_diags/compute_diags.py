@@ -50,12 +50,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help="Json file that defines train timestep set.",
     )
-    parser.add_argument(
-        "--num-batches",
-        type=int,
-        default=None,
-        help="Number of batches to use in reduce_to_diagnostics",
-    )
     return parser.parse_args()
 
 
@@ -104,7 +98,6 @@ if __name__ == "__main__":
         pred_mapper, config["variables"], **config["batch_kwargs"],
     )
 
-    num_batches = args.num_batches or len(ds_batches)
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
     for i, ds in enumerate(ds_batches):
         batches_diags, batches_diurnal = [], []
@@ -128,7 +121,7 @@ if __name__ == "__main__":
     ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
     ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
     _write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
-    _write_nc(ds_diurnal), args.output_path, DIURNAL_NC_NAME)
+    _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
 
     logger.info(f"Finished processing dataset diagnostics.")
 
