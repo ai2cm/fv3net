@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 import xarray as xr
 
-from diagnostics_utils._diurnal_cycle import _local_time, aggregate_diurnal_cycle
+from diagnostics_utils._diurnal_cycle import _local_time, bin_diurnal_cycle
 
 
 @pytest.mark.parametrize(
@@ -48,13 +48,13 @@ def ds(request):
     ),
     indirect=["ds"]
 )
-def test_aggregate_diurnal_cycle(ds, diurnal_bin_means):
+def test_bin_diurnal_cycle(ds, diurnal_bin_means):
     da_lon = xr.DataArray(
         [0., 180.],
         dims=["x"],
         coords={"x": [0, 1]}
     )
     assert np.allclose(
-        aggregate_diurnal_cycle(ds, da_lon, ["test_var"], n_bins=4)["test_var"],
+        bin_diurnal_cycle(ds, da_lon, ["test_var"], n_bins=4)["test_var"],
         diurnal_bin_means
     )

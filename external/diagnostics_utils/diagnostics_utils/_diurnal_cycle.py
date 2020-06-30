@@ -3,11 +3,13 @@ from scipy.stats import binned_statistic
 from typing import Sequence
 import xarray as xr
 
+DIURNAL_VARS = ["Q1", "Q2"]
 
-def aggregate_diurnal_cycle(
+
+def bin_diurnal_cycle(
     ds: xr.Dataset,
     longitude: xr.DataArray,
-    diurnal_vars: Sequence[str],
+    diurnal_vars: Sequence[str] = DIURNAL_VARS,
     n_bins: int = 24,
     time_dim: str = "time",
 ):

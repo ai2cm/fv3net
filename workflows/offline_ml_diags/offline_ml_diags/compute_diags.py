@@ -25,6 +25,7 @@ logger = logging.getLogger("offline_diags")
 
 DOMAINS = ["land", "sea", "global"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
+DIURNAL_NC_NAME = "diurnal_cycle.nc"
 METRICS_JSON_NAME = "metrics.json"
 
 
@@ -106,15 +107,29 @@ if __name__ == "__main__":
     num_batches = args.num_batches or len(ds_batches)
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
     for i, ds in enumerate(ds_batches):
-        batches_diags = []
+        batches_diags, batches_diurnal = [], []
+        ds = ds.assign(
+            {
+                "Q1": ds["dQ1"] + ds["pQ1"],
+                "Q2": ds["dQ2"] + ds["pQ2"]
+            })
         logger.info(f"Working on batch {i} diagnostics ...")
         ds_diagnostic_batch = utils.reduce_to_diagnostic(
-            ds, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
+            ds, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2", "Q1", "Q2"]
+        )
+        ds_diurnal = utils.bin_diurnal_cycle(
+            ds,
+            grid["lon"],
+            ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"],
         )
         batches_diags.append(ds_diagnostic_batch)
+        batches_diurnal.append(ds_diurnal)
         logger.info(f"Processed batch {i} diagnostics netcdf output.")
     ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
+    ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
     _write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
+    _write_nc(ds_diurnal), args.output_path, DIURNAL_NC_NAME)
+
     logger.info(f"Finished processing dataset diagnostics.")
 
     # json of metrics, ex. RMSE and bias
