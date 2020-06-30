@@ -53,7 +53,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "--num-batches",
         type=int,
         default=None,
-        help="Number of batches to use in reduce_to_diagnostics"
+        help="Number of batches to use in reduce_to_diagnostics",
     )
     return parser.parse_args()
 
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
     _write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
     logger.info(f"Finished processing dataset diagnostics.")
-    
+
     # json of metrics, ex. RMSE and bias
     metrics = calc_metrics(ds_batches, area=grid["area"])
     fs = get_fs(args.output_path)

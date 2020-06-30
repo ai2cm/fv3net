@@ -39,7 +39,6 @@ def reduce_to_diagnostic(
 
     grid = grid.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
-    print('conditional avging')
     conditional_datasets = {}
     for surface_type in domains:
         varname = f"{surface_type}_average"
