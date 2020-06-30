@@ -94,6 +94,7 @@ if __name__ == "__main__":
             mapping_kwargs=dataset_config.get("mapping_kwargs", None),
             **batch_kwargs,
         )
+        logger.info(f"Finished batching {dataset_name}.")
         ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
         diagnostic_datasets[dataset_name] = ds_diagnostic
         logger.info(f"Finished processing dataset {dataset_name}.")
