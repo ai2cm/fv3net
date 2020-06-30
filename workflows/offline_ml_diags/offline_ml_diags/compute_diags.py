@@ -1,19 +1,22 @@
-import diagnostics_utils as utils
-import loaders
-from fv3net.regression.sklearn import SklearnPredictionMapper
-
-from vcm.cloud import get_fs
-import xarray as xr
-from tempfile import NamedTemporaryFile
-import intake
-import yaml
 import argparse
-import sys
-import os
+import intake
 import logging
 import joblib
 import json
-from ._metrics import calc_metrics
+import numpy as np
+import os
+import sys
+from tempfile import NamedTemporaryFile
+import xarray as xr
+import yaml
+
+import diagnostics_utils as utils
+import loaders
+from vcm.cloud import get_fs
+from fv3net.regression.sklearn import SklearnPredictionMapper
+from ._metrics import calc_batch_metrics
+from ._utils import insert_additional_variables
+
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
@@ -99,14 +102,11 @@ if __name__ == "__main__":
     )
 
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
+    batches_diags, batches_diurnal, batches_metrics = [], [], []
     for i, ds in enumerate(ds_batches):
-        batches_diags, batches_diurnal = [], []
-        ds = ds.assign(
-            {
-                "Q1": ds["dQ1"] + ds["pQ1"],
-                "Q2": ds["dQ2"] + ds["pQ2"]
-            })
+        ds = insert_additional_variables(ds)
         logger.info(f"Working on batch {i} diagnostics ...")
+
         ds_diagnostic_batch = utils.reduce_to_diagnostic(
             ds, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2", "Q1", "Q2"]
         )
@@ -115,19 +115,31 @@ if __name__ == "__main__":
             grid["lon"],
             ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"],
         )
+        ds_metrics = calc_batch_metrics(ds, grid["area"])
         batches_diags.append(ds_diagnostic_batch)
         batches_diurnal.append(ds_diurnal)
+        batches_metrics.append(ds_metrics)
         logger.info(f"Processed batch {i} diagnostics netcdf output.")
+
     ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
     ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
+    ds_metrics = xr.concat(batches_metrics, dim="batch").mean(dim="batch")
+
     _write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
     _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
-
+    
+    metrics = {
+        var: {
+            "mean": np.mean(ds_metrics[var].values), 
+            "std": np.std(ds_metrics[var].values)}
+        for var in ds_metrics.data_vars
+    }
+    fs = get_fs(args.output_path)
+    with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
+        json.dump(metrics, f)
     logger.info(f"Finished processing dataset diagnostics.")
 
     # json of metrics, ex. RMSE and bias
     metrics = calc_metrics(ds_batches, area=grid["area"])
-    fs = get_fs(args.output_path)
-    with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
-        json.dump(metrics, f)
+
     logger.info(f"Finished processing dataset metrics.")
