@@ -9,6 +9,8 @@ from datetime import timedelta
 
 import fsspec
 import vcm
+import transform
+import add_derived
 from constants import DiagArg
 
 logger = logging.getLogger(__name__)
@@ -267,9 +269,11 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     # open verification
     # TODO: load physics diagnostics for SHiELD data. Currently slow due to chunking.
     verification_c48 = xr.Dataset()
+    verification_c48 = add_derived.physics_variables(verification_c48)
 
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
+    prognostic_output = add_derived.physics_variables(prognostic_output)
 
     return prognostic_output, verification_c48, grid_c48

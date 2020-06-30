@@ -30,7 +30,6 @@ from typing import Tuple, Dict, Callable, Mapping, Sequence
 
 import load_diagnostic_data as load_diags
 import diurnal_cycle
-import derived
 import transform
 from constants import HORIZONTAL_DIMS, DiagArg
 
@@ -265,13 +264,10 @@ if __name__ == "__main__":
     attrs["history"] = " ".join(sys.argv)
 
     catalog = intake.open_catalog(args.catalog)
-    loaded_data = {
+    input_data = {
         "dycore": load_diags.load_dycore(args.url, args.grid_spec, catalog),
         "physics": load_diags.load_physics(args.url, args.grid_spec, catalog),
     }
-
-    # add derived variables
-    input_data = derived.compute_all_derived_vars(loaded_data)
 
     # begin constructing diags
     diags = {}

@@ -1,54 +1,21 @@
 import logging
 import xarray as xr
-from collections import defaultdict
-from toolz import curry
-from typing import Callable, Dict
 
 import vcm
-from constants import DiagArg
 
-_DERIVED_VAR_FNS = defaultdict(Callable)
 SECONDS_PER_DAY = 86400
 
 logger = logging.getLogger(__name__)
 
 
-@curry
-def add_to_derived_vars(diags_key: str, func: Callable[[xr.Dataset], xr.Dataset]):
-    """Add a function that computes additional derived variables from input datasets.
-    These derived variables should be simple combinations of input variables, not
-    reductions such as global means which are diagnostics to be computed later.
-
-    Args:
-        diags_key: a key for a group of inputs/diagnostics
-        func: a function which adds new variables to a given dataset
+def physics_variables(ds: xr.Dataset) -> xr.Dataset:
     """
-    _DERIVED_VAR_FNS[diags_key] = func
-
-
-def compute_all_derived_vars(input_datasets: Dict[str, DiagArg]) -> Dict[str, DiagArg]:
-    """Compute derived variables for all input data sources.
-
+    Compute selected derived variables from a physics dataset
+    and merge them back in.
+    
     Args:
-        input_datasets: Input datasets with keys corresponding to the appropriate group
-        of inputs/diagnostics.
-
-    Returns:
-        input datasets with derived variables added to prognostic and verification data
+        ds: Dataset to calculated derived values from and merge to
     """
-    for key, func in _DERIVED_VAR_FNS.items():
-        prognostic, verification, grid = input_datasets[key]
-        logger.info(f"Preparing all derived variables for {key} prognostic data")
-        prognostic = prognostic.merge(func(prognostic))
-        logger.info(f"Preparing all derived variables for {key} verification data")
-        verification = verification.merge(func(verification))
-        input_datasets[key] = prognostic, verification, grid
-    return input_datasets
-
-
-@add_to_derived_vars("physics")
-def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
-    """Compute derived variables for physics datasets"""
     arrays = []
     for func in [
         _column_pq1,
@@ -62,7 +29,7 @@ def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
             arrays.append(func(ds))
         except (KeyError, AttributeError):  # account for ds[var] and ds.var notations
             logger.warning(f"Missing variable for calculation in {func.__name__}")
-    return xr.merge(arrays)
+    return ds.merge(xr.merge(arrays))
 
 
 def _column_pq1(ds: xr.Dataset) -> xr.DataArray:
