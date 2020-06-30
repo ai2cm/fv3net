@@ -190,7 +190,7 @@ def test_MergeNudged(nudge_tendencies, general_nudge_output):
 
     assert len(merged) == NTIMES
 
-    item = merged[merged.keys()[0]]
+    item = merged[list(merged.keys())[0]]
     source_vars = chain(
         nudge_tendencies.data_vars.keys(), general_nudge_output.data_vars.keys(),
     )
@@ -481,11 +481,7 @@ def test_open_merged_nudged(nudged_data_dir):
 
     merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
     mapper = open_merged_nudged(
-        nudged_data_dir,
-        NUDGE_TIMESCALE,
-        merge_files=merge_files,
-        initial_time_skip_hr=1,
-        n_times=6,
+        nudged_data_dir, NUDGE_TIMESCALE, merge_files=merge_files, i_start=4, n_times=6,
     )
 
     assert len(mapper) == 6
@@ -548,31 +544,32 @@ def test_GroupByTime_items(time_key, expected_size, checkpoint_mapping):
 
 def test_SubsetTime(nudged_tstep_mapper):
 
-    ntimestep_skip_hr = 1  # equivalent to 4 timesteps
-    ntimes = 6
-    times = nudged_tstep_mapper.keys()[4:10]
+    #     ntimestep_skip_hr = 1  # equivalent to 4 timesteps
+    i_start = 4
+    n_times = 6
+    times = sorted(list(nudged_tstep_mapper.keys()))[4:10]
 
-    subset = SubsetTimes(ntimestep_skip_hr, ntimes, nudged_tstep_mapper)
+    subset = SubsetTimes(i_start, n_times, nudged_tstep_mapper)
 
-    assert len(subset) == ntimes
-    assert times == subset.keys()
+    assert len(subset) == n_times
+    assert times == sorted(list(subset.keys()))
 
 
 def test_SubsetTime_out_of_order_times(nudged_tstep_mapper):
 
-    times = nudged_tstep_mapper.keys()[:5]
+    times = sorted(list(nudged_tstep_mapper.keys()))[:5]
     shuffled_idxs = [4, 0, 2, 3, 1]
     shuffled_map = {times[i]: nudged_tstep_mapper[times[i]] for i in shuffled_idxs}
     subset = SubsetTimes(0, 2, shuffled_map)
 
-    for i, key in enumerate(subset.keys()):
+    for i, key in enumerate(sorted(list(subset.keys()))):
         assert key == times[i]
         xr.testing.assert_equal(nudged_tstep_mapper[key], subset[key])
 
 
 def test_SubsetTime_fail_on_non_subset_key(nudged_tstep_mapper):
 
-    out_of_bounds = nudged_tstep_mapper.keys()[4]
+    out_of_bounds = sorted(list(nudged_tstep_mapper.keys()))[4]
     subset = SubsetTimes(0, 4, nudged_tstep_mapper)
 
     with pytest.raises(KeyError):
