@@ -186,11 +186,3 @@ def grid_dataset(dataset_fixtures_dir):
     grid = generate(grid_schema).load()
     grid["land_sea_mask"][:] = random.choice([0, 1, 2], size=grid["land_sea_mask"].shape)
     return grid
-    
-
-# cat = intake.open_catalog("catalog.yml")
-# grid = cat["grid/c48"].to_dask()
-# grid = grid.drop_vars(names=["y_interface", "y", "x_interface", "x"])
-# surface_type = cat["landseamask/c48"].to_dask()
-# surface_type = surface_type.drop_vars(names=["y", "x"])
-# ds = grid.merge(surface_type)
