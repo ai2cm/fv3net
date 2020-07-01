@@ -104,16 +104,16 @@ if __name__ == "__main__":
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
     batches_diags, batches_diurnal, batches_metrics = [], [], []
     for i, ds in enumerate(ds_batches):
-        ds = insert_additional_variables(ds)
+        ds = insert_additional_variables(ds, grid["area"])
         logger.info(f"Working on batch {i} diagnostics ...")
 
         ds_diagnostic_batch = utils.reduce_to_diagnostic(
             ds, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2", "Q1", "Q2"]
         )
-        ds_diurnal = utils.bin_diurnal_cycle(
+        ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds,
             grid["lon"],
-            ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"],
+            ["column_integrated_dQ1", "column_integrated_dQ2", "column_integrated_pQ1", "column_integrated_pQ2", "column_integrated_Q1", "column_integrated_Q2"],
         )
         ds_metrics = calc_batch_metrics(ds, grid["area"])
         batches_diags.append(ds_diagnostic_batch)

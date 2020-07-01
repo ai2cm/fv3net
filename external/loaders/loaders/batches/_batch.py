@@ -1,9 +1,10 @@
 import functools
 import logging
 from numpy.random import RandomState
+import pandas as pd
 from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional
 import xarray as xr
-from vcm import safe
+from vcm import safe, parse_datetime_from_str
 from toolz import partition
 from ._sequences import FunctionOutputSequence
 from .._utils import stack_dropnan_shuffle
@@ -216,7 +217,8 @@ def _load_batch(
     init_time_dim_name: str,
     keys: Iterable[Hashable],
 ) -> xr.Dataset:
-    ds = xr.concat([mapper[key] for key in keys], init_time_dim_name)
+    datetime_coords = [parse_datetime_from_str(key) for key in keys]
+    ds = xr.concat([mapper[key] for key in keys], pd.Index(datetime_coords, name=init_time_dim_name))
     # need to use standardized time dimension name
     rename_variables[init_time_dim_name] = rename_variables.get(
         init_time_dim_name, TIME_NAME
