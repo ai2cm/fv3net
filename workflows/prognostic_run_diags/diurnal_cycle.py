@@ -15,8 +15,17 @@ def calc_diagnostics(prognostic, verification, grid):
     logger.info("Preparing diurnal cycle diagnostics")
 
     diurnal_cycle_vars = [
-        f"column_integrated_{a}Q{b}" for a in ["d", "p", ""] for b in ["1", "2"]
-    ] + ["PRATEsfc", "LHTFLsfc", "SLMSKsfc"]
+        "column_integrated_dQ1",
+        "column_integrated_pQ1",
+        "column_integrated_Q1",
+        "column_integrated_dQ2",
+        "column_integrated_pQ2",
+        "column_integrated_Q2",
+        "PRATEsfc",
+        "LHTFLsfc",
+        "SLMSKsfc",
+    ]
+    
     prognostic = prognostic[[var for var in diurnal_cycle_vars if var in prognostic]]
 
     prognostic["lon"] = grid["lon"]
