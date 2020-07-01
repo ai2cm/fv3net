@@ -19,6 +19,7 @@ def create_diurnal_cycle_dataset(
     diurnal_vars: Sequence[str],
     n_bins: int = 24,
     time_dim: str = "time",
+    flatten_dims: Sequence[str] = FLATTEN_DIMS,
 ) -> xr.Dataset:
     """All the logic in this function deals with the case where the
     variable has an extra dimension that we want to keep in the final
@@ -45,7 +46,7 @@ def create_diurnal_cycle_dataset(
     ds_diurnal_cycle = xr.Dataset()
     for var in diurnal_vars:
         da = ds[var]
-        additional_dim = [dim for dim in da.dims if dim not in FLATTEN_DIMS]
+        additional_dim = [dim for dim in da.dims if dim not in flatten_dims]
         if len(additional_dim) == 0:
             data_arrays = [da]
         elif len(additional_dim) == 1:
@@ -69,6 +70,7 @@ def create_diurnal_cycle_dataset(
                 [da.expand_dims(additional_dim) for da in var_diurnal_cycles],
                 dim=pd.Index(coords, name=additional_dim),
             )
+            print(ds_diurnal_cycle[var])
         else:
             ds_diurnal_cycle[var] = var_diurnal_cycles[0]
     return ds_diurnal_cycle
@@ -77,6 +79,18 @@ def create_diurnal_cycle_dataset(
 def bin_diurnal_cycle(
     da: xr.DataArray, longitude: xr.DataArray, n_bins: int = 24, time_dim: str = "time",
 ) -> xr.DataArray:
+    """Bins the input variable data array into diurnal cycle with variable mean
+    given in each time bin.
+
+    Args:
+        da (xr.DataArray): variable to calculate diurnal cycle of
+        longitude (xr.DataArray): Longitude grid values
+        n_bins (int, optional): Number time bins in a day. Defaults to 24.
+        time_dim (str, optional): Time dim name in input data array. Defaults to "time".
+
+    Returns:
+        xr.DataArray: Coords are time bin starts, values are variable means in bins
+    """
     bin_width_hrs = 24.0 / n_bins
     bin_centers = [i * bin_width_hrs for i in range(n_bins)]
     longitude = longitude.expand_dims({time_dim: da[time_dim].values})
