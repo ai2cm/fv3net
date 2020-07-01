@@ -1,22 +1,19 @@
-import argparse
-import intake
-import logging
-import joblib
-import json
-import numpy as np
-import os
-import sys
-from tempfile import NamedTemporaryFile
-import xarray as xr
-import yaml
-
 import diagnostics_utils as utils
 import loaders
-from vcm.cloud import get_fs
 from fv3net.regression.sklearn import SklearnPredictionMapper
-from ._metrics import calc_batch_metrics
-from ._utils import insert_additional_variables
-
+from vcm.cloud import get_fs
+import xarray as xr
+from tempfile import NamedTemporaryFile
+import intake
+import yaml
+import argparse
+import sys
+import os
+import logging
+import uuid
+import joblib
+import json
+from ._metrics import calc_metrics
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
@@ -28,7 +25,6 @@ logger = logging.getLogger("offline_diags")
 
 DOMAINS = ["land", "sea", "global"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
-DIURNAL_NC_NAME = "diurnal_cycle.nc"
 METRICS_JSON_NAME = "metrics.json"
 
 
@@ -57,6 +53,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
 
 def _write_nc(ds: xr.Dataset, output_dir: str, output_file: str):
+    output_file = output_file.strip(".nc") + "_" + str(uuid.uuid1())[-6:] + ".nc"
     output_file = os.path.join(output_dir, output_file)
 
     with NamedTemporaryFile() as tmpfile:
@@ -76,14 +73,14 @@ if __name__ == "__main__":
     logger.info("Reading grid...")
     cat = intake.open_catalog("catalog.yml")
     grid = cat["grid/c48"].to_dask()
-    grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
     land_sea_mask = cat["landseamask/c48"].to_dask()
     grid = grid.assign({utils.VARNAMES["surface_type"]: land_sea_mask["land_sea_mask"]})
+    grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
 
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
-        config["batch_kwargs"]["timesteps"] = timesteps[:50]
+        config["batch_kwargs"]["timesteps"] = timesteps
 
     base_mapping_function = getattr(loaders.mappers, config["mapping_function"])
     base_mapper = base_mapping_function(
@@ -102,44 +99,15 @@ if __name__ == "__main__":
     )
 
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
-    batches_diags, batches_diurnal, batches_metrics = [], [], []
-    for i, ds in enumerate(ds_batches):
-        ds = insert_additional_variables(ds)
-        logger.info(f"Working on batch {i} diagnostics ...")
-
-        ds_diagnostic_batch = utils.reduce_to_diagnostic(
-            ds, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2", "Q1", "Q2"]
-        )
-        ds_diurnal = utils.bin_diurnal_cycle(
-            ds,
-            grid["lon"],
-            ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"],
-        )
-        ds_metrics = calc_batch_metrics(ds, grid["area"])
-        batches_diags.append(ds_diagnostic_batch)
-        batches_diurnal.append(ds_diurnal)
-        batches_metrics.append(ds_metrics)
-        logger.info(f"Processed batch {i} diagnostics netcdf output.")
-
-    ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
-    ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
-    ds_metrics = xr.concat(batches_metrics, dim="batch").mean(dim="batch")
-
-    _write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
-    _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
-    
-    metrics = {
-        var: {
-            "mean": np.mean(ds_metrics[var].values), 
-            "std": np.std(ds_metrics[var].values)}
-        for var in ds_metrics.data_vars
-    }
-    fs = get_fs(args.output_path)
-    with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
-        json.dump(metrics, f)
+    ds_diagnostic = utils.reduce_to_diagnostic(
+        ds_batches, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
+    )
     logger.info(f"Finished processing dataset diagnostics.")
+    _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path, DIAGS_NC_NAME)
 
     # json of metrics, ex. RMSE and bias
     metrics = calc_metrics(ds_batches, area=grid["area"])
-
+    fs = get_fs(args.output_path)
+    with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
+        json.dump(metrics, f)
     logger.info(f"Finished processing dataset metrics.")

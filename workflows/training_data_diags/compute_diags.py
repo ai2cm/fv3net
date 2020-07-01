@@ -94,9 +94,7 @@ if __name__ == "__main__":
             mapping_kwargs=dataset_config.get("mapping_kwargs", None),
             **batch_kwargs,
         )
-        ds_full = xr.concat(ds_batches, dim=TIME_DIM)
-        ds_diagnostic = utils.reduce_to_diagnostic(ds_full, grid, domains=DOMAINS)
-
+        ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
         diagnostic_datasets[dataset_name] = ds_diagnostic
         logger.info(f"Finished processing dataset {dataset_name}.")
 

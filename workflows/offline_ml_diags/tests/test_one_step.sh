@@ -6,4 +6,4 @@ python -m offline_ml_diags.compute_diags \
     workflows/offline_ml_diags/tests/test_one_step_config.yml \
     $MODEL \
     $OUTPUT \
-   #--timesteps-file workflows/offline_ml_diags/tests/times_one_step.json
+   --timesteps-file workflows/offline_ml_diags/tests/times_one_step.json
