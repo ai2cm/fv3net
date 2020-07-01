@@ -245,14 +245,14 @@ def main():
     diagnostics = [convert_time_index_to_datetime(ds, "time") for ds in diagnostics]
 
     # load metrics
-    nested_metrics = load_metrics(bucket, rundirs)
-    metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
-    metrics = pd.merge(run_table, metric_table, on="run")
+    # nested_metrics = load_metrics(bucket, rundirs)
+    # metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
+    # metrics = pd.merge(run_table, metric_table, on="run")
 
     # generate all plots
     sections = {
         "Diagnostics": list(diag_plot_manager.make_plots(diagnostics)),
-        "Metrics": list(metrics_plot_manager.make_plots(metrics)),
+        # "Metrics": list(metrics_plot_manager.make_plots(metrics)),
     }
 
     html = create_html(

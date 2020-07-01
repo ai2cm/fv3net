@@ -40,7 +40,7 @@ def calc_diagnostics(prognostic, verification, grid):
     prog_diurnal_ds = _add_diurnal_moisture_components(prog_diurnal_ds)
     verif_diurnal_ds = _add_diurnal_moisture_components(verif_diurnal_ds)
 
-    prog_diurnal_ds = _add_diurnal_comparison(prog_diurnal_ds, verif_diurnal_ds)
+    prog_diurnal_ds = _add_diurn_comparison(prog_diurnal_ds, verif_diurnal_ds)
 
     return prog_diurnal_ds
 
@@ -63,28 +63,28 @@ def _calc_ds_diurnal_cycle(ds):
 def _add_diurnal_moisture_components(diurnal_ds):
 
     # pq2 is E - P in mm/day
-    precip = diurnal_ds["PRATEsfc"] * SECONDS_PER_DAY
-    diurnal_ds["diurnal_comp_P"] = precip
+    precip = diurnal_ds["physics_precip"] * SECONDS_PER_DAY
+    diurnal_ds["diurn_comp_P"] = precip
     evap = vcm.latent_heat_flux_to_evaporation(diurnal_ds["LHTFLsfc"]) * SECONDS_PER_DAY
-    diurnal_ds["diurnal_comp_E"] = evap
+    diurnal_ds["diurn_comp_E"] = evap
 
     if "column_integrated_dQ2" in diurnal_ds:
         dQ2 = diurnal_ds["column_integrated_dQ2"]
-        diurnal_ds["diurnal_comp_-dQ2"] = -dQ2
+        diurnal_ds["diurn_comp_-dQ2"] = -dQ2
         precip_phys_ml = precip - dQ2
         precip_phys_ml.attrs = {
             "long_name": "Total precipitation (P - dQ2)",
             "units": "mm/day",
         }
-        diurnal_ds["diurnal_comp_P-dQ2"] = precip_phys_ml
+        diurnal_ds["diurn_comp_P-dQ2"] = precip_phys_ml
 
     return diurnal_ds
 
 
-def _add_diurnal_comparison(prognostic_diurnal, verif_diurnal):
+def _add_diurn_comparison(prognostic_diurnal, verif_diurnal):
 
     evap_compare = (
-        prognostic_diurnal["diurnal_comp_E"] - verif_diurnal["diurnal_comp_E"]
+        prognostic_diurnal["diurn_comp_E"] - verif_diurnal["diurn_comp_E"]
     )
     evap_compare.attrs = {
         "long_name": "Evaporation diurnal cycle difference [coarse - hires]",
@@ -92,12 +92,12 @@ def _add_diurnal_comparison(prognostic_diurnal, verif_diurnal):
     }
     prognostic_diurnal["evap_against_verif"] = evap_compare
 
-    if "diurnal_comp_P-dQ2" in prognostic_diurnal:
-        prognostic_precip = prognostic_diurnal["diurnal_comp_P-dQ2"]
+    if "diurn_comp_P-dQ2" in prognostic_diurnal:
+        prognostic_precip = prognostic_diurnal["diurn_comp_P-dQ2"]
     else:
-        prognostic_precip = prognostic_diurnal["diurnal_comp_P"]
+        prognostic_precip = prognostic_diurnal["diurn_comp_P"]
 
-    precip_compare = prognostic_precip - verif_diurnal["diurnal_comp_P"]
+    precip_compare = prognostic_precip - verif_diurnal["diurn_comp_P"]
     precip_compare.attrs = {
         "long_name": (
             "Precipitation diurnal cycle difference (includes ML) [coarse - hires]"
