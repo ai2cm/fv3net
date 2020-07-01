@@ -123,44 +123,6 @@ def test_compute_training_diags(
     assert training_diags_reference_schema == diags_output_schema
 
 
-def _one_step_train_config():
-    path = "./tests/training/train_sklearn_model_onestep_source.yml"
-    with open(path, "r") as f:
-        config = yaml.safe_load(f)
-    return train.ModelTrainingConfig(**config)
-
-
-@pytest.fixture
-def one_step_train_config():
-    return _one_step_train_config()
-
-
-def _nudging_train_config():
-    path = "./tests/training/train_sklearn_model_nudged_source.yaml"
-    with open(path, "r") as f:
-        config = yaml.safe_load(f)
-    return train.ModelTrainingConfig(**config)
-
-
-@pytest.fixture
-def nudging_train_config():
-    return _nudging_train_config()
-
-
-def _fine_res_train_config():
-    path = "./tests/training/train_sklearn_model_fineres_source.yml"
-    with open(path, "r") as f:
-        config = yaml.safe_load(f)
-    config["batch_kwargs"].pop("mapping_function", None)
-    config["batch_kwargs"].pop("mapping_kwargs", None)
-    return train.ModelTrainingConfig(**config)
-
-
-@pytest.fixture
-def fine_res_train_config():
-    return _fine_res_train_config()
-
-
 @pytest.fixture
 def model_type():
     return "sklearn_random_forest"
@@ -168,10 +130,11 @@ def model_type():
 
 @pytest.fixture
 def hyperparameters(model_type):
-    return {
-        "max_depth": 4,
-        "n_estimators": 2,
-    }
+    if model_type == "sklearn_random_forest":
+        return {
+            "max_depth": 4,
+            "n_estimators": 2,
+        }
 
 
 @pytest.fixture
@@ -186,7 +149,7 @@ def output_variables():
 
 @pytest.fixture()
 def batch_function(model_type):
-    return batches_from_geodata
+    return "batches_from_geodata"
 
 
 @pytest.fixture()
@@ -216,36 +179,36 @@ def batch_kwargs(data_source_name):
         return {
             "timesteps_per_batch": 1,
             "init_time_dim_name": "initial_time",
-            "mapping_function": "open_one_step",
             "timesteps": ["20160801.001500", "20160801.003000"],
             "rename_variables": {},
         }
 
 
 @pytest.fixture
-def data_source_train_config(
-    model_type, input_variables, output_variables, batch_function, batch_kwargs
+def train_config(
+    model_type,
+    hyperparameters,
+    input_variables,
+    output_variables,
+    batch_function,
+    batch_kwargs
 ):
     return shared.ModelTrainingConfig(
-        model_type, input_variables, output_variables, batch_function, batch_kwargs
+        model_type=model_type,
+        hyperparameters=hyperparameters,
+        input_variables=input_variables,
+        output_variables=output_variables,
+        batch_function=batch_function,
+        batch_kwargs=batch_kwargs
     )
-    if data_source_name == "one_step_tendencies":
-        data_source_train_config = _one_step_train_config()
-    elif data_source_name == "nudging_tendencies":
-        data_source_train_config = _nudging_train_config()
-    elif data_source_name == "fine_res_apparent_sources":
-        data_source_train_config = _fine_res_train_config()
-    else:
-        raise NotImplementedError()
-    return data_source_train_config
 
 
 @pytest.fixture
-def training_batches(data_source_name, data_source_path, data_source_train_config):
+def training_batches(data_source_name, data_source_path, train_config):
 
     if data_source_name != "fine_res_apparent_sources":
         batched_data = shared.load_data_sequence(
-            data_source_path, data_source_train_config
+            data_source_path, train_config
         )
     else:
         # train.load_data_sequence is incompatible with synth's zarrs
@@ -258,22 +221,21 @@ def training_batches(data_source_name, data_source_path, data_source_train_confi
 
         batched_data = batches.batches_from_mapper(
             mapper,
-            list(data_source_train_config.input_variables)
-            + list(data_source_train_config.output_variables),
-            **data_source_train_config.batch_kwargs,
+            list(train_config.input_variables)
+            + list(train_config.output_variables),
+            **train_config.batch_kwargs,
         )
 
     return batched_data
 
 
-@pytest.mark.regression()
 @pytest.mark.regression
-def test_training(model_type, training_batches, data_source_train_config):
+def test_training(model_type, training_batches, train_config):
     if model_type.startswith("sklearn"):
-        wrapper = train.train_model(training_batches, data_source_train_config)
-        assert wrapper.model.n_estimators == 2
+        wrapper = train.train_model(training_batches, train_config)
+        assert wrapper.model.n_estimators == train_config.hyperparameters["n_estimators"]
     else:
-        pass
+        model = train.train_model()
 
 
 @pytest.fixture
@@ -308,13 +270,9 @@ class MockSklearnWrappedModel:
         return ds_pred
 
 
-input_vars = ("air_temperature", "specific_humidity")
-output_vars = ("dQ1", "dQ2")
-
-
 @pytest.fixture
-def mock_model():
-    return MockSklearnWrappedModel(input_vars, output_vars)
+def mock_model(input_variables, output_variables):
+    return MockSklearnWrappedModel(input_variables, output_variables)
 
 
 def _one_step_offline_diags_config():
