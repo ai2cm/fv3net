@@ -74,16 +74,20 @@ def _prepare_diag_dict(
     return diags
 
 
-def diag_finalizer(var_suffix, func):
+@curry
+def diag_finalizer(var_suffix, func, *diag_args):
     """
     Wrapper to update dictionary to final variable names (with var_suffix)
     and attributes before returning.
+
+    Expects diag_args to be of the form (prognostic_source, verif, grid)
     """
 
-    def finalize(prognostic, verification, grid):
+    def finalize(*diag_args):
         logger.debug(f"Finalizing wrapper to {func.__name__}")
 
-        diags = func(prognostic, verification, grid)
+        diags = func(*diag_args)
+        prognostic, *_ = diag_args
 
         return _prepare_diag_dict(var_suffix, diags, prognostic)
 
@@ -93,9 +97,7 @@ def diag_finalizer(var_suffix, func):
 @curry
 def add_to_diags(
     diags_key: str,
-    var_suffix: str,
     func: Callable[[DiagArg], DiagDict],
-    input_transforms: Tuple[str, Sequence, Mapping] = None,
 ):
     """
     Add a function to the list of diagnostics to be computed
@@ -103,10 +105,6 @@ def add_to_diags(
 
     Args:
         diags_key: A key for a group of diagnostics
-        var_suffix:  A suffix passed to the diagnostic finalizer which appends
-            to the end of all variable names in the diagnostic.  Useful for
-            preventing overlap with diagnostics names that are 1-to-1 with the
-            input data
         func: a function which computes a set of diagnostics.
             It needs to have the following signature::
 
@@ -115,19 +113,7 @@ def add_to_diags(
             and should return diagnostics as a dict of xr.DataArrays.
             This output will be merged with all other decorated functions,
             so some care must be taken to avoid variable and coordinate clashes.
-        input_pre_transforms: List of transform functions with arguments to
-            apply to input data before diagnostic is calculated.  Each tuple
-            should contain the following items: transform function name,
-            transform arguments, transform keyword arguments.
     """
-
-    if input_transforms is not None:
-        for transform_params in input_transforms:
-            func = transform.apply_transform(transform_params, func)
-
-    # Prepare non-overlapping variable names and transfer attributes from source
-    if var_suffix is not None:
-        func = diag_finalizer(var_suffix, func)
 
     _DIAG_FNS[diags_key].append(func)
 
@@ -180,12 +166,9 @@ def dump_nc(ds: xr.Dataset, f):
             shutil.copyfileobj(tmp1, f)
 
 
-# Common arguments for requested transforms
-transform_3h = ("resample_time", ("3H",), {})
-transform_15min = ("resample_time", ("15min",), {})
-
-
-@add_to_diags("dycore", "rms_global", input_transforms=[transform_3h])
+@add_to_diags("dycore")
+@diag_finalizer("rms_global")
+@transform.apply("resample_time", "3H")
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
@@ -193,7 +176,9 @@ def rms_errors(resampled, verification_c48, grid):
     return rms_errors
 
 
-@add_to_diags("dycore", "global_avg", input_transforms=[transform_3h])
+@add_to_diags("dycore")
+@diag_finalizer("global_avg")
+@transform.apply("resample_time", "3H")
 def global_averages_dycore(resampled, verification, grid):
     logger.info("Preparing global averages for dycore variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
@@ -203,7 +188,9 @@ def global_averages_dycore(resampled, verification, grid):
     return area_averages
 
 
-@add_to_diags("physics", "global_phys_avg", input_transforms=[transform_3h])
+@add_to_diags("physics")
+@diag_finalizer("global_phys_avg")
+@transform.apply("resample_time", "3H")
 def global_averages_physics(resampled, verification, grid):
     logger.info("Preparing global averages for physics variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
@@ -224,11 +211,10 @@ def global_biases_physics(resampled, verification, grid):
 
 for mask_type in ["global", "land", "sea"]:
 
-    @add_to_diags(
-        "physics",
-        f"diurnal_{mask_type}",
-        input_transforms=[transform_15min, ("mask_to_sfc_type", (mask_type,), {})],
-    )
+    @add_to_diags("physics")
+    @diag_finalizer(f"diurnal_{mask_type}")
+    @transform.apply("resample_time", "15min", time_slice=slice(96, -1))
+    @transform.apply("mask_to_sfc_type", mask_type)
     def _diurnal_func(resampled, verification, grid, mask_type=mask_type):
         # mask_type is added as a kwarg solely to give the logging access to the info
         logger.info(

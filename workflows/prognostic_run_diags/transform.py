@@ -9,7 +9,7 @@ and return the adjusted diagnostic function arguments.
 
 import logging
 
-from toolz import memoize
+from toolz import memoize, curry
 
 import vcm
 from constants import HORIZONTAL_DIMS, DiagArg
@@ -26,15 +26,102 @@ def add_to_input_transform_fns(func):
     return func
 
 
+# def transform_wrapper(func):
+
+#     def wrapper(*transform_args_partial, diag_func, **transform_kwargs):
+
+#         curried = func(*transform_args_partial, **transform_kwargs)
+
+#         def wrapped_diags(*diag_args):
+
+#             xformed_input = curried(diag_args)
+#             return diag_func(xformed_input)
+
+#         return wrapped_diags
+
+#     return wrapper
+
+# def transform_wrapper(func):
+
+#     def diag_wrapper_constructor(*transform_args_partial, **transform_kwargs):
+
+#         def wrapper(diag_func):
+
+#             def wrapped_diags(*diag_args):
+#                 xformed_input = func(*transform_args_partial, diag_args, **transform_kwargs)
+#                 return diag_func(xformed_input)
+
+#             return wrapped_diags
+        
+#         return wrapper
+
+#     return diag_wrapper_constructor
+
+
+def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
+    """
+    Wrapper to apply transform to input diagnostic arguments (tuple of three datasets).
+    Transform arguments are specified per diagnostic function to enable a query-style
+    operation on input data.
+
+    apply -> wraps diagnostic function in save_prognostic_run_diags and
+    returns a new function with an input transform prepended to the diagnostic call.
+    
+    I.e., call to diagnostic_function becomes::
+
+        input_transform(*diag_args):
+            adjusted_args = transform(*diagargs)
+            diagnostic_function(*adjusted_args)
+
+    Args:
+        transform_key: name of transform function to call
+        transform_args_partial: All transform function specific arguments preceding the
+            final diagnostic argument tuple, e.g., [freq_label] for resample_time
+        transform_kwargs: Any transform function keyword arguments
+    
+    Note: I tried memoizing the current transforms but am unsure
+    if it will work on highly mutable datasets.
+    """
+
+    def _apply_to_diag_func(diag_func):
+
+        if transform_key not in _TRANSFORM_FNS:
+            raise KeyError(
+                f"Unrecognized transform, {transform_key} requested for {diag_func.__name__}"
+            )
+
+        transform_func = _TRANSFORM_FNS[transform_key]
+
+        def transform(*diag_args):
+
+            logger.debug(
+                f"Adding transform, {transform_key}, "
+                f"to diagnostic function: {diag_func.__name__}"
+                f"\n\targs: {transform_args_partial}"
+                f"\n\tkwargs: {transform_kwargs}"
+            )
+
+            # append diagnostic function input to be transformed
+            transform_args = (*transform_args_partial, diag_args)
+
+            transformed_diag_args = transform_func(*transform_args, **transform_kwargs)
+
+            return diag_func(*transformed_diag_args)
+
+        return transform
+    
+    return _apply_to_diag_func
+
+
 def _args_to_hashable_key(args, kwargs):
     # Convert unhashable DiagArg (first argument) to a hashable string
     # Doesn't explicitly represent full dataset but enough for us to
     # cache the relatively unchanging input datasets to transform operations
-    diag_arg = "".join([str(ds) for ds in args[0]])
+    diag_arg = "".join([str(ds) for ds in args[-1]])
 
     # Assume the rest of the arguments into the transform are hashable
-    hargs = [diag_arg] + list(args[1:])
-    hkwargs = [(key, kwargs[key]) for key in sorted(kwargs.keys())]
+    hargs = list(args[:-1]) + [diag_arg]
+    hkwargs = [(key, str(kwargs[key])) for key in sorted(kwargs.keys())]
 
     hashable_key = tuple(hargs + hkwargs)
 
@@ -43,7 +130,7 @@ def _args_to_hashable_key(args, kwargs):
 
 @add_to_input_transform_fns
 @memoize(key=_args_to_hashable_key)
-def resample_time(arg: DiagArg, freq_label: str, time_slice=slice(None, -1)) -> DiagArg:
+def resample_time(freq_label: str, arg: DiagArg, time_slice=slice(None, -1)) -> DiagArg:
     """
     Subset times in prognostic and verification data
 
@@ -85,7 +172,7 @@ def _mask_vars_with_horiz_dims(ds, surface_type, mask_var_name):
 @add_to_input_transform_fns
 @memoize(key=_args_to_hashable_key)
 def mask_to_sfc_type(
-    arg: DiagArg, surface_type: str, mask_var_name: str = "SLMSKsfc"
+    surface_type: str, arg: DiagArg, mask_var_name: str = "SLMSKsfc"
 ) -> DiagArg:
     """
     Mask prognostic run and verification data to the specified surface type
@@ -110,40 +197,3 @@ def mask_to_sfc_type(
         masked_verification = verification
 
     return masked_prognostic, masked_verification, grid
-
-
-def apply_transform(transform_params, func):
-    """
-    Wrapper to apply transform to input diagnostic arguments (tuple of three datasets).
-    Transform arguments are specified per diagnostic function to enable a query-style
-    operation on input data.
-    
-    Note: I tried memoizing the current transforms but am unsure
-    if it will work on highly mutable datasets.
-    """
-
-    transform_key, transform_args_partial, transform_kwargs = transform_params
-    if transform_key not in _TRANSFORM_FNS:
-        raise KeyError(
-            f"Unrecognized transform, {transform_key} requested for {func.__name__}"
-        )
-
-    transform_func = _TRANSFORM_FNS[transform_key]
-
-    def transform(*diag_args):
-
-        logger.debug(
-            f"Adding transform, {transform_key}, "
-            f"to diagnostic function: {func.__name__}"
-            f"\n\targs: {transform_args_partial}"
-            f"\n\tkwargs: {transform_kwargs}"
-        )
-
-        # prepend diagnostic function input to be transformed
-        transform_args = (diag_args, *transform_args_partial)
-
-        transformed_diag_args = transform_func(*transform_args, **transform_kwargs)
-
-        return func(*transformed_diag_args)
-
-    return transform
