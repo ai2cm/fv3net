@@ -2,9 +2,9 @@
 Transforms operate on diagnostic function inputs to adjust data before
 diagnostic values are calculated.
 
-A transform should take in the diagnostic function arguments tuple
-in as the first argument followed by transform specific args, kwargs,
-and return the adjusted diagnostic function arguments.
+A transform should take in the transform-specific arguments with a diagnostic
+function argument tuple as the final argument and return the adjusted
+diagnostic function arguments.
 """
 
 import logging
