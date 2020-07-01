@@ -67,14 +67,16 @@ def test__local_time(time_gmt, expected):
     "ds, diurnal_bin_means",
     (
         [[[1.0, 2.0], [(0, 30, 0), (6, 30, 0)]], [1, 1, 2, 2]],
-        [[[1.0, 2.0], [(0, 30, 0), (0, 30, 0)]], [1.0, 0, 2.0, 0]],
-        [[[1.0, 2.0], [(0, 30, 0), (12, 30, 0)]], [1.5, 0, 1.5, 0]],
+        [[[1.0, 2.0], [(0, 30, 0), (0, 30, 0)]], [1.0, np.nan, 2.0, np.nan]],
+        [[[1.0, 2.0], [(0, 30, 0), (12, 30, 0)]], [1.5, np.nan, 1.5, np.nan]],
     ),
     indirect=["ds"],
 )
 def test_bin_diurnal_cycle(ds, diurnal_bin_means, da_lon):
     da_var = ds["test_var"]
-    assert np.allclose(bin_diurnal_cycle(da_var, da_lon, n_bins=4), diurnal_bin_means)
+    assert np.allclose(
+        bin_diurnal_cycle(da_var, da_lon, n_bins=4), diurnal_bin_means, equal_nan=True
+    )
 
 
 @pytest.mark.parametrize(

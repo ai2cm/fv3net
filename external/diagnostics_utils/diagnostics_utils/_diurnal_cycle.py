@@ -109,5 +109,4 @@ def _bin_diurnal_cycle(
         statistic="mean",
         bins=bins,
     ).statistic
-    bin_means = np.where(np.isnan(bin_means), 0.0, bin_means)
     return bin_means
