@@ -162,7 +162,73 @@ def fine_res_train_config():
 
 
 @pytest.fixture
-def data_source_train_config(data_source_name):
+def model_type():
+    return "sklearn_random_forest"
+
+
+@pytest.fixture
+def hyperparameters(model_type):
+    return {
+        "max_depth": 4,
+        "n_estimators": 2,
+    }
+
+
+@pytest.fixture
+def input_variables():
+    return ["air_temperature", "specific_humidity"]
+
+
+@pytest.fixture
+def output_variables():
+    return ["dQ1", "dQ2"]
+
+
+@pytest.fixture()
+def batch_function(model_type):
+    return batches_from_geodata
+
+
+@pytest.fixture()
+def batch_kwargs(data_source_name):
+    if data_source_name == "one_step_tendencies":
+        return {
+            "timesteps_per_batch": 1,
+            "init_time_dim_name": "initial_time",
+            "mapping_function": "open_one_step",
+            "timesteps": ["20160801.001500", "20160801.003000"],
+        }
+    elif data_source_name == "nudging_tendencies":
+        return {
+            "timesteps_per_batch": 1,
+            "mapping_function": "open_merged_nudged",
+            "timesteps": ["20160801.001500", "20160801.003000"],
+            "mapping_kwargs": {
+                "nudging_timescale_hr": 3,
+                "i_start": 0,
+                "rename_vars": {
+                    "air_temperature_tendency_due_to_nudging": "dQ1",
+                    "specific_humidity_tendency_due_to_nudging": "dQ2",
+                },
+            },
+        }
+    elif data_source_name == "fine_res_apparent_sources":
+        return {
+            "timesteps_per_batch": 1,
+            "init_time_dim_name": "initial_time",
+            "mapping_function": "open_one_step",
+            "timesteps": ["20160801.001500", "20160801.003000"],
+            "rename_variables": {},
+        }
+
+
+@pytest.fixture
+def data_source_train_config(
+    model_type, input_variables, output_variables, batch_function, batch_kwargs
+):
+    return shared.ModelTrainingConfig(
+        model_type, input_variables, output_variables, batch_function, batch_kwargs
+    )
     if data_source_name == "one_step_tendencies":
         data_source_train_config = _one_step_train_config()
     elif data_source_name == "nudging_tendencies":
@@ -200,12 +266,14 @@ def training_batches(data_source_name, data_source_path, data_source_train_confi
     return batched_data
 
 
+@pytest.mark.regression()
 @pytest.mark.regression
-def test_sklearn_regression(training_batches, data_source_train_config):
-
-    assert len(training_batches) == 2
-    wrapper = train.train_model(training_batches, data_source_train_config)
-    assert wrapper.model.n_estimators == 2
+def test_training(model_type, training_batches, data_source_train_config):
+    if model_type.startswith("sklearn"):
+        wrapper = train.train_model(training_batches, data_source_train_config)
+        assert wrapper.model.n_estimators == 2
+    else:
+        pass
 
 
 @pytest.fixture
