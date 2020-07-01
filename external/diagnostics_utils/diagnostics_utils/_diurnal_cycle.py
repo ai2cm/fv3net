@@ -78,7 +78,7 @@ def bin_diurnal_cycle(
     da: xr.DataArray, longitude: xr.DataArray, n_bins: int = 24, time_dim: str = "time",
 ) -> xr.DataArray:
     bin_width_hrs = 24.0 / n_bins
-    bin_centers = [[i * bin_width_hrs for i in range(n_bins)]]
+    bin_centers = [i * bin_width_hrs for i in range(n_bins)]
     longitude = longitude.expand_dims({time_dim: da[time_dim].values})
     local_time = _local_time(longitude, time_dim)
     bin_means = _bin_diurnal_cycle(da, local_time, n_bins)
