@@ -1,3 +1,4 @@
+from typing import Sequence
 import xarray as xr
 
 from loaders import batches
@@ -6,7 +7,7 @@ from .config import ModelTrainingConfig
 
 def load_data_sequence(
     data_path: str, train_config: ModelTrainingConfig
-) -> batches.FunctionOutputSequence[xr.Dataset]:
+) -> Sequence[xr.Dataset]:
     """
     Args:
         data_path: data location
