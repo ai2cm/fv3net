@@ -4,7 +4,6 @@ from scipy.stats import binned_statistic
 from typing import Sequence
 import xarray as xr
 
-DIURNAL_VARS = ["Q1", "Q2"]
 FLATTEN_DIMS = [
     "time",
     "x",
@@ -17,7 +16,7 @@ DIURNAL_CYCLE_DIM = "local_time_hr"
 def create_diurnal_cycle_dataset(
     ds: xr.Dataset,
     longitude: xr.DataArray,
-    diurnal_vars,
+    diurnal_vars: Sequence[str],
     n_bins: int = 24,
     time_dim: str = "time",
 ) -> xr.Dataset:
@@ -77,7 +76,7 @@ def create_diurnal_cycle_dataset(
 
 def bin_diurnal_cycle(
     da: xr.DataArray, longitude: xr.DataArray, n_bins: int = 24, time_dim: str = "time",
-):
+) -> xr.DataArray:
     bin_width_hrs = 24.0 / n_bins
     bin_centers = [i * bin_width_hrs / 2.0 for i in range(n_bins)]
     longitude = longitude.expand_dims({time_dim: da[time_dim].values})
