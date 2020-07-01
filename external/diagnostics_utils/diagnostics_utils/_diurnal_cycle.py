@@ -5,7 +5,13 @@ from typing import Sequence
 import xarray as xr
 
 DIURNAL_VARS = ["Q1", "Q2"]
-FLATTEN_DIMS = ["time", "x", "y", "tile",]
+FLATTEN_DIMS = [
+    "time",
+    "x",
+    "y",
+    "tile",
+]
+DIURNAL_CYCLE_DIM = "local_time_hr"
 
 
 def create_diurnal_cycle_dataset(
@@ -46,38 +52,31 @@ def create_diurnal_cycle_dataset(
         elif len(additional_dim) == 1:
             additional_dim = additional_dim[0]
             coords = da[additional_dim].values
-            data_arrays = [
-                da.sel({additional_dim: coord}) for coord in coords]
+            data_arrays = [da.sel({additional_dim: coord}) for coord in coords]
         else:
             raise ValueError(
                 "There should be at most one additional dimension to "
                 "calculate diurnal cycle for variable along (e.g. derivation "
                 "or data_source)."
             )
-            
+
         var_diurnal_cycles = []
         for da in data_arrays:
-            da_diurnal_cycle = bin_diurnal_cycle(
-                da,
-                longitude,
-                n_bins,
-                time_dim)
+            da_diurnal_cycle = bin_diurnal_cycle(da, longitude, n_bins, time_dim)
             var_diurnal_cycles.append(da_diurnal_cycle)
 
         if len(var_diurnal_cycles) > 1:
             ds_diurnal_cycle[var] = xr.concat(
                 [da.expand_dims(additional_dim) for da in var_diurnal_cycles],
-                dim=pd.Index(coords, name=additional_dim))
+                dim=pd.Index(coords, name=additional_dim),
+            )
         else:
             ds_diurnal_cycle[var] = var_diurnal_cycles[0]
     return ds_diurnal_cycle
 
 
 def bin_diurnal_cycle(
-    da: xr.DataArray,
-    longitude: xr.DataArray,
-    n_bins: int = 24,
-    time_dim: str = "time",
+    da: xr.DataArray, longitude: xr.DataArray, n_bins: int = 24, time_dim: str = "time",
 ):
     bin_width_hrs = 24.0 / n_bins
     bin_centers = [i * bin_width_hrs / 2.0 for i in range(n_bins)]
@@ -85,7 +84,7 @@ def bin_diurnal_cycle(
     local_time = _local_time(longitude, time_dim)
     bin_means = _bin_diurnal_cycle(da, local_time, n_bins)
     da_diurnal_cycle = xr.DataArray(
-        bin_means, dims=["local_time_hr"], coords={"local_time_hr": bin_centers}
+        bin_means, dims=[DIURNAL_CYCLE_DIM], coords={DIURNAL_CYCLE_DIM: bin_centers}
     )
     return da_diurnal_cycle
 
