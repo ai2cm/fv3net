@@ -191,7 +191,7 @@ def train_config(
     input_variables,
     output_variables,
     batch_function,
-    batch_kwargs
+    batch_kwargs,
 ):
     return shared.ModelTrainingConfig(
         model_type=model_type,
@@ -199,7 +199,7 @@ def train_config(
         input_variables=input_variables,
         output_variables=output_variables,
         batch_function=batch_function,
-        batch_kwargs=batch_kwargs
+        batch_kwargs=batch_kwargs,
     )
 
 
@@ -207,9 +207,7 @@ def train_config(
 def training_batches(data_source_name, data_source_path, train_config):
 
     if data_source_name != "fine_res_apparent_sources":
-        batched_data = shared.load_data_sequence(
-            data_source_path, train_config
-        )
+        batched_data = shared.load_data_sequence(data_source_path, train_config)
     else:
         # train.load_data_sequence is incompatible with synth's zarrs
         # (it looks for netCDFs); this is a patch until synth supports netCDF
@@ -221,8 +219,7 @@ def training_batches(data_source_name, data_source_path, train_config):
 
         batched_data = batches.batches_from_mapper(
             mapper,
-            list(train_config.input_variables)
-            + list(train_config.output_variables),
+            list(train_config.input_variables) + list(train_config.output_variables),
             **train_config.batch_kwargs,
         )
 
@@ -233,7 +230,9 @@ def training_batches(data_source_name, data_source_path, train_config):
 def test_training(model_type, training_batches, train_config):
     if model_type.startswith("sklearn"):
         wrapper = train.train_model(training_batches, train_config)
-        assert wrapper.model.n_estimators == train_config.hyperparameters["n_estimators"]
+        assert (
+            wrapper.model.n_estimators == train_config.hyperparameters["n_estimators"]
+        )
     else:
         model = train.train_model()
 
