@@ -25,7 +25,7 @@ def calc_diagnostics(prognostic, verification, grid):
         "LHTFLsfc",
         "SLMSKsfc",
     ]
-    
+
     prognostic = prognostic[[var for var in diurnal_cycle_vars if var in prognostic]]
 
     prognostic["lon"] = grid["lon"]
