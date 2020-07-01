@@ -26,7 +26,7 @@ from dask.diagnostics import ProgressBar
 from pathlib import Path
 from toolz import curry
 from collections import defaultdict
-from typing import Tuple, Dict, Callable, Mapping, Sequence
+from typing import Dict, Callable, Mapping
 
 import load_diagnostic_data as load_diags
 import diurnal_cycle
@@ -96,8 +96,7 @@ def diag_finalizer(var_suffix, func, *diag_args):
 
 @curry
 def add_to_diags(
-    diags_key: str,
-    func: Callable[[DiagArg], DiagDict],
+    diags_key: str, func: Callable[[DiagArg], DiagDict],
 ):
     """
     Add a function to the list of diagnostics to be computed

@@ -9,7 +9,7 @@ and return the adjusted diagnostic function arguments.
 
 import logging
 
-from toolz import memoize, curry
+from toolz import memoize
 
 import vcm
 from constants import HORIZONTAL_DIMS, DiagArg
@@ -24,38 +24,6 @@ def add_to_input_transform_fns(func):
     _TRANSFORM_FNS[func.__name__] = func
 
     return func
-
-
-# def transform_wrapper(func):
-
-#     def wrapper(*transform_args_partial, diag_func, **transform_kwargs):
-
-#         curried = func(*transform_args_partial, **transform_kwargs)
-
-#         def wrapped_diags(*diag_args):
-
-#             xformed_input = curried(diag_args)
-#             return diag_func(xformed_input)
-
-#         return wrapped_diags
-
-#     return wrapper
-
-# def transform_wrapper(func):
-
-#     def diag_wrapper_constructor(*transform_args_partial, **transform_kwargs):
-
-#         def wrapper(diag_func):
-
-#             def wrapped_diags(*diag_args):
-#                 xformed_input = func(*transform_args_partial, diag_args, **transform_kwargs)
-#                 return diag_func(xformed_input)
-
-#             return wrapped_diags
-        
-#         return wrapper
-
-#     return diag_wrapper_constructor
 
 
 def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
@@ -87,7 +55,8 @@ def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
 
         if transform_key not in _TRANSFORM_FNS:
             raise KeyError(
-                f"Unrecognized transform, {transform_key} requested for {diag_func.__name__}"
+                f"Unrecognized transform, {transform_key} requested "
+                f"for {diag_func.__name__}"
             )
 
         transform_func = _TRANSFORM_FNS[transform_key]
@@ -109,7 +78,7 @@ def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
             return diag_func(*transformed_diag_args)
 
         return transform
-    
+
     return _apply_to_diag_func
 
 
