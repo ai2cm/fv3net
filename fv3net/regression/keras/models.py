@@ -8,9 +8,12 @@ import loaders
 import tensorflow as tf
 
 
-def to_array_sequence(dataset_sequence: Sequence[xr.Dataset], varnames: Iterable[str]) -> Sequence[np.ndarray]:
+def to_array_sequence(
+    dataset_sequence: Sequence[xr.Dataset], varnames: Iterable[str]
+) -> Sequence[np.ndarray]:
     def dataset_to_array(dataset):
         return _pack(dataset[varnames], loaders.SAMPLE_DIM_NAME)
+
     return loaders.FunctionOutputSequence(dataset_sequence, dataset_to_array)
 
 
@@ -18,7 +21,6 @@ logger = logging.getLogger(__file__)
 
 
 class ArrayPacker:
-
     def __init__(self):
         pass
 
@@ -30,7 +32,6 @@ class ArrayPacker:
 
 
 class Model(abc.ABC):
-
     @abc.abstractmethod
     def fit(self, X: Sequence[xr.Dataset], y: Sequence[xr.Dataset]):
         pass
@@ -47,7 +48,6 @@ class Model(abc.ABC):
 
 
 class DenseModel(Model):
-
     def __init__(self, depth=3, width=16, **hyperparameters):
         self.width = width
         self.depth = depth
@@ -59,7 +59,9 @@ class DenseModel(Model):
             model = tf.keras.Sequential()
             for i in range(self.depth):
                 model.add(
-                    tf.keras.layers.Dense(self.width, activation=tf.keras.activations.relu)
+                    tf.keras.layers.Dense(
+                        self.width, activation=tf.keras.activations.relu
+                    )
                 )
             model.compile(optimizer="sgd", loss="mse")
             self._model = model

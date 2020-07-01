@@ -27,12 +27,10 @@ def train_model(
     """
     model = _get_model(train_config)
     X = loaders.FunctionOutputSequence(
-        batched_data,
-        lambda ds: ds[train_config.input_variables]
+        batched_data, lambda ds: ds[train_config.input_variables]
     )
     y = loaders.FunctionOutputSequence(
-        batched_data,
-        lambda ds: ds[train_config.output_variables]
+        batched_data, lambda ds: ds[train_config.output_variables]
     )
     model.fit(X, y)
     return model
