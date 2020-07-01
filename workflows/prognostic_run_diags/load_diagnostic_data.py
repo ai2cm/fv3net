@@ -262,12 +262,13 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
 
     # open grid
     logger.info("Opening Grid Spec")
-    # grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
+    grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
 
     # open verification
-    # TODO: load physics diagnostics for SHiELD data. Currently slow due to chunking.
-    verification_c48 = xr.Dataset()
+    verification_c48 = load_verification(
+        ["40day_c384_diags_time_avg"], catalog, coarsening_factor=8, area=grid_c384.area
+    )
     verification_c48 = add_derived.physics_variables(verification_c48)
 
     # open prognostic run data
