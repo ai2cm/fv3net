@@ -212,8 +212,8 @@ for mask_type in ["global", "land", "sea"]:
 
     @add_to_diags("physics")
     @diag_finalizer(f"diurnal_{mask_type}")
-    @transform.apply("resample_time", "15min", time_slice=slice(96, -1))
     @transform.apply("mask_to_sfc_type", mask_type)
+    @transform.apply("resample_time", "15min", time_slice=slice(96, -1))
     def _diurnal_func(resampled, verification, grid, mask_type=mask_type):
         # mask_type is added as a kwarg solely to give the logging access to the info
         logger.info(
