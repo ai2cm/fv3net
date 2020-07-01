@@ -30,7 +30,7 @@ def create_diurnal_cycle_dataset(
     Args:
         ds (xr.Dataset)
         longitude (xr.DataArray): dataarray of lon values
-        diurnal_vars ([type]): variables to compute diurnal cycle on
+        diurnal_vars (Sequence[str]): variables to compute diurnal cycle on
         n_bins (int, optional): Number bins for the 24 hr period. Defaults to 24.
         time_dim (str, optional): Name of time dim in dataset. Defaults to "time".
 
