@@ -12,7 +12,7 @@ TIME_DIM = "time"
 
 
 def reduce_to_diagnostic(
-    ds: xr.Dataset,
+    ds_batches: Sequence[xr.Dataset],
     grid: xr.Dataset,
     domains: Sequence[str] = SURFACE_TYPE_ENUMERATION.keys(),
     primary_vars: Sequence[str] = ["dQ1", "pQ1", "dQ2", "pQ2"],
@@ -30,6 +30,7 @@ def reduce_to_diagnostic(
         diagnostic_ds: xarray dataset of reduced diagnostic variables
     """
 
+    ds = xr.concat(ds_batches, dim=TIME_DIM)
     ds = insert_column_integrated_vars(ds, primary_vars)
     ds = _rechunk_time_z(ds)
     ds_time_averaged = ds.mean(dim=TIME_DIM, keep_attrs=True)
@@ -39,6 +40,7 @@ def reduce_to_diagnostic(
 
     grid = grid.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
+
     conditional_datasets = {}
     for surface_type in domains:
         varname = f"{surface_type}_average"
