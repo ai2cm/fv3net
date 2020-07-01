@@ -2,7 +2,6 @@ import os
 import tempfile
 import numpy as np
 import xarray as xr
-import intake
 import pytest
 from distutils import dir_util
 
@@ -184,5 +183,7 @@ def grid_dataset(dataset_fixtures_dir):
     with open(str(dataset_fixtures_dir.join("grid_schema.json"))) as f:
         grid_schema = load(f)
     grid = generate(grid_schema).load()
-    grid["land_sea_mask"][:] = random.choice([0, 1, 2], size=grid["land_sea_mask"].shape)
+    grid["land_sea_mask"][:] = random.choice(
+        [0, 1, 2], size=grid["land_sea_mask"].shape
+    )
     return grid
