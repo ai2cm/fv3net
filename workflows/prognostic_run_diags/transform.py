@@ -162,7 +162,7 @@ def mask_to_sfc_type(
             verification, surface_type, mask_var_name
         )
     except KeyError:
-        logger.error("Empty verification dataset provided.")
+        logger.warning("Empty verification dataset provided.")
         masked_verification = verification
 
     return masked_prognostic, masked_verification, grid
