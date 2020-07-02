@@ -15,30 +15,6 @@ import save_prognostic_run_diags as save_diags
 import load_diagnostic_data as load_diags
 
 
-def _open_zarr(url):
-    m = fsspec.get_mapper(url)
-    return xr.open_zarr(m, consolidated=True)
-
-
-def _catalog():
-    TOP_LEVEL_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
-    return str(TOP_LEVEL_DIR / "catalog.yml")
-
-
-def _compute_q_vars(ds):
-    arrays = []
-    for func in [
-        save_diags._column_pq1,
-        save_diags._column_pq2,
-        save_diags._column_dq1,
-        save_diags._column_dq2,
-        save_diags._column_q1,
-        save_diags._column_q2,
-    ]:
-        arrays.append(func(ds))
-    return xr.merge(arrays)
-
-
 HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_pQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
     "column_integrated_dQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
@@ -56,13 +32,18 @@ COORD_NAMES = {
 }
 
 _COORD_VARS = {
-    "lonb": ["y_interface", "x_interface", "tile"],
-    "latb": ["y_interface", "x_interface", "tile"],
+    "lonb": ["yb", "xb", "tile"],
+    "latb": ["yb", "xb", "tile"],
     "lon": ["y", "x", "tile"],
     "lat": ["y", "x", "tile"],
 }
 
 SUBPLOT_KW = {"projection": ccrs.Robinson()}
+
+
+def _catalog():
+    TOP_LEVEL_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
+    return str(TOP_LEVEL_DIR / "catalog.yml")
 
 
 def _six_panel_heating_moistening(ds, axes):
@@ -96,6 +77,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("url", help="Path to rundir")
+    parser.add_argument("grid_spec", help="Path to C384 grid spec (unused)")
     parser.add_argument("output", help="Output location for movie stills")
     args = parser.parse_args()
 
@@ -104,9 +86,8 @@ if __name__ == "__main__":
 
     catalog = intake.open_catalog(CATALOG)
 
-    grid = catalog["grid/c48"].to_dask().load()
-    ds = load_diags._load_prognostic_run_physics_output(args.url)
-    plot_vars = _compute_q_vars(ds)
+    prognostic, _, grid = load_diags.load_physics(args.url, args.grid_spec, catalog)
+    plot_vars = prognostic[list(HEATING_MOISTENING_PLOT_KWARGS.keys())]
     plot_vars = plot_vars.merge(grid)
     T = plot_vars.sizes["time"]
     plot_func_inputs = _arg_packer(plot_vars, T, args.output)
