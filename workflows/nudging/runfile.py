@@ -129,7 +129,8 @@ class SubsetStageMonitor:
         time (datetime): the current timestep. should be set within the time-loop.
     
     """
-    def __init__(self, monitor: StageMonitor, times: Optional[Sequence[str]]=None):
+
+    def __init__(self, monitor: StageMonitor, times: Optional[Sequence[str]] = None):
         """
 
         Args:
@@ -190,7 +191,9 @@ if __name__ == "__main__":
     )
 
     stage_monitor = StageMonitor(RUN_DIR, partitioner, mode="w",)
-    monitor = SubsetStageMonitor(stage_monitor, config["nudging"].get("output_times", None))
+    monitor = SubsetStageMonitor(
+        stage_monitor, config["nudging"].get("output_times", None)
+    )
 
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
