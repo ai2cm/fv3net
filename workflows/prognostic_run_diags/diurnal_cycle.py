@@ -74,11 +74,11 @@ def _add_diurnal_moisture_components(diurnal_ds):
         precip = diurnal_ds["physics_precip"] * SECONDS_PER_DAY
 
         dQ2 = diurnal_ds["column_integrated_dQ2"]
-        dQ2.attrs = {
+        diurnal_ds["diurn_comp_-dQ2"] = -dQ2
+        diurnal_ds["diurn_comp_-dQ2"].attrs = {
             "long_name": "<-dQ2> column integrated drying from ML",
             "units": "mm/day"
         }
-        diurnal_ds["diurn_comp_-dQ2"] = -dQ2
         precip_phys_ml = precip - dQ2
         precip_phys_ml.attrs = {
             "long_name": "Total precipitation (P - dQ2)",
