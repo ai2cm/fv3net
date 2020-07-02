@@ -1,5 +1,0 @@
-#!/bin/sh
-
-# Only allow push if our code passes the linter
-
-make -C $(git rev-parse --show-toplevel) lint || exit 1
