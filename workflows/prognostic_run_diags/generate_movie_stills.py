@@ -60,18 +60,18 @@ def _six_panel_heating_moistening(ds, axes):
 
 
 @curry
-def add_to_movies(name: str, func: Callable[[int, xr.Dataset, str], None]):
+def add_to_movies(func: Callable[[int, xr.Dataset, str], None]):
     """Add a function to a series of movies to be created.
 
     Args:
         name: short description of movie. Will be used in filename.
         func: a function which creates and saves a single png to disk.
     """
-    _MOVIE_FUNCS[name] = func
+    _MOVIE_FUNCS[func.__name__] = func
 
 
-@add_to_movies("column_heating_moistening")
-def _save_heating_moistening_figure(t, ds, filename_prefix):
+@add_to_movies
+def column_heating_moistening(t, ds, filename_prefix):
     plotme = ds.isel(time=t)
     fig_filename = f"{filename_prefix}_{t:05}.png"
     fig, axes = plt.subplots(2, 3, figsize=(15, 5.3), subplot_kw=SUBPLOT_KW)
@@ -103,8 +103,8 @@ if __name__ == "__main__":
     plot_vars = prognostic[list(HEATING_MOISTENING_PLOT_KWARGS.keys())]
     plot_vars = plot_vars.merge(grid)
     T = plot_vars.sizes["time"]
-    for movie_name, movie_func in _MOVIE_FUNCS.items():
-        logger.info(f"Saving {T} still images for {movie_name} movie to {args.output}")
-        prefix = os.path.join(args.output, movie_name)
+    for name, func in _MOVIE_FUNCS.items():
+        logger.info(f"Saving {T} still images for {name} movie to {args.output}")
+        prefix = os.path.join(args.output, name)
         with Pool(8) as p:
-            p.map(partial(movie_func, ds=plot_vars, filename_prefix=prefix), range(T))
+            p.map(partial(func, ds=plot_vars, filename_prefix=prefix), range(T))
