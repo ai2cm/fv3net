@@ -58,14 +58,26 @@ def _six_panel_heating_moistening(ds, axes):
         vcm.plot_cube(mv, ax=ax, **plot_kwargs)
         ax.set_title(var.replace("_", " "))
 
+@curry
+def add_to_movies(name: str, func: Callable[[int, xr.Dataset, str], None]):
+    """Add a function to a series of movies to be created.
 
-def _save_heating_moistening_figure(t, ds, output):
-    fig_filename = f"heating_and_moistening_{t:05}.png"
+    Args:
+        name: short description of movie. Will be used in filename.
+        func: a function which creates and saves a single png to disk.
+    """
+    _MOVIE_FUNCS[name] = func
+
+
+@add_to_movies("column_heating_moistening")
+def _save_heating_moistening_figure(t, ds, filename_prefix):
+    plotme = ds.isel(time=t)
+    fig_filename = f"{filename_prefix}_{t:05}.png"
     fig, axes = plt.subplots(2, 3, figsize=(15, 5.3), subplot_kw=SUBPLOT_KW)
-    _six_panel_heating_moistening(ds.isel(time=t), axes)
-    fig.suptitle(ds.time.values[t].item())
+    _six_panel_heating_moistening(plotme, axes)
+    fig.suptitle(plotme.time.values.item())
     fig.tight_layout(rect=(0, 0, 1, 0.95))
-    with fsspec.open(os.path.join(output, fig_filename), "wb") as fig_file:
+    with fsspec.open(fig_filename, "wb") as fig_file:
         fig.savefig(fig_file, dpi=100)
     plt.close(fig)
 
@@ -90,9 +102,8 @@ if __name__ == "__main__":
     plot_vars = prognostic[list(HEATING_MOISTENING_PLOT_KWARGS.keys())]
     plot_vars = plot_vars.merge(grid)
     T = plot_vars.sizes["time"]
-    logger.info(f"Saving {T} still images to {args.output}")
-    with Pool(8) as p:
-        p.map(
-            partial(_save_heating_moistening_figure, ds=plot_vars, output=args.output),
-            range(T),
-        )
+    for movie_name, movie_func in _MOVIE_FUNCS.items():
+        logger.info(f"Saving {T} still images for {movie_name} movie to {args.output}")
+        prefix = os.path.join(args.output, movie_name)
+        with Pool(8) as p:
+            p.map(partial(movie_func, ds=plot_vars, filename_prefix=prefix), range(T))
