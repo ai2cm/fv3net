@@ -5,13 +5,11 @@ from pathlib import Path
 from multiprocessing import Pool
 
 import intake
-import xarray as xr
 import fsspec
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 
 import vcm
-import save_prognostic_run_diags as save_diags
 import load_diagnostic_data as load_diags
 
 
