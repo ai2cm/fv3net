@@ -4,8 +4,6 @@ import os
 from functools import partial
 from pathlib import Path
 from multiprocessing import Pool
-from typing import Callable
-from toolz import curry
 
 import intake
 import fsspec
