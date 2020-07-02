@@ -2,4 +2,5 @@
 #
 # run black on code before committing, will cause commit to fail if changes made
 
-make -C $(git rev-parse --show-toplevel) reformat
+make -C $(git rev-parse --show-toplevel) lint
+
