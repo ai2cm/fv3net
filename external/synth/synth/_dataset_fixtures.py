@@ -187,3 +187,4 @@ def grid_dataset(dataset_fixtures_dir):
     grid["land_sea_mask"][:] = random.choice(
         [0, 1, 2], size=grid["land_sea_mask"].shape
     )
+    return grid
