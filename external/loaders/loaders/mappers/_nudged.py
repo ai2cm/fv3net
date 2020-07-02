@@ -8,7 +8,6 @@ from itertools import product
 from toolz import groupby
 from pathlib import Path
 
-from vcm import cloud
 from ._base import GeoMapper, LongRunMapper
 from .._utils import standardize_zarr_time_coord
 
