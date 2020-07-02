@@ -30,22 +30,25 @@ done
 
 shift $(($OPTIND - 1))
 
-if [ $# -lt 6 ]; then
+if [ $# -lt 5 ]; then
     echo -e $usage
     exit 1
 fi
 
 rand_tag=$(openssl rand --hex 4)
 
-export CONFIG=$1
-export RUNFILE=$2
-export OUTPUT_URL=$3
-export DOCKER_IMAGE=$4
-export RESTARTS_PVC=$5
-export OUTPUT_PVC=$5
+export CONFIG=$1; shift
+export RUNFILE=runfile.py
+export OUTPUT_URL=$1; shift
+export DOCKER_IMAGE=$1; shift
+export RESTARTS_PVC=$1; shift
+export DYNAMIC_VOLUME=$1; shift
+
 export JOBNAME=$job_prefix-$rand_tag
 export NUDGING_CM=nudging-cm-$rand_tag
-export DYNAMIC_VOLUME=$6
+
+
+config_str=$(python prepare_config.py "$CONFIG")
 
 cat <<EOF > dynamic_volume.yaml
 apiVersion: v1
@@ -63,7 +66,7 @@ spec:
       storage: 1.3Ti
 EOF
 
-kubectl create cm "$NUDGING_CM" --from-file fv3config.yaml="$CONFIG" --from-file runfile.py="$RUNFILE"
+kubectl create cm "$NUDGING_CM" --from-literal fv3config.yaml="$config_str" --from-file runfile.py="$RUNFILE"
 kubectl apply -f dynamic_volume.yaml
 envsubst < job_template.yaml | kubectl apply -f -
 
