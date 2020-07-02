@@ -1,8 +1,10 @@
 import os
+from typing import Sequence, Optional
 import functools
 from datetime import datetime, timedelta
 import yaml
 import fsspec
+import logging
 
 if __name__ == "__main__":
     import fv3gfs
@@ -120,6 +122,39 @@ class StageMonitor:
         return self._monitors[stage_name]
 
 
+class SubsetStageMonitor:
+    """A subsetting stage monitor
+    
+    Attributes:
+        time (datetime): the current timestep. should be set within the time-loop.
+    
+    """
+    def __init__(self, monitor: StageMonitor, times: Optional[Sequence[str]]=None):
+        """
+
+        Args:
+            monitor: a stage monitor to use to store outputs
+            times: an optional list of output times to store stages at. By
+                default all times will be output.
+        """
+        self._monitor = monitor
+        self._times = times
+        self.time = None
+        self.logger = logging.getLogger("SubsetStageMonitor")
+        self.logger.info(f"Saving stages at {self._times}")
+
+    def output_current_time(self):
+        if self._times is None:
+            return True
+        else:
+            return self.time.strftime("%Y%m%d.%H%M%S") in self._times
+
+    def store(self, state, stage):
+        if self.output_current_time():
+            self.logger.info("Storing stage")
+            self._monitor.store(state, stage)
+
+
 def master_only(func):
     @functools.wraps(func)
     def wrapped(*args, **kwargs):
@@ -140,6 +175,7 @@ def load_config(filename):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     config = load_config("fv3config.yml")
     reference_dir = config["nudging"]["restarts_path"]
     partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
@@ -153,12 +189,14 @@ if __name__ == "__main__":
         nudge_to_reference, timescales=nudging_timescales, timestep=timestep,
     )
 
-    monitor = StageMonitor(RUN_DIR, partitioner, mode="w",)
+    stage_monitor = StageMonitor(RUN_DIR, partitioner, mode="w",)
+    monitor = SubsetStageMonitor(stage_monitor, config["nudging"].get("output_times", None))
 
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
         state = fv3gfs.get_state(names=store_names)
         start = datetime.utcnow()
+        monitor.time = state["time"]
         monitor.store(state, stage="before_dynamics")
         fv3gfs.step_dynamics()
         monitor.store(fv3gfs.get_state(names=store_names), stage="after_dynamics")
