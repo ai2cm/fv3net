@@ -59,19 +59,7 @@ def _six_panel_heating_moistening(ds, axes):
         ax.set_title(var.replace("_", " "))
 
 
-@curry
-def add_to_movies(func: Callable[[int, xr.Dataset, str], None]):
-    """Add a function to a series of movies to be created.
-
-    Args:
-        name: short description of movie. Will be used in filename.
-        func: a function which creates and saves a single png to disk.
-    """
-    _MOVIE_FUNCS[func.__name__] = func
-
-
-@add_to_movies
-def column_heating_moistening(t, ds, filename_prefix):
+def _save_heating_moistening_fig(t, ds, filename_prefix):
     plotme = ds.isel(time=t)
     fig_filename = f"{filename_prefix}_{t:05}.png"
     fig, axes = plt.subplots(2, 3, figsize=(15, 5.3), subplot_kw=SUBPLOT_KW)
@@ -81,6 +69,11 @@ def column_heating_moistening(t, ds, filename_prefix):
     with fsspec.open(fig_filename, "wb") as fig_file:
         fig.savefig(fig_file, dpi=100)
     plt.close(fig)
+
+
+def _movie_funcs():
+    """Return mapping of movie name to movie-still creation function"""
+    return {"column_heating_moistening": _save_heating_moistening_fig}
 
 
 if __name__ == "__main__":
@@ -103,8 +96,9 @@ if __name__ == "__main__":
     plot_vars = prognostic[list(HEATING_MOISTENING_PLOT_KWARGS.keys())]
     plot_vars = plot_vars.merge(grid)
     T = plot_vars.sizes["time"]
-    for name, func in _MOVIE_FUNCS.items():
+    for name, func in _movie_funcs().items():
         logger.info(f"Saving {T} still images for {name} movie to {args.output}")
         prefix = os.path.join(args.output, name)
         with Pool(8) as p:
             p.map(partial(func, ds=plot_vars, filename_prefix=prefix), range(T))
+
