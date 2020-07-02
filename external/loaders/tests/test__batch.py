@@ -3,7 +3,7 @@ import pytest
 import synth
 import xarray as xr
 import numpy as np
-
+import loaders
 from loaders.batches._batch import (
     batches_from_mapper,
     diagnostic_batches_from_mapper,
@@ -69,6 +69,8 @@ def test_batches_from_mapper(mapper):
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
         assert set(batch.data_vars) == set(DATA_VARS)
+        for name in batch.data_vars.keys():
+            assert batch[name].dims[0] == loaders.SAMPLE_DIM_NAME
 
 
 @pytest.mark.parametrize(
