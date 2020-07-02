@@ -4,15 +4,15 @@ import warnings
 import os
 import xarray as xr
 import numpy as np
-from typing import List, Iterable, Tuple, Mapping, Set
+from typing import List, Iterable, Mapping, Set
 from datetime import timedelta
 
 import fsspec
 import vcm
+import add_derived
+from constants import DiagArg
 
 logger = logging.getLogger(__name__)
-
-DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 
 # desired name as keys with set containing sources to rename
 # TODO: could this be tied to the registry?
@@ -20,8 +20,8 @@ DIM_RENAME_INVERSE_MAP = {
     "x": {"grid_xt", "grid_xt_coarse"},
     "y": {"grid_yt", "grid_yt_coarse"},
     "tile": {"rank"},
-    "xb": {"grid_x", "grid_x_coarse"},
-    "yb": {"grid_y", "grid_y_coarse"},
+    "xb": {"grid_x", "grid_x_coarse", "x_interface"},
+    "yb": {"grid_y", "grid_y_coarse", "y_interface"},
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 _DIAG_OUTPUT_LOADERS = []
@@ -229,9 +229,7 @@ def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     # open grid
     logger.info("Opening Grid Spec")
     grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
-    grid_c48 = vcm.cubedsphere.weighted_block_average(
-        grid_c384, grid_c384.area, 8, x_dim="x", y_dim="y"
-    )
+    grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
 
     # open verification
     logger.info("Opening verification data")
@@ -243,13 +241,8 @@ def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     path = os.path.join(url, "atmos_dt_atmos.zarr")
     logger.info(f"Opening prognostic run data at {path}")
     ds = _load_standardized(path)
-    resampled = ds.resample(time="3H", label="right").nearest()
 
-    # don't use last time point. there is some trouble
-    resampled = resampled.isel(time=slice(None, -1))
-    verification_c48 = verification_c48.sel(time=resampled.time)
-
-    return resampled, verification_c48, grid_c48[["area"]]
+    return ds, verification_c48, grid_c48
 
 
 def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
@@ -269,22 +262,17 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
 
     # open grid
     logger.info("Opening Grid Spec")
-    grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
-    grid_c48 = vcm.cubedsphere.weighted_block_average(
-        grid_c384, grid_c384.area, 8, x_dim="x", y_dim="y"
-    )
+    # grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
+    grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
 
     # open verification
     # TODO: load physics diagnostics for SHiELD data. Currently slow due to chunking.
     verification_c48 = xr.Dataset()
+    verification_c48 = add_derived.physics_variables(verification_c48)
 
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
-    # resample since 15-minute frequency timeseries makes report bloated
-    resampled = prognostic_output.resample(time="3H", label="right").nearest()
+    prognostic_output = add_derived.physics_variables(prognostic_output)
 
-    # avoid last time point since it often distorts plot limits
-    resampled = resampled.isel(time=slice(None, -1))
-
-    return resampled, verification_c48, grid_c48[["area"]]
+    return prognostic_output, verification_c48, grid_c48
