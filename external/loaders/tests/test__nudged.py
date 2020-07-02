@@ -9,7 +9,6 @@ from vcm import safe
 from loaders import TIME_NAME, TIME_FMT
 from loaders.mappers import LongRunMapper
 from loaders.mappers._nudged import (
-    _get_path_for_nudging_timescale,
     NudgedStateCheckpoints,
     MergeNudged,
     GroupByTime,
