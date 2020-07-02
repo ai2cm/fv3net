@@ -58,6 +58,7 @@ def _six_panel_heating_moistening(ds, axes):
         vcm.plot_cube(mv, ax=ax, **plot_kwargs)
         ax.set_title(var.replace("_", " "))
 
+
 @curry
 def add_to_movies(name: str, func: Callable[[int, xr.Dataset, str], None]):
     """Add a function to a series of movies to be created.
