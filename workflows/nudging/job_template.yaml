@@ -22,8 +22,8 @@ spec:
           - python
           - -m
           - fv3config.fv3run._native_main
-          - '[["${CONFIG}", "/mnt/data/"],
-            {"runfile": "${RUNFILE}", "capture_output":
+          - '[["/etc/nudging/fv3config.yaml", "/mnt/data/"],
+            {"runfile": "/etc/nudging/runfile.py", "capture_output":
             false}]'
           env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
@@ -41,7 +41,11 @@ spec:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
-          - name: ${DYNAMIC_VOLUME}
+          - name: nudging-config
+            mountPath: /etc/nudging
+          - name: restart-data
+            mountPath: /mnt/input
+          - name: output-data
             mountPath: /mnt/data
           - name: gcp-key-secret
             mountPath: /secret/gcp-credentials
@@ -68,12 +72,11 @@ spec:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
-          - name: ${DYNAMIC_VOLUME}
+          - name: output-data
             mountPath: /mnt/data
           - name: gcp-key-secret
             mountPath: /secret/gcp-credentials
             readOnly: true
- 
       dnsPolicy: ClusterFirst
       restartPolicy: Never
       schedulerName: default-scheduler
@@ -84,9 +87,15 @@ spec:
         key: dedicated
         value: climate-sim-pool
       volumes:
-      - name: ${DYNAMIC_VOLUME}
+      - name: nudging-config
+        configMap:
+          name: $NUDGING_CM
+      - name: output-data
         persistentVolumeClaim:
           claimName: ${DYNAMIC_VOLUME}
+      - name: restart-data
+        persistentVolumeClaim:
+          claimName: $RESTARTS_PVC
       - name: gcp-key-secret
         secret:
           defaultMode: 420

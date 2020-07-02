@@ -3,7 +3,7 @@
 set -e
 
 usage="usage: submit_job.sh [-h] [-j JOB_PREFIX] \
-       [-d] config runfile output_url docker_image \n\
+       [-d] config runfile output_url docker_image pvc output_pvc \n\
        -j JOB_PREFIX: job name prefix for k8s submission \n\
        -d: detach job from terminal session" 
 detach=0
@@ -30,7 +30,7 @@ done
 
 shift $(($OPTIND - 1))
 
-if [ $# -lt 4 ]; then
+if [ $# -lt 6 ]; then
     echo -e $usage
     exit 1
 fi
@@ -41,8 +41,11 @@ export CONFIG=$1
 export RUNFILE=$2
 export OUTPUT_URL=$3
 export DOCKER_IMAGE=$4
+export RESTARTS_PVC=$5
+export OUTPUT_PVC=$5
 export JOBNAME=$job_prefix-$rand_tag
-export DYNAMIC_VOLUME="nudging-dynamic-vol-"$rand_tag
+export NUDGING_CM=nudging-cm-$rand_tag
+export DYNAMIC_VOLUME=$6
 
 cat <<EOF > dynamic_volume.yaml
 apiVersion: v1
@@ -60,13 +63,9 @@ spec:
       storage: 1.3Ti
 EOF
 
+kubectl create cm "$NUDGING_CM" --from-file fv3config.yaml="$CONFIG" --from-file runfile.py="$RUNFILE"
 kubectl apply -f dynamic_volume.yaml
-
-cat job_template.yaml | \
-    envsubst '$CONFIG $RUNFILE $OUTPUT_URL $DOCKER_IMAGE $JOBNAME $DYNAMIC_VOLUME' | \
-    tee job.yaml
-
-kubectl apply -f job.yaml
+envsubst < job_template.yaml | kubectl apply -f -
 
 ## JOB WAITING
 
