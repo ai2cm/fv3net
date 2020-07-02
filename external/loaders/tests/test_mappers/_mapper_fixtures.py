@@ -68,10 +68,9 @@ def training_mapper_helper_function_kwargs(training_mapper_name):
     if training_mapper_name == "TimestepMapper":
         return {}
     elif training_mapper_name == "SubsetTimes":
-        return {"nudging_timescale_hr": 3}
+        return {}
     elif training_mapper_name == "NudgedFullTendencies":
         return {
-            "nudging_timescale_hr": 3,
             "open_checkpoints_kwargs": {
                 "checkpoint_files": ("after_dynamics.zarr", "after_physics.zarr")
             },
