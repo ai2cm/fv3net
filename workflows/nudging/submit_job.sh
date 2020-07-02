@@ -68,7 +68,8 @@ EOF
 
 kubectl create cm "$NUDGING_CM" --from-literal fv3config.yaml="$config_str" --from-file runfile.py="$RUNFILE"
 kubectl apply -f dynamic_volume.yaml
-envsubst < job_template.yaml | kubectl apply -f -
+envsubst '$JOBNAME $DOCKER_IMAGE $OUTPUT_URL $DYNAMIC_VOLUME $RESTARTS_PVC' \
+    < job_template.yaml #| kubectl apply -f -
 
 ## JOB WAITING
 
