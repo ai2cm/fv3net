@@ -7,7 +7,7 @@ import logging
 import diagnostics_utils as utils
 import synth
 from loaders import mappers, batches, SAMPLE_DIM_NAME
-from fv3net.regression.sklearn import train
+from fv3net import regression
 from fv3net.regression import shared
 from fv3net.regression.sklearn._mapper import SklearnPredictionMapper
 from offline_ml_diags._metrics import calc_metrics
@@ -234,7 +234,8 @@ def test_training(model_type, training_batches, train_config):
             wrapper.model.n_estimators == train_config.hyperparameters["n_estimators"]
         )
     else:
-        model = train.train_model()
+        model = regression.sklearn.get_model(train_config.model_type)
+        model.train(X, y)
 
 
 @pytest.fixture

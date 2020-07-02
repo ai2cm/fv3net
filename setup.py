@@ -15,6 +15,7 @@ dependencies = [
     "zarr==2.4.0",
     "numba==0.48.0",
     "cftime==1.1.1.2",
+    "tensorflow>=2.0"
 ]
 
 
