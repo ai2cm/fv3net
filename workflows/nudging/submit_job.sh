@@ -3,7 +3,7 @@
 set -e
 
 usage="usage: submit_job.sh [-h] [-j JOB_PREFIX] \
-       [-d] config runfile output_url docker_image pvc output_pvc \n\
+       [-d] config docker_image pvc output_pvc output_url \n\
        -j JOB_PREFIX: job name prefix for k8s submission \n\
        -d: detach job from terminal session" 
 detach=0
@@ -39,10 +39,10 @@ rand_tag=$(openssl rand --hex 4)
 
 export CONFIG=$1; shift
 export RUNFILE=runfile.py
-export OUTPUT_URL=$1; shift
 export DOCKER_IMAGE=$1; shift
 export RESTARTS_PVC=$1; shift
 export DYNAMIC_VOLUME=$1; shift
+export OUTPUT_URL=$1; shift
 
 export JOBNAME=$job_prefix-$rand_tag
 export NUDGING_CM=nudging-cm-$rand_tag
