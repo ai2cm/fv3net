@@ -1,17 +1,24 @@
 import argparse
 import logging
 import os
+from functools import partial
 from pathlib import Path
 from multiprocessing import Pool
+from typing import Callable
+from toolz import curry
 
 import intake
 import fsspec
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
+import xarray as xr
 
 import vcm
 import load_diagnostic_data as load_diags
 
+
+_MOVIE_FUNCS = {}
+MovieArg = (xr.Dataset, int, str)
 
 HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_pQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
@@ -25,8 +32,8 @@ HEATING_MOISTENING_PLOT_KWARGS = {
 COORD_NAMES = {
     "coord_x_center": "x",
     "coord_y_center": "y",
-    "coord_x_outer": "x_interface",
-    "coord_y_outer": "y_interface",
+    "coord_x_outer": "xb",
+    "coord_y_outer": "yb",
 }
 
 _COORD_VARS = {
@@ -52,20 +59,15 @@ def _six_panel_heating_moistening(ds, axes):
         ax.set_title(var.replace("_", " "))
 
 
-def _save_heating_moistening_figure(arg):
-    t, ds, output = arg
+def _save_heating_moistening_figure(t, ds, output):
     fig_filename = f"heating_and_moistening_{t:05}.png"
     fig, axes = plt.subplots(2, 3, figsize=(15, 5.3), subplot_kw=SUBPLOT_KW)
-    _six_panel_heating_moistening(ds, axes)
-    fig.suptitle(ds.time.values.item())
+    _six_panel_heating_moistening(ds.isel(time=t), axes)
+    fig.suptitle(ds.time.values[t].item())
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     with fsspec.open(os.path.join(output, fig_filename), "wb") as fig_file:
         fig.savefig(fig_file, dpi=100)
     plt.close(fig)
-
-
-def _arg_packer(ds, T, output):
-    return [(t, ds.isel(time=t), output) for t in range(T)]
 
 
 if __name__ == "__main__":
@@ -88,7 +90,9 @@ if __name__ == "__main__":
     plot_vars = prognostic[list(HEATING_MOISTENING_PLOT_KWARGS.keys())]
     plot_vars = plot_vars.merge(grid)
     T = plot_vars.sizes["time"]
-    plot_func_inputs = _arg_packer(plot_vars, T, args.output)
     logger.info(f"Saving {T} still images to {args.output}")
     with Pool(8) as p:
-        p.map(_save_heating_moistening_figure, plot_func_inputs)
+        p.map(
+            partial(_save_heating_moistening_figure, ds=plot_vars, output=args.output),
+            range(T),
+        )
