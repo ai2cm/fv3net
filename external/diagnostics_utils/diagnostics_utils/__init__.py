@@ -18,5 +18,5 @@ __all__ = [
     "snap_mask_to_type",
     "insert_column_integrated_vars",
     "bin_diurnal_cycle",
-    "create_diurnal_cycle_dataset"
+    "create_diurnal_cycle_dataset",
 ]

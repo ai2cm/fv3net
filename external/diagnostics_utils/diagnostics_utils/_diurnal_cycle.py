@@ -24,24 +24,23 @@ def create_diurnal_cycle_dataset(
     """All the logic in this function deals with the case where the
     variable has an extra dimension that we want to keep in the final
     dataset for ease of merging.
-    e.g. If there is are "target" and "predict" coords for integrated dQ1
+    e.g. If there are "target" and "predict" coords for integrated dQ1
     along a derivation dimension and we want the diurnal cycles of both
     computed separately.
 
     Args:
-        ds (xr.Dataset)
-        longitude (xr.DataArray): dataarray of lon values
-        diurnal_vars (Sequence[str]): variables to compute diurnal cycle on
-        n_bins (int, optional): Number bins for the 24 hr period. Defaults to 24.
-        time_dim (str, optional): Name of time dim in dataset. Defaults to "time".
+        ds: input dataset
+        longitude: dataarray of lon values
+        diurnal_vars: variables to compute diurnal cycle on
+        n_bins: Number bins for the 24 hr period. Defaults to 24.
+        time_dim: Name of time dim in dataset. Defaults to "time".
 
     Raises:
-        ValueError: There can be at most one extra dimension seperate data arrays on
-        before computing diurnal cycle.
-
+        ValueError: There can be at most one extra dimension along which to
+        compute separate diurnal cycles for variable.
     Returns:
-        xr.Dataset: has dimension "local_time_hr" with bins as coordinates.
-        Values are variable mean within each time bin.
+        Dataset with dimension "local_time_hr" and bins as coordinates.
+        Data array values are the variable mean within each time bin.
     """
     ds_diurnal_cycle = xr.Dataset()
     for var in diurnal_vars:
@@ -70,7 +69,6 @@ def create_diurnal_cycle_dataset(
                 [da.expand_dims(additional_dim) for da in var_diurnal_cycles],
                 dim=pd.Index(coords, name=additional_dim),
             )
-            print(ds_diurnal_cycle[var])
         else:
             ds_diurnal_cycle[var] = var_diurnal_cycles[0]
     return ds_diurnal_cycle
@@ -83,18 +81,17 @@ def bin_diurnal_cycle(
     given in each time bin.
 
     Args:
-        da (xr.DataArray): variable to calculate diurnal cycle of
-        longitude (xr.DataArray): Longitude grid values
-        n_bins (int, optional): Number time bins in a day. Defaults to 24.
-        time_dim (str, optional): Time dim name in input data array. Defaults to "time".
+        da: variable to calculate diurnal cycle of
+        longitude: Longitude grid values
+        n_bins: Number time bins in a day. Defaults to 24.
+        time_dim: Time dim name in input data array. Defaults to "time".
 
     Returns:
-        xr.DataArray: Coords are time bin starts, values are variable means in bins
+        DataArray where coords are time bin starts, values are variable means in bins
     """
     bin_width_hrs = 24.0 / n_bins
     bin_centers = [i * bin_width_hrs for i in range(n_bins)]
-    longitude = longitude.expand_dims({time_dim: da[time_dim].values})
-    local_time = _local_time(longitude, time_dim)
+    local_time = _local_time(longitude, da[time_dim])
     bin_means = _bin_diurnal_cycle(da, local_time, n_bins)
     da_diurnal_cycle = xr.DataArray(
         bin_means, dims=[DIURNAL_CYCLE_DIM], coords={DIURNAL_CYCLE_DIM: bin_centers}
@@ -102,12 +99,10 @@ def bin_diurnal_cycle(
     return da_diurnal_cycle
 
 
-def _local_time(da_lon: xr.DataArray, time_dim: str):
+def _local_time(da_lon: xr.DataArray, da_time: xr.DataArray) -> xr.DataArray:
     hr_per_deg_lon = 1.0 / 15.0
     fractional_hr = (
-        da_lon[time_dim].dt.hour
-        + (da_lon[time_dim].dt.minute / 60.0)
-        + (da_lon[time_dim].dt.second / 3600.0)
+        da_time.dt.hour + (da_time.dt.minute / 60.0) + (da_time.dt.second / 3600.0)
     )
     local_time = (fractional_hr + da_lon * hr_per_deg_lon) % 24
     return local_time
