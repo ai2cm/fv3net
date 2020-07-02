@@ -128,4 +128,5 @@ def test_training(model, training_batches, output_variables):
     assert len(missing_names) == 0
     for varname in output_variables:
         assert result[varname].shape == dataset[varname].shape, varname
-        assert np.sum(np.isnan(varname)) == 0
+        
+        assert np.sum(np.isnan(result[varname].values)) == 0
