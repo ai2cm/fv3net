@@ -13,7 +13,6 @@ logger = logging.getLogger(__file__)
 
 
 class _SampleSequence(tf.keras.utils.Sequence):
-
     def __init__(self, X_packer, y_packer, dataset_sequence):
         self.X_packer = X_packer
         self.y_packer = y_packer
@@ -67,7 +66,6 @@ class ArrayPacker:
 
 
 class Model(abc.ABC):
-
     def __init__(self, input_variables, output_variables, *args, **kwargs):
         self.X_packer = ArrayPacker(input_variables)
         self.y_packer = ArrayPacker(output_variables)
@@ -88,7 +86,9 @@ class Model(abc.ABC):
 
 
 class DenseModel(Model, ArrayPacker):
-    def __init__(self, input_variables, output_variables, depth=3, width=16, **hyperparameters):
+    def __init__(
+        self, input_variables, output_variables, depth=3, width=16, **hyperparameters
+    ):
         self.width = width
         self.depth = depth
         self._model = None
@@ -101,25 +101,19 @@ class DenseModel(Model, ArrayPacker):
     def _init_model(self, features_in: int, features_out: int) -> tf.keras.Model:
         model = tf.keras.Sequential()
         model.add(tf.keras.Input(features_in))
-        model.add(
-            tf.keras.layers.BatchNormalization()
-        )
+        model.add(tf.keras.layers.BatchNormalization())
         for i in range(self.depth - 1):
             model.add(
-                tf.keras.layers.Dense(
-                    self.width, activation=tf.keras.activations.relu
-                )
+                tf.keras.layers.Dense(self.width, activation=tf.keras.activations.relu)
             )
         model.add(
-            tf.keras.layers.Dense(
-                features_out, activation=tf.keras.activations.relu
-            )
+            tf.keras.layers.Dense(features_out, activation=tf.keras.activations.relu)
         )
         model.compile(optimizer="sgd", loss="mse")
         self._model = model
 
     def fit(
-            self, batches: Sequence[xr.Dataset],
+        self, batches: Sequence[xr.Dataset],
     ):
         X = _SampleSequence(self.X_packer, self.y_packer, batches)
         features_in = X[0][0].shape[-1]

@@ -93,7 +93,9 @@ def train_config(
 def training_batches(data_source_name, data_source_path, train_config):
 
     if data_source_name != "fine_res_apparent_sources":
-        batched_data = regression.shared.load_data_sequence(data_source_path, train_config)
+        batched_data = regression.shared.load_data_sequence(
+            data_source_path, train_config
+        )
     else:
         # train.load_data_sequence is incompatible with synth's zarrs
         # (it looks for netCDFs); this is a patch until synth supports netCDF
@@ -113,10 +115,7 @@ def training_batches(data_source_name, data_source_path, train_config):
 @pytest.fixture
 def model(model_type, input_variables, output_variables, hyperparameters):
     return regression.keras.get_model(
-        model_type,
-        input_variables,
-        output_variables,
-        **hyperparameters
+        model_type, input_variables, output_variables, **hyperparameters
     )
 
 
@@ -130,4 +129,3 @@ def test_training(model, training_batches, output_variables):
     for varname in output_variables:
         assert result[varname].shape == dataset[varname].shape, varname
         assert np.sum(np.isnan(varname)) == 0
-

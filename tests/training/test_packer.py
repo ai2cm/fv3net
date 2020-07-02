@@ -17,11 +17,20 @@ def dims_list(request):
     if request.param == "one_var":
         return [[loaders.SAMPLE_DIM_NAME, FEATURE_DIM]]
     elif request.param == "two_2d_vars":
-        return [[loaders.SAMPLE_DIM_NAME, FEATURE_DIM], [loaders.SAMPLE_DIM_NAME, FEATURE_DIM]]
+        return [
+            [loaders.SAMPLE_DIM_NAME, FEATURE_DIM],
+            [loaders.SAMPLE_DIM_NAME, FEATURE_DIM],
+        ]
     elif request.param == "1d_and_2d":
         return [[loaders.SAMPLE_DIM_NAME, FEATURE_DIM], [loaders.SAMPLE_DIM_NAME]]
     elif request.param == "five_vars":
-        return [[loaders.SAMPLE_DIM_NAME, FEATURE_DIM], [loaders.SAMPLE_DIM_NAME], [loaders.SAMPLE_DIM_NAME, FEATURE_DIM], [loaders.SAMPLE_DIM_NAME], [loaders.SAMPLE_DIM_NAME, FEATURE_DIM]]
+        return [
+            [loaders.SAMPLE_DIM_NAME, FEATURE_DIM],
+            [loaders.SAMPLE_DIM_NAME],
+            [loaders.SAMPLE_DIM_NAME, FEATURE_DIM],
+            [loaders.SAMPLE_DIM_NAME],
+            [loaders.SAMPLE_DIM_NAME, FEATURE_DIM],
+        ]
 
 
 def get_array(dims, value):
@@ -37,13 +46,9 @@ def names(dims_list):
 def dataset(names, dims_list):
     data_vars = {}
     for i, (name, dims) in enumerate(zip(names, dims_list)):
-        data_vars[name] = xr.DataArray(
-            get_array(dims, i),
-            dims=dims
-        )
+        data_vars[name] = xr.DataArray(get_array(dims, i), dims=dims)
     return xr.Dataset(
-        data_vars,
-        coords={FEATURE_DIM: np.arange(DIM_LENGTHS[FEATURE_DIM])}
+        data_vars, coords={FEATURE_DIM: np.arange(DIM_LENGTHS[FEATURE_DIM])}
     )
 
 
