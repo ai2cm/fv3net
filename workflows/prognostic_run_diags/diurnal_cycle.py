@@ -23,19 +23,20 @@ def calc_diagnostics(prognostic, verification, grid):
         "column_integrated_dQ2",
         "column_integrated_pQ2",
         "column_integrated_Q2",
+        "physics_precip",
         "PRATEsfc",
         "LHTFLsfc",
         "SLMSKsfc",
     ]
 
-    prognostic = prognostic[[var for var in diurnal_cycle_vars if var in prognostic]]
+    prog_dvar_subset = prognostic[[var for var in diurnal_cycle_vars if var in prognostic]]
 
-    prognostic["lon"] = grid["lon"]
-    prog_diurnal_ds = _calc_ds_diurnal_cycle(prognostic)
+    prog_dvar_subset["lon"] = grid["lon"]
+    prog_diurnal_ds = _calc_ds_diurnal_cycle(prog_dvar_subset)
 
-    verif = verification[[var for var in diurnal_cycle_vars if var in verification]]
-    verif["lon"] = grid["lon"]
-    verif_diurnal_ds = _calc_ds_diurnal_cycle(verif)
+    verif_dvar_subset = verification[[var for var in diurnal_cycle_vars if var in verification]]
+    verif_dvar_subset["lon"] = grid["lon"]
+    verif_diurnal_ds = _calc_ds_diurnal_cycle(verif_dvar_subset)
 
     prog_diurnal_ds = _add_diurnal_moisture_components(prog_diurnal_ds)
     verif_diurnal_ds = _add_diurnal_moisture_components(verif_diurnal_ds)
@@ -62,14 +63,21 @@ def _calc_ds_diurnal_cycle(ds):
 
 def _add_diurnal_moisture_components(diurnal_ds):
 
-    # pq2 is E - P in mm/day
-    precip = diurnal_ds["physics_precip"] * SECONDS_PER_DAY
-    diurnal_ds["diurn_comp_P"] = precip
     evap = vcm.latent_heat_flux_to_evaporation(diurnal_ds["LHTFLsfc"]) * SECONDS_PER_DAY
+    evap.attrs = {
+        "long_name": "Evaporation",
+        "units": "mm/day"
+    }
     diurnal_ds["diurn_comp_E"] = evap
 
     if "column_integrated_dQ2" in diurnal_ds:
+        precip = diurnal_ds["physics_precip"] * SECONDS_PER_DAY
+
         dQ2 = diurnal_ds["column_integrated_dQ2"]
+        dQ2.attrs = {
+            "long_name": "<-dQ2> column integrated drying from ML",
+            "units": "mm/day"
+        }
         diurnal_ds["diurn_comp_-dQ2"] = -dQ2
         precip_phys_ml = precip - dQ2
         precip_phys_ml.attrs = {
@@ -77,6 +85,14 @@ def _add_diurnal_moisture_components(diurnal_ds):
             "units": "mm/day",
         }
         diurnal_ds["diurn_comp_P-dQ2"] = precip_phys_ml
+    else:
+        precip = diurnal_ds["PRATEsfc"] * SECONDS_PER_DAY
+
+    precip.attrs = {
+        "long_name": "Physics precipitation",
+        "units": "mm/day"
+    }
+    diurnal_ds["diurn_comp_P"] = precip
 
     return diurnal_ds
 
