@@ -56,11 +56,10 @@ def ds(request):
 )
 def test__local_time(time_gmt, expected):
     da_lon = xr.DataArray(
-        [[0.0, 90.0, 180.0, -90.0, 360]],
-        dims=["time", "x"],
-        coords={"x": range(5), "time": [time_gmt]},
+        [0.0, 90.0, 180.0, -90.0, 360], dims=["x"], coords={"x": range(5)},
     )
-    assert np.allclose(_local_time(da_lon, "time").values, expected)
+    da_time = xr.DataArray([time_gmt], dims=["time"], coords={"time": [time_gmt]})
+    assert np.allclose(_local_time(da_lon, da_time).values, expected)
 
 
 @pytest.mark.parametrize(
