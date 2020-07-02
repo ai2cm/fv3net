@@ -11,9 +11,11 @@ from offline_ml_diags._metrics import (
     TARGET_COORD,
     PREDICT_COORD,
 )
+from offline_ml_diags._metrics_config import SCALAR_METRIC_KWARGS
+from offline_ml_diags._utils import insert_additional_variables
 
 
-@pytest.fixture()
+@pytest.fixture
 def ds_mock():
     da = xr.DataArray(
         [[[0.0, 1.0]]],
@@ -22,17 +24,18 @@ def ds_mock():
     )
     delp = xr.DataArray([[1.0]], dims=["z", "x"], coords={"z": [0], "x": [0]})
     return xr.Dataset(
-        {"dQ1": da, "dQ2": da, "pressure_thickness_of_atmospheric_layer": delp}
+        {"dQ1": da, "dQ2": da, "pQ1": da, "pQ2": da, "pressure_thickness_of_atmospheric_layer": delp}
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def area():
     return xr.DataArray([1], dims=["x"], coords={"x": [0]}).rename("area")
 
 
 def test__calc_batch_metrics(ds_mock, area):
-    batch_metrics = _calc_batch_metrics(xr.merge([area, ds_mock]))
+    ds_mock = insert_additional_variables(ds_mock, area)
+    batch_metrics = _calc_batch_metrics(ds_mock, SCALAR_METRIC_KWARGS)
     for var in list(batch_metrics.data_vars):
         assert isinstance(batch_metrics[var].values.item(), float)
 
@@ -43,7 +46,7 @@ def test__calc_metrics(ds_mock, area):
     assert isinstance(metrics_dict, Mapping)
 
 
-@pytest.fixture()
+@pytest.fixture
 def ds_calc_test(request):
     target_data, pred_data, area = request.param
     da_area = xr.DataArray(area, dims=["y", "x"], coords={"x": [0, 1], "y": [0]})

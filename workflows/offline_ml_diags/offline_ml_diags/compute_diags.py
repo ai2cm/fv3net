@@ -97,8 +97,7 @@ if __name__ == "__main__":
     )
 
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
-    """
-    ds_diagnostic = utils.reduce_to_diagnostic(
+   """ ds_diagnostic = utils.reduce_to_diagnostic(
         ds_batches, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
     logger.info(f"Finished processing dataset diagnostics.")

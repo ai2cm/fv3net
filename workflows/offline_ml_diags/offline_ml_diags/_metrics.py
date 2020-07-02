@@ -2,9 +2,10 @@ import numpy as np
 from typing import Mapping, Sequence, Callable
 import logging
 from fv3net.regression.sklearn import TARGET_COORD, PREDICT_COORD, DERIVATION_DIM
-from diagnostics_utils import insert_column_integrated_vars
 import xarray as xr
-from ._metrics_config import SCALAR_METRIC_KWARGS, fill_config_weights
+from ._metrics_config import SCALAR_METRIC_KWARGS
+from ._utils import insert_additional_variables
+
 
 logging.getLogger(__name__)
 ConfigMapping = Mapping[str, Mapping[str, Mapping[str, Sequence]]]
@@ -26,8 +27,6 @@ METRIC_VARS = [
 # Comparison pairs for RMSE and bias. Truth/target first.
 METRIC_COMPARISON_COORDS = [(TARGET_COORD, PREDICT_COORD), (TARGET_COORD, "mean")]
 VERTICAL_PROFILE_MEAN_DIMS = ["time", "x", "y", "tile"]
-AREA_VAR = "area"
-DELP_VAR = "pressure_thickness_of_atmospheric_layer"
 
 
 def calc_metrics(
@@ -49,11 +48,8 @@ def calc_metrics(
     
     for i, ds_batch in enumerate(dataset_sequence):
         # batch metrics are kept in dataset format for ease of concatting
-        ds = xr.merge([area, ds_batch]).load()
-        ds = _insert_additional_variables(ds)
-        config = fill_config_weights(ds, SCALAR_METRIC_KWARGS)
-        print(SCALAR_METRIC_KWARGS)
-        batch_metrics = _calc_batch_metrics(ds, config).assign_coords({"batch": i})
+        ds = insert_additional_variables(ds_batch, area)
+        batch_metrics = _calc_batch_metrics(ds, SCALAR_METRIC_KWARGS).assign_coords({"batch": i})
         metrics_batch_collection.append(batch_metrics)
     ds = xr.concat(metrics_batch_collection, dim="batch")
     metrics = {
@@ -72,24 +68,8 @@ def _calc_batch_metrics(ds: xr.Dataset, config: ConfigMapping) -> xr.Dataset:
             for comparison in METRIC_COMPARISON_COORDS:
                 metric = _calc_quantity_metric(ds, metric_func, var, *comparison, kwargs)
                 metrics[metric.name] = metric
-                print(metric)
-    """metric_kwargs = {"weights": [ds["area_weights"]]}
-    for var in METRIC_VARS:
-        for metric_func in [_bias, _rmse]:
-            for comparison in METRIC_COMPARISON_COORDS:
-                metric = _calc_metric(ds, metric_func, var, *comparison, metric_kwargs)
-                metrics[metric.name] = metric"""
+
     return metrics
-
-
-def _insert_additional_variables(ds):
-    ds["area_weights"] = ds[AREA_VAR] / (ds[AREA_VAR].mean())
-    ds["delp_weights"] = ds[DELP_VAR] / ds[DELP_VAR].mean("z")
-    ds["Q1"] = ds["pQ1"] + ds["dQ1"]
-    ds["Q2"] = ds["pQ2"] + ds["dQ2"]
-    ds = insert_column_integrated_vars(ds, ML_VARS)
-    ds = _insert_means(ds, METRIC_VARS, ds["area_weights"])
-    return ds
 
 
 def _calc_quantity_metric(
@@ -121,7 +101,13 @@ def _calc_quantity_metric(
     """
     da_target = ds[var].sel({DERIVATION_DIM: target_coord})
     da_predict = ds[var].sel({DERIVATION_DIM: predict_coord})
-    metric = metric_func(da_target, da_predict, **(metric_kwargs or {}))
+    # fill weights kwarg with data arrays, if present
+    metric_kwargs_copy = dict(metric_kwargs) or {}
+    if "weights_variables" in metric_kwargs:
+        metric_kwargs_copy["weights"] = [
+            ds[weight_var] for weight_var in metric_kwargs["weights_variables"]]
+        del metric_kwargs_copy["weights_variables"]
+    metric = metric_func(da_target, da_predict, **metric_kwargs_copy)
 
     metric_name = (
         f"{metric_func.__name__.strip('_')}/{var}/{predict_coord}_vs_{target_coord}"
@@ -129,28 +115,10 @@ def _calc_quantity_metric(
     return metric.rename(metric_name)
 
 
-def _insert_means(
-    ds: xr.Dataset, vars: Sequence[str], weights: xr.DataArray = None
-) -> xr.Dataset:
-    for var in vars:
-        da = ds[var].sel({DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD]})
-        weights = 1.0 if weights is None else weights
-        mean_dims = VERTICAL_PROFILE_MEAN_DIMS if "z" in da.dims else None
-        mean = (
-            (da.sel({DERIVATION_DIM: TARGET_COORD}) * weights)
-            .mean(mean_dims)
-            .assign_coords({DERIVATION_DIM: "mean"})
-        )
-        da = xr.concat([da, mean], dim=DERIVATION_DIM)
-        ds = ds.drop([var])
-        ds = ds.merge(da)
-    return ds
-
-
 def _bias(
     da_target: xr.DataArray,
     da_pred: xr.DataArray,
-    weights: xr.DataArray = None,
+    weights: Sequence[xr.DataArray] = None,
     mean_dims: Sequence[str] = None,
 ) -> xr.DataArray:
     bias = da_pred - da_target
@@ -163,7 +131,7 @@ def _bias(
 def _rmse(
     da_target: xr.DataArray,
     da_pred: xr.DataArray,
-    weights: xr.DataArray = None,
+    weights: Sequence[xr.DataArray] = None,
     mean_dims: Sequence[str] = None,
 ):
     se = (da_target - da_pred) ** 2
