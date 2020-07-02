@@ -101,4 +101,3 @@ if __name__ == "__main__":
         prefix = os.path.join(args.output, name)
         with Pool(8) as p:
             p.map(partial(func, ds=plot_vars, filename_prefix=prefix), range(T))
-
