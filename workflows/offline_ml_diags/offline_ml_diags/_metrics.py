@@ -16,8 +16,7 @@ METRIC_COMPARISON_COORDS = [(TARGET_COORD, PREDICT_COORD), (TARGET_COORD, "mean"
 VERTICAL_PROFILE_MEAN_DIMS = ["time", "x", "y", "tile"]
 
 
-def calc_batch_metrics(ds: xr.Dataset, area: xr.DataArray) -> xr.Dataset:
-    area_weights = area / area.mean()
+def calc_metrics(ds: xr.Dataset) -> xr.Dataset:
     metrics = xr.Dataset()
     metric_kwargs = {"weights": area_weights}
     for var in METRIC_VARS:

@@ -130,7 +130,7 @@ if __name__ == "__main__":
     
     metrics = {
         var: {
-            "mean": np.mean(ds_metrics[var].values), 
+            "mean": np.mean(ds_metrics[var].values),
             "std": np.std(ds_metrics[var].values)}
         for var in ds_metrics.data_vars
     }
