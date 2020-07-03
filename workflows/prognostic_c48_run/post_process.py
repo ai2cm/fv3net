@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import re
+import yaml
 import shutil
 from typing import Sequence, Iterable, Union, Mapping
 import xarray as xr
@@ -15,14 +16,19 @@ logger = logging.getLogger(__file__)
 logging.basicConfig(level=logging.INFO)
 
 CHUNKS_2D = {"time": 96}
-CHUNKS_3D = {"time": 8}
 
-CHUNKS = {
-    "diags.zarr": CHUNKS_2D,
-    "atmos_dt_atmos.zarr": CHUNKS_2D,
-    "sfc_dt_atmos.zarr": CHUNKS_2D,
-    "atmos_8xdaily.zarr": CHUNKS_3D,
-}
+
+def get_chunks(user_chunks):
+    CHUNKS_3D = {"time": 8}
+
+    CHUNKS = {
+        "diags.zarr": CHUNKS_2D,
+        "atmos_dt_atmos.zarr": CHUNKS_2D,
+        "sfc_dt_atmos.zarr": CHUNKS_2D,
+        "atmos_8xdaily.zarr": CHUNKS_3D,
+    }
+    CHUNKS.update(user_chunks)
+    return CHUNKS
 
 
 def upload_dir(d, dest):
@@ -114,14 +120,14 @@ def open_zarrs(zarrs: Sequence[str]) -> Iterable[xr.Dataset]:
         yield xr.open_zarr(zarr).assign_attrs(path=zarr)
 
 
-def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str):
+def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str,  chunks):
     logger.info(f"Processing {item}")
     try:
         dest = os.path.join(d_out, os.path.relpath(item, d_in))  # type: ignore
     except TypeError:
         # is an xarray
         relpath = os.path.relpath(item.path, d_in)  # type: ignore
-        chunks = CHUNKS.get(relpath, CHUNKS_2D)
+        chunks = chunks.get(relpath, CHUNKS_2D)
         clear_encoding(item)
         chunked = rechunk(item, chunks)
         dest = os.path.join(d_out, relpath)
@@ -137,7 +143,8 @@ def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str):
 @click.command()
 @click.argument("rundir")
 @click.argument("destination")
-def post_process(rundir: str, destination: str):
+@click.option("--chunks", type=click.Path(), help="path to yaml file containing chunk information")
+def post_process(rundir: str, destination: str, chunks: str):
     """Post-process the fv3gfs output located RUNDIR and save to DESTINATION
 
     Both RUNDIR and DESTINATION are URLs in GCS.
@@ -147,6 +154,13 @@ def post_process(rundir: str, destination: str):
     """
     logger.info("Post-processing the run")
     authenticate()
+
+    if chunks:
+        with open(chunks) as f:
+            user_chunks = yaml.safe_load(f)
+    else:
+        user_chunks = {}
+    chunks = get_chunks(user_chunks)
 
     with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
 
@@ -158,7 +172,7 @@ def post_process(rundir: str, destination: str):
         tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
 
         for item in chain(open_tiles(tiles, d_in), open_zarrs(zarrs), other):
-            process_item(item, d_in, d_out)
+            process_item(item, d_in, d_out, chunks)
 
         upload_dir(d_out, destination)
 
