@@ -1,12 +1,12 @@
 IMG_NAME?=us.gcr.io/vcm-ml/fv3gfs-python
-IMG_VERSION?=v0.4.1
+IMG_VERSION?=v0.4.3
 TIMESCALE_HOURS?=3
-REMOTE_ROOT?=gs://vcm-ml-scratch/andrep/nudging
+REMOTE_ROOT?=gs://vcm-ml-scratch/andrep/test-nudging
 OUTDIR?=outdir
 FV3RUN_FLAGS?=
 
 RUN_LABEL=$(TIMESCALE_HOURS)h
-BASE_CONFIG_FILE=./fv3config_base.yml
+BASE_CONFIG_FILE=./nudging_config.yaml
 CONFIG_FILE=./fv3config-$(RUN_LABEL).yml
 RUNFILE=./runfile.py
 K8S_JOB_YAML=./job.yaml
@@ -27,7 +27,7 @@ run_kubernetes: $(SUBMIT_JOB_PY) $(CONFIG_FILE)
 	gsutil cp $(RUNFILE) $(REMOTE_RUNFILE)
 	$(SUBMIT_JOB) -d $(REMOTE_CONFIG_FILE) $(REMOTE_RUNFILE) $(REMOTE_OUTDIR) $(BASE_IMG) 
 
-$(CONFIG_FILE): $(PREPARE_CONFIG_PY) $(BASE_CONFIG_FILE)
+$(CONFIG_FILE):
 	python3 $(PREPARE_CONFIG_PY) $(BASE_CONFIG_FILE) $(CONFIG_FILE) --timescale-hours $(TIMESCALE_HOURS)
 
 clean:

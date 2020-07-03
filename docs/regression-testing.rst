@@ -16,7 +16,9 @@ A schema is a reduced description of a zarr/xarray dataset that can
 2. used to generate a random dataset
 3. validate an existing dataset
 
-This package defines a set of dataclasses defining a schema.
+This package defines a set of dataclasses defining a schema. It also contains fixtures
+for datasets used by VCM-ML in training models, allowing for unit and regression testing
+of data pipelines. 
 
 
 The function :func:`synth.read_schema_from_zarr` can be used to generate a schema 
@@ -102,6 +104,28 @@ Examples
 
 The "create training data" workflow currently is tested using this framework.
 See test `here <https://github.com/VulcanClimateModeling/fv3net/blob/be447a44725d7fb766bbe35685862246f06f37f9/tests/create_training_data/test_integration.py#L1>`_.
+
+
+Pytest dataset fixtures
+-----------------------
+
+The package contains fixtures for three datasets used for ML training in fv3net: one-step
+tendenciecs, nudging tendencies, and fine-res apparent sources. The fixtures in 
+``synth._dataset_fixtures`` may be imported into a ``conftest.py`` file and then
+used in testing mappers and other functions that load or use these data::
+    from synth import (
+        dataset_fixtures_dir,
+        data_source_name,
+        one_step_dataset_path,
+        nudging_dataset_path,
+        fine_res_dataset_path,
+        data_source_path,
+        grid_dataset,
+    )
+
+Fixtures exist for each invidiual dataset (e.g, ``one_step_dataset_path``), returning its path in a
+temporary testing directory, and for a parametrized fixture (``data_source_path``) that will
+sequentially return the paths of all three datasets.
 
 
 Existing tools

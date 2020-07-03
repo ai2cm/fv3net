@@ -2,6 +2,8 @@ import pytest
 import os
 from distutils import dir_util
 
+collect_ignore_glob = ["*ipynb_checkpoints*"]
+
 
 @pytest.fixture
 def datadir(tmpdir, request):

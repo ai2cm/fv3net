@@ -34,16 +34,15 @@ spec:
           imagePullPolicy: Always
           resources:
             limits:
-              memory: 3600M
+              memory: 8Gi
             requests:
               cpu: "6"
-              memory: 3600M
+              memory: 8Gi
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
-          - name: data
+          - name: ${DYNAMIC_VOLUME}
             mountPath: /mnt/data
-            readOnly: false
           - name: gcp-key-secret
             mountPath: /secret/gcp-credentials
             readOnly: true
@@ -62,14 +61,14 @@ spec:
           imagePullPolicy: Always
           resources:
             limits:
-              memory: 3600M
+              memory: 8Gi
             requests:
               cpu: "6"
-              memory: 3600M
+              memory: 8Gi
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
-          - name: data
+          - name: ${DYNAMIC_VOLUME}
             mountPath: /mnt/data
           - name: gcp-key-secret
             mountPath: /secret/gcp-credentials
@@ -85,8 +84,9 @@ spec:
         key: dedicated
         value: climate-sim-pool
       volumes:
-      - name: data
-        emptyDir: {}
+      - name: ${DYNAMIC_VOLUME}
+        persistentVolumeClaim:
+          claimName: ${DYNAMIC_VOLUME}
       - name: gcp-key-secret
         secret:
           defaultMode: 420

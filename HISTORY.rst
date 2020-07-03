@@ -4,6 +4,11 @@ History
 
 latest
 ------
+* Add regression tests for model training and offline ML diagnostic steps
+* Stop e2e orchestrator from adding `extra_package` and `setup_file` arguments to Dataflow jobs. This allows use of `./dataflow.sh` script in e2e workflows.
+* Increase nudging run memory limits and add a high-capacity dynamic volume for nudging output
+* Add fixtures and common units tests for ML and diagnostic data mappers
+* Add diurnal cycle functions to diagnostics_utils
 
 0.2.3 (2020-06-19)
 ------------------
@@ -30,7 +35,7 @@ training data from multiple sources into a set of diagnostic variables
 * Add a `diagnostic_sequence_from_mapper` to the `loaders` module function for loading data for diagnostics
 * Add nudging data loaders for use in diagnostics and ML training
 * Add a mapper that takes in a model and any base mapper and includes ML prediction
-* Add optional arg `--timesteps-file` to fv3net.regression.sklearn to provide a list of timesteps to use 
+* Add optional arg `--timesteps-file` to fv3net.regression.sklearn to provide a list of timesteps to use
  in conjunction with the config arg `num_timesteps_per_batch`. The training config arg `num_batches` is now
  deprecated in favor of providing a list of timesteps.
 * Remove usage of "tmp_dataflow" directory from `vcm.cloud.gcs` testing infrastructure and skip extract tests
@@ -42,6 +47,7 @@ training data from multiple sources into a set of diagnostic variables
 * Adds ability to specify timestep offsets in the `FineResolutionSources` mapper
 * Adds a regression test for the `training_data_diags` workflow step
 * Add workflow for producing diagnostics of ML predicted dQ1 & dQ2 (workflows/offline_ml_diags)
+* Add mapper that merges any two other mappers and concats overlapping variables along overlap dimension.
 
 
 0.2.1 (2020-05-15)

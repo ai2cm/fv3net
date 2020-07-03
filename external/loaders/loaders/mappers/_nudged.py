@@ -1,24 +1,20 @@
 import os
 import logging
 import xarray as xr
-import pandas as pd
-import numpy as np
 import zarr.storage as zstore
 from typing import Sequence, Mapping, Union, Tuple, Any
 from itertools import product
 from toolz import groupby
 from pathlib import Path
 
-import vcm
 from vcm import cloud
-from vcm.convenience import round_time
-from vcm.cubedsphere.constants import TIME_FMT
-from ..constants import TIME_NAME
+from ._base import GeoMapper, LongRunMapper
+from .._utils import standardize_zarr_time_coord
+
 
 logger = logging.getLogger(__name__)
 
 TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
-SIMULATION_TIMESTEPS_PER_HOUR = 4
 Z_DIM_NAME = "z"
 
 
@@ -44,50 +40,7 @@ def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-
         )
 
 
-class GeoMapper:
-    def __init__(self, *args):
-        raise NotImplementedError("Don't use the base class!")
-
-    def __len__(self):
-        return len(self.keys())
-
-    def __iter__(self):
-        return iter(self.keys())
-
-    def __getitem__(self, key: str) -> xr.Dataset:
-        raise NotImplementedError()
-
-    def keys(self):
-        raise NotImplementedError()
-
-
-class NudgedTimestepMapper(GeoMapper):
-    """
-    Basic mapper across the time dimension for any long-form
-    simulation output.
-    
-    This mapper uses slightly different
-    initialization (a dataset instead of a url) because nudge
-    run information for all timesteps already exists within
-    a single file, i.e., no filesystem grouping is necessary to get
-    an item.
-    """
-
-    def __init__(self, ds):
-        self.ds = ds
-
-    def __getitem__(self, key: str) -> xr.Dataset:
-        dt64 = np.datetime64(vcm.parse_datetime_from_str(key))
-        return self.ds.sel({TIME_NAME: dt64})
-
-    def keys(self):
-        return [
-            time.strftime(TIME_FMT)
-            for time in pd.to_datetime(self.ds[TIME_NAME].values)
-        ]
-
-
-class MergeNudged(NudgedTimestepMapper):
+class MergeNudged(LongRunMapper):
     """
     Mapper for merging data sources available from a nudged run.
     
@@ -98,7 +51,7 @@ class MergeNudged(NudgedTimestepMapper):
 
     def __init__(
         self,
-        *nudged_sources: Sequence[Union[NudgedTimestepMapper, xr.Dataset]],
+        *nudged_sources: Sequence[Union[LongRunMapper, xr.Dataset]],
         rename_vars: Mapping[str, str] = None,
     ):
         rename_vars = rename_vars or {}
@@ -115,9 +68,9 @@ class MergeNudged(NudgedTimestepMapper):
 
         datasets = []
         for source in data_sources:
-            if isinstance(source, NudgedTimestepMapper):
+            if isinstance(source, LongRunMapper):
                 source = source.ds
-            datasets.append(source)
+            datasets.append(standardize_zarr_time_coord(source))
 
         return datasets
 
@@ -142,12 +95,12 @@ class NudgedStateCheckpoints(GeoMapper):
     """
     Storage for state checkpoints from nudging runs.
     Accessible by, e.g., mapper[("before_dynamics", "20160801.001500")]
-    Uses NudgedTimestepMappers for individual sources.
+    Uses LongRunMappers for individual sources.
     """
 
     def __init__(self, ds_map: Mapping[str, xr.Dataset]):
 
-        self.sources = {key: NudgedTimestepMapper(ds) for key, ds in ds_map.items()}
+        self.sources = {key: LongRunMapper(ds) for key, ds in ds_map.items()}
 
     def __getitem__(self, key):
         return self.sources[key[0]][key[1]]
@@ -157,7 +110,7 @@ class NudgedStateCheckpoints(GeoMapper):
         for key, mapper in self.sources.items():
             timestep_keys = mapper.keys()
             keys.extend(product((key,), timestep_keys))
-        return keys
+        return set(keys)
 
 
 Source = str
@@ -198,20 +151,19 @@ class SubsetTimes(GeoMapper):
 
     def __init__(
         self,
-        initial_time_skip_hr: int,
+        i_start: int,
         n_times: Union[int, None],
         nudged_data: Mapping[str, xr.Dataset],
     ):
         timestep_keys = list(nudged_data.keys())
         timestep_keys.sort()
 
-        start = initial_time_skip_hr * SIMULATION_TIMESTEPS_PER_HOUR
-        end = None if n_times is None else start + n_times
-        self._keys = timestep_keys[slice(start, end)]
+        i_end = None if n_times is None else i_start + n_times
+        self._keys = timestep_keys[slice(i_start, i_end)]
         self._nudged_data = nudged_data
 
     def keys(self):
-        return list(self._keys)
+        return set(self._keys)
 
     def __getitem__(self, time: Time):
         if time not in self._keys:
@@ -280,20 +232,11 @@ class NudgedFullTendencies(GeoMapper):
         return physics_tendencies
 
 
-def _standardize_zarr_time_coord(ds: xr.Dataset):
-    # Vectorize doesn't work on type-dispatched function overloading
-    times = np.array(list(map(vcm.cast_to_datetime, ds[TIME_NAME].values)))
-    times = np.vectorize(round_time)(times)
-    ds = ds.assign_coords({TIME_NAME: times})
-
-    return ds
-
-
 def open_merged_nudged(
     url: str,
     nudging_timescale_hr: Union[int, float],
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
-    initial_time_skip_hr: int = 0,
+    i_start: int = 0,
     n_times: int = None,
     rename_vars: Mapping[str, str] = None,
 ) -> Mapping[str, xr.Dataset]:
@@ -309,10 +252,11 @@ def open_merged_nudged(
             being used as input.
         merge_files (optionsl): underlying nudging zarr datasets to combine
             into a MergeNudged mapper
-        initial_time_skip_hr (optional): Length of model inititialization (in hours)
-            to omit from the batching operation
-        n_times (optional): Number of times (by index) to include in the
-            batch resampling operation
+        i_start (optional): Index of sorted timesteps at which to start including
+            data in the batch resampling operation; defaults to 0
+        n_times (optional): Number of sorted times (by index) to include in the
+            batch resampling operation, starting with i_start and ending at
+            (i_start + n_times)
         rename_vars (optional): mapping of variables to be renamed; defaults to
             renaming long nudging names to dQ names
     """
@@ -335,12 +279,11 @@ def open_merged_nudged(
     for source in merge_files:
         mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}"))
         ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
-        ds = _standardize_zarr_time_coord(ds)
 
         datasets.append(ds)
 
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
-    nudged_mapper = SubsetTimes(initial_time_skip_hr, n_times, nudged_mapper)
+    nudged_mapper = SubsetTimes(i_start, n_times, nudged_mapper)
 
     return nudged_mapper
 
@@ -381,7 +324,6 @@ def _open_nudging_checkpoints(
         full_path = os.path.join(nudged_url, f"{filename}")
         mapper = fs.get_mapper(full_path)
         ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
-        ds = _standardize_zarr_time_coord(ds)
 
         source_name = Path(filename).stem
         datasets[source_name] = ds
