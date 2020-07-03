@@ -273,34 +273,39 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
         delp_fine, delp_coarse, area, omega_fine, factor=factor
     )
 
-    t_budget_coarse = compute_recoarsened_budget_field(
-        area,
-        delp_fine,
-        delp_coarse,
-        omega_fine,
-        omega_coarse,
-        middle["T"],
-        storage=storage(merged["T"], dt),
-        unresolved_flux=middle["eddy_flux_vulcan_omega_temp"],
-        saturation_adjustment=middle["t_dt_fv_sat_adj_coarse"],
-        nudging=middle["t_dt_nudge_coarse"],
-        physics=middle["t_dt_phys_coarse"],
-        factor=factor,
-    )
 
-    q_budget_coarse = compute_recoarsened_budget_field(
-        area,
-        delp_fine,
-        delp_coarse,
-        omega_fine,
-        omega_coarse,
-        middle["sphum"],
-        storage=storage(merged["sphum"], dt),
-        unresolved_flux=middle["eddy_flux_vulcan_omega_sphum"],
-        saturation_adjustment=middle["qv_dt_fv_sat_adj_coarse"],
-        physics=middle["qv_dt_phys_coarse"],
-        factor=factor,
-    )
+    def variables_to_average():
+        # eddy fluxes
+        yield "TW", middle["T"] * omega_fine
+        yield "QW", middle["sphum"] * omega_fine
+
+        # standard fields
+        for key in [
+            "T",
+            "eddy_flux_vulcan_omega_temp",
+            "t_dt_fv_sat_adj_coarse",
+            "t_dt_nudge_coarse",
+            "t_dt_phys_coarse",
+            "sphum",
+            "eddy_flux_vulcan_omega_sphum",
+            "qv_dt_fv_sat_adj_coarse",
+            "qv_dt_phys_coarse" 
+        ]:
+            yield key, middle[key]
+
+    def averaged_variables():
+        for key, array in variables_to_average():
+            grid = Grid("grid_xt", "grid_yt", "pfull", "grid_x", "grid_y", "pfulli")
+            yield grid.pressure_level_average(
+                delp_fine, delp_coarse, area, array, factor=factor
+            ).rename(key)
+
+        yield delp_coarse
+
+
+    averaged = xr.merge(averaged_variables())
+
+    return averaged
 
     # metadata adjustments
     add_budget_metadata(t_budget_coarse, "K", "air_temperature")
