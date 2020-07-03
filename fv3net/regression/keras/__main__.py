@@ -4,8 +4,9 @@ import yaml
 import logging
 import contextlib
 import fsspec
-from . import train
+from . import training
 from .. import shared
+import tempfile
 
 # TODO: refactor these to ..shared
 from ..sklearn.__main__ import _create_report_plots, _write_report, _save_config_output
@@ -43,11 +44,12 @@ def parse_args():
 
 
 @contextlib.contextmanager
-def maybe_create_file(path, mode="wb"):
-    fs, _, _ = fsspec.get_fs_token_paths(path)
-    fs.makedirs(os.path.dirname(path), exist_ok=True)
-    with fs.open(path, mode) as f:
-        yield f
+def maybe_create_path(path, mode="wb"):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield tmpdir
+        fs, _, _ = fsspec.get_fs_token_paths(path)
+        fs.makedirs(os.path.dirname(path), exist_ok=True)
+        fs.put(tmpdir, path, recursive=True)
 
 
 if __name__ == "__main__":
@@ -67,7 +69,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
 
-    model = train.get_model(
+    model = training.get_model(
         train_config.model_type,
         train_config.input_variables,
         train_config.output_variables,
@@ -77,8 +79,8 @@ if __name__ == "__main__":
     model.fit(batches)
 
     model_output_path = os.path.join(args.output_data_path, MODEL_FILENAME)
-    with maybe_create_file(model_output_path, "wb") as f:
-        model.dump(f)
+    with maybe_create_path(model_output_path, "wb") as model_path:
+        model.dump(model_path)
 
     report_metadata = {**vars(args), **vars(train_config)}
     report_sections = _create_report_plots(

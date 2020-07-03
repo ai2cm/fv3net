@@ -1,13 +1,11 @@
-from typing import Union, Sequence, Iterable, Tuple
-import collections
+from typing import Sequence, Tuple
 import xarray as xr
 import logging
-import numpy as np
 import abc
-import joblib
-import loaders
 import tensorflow as tf
-from ..sklearn.wrapper import _pack, _unpack
+from ..packer import ArrayPacker
+import numpy as np
+import os
 
 logger = logging.getLogger(__file__)
 
@@ -25,44 +23,11 @@ class _SampleSequence(tf.keras.utils.Sequence):
         ds = self.dataset_sequence[idx]
         X = self.X_packer.pack(ds)
         y = self.y_packer.pack(ds)
-        print(idx, X.shape, y.shape)
         return X, y
-
-
-def pack(dataset) -> Tuple[np.ndarray, np.ndarray]:
-    return _pack(dataset, loaders.SAMPLE_DIM_NAME)
-
-
-def unpack(dataset, feature_indices):
-    return _unpack(dataset, loaders.SAMPLE_DIM_NAME, feature_indices)
 
 
 def sample_from_dataset(packer, dataset):
     return packer.pack_X(dataset), packer.pack_y(dataset)
-
-
-class ArrayPacker:
-    def __init__(self, names):
-        self._indices = None
-        self._names = names
-
-    @property
-    def names(self):
-        return self._names
-
-    def pack(self, dataset: xr.Dataset) -> np.ndarray:
-        packed, indices = pack(dataset[self.names])
-        if self._indices is None:
-            self._indices = indices
-        return packed
-
-    def unpack(self, array: np.ndarray) -> xr.Dataset:
-        if self._indices is None:
-            raise RuntimeError(
-                "must pack at least once before unpacking, "
-                "so dimension lengths are known"
-            )
-        return unpack(array, self._indices)
 
 
 class Model(abc.ABC):
@@ -78,14 +43,52 @@ class Model(abc.ABC):
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         pass
 
+    @abc.abstractmethod
     def dump(self, file):
-        joblib.dump(self, file)
+        pass
 
+    @abc.abstractmethod
     def load(self, file):
-        return joblib.load(file)
+        pass
 
 
-class DenseModel(Model, ArrayPacker):
+class PackedKerasModel(Model, ArrayPacker):
+    def __init__(self, input_variables, output_variables):
+        super().__init__(input_variables, output_variables)
+
+    @abc.abstractproperty
+    def model(self) -> tf.keras.Model:
+        pass
+
+    def fit(
+        self, batches: Sequence[xr.Dataset],
+    ):
+        X = _SampleSequence(self.X_packer, self.y_packer, batches)
+        self.fit_array(X)
+
+    @abc.abstractmethod
+    def fit_array(self, X: np.ndarray) -> np.ndarray:
+        pass
+
+    def predict(self, X: xr.Dataset) -> xr.Dataset:
+        return self.y_packer.unpack(self.predict_array(self.X_packer.pack(X)))
+
+    @abc.abstractmethod
+    def predict_array(self, X) -> np.ndarray:
+        pass
+
+    def dump(self, path):
+        if os.path.isfile(path):
+            raise ValueError(f"path {path} exists and is not a directory")
+        model_filename = os.path.join(path, "model.tf")
+        self.model.save(model_filename)
+
+    @classmethod
+    def load(self, path):
+        pass
+
+
+class DenseModel(PackedKerasModel):
     def __init__(
         self, input_variables, output_variables, depth=3, width=16, **hyperparameters
     ):
@@ -112,14 +115,11 @@ class DenseModel(Model, ArrayPacker):
         model.compile(optimizer="sgd", loss="mse")
         self._model = model
 
-    def fit(
-        self, batches: Sequence[xr.Dataset],
-    ):
-        X = _SampleSequence(self.X_packer, self.y_packer, batches)
+    def fit_array(self, X: Sequence[Tuple[np.ndarray, np.ndarray]]):
         features_in = X[0][0].shape[-1]
         features_out = X[0][1].shape[-1]
         self._init_model(features_in, features_out)
-        self.model.fit(X)
+        return self.model.fit(X)
 
-    def predict(self, X: xr.Dataset) -> xr.Dataset:
-        return self.y_packer.unpack(self.model.predict(self.X_packer.pack(X)))
+    def predict_array(self, X: np.ndarray) -> np.ndarray:
+        return self.model.predict(X)

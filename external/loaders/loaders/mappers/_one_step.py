@@ -32,6 +32,8 @@ class TimestepMapper(GeoMapper):
         self._rename_vars = rename_vars or {}
         self._drop_vars = drop_vars
         self._dim_order = dim_order
+        print(timesteps_dir)
+        print(os.listdir(timesteps_dir))
         self.zarrs = self._fs.glob(os.path.join(timesteps_dir, "*.zarr"))
         if len(self.zarrs) == 0:
             raise ValueError(f"No zarrs found in {timesteps_dir}")

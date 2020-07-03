@@ -1,2 +1,3 @@
 from .training import get_model
-from .models import ArrayPacker
+from .packer import ArrayPacker
+from .models._models import Model, DenseModel

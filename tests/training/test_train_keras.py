@@ -5,6 +5,10 @@ from loaders import batches
 from fv3net import regression
 from fv3net.regression import shared
 import numpy as np
+import tempfile
+import yaml
+import subprocess
+import os
 
 
 logger = logging.getLogger(__name__)
@@ -90,6 +94,30 @@ def train_config(
 
 
 @pytest.fixture
+def train_config_filename(
+    model_type,
+    hyperparameters,
+    input_variables,
+    output_variables,
+    batch_function,
+    batch_kwargs,
+):
+    with tempfile.NamedTemporaryFile(mode="w") as f:
+        yaml.dump(
+            {
+                "model_type": model_type,
+                "hyperparameters": hyperparameters,
+                "input_variables": input_variables,
+                "output_variables": output_variables,
+                "batch_function": batch_function,
+                "batch_kwargs": batch_kwargs,
+            },
+            f,
+        )
+        yield f.name
+
+
+@pytest.fixture
 def training_batches(data_source_name, data_source_path, train_config):
 
     if data_source_name != "fine_res_apparent_sources":
@@ -130,3 +158,24 @@ def test_training(model, training_batches, output_variables):
         assert result[varname].shape == dataset[varname].shape, varname
 
         assert np.sum(np.isnan(result[varname].values)) == 0
+
+
+def test_training_integration(
+    data_source_path, train_config_filename, tmp_path, data_source_name
+):
+    if data_source_name == "fine_res_apparent_sources":
+        pytest.xfail("cannot test fine_res on disk until synth produces netcdf files")
+    subprocess.check_call(
+        [
+            "python",
+            "-m",
+            "fv3net.regression.keras",
+            data_source_path,
+            train_config_filename,
+            tmp_path,
+            "--no-train-subdir-append",
+        ]
+    )
+    required_filenames = ["sklearn_model.pkl", "training_config.yml"]
+    missing_filenames = set(required_filenames).difference(os.listdir(tmp_path))
+    assert len(missing_filenames) == 0
