@@ -49,7 +49,7 @@ This can either be done using `argo submit -f <argo config>` where `<argo
 config>` is similar to `examples/argo_clouds_off.yaml`. Or, you can use the
 `-p` flag of argo submit:
 
-    argo submit -p output-dir=gs://path -p nudging-config="$(cat nudging_config.yaml)"
+    argo submit -p output-url=gs://path -p nudging-config="$(cat nudging_config.yaml)"
 
 See the `argo.yaml` file for the available workflow parameters.
 
@@ -82,4 +82,3 @@ under `steps_config` and the step name added to `steps_to_run`, e.g.:
 
 Note that there is no need for a "create training" when using nudging 
 unlike the "one-step" end-to-end workflow.
-
