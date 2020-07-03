@@ -23,9 +23,6 @@ spec:
           requests:
             storage: 1333Gi
   volumes:
-    - name: nudging-config
-      configMap:
-        name: $NUDGING_CM
     - name: restart-data
       persistentVolumeClaim:
         claimName: '{{workflow.parameters.restart-pvc}}'
