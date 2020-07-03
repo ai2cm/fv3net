@@ -170,8 +170,10 @@ def test_serialization(model, training_batches, output_variables):
         model.dump(tmpdir)
         loaded_model = model.__class__.load(tmpdir)
     batch_dataset = training_batches[0]
-    result = loaded_model.predict(batch_dataset)
-    validate_dataset_result(result, batch_dataset, output_variables)
+    loaded_result = loaded_model.predict(batch_dataset)
+    validate_dataset_result(loaded_result, batch_dataset, output_variables)
+    original_result = model.predict(batch_dataset)
+    xr.testing.assert_equal(loaded_result, original_result)
 
 
 @pytest.mark.regression

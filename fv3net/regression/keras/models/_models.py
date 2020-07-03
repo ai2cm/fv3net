@@ -96,16 +96,16 @@ class PackedKerasModel(Model, ArrayPacker):
         model_filename = os.path.join(path, self.MODEL_FILENAME)
         self.model.save(model_filename)
         with open(os.path.join(path, self.X_PACKER_FILENAME), "w") as f:
-            f.write(self.X_packer.to_json())
+            self.X_packer.dump(f)
         with open(os.path.join(path, self.Y_PACKER_FILENAME), "w") as f:
-            f.write(self.y_packer.to_json())
+            self.y_packer.dump(f)
 
     @classmethod
     def load(cls, path):
         with open(os.path.join(path, cls.X_PACKER_FILENAME), "r") as f:
-            X_packer = ArrayPacker.from_json(f.read())
+            X_packer = ArrayPacker.load(f)
         with open(os.path.join(path, cls.Y_PACKER_FILENAME), "r") as f:
-            y_packer = ArrayPacker.from_json(f.read())
+            y_packer = ArrayPacker.load(f)
         obj = cls(X_packer.names, y_packer.names)
         model_filename = os.path.join(path, cls.MODEL_FILENAME)
         obj._model = tf.keras.models.load_model(model_filename)

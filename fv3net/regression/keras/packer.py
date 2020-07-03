@@ -3,7 +3,7 @@ import loaders
 import numpy as np
 import xarray as xr
 from ..sklearn.wrapper import _pack, _unpack
-import json
+import yaml
 import pandas as pd
 
 __all__ = ["ArrayPacker"]
@@ -32,25 +32,34 @@ class ArrayPacker:
             )
         return unpack(array, self._indices)
 
-    def to_json(self) -> str:
-        return json.dumps(
-            {"indices": multiindex_to_serializable(self._indices), "names": self._names}
+    def dump(self, f):
+        return yaml.safe_dump(
+            {
+                "indices": multiindex_to_serializable(self._indices),
+                "names": self._names,
+            },
+            f,
         )
 
     @classmethod
-    def from_json(cls, s):
-        data = json.loads(s)
+    def load(cls, f):
+        data = yaml.safe_load(f.read())
         packer = cls(data["names"])
         packer._indices = multiindex_from_serializable(data["indices"])
         return packer
 
 
 def multiindex_to_serializable(multiindex):
-    return {"tuples": tuple(multiindex.to_native_types()), "names": multiindex.names}
+    return {
+        "tuples": tuple(multiindex.to_native_types()),
+        "names": tuple(multiindex.names),
+    }
 
 
 def multiindex_from_serializable(data):
-    return pd.MultiIndex.from_tuples(data["tuples"], names=data["names"])
+    return pd.MultiIndex.from_tuples(
+        [[name, int(value)] for name, value in data["tuples"]], names=data["names"]
+    )
 
 
 def pack(dataset) -> Tuple[np.ndarray, np.ndarray]:
