@@ -97,15 +97,15 @@ if __name__ == "__main__":
     )
 
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
-   """ ds_diagnostic = utils.reduce_to_diagnostic(
+    ds_diagnostic = utils.reduce_to_diagnostic(
         ds_batches, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
     logger.info(f"Finished processing dataset diagnostics.")
     _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path, DIAGS_NC_NAME)
-    """
+
     # json of metrics, ex. RMSE and bias
     metrics = calc_metrics(ds_batches, area=grid["area"])
     fs = get_fs(args.output_path)
     with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
-        json.dump(metrics, f)
+        json.dump(metrics, f, indent=4)
     logger.info(f"Finished processing dataset metrics.")
