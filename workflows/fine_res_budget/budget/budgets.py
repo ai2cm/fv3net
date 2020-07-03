@@ -269,15 +269,14 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
     area = middle.area_coarse
     delp_fine = middle.delp
     delp_coarse = grid.weighted_block_average(delp_fine, area, factor=factor)
-    omega_coarse = grid.pressure_level_average(
-        delp_fine, delp_coarse, area, omega_fine, factor=factor
-    )
-
 
     def variables_to_average():
         # eddy fluxes
         yield "TW", middle["T"] * omega_fine
         yield "QW", middle["sphum"] * omega_fine
+
+        # omega
+        yield "omega", omega_fine
 
         # standard fields
         for key in [
