@@ -85,19 +85,18 @@ if __name__ == "__main__":
 
     diagnostic_datasets = {}
     for dataset_name, dataset_config in datasets_config["sources"].items():
-        logger.info(f"Reading dataset {dataset_name}.")
+        logger.info(f"Reading dataset: {dataset_name}.")
         ds_batches = batches.diagnostic_batches_from_geodata(
             dataset_config["path"],
             variable_names,
-            rename_variables=dataset_config.get("rename_variables", None),
             mapping_function=dataset_config["mapping_function"],
             mapping_kwargs=dataset_config.get("mapping_kwargs", None),
             **batch_kwargs,
         )
-        logger.info(f"Finished batching {dataset_name}.")
+        logger.info(f"Finished batching dataset: {dataset_name}.")
         ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
         diagnostic_datasets[dataset_name] = ds_diagnostic
-        logger.info(f"Finished processing dataset {dataset_name}.")
+        logger.info(f"Finished processing dataset: {dataset_name}.")
 
     diagnostics_all = xr.concat(
         [
