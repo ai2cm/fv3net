@@ -35,9 +35,9 @@ spec:
       steps:
         - - template: prepare-config
             name: prepare-config
-        - - name: hello1
+        - - name: run-model
             template: fv3gfs
-        - - name: hello2a
+        - - name: upload-outputs
             template: upload-data
     - name: prepare-config
       container:
