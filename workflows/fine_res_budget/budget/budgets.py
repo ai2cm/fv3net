@@ -228,7 +228,27 @@ def rename_recoarsened_budget(budget: xr.Dataset, field_name: str) -> str:
     return budget.rename(rename)
 
 
-def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
+def compute_recoarsened_budget(
+    merged: xr.Dataset,
+    dt=15 * 60,
+    factor=8,
+    # TODO split the different moments into two functions
+    first_moments=(
+        "T",
+        "eddy_flux_vulcan_omega_temp",
+        "t_dt_fv_sat_adj_coarse",
+        "t_dt_nudge_coarse",
+        "t_dt_phys_coarse",
+        "sphum",
+        "eddy_flux_vulcan_omega_sphum",
+        "qv_dt_fv_sat_adj_coarse",
+        "qv_dt_phys_coarse",
+        "vulcan_omega_coarse",
+    ),
+    second_moments=dict(
+        TW=("T", "vulcan_omega_coarse"), QW=("sphum", "vulcan_omega_coarse")
+    ),
+):
     """Compute the recoarse-grained budgets of temperature and humidity
 
     Example output for a single tile::
@@ -265,31 +285,17 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
 
     middle = merged.sel(step="middle")
 
-    omega_fine = middle.vulcan_omega_coarse
     area = middle.area_coarse
     delp_fine = middle.delp
     delp_coarse = grid.weighted_block_average(delp_fine, area, factor=factor)
 
     def variables_to_average():
         # eddy fluxes
-        yield "TW", middle["T"] * omega_fine
-        yield "QW", middle["sphum"] * omega_fine
-
-        # omega
-        yield "omega", omega_fine
+        for new_name, (var1, var2) in second_moments.items():
+            yield new_name, middle[var1] * middle[var2]
 
         # standard fields
-        for key in [
-            "T",
-            "eddy_flux_vulcan_omega_temp",
-            "t_dt_fv_sat_adj_coarse",
-            "t_dt_nudge_coarse",
-            "t_dt_phys_coarse",
-            "sphum",
-            "eddy_flux_vulcan_omega_sphum",
-            "qv_dt_fv_sat_adj_coarse",
-            "qv_dt_phys_coarse" 
-        ]:
+        for key in first_moments:
             yield key, middle[key]
 
     def averaged_variables():
@@ -300,7 +306,6 @@ def compute_recoarsened_budget(merged: xr.Dataset, dt=15 * 60, factor=8):
             ).rename(key)
 
         yield delp_coarse
-
 
     averaged = xr.merge(averaged_variables())
 
