@@ -74,10 +74,8 @@ def test_pack(packer, dataset, array):
 
 
 def test_unpack(packer, dataset, array):
-    print(dataset)
     packer.pack(dataset)  # must pack first to know dimension lengths
     result = packer.unpack(array)
-    print(result)
     xr.testing.assert_equal(result, dataset)
 
 
