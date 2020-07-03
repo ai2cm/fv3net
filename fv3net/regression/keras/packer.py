@@ -3,6 +3,10 @@ import loaders
 import numpy as np
 import xarray as xr
 from ..sklearn.wrapper import _pack, _unpack
+import json
+import pandas as pd
+
+__all__ = ["ArrayPacker"]
 
 
 class ArrayPacker:
@@ -27,6 +31,26 @@ class ArrayPacker:
                 "so dimension lengths are known"
             )
         return unpack(array, self._indices)
+
+    def to_json(self) -> str:
+        return json.dumps(
+            {"indices": multiindex_to_serializable(self._indices), "names": self._names}
+        )
+
+    @classmethod
+    def from_json(cls, s):
+        data = json.loads(s)
+        packer = cls(data["names"])
+        packer._indices = multiindex_from_serializable(data["indices"])
+        return packer
+
+
+def multiindex_to_serializable(multiindex):
+    return {"tuples": tuple(multiindex.to_native_types()), "names": multiindex.names}
+
+
+def multiindex_from_serializable(data):
+    return pd.MultiIndex.from_tuples(data["tuples"], names=data["names"])
 
 
 def pack(dataset) -> Tuple[np.ndarray, np.ndarray]:

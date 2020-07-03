@@ -150,16 +150,31 @@ def model(model_type, input_variables, output_variables, hyperparameters):
 @pytest.mark.regression
 def test_training(model, training_batches, output_variables):
     model.fit(training_batches)
-    dataset = training_batches[0]
-    result = model.predict(dataset)
+    batch_dataset = training_batches[0]
+    result = model.predict(batch_dataset)
+    validate_dataset_result(result, batch_dataset, output_variables)
+
+
+def validate_dataset_result(result, batch_dataset, output_variables):
     missing_names = set(output_variables).difference(result.data_vars.keys())
     assert len(missing_names) == 0
     for varname in output_variables:
-        assert result[varname].shape == dataset[varname].shape, varname
-
+        assert result[varname].shape == batch_dataset[varname].shape, varname
         assert np.sum(np.isnan(result[varname].values)) == 0
 
 
+@pytest.mark.regression
+def test_serialization(model, training_batches, output_variables):
+    model.fit(training_batches)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        model.dump(tmpdir)
+        loaded_model = model.__class__.load(tmpdir)
+    batch_dataset = training_batches[0]
+    result = loaded_model.predict(batch_dataset)
+    validate_dataset_result(result, batch_dataset, output_variables)
+
+
+@pytest.mark.regression
 def test_training_integration(
     data_source_path, train_config_filename, tmp_path, data_source_name
 ):

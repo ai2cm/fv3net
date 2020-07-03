@@ -53,17 +53,30 @@ class Model(abc.ABC):
 
 
 class PackedKerasModel(Model, ArrayPacker):
+
+    MODEL_FILENAME = "model.tf"
+    X_PACKER_FILENAME = "X_packer.json"
+    Y_PACKER_FILENAME = "y_packer.json"
+
     def __init__(self, input_variables, output_variables):
         super().__init__(input_variables, output_variables)
 
-    @abc.abstractproperty
+    @property
     def model(self) -> tf.keras.Model:
+        return self._model
+
+    @abc.abstractmethod
+    def get_model(self, features_in: int, features_out: int) -> tf.keras.Model:
         pass
 
     def fit(
         self, batches: Sequence[xr.Dataset],
     ):
         X = _SampleSequence(self.X_packer, self.y_packer, batches)
+        if self._model is None:
+            features_in = X[0][0].shape[-1]
+            features_out = X[0][1].shape[-1]
+            self._model = self.get_model(features_in, features_out)
         self.fit_array(X)
 
     @abc.abstractmethod
@@ -80,12 +93,25 @@ class PackedKerasModel(Model, ArrayPacker):
     def dump(self, path):
         if os.path.isfile(path):
             raise ValueError(f"path {path} exists and is not a directory")
-        model_filename = os.path.join(path, "model.tf")
+        model_filename = os.path.join(path, self.MODEL_FILENAME)
         self.model.save(model_filename)
+        with open(os.path.join(path, self.X_PACKER_FILENAME), "w") as f:
+            f.write(self.X_packer.to_json())
+        with open(os.path.join(path, self.Y_PACKER_FILENAME), "w") as f:
+            f.write(self.y_packer.to_json())
 
     @classmethod
-    def load(self, path):
-        pass
+    def load(cls, path):
+        with open(os.path.join(path, cls.X_PACKER_FILENAME), "r") as f:
+            X_packer = ArrayPacker.from_json(f.read())
+        with open(os.path.join(path, cls.Y_PACKER_FILENAME), "r") as f:
+            y_packer = ArrayPacker.from_json(f.read())
+        obj = cls(X_packer.names, y_packer.names)
+        model_filename = os.path.join(path, cls.MODEL_FILENAME)
+        obj._model = tf.keras.models.load_model(model_filename)
+        obj.X_packer = X_packer
+        obj.y_packer = y_packer
+        return obj
 
 
 class DenseModel(PackedKerasModel):
@@ -97,11 +123,7 @@ class DenseModel(PackedKerasModel):
         self._model = None
         super().__init__(input_variables, output_variables)
 
-    @property
-    def model(self):
-        return self._model
-
-    def _init_model(self, features_in: int, features_out: int) -> tf.keras.Model:
+    def get_model(self, features_in: int, features_out: int) -> tf.keras.Model:
         model = tf.keras.Sequential()
         model.add(tf.keras.Input(features_in))
         model.add(tf.keras.layers.BatchNormalization())
@@ -113,12 +135,9 @@ class DenseModel(PackedKerasModel):
             tf.keras.layers.Dense(features_out, activation=tf.keras.activations.relu)
         )
         model.compile(optimizer="sgd", loss="mse")
-        self._model = model
+        return model
 
     def fit_array(self, X: Sequence[Tuple[np.ndarray, np.ndarray]]):
-        features_in = X[0][0].shape[-1]
-        features_out = X[0][1].shape[-1]
-        self._init_model(features_in, features_out)
         return self.model.fit(X)
 
     def predict_array(self, X: np.ndarray) -> np.ndarray:
