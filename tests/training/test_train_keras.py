@@ -14,9 +14,11 @@ import os
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture
-def model_type():
-    return "DenseModel"
+@pytest.fixture(
+    params=[name for name in dir(regression.keras.models) if not name.startswith("_")]
+)
+def model_type(request):
+    return request.param
 
 
 @pytest.fixture
