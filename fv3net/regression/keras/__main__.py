@@ -2,17 +2,14 @@ import argparse
 import os
 import yaml
 import logging
-import contextlib
-import fsspec
 from . import training
 from .. import shared
-import tempfile
 
 # TODO: refactor these to ..shared
 from ..sklearn.__main__ import _create_report_plots, _write_report, _save_config_output
 
 
-MODEL_FILENAME = "sklearn_model.pkl"
+MODEL_FILENAME = "model_data"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 REPORT_TITLE = "ML model training report"
@@ -43,15 +40,6 @@ def parse_args():
     return parser.parse_args()
 
 
-@contextlib.contextmanager
-def maybe_create_path(path, mode="wb"):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield tmpdir
-        fs, _, _ = fsspec.get_fs_token_paths(path)
-        fs.makedirs(os.path.dirname(path), exist_ok=True)
-        fs.put(tmpdir, path, recursive=True)
-
-
 if __name__ == "__main__":
     args = parse_args()
 
@@ -79,8 +67,7 @@ if __name__ == "__main__":
     model.fit(batches)
 
     model_output_path = os.path.join(args.output_data_path, MODEL_FILENAME)
-    with maybe_create_path(model_output_path, "wb") as model_path:
-        model.dump(model_path)
+    model.dump(model_output_path)
 
     report_metadata = {**vars(args), **vars(train_config)}
     report_sections = _create_report_plots(

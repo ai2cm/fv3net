@@ -6,6 +6,7 @@ import tensorflow as tf
 from ..packer import ArrayPacker
 import numpy as np
 import os
+from ..filesystem import get_dir, put_dir
 
 logger = logging.getLogger(__file__)
 
@@ -91,27 +92,28 @@ class PackedKerasModel(Model, ArrayPacker):
         pass
 
     def dump(self, path):
-        if os.path.isfile(path):
-            raise ValueError(f"path {path} exists and is not a directory")
-        model_filename = os.path.join(path, self.MODEL_FILENAME)
-        self.model.save(model_filename)
-        with open(os.path.join(path, self.X_PACKER_FILENAME), "w") as f:
-            self.X_packer.dump(f)
-        with open(os.path.join(path, self.Y_PACKER_FILENAME), "w") as f:
-            self.y_packer.dump(f)
+        with put_dir(path) as path:
+            model_filename = os.path.join(path, self.MODEL_FILENAME)
+            self.model.save(model_filename)
+            with open(os.path.join(path, self.X_PACKER_FILENAME), "w") as f:
+                self.X_packer.dump(f)
+            with open(os.path.join(path, self.Y_PACKER_FILENAME), "w") as f:
+                self.y_packer.dump(f)
 
     @classmethod
     def load(cls, path):
-        with open(os.path.join(path, cls.X_PACKER_FILENAME), "r") as f:
-            X_packer = ArrayPacker.load(f)
-        with open(os.path.join(path, cls.Y_PACKER_FILENAME), "r") as f:
-            y_packer = ArrayPacker.load(f)
-        obj = cls(X_packer.names, y_packer.names)
-        model_filename = os.path.join(path, cls.MODEL_FILENAME)
-        obj._model = tf.keras.models.load_model(model_filename)
-        obj.X_packer = X_packer
-        obj.y_packer = y_packer
-        return obj
+        with get_dir(path) as path:
+            print(os.listdir(path))
+            with open(os.path.join(path, cls.X_PACKER_FILENAME), "r") as f:
+                X_packer = ArrayPacker.load(f)
+            with open(os.path.join(path, cls.Y_PACKER_FILENAME), "r") as f:
+                y_packer = ArrayPacker.load(f)
+            obj = cls(X_packer.names, y_packer.names)
+            model_filename = os.path.join(path, cls.MODEL_FILENAME)
+            obj._model = tf.keras.models.load_model(model_filename)
+            obj.X_packer = X_packer
+            obj.y_packer = y_packer
+            return obj
 
 
 class DenseModel(PackedKerasModel):
