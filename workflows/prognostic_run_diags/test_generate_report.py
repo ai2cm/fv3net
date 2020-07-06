@@ -1,8 +1,9 @@
 from generate_report import upload, _parse_metadata, detect_rundirs
 
 import pytest
-from google.cloud.storage.client import Client
+import fsspec
 import uuid
+from google.cloud.storage.client import Client
 
 
 @pytest.fixture()
@@ -42,25 +43,26 @@ def test__parse_metadata():
 
 def test_detect_rundirs(tmpdir):
 
-    dir1 = tmpdir.mkdir("rundir1").join("diags.nc")
-    dir2 = tmpdir.mkdir("rundir2").join("diags.nc")
-    dir3 = tmpdir.mkdir("not_a_rundir").join("useless_file.txt")
+    fs = fsspec.filesystem("file")
 
-    dir1.write("foobar")
-    dir2.write("foobar")
-    dir3.write("I'm useless!")
+    rundirs = ["rundir1", "rundir2"]
+    for rdir in rundirs:
+        tmpdir.mkdir(rdir).join("diags.nc").write("foobar")
 
-    expected = [str(dir1), str(dir2)]
-    result = detect_rundirs(tmpdir)
+    tmpdir.mkdir("not_a_rundir").join("useless_file.txt").write("useless!")
+
+    result = detect_rundirs(tmpdir, fs)
 
     assert len(result) == 2
     for found_dir in result:
-        assert found_dir in expected
+        assert found_dir in rundirs
 
 
 def test_detect_rundirs_fail_less_than_2(tmpdir):
 
+    fs = fsspec.filesystem("file")
+
     tmpdir.mkdir("rundir1").join("diags.nc").write("foobar")
 
     with pytest.raises(ValueError):
-        detect_rundirs(tmpdir)
+        detect_rundirs(tmpdir, fs)
