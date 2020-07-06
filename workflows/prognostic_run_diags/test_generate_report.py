@@ -1,4 +1,4 @@
-from generate_report import upload, _parse_metadata
+from generate_report import upload, _parse_metadata, detect_rundirs
 
 import pytest
 from google.cloud.storage.client import Client
@@ -38,3 +38,29 @@ def test__parse_metadata():
     run = "blah-blah-baseline"
     out = _parse_metadata(run)
     assert out == {"run": run, "baseline": "Baseline", "one_step": "blah-blah"}
+
+
+def test_detect_rundirs(tmpdir):
+
+    dir1 = tmpdir.mkdir("rundir1").join("diags.nc")
+    dir2 = tmpdir.mkdir("rundir2").join("diags.nc")
+    dir3 = tmpdir.mkdir("not_a_rundir").join("useless_file.txt")
+
+    dir1.write("foobar")
+    dir2.write("foobar")
+    dir3.write("I'm useless!")
+
+    expected = [str(dir1), str(dir2)]
+    result = detect_rundirs(tmpdir)
+
+    assert len(result) == 2
+    for found_dir in result:
+        assert found_dir in expected
+
+
+def test_detect_rundirs_fail_less_than_2(tmpdir):
+
+    tmpdir.mkdir("rundir1").join("diags.nc").write("foobar")
+
+    with pytest.raises(ValueError):
+        detect_rundirs(tmpdir)

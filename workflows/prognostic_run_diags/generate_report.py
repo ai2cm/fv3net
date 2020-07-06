@@ -67,10 +67,9 @@ def convert_time_index_to_datetime(ds, dim):
     return ds.assign_coords({dim: ds.indexes[dim].to_datetimeindex()})
 
 
-def detect_rundirs(bucket):
-    fs = fsspec.filesystem("gs")
+def detect_rundirs(bucket: str, fs: fsspec.AbstractFileSystem):
     diag_ncs = fs.glob(os.path.join(bucket, "*", "diags.nc"))
-    if len(diag_ncs) < 1:
+    if len(diag_ncs) < 2:
         raise ValueError(
             "Plots require more than 1 diagnostic directory in"
             f" {bucket} for holoviews plots to display correctly."
@@ -227,7 +226,8 @@ def main():
     bucket = args.input
 
     # get run information
-    rundirs = detect_rundirs(bucket)
+    fs = fsspec.filesystem("gs")
+    rundirs = detect_rundirs(bucket, fs)
     run_table = pd.DataFrame.from_records(_parse_metadata(run) for run in rundirs)
     run_table_lookup = run_table.set_index("run")
 
@@ -242,7 +242,7 @@ def main():
     ]
     diagnostics = [convert_time_index_to_datetime(ds, "time") for ds in diagnostics]
 
-    load metrics
+    # load metrics
     nested_metrics = load_metrics(bucket, rundirs)
     metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
     metrics = pd.merge(run_table, metric_table, on="run")
