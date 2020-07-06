@@ -34,19 +34,19 @@ def _vectorized_cosine_zenith_angle(times: Sequence[DatetimeFormats], lon: xr.Da
         np.full(lon.shape, vcm.cast_to_datetime(t)) for t in times])
     vectorized_cosz = np.vectorize(vcm.cos_zenith_angle)
     return vectorized_cosz(times_exploded, lon, lat)
-
+    
 
 def add_grid_dependent_features(
         grid: xr.Dataset,
-        grid_features: Sequence[str],
+        features: Sequence[str],
         ds: xr.Dataset) -> xr.Dataset:
-    if COS_Z_VAR in grid_features:
+    if COS_Z_VAR in features:
         ds[COS_Z_VAR] = _vectorized_cosine_zenith_angle(
             ds[TIME_NAME].values,
             grid["lon"],
             grid["lat"]
         )
-        grid_features.remove(COS_Z_VAR)
+    grid_features = [var in features if var in grid.data_vars and var != COS_Z_VAR]
     ds = ds.assign({var: grid[var] for var in grid_features})
     return ds
 
