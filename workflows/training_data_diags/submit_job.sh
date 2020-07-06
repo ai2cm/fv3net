@@ -2,8 +2,10 @@
 
 set -e
 
-CONFIG_FILE="workflows/training_data_diags/training_data_sources_config.yml"
-OUTPUT_PATH="gs://vcm-ml-scratch/annak/training-data-diagnostics"
+CONFIG_FILE=$1
+echo ${CONFIG_FILE}
+# CONFIG_FILE="workflows/training_data_diags/triad_experiments.yml"
+OUTPUT_PATH="gs://vcm-ml-scratch/brianh/training-data-diagnostics"
 
 
 LOGDIR="./logs"

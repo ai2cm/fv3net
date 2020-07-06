@@ -3,7 +3,7 @@ from numpy.random import RandomState
 from typing import Tuple
 import xarray as xr
 import vcm
-from vcm import safe
+from vcm import safe, net_heating, net_precipitation
 from vcm.convenience import round_time
 
 from .constants import SAMPLE_DIM_NAME, TIME_NAME
@@ -89,3 +89,28 @@ def _get_chunk_indices(chunks):
         indices.append(list(range(start, start + chunk)))
         start += chunk
     return indices
+
+
+def net_heating_from_physics(ds: xr.Dataset) -> xr.DataArray:
+
+    fluxes = (
+        ds["total_sky_downward_longwave_flux_at_surface"],
+        ds["total_sky_downward_shortwave_flux_at_surface"],
+        ds["total_sky_upward_longwave_flux_at_surface"],
+        ds["total_sky_upward_longwave_flux_at_top_of_atmosphere"],
+        ds["total_sky_upward_shortwave_flux_at_surface"],
+        ds["total_sky_upward_shortwave_flux_at_top_of_atmosphere"],
+        ds["total_sky_downward_shortwave_flux_at_top_of_atmosphere"],
+        ds["sensible_heat_flux"],
+        ds["surface_precipitation_rate"],
+    )
+    return net_heating(*fluxes)
+
+
+def net_precipitation_from_physics(ds: xr.Dataset) -> xr.DataArray:
+
+    fluxes = (
+        ds["latent_heat_flux"],
+        ds["surface_precipitation_rate"],
+    )
+    return net_precipitation(*fluxes)

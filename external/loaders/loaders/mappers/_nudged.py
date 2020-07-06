@@ -9,13 +9,20 @@ from pathlib import Path
 
 from vcm import cloud
 from ._base import GeoMapper, LongRunMapper
-from .._utils import standardize_zarr_time_coord
-
+from ._merged import MergeOverlappingData
+from ._high_res_diags import open_high_res_diags
+from .._utils import (
+    standardize_zarr_time_coord,
+    net_precipitation_from_physics,
+    net_heating_from_physics,
+)
+from ..constants import DERIVATION_SHiELD_COORD
 
 logger = logging.getLogger(__name__)
 
 TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
 Z_DIM_NAME = "z"
+DERIVATION_FV3GFS_COORD = "nudged_FV3GFS"
 
 
 def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-5):
@@ -211,7 +218,9 @@ class NudgedFullTendencies(GeoMapper):
             self._physics_timestep_seconds,
         )
 
-        return self._nudged_mapper[time].assign(physics_tendencies)
+        net_terms = self._net_terms(self._nudged_mapper[time])
+
+        return self._nudged_mapper[time].assign({**physics_tendencies, **net_terms})
 
     @staticmethod
     def _physics_tendencies(
@@ -230,6 +239,16 @@ class NudgedFullTendencies(GeoMapper):
             ) / physics_timestep_seconds
 
         return physics_tendencies
+
+    @staticmethod
+    def _net_terms(ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
+
+        net_terms = {
+            "net_heating": net_heating_from_physics(ds),
+            "net_precipitation": net_precipitation_from_physics(ds),
+        }
+
+        return net_terms
 
 
 def open_merged_nudged(
@@ -332,8 +351,9 @@ def _open_nudging_checkpoints(
 
 
 def open_merged_nudged_full_tendencies(
-    url: str,
+    nudging_url: str,
     nudging_timescale_hr: Union[int, float],
+    shield_diags_url: str = None,
     open_merged_nudged_kwargs: Mapping[str, Any] = None,
     open_checkpoints_kwargs: Mapping[str, Any] = None,
     difference_checkpoints: Sequence[str] = ("after_dynamics", "after_physics"),
@@ -344,10 +364,12 @@ def open_merged_nudged_full_tendencies(
     Load mapper to nudged dataset containing both dQ and pQ tendency terms
 
     Args:
-        url: Path to directory with nudging output (not including the timescale
+        nudging_url: Path to directory with nudging output (not including the timescale
             subdirectories, e.g., outdir-3h)
         timescale_hours: timescale of the nudging for the simulation
             being used as input.
+        shield_diags_url: path to directory containing a zarr store of SHiELD
+            diagnostics coarsened to the nudged model resolution (optional)
         open_merged_nudged_kwargs (optional): kwargs mapping to be passed to
             open_merged_nudged
         open_checkpoints_kwargs (optional): kwargs mapping to be passed to
@@ -369,17 +391,28 @@ def open_merged_nudged_full_tendencies(
     open_checkpoints_kwargs = open_checkpoints_kwargs or {}
 
     nudged_mapper = open_merged_nudged(
-        url, nudging_timescale_hr, **open_merged_nudged_kwargs
+        nudging_url, nudging_timescale_hr, **open_merged_nudged_kwargs
     )
 
     checkpoint_mapper = _open_nudging_checkpoints(
-        url, nudging_timescale_hr, **open_checkpoints_kwargs
+        nudging_url, nudging_timescale_hr, **open_checkpoints_kwargs
     )
 
-    return NudgedFullTendencies(
+    nudged_full_tendencies_mapper = NudgedFullTendencies(
         nudged_mapper,
         checkpoint_mapper,
         difference_checkpoints,
         tendency_variables,
         timestep_physics_seconds,
     )
+
+    if shield_diags_url is not None:
+        shield_diags_mapper = open_high_res_diags(shield_diags_url)
+        nudged_full_tendencies_mapper = MergeOverlappingData(
+            shield_diags_mapper,
+            nudged_full_tendencies_mapper,
+            source_name_left=DERIVATION_SHiELD_COORD,
+            source_name_right=DERIVATION_FV3GFS_COORD,
+        )
+
+    return nudged_full_tendencies_mapper

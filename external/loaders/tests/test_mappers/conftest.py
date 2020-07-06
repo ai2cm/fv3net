@@ -5,6 +5,7 @@ from synth import (  # noqa: F401
     nudging_dataset_path,
     fine_res_dataset_path,
     data_source_path,
+    C48_SHiELD_diags_dataset_path,
     grid_dataset,
 )
 
@@ -15,4 +16,9 @@ from ._mapper_fixtures import (  # noqa: F401
     training_mapper_helper_function,
     training_mapper_helper_function_kwargs,
     training_mapper,
+    diagnostic_mapper_name,
+    diagnostic_mapper_data_source_path,
+    diagnostic_mapper_helper_function,
+    diagnostic_mapper_helper_function_kwargs,
+    diagnostic_mapper,
 )

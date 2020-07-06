@@ -212,6 +212,7 @@ def test_NudgedStateCheckpoints(nudged_checkpoints):
 
     single_item = nudged_checkpoints["after_physics"].isel(time=0)
     time_key = pd.to_datetime(single_item.time.values).strftime(TIME_FMT)
+    single_item = single_item.drop_vars("time")
     item_key = ("after_physics", time_key)
     xr.testing.assert_equal(mapper[item_key], single_item)
 
@@ -229,6 +230,16 @@ class MockMergeNudgedMapper:
 
 @pytest.fixture
 def nudged_source():
+    example_da = xr.DataArray(
+        np.full((4, 1), 10.0),
+        {
+            "time": xr.DataArray(
+                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+            ),
+            "x": xr.DataArray([0], dims=["x"]),
+        },
+        ["time", "x"],
+    )
     air_temperature = xr.DataArray(
         np.full((4, 1), 270.0),
         {
@@ -249,9 +260,27 @@ def nudged_source():
         },
         ["time", "x"],
     )
-    return xr.Dataset(
-        {"air_temperature": air_temperature, "specific_humidity": specific_humidity}
-    )
+
+    net_term_vars = [
+        "total_sky_downward_longwave_flux_at_surface",
+        "total_sky_downward_shortwave_flux_at_surface",
+        "total_sky_upward_longwave_flux_at_surface",
+        "total_sky_upward_longwave_flux_at_top_of_atmosphere",
+        "total_sky_upward_shortwave_flux_at_surface",
+        "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+        "sensible_heat_flux",
+        "surface_precipitation_rate",
+        "latent_heat_flux",
+    ]
+
+    ds_vars = {
+        "air_temperature": air_temperature,
+        "specific_humidity": specific_humidity,
+    }
+    ds_vars.update({net_term_var: example_da for net_term_var in net_term_vars})
+
+    return xr.Dataset(ds_vars)
 
 
 @pytest.fixture

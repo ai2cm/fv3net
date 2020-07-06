@@ -177,6 +177,37 @@ def data_source_path(dataset_fixtures_dir, data_source_name):
         yield data_source_path
 
 
+@pytest.fixture(scope="module")
+def C48_SHiELD_diags_dataset_path(dataset_fixtures_dir):
+
+    with tempfile.TemporaryDirectory() as C48_SHiELD_diags_dir:
+        C48_SHiELD_diags_zarrpath = _generate_C48_SHiELD_diags_dataset(
+            dataset_fixtures_dir, C48_SHiELD_diags_dir
+        )
+        yield C48_SHiELD_diags_zarrpath
+
+
+def _generate_C48_SHiELD_diags_dataset(datadir, C48_SHiELD_diags_dir):
+
+    with open(str(datadir.join("C48_SHiELD_diags.json"))) as f:
+        C48_SHiELD_diags_schema = load(f)
+    C48_SHiELD_diags_zarrpath = os.path.join(
+        C48_SHiELD_diags_dir, "gfsphysics_15min_coarse.zarr"
+    )
+    C48_SHiELD_diags_dataset = generate(C48_SHiELD_diags_schema)
+    C48_SHiELD_diags_dataset_1 = C48_SHiELD_diags_dataset.assign_coords(
+        {"time": [timestep1]}
+    )
+    C48_SHiELD_diags_dataset_2 = C48_SHiELD_diags_dataset.assign_coords(
+        {"time": [timestep2]}
+    )
+    C48_SHiELD_diags_dataset = xr.concat(
+        [C48_SHiELD_diags_dataset_1, C48_SHiELD_diags_dataset_2], dim="time"
+    )
+    C48_SHiELD_diags_dataset.to_zarr(C48_SHiELD_diags_zarrpath, consolidated=True)
+    return C48_SHiELD_diags_zarrpath
+
+
 @pytest.fixture
 def grid_dataset(dataset_fixtures_dir):
     random = np.random.RandomState(0)

@@ -4,11 +4,18 @@ import vcm
 from vcm import parse_datetime_from_str, safe
 from typing import Mapping, Union, Sequence, Tuple
 import xarray as xr
+import numpy as np
 from toolz import groupby
 from datetime import timedelta
 from ._base import GeoMapper
+from ._high_res_diags import open_high_res_diags
+from ._merged import MergeOverlappingData
+from ..constants import DERIVATION_SHiELD_COORD, RENAMED_SHIELD_DIAG_VARS
+from .._utils import net_precipitation_from_physics, net_heating_from_physics
 
 DIMENSION_ORDER = ("tile", "z", "y", "x")
+DERIVATION_FV3GFS_COORD = "fine_res_apparent_sources"
+Z_DIM = "pfull"
 
 Time = str
 Tile = int
@@ -131,7 +138,11 @@ class FineResolutionSources(GeoMapper):
                 variable_name,
                 f"d{apparent_source_name}",
                 apparent_source_terms,
-            ).pipe(self._insert_budget_pQ, variable_name, f"p{apparent_source_name}",)
+            ).pipe(self._insert_budget_pQ, variable_name, f"p{apparent_source_name}")
+
+        budget_time_ds = budget_time_ds.pipe(self._insert_physics).pipe(
+            self._insert_net_terms
+        )
 
         return budget_time_ds
 
@@ -183,6 +194,30 @@ class FineResolutionSources(GeoMapper):
 
         return budget_time_ds
 
+    @staticmethod
+    def _insert_physics(
+        budget_time_ds: xr.Dataset,
+        physics_varnames: Sequence[str] = RENAMED_SHIELD_DIAG_VARS.values(),
+    ) -> xr.Dataset:
+
+        template_2d_var = budget_time_ds["air_temperature"].isel({Z_DIM: 0})
+
+        physics_vars = {}
+        for var in physics_varnames:
+            physics_var = xr.full_like(template_2d_var, fill_value=np.nan)
+            physics_vars[var] = physics_var
+
+        return budget_time_ds.assign(physics_vars)
+
+    @staticmethod
+    def _insert_net_terms(ds: xr.Dataset) -> xr.Dataset:
+        return ds.assign(
+            {
+                "net_heating": net_heating_from_physics(ds),
+                "net_precipitation": net_precipitation_from_physics(ds),
+            }
+        )
+
 
 def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
     """Open a mapping interface to the fine resolution budget data
@@ -224,17 +259,20 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
 
 
 def open_fine_res_apparent_sources(
-    url: str,
+    fine_res_url: str,
+    shield_diags_url: str = None,
     offset_seconds: Union[int, float] = 0,
     rename_vars: Mapping[str, str] = None,
-    drop_vars: Sequence[str] = (),
-    dim_order: Sequence[str] = None,
+    drop_vars: Sequence[str] = ("step", "time"),
+    dim_order: Sequence[str] = DIMENSION_ORDER,
 ) -> Mapping[str, xr.Dataset]:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
         
     Args:
-        url (str): path to fine res dataset
+        fine_res_url (str): path to fine res dataset
+        shield_diags_url: path to directory containing a zarr store of SHiELD
+            diagnostics coarsened to the nudged model resolution (optional)
         offset_seconds (int or float): optional time offset in seconds between
             access keys and underlying data timestamps, with positive values
             indicating that the access key is behind the underlying timestamps;
@@ -242,10 +280,22 @@ def open_fine_res_apparent_sources(
         rename_vars: (mapping): optional mapping of variables to rename in dataset
         drop_vars (sequence): optional list of variable names to drop from dataset
     """
-    return FineResolutionSources(
-        open_fine_resolution_budget(url),
+
+    fine_resolution_sources_mapper = FineResolutionSources(
+        open_fine_resolution_budget(fine_res_url),
         offset_seconds,
         rename_vars,
         drop_vars,
         dim_order,
     )
+
+    if shield_diags_url is not None:
+        shield_diags_mapper = open_high_res_diags(shield_diags_url)
+        fine_resolution_sources_mapper = MergeOverlappingData(
+            shield_diags_mapper,
+            fine_resolution_sources_mapper,
+            source_name_left=DERIVATION_SHiELD_COORD,
+            source_name_right=DERIVATION_FV3GFS_COORD,
+        )
+
+    return fine_resolution_sources_mapper

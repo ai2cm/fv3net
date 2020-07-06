@@ -1,0 +1,35 @@
+variables:
+  - dQ1
+  - dQ2
+  - pQ1 
+  - pQ2
+  - pressure_thickness_of_atmospheric_layer
+  - net_heating
+  - net_precipitation
+batch_kwargs:
+  timesteps_per_batch: 1
+  timesteps: ['20160805.084500']
+sources:
+  one_step_physics-off: 
+    path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/one-step-physics-off/create_training_data/train
+    mapping_function: open_one_step_with_diags
+  one_step_clouds-off: 
+    path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/one-step-clouds-off/create_training_data/train
+    mapping_function: open_one_step_with_diags
+  nudging:
+    path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging
+    mapping_function: open_merged_nudged_full_tendencies
+    mapping_kwargs:
+      nudging_timescale_hr: 3
+      shield_diags_url: gs://vcm-ml-scratch/brianh/C48-SHiELD-diagnostics/gfsphysics_15min_coarse.zarr
+  fine_res_apparent_sources: 
+    path: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget
+    mapping_function: open_fine_res_apparent_sources
+    mapping_kwargs:
+      shield_diags_url: gs://vcm-ml-scratch/brianh/C48-SHiELD-diagnostics/gfsphysics_15min_coarse.zarr
+      offset_seconds: 450
+      rename_vars:
+        delp: pressure_thickness_of_atmospheric_layer
+        pfull: z
+        grid_xt: x
+        grid_yt: y
