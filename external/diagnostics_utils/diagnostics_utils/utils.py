@@ -5,7 +5,7 @@ import numpy as np
 import logging
 from typing import Sequence, Mapping, Union
 
-looger = logging.getLogger(__name__)
+logging.getLogger(__name__)
 
 UNINFORMATIVE_COORDS = ["tile", "z", "y", "x"]
 TIME_DIM = "time"
