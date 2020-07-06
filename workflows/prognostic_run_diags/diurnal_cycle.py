@@ -29,12 +29,16 @@ def calc_diagnostics(prognostic, verification, grid):
         "SLMSKsfc",
     ]
 
-    prog_dvar_subset = prognostic[[var for var in diurnal_cycle_vars if var in prognostic]]
+    prog_dvar_subset = prognostic[
+        [var for var in diurnal_cycle_vars if var in prognostic]
+    ]
 
     prog_dvar_subset["lon"] = grid["lon"]
     prog_diurnal_ds = _calc_ds_diurnal_cycle(prog_dvar_subset)
 
-    verif_dvar_subset = verification[[var for var in diurnal_cycle_vars if var in verification]]
+    verif_dvar_subset = verification[
+        [var for var in diurnal_cycle_vars if var in verification]
+    ]
     verif_dvar_subset["lon"] = grid["lon"]
     verif_diurnal_ds = _calc_ds_diurnal_cycle(verif_dvar_subset)
 
@@ -64,10 +68,7 @@ def _calc_ds_diurnal_cycle(ds):
 def _add_diurnal_moisture_components(diurnal_ds):
 
     evap = vcm.latent_heat_flux_to_evaporation(diurnal_ds["LHTFLsfc"]) * SECONDS_PER_DAY
-    evap.attrs = {
-        "long_name": "Evaporation",
-        "units": "mm/day"
-    }
+    evap.attrs = {"long_name": "Evaporation", "units": "mm/day"}
     diurnal_ds["diurn_comp_E"] = evap
 
     if "column_integrated_dQ2" in diurnal_ds:
@@ -77,7 +78,7 @@ def _add_diurnal_moisture_components(diurnal_ds):
         diurnal_ds["diurn_comp_-dQ2"] = -dQ2
         diurnal_ds["diurn_comp_-dQ2"].attrs = {
             "long_name": "<-dQ2> column integrated drying from ML",
-            "units": "mm/day"
+            "units": "mm/day",
         }
         precip_phys_ml = precip - dQ2
         precip_phys_ml.attrs = {
@@ -88,10 +89,7 @@ def _add_diurnal_moisture_components(diurnal_ds):
     else:
         precip = diurnal_ds["PRATEsfc"] * SECONDS_PER_DAY
 
-    precip.attrs = {
-        "long_name": "Physics precipitation",
-        "units": "mm/day"
-    }
+    precip.attrs = {"long_name": "Physics precipitation", "units": "mm/day"}
     diurnal_ds["diurn_comp_P"] = precip
 
     return diurnal_ds
@@ -99,9 +97,7 @@ def _add_diurnal_moisture_components(diurnal_ds):
 
 def _add_diurn_comparison(prognostic_diurnal, verif_diurnal):
 
-    evap_compare = (
-        prognostic_diurnal["diurn_comp_E"] - verif_diurnal["diurn_comp_E"]
-    )
+    evap_compare = prognostic_diurnal["diurn_comp_E"] - verif_diurnal["diurn_comp_E"]
     evap_compare.attrs = {
         "long_name": "Evaporation diurnal cycle difference [coarse - hires]",
         "units": "mm/day",
