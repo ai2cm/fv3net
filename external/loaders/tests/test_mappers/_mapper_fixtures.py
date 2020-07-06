@@ -4,16 +4,22 @@ from loaders import mappers
 from loaders.mappers._fine_resolution_budget import FineResolutionSources
 from typing import Mapping, Sequence
 
-training_mapper_names = [
+training_mapper_names = ["FineResolutionSources", "SubsetTimes", "TimestepMapper"]
+
+diagnostic_mapper_names = [
     "FineResolutionSources",
-    "SubsetTimes",
     "NudgedFullTendencies",
-    "TimestepMapper",
+    "TimestepMapperWithDiags",
 ]
 
 
 @pytest.fixture(params=training_mapper_names)
 def training_mapper_name(request):
+    return request.param
+
+
+@pytest.fixture(params=diagnostic_mapper_names)
+def diagnostic_mapper_name(request):
     return request.param
 
 
@@ -31,6 +37,22 @@ def training_mapper_data_source_path(
     elif training_mapper_name == "FineResolutionSources":
         training_mapper_data_source_path = fine_res_dataset_path
     return training_mapper_data_source_path
+
+
+@pytest.fixture
+def diagnostic_mapper_data_source_path(
+    diagnostic_mapper_name,
+    one_step_dataset_path,
+    nudging_dataset_path,
+    fine_res_dataset_path,
+):
+    if diagnostic_mapper_name == "TimestepMapperWithDiags":
+        diagnostic_mapper_data_source_path = one_step_dataset_path
+    elif diagnostic_mapper_name == "NudgedFullTendencies":
+        diagnostic_mapper_data_source_path = nudging_dataset_path
+    elif diagnostic_mapper_name == "FineResolutionSources":
+        diagnostic_mapper_data_source_path = fine_res_dataset_path
+    return diagnostic_mapper_data_source_path
 
 
 def _open_fine_res_apparent_sources_patch(
@@ -56,9 +78,18 @@ def training_mapper_helper_function(training_mapper_name):
         return getattr(mappers, "open_one_step")
     elif training_mapper_name == "SubsetTimes":
         return getattr(mappers, "open_merged_nudged")
-    elif training_mapper_name == "NudgedFullTendencies":
-        return getattr(mappers, "open_merged_nudged_full_tendencies")
     elif training_mapper_name == "FineResolutionSources":
+        # patch until synth is netcdf-compatible
+        return _open_fine_res_apparent_sources_patch
+
+
+@pytest.fixture
+def diagnostic_mapper_helper_function(diagnostic_mapper_name):
+    if diagnostic_mapper_name == "TimestepMapperWithDiags":
+        return getattr(mappers, "open_one_step_with_diags")
+    elif diagnostic_mapper_name == "NudgedFullTendencies":
+        return getattr(mappers, "open_merged_nudged_full_tendencies")
+    elif diagnostic_mapper_name == "FineResolutionSources":
         # patch until synth is netcdf-compatible
         return _open_fine_res_apparent_sources_patch
 
@@ -72,9 +103,6 @@ def training_mapper_helper_function_kwargs(training_mapper_name):
     elif training_mapper_name == "NudgedFullTendencies":
         return {
             "nudging_timescale_hr": 3,
-            "open_checkpoints_kwargs": {
-                "checkpoint_files": ("after_dynamics.zarr", "after_physics.zarr")
-            },
         }
     elif training_mapper_name == "FineResolutionSources":
         return {
@@ -90,6 +118,35 @@ def training_mapper_helper_function_kwargs(training_mapper_name):
 
 
 @pytest.fixture
+def diagnostic_mapper_helper_function_kwargs(diagnostic_mapper_name):
+    if diagnostic_mapper_name == "TimestepMapperWithDiags":
+        kwargs = {}
+    elif diagnostic_mapper_name == "NudgedFullTendencies":
+        kwargs = {
+            "nudging_timescale_hr": 3,
+            "shield_diags_url": (
+                "gs://vcm-ml-scratch/brianh/C48-SHiELD-diagnostics/"
+                "gfsphysics_15min_coarse.zarr"
+            ),
+            "open_checkpoints_kwargs": {
+                "checkpoint_files": ("after_dynamics.zarr", "after_physics.zarr")
+            },
+        }
+    elif diagnostic_mapper_name == "FineResolutionSources":
+        kwargs = {
+            "rename_vars": {
+                "delp": "pressure_thickness_of_atmospheric_layer",
+                "grid_xt": "x",
+                "grid_yt": "y",
+                "pfull": "z",
+            },
+            "drop_vars": ["time"],
+            "dim_order": ("tile", "z", "y", "x"),
+        }
+    return kwargs
+
+
+@pytest.fixture
 def training_mapper(
     training_mapper_data_source_path,
     training_mapper_helper_function,
@@ -97,4 +154,15 @@ def training_mapper(
 ):
     return training_mapper_helper_function(
         training_mapper_data_source_path, **training_mapper_helper_function_kwargs
+    )
+
+
+@pytest.fixture
+def diagnostic_mapper(
+    diagnostic_mapper_data_source_path,
+    diagnostic_mapper_helper_function,
+    diagnostic_mapper_helper_function_kwargs,
+):
+    return diagnostic_mapper_helper_function(
+        diagnostic_mapper_data_source_path, **diagnostic_mapper_helper_function_kwargs
     )

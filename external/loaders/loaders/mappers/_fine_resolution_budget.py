@@ -15,6 +15,7 @@ from .._utils import net_precipitation_from_physics, net_heating_from_physics
 
 DIMENSION_ORDER = ("tile", "z", "y", "x")
 DERIVATION_FV3GFS_COORD = "fine_res_apparent_sources"
+Z_DIM = "pfull"
 
 Time = str
 Tile = int
@@ -199,7 +200,7 @@ class FineResolutionSources(GeoMapper):
         physics_varnames: Sequence[str] = RENAMED_SHIELD_DIAG_VARS.values(),
     ) -> xr.Dataset:
 
-        template_2d_var = budget_time_ds["air_temperature"].isel(pfull=0)
+        template_2d_var = budget_time_ds["air_temperature"].isel({Z_DIM: 0})
 
         physics_vars = {}
         for var in physics_varnames:

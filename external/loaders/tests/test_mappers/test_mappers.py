@@ -66,7 +66,6 @@ TRAINING_REQUIRED_VARS = [
 
 def test_training_mapper_variables(training_mapper):
     sample_ds = get_sample_dataset(training_mapper)
-    #     print(sample_ds.data_vars)
     for var in TRAINING_REQUIRED_VARS:
         assert var in sample_ds.data_vars
 
@@ -98,7 +97,6 @@ def _test_dimension_match(var_dims: Tuple[str], required_dims: Tuple[Tuple[str]]
 def test_training_mapper_dimensions(training_mapper):
     sample_ds = get_sample_dataset(training_mapper)
     for var in sample_ds.data_vars:
-        #         print(sample_ds[var].dims)
         assert _test_dimension_match(
             sample_ds[var].dims, REQUIRED_DIMENSIONS_2D_VARS
         ) or _test_dimension_match(sample_ds[var].dims, REQUIRED_DIMENSIONS_3D_VARS)
@@ -109,3 +107,36 @@ def test_training_mapper_keys(training_mapper):
     assert isinstance(keys, set)
     for key in keys:
         assert isinstance(cast_to_datetime(key), datetime)
+
+
+DIAGNOSTIC_REQUIRED_VARS = [
+    "pressure_thickness_of_atmospheric_layer",
+    "air_temperature",
+    "specific_humidity",
+    "dQ1",
+    "dQ2",
+    "net_heating",
+    "net_precipitation",
+]
+
+
+def test_diagnostic_mapper_variables(diagnostic_mapper):
+    sample_ds = get_sample_dataset(diagnostic_mapper)
+    print(sample_ds)
+    for var in DIAGNOSTIC_REQUIRED_VARS:
+        assert var in sample_ds.data_vars
+
+
+# def test_diagnostic_mapper_dimensions(diagnostic_mapper):
+#     sample_ds = get_sample_dataset(diagnostic_mapper)
+#     for var in sample_ds.data_vars:
+#         assert _test_dimension_match(
+#             sample_ds[var].dims, REQUIRED_DIMENSIONS_2D_VARS
+#         ) or _test_dimension_match(sample_ds[var].dims, REQUIRED_DIMENSIONS_3D_VARS)
+
+
+# def test_diagnostic_mapper_keys(diagnostic_mapper):
+#     keys = diagnostic_mapper.keys()
+#     assert isinstance(keys, set)
+#     for key in keys:
+#         assert isinstance(cast_to_datetime(key), datetime)
