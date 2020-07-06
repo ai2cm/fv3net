@@ -1,15 +1,14 @@
 import xarray as xr
-import numpy as np
 import pytest
 import yaml
 import os
 import tempfile
 import logging
 import diagnostics_utils as utils
-import intake
 import synth
 from loaders import mappers, batches, SAMPLE_DIM_NAME
 from fv3net.regression.sklearn import train
+from fv3net.regression import shared
 from fv3net.regression.sklearn._mapper import SklearnPredictionMapper
 from offline_ml_diags._metrics import calc_metrics
 
@@ -19,152 +18,13 @@ logger = logging.getLogger(__name__)
 DOMAINS = ["land", "sea", "global"]
 OUTPUT_NC_NAME = "diagnostics.nc"
 
-timestep1 = "20160801.001500"
-timestep1_npdatetime_fmt = "2016-08-01T00:15:00"
-timestep2 = "20160801.003000"
-timestep2_npdatetime_fmt = "2016-08-01T00:30:00"
-
 
 @pytest.fixture
-def training_diags_reference_schema(datadir_module):
+def training_diags_reference_schema():
 
-    with open(str(datadir_module.join("training_diags_reference.json"))) as f:
+    with open("./tests/training/training_diags_reference.json") as f:
         reference_output_schema = synth.load(f)
         yield reference_output_schema
-
-
-def generate_one_step_dataset(datadir_module, one_step_dir):
-
-    with open(str(datadir_module.join("one_step.json"))) as f:
-        one_step_schema = synth.load(f)
-    one_step_dataset = synth.generate(one_step_schema)
-    one_step_dataset_1 = one_step_dataset.assign_coords({"initial_time": [timestep1]})
-    one_step_dataset_2 = one_step_dataset.assign_coords({"initial_time": [timestep2]})
-    one_step_dataset_1.to_zarr(
-        os.path.join(one_step_dir, f"{timestep1}.zarr"), consolidated=True,
-    )
-    one_step_dataset_2.to_zarr(
-        os.path.join(one_step_dir, f"{timestep2}.zarr"), consolidated=True,
-    )
-
-
-@pytest.fixture(scope="module")
-def one_step_dataset_path(datadir_module):
-
-    with tempfile.TemporaryDirectory() as one_step_dir:
-        generate_one_step_dataset(datadir_module, one_step_dir)
-        yield one_step_dir
-
-
-def generate_nudging_dataset(datadir_module, nudging_dir):
-
-    nudging_after_dynamics_zarrpath = os.path.join(
-        nudging_dir, "outdir-3h", "after_dynamics.zarr"
-    )
-    with open(str(datadir_module.join("after_dynamics.json"))) as f:
-        nudging_after_dynamics_schema = synth.load(f)
-    nudging_after_dynamics_dataset = synth.generate(
-        nudging_after_dynamics_schema
-    ).assign_coords(
-        {
-            "time": [
-                np.datetime64(timestep1_npdatetime_fmt),
-                np.datetime64(timestep2_npdatetime_fmt),
-            ]
-        }
-    )
-    nudging_after_dynamics_dataset.to_zarr(
-        nudging_after_dynamics_zarrpath, consolidated=True
-    )
-
-    nudging_after_physics_zarrpath = os.path.join(
-        nudging_dir, "outdir-3h", "after_physics.zarr"
-    )
-    with open(str(datadir_module.join("after_physics.json"))) as f:
-        nudging_after_physics_schema = synth.load(f)
-    nudging_after_physics_dataset = synth.generate(
-        nudging_after_physics_schema
-    ).assign_coords(
-        {
-            "time": [
-                np.datetime64(timestep1_npdatetime_fmt),
-                np.datetime64(timestep2_npdatetime_fmt),
-            ]
-        }
-    )
-    nudging_after_physics_dataset.to_zarr(
-        nudging_after_physics_zarrpath, consolidated=True
-    )
-
-    nudging_tendencies_zarrpath = os.path.join(
-        nudging_dir, "outdir-3h", "nudging_tendencies.zarr"
-    )
-    with open(str(datadir_module.join("nudging_tendencies.json"))) as f:
-        nudging_tendencies_schema = synth.load(f)
-    nudging_tendencies_dataset = synth.generate(
-        nudging_tendencies_schema
-    ).assign_coords(
-        {
-            "time": [
-                np.datetime64(timestep1_npdatetime_fmt),
-                np.datetime64(timestep2_npdatetime_fmt),
-            ]
-        }
-    )
-    nudging_tendencies_dataset.to_zarr(nudging_tendencies_zarrpath, consolidated=True)
-
-
-@pytest.fixture(scope="module")
-def nudging_dataset_path(datadir_module):
-
-    with tempfile.TemporaryDirectory() as nudging_dir:
-        generate_nudging_dataset(datadir_module, nudging_dir)
-        yield nudging_dir
-
-
-def generate_fine_res_dataset(datadir_module, fine_res_dir):
-    """ Note that this does not follow the pattern of the other two datasets
-    in that the synthetic data are not stored in the original format of the
-    fine res data (tiled netcdfs), but instead as a zarr, because synth does
-    not currently support generating netcdfs or splitting by tile
-    """
-
-    fine_res_zarrpath = os.path.join(fine_res_dir, "fine_res_budget.zarr")
-    with open(str(datadir_module.join("fine_res_budget.json"))) as f:
-        fine_res_budget_schema = synth.load(f)
-    fine_res_budget_dataset = synth.generate(fine_res_budget_schema)
-    fine_res_budget_dataset_1 = fine_res_budget_dataset.assign_coords(
-        {"time": [timestep1]}
-    )
-    fine_res_budget_dataset_2 = fine_res_budget_dataset.assign_coords(
-        {"time": [timestep2]}
-    )
-    fine_res_budget_dataset = xr.concat(
-        [fine_res_budget_dataset_1, fine_res_budget_dataset_2], dim="time"
-    )
-    fine_res_budget_dataset.to_zarr(fine_res_zarrpath, consolidated=True)
-
-    return fine_res_zarrpath
-
-
-@pytest.fixture(scope="module")
-def fine_res_dataset_path(datadir_module):
-
-    with tempfile.TemporaryDirectory() as fine_res_dir:
-        fine_res_zarrpath = generate_fine_res_dataset(datadir_module, fine_res_dir)
-        yield fine_res_zarrpath
-
-
-@pytest.fixture
-def grid_dataset():
-
-    cat = intake.open_catalog("catalog.yml")
-    grid = cat["grid/c48"].to_dask()
-    grid = grid.drop_vars(names=["y_interface", "y", "x_interface", "x"])
-    surface_type = cat["landseamask/c48"].to_dask()
-    surface_type = surface_type.drop_vars(names=["y", "x"])
-
-    return grid.merge(surface_type)
 
 
 @pytest.fixture
@@ -263,13 +123,6 @@ def test_compute_training_diags(
     assert training_diags_reference_schema == diags_output_schema
 
 
-@pytest.fixture(
-    params=["one_step_tendencies", "nudging_tendencies", "fine_res_apparent_sources"]
-)
-def data_source_name(request):
-    return request.param
-
-
 def _one_step_train_config():
     path = "./tests/training/train_sklearn_model_onestep_source.yml"
     with open(path, "r") as f:
@@ -309,23 +162,6 @@ def fine_res_train_config():
 
 
 @pytest.fixture
-def data_source_path(datadir_module, data_source_name):
-    with tempfile.TemporaryDirectory() as data_dir:
-        if data_source_name == "one_step_tendencies":
-            generate_one_step_dataset(datadir_module, data_dir)
-            data_source_path = data_dir
-        elif data_source_name == "nudging_tendencies":
-            generate_nudging_dataset(datadir_module, data_dir)
-            data_source_path = data_dir
-        elif data_source_name == "fine_res_apparent_sources":
-            fine_res_zarrpath = generate_fine_res_dataset(datadir_module, data_dir)
-            data_source_path = fine_res_zarrpath
-        else:
-            raise NotImplementedError()
-        yield data_source_path
-
-
-@pytest.fixture
 def data_source_train_config(data_source_name):
     if data_source_name == "one_step_tendencies":
         data_source_train_config = _one_step_train_config()
@@ -342,15 +178,16 @@ def data_source_train_config(data_source_name):
 def training_batches(data_source_name, data_source_path, data_source_train_config):
 
     if data_source_name != "fine_res_apparent_sources":
-        batched_data = train.load_data_sequence(
+        batched_data = shared.load_data_sequence(
             data_source_path, data_source_train_config
         )
     else:
         # train.load_data_sequence is incompatible with synth's zarrs
         # (it looks for netCDFs); this is a patch until synth supports netCDF
+        fine_res_ds = xr.open_zarr(data_source_path)
         mapper = {
-            timestep1: xr.open_zarr(data_source_path).isel(time=0),
-            timestep2: xr.open_zarr(data_source_path).isel(time=1),
+            fine_res_ds.time.values[0]: fine_res_ds.isel(time=0),
+            fine_res_ds.time.values[1]: fine_res_ds.isel(time=1),
         }
 
         batched_data = batches.batches_from_mapper(
@@ -372,15 +209,15 @@ def test_sklearn_regression(training_batches, data_source_train_config):
 
 
 @pytest.fixture
-def offline_diags_reference_schema(data_source_name, datadir_module):
+def offline_diags_reference_schema(data_source_name):
 
     if data_source_name != "fine_res_apparent_sources":
-        reference_schema_file = "offline_diags_reference.json"
+        reference_schema_file = "./tests/training/offline_diags_reference.json"
     else:
-        reference_schema_file = "offline_diags_reference_fine_res.json"
+        reference_schema_file = "./tests/training/offline_diags_reference_fine_res.json"
 
     # test against reference
-    with open(str(datadir_module.join(reference_schema_file))) as f:
+    with open(reference_schema_file) as f:
         reference_output_schema = synth.load(f)
         yield reference_output_schema
 

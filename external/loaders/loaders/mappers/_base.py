@@ -2,13 +2,14 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 import vcm
+from typing import Mapping
 
 
 from ..constants import TIME_NAME, TIME_FMT
 from .._utils import standardize_zarr_time_coord
 
 
-class GeoMapper:
+class GeoMapper(Mapping):
     def __init__(self, *args):
         raise NotImplementedError("Don't use the base class!")
 
@@ -45,7 +46,9 @@ class LongRunMapper(GeoMapper):
         return self.ds.sel({TIME_NAME: dt64})
 
     def keys(self):
-        return [
-            time.strftime(TIME_FMT)
-            for time in pd.to_datetime(self.ds[TIME_NAME].values)
-        ]
+        return set(
+            [
+                time.strftime(TIME_FMT)
+                for time in pd.to_datetime(self.ds[TIME_NAME].values)
+            ]
+        )

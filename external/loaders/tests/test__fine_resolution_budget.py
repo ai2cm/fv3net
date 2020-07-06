@@ -1,7 +1,7 @@
 import pytest
 import xarray as xr
 from vcm import safe
-from loaders._transform import FineResolutionSources
+from loaders.mappers._fine_resolution_budget import FineResolutionSources
 
 
 budget_ds = xr.Dataset(
@@ -215,7 +215,7 @@ def test__midpoint_to_timestamp_key(offset, midpoint_time, expected, fine_res_ma
 
 
 def test_FineResolutionSources(fine_res_mapper):
-    fine_res_source_mapper = FineResolutionSources(fine_res_mapper)
+    fine_res_source_mapper = FineResolutionSources(fine_res_mapper, dim_order=("x"))
     source_ds = fine_res_source_mapper["20160901.001500"]
     safe.get_variables(
         source_ds, ["dQ1", "dQ2", "pQ1", "pQ2", "air_temperature", "specific_humidity"]

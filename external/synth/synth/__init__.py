@@ -16,5 +16,15 @@ from .core import (
 
 from ._restarts import generate_restart_data
 
+from ._dataset_fixtures import (
+    dataset_fixtures_dir,
+    data_source_name,
+    one_step_dataset_path,
+    nudging_dataset_path,
+    fine_res_dataset_path,
+    data_source_path,
+    grid_dataset,
+)
+
 
 __version__ = "0.1.0"

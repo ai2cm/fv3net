@@ -2,12 +2,10 @@ import fsspec
 import joblib
 import logging
 import os
-import yaml
 import xarray as xr
-from dataclasses import dataclass
-from typing import Iterable, Sequence
+from ..shared import ModelTrainingConfig
+from typing import Sequence
 
-from loaders import batches
 from .wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
@@ -15,56 +13,6 @@ from sklearn.ensemble import RandomForestRegressor
 
 
 logger = logging.getLogger(__file__)
-
-
-@dataclass
-class ModelTrainingConfig:
-    """Convenience wrapper for model training parameters and file info
-    """
-
-    model_type: str
-    hyperparameters: dict
-    input_variables: Iterable[str]
-    output_variables: Iterable[str]
-    batch_function: str
-    batch_kwargs: dict
-
-
-def load_model_training_config(config_path: str) -> ModelTrainingConfig:
-    """
-
-    Args:
-        config_path: location of .yaml that contains config for model training
-
-    Returns:
-        ModelTrainingConfig object
-    """
-    with open(config_path, "r") as stream:
-        try:
-            config_dict = yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            raise ValueError(f"Bad yaml config: {exc}")
-    return ModelTrainingConfig(**config_dict)
-
-
-def load_data_sequence(
-    data_path: str, train_config: ModelTrainingConfig
-) -> batches.FunctionOutputSequence[xr.Dataset]:
-    """
-    Args:
-        data_path: data location
-        train_config: model training configuration
-
-    Returns:
-        Sequence of datasets iterated over in training
-    """
-    batch_function = getattr(batches, train_config.batch_function)
-    ds_batches = batch_function(
-        data_path,
-        list(train_config.input_variables) + list(train_config.output_variables),
-        **train_config.batch_kwargs,
-    )
-    return ds_batches
 
 
 def _get_regressor(train_config: ModelTrainingConfig):

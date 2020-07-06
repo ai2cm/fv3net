@@ -35,6 +35,7 @@ dependencies:
   - python-kubernetes
   - scikit-image
   - scikit-learn
+  - scipy >= 1.5.0
   - toolz
   - xarray>=0.14
   - jupyterlab

@@ -10,6 +10,7 @@ import gallery
 import vcm
 import numpy as np
 from . import train
+from .. import shared
 
 
 MODEL_FILENAME = "sklearn_model.pkl"
@@ -84,14 +85,14 @@ if __name__ == "__main__":
     data_path = args.train_data_path
     if not args.no_train_subdir_append:
         data_path = os.path.join(data_path, "train")
-    train_config = train.load_model_training_config(args.train_config_file)
+    train_config = shared.load_model_training_config(args.train_config_file)
 
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
         train_config.batch_kwargs["timesteps"] = timesteps
 
-    batched_data = train.load_data_sequence(data_path, train_config)
+    batched_data = shared.load_data_sequence(data_path, train_config)
     _save_config_output(args.output_data_path, train_config)
 
     logging.basicConfig(level=logging.INFO)
