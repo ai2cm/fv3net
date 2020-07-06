@@ -10,7 +10,7 @@ if [[ $# != 2 ]]; then
 fi
 
 rundir=$1
-output=$2
+output=${2%/}  # strip trailing slash
 gridSpec=gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/grid_spec
 imageSuffix=_00000.png
 
