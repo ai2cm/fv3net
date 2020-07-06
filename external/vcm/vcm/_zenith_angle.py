@@ -36,15 +36,18 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 import datetime
 import numpy as np
 
+RAD_PER_DEG = np.pi / 180.
 
-def sun_zenith_angle(model_time, lon, lat):
+
+def cos_zenith_angle(model_time: datetime, lon: float, lat:float):
     """
     Sun-zenith angle for lon, lat at model_time.
-    lon,lat in radians.
+    lon,lat in degrees.
     The angle returned is in radians
     """
-    zenith, azimuth = _star_zenith_azimuth(model_time, lon, lat)
-    return zenith
+    lon_rad, lat_rad = lon * RAD_PER_DEG, lat * RAD_PER_DEG
+    zenith, azimuth = _star_zenith_azimuth(model_time, lon_rad, lat_rad)
+    return np.cos(zenith)
 
 
 def _days_from_2000(model_time):
