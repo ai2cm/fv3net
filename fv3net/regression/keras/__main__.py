@@ -12,7 +12,7 @@ import tempfile
 from ..sklearn.__main__ import _create_report_plots, _write_report, _save_config_output
 
 
-MODEL_FILENAME = "sklearn_model.pkl"
+MODEL_FILENAME = "model_data"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 REPORT_TITLE = "ML model training report"

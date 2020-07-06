@@ -195,6 +195,6 @@ def test_training_integration(
             "--no-train-subdir-append",
         ]
     )
-    required_filenames = ["sklearn_model.pkl", "training_config.yml"]
-    missing_filenames = set(required_filenames).difference(os.listdir(tmp_path))
-    assert len(missing_filenames) == 0
+    required_names = ["model_data", "training_config.yml"]
+    missing_names = set(required_names).difference(os.listdir(tmp_path))
+    assert len(missing_names) == 0
