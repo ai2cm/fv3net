@@ -15,16 +15,7 @@ import vcm
 import load_diagnostic_data as load_diags
 
 
-FIG_SUFFIX = "{t:05}.png"
-
-HEATING_MOISTENING_PLOT_KWARGS = {
-    "column_integrated_pQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
-    "column_integrated_dQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
-    "column_integrated_Q1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
-    "column_integrated_pQ2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
-    "column_integrated_dQ2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
-    "column_integrated_Q2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
-}
+FIG_SUFFIX = "_{time_index:05}.png"
 
 COORD_NAMES = {
     "coord_x_center": "x",
@@ -42,7 +33,14 @@ _COORD_VARS = {
 
 GRID_VARS = ["area", "lonb", "latb", "lon", "lat"]
 
-SUBPLOT_KW = {"projection": ccrs.Robinson()}
+HEATING_MOISTENING_PLOT_KWARGS = {
+    "column_integrated_pQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
+    "column_integrated_dQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
+    "column_integrated_Q1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
+    "column_integrated_pQ2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
+    "column_integrated_dQ2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
+    "column_integrated_Q2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
+}
 
 
 def _catalog():
@@ -58,10 +56,12 @@ def _six_panel_heating_moistening(ds, axes):
         ax.set_title(var.replace("_", " "))
 
 
-def _save_heating_moistening_fig(t: int, ds: xr.Dataset, filename_prefix: str):
-    plotme = ds.isel(time=t)
-    fig_filename = filename_prefix + "_" + FIG_SUFFIX.format(t=t)
-    fig, axes = plt.subplots(2, 3, figsize=(15, 5.3), subplot_kw=SUBPLOT_KW)
+def _save_heating_moistening_fig(time_index: int, ds: xr.Dataset, filename_format: str):
+    plotme = ds.isel(time=time_index)
+    fig_filename = filename_format.format(time_index=time_index)
+    fig, axes = plt.subplots(
+        2, 3, figsize=(15, 5.3), subplot_kw={"projection": ccrs.Robinson()}
+    )
     _six_panel_heating_moistening(plotme, axes)
     fig.suptitle(plotme.time.values.item())
     fig.tight_layout(rect=(0, 0, 1, 0.95))
@@ -75,11 +75,11 @@ def _movie_funcs():
     
     Each function must have following signature:
 
-        func(time_index: int, ds: xr.Dataset, filename_prefix: str)
+        func(time_index: int, ds: xr.Dataset, filename_format: str)
 
         where time_index is the time step to be plotted, ds contains the
-        data to plotted, and filename_prefix is the full path to be used as
-        a common prefix for all the movie images.
+        data to plotted, and filename_format is the path where func saves each
+        figure. filename_format must include {time_index} within it.
     """
     return {"column_heating_moistening": _save_heating_moistening_fig}
 
@@ -107,6 +107,6 @@ if __name__ == "__main__":
     T = prognostic.sizes["time"]
     for name, func in _movie_funcs().items():
         logger.info(f"Saving {T} still images for {name} movie to {args.output}")
-        prefix = os.path.join(args.output, name)
+        filename = os.path.join(args.output, name + FIG_SUFFIX)
         with Pool(8) as p:
-            p.map(partial(func, ds=prognostic, filename_prefix=prefix), range(T))
+            p.map(partial(func, ds=prognostic, filename_format=filename), range(T))
