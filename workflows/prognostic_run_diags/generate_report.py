@@ -70,8 +70,11 @@ def convert_time_index_to_datetime(ds, dim):
 def detect_rundirs(bucket):
     fs = fsspec.filesystem("gs")
     diag_ncs = fs.glob(os.path.join(bucket, "*", "diags.nc"))
-    if len(diag_ncs) == 0:
-        raise ValueError(f"No diagnostic outputs detected at {bucket}")
+    if len(diag_ncs) < 1:
+        raise ValueError(
+            "Plots require more than 1 diagnostic directory in"
+            f" {bucket} for holoviews plots to display correctly."
+        )
     return [Path(url).parent.name for url in diag_ncs]
 
 
