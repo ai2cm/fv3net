@@ -150,12 +150,52 @@ def holomap_filter(time_series, varfilter, run_attr_name="run"):
     return hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
 
 
-def time_series_plot(time_series: Mapping[str, xr.Dataset], varfilter: str) -> HVPlot:
+def time_series_plot(time_series: Iterable[xr.Dataset], varfilter: str) -> HVPlot:
     return HVPlot(
         holomap_filter(time_series, varfilter=varfilter)
         .overlay("run")
         .opts(legend_position="right")
     )
+
+
+def _parse_diurnal_component_fields(varname: str):
+
+    # diurn_comp_<varname>_diurnal_<sfc_type>
+    tokens = varname.split("_")
+    short_varname = tokens[2]
+    surface_type = tokens[-1]
+
+    return short_varname, surface_type
+
+
+def diurnal_component_plot(
+    time_series: Iterable[xr.Dataset],
+    run_attr_name="run",
+    diurnal_component_name="diurn_comp"
+) -> HVPlot:
+
+    p = hv.Cycle("Colorblind")
+    hmap = hv.HoloMap(kdims=["run", "surface_type", "short_varname"])
+
+    for ds in time_series:
+        for varname in ds:
+            if diurnal_component_name in varname:
+                v = ds[varname]
+                short_vname, surface_type = _parse_diurnal_component_fields(varname)
+                run = ds.attrs[run_attr_name]
+                hmap[(run, surface_type, short_vname)] = hv.Curve(
+                    v, label=diurnal_component_name
+                ).options(
+                    color=p
+                )
+
+    hmap = hmap.opts(
+        norm={"framewise": True},
+        plot=dict(width=850, height=500),
+        legend_position="right"
+    ).overlay("short_varname")
+
+    return HVPlot(hmap)
 
 
 # Initialize diagnostic managers
@@ -167,28 +207,33 @@ metrics_plot_manager = PlotManager()
 
 # Routines for plotting the "diagnostics"
 @diag_plot_manager.register
-def rms_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+def rms_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="rms")
 
 
 @diag_plot_manager.register
-def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+def global_avg_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="global_avg")
 
 
 @diag_plot_manager.register
-def global_avg_physics_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+def global_avg_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="global_phys_avg")
 
 
 @diag_plot_manager.register
-def diurnal_cycle_land_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+def diurnal_cycle_land_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="diurnal_land")
 
 
 @diag_plot_manager.register
-def diurnal_cycle_sea_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+def diurnal_cycle_sea_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="diurnal_sea")
+
+
+@diag_plot_manager.register
+def diurnal_cycle_component_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return diurnal_component_plot(time_series)
 
 
 # Routines for plotting the "metrics"
