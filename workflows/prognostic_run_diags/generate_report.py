@@ -169,29 +169,24 @@ def rms_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="rms")
 
 
-# @diag_plot_manager.register
-# def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
-#     return time_series_plot(time_series, varfilter="global_avg")
+@diag_plot_manager.register
+def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="global_avg")
 
 
-# @diag_plot_manager.register
-# def global_avg_physics_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
-#     return time_series_plot(time_series, varfilter="global_phys_avg")
+@diag_plot_manager.register
+def global_avg_physics_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="global_phys_avg")
 
 
-# @diag_plot_manager.register
-# def diurnal_cycle_global_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
-#     return time_series_plot(time_series, varfilter="diurnal_global")
+@diag_plot_manager.register
+def diurnal_cycle_land_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="diurnal_land")
 
 
-# @diag_plot_manager.register
-# def diurnal_cycle_land_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
-#     return time_series_plot(time_series, varfilter="diurnal_land")
-
-
-# @diag_plot_manager.register
-# def diurnal_cycle_sea_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
-#     return time_series_plot(time_series, varfilter="diurnal_sea")
+@diag_plot_manager.register
+def diurnal_cycle_sea_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="diurnal_sea")
 
 
 # Routines for plotting the "metrics"
@@ -244,15 +239,15 @@ def main():
     ]
     diagnostics = [convert_time_index_to_datetime(ds, "time") for ds in diagnostics]
 
-    # load metrics
-    # nested_metrics = load_metrics(bucket, rundirs)
-    # metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
-    # metrics = pd.merge(run_table, metric_table, on="run")
+    load metrics
+    nested_metrics = load_metrics(bucket, rundirs)
+    metric_table = pd.DataFrame.from_records(_yield_metric_rows(nested_metrics))
+    metrics = pd.merge(run_table, metric_table, on="run")
 
     # generate all plots
     sections = {
         "Diagnostics": list(diag_plot_manager.make_plots(diagnostics)),
-        # "Metrics": list(metrics_plot_manager.make_plots(metrics)),
+        "Metrics": list(metrics_plot_manager.make_plots(metrics)),
     }
 
     html = create_html(
