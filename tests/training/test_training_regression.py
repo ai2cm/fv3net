@@ -8,6 +8,7 @@ import diagnostics_utils as utils
 import synth
 from loaders import mappers, batches, SAMPLE_DIM_NAME
 from fv3net.regression.sklearn import train
+from fv3net.regression import shared
 from fv3net.regression.sklearn._mapper import SklearnPredictionMapper
 from offline_ml_diags._metrics import calc_metrics
 
@@ -177,7 +178,7 @@ def data_source_train_config(data_source_name):
 def training_batches(data_source_name, data_source_path, data_source_train_config):
 
     if data_source_name != "fine_res_apparent_sources":
-        batched_data = train.load_data_sequence(
+        batched_data = shared.load_data_sequence(
             data_source_path, data_source_train_config
         )
     else:
