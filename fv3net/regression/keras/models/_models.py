@@ -53,7 +53,7 @@ class Model(abc.ABC):
         pass
 
 
-class PackedKerasModel(Model, ArrayPacker):
+class PackedKerasModel(Model):
 
     MODEL_FILENAME = "model.tf"
     X_PACKER_FILENAME = "X_packer.json"
