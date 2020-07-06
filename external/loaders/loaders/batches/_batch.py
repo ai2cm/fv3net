@@ -3,10 +3,10 @@ import logging
 from numpy.random import RandomState
 from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional
 import xarray as xr
-from vcm import safe
-from toolz import partition
+from vcm import safe, cos_zenith_angle
+from toolz import partition, compose
 from ._sequences import FunctionOutputSequence
-from .._utils import stack_dropnan_shuffle
+from .._utils import stack_dropnan_shuffle, load_grid, add_grid_dependent_features
 from ..constants import TIME_NAME
 import loaders
 

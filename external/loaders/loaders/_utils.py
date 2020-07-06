@@ -1,6 +1,9 @@
+import cftime
+import datetime
 import numpy as np
 from numpy.random import RandomState
-from typing import Tuple
+import intake
+from typing import Tuple, Sequence, Union
 import xarray as xr
 import vcm
 from vcm import safe
@@ -9,10 +12,43 @@ from vcm.convenience import round_time
 from .constants import SAMPLE_DIM_NAME, TIME_NAME
 
 Z_DIM_NAMES = ["z", "pfull"]
+COS_Z_VAR = "cos_zenith_angle"
 
+DatetimeFormats = Union[datetime, cftime.DatetimeJulian, np.datetime64]
 Time = str
 Tile = int
 K = Tuple[Time, Tile]
+
+
+def load_grid(res="c48"):
+    cat = intake.open_catalog("catalog.yml")
+    grid = cat[f"grid/{res}"].to_dask()
+    land_sea_mask = cat[f"landseamask/{res}"].to_dask()
+    grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
+    grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
+    return grid
+
+
+def _vectorized_cosine_zenith_angle(times: Sequence[DatetimeFormats], lon: xr.DataArray, lat: xr.DataArray):
+    times_exploded = np.array([
+        np.full(lon.shape, vcm.cast_to_datetime(t)) for t in times])
+    vectorized_cosz = np.vectorize(vcm.cos_zenith_angle)
+    return vectorized_cosz(times_exploded, lon, lat)
+
+
+def add_grid_dependent_features(
+        grid: xr.Dataset,
+        grid_features: Sequence[str],
+        ds: xr.Dataset) -> xr.Dataset:
+    if COS_Z_VAR in grid_features:
+        ds[COS_Z_VAR] = _vectorized_cosine_zenith_angle(
+            ds[TIME_NAME].values,
+            grid["lon"],
+            grid["lat"]
+        )
+        grid_features.remove(COS_Z_VAR)
+    ds = ds.assign({var: grid[var] for var in grid_features})
+    return ds
 
 
 def get_sample_dataset(mapper):

@@ -35,15 +35,20 @@ OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import datetime
 import numpy as np
+from typing import Union
+import xarray as xr
 
 RAD_PER_DEG = np.pi / 180.
 
 
-def cos_zenith_angle(model_time: datetime, lon: float, lat:float):
+def cos_zenith_angle(
+        model_time: datetime,
+        lon: Union[float, xr.DataArray],
+        lat: Union[float, xr.DataArray]
+):
     """
     Sun-zenith angle for lon, lat at model_time.
     lon,lat in degrees.
-    The angle returned is in radians
     """
     lon_rad, lat_rad = lon * RAD_PER_DEG, lat * RAD_PER_DEG
     zenith, azimuth = _star_zenith_azimuth(model_time, lon_rad, lat_rad)
