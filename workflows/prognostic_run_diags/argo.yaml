@@ -97,10 +97,10 @@ spec:
         name: gcp-credentials-user-gcp-sa
       resources:
         requests:
-            memory: "12Gi"
+            memory: "14Gi"
             cpu: "1000m"
         limits:
-            memory: "12Gi"
+            memory: "14Gi"
             cpu: "1000m"
    - name: movie
      inputs:
@@ -130,8 +130,8 @@ spec:
         name: gcp-credentials-user-gcp-sa
       resources:
         requests:
-            memory: "6Gi"
+            memory: "10Gi"
             cpu: "8000m"
         limits:
-            memory: "6Gi"
+            memory: "10Gi"
             cpu: "8000m"
