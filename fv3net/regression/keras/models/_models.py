@@ -31,10 +31,6 @@ def sample_from_dataset(packer, dataset):
 
 
 class Model(abc.ABC):
-    def __init__(self, input_variables, output_variables, *args, **kwargs):
-        self.X_packer = ArrayPacker(input_variables)
-        self.y_packer = ArrayPacker(output_variables)
-
     @abc.abstractmethod
     def fit(self, X: Sequence[xr.Dataset], y: Sequence[xr.Dataset]):
         pass
@@ -59,10 +55,15 @@ class PackedKerasModel(Model):
     Y_PACKER_FILENAME = "y_packer.json"
 
     def __init__(self, input_variables, output_variables):
-        super().__init__(input_variables, output_variables)
+        super().__init__()
+        self._model = None
+        self.X_packer = ArrayPacker(input_variables)
+        self.y_packer = ArrayPacker(output_variables)
 
     @property
     def model(self) -> tf.keras.Model:
+        if self._model is None:
+            raise RuntimeError("must call fit() for keras model to be available")
         return self._model
 
     @abc.abstractmethod
@@ -79,16 +80,14 @@ class PackedKerasModel(Model):
             self._model = self.get_model(features_in, features_out)
         self.fit_array(X)
 
-    @abc.abstractmethod
-    def fit_array(self, X: np.ndarray) -> np.ndarray:
-        pass
+    def fit_array(self, X: Sequence[Tuple[np.ndarray, np.ndarray]]):
+        return self.model.fit(X)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         return self.y_packer.unpack(self.predict_array(self.X_packer.pack(X)))
 
-    @abc.abstractmethod
-    def predict_array(self, X) -> np.ndarray:
-        pass
+    def predict_array(self, X: np.ndarray) -> np.ndarray:
+        return self.model.predict(X)
 
     def dump(self, path):
         if os.path.isfile(path):
@@ -120,7 +119,6 @@ class DenseModel(PackedKerasModel):
     ):
         self.width = width
         self.depth = depth
-        self._model = None
         super().__init__(input_variables, output_variables)
 
     def get_model(self, features_in: int, features_out: int) -> tf.keras.Model:
@@ -136,9 +134,3 @@ class DenseModel(PackedKerasModel):
         )
         model.compile(optimizer="sgd", loss="mse")
         return model
-
-    def fit_array(self, X: Sequence[Tuple[np.ndarray, np.ndarray]]):
-        return self.model.fit(X)
-
-    def predict_array(self, X: np.ndarray) -> np.ndarray:
-        return self.model.predict(X)
