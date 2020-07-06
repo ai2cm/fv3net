@@ -15,8 +15,7 @@ import vcm
 import load_diagnostic_data as load_diags
 
 
-_MOVIE_FUNCS = {}
-MovieArg = (xr.Dataset, int, str)
+FIG_SUFFIX = "{t:05}.png"
 
 HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_pQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
@@ -41,6 +40,8 @@ _COORD_VARS = {
     "lat": ["y", "x", "tile"],
 }
 
+GRID_VARS = ["area", "lonb", "latb", "lon", "lat"]
+
 SUBPLOT_KW = {"projection": ccrs.Robinson()}
 
 
@@ -59,7 +60,7 @@ def _six_panel_heating_moistening(ds, axes):
 
 def _save_heating_moistening_fig(t, ds, filename_prefix):
     plotme = ds.isel(time=t)
-    fig_filename = f"{filename_prefix}_{t:05}.png"
+    fig_filename = filename_prefix + "_" + FIG_SUFFIX.format(t=t)
     fig, axes = plt.subplots(2, 3, figsize=(15, 5.3), subplot_kw=SUBPLOT_KW)
     _six_panel_heating_moistening(plotme, axes)
     fig.suptitle(plotme.time.values.item())
@@ -70,7 +71,11 @@ def _save_heating_moistening_fig(t, ds, filename_prefix):
 
 
 def _movie_funcs():
-    """Return mapping of movie name to movie-still creation function"""
+    """Return mapping of movie name to movie-still creation function.
+    
+    Each function must have following signature:
+        func(time_index: int, ds: xr.Dataset, filename_prefix: str)
+    """
     return {"column_heating_moistening": _save_heating_moistening_fig}
 
 
@@ -91,11 +96,12 @@ if __name__ == "__main__":
     catalog = intake.open_catalog(CATALOG)
 
     prognostic, _, grid = load_diags.load_physics(args.url, args.grid_spec, catalog)
-    plot_vars = prognostic[list(HEATING_MOISTENING_PLOT_KWARGS.keys())]
-    plot_vars = plot_vars.merge(grid)
-    T = plot_vars.sizes["time"]
+    # crashed prognostic runs have bad grid vars, so use grid from catalog instead
+    prognostic = prognostic.drop_vars(GRID_VARS, errors="ignore")
+    prognostic = prognostic.merge(grid)
+    T = prognostic.sizes["time"]
     for name, func in _movie_funcs().items():
         logger.info(f"Saving {T} still images for {name} movie to {args.output}")
         prefix = os.path.join(args.output, name)
         with Pool(8) as p:
-            p.map(partial(func, ds=plot_vars, filename_prefix=prefix), range(T))
+            p.map(partial(func, ds=prognostic, filename_prefix=prefix), range(T))
