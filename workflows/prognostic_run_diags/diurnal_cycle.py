@@ -26,7 +26,6 @@ def calc_diagnostics(prognostic, verification, grid):
         "physics_precip",
         "PRATEsfc",
         "LHTFLsfc",
-        "SLMSKsfc",
     ]
 
     prog_dvar_subset = prognostic[
@@ -66,6 +65,11 @@ def _calc_ds_diurnal_cycle(ds):
 
 
 def _add_diurnal_moisture_components(diurnal_ds):
+    """
+    Add individual moisture components for diurnal cycle plots with a long-name
+    and attributes.  The naming is used by report generation to determine the
+    component shorthand.  E.g., diurn_comp_<component_name>
+    """
 
     evap = vcm.latent_heat_flux_to_evaporation(diurnal_ds["LHTFLsfc"]) * SECONDS_PER_DAY
     evap.attrs = {"long_name": "Evaporation", "units": "mm/day"}
@@ -96,6 +100,9 @@ def _add_diurnal_moisture_components(diurnal_ds):
 
 
 def _add_diurn_comparison(prognostic_diurnal, verif_diurnal):
+    """
+    Add comparisons of diurnal cycle against verification data for plotting
+    """
 
     evap_compare = prognostic_diurnal["diurn_comp_E"] - verif_diurnal["diurn_comp_E"]
     evap_compare.attrs = {
