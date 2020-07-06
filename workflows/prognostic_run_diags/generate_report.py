@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import json
-from typing import Mapping, Iterable
+from typing import Iterable
 import os
 import xarray as xr
 import fsspec
@@ -160,7 +160,7 @@ def time_series_plot(time_series: Iterable[xr.Dataset], varfilter: str) -> HVPlo
 
 def _parse_diurnal_component_fields(varname: str):
 
-    # diurn_comp_<varname>_diurnal_<sfc_type>
+    # diags key format: diurn_comp_<varname>_diurnal_<sfc_type>
     tokens = varname.split("_")
     short_varname = tokens[2]
     surface_type = tokens[-1]
@@ -171,7 +171,7 @@ def _parse_diurnal_component_fields(varname: str):
 def diurnal_component_plot(
     time_series: Iterable[xr.Dataset],
     run_attr_name="run",
-    diurnal_component_name="diurn_comp"
+    diurnal_component_name="diurn_comp",
 ) -> HVPlot:
 
     p = hv.Cycle("Colorblind")
@@ -185,14 +185,13 @@ def diurnal_component_plot(
                 run = ds.attrs[run_attr_name]
                 hmap[(run, surface_type, short_vname)] = hv.Curve(
                     v, label=diurnal_component_name
-                ).options(
-                    color=p
-                )
+                ).options(color=p)
 
-    hmap = hmap.opts(
-        norm={"framewise": True},
-        plot=dict(width=850, height=500),
-    ).overlay("short_varname").opts(legend_position="right")
+    hmap = (
+        hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500),)
+        .overlay("short_varname")
+        .opts(legend_position="right")
+    )
 
     return HVPlot(hmap)
 

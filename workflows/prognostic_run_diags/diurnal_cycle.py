@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+import xarray as xr
 
 import vcm
 
@@ -59,28 +60,29 @@ def _calc_ds_diurnal_cycle(ds):
 
     local_time = np.floor(local_time)  # equivalent to hourly binning
     ds["local_time"] = local_time
-    diurnal_ds = ds.groupby("local_time").mean()
+    diurnal_cycles = ds.groupby("local_time").mean()
 
-    return diurnal_ds
+    return diurnal_cycles
 
 
-def _add_diurnal_moisture_components(diurnal_ds):
+def _add_diurnal_moisture_components(diurnal_cycles: xr.Dataset):
     """
     Add individual moisture components for diurnal cycle plots with a long-name
     and attributes.  The naming is used by report generation to determine the
     component shorthand.  E.g., diurn_comp_<component_name>
     """
 
-    evap = vcm.latent_heat_flux_to_evaporation(diurnal_ds["LHTFLsfc"]) * SECONDS_PER_DAY
+    evap = vcm.latent_heat_flux_to_evaporation(diurnal_cycles["LHTFLsfc"])
+    evap *= SECONDS_PER_DAY
     evap.attrs = {"long_name": "Evaporation", "units": "mm/day"}
-    diurnal_ds["diurn_comp_E"] = evap
+    diurnal_cycles["diurn_comp_E"] = evap
 
-    if "column_integrated_dQ2" in diurnal_ds:
-        precip = diurnal_ds["physics_precip"] * SECONDS_PER_DAY
+    if "column_integrated_dQ2" in diurnal_cycles:
+        precip = diurnal_cycles["physics_precip"] * SECONDS_PER_DAY
 
-        dQ2 = diurnal_ds["column_integrated_dQ2"]
-        diurnal_ds["diurn_comp_-dQ2"] = -dQ2
-        diurnal_ds["diurn_comp_-dQ2"].attrs = {
+        dQ2 = diurnal_cycles["column_integrated_dQ2"]
+        diurnal_cycles["diurn_comp_-dQ2"] = -dQ2
+        diurnal_cycles["diurn_comp_-dQ2"].attrs = {
             "long_name": "<-dQ2> column integrated drying from ML",
             "units": "mm/day",
         }
@@ -89,14 +91,14 @@ def _add_diurnal_moisture_components(diurnal_ds):
             "long_name": "Total precipitation (P - dQ2)",
             "units": "mm/day",
         }
-        diurnal_ds["diurn_comp_P-dQ2"] = precip_phys_ml
+        diurnal_cycles["diurn_comp_P-dQ2"] = precip_phys_ml
     else:
-        precip = diurnal_ds["PRATEsfc"] * SECONDS_PER_DAY
+        precip = diurnal_cycles["PRATEsfc"] * SECONDS_PER_DAY
 
     precip.attrs = {"long_name": "Physics precipitation", "units": "mm/day"}
-    diurnal_ds["diurn_comp_P"] = precip
+    diurnal_cycles["diurn_comp_P"] = precip
 
-    return diurnal_ds
+    return diurnal_cycles
 
 
 def _add_diurn_comparison(prognostic_diurnal, verif_diurnal):
