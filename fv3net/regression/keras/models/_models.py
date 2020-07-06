@@ -42,7 +42,7 @@ class Model(abc.ABC):
     """
 
     @abc.abstractmethod
-    def fit(self, X: Sequence[xr.Dataset], y: Sequence[xr.Dataset]):
+    def fit(self, X: Sequence[xr.Dataset]):
         pass
 
     @abc.abstractmethod
@@ -98,7 +98,7 @@ class PackedKerasModel(Model):
         """
         pass
 
-    def fit(self, batches: Sequence[xr.Dataset],) -> None:
+    def fit(self, batches: Sequence[xr.Dataset]) -> None:
         X = _SampleSequence(self.X_packer, self.y_packer, batches)
         if self._model is None:
             features_in = X[0][0].shape[-1]
