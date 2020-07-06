@@ -14,8 +14,8 @@ import xarray as xr
 import vcm
 import load_diagnostic_data as load_diags
 
-
-FIG_SUFFIX = "_{time_index:05}.png"
+MovieArg = (xr.Dataset, str)
+FIG_SUFFIX = "_{t:05}.png"
 
 COORD_NAMES = {
     "coord_x_center": "x",
@@ -56,14 +56,13 @@ def _six_panel_heating_moistening(ds, axes):
         ax.set_title(var.replace("_", " "))
 
 
-def _save_heating_moistening_fig(time_index: int, ds: xr.Dataset, filename_format: str):
-    plotme = ds.isel(time=time_index)
-    fig_filename = filename_format.format(time_index=time_index)
+def _save_heating_moistening_fig(arg: MovieArg):
+    ds, fig_filename = arg
     fig, axes = plt.subplots(
         2, 3, figsize=(15, 5.3), subplot_kw={"projection": ccrs.Robinson()}
     )
-    _six_panel_heating_moistening(plotme, axes)
-    fig.suptitle(plotme.time.values.item())
+    _six_panel_heating_moistening(ds, axes)
+    fig.suptitle(ds.time.values.item())
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     with fsspec.open(fig_filename, "wb") as fig_file:
         fig.savefig(fig_file, dpi=100)
@@ -75,11 +74,10 @@ def _movie_funcs():
     
     Each function must have following signature:
 
-        func(time_index: int, ds: xr.Dataset, filename_format: str)
+        func(arg: MovieArg)
 
-        where time_index is the time step to be plotted, ds contains the
-        data to plotted, and filename_format is the path where func saves each
-        figure. filename_format must include {time_index} within it.
+        where arg is a tuple of an xr.Dataset containing the data to be plotted
+        and a path for where func should save the figure it generates.
     """
     return {"column_heating_moistening": _save_heating_moistening_fig}
 
@@ -102,11 +100,11 @@ if __name__ == "__main__":
 
     prognostic, _, grid = load_diags.load_physics(args.url, args.grid_spec, catalog)
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
-    prognostic = prognostic.drop_vars(GRID_VARS, errors="ignore")
-    prognostic = prognostic.merge(grid)
+    prognostic = prognostic.drop_vars(GRID_VARS, errors="ignore").merge(grid)
     T = prognostic.sizes["time"]
     for name, func in _movie_funcs().items():
         logger.info(f"Saving {T} still images for {name} movie to {args.output}")
         filename = os.path.join(args.output, name + FIG_SUFFIX)
+        func_args = [(prognostic.isel(time=t), filename.format(t=t)) for t in range(T)]
         with Pool(8) as p:
-            p.map(partial(func, ds=prognostic, filename_format=filename), range(T))
+            p.map(func, func_args)
