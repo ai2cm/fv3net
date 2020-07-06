@@ -192,8 +192,7 @@ def diurnal_component_plot(
     hmap = hmap.opts(
         norm={"framewise": True},
         plot=dict(width=850, height=500),
-        legend_position="right"
-    ).overlay("short_varname")
+    ).overlay("short_varname").opts(legend_position="right")
 
     return HVPlot(hmap)
 
