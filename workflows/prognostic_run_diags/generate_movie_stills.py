@@ -58,7 +58,7 @@ def _six_panel_heating_moistening(ds, axes):
         ax.set_title(var.replace("_", " "))
 
 
-def _save_heating_moistening_fig(t, ds, filename_prefix):
+def _save_heating_moistening_fig(t: int, ds: xr.Dataset, filename_prefix: str):
     plotme = ds.isel(time=t)
     fig_filename = filename_prefix + "_" + FIG_SUFFIX.format(t=t)
     fig, axes = plt.subplots(2, 3, figsize=(15, 5.3), subplot_kw=SUBPLOT_KW)
@@ -74,7 +74,12 @@ def _movie_funcs():
     """Return mapping of movie name to movie-still creation function.
     
     Each function must have following signature:
+
         func(time_index: int, ds: xr.Dataset, filename_prefix: str)
+
+        where time_index is the time step to be plotted, ds contains the
+        data to plotted, and filename_prefix is the full path to be used as
+        a common prefix for all the movie images.
     """
     return {"column_heating_moistening": _save_heating_moistening_fig}
 
