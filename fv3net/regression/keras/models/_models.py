@@ -12,6 +12,11 @@ logger = logging.getLogger(__file__)
 
 
 class _SampleSequence(tf.keras.utils.Sequence):
+    """
+    Wrapper object converting a sequence of batch datasets
+    to a sequence of input/output numpy arrays.
+    """
+
     def __init__(self, X_packer, y_packer, dataset_sequence):
         self.X_packer = X_packer
         self.y_packer = y_packer
@@ -32,9 +37,10 @@ def sample_from_dataset(packer, dataset):
 
 
 class Model(abc.ABC):
-    def __init__(self, input_variables, output_variables, *args, **kwargs):
-        self.X_packer = ArrayPacker(input_variables)
-        self.y_packer = ArrayPacker(output_variables)
+    """
+    Abstract base class for a machine learning model which operates on xarray
+    datasets, and is trained on sequences of such datasets.
+    """
 
     @abc.abstractmethod
     def fit(self, X: Sequence[xr.Dataset], y: Sequence[xr.Dataset]):
@@ -54,25 +60,46 @@ class Model(abc.ABC):
 
 
 class PackedKerasModel(Model):
+    """
+    Abstract base class for a keras-based model which operates on xarray
+    datasets containing a "sample" dimension (as defined by loaders.SAMPLE_DIM_NAME),
+    where each variable has at most one non-sample dimension.
+
+    Subclasses are defined primarily using a `get_model` method, which returns a
+    Keras model.
+    """
 
     MODEL_FILENAME = "model.tf"
     X_PACKER_FILENAME = "X_packer.json"
     Y_PACKER_FILENAME = "y_packer.json"
 
     def __init__(self, input_variables, output_variables):
-        super().__init__(input_variables, output_variables)
+        super().__init__()
+        self._model = None
+        self.X_packer = ArrayPacker(input_variables)
+        self.y_packer = ArrayPacker(output_variables)
 
     @property
     def model(self) -> tf.keras.Model:
+        if self._model is None:
+            raise RuntimeError("must call fit() for keras model to be available")
         return self._model
 
     @abc.abstractmethod
     def get_model(self, features_in: int, features_out: int) -> tf.keras.Model:
+        """Returns a Keras model to use as the underlying predictive model.
+
+        Args:
+            features_in: the number of input features
+            features_out: the number of output features
+
+        Returns:
+            model: a Keras model whose input shape is [n_samples, features_in] and
+                output shape is [n_samples, features_out]
+        """
         pass
 
-    def fit(
-        self, batches: Sequence[xr.Dataset],
-    ):
+    def fit(self, batches: Sequence[xr.Dataset],) -> None:
         X = _SampleSequence(self.X_packer, self.y_packer, batches)
         if self._model is None:
             features_in = X[0][0].shape[-1]
@@ -80,18 +107,16 @@ class PackedKerasModel(Model):
             self._model = self.get_model(features_in, features_out)
         self.fit_array(X)
 
-    @abc.abstractmethod
-    def fit_array(self, X: np.ndarray) -> np.ndarray:
-        pass
+    def fit_array(self, X: Sequence[Tuple[np.ndarray, np.ndarray]]) -> None:
+        return self.model.fit(X)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         return self.y_packer.unpack(self.predict_array(self.X_packer.pack(X)))
 
-    @abc.abstractmethod
-    def predict_array(self, X) -> np.ndarray:
-        pass
+    def predict_array(self, X: np.ndarray) -> np.ndarray:
+        return self.model.predict(X)
 
-    def dump(self, path):
+    def dump(self, path: str) -> None:
         with put_dir(path) as path:
             model_filename = os.path.join(path, self.MODEL_FILENAME)
             self.model.save(model_filename)
@@ -101,7 +126,7 @@ class PackedKerasModel(Model):
                 self.y_packer.dump(f)
 
     @classmethod
-    def load(cls, path):
+    def load(cls, path: str) -> Model:
         with get_dir(path) as path:
             print(os.listdir(path))
             with open(os.path.join(path, cls.X_PACKER_FILENAME), "r") as f:
@@ -117,12 +142,15 @@ class PackedKerasModel(Model):
 
 
 class DenseModel(PackedKerasModel):
+    """
+    A simple feedforward neural network model with dense layers.
+    """
+
     def __init__(
         self, input_variables, output_variables, depth=3, width=16, **hyperparameters
     ):
         self.width = width
         self.depth = depth
-        self._model = None
         super().__init__(input_variables, output_variables)
 
     def get_model(self, features_in: int, features_out: int) -> tf.keras.Model:
@@ -138,9 +166,3 @@ class DenseModel(PackedKerasModel):
         )
         model.compile(optimizer="sgd", loss="mse")
         return model
-
-    def fit_array(self, X: Sequence[Tuple[np.ndarray, np.ndarray]]):
-        return self.model.fit(X)
-
-    def predict_array(self, X: np.ndarray) -> np.ndarray:
-        return self.model.predict(X)

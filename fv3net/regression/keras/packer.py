@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Iterable, TextIO
 import loaders
 import numpy as np
 import xarray as xr
@@ -10,7 +10,18 @@ __all__ = ["ArrayPacker"]
 
 
 class ArrayPacker:
-    def __init__(self, names):
+    """
+    A class to handle converting xarray datasets to numpy arrays.
+
+    Used for ML training/prediction.
+    """
+
+    def __init__(self, names: Iterable[str]):
+        """Initialize the ArrayPacker.
+
+        Args:
+            names: variable names to pack.
+        """
         self._indices = None
         self._names = names
 
@@ -32,7 +43,7 @@ class ArrayPacker:
             )
         return unpack(array, self._indices)
 
-    def dump(self, f):
+    def dump(self, f: TextIO):
         return yaml.safe_dump(
             {
                 "indices": multiindex_to_serializable(self._indices),
@@ -42,7 +53,7 @@ class ArrayPacker:
         )
 
     @classmethod
-    def load(cls, f):
+    def load(cls, f: TextIO):
         data = yaml.safe_load(f.read())
         packer = cls(data["names"])
         packer._indices = multiindex_from_serializable(data["indices"])
