@@ -9,6 +9,7 @@ latest
 * Increase nudging run memory limits and add a high-capacity dynamic volume for nudging output
 * Add fixtures and common units tests for ML and diagnostic data mappers
 * Add diurnal cycle functions to diagnostics_utils
+* Add diagnostic variables from SHiELD and FV3GFS to new diagnostic mappers for each data sources; diagnostic mappers return net_heating and net_precipitation for the coarsened SHiELD and coarse FV3GFS diagnostics
 
 0.2.3 (2020-06-19)
 ------------------
