@@ -100,6 +100,7 @@ if __name__ == "__main__":
     prognostic, _, grid = load_diags.load_physics(args.url, args.grid_spec, catalog)
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
     prognostic = prognostic.drop_vars(GRID_VARS, errors="ignore").merge(grid)
+    prognostic = prognostic.load()  # force load
     T = prognostic.sizes["time"]
     for name, func in _movie_funcs().items():
         logger.info(f"Saving {T} still images for {name} movie to {args.output}")
