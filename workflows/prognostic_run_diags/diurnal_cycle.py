@@ -108,7 +108,7 @@ def _add_diurn_comparison(prognostic_diurnal, verif_diurnal):
 
     evap_compare = prognostic_diurnal["diurn_comp_E"] - verif_diurnal["diurn_comp_E"]
     evap_compare.attrs = {
-        "long_name": "Evaporation diurnal cycle difference [coarse - hires]",
+        "long_name": "Evaporation diurnal cycle bias [coarse - hires]",
         "units": "mm/day",
     }
     prognostic_diurnal["evap_against_verif"] = evap_compare
