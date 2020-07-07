@@ -78,7 +78,7 @@ def stack_dropnan_shuffle(
         raise ValueError(
             "No Valid samples detected. Check for errors in the training data."
         )
-    ds = ds_no_nan.load()
+    ds = ds_no_nan.transpose()
     return shuffled(ds, SAMPLE_DIM_NAME, random_state)
 
 
