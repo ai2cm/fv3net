@@ -1,11 +1,12 @@
+from datetime import datetime
 from typing import Mapping
 
-from vcm import safe
+from vcm import safe, cos_zenith_angle
 import xarray as xr
 
 from .wrapper import SklearnWrapper
 from loaders.mappers import GeoMapper
-from loaders import SAMPLE_DIM_NAME, DERIVATION_DIM
+from loaders import SAMPLE_DIM_NAME, DERIVATION_DIM, load_grid, add_cosine_zenith_angle
 
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
@@ -16,17 +17,21 @@ class SklearnPredictionMapper(GeoMapper):
         self,
         base_mapper: GeoMapper,
         sklearn_wrapped_model: SklearnWrapper,
-        init_time_dim: str = "initial_time",
+        init_time_dim: str = "time",
         z_dim: str = "z",
         rename_vars: Mapping[str, str] = None,
+        cos_z_var: str = None,
     ):
         self._base_mapper = base_mapper
         self._model = sklearn_wrapped_model
         self._init_time_dim = init_time_dim
         self._z_dim = z_dim
+        self._cos_z_var = cos_z_var
+        if self._cos_z_var:
+            self.grid = load_grid(res="c48")
         self.rename_vars = rename_vars or {}
 
-    def _predict(self, ds):
+    def _predict(self, ds: xr.Dataset) -> xr.Dataset:
         if set(self._model.input_vars_).issubset(ds.data_vars) is False:
             missing_vars = [
                 var
@@ -47,7 +52,7 @@ class SklearnPredictionMapper(GeoMapper):
         ds_pred = self._model.predict(ds_stacked, SAMPLE_DIM_NAME).unstack()
         return ds_pred.rename(self.rename_vars)
 
-    def _insert_prediction(self, ds, ds_pred):
+    def _insert_prediction(self, ds: xr.Dataset, ds_pred: xr.Dataset) -> xr.Dataset:
         predicted_vars = ds_pred.data_vars
         nonpredicted_vars = [var for var in ds.data_vars if var not in predicted_vars]
         ds_target = (
@@ -64,6 +69,8 @@ class SklearnPredictionMapper(GeoMapper):
 
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._base_mapper[key]
+        if self._cos_z_var:
+            ds = add_cosine_zenith_angle(self.grid, ds)
         ds_prediction = self._predict(ds)
         return self._insert_prediction(ds, ds_prediction)
 
