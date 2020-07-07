@@ -190,7 +190,7 @@ def load_verification(
 def _load_standardized(path):
     logger.info(f"Loading and standardizing {path}")
     m = fsspec.get_mapper(path)
-    ds = xr.open_zarr(m, consolidated=True).load()
+    ds = xr.open_zarr(m, consolidated=True)
     return standardize_gfsphysics_diagnostics(ds)
 
 
