@@ -98,7 +98,6 @@ def _args_to_hashable_key(args, kwargs):
 
 
 @add_to_input_transform_fns
-@memoize(key=_args_to_hashable_key)
 def resample_time(freq_label: str, arg: DiagArg, time_slice=slice(None, -1)) -> DiagArg:
     """
     Subset times in prognostic and verification data
@@ -135,11 +134,12 @@ def _mask_vars_with_horiz_dims(ds, surface_type, mask_var_name):
         spatial, surface_type, surface_type_var=mask_var_name
     )
 
-    return ds.update(masked)
+    non_spatial_varnames = list(set(ds.data_vars) - set(spatial_ds_varnames))
+
+    return masked.update(ds[non_spatial_varnames])
 
 
 @add_to_input_transform_fns
-@memoize(key=_args_to_hashable_key)
 def mask_to_sfc_type(
     surface_type: str, arg: DiagArg, mask_var_name: str = "SLMSKsfc"
 ) -> DiagArg:
