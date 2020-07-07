@@ -8,7 +8,7 @@ SECONDS_PER_DAY = 86400
 logger = logging.getLogger(__name__)
 
 
-def physics_variables(ds: xr.Dataset) -> xr.DataArray:
+def physics_variables(ds: xr.Dataset) -> xr.Dataset:
     """
     Compute selected derived variables from a physics dataset
     and merge them back in.
