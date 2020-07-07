@@ -144,14 +144,14 @@ class SubsetStageMonitor:
         self.logger = logging.getLogger("SubsetStageMonitor")
         self.logger.info(f"Saving stages at {self._times}")
 
-    def output_current_time(self):
+    def _output_current_time(self):
         if self._times is None:
             return True
         else:
             return self.time.strftime("%Y%m%d.%H%M%S") in self._times
 
     def store(self, state, stage):
-        if self.output_current_time():
+        if self._output_current_time():
             self.logger.info("Storing stage")
             self._monitor.store(state, stage)
 
