@@ -24,10 +24,12 @@ TEMP = "air_temperature"
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"
-REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE}
+TOTAL_PRECIP = "total_precipitation"  # has units of m
+REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE, TOTAL_PRECIP}
 
 cp = 1004
 gravity = 9.81
+m_per_mm = 1 / 1000
 
 
 def compute_diagnostics(state, diags):
@@ -64,6 +66,14 @@ def rename_diagnostics(diags):
             description=attrs["description"] + " (diagnostic only)"
         )
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
+
+
+def dq2_to_precip(column_dq2: xr.DataArray, dt: float) -> xr.DataArray:
+    """Convert column integrated dQ2 to precipitation in units of metres"""
+    ml_precip = -dt * m_per_mm * column_dq2
+    ml_precip = ml_precip.where(ml_precip > 0, 0)
+    ml_precip.attrs["units"] = "m"
+    return ml_precip
 
 
 def open_model(config):
@@ -157,6 +167,13 @@ if __name__ == "__main__":
         else:
             updated_state = apply(state, tendency, dt=TIMESTEP)
 
+        diagnostics = compute_diagnostics(state, tendency)
+        if do_only_diagnostic_ml:
+            rename_diagnostics(diagnostics)
+
+        ml_precip = dq2_to_precip(diagnostics["net_moistening"], TIMESTEP)
+        updated_state[TOTAL_PRECIP] = state[TOTAL_PRECIP] + ml_precip
+
         if rank == 0:
             logger.debug("Setting Fortran State")
         fv3gfs.set_state(
@@ -165,10 +182,6 @@ if __name__ == "__main__":
                 for key, value in updated_state.items()
             }
         )
-
-        diagnostics = compute_diagnostics(state, tendency)
-        if do_only_diagnostic_ml:
-            rename_diagnostics(diagnostics)
 
         if i == 0:
             writers = runtime.init_writers(GROUP, comm, diagnostics)
