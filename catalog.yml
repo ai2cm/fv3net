@@ -69,7 +69,7 @@ sources:
         access: read_only
       urlpath: 'gcs://vcm-ml-data/2019-10-09-SAM-SOCRATES_tend_9216x4608x74_7.5s_4km_nudge24h.zarr'
 
-  40day_c384_diags_time_avg_december2019:
+  40day_c384_diags_time_avg:
     description: Time-averaged diagnostics for 40-day nudged simulation at C384 resolution
     driver: zarr
     args:
@@ -78,7 +78,7 @@ sources:
         access: read_only
       urlpath: 'gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/gfsphysics_15min_coarse.zarr/'
 
-  40day_c384_diag_atmos_avg_december2019:
+  40day_c384_diag_atmos_avg:
     description: Time-averaged atmos diagnostics from the 40-day nudged simulation
     driver: zarr
     args:
@@ -87,7 +87,7 @@ sources:
         access: read_only
       urlpath: 'gs://vcm-ml-data/2019-12-05-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr/'
 
-  40day_1deg_atmos_8xdaily_december2019:
+  40day_1deg_atmos_8xdaily:
     description: Instantaneous 8x daily atmospheric diagnostics from the 40 day run on a lat lon grid
     driver: zarr
     args:
@@ -97,7 +97,7 @@ sources:
       urlpath: 'gs://vcm-ml-data/2019-12-12-40-day-X-SHiELD-simulation-regridded-diagnostics/atmos_8xdaily_1_degree.zarr/'
 
 
-  40day_c384_atmos_8xdaily_december2019:
+  40day_c384_atmos_8xdaily:
     description: Instantaneous 8x daily atmospheric diagnostics from the 40 day run on a C384 grid
     driver: zarr
     args:
@@ -106,8 +106,8 @@ sources:
         access: read_only
       urlpath: "gs://vcm-ml-data/2020-02-25-additional-november-C3072-simulation-C384-diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
       
-  40day_c384_diags_time_avg:
-    description: Time-averaged diagnostics for 40-day nudged simulation at C384 resolution
+  40day_c384_diags_time_avg_may2020:
+    description: Time-averaged diagnostics for 40-day nudged simulation at C384 resolution (May 27 2020 SHiELD)
     driver: zarr
     args:
       storage_options:
@@ -116,8 +116,8 @@ sources:
       urlpath: 'gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/gfsphysics_15min_coarse.zarr/'
       consolidated: True
 
-  40day_c384_diag_atmos_avg:
-    description: Time-averaged atmos diagnostics from the 40-day nudged simulation
+  40day_c384_diag_atmos_avg_may2020:
+    description: Time-averaged atmos diagnostics from the 40-day nudged simulation (May 27 2020 SHiELD)
     driver: zarr
     args:
       storage_options:
@@ -126,8 +126,8 @@ sources:
       urlpath: 'gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr/'
       consolidated: True
 
-  40day_1deg_atmos_15min:
-    description: Instantaneous 8x daily atmospheric diagnostics from the 40 day run on a lat lon grid
+  40day_1deg_atmos_15min_may2020:
+    description: Instantaneous 8x daily atmospheric diagnostics from the 40 day run on a lat lon grid (May 27 2020 SHiELD)
     driver: zarr
     args:
       storage_options:
@@ -136,8 +136,8 @@ sources:
       urlpath: 'gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-regridded-diagnostics/atmos_15min_coarse_inst_1_degree.zarr/'
       consolidated: True
 
-  40day_c384_atmos_8xdaily:
-    description: Instantaneous 8x daily atmospheric diagnostics from the 40 day run on a C384 grid
+  40day_c384_atmos_8xdaily_may2020:
+    description: Instantaneous 8x daily atmospheric diagnostics from the 40 day run on a C384 grid (May 27 2020 SHiELD)
     driver: zarr
     args:
       storage_options:
