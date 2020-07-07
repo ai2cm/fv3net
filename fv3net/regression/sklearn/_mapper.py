@@ -1,12 +1,11 @@
-from datetime import datetime
 from typing import Mapping
 
-from vcm import safe, cos_zenith_angle
+from vcm import safe, cast_to_datetime, cos_zenith_angle
 import xarray as xr
 
 from .wrapper import SklearnWrapper
 from loaders.mappers import GeoMapper
-from loaders import SAMPLE_DIM_NAME, DERIVATION_DIM, load_grid, add_cosine_zenith_angle
+from loaders import SAMPLE_DIM_NAME, DERIVATION_DIM, load_grid
 
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
@@ -28,7 +27,7 @@ class SklearnPredictionMapper(GeoMapper):
         self._z_dim = z_dim
         self._cos_z_var = cos_z_var
         if self._cos_z_var:
-            self.grid = load_grid(res="c48")
+            self._grid = load_grid(res="c48")
         self.rename_vars = rename_vars or {}
 
     def _predict(self, ds: xr.Dataset) -> xr.Dataset:
@@ -47,10 +46,15 @@ class SklearnPredictionMapper(GeoMapper):
             ds_,
             SAMPLE_DIM_NAME,
             [dim for dim in ds_.dims if dim != self._z_dim],
-            allowed_broadcast_dims=[self._z_dim, self._init_time_dim],
+            allowed_broadcast_dims=[self._z_dim],
         )
         ds_pred = self._model.predict(ds_stacked, SAMPLE_DIM_NAME).unstack()
         return ds_pred.rename(self.rename_vars)
+
+    def _insert_cos_zenith_angle(self, time_key: str, ds: xr.Dataset) -> xr.Dataset:
+        time = cast_to_datetime(time_key)
+        cos_z = cos_zenith_angle(time, self._grid["lon"], self._grid["lat"])
+        return ds.assign({self._cos_z_var: (self._grid["lon"].dims, cos_z)})
 
     def _insert_prediction(self, ds: xr.Dataset, ds_pred: xr.Dataset) -> xr.Dataset:
         predicted_vars = ds_pred.data_vars
@@ -70,7 +74,7 @@ class SklearnPredictionMapper(GeoMapper):
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._base_mapper[key]
         if self._cos_z_var:
-            ds = add_cosine_zenith_angle(self.grid, ds)
+            ds = self._insert_cos_zenith_angle(key, ds)
         ds_prediction = self._predict(ds)
         return self._insert_prediction(ds, ds_prediction)
 
