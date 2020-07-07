@@ -81,7 +81,7 @@ def add_ml_to_physics_precip(
 
     Returns:
         total precipitation [m]"""
-    ml_precip = -dt * m_per_mm * column_dq2
+    ml_precip = -column_dq2 * dt * m_per_mm
     total_precip = physics_precip + ml_precip
     total_precip = total_precip.where(total_precip >= 0, 0)
     total_precip.attrs["units"] = "m"
