@@ -145,9 +145,5 @@ if __name__ == "__main__":
     fs = get_fs(args.output_path)
     with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
         json.dump(metrics, f)
-    logger.info(f"Finished processing dataset diagnostics.")
-
-    # json of metrics, ex. RMSE and bias
-    metrics = calc_metrics(ds_batches, area=grid["area"])
-
+    logger.info(f"Finished processing dataset diagnostics and metrics.")
     logger.info(f"Finished processing dataset metrics.")
