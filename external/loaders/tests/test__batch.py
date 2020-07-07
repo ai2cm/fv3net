@@ -3,7 +3,7 @@ import pytest
 import synth
 import xarray as xr
 import numpy as np
-
+import loaders
 from loaders.batches._batch import (
     batches_from_mapper,
     diagnostic_batches_from_mapper,
@@ -55,6 +55,7 @@ def test__load_batch(mapper):
         data_vars=["air_temperature", "specific_humidity"],
         rename_variables={},
         init_time_dim_name="time",
+        cos_z_var="cos_zenith_angle",
         keys=mapper.keys(),
     )
     assert len(ds["time"]) == 4
@@ -68,6 +69,8 @@ def test_batches_from_mapper(mapper):
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
         assert set(batch.data_vars) == set(DATA_VARS)
+        for name in batch.data_vars.keys():
+            assert batch[name].dims[0] == loaders.SAMPLE_DIM_NAME
 
 
 @pytest.mark.parametrize(
