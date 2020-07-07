@@ -98,7 +98,7 @@ def append_key_label(d, suffix):
     return return_dict
 
 
-class StageMonitor:
+class StageWriter:
     def __init__(
         self,
         root_dirname: str,
@@ -107,7 +107,7 @@ class StageMonitor:
         times: Optional[Sequence[str]] = None,
     ):
         self._root_dirname = root_dirname
-        self._monitors: MutableMapping[str, SubsetMonitor] = {}
+        self._monitors: MutableMapping[str, SubsetWriter] = {}
         self._mode = mode
         self.partitioner = partitioner
         self.times = times
@@ -126,12 +126,12 @@ class StageMonitor:
             monitor = fv3gfs.ZarrMonitor(
                 store, self.partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
             )
-            self._monitors[stage_name] = SubsetMonitor(monitor, self.times)
+            self._monitors[stage_name] = SubsetWriter(monitor, self.times)
         return self._monitors[stage_name]
 
 
-class SubsetMonitor:
-    """A subsetting stage monitor """
+class SubsetWriter:
+    """Write only certain substeps"""
 
     def __init__(
         self, monitor: fv3gfs.ZarrMonitor, times: Optional[Sequence[str]] = None
@@ -146,7 +146,7 @@ class SubsetMonitor:
         self._monitor = monitor
         self._times = times
         self.time = None
-        self.logger = logging.getLogger("SubsetStageMonitor")
+        self.logger = logging.getLogger("SubsetStageWriter")
         self.logger.info(f"Saving stages at {self._times}")
 
     def _output_current_time(self, time: datetime) -> bool:
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         nudge_to_reference, timescales=nudging_timescales, timestep=timestep,
     )
 
-    monitor = StageMonitor(
+    monitor = StageWriter(
         RUN_DIR,
         partitioner,
         mode="w",
