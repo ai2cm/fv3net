@@ -68,12 +68,24 @@ def rename_diagnostics(diags):
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
 
 
-def dq2_to_precip(column_dq2: xr.DataArray, dt: float) -> xr.DataArray:
-    """Convert column integrated dQ2 to precipitation in units of metres"""
+def add_ml_to_physics_precip(
+    physics_precip: xr.DataArray, column_dq2: xr.DataArray, dt: float
+) -> xr.DataArray:
+    """Return sum of physics precipitation and ML-induced precipitation. Output is
+    thresholded to enforce positive precipitation.
+
+    Args:
+        physics_precip: precipitation from physics parameterizations [m]
+        column_dq2: column-integrated moistening from ML [kg/m^2/s]
+        dt: physics timestep [s]
+
+    Returns:
+        total precipitation [m]"""
     ml_precip = -dt * m_per_mm * column_dq2
-    ml_precip = ml_precip.where(ml_precip > 0, 0)
-    ml_precip.attrs["units"] = "m"
-    return ml_precip
+    total_precip = physics_precip + ml_precip
+    total_precip = total_precip.where(total_precip >= 0, 0)
+    total_precip.attrs["units"] = "m"
+    return total_precip
 
 
 def open_model(config):
@@ -171,8 +183,9 @@ if __name__ == "__main__":
         if do_only_diagnostic_ml:
             rename_diagnostics(diagnostics)
 
-        ml_precip = dq2_to_precip(diagnostics["net_moistening"], TIMESTEP)
-        updated_state[TOTAL_PRECIP] = state[TOTAL_PRECIP] + ml_precip
+        updated_state[TOTAL_PRECIP] = add_ml_to_physics_precip(
+            state[TOTAL_PRECIP], diagnostics["net_moistening"], TIMESTEP
+        )
 
         if rank == 0:
             logger.debug("Setting Fortran State")
