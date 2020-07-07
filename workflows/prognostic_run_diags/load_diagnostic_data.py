@@ -279,6 +279,6 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
 
     # Add mask information if not present
     if MASK_VARNAME in prognostic_output and MASK_VARNAME not in verification_c48:
-        verification_c48[MASK_VARNAME] =  prognostic_output[MASK_VARNAME].copy()
+        verification_c48[MASK_VARNAME] = prognostic_output[MASK_VARNAME].copy()
 
     return prognostic_output, verification_c48, grid_c48

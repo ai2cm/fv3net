@@ -9,8 +9,6 @@ diagnostic function arguments.
 
 import logging
 
-from toolz import memoize
-
 import vcm
 from constants import HORIZONTAL_DIMS, DiagArg
 

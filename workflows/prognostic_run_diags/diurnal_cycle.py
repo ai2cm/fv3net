@@ -112,18 +112,14 @@ def _add_diurn_bias(prognostic_diurnal, verif_diurnal):
     prognostic_precip = prognostic_diurnal["diurn_comp_P-dQ2"]
     precip_compare = prognostic_precip - verif_diurnal["diurn_comp_P"]
     precip_compare.attrs = {
-        "long_name": (
-            "Precipitation (P-<dQ2>) diurnal cycle bias [coarse - hires]"
-        ),
+        "long_name": ("Precipitation (P-<dQ2>) diurnal cycle bias [coarse - hires]"),
         "units": "mm/day",
     }
     prognostic_diurnal["precip_against_verif"] = precip_compare
 
     net_precip_compare = precip_compare - evap_compare
     net_precip_compare.attrs = {
-        "long_name": (
-            "Net precip (-<Q2>) diurnal cycle bias [coarse - hires]"
-        ),
+        "long_name": ("Net precip (-<Q2>) diurnal cycle bias [coarse - hires]"),
         "units": "mm/day",
     }
     prognostic_diurnal["net_precip_against_verif"] = net_precip_compare

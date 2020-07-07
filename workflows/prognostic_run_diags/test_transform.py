@@ -26,7 +26,7 @@ def test_transform_default_params_present_here():
 @pytest.fixture
 def input_args():
     mask = [[[0, 1], [0, 1]]]
-    
+
     ntimes = 5
     temp = [[[[0.5, 1.5], [2.5, 3.5]]]] * ntimes
     time_coord = [datetime.datetime(2016, 4, 2, i + 1, 0, 0) for i in range(ntimes)]
@@ -36,7 +36,7 @@ def input_args():
             "SLMSKsfc": (["tile", "x", "y"], mask),
             "temperature": (["time", "tile", "x", "y"], temp),
         },
-        coords={"time": time_coord}
+        coords={"time": time_coord},
     )
 
     return (ds, ds.copy(), xr.Dataset())
