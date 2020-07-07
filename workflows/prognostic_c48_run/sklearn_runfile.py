@@ -1,5 +1,5 @@
 import logging
-from typing import Mapping, Hashable, cast
+from typing import MutableMapping, Hashable, cast
 
 import fsspec
 import zarr
@@ -17,7 +17,7 @@ from mpi4py import MPI
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-State = Mapping[Hashable, xr.DataArray]
+State = MutableMapping[Hashable, xr.DataArray]
 
 # following variables are required no matter what feature set is being used
 TEMP = "air_temperature"
@@ -81,7 +81,7 @@ def add_ml_to_physics_precip(
 
     Returns:
         total precipitation [m]"""
-    ml_precip = -column_dq2 * dt * m_per_mm
+    ml_precip = -column_dq2 * dt * m_per_mm  # type: ignore
     total_precip = physics_precip + ml_precip
     total_precip = total_precip.where(total_precip >= 0, 0)
     total_precip.attrs["units"] = "m"
