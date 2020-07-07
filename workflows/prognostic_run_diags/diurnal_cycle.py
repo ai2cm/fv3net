@@ -121,7 +121,7 @@ def _add_diurn_comparison(prognostic_diurnal, verif_diurnal):
     precip_compare = prognostic_precip - verif_diurnal["diurn_comp_P"]
     precip_compare.attrs = {
         "long_name": (
-            "Precipitation diurnal cycle difference (includes ML) [coarse - hires]"
+            "Precipitation (P-<dQ2>) diurnal cycle bias [coarse - hires]"
         ),
         "units": "mm/day",
     }
