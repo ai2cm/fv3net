@@ -20,3 +20,8 @@ batch_kwargs:
   timesteps_per_batch: 2
   rename_variables:
     pfull: z
+  timesteps:
+    - "20160906.120000"
+    - "20160906.044500"
+    - "20160908.234500"
+    - "20160908.090000"
