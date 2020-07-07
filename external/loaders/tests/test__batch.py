@@ -21,7 +21,6 @@ class MockDatasetMapper:
 
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = synth.generate(self._schema).drop("initial_time")
-        ds.coords["initial_time"] = [key]
         return ds
 
     def keys(self):

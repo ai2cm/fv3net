@@ -23,7 +23,7 @@ def batches_from_geodata(
     mapping_kwargs: Optional[Mapping[str, Any]] = None,
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
-    init_time_dim_name: str = "initial_time",
+    init_time_dim_name: str = "time",
     rename_variables: Optional[Mapping[str, str]] = None,
     timesteps: Optional[Sequence[str]] = None,
 ) -> Sequence[xr.Dataset]:
@@ -41,7 +41,7 @@ def batches_from_geodata(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         init_time_dim_name (str, optional): Name of time dim in data source.
-            Defaults to "initial_time".
+            Defaults to "time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
         
     Raises:
@@ -76,7 +76,7 @@ def batches_from_mapper(
     variable_names: Iterable[str],
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
-    init_time_dim_name: str = "initial_time",
+    init_time_dim_name: str = "time",
     rename_variables: Optional[Mapping[str, str]] = None,
     timesteps: Optional[Sequence[str]] = None,
 ) -> Sequence[xr.Dataset]:
@@ -90,7 +90,7 @@ def batches_from_mapper(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         init_time_dim_name (str, optional): Name of time dim in data source.
-            Defaults to "initial_time".
+            Defaults to "time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
         timesteps: List of timesteps to use in training.
     Raises:
@@ -143,7 +143,7 @@ def diagnostic_batches_from_geodata(
     mapping_kwargs: Optional[Mapping[str, Any]] = None,
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
-    init_time_dim_name: str = "initial_time",
+    init_time_dim_name: str = "time",
     rename_variables: Optional[Mapping[str, str]] = None,
     timesteps: Optional[Sequence[str]] = None,
 ) -> Sequence[xr.Dataset]:
@@ -160,7 +160,7 @@ def diagnostic_batches_from_geodata(
         num_batches (int, optional): Defaults to None.
         random_seed (int, optional): Defaults to 0.
         init_time_dim_name (str, optional): Name of time dim in data source.
-            Defaults to "initial_time".
+            Defaults to "time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
         timesteps: List of timesteps to use in training.
 
@@ -190,7 +190,7 @@ def diagnostic_batches_from_mapper(
     variable_names: Sequence[str],
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
-    init_time_dim_name: str = "initial_time",
+    init_time_dim_name: str = "time",
     rename_variables: Mapping[str, str] = None,
     timesteps: Sequence[str] = None,
 ) -> Sequence[xr.Dataset]:
@@ -235,11 +235,6 @@ def _load_batch(
     time_coords = [datetime.strptime(key, TIME_FMT) for key in keys]
     ds = xr.concat(
         [mapper[key] for key in keys], pd.Index(time_coords, name=init_time_dim_name)
-    )
-
-    # need to use standardized time dimension name
-    rename_variables[init_time_dim_name] = rename_variables.get(
-        init_time_dim_name, TIME_NAME
     )
     ds = ds.rename(rename_variables)
 
