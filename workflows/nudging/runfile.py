@@ -100,7 +100,11 @@ def append_key_label(d, suffix):
 
 class StageMonitor:
     def __init__(
-        self, root_dirname: str, partitioner, mode="w", times: Optional[Sequence[str]] = None
+        self,
+        root_dirname: str,
+        partitioner,
+        mode="w",
+        times: Optional[Sequence[str]] = None,
     ):
         self._root_dirname = root_dirname
         self._monitors: MutableMapping[str, SubsetMonitor] = {}
