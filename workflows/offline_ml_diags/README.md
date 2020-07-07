@@ -29,7 +29,6 @@ variables:
   - pressure_thickness_of_atmospheric_layer
 mapping_function: open_nudged
 mapping_kwargs:
-  nudging_timescale_hr: 3
   initial_time_skip_hr: 0
 batch_kwargs:
   timesteps_per_batch: 5

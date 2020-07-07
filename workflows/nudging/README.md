@@ -2,7 +2,31 @@
 
 This workflow performs a nudged run, nudging to reference data stored on GCS.
 
-### Quickstart
+
+### Configuration
+
+As with the prognostic run and one-steps runs, the nudging run is configured
+by specifying an update to the base configurations in `fv3kube`. The runfile
+requires a `nudging` section within the fv3config object. This section
+contains the location of the nudging dataset as well as the nudging
+time-scales. Here is an example:
+```
+base_version: v0.4
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+initial_conditions: /mnt/input/coarsen_restarts/20160801.001500/
+nudging:
+  restarts_path: /mnt/input/coarsen_restarts/
+  timescale_hours:
+    air_temperature: 3
+    specific_humidity: 3
+    x_wind: 3
+    y_wind: 3
+    pressure_thickness_of_atmospheric_layer: 3
+namelist: {}
+```
+
+
+### Local Development
 
 Pull the docker image from GCS, if you don't have it already:
 
@@ -14,57 +38,17 @@ Run the workflow:
 
 The output directory should now be present in `output`.
 
-### Running on Kubernetes
+If you want to run the workflow on a different image, you can set `IMG_NAME`
+and `IMG_VERSION` when you call `make`.
 
-The workflow can be submitted to kubernetes using:
-
-    make run_kubernetes
-
-You should probably specify the remote output directory to use, as follows:
-
-    REMOTE_ROOT=gs://my-bucket/ make run_kubernetes
+### Running with argo
 
 
-### Running with the orchestrator
+Argo expects to be passed the contents of nudging configuration as a string.
+This can either be done using `argo submit -f <argo config>` where `<argo
+config>` is similar to `examples/argo_clouds_off.yaml`. Or, you can use the
+`-p` flag of argo submit:
 
-The workflow can also be executed within the end-to-end orchestration.  In
-the `end-to-end.yaml` file a `nudging` section should be added / updated 
-under `steps_config` and the step name added to `steps_to_run`, e.g.: 
+    argo submit -p output-url=gs://path -p nudging-config="$(cat nudging_config.yaml)"
 
-    storage_proto: gs
-    storage_root: vcm-ml-scratch/testing-andrep
-    experiment:
-        name: test-nudging-workflow
-        unique_id: false
-        steps_to_run:
-            - nudging
-            - train_sklearn_model
-            - prognostic_run
-    
-        steps_config:
-
-            nudging:
-                command: bash workflows/nudging/orchestrate_submit.sh
-                args:
-                    nudge_config: $CONFIG/nudging_config.yaml
-                    nudge_timescale_hr: 3
-                    fv3gfs_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.1
-
-            ...
-
-Note that there is no need for a "create training" when using nudging 
-unlike the "one-step" end-to-end workflow.
-
-### Configuration
-
-The reference restart location and variables to nudge are stored in `fv3config_base.yml`.
-The nudging timescales in that file are ignored, and instead replaced with the
-TIMESCALE_HOURS variable set in the makefile (which you can pass manually).
-
-### More details
-
-The nudging and run are configured in `fv3config_base.yml`. This gets converted into
-`fv3config.yml` automatically in order to specify the full filenames for initial
-conditions on GCS that has been prepended with the timestamp.
-
-If you want to run the workflow on a different image, you can set `IMG_NAME` and `IMG_VERSION` when you call `make`.
+See the `argo.yaml` file for the available workflow parameters.
