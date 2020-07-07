@@ -1,3 +1,4 @@
+from datetime import datetime
 import numpy as np
 import pytest
 import xarray as xr
@@ -5,6 +6,7 @@ from loaders._utils import (
     shuffled,
     _get_chunk_indices,
     stack_dropnan_shuffle,
+    add_cosine_zenith_angle,
 )
 
 
@@ -91,3 +93,24 @@ def test_shuffled():
 def test_shuffled_dask():
     dataset = _stacked_dataset("sample").chunk()
     shuffled(dataset, "sample", np.random.RandomState(1))
+
+
+def test_add_cosine_zenith_angle():
+    grid = xr.Dataset(
+        {
+            "lon": xr.DataArray([45.0], dims=["x"], coords={"x": [0]}),
+            "lat": xr.DataArray([45.0], dims=["x"], coords={"x": [0]}),
+        }
+    )
+    ds = xr.Dataset(
+        {
+            "var": xr.DataArray(
+                [[0.0], [0.0]],
+                dims=["time", "x"],
+                coords={"time": [datetime(2020, 7, 6), datetime(2020, 7, 7)], "x": [0]},
+            )
+        }
+    )
+    cos_z_var = "cos_zenith_angle"
+    ds = add_cosine_zenith_angle(grid, cos_z_var, ds)
+    assert set(ds.data_vars) == {"var", cos_z_var}
