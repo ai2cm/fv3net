@@ -45,7 +45,7 @@ def calc_diagnostics(prognostic, verification, grid):
     prog_diurnal_ds = _add_diurnal_moisture_components(prog_diurnal_ds)
     verif_diurnal_ds = _add_diurnal_moisture_components(verif_diurnal_ds)
 
-    prog_diurnal_ds = _add_diurn_comparison(prog_diurnal_ds, verif_diurnal_ds)
+    prog_diurnal_ds = _add_diurn_bias(prog_diurnal_ds, verif_diurnal_ds)
 
     return prog_diurnal_ds
 
@@ -101,7 +101,7 @@ def _add_diurnal_moisture_components(diurnal_cycles: xr.Dataset):
     return diurnal_cycles
 
 
-def _add_diurn_comparison(prognostic_diurnal, verif_diurnal):
+def _add_diurn_bias(prognostic_diurnal, verif_diurnal):
     """
     Add comparisons of diurnal cycle against verification data for plotting
     """
