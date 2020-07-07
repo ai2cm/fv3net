@@ -3,7 +3,7 @@ import pytest
 import synth
 import xarray as xr
 import numpy as np
-import loaders
+
 from loaders.batches._batch import (
     batches_from_mapper,
     diagnostic_batches_from_mapper,
@@ -17,11 +17,10 @@ Z_DIM_SIZE = 79
 class MockDatasetMapper:
     def __init__(self, schema: synth.DatasetSchema):
         self._schema = schema
-        self._keys = [f"2020050{i}.000000" for i in range(4)]
+        self._keys = [f"2000050{i+1}.000000" for i in range(4)]
 
     def __getitem__(self, key: str) -> xr.Dataset:
-        ds = synth.generate(self._schema)
-        ds.coords["initial_time"] = [key]
+        ds = synth.generate(self._schema).drop("initial_time")
         return ds
 
     def keys(self):
@@ -69,8 +68,6 @@ def test_batches_from_mapper(mapper):
     for i, batch in enumerate(batched_data_sequence):
         assert len(batch["z"]) == Z_DIM_SIZE
         assert set(batch.data_vars) == set(DATA_VARS)
-        for name in batch.data_vars.keys():
-            assert batch[name].dims[0] == loaders.SAMPLE_DIM_NAME
 
 
 @pytest.mark.parametrize(

@@ -1,14 +1,15 @@
+from datetime import datetime
 import functools
 import logging
 from numpy.random import RandomState
 import pandas as pd
 from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional
 import xarray as xr
-from vcm import safe, parse_datetime_from_str
-from toolz import partition
+from vcm import safe
+from toolz import partition, compose
 from ._sequences import FunctionOutputSequence
-from .._utils import stack_dropnan_shuffle
-from ..constants import TIME_NAME
+from .._utils import stack_dropnan_shuffle, load_grid, add_cosine_zenith_angle
+from ..constants import TIME_FMT, COS_Z_VAR
 import loaders
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ def batches_from_geodata(
     mapping_kwargs: Optional[Mapping[str, Any]] = None,
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
-    init_time_dim_name: str = "initial_time",
+    init_time_dim_name: str = "time",
     rename_variables: Optional[Mapping[str, str]] = None,
     timesteps: Optional[Sequence[str]] = None,
 ) -> Sequence[xr.Dataset]:
@@ -40,7 +41,7 @@ def batches_from_geodata(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         init_time_dim_name (str, optional): Name of time dim in data source.
-            Defaults to "initial_time".
+            Defaults to "time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
         
     Raises:
@@ -75,7 +76,7 @@ def batches_from_mapper(
     variable_names: Iterable[str],
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
-    init_time_dim_name: str = "initial_time",
+    init_time_dim_name: str = "time",
     rename_variables: Optional[Mapping[str, str]] = None,
     timesteps: Optional[Sequence[str]] = None,
 ) -> Sequence[xr.Dataset]:
@@ -89,7 +90,7 @@ def batches_from_mapper(
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
         init_time_dim_name (str, optional): Name of time dim in data source.
-            Defaults to "initial_time".
+            Defaults to "time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
         timesteps: List of timesteps to use in training.
     Raises:
@@ -115,13 +116,21 @@ def batches_from_mapper(
     times = _sample(timesteps, num_times, random_state)
     batched_timesteps = list(partition(timesteps_per_batch, times))
 
-    transform = functools.partial(
-        stack_dropnan_shuffle, init_time_dim_name, random_state
-    )
     load_batch = functools.partial(
         _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
     )
-    seq = FunctionOutputSequence(lambda x: transform(load_batch(x)), batched_timesteps)
+
+    transform = functools.partial(
+        stack_dropnan_shuffle, init_time_dim_name, random_state
+    )
+    if COS_Z_VAR in variable_names:
+        grid = load_grid()
+        insert_cos_z = functools.partial(add_cosine_zenith_angle, grid)
+        batch_func = compose(transform, insert_cos_z, load_batch)
+    else:
+        batch_func = compose(transform, load_batch)
+
+    seq = FunctionOutputSequence(batch_func, batched_timesteps)
     seq.attrs["times"] = times
 
     return seq
@@ -134,7 +143,7 @@ def diagnostic_batches_from_geodata(
     mapping_kwargs: Optional[Mapping[str, Any]] = None,
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
-    init_time_dim_name: str = "initial_time",
+    init_time_dim_name: str = "time",
     rename_variables: Optional[Mapping[str, str]] = None,
     timesteps: Optional[Sequence[str]] = None,
 ) -> Sequence[xr.Dataset]:
@@ -151,7 +160,7 @@ def diagnostic_batches_from_geodata(
         num_batches (int, optional): Defaults to None.
         random_seed (int, optional): Defaults to 0.
         init_time_dim_name (str, optional): Name of time dim in data source.
-            Defaults to "initial_time".
+            Defaults to "time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
         timesteps: List of timesteps to use in training.
 
@@ -181,7 +190,7 @@ def diagnostic_batches_from_mapper(
     variable_names: Sequence[str],
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
-    init_time_dim_name: str = "initial_time",
+    init_time_dim_name: str = "time",
     rename_variables: Mapping[str, str] = None,
     timesteps: Sequence[str] = None,
 ) -> Sequence[xr.Dataset]:
@@ -201,7 +210,13 @@ def diagnostic_batches_from_mapper(
     load_batch = functools.partial(
         _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
     )
-    seq = FunctionOutputSequence(load_batch, batched_timesteps)
+    if COS_Z_VAR in variable_names:
+        grid = load_grid()
+        insert_cos_z = functools.partial(add_cosine_zenith_angle, grid)
+        batch_func = compose(insert_cos_z, load_batch)
+    else:
+        batch_func = load_batch
+    seq = FunctionOutputSequence(batch_func, batched_timesteps)
     seq.attrs["times"] = times
     return seq
 
@@ -217,15 +232,12 @@ def _load_batch(
     init_time_dim_name: str,
     keys: Iterable[Hashable],
 ) -> xr.Dataset:
-    datetime_coords = [parse_datetime_from_str(key) for key in keys]
+    time_coords = [datetime.strptime(key, TIME_FMT) for key in keys]
     ds = xr.concat(
-        [mapper[key] for key in keys],
-        pd.Index(datetime_coords, name=init_time_dim_name),
-    )
-    # need to use standardized time dimension name
-    rename_variables[init_time_dim_name] = rename_variables.get(
-        init_time_dim_name, TIME_NAME
+        [mapper[key] for key in keys], pd.Index(time_coords, name=init_time_dim_name)
     )
     ds = ds.rename(rename_variables)
-    ds = safe.get_variables(ds, data_vars)
+
+    # cos z is special case of feature that is not present in dataset
+    ds = safe.get_variables(ds, [var for var in data_vars if var != COS_Z_VAR])
     return ds
