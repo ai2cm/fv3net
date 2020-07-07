@@ -22,7 +22,7 @@ sys.path.append(FILE_DIR)
 
 
 if __name__ == "__main__":
-  
+
     args = parse_args()
 
     with open(args.config, "r") as f:
