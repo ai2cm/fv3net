@@ -74,35 +74,58 @@ def test_weighted_averaged_no_dims():
     xr.testing.assert_allclose(utils.weighted_average(da, weights), expected)
 
 
-enumeration = {"land": 1, "sea": 0}
+surface_type_enumeration = {"land": 1, "sea": 0}
+net_precipitation_enumeration = {
+    "negative_net_precipitation": -np.inf,
+    "positive_net_precipitation": 0,
+}
 
 
 @pytest.mark.parametrize(
-    "float_mask,enumeration,atol,expected",
+    "da,enumeration,boolean_func,boolean_func_kwargs,expected",
     [
-        (
+        pytest.param(
             xr.DataArray([1.0, 0.0], dims=["x"]),
-            enumeration,
-            1e-7,
+            surface_type_enumeration,
+            np.isclose,
+            {"atol": 1e-7},
             xr.DataArray(["land", "sea"], dims=["x"]),
+            id="isclose near exact",
         ),
-        (
+        pytest.param(
             xr.DataArray([1.0000001, 0.0], dims=["x"]),
-            enumeration,
-            1e-7,
+            surface_type_enumeration,
+            np.isclose,
+            {"atol": 1e-7},
             xr.DataArray(["land", "sea"], dims=["x"]),
+            id="isclose near atol",
         ),
-        (
+        pytest.param(
             xr.DataArray([1.0001, 0.0], dims=["x"]),
-            enumeration,
-            1e-7,
+            surface_type_enumeration,
+            np.isclose,
+            {"atol": 1e-7},
             xr.DataArray([np.nan, "sea"], dims=["x"]),
+            id="isclose outside atol",
+        ),
+        pytest.param(
+            xr.DataArray([-1, 1], dims=["x"]),
+            net_precipitation_enumeration,
+            np.greater_equal,
+            None,
+            xr.DataArray(
+                ["negative_net_precipitation", "positive_net_precipitation"], dims=["x"]
+            ),
+            id="lessthan outside atol",
         ),
     ],
 )
-def test_snap_mask_to_type(float_mask, enumeration, atol, expected):
+def test_values_da_to_type(
+    da, enumeration, boolean_func, boolean_func_kwargs, expected
+):
     xr.testing.assert_equal(
-        utils.snap_mask_to_type(float_mask, enumeration, atol), expected
+        utils.values_da_to_type(da, enumeration, boolean_func, boolean_func_kwargs),
+        expected,
     )
 
 

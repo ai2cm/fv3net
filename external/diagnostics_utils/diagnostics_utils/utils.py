@@ -1,9 +1,9 @@
-from .config import VARNAMES, SURFACE_TYPE_ENUMERATION
+from .config import VARNAMES, SURFACE_TYPE_ENUMERATION, NET_PRECIPITATION_ENUMERATION
 from vcm import thermo, safe
 import xarray as xr
 import numpy as np
 import logging
-from typing import Sequence, Mapping, Union
+from typing import Sequence, Mapping, Union, Callable, Any
 
 looger = logging.getLogger(__name__)
 
@@ -33,18 +33,19 @@ def reduce_to_diagnostic(
     ds = xr.concat(ds_batches, dim=TIME_DIM)
     ds = insert_column_integrated_vars(ds, primary_vars)
     ds = _rechunk_time_z(ds)
-    ds_time_averaged = ds.mean(dim=TIME_DIM, keep_attrs=True)
-    ds_time_averaged = ds_time_averaged.drop_vars(
-        names=UNINFORMATIVE_COORDS, errors="ignore"
-    )
 
     grid = grid.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
-    surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
+    surface_type_array = values_da_to_type(
+        grid[VARNAMES["surface_type"]],
+        SURFACE_TYPE_ENUMERATION,
+        np.isclose,
+        boolean_func_kwargs={"atol": 1e-7},
+    )
 
-    conditional_datasets = {}
+    domain_datasets = {}
     for surface_type in domains:
         varname = f"{surface_type}_average"
-        conditional_datasets[varname] = conditional_average(
+        domain_datasets[varname] = conditional_average(
             safe.get_variables(ds_time_averaged, primary_vars),
             surface_type_array,
             surface_type,
@@ -52,10 +53,17 @@ def reduce_to_diagnostic(
         )
 
     domain_ds = xr.concat(
-        [dataset for dataset in conditional_datasets.values()], dim="domain"
-    ).assign_coords({"domain": (["domain"], [*conditional_datasets.keys()])})
+        [dataset for dataset in domain_datasets.values()], dim="domain"
+    ).assign_coords({"domain": (["domain"], [*domain_datasets.keys()])})
 
-    return xr.merge([domain_ds, ds_time_averaged.drop(labels=primary_vars)])
+    ds = xr.merge([domain_ds, ds_time_averaged.drop(labels=primary_vars)])
+
+    ds_time_averaged = ds.mean(dim=TIME_DIM, keep_attrs=True)
+    ds_time_averaged = ds_time_averaged.drop_vars(
+        names=UNINFORMATIVE_COORDS, errors="ignore"
+    )
+
+    return
 
 
 def insert_column_integrated_vars(
@@ -102,7 +110,7 @@ def conditional_average(
     
     Args:
         ds: xr dataarray or dataset of variables to averaged conditionally
-        surface_type_array: xr datarray of surface type category strings
+        cell_categorical_array: xr datarray of cell category strings
         surface_type: str of surface type over which to conditionally average
         area: xr datarray of grid cell areas for weighted averaging
         dims: dimensions to average over
@@ -160,29 +168,36 @@ def weighted_average(
     )
 
 
-def snap_mask_to_type(
-    float_mask: xr.DataArray,
-    enumeration: Mapping[str, float] = SURFACE_TYPE_ENUMERATION,
-    atol: float = 1e-7,
+def values_da_to_type(
+    da: xr.DataArray,
+    enumeration: Mapping[str, float],
+    boolean_func: Callable[..., np.ndarray],
+    boolean_func_kwargs: Mapping[str, Any] = None,
 ) -> xr.DataArray:
     """Convert float surface type array to categorical surface type array
     
     Args:
-        float_mask: xr dataarray of float cell types
-        enumeration: mapping of surface type str names to float values
-        atol: absolute tolerance of float value matching
+        da: xr.DataArray of numerical values
+        enumeration: mapping of categorical string types to array values
+        boolean_func: callable used to map a numerical array to a boolean array
+            for a particular value, e.g., np.isclose(arr, value)
+        boolean_func_kwargs: dict of args to be passed to boolean_func
             
     Returns:
-        types: xr dataarray of str categorical cell types
+        types: xr dataarray of categorical str type
     
     """
 
-    types = np.full(float_mask.shape, np.nan)
+    boolean_func_kwargs = boolean_func_kwargs or {}
+
+    types = np.full(da.values.shape, np.nan)
     for type_name, type_number in enumeration.items():
         types = np.where(
-            np.isclose(float_mask.values, type_number, atol), type_name, types
+            boolean_func(da.values, type_number, **boolean_func_kwargs),
+            type_name,
+            types,
         )
 
-    types = xr.DataArray(types, float_mask.coords, float_mask.dims)
+    type_da = xr.DataArray(types, da.coords, da.dims)
 
-    return types
+    return type_da
