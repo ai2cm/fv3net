@@ -80,19 +80,21 @@ def _add_diurnal_moisture_components(diurnal_cycles: xr.Dataset):
     precip.attrs = {"long_name": "Physics precipitation", "units": "mm/day"}
     diurnal_cycles["diurn_comp_P"] = precip
 
-    dQ2 = diurnal_cycles["column_integrated_dQ2"]
-    diurnal_cycles["diurn_comp_-dQ2"] = -dQ2
-    diurnal_cycles["diurn_comp_-dQ2"].attrs = {
-        "long_name": "<-dQ2> column integrated drying from ML",
-        "units": "mm/day",
-    }
+    # no dQ2 in verification data
+    if "column_integrated_dQ2" in diurnal_cycles:
+        dQ2 = diurnal_cycles["column_integrated_dQ2"]
+        diurnal_cycles["diurn_comp_-dQ2"] = -dQ2
+        diurnal_cycles["diurn_comp_-dQ2"].attrs = {
+            "long_name": "<-dQ2> column integrated drying from ML",
+            "units": "mm/day",
+        }
 
-    precip_phys_ml = precip - dQ2
-    precip_phys_ml.attrs = {
-        "long_name": "Total precipitation (P - dQ2)",
-        "units": "mm/day",
-    }
-    diurnal_cycles["diurn_comp_P-dQ2"] = precip_phys_ml
+        precip_phys_ml = precip - dQ2
+        precip_phys_ml.attrs = {
+            "long_name": "Total precipitation (P - dQ2)",
+            "units": "mm/day",
+        }
+        diurnal_cycles["diurn_comp_P-dQ2"] = precip_phys_ml
 
     return diurnal_cycles
 
