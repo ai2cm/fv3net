@@ -235,7 +235,7 @@ def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     # open verification
     logger.info("Opening verification data")
     verification_c48 = load_verification(
-        ["40day_c384_atmos_8xdaily"], catalog, coarsening_factor=8, area=grid_c384.area
+        ["40day_c384_atmos_8xdaily_may2020"], catalog, coarsening_factor=8, area=grid_c384.area
     )
 
     # open prognostic run data
@@ -268,7 +268,7 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
 
     # open verification
     verification_c48 = load_verification(
-        ["40day_c384_diags_time_avg"], catalog, coarsening_factor=8, area=grid_c384.area
+        ["40day_c384_diags_time_avg_may2020"], catalog, coarsening_factor=8, area=grid_c384.area
     )
     verification_c48 = add_derived.physics_variables(verification_c48)
 
