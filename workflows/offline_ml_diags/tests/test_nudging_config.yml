@@ -10,4 +10,3 @@ mapping_kwargs:
   i_start: 0
 batch_kwargs:
   timesteps_per_batch: 2
-  init_time_dim_name: "initial_time"

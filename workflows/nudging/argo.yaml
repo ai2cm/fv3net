@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: steps-
+  generateName: argo-nudging-
 spec:
   arguments:
     parameters:
@@ -23,9 +23,6 @@ spec:
           requests:
             storage: 1333Gi
   volumes:
-    - name: nudging-config
-      configMap:
-        name: $NUDGING_CM
     - name: restart-data
       persistentVolumeClaim:
         claimName: '{{workflow.parameters.restart-pvc}}'
@@ -38,12 +35,13 @@ spec:
       steps:
         - - template: prepare-config
             name: prepare-config
-        - - name: hello1
+        - - name: run-model
             template: fv3gfs
-        - - name: hello2a
+        - - name: upload-outputs
             template: upload-data
     - name: prepare-config
       container:
+        # need to run as root to read the mounted PVC
         securityContext:
           allowPrivilegeEscalation: false
           runAsUser: 0

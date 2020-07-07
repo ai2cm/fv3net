@@ -2,11 +2,10 @@ import os
 import tempfile
 import numpy as np
 import xarray as xr
-import intake
 import pytest
 from distutils import dir_util
 
-from .core import load, generate
+from .core import load, generate, Range
 
 
 timestep1 = "20160801.001500"
@@ -173,12 +172,13 @@ def data_source_path(dataset_fixtures_dir, data_source_name):
 
 
 @pytest.fixture
-def grid_dataset():
-
-    cat = intake.open_catalog("catalog.yml")
-    grid = cat["grid/c48"].to_dask()
-    grid = grid.drop_vars(names=["y_interface", "y", "x_interface", "x"])
-    surface_type = cat["landseamask/c48"].to_dask()
-    surface_type = surface_type.drop_vars(names=["y", "x"])
-
-    return grid.merge(surface_type)
+def grid_dataset(dataset_fixtures_dir):
+    random = np.random.RandomState(0)
+    with open(str(dataset_fixtures_dir.join("grid_schema.json"))) as f:
+        grid_schema = load(f)
+    grid_ranges = {"area": Range(1, 2)}
+    grid = generate(grid_schema, ranges=grid_ranges).load()
+    grid["land_sea_mask"][:] = random.choice(
+        [0, 1, 2], size=grid["land_sea_mask"].shape
+    )
+    return grid
