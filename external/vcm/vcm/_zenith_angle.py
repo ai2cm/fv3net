@@ -38,13 +38,13 @@ import numpy as np
 from typing import Union
 import xarray as xr
 
-RAD_PER_DEG = np.pi / 180.
+RAD_PER_DEG = np.pi / 180.0
 
 
 def cos_zenith_angle(
-        model_time: datetime,
-        lon: Union[float, xr.DataArray],
-        lat: Union[float, xr.DataArray]
+    model_time: datetime,
+    lon: Union[float, xr.DataArray],
+    lat: Union[float, xr.DataArray],
 ):
     """
     Sun-zenith angle for lon, lat at model_time.

@@ -1,4 +1,5 @@
 SAMPLE_DIM_NAME = "sample"
+COS_Z_VAR = "cos_zenith_angle"
 TIME_NAME = "time"
 TIME_FMT = "%Y%m%d.%H%M%S"
 DERIVATION_DIM = "derivation"

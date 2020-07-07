@@ -8,8 +8,8 @@ import xarray as xr
 from vcm import safe
 from toolz import partition, compose
 from ._sequences import FunctionOutputSequence
-from .._utils import stack_dropnan_shuffle, load_grid, add_grid_dependent_features
-from ..constants import TIME_NAME, TIME_FMT
+from .._utils import stack_dropnan_shuffle, load_grid, add_cosine_zenith_angle
+from ..constants import TIME_NAME, TIME_FMT, COS_Z_VAR
 import loaders
 
 logger = logging.getLogger(__name__)
@@ -116,19 +116,21 @@ def batches_from_mapper(
     times = _sample(timesteps, num_times, random_state)
     batched_timesteps = list(partition(timesteps_per_batch, times))
 
-    grid = load_grid()
-    insert_grid_dependent_features = functools.partial(
-        add_grid_dependent_features, grid, variable_names
-    )
-    transform = functools.partial(
-        stack_dropnan_shuffle, init_time_dim_name, random_state
-    )
     load_batch = functools.partial(
         _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
     )
-    seq = FunctionOutputSequence(
-        compose(load_batch, transform, insert_grid_dependent_features),
-        batched_timesteps)
+
+    transform = functools.partial(
+        stack_dropnan_shuffle, init_time_dim_name, random_state
+    )
+    if COS_Z_VAR in variable_names:
+        grid = load_grid()
+        insert_cos_z = functools.partial(add_cosine_zenith_angle, grid)
+        batch_func = compose(transform, insert_cos_z, load_batch)
+    else:
+        batch_func = compose(transform, load_batch)
+
+    seq = FunctionOutputSequence(batch_func, batched_timesteps)
     seq.attrs["times"] = times
 
     return seq
@@ -205,14 +207,16 @@ def diagnostic_batches_from_mapper(
     times = _sample(timesteps, num_times, random_state)
     batched_timesteps = list(partition(timesteps_per_batch, times))
 
-    grid = load_grid()
-    insert_grid_dependent_features = functools.partial(
-        add_grid_dependent_features, grid, variable_names
-    )
     load_batch = functools.partial(
         _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
     )
-    seq = FunctionOutputSequence(compose(load_batch, insert_grid_dependent_features), batched_timesteps)
+    if COS_Z_VAR in variable_names:
+        grid = load_grid()
+        insert_cos_z = functools.partial(add_cosine_zenith_angle, grid)
+        batch_func = compose(insert_cos_z, load_batch)
+    else:
+        batch_func = load_batch
+    seq = FunctionOutputSequence(batch_func, batched_timesteps)
     seq.attrs["times"] = times
     return seq
 
@@ -229,14 +233,14 @@ def _load_batch(
     keys: Iterable[Hashable],
 ) -> xr.Dataset:
     time_coords = [datetime.strptime(key, TIME_FMT) for key in keys]
-    ds = xr.concat(
-        [mapper[key] for key in keys],
-        pd.Index(time_coords, name=init_time_dim_name)
-    )
+    ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=init_time_dim_name))
+    
     # need to use standardized time dimension name
     rename_variables[init_time_dim_name] = rename_variables.get(
         init_time_dim_name, TIME_NAME
     )
     ds = ds.rename(rename_variables)
-    ds = safe.get_variables(ds, data_vars)
+
+    # cos z is special case of feature that is not present in dataset
+    ds = safe.get_variables(ds, [var for var in data_vars if var != COS_Z_VAR])
     return ds
