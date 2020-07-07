@@ -9,7 +9,7 @@ from vcm import safe
 from toolz import partition, compose
 from ._sequences import FunctionOutputSequence
 from .._utils import stack_dropnan_shuffle, load_grid, add_cosine_zenith_angle
-from ..constants import TIME_NAME, TIME_FMT, COS_Z_VAR
+from ..constants import TIME_FMT, COS_Z_VAR
 import loaders
 
 logger = logging.getLogger(__name__)

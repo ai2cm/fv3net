@@ -5,9 +5,6 @@ hyperparameters:
 input_variables:
   - air_temperature
   - specific_humidity
-  - land_sea_mask
-  - surface_geopotential
-  - cos_zenith_angle
 output_variables:
   - dQ1
   - dQ2
