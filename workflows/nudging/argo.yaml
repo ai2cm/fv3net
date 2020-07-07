@@ -41,6 +41,7 @@ spec:
             template: upload-data
     - name: prepare-config
       container:
+        # need to run as root to read the mounted PVC
         securityContext:
           allowPrivilegeEscalation: false
           runAsUser: 0
