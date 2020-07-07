@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: steps-
+  generateName: argo-nudging-
 spec:
   arguments:
     parameters:
@@ -41,6 +41,7 @@ spec:
             template: upload-data
     - name: prepare-config
       container:
+        # need to run as root to read the mounted PVC
         securityContext:
           allowPrivilegeEscalation: false
           runAsUser: 0
