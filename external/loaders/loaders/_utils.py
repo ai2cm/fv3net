@@ -1,9 +1,7 @@
-import cftime
-from datetime import datetime
 import numpy as np
 from numpy.random import RandomState
 import intake
-from typing import Tuple, Union
+from typing import Tuple
 import xarray as xr
 import vcm
 from vcm import safe
