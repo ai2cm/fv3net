@@ -25,6 +25,7 @@ DIM_RENAME_INVERSE_MAP = {
 }
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 _DIAG_OUTPUT_LOADERS = []
+MASK_VARNAME = "SLMSKsfc"
 
 
 def _adjust_tile_range(ds: xr.Dataset) -> xr.Dataset:
@@ -275,5 +276,9 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
     prognostic_output = add_derived.physics_variables(prognostic_output)
+
+    # Add mask information if not present
+    if MASK_VARNAME in prognostic_output and MASK_VARNAME not in verification_c48:
+        verification_c48[MASK_VARNAME] =  prognostic_output[MASK_VARNAME].copy()
 
     return prognostic_output, verification_c48, grid_c48
