@@ -1,21 +1,28 @@
-from .config import VARNAMES, SURFACE_TYPE_ENUMERATION, NET_PRECIPITATION_ENUMERATION
+from .config import (
+    VARNAMES,
+    SURFACE_TYPE_ENUMERATION,
+    NET_PRECIPITATION_ENUMERATION,
+    DOMAINS,
+    PRIMARY_VARS,
+)
 from vcm import thermo, safe
 import xarray as xr
 import numpy as np
 import logging
 from typing import Sequence, Mapping, Union, Callable, Any
 
-looger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 UNINFORMATIVE_COORDS = ["tile", "z", "y", "x"]
 TIME_DIM = "time"
+DERIVATION_DIM = "derivation"
 
 
 def reduce_to_diagnostic(
     ds_batches: Sequence[xr.Dataset],
     grid: xr.Dataset,
-    domains: Sequence[str] = SURFACE_TYPE_ENUMERATION.keys(),
-    primary_vars: Sequence[str] = ["dQ1", "pQ1", "dQ2", "pQ2"],
+    domains: Sequence[str] = DOMAINS,
+    primary_vars: Sequence[str] = PRIMARY_VARS,
 ) -> xr.Dataset:
     """Reduce a sequence of batches to a diagnostic dataset
     
@@ -30,7 +37,9 @@ def reduce_to_diagnostic(
         diagnostic_ds: xarray dataset of reduced diagnostic variables
     """
 
-    ds = xr.concat(ds_batches, dim=TIME_DIM)
+    ds = xr.concat(ds_batches, dim=TIME_DIM).drop_vars(
+        names=UNINFORMATIVE_COORDS, errors="ignore"
+    )
     ds = insert_column_integrated_vars(ds, primary_vars)
     ds = _rechunk_time_z(ds)
 
@@ -42,28 +51,31 @@ def reduce_to_diagnostic(
         boolean_func_kwargs={"atol": 1e-7},
     )
 
+    net_precipitation_SHiELD = ds["net_precipitation"].sel(
+        {DERIVATION_DIM: "coarsened_SHiELD"}
+    )
+    net_precipitation_type_array = values_da_to_type(
+        net_precipitation_SHiELD, NET_PRECIPITATION_ENUMERATION, np.greater_equal
+    )
+
     domain_datasets = {}
-    for surface_type in domains:
-        varname = f"{surface_type}_average"
+    for category in domains:
+        varname = f"{category}_average"
+        if "net_precipitation" in category:
+            cell_type = net_precipitation_type_array
+        else:
+            cell_type = surface_type_array
         domain_datasets[varname] = conditional_average(
-            safe.get_variables(ds_time_averaged, primary_vars),
-            surface_type_array,
-            surface_type,
-            grid["area"],
+            safe.get_variables(ds, primary_vars), cell_type, category, grid["area"],
         )
 
     domain_ds = xr.concat(
         [dataset for dataset in domain_datasets.values()], dim="domain"
     ).assign_coords({"domain": (["domain"], [*domain_datasets.keys()])})
 
-    ds = xr.merge([domain_ds, ds_time_averaged.drop(labels=primary_vars)])
+    ds = xr.merge([domain_ds, ds.drop(labels=primary_vars)])
 
-    ds_time_averaged = ds.mean(dim=TIME_DIM, keep_attrs=True)
-    ds_time_averaged = ds_time_averaged.drop_vars(
-        names=UNINFORMATIVE_COORDS, errors="ignore"
-    )
-
-    return
+    return ds.mean(dim=TIME_DIM, keep_attrs=True)
 
 
 def insert_column_integrated_vars(
@@ -101,8 +113,8 @@ def _rechunk_time_z(
 
 def conditional_average(
     ds: Union[xr.Dataset, xr.DataArray],
-    surface_type_array: xr.DataArray,
-    surface_type: str,
+    cell_type_array: xr.DataArray,
+    category: str,
     area: xr.DataArray,
     dims: Sequence[str] = ["tile", "y", "x"],
 ) -> xr.Dataset:
@@ -110,8 +122,8 @@ def conditional_average(
     
     Args:
         ds: xr dataarray or dataset of variables to averaged conditionally
-        cell_categorical_array: xr datarray of cell category strings
-        surface_type: str of surface type over which to conditionally average
+        cell_type_array: xr datarray of cell category strings
+        category: str of category over which to conditionally average
         area: xr datarray of grid cell areas for weighted averaging
         dims: dimensions to average over
             
@@ -119,15 +131,15 @@ def conditional_average(
         xr dataarray or dataset of conditionally averaged variables
     """
 
-    all_types = list(np.unique(surface_type_array))
+    all_types = list(np.unique(cell_type_array))
 
-    if surface_type == "global":
+    if category == "global":
         area_masked = area
-    elif surface_type in all_types:
-        area_masked = area.where(surface_type_array == surface_type)
+    elif category in all_types:
+        area_masked = area.where(cell_type_array == category)
     else:
         raise ValueError(
-            f"surface type {surface_type} not in provided surface type array "
+            f"surface type {category} not in provided surface type array "
             f"with types {all_types}."
         )
 

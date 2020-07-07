@@ -20,7 +20,6 @@ handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("training_data_diags")
 
-DOMAINS = ["land", "sea", "global"]
 OUTPUT_NC_NAME = "diagnostics"
 
 
@@ -94,7 +93,7 @@ if __name__ == "__main__":
             **batch_kwargs,
         )
         logger.info(f"Finished batching dataset: {dataset_name}.")
-        ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
+        ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid)
         diagnostic_datasets[dataset_name] = ds_diagnostic
         logger.info(f"Finished processing dataset: {dataset_name}.")
 

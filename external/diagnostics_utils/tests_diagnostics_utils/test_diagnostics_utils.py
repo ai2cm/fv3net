@@ -116,7 +116,17 @@ net_precipitation_enumeration = {
             xr.DataArray(
                 ["negative_net_precipitation", "positive_net_precipitation"], dims=["x"]
             ),
-            id="lessthan outside atol",
+            id="greater_equal both types",
+        ),
+        pytest.param(
+            xr.DataArray([0.0, 1], dims=["x"]),
+            net_precipitation_enumeration,
+            np.greater_equal,
+            None,
+            xr.DataArray(
+                ["positive_net_precipitation", "positive_net_precipitation"], dims=["x"]
+            ),
+            id="greater_equal zero",
         ),
     ],
 )
