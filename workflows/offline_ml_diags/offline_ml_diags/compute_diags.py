@@ -14,7 +14,7 @@ import diagnostics_utils as utils
 import loaders
 from vcm.cloud import get_fs
 from fv3net.regression.sklearn import SklearnPredictionMapper
-from ._metrics import calc_batch_metrics
+from ._metrics import calc_metrics
 from ._utils import insert_additional_variables
 
 
@@ -113,9 +113,16 @@ if __name__ == "__main__":
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds,
             grid["lon"],
-            ["column_integrated_dQ1", "column_integrated_dQ2", "column_integrated_pQ1", "column_integrated_pQ2", "column_integrated_Q1", "column_integrated_Q2"],
+            [
+                "column_integrated_dQ1",
+                "column_integrated_dQ2",
+                "column_integrated_pQ1",
+                "column_integrated_pQ2",
+                "column_integrated_Q1",
+                "column_integrated_Q2",
+            ],
         )
-        ds_metrics = calc_batch_metrics(ds, grid["area"])
+        ds_metrics = calc_metrics(ds)
         batches_diags.append(ds_diagnostic_batch)
         batches_diurnal.append(ds_diurnal)
         batches_metrics.append(ds_metrics)
@@ -127,11 +134,12 @@ if __name__ == "__main__":
 
     _write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
     _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
-    
+
     metrics = {
         var: {
             "mean": np.mean(ds_metrics[var].values),
-            "std": np.std(ds_metrics[var].values)}
+            "std": np.std(ds_metrics[var].values),
+        }
         for var in ds_metrics.data_vars
     }
     fs = get_fs(args.output_path)

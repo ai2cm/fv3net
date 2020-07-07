@@ -39,6 +39,3 @@ def _insert_means(
         ds = ds.drop([var])
         ds = ds.merge(da)
     return ds
-
-
-

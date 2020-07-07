@@ -218,7 +218,10 @@ def _load_batch(
     keys: Iterable[Hashable],
 ) -> xr.Dataset:
     datetime_coords = [parse_datetime_from_str(key) for key in keys]
-    ds = xr.concat([mapper[key] for key in keys], pd.Index(datetime_coords, name=init_time_dim_name))
+    ds = xr.concat(
+        [mapper[key] for key in keys],
+        pd.Index(datetime_coords, name=init_time_dim_name),
+    )
     # need to use standardized time dimension name
     rename_variables[init_time_dim_name] = rename_variables.get(
         init_time_dim_name, TIME_NAME

@@ -18,7 +18,7 @@ VERTICAL_PROFILE_MEAN_DIMS = ["time", "x", "y", "tile"]
 
 def calc_metrics(ds: xr.Dataset) -> xr.Dataset:
     metrics = xr.Dataset()
-    metric_kwargs = {"weights": area_weights}
+    metric_kwargs = {"weights": ds["area_weights"]}
     for var in METRIC_VARS:
         for metric_func in [_bias, _rmse]:
             for comparison in METRIC_COMPARISON_COORDS:
