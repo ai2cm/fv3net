@@ -153,7 +153,6 @@ class SubsetMonitor:
 
     def store(self, time: datetime, state):
         if self._output_current_time(time):
-            self.logger.info("Storing stage")
             self._monitor.store(state)
 
 
