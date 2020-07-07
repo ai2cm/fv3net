@@ -42,17 +42,18 @@ RAD_PER_DEG = np.pi / 180.0
 
 
 def cos_zenith_angle(
-    model_time: datetime,
-    lon: Union[float, xr.DataArray],
-    lat: Union[float, xr.DataArray],
-):
+    model_time: np.ndarray,
+    lon: Union[float, xr.DataArray, np.ndarray],
+    lat: Union[float, xr.DataArray, np.ndarray],
+) -> np.ndarray:
     """
-    Sun-zenith angle for lon, lat at model_time.
-    lon,lat in degrees.
+    Cosine of sun-zenith angle for lon, lat at model_time (UTC).
+    lon is in degrees (E/W)
+    lat is in degrees (N/S)
     """
     lon_rad, lat_rad = lon * RAD_PER_DEG, lat * RAD_PER_DEG
-    zenith, azimuth = _star_zenith_azimuth(model_time, lon_rad, lat_rad)
-    return np.cos(zenith)
+    vectorized_cos_zenith = np.vectorize(_star_cos_zenith)
+    return vectorized_cos_zenith(model_time, lon_rad, lat_rad)
 
 
 def _days_from_2000(model_time):
@@ -185,9 +186,9 @@ def _local_hour_angle(model_time, longitude, right_ascension):
     return _local_mean_sidereal_time(model_time, longitude) - right_ascension
 
 
-def _star_zenith_azimuth(model_time, lon, lat):
+def _star_cos_zenith(model_time, lon, lat):
     """
-    Return star Zenith and azimuth
+    Return cosine of star zenith angle
     lon,lat in radians
     Ref:
         Azimuth:
@@ -199,12 +200,6 @@ def _star_zenith_azimuth(model_time, lon, lat):
     ra, dec = _right_ascension_declination(model_time)
     h_angle = _local_hour_angle(model_time, lon, ra)
 
-    zenith = np.arccos(
-        np.sin(lat) * np.sin(dec) + np.cos(lat) * np.cos(dec) * np.cos(h_angle)
-    )
+    cosine_zenith = np.sin(lat) * np.sin(dec) + np.cos(lat) * np.cos(dec) * np.cos(h_angle)
 
-    azimuth = np.arctan2(
-        -np.sin(h_angle), (np.cos(lat) * np.tan(dec) - np.sin(lat) * np.cos(h_angle))
-    )
-
-    return zenith, azimuth
+    return cosine_zenith

@@ -15,7 +15,7 @@ from .convenience import (
     cast_to_datetime,
     encode_time,
 )
-from .calc import mass_integrate, r2_score, local_time, thermo
+from .calc import mass_integrate, r2_score, local_time, thermo, cos_zenith_angle
 from .calc.thermo import (
     net_heating,
     net_precipitation,
@@ -25,7 +25,6 @@ from .calc.thermo import (
     pressure_at_interface,
 )
 from ._zarr_mapping import ZarrMapping
-from ._zenith_angle import cos_zenith_angle
 from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .select import mask_to_surface_type
 from .visualize import plot_cube, mappable_var, plot_cube_axes, pcolormesh_cube

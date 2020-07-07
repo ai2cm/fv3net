@@ -111,5 +111,6 @@ def test_add_cosine_zenith_angle():
             )
         }
     )
-    ds = add_cosine_zenith_angle(grid, ds)
-    assert set(ds.data_vars) == {"var", "cos_zenith_angle"}
+    cos_z_var = "cos_zenith_angle"
+    ds = add_cosine_zenith_angle(grid, cos_z_var, ds)
+    assert set(ds.data_vars) == {"var", cos_z_var

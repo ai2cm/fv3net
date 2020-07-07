@@ -1,7 +1,7 @@
 from datetime import datetime
 import pytest
 
-from vcm._zenith_angle import cos_zenith_angle
+from vcm import cos_zenith_angle
 
 
 @pytest.mark.parametrize(
@@ -9,6 +9,7 @@ from vcm._zenith_angle import cos_zenith_angle
     (
         [datetime(2020, 3, 21, 12, 0, 0), 0.0, 0.0, 1.0],
         [datetime(2020, 3, 21, 18, 0, 0), -90.0, 0.0, 1.0],
+        [datetime(2020, 3, 21, 18, 0, 0), 270.0, 0.0, 1.0],
         [datetime(2020, 7, 6, 12, 0, 0), -90.0, 0.0, -0.0196310],
         [datetime(2020, 7, 6, 9, 0, 0), 40.0, 40.0, 0.9501915],
         [datetime(2020, 7, 6, 12, 0, 0), 0.0, 90.0, 0.3843733],

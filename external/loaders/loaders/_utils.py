@@ -7,7 +7,7 @@ import vcm
 from vcm import safe
 from vcm.convenience import round_time
 
-from .constants import SAMPLE_DIM_NAME, TIME_NAME, COS_Z_VAR
+from .constants import SAMPLE_DIM_NAME, TIME_NAME
 
 Z_DIM_NAMES = ["z", "pfull"]
 
@@ -25,16 +25,15 @@ def load_grid(res="c48"):
     return grid
 
 
-def add_cosine_zenith_angle(grid: xr.Dataset, ds: xr.Dataset) -> xr.Dataset:
+def add_cosine_zenith_angle(grid: xr.Dataset, cos_z_var: str, ds: xr.Dataset) -> xr.Dataset:
     times_exploded = np.array(
         [
             np.full(grid["lon"].shape, vcm.cast_to_datetime(t))
             for t in ds[TIME_NAME].values
         ]
     )
-    vectorized_cos_z = np.vectorize(vcm.cos_zenith_angle)
-    cos_z = vectorized_cos_z(times_exploded, grid["lon"], grid["lat"])
-    return ds.assign({COS_Z_VAR: ((TIME_NAME,) + grid["lon"].dims, cos_z)})
+    cos_z = vcm.cos_zenith_angle(times_exploded, grid["lon"], grid["lat"])
+    return ds.assign({cos_z_var: ((TIME_NAME,) + grid["lon"].dims, cos_z)})
 
 
 def get_sample_dataset(mapper):

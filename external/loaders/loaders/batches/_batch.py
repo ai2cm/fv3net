@@ -9,7 +9,7 @@ from vcm import safe
 from toolz import partition, compose
 from ._sequences import FunctionOutputSequence
 from .._utils import stack_dropnan_shuffle, load_grid, add_cosine_zenith_angle
-from ..constants import TIME_FMT, COS_Z_VAR
+from ..constants import TIME_FMT
 import loaders
 
 logger = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ def batches_from_geodata(
     init_time_dim_name: str = "time",
     rename_variables: Optional[Mapping[str, str]] = None,
     timesteps: Optional[Sequence[str]] = None,
+    cos_z_var: str = "cos_zenith_angle",
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train. The data is assumed to
@@ -43,7 +44,8 @@ def batches_from_geodata(
         init_time_dim_name (str, optional): Name of time dim in data source.
             Defaults to "time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
-        
+        cos_z_var: Name of cosine zenith angle variable to insert.
+            Defaults to "cos_zenith_angle".        
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
         
@@ -59,6 +61,7 @@ def batches_from_geodata(
         init_time_dim_name,
         rename_variables,
         timesteps,
+        cos_z_var,
     )
     return batches
 
@@ -79,6 +82,7 @@ def batches_from_mapper(
     init_time_dim_name: str = "time",
     rename_variables: Optional[Mapping[str, str]] = None,
     timesteps: Optional[Sequence[str]] = None,
+    cos_z_var: str = "cos_zenith_angle",
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
@@ -93,6 +97,8 @@ def batches_from_mapper(
             Defaults to "time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
         timesteps: List of timesteps to use in training.
+        cos_z_var: Name of cosine zenith angle variable to insert.
+            Defaults to "cos_zenith_angle".
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
         
@@ -117,15 +123,16 @@ def batches_from_mapper(
     batched_timesteps = list(partition(timesteps_per_batch, times))
 
     load_batch = functools.partial(
-        _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
+        _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name, cos_z_var,
     )
 
     transform = functools.partial(
         stack_dropnan_shuffle, init_time_dim_name, random_state
     )
-    if COS_Z_VAR in variable_names:
+    # If additional dervied variable(s) added, refactor instead of adding if statements
+    if cos_z_var in variable_names:
         grid = load_grid()
-        insert_cos_z = functools.partial(add_cosine_zenith_angle, grid)
+        insert_cos_z = functools.partial(add_cosine_zenith_angle, grid, cos_z_var)
         batch_func = compose(transform, insert_cos_z, load_batch)
     else:
         batch_func = compose(transform, load_batch)
@@ -146,6 +153,7 @@ def diagnostic_batches_from_geodata(
     init_time_dim_name: str = "time",
     rename_variables: Optional[Mapping[str, str]] = None,
     timesteps: Optional[Sequence[str]] = None,
+    cos_z_var: str = "cos_zenith_angle",
 ) -> Sequence[xr.Dataset]:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
     as batches_from_mapper but without transformation and stacking
@@ -163,6 +171,8 @@ def diagnostic_batches_from_geodata(
             Defaults to "time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
         timesteps: List of timesteps to use in training.
+        cos_z_var: Name of cosine zenith angle variable to insert.
+            Defaults to "cos_zenith_angle".
 
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
@@ -180,6 +190,7 @@ def diagnostic_batches_from_geodata(
         init_time_dim_name,
         rename_variables,
         timesteps,
+        cos_z_var,
     )
 
     return sequence
@@ -193,6 +204,7 @@ def diagnostic_batches_from_mapper(
     init_time_dim_name: str = "time",
     rename_variables: Mapping[str, str] = None,
     timesteps: Sequence[str] = None,
+    cos_z_var: str = "cos_zenith_angle",
 ) -> Sequence[xr.Dataset]:
     if timesteps and set(timesteps).issubset(data_mapping.keys()) is False:
         raise ValueError(
@@ -208,11 +220,12 @@ def diagnostic_batches_from_mapper(
     batched_timesteps = list(partition(timesteps_per_batch, times))
 
     load_batch = functools.partial(
-        _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name,
+        _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name, cos_z_var,
     )
-    if COS_Z_VAR in variable_names:
+    # If additional dervied variable(s) added, refactor instead of adding if statements
+    if cos_z_var in variable_names:
         grid = load_grid()
-        insert_cos_z = functools.partial(add_cosine_zenith_angle, grid)
+        insert_cos_z = functools.partial(add_cosine_zenith_angle, grid, cos_z_var)
         batch_func = compose(insert_cos_z, load_batch)
     else:
         batch_func = load_batch
@@ -230,6 +243,7 @@ def _load_batch(
     data_vars: Iterable[str],
     rename_variables: Mapping[str, str],
     init_time_dim_name: str,
+    cos_z_var: str = "cos_zenith_angle",
     keys: Iterable[Hashable],
 ) -> xr.Dataset:
     time_coords = [datetime.strptime(key, TIME_FMT) for key in keys]
@@ -239,5 +253,6 @@ def _load_batch(
     ds = ds.rename(rename_variables)
 
     # cos z is special case of feature that is not present in dataset
-    ds = safe.get_variables(ds, [var for var in data_vars if var != COS_Z_VAR])
+    # If additional dervied variable(s) added, refactor instead of adding if statements
+    ds = safe.get_variables(ds, [var for var in data_vars if var != cos_z_var])
     return ds
