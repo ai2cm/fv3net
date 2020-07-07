@@ -55,6 +55,7 @@ def test__load_batch(mapper):
         data_vars=["air_temperature", "specific_humidity"],
         rename_variables={},
         init_time_dim_name="time",
+        cos_z_var="cos_zenith_angle",
         keys=mapper.keys(),
     )
     assert len(ds["time"]) == 4

@@ -25,7 +25,9 @@ def load_grid(res="c48"):
     return grid
 
 
-def add_cosine_zenith_angle(grid: xr.Dataset, cos_z_var: str, ds: xr.Dataset) -> xr.Dataset:
+def add_cosine_zenith_angle(
+    grid: xr.Dataset, cos_z_var: str, ds: xr.Dataset
+) -> xr.Dataset:
     times_exploded = np.array(
         [
             np.full(grid["lon"].shape, vcm.cast_to_datetime(t))

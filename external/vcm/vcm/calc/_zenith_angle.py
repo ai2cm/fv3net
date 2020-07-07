@@ -200,6 +200,8 @@ def _star_cos_zenith(model_time, lon, lat):
     ra, dec = _right_ascension_declination(model_time)
     h_angle = _local_hour_angle(model_time, lon, ra)
 
-    cosine_zenith = np.sin(lat) * np.sin(dec) + np.cos(lat) * np.cos(dec) * np.cos(h_angle)
+    cosine_zenith = np.sin(lat) * np.sin(dec) + np.cos(lat) * np.cos(dec) * np.cos(
+        h_angle
+    )
 
     return cosine_zenith

@@ -45,7 +45,7 @@ def batches_from_geodata(
             Defaults to "time".
         rename_variables (Mapping[str, str], optional): Defaults to None.
         cos_z_var: Name of cosine zenith angle variable to insert.
-            Defaults to "cos_zenith_angle".        
+            Defaults to "cos_zenith_angle".
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
         
@@ -123,7 +123,12 @@ def batches_from_mapper(
     batched_timesteps = list(partition(timesteps_per_batch, times))
 
     load_batch = functools.partial(
-        _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name, cos_z_var,
+        _load_batch,
+        data_mapping,
+        variable_names,
+        rename_variables,
+        init_time_dim_name,
+        cos_z_var,
     )
 
     transform = functools.partial(
@@ -220,7 +225,12 @@ def diagnostic_batches_from_mapper(
     batched_timesteps = list(partition(timesteps_per_batch, times))
 
     load_batch = functools.partial(
-        _load_batch, data_mapping, variable_names, rename_variables, init_time_dim_name, cos_z_var,
+        _load_batch,
+        data_mapping,
+        variable_names,
+        rename_variables,
+        init_time_dim_name,
+        cos_z_var,
     )
     # If additional dervied variable(s) added, refactor instead of adding if statements
     if cos_z_var in variable_names:
@@ -243,7 +253,7 @@ def _load_batch(
     data_vars: Iterable[str],
     rename_variables: Mapping[str, str],
     init_time_dim_name: str,
-    cos_z_var: str = "cos_zenith_angle",
+    cos_z_var: str,
     keys: Iterable[Hashable],
 ) -> xr.Dataset:
     time_coords = [datetime.strptime(key, TIME_FMT) for key in keys]
