@@ -52,33 +52,3 @@ config>` is similar to `examples/argo_clouds_off.yaml`. Or, you can use the
     argo submit -p output-url=gs://path -p nudging-config="$(cat nudging_config.yaml)"
 
 See the `argo.yaml` file for the available workflow parameters.
-
-### Running with the orchestrator (deprecated)
-
-The workflow can also be executed within the end-to-end orchestration.  In
-the `end-to-end.yaml` file a `nudging` section should be added / updated 
-under `steps_config` and the step name added to `steps_to_run`, e.g.: 
-
-    storage_proto: gs
-    storage_root: vcm-ml-scratch/testing-andrep
-    experiment:
-        name: test-nudging-workflow
-        unique_id: false
-        steps_to_run:
-            - nudging
-            - train_sklearn_model
-            - prognostic_run
-    
-        steps_config:
-
-            nudging:
-                command: bash workflows/nudging/orchestrate_submit.sh
-                args:
-                    nudge_config: $CONFIG/nudging_config.yaml
-                    nudge_timescale_hr: 3
-                    fv3gfs_image: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.1
-
-            ...
-
-Note that there is no need for a "create training" when using nudging 
-unlike the "one-step" end-to-end workflow.
