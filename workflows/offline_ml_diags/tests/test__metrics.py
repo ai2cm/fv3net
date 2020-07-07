@@ -1,11 +1,9 @@
 import numpy as np
 import pytest
-from typing import Mapping
 import xarray as xr
 from offline_ml_diags._metrics import (
     _bias,
     _rmse,
-    calc_metrics,
     calc_metrics,
     DERIVATION_DIM,
     TARGET_COORD,

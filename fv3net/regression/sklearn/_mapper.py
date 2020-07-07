@@ -54,7 +54,9 @@ class SklearnPredictionMapper(GeoMapper):
     def _insert_cos_zenith_angle(self, time_key: str, ds: xr.Dataset) -> xr.Dataset:
         time = cast_to_datetime(time_key)
         cos_z = cos_zenith_angle(time, self._grid["lon"], self._grid["lat"])
-        return ds.assign({self._cos_z_var: (self._grid["lon"].dims, cos_z)})
+        return ds.assign(
+            {self._cos_z_var: (self._grid["lon"].dims, cos_z)}  # type: ignore
+        )
 
     def _insert_prediction(self, ds: xr.Dataset, ds_pred: xr.Dataset) -> xr.Dataset:
         predicted_vars = ds_pred.data_vars
