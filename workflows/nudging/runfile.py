@@ -1,5 +1,5 @@
 import os
-from typing import Sequence, Optional, Mapping
+from typing import Sequence, Optional, MutableMapping
 import functools
 from datetime import datetime, timedelta
 import yaml
@@ -100,19 +100,19 @@ def append_key_label(d, suffix):
 
 class StageMonitor:
     def __init__(
-        self, root_dirname, partitioner, mode="w", times: Optional[Sequence[str]] = None
+        self, root_dirname: str, partitioner, mode="w", times: Optional[Sequence[str]] = None
     ):
         self._root_dirname = root_dirname
-        self._monitors: Mapping[str, SubsetMonitor] = {}
+        self._monitors: MutableMapping[str, SubsetMonitor] = {}
         self._mode = mode
         self.partitioner = partitioner
         self.times = times
 
-    def store(self, time, state, stage):
+    def store(self, time: datetime, state, stage: str):
         monitor = self._get_monitor(stage)
         monitor.store(time, state)
 
-    def _get_monitor(self, stage_name):
+    def _get_monitor(self, stage_name: str):
         if stage_name not in self._monitors:
             store = master_only(
                 lambda: fsspec.get_mapper(
@@ -145,7 +145,7 @@ class SubsetMonitor:
         self.logger = logging.getLogger("SubsetStageMonitor")
         self.logger.info(f"Saving stages at {self._times}")
 
-    def _output_current_time(self, time):
+    def _output_current_time(self, time: datetime) -> bool:
         if self._times is None:
             return True
         else:
