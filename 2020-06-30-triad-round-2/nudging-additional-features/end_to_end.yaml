@@ -12,6 +12,6 @@ experiment:
       args:
         --timesteps-file: /etc/times/train.json
         training_data:
-          location: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging
+          location: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/outdir-3h
         train-config-file: $CONFIG/train_sklearn.yaml
         --no-train-subdir-append: ""

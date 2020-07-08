@@ -16,7 +16,6 @@ batch_kwargs:
   timesteps_per_batch: 10
   mapping_function: open_merged_nudged
   mapping_kwargs:
-    nudging_timescale_hr: 3
     initial_time_skip_hr: 24
     rename_vars:
       air_temperature_tendency_due_to_nudging: dQ1
