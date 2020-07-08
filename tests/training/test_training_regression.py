@@ -5,6 +5,7 @@ import os
 import tempfile
 import logging
 import diagnostics_utils as utils
+import numpy as np
 import synth
 from loaders import mappers, batches, SAMPLE_DIM_NAME
 from fv3net.regression.sklearn import train
@@ -341,4 +342,4 @@ def test_compute_offline_diags(
         assert isinstance(metric_dict, dict)
         for metric_key, metric_value in metric_dict.items():
             assert isinstance(metric_key, str)
-            assert isinstance(metric_value, float)
+            assert isinstance(metric_value, (float, np.float32))
