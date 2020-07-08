@@ -23,7 +23,13 @@ handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
-DOMAINS = ["land", "sea", "global"]
+DOMAINS = [
+    "land",
+    "sea",
+    "global",
+    "positive_net_precipitation",
+    "negative_net_precipitation",
+]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
 METRICS_JSON_NAME = "metrics.json"
 
@@ -99,9 +105,7 @@ if __name__ == "__main__":
     )
 
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
-    ds_diagnostic = utils.reduce_to_diagnostic(
-        ds_batches, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
-    )
+    ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
     logger.info(f"Finished processing dataset diagnostics.")
     _write_nc(xr.merge([grid, ds_diagnostic]), args.output_path, DIAGS_NC_NAME)
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-MODEL=gs://vcm-ml-scratch/andrep/test-nudging-workflow/train_sklearn_model/sklearn_model.pkl
-OUTPUT=gs://vcm-ml-scratch/annak/test-offline-validation-workflow/nudging/
+MODEL=gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/train_sklearn_model/sklearn_model.pkl
+OUTPUT=gs://vcm-ml-scratch/annak/test-offline-validation-workflow/nudging
 
 python -m offline_ml_diags.compute_diags \
     workflows/offline_ml_diags/tests/test_nudging_config.yml \

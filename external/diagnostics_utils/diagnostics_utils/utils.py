@@ -51,12 +51,8 @@ def reduce_to_diagnostic(
         boolean_func_kwargs={"atol": 1e-7},
     )
 
-    net_precipitation_SHiELD = ds["net_precipitation"].sel(
-        {DERIVATION_DIM: "coarsened_SHiELD"}
-    )
-    net_precipitation_type_array = values_da_to_type(
-        net_precipitation_SHiELD, NET_PRECIPITATION_ENUMERATION, np.greater_equal
-    )
+    if any(["net_precipitation" in category for category in domains]):
+        net_precipitation_type_array = _net_precipitation_type(ds)
 
     domain_datasets = {}
     for category in domains:
@@ -109,6 +105,18 @@ def _rechunk_time_z(
     chunks = {dim: ds.sizes[dim] // nchunks for dim, nchunks in dim_nchunks.items()}
 
     return ds.chunk(chunks)
+
+
+def _net_precipitation_type(ds: xr.Dataset) -> xr.DataArray:
+
+    net_precipitation_SHiELD = ds["net_precipitation"].sel(
+        {DERIVATION_DIM: "coarsened_SHiELD"}
+    )
+    net_precipitation_type_array = values_da_to_type(
+        net_precipitation_SHiELD, NET_PRECIPITATION_ENUMERATION, np.greater_equal
+    )
+
+    return net_precipitation_type_array
 
 
 def conditional_average(
