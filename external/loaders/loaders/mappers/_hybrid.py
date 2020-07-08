@@ -17,7 +17,7 @@ class FineResolutionResidual(GeoMapper):
 
     def __init__(self, physics_mapper: GeoMapper, fine_res: FineResolutionSources):
         self.physics_mapper = physics_mapper
-        self.fine_Res = fine_res
+        self.fine_res = fine_res
 
     def __getitem__(self, key: str) -> xr.Dataset:
         nudging = self.physics_mapper[key]
@@ -30,14 +30,18 @@ class FineResolutionResidual(GeoMapper):
             dQ2=fine_res.dQ2 - nudging.pQ2,
         ).load()
 
+    def keys(self):
+        return list(set(self.physics_mapper.keys()) & set(self.fine_res.keys()))
+
 
 def open_fine_resolution_nudging_hybrid(
     _,  # need empty argument to work with current configuration system
-    nudging_url: str,
-    nudging_kwargs: Mapping,
-    fine_res_url: str,
-    fine_res_kwargs: Mapping,
+    nudging: Mapping,
+    fine_res: Mapping,
 ) -> FineResolutionResidual:
-    nudged = open_merged_nudged_full_tendencies(nudging_url, **nudging_kwargs)
-    fine_res = open_fine_res_apparent_sources(fine_res_url, **fine_res_kwargs)
+
+    offset_seconds = fine_res.pop("offset_seconds", 450)
+
+    nudged = open_merged_nudged_full_tendencies(**nudging)
+    fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res)
     return FineResolutionResidual(nudged, fine_res)
