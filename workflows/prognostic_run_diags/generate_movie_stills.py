@@ -3,6 +3,7 @@ import logging
 import os
 from pathlib import Path
 from multiprocessing import Pool
+from typing import Tuple
 
 import intake
 import fsspec
@@ -13,7 +14,7 @@ import xarray as xr
 import vcm
 import load_diagnostic_data as load_diags
 
-MovieArg = (xr.Dataset, str)
+MovieArg = Tuple[xr.Dataset, str]
 FIG_SUFFIX = "_{t:05}.png"
 
 COORD_NAMES = {
