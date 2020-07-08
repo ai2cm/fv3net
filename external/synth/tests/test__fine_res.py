@@ -21,4 +21,4 @@ def test_generate_fine_res_data_opens(tmpdir):
     synth.generate_fine_res(tmpdir, times)
     ds = xr.open_dataset(os.path.join(tmpdir, "20160801.000000.tile1.nc"))
 
-    assert 'tile' not in ds.dims
+    assert "tile" not in ds.dims

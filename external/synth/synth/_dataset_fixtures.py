@@ -1,7 +1,6 @@
 import os
 import tempfile
 import numpy as np
-import xarray as xr
 import pytest
 from distutils import dir_util
 
@@ -15,7 +14,10 @@ timestep1_npdatetime_fmt = "2016-08-01T00:15:00"
 timestep2 = "20160801.003000"
 timestep2_npdatetime_fmt = "2016-08-01T00:30:00"
 
-times_numpy = [np.datetime64(timestep1_npdatetime_fmt), np.datetime64(timestep2_npdatetime_fmt)]
+times_numpy = [
+    np.datetime64(timestep1_npdatetime_fmt),
+    np.datetime64(timestep2_npdatetime_fmt),
+]
 times_centered_str = [timestep1, timestep2]
 
 

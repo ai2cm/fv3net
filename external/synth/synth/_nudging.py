@@ -1,8 +1,6 @@
 import os
 from typing import Sequence
-from dataclasses import dataclass
 from synth.core import DatasetSchema, generate
-import yaml
 import numpy as np
 
 from .schemas import load_schema as _load_schema

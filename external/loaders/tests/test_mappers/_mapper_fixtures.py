@@ -1,8 +1,5 @@
 import pytest
-import xarray as xr
 from loaders import mappers
-from loaders.mappers._fine_resolution_budget import FineResolutionSources
-from typing import Mapping, Sequence
 
 training_mapper_names = [
     "FineResolutionSources",
@@ -25,75 +22,39 @@ def training_mapper_data_source_path(
     fine_res_dataset_path,
 ):
     if training_mapper_name == "TimestepMapper":
-        training_mapper_data_source_path = one_step_dataset_path
+        return one_step_dataset_path
     elif training_mapper_name in ("SubsetTimes", "NudgedFullTendencies"):
-        training_mapper_data_source_path = nudging_dataset_path
+        return nudging_dataset_path
     elif training_mapper_name == "FineResolutionSources":
-        training_mapper_data_source_path = fine_res_dataset_path
-    return training_mapper_data_source_path
+        return fine_res_dataset_path
 
 
-def _open_fine_res_apparent_sources_patch(
-    training_mapper_data_source_path: str,
-    rename_vars: Mapping[str, str],
-    drop_vars: Sequence[str],
-    dim_order: Sequence[str],
+@pytest.fixture
+def training_mapper(
+    training_mapper_name, training_mapper_data_source_path,
 ):
-    # this function is a patch for the actual one until synth is netcdf-compatible
-    fine_res_ds = xr.open_zarr(training_mapper_data_source_path)
-    time_mapper = {
-        fine_res_ds.time.values[0]: (fine_res_ds.isel(time=0)),
-        fine_res_ds.time.values[1]: (fine_res_ds.isel(time=1)),
-    }
-    return FineResolutionSources(
-        time_mapper, rename_vars=rename_vars, drop_vars=drop_vars, dim_order=dim_order
-    )
+    path = training_mapper_data_source_path
 
-
-@pytest.fixture
-def training_mapper_helper_function(training_mapper_name):
     if training_mapper_name == "TimestepMapper":
-        return getattr(mappers, "open_one_step")
+        return mappers.open_one_step(path)
     elif training_mapper_name == "SubsetTimes":
-        return getattr(mappers, "open_merged_nudged")
+        return mappers.open_merged_nudged(path)
     elif training_mapper_name == "NudgedFullTendencies":
-        return getattr(mappers, "open_merged_nudged_full_tendencies")
-    elif training_mapper_name == "FineResolutionSources":
-        # patch until synth is netcdf-compatible
-        return _open_fine_res_apparent_sources_patch
-
-
-@pytest.fixture
-def training_mapper_helper_function_kwargs(training_mapper_name):
-    if training_mapper_name == "TimestepMapper":
-        return {}
-    elif training_mapper_name == "SubsetTimes":
-        return {}
-    elif training_mapper_name == "NudgedFullTendencies":
-        return {
-            "open_checkpoints_kwargs": {
+        return mappers.open_merged_nudged_full_tendencies(
+            path,
+            open_checkpoints_kwargs={
                 "checkpoint_files": ("after_dynamics.zarr", "after_physics.zarr")
             },
-        }
+        )
     elif training_mapper_name == "FineResolutionSources":
-        return {
-            "rename_vars": {
+        return mappers.open_fine_res_apparent_sources(
+            path,
+            rename_vars={
                 "delp": "pressure_thickness_of_atmospheric_layer",
                 "grid_xt": "x",
                 "grid_yt": "y",
                 "pfull": "z",
             },
-            "drop_vars": ["time"],
-            "dim_order": ("tile", "z", "y", "x"),
-        }
-
-
-@pytest.fixture
-def training_mapper(
-    training_mapper_data_source_path,
-    training_mapper_helper_function,
-    training_mapper_helper_function_kwargs,
-):
-    return training_mapper_helper_function(
-        training_mapper_data_source_path, **training_mapper_helper_function_kwargs
-    )
+            drop_vars=["time"],
+            dim_order=["tile", "z", "y", "x"],
+        )
