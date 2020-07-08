@@ -14,7 +14,7 @@ from ..constants import (
     DERIVATION_FV3GFS_COORD,
     RENAMED_SHIELD_DIAG_VARS,
 )
-from .._utils import net_precipitation_from_physics, net_heating_from_physics
+from .._utils import assign_net_terms
 
 DIMENSION_ORDER = ("tile", "z", "y", "x")
 Z_DIM = "pfull"
@@ -143,7 +143,7 @@ class FineResolutionSources(GeoMapper):
             ).pipe(self._insert_budget_pQ, variable_name, f"p{apparent_source_name}")
 
         budget_time_ds = budget_time_ds.pipe(self._insert_physics).pipe(
-            self._insert_net_terms
+            assign_net_terms
         )
 
         return budget_time_ds
@@ -210,15 +210,6 @@ class FineResolutionSources(GeoMapper):
             physics_vars[var] = physics_var
 
         return budget_time_ds.assign(physics_vars)
-
-    @staticmethod
-    def _insert_net_terms(ds: xr.Dataset) -> xr.Dataset:
-        return ds.assign(
-            {
-                "net_heating": net_heating_from_physics(ds),
-                "net_precipitation": net_precipitation_from_physics(ds),
-            }
-        )
 
 
 def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:

@@ -5,7 +5,8 @@ import xarray as xr
 import vcm
 from vcm import cloud, safe
 from ._base import GeoMapper
-from .._utils import net_heating_from_physics, net_precipitation_from_physics
+from .._utils import assign_net_terms
+
 from ..constants import DERIVATION_DIM, DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
 
 TIME_DIM_NAME = "initial_time"
@@ -78,19 +79,11 @@ class TimestepMapperWithDiags(GeoMapper):
 
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._timestep_mapper[key]
-        return self._assign_net_terms(ds)
+        ds = self._reshape_one_step_diags(ds)
+        return assign_net_terms(ds)
 
     def keys(self):
         return self._timestep_mapper.keys()
-
-    def _assign_net_terms(self, ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
-
-        ds = self._reshape_one_step_diags(ds)
-        net_terms = {
-            "net_heating": net_heating_from_physics(ds),
-            "net_precipitation": net_precipitation_from_physics(ds),
-        }
-        return ds.assign(net_terms)
 
     @staticmethod
     def _reshape_one_step_diags(
@@ -131,12 +124,3 @@ def open_one_step(
             TimestepMapper(url, rename_vars, drop_vars, dim_order)
         )
     return mapper
-
-
-# def open_one_step_with_diags(
-#     url: str,
-#     rename_vars: Mapping[str, str] = None,
-#     drop_vars: Sequence[str] = (TIME_DIM_NAME,),
-#     dim_order: Sequence[str] = DIMENSION_ORDER,
-# ) -> Mapping[str, xr.Dataset]:
-#     return

@@ -137,3 +137,11 @@ def net_precipitation_from_physics(ds: xr.Dataset) -> xr.DataArray:
         ds["surface_precipitation_rate"],
     )
     return net_precipitation(*fluxes)
+
+
+def assign_net_terms(ds: xr.Dataset) -> xr.DataArray:
+    net_terms = {
+        "net_heating": net_heating_from_physics(ds),
+        "net_precipitation": net_precipitation_from_physics(ds),
+    }
+    return ds.assign(net_terms)

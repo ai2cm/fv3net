@@ -15,6 +15,7 @@ from .._utils import (
     standardize_zarr_time_coord,
     net_precipitation_from_physics,
     net_heating_from_physics,
+    assign_net_terms,
 )
 from ..constants import DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
 
@@ -194,9 +195,9 @@ class NudgedFullTendencies(GeoMapper):
             self._physics_timestep_seconds,
         )
 
-        net_terms = self._net_terms(self._nudged_mapper[time])
-
-        return self._nudged_mapper[time].assign({**physics_tendencies, **net_terms})
+        return (
+            self._nudged_mapper[time].assign(physics_tendencies).pipe(assign_net_terms)
+        )
 
     @staticmethod
     def _physics_tendencies(
