@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 DOMAINS = ["land", "sea", "global"]
 OUTPUT_NC_NAME = "diagnostics.nc"
-
+TIME_DIM = "time"
 
 @pytest.fixture
 def training_diags_reference_schema():
@@ -88,8 +88,9 @@ def test_compute_training_diags(
                 mapping_function=data_source_config["mapping_function"],
                 mapping_kwargs=data_source_config["mapping_kwargs"],
             )
+            ds_batches_one_step_concat = xr.concat(ds_batches_one_step, dim=TIME_DIM)
             ds_diagnostic = utils.reduce_to_diagnostic(
-                ds_batches_one_step, grid_dataset, domains=DOMAINS
+                ds_batches_one_step_concat, grid_dataset, domains=DOMAINS
             )
         else:
             rename_variables = {
@@ -102,8 +103,9 @@ def test_compute_training_diags(
                 xr.open_zarr(data_source_path).isel(time=0).rename(rename_variables),
                 xr.open_zarr(data_source_path).isel(time=1).rename(rename_variables),
             ]
+            ds_batches_fine_res_concat = xr.concat(ds_batches_fine_res, dim=TIME_DIM)
             ds_diagnostic = utils.reduce_to_diagnostic(
-                ds_batches_fine_res, grid_dataset, domains=DOMAINS
+                ds_batches_fine_res_concat, grid_dataset, domains=DOMAINS
             )
         diagnostic_datasets[data_source_name] = ds_diagnostic
 
@@ -249,50 +251,50 @@ def mock_model():
     return MockSklearnWrappedModel(input_vars, output_vars)
 
 
-def _one_step_offline_diags_config():
-    path = "./workflows/offline_ml_diags/tests/test_one_step_config.yml"
+def _one_step_offline_diags_config(datadir):
+    path = f"{datadir}/offline_diags_one_step_config.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
     return config
 
 
 @pytest.fixture
-def one_step_offline_diags_config():
-    return _one_step_offline_diags_config()
+def one_step_offline_diags_config(datadir):
+    return _one_step_offline_diags_config(datadir)
 
 
-def _nudging_offline_diags_config():
-    path = "./workflows/offline_ml_diags/tests/test_nudging_config.yml"
+def _nudging_offline_diags_config(datadir):
+    path = f"{datadir}/offline_diags_nudging_config.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
     return config
 
 
 @pytest.fixture
-def nudging_offline_diags_config():
-    return _nudging_offline_diags_config()
+def nudging_offline_diags_config(datadir):
+    return _nudging_offline_diags_config(datadir)
 
 
-def _fine_res_offline_diags_config():
-    path = "./workflows/offline_ml_diags/tests/test_fine_res_config.yml"
+def _fine_res_offline_diags_config(datadir):
+    path = f"{datadir}/offline_diags_fine_res_config.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
     return config
 
 
 @pytest.fixture
-def fine_res_offline_diags_config():
-    return _fine_res_offline_diags_config()
+def fine_res_offline_diags_config(datadir):
+    return _fine_res_offline_diags_config(datadir)
 
 
 @pytest.fixture
-def data_source_offline_config(data_source_name):
+def data_source_offline_config(data_source_name, datadir):
     if data_source_name == "one_step_tendencies":
-        data_source_offline_config = _one_step_offline_diags_config()
+        data_source_offline_config = _one_step_offline_diags_config(datadir)
     elif data_source_name == "nudging_tendencies":
-        data_source_offline_config = _nudging_offline_diags_config()
+        data_source_offline_config = _nudging_offline_diags_config(datadir)
     elif data_source_name == "fine_res_apparent_sources":
-        data_source_offline_config = _fine_res_offline_diags_config()
+        data_source_offline_config = _fine_res_offline_diags_config(datadir)
     else:
         raise NotImplementedError()
     return data_source_offline_config
@@ -352,9 +354,9 @@ def diagnostic_batches(prediction_mapper, data_source_offline_config):
 def test_compute_offline_diags(
     offline_diags_reference_schema, diagnostic_batches, grid_dataset
 ):
-
+    diagnostic_batches_concat = xr.concat(diagnostic_batches, dim=TIME_DIM)
     ds_diagnostic = utils.reduce_to_diagnostic(
-        diagnostic_batches, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
+        diagnostic_batches_concat, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
     )
 
     # TODO standardize schema encoding in synth to avoid the casting that makes

@@ -1,0 +1,14 @@
+data_path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/
+variables:
+  - air_temperature
+  - specific_humidity
+  - dQ1
+  - dQ2
+  - pQ1
+  - pQ2
+  - pressure_thickness_of_atmospheric_layer
+mapping_function: open_merged_nudged_full_tendencies
+mapping_kwargs:
+  nudging_timescale_hr: 3
+batch_kwargs:
+  timesteps_per_batch: 2
