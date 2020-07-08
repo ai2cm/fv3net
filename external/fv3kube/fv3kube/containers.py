@@ -132,7 +132,6 @@ def fv3_container(data_vol: V1Volume, image: str, cpu: str, memory: str) -> V1Co
     fv3_container.working_dir = "/mnt/rundir"
     fv3_container.command = ["bash", "-c"]
     fv3_container.args = [fv3_run_template.format(runfile=runfile_path)]
-    # Suitable for C48 job
     fv3_container.resources = V1ResourceRequirements(
         limits=dict(cpu=cpu, memory=memory), requests=dict(cpu=cpu, memory=memory),
     )
