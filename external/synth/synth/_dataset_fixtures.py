@@ -7,12 +7,16 @@ from distutils import dir_util
 
 from .core import load, generate, Range
 from ._nudging import generate_nudging
+from ._fine_res import generate_fine_res
 
 
 timestep1 = "20160801.001500"
 timestep1_npdatetime_fmt = "2016-08-01T00:15:00"
 timestep2 = "20160801.003000"
 timestep2_npdatetime_fmt = "2016-08-01T00:30:00"
+
+times_numpy = [np.datetime64(timestep1_npdatetime_fmt), np.datetime64(timestep2_npdatetime_fmt)]
+times_centered_str = [timestep1, timestep2]
 
 
 @pytest.fixture(scope="module")
@@ -63,19 +67,15 @@ def _generate_one_step_dataset(datadir, one_step_dir):
 @pytest.fixture(scope="module")
 def nudging_dataset_path():
     with tempfile.TemporaryDirectory() as nudging_dir:
-        times = [np.datetime64(timestep1_npdatetime_fmt), np.datetime64(timestep2_npdatetime_fmt)]
-        generate_nudging(nudging_dir, times=times)
+        generate_nudging(nudging_dir, times_numpy)
         yield nudging_dir
 
 
 @pytest.fixture(scope="module")
-def fine_res_dataset_path(dataset_fixtures_dir):
-
+def fine_res_dataset_path():
     with tempfile.TemporaryDirectory() as fine_res_dir:
-        fine_res_zarrpath = _generate_fine_res_dataset(
-            dataset_fixtures_dir, fine_res_dir
-        )
-        yield fine_res_zarrpath
+        generate_fine_res(fine_res_dir, times_centered_str)
+        yield fine_res_dir
 
 
 @pytest.fixture
@@ -83,18 +83,13 @@ def data_source_path(dataset_fixtures_dir, data_source_name):
     with tempfile.TemporaryDirectory() as data_dir:
         if data_source_name == "one_step_tendencies":
             _generate_one_step_dataset(dataset_fixtures_dir, data_dir)
-            data_source_path = data_dir
         elif data_source_name == "nudging_tendencies":
-            _generate_nudging_dataset(dataset_fixtures_dir, data_dir)
-            data_source_path = data_dir
+            generate_nudging(data_dir, times_numpy)
         elif data_source_name == "fine_res_apparent_sources":
-            fine_res_zarrpath = _generate_fine_res_dataset(
-                dataset_fixtures_dir, data_dir
-            )
-            data_source_path = fine_res_zarrpath
+            generate_fine_res(data_dir, times_centered_str)
         else:
             raise NotImplementedError()
-        yield data_source_path
+        yield data_dir
 
 
 @pytest.fixture

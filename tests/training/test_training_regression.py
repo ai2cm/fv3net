@@ -151,8 +151,6 @@ def _fine_res_train_config():
     path = "./tests/training/train_sklearn_model_fineres_source.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
-    config["batch_kwargs"].pop("mapping_function", None)
-    config["batch_kwargs"].pop("mapping_kwargs", None)
     return train.ModelTrainingConfig(**config)
 
 
@@ -177,27 +175,9 @@ def data_source_train_config(data_source_name):
 @pytest.fixture
 def training_batches(data_source_name, data_source_path, data_source_train_config):
 
-    if data_source_name != "fine_res_apparent_sources":
-        batched_data = shared.load_data_sequence(
-            data_source_path, data_source_train_config
-        )
-    else:
-        # train.load_data_sequence is incompatible with synth's zarrs
-        # (it looks for netCDFs); this is a patch until synth supports netCDF
-        fine_res_ds = xr.open_zarr(data_source_path)
-        mapper = {
-            fine_res_ds.time.values[0]: fine_res_ds.isel(time=0),
-            fine_res_ds.time.values[1]: fine_res_ds.isel(time=1),
-        }
-
-        batched_data = batches.batches_from_mapper(
-            mapper,
-            list(data_source_train_config.input_variables)
-            + list(data_source_train_config.output_variables),
-            **data_source_train_config.batch_kwargs,
-        )
-
-    return batched_data
+    return  shared.load_data_sequence(
+        data_source_path, data_source_train_config
+    )
 
 
 @pytest.mark.regression
