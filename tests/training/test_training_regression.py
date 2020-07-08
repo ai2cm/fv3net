@@ -59,10 +59,14 @@ def test_compute_training_diags(
         training_data_diags_config, "nudging_tendencies"
     )
 
+    fine_res_config = get_data_source_training_diags_config(
+        training_data_diags_config, "fine_res_apparent_sources"
+    )
+
     data_config_mapping = {
         "one_step_tendencies": (one_step_dataset_path, one_step_training_diags_config),
         "nudging_tendencies": (nudging_dataset_path, nudging_training_diags_config),
-        "fine_res_apparent_sources": (fine_res_dataset_path, None),
+        "fine_res_apparent_sources": (fine_res_dataset_path, fine_res_config),
     }
 
     variable_names = [
@@ -80,31 +84,16 @@ def test_compute_training_diags(
         data_source_name,
         (data_source_path, data_source_config),
     ) in data_config_mapping.items():
-        if data_source_name != "fine_res_apparent_sources":
-            ds_batches_one_step = batches.diagnostic_batches_from_geodata(
-                data_source_path,
-                variable_names,
-                timesteps_per_batch=timesteps_per_batch,
-                mapping_function=data_source_config["mapping_function"],
-                mapping_kwargs=data_source_config["mapping_kwargs"],
-            )
-            ds_diagnostic = utils.reduce_to_diagnostic(
-                ds_batches_one_step, grid_dataset, domains=DOMAINS
-            )
-        else:
-            rename_variables = {
-                "delp": "pressure_thickness_of_atmospheric_layer",
-                "pfull": "z",
-                "grid_xt": "x",
-                "grid_yt": "y",
-            }
-            ds_batches_fine_res = [
-                xr.open_zarr(data_source_path).isel(time=0).rename(rename_variables),
-                xr.open_zarr(data_source_path).isel(time=1).rename(rename_variables),
-            ]
-            ds_diagnostic = utils.reduce_to_diagnostic(
-                ds_batches_fine_res, grid_dataset, domains=DOMAINS
-            )
+        ds_batches_one_step = batches.diagnostic_batches_from_geodata(
+            data_source_path,
+            variable_names,
+            timesteps_per_batch=timesteps_per_batch,
+            mapping_function=data_source_config["mapping_function"],
+            mapping_kwargs=data_source_config["mapping_kwargs"],
+        )
+        ds_diagnostic = utils.reduce_to_diagnostic(
+            ds_batches_one_step, grid_dataset, domains=DOMAINS
+        )
         diagnostic_datasets[data_source_name] = ds_diagnostic
 
     diagnostics_all = xr.concat(
@@ -175,9 +164,7 @@ def data_source_train_config(data_source_name):
 @pytest.fixture
 def training_batches(data_source_name, data_source_path, data_source_train_config):
 
-    return  shared.load_data_sequence(
-        data_source_path, data_source_train_config
-    )
+    return shared.load_data_sequence(data_source_path, data_source_train_config)
 
 
 @pytest.mark.regression
@@ -283,29 +270,12 @@ def prediction_mapper(
     mock_model, data_source_name, data_source_path, data_source_offline_config
 ):
 
-    if data_source_name != "fine_res_apparent_sources":
-        base_mapping_function = getattr(
-            mappers, data_source_offline_config["mapping_function"]
-        )
-        base_mapper = base_mapping_function(
-            data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
-        )
-    else:
-        # open_fine_res_apparent_sources is incompatible with synth's zarrs
-        # (it looks for netCDFs); this is a patch until synth supports netCDF
-        rename_variables = {
-            "delp": "pressure_thickness_of_atmospheric_layer",
-            "grid_xt": "x",
-            "grid_yt": "y",
-        }
-        base_mapper = {
-            "20160901.000000": xr.open_zarr(data_source_path)
-            .isel(time=0)
-            .rename(rename_variables),
-            "20160901.001500": xr.open_zarr(data_source_path)
-            .isel(time=1)
-            .rename(rename_variables),
-        }
+    base_mapping_function = getattr(
+        mappers, data_source_offline_config["mapping_function"]
+    )
+    base_mapper = base_mapping_function(
+        data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
+    )
 
     prediction_mapper = SklearnPredictionMapper(
         base_mapper,
