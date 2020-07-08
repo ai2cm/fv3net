@@ -80,21 +80,6 @@ def apply(transform_key: str, *transform_args_partial, **transform_kwargs):
     return _apply_to_diag_func
 
 
-def _args_to_hashable_key(args, kwargs):
-    # Convert unhashable DiagArg (first argument) to a hashable string
-    # Doesn't explicitly represent full dataset but enough for us to
-    # cache the relatively unchanging input datasets to transform operations
-    diag_arg = "".join([str(ds) for ds in args[-1]])
-
-    # Assume the rest of the arguments into the transform are hashable
-    hargs = list(args[:-1]) + [diag_arg]
-    hkwargs = [(key, str(kwargs[key])) for key in sorted(kwargs.keys())]
-
-    hashable_key = tuple(hargs + hkwargs)
-
-    return hashable_key
-
-
 @add_to_input_transform_fns
 def resample_time(freq_label: str, arg: DiagArg, time_slice=slice(None, -1)) -> DiagArg:
     """
