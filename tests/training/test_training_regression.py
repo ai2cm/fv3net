@@ -163,7 +163,6 @@ def data_source_train_config(data_source_name):
 
 @pytest.fixture
 def training_batches(data_source_name, data_source_path, data_source_train_config):
-
     return shared.load_data_sequence(data_source_path, data_source_train_config)
 
 

@@ -8,8 +8,6 @@ from toolz import groupby
 from datetime import timedelta
 from ._base import GeoMapper
 
-DIMENSION_ORDER = ("tile", "z", "y", "x")
-
 Time = str
 Tile = int
 K = Tuple[Time, Tile]
@@ -64,10 +62,10 @@ class FineResolutionSources(GeoMapper):
     def __init__(
         self,
         fine_resolution_time_mapping: Mapping[Time, xr.Dataset],
+        dim_order: Sequence[str],
+        rename_vars: Mapping[str, str],
         offset_seconds: Union[int, float] = 0,
-        rename_vars: Mapping[str, str] = None,
         drop_vars: Sequence[str] = ("step", "time"),
-        dim_order: Sequence[str] = DIMENSION_ORDER,
     ):
         self._time_mapping = fine_resolution_time_mapping
         self._offset_seconds = offset_seconds
@@ -228,7 +226,7 @@ def open_fine_res_apparent_sources(
     offset_seconds: Union[int, float] = 0,
     rename_vars: Mapping[str, str] = None,
     drop_vars: Sequence[str] = (),
-    dim_order: Sequence[str] = None,
+    dim_order: Sequence[str] = ("tile", "z", "y", "x"),
 ) -> Mapping[str, xr.Dataset]:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
@@ -242,10 +240,17 @@ def open_fine_res_apparent_sources(
         rename_vars: (mapping): optional mapping of variables to rename in dataset
         drop_vars (sequence): optional list of variable names to drop from dataset
     """
+    if rename_vars is None:
+        rename_vars = {
+            "grid_xt": "x",
+            "grid_yt": "y",
+            "pfull": "z",
+        }
+
     return FineResolutionSources(
         open_fine_resolution_budget(url),
-        offset_seconds,
-        rename_vars,
-        drop_vars,
         dim_order,
+        rename_vars,
+        offset_seconds,
+        drop_vars,
     )
