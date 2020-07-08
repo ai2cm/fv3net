@@ -199,8 +199,9 @@ def global_averages_physics(resampled, verification, grid):
     return area_averages
 
 
-# TODO: enable this diagnostic once SHiELD physics diags can be loaded efficiently
-# @add_to_diags("physics", "bias_global_physics", input_transforms=[transform_3h]) # noqa
+@add_to_diags("physics")
+@diag_finalizer("bias_global_physics")
+@transform.apply("resample_time", "3H")
 def global_biases_physics(resampled, verification, grid):
     logger.info("Preparing global average biases for physics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
