@@ -9,5 +9,5 @@ OUTPUT=gs://vcm-ml-scratch/annak/sklearn_train/one_step
 gsutil -m rm -r $OUTPUT
 python -m fv3net.regression.sklearn \
     $TRAINING_DATA \
-    tests/sklearn_regression/train_sklearn_model_onestep_source.yml  \
+    tests/training/train_sklearn_model_onestep_source.yml  \
     $OUTPUT

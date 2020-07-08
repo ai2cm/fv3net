@@ -5,6 +5,6 @@ OUTPUT=gs://vcm-ml-scratch/annak/2020-05-22/sklearn_train/
 gsutil -m rm -r $OUTPUT
 python -m fv3net.regression.sklearn \
     $TRAINING_DATA \
-    tests/sklearn_regression/train_sklearn_model_fineres_source.yml  \
+    tests/training/train_sklearn_model_fineres_source.yml  \
     $OUTPUT \
     --no-train-subdir-append 

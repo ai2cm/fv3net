@@ -179,8 +179,19 @@ def global_avg_physics_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="global_phys_avg")
 
 
-def diurnal_cycle_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
-    return HVPlot(holomap_filter(time_series, varfilter="diurnal").overlay("run"))
+@diag_plot_manager.register
+def diurnal_cycle_global_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="diurnal_global")
+
+
+@diag_plot_manager.register
+def diurnal_cycle_land_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="diurnal_land")
+
+
+@diag_plot_manager.register
+def diurnal_cycle_sea_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="diurnal_sea")
 
 
 # Routines for plotting the "metrics"
@@ -224,12 +235,14 @@ def main():
 
     # load diagnostics
     diags = load_diags(bucket, rundirs)
+    dims = ["time", "local_time"]  # keep all vars that have only these dimensions
     diagnostics = [
-        convert_time_index_to_datetime(
-            get_variables_with_dims(ds, ["time"]), "time"
-        ).assign_attrs(run=key, **run_table_lookup.loc[key])
+        xr.merge([get_variables_with_dims(ds, [dim]) for dim in dims]).assign_attrs(
+            run=key, **run_table_lookup.loc[key]
+        )
         for key, ds in diags.items()
     ]
+    diagnostics = [convert_time_index_to_datetime(ds, "time") for ds in diagnostics]
 
     # load metrics
     nested_metrics = load_metrics(bucket, rundirs)

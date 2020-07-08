@@ -2,11 +2,10 @@ import os
 import tempfile
 import numpy as np
 import xarray as xr
-import intake
 import pytest
 from distutils import dir_util
 
-from .core import load, generate
+from .core import load, generate, Range
 
 
 timestep1 = "20160801.001500"
@@ -70,9 +69,7 @@ def nudging_dataset_path(dataset_fixtures_dir):
 
 def _generate_nudging_dataset(datadir, nudging_dir):
 
-    nudging_after_dynamics_zarrpath = os.path.join(
-        nudging_dir, "outdir-3h", "after_dynamics.zarr"
-    )
+    nudging_after_dynamics_zarrpath = os.path.join(nudging_dir, "after_dynamics.zarr")
     with open(str(datadir.join("after_dynamics.json"))) as f:
         nudging_after_dynamics_schema = load(f)
     nudging_after_dynamics_dataset = generate(
@@ -89,9 +86,7 @@ def _generate_nudging_dataset(datadir, nudging_dir):
         nudging_after_dynamics_zarrpath, consolidated=True
     )
 
-    nudging_after_physics_zarrpath = os.path.join(
-        nudging_dir, "outdir-3h", "after_physics.zarr"
-    )
+    nudging_after_physics_zarrpath = os.path.join(nudging_dir, "after_physics.zarr")
     with open(str(datadir.join("after_physics.json"))) as f:
         nudging_after_physics_schema = load(f)
     nudging_after_physics_dataset = generate(
@@ -108,9 +103,7 @@ def _generate_nudging_dataset(datadir, nudging_dir):
         nudging_after_physics_zarrpath, consolidated=True
     )
 
-    nudging_tendencies_zarrpath = os.path.join(
-        nudging_dir, "outdir-3h", "nudging_tendencies.zarr"
-    )
+    nudging_tendencies_zarrpath = os.path.join(nudging_dir, "nudging_tendencies.zarr")
     with open(str(datadir.join("nudging_tendencies.json"))) as f:
         nudging_tendencies_schema = load(f)
     nudging_tendencies_dataset = generate(nudging_tendencies_schema).assign_coords(
@@ -179,12 +172,13 @@ def data_source_path(dataset_fixtures_dir, data_source_name):
 
 
 @pytest.fixture
-def grid_dataset():
-
-    cat = intake.open_catalog("catalog.yml")
-    grid = cat["grid/c48"].to_dask()
-    grid = grid.drop_vars(names=["y_interface", "y", "x_interface", "x"])
-    surface_type = cat["landseamask/c48"].to_dask()
-    surface_type = surface_type.drop_vars(names=["y", "x"])
-
-    return grid.merge(surface_type)
+def grid_dataset(dataset_fixtures_dir):
+    random = np.random.RandomState(0)
+    with open(str(dataset_fixtures_dir.join("grid_schema.json"))) as f:
+        grid_schema = load(f)
+    grid_ranges = {"area": Range(1, 2)}
+    grid = generate(grid_schema, ranges=grid_ranges).load()
+    grid["land_sea_mask"][:] = random.choice(
+        [0, 1, 2], size=grid["land_sea_mask"].shape
+    )
+    return grid
