@@ -9,6 +9,7 @@ dependencies:
   - cloudpickle
   - crcmod
   - dask>=2.3
+  - ffmpeg
   - fsspec
   - f90nml
   - black=19.10b0
