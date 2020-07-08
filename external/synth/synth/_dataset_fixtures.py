@@ -69,9 +69,7 @@ def nudging_dataset_path(dataset_fixtures_dir):
 
 def _generate_nudging_dataset(datadir, nudging_dir):
 
-    nudging_after_dynamics_zarrpath = os.path.join(
-        nudging_dir, "outdir-3h", "after_dynamics.zarr"
-    )
+    nudging_after_dynamics_zarrpath = os.path.join(nudging_dir, "after_dynamics.zarr")
     with open(str(datadir.join("after_dynamics.json"))) as f:
         nudging_after_dynamics_schema = load(f)
     nudging_after_dynamics_dataset = generate(
@@ -88,9 +86,7 @@ def _generate_nudging_dataset(datadir, nudging_dir):
         nudging_after_dynamics_zarrpath, consolidated=True
     )
 
-    nudging_after_physics_zarrpath = os.path.join(
-        nudging_dir, "outdir-3h", "after_physics.zarr"
-    )
+    nudging_after_physics_zarrpath = os.path.join(nudging_dir, "after_physics.zarr")
     with open(str(datadir.join("after_physics.json"))) as f:
         nudging_after_physics_schema = load(f)
     nudging_after_physics_dataset = generate(
@@ -107,9 +103,7 @@ def _generate_nudging_dataset(datadir, nudging_dir):
         nudging_after_physics_zarrpath, consolidated=True
     )
 
-    nudging_tendencies_zarrpath = os.path.join(
-        nudging_dir, "outdir-3h", "nudging_tendencies.zarr"
-    )
+    nudging_tendencies_zarrpath = os.path.join(nudging_dir, "nudging_tendencies.zarr")
     with open(str(datadir.join("nudging_tendencies.json"))) as f:
         nudging_tendencies_schema = load(f)
     nudging_tendencies_dataset = generate(nudging_tendencies_schema).assign_coords(

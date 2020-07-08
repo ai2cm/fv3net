@@ -1,0 +1,39 @@
+nudging-config: |
+  # Note that this nudging configuration is a string within the parent yaml,
+  # NOT a nested dictionary. This is because argo expects the yaml as a string.
+  base_version: v0.4
+  forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+  initial_conditions: /mnt/input/coarsen_restarts/20160801.001500/
+  nudging:
+    restarts_path: /mnt/input/coarsen_restarts/
+    timescale_hours:
+      air_temperature: 3
+      specific_humidity: 3
+      x_wind: 3
+      y_wind: 3
+      pressure_thickness_of_atmospheric_layer: 3
+  namelist:
+    coupler_nml:
+      calendar: julian
+      current_date:
+      - 2016
+      - 8
+      - 1
+      - 0
+      - 15
+      - 0
+      days: 0
+      hours: 2
+      minutes: 0
+      months: 0
+      seconds: 0
+    gfdl_cloud_microphysics_nml:
+      fast_sat_adj: false
+    fv_core_nml:
+      do_sat_adj: false
+    gfs_physics_nml:
+      do_deep: false
+      do_gfdl_mp_in_physics: false
+      do_only_clearsky_rad: true
+      shal_cnv: false
+output-url: gs://vcm-ml-scratch/noah/nudging-1/outdir-3h
