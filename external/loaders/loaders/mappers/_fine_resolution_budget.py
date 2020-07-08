@@ -14,7 +14,7 @@ from ..constants import (
     DERIVATION_FV3GFS_COORD,
     RENAMED_SHIELD_DIAG_VARS,
 )
-from .._utils import assign_net_terms
+from .._utils import assign_net_physics_terms
 
 DIMENSION_ORDER = ("tile", "z", "y", "x")
 Z_DIM = "pfull"
@@ -143,7 +143,7 @@ class FineResolutionSources(GeoMapper):
             ).pipe(self._insert_budget_pQ, variable_name, f"p{apparent_source_name}")
 
         budget_time_ds = budget_time_ds.pipe(self._insert_physics).pipe(
-            assign_net_terms
+            assign_net_physics_terms
         )
 
         return budget_time_ds

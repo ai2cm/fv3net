@@ -5,7 +5,7 @@ import xarray as xr
 import vcm
 from vcm import cloud, safe
 from ._base import GeoMapper
-from .._utils import assign_net_terms
+from .._utils import assign_net_physics_terms
 
 from ..constants import DERIVATION_DIM, DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
 
@@ -80,7 +80,7 @@ class TimestepMapperWithDiags(GeoMapper):
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._timestep_mapper[key]
         ds = self._reshape_one_step_diags(ds)
-        return assign_net_terms(ds)
+        return assign_net_physics_terms(ds)
 
     def keys(self):
         return self._timestep_mapper.keys()

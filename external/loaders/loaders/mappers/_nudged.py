@@ -11,12 +11,7 @@ from pathlib import Path
 from ._base import GeoMapper, LongRunMapper
 from ._merged import MergeOverlappingData
 from ._high_res_diags import open_high_res_diags
-from .._utils import (
-    standardize_zarr_time_coord,
-    net_precipitation_from_physics,
-    net_heating_from_physics,
-    assign_net_terms,
-)
+from .._utils import standardize_zarr_time_coord, assign_net_physics_terms
 from ..constants import DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
 
 logger = logging.getLogger(__name__)
@@ -196,7 +191,9 @@ class NudgedFullTendencies(GeoMapper):
         )
 
         return (
-            self._nudged_mapper[time].assign(physics_tendencies).pipe(assign_net_terms)
+            self._nudged_mapper[time]
+            .assign(physics_tendencies)
+            .pipe(assign_net_physics_terms)
         )
 
     @staticmethod
@@ -216,16 +213,6 @@ class NudgedFullTendencies(GeoMapper):
             ) / physics_timestep_seconds
 
         return physics_tendencies
-
-    @staticmethod
-    def _net_terms(ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
-
-        net_terms = {
-            "net_heating": net_heating_from_physics(ds),
-            "net_precipitation": net_precipitation_from_physics(ds),
-        }
-
-        return net_terms
 
 
 def open_merged_nudged(
