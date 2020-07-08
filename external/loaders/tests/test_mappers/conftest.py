@@ -12,7 +12,5 @@ from synth import (  # noqa: F401
 from ._mapper_fixtures import (  # noqa: F401
     training_mapper_name,
     training_mapper_data_source_path,
-    training_mapper_helper_function,
-    training_mapper_helper_function_kwargs,
     training_mapper,
 )

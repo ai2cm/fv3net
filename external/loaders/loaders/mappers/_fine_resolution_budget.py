@@ -1,14 +1,15 @@
 import os
 import re
-import vcm
-from vcm import parse_datetime_from_str, safe
-from typing import Mapping, Union, Sequence, Tuple
+from datetime import timedelta
+from typing import Mapping, Optional, Sequence, Tuple, Union
+
 import xarray as xr
 from toolz import groupby
-from datetime import timedelta
-from ._base import GeoMapper
 
-DIMENSION_ORDER = ("tile", "z", "y", "x")
+import vcm
+from vcm import parse_datetime_from_str, safe
+
+from ._base import GeoMapper
 
 Time = str
 Tile = int
@@ -65,15 +66,19 @@ class FineResolutionSources(GeoMapper):
         self,
         fine_resolution_time_mapping: Mapping[Time, xr.Dataset],
         offset_seconds: Union[int, float] = 0,
-        rename_vars: Mapping[str, str] = None,
         drop_vars: Sequence[str] = ("step", "time"),
-        dim_order: Sequence[str] = DIMENSION_ORDER,
+        dim_order: Sequence[str] = ("tile", "z", "y", "x"),
+        rename_vars: Optional[Mapping[str, str]] = None,
     ):
         self._time_mapping = fine_resolution_time_mapping
         self._offset_seconds = offset_seconds
-        self._rename_vars = rename_vars or {}
         self._drop_vars = drop_vars
         self._dim_order = dim_order
+
+        if rename_vars is None:
+            self._rename_vars = {}
+        else:
+            self._rename_vars = rename_vars
 
     def keys(self):
         return set(
@@ -228,7 +233,7 @@ def open_fine_res_apparent_sources(
     offset_seconds: Union[int, float] = 0,
     rename_vars: Mapping[str, str] = None,
     drop_vars: Sequence[str] = (),
-    dim_order: Sequence[str] = None,
+    dim_order: Sequence[str] = ("tile", "z", "y", "x"),
 ) -> Mapping[str, xr.Dataset]:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
@@ -242,10 +247,15 @@ def open_fine_res_apparent_sources(
         rename_vars: (mapping): optional mapping of variables to rename in dataset
         drop_vars (sequence): optional list of variable names to drop from dataset
     """
+
+    # use default which is valid for real data
+    if rename_vars is None:
+        rename_vars = {"grid_xt": "x", "grid_yt": "y", "pfull": "z"}
+
     return FineResolutionSources(
         open_fine_resolution_budget(url),
         offset_seconds,
-        rename_vars,
         drop_vars,
-        dim_order,
+        dim_order=dim_order,
+        rename_vars=rename_vars,
     )
