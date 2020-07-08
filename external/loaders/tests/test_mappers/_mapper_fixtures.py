@@ -105,7 +105,7 @@ def training_mapper_helper_function(training_mapper_name):
 @pytest.fixture
 def diagnostic_mapper_helper_function(diagnostic_mapper_name):
     if diagnostic_mapper_name == "TimestepMapperWithDiags":
-        return getattr(mappers, "open_one_step_with_diags")
+        return getattr(mappers, "open_one_step")
     elif diagnostic_mapper_name == "NudgedFullTendencies":
         return getattr(mappers, "open_merged_nudged_full_tendencies")
     elif diagnostic_mapper_name == "FineResolutionSources":
@@ -118,12 +118,11 @@ def training_mapper_helper_function_kwargs(
     training_mapper_name, C48_SHiELD_diags_dataset_path
 ):
     if training_mapper_name == "TimestepMapper":
-        return {}
+        return {'add_shield_diags': True}
     elif training_mapper_name == "SubsetTimes":
-        return {"nudging_timescale_hr": 3}
+        return {}
     elif training_mapper_name == "NudgedFullTendencies":
         return {
-            "nudging_timescale_hr": 3,
             "shield_diags_url": C48_SHiELD_diags_dataset_path,
         }
     elif training_mapper_name == "FineResolutionSources":

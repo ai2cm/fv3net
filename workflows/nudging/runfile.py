@@ -1,8 +1,10 @@
 import os
+from typing import Sequence, Optional, MutableMapping
 import functools
 from datetime import datetime, timedelta
 import yaml
 import fsspec
+import logging
 
 if __name__ == "__main__":
     import fv3gfs
@@ -96,28 +98,66 @@ def append_key_label(d, suffix):
     return return_dict
 
 
-class StageMonitor:
-    def __init__(self, root_dirname, partitioner, mode="w"):
+class StageWriter:
+    def __init__(
+        self,
+        root_dirname: str,
+        partitioner,
+        mode="w",
+        times: Optional[Sequence[str]] = None,
+    ):
         self._root_dirname = root_dirname
-        self._monitors = {}
+        self._monitors: MutableMapping[str, SubsetWriter] = {}
         self._mode = mode
         self.partitioner = partitioner
+        self.times = times
 
-    def store(self, state, stage):
+    def store(self, time: datetime, state, stage: str):
         monitor = self._get_monitor(stage)
-        monitor.store(state)
+        monitor.store(time, state)
 
-    def _get_monitor(self, stage_name):
+    def _get_monitor(self, stage_name: str):
         if stage_name not in self._monitors:
             store = master_only(
                 lambda: fsspec.get_mapper(
                     os.path.join(self._root_dirname, stage_name + ".zarr")
                 )
             )()
-            self._monitors[stage_name] = fv3gfs.ZarrMonitor(
+            monitor = fv3gfs.ZarrMonitor(
                 store, self.partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
             )
+            self._monitors[stage_name] = SubsetWriter(monitor, self.times)
         return self._monitors[stage_name]
+
+
+class SubsetWriter:
+    """Write only certain substeps"""
+
+    def __init__(
+        self, monitor: fv3gfs.ZarrMonitor, times: Optional[Sequence[str]] = None
+    ):
+        """
+
+        Args:
+            monitor: a stage monitor to use to store outputs
+            times: an optional list of output times to store stages at. By
+                default all times will be output.
+        """
+        self._monitor = monitor
+        self._times = times
+        self.time = None
+        self.logger = logging.getLogger("SubsetStageWriter")
+        self.logger.info(f"Saving stages at {self._times}")
+
+    def _output_current_time(self, time: datetime) -> bool:
+        if self._times is None:
+            return True
+        else:
+            return time.strftime("%Y%m%d.%H%M%S") in self._times
+
+    def store(self, time: datetime, state):
+        if self._output_current_time(time):
+            self._monitor.store(state)
 
 
 def master_only(func):
@@ -140,6 +180,7 @@ def load_config(filename):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     config = load_config("fv3config.yml")
     reference_dir = config["nudging"]["restarts_path"]
     partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
@@ -153,26 +194,33 @@ if __name__ == "__main__":
         nudge_to_reference, timescales=nudging_timescales, timestep=timestep,
     )
 
-    monitor = StageMonitor(RUN_DIR, partitioner, mode="w",)
+    monitor = StageWriter(
+        RUN_DIR,
+        partitioner,
+        mode="w",
+        times=config["nudging"].get("output_times", None),
+    )
 
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
         state = fv3gfs.get_state(names=store_names)
         start = datetime.utcnow()
-        monitor.store(state, stage="before_dynamics")
+        time = state["time"]
+
+        monitor.store(time, state, stage="before_dynamics")
         fv3gfs.step_dynamics()
-        monitor.store(fv3gfs.get_state(names=store_names), stage="after_dynamics")
+        monitor.store(time, fv3gfs.get_state(names=store_names), stage="after_dynamics")
         fv3gfs.step_physics()
         state = fv3gfs.get_state(names=store_names)
-        monitor.store(state, stage="after_physics")
+        monitor.store(time, state, stage="after_physics")
         fv3gfs.save_intermediate_restart_if_enabled()
         reference = get_reference_state(
-            state["time"], reference_dir, communicator, only_names=store_names
+            time, reference_dir, communicator, only_names=store_names
         )
         tendencies = nudge(state, reference)
-        monitor.store(reference, stage="reference")
-        monitor.store(tendencies, stage="nudging_tendencies")
-        monitor.store(state, stage="after_nudging")
+        monitor.store(time, reference, stage="reference")
+        monitor.store(time, tendencies, stage="nudging_tendencies")
+        monitor.store(time, state, stage="after_nudging")
 
         nudged_state_members = {
             key: quantity for key, quantity in state.items() if key in nudging_names
