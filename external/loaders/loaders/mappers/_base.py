@@ -10,7 +10,6 @@ from .._utils import standardize_zarr_time_coord
 
 
 class GeoMapper(Mapping[str, xr.Dataset]):
-
     def __len__(self):
         return len(self.keys())
 
