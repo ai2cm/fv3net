@@ -6,6 +6,7 @@ import pytest
 from distutils import dir_util
 
 from .core import load, generate, Range
+from ._nudging import NudgingDataset
 
 
 timestep1 = "20160801.001500"
@@ -63,58 +64,9 @@ def _generate_one_step_dataset(datadir, one_step_dir):
 def nudging_dataset_path(dataset_fixtures_dir):
 
     with tempfile.TemporaryDirectory() as nudging_dir:
-        _generate_nudging_dataset(dataset_fixtures_dir, nudging_dir)
+        dataset = NudgingDataset.from_datadir(dataset_fixtures_dir)
+        dataset.generate(nudging_dir)
         yield nudging_dir
-
-
-def _generate_nudging_dataset(datadir, nudging_dir):
-
-    nudging_after_dynamics_zarrpath = os.path.join(nudging_dir, "after_dynamics.zarr")
-    with open(str(datadir.join("after_dynamics.json"))) as f:
-        nudging_after_dynamics_schema = load(f)
-    nudging_after_dynamics_dataset = generate(
-        nudging_after_dynamics_schema
-    ).assign_coords(
-        {
-            "time": [
-                np.datetime64(timestep1_npdatetime_fmt),
-                np.datetime64(timestep2_npdatetime_fmt),
-            ]
-        }
-    )
-    nudging_after_dynamics_dataset.to_zarr(
-        nudging_after_dynamics_zarrpath, consolidated=True
-    )
-
-    nudging_after_physics_zarrpath = os.path.join(nudging_dir, "after_physics.zarr")
-    with open(str(datadir.join("after_physics.json"))) as f:
-        nudging_after_physics_schema = load(f)
-    nudging_after_physics_dataset = generate(
-        nudging_after_physics_schema
-    ).assign_coords(
-        {
-            "time": [
-                np.datetime64(timestep1_npdatetime_fmt),
-                np.datetime64(timestep2_npdatetime_fmt),
-            ]
-        }
-    )
-    nudging_after_physics_dataset.to_zarr(
-        nudging_after_physics_zarrpath, consolidated=True
-    )
-
-    nudging_tendencies_zarrpath = os.path.join(nudging_dir, "nudging_tendencies.zarr")
-    with open(str(datadir.join("nudging_tendencies.json"))) as f:
-        nudging_tendencies_schema = load(f)
-    nudging_tendencies_dataset = generate(nudging_tendencies_schema).assign_coords(
-        {
-            "time": [
-                np.datetime64(timestep1_npdatetime_fmt),
-                np.datetime64(timestep2_npdatetime_fmt),
-            ]
-        }
-    )
-    nudging_tendencies_dataset.to_zarr(nudging_tendencies_zarrpath, consolidated=True)
 
 
 @pytest.fixture(scope="module")
