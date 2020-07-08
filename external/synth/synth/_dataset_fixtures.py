@@ -6,7 +6,7 @@ import pytest
 from distutils import dir_util
 
 from .core import load, generate, Range
-from ._nudging import NudgingDataset
+from ._nudging import generate_nudging
 
 
 timestep1 = "20160801.001500"
@@ -61,11 +61,10 @@ def _generate_one_step_dataset(datadir, one_step_dir):
 
 
 @pytest.fixture(scope="module")
-def nudging_dataset_path(dataset_fixtures_dir):
-
+def nudging_dataset_path():
     with tempfile.TemporaryDirectory() as nudging_dir:
-        dataset = NudgingDataset.from_datadir(dataset_fixtures_dir)
-        dataset.generate(nudging_dir)
+        times = [np.datetime64(timestep1_npdatetime_fmt), np.datetime64(timestep2_npdatetime_fmt)]
+        generate_nudging(nudging_dir, times=times)
         yield nudging_dir
 
 
@@ -77,31 +76,6 @@ def fine_res_dataset_path(dataset_fixtures_dir):
             dataset_fixtures_dir, fine_res_dir
         )
         yield fine_res_zarrpath
-
-
-def _generate_fine_res_dataset(datadir, fine_res_dir):
-    """ Note that this does not follow the pattern of the other two datasets
-    in that the synthetic data are not stored in the original format of the
-    fine res data (tiled netcdfs), but instead as a zarr, because synth does
-    not currently support generating netcdfs or splitting by tile
-    """
-
-    fine_res_zarrpath = os.path.join(fine_res_dir, "fine_res_budget.zarr")
-    with open(str(datadir.join("fine_res_budget.json"))) as f:
-        fine_res_budget_schema = load(f)
-    fine_res_budget_dataset = generate(fine_res_budget_schema)
-    fine_res_budget_dataset_1 = fine_res_budget_dataset.assign_coords(
-        {"time": [timestep1]}
-    )
-    fine_res_budget_dataset_2 = fine_res_budget_dataset.assign_coords(
-        {"time": [timestep2]}
-    )
-    fine_res_budget_dataset = xr.concat(
-        [fine_res_budget_dataset_1, fine_res_budget_dataset_2], dim="time"
-    )
-    fine_res_budget_dataset.to_zarr(fine_res_zarrpath, consolidated=True)
-
-    return fine_res_zarrpath
 
 
 @pytest.fixture
