@@ -1,0 +1,17 @@
+storage_proto: gs
+storage_root: vcm-ml-experiments/2020-07-07-nudging-additional-features
+experiment:
+  name: $JOBNAME
+  unique_id: false
+  steps_to_run:
+    - train_sklearn_model
+
+  steps_config:
+    train_sklearn_model:
+      command: python -m fv3net.regression.sklearn
+      args:
+        --timesteps-file: /etc/times/train.json
+        training_data:
+          location: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging
+        train-config-file: $CONFIG/train_sklearn.yaml
+        --no-train-subdir-append: ""
