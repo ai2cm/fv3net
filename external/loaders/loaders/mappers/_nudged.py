@@ -215,6 +215,7 @@ def open_merged_nudged(
     i_start: int = 0,
     n_times: int = None,
     rename_vars: Mapping[str, str] = None,
+    consolidated: bool = False,
 ) -> Mapping[str, xr.Dataset]:
     """
     Load nudging data mapper for use with training.  Currently merges the
@@ -235,6 +236,8 @@ def open_merged_nudged(
             (i_start + n_times)
         rename_vars (optional): mapping of variables to be renamed; defaults to
             renaming long nudging names to dQ names
+        consolidated: if true, open the underlying zarr stores with the consolidated
+            flag to xr.open_zarr.
     """
 
     rename_vars = rename_vars or {
@@ -245,7 +248,7 @@ def open_merged_nudged(
     datasets = []
     for source in merge_files:
         mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
-        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
+        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024), consolidated=consolidated)
         datasets.append(ds)
 
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
@@ -262,6 +265,7 @@ def _open_nudging_checkpoints(
         "after_physics.zarr",
         "after_nudging.zarr",
     ),
+    consolidated: bool = False,
 ) -> Mapping[Checkpoint, xr.Dataset]:
     """
     Load mapper to all checkpoint states and timesteps of a nudging simulation.
@@ -270,13 +274,15 @@ def _open_nudging_checkpoints(
         url: Path to directory with nudging output
         checkpoint_files: nudged simulation checkpoint files to load
             into the NudgedStateCheckpoints object
+        consolidated: if true, open the underlying zarr stores with the consolidated
+            flag to xr.open_zarr.
     """
 
     datasets = {}
     for filename in checkpoint_files:
         full_path = os.path.join(url, f"{filename}")
         mapper = fsspec.get_mapper(full_path)
-        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
+        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024), consolidated=consolidated)
 
         source_name = Path(filename).stem
         datasets[source_name] = ds
@@ -291,6 +297,7 @@ def open_merged_nudged_full_tendencies(
     difference_checkpoints: Sequence[str] = ("after_dynamics", "after_physics"),
     tendency_variables: Mapping[str, str] = None,
     timestep_physics_seconds: int = 900,
+    consolidated: bool = False,
 ) -> Mapping[str, xr.Dataset]:
     """
     Load mapper to nudged dataset containing both dQ and pQ tendency terms
@@ -309,6 +316,8 @@ def open_merged_nudged_full_tendencies(
             {'pQ1': 'air_temperature', 'pQ2': 'specific_humidity'}
         timestep_physics_seconds (optional): physics timestep in seconds;
             defaults to 900
+        consolidated: if true, open the underlying zarr stores with the consolidated
+            flag to xr.open_zarr.
         
     Returns
         mapper of timestamps to datasets containing full tendency terms
@@ -317,8 +326,12 @@ def open_merged_nudged_full_tendencies(
     open_merged_nudged_kwargs = open_merged_nudged_kwargs or {}
     open_checkpoints_kwargs = open_checkpoints_kwargs or {}
 
-    nudged_mapper = open_merged_nudged(url, **open_merged_nudged_kwargs)
-    checkpoint_mapper = _open_nudging_checkpoints(url, **open_checkpoints_kwargs)
+    nudged_mapper = open_merged_nudged(
+        url, consolidated=consolidated, **open_merged_nudged_kwargs
+    )
+    checkpoint_mapper = _open_nudging_checkpoints(
+        url, consolidated=consolidated, **open_checkpoints_kwargs
+    )
 
     return NudgedFullTendencies(
         nudged_mapper,
