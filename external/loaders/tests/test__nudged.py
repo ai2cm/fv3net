@@ -9,7 +9,6 @@ from vcm import safe
 from loaders import TIME_NAME, TIME_FMT
 from loaders.mappers import LongRunMapper
 from loaders.mappers._nudged import (
-    _get_path_for_nudging_timescale,
     NudgedStateCheckpoints,
     MergeNudged,
     GroupByTime,
@@ -21,7 +20,6 @@ from loaders.mappers._nudged import (
 )
 
 NTIMES = 12
-NUDGE_TIMESCALE = 3
 
 
 @pytest.fixture(scope="module")
@@ -78,11 +76,8 @@ def nudged_data_dir(datadir_module, nudged_checkpoints, nudge_tendencies):
     all_data = dict(**nudged_checkpoints)
     all_data.update({"nudging_tendencies": nudge_tendencies})
 
-    timescale_dir = os.path.join(datadir_module, f"outdir-{NUDGE_TIMESCALE}h")
-    os.makedirs(timescale_dir, exist_ok=True)
-
     for filestem, ds in all_data.items():
-        filepath = os.path.join(timescale_dir, f"{filestem}.zarr")
+        filepath = os.path.join(datadir_module, f"{filestem}.zarr")
         ds.to_zarr(filepath)
 
     return str(datadir_module)
@@ -102,40 +97,6 @@ def nudged_tstep_mapper(nudge_tendencies, general_nudge_output):
     timestep_mapper = LongRunMapper(combined_ds)
 
     return timestep_mapper
-
-
-@pytest.fixture
-def nudging_output_dirs(tmpdir):
-
-    # nudging dirs which might be confusing for parser
-    dirs = ["1.00", "1.5", "15"]
-
-    nudging_dirs = {}
-    for item in dirs:
-        curr_dir = os.path.join(tmpdir, f"outdir-{item}h")
-        os.mkdir(curr_dir)
-        nudging_dirs[item] = curr_dir
-
-    return nudging_dirs
-
-
-@pytest.mark.parametrize(
-    "timescale, expected_key",
-    [(1, "1.00"), (1.0, "1.00"), (1.5, "1.5"), (1.500001, "1.5")],
-)
-def test__get_path_for_nudging_timescale(nudging_output_dirs, timescale, expected_key):
-
-    expected_path = nudging_output_dirs[expected_key]
-    result_path = _get_path_for_nudging_timescale(
-        nudging_output_dirs.values(), timescale, tol=1e-5
-    )
-    assert result_path == expected_path
-
-
-@pytest.mark.parametrize("timescale", [1.1, 1.00001])
-def test__get_path_for_nudging_timescale_failure(nudging_output_dirs, timescale):
-    with pytest.raises(KeyError):
-        _get_path_for_nudging_timescale(nudging_output_dirs, timescale, tol=1e-5)
 
 
 @pytest.fixture(params=["dataset_only", "nudged_tstep_mapper_only", "mixed"])
@@ -481,7 +442,7 @@ def test_open_merged_nudged(nudged_data_dir):
 
     merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
     mapper = open_merged_nudged(
-        nudged_data_dir, NUDGE_TIMESCALE, merge_files=merge_files, i_start=4, n_times=6,
+        nudged_data_dir, merge_files=merge_files, i_start=4, n_times=6,
     )
 
     assert len(mapper) == 6
@@ -492,7 +453,7 @@ def test__open_nudging_checkpoints(nudged_data_dir):
 
     checkpoint_files = ("before_dynamics.zarr", "after_nudging.zarr")
     mapper = _open_nudging_checkpoints(
-        nudged_data_dir, NUDGE_TIMESCALE, checkpoint_files=checkpoint_files
+        nudged_data_dir, checkpoint_files=checkpoint_files
     )
     assert len(mapper) == NTIMES * len(checkpoint_files)
 
@@ -502,9 +463,7 @@ def test_open_merged_nudged_full_tendencies(nudged_data_dir):
 
     open_merged_nudged_kwargs = {"n_times": 6}
     mapper = open_merged_nudged_full_tendencies(
-        nudged_data_dir,
-        NUDGE_TIMESCALE,
-        open_merged_nudged_kwargs=open_merged_nudged_kwargs,
+        nudged_data_dir, open_merged_nudged_kwargs=open_merged_nudged_kwargs,
     )
 
     assert len(mapper) == 6

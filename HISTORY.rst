@@ -9,6 +9,8 @@ latest
 * Increase nudging run memory limits and add a high-capacity dynamic volume for nudging output
 * Add fixtures and common units tests for ML and diagnostic data mappers
 * Add diurnal cycle functions to diagnostics_utils
+* Add cos_zenith_angle calculation to vcm, if cos_zenith_angle provided as an input variable in training or diagnostic configuration, 
+ it will be derived and inserted into the batched data.
 
 0.2.3 (2020-06-19)
 ------------------
