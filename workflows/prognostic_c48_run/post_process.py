@@ -100,7 +100,7 @@ def parse_rundir(walker):
 
 
 def open_tiles(
-    tiles: Sequence[str], base: str, chunks: Mapping[str, Mapping[str, int]] = CHUNKS
+    tiles: Sequence[str], base: str, chunks: Mapping[str, Mapping[str, int]]
 ) -> Iterable[Union[str, xr.Dataset]]:
     grouped_tiles = groupby(lambda x: x[: -len(".tile1.nc")], tiles)
     for key, files in grouped_tiles.items():
@@ -120,7 +120,7 @@ def open_zarrs(zarrs: Sequence[str]) -> Iterable[xr.Dataset]:
         yield xr.open_zarr(zarr).assign_attrs(path=zarr)
 
 
-def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str,  chunks):
+def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str, chunks):
     logger.info(f"Processing {item}")
     try:
         dest = os.path.join(d_out, os.path.relpath(item, d_in))  # type: ignore
@@ -143,7 +143,9 @@ def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str,  chunks):
 @click.command()
 @click.argument("rundir")
 @click.argument("destination")
-@click.option("--chunks", type=click.Path(), help="path to yaml file containing chunk information")
+@click.option(
+    "--chunks", type=click.Path(), help="path to yaml file containing chunk information"
+)
 def post_process(rundir: str, destination: str, chunks: str):
     """Post-process the fv3gfs output located RUNDIR and save to DESTINATION
 
@@ -171,7 +173,7 @@ def post_process(rundir: str, destination: str, chunks: str):
 
         tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
 
-        for item in chain(open_tiles(tiles, d_in), open_zarrs(zarrs), other):
+        for item in chain(open_tiles(tiles, d_in, chunks), open_zarrs(zarrs), other):
             process_item(item, d_in, d_out, chunks)
 
         upload_dir(d_out, destination)
