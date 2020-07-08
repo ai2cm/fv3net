@@ -239,7 +239,8 @@ def nudging_offline_diags_config():
     return _nudging_offline_diags_config()
 
 
-fine_res_offline_diags_config = yaml.safe_load("""
+fine_res_offline_diags_config = yaml.safe_load(
+    """
 data_path: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget
 variables:
   - air_temperature
@@ -255,11 +256,12 @@ mapping_kwargs:
     grid_yt: y
     pfull: z
     delp: pressure_thickness_of_atmospheric_layer
-  drop_vars: 
+  drop_vars:
     - step
 batch_kwargs:
   timesteps_per_batch: 2
-""")
+"""
+)
 
 
 @pytest.fixture
