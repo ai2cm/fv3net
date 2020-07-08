@@ -13,6 +13,8 @@ spec:
         value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
       - name: fv3net-image
         value: us.gcr.io/vcm-ml/fv3net:95df9bd2939e4ca2f103c4b2925206f429236ad7
+      - name: post-process-image
+        value: us.gcr.io/vcm-ml/post_process_run:9e3b2f41db48ab256232ea8c72eabbd7189aae8e
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
@@ -38,7 +40,7 @@ spec:
         - - name: run-model
             template: fv3gfs
         - - name: upload-outputs
-            template: upload-data
+            template: post-process
     - name: prepare-config
       container:
         # need to run as root to read the mounted PVC
@@ -57,38 +59,19 @@ spec:
         volumeMounts:
           - name: output-data
             mountPath: /mnt/data
-    - name: upload-data
-      tolerations:
-      - key: "dedicated"
-        operator: "Equal"
-        value: "climate-sim-pool"
-        effect: "NoSchedule"
+    - name: post-process
       container:
-        image: google/cloud-sdk:latest
-        command: ["/bin/bash"]
-        args:
-          - -c
-          - |
-            gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS && \
-            gsutil -m -q rsync -r -e /mnt/data/rundir '{{workflow.parameters.output-url}}'
+        image: "{{workflow.parameters.post-process-image}}"
+        args: ["/mnt/data/rundir", "{{workflow.parameters.output-url}}"]
         env:
           - name: GOOGLE_APPLICATION_CREDENTIALS
             value: /secret/gcp-credentials/key.json
-        imagePullPolicy: Always
-        resources:
-          limits:
-            memory: 8Gi
-          requests:
-            cpu: "6"
-            memory: 8Gi
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
         volumeMounts:
-          - name: output-data
-            mountPath: /mnt/data
           - name: gcp-key-secret
             mountPath: /secret/gcp-credentials
             readOnly: true
+          - name: output-data
+            mountPath: /mnt/data
     - name: fv3gfs
       tolerations:
       - key: "dedicated"
