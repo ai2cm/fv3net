@@ -1,13 +1,13 @@
 import os
 import tempfile
-import numpy as np
-import pytest
 from distutils import dir_util
 
-from .core import load, generate, Range
-from ._nudging import generate_nudging
-from ._fine_res import generate_fine_res
+import numpy as np
+import pytest
 
+from ._fine_res import generate_fine_res
+from ._nudging import generate_nudging
+from .core import Range, generate, load
 
 timestep1 = "20160801.001500"
 timestep1_npdatetime_fmt = "2016-08-01T00:15:00"

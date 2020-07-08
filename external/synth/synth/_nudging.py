@@ -1,7 +1,9 @@
 import os
 from typing import Sequence
-from synth.core import DatasetSchema, generate
+
 import numpy as np
+
+from synth.core import DatasetSchema, generate
 
 from .schemas import load_schema as _load_schema
 

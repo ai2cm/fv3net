@@ -1,7 +1,9 @@
-from synth import generate_nudging
-import numpy as np
 import os
+
+import numpy as np
 import xarray
+
+from synth import generate_nudging
 
 
 def test_generate_nudging(tmpdir):

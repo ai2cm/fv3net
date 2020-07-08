@@ -1,11 +1,14 @@
 import os
 import re
-import vcm
-from vcm import parse_datetime_from_str, safe
-from typing import Mapping, Union, Sequence, Tuple, Optional
+from datetime import timedelta
+from typing import Mapping, Optional, Sequence, Tuple, Union
+
 import xarray as xr
 from toolz import groupby
-from datetime import timedelta
+
+import vcm
+from vcm import parse_datetime_from_str, safe
+
 from ._base import GeoMapper
 
 Time = str

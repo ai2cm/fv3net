@@ -1,5 +1,6 @@
-from synth.core import DatasetSchema, load
 import os
+
+from synth.core import DatasetSchema, load
 
 CURRENT_DIR = os.path.dirname(__file__)
 

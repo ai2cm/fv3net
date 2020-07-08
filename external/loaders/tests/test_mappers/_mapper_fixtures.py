@@ -1,4 +1,5 @@
 import pytest
+
 from loaders import mappers
 
 training_mapper_names = [

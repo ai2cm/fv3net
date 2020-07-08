@@ -1,7 +1,8 @@
-from typing import Sequence
-from synth.schemas import load_schema
-from synth.core import generate
 import os
+from typing import Sequence
+
+from synth.core import generate
+from synth.schemas import load_schema
 
 
 def generate_fine_res(datadir: str, times: Sequence[str]):
