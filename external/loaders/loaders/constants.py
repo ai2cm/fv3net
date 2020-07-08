@@ -2,7 +2,8 @@ SAMPLE_DIM_NAME = "sample"
 TIME_NAME = "time"
 TIME_FMT = "%Y%m%d.%H%M%S"
 DERIVATION_DIM = "derivation"
-DERIVATION_SHiELD_COORD = "coarsened_SHiELD"
+DERIVATION_SHIELD_COORD = "coarsened_SHiELD"
+DERIVATION_FV3GFS_COORD = "coarse_FV3GFS"
 RENAMED_SHIELD_DIAG_VARS = {
     "DSWRFtoa_coarse": "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
     "DSWRFsfc_coarse": "total_sky_downward_shortwave_flux_at_surface",

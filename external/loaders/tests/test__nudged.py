@@ -195,7 +195,7 @@ def nudged_source():
         np.full((4, 1), 10.0),
         {
             "time": xr.DataArray(
-                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
             ),
             "x": xr.DataArray([0], dims=["x"]),
         },
@@ -205,7 +205,7 @@ def nudged_source():
         np.full((4, 1), 270.0),
         {
             "time": xr.DataArray(
-                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
             ),
             "x": xr.DataArray([0], dims=["x"]),
         },
@@ -215,7 +215,7 @@ def nudged_source():
         np.full((4, 1), 0.01),
         {
             "time": xr.DataArray(
-                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
             ),
             "x": xr.DataArray([0], dims=["x"]),
         },
@@ -323,7 +323,7 @@ def test_init_nudged_tendencies(
             difference_checkpoints,
             tendency_variables,
         )
-        safe.get_variables(nudged_tendencies_mapper["20200500.000000"], output_vars)
+        safe.get_variables(nudged_tendencies_mapper["20200501.000000"], output_vars)
     else:
         with pytest.raises(KeyError):
             nudged_tendencies_mapper = NudgedFullTendencies(
@@ -332,7 +332,7 @@ def test_init_nudged_tendencies(
                 difference_checkpoints,
                 tendency_variables,
             )
-            safe.get_variables(nudged_tendencies_mapper["20200500.000000"], output_vars)
+            safe.get_variables(nudged_tendencies_mapper["20200501.000000"], output_vars)
 
 
 @pytest.fixture
@@ -398,7 +398,7 @@ def expected_tendencies(request):
         "pQ1": xr.DataArray(
             [[request.param[0]]],
             {
-                "time": xr.DataArray(["20200500.000000"], dims=["time"]),
+                "time": xr.DataArray(["20200501.000000"], dims=["time"]),
                 "x": xr.DataArray([0], dims=["x"]),
             },
             ["time", "x"],
@@ -406,7 +406,7 @@ def expected_tendencies(request):
         "pQ2": xr.DataArray(
             [[request.param[1]]],
             {
-                "time": xr.DataArray(["20200500.000000"], dims=["time"]),
+                "time": xr.DataArray(["20200501.000000"], dims=["time"]),
                 "x": xr.DataArray([0], dims=["x"]),
             },
             ["time", "x"],
@@ -449,7 +449,7 @@ def test__physics_tendencies(
         nudged_mapper, nudged_checkpoint_mapper
     )
 
-    time = "20200500.000000"
+    time = "20200501.000000"
 
     tendency_variables = {
         "pQ1": "air_temperature",

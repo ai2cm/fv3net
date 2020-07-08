@@ -16,12 +16,11 @@ from .._utils import (
     net_precipitation_from_physics,
     net_heating_from_physics,
 )
-from ..constants import DERIVATION_SHiELD_COORD
+from ..constants import DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
 
 logger = logging.getLogger(__name__)
 
 Z_DIM_NAME = "z"
-DERIVATION_FV3GFS_COORD = "nudged_FV3GFS"
 
 
 class MergeNudged(LongRunMapper):
@@ -310,7 +309,6 @@ def _open_nudging_checkpoints(
 
 
 def open_merged_nudged_full_tendencies(
-<<<<<<< HEAD
     nudging_url: str,
     shield_diags_url: str = None,
     open_merged_nudged_kwargs: Mapping[str, Any] = None,
@@ -370,7 +368,7 @@ def open_merged_nudged_full_tendencies(
         nudged_full_tendencies_mapper = MergeOverlappingData(
             shield_diags_mapper,
             nudged_full_tendencies_mapper,
-            source_name_left=DERIVATION_SHiELD_COORD,
+            source_name_left=DERIVATION_SHIELD_COORD,
             source_name_right=DERIVATION_FV3GFS_COORD,
         )
 

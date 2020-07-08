@@ -4,17 +4,19 @@ import vcm
 from vcm import parse_datetime_from_str, safe
 from typing import Mapping, Union, Sequence, Tuple
 import xarray as xr
-import numpy as np
 from toolz import groupby
 from datetime import timedelta
 from ._base import GeoMapper
 from ._high_res_diags import open_high_res_diags
 from ._merged import MergeOverlappingData
-from ..constants import DERIVATION_SHiELD_COORD, RENAMED_SHIELD_DIAG_VARS
+from ..constants import (
+    DERIVATION_SHIELD_COORD,
+    DERIVATION_FV3GFS_COORD,
+    RENAMED_SHIELD_DIAG_VARS,
+)
 from .._utils import net_precipitation_from_physics, net_heating_from_physics
 
 DIMENSION_ORDER = ("tile", "z", "y", "x")
-DERIVATION_FV3GFS_COORD = "fine_res_apparent_sources"
 Z_DIM = "pfull"
 
 Time = str
@@ -204,7 +206,7 @@ class FineResolutionSources(GeoMapper):
 
         physics_vars = {}
         for var in physics_varnames:
-            physics_var = xr.full_like(template_2d_var, fill_value=np.nan)
+            physics_var = xr.full_like(template_2d_var, fill_value=0.0)
             physics_vars[var] = physics_var
 
         return budget_time_ds.assign(physics_vars)
@@ -294,7 +296,7 @@ def open_fine_res_apparent_sources(
         fine_resolution_sources_mapper = MergeOverlappingData(
             shield_diags_mapper,
             fine_resolution_sources_mapper,
-            source_name_left=DERIVATION_SHiELD_COORD,
+            source_name_left=DERIVATION_SHIELD_COORD,
             source_name_right=DERIVATION_FV3GFS_COORD,
         )
 

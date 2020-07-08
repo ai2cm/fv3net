@@ -6,16 +6,15 @@ import vcm
 from vcm import cloud, safe
 from ._base import GeoMapper
 from .._utils import net_heating_from_physics, net_precipitation_from_physics
-from ..constants import DERIVATION_DIM, DERIVATION_SHiELD_COORD
+from ..constants import DERIVATION_DIM, DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
 
 TIME_DIM_NAME = "initial_time"
 DIMENSION_ORDER = ("tile", "z", "y", "y_interface", "x", "x_interface")
 SHIELD_SUFFIX = "prog"
 ONE_STEP_SUFFIX = "train"
-DERIVATION_FV3GFS_COORD = "one_step_FV3GFS"
 
 
-RENAMED_SHIELD_DIAG_VARS = {
+RENAME_ONE_STEP_SHIELD_DIAG_VARS = {
     "total_sky_downward_shortwave_flux_at_top_of_atmosphere": (
         "DSWRFtoa_prog",
         "DSWRFtoa_train",
@@ -77,7 +76,7 @@ class TimestepMapperWithDiags(GeoMapper):
     def __init__(self, timestep_mapper: Mapping[str, xr.Dataset]):
         self._timestep_mapper = timestep_mapper
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._timestep_mapper[key]
         return self._assign_net_terms(ds)
 
@@ -96,7 +95,7 @@ class TimestepMapperWithDiags(GeoMapper):
     @staticmethod
     def _reshape_one_step_diags(
         ds: xr.Dataset,
-        reshape_vars: Mapping[str, str] = RENAMED_SHIELD_DIAG_VARS,
+        reshape_vars: Mapping[str, str] = RENAME_ONE_STEP_SHIELD_DIAG_VARS,
         shield_suffix: str = SHIELD_SUFFIX,
         one_step_suffix: str = ONE_STEP_SUFFIX,
         overlap_dim: str = DERIVATION_DIM,
@@ -108,7 +107,7 @@ class TimestepMapperWithDiags(GeoMapper):
                 safe.get_variables(ds, reshape_vars)
                 .to_array(dim=overlap_dim)
                 .assign_coords(
-                    {overlap_dim: [DERIVATION_SHiELD_COORD, DERIVATION_FV3GFS_COORD]}
+                    {overlap_dim: [DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD]}
                 )
             )
             overlap_dim_vars[rename] = var_da
@@ -119,19 +118,25 @@ class TimestepMapperWithDiags(GeoMapper):
 
 def open_one_step(
     url: str,
+    add_shield_diags: bool = False,
     rename_vars: Mapping[str, str] = None,
     drop_vars: Sequence[str] = (TIME_DIM_NAME,),
     dim_order: Sequence[str] = DIMENSION_ORDER,
 ) -> Mapping[str, xr.Dataset]:
-    return TimestepMapper(url, rename_vars, drop_vars, dim_order)
+
+    if not add_shield_diags:
+        mapper = TimestepMapper(url, rename_vars, drop_vars, dim_order)
+    else:
+        mapper = TimestepMapperWithDiags(
+            TimestepMapper(url, rename_vars, drop_vars, dim_order)
+        )
+    return mapper
 
 
-def open_one_step_with_diags(
-    url: str,
-    rename_vars: Mapping[str, str] = None,
-    drop_vars: Sequence[str] = (TIME_DIM_NAME,),
-    dim_order: Sequence[str] = DIMENSION_ORDER,
-) -> Mapping[str, xr.Dataset]:
-    return TimestepMapperWithDiags(
-        TimestepMapper(url, rename_vars, drop_vars, dim_order)
-    )
+# def open_one_step_with_diags(
+#     url: str,
+#     rename_vars: Mapping[str, str] = None,
+#     drop_vars: Sequence[str] = (TIME_DIM_NAME,),
+#     dim_order: Sequence[str] = DIMENSION_ORDER,
+# ) -> Mapping[str, xr.Dataset]:
+#     return

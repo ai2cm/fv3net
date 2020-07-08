@@ -7,7 +7,7 @@ from loaders.mappers._fine_resolution_budget import (
 )
 from loaders.mappers._high_res_diags import open_high_res_diags
 from loaders.mappers._merged import MergeOverlappingData
-from loaders.constants import DERIVATION_SHiELD_COORD
+from loaders.constants import DERIVATION_SHIELD_COORD
 from typing import Mapping, Sequence
 
 training_mapper_names = ["FineResolutionSources", "SubsetTimes", "TimestepMapper"]
@@ -38,7 +38,7 @@ def training_mapper_data_source_path(
 ):
     if training_mapper_name == "TimestepMapper":
         training_mapper_data_source_path = one_step_dataset_path
-    elif training_mapper_name in ("SubsetTimes", "NudgedFullTendencies"):
+    elif training_mapper_name == "SubsetTimes":
         training_mapper_data_source_path = nudging_dataset_path
     elif training_mapper_name == "FineResolutionSources":
         training_mapper_data_source_path = fine_res_dataset_path
@@ -84,7 +84,7 @@ def _open_fine_res_apparent_sources_patch(
         fine_resolution_sources_mapper = MergeOverlappingData(
             shield_diags_mapper,
             fine_resolution_sources_mapper,
-            source_name_left=DERIVATION_SHiELD_COORD,
+            source_name_left=DERIVATION_SHIELD_COORD,
             source_name_right=DERIVATION_FV3GFS_COORD,
         )
 
@@ -118,7 +118,7 @@ def training_mapper_helper_function_kwargs(
     training_mapper_name, C48_SHiELD_diags_dataset_path
 ):
     if training_mapper_name == "TimestepMapper":
-        return {'add_shield_diags': True}
+        return {}
     elif training_mapper_name == "SubsetTimes":
         return {}
     elif training_mapper_name == "NudgedFullTendencies":
@@ -143,10 +143,9 @@ def diagnostic_mapper_helper_function_kwargs(
     diagnostic_mapper_name, C48_SHiELD_diags_dataset_path
 ):
     if diagnostic_mapper_name == "TimestepMapperWithDiags":
-        kwargs = {}
+        kwargs = {"add_shield_diags": True}
     elif diagnostic_mapper_name == "NudgedFullTendencies":
         kwargs = {
-            "nudging_timescale_hr": 3,
             "shield_diags_url": C48_SHiELD_diags_dataset_path,
             "open_checkpoints_kwargs": {
                 "checkpoint_files": ("after_dynamics.zarr", "after_physics.zarr")
