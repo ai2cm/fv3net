@@ -123,16 +123,16 @@ if __name__ == "__main__":
             ],
         )
         ds_metrics = calc_metrics(ds)
-        batches_diags.append(ds_diagnostic_batch)
+        #batches_diags.append(ds_diagnostic_batch)
         batches_diurnal.append(ds_diurnal)
         batches_metrics.append(ds_metrics)
         logger.info(f"Processed batch {i} diagnostics netcdf output.")
 
-    ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
+    #ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
     ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
     ds_metrics = xr.concat(batches_metrics, dim="batch").mean(dim="batch")
 
-    _write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
+    #_write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
     _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
 
     metrics = {

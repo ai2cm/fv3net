@@ -11,9 +11,4 @@ mapping_function: open_merged_nudged_full_tendencies
 mapping_kwargs:
   nudging_timescale_hr: 3
 batch_kwargs:
-  timesteps_per_batch: 2
-  timesteps:
-    - "20160801.003000"
-    - "20160801.004500"
-    - "20160801.010000"
-    - "20160801.011500"
+  timesteps_per_batch: 10
