@@ -2,7 +2,7 @@ import os
 import re
 import vcm
 from vcm import parse_datetime_from_str, safe
-from typing import Mapping, Union, Sequence, Tuple
+from typing import Mapping, Union, Sequence, Tuple, Optional
 import xarray as xr
 from toolz import groupby
 from datetime import timedelta
@@ -62,16 +62,20 @@ class FineResolutionSources(GeoMapper):
     def __init__(
         self,
         fine_resolution_time_mapping: Mapping[Time, xr.Dataset],
-        dim_order: Sequence[str],
-        rename_vars: Mapping[str, str],
         offset_seconds: Union[int, float] = 0,
         drop_vars: Sequence[str] = ("step", "time"),
+        dim_order: Sequence[str] = ("tile", "z", "y", "x"),
+        rename_vars: Optional[Mapping[str, str]] = None,
     ):
         self._time_mapping = fine_resolution_time_mapping
         self._offset_seconds = offset_seconds
-        self._rename_vars = rename_vars or {}
         self._drop_vars = drop_vars
         self._dim_order = dim_order
+
+        if rename_vars is None:
+            self._rename_vars = {}
+        else:
+            self._rename_vars = rename_vars
 
     def keys(self):
         return set(
@@ -240,17 +244,15 @@ def open_fine_res_apparent_sources(
         rename_vars: (mapping): optional mapping of variables to rename in dataset
         drop_vars (sequence): optional list of variable names to drop from dataset
     """
+
+    # use default which is valid for real data
     if rename_vars is None:
-        rename_vars = {
-            "grid_xt": "x",
-            "grid_yt": "y",
-            "pfull": "z",
-        }
+        rename_vars = {"grid_xt": "x", "grid_yt": "y", "pfull": "z"}
 
     return FineResolutionSources(
         open_fine_resolution_budget(url),
-        dim_order,
-        rename_vars,
         offset_seconds,
         drop_vars,
+        dim_order=dim_order,
+        rename_vars=rename_vars,
     )

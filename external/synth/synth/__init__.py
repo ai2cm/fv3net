@@ -16,7 +16,6 @@ from .core import (
 
 from ._nudging import generate_nudging
 from ._fine_res import generate_fine_res
-
 from ._restarts import generate_restart_data
 
 from ._dataset_fixtures import (
