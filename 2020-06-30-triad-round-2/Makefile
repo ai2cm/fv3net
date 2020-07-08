@@ -1,6 +1,6 @@
 check:
 	kubectl apply -f time_configmap.yaml --dry-run=client
-	kubectl apply -k nudging --dry-run=client
+	kubectl apply -k nudging-additional-features --dry-run=client
 
 
 submit_nudging_additional_features:
