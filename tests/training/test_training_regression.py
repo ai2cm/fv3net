@@ -7,6 +7,8 @@ import logging
 import diagnostics_utils as utils
 import synth
 from loaders import mappers, batches, SAMPLE_DIM_NAME
+from loaders.mappers._fine_resolution_budget import FineResolutionSources
+from loaders.mappers._merged import MergeOverlappingData
 from fv3net.regression.sklearn import train
 from fv3net.regression import shared
 from fv3net.regression.sklearn._mapper import SklearnPredictionMapper
@@ -15,7 +17,13 @@ from offline_ml_diags._metrics import calc_metrics
 
 logger = logging.getLogger(__name__)
 
-DOMAINS = ["land", "sea", "global"]
+DOMAINS = [
+    "land",
+    "sea",
+    "global",
+    "positive_net_precipitation",
+    "negative_net_precipitation",
+]
 OUTPUT_NC_NAME = "diagnostics.nc"
 
 
@@ -29,7 +37,7 @@ def training_diags_reference_schema():
 
 @pytest.fixture
 def training_data_diags_config():
-    path = "./workflows/training_data_diags/training_data_sources_config.yml"
+    path = "./workflows/training_data_diags/triad_experiments_single_timestep.yml"
     with open(path, "r") as f:
         yield yaml.safe_load(f)
 
@@ -49,20 +57,37 @@ def test_compute_training_diags(
     nudging_dataset_path,
     fine_res_dataset_path,
     training_data_diags_config,
+    C48_SHiELD_diags_dataset_path,
     grid_dataset,
 ):
 
-    one_step_training_diags_config = get_data_source_training_diags_config(
-        training_data_diags_config, "one_step_tendencies"
+    one_step_physics_off_training_diags_config = get_data_source_training_diags_config(
+        training_data_diags_config, "one_step_physics-off"
+    )
+    one_step_clouds_off_training_diags_config = get_data_source_training_diags_config(
+        training_data_diags_config, "one_step_clouds-off"
     )
     nudging_training_diags_config = get_data_source_training_diags_config(
         training_data_diags_config, "nudging_tendencies"
     )
+    fine_res_training_diags_config = get_data_source_training_diags_config(
+        training_data_diags_config, "fine_res_apparent_sources"
+    )
 
     data_config_mapping = {
-        "one_step_tendencies": (one_step_dataset_path, one_step_training_diags_config),
+        "one_step_physics_off": (
+            one_step_dataset_path,
+            one_step_physics_off_training_diags_config,
+        ),
+        "one_step_clouds_off": (
+            one_step_dataset_path,
+            one_step_clouds_off_training_diags_config,
+        ),
         "nudging_tendencies": (nudging_dataset_path, nudging_training_diags_config),
-        "fine_res_apparent_sources": (fine_res_dataset_path, None),
+        "fine_res_apparent_sources": (
+            fine_res_dataset_path,
+            fine_res_training_diags_config,
+        ),
     }
 
     variable_names = [
@@ -71,6 +96,8 @@ def test_compute_training_diags(
         "pQ1",
         "pQ2",
         "pressure_thickness_of_atmospheric_layer",
+        "net_precipitation",
+        "net_heating",
     ]
 
     diagnostic_datasets = {}
@@ -81,30 +108,52 @@ def test_compute_training_diags(
         (data_source_path, data_source_config),
     ) in data_config_mapping.items():
         if data_source_name != "fine_res_apparent_sources":
-            ds_batches_one_step = batches.diagnostic_batches_from_geodata(
+            if "shield_diags_url" in data_source_config["mapping_kwargs"]:
+                data_source_config["mapping_kwargs"][
+                    "shield_diags_url"
+                ] = C48_SHiELD_diags_dataset_path
+            ds_batches = batches.diagnostic_batches_from_geodata(
                 data_source_path,
                 variable_names,
                 timesteps_per_batch=timesteps_per_batch,
                 mapping_function=data_source_config["mapping_function"],
                 mapping_kwargs=data_source_config["mapping_kwargs"],
             )
-            ds_diagnostic = utils.reduce_to_diagnostic(
-                ds_batches_one_step, grid_dataset, domains=DOMAINS
-            )
+
         else:
-            rename_variables = {
-                "delp": "pressure_thickness_of_atmospheric_layer",
-                "pfull": "z",
-                "grid_xt": "x",
-                "grid_yt": "y",
+            # this function is a patch for the actual until synth is netcdf-compatible
+            fine_res_ds = xr.open_zarr(data_source_path)
+            time_mapper = {
+                fine_res_ds.time.values[0]: (fine_res_ds.isel(time=0)),
+                fine_res_ds.time.values[1]: (fine_res_ds.isel(time=1)),
             }
-            ds_batches_fine_res = [
-                xr.open_zarr(data_source_path).isel(time=0).rename(rename_variables),
-                xr.open_zarr(data_source_path).isel(time=1).rename(rename_variables),
-            ]
-            ds_diagnostic = utils.reduce_to_diagnostic(
-                ds_batches_fine_res, grid_dataset, domains=DOMAINS
+            fine_resolution_sources_mapper = FineResolutionSources(
+                time_mapper,
+                rename_vars=data_source_config["mapping_kwargs"]["rename_vars"],
             )
+            if data_source_config["mapping_kwargs"].get("shield_diags_url") is not None:
+                data_source_config["mapping_kwargs"][
+                    "shield_diags_url"
+                ] = C48_SHiELD_diags_dataset_path
+                shield_diags_mapper = mappers.open_high_res_diags(
+                    data_source_config["mapping_kwargs"]["shield_diags_url"]
+                )
+                fine_resolution_sources_mapper = MergeOverlappingData(
+                    shield_diags_mapper,
+                    fine_resolution_sources_mapper,
+                    source_name_left="coarsened_SHiELD",
+                    source_name_right="coarse_FV3GFS",
+                )
+
+            ds_batches = batches.diagnostic_batches_from_mapper(
+                fine_resolution_sources_mapper,
+                variable_names,
+                timesteps_per_batch=timesteps_per_batch,
+            )
+
+        ds_diagnostic = utils.reduce_to_diagnostic(
+            ds_batches, grid_dataset, domains=DOMAINS
+        )
         diagnostic_datasets[data_source_name] = ds_diagnostic
 
     diagnostics_all = xr.concat(

@@ -16,7 +16,7 @@ sources:
   one_step_clouds-off: 
     path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/one-step-clouds-off/create_training_data/train
     mapping_function: open_one_step_with_diags
-  nudging:
+  nudging_tendencies:
     path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging
     mapping_function: open_merged_nudged_full_tendencies
     mapping_kwargs:
