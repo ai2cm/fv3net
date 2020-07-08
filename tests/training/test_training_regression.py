@@ -19,6 +19,7 @@ DOMAINS = ["land", "sea", "global"]
 OUTPUT_NC_NAME = "diagnostics.nc"
 TIME_DIM = "time"
 
+
 @pytest.fixture
 def training_diags_reference_schema():
 
@@ -356,7 +357,10 @@ def test_compute_offline_diags(
 ):
     diagnostic_batches_concat = xr.concat(diagnostic_batches, dim=TIME_DIM)
     ds_diagnostic = utils.reduce_to_diagnostic(
-        diagnostic_batches_concat, grid_dataset, domains=DOMAINS, primary_vars=["dQ1", "dQ2"]
+        diagnostic_batches_concat,
+        grid_dataset,
+        domains=DOMAINS,
+        primary_vars=["dQ1", "dQ2"],
     )
 
     # TODO standardize schema encoding in synth to avoid the casting that makes
