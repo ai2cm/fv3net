@@ -6,14 +6,12 @@ import vcm
 from vcm import cloud, safe
 from ._base import GeoMapper
 from .._utils import net_heating_from_physics, net_precipitation_from_physics
-from ..constants import DERIVATION_DIM, DERIVATION_SHiELD_COORD
+from ..constants import DERIVATION_DIM, DERIVATION_SHiELD_COORD, DERIVATION_FV3GFS_COORD
 
 TIME_DIM_NAME = "initial_time"
 DIMENSION_ORDER = ("tile", "z", "y", "y_interface", "x", "x_interface")
 SHIELD_SUFFIX = "prog"
 ONE_STEP_SUFFIX = "train"
-DERIVATION_FV3GFS_COORD = "one_step_FV3GFS"
-
 
 RENAMED_SHIELD_DIAG_VARS = {
     "total_sky_downward_shortwave_flux_at_top_of_atmosphere": (

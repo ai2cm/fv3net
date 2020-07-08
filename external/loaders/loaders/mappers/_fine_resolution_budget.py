@@ -10,11 +10,10 @@ from datetime import timedelta
 from ._base import GeoMapper
 from ._high_res_diags import open_high_res_diags
 from ._merged import MergeOverlappingData
-from ..constants import DERIVATION_SHiELD_COORD, RENAMED_SHIELD_DIAG_VARS
+from ..constants import DERIVATION_SHiELD_COORD, DERIVATION_FV3GFS_COORD, RENAMED_SHIELD_DIAG_VARS
 from .._utils import net_precipitation_from_physics, net_heating_from_physics
 
 DIMENSION_ORDER = ("tile", "z", "y", "x")
-DERIVATION_FV3GFS_COORD = "fine_res_apparent_sources"
 Z_DIM = "pfull"
 
 Time = str

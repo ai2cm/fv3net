@@ -16,13 +16,12 @@ from .._utils import (
     net_precipitation_from_physics,
     net_heating_from_physics,
 )
-from ..constants import DERIVATION_SHiELD_COORD
+from ..constants import DERIVATION_SHiELD_COORD, DERIVATION_FV3GFS_COORD
 
 logger = logging.getLogger(__name__)
 
 TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
 Z_DIM_NAME = "z"
-DERIVATION_FV3GFS_COORD = "nudged_FV3GFS"
 
 
 def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-5):
