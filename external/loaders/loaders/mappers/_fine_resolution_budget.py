@@ -219,7 +219,7 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
     """Open a mapping interface to the fine resolution budget data
 
     Example:
- 
+
         >>> from fv3net.regression.loaders import *
         >>> loader = open_fine_resolution_budget('gs://vcm-ml-scratch/noah/2020-05-19/')
         >>> len(loader)
@@ -264,7 +264,7 @@ def open_fine_res_apparent_sources(
 ) -> Mapping[str, xr.Dataset]:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
-        
+
     Args:
         fine_res_url (str): path to fine res dataset
         shield_diags_url: path to directory containing a zarr store of SHiELD

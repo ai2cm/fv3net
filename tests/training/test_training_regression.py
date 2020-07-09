@@ -241,31 +241,6 @@ def nudging_offline_diags_config():
     return _nudging_offline_diags_config()
 
 
-fine_res_offline_diags_config = yaml.safe_load(
-    """
-data_path: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget
-variables:
-  - air_temperature
-  - specific_humidity
-  - dQ1
-  - dQ2
-  - pressure_thickness_of_atmospheric_layer
-mapping_function: open_fine_res_apparent_sources
-mapping_kwargs:
-  offset_seconds: 450
-  rename_vars:
-    grid_xt: x
-    grid_yt: y
-    pfull: z
-    delp: pressure_thickness_of_atmospheric_layer
-  drop_vars:
-    - step
-batch_kwargs:
-  timesteps_per_batch: 2
-"""
-)
-
-
 @pytest.fixture
 def data_source_offline_config(data_source_name):
     if data_source_name == "one_step_tendencies":
@@ -273,7 +248,8 @@ def data_source_offline_config(data_source_name):
     elif data_source_name == "nudging_tendencies":
         return _nudging_offline_diags_config()
     elif data_source_name == "fine_res_apparent_sources":
-        return fine_res_offline_diags_config
+        with open("./workflows/offline_ml_diags/tests/test_fine_res_config.yml") as f:
+            return yaml.safe_load(f)
     else:
         raise NotImplementedError()
 
