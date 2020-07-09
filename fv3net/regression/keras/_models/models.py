@@ -6,7 +6,7 @@ import tensorflow as tf
 from .._packer import ArrayPacker
 import numpy as np
 import os
-from ..filesystem import get_dir, put_dir
+from ._filesystem import get_dir, put_dir
 
 logger = logging.getLogger(__file__)
 
