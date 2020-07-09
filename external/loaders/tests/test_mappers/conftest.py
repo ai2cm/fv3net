@@ -16,7 +16,7 @@ from ._mapper_fixtures import (  # noqa: F401
     training_mapper,
 )
 
-from ._diagnostic_fixtures import (
+from ._diagnostic_fixtures import (  # noqa: F401
     diagnostic_mapper_name,
     diagnostic_mapper_data_source_path,
     diagnostic_mapper_helper_function,
