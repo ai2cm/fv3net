@@ -4,6 +4,7 @@ from distutils import dir_util
 
 import numpy as np
 import pytest
+import xarray as xr
 
 from ._fine_res import generate_fine_res
 from ._nudging import generate_nudging

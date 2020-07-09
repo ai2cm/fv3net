@@ -102,12 +102,11 @@ def diagnostic_mapper_data_source_path(
 @pytest.fixture
 def diagnostic_mapper_helper_function(diagnostic_mapper_name):
     if diagnostic_mapper_name == "TimestepMapperWithDiags":
-        return getattr(mappers, "open_one_step")
+        return mappers.open_one_step
     elif diagnostic_mapper_name == "NudgedFullTendencies":
-        return getattr(mappers, "open_merged_nudged_full_tendencies")
+        return mappers.open_merged_nudged_full_tendencies
     elif diagnostic_mapper_name == "FineResolutionSources":
-        # patch until synth is netcdf-compatible
-        return _open_fine_res_apparent_sources_patch
+        return mappers.open_fine_res_apparent_sources
 
 
 @pytest.fixture
