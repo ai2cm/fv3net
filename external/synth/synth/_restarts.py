@@ -1,6 +1,6 @@
 import synth
 from typing import Iterable, Mapping, Sequence
-from synth import DatasetSchema, CoordinateSchema, ChunkedArray, VariableSchema
+from synth.core import DatasetSchema, CoordinateSchema, ChunkedArray, VariableSchema
 import numpy as np
 import xarray as xr
 
