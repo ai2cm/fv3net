@@ -1,8 +1,10 @@
+from typing import Iterable, Sequence
 import xarray as xr
 import pytest
 import logging
 from loaders import batches
 from fv3net import regression
+import fv3net.regression.keras as fv3keras
 from fv3net.regression import shared
 import numpy as np
 import tempfile
@@ -14,15 +16,13 @@ import os
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(
-    params=[name for name in dir(regression.keras.models) if not name.startswith("_")]
-)
-def model_type(request):
+@pytest.fixture(params=["DenseModel"])
+def model_type(request) -> str:
     return request.param
 
 
 @pytest.fixture
-def hyperparameters(model_type):
+def hyperparameters(model_type) -> dict:
     if model_type == "DenseModel":
         return {"width": 8, "depth": 3}
     else:
@@ -30,22 +30,22 @@ def hyperparameters(model_type):
 
 
 @pytest.fixture
-def input_variables():
+def input_variables() -> Iterable[str]:
     return ["air_temperature", "specific_humidity"]
 
 
 @pytest.fixture
-def output_variables():
+def output_variables() -> Iterable[str]:
     return ["dQ1", "dQ2"]
 
 
 @pytest.fixture()
-def batch_function(model_type):
+def batch_function(model_type: str) -> str:
     return "batches_from_geodata"
 
 
 @pytest.fixture()
-def batch_kwargs(data_source_name):
+def batch_kwargs(data_source_name: str) -> dict:
     if data_source_name == "one_step_tendencies":
         return {
             "timesteps_per_batch": 1,
@@ -78,13 +78,13 @@ def batch_kwargs(data_source_name):
 
 @pytest.fixture
 def train_config(
-    model_type,
-    hyperparameters,
-    input_variables,
-    output_variables,
-    batch_function,
-    batch_kwargs,
-):
+    model_type: str,
+    hyperparameters: dict,
+    input_variables: Iterable[str],
+    output_variables: Iterable[str],
+    batch_function: str,
+    batch_kwargs: dict,
+) -> shared.ModelTrainingConfig:
     return shared.ModelTrainingConfig(
         model_type=model_type,
         hyperparameters=hyperparameters,
@@ -97,13 +97,13 @@ def train_config(
 
 @pytest.fixture
 def train_config_filename(
-    model_type,
-    hyperparameters,
-    input_variables,
-    output_variables,
-    batch_function,
-    batch_kwargs,
-):
+    model_type: str,
+    hyperparameters: dict,
+    input_variables: Iterable[str],
+    output_variables: Iterable[str],
+    batch_function: str,
+    batch_kwargs: dict,
+) -> str:
     with tempfile.NamedTemporaryFile(mode="w") as f:
         yaml.dump(
             {
@@ -120,7 +120,11 @@ def train_config_filename(
 
 
 @pytest.fixture
-def training_batches(data_source_name, data_source_path, train_config):
+def training_batches(
+    data_source_name: str,
+    data_source_path: str,
+    train_config: shared.ModelTrainingConfig,
+) -> Sequence[xr.Dataset]:
 
     if data_source_name != "fine_res_apparent_sources":
         batched_data = regression.shared.load_data_sequence(
@@ -143,21 +147,37 @@ def training_batches(data_source_name, data_source_path, train_config):
 
 
 @pytest.fixture
-def model(model_type, input_variables, output_variables, hyperparameters):
-    return regression.keras.get_model(
+def model(
+    model_type: str,
+    input_variables: Iterable[str],
+    output_variables: Iterable[str],
+    hyperparameters: dict,
+) -> fv3keras.Model:
+    return fv3keras.get_model(
         model_type, input_variables, output_variables, **hyperparameters
     )
 
 
 @pytest.mark.regression
-def test_training(model, training_batches, output_variables):
+def test_training(
+    model: fv3keras.Model,
+    training_batches: Sequence[xr.Dataset],
+    output_variables: Iterable[str],
+):
     model.fit(training_batches)
     batch_dataset = training_batches[0]
     result = model.predict(batch_dataset)
     validate_dataset_result(result, batch_dataset, output_variables)
 
 
-def validate_dataset_result(result, batch_dataset, output_variables):
+def validate_dataset_result(
+    result: xr.Dataset, batch_dataset: xr.Dataset, output_variables: Iterable[str]
+):
+    """
+    Use assertions to test whether the predicted output dataset metadata matches
+    metadata from a reference, for the given variable names. Also checks output values
+    are present.
+    """
     missing_names = set(output_variables).difference(result.data_vars.keys())
     assert len(missing_names) == 0
     for varname in output_variables:
@@ -166,7 +186,11 @@ def validate_dataset_result(result, batch_dataset, output_variables):
 
 
 @pytest.mark.regression
-def test_serialization(model, training_batches, output_variables):
+def test_dump_and_load_maintains_prediction(
+    model: fv3keras.Model,
+    training_batches: Sequence[xr.Dataset],
+    output_variables: Iterable[str],
+):
     model.fit(training_batches)
     with tempfile.TemporaryDirectory() as tmpdir:
         model.dump(tmpdir)
@@ -180,8 +204,14 @@ def test_serialization(model, training_batches, output_variables):
 
 @pytest.mark.regression
 def test_training_integration(
-    data_source_path, train_config_filename, tmp_path, data_source_name
+    data_source_path: str,
+    train_config_filename: str,
+    tmp_path: str,
+    data_source_name: str,
 ):
+    """
+    Test the bash endpoint for training the model produces the expected output files.
+    """
     if data_source_name == "fine_res_apparent_sources":
         pytest.xfail("cannot test fine_res on disk until synth produces netcdf files")
     subprocess.check_call(
