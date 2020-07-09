@@ -23,7 +23,7 @@ def get_dir(path: str):
         fs, _, _ = fsspec.get_fs_token_paths(path)
         # fsspec places the directory inside the tmpdir, as a subdirectory
         fs.get(path, tmpdir, recursive=True)
-        yield os.path.join(tmpdir, os.path.basename(path))
+        yield tmpdir
 
 
 def _put_directory(
