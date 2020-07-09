@@ -4,18 +4,15 @@ import yaml
 import logging
 import contextlib
 import fsspec
-from . import training
+from . import get_model
 from .. import shared
 import tempfile
 
 # TODO: refactor these to ..shared
-from ..sklearn.__main__ import _create_report_plots, _write_report, _save_config_output
+from ..sklearn.__main__ import _save_config_output
 
 
 MODEL_FILENAME = "model_data"
-MODEL_CONFIG_FILENAME = "training_config.yml"
-TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
-REPORT_TITLE = "ML model training report"
 
 
 def parse_args():
@@ -69,7 +66,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
 
-    model = training.get_model(
+    model = get_model(
         train_config.model_type,
         train_config.input_variables,
         train_config.output_variables,
@@ -83,7 +80,3 @@ if __name__ == "__main__":
         model.dump(model_path)
 
     report_metadata = {**vars(args), **vars(train_config)}
-    report_sections = _create_report_plots(
-        args.output_data_path, batches.attrs["times"],
-    )
-    _write_report(args.output_data_path, report_sections, report_metadata, REPORT_TITLE)

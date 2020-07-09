@@ -1,38 +1,39 @@
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Iterable
 import xarray as xr
 import logging
 import abc
 import tensorflow as tf
-from ..packer import ArrayPacker
+from .._packer import ArrayPacker
 import numpy as np
 import os
 
 logger = logging.getLogger(__file__)
 
 
-class _SampleSequence(tf.keras.utils.Sequence):
+class _XyArraySequence(tf.keras.utils.Sequence):
     """
     Wrapper object converting a sequence of batch datasets
     to a sequence of input/output numpy arrays.
     """
 
-    def __init__(self, X_packer, y_packer, dataset_sequence):
+    def __init__(
+        self,
+        X_packer: ArrayPacker,
+        y_packer: ArrayPacker,
+        dataset_sequence: Sequence[xr.Dataset],
+    ):
         self.X_packer = X_packer
         self.y_packer = y_packer
         self.dataset_sequence = dataset_sequence
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.dataset_sequence)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> Tuple[np.ndarray, np.ndarray]:
         ds = self.dataset_sequence[idx]
-        X = self.X_packer.pack(ds)
-        y = self.y_packer.pack(ds)
+        X = self.X_packer.to_array(ds)
+        y = self.y_packer.to_array(ds)
         return X, y
-
-
-def sample_from_dataset(packer, dataset):
-    return packer.pack_X(dataset), packer.pack_y(dataset)
 
 
 class Model(abc.ABC):
@@ -42,7 +43,16 @@ class Model(abc.ABC):
     """
 
     @abc.abstractmethod
-    def fit(self, X: Sequence[xr.Dataset]):
+    def __init__(
+        self,
+        input_variables: Iterable[str],
+        output_variables: Iterable[str],
+        **hyperparameters,
+    ):
+        super().__init__()
+
+    @abc.abstractmethod
+    def fit(self, X: Sequence[xr.Dataset]) -> None:
         pass
 
     @abc.abstractmethod
@@ -50,11 +60,13 @@ class Model(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def dump(self, file):
+    def dump(self, path: str) -> None:
+        """Serialize the model to a local directory."""
         pass
 
     @abc.abstractmethod
-    def load(self, file):
+    def load(self, path: str) -> object:
+        """Load a serialized model from a local directory."""
         pass
 
 
@@ -68,12 +80,13 @@ class PackedKerasModel(Model):
     Keras model.
     """
 
-    MODEL_FILENAME = "model.tf"
-    X_PACKER_FILENAME = "X_packer.json"
-    Y_PACKER_FILENAME = "y_packer.json"
+    # these should only be used in the dump/load routines for this class
+    _MODEL_FILENAME = "model.tf"
+    _X_PACKER_FILENAME = "X_packer.json"
+    _Y_PACKER_FILENAME = "y_packer.json"
 
-    def __init__(self, input_variables, output_variables):
-        super().__init__()
+    def __init__(self, input_variables: Iterable[str], output_variables: Iterable[str]):
+        super().__init__(input_variables, output_variables)
         self._model = None
         self.X_packer = ArrayPacker(input_variables)
         self.y_packer = ArrayPacker(output_variables)
@@ -99,18 +112,17 @@ class PackedKerasModel(Model):
         pass
 
     def fit(self, batches: Sequence[xr.Dataset]) -> None:
-        X = _SampleSequence(self.X_packer, self.y_packer, batches)
+        Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
         if self._model is None:
-            features_in = X[0][0].shape[-1]
-            features_out = X[0][1].shape[-1]
+            features_in, features_out = count_batch_features(Xy)
             self._model = self.get_model(features_in, features_out)
-        self.fit_array(X)
+        self.fit_array(Xy)
 
     def fit_array(self, X: Sequence[Tuple[np.ndarray, np.ndarray]]) -> None:
         return self.model.fit(X)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
-        return self.y_packer.unpack(self.predict_array(self.X_packer.pack(X)))
+        return self.y_packer.to_dataset(self.predict_array(self.X_packer.to_array(X)))
 
     def predict_array(self, X: np.ndarray) -> np.ndarray:
         return self.model.predict(X)
@@ -118,25 +130,35 @@ class PackedKerasModel(Model):
     def dump(self, path: str) -> None:
         if os.path.isfile(path):
             raise ValueError(f"path {path} exists and is not a directory")
-        model_filename = os.path.join(path, self.MODEL_FILENAME)
+        model_filename = os.path.join(path, self._MODEL_FILENAME)
         self.model.save(model_filename)
-        with open(os.path.join(path, self.X_PACKER_FILENAME), "w") as f:
+        with open(os.path.join(path, self._X_PACKER_FILENAME), "w") as f:
             self.X_packer.dump(f)
-        with open(os.path.join(path, self.Y_PACKER_FILENAME), "w") as f:
+        with open(os.path.join(path, self._Y_PACKER_FILENAME), "w") as f:
             self.y_packer.dump(f)
 
     @classmethod
     def load(cls, path: str) -> Model:
-        with open(os.path.join(path, cls.X_PACKER_FILENAME), "r") as f:
+        with open(os.path.join(path, cls._X_PACKER_FILENAME), "r") as f:
             X_packer = ArrayPacker.load(f)
-        with open(os.path.join(path, cls.Y_PACKER_FILENAME), "r") as f:
+        with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:
             y_packer = ArrayPacker.load(f)
         obj = cls(X_packer.names, y_packer.names)
-        model_filename = os.path.join(path, cls.MODEL_FILENAME)
+        model_filename = os.path.join(path, cls._MODEL_FILENAME)
         obj._model = tf.keras.models.load_model(model_filename)
         obj.X_packer = X_packer
         obj.y_packer = y_packer
         return obj
+
+
+def count_batch_features(
+    batches: Sequence[Tuple[np.ndarray, np.ndarray]]
+) -> Tuple[int, int]:
+    """Returns the number of input and output features in the first batch of a sequence.
+    """
+    features_in = batches[0][0].shape[-1]
+    features_out = batches[0][1].shape[-1]
+    return features_in, features_out
 
 
 class DenseModel(PackedKerasModel):
@@ -145,7 +167,11 @@ class DenseModel(PackedKerasModel):
     """
 
     def __init__(
-        self, input_variables, output_variables, depth=3, width=16, **hyperparameters
+        self,
+        input_variables: Iterable[str],
+        output_variables: Iterable[str],
+        depth: int = 3,
+        width: int = 16,
     ):
         self.width = width
         self.depth = depth
@@ -154,7 +180,6 @@ class DenseModel(PackedKerasModel):
     def get_model(self, features_in: int, features_out: int) -> tf.keras.Model:
         model = tf.keras.Sequential()
         model.add(tf.keras.Input(features_in))
-        model.add(tf.keras.layers.BatchNormalization())
         for i in range(self.depth - 1):
             model.add(
                 tf.keras.layers.Dense(self.width, activation=tf.keras.activations.relu)
