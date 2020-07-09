@@ -25,6 +25,7 @@ def test_open_fine_resolution_nudging_hybrid(tmpdir):
     synth.generate_fine_res(fine_url, times_centered_str)
 
     # test opener
-    data = open_fine_resolution_nudging_hybrid(None, {'url': nudging_url}, {'url': fine_url})
+    data = open_fine_resolution_nudging_hybrid(
+        None, {"url": nudging_url}, {"url": fine_url}
+    )
     data[timestep1_end]
-
