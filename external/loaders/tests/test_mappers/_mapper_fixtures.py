@@ -5,7 +5,6 @@ from loaders import mappers
 training_mapper_names = [
     "FineResolutionSources",
     "SubsetTimes",
-    "NudgedFullTendencies",
     "TimestepMapper",
 ]
 
@@ -24,10 +23,12 @@ def training_mapper_data_source_path(
 ):
     if training_mapper_name == "TimestepMapper":
         return one_step_dataset_path
-    elif training_mapper_name in ("SubsetTimes", "NudgedFullTendencies"):
+    elif training_mapper_name == "SubsetTimes":
         return nudging_dataset_path
     elif training_mapper_name == "FineResolutionSources":
         return fine_res_dataset_path
+    else:
+        raise NotImplementedError(training_mapper_name)
 
 
 @pytest.fixture

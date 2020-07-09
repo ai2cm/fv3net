@@ -9,21 +9,12 @@ from ..constants import TIME_NAME, TIME_FMT
 from .._utils import standardize_zarr_time_coord
 
 
-class GeoMapper(Mapping):
-    def __init__(self, *args):
-        raise NotImplementedError("Don't use the base class!")
-
+class GeoMapper(Mapping[str, xr.Dataset]):
     def __len__(self):
         return len(self.keys())
 
     def __iter__(self):
         return iter(self.keys())
-
-    def __getitem__(self, key: str) -> xr.Dataset:
-        raise NotImplementedError()
-
-    def keys(self):
-        raise NotImplementedError()
 
 
 class LongRunMapper(GeoMapper):
@@ -43,7 +34,7 @@ class LongRunMapper(GeoMapper):
 
     def __getitem__(self, key: str) -> xr.Dataset:
         dt64 = np.datetime64(vcm.parse_datetime_from_str(key))
-        return self.ds.sel({TIME_NAME: dt64})
+        return self.ds.sel({TIME_NAME: dt64}).drop_vars(names=TIME_NAME)
 
     def keys(self):
         return set(

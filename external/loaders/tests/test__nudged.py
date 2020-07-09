@@ -173,6 +173,7 @@ def test_NudgedStateCheckpoints(nudged_checkpoints):
 
     single_item = nudged_checkpoints["after_physics"].isel(time=0)
     time_key = pd.to_datetime(single_item.time.values).strftime(TIME_FMT)
+    single_item = single_item.drop_vars("time")
     item_key = ("after_physics", time_key)
     xr.testing.assert_equal(mapper[item_key], single_item)
 
@@ -190,11 +191,21 @@ class MockMergeNudgedMapper:
 
 @pytest.fixture
 def nudged_source():
+    example_da = xr.DataArray(
+        np.full((4, 1), 10.0),
+        {
+            "time": xr.DataArray(
+                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
+            ),
+            "x": xr.DataArray([0], dims=["x"]),
+        },
+        ["time", "x"],
+    )
     air_temperature = xr.DataArray(
         np.full((4, 1), 270.0),
         {
             "time": xr.DataArray(
-                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
             ),
             "x": xr.DataArray([0], dims=["x"]),
         },
@@ -204,15 +215,33 @@ def nudged_source():
         np.full((4, 1), 0.01),
         {
             "time": xr.DataArray(
-                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
             ),
             "x": xr.DataArray([0], dims=["x"]),
         },
         ["time", "x"],
     )
-    return xr.Dataset(
-        {"air_temperature": air_temperature, "specific_humidity": specific_humidity}
-    )
+
+    net_term_vars = [
+        "total_sky_downward_longwave_flux_at_surface",
+        "total_sky_downward_shortwave_flux_at_surface",
+        "total_sky_upward_longwave_flux_at_surface",
+        "total_sky_upward_longwave_flux_at_top_of_atmosphere",
+        "total_sky_upward_shortwave_flux_at_surface",
+        "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+        "sensible_heat_flux",
+        "surface_precipitation_rate",
+        "latent_heat_flux",
+    ]
+
+    ds_vars = {
+        "air_temperature": air_temperature,
+        "specific_humidity": specific_humidity,
+    }
+    ds_vars.update({net_term_var: example_da for net_term_var in net_term_vars})
+
+    return xr.Dataset(ds_vars)
 
 
 @pytest.fixture
@@ -294,7 +323,7 @@ def test_init_nudged_tendencies(
             difference_checkpoints,
             tendency_variables,
         )
-        safe.get_variables(nudged_tendencies_mapper["20200500.000000"], output_vars)
+        safe.get_variables(nudged_tendencies_mapper["20200501.000000"], output_vars)
     else:
         with pytest.raises(KeyError):
             nudged_tendencies_mapper = NudgedFullTendencies(
@@ -303,7 +332,7 @@ def test_init_nudged_tendencies(
                 difference_checkpoints,
                 tendency_variables,
             )
-            safe.get_variables(nudged_tendencies_mapper["20200500.000000"], output_vars)
+            safe.get_variables(nudged_tendencies_mapper["20200501.000000"], output_vars)
 
 
 @pytest.fixture
@@ -369,7 +398,7 @@ def expected_tendencies(request):
         "pQ1": xr.DataArray(
             [[request.param[0]]],
             {
-                "time": xr.DataArray(["20200500.000000"], dims=["time"]),
+                "time": xr.DataArray(["20200501.000000"], dims=["time"]),
                 "x": xr.DataArray([0], dims=["x"]),
             },
             ["time", "x"],
@@ -377,7 +406,7 @@ def expected_tendencies(request):
         "pQ2": xr.DataArray(
             [[request.param[1]]],
             {
-                "time": xr.DataArray(["20200500.000000"], dims=["time"]),
+                "time": xr.DataArray(["20200501.000000"], dims=["time"]),
                 "x": xr.DataArray([0], dims=["x"]),
             },
             ["time", "x"],
@@ -420,7 +449,7 @@ def test__physics_tendencies(
         nudged_mapper, nudged_checkpoint_mapper
     )
 
-    time = "20200500.000000"
+    time = "20200501.000000"
 
     tendency_variables = {
         "pQ1": "air_temperature",
