@@ -81,11 +81,7 @@ class FineResolutionSources(GeoMapper):
         self._offset_seconds = offset_seconds
         self._drop_vars = drop_vars
         self._dim_order = dim_order
-
-        if rename_vars is None:
-            self._rename_vars = {}
-        else:
-            self._rename_vars = rename_vars
+        self._rename_vars = rename_vars or {}
 
     def keys(self):
         return set(
