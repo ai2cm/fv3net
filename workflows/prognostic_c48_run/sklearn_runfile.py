@@ -68,7 +68,7 @@ def rename_diagnostics(diags):
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
 
 
-def add_ml_to_physics_precip(
+def precipitation_sum(
     physics_precip: xr.DataArray, column_dq2: xr.DataArray, dt: float
 ) -> xr.DataArray:
     """Return sum of physics precipitation and ML-induced precipitation. Output is
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         if do_only_diagnostic_ml:
             rename_diagnostics(diagnostics)
 
-        updated_state[TOTAL_PRECIP] = add_ml_to_physics_precip(
+        updated_state[TOTAL_PRECIP] = precipitation_sum(
             state[TOTAL_PRECIP], diagnostics["net_moistening"], TIMESTEP
         )
 
