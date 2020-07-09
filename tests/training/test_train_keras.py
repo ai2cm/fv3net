@@ -59,7 +59,6 @@ def batch_kwargs(data_source_name: str) -> dict:
             "mapping_function": "open_merged_nudged",
             "timesteps": ["20160801.001500", "20160801.003000"],
             "mapping_kwargs": {
-                "nudging_timescale_hr": 3,
                 "i_start": 0,
                 "rename_vars": {
                     "air_temperature_tendency_due_to_nudging": "dQ1",
