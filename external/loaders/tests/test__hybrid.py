@@ -26,6 +26,6 @@ def test_open_fine_resolution_nudging_hybrid(tmpdir):
 
     # test opener
     data = open_fine_resolution_nudging_hybrid(
-        None, {"url": nudging_url}, {"url": fine_url}
+        None, {"nudging_url": nudging_url}, {"fine_res_url": fine_url}
     )
     data[timestep1_end]

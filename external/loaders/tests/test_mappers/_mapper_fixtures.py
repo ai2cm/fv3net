@@ -4,7 +4,7 @@ from loaders import mappers
 
 training_mapper_names = [
     "FineResolutionSources",
-    "NudgedFullTendencies",
+    "SubsetTimes",
     "TimestepMapper",
 ]
 
@@ -22,12 +22,13 @@ def training_mapper_data_source_path(
     fine_res_dataset_path,
 ):
     if training_mapper_name == "TimestepMapper":
-        training_mapper_data_source_path = one_step_dataset_path
+        return one_step_dataset_path
     elif training_mapper_name == "SubsetTimes":
-        training_mapper_data_source_path = nudging_dataset_path
+        return nudging_dataset_path
     elif training_mapper_name == "FineResolutionSources":
-        training_mapper_data_source_path = fine_res_dataset_path
-    return training_mapper_data_source_path
+        return fine_res_dataset_path
+    else:
+        raise NotImplementedError(training_mapper_name)
 
 
 @pytest.fixture
@@ -60,12 +61,14 @@ def training_mapper(
             dim_order=["tile", "z", "y", "x"],
         )
 
+
 # TODO move this diagnostics code to a separate module
 diagnostic_mapper_names = [
     "FineResolutionSources",
     "NudgedFullTendencies",
     "TimestepMapperWithDiags",
 ]
+
 
 @pytest.fixture
 def diagnostic_mapper(

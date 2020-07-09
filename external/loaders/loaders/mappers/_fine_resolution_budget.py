@@ -9,8 +9,11 @@ from toolz import groupby
 import vcm
 
 from .._utils import assign_net_physics_terms
-from ..constants import (DERIVATION_FV3GFS_COORD, DERIVATION_SHIELD_COORD,
-                         RENAMED_SHIELD_DIAG_VARS)
+from ..constants import (
+    DERIVATION_FV3GFS_COORD,
+    DERIVATION_SHIELD_COORD,
+    RENAMED_SHIELD_DIAG_VARS,
+)
 from ._base import GeoMapper
 from ._high_res_diags import open_high_res_diags
 from ._merged import MergeOverlappingData
