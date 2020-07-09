@@ -1,5 +1,5 @@
 import os
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, Tuple
 import xarray as xr
 
 import vcm
@@ -14,7 +14,8 @@ DIMENSION_ORDER = ("tile", "z", "y", "y_interface", "x", "x_interface")
 SHIELD_SUFFIX = "prog"
 ONE_STEP_SUFFIX = "train"
 
-
+# mapping of form
+# {fv3gfs_python_wrapper_var_name: (SHiELD_var_name, coarse_model_var_name)}
 RENAME_ONE_STEP_SHIELD_DIAG_VARS = {
     "total_sky_downward_shortwave_flux_at_top_of_atmosphere": (
         "DSWRFtoa_prog",
@@ -88,7 +89,7 @@ class TimestepMapperWithDiags(GeoMapper):
     @staticmethod
     def _reshape_one_step_diags(
         ds: xr.Dataset,
-        reshape_vars: Mapping[str, str] = RENAME_ONE_STEP_SHIELD_DIAG_VARS,
+        reshape_vars: Mapping[str, Tuple[str]] = RENAME_ONE_STEP_SHIELD_DIAG_VARS,
         shield_suffix: str = SHIELD_SUFFIX,
         one_step_suffix: str = ONE_STEP_SUFFIX,
         overlap_dim: str = DERIVATION_DIM,
