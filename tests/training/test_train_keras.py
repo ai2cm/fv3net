@@ -2,7 +2,7 @@ from typing import Iterable, Sequence
 import xarray as xr
 import pytest
 import logging
-from loaders import batches
+import loaders
 from fv3net import regression
 import fv3net.regression.keras as fv3keras
 from fv3net.regression import shared
@@ -137,7 +137,7 @@ def training_batches(
             fine_res_ds.time.values[0]: fine_res_ds.isel(time=0),
             fine_res_ds.time.values[1]: fine_res_ds.isel(time=1),
         }
-        batched_data = batches.batches_from_mapper(
+        batched_data = loaders.batches.batches_from_mapper(
             mapper,
             list(train_config.input_variables) + list(train_config.output_variables),
             **train_config.batch_kwargs,
@@ -153,7 +153,11 @@ def model(
     hyperparameters: dict,
 ) -> fv3keras.Model:
     return fv3keras.get_model(
-        model_type, input_variables, output_variables, **hyperparameters
+        model_type,
+        loaders.SAMPLE_DIM_NAME,
+        input_variables,
+        output_variables,
+        **hyperparameters,
     )
 
 

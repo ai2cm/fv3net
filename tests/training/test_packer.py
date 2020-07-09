@@ -3,12 +3,12 @@ from typing import Iterable
 import pytest
 import numpy as np
 import xarray as xr
-import loaders
 
+SAMPLE_DIM = "sample"
 FEATURE_DIM = "z"
 
 DIM_LENGTHS = {
-    loaders.SAMPLE_DIM_NAME: 32,
+    SAMPLE_DIM: 32,
     FEATURE_DIM: 8,
 }
 
@@ -16,21 +16,21 @@ DIM_LENGTHS = {
 @pytest.fixture(params=["one_var", "two_2d_vars", "1d_and_2d"])
 def dims_list(request) -> Iterable[str]:
     if request.param == "one_var":
-        return [[loaders.SAMPLE_DIM_NAME, FEATURE_DIM]]
+        return [[SAMPLE_DIM, FEATURE_DIM]]
     elif request.param == "two_2d_vars":
         return [
-            [loaders.SAMPLE_DIM_NAME, FEATURE_DIM],
-            [loaders.SAMPLE_DIM_NAME, FEATURE_DIM],
+            [SAMPLE_DIM, FEATURE_DIM],
+            [SAMPLE_DIM, FEATURE_DIM],
         ]
     elif request.param == "1d_and_2d":
-        return [[loaders.SAMPLE_DIM_NAME, FEATURE_DIM], [loaders.SAMPLE_DIM_NAME]]
+        return [[SAMPLE_DIM, FEATURE_DIM], [SAMPLE_DIM]]
     elif request.param == "five_vars":
         return [
-            [loaders.SAMPLE_DIM_NAME, FEATURE_DIM],
-            [loaders.SAMPLE_DIM_NAME],
-            [loaders.SAMPLE_DIM_NAME, FEATURE_DIM],
-            [loaders.SAMPLE_DIM_NAME],
-            [loaders.SAMPLE_DIM_NAME, FEATURE_DIM],
+            [SAMPLE_DIM, FEATURE_DIM],
+            [SAMPLE_DIM],
+            [SAMPLE_DIM, FEATURE_DIM],
+            [SAMPLE_DIM],
+            [SAMPLE_DIM, FEATURE_DIM],
         ]
 
 
@@ -66,7 +66,7 @@ def array(names: Iterable[str], dims_list: Iterable[str]) -> np.ndarray:
 
 @pytest.fixture
 def packer(names: Iterable[str]) -> ArrayPacker:
-    return ArrayPacker(names)
+    return ArrayPacker(SAMPLE_DIM, names)
 
 
 def test_to_array(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarray):
