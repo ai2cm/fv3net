@@ -8,7 +8,7 @@ import os
 
 
 @contextlib.contextmanager
-def put_dir(path):
+def put_dir(path: str):
     with tempfile.TemporaryDirectory() as tmpdir:
         yield tmpdir
         fs, _, _ = fsspec.get_fs_token_paths(path)
@@ -18,12 +18,12 @@ def put_dir(path):
 
 
 @contextlib.contextmanager
-def get_dir(path):
+def get_dir(path: str):
     with tempfile.TemporaryDirectory() as tmpdir:
         fs, _, _ = fsspec.get_fs_token_paths(path)
         # fsspec places the directory inside the tmpdir, as a subdirectory
         fs.get(path, tmpdir, recursive=True)
-        yield os.path.join(tmpdir, path)
+        yield os.path.join(tmpdir, os.path.basename(path))
 
 
 def _put_directory(
