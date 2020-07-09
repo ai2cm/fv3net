@@ -9,8 +9,10 @@ from toolz import groupby
 from pathlib import Path
 
 from ._base import GeoMapper, LongRunMapper
-from .._utils import standardize_zarr_time_coord
-
+from ._merged import MergeOverlappingData
+from ._high_res_diags import open_high_res_diags
+from .._utils import standardize_zarr_time_coord, assign_net_physics_terms
+from ..constants import DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +190,11 @@ class NudgedFullTendencies(GeoMapper):
             self._physics_timestep_seconds,
         )
 
-        return self._nudged_mapper[time].assign(physics_tendencies)
+        return (
+            self._nudged_mapper[time]
+            .assign(physics_tendencies)
+            .pipe(assign_net_physics_terms)
+        )
 
     @staticmethod
     def _physics_tendencies(
@@ -291,7 +297,8 @@ def _open_nudging_checkpoints(
 
 
 def open_merged_nudged_full_tendencies(
-    url: str,
+    nudging_url: str,
+    shield_diags_url: str = None,
     open_merged_nudged_kwargs: Mapping[str, Any] = None,
     open_checkpoints_kwargs: Mapping[str, Any] = None,
     difference_checkpoints: Sequence[str] = ("after_dynamics", "after_physics"),
@@ -303,7 +310,10 @@ def open_merged_nudged_full_tendencies(
     Load mapper to nudged dataset containing both dQ and pQ tendency terms
 
     Args:
-        url: Path to directory with nudging output
+        nudging_url: Path to directory with nudging output (not including the timescale
+            subdirectories, e.g., outdir-3h)
+        shield_diags_url: path to directory containing a zarr store of SHiELD
+            diagnostics coarsened to the nudged model resolution (optional)
         open_merged_nudged_kwargs (optional): kwargs mapping to be passed to
             open_merged_nudged
         open_checkpoints_kwargs (optional): kwargs mapping to be passed to
@@ -327,16 +337,27 @@ def open_merged_nudged_full_tendencies(
     open_checkpoints_kwargs = open_checkpoints_kwargs or {}
 
     nudged_mapper = open_merged_nudged(
-        url, consolidated=consolidated, **open_merged_nudged_kwargs
+        nudging_url, consolidated=consolidated, **open_merged_nudged_kwargs
     )
     checkpoint_mapper = _open_nudging_checkpoints(
-        url, consolidated=consolidated, **open_checkpoints_kwargs
+        nudging_url, consolidated=consolidated, **open_checkpoints_kwargs
     )
 
-    return NudgedFullTendencies(
+    nudged_full_tendencies_mapper = NudgedFullTendencies(
         nudged_mapper,
         checkpoint_mapper,
         difference_checkpoints,
         tendency_variables,
         timestep_physics_seconds,
     )
+
+    if shield_diags_url is not None:
+        shield_diags_mapper = open_high_res_diags(shield_diags_url)
+        nudged_full_tendencies_mapper = MergeOverlappingData(
+            shield_diags_mapper,
+            nudged_full_tendencies_mapper,
+            source_name_left=DERIVATION_SHIELD_COORD,
+            source_name_right=DERIVATION_FV3GFS_COORD,
+        )
+
+    return nudged_full_tendencies_mapper

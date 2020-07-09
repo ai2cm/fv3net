@@ -34,7 +34,7 @@ class LongRunMapper(GeoMapper):
 
     def __getitem__(self, key: str) -> xr.Dataset:
         dt64 = np.datetime64(vcm.parse_datetime_from_str(key))
-        return self.ds.sel({TIME_NAME: dt64})
+        return self.ds.sel({TIME_NAME: dt64}).drop_vars(names=TIME_NAME)
 
     def keys(self):
         return set(

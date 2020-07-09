@@ -1,4 +1,5 @@
 from ._dataset_fixtures import (
+    C48_SHiELD_diags_dataset_path,
     data_source_name,
     data_source_path,
     dataset_fixtures_dir,

@@ -7,9 +7,13 @@ import xarray as xr
 from toolz import groupby
 
 import vcm
-from vcm import parse_datetime_from_str, safe
 
+from .._utils import assign_net_physics_terms
+from ..constants import (DERIVATION_FV3GFS_COORD, DERIVATION_SHIELD_COORD,
+                         RENAMED_SHIELD_DIAG_VARS)
 from ._base import GeoMapper
+from ._high_res_diags import open_high_res_diags
+from ._merged import MergeOverlappingData
 
 Time = str
 Tile = int
@@ -102,7 +106,7 @@ class FineResolutionSources(GeoMapper):
         key: Time, offset_seconds: Union[int, float] = 0
     ) -> Time:
         offset = timedelta(seconds=offset_seconds)
-        offset_datetime = parse_datetime_from_str(key) + offset
+        offset_datetime = vcm.parse_datetime_from_str(key) + offset
         return offset_datetime.strftime("%Y%m%d.%H%M%S")
 
     @staticmethod
@@ -110,7 +114,7 @@ class FineResolutionSources(GeoMapper):
         time: Time, offset_seconds: Union[int, float] = 0
     ) -> Time:
         offset = timedelta(seconds=offset_seconds)
-        offset_datetime = parse_datetime_from_str(time) - offset
+        offset_datetime = vcm.parse_datetime_from_str(time) - offset
         return offset_datetime.strftime("%Y%m%d.%H%M%S")
 
     def _derived_budget_ds(
@@ -136,7 +140,11 @@ class FineResolutionSources(GeoMapper):
                 variable_name,
                 f"d{apparent_source_name}",
                 apparent_source_terms,
-            ).pipe(self._insert_budget_pQ, variable_name, f"p{apparent_source_name}",)
+            ).pipe(self._insert_budget_pQ, variable_name, f"p{apparent_source_name}")
+
+        budget_time_ds = budget_time_ds.pipe(self._insert_physics).pipe(
+            assign_net_physics_terms
+        )
 
         return budget_time_ds
 
@@ -151,7 +159,7 @@ class FineResolutionSources(GeoMapper):
 
         source_vars = [f"{variable_name}_{term}" for term in apparent_source_terms]
         apparent_source = (
-            safe.get_variables(budget_time_ds, source_vars)
+            vcm.safe.get_variables(budget_time_ds, source_vars)
             .to_array(dim="variable")
             .sum(dim="variable")
         )
@@ -187,6 +195,21 @@ class FineResolutionSources(GeoMapper):
             budget_time_ds[apparent_source_name].attrs["units"] = f"{units}/s"
 
         return budget_time_ds
+
+    @staticmethod
+    def _insert_physics(
+        budget_time_ds: xr.Dataset,
+        physics_varnames: Sequence[str] = RENAMED_SHIELD_DIAG_VARS.values(),
+    ) -> xr.Dataset:
+
+        template_2d_var = budget_time_ds["air_temperature"].isel({"pfull": 0})
+
+        physics_vars = {}
+        for var in physics_varnames:
+            physics_var = xr.full_like(template_2d_var, fill_value=0.0)
+            physics_vars[var] = physics_var
+
+        return budget_time_ds.assign(physics_vars)
 
 
 def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
@@ -229,17 +252,20 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
 
 
 def open_fine_res_apparent_sources(
-    url: str,
+    fine_res_url: str,
+    shield_diags_url: str = None,
     offset_seconds: Union[int, float] = 0,
     rename_vars: Mapping[str, str] = None,
-    drop_vars: Sequence[str] = (),
     dim_order: Sequence[str] = ("tile", "z", "y", "x"),
+    drop_vars: Sequence[str] = ("step", "time"),
 ) -> Mapping[str, xr.Dataset]:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
         
     Args:
-        url (str): path to fine res dataset
+        fine_res_url (str): path to fine res dataset
+        shield_diags_url: path to directory containing a zarr store of SHiELD
+            diagnostics coarsened to the nudged model resolution (optional)
         offset_seconds (int or float): optional time offset in seconds between
             access keys and underlying data timestamps, with positive values
             indicating that the access key is behind the underlying timestamps;
@@ -252,10 +278,21 @@ def open_fine_res_apparent_sources(
     if rename_vars is None:
         rename_vars = {"grid_xt": "x", "grid_yt": "y", "pfull": "z"}
 
-    return FineResolutionSources(
-        open_fine_resolution_budget(url),
+    fine_resolution_sources_mapper = FineResolutionSources(
+        open_fine_resolution_budget(fine_res_url),
         offset_seconds,
         drop_vars,
         dim_order=dim_order,
         rename_vars=rename_vars,
     )
+
+    if shield_diags_url is not None:
+        shield_diags_mapper = open_high_res_diags(shield_diags_url)
+        fine_resolution_sources_mapper = MergeOverlappingData(
+            shield_diags_mapper,
+            fine_resolution_sources_mapper,
+            source_name_left=DERIVATION_SHIELD_COORD,
+            source_name_right=DERIVATION_FV3GFS_COORD,
+        )
+
+    return fine_resolution_sources_mapper
