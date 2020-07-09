@@ -59,6 +59,11 @@ def create_diurnal_cycle_dataset(
             time_dim,
             flatten_dims,
         )
+    domains, datasets = [], []
+    for key, value in domain_datasets.items():
+        domains.append(key)
+        datasets.append(value)
+    return xr.concat(datasets, dim=pd.Index(domains, name=SURFACE_TYPE_DIM))
 
 
 def _calc_diurnal_vars_with_extra_dims(
@@ -163,7 +168,7 @@ def _bin_diurnal_cycle(
     bin_means = binned_statistic(
         local_time.values.flatten(),
         da_var.values.flatten(),
-        statistic="mean",
+        statistic=np.nanmean,
         bins=bins,
     ).statistic
     return bin_means

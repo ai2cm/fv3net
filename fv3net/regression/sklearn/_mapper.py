@@ -47,7 +47,7 @@ class SklearnPredictionMapper(GeoMapper):
             SAMPLE_DIM_NAME,
             [dim for dim in ds_.dims if dim != self._z_dim],
             allowed_broadcast_dims=[self._z_dim],
-        )
+        ).dropna(SAMPLE_DIM_NAME)
         ds_pred = self._model.predict(ds_stacked, SAMPLE_DIM_NAME).unstack()
         return ds_pred.rename(self.rename_vars)
 

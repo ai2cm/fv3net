@@ -187,9 +187,10 @@ class NudgedFullTendencies(GeoMapper):
             self._difference_checkpoints,
             self._physics_timestep_seconds,
         )
-
-        return self._nudged_mapper[time].assign(physics_tendencies)
-
+        derived_ds = self._nudged_mapper[time].assign(physics_tendencies)
+        derived_ds["land_sea_mask"] = derived_ds["land_sea_mask"].fillna(0)
+        return derived_ds
+        
     @staticmethod
     def _physics_tendencies(
         time: Time,

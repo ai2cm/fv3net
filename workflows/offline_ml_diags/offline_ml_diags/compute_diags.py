@@ -104,7 +104,7 @@ if __name__ == "__main__":
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
     batches_diags, batches_diurnal, batches_metrics = [], [], []
     for i, ds in enumerate(ds_batches):
-        ds = insert_additional_variables(ds, grid["area"])
+        ds = insert_additional_variables(ds, grid["area"]).load()
         logger.info(f"Working on batch {i} diagnostics ...")
 
         ds_diagnostic_batch = utils.reduce_to_diagnostic(
@@ -123,18 +123,17 @@ if __name__ == "__main__":
             ],
         )
         ds_metrics = calc_metrics(ds)
-        #batches_diags.append(ds_diagnostic_batch)
+        batches_diags.append(ds_diagnostic_batch)
         batches_diurnal.append(ds_diurnal)
         batches_metrics.append(ds_metrics)
         logger.info(f"Processed batch {i} diagnostics netcdf output.")
 
-    #ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
+    ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
     ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
-    ds_metrics = xr.concat(batches_metrics, dim="batch").mean(dim="batch")
+    ds_metrics = xr.concat(batches_metrics, dim="batch")
 
-    #_write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
+    _write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
     _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
-
     metrics = {
         var: {
             "mean": np.mean(ds_metrics[var].values),
