@@ -69,9 +69,7 @@ def nudging_dataset_path(dataset_fixtures_dir):
 
 def _generate_nudging_dataset(datadir, nudging_dir):
 
-    nudging_after_dynamics_zarrpath = os.path.join(
-        nudging_dir, "outdir-3h", "after_dynamics.zarr"
-    )
+    nudging_after_dynamics_zarrpath = os.path.join(nudging_dir, "after_dynamics.zarr")
     with open(str(datadir.join("after_dynamics.json"))) as f:
         nudging_after_dynamics_schema = load(f)
     nudging_after_dynamics_dataset = generate(
@@ -88,9 +86,7 @@ def _generate_nudging_dataset(datadir, nudging_dir):
         nudging_after_dynamics_zarrpath, consolidated=True
     )
 
-    nudging_after_physics_zarrpath = os.path.join(
-        nudging_dir, "outdir-3h", "after_physics.zarr"
-    )
+    nudging_after_physics_zarrpath = os.path.join(nudging_dir, "after_physics.zarr")
     with open(str(datadir.join("after_physics.json"))) as f:
         nudging_after_physics_schema = load(f)
     nudging_after_physics_dataset = generate(
@@ -107,9 +103,7 @@ def _generate_nudging_dataset(datadir, nudging_dir):
         nudging_after_physics_zarrpath, consolidated=True
     )
 
-    nudging_tendencies_zarrpath = os.path.join(
-        nudging_dir, "outdir-3h", "nudging_tendencies.zarr"
-    )
+    nudging_tendencies_zarrpath = os.path.join(nudging_dir, "nudging_tendencies.zarr")
     with open(str(datadir.join("nudging_tendencies.json"))) as f:
         nudging_tendencies_schema = load(f)
     nudging_tendencies_dataset = generate(nudging_tendencies_schema).assign_coords(
@@ -175,6 +169,37 @@ def data_source_path(dataset_fixtures_dir, data_source_name):
         else:
             raise NotImplementedError()
         yield data_source_path
+
+
+@pytest.fixture(scope="module")
+def C48_SHiELD_diags_dataset_path(dataset_fixtures_dir):
+
+    with tempfile.TemporaryDirectory() as C48_SHiELD_diags_dir:
+        C48_SHiELD_diags_zarrpath = _generate_C48_SHiELD_diags_dataset(
+            dataset_fixtures_dir, C48_SHiELD_diags_dir
+        )
+        yield C48_SHiELD_diags_zarrpath
+
+
+def _generate_C48_SHiELD_diags_dataset(datadir, C48_SHiELD_diags_dir):
+
+    with open(str(datadir.join("C48_SHiELD_diags.json"))) as f:
+        C48_SHiELD_diags_schema = load(f)
+    C48_SHiELD_diags_zarrpath = os.path.join(
+        C48_SHiELD_diags_dir, "gfsphysics_15min_coarse.zarr"
+    )
+    C48_SHiELD_diags_dataset = generate(C48_SHiELD_diags_schema)
+    C48_SHiELD_diags_dataset_1 = C48_SHiELD_diags_dataset.assign_coords(
+        {"time": [timestep1]}
+    )
+    C48_SHiELD_diags_dataset_2 = C48_SHiELD_diags_dataset.assign_coords(
+        {"time": [timestep2]}
+    )
+    C48_SHiELD_diags_dataset = xr.concat(
+        [C48_SHiELD_diags_dataset_1, C48_SHiELD_diags_dataset_2], dim="time"
+    )
+    C48_SHiELD_diags_dataset.to_zarr(C48_SHiELD_diags_zarrpath, consolidated=True)
+    return C48_SHiELD_diags_zarrpath
 
 
 @pytest.fixture

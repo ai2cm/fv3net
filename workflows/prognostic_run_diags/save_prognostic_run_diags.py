@@ -26,27 +26,78 @@ from dask.diagnostics import ProgressBar
 from pathlib import Path
 from toolz import curry
 from collections import defaultdict
-from typing import Tuple, Dict, Callable, Mapping
+from typing import Dict, Callable, Mapping
 
-import vcm
 import load_diagnostic_data as load_diags
+import diurnal_cycle
+import transform
+from constants import HORIZONTAL_DIMS, DiagArg
 
 import logging
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger("SaveDiags")
 
 _DIAG_FNS = defaultdict(list)
-_DERIVED_VAR_FNS = defaultdict(Callable)
 
-HORIZONTAL_DIMS = ["x", "y", "tile"]
-SECONDS_PER_DAY = 86400
-
-DiagArg = Tuple[xr.Dataset, xr.Dataset, xr.Dataset]
 DiagDict = Mapping[str, xr.DataArray]
 
 
+def _prepare_diag_dict(
+    suffix: str, new_diags: xr.Dataset, src_ds: xr.Dataset
+) -> DiagDict:
+    """
+    Take a diagnostic dict add a suffix to all variable names and transfer attributes
+    from a source dataset.  This is useful when the calculated diagnostics are a 1-to-1
+    mapping from the source.
+    """
+
+    diags = {}
+    for variable in new_diags:
+        lower = variable.lower()
+        da = new_diags[variable]
+        attrs = da.attrs
+        if not attrs and variable in src_ds:
+            logger.debug(
+                "Transferring missing diagnostic attributes from source for "
+                f"{variable}."
+            )
+            src_attrs = src_ds[variable].attrs
+            da = da.assign_attrs(src_attrs)
+        else:
+            logger.debug(
+                f"Diagnostic variable ({variable}) missing attributes. This "
+                "may cause issues with automated report generation."
+            )
+
+        diags[f"{lower}_{suffix}"] = da
+
+    return diags
+
+
 @curry
-def add_to_diags(diags_key: str, func: Callable[[DiagArg], DiagDict]):
+def diag_finalizer(var_suffix, func, *diag_args):
+    """
+    Wrapper to update dictionary to final variable names (with var_suffix)
+    and attributes before returning.
+
+    Expects diag_args to be of the form (prognostic_source, verif, grid)
+    """
+
+    def finalize(*diag_args):
+        logger.debug(f"Finalizing wrapper to {func.__name__}")
+
+        diags = func(*diag_args)
+        prognostic, *_ = diag_args
+
+        return _prepare_diag_dict(var_suffix, diags, prognostic)
+
+    return finalize
+
+
+@curry
+def add_to_diags(
+    diags_key: str, func: Callable[[DiagArg], DiagDict],
+):
     """
     Add a function to the list of diagnostics to be computed
     for a specified group of data.
@@ -62,6 +113,7 @@ def add_to_diags(diags_key: str, func: Callable[[DiagArg], DiagDict]):
             This output will be merged with all other decorated functions,
             so some care must be taken to avoid variable and coordinate clashes.
     """
+
     _DIAG_FNS[diags_key].append(func)
 
     return func
@@ -89,129 +141,10 @@ def compute_all_diagnostics(input_datasets: Dict[str, DiagArg]) -> DiagDict:
 
         for func in _DIAG_FNS[key]:
             current_diags = func(*input_args)
-            load_diags.warn_on_overwrite(diags, current_diags)
+            load_diags.warn_on_overwrite(diags.keys(), current_diags.keys())
             diags.update(current_diags)
 
     return diags
-
-
-@curry
-def add_to_derived_vars(diags_key: str, func: Callable[[xr.Dataset], xr.Dataset]):
-    """Add a function that computes additional derived variables from input datasets.
-    These derived variables should be simple combinations of input variables, not
-    reductions such as global means which are diagnostics to be computed later.
-
-    Args:
-        diags_key: a key for a group of inputs/diagnostics
-        func: a function which adds new variables to a given dataset
-    """
-    _DERIVED_VAR_FNS[diags_key] = func
-
-
-def compute_all_derived_vars(input_datasets: Dict[str, DiagArg]) -> Dict[str, DiagArg]:
-    """Compute derived variables for all input data sources.
-
-    Args:
-        input_datasets: Input datasets with keys corresponding to the appropriate group
-        of inputs/diagnostics.
-
-    Returns:
-        input datasets with derived variables added to prognostic and verification data
-    """
-    for key, func in _DERIVED_VAR_FNS.items():
-        prognostic, verification, grid = input_datasets[key]
-        logger.info(f"Preparing all derived variables for {key} prognostic data")
-        prognostic = prognostic.merge(func(prognostic))
-        logger.info(f"Preparing all derived variables for {key} verification data")
-        verification = verification.merge(func(verification))
-        input_datasets[key] = prognostic, verification, grid
-    return input_datasets
-
-
-@add_to_derived_vars("physics")
-def derived_physics_variables(ds: xr.Dataset) -> xr.Dataset:
-    """Compute derived variables for physics datasets"""
-    arrays = []
-    for func in [
-        _column_pq1,
-        _column_pq2,
-        _column_dq1,
-        _column_dq2,
-        _column_q1,
-        _column_q2,
-    ]:
-        try:
-            arrays.append(func(ds))
-        except (KeyError, AttributeError):  # account for ds[var] and ds.var notations
-            logger.warning(f"Missing variable for calculation in {func.__name__}")
-    return xr.merge(arrays)
-
-
-def _column_pq1(ds: xr.Dataset) -> xr.DataArray:
-    net_heating_arg_labels = [
-        "DLWRFsfc",
-        "DSWRFsfc",
-        "ULWRFsfc",
-        "ULWRFtoa",
-        "USWRFsfc",
-        "USWRFtoa",
-        "DSWRFtoa",
-        "SHTFLsfc",
-        "PRATEsfc",
-    ]
-    net_heating_args = [ds[var] for var in net_heating_arg_labels]
-    column_pq1 = vcm.net_heating(*net_heating_args)
-    column_pq1.attrs = {
-        "long_name": "<pQ1> column integrated heating from physics",
-        "units": "W/m^2",
-    }
-    return column_pq1.rename("column_integrated_pQ1")
-
-
-def _column_pq2(ds: xr.Dataset) -> xr.Dataset:
-    evap = vcm.latent_heat_flux_to_evaporation(ds.LHTFLsfc)
-    column_pq2 = SECONDS_PER_DAY * (evap - ds.PRATEsfc)
-    column_pq2.attrs = {
-        "long_name": "<pQ2> column integrated moistening from physics",
-        "units": "mm/day",
-    }
-    return column_pq2.rename("column_integrated_pQ2")
-
-
-def _column_dq1(ds: xr.Dataset) -> xr.Dataset:
-    column_dq1 = ds.net_heating
-    column_dq1.attrs = {
-        "long_name": "<dQ1> column integrated heating from ML",
-        "units": "W/m^2",
-    }
-    return column_dq1.rename("column_integrated_dQ1")
-
-
-def _column_dq2(ds: xr.Dataset) -> xr.Dataset:
-    column_dq2 = SECONDS_PER_DAY * ds.net_moistening
-    column_dq2.attrs = {
-        "long_name": "<dQ2> column integrated moistening from ML",
-        "units": "mm/day",
-    }
-    return column_dq2.rename("column_integrated_dQ2")
-
-
-def _column_q1(ds: xr.Dataset) -> xr.Dataset:
-    column_q1 = _column_pq1(ds) + _column_dq1(ds)
-    column_q1.attrs = {
-        "long_name": "<Q1> column integrated heating from physics+ML",
-        "units": "W/m^2",
-    }
-    return column_q1.rename("column_integrated_Q1")
-
-
-def _column_q2(ds: xr.Dataset) -> xr.Dataset:
-    column_q2 = _column_pq2(ds) + _column_dq2(ds)
-    column_q2.attrs = {
-        "long_name": "<Q2> column integrated moistening from physics+ML",
-        "units": "mm/day",
-    }
-    return column_q2.rename("column_integrated_Q2")
 
 
 def rms(x, y, w, dims):
@@ -220,70 +153,6 @@ def rms(x, y, w, dims):
 
 def bias(truth, prediction, w, dims):
     return ((prediction - truth) * w).sum(dims) / w.sum(dims)
-
-
-def calc_ds_diurnal_cycle(ds):
-    """
-    Calculates the diurnal cycle on moisture variables.  Expects
-    time dimension and longitude variable "grid_lont".
-    """
-    # TODO: switch to vcm.safe dataset usage
-    moist_vars = ["LHTFLsfc", "PRATEsfc", "net_moistening"]
-    local_time = vcm.local_time(ds, time="time", lon_var="grid_lont")
-
-    ds = ds[[var for var in moist_vars if var in ds]]
-    local_time = np.floor(local_time)  # equivalent to hourly binning
-    ds["mean_local_time"] = local_time
-    # TODO: groupby is pretty slow, appears to be single-threaded op
-    diurnal_ds = ds.groupby("mean_local_time").mean()
-
-    return diurnal_ds
-
-
-def _add_derived_moisture_diurnal_quantities(ds_run, ds_verif):
-    """
-    Adds moisture quantites for the individual component comparison
-    of the diurnal cycle  moisture
-    """
-
-    # For easy filtering into plot component
-    filter_flag = "moistvar_comp"
-
-    ds_verif[f"total_P_{filter_flag}"] = ds_verif["PRATEsfc"].assign_attrs(
-        {"long_name": "diurnal precipitation from verification", "units": "kg/m^2/s"}
-    )
-
-    total_P = ds_run["PRATEsfc"]
-    if "net_moistening" in ds_run:
-        total_P = total_P - ds_run["net_moistening"]  # P - dQ2
-    ds_run[f"total_P_{filter_flag}"] = total_P.assign_attrs(
-        {
-            "long_name": "diurnal precipitation from coarse model run",
-            "units": "kg/m^2/s",
-        }
-    )
-
-    E_run = vcm.latent_heat_flux_to_evaporation(ds_run["LHTFLsfc"])
-    E_verif = vcm.latent_heat_flux_to_evaporation(ds_verif["LHTFLsfc"])
-    E_diff = E_run - E_verif
-    P_diff = ds_run[f"total_P_{filter_flag}"] - ds_verif[f"total_P_{filter_flag}"]
-
-    ds_run[f"evap_diff_from_verif_{filter_flag}"] = E_diff.assign_attrs(
-        {"long_name": "diurnal diff: evap_coarse - evap_hires", "units": "kg/m^2/s"}
-    )
-    ds_run[f"precip_diff_from_verif_{filter_flag}"] = P_diff.assign_attrs(
-        {"long_name": "diurnal diff: precip_coarse - precip_hires", "units": "kg/m^2/s"}
-    )
-
-    net_precip_diff = P_diff - E_diff
-    ds_run[f"net_precip_diff_from_verif_{filter_flag}"] = net_precip_diff.assign_attrs(
-        {
-            "long_name": "diurnal diff: net_precip_coarse - net_precip_hires",
-            "units": "kg/m^2/s",
-        }
-    )
-
-    return ds_run, ds_verif
 
 
 def dump_nc(ds: xr.Dataset, f):
@@ -296,81 +165,64 @@ def dump_nc(ds: xr.Dataset, f):
             shutil.copyfileobj(tmp1, f)
 
 
-def _prepare_diag_dict(suffix: str, ds: xr.Dataset, src_ds: xr.Dataset) -> DiagDict:
-    # converts dataset variables into diagnostics dict
-    # and assigns attrs from src_ds if none are set
-
-    diags = {}
-    for variable in ds:
-        lower = variable.lower()
-        da = ds[variable]
-        attrs = da.attrs
-        if not attrs:
-            src_attrs = src_ds[variable].attrs
-            da = da.assign_attrs(src_attrs)
-
-        diags[f"{lower}_{suffix}"] = da
-
-    return diags
-
-
 @add_to_diags("dycore")
+@diag_finalizer("rms_global")
+@transform.apply("resample_time", "3H")
 def rms_errors(resampled, verification_c48, grid):
     logger.info("Preparing rms errors")
     rms_errors = rms(resampled, verification_c48, grid.area, dims=HORIZONTAL_DIMS)
 
-    return _prepare_diag_dict("rms_global", rms_errors, resampled)
+    return rms_errors
 
 
 @add_to_diags("dycore")
+@diag_finalizer("global_avg")
+@transform.apply("resample_time", "3H")
 def global_averages_dycore(resampled, verification, grid):
     logger.info("Preparing global averages for dycore variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
         HORIZONTAL_DIMS
     )
 
-    return _prepare_diag_dict("global_avg", area_averages, resampled)
+    return area_averages
 
 
 @add_to_diags("physics")
+@diag_finalizer("global_phys_avg")
+@transform.apply("resample_time", "3H")
 def global_averages_physics(resampled, verification, grid):
     logger.info("Preparing global averages for physics variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
         HORIZONTAL_DIMS
     )
 
-    return _prepare_diag_dict("global_phys_avg", area_averages, resampled)
+    return area_averages
 
 
-# TODO: enable this diagnostic once SHiELD physics diags can be loaded efficiently
-# @add_to_diags("physics")
+@add_to_diags("physics")
+@diag_finalizer("bias_global_physics")
+@transform.apply("resample_time", "3H")
 def global_biases_physics(resampled, verification, grid):
     logger.info("Preparing global average biases for physics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
 
-    return _prepare_diag_dict("bias_global_physics", bias_errors, resampled)
+    return bias_errors
 
 
-def diurnal_cycles(resampled, verification, grid):
+for mask_type in ["global", "land", "sea"]:
 
-    logger.info("Preparing diurnal cycle diagnostics")
+    @add_to_diags("physics")
+    @diag_finalizer(f"diurnal_{mask_type}")
+    @transform.apply("mask_to_sfc_type", mask_type)
+    @transform.apply("resample_time", "15min", time_slice=slice(96, -1))
+    def _diurnal_func(resampled, verification, grid, mask_type=mask_type):
+        # mask_type is added as a kwarg solely to give the logging access to the info
+        logger.info(
+            f"Preparing diurnal cycle info for physics variables with mask={mask_type}"
+        )
+        diurnal = diurnal_cycle.calc_diagnostics(resampled, verification, grid)
 
-    # TODO: Add in different masked diurnal cycles
-
-    diurnal_verif = calc_ds_diurnal_cycle(verification)
-    lon = verification["grid_lont"]
-    resampled["grid_lont"] = lon
-    diurnal_resampled = calc_ds_diurnal_cycle(resampled)
-
-    diurnal_resampled, diurnal_verif = _add_derived_moisture_diurnal_quantities(
-        diurnal_resampled, diurnal_verif
-    )
-
-    # Add to diagnostics
-    verif_diags = _prepare_diag_dict("verif_diurnal", diurnal_verif, verification)
-    resampled_diags = _prepare_diag_dict("run_diurnal", diurnal_resampled, resampled)
-
-    return dict(**verif_diags, **resampled_diags)
+        return diurnal
 
 
 def _catalog():
@@ -389,6 +241,7 @@ if __name__ == "__main__":
         "--grid-spec", default="./grid_spec",
     )
     parser.add_argument("--catalog", default=CATALOG)
+
     logging.basicConfig(level=logging.INFO)
 
     args = parser.parse_args()
@@ -397,12 +250,10 @@ if __name__ == "__main__":
     attrs["history"] = " ".join(sys.argv)
 
     catalog = intake.open_catalog(args.catalog)
-    input_data = {}
-    input_data["dycore"] = load_diags.load_dycore(args.url, args.grid_spec, catalog)
-    input_data["physics"] = load_diags.load_physics(args.url, args.grid_spec, catalog)
-
-    # add derived variables
-    input_data = compute_all_derived_vars(input_data)
+    input_data = {
+        "dycore": load_diags.load_dycore(args.url, args.grid_spec, catalog),
+        "physics": load_diags.load_physics(args.url, args.grid_spec, catalog),
+    }
 
     # begin constructing diags
     diags = {}

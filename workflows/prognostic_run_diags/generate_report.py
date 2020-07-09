@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import json
-from typing import Mapping, Iterable
+from typing import Iterable
 import os
 import xarray as xr
 import fsspec
@@ -67,11 +67,13 @@ def convert_time_index_to_datetime(ds, dim):
     return ds.assign_coords({dim: ds.indexes[dim].to_datetimeindex()})
 
 
-def detect_rundirs(bucket):
-    fs = fsspec.filesystem("gs")
+def detect_rundirs(bucket: str, fs: fsspec.AbstractFileSystem):
     diag_ncs = fs.glob(os.path.join(bucket, "*", "diags.nc"))
-    if len(diag_ncs) == 0:
-        raise ValueError(f"No diagnostic outputs detected at {bucket}")
+    if len(diag_ncs) < 2:
+        raise ValueError(
+            "Plots require more than 1 diagnostic directory in"
+            f" {bucket} for holoviews plots to display correctly."
+        )
     return [Path(url).parent.name for url in diag_ncs]
 
 
@@ -148,12 +150,50 @@ def holomap_filter(time_series, varfilter, run_attr_name="run"):
     return hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500))
 
 
-def time_series_plot(time_series: Mapping[str, xr.Dataset], varfilter: str) -> HVPlot:
+def time_series_plot(time_series: Iterable[xr.Dataset], varfilter: str) -> HVPlot:
     return HVPlot(
         holomap_filter(time_series, varfilter=varfilter)
         .overlay("run")
         .opts(legend_position="right")
     )
+
+
+def _parse_diurnal_component_fields(varname: str):
+
+    # diags key format: diurn_comp_<varname>_diurnal_<sfc_type>
+    tokens = varname.split("_")
+    short_varname = tokens[2]
+    surface_type = tokens[-1]
+
+    return short_varname, surface_type
+
+
+def diurnal_component_plot(
+    time_series: Iterable[xr.Dataset],
+    run_attr_name="run",
+    diurnal_component_name="diurn_comp",
+) -> HVPlot:
+
+    p = hv.Cycle("Colorblind")
+    hmap = hv.HoloMap(kdims=["run", "surface_type", "short_varname"])
+
+    for ds in time_series:
+        for varname in ds:
+            if diurnal_component_name in varname:
+                v = ds[varname]
+                short_vname, surface_type = _parse_diurnal_component_fields(varname)
+                run = ds.attrs[run_attr_name]
+                hmap[(run, surface_type, short_vname)] = hv.Curve(
+                    v, label=diurnal_component_name
+                ).options(color=p)
+
+    hmap = (
+        hmap.opts(norm={"framewise": True}, plot=dict(width=850, height=500),)
+        .overlay("short_varname")
+        .opts(legend_position="right")
+    )
+
+    return HVPlot(hmap)
 
 
 # Initialize diagnostic managers
@@ -165,22 +205,33 @@ metrics_plot_manager = PlotManager()
 
 # Routines for plotting the "diagnostics"
 @diag_plot_manager.register
-def rms_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+def rms_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="rms")
 
 
 @diag_plot_manager.register
-def global_avg_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+def global_avg_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="global_avg")
 
 
 @diag_plot_manager.register
-def global_avg_physics_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
+def global_avg_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="global_phys_avg")
 
 
-def diurnal_cycle_plots(time_series: Mapping[str, xr.Dataset]) -> HVPlot:
-    return HVPlot(holomap_filter(time_series, varfilter="diurnal").overlay("run"))
+@diag_plot_manager.register
+def diurnal_cycle_land_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="diurnal_land")
+
+
+@diag_plot_manager.register
+def diurnal_cycle_sea_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="diurnal_sea")
+
+
+@diag_plot_manager.register
+def diurnal_cycle_component_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return diurnal_component_plot(time_series)
 
 
 # Routines for plotting the "metrics"
@@ -218,18 +269,21 @@ def main():
     bucket = args.input
 
     # get run information
-    rundirs = detect_rundirs(bucket)
+    fs = fsspec.filesystem("gs")
+    rundirs = detect_rundirs(bucket, fs)
     run_table = pd.DataFrame.from_records(_parse_metadata(run) for run in rundirs)
     run_table_lookup = run_table.set_index("run")
 
     # load diagnostics
     diags = load_diags(bucket, rundirs)
+    dims = ["time", "local_time"]  # keep all vars that have only these dimensions
     diagnostics = [
-        convert_time_index_to_datetime(
-            get_variables_with_dims(ds, ["time"]), "time"
-        ).assign_attrs(run=key, **run_table_lookup.loc[key])
+        xr.merge([get_variables_with_dims(ds, [dim]) for dim in dims]).assign_attrs(
+            run=key, **run_table_lookup.loc[key]
+        )
         for key, ds in diags.items()
     ]
+    diagnostics = [convert_time_index_to_datetime(ds, "time") for ds in diagnostics]
 
     # load metrics
     nested_metrics = load_metrics(bucket, rundirs)

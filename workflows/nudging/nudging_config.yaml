@@ -9,6 +9,8 @@ nudging:
     specific_humidity: 12
     x_wind: 12
     y_wind: 12
+  output_times:
+    - "20160801.003000"
 namelist:
   coupler_nml:
     calendar: julian
