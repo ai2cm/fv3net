@@ -6,4 +6,5 @@ mypy --follow-imports silent \
     fv3net/pipelines/restarts_to_zarr/ \
     workflows/prognostic_c48_run \
     fv3net/regression/sklearn \
+    external/loaders/loaders/mappers/_local.py \
     workflows/nudging
