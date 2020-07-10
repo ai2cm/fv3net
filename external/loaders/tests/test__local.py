@@ -6,7 +6,7 @@ from loaders.mappers import LocalMapper
 
 def test_LocalMapper(tmpdir):
     path = "a.nc"
-    xr.Dataset({'a': (['x'], [1.0])}).to_netcdf(str(tmpdir.join(path)))
+    xr.Dataset({"a": (["x"], [1.0])}).to_netcdf(str(tmpdir.join(path)))
 
     mapper = LocalMapper(str(tmpdir))
 
@@ -15,9 +15,9 @@ def test_LocalMapper(tmpdir):
 
 def test_LocalMapper_getitem(tmpdir):
     path = "a.nc"
-    xr.Dataset({'a': (['x'], [1.0])}).to_netcdf(str(tmpdir.join(path)))
+    xr.Dataset({"a": (["x"], [1.0])}).to_netcdf(str(tmpdir.join(path)))
     mapper = LocalMapper(str(tmpdir))
-    ds = mapper['a']
+    ds = mapper["a"]
 
     assert isinstance(ds, xr.Dataset)
     assert isinstance(ds.a.data, np.ndarray)
