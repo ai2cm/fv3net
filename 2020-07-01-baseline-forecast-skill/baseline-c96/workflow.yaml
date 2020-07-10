@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: baseline-c96
+spec:
+  serviceAccountName: integration-tests
+  volumes:
+    - name: gcp-credentials-user-gcp-sa
+      secret:
+        secretName: gcp-key
+  containers:
+    - name: main
+      image: us.gcr.io/vcm-ml/fv3net:6647abefe6c35a23cc1d322712d2add9c05e8813
+      command: ["bash", "-x", "-c"]
+      env:
+        - name: JOB
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: RESTARTS
+          value: gs://vcm-ml-experiments/2020-07-02-coarsen-restarts/C96
+        - name: IC_TIMESTEP
+          value: "20160805.000000"
+        - name: OUTPUT
+          value: gs://vcm-ml-experiments/2020-07-01-baseline-forecasts/C96-forecast-run
+        - name: MODEL  # will only be used for diagnostic (aka piggy-backed) ML predictions
+          value: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/train_sklearn_model
+        - name: TAG
+          value: 6647abefe6c35a23cc1d322712d2add9c05e8813
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
+        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+          value: /secret/gcp-credentials/key.json
+      volumeMounts:
+        - mountPath: /secret/gcp-credentials
+          name: gcp-credentials-user-gcp-sa
+      args:
+        - |
+          FV3NET=~/fv3net
+
+          envsubst <<EOF >config.yaml
+          base_version: v0.4
+          kubernetes:
+            cpu: "6000m"
+            memory: "12Gi"
+          orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
+          namelist:
+            coupler_nml:
+              days: 10
+              hours: 0
+              minutes: 0
+              seconds: 0
+            diag_manager_nml:
+              flush_nc_files: true
+            fv_core_nml:
+              do_sat_adj: false
+              npx: 97
+              npy: 97
+            gfdl_cloud_microphysics_nml:
+              fast_sat_adj: false
+
+          EOF
+          python $FV3NET/workflows/prognostic_c48_run/orchestrate_submit_job.py \
+            --image-tag $TAG \
+            --model_url $MODEL \
+            --prog_config_yml config.yaml \
+            --diagnostic_ml \
+            $RESTARTS \
+            $IC_TIMESTEP \
+            $OUTPUT
+      resources:
+        requests:
+          memory: "500Mi"
+          cpu: "250m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
+  restartPolicy: Never
