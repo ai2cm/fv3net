@@ -1,0 +1,15 @@
+storage_proto: gs
+storage_root: vcm-ml-experiments/2020-06-17-triad-round-1
+experiment:
+  name: $JOBNAME
+  unique_id: false
+  steps_to_run:
+    - coarsen_diagnostics
+
+  steps_config:
+    coarsen_diagnostics:
+      command: python workflows/coarsen_c384_diagnostics/coarsen_c384_diagnostics.py
+      args:
+        c384_diagnostics:
+          location: $C384_DIAGNOSTICS
+        coarsening_config: $CONFIG/coarsen_c384_diagnostics.yml
