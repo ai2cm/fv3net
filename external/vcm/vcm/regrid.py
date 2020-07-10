@@ -12,7 +12,7 @@ from vcm.convenience import open_dataset, replace_esmf_coords_reg_latlon
 
 
 def regrid_to_shared_coords(
-    da_var_to_regrid, new_coord_grid, da_old_coords, regrid_dim_name, replace_dim_name
+    field, output_grid, original_grid, output_dim, original_dim
 ):
     """ This function interpolates a variable to a new coordinate grid that is along
     a dimension corresponding to existing irregular coordinates that may be
@@ -35,22 +35,22 @@ def regrid_to_shared_coords(
         data array of the variable interpolated at values of new_coord_grid
     """
     dims_order = tuple(
-        [replace_dim_name]
-        + [dim for dim in da_var_to_regrid.dims if dim != replace_dim_name]
+        [original_dim]
+        + [dim for dim in field.dims if dim != original_dim]
     )
-    da_var_to_regrid = da_var_to_regrid.transpose(*dims_order)
-    da_old_coords = da_old_coords.transpose(*dims_order)
+    field = field.transpose(*dims_order)
+    original_grid = original_grid.transpose(*dims_order)
     interp_values = interpolate_1d(
-        new_coord_grid, da_old_coords.values, da_var_to_regrid.values, axis=0
+        output_grid, original_grid.values, field.values, axis=0
     )
-    new_dims = [regrid_dim_name] + list(da_var_to_regrid.dims[1:])
+    new_dims = [output_dim] + list(field.dims[1:])
 
     new_coords = {
-        dim: da_var_to_regrid[dim].values
-        for dim in da_var_to_regrid.dims
-        if dim != replace_dim_name
+        dim: field[dim].values
+        for dim in field.dims
+        if dim != original_dim
     }
-    new_coords[regrid_dim_name] = new_coord_grid
+    new_coords[output_dim] = output_grid
     return xr.DataArray(interp_values, dims=new_dims, coords=new_coords)
 
 
