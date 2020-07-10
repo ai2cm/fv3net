@@ -33,7 +33,7 @@ class LocalMapper(GeoMapper):
         self.fs.makedirs(self.path, exist_ok=True)
 
 
-def process_item(key, path, mapper):
+def _process_item(key, path, mapper):
     outputpath = os.path.join(path, f"{key}.nc")
     logger.info(f"saving {key} to {outputpath}")
     mapper[key].to_netcdf(outputpath)
@@ -55,6 +55,6 @@ def mapper_to_local(mapper: GeoMapper, path: str, threads: int = 10) -> LocalMap
     local_mapper.create_dir()
 
     with Pool(threads) as pool:
-        pool.map(partial(process_item, path=path, mapper=mapper), mapper.keys())
+        pool.map(partial(_process_item, path=path, mapper=mapper), mapper.keys())
 
     return local_mapper
