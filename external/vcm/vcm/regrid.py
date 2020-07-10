@@ -39,7 +39,7 @@ def regrid_to_shared_coords(
         axis = field.ndim - 1
         return interpolate_1d(output_grid, original_grid, field, axis=axis)
 
-    return xr.apply_ufunc(
+    output = xr.apply_ufunc(
         regrid_onto_output,
         original_grid,
         field,
@@ -49,6 +49,8 @@ def regrid_to_shared_coords(
         dask="parallelized",
         output_dtypes=[field.dtype],
     )
+
+    return output.assign_coords({output_dim: output_grid})
 
 
 # Vertical interpolation
