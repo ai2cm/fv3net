@@ -1,5 +1,5 @@
 import logging
-from typing import Mapping, Hashable, cast
+from typing import MutableMapping, Hashable, cast
 
 import fsspec
 import zarr
@@ -17,17 +17,19 @@ from mpi4py import MPI
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-State = Mapping[Hashable, xr.DataArray]
+State = MutableMapping[Hashable, xr.DataArray]
 
 # following variables are required no matter what feature set is being used
 TEMP = "air_temperature"
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"
-REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE}
+TOTAL_PRECIP = "total_precipitation"  # has units of m
+REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE, TOTAL_PRECIP}
 
 cp = 1004
 gravity = 9.81
+m_per_mm = 1 / 1000
 
 
 def compute_diagnostics(state, diags):
@@ -64,6 +66,26 @@ def rename_diagnostics(diags):
             description=attrs["description"] + " (diagnostic only)"
         )
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
+
+
+def precipitation_sum(
+    physics_precip: xr.DataArray, column_dq2: xr.DataArray, dt: float
+) -> xr.DataArray:
+    """Return sum of physics precipitation and ML-induced precipitation. Output is
+    thresholded to enforce positive precipitation.
+
+    Args:
+        physics_precip: precipitation from physics parameterizations [m]
+        column_dq2: column-integrated moistening from ML [kg/m^2/s]
+        dt: physics timestep [s]
+
+    Returns:
+        total precipitation [m]"""
+    ml_precip = -column_dq2 * dt * m_per_mm  # type: ignore
+    total_precip = physics_precip + ml_precip
+    total_precip = total_precip.where(total_precip >= 0, 0)
+    total_precip.attrs["units"] = "m"
+    return total_precip
 
 
 def open_model(config):
@@ -157,6 +179,14 @@ if __name__ == "__main__":
         else:
             updated_state = apply(state, tendency, dt=TIMESTEP)
 
+        diagnostics = compute_diagnostics(state, tendency)
+        if do_only_diagnostic_ml:
+            rename_diagnostics(diagnostics)
+
+        updated_state[TOTAL_PRECIP] = precipitation_sum(
+            state[TOTAL_PRECIP], diagnostics["net_moistening"], TIMESTEP
+        )
+
         if rank == 0:
             logger.debug("Setting Fortran State")
         fv3gfs.set_state(
@@ -165,10 +195,6 @@ if __name__ == "__main__":
                 for key, value in updated_state.items()
             }
         )
-
-        diagnostics = compute_diagnostics(state, tendency)
-        if do_only_diagnostic_ml:
-            rename_diagnostics(diagnostics)
 
         if i == 0:
             writers = runtime.init_writers(GROUP, comm, diagnostics)
