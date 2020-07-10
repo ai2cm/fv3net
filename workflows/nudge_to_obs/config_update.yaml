@@ -1,5 +1,6 @@
 
-diag_table: diag_table_long_nudged
+base_version: v0.3
+diag_table: /mnt/data/diag_table
 experiment_name: nudged-40day
 initial_conditions: gs://vcm-fv3config/data/initial_conditions/gfs_initial_conditions/v1.0
 gfs_analysis_data:
@@ -10,16 +11,14 @@ namelist:
     fhout: 1.0
     fhmax: 10000
   coupler_nml:
-    days: 40
-    minutes: 0
+    days: 0
+    minutes: 120
     seconds: 0
-    dt_atmos: 900  # seconds
-    dt_ocean: 900  # seconds
+  external_ic_nml:
+    levp: 80
   fv_core_nml:
     nudge: true
-    layout:
-      - 2
-      - 2
+    npz: 79
   gfs_physics_nml:
     fhzero: 1.0
     use_analysis_sst: true
