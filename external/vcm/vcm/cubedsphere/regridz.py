@@ -36,7 +36,7 @@ def regrid_to_common_pressure(
     """Regrid an atmospheric field to a fixed set of pressure levels
 
     Args:
-        da: atmospheric quantity defined on hybrid vertical coordinates
+        field: atmospheric quantity defined on hybrid vertical coordinates
         delp: pressure thickness of model layers in Pa. Must be broadcastable with ``da``
         coord_z_center: the vertical dimension name
         output_pressure: The output pressure levels to use
