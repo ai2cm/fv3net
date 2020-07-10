@@ -27,7 +27,7 @@ class LocalMapper(GeoMapper):
 
     def __getitem__(self, key):
         with self.fs.open(self._files()[key]) as f:
-            return xr.open_dataset(f)
+            return xr.open_dataset(f).load()
 
     def create_dir(self):
         self.fs.makedirs(self.path, exist_ok=True)
