@@ -12,31 +12,27 @@ from vcm.convenience import open_dataset, replace_esmf_coords_reg_latlon
 
 
 def regrid_to_shared_coords(
-    field, output_grid, original_grid, output_dim, original_dim
-):
-    """ This function interpolates a variable to a new coordinate grid that is along
-    a dimension corresponding to existing irregular coordinates that may be
-    different at each point, e.g. interpolate temperature profiles to be given at the
-    same pressure values for each data point.
-
-    For example usage, see vcm.cubedsphere.regridz.regrid_to_pressure_level
+    field: xr.DataArray,
+    output_grid: xr.DataArray,
+    original_grid: xr.DataArray,
+    output_dim: str,
+    original_dim: str,
+) -> xr.DataArray:
+    """Interpolate a vertical defined field onto set of constant output levels
 
     Args:
-    da_var_to_regrid: xr data array, for the variable to interpolate to new coord grid
-    new_coord_grid: 1d list/array, coordinates to interpolate the data variable onto
-    da_old_coords: xr data array, of the original "coordinates"- can be different for
-        each element. Must have same shape as da_var_to_regrid
-    regrid_dim_name: str, name of new dimension to assign
-    replace_dim_name: str, Name of old dimension (usually pfull) along which the data
-        was interpolated. This gets replaced because the new data and coords don't have
-        to have the same length as the original data array
+        field: a vertical quantity
+        output_grid: a one dimensional output field
+        original_grid: the original vertical coordinate of ``field``. Must
+            have the same dims of ``field``.
+        output_dim: name of regridded output pressure
+        original_dim: name of vertical dimension
 
     Returns:
-        data array of the variable interpolated at values of new_coord_grid
+        the vertical resolved quantity defined at the levels in ``output_grid``
     """
     dims_order = tuple(
-        [original_dim]
-        + [dim for dim in field.dims if dim != original_dim]
+        [original_dim] + [dim for dim in field.dims if dim != original_dim]
     )
     field = field.transpose(*dims_order)
     original_grid = original_grid.transpose(*dims_order)
@@ -45,11 +41,7 @@ def regrid_to_shared_coords(
     )
     new_dims = [output_dim] + list(field.dims[1:])
 
-    new_coords = {
-        dim: field[dim].values
-        for dim in field.dims
-        if dim != original_dim
-    }
+    new_coords = {dim: field[dim].values for dim in field.dims if dim != original_dim}
     new_coords[output_dim] = output_grid
     return xr.DataArray(interp_values, dims=new_dims, coords=new_coords)
 
