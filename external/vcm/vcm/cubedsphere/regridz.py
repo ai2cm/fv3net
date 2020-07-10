@@ -28,13 +28,12 @@ else:
 
 
 def regrid_to_common_pressure(
-    da: xr.DataArray,
+    field: xr.DataArray,
     delp: xr.DataArray,
     coord_z_center: str = "pfull",
     output_pressure=PRESSURE_GRID,
 ) -> xr.DataArray:
-    """Convenience function that uses regrid_to_shared_coords() for a common
-    usage of interpolating to a pressure grid
+    """Regrid an atmospheric field to a fixed set of pressure levels
 
     Args:
         da: atmospheric quantity defined on hybrid vertical coordinates
@@ -46,7 +45,7 @@ def regrid_to_common_pressure(
         the atmospheric quantity defined on ``output_pressure``.
     """
     return regrid_to_shared_coords(
-        da,
+        field,
         np.array(output_pressure),
         pressure_at_midpoint_log(delp, dim=coord_z_center),
         output_dim="pressure",
