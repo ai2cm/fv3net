@@ -13,6 +13,9 @@ def parse_args():
         description="prepare fv3config yaml file for nudge-to-obs run"
     )
     parser.add_argument("config", type=str, help="base yaml file to configure")
+    parser.add_argument(
+        "rundir", type=str, help="path to rundir, required for writing nudging filelist"
+    )
 
     return parser.parse_args()
 
@@ -28,8 +31,8 @@ if __name__ == "__main__":
     with open(args.config, "r") as f:
         config_update = yaml.safe_load(f)
 
-    base_config = fv3kube.get_base_fv3config(config["base_version"])
+    base_config = fv3kube.get_base_fv3config(config_update["base_version"])
     config = vcm.update_nested_dict(base_config, config_update)
     if config["namelist"]["fv_core_nml"].get("nudge", False):
-        config = fv3kube.update_config_for_nudging(config, config_bucket)
+        config = fv3kube.update_config_for_nudging(config, args.rundir)
     print(yaml.dump(config))
