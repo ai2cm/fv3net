@@ -35,10 +35,23 @@ class FineResolutionResidual(GeoMapper):
 
 
 def open_fine_resolution_nudging_hybrid(
-    _,  # need empty argument to work with current configuration system
-    nudging: Mapping,
-    fine_res: Mapping,
+    _, nudging: Mapping, fine_res: Mapping,
 ) -> FineResolutionResidual:
+    """
+    Open the fine resolution nudging_hybrid mapper
+
+    Args:
+        _: The training routines currently assume the first argument is a
+            path to a particular dataset. However, this mapper merges two such
+            datasets, so it doesn't make sense to give one special treatment.
+            Therefore, this argument should be ignored.
+        nudging: keyword arguments passed to
+            :py:func:`open_merged_nudging_full_tendencies`
+        fine_res: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
+
+    Returns:
+        a mapper
+    """
 
     offset_seconds = fine_res.pop("offset_seconds", 450)
 
