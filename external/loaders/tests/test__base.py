@@ -33,6 +33,6 @@ def test_LongRunMapper(ds):
     assert len(mapper) == ds.sizes[TIME_NAME]
 
     single_time = ds[TIME_NAME].values[0]
-    item = ds.sel({TIME_NAME: single_time})
+    item = ds.sel({TIME_NAME: single_time}).drop_vars(names=TIME_NAME)
     time_key = pd.to_datetime(single_time).strftime(TIME_FMT)
     xr.testing.assert_equal(item, mapper[time_key])

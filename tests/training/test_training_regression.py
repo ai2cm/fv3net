@@ -1,17 +1,19 @@
-import xarray as xr
-import pytest
-import yaml
+import logging
 import os
 import tempfile
-import logging
+
+import numpy as np
+import pytest
+import xarray as xr
+import yaml
+
 import diagnostics_utils as utils
 import synth
-from loaders import mappers, batches, SAMPLE_DIM_NAME
-from fv3net.regression.sklearn import train
 from fv3net.regression import shared
+from fv3net.regression.sklearn import train
 from fv3net.regression.sklearn._mapper import SklearnPredictionMapper
+from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags._metrics import calc_metrics
-
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +62,14 @@ def test_compute_training_diags(
         training_data_diags_config, "nudging_tendencies"
     )
 
+    fine_res_config = get_data_source_training_diags_config(
+        training_data_diags_config, "fine_res_apparent_sources"
+    )
+
     data_config_mapping = {
         "one_step_tendencies": (one_step_dataset_path, one_step_training_diags_config),
         "nudging_tendencies": (nudging_dataset_path, nudging_training_diags_config),
-        "fine_res_apparent_sources": (fine_res_dataset_path, None),
+        "fine_res_apparent_sources": (fine_res_dataset_path, fine_res_config),
     }
 
     variable_names = [
@@ -81,33 +87,16 @@ def test_compute_training_diags(
         data_source_name,
         (data_source_path, data_source_config),
     ) in data_config_mapping.items():
-        if data_source_name != "fine_res_apparent_sources":
-            ds_batches_one_step = batches.diagnostic_batches_from_geodata(
-                data_source_path,
-                variable_names,
-                timesteps_per_batch=timesteps_per_batch,
-                mapping_function=data_source_config["mapping_function"],
-                mapping_kwargs=data_source_config["mapping_kwargs"],
-            )
-            ds_batches_one_step_concat = xr.concat(ds_batches_one_step, dim=TIME_DIM)
-            ds_diagnostic = utils.reduce_to_diagnostic(
-                ds_batches_one_step_concat, grid_dataset, domains=DOMAINS
-            )
-        else:
-            rename_variables = {
-                "delp": "pressure_thickness_of_atmospheric_layer",
-                "pfull": "z",
-                "grid_xt": "x",
-                "grid_yt": "y",
-            }
-            ds_batches_fine_res = [
-                xr.open_zarr(data_source_path).isel(time=0).rename(rename_variables),
-                xr.open_zarr(data_source_path).isel(time=1).rename(rename_variables),
-            ]
-            ds_batches_fine_res_concat = xr.concat(ds_batches_fine_res, dim=TIME_DIM)
-            ds_diagnostic = utils.reduce_to_diagnostic(
-                ds_batches_fine_res_concat, grid_dataset, domains=DOMAINS
-            )
+        ds_batches_one_step = batches.diagnostic_batches_from_geodata(
+            data_source_path,
+            variable_names,
+            timesteps_per_batch=timesteps_per_batch,
+            mapping_function=data_source_config["mapping_function"],
+            mapping_kwargs=data_source_config["mapping_kwargs"],
+        )
+        ds_diagnostic = utils.reduce_to_diagnostic(
+            ds_batches_one_step, grid_dataset, domains=DOMAINS
+        )
         diagnostic_datasets[data_source_name] = ds_diagnostic
 
     diagnostics_all = xr.concat(
@@ -154,8 +143,6 @@ def _fine_res_train_config():
     path = "./tests/training/train_sklearn_model_fineres_source.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
-    config["batch_kwargs"].pop("mapping_function", None)
-    config["batch_kwargs"].pop("mapping_kwargs", None)
     return train.ModelTrainingConfig(**config)
 
 
@@ -179,28 +166,7 @@ def data_source_train_config(data_source_name):
 
 @pytest.fixture
 def training_batches(data_source_name, data_source_path, data_source_train_config):
-
-    if data_source_name != "fine_res_apparent_sources":
-        batched_data = shared.load_data_sequence(
-            data_source_path, data_source_train_config
-        )
-    else:
-        # train.load_data_sequence is incompatible with synth's zarrs
-        # (it looks for netCDFs); this is a patch until synth supports netCDF
-        fine_res_ds = xr.open_zarr(data_source_path)
-        mapper = {
-            fine_res_ds.time.values[0]: fine_res_ds.isel(time=0),
-            fine_res_ds.time.values[1]: fine_res_ds.isel(time=1),
-        }
-
-        batched_data = batches.batches_from_mapper(
-            mapper,
-            list(data_source_train_config.input_variables)
-            + list(data_source_train_config.output_variables),
-            **data_source_train_config.batch_kwargs,
-        )
-
-    return batched_data
+    return shared.load_data_sequence(data_source_path, data_source_train_config)
 
 
 @pytest.mark.regression
@@ -276,29 +242,17 @@ def nudging_offline_diags_config(datadir):
     return _nudging_offline_diags_config(datadir)
 
 
-def _fine_res_offline_diags_config(datadir):
-    path = f"{datadir}/offline_diags_fine_res_config.yml"
-    with open(path, "r") as f:
-        config = yaml.safe_load(f)
-    return config
-
-
-@pytest.fixture
-def fine_res_offline_diags_config(datadir):
-    return _fine_res_offline_diags_config(datadir)
-
-
 @pytest.fixture
 def data_source_offline_config(data_source_name, datadir):
     if data_source_name == "one_step_tendencies":
-        data_source_offline_config = _one_step_offline_diags_config(datadir)
+        return _one_step_offline_diags_config()
     elif data_source_name == "nudging_tendencies":
-        data_source_offline_config = _nudging_offline_diags_config(datadir)
+        return _nudging_offline_diags_config()
     elif data_source_name == "fine_res_apparent_sources":
-        data_source_offline_config = _fine_res_offline_diags_config(datadir)
+        with open("./workflows/offline_ml_diags/tests/test_fine_res_config.yml") as f:
+            return yaml.safe_load(f)
     else:
         raise NotImplementedError()
-    return data_source_offline_config
 
 
 @pytest.fixture
@@ -306,29 +260,12 @@ def prediction_mapper(
     mock_model, data_source_name, data_source_path, data_source_offline_config
 ):
 
-    if data_source_name != "fine_res_apparent_sources":
-        base_mapping_function = getattr(
-            mappers, data_source_offline_config["mapping_function"]
-        )
-        base_mapper = base_mapping_function(
-            data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
-        )
-    else:
-        # open_fine_res_apparent_sources is incompatible with synth's zarrs
-        # (it looks for netCDFs); this is a patch until synth supports netCDF
-        rename_variables = {
-            "delp": "pressure_thickness_of_atmospheric_layer",
-            "grid_xt": "x",
-            "grid_yt": "y",
-        }
-        base_mapper = {
-            "20160901.000000": xr.open_zarr(data_source_path)
-            .isel(time=0)
-            .rename(rename_variables),
-            "20160901.001500": xr.open_zarr(data_source_path)
-            .isel(time=1)
-            .rename(rename_variables),
-        }
+    base_mapping_function = getattr(
+        mappers, data_source_offline_config["mapping_function"]
+    )
+    base_mapper = base_mapping_function(
+        data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
+    )
 
     prediction_mapper = SklearnPredictionMapper(
         base_mapper,
@@ -386,4 +323,4 @@ def test_compute_offline_diags(
         assert isinstance(metric_dict, dict)
         for metric_key, metric_value in metric_dict.items():
             assert isinstance(metric_key, str)
-            assert isinstance(metric_value, float)
+            assert isinstance(metric_value, (float, np.float32))
