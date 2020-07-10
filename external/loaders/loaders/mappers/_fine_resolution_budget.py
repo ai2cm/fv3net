@@ -83,11 +83,6 @@ class FineResolutionSources(GeoMapper):
         self._dim_order = dim_order
         self._rename_vars = rename_vars or {}
 
-        if rename_vars is None:
-            self._rename_vars = {}
-        else:
-            self._rename_vars = rename_vars
-
     def keys(self):
         return set(
             [
