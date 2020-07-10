@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: argo-nudging-
+  generateName: argo-nudge-to-obs-
 spec:
   arguments:
     parameters:
@@ -12,7 +12,7 @@ spec:
       - name: fv3gfs-image
         value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
       - name: fv3net-image
-        value: us.gcr.io/vcm-ml/fv3net:95df9bd2939e4ca2f103c4b2925206f429236ad7
+        value: us.gcr.io/vcm-ml/fv3net:b4d6f1c65c8252c8938893249d9a3a76cc925228
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
@@ -21,7 +21,7 @@ spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: 1333Gi
+            storage: 500Gi
   volumes:
     - name: restart-data
       persistentVolumeClaim:
@@ -47,13 +47,14 @@ spec:
           runAsUser: 0
         image: "{{workflow.parameters.fv3net-image}}"
         command: ["/bin/bash", "-c"]
-        workingDir: /home/jovyan/fv3net/workflows/nudging
+        workingDir: /home/jovyan/fv3net/workflows/nudge_to_obs
         args:
         - |
           cp runfile.py /mnt/data/runfile.py
 
           echo "{{workflow.parameters.nudging-config}}" > config.yaml
-          python prepare_config.py config.yaml > /mnt/data/fv3config.yaml
+          python prepare_config.py config.yaml "{{workflow.parameters.output-url}}" > /mnt/data/fv3config.yaml
+          cp diag_table_nudge_to_obs /mnt/data/diag_table
         volumeMounts:
           - name: output-data
             mountPath: /mnt/data
@@ -119,8 +120,6 @@ spec:
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
-          - name: restart-data
-            mountPath: /mnt/input
           - name: output-data
             mountPath: /mnt/data
           - name: gcp-key-secret
