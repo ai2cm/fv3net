@@ -1,6 +1,6 @@
 import xarray as xr
 
-from loaders import LocalMapper
+from loaders.mappers import LocalMapper
 
 
 def test_LocalMapper(tmpdir):
