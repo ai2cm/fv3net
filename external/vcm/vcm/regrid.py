@@ -36,16 +36,18 @@ def regrid_to_shared_coords(
 
     def regrid_onto_output(original_grid, field):
         # axis=-1 gives a broadcast error in the current version of metpy
-        axis= field.ndim - 1
+        axis = field.ndim - 1
         return interpolate_1d(output_grid, original_grid, field, axis=axis)
 
     return xr.apply_ufunc(
-        regrid_onto_output, original_grid, field,
+        regrid_onto_output,
+        original_grid,
+        field,
         input_core_dims=[[original_dim], [original_dim]],
         output_core_dims=[[output_dim]],
         output_sizes={output_dim: len(output_grid)},
-        dask='parallelized',
-        output_dtypes=[field.dtype]
+        dask="parallelized",
+        output_dtypes=[field.dtype],
     )
 
 
