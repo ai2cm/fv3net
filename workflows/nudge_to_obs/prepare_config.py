@@ -67,5 +67,5 @@ if __name__ == "__main__":
     config = vcm.update_nested_dict(base_config, config_update)
     if config["namelist"]["fv_core_nml"].get("nudge", False):
         config = fv3kube.update_config_for_nudging(config, args.rundir)
-    config["runfile_output"]["output_times"] = get_output_times(config)
+    config["runfile_output"] = {"output_times": get_output_times(config)}
     print(yaml.dump(config))
