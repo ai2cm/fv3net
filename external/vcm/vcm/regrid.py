@@ -31,19 +31,22 @@ def regrid_to_shared_coords(
     Returns:
         the vertical resolved quantity defined at the levels in ``output_grid``
     """
-    dims_order = tuple(
-        [original_dim] + [dim for dim in field.dims if dim != original_dim]
-    )
-    field = field.transpose(*dims_order)
-    original_grid = original_grid.transpose(*dims_order)
-    interp_values = interpolate_1d(
-        output_grid, original_grid.values, field.values, axis=0
-    )
-    new_dims = [output_dim] + list(field.dims[1:])
 
-    new_coords = {dim: field[dim].values for dim in field.dims if dim != original_dim}
-    new_coords[output_dim] = output_grid
-    return xr.DataArray(interp_values, dims=new_dims, coords=new_coords)
+    output_grid = np.asarray(output_grid)
+
+    def regrid_onto_output(original_grid, field):
+        # axis=-1 gives a broadcast error in the current version of metpy
+        axis= field.ndim - 1
+        return interpolate_1d(output_grid, original_grid, field, axis=axis)
+
+    return xr.apply_ufunc(
+        regrid_onto_output, original_grid, field,
+        input_core_dims=[[original_dim], [original_dim]],
+        output_core_dims=[[output_dim]],
+        output_sizes={output_dim: len(output_grid)},
+        dask='parallelized',
+        output_dtypes=[field.dtype]
+    )
 
 
 # Vertical interpolation

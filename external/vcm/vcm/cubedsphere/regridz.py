@@ -50,7 +50,7 @@ def regrid_to_common_pressure(
         np.array(output_pressure),
         pressure_at_midpoint_log(delp, dim=coord_z_center),
         output_dim="pressure",
-        original_dim=coord_z_center
+        original_dim=coord_z_center,
     )
 
 
