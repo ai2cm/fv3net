@@ -130,7 +130,6 @@ if __name__ == "__main__":
     config = load_config("fv3config.yml")
     partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
     communicator = fv3gfs.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
-    timestep = get_timestep(config)
 
     monitor = StageWriter(
         RUN_DIR,
