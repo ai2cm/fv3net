@@ -1,13 +1,17 @@
 import os
 import re
 from datetime import timedelta
+from functools import partial
 from typing import Mapping, Optional, Sequence, Tuple, Union
+
 
 import xarray as xr
 from toolz import groupby
 
 import vcm
 
+from ._timestamps import add_offset
+from ._transformations import KeyMap
 from .._utils import assign_net_physics_terms
 from ..constants import (
     DERIVATION_FV3GFS_COORD,
@@ -84,37 +88,15 @@ class FineResolutionSources(GeoMapper):
         self._rename_vars = rename_vars or {}
 
     def keys(self):
-        return set(
-            [
-                self._midpoint_to_timestamp_key(time, self._offset_seconds)
-                for time in self._time_mapping.keys()
-            ]
-        )
+        return self._time_mapping.keys()
 
     def __getitem__(self, time: Time) -> xr.Dataset:
-        time = self._timestamp_key_to_midpoint(time, self._offset_seconds)
         return (
             self._derived_budget_ds(self._time_mapping[time])
             .drop_vars(names=self._drop_vars, errors="ignore")
             .rename(self._rename_vars)
             .transpose(*self._dim_order)
         )
-
-    @staticmethod
-    def _timestamp_key_to_midpoint(
-        key: Time, offset_seconds: Union[int, float] = 0
-    ) -> Time:
-        offset = timedelta(seconds=offset_seconds)
-        offset_datetime = vcm.parse_datetime_from_str(key) + offset
-        return offset_datetime.strftime("%Y%m%d.%H%M%S")
-
-    @staticmethod
-    def _midpoint_to_timestamp_key(
-        time: Time, offset_seconds: Union[int, float] = 0
-    ) -> Time:
-        offset = timedelta(seconds=offset_seconds)
-        offset_datetime = vcm.parse_datetime_from_str(time) - offset
-        return offset_datetime.strftime("%Y%m%d.%H%M%S")
 
     def _derived_budget_ds(
         self,
@@ -279,10 +261,13 @@ def open_fine_res_apparent_sources(
 
     fine_resolution_sources_mapper = FineResolutionSources(
         open_fine_resolution_budget(fine_res_url),
-        offset_seconds,
         drop_vars,
         dim_order=dim_order,
         rename_vars=rename_vars,
+    )
+
+    fine_resolution_sources_mapper = KeyMap(
+        partial(add_offset, seconds=offset_seconds), fine_resolution_sources_mapper
     )
 
     if shield_diags_url is not None:
