@@ -131,6 +131,13 @@ def convert_timestamps(coord: xr.DataArray) -> xr.DataArray:
     return xr.DataArray(parser(coord), dims=coord.dims, attrs=coord.attrs)
 
 
+def shift_timestamp(time: str, seconds: Union[int, float]) -> str:
+    """Add offset_seconds to a timestamp in YYYYMMDD.HHMMSS format"""
+    offset = timedelta(seconds=seconds)
+    offset_datetime = parse_datetime_from_str(time) + offset
+    return offset_datetime.strftime("%Y%m%d.%H%M%S")
+
+
 def get_root():
     """Returns the absolute path to the root directory for any machine"""
     return str(TOP_LEVEL_DIR)

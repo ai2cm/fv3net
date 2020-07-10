@@ -1,6 +1,5 @@
 import os
 import re
-from datetime import timedelta
 from functools import partial
 from typing import Mapping, Optional, Sequence, Tuple, Union
 
@@ -10,7 +9,6 @@ from toolz import groupby
 
 import vcm
 
-from ._timestamps import add_offset
 from ._transformations import KeyMap
 from .._utils import assign_net_physics_terms
 from ..constants import (
@@ -267,7 +265,8 @@ def open_fine_res_apparent_sources(
     )
 
     fine_resolution_sources_mapper = KeyMap(
-        partial(add_offset, seconds=offset_seconds), fine_resolution_sources_mapper
+        partial(vcm.shift_timestamp, seconds=-offset_seconds),
+        fine_resolution_sources_mapper,
     )
 
     if shield_diags_url is not None:
