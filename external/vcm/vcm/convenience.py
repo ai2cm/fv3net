@@ -132,7 +132,7 @@ def convert_timestamps(coord: xr.DataArray) -> xr.DataArray:
 
 
 def shift_timestamp(time: str, seconds: Union[int, float]) -> str:
-    """Add offset_seconds to a timestamp in YYYYMMDD.HHMMSS format"""
+    """Add an offset in seconds to a timestamp in YYYYMMDD.HHMMSS format"""
     offset = timedelta(seconds=seconds)
     offset_datetime = parse_datetime_from_str(time) + offset
     return offset_datetime.strftime("%Y%m%d.%H%M%S")
