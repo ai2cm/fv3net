@@ -245,10 +245,11 @@ def open_fine_res_apparent_sources(
         fine_res_url (str): path to fine res dataset
         shield_diags_url: path to directory containing a zarr store of SHiELD
             diagnostics coarsened to the nudged model resolution (optional)
-        offset_seconds (int or float): optional time offset in seconds between
-            access keys and underlying data timestamps, with positive values
-            indicating that the access key is behind the underlying timestamps;
-            defaults to 0
+        offset_seconds: amount to shift the keys forward by in seconds. For
+            example, if the underlying data contains a value at the key
+            "20160801.000730", a value off 450 will shift this forward 7:30
+            minutes, so that this same value can be accessed with the key
+            "20160801.001500"
         rename_vars: (mapping): optional mapping of variables to rename in dataset
         drop_vars (sequence): optional list of variable names to drop from dataset
     """
@@ -265,7 +266,7 @@ def open_fine_res_apparent_sources(
     )
 
     fine_resolution_sources_mapper = KeyMap(
-        partial(vcm.shift_timestamp, seconds=-offset_seconds),
+        partial(vcm.shift_timestamp, seconds=offset_seconds),
         fine_resolution_sources_mapper,
     )
 

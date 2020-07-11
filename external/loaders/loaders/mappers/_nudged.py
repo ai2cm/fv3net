@@ -333,11 +333,12 @@ def open_merged_nudged_full_tendencies(
             defaults to 900
         consolidated: if true, open the underlying zarr stores with the consolidated
             flag to xr.open_zarr.
-        offset_seconds: optional time offset in seconds between
-            access keys and underlying data timestamps, with positive values
-            indicating that the access key is behind the underlying timestamps;
-            defaults to 0
-        
+        offset_seconds: amount to shift the keys forward by in seconds. For
+            example, if the underlying data contains a value at the key
+            "20160801.000730", a value off 450 will shift this forward 7:30
+            minutes, so that this same value can be accessed with the key
+            "20160801.001500"
+
     Returns
         mapper of timestamps to datasets containing full tendency terms
     """
@@ -361,7 +362,7 @@ def open_merged_nudged_full_tendencies(
     )
 
     full_tendencies_mapper = KeyMap(
-        partial(vcm.shift_timestamp, seconds=-offset_seconds), full_tendencies_mapper,
+        partial(vcm.shift_timestamp, seconds=offset_seconds), full_tendencies_mapper,
     )
 
     if shield_diags_url is not None:
