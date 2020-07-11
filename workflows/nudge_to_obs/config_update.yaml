@@ -14,8 +14,6 @@ namelist:
     days: 0
     minutes: 120
     seconds: 0
-  external_ic_nml:
-    levp: 80
   fv_core_nml:
     nudge: true
     npz: 79
