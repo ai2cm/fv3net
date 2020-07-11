@@ -44,6 +44,10 @@ STORE_NAMES = [
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
+def get_timestep(config):
+    return timedelta(seconds=config["namelist"]["coupler_nml"]["dt_atmos"])
+
+
 class StageWriter:
     def __init__(
         self,
@@ -130,6 +134,7 @@ if __name__ == "__main__":
     config = load_config("fv3config.yml")
     partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
     communicator = fv3gfs.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
+    timestep = get_timestep(config)
 
     monitor = StageWriter(
         RUN_DIR,
@@ -142,7 +147,7 @@ if __name__ == "__main__":
     for i in range(fv3gfs.get_step_count()):
         state = fv3gfs.get_state(names=STORE_NAMES)
         start = datetime.utcnow()
-        time = state["time"]
+        time = state["time"] + timestep
 
         monitor.store(time, state, stage="before_dynamics")
         fv3gfs.step_dynamics()
