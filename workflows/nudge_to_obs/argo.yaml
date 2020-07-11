@@ -12,7 +12,7 @@ spec:
       - name: fv3gfs-image
         value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
       - name: fv3net-image
-        value: us.gcr.io/vcm-ml/fv3net:b4d6f1c65c8252c8938893249d9a3a76cc925228
+        value: us.gcr.io/vcm-ml/fv3net:b482685c3a298187b0d53e893ca9fa8af555f577
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
@@ -51,7 +51,6 @@ spec:
         args:
         - |
           cp runfile.py /mnt/data/runfile.py
-
           echo "{{workflow.parameters.nudging-config}}" > config.yaml
           python prepare_config.py config.yaml "{{workflow.parameters.output-url}}" > /mnt/data/fv3config.yaml
           cp diag_table_nudge_to_obs /mnt/data/diag_table
