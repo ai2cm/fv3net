@@ -12,7 +12,9 @@ spec:
       - name: fv3gfs-image
         value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
       - name: fv3net-image
-        value: us.gcr.io/vcm-ml/fv3net:b482685c3a298187b0d53e893ca9fa8af555f577
+        value: us.gcr.io/vcm-ml/fv3net:98508c3fc3a5ec91b630cca344f53ba24033a476
+      - name: post-process-image
+        value: us.gcr.io/vcm-ml/post_process_run:98508c3fc3a5ec91b630cca344f53ba24033a476
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
@@ -38,7 +40,7 @@ spec:
         - - name: run-model
             template: fv3gfs
         - - name: upload-outputs
-            template: upload-data
+            template: post-process
     - name: prepare-config
       container:
         # need to run as root to read the mounted PVC
@@ -54,35 +56,14 @@ spec:
           echo "{{workflow.parameters.nudging-config}}" > config.yaml
           python prepare_config.py config.yaml "{{workflow.parameters.output-url}}" > /mnt/data/fv3config.yaml
           cp diag_table_nudge_to_obs /mnt/data/diag_table
+          cp chunks.yaml /mnt/data/chunks.yaml
         volumeMounts:
           - name: output-data
             mountPath: /mnt/data
-    - name: upload-data
-      tolerations:
-      - key: "dedicated"
-        operator: "Equal"
-        value: "climate-sim-pool"
-        effect: "NoSchedule"
+    - name: post-process
       container:
-        image: google/cloud-sdk:latest
-        command: ["/bin/bash"]
-        args:
-          - -c
-          - |
-            gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS && \
-            gsutil -m -q rsync -r -e /mnt/data/rundir '{{workflow.parameters.output-url}}'
-        env:
-          - name: GOOGLE_APPLICATION_CREDENTIALS
-            value: /secret/gcp-credentials/key.json
-        imagePullPolicy: Always
-        resources:
-          limits:
-            memory: 8Gi
-          requests:
-            cpu: "6"
-            memory: 8Gi
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
+        image: "{{workflow.parameters.post-process-image}}"
+        args: ["--chunks /mnt/data/chunks.yaml", "/mnt/data/rundir", "{{workflow.parameters.output-url}}"]
         volumeMounts:
           - name: output-data
             mountPath: /mnt/data
