@@ -60,11 +60,6 @@ default_experiment
 ###
  "dynamics",  "ucomp",        "ucomp",        "atmos_hourly",  "all",  .false.,  "none",  2
  "dynamics",  "vcomp",        "vcomp",        "atmos_hourly",  "all",  .false.,  "none",  2
- "dynamics",  "liq_wat",      "liq_wat",      "atmos_hourly",  "all",  .false.,  "none",  2
- "dynamics",  "ice_wat",      "ice_wat",      "atmos_hourly",  "all",  .false.,  "none",  2
- "dynamics",  "rainwat",      "rainwat",      "atmos_hourly",  "all",  .false.,  "none",  2
- "dynamics",  "snowwat",      "snowwat",      "atmos_hourly",  "all",  .false.,  "none",  2
- "dynamics",  "graupel",      "graupel",      "atmos_hourly",  "all",  .false.,  "none",  2
 ###
  "dynamics",  "u_dt_nudge",    "u_dt_nudge",  "atmos_hourly", "all", .false., "none", 2
  "dynamics",  "v_dt_nudge",    "v_dt_nudge",  "atmos_hourly", "all", .false., "none", 2
