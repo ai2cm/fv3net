@@ -146,14 +146,12 @@ if __name__ == "__main__":
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
         state = fv3gfs.get_state(names=STORE_NAMES)
-        start = datetime.utcnow()
         time = state["time"] + timestep
 
         monitor.store(time, state, stage="before_dynamics")
         fv3gfs.step_dynamics()
         monitor.store(time, fv3gfs.get_state(names=STORE_NAMES), stage="after_dynamics")
         fv3gfs.step_physics()
-        state = fv3gfs.get_state(names=STORE_NAMES)
-        monitor.store(time, state, stage="after_physics")
+        monitor.store(time, fv3gfs.get_state(names=STORE_NAMES), stage="after_physics")
 
     fv3gfs.cleanup()
