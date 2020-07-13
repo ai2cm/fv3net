@@ -69,9 +69,18 @@ def batch_kwargs(data_source_name: str) -> dict:
     elif data_source_name == "fine_res_apparent_sources":
         return {
             "timesteps_per_batch": 1,
+            "mapping_function": "open_fine_res_apparent_sources",
             "init_time_dim_name": "initial_time",
             "timesteps": ["20160801.001500", "20160801.003000"],
             "rename_variables": {},
+            "mapping_kwargs": {
+                "rename_vars": {
+                    "delp": "pressure_thickness_of_atmospheric_layer",
+                    "grid_xt": "x",
+                    "grid_yt": "y",
+                    "pfull": "z",
+                }
+            },
         }
 
 
@@ -124,24 +133,7 @@ def training_batches(
     data_source_path: str,
     train_config: shared.ModelTrainingConfig,
 ) -> Sequence[xr.Dataset]:
-
-    if data_source_name != "fine_res_apparent_sources":
-        batched_data = regression.shared.load_data_sequence(
-            data_source_path, train_config
-        )
-    else:
-        # train.load_data_sequence is incompatible with synth's zarrs
-        # (it looks for netCDFs); this is a patch until synth supports netCDF
-        fine_res_ds = xr.open_zarr(data_source_path)
-        mapper = {
-            fine_res_ds.time.values[0]: fine_res_ds.isel(time=0),
-            fine_res_ds.time.values[1]: fine_res_ds.isel(time=1),
-        }
-        batched_data = loaders.batches.batches_from_mapper(
-            mapper,
-            list(train_config.input_variables) + list(train_config.output_variables),
-            **train_config.batch_kwargs,
-        )
+    batched_data = regression.shared.load_data_sequence(data_source_path, train_config)
     return batched_data
 
 
@@ -215,8 +207,6 @@ def test_training_integration(
     """
     Test the bash endpoint for training the model produces the expected output files.
     """
-    if data_source_name == "fine_res_apparent_sources":
-        pytest.xfail("cannot test fine_res on disk until synth produces netcdf files")
     subprocess.check_call(
         [
             "python",
