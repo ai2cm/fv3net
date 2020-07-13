@@ -18,6 +18,14 @@ from offline_ml_diags._metrics import calc_metrics
 logger = logging.getLogger(__name__)
 
 DOMAINS = ["land", "sea", "global"]
+DIURNAL_VARS = [
+    "column_integrated_dQ1",
+    "column_integrated_dQ2",
+    "column_integrated_pQ1",
+    "column_integrated_pQ2",
+    "column_integrated_Q1",
+    "column_integrated_Q2",
+]
 OUTPUT_NC_NAME = "diagnostics.nc"
 TIME_DIM = "time"
 
@@ -311,7 +319,7 @@ def diagnostic_batches(prediction_mapper, data_source_offline_config):
 def test_compute_offline_diags(
     offline_diags_reference_schema, diagnostic_batches, grid_dataset
 ):
-    batches_diags, batches_metrics = [], []
+    batches_diags, batches_diurnal, batches_metrics = [], [], []
     for i, diagnostic_batch in enumerate(diagnostic_batches):
         diagnostic_batch = diagnostic_batch.pipe(utils.insert_Q_terms).pipe(
             utils.insert_column_integrated_vars
@@ -319,10 +327,15 @@ def test_compute_offline_diags(
         ds_diagnostic = utils.reduce_to_diagnostic(
             diagnostic_batch, grid_dataset, domains=DOMAINS
         )
+        ds_diurnal = utils.create_diurnal_cycle_dataset(
+            diagnostic_batch, grid_dataset["lon"], DIURNAL_VARS,
+        )
         ds_metric = calc_metrics(xr.merge([diagnostic_batch, grid_dataset["area"]]))
     batches_diags.append(ds_diagnostic)
+    batches_diurnal.append(ds_diurnal)
     batches_metrics.append(ds_metric)
     ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
+    ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
     ds_metrics = xr.concat(batches_metrics, dim="batch").mean(dim="batch")
     metrics = {
         var: {
@@ -354,6 +367,11 @@ def test_compute_offline_diags(
             offline_diags_output_schema.coords[coord]
             == offline_diags_reference_schema.coords[coord]
         )
+
+    for var in DIURNAL_VARS:
+        assert "local_time_hr" in ds_diurnal[var].dims
+        for dim in ds_diurnal[var].dims:
+            assert dim in ["local_time_hr", "derivation"]
 
     assert isinstance(metrics, dict)
     assert len(metrics) == 32

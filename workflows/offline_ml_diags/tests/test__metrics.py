@@ -29,6 +29,10 @@ def ds_mock():
             "dQ2": da,
             "column_integrated_dQ1": da,
             "column_integrated_dQ2": da,
+            "Q1": da,
+            "Q2": da,
+            "column_integrated_Q1": da,
+            "column_integrated_Q2": da,
             "pressure_thickness_of_atmospheric_layer": delp,
         }
     )

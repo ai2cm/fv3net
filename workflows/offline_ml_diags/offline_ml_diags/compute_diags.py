@@ -28,6 +28,14 @@ logger = logging.getLogger("offline_diags")
 PRIMARY_VARS = ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"]
 DOMAINS = ["land", "sea", "global"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
+DIURNAL_VARS = [
+    "column_integrated_dQ1",
+    "column_integrated_dQ2",
+    "column_integrated_pQ1",
+    "column_integrated_pQ2",
+    "column_integrated_Q1",
+    "column_integrated_Q2",
+]
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 METRICS_JSON_NAME = "metrics.json"
 
@@ -107,18 +115,7 @@ if __name__ == "__main__":
         logger.info(f"Working on batch {i} diagnostics ...")
         ds = ds.pipe(utils.insert_Q_terms).pipe(utils.insert_column_integrated_vars)
         ds_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
-        ds_diurnal = utils.create_diurnal_cycle_dataset(
-            ds,
-            grid["lon"],
-            [
-                "column_integrated_dQ1",
-                "column_integrated_dQ2",
-                "column_integrated_pQ1",
-                "column_integrated_pQ2",
-                "column_integrated_Q1",
-                "column_integrated_Q2",
-            ],
-        )
+        ds_diurnal = utils.create_diurnal_cycle_dataset(ds, grid["lon"], DIURNAL_VARS,)
         ds_metrics = calc_metrics(xr.merge([ds, grid["area"]]))
         batches_diags.append(ds_diagnostic)
         batches_diurnal.append(ds_diurnal)
