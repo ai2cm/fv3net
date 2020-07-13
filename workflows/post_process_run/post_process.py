@@ -132,8 +132,9 @@ def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str, chunks):
         clear_encoding(item)
         chunked = rechunk(item, chunks)
         dest = os.path.join(d_out, relpath)
-        # explicitly set time dtype to avoid invalid type promotion error
-        chunked = chunked.assign_coords(time=chunked.time.astype(np.datetime64))
+        if "time" in chunked.dims:
+            # explicitly set time dtype to avoid invalid type promotion error
+            chunked = chunked.assign_coords(time=chunked.time.astype(np.datetime64))
         chunked.to_zarr(dest, mode="w", consolidated=True)
     else:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
