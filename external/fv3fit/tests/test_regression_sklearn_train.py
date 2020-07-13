@@ -1,4 +1,4 @@
-from fv3net.regression.sklearn import train
+from fv3fit.sklearn import train
 
 
 def test_train_save_model_succeeds(tmpdir):

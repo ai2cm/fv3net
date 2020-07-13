@@ -9,9 +9,9 @@ import yaml
 
 import diagnostics_utils as utils
 import synth
-from fv3net.regression import shared
-from fv3net.regression.sklearn import train
-from fv3net.regression.sklearn._mapper import SklearnPredictionMapper
+from fv3fit import shared
+from fv3fit.sklearn import train
+from fv3fit.sklearn._mapper import SklearnPredictionMapper
 from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags._metrics import calc_metrics
 

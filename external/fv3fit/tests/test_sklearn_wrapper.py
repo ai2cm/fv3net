@@ -3,7 +3,7 @@ from sklearn.linear_model import LinearRegression
 import pytest
 import xarray as xr
 
-from fv3net.regression.sklearn.wrapper import RegressorEnsemble, _pack
+from fv3fit.sklearn.wrapper import RegressorEnsemble, _pack
 
 
 def test_flatten():

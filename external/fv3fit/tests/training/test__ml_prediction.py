@@ -2,7 +2,7 @@ import xarray as xr
 import pytest
 
 from loaders import SAMPLE_DIM_NAME
-from fv3net.regression.sklearn._mapper import (
+from fv3fit.sklearn._mapper import (
     SklearnPredictionMapper,
     PREDICT_COORD,
     TARGET_COORD,

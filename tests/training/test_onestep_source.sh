@@ -7,7 +7,7 @@ TRAINING_DATA=gs://vcm-ml-data/testing-noah/7563d34ad7dd6bcc716202a0f0c8123653f5
 OUTPUT=gs://vcm-ml-scratch/annak/sklearn_train/one_step
 
 gsutil -m rm -r $OUTPUT
-python -m fv3net.regression.sklearn \
+python -m fv3fit.sklearn \
     $TRAINING_DATA \
     tests/training/train_sklearn_model_onestep_source.yml  \
     $OUTPUT
