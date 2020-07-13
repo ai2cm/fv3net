@@ -12,9 +12,9 @@ spec:
       - name: fv3gfs-image
         value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
       - name: fv3net-image
-        value: us.gcr.io/vcm-ml/fv3net:98508c3fc3a5ec91b630cca344f53ba24033a476
+        value: us.gcr.io/vcm-ml/fv3net:396d9853498c0f45c13c3fa72202ca841d5378e8
       - name: post-process-image
-        value: us.gcr.io/vcm-ml/post_process_run:98508c3fc3a5ec91b630cca344f53ba24033a476
+        value: us.gcr.io/vcm-ml/post_process_run:396d9853498c0f45c13c3fa72202ca841d5378e8
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
@@ -53,10 +53,10 @@ spec:
         args:
         - |
           cp runfile.py /mnt/data/runfile.py
-          echo "{{workflow.parameters.nudging-config}}" > config.yaml
-          python prepare_config.py config.yaml "{{workflow.parameters.output-url}}" > /mnt/data/fv3config.yaml
           cp diag_table_nudge_to_obs /mnt/data/diag_table
           cp chunks.yaml /mnt/data/chunks.yaml
+          echo "{{workflow.parameters.nudging-config}}" > config.yaml
+          python prepare_config.py config.yaml /mnt/data > /mnt/data/fv3config.yaml
         volumeMounts:
           - name: output-data
             mountPath: /mnt/data
