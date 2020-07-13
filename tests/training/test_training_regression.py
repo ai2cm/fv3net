@@ -229,32 +229,6 @@ def mock_model():
     return MockSklearnWrappedModel(input_vars, output_vars)
 
 
-# def _one_step_offline_diags_config():
-# #     path = f"{datadir}/offline_diags_one_step_config.yml"
-#     path = "./workflows/offline_ml_diags/tests/test_one_step_config.yml"
-#     with open(path, "r") as f:
-#         config = yaml.safe_load(f)
-#     return config
-
-
-# @pytest.fixture
-# def one_step_offline_diags_config():
-#     return _one_step_offline_diags_config()
-
-
-# def _nudging_offline_diags_config():
-# #     path = f"{datadir}/offline_diags_nudging_config.yml"
-#     path = "./workflows/offline_ml_diags/tests/test_nudging_config.yml"
-#     with open(path, "r") as f:
-#         config = yaml.safe_load(f)
-#     return config
-
-
-# @pytest.fixture
-# def nudging_offline_diags_config():
-#     return _nudging_offline_diags_config()
-
-
 @pytest.fixture
 def data_source_offline_config(data_source_name):
     if data_source_name == "one_step_tendencies":
