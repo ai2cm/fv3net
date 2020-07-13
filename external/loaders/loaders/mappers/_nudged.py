@@ -1,5 +1,6 @@
 import os
 import logging
+from functools import partial
 import xarray as xr
 import fsspec
 import zarr.storage as zstore
@@ -8,6 +9,9 @@ from itertools import product
 from toolz import groupby
 from pathlib import Path
 
+import vcm
+
+from ._transformations import KeyMap
 from ._base import GeoMapper, LongRunMapper
 from ._merged import MergeOverlappingData
 from ._high_res_diags import open_high_res_diags
@@ -303,6 +307,7 @@ def open_merged_nudged_full_tendencies(
     tendency_variables: Mapping[str, str] = None,
     timestep_physics_seconds: int = 900,
     consolidated: bool = False,
+    offset_seconds: Union[int, float] = 0,
 ) -> Mapping[str, xr.Dataset]:
     """
     Load mapper to nudged dataset containing both dQ and pQ tendency terms
@@ -326,7 +331,12 @@ def open_merged_nudged_full_tendencies(
             defaults to 900
         consolidated: if true, open the underlying zarr stores with the consolidated
             flag to xr.open_zarr.
-        
+        offset_seconds: amount to shift the keys forward by in seconds. For
+            example, if the underlying data contains a value at the key
+            "20160801.000730", a value off 450 will shift this forward 7:30
+            minutes, so that this same value can be accessed with the key
+            "20160801.001500"
+
     Returns
         mapper of timestamps to datasets containing full tendency terms
     """
@@ -341,7 +351,7 @@ def open_merged_nudged_full_tendencies(
         nudging_url, consolidated=consolidated, **open_checkpoints_kwargs
     )
 
-    nudged_full_tendencies_mapper = NudgedFullTendencies(
+    full_tendencies_mapper = NudgedFullTendencies(
         nudged_mapper,
         checkpoint_mapper,
         difference_checkpoints,
@@ -349,13 +359,17 @@ def open_merged_nudged_full_tendencies(
         timestep_physics_seconds,
     )
 
+    full_tendencies_mapper = KeyMap(
+        partial(vcm.shift_timestamp, seconds=offset_seconds), full_tendencies_mapper,
+    )
+
     if shield_diags_url is not None:
         shield_diags_mapper = open_high_res_diags(shield_diags_url)
-        nudged_full_tendencies_mapper = MergeOverlappingData(
+        full_tendencies_mapper = MergeOverlappingData(
             shield_diags_mapper,
-            nudged_full_tendencies_mapper,
+            full_tendencies_mapper,
             source_name_left=DERIVATION_SHIELD_COORD,
             source_name_right=DERIVATION_FV3GFS_COORD,
         )
 
-    return nudged_full_tendencies_mapper
+    return full_tendencies_mapper
