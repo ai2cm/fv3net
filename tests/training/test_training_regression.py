@@ -332,8 +332,6 @@ def test_compute_offline_diags(
         for var in ds_metrics.data_vars
     }
 
-    print(metrics)
-
     # TODO standardize schema encoding in synth to avoid the casting that makes
     # the following lines necessary
     with tempfile.TemporaryDirectory() as output_dir:
@@ -358,7 +356,7 @@ def test_compute_offline_diags(
         )
 
     assert isinstance(metrics, dict)
-    assert len(metrics) == 16
+    assert len(metrics) == 32
     for metric, metric_dict in metrics.items():
         assert isinstance(metric, str)
         assert isinstance(metric_dict, dict)

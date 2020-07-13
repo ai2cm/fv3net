@@ -9,7 +9,16 @@ logging.getLogger(__name__)
 # Variables predicted by model
 ML_VARS = ["dQ1", "dQ2"]
 # Variables to calculate RMSE and bias of
-METRIC_VARS = ["dQ1", "dQ2", "column_integrated_dQ1", "column_integrated_dQ2"]
+METRIC_VARS = [
+    "dQ1",
+    "dQ2",
+    "column_integrated_dQ1",
+    "column_integrated_dQ2",
+    "Q1",
+    "Q2",
+    "column_integrated_Q1",
+    "column_integrated_Q2",
+]
 # Comparison pairs for RMSE and bias. Truth/target first.
 METRIC_COMPARISON_COORDS = [(TARGET_COORD, PREDICT_COORD), (TARGET_COORD, "mean")]
 VERTICAL_PROFILE_MEAN_DIMS = ["time", "x", "y", "tile"]
@@ -44,9 +53,9 @@ def _insert_weights(ds):
 
 
 def _insert_means(
-    ds: xr.Dataset, vars: Sequence[str], weights: xr.DataArray = None
+    ds: xr.Dataset, var_names: Sequence[str], weights: xr.DataArray = None
 ) -> xr.Dataset:
-    for var in vars:
+    for var in var_names:
         da = ds[var].sel({DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD]})
         weights = 1.0 if weights is None else weights
         mean = (
