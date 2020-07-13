@@ -15,11 +15,14 @@ namelist:
     minutes: 120
     seconds: 0
   fv_core_nml:
+    do_sat_adj: false
     nudge: true
     npz: 79
   gfs_physics_nml:
     fhzero: 1.0
     use_analysis_sst: true
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
   fv_nwp_nudge_nml:
     add_bg_wind: false
     do_ps_bias: false
