@@ -1,9 +1,10 @@
 import numpy as np
 from numpy.random import RandomState
+import intake
 from typing import Tuple
 import xarray as xr
 import vcm
-from vcm import safe
+from vcm import safe, net_heating, net_precipitation
 from vcm.convenience import round_time
 
 from .constants import SAMPLE_DIM_NAME, TIME_NAME
@@ -13,6 +14,28 @@ Z_DIM_NAMES = ["z", "pfull"]
 Time = str
 Tile = int
 K = Tuple[Time, Tile]
+
+
+def load_grid(res="c48"):
+    cat = intake.open_catalog("catalog.yml")
+    grid = cat[f"grid/{res}"].to_dask()
+    land_sea_mask = cat[f"landseamask/{res}"].to_dask()
+    grid = grid.assign({"land_sea_mask": land_sea_mask["land_sea_mask"]})
+    grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
+    return grid
+
+
+def add_cosine_zenith_angle(
+    grid: xr.Dataset, cos_z_var: str, ds: xr.Dataset
+) -> xr.Dataset:
+    times_exploded = np.array(
+        [
+            np.full(grid["lon"].shape, vcm.cast_to_datetime(t))
+            for t in ds[TIME_NAME].values
+        ]
+    )
+    cos_z = vcm.cos_zenith_angle(times_exploded, grid["lon"], grid["lat"])
+    return ds.assign({cos_z_var: ((TIME_NAME,) + grid["lon"].dims, cos_z)})
 
 
 def get_sample_dataset(mapper):
@@ -89,3 +112,36 @@ def _get_chunk_indices(chunks):
         indices.append(list(range(start, start + chunk)))
         start += chunk
     return indices
+
+
+def net_heating_from_physics(ds: xr.Dataset) -> xr.DataArray:
+
+    fluxes = (
+        ds["total_sky_downward_longwave_flux_at_surface"],
+        ds["total_sky_downward_shortwave_flux_at_surface"],
+        ds["total_sky_upward_longwave_flux_at_surface"],
+        ds["total_sky_upward_longwave_flux_at_top_of_atmosphere"],
+        ds["total_sky_upward_shortwave_flux_at_surface"],
+        ds["total_sky_upward_shortwave_flux_at_top_of_atmosphere"],
+        ds["total_sky_downward_shortwave_flux_at_top_of_atmosphere"],
+        ds["sensible_heat_flux"],
+        ds["surface_precipitation_rate"],
+    )
+    return net_heating(*fluxes)
+
+
+def net_precipitation_from_physics(ds: xr.Dataset) -> xr.DataArray:
+
+    fluxes = (
+        ds["latent_heat_flux"],
+        ds["surface_precipitation_rate"],
+    )
+    return net_precipitation(*fluxes)
+
+
+def assign_net_physics_terms(ds: xr.Dataset) -> xr.DataArray:
+    net_terms = {
+        "net_heating": net_heating_from_physics(ds),
+        "net_precipitation": net_precipitation_from_physics(ds),
+    }
+    return ds.assign(net_terms)

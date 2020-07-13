@@ -46,6 +46,7 @@ class Model(abc.ABC):
     @abc.abstractmethod
     def __init__(
         self,
+        sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         **hyperparameters,
@@ -62,12 +63,12 @@ class Model(abc.ABC):
 
     @abc.abstractmethod
     def dump(self, path: str) -> None:
-        """Serialize the model to a local directory."""
+        """Serialize the model to a directory."""
         pass
 
     @abc.abstractmethod
     def load(self, path: str) -> object:
-        """Load a serialized model from a local directory."""
+        """Load a serialized model from a directory."""
         pass
 
 
@@ -86,11 +87,20 @@ class PackedKerasModel(Model):
     _X_PACKER_FILENAME = "X_packer.json"
     _Y_PACKER_FILENAME = "y_packer.json"
 
-    def __init__(self, input_variables: Iterable[str], output_variables: Iterable[str]):
-        super().__init__(input_variables, output_variables)
+    def __init__(
+        self,
+        sample_dim_name: str,
+        input_variables: Iterable[str],
+        output_variables: Iterable[str],
+    ):
+        super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
-        self.X_packer = ArrayPacker(input_variables)
-        self.y_packer = ArrayPacker(output_variables)
+        self.X_packer = ArrayPacker(
+            sample_dim_name=sample_dim_name, names=input_variables
+        )
+        self.y_packer = ArrayPacker(
+            sample_dim_name=sample_dim_name, names=output_variables
+        )
 
     @property
     def model(self) -> tf.keras.Model:
@@ -145,7 +155,7 @@ class PackedKerasModel(Model):
                 X_packer = ArrayPacker.load(f)
             with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:
                 y_packer = ArrayPacker.load(f)
-            obj = cls(X_packer.names, y_packer.names)
+            obj = cls(X_packer.sample_dim_name, X_packer.names, y_packer.names)
             model_filename = os.path.join(path, cls._MODEL_FILENAME)
             obj._model = tf.keras.models.load_model(model_filename)
             obj.X_packer = X_packer
@@ -170,6 +180,7 @@ class DenseModel(PackedKerasModel):
 
     def __init__(
         self,
+        sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         depth: int = 3,
@@ -177,7 +188,7 @@ class DenseModel(PackedKerasModel):
     ):
         self.width = width
         self.depth = depth
-        super().__init__(input_variables, output_variables)
+        super().__init__(sample_dim_name, input_variables, output_variables)
 
     def get_model(self, features_in: int, features_out: int) -> tf.keras.Model:
         model = tf.keras.Sequential()

@@ -1,14 +1,24 @@
 import os
 import re
-import vcm
-from vcm import parse_datetime_from_str, safe
-from typing import Mapping, Union, Sequence, Tuple
+from functools import partial
+from typing import Mapping, Optional, Sequence, Tuple, Union
+
+
 import xarray as xr
 from toolz import groupby
-from datetime import timedelta
-from ._base import GeoMapper
 
-DIMENSION_ORDER = ("tile", "z", "y", "x")
+import vcm
+
+from ._transformations import KeyMap
+from .._utils import assign_net_physics_terms
+from ..constants import (
+    DERIVATION_FV3GFS_COORD,
+    DERIVATION_SHIELD_COORD,
+    RENAMED_SHIELD_DIAG_VARS,
+)
+from ._base import GeoMapper
+from ._high_res_diags import open_high_res_diags
+from ._merged import MergeOverlappingData
 
 Time = str
 Tile = int
@@ -65,48 +75,26 @@ class FineResolutionSources(GeoMapper):
         self,
         fine_resolution_time_mapping: Mapping[Time, xr.Dataset],
         offset_seconds: Union[int, float] = 0,
-        rename_vars: Mapping[str, str] = None,
         drop_vars: Sequence[str] = ("step", "time"),
-        dim_order: Sequence[str] = DIMENSION_ORDER,
+        dim_order: Sequence[str] = ("tile", "z", "y", "x"),
+        rename_vars: Optional[Mapping[str, str]] = None,
     ):
         self._time_mapping = fine_resolution_time_mapping
         self._offset_seconds = offset_seconds
-        self._rename_vars = rename_vars or {}
         self._drop_vars = drop_vars
         self._dim_order = dim_order
+        self._rename_vars = rename_vars or {}
 
     def keys(self):
-        return set(
-            [
-                self._midpoint_to_timestamp_key(time, self._offset_seconds)
-                for time in self._time_mapping.keys()
-            ]
-        )
+        return self._time_mapping.keys()
 
     def __getitem__(self, time: Time) -> xr.Dataset:
-        time = self._timestamp_key_to_midpoint(time, self._offset_seconds)
         return (
             self._derived_budget_ds(self._time_mapping[time])
             .drop_vars(names=self._drop_vars, errors="ignore")
             .rename(self._rename_vars)
             .transpose(*self._dim_order)
         )
-
-    @staticmethod
-    def _timestamp_key_to_midpoint(
-        key: Time, offset_seconds: Union[int, float] = 0
-    ) -> Time:
-        offset = timedelta(seconds=offset_seconds)
-        offset_datetime = parse_datetime_from_str(key) + offset
-        return offset_datetime.strftime("%Y%m%d.%H%M%S")
-
-    @staticmethod
-    def _midpoint_to_timestamp_key(
-        time: Time, offset_seconds: Union[int, float] = 0
-    ) -> Time:
-        offset = timedelta(seconds=offset_seconds)
-        offset_datetime = parse_datetime_from_str(time) - offset
-        return offset_datetime.strftime("%Y%m%d.%H%M%S")
 
     def _derived_budget_ds(
         self,
@@ -131,7 +119,11 @@ class FineResolutionSources(GeoMapper):
                 variable_name,
                 f"d{apparent_source_name}",
                 apparent_source_terms,
-            ).pipe(self._insert_budget_pQ, variable_name, f"p{apparent_source_name}",)
+            ).pipe(self._insert_budget_pQ, variable_name, f"p{apparent_source_name}")
+
+        budget_time_ds = budget_time_ds.pipe(self._insert_physics).pipe(
+            assign_net_physics_terms
+        )
 
         return budget_time_ds
 
@@ -146,7 +138,7 @@ class FineResolutionSources(GeoMapper):
 
         source_vars = [f"{variable_name}_{term}" for term in apparent_source_terms]
         apparent_source = (
-            safe.get_variables(budget_time_ds, source_vars)
+            vcm.safe.get_variables(budget_time_ds, source_vars)
             .to_array(dim="variable")
             .sum(dim="variable")
         )
@@ -183,12 +175,27 @@ class FineResolutionSources(GeoMapper):
 
         return budget_time_ds
 
+    @staticmethod
+    def _insert_physics(
+        budget_time_ds: xr.Dataset,
+        physics_varnames: Sequence[str] = RENAMED_SHIELD_DIAG_VARS.values(),
+    ) -> xr.Dataset:
+
+        template_2d_var = budget_time_ds["air_temperature"].isel({"pfull": 0})
+
+        physics_vars = {}
+        for var in physics_varnames:
+            physics_var = xr.full_like(template_2d_var, fill_value=0.0)
+            physics_vars[var] = physics_var
+
+        return budget_time_ds.assign(physics_vars)
+
 
 def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
     """Open a mapping interface to the fine resolution budget data
 
     Example:
- 
+
         >>> from fv3net.regression.loaders import *
         >>> loader = open_fine_resolution_budget('gs://vcm-ml-scratch/noah/2020-05-19/')
         >>> len(loader)
@@ -224,28 +231,52 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
 
 
 def open_fine_res_apparent_sources(
-    url: str,
+    fine_res_url: str,
+    shield_diags_url: str = None,
     offset_seconds: Union[int, float] = 0,
     rename_vars: Mapping[str, str] = None,
-    drop_vars: Sequence[str] = (),
-    dim_order: Sequence[str] = None,
+    dim_order: Sequence[str] = ("tile", "z", "y", "x"),
+    drop_vars: Sequence[str] = ("step", "time"),
 ) -> Mapping[str, xr.Dataset]:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources
-        
+
     Args:
-        url (str): path to fine res dataset
-        offset_seconds (int or float): optional time offset in seconds between
-            access keys and underlying data timestamps, with positive values
-            indicating that the access key is behind the underlying timestamps;
-            defaults to 0
+        fine_res_url (str): path to fine res dataset
+        shield_diags_url: path to directory containing a zarr store of SHiELD
+            diagnostics coarsened to the nudged model resolution (optional)
+        offset_seconds: amount to shift the keys forward by in seconds. For
+            example, if the underlying data contains a value at the key
+            "20160801.000730", a value off 450 will shift this forward 7:30
+            minutes, so that this same value can be accessed with the key
+            "20160801.001500"
         rename_vars: (mapping): optional mapping of variables to rename in dataset
         drop_vars (sequence): optional list of variable names to drop from dataset
     """
-    return FineResolutionSources(
-        open_fine_resolution_budget(url),
-        offset_seconds,
-        rename_vars,
+
+    # use default which is valid for real data
+    if rename_vars is None:
+        rename_vars = {"grid_xt": "x", "grid_yt": "y", "pfull": "z"}
+
+    fine_resolution_sources_mapper = FineResolutionSources(
+        open_fine_resolution_budget(fine_res_url),
         drop_vars,
-        dim_order,
+        dim_order=dim_order,
+        rename_vars=rename_vars,
     )
+
+    fine_resolution_sources_mapper = KeyMap(
+        partial(vcm.shift_timestamp, seconds=offset_seconds),
+        fine_resolution_sources_mapper,
+    )
+
+    if shield_diags_url is not None:
+        shield_diags_mapper = open_high_res_diags(shield_diags_url)
+        fine_resolution_sources_mapper = MergeOverlappingData(
+            shield_diags_mapper,
+            fine_resolution_sources_mapper,
+            source_name_left=DERIVATION_SHIELD_COORD,
+            source_name_right=DERIVATION_FV3GFS_COORD,
+        )
+
+    return fine_resolution_sources_mapper

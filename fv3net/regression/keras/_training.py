@@ -10,6 +10,7 @@ __all__ = ["get_model", "get_model_class"]
 
 def get_model(
     model_type: str,
+    sample_dim_name: str,
     input_variables: Iterable[str],
     output_variables: Iterable[str],
     **hyperparameters
@@ -26,7 +27,7 @@ def get_model(
         model
     """
     return get_model_class(model_type)(
-        input_variables, output_variables, **hyperparameters
+        sample_dim_name, input_variables, output_variables, **hyperparameters
     )
 
 

@@ -4,6 +4,7 @@ import yaml
 import logging
 from . import get_model
 from .. import shared
+import loaders
 
 # TODO: refactor these to ..shared
 from ..sklearn.__main__ import _save_config_output
@@ -56,6 +57,7 @@ if __name__ == "__main__":
 
     model = get_model(
         train_config.model_type,
+        loaders.SAMPLE_DIM_NAME,
         train_config.input_variables,
         train_config.output_variables,
         **train_config.hyperparameters
@@ -65,5 +67,3 @@ if __name__ == "__main__":
 
     model_output_path = os.path.join(args.output_data_path, MODEL_FILENAME)
     model.dump(model_output_path)
-
-    report_metadata = {**vars(args), **vars(train_config)}

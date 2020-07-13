@@ -6,8 +6,6 @@ from ..sklearn.wrapper import _pack, _unpack
 import yaml
 import pandas as pd
 
-__all__ = ["ArrayPacker"]
-
 
 class ArrayPacker:
     """
@@ -16,7 +14,7 @@ class ArrayPacker:
     Used for ML training/prediction.
     """
 
-    def __init__(self, names: Iterable[str]):
+    def __init__(self, sample_dim_name, names: Iterable[str]):
         """Initialize the ArrayPacker.
 
         Args:
@@ -24,14 +22,22 @@ class ArrayPacker:
         """
         self._indices = None
         self._names = list(names)
+        self._sample_dim_name = sample_dim_name
 
     @property
     def names(self) -> List[str]:
         """variable names being packed"""
         return self._names
 
+    @property
+    def sample_dim_name(self) -> str:
+        """name of sample dimension"""
+        return self._sample_dim_name
+
     def to_array(self, dataset: xr.Dataset) -> np.ndarray:
-        packed, indices = pack(dataset[self.names])  # type: ignore
+        packed, indices = _pack(
+            dataset[self.names], self._sample_dim_name
+        )  # type: ignore
         if self._indices is None:
             self._indices = indices
         return packed
@@ -42,13 +48,14 @@ class ArrayPacker:
                 "must pack at least once before unpacking, "
                 "so dimension lengths are known"
             )
-        return unpack(array, self._indices)
+        return _unpack(array, self._sample_dim_name, self._indices)
 
     def dump(self, f: TextIO):
         return yaml.safe_dump(
             {
                 "indices": _multiindex_to_serializable(self._indices),
                 "names": self._names,
+                "sample_dim_name": self._sample_dim_name,
             },
             f,
         )
@@ -56,7 +63,7 @@ class ArrayPacker:
     @classmethod
     def load(cls, f: TextIO):
         data = yaml.safe_load(f.read())
-        packer = cls(data["names"])
+        packer = cls(data["sample_dim_name"], data["names"])
         packer._indices = _multiindex_from_serializable(data["indices"])
         return packer
 
