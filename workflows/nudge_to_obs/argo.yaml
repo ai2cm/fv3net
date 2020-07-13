@@ -63,7 +63,7 @@ spec:
     - name: post-process
       container:
         image: "{{workflow.parameters.post-process-image}}"
-        args: ["--chunks /mnt/data/chunks.yaml", "/mnt/data/rundir", "{{workflow.parameters.output-url}}"]
+        args: ["--chunks", "/mnt/data/chunks.yaml", "/mnt/data/rundir", "{{workflow.parameters.output-url}}"]
         volumeMounts:
           - name: output-data
             mountPath: /mnt/data
