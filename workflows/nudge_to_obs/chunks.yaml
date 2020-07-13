@@ -4,9 +4,9 @@ after_dynamics.zarr:
   time: 1
 after_physics.zarr:
   time: 1
-atmos_hourly:
+atmos_hourly.zarr:
   time: 24
-sfc_hourly:
+sfc_hourly.zarr:
   time: 24
-nudging_tendencies:
+nudging_tendencies.zarr:
   time: 1
