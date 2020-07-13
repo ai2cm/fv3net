@@ -4,6 +4,7 @@ import re
 import yaml
 import shutil
 from typing import Sequence, Iterable, Union, Mapping
+import numpy as np
 import xarray as xr
 import tempfile
 import subprocess
@@ -131,6 +132,8 @@ def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str, chunks):
         clear_encoding(item)
         chunked = rechunk(item, chunks)
         dest = os.path.join(d_out, relpath)
+        # explicitly set time dtype to avoid invalid type promotion error
+        chunked = chunked.assign_coords(time=chunked.time.astype(np.datetime64))
         chunked.to_zarr(dest, mode="w", consolidated=True)
     else:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
