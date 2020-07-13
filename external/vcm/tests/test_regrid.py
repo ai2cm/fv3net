@@ -65,7 +65,7 @@ def test_ds_interp():
     return ds
 
 
-def test_regrid_to_shared_coords(test_ds_interp):
+def test_regrid_to_shared_coords_dim_order_unchanged(test_ds_interp):
     test_da = regrid_to_shared_coords(
         test_ds_interp["interp_var"],
         np.array([0.5, 2]),
@@ -73,4 +73,22 @@ def test_regrid_to_shared_coords(test_ds_interp):
         "pressure_uniform",
         "pfull",
     )
-    assert np.allclose(test_da.values, [[1.5, -1.25], [3.0, -2.0]])
+
+    assert list(test_da.dims) == ["x", "pressure_uniform"]
+
+
+def test_regrid_to_shared_coords_values_coords_correct(test_ds_interp):
+
+    output_dim = "pressure_uniform"
+    xg = np.array([0.5, 2])
+    test_da = regrid_to_shared_coords(
+        test_ds_interp["interp_var"],
+        xg,
+        test_ds_interp["pressure"],
+        output_dim,
+        "pfull",
+    )
+
+    expected = xr.DataArray([[1.5, 3.0], [-1.25, -2.0]], dims=["x", "pressure_uniform"])
+    xr.testing.assert_allclose(test_da.variable, expected.variable)
+    np.testing.assert_allclose(test_da[output_dim], xg)
