@@ -16,10 +16,11 @@ from itertools import chain
 logger = logging.getLogger(__file__)
 logging.basicConfig(level=logging.INFO)
 
+ChunkSpec = Mapping[str, Mapping[str, int]]
 CHUNKS_2D = {"time": 96}
 
 
-def get_chunks(user_chunks):
+def get_chunks(user_chunks: ChunkSpec) -> ChunkSpec:
     CHUNKS_3D = {"time": 8}
 
     CHUNKS = {
@@ -101,7 +102,7 @@ def parse_rundir(walker):
 
 
 def open_tiles(
-    tiles: Sequence[str], base: str, chunks: Mapping[str, Mapping[str, int]]
+    tiles: Sequence[str], base: str, chunks: ChunkSpec
 ) -> Iterable[Union[str, xr.Dataset]]:
     grouped_tiles = groupby(lambda x: x[: -len(".tile1.nc")], tiles)
     for key, files in grouped_tiles.items():
@@ -121,7 +122,9 @@ def open_zarrs(zarrs: Sequence[str]) -> Iterable[xr.Dataset]:
         yield xr.open_zarr(zarr).assign_attrs(path=zarr)
 
 
-def process_item(item: Union[xr.Dataset, str], d_in: str, d_out: str, chunks):
+def process_item(
+    item: Union[xr.Dataset, str], d_in: str, d_out: str, chunks: ChunkSpec,
+):
     logger.info(f"Processing {item}")
     try:
         dest = os.path.join(d_out, os.path.relpath(item, d_in))  # type: ignore
