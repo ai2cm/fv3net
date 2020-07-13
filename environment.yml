@@ -60,3 +60,4 @@ dependencies:
     - bump2version>=0.5.11
     - yq
     - pytest-regtest
+    - tensorflow>=2.0
