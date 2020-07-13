@@ -15,7 +15,6 @@ import loaders
 from vcm.cloud import get_fs
 from fv3net.regression.sklearn import SklearnPredictionMapper
 from ._metrics import calc_metrics
-from ._utils import insert_additional_variables
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -26,6 +25,7 @@ handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
+PRIMARY_VARS = ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"]
 DOMAINS = ["land", "sea", "global"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
@@ -104,12 +104,9 @@ if __name__ == "__main__":
     # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
     batches_diags, batches_diurnal, batches_metrics = [], [], []
     for i, ds in enumerate(ds_batches):
-        ds = insert_additional_variables(ds, grid["area"])
         logger.info(f"Working on batch {i} diagnostics ...")
-
-        ds_diagnostic_batch = utils.reduce_to_diagnostic(
-            ds, grid, domains=DOMAINS, primary_vars=["dQ1", "dQ2", "Q1", "Q2"]
-        )
+        ds = ds.pipe(utils.insert_Q_terms).pipe(utils.insert_column_integrated_vars)
+        ds_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds,
             grid["lon"],
@@ -122,8 +119,8 @@ if __name__ == "__main__":
                 "column_integrated_Q2",
             ],
         )
-        ds_metrics = calc_metrics(ds)
-        batches_diags.append(ds_diagnostic_batch)
+        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]]))
+        batches_diags.append(ds_diagnostic)
         batches_diurnal.append(ds_diurnal)
         batches_metrics.append(ds_metrics)
         logger.info(f"Processed batch {i} diagnostics netcdf output.")

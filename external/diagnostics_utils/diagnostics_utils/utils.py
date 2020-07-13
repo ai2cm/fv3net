@@ -3,19 +3,20 @@ from vcm import thermo, safe
 import xarray as xr
 import numpy as np
 import logging
-from typing import Sequence, Mapping, Union
+from typing import Sequence, Mapping, Union, Tuple
 
 logging.getLogger(__name__)
 
 UNINFORMATIVE_COORDS = ["tile", "z", "y", "x"]
 TIME_DIM = "time"
+PRIMARY_VARS = ["dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2"]
 
 
 def reduce_to_diagnostic(
     ds: xr.Dataset,
     grid: xr.Dataset,
     domains: Sequence[str] = SURFACE_TYPE_ENUMERATION.keys(),
-    primary_vars: Sequence[str] = ["dQ1", "pQ1", "dQ2", "pQ2"],
+    primary_vars: Sequence[str] = PRIMARY_VARS,
 ) -> xr.Dataset:
     """Reduce a sequence of batches to a diagnostic dataset
     
@@ -24,13 +25,13 @@ def reduce_to_diagnostic(
         grid: xarray dataset containing grid variables
         (latb, lonb, lat, lon, area, land_sea_mask)
         domains: sequence of area domains over which to produce conditional
-            averages; defaults to ['sea', 'land', 'seaice']
+            averages; optonal
+        primary_vars: sequence of variables for which to compute column integrals
+            and composite means
             
     Returns:
         diagnostic_ds: xarray dataset of reduced diagnostic variables
     """
-
-    ds = insert_column_integrated_vars(ds, primary_vars)
     ds = _rechunk_time_z(ds)
     ds_time_averaged = ds.mean(dim=TIME_DIM, keep_attrs=True)
     ds_time_averaged = ds_time_averaged.drop_vars(
@@ -57,7 +58,7 @@ def reduce_to_diagnostic(
 
 
 def insert_column_integrated_vars(
-    ds: xr.Dataset, column_integrated_vars: Sequence[str]
+    ds: xr.Dataset, column_integrated_vars: Sequence[str] = PRIMARY_VARS
 ) -> xr.Dataset:
     """Insert column integrated (<*>) terms,
     really a wrapper around vcm.thermo funcs"""
@@ -76,6 +77,30 @@ def insert_column_integrated_vars(
         ds = ds.assign({column_integrated_name: da})
 
     return ds
+
+
+def insert_Q_terms(ds: xr.Dataset) -> xr.DataArray:
+    """Inserts Q terms as the sum of dQ and pQ terms, assumed to be present in
+    dataset ds
+    """
+    return ds.assign(
+        {
+            Q_term_name: da
+            for Q_term_name, da in zip(
+                ("Q1", "Q2"), _Q_terms(ds["dQ1"], ds["dQ2"], ds["pQ1"], ds["pQ2"])
+            )
+        }
+    )
+
+
+def _Q_terms(
+    dQ1: xr.DataArray, dQ2: xr.DataArray, pQ1: xr.DataArray, pQ2: xr.DataArray
+) -> Tuple[xr.DataArray, xr.DataArray]:
+
+    Q1 = pQ1 + dQ1
+    Q2 = pQ2 + dQ2
+
+    return Q1, Q2
 
 
 def _rechunk_time_z(

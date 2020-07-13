@@ -13,17 +13,51 @@ METRIC_VARS = ["dQ1", "dQ2", "column_integrated_dQ1", "column_integrated_dQ2"]
 # Comparison pairs for RMSE and bias. Truth/target first.
 METRIC_COMPARISON_COORDS = [(TARGET_COORD, PREDICT_COORD), (TARGET_COORD, "mean")]
 VERTICAL_PROFILE_MEAN_DIMS = ["time", "x", "y", "tile"]
+DELP_VAR = "pressure_thickness_of_atmospheric_layer"
+AREA_VAR = "area"
+VERTICAL_DIM = "z"
 
 
 def calc_metrics(ds: xr.Dataset) -> xr.Dataset:
+    """Routine for computing ML prediction metrics (_bias, _rmse]) on a dataset of
+    variables, assumed to include variables in METRIC_VARS as well as area and delp
+    """
+
+    ds = _insert_weights(ds)
     metrics = xr.Dataset()
     metric_kwargs = {"weights": ds["area_weights"]}
+    ds = _insert_means(ds, METRIC_VARS, **metric_kwargs)
     for var in METRIC_VARS:
-        for metric_func in [_bias, _rmse]:
+        for metric_func in (_bias, _rmse):
             for comparison in METRIC_COMPARISON_COORDS:
                 metric = _calc_metric(ds, metric_func, var, *comparison, metric_kwargs)
                 metrics[metric.name] = metric
     return metrics
+
+
+def _insert_weights(ds):
+
+    ds["area_weights"] = ds[AREA_VAR] / (ds[AREA_VAR].mean())
+    ds["delp_weights"] = ds[DELP_VAR] / ds[DELP_VAR].mean(VERTICAL_DIM)
+
+    return ds
+
+
+def _insert_means(
+    ds: xr.Dataset, vars: Sequence[str], weights: xr.DataArray = None
+) -> xr.Dataset:
+    for var in vars:
+        da = ds[var].sel({DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD]})
+        weights = 1.0 if weights is None else weights
+        mean = (
+            (da.sel({DERIVATION_DIM: TARGET_COORD}) * weights)
+            .mean()
+            .assign_coords({DERIVATION_DIM: "mean"})
+        )
+        da = xr.concat([da, mean], dim=DERIVATION_DIM)
+        ds = ds.drop([var])
+        ds = ds.merge(da)
+    return ds
 
 
 def _calc_metric(

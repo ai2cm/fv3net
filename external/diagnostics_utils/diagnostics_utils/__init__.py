@@ -3,6 +3,7 @@ __version__ = "0.1.0"
 from .config import VARNAMES
 from .utils import (
     reduce_to_diagnostic,
+    insert_Q_terms,
     conditional_average,
     weighted_average,
     snap_mask_to_type,
@@ -17,6 +18,7 @@ __all__ = [
     "weighted_average",
     "snap_mask_to_type",
     "insert_column_integrated_vars",
+    "insert_Q_terms",
     "bin_diurnal_cycle",
     "create_diurnal_cycle_dataset",
 ]
