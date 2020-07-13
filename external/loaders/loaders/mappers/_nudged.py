@@ -231,8 +231,6 @@ def open_merged_nudged(
     Args:
         url: Path to directory with nudging output (not including the timescale
             subdirectories, e.g., outdir-3h)
-        timescale_hours: timescale of the nudging for the simulation
-            being used as input.
         merge_files (optionsl): underlying nudging zarr datasets to combine
             into a MergeNudged mapper
         i_start (optional): Index of sorted timesteps at which to start including
