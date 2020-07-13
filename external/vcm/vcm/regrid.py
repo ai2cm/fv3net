@@ -53,7 +53,9 @@ def regrid_to_shared_coords(
         output_dtypes=[field.dtype],
     )
 
-    return output.assign_coords({output_dim: output_grid})
+    # make the array have the same order of dimensions as before
+    dim_order = [dim if dim in field.dims else output_dim for dim in output.dims]
+    return output.transpose(*dim_order).assign_coords({output_dim: output_grid})
 
 
 # Vertical interpolation
