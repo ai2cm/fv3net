@@ -27,24 +27,30 @@ else:
     _mappm_installed = True
 
 
-def regrid_to_common_pressure(da_var, delp, coord_z_center="pfull"):
-    """ Convenience function that uses regrid_to_shared_coords() for a common
-    usage of interpolating to a pressure grid
+def regrid_to_common_pressure(
+    field: xr.DataArray,
+    delp: xr.DataArray,
+    coord_z_center: str = "pfull",
+    output_pressure=PRESSURE_GRID,
+) -> xr.DataArray:
+    """Regrid an atmospheric field to a fixed set of pressure levels
 
     Args:
-        da_var: data array variable to regrid
-        delp: data array with delp (pressure thickness)
+        field: atmospheric quantity defined on hybrid vertical coordinates
+        delp: pressure thickness of model layers in Pa. Must be broadcastable with
+            ``da``
+        coord_z_center: the vertical dimension name
+        output_pressure: The output pressure levels to use
 
     Returns:
-        data array of da_var at vertical coordinates of
-        pressure grid from vcm.cubedsphere.constants
+        the atmospheric quantity defined on ``output_pressure``.
     """
     return regrid_to_shared_coords(
-        da_var,
-        np.array(PRESSURE_GRID),
+        field,
+        np.array(output_pressure),
         pressure_at_midpoint_log(delp, dim=coord_z_center),
-        regrid_dim_name="pressure",
-        replace_dim_name=coord_z_center,
+        output_dim="pressure",
+        original_dim=coord_z_center,
     )
 
 
