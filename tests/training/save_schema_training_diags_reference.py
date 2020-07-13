@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 # and is not maintained
 
 url = (
-    "gs://vcm-ml-scratch/brianh/training-data-diagnostics/diagnostics_ef3c07.nc"  # noqa
+    "gs://vcm-ml-scratch/annak/training-data-diagnostics/diagnostics_7399f1.nc"  # noqa
 )
 with fsspec.open(url, "rb") as f:
     ds = xr.open_dataset(f).load()

@@ -54,9 +54,11 @@ def test_compute_training_diags(
     training_data_diags_config,
     grid_dataset,
 ):
-
-    one_step_training_diags_config = get_data_source_training_diags_config(
-        training_data_diags_config, "one_step_tendencies"
+    one_step_physics_off_training_diags_config = get_data_source_training_diags_config(
+        training_data_diags_config, "one_step_physics-off"
+    )
+    one_step_clouds_off_training_diags_config = get_data_source_training_diags_config(
+        training_data_diags_config, "one_step_clouds-off"
     )
     nudging_training_diags_config = get_data_source_training_diags_config(
         training_data_diags_config, "nudging_tendencies"
@@ -67,36 +69,37 @@ def test_compute_training_diags(
     )
 
     data_config_mapping = {
-        "one_step_tendencies": (one_step_dataset_path, one_step_training_diags_config),
+        "one_step_physics-off": (
+            one_step_dataset_path,
+            one_step_physics_off_training_diags_config,
+        ),
+        "one_step_clouds-off": (
+            one_step_dataset_path,
+            one_step_clouds_off_training_diags_config,
+        ),
         "nudging_tendencies": (nudging_dataset_path, nudging_training_diags_config),
         "fine_res_apparent_sources": (fine_res_dataset_path, fine_res_config),
     }
 
-    variable_names = [
-        "dQ1",
-        "dQ2",
-        "pQ1",
-        "pQ2",
-        "pressure_thickness_of_atmospheric_layer",
-    ]
+    variable_names = training_data_diags_config["variables"]
+    batch_kwargs = training_data_diags_config["batch_kwargs"]
+    del batch_kwargs["timesteps"]
 
     diagnostic_datasets = {}
-    timesteps_per_batch = 1
-
     for (
         data_source_name,
         (data_source_path, data_source_config),
     ) in data_config_mapping.items():
-        ds_batches_one_step = batches.diagnostic_batches_from_geodata(
+        ds_batches = batches.diagnostic_batches_from_geodata(
             data_source_path,
             variable_names,
-            timesteps_per_batch=timesteps_per_batch,
             mapping_function=data_source_config["mapping_function"],
             mapping_kwargs=data_source_config["mapping_kwargs"],
+            **batch_kwargs,
         )
-        ds_diagnostic = utils.reduce_to_diagnostic(
-            ds_batches_one_step, grid_dataset, domains=DOMAINS
-        )
+        ds = xr.concat(ds_batches, dim=TIME_DIM)
+        ds = ds.pipe(utils.insert_Q_terms).pipe(utils.insert_column_integrated_vars)
+        ds_diagnostic = utils.reduce_to_diagnostic(ds, grid_dataset, domains=DOMAINS)
         diagnostic_datasets[data_source_name] = ds_diagnostic
 
     diagnostics_all = xr.concat(
@@ -245,9 +248,9 @@ def nudging_offline_diags_config(datadir):
 @pytest.fixture
 def data_source_offline_config(data_source_name, datadir):
     if data_source_name == "one_step_tendencies":
-        return _one_step_offline_diags_config()
+        return _one_step_offline_diags_config(datadir)
     elif data_source_name == "nudging_tendencies":
-        return _nudging_offline_diags_config()
+        return _nudging_offline_diags_config(datadir)
     elif data_source_name == "fine_res_apparent_sources":
         with open("./workflows/offline_ml_diags/tests/test_fine_res_config.yml") as f:
             return yaml.safe_load(f)
@@ -315,7 +318,7 @@ def test_compute_offline_diags(
     assert offline_diags_reference_schema == offline_diags_output_schema
 
     # compute metrics
-    metrics = calc_metrics(diagnostic_batches, area=grid_dataset["area"])
+    metrics = calc_metrics(diagnostic_batches)
     assert isinstance(metrics, dict)
     assert len(metrics) == 16
     for metric, metric_dict in metrics.items():
