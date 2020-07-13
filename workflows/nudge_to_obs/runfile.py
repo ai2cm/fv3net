@@ -146,8 +146,7 @@ if __name__ == "__main__":
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
         state = fv3gfs.get_state(names=STORE_NAMES)
-        time = state["time"] + timestep
-
+        time = state["time"] + timestep  # consistent with diagnostic output times
         monitor.store(time, state, stage="before_dynamics")
         fv3gfs.step_dynamics()
         monitor.store(time, fv3gfs.get_state(names=STORE_NAMES), stage="after_dynamics")
