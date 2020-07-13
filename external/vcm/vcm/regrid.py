@@ -18,18 +18,21 @@ def regrid_to_shared_coords(
     output_dim: str,
     original_dim: str,
 ) -> xr.DataArray:
-    """Interpolate a vertical defined field onto set of constant output levels
+    """Interpolate a field onto a new coordinate system
+
+    For example, this can be used for vertical regridding.
 
     Args:
-        field: a vertical quantity
-        output_grid: a one dimensional output field
-        original_grid: the original vertical coordinate of ``field``. Must
-            have the same dims of ``field``.
+        field: the quantity to be regridded
+        output_grid: the desired 1D coordinates to regrid to.
+        original_grid: the original coordinate of ``field``. Must have the
+            same dims of ``field``, and increasing along the ``original_dim``
+            dimension.
         output_dim: name of regridded output pressure
-        original_dim: name of vertical dimension
+        original_dim: name of dimension along which ``original_grid`` is increasing.
 
     Returns:
-        the vertical resolved quantity defined at the levels in ``output_grid``
+        the quantity interpolated at the levels in ``output_grid``
     """
 
     output_grid = np.asarray(output_grid)
