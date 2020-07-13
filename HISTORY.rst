@@ -4,6 +4,7 @@ History
 
 latest
 ------
+* Add -<dQ2> to physics precipitation within prognostic run runfile.
 * Add regression tests for model training and offline ML diagnostic steps
 * Stop e2e orchestrator from adding `extra_package` and `setup_file` arguments to Dataflow jobs. This allows use of `./dataflow.sh` script in e2e workflows.
 * Increase nudging run memory limits and add a high-capacity dynamic volume for nudging output
@@ -11,6 +12,8 @@ latest
 * Add diurnal cycle functions to diagnostics_utils
 * Add cos_zenith_angle calculation to vcm, if cos_zenith_angle provided as an input variable in training or diagnostic configuration, 
  it will be derived and inserted into the batched data.
+* Add general purpose transformations of mappers `ValMap` and `KeyMap`
+* Add offset_seconds argument to the nudging loader
 * Add diagnostic variables from SHiELD and FV3GFS to new diagnostic mappers for each data sources; diagnostic mappers return net_heating and net_precipitation for the coarsened SHiELD and coarse FV3GFS diagnostics
 
 0.2.3 (2020-06-19)

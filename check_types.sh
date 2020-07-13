@@ -7,4 +7,5 @@ mypy --follow-imports silent \
     workflows/prognostic_c48_run \
     fv3net/regression/sklearn \
     fv3net/regression/keras \
+    external/loaders/loaders/mappers/_local.py \
     workflows/nudging
