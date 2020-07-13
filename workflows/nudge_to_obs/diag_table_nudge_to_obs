@@ -2,6 +2,7 @@ default_experiment
 2016 08 01 00 0 0
 #output files
 "atmos_hourly",            1,  "hours",    1, "hours",  "time"
+"nudging_tendencies",      1,  "hours",    1, "hours",  "time"
 "sfc_hourly",              1,  "hours",    1, "hours", "time"
 #
 #output variables
@@ -58,15 +59,22 @@ default_experiment
  "dynamics",  "te",          "total_energy"  "atmos_hourly", "all", .false., "none", 2
  "dynamics",  "ke",        "kinetic_energy", "atmos_hourly", "all", .false., "none", 2
 ###
- "dynamics",  "ucomp",        "ucomp",        "atmos_hourly",  "all",  .false.,  "none",  2
- "dynamics",  "vcomp",        "vcomp",        "atmos_hourly",  "all",  .false.,  "none",  2
+# nudging_tendencies
 ###
- "dynamics",  "u_dt_nudge",    "u_dt_nudge",  "atmos_hourly", "all", .false., "none", 2
- "dynamics",  "v_dt_nudge",    "v_dt_nudge",  "atmos_hourly", "all", .false., "none", 2
- "dynamics",  "delp_dt_nudge","delp_dt_nudge","atmos_hourly", "all", .false., "none", 2
- "dynamics",  "ps_dt_nudge",   "ps_dt_nudge", "atmos_hourly", "all", .false., "none", 2
- "dynamics",  "t_dt_nudge",    "t_dt_nudge",  "atmos_hourly", "all", .false., "none", 2
- "dynamics",  "q_dt_nudge",    "q_dt_nudge",  "atmos_hourly", "all", .false., "none", 2
+ "dynamics",  "grid_lont",   "lon",           "nudging_tendencies", "all", .false.,  "none", 2,
+ "dynamics",  "grid_latt",   "lat",           "nudging_tendencies", "all", .false.,  "none", 2,
+ "dynamics",  "grid_lon",    "lonb",          "nudging_tendencies", "all", .false.,  "none", 2,
+ "dynamics",  "grid_lat",    "latb",          "nudging_tendencies", "all", .false.,  "none", 2,
+ "dynamics",  "area",        "area",          "nudging_tendencies", "all", .false.,  "none", 2,
+ "dynamics",  "ucomp",        "ucomp",        "nudging_tendencies",  "all",  .false.,  "none",  2
+ "dynamics",  "vcomp",        "vcomp",        "nudging_tendencies",  "all",  .false.,  "none",  2
+###
+ "dynamics",  "u_dt_nudge",    "u_dt_nudge",  "nudging_tendencies", "all", .false., "none", 2
+ "dynamics",  "v_dt_nudge",    "v_dt_nudge",  "nudging_tendencies", "all", .false., "none", 2
+ "dynamics",  "delp_dt_nudge","delp_dt_nudge","nudging_tendencies", "all", .false., "none", 2
+ "dynamics",  "ps_dt_nudge",   "ps_dt_nudge", "nudging_tendencies", "all", .false., "none", 2
+ "dynamics",  "t_dt_nudge",    "t_dt_nudge",  "nudging_tendencies", "all", .false., "none", 2
+ "dynamics",  "q_dt_nudge",    "q_dt_nudge",  "nudging_tendencies", "all", .false., "none", 2
 ###
 # sfc_hourly
 ###
