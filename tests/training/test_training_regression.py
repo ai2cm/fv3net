@@ -221,39 +221,45 @@ def mock_model():
     return MockSklearnWrappedModel(input_vars, output_vars)
 
 
-def _one_step_offline_diags_config(datadir):
-    path = f"{datadir}/offline_diags_one_step_config.yml"
-    with open(path, "r") as f:
-        config = yaml.safe_load(f)
-    return config
+# def _one_step_offline_diags_config():
+# #     path = f"{datadir}/offline_diags_one_step_config.yml"
+#     path = "./workflows/offline_ml_diags/tests/test_one_step_config.yml"
+#     with open(path, "r") as f:
+#         config = yaml.safe_load(f)
+#     return config
+
+
+# @pytest.fixture
+# def one_step_offline_diags_config():
+#     return _one_step_offline_diags_config()
+
+
+# def _nudging_offline_diags_config():
+# #     path = f"{datadir}/offline_diags_nudging_config.yml"
+#     path = "./workflows/offline_ml_diags/tests/test_nudging_config.yml"
+#     with open(path, "r") as f:
+#         config = yaml.safe_load(f)
+#     return config
+
+
+# @pytest.fixture
+# def nudging_offline_diags_config():
+#     return _nudging_offline_diags_config()
 
 
 @pytest.fixture
-def one_step_offline_diags_config(datadir):
-    return _one_step_offline_diags_config(datadir)
-
-
-def _nudging_offline_diags_config(datadir):
-    path = f"{datadir}/offline_diags_nudging_config.yml"
-    with open(path, "r") as f:
-        config = yaml.safe_load(f)
-    return config
-
-
-@pytest.fixture
-def nudging_offline_diags_config(datadir):
-    return _nudging_offline_diags_config(datadir)
-
-
-@pytest.fixture
-def data_source_offline_config(data_source_name, datadir):
+def data_source_offline_config(data_source_name):
     if data_source_name == "one_step_tendencies":
-        return _one_step_offline_diags_config(datadir)
+        with open("./workflows/offline_ml_diags/tests/test_one_step_config.yml") as f:
+            return yaml.safe_load(f)
     elif data_source_name == "nudging_tendencies":
-        return _nudging_offline_diags_config(datadir)
+        with open("./workflows/offline_ml_diags/tests/test_nudging_config.yml") as f:
+            return yaml.safe_load(f)
     elif data_source_name == "fine_res_apparent_sources":
         with open("./workflows/offline_ml_diags/tests/test_fine_res_config.yml") as f:
-            return yaml.safe_load(f)
+            config = yaml.safe_load(f)
+            del config["mapping_kwargs"]["offset_seconds"]
+            return config
     else:
         raise NotImplementedError()
 
@@ -270,18 +276,28 @@ def prediction_mapper(
         data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
     )
 
-    prediction_mapper = SklearnPredictionMapper(
-        base_mapper,
-        mock_model,
-        **data_source_offline_config.get("model_mapper_kwargs", {}),
-    )
+    prediction_mapper = SklearnPredictionMapper(base_mapper, mock_model)
 
     return prediction_mapper
+
+
+timesteps = ["20160801.001500", "20160801.003000"]
+variables = [
+    "air_temperature",
+    "specific_humidity",
+    "dQ1",
+    "dQ2",
+    "pQ1",
+    "pQ2",
+    "pressure_thickness_of_atmospheric_layer",
+]
 
 
 @pytest.fixture
 def diagnostic_batches(prediction_mapper, data_source_offline_config):
 
+    data_source_offline_config["batch_kwargs"]["timesteps"] = timesteps
+    data_source_offline_config["variables"] = variables
     diagnostic_batches = batches.diagnostic_batches_from_mapper(
         prediction_mapper,
         data_source_offline_config["variables"],
@@ -295,19 +311,34 @@ def diagnostic_batches(prediction_mapper, data_source_offline_config):
 def test_compute_offline_diags(
     offline_diags_reference_schema, diagnostic_batches, grid_dataset
 ):
-    diagnostic_batches_concat = xr.concat(diagnostic_batches, dim=TIME_DIM)
-    ds_diagnostic = utils.reduce_to_diagnostic(
-        diagnostic_batches_concat,
-        grid_dataset,
-        domains=DOMAINS,
-        primary_vars=["dQ1", "dQ2"],
-    )
+    batches_diags, batches_metrics = [], []
+    for i, diagnostic_batch in enumerate(diagnostic_batches):
+        diagnostic_batch = diagnostic_batch.pipe(utils.insert_Q_terms).pipe(
+            utils.insert_column_integrated_vars
+        )
+        ds_diagnostic = utils.reduce_to_diagnostic(
+            diagnostic_batch, grid_dataset, domains=DOMAINS
+        )
+        ds_metric = calc_metrics(xr.merge([diagnostic_batch, grid_dataset["area"]]))
+    batches_diags.append(ds_diagnostic)
+    batches_metrics.append(ds_metric)
+    ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
+    ds_metrics = xr.concat(batches_metrics, dim="batch").mean(dim="batch")
+    metrics = {
+        var: {
+            "mean": np.mean(ds_metrics[var].values),
+            "std": np.std(ds_metrics[var].values),
+        }
+        for var in ds_metrics.data_vars
+    }
+
+    print(metrics)
 
     # TODO standardize schema encoding in synth to avoid the casting that makes
     # the following lines necessary
     with tempfile.TemporaryDirectory() as output_dir:
         output_file = os.path.join(output_dir, "offline_diags.nc")
-        xr.merge([grid_dataset, ds_diagnostic]).to_netcdf(output_file)
+        xr.merge([grid_dataset, ds_diagnostics]).to_netcdf(output_file)
         with open(output_file, "rb") as f:
             ds = xr.open_dataset(f).load()
     offline_diags_output_schema_raw = synth.read_schema_from_dataset(ds)
@@ -315,10 +346,17 @@ def test_compute_offline_diags(
         synth.dumps(offline_diags_output_schema_raw)
     )
 
-    assert offline_diags_reference_schema == offline_diags_output_schema
+    for var in set(offline_diags_output_schema.variables):
+        assert (
+            offline_diags_output_schema.variables[var]
+            == offline_diags_reference_schema.variables[var]
+        )
+    for coord in set(offline_diags_output_schema.coords):
+        assert (
+            offline_diags_output_schema.coords[coord]
+            == offline_diags_reference_schema.coords[coord]
+        )
 
-    # compute metrics
-    metrics = calc_metrics(diagnostic_batches)
     assert isinstance(metrics, dict)
     assert len(metrics) == 16
     for metric, metric_dict in metrics.items():
