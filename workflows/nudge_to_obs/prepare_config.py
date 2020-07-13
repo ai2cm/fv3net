@@ -15,7 +15,7 @@ def parse_args():
     )
     parser.add_argument("config", type=str, help="base yaml file to configure")
     parser.add_argument(
-        "rundir", type=str, help="path to rundir, required for writing nudging filelist"
+        "config_url", type=str, help="location to save temporary config files"
     )
 
     return parser.parse_args()
@@ -66,6 +66,6 @@ if __name__ == "__main__":
     base_config = fv3kube.get_base_fv3config(config_update["base_version"])
     config = vcm.update_nested_dict(base_config, config_update)
     if config["namelist"]["fv_core_nml"].get("nudge", False):
-        config = fv3kube.update_config_for_nudging(config, args.rundir)
+        config = fv3kube.update_config_for_nudging(config, args.config_url)
     config["runfile_output"] = {"output_times": get_output_times(config)}
     print(yaml.dump(config))
