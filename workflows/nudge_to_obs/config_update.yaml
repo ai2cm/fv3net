@@ -8,7 +8,7 @@ gfs_analysis_data:
   filename_pattern: '%Y%m%d_%HZ_T85LR.nc'
 namelist:
   atmos_model_nml:
-    fhout: 1.0
+    fhout: 2.0
     fhmax: 10000
   coupler_nml:
     days: 0
@@ -19,7 +19,7 @@ namelist:
     nudge: true
     npz: 79
   gfs_physics_nml:
-    fhzero: 1.0
+    fhzero: 2.0
     use_analysis_sst: true
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
