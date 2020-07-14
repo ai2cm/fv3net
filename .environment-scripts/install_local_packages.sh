@@ -5,7 +5,8 @@ CONDA_ENV=$1
 source activate $CONDA_ENV
 
 local_packages_to_install=( 
-  external/vcm/external/mappm 
+  external/vcm/external/mappm
+  external/fv3fit
 )
 for package  in "${local_packages_to_install[@]}"
 do
@@ -15,7 +16,7 @@ done
 poetry_packages=( external/runtime external/report external/gallery . 
   external/fv3config 
   external/vcm 
-  external/synth 
+  external/synth
   external/fv3kube
   external/loaders
   external/diagnostics_utils

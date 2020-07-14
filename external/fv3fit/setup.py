@@ -11,7 +11,17 @@ with open("README.md") as readme_file:
 with open("HISTORY.md") as history_file:
     history = history_file.read()
 
-requirements = ["xarray", "numpy", "scikit-learn"]
+requirements = [
+    "xarray",
+    "numpy",
+    "scikit-learn",
+    "loaders",
+    "fsspec",
+    "yaml",
+    "report",  # sklearn uses these to save reports
+    "gallery",
+    "vcm",
+]
 
 setup_requirements = []
 
@@ -20,15 +30,15 @@ test_requirements = ["pytest"]
 setup(
     author="Vulcan Technologies LLC",
     author_email="jeremym@vulcan.com",
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: BSD License",
         "Natural Language :: English",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
     ],
     description="FV3Fit is used to train machine learning models.",
     install_requires=requirements,
