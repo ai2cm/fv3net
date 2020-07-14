@@ -12,7 +12,7 @@ spec:
       - name: fv3gfs-image
         value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
       - name: fv3net-image
-        value: us.gcr.io/vcm-ml/fv3net:396d9853498c0f45c13c3fa72202ca841d5378e8
+        value: us.gcr.io/vcm-ml/fv3net:c65d904f9e9b59a052ea3796608b64574f2a7966
       - name: post-process-image
         value: us.gcr.io/vcm-ml/post_process_run:396d9853498c0f45c13c3fa72202ca841d5378e8
   entrypoint: main
@@ -61,6 +61,11 @@ spec:
           - name: output-data
             mountPath: /mnt/data
     - name: post-process
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "climate-sim-pool"
+        effect: "NoSchedule"
       container:
         image: "{{workflow.parameters.post-process-image}}"
         args: ["--chunks", "/mnt/data/chunks.yaml", "/mnt/data/rundir", "{{workflow.parameters.output-url}}"]
@@ -70,6 +75,12 @@ spec:
           - name: gcp-key-secret
             mountPath: /secret/gcp-credentials
             readOnly: true
+        resources:
+          limits:
+            memory: 8Gi
+          requests:
+            cpu: "6"
+            memory: 8Gi
     - name: fv3gfs
       tolerations:
       - key: "dedicated"
