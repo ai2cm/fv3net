@@ -9,8 +9,8 @@ import yaml
 
 import diagnostics_utils as utils
 import synth
-from fv3fit import shared
-from fv3fit.sklearn import train
+from fv3fit import _shared as shared
+from fv3fit.sklearn._train import train_model
 from offline_ml_diags._mapper import SklearnPredictionMapper
 from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags._metrics import calc_metrics
@@ -118,7 +118,7 @@ def _one_step_train_config():
     path = "./tests/training/train_sklearn_model_onestep_source.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
-    return train.ModelTrainingConfig(**config)
+    return shared.ModelTrainingConfig(**config)
 
 
 @pytest.fixture
@@ -130,7 +130,7 @@ def _nudging_train_config():
     path = "./tests/training/train_sklearn_model_nudged_source.yaml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
-    return train.ModelTrainingConfig(**config)
+    return shared.ModelTrainingConfig(**config)
 
 
 @pytest.fixture
@@ -142,7 +142,7 @@ def _fine_res_train_config():
     path = "./tests/training/train_sklearn_model_fineres_source.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
-    return train.ModelTrainingConfig(**config)
+    return shared.ModelTrainingConfig(**config)
 
 
 @pytest.fixture
@@ -172,7 +172,7 @@ def training_batches(data_source_name, data_source_path, data_source_train_confi
 def test_sklearn_regression(training_batches, data_source_train_config):
 
     assert len(training_batches) == 2
-    wrapper = train.train_model(training_batches, data_source_train_config)
+    wrapper = train_model(training_batches, data_source_train_config)
     assert wrapper.model.n_estimators == 2
 
 
