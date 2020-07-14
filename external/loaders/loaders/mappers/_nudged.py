@@ -43,7 +43,7 @@ class MergeNudged(LongRunMapper):
                 "MergeNudged should be instantiated with two or more data sources."
             )
         nudged_sources = self._mapper_to_datasets(nudged_sources)
-        nudged_sources = self._rename_vars(nudged_sources)
+        nudged_sources = self._rename_vars(nudged_sources, rename_vars)
         self._check_dvar_overlap(*nudged_sources)
         self.ds = xr.merge(nudged_sources, join="inner")
 
