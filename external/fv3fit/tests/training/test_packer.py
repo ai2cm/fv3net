@@ -1,4 +1,4 @@
-from fv3fit.keras._packer import ArrayPacker
+from fv3fit._shared import ArrayPacker
 from typing import Iterable
 import pytest
 import numpy as np

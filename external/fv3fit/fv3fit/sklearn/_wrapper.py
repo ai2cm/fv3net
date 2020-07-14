@@ -3,6 +3,7 @@ from copy import copy
 import numpy as np
 import xarray as xr
 from sklearn.base import BaseEstimator
+from .._shared import pack, unpack
 
 
 class RegressorEnsemble:
@@ -83,26 +84,6 @@ class BaseXarrayEstimator:
         raise NotImplementedError
 
 
-def _unique_dim_name(data):
-    return "".join(data.dims)
-
-
-def _pack(data, sample_dim):
-    feature_dim_name = _unique_dim_name(data)
-    stacked = data.to_stacked_array(feature_dim_name, sample_dims=[sample_dim])
-    return (
-        stacked.transpose(sample_dim, feature_dim_name).data,
-        stacked.indexes[feature_dim_name],
-    )
-
-
-def _unpack(data: np.ndarray, sample_dim, feature_index):
-    da = xr.DataArray(
-        data, dims=[sample_dim, "feature"], coords={"feature": feature_index}
-    )
-    return da.to_unstacked_dataset("feature")
-
-
 class SklearnWrapper(BaseXarrayEstimator):
     """Wrap a SkLearn model for use with xarray
 
@@ -125,13 +106,13 @@ class SklearnWrapper(BaseXarrayEstimator):
         # TODO the sample_dim can change so best to use feature dim to flatten
         self.input_vars_ = input_vars
         self.output_vars_ = output_vars
-        x, _ = _pack(data[input_vars], sample_dim)
-        y, self.output_features_ = _pack(data[output_vars], sample_dim)
+        x, _ = pack(data[input_vars], sample_dim)
+        y, self.output_features_ = pack(data[output_vars], sample_dim)
         self.model.fit(x, y)
         return self
 
     def predict(self, data, sample_dim):
-        x, _ = _pack(data[self.input_vars_], sample_dim)
+        x, _ = pack(data[self.input_vars_], sample_dim)
         y = self.model.predict(x)
-        ds = _unpack(y, sample_dim, self.output_features_)
+        ds = unpack(y, sample_dim, self.output_features_)
         return ds.assign_coords({sample_dim: data[sample_dim]})

@@ -3,7 +3,7 @@ import xarray as xr
 import logging
 import abc
 import tensorflow as tf
-from .._packer import ArrayPacker
+from ..._shared import ArrayPacker
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir

@@ -4,6 +4,7 @@ import pytest
 import logging
 import loaders
 import fv3fit
+from fv3fit._shared import ModelTrainingConfig, load_data_sequence
 import numpy as np
 import tempfile
 import yaml
@@ -90,8 +91,8 @@ def train_config(
     output_variables: Iterable[str],
     batch_function: str,
     batch_kwargs: dict,
-) -> fv3fit.shared.ModelTrainingConfig:
-    return fv3fit.shared.ModelTrainingConfig(
+) -> ModelTrainingConfig:
+    return ModelTrainingConfig(
         model_type=model_type,
         hyperparameters=hyperparameters,
         input_variables=input_variables,
@@ -127,11 +128,9 @@ def train_config_filename(
 
 @pytest.fixture
 def training_batches(
-    data_source_name: str,
-    data_source_path: str,
-    train_config: fv3fit.shared.ModelTrainingConfig,
+    data_source_name: str, data_source_path: str, train_config: ModelTrainingConfig,
 ) -> Sequence[xr.Dataset]:
-    batched_data = fv3fit.shared.load_data_sequence(data_source_path, train_config)
+    batched_data = load_data_sequence(data_source_path, train_config)
     return batched_data
 
 
