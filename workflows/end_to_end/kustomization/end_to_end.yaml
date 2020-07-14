@@ -53,7 +53,7 @@ experiment:
         --runner: DirectRunner
 
     train_sklearn_model:
-      command: python -m fv3net.regression.sklearn
+      command: python -m fv3fit.sklearn
       args:
         training_data:
           from: create_training_data

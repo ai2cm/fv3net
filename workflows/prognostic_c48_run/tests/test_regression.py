@@ -8,7 +8,7 @@ import xarray as xr
 import yaml
 from sklearn.dummy import DummyRegressor
 
-from fv3net.regression.sklearn import SklearnWrapper
+from fv3fit.sklearn import SklearnWrapper
 import subprocess
 
 # need to check if fv3gfs exists in a subprocess, importing fv3gfs into this module

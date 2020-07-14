@@ -10,7 +10,7 @@ import fv3gfs
 from fv3gfs._wrapper import get_time
 import fv3util
 import runtime
-from fv3net.regression.sklearn.adapters import RenamingAdapter, StackingAdapter
+from fv3fit.sklearn import RenamingAdapter, StackingAdapter
 
 from mpi4py import MPI
 

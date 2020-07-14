@@ -3,7 +3,7 @@ from typing import Mapping
 from vcm import safe
 import xarray as xr
 
-from .wrapper import SklearnWrapper
+from fv3fit.sklearn import SklearnWrapper
 from loaders.mappers import GeoMapper
 from loaders import SAMPLE_DIM_NAME, DERIVATION_DIM
 

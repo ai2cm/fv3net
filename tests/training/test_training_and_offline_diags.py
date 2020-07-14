@@ -11,7 +11,7 @@ import diagnostics_utils as utils
 import synth
 from fv3fit import shared
 from fv3fit.sklearn import train
-from fv3fit.sklearn._mapper import SklearnPredictionMapper
+from offline_ml_diags._mapper import SklearnPredictionMapper
 from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags._metrics import calc_metrics
 

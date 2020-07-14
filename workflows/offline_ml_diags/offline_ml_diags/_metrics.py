@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Mapping, Sequence, Callable
 import logging
-from fv3fit.sklearn import TARGET_COORD, PREDICT_COORD, DERIVATION_DIM
+from ._mapper import TARGET_COORD, PREDICT_COORD, DERIVATION_DIM
 from diagnostics_utils import insert_column_integrated_vars
 import xarray as xr
 
