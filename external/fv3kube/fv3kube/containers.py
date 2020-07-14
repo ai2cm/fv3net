@@ -168,7 +168,7 @@ def post_process_container(
 
     rundir = os.path.join("/mnt", path)
     container.image = image
-    container.working_dir = "/home/jovyan/fv3net/workflows/prognostic_c48_run"
+    container.working_dir = "/home/jovyan/fv3net/workflows/post_process_run"
     container.command = ["python", "post_process.py", rundir, destination]
     # Suitable for C48 job
     container.resources = V1ResourceRequirements(
