@@ -21,6 +21,7 @@ requirements = [
     "report",  # sklearn uses these to save reports
     "gallery",
     "vcm",
+    "tensorflow>=2.0",
 ]
 
 setup_requirements = []
