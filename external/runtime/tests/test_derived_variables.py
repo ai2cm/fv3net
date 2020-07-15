@@ -26,6 +26,10 @@ class MockFV3GFS:
 
         return {name: state[name] for name in names}
 
+    def set_state(self, data):
+        for key, value in data.items():
+            assert isinstance(value, fv3util.Quantity)
+
 
 def test_DerivedVariableGetter():
     fv3gfs = MockFV3GFS()
@@ -44,6 +48,13 @@ def test_DerivedVariableGetter_time():
     fv3gfs = MockFV3GFS()
     getter = runtime.DerivedVariableGetter(fv3gfs)
     assert isinstance(getter.time, datetime)
+
+
+def test_DerivedVariableGetter_setitem():
+    fv3gfs = MockFV3GFS()
+    getter = runtime.DerivedVariableGetter(fv3gfs)
+    item = xr.DataArray([1.0], dims=["x"], attrs={"units": "m"})
+    getter["a"] = item
 
 
 def test_DerivedVariableGetter_getitem_time_raises():
