@@ -236,20 +236,20 @@ def mock_model():
 
 
 @pytest.fixture
-def data_source_offline_config(data_source_name, datadir_module):
+def data_source_offline_config(data_source_name, datadir):
     if data_source_name == "one_step_tendencies":
         with open(
-            os.path.join(str(datadir_module), "test_one_step_config.yml"), "r"
+            os.path.join(str(datadir), "test_one_step_config.yml"), "r"
         ) as f:
             return yaml.safe_load(f)
     elif data_source_name == "nudging_tendencies":
         with open(
-            os.path.join(str(datadir_module), "test_nudging_config.yml"), "r"
+            os.path.join(str(datadir), "test_nudging_config.yml"), "r"
         ) as f:
             return yaml.safe_load(f)
     elif data_source_name == "fine_res_apparent_sources":
         with open(
-            os.path.join(str(datadir_module), "test_fine_res_config.yml"), "r"
+            os.path.join(str(datadir), "test_fine_res_config.yml"), "r"
         ) as f:
             config = yaml.safe_load(f)
             del config["mapping_kwargs"]["offset_seconds"]
@@ -284,6 +284,7 @@ variables = [
     "pQ1",
     "pQ2",
     "pressure_thickness_of_atmospheric_layer",
+    "land_sea_mask",
 ]
 
 
@@ -316,7 +317,8 @@ def test_compute_offline_diags(
     # the following lines necessary
     with tempfile.TemporaryDirectory() as output_dir:
         output_file = os.path.join(output_dir, "offline_diags.nc")
-        xr.merge([grid_dataset, ds_diagnostics]).to_netcdf(output_file)
+        xr.merge([grid_dataset, ds_diagnostics], compat="override") \
+            .to_netcdf(output_file)
         with open(output_file, "rb") as f:
             ds = xr.open_dataset(f).load()
     offline_diags_output_schema_raw = synth.read_schema_from_dataset(ds)
@@ -338,7 +340,7 @@ def test_compute_offline_diags(
     for var in DIURNAL_VARS:
         assert "local_time_hr" in ds_diurnal[var].dims
         for dim in ds_diurnal[var].dims:
-            assert dim in ["local_time_hr", "derivation"]
+            assert dim in ["local_time_hr", "derivation", "surface_type"]
 
     assert isinstance(metrics, dict)
     assert len(metrics) == 32
