@@ -14,8 +14,9 @@ from .convenience import (
     convert_timestamps,
     cast_to_datetime,
     encode_time,
+    shift_timestamp,
 )
-from .calc import mass_integrate, r2_score, local_time, thermo
+from .calc import mass_integrate, r2_score, local_time, thermo, cos_zenith_angle
 from .calc.thermo import (
     net_heating,
     net_precipitation,

@@ -17,11 +17,10 @@ Z_DIM_SIZE = 79
 class MockDatasetMapper:
     def __init__(self, schema: synth.DatasetSchema):
         self._schema = schema
-        self._keys = [f"2020050{i}.000000" for i in range(4)]
+        self._keys = [f"2000050{i+1}.000000" for i in range(4)]
 
     def __getitem__(self, key: str) -> xr.Dataset:
-        ds = synth.generate(self._schema)
-        ds.coords["initial_time"] = [key]
+        ds = synth.generate(self._schema).drop("initial_time")
         return ds
 
     def keys(self):
@@ -56,6 +55,7 @@ def test__load_batch(mapper):
         data_vars=["air_temperature", "specific_humidity"],
         rename_variables={},
         init_time_dim_name="time",
+        cos_z_var="cos_zenith_angle",
         keys=mapper.keys(),
     )
     assert len(ds["time"]) == 4

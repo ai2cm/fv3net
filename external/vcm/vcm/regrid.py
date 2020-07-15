@@ -12,46 +12,50 @@ from vcm.convenience import open_dataset, replace_esmf_coords_reg_latlon
 
 
 def regrid_to_shared_coords(
-    da_var_to_regrid, new_coord_grid, da_old_coords, regrid_dim_name, replace_dim_name
-):
-    """ This function interpolates a variable to a new coordinate grid that is along
-    a dimension corresponding to existing irregular coordinates that may be
-    different at each point, e.g. interpolate temperature profiles to be given at the
-    same pressure values for each data point.
+    field: xr.DataArray,
+    output_grid: xr.DataArray,
+    original_grid: xr.DataArray,
+    output_dim: str,
+    original_dim: str,
+) -> xr.DataArray:
+    """Interpolate a field onto a new coordinate system
 
-    For example usage, see vcm.cubedsphere.regridz.regrid_to_pressure_level
+    For example, this can be used for vertical regridding.
 
     Args:
-    da_var_to_regrid: xr data array, for the variable to interpolate to new coord grid
-    new_coord_grid: 1d list/array, coordinates to interpolate the data variable onto
-    da_old_coords: xr data array, of the original "coordinates"- can be different for
-        each element. Must have same shape as da_var_to_regrid
-    regrid_dim_name: str, name of new dimension to assign
-    replace_dim_name: str, Name of old dimension (usually pfull) along which the data
-        was interpolated. This gets replaced because the new data and coords don't have
-        to have the same length as the original data array
+        field: the quantity to be regridded
+        output_grid: the desired 1D coordinates to regrid to.
+        original_grid: the original coordinate of ``field``. Must have the
+            same dims of ``field``, and increasing along the ``original_dim``
+            dimension.
+        output_dim: name of regridded output pressure
+        original_dim: name of dimension along which ``original_grid`` is increasing.
 
     Returns:
-        data array of the variable interpolated at values of new_coord_grid
+        the quantity interpolated at the levels in ``output_grid``
     """
-    dims_order = tuple(
-        [replace_dim_name]
-        + [dim for dim in da_var_to_regrid.dims if dim != replace_dim_name]
-    )
-    da_var_to_regrid = da_var_to_regrid.transpose(*dims_order)
-    da_old_coords = da_old_coords.transpose(*dims_order)
-    interp_values = interpolate_1d(
-        new_coord_grid, da_old_coords.values, da_var_to_regrid.values, axis=0
-    )
-    new_dims = [regrid_dim_name] + list(da_var_to_regrid.dims[1:])
 
-    new_coords = {
-        dim: da_var_to_regrid[dim].values
-        for dim in da_var_to_regrid.dims
-        if dim != replace_dim_name
-    }
-    new_coords[regrid_dim_name] = new_coord_grid
-    return xr.DataArray(interp_values, dims=new_dims, coords=new_coords)
+    output_grid = np.asarray(output_grid)
+
+    def regrid_onto_output(original_grid, field):
+        # axis=-1 gives a broadcast error in the current version of metpy
+        axis = field.ndim - 1
+        return interpolate_1d(output_grid, original_grid, field, axis=axis)
+
+    output = xr.apply_ufunc(
+        regrid_onto_output,
+        original_grid,
+        field,
+        input_core_dims=[[original_dim], [original_dim]],
+        output_core_dims=[[output_dim]],
+        output_sizes={output_dim: len(output_grid)},
+        dask="parallelized",
+        output_dtypes=[field.dtype],
+    )
+
+    # make the array have the same order of dimensions as before
+    dim_order = [dim if dim in field.dims else output_dim for dim in output.dims]
+    return output.transpose(*dim_order).assign_coords({output_dim: output_grid})
 
 
 # Vertical interpolation

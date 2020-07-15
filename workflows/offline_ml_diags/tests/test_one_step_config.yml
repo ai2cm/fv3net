@@ -12,4 +12,3 @@ variables:
 mapping_function: open_one_step_with_diags
 batch_kwargs:
   timesteps_per_batch: 1
-  init_time_dim_name: "initial_time"

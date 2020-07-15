@@ -12,7 +12,20 @@ from vcm.convenience import (
     parse_timestep_str_from_path,
     round_time,
     parse_datetime_from_str,
+    shift_timestamp,
 )
+
+
+@pytest.mark.parametrize(
+    "date, shift, expected",
+    [
+        ("20160801.000000", 15, "20160801.000015"),
+        ("20160801.000000", 90, "20160801.000130"),
+        ("20160801.000000", -5, "20160731.235955"),
+    ],
+)
+def test_shift_timestamp(date, shift, expected):
+    assert shift_timestamp(date, shift) == expected
 
 
 def test_extract_timestep_from_path():

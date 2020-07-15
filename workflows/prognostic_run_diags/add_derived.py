@@ -53,7 +53,7 @@ def _column_pq1(ds: xr.Dataset) -> xr.DataArray:
     return column_pq1.rename("column_integrated_pQ1")
 
 
-def _column_pq2(ds: xr.Dataset) -> xr.Dataset:
+def _column_pq2(ds: xr.Dataset) -> xr.DataArray:
     evap = vcm.latent_heat_flux_to_evaporation(ds.LHTFLsfc)
     column_pq2 = SECONDS_PER_DAY * (evap - ds.PRATEsfc)
     column_pq2.attrs = {
@@ -63,7 +63,7 @@ def _column_pq2(ds: xr.Dataset) -> xr.Dataset:
     return column_pq2.rename("column_integrated_pQ2")
 
 
-def _column_dq1(ds: xr.Dataset) -> xr.Dataset:
+def _column_dq1(ds: xr.Dataset) -> xr.DataArray:
     column_dq1 = ds.net_heating
     column_dq1.attrs = {
         "long_name": "<dQ1> column integrated heating from ML",
@@ -72,7 +72,7 @@ def _column_dq1(ds: xr.Dataset) -> xr.Dataset:
     return column_dq1.rename("column_integrated_dQ1")
 
 
-def _column_dq2(ds: xr.Dataset) -> xr.Dataset:
+def _column_dq2(ds: xr.Dataset) -> xr.DataArray:
     column_dq2 = SECONDS_PER_DAY * ds.net_moistening
     column_dq2.attrs = {
         "long_name": "<dQ2> column integrated moistening from ML",
@@ -81,7 +81,7 @@ def _column_dq2(ds: xr.Dataset) -> xr.Dataset:
     return column_dq2.rename("column_integrated_dQ2")
 
 
-def _column_q1(ds: xr.Dataset) -> xr.Dataset:
+def _column_q1(ds: xr.Dataset) -> xr.DataArray:
     column_q1 = _column_pq1(ds) + _column_dq1(ds)
     column_q1.attrs = {
         "long_name": "<Q1> column integrated heating from physics+ML",
@@ -90,7 +90,7 @@ def _column_q1(ds: xr.Dataset) -> xr.Dataset:
     return column_q1.rename("column_integrated_Q1")
 
 
-def _column_q2(ds: xr.Dataset) -> xr.Dataset:
+def _column_q2(ds: xr.Dataset) -> xr.DataArray:
     column_q2 = _column_pq2(ds) + _column_dq2(ds)
     column_q2.attrs = {
         "long_name": "<Q2> column integrated moistening from physics+ML",

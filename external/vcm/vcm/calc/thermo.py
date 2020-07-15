@@ -148,7 +148,11 @@ def pressure_at_midpoint_log(delp, toa_pressure=_TOA_PRESSURE, dim=COORD_Z_CENTE
         delp, toa_pressure=toa_pressure, dim_center=dim, dim_outer=dim
     )
     dlogp = np.log(pi).diff(dim)
-    return delp / dlogp
+    output = delp / dlogp
+    # ensure that output chunks are the same
+    # pressure at interface adds a single chunk at the model surface
+    original_chunk_size = delp.chunks[delp.get_axis_num(dim)]
+    return output.chunk({dim: original_chunk_size})
 
 
 def hydrostatic_dz(T, q, delp, dim=COORD_Z_CENTER):

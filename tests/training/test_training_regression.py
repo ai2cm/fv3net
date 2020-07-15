@@ -1,20 +1,19 @@
-import xarray as xr
-import numpy as np
-import pytest
-import yaml
+import logging
 import os
 import tempfile
-import logging
+
+import numpy as np
+import pytest
+import xarray as xr
+import yaml
+
 import diagnostics_utils as utils
 import synth
-from loaders import mappers, batches, SAMPLE_DIM_NAME
-from loaders.mappers._fine_resolution_budget import FineResolutionSources
-from loaders.mappers._merged import MergeOverlappingData
-from fv3net.regression.sklearn import train
 from fv3net.regression import shared
+from fv3net.regression.sklearn import train
 from fv3net.regression.sklearn._mapper import SklearnPredictionMapper
+from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags._metrics import calc_metrics
-
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +74,10 @@ def test_compute_training_diags(
         training_data_diags_config, "fine_res_apparent_sources"
     )
 
+    fine_res_config = get_data_source_training_diags_config(
+        training_data_diags_config, "fine_res_apparent_sources"
+    )
+
     data_config_mapping = {
         "one_step_physics_off": (
             one_step_dataset_path,
@@ -85,10 +88,7 @@ def test_compute_training_diags(
             one_step_clouds_off_training_diags_config,
         ),
         "nudging_tendencies": (nudging_dataset_path, nudging_training_diags_config),
-        "fine_res_apparent_sources": (
-            fine_res_dataset_path,
-            fine_res_training_diags_config,
-        ),
+        "fine_res_apparent_sources": (fine_res_dataset_path, fine_res_config),
     }
 
     variable_names = [
@@ -108,52 +108,15 @@ def test_compute_training_diags(
         data_source_name,
         (data_source_path, data_source_config),
     ) in data_config_mapping.items():
-        if data_source_name != "fine_res_apparent_sources":
-            if "shield_diags_url" in data_source_config["mapping_kwargs"]:
-                data_source_config["mapping_kwargs"][
-                    "shield_diags_url"
-                ] = C48_SHiELD_diags_dataset_path
-            ds_batches = batches.diagnostic_batches_from_geodata(
-                data_source_path,
-                variable_names,
-                timesteps_per_batch=timesteps_per_batch,
-                mapping_function=data_source_config["mapping_function"],
-                mapping_kwargs=data_source_config["mapping_kwargs"],
-            )
-
-        else:
-            # this function is a patch for the actual until synth is netcdf-compatible
-            fine_res_ds = xr.open_zarr(data_source_path)
-            time_mapper = {
-                fine_res_ds.time.values[0]: (fine_res_ds.isel(time=0)),
-                fine_res_ds.time.values[1]: (fine_res_ds.isel(time=1)),
-            }
-            fine_resolution_sources_mapper = FineResolutionSources(
-                time_mapper,
-                rename_vars=data_source_config["mapping_kwargs"]["rename_vars"],
-            )
-            if data_source_config["mapping_kwargs"].get("shield_diags_url") is not None:
-                data_source_config["mapping_kwargs"][
-                    "shield_diags_url"
-                ] = C48_SHiELD_diags_dataset_path
-                shield_diags_mapper = mappers.open_high_res_diags(
-                    data_source_config["mapping_kwargs"]["shield_diags_url"]
-                )
-                fine_resolution_sources_mapper = MergeOverlappingData(
-                    shield_diags_mapper,
-                    fine_resolution_sources_mapper,
-                    source_name_left="coarsened_SHiELD",
-                    source_name_right="coarse_FV3GFS",
-                )
-
-            ds_batches = batches.diagnostic_batches_from_mapper(
-                fine_resolution_sources_mapper,
-                variable_names,
-                timesteps_per_batch=timesteps_per_batch,
-            )
-
+        ds_batches_one_step = batches.diagnostic_batches_from_geodata(
+            data_source_path,
+            variable_names,
+            timesteps_per_batch=timesteps_per_batch,
+            mapping_function=data_source_config["mapping_function"],
+            mapping_kwargs=data_source_config["mapping_kwargs"],
+        )
         ds_diagnostic = utils.reduce_to_diagnostic(
-            ds_batches, grid_dataset, domains=DOMAINS
+            ds_batches_one_step, grid_dataset, domains=DOMAINS
         )
         diagnostic_datasets[data_source_name] = ds_diagnostic
 
@@ -201,8 +164,6 @@ def _fine_res_train_config():
     path = "./tests/training/train_sklearn_model_fineres_source.yml"
     with open(path, "r") as f:
         config = yaml.safe_load(f)
-    config["batch_kwargs"].pop("mapping_function", None)
-    config["batch_kwargs"].pop("mapping_kwargs", None)
     return train.ModelTrainingConfig(**config)
 
 
@@ -226,28 +187,7 @@ def data_source_train_config(data_source_name):
 
 @pytest.fixture
 def training_batches(data_source_name, data_source_path, data_source_train_config):
-
-    if data_source_name != "fine_res_apparent_sources":
-        batched_data = shared.load_data_sequence(
-            data_source_path, data_source_train_config
-        )
-    else:
-        # train.load_data_sequence is incompatible with synth's zarrs
-        # (it looks for netCDFs); this is a patch until synth supports netCDF
-        fine_res_ds = xr.open_zarr(data_source_path)
-        mapper = {
-            fine_res_ds.time.values[0]: fine_res_ds.isel(time=0),
-            fine_res_ds.time.values[1]: fine_res_ds.isel(time=1),
-        }
-
-        batched_data = batches.batches_from_mapper(
-            mapper,
-            list(data_source_train_config.input_variables)
-            + list(data_source_train_config.output_variables),
-            **data_source_train_config.batch_kwargs,
-        )
-
-    return batched_data
+    return shared.load_data_sequence(data_source_path, data_source_train_config)
 
 
 @pytest.mark.regression
@@ -342,7 +282,7 @@ def fine_res_offline_diags_config(C48_SHiELD_diags_dataset_path):
 @pytest.fixture
 def data_source_offline_config(data_source_name, C48_SHiELD_diags_dataset_path):
     if data_source_name == "one_step_tendencies":
-        data_source_offline_config = _one_step_offline_diags_config()
+        return _one_step_offline_diags_config()
     elif data_source_name == "nudging_tendencies":
         data_source_offline_config = _nudging_offline_diags_config(
             C48_SHiELD_diags_dataset_path
@@ -353,7 +293,6 @@ def data_source_offline_config(data_source_name, C48_SHiELD_diags_dataset_path):
         )
     else:
         raise NotImplementedError()
-    return data_source_offline_config
 
 
 @pytest.fixture
@@ -361,39 +300,12 @@ def prediction_mapper(
     mock_model, data_source_name, data_source_path, data_source_offline_config
 ):
 
-    if data_source_name != "fine_res_apparent_sources":
-        base_mapping_function = getattr(
-            mappers, data_source_offline_config["mapping_function"]
-        )
-        base_mapper = base_mapping_function(
-            data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
-        )
-    else:
-
-        # this function is a patch for the actual until synth is netcdf-compatible
-        fine_res_ds = xr.open_zarr(data_source_path)
-        time_mapper = {
-            fine_res_ds.time.values[0]: (fine_res_ds.isel(time=0)),
-            fine_res_ds.time.values[1]: (fine_res_ds.isel(time=1)),
-        }
-        base_mapper = FineResolutionSources(
-            time_mapper,
-            rename_vars=data_source_offline_config["mapping_kwargs"]["rename_vars"],
-            dim_order=data_source_offline_config["mapping_kwargs"]["dim_order"],
-        )
-        if (
-            data_source_offline_config["mapping_kwargs"].get("shield_diags_url")
-            is not None
-        ):
-            shield_diags_mapper = mappers.open_high_res_diags(
-                data_source_offline_config["mapping_kwargs"]["shield_diags_url"]
-            )
-            base_mapper = MergeOverlappingData(
-                shield_diags_mapper,
-                base_mapper,
-                source_name_left="coarsened_SHiELD",
-                source_name_right="coarse_FV3GFS",
-            )
+    base_mapping_function = getattr(
+        mappers, data_source_offline_config["mapping_function"]
+    )
+    base_mapper = base_mapping_function(
+        data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
+    )
 
     prediction_mapper = SklearnPredictionMapper(
         base_mapper,
