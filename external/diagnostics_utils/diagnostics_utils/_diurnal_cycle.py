@@ -34,17 +34,27 @@ def create_diurnal_cycle_dataset(
         diurnal_vars: variables to compute diurnal cycle on
         n_bins: Number bins for the 24 hr period. Defaults to 24.
         time_dim: Name of time dim in dataset. Defaults to "time".
+        flatten_dims: Names of dimensions that are flattened before taking means.        
 
     Raises:
         ValueError: There can be at most one extra dimension along which to
         compute separate diurnal cycles for variable.
     Returns:
         Dataset with coords {"surface_type": surface type, "local_time_hr": time bins}.
-        If there are "target"/"predict" coords for some variables, the output for those
-        variables will also have this coordinate along the "derivation" dim.
-        Data array values are the variable mean within each time bin.
+        If an additional dimension is present in test data for some variables
+        (e.g. "derivation" for target/prediction), the diurnal cycle for those variables
+        will also have keep coordinates along this dimension.
+        Data array values are the variable mean within the time bin that *starts* at the
+        coordinate for "local_time_hr".
     """
     var_sfc = VARNAMES["surface_type"]
+    if var_sfc not in ds.data_vars:
+        print(list(ds.data_vars))
+        raise KeyError(
+            f"Land sea mask data variable '{var_sfc}' is not present in the dataset. "
+            "If this variable is not in the raw test data, make sure that the mapper "
+            "function used to load data is adding this variable to the test data."
+        )
     domain_datasets = {
         "global": _calc_diurnal_vars_with_extra_dims(
             ds, longitude, diurnal_vars, n_bins, time_dim, flatten_dims)
