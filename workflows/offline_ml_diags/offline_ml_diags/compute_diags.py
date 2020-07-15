@@ -9,7 +9,7 @@ import sys
 from tempfile import NamedTemporaryFile
 import xarray as xr
 import yaml
-from typing import Mapping
+from typing import Mapping, Sequence, Tuple
 
 import diagnostics_utils as utils
 import loaders
@@ -85,6 +85,38 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
     return metrics
 
 
+def _compute_diags_over_batches(
+    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset
+) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
+    """Return a set of diagnostic datasets from a sequence of batched data"""
+
+    batches_diags, batches_diurnal, batches_metrics = [], [], []
+    # for each batch...
+    for i, ds in enumerate(ds_batches):
+        logger.info(f"Working on batch {i} diagnostics ...")
+        # ...insert additional variables
+        ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
+            utils.insert_column_integrated_vars
+        )
+        # ...reduce to diagnostic variables
+        ds_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
+        # ...compute diurnal cycles
+        ds_diurnal = utils.create_diurnal_cycle_dataset(ds, grid["lon"], DIURNAL_VARS,)
+        # ...compute metrics
+        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]]))
+        batches_diags.append(ds_diagnostic)
+        batches_diurnal.append(ds_diurnal)
+        batches_metrics.append(ds_metrics)
+        logger.info(f"Processed batch {i} diagnostics netcdf output.")
+
+    # then average over the batches for each output
+    ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
+    ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
+    ds_metrics = xr.concat(batches_metrics, dim="batch").mean(dim="batch")
+
+    return ds_diagnostics, ds_diurnal, ds_metrics
+
+
 if __name__ == "__main__":
 
     logger.info("Starting diagnostics routine.")
@@ -121,30 +153,10 @@ if __name__ == "__main__":
         pred_mapper, config["variables"], **config["batch_kwargs"],
     )
 
-    # netcdf of diagnostics, ex. time avg'd ML-predicted quantities
-    batches_diags, batches_diurnal, batches_metrics = [], [], []
-    # for each batch...
-    for i, ds in enumerate(ds_batches):
-        logger.info(f"Working on batch {i} diagnostics ...")
-        # ...insert additional variables
-        ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
-            utils.insert_column_integrated_vars
-        )
-        # ...reduce to diagnostic variables
-        ds_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
-        # ...compute diurnal cycles
-        ds_diurnal = utils.create_diurnal_cycle_dataset(ds, grid["lon"], DIURNAL_VARS,)
-        # ...compute metrics
-        ds_metrics = calc_metrics(xr.merge([ds, grid["area"]]))
-        batches_diags.append(ds_diagnostic)
-        batches_diurnal.append(ds_diurnal)
-        batches_metrics.append(ds_metrics)
-        logger.info(f"Processed batch {i} diagnostics netcdf output.")
-
-    # then average over the batches for each output
-    ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
-    ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
-    ds_metrics = xr.concat(batches_metrics, dim="batch").mean(dim="batch")
+    # compute diags
+    ds_diagnostics, ds_diurnal, ds_metrics = _compute_diags_over_batches(
+        ds_batches, grid
+    )
 
     # write diags and diurnal datasets
     _write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
