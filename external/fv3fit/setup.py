@@ -12,12 +12,12 @@ with open("HISTORY.md") as history_file:
     history = history_file.read()
 
 requirements = [
-    "xarray",
-    "numpy",
-    "scikit-learn",
+    "xarray>=0.14",
+    "numpy>=1.11",
+    "scikit-learn>=0.22",
     "loaders",
-    "fsspec",
-    "yaml",
+    "fsspec>=0.6.2",
+    "pyyaml>=5.1.2",
     "report",  # sklearn uses these to save reports
     "gallery",
     "vcm",
