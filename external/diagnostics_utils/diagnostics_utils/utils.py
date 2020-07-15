@@ -9,7 +9,7 @@ logging.getLogger(__name__)
 
 UNINFORMATIVE_COORDS = ["tile", "z", "y", "x"]
 TIME_DIM = "time"
-PRIMARY_VARS = ["dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2"]
+PRIMARY_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
 
 
 def reduce_to_diagnostic(
@@ -79,21 +79,22 @@ def insert_column_integrated_vars(
     return ds
 
 
-def insert_Q_terms(ds: xr.Dataset) -> xr.DataArray:
-    """Inserts Q terms as the sum of dQ and pQ terms, assumed to be present in
+def insert_total_apparent_sources(ds: xr.Dataset) -> xr.Dataset:
+    """Inserts apparent source (Q) terms as the sum of dQ and pQ, assumed to be present in
     dataset ds
     """
     return ds.assign(
         {
-            Q_term_name: da
-            for Q_term_name, da in zip(
-                ("Q1", "Q2"), _Q_terms(ds["dQ1"], ds["dQ2"], ds["pQ1"], ds["pQ2"])
+            total_apparent_sources_name: da
+            for total_apparent_sources_name, da in zip(
+                ("Q1", "Q2"),
+                _total_apparent_sources(ds["dQ1"], ds["dQ2"], ds["pQ1"], ds["pQ2"]),
             )
         }
     )
 
 
-def _Q_terms(
+def _total_apparent_sources(
     dQ1: xr.DataArray, dQ2: xr.DataArray, pQ1: xr.DataArray, pQ2: xr.DataArray
 ) -> Tuple[xr.DataArray, xr.DataArray]:
 

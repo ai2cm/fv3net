@@ -14,6 +14,7 @@ from fv3net.regression.sklearn import train
 from fv3net.regression.sklearn._mapper import SklearnPredictionMapper
 from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags._metrics import calc_metrics
+from offline_ml_diags.compute_diags import _average_metrics_dict
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,6 @@ DIURNAL_VARS = [
     "column_integrated_Q2",
 ]
 OUTPUT_NC_NAME = "diagnostics.nc"
-TIME_DIM = "time"
 
 
 @pytest.fixture
@@ -62,30 +62,23 @@ def test_compute_training_diags(
     training_data_diags_config,
     grid_dataset,
 ):
-    one_step_physics_off_training_diags_config = get_data_source_training_diags_config(
+    physics_off_config = get_data_source_training_diags_config(
         training_data_diags_config, "one_step_physics-off"
     )
-    one_step_clouds_off_training_diags_config = get_data_source_training_diags_config(
+    clouds_off_config = get_data_source_training_diags_config(
         training_data_diags_config, "one_step_clouds-off"
     )
-    nudging_training_diags_config = get_data_source_training_diags_config(
+    nudging_config = get_data_source_training_diags_config(
         training_data_diags_config, "nudging_tendencies"
     )
-
     fine_res_config = get_data_source_training_diags_config(
         training_data_diags_config, "fine_res_apparent_sources"
     )
 
     data_config_mapping = {
-        "one_step_physics-off": (
-            one_step_dataset_path,
-            one_step_physics_off_training_diags_config,
-        ),
-        "one_step_clouds-off": (
-            one_step_dataset_path,
-            one_step_clouds_off_training_diags_config,
-        ),
-        "nudging_tendencies": (nudging_dataset_path, nudging_training_diags_config),
+        "one_step_physics-off": (one_step_dataset_path, physics_off_config,),
+        "one_step_clouds-off": (one_step_dataset_path, clouds_off_config,),
+        "nudging_tendencies": (nudging_dataset_path, nudging_config),
         "fine_res_apparent_sources": (fine_res_dataset_path, fine_res_config),
     }
 
@@ -105,8 +98,10 @@ def test_compute_training_diags(
             mapping_kwargs=data_source_config["mapping_kwargs"],
             **batch_kwargs,
         )
-        ds = xr.concat(ds_batches, dim=TIME_DIM)
-        ds = ds.pipe(utils.insert_Q_terms).pipe(utils.insert_column_integrated_vars)
+        ds = xr.concat(ds_batches, dim="time")
+        ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
+            utils.insert_column_integrated_vars
+        )
         ds_diagnostic = utils.reduce_to_diagnostic(ds, grid_dataset, domains=DOMAINS)
         diagnostic_datasets[data_source_name] = ds_diagnostic
 
@@ -293,31 +288,34 @@ def diagnostic_batches(prediction_mapper, data_source_offline_config):
 def test_compute_offline_diags(
     offline_diags_reference_schema, diagnostic_batches, grid_dataset
 ):
+    """ This test routine is copied almost verbatim from
+    workflows/offline_ml_diags/offline_ml_diags/compute_diags.py"""
     batches_diags, batches_diurnal, batches_metrics = [], [], []
+    # for each batch...
     for i, diagnostic_batch in enumerate(diagnostic_batches):
-        diagnostic_batch = diagnostic_batch.pipe(utils.insert_Q_terms).pipe(
-            utils.insert_column_integrated_vars
-        )
+        # ...insert additional variables
+        diagnostic_batch = diagnostic_batch.pipe(
+            utils.insert_total_apparent_sources
+        ).pipe(utils.insert_column_integrated_vars)
+        # ...reduce to diagnostic variables
         ds_diagnostic = utils.reduce_to_diagnostic(
             diagnostic_batch, grid_dataset, domains=DOMAINS
         )
+        # ...compute diurnal cycles
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             diagnostic_batch, grid_dataset["lon"], DIURNAL_VARS,
         )
+        # ...compute metrics
         ds_metric = calc_metrics(xr.merge([diagnostic_batch, grid_dataset["area"]]))
-    batches_diags.append(ds_diagnostic)
-    batches_diurnal.append(ds_diurnal)
-    batches_metrics.append(ds_metric)
+        batches_diags.append(ds_diagnostic)
+        batches_diurnal.append(ds_diurnal)
+        batches_metrics.append(ds_metric)
+    # then average over the batches for each output
     ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
     ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
     ds_metrics = xr.concat(batches_metrics, dim="batch").mean(dim="batch")
-    metrics = {
-        var: {
-            "mean": np.mean(ds_metrics[var].values),
-            "std": np.std(ds_metrics[var].values),
-        }
-        for var in ds_metrics.data_vars
-    }
+    # convert metrics to dict
+    metrics = _average_metrics_dict(ds_metrics)
 
     # TODO standardize schema encoding in synth to avoid the casting that makes
     # the following lines necessary

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# MODEL=gs://vcm-ml-scratch/annak/sklearn_train/one_step/sklearn_model.pkl
 MODEL=gs://vcm-ml-scratch/annak/sklearn_train/one_step/sklearn_model.pkl
 OUTPUT=gs://vcm-ml-scratch/annak/test-offline-validation-workflow/one_step/
 

@@ -5,7 +5,7 @@ import xarray as xr
 
 from .wrapper import SklearnWrapper
 from loaders.mappers import GeoMapper
-from loaders import SAMPLE_DIM_NAME, DERIVATION_DIM, load_grid
+from loaders import SAMPLE_DIM_NAME, DERIVATION_DIM
 
 PREDICT_COORD = "predict"
 TARGET_COORD = "target"
@@ -20,14 +20,14 @@ class SklearnPredictionMapper(GeoMapper):
         z_dim: str = "z",
         rename_vars: Mapping[str, str] = None,
         cos_z_var: str = None,
+        grid: xr.Dataset = None,
     ):
         self._base_mapper = base_mapper
         self._model = sklearn_wrapped_model
         self._init_time_dim = init_time_dim
         self._z_dim = z_dim
         self._cos_z_var = cos_z_var
-        if self._cos_z_var:
-            self._grid = load_grid(res="c48")
+        self._grid = grid
         self.rename_vars = rename_vars or {}
 
     def _predict(self, ds: xr.Dataset) -> xr.Dataset:
@@ -75,7 +75,7 @@ class SklearnPredictionMapper(GeoMapper):
 
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._base_mapper[key]
-        if self._cos_z_var:
+        if self._cos_z_var and self._grid:
             ds = self._insert_cos_zenith_angle(key, ds)
         ds_prediction = self._predict(ds)
         return self._insert_prediction(ds, ds_prediction)
