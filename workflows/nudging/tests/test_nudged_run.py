@@ -3,18 +3,20 @@ import yaml
 import subprocess
 from pathlib import Path
 
+import fv3config
+
 # need to check if fv3gfs exists in a subprocess, importing fv3gfs into this module
 # causes tests to fail. Not sure why.
 # See https://github.com/VulcanClimateModeling/fv3gfs-python/issues/79
 # - noah
-FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
-with_fv3gfs = pytest.mark.skipif(not FV3GFS_INSTALLED, reason="fv3gfs not installed")
+# FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
+# with_fv3gfs = pytest.mark.skipif(not FV3GFS_INSTALLED, reason="fv3gfs not installed")
 
-PREP_CONFIG_PY = Path(__file__).parent.joinpath("prepare_config.py").as_posix()
-RUNFILE_PY = Path(__file__).parent.joinpath("runfile.py").as_posix()
+PREP_CONFIG_PY = Path(__file__).parent.parent.joinpath("prepare_config.py").as_posix()
+RUNFILE_PY = Path(__file__).parent.parent.joinpath("runfile.py").as_posix()
 
 native_data_path = "/inputdata/fv3config-cache/gs/vcm-fv3config/vcm-fv3config/"
-default_config = f"""
+default_config = fr"""
 base_version: v0.4
 forcing: {native_data_path}/data/base_forcing/v1.1
 initial_conditions: {native_data_path}/data/initial_conditions/c12_restart_initial_conditions/v1.0
@@ -54,13 +56,13 @@ def nudge_config(tmpdir):
 
     config_file = tmpdir.join("nudging_config.yaml")
     with open(config_file, "w") as f:
-        yaml.dump(default_config, f)
+        f.write(default_config)
 
-    result = subprocess.run(["python", PREP_CONFIG_PY, config_file])
+    result = subprocess.run(["python", PREP_CONFIG_PY, str(config_file)], capture_output=True)
 
     return yaml.safe_load(result.stdout)
 
 
 @pytest.mark.regression
-def prepare_configuration(nudge_config):
-    pass
+def test_nudge_run(nudge_config, tmpdir):
+    fv3config.run_native(nudge_config, str(tmpdir), capture_output=False)
