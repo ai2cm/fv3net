@@ -31,3 +31,6 @@ do
     conda develop .
   )
 done
+
+# install fv3util
+pip install git+ssh://git@github.com/VulcanClimateModeling/fv3gfs-python.git#subdirectory=external/fv3util
