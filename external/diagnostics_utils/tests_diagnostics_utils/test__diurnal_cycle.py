@@ -8,6 +8,7 @@ from diagnostics_utils._diurnal_cycle import (
     bin_diurnal_cycle,
     create_diurnal_cycle_dataset,
     DIURNAL_CYCLE_DIM,
+    SURFACE_TYPE_DIM
 )
 
 ADDITIONAL_DIM = "additional_dim"
@@ -33,7 +34,6 @@ def ds(request):
         dims=["time", "x"],
         coords={"x": [0, 1], "time": time_coords},
     ).rename("test_var")
-
     da_additional_dim = xr.DataArray(
         [
             [i * np.array(values) for time in time_coords]
@@ -42,8 +42,15 @@ def ds(request):
         dims=[ADDITIONAL_DIM, "time", "x"],
         coords={"x": [0, 1], "time": time_coords, ADDITIONAL_DIM: ADDITIONAL_COORDS},
     ).rename("test_var_additional_dim")
-
-    return xr.Dataset({"test_var": da, "test_var_additional_dim": da_additional_dim})
+    sfc_type = xr.DataArray(
+        [0, 1],
+        dims=["x"],
+        coords={"x": [0, 1]},
+    ).rename(SURFACE_TYPE_DIM)
+    return xr.Dataset({
+        "test_var": da,
+        "test_var_additional_dim": da_additional_dim,
+        "land_sea_mask": sfc_type})
 
 
 @pytest.mark.parametrize(
@@ -85,10 +92,11 @@ def test_create_diurnal_cycle_dataset_correct_dims(ds, da_lon):
     ds_diurnal = create_diurnal_cycle_dataset(
         ds, da_lon, diurnal_vars=["test_var", "test_var_additional_dim"]
     )
-    assert set(ds_diurnal["test_var"].dims) == {DIURNAL_CYCLE_DIM}
+    assert set(ds_diurnal["test_var"].dims) == {DIURNAL_CYCLE_DIM, SURFACE_TYPE_DIM}
     assert set(ds_diurnal["test_var_additional_dim"].dims) == {
         DIURNAL_CYCLE_DIM,
         ADDITIONAL_DIM,
+        SURFACE_TYPE_DIM,
     }
     assert set(ds_diurnal[ADDITIONAL_DIM].values) == set(ADDITIONAL_COORDS)
 
