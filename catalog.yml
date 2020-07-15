@@ -145,6 +145,16 @@ sources:
         access: read_only
       urlpath: "gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
       consolidated: True
+      
+  40day_c48_gfsphysics_15min_may2020:
+    description: Set of physics diagnostic variables to compute net heating and precipitation, for 40-day nudged simulation at C48 resolution (May 27 2020 SHiELD)
+    driver: zarr
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-experiments/2020-06-17-triad-round-1/coarsen-c384-diagnostics/coarsen_diagnostics/gfsphysics_15min_coarse.zarr"
+      consolidated: True
 
   GFS_analysis_T85_2015_2016:
     description: 4x daily GFS analysis data at approximately 2deg resolution, typically used for nudging FV3GFS. Spans 2015-01-01T00:00:00 to 2017-01-01T00:00:00.
