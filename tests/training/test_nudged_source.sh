@@ -7,6 +7,6 @@ gsutil -m rm -r $OUTPUT
 
 python -m fv3net.regression.sklearn \
     $TRAINING_DATA \
-    tests/training/train_sklearn_model_nudged_source.yaml  \
+    tests/training/test_training_regression/train_sklearn_model_nudged_source.yaml  \
     $OUTPUT \
     --no-train-subdir-append
