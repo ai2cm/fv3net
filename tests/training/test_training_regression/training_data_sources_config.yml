@@ -1,12 +1,3 @@
-variables:
-  - dQ1
-  - dQ2
-  - pQ1 
-  - pQ2
-  - pressure_thickness_of_atmospheric_layer
-batch_kwargs:
-  timesteps_per_batch: 1
-  timesteps: ['20160805.084500']
 sources:
   one_step_physics-off: 
     path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/one-step-physics-off/create_training_data/train

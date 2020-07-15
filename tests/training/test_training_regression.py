@@ -84,9 +84,13 @@ def test_compute_training_diags(
         "fine_res_apparent_sources": (fine_res_dataset_path, fine_res_config),
     }
 
-    variable_names = training_data_diags_config["variables"]
-    batch_kwargs = training_data_diags_config["batch_kwargs"]
-    del batch_kwargs["timesteps"]
+    variable_names = [
+        "dQ1",
+        "dQ2",
+        "pQ1",
+        "pQ2",
+        "pressure_thickness_of_atmospheric_layer",
+    ]
 
     diagnostic_datasets = {}
     for (
@@ -98,7 +102,7 @@ def test_compute_training_diags(
             variable_names,
             mapping_function=data_source_config["mapping_function"],
             mapping_kwargs=data_source_config["mapping_kwargs"],
-            **batch_kwargs,
+            timesteps_per_batch=1,
         )
         ds = xr.concat(ds_batches, dim="time")
         ds = ds.pipe(utils.insert_total_apparent_sources).pipe(

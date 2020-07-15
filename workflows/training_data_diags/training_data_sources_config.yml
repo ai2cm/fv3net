@@ -8,14 +8,11 @@ batch_kwargs:
   timesteps_per_batch: 1
   timesteps: ['20160805.084500']
 sources:
-  one_step_physics-off: 
-    path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/one-step-physics-off/create_training_data/train
+  one_step_tendencies: 
+    path: gs://vcm-ml-experiments/2020-04-22-advisory-council/deep-shallow-mp-off-clearsky/create_training_data/train
     mapping_function: open_one_step
-  one_step_clouds-off: 
-    path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/one-step-clouds-off/create_training_data/train
-    mapping_function: open_one_step
-  nudging_tendencies:
-    path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/outdir-3h
+  nudging_tendencies: 
+    path: gs://vcm-ml-data/mcgibbon-testing
     mapping_function: open_merged_nudged_full_tendencies
     mapping_kwargs:
       open_checkpoints_kwargs: 
@@ -31,4 +28,4 @@ sources:
         delp: pressure_thickness_of_atmospheric_layer
         pfull: z
         grid_xt: x
-        grid_yt: y 
+        grid_yt: y
