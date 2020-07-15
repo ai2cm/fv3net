@@ -7,7 +7,7 @@ import xarray as xr
 import fv3util
 
 
-class DerivedVariableGetter:
+class DerivedFV3State:
     """A uniform mapping-like interface to the FV3GFS model state
     
     This class provides two features
@@ -70,7 +70,7 @@ class DerivedVariableGetter:
         )
 
 
-@DerivedVariableGetter.register("cos_zenith_angle")
+@DerivedFV3State.register("cos_zenith_angle")
 def cos_zenith_angle(self):
     return xr.apply_ufunc(
         lambda lon, lat: vcm.cos_zenith_angle(self.time, lon, lat),

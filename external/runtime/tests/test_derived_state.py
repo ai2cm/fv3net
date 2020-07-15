@@ -31,50 +31,50 @@ class MockFV3GFS:
             assert isinstance(value, fv3util.Quantity)
 
 
-def test_DerivedVariableGetter():
+def test_DerivedFV3State():
     fv3gfs = MockFV3GFS()
-    getter = runtime.DerivedVariableGetter(fv3gfs)
+    getter = runtime.DerivedFV3State(fv3gfs)
     assert isinstance(getter["longitude"], xr.DataArray)
 
 
-def test_DerivedVariableGetter_cos_zenith():
+def test_DerivedFV3State_cos_zenith():
     fv3gfs = MockFV3GFS()
-    getter = runtime.DerivedVariableGetter(fv3gfs)
+    getter = runtime.DerivedFV3State(fv3gfs)
     output = getter["cos_zenith_angle"]
     assert isinstance(output, xr.DataArray)
 
 
-def test_DerivedVariableGetter_time():
+def test_DerivedFV3State_time():
     fv3gfs = MockFV3GFS()
-    getter = runtime.DerivedVariableGetter(fv3gfs)
+    getter = runtime.DerivedFV3State(fv3gfs)
     assert isinstance(getter.time, datetime)
 
 
-def test_DerivedVariableGetter_setitem():
+def test_DerivedFV3State_setitem():
     fv3gfs = MockFV3GFS()
-    getter = runtime.DerivedVariableGetter(fv3gfs)
+    getter = runtime.DerivedFV3State(fv3gfs)
     item = xr.DataArray([1.0], dims=["x"], attrs={"units": "m"})
     getter["a"] = item
 
 
-def test_DerivedVariableGetter_getitem_time_raises():
+def test_DerivedFV3State_getitem_time_raises():
     fv3gfs = MockFV3GFS()
-    getter = runtime.DerivedVariableGetter(fv3gfs)
+    getter = runtime.DerivedFV3State(fv3gfs)
     with pytest.raises(KeyError):
         getter["time"]
 
 
-def test_DerivedVariableGetter_register():
+def test_DerivedFV3State_register():
     fv3gfs = MockFV3GFS()
 
     def xarray_func(arr):
         return arr * 1.25
 
-    @runtime.DerivedVariableGetter.register("mock")
+    @runtime.DerivedFV3State.register("mock")
     def mock(self):
         return xarray_func(self["latitude"])
 
-    getter = runtime.DerivedVariableGetter(fv3gfs)
+    getter = runtime.DerivedFV3State(fv3gfs)
 
     latitude = getter["latitude"]
     expected = xarray_func(latitude)

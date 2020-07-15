@@ -124,7 +124,7 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
-    state_mapping = runtime.DerivedVariableGetter(fv3gfs)
+    state_mapping = runtime.DerivedFV3State(fv3gfs)
 
     # change into run directoryy
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
