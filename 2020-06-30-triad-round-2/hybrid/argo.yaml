@@ -1,0 +1,150 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: hybrid-
+spec:
+  serviceAccountName: integration-tests
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
+  entrypoint: main
+  volumeClaimTemplates:
+    - metadata:
+        name: output-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1333Gi
+  volumes:
+    - name: restart-data
+      persistentVolumeClaim:
+        claimName: '{{workflow.parameters.restart-pvc}}'
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+  - name: main
+    dag:
+      tasks:
+      - name: nudging
+        templateRef:
+          name: nudging
+          template: nudging
+        arguments:
+          parameters:
+          - name: fv3net-image
+            value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
+          - name: times
+            value: "{{workflow.parameters.nudging-times}}"
+          - name: restart-volume
+            value: restart-data
+          - name: working-volume
+            value: output-data
+          - name: output-url
+            value: "{{workflow.parameters.root}}/nudging"
+          - name: nudging-config
+            value: "{{workflow.parameters.nudging-config}}"
+      - name: train-model
+        dependencies: [nudging]
+        template: train-model
+        arguments:
+          parameters:
+            - name: image
+              value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
+            - name: fine-res
+              value: "{{workflow.parameters.fine-res}}"
+            - name: nudging
+              value: "{{workflow.parameters.root}}/nudging"
+            - name: times
+              value: "{{workflow.parameters.train-times}}"
+            - name: output
+              value: "{{workflow.parameters.root}}/trained-model"
+      - name: prognostic-run
+        dependencies: [train-model]
+        templateRef:
+          name: prognostic-run
+          template: prognostic-run
+        arguments:
+          parameters:
+              - name: image-tag
+                value: "{{workflow.parameters.image-tag}}"
+              - name: initial-condition
+                value: "{{workflow.parameters.initial-condition}}"
+              - name: config
+                value: "{{workflow.parameters.prognostic-run-config}}"
+              - name: reference-restarts
+                value: "{{workflow.parameters.reference-restarts}}"
+              - name: trained-ml
+                value: "{{workflow.parameters.root}}/trained-model"
+              - name: output
+                value: "{{workflow.parameters.root}}/prognostic_run"
+
+    # The training is still somewhat bespoke since it uses a heredoc
+    # and only works with this hybrid approach
+  - name: train-model
+    inputs:
+      parameters:
+        - {name: image}
+        - {name: fine-res}
+        - {name: nudging}
+        - {name: times}
+        - {name: output}
+    container:
+      image: "{{inputs.parameters.image}}"
+      command: ["bash", "-c", "-x"]
+      env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
+        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+          value: /secret/gcp-credentials/key.json
+      volumeMounts:
+        - mountPath: /secret/gcp-credentials
+          name: gcp-key-secret
+      args:
+        - |
+          # Put config in a HEREDOC
+          cat <<EOF >config.yaml
+          model_type: sklearn_random_forest
+          hyperparameters:
+            max_depth: 13
+            n_estimators: 1
+          input_variables:
+          - air_temperature
+          - specific_humidity
+          output_variables:
+          - dQ1
+          - dQ2
+          batch_function: batches_from_geodata
+          batch_kwargs:
+            timesteps_per_batch: 10
+            init_time_dim_name: "initial_time"
+            mapping_function: open_fine_resolution_nudging_hybrid
+            mapping_kwargs:
+              nudging:
+                offset_seconds: -900
+                nudging_url: {{inputs.parameters.nudging}}
+              fine_res:
+                offset_seconds: 450
+                fine_res_url: {{inputs.parameters.fine-res}}
+          EOF
+          
+          cat << EOF > times.json
+          {{inputs.parameters.times}}
+          EOF
+  
+          python -m fv3net.regression.sklearn \
+            "ignored-argument" \
+            config.yaml \
+            {{inputs.parameters.output}} \
+            --timesteps-file times.json \
+            --no-train-subdir-append
+      resources:
+        requests:
+          memory: "6Gi"
+          cpu: "1000m"
+        limits:
+          memory: "6Gi"
+          cpu: "1000m"
