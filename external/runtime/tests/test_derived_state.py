@@ -9,6 +9,9 @@ import pytest
 
 
 class MockFV3GFS:
+    def __init__(self):
+        self.set_state_called = False
+
     def get_state(self, names):
         # need this for the data to remain unchanged for equality tests
         np.random.seed(0)
@@ -27,6 +30,7 @@ class MockFV3GFS:
         return {name: state[name] for name in names}
 
     def set_state(self, data):
+        self.set_state_called = True
         for key, value in data.items():
             assert isinstance(value, fv3util.Quantity)
 
@@ -55,6 +59,7 @@ def test_DerivedFV3State_setitem():
     getter = runtime.DerivedFV3State(fv3gfs)
     item = xr.DataArray([1.0], dims=["x"], attrs={"units": "m"})
     getter["a"] = item
+    assert fv3gfs.set_state_called
 
 
 def test_DerivedFV3State_getitem_time_raises():
