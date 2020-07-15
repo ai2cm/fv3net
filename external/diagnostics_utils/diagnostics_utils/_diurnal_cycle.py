@@ -4,6 +4,9 @@ from scipy.stats import binned_statistic
 from typing import Sequence
 import xarray as xr
 
+from .config import VARNAMES
+from .utils import snap_mask_to_type
+
 FLATTEN_DIMS = [
     "time",
     "x",
@@ -11,9 +14,59 @@ FLATTEN_DIMS = [
     "tile",
 ]
 DIURNAL_CYCLE_DIM = "local_time_hr"
+SURFACE_TYPE_DIM = "surface_type"
 
 
 def create_diurnal_cycle_dataset(
+    ds: xr.Dataset,
+    longitude: xr.DataArray,
+    diurnal_vars: Sequence[str],
+    n_bins: int = 24,
+    time_dim: str = "time",
+    flatten_dims: Sequence[str] = FLATTEN_DIMS,
+) -> xr.Dataset:
+    """ Concats diurnal cycles for surface types and keeps additional dims
+    if applicable.
+
+    Args:
+        ds: input dataset
+        longitude: dataarray of lon values
+        diurnal_vars: variables to compute diurnal cycle on
+        n_bins: Number bins for the 24 hr period. Defaults to 24.
+        time_dim: Name of time dim in dataset. Defaults to "time".
+
+    Raises:
+        ValueError: There can be at most one extra dimension along which to
+        compute separate diurnal cycles for variable.
+    Returns:
+        Dataset with coords {"surface_type": surface type, "local_time_hr": time bins}.
+        If there are "target"/"predict" coords for some variables, the output for those
+        variables will also have this coordinate along the "derivation" dim.
+        Data array values are the variable mean within each time bin.
+    """
+    var_sfc = VARNAMES["surface_type"]
+    domain_datasets = {
+        "global": _calc_diurnal_vars_with_extra_dims(
+            ds, longitude, diurnal_vars, n_bins, time_dim, flatten_dims)
+    }
+    ds[var_sfc] = snap_mask_to_type(ds[var_sfc])
+    for surface_type in ["land", "sea"]:
+        domain_datasets[surface_type] = _calc_diurnal_vars_with_extra_dims(
+            ds.where(ds[var_sfc] == surface_type),
+            longitude,
+            diurnal_vars,
+            n_bins,
+            time_dim,
+            flatten_dims,
+        )
+    domains, datasets = [], []
+    for key, value in domain_datasets.items():
+        domains.append(key)
+        datasets.append(value)
+    return xr.concat(datasets, dim=pd.Index(domains, name=SURFACE_TYPE_DIM))
+
+
+def _calc_diurnal_vars_with_extra_dims(
     ds: xr.Dataset,
     longitude: xr.DataArray,
     diurnal_vars: Sequence[str],
@@ -115,7 +168,7 @@ def _bin_diurnal_cycle(
     bin_means = binned_statistic(
         local_time.values.flatten(),
         da_var.values.flatten(),
-        statistic="mean",
+        statistic=np.nanmean,
         bins=bins,
     ).statistic
     return bin_means
