@@ -31,17 +31,19 @@ OUTPUT_NC_NAME = "diagnostics.nc"
 
 
 @pytest.fixture
-def training_diags_reference_schema():
-
-    with open("./tests/training/training_diags_reference.json") as f:
+def training_diags_reference_schema(datadir_module):
+    with open(
+        os.path.join(str(datadir_module), "training_diags_reference.json"), "r"
+    ) as f:
         reference_output_schema = synth.load(f)
         yield reference_output_schema
 
 
 @pytest.fixture
-def training_data_diags_config():
-    path = "./workflows/training_data_diags/training_data_sources_config.yml"
-    with open(path, "r") as f:
+def training_data_diags_config(datadir_module):
+    with open(
+        os.path.join(str(datadir_module), "training_data_sources_config.yml"), "r"
+    ) as f:
         yield yaml.safe_load(f)
 
 
@@ -121,50 +123,53 @@ def test_compute_training_diags(
     assert training_diags_reference_schema == diags_output_schema
 
 
-def _one_step_train_config():
-    path = "./tests/training/train_sklearn_model_onestep_source.yml"
-    with open(path, "r") as f:
+def _one_step_train_config(datadir_module):
+    with open(
+        os.path.join(str(datadir_module), "train_sklearn_model_onestep_source.yml"), "r"
+    ) as f:
         config = yaml.safe_load(f)
     return train.ModelTrainingConfig(**config)
 
 
 @pytest.fixture
-def one_step_train_config():
-    return _one_step_train_config()
+def one_step_train_config(datadir_module):
+    return _one_step_train_config(datadir_module)
 
 
-def _nudging_train_config():
-    path = "./tests/training/train_sklearn_model_nudged_source.yaml"
-    with open(path, "r") as f:
+def _nudging_train_config(datadir_module):
+    with open(
+        os.path.join(str(datadir_module), "train_sklearn_model_nudged_source.yml"), "r"
+    ) as f:
         config = yaml.safe_load(f)
     return train.ModelTrainingConfig(**config)
 
 
 @pytest.fixture
-def nudging_train_config():
-    return _nudging_train_config()
+def nudging_train_config(datadir_module):
+    return _nudging_train_config(datadir_module)
 
 
-def _fine_res_train_config():
-    path = "./tests/training/train_sklearn_model_fineres_source.yml"
-    with open(path, "r") as f:
+def _fine_res_train_config(datadir_module):
+    with open(
+        os.path.join(str(datadir_module), "train_sklearn_model_fineres_source.yml"), "r"
+    ) as f:
         config = yaml.safe_load(f)
     return train.ModelTrainingConfig(**config)
 
 
 @pytest.fixture
-def fine_res_train_config():
-    return _fine_res_train_config()
+def fine_res_train_config(datadir_module):
+    return _fine_res_train_config(datadir_module)
 
 
 @pytest.fixture
-def data_source_train_config(data_source_name):
+def data_source_train_config(data_source_name, datadir_module):
     if data_source_name == "one_step_tendencies":
-        data_source_train_config = _one_step_train_config()
+        data_source_train_config = _one_step_train_config(datadir_module)
     elif data_source_name == "nudging_tendencies":
-        data_source_train_config = _nudging_train_config()
+        data_source_train_config = _nudging_train_config(datadir_module)
     elif data_source_name == "fine_res_apparent_sources":
-        data_source_train_config = _fine_res_train_config()
+        data_source_train_config = _fine_res_train_config(datadir_module)
     else:
         raise NotImplementedError()
     return data_source_train_config
@@ -184,15 +189,15 @@ def test_sklearn_regression(training_batches, data_source_train_config):
 
 
 @pytest.fixture
-def offline_diags_reference_schema(data_source_name):
+def offline_diags_reference_schema(data_source_name, datadir_module):
 
     if data_source_name != "fine_res_apparent_sources":
-        reference_schema_file = "./tests/training/offline_diags_reference.json"
+        reference_schema_file = "offline_diags_reference.json"
     else:
-        reference_schema_file = "./tests/training/offline_diags_reference_fine_res.json"
+        reference_schema_file = "offline_diags_reference_fine_res.json"
 
     # test against reference
-    with open(reference_schema_file) as f:
+    with open(os.path.join(str(datadir_module), reference_schema_file), "r") as f:
         reference_output_schema = synth.load(f)
         yield reference_output_schema
 
@@ -225,15 +230,21 @@ def mock_model():
 
 
 @pytest.fixture
-def data_source_offline_config(data_source_name):
+def data_source_offline_config(data_source_name, datadir_module):
     if data_source_name == "one_step_tendencies":
-        with open("./workflows/offline_ml_diags/tests/test_one_step_config.yml") as f:
+        with open(
+            os.path.join(str(datadir_module), "test_one_step_config.yml"), "r"
+        ) as f:
             return yaml.safe_load(f)
     elif data_source_name == "nudging_tendencies":
-        with open("./workflows/offline_ml_diags/tests/test_nudging_config.yml") as f:
+        with open(
+            os.path.join(str(datadir_module), "test_nudging_config.yml"), "r"
+        ) as f:
             return yaml.safe_load(f)
     elif data_source_name == "fine_res_apparent_sources":
-        with open("./workflows/offline_ml_diags/tests/test_fine_res_config.yml") as f:
+        with open(
+            os.path.join(str(datadir_module), "test_fine_res_config.yml"), "r"
+        ) as f:
             config = yaml.safe_load(f)
             del config["mapping_kwargs"]["offset_seconds"]
             return config

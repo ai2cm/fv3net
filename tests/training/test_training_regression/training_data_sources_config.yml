@@ -1,0 +1,34 @@
+variables:
+  - dQ1
+  - dQ2
+  - pQ1 
+  - pQ2
+  - pressure_thickness_of_atmospheric_layer
+batch_kwargs:
+  timesteps_per_batch: 1
+  timesteps: ['20160805.084500']
+sources:
+  one_step_physics-off: 
+    path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/one-step-physics-off/create_training_data/train
+    mapping_function: open_one_step
+  one_step_clouds-off: 
+    path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/one-step-clouds-off/create_training_data/train
+    mapping_function: open_one_step
+  nudging_tendencies:
+    path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/outdir-3h
+    mapping_function: open_merged_nudged_full_tendencies
+    mapping_kwargs:
+      open_checkpoints_kwargs: 
+        checkpoint_files: 
+          - after_dynamics.zarr
+          - after_physics.zarr
+  fine_res_apparent_sources: 
+    path: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget
+    mapping_function: open_fine_res_apparent_sources
+    mapping_kwargs:
+      offset_seconds: 450
+      rename_vars:
+        delp: pressure_thickness_of_atmospheric_layer
+        pfull: z
+        grid_xt: x
+        grid_yt: y 

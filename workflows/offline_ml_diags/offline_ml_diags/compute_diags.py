@@ -39,7 +39,6 @@ DIURNAL_VARS = [
 ]
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 METRICS_JSON_NAME = "metrics.json"
-MAX_TIMESTEPS = 50
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -104,7 +103,7 @@ if __name__ == "__main__":
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
-        config["batch_kwargs"]["timesteps"] = timesteps[:MAX_TIMESTEPS]
+        config["batch_kwargs"]["timesteps"] = timesteps
 
     base_mapping_function = getattr(loaders.mappers, config["mapping_function"])
     base_mapper = base_mapping_function(
