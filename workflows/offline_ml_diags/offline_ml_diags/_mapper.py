@@ -1,6 +1,6 @@
 from typing import Mapping
 
-from vcm import safe
+from vcm import safe, cast_to_datetime, cos_zenith_angle
 import xarray as xr
 
 from fv3fit.sklearn import SklearnWrapper
@@ -16,17 +16,21 @@ class SklearnPredictionMapper(GeoMapper):
         self,
         base_mapper: GeoMapper,
         sklearn_wrapped_model: SklearnWrapper,
-        init_time_dim: str = "initial_time",
+        init_time_dim: str = "time",
         z_dim: str = "z",
         rename_vars: Mapping[str, str] = None,
+        cos_z_var: str = None,
+        grid: xr.Dataset = None,
     ):
         self._base_mapper = base_mapper
         self._model = sklearn_wrapped_model
         self._init_time_dim = init_time_dim
         self._z_dim = z_dim
+        self._cos_z_var = cos_z_var
+        self._grid = grid
         self.rename_vars = rename_vars or {}
 
-    def _predict(self, ds):
+    def _predict(self, ds: xr.Dataset) -> xr.Dataset:
         if set(self._model.input_vars_).issubset(ds.data_vars) is False:
             missing_vars = [
                 var
@@ -42,12 +46,22 @@ class SklearnPredictionMapper(GeoMapper):
             ds_,
             SAMPLE_DIM_NAME,
             [dim for dim in ds_.dims if dim != self._z_dim],
-            allowed_broadcast_dims=[self._z_dim, self._init_time_dim],
+            allowed_broadcast_dims=[self._z_dim],
         )
         ds_pred = self._model.predict(ds_stacked, SAMPLE_DIM_NAME).unstack()
         return ds_pred.rename(self.rename_vars)
 
-    def _insert_prediction(self, ds, ds_pred):
+    def _insert_cos_zenith_angle(self, time_key: str, ds: xr.Dataset) -> xr.Dataset:
+        time = cast_to_datetime(time_key)
+        if self._grid is not None:
+            cos_z = cos_zenith_angle(time, self._grid["lon"], self._grid["lat"])
+            return ds.assign(
+                {self._cos_z_var: (self._grid["lon"].dims, cos_z)}  # type: ignore
+            )
+        else:
+            raise ValueError()
+
+    def _insert_prediction(self, ds: xr.Dataset, ds_pred: xr.Dataset) -> xr.Dataset:
         predicted_vars = ds_pred.data_vars
         nonpredicted_vars = [var for var in ds.data_vars if var not in predicted_vars]
         ds_target = (
@@ -64,6 +78,8 @@ class SklearnPredictionMapper(GeoMapper):
 
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._base_mapper[key]
+        if self._cos_z_var and self._grid:
+            ds = self._insert_cos_zenith_angle(key, ds)
         ds_prediction = self._predict(ds)
         return self._insert_prediction(ds, ds_prediction)
 

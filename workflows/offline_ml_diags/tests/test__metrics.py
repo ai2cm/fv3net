@@ -1,11 +1,9 @@
 import numpy as np
 import pytest
-from typing import Mapping
 import xarray as xr
 from offline_ml_diags._metrics import (
     _bias,
     _rmse,
-    _calc_batch_metrics,
     calc_metrics,
     DERIVATION_DIM,
     TARGET_COORD,
@@ -16,13 +14,27 @@ from offline_ml_diags._metrics import (
 @pytest.fixture()
 def ds_mock():
     da = xr.DataArray(
-        [[[0.0, 1.0]]],
+        [[[0.0, 1.0, 1.0]]],
         dims=["z", "x", DERIVATION_DIM],
-        coords={"z": [0], "x": [0], DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD]},
+        coords={
+            "z": [0],
+            "x": [0],
+            DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD, "mean"],
+        },
     )
     delp = xr.DataArray([[1.0]], dims=["z", "x"], coords={"z": [0], "x": [0]})
     return xr.Dataset(
-        {"dQ1": da, "dQ2": da, "pressure_thickness_of_atmospheric_layer": delp}
+        {
+            "dQ1": da,
+            "dQ2": da,
+            "column_integrated_dQ1": da,
+            "column_integrated_dQ2": da,
+            "Q1": da,
+            "Q2": da,
+            "column_integrated_Q1": da,
+            "column_integrated_Q2": da,
+            "pressure_thickness_of_atmospheric_layer": delp,
+        }
     )
 
 
@@ -31,16 +43,12 @@ def area():
     return xr.DataArray([1], dims=["x"], coords={"x": [0]}).rename("area")
 
 
-def test__calc_batch_metrics(ds_mock, area):
-    batch_metrics = _calc_batch_metrics(xr.merge([area, ds_mock]))
+def test_calc_metrics(ds_mock, area):
+    ds = xr.merge([area, ds_mock])
+    ds["area_weights"] = area / (area.mean())
+    batch_metrics = calc_metrics(ds)
     for var in list(batch_metrics.data_vars):
         assert isinstance(batch_metrics[var].values.item(), float)
-
-
-def test__calc_metrics(ds_mock, area):
-    ds_sequence = [ds_mock, ds_mock]
-    metrics_dict = calc_metrics(ds_sequence, area)
-    assert isinstance(metrics_dict, Mapping)
 
 
 @pytest.fixture()
