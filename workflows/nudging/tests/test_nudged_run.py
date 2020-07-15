@@ -48,7 +48,7 @@ namelist:
     do_sat_adj: false
   gfdl_cloud_microphysics_nml:
     fast_sat_adj: false
-"""
+"""  # noqa
 
 
 @pytest.fixture
@@ -58,7 +58,9 @@ def nudge_config(tmpdir):
     with open(config_file, "w") as f:
         f.write(default_config)
 
-    result = subprocess.run(["python", PREP_CONFIG_PY, str(config_file)], capture_output=True)
+    result = subprocess.run(
+        ["python", PREP_CONFIG_PY, str(config_file)], capture_output=True
+    )
 
     return yaml.safe_load(result.stdout)
 
