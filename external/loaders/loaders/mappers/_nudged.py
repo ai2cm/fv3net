@@ -258,7 +258,11 @@ def open_merged_nudged(
     datasets = []
     for source in merge_files:
         mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
-        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024), consolidated=consolidated)
+        ds = xr.open_zarr(
+            zstore.LRUStoreCache(mapper, 1024),
+            consolidated=consolidated,
+            mask_and_scale=False,
+        )
         datasets.append(ds)
 
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
@@ -292,7 +296,11 @@ def _open_nudging_checkpoints(
     for filename in checkpoint_files:
         full_path = os.path.join(url, f"{filename}")
         mapper = fsspec.get_mapper(full_path)
-        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024), consolidated=consolidated)
+        ds = xr.open_zarr(
+            zstore.LRUStoreCache(mapper, 1024),
+            consolidated=consolidated,
+            mask_and_scale=False,
+        )
 
         source_name = Path(filename).stem
         datasets[source_name] = ds
