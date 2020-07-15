@@ -1,22 +1,12 @@
-data_path: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/outdir-3h
+data_path: gs://vcm-ml-scratch/andrep/test-nudging-workflow/nudging
 variables:
   - air_temperature
   - specific_humidity
   - dQ1
   - dQ2
-  - pQ1
-  - pQ2
   - pressure_thickness_of_atmospheric_layer
-mapping_function: open_merged_nudged_full_tendencies
+mapping_function: open_merged_nudged
 mapping_kwargs:
-  open_checkpoints_kwargs:
-    checkpoint_files:
-      - after_dynamics.zarr
-      - after_physics.zarr
+  i_start: 0
 batch_kwargs:
   timesteps_per_batch: 2
-  timesteps:
-    - "20160801.003000"
-    - "20160801.004500"
-    - "20160801.010000"
-    - "20160801.011500"
