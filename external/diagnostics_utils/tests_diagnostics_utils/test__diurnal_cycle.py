@@ -8,7 +8,7 @@ from diagnostics_utils._diurnal_cycle import (
     bin_diurnal_cycle,
     create_diurnal_cycle_dataset,
     DIURNAL_CYCLE_DIM,
-    SURFACE_TYPE_DIM
+    SURFACE_TYPE_DIM,
 )
 
 ADDITIONAL_DIM = "additional_dim"
@@ -42,15 +42,16 @@ def ds(request):
         dims=[ADDITIONAL_DIM, "time", "x"],
         coords={"x": [0, 1], "time": time_coords, ADDITIONAL_DIM: ADDITIONAL_COORDS},
     ).rename("test_var_additional_dim")
-    sfc_type = xr.DataArray(
-        [0, 1],
-        dims=["x"],
-        coords={"x": [0, 1]},
-    ).rename(SURFACE_TYPE_DIM)
-    return xr.Dataset({
-        "test_var": da,
-        "test_var_additional_dim": da_additional_dim,
-        "land_sea_mask": sfc_type})
+    sfc_type = xr.DataArray([0, 1], dims=["x"], coords={"x": [0, 1]},).rename(
+        SURFACE_TYPE_DIM
+    )
+    return xr.Dataset(
+        {
+            "test_var": da,
+            "test_var_additional_dim": da_additional_dim,
+            "land_sea_mask": sfc_type,
+        }
+    )
 
 
 @pytest.mark.parametrize(
