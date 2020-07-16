@@ -21,7 +21,7 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - "80:d3:ce:22:ea:9e:bf:df:1c:8d:64:e2:c1:8e:2c:44"
+            - "e0:af:32:36:b7:31:d1:5f:aa:d2:35:d8:09:b8:92:54"
       - run: apt-get update && apt-get install -y uuid
       - run:
           name: "Save GCS for tests."
