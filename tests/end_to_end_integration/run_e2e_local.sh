@@ -1,5 +1,7 @@
 #!/bin/bash
 
+end_to_end_config=$1
+
 ## Calls entrypoint.sh followed by submit_workflow.sh after consolidating config
 
 # https://stackoverflow.com/questions/4632028/how-to-create-a-temporary-directory
@@ -18,6 +20,13 @@ cp ./workflows/end_to_end/kustomization/* ${CONFIG}/.
 
 # Copy e2e configuration files with overwrite
 cp -f ./tests/end_to_end_integration/kustomization/* ${CONFIG}/.
+
+# If user provided an end-to-end prioritize that by copying last
+echo $end_to_end_config
+if [ -f $end_to_end_config ]; then
+    echo Copying user-supplied end-to-end configuration ${end_to_end_config}
+    cp -f $end_to_end_config ${CONFIG}/end_to_end.yaml
+fi
 
 export $(xargs <${CONFIG}/input_data.env) 
 
