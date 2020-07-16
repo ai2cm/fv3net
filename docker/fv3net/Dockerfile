@@ -25,10 +25,12 @@ ENV ENVIRONMENT_SCRIPTS=$FV3NET/environment-scripts
 ENV PROJECT_NAME=fv3net
 
 WORKDIR $FV3NET
-USER $NB_UID
 
 ADD .environment-scripts $ENVIRONMENT_SCRIPTS
 ADD environment.yml  environment.yml
+RUN fix-permissions $FV3NET
+
+USER $NB_UID
 
 RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME && conda clean -tpi
 ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
