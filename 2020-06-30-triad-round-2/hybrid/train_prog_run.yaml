@@ -9,18 +9,12 @@ spec:
       key: dedicated
       value: climate-sim-pool
   entrypoint: main
-  volumeClaimTemplates:
-    - metadata:
-        name: output-data
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 1333Gi
+  arguments:
+    parameters:
+      - name: input-variables
+        value: |
+          ["specific_humidity", "air_temperature"]
   volumes:
-    - name: restart-data
-      persistentVolumeClaim:
-        claimName: '{{workflow.parameters.restart-pvc}}'
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -29,26 +23,7 @@ spec:
   - name: main
     dag:
       tasks:
-      - name: nudging
-        templateRef:
-          name: nudging
-          template: nudging
-        arguments:
-          parameters:
-          - name: fv3net-image
-            value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
-          - name: times
-            value: "{{workflow.parameters.nudging-times}}"
-          - name: restart-volume
-            value: restart-data
-          - name: working-volume
-            value: output-data
-          - name: output-url
-            value: "{{workflow.parameters.root}}/nudging"
-          - name: nudging-config
-            value: "{{workflow.parameters.nudging-config}}"
       - name: train-model
-        dependencies: [nudging]
         templateRef:
           name: training
           template: rf-hybrid-nudging
@@ -59,13 +34,15 @@ spec:
             - name: fine-res
               value: "{{workflow.parameters.fine-res}}"
             - name: nudging
-              value: "{{workflow.parameters.root}}/nudging"
+              value: "{{workflow.parameters.nudging-url}}"
             - name: times
               value: "{{workflow.parameters.train-times}}"
             - name: output
               value: "{{workflow.parameters.root}}/trained-model"
             - name: input-variables
-              value: '["specific_humidity", "air_temperature"]'
+              value: "{{workflow.parameters.input-variables}}"
+            - name: timesteps-per-batch
+              value: "{{workflow.parameters.timesteps-per-batch}}"
       - name: prognostic-run
         dependencies: [train-model]
         templateRef:

@@ -1,5 +1,7 @@
 # Fine resolution with nudging-derived baseline
 
+## Nudging run + basic features
+
 To submit the job to argo, run
 
     make submit
@@ -11,6 +13,12 @@ file without submitting, run
     make config.json
 
 This is run automatically as part of the submit rule.
+
+## Extra features experiment
+
+This can be submitted with
+
+    make submit_extra_vars
 
 ## Requirements
 
