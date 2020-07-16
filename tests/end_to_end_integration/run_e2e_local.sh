@@ -1,5 +1,12 @@
 #!/bin/bash
 
+#############
+# Run the end-to-end integration workflow from a local machine.
+# Call script from the fv3net directory.  The user argument for an end-to-end
+# configuration file is optional, but if specified will be used in place of the default
+# integration test configuration.
+#############
+
 end_to_end_config=$1
 
 ## Calls entrypoint.sh followed by submit_workflow.sh after consolidating config
@@ -31,6 +38,3 @@ fi
 export $(xargs <${CONFIG}/input_data.env) 
 
 ./workflows/end_to_end/entrypoint.sh
-
-
-
