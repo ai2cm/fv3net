@@ -58,6 +58,7 @@ def test_DerivedFV3State_setitem():
     fv3gfs = MockFV3GFS()
     getter = runtime.DerivedFV3State(fv3gfs)
     item = xr.DataArray([1.0], dims=["x"], attrs={"units": "m"})
+    # Check that data is passed to `MockFV3GFS.set_state` correctly
     getter["a"] = item
     assert fv3gfs.set_state_called
 

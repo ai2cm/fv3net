@@ -62,6 +62,12 @@ class DerivedFV3State:
         self._getter.set_state({key: fv3util.Quantity.from_data_array(value)})
 
     def update(self, items: Mapping[str, xr.DataArray]):
+        """Update state from another mapping
+
+        This may be faster than setting each item individually.
+        
+        Same as dict.update.
+        """
         self._getter.set_state(
             {
                 key: fv3util.Quantity.from_data_array(value)
