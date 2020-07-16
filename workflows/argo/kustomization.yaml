@@ -1,0 +1,3 @@
+resources:
+  - offline_diagnostics.yml
+  - prognostic_run_diags.yaml
