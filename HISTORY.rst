@@ -15,6 +15,7 @@ latest
 * Add general purpose transformations of mappers `ValMap` and `KeyMap`
 * Add offset_seconds argument to the nudging loader
 * Add diagnostic variables from SHiELD and FV3GFS to new diagnostic mappers for each data sources; diagnostic mappers return net_heating and net_precipitation for the coarsened SHiELD and coarse FV3GFS diagnostics
+* Add script for running end-to-end integration test locally
 
 0.2.3 (2020-06-19)
 ------------------
