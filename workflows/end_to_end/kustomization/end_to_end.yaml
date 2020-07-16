@@ -1,5 +1,5 @@
 storage_proto: gs
-storage_root: vcm-ml-data/test-end-to-end-integration
+storage_root: vcm-ml-scratch/test-end-to-end-integration
 experiment:
   name: $JOBNAME
   unique_id: false

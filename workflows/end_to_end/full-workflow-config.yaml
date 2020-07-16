@@ -1,5 +1,5 @@
 storage_proto: gs
-storage_root: vcm-ml-data/orchestration-testing
+storage_root: vcm-ml-scratch/orchestration-testing
 experiment:
   name: test-experiment
   unique_id: True
