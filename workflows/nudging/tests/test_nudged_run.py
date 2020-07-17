@@ -15,13 +15,12 @@ import fv3config
 PREP_CONFIG_PY = Path(__file__).parent.parent.joinpath("prepare_config.py").as_posix()
 RUNFILE_PY = Path(__file__).parent.parent.joinpath("runfile.py").as_posix()
 
-native_data_path = "/inputdata/fv3config-cache/gs/vcm-fv3config/vcm-fv3config/"
-default_config = fr"""
+default_config = rf"""
 base_version: v0.4
-forcing: {native_data_path}/data/base_forcing/v1.1
-initial_conditions: {native_data_path}/data/initial_conditions/c12_restart_initial_conditions/v1.0
+forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+initial_conditions: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48/20160801.001500/
 nudging:
-  restarts_path: {native_data_path}/data/initial_conditions/c12_restart_initial_conditions/v1.0
+  restarts_path: gs://vcm-ml-data/2020-01-16-X-SHiELD-2019-12-02-pressure-coarsened-rundirs/restarts/C48
   timescale_hours:
     air_temperature: 3
     specific_humidity: 3
@@ -40,7 +39,7 @@ namelist:
     - 15
     - 0
     days: 0
-    hours: 6
+    hours: 1
     minutes: 0
     months: 0
     seconds: 0
@@ -67,4 +66,5 @@ def nudge_config(tmpdir):
 
 @pytest.mark.regression
 def test_nudge_run(nudge_config, tmpdir):
-    fv3config.run_native(nudge_config, str(tmpdir), capture_output=False)
+    scratch = "/home/andrep/scratch/"
+    fv3config.run_native(nudge_config, str(scratch), capture_output=True)
