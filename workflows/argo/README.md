@@ -70,7 +70,7 @@ Typically, `runs` will be stored in a json file (e.g. `rundirs.json`).
 You can create a report from this json file using the following command from a bash shell:
 ```
 argo submit --from workflowtemplate/prognostic-run-report \
-    -p runs="$(< rundirs.json) \
+    -p runs="$(< rundirs.json)" \
     -p docker-image=<dockerimage> \
     --name <name>
 ```
