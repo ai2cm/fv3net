@@ -193,7 +193,7 @@ workflows:
       - lint
       - mypy
       - pytest:
-          name: pytest_default-<<matrix.kind>>
+          name: pytest-<<matrix.kind>>
           matrix:
             parameters:
               kind: ["test_unit", "test_regression"]
