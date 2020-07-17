@@ -14,5 +14,5 @@ configMapGenerator:
 images:
   - name: us.gcr.io/vcm-ml/fv3net
     newName: us.gcr.io/vcm-ml/fv3net
-    newTag: 7743c9ddf7c1f8a4b7f4a4d035dce6f82f6d4b03
+    newTag: f1f982fc32269989ce5e0b9aa5b363cd7c814519
 
