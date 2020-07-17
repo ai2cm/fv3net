@@ -1,3 +1,6 @@
 resources:
   - offline_diagnostics.yml
   - prognostic_run_diags.yaml
+  - nudging.yaml
+  - prognostic-run.yaml
+  - training.yaml
