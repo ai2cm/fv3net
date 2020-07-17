@@ -51,6 +51,9 @@ jobs:
       - run: |
           source activate fv3net
           make <<parameters.kind>>
+      - run: |
+          mkdir -p /tmp/workspace
+          mv *.coverage /tmp/workspace
       - persist_to_workspace:
           root: /tmp/workspace
           paths: 
