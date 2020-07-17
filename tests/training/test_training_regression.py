@@ -236,15 +236,15 @@ def mock_model():
 
 
 @pytest.fixture
-def data_source_offline_config(data_source_name, datadir):
+def data_source_offline_config(data_source_name, datadir_module):
     if data_source_name == "one_step_tendencies":
-        with open(os.path.join(str(datadir), "test_one_step_config.yml"), "r") as f:
+        with open(os.path.join(str(datadir_module), "test_one_step_config.yml"), "r") as f:
             return yaml.safe_load(f)
     elif data_source_name == "nudging_tendencies":
-        with open(os.path.join(str(datadir), "test_nudging_config.yml"), "r") as f:
+        with open(os.path.join(str(datadir_module), "test_nudging_config.yml"), "r") as f:
             return yaml.safe_load(f)
     elif data_source_name == "fine_res_apparent_sources":
-        with open(os.path.join(str(datadir), "test_fine_res_config.yml"), "r") as f:
+        with open(os.path.join(str(datadir_module), "test_fine_res_config.yml"), "r") as f:
             config = yaml.safe_load(f)
             del config["mapping_kwargs"]["offset_seconds"]
             return config
