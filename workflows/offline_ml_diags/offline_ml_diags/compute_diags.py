@@ -112,7 +112,7 @@ def _compute_diags_over_batches(
     # then average over the batches for each output
     ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
     ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
-    ds_metrics = xr.concat(batches_metrics, dim="batch").mean(dim="batch")
+    ds_metrics = xr.concat(batches_metrics, dim="batch")
 
     return ds_diagnostics, ds_diurnal, ds_metrics
 
