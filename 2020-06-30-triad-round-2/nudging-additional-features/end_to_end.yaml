@@ -4,7 +4,7 @@ experiment:
   name: $JOBNAME
   unique_id: false
   steps_to_run:
-    #- train_sklearn_model
+    - train_sklearn_model
     - prognostic_run
 
   steps_config:
