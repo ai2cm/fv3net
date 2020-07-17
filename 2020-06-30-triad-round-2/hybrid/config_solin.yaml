@@ -4,8 +4,8 @@ prognostic-run-config: |
   base_version: v0.4
   namelist:
     coupler_nml:
-      days: 0
-      hours: 10
+      days: 10
+      hours: 0
       minutes: 0
       seconds: 0
     diag_manager_nml:
