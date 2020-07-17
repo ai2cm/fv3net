@@ -75,6 +75,7 @@ def _write_nc(ds: xr.Dataset, output_dir: str, output_file: str):
 
 
 def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
+    logger.info("Calculating metrics mean and stddev over batches...")
     metrics = {
         var: {
             "mean": np.mean(ds_metrics[var].values),
@@ -95,9 +96,10 @@ def _compute_diags_over_batches(
     for i, ds in enumerate(ds_batches):
         logger.info(f"Working on batch {i} diagnostics ...")
         # ...insert additional variables
-        ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
-            utils.insert_column_integrated_vars
-        )
+        ds = ds.pipe(utils.insert_total_apparent_sources) \
+            .pipe(utils.insert_column_integrated_vars) \
+            .pipe(utils.insert_land_sea_mask, grid["land_sea_mask"]) \
+            .load()
         # ...reduce to diagnostic variables
         ds_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
         # ...compute diurnal cycles
@@ -131,7 +133,6 @@ if __name__ == "__main__":
     land_sea_mask = cat["landseamask/c48"].to_dask()
     grid = grid.assign({utils.VARNAMES["surface_type"]: land_sea_mask["land_sea_mask"]})
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
-
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
