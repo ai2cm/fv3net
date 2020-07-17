@@ -94,6 +94,14 @@ def insert_total_apparent_sources(ds: xr.Dataset) -> xr.Dataset:
     )
 
 
+def insert_land_sea_mask(ds: xr.Dataset, land_sea_mask: xr.DataArray):
+    sfc_var = land_sea_mask.name
+    if sfc_var not in ds.data_vars:
+        return ds.assign({sfc_var: land_sea_mask})
+    else:
+        return ds
+
+
 def _total_apparent_sources(
     dQ1: xr.DataArray, dQ2: xr.DataArray, pQ1: xr.DataArray, pQ2: xr.DataArray
 ) -> Tuple[xr.DataArray, xr.DataArray]:

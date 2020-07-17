@@ -278,7 +278,6 @@ variables = [
     "pQ1",
     "pQ2",
     "pressure_thickness_of_atmospheric_layer",
-    "land_sea_mask",
 ]
 
 
