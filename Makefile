@@ -75,7 +75,7 @@ test_unit:
 	COVERAGE_FILE=.coverage_unit coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
 test_regression:
-	COVERAGE_FILE=.coverage_regression coverage run -m pytest  pytest -vv -m regression -s
+	COVERAGE_FILE=.coverage_regression coverage run -m pytest -vv -m regression -s
 
 test_dataflow:
 	COVERAGE_FILE=.coverage_dataflow coverage run -m pytest -vv tests/dataflow/ -s
