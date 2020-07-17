@@ -51,6 +51,13 @@ jobs:
       - run: |
           source activate fv3net
           make <<parameters.kind>>
+  argo:
+    docker:
+      image: bitnami/kubectl:1.18
+    steps:
+      - checkout
+      - run: sudo apt-get install make
+      - make test_argo
 
   build_default:
     machine:
@@ -172,6 +179,7 @@ workflows:
     jobs:
       - lint
       - mypy
+      - argo
       - pytest:
           matrix:
             parameters:
@@ -194,6 +202,9 @@ workflows:
             - build_default
   master_tests:
     jobs:
+      - lint
+      - mypy
+      - argo
       - pytest:
           kind: test_dataflow
           name: "Test Dataflow"
