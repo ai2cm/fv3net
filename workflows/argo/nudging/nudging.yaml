@@ -4,7 +4,55 @@ kind: WorkflowTemplate
 metadata:
   name: nudging
 spec:
+  arguments:
+    parameters:
+      - name: restart-pvc
+        value: nudging-read-only
+      - name: nudging-config
+      - name: output-url
+      - name: fv3gfs-image
+        value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
+      - name: fv3net-image
+        value: us.gcr.io/vcm-ml/fv3net:95df9bd2939e4ca2f103c4b2925206f429236ad7
+  entrypoint: main
+  volumeClaimTemplates:
+    - metadata:
+        name: output-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1333Gi
+  volumes:
+    - name: restart-data
+      persistentVolumeClaim:
+        claimName: '{{workflow.parameters.restart-pvc}}'
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
   templates:
+    - name: main
+      steps:
+        - - name: nudging
+            template: nudging
+            arguments:
+              parameters:
+              - name: fv3net-image
+                value: "{{workflow.parameters.fv3net-image}}"
+              - name: fv3gfs-image
+                value: "{{workflow.parameters.fv3gfs-image}}"
+              - name: times
+                value: "{{workflow.parameters.nudging-times}}"
+              - name: output-url
+                value: "{{workflow.parameters.output-url}}"
+              - name: nudging-config
+                value: "{{workflow.parameters.nudging-config}}"
+              # do not need templates
+              - name: restart-volume
+                value: restart-data
+              - name: working-volume
+                value: output-data
     - name: nudging
       inputs:
         parameters:
