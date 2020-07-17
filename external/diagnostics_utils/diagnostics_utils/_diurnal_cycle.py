@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from scipy.stats import binned_statistic
 from typing import Sequence
-import warnings
 import xarray as xr
 
 from .config import VARNAMES
@@ -49,30 +48,21 @@ def create_diurnal_cycle_dataset(
         coordinate for "local_time_hr".
     """
     var_sfc = VARNAMES["surface_type"]
-
     domain_datasets = {
         "global": _calc_diurnal_vars_with_extra_dims(
             ds, longitude, diurnal_vars, n_bins, time_dim, flatten_dims
         )
     }
-    # Currently, fine res mapper does not have surface type variable
-    if var_sfc not in ds.data_vars:
-        warnings.warn(
-            f"Land sea mask data variable '{var_sfc}' is not present in the dataset. "
-            "If you intended to calculate the diurnal cycle for land/sea domains, "
-            "ensure that this variable is present in the test dataset."
+    ds[var_sfc] = snap_mask_to_type(ds[var_sfc])
+    for surface_type in ["land", "sea"]:
+        domain_datasets[surface_type] = _calc_diurnal_vars_with_extra_dims(
+            ds.where(ds[var_sfc] == surface_type),
+            longitude,
+            diurnal_vars,
+            n_bins,
+            time_dim,
+            flatten_dims,
         )
-    else:
-        ds[var_sfc] = snap_mask_to_type(ds[var_sfc])
-        for surface_type in ["land", "sea"]:
-            domain_datasets[surface_type] = _calc_diurnal_vars_with_extra_dims(
-                ds.where(ds[var_sfc] == surface_type),
-                longitude,
-                diurnal_vars,
-                n_bins,
-                time_dim,
-                flatten_dims,
-            )
     domains, datasets = [], []
     for key, value in domain_datasets.items():
         domains.append(key)
