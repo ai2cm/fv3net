@@ -53,7 +53,7 @@ jobs:
           make <<parameters.kind>>
       - run: |
           mkdir -p /tmp/workspace
-          mv *.coverage /tmp/workspace
+          mv .coverage_* /tmp/workspace
       - persist_to_workspace:
           root: /tmp/workspace
           paths: 
