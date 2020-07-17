@@ -5,7 +5,7 @@ packages = ["offline_ml_diags"]
 
 package_data = {"": ["*"]}
 
-install_requires = []
+install_requires = ["scipy>=1.5.0"]
 
 setup_kwargs = {
     "name": "offline_ml_diags",
