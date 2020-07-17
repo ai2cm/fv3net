@@ -96,10 +96,12 @@ def _compute_diags_over_batches(
     for i, ds in enumerate(ds_batches):
         logger.info(f"Working on batch {i} diagnostics ...")
         # ...insert additional variables
-        ds = ds.pipe(utils.insert_total_apparent_sources) \
-            .pipe(utils.insert_column_integrated_vars) \
-            .pipe(utils.insert_land_sea_mask, grid["land_sea_mask"]) \
+        ds = (
+            ds.pipe(utils.insert_total_apparent_sources)
+            .pipe(utils.insert_column_integrated_vars)
+            .pipe(utils.insert_land_sea_mask, grid["land_sea_mask"])
             .load()
+        )
         # ...reduce to diagnostic variables
         ds_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
         # ...compute diurnal cycles

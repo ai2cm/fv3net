@@ -94,7 +94,8 @@ def insert_total_apparent_sources(ds: xr.Dataset) -> xr.Dataset:
     )
 
 
-def insert_land_sea_mask(ds: xr.Dataset, land_sea_mask: xr.DataArray):
+def insert_land_sea_mask(ds: xr.Dataset, land_sea_mask: xr.DataArray) -> xr.Dataset:
+    # used because fine res data doesn't have sfc type variable
     sfc_var = land_sea_mask.name
     if sfc_var not in ds.data_vars:
         return ds.assign({sfc_var: land_sea_mask})
