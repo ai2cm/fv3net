@@ -14,6 +14,8 @@ spec:
         value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
       - name: fv3net-image
         value: us.gcr.io/vcm-ml/fv3net:95df9bd2939e4ca2f103c4b2925206f429236ad7
+      - name: times
+        value: ""
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
