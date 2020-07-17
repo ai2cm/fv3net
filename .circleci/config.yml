@@ -51,6 +51,26 @@ jobs:
       - run: |
           source activate fv3net
           make <<parameters.kind>>
+      - persist_to_workspace:
+          root: /tmp/workspace
+          paths: 
+            - .coverage*
+  combined_coverage_reports:
+    docker:
+      - image: circleci/python:3.7
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - run: sudo pip install coverage
+      - run: |
+          cp /tmp/workspace/.coverage* .
+      - run: "make coverage_report"
+      - run: |
+          make coverage_html
+          mkdir -p /tmp/artifacts
+          mv coverage_html  /tmp/artifacts
+      - store_artifacts:
+          path: /tmp/artifacts
 
   build_default:
     machine:
@@ -192,6 +212,9 @@ workflows:
       - integration_tests:
           requires:
             - build_default
+      - combined_coverage_reports:
+          requires:
+            - pytest
   master_tests:
     jobs:
       - pytest:
