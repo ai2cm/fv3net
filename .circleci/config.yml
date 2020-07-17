@@ -195,6 +195,7 @@ workflows:
       - pytest:
           name: pytest_default
           matrix:
+            alias: pytest-<<matrix.kind>>
             parameters:
               kind: ["test_unit", "test_regression"]
       - hold:
@@ -204,7 +205,6 @@ workflows:
               ignore:
                 - master
       - pytest:
-          name: pytest_dataflow
           kind: test_dataflow
           requires:
             - hold
@@ -216,8 +216,8 @@ workflows:
             - build_default
       - combined_coverage_reports:
           requires:
-            - pytest_default
-            - pytest_dataflow
+            - pytest-test_unit
+            - pytest-test_regression
   master_tests:
     jobs:
       - pytest:
