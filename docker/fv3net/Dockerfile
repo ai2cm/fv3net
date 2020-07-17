@@ -46,6 +46,9 @@ RUN mkdir -p /home/jovyan/.config
 RUN fix-permissions /home/jovyan/.config
 USER $NB_UID
 
+# pin scipy version to avoid 1.4.1 version with regression 
+RUN echo "scipy >= 1.5.0" > /opt/conda/envs/$PROJECT_NAME/conda-meta/pinned
+
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
 RUN pip install apache_beam[gcp] six==1.12.0
