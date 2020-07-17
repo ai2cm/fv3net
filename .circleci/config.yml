@@ -53,7 +53,7 @@ jobs:
           make <<parameters.kind>>
   argo:
     docker:
-      image: bitnami/kubectl:1.18
+      image: "bitnami/kubectl:1.18"
     steps:
       - checkout
       - run: sudo apt-get install make
