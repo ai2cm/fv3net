@@ -14,8 +14,6 @@ spec:
         value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
       - name: fv3net-image
         value: us.gcr.io/vcm-ml/fv3net:95df9bd2939e4ca2f103c4b2925206f429236ad7
-      - name: nudging-times
-        value: ""
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
@@ -109,23 +107,15 @@ spec:
         - |
           cp runfile.py /mnt/data/runfile.py
 
-          if [[ "{{input.parameters.times}}" == "" ]]
-          then
-            timeargs=""
-          else
-            cat << EOF > times.json
-            {{inputs.parameters.times}}
-            EOF
-
-            timeargs="--timesteps times.json"
-          fi
+          cat << EOF > times.json
+          {{inputs.parameters.times}}
+          EOF
 
           cat << EOF > config.yaml
           {{inputs.parameters.nudging-config}}
           EOF
 
           python prepare_config.py \
-            $timearg \
             --timesteps times.json \
             config.yaml \
             > /mnt/data/fv3config.yaml

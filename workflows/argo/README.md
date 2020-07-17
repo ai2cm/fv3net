@@ -47,8 +47,6 @@ prognostic runs. See this [example][1].
 | runs | A json-encoded list of {"name": ..., "url": ...} items |
 | docker-image | The docker image to use |
 
-- `runs`: If `runs` is `""`, then all the timesteps will be processed.
-
 The outputs will be stored at the directory
 `gs://vcm-ml-public/argo/<workflow name>`, where `<workflow name>` is NOT the
 name of the workflow template, but of the created `workflow` resource.
