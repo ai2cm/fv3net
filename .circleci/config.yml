@@ -51,13 +51,14 @@ jobs:
       - run: |
           source activate fv3net
           make <<parameters.kind>>
+
   argo:
     docker:
-      image: "bitnami/kubectl:1.18"
+      image: bitnami/kubectl:1.18
     steps:
       - checkout
       - run: sudo apt-get install make
-      - make test_argo
+      - run: make test_argo
 
   build_default:
     machine:
