@@ -11,6 +11,7 @@ configMapGenerator:
   name: end-to-end
   literals:
     - JOBNAME=nudging-additional-features
+    - PROGNOSTIC_RUN_TAG=f1f982fc32269989ce5e0b9aa5b363cd7c814519
   behavior: merge
 images:
   - name: us.gcr.io/vcm-ml/fv3net

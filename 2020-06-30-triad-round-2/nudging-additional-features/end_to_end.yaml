@@ -4,7 +4,7 @@ experiment:
   name: $JOBNAME
   unique_id: false
   steps_to_run:
-    - train_sklearn_model
+    #- train_sklearn_model
     - prognostic_run
 
   steps_config:
@@ -22,7 +22,7 @@ experiment:
         restart_data:
           location: $C48_RESTARTS
         ic_timestep: $IC_TIMESTEP
-        --image-tag: $TAG
+        --image-tag: $PROGNOSTIC_RUN_TAG
         --prog_config_yml: $CONFIG/prognostic_run.yaml
         --allow_fail: ''  # do not block next step if prognostic run crashes
         --model_url:
