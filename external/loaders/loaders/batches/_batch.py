@@ -9,7 +9,7 @@ from vcm import safe
 from toolz import partition, compose
 from ._sequences import FunctionOutputSequence
 from .._utils import stack_dropnan_shuffle, load_grid, add_cosine_zenith_angle
-from ..constants import TIME_FMT
+from ..constants import TIME_FMT, TIME_NAME
 import loaders
 
 logger = logging.getLogger(__name__)
@@ -23,8 +23,6 @@ def batches_from_geodata(
     mapping_kwargs: Optional[Mapping[str, Any]] = None,
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
-    init_time_dim_name: str = "time",
-    rename_variables: Optional[Mapping[str, str]] = None,
     timesteps: Optional[Sequence[str]] = None,
     cos_z_var: str = "cos_zenith_angle",
 ) -> Sequence[xr.Dataset]:
@@ -41,14 +39,11 @@ def batches_from_geodata(
             passed to the mapping function
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
-        init_time_dim_name (str, optional): Name of time dim in data source.
-            Defaults to "time".
-        rename_variables (Mapping[str, str], optional): Defaults to None.
         cos_z_var: Name of cosine zenith angle variable to insert.
             Defaults to "cos_zenith_angle".
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
-        
+
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
@@ -58,8 +53,6 @@ def batches_from_geodata(
         variable_names,
         timesteps_per_batch,
         random_seed,
-        init_time_dim_name,
-        rename_variables,
         timesteps,
         cos_z_var,
     )
@@ -79,29 +72,24 @@ def batches_from_mapper(
     variable_names: Iterable[str],
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
-    init_time_dim_name: str = "time",
-    rename_variables: Optional[Mapping[str, str]] = None,
     timesteps: Optional[Sequence[str]] = None,
     cos_z_var: str = "cos_zenith_angle",
 ) -> Sequence[xr.Dataset]:
     """ The function returns a sequence of datasets that is later
     iterated over in  ..sklearn.train.
-    
+
     Args:
         data_mapping (Mapping[str, xr.Dataset]): Interface to select data for
             given timestep keys.
         variable_names (Iterable[str]): data variables to select
         timesteps_per_batch (int, optional): Defaults to 1.
         random_seed (int, optional): Defaults to 0.
-        init_time_dim_name (str, optional): Name of time dim in data source.
-            Defaults to "time".
-        rename_variables (Mapping[str, str], optional): Defaults to None.
         timesteps: List of timesteps to use in training.
         cos_z_var: Name of cosine zenith angle variable to insert.
             Defaults to "cos_zenith_angle".
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
-        
+
     Returns:
         Sequence of xarray datasets
     """
@@ -112,8 +100,6 @@ def batches_from_mapper(
         )
 
     random_state = RandomState(random_seed)
-    if rename_variables is None:
-        rename_variables = {}
     if len(variable_names) == 0:
         raise TypeError("At least one value must be given for variable_names")
 
@@ -126,13 +112,11 @@ def batches_from_mapper(
         _load_batch,
         data_mapping,
         variable_names,
-        rename_variables,
-        init_time_dim_name,
         cos_z_var,
     )
 
     transform = functools.partial(
-        stack_dropnan_shuffle, init_time_dim_name, random_state
+        stack_dropnan_shuffle, random_state
     )
     # If additional dervied variable(s) added, refactor instead of adding if statements
     if cos_z_var in variable_names:
@@ -155,14 +139,12 @@ def diagnostic_batches_from_geodata(
     mapping_kwargs: Optional[Mapping[str, Any]] = None,
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
-    init_time_dim_name: str = "time",
-    rename_variables: Optional[Mapping[str, str]] = None,
     timesteps: Optional[Sequence[str]] = None,
     cos_z_var: str = "cos_zenith_angle",
 ) -> Sequence[xr.Dataset]:
     """Load a dataset sequence for dagnostic purposes. Uses the same batch subsetting as
     as batches_from_mapper but without transformation and stacking
-    
+
     Args:
         data_path: Path to data store to be loaded via mapper.
         variable_names (Iterable[str]): data variables to select
@@ -172,16 +154,13 @@ def diagnostic_batches_from_geodata(
         timesteps_per_batch (int, optional): Defaults to 1.
         num_batches (int, optional): Defaults to None.
         random_seed (int, optional): Defaults to 0.
-        init_time_dim_name (str, optional): Name of time dim in data source.
-            Defaults to "time".
-        rename_variables (Mapping[str, str], optional): Defaults to None.
         timesteps: List of timesteps to use in training.
         cos_z_var: Name of cosine zenith angle variable to insert.
             Defaults to "cos_zenith_angle".
 
     Raises:
         TypeError: If no variable_names are provided to select the final datasets
-        
+
     Returns:
         Sequence of xarray datasets for use in training batches.
     """
@@ -192,8 +171,6 @@ def diagnostic_batches_from_geodata(
         variable_names,
         timesteps_per_batch,
         random_seed,
-        init_time_dim_name,
-        rename_variables,
         timesteps,
         cos_z_var,
     )
@@ -206,8 +183,6 @@ def diagnostic_batches_from_mapper(
     variable_names: Sequence[str],
     timesteps_per_batch: int = 1,
     random_seed: int = 0,
-    init_time_dim_name: str = "time",
-    rename_variables: Mapping[str, str] = None,
     timesteps: Sequence[str] = None,
     cos_z_var: str = "cos_zenith_angle",
 ) -> Sequence[xr.Dataset]:
@@ -217,8 +192,6 @@ def diagnostic_batches_from_mapper(
             f"{list(set(timesteps)-set(data_mapping.keys()))}"
         )
     random_state = RandomState(random_seed)
-    if rename_variables is None:
-        rename_variables = {}
     timesteps = timesteps or data_mapping.keys()
     num_times = len(timesteps)
     times = _sample(timesteps, num_times, random_state)
@@ -228,8 +201,6 @@ def diagnostic_batches_from_mapper(
         _load_batch,
         data_mapping,
         variable_names,
-        rename_variables,
-        init_time_dim_name,
         cos_z_var,
     )
     # If additional dervied variable(s) added, refactor instead of adding if statements
@@ -251,16 +222,13 @@ def _sample(seq: Sequence[Any], n: int, random_state: RandomState) -> Sequence[A
 def _load_batch(
     mapper: Mapping[str, xr.Dataset],
     data_vars: Iterable[str],
-    rename_variables: Mapping[str, str],
-    init_time_dim_name: str,
     cos_z_var: str,
     keys: Iterable[Hashable],
 ) -> xr.Dataset:
     time_coords = [datetime.strptime(key, TIME_FMT) for key in keys]
     ds = xr.concat(
-        [mapper[key] for key in keys], pd.Index(time_coords, name=init_time_dim_name)
+        [mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME)
     )
-    ds = ds.rename(rename_variables)
 
     # cos z is special case of feature that is not present in dataset
     # If additional dervied variable(s) added, refactor instead of adding if statements
