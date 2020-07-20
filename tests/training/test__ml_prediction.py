@@ -35,7 +35,6 @@ class MockBaseMapper:
 
     def __getitem__(self, key: str) -> xr.Dataset:
         ds = self._ds_template
-        ds.coords["initial_time"] = [key]
         return ds
 
     def keys(self):
@@ -87,9 +86,7 @@ def mock_model(request):
     indirect=True,
 )
 def test_ml_predict_wrapper_insert_prediction(mock_model, base_mapper, gridded_dataset):
-    mapper = SklearnPredictionMapper(
-        base_mapper, mock_model, init_time_dim="initial_time", z_dim="z",
-    )
+    mapper = SklearnPredictionMapper(base_mapper, mock_model, z_dim="z",)
     for key in mapper.keys():
         mapper_output = mapper[key]
         for var in mock_model.output_vars_:
@@ -108,9 +105,7 @@ def test_ml_predict_wrapper_insert_prediction(mock_model, base_mapper, gridded_d
     indirect=True,
 )
 def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
-    mapper = SklearnPredictionMapper(
-        base_mapper, mock_model, init_time_dim="initial_time", z_dim="z",
-    )
+    mapper = SklearnPredictionMapper(base_mapper, mock_model, z_dim="z",)
     for key in mapper.keys():
         mapper_output = mapper[key]
         target = mock_predict_function(
@@ -130,9 +125,7 @@ def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
     indirect=True,
 )
 def test_ml_predict_wrapper_invalid_usage(mock_model, base_mapper, gridded_dataset):
-    mapper = SklearnPredictionMapper(
-        base_mapper, mock_model, init_time_dim="initial_time", z_dim="z",
-    )
+    mapper = SklearnPredictionMapper(base_mapper, mock_model, z_dim="z",)
     with pytest.raises(Exception):
         for key in mapper.keys():
             mapper[key]

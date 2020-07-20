@@ -49,7 +49,6 @@ def batch_kwargs(data_source_name: str) -> dict:
     if data_source_name == "one_step_tendencies":
         return {
             "timesteps_per_batch": 1,
-            "init_time_dim_name": "initial_time",
             "mapping_function": "open_one_step",
             "timesteps": ["20160801.001500", "20160801.003000"],
         }
@@ -70,9 +69,7 @@ def batch_kwargs(data_source_name: str) -> dict:
         return {
             "timesteps_per_batch": 1,
             "mapping_function": "open_fine_res_apparent_sources",
-            "init_time_dim_name": "initial_time",
             "timesteps": ["20160801.001500", "20160801.003000"],
-            "rename_variables": {},
             "mapping_kwargs": {
                 "rename_vars": {
                     "delp": "pressure_thickness_of_atmospheric_layer",
