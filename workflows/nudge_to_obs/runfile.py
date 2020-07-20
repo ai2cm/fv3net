@@ -13,16 +13,6 @@ else:
     fv3gfs = None
     MPI = None
 
-RADIATION_NAMES = [
-    "total_sky_downward_shortwave_flux_at_surface",
-    "total_sky_upward_shortwave_flux_at_surface",
-    "total_sky_downward_longwave_flux_at_surface",
-    "total_sky_upward_longwave_flux_at_surface",
-    "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
-    "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
-    "total_sky_upward_longwave_flux_at_top_of_atmosphere",
-]
-
 STORE_NAMES = [
     "x_wind",
     "y_wind",
@@ -39,7 +29,14 @@ STORE_NAMES = [
     "latent_heat_flux",
     "total_precipitation",
     "surface_precipitation_rate",
-] + RADIATION_NAMES
+    "total_sky_downward_shortwave_flux_at_surface",
+    "total_sky_upward_shortwave_flux_at_surface",
+    "total_sky_downward_longwave_flux_at_surface",
+    "total_sky_upward_longwave_flux_at_surface",
+    "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
+    "total_sky_upward_longwave_flux_at_top_of_atmosphere",
+]
 
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -146,7 +143,8 @@ if __name__ == "__main__":
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
         state = fv3gfs.get_state(names=STORE_NAMES)
-        time = state["time"] + timestep  # consistent with diagnostic output times
+        state["time"] += timestep  # consistent with Fortran diagnostic output times
+        time = state["time"]
         monitor.store(time, state, stage="before_dynamics")
         fv3gfs.step_dynamics()
         monitor.store(time, fv3gfs.get_state(names=STORE_NAMES), stage="after_dynamics")
