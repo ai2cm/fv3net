@@ -164,6 +164,15 @@ def test_MergeNudged__check_dvar_overlap_fail(overlap_check_fail_datasets):
         MergeNudged._check_dvar_overlap(*overlap_check_fail_datasets)
 
 
+def test_MergeNudged__rename_vars(nudge_tendencies, general_nudge_output):
+    renamed = MergeNudged._rename_vars(
+        (nudge_tendencies, general_nudge_output),
+        {"air_temperature_tendency_due_to_nudging": "dQ1"},
+    )
+    assert len(renamed) == 2
+    assert "dQ1" in renamed[0]
+
+
 def test_NudgedStateCheckpoints(nudged_checkpoints):
 
     mapper = NudgedStateCheckpoints(nudged_checkpoints)
