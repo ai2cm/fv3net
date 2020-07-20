@@ -109,15 +109,10 @@ def batches_from_mapper(
     batched_timesteps = list(partition(timesteps_per_batch, times))
 
     load_batch = functools.partial(
-        _load_batch,
-        data_mapping,
-        variable_names,
-        cos_z_var,
+        _load_batch, data_mapping, variable_names, cos_z_var,
     )
 
-    transform = functools.partial(
-        stack_dropnan_shuffle, random_state
-    )
+    transform = functools.partial(stack_dropnan_shuffle, random_state)
     # If additional dervied variable(s) added, refactor instead of adding if statements
     if cos_z_var in variable_names:
         grid = load_grid()
@@ -198,10 +193,7 @@ def diagnostic_batches_from_mapper(
     batched_timesteps = list(partition(timesteps_per_batch, times))
 
     load_batch = functools.partial(
-        _load_batch,
-        data_mapping,
-        variable_names,
-        cos_z_var,
+        _load_batch, data_mapping, variable_names, cos_z_var,
     )
     # If additional dervied variable(s) added, refactor instead of adding if statements
     if cos_z_var in variable_names:
@@ -226,11 +218,9 @@ def _load_batch(
     keys: Iterable[Hashable],
 ) -> xr.Dataset:
     time_coords = [datetime.strptime(key, TIME_FMT) for key in keys]
-    ds = xr.concat(
-        [mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME)
-    )
+    ds = xr.concat([mapper[key] for key in keys], pd.Index(time_coords, name=TIME_NAME))
 
     # cos z is special case of feature that is not present in dataset
-    # If additional dervied variable(s) added, refactor instead of adding if statements
+    # If additional derived variable(s) added, refactor instead of adding if statements
     ds = safe.get_variables(ds, [var for var in data_vars if var != cos_z_var])
     return ds

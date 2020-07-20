@@ -61,9 +61,7 @@ def standardize_zarr_time_coord(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def stack_dropnan_shuffle(
-    random_state: RandomState, ds: xr.Dataset,
-) -> xr.Dataset:
+def stack_dropnan_shuffle(random_state: RandomState, ds: xr.Dataset,) -> xr.Dataset:
     ds = ds.load()
     stack_dims = [dim for dim in ds.dims if dim not in Z_DIM_NAMES]
     if len(set(ds.dims).intersection(Z_DIM_NAMES)) > 1:
