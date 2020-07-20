@@ -1,4 +1,4 @@
-import tensorflow, fv3net, fv3fit  # noqa
+import tensorflow, fv3net, fv3fit, apache_beam  # noqa
 import subprocess
 import sys
 import os
