@@ -44,7 +44,8 @@ RUN mkdir -p /home/jovyan/.config
 RUN fix-permissions /home/jovyan/.config
 USER $NB_UID
 
-# pin scipy version to avoid 1.4.1 version with regression 
+# pin scipy version to prevent other dependencies from installing 1.4.1 version with regression 
+# https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-pkgs.html#preventing-packages-from-updating-pinning
 RUN echo "scipy >= 1.5.0" > /opt/conda/envs/$PROJECT_NAME/conda-meta/pinned
 
 # setup the local python packages
