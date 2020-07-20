@@ -3,7 +3,6 @@ import re
 from functools import partial
 from typing import Mapping, Optional, Sequence, Tuple, Union
 import xarray as xr
-import numpy as np
 from toolz import groupby
 
 import vcm
@@ -235,7 +234,7 @@ def open_fine_res_apparent_sources(
     offset_seconds: Union[int, float] = 0,
     rename_vars: Mapping[str, str] = None,
     dim_order: Sequence[str] = ("tile", "z", "y", "x"),
-    drop_vars: Sequence[str] = ("step", "time")
+    drop_vars: Sequence[str] = ("step", "time"),
 ) -> Mapping[str, xr.Dataset]:
     """Open a derived mapping interface to the fine resolution budget, grouped
         by time and with derived apparent sources

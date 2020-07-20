@@ -20,4 +20,4 @@ DOMAINS = [
     "negative_net_precipitation",
 ]
 
-PRIMARY_VARS = ["dQ1", "pQ1", "dQ2", "pQ2"]
+PRIMARY_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")

@@ -217,16 +217,6 @@ class NudgedFullTendencies(GeoMapper):
 
         return physics_tendencies
 
-    @staticmethod
-    def _net_terms(ds: xr.Dataset) -> Mapping[str, xr.DataArray]:
-
-        net_terms = {
-            "net_heating": net_heating_from_physics(ds),
-            "net_precipitation": net_precipitation_from_physics(ds),
-        }
-
-        return net_terms
-
 
 def open_merged_nudged(
     url: str,
@@ -244,8 +234,6 @@ def open_merged_nudged(
     Args:
         url: Path to directory with nudging output (not including the timescale
             subdirectories, e.g., outdir-3h)
-        timescale_hours: timescale of the nudging for the simulation
-            being used as input.
         merge_files (optionsl): underlying nudging zarr datasets to combine
             into a MergeNudged mapper
         i_start (optional): Index of sorted timesteps at which to start including

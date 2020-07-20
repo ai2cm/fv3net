@@ -9,7 +9,7 @@ from vcm import thermo, safe
 import xarray as xr
 import numpy as np
 import logging
-from typing import Sequence, Mapping, Union, Callable, Any
+from typing import Sequence, Mapping, Union, Callable, Any, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ DERIVATION_DIM = "derivation"
 
 
 def reduce_to_diagnostic(
-    ds_batches: Sequence[xr.Dataset],
+    ds: xr.Dataset,
     grid: xr.Dataset,
     domains: Sequence[str] = DOMAINS,
     primary_vars: Sequence[str] = PRIMARY_VARS,
@@ -27,19 +27,19 @@ def reduce_to_diagnostic(
     """Reduce a sequence of batches to a diagnostic dataset
     
     Args:
-        ds_batches: loader sequence of xarray datasets with relevant variables
+        ds: xarray datasets with relevant variables batched in time
         grid: xarray dataset containing grid variables
         (latb, lonb, lat, lon, area, land_sea_mask)
         domains: sequence of area domains over which to produce conditional
-            averages; defaults to ['sea', 'land', 'seaice']
+            averages; optonal
+        primary_vars: sequence of variables for which to compute column integrals
+            and composite means
             
     Returns:
         diagnostic_ds: xarray dataset of reduced diagnostic variables
     """
 
-    ds = xr.concat(ds_batches, dim=TIME_DIM).drop_vars(
-        names=UNINFORMATIVE_COORDS, errors="ignore"
-    )
+    ds = ds.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
     ds = insert_column_integrated_vars(ds, primary_vars)
     ds = _rechunk_time_z(ds)
 
@@ -75,7 +75,7 @@ def reduce_to_diagnostic(
 
 
 def insert_column_integrated_vars(
-    ds: xr.Dataset, column_integrated_vars: Sequence[str]
+    ds: xr.Dataset, column_integrated_vars: Sequence[str] = PRIMARY_VARS
 ) -> xr.Dataset:
     """Insert column integrated (<*>) terms,
     really a wrapper around vcm.thermo funcs"""
@@ -94,6 +94,31 @@ def insert_column_integrated_vars(
         ds = ds.assign({column_integrated_name: da})
 
     return ds
+
+
+def insert_total_apparent_sources(ds: xr.Dataset) -> xr.Dataset:
+    """Inserts apparent source (Q) terms as the sum of dQ and pQ, assumed to be present in
+    dataset ds
+    """
+    return ds.assign(
+        {
+            total_apparent_sources_name: da
+            for total_apparent_sources_name, da in zip(
+                ("Q1", "Q2"),
+                _total_apparent_sources(ds["dQ1"], ds["dQ2"], ds["pQ1"], ds["pQ2"]),
+            )
+        }
+    )
+
+
+def _total_apparent_sources(
+    dQ1: xr.DataArray, dQ2: xr.DataArray, pQ1: xr.DataArray, pQ2: xr.DataArray
+) -> Tuple[xr.DataArray, xr.DataArray]:
+
+    Q1 = pQ1 + dQ1
+    Q2 = pQ2 + dQ2
+
+    return Q1, Q2
 
 
 def _rechunk_time_z(
