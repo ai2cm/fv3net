@@ -34,7 +34,7 @@ endif
 # pattern rule for building docker images
 build_image_%:
 	docker build . -f docker/$*/Dockerfile  -t $*
-	
+
 enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $* bash
 
