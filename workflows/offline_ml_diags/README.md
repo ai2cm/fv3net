@@ -32,7 +32,6 @@ mapping_kwargs:
   initial_time_skip_hr: 0
 batch_kwargs:
   timesteps_per_batch: 5
-  init_time_dim_name: "initial_time"
 ```
 
 
