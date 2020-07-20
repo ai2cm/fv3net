@@ -50,7 +50,7 @@ def ds(request):
         coords={"x": [0, 1], "time": time_coords, ADDITIONAL_DIM: ADDITIONAL_COORDS},
     ).rename("test_var_additional_dim")
 
-    return xr.Dataset({"test_var": da, "test_var_additional_dim": da_additional_dim,})
+    return xr.Dataset({"test_var": da, "test_var_additional_dim": da_additional_dim})
 
 
 @pytest.mark.parametrize(
