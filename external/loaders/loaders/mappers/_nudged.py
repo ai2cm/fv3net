@@ -49,8 +49,8 @@ class MergeNudged(LongRunMapper):
 
     @staticmethod
     def _rename_vars(
-        data_sources: Mapping[str, xr.Dataset], rename_vars: Mapping[str, str]
-    ) -> Mapping[str, xr.Dataset]:
+        data_sources: Sequence[xr.Dataset], rename_vars: Mapping[str, str]
+    ) -> Sequence[xr.Dataset]:
         datasets = []
         for source in data_sources:
             source_rename = {k: v for k, v in rename_vars.items() if k in source}
@@ -58,7 +58,9 @@ class MergeNudged(LongRunMapper):
         return datasets
 
     @staticmethod
-    def _mapper_to_datasets(data_sources) -> Mapping[str, xr.Dataset]:
+    def _mapper_to_datasets(
+        data_sources: Sequence[Union[LongRunMapper, xr.Dataset]]
+    ) -> Sequence[xr.Dataset]:
 
         datasets = []
         for source in data_sources:
