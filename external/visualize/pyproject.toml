@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "gallery"
+name = "visualize"
 version = "0.1.0"
 description = ""
-authors = ["Oliver Watt-Meyer <oliwm@vulcan.com>"]
+authors = ["Oliver Watt-Meyer <oliwm@vulcan.com>", "Brian Henn <brianh@vulcan.com>"]
 
 [tool.poetry.dependencies]
 matplotlib = "^3.1"
