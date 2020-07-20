@@ -1,3 +1,1 @@
-import tensorflow
-import fv3net
-import fv3fit
+import tensorflow, fv3net, fv3fit  # noqa
