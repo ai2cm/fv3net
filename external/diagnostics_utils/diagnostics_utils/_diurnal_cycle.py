@@ -20,6 +20,7 @@ SURFACE_TYPE_DIM = "surface_type"
 def create_diurnal_cycle_dataset(
     ds: xr.Dataset,
     longitude: xr.DataArray,
+    land_sea_mask: xr.DataArray,
     diurnal_vars: Sequence[str],
     n_bins: int = 24,
     time_dim: str = "time",
@@ -31,6 +32,8 @@ def create_diurnal_cycle_dataset(
     Args:
         ds: input dataset
         longitude: dataarray of lon values
+        land_sea_mask: dataarray with surface type values- assumed to be integers
+            corresponding to config.SURFACE_TYPE_ENUMERATION mapping
         diurnal_vars: variables to compute diurnal cycle on
         n_bins: Number bins for the 24 hr period. Defaults to 24.
         time_dim: Name of time dim in dataset. Defaults to "time".
@@ -48,12 +51,12 @@ def create_diurnal_cycle_dataset(
         coordinate for "local_time_hr".
     """
     var_sfc = VARNAMES["surface_type"]
+    ds = ds.assign({var_sfc: snap_mask_to_type(land_sea_mask)})
     domain_datasets = {
         "global": _calc_diurnal_vars_with_extra_dims(
             ds, longitude, diurnal_vars, n_bins, time_dim, flatten_dims
         )
     }
-    ds[var_sfc] = snap_mask_to_type(ds[var_sfc])
     for surface_type in ["land", "sea"]:
         domain_datasets[surface_type] = _calc_diurnal_vars_with_extra_dims(
             ds.where(ds[var_sfc] == surface_type),

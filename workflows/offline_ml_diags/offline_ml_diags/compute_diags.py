@@ -99,13 +99,14 @@ def _compute_diags_over_batches(
         ds = (
             ds.pipe(utils.insert_total_apparent_sources)
             .pipe(utils.insert_column_integrated_vars)
-            .pipe(utils.insert_land_sea_mask, grid["land_sea_mask"])
             .load()
         )
         # ...reduce to diagnostic variables
         ds_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
         # ...compute diurnal cycles
-        ds_diurnal = utils.create_diurnal_cycle_dataset(ds, grid["lon"], DIURNAL_VARS,)
+        ds_diurnal = utils.create_diurnal_cycle_dataset(
+            ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
+        )
         # ...compute metrics
         ds_metrics = calc_metrics(xr.merge([ds, grid["area"]]))
         batches_diags.append(ds_diagnostic)
