@@ -25,7 +25,6 @@ ENV ENVIRONMENT_SCRIPTS=$FV3NET/environment-scripts
 ENV PROJECT_NAME=fv3net
 
 WORKDIR $FV3NET
-USER $NB_UID
 
 ADD .environment-scripts $ENVIRONMENT_SCRIPTS
 ADD environment.yml  environment.yml
@@ -33,8 +32,6 @@ ADD environment.yml  environment.yml
 RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME && conda clean -tpi
 ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
 
-# delete any gsutil's installed by conda
-RUN rm -f /opt/conda/envs/$PROJECT_NAME/gsutil
 
 # Add rest of fv3net directory
 COPY external $FV3NET/external
@@ -42,15 +39,14 @@ COPY fv3net $FV3NET/fv3net
 COPY workflows $FV3NET/workflows
 COPY catalog.yml dataflow.sh $FV3NET/
 
-USER root
-RUN fix-permissions $FV3NET
-RUN mkdir -p /home/jovyan/.config
-RUN fix-permissions /home/jovyan/.config
-USER $NB_UID
-
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
-CMD ["/bin/bash"]
+
+# delete any gsutil's installed by conda
+RUN rm -f /opt/conda/envs/$PROJECT_NAME/bin/gsutil
+RUN fix-permissions $FV3NET
+USER $NB_UID
+ENTRYPOINT [ "/bin/bash"]
 
 # new stage for testing
 FROM build AS test
