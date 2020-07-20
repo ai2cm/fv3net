@@ -45,7 +45,7 @@ spec:
               - name: fv3gfs-image
                 value: "{{workflow.parameters.fv3gfs-image}}"
               - name: times
-                value: "{{workflow.parameters.nudging-times}}"
+                value: "{{workflow.parameters.times}}"
               - name: output-url
                 value: "{{workflow.parameters.output-url}}"
               - name: nudging-config
