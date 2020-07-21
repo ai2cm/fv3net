@@ -11,7 +11,6 @@ sklearn = "^0.0"
 numpy = "^1.18.2"
 xarray = "^0.15.1"
 zarr = "^2.4.0"
-scipy = "^1.5.0"
 vcm = {path = "../../external/vcm"}
 
 [tool.poetry.dev-dependencies]

@@ -25,12 +25,10 @@ ENV ENVIRONMENT_SCRIPTS=$FV3NET/environment-scripts
 ENV PROJECT_NAME=fv3net
 
 WORKDIR $FV3NET
+USER $NB_UID
 
 ADD .environment-scripts $ENVIRONMENT_SCRIPTS
 ADD environment.yml  environment.yml
-RUN fix-permissions $FV3NET
-
-USER $NB_UID
 
 RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME && conda clean -tpi
 ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
@@ -45,6 +43,10 @@ RUN fix-permissions $FV3NET
 RUN mkdir -p /home/jovyan/.config
 RUN fix-permissions /home/jovyan/.config
 USER $NB_UID
+
+# pin scipy version to prevent other dependencies from installing 1.4.1 version with regression 
+# https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-pkgs.html#preventing-packages-from-updating-pinning
+RUN echo "scipy >= 1.5.0" > /opt/conda/envs/$PROJECT_NAME/conda-meta/pinned
 
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME

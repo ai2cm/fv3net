@@ -33,9 +33,7 @@ def test_gridded_dataset(request):
 def test_stack_dropnan_shuffle_dims(test_gridded_dataset):
     ds_grid = test_gridded_dataset
     rs = np.random.RandomState(seed=0)
-    ds_train = stack_dropnan_shuffle(
-        init_time_dim_name="initial_time", random_state=rs, ds=ds_grid
-    )
+    ds_train = stack_dropnan_shuffle(random_state=rs, ds=ds_grid)
     assert set(ds_train.dims) == {"sample", "z"}
     assert len(ds_train["z"]) == len(ds_grid.z)
 
@@ -56,13 +54,9 @@ def test_stack_dropnan_shuffle_samples(test_gridded_dataset, num_finite_samples)
 
     if num_finite_samples == 0:
         with pytest.raises(ValueError):
-            ds_train = stack_dropnan_shuffle(
-                init_time_dim_name="initial_time", random_state=rs, ds=ds_grid
-            )
+            ds_train = stack_dropnan_shuffle(random_state=rs, ds=ds_grid)
     else:
-        ds_train = stack_dropnan_shuffle(
-            init_time_dim_name="initial_time", random_state=rs, ds=ds_grid
-        )
+        ds_train = stack_dropnan_shuffle(random_state=rs, ds=ds_grid)
         assert len(ds_train["sample"]) == num_finite_samples
         assert set(ds_train["var"].values.flatten()) == set(finite_samples)
 
