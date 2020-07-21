@@ -131,7 +131,6 @@ class TimeLoop:
         NML = runtime.get_namelist()
         TIMESTEP = NML["coupler_nml"]["dt_atmos"]
 
-        self.times = []
         rank = comm.Get_rank()
 
         self.state_mapping = runtime.DerivedFV3State(self.fv3gfs)
@@ -142,12 +141,6 @@ class TimeLoop:
         self.do_only_diagnostic_ml = args["scikit_learn"].get("diagnostic_ml", False)
 
         # open zarr tape for output
-        if rank == 0:
-            GROUP = zarr.open_group(args["scikit_learn"]["zarr_output"], mode="w")
-        else:
-            GROUP = None
-
-        self.group = comm.bcast(GROUP, root=0)
 
         if rank == 0:
             logger.info("Downloading Sklearn Model")
@@ -211,27 +204,32 @@ class TimeLoop:
         self.state_mapping.update(updated_state)
         self.diagnostics.update(diagnostics)
 
-    def write_diagnostics(self):
-        if self.writers is None:
-            self.writers = runtime.init_writers(self.group, self.comm, self.diagnostics)
-        runtime.append_to_writers(self.writers, self.diagnostics)
-        self.times.append(self.state_mapping.time)
-
     def step(self, TIMESTEP):
         self.reset_diagnostics()
         self.step_dynamics()
         self.step_physics()
         self.step_python(TIMESTEP)
-        self.write_diagnostics()
+        return self.state_mapping.time, self.diagnostics
 
-
-    def run(self):
+    def __iter__(self):
         self.fv3gfs.initialize()
         for i in range(self.fv3gfs.get_step_count()):
-            self.step(self.timestep)
+            yield self.step(self.timestep)
         self.fv3gfs.cleanup()
 
 
 if __name__ == "__main__":
-    loop = TimeLoop()
-    loop.run()
+    comm = MPI.COMM_WORLD
+
+    if comm.rank == 0:
+        group = zarr.open_group(runtime.get_config()["scikit_learn"]["zarr_output"], mode="w")
+    else:
+        group = None
+
+    group = comm.bcast(group, root=0)
+
+    for i, (_, diagnostics) in enumerate(TimeLoop(comm=comm)):
+        if i == 0:
+            writers = runtime.init_writers(group, comm, diagnostics)
+        runtime.append_to_writers(writers, diagnostics)
+
