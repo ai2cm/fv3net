@@ -18,8 +18,6 @@ GCR_BASE  = us.gcr.io/vcm-ml
 FV3NET_IMAGE = $(GCR_BASE)/fv3net
 PROGNOSTIC_RUN_IMAGE = $(GCR_BASE)/prognostic_run
 
-IGNORE_SUBMODULES = --ignore=external/fv3util --ignore=external/fv3config
-
 
 ifeq (,$(shell which conda))
 HAS_CONDA=False
@@ -68,16 +66,16 @@ run_integration_tests:
 	./tests/end_to_end_integration/run_integration_with_wait.sh $(VERSION)
 
 test:
-	pytest external/* tests $(IGNORE_SUBMODULES)
+	pytest external/* tests
 
 test_prognostic_run:
 	IMAGE=prognostic_run $(MAKE) -C workflows/prognostic_c48_run/ test
 
 test_unit:
-	pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images $(IGNORE_SUBMODULES)
+	pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
 test_regression:
-	pytest -vv -m regression -s $(IGNORE_SUBMODULES)
+	pytest -vv -m regression -s
 
 test_dataflow:
 	pytest -vv tests/dataflow/ -s
