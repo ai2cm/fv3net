@@ -1,6 +1,6 @@
 import pytest
-import vcm
 import numpy as np
+from visualize._plot_cube import _segment_plot_inputs
 
 
 @pytest.fixture(params=[(2, 2), (8, 10)])
@@ -49,7 +49,7 @@ def y(shape):
 def test_segment_plot_inputs_removes_nans(x, y, array):
     total_size = 0
     total_sum = 0
-    for x, y, data in vcm.visualize._plot_cube._segment_plot_inputs(x, y, array):
+    for x, y, data in _segment_plot_inputs(x, y, array):
         assert np.sum(np.isnan(data)) == 0
         assert np.product(data.shape) > 0
         total_size += np.product(data.shape)
@@ -60,7 +60,7 @@ def test_segment_plot_inputs_removes_nans(x, y, array):
 
 def test_segment_plot_inputs_returns_unique_values(x, y, array):
     values_seen = set()
-    for x, y, data in vcm.visualize._plot_cube._segment_plot_inputs(x, y, array):
+    for x, y, data in _segment_plot_inputs(x, y, array):
         for value in data.ravel():
             assert value not in values_seen
             values_seen.add(value)
