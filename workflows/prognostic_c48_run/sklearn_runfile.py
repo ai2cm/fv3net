@@ -170,26 +170,29 @@ class TimeLoop:
         self.comm = comm
         self.model = MODEL
         self.timestep = TIMESTEP
+        self.diagnostics = {}
+        self.writers = None
 
-    def step(self, i, TIMESTEP):
-
-        rank = self.rank
-        comm = self.comm
-        variables = self.variables
-
-        if rank == 0:
+    def step_dynamics(self):
+        if self.rank == 0:
             logger.debug(f"Dynamics Step")
-        fv3gfs.step_dynamics()
-        if rank == 0:
+        self.fv3gfs.step_dynamics()
+
+    def reset_diagnostics(self):
+        self.diagnostics = {}
+
+    def step_physics(self):
+        if self.rank == 0:
             logger.debug(f"Physics Step")
-        fv3gfs.step_physics()
-
-        if rank == 0:
+        self.fv3gfs.step_physics()
+    
+    def step_python(self, TIMESTEP):
+        variables = self.variables
+        if self.rank == 0:
             logger.debug(f"Getting state variables: {variables}")
-
         state = {name: self.state_mapping[name] for name in variables}
 
-        if rank == 0:
+        if self.rank == 0:
             logger.debug("Computing RF updated variables")
         tendency = predict(self.model, state)
 
@@ -206,20 +209,30 @@ class TimeLoop:
             state[TOTAL_PRECIP], diagnostics["net_moistening"], TIMESTEP
         )
 
-        if rank == 0:
+        if self.rank == 0:
             logger.debug("Setting Fortran State")
 
         self.state_mapping.update(updated_state)
+        self.diagnostics.update(diagnostics)
 
-        if i == 0:
-            self.writers = runtime.init_writers(self.group, comm, diagnostics)
-        runtime.append_to_writers(self.writers, diagnostics)
+    def write_diagnostics(self):
+        if self.writers is None:
+            self.writers = runtime.init_writers(self.group, self.comm, self.diagnostics)
+        runtime.append_to_writers(self.writers, self.diagnostics)
         self.times.append(self.state_mapping.time)
+
+    def step(self, TIMESTEP):
+        self.reset_diagnostics()
+        self.step_dynamics()
+        self.step_physics()
+        self.step_python(TIMESTEP)
+        self.write_diagnostics()
+
 
     def run(self):
         self.fv3gfs.initialize()
         for i in range(self.fv3gfs.get_step_count()):
-            self.step(i, self.timestep)
+            self.step(self.timestep)
         self.fv3gfs.cleanup()
 
 
