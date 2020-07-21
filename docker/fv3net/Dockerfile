@@ -44,14 +44,14 @@ RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
 
 # delete any gsutil's installed by conda
 RUN rm -f /opt/conda/envs/$PROJECT_NAME/bin/gsutil
-RUN fix-permissions $FV3NET
+RUN fix-permissions /home/jovyan/
 USER $NB_UID
 ENTRYPOINT [ "/bin/bash"]
 
 # new stage for testing
 FROM build AS test
 COPY docker/fv3net/test_environment.py /tmp/test_environment.py
-RUN python3 /tmp/test_environment.py
+RUN pytest -vv /tmp/test_environment.py
 
 # empty stage for final output
 FROM build

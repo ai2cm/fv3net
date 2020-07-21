@@ -11,5 +11,9 @@ def test_gsutil_not_from_conda():
         raise AssertionError(f"gsutil found at {gsutil_path}")
 
 
-if __name__ == "__main__":
-    test_gsutil_not_from_conda()
+def test_touch_config_file():
+    """this test will catch errors related to permissions issues
+    or google authentication"""
+    google_config = "/home/jovyan/.config/gcloud/test_write_file"
+    with open(google_config, "w") as f:
+        f.write("Hello")
