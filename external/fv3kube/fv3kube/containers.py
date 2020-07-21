@@ -167,12 +167,7 @@ def post_process_container(
 
     rundir = os.path.join("/mnt", path)
     container.image = image
-    container.command = [
-        "python",
-        "/usr/local/bin/post_process.py",
-        rundir,
-        destination,
-    ]
+    container.command = ["post_process.py", rundir, destination]
     # Suitable for C48 job
     container.resources = V1ResourceRequirements(
         limits=dict(cpu="6", memory="3600M"), requests=dict(cpu="6", memory="3600M"),
