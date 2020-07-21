@@ -116,7 +116,6 @@ def apply(state: State, tendency: State, dt: float) -> State:
 
 
 class TimeLoop:
-
     def __init__(self, comm=None, _fv3gfs=None):
 
         if _fv3gfs is None:
@@ -154,7 +153,6 @@ class TimeLoop:
         if rank == 0:
             logger.info(f"Timestep: {TIMESTEP}")
 
-
         self.rank = rank
         self.comm = comm
         self.model = MODEL
@@ -174,7 +172,7 @@ class TimeLoop:
         if self.rank == 0:
             logger.debug(f"Physics Step")
         self.fv3gfs.step_physics()
-    
+
     def step_python(self, TIMESTEP):
         variables = list(self.model.input_vars_ | REQUIRED_VARIABLES)
         if self.rank == 0:
@@ -222,7 +220,9 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
     if comm.rank == 0:
-        group = zarr.open_group(runtime.get_config()["scikit_learn"]["zarr_output"], mode="w")
+        group = zarr.open_group(
+            runtime.get_config()["scikit_learn"]["zarr_output"], mode="w"
+        )
     else:
         group = None
 
@@ -232,4 +232,3 @@ if __name__ == "__main__":
         if i == 0:
             writers = runtime.init_writers(group, comm, diagnostics)
         runtime.append_to_writers(writers, diagnostics)
-
