@@ -157,15 +157,11 @@ class TimeLoop:
             MODEL = None
 
         MODEL = comm.bcast(MODEL, root=0)
-        variables = list(MODEL.input_vars_ | REQUIRED_VARIABLES)
-        if rank == 0:
-            logger.debug(f"Prognostic run requires variables: {variables}")
 
         if rank == 0:
             logger.info(f"Timestep: {TIMESTEP}")
 
 
-        self.variables = variables
         self.rank = rank
         self.comm = comm
         self.model = MODEL
@@ -187,7 +183,7 @@ class TimeLoop:
         self.fv3gfs.step_physics()
     
     def step_python(self, TIMESTEP):
-        variables = self.variables
+        variables = list(self.model.input_vars_ | REQUIRED_VARIABLES)
         if self.rank == 0:
             logger.debug(f"Getting state variables: {variables}")
         state = {name: self.state_mapping[name] for name in variables}
