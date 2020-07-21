@@ -26,6 +26,7 @@ DIM_RENAME_INVERSE_MAP = {
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 _DIAG_OUTPUT_LOADERS = []
 MASK_VARNAME = "SLMSKsfc"
+GRID_ENTRIES = {48: "grid/c48", 96: "grid/c96"}
 
 
 def _adjust_tile_range(ds: xr.Dataset) -> xr.Dataset:
@@ -212,6 +213,26 @@ def _load_prognostic_run_physics_output(url):
     return xr.merge(diagnostic_data, join="inner")
 
 
+def _coarsen_prognostic(
+    ds: xr.Dataset, catalog: intake.Catalog, target_res: int
+) -> xr.Dataset:
+    input_res = ds.sizes["x"]
+    coarsening_factor = input_res / target_res
+    if not coarsening_factor.is_integer():
+        raise ValueError("Target resolution must evenly divide input resolution")
+    coarsening_factor = int(coarsening_factor)
+    if coarsening_factor == 1:
+        output = ds
+    else:
+        if input_res not in GRID_ENTRIES:
+            raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
+        area = catalog[GRID_ENTRIES[input_res]].to_dask()["area"]
+        output = vcm.cubedsphere.weighted_block_average(
+            ds, area, coarsening_factor, x_dim="x", y_dim="y"
+        )
+    return output
+
+
 def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     """Open data required for dycore plots.
 
@@ -245,6 +266,7 @@ def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     path = os.path.join(url, "atmos_dt_atmos.zarr")
     logger.info(f"Opening prognostic run data at {path}")
     ds = _load_standardized(path)
+    ds = _coarsen_prognostic(ds, catalog, target_res=48)
 
     return ds, verification_c48, grid_c48
 
@@ -281,6 +303,7 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
+    prognostic_output = _coarsen_prognostic(prognostic_output, catalog, target_res=48)
     prognostic_output = add_derived.physics_variables(prognostic_output)
 
     # Add mask information if not present
