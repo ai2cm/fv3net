@@ -4,7 +4,7 @@ This package contains visualization tools used by the Vulcan Climate Modeling ML
 Plotting functions found here have been refactored (without change) from their previous
 locations in `vcm.visualize` and `gallery`. Sample usage::
 
-  import visualization as viz
+  import visualize as viz
   
   fig = viz.plot_cube(viz.mappable_var(ds), ...)
 

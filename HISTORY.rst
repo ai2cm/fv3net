@@ -17,7 +17,8 @@ latest
 * Add diagnostic variables from SHiELD and FV3GFS to new diagnostic mappers for each data sources; diagnostic mappers return net_heating and net_precipitation for the coarsened SHiELD and coarse FV3GFS diagnostics
 * Add surface type dimension to diurnal cycle calculated in diagnostics
 * Remove renaming of time and data variables from batch functions in external/loaders. Renaming should be done by the mappers.
-* Move plotting routines previously found in `vcm.visualize` and `gallery` into a new package `visualize` and remove dependencies between `vcm` and plotting routines.
+* Move plotting routines previously found in code:`vcm.visualize` and code:`gallery` into a new package code:`visualize` and
+remove dependencies between code:`vcm` and plotting routines.
 
 0.2.3 (2020-06-19)
 ------------------
