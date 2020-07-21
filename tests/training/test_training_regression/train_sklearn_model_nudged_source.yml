@@ -10,7 +10,6 @@ output_variables:
   - dQ2
 batch_function: batches_from_geodata
 batch_kwargs:
-  init_time_dim_name: "time"
   timesteps_per_batch: 1
   timesteps:
     - "20160801.001500"
