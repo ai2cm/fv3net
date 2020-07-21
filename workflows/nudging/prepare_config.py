@@ -36,7 +36,9 @@ if __name__ == "__main__":
     if args.timesteps:
         with open(args.timesteps) as f:
             timesteps = yaml.safe_load(f)
-        config["nudging"]["output_times"] = timesteps
+
+        if timesteps is not None:
+            config["nudging"]["output_times"] = timesteps
 
     reference_dir = config["nudging"]["restarts_path"]
     time = datetime(*config["namelist"]["coupler_nml"]["current_date"])

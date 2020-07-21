@@ -1,0 +1,49 @@
+# vim: set sts=2 ts=2 tw=2 sw=2 :
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: prognostic-run
+spec:
+  templates:
+    # This is the same template as from the previous example
+    - name: prognostic-run
+      inputs:
+        parameters:
+          - {name: image-tag}
+          - {name: initial-condition}
+          - {name: config}
+          - {name: reference-restarts}
+          - {name: trained-ml}
+          - {name: output}
+      container:
+        image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        command: ["bash", "-c", "-x"]
+        args:
+          - |
+            FV3NET=~/fv3net
+            IC={{workflow.parameters.initial-condition}}
+            C48_RESTARTS={{workflow.parameters.reference-restarts}}
+
+            cat << EOF > config.yaml
+            {{inputs.parameters.config}}
+            EOF
+
+            python $FV3NET/workflows/prognostic_c48_run/orchestrate_submit_job.py \
+              --image-tag {{inputs.parameters.image-tag}} \
+              --model_url {{inputs.parameters.trained-ml}} \
+              --prog_config_yml config.yaml \
+              $C48_RESTARTS \
+              $IC \
+              {{inputs.parameters.output}}
+        resources:
+          requests:
+            memory: "500Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"

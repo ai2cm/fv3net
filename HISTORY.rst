@@ -16,6 +16,7 @@ latest
 * Add offset_seconds argument to the nudging loader
 * Add diagnostic variables from SHiELD and FV3GFS to new diagnostic mappers for each data sources; diagnostic mappers return net_heating and net_precipitation for the coarsened SHiELD and coarse FV3GFS diagnostics
 * Add surface type dimension to diurnal cycle calculated in diagnostics
+* Remove renaming of time and data variables from batch functions in external/loaders. Renaming should be done by the mappers.
 
 0.2.3 (2020-06-19)
 ------------------

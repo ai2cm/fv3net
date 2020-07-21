@@ -16,7 +16,6 @@ class SklearnPredictionMapper(GeoMapper):
         self,
         base_mapper: GeoMapper,
         sklearn_wrapped_model: SklearnWrapper,
-        init_time_dim: str = "time",
         z_dim: str = "z",
         rename_vars: Mapping[str, str] = None,
         cos_z_var: str = None,
@@ -24,7 +23,6 @@ class SklearnPredictionMapper(GeoMapper):
     ):
         self._base_mapper = base_mapper
         self._model = sklearn_wrapped_model
-        self._init_time_dim = init_time_dim
         self._z_dim = z_dim
         self._cos_z_var = cos_z_var
         self._grid = grid
