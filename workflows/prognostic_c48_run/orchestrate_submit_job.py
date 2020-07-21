@@ -18,7 +18,7 @@ MODEL_FILENAME = "sklearn_model.pkl"
 def get_kube_opts(config_update, image_tag=None):
     default = {
         "gcp_secret_name": "gcp-key",
-        "post_process_image": "us.gcr.io/vcm-ml/fv3net",
+        "post_process_image": "us.gcr.io/vcm-ml/post_process_run",
         "fv3_image": "us.gcr.io/vcm-ml/prognostic_run",
         "fv3config_image": "us.gcr.io/vcm-ml/prognostic_run",
     }
