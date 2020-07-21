@@ -115,47 +115,68 @@ def apply(state: State, tendency: State, dt: float) -> State:
     return updated  # type: ignore
 
 
-if __name__ == "__main__":
-    args = runtime.get_config()
-    NML = runtime.get_namelist()
-    TIMESTEP = NML["coupler_nml"]["dt_atmos"]
+class TimeLoop:
 
-    times = []
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
+    def __init__(self, comm=None, _fv3gfs=None):
 
-    state_mapping = runtime.DerivedFV3State(fv3gfs)
+        if _fv3gfs is None:
+            self.fv3gfs = fv3gfs
+        else:
+            self.fv3gfs = _fv3gfs
 
-    # change into run directoryy
-    MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
+        if comm is None:
+            comm = MPI.COMM_WORLD
 
-    do_only_diagnostic_ml = args["scikit_learn"].get("diagnostic_ml", False)
+        args = runtime.get_config()
+        NML = runtime.get_namelist()
+        TIMESTEP = NML["coupler_nml"]["dt_atmos"]
 
-    # open zarr tape for output
-    if rank == 0:
-        GROUP = zarr.open_group(args["scikit_learn"]["zarr_output"], mode="w")
-    else:
-        GROUP = None
+        self.times = []
+        rank = comm.Get_rank()
 
-    GROUP = comm.bcast(GROUP, root=0)
+        self.state_mapping = runtime.DerivedFV3State(self.fv3gfs)
 
-    if rank == 0:
-        logger.info("Downloading Sklearn Model")
-        MODEL = open_model(args["scikit_learn"])
-        logger.info("Model downloaded")
-    else:
-        MODEL = None
+        # change into run directoryy
+        MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
 
-    MODEL = comm.bcast(MODEL, root=0)
-    variables = list(MODEL.input_vars_ | REQUIRED_VARIABLES)
-    if rank == 0:
-        logger.debug(f"Prognostic run requires variables: {variables}")
+        self.do_only_diagnostic_ml = args["scikit_learn"].get("diagnostic_ml", False)
 
-    if rank == 0:
-        logger.info(f"Timestep: {TIMESTEP}")
+        # open zarr tape for output
+        if rank == 0:
+            GROUP = zarr.open_group(args["scikit_learn"]["zarr_output"], mode="w")
+        else:
+            GROUP = None
 
-    fv3gfs.initialize()
-    for i in range(fv3gfs.get_step_count()):
+        self.group = comm.bcast(GROUP, root=0)
+
+        if rank == 0:
+            logger.info("Downloading Sklearn Model")
+            MODEL = open_model(args["scikit_learn"])
+            logger.info("Model downloaded")
+        else:
+            MODEL = None
+
+        MODEL = comm.bcast(MODEL, root=0)
+        variables = list(MODEL.input_vars_ | REQUIRED_VARIABLES)
+        if rank == 0:
+            logger.debug(f"Prognostic run requires variables: {variables}")
+
+        if rank == 0:
+            logger.info(f"Timestep: {TIMESTEP}")
+
+
+        self.variables = variables
+        self.rank = rank
+        self.comm = comm
+        self.model = MODEL
+        self.timestep = TIMESTEP
+
+    def step(self, i, TIMESTEP):
+
+        rank = self.rank
+        comm = self.comm
+        variables = self.variables
+
         if rank == 0:
             logger.debug(f"Dynamics Step")
         fv3gfs.step_dynamics()
@@ -166,19 +187,19 @@ if __name__ == "__main__":
         if rank == 0:
             logger.debug(f"Getting state variables: {variables}")
 
-        state = {name: state_mapping[name] for name in variables}
+        state = {name: self.state_mapping[name] for name in variables}
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
-        tendency = predict(MODEL, state)
+        tendency = predict(self.model, state)
 
-        if do_only_diagnostic_ml:
+        if self.do_only_diagnostic_ml:
             updated_state: State = {}
         else:
             updated_state = apply(state, tendency, dt=TIMESTEP)
 
         diagnostics = compute_diagnostics(state, tendency)
-        if do_only_diagnostic_ml:
+        if self.do_only_diagnostic_ml:
             rename_diagnostics(diagnostics)
 
         updated_state[TOTAL_PRECIP] = precipitation_sum(
@@ -188,12 +209,20 @@ if __name__ == "__main__":
         if rank == 0:
             logger.debug("Setting Fortran State")
 
-        state_mapping.update(updated_state)
+        self.state_mapping.update(updated_state)
 
         if i == 0:
-            writers = runtime.init_writers(GROUP, comm, diagnostics)
-        runtime.append_to_writers(writers, diagnostics)
+            self.writers = runtime.init_writers(self.group, comm, diagnostics)
+        runtime.append_to_writers(self.writers, diagnostics)
+        self.times.append(self.state_mapping.time)
 
-        times.append(state_mapping.time)
+    def run(self):
+        self.fv3gfs.initialize()
+        for i in range(self.fv3gfs.get_step_count()):
+            self.step(i, self.timestep)
+        self.fv3gfs.cleanup()
 
-    fv3gfs.cleanup()
+
+if __name__ == "__main__":
+    loop = TimeLoop()
+    loop.run()
