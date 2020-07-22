@@ -227,7 +227,7 @@ class MonitoredTimeLoop(TimeLoop):
         after = {key: self.state_mapping[key] for key in keys}
 
         tendency = {
-            "tendency_of_{key}_due_to_fv3_physics": (after[key] - before[key])
+            f"tendency_of_{key}_due_to_fv3_physics": (after[key] - before[key])
             / self.timestep
             for key in keys
         }
