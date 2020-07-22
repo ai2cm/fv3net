@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import xarray as xr
 import yaml
+from datetime import timedelta, datetime
 from sklearn.dummy import DummyRegressor
 
 from fv3net.regression.sklearn import SklearnWrapper
@@ -318,23 +319,114 @@ namelist:
     ldebug: false
 """
 
+# Test two nudging timesteps
+NUDGE_RUNFILE = Path(__file__).parent.parent.joinpath("nudging/runfile.py").as_posix()
+START_TIME = [2016, 8, 1, 0, 0, 0]
+TIMESTEP_SECONDS = 900
+RUNTIME_MINUTES = 30
+TIME_FMT = "%Y%m%d.%H%M%S"
+RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seconds": 0}
+BASE_FV3CONFIG_CACHE = Path(
+    "/inputdata/fv3config-cache", "gs", "vcm-fv3config", "vcm-fv3config", "data"
+)
+IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
+    "initial_conditions", "c12_restart_initial_conditions", "v1.0"
+)
+ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
+FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
 
-def get_config(model):
+
+def get_nudging_config(config_yaml: str, restart_dir: str):
+    config = yaml.safe_load(config_yaml)
+    coupler_nml = config["namelist"]["coupler_nml"]
+    coupler_nml["current_date"] = START_TIME
+    coupler_nml.update(RUNTIME)
+    coupler_nml["dt_atmos"] = TIMESTEP_SECONDS
+    coupler_nml["dt_ocean"] = TIMESTEP_SECONDS
+
+    config["initial_conditions"] = IC_PATH.as_posix()
+    config["forcing"] = FORCING_PATH.as_posix()
+    config["orographic_forcing"] = ORO_PATH.as_posix()
+
+    config["nudging"] = {
+        "restarts_path": Path(restart_dir).as_posix(),
+        "timescale_hours": {
+            "air_temperature": 3.0,
+            "specific_humidity": 3.0,
+            "x_wind": 3.0,
+            "y_wind": 3.0,
+        },
+    }
+
+    return config
+
+
+@pytest.fixture
+def tmpdir_restart_dir(tmpdir):
+    """Symlink fake restart directories used for nudging"""
+
+    minute_per_step = TIMESTEP_SECONDS // 60
+    nudge_timesteps = RUNTIME_MINUTES // minute_per_step
+    restart_path = Path(
+        BASE_FV3CONFIG_CACHE,
+        "initial_conditions",
+        "c12_restart_initial_conditions",
+        "v1.0",
+    )
+
+    tmp_restarts = Path(tmpdir, "restarts")
+    tmp_restarts.mkdir(exist_ok=True)
+
+    start = datetime(*START_TIME)
+    delta_t = timedelta(minutes=minute_per_step)
+    for i in range(nudge_timesteps + 1):
+        timestamp = (start + i * delta_t).strftime(TIME_FMT)
+
+        # Make timestamped restart directory
+        restart_dir = tmp_restarts.joinpath(timestamp)
+        restart_dir.mkdir(parents=True, exist_ok=True)
+
+        # Link all restart files from initial conditions folder with prefix
+        _symlink_restart_files(restart_dir, restart_path, timestamp)
+
+    return tmpdir, tmp_restarts.as_posix()
+
+
+def _symlink_restart_files(timestamp_dir: Path, target_dir: Path, symlink_prefix: str):
+    files_to_glob = ["fv_core*", "fv_srf_wnd*", "fv_tracer*", "sfc_data*"]
+
+    for file_pattern in files_to_glob:
+        files = target_dir.glob(file_pattern)
+
+        for fv_file in files:
+            fname_with_prefix = f"{symlink_prefix}.{fv_file.name}"
+            new_fv_file = timestamp_dir.joinpath(fname_with_prefix)
+            new_fv_file.symlink_to(fv_file)
+
+
+@with_fv3gfs
+def test_nudge_run(tmpdir_restart_dir):
+    tmpdir, restart_dir = tmpdir_restart_dir
+    config = get_nudging_config(default_fv3config, restart_dir)
+    fv3config.run_native(
+        config, str(tmpdir), capture_output=True, runfile=NUDGE_RUNFILE
+    )
+
+
+def get_prognostic_config(model):
     config = yaml.safe_load(default_fv3config)
     config["scikit_learn"] = {"model": model, "zarr_output": "diags.zarr"}
     # use local paths in prognostic_run image. fv3config
     # downloads data. We should change this once the fixes in
     # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates
     # into the prognostic_run image
-    base = "/inputdata/fv3config-cache/gs/vcm-fv3config/vcm-fv3config/"
 
-    config["forcing"] = f"{base}/data/base_forcing/v1.1"  # noqa
-    config[
-        "initial_conditions"
-    ] = f"{base}/data/initial_conditions/c12_restart_initial_conditions/v1.0"  # noqa
-    config["orographic_forcing"] = f"{base}/data/orographic_data/v1.0"
+    config["forcing"] = FORCING_PATH.as_posix()
+    config["initial_conditions"] = IC_PATH.as_posix()
+    config["orographic_forcing"] = ORO_PATH.as_posix()
 
     config["namelist"]["coupler_nml"].update({"days": 0, "minutes": 30, "seconds": 0})
+
     return config
 
 
@@ -363,7 +455,7 @@ def saved_model(tmpdir):
 
 
 @with_fv3gfs
-def test_fv3run_succeeds(saved_model, tmpdir):
+def test_fv3run_prognostic_succeeds(saved_model, tmpdir):
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
-    config = get_config(saved_model)
+    config = get_prognostic_config(saved_model)
     fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=False)
