@@ -361,14 +361,14 @@ def _save_mock_model(tmpdir):
     return path
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def completed_rundir(tmpdir_factory):
     if not FV3GFS_INSTALLED:
         pytest.skip("fv3gfs not installed")
 
     tmpdir = tmpdir_factory.mktemp("rundir")
     saved_model = _save_mock_model(tmpdir)
-    
+
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
     config = get_config(saved_model)
     fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=False)
