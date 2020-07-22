@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
-kind: Workflow
+kind: WorkflowTemplate
 metadata:
-  generateName: argo-nudge-to-obs-
+  name: nudge-to-obs
 spec:
   arguments:
     parameters:
@@ -35,40 +35,85 @@ spec:
   templates:
     - name: main
       steps:
+        - - name: nudge-to-obs
+            template: nudge-to-obs
+            arguments:
+              parameters:
+              - name: fv3net-image
+                value: "{{workflow.parameters.fv3net-image}}"
+              - name: fv3gfs-image
+                value: "{{workflow.parameters.fv3gfs-image}}"
+              - name: post-process-image
+                value: "{{workflow.parameters.post-process-image}}"
+              - name: output-url
+                value: "{{workflow.parameters.output-url}}"
+              - name: nudging-config
+                value: "{{workflow.parameters.nudging-config}}"
+    - name: nudge-to-obs
+      inputs:
+        parameters:
+          - name: nudging-config
+          - name: output-url
+          - name: fv3gfs-image
+            value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
+          - name: fv3net-image
+            value: us.gcr.io/vcm-ml/fv3net:c65d904f9e9b59a052ea3796608b64574f2a7966
+          - name: post-process-image
+            value: us.gcr.io/vcm-ml/post_process_run:396d9853498c0f45c13c3fa72202ca841d5378e8
+      steps:
         - - template: prepare-config
             name: prepare-config
+            arguments:
+              parameters:
+                - {name: fv3net-image, value: "{{inputs.parameters.fv3net-image}}"}
+                - {name: nudging-config, value: "{{inputs.parameters.nudging-config}}"}
         - - name: run-model
             template: fv3gfs
+            arguments:
+              parameters:
+                - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
         - - name: upload-outputs
             template: post-process
+            arguments:
+              parameters:
+                - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
+                - {name: output-url, value: "{{inputs.parameters.output-url}}"}
     - name: prepare-config
+      inputs:
+        parameters:
+          - {name: fv3net-image}
+          - {name: nudging-config}
       container:
         # need to run as root to read the mounted PVC
         securityContext:
           allowPrivilegeEscalation: false
           runAsUser: 0
-        image: "{{workflow.parameters.fv3net-image}}"
+        image: "{{inputs.parameters.fv3net-image}}"
         command: ["/bin/bash", "-c"]
-        workingDir: /home/jovyan/fv3net/workflows/nudge_to_obs
+        workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudge_to_obs
         args:
         - |
           cp runfile.py /mnt/data/runfile.py
           cp diag_table_nudge_to_obs /mnt/data/diag_table
           cp chunks.yaml /mnt/data/chunks.yaml
-          echo "{{workflow.parameters.nudging-config}}" > config.yaml
+          echo "{{inputs.parameters.nudging-config}}" > config.yaml
           python prepare_config.py config.yaml /mnt/data > /mnt/data/fv3config.yaml
         volumeMounts:
           - name: output-data
             mountPath: /mnt/data
     - name: post-process
+      inputs:
+        parameters:
+          - {name: post-process-image}
+          - {name: output-url}
       tolerations:
       - key: "dedicated"
         operator: "Equal"
         value: "climate-sim-pool"
         effect: "NoSchedule"
       container:
-        image: "{{workflow.parameters.post-process-image}}"
-        args: ["--chunks", "/mnt/data/chunks.yaml", "/mnt/data/rundir", "{{workflow.parameters.output-url}}"]
+        image: "{{inputs.parameters.post-process-image}}"
+        args: ["--chunks", "/mnt/data/chunks.yaml", "/mnt/data/rundir", "{{inputs.parameters.output-url}}"]
         volumeMounts:
           - name: output-data
             mountPath: /mnt/data
@@ -82,6 +127,9 @@ spec:
             cpu: "6"
             memory: 8Gi
     - name: fv3gfs
+      inputs:
+        parameters:
+          - {name: fv3gfs-image}
       tolerations:
       - key: "dedicated"
         operator: "Equal"
@@ -100,7 +148,7 @@ spec:
             value: /secret/gcp-credentials/key.json
           - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
             value: /secret/gcp-credentials/key.json
-        image: '{{workflow.parameters.fv3gfs-image}}'
+        image: '{{inputs.parameters.fv3gfs-image}}'
         imagePullPolicy: Always
         resources:
           limits:
