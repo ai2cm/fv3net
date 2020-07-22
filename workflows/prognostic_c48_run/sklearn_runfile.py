@@ -1,17 +1,16 @@
 import logging
-from typing import MutableMapping, Hashable, cast, Iterable, Mapping
 from datetime import datetime
+from typing import Hashable, Iterable, Mapping, MutableMapping, Tuple, cast
 
 import fsspec
-import zarr
-from sklearn.externals import joblib
-import xarray as xr
-
 import fv3gfs
 import runtime
-from fv3net.regression.sklearn.adapters import RenamingAdapter, StackingAdapter
-
+import xarray as xr
+import zarr
 from mpi4py import MPI
+from sklearn.externals import joblib
+
+from fv3net.regression.sklearn.adapters import RenamingAdapter, StackingAdapter
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -116,7 +115,10 @@ def apply(state: State, tendency: State, dt: float) -> State:
     return updated  # type: ignore
 
 
-class TimeLoop(Iterable[datetime, Mapping[str, xr.Dataset]]):
+Diagnostics = Mapping[str, xr.Dataset]
+
+
+class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
     """An iterable defining the master time loop of a prognostic simulation
 
     Yields (time, diagnostics) tuples, which can be saved using diagnostic routines.
@@ -129,13 +131,12 @@ class TimeLoop(Iterable[datetime, Mapping[str, xr.Dataset]]):
         2. ``_step_physics``
         3. ``_step_python``
 
-        Each phase updates the fv3gfs state and stores any computed
-        diagnostics in the `_diagnostics` attribute. This attribute is then
-        yielded after all the phases have been completed.
+        Each phase updates the fv3gfs state and returns any computed
+        diagnostics. After all these stages finish, the diagnostics they
+        output are merged and yielded along with the timestep.
 
-        These methods can be overriden to change behavior or insert new
-        diagnostics into this attribute.
-    
+        These methods can be overriden to change behavior or return new
+        diagnostics.
     """
 
     def __init__(self, comm=None, fv3gfs=fv3gfs):
@@ -177,15 +178,19 @@ class TimeLoop(Iterable[datetime, Mapping[str, xr.Dataset]]):
         if self._comm.rank == 0:
             logger.info(message)
 
-    def _step_dynamics(self):
+    def _step_dynamics(self) -> Diagnostics:
         self._log_debug(f"Dynamics Step")
-        self.fv3gfs.step_dynamics()
+        self._fv3gfs.step_dynamics()
+        # no diagnostics are computed by default
+        return {}
 
-    def _step_physics(self):
+    def _step_physics(self) -> Diagnostics:
         self._log_debug(f"Physics Step")
-        self.fv3gfs.step_physics()
+        self._fv3gfs.step_physics()
+        # no diagnostics are computed by default
+        return {}
 
-    def _step_python(self):
+    def _step_python(self) -> Diagnostics:
         variables = list(self._model.input_vars_ | REQUIRED_VARIABLES)
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
@@ -208,20 +213,16 @@ class TimeLoop(Iterable[datetime, Mapping[str, xr.Dataset]]):
 
         self._log_debug("Setting Fortran State")
         self._state.update(updated_state)
-
-        self._diagnostics.update(diagnostics)
-
-    def _step(self):
-        self._diagnostics = {}
-        self._step_dynamics()
-        self._step_physics()
-        self._step_python()
-        return self._state.time, self._diagnostics
+        return diagnostics
 
     def __iter__(self):
         self._fv3gfs.initialize()
         for i in range(self._fv3gfs.get_step_count()):
-            yield self._step()
+            diagnostics = {}
+            diagnostics.update(self._step_dynamics())
+            diagnostics.update(self._step_physics())
+            diagnostics.update(self._step_python())
+            yield self._state.time, diagnostics
         self._fv3gfs.cleanup()
 
 
