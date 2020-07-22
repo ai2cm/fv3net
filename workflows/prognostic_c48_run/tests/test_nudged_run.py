@@ -76,6 +76,7 @@ namelist:
   coupler_nml:
     atmos_nthreads: 1
     calendar: julian
+    force_date_from_namelist: true
     current_date:
     - 2016
     - 8
@@ -86,10 +87,9 @@ namelist:
     days: 0
     dt_atmos: 900
     dt_ocean: 900
-    force_date_from_namelist: true
     hours: 0
     memuse_verbose: true
-    minutes: ""
+    minutes: 15
     months: 0
     ncores_per_node: 32
     seconds: 0
@@ -100,7 +100,7 @@ namelist:
     checker_tr: false
     filtered_terrain: true
     gfs_dwinds: true
-    levp: 64
+    levp: 80
     nt_checker: 0
   fms_io_nml:
     checksum_required: false
@@ -125,10 +125,9 @@ namelist:
     dddmp: 0.2
     delt_max: 0.002
     dnats: 1
-    do_sat_adj: false
+    do_sat_adj: true
     do_vort_damp: true
     dwind_2d: false
-    external_eta: true
     external_ic: false
     fill: true
     fv_debug: false
@@ -161,9 +160,9 @@ namelist:
     nggps_ic: false
     no_dycore: false
     nord: 2
-    npx: 49
-    npy: 49
-    npz: 79
+    npx: 13
+    npy: 13
+    npz: 63
     ntiles: 6
     nudge: false
     nudge_qv: true
@@ -197,7 +196,7 @@ namelist:
     do_sedi_heat: false
     dw_land: 0.16
     dw_ocean: 0.1
-    fast_sat_adj: false
+    fast_sat_adj: true
     fix_negative: true
     icloud_f: 1
     mono_prof: true
@@ -316,14 +315,12 @@ namelist:
     fvmxl: 99999
     ldebug: false
 nudging:
-  output_times:
-  - '20160801.003000'
   restarts_path: ""
   timescale_hours:
-    air_temperature: 12
-    specific_humidity: 12
-    x_wind: 12
-    y_wind: 12
+    air_temperature: 3.0
+    specific_humidity: 3.0
+    x_wind: 3.0
+    y_wind: 3.0
 """  # noqa
 
 
@@ -333,7 +330,7 @@ TIMESTEP_SECONDS = 900
 RUNTIME_MINUTES = 30
 TIME_FMT = "%Y%m%d.%H%M%S"
 RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seconds": 0}
-BASE_FV3CONFIG_CACHE = Path("/inputdata/fv3config-cache")
+BASE_FV3CONFIG_CACHE = Path("/inputdata/fv3config-cache", "gs", "vcm-fv3config", "vcm-fv3config", "data")
 
 
 def get_nudging_config(config_yaml: str, restart_dir: str):
@@ -344,12 +341,13 @@ def get_nudging_config(config_yaml: str, restart_dir: str):
     coupler_nml["dt_atmos"] = TIMESTEP_SECONDS
     coupler_nml["dt_ocean"] = TIMESTEP_SECONDS
 
-    ic_path = BASE_FV3CONFIG_CACHE.joinpath("initial_conditions", "restart_initial_conditions")
+    ic_path = BASE_FV3CONFIG_CACHE.joinpath("initial_conditions", "c12_restart_initial_conditions", "v1.0")
     config["initial_conditions"] = ic_path.as_posix()
-    forcing_path = BASE_FV3CONFIG_CACHE.joinpath("gs", "vcm-fv3config", "vcm-fv3config", "data", "base_forcing", "v1.1")
+    forcing_path = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
     config["forcing"] = forcing_path.as_posix()
     config["nudging"]["restarts_path"] = Path(restart_dir).as_posix()
-
+    oro_path = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
+    config["orographic_forcing"] = oro_path.as_posix()
     return config
 
 
@@ -358,19 +356,37 @@ def tmpdir_restart_dir(tmpdir):
     
     minute_per_step = TIMESTEP_SECONDS // 60
     nudge_timesteps = RUNTIME_MINUTES // minute_per_step
-    restart_path = Path(BASE_FV3CONFIG_CACHE, "initial_conditions", "restart_initial_conditions")
+    restart_path = Path(BASE_FV3CONFIG_CACHE, "initial_conditions", "c12_restart_initial_conditions", "v1.0")
 
     tmp_restarts = Path(tmpdir, "restarts")
     tmp_restarts.mkdir(exist_ok=True)
 
     start = datetime(*START_TIME)
     delta_t = timedelta(minutes=minute_per_step)
-    for i in range(1, nudge_timesteps + 1):
+    for i in range(nudge_timesteps + 1):
         timestamp = (start + i * delta_t).strftime(TIME_FMT)
+
+        # Make timestamped restart directory
         restart_dir = tmp_restarts.joinpath(timestamp)
-        restart_dir.symlink_to(restart_path, target_is_directory=True)
+        restart_dir.mkdir(parents=True, exist_ok=True)
+
+        _symlink_restarts(restart_dir, restart_path, timestamp)
 
     return tmpdir, tmp_restarts.as_posix()
+
+
+def _symlink_restarts(timestamp_dir: Path, target_dir: Path, symlink_prefix: str):
+    files_to_glob = ["fv_core*", "fv_srf_wnd*", "fv_tracer*", "sfc_data*"]
+
+    for file_pattern in files_to_glob:
+        files = target_dir.glob(file_pattern)
+
+        for fv_file in files:
+            fname_with_prefix = f"{symlink_prefix}.{fv_file.name}"
+            new_fv_file = timestamp_dir.joinpath(fname_with_prefix)
+            new_fv_file.symlink_to(fv_file)
+
+
 
 @pytest.mark.regression
 def test_nudge_run(tmpdir_restart_dir):
