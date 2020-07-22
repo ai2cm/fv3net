@@ -1,5 +1,7 @@
 import logging
-from typing import MutableMapping, Hashable, cast
+from typing import MutableMapping, Hashable, cast, Sequence
+from dataclasses import dataclass
+from datetime import timedelta
 
 import fsspec
 import zarr
@@ -8,6 +10,8 @@ import xarray as xr
 
 import fv3gfs
 import runtime
+from diagnostics import DiagnosticConfig
+
 from fv3net.regression.sklearn.adapters import RenamingAdapter, StackingAdapter
 
 from mpi4py import MPI
@@ -235,16 +239,22 @@ class MonitoredTimeLoop(TimeLoop):
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
-    if comm.rank == 0:
-        group = zarr.open_group(
-            runtime.get_config()["scikit_learn"]["zarr_output"], mode="w"
-        )
-    else:
-        group = None
+    diagnostics_config = DiagnosticConfig(runtime.get_config()['diagnostics'])
 
-    group = comm.bcast(group, root=0)
+    groups = {}
+    for diag_file in diagnostics_config.diagnostics:
+        if comm.rank == 0:
+            group = zarr.open_group(diag_file.name,
+                runtime.get_config()["scikit_learn"]["zarr_output"], mode="w"
+            )
+        else:
+            group = None
 
-    for i, (_, diagnostics) in enumerate(MonitoredTimeLoop(comm=comm)):
+        group = comm.bcast(group, root=0)
+        groups[diag_file.name] = group
+
+
+    for i, (time, diagnostics) in enumerate(MonitoredTimeLoop(comm=comm)):
         if i == 0:
             writers = runtime.init_writers(group, comm, diagnostics)
         runtime.append_to_writers(writers, diagnostics)
