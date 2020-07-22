@@ -7,6 +7,7 @@ from ..._shared import ArrayPacker
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
+from ..._shared import StandardScaler
 
 logger = logging.getLogger(__file__)
 
@@ -86,6 +87,8 @@ class PackedKerasModel(Model):
     _MODEL_FILENAME = "model.tf"
     _X_PACKER_FILENAME = "X_packer.json"
     _Y_PACKER_FILENAME = "y_packer.json"
+    _X_SCALER_FILENAME = "X_scaler.npz"
+    _Y_SCALER_FILENAME = "y_scaler.npz"
 
     def __init__(
         self,
@@ -101,12 +104,18 @@ class PackedKerasModel(Model):
         self.y_packer = ArrayPacker(
             sample_dim_name=sample_dim_name, names=output_variables
         )
+        self.X_scaler = StandardScaler()
+        self.y_scaler = StandardScaler()
 
     @property
     def model(self) -> tf.keras.Model:
         if self._model is None:
             raise RuntimeError("must call fit() for keras model to be available")
         return self._model
+
+    def _fit_normalization(self, X: np.ndarray, y: np.ndarray):
+        self.X_scaler.fit(X)
+        self.y_scaler.fit(y)
 
     @abc.abstractmethod
     def get_model(self, features_in: int, features_out: int) -> tf.keras.Model:
@@ -125,7 +134,9 @@ class PackedKerasModel(Model):
     def fit(self, batches: Sequence[xr.Dataset]) -> None:
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
         if self._model is None:
-            features_in, features_out = count_batch_features(Xy)
+            X, y = Xy[0]
+            features_in, features_out = X.shape[-1], y.shape[-1]
+            self._fit_normalization(X, y)
             self._model = self.get_model(features_in, features_out)
         self.fit_array(Xy)
 
@@ -146,31 +157,30 @@ class PackedKerasModel(Model):
                 self.X_packer.dump(f)
             with open(os.path.join(path, self._Y_PACKER_FILENAME), "w") as f:
                 self.y_packer.dump(f)
+            with open(os.path.join(path, self._X_SCALER_FILENAME), "wb") as f_binary:
+                self.X_scaler.dump(f_binary)
+            with open(os.path.join(path, self._Y_SCALER_FILENAME), "wb") as f_binary:
+                self.y_scaler.dump(f_binary)
 
     @classmethod
     def load(cls, path: str) -> Model:
         with get_dir(path) as path:
-            print(os.listdir(path))
             with open(os.path.join(path, cls._X_PACKER_FILENAME), "r") as f:
                 X_packer = ArrayPacker.load(f)
             with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:
                 y_packer = ArrayPacker.load(f)
+            with open(os.path.join(path, cls._X_SCALER_FILENAME), "rb") as f_binary:
+                X_scaler = StandardScaler.load(f_binary)
+            with open(os.path.join(path, cls._Y_SCALER_FILENAME), "rb") as f_binary:
+                y_scaler = StandardScaler.load(f_binary)
             obj = cls(X_packer.sample_dim_name, X_packer.names, y_packer.names)
             model_filename = os.path.join(path, cls._MODEL_FILENAME)
             obj._model = tf.keras.models.load_model(model_filename)
             obj.X_packer = X_packer
             obj.y_packer = y_packer
+            obj.X_scaler = X_scaler
+            obj.y_scaler = y_scaler
             return obj
-
-
-def count_batch_features(
-    batches: Sequence[Tuple[np.ndarray, np.ndarray]]
-) -> Tuple[int, int]:
-    """Returns the number of input and output features in the first batch of a sequence.
-    """
-    features_in = batches[0][0].shape[-1]
-    features_out = batches[0][1].shape[-1]
-    return features_in, features_out
 
 
 class DenseModel(PackedKerasModel):
@@ -192,13 +202,14 @@ class DenseModel(PackedKerasModel):
 
     def get_model(self, features_in: int, features_out: int) -> tf.keras.Model:
         model = tf.keras.Sequential()
-        model.add(tf.keras.Input(features_in))
+        inputs = tf.keras.Input(features_in)
+        x = self.X_scaler.transform_layer(inputs)
         for i in range(self.depth - 1):
-            model.add(
-                tf.keras.layers.Dense(self.width, activation=tf.keras.activations.relu)
+            x = tf.keras.layers.Dense(self.width, activation=tf.keras.activations.relu)(
+                x
             )
-        model.add(
-            tf.keras.layers.Dense(features_out, activation=tf.keras.activations.relu)
-        )
+        x = tf.keras.layers.Dense(features_out, activation=tf.keras.activations.relu)(x)
+        outputs = self.y_scaler.inverse_transform_layer(x)
+        model = tf.keras.Model(inputs=inputs, outputs=outputs)
         model.compile(optimizer="sgd", loss="mse")
         return model
