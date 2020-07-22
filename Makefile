@@ -69,7 +69,7 @@ run_integration_tests:
 	./tests/end_to_end_integration/run_integration_with_wait.sh $(VERSION)
 
 test:
-	pytest external/* tests
+	pytest external tests
 
 test_prognostic_run:
 	IMAGE=prognostic_run $(MAKE) -C workflows/prognostic_c48_run/ test
