@@ -71,5 +71,8 @@ class DiagnosticConfig:
 
     @property
     def diagnostics(self):
-        return [DiagnosticFile(item) for item in self._d]
+        if len(self._d) == 0:
+            return DiagnosticFile({"name": "diags.zarr"})
+        else:
+            return [DiagnosticFile(item) for item in self._d]
 

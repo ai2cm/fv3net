@@ -239,7 +239,7 @@ class MonitoredTimeLoop(TimeLoop):
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
-    diagnostics_config = runtime.DiagnosticConfig(runtime.get_config()["diagnostics"])
+    diagnostics_config = runtime.DiagnosticConfig(runtime.get_config().get("diagnostics", {}))
 
     groups = {}
     writers = {}
