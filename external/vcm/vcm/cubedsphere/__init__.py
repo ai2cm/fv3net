@@ -14,6 +14,7 @@ from .regridz import (
     regrid_to_area_weighted_pressure,
     regrid_to_edge_weighted_pressure,
     regrid_vertical,
+    regrid_to_common_pressure,
 )
 from .xgcm import create_fv3_grid
 

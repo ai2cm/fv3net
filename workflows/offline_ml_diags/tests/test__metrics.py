@@ -4,10 +4,11 @@ import xarray as xr
 from offline_ml_diags._metrics import (
     _bias,
     _rmse,
-    calc_metrics,
+    _calc_same_dims_metrics,
     DERIVATION_DIM,
     TARGET_COORD,
     PREDICT_COORD,
+    SCALAR_METRIC_VARS,
 )
 
 
@@ -43,10 +44,10 @@ def area():
     return xr.DataArray([1], dims=["x"], coords={"x": [0]}).rename("area")
 
 
-def test_calc_metrics(ds_mock, area):
+def test__calc_same_dims_metrics(ds_mock, area):
     ds = xr.merge([area, ds_mock])
     ds["area_weights"] = area / (area.mean())
-    batch_metrics = calc_metrics(ds)
+    batch_metrics = _calc_same_dims_metrics(ds, dim_tag="scalar", vars=SCALAR_METRIC_VARS, weights=["area_weights"], mean_dim_vars=None)
     for var in list(batch_metrics.data_vars):
         assert isinstance(batch_metrics[var].values.item(), float)
 
