@@ -158,7 +158,6 @@ class TimeLoop:
         self.model = MODEL
         self.timestep = TIMESTEP
         self.diagnostics = {}
-        self.writers = None
 
     def step_dynamics(self):
         if self.rank == 0:
