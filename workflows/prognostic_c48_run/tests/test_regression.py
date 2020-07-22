@@ -11,12 +11,10 @@ from sklearn.dummy import DummyRegressor
 from fv3net.regression.sklearn import SklearnWrapper
 import subprocess
 
-# need to check if fv3gfs exists in a subprocess, importing fv3gfs into this module
-# causes tests to fail. Not sure why.
-# See https://github.com/VulcanClimateModeling/fv3gfs-python/issues/79
-# - noah
+#  Importing fv3gfs causes a call to MPI_Init but not MPI_Finalize. When the
+#  subprocess subsequently calls MPI_Init from a process not managed by MPI,
+#  mpirun throws a fit. Use a subprocess as a workaround.
 FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
-with_fv3gfs = pytest.mark.skipif(not FV3GFS_INSTALLED, reason="fv3gfs not installed")
 
 
 default_fv3config = r"""

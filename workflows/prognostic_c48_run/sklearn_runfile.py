@@ -16,6 +16,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 State = MutableMapping[Hashable, xr.DataArray]
+Diagnostics = Mapping[str, xr.DataArray]
 
 # following variables are required no matter what feature set is being used
 TEMP = "air_temperature"
@@ -115,9 +116,6 @@ def apply(state: State, tendency: State, dt: float) -> State:
     return updated  # type: ignore
 
 
-Diagnostics = Mapping[str, xr.Dataset]
-
-
 class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
     """An iterable defining the master time loop of a prognostic simulation
 
@@ -150,10 +148,10 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         self._diagnostics = {}
 
         args = runtime.get_config()
-        NML = runtime.get_namelist()
+        namelist = runtime.get_namelist()
 
         # get timestep
-        timestep = NML["coupler_nml"]["dt_atmos"]
+        timestep = namelist["coupler_nml"]["dt_atmos"]
         self._timestep = timestep
         self._log_info(f"Timestep: {timestep}")
 
