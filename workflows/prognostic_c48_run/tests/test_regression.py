@@ -376,6 +376,8 @@ def completed_rundir(tmpdir_factory):
 
 
 def test_fv3run_checksum_restarts(completed_rundir):
+    # This checksum can be updated if checksum is expected to change
+    # perhaps if an external library is updated.
     excepted_checksum = "fa79cf48c0774db1f1d13d3599536609"
     fv_core = completed_rundir.join("RESTART").join("fv_core.res.tile1.nc")
     assert excepted_checksum == fv_core.computehash()
