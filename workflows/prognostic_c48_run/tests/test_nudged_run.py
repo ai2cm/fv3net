@@ -1,8 +1,7 @@
-import os
 import pytest
 import yaml
 import subprocess
-from datetime import time, timedelta, datetime
+from datetime import timedelta, datetime
 from pathlib import Path
 
 import fv3config
@@ -14,7 +13,9 @@ import fv3config
 FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
 with_fv3gfs = pytest.mark.skipif(not FV3GFS_INSTALLED, reason="fv3gfs not installed")
 
-PREP_CONFIG_PY = Path(__file__).parent.parent.joinpath("nudging/prepare_config.py").as_posix()
+PREP_CONFIG_PY = (
+    Path(__file__).parent.parent.joinpath("nudging/prepare_config.py").as_posix()
+)
 RUNFILE_PY = Path(__file__).parent.parent.joinpath("nudging/runfile.py").as_posix()
 default_config = r"""
 base_version: v0.4
@@ -330,7 +331,9 @@ TIMESTEP_SECONDS = 900
 RUNTIME_MINUTES = 30
 TIME_FMT = "%Y%m%d.%H%M%S"
 RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seconds": 0}
-BASE_FV3CONFIG_CACHE = Path("/inputdata/fv3config-cache", "gs", "vcm-fv3config", "vcm-fv3config", "data")
+BASE_FV3CONFIG_CACHE = Path(
+    "/inputdata/fv3config-cache", "gs", "vcm-fv3config", "vcm-fv3config", "data"
+)
 
 
 def get_nudging_config(config_yaml: str, restart_dir: str):
@@ -341,7 +344,9 @@ def get_nudging_config(config_yaml: str, restart_dir: str):
     coupler_nml["dt_atmos"] = TIMESTEP_SECONDS
     coupler_nml["dt_ocean"] = TIMESTEP_SECONDS
 
-    ic_path = BASE_FV3CONFIG_CACHE.joinpath("initial_conditions", "c12_restart_initial_conditions", "v1.0")
+    ic_path = BASE_FV3CONFIG_CACHE.joinpath(
+        "initial_conditions", "c12_restart_initial_conditions", "v1.0"
+    )
     config["initial_conditions"] = ic_path.as_posix()
     forcing_path = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
     config["forcing"] = forcing_path.as_posix()
@@ -353,10 +358,15 @@ def get_nudging_config(config_yaml: str, restart_dir: str):
 
 @pytest.fixture
 def tmpdir_restart_dir(tmpdir):
-    
+
     minute_per_step = TIMESTEP_SECONDS // 60
     nudge_timesteps = RUNTIME_MINUTES // minute_per_step
-    restart_path = Path(BASE_FV3CONFIG_CACHE, "initial_conditions", "c12_restart_initial_conditions", "v1.0")
+    restart_path = Path(
+        BASE_FV3CONFIG_CACHE,
+        "initial_conditions",
+        "c12_restart_initial_conditions",
+        "v1.0",
+    )
 
     tmp_restarts = Path(tmpdir, "restarts")
     tmp_restarts.mkdir(exist_ok=True)
@@ -387,9 +397,10 @@ def _symlink_restarts(timestamp_dir: Path, target_dir: Path, symlink_prefix: str
             new_fv_file.symlink_to(fv_file)
 
 
-
 @pytest.mark.regression
 def test_nudge_run(tmpdir_restart_dir):
     tmpdir, restart_dir = tmpdir_restart_dir
     config = get_nudging_config(default_config, restart_dir)
-    fv3config.run_native(config, str("/tmp/outdir/"), capture_output=True, runfile=RUNFILE_PY)
+    fv3config.run_native(
+        config, str("/tmp/outdir/"), capture_output=True, runfile=RUNFILE_PY
+    )
