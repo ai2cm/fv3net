@@ -338,8 +338,7 @@ def get_config(model):
     return config
 
 
-@pytest.fixture
-def saved_model(tmpdir):
+def _save_mock_model(tmpdir):
     nz = 63
 
     arr = np.ones((1, nz))
@@ -362,8 +361,23 @@ def saved_model(tmpdir):
     return path
 
 
-@with_fv3gfs
-def test_fv3run_succeeds(saved_model, tmpdir):
+@pytest.fixture(scope="module")
+def completed_rundir(tmpdir_factory):
+    if not FV3GFS_INSTALLED:
+        pytest.skip("fv3gfs not installed")
+
+    tmpdir = tmpdir_factory.mktemp("rundir")
+    saved_model = _save_mock_model(tmpdir)
+
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
     config = get_config(saved_model)
     fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=False)
+    return tmpdir
+
+
+def test_fv3run_checksum_restarts(completed_rundir):
+    # This checksum can be updated if checksum is expected to change
+    # perhaps if an external library is updated.
+    excepted_checksum = "fa79cf48c0774db1f1d13d3599536609"
+    fv_core = completed_rundir.join("RESTART").join("fv_core.res.tile1.nc")
+    assert excepted_checksum == fv_core.computehash()
