@@ -116,6 +116,8 @@ def apply(state: State, tendency: State, dt: float) -> State:
 
 
 class TimeLoop:
+    """Class encapsulating an FV3 time loop
+    """
     def __init__(self, comm=None, _fv3gfs=None):
 
         if _fv3gfs is None:
@@ -215,6 +217,21 @@ class TimeLoop:
         self.fv3gfs.cleanup()
 
 
+class MonitoredTimeLoop(TimeLoop):
+    def step_physics(self):
+        keys = ["specific_humidity", "air_temperature"]
+        before = {key: self.state_mapping[key] for key in keys}
+        super().step_physics()
+        after = {key: self.state_mapping[key] for key in keys}
+
+        tendency = {
+            "tendency_of_{key}_due_to_fv3_physics": (after[key] - before[key])
+            / self.timestep
+            for key in keys
+        }
+        self.diagnostics.update(tendency)
+
+
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
@@ -227,7 +244,7 @@ if __name__ == "__main__":
 
     group = comm.bcast(group, root=0)
 
-    for i, (_, diagnostics) in enumerate(TimeLoop(comm=comm)):
+    for i, (_, diagnostics) in enumerate(MonitoredTimeLoop(comm=comm)):
         if i == 0:
             writers = runtime.init_writers(group, comm, diagnostics)
         runtime.append_to_writers(writers, diagnostics)
