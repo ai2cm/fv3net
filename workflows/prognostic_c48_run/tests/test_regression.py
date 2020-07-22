@@ -94,7 +94,7 @@ namelist:
     dt_ocean: 900
     hours: 0
     memuse_verbose: true
-    minutes: 15
+    minutes: 30
     months: 0
     ncores_per_node: 32
     seconds: 0
@@ -105,7 +105,7 @@ namelist:
     checker_tr: false
     filtered_terrain: true
     gfs_dwinds: true
-    levp: 80
+    levp: 64
     nt_checker: 0
   fms_io_nml:
     checksum_required: false
@@ -363,7 +363,7 @@ def get_nudging_config(config_yaml: str, restart_dir: str):
 
 
 @pytest.fixture
-def tmpdir_restart_dir(tmpdir):
+def restart_dir(tmpdir):
     """Symlink fake restart directories used for nudging"""
 
     minute_per_step = TIMESTEP_SECONDS // 60
@@ -390,7 +390,7 @@ def tmpdir_restart_dir(tmpdir):
         # Link all restart files from initial conditions folder with prefix
         _symlink_restart_files(restart_dir, restart_path, timestamp)
 
-    return tmpdir, tmp_restarts.as_posix()
+    return tmp_restarts
 
 
 def _symlink_restart_files(timestamp_dir: Path, target_dir: Path, symlink_prefix: str):
@@ -406,11 +406,11 @@ def _symlink_restart_files(timestamp_dir: Path, target_dir: Path, symlink_prefix
 
 
 @with_fv3gfs
-def test_nudge_run(tmpdir_restart_dir):
-    tmpdir, restart_dir = tmpdir_restart_dir
-    config = get_nudging_config(default_fv3config, restart_dir)
+def test_nudge_run(restart_dir):
+    tmpdir = restart_dir.parent.as_posix()
+    config = get_nudging_config(default_fv3config, restart_dir.as_posix())
     fv3config.run_native(
-        config, str(tmpdir), capture_output=True, runfile=NUDGE_RUNFILE
+        config, tmpdir, capture_output=True, runfile=NUDGE_RUNFILE
     )
 
 
