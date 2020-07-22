@@ -1,6 +1,5 @@
 from typing import Any, Sequence
 from datetime import datetime, timedelta
-from toolz import dissoc
 
 
 # TODO rename and perhaps simplify this object hierarchy
@@ -71,8 +70,10 @@ class DiagnosticConfig:
 
     @property
     def diagnostics(self) -> Sequence[DiagnosticFile]:
-        if len(self._d) == 0:
-            return [DiagnosticFile({"name": "diags.zarr"})]
-        else:
+        diags_configs = self._d.get("diagnostics", [])
+        if len(diags_configs) > 0:
             return [DiagnosticFile(item) for item in self._d]
-
+        else:
+            # Keep old behavior for backwards compatiblity
+            output_name = self._d["scikit_learn"]["zarr_output"]
+            return [DiagnosticFile({"name": output_name})]

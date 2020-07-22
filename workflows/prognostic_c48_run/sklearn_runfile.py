@@ -1,7 +1,5 @@
 import logging
-from typing import MutableMapping, Hashable, cast, Sequence
-from dataclasses import dataclass
-from datetime import timedelta
+from typing import MutableMapping, Hashable, cast
 
 import fsspec
 import zarr
@@ -239,17 +237,13 @@ class MonitoredTimeLoop(TimeLoop):
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
-    diagnostics_config = runtime.DiagnosticConfig(runtime.get_config().get("diagnostics", {}))
+    diagnostics_config = runtime.DiagnosticConfig(runtime.get_config())
 
     groups = {}
     writers = {}
     for diag_file in diagnostics_config.diagnostics:
         if comm.rank == 0:
-            group = zarr.open_group(
-                diag_file.name,
-                runtime.get_config()["scikit_learn"]["zarr_output"],
-                mode="w",
-            )
+            group = zarr.open_group(diag_file.name, mode="w",)
         else:
             group = None
 
@@ -265,7 +259,7 @@ if __name__ == "__main__":
             }
             if i == 0:
                 writers[diag_file.name] = runtime.init_writers(
-                    group[diag_file.name], comm, variables
+                    groups[diag_file.name], comm, variables
                 )
 
             if time in diag_file.times:
