@@ -358,6 +358,7 @@ def get_nudging_config(config_yaml: str, restart_dir: str):
 
 @pytest.fixture
 def tmpdir_restart_dir(tmpdir):
+    """Symlink fake restart directories used for nudging"""
 
     minute_per_step = TIMESTEP_SECONDS // 60
     nudge_timesteps = RUNTIME_MINUTES // minute_per_step
@@ -380,12 +381,13 @@ def tmpdir_restart_dir(tmpdir):
         restart_dir = tmp_restarts.joinpath(timestamp)
         restart_dir.mkdir(parents=True, exist_ok=True)
 
-        _symlink_restarts(restart_dir, restart_path, timestamp)
+        # Link all restart files from initial conditions folder with prefix
+        _symlink_restart_files(restart_dir, restart_path, timestamp)
 
     return tmpdir, tmp_restarts.as_posix()
 
 
-def _symlink_restarts(timestamp_dir: Path, target_dir: Path, symlink_prefix: str):
+def _symlink_restart_files(timestamp_dir: Path, target_dir: Path, symlink_prefix: str):
     files_to_glob = ["fv_core*", "fv_srf_wnd*", "fv_tracer*", "sfc_data*"]
 
     for file_pattern in files_to_glob:
@@ -401,6 +403,4 @@ def _symlink_restarts(timestamp_dir: Path, target_dir: Path, symlink_prefix: str
 def test_nudge_run(tmpdir_restart_dir):
     tmpdir, restart_dir = tmpdir_restart_dir
     config = get_nudging_config(default_config, restart_dir)
-    fv3config.run_native(
-        config, str("/tmp/outdir/"), capture_output=True, runfile=RUNFILE_PY
-    )
+    fv3config.run_native(config, str(tmpdir), capture_output=True, runfile=RUNFILE_PY)
