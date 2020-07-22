@@ -8,6 +8,7 @@ from diagnostics_utils._diurnal_cycle import (
     bin_diurnal_cycle,
     create_diurnal_cycle_dataset,
     DIURNAL_CYCLE_DIM,
+    SURFACE_TYPE_DIM,
 )
 
 ADDITIONAL_DIM = "additional_dim"
@@ -25,6 +26,13 @@ def da_lon():
 
 
 @pytest.fixture
+def da_sfc_type():
+    return xr.DataArray([0, 1], dims=["x"], coords={"x": [0, 1]},).rename(
+        SURFACE_TYPE_DIM
+    )
+
+
+@pytest.fixture
 def ds(request):
     values, times_of_day = request.param
     time_coords = list(map(_generate_time_coords, times_of_day))
@@ -33,7 +41,6 @@ def ds(request):
         dims=["time", "x"],
         coords={"x": [0, 1], "time": time_coords},
     ).rename("test_var")
-
     da_additional_dim = xr.DataArray(
         [
             [i * np.array(values) for time in time_coords]
@@ -81,14 +88,15 @@ def test_bin_diurnal_cycle(ds, diurnal_bin_means, da_lon):
 @pytest.mark.parametrize(
     "ds", ([[[1.0, 2.0], [(0, 30, 0), (6, 30, 0)]]]), indirect=True
 )
-def test_create_diurnal_cycle_dataset_correct_dims(ds, da_lon):
+def test_create_diurnal_cycle_dataset_correct_dims(ds, da_lon, da_sfc_type):
     ds_diurnal = create_diurnal_cycle_dataset(
-        ds, da_lon, diurnal_vars=["test_var", "test_var_additional_dim"]
+        ds, da_lon, da_sfc_type, diurnal_vars=["test_var", "test_var_additional_dim"]
     )
-    assert set(ds_diurnal["test_var"].dims) == {DIURNAL_CYCLE_DIM}
+    assert set(ds_diurnal["test_var"].dims) == {DIURNAL_CYCLE_DIM, SURFACE_TYPE_DIM}
     assert set(ds_diurnal["test_var_additional_dim"].dims) == {
         DIURNAL_CYCLE_DIM,
         ADDITIONAL_DIM,
+        SURFACE_TYPE_DIM,
     }
     assert set(ds_diurnal[ADDITIONAL_DIM].values) == set(ADDITIONAL_COORDS)
 
@@ -96,9 +104,15 @@ def test_create_diurnal_cycle_dataset_correct_dims(ds, da_lon):
 @pytest.mark.parametrize(
     "ds", ([[[1.0, 1.0], [(0, 30, 0), (6, 30, 0)]]]), indirect=True
 )
-def test_create_diurnal_cycle_dataset_correct_additional_coords(ds, da_lon):
+def test_create_diurnal_cycle_dataset_correct_additional_coords(
+    ds, da_lon, da_sfc_type
+):
     ds_diurnal = create_diurnal_cycle_dataset(
-        ds, da_lon, diurnal_vars=["test_var", "test_var_additional_dim"], n_bins=1
+        ds,
+        da_lon,
+        da_sfc_type,
+        diurnal_vars=["test_var", "test_var_additional_dim"],
+        n_bins=1,
     )
     for i, coord in enumerate(ADDITIONAL_COORDS):
         da = ds_diurnal["test_var_additional_dim"].sel({ADDITIONAL_DIM: coord})

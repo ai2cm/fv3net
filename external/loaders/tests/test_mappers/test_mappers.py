@@ -33,6 +33,10 @@ geo_mapper_subclasses = [
 ]
 
 
+def _assert_unique(keys):
+    assert len(set(keys)) == len(list(keys))
+
+
 @pytest.fixture(params=geo_mapper_subclasses)
 def geo_mapper_subclass(request):
     return request.param
@@ -104,7 +108,7 @@ def test_training_mapper_dimensions(training_mapper):
 
 def test_training_mapper_keys(training_mapper):
     keys = training_mapper.keys()
-    assert isinstance(keys, set)
+    _assert_unique(keys)
     for key in keys:
         assert isinstance(cast_to_datetime(key), datetime)
 
@@ -167,6 +171,6 @@ def test_diagnostic_mapper_dimensions(diagnostic_mapper):
 
 def test_diagnostic_mapper_keys(diagnostic_mapper):
     keys = diagnostic_mapper.keys()
-    assert isinstance(keys, set)
+    _assert_unique(keys)
     for key in keys:
         assert isinstance(cast_to_datetime(key), datetime)

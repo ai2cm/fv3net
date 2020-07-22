@@ -86,6 +86,9 @@ test_regression:
 test_dataflow:
 	pytest -vv tests/dataflow/ -s
 
+test_argo:
+	make -C workflows/argo/ test
+
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images
 data:

@@ -2,8 +2,11 @@ import argparse
 import logging
 import os
 from pathlib import Path
-from multiprocessing import Pool
+from multiprocessing import get_context
 from typing import Tuple
+
+import dask
+
 
 import intake
 import fsspec
@@ -13,6 +16,9 @@ import xarray as xr
 
 import vcm
 import load_diagnostic_data as load_diags
+
+dask.config.set(sheduler="single-threaded")
+
 
 MovieArg = Tuple[xr.Dataset, str]
 FIG_SUFFIX = "_{t:05}.png"
@@ -58,6 +64,7 @@ def _six_panel_heating_moistening(ds, axes):
 
 def _save_heating_moistening_fig(arg: MovieArg):
     ds, fig_filename = arg
+    print(f"Saving to {fig_filename}")
     fig, axes = plt.subplots(
         2, 3, figsize=(15, 5.3), subplot_kw={"projection": ccrs.Robinson()}
     )
@@ -107,5 +114,5 @@ if __name__ == "__main__":
         logger.info(f"Saving {T} still images for {name} movie to {args.output}")
         filename = os.path.join(args.output, name + FIG_SUFFIX)
         func_args = [(prognostic.isel(time=t), filename.format(t=t)) for t in range(T)]
-        with Pool(8) as p:
+        with get_context("spawn").Pool(4) as p:
             p.map(func, func_args)

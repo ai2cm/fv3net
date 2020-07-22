@@ -4,9 +4,10 @@ variables:
   - specific_humidity
   - dQ1
   - dQ2
+  - pQ1
+  - pQ2
   - pressure_thickness_of_atmospheric_layer
-model_mapper_kwargs:
-  z_dim: "pfull"
+
 mapping_function: open_fine_res_apparent_sources
 mapping_kwargs:
   offset_seconds: 450
@@ -14,9 +15,16 @@ mapping_kwargs:
     grid_xt: x
     grid_yt: y
     delp: pressure_thickness_of_atmospheric_layer
-  drop_vars: 
-    - step
+    pfull: z
+  dim_order:
+    - tile
+    - z
+    - y
+    - x
 batch_kwargs:
   timesteps_per_batch: 2
-  rename_variables:
-    pfull: z
+  timesteps:
+    - "20160906.120000"
+    - "20160906.044500"
+    - "20160908.234500"
+    - "20160908.090000"

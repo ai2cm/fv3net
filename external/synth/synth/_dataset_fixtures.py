@@ -1,17 +1,25 @@
 import os
 import tempfile
-import numpy as np
-import xarray as xr
-import pytest
 from distutils import dir_util
 
-from .core import load, generate, Range
+import numpy as np
+import pytest
+import xarray as xr
 
+from ._fine_res import generate_fine_res
+from ._nudging import generate_nudging
+from .core import Range, generate, load
 
 timestep1 = "20160801.001500"
 timestep1_npdatetime_fmt = "2016-08-01T00:15:00"
 timestep2 = "20160801.003000"
 timestep2_npdatetime_fmt = "2016-08-01T00:30:00"
+
+times_numpy = [
+    np.datetime64(timestep1_npdatetime_fmt),
+    np.datetime64(timestep2_npdatetime_fmt),
+]
+times_centered_str = [timestep1, timestep2]
 
 
 @pytest.fixture(scope="module")
@@ -60,96 +68,17 @@ def _generate_one_step_dataset(datadir, one_step_dir):
 
 
 @pytest.fixture(scope="module")
-def nudging_dataset_path(dataset_fixtures_dir):
-
+def nudging_dataset_path():
     with tempfile.TemporaryDirectory() as nudging_dir:
-        _generate_nudging_dataset(dataset_fixtures_dir, nudging_dir)
+        generate_nudging(nudging_dir, times_numpy)
         yield nudging_dir
 
 
-def _generate_nudging_dataset(datadir, nudging_dir):
-
-    nudging_after_dynamics_zarrpath = os.path.join(nudging_dir, "after_dynamics.zarr")
-    with open(str(datadir.join("after_dynamics.json"))) as f:
-        nudging_after_dynamics_schema = load(f)
-    nudging_after_dynamics_dataset = generate(
-        nudging_after_dynamics_schema
-    ).assign_coords(
-        {
-            "time": [
-                np.datetime64(timestep1_npdatetime_fmt),
-                np.datetime64(timestep2_npdatetime_fmt),
-            ]
-        }
-    )
-    nudging_after_dynamics_dataset.to_zarr(
-        nudging_after_dynamics_zarrpath, consolidated=True
-    )
-
-    nudging_after_physics_zarrpath = os.path.join(nudging_dir, "after_physics.zarr")
-    with open(str(datadir.join("after_physics.json"))) as f:
-        nudging_after_physics_schema = load(f)
-    nudging_after_physics_dataset = generate(
-        nudging_after_physics_schema
-    ).assign_coords(
-        {
-            "time": [
-                np.datetime64(timestep1_npdatetime_fmt),
-                np.datetime64(timestep2_npdatetime_fmt),
-            ]
-        }
-    )
-    nudging_after_physics_dataset.to_zarr(
-        nudging_after_physics_zarrpath, consolidated=True
-    )
-
-    nudging_tendencies_zarrpath = os.path.join(nudging_dir, "nudging_tendencies.zarr")
-    with open(str(datadir.join("nudging_tendencies.json"))) as f:
-        nudging_tendencies_schema = load(f)
-    nudging_tendencies_dataset = generate(nudging_tendencies_schema).assign_coords(
-        {
-            "time": [
-                np.datetime64(timestep1_npdatetime_fmt),
-                np.datetime64(timestep2_npdatetime_fmt),
-            ]
-        }
-    )
-    nudging_tendencies_dataset.to_zarr(nudging_tendencies_zarrpath, consolidated=True)
-
-
 @pytest.fixture(scope="module")
-def fine_res_dataset_path(dataset_fixtures_dir):
-
+def fine_res_dataset_path():
     with tempfile.TemporaryDirectory() as fine_res_dir:
-        fine_res_zarrpath = _generate_fine_res_dataset(
-            dataset_fixtures_dir, fine_res_dir
-        )
-        yield fine_res_zarrpath
-
-
-def _generate_fine_res_dataset(datadir, fine_res_dir):
-    """ Note that this does not follow the pattern of the other two datasets
-    in that the synthetic data are not stored in the original format of the
-    fine res data (tiled netcdfs), but instead as a zarr, because synth does
-    not currently support generating netcdfs or splitting by tile
-    """
-
-    fine_res_zarrpath = os.path.join(fine_res_dir, "fine_res_budget.zarr")
-    with open(str(datadir.join("fine_res_budget.json"))) as f:
-        fine_res_budget_schema = load(f)
-    fine_res_budget_dataset = generate(fine_res_budget_schema)
-    fine_res_budget_dataset_1 = fine_res_budget_dataset.assign_coords(
-        {"time": [timestep1]}
-    )
-    fine_res_budget_dataset_2 = fine_res_budget_dataset.assign_coords(
-        {"time": [timestep2]}
-    )
-    fine_res_budget_dataset = xr.concat(
-        [fine_res_budget_dataset_1, fine_res_budget_dataset_2], dim="time"
-    )
-    fine_res_budget_dataset.to_zarr(fine_res_zarrpath, consolidated=True)
-
-    return fine_res_zarrpath
+        generate_fine_res(fine_res_dir, times_centered_str)
+        yield fine_res_dir
 
 
 @pytest.fixture
@@ -157,18 +86,13 @@ def data_source_path(dataset_fixtures_dir, data_source_name):
     with tempfile.TemporaryDirectory() as data_dir:
         if data_source_name == "one_step_tendencies":
             _generate_one_step_dataset(dataset_fixtures_dir, data_dir)
-            data_source_path = data_dir
         elif data_source_name == "nudging_tendencies":
-            _generate_nudging_dataset(dataset_fixtures_dir, data_dir)
-            data_source_path = data_dir
+            generate_nudging(data_dir, times_numpy)
         elif data_source_name == "fine_res_apparent_sources":
-            fine_res_zarrpath = _generate_fine_res_dataset(
-                dataset_fixtures_dir, data_dir
-            )
-            data_source_path = fine_res_zarrpath
+            generate_fine_res(data_dir, times_centered_str)
         else:
             raise NotImplementedError()
-        yield data_source_path
+        yield data_dir
 
 
 @pytest.fixture(scope="module")

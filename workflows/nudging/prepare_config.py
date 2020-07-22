@@ -13,6 +13,11 @@ def parse_args():
         description="prepare fv3config yaml file for nudging run"
     )
     parser.add_argument("config", type=str, help="base yaml file to configure")
+    parser.add_argument(
+        "--timesteps",
+        type=str,
+        help="path to yaml-encoded list of YYYYMMDD.HHMMSS timesteps",
+    )
 
     return parser.parse_args()
 
@@ -27,6 +32,13 @@ if __name__ == "__main__":
 
     with open(args.config, "r") as f:
         config = yaml.safe_load(f)
+
+    if args.timesteps:
+        with open(args.timesteps) as f:
+            timesteps = yaml.safe_load(f)
+
+        if timesteps is not None:
+            config["nudging"]["output_times"] = timesteps
 
     reference_dir = config["nudging"]["restarts_path"]
     time = datetime(*config["namelist"]["coupler_nml"]["current_date"])

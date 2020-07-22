@@ -22,6 +22,7 @@ logger = logging.getLogger("training_data_diags")
 
 DOMAINS = ["land", "sea", "global"]
 OUTPUT_NC_NAME = "diagnostics"
+TIME_DIM = "time"
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -94,7 +95,12 @@ if __name__ == "__main__":
             mapping_kwargs=dataset_config.get("mapping_kwargs", None),
             **batch_kwargs,
         )
-        ds_diagnostic = utils.reduce_to_diagnostic(ds_batches, grid, domains=DOMAINS)
+        ds = xr.concat(ds_batches, dim=TIME_DIM)
+        ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
+            utils.insert_column_integrated_vars
+        )
+        ds_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
+
         diagnostic_datasets[dataset_name] = ds_diagnostic
         logger.info(f"Finished processing dataset {dataset_name}.")
 

@@ -14,12 +14,9 @@ batch_kwargs:
   timesteps:
     - "20160801.001500"
     - "20160801.003000"
-  init_time_dim_name: "initial_time"
-  rename_variables:
-    grid_xt: x
-    grid_yt: y
-    pfull: z
-    delp: pressure_thickness_of_atmospheric_layer
-  mapping_function: open_fine_res_apparent_sources
+  mapping_function: open_merged_nudged
   mapping_kwargs:
-    offset_seconds: 450
+    i_start: 0
+    rename_vars:
+      air_temperature_tendency_due_to_nudging: dQ1
+      specific_humidity_tendency_due_to_nudging: dQ2

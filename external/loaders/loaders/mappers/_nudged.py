@@ -1,5 +1,6 @@
 import os
 import logging
+from functools import partial
 import xarray as xr
 import fsspec
 import zarr.storage as zstore
@@ -8,6 +9,9 @@ from itertools import product
 from toolz import groupby
 from pathlib import Path
 
+import vcm
+
+from ._transformations import KeyMap
 from ._base import GeoMapper, LongRunMapper
 from ._merged import MergeOverlappingData
 from ._high_res_diags import open_high_res_diags
@@ -39,11 +43,24 @@ class MergeNudged(LongRunMapper):
                 "MergeNudged should be instantiated with two or more data sources."
             )
         nudged_sources = self._mapper_to_datasets(nudged_sources)
+        nudged_sources = self._rename_vars(nudged_sources, rename_vars)
         self._check_dvar_overlap(*nudged_sources)
-        self.ds = xr.merge(nudged_sources, join="inner").rename(rename_vars)
+        self.ds = xr.merge(nudged_sources, join="inner")
 
     @staticmethod
-    def _mapper_to_datasets(data_sources) -> Mapping[str, xr.Dataset]:
+    def _rename_vars(
+        datasets: Sequence[xr.Dataset], rename_vars: Mapping[str, str]
+    ) -> Sequence[xr.Dataset]:
+        renamed_datasets = []
+        for ds in datasets:
+            ds_rename_vars = {k: v for k, v in rename_vars.items() if k in ds}
+            renamed_datasets.append(ds.rename(ds_rename_vars))
+        return renamed_datasets
+
+    @staticmethod
+    def _mapper_to_datasets(
+        data_sources: Sequence[Union[LongRunMapper, xr.Dataset]]
+    ) -> Sequence[xr.Dataset]:
 
         datasets = []
         for source in data_sources:
@@ -231,8 +248,6 @@ def open_merged_nudged(
     Args:
         url: Path to directory with nudging output (not including the timescale
             subdirectories, e.g., outdir-3h)
-        timescale_hours: timescale of the nudging for the simulation
-            being used as input.
         merge_files (optionsl): underlying nudging zarr datasets to combine
             into a MergeNudged mapper
         i_start (optional): Index of sorted timesteps at which to start including
@@ -254,7 +269,11 @@ def open_merged_nudged(
     datasets = []
     for source in merge_files:
         mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
-        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024), consolidated=consolidated)
+        ds = xr.open_zarr(
+            zstore.LRUStoreCache(mapper, 1024),
+            consolidated=consolidated,
+            mask_and_scale=False,
+        )
         datasets.append(ds)
 
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
@@ -288,7 +307,11 @@ def _open_nudging_checkpoints(
     for filename in checkpoint_files:
         full_path = os.path.join(url, f"{filename}")
         mapper = fsspec.get_mapper(full_path)
-        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024), consolidated=consolidated)
+        ds = xr.open_zarr(
+            zstore.LRUStoreCache(mapper, 1024),
+            consolidated=consolidated,
+            mask_and_scale=False,
+        )
 
         source_name = Path(filename).stem
         datasets[source_name] = ds
@@ -305,6 +328,7 @@ def open_merged_nudged_full_tendencies(
     tendency_variables: Mapping[str, str] = None,
     timestep_physics_seconds: int = 900,
     consolidated: bool = False,
+    offset_seconds: Union[int, float] = 0,
 ) -> Mapping[str, xr.Dataset]:
     """
     Load mapper to nudged dataset containing both dQ and pQ tendency terms
@@ -328,7 +352,12 @@ def open_merged_nudged_full_tendencies(
             defaults to 900
         consolidated: if true, open the underlying zarr stores with the consolidated
             flag to xr.open_zarr.
-        
+        offset_seconds: amount to shift the keys forward by in seconds. For
+            example, if the underlying data contains a value at the key
+            "20160801.000730", a value off 450 will shift this forward 7:30
+            minutes, so that this same value can be accessed with the key
+            "20160801.001500"
+
     Returns
         mapper of timestamps to datasets containing full tendency terms
     """
@@ -343,7 +372,7 @@ def open_merged_nudged_full_tendencies(
         nudging_url, consolidated=consolidated, **open_checkpoints_kwargs
     )
 
-    nudged_full_tendencies_mapper = NudgedFullTendencies(
+    full_tendencies_mapper = NudgedFullTendencies(
         nudged_mapper,
         checkpoint_mapper,
         difference_checkpoints,
@@ -351,13 +380,17 @@ def open_merged_nudged_full_tendencies(
         timestep_physics_seconds,
     )
 
+    full_tendencies_mapper = KeyMap(
+        partial(vcm.shift_timestamp, seconds=offset_seconds), full_tendencies_mapper,
+    )
+
     if shield_diags_url is not None:
         shield_diags_mapper = open_high_res_diags(shield_diags_url)
-        nudged_full_tendencies_mapper = MergeOverlappingData(
+        full_tendencies_mapper = MergeOverlappingData(
             shield_diags_mapper,
-            nudged_full_tendencies_mapper,
+            full_tendencies_mapper,
             source_name_left=DERIVATION_SHIELD_COORD,
             source_name_right=DERIVATION_FV3GFS_COORD,
         )
 
-    return nudged_full_tendencies_mapper
+    return full_tendencies_mapper

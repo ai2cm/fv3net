@@ -1,5 +1,5 @@
 import logging
-from typing import Mapping, Hashable, cast
+from typing import MutableMapping, Hashable, cast
 
 import fsspec
 import zarr
@@ -7,8 +7,6 @@ from sklearn.externals import joblib
 import xarray as xr
 
 import fv3gfs
-from fv3gfs._wrapper import get_time
-import fv3util
 import runtime
 from fv3net.regression.sklearn.adapters import RenamingAdapter, StackingAdapter
 
@@ -17,17 +15,19 @@ from mpi4py import MPI
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-State = Mapping[Hashable, xr.DataArray]
+State = MutableMapping[Hashable, xr.DataArray]
 
 # following variables are required no matter what feature set is being used
 TEMP = "air_temperature"
 SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"
-REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE}
+TOTAL_PRECIP = "total_precipitation"  # has units of m
+REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE, TOTAL_PRECIP}
 
 cp = 1004
 gravity = 9.81
+m_per_mm = 1 / 1000
 
 
 def compute_diagnostics(state, diags):
@@ -64,6 +64,26 @@ def rename_diagnostics(diags):
             description=attrs["description"] + " (diagnostic only)"
         )
         diags[variable] = xr.zeros_like(diags[variable]).assign_attrs(attrs)
+
+
+def precipitation_sum(
+    physics_precip: xr.DataArray, column_dq2: xr.DataArray, dt: float
+) -> xr.DataArray:
+    """Return sum of physics precipitation and ML-induced precipitation. Output is
+    thresholded to enforce positive precipitation.
+
+    Args:
+        physics_precip: precipitation from physics parameterizations [m]
+        column_dq2: column-integrated moistening from ML [kg/m^2/s]
+        dt: physics timestep [s]
+
+    Returns:
+        total precipitation [m]"""
+    ml_precip = -column_dq2 * dt * m_per_mm  # type: ignore
+    total_precip = physics_precip + ml_precip
+    total_precip = total_precip.where(total_precip >= 0, 0)
+    total_precip.attrs["units"] = "m"
+    return total_precip
 
 
 def open_model(config):
@@ -104,6 +124,8 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
+    state_mapping = runtime.DerivedFV3State(fv3gfs)
+
     # change into run directoryy
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
 
@@ -143,10 +165,8 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug(f"Getting state variables: {variables}")
-        state = {
-            key: value.data_array
-            for key, value in fv3gfs.get_state(names=variables).items()
-        }
+
+        state = {name: state_mapping[name] for name in variables}
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
@@ -157,23 +177,23 @@ if __name__ == "__main__":
         else:
             updated_state = apply(state, tendency, dt=TIMESTEP)
 
-        if rank == 0:
-            logger.debug("Setting Fortran State")
-        fv3gfs.set_state(
-            {
-                key: fv3util.Quantity.from_data_array(value)
-                for key, value in updated_state.items()
-            }
-        )
-
         diagnostics = compute_diagnostics(state, tendency)
         if do_only_diagnostic_ml:
             rename_diagnostics(diagnostics)
+
+        updated_state[TOTAL_PRECIP] = precipitation_sum(
+            state[TOTAL_PRECIP], diagnostics["net_moistening"], TIMESTEP
+        )
+
+        if rank == 0:
+            logger.debug("Setting Fortran State")
+
+        state_mapping.update(updated_state)
 
         if i == 0:
             writers = runtime.init_writers(GROUP, comm, diagnostics)
         runtime.append_to_writers(writers, diagnostics)
 
-        times.append(get_time())
+        times.append(state_mapping.time)
 
     fv3gfs.cleanup()

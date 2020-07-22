@@ -22,6 +22,7 @@ poetry_packages=( external/runtime external/report external/gallery .
   workflows/one_step_diags 
   workflows/fine_res_budget
   workflows/offline_ml_diags
+  external/fv3util
 )
 
 for package in "${poetry_packages[@]}"
