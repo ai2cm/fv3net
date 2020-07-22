@@ -19,15 +19,23 @@ import subprocess
 FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
 with_fv3gfs = pytest.mark.skipif(not FV3GFS_INSTALLED, reason="fv3gfs not installed")
 
-fv3config.ensure_data_is_downloaded()
 
-default_fv3config = r"""
-base_version: v0.4
+BASE_FV3CONFIG_CACHE = Path(
+    "/inputdata", "fv3config-cache", "gs", "vcm-fv3config", "vcm-fv3config", "data"
+)
+IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
+    "initial_conditions", "c12_restart_initial_conditions", "v1.0"
+)
+ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
+FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
+
+default_fv3config = rf"""
 data_table: default
 diag_table: default
 experiment_name: default_experiment
-forcing: ""
-initial_conditions: ""
+forcing: {FORCING_PATH.as_posix()}
+initial_conditions: {IC_PATH.as_posix()}
+orographic_forcing: {ORO_PATH.as_posix()}
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -184,7 +192,7 @@ namelist:
     vtdm4: 0.06
     warm_start: true
     z_tracer: true
-  fv_grid_nml: {}
+  fv_grid_nml: {{}}
   gfdl_cloud_microphysics_nml:
     c_cracw: 0.8
     c_paut: 0.5
@@ -322,19 +330,13 @@ namelist:
 """
 
 NUDGE_RUNFILE = Path(__file__).parent.parent.joinpath("nudging/runfile.py").as_posix()
+# Necessary to know the number of restart timestamp folders to generate in fixture
 START_TIME = [2016, 8, 1, 0, 0, 0]
-TIMESTEP_SECONDS = 900
-RUNTIME_MINUTES = 30
+TIMESTEP_MINUTES = 15
+NUM_NUDGING_TIMESTEPS = 2
+RUNTIME_MINUTES = TIMESTEP_MINUTES * NUM_NUDGING_TIMESTEPS
 TIME_FMT = "%Y%m%d.%H%M%S"
 RUNTIME = {"days": 0, "months": 0, "hours": 0, "minutes": RUNTIME_MINUTES, "seconds": 0}
-BASE_FV3CONFIG_CACHE = Path(
-    "/inputdata/fv3config-cache", "gs", "vcm-fv3config", "vcm-fv3config", "data"
-)
-IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
-    "initial_conditions", "c12_restart_initial_conditions", "v1.0"
-)
-ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
-FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
 
 
 def get_nudging_config(config_yaml: str, timestamp_dir: str):
@@ -342,12 +344,6 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
     coupler_nml = config["namelist"]["coupler_nml"]
     coupler_nml["current_date"] = START_TIME
     coupler_nml.update(RUNTIME)
-    coupler_nml["dt_atmos"] = TIMESTEP_SECONDS
-    coupler_nml["dt_ocean"] = TIMESTEP_SECONDS
-
-    config["initial_conditions"] = IC_PATH.as_posix()
-    config["forcing"] = FORCING_PATH.as_posix()
-    config["orographic_forcing"] = ORO_PATH.as_posix()
 
     config["nudging"] = {
         "restarts_path": Path(timestamp_dir).as_posix(),
@@ -358,6 +354,12 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
             "y_wind": 3.0,
         },
     }
+  
+    if coupler_nml["dt_atmos"] // 60 != TIMESTEP_MINUTES:
+        raise ValueError(
+            "Model timestep in default_fv3config not aligned"
+            " with specified module's TIMESTEP_MINUTES variable."
+        )
 
     return config
 
@@ -366,15 +368,12 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
 def tmp_restart_dir(tmpdir):
     """Symlink fake restart directories used for nudging"""
 
-    minute_per_step = TIMESTEP_SECONDS // 60
-    nudge_timesteps = RUNTIME_MINUTES // minute_per_step
-
     restart_dir = Path(tmpdir, "restarts")
     restart_dir.mkdir(exist_ok=True)
 
     start = datetime(*START_TIME)
-    delta_t = timedelta(minutes=minute_per_step)
-    for i in range(nudge_timesteps + 1):
+    delta_t = timedelta(minutes=TIMESTEP_MINUTES)
+    for i in range(NUM_NUDGING_TIMESTEPS + 1):
         timestamp = (start + i * delta_t).strftime(TIME_FMT)
 
         # Make timestamped restart directory
@@ -412,12 +411,6 @@ def get_prognostic_config(model):
     # downloads data. We should change this once the fixes in
     # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates
     # into the prognostic_run image
-
-    config["forcing"] = FORCING_PATH.as_posix()
-    config["initial_conditions"] = IC_PATH.as_posix()
-    config["orographic_forcing"] = ORO_PATH.as_posix()
-
-    config["namelist"]["coupler_nml"].update({"days": 0, "minutes": 30, "seconds": 0})
 
     return config
 
