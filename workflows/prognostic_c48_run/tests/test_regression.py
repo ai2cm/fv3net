@@ -19,14 +19,15 @@ import subprocess
 FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
 with_fv3gfs = pytest.mark.skipif(not FV3GFS_INSTALLED, reason="fv3gfs not installed")
 
+fv3config.ensure_data_is_downloaded()
 
 default_fv3config = r"""
+base_version: v0.4
 data_table: default
 diag_table: default
-experiment_name: restart
-forcing: {}
-orographic_forcing: {}
-initial_conditions: {}
+experiment_name: default_experiment
+forcing: ""
+initial_conditions: ""
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
@@ -80,6 +81,7 @@ namelist:
   coupler_nml:
     atmos_nthreads: 1
     calendar: julian
+    force_date_from_namelist: true
     current_date:
     - 2016
     - 8
@@ -92,9 +94,9 @@ namelist:
     dt_ocean: 900
     hours: 0
     memuse_verbose: true
-    minutes: 30
+    minutes: 15
     months: 0
-    ncores_per_node: 1
+    ncores_per_node: 32
     seconds: 0
     use_hyper_thread: true
   diag_manager_nml:
@@ -103,7 +105,7 @@ namelist:
     checker_tr: false
     filtered_terrain: true
     gfs_dwinds: true
-    levp: 64
+    levp: 80
     nt_checker: 0
   fms_io_nml:
     checksum_required: false
@@ -319,7 +321,6 @@ namelist:
     ldebug: false
 """
 
-# Test two nudging timesteps
 NUDGE_RUNFILE = Path(__file__).parent.parent.joinpath("nudging/runfile.py").as_posix()
 START_TIME = [2016, 8, 1, 0, 0, 0]
 TIMESTEP_SECONDS = 900
