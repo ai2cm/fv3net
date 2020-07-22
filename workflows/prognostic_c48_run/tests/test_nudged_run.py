@@ -13,9 +13,6 @@ import fv3config
 FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
 with_fv3gfs = pytest.mark.skipif(not FV3GFS_INSTALLED, reason="fv3gfs not installed")
 
-PREP_CONFIG_PY = (
-    Path(__file__).parent.parent.joinpath("nudging/prepare_config.py").as_posix()
-)
 RUNFILE_PY = Path(__file__).parent.parent.joinpath("nudging/runfile.py").as_posix()
 default_config = r"""
 base_version: v0.4
