@@ -8,4 +8,5 @@ mypy --follow-imports silent \
     fv3net/regression/sklearn \
     fv3net/regression/keras \
     external/loaders/loaders/mappers/_local.py \
-    workflows/nudging
+    workflows/nudging \
+    external/runtime/runtime/diagnostics.py
