@@ -70,9 +70,9 @@ class DiagnosticConfig:
         self._d = d
 
     @property
-    def diagnostics(self):
+    def diagnostics(self) -> Sequence[DiagnosticFile]:
         if len(self._d) == 0:
-            return DiagnosticFile({"name": "diags.zarr"})
+            return [DiagnosticFile({"name": "diags.zarr"})]
         else:
             return [DiagnosticFile(item) for item in self._d]
 
