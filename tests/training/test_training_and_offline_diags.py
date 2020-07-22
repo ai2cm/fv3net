@@ -316,7 +316,9 @@ def test_compute_offline_diags(
     # the following lines necessary
     with tempfile.TemporaryDirectory() as output_dir:
         output_file = os.path.join(output_dir, "offline_diags.nc")
-        xr.merge([grid_dataset, ds_diagnostics]).to_netcdf(output_file)
+        xr.merge([grid_dataset, ds_diagnostics], compat="override").to_netcdf(
+            output_file
+        )
         with open(output_file, "rb") as f:
             ds = xr.open_dataset(f).load()
     offline_diags_output_schema_raw = synth.read_schema_from_dataset(ds)
@@ -338,7 +340,7 @@ def test_compute_offline_diags(
     for var in DIURNAL_VARS:
         assert "local_time_hr" in ds_diurnal[var].dims
         for dim in ds_diurnal[var].dims:
-            assert dim in ["local_time_hr", "derivation"]
+            assert dim in ["local_time_hr", "derivation", "surface_type"]
 
     assert isinstance(metrics, dict)
     assert len(metrics) == 32

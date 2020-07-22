@@ -1,3 +1,7 @@
+# Note this is not a workflow template
+# Converting it would require deploying as part of the end-to-end tests
+# Also, this workflow is nearly defunct, having been replaced by the new
+# offline_ml_diags report
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:

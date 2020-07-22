@@ -1,8 +1,10 @@
 import os
 import numpy as np
 import xarray as xr
-from post_process import parse_rundir, process_item, open_tiles
+from post_process import parse_rundir, process_item, open_tiles, get_chunks
 import tempfile
+
+TEST_CHUNKS = {"a.zarr": {"time": 5}}
 
 
 def test_parse_rundir_mocked_walker():
@@ -55,7 +57,7 @@ def test_process_item_dataset(tmpdir):
         {"a": (["time", "x"], np.ones((200, 10)))}, attrs={"path": localpath}
     )
     with tempfile.TemporaryDirectory() as d_out:
-        process_item(ds, d_in, d_out)
+        process_item(ds, d_in, d_out, TEST_CHUNKS)
         xr.open_zarr(d_out + "/diags.zarr")
 
 
@@ -66,7 +68,7 @@ def test_process_item_str(tmpdir):
     path.write(txt)
 
     with tempfile.TemporaryDirectory() as d_out:
-        process_item(str(path), d_in, d_out)
+        process_item(str(path), d_in, d_out, TEST_CHUNKS)
         with open(d_out + "/afile.txt") as f:
             assert f.read() == txt
 
@@ -78,7 +80,7 @@ def test_process_item_str_nested(tmpdir):
     path.write(txt)
 
     with tempfile.TemporaryDirectory() as d_out:
-        process_item(str(path), d_in, d_out)
+        process_item(str(path), d_in, d_out, TEST_CHUNKS)
         with open(d_out + "/nest/afile.txt") as f:
             assert f.read() == txt
 
@@ -88,7 +90,7 @@ def test_process_item_broken_symlink(tmpdir):
     broken_link = str(tmpdir.join("broken_link"))
     os.symlink(fake_path, broken_link)
     with tempfile.TemporaryDirectory() as d_out:
-        process_item(broken_link, str(tmpdir), d_out)
+        process_item(broken_link, str(tmpdir), d_out, TEST_CHUNKS)
 
 
 def test_open_tiles_netcdf_data(tmpdir):
@@ -99,9 +101,15 @@ def test_open_tiles_netcdf_data(tmpdir):
         ds.to_netcdf(path)
         tiles.append(path)
 
-    out = open_tiles(tiles, str(tmpdir), chunks={"a.zarr": {"time": 5}})
+    out = open_tiles(tiles, str(tmpdir), chunks=TEST_CHUNKS)
     saved_ds = list(out)[0]
 
     assert isinstance(saved_ds, xr.Dataset)
     # check for variable "a"
     saved_ds["a"]
+
+
+def test_get_chunks():
+    output = get_chunks(TEST_CHUNKS)
+    for key in TEST_CHUNKS:
+        assert output[key] == TEST_CHUNKS[key]

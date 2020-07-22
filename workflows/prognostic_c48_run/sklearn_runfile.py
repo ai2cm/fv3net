@@ -7,8 +7,6 @@ from sklearn.externals import joblib
 import xarray as xr
 
 import fv3gfs
-from fv3gfs._wrapper import get_time
-import fv3util
 import runtime
 from fv3fit.sklearn import RenamingAdapter, StackingAdapter
 
@@ -126,6 +124,8 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
+    state_mapping = runtime.DerivedFV3State(fv3gfs)
+
     # change into run directoryy
     MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
 
@@ -165,10 +165,8 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug(f"Getting state variables: {variables}")
-        state = {
-            key: value.data_array
-            for key, value in fv3gfs.get_state(names=variables).items()
-        }
+
+        state = {name: state_mapping[name] for name in variables}
 
         if rank == 0:
             logger.debug("Computing RF updated variables")
@@ -189,17 +187,13 @@ if __name__ == "__main__":
 
         if rank == 0:
             logger.debug("Setting Fortran State")
-        fv3gfs.set_state(
-            {
-                key: fv3util.Quantity.from_data_array(value)
-                for key, value in updated_state.items()
-            }
-        )
+
+        state_mapping.update(updated_state)
 
         if i == 0:
             writers = runtime.init_writers(GROUP, comm, diagnostics)
         runtime.append_to_writers(writers, diagnostics)
 
-        times.append(get_time())
+        times.append(state_mapping.time)
 
     fv3gfs.cleanup()

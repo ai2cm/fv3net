@@ -39,6 +39,10 @@ COPY fv3net $FV3NET/fv3net
 COPY workflows $FV3NET/workflows
 COPY catalog.yml dataflow.sh $FV3NET/
 
+# pin scipy version to prevent other dependencies from installing 1.4.1 version with regression 
+# https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-pkgs.html#preventing-packages-from-updating-pinning
+RUN echo "scipy >= 1.5.0" > /opt/conda/envs/$PROJECT_NAME/conda-meta/pinned
+
 # setup the local python packages
 RUN bash $ENVIRONMENT_SCRIPTS/install_local_packages.sh $PROJECT_NAME
 

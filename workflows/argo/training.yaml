@@ -1,0 +1,78 @@
+# vim: set sts=2 ts=2 tw=2 sw=2 :
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: training
+spec:
+  templates:
+    - name: rf-hybrid-nudging
+      inputs:
+        parameters:
+          - {name: image}
+          - {name: fine-res}
+          - {name: nudging}
+          - {name: times}
+          - {name: output}
+          - name: input-variables
+          - name: timesteps-per-batch
+            value: 10
+      container:
+        image: "{{inputs.parameters.image}}"
+        command: ["bash", "-c", "-x"]
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+        args:
+          - |
+
+            # Put config in a HEREDOC
+            cat <<EOF >config.yaml
+            model_type: sklearn_random_forest
+            hyperparameters:
+              max_depth: 13
+              n_estimators: 1
+            input_variables: {{inputs.parameters.input-variables}}
+            output_variables:
+            - dQ1
+            - dQ2
+            batch_function: batches_from_geodata
+            batch_kwargs:
+              timesteps_per_batch: {{inputs.parameters.timesteps-per-batch}}
+              # to use cos_zenith_angle, this option must be equal to "time"
+              init_time_dim_name: "time"
+              mapping_function: open_fine_resolution_nudging_hybrid
+              mapping_kwargs:
+                nudging:
+                  offset_seconds: -900
+                  nudging_url: {{inputs.parameters.nudging}}
+                fine_res:
+                  offset_seconds: 450
+                  fine_res_url: {{inputs.parameters.fine-res}}
+            EOF
+
+            
+            cat << EOF > times.json
+            {{inputs.parameters.times}}
+            EOF
+
+            echo "Configuration:"
+            cat config.yaml
+    
+            python -m fv3net.regression.sklearn \
+              "ignored-argument" \
+              config.yaml \
+              {{inputs.parameters.output}} \
+              --timesteps-file times.json \
+              --no-train-subdir-append
+        resources:
+          requests:
+            memory: "6Gi"
+            cpu: "1000m"
+          limits:
+            memory: "6Gi"
+            cpu: "1000m"

@@ -16,7 +16,6 @@ model_mapper_kwargs:
   cos_z_var: "cos_zenith_angle"
 batch_kwargs:
   timesteps_per_batch: 2
-  init_time_dim_name: "time"
   timesteps:
     - "20160906.120000"
     - "20160906.044500"
