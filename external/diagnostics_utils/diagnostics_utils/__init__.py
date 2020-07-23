@@ -22,5 +22,5 @@ __all__ = [
     "insert_total_apparent_sources",
     "bin_diurnal_cycle",
     "create_diurnal_cycle_dataset",
-    "regrid_dataset_to_pressure_levels"
+    "regrid_dataset_to_pressure_levels",
 ]

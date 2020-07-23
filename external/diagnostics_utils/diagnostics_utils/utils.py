@@ -216,10 +216,10 @@ def snap_mask_to_type(
 
 
 def regrid_dataset_to_pressure_levels(
-        ds: xr.Dataset,
-        original_delp: xr.DataArray,
-        regrid_delp: Sequence[float] = REGRIDDED_DELP,
-    ) -> xr.Dataset:
+    ds: xr.Dataset,
+    original_delp: xr.DataArray,
+    regrid_delp: Sequence[float] = REGRIDDED_DELP,
+) -> xr.Dataset:
     """ Regrid data arrays with vertical dimension into
     new pressure level coordinates and reassign delp to be correct
     for new pressure coordinate.
@@ -236,14 +236,13 @@ def regrid_dataset_to_pressure_levels(
     """
     vertical_dim_vars = [var for var in ds.data_vars if VERTICAL_DIM in ds[var].dims]
     delp_var = original_delp.name
-    
+
     da_regrid_delp = xr.DataArray(
-        regrid_delp,
-        dims=[PRESSURE_DIM],
-        coords={PRESSURE_DIM: range(len(regrid_delp))}
-        )
+        regrid_delp, dims=[PRESSURE_DIM], coords={PRESSURE_DIM: range(len(regrid_delp))}
+    )
     regrid_pressure_midpts = thermo.pressure_at_midpoint_log(
-        da_regrid_delp, toa_pressure=TOA_PRESSURE, dim=PRESSURE_DIM)
+        da_regrid_delp, toa_pressure=TOA_PRESSURE, dim=PRESSURE_DIM
+    )
 
     for var in vertical_dim_vars:
         ds[var] = regrid_to_common_pressure(
@@ -251,8 +250,7 @@ def regrid_dataset_to_pressure_levels(
             original_delp,
             VERTICAL_DIM,
             output_pressure=regrid_pressure_midpts,
-            new_vertical_dim=PRESSURE_DIM
+            new_vertical_dim=PRESSURE_DIM,
         )
     ds[delp_var] = da_regrid_delp
     return ds
-    
