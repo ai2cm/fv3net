@@ -13,7 +13,7 @@ spec:
       - name: fv3gfs-image
         value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
       - name: fv3net-image
-        value: us.gcr.io/vcm-ml/fv3net:95df9bd2939e4ca2f103c4b2925206f429236ad7
+        value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
       - name: times
         value: ""
   entrypoint: main
@@ -67,7 +67,7 @@ spec:
           - name: fv3gfs-image
             value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
           - name: fv3net-image
-            value: us.gcr.io/vcm-ml/fv3net:95df9bd2939e4ca2f103c4b2925206f429236ad7
+            value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
       steps:
         - - template: prepare-config
             name: prepare-config
@@ -104,7 +104,7 @@ spec:
           runAsUser: 0
         image: "{{inputs.parameters.fv3net-image}}"
         command: ["/bin/bash", "-c"]
-        workingDir: /home/jovyan/fv3net/workflows/nudging
+        workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging
         args:
         - |
           cp runfile.py /mnt/data/runfile.py

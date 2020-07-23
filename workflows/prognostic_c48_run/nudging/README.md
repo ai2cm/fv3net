@@ -1,6 +1,8 @@
 ## Nudging workflow
 
 This workflow performs a nudged run, nudging to reference data stored on GCS.
+It is included as part of the prognostic_c48_run workflow as a WIP while we
+consolidate workflows performing different flavours of fv3gfs running.
 
 
 ### Configuration
