@@ -21,7 +21,8 @@ logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("training_data_diags")
 
 DOMAINS = ["land", "sea", "global"]
-OUTPUT_NC_NAME = "diagnostics"
+OUTPUT_DIAGS_NC_NAME = "diagnostics"
+OUTPUT_DIURNAL_NC_NAME = "diurnal_cycle"
 TIME_DIM = "time"
 
 
@@ -61,9 +62,9 @@ def _open_config(config_path: str) -> Mapping:
     return datasets_config
 
 
-def _write_nc(ds: xr.Dataset, output_path: str):
+def _write_nc(ds: xr.Dataset, output_path: str, output_nc_name: str):
     output_file = os.path.join(
-        output_path, OUTPUT_NC_NAME + "_" + str(uuid.uuid1())[-6:] + ".nc"
+        output_path, output_nc_name + "_" + str(uuid.uuid1())[-6:] + ".nc"
     )
     with NamedTemporaryFile() as tmpfile:
         ds.to_netcdf(tmpfile.name)
@@ -94,7 +95,8 @@ if __name__ == "__main__":
             timesteps = yaml.safe_load(f)
         datasets_config["batch_kwargs"]["timesteps"] = timesteps
 
-    diagnostic_datasets = {}
+    diagnostic_datasets, diurnal_cycle_datasets = {}, {}
+    
     for dataset_name, dataset_config in datasets_config["sources"].items():
         logger.info(f"Reading dataset {dataset_name}.")
         ds_batches = batches.diagnostic_batches_from_geodata(
@@ -106,12 +108,15 @@ if __name__ == "__main__":
         )
         batches_diags, batches_diurnal = [], []
         for i, ds in enumerate(ds_batches):
+            logger.info(f"Computing batch {i+1}/{len(ds_batches)} diagnostics for source {dataset_name}...")
             ds = xr.concat(ds_batches, dim=TIME_DIM)
             ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
                 utils.insert_column_integrated_vars
             ).load()
             ds_batch_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
             batches_diags.append(ds_batch_diagnostic)
+            logger.info(f"Computing batch {i+1}/{len(ds_batches)} diurnal cycles for source {dataset_name}...")
+
             ds_batch_diurnal = utils.create_diurnal_cycle_dataset(
                 ds,
                 longitude=grid["lon"],
@@ -122,15 +127,19 @@ if __name__ == "__main__":
             batches_diurnal.append(ds_batch_diurnal)
         ds_diagnostic = xr.concat(batches_diags, dim="batch").mean("batch")
         ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean("batch")
-        diagnostic_datasets[dataset_name] = xr.merge([ds_diagnostic, ds_diurnal])
+        diagnostic_datasets[dataset_name] = ds_diagnostic
+        diurnal_cycle_datasets[dataset_name] = ds_diurnal
         logger.info(f"Finished processing dataset {dataset_name}.")
 
-    diagnostics_all = xr.concat(
-        [
-            dataset.expand_dims({"data_source": [dataset_name]})
-            for dataset_name, dataset in diagnostic_datasets.items()
-        ],
-        dim="data_source",
-    ).load()
-
-    _write_nc(diagnostics_all, args.output_path)
+    for datasets, output_name in zip(
+            [diagnostic_datasets, diurnal_cycle_datasets], 
+            [OUTPUT_DIAGS_NC_NAME, OUTPUT_DIURNAL_NC_NAME]):
+        ds_result = xr.concat(
+            [
+                dataset.expand_dims({"data_source": [dataset_name]})
+                for dataset_name, dataset in datasets.items()
+            ],
+            dim="data_source",
+        )
+        _write_nc(ds_result, args.output_path, output_name)
+    
