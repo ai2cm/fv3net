@@ -143,8 +143,8 @@ if __name__ == "__main__":
 
     logger.info("Reading grid...")
     cat = intake.open_catalog("catalog.yml")
-    grid = cat["grid/c48"].read()
-    land_sea_mask = cat["landseamask/c48"].read()
+    grid = cat["grid/c48"].to_dask()
+    land_sea_mask = cat["landseamask/c48"].to_dask()
     grid = grid.assign({utils.VARNAMES["surface_type"]: land_sea_mask["land_sea_mask"]})
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
     if args.timesteps_file:
