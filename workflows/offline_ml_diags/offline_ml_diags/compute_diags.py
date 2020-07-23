@@ -87,12 +87,17 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
     vertical_profile_metrics = {
         var: {
             "mean": list(ds_metrics[var].mean(dim=["batch"]).values),
-            "std": list(ds_metrics[var].mean(dim=["batch"]).values),
+            "std": list(ds_metrics[var].std(dim=["batch"]).values),
         }
         for var in ds_metrics.data_vars
         if "pressure_level" in var
     }
-    return {**scalar_metrics, **vertical_profile_metrics}
+    pressure_coords = ds_metrics["pressure"].values
+    return {
+        **scalar_metrics,
+        **vertical_profile_metrics,
+        "pressure_coords": list(pressure_coords),
+    }
 
 
 def _compute_diags_over_batches(
