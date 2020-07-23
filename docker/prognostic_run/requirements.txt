@@ -92,6 +92,7 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
 toolz==0.10.0
 traitlets==4.3.3
+tensorflow==2.2.0
 urllib3==1.25.8
 wcwidth==0.1.8
 websocket-client==0.57.0
