@@ -37,7 +37,7 @@ build_image_%:
 
 build_image_post_process_run:
 	docker build workflows/post_process_run -t post_process_run
-	
+
 enter_%:
 	docker run -ti -w /fv3net -v $(shell pwd):/fv3net $* bash
 
@@ -69,7 +69,7 @@ run_integration_tests:
 	./tests/end_to_end_integration/run_integration_with_wait.sh $(VERSION)
 
 test:
-	pytest external/* tests
+	pytest external tests
 
 test_prognostic_run:
 	IMAGE=prognostic_run $(MAKE) -C workflows/prognostic_c48_run/ test

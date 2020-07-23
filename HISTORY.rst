@@ -4,6 +4,7 @@ History
 
 latest
 ------
+* Move code in fv3net.regression to new package `fv3fit`, except for SklearnPredictionMapper which is moved to `workflows/offline_ml_diags`
 * Add -<dQ2> to physics precipitation within prognostic run runfile.
 * Add regression tests for model training and offline ML diagnostic steps
 * Stop e2e orchestrator from adding `extra_package` and `setup_file` arguments to Dataflow jobs. This allows use of `./dataflow.sh` script in e2e workflows.

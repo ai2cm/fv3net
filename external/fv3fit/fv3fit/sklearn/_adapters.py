@@ -3,7 +3,7 @@ from typing import Mapping, Set, Any, Sequence, Hashable
 from sklearn.utils import parallel_backend
 import xarray as xr
 
-from .wrapper import SklearnWrapper
+from ._wrapper import SklearnWrapper
 
 NameDict = Mapping[Hashable, Hashable]
 

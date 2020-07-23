@@ -9,7 +9,7 @@ import yaml
 from datetime import timedelta, datetime
 from sklearn.dummy import DummyRegressor
 
-from fv3net.regression.sklearn import SklearnWrapper
+from fv3fit.sklearn import SklearnWrapper
 import subprocess
 
 #  Importing fv3gfs causes a call to MPI_Init but not MPI_Finalize. When the

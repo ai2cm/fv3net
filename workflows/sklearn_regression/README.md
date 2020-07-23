@@ -7,7 +7,7 @@ the trained model output as well as a copy of the model configuration.
 
 Example shell script:
 ```
-python -m fv3net.regression.sklearn \
+python -m fv3fit.sklearn \
   gs://vcm-ml-data/test_annak/2020-02-05_train_data_pipeline #input data path where "train" folder is located
   train_sklearn_model.yml \
   {output_data_path} \
