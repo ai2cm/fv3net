@@ -352,7 +352,7 @@ def get_nudging_config(config_yaml: str, timestamp_dir: str):
             "y_wind": 3.0,
         },
     }
-  
+
     if coupler_nml["dt_atmos"] // 60 != TIMESTEP_MINUTES:
         raise ValueError(
             "Model timestep in default_fv3config not aligned"
