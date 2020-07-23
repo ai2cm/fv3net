@@ -14,7 +14,7 @@ from typing import Mapping, Sequence, Tuple
 import diagnostics_utils as utils
 import loaders
 from vcm.cloud import get_fs
-from fv3net.regression.sklearn import SklearnPredictionMapper
+from ._mapper import SklearnPredictionMapper
 from ._metrics import calc_metrics
 
 
