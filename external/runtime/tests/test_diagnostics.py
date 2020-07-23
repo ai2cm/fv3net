@@ -30,10 +30,7 @@ def test_SelectedTimes_not_in_list():
     ],
 )
 def test_RegularTimes(frequency, time, expected):
-    times = diagnostics.RegularTimes({"frequency": 900})
-
-    time = datetime(year=2016, month=8, day=1, hour=0, minute=15)
-    expected = True
+    times = diagnostics.RegularTimes({"frequency": frequency})
     assert (time in times) == expected
 
 
