@@ -3,8 +3,8 @@ import numpy as np
 from typing import Mapping, Sequence, Callable
 import xarray as xr
 
+from diagnostics_utils import regrid_dataset_to_pressure_levels
 from fv3net.regression.sklearn import TARGET_COORD, PREDICT_COORD, DERIVATION_DIM
-from vcm.cubedsphere import regrid_to_common_pressure
 from vcm import safe
 
 logging.getLogger(__name__)
@@ -14,7 +14,7 @@ ML_VARS = ["dQ1", "dQ2"]
 # Variables to calculate RMSE and bias of
 
 PRESSURE_LEVEL_METRIC_VARS = ["dQ1", "dQ2", "Q1", "Q2"]
-SCALAR_METRIC_VARS = PRESSURE_LEVEL_METRIC_VARS + [
+COLUMN_INTEGRATED_METRIC_VARS = [
     "column_integrated_dQ1",
     "column_integrated_dQ2",
     "column_integrated_Q1",
@@ -36,38 +36,56 @@ def calc_metrics(ds: xr.Dataset) -> xr.Dataset:
     {SCALAR_METRIC_VARS, VERTICAL_METRIC_VARS} as well as area and delp
     """
 
-    ds = _insert_weights(ds).chunk({'z': -1})
-    scalar_metrics = _calc_same_dims_metrics(
+    ds = _insert_weights(ds)
+    
+    # scalar quantity metrics calculated for 2d column integrated vars
+    scalar_metrics_column_integrated_vars = _calc_same_dims_metrics(
         ds,
         dim_tag="scalar",
-        vars=SCALAR_METRIC_VARS,
+        vars=COLUMN_INTEGRATED_METRIC_VARS,
         weights=[AREA_WEIGHT_VAR],
         mean_dim_vars=None)
 
-    ds_regrid_z = _regrid_dataset_to_pressure_levels(
+    # scalar quantity metrics are calculated at vertical levels first,
+    # then weighted by pressure level and then integrated
+    scalar_column_integrated_metrics = _calc_same_dims_metrics(
         ds,
-        PRESSURE_LEVEL_METRIC_VARS,
-        ds[DELP_VAR]
-    )
-
-    pressure_level_metrics = _calc_same_dims_metrics(
-        ds_regrid_z,
-        dim_tag="z",
+        dim_tag="scalar",
         vars=PRESSURE_LEVEL_METRIC_VARS,
         weights=[AREA_WEIGHT_VAR, DELP_WEIGHT_VAR],
+        mean_dim_vars=None)
+
+    ds_regrid_z = _regrid_dataset_zdim(ds)
+    
+    pressure_level_metrics = _calc_same_dims_metrics(
+        ds_regrid_z,
+        dim_tag="pressure_level",
+        vars=PRESSURE_LEVEL_METRIC_VARS,
+        weights=[AREA_WEIGHT_VAR],
         mean_dim_vars=["time", "x", "y", "tile"])
-    return xr.merge([scalar_metrics, pressure_level_metrics])
+    return xr.merge(
+        [scalar_metrics_column_integrated_vars, scalar_column_integrated_metrics, pressure_level_metrics])
 
 
-def _regrid_dataset_to_pressure_levels(
-        ds: xr.Dataset, regrid_vars: Sequence[str], da_delp: xr.DataArray):
-    for var in regrid_vars:
-        ds[var] = regrid_to_common_pressure(
-            ds[var],
-            da_delp,
-            VERTICAL_DIM,
+def _regrid_dataset_zdim(ds: xr.Dataset) -> xr.Dataset:
+    # have to separate the derivation coordinates before interpolating
+    # to regridded pressure
+    regridded_datasets = []
+    derivation_coords = [TARGET_COORD, PREDICT_COORD]
+    vertical_dim_vars = [var for var in ds.data_vars if VERTICAL_DIM in ds[var].dims]
+    ds_2d = ds.drop(vertical_dim_vars)
+    ds_3d = safe.get_variables(ds, vertical_dim_vars)
+
+    for derivation_coord in derivation_coords:
+        regridded_datasets.append(
+            regrid_dataset_to_pressure_levels(
+                ds_3d.sel({DERIVATION_DIM: derivation_coord}),
+                original_delp=ds[DELP_VAR],
+            )
         )
-    return ds
+    return xr.merge([
+        ds_2d,
+        xr.concat(regridded_datasets, dim=DERIVATION_DIM)])
 
 
 def _calc_same_dims_metrics(
@@ -89,7 +107,7 @@ def _calc_same_dims_metrics(
     Returns:
         dataset of metrics
     """
-    metric_kwargs = {"weights": [ds[weight] for weight in weights]}
+    metric_kwargs = {"weights": [ds[weight] for weight in weights], "mean_dims": mean_dim_vars}
     ds = _insert_means(ds, vars, **metric_kwargs)
     metrics = xr.Dataset()
     for var in vars:
@@ -112,7 +130,6 @@ def _insert_means(
     for var in var_names:
         da = ds[var].sel({DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD]})
         weights = [1.0] if weights is None else weights
-        
         da_mean = da.sel({DERIVATION_DIM: TARGET_COORD})
         for weight in weights:
             da_mean *= weight

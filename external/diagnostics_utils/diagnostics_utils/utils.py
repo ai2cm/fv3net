@@ -1,5 +1,6 @@
-from .config import VARNAMES, SURFACE_TYPE_ENUMERATION
+from .config import VARNAMES, SURFACE_TYPE_ENUMERATION, REGRIDDED_DELP, TOA_PRESSURE
 from vcm import thermo, safe
+from vcm.cubedsphere import regrid_to_common_pressure
 import xarray as xr
 import numpy as np
 import logging
@@ -9,6 +10,8 @@ logging.getLogger(__name__)
 
 UNINFORMATIVE_COORDS = ["tile", "z", "y", "x"]
 TIME_DIM = "time"
+VERTICAL_DIM = "z"
+PRESSURE_DIM = "pressure"
 PRIMARY_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
 
 
@@ -210,3 +213,46 @@ def snap_mask_to_type(
     types = xr.DataArray(types, float_mask.coords, float_mask.dims)
 
     return types
+
+
+def regrid_dataset_to_pressure_levels(
+        ds: xr.Dataset,
+        original_delp: xr.DataArray,
+        regrid_delp: Sequence[float] = REGRIDDED_DELP,
+    ) -> xr.Dataset:
+    """ Regrid data arrays with vertical dimension into
+    new pressure level coordinates and reassign delp to be correct
+    for new pressure coordinate.
+
+    Args:
+        ds (xr.Dataset): dataset containing data arrays with vertical dim
+        original_delp (xr.DataArray): [description]
+        regrid_delp (Sequence, optional): [description]. Defaults to REGRIDDED_DELP.
+
+    Returns:
+        input dataset with delp and vertical dimensioned variables regridded to the
+        pressure midpoints defined by regrid_delp. The original VERTICAL_DIM is
+        replaced by the regridded PRESSURE_DIM.
+    """
+    vertical_dim_vars = [var for var in ds.data_vars if VERTICAL_DIM in ds[var].dims]
+    delp_var = original_delp.name
+    
+    da_regrid_delp = xr.DataArray(
+        regrid_delp,
+        dims=[PRESSURE_DIM],
+        coords={PRESSURE_DIM: range(len(regrid_delp))}
+        )
+    regrid_pressure_midpts = thermo.pressure_at_midpoint_log(
+        da_regrid_delp, toa_pressure=TOA_PRESSURE, dim=PRESSURE_DIM)
+
+    for var in vertical_dim_vars:
+        ds[var] = regrid_to_common_pressure(
+            ds[var],
+            original_delp,
+            VERTICAL_DIM,
+            output_pressure=regrid_pressure_midpts,
+            new_vertical_dim=PRESSURE_DIM
+        )
+    ds[delp_var] = da_regrid_delp
+    return ds
+    

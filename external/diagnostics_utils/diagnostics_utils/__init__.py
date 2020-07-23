@@ -8,6 +8,7 @@ from .utils import (
     weighted_average,
     snap_mask_to_type,
     insert_column_integrated_vars,
+    regrid_dataset_to_pressure_levels,
 )
 from ._diurnal_cycle import bin_diurnal_cycle, create_diurnal_cycle_dataset
 
@@ -21,4 +22,5 @@ __all__ = [
     "insert_total_apparent_sources",
     "bin_diurnal_cycle",
     "create_diurnal_cycle_dataset",
+    "regrid_dataset_to_pressure_levels"
 ]
