@@ -1,12 +1,41 @@
 hi-res-data-vars:
-  - LHTFLsfc_coarse
-  - SHTFLsfc_coarse
-  - PRATEsfc_coarse
-  - DSWRFtoa_coarse
-  - DSWRFsfc_coarse
-  - USWRFtoa_coarse
-  - USWRFsfc_coarse
+  - CPRATEsfc_coarse
+  - DCLWRFsfc_coarse
+  - DCSWRFsfc_coarse
   - DLWRFsfc_coarse
-  - ULWRFtoa_coarse
+  - DSWRFsfc_coarse
+  - DSWRFtoa_coarse
+  - HPBLsfc_coarse
+  - LHTFLsfc_coarse
+  - PRATEsfc_coarse
+  - SHTFLsfc_coarse
+  - UCLWRFsfc_coarse
+  - UCLWRFtoa_coarse
+  - UCSWRFsfc_coarse
+  - UCSWRFtoa_coarse
+  - UGRD10m_coarse
   - ULWRFsfc_coarse
+  - ULWRFtoa_coarse
+  - USWRFsfc_coarse
+  - USWRFtoa_coarse
+  - VGRD10m_coarse
+  - int_dq3dt_deep_conv_coarse
+  - int_dq3dt_mp_coarse
+  - int_dq3dt_pbl_coarse
+  - int_dq3dt_shal_conv_coarse
+  - int_dt3dt_deep_conv_coarse
+  - int_dt3dt_lw_coarse
+  - int_dt3dt_mp_coarse
+  - int_dt3dt_ogwd_coarse
+  - int_dt3dt_pbl_coarse
+  - int_dt3dt_shal_conv_coarse
+  - int_dt3dt_sw_coarse
+  - tsfc_coarse
+  - uflx_coarse
+  - vflx_coarse
 target_resolution: 48
+rechunk:
+  tile: 6
+  time: 96
+  grid_xt: 48
+  grid_yt: 48
