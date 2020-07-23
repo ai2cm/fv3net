@@ -196,7 +196,7 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
 
     Example:
 
-        >>> from fv3net.regression.loaders import *
+        >>> from loaders import open_fine_resolution_budget
         >>> loader = open_fine_resolution_budget('gs://vcm-ml-scratch/noah/2020-05-19/')
         >>> len(loader)
         479

@@ -148,7 +148,7 @@ def post_process_container(
     destination: str,
     data_vol: V1Volume,
     secret_vol: V1Volume,
-    image: str = "us.gcr.io/vcm-ml/fv3net:9ed905f7f3ec44484370b8f915834744fe49c636",
+    image: str = "us.gcr.io/vcm-ml/post_process_run:latest",
 ) -> V1Container:
     """Container for post processing fv3 model output for cloud storage
 
@@ -156,8 +156,7 @@ def post_process_container(
         path: relative path within volume pointing to run-directory
         destination: uri to desired GCS output directory
         vol: a K8s volume containing ``path`
-        image: the docker image to use for post processing. Needs to contain
-            the fv3net source tree at the path "/fv3net".
+        image: the docker image to use for post processing.
     Returns
         a k8s container encapsulating the post-processing.
     """
@@ -168,8 +167,7 @@ def post_process_container(
 
     rundir = os.path.join("/mnt", path)
     container.image = image
-    container.working_dir = "/home/jovyan/fv3net/workflows/prognostic_c48_run"
-    container.command = ["python", "post_process.py", rundir, destination]
+    container.command = ["post_process.py", rundir, destination]
     # Suitable for C48 job
     container.resources = V1ResourceRequirements(
         limits=dict(cpu="6", memory="3600M"), requests=dict(cpu="6", memory="3600M"),
