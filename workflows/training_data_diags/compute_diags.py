@@ -94,13 +94,25 @@ if __name__ == "__main__":
             mapping_kwargs=dataset_config.get("mapping_kwargs", None),
             **batch_kwargs,
         )
-        ds = xr.concat(ds_batches, dim=TIME_DIM)
-        ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
-            utils.insert_column_integrated_vars
-        )
-        ds_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
+        batches_diags, batches_diurnal = [], []
+        for i, ds in enumerate(ds_batches):
+            ds = xr.concat(ds_batches, dim=TIME_DIM)
+            ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
+                utils.insert_column_integrated_vars
+            )
+            ds_batch_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
+            batches_diags.append(ds_batch_diagnostic)
+            ds_batch_diurnal = utils.create_diurnal_cycle_dataset(
+                ds,
+                longitude=grid["lon"],
+                land_sea_mask=grid["land_sea_mask"],
+                diurnal_vars=["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"]
 
-        diagnostic_datasets[dataset_name] = ds_diagnostic
+            )
+            batches_diurnal.append(ds_batch_diurnal)
+        ds_diagnostic = xr.concat(batches_diags, dim="batch").mean("batch")
+        ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean("batch")
+        diagnostic_datasets[dataset_name] = xr.merge([ds_diagnostic, ds_diurnal])
         logger.info(f"Finished processing dataset {dataset_name}.")
 
     diagnostics_all = xr.concat(
