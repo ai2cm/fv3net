@@ -395,8 +395,10 @@ def _symlink_restart_files(timestamp_dir: Path, target_dir: Path, symlink_prefix
             new_sym_fv_file.symlink_to(fv_file)
 
 
-@with_fv3gfs
 def test_nudge_run(tmp_restart_dir):
+    if not FV3GFS_INSTALLED:
+        pytest.skip("fv3gfs not installed")
+
     tmpdir = tmp_restart_dir.parent.as_posix()
     config = get_nudging_config(default_fv3config, tmp_restart_dir.as_posix())
     fv3config.run_native(config, tmpdir, capture_output=True, runfile=NUDGE_RUNFILE)
