@@ -69,6 +69,16 @@ def clear_encoding(ds):
         ds[variable].encoding = {}
 
 
+def cast_time(ds):
+    if "time" in ds.coords:
+        try:
+            # explicitly set time dtype to avoid invalid type promotion error
+            ds = ds.assign_coords(time=ds.time.astype(np.datetime64))
+        except TypeError:
+            pass  # if cannot cast to np.datetime64, leave time axis alone
+    return ds
+
+
 def parse_rundir(walker):
     """
     Args:
@@ -135,12 +145,7 @@ def process_item(
         clear_encoding(item)
         chunked = rechunk(item, chunks)
         dest = os.path.join(d_out, relpath)
-        if "time" in chunked.dims:
-            try:
-                # explicitly set time dtype to avoid invalid type promotion error
-                chunked = chunked.assign_coords(time=chunked.time.astype(np.datetime64))
-            except TypeError:
-                pass  # if cannot cast to np.datetime64, leave time axis alone
+        chunked = cast_time(chunked)
         chunked.to_zarr(dest, mode="w", consolidated=True)
     else:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
