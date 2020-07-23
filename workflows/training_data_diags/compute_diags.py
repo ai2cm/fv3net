@@ -24,7 +24,6 @@ DOMAINS = ["land", "sea", "global"]
 OUTPUT_DIAGS_NC_NAME = "diagnostics"
 OUTPUT_DIURNAL_NC_NAME = "diurnal_cycle"
 TIME_DIM = "time"
-
 DIURNAL_CYCLE_VARS = [
     "column_integrated_dQ1",
     "column_integrated_dQ2",
@@ -118,7 +117,8 @@ if __name__ == "__main__":
         batches_diags, batches_diurnal = [], []
         for i, ds in enumerate(ds_batches):
             logger.info(
-                f"Computing batch {i+1}/{len(ds_batches)} diagnostics for source {dataset_name}..."
+                f"Computing batch {i+1}/{len(ds_batches)} diagnostics "
+                f"for source {dataset_name}..."
             )
             ds = xr.concat(ds_batches, dim=TIME_DIM)
             ds = (
@@ -129,7 +129,8 @@ if __name__ == "__main__":
             ds_batch_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
             batches_diags.append(ds_batch_diagnostic)
             logger.info(
-                f"Computing batch {i+1}/{len(ds_batches)} diurnal cycles for source {dataset_name}..."
+                f"Computing batch {i+1}/{len(ds_batches)} diurnal cycles "
+                f"for source {dataset_name}..."
             )
 
             ds_batch_diurnal = utils.create_diurnal_cycle_dataset(
