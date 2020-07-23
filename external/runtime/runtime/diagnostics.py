@@ -1,17 +1,17 @@
-from typing import Any, Sequence
+from typing import Any, Sequence, Container
 from datetime import datetime, timedelta
 import random
 
 
 # TODO rename and perhaps simplify this object hierarchy
-class Containable:
+class All(Container):
     """base class for time selection strategies"""
 
     def __contains__(self, value: Any):
         return True
 
 
-class SelectedTimes(Containable):
+class SelectedTimes(Container):
     TIME_FMT = r"%Y%m%d.%H%M%S" 
     def __init__(self, d):
         self._d = d
@@ -27,7 +27,7 @@ class SelectedTimes(Containable):
         return time in self.times
 
 
-class RegularTimes(Containable):
+class RegularTimes(Container):
     def __init__(self, d):
         self._d = d
 
@@ -52,7 +52,7 @@ def get_time(d):
     elif kind == "selected":
         return SelectedTimes(d)
     else:
-        return Containable()
+        return All()
 
 
 class DiagnosticFile:
@@ -65,7 +65,7 @@ class DiagnosticFile:
 
     @property
     def variables(self):
-        return self.d.get("variables", Containable())
+        return self.d.get("variables", All())
 
     @property
     def times(self):
