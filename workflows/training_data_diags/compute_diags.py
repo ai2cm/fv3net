@@ -90,7 +90,6 @@ if __name__ == "__main__":
         ds_batches = batches.diagnostic_batches_from_geodata(
             dataset_config["path"],
             variable_names,
-            rename_variables=dataset_config.get("rename_variables", None),
             mapping_function=dataset_config["mapping_function"],
             mapping_kwargs=dataset_config.get("mapping_kwargs", None),
             **batch_kwargs,
