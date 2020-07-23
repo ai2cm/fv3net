@@ -9,8 +9,8 @@ import report
 import gallery
 import vcm
 import numpy as np
-from . import train
-from .. import shared
+from . import _train as train
+from .. import _shared as shared
 
 
 MODEL_FILENAME = "sklearn_model.pkl"

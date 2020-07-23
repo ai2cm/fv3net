@@ -1,10 +1,28 @@
-from typing import Tuple, Iterable, TextIO, List
-import loaders
+from typing import Iterable, TextIO, List
 import numpy as np
 import xarray as xr
-from ..sklearn.wrapper import _pack, _unpack
 import yaml
 import pandas as pd
+
+
+def _unique_dim_name(data):
+    return "".join(data.dims)
+
+
+def pack(data, sample_dim):
+    feature_dim_name = _unique_dim_name(data)
+    stacked = data.to_stacked_array(feature_dim_name, sample_dims=[sample_dim])
+    return (
+        stacked.transpose(sample_dim, feature_dim_name).data,
+        stacked.indexes[feature_dim_name],
+    )
+
+
+def unpack(data: np.ndarray, sample_dim, feature_index):
+    da = xr.DataArray(
+        data, dims=[sample_dim, "feature"], coords={"feature": feature_index}
+    )
+    return da.to_unstacked_dataset("feature")
 
 
 class ArrayPacker:
@@ -35,7 +53,7 @@ class ArrayPacker:
         return self._sample_dim_name
 
     def to_array(self, dataset: xr.Dataset) -> np.ndarray:
-        packed, indices = _pack(
+        packed, indices = pack(
             dataset[self.names], self._sample_dim_name
         )  # type: ignore
         if self._indices is None:
@@ -48,7 +66,7 @@ class ArrayPacker:
                 "must pack at least once before unpacking, "
                 "so dimension lengths are known"
             )
-        return _unpack(array, self._sample_dim_name, self._indices)
+        return unpack(array, self._sample_dim_name, self._indices)
 
     def dump(self, f: TextIO):
         return yaml.safe_dump(
@@ -81,11 +99,3 @@ def _multiindex_from_serializable(data: dict) -> pd.MultiIndex:
     return pd.MultiIndex.from_tuples(
         [[name, int(value)] for name, value in data["tuples"]], names=data["names"]
     )
-
-
-def pack(dataset: xr.Dataset) -> Tuple[np.ndarray, np.ndarray]:
-    return _pack(dataset, loaders.SAMPLE_DIM_NAME)
-
-
-def unpack(data: np.ndarray, feature_indices: pd.MultiIndex) -> xr.Dataset:
-    return _unpack(data, loaders.SAMPLE_DIM_NAME, feature_indices)

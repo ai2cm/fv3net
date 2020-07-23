@@ -3,7 +3,7 @@ import os
 import yaml
 import logging
 from . import get_model
-from .. import shared
+from .. import _shared as shared
 import loaders
 
 # TODO: refactor these to ..shared

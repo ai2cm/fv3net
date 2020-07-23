@@ -3,14 +3,14 @@ from datetime import datetime
 from typing import Hashable, Iterable, Mapping, MutableMapping, Tuple, cast
 
 import fsspec
-import fv3gfs
-import runtime
 import xarray as xr
 import zarr
 from mpi4py import MPI
 from sklearn.externals import joblib
 
-from fv3net.regression.sklearn.adapters import RenamingAdapter, StackingAdapter
+import fv3gfs
+import runtime
+from fv3fit.sklearn import RenamingAdapter, StackingAdapter
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

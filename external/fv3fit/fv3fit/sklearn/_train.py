@@ -3,10 +3,10 @@ import joblib
 import logging
 import os
 import xarray as xr
-from ..shared import ModelTrainingConfig
+from .._shared import ModelTrainingConfig
 from typing import Sequence
 
-from .wrapper import SklearnWrapper, RegressorEnsemble
+from ._wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
