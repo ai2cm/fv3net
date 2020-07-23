@@ -12,16 +12,19 @@ class Containable:
 
 
 class SelectedTimes(Containable):
+    TIME_FMT = r"%Y%m%d.%H%M%S" 
     def __init__(self, d):
         self._d = d
 
+        # see if there are any errors
+        self.times
+
     @property
-    def times(self) -> Sequence[str]:
-        return self._d["times"]
+    def times(self) -> Sequence[datetime]:
+        return [datetime.strptime(time, self.TIME_FMT) for time in self._d["times"]]
 
     def __contains__(self, time: datetime):
-        time_stamp = time.strftime(r"%Y%m%d.%H%M%S")
-        return time_stamp in self.times
+        return time in self.times
 
 
 class RegularTimes(Containable):
