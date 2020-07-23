@@ -23,7 +23,7 @@ class SelectedTimes(Container[datetime]):
     def times(self) -> Sequence[datetime]:
         return [datetime.strptime(time, self.TIME_FMT) for time in self._d["times"]]
 
-    def __contains__(self, time: datetime):
+    def __contains__(self, time):
         return time in self.times
 
 
@@ -38,7 +38,7 @@ class RegularTimes(Container[datetime]):
     def frequency(self) -> timedelta:
         return timedelta(seconds=self._d["frequency"])
 
-    def __contains__(self, time: datetime):
+    def __contains__(self, time):
         midnight = time.replace(hour=0, minute=0, second=0, microsecond=0)
         time_since_midnight = time - midnight
         quotient = time_since_midnight % self.frequency
