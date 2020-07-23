@@ -344,9 +344,11 @@ def test_compute_offline_diags(
 
     assert isinstance(metrics, dict)
     assert len(metrics) == 49
-    for metric, metric_dict in metrics.items():
+    for metric, metric_entry in metrics.items():
         assert isinstance(metric, str)
-        assert isinstance(metric_dict, (dict, list))
-        for metric_key, metric_value in metric_dict.items():
-            assert isinstance(metric_key, str)
-            assert isinstance(metric_value, (float, np.float32, list))
+        # pressure coords are added as a list
+        assert isinstance(metric_entry, (dict, list))
+        if isinstance(metric_entry, dict):
+            for metric_key, metric_value in metric_entry.items():
+                assert isinstance(metric_key, str)
+                assert isinstance(metric_value, (float, np.float32, list))
