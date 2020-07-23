@@ -11,8 +11,7 @@ latest
 * Increase nudging run memory limits and add a high-capacity dynamic volume for nudging output
 * Add fixtures and common units tests for ML and diagnostic data mappers
 * Add diurnal cycle functions to diagnostics_utils
-* Add cos_zenith_angle calculation to vcm, if cos_zenith_angle provided as an input variable in training or diagnostic configuration, 
- it will be derived and inserted into the batched data.
+* Add cos_zenith_angle calculation to vcm, if cos_zenith_angle provided as an input variable in training or diagnostic configuration, it will be derived and inserted into the batched data.
 * Add general purpose transformations of mappers `ValMap` and `KeyMap`
 * Add offset_seconds argument to the nudging loader
 * Add diagnostic variables from SHiELD and FV3GFS to new diagnostic mappers for each data sources; diagnostic mappers return net_heating and net_precipitation for the coarsened SHiELD and coarse FV3GFS diagnostics
@@ -20,6 +19,8 @@ latest
 * Remove renaming of time and data variables from batch functions in external/loaders. Renaming should be done by the mappers.
 * Add nudge-to-obs runfile and argo workflow.
 * Generalize post-processing script and create new post_process_run image.
+* Move plotting routines previously found in :code:`vcm.visualize` and :code:`gallery` into a new package :code:`fv3viz` and remove dependencies between :code:`vcm` and plotting routines.
+
 
 0.2.3 (2020-06-19)
 ------------------

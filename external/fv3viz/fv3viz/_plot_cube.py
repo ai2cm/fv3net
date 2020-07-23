@@ -1,4 +1,4 @@
-from vcm.cubedsphere.constants import (
+from ._constants import (
     COORD_X_CENTER,
     COORD_Y_CENTER,
     COORD_X_OUTER,
@@ -8,13 +8,13 @@ from vcm.cubedsphere.constants import (
     VAR_LON_OUTER,
     VAR_LAT_OUTER,
 )
-from vcm.visualize.plot_helpers import (
+from ._plot_helpers import (
     _infer_color_limits,
     _get_var_label,
     _remove_redundant_dims,
     _min_max_from_percentiles,
 )
-from vcm.visualize.masking import _mask_antimeridian_quads
+from ._masking import _mask_antimeridian_quads
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt

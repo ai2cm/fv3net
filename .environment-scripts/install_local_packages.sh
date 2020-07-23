@@ -13,7 +13,7 @@ do
   pip install --no-deps -e "$package"
 done
 
-poetry_packages=( external/runtime external/report external/gallery . 
+poetry_packages=( external/runtime external/report external/fv3viz . 
   external/fv3config 
   external/vcm 
   external/synth

@@ -4,7 +4,7 @@ Some helper functions for creating diagnostic plots.
 These are specifically for usage in fv3net.
 
 Uses the general purpose plotting functions in
-vcm.visualize such as plot_cube.
+fv3viz such as plot_cube.
 
 
 """
@@ -14,13 +14,13 @@ import os
 from scipy.stats import binned_statistic
 import xarray as xr
 
-from vcm.visualize import plot_cube, mappable_var
-from vcm.cubedsphere.constants import INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER
+from ._plot_cube import plot_cube, mappable_var
+from ._constants import INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER
 
 STACK_DIMS = ["tile", INIT_TIME_DIM, COORD_X_CENTER, COORD_Y_CENTER]
 
 
-def mask_nan_lines(x, y):
+def _mask_nan_lines(x, y):
     nan_mask = np.isfinite(y)
     return np.array(x)[nan_mask], np.array(y)[nan_mask]
 
@@ -60,7 +60,7 @@ def plot_diurnal_cycle(
         bin_centers = [
             0.5 * (bin_edges[i] + bin_edges[i + 1]) for i in range(num_time_bins)
         ]
-        bin_centers, bin_means = mask_nan_lines(bin_centers, bin_means)
+        bin_centers, bin_means = _mask_nan_lines(bin_centers, bin_means)
         plt.plot(bin_centers, bin_means, label=label)
     plt.xlabel("local_time [hr]")
     plt.ylabel(ylabel or var)
@@ -75,7 +75,7 @@ def plot_diurnal_cycle(
 
 
 def plot_diag_var_single_map(da, grid, var_name, plot_cube_kwargs=None):
-    """ Uses vcm.visualize.plot_cube to plot
+    """ Uses fv3viz.plot_cube to plot
 
     Args:
         da: xr data array of variable to plot
