@@ -2,6 +2,8 @@ channels:
   - defaults
   - conda-forge
 dependencies:
+  - tensorflow=2.2
+  - python=3.7
   - backoff
   - cartopy
   - click
@@ -35,22 +37,22 @@ dependencies:
   - python-kubernetes
   - scikit-image
   - scikit-learn
+  - scipy >= 1.5.0
   - toolz
   - xarray>=0.14
   - jupyterlab
-  - pip
-  - xgcm=0.2
+  - xgcm>=0.2
   - jupyterlab
-  - apache-beam=2.18
-  - matplotlib=3.1
+  - matplotlib>=3.1
   - pyquery>=1.4.0
-  - python=3.7
   - holoviews
   - bokeh>=2.0
   - backoff
   - mypy=0.770
+  - six=1.12
   - pip
   - pip:
+    - apache-beam[gcp]
     - zarr>=2.4
     - poetry
     - gsutil
@@ -59,5 +61,3 @@ dependencies:
     - bump2version>=0.5.11
     - yq
     - pytest-regtest
-    - tensorflow>=2.0
-    - scipy >= 1.5.0

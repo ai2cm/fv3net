@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Mapping, Sequence, Callable
 import logging
-from fv3net.regression.sklearn import TARGET_COORD, PREDICT_COORD, DERIVATION_DIM
+from ._mapper import TARGET_COORD, PREDICT_COORD, DERIVATION_DIM
 import xarray as xr
 
 logging.getLogger(__name__)

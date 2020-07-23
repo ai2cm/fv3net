@@ -21,7 +21,7 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - "e0:af:32:36:b7:31:d1:5f:aa:d2:35:d8:09:b8:92:54"
+            - "c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39"
       - run: apt-get update && apt-get install -y uuid
       - run:
           name: "Save GCS for tests."
@@ -80,7 +80,7 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - "e0:af:32:36:b7:31:d1:5f:aa:d2:35:d8:09:b8:92:54"
+            - "c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39"
       - run: sudo apt-get install -y make jq
       - run:
           name: "Pull submodules"
