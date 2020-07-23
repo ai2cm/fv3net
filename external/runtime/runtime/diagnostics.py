@@ -1,5 +1,6 @@
 from typing import Any, Sequence
 from datetime import datetime, timedelta
+import random
 
 
 # TODO rename and perhaps simplify this object hierarchy
@@ -19,13 +20,17 @@ class SelectedTimes(Containable):
         return self._d["times"]
 
     def __contains__(self, time: datetime):
-        time_stamp = time.strftime(f"%Y%m%d.%h%m%s")
+        time_stamp = time.strftime(r"%Y%m%d.%H%M%S")
+        print(time_stamp)
         return time_stamp in self.times
 
 
 class RegularTimes(Containable):
     def __init__(self, d):
         self._d = d
+
+        if self.frequency > timedelta(days=1.0):
+            raise ValueError("Minimum output frequency is daily.")
 
     @property
     def frequency(self) -> timedelta:
@@ -34,7 +39,8 @@ class RegularTimes(Containable):
     def __contains__(self, time: datetime):
         midnight = time.replace(hour=0, minute=0, second=0, microsecond=0)
         time_since_midnight = time - midnight
-        return time_since_midnight % self.frequency == 0
+        quotient = time_since_midnight % self.frequency
+        return quotient == timedelta(seconds=0)
 
 
 def get_time(d):
@@ -72,7 +78,7 @@ class DiagnosticConfig:
     def diagnostics(self) -> Sequence[DiagnosticFile]:
         diags_configs = self._d.get("diagnostics", [])
         if len(diags_configs) > 0:
-            return [DiagnosticFile(item) for item in self._d]
+            return [DiagnosticFile(item) for item in diags_configs]
         else:
             # Keep old behavior for backwards compatiblity
             output_name = self._d["scikit_learn"]["zarr_output"]

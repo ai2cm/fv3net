@@ -263,4 +263,5 @@ if __name__ == "__main__":
                 )
 
             if time in diag_file.times:
+                print("outputting data")
                 runtime.append_to_writers(writers[diag_file.name], variables)
