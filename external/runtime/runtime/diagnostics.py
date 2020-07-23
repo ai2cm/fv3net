@@ -11,7 +11,7 @@ class All(Container):
         return True
 
 
-class SelectedTimes(Container):
+class SelectedTimes(Container[datetime]):
     TIME_FMT = r"%Y%m%d.%H%M%S" 
     def __init__(self, d):
         self._d = d
@@ -27,7 +27,7 @@ class SelectedTimes(Container):
         return time in self.times
 
 
-class RegularTimes(Container):
+class RegularTimes(Container[datetime]):
     def __init__(self, d):
         self._d = d
 
