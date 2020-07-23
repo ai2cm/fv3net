@@ -13,7 +13,6 @@ logging.getLogger(__name__)
 # Variables predicted by model
 ML_VARS = ["dQ1", "dQ2"]
 # Variables to calculate RMSE and bias of
-
 PRESSURE_LEVEL_METRIC_VARS = ["dQ1", "dQ2", "Q1", "Q2"]
 COLUMN_INTEGRATED_METRIC_VARS = [
     "column_integrated_dQ1",

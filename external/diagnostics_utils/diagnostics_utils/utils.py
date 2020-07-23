@@ -10,8 +10,8 @@ logging.getLogger(__name__)
 
 UNINFORMATIVE_COORDS = ["tile", "z", "y", "x"]
 TIME_DIM = "time"
-VERTICAL_DIM = "z"
 PRESSURE_DIM = "pressure"
+VERTICAL_DIM = "z"
 PRIMARY_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
 
 
@@ -250,7 +250,6 @@ def regrid_dataset_to_pressure_levels(
             original_delp,
             VERTICAL_DIM,
             output_pressure=regrid_pressure_midpts,
-            new_vertical_dim=PRESSURE_DIM,
         )
     ds[delp_var] = da_regrid_delp
     return ds
