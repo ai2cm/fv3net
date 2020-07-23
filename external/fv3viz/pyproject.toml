@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "visualize"
+name = "fv3viz"
 version = "0.1.0"
 description = ""
 authors = ["Oliver Watt-Meyer <oliwm@vulcan.com>", "Brian Henn <brianh@vulcan.com>"]

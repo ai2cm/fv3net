@@ -24,7 +24,7 @@ exec >>${LOGFILE} 2>&1
   poetry build --format sdist
 )
 (
-  cd external/visualize
+  cd external/fv3viz
   poetry build --format sdist
 )
 (
@@ -51,7 +51,7 @@ $NETCDF_OUTPUT \
 --disk_size_gb 200 \
 --worker_machine_type n2-highmem-4 \
 --extra_package $(pwd)/external/report/dist/report-0.1.0.tar.gz \
---extra_package $(pwd)/external/visualize/dist/visualize-0.1.0.tar.gz \
+--extra_package $(pwd)/external/fv3viz/dist/fv3viz-0.1.0.tar.gz \
 --extra_package $(pwd)/workflows/one_step_diags/dist/one_step_diags-0.1.0.tar.gz
 "
 

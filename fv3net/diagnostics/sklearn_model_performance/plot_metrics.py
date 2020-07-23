@@ -1,7 +1,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import os
-import visualize as viz
+import fv3viz as viz
 
 
 matplotlib.use("Agg")

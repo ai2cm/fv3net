@@ -5,7 +5,7 @@ from config import (
     DELTA_DIM,
     INIT_TIME_DIM,
 )
-import visualize as viz
+import fv3viz as viz
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt

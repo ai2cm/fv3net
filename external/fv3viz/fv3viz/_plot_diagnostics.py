@@ -4,7 +4,7 @@ Some helper functions for creating diagnostic plots.
 These are specifically for usage in fv3net.
 
 Uses the general purpose plotting functions in
-visualize such as plot_cube.
+fv3viz such as plot_cube.
 
 
 """
@@ -75,7 +75,7 @@ def plot_diurnal_cycle(
 
 
 def plot_diag_var_single_map(da, grid, var_name, plot_cube_kwargs=None):
-    """ Uses vcm.visualize.plot_cube to plot
+    """ Uses fv3viz.plot_cube to plot
 
     Args:
         da: xr data array of variable to plot

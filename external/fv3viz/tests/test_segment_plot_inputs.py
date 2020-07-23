@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from visualize._plot_cube import _segment_plot_inputs
+from fv3viz._plot_cube import _segment_plot_inputs
 
 
 @pytest.fixture(params=[(2, 2), (8, 10)])

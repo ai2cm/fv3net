@@ -4,16 +4,16 @@ import numpy as np
 import xarray as xr
 from cartopy import crs as ccrs
 from matplotlib import pyplot as plt
-from visualize import __version__
-from visualize._masking import (
+from fv3viz import __version__
+from fv3viz._masking import (
     _mask_antimeridian_quads,
     _periodic_equal_or_less_than,
     _periodic_greater_than,
     _periodic_difference,
 )
-from visualize._plot_cube import mappable_var, plot_cube_axes, plot_cube
-from visualize._plot_helpers import _get_var_label
-from visualize._timestep_histograms import (
+from fv3viz._plot_cube import mappable_var, plot_cube_axes, plot_cube
+from fv3viz._plot_helpers import _get_var_label
+from fv3viz._timestep_histograms import (
     plot_daily_and_hourly_hist,
     plot_daily_hist,
     plot_hourly_hist,

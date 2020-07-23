@@ -5,7 +5,7 @@ from multiprocessing import Pool
 
 import matplotlib
 import matplotlib.pyplot as plt
-import visualize as viz
+import fv3viz as viz
 import xarray as xr
 
 matplotlib.use("Agg")

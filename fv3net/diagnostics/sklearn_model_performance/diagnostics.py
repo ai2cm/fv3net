@@ -5,7 +5,7 @@ import os
 from scipy.stats import binned_statistic_2d
 import warnings
 import xarray as xr
-import visualize as viz
+import fv3viz as viz
 import vcm
 from vcm.cubedsphere.regridz import regrid_to_common_pressure
 from vcm.select import mask_to_surface_type
