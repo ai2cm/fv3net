@@ -178,6 +178,6 @@ if __name__ == "__main__":
     metrics = _average_metrics_dict(ds_metrics)
     fs = get_fs(args.output_path)
     with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
-        json.dump(metrics, f)
+        json.dump(metrics, f, indent=4)
     logger.info(f"Finished processing dataset diagnostics and metrics.")
     logger.info(f"Finished processing dataset metrics.")
