@@ -6,7 +6,7 @@ import fsspec
 import yaml
 import logging
 import report
-import gallery
+import fv3viz as viz
 import vcm
 import numpy as np
 from . import _train as train
@@ -36,7 +36,7 @@ def _create_report_plots(
     for html report"""
     times = [vcm.cast_to_datetime(time) for time in times]
     with fsspec.open(os.path.join(path, TRAINING_FIG_FILENAME), "wb") as f:
-        gallery.plot_daily_and_hourly_hist(times).savefig(f, dpi=90)
+        viz.plot_daily_and_hourly_hist(times).savefig(f, dpi=90)
     return {"Time distribution of training samples": [TRAINING_FIG_FILENAME]}
 
 
