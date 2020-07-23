@@ -21,7 +21,6 @@ class SelectedTimes(Containable):
 
     def __contains__(self, time: datetime):
         time_stamp = time.strftime(r"%Y%m%d.%H%M%S")
-        print(time_stamp)
         return time_stamp in self.times
 
 

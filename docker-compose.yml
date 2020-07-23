@@ -6,5 +6,5 @@ services:
       - .:/fv3net
     environment: 
       GOOGLE_APPLICATION_CREDENTIALS: /key.json
-      PYTHONPATH: "/fv3net/external/runtime:/fv3net/external/synth"
+      PYTHONPATH: "/fv3net/external/runtime:/fv3net/external/synth:/fv3net"
     working_dir: /fv3net/workflows/prognostic_c48_run
