@@ -343,10 +343,10 @@ def test_compute_offline_diags(
             assert dim in ["local_time_hr", "derivation", "surface_type"]
 
     assert isinstance(metrics, dict)
-    assert len(metrics) == 32
+    assert len(metrics) == 48
     for metric, metric_dict in metrics.items():
         assert isinstance(metric, str)
         assert isinstance(metric_dict, dict)
         for metric_key, metric_value in metric_dict.items():
             assert isinstance(metric_key, str)
-            assert isinstance(metric_value, (float, np.float32))
+            assert isinstance(metric_value, (float, np.float32, list))

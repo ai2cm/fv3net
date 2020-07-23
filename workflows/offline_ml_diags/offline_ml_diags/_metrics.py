@@ -4,7 +4,8 @@ from typing import Mapping, Sequence, Callable
 import xarray as xr
 
 from diagnostics_utils import regrid_dataset_to_pressure_levels
-from fv3net.regression.sklearn import TARGET_COORD, PREDICT_COORD, DERIVATION_DIM
+from loaders import DERIVATION_DIM
+from ._mapper import TARGET_COORD, PREDICT_COORD
 from vcm import safe
 
 logging.getLogger(__name__)
@@ -37,14 +38,15 @@ def calc_metrics(ds: xr.Dataset) -> xr.Dataset:
     """
 
     ds = _insert_weights(ds)
-    
+
     # scalar quantity metrics calculated for 2d column integrated vars
     scalar_metrics_column_integrated_vars = _calc_same_dims_metrics(
         ds,
         dim_tag="scalar",
         vars=COLUMN_INTEGRATED_METRIC_VARS,
         weights=[AREA_WEIGHT_VAR],
-        mean_dim_vars=None)
+        mean_dim_vars=None,
+    )
 
     # scalar quantity metrics are calculated at vertical levels first,
     # then weighted by pressure level and then integrated
@@ -53,18 +55,25 @@ def calc_metrics(ds: xr.Dataset) -> xr.Dataset:
         dim_tag="scalar",
         vars=PRESSURE_LEVEL_METRIC_VARS,
         weights=[AREA_WEIGHT_VAR, DELP_WEIGHT_VAR],
-        mean_dim_vars=None)
+        mean_dim_vars=None,
+    )
 
     ds_regrid_z = _regrid_dataset_zdim(ds)
-    
+
     pressure_level_metrics = _calc_same_dims_metrics(
         ds_regrid_z,
         dim_tag="pressure_level",
         vars=PRESSURE_LEVEL_METRIC_VARS,
         weights=[AREA_WEIGHT_VAR],
-        mean_dim_vars=["time", "x", "y", "tile"])
+        mean_dim_vars=["time", "x", "y", "tile"],
+    )
     return xr.merge(
-        [scalar_metrics_column_integrated_vars, scalar_column_integrated_metrics, pressure_level_metrics])
+        [
+            scalar_metrics_column_integrated_vars,
+            scalar_column_integrated_metrics,
+            pressure_level_metrics,
+        ]
+    )
 
 
 def _regrid_dataset_zdim(ds: xr.Dataset) -> xr.Dataset:
@@ -83,17 +92,16 @@ def _regrid_dataset_zdim(ds: xr.Dataset) -> xr.Dataset:
                 original_delp=ds[DELP_VAR],
             )
         )
-    return xr.merge([
-        ds_2d,
-        xr.concat(regridded_datasets, dim=DERIVATION_DIM)])
+    return xr.merge([ds_2d, xr.concat(regridded_datasets, dim=DERIVATION_DIM)])
 
 
 def _calc_same_dims_metrics(
-        ds: xr.Dataset,
-        dim_tag: str,
-        vars: Sequence[str],
-        weights: Sequence[str],
-        mean_dim_vars: Sequence[str] = None) -> xr.Dataset:
+    ds: xr.Dataset,
+    dim_tag: str,
+    vars: Sequence[str],
+    weights: Sequence[str],
+    mean_dim_vars: Sequence[str] = None,
+) -> xr.Dataset:
     """Computes a set of metrics that all have the same dimension,
     ex. mean vertical error profile on pressure levels, or global mean scalar error
     Args:
@@ -107,7 +115,10 @@ def _calc_same_dims_metrics(
     Returns:
         dataset of metrics
     """
-    metric_kwargs = {"weights": [ds[weight] for weight in weights], "mean_dims": mean_dim_vars}
+    metric_kwargs = {
+        "weights": [ds[weight] for weight in weights],
+        "mean_dims": mean_dim_vars,
+    }
     ds = _insert_means(ds, vars, **metric_kwargs)
     metrics = xr.Dataset()
     for var in vars:
@@ -125,7 +136,10 @@ def _insert_weights(ds):
 
 
 def _insert_means(
-    ds: xr.Dataset, var_names: Sequence[str], weights: Sequence[xr.DataArray] = None, mean_dims: Sequence[str] = None,
+    ds: xr.Dataset,
+    var_names: Sequence[str],
+    weights: Sequence[xr.DataArray] = None,
+    mean_dims: Sequence[str] = None,
 ) -> xr.Dataset:
     for var in var_names:
         da = ds[var].sel({DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD]})
@@ -133,9 +147,7 @@ def _insert_means(
         da_mean = da.sel({DERIVATION_DIM: TARGET_COORD})
         for weight in weights:
             da_mean *= weight
-        da_mean = da_mean \
-            .mean(dim=mean_dims) \
-            .assign_coords({DERIVATION_DIM: "mean"})
+        da_mean = da_mean.mean(dim=mean_dims).assign_coords({DERIVATION_DIM: "mean"})
         da = xr.concat([da, da_mean], dim=DERIVATION_DIM)
         ds = ds.drop([var])
         ds = ds.merge(da)

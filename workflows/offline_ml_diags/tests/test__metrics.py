@@ -8,7 +8,7 @@ from offline_ml_diags._metrics import (
     DERIVATION_DIM,
     TARGET_COORD,
     PREDICT_COORD,
-    SCALAR_METRIC_VARS,
+    COLUMN_INTEGRATED_METRIC_VARS,
 )
 
 
@@ -47,7 +47,13 @@ def area():
 def test__calc_same_dims_metrics(ds_mock, area):
     ds = xr.merge([area, ds_mock])
     ds["area_weights"] = area / (area.mean())
-    batch_metrics = _calc_same_dims_metrics(ds, dim_tag="scalar", vars=SCALAR_METRIC_VARS, weights=["area_weights"], mean_dim_vars=None)
+    batch_metrics = _calc_same_dims_metrics(
+        ds,
+        dim_tag="scalar",
+        vars=COLUMN_INTEGRATED_METRIC_VARS,
+        weights=["area_weights"],
+        mean_dim_vars=None,
+    )
     for var in list(batch_metrics.data_vars):
         assert isinstance(batch_metrics[var].values.item(), float)
 
