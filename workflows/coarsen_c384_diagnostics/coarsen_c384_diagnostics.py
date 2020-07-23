@@ -71,13 +71,13 @@ def coarsen_c384_diagnostics(args):
         y_dim=COORD_Y_CENTER,
         coarsening_factor=coarsening_factor,
     )
-    logging.info(f"Done coarsening diagnostics to C{coarsen_diags_config['target_resolution']}.")
+    logging.info(
+        f"Done coarsening diagnostics to C{coarsen_diags_config['target_resolution']}."
+    )
 
     diags_coarsened = diags_coarsened.unify_chunks()
-    diags_coarsened = diags_coarsened.chunk(coarsen_diags_config['rechunk'])
+    diags_coarsened = diags_coarsened.chunk(coarsen_diags_config["rechunk"])
     logging.info(f"Done rechunking dataset.")
-#     diags_coarsened = diags_coarsened.load()
-#     logging.info(f"Done loading dataset.")
     diags_coarsened.to_zarr(COARSENED_DIAGS_ZARR_NAME, mode="w", consolidated=True)
     logging.info(f"Done writing coarsened diagnostics locally.")
     gsutil.copy(COARSENED_DIAGS_ZARR_NAME, output_path)
