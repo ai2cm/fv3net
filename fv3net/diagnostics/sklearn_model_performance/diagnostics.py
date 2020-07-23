@@ -5,13 +5,10 @@ import os
 from scipy.stats import binned_statistic_2d
 import warnings
 import xarray as xr
-
+import fv3viz as viz
 import vcm
 from vcm.cubedsphere.regridz import regrid_to_common_pressure
 from vcm.select import mask_to_surface_type
-from vcm.visualize import plot_cube, mappable_var
-
-from vcm.visualize.plot_diagnostics import plot_diurnal_cycle
 from fv3net.diagnostics import get_latlon_grid_coords_set, EXAMPLE_CLIMATE_LATLON_COORDS
 
 from .data import integrate_for_Q, lower_tropospheric_stability
@@ -101,7 +98,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         ds, time=names["init_time_dim"], lon_var=names["var_lon"]
     )
 
-    plot_diurnal_cycle(
+    viz.plot_diurnal_cycle(
         mask_to_surface_type(
             ds[["net_precipitation", names["var_land_sea_mask"], "local_time"]], "sea"
         ),
@@ -112,7 +109,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         os.path.join(output_dir, "diurnal_cycle_P-E_sea.png"),
         dpi=dpi_figures["diurnal_cycle"],
     )
-    plot_diurnal_cycle(
+    viz.plot_diurnal_cycle(
         mask_to_surface_type(
             ds[["net_precipitation", names["var_land_sea_mask"], "local_time"]], "land"
         ),
@@ -124,7 +121,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         dpi=dpi_figures["diurnal_cycle"],
     )
     for location_name, coords in local_coords.items():
-        plot_diurnal_cycle(
+        viz.plot_diurnal_cycle(
             ds[["net_precipitation", "local_time"]].sel(coords),
             "net_precipitation",
             stack_dims=names["stack_dims"],
@@ -141,7 +138,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
     plt.close("all")
 
     # plot column heating across the diurnal cycle
-    plot_diurnal_cycle(
+    viz.plot_diurnal_cycle(
         mask_to_surface_type(
             ds[["net_heating", names["var_land_sea_mask"], "local_time"]], "sea"
         ),
@@ -152,7 +149,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
         os.path.join(output_dir, "diurnal_cycle_heating_sea.png"),
         dpi=dpi_figures["diurnal_cycle"],
     )
-    plot_diurnal_cycle(
+    viz.plot_diurnal_cycle(
         mask_to_surface_type(
             ds[["net_heating", names["var_land_sea_mask"], "local_time"]], "land"
         ),
@@ -165,7 +162,7 @@ def plot_diagnostics(ds_pred, ds_fv3, ds_shield, output_dir, dpi_figures, names)
     )
 
     for location_name, coords in local_coords.items():
-        plot_diurnal_cycle(
+        viz.plot_diurnal_cycle(
             ds[["net_heating", "local_time"]].sel(coords),
             "net_heating",
             stack_dims=names["stack_dims"],
@@ -252,13 +249,13 @@ def _plot_comparison_maps(
     plot_cube_kwargs = plot_cube_kwargs or {}
 
     if not time_index_selection:
-        map_var = mappable_var(ds.mean(init_time_dim), var, **map_var_kwargs)
+        map_var = viz.mappable_var(ds.mean(init_time_dim), var, **map_var_kwargs)
     else:
-        map_var = mappable_var(
+        map_var = viz.mappable_var(
             ds.isel({init_time_dim: time_index_selection}), var, **map_var_kwargs
         )
         plot_cube_kwargs["row"] = init_time_dim
-    fig = plot_cube(map_var, col="dataset", **plot_cube_kwargs)[0]
+    fig = viz.plot_cube(map_var, col="dataset", **plot_cube_kwargs)[0]
     if isinstance(time_index_selection, int):
         time_label = (
             ds[init_time_dim]
@@ -412,28 +409,30 @@ def _map_plot_dQ_versus_total(ds, init_time_dim, map_var_kwargs):
             "net_heating_ml_frac_of_total": ds["net_heating_ml"] / ds["net_heating"],
         }
     )
-    fig_pe_ml = plot_cube(
-        mappable_var(ds, "net_precipitation_ml", **map_var_kwargs).mean(init_time_dim),
+    fig_pe_ml = viz.plot_cube(
+        viz.mappable_var(ds, "net_precipitation_ml", **map_var_kwargs).mean(
+            init_time_dim
+        ),
         col="dataset",
     )[0]
     fig_pe_ml.suptitle("P-E [mm/d]: residual dQ2")
-    fig_pe_ml_frac = plot_cube(
-        mappable_var(ds, "net_precipitation_ml_frac_of_total", **map_var_kwargs).mean(
-            init_time_dim
-        ),
+    fig_pe_ml_frac = viz.plot_cube(
+        viz.mappable_var(
+            ds, "net_precipitation_ml_frac_of_total", **map_var_kwargs
+        ).mean(init_time_dim),
         col="dataset",
         vmin=-1,
         vmax=1,
     )[0]
     fig_pe_ml_frac.suptitle("P-E: dQ residual as fraction of total")
 
-    fig_heating_ml = plot_cube(
-        mappable_var(ds, "net_heating_ml", **map_var_kwargs).mean(init_time_dim),
+    fig_heating_ml = viz.plot_cube(
+        viz.mappable_var(ds, "net_heating_ml", **map_var_kwargs).mean(init_time_dim),
         col="dataset",
     )[0]
     fig_heating_ml.suptitle("heating [W/m$^2$], ML contribution")
-    fig_heating_ml_frac = plot_cube(
-        mappable_var(ds, "net_heating_ml_frac_of_total", **map_var_kwargs).mean(
+    fig_heating_ml_frac = viz.plot_cube(
+        viz.mappable_var(ds, "net_heating_ml_frac_of_total", **map_var_kwargs).mean(
             init_time_dim
         ),
         col="dataset",

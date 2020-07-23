@@ -1,4 +1,3 @@
-from vcm.visualize import plot_cube, mappable_var
 from config import (
     MAPPABLE_VAR_KWARGS,
     GRID_VARS,
@@ -6,7 +5,7 @@ from config import (
     DELTA_DIM,
     INIT_TIME_DIM,
 )
-import gallery
+import fv3viz as viz
 import xarray as xr
 import numpy as np
 from matplotlib import pyplot as plt
@@ -434,8 +433,8 @@ def plot_model_run_maps_across_forecast_time(
     ds: xr.Dataset, var: str, subpanel_dim: str, scale: float = None,
 ):
 
-    f, axes, _, _, facet_grid = plot_cube(
-        mappable_var(ds, var, **MAPPABLE_VAR_KWARGS),
+    f, axes, _, _, facet_grid = viz.plot_cube(
+        viz.mappable_var(ds, var, **MAPPABLE_VAR_KWARGS),
         col=subpanel_dim,
         col_wrap=2,
         vmax=scale,
@@ -617,7 +616,7 @@ def plot_diurnal_cycles(
 def plot_timestep_counts(timesteps):
     """Create and save plots of distribution of training and test timesteps"""
 
-    f = gallery.plot_daily_and_hourly_hist(timesteps)
+    f = viz.plot_daily_and_hourly_hist(timesteps)
     f.set_size_inches([10, 4])
     f.set_dpi(FIG_DPI)
 

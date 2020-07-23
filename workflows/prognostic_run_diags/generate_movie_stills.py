@@ -13,7 +13,7 @@ import fsspec
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import xarray as xr
-
+import fv3viz as viz
 import vcm
 import load_diagnostic_data as load_diags
 
@@ -57,8 +57,8 @@ def _catalog():
 def _six_panel_heating_moistening(ds, axes):
     for i, (var, plot_kwargs) in enumerate(HEATING_MOISTENING_PLOT_KWARGS.items()):
         ax = axes.flatten()[i]
-        mv = vcm.mappable_var(ds, var, coord_vars=_COORD_VARS, **COORD_NAMES)
-        vcm.plot_cube(mv, ax=ax, **plot_kwargs)
+        mv = viz.mappable_var(ds, var, coord_vars=_COORD_VARS, **COORD_NAMES)
+        viz.plot_cube(mv, ax=ax, **plot_kwargs)
         ax.set_title(var.replace("_", " "))
 
 

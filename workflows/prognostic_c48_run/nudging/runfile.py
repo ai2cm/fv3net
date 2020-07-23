@@ -13,6 +13,8 @@ else:
     fv3gfs = None
     MPI = None
 
+logger = logging.getLogger(__name__)
+
 RADIATION_NAMES = [
     "total_sky_downward_shortwave_flux_at_surface",
     "total_sky_upward_shortwave_flux_at_surface",
@@ -77,6 +79,7 @@ def get_restart_directory(reference_dir, label):
 def get_reference_state(time, reference_dir, communicator, only_names):
     label = time_to_label(time)
     dirname = get_restart_directory(reference_dir, label)
+    logger.debug(f"Restart dir: {dirname}")
     state = fv3gfs.open_restart(
         dirname, communicator, label=label, only_names=only_names
     )
@@ -157,6 +160,7 @@ class SubsetWriter:
 
     def store(self, time: datetime, state):
         if self._output_current_time(time):
+            self.logger.debug(f"Storing time: {time}")
             self._monitor.store(state)
 
 

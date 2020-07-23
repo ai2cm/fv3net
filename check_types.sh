@@ -7,4 +7,3 @@ mypy --follow-imports silent \
     workflows/prognostic_c48_run \
     external/fv3fit/fv3fit \
     external/loaders/loaders/mappers/_local.py \
-    workflows/nudging
