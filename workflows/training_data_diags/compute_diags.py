@@ -41,7 +41,12 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         type=str,
         help=("Local or remote path where diagnostic dataset will be written."),
     )
-
+    parser.add_argument(
+        "--timesteps-file",
+        type=str,
+        default=None,
+        help="Json file that defines train timestep set.",
+    )
     return parser.parse_args()
 
 
@@ -84,6 +89,11 @@ if __name__ == "__main__":
     variable_names = datasets_config["variables"]
     batch_kwargs = datasets_config["batch_kwargs"]
 
+    if args.timesteps_file:
+        with open(args.timesteps_file, "r") as f:
+            timesteps = yaml.safe_load(f)
+        datasets_config["batch_kwargs"]["timesteps"] = timesteps
+
     diagnostic_datasets = {}
     for dataset_name, dataset_config in datasets_config["sources"].items():
         logger.info(f"Reading dataset {dataset_name}.")
@@ -99,7 +109,7 @@ if __name__ == "__main__":
             ds = xr.concat(ds_batches, dim=TIME_DIM)
             ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
                 utils.insert_column_integrated_vars
-            )
+            ).load()
             ds_batch_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
             batches_diags.append(ds_batch_diagnostic)
             ds_batch_diurnal = utils.create_diurnal_cycle_dataset(
