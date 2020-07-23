@@ -342,11 +342,11 @@ def test_compute_offline_diags(
         for dim in ds_diurnal[var].dims:
             assert dim in ["local_time_hr", "derivation", "surface_type"]
 
-    assert isinstance(metrics, (dict, list))
+    assert isinstance(metrics, dict)
     assert len(metrics) == 49
     for metric, metric_dict in metrics.items():
         assert isinstance(metric, str)
-        assert isinstance(metric_dict, dict)
+        assert isinstance(metric_dict, (dict, list))
         for metric_key, metric_value in metric_dict.items():
             assert isinstance(metric_key, str)
             assert isinstance(metric_value, (float, np.float32, list))
