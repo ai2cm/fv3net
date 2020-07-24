@@ -1,8 +1,8 @@
 import logging
 import os
-import shutil
 import argparse
 import sys
+import tempfile
 import yaml
 import xarray as xr
 
@@ -15,7 +15,6 @@ from vcm.cubedsphere.constants import (
     COORD_Y_OUTER,
 )
 from vcm.cloud.fsspec import get_fs
-from fv3net import COARSENED_DIAGS_ZARR_NAME
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
@@ -34,21 +33,27 @@ DIM_RENAME = {
 }
 
 
+def _get_complete_output_path(input_path, output_path):
+    if input_path[-1] == "/":
+        input_path = input_path[:-1]
+    return os.path.join(output_path, os.path.basename(input_path))
+
+
 def coarsen_c384_diagnostics(args):
 
     coarsen_diags_config = _get_config(args.config_path)
-    output_path = os.path.join(args.output_path, COARSENED_DIAGS_ZARR_NAME)
+    output_path = _get_complete_output_path(args.input_path, args.output_path)
     hires_data_vars = coarsen_diags_config["hi-res-data-vars"]
     logging.info(f"Opening C384 diagnostics at: {args.input_path}.")
     diags = _get_remote_diags(args.input_path)
     grid384 = _get_remote_diags(args.grid_spec)
-    logging.info(f"Size of diagnostic data: {diags.nbytes / 1e9:.2f} GB")
     coarsening_factor = 384 // coarsen_diags_config["target_resolution"]
 
-    # rename the dimensions appropriately
+    # subset variables and rename the dimensions appropriately
     diags384 = diags[hires_data_vars]
     dims_to_rename = {k: v for k, v in DIM_RENAME.items() if k in diags384}
     diags384 = diags384.rename(dims_to_rename)
+    logging.info(f"Size of diagnostic data: {diags384.nbytes / 1e9:.2f} GB")
 
     # coarsen the data
     diags_coarsened = coarsen.weighted_block_average(
@@ -67,11 +72,11 @@ def coarsen_c384_diagnostics(args):
         diags_coarsened = diags_coarsened.chunk(coarsen_diags_config["rechunk"])
         logging.info(f"Done rechunking dataset.")
     logging.info(f"Starting to write coarsened diagnostics locally.")
-    diags_coarsened.to_zarr(COARSENED_DIAGS_ZARR_NAME, mode="w", consolidated=True)
-    logging.info(f"Done writing coarsened diagnostics locally.")
-    gsutil.copy(COARSENED_DIAGS_ZARR_NAME, output_path)
-    logging.info(f"Done copy coarsened diagnostics zarr to {output_path}")
-    shutil.rmtree(COARSENED_DIAGS_ZARR_NAME)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        diags_coarsened.to_zarr(tmpdirname, mode="w", consolidated=True)
+        logging.info(f"Done writing coarsened diagnostics locally.")
+        gsutil.copy(tmpdirname, output_path)
+        logging.info(f"Done copy coarsened diagnostics zarr to {output_path}")
 
 
 def _get_config(config_path):
@@ -88,7 +93,7 @@ def _get_remote_diags(diags_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "input_path", type=str, help="GCS location of C384 diagnostics data zarrs."
+        "input_path", type=str, help="GCS location of C384 diagnostics data zarr."
     )
     parser.add_argument(
         "config_path", type=str, help="Location of diagnostics coarsening config yaml."
@@ -102,7 +107,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "output_path",
         type=str,
-        help="GCS location where= coarsened diagnostics zarrs will be written.",
+        help="GCS location where coarsened diagnostics zarrs will be written. "
+        "Specifically will be saved at {output_path}/{basename(input_path)},
     )
     args = parser.parse_args()
     coarsen_c384_diagnostics(args)
