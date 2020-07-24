@@ -1,9 +1,9 @@
 import logging
 import numpy as np
-from typing import Mapping, Sequence, Callable
+from typing import Mapping, Sequence, Callable, Union
 import xarray as xr
 
-from vcm import safe, thermo
+from vcm import safe
 from vcm.cubedsphere import regrid_to_common_pressure
 
 
@@ -62,7 +62,7 @@ def calc_metrics(
         ds,
         dim_tag="scalar",
         vars=COLUMN_INTEGRATED_METRIC_VARS,
-        weights=[f"{AREA_VAR}_weights"],
+        weight_vars=[f"{area_var}_weights"],
         mean_dim_vars=None,
         **derivation_kwargs
     )
@@ -73,7 +73,7 @@ def calc_metrics(
         ds,
         dim_tag="scalar",
         vars=PRESSURE_LEVEL_METRIC_VARS,
-        weights=[f"{area_var}_weights", f"{delp_var}_weights"],
+        weight_vars=[f"{area_var}_weights", f"{delp_var}_weights"],
         mean_dim_vars=None,
         **derivation_kwargs
     )
@@ -87,7 +87,7 @@ def calc_metrics(
         ds_regrid_z,
         dim_tag="pressure_level",
         vars=PRESSURE_LEVEL_METRIC_VARS,
-        weights=[f"{area_var}_weights"],
+        weight_vars=[f"{area_var}_weights"],
         mean_dim_vars=vertical_profile_mean_dims,
         **derivation_kwargs
     )
@@ -134,7 +134,7 @@ def _calc_same_dims_metrics(
         ds: xr.Dataset,
         dim_tag: str,
         vars: Sequence[str],
-        weights: Sequence[str],
+        weight_vars: Sequence[str] = None,
         mean_dim_vars: Sequence[str] = None,
         predict_coord: str = PREDICT_COORD,
         target_coord: str = TARGET_COORD,
@@ -146,9 +146,10 @@ def _calc_same_dims_metrics(
         ds: test dataset
         dim_tag: describe the dimensions of the metrics returned. e.g. "scalar", "z"
         vars: data variables to calculate metrics on
-        weights: data variables to use as weights
-        mean_dim_vars: dimensions to take mean over
-            for final value. Defaults to None (mean over all dims).
+        weight_vars: data variables to use as weights
+        mean_dim_vars: Sequence of dimensions to take each weighted mean over
+            for final value. Must match order of weights.
+            Defaults to None (mean over all dims).
         target_coord: derivation coord for TARGET_COORD values in metric comparison.
         predict_coord: derivation coord for "prediction".
         derivation_dim: dimension name for derivation (comparision)
@@ -156,12 +157,13 @@ def _calc_same_dims_metrics(
     Returns:
         dataset of metrics
     """
-    metric_kwargs = {
-        "weights": [ds[weight] for weight in weights],
-        "mean_dims": mean_dim_vars,
-    }
+    if weight_vars:
+        weights = [ds[var] for var in weight_vars]
+    else:
+        weights = [1.]
     metric_comparison_coords = [(target_coord, predict_coord), (target_coord, "mean")]
-    ds = _insert_means(ds, vars, predict_coord, target_coord, derivation_dim, **metric_kwargs)
+    ds = _insert_means(
+        ds, vars, predict_coord, target_coord, derivation_dim, weights, mean_dim_vars)
     metrics = xr.Dataset()
     for var in vars:
         for metric_func in (_bias, _rmse):
@@ -172,7 +174,8 @@ def _calc_same_dims_metrics(
                     var,
                     derivation_dim,
                     *comparison,
-                    metric_kwargs)
+                    weights,
+                    mean_dim_vars)
                 metrics[f"{dim_tag}/{metric.name}"] = metric
     return metrics
 
@@ -184,21 +187,22 @@ def _insert_weights(ds, vertical_dim: str = VERTICAL_DIM, area_var: str = AREA_V
 
 
 def _insert_means(
-    ds: xr.Dataset,
-    var_names: Sequence[str],
-    predict_coord: str = PREDICT_COORD,
-    target_coord: str = TARGET_COORD,
-    derivation_dim: str = DERIVATION_DIM,
-    weights: Sequence[xr.DataArray] = None,
-    mean_dims: Sequence[str] = None,
+        ds: xr.Dataset,
+        var_names: Sequence[str],
+        predict_coord: str = PREDICT_COORD,
+        target_coord: str = TARGET_COORD,
+        derivation_dim: str = DERIVATION_DIM,
+        weights: Sequence[xr.DataArray] = None,
+        mean_dims: Sequence[str] = None,
 ) -> xr.Dataset:
+    weights = weights or [1.0]
     for var in var_names:
         da = ds[var].sel({derivation_dim: [target_coord, predict_coord]})
-        weights = [1.0] if weights is None else weights
-        da_mean = da.sel({derivation_dim: target_coord})
-        for weight in weights:
-            da_mean *= weight
-        da_mean = da_mean.mean(dim=mean_dims).assign_coords({derivation_dim: "mean"})
+        da_mean = _weighted_average(
+            da.sel({derivation_dim: target_coord}),
+            weights,
+            mean_dims
+        ).assign_coords({derivation_dim: "mean"})
         da = xr.concat([da, da_mean], dim=derivation_dim)
         ds = ds.drop([var])
         ds = ds.merge(da)
@@ -214,57 +218,63 @@ def _calc_metric(
     derivation_dim: str,
     target_coord: str,
     predict_coord: str,
-    metric_kwargs: Mapping = None,
+    weights: Sequence[xr.DataArray] = None,
+    mean_dims: Sequence[str] = None,
 ) -> xr.DataArray:
     """helper function to calculate arbitrary metrics given the variable, target, and
     prediction coords
 
     Args:
-        ds (xr.Dataset): Dataset with variables to calculate metrics on. Variables
+        ds: Dataset with variables to calculate metrics on. Variables
             should have a DERIVATION dim with coords denoting the sets for comparison,
             e.g. "prediction", TARGET_COORD
-        metric_func (Callable, xr.DataArray]): metric calculation function.
+        metric_func: metric calculation function.
             One of {_rmse, _biase}.
-        var (str): Variable name to calculate metric for
-        target_coord (str): derivation coord for TARGET_COORD values in metric comparison.
-        predict_coord (str): derivation coord for "prediction".
-        derivation_dim (str): dimension name for derivation (comparision)
-        metric_kwargs (Mapping, optional): [description]. Defaults to None.
+        var: Variable name to calculate metric for
+        target_coord: derivation coord for TARGET_COORD values in metric comparison.
+        predict_coord: derivation coord for "prediction".
+        derivation_dim: dimension name for derivation (comparision)
+        weights: data arrays to weight the metric over before taking mean.
+        mean_dims: Sequence of dimensions to take each weighted mean over
+            for final value. Must match order of weights. Defaults to None (all)
 
     Returns:
         xr.DataArray: data array of metric values
     """
     da_target = ds[var].sel({derivation_dim: target_coord})
     da_predict = ds[var].sel({derivation_dim: predict_coord})
-    metric = metric_func(da_target, da_predict, **(metric_kwargs or {}))
+    metric = metric_func(da_target, da_predict)
+    metric_weighted_average = _weighted_average(metric, weights, mean_dims)
     metric_name = (
         f"{metric_func.__name__.strip('_')}/{var}/{predict_coord}_vs_{target_coord}"
     )
-    return metric.rename(metric_name)
+    return metric_weighted_average.rename(metric_name)
 
 
 def _bias(
     da_target: xr.DataArray,
     da_pred: xr.DataArray,
-    weights: Sequence[xr.DataArray] = None,
-    mean_dims: Sequence[str] = None,
 ) -> xr.DataArray:
-    bias = da_pred - da_target
-    if weights is not None:
-        for weight_da in weights:
-            bias *= weight_da
-    return bias.mean(dim=mean_dims)
+    return da_pred - da_target
 
 
 def _rmse(
     da_target: xr.DataArray,
     da_pred: xr.DataArray,
-    weights: Sequence[xr.DataArray] = None,
-    mean_dims: Sequence[str] = None,
 ):
-    se = (da_target - da_pred) ** 2
-    if weights is not None:
-        for weight_da in weights:
-            se *= weight_da
-    return np.sqrt(se.mean(dim=mean_dims))
+    return np.sqrt((da_target - da_pred) ** 2)
 
+
+def _weighted_average(
+        data: Union[xr.DataArray, xr.Dataset],
+        weights: Sequence[xr.DataArray],
+        mean_dims: Sequence[str] = None,
+):
+    # Differs from diagnostics_utils.weighted_average in that
+    # this does multiple weightings (e.g. area + delp) in one go
+    # NOTE: this assumes the variables used in weighting have already
+    # been transformed into weights!
+    for weight in weights:
+        data *= weight
+    return data.mean(dim=mean_dims, skipna=True)
+    
