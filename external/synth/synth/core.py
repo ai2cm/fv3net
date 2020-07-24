@@ -70,9 +70,9 @@ class Array:
 
 @dataclass
 class ChunkedArray:
-    shape: Sequence[int] = field(compare=True)
-    dtype: np.dtype = field(compare=True)
-    chunks: Tuple[Tuple[int]] = field(compare=True)
+    shape: Sequence[int]
+    dtype: np.dtype
+    chunks: Tuple[Tuple[int]]
 
     # TODO probably remove these generating functions
     # seems a poor separation of concerns.
@@ -84,7 +84,7 @@ class ChunkedArray:
 class VariableSchema:
     name: str = field(compare=True)
     dims: Sequence[str] = field(compare=True)
-    array: ChunkedArray = field(compare=True)
+    array: ChunkedArray = field(compare=False)
     attrs: Mapping = field(default_factory=dict, compare=False)
 
 
