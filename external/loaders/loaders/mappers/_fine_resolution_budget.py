@@ -3,6 +3,7 @@ import re
 import vcm
 from vcm import parse_datetime_from_str, safe
 from typing import Mapping, Union, Sequence, Tuple
+import numpy as np
 import xarray as xr
 from toolz import groupby
 from datetime import timedelta
@@ -13,6 +14,64 @@ DIMENSION_ORDER = ("tile", "z", "y", "x")
 Time = str
 Tile = int
 K = Tuple[Time, Tile]
+
+NEW_NAMES = {
+    "T": "air_temperature",
+    "t_dt_fv_sat_adj_coarse": "air_temperature_saturation_adjustment",
+    "t_dt_nudge_coarse": "air_temperature_nudging",
+    "t_dt_phys_coarse": "air_temperature_physics",
+    "eddy_flux_vulcan_omega_temp": "air_temperature_unresolved_flux",
+    "T_vulcan_omega_coarse": "air_temperature_total_resolved_flux",
+    "T_storage": "air_temperature_storage",
+    "delp": "pressure_thickness",
+    "sphum": "specific_humidity",
+    "qv_dt_fv_sat_adj_coarse": "specific_humidity_saturation_adjustment",
+    "qv_dt_nudge_coarse": "specific_humidity_nudging",
+    "qv_dt_phys_coarse": "specific_humidity_physics",
+    "eddy_flux_vulcan_omega_sphum": "specific_humidity_unresolved_flux",
+    "sphum": "specific_humidity",
+    "sphum_vulcan_omega_coarse": "specific_humidity_total_resolved_flux",
+    "sphum_storage": "specific_humidity_storage",
+    "vulcan_omega_coarse": "omega",
+    "p": "z"
+}
+
+
+def eddy_flux_coarse(unresolved_flux, total_resolved_flux, omega, field):
+    """Compute re-coarsened eddy flux divergence from re-coarsed data
+    """
+    return unresolved_flux + (total_resolved_flux - omega * field)
+
+
+def _center_to_interface(f: np.ndarray) -> np.ndarray:
+    """Interpolate vertically cell centered data to the interface
+    with linearly extrapolated inputs"""
+    f_low = 2 * f[..., 0] - f[..., 1]
+    f_high = 2 * f[..., -1] - f[..., -2]
+    pad = np.concatenate([f_low[..., np.newaxis], f, f_high[..., np.newaxis]], axis=-1)
+    return (pad[..., :-1] + pad[..., 1:]) / 2
+
+
+def _convergence(eddy: np.ndarray, delp: np.ndarray) -> np.ndarray:
+    """Compute vertical convergence of a cell-centered flux.
+
+    This flux is assumed to vanish at the vertical boundaries
+    """
+    padded = _center_to_interface(eddy)
+    # pad interfaces assuming eddy = 0 at edges
+    return -np.diff(padded, axis=-1) / delp
+
+
+def convergence(eddy: xr.DataArray, delp: xr.DataArray, dim: str = "p") -> xr.DataArray:
+    return xr.apply_ufunc(
+        _convergence,
+        eddy,
+        delp,
+        input_core_dims=[[dim], [dim]],
+        output_core_dims=[[dim]],
+        dask="parallelized",
+        output_dtypes=[eddy.dtype],
+    )
 
 
 class FineResolutionBudgetTiles(GeoMapper):
@@ -108,6 +167,31 @@ class FineResolutionSources(GeoMapper):
         offset_datetime = parse_datetime_from_str(time) - offset
         return offset_datetime.strftime("%Y%m%d.%H%M%S")
 
+    def _rename_budget_inputs_ds(
+        self,
+        budget_time_ds: xr.Dataset
+    ) -> xr.Dataset:
+        return budget_time_ds.rename(NEW_NAMES)
+
+    def _compute_coarse_eddy_flux_convergence_ds(
+        self,
+        budget_time_ds: xr.Dataset,
+        field: str,
+        vertical_dimension: str
+    ) -> xr.Dataset:
+        eddy_flux = eddy_flux_coarse(
+            budget_time_ds[f"{field}_unresolved_flux"],
+            budget_time_ds[f"{field}_total_resolved_flux"],
+            budget_time_ds["omega"],
+            budget_time_ds[field]
+        )
+        budget_time_ds[f"{field}_convergence"] = convergence(
+            eddy_flux,
+            budget_time_ds["pressure_thickness"],
+            dim=vertical_dimension
+        )
+        return budget_time_ds
+
     def _derived_budget_ds(
         self,
         budget_time_ds: xr.Dataset,
@@ -117,6 +201,7 @@ class FineResolutionSources(GeoMapper):
             "saturation_adjustment",
             "convergence",
         ),
+        vertical_dimension: str = "z"
     ) -> xr.Dataset:
 
         if variable_prefixes is None:
@@ -125,8 +210,13 @@ class FineResolutionSources(GeoMapper):
                 "specific_humidity": "Q2",
             }
 
+        budget_time_ds = self._rename_budget_inputs_ds(budget_time_ds)
         for variable_name, apparent_source_name in variable_prefixes.items():
             budget_time_ds = budget_time_ds.pipe(
+                self._compute_coarse_eddy_flux_convergence_ds,
+                variable_name,
+                vertical_dimension
+            ).pipe(
                 self._insert_budget_dQ,
                 variable_name,
                 f"d{apparent_source_name}",

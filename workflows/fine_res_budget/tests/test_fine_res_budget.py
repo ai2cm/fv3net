@@ -130,23 +130,21 @@ def test_run(tmpdir):
     ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
 
     expected_variables = [
-        "air_temperature",
-        "air_temperature_convergence",
-        "air_temperature_eddy",
-        "air_temperature_saturation_adjustment",
-        "air_temperature_nudging",
-        "air_temperature_physics",
-        "air_temperature_resolved",
-        "air_temperature_storage",
+        "T",
+        "t_dt_fv_sat_adj_coarse",
+        "t_dt_nudge_coarse",
+        "t_dt_phys_coarse",
         "delp",
-        "omega",
-        "specific_humidity",
-        "specific_humidity_convergence",
-        "specific_humidity_eddy",
-        "specific_humidity_saturation_adjustment",
-        "specific_humidity_physics",
-        "specific_humidity_resolved",
-        "specific_humidity_storage",
+        "vulcan_omega_coarse",
+        "sphum",
+        "qv_dt_fv_sat_adj_coarse",
+        "qv_dt_phys_coarse",
+        "sphum_vulcan_omega_coarse",
+        "T_vulcan_omega_coarse",
+        "eddy_flux_vulcan_omega_temp",
+        "eddy_flux_vulcan_omega_sphum",
+        "T_storage",
+        "sphums_storage"
     ]
 
     for variable in expected_variables:

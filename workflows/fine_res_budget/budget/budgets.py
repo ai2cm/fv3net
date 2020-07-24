@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Iterable, List, Sequence, Tuple
 
 import numpy as np
 import xarray as xr
@@ -22,7 +23,7 @@ def _center_to_interface(f: np.ndarray) -> np.ndarray:
 
 def _convergence(eddy: np.ndarray, delp: np.ndarray) -> np.ndarray:
     """Compute vertical convergence of a cell-centered flux.
-    
+
     This flux is assumed to vanish at the vertical boundaries
     """
     padded = _center_to_interface(eddy)
@@ -228,11 +229,83 @@ def rename_recoarsened_budget(budget: xr.Dataset, field_name: str) -> str:
     return budget.rename(rename)
 
 
-def compute_recoarsened_budget(
+GRID = Grid("grid_xt", "grid_yt", "pfull", "grid_x", "grid_y", "pfulli")
+
+
+def coarsen_variables(
+    fields: Iterable[xr.DataArray],
+    delp_fine: xr.DataArray,
+    delp_coarse: xr.DataArray,
+    area: xr.DataArray,
+    factor: int
+):
+    """Coarsen an iterable of DataArrays on surfaces of constant pressure.
+
+    Args:
+        fields: iterable of DataArrays.
+        delp_fine: DataArray containing delp on the fine grid.
+        delp_coarse: DataArray containing delp on the coarse grid.
+        area: DataArray containing surface area on the fine grid.
+        factor: Integer coarsening factor.
+
+    Returns:
+        xr.Dataset containing the coarsened variables.
+    """
+    return xr.merge(
+        [GRID.pressure_level_average(
+            delp_fine, delp_coarse, area, field, factor)
+         for field in fields]
+    )
+
+
+def compute_second_moments(
+    ds: xr.Dataset,
+    second_moments: Iterable[Tuple[str, str]],
+):
+    """Compute second moments defined using an iterable of tuples.
+
+    Args:
+        ds: input Dataset.
+        second_moments: iterable of tuples, representing pairs of variable
+            names to be combined via products.
+
+    Returns:
+        List of DataArrays
+    """
+    results = []
+    for field_1, field_2 in second_moments:
+        name = f"{ds[field_1].name}_{ds[field_2].name}"
+        product = (ds[field_1] * ds[field_2]).rename(name)
+        results.append(product)
+    return results
+
+
+def compute_storage_terms(
+    ds: xr.Dataset,
+    storage_terms: Sequence[str],
+    dt: int
+) -> List[xr.DataArray]:
+    """Compute storage terms from merged dataset.
+
+    Args:
+        ds: input Dataset.
+        storage_terms: list of variable names
+        float: timestep length [seconds].
+
+    Returns:
+        List of DataArrays.
+    """
+    results = []
+    for field in storage_terms:
+        result = storage(ds[field], dt).rename(f"{field}_storage")
+        results.append(result)
+    return results
+
+
+def compute_recoarsened_budget_inputs(
     merged: xr.Dataset,
-    dt=15 * 60,
-    factor=8,
-    # TODO split the different moments into two functions
+    dt: int = 15 * 60,
+    factor: int = 8,
     first_moments=(
         "T",
         "eddy_flux_vulcan_omega_temp",
@@ -245,83 +318,52 @@ def compute_recoarsened_budget(
         "qv_dt_phys_coarse",
         "vulcan_omega_coarse",
     ),
-    second_moments=dict(
-        TW=("T", "vulcan_omega_coarse"), QW=("sphum", "vulcan_omega_coarse")
+    second_moments=(
+        ("T", "vulcan_omega_coarse"), ("sphum", "vulcan_omega_coarse")
     ),
+    storage_terms=("T", "sphum")
 ):
-    """Compute the recoarse-grained budgets of temperature and humidity
+    """Compute the inputs required for the coarse-grained budgets of
+    temperature and specific humidity.
 
     Example output for a single tile::
 
         <xarray.Dataset>
-        Dimensions:                         (grid_xt: 6, grid_yt: 6, pfull: 79)
+        Dimensions:                       (grid_xt: 6, grid_yt: 6, pfull: 79)
         Coordinates:
-            step                            object ...
-            tile                            int64 ...
-            time                            object ...
+            step                          object ...
+            tile                          int64 ...
+            time                          object ...
         Dimensions without coordinates: grid_xt, grid_yt, pfull
         Data variables:
-            air_temperature                 (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
-            air_temperature_convergence     (grid_yt, grid_xt, pfull) float32 dask.array<chunksize=(6, 6, 79), meta=np.ndarray>
-            air_temperature_eddy            (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
-            air_temperature_microphysics    (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
-            air_temperature_nudging         (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
-            air_temperature_physics         (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
-            air_temperature_resolved        (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
-            air_temperature_storage         (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
-            specific_humidity               (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
-            specific_humidity_convergence   (grid_yt, grid_xt, pfull) float32 dask.array<chunksize=(6, 6, 79), meta=np.ndarray>
-            specific_humidity_eddy          (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
-            specific_humidity_microphysics  (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
-            specific_humidity_physics       (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
-            specific_humidity_resolved      (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
-            specific_humidity_storage       (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            T                             (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            T_storage                     (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            T_vulcan_omega_coarse         (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            delp                          (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            eddy_flux_vulcan_omega_sphum  (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            eddy_flux_vulcan_omega_temp   (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            qv_dt_fv_sat_adj_coarse       (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            qv_dt_phys_coarse             (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            sphum                         (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            sphum_storage                 (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            sphum_vulcan_omega_coarse     (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            t_dt_fv_sat_adj_coarse        (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            t_dt_nudge_coarse             (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            t_dt_phys_coarse              (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+            vulcan_omega_coarse           (pfull, grid_yt, grid_xt) float32 dask.array<chunksize=(79, 6, 6), meta=np.ndarray>
+
 
     """  # noqa
 
-    logger.info("Re-coarsegraining the budget")
-
-    grid = Grid("grid_xt", "grid_yt", "pfull", "grid_x", "grid_y", "pfulli")
+    logger.info("Re-coarse-graining the fields needed for the fine-resolution budgets")
 
     middle = merged.sel(step="middle")
-
     area = middle.area_coarse
     delp_fine = middle.delp
-    delp_coarse = grid.weighted_block_average(delp_fine, area, factor=factor)
-
-    def variables_to_average():
-        # eddy fluxes
-        for new_name, (var1, var2) in second_moments.items():
-            yield new_name, middle[var1] * middle[var2]
-
-        # standard fields
-        for key in first_moments:
-            yield key, middle[key]
-
-    def averaged_variables():
-        for key, array in variables_to_average():
-            grid = Grid("grid_xt", "grid_yt", "pfull", "grid_x", "grid_y", "pfulli")
-            yield grid.pressure_level_average(
-                delp_fine, delp_coarse, area, array, factor=factor
-            ).rename(key)
-
-        yield delp_coarse
-
-    averaged = xr.merge(averaged_variables())
-
-    return averaged
-
-    # metadata adjustments
-    add_budget_metadata(t_budget_coarse, "K", "air_temperature")
-    t_budget_coarse = rename_recoarsened_budget(t_budget_coarse, "air_temperature")
-
-    add_budget_metadata(q_budget_coarse, "kg/kg", "specific_humidity")
-    q_budget_coarse = rename_recoarsened_budget(q_budget_coarse, "specific_humidity")
-
-    omega_coarse = omega_coarse.assign_attrs(
-        {"long_name": "Lagrangian derivative of hydrostatic pressure", "units": "Pa/s"}
-    ).rename("omega")
-
-    delp_coarse = delp_coarse.rename("delp")
-
-    return xr.merge([t_budget_coarse, q_budget_coarse, omega_coarse, delp_coarse])
+    delp_coarse = GRID.weighted_block_average(delp_fine, area, factor=factor)
+    raw_first_moments = [middle[v] for v in first_moments]
+    raw_second_moments = compute_second_moments(middle, second_moments)
+    raw_storage_terms = compute_storage_terms(merged, storage_terms, dt)
+    raw_fields = raw_first_moments + raw_second_moments + raw_storage_terms
+    coarsened = coarsen_variables(raw_fields, delp_fine, delp_coarse, area, factor)
+    return xr.merge([coarsened, delp_coarse])
