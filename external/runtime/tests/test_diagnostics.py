@@ -32,11 +32,11 @@ def test_SelectedTimes_not_in_list():
         (86400, datetime(year=2016, month=8, day=2, hour=0, minute=0), True),
     ],
 )
-def test_RegularTimes(frequency, time, expected):
-    times = diagnostics.RegularTimes(frequency)
+def test_IntervalTimes(frequency, time, expected):
+    times = diagnostics.IntervalTimes(frequency)
     assert (time in times) == expected
 
 
-def test_RegularTimes_frequency_over_day_raises_error():
+def test_IntervalTimes_frequency_over_day_raises_error():
     with pytest.raises(ValueError):
-        diagnostics.RegularTimes(86401)
+        diagnostics.IntervalTimes(86401)

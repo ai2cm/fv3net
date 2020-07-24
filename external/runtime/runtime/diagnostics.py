@@ -37,7 +37,7 @@ class SelectedTimes(Container[datetime]):
         return time in self.times
 
 
-class RegularTimes(Container[datetime]):
+class IntervalTimes(Container[datetime]):
     def __init__(self, frequency_seconds: Union[float, int]):
         self._frequency_seconds = frequency_seconds
         if self.frequency > timedelta(days=1.0):
@@ -92,8 +92,8 @@ class DiagnosticFile:
 
 def _get_times(d) -> Container[datetime]:
     kind = d.get("kind", "every")
-    if kind == "regular":
-        return RegularTimes(d["frequency"])
+    if kind == "interval":
+        return IntervalTimes(d["frequency"])
     elif kind == "selected":
         return SelectedTimes(d["times"])
     elif kind == "every":
