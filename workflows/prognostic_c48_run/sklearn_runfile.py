@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Hashable, Iterable, Mapping, MutableMapping, Tuple, cast
+from typing import Hashable, Iterable, Mapping, MutableMapping, Tuple, cast, List
 
 import fsspec
 import xarray as xr
@@ -144,9 +144,8 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
             comm = MPI.COMM_WORLD
 
         self._fv3gfs = fv3gfs
-        self._state = runtime.DerivedFV3State(self._fv3gfs)
+        self._state: runtime.DerivedFV3State = runtime.DerivedFV3State(self._fv3gfs)
         self._comm = comm
-        self._diagnostics = {}
 
         args = runtime.get_config()
         namelist = runtime.get_namelist()
@@ -156,7 +155,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         self._timestep = timestep
         self._log_info(f"Timestep: {timestep}")
 
-        self._do_only_diagnostic_ml = args["scikit_learn"].get("diagnostic_ml", False)
+        self._do_only_diagnostic_ml: bool = args["scikit_learn"].get("diagnostic_ml", False)
 
         # download the scikit-learn model
         self._log_info("Downloading Sklearn Model")
@@ -190,7 +189,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         return {}
 
     def _step_python(self) -> Diagnostics:
-        variables = list(self._model.input_vars_ | REQUIRED_VARIABLES)
+        variables: List[Hashable] = list(self._model.input_vars_ | REQUIRED_VARIABLES)
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
 
@@ -226,18 +225,17 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
 
 
 class MonitoredTimeLoop(TimeLoop):
-    def _step_physics(self):
+    def _step_physics(self) -> Mapping[str, xr.DataArray]:
         keys = ["specific_humidity", "air_temperature"]
-        before = {key: self.state_mapping[key] for key in keys}
-        super().step_physics()
-        after = {key: self.state_mapping[key] for key in keys}
+        before = {key: self._state[key] for key in keys}
+        super()._step_physics()
+        after = {key: self._state[key] for key in keys}
 
         tendency = {
             f"tendency_of_{key}_due_to_fv3_physics": (after[key] - before[key])
-            / self.timestep
+            / self._timestep
             for key in keys
         }
-        self.diagnostics.update(tendency)
         return tendency
 
 
