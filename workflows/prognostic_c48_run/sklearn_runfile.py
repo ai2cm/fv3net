@@ -7,6 +7,7 @@ from sklearn.externals import joblib
 import xarray as xr
 
 import fv3gfs
+import fv3util
 import runtime
 
 from fv3net.regression.sklearn.adapters import RenamingAdapter, StackingAdapter
@@ -238,30 +239,28 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
     diagnostics_config = runtime.DiagnosticConfig(runtime.get_config())
+    config = runtime.get_config()
+    partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
 
-    groups = {}
     writers = {}
     for diag_file in diagnostics_config.diagnostics:
-        if comm.rank == 0:
-            group = zarr.open_group(diag_file.name, mode="w",)
-        else:
-            group = None
-
-        group = comm.bcast(group, root=0)
-        groups[diag_file.name] = group
+        writers[diag_file.name] = fv3util.ZarrMonitor(
+            diag_file.name, partitioner, mpi_comm=comm
+        )
 
     for i, (time, diagnostics) in enumerate(MonitoredTimeLoop(comm=comm)):
         for diag_file in diagnostics_config.diagnostics:
-            variables = {
-                key: diagnostics[key]
+            quantities = {
+                # need units for from_data_array to work
+                key: fv3util.Quantity.from_data_array(
+                    diagnostics[key].assign_attrs(units="unknown")
+                )
                 for key in diagnostics
                 if key in diag_file.variables
             }
-            if i == 0:
-                writers[diag_file.name] = runtime.init_writers(
-                    groups[diag_file.name], comm, variables
-                )
 
-            if time in diag_file.times:
-                print("outputting data")
-                runtime.append_to_writers(writers[diag_file.name], variables)
+            # patch this in manually. the ZarrMonitor needs it.
+            # We should probably modify this behavior.
+            quantities["time"] = time
+            monitor = writers[diag_file.name]
+            monitor.store(quantities)
