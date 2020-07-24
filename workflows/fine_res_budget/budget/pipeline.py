@@ -158,7 +158,8 @@ def run(restart_url, physics_url, output_dir, extra_args=()):
             p
             | FunctionSource(open_merged, restart_url, physics_url)
             | OpenTimeChunks()
-            | "Compute Budget" >> beam.Map(budgets.compute_recoarsened_budget_inputs, factor=8)
+            | "Compute Budget"
+            >> beam.Map(budgets.compute_recoarsened_budget_inputs, factor=8)
             | "Load" >> beam.Map(load)
             | "Save" >> beam.Map(save, base=output_dir)
         )

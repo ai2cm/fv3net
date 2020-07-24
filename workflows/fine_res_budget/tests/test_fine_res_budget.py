@@ -122,7 +122,7 @@ def test_run(tmpdir):
         "eddy_flux_vulcan_omega_temp",
         "eddy_flux_vulcan_omega_sphum",
         "T_storage",
-        "sphum_storage"
+        "sphum_storage",
     ]
 
     for variable in expected_variables:

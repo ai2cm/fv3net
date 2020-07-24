@@ -33,7 +33,7 @@ NEW_NAMES = {
     "sphum_vulcan_omega_coarse": "specific_humidity_total_resolved_flux",
     "sphum_storage": "specific_humidity_storage",
     "vulcan_omega_coarse": "omega",
-    "p": "z"
+    "p": "z",
 }
 
 
@@ -167,28 +167,20 @@ class FineResolutionSources(GeoMapper):
         offset_datetime = parse_datetime_from_str(time) - offset
         return offset_datetime.strftime("%Y%m%d.%H%M%S")
 
-    def _rename_budget_inputs_ds(
-        self,
-        budget_time_ds: xr.Dataset
-    ) -> xr.Dataset:
+    def _rename_budget_inputs_ds(self, budget_time_ds: xr.Dataset) -> xr.Dataset:
         return budget_time_ds.rename(NEW_NAMES)
 
     def _compute_coarse_eddy_flux_convergence_ds(
-        self,
-        budget_time_ds: xr.Dataset,
-        field: str,
-        vertical_dimension: str
+        self, budget_time_ds: xr.Dataset, field: str, vertical_dimension: str
     ) -> xr.Dataset:
         eddy_flux = eddy_flux_coarse(
             budget_time_ds[f"{field}_unresolved_flux"],
             budget_time_ds[f"{field}_total_resolved_flux"],
             budget_time_ds["omega"],
-            budget_time_ds[field]
+            budget_time_ds[field],
         )
         budget_time_ds[f"{field}_convergence"] = convergence(
-            eddy_flux,
-            budget_time_ds["pressure_thickness"],
-            dim=vertical_dimension
+            eddy_flux, budget_time_ds["pressure_thickness"], dim=vertical_dimension
         )
         return budget_time_ds
 
@@ -201,7 +193,7 @@ class FineResolutionSources(GeoMapper):
             "saturation_adjustment",
             "convergence",
         ),
-        vertical_dimension: str = "z"
+        vertical_dimension: str = "z",
     ) -> xr.Dataset:
 
         if variable_prefixes is None:
@@ -212,16 +204,22 @@ class FineResolutionSources(GeoMapper):
 
         budget_time_ds = self._rename_budget_inputs_ds(budget_time_ds)
         for variable_name, apparent_source_name in variable_prefixes.items():
-            budget_time_ds = budget_time_ds.pipe(
-                self._compute_coarse_eddy_flux_convergence_ds,
-                variable_name,
-                vertical_dimension
-            ).pipe(
-                self._insert_budget_dQ,
-                variable_name,
-                f"d{apparent_source_name}",
-                apparent_source_terms,
-            ).pipe(self._insert_budget_pQ, variable_name, f"p{apparent_source_name}",)
+            budget_time_ds = (
+                budget_time_ds.pipe(
+                    self._compute_coarse_eddy_flux_convergence_ds,
+                    variable_name,
+                    vertical_dimension,
+                )
+                .pipe(
+                    self._insert_budget_dQ,
+                    variable_name,
+                    f"d{apparent_source_name}",
+                    apparent_source_terms,
+                )
+                .pipe(
+                    self._insert_budget_pQ, variable_name, f"p{apparent_source_name}",
+                )
+            )
 
         return budget_time_ds
 

@@ -7,9 +7,7 @@ from loaders.mappers._fine_resolution_budget import _convergence, FineResolution
 coords = [(["x"], [1.0]), (["p"], [1.0, 0.0])]
 budget_ds_input = xr.Dataset(
     dict(
-        T=xr.DataArray(
-            [[270.0, 280.0]], coords, ["x", "p"], attrs={"units": "K"}
-        ),
+        T=xr.DataArray([[270.0, 280.0]], coords, ["x", "p"], attrs={"units": "K"}),
         t_dt_phys_coarse=xr.DataArray(
             [[0.1, 0.2]], coords, ["x", "p"], attrs={"units": "K/s"}
         ),
@@ -52,9 +50,7 @@ budget_ds_input = xr.Dataset(
         vulcan_omega_coarse=xr.DataArray(
             [[-1.0e-6, 0.0]], coords, ["x", "p"], attrs={"units": "Pa/s"}
         ),
-        delp=xr.DataArray(
-            [[200.0, 100.0]], coords, ["x", "p"], attrs={"units": "Pa"}
-        ),
+        delp=xr.DataArray([[200.0, 100.0]], coords, ["x", "p"], attrs={"units": "Pa"}),
     )
 )
 
@@ -270,7 +266,9 @@ def test__midpoint_to_timestamp_key(offset, midpoint_time, expected, fine_res_ma
 
 
 def test_FineResolutionSources(fine_res_mapper):
-    fine_res_source_mapper = FineResolutionSources(fine_res_mapper, dim_order=("x", "z"))
+    fine_res_source_mapper = FineResolutionSources(
+        fine_res_mapper, dim_order=("x", "z")
+    )
     source_ds = fine_res_source_mapper["20160901.001500"]
     safe.get_variables(
         source_ds, ["dQ1", "dQ2", "pQ1", "pQ2", "air_temperature", "specific_humidity"]

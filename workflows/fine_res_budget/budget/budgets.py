@@ -70,7 +70,7 @@ def coarsen_variables(
     delp_fine: xr.DataArray,
     delp_coarse: xr.DataArray,
     area: xr.DataArray,
-    factor: int
+    factor: int,
 ):
     """Coarsen an iterable of DataArrays on surfaces of constant pressure.
 
@@ -85,15 +85,15 @@ def coarsen_variables(
         xr.Dataset containing the coarsened variables.
     """
     return xr.merge(
-        [GRID.pressure_level_average(
-            delp_fine, delp_coarse, area, field, factor)
-         for field in fields]
+        [
+            GRID.pressure_level_average(delp_fine, delp_coarse, area, field, factor)
+            for field in fields
+        ]
     )
 
 
 def compute_second_moments(
-    ds: xr.Dataset,
-    second_moments: Iterable[Tuple[str, str]],
+    ds: xr.Dataset, second_moments: Iterable[Tuple[str, str]],
 ):
     """Compute second moments defined using an iterable of tuples.
 
@@ -114,9 +114,7 @@ def compute_second_moments(
 
 
 def compute_storage_terms(
-    ds: xr.Dataset,
-    storage_terms: Sequence[str],
-    dt: int
+    ds: xr.Dataset, storage_terms: Sequence[str], dt: int
 ) -> List[xr.DataArray]:
     """Compute storage terms from merged dataset.
 
@@ -151,10 +149,8 @@ def compute_recoarsened_budget_inputs(
         "qv_dt_phys_coarse",
         "vulcan_omega_coarse",
     ),
-    second_moments=(
-        ("T", "vulcan_omega_coarse"), ("sphum", "vulcan_omega_coarse")
-    ),
-    storage_terms=("T", "sphum")
+    second_moments=(("T", "vulcan_omega_coarse"), ("sphum", "vulcan_omega_coarse")),
+    storage_terms=("T", "sphum"),
 ):
     """Compute the inputs required for the coarse-grained budgets of
     temperature and specific humidity.
