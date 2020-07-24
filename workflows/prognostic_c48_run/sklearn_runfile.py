@@ -10,6 +10,7 @@ from sklearn.externals import joblib
 
 import fv3gfs
 import runtime
+import fv3util
 from fv3fit.sklearn import RenamingAdapter, StackingAdapter
 
 logging.basicConfig(level=logging.DEBUG)
