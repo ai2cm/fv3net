@@ -29,6 +29,8 @@ handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logging.basicConfig(level=logging.INFO)
 
+GRID_SPEC_C384 = "gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy.zarr"
+
 
 def coarsen_c384_diagnostics(args):
 
@@ -37,25 +39,13 @@ def coarsen_c384_diagnostics(args):
     hires_data_vars = coarsen_diags_config["hi-res-data-vars"]
     logging.info(f"Opening C384 diagnostics at: {args.input_path}.")
     diags = _get_remote_diags(args.input_path)
+    grid384 = _get_remote_diags(args.grid_spec)
     logging.info(f"Size of diagnostic data: {diags.nbytes / 1e9:.2f} GB")
     coarsening_factor = 384 // coarsen_diags_config["target_resolution"]
 
     # rename the dimensions appropriately
-    grid384 = diags[
-        [
-            "grid_lat_coarse",
-            "grid_latt_coarse",
-            "grid_lon_coarse",
-            "grid_lont_coarse",
-            "area_coarse",
-        ]
-    ]
-    diags384 = xr.merge([diags[hires_data_vars], grid384]).rename(
+    diags384 = diags[hires_data_vars].rename(
         {
-            "grid_lat_coarse": VAR_LAT_OUTER,
-            "grid_latt_coarse": VAR_LAT_CENTER,
-            "grid_lon_coarse": VAR_LON_OUTER,
-            "grid_lont_coarse": VAR_LON_CENTER,
             "grid_xt_coarse": COORD_X_CENTER,
             "grid_yt_coarse": COORD_Y_CENTER,
             "grid_x_coarse": COORD_X_OUTER,
@@ -66,7 +56,7 @@ def coarsen_c384_diagnostics(args):
     # coarsen the data
     diags_coarsened = coarsen.weighted_block_average(
         diags384[hires_data_vars],
-        diags384["area_coarse"],
+        grid384["area"],
         x_dim=COORD_X_CENTER,
         y_dim=COORD_Y_CENTER,
         coarsening_factor=coarsening_factor,
@@ -105,6 +95,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "config_path", type=str, help="Location of diagnostics coarsening config yaml."
+    )
+    parser.add_argument(
+        "--grid_spec",
+        type=str,
+        help=f"GCS location of C384 grid-spec. Defaults to {GRID_SPEC_C384}.",
+        default=GRID_SPEC_C384,
     )
     parser.add_argument(
         "output_path",
