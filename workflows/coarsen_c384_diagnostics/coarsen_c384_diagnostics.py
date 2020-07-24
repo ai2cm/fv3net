@@ -26,6 +26,12 @@ logging.basicConfig(handlers=[handler], level=logging.INFO)
 logging.basicConfig(level=logging.INFO)
 
 GRID_SPEC_C384 = "gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy.zarr"
+DIM_RENAME = {
+    "grid_xt_coarse": COORD_X_CENTER,
+    "grid_yt_coarse": COORD_Y_CENTER,
+    "grid_x_coarse": COORD_X_OUTER,
+    "grid_y_coarse": COORD_Y_OUTER,
+}
 
 
 def coarsen_c384_diagnostics(args):
@@ -40,18 +46,13 @@ def coarsen_c384_diagnostics(args):
     coarsening_factor = 384 // coarsen_diags_config["target_resolution"]
 
     # rename the dimensions appropriately
-    diags384 = diags[hires_data_vars].rename(
-        {
-            "grid_xt_coarse": COORD_X_CENTER,
-            "grid_yt_coarse": COORD_Y_CENTER,
-            "grid_x_coarse": COORD_X_OUTER,
-            "grid_y_coarse": COORD_Y_OUTER,
-        }
-    )
+    diags384 = diags[hires_data_vars]
+    dims_to_rename = {k: v for k, v in DIM_RENAME.items() if k in diags384}
+    diags384 = diags384.rename(dims_to_rename)
 
     # coarsen the data
     diags_coarsened = coarsen.weighted_block_average(
-        diags384[hires_data_vars],
+        diags384,
         grid384["area"],
         x_dim=COORD_X_CENTER,
         y_dim=COORD_Y_CENTER,
