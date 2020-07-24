@@ -61,27 +61,18 @@ class DiagnosticFile:
     Provides a similar interface as the "diag_table"
     """
 
-    def __init__(self, d: Mapping, partitioner, comm):
-        self.d = d
+    def __init__(
+        self,
+        name: str,
+        times: Container[datetime],
+        variables: Container,
+        partitioner,
+        comm,
+    ):
+        self.name = name
+        self.times = times
+        self.variables = variables
         self._monitor = fv3util.ZarrMonitor(self.name, partitioner, mpi_comm=comm)
-
-    @property
-    def name(self):
-        return self.d["name"]
-
-    @property
-    def variables(self) -> Container:
-        return self.d.get("variables", All())
-
-    @property
-    def times(self) -> Container[datetime]:
-        kind = self.d.get("kind", "every")
-        if kind == "regular":
-            return RegularTimes(self.d)
-        elif kind == "selected":
-            return SelectedTimes(self.d)
-        else:
-            return All()
 
     def observe(self, time: datetime, diagnostics: Mapping):
         quantities = {
@@ -100,11 +91,57 @@ class DiagnosticFile:
         self._monitor.store(quantities)
 
 
-def get_diagnostic_files(_d, partitioner, comm) -> List[DiagnosticFile]:
-    diags_configs = _d.get("diagnostics", [])
-    if len(diags_configs) > 0:
-        return [DiagnosticFile(item, partitioner, comm) for item in diags_configs]
+def _get_times(d) -> Container[datetime]:
+    kind = d.get("kind", "every")
+    if kind == "regular":
+        return RegularTimes(d)
+    elif kind == "selected":
+        return SelectedTimes(d)
+    elif kind == "every":
+        return All()
+    else:
+        raise NotImplementedError(f"Time {kind} not implemented.")
+
+
+def _config_to_diagnostic_file(
+    diag_file_config: Mapping, partitioner, comm
+) -> DiagnosticFile:
+    return DiagnosticFile(
+        name=diag_file_config["name"],
+        variables=diag_file_config.get("variables", All()),
+        times=_get_times(diag_file_config.get("times", {})),
+        partitioner=partitioner,
+        comm=comm,
+    )
+
+
+def get_diagnostic_files(
+    config, partitioner: fv3util.CubedSpherePartitioner, comm
+) -> List[DiagnosticFile]:
+    """Initialize a list of diagnostic file objects from a configuration dictionary
+
+    Args:
+        config: A loaded "fv3config" object with a "diagnostics" section
+        paritioner: a partioner object used for writing, maybe it would be
+            cleaner to pass a factory
+        comm: an MPI Comm object
+
+    """
+    diag_configs = config.get("diagnostics", [])
+    if len(diag_configs) > 0:
+        return [
+            _config_to_diagnostic_file(config, partitioner, comm)
+            for config in diag_configs
+        ]
     else:
         # Keep old behavior for backwards compatiblity
-        output_name = _d["scikit_learn"]["zarr_output"]
-        return [DiagnosticFile({"name": output_name}, partitioner, comm)]
+        output_name = config["scikit_learn"]["zarr_output"]
+        return [
+            DiagnosticFile(
+                name=output_name,
+                variables=All(),
+                times=All(),
+                partitioner=partitioner,
+                comm=comm,
+            )
+        ]
