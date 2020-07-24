@@ -297,7 +297,7 @@ def main():
     }
 
     # get metadata
-    run_urls = {key: ds.attrs.url for key, ds in diags.items()}
+    run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}
 
     html = create_html(
         title="Prognostic run report",
