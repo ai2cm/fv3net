@@ -108,7 +108,8 @@ if __name__ == "__main__":
         "output_path",
         type=str,
         help="GCS location where coarsened diagnostics zarrs will be written. "
-        "Specifically will be saved at {output_path}/{basename(input_path)},
+        "Specifically will be saved at {output_path}/{basename(input_path)}. "
+        "Unexpected behavior may occur if this path already exists.",
     )
     args = parser.parse_args()
     coarsen_c384_diagnostics(args)
