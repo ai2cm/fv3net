@@ -13,10 +13,6 @@ from vcm.cubedsphere.constants import (
     COORD_Y_CENTER,
     COORD_X_OUTER,
     COORD_Y_OUTER,
-    VAR_LON_CENTER,
-    VAR_LAT_CENTER,
-    VAR_LON_OUTER,
-    VAR_LAT_OUTER,
 )
 from vcm.cloud.fsspec import get_fs
 from fv3net import COARSENED_DIAGS_ZARR_NAME
