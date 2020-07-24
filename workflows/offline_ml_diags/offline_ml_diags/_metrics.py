@@ -3,10 +3,9 @@ import numpy as np
 from typing import Mapping, Sequence, Callable
 import xarray as xr
 
-from diagnostics_utils import regrid_dataset_to_pressure_levels
-from loaders import DERIVATION_DIM
-from ._mapper import TARGET_COORD, PREDICT_COORD
-from vcm import safe
+from vcm import safe, thermo
+from vcm.cubedsphere import regrid_to_common_pressure
+
 
 logging.getLogger(__name__)
 
@@ -20,31 +19,52 @@ COLUMN_INTEGRATED_METRIC_VARS = [
     "column_integrated_Q1",
     "column_integrated_Q2",
 ]
-# Comparison pairs for RMSE and bias. Truth/target first.
-METRIC_COMPARISON_COORDS = [(TARGET_COORD, PREDICT_COORD), (TARGET_COORD, "mean")]
-VERTICAL_PROFILE_MEAN_DIMS = ["time", "x", "y", "tile"]
-DELP_VAR = "pressure_thickness_of_atmospheric_layer"
-AREA_VAR = "area"
-DELP_WEIGHT_VAR = f"{DELP_VAR}_weights"
-AREA_WEIGHT_VAR = f"{AREA_VAR}_weights"
+
+# Dimension/ coord/ variable parameter defaults
+PREDICT_COORD = "predict"
+TARGET_COORD = "target"
+DERIVATION_DIM = "derivation"
+PRESSURE_DIM = "pressure"
 VERTICAL_DIM = "z"
+AREA_VAR = "area"
+DELP_VAR = "pressure_thickness_of_atmospheric_layer"
+TOA_PRESSURE = 300.  # Pa
+VERTICAL_PROFILE_MEAN_DIMS = ("time", "x", "y", "tile")
 
 
-def calc_metrics(ds: xr.Dataset) -> xr.Dataset:
+def calc_metrics(
+        ds: xr.Dataset,
+        predict_coord: str = PREDICT_COORD,
+        target_coord: str = TARGET_COORD,
+        derivation_dim: str = DERIVATION_DIM,
+        pressure_dim: str = PRESSURE_DIM,
+        vertical_dim: str = VERTICAL_DIM,
+        area_var: str = AREA_VAR,
+        delp_var: str = DELP_VAR,
+        toa_pressure: float = TOA_PRESSURE,
+        vertical_profile_mean_dims: Sequence[str] = VERTICAL_PROFILE_MEAN_DIMS
+
+) -> xr.Dataset:
     """Routine for computing ML prediction metrics (_bias, _rmse]) on a dataset of
     variables, assumed to include variables in
     {SCALAR_METRIC_VARS, VERTICAL_METRIC_VARS} as well as area and delp
     """
+    derivation_kwargs = {
+        "predict_coord": predict_coord,
+        "target_coord": target_coord,
+        "derivation_dim": derivation_dim
+    }
 
-    ds = _insert_weights(ds)
+    ds = _insert_weights(ds, vertical_dim, area_var, delp_var)
 
     # scalar quantity metrics calculated for 2d column integrated vars
     scalar_metrics_column_integrated_vars = _calc_same_dims_metrics(
         ds,
         dim_tag="scalar",
         vars=COLUMN_INTEGRATED_METRIC_VARS,
-        weights=[AREA_WEIGHT_VAR],
+        weights=[f"{AREA_VAR}_weights"],
         mean_dim_vars=None,
+        **derivation_kwargs
     )
 
     # scalar quantity metrics are calculated at vertical levels first,
@@ -53,18 +73,23 @@ def calc_metrics(ds: xr.Dataset) -> xr.Dataset:
         ds,
         dim_tag="scalar",
         vars=PRESSURE_LEVEL_METRIC_VARS,
-        weights=[AREA_WEIGHT_VAR, DELP_WEIGHT_VAR],
+        weights=[f"{area_var}_weights", f"{delp_var}_weights"],
         mean_dim_vars=None,
+        **derivation_kwargs
     )
 
-    ds_regrid_z = _regrid_dataset_zdim(ds)
+    ds_regrid_z = _regrid_dataset_zdim(
+        ds,
+        vertical_dim, pressure_dim, delp_var, toa_pressure,
+        **derivation_kwargs)
 
     pressure_level_metrics = _calc_same_dims_metrics(
         ds_regrid_z,
         dim_tag="pressure_level",
         vars=PRESSURE_LEVEL_METRIC_VARS,
-        weights=[AREA_WEIGHT_VAR],
-        mean_dim_vars=["time", "x", "y", "tile"],
+        weights=[f"{area_var}_weights"],
+        mean_dim_vars=vertical_profile_mean_dims,
+        **derivation_kwargs
     )
     return xr.merge(
         [
@@ -75,41 +100,101 @@ def calc_metrics(ds: xr.Dataset) -> xr.Dataset:
     )
 
 
-def _regrid_dataset_zdim(ds: xr.Dataset) -> xr.Dataset:
+def _regrid_dataset_zdim(
+        ds: xr.Dataset,
+        vertical_dim: str = VERTICAL_DIM,
+        pressure_dim: str = PRESSURE_DIM,
+        delp_var: str = DELP_VAR,
+        toa_pressure: float = TOA_PRESSURE,
+        predict_coord: str = PREDICT_COORD,
+        target_coord: str = TARGET_COORD,
+        derivation_dim: str = DERIVATION_DIM,
+    ) -> xr.Dataset:
     # have to separate the derivation coordinates before interpolating
     # to regridded pressure
     regridded_datasets = []
-    derivation_coords = [TARGET_COORD, PREDICT_COORD]
-    vertical_dim_vars = [var for var in ds.data_vars if VERTICAL_DIM in ds[var].dims]
+    vertical_dim_vars = [var for var in ds.data_vars if vertical_dim in ds[var].dims]
     ds_2d = ds.drop(vertical_dim_vars)
     ds_3d = safe.get_variables(ds, vertical_dim_vars)
 
-    for derivation_coord in derivation_coords:
+    for derivation_coord in [target_coord, predict_coord]:
         regridded_datasets.append(
-            regrid_dataset_to_pressure_levels(
-                ds_3d.sel({DERIVATION_DIM: derivation_coord}),
-                original_delp=ds[DELP_VAR],
+            _regrid_dataset_to_pressure_levels(
+                ds_3d.sel({derivation_dim: derivation_coord}),
+                original_delp=ds[delp_var],
+                pressure_dim=pressure_dim,
+                vertical_dim=vertical_dim,
+                toa_pressure=toa_pressure
             )
         )
-    return xr.merge([ds_2d, xr.concat(regridded_datasets, dim=DERIVATION_DIM)])
+    return xr.merge([ds_2d, xr.concat(regridded_datasets, dim=derivation_dim)])
+
+
+def _regrid_dataset_to_pressure_levels(
+    ds: xr.Dataset,
+    original_delp: xr.DataArray,
+    regrid_delp: Sequence[float] = REGRIDDED_DELP,
+    pressure_dim: str = PRESSURE_DIM,
+    vertical_dim: str = VERTICAL_DIM,
+    toa_pressure: float = TOA_PRESSURE,
+) -> xr.Dataset:
+    """ Regrid data arrays with vertical dimension into
+    new pressure level coordinates and reassign delp to be correct
+    for new pressure coordinate.
+
+    Args:
+        ds: dataset containing data arrays with vertical dim
+        original_delp: (nonuniform) pressure thicknesses of the original dataset 
+        regrid_delp: (uniform) coordinate array to regrid to. Defaults to REGRIDDED_DELP.
+
+    Returns:
+        Input dataset with delp and vertical dimensioned variables regridded to the
+        pressure midpoints defined by regrid_delp. The original vertical_dim is
+        replaced by the regridded pressure_dim.
+    """
+    vertical_dim_vars = [var for var in ds.data_vars if vertical_dim in ds[var].dims]
+    delp_var = original_delp.name
+
+    da_regrid_delp = xr.DataArray(
+        regrid_delp, dims=[pressure_dim], coords={pressure_dim: range(len(regrid_delp))}
+    )
+    regrid_pressure_midpts = thermo.pressure_at_midpoint_log(
+        da_regrid_delp, toa_pressure=toa_pressure, dim=pressure_dim
+    )
+
+    for var in vertical_dim_vars:
+        ds[var] = regrid_to_common_pressure(
+            ds[var],
+            original_delp,
+            vertical_dim,
+            output_pressure=regrid_pressure_midpts,
+        )
+    ds[delp_var] = da_regrid_delp
+    return ds
 
 
 def _calc_same_dims_metrics(
-    ds: xr.Dataset,
-    dim_tag: str,
-    vars: Sequence[str],
-    weights: Sequence[str],
-    mean_dim_vars: Sequence[str] = None,
+        ds: xr.Dataset,
+        dim_tag: str,
+        vars: Sequence[str],
+        weights: Sequence[str],
+        mean_dim_vars: Sequence[str] = None,
+        predict_coord: str = PREDICT_COORD,
+        target_coord: str = TARGET_COORD,
+        derivation_dim: str = DERIVATION_DIM
 ) -> xr.Dataset:
     """Computes a set of metrics that all have the same dimension,
     ex. mean vertical error profile on pressure levels, or global mean scalar error
     Args:
         ds: test dataset
         dim_tag: describe the dimensions of the metrics returned. e.g. "scalar", "z"
-        vars (Sequence[str]): data variables to calculate metrics on
-        weights (Sequence[str]): data variables to use as weights
-        mean_dim_vars (Sequence[str], optional): dimensions to take mean over
+        vars: data variables to calculate metrics on
+        weights: data variables to use as weights
+        mean_dim_vars: dimensions to take mean over
             for final value. Defaults to None (mean over all dims).
+        target_coord: derivation coord for TARGET_COORD values in metric comparison.
+        predict_coord: derivation coord for "prediction".
+        derivation_dim: dimension name for derivation (comparision)
 
     Returns:
         dataset of metrics
@@ -118,36 +203,46 @@ def _calc_same_dims_metrics(
         "weights": [ds[weight] for weight in weights],
         "mean_dims": mean_dim_vars,
     }
-    ds = _insert_means(ds, vars, **metric_kwargs)
+    metric_comparison_coords = [(target_coord, predict_coord), (target_coord, "mean")]
+    ds = _insert_means(ds, vars, predict_coord, target_coord, derivation_dim, **metric_kwargs)
     metrics = xr.Dataset()
     for var in vars:
         for metric_func in (_bias, _rmse):
-            for comparison in METRIC_COMPARISON_COORDS:
-                metric = _calc_metric(ds, metric_func, var, *comparison, metric_kwargs)
+            for comparison in metric_comparison_coords:
+                metric = _calc_metric(
+                    ds,
+                    metric_func,
+                    var,
+                    derivation_dim,
+                    *comparison,
+                    metric_kwargs)
                 metrics[f"{dim_tag}/{metric.name}"] = metric
     return metrics
 
 
-def _insert_weights(ds):
-    ds[f"{AREA_VAR}_weights"] = ds[AREA_VAR] / (ds[AREA_VAR].mean())
-    ds[f"{DELP_VAR}_weights"] = ds[DELP_VAR] / ds[DELP_VAR].mean(VERTICAL_DIM)
+def _insert_weights(ds, vertical_dim: str = VERTICAL_DIM, area_var: str = AREA_VAR, delp_var: str = DELP_VAR):
+    ds[f"{area_var}_weights"] = ds[area_var] / (ds[area_var].mean())
+    ds[f"{delp_var}_weights"] = ds[delp_var] / ds[delp_var].mean(vertical_dim)
     return ds
 
 
 def _insert_means(
     ds: xr.Dataset,
     var_names: Sequence[str],
+    predict_coord: str = PREDICT_COORD,
+    target_coord: str = TARGET_COORD,
+    derivation_dim: str = DERIVATION_DIM,
     weights: Sequence[xr.DataArray] = None,
     mean_dims: Sequence[str] = None,
 ) -> xr.Dataset:
     for var in var_names:
-        da = ds[var].sel({DERIVATION_DIM: [TARGET_COORD, PREDICT_COORD]})
+        da = ds[var].sel({derivation_dim: [target_coord, predict_coord]})
         weights = [1.0] if weights is None else weights
-        da_mean = da.sel({DERIVATION_DIM: TARGET_COORD})
+        da_mean = da.sel({derivation_dim: target_coord})
         for weight in weights:
             da_mean *= weight
-        da_mean = da_mean.mean(dim=mean_dims).assign_coords({DERIVATION_DIM: "mean"})
-        da = xr.concat([da, da_mean], dim=DERIVATION_DIM)
+        da_mean = da_mean.mean(dim=mean_dims).assign_coords({derivation_dim: "mean"})
+        da = xr.concat([da, da_mean], dim=derivation_dim)
         ds = ds.drop([var])
         ds = ds.merge(da)
     return ds
@@ -159,6 +254,7 @@ def _calc_metric(
         [xr.DataArray, xr.DataArray, xr.DataArray, Sequence[str]], xr.DataArray
     ],
     var: str,
+    derivation_dim: str,
     target_coord: str,
     predict_coord: str,
     metric_kwargs: Mapping = None,
@@ -169,19 +265,20 @@ def _calc_metric(
     Args:
         ds (xr.Dataset): Dataset with variables to calculate metrics on. Variables
             should have a DERIVATION dim with coords denoting the sets for comparison,
-            e.g. "prediction", "target"
+            e.g. "prediction", TARGET_COORD
         metric_func (Callable, xr.DataArray]): metric calculation function.
             One of {_rmse, _biase}.
         var (str): Variable name to calculate metric for
-        target_coord (str): DERIVATION coord for "target" values in metric comparison.
-        predict_coord (str): DERIVATION coord for "prediction".
+        target_coord (str): derivation coord for TARGET_COORD values in metric comparison.
+        predict_coord (str): derivation coord for "prediction".
+        derivation_dim (str): dimension name for derivation (comparision)
         metric_kwargs (Mapping, optional): [description]. Defaults to None.
 
     Returns:
         xr.DataArray: data array of metric values
     """
-    da_target = ds[var].sel({DERIVATION_DIM: target_coord})
-    da_predict = ds[var].sel({DERIVATION_DIM: predict_coord})
+    da_target = ds[var].sel({derivation_dim: target_coord})
+    da_predict = ds[var].sel({derivation_dim: predict_coord})
     metric = metric_func(da_target, da_predict, **(metric_kwargs or {}))
     metric_name = (
         f"{metric_func.__name__.strip('_')}/{var}/{predict_coord}_vs_{target_coord}"
@@ -213,3 +310,4 @@ def _rmse(
         for weight_da in weights:
             se *= weight_da
     return np.sqrt(se.mean(dim=mean_dims))
+

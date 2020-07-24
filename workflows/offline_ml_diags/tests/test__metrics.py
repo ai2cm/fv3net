@@ -5,11 +5,11 @@ from offline_ml_diags._metrics import (
     _bias,
     _rmse,
     _calc_same_dims_metrics,
-    DERIVATION_DIM,
-    TARGET_COORD,
-    PREDICT_COORD,
-    COLUMN_INTEGRATED_METRIC_VARS,
 )
+
+DERIVATION_DIM = "derivation"
+TARGET_COORD = "target"
+PREDICT_COORD = "predict"
 
 
 @pytest.fixture()
@@ -50,7 +50,7 @@ def test__calc_same_dims_metrics(ds_mock, area):
     batch_metrics = _calc_same_dims_metrics(
         ds,
         dim_tag="scalar",
-        vars=COLUMN_INTEGRATED_METRIC_VARS,
+        vars=["column_integrated_dQ1", "column_integrated_dQ2"],
         weights=["area_weights"],
         mean_dim_vars=None,
     )
