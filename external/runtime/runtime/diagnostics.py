@@ -115,7 +115,7 @@ def _config_to_diagnostic_file(
 
 
 def get_diagnostic_files(
-    config, partitioner: fv3util.CubedSpherePartitioner, comm
+    config: Mapping, partitioner: fv3util.CubedSpherePartitioner, comm
 ) -> List[DiagnosticFile]:
     """Initialize a list of diagnostic file objects from a configuration dictionary
 
