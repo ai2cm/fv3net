@@ -65,7 +65,7 @@ class DiagnosticFile:
         name: str,
         times: Container[datetime],
         variables: Container,
-        partitioner,
+        partitioner: fv3util.CubedSpherePartitioner,
         comm,
     ):
         self.name = name
