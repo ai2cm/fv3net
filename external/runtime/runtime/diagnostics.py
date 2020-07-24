@@ -99,7 +99,9 @@ class DiagnosticFile:
         self.times = times
         self.variables = variables
 
-    def observe(self, time: datetime, diagnostics: Mapping):
+    def observe(self, time: datetime, diagnostics: Mapping[str, xr.DataArray]):
+        """Possibly store the data into the monitor
+        """
         if time in self.times:
             quantities = {
                 # need units for from_data_array to work
