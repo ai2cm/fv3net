@@ -61,21 +61,37 @@ class DiagnosticFile:
 
     Replicates the abilities of the fortran models's diag_table by allowing
     the user to specify different output times for distinct sets of
-    variables. 
+    variables.
     """
 
     def __init__(
         self,
-        name: str,
+        monitor: fv3util.ZarrMonitor,
         times: Container[datetime],
         variables: Container,
-        partitioner: fv3util.CubedSpherePartitioner,
-        comm,
     ):
-        self.name = name
+        """
+        Args:
+            monitor: an underlying monitor to store the data in
+            times: the set of times (potentially infinite) to save the data at
+            variables: a container of variables to save
+
+        Note:
+
+            The containers used for times and variables do not need to be
+            concrete lists or python sequences. They only need to satisfy the
+            abstract ``Container`` interface. Please see the special
+            containers for outputing times above:
+
+            - ``IntervalTimes``
+            - ``SelectedTimes``
+
+            as well as the generic ``All`` container that contains the entire
+            Universe!
+        """
+        self._monitor = monitor
         self.times = times
         self.variables = variables
-        self._monitor = fv3util.ZarrMonitor(self.name, partitioner, mpi_comm=comm)
 
     def observe(self, time: datetime, diagnostics: Mapping):
         quantities = {
@@ -109,12 +125,11 @@ def _get_times(d) -> Container[datetime]:
 def _config_to_diagnostic_file(
     diag_file_config: Mapping, partitioner, comm
 ) -> DiagnosticFile:
+    monitor = fv3util.ZarrMonitor(diag_file_config["name"], partitioner, mpi_comm=comm)
     return DiagnosticFile(
-        name=diag_file_config["name"],
+        monitor=monitor,
         variables=diag_file_config.get("variables", All()),
         times=_get_times(diag_file_config.get("times", {})),
-        partitioner=partitioner,
-        comm=comm,
     )
 
 
