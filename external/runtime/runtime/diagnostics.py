@@ -58,6 +58,10 @@ class DiagnosticFile:
     """A object representing a diagnostics file
 
     Provides a similar interface as the "diag_table"
+
+    Replicates the abilities of the fortran models's diag_table by allowing
+    the user to specify different output times for distinct sets of
+    variables. 
     """
 
     def __init__(
