@@ -1,23 +1,22 @@
 import logging
-from typing import MutableMapping, Hashable, cast
+from datetime import datetime
+from typing import Hashable, Iterable, Mapping, MutableMapping, Tuple, cast
 
 import fsspec
-import zarr
-from sklearn.externals import joblib
 import xarray as xr
+import zarr
+from mpi4py import MPI
+from sklearn.externals import joblib
 
 import fv3gfs
-import fv3util
 import runtime
-
-from fv3net.regression.sklearn.adapters import RenamingAdapter, StackingAdapter
-
-from mpi4py import MPI
+from fv3fit.sklearn import RenamingAdapter, StackingAdapter
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 State = MutableMapping[Hashable, xr.DataArray]
+Diagnostics = Mapping[str, xr.DataArray]
 
 # following variables are required no matter what feature set is being used
 TEMP = "air_temperature"
@@ -117,111 +116,116 @@ def apply(state: State, tendency: State, dt: float) -> State:
     return updated  # type: ignore
 
 
-class TimeLoop:
-    """Class encapsulating an FV3 time loop
+class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
+    """An iterable defining the master time loop of a prognostic simulation
+
+    Yields (time, diagnostics) tuples, which can be saved using diagnostic routines.
+
+    Note:
+
+        Each iteration consists of three phases
+
+        1. ``_step_dynamics``
+        2. ``_step_physics``
+        3. ``_step_python``
+
+        Each phase updates the fv3gfs state and returns any computed
+        diagnostics. After all these stages finish, the diagnostics they
+        output are merged and yielded along with the timestep.
+
+        These methods can be overriden to change behavior or return new
+        diagnostics.
     """
 
-    def __init__(self, comm=None, _fv3gfs=None):
-
-        if _fv3gfs is None:
-            self.fv3gfs = fv3gfs
-        else:
-            self.fv3gfs = _fv3gfs
+    def __init__(self, comm=None, fv3gfs=fv3gfs):
 
         if comm is None:
             comm = MPI.COMM_WORLD
 
+        self._fv3gfs = fv3gfs
+        self._state = runtime.DerivedFV3State(self._fv3gfs)
+        self._comm = comm
+        self._diagnostics = {}
+
         args = runtime.get_config()
-        NML = runtime.get_namelist()
-        TIMESTEP = NML["coupler_nml"]["dt_atmos"]
+        namelist = runtime.get_namelist()
 
-        rank = comm.Get_rank()
+        # get timestep
+        timestep = namelist["coupler_nml"]["dt_atmos"]
+        self._timestep = timestep
+        self._log_info(f"Timestep: {timestep}")
 
-        self.state_mapping = runtime.DerivedFV3State(self.fv3gfs)
+        self._do_only_diagnostic_ml = args["scikit_learn"].get("diagnostic_ml", False)
 
-        # change into run directoryy
-        MPI.COMM_WORLD.barrier()  # wait for master rank to write run directory
-
-        self.do_only_diagnostic_ml = args["scikit_learn"].get("diagnostic_ml", False)
-
-        # open zarr tape for output
-
-        if rank == 0:
-            logger.info("Downloading Sklearn Model")
-            MODEL = open_model(args["scikit_learn"])
-            logger.info("Model downloaded")
+        # download the scikit-learn model
+        self._log_info("Downloading Sklearn Model")
+        if comm.rank == 0:
+            model = open_model(args["scikit_learn"])
         else:
-            MODEL = None
+            model = None
+        model = comm.bcast(model, root=0)
+        self._model = model
+        self._log_info("Model Downloaded")
+        MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
-        MODEL = comm.bcast(MODEL, root=0)
+    def _log_debug(self, message: str):
+        if self._comm.rank == 0:
+            logger.debug(message)
 
-        if rank == 0:
-            logger.info(f"Timestep: {TIMESTEP}")
+    def _log_info(self, message: str):
+        if self._comm.rank == 0:
+            logger.info(message)
 
-        self.rank = rank
-        self.comm = comm
-        self.model = MODEL
-        self.timestep = TIMESTEP
-        self.diagnostics = {}
+    def _step_dynamics(self) -> Diagnostics:
+        self._log_debug(f"Dynamics Step")
+        self._fv3gfs.step_dynamics()
+        # no diagnostics are computed by default
+        return {}
 
-    def step_dynamics(self):
-        if self.rank == 0:
-            logger.debug(f"Dynamics Step")
-        self.fv3gfs.step_dynamics()
+    def _step_physics(self) -> Diagnostics:
+        self._log_debug(f"Physics Step")
+        self._fv3gfs.step_physics()
+        # no diagnostics are computed by default
+        return {}
 
-    def reset_diagnostics(self):
-        self.diagnostics = {}
+    def _step_python(self) -> Diagnostics:
+        variables = list(self._model.input_vars_ | REQUIRED_VARIABLES)
+        self._log_debug(f"Getting state variables: {variables}")
+        state = {name: self._state[name] for name in variables}
 
-    def step_physics(self):
-        if self.rank == 0:
-            logger.debug(f"Physics Step")
-        self.fv3gfs.step_physics()
+        self._log_debug("Computing RF updated variables")
+        tendency = predict(self._model, state)
 
-    def step_python(self, TIMESTEP):
-        variables = list(self.model.input_vars_ | REQUIRED_VARIABLES)
-        if self.rank == 0:
-            logger.debug(f"Getting state variables: {variables}")
-        state = {name: self.state_mapping[name] for name in variables}
-
-        if self.rank == 0:
-            logger.debug("Computing RF updated variables")
-        tendency = predict(self.model, state)
-
-        if self.do_only_diagnostic_ml:
+        if self._do_only_diagnostic_ml:
             updated_state: State = {}
         else:
-            updated_state = apply(state, tendency, dt=TIMESTEP)
+            updated_state = apply(state, tendency, dt=self._timestep)
 
         diagnostics = compute_diagnostics(state, tendency)
-        if self.do_only_diagnostic_ml:
+        if self._do_only_diagnostic_ml:
             rename_diagnostics(diagnostics)
 
         updated_state[TOTAL_PRECIP] = precipitation_sum(
-            state[TOTAL_PRECIP], diagnostics["net_moistening"], TIMESTEP
+            state[TOTAL_PRECIP], diagnostics["net_moistening"], self._timestep
         )
 
-        if self.rank == 0:
-            logger.debug("Setting Fortran State")
-
-        self.state_mapping.update(updated_state)
-        self.diagnostics.update(diagnostics)
-
-    def step(self, TIMESTEP):
-        self.reset_diagnostics()
-        self.step_dynamics()
-        self.step_physics()
-        self.step_python(TIMESTEP)
-        return self.state_mapping.time, self.diagnostics
+        self._log_debug("Setting Fortran State")
+        self._state.update(updated_state)
+        return diagnostics
 
     def __iter__(self):
-        self.fv3gfs.initialize()
-        for i in range(self.fv3gfs.get_step_count()):
-            yield self.step(self.timestep)
-        self.fv3gfs.cleanup()
+        self._fv3gfs.initialize()
+        for i in range(self._fv3gfs.get_step_count()):
+            diagnostics = {}
+            diagnostics.update(self._step_dynamics())
+            diagnostics.update(self._step_physics())
+            diagnostics.update(self._step_python())
+            yield self._state.time, diagnostics
+        self._fv3gfs.cleanup()
 
 
 class MonitoredTimeLoop(TimeLoop):
-    def step_physics(self):
+    def _step_physics(self):
         keys = ["specific_humidity", "air_temperature"]
         before = {key: self.state_mapping[key] for key in keys}
         super().step_physics()
@@ -233,6 +237,7 @@ class MonitoredTimeLoop(TimeLoop):
             for key in keys
         }
         self.diagnostics.update(tendency)
+        return tendency
 
 
 if __name__ == "__main__":

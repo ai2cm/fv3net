@@ -17,6 +17,11 @@ from vcm.constants import (
     GRAVITY,
 )
 import logging
+from fv3fit.sklearn import (
+    load_test_dataset,
+    load_model,
+    predict_dataset,
+)
 
 logger = logging.getLogger(__file__)
 
@@ -46,11 +51,6 @@ def predict_on_test_data(
 ):
 
     if model_type == "rf":
-        from fv3net.regression.sklearn.test import (
-            load_test_dataset,
-            load_model,
-            predict_dataset,
-        )
 
         ds_test = load_test_dataset(test_data_path, init_time_dim, coord_z_center)
         sk_wrapped_model = load_model(model_path)
