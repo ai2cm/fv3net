@@ -53,6 +53,9 @@ def coarsen_c384_diagnostics(args):
     diags384 = diags[hires_data_vars]
     dims_to_rename = {k: v for k, v in DIM_RENAME.items() if k in diags384}
     diags384 = diags384.rename(dims_to_rename)
+    if "tile" in diags384.coords:
+        # drop possibly 1-based tile coordinate
+        diags384 = diags384.drop("tile")
     logging.info(f"Size of diagnostic data: {diags384.nbytes / 1e9:.2f} GB")
 
     # coarsen the data
