@@ -9,6 +9,7 @@ import transform
 TRANSFORM_PARAMS = {
     "resample_time": (["1H"], {"time_slice": slice(0, -2)}),
     "mask_to_sfc_type": (["sea"], {"mask_var_name": "SLMSKsfc"}),
+    "subset_variables": ([("temperature")], {}),
 }
 
 
