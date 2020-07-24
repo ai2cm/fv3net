@@ -60,17 +60,16 @@ def test__calc_same_dims_metrics(ds_mock, area):
 @pytest.fixture()
 def ds_calc_test():
     area_weights = xr.DataArray(
-        [[0.5, 1.5]],
-        dims=["y", "x"], 
-        coords={"x": [0, 1], "y": [0]})
+        [[0.5, 1.5]], dims=["y", "x"], coords={"x": [0, 1], "y": [0]}
+    )
     delp_weights = xr.DataArray(
-        [[[2.0, 0.], [1.6, 0.4]]],
+        [[[2.0, 0.0], [1.6, 0.4]]],
         dims=["y", "x", "z"],
         coords={"z": [0, 1], "x": [0, 1], "y": [0]},
     )
     da_target = xr.DataArray(
-        [[[10.0, 20.0], [-10.0, -20.0]]], 
-        dims=["y", "x", "z"], 
+        [[[10.0, 20.0], [-10.0, -20.0]]],
+        dims=["y", "x", "z"],
         coords={"z": [0, 1], "x": [0, 1], "y": [0]},
     )
 
@@ -82,17 +81,21 @@ def ds_calc_test():
         }
     )
 
+
 @pytest.mark.parametrize(
     "weight_vars, mean_dims, expected",
     (
-        [["area_weights"], None, np.mean([5, 10,-15, -30.])],
-        [["delp_weights", "area_weights"], None, np.mean([10, 0, -15*1.6, -30. * 0.4])],
+        [["area_weights"], None, np.mean([5, 10, -15, -30.0])],
+        [
+            ["delp_weights", "area_weights"],
+            None,
+            np.mean([10, 0, -15 * 1.6, -30.0 * 0.4]),
+        ],
         [["area_weights"], ["x", "y"], [-5, -10]],
-    )
+    ),
 )
 def test__weighted_average(ds_calc_test, weight_vars, mean_dims, expected):
     weights = [ds_calc_test[weight_var] for weight_var in weight_vars]
     assert np.allclose(
-         _weighted_average(
-            ds_calc_test["target"], weights, mean_dims).values, 
-        expected)
+        _weighted_average(ds_calc_test["target"], weights, mean_dims).values, expected
+    )

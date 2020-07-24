@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from typing import Mapping, Sequence, Callable, Union
+from typing import Sequence, Callable, Union
 import xarray as xr
 
 from vcm import safe
@@ -28,22 +28,21 @@ PRESSURE_DIM = "pressure"
 VERTICAL_DIM = "z"
 AREA_VAR = "area"
 DELP_VAR = "pressure_thickness_of_atmospheric_layer"
-TOA_PRESSURE = 300.  # Pa
+TOA_PRESSURE = 300.0  # Pa
 VERTICAL_PROFILE_MEAN_DIMS = ("time", "x", "y", "tile")
 
 
 def calc_metrics(
-        ds: xr.Dataset,
-        predict_coord: str = PREDICT_COORD,
-        target_coord: str = TARGET_COORD,
-        derivation_dim: str = DERIVATION_DIM,
-        pressure_dim: str = PRESSURE_DIM,
-        vertical_dim: str = VERTICAL_DIM,
-        area_var: str = AREA_VAR,
-        delp_var: str = DELP_VAR,
-        toa_pressure: float = TOA_PRESSURE,
-        vertical_profile_mean_dims: Sequence[str] = VERTICAL_PROFILE_MEAN_DIMS
-
+    ds: xr.Dataset,
+    predict_coord: str = PREDICT_COORD,
+    target_coord: str = TARGET_COORD,
+    derivation_dim: str = DERIVATION_DIM,
+    pressure_dim: str = PRESSURE_DIM,
+    vertical_dim: str = VERTICAL_DIM,
+    area_var: str = AREA_VAR,
+    delp_var: str = DELP_VAR,
+    toa_pressure: float = TOA_PRESSURE,
+    vertical_profile_mean_dims: Sequence[str] = VERTICAL_PROFILE_MEAN_DIMS,
 ) -> xr.Dataset:
     """Routine for computing ML prediction metrics (_bias, _rmse]) on a dataset of
     variables, assumed to include variables in
@@ -52,7 +51,7 @@ def calc_metrics(
     derivation_kwargs = {
         "predict_coord": predict_coord,
         "target_coord": target_coord,
-        "derivation_dim": derivation_dim
+        "derivation_dim": derivation_dim,
     }
 
     ds = _insert_weights(ds, vertical_dim, area_var, delp_var)
@@ -64,7 +63,7 @@ def calc_metrics(
         vars=COLUMN_INTEGRATED_METRIC_VARS,
         weight_vars=[f"{area_var}_weights"],
         mean_dim_vars=None,
-        **derivation_kwargs
+        **derivation_kwargs,
     )
 
     # scalar quantity metrics are calculated at vertical levels first,
@@ -75,13 +74,12 @@ def calc_metrics(
         vars=PRESSURE_LEVEL_METRIC_VARS,
         weight_vars=[f"{area_var}_weights", f"{delp_var}_weights"],
         mean_dim_vars=None,
-        **derivation_kwargs
+        **derivation_kwargs,
     )
 
     ds_regrid_z = _regrid_dataset_zdim(
-        ds,
-        vertical_dim, pressure_dim, delp_var, toa_pressure,
-        **derivation_kwargs)
+        ds, vertical_dim, pressure_dim, delp_var, toa_pressure, **derivation_kwargs
+    )
 
     pressure_level_metrics = _calc_same_dims_metrics(
         ds_regrid_z,
@@ -89,7 +87,7 @@ def calc_metrics(
         vars=PRESSURE_LEVEL_METRIC_VARS,
         weight_vars=[f"{area_var}_weights"],
         mean_dim_vars=vertical_profile_mean_dims,
-        **derivation_kwargs
+        **derivation_kwargs,
     )
     return xr.merge(
         [
@@ -101,15 +99,15 @@ def calc_metrics(
 
 
 def _regrid_dataset_zdim(
-        ds: xr.Dataset,
-        vertical_dim: str = VERTICAL_DIM,
-        pressure_dim: str = PRESSURE_DIM,
-        delp_var: str = DELP_VAR,
-        toa_pressure: float = TOA_PRESSURE,
-        predict_coord: str = PREDICT_COORD,
-        target_coord: str = TARGET_COORD,
-        derivation_dim: str = DERIVATION_DIM,
-    ) -> xr.Dataset:
+    ds: xr.Dataset,
+    vertical_dim: str = VERTICAL_DIM,
+    pressure_dim: str = PRESSURE_DIM,
+    delp_var: str = DELP_VAR,
+    toa_pressure: float = TOA_PRESSURE,
+    predict_coord: str = PREDICT_COORD,
+    target_coord: str = TARGET_COORD,
+    derivation_dim: str = DERIVATION_DIM,
+) -> xr.Dataset:
     # have to separate the derivation coordinates before interpolating
     # to regridded pressure
     regridded_datasets = []
@@ -124,21 +122,21 @@ def _regrid_dataset_zdim(
                 field=ds_regrid[var],
                 delp=ds[delp_var],
                 coord_z_center=vertical_dim,
-                new_vertical_dim=pressure_dim
+                new_vertical_dim=pressure_dim,
             )
         regridded_datasets.append(ds_regrid)
     return xr.merge([ds_2d, xr.concat(regridded_datasets, dim=derivation_dim)])
 
 
 def _calc_same_dims_metrics(
-        ds: xr.Dataset,
-        dim_tag: str,
-        vars: Sequence[str],
-        weight_vars: Sequence[str] = None,
-        mean_dim_vars: Sequence[str] = None,
-        predict_coord: str = PREDICT_COORD,
-        target_coord: str = TARGET_COORD,
-        derivation_dim: str = DERIVATION_DIM
+    ds: xr.Dataset,
+    dim_tag: str,
+    vars: Sequence[str],
+    weight_vars: Sequence[str] = None,
+    mean_dim_vars: Sequence[str] = None,
+    predict_coord: str = PREDICT_COORD,
+    target_coord: str = TARGET_COORD,
+    derivation_dim: str = DERIVATION_DIM,
 ) -> xr.Dataset:
     """Computes a set of metrics that all have the same dimension,
     ex. mean vertical error profile on pressure levels, or global mean scalar error
@@ -160,10 +158,11 @@ def _calc_same_dims_metrics(
     if weight_vars:
         weights = [ds[var] for var in weight_vars]
     else:
-        weights = [1.]
+        weights = [1.0]
     metric_comparison_coords = [(target_coord, predict_coord), (target_coord, "mean")]
     ds = _insert_means(
-        ds, vars, predict_coord, target_coord, derivation_dim, weights, mean_dim_vars)
+        ds, vars, predict_coord, target_coord, derivation_dim, weights, mean_dim_vars
+    )
     metrics = xr.Dataset()
     for var in vars:
         for metric_func in (_bias, _rmse):
@@ -175,33 +174,37 @@ def _calc_same_dims_metrics(
                     derivation_dim,
                     *comparison,
                     weights,
-                    mean_dim_vars)
+                    mean_dim_vars,
+                )
                 metrics[f"{dim_tag}/{metric.name}"] = metric
     return metrics
 
 
-def _insert_weights(ds, vertical_dim: str = VERTICAL_DIM, area_var: str = AREA_VAR, delp_var: str = DELP_VAR):
+def _insert_weights(
+    ds,
+    vertical_dim: str = VERTICAL_DIM,
+    area_var: str = AREA_VAR,
+    delp_var: str = DELP_VAR,
+):
     ds[f"{area_var}_weights"] = ds[area_var] / (ds[area_var].mean())
     ds[f"{delp_var}_weights"] = ds[delp_var] / ds[delp_var].mean(vertical_dim)
     return ds
 
 
 def _insert_means(
-        ds: xr.Dataset,
-        var_names: Sequence[str],
-        predict_coord: str = PREDICT_COORD,
-        target_coord: str = TARGET_COORD,
-        derivation_dim: str = DERIVATION_DIM,
-        weights: Sequence[xr.DataArray] = None,
-        mean_dims: Sequence[str] = None,
+    ds: xr.Dataset,
+    var_names: Sequence[str],
+    predict_coord: str = PREDICT_COORD,
+    target_coord: str = TARGET_COORD,
+    derivation_dim: str = DERIVATION_DIM,
+    weights: Sequence[xr.DataArray] = None,
+    mean_dims: Sequence[str] = None,
 ) -> xr.Dataset:
     weights = weights or [1.0]
     for var in var_names:
         da = ds[var].sel({derivation_dim: [target_coord, predict_coord]})
         da_mean = _weighted_average(
-            da.sel({derivation_dim: target_coord}),
-            weights,
-            mean_dims
+            da.sel({derivation_dim: target_coord}), weights, mean_dims
         ).assign_coords({derivation_dim: "mean"})
         da = xr.concat([da, da_mean], dim=derivation_dim)
         ds = ds.drop([var])
@@ -251,24 +254,20 @@ def _calc_metric(
     return metric_weighted_average.rename(metric_name)
 
 
-def _bias(
-    da_target: xr.DataArray,
-    da_pred: xr.DataArray,
-) -> xr.DataArray:
+def _bias(da_target: xr.DataArray, da_pred: xr.DataArray,) -> xr.DataArray:
     return da_pred - da_target
 
 
 def _rmse(
-    da_target: xr.DataArray,
-    da_pred: xr.DataArray,
+    da_target: xr.DataArray, da_pred: xr.DataArray,
 ):
     return np.sqrt((da_target - da_pred) ** 2)
 
 
 def _weighted_average(
-        data: Union[xr.DataArray, xr.Dataset],
-        weights: Sequence[xr.DataArray],
-        mean_dims: Sequence[str] = None,
+    data: Union[xr.DataArray, xr.Dataset],
+    weights: Sequence[xr.DataArray],
+    mean_dims: Sequence[str] = None,
 ):
     # Differs from diagnostics_utils.weighted_average in that
     # this does multiple weightings (e.g. area + delp) in one go
@@ -277,4 +276,3 @@ def _weighted_average(
     for weight in weights:
         data *= weight
     return data.mean(dim=mean_dims, skipna=True)
-    

@@ -1,6 +1,5 @@
-from .config import VARNAMES, SURFACE_TYPE_ENUMERATION, REGRIDDED_DELP, TOA_PRESSURE
+from .config import VARNAMES, SURFACE_TYPE_ENUMERATION
 from vcm import thermo, safe
-from vcm.cubedsphere import regrid_to_common_pressure
 import xarray as xr
 import numpy as np
 import logging
