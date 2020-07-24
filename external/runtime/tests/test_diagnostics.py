@@ -11,13 +11,13 @@ from datetime import datetime
     ],
 )
 def test_SelectedTimes(time_stamp):
-    times = diagnostics.SelectedTimes({"times": [time_stamp]})
+    times = diagnostics.SelectedTimes([time_stamp])
     time = datetime(year=2016, month=8, day=1, hour=0, minute=0, second=0)
     assert time in times
 
 
 def test_SelectedTimes_not_in_list():
-    times = diagnostics.SelectedTimes({"times": ["20160801.000000"]})
+    times = diagnostics.SelectedTimes(["20160801.000000"])
     time = datetime(year=2016, month=8, day=1, hour=0, minute=0, second=1)
     assert time not in times
 
@@ -33,10 +33,10 @@ def test_SelectedTimes_not_in_list():
     ],
 )
 def test_RegularTimes(frequency, time, expected):
-    times = diagnostics.RegularTimes({"frequency": frequency})
+    times = diagnostics.RegularTimes(frequency)
     assert (time in times) == expected
 
 
 def test_RegularTimes_frequency_over_day_raises_error():
     with pytest.raises(ValueError):
-        diagnostics.RegularTimes({"frequency": 86401})
+        diagnostics.RegularTimes(86401)

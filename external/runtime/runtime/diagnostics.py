@@ -1,4 +1,4 @@
-from typing import Any, Sequence, Container, Mapping, List
+from typing import Any, Sequence, Container, Mapping, List, Union
 from datetime import datetime, timedelta
 import fv3util
 
@@ -23,30 +23,29 @@ class All(Container):
 class SelectedTimes(Container[datetime]):
     TIME_FMT: str = r"%Y%m%d.%H%M%S"
 
-    def __init__(self, d):
-        self._d = d
+    def __init__(self, times=Sequence[str]):
+        self._time_stamps = times
 
-        # see if there are any errors
+        # see if there is an error
         self.times
 
     @property
     def times(self) -> Sequence[datetime]:
-        return [datetime.strptime(time, self.TIME_FMT) for time in self._d["times"]]
+        return [datetime.strptime(time, self.TIME_FMT) for time in self._time_stamps]
 
     def __contains__(self, time) -> bool:
         return time in self.times
 
 
 class RegularTimes(Container[datetime]):
-    def __init__(self, d):
-        self._d = d
-
+    def __init__(self, frequency_seconds: Union[float, int]):
+        self._frequency_seconds = frequency_seconds
         if self.frequency > timedelta(days=1.0):
             raise ValueError("Minimum output frequency is daily.")
 
     @property
     def frequency(self) -> timedelta:
-        return timedelta(seconds=self._d["frequency"])
+        return timedelta(seconds=self._frequency_seconds)
 
     def __contains__(self, time) -> bool:
         midnight = time.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -94,9 +93,9 @@ class DiagnosticFile:
 def _get_times(d) -> Container[datetime]:
     kind = d.get("kind", "every")
     if kind == "regular":
-        return RegularTimes(d)
+        return RegularTimes(d["frequency"])
     elif kind == "selected":
-        return SelectedTimes(d)
+        return SelectedTimes(d["times"])
     elif kind == "every":
         return All()
     else:
