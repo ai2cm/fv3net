@@ -120,7 +120,7 @@ def get_diagnostic_files(
     """Initialize a list of diagnostic file objects from a configuration dictionary
 
     Args:
-        config: A loaded "fv3config" object with a "diagnostics" section
+        config: A loaded "fv3config" dictionary with a "diagnostics" section
         paritioner: a partioner object used for writing, maybe it would be
             cleaner to pass a factory
         comm: an MPI Comm object
