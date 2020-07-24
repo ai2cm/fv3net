@@ -129,9 +129,10 @@ def _move_array_metrics_into_diags(ds_diagnostics, ds_metrics):
     # moves the metrics with dimensions in diags so they're saved as netcdf
     metrics_arrays_vars = [var for var in ds_metrics.data_vars if "scalar" not in var]
     ds_metrics_arrays = safe.get_variables(ds_metrics, metrics_arrays_vars)
-    ds_diagnostics = ds_diagnostics.merge(ds_metrics_arrays)
-    ds_metrics = ds_metrics.drop(metrics_arrays_vars)
-    return ds_diagnostics, ds_metrics
+    ds_diagnostics = ds_diagnostics \
+        .merge(ds_metrics_arrays) \
+        .rename({var: var.replace("/", "-") for var in metrics_arrays_vars})
+    return ds_diagnostics, ds_metrics.drop(metrics_arrays_vars)
 
 
 if __name__ == "__main__":
@@ -144,8 +145,8 @@ if __name__ == "__main__":
 
     logger.info("Reading grid...")
     cat = intake.open_catalog("catalog.yml")
-    grid = cat["grid/c48"].to_dask()
-    land_sea_mask = cat["landseamask/c48"].to_dask()
+    grid = cat["grid/c48"].read()
+    land_sea_mask = cat["landseamask/c48"].read()
     grid = grid.assign({utils.VARNAMES["surface_type"]: land_sea_mask["land_sea_mask"]})
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
     if args.timesteps_file:

@@ -16,6 +16,7 @@ from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags.compute_diags import (
     _average_metrics_dict,
     _compute_diags_over_batches,
+    _move_array_metrics_into_diags,
 )
 
 logger = logging.getLogger(__name__)
@@ -308,6 +309,9 @@ def test_compute_offline_diags(
     ds_diagnostics, ds_diurnal, ds_metrics = _compute_diags_over_batches(
         diagnostic_batches, grid_dataset
     )
+    ds_diagnostics, ds_metrics = _move_array_metrics_into_diags(
+        ds_diagnostics, ds_metrics
+    )
 
     # convert metrics to dict
     metrics = _average_metrics_dict(ds_metrics)
@@ -343,12 +347,10 @@ def test_compute_offline_diags(
             assert dim in ["local_time_hr", "derivation", "surface_type"]
 
     assert isinstance(metrics, dict)
-    assert len(metrics) == 49
+    assert len(metrics) == 32
     for metric, metric_entry in metrics.items():
         assert isinstance(metric, str)
-        # pressure coords are added as a list
-        assert isinstance(metric_entry, (dict, list))
-        if isinstance(metric_entry, dict):
-            for metric_key, metric_value in metric_entry.items():
-                assert isinstance(metric_key, str)
-                assert isinstance(metric_value, (float, np.float32, list))
+        assert isinstance(metric_entry, dict)
+        for metric_key, metric_value in metric_entry.items():
+            assert isinstance(metric_key, str)
+            assert isinstance(metric_value, (float, np.float32))
