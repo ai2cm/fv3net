@@ -15,6 +15,7 @@ Time = str
 Tile = int
 K = Tuple[Time, Tile]
 
+# TODO: Ensure units and long_name metadata are updated
 NEW_NAMES = {
     "T": "air_temperature",
     "t_dt_fv_sat_adj_coarse": "air_temperature_saturation_adjustment",
