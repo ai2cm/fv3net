@@ -118,59 +118,16 @@ def _regrid_dataset_zdim(
     ds_3d = safe.get_variables(ds, vertical_dim_vars)
 
     for derivation_coord in [target_coord, predict_coord]:
-        regridded_datasets.append(
-            _regrid_dataset_to_pressure_levels(
-                ds_3d.sel({derivation_dim: derivation_coord}),
-                original_delp=ds[delp_var],
-                pressure_dim=pressure_dim,
-                vertical_dim=vertical_dim,
-                toa_pressure=toa_pressure
+        ds_regrid = ds_3d.sel({derivation_dim: derivation_coord})
+        for var in vertical_dim_vars:
+            ds_regrid[var] = regrid_to_common_pressure(
+                field=ds_regrid[var],
+                delp=ds[delp_var],
+                coord_z_center=vertical_dim,
+                new_vertical_dim=pressure_dim
             )
-        )
+        regridded_datasets.append(ds_regrid)
     return xr.merge([ds_2d, xr.concat(regridded_datasets, dim=derivation_dim)])
-
-
-def _regrid_dataset_to_pressure_levels(
-    ds: xr.Dataset,
-    original_delp: xr.DataArray,
-    regrid_delp: Sequence[float] = REGRIDDED_DELP,
-    pressure_dim: str = PRESSURE_DIM,
-    vertical_dim: str = VERTICAL_DIM,
-    toa_pressure: float = TOA_PRESSURE,
-) -> xr.Dataset:
-    """ Regrid data arrays with vertical dimension into
-    new pressure level coordinates and reassign delp to be correct
-    for new pressure coordinate.
-
-    Args:
-        ds: dataset containing data arrays with vertical dim
-        original_delp: (nonuniform) pressure thicknesses of the original dataset 
-        regrid_delp: (uniform) coordinate array to regrid to. Defaults to REGRIDDED_DELP.
-
-    Returns:
-        Input dataset with delp and vertical dimensioned variables regridded to the
-        pressure midpoints defined by regrid_delp. The original vertical_dim is
-        replaced by the regridded pressure_dim.
-    """
-    vertical_dim_vars = [var for var in ds.data_vars if vertical_dim in ds[var].dims]
-    delp_var = original_delp.name
-
-    da_regrid_delp = xr.DataArray(
-        regrid_delp, dims=[pressure_dim], coords={pressure_dim: range(len(regrid_delp))}
-    )
-    regrid_pressure_midpts = thermo.pressure_at_midpoint_log(
-        da_regrid_delp, toa_pressure=toa_pressure, dim=pressure_dim
-    )
-
-    for var in vertical_dim_vars:
-        ds[var] = regrid_to_common_pressure(
-            ds[var],
-            original_delp,
-            vertical_dim,
-            output_pressure=regrid_pressure_midpts,
-        )
-    ds[delp_var] = da_regrid_delp
-    return ds
 
 
 def _calc_same_dims_metrics(
