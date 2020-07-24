@@ -2,6 +2,8 @@ from typing import Any, Sequence, Container, Mapping, List, Union
 from datetime import datetime, timedelta
 import fv3util
 
+import xarray as xr
+
 
 class All(Container):
     """A container that contains every thing
@@ -54,6 +56,10 @@ class IntervalTimes(Container[datetime]):
         return quotient == timedelta(seconds=0)
 
 
+def _assign_units_if_none_present(array: xr.DataArray, units=None):
+    return array.assign_attrs(units=array.attrs.get("units", units))
+
+
 class DiagnosticFile:
     """A object representing a diagnostics file
 
@@ -94,20 +100,20 @@ class DiagnosticFile:
         self.variables = variables
 
     def observe(self, time: datetime, diagnostics: Mapping):
-        quantities = {
-            # need units for from_data_array to work
-            key: fv3util.Quantity.from_data_array(
-                diagnostics[key].assign_attrs(units="unknown")
-            )
-            for key in diagnostics
-            if key in self.variables
-            if time in self.times
-        }
+        if time in self.times:
+            quantities = {
+                # need units for from_data_array to work
+                key: fv3util.Quantity.from_data_array(
+                    _assign_units_if_none_present(diagnostics[key], "unknown")
+                )
+                for key in diagnostics
+                if key in self.variables
+            }
 
-        # patch this in manually. the ZarrMonitor needs it.
-        # We should probably modify this behavior.
-        quantities["time"] = time
-        self._monitor.store(quantities)
+            # patch this in manually. the ZarrMonitor needs it.
+            # We should probably modify this behavior.
+            quantities["time"] = time
+            self._monitor.store(quantities)
 
 
 def _get_times(d) -> Container[datetime]:

@@ -1,6 +1,11 @@
-import pytest
-from runtime import diagnostics
 from datetime import datetime
+from unittest.mock import Mock
+
+import pytest
+import xarray as xr
+
+from runtime import diagnostics
+from runtime.diagnostics import DiagnosticFile, All
 
 
 @pytest.mark.parametrize(
@@ -40,3 +45,55 @@ def test_IntervalTimes(frequency, time, expected):
 def test_IntervalTimes_frequency_over_day_raises_error():
     with pytest.raises(ValueError):
         diagnostics.IntervalTimes(86401)
+
+
+def test_DiagnosticFile_time_selection():
+    # mock the input data
+    t1 = datetime(year=2016, month=8, day=1, hour=0, minute=15)
+    t2 = datetime(year=2016, month=8, day=1, hour=0, minute=16)
+
+    monitor = Mock()
+
+    # observe a few times
+    diag_file = DiagnosticFile(monitor, times=[t1], variables=All())
+    diag_file.observe(t1, {})
+    diag_file.observe(t2, {})
+    monitor.store.assert_called_once()
+
+
+def test_DiagnosticFile_variable_selection():
+
+    data_vars = {"a": (["x"], [1.0]), "b": (["x"], [2.0])}
+    dataset = xr.Dataset(data_vars)
+    diagnostics = {key: dataset[key] for key in dataset}
+
+    class VariableCheckingMonitor:
+        def store(self, state):
+            assert "time" in state
+            assert "a" in state
+            assert "b" not in state
+
+    monitor = VariableCheckingMonitor()
+
+    # observe a few times
+    diag_file = DiagnosticFile(monitor, times=All(), variables=["a"])
+    diag_file.observe(None, diagnostics)
+
+
+@pytest.mark.parametrize(
+    "attrs, expected_units", [({}, "unknown"), ({"units": "zannyunits"}, "zannyunits")]
+)
+def test_DiagnosticFile_variable_units(attrs, expected_units):
+    data_vars = {"a": (["x"], [1.0], attrs)}
+    dataset = xr.Dataset(data_vars)
+    diagnostics = {key: dataset[key] for key in dataset}
+
+    class UnitCheckingMonitor:
+        def store(self, state):
+            assert state["a"].units == expected_units
+
+    monitor = UnitCheckingMonitor()
+
+    # observe a few times
+    diag_file = DiagnosticFile(monitor, times=All(), variables=All())
+    diag_file.observe(None, diagnostics)
