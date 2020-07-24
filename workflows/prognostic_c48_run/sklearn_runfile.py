@@ -9,7 +9,6 @@ from sklearn.externals import joblib
 
 import fv3gfs
 import runtime
-import fv3util
 from fv3fit.sklearn import RenamingAdapter, StackingAdapter
 
 logging.basicConfig(level=logging.DEBUG)
@@ -245,7 +244,7 @@ if __name__ == "__main__":
 
     config = runtime.get_config()
     partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
-    diag_files = fv3util.get_diagnostic_files(config, partitioner, comm)
+    diag_files = runtime.get_diagnostic_files(config, partitioner, comm)
 
     for i, (time, diagnostics) in enumerate(MonitoredTimeLoop(comm=comm)):
         for diag_file in diag_files:
