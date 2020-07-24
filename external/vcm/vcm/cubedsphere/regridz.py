@@ -32,6 +32,7 @@ def regrid_to_common_pressure(
     delp: xr.DataArray,
     coord_z_center: str = "pfull",
     output_pressure=PRESSURE_GRID,
+    new_vertical_dim: str = "pressure"
 ) -> xr.DataArray:
     """Regrid an atmospheric field to a fixed set of pressure levels
 
@@ -49,7 +50,7 @@ def regrid_to_common_pressure(
         field,
         np.array(output_pressure),
         pressure_at_midpoint_log(delp, dim=coord_z_center),
-        output_dim="pressure",
+        output_dim=new_vertical_dim,
         original_dim=coord_z_center,
     )
 
