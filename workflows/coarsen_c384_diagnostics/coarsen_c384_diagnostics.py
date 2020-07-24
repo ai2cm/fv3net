@@ -76,8 +76,10 @@ def coarsen_c384_diagnostics(args):
     )
 
     diags_coarsened = diags_coarsened.unify_chunks()
-    diags_coarsened = diags_coarsened.chunk(coarsen_diags_config["rechunk"])
-    logging.info(f"Done rechunking dataset.")
+    if coarsen_diags_config.get("rechunk") is not None:
+        diags_coarsened = diags_coarsened.chunk(coarsen_diags_config["rechunk"])
+        logging.info(f"Done rechunking dataset.")
+    logging.info(f"Starting to write coarsened diagnostics locally.")
     diags_coarsened.to_zarr(COARSENED_DIAGS_ZARR_NAME, mode="w", consolidated=True)
     logging.info(f"Done writing coarsened diagnostics locally.")
     gsutil.copy(COARSENED_DIAGS_ZARR_NAME, output_path)
