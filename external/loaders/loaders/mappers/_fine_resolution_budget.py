@@ -27,7 +27,6 @@ NEW_NAMES = {
     "delp": "pressure_thickness",
     "sphum": "specific_humidity",
     "qv_dt_fv_sat_adj_coarse": "specific_humidity_saturation_adjustment",
-    "qv_dt_nudge_coarse": "specific_humidity_nudging",
     "qv_dt_phys_coarse": "specific_humidity_physics",
     "eddy_flux_vulcan_omega_sphum": "specific_humidity_unresolved_flux",
     "sphum": "specific_humidity",

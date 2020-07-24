@@ -35,9 +35,6 @@ budget_ds_input = xr.Dataset(
         qv_dt_fv_sat_adj_coarse=xr.DataArray(
             [[2.0e-6, 3.0e-6]], coords, ["x", "p"], attrs={"units": "kg/kg/s"}
         ),
-        qv_dt_nudge_coarse=xr.DataArray(
-            [[2.0e-6, 3.0e-6]], coords, ["x", "p"], attrs={"units": "kg/kg/s"}
-        ),
         sphum_storage=xr.DataArray(
             [[2.0e-6, 3.0e-6]], coords, ["x", "p"], attrs={"units": "kg/kg/s"}
         ),
