@@ -1,6 +1,15 @@
 import logging
 from datetime import datetime
-from typing import Hashable, Iterable, Mapping, MutableMapping, Tuple, cast, List
+from typing import (
+    Hashable,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Tuple,
+    cast,
+    List,
+    Sequence,
+)
 
 import fsspec
 import xarray as xr
@@ -224,17 +233,27 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         self._fv3gfs.cleanup()
 
 
-class MonitoredTimeLoop(TimeLoop):
+class MonitoredPhysicsTimeLoop(TimeLoop):
+    def __init__(self, tendency_variables: Sequence[str], *args, **kwargs):
+        """
+
+        Args:
+            tendency_variables: a list of variables to compute the physics
+                tendencies of.
+                
+        """
+        super().__init__(*args, **kwargs)
+        self._variables = tendency_variables
+
     def _step_physics(self) -> Mapping[str, xr.DataArray]:
-        keys = ["specific_humidity", "air_temperature"]
-        before = {key: self._state[key] for key in keys}
+        before = {key: self._state[key] for key in self._variables}
         super()._step_physics()
-        after = {key: self._state[key] for key in keys}
+        after = {key: self._state[key] for key in self._variables}
 
         tendency = {
             f"tendency_of_{key}_due_to_fv3_physics": (after[key] - before[key])
             / self._timestep
-            for key in keys
+            for key in self._variables
         }
         return tendency
 
@@ -246,6 +265,13 @@ if __name__ == "__main__":
     partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
     diag_files = runtime.get_diagnostic_files(config, partitioner, comm)
 
-    for i, (time, diagnostics) in enumerate(MonitoredTimeLoop(comm=comm)):
+    loop = MonitoredPhysicsTimeLoop(
+        tendency_variables=config.get("scikit_learn", {}).get(
+            "physics_tendency_vars", []
+        ),
+        comm=comm,
+    )
+
+    for time, diagnostics in loop:
         for diag_file in diag_files:
             diag_file.observe(time, diagnostics)

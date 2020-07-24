@@ -160,12 +160,5 @@ def get_diagnostic_files(
     else:
         # Keep old behavior for backwards compatiblity
         output_name = config["scikit_learn"]["zarr_output"]
-        return [
-            DiagnosticFile(
-                name=output_name,
-                variables=All(),
-                times=All(),
-                partitioner=partitioner,
-                comm=comm,
-            )
-        ]
+        default_config = {"name": output_name, "times": {}, "variables": All()}
+        return [_config_to_diagnostic_file(default_config, partitioner, comm)]
