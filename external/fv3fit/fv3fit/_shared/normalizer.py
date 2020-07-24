@@ -1,12 +1,57 @@
 from typing import BinaryIO
 import tensorflow.keras.layers as layers
+import tensorflow as tf
 import numpy as np
+
+
+class Scale(layers.Layer):
+    """x -> (x - mean) / std"""
+
+    def __init__(self, *, mean, std):
+        super().__init__()
+        self.mean = tf.constant(mean)
+        self.std = tf.constant(std)
+
+    def call(self, inputs):
+        return tf.transpose(
+            layers.multiply(
+                [layers.subtract([tf.transpose(inputs), self.mean]), 1.0 / self.std]
+            )
+        )
+
+    def get_config(self):
+        return {
+            "mean": tf.make_ndarray(tf.make_tensor_proto(self.mean)),
+            "std": tf.make_ndarray(tf.make_tensor_proto(self.std)),
+        }
+
+
+class InverseScale(layers.Layer):
+    """x -> x * std + mean"""
+
+    def __init__(self, *, mean, std):
+        super().__init__()
+        self.mean = tf.constant(mean)
+        self.std = tf.constant(std)
+
+    def call(self, inputs):
+        return tf.transpose(
+            layers.add([layers.multiply([tf.transpose(inputs), self.std]), self.mean])
+        )
+
+    def get_config(self):
+        return {
+            "mean": tf.make_ndarray(tf.make_tensor_proto(self.mean)),
+            "std": tf.make_ndarray(tf.make_tensor_proto(self.std)),
+        }
 
 
 class StandardScaler:
     def __init__(self):
         self.mean = None
         self.std = None
+        self._transform_layer = None
+        self._inverse_transform_layer = None
 
     def fit(self, X):
         self.mean = X.mean(axis=0).astype(np.float32)
@@ -18,15 +63,17 @@ class StandardScaler:
     def inverse_transform(self, X):
         return X * self.std + self.mean
 
-    def transform_layer(self, layer: layers.Layer) -> layers.Layer:
-        return layers.multiply(
-            [layers.subtract([layer, self.mean[None, :]]), 1.0 / self.std[None, :]]
-        )
+    @property
+    def transform_layer(self) -> layers.Layer:
+        if self._transform_layer is None:
+            self._transform_layer = Scale(mean=self.mean, std=self.std)
+        return self._transform_layer
 
-    def inverse_transform_layer(self, layer: layers.Layer) -> layers.Layer:
-        return layers.add(
-            [layers.multiply([layer, self.std[None, :]]), self.mean[None, :]]
-        )
+    @property
+    def inverse_transform_layer(self) -> layers.Layer:
+        if self._inverse_transform_layer is None:
+            self._inverse_transform_layer = InverseScale(mean=self.mean, std=self.std)
+        return self._inverse_transform_layer
 
     def dump(self, f: BinaryIO):
         return np.savez(f, mean=self.mean, std=self.std)

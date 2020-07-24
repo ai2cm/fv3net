@@ -55,7 +55,7 @@ class Model(abc.ABC):
         super().__init__()
 
     @abc.abstractmethod
-    def fit(self, X: Sequence[xr.Dataset]) -> None:
+    def fit(self, batches: Sequence[xr.Dataset]) -> None:
         pass
 
     @abc.abstractmethod
