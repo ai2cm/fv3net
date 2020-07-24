@@ -467,3 +467,16 @@ def test_fv3run_checksum_restarts(completed_rundir):
             "Prognostic fv3gfs ran successfully but failed the "
             f"fv_core.res.tile1.nc checksum: {e}"
         )
+
+
+def test_fv3run_diagnostic_outputs(completed_rundir):
+    diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
+    dims = ("time", "rank", "y", "x")
+
+    for variable in [
+        "net_heating",
+        "net_moistening",
+        "physics_precip",
+        "water_vapor_path",
+    ]:
+        assert diagnostics[variable].dims == dims
