@@ -31,7 +31,12 @@ from typing import Dict, Callable, Mapping
 import load_diagnostic_data as load_diags
 import diurnal_cycle
 import transform
-from constants import HORIZONTAL_DIMS, DiagArg
+from constants import (
+    HORIZONTAL_DIMS,
+    DiagArg,
+    GLOBAL_AVERAGE_DYCORE_VARS,
+    GLOBAL_AVERAGE_PHYSICS_VARS,
+)
 
 import logging
 
@@ -178,6 +183,7 @@ def rms_errors(resampled, verification_c48, grid):
 @add_to_diags("dycore")
 @diag_finalizer("global_avg")
 @transform.apply("resample_time", "3H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def global_averages_dycore(resampled, verification, grid):
     logger.info("Preparing global averages for dycore variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
@@ -190,6 +196,7 @@ def global_averages_dycore(resampled, verification, grid):
 @add_to_diags("physics")
 @diag_finalizer("global_phys_avg")
 @transform.apply("resample_time", "3H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
 def global_averages_physics(resampled, verification, grid):
     logger.info("Preparing global averages for physics variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
@@ -202,6 +209,7 @@ def global_averages_physics(resampled, verification, grid):
 @add_to_diags("physics")
 @diag_finalizer("bias_global_physics")
 @transform.apply("resample_time", "3H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
 def global_biases_physics(resampled, verification, grid):
     logger.info("Preparing global average biases for physics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
