@@ -13,6 +13,7 @@ from typing import Mapping, Sequence, Tuple
 
 import diagnostics_utils as utils
 import loaders
+from vcm import safe
 from vcm.cloud import get_fs
 from ._mapper import SklearnPredictionMapper
 from ._metrics import calc_metrics
@@ -76,28 +77,14 @@ def _write_nc(ds: xr.Dataset, output_dir: str, output_file: str):
 
 def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
     logger.info("Calculating metrics mean and stddev over batches...")
-    scalar_metrics = {
+    metrics = {
         var: {
             "mean": np.mean(ds_metrics[var].values),
             "std": np.std(ds_metrics[var].values),
         }
         for var in ds_metrics.data_vars
-        if "scalar" in var
     }
-    vertical_profile_metrics = {
-        var: {
-            "mean": list(ds_metrics[var].mean(dim=["batch"]).values),
-            "std": list(ds_metrics[var].std(dim=["batch"]).values),
-        }
-        for var in ds_metrics.data_vars
-        if "pressure_level" in var
-    }
-    pressure_coords = ds_metrics["pressure"].values
-    return {
-        **scalar_metrics,
-        **vertical_profile_metrics,
-        "pressure_coords": list(pressure_coords),
-    }
+    return metrics
 
 
 def _compute_diags_over_batches(
@@ -138,6 +125,15 @@ def _compute_diags_over_batches(
     return ds_diagnostics, ds_diurnal, ds_metrics
 
 
+def _move_array_metrics_into_diags(ds_diagnostics, ds_metrics):
+    # moves the metrics with dimensions in diags so they're saved as netcdf
+    metrics_arrays_vars = [var for var in ds_metrics.data_vars if "scalar" not in var]
+    ds_metrics_arrays = safe.get_variables(ds_metrics, metrics_arrays_vars)
+    ds_diagnostics = ds_diagnostics.merge(ds_metrics_arrays)
+    ds_metrics = ds_metrics.drop(metrics_arrays_vars)
+    return ds_diagnostics, ds_metrics
+
+
 if __name__ == "__main__":
 
     logger.info("Starting diagnostics routine.")
@@ -176,6 +172,9 @@ if __name__ == "__main__":
     # compute diags
     ds_diagnostics, ds_diurnal, ds_metrics = _compute_diags_over_batches(
         ds_batches, grid
+    )
+    ds_diagnostics, ds_metrics = _move_array_metrics_into_diags(
+        ds_diagnostics, ds_metrics
     )
 
     # write diags and diurnal datasets
