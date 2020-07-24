@@ -1,6 +1,5 @@
 from typing import Any, Sequence, Container
 from datetime import datetime, timedelta
-import random
 
 
 # TODO rename and perhaps simplify this object hierarchy
@@ -12,7 +11,8 @@ class All(Container):
 
 
 class SelectedTimes(Container[datetime]):
-    TIME_FMT = r"%Y%m%d.%H%M%S" 
+    TIME_FMT = r"%Y%m%d.%H%M%S"
+
     def __init__(self, d):
         self._d = d
 

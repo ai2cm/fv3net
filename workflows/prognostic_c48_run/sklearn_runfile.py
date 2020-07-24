@@ -4,7 +4,6 @@ from typing import Hashable, Iterable, Mapping, MutableMapping, Tuple, cast, Lis
 
 import fsspec
 import xarray as xr
-import zarr
 from mpi4py import MPI
 from sklearn.externals import joblib
 
@@ -155,7 +154,9 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         self._timestep = timestep
         self._log_info(f"Timestep: {timestep}")
 
-        self._do_only_diagnostic_ml: bool = args["scikit_learn"].get("diagnostic_ml", False)
+        self._do_only_diagnostic_ml: bool = args["scikit_learn"].get(
+            "diagnostic_ml", False
+        )
 
         # download the scikit-learn model
         self._log_info("Downloading Sklearn Model")
