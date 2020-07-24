@@ -243,29 +243,10 @@ class MonitoredTimeLoop(TimeLoop):
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
-    diagnostics_config = runtime.DiagnosticConfig(runtime.get_config())
     config = runtime.get_config()
     partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
-
-    writers = {}
-    for diag_file in diagnostics_config.diagnostics:
-        writers[diag_file.name] = fv3util.ZarrMonitor(
-            diag_file.name, partitioner, mpi_comm=comm
-        )
+    diag_files = fv3util.get_diagnostic_files(config, partitioner, comm)
 
     for i, (time, diagnostics) in enumerate(MonitoredTimeLoop(comm=comm)):
-        for diag_file in diagnostics_config.diagnostics:
-            quantities = {
-                # need units for from_data_array to work
-                key: fv3util.Quantity.from_data_array(
-                    diagnostics[key].assign_attrs(units="unknown")
-                )
-                for key in diagnostics
-                if key in diag_file.variables
-            }
-
-            # patch this in manually. the ZarrMonitor needs it.
-            # We should probably modify this behavior.
-            quantities["time"] = time
-            monitor = writers[diag_file.name]
-            monitor.store(quantities)
+        for diag_file in diag_files:
+            diag_file.observe(time, diagnostics)
