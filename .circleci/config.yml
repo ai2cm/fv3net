@@ -63,6 +63,14 @@ jobs:
       - image: circleci/python:3.7
     steps:
       - checkout
+      - add_ssh_keys:
+          fingerprints:
+            - "e0:af:32:36:b7:31:d1:5f:aa:d2:35:d8:09:b8:92:54"
+      - run: sudo apt-get install -y make jq
+      - run:
+          name: "Pull submodules"
+          command: |
+            git submodule update --init --recursive
       - attach_workspace:
           at: /tmp/workspace
       - run: sudo pip install coverage
