@@ -55,13 +55,15 @@ def calc_metrics(
     }
 
     ds = _insert_weights(ds, vertical_dim, area_var, delp_var)
+    area_weights = ds[area_var] / (ds[area_var].mean())
+    delp_weights = ds[delp_var] / ds[delp_var].mean(vertical_dim)
 
     # scalar quantity metrics calculated for 2d column integrated vars
     scalar_metrics_column_integrated_vars = _calc_same_dims_metrics(
         ds,
         dim_tag="scalar",
         vars=COLUMN_INTEGRATED_METRIC_VARS,
-        weight_vars=[f"{area_var}_weights"],
+        weights=[area_weights],
         mean_dim_vars=None,
         **derivation_kwargs,
     )
@@ -72,7 +74,7 @@ def calc_metrics(
         ds,
         dim_tag="scalar",
         vars=PRESSURE_LEVEL_METRIC_VARS,
-        weight_vars=[f"{area_var}_weights", f"{delp_var}_weights"],
+        weights=[area_weights, delp_weights],
         mean_dim_vars=None,
         **derivation_kwargs,
     )
@@ -85,7 +87,7 @@ def calc_metrics(
         ds_regrid_z,
         dim_tag="pressure_level",
         vars=PRESSURE_LEVEL_METRIC_VARS,
-        weight_vars=[f"{area_var}_weights"],
+        weights=[area_weights],
         mean_dim_vars=vertical_profile_mean_dims,
         **derivation_kwargs,
     )
@@ -132,7 +134,7 @@ def _calc_same_dims_metrics(
     ds: xr.Dataset,
     dim_tag: str,
     vars: Sequence[str],
-    weight_vars: Sequence[str] = None,
+    weights: Sequence[xr.DataArray] = None,
     mean_dim_vars: Sequence[str] = None,
     predict_coord: str = PREDICT_COORD,
     target_coord: str = TARGET_COORD,
@@ -155,10 +157,7 @@ def _calc_same_dims_metrics(
     Returns:
         dataset of metrics
     """
-    if weight_vars:
-        weights = [ds[var] for var in weight_vars]
-    else:
-        weights = [1.0]
+    weights = weights or [1.0]
     metric_comparison_coords = [(target_coord, predict_coord), (target_coord, "mean")]
     ds = _insert_means(
         ds, vars, predict_coord, target_coord, derivation_dim, weights, mean_dim_vars

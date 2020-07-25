@@ -45,12 +45,12 @@ def area():
 
 def test__calc_same_dims_metrics(ds_mock, area):
     ds = xr.merge([area, ds_mock])
-    ds["area_weights"] = area / (area.mean())
+    area_weights = area / (area.mean())
     batch_metrics = _calc_same_dims_metrics(
         ds,
         dim_tag="scalar",
         vars=["column_integrated_dQ1", "column_integrated_dQ2"],
-        weight_vars=["area_weights"],
+        weights=[area_weights],
         mean_dim_vars=None,
     )
     for var in list(batch_metrics.data_vars):
