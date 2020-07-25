@@ -42,14 +42,13 @@ def reduce_to_diagnostic(
     """
 
     ds = ds.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
-    ds = insert_column_integrated_vars(ds, primary_vars)
     ds = _rechunk_time_z(ds)
 
     grid = grid.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
     if any(["net_precipitation" in category for category in domains]):
         net_precipitation_type_array = snap_mask_to_type(
-            ds["net_precipitation"].sel(derivation=DERIVATION_DIM),
+            ds["net_precipitation"].sel({DERIVATION_DIM: "coarsened_SHiELD"}),
             NET_PRECIPITATION_ENUMERATION,
             np.greater_equal,
         )
@@ -221,7 +220,7 @@ def snap_mask_to_type(
     
     """
 
-    boolean_func_kwargs = boolean_func_kwargs or {"atol": 1e-7}
+    boolean_func_kwargs = boolean_func_kwargs or {}
 
     types = np.full(float_mask.values.shape, np.nan)
     for type_name, type_number in enumeration.items():

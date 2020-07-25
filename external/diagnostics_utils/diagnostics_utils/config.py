@@ -12,12 +12,12 @@ NET_PRECIPITATION_ENUMERATION = {
     "negative_net_precipitation": -np.inf,
     "positive_net_precipitation": 0,
 }
-DOMAINS = [
+DOMAINS = (
     "land",
     "sea",
     "global",
     "positive_net_precipitation",
     "negative_net_precipitation",
-]
+)
 
 PRIMARY_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
