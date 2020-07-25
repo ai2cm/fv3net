@@ -24,7 +24,6 @@ NEW_NAMES = {
     "eddy_flux_vulcan_omega_temp": "air_temperature_unresolved_flux",
     "T_vulcan_omega_coarse": "air_temperature_total_resolved_flux",
     "T_storage": "air_temperature_storage",
-    "delp": "pressure_thickness",
     "sphum": "specific_humidity",
     "qv_dt_fv_sat_adj_coarse": "specific_humidity_saturation_adjustment",
     "qv_dt_phys_coarse": "specific_humidity_physics",
@@ -33,7 +32,6 @@ NEW_NAMES = {
     "sphum_vulcan_omega_coarse": "specific_humidity_total_resolved_flux",
     "sphum_storage": "specific_humidity_storage",
     "vulcan_omega_coarse": "omega",
-    "p": "z",
 }
 
 
@@ -131,6 +129,7 @@ class FineResolutionSources(GeoMapper):
         self._time_mapping = fine_resolution_time_mapping
         self._offset_seconds = offset_seconds
         self._rename_vars = rename_vars or {}
+        print(self._rename_vars)
         self._drop_vars = drop_vars
         self._dim_order = dim_order
 
@@ -180,7 +179,7 @@ class FineResolutionSources(GeoMapper):
             budget_time_ds[field],
         )
         budget_time_ds[f"{field}_convergence"] = convergence(
-            eddy_flux, budget_time_ds["pressure_thickness"], dim=vertical_dimension
+            eddy_flux, budget_time_ds["delp"], dim=vertical_dimension
         )
         return budget_time_ds
 
@@ -193,7 +192,7 @@ class FineResolutionSources(GeoMapper):
             "saturation_adjustment",
             "convergence",
         ),
-        vertical_dimension: str = "z",
+        vertical_dimension: str = "pfull",
     ) -> xr.Dataset:
 
         if variable_prefixes is None:
