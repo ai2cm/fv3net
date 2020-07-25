@@ -20,7 +20,7 @@ latest
 * Add nudge-to-obs runfile and argo workflow.
 * Generalize post-processing script and create new post_process_run image.
 * Move plotting routines previously found in :code:`vcm.visualize` and :code:`gallery` into a new package :code:`fv3viz` and remove dependencies between :code:`vcm` and plotting routines.
-
+* Add vertical profiles of RMSE/bias to the offline diagnostics dataset.
 
 0.2.3 (2020-06-19)
 ------------------

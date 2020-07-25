@@ -55,16 +55,13 @@ def _open_config(config_path: str) -> Mapping:
     return datasets_config
 
 
-def _compute_diags_from_batches(
-    ds_batches: xr.Dataset,
-    grid: xr.Dataset
-) -> xr.Dataset:
-    
+def _compute_diags_from_batches(ds_batches: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
+
     ds = xr.concat(ds_batches, dim=TIME_DIM)
     ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
         utils.insert_column_integrated_vars
     )
-    
+
     return utils.reduce_to_diagnostic(ds, grid)
 
 
@@ -107,7 +104,9 @@ if __name__ == "__main__":
             **batch_kwargs,
         )
         logger.info(f"Finished batching dataset: {dataset_name}.")
-        diagnostic_datasets[dataset_name] = _compute_diags_from_batches(ds_batches, grid)
+        diagnostic_datasets[dataset_name] = _compute_diags_from_batches(
+            ds_batches, grid
+        )
         logger.info(f"Finished processing dataset: {dataset_name}.")
 
     diagnostics_all = xr.concat(

@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 UNINFORMATIVE_COORDS = ["tile", "z", "y", "x"]
 TIME_DIM = "time"
 DERIVATION_DIM = "derivation"
+PRESSURE_DIM = "pressure"
+VERTICAL_DIM = "z"
 
 
 def reduce_to_diagnostic(
@@ -44,15 +46,13 @@ def reduce_to_diagnostic(
     ds = _rechunk_time_z(ds)
 
     grid = grid.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
-    surface_type_array = values_da_to_type(
-        grid[VARNAMES["surface_type"]],
-        SURFACE_TYPE_ENUMERATION,
-        np.isclose,
-        boolean_func_kwargs={"atol": 1e-7},
-    )
-
+    surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
     if any(["net_precipitation" in category for category in domains]):
-        net_precipitation_type_array = _net_precipitation_type(ds)
+        net_precipitation_type_array = snap_mask_to_type(
+            ds["net_precipitation"].sel(derivation=DERIVATION_DIM),
+            NET_PRECIPITATION_ENUMERATION,
+            np.greater_equal,
+        )
 
     domain_datasets = {}
     for category in domains:
@@ -132,18 +132,6 @@ def _rechunk_time_z(
     return ds.chunk(chunks)
 
 
-def _net_precipitation_type(ds: xr.Dataset) -> xr.DataArray:
-
-    net_precipitation_SHiELD = ds["net_precipitation"].sel(
-        {DERIVATION_DIM: "coarsened_SHiELD"}
-    )
-    net_precipitation_type_array = values_da_to_type(
-        net_precipitation_SHiELD, NET_PRECIPITATION_ENUMERATION, np.greater_equal
-    )
-
-    return net_precipitation_type_array
-
-
 def conditional_average(
     ds: Union[xr.Dataset, xr.DataArray],
     cell_type_array: xr.DataArray,
@@ -213,16 +201,16 @@ def weighted_average(
     )
 
 
-def values_da_to_type(
-    da: xr.DataArray,
-    enumeration: Mapping[str, float],
-    boolean_func: Callable[..., np.ndarray],
+def snap_mask_to_type(
+    float_mask: xr.DataArray,
+    enumeration: Mapping[str, float] = SURFACE_TYPE_ENUMERATION,
+    boolean_func: Callable[..., np.ndarray] = np.isclose,
     boolean_func_kwargs: Mapping[str, Any] = None,
 ) -> xr.DataArray:
     """Convert float surface type array to categorical surface type array
     
     Args:
-        da: xr.DataArray of numerical values
+        float_mask: xr.DataArray of numerical values
         enumeration: mapping of categorical string types to array values
         boolean_func: callable used to map a numerical array to a boolean array
             for a particular value, e.g., np.isclose(arr, value)
@@ -233,16 +221,16 @@ def values_da_to_type(
     
     """
 
-    boolean_func_kwargs = boolean_func_kwargs or {}
+    boolean_func_kwargs = boolean_func_kwargs or {"atol": 1e-7}
 
-    types = np.full(da.values.shape, np.nan)
+    types = np.full(float_mask.values.shape, np.nan)
     for type_name, type_number in enumeration.items():
         types = np.where(
-            boolean_func(da.values, type_number, **boolean_func_kwargs),
+            boolean_func(float_mask.values, type_number, **boolean_func_kwargs),
             type_name,
             types,
         )
 
-    type_da = xr.DataArray(types, da.coords, da.dims)
+    type_da = xr.DataArray(types, float_mask.coords, float_mask.dims)
 
     return type_da
