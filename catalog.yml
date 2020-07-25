@@ -147,7 +147,7 @@ sources:
       consolidated: True
       
   40day_c48_gfsphysics_15min_may2020:
-    description: Set of physics diagnostic variables to compute net heating and precipitation, for 40-day nudged simulation at C48 resolution (May 27 2020 SHiELD)
+    description: 2D physics diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution and rechunked to 96 15-minute timesteps (1 day) per chunk
     driver: zarr
     args:
       storage_options:

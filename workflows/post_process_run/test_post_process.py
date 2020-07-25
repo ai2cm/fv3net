@@ -1,8 +1,9 @@
 import os
 import numpy as np
 import xarray as xr
-from post_process import parse_rundir, process_item, open_tiles, get_chunks
+from post_process import parse_rundir, process_item, open_tiles, get_chunks, cast_time
 import tempfile
+from datetime import datetime
 
 TEST_CHUNKS = {"a.zarr": {"time": 5}}
 
@@ -113,3 +114,18 @@ def test_get_chunks():
     output = get_chunks(TEST_CHUNKS)
     for key in TEST_CHUNKS:
         assert output[key] == TEST_CHUNKS[key]
+
+
+def test_cast_time_no_coord():
+    ds_no_coord = xr.Dataset({"a": (["time", "x"], np.ones((1, 10)))})
+    output_no_coord = cast_time(ds_no_coord)
+    xr.testing.assert_allclose(ds_no_coord, output_no_coord)
+
+
+def test_cast_time_with_coord():
+    ds_with_coord = xr.Dataset(
+        {"a": (["time", "x"], np.ones((1, 10)))},
+        coords={"time": [datetime(2016, 8, 1)]},
+    )
+    output_with_coord = cast_time(ds_with_coord)
+    assert isinstance(output_with_coord.time.values[0], np.datetime64)

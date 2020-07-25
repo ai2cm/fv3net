@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 import argparse
+import sys
 import yaml
 import xarray as xr
 
@@ -20,17 +21,23 @@ from vcm.cubedsphere.constants import (
 from vcm.cloud.fsspec import get_fs
 from fv3net import COARSENED_DIAGS_ZARR_NAME
 
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(
+    logging.Formatter("%(name)s %(asctime)s: %(module)s/L%(lineno)d %(message)s")
+)
+handler.setLevel(logging.INFO)
+logging.basicConfig(handlers=[handler], level=logging.INFO)
 logging.basicConfig(level=logging.INFO)
 
 
 def coarsen_c384_diagnostics(args):
 
     coarsen_diags_config = _get_config(args.config_path)
-    #     zarr_suffix = coarsen_diags_config["output_filename"]
     output_path = os.path.join(args.output_path, COARSENED_DIAGS_ZARR_NAME)
     hires_data_vars = coarsen_diags_config["hi-res-data-vars"]
+    logging.info(f"Opening C384 diagnostics at: {args.input_path}.")
     diags = _get_remote_diags(args.input_path)
-    logging.info(f"Size of diagnostic data:  {diags.nbytes / 1e9:.2f} GB")
+    logging.info(f"Size of diagnostic data: {diags.nbytes / 1e9:.2f} GB")
     coarsening_factor = 384 // coarsen_diags_config["target_resolution"]
 
     # rename the dimensions appropriately
@@ -64,11 +71,19 @@ def coarsen_c384_diagnostics(args):
         y_dim=COORD_Y_CENTER,
         coarsening_factor=coarsening_factor,
     )
+    logging.info(
+        f"Done coarsening diagnostics to C{coarsen_diags_config['target_resolution']}."
+    )
 
     diags_coarsened = diags_coarsened.unify_chunks()
+    if coarsen_diags_config.get("rechunk") is not None:
+        diags_coarsened = diags_coarsened.chunk(coarsen_diags_config["rechunk"])
+        logging.info(f"Done rechunking dataset.")
+    logging.info(f"Starting to write coarsened diagnostics locally.")
     diags_coarsened.to_zarr(COARSENED_DIAGS_ZARR_NAME, mode="w", consolidated=True)
+    logging.info(f"Done writing coarsened diagnostics locally.")
     gsutil.copy(COARSENED_DIAGS_ZARR_NAME, output_path)
-    logging.info(f"Done writing coarsened diagnostics zarr to {output_path}")
+    logging.info(f"Done copy coarsened diagnostics zarr to {output_path}")
     shutil.rmtree(COARSENED_DIAGS_ZARR_NAME)
 
 
