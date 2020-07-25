@@ -37,8 +37,6 @@ TILE_COORDS_FILENAMES = range(1, 7)  # tile numbering in model output filenames
 
 # for use in regridding values to the same vertical grid [Pa]
 PRESSURE_GRID = [
-    100.0,
-    200.0,
     300.0,
     500.0,
     700.0,
