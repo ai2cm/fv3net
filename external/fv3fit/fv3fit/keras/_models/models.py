@@ -8,6 +8,7 @@ import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
 from ..._shared import StandardScaler
+from .loss import get_weighted_loss
 
 logger = logging.getLogger(__file__)
 
@@ -211,5 +212,6 @@ class DenseModel(PackedKerasModel):
         x = tf.keras.layers.Dense(features_out, activation=tf.keras.activations.relu)(x)
         outputs = self.y_scaler.inverse_transform_layer(x)
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
-        model.compile(optimizer="sgd", loss="mse")
+        loss = get_weighted_loss(tf.keras.losses.MSE, self.y_packer, self.y_scaler)
+        model.compile(optimizer="sgd", loss=loss)
         return model

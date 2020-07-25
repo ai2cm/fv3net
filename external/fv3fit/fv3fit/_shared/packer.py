@@ -2,7 +2,6 @@ from typing import Iterable, TextIO, List
 import numpy as np
 import xarray as xr
 import yaml
-import pandas as pd
 
 
 def _unique_dim_name(data):
@@ -38,9 +37,10 @@ class ArrayPacker:
         Args:
             names: variable names to pack.
         """
-        self._indices = None
         self._names = list(names)
+        self._n_features = None
         self._sample_dim_name = sample_dim_name
+        self._dims = {}
 
     @property
     def names(self) -> List[str]:
@@ -52,28 +52,56 @@ class ArrayPacker:
         """name of sample dimension"""
         return self._sample_dim_name
 
+    @property
+    def _total_features(self):
+        return sum(self._n_features[name] for name in self._names)
+
     def to_array(self, dataset: xr.Dataset) -> np.ndarray:
-        packed, indices = pack(
-            dataset[self.names], self._sample_dim_name
-        )  # type: ignore
-        if self._indices is None:
-            self._indices = indices
-        return packed
+        if self._n_features is None:
+            self._n_features = count_features(
+                self.names, dataset, self._sample_dim_name
+            )
+            for name in self.names:
+                self._dims[name] = dataset[name].dims
+        n_samples = dataset.dims[self.sample_dim_name]
+        array = np.empty([n_samples, self._total_features])
+        i_start = 0
+        for name in self.names:
+            n_features = self._n_features[name]
+            if n_features > 1:
+                array[:, i_start : i_start + n_features] = dataset[name]
+            else:
+                array[:, i_start] = dataset[name]
+            i_start += n_features
+        return array
 
     def to_dataset(self, array: np.ndarray) -> xr.Dataset:
-        if self._indices is None:
+        if self._n_features is None:
             raise RuntimeError(
                 "must pack at least once before unpacking, "
                 "so dimension lengths are known"
             )
-        return unpack(array, self._sample_dim_name, self._indices)
+        data_vars = {}
+        i_start = 0
+        for name in self.names:
+            n_features = self._n_features[name]
+            if n_features > 1:
+                data_vars[name] = (
+                    self._dims[name],
+                    array[:, i_start : i_start + n_features],
+                )
+            else:
+                data_vars[name] = (self._dims[name], array[:, i_start])
+            i_start += n_features
+        return xr.Dataset(data_vars)
 
     def dump(self, f: TextIO):
         return yaml.safe_dump(
             {
-                "indices": _multiindex_to_serializable(self._indices),
+                "n_features": self._n_features,
                 "names": self._names,
                 "sample_dim_name": self._sample_dim_name,
+                "dims": self._dims,
             },
             f,
         )
@@ -82,20 +110,27 @@ class ArrayPacker:
     def load(cls, f: TextIO):
         data = yaml.safe_load(f.read())
         packer = cls(data["sample_dim_name"], data["names"])
-        packer._indices = _multiindex_from_serializable(data["indices"])
+        packer._n_features = data["n_features"]
+        packer._dims = data["dims"]
         return packer
 
 
-def _multiindex_to_serializable(multiindex: pd.MultiIndex) -> dict:
-    """Convert a pandas MultiIndex into something that can be serialized to yaml"""
-    return {
-        "tuples": tuple(multiindex.to_native_types()),
-        "names": tuple(multiindex.names),
-    }
-
-
-def _multiindex_from_serializable(data: dict) -> pd.MultiIndex:
-    """Convert serializable yaml to a pandas MultiIndex"""
-    return pd.MultiIndex.from_tuples(
-        [[name, int(value)] for name, value in data["tuples"]], names=data["names"]
-    )
+def count_features(names, dataset, sample_dim_name):
+    return_dict = {}
+    for name in names:
+        value = dataset[name]
+        if len(value.dims) == 1 and value.dims[0] == sample_dim_name:
+            return_dict[name] = 1
+        elif len(value.dims) != 2:
+            raise ValueError(
+                "on first pack can only pack 2D variables, recieved value "
+                f"for {name} with dimensions {value.dims}"
+            )
+        elif value.dims[0] != sample_dim_name:
+            raise ValueError(
+                f"cannot pack value for {name} whose first dimension is not the "
+                f"sample dimension ({sample_dim_name}), has dims {value.dims}"
+            )
+        else:
+            return_dict[name] = value.shape[1]
+    return return_dict
