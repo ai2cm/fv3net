@@ -16,7 +16,7 @@ from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags.compute_diags import (
     _average_metrics_dict,
     _compute_diags_over_batches,
-    _move_array_metrics_into_diags,
+    _consolidate_dimensioned_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -309,7 +309,7 @@ def test_compute_offline_diags(
     ds_diagnostics, ds_diurnal, ds_metrics = _compute_diags_over_batches(
         diagnostic_batches, grid_dataset
     )
-    ds_diagnostics, ds_metrics = _move_array_metrics_into_diags(
+    ds_diagnostics, ds_metrics = _consolidate_dimensioned_data(
         ds_diagnostics, ds_metrics
     )
 
