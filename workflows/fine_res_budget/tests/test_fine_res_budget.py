@@ -84,11 +84,11 @@ def test_run(tmpdir):
     n = 48
 
     diag_selectors = dict(
-        time=[0, 1], grid_xt_coarse=slice(0, n), grid_yt_coarse=slice(0, n)
+        tile=[0], time=[0, 1], grid_xt_coarse=slice(0, n), grid_yt_coarse=slice(0, n)
     )
 
     restart_selectors = dict(
-        time=[0, 1, 2], grid_xt=slice(0, n), grid_yt=slice(0, n)
+        tile=[0], time=[0, 1, 2], grid_xt=slice(0, n), grid_yt=slice(0, n)
     )
 
     diag_schema = safe.get_variables(open_schema("diag.json"), variables).isel(
@@ -104,10 +104,9 @@ def test_run(tmpdir):
     restart.to_zarr(restart_path, mode="w")
 
     run(restart_path, diag_path, output_path)
-    run(restart_path, diag_path, ".")
-    
+
     ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
-    
+
     expected_variables = [
         "T",
         "t_dt_fv_sat_adj_coarse",
