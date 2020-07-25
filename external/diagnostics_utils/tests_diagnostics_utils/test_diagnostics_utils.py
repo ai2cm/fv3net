@@ -78,31 +78,50 @@ enumeration = {"land": 1, "sea": 0}
 
 
 @pytest.mark.parametrize(
-    "float_mask,enumeration,atol,expected",
+    "float_mask,enumeration,boolean_func,boolean_func_kwargs,expected",
     [
-        (
+        pytest.param(
             xr.DataArray([1.0, 0.0], dims=["x"]),
             enumeration,
-            1e-7,
+            np.isclose,
+            None,
             xr.DataArray(["land", "sea"], dims=["x"]),
+            id="exact",
         ),
-        (
+        pytest.param(
             xr.DataArray([1.0000001, 0.0], dims=["x"]),
             enumeration,
-            1e-7,
+            np.isclose,
+            None,
             xr.DataArray(["land", "sea"], dims=["x"]),
+            id="within default atol",
         ),
-        (
+        pytest.param(
             xr.DataArray([1.0001, 0.0], dims=["x"]),
             enumeration,
-            1e-7,
+            np.isclose,
+            None,
             xr.DataArray([np.nan, "sea"], dims=["x"]),
+            id="outside default atol",
+        ),
+        pytest.param(
+            xr.DataArray([1.0001, 0.0], dims=["x"]),
+            enumeration,
+            np.isclose,
+            {"atol": 1e-3},
+            xr.DataArray(["land", "sea"], dims=["x"]),
+            id="custom atol",
         ),
     ],
 )
-def test_snap_mask_to_type(float_mask, enumeration, atol, expected):
+def test_snap_mask_to_type(
+    float_mask, enumeration, boolean_func, boolean_func_kwargs, expected
+):
     xr.testing.assert_equal(
-        utils.snap_mask_to_type(float_mask, enumeration, atol), expected
+        utils.snap_mask_to_type(
+            float_mask, enumeration, boolean_func, boolean_func_kwargs
+        ),
+        expected,
     )
 
 
