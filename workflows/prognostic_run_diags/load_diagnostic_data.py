@@ -191,9 +191,14 @@ def _load_prognostic_run_physics_output(url):
 
 
 def _coarsen(ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int) -> xr.Dataset:
-    return vcm.cubedsphere.weighted_block_average(
+    coarse_ds = vcm.cubedsphere.weighted_block_average(
         ds, area, coarsening_factor, x_dim="x", y_dim="y"
     )
+    # restore attributes lost in coarsening procedure
+    for var in ds.data_vars:
+        coarse_ds[var].attrs = ds[var].attrs
+    coarse_ds.attrs = ds.attrs
+    return coarse_ds
 
 
 def _get_coarsening_args(
@@ -231,7 +236,7 @@ def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
 
     # open verification
     logger.info("Opening verification data")
-    verification_c48 = load_verification(["40day_c48_atmos_8xdaily_may2020"], catalog,)
+    verification_c48 = load_verification(["40day_c48_atmos_8xdaily_may2020"], catalog)
 
     # open prognostic run data
     path = os.path.join(url, "atmos_dt_atmos.zarr")
@@ -262,7 +267,9 @@ def load_physics(url: str, catalog: intake.Catalog) -> DiagArg:
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
 
     # open verification
-    verification_c48 = load_verification(["40day_c48_diags_time_avg_may2020"], catalog,)
+    verification_c48 = load_verification(
+        ["40day_c48_gfsphysics_15min_may2020"], catalog
+    )
     verification_c48 = add_derived.physics_variables(verification_c48)
 
     # open prognostic run data
