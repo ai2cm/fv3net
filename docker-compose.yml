@@ -1,3 +1,4 @@
+# this is only for development purposes and integration with visual studio code
 version: '3'
 services:
   fv3:
