@@ -163,6 +163,15 @@ class PackedKerasModel(Model):
             with open(os.path.join(path, self._Y_SCALER_FILENAME), "wb") as f_binary:
                 self.y_scaler.dump(f_binary)
 
+    @property
+    def loss(self):
+        # putting this on a property method is needed so we can save and load models
+        # using custom loss functions. If using a custom function, it must either
+        # be named custom_loss, as used in the load method below,
+        # or it must be registered with keras as a custom object.
+        # See https://github.com/keras-team/keras/issues/5916 for more info
+        return get_weighted_loss(tf.keras.losses.MSE, self.y_packer, self.y_scaler)
+
     @classmethod
     def load(cls, path: str) -> Model:
         with get_dir(path) as path:
@@ -175,12 +184,14 @@ class PackedKerasModel(Model):
             with open(os.path.join(path, cls._Y_SCALER_FILENAME), "rb") as f_binary:
                 y_scaler = StandardScaler.load(f_binary)
             obj = cls(X_packer.sample_dim_name, X_packer.names, y_packer.names)
-            model_filename = os.path.join(path, cls._MODEL_FILENAME)
-            obj._model = tf.keras.models.load_model(model_filename)
             obj.X_packer = X_packer
             obj.y_packer = y_packer
             obj.X_scaler = X_scaler
             obj.y_scaler = y_scaler
+            model_filename = os.path.join(path, cls._MODEL_FILENAME)
+            obj._model = tf.keras.models.load_model(
+                model_filename, custom_objects={"custom_loss": obj.loss}
+            )
             return obj
 
 
@@ -212,6 +223,5 @@ class DenseModel(PackedKerasModel):
         x = tf.keras.layers.Dense(features_out, activation=tf.keras.activations.relu)(x)
         outputs = self.y_scaler.inverse_transform_layer(x)
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
-        loss = get_weighted_loss(tf.keras.losses.MSE, self.y_packer, self.y_scaler)
-        model.compile(optimizer="sgd", loss=loss)
+        model.compile(optimizer="sgd", loss=self.loss)
         return model

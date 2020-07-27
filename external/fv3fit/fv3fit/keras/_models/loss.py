@@ -8,10 +8,10 @@ import tensorflow as tf
 def weighted_loss(weights, loss):
     weights = tf.constant(weights.astype(np.float32))
 
-    def wrapped_loss(y_true, y_pred):
+    def custom_loss(y_true, y_pred):
         return loss(tf.multiply(y_true, weights), tf.multiply(y_pred, weights))
 
-    return wrapped_loss
+    return custom_loss
 
 
 def get_weighted_loss(
