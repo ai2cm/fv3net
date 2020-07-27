@@ -1,0 +1,30 @@
+image: us.gcr.io/vcm-ml/fv3net:3d4f6458613f9d76cc6b6d0b22e884b785b9dbfa
+input: gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_8xdaily_C3072_to_C384.zarr
+output: gs://vcm-ml-experiments/2020-06-17-triad-round-1/coarsen-c384-diagnostics/coarsen_diagnostics
+config: |
+  hi-res-data-vars:
+    - PRESctp
+    - PRESsfc
+    - PRMSL
+    - PWAT
+    - REFC
+    - TB
+    - TMP500_300
+    - UGRDlowest
+    - VGRDlowest
+    - VIL
+    - VORT200
+    - VORT500
+    - VORT850
+    - VVEL5km
+    - h500
+    - iw
+    - u200
+    - v200
+    - w500
+  target_resolution: 48
+  rechunk:
+    tile: 6
+    time: 80
+    grid_xt: 48
+    grid_yt: 48

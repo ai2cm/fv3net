@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: coarsen-c384-diags-
+spec:
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
+  entrypoint: main
+  arguments:
+    parameters:
+      - name: input
+      - name: output
+      - name: config
+      - name: image
+  volumes:
+  - name: gcp-credentials-user-gcp-sa
+    secret:
+      secretName: gcp-key
+  templates:
+  - name: main
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "climate-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: "{{workflow.parameters.image}}"
+      command: ["/bin/bash", "-c"]
+      workingDir: /home/jovyan/fv3net/workflows/coarsen_c384_diagnostics
+      args:
+      - |
+        echo "{{workflow.parameters.config}}" > config.yaml
+        python coarsen_c384_diagnostics.py "{{workflow.parameters.input}}" config.yaml "{{workflow.parameters.output}}"
+      volumeMounts:
+      - mountPath: /secret/gcp-credentials
+        name: gcp-credentials-user-gcp-sa
+      resources:
+        requests:
+          memory: "6Gi"
+          cpu: "1000m"
+        limits:
+          memory: "6Gi"
+          cpu: "1000m"
