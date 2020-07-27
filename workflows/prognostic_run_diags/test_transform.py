@@ -55,3 +55,10 @@ def test_transform_no_input_side_effects(input_args):
 
         for i, ds in enumerate(input_args):
             xr.testing.assert_equal(ds, copied_args[i])
+
+
+def test_subset_variables(input_args):
+    output = transform.subset_variables(["SLMSKsfc", "other_var"], input_args)
+    for i in range(2):
+        assert "SLMSKsfc" in output[i]
+        assert "temperature" not in output[i]
