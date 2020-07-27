@@ -190,24 +190,23 @@ def _load_prognostic_run_physics_output(url):
     return xr.merge(diagnostic_data, join="inner")
 
 
-def _coarsen_prognostic(
-    ds: xr.Dataset, catalog: intake.Catalog, target_res: int
-) -> xr.Dataset:
+def _coarsen(ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int) -> xr.Dataset:
+    return vcm.cubedsphere.weighted_block_average(
+        ds, area, coarsening_factor, x_dim="x", y_dim="y"
+    )
+
+
+def _get_coarsening_args(ds: xr.Dataset, target_res: int) -> (xr.Dataset, int):
+    """Given input dataset and target resolution, return area dataset and
+    coarsening factor"""
     input_res = ds.sizes["x"]
     coarsening_factor = input_res / target_res
     if not coarsening_factor.is_integer():
         raise ValueError("Target resolution must evenly divide input resolution")
-    coarsening_factor = int(coarsening_factor)
-    if coarsening_factor == 1:
-        output = ds
-    else:
-        if input_res not in GRID_ENTRIES:
-            raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
-        area = catalog[GRID_ENTRIES[input_res]].to_dask()["area"]
-        output = vcm.cubedsphere.weighted_block_average(
-            ds, area, coarsening_factor, x_dim="x", y_dim="y"
-        )
-    return output
+    if input_res not in GRID_ENTRIES:
+        raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
+    area = catalog[GRID_ENTRIES[input_res]].to_dask()["area"]
+    return area, int(coarsening_factor)
 
 
 def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
@@ -236,7 +235,8 @@ def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
     path = os.path.join(url, "atmos_dt_atmos.zarr")
     logger.info(f"Opening prognostic run data at {path}")
     ds = _load_standardized(path)
-    ds = _coarsen_prognostic(ds, catalog, target_res=48)
+    area, coarsening_factor = _get_coarsening_args(ds, target_res=48)
+    ds = _coarsen(ds, area, coarsening_factor)
 
     return ds, verification_c48, grid_c48
 
@@ -266,7 +266,8 @@ def load_physics(url: str, catalog: intake.Catalog) -> DiagArg:
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
-    prognostic_output = _coarsen_prognostic(prognostic_output, catalog, target_res=48)
+    area, coarsening_factor = _get_coarsening_args(prognostic_output, target_res=48)
+    prognostic_output = _coarsen(prognostic_output, area, coarsening_factor)
     prognostic_output = add_derived.physics_variables(prognostic_output)
 
     # Add mask information if not present
