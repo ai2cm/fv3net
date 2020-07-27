@@ -1,0 +1,11 @@
+# this is only for development purposes and integration with visual studio code
+version: '3'
+services:
+  fv3:
+    image: us.gcr.io/vcm-ml/prognostic_run
+    volumes:
+      - .:/fv3net
+    environment: 
+      GOOGLE_APPLICATION_CREDENTIALS: /key.json
+      PYTHONPATH: "/fv3net/external/runtime:/fv3net/external/synth:/fv3net"
+    working_dir: /fv3net/workflows/prognostic_c48_run
