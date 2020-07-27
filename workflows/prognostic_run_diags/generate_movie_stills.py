@@ -48,6 +48,8 @@ HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_Q2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
 }
 
+KEEP_VARS = GRID_VARS + list(HEATING_MOISTENING_PLOT_KWARGS.keys())
+
 
 def _catalog():
     TOP_LEVEL_DIR = Path(os.path.abspath(__file__)).parent.parent.parent
@@ -107,11 +109,11 @@ if __name__ == "__main__":
     prognostic, _, grid = load_diags.load_physics(args.url, catalog)
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
     prognostic = prognostic.drop_vars(GRID_VARS, errors="ignore").merge(grid)
-    prognostic = prognostic.load()  # force load
+    prognostic = prognostic[KEEP_VARS].load()  # force load
     T = prognostic.sizes["time"]
     for name, func in _movie_funcs().items():
         logger.info(f"Saving {T} still images for {name} movie to {args.output}")
         filename = os.path.join(args.output, name + FIG_SUFFIX)
         func_args = [(prognostic.isel(time=t), filename.format(t=t)) for t in range(T)]
-        with get_context("spawn").Pool(4) as p:
+        with get_context("spawn").Pool(8) as p:
             p.map(func, func_args)
