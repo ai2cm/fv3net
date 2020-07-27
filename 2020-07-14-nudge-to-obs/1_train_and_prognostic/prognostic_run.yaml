@@ -1,0 +1,13 @@
+base_version: v0.4
+namelist:
+  coupler_nml:
+    days: 10
+    hours: 0
+    minutes: 0
+    seconds: 0
+  diag_manager_nml:
+    flush_nc_files: true
+  fv_core_nml:
+    do_sat_adj: false
+  gfdl_cloud_microphysics_nml:
+    fast_sat_adj: false
