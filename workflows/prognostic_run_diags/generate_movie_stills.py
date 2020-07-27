@@ -38,6 +38,7 @@ _COORD_VARS = {
 }
 
 GRID_VARS = ["area", "lonb", "latb", "lon", "lat"]
+INTERFACE_DIMS = ["xb", "yb"]
 
 HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_pQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
@@ -108,7 +109,12 @@ if __name__ == "__main__":
 
     prognostic, _, grid = load_diags.load_physics(args.url, catalog)
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
-    prognostic = prognostic.drop_vars(GRID_VARS, errors="ignore").merge(grid)
+    prognostic = (
+        prognostic.drop_vars(GRID_VARS, errors="ignore")
+        .drop_dims(INTERFACE_DIMS, errors="ignore")
+        .merge(grid)
+    )
+    logger.info("Forcing computation")
     prognostic = prognostic[KEEP_VARS].load()  # force load
     T = prognostic.sizes["time"]
     for name, func in _movie_funcs().items():
