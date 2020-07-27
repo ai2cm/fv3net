@@ -15,6 +15,7 @@ GLOBAL_AVERAGE_DYCORE_VARS = [
     "TMP500_300",
     "TMPlowest",
     "TMP850",
+    "TMP500",
     "TMP200",
     "w500",
     "h500",
