@@ -196,7 +196,9 @@ def _coarsen(ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int) -> xr.D
     )
 
 
-def _get_coarsening_args(ds: xr.Dataset, target_res: int) -> (xr.Dataset, int):
+def _get_coarsening_args(
+    ds: xr.Dataset, catalog: intake.Catalog, target_res: int
+) -> (xr.Dataset, int):
     """Given input dataset and target resolution, return area dataset and
     coarsening factor"""
     input_res = ds.sizes["x"]
@@ -235,7 +237,7 @@ def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
     path = os.path.join(url, "atmos_dt_atmos.zarr")
     logger.info(f"Opening prognostic run data at {path}")
     ds = _load_standardized(path)
-    area, coarsening_factor = _get_coarsening_args(ds, target_res=48)
+    area, coarsening_factor = _get_coarsening_args(ds, catalog, 48)
     ds = _coarsen(ds, area, coarsening_factor)
 
     return ds, verification_c48, grid_c48
@@ -266,7 +268,7 @@ def load_physics(url: str, catalog: intake.Catalog) -> DiagArg:
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
-    area, coarsening_factor = _get_coarsening_args(prognostic_output, target_res=48)
+    area, coarsening_factor = _get_coarsening_args(prognostic_output, catalog, 48)
     prognostic_output = _coarsen(prognostic_output, area, coarsening_factor)
     prognostic_output = add_derived.physics_variables(prognostic_output)
 
