@@ -20,20 +20,7 @@ function downloadZarr() {
     fi
 }
 
-usage="Usage: entrypoint.sh [ -g grid_spec_path ] rundir output"
-
-while getopts "g:" OPTION; do
-    case $OPTION in
-        g)
-            shift
-            gridSpec=$OPTARG
-        ;;
-        *)
-            echo $usage
-            exit 1
-        ;;
-    esac
-done
+usage="Usage: entrypoint.sh rundir output"
 
 if [[ $# != 2 ]]; then
     echo $usage
@@ -55,14 +42,12 @@ localWorkDir=.cache/$(echo $rundir | md5sum | awk '{print $1}')
 mkdir -p $localWorkDir
 
 cd $localWorkDir
-gridSpec=gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/grid_spec
 
 downloadZarr $1/atmos_dt_atmos.zarr
 downloadZarr $1/sfc_dt_atmos.zarr
-downloadTiles $gridSpec grid_spec
 downloadZarr $1/diags.zarr
 
-[[ -f diags.nc ]] || python $cwd/save_prognostic_run_diags.py --grid-spec ./grid_spec ./ diags.nc
+[[ -f diags.nc ]] || python $cwd/save_prognostic_run_diags.py ./ diags.nc
 python $cwd/metrics.py diags.nc >metrics.json
 
 gsutil cp diags.nc $output/diags.nc

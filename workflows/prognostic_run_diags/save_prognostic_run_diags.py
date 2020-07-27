@@ -245,9 +245,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("url")
     parser.add_argument("output")
-    parser.add_argument(
-        "--grid-spec", default="./grid_spec",
-    )
     parser.add_argument("--catalog", default=CATALOG)
 
     logging.basicConfig(level=logging.INFO)
@@ -259,8 +256,8 @@ if __name__ == "__main__":
 
     catalog = intake.open_catalog(args.catalog)
     input_data = {
-        "dycore": load_diags.load_dycore(args.url, args.grid_spec, catalog),
-        "physics": load_diags.load_physics(args.url, args.grid_spec, catalog),
+        "dycore": load_diags.load_dycore(args.url, catalog),
+        "physics": load_diags.load_physics(args.url, catalog),
     }
 
     # begin constructing diags

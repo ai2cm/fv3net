@@ -96,7 +96,6 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("url", help="Path to rundir")
-    parser.add_argument("grid_spec", help="Path to C384 grid spec (unused)")
     parser.add_argument("output", help="Output location for movie stills")
     args = parser.parse_args()
 
@@ -105,7 +104,7 @@ if __name__ == "__main__":
 
     catalog = intake.open_catalog(CATALOG)
 
-    prognostic, _, grid = load_diags.load_physics(args.url, args.grid_spec, catalog)
+    prognostic, _, grid = load_diags.load_physics(args.url, catalog)
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
     prognostic = prognostic.drop_vars(GRID_VARS, errors="ignore").merge(grid)
     prognostic = prognostic.load()  # force load

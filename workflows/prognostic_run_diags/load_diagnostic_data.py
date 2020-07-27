@@ -143,12 +143,7 @@ def _open_tiles(path):
     return xr.open_mfdataset(path + ".tile?.nc", concat_dim="tile", combine="nested")
 
 
-def load_verification(
-    catalog_keys: List[str],
-    catalog: intake.Catalog,
-    coarsening_factor: int = None,
-    area: xr.DataArray = None,
-) -> xr.Dataset:
+def load_verification(catalog_keys: List[str], catalog: intake.Catalog,) -> xr.Dataset:
 
     """
     Load verification data sources from a catalog and combine for reporting.
@@ -156,33 +151,15 @@ def load_verification(
     Args:
         catalog_keys: catalog sources to load as verification data
         catalog: Intake catalog of available data sources.
-        coarsening_factor (optional): Factor to coarsen the loaded verification data
-        area (optional): Grid cell area data for weighting. Required when
-            coarsening_factor is set.
 
     Returns:
         All specified verification datasources standardized and merged
 
     """
-
-    area = _rename_dims(area)
-
     verif_data = []
     for dataset_key in catalog_keys:
         ds = catalog[dataset_key].to_dask()
         ds = standardize_gfsphysics_diagnostics(ds)
-
-        if coarsening_factor is not None:
-            if area is None:
-                raise ValueError(
-                    "Grid area keyword argument must be provided when"
-                    " coarsening is requested."
-                )
-
-            ds = vcm.cubedsphere.weighted_block_average(
-                ds, area, coarsening_factor, x_dim="x", y_dim="y"
-            )
-
         verif_data.append(ds)
 
     return xr.merge(verif_data, join="outer")
@@ -233,12 +210,11 @@ def _coarsen_prognostic(
     return output
 
 
-def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
+def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
     """Open data required for dycore plots.
 
     Args:
         url: path to prognostic run directory
-        grid_spec: path to C384 grid spec (everything up to .tile?.nc)
         catalog: Intake catalog of available data sources
 
     Returns:
@@ -250,17 +226,11 @@ def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
 
     # open grid
     logger.info("Opening Grid Spec")
-    grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
 
     # open verification
     logger.info("Opening verification data")
-    verification_c48 = load_verification(
-        ["40day_c384_atmos_8xdaily_may2020"],
-        catalog,
-        coarsening_factor=8,
-        area=grid_c384.area,
-    )
+    verification_c48 = load_verification(["40day_c48_atmos_8xdaily_may2020"], catalog,)
 
     # open prognostic run data
     path = os.path.join(url, "atmos_dt_atmos.zarr")
@@ -271,12 +241,11 @@ def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
     return ds, verification_c48, grid_c48
 
 
-def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
+def load_physics(url: str, catalog: intake.Catalog) -> DiagArg:
     """Open data required for physics plots.
 
         Args:
             url: path to prognostic run directory
-            grid_spec: path to C384 grid spec (everything up to .tile?.nc)
             catalog: Intake catalog of available data sources
 
         Returns:
@@ -288,16 +257,10 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
 
     # open grid
     logger.info("Opening Grid Spec")
-    grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
 
     # open verification
-    verification_c48 = load_verification(
-        ["40day_c384_diags_time_avg_may2020"],
-        catalog,
-        coarsening_factor=8,
-        area=grid_c384.area,
-    )
+    verification_c48 = load_verification(["40day_c48_diags_time_avg_may2020"], catalog,)
     verification_c48 = add_derived.physics_variables(verification_c48)
 
     # open prognostic run data
