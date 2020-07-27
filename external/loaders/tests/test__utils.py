@@ -1,3 +1,4 @@
+from datetime import datetime
 import numpy as np
 import pytest
 import xarray as xr
@@ -5,6 +6,7 @@ from loaders._utils import (
     shuffled,
     _get_chunk_indices,
     stack_dropnan_shuffle,
+    add_cosine_zenith_angle,
 )
 
 
@@ -31,9 +33,7 @@ def test_gridded_dataset(request):
 def test_stack_dropnan_shuffle_dims(test_gridded_dataset):
     ds_grid = test_gridded_dataset
     rs = np.random.RandomState(seed=0)
-    ds_train = stack_dropnan_shuffle(
-        init_time_dim_name="initial_time", random_state=rs, ds=ds_grid
-    )
+    ds_train = stack_dropnan_shuffle(random_state=rs, ds=ds_grid)
     assert set(ds_train.dims) == {"sample", "z"}
     assert len(ds_train["z"]) == len(ds_grid.z)
 
@@ -54,13 +54,9 @@ def test_stack_dropnan_shuffle_samples(test_gridded_dataset, num_finite_samples)
 
     if num_finite_samples == 0:
         with pytest.raises(ValueError):
-            ds_train = stack_dropnan_shuffle(
-                init_time_dim_name="initial_time", random_state=rs, ds=ds_grid
-            )
+            ds_train = stack_dropnan_shuffle(random_state=rs, ds=ds_grid)
     else:
-        ds_train = stack_dropnan_shuffle(
-            init_time_dim_name="initial_time", random_state=rs, ds=ds_grid
-        )
+        ds_train = stack_dropnan_shuffle(random_state=rs, ds=ds_grid)
         assert len(ds_train["sample"]) == num_finite_samples
         assert set(ds_train["var"].values.flatten()) == set(finite_samples)
 
@@ -91,3 +87,24 @@ def test_shuffled():
 def test_shuffled_dask():
     dataset = _stacked_dataset("sample").chunk()
     shuffled(dataset, "sample", np.random.RandomState(1))
+
+
+def test_add_cosine_zenith_angle():
+    grid = xr.Dataset(
+        {
+            "lon": xr.DataArray([45.0], dims=["x"], coords={"x": [0]}),
+            "lat": xr.DataArray([45.0], dims=["x"], coords={"x": [0]}),
+        }
+    )
+    ds = xr.Dataset(
+        {
+            "var": xr.DataArray(
+                [[0.0], [0.0]],
+                dims=["time", "x"],
+                coords={"time": [datetime(2020, 7, 6), datetime(2020, 7, 7)], "x": [0]},
+            )
+        }
+    )
+    cos_z_var = "cos_zenith_angle"
+    ds = add_cosine_zenith_angle(grid, cos_z_var, ds)
+    assert set(ds.data_vars) == {"var", cos_z_var}

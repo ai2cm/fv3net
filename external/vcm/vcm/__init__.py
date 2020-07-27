@@ -14,8 +14,9 @@ from .convenience import (
     convert_timestamps,
     cast_to_datetime,
     encode_time,
+    shift_timestamp,
 )
-from .calc import mass_integrate, r2_score, local_time, thermo
+from .calc import mass_integrate, r2_score, local_time, thermo, cos_zenith_angle
 from .calc.thermo import (
     net_heating,
     net_precipitation,
@@ -27,7 +28,6 @@ from .calc.thermo import (
 from ._zarr_mapping import ZarrMapping
 from .coarsen import coarsen_restarts_on_pressure, coarsen_restarts_on_sigma
 from .select import mask_to_surface_type
-from .visualize import plot_cube, mappable_var, plot_cube_axes, pcolormesh_cube
 from .xarray_loaders import open_tiles, open_delayed, open_remote_nc, dump_nc
 from .sampling import train_test_split_sample
 from .utils import update_nested_dict

@@ -2,6 +2,8 @@ channels:
   - defaults
   - conda-forge
 dependencies:
+  - tensorflow=2.2
+  - python=3.7
   - backoff
   - cartopy
   - click
@@ -9,12 +11,13 @@ dependencies:
   - cloudpickle
   - crcmod
   - dask>=2.3
+  - ffmpeg
   - fsspec
   - f90nml
   - black=19.10b0
   - isort
   - flake8=3.7.9
-  - gcsfs==0.6.0  # 0.6.1 changes filesystem.ls (errors when no files / doesn't exist)
+  - gcsfs>=0.6.2
   - google-cloud-storage
   - h5netcdf
   - h5py>=2.10
@@ -38,19 +41,18 @@ dependencies:
   - toolz
   - xarray>=0.14
   - jupyterlab
-  - pip
-  - xgcm=0.2
+  - xgcm>=0.2
   - jupyterlab
-  - apache-beam=2.18
-  - matplotlib=3.1
+  - matplotlib>=3.1
   - pyquery>=1.4.0
-  - python=3.7
   - holoviews
   - bokeh>=2.0
   - backoff
   - mypy=0.770
+  - six=1.12
   - pip
   - pip:
+    - apache-beam[gcp]
     - zarr>=2.4
     - poetry
     - gsutil

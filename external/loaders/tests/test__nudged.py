@@ -9,7 +9,6 @@ from vcm import safe
 from loaders import TIME_NAME, TIME_FMT
 from loaders.mappers import LongRunMapper
 from loaders.mappers._nudged import (
-    _get_path_for_nudging_timescale,
     NudgedStateCheckpoints,
     MergeNudged,
     GroupByTime,
@@ -21,7 +20,6 @@ from loaders.mappers._nudged import (
 )
 
 NTIMES = 12
-NUDGE_TIMESCALE = 3
 
 
 @pytest.fixture(scope="module")
@@ -78,11 +76,8 @@ def nudged_data_dir(datadir_module, nudged_checkpoints, nudge_tendencies):
     all_data = dict(**nudged_checkpoints)
     all_data.update({"nudging_tendencies": nudge_tendencies})
 
-    timescale_dir = os.path.join(datadir_module, f"outdir-{NUDGE_TIMESCALE}h")
-    os.makedirs(timescale_dir, exist_ok=True)
-
     for filestem, ds in all_data.items():
-        filepath = os.path.join(timescale_dir, f"{filestem}.zarr")
+        filepath = os.path.join(datadir_module, f"{filestem}.zarr")
         ds.to_zarr(filepath)
 
     return str(datadir_module)
@@ -102,40 +97,6 @@ def nudged_tstep_mapper(nudge_tendencies, general_nudge_output):
     timestep_mapper = LongRunMapper(combined_ds)
 
     return timestep_mapper
-
-
-@pytest.fixture
-def nudging_output_dirs(tmpdir):
-
-    # nudging dirs which might be confusing for parser
-    dirs = ["1.00", "1.5", "15"]
-
-    nudging_dirs = {}
-    for item in dirs:
-        curr_dir = os.path.join(tmpdir, f"outdir-{item}h")
-        os.mkdir(curr_dir)
-        nudging_dirs[item] = curr_dir
-
-    return nudging_dirs
-
-
-@pytest.mark.parametrize(
-    "timescale, expected_key",
-    [(1, "1.00"), (1.0, "1.00"), (1.5, "1.5"), (1.500001, "1.5")],
-)
-def test__get_path_for_nudging_timescale(nudging_output_dirs, timescale, expected_key):
-
-    expected_path = nudging_output_dirs[expected_key]
-    result_path = _get_path_for_nudging_timescale(
-        nudging_output_dirs.values(), timescale, tol=1e-5
-    )
-    assert result_path == expected_path
-
-
-@pytest.mark.parametrize("timescale", [1.1, 1.00001])
-def test__get_path_for_nudging_timescale_failure(nudging_output_dirs, timescale):
-    with pytest.raises(KeyError):
-        _get_path_for_nudging_timescale(nudging_output_dirs, timescale, tol=1e-5)
 
 
 @pytest.fixture(params=["dataset_only", "nudged_tstep_mapper_only", "mixed"])
@@ -203,6 +164,15 @@ def test_MergeNudged__check_dvar_overlap_fail(overlap_check_fail_datasets):
         MergeNudged._check_dvar_overlap(*overlap_check_fail_datasets)
 
 
+def test_MergeNudged__rename_vars(nudge_tendencies, general_nudge_output):
+    renamed = MergeNudged._rename_vars(
+        (nudge_tendencies, general_nudge_output),
+        {"air_temperature_tendency_due_to_nudging": "dQ1"},
+    )
+    assert len(renamed) == 2
+    assert "dQ1" in renamed[0]
+
+
 def test_NudgedStateCheckpoints(nudged_checkpoints):
 
     mapper = NudgedStateCheckpoints(nudged_checkpoints)
@@ -212,6 +182,7 @@ def test_NudgedStateCheckpoints(nudged_checkpoints):
 
     single_item = nudged_checkpoints["after_physics"].isel(time=0)
     time_key = pd.to_datetime(single_item.time.values).strftime(TIME_FMT)
+    single_item = single_item.drop_vars("time")
     item_key = ("after_physics", time_key)
     xr.testing.assert_equal(mapper[item_key], single_item)
 
@@ -229,11 +200,21 @@ class MockMergeNudgedMapper:
 
 @pytest.fixture
 def nudged_source():
+    example_da = xr.DataArray(
+        np.full((4, 1), 10.0),
+        {
+            "time": xr.DataArray(
+                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
+            ),
+            "x": xr.DataArray([0], dims=["x"]),
+        },
+        ["time", "x"],
+    )
     air_temperature = xr.DataArray(
         np.full((4, 1), 270.0),
         {
             "time": xr.DataArray(
-                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
             ),
             "x": xr.DataArray([0], dims=["x"]),
         },
@@ -243,15 +224,33 @@ def nudged_source():
         np.full((4, 1), 0.01),
         {
             "time": xr.DataArray(
-                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
             ),
             "x": xr.DataArray([0], dims=["x"]),
         },
         ["time", "x"],
     )
-    return xr.Dataset(
-        {"air_temperature": air_temperature, "specific_humidity": specific_humidity}
-    )
+
+    net_term_vars = [
+        "total_sky_downward_longwave_flux_at_surface",
+        "total_sky_downward_shortwave_flux_at_surface",
+        "total_sky_upward_longwave_flux_at_surface",
+        "total_sky_upward_longwave_flux_at_top_of_atmosphere",
+        "total_sky_upward_shortwave_flux_at_surface",
+        "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
+        "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
+        "sensible_heat_flux",
+        "surface_precipitation_rate",
+        "latent_heat_flux",
+    ]
+
+    ds_vars = {
+        "air_temperature": air_temperature,
+        "specific_humidity": specific_humidity,
+    }
+    ds_vars.update({net_term_var: example_da for net_term_var in net_term_vars})
+
+    return xr.Dataset(ds_vars)
 
 
 @pytest.fixture
@@ -333,7 +332,7 @@ def test_init_nudged_tendencies(
             difference_checkpoints,
             tendency_variables,
         )
-        safe.get_variables(nudged_tendencies_mapper["20200500.000000"], output_vars)
+        safe.get_variables(nudged_tendencies_mapper["20200501.000000"], output_vars)
     else:
         with pytest.raises(KeyError):
             nudged_tendencies_mapper = NudgedFullTendencies(
@@ -342,7 +341,7 @@ def test_init_nudged_tendencies(
                 difference_checkpoints,
                 tendency_variables,
             )
-            safe.get_variables(nudged_tendencies_mapper["20200500.000000"], output_vars)
+            safe.get_variables(nudged_tendencies_mapper["20200501.000000"], output_vars)
 
 
 @pytest.fixture
@@ -408,7 +407,7 @@ def expected_tendencies(request):
         "pQ1": xr.DataArray(
             [[request.param[0]]],
             {
-                "time": xr.DataArray(["20200500.000000"], dims=["time"]),
+                "time": xr.DataArray(["20200501.000000"], dims=["time"]),
                 "x": xr.DataArray([0], dims=["x"]),
             },
             ["time", "x"],
@@ -416,7 +415,7 @@ def expected_tendencies(request):
         "pQ2": xr.DataArray(
             [[request.param[1]]],
             {
-                "time": xr.DataArray(["20200500.000000"], dims=["time"]),
+                "time": xr.DataArray(["20200501.000000"], dims=["time"]),
                 "x": xr.DataArray([0], dims=["x"]),
             },
             ["time", "x"],
@@ -459,7 +458,7 @@ def test__physics_tendencies(
         nudged_mapper, nudged_checkpoint_mapper
     )
 
-    time = "20200500.000000"
+    time = "20200501.000000"
 
     tendency_variables = {
         "pQ1": "air_temperature",
@@ -481,7 +480,7 @@ def test_open_merged_nudged(nudged_data_dir):
 
     merge_files = ("after_dynamics.zarr", "nudging_tendencies.zarr")
     mapper = open_merged_nudged(
-        nudged_data_dir, NUDGE_TIMESCALE, merge_files=merge_files, i_start=4, n_times=6,
+        nudged_data_dir, merge_files=merge_files, i_start=4, n_times=6,
     )
 
     assert len(mapper) == 6
@@ -492,7 +491,7 @@ def test__open_nudging_checkpoints(nudged_data_dir):
 
     checkpoint_files = ("before_dynamics.zarr", "after_nudging.zarr")
     mapper = _open_nudging_checkpoints(
-        nudged_data_dir, NUDGE_TIMESCALE, checkpoint_files=checkpoint_files
+        nudged_data_dir, checkpoint_files=checkpoint_files
     )
     assert len(mapper) == NTIMES * len(checkpoint_files)
 
@@ -502,9 +501,7 @@ def test_open_merged_nudged_full_tendencies(nudged_data_dir):
 
     open_merged_nudged_kwargs = {"n_times": 6}
     mapper = open_merged_nudged_full_tendencies(
-        nudged_data_dir,
-        NUDGE_TIMESCALE,
-        open_merged_nudged_kwargs=open_merged_nudged_kwargs,
+        nudged_data_dir, open_merged_nudged_kwargs=open_merged_nudged_kwargs,
     )
 
     assert len(mapper) == 6

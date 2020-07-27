@@ -1,5 +1,5 @@
 storage_proto: gs
-storage_root: vcm-ml-data/orchestration-testing
+storage_root: vcm-ml-scratch/orchestration-testing
 experiment:
   name: test-experiment
   unique_id: True
@@ -51,7 +51,7 @@ experiment:
         --runner: DataflowRunner
 
     train_sklearn_model:
-      command: python -m fv3net.regression.sklearn
+      command: python -m fv3fit.sklearn
       args:
         training_data:
           from: create_training_data

@@ -5,7 +5,7 @@ from multiprocessing import Pool
 
 import matplotlib
 import matplotlib.pyplot as plt
-import vcm
+import fv3viz as viz
 import xarray as xr
 
 matplotlib.use("Agg")
@@ -24,8 +24,8 @@ def open_ds():
 
 
 def plot_axes(ds, key, **kwargs):
-    mv = vcm.mappable_var(ds, key)
-    return vcm.plot_cube(mv, **kwargs)
+    mv = viz.mappable_var(ds, key)
+    return viz.plot_cube(mv, **kwargs)
 
 
 def combine_frames(prefix, pattern="%04d.png"):

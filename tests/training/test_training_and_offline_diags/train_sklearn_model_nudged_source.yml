@@ -1,0 +1,22 @@
+model_type: sklearn_random_forest
+hyperparameters:
+  max_depth: 13
+  n_estimators: 1
+input_variables:
+  - air_temperature
+  - specific_humidity
+output_variables:
+  - dQ1
+  - dQ2
+batch_function: batches_from_geodata
+batch_kwargs:
+  timesteps_per_batch: 1
+  timesteps:
+    - "20160801.001500"
+    - "20160801.003000"
+  mapping_function: open_merged_nudged
+  mapping_kwargs:
+    i_start: 0
+    rename_vars:
+      air_temperature_tendency_due_to_nudging: dQ1
+      specific_humidity_tendency_due_to_nudging: dQ2

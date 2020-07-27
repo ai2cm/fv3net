@@ -1,43 +1,26 @@
 import os
 import logging
+from functools import partial
 import xarray as xr
+import fsspec
 import zarr.storage as zstore
 from typing import Sequence, Mapping, Union, Tuple, Any
 from itertools import product
 from toolz import groupby
 from pathlib import Path
 
-from vcm import cloud
-from ._base import GeoMapper, LongRunMapper
-from .._utils import standardize_zarr_time_coord
+import vcm
 
+from ._transformations import KeyMap
+from ._base import GeoMapper, LongRunMapper
+from ._merged import MergeOverlappingData
+from ._high_res_diags import open_high_res_diags
+from .._utils import standardize_zarr_time_coord, assign_net_physics_terms
+from ..constants import DERIVATION_SHIELD_COORD, DERIVATION_FV3GFS_COORD
 
 logger = logging.getLogger(__name__)
 
-TIMESCALE_OUTDIR_TEMPLATE = "outdir-*h"
 Z_DIM_NAME = "z"
-
-
-def _get_path_for_nudging_timescale(nudged_output_dirs, timescale_hours, tol=1e-5):
-    """
-    Timescales are allowed to be floats which makes finding correct output
-    directory a bit trickier.  Currently checking by looking for difference
-    between parsed timescale from folder name and requested timescale that
-    is approximately zero (with requested tolerance).
-
-    Built on assumed outdir-{timescale}h format
-    """
-
-    for dirpath in nudged_output_dirs:
-        dirname = Path(dirpath).name
-        avail_timescale = float(dirname.split("-")[-1].strip("h"))
-        if abs(timescale_hours - avail_timescale) < tol:
-            return dirpath
-    else:
-        raise KeyError(
-            "Could not find nudged output directory appropriate for timescale: "
-            f"{timescale_hours}"
-        )
 
 
 class MergeNudged(LongRunMapper):
@@ -60,11 +43,24 @@ class MergeNudged(LongRunMapper):
                 "MergeNudged should be instantiated with two or more data sources."
             )
         nudged_sources = self._mapper_to_datasets(nudged_sources)
+        nudged_sources = self._rename_vars(nudged_sources, rename_vars)
         self._check_dvar_overlap(*nudged_sources)
-        self.ds = xr.merge(nudged_sources, join="inner").rename(rename_vars)
+        self.ds = xr.merge(nudged_sources, join="inner")
 
     @staticmethod
-    def _mapper_to_datasets(data_sources) -> Mapping[str, xr.Dataset]:
+    def _rename_vars(
+        datasets: Sequence[xr.Dataset], rename_vars: Mapping[str, str]
+    ) -> Sequence[xr.Dataset]:
+        renamed_datasets = []
+        for ds in datasets:
+            ds_rename_vars = {k: v for k, v in rename_vars.items() if k in ds}
+            renamed_datasets.append(ds.rename(ds_rename_vars))
+        return renamed_datasets
+
+    @staticmethod
+    def _mapper_to_datasets(
+        data_sources: Sequence[Union[LongRunMapper, xr.Dataset]]
+    ) -> Sequence[xr.Dataset]:
 
         datasets = []
         for source in data_sources:
@@ -211,7 +207,11 @@ class NudgedFullTendencies(GeoMapper):
             self._physics_timestep_seconds,
         )
 
-        return self._nudged_mapper[time].assign(physics_tendencies)
+        return (
+            self._nudged_mapper[time]
+            .assign(physics_tendencies)
+            .pipe(assign_net_physics_terms)
+        )
 
     @staticmethod
     def _physics_tendencies(
@@ -234,11 +234,11 @@ class NudgedFullTendencies(GeoMapper):
 
 def open_merged_nudged(
     url: str,
-    nudging_timescale_hr: Union[int, float],
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
     i_start: int = 0,
     n_times: int = None,
     rename_vars: Mapping[str, str] = None,
+    consolidated: bool = False,
 ) -> Mapping[str, xr.Dataset]:
     """
     Load nudging data mapper for use with training.  Currently merges the
@@ -248,8 +248,6 @@ def open_merged_nudged(
     Args:
         url: Path to directory with nudging output (not including the timescale
             subdirectories, e.g., outdir-3h)
-        timescale_hours: timescale of the nudging for the simulation
-            being used as input.
         merge_files (optionsl): underlying nudging zarr datasets to combine
             into a MergeNudged mapper
         i_start (optional): Index of sorted timesteps at which to start including
@@ -259,6 +257,8 @@ def open_merged_nudged(
             (i_start + n_times)
         rename_vars (optional): mapping of variables to be renamed; defaults to
             renaming long nudging names to dQ names
+        consolidated: if true, open the underlying zarr stores with the consolidated
+            flag to xr.open_zarr.
     """
 
     rename_vars = rename_vars or {
@@ -266,20 +266,14 @@ def open_merged_nudged(
         "specific_humidity_tendency_due_to_nudging": "dQ2",
     }
 
-    fs = cloud.get_fs(url)
-
-    glob_url = os.path.join(url, TIMESCALE_OUTDIR_TEMPLATE)
-    nudged_output_dirs = fs.glob(glob_url)
-
-    nudged_url = _get_path_for_nudging_timescale(
-        nudged_output_dirs, nudging_timescale_hr
-    )
-
     datasets = []
     for source in merge_files:
-        mapper = fs.get_mapper(os.path.join(nudged_url, f"{source}"))
-        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
-
+        mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
+        ds = xr.open_zarr(
+            zstore.LRUStoreCache(mapper, 1024),
+            consolidated=consolidated,
+            mask_and_scale=False,
+        )
         datasets.append(ds)
 
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
@@ -290,40 +284,34 @@ def open_merged_nudged(
 
 def _open_nudging_checkpoints(
     url: str,
-    nudging_timescale_hr: Union[int, float],
     checkpoint_files: Tuple[str] = (
         "before_dynamics.zarr",
         "after_dynamics.zarr",
         "after_physics.zarr",
         "after_nudging.zarr",
     ),
+    consolidated: bool = False,
 ) -> Mapping[Checkpoint, xr.Dataset]:
     """
     Load mapper to all checkpoint states and timesteps of a nudging simulation.
 
     Args:
-        url: Path to directory with nudging output (not including the timescale
-            subdirectories, e.g., outdir-3h)
-        timescale_hours: timescale of the nudging for the simulation
-            being used as input.
-        checkpoint_files (optionsl): nudged simulation checkpoint files to load
+        url: Path to directory with nudging output
+        checkpoint_files: nudged simulation checkpoint files to load
             into the NudgedStateCheckpoints object
+        consolidated: if true, open the underlying zarr stores with the consolidated
+            flag to xr.open_zarr.
     """
-
-    fs = cloud.get_fs(url)
-
-    glob_url = os.path.join(url, TIMESCALE_OUTDIR_TEMPLATE)
-    nudged_output_dirs = fs.glob(glob_url)
-
-    nudged_url = _get_path_for_nudging_timescale(
-        nudged_output_dirs, nudging_timescale_hr
-    )
 
     datasets = {}
     for filename in checkpoint_files:
-        full_path = os.path.join(nudged_url, f"{filename}")
-        mapper = fs.get_mapper(full_path)
-        ds = xr.open_zarr(zstore.LRUStoreCache(mapper, 1024))
+        full_path = os.path.join(url, f"{filename}")
+        mapper = fsspec.get_mapper(full_path)
+        ds = xr.open_zarr(
+            zstore.LRUStoreCache(mapper, 1024),
+            consolidated=consolidated,
+            mask_and_scale=False,
+        )
 
         source_name = Path(filename).stem
         datasets[source_name] = ds
@@ -332,22 +320,24 @@ def _open_nudging_checkpoints(
 
 
 def open_merged_nudged_full_tendencies(
-    url: str,
-    nudging_timescale_hr: Union[int, float],
+    nudging_url: str,
+    shield_diags_url: str = None,
     open_merged_nudged_kwargs: Mapping[str, Any] = None,
     open_checkpoints_kwargs: Mapping[str, Any] = None,
     difference_checkpoints: Sequence[str] = ("after_dynamics", "after_physics"),
     tendency_variables: Mapping[str, str] = None,
     timestep_physics_seconds: int = 900,
+    consolidated: bool = False,
+    offset_seconds: Union[int, float] = 0,
 ) -> Mapping[str, xr.Dataset]:
     """
     Load mapper to nudged dataset containing both dQ and pQ tendency terms
 
     Args:
-        url: Path to directory with nudging output (not including the timescale
+        nudging_url: Path to directory with nudging output (not including the timescale
             subdirectories, e.g., outdir-3h)
-        timescale_hours: timescale of the nudging for the simulation
-            being used as input.
+        shield_diags_url: path to directory containing a zarr store of SHiELD
+            diagnostics coarsened to the nudged model resolution (optional)
         open_merged_nudged_kwargs (optional): kwargs mapping to be passed to
             open_merged_nudged
         open_checkpoints_kwargs (optional): kwargs mapping to be passed to
@@ -360,7 +350,14 @@ def open_merged_nudged_full_tendencies(
             {'pQ1': 'air_temperature', 'pQ2': 'specific_humidity'}
         timestep_physics_seconds (optional): physics timestep in seconds;
             defaults to 900
-        
+        consolidated: if true, open the underlying zarr stores with the consolidated
+            flag to xr.open_zarr.
+        offset_seconds: amount to shift the keys forward by in seconds. For
+            example, if the underlying data contains a value at the key
+            "20160801.000730", a value off 450 will shift this forward 7:30
+            minutes, so that this same value can be accessed with the key
+            "20160801.001500"
+
     Returns
         mapper of timestamps to datasets containing full tendency terms
     """
@@ -369,17 +366,31 @@ def open_merged_nudged_full_tendencies(
     open_checkpoints_kwargs = open_checkpoints_kwargs or {}
 
     nudged_mapper = open_merged_nudged(
-        url, nudging_timescale_hr, **open_merged_nudged_kwargs
+        nudging_url, consolidated=consolidated, **open_merged_nudged_kwargs
     )
-
     checkpoint_mapper = _open_nudging_checkpoints(
-        url, nudging_timescale_hr, **open_checkpoints_kwargs
+        nudging_url, consolidated=consolidated, **open_checkpoints_kwargs
     )
 
-    return NudgedFullTendencies(
+    full_tendencies_mapper = NudgedFullTendencies(
         nudged_mapper,
         checkpoint_mapper,
         difference_checkpoints,
         tendency_variables,
         timestep_physics_seconds,
     )
+
+    full_tendencies_mapper = KeyMap(
+        partial(vcm.shift_timestamp, seconds=offset_seconds), full_tendencies_mapper,
+    )
+
+    if shield_diags_url is not None:
+        shield_diags_mapper = open_high_res_diags(shield_diags_url)
+        full_tendencies_mapper = MergeOverlappingData(
+            shield_diags_mapper,
+            full_tendencies_mapper,
+            source_name_left=DERIVATION_SHIELD_COORD,
+            source_name_right=DERIVATION_FV3GFS_COORD,
+        )
+
+    return full_tendencies_mapper

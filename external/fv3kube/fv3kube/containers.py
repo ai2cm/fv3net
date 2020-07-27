@@ -112,7 +112,7 @@ exit 0
 """
 
 
-def fv3_container(data_vol: V1Volume, image: str) -> V1Container:
+def fv3_container(data_vol: V1Volume, image: str, cpu: str, memory: str) -> V1Container:
     """A container for running a run-directory from a volume
 
     Args:
@@ -132,9 +132,8 @@ def fv3_container(data_vol: V1Volume, image: str) -> V1Container:
     fv3_container.working_dir = "/mnt/rundir"
     fv3_container.command = ["bash", "-c"]
     fv3_container.args = [fv3_run_template.format(runfile=runfile_path)]
-    # Suitable for C48 job
     fv3_container.resources = V1ResourceRequirements(
-        limits=dict(cpu="6", memory="6Gi"), requests=dict(cpu="6", memory="6Gi"),
+        limits=dict(cpu=cpu, memory=memory), requests=dict(cpu=cpu, memory=memory),
     )
 
     fv3_container.volume_mounts = [
@@ -149,7 +148,7 @@ def post_process_container(
     destination: str,
     data_vol: V1Volume,
     secret_vol: V1Volume,
-    image: str = "us.gcr.io/vcm-ml/fv3net:9ed905f7f3ec44484370b8f915834744fe49c636",
+    image: str = "us.gcr.io/vcm-ml/post_process_run:latest",
 ) -> V1Container:
     """Container for post processing fv3 model output for cloud storage
 
@@ -157,8 +156,7 @@ def post_process_container(
         path: relative path within volume pointing to run-directory
         destination: uri to desired GCS output directory
         vol: a K8s volume containing ``path`
-        image: the docker image to use for post processing. Needs to contain
-            the fv3net source tree at the path "/fv3net".
+        image: the docker image to use for post processing.
     Returns
         a k8s container encapsulating the post-processing.
     """
@@ -169,8 +167,7 @@ def post_process_container(
 
     rundir = os.path.join("/mnt", path)
     container.image = image
-    container.working_dir = "/home/jovyan/fv3net/workflows/prognostic_c48_run"
-    container.command = ["python", "post_process.py", rundir, destination]
+    container.command = ["post_process.py", rundir, destination]
     # Suitable for C48 job
     container.resources = V1ResourceRequirements(
         limits=dict(cpu="6", memory="3600M"), requests=dict(cpu="6", memory="3600M"),
@@ -188,6 +185,8 @@ def post_processed_fv3_pod_spec(
     fv3_image: str,
     post_process_image: str,
     gcp_secret_name: str = "gcp-key",
+    cpu: str = "6",
+    memory: str = "6Gi",
 ) -> V1PodSpec:
     """A PodSpec for running the prognostic run
     
@@ -214,7 +213,7 @@ def post_processed_fv3_pod_spec(
             write_rundir_container(
                 model_config, empty_vol, secret_vol, fv3config_image
             ),
-            fv3_container(empty_vol, image=fv3_image),
+            fv3_container(empty_vol, image=fv3_image, cpu=cpu, memory=memory),
         ],
         containers=[
             post_process_container(

@@ -57,28 +57,28 @@ budget_ds_input = xr.Dataset(
 budget_ds = xr.Dataset(
     dict(
         air_temperature=xr.DataArray(
-            [270.0], [(["x"], [1.0])], ["x"], attrs={"units": "K"}
+            [270.0], [(["pfull"], [1.0])], ["pfull"], attrs={"units": "K"}
         ),
         air_temperature_physics=xr.DataArray(
-            [0.1], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
+            [0.1], [(["pfull"], [1.0])], ["pfull"], attrs={"units": "K/s"}
         ),
         air_temperature_saturation_adjustment=xr.DataArray(
-            [0.2], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
+            [0.2], [(["pfull"], [1.0])], ["pfull"], attrs={"units": "K/s"}
         ),
         air_temperature_convergence=xr.DataArray(
-            [-0.1], [(["x"], [1.0])], ["x"], attrs={"units": "K/s"}
+            [-0.1], [(["pfull"], [1.0])], ["pfull"], attrs={"units": "K/s"}
         ),
         specific_humidity=xr.DataArray(
-            [1.0e-3], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg"}
+            [1.0e-3], [(["pfull"], [1.0])], ["pfull"], attrs={"units": "kg/kg"}
         ),
         specific_humidity_physics=xr.DataArray(
-            [1.0e-6], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg/s"}
+            [1.0e-6], [(["pfull"], [1.0])], ["pfull"], attrs={"units": "kg/kg/s"}
         ),
         specific_humidity_saturation_adjustment=xr.DataArray(
-            [2.0e-6], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg/s"}
+            [2.0e-6], [(["pfull"], [1.0])], ["pfull"], attrs={"units": "kg/kg/s"}
         ),
         specific_humidity_convergence=xr.DataArray(
-            [-1.0e-6], [(["x"], [1.0])], ["x"], attrs={"units": "kg/kg/s"}
+            [-1.0e-6], [(["pfull"], [1.0])], ["pfull"], attrs={"units": "kg/kg/s"}
         ),
     )
 )
@@ -97,8 +97,8 @@ apparent_source_terms = ["physics", "saturation_adjustment", "convergence"]
                 {
                     "dQ1": xr.DataArray(
                         [0.2],
-                        [(["x"], [1.0])],
-                        ["x"],
+                        [(["pfull"], [1.0])],
+                        ["pfull"],
                         attrs={
                             "name": "apparent source of air_temperature",
                             "units": "K/s",
@@ -117,8 +117,8 @@ apparent_source_terms = ["physics", "saturation_adjustment", "convergence"]
                 {
                     "dQ1": xr.DataArray(
                         [0.3],
-                        [(["x"], [1.0])],
-                        ["x"],
+                        [(["pfull"], [1.0])],
+                        ["pfull"],
                         attrs={
                             "name": "apparent source of air_temperature",
                             "units": "K/s",
@@ -137,8 +137,8 @@ apparent_source_terms = ["physics", "saturation_adjustment", "convergence"]
                 {
                     "dQ1": xr.DataArray(
                         [0.3],
-                        [(["x"], [1.0])],
-                        ["x"],
+                        [(["pfull"], [1.0])],
+                        ["pfull"],
                         attrs={
                             "name": "apparent source of air_temperature",
                             "units": "K/s",
@@ -172,8 +172,8 @@ def test__insert_budget_dQ(
                 {
                     "pQ1": xr.DataArray(
                         [0.0],
-                        [(["x"], [1.0])],
-                        ["x"],
+                        [(["pfull"], [1.0])],
+                        ["pfull"],
                         attrs={
                             "name": "coarse-res physics tendency of air_temperature",
                             "units": "K/s",
@@ -185,7 +185,11 @@ def test__insert_budget_dQ(
         ),
         pytest.param(
             xr.Dataset(
-                {"air_temperature": xr.DataArray([270.0], [(["x"], [1.0])], ["x"])}
+                {
+                    "air_temperature": xr.DataArray(
+                        [270.0], [(["pfull"], [1.0])], ["pfull"]
+                    )
+                }
             ),
             "air_temperature",
             "pQ1",
@@ -193,8 +197,8 @@ def test__insert_budget_dQ(
                 {
                     "pQ1": xr.DataArray(
                         [0.0],
-                        [(["x"], [1.0])],
-                        ["x"],
+                        [(["pfull"], [1.0])],
+                        ["pfull"],
                         attrs={
                             "name": "coarse-res physics tendency of air_temperature"
                         },
@@ -211,8 +215,8 @@ def test__insert_budget_dQ(
                 {
                     "pQ1": xr.DataArray(
                         [0.0],
-                        [(["x"], [1.0])],
-                        ["x"],
+                        [(["pfull"], [1.0])],
+                        ["pfull"],
                         attrs={
                             "name": "coarse-res physics tendency of air_temperature",
                             "units": "K",
@@ -236,32 +240,6 @@ def test__insert_budget_pQ(ds, variable_name, apparent_source_name, expected):
 @pytest.fixture
 def fine_res_mapper():
     return {"20160901.001500": budget_ds_input}
-
-
-@pytest.mark.parametrize(
-    ["offset", "key", "expected"],
-    [
-        pytest.param(0, "20160901.001500", "20160901.001500", id="zero offset"),
-        pytest.param(60, "20160901.001500", "20160901.001600", id="non-zero offset"),
-    ],
-)
-def test__timestamp_key_to_midpoint(offset, key, expected, fine_res_mapper):
-    fine_res_source_mapper = FineResolutionSources(fine_res_mapper, offset)
-    midpoint_time = fine_res_source_mapper._timestamp_key_to_midpoint(key, offset)
-    assert midpoint_time == expected
-
-
-@pytest.mark.parametrize(
-    ["offset", "midpoint_time", "expected"],
-    [
-        pytest.param(0, "20160901.001500", "20160901.001500", id="zero offset"),
-        pytest.param(60, "20160901.001500", "20160901.001400", id="non-zero offset"),
-    ],
-)
-def test__midpoint_to_timestamp_key(offset, midpoint_time, expected, fine_res_mapper):
-    fine_res_source_mapper = FineResolutionSources(fine_res_mapper, offset)
-    key = fine_res_source_mapper._midpoint_to_timestamp_key(midpoint_time, offset)
-    assert key == expected
 
 
 def test_FineResolutionSources(fine_res_mapper):
