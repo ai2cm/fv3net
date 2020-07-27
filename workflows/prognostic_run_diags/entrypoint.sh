@@ -20,12 +20,20 @@ function downloadZarr() {
     fi
 }
 
-usage="Usage: entrypoint.sh rundir output"
+usage="Usage: entrypoint.sh [-l] rundir output"
 
-if [[ $# != 2 ]]; then
-    echo $usage
-    exit 2
-fi
+while getopts ":l" OPTION; do
+    case $OPTION in
+        l)
+            downloadFirst=true
+            shift
+        ;;
+        *)
+            echo $usage
+            exit 1
+        ;;
+    esac
+done
 
 [[ -n $GOOGLE_APPLICATION_CREDENTIALS ]] && gcloud auth activate-service-account --key-file $GOOGLE_APPLICATION_CREDENTIALS
 
@@ -43,11 +51,16 @@ mkdir -p $localWorkDir
 
 cd $localWorkDir
 
-downloadZarr $1/atmos_dt_atmos.zarr
-downloadZarr $1/sfc_dt_atmos.zarr
-downloadZarr $1/diags.zarr
+if [ "$downloadFirst" = true ] ; then
+    downloadZarr $1/atmos_dt_atmos.zarr
+    downloadZarr $1/sfc_dt_atmos.zarr
+    downloadZarr $1/diags.zarr
+    input=./
+else
+    input=$1
+fi
 
-[[ -f diags.nc ]] || python $cwd/save_prognostic_run_diags.py ./ diags.nc
+[[ -f diags.nc ]] || python $cwd/save_prognostic_run_diags.py $input diags.nc
 python $cwd/metrics.py diags.nc >metrics.json
 
 gsutil cp diags.nc $output/diags.nc
