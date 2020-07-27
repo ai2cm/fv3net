@@ -13,6 +13,7 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from budget.data import shift
 from budget.pipeline import run, OpenTimeChunks
+from budget.budgets import _compute_second_moment
 
 from vcm import safe
 
@@ -148,3 +149,40 @@ def test_shift():
     shifted = shift(ds, dt=dt / 2)
 
     xr.testing.assert_equal(shifted, expected)
+
+
+@pytest.mark.parametrize(
+    ["a", "b", "expected"],
+    [
+        (
+            xr.DataArray(3.0, name="a", attrs={"units": "m", "longname": "a_long"}),
+            xr.DataArray(2.0, name="b", attrs={"units": "m", "longname": "b_long"}),
+            xr.DataArray(
+                6.0,
+                name="a_b",
+                attrs={"units": "m m", "longname": "Product of a_long and b_long"},
+            ),
+        ),
+        (
+            xr.DataArray(3.0, name="a", attrs={"longname": "a_long"}),
+            xr.DataArray(2.0, name="b", attrs={"units": "m", "longname": "b_long"}),
+            xr.DataArray(
+                6.0,
+                name="a_b",
+                attrs={"units": "m", "longname": "Product of a_long and b_long"},
+            ),
+        ),
+        (
+            xr.DataArray(3.0, name="a", attrs={"units": "m"}),
+            xr.DataArray(2.0, name="b", attrs={"units": "m", "longname": "b_long"}),
+            xr.DataArray(
+                6.0,
+                name="a_b",
+                attrs={"units": "m m", "longname": "Product of a and b_long"},
+            ),
+        ),
+    ],
+)
+def test__compute_second_moment(a, b, expected):
+    result = _compute_second_moment(a, b)
+    xr.testing.assert_identical(result, expected)

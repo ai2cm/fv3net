@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Iterable, List, Sequence, Tuple
+from typing import Dict, Iterable, List, Sequence, Tuple
 
 import xarray as xr
 
@@ -92,9 +92,47 @@ def coarsen_variables(
     )
 
 
+def _infer_second_moment_name(field_1: xr.DataArray, field_2: xr.DataArray) -> str:
+    """Infer the units for the product of two DataArrays."""
+    return f"{field_1.name}_{field_2.name}"
+
+
+def _infer_second_moment_units(field_1: xr.DataArray, field_2: xr.DataArray) -> str:
+    """Infer the units for the product of two DataArrays.  Just does the naive
+    thing of appending one set of units after the other."""
+    field_1_units = field_1.attrs.get("units", "")
+    field_2_units = field_2.attrs.get("units", "")
+    return f"{field_1_units} {field_2_units}".strip()
+
+
+def _infer_second_moment_longname(field_1: xr.DataArray, field_2: xr.DataArray) -> str:
+    """Infer the longname for the product of two DataArrays."""
+    field_1_longname = field_1.attrs.get("longname", field_1.name)
+    field_2_longname = field_2.attrs.get("longname", field_2.name)
+    return f"Product of {field_1_longname} and {field_2_longname}"
+
+
+def _infer_second_moment_attrs(
+    field_1: xr.DataArray, field_2: xr.DataArray
+) -> Dict[str, str]:
+    """Infer the attributes for the product of two DataArrays."""
+    units = _infer_second_moment_units(field_1, field_2)
+    longname = _infer_second_moment_longname(field_1, field_2)
+    return dict(units=units, longname=longname)
+
+
+def _compute_second_moment(
+    field_1: xr.DataArray, field_2: xr.DataArray
+) -> xr.DataArray:
+    """Compute the product of two DataArrays, adding appropriate metadata."""
+    name = _infer_second_moment_name(field_1, field_2)
+    attrs = _infer_second_moment_attrs(field_1, field_2)
+    return (field_1 * field_2).rename(name).assign_attrs(**attrs)
+
+
 def compute_second_moments(
-    ds: xr.Dataset, second_moments: Iterable[Tuple[str, str]],
-):
+    ds: xr.Dataset, second_moments: Sequence[Tuple[str, str]],
+) -> List[xr.DataArray]:
     """Compute second moments defined using an iterable of tuples.
 
     Args:
@@ -107,8 +145,7 @@ def compute_second_moments(
     """
     results = []
     for field_1, field_2 in second_moments:
-        name = f"{ds[field_1].name}_{ds[field_2].name}"
-        product = (ds[field_1] * ds[field_2]).rename(name)
+        product = _compute_second_moment(ds[field_1], ds[field_2])
         results.append(product)
     return results
 
