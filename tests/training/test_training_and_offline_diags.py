@@ -16,6 +16,7 @@ from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags.compute_diags import (
     _average_metrics_dict,
     _compute_diags_over_batches,
+    _consolidate_dimensioned_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -308,6 +309,9 @@ def test_compute_offline_diags(
     ds_diagnostics, ds_diurnal, ds_metrics = _compute_diags_over_batches(
         diagnostic_batches, grid_dataset
     )
+    ds_diagnostics, ds_metrics = _consolidate_dimensioned_data(
+        ds_diagnostics, ds_metrics
+    )
 
     # convert metrics to dict
     metrics = _average_metrics_dict(ds_metrics)
@@ -344,9 +348,9 @@ def test_compute_offline_diags(
 
     assert isinstance(metrics, dict)
     assert len(metrics) == 32
-    for metric, metric_dict in metrics.items():
+    for metric, metric_entry in metrics.items():
         assert isinstance(metric, str)
-        assert isinstance(metric_dict, dict)
-        for metric_key, metric_value in metric_dict.items():
+        assert isinstance(metric_entry, dict)
+        for metric_key, metric_value in metric_entry.items():
             assert isinstance(metric_key, str)
             assert isinstance(metric_value, (float, np.float32))

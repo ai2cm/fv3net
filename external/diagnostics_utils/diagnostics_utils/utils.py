@@ -9,6 +9,8 @@ logging.getLogger(__name__)
 
 UNINFORMATIVE_COORDS = ["tile", "z", "y", "x"]
 TIME_DIM = "time"
+PRESSURE_DIM = "pressure"
+VERTICAL_DIM = "z"
 PRIMARY_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
 
 
