@@ -36,6 +36,7 @@ from constants import (
     DiagArg,
     GLOBAL_AVERAGE_DYCORE_VARS,
     GLOBAL_AVERAGE_PHYSICS_VARS,
+    DIURNAL_CYCLE_VARS,
 )
 
 import logging
@@ -223,6 +224,7 @@ for mask_type in ["global", "land", "sea"]:
     @diag_finalizer(f"diurnal_{mask_type}")
     @transform.apply("mask_to_sfc_type", mask_type)
     @transform.apply("resample_time", "15min", time_slice=slice(96, -1))
+    @transform.apply("subset_variables", DIURNAL_CYCLE_VARS)
     def _diurnal_func(resampled, verification, grid, mask_type=mask_type):
         # mask_type is added as a kwarg solely to give the logging access to the info
         logger.info(

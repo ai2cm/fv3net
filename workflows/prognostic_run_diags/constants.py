@@ -52,3 +52,14 @@ GLOBAL_AVERAGE_PHYSICS_VARS = [
     "SOILM",
     "SOILT1",
 ]
+
+DIURNAL_CYCLE_VARS = [
+    "column_integrated_dQ1",
+    "column_integrated_pQ1",
+    "column_integrated_Q1",
+    "column_integrated_dQ2",
+    "column_integrated_pQ2",
+    "column_integrated_Q2",
+    "PRATEsfc",
+    "LHTFLsfc",
+]
