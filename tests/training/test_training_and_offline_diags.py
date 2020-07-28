@@ -71,6 +71,7 @@ def test_compute_training_diags(
     nudging_dataset_path,
     fine_res_dataset_path,
     training_data_diags_config,
+    C48_SHiELD_diags_dataset_path,
     grid_dataset,
 ):
     physics_off_config = get_data_source_training_diags_config(
@@ -82,13 +83,17 @@ def test_compute_training_diags(
     nudging_config = get_data_source_training_diags_config(
         training_data_diags_config, "nudging_tendencies"
     )
+    nudging_config["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
     fine_res_config = get_data_source_training_diags_config(
         training_data_diags_config, "fine_res_apparent_sources"
     )
+    fine_res_config["mapping_kwargs"][
+        "shield_diags_url"
+    ] = C48_SHiELD_diags_dataset_path
 
     data_config_mapping = {
-        "one_step_physics-off": (one_step_dataset_path, physics_off_config,),
-        "one_step_clouds-off": (one_step_dataset_path, clouds_off_config,),
+        "one_step_physics-off": (one_step_dataset_path, physics_off_config),
+        "one_step_clouds-off": (one_step_dataset_path, clouds_off_config),
         "nudging_tendencies": (nudging_dataset_path, nudging_config),
         "fine_res_apparent_sources": (fine_res_dataset_path, fine_res_config),
     }
@@ -108,6 +113,7 @@ def test_compute_training_diags(
         data_source_name,
         (data_source_path, data_source_config),
     ) in data_config_mapping.items():
+        print(data_source_name)
         ds_batches = batches.diagnostic_batches_from_geodata(
             data_source_path,
             variable_names,
