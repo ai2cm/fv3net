@@ -106,13 +106,12 @@ def append_key_label(d, suffix):
 
 
 def column_integrated_moistening(humidity_tendency, pressure_thickness):
-    GRAVITY = 9.81
-    moistening = np.sum(humidity_tendency * pressure_thickness, axis=0) / gravity
+    moistening = np.sum(humidity_tendency * pressure_thickness, axis=0) / GRAVITY
     moistening.units = "kg/m^2/s"
     return moistening
 
 
-def add_nudging_moistening_to_precipitation(state, tendencies, timestep):
+def add_nudging_moistening_to_precip(state, tendencies, timestep):
     return_names = list(tendencies.keys())
     if "specific_humidity" in tendencies:
         return_names = return_names.append(PRECIP_NAME)
