@@ -1,6 +1,4 @@
-Motivation: Short description of why the PR is needed in sentence form.
-
-Description: Short description of changes in sentence form.
+Description: Short description of why the PR is needed and how it satisfies those requirements, in sentence form.
 
 Added public API:
 - symbol (e.g. `vcm.my_function`) and optional description of changes or why they are needed
