@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple, Iterable
+from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional
 import xarray as xr
 import logging
 import abc
@@ -96,7 +96,21 @@ class PackedKerasModel(Model):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
+        weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
     ):
+        """Initialize the model.
+
+        Args:
+            sample_dim_name: name of the sample dimension in datasets used as
+                inputs and outputs.
+            input_variables: names of input variables
+            output_variables: names of output variables
+            weights: loss function weights, defined as a dict whose keys are
+                variable names and values are either a scalar referring to the total
+                weight of the variable, or a vector referring to the weight for each
+                feature of the variable. Default is a total weight of 1
+                for each variable.
+        """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
         self.X_packer = ArrayPacker(
@@ -107,6 +121,10 @@ class PackedKerasModel(Model):
         )
         self.X_scaler = StandardScaler()
         self.y_scaler = StandardScaler()
+        if weights is None:
+            self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
+        else:
+            self.weights = weights
 
     @property
     def model(self) -> tf.keras.Model:
@@ -170,7 +188,9 @@ class PackedKerasModel(Model):
         # be named custom_loss, as used in the load method below,
         # or it must be registered with keras as a custom object.
         # See https://github.com/keras-team/keras/issues/5916 for more info
-        return get_weighted_loss(tf.keras.losses.MSE, self.y_packer, self.y_scaler)
+        return get_weighted_loss(
+            tf.keras.losses.MSE, self.y_packer, self.y_scaler.std, **self.weights
+        )
 
     @classmethod
     def load(cls, path: str) -> Model:

@@ -1,4 +1,4 @@
-from typing import Iterable, TextIO, List
+from typing import Iterable, TextIO, List, Dict, Tuple, cast
 import numpy as np
 import xarray as xr
 import yaml
@@ -38,9 +38,9 @@ class ArrayPacker:
             names: variable names to pack.
         """
         self._names = list(names)
-        self._n_features = None
+        self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
-        self._dims = {}
+        self._dims: Dict[str, Iterable[str]] = {}
 
     @property
     def names(self) -> List[str]:
@@ -57,12 +57,12 @@ class ArrayPacker:
         return sum(self._n_features[name] for name in self._names)
 
     def to_array(self, dataset: xr.Dataset) -> np.ndarray:
-        if self._n_features is None:
+        if len(self._n_features) == 0:
             self._n_features = count_features(
                 self.names, dataset, self._sample_dim_name
             )
             for name in self.names:
-                self._dims[name] = dataset[name].dims
+                self._dims[name] = cast(Tuple[str], dataset[name].dims)
         n_samples = dataset.dims[self.sample_dim_name]
         array = np.empty([n_samples, self._total_features])
         i_start = 0
@@ -76,7 +76,7 @@ class ArrayPacker:
         return array
 
     def to_dataset(self, array: np.ndarray) -> xr.Dataset:
-        if self._n_features is None:
+        if len(self._n_features) == 0:
             raise RuntimeError(
                 "must pack at least once before unpacking, "
                 "so dimension lengths are known"
@@ -93,7 +93,7 @@ class ArrayPacker:
             else:
                 data_vars[name] = (self._dims[name], array[:, i_start])
             i_start += n_features
-        return xr.Dataset(data_vars)
+        return xr.Dataset(data_vars)  # type: ignore
 
     def dump(self, f: TextIO):
         return yaml.safe_dump(
