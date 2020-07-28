@@ -402,7 +402,7 @@ def test_nudge_run(tmp_restart_dir):
 
     tmpdir = tmp_restart_dir.parent.as_posix()
     config = get_nudging_config(default_fv3config, tmp_restart_dir.as_posix())
-    fv3config.run_native(config, tmpdir, capture_output=True, runfile=NUDGE_RUNFILE)
+    fv3config.run_native(config, tmpdir, capture_output=False, runfile=NUDGE_RUNFILE)
 
 
 def get_prognostic_config(model):
