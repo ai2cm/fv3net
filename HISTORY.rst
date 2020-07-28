@@ -21,6 +21,7 @@ latest
 * Generalize post-processing script and create new post_process_run image.
 * Move plotting routines previously found in :code:`vcm.visualize` and :code:`gallery` into a new package :code:`fv3viz` and remove dependencies between :code:`vcm` and plotting routines.
 * Add vertical profiles of RMSE/bias to the offline diagnostics dataset.
+* Add SHiELD and FV3GFS diagnostic variables such as :code:`net_heating` to the training data and offline ML diagnostics datasets, and compute composites over positive and negative :code:`net_precipitation` domains in these diagnostics
 
 0.2.3 (2020-06-19)
 ------------------

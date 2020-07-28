@@ -33,7 +33,8 @@ def reduce_to_diagnostic(
         grid: xarray dataset containing grid variables
         (latb, lonb, lat, lon, area, land_sea_mask)
         domains: sequence of area domains over which to produce conditional
-            averages; optonal
+            averages; optional; defaults to global, land, sea, and positive and
+            negative net_precipitation domains
         primary_vars: sequence of variables for which to compute column integrals
             and composite means
             
