@@ -201,7 +201,6 @@ class FineResolutionSources(GeoMapper):
     ):
         self._time_mapping = fine_resolution_time_mapping
         self._offset_seconds = offset_seconds
-        self._rename_vars = rename_vars or {}
         self._drop_vars = drop_vars
         self._dim_order = dim_order
         self._rename_vars = rename_vars or {}
