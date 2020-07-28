@@ -1,7 +1,7 @@
 import os
 import re
 import vcm
-from typing import Mapping, Optional, Sequence, Tuple, Union
+from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
 import numpy as np
 from functools import partial
 
@@ -23,8 +23,8 @@ Time = str
 Tile = int
 K = Tuple[Time, Tile]
 
-# TODO: Ensure units and long_name metadata are updated
-NEW_NAMES = {
+
+DESCRIPTIVE_NAMES = {
     "T": "air_temperature",
     "t_dt_fv_sat_adj_coarse": "air_temperature_saturation_adjustment",
     "t_dt_nudge_coarse": "air_temperature_nudging",
@@ -40,6 +40,71 @@ NEW_NAMES = {
     "sphum_vulcan_omega_coarse": "specific_humidity_total_resolved_flux",
     "sphum_storage": "specific_humidity_storage",
     "vulcan_omega_coarse": "omega",
+}
+
+
+def _fv_sat_adj_metadata(field: str, field_units: str) -> Dict[str, str]:
+    """Return the metadata attrs dict for" the saturation adjustment tendency of
+    a field."""
+    return {
+        "units": f"{field_units}/s",
+        "long_name": "tendency of {field} due "
+        "to dynamical core saturation adjustment",
+    }
+
+
+def _nudging_metadata(field: str, field_units: str) -> Dict[str, str]:
+    """Return the metadata attrs dict for" the nudging tendency of a field."""
+    return {
+        "units": f"{field_units}/s",
+        "long_name": "tendency of {field} due " "to SHiELD nudging",
+    }
+
+
+def _physics_metadata(field: str, field_units: str) -> Dict[str, str]:
+    """Return the metadata attrs dict for" the physics tendency of a field."""
+    return {
+        "units": f"{field_units}/s",
+        "long_name": "tendency of {field} due " "to physics",
+        "description": "sum of microphysics and any other parameterized process",
+    }
+
+
+def _storage_metadata(field: str, field_units: str) -> Dict[str, str]:
+    """Return the metadata attrs dict for" the storage tendency of a field."""
+    return {
+        "units": f"{field_units}/s",
+        "long_name": "storage tendency of {field}",
+        "description": f"partial time derivative of {field} for fixed x, "
+        "y, and output model level.  Sum of all the budget tendencies.",
+    }
+
+
+def _convergence_metadata(field: str, field_units: str) -> Dict[str, str]:
+    """Return the metadata attrs dict for" the vertical eddy flux convergence tendency of a field."""
+    return {
+        "units": f"{field_units}/s",
+        "long_name": "vertical eddy flux convergence tendency of {field}",
+    }
+
+
+TENDENCY_METADATA = {
+    "air_temperature_saturation_adjustment": _fv_sat_adj_metadata(
+        "air_temperature", "K"
+    ),
+    "air_temperature_nudging": _nudging_metadata("air_temperature", "K"),
+    "air_temperature_physics": _physics_metadata("air_temperature", "K"),
+    "air_temperature_storage": _storage_metadata("air_temperature", "K"),
+    "air_temperature_convergence": _convergence_metadata("air_temperature", "K"),
+    "specific_humidity_saturation_adjustment": _fv_sat_adj_metadata(
+        "specific_humidity", "kg/kg"
+    ),
+    "specific_humidity_nudging": _nudging_metadata("specific_humidity", "kg/kg"),
+    "specific_humidity_physics": _physics_metadata("specific_humidity", "kg/kg"),
+    "specific_humidity_storage": _storage_metadata("specific_humidity", "kg/kg"),
+    "specific_humidity_convergence": _convergence_metadata(
+        "specific_humidity", "kg/kg"
+    ),
 }
 
 
@@ -137,7 +202,6 @@ class FineResolutionSources(GeoMapper):
         self._time_mapping = fine_resolution_time_mapping
         self._offset_seconds = offset_seconds
         self._rename_vars = rename_vars or {}
-        print(self._rename_vars)
         self._drop_vars = drop_vars
         self._dim_order = dim_order
         self._rename_vars = rename_vars or {}
@@ -154,7 +218,7 @@ class FineResolutionSources(GeoMapper):
         )
 
     def _rename_budget_inputs_ds(self, budget_time_ds: xr.Dataset) -> xr.Dataset:
-        return budget_time_ds.rename(NEW_NAMES)
+        return budget_time_ds.rename(DESCRIPTIVE_NAMES)
 
     def _compute_coarse_eddy_flux_convergence_ds(
         self, budget_time_ds: xr.Dataset, field: str, vertical_dimension: str
@@ -168,6 +232,14 @@ class FineResolutionSources(GeoMapper):
         budget_time_ds[f"{field}_convergence"] = convergence(
             eddy_flux, budget_time_ds["delp"], dim=vertical_dimension
         )
+        return budget_time_ds
+
+    def _add_tendency_term_metadata(self, budget_time_ds: xr.Dataset) -> xr.Dataset:
+        for variable, attrs in TENDENCY_METADATA.items():
+            if variable in budget_time_ds:
+                budget_time_ds[variable] = budget_time_ds[variable].assign_attrs(
+                    **attrs
+                )
         return budget_time_ds
 
     def _derived_budget_ds(
@@ -206,8 +278,10 @@ class FineResolutionSources(GeoMapper):
                     self._insert_budget_pQ, variable_name, f"p{apparent_source_name}",
                 )
             )
-        budget_time_ds = budget_time_ds.pipe(self._insert_physics).pipe(
-            assign_net_physics_terms
+        budget_time_ds = (
+            budget_time_ds.pipe(self._insert_physics)
+            .pipe(assign_net_physics_terms)
+            .pipe(self._add_tendency_term_metadata)
         )
         return budget_time_ds
 
