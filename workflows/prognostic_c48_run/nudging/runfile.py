@@ -113,14 +113,15 @@ def column_integrated_moistening(humidity_tendency, pressure_thickness):
 
 def add_nudging_moistening_to_precip(state, tendencies, timestep):
     return_names = list(tendencies.keys())
-    if "specific_humidity" in tendencies:
+    if "specific_humidity_tendency_due_to_nudging" in tendencies:
         return_names = return_names.append(PRECIP_NAME)
         moistening = column_integrated_moistening(
-            tendencies["specific_humidity"],
+            tendencies["specific_humidity_tendency_due_to_nudging"],
             state["pressure_thickness_of_atmospheric_layer"],
         )
         total_precip = state[PRECIP_NAME] - M_PER_MM * timestep * moistening
         total_precip = np.where(total_precip >= 0, total_precip, 0)
+        total_precip.units = "m"
         state[PRECIP_NAME] = total_precip
     return return_names
 
