@@ -9,8 +9,8 @@ Added public API:
 Refactored public API:
 - Bulleted list of removed or refactored symbols, such as name changes, type changes, argument changes, etc.
 
-Other code changes:
-- Bulleted list
+Significant internal changes:
+- Bulleted list of changes to non-public API
 
 Requirement changes:
 - Bulleted list, if relevant, of any changes to setup.py, requirement.txt, environment.yml, etc
