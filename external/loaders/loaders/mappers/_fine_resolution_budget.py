@@ -1,12 +1,12 @@
 import os
 import re
 import vcm
-from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
 import numpy as np
-from functools import partial
-
 import xarray as xr
+
+from functools import partial
 from toolz import groupby
+from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
 
 from ._transformations import KeyMap
 from .._utils import assign_net_physics_terms
