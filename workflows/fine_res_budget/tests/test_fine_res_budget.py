@@ -155,30 +155,30 @@ def test_shift():
     ["a", "b", "expected"],
     [
         (
-            xr.DataArray(3.0, name="a", attrs={"units": "m", "longname": "a_long"}),
-            xr.DataArray(2.0, name="b", attrs={"units": "m", "longname": "b_long"}),
+            xr.DataArray(3.0, name="a", attrs={"units": "m", "long_name": "a_long"}),
+            xr.DataArray(2.0, name="b", attrs={"units": "m", "long_name": "b_long"}),
             xr.DataArray(
                 6.0,
                 name="a_b",
-                attrs={"units": "m m", "longname": "Product of a_long and b_long"},
+                attrs={"units": "m m", "long_name": "Product of a_long and b_long"},
             ),
         ),
         (
-            xr.DataArray(3.0, name="a", attrs={"longname": "a_long"}),
-            xr.DataArray(2.0, name="b", attrs={"units": "m", "longname": "b_long"}),
+            xr.DataArray(3.0, name="a", attrs={"long_name": "a_long"}),
+            xr.DataArray(2.0, name="b", attrs={"units": "m", "long_name": "b_long"}),
             xr.DataArray(
                 6.0,
                 name="a_b",
-                attrs={"units": "m", "longname": "Product of a_long and b_long"},
+                attrs={"units": "m", "long_name": "Product of a_long and b_long"},
             ),
         ),
         (
             xr.DataArray(3.0, name="a", attrs={"units": "m"}),
-            xr.DataArray(2.0, name="b", attrs={"units": "m", "longname": "b_long"}),
+            xr.DataArray(2.0, name="b", attrs={"units": "m", "long_name": "b_long"}),
             xr.DataArray(
                 6.0,
                 name="a_b",
-                attrs={"units": "m m", "longname": "Product of a and b_long"},
+                attrs={"units": "m m", "long_name": "Product of a and b_long"},
             ),
         ),
     ],

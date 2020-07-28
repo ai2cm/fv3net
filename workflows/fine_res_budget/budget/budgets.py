@@ -105,11 +105,11 @@ def _infer_second_moment_units(field_1: xr.DataArray, field_2: xr.DataArray) -> 
     return f"{field_1_units} {field_2_units}".strip()
 
 
-def _infer_second_moment_longname(field_1: xr.DataArray, field_2: xr.DataArray) -> str:
+def _infer_second_moment_long_name(field_1: xr.DataArray, field_2: xr.DataArray) -> str:
     """Infer the longname for the product of two DataArrays."""
-    field_1_longname = field_1.attrs.get("longname", field_1.name)
-    field_2_longname = field_2.attrs.get("longname", field_2.name)
-    return f"Product of {field_1_longname} and {field_2_longname}"
+    field_1_long_name = field_1.attrs.get("long_name", field_1.name)
+    field_2_long_name = field_2.attrs.get("long_name", field_2.name)
+    return f"Product of {field_1_long_name} and {field_2_long_name}"
 
 
 def _infer_second_moment_attrs(
@@ -117,8 +117,8 @@ def _infer_second_moment_attrs(
 ) -> Dict[str, str]:
     """Infer the attributes for the product of two DataArrays."""
     units = _infer_second_moment_units(field_1, field_2)
-    longname = _infer_second_moment_longname(field_1, field_2)
-    return dict(units=units, longname=longname)
+    long_name = _infer_second_moment_long_name(field_1, field_2)
+    return dict(units=units, long_name=long_name)
 
 
 def _compute_second_moment(
