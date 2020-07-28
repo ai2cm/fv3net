@@ -248,7 +248,28 @@ def test_FineResolutionSources(fine_res_mapper):
     )
     source_ds = fine_res_source_mapper["20160901.001500"]
     safe.get_variables(
-        source_ds, ["dQ1", "dQ2", "pQ1", "pQ2", "air_temperature", "specific_humidity"]
+        source_ds,
+        [
+            "dQ1",
+            "dQ2",
+            "pQ1",
+            "pQ2",
+            "air_temperature",
+            "specific_humidity",
+            "air_temperature_saturation_adjustment",
+            "air_temperature_nudging",
+            "air_temperature_physics",
+            "air_temperature_unresolved_flux",
+            "air_temperature_total_resolved_flux",
+            "air_temperature_storage",
+            "specific_humidity",
+            "specific_humidity_saturation_adjustment",
+            "specific_humidity_physics",
+            "specific_humidity_unresolved_flux",
+            "specific_humidity_total_resolved_flux",
+            "specific_humidity_storage",
+            "omega",
+        ],
     )
 
 

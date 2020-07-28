@@ -36,7 +36,6 @@ DESCRIPTIVE_NAMES = {
     "qv_dt_fv_sat_adj_coarse": "specific_humidity_saturation_adjustment",
     "qv_dt_phys_coarse": "specific_humidity_physics",
     "eddy_flux_vulcan_omega_sphum": "specific_humidity_unresolved_flux",
-    "sphum": "specific_humidity",
     "sphum_vulcan_omega_coarse": "specific_humidity_total_resolved_flux",
     "sphum_storage": "specific_humidity_storage",
     "vulcan_omega_coarse": "omega",
@@ -81,7 +80,8 @@ def _storage_metadata(field: str, field_units: str) -> Dict[str, str]:
 
 
 def _convergence_metadata(field: str, field_units: str) -> Dict[str, str]:
-    """Return the metadata attrs dict for" the vertical eddy flux convergence tendency of a field."""
+    """Return the metadata attrs dict for" the vertical eddy flux
+    convergence tendency of a field."""
     return {
         "units": f"{field_units}/s",
         "long_name": "vertical eddy flux convergence tendency of {field}",
@@ -209,15 +209,13 @@ class FineResolutionSources(GeoMapper):
         return self._time_mapping.keys()
 
     def __getitem__(self, time: Time) -> xr.Dataset:
+        time_slice = self._time_mapping[time].rename(DESCRIPTIVE_NAMES)
         return (
-            self._derived_budget_ds(self._time_mapping[time])
+            self._derived_budget_ds(time_slice)
             .drop_vars(names=self._drop_vars, errors="ignore")
             .rename(self._rename_vars)
             .transpose(*self._dim_order)
         )
-
-    def _rename_budget_inputs_ds(self, budget_time_ds: xr.Dataset) -> xr.Dataset:
-        return budget_time_ds.rename(DESCRIPTIVE_NAMES)
 
     def _compute_coarse_eddy_flux_convergence_ds(
         self, budget_time_ds: xr.Dataset, field: str, vertical_dimension: str
@@ -259,7 +257,6 @@ class FineResolutionSources(GeoMapper):
                 "specific_humidity": "Q2",
             }
 
-        budget_time_ds = self._rename_budget_inputs_ds(budget_time_ds)
         for variable_name, apparent_source_name in variable_prefixes.items():
             budget_time_ds = (
                 budget_time_ds.pipe(
@@ -366,22 +363,21 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
         * tile                            (tile) int64 1 2 3 4 5 6
         Dimensions without coordinates: grid_xt, grid_yt, pfull
         Data variables:
-            air_temperature                 (tile, pfull, grid_yt, grid_xt) float32 235.28934 ... 290.56107
-            air_temperature_convergence     (tile, grid_yt, grid_xt, pfull) float32 4.3996937e-07 ... 1.7985441e-06
-            air_temperature_eddy            (tile, pfull, grid_yt, grid_xt) float32 -2.3193044e-05 ... 0.0004279223
-            air_temperature_microphysics    (tile, pfull, grid_yt, grid_xt) float32 0.0 ... -5.5472506e-06
-            air_temperature_nudging         (tile, pfull, grid_yt, grid_xt) float32 0.0 ... 2.0156076e-06
-            air_temperature_physics         (tile, pfull, grid_yt, grid_xt) float32 2.3518855e-06 ... -3.3252392e-05
-            air_temperature_resolved        (tile, pfull, grid_yt, grid_xt) float32 0.26079428 ... 0.6763954
-            air_temperature_storage         (tile, pfull, grid_yt, grid_xt) float32 0.000119928314 ... 5.2825694e-06
-            specific_humidity               (tile, pfull, grid_yt, grid_xt) float32 5.7787e-06 ... 0.008809893
-            specific_humidity_convergence   (tile, grid_yt, grid_xt, pfull) float32 -6.838638e-14 ... -1.7079346e-08
-            specific_humidity_eddy          (tile, pfull, grid_yt, grid_xt) float32 -1.0437861e-13 ... -2.5796332e-06
-            specific_humidity_microphysics  (tile, pfull, grid_yt, grid_xt) float32 0.0 ... 1.6763515e-09
-            specific_humidity_physics       (tile, pfull, grid_yt, grid_xt) float32 -1.961625e-14 ... 5.385441e-09
-            specific_humidity_resolved      (tile, pfull, grid_yt, grid_xt) float32 6.4418755e-09 ... 2.0072384e-05
-            specific_humidity_storage       (tile, pfull, grid_yt, grid_xt) float32 -6.422655e-11 ... -5.3609618e-08
-            Example:
+            air_temperature                          (tile, pfull, grid_yt, grid_xt) float32 235.28934 ... 290.56107
+            air_temperature_convergence              (tile, grid_yt, grid_xt, pfull) float32 4.3996937e-07 ... 1.7985441e-06
+            air_temperature_microphysics             (tile, pfull, grid_yt, grid_xt) float32 0.0 ... -5.5472506e-06
+            air_temperature_nudging                  (tile, pfull, grid_yt, grid_xt) float32 0.0 ... 2.0156076e-06
+            air_temperature_physics                  (tile, pfull, grid_yt, grid_xt) float32 2.3518855e-06 ... -3.3252392e-05
+            air_temperature_unresolved_flux          (tile, pfull, grid_yt, grid_xt) float32 0.26079428 ... 0.6763954
+            air_temperature_total_resolved_flux      (tile, pfull, grid_yt, grid_xt) float32 0.26079428 ... 0.6763954
+            air_temperature_storage                  (tile, pfull, grid_yt, grid_xt) float32 0.000119928314 ... 5.2825694e-06
+            specific_humidity                        (tile, pfull, grid_yt, grid_xt) float32 5.7787e-06 ... 0.008809893
+            specific_humidity_convergence            (tile, grid_yt, grid_xt, pfull) float32 -6.838638e-14 ... -1.7079346e-08
+            specific_humidity_microphysics           (tile, pfull, grid_yt, grid_xt) float32 0.0 ... 1.6763515e-09
+            specific_humidity_physics                (tile, pfull, grid_yt, grid_xt) float32 -1.961625e-14 ... 5.385441e-09
+            specific_humidity_unresolved_flux        (tile, pfull, grid_yt, grid_xt) float32 6.4418755e-09 ... 2.0072384e-05
+            specific_humidity_total_resolved_flux    (tile, pfull, grid_yt, grid_xt) float32 6.4418755e-09 ... 2.0072384e-05
+            specific_humidity_storage                (tile, pfull, grid_yt, grid_xt) float32 -6.422655e-11 ... -5.3609618e-08
     """  # noqa
     tiles = FineResolutionBudgetTiles(url)
     return GroupByTime(tiles)
