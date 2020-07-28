@@ -12,9 +12,6 @@ Refactored public API:
 Other code changes:
 - Bulleted list
 
-Documentation changes:
-- Bulleted list, or a short description of why no documentation is needed
-
 Requirement changes:
 - Bulleted list, if relevant, of any changes to setup.py, requirement.txt, environment.yml, etc
 
