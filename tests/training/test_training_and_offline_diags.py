@@ -210,15 +210,10 @@ def test_sklearn_regression(training_batches, data_source_train_config):
 
 
 @pytest.fixture
-def offline_diags_reference_schema(data_source_name, datadir_module):
-
-    if data_source_name != "fine_res_apparent_sources":
-        reference_schema_file = "offline_diags_reference.json"
-    else:
-        reference_schema_file = "offline_diags_reference_fine_res.json"
-
-    # test against reference
-    with open(os.path.join(str(datadir_module), reference_schema_file), "r") as f:
+def offline_diags_reference_schema(datadir_module):
+    with open(
+        os.path.join(str(datadir_module), "offline_diags_reference.json"), "r"
+    ) as f:
         reference_output_schema = synth.load(f)
         yield reference_output_schema
 
@@ -251,23 +246,28 @@ def mock_model():
 
 
 @pytest.fixture
-def data_source_offline_config(data_source_name, datadir_module):
+def data_source_offline_config(
+    data_source_name, datadir_module, C48_SHiELD_diags_dataset_path
+):
     if data_source_name == "one_step_tendencies":
         with open(
-            os.path.join(str(datadir_module), "test_one_step_config.yml"), "r"
+            os.path.join(str(datadir_module), "offline_one_step_config.yml"), "r"
         ) as f:
             return yaml.safe_load(f)
     elif data_source_name == "nudging_tendencies":
         with open(
-            os.path.join(str(datadir_module), "test_nudging_config.yml"), "r"
+            os.path.join(str(datadir_module), "offline_nudging_config.yml"), "r"
         ) as f:
-            return yaml.safe_load(f)
+            config = yaml.safe_load(f)
+            config["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
+        return config
     elif data_source_name == "fine_res_apparent_sources":
         with open(
-            os.path.join(str(datadir_module), "test_fine_res_config.yml"), "r"
+            os.path.join(str(datadir_module), "offline_fine_res_config.yml"), "r"
         ) as f:
             config = yaml.safe_load(f)
             del config["mapping_kwargs"]["offset_seconds"]
+            config["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
             return config
     else:
         raise NotImplementedError()
@@ -299,6 +299,8 @@ variables = [
     "pQ1",
     "pQ2",
     "pressure_thickness_of_atmospheric_layer",
+    "net_heating",
+    "net_precipitation",
 ]
 
 
