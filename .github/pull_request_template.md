@@ -12,5 +12,7 @@ Significant internal changes:
 
 Requirement changes:
 - Bulleted list, if relevant, of any changes to setup.py, requirement.txt, environment.yml, etc
+
 - [ ] Tests added
+
 You are encouraged to check the PR against the [Code Review Checklist](https://paper.dropbox.com/doc/Code-Review-Checklist--A4lKrs~xg7w5Gsb39N6JLNQoAg-IlsYffZgTwyKEylty7NhY).
