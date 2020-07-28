@@ -5,7 +5,8 @@ from datetime import datetime, timedelta
 import yaml
 import fsspec
 import logging
-import numpy as np
+from fv3util import Quantity
+import xarray as xr
 
 if __name__ == "__main__":
     import fv3gfs
@@ -15,6 +16,11 @@ else:
     MPI = None
 
 logger = logging.getLogger(__name__)
+
+GRAVITY = 9.81
+M_PER_MM = 1 / 1000
+PRECIP_NAME = "total_precipitation"
+State = MutableMapping[str, Quantity]
 
 RADIATION_NAMES = [
     "total_sky_downward_shortwave_flux_at_surface",
@@ -47,9 +53,6 @@ STORE_NAMES = [
 
 TENDENCY_OUT_FILENAME = "tendencies.zarr"
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))
-GRAVITY = 9.81
-M_PER_MM = 1 / 1000
-PRECIP_NAME = "total_precipitation"
 
 
 def get_timestep(config):
@@ -105,25 +108,39 @@ def append_key_label(d, suffix):
     return return_dict
 
 
-def column_integrated_moistening(humidity_tendency, pressure_thickness):
-    moistening = np.sum(humidity_tendency * pressure_thickness, axis=0) / GRAVITY
-    moistening.units = "kg/m^2/s"
+def column_integrated_moistening(
+    humidity_tendency: xr.DataArray, pressure_thickness: xr.DataArray
+) -> xr.DataArray:
+    moistening = (humidity_tendency * pressure_thickness).sum("z") / GRAVITY
+    moistening.attrs["units"] = "kg/m^2/s"
     return moistening
 
 
-def add_nudging_moistening_to_precip(state, tendencies, timestep):
-    return_names = list(tendencies.keys())
-    if "specific_humidity_tendency_due_to_nudging" in tendencies:
-        return_names = return_names.append(PRECIP_NAME)
+def total_precipitation(
+    model_precip: xr.DataArray, column_moistening: xr.DataArray, timestep: timedelta
+) -> xr.DataArray:
+    total_precip = model_precip - M_PER_MM * timestep.seconds * column_moistening
+    total_precip = total_precip.where(total_precip >= 0, 0)
+    total_precip.attrs["units"] = "m"
+    return total_precip
+
+
+def add_humidity_nudging_to_precip(
+    state: State, tendencies: State, nudging_names: Sequence[str], timestep: timedelta
+) -> Sequence[str]:
+    """Add column-integrated humidity nudging tendency to precipitation. Return list of
+    all quantites updated by nudging, including precipitation if applicable."""
+    updated_quantity_names = nudging_names.copy()
+    if "specific_humidity" in nudging_names:
+        updated_quantity_names.append(PRECIP_NAME)
         moistening = column_integrated_moistening(
-            tendencies["specific_humidity_tendency_due_to_nudging"],
-            state["pressure_thickness_of_atmospheric_layer"],
+            tendencies["specific_humidity_tendency_due_to_nudging"].data_array,
+            state["pressure_thickness_of_atmospheric_layer"].data_array,
         )
-        total_precip = state[PRECIP_NAME] - M_PER_MM * timestep * moistening
-        total_precip = np.where(total_precip >= 0, total_precip, 0)
-        total_precip.units = "m"
-        state[PRECIP_NAME] = total_precip
-    return return_names
+        model_precip = state[PRECIP_NAME].data_array
+        total_precip = total_precipitation(model_precip, moistening, timestep)
+        state[PRECIP_NAME] = Quantity.from_data_array(total_precip)
+    return updated_quantity_names
 
 
 class StageWriter:
@@ -251,9 +268,9 @@ if __name__ == "__main__":
         monitor.store(time, tendencies, stage="nudging_tendencies")
         monitor.store(time, state, stage="after_nudging")
 
-        updated_names = add_nudging_moistening_to_precip(state, tendencies, timestep)
-        updated_state_members = {
-            key: quantity for key, quantity in state.items() if key in updated_names
-        }
+        updated_quantity_names = add_humidity_nudging_to_precip(
+            state, tendencies, nudging_names, timestep
+        )
+        updated_state_members = {key: state[key] for key in updated_quantity_names}
         fv3gfs.set_state(updated_state_members)
     fv3gfs.cleanup()
