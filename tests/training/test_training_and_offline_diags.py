@@ -21,7 +21,13 @@ from offline_ml_diags.compute_diags import (
 
 logger = logging.getLogger(__name__)
 
-DOMAINS = ["land", "sea", "global"]
+DOMAINS = [
+    "land",
+    "sea",
+    "global",
+    "positive_net_precipitation",
+    "negative_net_precipitation",
+]
 DIURNAL_VARS = [
     "column_integrated_dQ1",
     "column_integrated_dQ2",
@@ -92,6 +98,8 @@ def test_compute_training_diags(
         "dQ2",
         "pQ1",
         "pQ2",
+        "net_heating",
+        "net_precipitation",
         "pressure_thickness_of_atmospheric_layer",
     ]
 
