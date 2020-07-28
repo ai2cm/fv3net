@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import yaml
 import fsspec
 import logging
+import numpy as np
 
 if __name__ == "__main__":
     import fv3gfs
@@ -46,6 +47,9 @@ STORE_NAMES = [
 
 TENDENCY_OUT_FILENAME = "tendencies.zarr"
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))
+GRAVITY = 9.81
+M_PER_MM = 1 / 1000
+PRECIP_NAME = "total_precipitation"
 
 
 def get_timestep(config):
@@ -99,6 +103,27 @@ def append_key_label(d, suffix):
     for key, value in d.items():
         return_dict[key + suffix] = value
     return return_dict
+
+
+def column_integrated_moistening(humidity_tendency, pressure_thickness):
+    GRAVITY = 9.81
+    moistening = np.sum(humidity_tendency * pressure_thickness, axis=0) / gravity
+    moistening.units = "kg/m^2/s"
+    return moistening
+
+
+def add_nudging_moistening_to_precipitation(state, tendencies, timestep):
+    return_names = list(tendencies.keys())
+    if "specific_humidity" in tendencies:
+        return_names = return_names.append(PRECIP_NAME)
+        moistening = column_integrated_moistening(
+            tendencies["specific_humidity"],
+            state["pressure_thickness_of_atmospheric_layer"],
+        )
+        total_precip = state[PRECIP_NAME] - M_PER_MM * timestep * moistening
+        total_precip = np.where(total_precip >= 0, total_precip, 0)
+        state[PRECIP_NAME] = total_precip
+    return return_names
 
 
 class StageWriter:
@@ -226,8 +251,9 @@ if __name__ == "__main__":
         monitor.store(time, tendencies, stage="nudging_tendencies")
         monitor.store(time, state, stage="after_nudging")
 
-        nudged_state_members = {
-            key: quantity for key, quantity in state.items() if key in nudging_names
+        updated_names = add_nudging_moistening_to_precip(state, tendencies, timestep)
+        updated_state_members = {
+            key: quantity for key, quantity in state.items() if key in updated_names
         }
-        fv3gfs.set_state(nudged_state_members)
+        fv3gfs.set_state(updated_state_members)
     fv3gfs.cleanup()
