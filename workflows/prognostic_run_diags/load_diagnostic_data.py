@@ -202,18 +202,17 @@ def _coarsen(ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int) -> xr.D
 
 
 def _get_coarsening_args(
-    ds: xr.Dataset, catalog: intake.Catalog, target_res: int
-) -> (xr.Dataset, int):
-    """Given input dataset and target resolution, return area dataset and
-    coarsening factor"""
+    ds: xr.Dataset, target_res: int, grid_entries: Mapping[int, str] = GRID_ENTRIES
+) -> (str, int):
+    """Given input dataset and target resolution, return catalog entry for input grid
+    and coarsening factor"""
     input_res = ds.sizes["x"]
     coarsening_factor = input_res / target_res
     if not coarsening_factor.is_integer():
         raise ValueError("Target resolution must evenly divide input resolution")
-    if input_res not in GRID_ENTRIES:
+    if input_res not in grid_entries:
         raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
-    area = catalog[GRID_ENTRIES[input_res]].to_dask()["area"]
-    return area, int(coarsening_factor)
+    return grid_entries[input_res], int(coarsening_factor)
 
 
 def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
@@ -242,7 +241,8 @@ def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
     path = os.path.join(url, "atmos_dt_atmos.zarr")
     logger.info(f"Opening prognostic run data at {path}")
     ds = _load_standardized(path)
-    area, coarsening_factor = _get_coarsening_args(ds, catalog, 48)
+    input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
+    area = catalog[input_grid].to_dask()["area"]
     ds = _coarsen(ds, area, coarsening_factor)
 
     return ds, verification_c48, grid_c48
@@ -275,7 +275,8 @@ def load_physics(url: str, catalog: intake.Catalog) -> DiagArg:
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
-    area, coarsening_factor = _get_coarsening_args(prognostic_output, catalog, 48)
+    input_grid, coarsening_factor = _get_coarsening_args(prognostic_output, 48)
+    area = catalog[input_grid].to_dask()["area"]
     prognostic_output = _coarsen(prognostic_output, area, coarsening_factor)
     prognostic_output = add_derived.physics_variables(prognostic_output)
 
