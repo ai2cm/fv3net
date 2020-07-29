@@ -140,7 +140,7 @@ def add_coordinates(
 def _propagate_attrs(
     reference_obj: Union[xr.Dataset, xr.DataArray], obj: Union[xr.Dataset, xr.DataArray]
 ) -> Union[xr.Dataset, xr.DataArray]:
-    """Propagate DataArray attributes from the reference object to another.
+    """Propagate attributes from the reference object to another.
 
     Args:
         reference_obj: input object
@@ -152,8 +152,7 @@ def _propagate_attrs(
     if isinstance(reference_obj, xr.Dataset):
         for variable in reference_obj:
             obj[variable].attrs = reference_obj[variable].attrs
-    else:
-        obj.attrs = reference_obj.attrs
+    obj.attrs = reference_obj.attrs
     return obj
 
 
@@ -164,7 +163,6 @@ def weighted_block_average(
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_2",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-    keep_attrs: bool = False,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset through weighted block averaging.
 
@@ -181,8 +179,6 @@ def weighted_block_average(
             mapping from coordinate name to function.  See `xarray's coarsen
             method for details
             <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
-        keep_attrs: whether to propagate attributes from inputs to outputs
-            (default False).
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -195,10 +191,7 @@ def weighted_block_average(
     if isinstance(obj, xr.DataArray):
         result = result.rename(obj.name)
 
-    if keep_attrs:
-        result = _propagate_attrs(obj, result)
-
-    return result
+    return _propagate_attrs(obj, result)
 
 
 def edge_weighted_block_average(
@@ -209,7 +202,6 @@ def edge_weighted_block_average(
     y_dim: Hashable = "yaxis_1",
     edge: str = "x",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-    keep_attrs: bool = False,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset along a block edge.
 
@@ -227,8 +219,6 @@ def edge_weighted_block_average(
             mapping from coordinate name to function.  See `xarray's coarsen
             method for details
             <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
-        keep_attrs: whether to propagate attributes from inputs to outputs
-            (default False).
 
     Returns:
         xr.DataArray.
@@ -256,10 +246,7 @@ def edge_weighted_block_average(
         obj, result, downsample_dim, coarsening_factor, coord_func
     )
 
-    if keep_attrs:
-        result = _propagate_attrs(obj, result)
-
-    return result
+    return _propagate_attrs(obj, result)
 
 
 def _is_dict_like(value: Any) -> bool:
@@ -385,7 +372,6 @@ def _xarray_block_reduce_dataarray(
     reduction_function: Callable,
     cval: float = np.nan,
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-    keep_attrs: bool = False,
 ) -> xr.DataArray:
     """An xarray and dask compatible block_reduce function designed for
     DataArrays.
@@ -411,8 +397,6 @@ def _xarray_block_reduce_dataarray(
             mapping from coordinate name to function.  See `xarray's coarsen
             method for details
             <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
-        keep_attrs: whether to propagate attributes from inputs to outputs
-            (default False).
 
     Returns:
         xr.DataArray.
@@ -449,11 +433,7 @@ def _xarray_block_reduce_dataarray(
     )
 
     result = _block_reduce_dataarray_coordinates(da, result, block_sizes, coord_func)
-
-    if keep_attrs:
-        result = _propagate_attrs(da, result)
-
-    return result
+    return _propagate_attrs(da, result)
 
 
 def xarray_block_reduce(
@@ -462,7 +442,6 @@ def xarray_block_reduce(
     reduction_function: Callable,
     cval: float = np.nan,
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-    keep_attrs: bool = False,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """A generic block reduce function for xarray data structures.
 
@@ -496,26 +475,26 @@ def xarray_block_reduce(
             mapping from coordinate name to function.  See `xarray's coarsen
             method for details
             <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
-        keep_attrs: whether to propagate attributes from inputs to outputs
-            (default False).
 
     Returns:
         xr.Dataset or xr.DataArray.
     """
     if isinstance(obj, xr.Dataset):
-        return obj.apply(
+        result = obj.apply(
             _xarray_block_reduce_dataarray,
-            args=(block_sizes, reduction_function, cval, coord_func, keep_attrs),
+            args=(block_sizes, reduction_function),
+            cval=cval,
+            coord_func=coord_func
         )
     else:
-        return _xarray_block_reduce_dataarray(
+        result = _xarray_block_reduce_dataarray(
             obj,
             block_sizes,
             reduction_function,
             cval=cval,
-            coord_func=coord_func,
-            keep_attrs=keep_attrs,
+            coord_func=coord_func
         )
+    return _propagate_attrs(obj, result)
 
 
 def horizontal_block_reduce(
@@ -525,7 +504,6 @@ def horizontal_block_reduce(
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-    keep_attrs: bool = False,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """A generic horizontal block reduce function for xarray data structures.
 
@@ -546,8 +524,6 @@ def horizontal_block_reduce(
             mapping from coordinate name to function.  See `xarray's coarsen
             method for details
             <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
-        keep_attrs: whether to propagate attributes from inputs to outputs
-            (default False).
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -558,7 +534,6 @@ def horizontal_block_reduce(
         block_sizes,
         reduction_function,
         coord_func=coord_func,
-        keep_attrs=keep_attrs,
     )
 
 
@@ -568,7 +543,6 @@ def block_median(
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-    keep_attrs: bool = False,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by taking the median over blocks.
 
@@ -583,8 +557,6 @@ def block_median(
             mapping from coordinate name to function.  See `xarray's coarsen
             method for details
             <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
-        keep_attrs: whether to propagate attributes from inputs to outputs
-            (default False).
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -596,7 +568,6 @@ def block_median(
         x_dim=x_dim,
         y_dim=y_dim,
         coord_func=coord_func,
-        keep_attrs=keep_attrs,
     )
 
 
@@ -607,7 +578,6 @@ def block_edge_sum(
     y_dim: Hashable = "yaxis_1",
     edge: str = "x",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-    keep_attrs: bool = False,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by summing along a block edge.
 
@@ -624,8 +594,6 @@ def block_edge_sum(
             mapping from coordinate name to function.  See `xarray's coarsen
             method for details
             <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
-        keep_attrs: whether to propagate attributes from inputs to outputs
-            (default False).
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -654,10 +622,7 @@ def block_edge_sum(
         obj, result, downsample_dim, coarsening_factor, coord_func
     )
 
-    if keep_attrs:
-        result = _propagate_attrs(obj, result)
-
-    return result
+    return _propagate_attrs(obj, result)
 
 
 def _mode(arr: np.array, axis: int = 0, nan_policy: str = "propagate") -> np.array:
@@ -731,7 +696,6 @@ def _block_mode(
     y_dim: Hashable = "yaxis_1",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
     nan_policy: str = "propagate",
-    keep_attrs: bool = False,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by taking the mode over blocks.
 
@@ -749,8 +713,6 @@ def _block_mode(
         nan_policy: Defines how to handle when input contains nan. 'propagate'
             returns nan, raise' throws an error, 'omit' performs the calculations
             ignoring nan values. Default is 'propagate'.
-        keep_attrs: whether to propagate attributes from inputs to outputs
-            (default False).
 
     Returns:
         xr.Dataset or xr.DataArray.
@@ -763,7 +725,6 @@ def _block_mode(
         x_dim=x_dim,
         y_dim=y_dim,
         coord_func=coord_func,
-        keep_attrs=keep_attrs,
     )
 
 
@@ -780,7 +741,6 @@ def block_coarsen(
     y_dim: Hashable = "yaxis_1",
     method: str = "sum",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-    keep_attrs: bool = False,
     func_kwargs: Optional[Dict] = None,
 ) -> Union[xr.Dataset, xr.DataArray]:
     """Coarsen a DataArray or Dataset by performing an operation over blocks.
@@ -799,8 +759,6 @@ def block_coarsen(
             mapping from coordinate name to function.  See `xarray's coarsen
             method for details
             <http://xarray.pydata.org/en/stable/generated/xarray.DataArray.coarsen.html>`_.
-        keep_attrs: whether to propagate attributes from inputs to outputs
-            (default False).
         func_kwargs: Additional keyword arguments to pass to the reduction function.
 
     Returns:
@@ -816,12 +774,11 @@ def block_coarsen(
             x_dim=x_dim,
             y_dim=y_dim,
             coord_func=coord_func,
-            keep_attrs=keep_attrs,
             **func_kwargs,
         )
     else:
         coarsen_kwargs = {x_dim: coarsening_factor, y_dim: coarsening_factor}
-        coarsen_object = obj.coarsen(coarsen_kwargs, coord_func=coord_func, keep_attrs=keep_attrs)  # type: ignore # noqa
+        coarsen_object = obj.coarsen(coarsen_kwargs, coord_func=coord_func)  # type: ignore # noqa
         return getattr(coarsen_object, method)()
 
 
