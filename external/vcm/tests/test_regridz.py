@@ -141,14 +141,10 @@ def test_regrid_vertical_invalid_vertical_dimension_size():
 
 
 @pytest.mark.skipif(not has_mappm, reason="test requires mappm")
-@pytest.mark.parametrize(
-    ("keep_attrs", "expected_attrs"),
-    [(False, {}), (True, {"units": "m"})],
-    ids=lambda x: repr(x),
-)
-def test_regrid_vertical_keep_attrs(keep_attrs, expected_attrs):
+def test_regrid_vertical_keep_attrs():
+    attrs = {"units": "m"}
     p_in = input_dataarray((4, 6), z_dim_name="z_outer")
-    f_in = input_dataarray((4, 5), z_dim_name="z_center").assign_attrs(units="m")
+    f_in = input_dataarray((4, 5), z_dim_name="z_center").assign_attrs(attrs)
     p_out = input_dataarray((4, 3), z_dim_name="z_outer")
     f_out = regrid_vertical(
         p_in,
@@ -156,9 +152,8 @@ def test_regrid_vertical_keep_attrs(keep_attrs, expected_attrs):
         p_out,
         z_dim_center="z_center",
         z_dim_outer="z_outer",
-        keep_attrs=keep_attrs,
     )
-    assert f_out.attrs == expected_attrs
+    assert f_out.attrs == attrs
 
 
 def test__mask_weights():
