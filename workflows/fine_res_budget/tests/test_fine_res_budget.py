@@ -13,7 +13,7 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from budget.data import shift
 from budget.pipeline import run, OpenTimeChunks
-from budget.budgets import _compute_second_moment
+from budget.budgets import _compute_second_moment, storage
 
 from vcm import safe
 
@@ -187,4 +187,48 @@ def test_shift():
 )
 def test__compute_second_moment(a, b, expected):
     result = _compute_second_moment(a, b)
+    xr.testing.assert_identical(result, expected)
+
+
+@pytest.mark.parametrize(
+    ("field", "expected"),
+    [
+        (
+            xr.DataArray(
+                [0.0, 1.0],
+                coords=[("step", ["begin", "end"])],
+                name="a",
+                attrs={"units": "m", "long_name": "a_long"},
+            ),
+            xr.DataArray(
+                0.5,
+                name="a_storage",
+                attrs={"units": "m/s", "long_name": "Storage of a_long"},
+            ),
+        ),
+        (
+            xr.DataArray(
+                [0.0, 1.0],
+                coords=[("step", ["begin", "end"])],
+                name="a",
+                attrs={"long_name": "a_long"},
+            ),
+            xr.DataArray(
+                0.5,
+                name="a_storage",
+                attrs={"units": "/s", "long_name": "Storage of a_long"},
+            ),
+        ),
+        (
+            xr.DataArray([0.0, 1.0], coords=[("step", ["begin", "end"])], name="a"),
+            xr.DataArray(
+                0.5,
+                name="a_storage",
+                attrs={"units": "/s", "long_name": "Storage of a"},
+            ),
+        ),
+    ],
+)
+def test_storage(field, expected):
+    result = storage(field, 2)
     xr.testing.assert_identical(result, expected)

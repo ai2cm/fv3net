@@ -59,7 +59,11 @@ class Grid:
 
 
 def storage(field: xr.DataArray, time_step: float) -> xr.DataArray:
-    return (field.sel(step="end") - field.sel(step="begin")) / time_step
+    result = (field.sel(step="end") - field.sel(step="begin")) / time_step
+    units = _infer_storage_units(field)
+    long_name = _infer_storage_long_name(field)
+    name = _infer_storage_name(field)
+    return result.assign_attrs(units=units, long_name=long_name).rename(name)
 
 
 GRID = Grid("grid_xt", "grid_yt", "pfull", "grid_x", "grid_y", "pfulli")
@@ -106,7 +110,7 @@ def _infer_second_moment_units(field_1: xr.DataArray, field_2: xr.DataArray) -> 
 
 
 def _infer_second_moment_long_name(field_1: xr.DataArray, field_2: xr.DataArray) -> str:
-    """Infer the longname for the product of two DataArrays."""
+    """Infer the long_name for the product of two DataArrays."""
     field_1_long_name = field_1.attrs.get("long_name", field_1.name)
     field_2_long_name = field_2.attrs.get("long_name", field_2.name)
     return f"Product of {field_1_long_name} and {field_2_long_name}"
@@ -150,6 +154,23 @@ def compute_second_moments(
     return results
 
 
+def _infer_storage_name(field: xr.DataArray) -> str:
+    """Infer the name for the storage component of a budget."""
+    return f"{field.name}_storage"
+
+
+def _infer_storage_units(field: xr.DataArray) -> str:
+    """Infer the units for the storage component of a budget."""
+    field_units = field.attrs.get("units", "")
+    return f"{field_units}/s"
+
+
+def _infer_storage_long_name(field: xr.DataArray) -> str:
+    """Infer the long_name for the storage component of a budget."""
+    field_long_name = field.attrs.get("long_name", field.name)
+    return f"Storage of {field_long_name}"
+
+
 def compute_storage_terms(
     ds: xr.Dataset, storage_terms: Sequence[str], dt: int
 ) -> List[xr.DataArray]:
@@ -165,7 +186,7 @@ def compute_storage_terms(
     """
     results = []
     for field in storage_terms:
-        result = storage(ds[field], dt).rename(f"{field}_storage")
+        result = storage(ds[field], dt)
         results.append(result)
     return results
 
