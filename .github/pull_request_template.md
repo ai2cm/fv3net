@@ -1,7 +1,7 @@
 Description: Short description of why the PR is needed and how it satisfies those requirements, in sentence form.
 
 Added public API:
-- symbol (e.g. `vcm.my_function`) and optional description of changes or why they are needed
+- symbol (e.g. `vcm.my_function`) or script and optional description of changes or why they are needed
 - Can group multiple related symbols on a single bullet
 
 Refactored public API:
