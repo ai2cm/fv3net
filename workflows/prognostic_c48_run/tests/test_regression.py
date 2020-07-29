@@ -20,7 +20,7 @@ FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
 
 
 BASE_FV3CONFIG_CACHE = Path(
-    "/inputdata", "fv3config-cache", "gs", "vcm-fv3config", "vcm-fv3config", "data"
+    "gs://vcm-fv3config", "vcm-fv3config", "data"
 )
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
     "initial_conditions", "c12_restart_initial_conditions", "v1.0"
