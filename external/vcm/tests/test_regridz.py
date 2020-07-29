@@ -147,11 +147,7 @@ def test_regrid_vertical_keep_attrs():
     f_in = input_dataarray((4, 5), z_dim_name="z_center").assign_attrs(attrs)
     p_out = input_dataarray((4, 3), z_dim_name="z_outer")
     f_out = regrid_vertical(
-        p_in,
-        f_in,
-        p_out,
-        z_dim_center="z_center",
-        z_dim_outer="z_outer",
+        p_in, f_in, p_out, z_dim_center="z_center", z_dim_outer="z_outer",
     )
     assert f_out.attrs == attrs
 
