@@ -642,8 +642,8 @@ def block_edge_sum(
     coarsen_kwargs = {coarsen_dim: coarsening_factor}
     copy = obj.copy()  # coarsen destroys attributes on the original object
     coarsened = copy.coarsen(
-        coarsen_kwargs, coord_func=coord_func
-    ).sum()  # type: ignore
+        coarsen_kwargs, coord_func=coord_func  # type: ignore
+    ).sum()
     downsample_kwargs = {downsample_dim: slice(None, None, coarsening_factor)}
     result = coarsened.isel(downsample_kwargs)
 
