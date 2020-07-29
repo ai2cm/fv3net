@@ -1,4 +1,4 @@
-from runfile import add_humidity_nudging_to_precip, total_precipitation
+from nudging_runfile import add_humidity_nudging_to_precip, total_precipitation
 from datetime import timedelta
 from fv3util import Quantity
 import pytest
@@ -50,7 +50,7 @@ def test_add_humidity_nudging_to_precip(state, tendencies, timestep):
     assert (state[PRECIP].view[:] != state_copy[PRECIP].view[:]).any()
 
 
-def test_add_humidity_nudging_to_precip_only_acts_if_nudging_humidity(state, timestep):
+def test_add_humidity_nudging_only_acts_if_nudging_humidity(state, timestep):
     state_copy = state.copy()
     add_humidity_nudging_to_precip(state, {}, timestep)
     np.testing.assert_allclose(state[PRECIP].view[:], state_copy[PRECIP].view[:])
