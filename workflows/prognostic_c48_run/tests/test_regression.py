@@ -328,7 +328,9 @@ namelist:
     ldebug: false
 """
 
-NUDGE_RUNFILE = Path(__file__).parent.parent.joinpath("nudging/runfile.py").as_posix()
+NUDGE_RUNFILE = (
+    Path(__file__).parent.parent.joinpath("nudging/nudging_runfile.py").as_posix()
+)
 # Necessary to know the number of restart timestamp folders to generate in fixture
 START_TIME = [2016, 8, 1, 0, 0, 0]
 TIMESTEP_MINUTES = 15
@@ -402,7 +404,7 @@ def test_nudge_run(tmp_restart_dir):
 
     tmpdir = tmp_restart_dir.parent.as_posix()
     config = get_nudging_config(default_fv3config, tmp_restart_dir.as_posix())
-    fv3config.run_native(config, tmpdir, capture_output=False, runfile=NUDGE_RUNFILE)
+    fv3config.run_native(config, tmpdir, capture_output=True, runfile=NUDGE_RUNFILE)
 
 
 def get_prognostic_config(model):
