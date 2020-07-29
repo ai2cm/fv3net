@@ -264,6 +264,7 @@ def regrid_vertical(
     kord: int = 1,
     z_dim_center: str = RESTART_Z_CENTER,
     z_dim_outer: str = RESTART_Z_OUTER,
+    keep_attrs: bool = False,
 ) -> xr.DataArray:
     """Do vertical regridding using Fortran mappm subroutine.
 
@@ -281,6 +282,7 @@ def regrid_vertical(
         kord (optional): method number for vertical regridding. Defaults to 1.
         z_dim_center (optional): name of centered z-dimension. Defaults to "zaxis_1".
         z_dim_outer (optional): name of staggered z-dimension. Defaults to "zaxis_2".
+        keep_attrs (optional): whether to propagate attributes of input to output.
 
     Returns:
         f_in regridded to p_out pressure levels
@@ -326,6 +328,7 @@ def regrid_vertical(
     _assert_equal_number_of_columns(p_in, f_in, p_out)
     _assert_valid_vertical_dimension_sizes(p_in, f_in, z_dim_outer, z_dim_center)
 
+    attrs = f_in.attrs if keep_attrs else {}
     return (
         xr.apply_ufunc(
             _columnwise_mappm,
@@ -339,6 +342,7 @@ def regrid_vertical(
         )
         .rename({z_dim_center_f_out: z_dim_center})
         .transpose(*original_dim_order)
+        .assign_attrs(attrs)
     )
 
 

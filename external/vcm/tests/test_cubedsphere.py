@@ -344,7 +344,7 @@ def test_block_reduce_dataarray_coordinates(
         input_dataarray.coarsen(x=2, y=2, coord_func=coord_func)
         .median()
         .rename(input_dataarray.name)
-        .assign_attrs(**expected_attrs)
+        .assign_attrs(expected_attrs)
     )
     assert_identical_including_dtype(result, expected)
 
