@@ -10,6 +10,8 @@ from .utils import (
     insert_column_integrated_vars,
 )
 from ._diurnal_cycle import bin_diurnal_cycle, create_diurnal_cycle_dataset
+from . import plot
+
 
 __all__ = [
     "VARNAMES",

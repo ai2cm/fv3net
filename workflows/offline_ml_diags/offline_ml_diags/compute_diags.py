@@ -102,7 +102,7 @@ def _compute_diags_over_batches(
             .pipe(utils.insert_column_integrated_vars)
             .load()
         )
-
+        print(ds)
         # ...reduce to diagnostic variables
         ds_summary = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
         # ...compute diurnal cycles
