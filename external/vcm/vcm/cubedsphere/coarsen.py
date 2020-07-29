@@ -27,7 +27,7 @@ NUM_TILES = 6
 SUBTILE_FILE_PATTERN = "{prefix}.tile{tile:d}.nc.{subtile:04d}"
 STAGGERED_DIMS = [COORD_X_OUTER, COORD_Y_OUTER]
 
-DataArray_or_Dataset = TypeVar("DataArray_or_Dataset", xr.DataArray, xr.Dataset)
+T_DataArray_or_Dataset = TypeVar("T_DataArray_or_Dataset", xr.DataArray, xr.Dataset)
 CoordFunc = Callable[[Any, Union[int, Tuple[int]]], Any]
 
 
@@ -120,11 +120,11 @@ def coarsen_coords_coord_func(
 
 
 def add_coordinates(
-    reference_obj: DataArray_or_Dataset,
-    coarsened_obj: DataArray_or_Dataset,
+    reference_obj: T_DataArray_or_Dataset,
+    coarsened_obj: T_DataArray_or_Dataset,
     coarsening_factor: int,
     dims: List[Hashable],
-) -> DataArray_or_Dataset:
+) -> T_DataArray_or_Dataset:
     """Add coarsened subtile coordinates to the coarsened xarray data
     structure.
 
@@ -149,8 +149,8 @@ def add_coordinates(
 
 
 def _propagate_attrs(
-    reference_obj: DataArray_or_Dataset, obj: DataArray_or_Dataset
-) -> DataArray_or_Dataset:
+    reference_obj: T_DataArray_or_Dataset, obj: T_DataArray_or_Dataset
+) -> T_DataArray_or_Dataset:
     """Propagate attributes from the reference object to another.
 
     Args:
@@ -168,13 +168,13 @@ def _propagate_attrs(
 
 
 def weighted_block_average(
-    obj: DataArray_or_Dataset,
+    obj: T_DataArray_or_Dataset,
     weights: xr.DataArray,
     coarsening_factor: int,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_2",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-) -> DataArray_or_Dataset:
+) -> T_DataArray_or_Dataset:
     """Coarsen a DataArray or Dataset through weighted block averaging.
 
     Note that this function assumes that the x and y dimension names of the
@@ -206,14 +206,14 @@ def weighted_block_average(
 
 
 def edge_weighted_block_average(
-    obj: DataArray_or_Dataset,
+    obj: T_DataArray_or_Dataset,
     spacing: xr.DataArray,
     coarsening_factor: int,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     edge: str = "x",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-) -> DataArray_or_Dataset:
+) -> T_DataArray_or_Dataset:
     """Coarsen a DataArray or Dataset along a block edge.
 
     Note that this function assumes that the x and y dimension names of the
@@ -448,12 +448,12 @@ def _xarray_block_reduce_dataarray(
 
 
 def xarray_block_reduce(
-    obj: DataArray_or_Dataset,
+    obj: T_DataArray_or_Dataset,
     block_sizes: Mapping[Hashable, int],
     reduction_function: Callable,
     cval: float = np.nan,
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-) -> DataArray_or_Dataset:
+) -> T_DataArray_or_Dataset:
     """A generic block reduce function for xarray data structures.
 
     This is a wrapper around skimage.measure.block_reduce, which
@@ -505,13 +505,13 @@ def xarray_block_reduce(
 
 
 def horizontal_block_reduce(
-    obj: DataArray_or_Dataset,
+    obj: T_DataArray_or_Dataset,
     coarsening_factor: int,
     reduction_function: Callable,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-) -> DataArray_or_Dataset:
+) -> T_DataArray_or_Dataset:
     """A generic horizontal block reduce function for xarray data structures.
 
     This is a convenience wrapper around block_reduce for applying coarsening
@@ -542,12 +542,12 @@ def horizontal_block_reduce(
 
 
 def block_median(
-    obj: DataArray_or_Dataset,
+    obj: T_DataArray_or_Dataset,
     coarsening_factor: int,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-) -> DataArray_or_Dataset:
+) -> T_DataArray_or_Dataset:
     """Coarsen a DataArray or Dataset by taking the median over blocks.
 
     Mainly meant for coarse-graining sfc_data variables.
@@ -576,13 +576,13 @@ def block_median(
 
 
 def block_edge_sum(
-    obj: DataArray_or_Dataset,
+    obj: T_DataArray_or_Dataset,
     coarsening_factor: int,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     edge: str = "x",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
-) -> DataArray_or_Dataset:
+) -> T_DataArray_or_Dataset:
     """Coarsen a DataArray or Dataset by summing along a block edge.
 
     Mainly meant for coarse-graining the dx and dy variables from the original
@@ -694,13 +694,13 @@ def _mode_reduce(
 
 
 def _block_mode(
-    obj: DataArray_or_Dataset,
+    obj: T_DataArray_or_Dataset,
     coarsening_factor: int,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
     nan_policy: str = "propagate",
-) -> DataArray_or_Dataset:
+) -> T_DataArray_or_Dataset:
     """Coarsen a DataArray or Dataset by taking the mode over blocks.
 
     See also: scipy.stats.mode.
@@ -739,14 +739,14 @@ CUSTOM_COARSENING_FUNCTIONS: Dict[str, Callable[..., Any]] = {
 
 
 def block_coarsen(
-    obj: DataArray_or_Dataset,
+    obj: T_DataArray_or_Dataset,
     coarsening_factor: int,
     x_dim: Hashable = "xaxis_1",
     y_dim: Hashable = "yaxis_1",
     method: str = "sum",
     coord_func: Union[str, CoordFunc] = coarsen_coords_coord_func,
     func_kwargs: Optional[Dict] = None,
-) -> DataArray_or_Dataset:
+) -> T_DataArray_or_Dataset:
     """Coarsen a DataArray or Dataset by performing an operation over blocks.
 
     In addition to the operations supported through xarray's coarsen method,
@@ -813,8 +813,8 @@ def _upsample_staggered_or_unstaggered(obj, upsampling_factor, dim):
 
 
 def block_upsample(
-    obj: DataArray_or_Dataset, upsampling_factor: int, dims: List[Hashable],
-) -> DataArray_or_Dataset:
+    obj: T_DataArray_or_Dataset, upsampling_factor: int, dims: List[Hashable],
+) -> T_DataArray_or_Dataset:
     """Upsample an object by repeating values n times in each
     horizontal dimension.
 
