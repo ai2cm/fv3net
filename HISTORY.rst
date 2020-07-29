@@ -21,6 +21,7 @@ latest
 * Generalize post-processing script and create new post_process_run image.
 * Move plotting routines previously found in :code:`vcm.visualize` and :code:`gallery` into a new package :code:`fv3viz` and remove dependencies between :code:`vcm` and plotting routines.
 * Add vertical profiles of RMSE/bias to the offline diagnostics dataset.
+* add new `v0.5` base fv3config to cope with the modification to how fv3config handles the location of the orographic data
 
 0.2.3 (2020-06-19)
 ------------------
