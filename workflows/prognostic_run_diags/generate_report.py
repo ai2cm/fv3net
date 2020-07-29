@@ -220,6 +220,11 @@ def global_avg_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @diag_plot_manager.register
+def global_avg_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+    return time_series_plot(time_series, varfilter="global_mean_bias")
+
+
+@diag_plot_manager.register
 def diurnal_cycle_land_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="diurnal_land")
 
@@ -269,7 +274,7 @@ def main():
     bucket = args.input
 
     # get run information
-    fs = fsspec.filesystem("gs")
+    fs, _, _ = fsspec.get_fs_token_paths(bucket)
     rundirs = detect_rundirs(bucket, fs)
     run_table = pd.DataFrame.from_records(_parse_metadata(run) for run in rundirs)
     run_table_lookup = run_table.set_index("run")

@@ -36,7 +36,9 @@ from constants import (
     DiagArg,
     GLOBAL_AVERAGE_DYCORE_VARS,
     GLOBAL_AVERAGE_PHYSICS_VARS,
+    GLOBAL_BIAS_PHYSICS_VARS,
     DIURNAL_CYCLE_VARS,
+    TIME_MEAN_VARS,
 )
 
 import logging
@@ -208,14 +210,42 @@ def global_averages_physics(resampled, verification, grid):
 
 
 @add_to_diags("physics")
-@diag_finalizer("bias_global_physics")
+@diag_finalizer("global_mean_bias")
 @transform.apply("resample_time", "3H")
-@transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
+@transform.apply("subset_variables", GLOBAL_BIAS_PHYSICS_VARS)
 def global_biases_physics(resampled, verification, grid):
     logger.info("Preparing global average biases for physics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
 
     return bias_errors
+
+
+@add_to_diags("dycore")
+@diag_finalizer("global_mean_bias")
+@transform.apply("resample_time", "3H")
+def global_biases_physics(resampled, verification, grid):
+    logger.info("Preparing global average biases for physics variables")
+    bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
+
+    return bias_errors
+
+
+@add_to_diags("physics")
+@diag_finalizer("time_mean_value")
+@transform.apply("resample_time", "1H", time_slice=slice(24, -1))
+@transform.apply("subset_variables", TIME_MEAN_VARS)
+def time_mean(prognostic, verification, grid):
+    logger.info("Preparing time means for physics variables")
+    return prognostic.mean("time")
+
+
+@add_to_diags("physics")
+@diag_finalizer("time_mean_bias")
+@transform.apply("resample_time", "1H", time_slice=slice(24, -1))
+@transform.apply("subset_variables", TIME_MEAN_VARS)
+def time_mean_bias(prognostic, verification, grid):
+    logger.info("Preparing time mean biases for physics variables")
+    return (prognostic - verification).mean("time")
 
 
 for mask_type in ["global", "land", "sea"]:
