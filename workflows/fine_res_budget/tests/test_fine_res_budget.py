@@ -128,6 +128,8 @@ def test_run(tmpdir):
 
     for variable in expected_variables:
         assert variable in ds
+        assert "long_name" in ds[variable].attrs
+        assert "units" in ds[variable].attrs
 
 
 def test_shift():
