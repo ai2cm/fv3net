@@ -126,84 +126,82 @@ def total_precipitation(
 
 
 def add_humidity_nudging_to_precip(
-    state: State, tendencies: State, nudging_names: Sequence[str], timestep: timedelta
+    state: State, tendencies: State, timestep: timedelta
 ) -> Sequence[str]:
-    """Add column-integrated humidity nudging tendency to precipitation. Return list of
-    all quantites updated by nudging, including precipitation if applicable."""
-    updated_quantity_names = nudging_names.copy()
-    if "specific_humidity" in nudging_names:
-        updated_quantity_names.append(PRECIP_NAME)
-        moistening = column_integrated_moistening(
+    """Add column-integrated humidity nudging tendency to precipitation if specific
+    humidity is being nudged."""
+    if "specific_humidity_tendency_due_to_nudging" in tendencies:
+        column_moistening = column_integrated_moistening(
             tendencies["specific_humidity_tendency_due_to_nudging"].data_array,
             state["pressure_thickness_of_atmospheric_layer"].data_array,
         )
         model_precip = state[PRECIP_NAME].data_array
-        total_precip = total_precipitation(model_precip, moistening, timestep)
+        total_precip = total_precipitation(model_precip, column_moistening, timestep)
         state[PRECIP_NAME] = Quantity.from_data_array(total_precip)
-    return updated_quantity_names
 
 
-class StageWriter:
-    def __init__(
-        self,
-        root_dirname: str,
-        partitioner,
-        mode="w",
-        times: Optional[Sequence[str]] = None,
-    ):
-        self._root_dirname = root_dirname
-        self._monitors: MutableMapping[str, SubsetWriter] = {}
-        self._mode = mode
-        self.partitioner = partitioner
-        self.times = times
+if __name__ == "__main__":
 
-    def store(self, time: datetime, state, stage: str):
-        monitor = self._get_monitor(stage)
-        monitor.store(time, state)
+    class StageWriter:
+        def __init__(
+            self,
+            root_dirname: str,
+            partitioner,
+            mode="w",
+            times: Optional[Sequence[str]] = None,
+        ):
+            self._root_dirname = root_dirname
+            self._monitors: MutableMapping[str, SubsetWriter] = {}
+            self._mode = mode
+            self.partitioner = partitioner
+            self.times = times
 
-    def _get_monitor(self, stage_name: str):
-        if stage_name not in self._monitors:
-            store = master_only(
-                lambda: fsspec.get_mapper(
-                    os.path.join(self._root_dirname, stage_name + ".zarr")
+        def store(self, time: datetime, state, stage: str):
+            monitor = self._get_monitor(stage)
+            monitor.store(time, state)
+
+        def _get_monitor(self, stage_name: str):
+            if stage_name not in self._monitors:
+                store = master_only(
+                    lambda: fsspec.get_mapper(
+                        os.path.join(self._root_dirname, stage_name + ".zarr")
+                    )
+                )()
+                monitor = fv3gfs.ZarrMonitor(
+                    store, self.partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
                 )
-            )()
-            monitor = fv3gfs.ZarrMonitor(
-                store, self.partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
-            )
-            self._monitors[stage_name] = SubsetWriter(monitor, self.times)
-        return self._monitors[stage_name]
+                self._monitors[stage_name] = SubsetWriter(monitor, self.times)
+            return self._monitors[stage_name]
 
+    class SubsetWriter:
+        """Write only certain substeps"""
 
-class SubsetWriter:
-    """Write only certain substeps"""
+        def __init__(
+            self, monitor: fv3gfs.ZarrMonitor, times: Optional[Sequence[str]] = None
+        ):
+            """
 
-    def __init__(
-        self, monitor: fv3gfs.ZarrMonitor, times: Optional[Sequence[str]] = None
-    ):
-        """
+            Args:
+                monitor: a stage monitor to use to store outputs
+                times: an optional list of output times to store stages at. By
+                    default all times will be output.
+            """
+            self._monitor = monitor
+            self._times = times
+            self.time = None
+            self.logger = logging.getLogger("SubsetStageWriter")
+            self.logger.info(f"Saving stages at {self._times}")
 
-        Args:
-            monitor: a stage monitor to use to store outputs
-            times: an optional list of output times to store stages at. By
-                default all times will be output.
-        """
-        self._monitor = monitor
-        self._times = times
-        self.time = None
-        self.logger = logging.getLogger("SubsetStageWriter")
-        self.logger.info(f"Saving stages at {self._times}")
+        def _output_current_time(self, time: datetime) -> bool:
+            if self._times is None:
+                return True
+            else:
+                return time.strftime("%Y%m%d.%H%M%S") in self._times
 
-    def _output_current_time(self, time: datetime) -> bool:
-        if self._times is None:
-            return True
-        else:
-            return time.strftime("%Y%m%d.%H%M%S") in self._times
-
-    def store(self, time: datetime, state):
-        if self._output_current_time(time):
-            self.logger.debug(f"Storing time: {time}")
-            self._monitor.store(state)
+        def store(self, time: datetime, state):
+            if self._output_current_time(time):
+                self.logger.debug(f"Storing time: {time}")
+                self._monitor.store(state)
 
 
 def master_only(func):
@@ -233,6 +231,7 @@ if __name__ == "__main__":
     communicator = fv3gfs.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
     nudging_timescales = get_timescales_from_config(config)
     nudging_names = list(nudging_timescales.keys())
+    updated_quantity_names = list(set(nudging_names + [PRECIP_NAME]))
     store_names = list(set(["time"] + nudging_names + STORE_NAMES))
     timestep = get_timestep(config)
 
@@ -268,9 +267,7 @@ if __name__ == "__main__":
         monitor.store(time, tendencies, stage="nudging_tendencies")
         monitor.store(time, state, stage="after_nudging")
 
-        updated_quantity_names = add_humidity_nudging_to_precip(
-            state, tendencies, nudging_names, timestep
-        )
+        add_humidity_nudging_to_precip(state, tendencies, timestep)
         updated_state_members = {key: state[key] for key in updated_quantity_names}
         fv3gfs.set_state(updated_state_members)
     fv3gfs.cleanup()
