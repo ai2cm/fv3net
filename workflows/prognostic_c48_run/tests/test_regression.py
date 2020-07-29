@@ -1,6 +1,8 @@
 from pathlib import Path
 import warnings
 
+import os
+
 import fv3config
 import joblib
 import numpy as np
@@ -19,22 +21,20 @@ import subprocess
 FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
 
 
-BASE_FV3CONFIG_CACHE = Path(
-    "gs://vcm-fv3config", "vcm-fv3config", "data"
+BASE_FV3CONFIG_CACHE = os.path.join("gs://vcm-fv3config", "vcm-fv3config", "data")
+IC_PATH = os.path.join(
+    BASE_FV3CONFIG_CACHE, "initial_conditions", "c12_restart_initial_conditions", "v1.0"
 )
-IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
-    "initial_conditions", "c12_restart_initial_conditions", "v1.0"
-)
-ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
-FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
+ORO_PATH = os.path.join(BASE_FV3CONFIG_CACHE, "orographic_data", "v1.0")
+FORCING_PATH = os.path.join(BASE_FV3CONFIG_CACHE, "base_forcing", "v1.1")
 
 default_fv3config = rf"""
 data_table: default
 diag_table: default
 experiment_name: default_experiment
-forcing: {FORCING_PATH.as_posix()}
-initial_conditions: {IC_PATH.as_posix()}
-orographic_forcing: {ORO_PATH.as_posix()}
+forcing: {FORCING_PATH}
+initial_conditions: {IC_PATH}
+orographic_forcing: {ORO_PATH}
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi
