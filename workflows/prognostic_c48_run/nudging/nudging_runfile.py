@@ -153,7 +153,7 @@ def implied_precipitation(
     pressure_thickness: fv3util.Quantity,
     humidity_tendency: fv3util.Quantity,
     timestep: timedelta,
-) -> np.array:
+) -> np.ndarray:
     """Add column-integrated humidity tendency to precipitation and return
     total precipitation thresholded to be non-negative."""
     column_moistening = column_integrated_moistening(
