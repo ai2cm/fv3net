@@ -18,7 +18,6 @@ else:
 logger = logging.getLogger(__name__)
 
 GRAVITY = 9.81
-M_PER_MM = 1 / 1000
 PRECIP_NAME = "total_precipitation"
 State = MutableMapping[str, fv3util.Quantity]
 
@@ -109,9 +108,21 @@ def append_key_label(d, suffix):
 
 
 def column_integrated_moistening(
-    humidity_tendency: xr.DataArray, pressure_thickness: xr.DataArray
+    humidity_tendency: xr.DataArray,
+    pressure_thickness: xr.DataArray,
+    gravity: float = GRAVITY,
 ) -> xr.DataArray:
-    moistening = (humidity_tendency * pressure_thickness).sum("z") / GRAVITY
+    """Compute column-integrated moistening.
+
+    Args:
+        humidity_tendency: rate of change of specific humidity [kg/kg/s]
+        pressure_thickness: thickness of atmospheric layer [Pa]
+        gravity: (optional) defaults to 9.81 [m/s^2]
+
+    Returns:
+        column integrated moistening [kg/m^2/s]
+    """
+    moistening = (humidity_tendency * pressure_thickness).sum("z") / gravity
     moistening.attrs["units"] = "kg/m^2/s"
     return moistening
 
@@ -119,6 +130,18 @@ def column_integrated_moistening(
 def total_precipitation(
     model_precip: xr.DataArray, column_moistening: xr.DataArray, timestep: timedelta
 ) -> xr.DataArray:
+    """Compute sum of precipitation and implied precipitation from column moistening.
+    The total precipitation is thresholded to ensure that it is not negative.
+
+    Args:
+        model_precip: surface precipitation per physics timestep [m]
+        column_moistening: column integrated humidity tendency [kg/m^2/s]
+        timestep: physics timestep
+
+    Returns:
+        total precipitation [m]
+    """
+    M_PER_MM = 1 / 1000
     total_precip = model_precip - M_PER_MM * timestep.seconds * column_moistening
     total_precip = total_precip.where(total_precip >= 0, 0)
     total_precip.attrs["units"] = "m"
@@ -127,7 +150,7 @@ def total_precipitation(
 
 def add_humidity_nudging_to_precip(
     state: State, tendencies: State, timestep: timedelta
-) -> Sequence[str]:
+):
     """Add column-integrated humidity nudging tendency to precipitation if specific
     humidity is being nudged."""
     if "specific_humidity_tendency_due_to_nudging" in tendencies:
