@@ -13,7 +13,7 @@ dependencies = [
     "xarray==0.15.1",
     "xgcm==0.3.0",
     "zarr==2.4.0",
-    "numba==0.48.0",
+    "numba==0.50.1",
     "cftime==1.1.1.2",
 ]
 
