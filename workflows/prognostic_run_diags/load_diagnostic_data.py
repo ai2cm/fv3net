@@ -191,14 +191,9 @@ def _load_prognostic_run_physics_output(url):
 
 
 def _coarsen(ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int) -> xr.Dataset:
-    coarse_ds = vcm.cubedsphere.weighted_block_average(
+    return vcm.cubedsphere.weighted_block_average(
         ds, area, coarsening_factor, x_dim="x", y_dim="y"
     )
-    # restore attributes lost in coarsening procedure
-    for var in ds.data_vars:
-        coarse_ds[var].attrs = ds[var].attrs
-    coarse_ds.attrs = ds.attrs
-    return coarse_ds
 
 
 def _get_coarsening_args(
