@@ -113,7 +113,6 @@ def test_compute_training_diags(
         data_source_name,
         (data_source_path, data_source_config),
     ) in data_config_mapping.items():
-        print(data_source_name)
         ds_batches = batches.diagnostic_batches_from_geodata(
             data_source_path,
             variable_names,

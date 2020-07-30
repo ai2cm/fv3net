@@ -13,18 +13,15 @@ from typing import Sequence, Mapping, Union, Callable, Any, Tuple
 
 logger = logging.getLogger(__name__)
 
-UNINFORMATIVE_COORDS = ["tile", "z", "y", "x"]
-TIME_DIM = "time"
-DERIVATION_DIM = "derivation"
-PRESSURE_DIM = "pressure"
-VERTICAL_DIM = "z"
-
 
 def reduce_to_diagnostic(
     ds: xr.Dataset,
     grid: xr.Dataset,
     domains: Sequence[str] = DOMAINS,
     primary_vars: Sequence[str] = PRIMARY_VARS,
+    time_dim: str = "time",
+    derivation_dim: str = "derivation",
+    uninformative_coords: Sequence[str] = ["tile", "z", "y", "x"],
 ) -> xr.Dataset:
     """Reduce a sequence of batches to a diagnostic dataset
     
@@ -42,14 +39,14 @@ def reduce_to_diagnostic(
         diagnostic_ds: xarray dataset of reduced diagnostic variables
     """
 
-    ds = ds.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
+    ds = ds.drop_vars(names=uninformative_coords, errors="ignore")
     ds = _rechunk_time_z(ds)
 
-    grid = grid.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
+    grid = grid.drop_vars(names=uninformative_coords, errors="ignore")
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
     if any(["net_precipitation" in category for category in domains]):
         net_precipitation_type_array = snap_mask_to_type(
-            ds["net_precipitation"].sel({DERIVATION_DIM: "coarsened_SHiELD"}),
+            ds["net_precipitation"].sel({derivation_dim: "coarsened_SHiELD"}),
             NET_PRECIPITATION_ENUMERATION,
             np.greater_equal,
         )
@@ -71,7 +68,7 @@ def reduce_to_diagnostic(
 
     ds = xr.merge([domain_ds, ds.drop(labels=primary_vars)])
 
-    return ds.mean(dim=TIME_DIM, keep_attrs=True)
+    return ds.mean(dim=time_dim, keep_attrs=True)
 
 
 def insert_column_integrated_vars(

@@ -13,7 +13,6 @@ from typing import Mapping, Sequence, Tuple
 
 import diagnostics_utils as utils
 import loaders
-from vcm import safe
 from vcm.cloud import get_fs
 from ._mapper import SklearnPredictionMapper
 from ._metrics import calc_metrics
@@ -28,6 +27,7 @@ logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
 PRIMARY_VARS = ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"]
+DOMAINS = ["land", "sea", "global"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
 DIURNAL_VARS = [
     "column_integrated_dQ1",
@@ -38,7 +38,7 @@ DIURNAL_VARS = [
     "column_integrated_Q2",
 ]
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
-METRICS_JSON_NAME = "scalar_metrics.json"
+METRICS_JSON_NAME = "metrics.json"
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -91,7 +91,7 @@ def _compute_diags_over_batches(
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
-    batches_summary, batches_diurnal, batches_metrics = [], [], []
+    batches_diags, batches_diurnal, batches_metrics = [], [], []
     # for each batch...
     for i, ds in enumerate(ds_batches):
         logger.info(f"Working on batch {i} diagnostics ...")
@@ -101,41 +101,25 @@ def _compute_diags_over_batches(
             .pipe(utils.insert_column_integrated_vars)
             .load()
         )
-
         # ...reduce to diagnostic variables
-        ds_summary = utils.reduce_to_diagnostic(ds, grid)
+        ds_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
         # ...compute diurnal cycles
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
         )
         # ...compute metrics
         ds_metrics = calc_metrics(xr.merge([ds, grid["area"]]))
-
-        batches_summary.append(ds_summary)
+        batches_diags.append(ds_diagnostic)
         batches_diurnal.append(ds_diurnal)
         batches_metrics.append(ds_metrics)
         logger.info(f"Processed batch {i} diagnostics netcdf output.")
 
     # then average over the batches for each output
-    ds_summary = xr.concat(batches_summary, dim="batch").mean(dim="batch")
+    ds_diagnostics = xr.concat(batches_diags, dim="batch").mean(dim="batch")
     ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
     ds_metrics = xr.concat(batches_metrics, dim="batch")
 
-    ds_diagnostics, ds_scalar_metrics = _consolidate_dimensioned_data(
-        ds_summary, ds_metrics
-    )
-
-    return ds_diagnostics, ds_diurnal, ds_scalar_metrics
-
-
-def _consolidate_dimensioned_data(ds_summary, ds_metrics):
-    # moves dimensined quantities into final diags dataset so they're saved as netcdf
-    metrics_arrays_vars = [var for var in ds_metrics.data_vars if "scalar" not in var]
-    ds_metrics_arrays = safe.get_variables(ds_metrics, metrics_arrays_vars)
-    ds_diagnostics = ds_summary.merge(ds_metrics_arrays).rename(
-        {var: var.replace("/", "-") for var in metrics_arrays_vars}
-    )
-    return ds_diagnostics, ds_metrics.drop(metrics_arrays_vars)
+    return ds_diagnostics, ds_diurnal, ds_metrics
 
 
 if __name__ == "__main__":
@@ -146,10 +130,10 @@ if __name__ == "__main__":
     with open(args.config_yml, "r") as f:
         config = yaml.safe_load(f)
 
-    logger.info("Reading grid.")
+    logger.info("Reading grid...")
     cat = intake.open_catalog("catalog.yml")
-    grid = cat["grid/c48"].read()
-    land_sea_mask = cat["landseamask/c48"].read()
+    grid = cat["grid/c48"].to_dask()
+    land_sea_mask = cat["landseamask/c48"].to_dask()
     grid = grid.assign({utils.VARNAMES["surface_type"]: land_sea_mask["land_sea_mask"]})
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
     if args.timesteps_file:
@@ -157,41 +141,35 @@ if __name__ == "__main__":
             timesteps = yaml.safe_load(f)
         config["batch_kwargs"]["timesteps"] = timesteps
 
-    logger.info("Loading base mapper.")
     base_mapping_function = getattr(loaders.mappers, config["mapping_function"])
     base_mapper = base_mapping_function(
         config["data_path"], **config.get("mapping_kwargs", {})
     )
 
-    logger.info("Loading trained model.")
     fs_model = get_fs(args.model_path)
     with fs_model.open(args.model_path, "rb") as f:
         model = joblib.load(f)
-
-    logger.info("Loading prediction mapper.")
     pred_mapper = SklearnPredictionMapper(
         base_mapper, model, grid=grid, **config.get("model_mapper_kwargs", {})
     )
 
-    logger.info("Loading batched data.")
     ds_batches = loaders.batches.diagnostic_batches_from_mapper(
         pred_mapper, config["variables"], **config["batch_kwargs"],
     )
 
-    logger.info("Computing diagnostics, diurnal cycles, and metrics.")
     # compute diags
-    ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diags_over_batches(
+    ds_diagnostics, ds_diurnal, ds_metrics = _compute_diags_over_batches(
         ds_batches, grid
     )
 
-    logger.info("Writing output files.")
     # write diags and diurnal datasets
     _write_nc(xr.merge([grid, ds_diagnostics]), args.output_path, DIAGS_NC_NAME)
     _write_nc(ds_diurnal, args.output_path, DIURNAL_NC_NAME)
 
     # convert and output metrics json
-    metrics = _average_metrics_dict(ds_scalar_metrics)
+    metrics = _average_metrics_dict(ds_metrics)
     fs = get_fs(args.output_path)
     with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
-        json.dump(metrics, f, indent=4)
-    logger.info(f"Finished writing output files.")
+        json.dump(metrics, f)
+    logger.info(f"Finished processing dataset diagnostics and metrics.")
+    logger.info(f"Finished processing dataset metrics.")
