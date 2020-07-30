@@ -41,11 +41,28 @@ def rename_latlon(ds):
     )
 
 
-def open_diagnostic_output(url):
-    logger.info(f"Opening Diagnostic data at {url}")
+def open_atmos_ave_diagnostics(url):
+    logger.info(f"Opening atmos_15min_coarse_ave data at {url}")
     # open diagnostic output
     ds = xr.open_zarr(fsspec.get_mapper(url))
     return standardize_diagnostic_metadata(ds)
+
+
+def open_gfsphysics_diagnostics(url):
+    logger.info(f"Opening gfsphysics_15min_coarse data at {url}")
+    # open diagnostic output
+    ds = xr.open_zarr(fsspec.get_mapper(url))
+    ds = standardize_diagnostic_metadata(ds)
+    offset = datetime.timedelta(minutes=-7, seconds=-30)
+    return offset_time(ds, offset)
+
+
+def offset_time(
+    ds: xr.Dataset, offset: datetime.timedelta, time_dim: str = "time"
+) -> xr.Dataset:
+    """Offset the time coordinate of the Dataset by adding a timedelta."""
+    corrected_time = ds[time_dim] + offset
+    return ds.assign({time_dim: corrected_time})
 
 
 def open_restart_data(RESTART_ZARR):
@@ -95,8 +112,9 @@ def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
     )
 
 
-def merge(restarts, diag):
+def merge(restarts, diagnostics):
     restarts = shift(restarts)
-    return xr.merge([restarts, diag], join="inner", compat="override").drop_vars(
+    datasets = [restarts] + diagnostics
+    return xr.merge(datasets, join="inner", compat="override").drop_vars(
         GRID_VARIABLES, errors="ignore"
     )

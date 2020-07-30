@@ -81,6 +81,22 @@ def test_run(tmpdir):
         "area_coarse",
     ]
 
+    gfsphysics_variables = [
+        "grid_lat_coarse",
+        "grid_latt_coarse",
+        "grid_lon_coarse",
+        "grid_lont_coarse",
+        "area_coarse",
+        "dq3dt_mp_coarse",
+        "dq3dt_pbl_coarse",
+        "dq3dt_shal_conv_coarse",
+        "dt3dt_lw_coarse",
+        "dt3dt_mp_coarse",
+        "dt3dt_pbl_coarse",
+        "dt3dt_shal_conv_coarse",
+        "dt3dt_sw_coarse"
+    ]
+
     # use a small tile for much faster testing
     n = 48
 
@@ -92,19 +108,24 @@ def test_run(tmpdir):
         tile=[0], time=[0, 1, 2], grid_xt=slice(0, n), grid_yt=slice(0, n)
     )
 
-    diag_schema = safe.get_variables(open_schema("diag.json"), variables).isel(
-        diag_selectors
-    )
+    atmos_ave_schema = safe.get_variables(
+        open_schema("atmos_ave_schema.json"), variables
+    ).isel(diag_selectors)
+    gfsphysics_schema = safe.get_variables(
+        open_schema("gfsphysics_schema.json"), gfsphysics_variables
+    ).isel(diag_selectors)
     restart = open_schema("restart.json").isel(restart_selectors)
 
-    diag_path = str(tmpdir.join("diag.zarr"))
+    atmos_ave_path = str(tmpdir.join("atmos_ave.zarr"))
+    gfsphysics_path = str(tmpdir.join("gfsphysics.zarr"))
     restart_path = str(tmpdir.join("restart.zarr"))
     output_path = str(tmpdir.join("out"))
 
-    diag_schema.to_zarr(diag_path, mode="w")
+    atmos_ave_schema.to_zarr(atmos_ave_path, mode="w")
+    gfsphysics_schema.to_zarr(gfsphysics_path, mode="w")
     restart.to_zarr(restart_path, mode="w")
 
-    run(restart_path, diag_path, output_path)
+    run(restart_path, atmos_ave_path, gfsphysics_path, output_path)
 
     ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
 
@@ -124,6 +145,14 @@ def test_run(tmpdir):
         "eddy_flux_vulcan_omega_sphum",
         "T_storage",
         "sphum_storage",
+        "dq3dt_mp_coarse",
+        "dq3dt_pbl_coarse",
+        "dq3dt_shal_conv_coarse",
+        "dt3dt_lw_coarse",
+        "dt3dt_mp_coarse",
+        "dt3dt_pbl_coarse",
+        "dt3dt_shal_conv_coarse",
+        "dt3dt_sw_coarse",
     ]
 
     for variable in expected_variables:

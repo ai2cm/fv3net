@@ -17,7 +17,12 @@ import vcm
 from vcm import safe
 
 from . import budgets
-from .data import merge, open_diagnostic_output, open_restart_data
+from .data import (
+    merge,
+    open_restart_data,
+    open_atmos_ave_diagnostics,
+    open_gfsphysics_diagnostics,
+)
 
 dask.config.set(scheduler="single-threaded")
 
@@ -25,8 +30,8 @@ dask.config.set(scheduler="single-threaded")
 logger = logging.getLogger(__file__)
 
 
-PHYSICS_VARIABLES = [
-    # from ShiELD diagnostics
+VARIABLES = [
+    # From SHiELD atmos_ave diagnostics
     "t_dt_fv_sat_adj_coarse",
     "t_dt_nudge_coarse",
     "t_dt_phys_coarse",
@@ -36,6 +41,15 @@ PHYSICS_VARIABLES = [
     "eddy_flux_vulcan_omega_temp",
     "vulcan_omega_coarse",
     "area_coarse",
+    # From SHiELD gfsphysics diagnostics
+    "dq3dt_mp_coarse",
+    "dq3dt_pbl_coarse",
+    "dq3dt_shal_conv_coarse",
+    "dt3dt_lw_coarse",
+    "dt3dt_mp_coarse",
+    "dt3dt_pbl_coarse",
+    "dt3dt_shal_conv_coarse",
+    "dt3dt_sw_coarse",
     # from restarts
     "delp",
     "sphum",
@@ -53,10 +67,27 @@ def chunks_1d_to_slices(chunks: Iterable[int]) -> Iterable[slice]:
         start = end
 
 
-def open_merged(restart_url: str, physics_url: str) -> xr.Dataset:
+def open_merged(
+    restart_url: str, atmos_15min_coarse_ave_url: str, gfsphysics_15min_coarse_url: str
+) -> xr.Dataset:
+    """Open input data sources and merge them into a common dataset.
+    
+    Args:
+        restart_url: GCS path of restart files
+        atmos_15min_coarse_ave_url: GCS path of atmos_15min_coarse_ave
+            diagnostics
+        gfsphysics_15min_coarse_url: GCS path of gfsphysics_15min_coarse
+            diagnostics
+
+
+    Returns:
+        xr.Dataset
+    """
     restarts = open_restart_data(restart_url)
-    diag = open_diagnostic_output(physics_url)
-    data = safe.get_variables(merge(restarts, diag), PHYSICS_VARIABLES)
+    atmos_ave = open_atmos_ave_diagnostics(atmos_15min_coarse_ave_url)
+    gfsphysics = open_gfsphysics_diagnostics(gfsphysics_15min_coarse_url)
+    diagnostic_datasets = [atmos_ave, gfsphysics]
+    data = safe.get_variables(merge(restarts, diagnostic_datasets), VARIABLES)
     num_tiles = len(data.tile)
     tiles = range(1, num_tiles + 1)
     return data.assign_coords(tile=tiles)
@@ -149,14 +180,25 @@ class OpenTimeChunks(beam.PTransform):
         )
 
 
-def run(restart_url, physics_url, output_dir, extra_args=()):
+def run(
+    restart_url,
+    atmos_15min_coarse_ave_url,
+    gfsphysics_15min_coarse_url,
+    output_dir,
+    extra_args=(),
+):
 
     options = PipelineOptions(extra_args)
     with beam.Pipeline(options=options) as p:
 
         (
             p
-            | FunctionSource(open_merged, restart_url, physics_url)
+            | FunctionSource(
+                open_merged,
+                restart_url,
+                atmos_15min_coarse_ave_url,
+                gfsphysics_15min_coarse_url,
+            )
             | OpenTimeChunks()
             | "Compute Budget"
             >> beam.Map(budgets.compute_recoarsened_budget_inputs, factor=8)
