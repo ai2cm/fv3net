@@ -51,38 +51,6 @@ jobs:
       - run: |
           source activate fv3net
           make <<parameters.kind>>
-      - run: |
-          mkdir -p /tmp/workspace
-          mv .coverage_* /tmp/workspace
-      - persist_to_workspace:
-          root: /tmp/workspace
-          paths: 
-            - .coverage*
-  combined_coverage_reports:
-    docker:
-      - image: circleci/python:3.7
-    steps:
-      - checkout
-      - add_ssh_keys:
-          fingerprints:
-            - "e0:af:32:36:b7:31:d1:5f:aa:d2:35:d8:09:b8:92:54"
-      - run: sudo apt-get install -y make jq
-      - run:
-          name: "Pull submodules"
-          command: |
-            git submodule update --init --recursive
-      - attach_workspace:
-          at: /tmp/workspace
-      - run: sudo pip install coverage
-      - run: |
-          cp /tmp/workspace/.coverage* .
-      - run: "make coverage_report"
-      - run: |
-          make coverage_html
-          mkdir -p /tmp/artifacts
-          mv coverage_html  /tmp/artifacts
-      - store_artifacts:
-          path: /tmp/artifacts
 
   build_default:
     machine:
@@ -225,10 +193,6 @@ workflows:
       - integration_tests:
           requires:
             - build_default
-      - combined_coverage_reports:
-          requires:
-            - pytest-test_unit
-            - pytest-test_regression
   master_tests:
     jobs:
       - pytest:

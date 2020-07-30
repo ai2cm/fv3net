@@ -72,22 +72,16 @@ test_prognostic_run:
 	IMAGE=prognostic_run $(MAKE) -C workflows/prognostic_c48_run/ test
 
 test_unit:
-	COVERAGE_FILE=.coverage_unit coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+	coverage report
 
 test_regression:
-	COVERAGE_FILE=.coverage_regression coverage run -m pytest -vv -m regression -s
+	coverage run -m pytest -vv -m regression -s
+	coverage report
 
 test_dataflow:
-	COVERAGE_FILE=.coverage_dataflow coverage run -m pytest -vv tests/dataflow/ -s
-
-.coverage: $(wildcard .coverage_*)
-	coverage combine $^
-
-coverage_report: .coverage
-	coverage report --omit='**/test_*.py',conftest.py
-
-coverage_html: .coverage
-	coverage html -d $@ --omit='**/test_*.py',conftest.py
+	coverage run -m pytest -vv tests/dataflow/ -s
+	coverage report
 
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images
