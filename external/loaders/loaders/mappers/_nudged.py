@@ -240,11 +240,11 @@ class NudgeToObsState(GeoMapper):
     def __init__(
         self,
         nudged_data: Mapping[str, xr.Dataset],
-        nudging_names: Mapping[str, str],
+        nudging_variables: Mapping[str, str],
         physics_timestep_seconds: int,
     ):
         self._nudged_data = nudged_data
-        self._nudging_names = nudging_names
+        self._nudging_variables = nudging_variables
         self._physics_timestep_seconds = physics_timestep_seconds
 
     def __getitem__(self, time: Time) -> xr.Dataset:
@@ -254,7 +254,7 @@ class NudgeToObsState(GeoMapper):
         before_nudging_state = self._before_nudging_state(
             time,
             self._nudged_data,
-            self._nudging_names,
+            self._nudging_variables,
             self._physics_timestep_seconds,
         )
 
@@ -264,12 +264,12 @@ class NudgeToObsState(GeoMapper):
     def _before_nudging_state(
         time: Time,
         nudged_data: Mapping[str, xr.Dataset],
-        nudging_names: Mapping[str, str],
+        nudging_variables: Mapping[str, str],
         physics_timestep_seconds: Union[int, float],
     ) -> Mapping[str, xr.DataArray]:
 
         before_nudging_state = {}
-        for variable_name, nudging_tendency_name in nudging_names.items():
+        for variable_name, nudging_tendency_name in nudging_variables.items():
             before_nudging_state[variable_name] = (
                 nudged_data[time][variable_name]
                 - nudged_data[time][nudging_tendency_name] * physics_timestep_seconds
@@ -448,7 +448,7 @@ def open_merged_nudge_to_obs(
     i_start: int = 0,
     n_times: int = None,
     rename_vars: Mapping[str, str] = None,
-    nudging_names: Mapping[str, str] = None,
+    nudging_variables: Mapping[str, str] = None,
     timestep_physics_seconds: int = 900,
     consolidated: bool = False,
 ) -> Mapping[str, xr.Dataset]:
@@ -468,7 +468,7 @@ def open_merged_nudge_to_obs(
             (i_start + n_times)
         rename_vars (optional): mapping of variables to be renamed; defaults to
             renaming nudging names to dQ names
-        nudging_names: (optional): mapping of variables to their nudging tendencies.
+        nudging_variables: (optional): mapping of variables to their nudging tendencies.
             Used for getting the "before nudging" state from the "after physics" state.
         timestep_physics_seconds:
         consolidated: if true, open the underlying zarr stores with the consolidated
@@ -482,7 +482,7 @@ def open_merged_nudge_to_obs(
         "v_dt_nduge": "Dqv",
     }
 
-    nudging_names = nudging_names or {
+    nudging_variables = nudging_variables or {
         "air_temperature": "dQ1",
         "specific_humditiy": "dQ2",
     }
@@ -499,7 +499,7 @@ def open_merged_nudge_to_obs(
 
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
     nudged_mapper = NudgedToObsState(
-        nudged_mapper, nudging_names, timestep_physics_seconds
+        nudged_mapper, nudging_variables, timestep_physics_seconds
     )
     nudged_mapper = SubsetTimes(i_start, n_times, nudged_mapper)
 
