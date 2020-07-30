@@ -5,10 +5,6 @@ import pytest
 import xarray as xr
 import numpy as np
 
-DELP = "pressure_thickness_of_atmospheric_layer"
-SPHUM_TENDENCY = "specific_humidity_tendency_due_to_nudging"
-PRECIP = "total_precipitation"
-
 
 @pytest.fixture()
 def xr_darray():
@@ -32,3 +28,8 @@ def test_total_precipitation_positive(xr_darray, timestep):
     column_moistening = xr_darray
     total_precip = total_precipitation(model_precip, column_moistening, timestep)
     assert total_precip.min().values >= 0
+
+
+def test_implied_precipitation(quantity, timestep):
+    output = implied_precipitation(quantity, quantity, quantity, timestep)
+    assert isinstance(output, np.ndarray)
