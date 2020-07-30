@@ -232,6 +232,52 @@ class NudgedFullTendencies(GeoMapper):
         return physics_tendencies
 
 
+class NudgeToObsState(GeoMapper):
+    """
+    docstring
+    """
+
+    def __init__(
+        self,
+        nudged_data: Mapping[str, xr.Dataset],
+        nudging_names: Mapping[str, str],
+        physics_timestep_seconds: int,
+    ):
+        self._nudged_data = nudged_data
+        self._nudging_names = nudging_names
+        self._physics_timestep_seconds = physics_timestep_seconds
+
+    def __getitem__(self, time: Time) -> xr.Dataset:
+        return self._before_nudging_state[time]
+
+    def _derived_ds(self, time: Time):
+        before_nudging_state = self._before_nudging_state(
+            time,
+            self._nudged_data,
+            self._nudging_names,
+            self._physics_timestep_seconds,
+        )
+
+        return self._nudged_mapper[time].assign(before_nudging_state)
+
+    @staticmethod
+    def _before_nudging_state(
+        time: Time,
+        nudged_data: Mapping[str, xr.Dataset],
+        nudging_names: Mapping[str, str],
+        physics_timestep_seconds: Union[int, float],
+    ) -> Mapping[str, xr.DataArray]:
+
+        before_nudging_state = {}
+        for variable_name, nudging_tendency_name in nudging_names.items():
+            before_nudging_state[variable_name] = (
+                nudged_data[time][variable_name]
+                - nudged_data[time][nudging_tendency_name] * physics_timestep_seconds
+            )
+
+        return before_nudging_state
+
+
 def open_merged_nudged(
     url: str,
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
@@ -394,3 +440,67 @@ def open_merged_nudged_full_tendencies(
         )
 
     return full_tendencies_mapper
+
+
+def open_merged_nudge_to_obs(
+    url: str,
+    merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
+    i_start: int = 0,
+    n_times: int = None,
+    rename_vars: Mapping[str, str] = None,
+    nudging_names: Mapping[str, str] = None,
+    timestep_physics_seconds: int = 900,
+    consolidated: bool = False,
+) -> Mapping[str, xr.Dataset]:
+    """
+    Load nudging data mapper for use with training.  Currently merges the
+    two files after_physics and nudging_tendencies, which are required inputs
+    for the training
+
+    Args:
+        url: Path to directory with nudging output
+        merge_files (optional): underlying nudging zarr datasets to combine
+            into a MergeNudged mapper
+        i_start (optional): Index of sorted timesteps at which to start including
+            data in the batch resampling operation; defaults to 0
+        n_times (optional): Number of sorted times (by index) to include in the
+            batch resampling operation, starting with i_start and ending at
+            (i_start + n_times)
+        rename_vars (optional): mapping of variables to be renamed; defaults to
+            renaming nudging names to dQ names
+        nudging_names: (optional): mapping of variables to their nudging tendencies.
+            Used for getting the "before nudging" state from the "after physics" state.
+        timestep_physics_seconds:
+        consolidated: if true, open the underlying zarr stores with the consolidated
+            flag to xr.open_zarr.
+    """
+
+    rename_vars = rename_vars or {
+        "t_dt_nudge": "dQ1",
+        "q_dt_nudge": "dQ2",
+        "u_dt_nudge": "dQu",
+        "v_dt_nduge": "Dqv",
+    }
+
+    nudging_names = nudging_names or {
+        "air_temperature": "dQ1",
+        "specific_humditiy": "dQ2",
+    }
+
+    datasets = []
+    for source in merge_files:
+        mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
+        ds = xr.open_zarr(
+            zstore.LRUStoreCache(mapper, 1024),
+            consolidated=consolidated,
+            mask_and_scale=False,
+        )
+        datasets.append(ds)
+
+    nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
+    nudged_mapper = NudgedToObsState(
+        nudged_mapper, nudging_names, timestep_physics_seconds
+    )
+    nudged_mapper = SubsetTimes(i_start, n_times, nudged_mapper)
+
+    return nudged_mapper
