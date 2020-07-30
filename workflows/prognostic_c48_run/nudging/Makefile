@@ -5,7 +5,7 @@ FV3RUN_FLAGS?=
 
 BASE_CONFIG_FILE=./nudging_config.yaml
 CONFIG_FILE=./fv3config.yml
-RUNFILE=./runfile.py
+RUNFILE=./nudging_runfile.py
 K8S_JOB_YAML=./job.yaml
 BASE_IMG=$(IMG_NAME):$(IMG_VERSION)
 PREPARE_CONFIG_PY=prepare_config.py

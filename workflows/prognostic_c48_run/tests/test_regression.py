@@ -328,7 +328,9 @@ namelist:
     ldebug: false
 """
 
-NUDGE_RUNFILE = Path(__file__).parent.parent.joinpath("nudging/runfile.py").as_posix()
+NUDGE_RUNFILE = (
+    Path(__file__).parent.parent.joinpath("nudging/nudging_runfile.py").as_posix()
+)
 # Necessary to know the number of restart timestamp folders to generate in fixture
 START_TIME = [2016, 8, 1, 0, 0, 0]
 TIMESTEP_MINUTES = 15
