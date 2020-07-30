@@ -81,7 +81,7 @@ test_dataflow:
 	coverage run -m pytest -vv tests/dataflow/ -s
 
 coverage_report:
-	coverage report -i --omit='**/test_*.py',conftest.py
+	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3util/**.py'
 
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images
