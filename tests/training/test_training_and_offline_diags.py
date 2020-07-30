@@ -309,9 +309,6 @@ def test_compute_offline_diags(
     ds_diagnostics, ds_diurnal, ds_metrics = _compute_diags_over_batches(
         diagnostic_batches, grid_dataset
     )
-    ds_diagnostics, ds_metrics = _consolidate_dimensioned_data(
-        ds_diagnostics, ds_metrics
-    )
 
     # convert metrics to dict
     metrics = _average_metrics_dict(ds_metrics)
