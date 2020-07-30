@@ -94,7 +94,7 @@ def test_run(tmpdir):
         "dt3dt_mp_coarse",
         "dt3dt_pbl_coarse",
         "dt3dt_shal_conv_coarse",
-        "dt3dt_sw_coarse"
+        "dt3dt_sw_coarse",
     ]
 
     # use a small tile for much faster testing
