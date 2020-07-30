@@ -54,11 +54,20 @@ jobs:
       - run:
           name: "Coverage Report"
           command: |
+            # initialize output directory
+            mkdir -p /tmp/coverage
+
             source activate fv3net
             make coverage_report
+
+            make htmlcov
+            mv htmlcov /tmp/coverage/htmlcov-<<parameters.kind>>
+            # move data to coverage folder
+
             # don't let report failures kill the job
             exit 0
-
+      - store_artifacts:
+          path: /tmp/coverage/
   argo:
     machine:
       image: ubuntu-1604:201903-01

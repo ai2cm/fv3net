@@ -86,6 +86,10 @@ test_dataflow:
 coverage_report:
 	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3util/**.py'
 
+htmlcov:
+	rm -rf $@
+	coverage html -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3util/**.py'
+
 test_argo:
 	make -C workflows/argo/ test
 
