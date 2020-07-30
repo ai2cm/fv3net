@@ -51,14 +51,13 @@ jobs:
       - run: |
           source activate fv3net
           make <<parameters.kind>>
-      - unless: 
-          condition: equal [ test_dataflow, <<parameters.kind>>]
-          steps:
-          - run:
-              name: "Coverage Report"
-              command: |
-                source activate fv3net
-                make coverage_report
+      - run:
+          name: "Coverage Report"
+          command: |
+            source activate fv3net
+            make coverage_report
+            # don't let report failures kill the job
+            exit 0
 
   argo:
     machine:
