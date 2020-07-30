@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 GRAVITY = 9.81
 PRECIP_NAME = "total_precipitation"
-State = MutableMapping[str, fv3util.Quantity]
 
 RADIATION_NAMES = [
     "total_sky_downward_shortwave_flux_at_surface",
