@@ -202,12 +202,12 @@ def _get_coarsening_args(
     """Given input dataset and target resolution, return catalog entry for input grid
     and coarsening factor"""
     input_res = ds.sizes["x"]
-    coarsening_factor = input_res / target_res
-    if not coarsening_factor.is_integer():
+    if input_res % target_res != 0:
         raise ValueError("Target resolution must evenly divide input resolution")
+    coarsening_factor = int(input_res / target_res)
     if input_res not in grid_entries:
         raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
-    return grid_entries[input_res], int(coarsening_factor)
+    return grid_entries[input_res], coarsening_factor
 
 
 def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
