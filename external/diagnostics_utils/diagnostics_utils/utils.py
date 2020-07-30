@@ -212,3 +212,18 @@ def snap_mask_to_type(
     types = xr.DataArray(types, float_mask.coords, float_mask.dims)
 
     return types
+
+
+def _units_from_var(var):
+    if "q1" in var.lower():
+        if "column_integrated" in var:
+            return "[W/m^2]"
+        else:
+            return "[K/s]"
+    elif "q2" in var.lower():
+        if "column_integrated" in var:
+            return "[mm/day]"
+        else:
+            return "[kg/kg/s]"
+    else:
+        return None

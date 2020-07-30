@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from typing import Mapping, Sequence
+from typing import Sequence
 import xarray as xr
 
 import fv3viz as visualize
-
+from .utils import _units_from_var
 
 # grid info for the plot_cube function
 MAPPABLE_VAR_KWARGS = {
@@ -29,8 +29,6 @@ def plot_profile_vars(
     dpi: int = 100,
     derivation_dim: str = "derivation",
     domain_dim: str = "domain",
-    units_q1: str = "K/s",
-    units_q2: str = "kg/kg/s",
 ):
     for var in profile_vars:
         if "derivation" in ds[var].dims:
@@ -120,23 +118,10 @@ def _plot_generic_data_array(
     da.plot()
     if xlabel:
         plt.xlabel(xlabel)
-    ylabel = ylabel or da.name.replace("_", " ").replace("-", ",")
+    units = _units_from_var(da.name) or ""
+    if ylabel is None:
+        ylabel = " ".join([da.name.replace("_", " ").replace("-", ","), units])
     plt.ylabel(ylabel)
     if tag:
         tag += "_"
     plt.savefig(os.path.join(output_dir, f"{tag or ''}{da.name}.png"))
-
-
-def _units_from_var(var):
-    if "Q1" in var:
-        if "column_integrated" in var:
-            return "W/m^2"
-        else:
-            return "K/s"
-    elif "Q2" in var:
-        if "column_integrated" in var:
-            return "mm/day"
-        else:
-            return "kg/kg/s"
-    else:
-        raise ValueError("Can only parse units from variables with Q1, Q2 in name.")
