@@ -51,6 +51,9 @@ jobs:
       - run: |
           source activate fv3net
           make <<parameters.kind>>
+      - run:
+          name: "Coverage Report"
+          command: coverage report
 
   build_default:
     machine:
