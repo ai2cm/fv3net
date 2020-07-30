@@ -79,7 +79,6 @@ def open_merged(
         gfsphysics_15min_coarse_url: GCS path of gfsphysics_15min_coarse
             diagnostics
 
-
     Returns:
         xr.Dataset
     """

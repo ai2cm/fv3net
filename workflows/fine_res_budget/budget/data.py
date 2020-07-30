@@ -1,11 +1,3 @@
-"""
->>> from merge_restarts_and_diags import *
->>> restart_url = "gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-restart-files.zarr/"
->>> url = "gs://vcm-ml-data/2020-03-16-5-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr/"
-
->>> restarts = open_restart_data(restart_url)
->>> diag = open_diagnostic_output(url)
-"""  # noqa
 import datetime
 import logging
 
@@ -41,16 +33,14 @@ def rename_latlon(ds):
     )
 
 
-def open_atmos_ave_diagnostics(url):
+def open_atmos_ave_diagnostics(url: str) -> xr.Dataset:
     logger.info(f"Opening atmos_15min_coarse_ave data at {url}")
-    # open diagnostic output
     ds = xr.open_zarr(fsspec.get_mapper(url))
     return standardize_diagnostic_metadata(ds)
 
 
-def open_gfsphysics_diagnostics(url):
+def open_gfsphysics_diagnostics(url: str) -> xr.Dataset:
     logger.info(f"Opening gfsphysics_15min_coarse data at {url}")
-    # open diagnostic output
     ds = xr.open_zarr(fsspec.get_mapper(url))
     ds = standardize_diagnostic_metadata(ds)
     offset = datetime.timedelta(minutes=-7, seconds=-30)
