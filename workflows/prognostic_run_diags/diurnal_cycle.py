@@ -17,29 +17,8 @@ def calc_diagnostics(prognostic, verification, grid):
 
     logger.info("Preparing diurnal cycle diagnostics")
 
-    diurnal_cycle_vars = [
-        "column_integrated_dQ1",
-        "column_integrated_pQ1",
-        "column_integrated_Q1",
-        "column_integrated_dQ2",
-        "column_integrated_pQ2",
-        "column_integrated_Q2",
-        "PRATEsfc",
-        "LHTFLsfc",
-    ]
-
-    prog_dvar_subset = prognostic[
-        [var for var in diurnal_cycle_vars if var in prognostic]
-    ]
-
-    prog_dvar_subset["lon"] = grid["lon"]
-    prog_diurnal_ds = _calc_ds_diurnal_cycle(prog_dvar_subset)
-
-    verif_dvar_subset = verification[
-        [var for var in diurnal_cycle_vars if var in verification]
-    ]
-    verif_dvar_subset["lon"] = grid["lon"]
-    verif_diurnal_ds = _calc_ds_diurnal_cycle(verif_dvar_subset)
+    prog_diurnal_ds = _calc_ds_diurnal_cycle(prognostic.assign(lon=grid["lon"]))
+    verif_diurnal_ds = _calc_ds_diurnal_cycle(verification.assign(lon=grid["lon"]))
 
     prog_diurnal_ds = _add_diurnal_moisture_components(prog_diurnal_ds)
     verif_diurnal_ds = _add_diurnal_moisture_components(verif_diurnal_ds)

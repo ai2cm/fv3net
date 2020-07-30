@@ -296,8 +296,14 @@ def main():
         "Metrics": list(metrics_plot_manager.make_plots(metrics)),
     }
 
+    # get metadata
+    run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}
+
     html = create_html(
-        title="Prognostic run report", sections=sections, html_header=get_html_header()
+        title="Prognostic run report",
+        metadata=run_urls,
+        sections=sections,
+        html_header=get_html_header(),
     )
     upload(html, args.output, content_type="text/html")
 

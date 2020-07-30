@@ -156,6 +156,16 @@ sources:
       urlpath: "gs://vcm-ml-experiments/2020-06-17-triad-round-1/coarsen-c384-diagnostics/coarsen_diagnostics/gfsphysics_15min_coarse.zarr"
       consolidated: True
 
+  40day_c48_atmos_8xdaily_may2020:
+    description: 2D dynamical core diagnostics variables from 40-day nudged simulation (May 27 2020 SHiELD), coarsened to C48 resolution.
+    driver: zarr
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-experiments/2020-06-17-triad-round-1/coarsen-c384-diagnostics/coarsen_diagnostics/atmos_8xdaily_C3072_to_C384.zarr"
+      consolidated: True
+
   GFS_analysis_T85_2015_2016:
     description: 4x daily GFS analysis data at approximately 2deg resolution, typically used for nudging FV3GFS. Spans 2015-01-01T00:00:00 to 2017-01-01T00:00:00.
     driver: zarr
@@ -191,6 +201,15 @@ sources:
         project: 'vcm-ml'
         access: read_only
       urlpath: "gs://vcm-ml-data/latLonArea/c48/land_sea_mask.zarr/"
+
+  grid/c96:
+    description: C96 grid spec (area, lat, lon, latb, lonb)
+    driver: zarr
+    args:
+      storage_options:
+        project: 'vcm-ml'
+        access: read_only
+      urlpath: "gs://vcm-ml-data/latLonArea/c96/grid_spec.zarr/"
 
   ## Local Data Intake ##
   # TODO: Could this be replicated with intake caching? Or switch to an ignored file?
