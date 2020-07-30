@@ -7,6 +7,7 @@ import fsspec
 import logging
 import fv3util
 import xarray as xr
+import numpy as np
 
 if __name__ == "__main__":
     import fv3gfs
@@ -148,19 +149,21 @@ def total_precipitation(
     return total_precip
 
 
-def add_humidity_nudging_to_precip(
-    state: State, tendencies: State, timestep: timedelta
-):
-    """Add column-integrated humidity nudging tendency to precipitation if specific
-    humidity is being nudged."""
-    if "specific_humidity_tendency_due_to_nudging" in tendencies:
-        column_moistening = column_integrated_moistening(
-            tendencies["specific_humidity_tendency_due_to_nudging"].data_array,
-            state["pressure_thickness_of_atmospheric_layer"].data_array,
-        )
-        model_precip = state[PRECIP_NAME].data_array
-        total_precip = total_precipitation(model_precip, column_moistening, timestep)
-        state[PRECIP_NAME] = fv3util.Quantity.from_data_array(total_precip)
+def implied_precipitation(
+    model_precip: fv3util.Quantity,
+    pressure_thickness: fv3util.Quantity,
+    humidity_tendency: fv3util.Quantity,
+    timestep: timedelta,
+) -> np.array:
+    """Add column-integrated humidity tendency to precipitation and return
+    total precipitation thresholded to be non-negative."""
+    column_moistening = column_integrated_moistening(
+        humidity_tendency.data_array, pressure_thickness.data_array,
+    )
+    total_precip = total_precipitation(
+        model_precip.data_array, column_moistening, timestep
+    )
+    return total_precip.values
 
 
 class StageWriter:
@@ -289,7 +292,13 @@ if __name__ == "__main__":
         monitor.store(time, tendencies, stage="nudging_tendencies")
         monitor.store(time, state, stage="after_nudging")
 
-        add_humidity_nudging_to_precip(state, tendencies, timestep)
+        if "specific_humidity" in nudging_names:
+            state[PRECIP_NAME].view[:] = implied_precipitation(
+                state[PRECIP_NAME],
+                state["pressure_thickness_of_atmospheric_layer"],
+                tendencies["specific_humidity_tendency_due_to_nudging"],
+                timestep,
+            )
         updated_state_members = {key: state[key] for key in updated_quantity_names}
         fv3gfs.set_state(updated_state_members)
     fv3gfs.cleanup()
