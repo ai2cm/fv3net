@@ -137,6 +137,23 @@ def plot_diurnal_cycles(
     f.savefig(os.path.join(output_dir, f"{tag}_diurnal_cycle.png"))
 
 
+def _plot_generic_data_array(
+        da: xr.DataArray,
+        output_dir: str,
+        tag: str = None,
+        xlabel: str=None,
+        ylabel: str=None,):
+    plt.figure()
+    da.plot()
+    if xlabel:
+        plt.xlabel(xlabel)
+    ylabel = ylabel or da.name.replace("_", " ").replace("-", ",")
+    plt.ylabel(ylabel)
+    if tag:
+        tag += "_"
+    plt.savefig(os.path.join(output_dir, f"{tag or ''}{da.name}.png"))
+
+
 def _units_from_var(var):
     if "Q1" in var:
         if "column_integrated" in var:
@@ -150,3 +167,4 @@ def _units_from_var(var):
             return "kg/kg/s"
     else:
         raise ValueError("Can only parse units from variables with Q1, Q2 in name.")
+    

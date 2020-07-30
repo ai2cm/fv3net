@@ -11,6 +11,7 @@ from typing import Mapping, Sequence
 import xarray as xr
 from vcm.cloud import gsutil
 import diagnostics_utils.plot as diagplot
+from ._metrics import _get_r2_string, _get_bias_string
 
 DATA_SOURCE_DIM = "data_source"
 DERIVATION_DIM = "derivation"
@@ -22,7 +23,7 @@ UNITS_Q2 = "kg/kg/s"
 UNITS_Q1_COL_INT = "W/m^2"
 UNITS_Q2_COL_INT = "mm/day"
 
-PROFILE_VARS = ['dQ1', 'pQ1', 'Q1', 'dQ2', 'pQ2', 'Q2']
+PROFILE_VARS = ['dQ1', 'Q1', 'dQ2', 'Q2']
 COLUMN_INTEGRATED_VARS = [
     'column_integrated_dQ1',
     'column_integrated_Q1',
@@ -41,7 +42,7 @@ GLOBAL_MEAN_VARS = [
     'column_integrated_pQ2_global_mean', 
     'column_integrated_Q2_global_mean']
 
-PROFILE_VARS = ['dQ1', 'pQ1', 'Q1', 'dQ2', 'pQ2', 'Q2']
+PROFILE_VARS = ['dQ1', 'Q1', 'dQ2', 'Q2']
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -96,25 +97,11 @@ def _open_diagnostics_outputs(
     return ds_diags, ds_diurnal, metrics
 
 
-def _merge_baseline_comparisons(ds_run, ds_baseline, derivation_dim=DERIVATION_DIM):
-    # the offline diags workflow will assign "predict" coord to baseline physics comparison with SHiELD,
-    # its "target" (redundant for baseline comparison) and "shield" coordinates
-    # are removed and the diurnal cycle/diagnostics are relabeled as "baseline"
-    ds_baseline = ds_baseline \
-        .sel({derivation_dim: "predict"}) \
-        .assign_coords({derivation_dim: "baseline"})
-    return xr.concat([ds_baseline, ds_run], dim=derivation_dim)
-
-
 def _copy_outputs(temp_dir, output_dir):
     if output_dir.startswith("gs://"):
         gsutil.copy(temp_dir, output_dir)
     else:
         shutil.copytree(temp_dir, output_dir)
-
-
-def _r2_from_metrics(metrics):
-
 
 
 if __name__ == "__main__":
@@ -125,19 +112,9 @@ if __name__ == "__main__":
     temp_output_dir = tempfile.TemporaryDirectory()
     atexit.register(_cleanup_temp_dir, temp_output_dir)
 
-
-
     ds_diags, ds_diurnal, metrics = _open_diagnostics_outputs(args.input_path)
 
-    # TODO: leave this argument out of usage for now.
-    # need to make a mapper to open baseline physics
-    # to input to diags
-    if args.baseline_physics_path:
-        ds_diags_baseline, ds_diurnal_baseline, metrics_baseline = \
-            _open_diagnostics_outputs(args.baseline_physics_path)
-        ds_diags = _merge_baseline_comparisons(ds_diags, ds_diags_baseline)
-        ds_diurnal = _merge_baseline_comparisons(ds_diurnal, ds_diurnal_baseline)
-
+    # time averaged quantity vertical profiles over land/sea, pos/neg net precip
     diagplot.plot_profile_vars(
         ds_diags,
         output_dir=temp_output_dir.name,
@@ -146,12 +123,15 @@ if __name__ == "__main__":
         domain_dim=DOMAIN_DIM,
     )
 
+    # time averaged column integrated quantity maps
     diagplot.plot_column_integrated_vars(
         ds_diags,
         output_dir=temp_output_dir.name,
         column_integrated_vars=COLUMN_INTEGRATED_VARS,
         derivation_plot_coords=["target", "predict", "coarsened_SHiELD"]
     )
+
+    # column integrated quantity diurnal cycles
     for tag, var_group in {
         "Q1_components": ['column_integrated_dQ1', 'column_integrated_Q1'],
         "Q2_components": ['column_integrated_dQ2', 'column_integrated_Q2']
@@ -164,9 +144,34 @@ if __name__ == "__main__":
             derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
     )
 
+    # vertical profiles of bias and RMSE
+    pressure_lvl_metrics = [
+        var for var in ds_diags.data_vars if "pressure" in ds_diags[var].dims]
+    for var in pressure_lvl_metrics:
+        diagplot._plot_generic_data_array(
+            ds_diags[var],
+            output_dir=temp_output_dir.name,
+            xlabel="pressure [Pa]",
+            )
+
+    # TODO: following PR will add this to the report in separate tables.
+    # For now, this will dump the jsons so they can be read
+    r2, biases = {}, {}
+    for var in COLUMN_INTEGRATED_VARS:
+        r2[var] = _get_r2_string(metrics, var)
+        biases[var] = _get_bias_string(metrics, var)
+    json.dump(
+        r2, open(os.path.join(temp_output_dir.name, "r2.json"), "w"))
+    json.dump(
+        biases, open(os.path.join(temp_output_dir.name, "biases.json"), "w"))
+
     _copy_outputs(temp_output_dir.name, args.output_path)
-    logger.info(f"Save report to f{args.output_path}")
+    logger.info(f"Save report to {args.output_path}")
     
+    # TODO: following PR will add the report saving.
+    # Separated that out as I want to make some additions to report,
+    # which are getting out of scope.
+
     # Explicitly call .close() or xarray raises errors atexit
     # described in https://github.com/shoyer/h5netcdf/issues/50
     ds_diags.close()

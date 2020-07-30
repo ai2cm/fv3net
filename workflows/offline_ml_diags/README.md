@@ -45,11 +45,13 @@ python -m offline_ml_diags.compute_diags \
 ```
 
 #### Creating reports
-Report HTMLs can be generated using one or more sets of offline diagnostics outputs.
-The labels and paths containing the corresponding workflow outputs should be included in json, e.g
+Report HTMLs may be created using `offline_ml_diags.create_report`, where the input data path should be
+the output path of the `offline_ml_diags.compute_diags` script. The output location can be either a local
+or remote GCS directory.
+
+Example usage:
 ```
-{
-  'hybrid_add_features': 'gs://vcm-ml-scratch/annak/2020-07-20_fine_res_add_fatures/offline_diags/',
-  'hybrid_base_features': 'gs://vcm-ml-scratch/annak/2020-07-20_fine_res_hybrid/offline_diags/'
-}
+python -m offline_ml_diags.create_report \
+    $INPUT \
+    $OUTPUT 
 ```
