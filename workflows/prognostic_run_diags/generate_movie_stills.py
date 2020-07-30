@@ -100,6 +100,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("url", help="Path to rundir")
     parser.add_argument("output", help="Output location for movie stills")
+    parser.add_argument("--n_jobs", default=8, type=int)
+    parser.add_argument("--catalog", default=CATALOG)
     args = parser.parse_args()
 
     if vcm.cloud.get_protocol(args.output) == "file":
@@ -121,5 +123,5 @@ if __name__ == "__main__":
         logger.info(f"Saving {T} still images for {name} movie to {args.output}")
         filename = os.path.join(args.output, name + FIG_SUFFIX)
         func_args = [(prognostic.isel(time=t), filename.format(t=t)) for t in range(T)]
-        with get_context("spawn").Pool(8) as p:
+        with get_context("spawn").Pool(args.n_jobs) as p:
             p.map(func, func_args)
