@@ -22,34 +22,6 @@ MAPPABLE_VAR_KWARGS = {
 }
 
 
-def plot_diurnal_components(
-    ds: xr.Dataset,
-    diurnal_vars: Sequence[str],
-    title: str,
-    x_dim: str,
-    derivation_dim: str,
-    units: str = None,
-    selection: Mapping[str, str] = None,
-    output_dir: str = None,
-):
-    fig = plt.figure()
-    time_coords = ds[diurnal_vars[0]][x_dim].values
-    selection = selection or {}
-    for diurnal_var in diurnal_vars:
-        for derivation_coord in ds[derivation_dim].values:
-            if derivation_dim in ds[diurnal_var].dims:
-                selection[derivation_dim] = derivation_coord
-            plt.plot(
-                time_coords,
-                ds[diurnal_var].sel(selection),
-                label=f"{diurnal_var}, {derivation_coord}".replace("_", " "),
-            )
-    plt.xlabel("local time [hr]")
-    plt.ylabel(units or "")
-    plt.legend()
-    fig.savefig(os.path.join(output_dir or "", f'{title.replace(" ", "_")}.png'))
-
-
 def plot_profile_vars(
     ds: xr.Dataset,
     output_dir: str,
