@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 dependencies = [
     "dask==2.13.0",
-    "f90nml==1.1.2",
+    "f90nml==1.2",
     "fsspec==0.7.1",
     "gcsfs==0.6.1",
     "intake==0.5.4",
