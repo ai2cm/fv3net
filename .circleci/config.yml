@@ -58,13 +58,13 @@ jobs:
             mkdir -p /tmp/coverage
 
             source activate fv3net
+
+            set +e
             make coverage_report
 
             make htmlcov
             mv htmlcov /tmp/coverage/htmlcov-<<parameters.kind>>
-            # move data to coverage folder
-
-            # don't let report failures kill the job
+            set -e
             exit 0
       - store_artifacts:
           path: /tmp/coverage/
