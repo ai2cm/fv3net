@@ -6,7 +6,7 @@ dependencies = [
     "fsspec==0.7.1",
     "gcsfs==0.6.1",
     "intake==0.5.4",
-    "scikit-image==0.16.2",
+    "scikit-image==0.17.2",
     "MetPy==0.12.0",
     "pooch==0.1.1",
     "toolz==0.10.0",
