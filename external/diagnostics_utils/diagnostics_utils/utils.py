@@ -1,7 +1,6 @@
 from .config import (
     VARNAMES,
     SURFACE_TYPE_ENUMERATION,
-    NET_PRECIPITATION_ENUMERATION,
     DOMAINS,
     PRIMARY_VARS,
 )
@@ -9,7 +8,7 @@ from vcm import thermo, safe
 import xarray as xr
 import numpy as np
 import logging
-from typing import Sequence, Mapping, Union, Callable, Any, Tuple
+from typing import Sequence, Mapping, Union, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +44,8 @@ def reduce_to_diagnostic(
     grid = grid.drop_vars(names=uninformative_coords, errors="ignore")
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
     if any(["net_precipitation" in category for category in domains]):
-        net_precipitation_type_array = snap_mask_to_type(
+        net_precipitation_type_array = snap_net_precipitation_to_type(
             ds["net_precipitation"].sel({derivation_dim: "coarsened_SHiELD"}),
-            NET_PRECIPITATION_ENUMERATION,
-            np.greater_equal,
         )
 
     domain_datasets = {}
@@ -201,33 +198,56 @@ def weighted_average(
 def snap_mask_to_type(
     float_mask: xr.DataArray,
     enumeration: Mapping[str, float] = SURFACE_TYPE_ENUMERATION,
-    boolean_func: Callable[..., np.ndarray] = np.isclose,
-    boolean_func_kwargs: Mapping[str, Any] = None,
+    atol: float = 1e-7,
 ) -> xr.DataArray:
     """Convert float surface type array to categorical surface type array
     
     Args:
-        float_mask: xr.DataArray of numerical values
-        enumeration: mapping of categorical string types to array values
-        boolean_func: callable used to map a numerical array to a boolean array
-            for a particular value, e.g., np.isclose(arr, value)
-        boolean_func_kwargs: dict of args to be passed to boolean_func
+        float_mask: xr dataarray of float cell types
+        enumeration: mapping of surface type str names to float values
+        atol: absolute tolerance of float value matching
+            
+    Returns:
+        types: xr dataarray of str categorical cell types
+    
+    """
+
+    types = np.full(float_mask.shape, np.nan)
+    for type_name, type_number in enumeration.items():
+        types = np.where(
+            np.isclose(float_mask.values, type_number, atol), type_name, types
+        )
+
+    types = xr.DataArray(types, float_mask.coords, float_mask.dims)
+
+    return types
+
+
+def snap_net_precipitation_to_type(
+    net_precipitation: xr.DataArray, type_names: Mapping[str, str] = None
+) -> xr.DataArray:
+    """Convert net_precipitation array to positive and negative categorical types
+    
+    Args:
+        net_precipitation: xr.DataArray of numerical values
+        type_names: Mapping relating the "positive" and "negative" cases to their
+            categorical type names
             
     Returns:
         types: xr dataarray of categorical str type
     
     """
 
-    boolean_func_kwargs = boolean_func_kwargs or {}
+    type_names = type_names or {
+        "negative": "negative_net_precipitation",
+        "positive": "positive_net_precipitation",
+    }
 
-    types = np.full(float_mask.values.shape, np.nan)
-    for type_name, type_number in enumeration.items():
-        types = np.where(
-            boolean_func(float_mask.values, type_number, **boolean_func_kwargs),
-            type_name,
-            types,
-        )
+    if any(key not in type_names for key in ["negative", "positive"]):
+        raise ValueError("'type_names' must include 'positive' and negative' as keys")
 
-    type_da = xr.DataArray(types, float_mask.coords, float_mask.dims)
+    types = np.where(
+        net_precipitation.values < 0, type_names["negative"], type_names["positive"]
+    )
 
-    return type_da
+    return xr.DataArray(types, net_precipitation.coords, net_precipitation.dims)
