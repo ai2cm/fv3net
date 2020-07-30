@@ -21,7 +21,7 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - "e0:af:32:36:b7:31:d1:5f:aa:d2:35:d8:09:b8:92:54"
+            - "c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39"
       - run: apt-get update && apt-get install -y uuid
       - run:
           name: "Save GCS for tests."
@@ -57,6 +57,20 @@ jobs:
             source activate fv3net
             make coverage_report
 
+  argo:
+    machine:
+      image: ubuntu-1604:201903-01
+    steps:
+      - checkout
+      - run: |
+            sudo apt-get update && sudo apt-get install -y apt-transport-https gnupg2
+            curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+            echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+            sudo apt-get update
+            sudo apt-get install -y kubectl
+      - run: sudo apt-get install make
+      - run: make test_argo
+
   build_default:
     machine:
       docker_layer_caching: true
@@ -71,7 +85,7 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - "e0:af:32:36:b7:31:d1:5f:aa:d2:35:d8:09:b8:92:54"
+            - "c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39"
       - run: sudo apt-get install -y make jq
       - run:
           name: "Pull submodules"
@@ -177,6 +191,7 @@ workflows:
     jobs:
       - lint
       - mypy
+      - argo
       - pytest:
           name: pytest-<<matrix.kind>>
           matrix:
@@ -200,6 +215,9 @@ workflows:
             - build_default
   master_tests:
     jobs:
+      - lint
+      - mypy
+      - argo
       - pytest:
           kind: test_dataflow
           name: "Test Dataflow"

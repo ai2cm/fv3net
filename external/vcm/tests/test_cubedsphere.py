@@ -191,18 +191,28 @@ def test_add_coordinates(coarsened_object_type):
 def test_weighted_block_average(object_type):
     coarsening_factor = 2
     dims = ["x", "y"]
+    attrs = {"units": "m"}
+    ds_attrs = {"test": "a"}
     data = xr.DataArray(
-        np.array([[2.0, 6.0], [6.0, 2.0]]), dims=dims, coords=None, name="foo"
+        np.array([[2.0, 6.0], [6.0, 2.0]]),
+        dims=dims,
+        coords=None,
+        name="foo",
+        attrs=attrs,
     )
 
     if object_type == "Dataset":
         data = data.to_dataset()
+        data.attrs = ds_attrs
 
     weights = xr.DataArray(np.array([[6.0, 2.0], [2.0, 6.0]]), dims=dims, coords=None)
 
-    expected = xr.DataArray(np.array([[3.0]]), dims=dims, coords=None, name="foo")
+    expected = xr.DataArray(
+        np.array([[3.0]]), dims=dims, coords=None, name="foo", attrs=attrs
+    )
     if object_type == "Dataset":
         expected = expected.to_dataset()
+        expected.attrs = ds_attrs
 
     result = weighted_block_average(
         data, weights, coarsening_factor, x_dim="x", y_dim="y"
@@ -220,10 +230,11 @@ def test_weighted_block_average(object_type):
 )
 def test_edge_weighted_block_average(data, spacing, factor, edge, expected_data):
     dims = ["x_dim", "y_dim"]
-    da = xr.DataArray(data, dims=dims, coords=None)
+    attrs = {"units": "m"}
+    da = xr.DataArray(data, dims=dims, coords=None, attrs=attrs)
     weights = xr.DataArray(spacing, dims=dims, coords=None)
 
-    expected = xr.DataArray(expected_data, dims=dims, coords=None)
+    expected = xr.DataArray(expected_data, dims=dims, coords=None, attrs=attrs)
 
     result = edge_weighted_block_average(
         da, weights, factor, x_dim="x_dim", y_dim="y_dim", edge=edge
@@ -236,13 +247,13 @@ def input_dataarray():
     shape = (4, 4, 2)
     data = np.arange(np.product(shape)).reshape(shape).astype(np.float32)
     dims = ["x", "y", "z"]
-    return xr.DataArray(data, dims=dims, coords=None, name="foo")
+    return xr.DataArray(data, dims=dims, coords=None, name="foo", attrs={"units": "m"})
 
 
 @pytest.fixture()
 def input_dataset(input_dataarray):
-    bar = xr.DataArray([1, 2, 3], dims=["t"], name="bar")
-    return xr.merge([input_dataarray, bar])
+    bar = xr.DataArray([1, 2, 3], dims=["t"], name="bar", attrs={"units": "m"})
+    return xr.merge([input_dataarray, bar]).assign_attrs(test="a")
 
 
 @pytest.mark.parametrize("reduction_function", [np.mean, np.median])
@@ -253,7 +264,11 @@ def test_xarray_block_reduce_dataarray(reduction_function, use_dask, input_dataa
         input_dataarray.values, block_size=block_size, func=reduction_function
     )
     expected = xr.DataArray(
-        expected_data, dims=input_dataarray.dims, coords=None, name="foo"
+        expected_data,
+        dims=input_dataarray.dims,
+        coords=None,
+        name="foo",
+        attrs={"units": "m"},
     )
 
     if use_dask:
@@ -299,6 +314,7 @@ def test_block_reduce_dataarray_coordinates(input_dataarray, coord_func):
         input_dataarray.coarsen(x=2, y=2, coord_func=coord_func)
         .median()
         .rename(input_dataarray.name)
+        .assign_attrs({"units": "m"})
     )
     assert_identical_including_dtype(result, expected)
 
@@ -323,7 +339,7 @@ def test_horizontal_block_reduce_dataset(input_dataset):
 
     # No change expected to bar, because it contains no horizontal dimensions.
     expected_bar = input_dataset.bar
-    expected = xr.merge([expected_foo, expected_bar])
+    expected = xr.merge([expected_foo, expected_bar]).assign_attrs(test="a")
 
     result = horizontal_block_reduce(
         input_dataset, coarsening_factor, np.median, "x", "y"
@@ -368,8 +384,9 @@ def test_block_coarsen(input_dataarray):
 )
 def test_block_edge_sum(data, factor, edge, expected_data):
     dims = ["x_dim", "y_dim"]
-    da = xr.DataArray(data, dims=dims, coords=None)
-    expected = xr.DataArray(expected_data, dims=dims, coords=None)
+    attrs = {"units": "m"}
+    da = xr.DataArray(data, dims=dims, coords=None, attrs=attrs)
+    expected = xr.DataArray(expected_data, dims=dims, coords=None, attrs=attrs)
     result = block_edge_sum(da, factor, x_dim="x_dim", y_dim="y_dim", edge=edge)
     assert_identical_including_dtype(result, expected)
 
@@ -692,10 +709,11 @@ def test__block_mode():
             [1.0, 1.0, 0.0, np.nan],
         ]
     )
-    da = xr.DataArray(data, dims=["x", "y"])
+    attrs = {"units": "m"}
+    da = xr.DataArray(data, dims=["x", "y"], attrs=attrs)
 
     expected_data = np.array([[0.0, 1.0], [1.0, 0.0]])
-    expected = xr.DataArray(expected_data, dims=["x", "y"])
+    expected = xr.DataArray(expected_data, dims=["x", "y"], attrs=attrs)
 
     result = _block_mode(da, 2, x_dim="x", y_dim="y", nan_policy="omit")
     assert_identical_including_dtype(result, expected)
@@ -710,13 +728,14 @@ def test_block_mode_via_block_coarsen():
             [1.0, 1.0, 0.0, np.nan],
         ]
     )
-    da = xr.DataArray(data, dims=["x", "y"])
+    attrs = {"units": "m"}
+    da = xr.DataArray(data, dims=["x", "y"], attrs=attrs)
 
     expected_data = np.array([[0.0, 1.0], [1.0, 0.0]])
-    expected = xr.DataArray(expected_data, dims=["x", "y"])
+    expected = xr.DataArray(expected_data, dims=["x", "y"], attrs=attrs)
 
     result = block_coarsen(
-        da, 2, x_dim="x", y_dim="y", method="mode", func_kwargs={"nan_policy": "omit"}
+        da, 2, x_dim="x", y_dim="y", method="mode", func_kwargs={"nan_policy": "omit"},
     )
     assert_identical_including_dtype(result, expected)
 

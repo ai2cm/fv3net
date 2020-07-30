@@ -77,24 +77,28 @@ variable2 = VariableSchema(
     attrs={"attr1": "something"},
 )
 variable3 = VariableSchema(
+    "a", ["x"], ChunkedArray(shape=[4], chunks=[2], dtype=np.dtype("float64"))
+)
+variable4 = VariableSchema(
     "a",
     ["x", "y"],
     ChunkedArray(shape=[3, 2], chunks=[1, 1], dtype=np.dtype("float32")),
 )
-variable4 = VariableSchema(
+variable5 = VariableSchema(
     "b", ["x"], ChunkedArray(shape=[3], chunks=[1], dtype=np.dtype("float32"))
 )
 
 
 @pytest.mark.parametrize(
-    "variableA,variableB", [(variable1, variable1), (variable1, variable2)],
+    "variableA,variableB",
+    [(variable1, variable1), (variable1, variable2), (variable1, variable3)],
 )
 def test_variable_schema_equivalence(variableA, variableB):
     assert variableA == variableB
 
 
 @pytest.mark.parametrize(
-    "variableA,variableB", [(variable1, variable3), (variable1, variable4)],
+    "variableA,variableB", [(variable1, variable4), (variable1, variable5)],
 )
 def test_variable_schema_not_equivalent(variableA, variableB):
     assert variableA != variableB
@@ -102,8 +106,8 @@ def test_variable_schema_not_equivalent(variableA, variableB):
 
 dataset1 = DatasetSchema({"x": coord1}, {"a": variable1})
 dataset2 = DatasetSchema({"x": coord2}, {"a": variable2})
-dataset3 = DatasetSchema({"y": coord1}, {"a": variable3})
-dataset4 = DatasetSchema({"x": coord1}, {"a": variable1, "b": variable4})
+dataset3 = DatasetSchema({"y": coord1}, {"a": variable4})
+dataset4 = DatasetSchema({"x": coord1}, {"a": variable1, "b": variable5})
 
 
 @pytest.mark.parametrize(

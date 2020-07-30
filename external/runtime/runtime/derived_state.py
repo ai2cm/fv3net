@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Mapping
+from typing import Mapping, Hashable
 
 import vcm
 import xarray as xr
@@ -49,7 +49,7 @@ class DerivedFV3State:
     def time(self) -> datetime:
         return self._getter.get_state(["time"])["time"]
 
-    def __getitem__(self, key: str) -> xr.Dataset:
+    def __getitem__(self, key: Hashable) -> xr.DataArray:
         if key == "time":
             raise KeyError("To access time use the `time` property of this object.")
 
@@ -61,7 +61,7 @@ class DerivedFV3State:
     def __setitem__(self, key: str, value: xr.DataArray):
         self._getter.set_state({key: fv3util.Quantity.from_data_array(value)})
 
-    def update(self, items: Mapping[str, xr.DataArray]):
+    def update(self, items: Mapping[Hashable, xr.DataArray]):
         """Update state from another mapping
 
         This may be faster than setting each item individually.

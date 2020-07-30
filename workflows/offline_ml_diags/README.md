@@ -1,7 +1,7 @@
 This workflow generates diagnostic outputs for variables predicted by 
 a trained ML model. Currently, the workflow only accepts models wrapped 
 for usage with xarray dataset inputs and outputs (the `SklearnWrapper` class 
-found in `fv3net.regression.sklearn.wrapper`.) 
+found in `fv3fit.sklearn.wrapper`.) 
 
 The script takes in a configuration YAML file (which contains the input data path), 
 a trained ML model, and the output path. An optional json file containing a list 
@@ -32,7 +32,6 @@ mapping_kwargs:
   initial_time_skip_hr: 0
 batch_kwargs:
   timesteps_per_batch: 5
-  init_time_dim_name: "initial_time"
 ```
 
 
