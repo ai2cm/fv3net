@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 from typing import Sequence
 import xarray as xr
 
@@ -22,64 +21,59 @@ MAPPABLE_VAR_KWARGS = {
 }
 
 
-def plot_profile_vars(
+def plot_profile_var(
     ds: xr.Dataset,
-    output_dir: str,
-    profile_vars: Sequence[str],
+    var: str,
     dpi: int = 100,
     derivation_dim: str = "derivation",
     domain_dim: str = "domain",
 ):
-    for var in profile_vars:
-        if "derivation" in ds[var].dims:
-            facet_grid = ds[var].plot(y="z", hue=derivation_dim, col=domain_dim)
-        facet_grid.set_titles(template="{value}", maxchar=40)
-        f = facet_grid.fig
-        for ax in facet_grid.axes.flatten():
-            ax.invert_yaxis()
-            ax.plot([0, 0], [1, 79], "k-")
-            if "1" in var:
-                ax.set_xlim([-0.0001, 0.0001])
-                ax.set_xticks(np.arange(-1e-4, 1.1e-4, 5e-5))
-            else:
-                ax.set_xlim([-1e-7, 1e-7])
-                ax.set_xticks(np.arange(-1e-7, 1.1e-7, 5e-8))
-            ax.set_xlabel(f"{var} {_units_from_var(var)}")
-        f.set_size_inches([17, 3.5])
-        f.set_dpi(dpi)
-        f.suptitle(var.replace("_", " "))
-        f.savefig(os.path.join(output_dir, f"{var}_profile_plot.png"))
+    if "derivation" in ds[var].dims:
+        facet_grid = ds[var].plot(y="z", hue=derivation_dim, col=domain_dim)
+    facet_grid.set_titles(template="{value}", maxchar=40)
+    f = facet_grid.fig
+    for ax in facet_grid.axes.flatten():
+        ax.invert_yaxis()
+        ax.plot([0, 0], [1, 79], "k-")
+        if "1" in var:
+            ax.set_xlim([-0.0001, 0.0001])
+            ax.set_xticks(np.arange(-1e-4, 1.1e-4, 5e-5))
+        else:
+            ax.set_xlim([-1e-7, 1e-7])
+            ax.set_xticks(np.arange(-1e-7, 1.1e-7, 5e-8))
+        ax.set_xlabel(f"{var} {_units_from_var(var)}")
+    f.set_size_inches([17, 3.5])
+    f.set_dpi(dpi)
+    f.suptitle(var.replace("_", " "))
+    return f
 
 
-def plot_column_integrated_vars(
+def plot_column_integrated_var(
     ds: xr.Dataset,
-    output_dir: str,
-    column_integrated_vars: Sequence[str],
+    var: str,
     derivation_plot_coords: Sequence[str],
     derivation_dim: str = "derivation",
     data_source_dim: str = None,
     dpi: int = 100,
 ):
-    for var in column_integrated_vars:
 
-        f, _, _, _, facet_grid = visualize.plot_cube(
-            visualize.mappable_var(
-                ds.sel(derivation=derivation_plot_coords), var, **MAPPABLE_VAR_KWARGS
-            ),
-            col=derivation_dim,
-            row=data_source_dim,
-            vmax=(1000 if "1" in var else 10),
-        )
-        facet_grid.set_titles(template="{value}", maxchar=40)
-        f.set_size_inches([14, 3.5])
-        f.set_dpi(dpi)
-        f.suptitle(var.replace("_", " "))
-        f.savefig(os.path.join(output_dir, f"{var}_map.png"))
+    f, _, _, _, facet_grid = visualize.plot_cube(
+        visualize.mappable_var(
+            ds.sel(derivation=derivation_plot_coords), var, **MAPPABLE_VAR_KWARGS
+        ),
+        col=derivation_dim,
+        row=data_source_dim,
+        vmax=(1000 if "1" in var else 10),
+    )
+    facet_grid.set_titles(template="{value}", maxchar=40)
+    f.set_size_inches([14, 3.5])
+    f.set_dpi(dpi)
+    f.suptitle(var.replace("_", " "))
+    return f
 
 
 def plot_diurnal_cycles(
     ds_diurnal: xr.Dataset,
-    output_dir: str,
     tag: str,
     vars: Sequence[str],
     derivation_plot_coords: Sequence[str],
@@ -104,17 +98,13 @@ def plot_diurnal_cycles(
     f.set_size_inches([12, 4 * len(vars)])
     f.set_dpi(dpi)
     f.tight_layout()
-    f.savefig(os.path.join(output_dir, f"{tag}_diurnal_cycle.png"))
+    return f
 
 
 def _plot_generic_data_array(
-    da: xr.DataArray,
-    output_dir: str,
-    tag: str = None,
-    xlabel: str = None,
-    ylabel: str = None,
+    da: xr.DataArray, tag: str = None, xlabel: str = None, ylabel: str = None,
 ):
-    plt.figure()
+    fig = plt.figure()
     da.plot()
     if xlabel:
         plt.xlabel(xlabel)
@@ -124,4 +114,4 @@ def _plot_generic_data_array(
     plt.ylabel(ylabel)
     if tag:
         tag += "_"
-    plt.savefig(os.path.join(output_dir, f"{tag or ''}{da.name}.png"))
+    return fig

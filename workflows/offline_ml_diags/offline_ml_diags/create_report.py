@@ -114,22 +114,22 @@ if __name__ == "__main__":
 
     ds_diags, ds_diurnal, metrics = _open_diagnostics_outputs(args.input_path)
 
+    # TODO: the .savefig is temporary to this PR, when adding the report HTML write
+    # I'll have a decorator to save and register filenames under a report section
+
     # time averaged quantity vertical profiles over land/sea, pos/neg net precip
-    diagplot.plot_profile_vars(
-        ds_diags,
-        output_dir=temp_output_dir.name,
-        profile_vars=PROFILE_VARS,
-        derivation_dim=DERIVATION_DIM,
-        domain_dim=DOMAIN_DIM,
-    )
+    for var in PROFILE_VARS:
+        diagplot.plot_profile_var(
+            ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
+        ).savefig(os.path.join(temp_output_dir.name, f"{var}_profile_plot.png"))
 
     # time averaged column integrated quantity maps
-    diagplot.plot_column_integrated_vars(
-        ds_diags,
-        output_dir=temp_output_dir.name,
-        column_integrated_vars=COLUMN_INTEGRATED_VARS,
-        derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
-    )
+    for var in COLUMN_INTEGRATED_VARS:
+        diagplot.plot_column_integrated_var(
+            ds_diags,
+            var,
+            derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
+        ).savefig(os.path.join(temp_output_dir.name, f"{var}_map.png"))
 
     # column integrated quantity diurnal cycles
     for tag, var_group in {
@@ -138,11 +138,10 @@ if __name__ == "__main__":
     }.items():
         diagplot.plot_diurnal_cycles(
             ds_diurnal,
-            output_dir=temp_output_dir.name,
             tag=tag,
             vars=var_group,
             derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
-        )
+        ).savefig(os.path.join(temp_output_dir.name, f"{tag}_diurnal_cycle.png"))
 
     # vertical profiles of bias and RMSE
     pressure_lvl_metrics = [
@@ -150,8 +149,8 @@ if __name__ == "__main__":
     ]
     for var in pressure_lvl_metrics:
         diagplot._plot_generic_data_array(
-            ds_diags[var], output_dir=temp_output_dir.name, xlabel="pressure [Pa]",
-        )
+            ds_diags[var], xlabel="pressure [Pa]",
+        ).savefig(os.path.join(temp_output_dir.name, f"{var}.png"))
 
     # TODO: following PR will add this to the report in separate tables.
     # For now, this will dump the jsons so they can be read
