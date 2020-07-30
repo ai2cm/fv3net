@@ -16,7 +16,6 @@ from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags.compute_diags import (
     _average_metrics_dict,
     _compute_diags_over_batches,
-    _consolidate_dimensioned_data,
 )
 
 logger = logging.getLogger(__name__)
