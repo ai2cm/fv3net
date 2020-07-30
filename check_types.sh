@@ -5,5 +5,6 @@ mypy --follow-imports silent \
     external/vcm/vcm/cubedsphere \
     fv3net/pipelines/restarts_to_zarr/ \
     workflows/prognostic_c48_run \
+    external/runtime/runtime/diagnostics.py \
     external/fv3fit/fv3fit \
-    external/loaders/loaders/mappers/_local.py \
+    external/loaders/loaders/mappers/_local.py
