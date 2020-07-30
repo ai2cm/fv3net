@@ -1,4 +1,5 @@
 base_version: v0.5
+kubernetes: {}
 diag_table: workflows/one_step_jobs/diag_table_one_step  # TODO: move this diag_table into vcm-workflow-control
 namelist:
   atmos_model_nml:
