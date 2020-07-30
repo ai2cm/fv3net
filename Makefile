@@ -73,15 +73,15 @@ test_prognostic_run:
 
 test_unit:
 	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
-	coverage report
+	coverage report -i
 
 test_regression:
 	coverage run -m pytest -vv -m regression -s
-	coverage report
+	coverage report -i
 
 test_dataflow:
 	coverage run -m pytest -vv tests/dataflow/ -s
-	coverage report
+	coverage report -i
 
 ## Make Dataset
 .PHONY: data update_submodules create_environment overwrite_baseline_images
