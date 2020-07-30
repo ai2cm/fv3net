@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import yaml
 import fsspec
 import logging
-from fv3util import Quantity
+import fv3util
 import xarray as xr
 
 if __name__ == "__main__":
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 GRAVITY = 9.81
 M_PER_MM = 1 / 1000
 PRECIP_NAME = "total_precipitation"
-State = MutableMapping[str, Quantity]
+State = MutableMapping[str, fv3util.Quantity]
 
 RADIATION_NAMES = [
     "total_sky_downward_shortwave_flux_at_surface",
@@ -137,71 +137,70 @@ def add_humidity_nudging_to_precip(
         )
         model_precip = state[PRECIP_NAME].data_array
         total_precip = total_precipitation(model_precip, column_moistening, timestep)
-        state[PRECIP_NAME] = Quantity.from_data_array(total_precip)
+        state[PRECIP_NAME] = fv3util.Quantity.from_data_array(total_precip)
 
 
-if __name__ == "__main__":
+class StageWriter:
+    def __init__(
+        self,
+        root_dirname: str,
+        partitioner,
+        mode="w",
+        times: Optional[Sequence[str]] = None,
+    ):
+        self._root_dirname = root_dirname
+        self._monitors: MutableMapping[str, SubsetWriter] = {}
+        self._mode = mode
+        self.partitioner = partitioner
+        self.times = times
 
-    class StageWriter:
-        def __init__(
-            self,
-            root_dirname: str,
-            partitioner,
-            mode="w",
-            times: Optional[Sequence[str]] = None,
-        ):
-            self._root_dirname = root_dirname
-            self._monitors: MutableMapping[str, SubsetWriter] = {}
-            self._mode = mode
-            self.partitioner = partitioner
-            self.times = times
+    def store(self, time: datetime, state, stage: str):
+        monitor = self._get_monitor(stage)
+        monitor.store(time, state)
 
-        def store(self, time: datetime, state, stage: str):
-            monitor = self._get_monitor(stage)
-            monitor.store(time, state)
-
-        def _get_monitor(self, stage_name: str):
-            if stage_name not in self._monitors:
-                store = master_only(
-                    lambda: fsspec.get_mapper(
-                        os.path.join(self._root_dirname, stage_name + ".zarr")
-                    )
-                )()
-                monitor = fv3gfs.ZarrMonitor(
-                    store, self.partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
+    def _get_monitor(self, stage_name: str):
+        if stage_name not in self._monitors:
+            store = master_only(
+                lambda: fsspec.get_mapper(
+                    os.path.join(self._root_dirname, stage_name + ".zarr")
                 )
-                self._monitors[stage_name] = SubsetWriter(monitor, self.times)
-            return self._monitors[stage_name]
+            )()
+            monitor = fv3util.ZarrMonitor(
+                store, self.partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
+            )
+            self._monitors[stage_name] = SubsetWriter(monitor, self.times)
+        return self._monitors[stage_name]
 
-    class SubsetWriter:
-        """Write only certain substeps"""
 
-        def __init__(
-            self, monitor: fv3gfs.ZarrMonitor, times: Optional[Sequence[str]] = None
-        ):
-            """
+class SubsetWriter:
+    """Write only certain substeps"""
 
-            Args:
-                monitor: a stage monitor to use to store outputs
-                times: an optional list of output times to store stages at. By
-                    default all times will be output.
-            """
-            self._monitor = monitor
-            self._times = times
-            self.time = None
-            self.logger = logging.getLogger("SubsetStageWriter")
-            self.logger.info(f"Saving stages at {self._times}")
+    def __init__(
+        self, monitor: fv3util.ZarrMonitor, times: Optional[Sequence[str]] = None
+    ):
+        """
 
-        def _output_current_time(self, time: datetime) -> bool:
-            if self._times is None:
-                return True
-            else:
-                return time.strftime("%Y%m%d.%H%M%S") in self._times
+        Args:
+            monitor: a stage monitor to use to store outputs
+            times: an optional list of output times to store stages at. By
+                default all times will be output.
+        """
+        self._monitor = monitor
+        self._times = times
+        self.time = None
+        self.logger = logging.getLogger("SubsetStageWriter")
+        self.logger.info(f"Saving stages at {self._times}")
 
-        def store(self, time: datetime, state):
-            if self._output_current_time(time):
-                self.logger.debug(f"Storing time: {time}")
-                self._monitor.store(state)
+    def _output_current_time(self, time: datetime) -> bool:
+        if self._times is None:
+            return True
+        else:
+            return time.strftime("%Y%m%d.%H%M%S") in self._times
+
+    def store(self, time: datetime, state):
+        if self._output_current_time(time):
+            self.logger.debug(f"Storing time: {time}")
+            self._monitor.store(state)
 
 
 def master_only(func):
