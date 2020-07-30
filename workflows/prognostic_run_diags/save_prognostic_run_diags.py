@@ -31,7 +31,13 @@ from typing import Dict, Callable, Mapping
 import load_diagnostic_data as load_diags
 import diurnal_cycle
 import transform
-from constants import HORIZONTAL_DIMS, DiagArg
+from constants import (
+    HORIZONTAL_DIMS,
+    DiagArg,
+    GLOBAL_AVERAGE_DYCORE_VARS,
+    GLOBAL_AVERAGE_PHYSICS_VARS,
+    DIURNAL_CYCLE_VARS,
+)
 
 import logging
 
@@ -178,6 +184,7 @@ def rms_errors(resampled, verification_c48, grid):
 @add_to_diags("dycore")
 @diag_finalizer("global_avg")
 @transform.apply("resample_time", "3H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_DYCORE_VARS)
 def global_averages_dycore(resampled, verification, grid):
     logger.info("Preparing global averages for dycore variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
@@ -190,6 +197,7 @@ def global_averages_dycore(resampled, verification, grid):
 @add_to_diags("physics")
 @diag_finalizer("global_phys_avg")
 @transform.apply("resample_time", "3H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
 def global_averages_physics(resampled, verification, grid):
     logger.info("Preparing global averages for physics variables")
     area_averages = (resampled * grid.area).sum(HORIZONTAL_DIMS) / grid.area.sum(
@@ -202,6 +210,7 @@ def global_averages_physics(resampled, verification, grid):
 @add_to_diags("physics")
 @diag_finalizer("bias_global_physics")
 @transform.apply("resample_time", "3H")
+@transform.apply("subset_variables", GLOBAL_AVERAGE_PHYSICS_VARS)
 def global_biases_physics(resampled, verification, grid):
     logger.info("Preparing global average biases for physics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
@@ -214,7 +223,8 @@ for mask_type in ["global", "land", "sea"]:
     @add_to_diags("physics")
     @diag_finalizer(f"diurnal_{mask_type}")
     @transform.apply("mask_to_sfc_type", mask_type)
-    @transform.apply("resample_time", "15min", time_slice=slice(96, -1))
+    @transform.apply("resample_time", "1H", time_slice=slice(24, -1))
+    @transform.apply("subset_variables", DIURNAL_CYCLE_VARS)
     def _diurnal_func(resampled, verification, grid, mask_type=mask_type):
         # mask_type is added as a kwarg solely to give the logging access to the info
         logger.info(
@@ -237,9 +247,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("url")
     parser.add_argument("output")
-    parser.add_argument(
-        "--grid-spec", default="./grid_spec",
-    )
     parser.add_argument("--catalog", default=CATALOG)
 
     logging.basicConfig(level=logging.INFO)
@@ -251,8 +258,8 @@ if __name__ == "__main__":
 
     catalog = intake.open_catalog(args.catalog)
     input_data = {
-        "dycore": load_diags.load_dycore(args.url, args.grid_spec, catalog),
-        "physics": load_diags.load_physics(args.url, args.grid_spec, catalog),
+        "dycore": load_diags.load_dycore(args.url, catalog),
+        "physics": load_diags.load_physics(args.url, catalog),
     }
 
     # begin constructing diags

@@ -20,7 +20,7 @@ FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
 
 
 BASE_FV3CONFIG_CACHE = Path(
-    "/inputdata", "fv3config-cache", "gs", "vcm-fv3config", "vcm-fv3config", "data"
+    "/inputdata", "fv3config-cache", "gs", "vcm-fv3config", "data"
 )
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
     "initial_conditions", "c12_restart_initial_conditions", "v1.0"
@@ -328,7 +328,9 @@ namelist:
     ldebug: false
 """
 
-NUDGE_RUNFILE = Path(__file__).parent.parent.joinpath("nudging/runfile.py").as_posix()
+NUDGE_RUNFILE = (
+    Path(__file__).parent.parent.joinpath("nudging/nudging_runfile.py").as_posix()
+)
 # Necessary to know the number of restart timestamp folders to generate in fixture
 START_TIME = [2016, 8, 1, 0, 0, 0]
 TIMESTEP_MINUTES = 15

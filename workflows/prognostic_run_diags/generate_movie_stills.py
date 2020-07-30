@@ -38,6 +38,7 @@ _COORD_VARS = {
 }
 
 GRID_VARS = ["area", "lonb", "latb", "lon", "lat"]
+INTERFACE_DIMS = ["xb", "yb"]
 
 HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_pQ1": {"vmin": -600, "vmax": 600, "cmap": "RdBu_r"},
@@ -47,6 +48,8 @@ HEATING_MOISTENING_PLOT_KWARGS = {
     "column_integrated_dQ2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
     "column_integrated_Q2": {"vmin": -20, "vmax": 20, "cmap": "RdBu_r"},
 }
+
+KEEP_VARS = GRID_VARS + list(HEATING_MOISTENING_PLOT_KWARGS.keys())
 
 
 def _catalog():
@@ -96,8 +99,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("url", help="Path to rundir")
-    parser.add_argument("grid_spec", help="Path to C384 grid spec (unused)")
     parser.add_argument("output", help="Output location for movie stills")
+    parser.add_argument("--n_jobs", default=8, type=int)
+    parser.add_argument("--catalog", default=CATALOG)
     args = parser.parse_args()
 
     if vcm.cloud.get_protocol(args.output) == "file":
@@ -105,14 +109,19 @@ if __name__ == "__main__":
 
     catalog = intake.open_catalog(CATALOG)
 
-    prognostic, _, grid = load_diags.load_physics(args.url, args.grid_spec, catalog)
+    prognostic, _, grid = load_diags.load_physics(args.url, catalog)
     # crashed prognostic runs have bad grid vars, so use grid from catalog instead
-    prognostic = prognostic.drop_vars(GRID_VARS, errors="ignore").merge(grid)
-    prognostic = prognostic.load()  # force load
+    prognostic = (
+        prognostic.drop_vars(GRID_VARS, errors="ignore")
+        .drop_dims(INTERFACE_DIMS, errors="ignore")
+        .merge(grid)
+    )
+    logger.info("Forcing computation")
+    prognostic = prognostic[KEEP_VARS].load()  # force load
     T = prognostic.sizes["time"]
     for name, func in _movie_funcs().items():
         logger.info(f"Saving {T} still images for {name} movie to {args.output}")
         filename = os.path.join(args.output, name + FIG_SUFFIX)
         func_args = [(prognostic.isel(time=t), filename.format(t=t)) for t in range(T)]
-        with get_context("spawn").Pool(4) as p:
+        with get_context("spawn").Pool(args.n_jobs) as p:
             p.map(func, func_args)
