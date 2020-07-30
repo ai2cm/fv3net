@@ -278,25 +278,27 @@ def _weighted_average(
 
 
 def _get_r2_string(
-        metrics: Mapping[str, Mapping[str, float]],
-        var: str,
-        predict_coord: str="predict",
-        target_coord: str="target",
-        precision=2,
-        ):
-    rmse_prediction = metrics[f"scalar/rmse/{var}/{predict_coord}_vs_{target_coord}"]["mean"]
-    std_dev =  metrics[f"scalar/rmse/{var}/mean_vs_{target_coord}"]["mean"]
-    r2 = 1. - (rmse_prediction / std_dev) ** 2
+    metrics: Mapping[str, Mapping[str, float]],
+    var: str,
+    predict_coord: str = "predict",
+    target_coord: str = "target",
+    precision=2,
+):
+    rmse_prediction = metrics[f"scalar/rmse/{var}/{predict_coord}_vs_{target_coord}"][
+        "mean"
+    ]
+    std_dev = metrics[f"scalar/rmse/{var}/mean_vs_{target_coord}"]["mean"]
+    r2 = 1.0 - (rmse_prediction / std_dev) ** 2
     return f"{r2:.{precision}f}"
 
 
 def _get_bias_string(
-        metrics: Mapping[str, Mapping[str, float]],
-        var: str,
-        predict_coord: str="predict",
-        target_coord: str="target",
-        precision=2,
-        ):
+    metrics: Mapping[str, Mapping[str, float]],
+    var: str,
+    predict_coord: str = "predict",
+    target_coord: str = "target",
+    precision=2,
+):
     value = metrics[f"scalar/bias/{var}/{predict_coord}_vs_{target_coord}"]["mean"]
     std = metrics[f"scalar/bias/{var}/{predict_coord}_vs_{target_coord}"]["std"]
     return f"{value:.{precision}f} +/- {std:.{precision}f}"

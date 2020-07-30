@@ -131,7 +131,9 @@ def _compute_diags_over_batches(
 def _consolidate_dimensioned_data(ds_summary, ds_metrics):
     # moves dimensioned quantities into final diags dataset so they're saved as netcdf
     metrics_arrays_vars = [var for var in ds_metrics.data_vars if "scalar" not in var]
-    ds_metrics_arrays = safe.get_variables(ds_metrics, metrics_arrays_vars).mean("batch")
+    ds_metrics_arrays = safe.get_variables(ds_metrics, metrics_arrays_vars).mean(
+        "batch"
+    )
     ds_diagnostics = ds_summary.merge(ds_metrics_arrays).rename(
         {var: var.replace("/", "-") for var in metrics_arrays_vars}
     )
