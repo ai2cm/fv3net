@@ -34,6 +34,7 @@ ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
 
 
 # Add rest of fv3net directory
+COPY setup.py $FV3NET/
 COPY external $FV3NET/external
 COPY fv3net $FV3NET/fv3net
 COPY workflows $FV3NET/workflows
