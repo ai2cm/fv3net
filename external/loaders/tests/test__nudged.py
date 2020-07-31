@@ -202,36 +202,9 @@ class MockMergeNudgedMapper:
 
 @pytest.fixture
 def nudged_source():
-    example_da = xr.DataArray(
-        np.full((4, 1), 10.0),
-        {
-            "time": xr.DataArray(
-                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
-            ),
-            "x": xr.DataArray([0], dims=["x"]),
-        },
-        ["time", "x"],
-    )
-    air_temperature = xr.DataArray(
-        np.full((4, 1), 270.0),
-        {
-            "time": xr.DataArray(
-                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
-            ),
-            "x": xr.DataArray([0], dims=["x"]),
-        },
-        ["time", "x"],
-    )
-    specific_humidity = xr.DataArray(
-        np.full((4, 1), 0.01),
-        {
-            "time": xr.DataArray(
-                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
-            ),
-            "x": xr.DataArray([0], dims=["x"]),
-        },
-        ["time", "x"],
-    )
+    example_da = value_to_xr_darray(10.0)
+    air_temperature = value_to_xr_darray(270.0)
+    specific_humidity = value_to_xr_darray(0.01)
 
     net_term_vars = [
         "total_sky_downward_longwave_flux_at_surface",
@@ -357,20 +330,7 @@ def checkpoints():
     return ("after_dynamics", "after_physics")
 
 
-def air_temperature(value):
-    return xr.DataArray(
-        np.full((4, 1), value),
-        {
-            "time": xr.DataArray(
-                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
-            ),
-            "x": xr.DataArray([0], dims=["x"]),
-        },
-        ["time", "x"],
-    )
-
-
-def specific_humidity(value):
+def value_to_xr_darray(value):
     return xr.DataArray(
         np.full((4, 1), value),
         {
@@ -385,20 +345,20 @@ def specific_humidity(value):
 
 nudged_source_1 = xr.Dataset(
     {
-        "air_temperature": air_temperature(270.0),
-        "specific_humidity": specific_humidity(0.01),
+        "air_temperature": value_to_xr_darray(270.0),
+        "specific_humidity": value_to_xr_darray(0.01),
     }
 )
 nudged_source_2 = xr.Dataset(
     {
-        "air_temperature": air_temperature(272.0),
-        "specific_humidity": specific_humidity(0.005),
+        "air_temperature": value_to_xr_darray(272.0),
+        "specific_humidity": value_to_xr_darray(0.005),
     }
 )
 nudged_source_3 = xr.Dataset(
     {
-        "air_temperature": air_temperature(272.0),
-        "specific_humidity": specific_humidity(np.nan),
+        "air_temperature": value_to_xr_darray(272.0),
+        "specific_humidity": value_to_xr_darray(np.nan),
     }
 )
 
