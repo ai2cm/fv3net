@@ -86,6 +86,34 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
     return metrics
 
 
+def _insert_net_terms_as_Qs(
+    ds: xr.Dataset,
+    var_mapping: Mapping = None,
+    derivation_dim: str = "derivation",
+    shield_coord: str = "coarsened_SHiELD",
+) -> xr.Dataset:
+    """Insert the SHiELD net_* variables as the column_integrated_Q* variables
+        for coordinate 'coarsened_SHiELD', also drop the net_* variables and the
+        'coarse_FV3GFS' coordinate
+    """
+    var_mapping = var_mapping or {
+        "net_heating": "column_integrated_Q1",
+        "net_preciptiation": "column_integrated_Q2",
+    }
+
+    ds_new = ds.sel(derivation_dim=["target", "predict"]).drop_vars(
+        names=var_mapping.keys(), errors="ignore"
+    )
+
+    shield_data = {}
+    for var_source_name, var_target_name in var_mapping:
+        shield_data[var_target_name] = ds[var_source_name].sel(
+            {derivation_dim: [shield_coord]}
+        )
+
+    return ds_new.merge([shield_data])
+
+
 def _compute_diags_over_batches(
     ds_batches: Sequence[xr.Dataset], grid: xr.Dataset
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
@@ -99,8 +127,11 @@ def _compute_diags_over_batches(
         ds = (
             ds.pipe(utils.insert_total_apparent_sources)
             .pipe(utils.insert_column_integrated_vars)
+            .pipe(_insert_net_terms_as_Qs)
             .load()
         )
+
+        print(ds)
 
         # ...reduce to diagnostic variables
         ds_summary = utils.reduce_to_diagnostic(ds, grid)
@@ -173,6 +204,7 @@ if __name__ == "__main__":
         pred_mapper, config["variables"], **config["batch_kwargs"],
     )
 
+    print(ds_batches[0])
     # compute diags
     ds_diagnostics, ds_diurnal, ds_scalar_metrics = _compute_diags_over_batches(
         ds_batches, grid
