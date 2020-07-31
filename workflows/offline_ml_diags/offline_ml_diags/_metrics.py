@@ -3,6 +3,7 @@ import numpy as np
 from typing import Sequence, Callable, Union, Mapping
 import xarray as xr
 
+from diagnostics_utils import units_from_var
 from vcm import safe
 from vcm.cubedsphere import regrid_to_common_pressure
 
@@ -301,4 +302,4 @@ def _get_bias_string(
 ):
     value = metrics[f"scalar/bias/{var}/{predict_coord}_vs_{target_coord}"]["mean"]
     std = metrics[f"scalar/bias/{var}/{predict_coord}_vs_{target_coord}"]["std"]
-    return f"{value:.{precision}f} +/- {std:.{precision}f}"
+    return f"{value:.{precision}f} +/- {std:.{precision}f} {units_from_var(var)}"

@@ -1,4 +1,5 @@
 import datetime
+import os
 from typing import Mapping, Sequence, Union
 
 from jinja2 import Template
@@ -32,14 +33,21 @@ HTML_TEMPLATE = Template(
 
     {% if metrics is not none %}
         <h2> Metrics </h2>
-        <table>
-        {% for var, values in metrics.items() %}
+        <table border="1">
+        <thead>
+            <tr>
+                <th> Variable </th>
+                {% for key in metrics_columns %}
+                    <th style="padding:10px"> {{ key }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        {% for var, var_metrics in metrics.items() %}
         <tr>
-
-            <td>{{ var }}</td>
-            <td>{{ values["rmse"] }}</td>
-            <td>{{ values["bias"] }}</td>
-
+            <th style="padding:5px">{{ var }}</th>
+            {% for value in var_metrics.values() %}
+                <th style="padding:3px">{{ value }}</th>
+            {% endfor %}
         </tr>
         {% endfor %}
         </table>
@@ -80,17 +88,19 @@ def add_report_figure(
     section_name: str,
     output_dir: str = None,
 ):
-    filename = os.path.join(section_name.replace(' ', '_'), filename)
-    fig.savefig(os.path.join(output_dir or "", filename)
+    section_dir = section_name.replace(' ', '_')
+    filename = os.path.join(section_dir, filename)
+    if not os.path.exists(os.path.join(output_dir, section_dir)):
+        os.makedirs(os.path.join(output_dir, section_dir))
+    fig.savefig(os.path.join(output_dir or "", filename))
     sections.setdefault(section_name, []).append(filename)
-
 
 
 def create_html(
     sections: Mapping[str, Sequence[str]],
     title: str,
     metadata: Mapping[str, Union[str, float, int, bool]] = None,
-    metrics: Mapping[str, Mapping[str, Union[str, float]] = None,
+    metrics: Mapping[str, Mapping[str, Union[str, float]]] = None,
     html_header: str = None,
 ) -> str:
     """Return html report of figures described in sections.
@@ -115,11 +125,15 @@ def create_html(
         header: [resolve_plot(path) for path in section]
         for header, section in sections.items()
     }
-
+    if metrics:
+        # format of metrics dict is {var: {column name: val}}
+        metrics_columns = list(metrics.values())[0].keys()
     html = HTML_TEMPLATE.render(
         title=title,
         sections=resolved_sections,
         metadata=metadata,
+        metrics=metrics,
+        metrics_columns=metrics_columns,
         now=now_str,
         header=html_header,
     )

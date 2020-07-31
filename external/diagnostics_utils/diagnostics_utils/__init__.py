@@ -8,6 +8,7 @@ from .utils import (
     weighted_average,
     snap_mask_to_type,
     insert_column_integrated_vars,
+    units_from_var
 )
 from ._diurnal_cycle import bin_diurnal_cycle, create_diurnal_cycle_dataset
 from . import plot
@@ -23,4 +24,5 @@ __all__ = [
     "insert_total_apparent_sources",
     "bin_diurnal_cycle",
     "create_diurnal_cycle_dataset",
+    "units_from_var"
 ]

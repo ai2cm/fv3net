@@ -148,11 +148,11 @@ if __name__ == "__main__":
 
     # time averaged column integrated quantity maps
     for var in COLUMN_INTEGRATED_VARS:
-        diagplot.plot_column_integrated_var(
+        fig = diagplot.plot_column_integrated_var(
             ds_diags,
             var,
             derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
-        ).savefig(os.path.join(temp_output_dir.name, f"{var}_map.png"))
+        )
         add_report_figure(
             report_sections,
             fig,
@@ -165,7 +165,7 @@ if __name__ == "__main__":
         "Q1_components": ["column_integrated_dQ1", "column_integrated_Q1"],
         "Q2_components": ["column_integrated_dQ2", "column_integrated_Q2"],
     }.items():
-        diagplot.plot_diurnal_cycles(
+        fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
             tag=tag,
             vars=var_group,
@@ -183,9 +183,9 @@ if __name__ == "__main__":
         var for var in ds_diags.data_vars if "pressure" in ds_diags[var].dims
     ]
     for var in pressure_lvl_metrics:
-        diagplot._plot_generic_data_array(
+        fig = diagplot._plot_generic_data_array(
             ds_diags[var], xlabel="pressure [Pa]",
-        ).savefig(os.path.join(temp_output_dir.name, f"{var}.png"))
+        )
         add_report_figure(
             report_sections,
             fig,
@@ -196,9 +196,9 @@ if __name__ == "__main__":
     # scalar metrics for RMSE and bias
     metrics_formatted = {}
     for var in COLUMN_INTEGRATED_VARS:
-        metrics_formatted[var] = {
+        metrics_formatted[var.replace("_", " ")] = {
             "r2": _get_r2_string(metrics, var),
-            "bias": _get_r2_string(metrics, var)
+            "bias": _get_bias_string(metrics, var)
         }
 
     _write_report(
