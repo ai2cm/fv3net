@@ -95,7 +95,7 @@ jobs:
       - run:
           name: Build fv3net images
           command: |
-            make build_image_<<parameters.image>>
+            make build_image_$IMAGE
       - run:
           name: Push fv3net images
           command: |
