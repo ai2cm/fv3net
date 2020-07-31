@@ -9,7 +9,6 @@ experiment:
     - one_step_run
     - create_training_data
     - train_sklearn_model
-    - test_sklearn_model
     - prognostic_run
     - baseline_run
 
@@ -58,17 +57,6 @@ experiment:
         training_data:
           from: create_training_data
         train-config-file: $CONFIG/train_sklearn_model.yml
-
-    test_sklearn_model:
-      argo: argo submit workflows/argo/offline_diagnostics.yml
-      args:
-        trained-model:
-          from: train_sklearn_model
-        testing-data:
-          from: create_training_data
-        diagnostics-data:
-          from: coarsen_diagnostics
-        docker-image: $FV3NET_IMAGE
 
     prognostic_run:
       command: python workflows/prognostic_c48_run/orchestrate_submit_job.py
