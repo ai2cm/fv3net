@@ -67,6 +67,9 @@ jobs:
       - run: make test_argo
 
   build_default:
+    parameters:
+      image:
+        default: fv3net
     machine:
       docker_layer_caching: true
       image: ubuntu-1604:201903-01
@@ -74,6 +77,7 @@ jobs:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+      IMAGE: <<parameters.image>>
     steps:
       - gcp-gcr/gcr-auth:
           gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
@@ -89,7 +93,7 @@ jobs:
       - run:
           name: Build fv3net images
           command: |
-            make build_images
+            make build_image_<<parameters.image>>
       - run:
           name: Push fv3net images
           command: |
@@ -98,17 +102,17 @@ jobs:
             if [[ "$CIRCLE_BRANCH" == "master" ]]
             then
                 echo "pushing untagged images as 'latest'"
-                make push_images VERSION=latest
+                make push_image_$IMAGE VERSION=latest
             fi
 
             if [[ ! -z "$CIRCLE_TAG" ]]
             then
-              make push_images VERSION=$CIRCLE_TAG
+              make push_image_$IMAGE VERSION=$CIRCLE_TAG
             fi
 
             # push all images with sha for testing later on
             echo "pushing tagged images $CIRCLE_SHA1"
-            make push_images VERSION=$CIRCLE_SHA1
+            make push_image_$IMAGE VERSION=$CIRCLE_SHA1
       - slack/status:
           fail_only: true
           mentions: "channel"
@@ -200,7 +204,10 @@ workflows:
           kind: test_dataflow
           requires:
             - hold
-      - build_default
+      - build_default:
+          matrix:
+            parameters:
+              kind: ["prognostic_run", "fv3net", "post_process_run"]
       - integration_tests:
           requires:
             - build_default
@@ -218,6 +225,9 @@ workflows:
             branches:
               only: master
       - build_default:
+          matrix:
+            parameters:
+              kind: ["prognostic_run", "fv3net", "post_process_run"]
           filters:
             tags:
               only: /^v.*/
