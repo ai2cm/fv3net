@@ -17,9 +17,99 @@ from budget.budgets import _compute_second_moment, storage
 
 from vcm import safe
 
-
-ATMOS_15MIN_COARSE_AVE_SCHEMA = "atmos_15min_coarse_ave_schema.json"
-GFSPHYSICS_15MIN_COARSE_SCHEMA = "gfsphysics_15min_coarse_schema.json"
+SCHEMAS = {
+    "restart": "restart.json",
+    "atmos_15min_coarse_ave": "atmos_15min_coarse_ave_schema.json",
+    "gfsphysics_15min_coarse": "gfsphysics_15min_coarse_schema.json",
+}
+VARIABLES = {
+    "restart": [
+        "grid_x",
+        "grid_y",
+        "grid_xt",
+        "grid_yt",
+        "pfull",
+        "tile",
+        "delp",
+        "T",
+        "sphum",
+    ],
+    "atmos_15min_coarse_ave": [
+        "t_dt_fv_sat_adj_coarse",
+        "t_dt_nudge_coarse",
+        "t_dt_phys_coarse",
+        "qv_dt_fv_sat_adj_coarse",
+        "qv_dt_phys_coarse",
+        "eddy_flux_vulcan_omega_sphum",
+        "eddy_flux_vulcan_omega_temp",
+        "grid_latt_coarse",
+        "grid_lont_coarse",
+        "grid_lat_coarse",
+        "grid_lon_coarse",
+        "vulcan_omega_coarse",
+        "area_coarse",
+    ],
+    "gfsphysics_15min_coarse": [
+        "grid_latt_coarse",
+        "grid_lont_coarse",
+        "grid_lat_coarse",
+        "grid_lon_coarse",
+        "area_coarse",
+        "dq3dt_mp_coarse",
+        "dq3dt_pbl_coarse",
+        "dq3dt_shal_conv_coarse",
+        "dt3dt_lw_coarse",
+        "dt3dt_mp_coarse",
+        "dt3dt_pbl_coarse",
+        "dt3dt_shal_conv_coarse",
+        "dt3dt_sw_coarse",
+    ],
+}
+N = 16
+SELECTORS = {
+    "restart": dict(tile=[0], time=[0, 1, 2], grid_xt=slice(0, N), grid_yt=slice(0, N)),
+    "atmos_15min_coarse_ave": dict(
+        tile=[0],
+        time=[0, 1],
+        grid_xt_coarse=slice(0, N),
+        grid_yt_coarse=slice(0, N),
+        grid_x_coarse=slice(0, N + 1),
+        grid_y_coarse=slice(0, N + 1),
+    ),
+    "gfsphysics_15min_coarse": dict(
+        tile=[0],
+        time=[0, 1],
+        grid_xt_coarse=slice(0, N),
+        grid_yt_coarse=slice(0, N),
+        grid_x_coarse=slice(0, N + 1),
+        grid_y_coarse=slice(0, N + 1),
+    ),
+}
+EXPECTED_VARIABLES = [
+    "T",
+    "t_dt_fv_sat_adj_coarse",
+    "t_dt_nudge_coarse",
+    "t_dt_phys_coarse",
+    "delp",
+    "vulcan_omega_coarse",
+    "sphum",
+    "qv_dt_fv_sat_adj_coarse",
+    "qv_dt_phys_coarse",
+    "sphum_vulcan_omega_coarse",
+    "T_vulcan_omega_coarse",
+    "eddy_flux_vulcan_omega_temp",
+    "eddy_flux_vulcan_omega_sphum",
+    "T_storage",
+    "sphum_storage",
+    "dq3dt_mp_coarse",
+    "dq3dt_pbl_coarse",
+    "dq3dt_shal_conv_coarse",
+    "dt3dt_lw_coarse",
+    "dt3dt_mp_coarse",
+    "dt3dt_pbl_coarse",
+    "dt3dt_shal_conv_coarse",
+    "dt3dt_sw_coarse",
+]
 
 
 ranges = {
@@ -69,103 +159,26 @@ def test_OpenTimeChunks():
 
 @pytest.mark.regression
 def test_run(tmpdir):
+    paths = {}
+    for name, schema_file in SCHEMAS.items():
+        ds = open_schema(schema_file)
+        ds = safe.get_variables(ds, VARIABLES[name])
+        ds = ds.isel(SELECTORS[name])  # Subset for faster testing
+        path = str(tmpdir.join(f"{name}.zarr"))
+        paths[name] = path
+        ds.to_zarr(path, mode="w")
 
-    variables = [
-        "t_dt_fv_sat_adj_coarse",
-        "t_dt_nudge_coarse",
-        "t_dt_phys_coarse",
-        "qv_dt_fv_sat_adj_coarse",
-        "qv_dt_phys_coarse",
-        "eddy_flux_vulcan_omega_sphum",
-        "eddy_flux_vulcan_omega_temp",
-        "grid_lat_coarse",
-        "grid_latt_coarse",
-        "grid_lon_coarse",
-        "grid_lont_coarse",
-        "vulcan_omega_coarse",
-        "area_coarse",
-    ]
-
-    gfsphysics_variables = [
-        "grid_lat_coarse",
-        "grid_latt_coarse",
-        "grid_lon_coarse",
-        "grid_lont_coarse",
-        "area_coarse",
-        "dq3dt_mp_coarse",
-        "dq3dt_pbl_coarse",
-        "dq3dt_shal_conv_coarse",
-        "dt3dt_lw_coarse",
-        "dt3dt_mp_coarse",
-        "dt3dt_pbl_coarse",
-        "dt3dt_shal_conv_coarse",
-        "dt3dt_sw_coarse",
-    ]
-
-    # use a small tile for much faster testing
-    n = 48
-
-    diag_selectors = dict(
-        tile=[0], time=[0, 1], grid_xt_coarse=slice(0, n), grid_yt_coarse=slice(0, n)
-    )
-
-    restart_selectors = dict(
-        tile=[0], time=[0, 1, 2], grid_xt=slice(0, n), grid_yt=slice(0, n)
-    )
-
-    atmos_15min_coarse_ave_schema = safe.get_variables(
-        open_schema(ATMOS_15MIN_COARSE_AVE_SCHEMA), variables
-    ).isel(diag_selectors)
-    gfsphysics_15min_coarse_schema = safe.get_variables(
-        open_schema(GFSPHYSICS_15MIN_COARSE_SCHEMA), gfsphysics_variables
-    ).isel(diag_selectors)
-    restart = open_schema("restart.json").isel(restart_selectors)
-
-    atmos_15min_coarse_ave_path = str(tmpdir.join("atmos_15min_coarse_ave.zarr"))
-    gfsphysics_15min_coarse_path = str(tmpdir.join("gfsphysics_15min_coarse.zarr"))
-    restart_path = str(tmpdir.join("restart.zarr"))
-    output_path = str(tmpdir.join("out"))
-
-    atmos_15min_coarse_ave_schema.to_zarr(atmos_15min_coarse_ave_path, mode="w")
-    gfsphysics_15min_coarse_schema.to_zarr(gfsphysics_15min_coarse_path, mode="w")
-    restart.to_zarr(restart_path, mode="w")
-
+    output_path = tmpdir.join("out")
     run(
-        restart_path,
-        atmos_15min_coarse_ave_path,
-        gfsphysics_15min_coarse_path,
+        paths["restart"],
+        paths["atmos_15min_coarse_ave"],
+        paths["gfsphysics_15min_coarse"],
         output_path,
     )
 
     ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
 
-    expected_variables = [
-        "T",
-        "t_dt_fv_sat_adj_coarse",
-        "t_dt_nudge_coarse",
-        "t_dt_phys_coarse",
-        "delp",
-        "vulcan_omega_coarse",
-        "sphum",
-        "qv_dt_fv_sat_adj_coarse",
-        "qv_dt_phys_coarse",
-        "sphum_vulcan_omega_coarse",
-        "T_vulcan_omega_coarse",
-        "eddy_flux_vulcan_omega_temp",
-        "eddy_flux_vulcan_omega_sphum",
-        "T_storage",
-        "sphum_storage",
-        "dq3dt_mp_coarse",
-        "dq3dt_pbl_coarse",
-        "dq3dt_shal_conv_coarse",
-        "dt3dt_lw_coarse",
-        "dt3dt_mp_coarse",
-        "dt3dt_pbl_coarse",
-        "dt3dt_shal_conv_coarse",
-        "dt3dt_sw_coarse",
-    ]
-
-    for variable in expected_variables:
+    for variable in EXPECTED_VARIABLES:
         assert variable in ds
         assert "long_name" in ds[variable].attrs
         assert "units" in ds[variable].attrs
