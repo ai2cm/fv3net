@@ -7,10 +7,14 @@ import os
 import shutil
 import sys
 import tempfile
+from typing import Mapping, Union, Sequence
 import xarray as xr
+
 from vcm.cloud import gsutil
 import diagnostics_utils.plot as diagplot
 from ._metrics import _get_r2_string, _get_bias_string
+from report import create_html, add_report_figure
+
 
 DATA_SOURCE_DIM = "data_source"
 DERIVATION_DIM = "derivation"
@@ -77,6 +81,20 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser.parse_args()
 
 
+def _write_report(
+        output_dir: str,
+        title: str,
+        sections: Mapping[str, Sequence[str]],
+        metadata: Mapping[str, Union[str, float, int, bool]] = None,
+        metrics: Mapping[str, Mapping[str, Union[str, float]]] = None,
+        html_header: str = None,
+        ):
+    filename = title.replace(" ", "_") + ".html"
+    html_report = create_html(sections, title, metadata=metadata, metrics=metrics, html_header=html_header)
+    with open(os.path.join(output_dir, filename), "w") as f:
+        f.write(html_report)
+
+
 def _cleanup_temp_dir(temp_dir):
     logger.info(f"Cleaning up temp dir {temp_dir.name}")
     temp_dir.cleanup()
@@ -114,14 +132,19 @@ if __name__ == "__main__":
 
     ds_diags, ds_diurnal, metrics = _open_diagnostics_outputs(args.input_path)
 
-    # TODO: the .savefig is temporary to this PR, when adding the report HTML write
-    # I'll have a decorator to save and register filenames under a report section
+    report_sections = {}
 
     # time averaged quantity vertical profiles over land/sea, pos/neg net precip
     for var in PROFILE_VARS:
-        diagplot.plot_profile_var(
+        fig = diagplot.plot_profile_var(
             ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
-        ).savefig(os.path.join(temp_output_dir.name, f"{var}_profile_plot.png"))
+        )
+        add_report_figure(
+            report_sections,
+            fig,
+            filename=f"{var}.png",
+            section_name="Vertical profiles of predicted variables",
+            output_dir=temp_output_dir.name)
 
     # time averaged column integrated quantity maps
     for var in COLUMN_INTEGRATED_VARS:
@@ -130,6 +153,12 @@ if __name__ == "__main__":
             var,
             derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
         ).savefig(os.path.join(temp_output_dir.name, f"{var}_map.png"))
+        add_report_figure(
+            report_sections,
+            fig,
+            filename=f"{var}.png",
+            section_name="Time averaged maps",
+            output_dir=temp_output_dir.name)
 
     # column integrated quantity diurnal cycles
     for tag, var_group in {
@@ -141,7 +170,13 @@ if __name__ == "__main__":
             tag=tag,
             vars=var_group,
             derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
-        ).savefig(os.path.join(temp_output_dir.name, f"{tag}_diurnal_cycle.png"))
+        )
+        add_report_figure(
+            report_sections,
+            fig,
+            filename=f"{var}.png",
+            section_name="Diurnal cycles of column integrated quantities",
+            output_dir=temp_output_dir.name)
 
     # vertical profiles of bias and RMSE
     pressure_lvl_metrics = [
@@ -151,15 +186,27 @@ if __name__ == "__main__":
         diagplot._plot_generic_data_array(
             ds_diags[var], xlabel="pressure [Pa]",
         ).savefig(os.path.join(temp_output_dir.name, f"{var}.png"))
+        add_report_figure(
+            report_sections,
+            fig,
+            filename=f"{var}.png",
+            section_name="Pressure level metrics",
+            output_dir=temp_output_dir.name)
 
-    # TODO: following PR will add this to the report in separate tables.
-    # For now, this will dump the jsons so they can be read
-    r2, biases = {}, {}
+    # scalar metrics for RMSE and bias
+    metrics_formatted = {}
     for var in COLUMN_INTEGRATED_VARS:
-        r2[var] = _get_r2_string(metrics, var)
-        biases[var] = _get_bias_string(metrics, var)
-    json.dump(r2, open(os.path.join(temp_output_dir.name, "r2.json"), "w"))
-    json.dump(biases, open(os.path.join(temp_output_dir.name, "biases.json"), "w"))
+        metrics_formatted[var] = {
+            "r2": _get_r2_string(metrics, var),
+            "bias": _get_r2_string(metrics, var)
+        }
+
+    _write_report(
+        output_dir=temp_output_dir.name,
+        title="ML offline diagnostics",
+        sections=report_sections,
+        metrics=metrics_formatted,
+    )
 
     _copy_outputs(temp_output_dir.name, args.output_path)
     logger.info(f"Save report to {args.output_path}")

@@ -29,6 +29,22 @@ HTML_TEMPLATE = Template(
         {% endfor %}
         </table>
     {% endif %}
+
+    {% if metrics is not none %}
+        <h2> Metrics </h2>
+        <table>
+        {% for var, values in metrics.items() %}
+        <tr>
+
+            <td>{{ var }}</td>
+            <td>{{ values["rmse"] }}</td>
+            <td>{{ values["bias"] }}</td>
+
+        </tr>
+        {% endfor %}
+        </table>
+    {% endif %}
+
     {% for header, images in sections.items() %}
         <h2>{{header}}</h2>
             {% for image in images %}
@@ -57,10 +73,24 @@ def resolve_plot(obj):
         return obj
 
 
+def add_report_figure(
+    sections: Mapping[str, Sequence[str]],
+    fig,   # matplotlib figure- omitted type hint so mpl wasn't a dependency
+    filename: str,
+    section_name: str,
+    output_dir: str = None,
+):
+    filename = os.path.join(section_name.replace(' ', '_'), filename)
+    fig.savefig(os.path.join(output_dir or "", filename)
+    sections.setdefault(section_name, []).append(filename)
+
+
+
 def create_html(
     sections: Mapping[str, Sequence[str]],
     title: str,
     metadata: Mapping[str, Union[str, float, int, bool]] = None,
+    metrics: Mapping[str, Mapping[str, Union[str, float]] = None,
     html_header: str = None,
 ) -> str:
     """Return html report of figures described in sections.
