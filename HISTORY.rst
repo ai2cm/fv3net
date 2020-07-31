@@ -22,6 +22,7 @@ latest
 * Move plotting routines previously found in :code:`vcm.visualize` and :code:`gallery` into a new package :code:`fv3viz` and remove dependencies between :code:`vcm` and plotting routines.
 * Add vertical profiles of RMSE/bias to the offline diagnostics dataset.
 * add new `v0.5` base fv3config to cope with the modification to how fv3config handles the location of the orographic data
+* Fix partitioning of timesteps in loaders.batches so that it uses all timesteps, allows last batch to be < timesteps_per_batch.
 
 0.2.3 (2020-06-19)
 ------------------
