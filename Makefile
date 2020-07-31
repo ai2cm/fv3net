@@ -72,7 +72,7 @@ test:
 	pytest external tests
 
 test_prognostic_run:
-	IMAGE=prognostic_run $(MAKE) -C workflows/prognostic_c48_run/ test
+	docker run prognostic_run pytest
 
 test_unit:
 	pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images

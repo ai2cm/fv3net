@@ -1,4 +1,4 @@
-IMAGE ?= us.gcr.io/vcm-ml/prognostic_run
+IMAGE ?= prognostic_run
 KEY_ARGS= -v $(GOOGLE_APPLICATION_CREDENTIALS):/key.json \
 	  -e GOOGLE_APPLICATION_CREDENTIALS=/key.json
 FV3NET = $(shell pwd)/../../
