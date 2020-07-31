@@ -14,6 +14,7 @@ from loaders.mappers._nudged import (
     GroupByTime,
     SubsetTimes,
     NudgedFullTendencies,
+    NudgeToObsState,
     open_merged_nudged,
     open_merged_nudge_to_obs,
     _open_nudging_checkpoints,
@@ -229,8 +230,22 @@ def nudged_source():
 
 
 @pytest.fixture
+def nudged_source_with_dQs(nudged_source):
+    additional_vars = {
+        "dQ1": value_to_xr_darray(1.0),
+        "dQ2": value_to_xr_darray(1.0),
+    }
+    return nudged_source.assign(additional_vars)
+
+
+@pytest.fixture
 def nudged_mapper(nudged_source):
     return MockMergeNudgedMapper(nudged_source)
+
+
+@pytest.fixture
+def nudged_mapper_with_dQs(nudged_source_with_dQs):
+    return MockMergeNudgedMapper(nudged_source_with_dQs)
 
 
 class MockCheckpointMapper:
@@ -435,6 +450,24 @@ def test__physics_tendencies(
         xr.testing.assert_allclose(
             physics_tendencies[term], expected_tendencies[term].sel(time=time)
         )
+
+
+def test_NudgeToObsState(nudged_mapper_with_dQs):
+    nudging_variables = {"air_temperature": "dQ1", "specific_humidity": "dQ2"}
+    dt = 10
+    adjusted_mapper = NudgeToObsState(nudged_mapper_with_dQs, nudging_variables, dt)
+
+    assert len(adjusted_mapper) == 4
+    key = list(adjusted_mapper.keys())[0]
+    output_ds = adjusted_mapper[key]
+    source_ds = nudged_mapper_with_dQs[key]
+    for var in source_ds:
+        assert var in output_ds
+    xr.testing.assert_allclose(
+        adjusted_mapper[key]["air_temperature"],
+        nudged_mapper_with_dQs[key]["air_temperature"]
+        - dt * nudged_mapper_with_dQs[key]["dQ1"],
+    )
 
 
 @pytest.mark.regression
