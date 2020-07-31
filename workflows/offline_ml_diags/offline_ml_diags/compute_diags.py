@@ -98,20 +98,20 @@ def _insert_net_terms_as_Qs(
     """
     var_mapping = var_mapping or {
         "net_heating": "column_integrated_Q1",
-        "net_preciptiation": "column_integrated_Q2",
+        "net_precipitation": "column_integrated_Q2",
     }
 
-    ds_new = ds.sel(derivation_dim=["target", "predict"]).drop_vars(
+    ds_new = ds.sel({derivation_dim: ["target", "predict"]}).drop_vars(
         names=var_mapping.keys(), errors="ignore"
     )
 
     shield_data = {}
-    for var_source_name, var_target_name in var_mapping:
+    for var_source_name, var_target_name in var_mapping.items():
         shield_data[var_target_name] = ds[var_source_name].sel(
             {derivation_dim: [shield_coord]}
         )
 
-    return ds_new.merge([shield_data])
+    return ds_new.merge(shield_data)
 
 
 def _compute_diags_over_batches(
