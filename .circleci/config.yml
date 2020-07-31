@@ -213,6 +213,7 @@ workflows:
       - integration_tests:
           requires:
             - build_default
+            - hold
   master_tests:
     jobs:
       - lint
