@@ -6,6 +6,7 @@ import numpy as np
 import xarray as xr
 
 import vcm
+from typing import List
 from vcm.convenience import round_time
 
 logger = logging.getLogger(__file__)
@@ -108,7 +109,7 @@ def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
     )
 
 
-def merge(restarts, diagnostics):
+def merge(restarts: xr.Dataset, diagnostics: List[xr.Dataset]) -> xr.Dataset:
     restarts = shift(restarts)
     datasets = [restarts] + diagnostics
     return xr.merge(datasets, join="inner", compat="override").drop_vars(
