@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Mapping, Hashable
+from typing import Mapping, Hashable, Callable
 
 import vcm
 import xarray as xr
@@ -20,7 +20,7 @@ class DerivedFV3State:
 
     """
 
-    _VARIABLES = {}
+    _VARIABLES: Mapping[Hashable, Callable[..., xr.DataArray]] = {}
 
     def __init__(self, getter):
         """
