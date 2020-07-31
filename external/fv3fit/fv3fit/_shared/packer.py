@@ -1,4 +1,4 @@
-from typing import Iterable, TextIO, List, Dict, Tuple, cast, Mapping
+from typing import Iterable, TextIO, List, Dict, Tuple, cast, Mapping, Sequence
 import numpy as np
 import xarray as xr
 import yaml
@@ -84,8 +84,8 @@ class ArrayPacker:
             array: 2D [sample, feature] array with data from the dataset
         """
         if len(self._n_features) == 0:
-            self._n_features = count_features(
-                self.pack_names, dataset, self._sample_dim_name
+            self._n_features.update(
+                count_features(self.pack_names, dataset, self._sample_dim_name)
             )
             for name in self.pack_names:
                 self._dims[name] = cast(Tuple[str], dataset[name].dims)
@@ -133,7 +133,7 @@ class ArrayPacker:
 
 
 def to_array(
-    dataset: xr.Dataset, pack_names: Iterable[str], feature_counts: Mapping[str, int]
+    dataset: xr.Dataset, pack_names: Sequence[str], feature_counts: Mapping[str, int]
 ):
     """Convert dataset into a 2D array with [sample, feature] dimensions.
 

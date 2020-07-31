@@ -1,8 +1,11 @@
-from typing import Callable, Union, Mapping
+from typing import Callable, Union, Mapping, MutableMapping
 from ..._shared import ArrayPacker
 import numpy as np
 import xarray as xr
 import tensorflow as tf
+
+
+Weight = Union[int, float, np.ndarray]
 
 
 def _weighted_loss(weights, loss):
@@ -33,11 +36,11 @@ def _pack_weights(y_packer: ArrayPacker, y_std, **weights):
             array = np.zeros([1]) + weight
             dims = [y_packer.sample_dim_name]
         data_vars[name] = (dims, array)
-    return y_packer.to_array(xr.Dataset(data_vars)) / y_std
+    return y_packer.to_array(xr.Dataset(data_vars)) / y_std  # type: ignore
 
 
 def _divide_scalar_weights_by_feature_counts(
-    weights: Mapping[str, int], feature_counts: Mapping[str, int]
+    weights: MutableMapping[str, Weight], feature_counts: Mapping[str, int]
 ):
     for name, total_variable_weight in weights.items():
         if isinstance(total_variable_weight, (int, float)):
@@ -54,10 +57,7 @@ def _divide_scalar_weights_by_feature_counts(
 
 
 def get_weighted_loss(
-    loss: Callable,
-    y_packer: ArrayPacker,
-    y_std: np.ndarray,
-    **weights: Union[int, float, np.ndarray],
+    loss: Callable, y_packer: ArrayPacker, y_std: np.ndarray, **weights: Weight,
 ) -> Callable:
     """Retrieve a weighted loss function for a given set of weights.
 
