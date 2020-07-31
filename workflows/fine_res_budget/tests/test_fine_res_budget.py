@@ -168,7 +168,7 @@ def test_run(tmpdir):
         paths[name] = path
         ds.to_zarr(path, mode="w")
 
-    output_path = tmpdir.join("out")
+    output_path = str(tmpdir.join("out"))
     run(
         paths["restart"],
         paths["atmos_15min_coarse_ave"],
