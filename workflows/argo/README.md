@@ -84,7 +84,3 @@ If succesful, the completed report will be available at
 
 
 [1]: http://storage.googleapis.com/vcm-ml-public/experiments-2020-03/prognostic_run_diags/combined.html
-
-### Offline_diagnostics
-
-See `offline_diagnostics.yaml` for more details.
