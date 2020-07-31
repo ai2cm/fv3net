@@ -89,12 +89,11 @@ def plot_diurnal_cycles(
     facetgrid.set_titles(template="{value}", maxchar=40)
     f = facetgrid.fig
     axes = facetgrid.axes
-    for ax in axes.flatten():
-        ax.grid(axis="y")
-        ax.set_xlabel("local_time [hrs]")
-        ax.set_ylabel(units_from_var(vars[0]))
-        ax.set_xlim([0, 23])
-        ax.set_xticks(np.linspace(0, 24, 13))
+    #ax.grid(axis="y")
+    plt.xlabel("local_time [hrs]")
+    plt.ylabel(units_from_var(vars[0]))
+    plt.xlim([0, 23])
+    plt.xticks(np.linspace(0, 24, 13))
     f.set_size_inches([12, 4 * len(vars)])
     f.set_dpi(dpi)
     f.tight_layout()

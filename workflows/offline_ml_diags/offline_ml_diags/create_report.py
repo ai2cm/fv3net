@@ -13,7 +13,7 @@ import xarray as xr
 from vcm.cloud import gsutil
 import diagnostics_utils.plot as diagplot
 from ._metrics import _get_r2_string, _get_bias_string
-from report import create_html, add_report_figure
+from report import create_html, insert_report_figure
 
 
 DATA_SOURCE_DIM = "data_source"
@@ -139,7 +139,7 @@ if __name__ == "__main__":
         fig = diagplot.plot_profile_var(
             ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
         )
-        add_report_figure(
+        insert_report_figure(
             report_sections,
             fig,
             filename=f"{var}.png",
@@ -153,7 +153,7 @@ if __name__ == "__main__":
             var,
             derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
         )
-        add_report_figure(
+        insert_report_figure(
             report_sections,
             fig,
             filename=f"{var}.png",
@@ -171,10 +171,10 @@ if __name__ == "__main__":
             vars=var_group,
             derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
         )
-        add_report_figure(
+        insert_report_figure(
             report_sections,
             fig,
-            filename=f"{var}.png",
+            filename=f"{tag}.png",
             section_name="Diurnal cycles of column integrated quantities",
             output_dir=temp_output_dir.name)
 
@@ -186,7 +186,7 @@ if __name__ == "__main__":
         fig = diagplot._plot_generic_data_array(
             ds_diags[var], xlabel="pressure [Pa]",
         )
-        add_report_figure(
+        insert_report_figure(
             report_sections,
             fig,
             filename=f"{var}.png",

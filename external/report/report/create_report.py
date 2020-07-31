@@ -81,18 +81,33 @@ def resolve_plot(obj):
         return obj
 
 
-def add_report_figure(
+def _save_figure(fig, filename: str, section_dir: str, output_dir: str = None):
+    output_dir = output_dir or ""
+    if not os.path.exists(os.path.join(output_dir, section_dir)):
+        os.makedirs(os.path.join(output_dir, section_dir))
+    fig.savefig(os.path.join(output_dir or "", filename))
+
+
+def insert_report_figure(
     sections: Mapping[str, Sequence[str]],
     fig,   # matplotlib figure- omitted type hint so mpl wasn't a dependency
     filename: str,
     section_name: str,
     output_dir: str = None,
 ):
+    """[summary]
+
+    Args:
+        sections: Dict with section name keys and list of filenames
+            (relative to the report root dir) of figures in section
+        section_name: Name of report section
+        output_dir: Directory to write section directories and their figures into.
+            If left as default None, will write in current working directory.
+            
+    """
     section_dir = section_name.replace(' ', '_')
     filename = os.path.join(section_dir, filename)
-    if not os.path.exists(os.path.join(output_dir, section_dir)):
-        os.makedirs(os.path.join(output_dir, section_dir))
-    fig.savefig(os.path.join(output_dir or "", filename))
+    _save_figure(fig, filename, section_dir, output_dir)
     sections.setdefault(section_name, []).append(filename)
 
 
@@ -100,8 +115,8 @@ def create_html(
     sections: Mapping[str, Sequence[str]],
     title: str,
     metadata: Mapping[str, Union[str, float, int, bool]] = None,
-    metrics: Mapping[str, Mapping[str, Union[str, float]]] = None,
     html_header: str = None,
+    metrics: Mapping[str, Mapping[str, Union[str, float]]] = None,
 ) -> str:
     """Return html report of figures described in sections.
 
@@ -125,16 +140,17 @@ def create_html(
         header: [resolve_plot(path) for path in section]
         for header, section in sections.items()
     }
-    if metrics:
-        # format of metrics dict is {var: {column name: val}}
-        metrics_columns = list(metrics.values())[0].keys()
+    # format of metrics dict is {var: {column name: val}}
+    metrics_columns = (
+        list(metrics.values())[0].keys() if metrics
+        else None)
     html = HTML_TEMPLATE.render(
         title=title,
         sections=resolved_sections,
         metadata=metadata,
         metrics=metrics,
-        metrics_columns=metrics_columns,
         now=now_str,
         header=html_header,
+        metrics_columns=metrics_columns,
     )
     return html
