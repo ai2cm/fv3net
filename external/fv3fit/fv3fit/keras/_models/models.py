@@ -7,7 +7,7 @@ from ..._shared import ArrayPacker
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
-from ..._shared import StandardScaler
+from .normalizer import StandardScaler
 from .loss import get_weighted_loss
 
 logger = logging.getLogger(__file__)
@@ -114,10 +114,10 @@ class PackedKerasModel(Model):
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
         self.X_packer = ArrayPacker(
-            sample_dim_name=sample_dim_name, names=input_variables
+            sample_dim_name=sample_dim_name, pack_names=input_variables
         )
         self.y_packer = ArrayPacker(
-            sample_dim_name=sample_dim_name, names=output_variables
+            sample_dim_name=sample_dim_name, pack_names=output_variables
         )
         self.X_scaler = StandardScaler()
         self.y_scaler = StandardScaler()
@@ -137,15 +137,15 @@ class PackedKerasModel(Model):
         self.y_scaler.fit(y)
 
     @abc.abstractmethod
-    def get_model(self, features_in: int, features_out: int) -> tf.keras.Model:
+    def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         """Returns a Keras model to use as the underlying predictive model.
 
         Args:
-            features_in: the number of input features
-            features_out: the number of output features
+            n_features_in: the number of input features
+            n_features_out: the number of output features
 
         Returns:
-            model: a Keras model whose input shape is [n_samples, features_in] and
+            model: a Keras model whose input shape is [n_samples, n_features_in] and
                 output shape is [n_samples, features_out]
         """
         pass
@@ -154,9 +154,9 @@ class PackedKerasModel(Model):
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
         if self._model is None:
             X, y = Xy[0]
-            features_in, features_out = X.shape[-1], y.shape[-1]
+            n_features_in, n_features_out = X.shape[-1], y.shape[-1]
             self._fit_normalization(X, y)
-            self._model = self.get_model(features_in, features_out)
+            self._model = self.get_model(n_features_in, n_features_out)
         self.fit_array(Xy)
 
     def fit_array(self, X: Sequence[Tuple[np.ndarray, np.ndarray]]) -> None:
@@ -203,7 +203,9 @@ class PackedKerasModel(Model):
                 X_scaler = StandardScaler.load(f_binary)
             with open(os.path.join(path, cls._Y_SCALER_FILENAME), "rb") as f_binary:
                 y_scaler = StandardScaler.load(f_binary)
-            obj = cls(X_packer.sample_dim_name, X_packer.names, y_packer.names)
+            obj = cls(
+                X_packer.sample_dim_name, X_packer.pack_names, y_packer.pack_names
+            )
             obj.X_packer = X_packer
             obj.y_packer = y_packer
             obj.X_scaler = X_scaler
@@ -228,20 +230,22 @@ class DenseModel(PackedKerasModel):
         depth: int = 3,
         width: int = 16,
     ):
-        self.width = width
-        self.depth = depth
+        self._width = width
+        self._depth = depth
         super().__init__(sample_dim_name, input_variables, output_variables)
 
-    def get_model(self, features_in: int, features_out: int) -> tf.keras.Model:
+    def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         model = tf.keras.Sequential()
-        inputs = tf.keras.Input(features_in)
-        x = self.X_scaler.transform_layer(inputs)
-        for i in range(self.depth - 1):
-            x = tf.keras.layers.Dense(self.width, activation=tf.keras.activations.relu)(
-                x
-            )
-        x = tf.keras.layers.Dense(features_out, activation=tf.keras.activations.relu)(x)
-        outputs = self.y_scaler.inverse_transform_layer(x)
+        inputs = tf.keras.Input(n_features_in)
+        x = self.X_scaler.normalize_layer(inputs)
+        for i in range(self._depth - 1):
+            x = tf.keras.layers.Dense(
+                self._width, activation=tf.keras.activations.relu
+            )(x)
+        x = tf.keras.layers.Dense(n_features_out, activation=tf.keras.activations.relu)(
+            x
+        )
+        outputs = self.y_scaler.denormalize_layer(x)
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
         model.compile(optimizer="sgd", loss=self.loss)
         return model

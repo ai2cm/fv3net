@@ -4,7 +4,7 @@ import tensorflow as tf
 import numpy as np
 
 
-class Scale(layers.Layer):
+class Normalize(layers.Layer):
     """x -> (x - mean) / std"""
 
     def __init__(self, *, mean, std):
@@ -26,7 +26,7 @@ class Scale(layers.Layer):
         }
 
 
-class InverseScale(layers.Layer):
+class Denormalize(layers.Layer):
     """x -> x * std + mean"""
 
     def __init__(self, *, mean, std):
@@ -50,30 +50,30 @@ class StandardScaler:
     def __init__(self):
         self.mean = None
         self.std = None
-        self._transform_layer = None
-        self._inverse_transform_layer = None
+        self._normalize_layer = None
+        self._denormalize_layer = None
 
     def fit(self, X):
         self.mean = X.mean(axis=0).astype(np.float32)
         self.std = X.std(axis=0).astype(np.float32)
 
-    def transform(self, X):
+    def normalize(self, X):
         return (X - self.mean) / self.std
 
-    def inverse_transform(self, X):
+    def denormalize(self, X):
         return X * self.std + self.mean
 
     @property
-    def transform_layer(self) -> layers.Layer:
-        if self._transform_layer is None:
-            self._transform_layer = Scale(mean=self.mean, std=self.std)
-        return self._transform_layer
+    def normalize_layer(self) -> layers.Layer:
+        if self._normalize_layer is None:
+            self._normalize_layer = Normalize(mean=self.mean, std=self.std)
+        return self._normalize_layer
 
     @property
-    def inverse_transform_layer(self) -> layers.Layer:
-        if self._inverse_transform_layer is None:
-            self._inverse_transform_layer = InverseScale(mean=self.mean, std=self.std)
-        return self._inverse_transform_layer
+    def denormalize_layer(self) -> layers.Layer:
+        if self._denormalize_layer is None:
+            self._denormalize_layer = Denormalize(mean=self.mean, std=self.std)
+        return self._denormalize_layer
 
     def dump(self, f: BinaryIO):
         return np.savez(f, mean=self.mean, std=self.std)
