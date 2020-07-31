@@ -18,6 +18,10 @@ def reduce_to_diagnostic(
     grid: xr.Dataset,
     domains: Sequence[str] = DOMAINS,
     primary_vars: Sequence[str] = PRIMARY_VARS,
+    net_precipitation_var: Tuple[str, str] = (
+        "column_integrated_Q2",
+        "coarsened_SHiELD",
+    ),
     time_dim: str = "time",
     derivation_dim: str = "derivation",
     uninformative_coords: Sequence[str] = ["tile", "z", "y", "x"],
@@ -29,10 +33,20 @@ def reduce_to_diagnostic(
         grid: xarray dataset containing grid variables
         (latb, lonb, lat, lon, area, land_sea_mask)
         domains: sequence of area domains over which to produce conditional
-            averages; optional; defaults to global, land, sea, and positive and
+            averages; optional, defaults to global, land, sea, and positive and
             negative net_precipitation domains
         primary_vars: sequence of variables for which to compute column integrals
-            and composite means
+            and composite means; optional, defaults to dQs, pQs and Qs
+        net_precipitation_var: 2-tuple containing name of the net_precipitation
+            variable to be used for computing composites, and dimension along
+            derivation coord for this variable; optional, defaults to
+            ('column_integrated_Q2', 'coarsened_SHiELD')'
+        time_dim: name of the dataset time dimension to average over; optional,
+            defaults to 'time'
+        derivation_dim: name of the dataset derivation dimension containing coords
+            such as 'target', 'predict', etc.; optional, defaults to 'derivation'
+        uninformative_coords: sequence of names of uninformative (i.e.,
+            range(len(dim))), coordinates to be dropped
             
     Returns:
         diagnostic_ds: xarray dataset of reduced diagnostic variables
@@ -45,7 +59,7 @@ def reduce_to_diagnostic(
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
     if any(["net_precipitation" in category for category in domains]):
         net_precipitation_type_array = snap_net_precipitation_to_type(
-            ds["net_precipitation"].sel({derivation_dim: "coarsened_SHiELD"}),
+            ds[net_precipitation_var[0]].sel({derivation_dim: net_precipitation_var[1]})
         )
 
     domain_datasets = {}
