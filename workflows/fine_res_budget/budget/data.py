@@ -33,16 +33,22 @@ def rename_latlon(ds):
     )
 
 
-def open_atmos_ave_diagnostics(url: str) -> xr.Dataset:
-    logger.info(f"Opening atmos_15min_coarse_ave data at {url}")
+def open_diagnostic_data(url: str) -> xr.Dataset:
+    logger.info(f"Open diagnostic data at {url}")
     ds = xr.open_zarr(fsspec.get_mapper(url))
     return standardize_diagnostic_metadata(ds)
 
 
-def open_gfsphysics_diagnostics(url: str) -> xr.Dataset:
-    logger.info(f"Opening gfsphysics_15min_coarse data at {url}")
-    ds = xr.open_zarr(fsspec.get_mapper(url))
-    ds = standardize_diagnostic_metadata(ds)
+def open_atmos_15min_coarse_ave(url: str) -> xr.Dataset:
+    return open_diagnostic_data(url)
+
+
+def open_gfsphysics_15min_coarse(url: str) -> xr.Dataset:
+    ds = open_diagnostic_data(url)
+    # Like the atmos_15min_coarse_ave dataset, the tendency diagnostics
+    # output by the physics are centered in the middle of the output
+    # interval; the time coordinate of the physics diagnostics must be
+    # corrected to reflect that.
     offset = datetime.timedelta(minutes=-7, seconds=-30)
     return offset_time(ds, offset)
 
@@ -86,7 +92,7 @@ def shift(restarts, dt=datetime.timedelta(seconds=30, minutes=7)):
 
         x-------o--------x-------o-------x
         -------r1.5------------r2.5-------
-    
+
     ``r1.5`` is an xarray dataset containing ``(r1, (r1+r2)/2, r2)``,
     the beginning, middle, and end of the time step.
 

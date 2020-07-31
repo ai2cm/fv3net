@@ -17,6 +17,11 @@ from budget.budgets import _compute_second_moment, storage
 
 from vcm import safe
 
+
+ATMOS_15MIN_COARSE_AVE_SCHEMA = "atmos_15min_coarse_ave_schema.json"
+GFSPHYSICS_15MIN_COARSE_SCHEMA = "gfsphysics_15min_coarse_schema.json"
+
+
 ranges = {
     # Need to use a small range here to avoid SEGFAULTS in the mappm
     # if delp varies to much then the mean pressures may lie completely out of bounds
@@ -108,24 +113,29 @@ def test_run(tmpdir):
         tile=[0], time=[0, 1, 2], grid_xt=slice(0, n), grid_yt=slice(0, n)
     )
 
-    atmos_ave_schema = safe.get_variables(
-        open_schema("atmos_ave_schema.json"), variables
+    atmos_15min_coarse_ave_schema = safe.get_variables(
+        open_schema(ATMOS_15MIN_COARSE_AVE_SCHEMA), variables
     ).isel(diag_selectors)
-    gfsphysics_schema = safe.get_variables(
-        open_schema("gfsphysics_schema.json"), gfsphysics_variables
+    gfsphysics_15min_coarse_schema = safe.get_variables(
+        open_schema(GFSPHYSICS_15MIN_COARSE_SCHEMA), gfsphysics_variables
     ).isel(diag_selectors)
     restart = open_schema("restart.json").isel(restart_selectors)
 
-    atmos_ave_path = str(tmpdir.join("atmos_ave.zarr"))
-    gfsphysics_path = str(tmpdir.join("gfsphysics.zarr"))
+    atmos_15min_coarse_ave_path = str(tmpdir.join("atmos_15min_coarse_ave.zarr"))
+    gfsphysics_15min_coarse_path = str(tmpdir.join("gfsphysics_15min_coarse.zarr"))
     restart_path = str(tmpdir.join("restart.zarr"))
     output_path = str(tmpdir.join("out"))
 
-    atmos_ave_schema.to_zarr(atmos_ave_path, mode="w")
-    gfsphysics_schema.to_zarr(gfsphysics_path, mode="w")
+    atmos_15min_coarse_ave_schema.to_zarr(atmos_15min_coarse_ave_path, mode="w")
+    gfsphysics_15min_coarse_schema.to_zarr(gfsphysics_15min_coarse_path, mode="w")
     restart.to_zarr(restart_path, mode="w")
 
-    run(restart_path, atmos_ave_path, gfsphysics_path, output_path)
+    run(
+        restart_path,
+        atmos_15min_coarse_ave_path,
+        gfsphysics_15min_coarse_path,
+        output_path,
+    )
 
     ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
 

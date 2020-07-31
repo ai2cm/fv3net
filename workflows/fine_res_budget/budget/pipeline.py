@@ -20,8 +20,8 @@ from . import budgets
 from .data import (
     merge,
     open_restart_data,
-    open_atmos_ave_diagnostics,
-    open_gfsphysics_diagnostics,
+    open_atmos_15min_coarse_ave,
+    open_gfsphysics_15min_coarse,
 )
 
 dask.config.set(scheduler="single-threaded")
@@ -83,9 +83,9 @@ def open_merged(
         xr.Dataset
     """
     restarts = open_restart_data(restart_url)
-    atmos_ave = open_atmos_ave_diagnostics(atmos_15min_coarse_ave_url)
-    gfsphysics = open_gfsphysics_diagnostics(gfsphysics_15min_coarse_url)
-    diagnostic_datasets = [atmos_ave, gfsphysics]
+    atmos_15min_coarse_ave = open_atmos_15min_coarse_ave(atmos_15min_coarse_ave_url)
+    gfsphysics_15min_coarse = open_gfsphysics_15min_coarse(gfsphysics_15min_coarse_url)
+    diagnostic_datasets = [atmos_15min_coarse_ave, gfsphysics_15min_coarse]
     data = safe.get_variables(merge(restarts, diagnostic_datasets), VARIABLES)
     num_tiles = len(data.tile)
     tiles = range(1, num_tiles + 1)
