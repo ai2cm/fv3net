@@ -72,7 +72,7 @@ def test_batches_from_mapper(mapper):
 
 
 @pytest.mark.parametrize(
-    "total_times,times_per_batch,valid_num_batches", [(3, 1, 3), (3, 2, 1)]
+    "total_times,times_per_batch,valid_num_batches", [(3, 1, 3), (3, 2, 2), (3, 4, 1)]
 )
 def test_batches_from_mapper_timestep_list(
     mapper, total_times, times_per_batch, valid_num_batches
