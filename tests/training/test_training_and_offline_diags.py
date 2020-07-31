@@ -21,13 +21,6 @@ from offline_ml_diags.compute_diags import (
 
 logger = logging.getLogger(__name__)
 
-DOMAINS = [
-    "land",
-    "sea",
-    "global",
-    "positive_net_precipitation",
-    "negative_net_precipitation",
-]
 DIURNAL_VARS = [
     "column_integrated_dQ1",
     "column_integrated_dQ2",
@@ -124,7 +117,13 @@ def test_compute_training_diags(
         ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
             utils.insert_column_integrated_vars
         )
-        ds_diagnostic = utils.reduce_to_diagnostic(ds, grid_dataset, domains=DOMAINS)
+        ds_diagnostic = utils.reduce_to_diagnostic(
+            ds,
+            grid_dataset,
+            net_precipitation=ds["net_precipitation"].sel(
+                derivation="coarsened_SHiELD"
+            ),
+        )
         diagnostic_datasets[data_source_name] = ds_diagnostic
 
     diagnostics_all = xr.concat(

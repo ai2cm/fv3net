@@ -62,7 +62,11 @@ def _compute_diags_from_batches(ds_batches: xr.Dataset, grid: xr.Dataset) -> xr.
         utils.insert_column_integrated_vars
     )
 
-    return utils.reduce_to_diagnostic(ds, grid)
+    return utils.reduce_to_diagnostic(
+        ds,
+        grid,
+        net_precipitation=ds["net_precipitation"].sel(derivation="coarsened_SHiELD"),
+    )
 
 
 def _write_nc(ds: xr.Dataset, output_path: str):

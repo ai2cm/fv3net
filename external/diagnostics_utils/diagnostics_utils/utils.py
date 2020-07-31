@@ -18,10 +18,7 @@ def reduce_to_diagnostic(
     grid: xr.Dataset,
     domains: Sequence[str] = DOMAINS,
     primary_vars: Sequence[str] = PRIMARY_VARS,
-    net_precipitation_var: Tuple[str, str] = (
-        "column_integrated_Q2",
-        "coarsened_SHiELD",
-    ),
+    net_precipitation: xr.DataArray = None,
     time_dim: str = "time",
     derivation_dim: str = "derivation",
     uninformative_coords: Sequence[str] = ["tile", "z", "y", "x"],
@@ -37,10 +34,8 @@ def reduce_to_diagnostic(
             negative net_precipitation domains
         primary_vars: sequence of variables for which to compute column integrals
             and composite means; optional, defaults to dQs, pQs and Qs
-        net_precipitation_var: 2-tuple containing name of the net_precipitation
-            variable to be used for computing composites, and dimension along
-            derivation coord for this variable; optional, defaults to
-            ('column_integrated_Q2', 'coarsened_SHiELD')'
+        net_precipitation: xr.DataArray of net_precipitation values for computing
+            composites; optional
         time_dim: name of the dataset time dimension to average over; optional,
             defaults to 'time'
         derivation_dim: name of the dataset derivation dimension containing coords
@@ -58,8 +53,9 @@ def reduce_to_diagnostic(
     grid = grid.drop_vars(names=uninformative_coords, errors="ignore")
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
     if any(["net_precipitation" in category for category in domains]):
-        net_precipitation_type_array = snap_net_precipitation_to_type(
-            ds[net_precipitation_var[0]].sel({derivation_dim: net_precipitation_var[1]})
+        net_precipitation_type_array = snap_net_precipitation_to_type(net_precipitation)
+        net_precipitation_type_array = net_precipitation_type_array.drop_vars(
+            names=uninformative_coords, errors="ignore"
         )
 
     domain_datasets = {}
@@ -127,6 +123,46 @@ def _total_apparent_sources(
     Q2 = pQ2 + dQ2
 
     return Q1, Q2
+
+
+def insert_net_terms_as_Qs(
+    ds: xr.Dataset,
+    var_mapping: Mapping = None,
+    derivation_dim: str = "derivation",
+    shield_coord: str = "coarsened_SHiELD",
+    derivations_keep: Sequence[str] = ("target", "predict"),
+) -> xr.Dataset:
+    """Insert the SHiELD net_* variables as the column_integrated_Q* variables
+        for coordinate 'coarsened_SHiELD', also drop the net_* variables and the
+        'coarse_FV3GFS' coordinate
+        
+    Args:
+        ds: xr dataset to from which to compute diagnostics
+        var_mapping: dict which maps SHiELD net_* var names to
+            column_integrated_Q* var names; optional
+        derivation_dim: name of derivation dim; optional, defaults to 'derivation'
+        shield_coord: name of SHiELD coordinate in derivation dim; optional
+        derivations_keep: sequence of derivation coords to keep in output dataset
+            
+    Returns:
+        xr dataset of renamed and rearranged variables
+    """
+    var_mapping = var_mapping or {
+        "net_heating": "column_integrated_Q1",
+        "net_precipitation": "column_integrated_Q2",
+    }
+
+    ds_new = ds.sel({derivation_dim: list(derivations_keep)}).drop_vars(
+        names=var_mapping.keys(), errors="ignore"
+    )
+
+    shield_data = {}
+    for var_source_name, var_target_name in var_mapping.items():
+        shield_data[var_target_name] = ds[var_source_name].sel(
+            {derivation_dim: [shield_coord]}
+        )
+
+    return ds_new.merge(shield_data)
 
 
 def _rechunk_time_z(
