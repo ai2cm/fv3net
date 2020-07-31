@@ -90,7 +90,6 @@ jobs:
           name: Build fv3net images
           command: |
             make build_images
-      - run: make test_prognostic_run
       - run:
           name: Push fv3net images
           command: |
@@ -201,9 +200,7 @@ workflows:
           kind: test_dataflow
           requires:
             - hold
-      - build_default:
-          requires:
-            - hold
+      - build_default
       - integration_tests:
           requires:
             - build_default

@@ -1,0 +1,12 @@
+# this is only for development purposes and integration with visual studio code
+version: '3.4'
+services:
+  fv3:
+    build:
+      context: "../../"
+      # dockerfile is relative to context
+      dockerfile: "docker/prognostic_run/Dockerfile"
+      target: bld
+    volumes:
+      - ../../external:/external
+      - .:/workdir

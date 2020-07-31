@@ -1,4 +1,4 @@
-FROM us.gcr.io/vcm-ml/fv3gfs-python:v0.5.0
+FROM us.gcr.io/vcm-ml/fv3gfs-python:v0.5.0 AS bld
 
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 RUN pip3 install wheel && pip3 install --upgrade pip && pip3 install -r /tmp/requirements.txt
@@ -20,3 +20,8 @@ WORKDIR /workdir
 ENTRYPOINT [ "/entrypoint.sh" ]
 
 
+FROM bld AS test
+
+RUN /entrypoint.sh pytest
+
+FROM bld
