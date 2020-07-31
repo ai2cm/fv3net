@@ -17,3 +17,8 @@ def test_touch_config_file():
     google_config = "/home/jovyan/.config/gcloud/test_write_file"
     with open(google_config, "w") as f:
         f.write("Hello")
+        
+        
+def test_dataflow_environment():
+    '''Ensure that the dataflow software packages can be installed'''
+    subprocess.check_call(["/home/jovyan/fv3net/dataflow.sh", "check"])
