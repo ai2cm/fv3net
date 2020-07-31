@@ -127,6 +127,25 @@ def open_schema(path_relative_to_file):
         return synth.generate(synth.load(f), ranges)
 
 
+def synth_zarr_path(tmpdir: Path, name: str) -> str:
+    """Path to synth dataset zarr store."""
+    return str(tmpdir.join(f"{name}.zarr"))
+
+
+def write_synth_dataset(tmpdir: Path, name: str, schema_file: str):
+    """Write a synth zarr store for a schema file."""
+    ds = open_schema(schema_file)
+    ds = safe.get_variables(ds, VARIABLES[name])
+    ds = ds.isel(SELECTORS[name])  # Subset for faster testing
+    path = synth_zarr_path(tmpdir, name)
+    ds.to_zarr(path, mode="w")
+
+
+def workflow_output_path(tmpdir: Path) -> str:
+    """Output directory for workflow test."""
+    return str(tmpdir.join("out"))
+
+
 def test_OpenTimeChunks():
     def _data():
         shape = t, tile, x = (12, 6, 10)
@@ -159,23 +178,16 @@ def test_OpenTimeChunks():
 
 @pytest.mark.regression
 def test_run(tmpdir):
-    paths = {}
     for name, schema_file in SCHEMAS.items():
-        ds = open_schema(schema_file)
-        ds = safe.get_variables(ds, VARIABLES[name])
-        ds = ds.isel(SELECTORS[name])  # Subset for faster testing
-        path = str(tmpdir.join(f"{name}.zarr"))
-        paths[name] = path
-        ds.to_zarr(path, mode="w")
+        write_synth_dataset(tmpdir, name, schema_file)
 
-    output_path = str(tmpdir.join("out"))
+    output_path = workflow_output_path(tmpdir)
     run(
-        paths["restart"],
-        paths["atmos_15min_coarse_ave"],
-        paths["gfsphysics_15min_coarse"],
+        synth_zarr_path(tmpdir, "restart"),
+        synth_zarr_path(tmpdir, "atmos_15min_coarse_ave"),
+        synth_zarr_path(tmpdir, "gfsphysics_15min_coarse"),
         output_path,
     )
-
     ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
 
     for variable in EXPECTED_VARIABLES:
