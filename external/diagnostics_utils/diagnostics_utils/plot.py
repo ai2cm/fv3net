@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import Sequence
+from typing import Sequence, Union
 import xarray as xr
 
 import fv3viz as visualize
@@ -27,20 +27,25 @@ def plot_profile_var(
     dpi: int = 100,
     derivation_dim: str = "derivation",
     domain_dim: str = "domain",
+    derivation_coords: Sequence[str] = ("target", "predict"),
+    xlim: Sequence[float] = None,
+    xticks: Union[Sequence[float], np.ndarray] = None,
 ):
-    if "derivation" in ds[var].dims:
-        facet_grid = ds[var].plot(y="z", hue=derivation_dim, col=domain_dim)
+    if derivation_dim in ds[var].dims:
+        facet_grid = ds[var] \
+            .sel({derivation_dim: list(derivation_coords)}) \
+            .plot(y="z", hue=derivation_dim, col=domain_dim)
     facet_grid.set_titles(template="{value}", maxchar=40)
     f = facet_grid.fig
     for ax in facet_grid.axes.flatten():
         ax.invert_yaxis()
         ax.plot([0, 0], [1, 79], "k-")
         if "1" in var:
-            ax.set_xlim([-0.0001, 0.0001])
-            ax.set_xticks(np.arange(-1e-4, 1.1e-4, 5e-5))
+            ax.set_xlim(xlim or [-0.0001, 0.0001])
+            ax.set_xticks(xticks or np.arange(-1e-4, 1.1e-4, 5e-5))
         else:
-            ax.set_xlim([-1e-7, 1e-7])
-            ax.set_xticks(np.arange(-1e-7, 1.1e-7, 5e-8))
+            ax.set_xlim(xlim or [-1e-7, 1e-7])
+            ax.set_xticks(xticks or np.arange(-1e-7, 1.1e-7, 5e-8))
         ax.set_xlabel(f"{var} {_units_from_var(var)}")
     f.set_size_inches([17, 3.5])
     f.set_dpi(dpi)
@@ -55,6 +60,7 @@ def plot_column_integrated_var(
     derivation_dim: str = "derivation",
     data_source_dim: str = None,
     dpi: int = 100,
+    vmax: Union[int, float] = None,
 ):
 
     f, _, _, _, facet_grid = visualize.plot_cube(
@@ -63,7 +69,7 @@ def plot_column_integrated_var(
         ),
         col=derivation_dim,
         row=data_source_dim,
-        vmax=(1000 if "1" in var else 10),
+        vmax= vmax or (1000 if "1" in var else 10),
     )
     facet_grid.set_titles(template="{value}", maxchar=40)
     f.set_size_inches([14, 3.5])
@@ -74,7 +80,6 @@ def plot_column_integrated_var(
 
 def plot_diurnal_cycles(
     ds_diurnal: xr.Dataset,
-    tag: str,
     vars: Sequence[str],
     derivation_plot_coords: Sequence[str],
     dpi: int = 100,

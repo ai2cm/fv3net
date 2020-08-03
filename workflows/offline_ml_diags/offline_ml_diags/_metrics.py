@@ -91,13 +91,15 @@ def calc_metrics(
         mean_dim_vars=vertical_profile_mean_dims,
         **derivation_kwargs,
     )
-    return xr.merge(
+    ds = xr.merge(
         [
             scalar_metrics_column_integrated_vars,
             scalar_column_integrated_metrics,
             pressure_level_metrics,
         ]
     )
+    _insert_r2(ds)
+    return ds
 
 
 def _regrid_dataset_zdim(
@@ -178,6 +180,23 @@ def _calc_same_dims_metrics(
                 metrics[f"{dim_tag}/{metric.name}"] = metric
     return metrics
 
+
+def _insert_r2(
+    ds: xr.Dataset,
+    rmse_coord: str = "rmse",
+    r2_coord: str = "r2",
+    predict_coord: str = "predict",
+    target_coord: str = "target",
+):
+    rmse_vars = [
+        var for var in ds.data_vars 
+        if (var.endswith(f"{predict_coord}_vs_{target_coord}") and rmse_coord in var)]
+    for rmse_var in rmse_vars:
+        name_pieces = rmse_var.split("/")
+        std_var = "/".join(name_pieces[:-1] + [f"mean_vs_{target_coord}"])
+        r2_var = "/".join([s if s != rmse_coord else r2_coord for s in name_pieces])
+        ds[r2_var] = 1. - (ds[rmse_var] / ds[std_var])**2
+    
 
 def _insert_weights(
     ds,
@@ -284,12 +303,13 @@ def _get_r2_string(
     target_coord: str = "target",
     precision=2,
 ):
-    rmse_prediction = metrics[f"scalar/rmse/{var}/{predict_coord}_vs_{target_coord}"][
+    value = metrics[f"scalar/r2/{var}/{predict_coord}_vs_{target_coord}"][
         "mean"
     ]
-    std_dev = metrics[f"scalar/rmse/{var}/mean_vs_{target_coord}"]["mean"]
-    r2 = 1.0 - (rmse_prediction / std_dev) ** 2
-    return f"{r2:.{precision}f}"
+    std = metrics[f"scalar/r2/{var}/{predict_coord}_vs_{target_coord}"][
+        "std"
+    ]
+    return f"{value:.{precision}f} +/- {std:.{precision}f}"
 
 
 def _get_bias_string(
