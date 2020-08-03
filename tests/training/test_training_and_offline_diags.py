@@ -325,7 +325,6 @@ def test_compute_offline_diags(
     offline_diags_output_schema = synth.loads(
         synth.dumps(offline_diags_output_schema_raw)
     )
-
     for var in set(offline_diags_output_schema.variables):
         assert (
             offline_diags_output_schema.variables[var]
@@ -343,7 +342,7 @@ def test_compute_offline_diags(
             assert dim in ["local_time_hr", "derivation", "surface_type"]
 
     assert isinstance(metrics, dict)
-    assert len(metrics) == 32
+    assert len(metrics) == 40
     for metric, metric_entry in metrics.items():
         assert isinstance(metric, str)
         assert isinstance(metric_entry, dict)

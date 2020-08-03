@@ -16,15 +16,8 @@ from ._metrics import _get_r2_string, _get_bias_string
 from report import create_html, insert_report_figure
 
 
-DATA_SOURCE_DIM = "data_source"
 DERIVATION_DIM = "derivation"
 DOMAIN_DIM = "domain"
-DIURNAL_CYCLE_DIM = "local_time_hr"
-
-UNITS_Q1 = "K/s"
-UNITS_Q2 = "kg/kg/s"
-UNITS_Q1_COL_INT = "W/m^2"
-UNITS_Q2_COL_INT = "mm/day"
 
 PROFILE_VARS = ["dQ1", "Q1", "dQ2", "Q2"]
 COLUMN_INTEGRATED_VARS = [
@@ -46,9 +39,6 @@ GLOBAL_MEAN_VARS = [
     "column_integrated_pQ2_global_mean",
     "column_integrated_Q2_global_mean",
 ]
-
-PROFILE_VARS = ["dQ1", "Q1", "dQ2", "Q2"]
-
 
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
@@ -167,7 +157,6 @@ if __name__ == "__main__":
     }.items():
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
-            tag=tag,
             vars=var_group,
             derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
         )
