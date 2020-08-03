@@ -543,8 +543,9 @@ def open_merged_nudge_to_obs(
             (i_start + n_times)
         rename_vars (optional): mapping of variables to be renamed; defaults to
             renaming Fortran diagnostic nudging names to dQ names
-        nudging_tendency_variables: (optional): mapping of variables to their nudging tendencies.
-            Used for getting the "before nudging" state from the "after physics" state.
+        nudging_tendency_variables: (optional): mapping of variables to their nudging
+            tendencies. Used for getting the "before nudging" state from the
+            "after physics" state.
         timestep_physics_seconds:
         consolidated: if true, open the underlying zarr stores with the consolidated
             flag to xr.open_zarr.
