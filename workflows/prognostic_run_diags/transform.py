@@ -106,7 +106,7 @@ def _inner_join_time(
     prognostic: xr.Dataset, verification: xr.Dataset
 ) -> Tuple[xr.Dataset, xr.Dataset]:
     """ Subset times within the prognostic data to be within the verification data,
-    and vice versa, as necessary, and return the subset datasets
+    as necessary and vice versa, and return the subset datasets
     """
 
     inner_join_time = xr.merge(
