@@ -57,14 +57,14 @@ def _rename_dims(
     return ds
 
 
-def _round_to_nearest_second(dt):
-    return vcm.convenience.round_time(dt, timedelta(seconds=1))
+def _round_to_nearest_second(time: xr.DataArray) -> xr.DataArray:
+    return time.dt.round("1S")
 
 
 def _round_time_coord(ds, time_coord="time"):
 
     if time_coord in ds.coords:
-        new_times = np.vectorize(_round_to_nearest_second)(ds.time)
+        new_times = _round_to_nearest_second(ds[time_coord])
         ds = ds.assign_coords({time_coord: new_times})
     else:
         logger.debug(
