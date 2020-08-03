@@ -11,9 +11,11 @@ COPY external/loaders /external/loaders
 
 COPY workflows/prognostic_c48_run/ /workdir
 
-
 COPY docker/prognostic_run/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# install the packages
+RUN /entrypoint.sh
 
 ENV PYTHONPATH=/workdir:${PYTHONPATH}
 WORKDIR /workdir
@@ -22,6 +24,7 @@ ENTRYPOINT [ "/entrypoint.sh" ]
 
 FROM bld AS test
 
-RUN /entrypoint.sh pytest
+RUN pytest
+
 
 FROM bld
