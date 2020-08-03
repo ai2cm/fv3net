@@ -233,13 +233,15 @@ class NudgedFullTendencies(GeoMapper):
 
 
 class NudgeToObsFullTendencies(GeoMapper):
+    """Return mapper with physics and nudging tendencies for nudge-to-obs."""
+
     def __init__(
         self,
         nudged_mapper: Mapping[Time, xr.Dataset],
         checkpoint_mapper: Mapping[Checkpoint, xr.Dataset],
         difference_checkpoints: Sequence[str],
         physics_tendency_variables: Mapping[str, str],
-        nudging_variables: Mapping[str, str],
+        nudging_tendency_variables: Mapping[str, str],
         physics_timestep_seconds: Union[int, float],
     ):
         for source in difference_checkpoints:
@@ -252,7 +254,7 @@ class NudgeToObsFullTendencies(GeoMapper):
         self._checkpoint_mapper = checkpoint_mapper
         self._difference_checkpoints = difference_checkpoints
         self._physics_tendency_variables = physics_tendency_variables
-        self._nudging_variables = nudging_variables
+        self._nudging_tendency_variables = nudging_tendency_variables
         self._physics_timestep_seconds = physics_timestep_seconds
 
     def keys(self):
@@ -266,7 +268,7 @@ class NudgeToObsFullTendencies(GeoMapper):
         physics_tendencies = self._physics_tendencies(
             time,
             self._physics_tendency_variables,
-            self._nudging_variables,
+            self._nudging_tendency_variables,
             self._nudged_mapper,
             self._checkpoint_mapper,
             self._difference_checkpoints,
@@ -283,7 +285,7 @@ class NudgeToObsFullTendencies(GeoMapper):
     def _physics_tendencies(
         time: Time,
         physics_tendency_variables: Mapping[str, str],
-        nudging_variables: Mapping[str, str],
+        nudging_tendency_variables: Mapping[str, str],
         nudged_mapper: Mapping[str, xr.Dataset],
         checkpoint_mapper: Checkpoint,
         difference_checkpoints: Sequence[str],
@@ -291,32 +293,31 @@ class NudgeToObsFullTendencies(GeoMapper):
     ) -> Mapping[str, xr.DataArray]:
 
         physics_tendencies = {}
-        for term_name, variable_name in physics_tendency_variables.items():
+        for variable_name, term_name in physics_tendency_variables.items():
             physics_tendencies[term_name] = (
                 checkpoint_mapper[(difference_checkpoints[1], time)][variable_name]
                 - checkpoint_mapper[(difference_checkpoints[0], time)][variable_name]
             ) / physics_timestep_seconds
             # nudging happens within physics routines, so subtract nudging tendency
             physics_tendencies[term_name] -= nudged_mapper[time][
-                nudging_variables[variable_name]
+                nudging_tendency_variables[variable_name]
             ]
 
         return physics_tendencies
 
 
-class NudgeToObsState(GeoMapper):
-    """
-    docstring
-    """
+class SubtractNudgingIncrement(GeoMapper):
+    """Subtract nudging increment (i.e. nudging tendency times physics timestep) from
+    given state."""
 
     def __init__(
         self,
         nudged_mapper: Mapping[Time, xr.Dataset],
-        nudging_variables: Mapping[str, str],
+        nudging_tendency_variables: Mapping[str, str],
         physics_timestep_seconds: int,
     ):
         self._nudged_mapper = nudged_mapper
-        self._nudging_variables = nudging_variables
+        self._nudging_tendency_variables = nudging_tendency_variables
         self._physics_timestep_seconds = physics_timestep_seconds
 
     def keys(self):
@@ -329,7 +330,7 @@ class NudgeToObsState(GeoMapper):
         before_nudging_state = self._before_nudging_state(
             time,
             self._nudged_mapper,
-            self._nudging_variables,
+            self._nudging_tendency_variables,
             self._physics_timestep_seconds,
         )
         return self._nudged_mapper[time].assign(before_nudging_state)
@@ -338,12 +339,12 @@ class NudgeToObsState(GeoMapper):
     def _before_nudging_state(
         time: Time,
         nudged_mapper: Mapping[str, xr.Dataset],
-        nudging_variables: Mapping[str, str],
+        nudging_tendency_variables: Mapping[str, str],
         physics_timestep_seconds: Union[int, float],
     ) -> Mapping[str, xr.DataArray]:
 
         before_nudging_state = {}
-        for variable_name, nudging_tendency_name in nudging_variables.items():
+        for variable_name, nudging_tendency_name in nudging_tendency_variables.items():
             before_nudging_state[variable_name] = (
                 nudged_mapper[time][variable_name]
                 - nudged_mapper[time][nudging_tendency_name] * physics_timestep_seconds
@@ -522,7 +523,7 @@ def open_merged_nudge_to_obs(
     i_start: int = 0,
     n_times: int = None,
     rename_vars: Mapping[str, str] = None,
-    nudging_variables: Mapping[str, str] = None,
+    nudging_tendency_variables: Mapping[str, str] = None,
     timestep_physics_seconds: int = 900,
     consolidated: bool = False,
 ) -> Mapping[str, xr.Dataset]:
@@ -542,7 +543,7 @@ def open_merged_nudge_to_obs(
             (i_start + n_times)
         rename_vars (optional): mapping of variables to be renamed; defaults to
             renaming Fortran diagnostic nudging names to dQ names
-        nudging_variables: (optional): mapping of variables to their nudging tendencies.
+        nudging_tendency_variables: (optional): mapping of variables to their nudging tendencies.
             Used for getting the "before nudging" state from the "after physics" state.
         timestep_physics_seconds:
         consolidated: if true, open the underlying zarr stores with the consolidated
@@ -553,10 +554,10 @@ def open_merged_nudge_to_obs(
         "t_dt_nudge": "dQ1",
         "q_dt_nudge": "dQ2",
         "u_dt_nudge": "dQu",
-        "v_dt_nduge": "Dqv",
+        "v_dt_nduge": "dQv",
     }
 
-    nudging_variables = nudging_variables or {
+    nudging_tendency_variables = nudging_tendency_variables or {
         "air_temperature": "dQ1",
         "specific_humidity": "dQ2",
     }
@@ -572,8 +573,8 @@ def open_merged_nudge_to_obs(
         datasets.append(ds)
 
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
-    nudged_mapper = NudgeToObsState(
-        nudged_mapper, nudging_variables, timestep_physics_seconds
+    nudged_mapper = SubtractNudgingIncrement(
+        nudged_mapper, nudging_tendency_variables, timestep_physics_seconds
     )
     nudged_mapper = SubsetTimes(i_start, n_times, nudged_mapper)
 
@@ -618,8 +619,8 @@ def open_merged_nudge_to_obs_full_tendencies(
     """
 
     physics_tendency_variables = physics_tendency_variables or {
-        "pQ1": "air_temperature",
-        "pQ2": "specific_humidity",
+        "air_temperature": "pQ1",
+        "specific_humidity": "pQ2",
     }
 
     nudging_tendency_variables = nudging_tendency_variables or {

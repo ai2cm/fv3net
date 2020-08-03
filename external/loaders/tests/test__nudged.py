@@ -14,7 +14,7 @@ from loaders.mappers._nudged import (
     GroupByTime,
     SubsetTimes,
     NudgedFullTendencies,
-    NudgeToObsState,
+    SubtractNudgingIncrement,
     NudgeToObsFullTendencies,
     open_merged_nudged,
     open_merged_nudge_to_obs,
@@ -459,10 +459,10 @@ def test__physics_tendencies(
         )
 
 
-def test_NudgeToObsState(merged_mapper):
+def test_SubtractNudgingIncrement(merged_mapper):
     nudging_variables = {"air_temperature": "dQ1", "specific_humidity": "dQ2"}
     dt = 10
-    adjusted_mapper = NudgeToObsState(merged_mapper, nudging_variables, dt)
+    adjusted_mapper = SubtractNudgingIncrement(merged_mapper, nudging_variables, dt)
 
     assert len(adjusted_mapper) == 4
     key = list(adjusted_mapper.keys())[0]
@@ -480,7 +480,7 @@ def test_NudgeToObsFullTendencies(merged_mapper, constant_checkpoint_mapper):
     nudging_variables = {"air_temperature": "dQ1", "specific_humidity": "dQ2"}
     dt = 10
     difference_checkpoints = ("after_dynamics", "after_physics")
-    physics_tendency_variables = {"pQ1": "air_temperature", "pQ2": "specific_humidity"}
+    physics_tendency_variables = {"air_temperature": "pQ1", "specific_humidity": "pQ2"}
     full_tendencies = NudgeToObsFullTendencies(
         merged_mapper,
         constant_checkpoint_mapper,
@@ -497,9 +497,10 @@ def test_NudgeToObsFullTendencies(merged_mapper, constant_checkpoint_mapper):
     for var in source_ds:
         assert var in output_ds
     # since checkpoint states are equal, pQ = -dQ
-    xr.testing.assert_allclose(
-        full_tendencies[key]["pQ1"], -merged_mapper[key]["dQ1"],
-    )
+    for term in ["1", "2"]:
+        xr.testing.assert_allclose(
+            full_tendencies[key][f"pQ{term}"], -merged_mapper[key][f"dQ{term}"],
+        )
 
 
 @pytest.mark.regression
