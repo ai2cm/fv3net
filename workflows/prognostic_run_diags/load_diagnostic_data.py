@@ -3,9 +3,7 @@ import logging
 import warnings
 import os
 import xarray as xr
-import numpy as np
 from typing import List, Iterable, Mapping, Set
-from datetime import timedelta
 
 import fsspec
 import vcm
