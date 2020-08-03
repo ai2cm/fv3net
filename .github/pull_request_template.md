@@ -5,7 +5,7 @@ Added public API:
 - Can group multiple related symbols on a single bullet
 
 Refactored public API:
-- Bulleted list of removed or refactored symbols, such as name changes, type changes, argument changes, etc.
+- Bulleted list of removed or refactored symbols, such as changes to name, type, behavior, argument, etc. Be cautious about doing these and discuss with team more broadly.
 
 Significant internal changes:
 - Bulleted list of changes to non-public API
