@@ -542,11 +542,11 @@ def open_merged_nudge_to_obs(
             batch resampling operation, starting with i_start and ending at
             (i_start + n_times)
         rename_vars (optional): mapping of variables to be renamed; defaults to
-            renaming Fortran diagnostic nudging names to dQ names
-        nudging_tendency_variables: (optional): mapping of variables to their nudging
-            tendencies. Used for getting the "before nudging" state from the
-            "after physics" state.
-        timestep_physics_seconds:
+            {"t_dt_nudge": "dQ1", "q_dt_nudge": "dQ2"}
+        nudging_tendency_variables: (optional): mapping of variables to their renamed
+            nudging tendencies. Defaults to 
+            {"air_temperature": "dQ1", "specific_humidity": "dQ2"}
+        timestep_physics_seconds: model physics timestep in seconds. Defaults to 900.
         consolidated: if true, open the underlying zarr stores with the consolidated
             flag to xr.open_zarr.
     """
@@ -554,8 +554,6 @@ def open_merged_nudge_to_obs(
     rename_vars = rename_vars or {
         "t_dt_nudge": "dQ1",
         "q_dt_nudge": "dQ2",
-        "u_dt_nudge": "dQu",
-        "v_dt_nduge": "dQv",
     }
 
     nudging_tendency_variables = nudging_tendency_variables or {
@@ -606,7 +604,7 @@ def open_merged_nudge_to_obs_full_tendencies(
             from second; defaults to ('after_dynamics', 'after_physics')
         physics_tendency_variables (optional): mapping of tendency term names to
             variable names; defaults to
-            {'pQ1': 'air_temperature', 'pQ2': 'specific_humidity'}
+            {'air_temperature': 'pQ1', 'specific_humidity': 'pQ2'}
         nudging_tendency_variables (optional): mapping of variable names to renamed
             nudging tendency variable names; defaults to
             {'air_temperature': 'dQ1', 'specific_humidity': 'dQ2'}
