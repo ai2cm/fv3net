@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # install the needed fv3net packages
-for package in /external/*
+for package in /fv3net/external/*
 do
     if [[ -f $package/setup.py ]]
     then
