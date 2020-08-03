@@ -32,9 +32,11 @@ def plot_profile_var(
     xticks: Union[Sequence[float], np.ndarray] = None,
 ):
     if derivation_dim in ds[var].dims:
-        facet_grid = ds[var] \
-            .sel({derivation_dim: list(derivation_coords)}) \
+        facet_grid = (
+            ds[var]
+            .sel({derivation_dim: list(derivation_coords)})
             .plot(y="z", hue=derivation_dim, col=domain_dim)
+        )
     facet_grid.set_titles(template="{value}", maxchar=40)
     f = facet_grid.fig
     for ax in facet_grid.axes.flatten():
@@ -69,7 +71,7 @@ def plot_column_integrated_var(
         ),
         col=derivation_dim,
         row=data_source_dim,
-        vmax= vmax or (1000 if "1" in var else 10),
+        vmax=vmax or (1000 if "1" in var else 10),
     )
     facet_grid.set_titles(template="{value}", maxchar=40)
     f.set_size_inches([14, 3.5])

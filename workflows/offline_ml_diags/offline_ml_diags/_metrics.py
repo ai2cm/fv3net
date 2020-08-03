@@ -189,14 +189,16 @@ def _insert_r2(
     target_coord: str = "target",
 ):
     rmse_vars = [
-        var for var in ds.data_vars 
-        if (var.endswith(f"{predict_coord}_vs_{target_coord}") and rmse_coord in var)]
+        var
+        for var in ds.data_vars
+        if (var.endswith(f"{predict_coord}_vs_{target_coord}") and rmse_coord in var)
+    ]
     for rmse_var in rmse_vars:
         name_pieces = rmse_var.split("/")
         std_var = "/".join(name_pieces[:-1] + [f"mean_vs_{target_coord}"])
         r2_var = "/".join([s if s != rmse_coord else r2_coord for s in name_pieces])
-        ds[r2_var] = 1. - (ds[rmse_var] / ds[std_var])**2
-    
+        ds[r2_var] = 1.0 - (ds[rmse_var] / ds[std_var]) ** 2
+
 
 def _insert_weights(
     ds,
@@ -303,12 +305,8 @@ def _get_r2_string(
     target_coord: str = "target",
     precision=2,
 ):
-    value = metrics[f"scalar/r2/{var}/{predict_coord}_vs_{target_coord}"][
-        "mean"
-    ]
-    std = metrics[f"scalar/r2/{var}/{predict_coord}_vs_{target_coord}"][
-        "std"
-    ]
+    value = metrics[f"scalar/r2/{var}/{predict_coord}_vs_{target_coord}"]["mean"]
+    std = metrics[f"scalar/r2/{var}/{predict_coord}_vs_{target_coord}"]["std"]
     return f"{value:.{precision}f} +/- {std:.{precision}f}"
 
 
