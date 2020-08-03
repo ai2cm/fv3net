@@ -544,7 +544,7 @@ def open_merged_nudge_to_obs(
         rename_vars (optional): mapping of variables to be renamed; defaults to
             {"t_dt_nudge": "dQ1", "q_dt_nudge": "dQ2"}
         nudging_tendency_variables: (optional): mapping of variables to their renamed
-            nudging tendencies. Defaults to 
+            nudging tendencies. Defaults to
             {"air_temperature": "dQ1", "specific_humidity": "dQ2"}
         timestep_physics_seconds: model physics timestep in seconds. Defaults to 900.
         consolidated: if true, open the underlying zarr stores with the consolidated
