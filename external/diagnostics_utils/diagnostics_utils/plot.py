@@ -27,14 +27,14 @@ def plot_profile_var(
     dpi: int = 100,
     derivation_dim: str = "derivation",
     domain_dim: str = "domain",
-    derivation_coords: Sequence[str] = ("target", "predict"),
+    derivation_plot_coords: Sequence[str] = ("target", "predict"),
     xlim: Sequence[float] = None,
     xticks: Union[Sequence[float], np.ndarray] = None,
 ):
     if derivation_dim in ds[var].dims:
         facet_grid = (
             ds[var]
-            .sel({derivation_dim: list(derivation_coords)})
+            .sel({derivation_dim: list(derivation_plot_coords)})
             .plot(y="z", hue=derivation_dim, col=domain_dim)
         )
     facet_grid.set_titles(template="{value}", maxchar=40)
