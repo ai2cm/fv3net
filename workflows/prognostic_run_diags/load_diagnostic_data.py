@@ -3,9 +3,7 @@ import logging
 import warnings
 import os
 import xarray as xr
-import numpy as np
 from typing import List, Iterable, Mapping, Set
-from datetime import timedelta
 
 import fsspec
 import vcm
@@ -57,14 +55,20 @@ def _rename_dims(
     return ds
 
 
-def _round_to_nearest_second(dt):
-    return vcm.convenience.round_time(dt, timedelta(seconds=1))
+def _set_calendar_to_julian(ds, time_coord="time"):
+    if time_coord in ds.coords:
+        ds[time_coord].attrs["calendar"] = "julian"
+    return ds
+
+
+def _round_to_nearest_second(time: xr.DataArray) -> xr.DataArray:
+    return time.dt.round("1S")
 
 
 def _round_time_coord(ds, time_coord="time"):
 
     if time_coord in ds.coords:
-        new_times = np.vectorize(_round_to_nearest_second)(ds.time)
+        new_times = _round_to_nearest_second(ds[time_coord])
         ds = ds.assign_coords({time_coord: new_times})
     else:
         logger.debug(
@@ -128,6 +132,8 @@ def warn_on_overwrite(old: Iterable, new: Iterable):
 def standardize_gfsphysics_diagnostics(ds):
 
     for func in [
+        _set_calendar_to_julian,
+        xr.decode_cf,
         _adjust_tile_range,
         _rename_dims,
         _round_time_coord,
@@ -168,7 +174,7 @@ def load_verification(catalog_keys: List[str], catalog: intake.Catalog,) -> xr.D
 def _load_standardized(path):
     logger.info(f"Loading and standardizing {path}")
     m = fsspec.get_mapper(path)
-    ds = xr.open_zarr(m, consolidated=True)
+    ds = xr.open_zarr(m, consolidated=True, decode_times=False)
     return standardize_gfsphysics_diagnostics(ds)
 
 

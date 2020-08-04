@@ -43,3 +43,15 @@ python -m offline_ml_diags.compute_diags \
     gs://vcm-ml-scratch/annak/test-offline-validation-workflow \
     --timesteps-file workflows/offline_ml_diags/tests/times.json
 ```
+
+#### Creating reports
+Report HTMLs may be created using `offline_ml_diags.create_report`, where the input data path should be
+the output path of the `offline_ml_diags.compute_diags` script. The output location can be either a local
+or remote GCS directory.
+
+Example usage:
+```
+python -m offline_ml_diags.create_report \
+    $INPUT \
+    $OUTPUT 
+```

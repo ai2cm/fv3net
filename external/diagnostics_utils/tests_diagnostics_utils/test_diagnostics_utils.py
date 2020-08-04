@@ -80,29 +80,65 @@ enumeration = {"land": 1, "sea": 0}
 @pytest.mark.parametrize(
     "float_mask,enumeration,atol,expected",
     [
-        (
+        pytest.param(
             xr.DataArray([1.0, 0.0], dims=["x"]),
             enumeration,
             1e-7,
             xr.DataArray(["land", "sea"], dims=["x"]),
+            id="exact",
         ),
-        (
+        pytest.param(
             xr.DataArray([1.0000001, 0.0], dims=["x"]),
             enumeration,
             1e-7,
             xr.DataArray(["land", "sea"], dims=["x"]),
+            id="within_atol",
         ),
-        (
+        pytest.param(
             xr.DataArray([1.0001, 0.0], dims=["x"]),
             enumeration,
             1e-7,
             xr.DataArray([np.nan, "sea"], dims=["x"]),
+            id="outside_atol",
         ),
     ],
 )
 def test_snap_mask_to_type(float_mask, enumeration, atol, expected):
     xr.testing.assert_equal(
         utils.snap_mask_to_type(float_mask, enumeration, atol), expected
+    )
+
+
+@pytest.mark.parametrize(
+    "net_precipitation,type_names,expected",
+    [
+        pytest.param(
+            xr.DataArray([-1.0, 1.0], dims=["x"]),
+            None,
+            xr.DataArray(
+                ["negative_net_precipitation", "positive_net_precipitation"], dims=["x"]
+            ),
+            id="positive_and_negative",
+        ),
+        pytest.param(
+            xr.DataArray([-1.0, 0.0], dims=["x"]),
+            None,
+            xr.DataArray(
+                ["negative_net_precipitation", "positive_net_precipitation"], dims=["x"]
+            ),
+            id="positive_and_zero",
+        ),
+        pytest.param(
+            xr.DataArray([-1.0, 1.0], dims=["x"]),
+            {"negative": "negative", "positive": "positive"},
+            xr.DataArray(["negative", "positive"], dims=["x"]),
+            id="custom_names",
+        ),
+    ],
+)
+def test_snap_net_precipitation_to_type(net_precipitation, type_names, expected):
+    xr.testing.assert_equal(
+        utils.snap_net_precipitation_to_type(net_precipitation, type_names), expected
     )
 
 

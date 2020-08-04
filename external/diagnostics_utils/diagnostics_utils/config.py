@@ -5,3 +5,13 @@ VARNAMES = {
 }
 
 SURFACE_TYPE_ENUMERATION = {"sea": 0, "land": 1, "seaice": 2}
+
+DOMAINS = (
+    "land",
+    "sea",
+    "global",
+    "positive_net_precipitation",
+    "negative_net_precipitation",
+)
+
+PRIMARY_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")

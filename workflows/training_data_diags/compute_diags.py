@@ -20,7 +20,6 @@ handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("training_data_diags")
 
-DOMAINS = ["land", "sea", "global"]
 OUTPUT_NC_NAME = "diagnostics"
 TIME_DIM = "time"
 
@@ -56,6 +55,20 @@ def _open_config(config_path: str) -> Mapping:
     return datasets_config
 
 
+def _compute_diags_from_batches(ds_batches: xr.Dataset, grid: xr.Dataset) -> xr.Dataset:
+
+    ds = xr.concat(ds_batches, dim=TIME_DIM)
+    ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
+        utils.insert_column_integrated_vars
+    )
+
+    return utils.reduce_to_diagnostic(
+        ds,
+        grid,
+        net_precipitation=ds["net_precipitation"].sel(derivation="coarsened_SHiELD"),
+    )
+
+
 def _write_nc(ds: xr.Dataset, output_path: str):
     output_file = os.path.join(
         output_path, OUTPUT_NC_NAME + "_" + str(uuid.uuid1())[-6:] + ".nc"
@@ -86,23 +99,19 @@ if __name__ == "__main__":
 
     diagnostic_datasets = {}
     for dataset_name, dataset_config in datasets_config["sources"].items():
-        logger.info(f"Reading dataset {dataset_name}.")
+        logger.info(f"Reading dataset: {dataset_name}.")
         ds_batches = batches.diagnostic_batches_from_geodata(
             dataset_config["path"],
             variable_names,
-            rename_variables=dataset_config.get("rename_variables", None),
             mapping_function=dataset_config["mapping_function"],
             mapping_kwargs=dataset_config.get("mapping_kwargs", None),
             **batch_kwargs,
         )
-        ds = xr.concat(ds_batches, dim=TIME_DIM)
-        ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
-            utils.insert_column_integrated_vars
+        logger.info(f"Finished batching dataset: {dataset_name}.")
+        diagnostic_datasets[dataset_name] = _compute_diags_from_batches(
+            ds_batches, grid
         )
-        ds_diagnostic = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
-
-        diagnostic_datasets[dataset_name] = ds_diagnostic
-        logger.info(f"Finished processing dataset {dataset_name}.")
+        logger.info(f"Finished processing dataset: {dataset_name}.")
 
     diagnostics_all = xr.concat(
         [

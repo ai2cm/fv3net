@@ -28,7 +28,6 @@ logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
 PRIMARY_VARS = ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"]
-DOMAINS = ["land", "sea", "global"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
 DIURNAL_VARS = [
     "column_integrated_dQ1",
@@ -100,11 +99,17 @@ def _compute_diags_over_batches(
         ds = (
             ds.pipe(utils.insert_total_apparent_sources)
             .pipe(utils.insert_column_integrated_vars)
+            .pipe(utils.insert_net_terms_as_Qs)
             .load()
         )
-
         # ...reduce to diagnostic variables
-        ds_summary = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
+        ds_summary = utils.reduce_to_diagnostic(
+            ds,
+            grid,
+            net_precipitation=ds["column_integrated_Q2"].sel(
+                derivation="coarsened_SHiELD"
+            ),
+        )
         # ...compute diurnal cycles
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
@@ -118,7 +123,7 @@ def _compute_diags_over_batches(
         logger.info(f"Processed batch {i} diagnostics netcdf output.")
 
     # then average over the batches for each output
-    ds_summary = xr.concat(batches_summary, dim="batch").mean(dim="batch")
+    ds_summary = xr.concat(batches_summary, dim="batch")
     ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
     ds_metrics = xr.concat(batches_metrics, dim="batch")
 
@@ -126,11 +131,11 @@ def _compute_diags_over_batches(
         ds_summary, ds_metrics
     )
 
-    return ds_diagnostics, ds_diurnal, ds_scalar_metrics
+    return ds_diagnostics.mean("batch"), ds_diurnal, ds_scalar_metrics
 
 
 def _consolidate_dimensioned_data(ds_summary, ds_metrics):
-    # moves dimensined quantities into final diags dataset so they're saved as netcdf
+    # moves dimensioned quantities into final diags dataset so they're saved as netcdf
     metrics_arrays_vars = [var for var in ds_metrics.data_vars if "scalar" not in var]
     ds_metrics_arrays = safe.get_variables(ds_metrics, metrics_arrays_vars)
     ds_diagnostics = ds_summary.merge(ds_metrics_arrays).rename(
