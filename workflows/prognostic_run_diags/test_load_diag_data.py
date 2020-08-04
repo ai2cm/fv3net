@@ -130,3 +130,13 @@ def test__get_coarsening_args(xr_darray):
     )
     assert grid == "c4_grid_entry"
     assert coarsening_factor == 2
+
+
+@pytest.mark.parametrize(
+    "input_dims", [("x", "time"), ("x", "y")],
+)
+def test__set_calendar_to_julian(input_dims):
+    ds = _create_dataset(*input_dims, with_coords=True)
+    ds_out = load_diags._set_calendar_to_julian(ds)
+    if "time" in input_dims:
+        assert ds_out.time.attrs["calendar"] == "julian"

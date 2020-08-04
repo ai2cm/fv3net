@@ -28,7 +28,6 @@ logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
 PRIMARY_VARS = ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"]
-DOMAINS = ["land", "sea", "global"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
 DIURNAL_VARS = [
     "column_integrated_dQ1",
@@ -100,11 +99,18 @@ def _compute_diags_over_batches(
         ds = (
             ds.pipe(utils.insert_total_apparent_sources)
             .pipe(utils.insert_column_integrated_vars)
+            .pipe(utils.insert_net_terms_as_Qs)
             .load()
         )
 
         # ...reduce to diagnostic variables
-        ds_summary = utils.reduce_to_diagnostic(ds, grid, domains=DOMAINS)
+        ds_summary = utils.reduce_to_diagnostic(
+            ds,
+            grid,
+            net_precipitation=ds["column_integrated_Q2"].sel(
+                derivation="coarsened_SHiELD"
+            ),
+        )
         # ...compute diurnal cycles
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,

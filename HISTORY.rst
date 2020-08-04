@@ -23,6 +23,7 @@ latest
 * Add vertical profiles of RMSE/bias to the offline diagnostics dataset.
 * add new `v0.5` base fv3config to cope with the modification to how fv3config handles the location of the orographic data
 * Fix partitioning of timesteps in loaders.batches so that it uses all timesteps, allows last batch to be < timesteps_per_batch.
+* Add SHiELD and FV3GFS diagnostic variables such as :code:`net_heating` to the training data and offline ML diagnostics datasets, and compute composites over positive and negative :code:`net_precipitation` domains in these diagnostics
 
 0.2.3 (2020-06-19)
 ------------------
