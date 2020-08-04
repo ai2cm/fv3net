@@ -58,7 +58,6 @@ def _rename_dims(
 def _set_calendar_to_julian(ds, time_coord="time"):
     if time_coord in ds.coords:
         ds[time_coord].attrs["calendar"] = "julian"
-        ds = xr.decode_cf(ds)
     return ds
 
 
@@ -134,6 +133,7 @@ def standardize_gfsphysics_diagnostics(ds):
 
     for func in [
         _set_calendar_to_julian,
+        xr.decode_cf,
         _adjust_tile_range,
         _rename_dims,
         _round_time_coord,
