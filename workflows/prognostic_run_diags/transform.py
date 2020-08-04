@@ -8,6 +8,7 @@ diagnostic function arguments.
 """
 
 import logging
+from typing import Sequence
 
 import vcm
 from constants import HORIZONTAL_DIMS, DiagArg
@@ -149,3 +150,12 @@ def mask_to_sfc_type(
         masked_verification = verification
 
     return masked_prognostic, masked_verification, grid
+
+
+@add_to_input_transform_fns
+def subset_variables(variables: Sequence, arg: DiagArg) -> DiagArg:
+    """Subset the variables, without failing if a variable doesn't exist"""
+    prognostic, verification, grid = arg
+    prognostic_vars = [var for var in variables if var in prognostic]
+    verification_vars = [var for var in variables if var in verification]
+    return prognostic[prognostic_vars], verification[verification_vars], grid

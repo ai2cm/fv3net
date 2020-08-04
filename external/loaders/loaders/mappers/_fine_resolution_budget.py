@@ -1,13 +1,12 @@
 import os
 import re
-from functools import partial
-from typing import Mapping, Optional, Sequence, Tuple, Union
-
-
-import xarray as xr
-from toolz import groupby
-
 import vcm
+import numpy as np
+import xarray as xr
+
+from functools import partial
+from toolz import groupby
+from typing import Dict, Mapping, Optional, Sequence, Tuple, Union
 
 from ._transformations import KeyMap
 from .._utils import assign_net_physics_terms
@@ -23,6 +22,127 @@ from ._merged import MergeOverlappingData
 Time = str
 Tile = int
 K = Tuple[Time, Tile]
+
+
+DESCRIPTIVE_NAMES = {
+    "T": "air_temperature",
+    "t_dt_fv_sat_adj_coarse": "air_temperature_saturation_adjustment",
+    "t_dt_nudge_coarse": "air_temperature_nudging",
+    "t_dt_phys_coarse": "air_temperature_physics",
+    "eddy_flux_vulcan_omega_temp": "air_temperature_unresolved_flux",
+    "T_vulcan_omega_coarse": "air_temperature_total_resolved_flux",
+    "T_storage": "air_temperature_storage",
+    "sphum": "specific_humidity",
+    "qv_dt_fv_sat_adj_coarse": "specific_humidity_saturation_adjustment",
+    "qv_dt_phys_coarse": "specific_humidity_physics",
+    "eddy_flux_vulcan_omega_sphum": "specific_humidity_unresolved_flux",
+    "sphum_vulcan_omega_coarse": "specific_humidity_total_resolved_flux",
+    "sphum_storage": "specific_humidity_storage",
+    "vulcan_omega_coarse": "omega",
+}
+
+
+def _fv_sat_adj_metadata(field: str, field_units: str) -> Dict[str, str]:
+    """Return the metadata attrs dict for" the saturation adjustment tendency of
+    a field."""
+    return {
+        "units": f"{field_units}/s",
+        "long_name": "tendency of {field} due "
+        "to dynamical core saturation adjustment",
+    }
+
+
+def _nudging_metadata(field: str, field_units: str) -> Dict[str, str]:
+    """Return the metadata attrs dict for" the nudging tendency of a field."""
+    return {
+        "units": f"{field_units}/s",
+        "long_name": "tendency of {field} due " "to SHiELD nudging",
+    }
+
+
+def _physics_metadata(field: str, field_units: str) -> Dict[str, str]:
+    """Return the metadata attrs dict for" the physics tendency of a field."""
+    return {
+        "units": f"{field_units}/s",
+        "long_name": "tendency of {field} due " "to physics",
+        "description": "sum of microphysics and any other parameterized process",
+    }
+
+
+def _storage_metadata(field: str, field_units: str) -> Dict[str, str]:
+    """Return the metadata attrs dict for" the storage tendency of a field."""
+    return {
+        "units": f"{field_units}/s",
+        "long_name": "storage tendency of {field}",
+        "description": f"partial time derivative of {field} for fixed x, "
+        "y, and output model level.  Sum of all the budget tendencies.",
+    }
+
+
+def _convergence_metadata(field: str, field_units: str) -> Dict[str, str]:
+    """Return the metadata attrs dict for" the vertical eddy flux
+    convergence tendency of a field."""
+    return {
+        "units": f"{field_units}/s",
+        "long_name": "vertical eddy flux convergence tendency of {field}",
+    }
+
+
+TENDENCY_METADATA = {
+    "air_temperature_saturation_adjustment": _fv_sat_adj_metadata(
+        "air_temperature", "K"
+    ),
+    "air_temperature_nudging": _nudging_metadata("air_temperature", "K"),
+    "air_temperature_physics": _physics_metadata("air_temperature", "K"),
+    "air_temperature_storage": _storage_metadata("air_temperature", "K"),
+    "air_temperature_convergence": _convergence_metadata("air_temperature", "K"),
+    "specific_humidity_saturation_adjustment": _fv_sat_adj_metadata(
+        "specific_humidity", "kg/kg"
+    ),
+    "specific_humidity_nudging": _nudging_metadata("specific_humidity", "kg/kg"),
+    "specific_humidity_physics": _physics_metadata("specific_humidity", "kg/kg"),
+    "specific_humidity_storage": _storage_metadata("specific_humidity", "kg/kg"),
+    "specific_humidity_convergence": _convergence_metadata(
+        "specific_humidity", "kg/kg"
+    ),
+}
+
+
+def eddy_flux_coarse(unresolved_flux, total_resolved_flux, omega, field):
+    """Compute re-coarsened eddy flux divergence from re-coarsed data
+    """
+    return unresolved_flux + (total_resolved_flux - omega * field)
+
+
+def _center_to_interface(f: np.ndarray) -> np.ndarray:
+    """Interpolate vertically cell centered data to the interface
+    with linearly extrapolated inputs"""
+    f_low = 2 * f[..., 0] - f[..., 1]
+    f_high = 2 * f[..., -1] - f[..., -2]
+    pad = np.concatenate([f_low[..., np.newaxis], f, f_high[..., np.newaxis]], axis=-1)
+    return (pad[..., :-1] + pad[..., 1:]) / 2
+
+
+def _convergence(eddy: np.ndarray, delp: np.ndarray) -> np.ndarray:
+    """Compute vertical convergence of a cell-centered flux.
+
+    This flux is assumed to vanish at the vertical boundaries
+    """
+    padded = _center_to_interface(eddy)
+    # pad interfaces assuming eddy = 0 at edges
+    return -np.diff(padded, axis=-1) / delp
+
+
+def convergence(eddy: xr.DataArray, delp: xr.DataArray, dim: str = "p") -> xr.DataArray:
+    return xr.apply_ufunc(
+        _convergence,
+        eddy,
+        delp,
+        input_core_dims=[[dim], [dim]],
+        output_core_dims=[[dim]],
+        dask="parallelized",
+        output_dtypes=[eddy.dtype],
+    )
 
 
 class FineResolutionBudgetTiles(GeoMapper):
@@ -89,12 +209,35 @@ class FineResolutionSources(GeoMapper):
         return self._time_mapping.keys()
 
     def __getitem__(self, time: Time) -> xr.Dataset:
+        time_slice = self._time_mapping[time].rename(DESCRIPTIVE_NAMES)
         return (
-            self._derived_budget_ds(self._time_mapping[time])
+            self._derived_budget_ds(time_slice)
             .drop_vars(names=self._drop_vars, errors="ignore")
             .rename(self._rename_vars)
             .transpose(*self._dim_order)
         )
+
+    def _compute_coarse_eddy_flux_convergence_ds(
+        self, budget_time_ds: xr.Dataset, field: str, vertical_dimension: str
+    ) -> xr.Dataset:
+        eddy_flux = eddy_flux_coarse(
+            budget_time_ds[f"{field}_unresolved_flux"],
+            budget_time_ds[f"{field}_total_resolved_flux"],
+            budget_time_ds["omega"],
+            budget_time_ds[field],
+        )
+        budget_time_ds[f"{field}_convergence"] = convergence(
+            eddy_flux, budget_time_ds["delp"], dim=vertical_dimension
+        )
+        return budget_time_ds
+
+    def _add_tendency_term_metadata(self, budget_time_ds: xr.Dataset) -> xr.Dataset:
+        for variable, attrs in TENDENCY_METADATA.items():
+            if variable in budget_time_ds:
+                budget_time_ds[variable] = budget_time_ds[variable].assign_attrs(
+                    **attrs
+                )
+        return budget_time_ds
 
     def _derived_budget_ds(
         self,
@@ -105,6 +248,7 @@ class FineResolutionSources(GeoMapper):
             "saturation_adjustment",
             "convergence",
         ),
+        vertical_dimension: str = "pfull",
     ) -> xr.Dataset:
 
         if variable_prefixes is None:
@@ -114,17 +258,27 @@ class FineResolutionSources(GeoMapper):
             }
 
         for variable_name, apparent_source_name in variable_prefixes.items():
-            budget_time_ds = budget_time_ds.pipe(
-                self._insert_budget_dQ,
-                variable_name,
-                f"d{apparent_source_name}",
-                apparent_source_terms,
-            ).pipe(self._insert_budget_pQ, variable_name, f"p{apparent_source_name}")
-
-        budget_time_ds = budget_time_ds.pipe(self._insert_physics).pipe(
-            assign_net_physics_terms
+            budget_time_ds = (
+                budget_time_ds.pipe(
+                    self._compute_coarse_eddy_flux_convergence_ds,
+                    variable_name,
+                    vertical_dimension,
+                )
+                .pipe(
+                    self._insert_budget_dQ,
+                    variable_name,
+                    f"d{apparent_source_name}",
+                    apparent_source_terms,
+                )
+                .pipe(
+                    self._insert_budget_pQ, variable_name, f"p{apparent_source_name}",
+                )
+            )
+        budget_time_ds = (
+            budget_time_ds.pipe(self._insert_physics)
+            .pipe(assign_net_physics_terms)
+            .pipe(self._add_tendency_term_metadata)
         )
-
         return budget_time_ds
 
     @staticmethod
@@ -209,22 +363,21 @@ def open_fine_resolution_budget(url: str) -> Mapping[str, xr.Dataset]:
         * tile                            (tile) int64 1 2 3 4 5 6
         Dimensions without coordinates: grid_xt, grid_yt, pfull
         Data variables:
-            air_temperature                 (tile, pfull, grid_yt, grid_xt) float32 235.28934 ... 290.56107
-            air_temperature_convergence     (tile, grid_yt, grid_xt, pfull) float32 4.3996937e-07 ... 1.7985441e-06
-            air_temperature_eddy            (tile, pfull, grid_yt, grid_xt) float32 -2.3193044e-05 ... 0.0004279223
-            air_temperature_microphysics    (tile, pfull, grid_yt, grid_xt) float32 0.0 ... -5.5472506e-06
-            air_temperature_nudging         (tile, pfull, grid_yt, grid_xt) float32 0.0 ... 2.0156076e-06
-            air_temperature_physics         (tile, pfull, grid_yt, grid_xt) float32 2.3518855e-06 ... -3.3252392e-05
-            air_temperature_resolved        (tile, pfull, grid_yt, grid_xt) float32 0.26079428 ... 0.6763954
-            air_temperature_storage         (tile, pfull, grid_yt, grid_xt) float32 0.000119928314 ... 5.2825694e-06
-            specific_humidity               (tile, pfull, grid_yt, grid_xt) float32 5.7787e-06 ... 0.008809893
-            specific_humidity_convergence   (tile, grid_yt, grid_xt, pfull) float32 -6.838638e-14 ... -1.7079346e-08
-            specific_humidity_eddy          (tile, pfull, grid_yt, grid_xt) float32 -1.0437861e-13 ... -2.5796332e-06
-            specific_humidity_microphysics  (tile, pfull, grid_yt, grid_xt) float32 0.0 ... 1.6763515e-09
-            specific_humidity_physics       (tile, pfull, grid_yt, grid_xt) float32 -1.961625e-14 ... 5.385441e-09
-            specific_humidity_resolved      (tile, pfull, grid_yt, grid_xt) float32 6.4418755e-09 ... 2.0072384e-05
-            specific_humidity_storage       (tile, pfull, grid_yt, grid_xt) float32 -6.422655e-11 ... -5.3609618e-08
-            Example:
+            air_temperature                          (tile, pfull, grid_yt, grid_xt) float32 235.28934 ... 290.56107
+            air_temperature_convergence              (tile, grid_yt, grid_xt, pfull) float32 4.3996937e-07 ... 1.7985441e-06
+            air_temperature_microphysics             (tile, pfull, grid_yt, grid_xt) float32 0.0 ... -5.5472506e-06
+            air_temperature_nudging                  (tile, pfull, grid_yt, grid_xt) float32 0.0 ... 2.0156076e-06
+            air_temperature_physics                  (tile, pfull, grid_yt, grid_xt) float32 2.3518855e-06 ... -3.3252392e-05
+            air_temperature_unresolved_flux          (tile, pfull, grid_yt, grid_xt) float32 0.26079428 ... 0.6763954
+            air_temperature_total_resolved_flux      (tile, pfull, grid_yt, grid_xt) float32 0.26079428 ... 0.6763954
+            air_temperature_storage                  (tile, pfull, grid_yt, grid_xt) float32 0.000119928314 ... 5.2825694e-06
+            specific_humidity                        (tile, pfull, grid_yt, grid_xt) float32 5.7787e-06 ... 0.008809893
+            specific_humidity_convergence            (tile, grid_yt, grid_xt, pfull) float32 -6.838638e-14 ... -1.7079346e-08
+            specific_humidity_microphysics           (tile, pfull, grid_yt, grid_xt) float32 0.0 ... 1.6763515e-09
+            specific_humidity_physics                (tile, pfull, grid_yt, grid_xt) float32 -1.961625e-14 ... 5.385441e-09
+            specific_humidity_unresolved_flux        (tile, pfull, grid_yt, grid_xt) float32 6.4418755e-09 ... 2.0072384e-05
+            specific_humidity_total_resolved_flux    (tile, pfull, grid_yt, grid_xt) float32 6.4418755e-09 ... 2.0072384e-05
+            specific_humidity_storage                (tile, pfull, grid_yt, grid_xt) float32 -6.422655e-11 ... -5.3609618e-08
     """  # noqa
     tiles = FineResolutionBudgetTiles(url)
     return GroupByTime(tiles)

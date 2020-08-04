@@ -20,7 +20,6 @@ from offline_ml_diags.compute_diags import (
 
 logger = logging.getLogger(__name__)
 
-DOMAINS = ["land", "sea", "global"]
 DIURNAL_VARS = [
     "column_integrated_dQ1",
     "column_integrated_dQ2",
@@ -64,6 +63,7 @@ def test_compute_training_diags(
     nudging_dataset_path,
     fine_res_dataset_path,
     training_data_diags_config,
+    C48_SHiELD_diags_dataset_path,
     grid_dataset,
 ):
     physics_off_config = get_data_source_training_diags_config(
@@ -75,13 +75,17 @@ def test_compute_training_diags(
     nudging_config = get_data_source_training_diags_config(
         training_data_diags_config, "nudging_tendencies"
     )
+    nudging_config["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
     fine_res_config = get_data_source_training_diags_config(
         training_data_diags_config, "fine_res_apparent_sources"
     )
+    fine_res_config["mapping_kwargs"][
+        "shield_diags_url"
+    ] = C48_SHiELD_diags_dataset_path
 
     data_config_mapping = {
-        "one_step_physics-off": (one_step_dataset_path, physics_off_config,),
-        "one_step_clouds-off": (one_step_dataset_path, clouds_off_config,),
+        "one_step_physics-off": (one_step_dataset_path, physics_off_config),
+        "one_step_clouds-off": (one_step_dataset_path, clouds_off_config),
         "nudging_tendencies": (nudging_dataset_path, nudging_config),
         "fine_res_apparent_sources": (fine_res_dataset_path, fine_res_config),
     }
@@ -91,6 +95,8 @@ def test_compute_training_diags(
         "dQ2",
         "pQ1",
         "pQ2",
+        "net_heating",
+        "net_precipitation",
         "pressure_thickness_of_atmospheric_layer",
     ]
 
@@ -110,7 +116,13 @@ def test_compute_training_diags(
         ds = ds.pipe(utils.insert_total_apparent_sources).pipe(
             utils.insert_column_integrated_vars
         )
-        ds_diagnostic = utils.reduce_to_diagnostic(ds, grid_dataset, domains=DOMAINS)
+        ds_diagnostic = utils.reduce_to_diagnostic(
+            ds,
+            grid_dataset,
+            net_precipitation=ds["net_precipitation"].sel(
+                derivation="coarsened_SHiELD"
+            ),
+        )
         diagnostic_datasets[data_source_name] = ds_diagnostic
 
     diagnostics_all = xr.concat(
@@ -195,15 +207,10 @@ def test_sklearn_regression(training_batches, data_source_train_config):
 
 
 @pytest.fixture
-def offline_diags_reference_schema(data_source_name, datadir_module):
-
-    if data_source_name != "fine_res_apparent_sources":
-        reference_schema_file = "offline_diags_reference.json"
-    else:
-        reference_schema_file = "offline_diags_reference_fine_res.json"
-
-    # test against reference
-    with open(os.path.join(str(datadir_module), reference_schema_file), "r") as f:
+def offline_diags_reference_schema(datadir_module):
+    with open(
+        os.path.join(str(datadir_module), "offline_diags_reference.json"), "r"
+    ) as f:
         reference_output_schema = synth.load(f)
         yield reference_output_schema
 
@@ -236,23 +243,28 @@ def mock_model():
 
 
 @pytest.fixture
-def data_source_offline_config(data_source_name, datadir_module):
+def data_source_offline_config(
+    data_source_name, datadir_module, C48_SHiELD_diags_dataset_path
+):
     if data_source_name == "one_step_tendencies":
         with open(
-            os.path.join(str(datadir_module), "test_one_step_config.yml"), "r"
+            os.path.join(str(datadir_module), "offline_one_step_config.yml"), "r"
         ) as f:
             return yaml.safe_load(f)
     elif data_source_name == "nudging_tendencies":
         with open(
-            os.path.join(str(datadir_module), "test_nudging_config.yml"), "r"
+            os.path.join(str(datadir_module), "offline_nudging_config.yml"), "r"
         ) as f:
-            return yaml.safe_load(f)
+            config = yaml.safe_load(f)
+            config["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
+        return config
     elif data_source_name == "fine_res_apparent_sources":
         with open(
-            os.path.join(str(datadir_module), "test_fine_res_config.yml"), "r"
+            os.path.join(str(datadir_module), "offline_fine_res_config.yml"), "r"
         ) as f:
             config = yaml.safe_load(f)
             del config["mapping_kwargs"]["offset_seconds"]
+            config["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
             return config
     else:
         raise NotImplementedError()
@@ -284,6 +296,8 @@ variables = [
     "pQ1",
     "pQ2",
     "pressure_thickness_of_atmospheric_layer",
+    "net_heating",
+    "net_precipitation",
 ]
 
 

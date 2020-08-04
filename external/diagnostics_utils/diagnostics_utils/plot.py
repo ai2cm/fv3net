@@ -48,7 +48,7 @@ def plot_profile_var(
         else:
             ax.set_xlim(xlim or [-1e-7, 1e-7])
             ax.set_xticks(xticks or np.arange(-1e-7, 1.1e-7, 5e-8))
-        ax.set_xlabel(f"{var} {units_from_var(var)}")
+        ax.set_xlabel(f"{var} {_units_from_var(var)}")
     f.set_size_inches([17, 3.5])
     f.set_dpi(dpi)
     f.suptitle(var.replace("_", " "))
@@ -95,10 +95,13 @@ def plot_diurnal_cycles(
     )
     facetgrid.set_titles(template="{value}", maxchar=40)
     f = facetgrid.fig
-    plt.xlabel("local_time [hrs]")
-    plt.ylabel(units_from_var(vars[0]))
-    plt.xlim([0, 23])
-    plt.xticks(np.linspace(0, 24, 13))
+    axes = facetgrid.axes
+    for ax in axes.flatten():
+        ax.grid(axis="y")
+        ax.set_xlabel("local_time [hrs]")
+        ax.set_ylabel(units_from_var(vars[0]))
+        ax.set_xlim([0, 23])
+        ax.set_xticks(np.linspace(0, 24, 13))
     f.set_size_inches([12, 4 * len(vars)])
     f.set_dpi(dpi)
     f.tight_layout()
@@ -106,16 +109,25 @@ def plot_diurnal_cycles(
 
 
 def _plot_generic_data_array(
-    da: xr.DataArray, tag: str = None, xlabel: str = None, ylabel: str = None,
+    da: xr.DataArray,
+    tag: str = None,
+    xlabel: str = None,
+    ylabel: str = None,
+    xlim: Sequence[float] = None,
+    ylim: Sequence[float] = None,
 ):
     fig = plt.figure()
     da.plot()
     if xlabel:
         plt.xlabel(xlabel)
-    units = units_from_var(da.name) or ""
+    units = _units_from_var(da.name) or ""
     if ylabel is None:
         ylabel = " ".join([da.name.replace("_", " ").replace("-", ","), units])
     plt.ylabel(ylabel)
+    if xlim:
+        plt.xlim(xlim)
+    if ylim:
+        plt.ylim(ylim)
     if tag:
         tag += "_"
     return fig

@@ -107,7 +107,7 @@ spec:
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging
         args:
         - |
-          cp runfile.py /mnt/data/runfile.py
+          cp nudging_runfile.py /mnt/data/runfile.py
 
           cat << EOF > times.json
           {{inputs.parameters.times}}

@@ -20,13 +20,13 @@ function downloadZarr() {
     fi
 }
 
-usage="Usage: entrypoint.sh [ -g grid_spec_path ] rundir output"
+usage="Usage: entrypoint.sh [-l] rundir output"
 
-while getopts "g:" OPTION; do
+while getopts ":l" OPTION; do
     case $OPTION in
-        g)
+        l)
+            downloadFirst=true
             shift
-            gridSpec=$OPTARG
         ;;
         *)
             echo $usage
@@ -34,11 +34,6 @@ while getopts "g:" OPTION; do
         ;;
     esac
 done
-
-if [[ $# != 2 ]]; then
-    echo $usage
-    exit 2
-fi
 
 [[ -n $GOOGLE_APPLICATION_CREDENTIALS ]] && gcloud auth activate-service-account --key-file $GOOGLE_APPLICATION_CREDENTIALS
 
@@ -55,14 +50,17 @@ localWorkDir=.cache/$(echo $rundir | md5sum | awk '{print $1}')
 mkdir -p $localWorkDir
 
 cd $localWorkDir
-gridSpec=gs://vcm-ml-data/2020-01-06-C384-grid-spec-with-area-dx-dy/grid_spec
 
-downloadZarr $1/atmos_dt_atmos.zarr
-downloadZarr $1/sfc_dt_atmos.zarr
-downloadTiles $gridSpec grid_spec
-downloadZarr $1/diags.zarr
+if [ "$downloadFirst" = true ] ; then
+    downloadZarr $1/atmos_dt_atmos.zarr
+    downloadZarr $1/sfc_dt_atmos.zarr
+    downloadZarr $1/diags.zarr
+    input=./
+else
+    input=$1
+fi
 
-[[ -f diags.nc ]] || python $cwd/save_prognostic_run_diags.py --grid-spec ./grid_spec ./ diags.nc
+[[ -f diags.nc ]] || python $cwd/save_prognostic_run_diags.py $input diags.nc
 python $cwd/metrics.py diags.nc >metrics.json
 
 gsutil cp diags.nc $output/diags.nc

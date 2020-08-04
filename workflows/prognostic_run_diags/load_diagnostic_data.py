@@ -3,9 +3,7 @@ import logging
 import warnings
 import os
 import xarray as xr
-import numpy as np
 from typing import List, Iterable, Mapping, Set
-from datetime import timedelta
 
 import fsspec
 import vcm
@@ -26,6 +24,7 @@ DIM_RENAME_INVERSE_MAP = {
 VARNAME_SUFFIX_TO_REMOVE = ["_coarse"]
 _DIAG_OUTPUT_LOADERS = []
 MASK_VARNAME = "SLMSKsfc"
+GRID_ENTRIES = {48: "grid/c48", 96: "grid/c96"}
 
 
 def _adjust_tile_range(ds: xr.Dataset) -> xr.Dataset:
@@ -56,14 +55,20 @@ def _rename_dims(
     return ds
 
 
-def _round_to_nearest_second(dt):
-    return vcm.convenience.round_time(dt, timedelta(seconds=1))
+def _set_calendar_to_julian(ds, time_coord="time"):
+    if time_coord in ds.coords:
+        ds[time_coord].attrs["calendar"] = "julian"
+    return ds
+
+
+def _round_to_nearest_second(time: xr.DataArray) -> xr.DataArray:
+    return time.dt.round("1S")
 
 
 def _round_time_coord(ds, time_coord="time"):
 
     if time_coord in ds.coords:
-        new_times = np.vectorize(_round_to_nearest_second)(ds.time)
+        new_times = _round_to_nearest_second(ds[time_coord])
         ds = ds.assign_coords({time_coord: new_times})
     else:
         logger.debug(
@@ -127,6 +132,8 @@ def warn_on_overwrite(old: Iterable, new: Iterable):
 def standardize_gfsphysics_diagnostics(ds):
 
     for func in [
+        _set_calendar_to_julian,
+        xr.decode_cf,
         _adjust_tile_range,
         _rename_dims,
         _round_time_coord,
@@ -142,12 +149,7 @@ def _open_tiles(path):
     return xr.open_mfdataset(path + ".tile?.nc", concat_dim="tile", combine="nested")
 
 
-def load_verification(
-    catalog_keys: List[str],
-    catalog: intake.Catalog,
-    coarsening_factor: int = None,
-    area: xr.DataArray = None,
-) -> xr.Dataset:
+def load_verification(catalog_keys: List[str], catalog: intake.Catalog,) -> xr.Dataset:
 
     """
     Load verification data sources from a catalog and combine for reporting.
@@ -155,33 +157,15 @@ def load_verification(
     Args:
         catalog_keys: catalog sources to load as verification data
         catalog: Intake catalog of available data sources.
-        coarsening_factor (optional): Factor to coarsen the loaded verification data
-        area (optional): Grid cell area data for weighting. Required when
-            coarsening_factor is set.
 
     Returns:
         All specified verification datasources standardized and merged
 
     """
-
-    area = _rename_dims(area)
-
     verif_data = []
     for dataset_key in catalog_keys:
         ds = catalog[dataset_key].to_dask()
         ds = standardize_gfsphysics_diagnostics(ds)
-
-        if coarsening_factor is not None:
-            if area is None:
-                raise ValueError(
-                    "Grid area keyword argument must be provided when"
-                    " coarsening is requested."
-                )
-
-            ds = vcm.cubedsphere.weighted_block_average(
-                ds, area, coarsening_factor, x_dim="x", y_dim="y"
-            )
-
         verif_data.append(ds)
 
     return xr.merge(verif_data, join="outer")
@@ -190,7 +174,7 @@ def load_verification(
 def _load_standardized(path):
     logger.info(f"Loading and standardizing {path}")
     m = fsspec.get_mapper(path)
-    ds = xr.open_zarr(m, consolidated=True)
+    ds = xr.open_zarr(m, consolidated=True, decode_times=False)
     return standardize_gfsphysics_diagnostics(ds)
 
 
@@ -212,12 +196,31 @@ def _load_prognostic_run_physics_output(url):
     return xr.merge(diagnostic_data, join="inner")
 
 
-def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
+def _coarsen(ds: xr.Dataset, area: xr.DataArray, coarsening_factor: int) -> xr.Dataset:
+    return vcm.cubedsphere.weighted_block_average(
+        ds, area, coarsening_factor, x_dim="x", y_dim="y"
+    )
+
+
+def _get_coarsening_args(
+    ds: xr.Dataset, target_res: int, grid_entries: Mapping[int, str] = GRID_ENTRIES
+) -> (str, int):
+    """Given input dataset and target resolution, return catalog entry for input grid
+    and coarsening factor"""
+    input_res = ds.sizes["x"]
+    if input_res % target_res != 0:
+        raise ValueError("Target resolution must evenly divide input resolution")
+    coarsening_factor = int(input_res / target_res)
+    if input_res not in grid_entries:
+        raise KeyError(f"No grid defined in catalog for c{input_res} resolution")
+    return grid_entries[input_res], coarsening_factor
+
+
+def load_dycore(url: str, catalog: intake.Catalog) -> DiagArg:
     """Open data required for dycore plots.
 
     Args:
         url: path to prognostic run directory
-        grid_spec: path to C384 grid spec (everything up to .tile?.nc)
         catalog: Intake catalog of available data sources
 
     Returns:
@@ -229,32 +232,28 @@ def load_dycore(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
 
     # open grid
     logger.info("Opening Grid Spec")
-    grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
 
     # open verification
     logger.info("Opening verification data")
-    verification_c48 = load_verification(
-        ["40day_c384_atmos_8xdaily_may2020"],
-        catalog,
-        coarsening_factor=8,
-        area=grid_c384.area,
-    )
+    verification_c48 = load_verification(["40day_c48_atmos_8xdaily_may2020"], catalog)
 
     # open prognostic run data
     path = os.path.join(url, "atmos_dt_atmos.zarr")
     logger.info(f"Opening prognostic run data at {path}")
     ds = _load_standardized(path)
+    input_grid, coarsening_factor = _get_coarsening_args(ds, 48)
+    area = catalog[input_grid].to_dask()["area"]
+    ds = _coarsen(ds, area, coarsening_factor)
 
     return ds, verification_c48, grid_c48
 
 
-def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
+def load_physics(url: str, catalog: intake.Catalog) -> DiagArg:
     """Open data required for physics plots.
 
         Args:
             url: path to prognostic run directory
-            grid_spec: path to C384 grid spec (everything up to .tile?.nc)
             catalog: Intake catalog of available data sources
 
         Returns:
@@ -266,21 +265,20 @@ def load_physics(url: str, grid_spec: str, catalog: intake.Catalog) -> DiagArg:
 
     # open grid
     logger.info("Opening Grid Spec")
-    grid_c384 = standardize_gfsphysics_diagnostics(vcm.open_tiles(grid_spec))
     grid_c48 = standardize_gfsphysics_diagnostics(catalog["grid/c48"].to_dask())
 
     # open verification
     verification_c48 = load_verification(
-        ["40day_c384_diags_time_avg_may2020"],
-        catalog,
-        coarsening_factor=8,
-        area=grid_c384.area,
+        ["40day_c48_gfsphysics_15min_may2020"], catalog
     )
     verification_c48 = add_derived.physics_variables(verification_c48)
 
     # open prognostic run data
     logger.info(f"Opening prognostic run data at {url}")
     prognostic_output = _load_prognostic_run_physics_output(url)
+    input_grid, coarsening_factor = _get_coarsening_args(prognostic_output, 48)
+    area = catalog[input_grid].to_dask()["area"]
+    prognostic_output = _coarsen(prognostic_output, area, coarsening_factor)
     prognostic_output = add_derived.physics_variables(prognostic_output)
 
     # Add mask information if not present

@@ -78,9 +78,10 @@ def _write_report(
         metadata: Mapping[str, Union[str, float, int, bool]] = None,
         metrics: Mapping[str, Mapping[str, Union[str, float]]] = None,
         html_header: str = None,
-        ):
+):
     filename = title.replace(" ", "_") + ".html"
-    html_report = create_html(sections, title, metadata=metadata, metrics=metrics, html_header=html_header)
+    html_report = create_html(
+        sections, title, metadata=metadata, metrics=metrics, html_header=html_header)
     with open(os.path.join(output_dir, filename), "w") as f:
         f.write(html_report)
 

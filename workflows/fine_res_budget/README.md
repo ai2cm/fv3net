@@ -1,7 +1,32 @@
-## Fine Resolution derived budget calculation
+## Workflow for computing quantities needed to infer fine resolution budgets
 
-This dataflow pipline estimates Q1 and Q2 by coarse-graining the C3072 sub-grid-scale physical tendencies and adding the
-vertical eddy-fluxes which are resolved in C3072 but not at C48.
+This dataflow pipeline computes the quantities needed for computing estimates
+of Q1 and Q2.
+
+For Q1 these are the re-coarse-grained:
+
+- C384 air temperature
+- C384 omega
+- Product of the C384 air temperature and omega
+- C384 vertical eddy flux of temperature
+- C384 tendency of temperature due to all parameterized physics
+- C384 tendency of temperature due to saturation adjustment within the
+  dynamical core
+
+For Q2 these are the re-coarse-grained:
+
+- C384 specific humidity
+- C384 omega
+- Product of the C384 specific humidity and omega
+- C384 vertical eddy flux of specific humidity
+- C384 tendency of specific humidity due to all parameterized physics
+- C384 tendency of specific humidity due to saturation adjustment within the
+  dynamical core
+
+The vertical eddy flux convergence terms at the target resolution, and
+subsequently Q1 and Q2, are then computed at data access time within the
+`FineResolutionSources` mapper.  The default target resolution in the
+re-coarse-graining process is C48.
 
 ### Local usage
 

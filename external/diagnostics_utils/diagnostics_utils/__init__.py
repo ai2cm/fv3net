@@ -7,8 +7,10 @@ from .utils import (
     conditional_average,
     weighted_average,
     snap_mask_to_type,
+    snap_net_precipitation_to_type,
     insert_column_integrated_vars,
-    units_from_var
+    units_from_var,
+    insert_net_terms_as_Qs,
 )
 from ._diurnal_cycle import bin_diurnal_cycle, create_diurnal_cycle_dataset
 from . import plot
@@ -20,8 +22,10 @@ __all__ = [
     "conditional_average",
     "weighted_average",
     "snap_mask_to_type",
+    "snap_net_precipitation_to_type",
     "insert_column_integrated_vars",
     "insert_total_apparent_sources",
+    "insert_net_terms_as_Qs",
     "bin_diurnal_cycle",
     "create_diurnal_cycle_dataset",
     "units_from_var"

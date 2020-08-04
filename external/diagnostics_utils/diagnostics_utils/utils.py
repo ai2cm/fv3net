@@ -1,62 +1,81 @@
-from .config import VARNAMES, SURFACE_TYPE_ENUMERATION
+from .config import (
+    VARNAMES,
+    SURFACE_TYPE_ENUMERATION,
+    DOMAINS,
+    PRIMARY_VARS,
+)
 from vcm import thermo, safe
 import xarray as xr
 import numpy as np
 import logging
 from typing import Sequence, Mapping, Union, Tuple
 
-logging.getLogger(__name__)
-
-UNINFORMATIVE_COORDS = ["tile", "z", "y", "x"]
-TIME_DIM = "time"
-PRESSURE_DIM = "pressure"
-VERTICAL_DIM = "z"
-PRIMARY_VARS = ("dQ1", "pQ1", "dQ2", "pQ2", "Q1", "Q2")
+logger = logging.getLogger(__name__)
 
 
 def reduce_to_diagnostic(
     ds: xr.Dataset,
     grid: xr.Dataset,
-    domains: Sequence[str] = SURFACE_TYPE_ENUMERATION.keys(),
+    domains: Sequence[str] = DOMAINS,
     primary_vars: Sequence[str] = PRIMARY_VARS,
+    net_precipitation: xr.DataArray = None,
+    time_dim: str = "time",
+    derivation_dim: str = "derivation",
+    uninformative_coords: Sequence[str] = ["tile", "z", "y", "x"],
 ) -> xr.Dataset:
     """Reduce a sequence of batches to a diagnostic dataset
     
     Args:
-        ds_batches: loader sequence of xarray datasets with relevant variables
+        ds: xarray datasets with relevant variables batched in time
         grid: xarray dataset containing grid variables
         (latb, lonb, lat, lon, area, land_sea_mask)
         domains: sequence of area domains over which to produce conditional
-            averages; optonal
+            averages; optional, defaults to global, land, sea, and positive and
+            negative net_precipitation domains
         primary_vars: sequence of variables for which to compute column integrals
-            and composite means
+            and composite means; optional, defaults to dQs, pQs and Qs
+        net_precipitation: xr.DataArray of net_precipitation values for computing
+            composites, typically supplied by SHiELD net_precipitation; optional
+        time_dim: name of the dataset time dimension to average over; optional,
+            defaults to 'time'
+        derivation_dim: name of the dataset derivation dimension containing coords
+            such as 'target', 'predict', etc.; optional, defaults to 'derivation'
+        uninformative_coords: sequence of names of uninformative (i.e.,
+            range(len(dim))), coordinates to be dropped
             
     Returns:
         diagnostic_ds: xarray dataset of reduced diagnostic variables
     """
-    ds = _rechunk_time_z(ds)
-    ds_time_averaged = ds.mean(dim=TIME_DIM, keep_attrs=True)
-    ds_time_averaged = ds_time_averaged.drop_vars(
-        names=UNINFORMATIVE_COORDS, errors="ignore"
-    )
 
-    grid = grid.drop_vars(names=UNINFORMATIVE_COORDS, errors="ignore")
+    ds = ds.drop_vars(names=uninformative_coords, errors="ignore")
+    ds = _rechunk_time_z(ds)
+
+    grid = grid.drop_vars(names=uninformative_coords, errors="ignore")
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
-    conditional_datasets = {}
-    for surface_type in domains:
-        varname = f"{surface_type}_average"
-        conditional_datasets[varname] = conditional_average(
-            safe.get_variables(ds_time_averaged, primary_vars),
-            surface_type_array,
-            surface_type,
-            grid["area"],
+    if any(["net_precipitation" in category for category in domains]):
+        net_precipitation_type_array = snap_net_precipitation_to_type(net_precipitation)
+        net_precipitation_type_array = net_precipitation_type_array.drop_vars(
+            names=uninformative_coords, errors="ignore"
+        )
+
+    domain_datasets = {}
+    for category in domains:
+        varname = f"{category}_average"
+        if "net_precipitation" in category:
+            cell_type = net_precipitation_type_array
+        else:
+            cell_type = surface_type_array
+        domain_datasets[varname] = conditional_average(
+            safe.get_variables(ds, primary_vars), cell_type, category, grid["area"],
         )
 
     domain_ds = xr.concat(
-        [dataset for dataset in conditional_datasets.values()], dim="domain"
-    ).assign_coords({"domain": (["domain"], [*conditional_datasets.keys()])})
+        [dataset for dataset in domain_datasets.values()], dim="domain"
+    ).assign_coords({"domain": (["domain"], [*domain_datasets.keys()])})
 
-    return xr.merge([domain_ds, ds_time_averaged.drop(labels=primary_vars)])
+    ds = xr.merge([domain_ds, ds.drop(labels=primary_vars)])
+
+    return ds.mean(dim=time_dim, keep_attrs=True)
 
 
 def insert_column_integrated_vars(
@@ -106,6 +125,53 @@ def _total_apparent_sources(
     return Q1, Q2
 
 
+def insert_net_terms_as_Qs(
+    ds: xr.Dataset,
+    var_mapping: Mapping = None,
+    derivation_dim: str = "derivation",
+    shield_coord: str = "coarsened_SHiELD",
+    derivations_keep: Sequence[str] = ("target", "predict"),
+) -> xr.Dataset:
+    """Insert the SHiELD net_* variables as the column_integrated_Q* variables
+        for coordinate 'coarsened_SHiELD', also drop the net_* variables and the
+        'coarse_FV3GFS' coordinate; this is useful in the offline_ML_diags routine
+        because eliminates an unnecessary coordinate and includes SHiELD variables
+        in the calculated diagnostics and metrics
+        
+    Args:
+        ds: xr dataset to from which to compute diagnostics
+        var_mapping: dict which maps SHiELD net_* var names to
+            column_integrated_Q* var names; optional
+        derivation_dim: name of derivation dim; optional, defaults to 'derivation'
+        shield_coord: name of SHiELD coordinate in derivation dim; optional
+        derivations_keep: sequence of derivation coords to keep in output dataset
+            
+    Returns:
+        xr dataset of renamed and rearranged variables
+    """
+    var_mapping = var_mapping or {
+        "net_heating": "column_integrated_Q1",
+        "net_precipitation": "column_integrated_Q2",
+    }
+
+    ds_new = ds.sel({derivation_dim: list(derivations_keep)}).drop_vars(
+        names=var_mapping.keys(), errors="ignore"
+    )
+
+    shield_data = {}
+    for var_source_name, var_target_name in var_mapping.items():
+        if "Q1" in var_target_name:
+            shield_data[var_target_name] = ds[var_source_name].sel(
+                {derivation_dim: [shield_coord]}
+            )
+        elif "Q2" in var_target_name:
+            shield_data[var_target_name] = -ds[var_source_name].sel(
+                {derivation_dim: [shield_coord]}
+            )
+
+    return ds_new.merge(shield_data)
+
+
 def _rechunk_time_z(
     ds: xr.Dataset, dim_nchunks: Mapping[str, tuple] = None
 ) -> xr.Dataset:
@@ -119,8 +185,8 @@ def _rechunk_time_z(
 
 def conditional_average(
     ds: Union[xr.Dataset, xr.DataArray],
-    surface_type_array: xr.DataArray,
-    surface_type: str,
+    cell_type_array: xr.DataArray,
+    category: str,
     area: xr.DataArray,
     dims: Sequence[str] = ["tile", "y", "x"],
 ) -> xr.Dataset:
@@ -128,8 +194,8 @@ def conditional_average(
     
     Args:
         ds: xr dataarray or dataset of variables to averaged conditionally
-        surface_type_array: xr datarray of surface type category strings
-        surface_type: str of surface type over which to conditionally average
+        cell_type_array: xr datarray of cell category strings
+        category: str of category over which to conditionally average
         area: xr datarray of grid cell areas for weighted averaging
         dims: dimensions to average over
             
@@ -137,15 +203,15 @@ def conditional_average(
         xr dataarray or dataset of conditionally averaged variables
     """
 
-    all_types = list(np.unique(surface_type_array))
+    all_types = list(np.unique(cell_type_array))
 
-    if surface_type == "global":
+    if category == "global":
         area_masked = area
-    elif surface_type in all_types:
-        area_masked = area.where(surface_type_array == surface_type)
+    elif category in all_types:
+        area_masked = area.where(cell_type_array == category)
     else:
         raise ValueError(
-            f"surface type {surface_type} not in provided surface type array "
+            f"surface type {category} not in provided surface type array "
             f"with types {all_types}."
         )
 
@@ -227,3 +293,33 @@ def units_from_var(var):
             return "[kg/kg/s]"
     else:
         return None
+
+
+def snap_net_precipitation_to_type(
+    net_precipitation: xr.DataArray, type_names: Mapping[str, str] = None
+) -> xr.DataArray:
+    """Convert net_precipitation array to positive and negative categorical types
+    
+    Args:
+        net_precipitation: xr.DataArray of numerical values
+        type_names: Mapping relating the "positive" and "negative" cases to their
+            categorical type names
+            
+    Returns:
+        types: xr dataarray of categorical str type
+    
+    """
+
+    type_names = type_names or {
+        "negative": "negative_net_precipitation",
+        "positive": "positive_net_precipitation",
+    }
+
+    if any(key not in type_names for key in ["negative", "positive"]):
+        raise ValueError("'type_names' must include 'positive' and negative' as keys")
+
+    types = np.where(
+        net_precipitation.values < 0, type_names["negative"], type_names["positive"]
+    )
+
+    return xr.DataArray(types, net_precipitation.coords, net_precipitation.dims)

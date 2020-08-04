@@ -13,7 +13,7 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from budget.data import shift
 from budget.pipeline import run, OpenTimeChunks
-from budget.budgets import _convergence
+from budget.budgets import _compute_second_moment, storage
 
 from vcm import safe
 
@@ -60,27 +60,6 @@ def test_OpenTimeChunks():
         )
 
         chunks | "Assert no time or tile" >> beam.Map(_assert_no_time_or_tile)
-
-
-def test__convergence_constant():
-    nz = 5
-    delp = np.ones(nz).reshape((1, 1, nz))
-
-    expected = np.array([0, 0, 0, 0, 0]).reshape((1, 1, nz))
-
-    ans = _convergence(delp, delp)
-    np.testing.assert_almost_equal(ans, expected)
-
-
-def test__convergence_linear():
-    nz = 5
-    f = np.arange(nz).reshape((1, 1, nz))
-    delp = np.ones(nz).reshape((1, 1, nz))
-
-    expected = np.array([-1, -1, -1, -1, -1]).reshape((1, 1, nz))
-
-    ans = _convergence(f, delp)
-    np.testing.assert_almost_equal(ans, expected)
 
 
 @pytest.mark.regression
@@ -130,27 +109,27 @@ def test_run(tmpdir):
     ds = xr.open_mfdataset(f"{output_path}/*.nc", combine="by_coords")
 
     expected_variables = [
-        "air_temperature",
-        "air_temperature_convergence",
-        "air_temperature_eddy",
-        "air_temperature_saturation_adjustment",
-        "air_temperature_nudging",
-        "air_temperature_physics",
-        "air_temperature_resolved",
-        "air_temperature_storage",
+        "T",
+        "t_dt_fv_sat_adj_coarse",
+        "t_dt_nudge_coarse",
+        "t_dt_phys_coarse",
         "delp",
-        "omega",
-        "specific_humidity",
-        "specific_humidity_convergence",
-        "specific_humidity_eddy",
-        "specific_humidity_saturation_adjustment",
-        "specific_humidity_physics",
-        "specific_humidity_resolved",
-        "specific_humidity_storage",
+        "vulcan_omega_coarse",
+        "sphum",
+        "qv_dt_fv_sat_adj_coarse",
+        "qv_dt_phys_coarse",
+        "sphum_vulcan_omega_coarse",
+        "T_vulcan_omega_coarse",
+        "eddy_flux_vulcan_omega_temp",
+        "eddy_flux_vulcan_omega_sphum",
+        "T_storage",
+        "sphum_storage",
     ]
 
     for variable in expected_variables:
         assert variable in ds
+        assert "long_name" in ds[variable].attrs
+        assert "units" in ds[variable].attrs
 
 
 def test_shift():
@@ -172,3 +151,84 @@ def test_shift():
     shifted = shift(ds, dt=dt / 2)
 
     xr.testing.assert_equal(shifted, expected)
+
+
+@pytest.mark.parametrize(
+    ["a", "b", "expected"],
+    [
+        (
+            xr.DataArray(3.0, name="a", attrs={"units": "m", "long_name": "a_long"}),
+            xr.DataArray(2.0, name="b", attrs={"units": "m", "long_name": "b_long"}),
+            xr.DataArray(
+                6.0,
+                name="a_b",
+                attrs={"units": "m m", "long_name": "Product of a_long and b_long"},
+            ),
+        ),
+        (
+            xr.DataArray(3.0, name="a", attrs={"long_name": "a_long"}),
+            xr.DataArray(2.0, name="b", attrs={"units": "m", "long_name": "b_long"}),
+            xr.DataArray(
+                6.0,
+                name="a_b",
+                attrs={"units": "m", "long_name": "Product of a_long and b_long"},
+            ),
+        ),
+        (
+            xr.DataArray(3.0, name="a", attrs={"units": "m"}),
+            xr.DataArray(2.0, name="b", attrs={"units": "m", "long_name": "b_long"}),
+            xr.DataArray(
+                6.0,
+                name="a_b",
+                attrs={"units": "m m", "long_name": "Product of a and b_long"},
+            ),
+        ),
+    ],
+)
+def test__compute_second_moment(a, b, expected):
+    result = _compute_second_moment(a, b)
+    xr.testing.assert_identical(result, expected)
+
+
+@pytest.mark.parametrize(
+    ("field", "expected"),
+    [
+        (
+            xr.DataArray(
+                [0.0, 1.0],
+                coords=[("step", ["begin", "end"])],
+                name="a",
+                attrs={"units": "m", "long_name": "a_long"},
+            ),
+            xr.DataArray(
+                0.5,
+                name="a_storage",
+                attrs={"units": "m/s", "long_name": "Storage of a_long"},
+            ),
+        ),
+        (
+            xr.DataArray(
+                [0.0, 1.0],
+                coords=[("step", ["begin", "end"])],
+                name="a",
+                attrs={"long_name": "a_long"},
+            ),
+            xr.DataArray(
+                0.5,
+                name="a_storage",
+                attrs={"units": "/s", "long_name": "Storage of a_long"},
+            ),
+        ),
+        (
+            xr.DataArray([0.0, 1.0], coords=[("step", ["begin", "end"])], name="a"),
+            xr.DataArray(
+                0.5,
+                name="a_storage",
+                attrs={"units": "/s", "long_name": "Storage of a"},
+            ),
+        ),
+    ],
+)
+def test_storage(field, expected):
+    result = storage(field, 2)
+    xr.testing.assert_identical(result, expected)

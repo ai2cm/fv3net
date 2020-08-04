@@ -17,9 +17,22 @@ will point to a valid service account key on the host system. For example,
 Quickstart
 ----------
 
-An example prognostic run can be started with
+The tests can be run with
 
-	make sklearn_run
+	make test
+
+
+Development
+-----------
+
+This workflow uses docker-compose to bootstrap a development environment. This
+environment is based off the `prognostic_run` docker image, but has bind-mounts
+to the packages in "/external" of this repository and this directory, which
+allows locally developing this workflow and its dependencies. To enter a
+development bash shell, run
+
+    make dev
+
 
 Configure the scikit-learn run
 ------------------------------------------

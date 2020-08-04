@@ -5,6 +5,9 @@ from datetime import datetime, timedelta
 import yaml
 import fsspec
 import logging
+import fv3util
+import xarray as xr
+import numpy as np
 
 if __name__ == "__main__":
     import fv3gfs
@@ -14,6 +17,9 @@ else:
     MPI = None
 
 logger = logging.getLogger(__name__)
+
+GRAVITY = 9.81
+PRECIP_NAME = "total_precipitation"
 
 RADIATION_NAMES = [
     "total_sky_downward_shortwave_flux_at_surface",
@@ -101,6 +107,64 @@ def append_key_label(d, suffix):
     return return_dict
 
 
+def column_integrated_moistening(
+    humidity_tendency: xr.DataArray,
+    pressure_thickness: xr.DataArray,
+    gravity: float = GRAVITY,
+) -> xr.DataArray:
+    """Compute column-integrated moistening.
+
+    Args:
+        humidity_tendency: rate of change of specific humidity [kg/kg/s]
+        pressure_thickness: thickness of atmospheric layer [Pa]
+        gravity: (optional) defaults to 9.81 [m/s^2]
+
+    Returns:
+        column integrated moistening [kg/m^2/s]
+    """
+    moistening = (humidity_tendency * pressure_thickness).sum("z") / gravity
+    moistening.attrs["units"] = "kg/m^2/s"
+    return moistening
+
+
+def total_precipitation(
+    model_precip: xr.DataArray, column_moistening: xr.DataArray, timestep: timedelta
+) -> xr.DataArray:
+    """Compute sum of precipitation and implied precipitation from column moistening.
+    The total precipitation is thresholded to ensure that it is not negative.
+
+    Args:
+        model_precip: surface precipitation per physics timestep [m]
+        column_moistening: column integrated humidity tendency [kg/m^2/s]
+        timestep: physics timestep
+
+    Returns:
+        total precipitation [m]
+    """
+    M_PER_MM = 1 / 1000
+    total_precip = model_precip - M_PER_MM * timestep.seconds * column_moistening
+    total_precip = total_precip.where(total_precip >= 0, 0)
+    total_precip.attrs["units"] = "m"
+    return total_precip
+
+
+def implied_precipitation(
+    model_precip: fv3util.Quantity,
+    pressure_thickness: fv3util.Quantity,
+    humidity_tendency: fv3util.Quantity,
+    timestep: timedelta,
+) -> np.ndarray:
+    """Add column-integrated humidity tendency to precipitation and return
+    total precipitation thresholded to be non-negative."""
+    column_moistening = column_integrated_moistening(
+        humidity_tendency.data_array, pressure_thickness.data_array,
+    )
+    total_precip = total_precipitation(
+        model_precip.data_array, column_moistening, timestep
+    )
+    return total_precip.values
+
+
 class StageWriter:
     def __init__(
         self,
@@ -126,7 +190,7 @@ class StageWriter:
                     os.path.join(self._root_dirname, stage_name + ".zarr")
                 )
             )()
-            monitor = fv3gfs.ZarrMonitor(
+            monitor = fv3util.ZarrMonitor(
                 store, self.partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
             )
             self._monitors[stage_name] = SubsetWriter(monitor, self.times)
@@ -137,7 +201,7 @@ class SubsetWriter:
     """Write only certain substeps"""
 
     def __init__(
-        self, monitor: fv3gfs.ZarrMonitor, times: Optional[Sequence[str]] = None
+        self, monitor: fv3util.ZarrMonitor, times: Optional[Sequence[str]] = None
     ):
         """
 
@@ -191,6 +255,7 @@ if __name__ == "__main__":
     communicator = fv3gfs.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
     nudging_timescales = get_timescales_from_config(config)
     nudging_names = list(nudging_timescales.keys())
+    updated_quantity_names = list(set(nudging_names + [PRECIP_NAME]))
     store_names = list(set(["time"] + nudging_names + STORE_NAMES))
     timestep = get_timestep(config)
 
@@ -226,8 +291,13 @@ if __name__ == "__main__":
         monitor.store(time, tendencies, stage="nudging_tendencies")
         monitor.store(time, state, stage="after_nudging")
 
-        nudged_state_members = {
-            key: quantity for key, quantity in state.items() if key in nudging_names
-        }
-        fv3gfs.set_state(nudged_state_members)
+        if "specific_humidity" in nudging_names:
+            state[PRECIP_NAME].view[:] = implied_precipitation(
+                state[PRECIP_NAME],
+                state["pressure_thickness_of_atmospheric_layer"],
+                tendencies["specific_humidity_tendency_due_to_nudging"],
+                timestep,
+            )
+        updated_state_members = {key: state[key] for key in updated_quantity_names}
+        fv3gfs.set_state(updated_state_members)
     fv3gfs.cleanup()
