@@ -1,0 +1,53 @@
+# vim: set sts=2 ts=2 tw=2 sw=2 :
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: training
+spec:
+  templates:
+    - name: rf-training
+      inputs:
+        parameters:
+          - name: image
+          - name: input
+          - name: config
+          - name: times
+          - name: output
+      container:
+        image: "{{inputs.parameters.image}}"
+        command: ["bash", "-c", "-x"]
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+        args:
+          - |
+
+            cat <<EOF >config.yaml
+            {{inputs.parameters.config}}
+            EOF
+            
+            cat << EOF > times.json
+            {{inputs.parameters.times}}
+            EOF
+
+            echo "Configuration:"
+            cat config.yaml
+    
+            python -m fv3fit.sklearn \
+              {{inputs.parameters.input}} \
+              config.yaml \
+              {{inputs.parameters.output}} \
+              --timesteps-file times.json \
+              --no-train-subdir-append
+        resources:
+          requests:
+            memory: "6Gi"
+            cpu: "1000m"
+          limits:
+            memory: "6Gi"
+            cpu: "1000m"
