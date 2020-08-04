@@ -52,8 +52,15 @@ class Model(abc.ABC):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        **hyperparameters,
     ):
+        """Initialize the model.
+
+        Args:
+            sample_dim_name: name of the sample dimension in datasets used as
+                inputs and outputs.
+            input_variables: names of input variables
+            output_variables: names of output variables
+        """
         super().__init__()
 
     @abc.abstractmethod
@@ -251,11 +258,36 @@ class DenseModel(PackedKerasModel):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        depth: int = 3,
-        width: int = 16,
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
+        depth: int = 3,
+        width: int = 16,
     ):
+        """Initialize the DenseModel.
+
+        Loss is computed on normalized outputs only if `normalized_loss` is True
+        (default). This allows you to provide weights that will be proportional
+        to the importance of that feature within the loss. If `normalized_loss`
+        is False, you should consider scaling your weights to decrease the importance
+        of features that are orders of magnitude larger than other features.
+
+        Args:
+            sample_dim_name: name of the sample dimension in datasets used as
+                inputs and outputs.
+            input_variables: names of input variables
+            output_variables: names of output variables
+            weights: loss function weights, defined as a dict whose keys are
+                variable names and values are either a scalar referring to the total
+                weight of the variable, or a vector referring to the weight for each
+                feature of the variable. Default is a total weight of 1
+                for each variable.
+            normalize_loss: if True (default), normalize outputs by their standard
+                deviation before computing the loss function
+            depth: number of dense layers to use between the input and output layer.
+                The number of hidden layers will be (depth - 1). Default is 3.
+            width: number of neurons to use on layers between the input and output
+                layer. Default is 16.
+        """
         self._width = width
         self._depth = depth
         super().__init__(
