@@ -156,7 +156,7 @@ if __name__ == "__main__":
     metrics_formatted = {}
     for var in COLUMN_INTEGRATED_VARS:
         metrics_formatted[var.replace("_", " ")] = {
-            "r2": " ".join([_get_metric_string(metrics, "r2", var), units_from_var(var)]),
+            "r2": _get_metric_string(metrics, "r2", var),
             "bias": " ".join([_get_metric_string(metrics, "bias", var), units_from_var(var)]),
         }
 

@@ -47,12 +47,12 @@ def _copy_outputs(temp_dir, output_dir):
 
 
 def _tidy_title(var: str):
-    return (var
+    title = (var
         .strip("pressure_level")
         .strip("predict_vs_target")
         .strip("-")
-        .replace("-", " ")
-        .upper())
+        .replace("-", " "))
+    return title[0].upper() + title[1:]
 
 
 def _get_metric_string(
