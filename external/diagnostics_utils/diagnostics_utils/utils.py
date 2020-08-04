@@ -158,9 +158,14 @@ def insert_net_terms_as_Qs(
 
     shield_data = {}
     for var_source_name, var_target_name in var_mapping.items():
-        shield_data[var_target_name] = ds[var_source_name].sel(
-            {derivation_dim: [shield_coord]}
-        )
+        if "Q1" in var_target_name:
+            shield_data[var_target_name] = ds[var_source_name].sel(
+                {derivation_dim: [shield_coord]}
+            )
+        elif "Q2" in var_target_name:
+            shield_data[var_target_name] = -ds[var_source_name].sel(
+                {derivation_dim: [shield_coord]}
+            )
 
     return ds_new.merge(shield_data)
 
