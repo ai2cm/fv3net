@@ -52,6 +52,7 @@ class Model(abc.ABC):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
+        **hyperparameters,
     ):
         """Initialize the model.
 
@@ -60,7 +61,13 @@ class Model(abc.ABC):
                 inputs and outputs.
             input_variables: names of input variables
             output_variables: names of output variables
+            hyperparameters: options for subclasses
         """
+        if len(hyperparameters) > 0:
+            raise TypeError(
+                "Model base class received unexpected keyword arguments: "
+                f"{list(hyperparameters.keys())}"
+            )
         super().__init__()
 
     @abc.abstractmethod
