@@ -48,7 +48,7 @@ def plot_profile_var(
         else:
             ax.set_xlim(xlim or [-1e-7, 1e-7])
             ax.set_xticks(xticks or np.arange(-1e-7, 1.1e-7, 5e-8))
-        ax.set_xlabel(f"{var} {_units_from_var(var)}")
+        ax.set_xlabel(f"{var} {units_from_var(var)}")
     f.set_size_inches([17, 3.5])
     f.set_dpi(dpi)
     f.suptitle(var.replace("_", " "))
@@ -120,7 +120,7 @@ def _plot_generic_data_array(
     da.plot()
     if xlabel:
         plt.xlabel(xlabel)
-    units = _units_from_var(da.name) or ""
+    units = units_from_var(da.name) or ""
     if ylabel is None:
         ylabel = " ".join([da.name.replace("_", " ").replace("-", ","), units])
     plt.ylabel(ylabel)
@@ -130,4 +130,5 @@ def _plot_generic_data_array(
         plt.ylim(ylim)
     if tag:
         tag += "_"
+    plt.tight_layout()
     return fig
