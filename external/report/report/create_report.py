@@ -90,7 +90,7 @@ def _save_figure(fig, filename: str, section_dir: str, output_dir: str = None):
 
 def insert_report_figure(
     sections: Mapping[str, Sequence[str]],
-    fig,   # matplotlib figure- omitted type hint so mpl wasn't a dependency
+    fig,  # matplotlib figure- omitted type hint so mpl wasn't a dependency
     filename: str,
     section_name: str,
     output_dir: str = None,
@@ -105,7 +105,7 @@ def insert_report_figure(
             If left as default None, will write in current working directory.
             
     """
-    section_dir = section_name.replace(' ', '_')
+    section_dir = section_name.replace(" ", "_")
     filename = os.path.join(section_dir, filename)
     _save_figure(fig, filename, section_dir, output_dir)
     sections.setdefault(section_name, []).append(filename)
@@ -141,9 +141,7 @@ def create_html(
         for header, section in sections.items()
     }
     # format of metrics dict is {var: {column name: val}}
-    metrics_columns = (
-        list(metrics.values())[0].keys() if metrics
-        else None)
+    metrics_columns = list(metrics.values())[0].keys() if metrics else None
     html = HTML_TEMPLATE.render(
         title=title,
         sections=resolved_sections,

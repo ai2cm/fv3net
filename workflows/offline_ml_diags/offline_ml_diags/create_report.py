@@ -3,7 +3,6 @@ import atexit
 import logging
 import sys
 import tempfile
-from typing import Mapping, Union, Sequence
 
 from report import insert_report_figure
 import diagnostics_utils.plot as diagplot
@@ -14,7 +13,6 @@ from ._helpers import (
     _open_diagnostics_outputs,
     _copy_outputs,
     _tidy_title,
-    _get_metric_string
 )
 
 
@@ -91,8 +89,8 @@ if __name__ == "__main__":
         args.input_path,
         diagnostics_nc_name=NC_FILE_DIAGS,
         diurnal_nc_name=NC_FILE_DIURNAL,
-        metrics_json_name=JSON_FILE_METRICS
-        )
+        metrics_json_name=JSON_FILE_METRICS,
+    )
 
     report_sections = {}
 
@@ -107,7 +105,8 @@ if __name__ == "__main__":
             fig,
             filename=f"{var}.png",
             section_name="Pressure level metrics",
-            output_dir=temp_output_dir.name)
+            output_dir=temp_output_dir.name,
+        )
 
     # time averaged quantity vertical profiles over land/sea, pos/neg net precip
     for var in PROFILE_VARS:
@@ -119,7 +118,8 @@ if __name__ == "__main__":
             fig,
             filename=f"{var}.png",
             section_name="Vertical profiles of predicted variables",
-            output_dir=temp_output_dir.name)
+            output_dir=temp_output_dir.name,
+        )
 
     # time averaged column integrated quantity maps
     for var in COLUMN_INTEGRATED_VARS:
@@ -133,7 +133,8 @@ if __name__ == "__main__":
             fig,
             filename=f"{var}.png",
             section_name="Time averaged maps",
-            output_dir=temp_output_dir.name)
+            output_dir=temp_output_dir.name,
+        )
 
     # column integrated quantity diurnal cycles
     for tag, var_group in {
@@ -150,14 +151,17 @@ if __name__ == "__main__":
             fig,
             filename=f"{tag}.png",
             section_name="Diurnal cycles of column integrated quantities",
-            output_dir=temp_output_dir.name)
+            output_dir=temp_output_dir.name,
+        )
 
     # scalar metrics for RMSE and bias
     metrics_formatted = {}
     for var in COLUMN_INTEGRATED_VARS:
         metrics_formatted[var.replace("_", " ")] = {
             "r2": _get_metric_string(metrics, "r2", var),
-            "bias": " ".join([_get_metric_string(metrics, "bias", var), units_from_var(var)]),
+            "bias": " ".join(
+                [_get_metric_string(metrics, "bias", var), units_from_var(var)]
+            ),
         }
 
     _write_report(
