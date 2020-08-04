@@ -189,6 +189,10 @@ jobs:
             echo $K8S_PROXY_ENCODED_CA_CRT | base64 -d > proxy.crt
             kubectl config set-cluster $kube_cluster_name --certificate-authority="./proxy.crt"
       - run:
+          name: Submit argo integration tests
+          command: |
+            make run_argo_integration_tests VERSION=$CIRCLE_SHA1
+      - run:
           name: Submit integration tests
           # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was
           # during the build job above
