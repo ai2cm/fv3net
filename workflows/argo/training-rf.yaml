@@ -2,10 +2,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: training
+  name: training-rf
 spec:
   templates:
-    - name: rf-training
+    - name: training-rf
       inputs:
         parameters:
           - name: image

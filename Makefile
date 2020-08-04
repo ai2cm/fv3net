@@ -68,6 +68,9 @@ build_ci_image:
 run_integration_tests:
 	./tests/end_to_end_integration/run_integration_with_wait.sh $(VERSION)
 
+run_argo_integration_tests:
+	./tests/end_to_end_integration_argo/run_test.sh $(VERSION)
+
 test:
 	pytest external tests
 

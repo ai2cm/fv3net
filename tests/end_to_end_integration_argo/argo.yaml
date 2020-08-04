@@ -1,0 +1,85 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: integration-test-
+spec:
+  serviceAccountName: integration-tests
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
+  entrypoint: main
+  volumeClaimTemplates:
+    - metadata:
+        name: output-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi
+  volumes:
+    - name: restart-data
+      persistentVolumeClaim:
+        claimName: '{{workflow.parameters.restart-pvc}}'
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+  - name: main
+    dag:
+      tasks:
+      - name: nudging-run
+        templateRef:
+          name: nudging
+          template: nudging
+        arguments:
+          parameters:
+          - name: fv3net-image
+            value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
+          - name: times
+            value: "{{workflow.parameters.nudging-times}}"
+          - name: restart-volume
+            value: restart-data
+          - name: working-volume
+            value: output-data
+          - name: output-url
+            value: "{{workflow.parameters.root}}/nudging"
+          - name: nudging-config
+            value: "{{workflow.parameters.nudging-config}}"
+      - name: train-model
+        dependencies: [nudging-run]
+        templateRef:
+          name: training-rf
+          template: training-rf
+        arguments:
+          parameters:
+            - name: image
+              value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
+            - name: input
+              value: "{{workflow.parameters.root}}/nudging"
+            - name: config
+              value: "{{workflow.parameters.training-config}}"
+            - name: times
+              value: "{{workflow.parameters.train-times}}"
+            - name: output
+              value: "{{workflow.parameters.root}}/trained_model"
+      - name: prognostic-run
+        dependencies: [train-model]
+        templateRef:
+          name: prognostic-run
+          template: prognostic-run
+        arguments:
+          parameters:
+              - name: image-tag
+                value: "{{workflow.parameters.image-tag}}"
+              - name: initial-condition
+                value: "{{workflow.parameters.initial-condition}}"
+              - name: config
+                value: "{{workflow.parameters.prognostic-run-config}}"
+              - name: reference-restarts
+                value: "{{workflow.parameters.reference-restarts}}"
+              - name: trained-ml
+                value: "{{workflow.parameters.root}}/trained_model"
+              - name: output
+                value: "{{workflow.parameters.root}}/prognostic_run"

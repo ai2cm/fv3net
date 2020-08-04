@@ -1,0 +1,73 @@
+root: gs://vcm-ml-scratch/oliwm/test-end-to-end-integration
+nudging-config: | 
+  base_version: v0.5
+  forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+  initial_conditions: /mnt/input/coarsen_restarts/20160801.001500/
+  nudging:
+    restarts_path: /mnt/input/coarsen_restarts/
+    timescale_hours:
+      air_temperature: 3
+      specific_humidity: 3
+      x_wind: 3
+      y_wind: 3
+      pressure_thickness_of_atmospheric_layer: 3
+  namelist:
+    coupler_nml:
+      current_date:
+        - 2016
+        - 8
+        - 1
+        - 0
+        - 15
+        - 0
+      hours: 1
+      minutes: 0
+    fv_core_nml:
+      do_sat_adj: false
+    gfdl_cloud_microphysics_nml:
+      fast_sat_adj: false
+restart-pvc: nudging-read-only
+training-config: | 
+  model_type: sklearn_random_forest
+  hyperparameters:
+    max_depth: 13
+    n_estimators: 1
+  input_variables:
+    - air_temperature
+    - specific_humidity
+  output_variables:
+    - dQ1
+    - dQ2
+  batch_function: batches_from_geodata
+  batch_kwargs:
+    timesteps_per_batch: 1
+    mapping_function: open_merged_nudged
+    mapping_kwargs:
+      rename_vars:
+        air_temperature_tendency_due_to_nudging: dQ1
+        specific_humidity_tendency_due_to_nudging: dQ2
+prognostic-run-config: |
+  base_version: v0.5
+  namelist:
+    coupler_nml:
+      hours: 1
+      minutes: 0
+    diag_manager_nml:
+      flush_nc_files: true
+    fv_core_nml:
+      do_sat_adj: false
+    gfdl_cloud_microphysics_nml:
+      fast_sat_adj: false
+image-tag: ${VERSION}
+initial-condition: "20160801.003000"
+reference-restarts: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
+nudging-times: |
+  [
+    "20160801.001500",
+    "20160801.004500"
+  ]
+train-times: |
+  [
+    "20160801.003000",
+    "20160801.010000"
+  ]
