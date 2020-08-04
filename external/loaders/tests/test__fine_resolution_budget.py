@@ -1,7 +1,57 @@
 import pytest
+import numpy as np
 import xarray as xr
 from vcm import safe
-from loaders.mappers._fine_resolution_budget import FineResolutionSources
+from loaders.mappers._fine_resolution_budget import _convergence, FineResolutionSources
+
+coords = [(["x"], [1.0]), (["pfull"], [1.0, 0.0])]
+budget_ds_input = xr.Dataset(
+    dict(
+        T=xr.DataArray([[270.0, 280.0]], coords, ["x", "pfull"], attrs={"units": "K"}),
+        t_dt_phys_coarse=xr.DataArray(
+            [[0.1, 0.2]], coords, ["x", "pfull"], attrs={"units": "K/s"}
+        ),
+        t_dt_fv_sat_adj_coarse=xr.DataArray(
+            [[0.2, 0.3]], coords, ["x", "pfull"], attrs={"units": "K/s"}
+        ),
+        t_dt_nudge_coarse=xr.DataArray(
+            [[-0.1, 0.0]], coords, ["x", "pfull"], attrs={"units": "K/s"}
+        ),
+        eddy_flux_vulcan_omega_temp=xr.DataArray(
+            [[-0.1, 0.0]], coords, ["x", "pfull"], attrs={"units": "K Pa/s"}
+        ),
+        T_vulcan_omega_coarse=xr.DataArray(
+            [[-0.1, 0.0]], coords, ["x", "pfull"], attrs={"units": "K Pa/s"}
+        ),
+        T_storage=xr.DataArray(
+            [[-0.1, 0.0]], coords, ["x", "pfull"], attrs={"units": "K/s"}
+        ),
+        sphum=xr.DataArray(
+            [[1.0e-3, 2.0e-3]], coords, ["x", "pfull"], attrs={"units": "kg/kg"}
+        ),
+        qv_dt_phys_coarse=xr.DataArray(
+            [[1.0e-6, 2.0e-6]], coords, ["x", "pfull"], attrs={"units": "kg/kg/s"}
+        ),
+        qv_dt_fv_sat_adj_coarse=xr.DataArray(
+            [[2.0e-6, 3.0e-6]], coords, ["x", "pfull"], attrs={"units": "kg/kg/s"}
+        ),
+        sphum_storage=xr.DataArray(
+            [[2.0e-6, 3.0e-6]], coords, ["x", "pfull"], attrs={"units": "kg/kg/s"}
+        ),
+        eddy_flux_vulcan_omega_sphum=xr.DataArray(
+            [[-1.0e-6, 0.0]], coords, ["x", "pfull"], attrs={"units": "kg Pa/kg/s"}
+        ),
+        sphum_vulcan_omega_coarse=xr.DataArray(
+            [[-1.0e-6, 0.0]], coords, ["x", "pfull"], attrs={"units": "kg Pa/kg/s"}
+        ),
+        vulcan_omega_coarse=xr.DataArray(
+            [[-1.0e-6, 0.0]], coords, ["x", "pfull"], attrs={"units": "Pa/s"}
+        ),
+        delp=xr.DataArray(
+            [[200.0, 100.0]], coords, ["x", "pfull"], attrs={"units": "Pa"}
+        ),
+    )
+)
 
 
 budget_ds = xr.Dataset(
@@ -189,14 +239,56 @@ def test__insert_budget_pQ(ds, variable_name, apparent_source_name, expected):
 
 @pytest.fixture
 def fine_res_mapper():
-    return {"20160901.001500": budget_ds}
+    return {"20160901.001500": budget_ds_input}
 
 
 def test_FineResolutionSources(fine_res_mapper):
     fine_res_source_mapper = FineResolutionSources(
-        fine_res_mapper, dim_order=("pfull",)
+        fine_res_mapper, dim_order=("x", "pfull")
     )
     source_ds = fine_res_source_mapper["20160901.001500"]
     safe.get_variables(
-        source_ds, ["dQ1", "dQ2", "pQ1", "pQ2", "air_temperature", "specific_humidity"]
+        source_ds,
+        [
+            "dQ1",
+            "dQ2",
+            "pQ1",
+            "pQ2",
+            "air_temperature",
+            "specific_humidity",
+            "air_temperature_saturation_adjustment",
+            "air_temperature_nudging",
+            "air_temperature_physics",
+            "air_temperature_unresolved_flux",
+            "air_temperature_total_resolved_flux",
+            "air_temperature_storage",
+            "specific_humidity",
+            "specific_humidity_saturation_adjustment",
+            "specific_humidity_physics",
+            "specific_humidity_unresolved_flux",
+            "specific_humidity_total_resolved_flux",
+            "specific_humidity_storage",
+            "omega",
+        ],
     )
+
+
+def test__convergence_constant():
+    nz = 5
+    delp = np.ones(nz).reshape((1, 1, nz))
+
+    expected = np.array([0, 0, 0, 0, 0]).reshape((1, 1, nz))
+
+    ans = _convergence(delp, delp)
+    np.testing.assert_almost_equal(ans, expected)
+
+
+def test__convergence_linear():
+    nz = 5
+    f = np.arange(nz).reshape((1, 1, nz))
+    delp = np.ones(nz).reshape((1, 1, nz))
+
+    expected = np.array([-1, -1, -1, -1, -1]).reshape((1, 1, nz))
+
+    ans = _convergence(f, delp)
+    np.testing.assert_almost_equal(ans, expected)

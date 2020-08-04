@@ -49,6 +49,7 @@ dependencies:
   - bokeh>=2.0
   - backoff
   - mypy=0.770
+  - coverage>=5
   - six=1.12
   - pip
   - pip:

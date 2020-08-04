@@ -6,4 +6,4 @@ mypy --follow-imports silent \
     fv3net/pipelines/restarts_to_zarr/ \
     workflows/prognostic_c48_run \
     external/fv3fit/fv3fit \
-    external/loaders/loaders/mappers/_local.py \
+    external/loaders/loaders/mappers/_local.py

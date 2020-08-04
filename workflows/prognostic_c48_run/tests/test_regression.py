@@ -20,7 +20,7 @@ FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
 
 
 BASE_FV3CONFIG_CACHE = Path(
-    "/inputdata", "fv3config-cache", "gs", "vcm-fv3config", "vcm-fv3config", "data"
+    "/inputdata", "fv3config-cache", "gs", "vcm-fv3config", "data"
 )
 IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
     "initial_conditions", "c12_restart_initial_conditions", "v1.0"
@@ -328,7 +328,9 @@ namelist:
     ldebug: false
 """
 
-NUDGE_RUNFILE = Path(__file__).parent.parent.joinpath("nudging/runfile.py").as_posix()
+NUDGE_RUNFILE = (
+    Path(__file__).parent.parent.joinpath("nudging/nudging_runfile.py").as_posix()
+)
 # Necessary to know the number of restart timestamp folders to generate in fixture
 START_TIME = [2016, 8, 1, 0, 0, 0]
 TIMESTEP_MINUTES = 15
@@ -467,3 +469,17 @@ def test_fv3run_checksum_restarts(completed_rundir):
             "Prognostic fv3gfs ran successfully but failed the "
             f"fv_core.res.tile1.nc checksum: {e}"
         )
+
+
+def test_fv3run_diagnostic_outputs(completed_rundir):
+    diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
+    dims = ("time", "tile", "y", "x")
+
+    for variable in [
+        "net_heating",
+        "net_moistening",
+        "physics_precip",
+        "water_vapor_path",
+    ]:
+        assert diagnostics[variable].dims == dims
+        assert np.sum(np.isnan(diagnostics[variable].values)) == 0

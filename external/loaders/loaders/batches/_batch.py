@@ -6,7 +6,7 @@ import pandas as pd
 from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional
 import xarray as xr
 from vcm import safe
-from toolz import partition, compose
+from toolz import partition_all, compose
 from ._sequences import FunctionOutputSequence
 from .._utils import stack_dropnan_shuffle, load_grid, add_cosine_zenith_angle
 from ..constants import TIME_FMT, TIME_NAME
@@ -106,7 +106,7 @@ def batches_from_mapper(
     timesteps = timesteps or data_mapping.keys()
     num_times = len(timesteps)
     times = _sample(timesteps, num_times, random_state)
-    batched_timesteps = list(partition(timesteps_per_batch, times))
+    batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
     load_batch = functools.partial(
         _load_batch, data_mapping, variable_names, cos_z_var,
@@ -190,7 +190,7 @@ def diagnostic_batches_from_mapper(
     timesteps = timesteps or data_mapping.keys()
     num_times = len(timesteps)
     times = _sample(timesteps, num_times, random_state)
-    batched_timesteps = list(partition(timesteps_per_batch, times))
+    batched_timesteps = list(partition_all(timesteps_per_batch, times))
 
     load_batch = functools.partial(
         _load_batch, data_mapping, variable_names, cos_z_var,
