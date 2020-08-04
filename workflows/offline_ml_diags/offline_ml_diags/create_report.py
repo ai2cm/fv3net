@@ -137,8 +137,9 @@ if __name__ == "__main__":
         var for var in ds_diags.data_vars if "pressure" in ds_diags[var].dims
     ]
     for var in pressure_lvl_metrics:
+        ylim = (0, 1.0) if "r2" in var.lower() else None
         diagplot._plot_generic_data_array(
-            ds_diags[var], xlabel="pressure [Pa]",
+            ds_diags[var], xlabel="pressure [Pa]", ylim=ylim,
         ).savefig(os.path.join(temp_output_dir.name, f"{var}.png"))
 
     # TODO: following PR will add this to the report in separate tables.

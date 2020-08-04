@@ -109,7 +109,12 @@ def plot_diurnal_cycles(
 
 
 def _plot_generic_data_array(
-    da: xr.DataArray, tag: str = None, xlabel: str = None, ylabel: str = None,
+    da: xr.DataArray,
+    tag: str = None,
+    xlabel: str = None,
+    ylabel: str = None,
+    xlim: Sequence[float] = None,
+    ylim: Sequence[float] = None,
 ):
     fig = plt.figure()
     da.plot()
@@ -119,6 +124,10 @@ def _plot_generic_data_array(
     if ylabel is None:
         ylabel = " ".join([da.name.replace("_", " ").replace("-", ","), units])
     plt.ylabel(ylabel)
+    if xlim:
+        plt.xlim(xlim)
+    if ylim:
+        plt.ylim(ylim)
     if tag:
         tag += "_"
     return fig
