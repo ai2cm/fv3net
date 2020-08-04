@@ -51,9 +51,9 @@ def test__rename_dims(input_dims, rename_inverse, renamed_dims):
 
 @pytest.fixture
 def xr_darray():
-    data = np.arange(20).reshape(4, 5)
+    data = np.arange(16).reshape(4, 4)
     x = np.arange(4)
-    y = np.arange(5)
+    y = np.arange(4)
 
     da = xr.DataArray(data, coords={"x": x, "y": y}, dims=["x", "y"],)
 
@@ -110,3 +110,33 @@ def test_warn_on_overwrite_no_warning():
         load_diags.warn_on_overwrite(old, new)
 
     assert len(record) == 0
+
+
+def test__coarsen_keeps_attrs(xr_darray):
+    ds = xr.Dataset({"var1": xr_darray, "var2": xr_darray})
+    ds.attrs = {"global_attr": "value"}
+    ds.var1.attrs = {"units": "value"}
+    output = load_diags._coarsen(ds, xr_darray, 2)
+    assert ds.attrs == output.attrs
+    assert ds.var1.attrs == output.var1.attrs
+    assert ds.var2.attrs == output.var2.attrs
+
+
+def test__get_coarsening_args(xr_darray):
+    target_res = 2
+    grid_entries = {4: "c4_grid_entry"}
+    grid, coarsening_factor = load_diags._get_coarsening_args(
+        xr_darray, target_res, grid_entries=grid_entries
+    )
+    assert grid == "c4_grid_entry"
+    assert coarsening_factor == 2
+
+
+@pytest.mark.parametrize(
+    "input_dims", [("x", "time"), ("x", "y")],
+)
+def test__set_calendar_to_julian(input_dims):
+    ds = _create_dataset(*input_dims, with_coords=True)
+    ds_out = load_diags._set_calendar_to_julian(ds)
+    if "time" in input_dims:
+        assert ds_out.time.attrs["calendar"] == "julian"

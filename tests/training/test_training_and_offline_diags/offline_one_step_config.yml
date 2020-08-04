@@ -10,8 +10,9 @@ variables:
   - cos_zenith_angle
   - land_sea_mask
   - surface_geopotential
-
 mapping_function: open_one_step
+mapping_kwargs:
+  add_shield_diags: True
 model_mapper_kwargs:
   cos_z_var: "cos_zenith_angle"
 batch_kwargs:

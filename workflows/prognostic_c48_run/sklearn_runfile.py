@@ -1,10 +1,18 @@
 import logging
 from datetime import datetime
-from typing import Hashable, Iterable, Mapping, MutableMapping, Tuple, cast
+from typing import (
+    Hashable,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Tuple,
+    cast,
+    List,
+    Sequence,
+)
 
 import fsspec
 import xarray as xr
-import zarr
 from mpi4py import MPI
 from sklearn.externals import joblib
 
@@ -143,9 +151,8 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
             comm = MPI.COMM_WORLD
 
         self._fv3gfs = fv3gfs
-        self._state = runtime.DerivedFV3State(self._fv3gfs)
+        self._state: runtime.DerivedFV3State = runtime.DerivedFV3State(self._fv3gfs)
         self._comm = comm
-        self._diagnostics = {}
 
         args = runtime.get_config()
         namelist = runtime.get_namelist()
@@ -155,7 +162,9 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         self._timestep = timestep
         self._log_info(f"Timestep: {timestep}")
 
-        self._do_only_diagnostic_ml = args["scikit_learn"].get("diagnostic_ml", False)
+        self._do_only_diagnostic_ml: bool = args["scikit_learn"].get(
+            "diagnostic_ml", False
+        )
 
         # download the scikit-learn model
         self._log_info("Downloading Sklearn Model")
@@ -189,7 +198,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         return {}
 
     def _step_python(self) -> Diagnostics:
-        variables = list(self._model.input_vars_ | REQUIRED_VARIABLES)
+        variables: List[Hashable] = list(self._model.input_vars_ | REQUIRED_VARIABLES)
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
 
@@ -224,19 +233,45 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         self._fv3gfs.cleanup()
 
 
+class MonitoredPhysicsTimeLoop(TimeLoop):
+    def __init__(self, tendency_variables: Sequence[str], *args, **kwargs):
+        """
+
+        Args:
+            tendency_variables: a list of variables to compute the physics
+                tendencies of.
+                
+        """
+        super().__init__(*args, **kwargs)
+        self._variables = tendency_variables
+
+    def _step_physics(self) -> Mapping[str, xr.DataArray]:
+        before = {key: self._state[key] for key in self._variables}
+        super()._step_physics()
+        after = {key: self._state[key] for key in self._variables}
+
+        tendency = {
+            f"tendency_of_{key}_due_to_fv3_physics": (after[key] - before[key])
+            / self._timestep
+            for key in self._variables
+        }
+        return tendency
+
+
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
-    if comm.rank == 0:
-        group = zarr.open_group(
-            runtime.get_config()["scikit_learn"]["zarr_output"], mode="w"
-        )
-    else:
-        group = None
+    config = runtime.get_config()
+    partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
+    diag_files = runtime.get_diagnostic_files(config, partitioner, comm)
 
-    group = comm.bcast(group, root=0)
+    loop = MonitoredPhysicsTimeLoop(
+        tendency_variables=config.get("scikit_learn", {}).get(
+            "physics_tendency_vars", []
+        ),
+        comm=comm,
+    )
 
-    for i, (_, diagnostics) in enumerate(TimeLoop(comm=comm)):
-        if i == 0:
-            writers = runtime.init_writers(group, comm, diagnostics)
-        runtime.append_to_writers(writers, diagnostics)
+    for time, diagnostics in loop:
+        for diag_file in diag_files:
+            diag_file.observe(time, diagnostics)

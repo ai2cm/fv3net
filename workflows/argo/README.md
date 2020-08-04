@@ -71,7 +71,7 @@ Typically, `runs` will be stored in a json file (e.g. `rundirs.json`).
 
 You can create a report from this json file using the following command from a bash shell:
 ```
-argo submit --from workflowtemplate/prognostic-run-report \
+argo submit --from workflowtemplate/prognostic-run-diags \
     -p runs="$(< rundirs.json)" \
     -p docker-image=<dockerimage> \
     --name <name>
@@ -84,7 +84,3 @@ If succesful, the completed report will be available at
 
 
 [1]: http://storage.googleapis.com/vcm-ml-public/experiments-2020-03/prognostic_run_diags/combined.html
-
-### Offline_diagnostics
-
-See `offline_diagnostics.yaml` for more details.

@@ -72,16 +72,23 @@ test:
 	pytest external tests
 
 test_prognostic_run:
-	IMAGE=prognostic_run $(MAKE) -C workflows/prognostic_c48_run/ test
+	docker run prognostic_run pytest
 
 test_unit:
-	pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
+	coverage run -m pytest -m "not regression" --mpl --mpl-baseline-path=tests/baseline_images
 
 test_regression:
-	pytest -vv -m regression -s
+	coverage run -m pytest -vv -m regression -s
 
 test_dataflow:
-	pytest -vv tests/dataflow/ -s
+	coverage run -m pytest -vv tests/dataflow/ -s
+
+coverage_report:
+	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3util/**.py'
+
+htmlcov:
+	rm -rf $@
+	coverage html -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3util/**.py'
 
 test_argo:
 	make -C workflows/argo/ test

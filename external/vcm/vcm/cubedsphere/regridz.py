@@ -339,6 +339,7 @@ def regrid_vertical(
         )
         .rename({z_dim_center_f_out: z_dim_center})
         .transpose(*original_dim_order)
+        .assign_attrs(f_in.attrs)
     )
 
 

@@ -1,4 +1,4 @@
-base_version: v0.4
+base_version: v0.5
 scikit_learn:
   rename_inputs:
     total_sky_downward_shortwave_flux_at_top_of_atmosphere: DSWRFtoa_train
