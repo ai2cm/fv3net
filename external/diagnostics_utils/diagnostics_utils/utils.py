@@ -280,6 +280,21 @@ def snap_mask_to_type(
     return types
 
 
+def _units_from_var(var):
+    if "q1" in var.lower():
+        if "column_integrated" in var:
+            return "[W/m^2]"
+        else:
+            return "[K/s]"
+    elif "q2" in var.lower():
+        if "column_integrated" in var:
+            return "[mm/day]"
+        else:
+            return "[kg/kg/s]"
+    else:
+        return None
+
+
 def snap_net_precipitation_to_type(
     net_precipitation: xr.DataArray, type_names: Mapping[str, str] = None
 ) -> xr.DataArray:
