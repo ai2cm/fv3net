@@ -76,12 +76,17 @@ class StandardScaler:
         return self._denormalize_layer
 
     def dump(self, f: BinaryIO):
-        return np.savez(f, mean=self.mean, std=self.std)
+        data = {}
+        if self.mean is not None:
+            data["mean"] = self.mean
+        if self.std is not None:
+            data["std"] = self.std
+        return np.savez(f, **data)
 
     @classmethod
     def load(cls, f: BinaryIO):
         data = np.load(f)
         scaler = cls()
-        scaler.mean = data["mean"]
-        scaler.std = data["std"]
+        scaler.mean = data.get("mean")
+        scaler.std = data.get("std")
         return scaler

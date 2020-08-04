@@ -8,16 +8,14 @@ import tensorflow as tf
 Weight = Union[int, float, np.ndarray]
 
 
-def _weighted_loss(weights, loss):
-    weights = tf.constant(weights.astype(np.float32))
-
+def _weighted_mse(weights, std):
     def custom_loss(y_true, y_pred):
-        return loss(tf.multiply(y_true, weights), tf.multiply(y_pred, weights))
+        return tf.math.reduce_mean(weights * tf.math.square((y_pred - y_true) / std))
 
     return custom_loss
 
 
-def _pack_weights(y_packer: ArrayPacker, y_std, **weights):
+def _pack_weights(y_packer: ArrayPacker, **weights):
     """Returns a size [1, n_features] array of stacked weights corresponding to a
     stacked array, based on values given in a weights dictionary. Default weight is
     1 split between all features of a quantity. Values can be scalar or an array giving
@@ -36,7 +34,7 @@ def _pack_weights(y_packer: ArrayPacker, y_std, **weights):
             array = np.zeros([1]) + weight
             dims = [y_packer.sample_dim_name]
         data_vars[name] = (dims, array)
-    return y_packer.to_array(xr.Dataset(data_vars)) / y_std  # type: ignore
+    return y_packer.to_array(xr.Dataset(data_vars))
 
 
 def _divide_scalar_weights_by_feature_counts(
@@ -53,17 +51,19 @@ def _divide_scalar_weights_by_feature_counts(
                 f"received weight of type {type(total_variable_weight)} for {name}, "
                 "only int, float, or ndarray are accepted"
             )
-        weights[name]
 
 
-def get_weighted_loss(
-    loss: Callable, y_packer: ArrayPacker, y_std: np.ndarray, **weights: Weight,
+def get_weighted_mse(
+    y_packer: ArrayPacker, y_std: np.ndarray, **weights: Weight,
 ) -> Callable:
-    """Retrieve a weighted loss function for a given set of weights.
+    """Retrieve a weighted mean squared error loss function for a given set of weights.
 
-    The weights are normalized by standard deviation of that feature, so that the weight
-    given as input to this function represents the overall contribution of that
-    feature to the loss, *independent of how much variance that feature has*.
+    Each feature is divided by the standard deviation before multiplying by the given
+    weights, so that the weight given as input to this function represents the overall
+    contribution of that feature to the loss, *independent of how much variance
+    that feature has*.
+
+    If you do not want scaling to occur, provide a standard deviation of 1.
 
     If a uniform weighting is given to specific
     humidity, and the variance of specific humidity is much smaller in upper levels,
@@ -71,13 +71,12 @@ def get_weighted_loss(
     to the loss as lower levels, despite the lower variance.
 
     Args:
-        loss: the basic loss function, such as tf.keras.losses.MSE
         y_packer: an object which creates stacked arrays
         y_std: the standard deviation of a stacked array of outputs
         **weights: for each variable, either a scalar weight which will be split between
             all features of that variable, or an array specifying the weight
             for each feature of that variable. Default weight is 1 split between all
-            features of that variable. Weights should be normalized and indicate
+            features of that variable. Weights indicate
             how much contribution that feature will give to the loss,
             independent of the variance of that feature.
 
@@ -85,5 +84,5 @@ def get_weighted_loss(
         weighted_loss
     """
     # convert scalar weights from total variable weight to per-feature weight
-    weights = _pack_weights(y_packer, y_std, **weights)
-    return _weighted_loss(weights, loss)
+    weights = _pack_weights(y_packer, **weights)
+    return _weighted_mse(weights, y_std)

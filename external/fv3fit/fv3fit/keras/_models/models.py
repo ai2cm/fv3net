@@ -8,7 +8,8 @@ import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
 from .normalizer import StandardScaler
-from .loss import get_weighted_loss
+from .loss import get_weighted_mse
+import yaml
 
 logger = logging.getLogger(__file__)
 
@@ -90,6 +91,7 @@ class PackedKerasModel(Model):
     _Y_PACKER_FILENAME = "y_packer.json"
     _X_SCALER_FILENAME = "X_scaler.npz"
     _Y_SCALER_FILENAME = "y_scaler.npz"
+    _OPTIONS_FILENAME = "options.yml"
 
     def __init__(
         self,
@@ -97,6 +99,7 @@ class PackedKerasModel(Model):
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
+        normalize_loss: bool = True,
     ):
         """Initialize the model.
 
@@ -110,6 +113,8 @@ class PackedKerasModel(Model):
                 weight of the variable, or a vector referring to the weight for each
                 feature of the variable. Default is a total weight of 1
                 for each variable.
+            normalize_loss: if True (default), normalize outputs by their standard
+                deviation before computing the loss function
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
@@ -125,6 +130,7 @@ class PackedKerasModel(Model):
             self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
         else:
             self.weights = weights
+        self._normalize_loss = normalize_loss
 
     @property
     def model(self) -> tf.keras.Model:
@@ -170,8 +176,9 @@ class PackedKerasModel(Model):
 
     def dump(self, path: str) -> None:
         with put_dir(path) as path:
-            model_filename = os.path.join(path, self._MODEL_FILENAME)
-            self.model.save(model_filename)
+            if self._model is not None:
+                model_filename = os.path.join(path, self._MODEL_FILENAME)
+                self.model.save(model_filename)
             with open(os.path.join(path, self._X_PACKER_FILENAME), "w") as f:
                 self.X_packer.dump(f)
             with open(os.path.join(path, self._Y_PACKER_FILENAME), "w") as f:
@@ -180,17 +187,22 @@ class PackedKerasModel(Model):
                 self.X_scaler.dump(f_binary)
             with open(os.path.join(path, self._Y_SCALER_FILENAME), "wb") as f_binary:
                 self.y_scaler.dump(f_binary)
+            with open(os.path.join(path, self._OPTIONS_FILENAME), "w") as f:
+                yaml.safe_dump({"normalize_loss": self._normalize_loss}, f)
 
     @property
     def loss(self):
         # putting this on a property method is needed so we can save and load models
         # using custom loss functions. If using a custom function, it must either
-        # be named custom_loss, as used in the load method below,
+        # be named "custom_loss", as used in the load method below,
         # or it must be registered with keras as a custom object.
+        # Do this by defining the function returned by the decorator as custom_loss.
         # See https://github.com/keras-team/keras/issues/5916 for more info
-        return get_weighted_loss(
-            tf.keras.losses.MSE, self.y_packer, self.y_scaler.std, **self.weights
-        )
+        std = self.y_scaler.std
+        std[std == 0] = 1.0
+        if not self._normalize_loss:
+            std[:] = 1.0
+        return get_weighted_mse(self.y_packer, std, **self.weights)
 
     @classmethod
     def load(cls, path: str) -> Model:
@@ -203,17 +215,24 @@ class PackedKerasModel(Model):
                 X_scaler = StandardScaler.load(f_binary)
             with open(os.path.join(path, cls._Y_SCALER_FILENAME), "rb") as f_binary:
                 y_scaler = StandardScaler.load(f_binary)
+            with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
+                options = yaml.safe_load(f)
+                print(options)
             obj = cls(
-                X_packer.sample_dim_name, X_packer.pack_names, y_packer.pack_names
+                X_packer.sample_dim_name,
+                X_packer.pack_names,
+                y_packer.pack_names,
+                normalize_loss=options["normalize_loss"],
             )
             obj.X_packer = X_packer
             obj.y_packer = y_packer
             obj.X_scaler = X_scaler
             obj.y_scaler = y_scaler
             model_filename = os.path.join(path, cls._MODEL_FILENAME)
-            obj._model = tf.keras.models.load_model(
-                model_filename, custom_objects={"custom_loss": obj.loss}
-            )
+            if os.path.exists(model_filename):
+                obj._model = tf.keras.models.load_model(
+                    model_filename, custom_objects={"custom_loss": obj.loss}
+                )
             return obj
 
 
@@ -229,13 +248,20 @@ class DenseModel(PackedKerasModel):
         output_variables: Iterable[str],
         depth: int = 3,
         width: int = 16,
+        weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
+        normalize_loss: bool = True,
     ):
         self._width = width
         self._depth = depth
-        super().__init__(sample_dim_name, input_variables, output_variables)
+        super().__init__(
+            sample_dim_name,
+            input_variables,
+            output_variables,
+            weights=weights,
+            normalize_loss=normalize_loss,
+        )
 
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
-        model = tf.keras.Sequential()
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
         for i in range(self._depth - 1):

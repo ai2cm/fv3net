@@ -1,5 +1,5 @@
 from typing import Iterable
-from fv3fit.keras._models.loss import _pack_weights, _weighted_loss
+from fv3fit.keras._models.loss import _pack_weights, _weighted_mse
 from fv3fit._shared import ArrayPacker
 import numpy as np
 import xarray as xr
@@ -47,118 +47,88 @@ def packer(names: Iterable[str], dataset: xr.Dataset) -> ArrayPacker:
 
 
 @pytest.mark.parametrize(
-    "names,weights,features,std,reference",
+    "names,weights,features,reference",
     [
         pytest.param(
-            ["a"],
-            {"a": 1.0},
-            {"a": 1},
-            np.array([1]),
-            np.array([[1]]),
-            id="one_scalar_std_1_weight_1",
+            ["a"], {"a": 1.0}, {"a": 1}, np.array([[1]]), id="one_scalar_weight_1",
         ),
         pytest.param(
-            ["a"],
-            {"a": 1.0},
-            {"a": 1},
-            np.array([2]),
-            np.array([[0.5]]),
-            id="one_scalar_std_2_weight_1",
-        ),
-        pytest.param(
-            ["a"],
-            {"a": 2.0},
-            {"a": 1},
-            np.array([1]),
-            np.array([[2]]),
-            id="one_scalar_std_1_weight_2",
-        ),
-        pytest.param(
-            ["a"],
-            {"a": 1.0},
-            {"a": 4},
-            np.array([1.0, 1.0, 1.0, 1.0]),
-            np.array([[0.25, 0.25, 0.25, 0.25]]),
-            id="one_vector_std_1_weight_1",
-        ),
-        pytest.param(
-            ["a"],
-            {"a": 1.0},
-            {"a": 4},
-            np.array([0.25, 1.0, 5.0, 0.25]),
-            np.array([[1.0, 0.25, 0.05, 1.0]]),
-            id="one_vector_multiple_std_weight_1",
+            ["a"], {"a": 2.0}, {"a": 1}, np.array([[2]]), id="one_scalar_weight_2",
         ),
         pytest.param(
             ["a"],
             {"a": 4.0},
             {"a": 4},
-            np.array([1.0, 1.0, 1.0, 1.0]),
             np.array([[1.0, 1.0, 1.0, 1.0]]),
-            id="one_vector_std_1_weight_4",
-        ),
-        pytest.param(
-            ["a"],
-            {"a": 1.0},
-            {"a": 4},
-            np.array([0.25, 0.25, 0.25, 0.25]),
-            np.array([[1.0, 1.0, 1.0, 1.0]]),
-            id="one_vector_std_0_25_weight_1",
+            id="one_vector_weight_4",
         ),
         pytest.param(
             ["a", "b"],
             {"a": 1.0, "b": 2.0},
             {"a": 1, "b": 1},
-            np.array([2, 2]),
-            np.array([[0.5, 1]]),
+            np.array([[1.0, 2.0]]),
             id="two_scalars",
         ),
         pytest.param(
             ["a", "b"],
             {"a": 1.0, "b": 2.0},
             {"a": 2, "b": 1},
-            np.array([2, 2, 2]),
-            np.array([[0.25, 0.25, 1]]),
+            np.array([[0.5, 0.5, 2]]),
             id="one_scalar_one_vector",
         ),
         pytest.param(
             ["b", "a"],
             {"a": 1.0, "b": 2.0},
             {"a": 2, "b": 1},
-            np.array([2, 2, 2]),
-            np.array([[1, 0.25, 0.25]]),
+            np.array([[2.0, 0.5, 0.5]]),
             id="one_scalar_one_vector_reverse_order",
         ),
     ],
     indirect=["names", "weights", "features"],
 )
-def test_pack_weights(packer, std, weights, reference):
-    result = _pack_weights(packer, std, **weights)
+def test_pack_weights(packer, weights, reference):
+    result = _pack_weights(packer, **weights)
     np.testing.assert_array_equal(result, reference)
 
 
 @pytest.mark.parametrize(
-    "weights, loss, y_true, y_pred, reference",
+    "weights, std, y_true, y_pred, reference",
     [
         pytest.param(
             np.array([2.0]),
-            lambda x, y: abs(x - y),
+            np.array([1.0]),
             np.array([0.0]),
             np.array([1.0]),
             2.0,
             id="double_single_feature_loss",
         ),
         pytest.param(
+            np.array([2.0]),
+            np.array([0.5]),
+            np.array([0.0]),
+            np.array([1.0]),
+            8.0,
+            id="double_single_feature_loss_low_std",
+        ),
+        pytest.param(
             np.array([0.5, 1.0, 2.0]),
-            lambda x, y: sum(abs(x - y)),
+            np.array([1.0, 1.0, 1.0]),
             np.array([0.0, 0, 0]),
             np.array([1.0, 10, 100]),
-            210.5,
+            20100.5 / 3.0,
             id="varying_weight_loss",
+        ),
+        pytest.param(
+            np.array([1.0, 1.0, 1.0]),
+            np.array([0.5, 1.0, 2.0]),
+            np.array([0.0, 0, 0]),
+            np.array([1.0, 10, 100]),
+            (4 + 10 ** 2 + (100 / 2.0) ** 2) / 3.0,
+            id="varying_std_loss",
         ),
     ],
 )
-def test_weighted_loss(weights, loss, y_true, y_pred, reference):
-    loss = _weighted_loss(weights, loss)
+def test_weighted_mse(weights, std, y_true, y_pred, reference):
+    loss = _weighted_mse(weights, std)
     result = loss(y_true, y_pred)
-    np.testing.assert_array_equal(result, reference)
+    np.testing.assert_almost_equal(result, reference)
