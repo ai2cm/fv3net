@@ -110,7 +110,7 @@ def plot_diurnal_cycles(
 
 def _plot_generic_data_array(
     da: xr.DataArray,
-    tag: str = None,
+    title: str = None,
     xlabel: str = None,
     ylabel: str = None,
     xlim: Sequence[float] = None,
@@ -120,15 +120,14 @@ def _plot_generic_data_array(
     da.plot()
     if xlabel:
         plt.xlabel(xlabel)
-    units = units_from_var(da.name) or ""
-    if ylabel is None:
-        ylabel = " ".join([da.name.replace("_", " ").replace("-", ","), units])
-    plt.ylabel(ylabel)
     if xlim:
         plt.xlim(xlim)
     if ylim:
         plt.ylim(ylim)
-    if tag:
-        tag += "_"
+    units = units_from_var(da.name) or ""
+    ylabel = ylabel or units
+    title = title or " ".join([da.name.replace("_", " ").replace("-", ",")])
+    plt.ylabel(ylabel)
+    plt.title(title)
     plt.tight_layout()
     return fig
