@@ -35,7 +35,7 @@ def reduce_to_diagnostic(
         primary_vars: sequence of variables for which to compute column integrals
             and composite means; optional, defaults to dQs, pQs and Qs
         net_precipitation: xr.DataArray of net_precipitation values for computing
-            composites; optional
+            composites, typically supplied by SHiELD net_precipitation; optional
         time_dim: name of the dataset time dimension to average over; optional,
             defaults to 'time'
         derivation_dim: name of the dataset derivation dimension containing coords
@@ -134,7 +134,9 @@ def insert_net_terms_as_Qs(
 ) -> xr.Dataset:
     """Insert the SHiELD net_* variables as the column_integrated_Q* variables
         for coordinate 'coarsened_SHiELD', also drop the net_* variables and the
-        'coarse_FV3GFS' coordinate
+        'coarse_FV3GFS' coordinate; this is useful in the offline_ML_diags routine
+        because eliminates an unnecessary coordinate and includes SHiELD variables
+        in the calculated diagnostics and metrics
         
     Args:
         ds: xr dataset to from which to compute diagnostics
