@@ -103,6 +103,12 @@ class PackedKerasModel(Model):
     ):
         """Initialize the model.
 
+        Loss is computed on normalized outputs only if `normalized_loss` is True
+        (default). This allows you to provide weights that will be proportional
+        to the importance of that feature within the loss. If `normalized_loss`
+        is False, you should consider scaling your weights to decrease the importance
+        of features that are orders of magnitude larger than other features.
+
         Args:
             sample_dim_name: name of the sample dimension in datasets used as
                 inputs and outputs.
@@ -217,7 +223,6 @@ class PackedKerasModel(Model):
                 y_scaler = StandardScaler.load(f_binary)
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
-                print(options)
             obj = cls(
                 X_packer.sample_dim_name,
                 X_packer.pack_names,
