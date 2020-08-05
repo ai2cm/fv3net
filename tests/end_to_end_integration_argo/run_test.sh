@@ -8,7 +8,7 @@ then
     exit 1
 fi
 
-SLEEP_TIME=30
+SLEEP_TIME=15
 
 function getJob {
     argo get $1 -n $2

@@ -4,6 +4,7 @@ History
 
 latest
 ------
+* Add new end-to-end integration test that uses nudged-to-shield run to generate training data and argo for orchestration
 * Move code in fv3net.regression to new package `fv3fit`, except for SklearnPredictionMapper which is moved to `workflows/offline_ml_diags`
 * Add -<dQ2> to physics precipitation within prognostic run runfile.
 * Add regression tests for model training and offline ML diagnostic steps
