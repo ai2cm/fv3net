@@ -191,7 +191,7 @@ jobs:
       - run:
           name: Install argo
           command: |
-            curl -sLO https://github.com/argoproj/argo/releases/download/v2.10.0-rc5/argo-darwin-amd64.gz
+            curl -sLO https://github.com/argoproj/argo/releases/download/v2.10.0-rc5/argo-linux-amd64.gz
             gunzip argo-darwin-amd64.gz
             chmod +x argo-darwin-amd64
             mv ./argo-darwin-amd64 /usr/local/bin/argo
