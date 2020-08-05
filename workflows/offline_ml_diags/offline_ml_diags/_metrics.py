@@ -196,7 +196,7 @@ def _insert_r2(
         name_pieces = rmse_var.split("/")
         std_var = "/".join(name_pieces[:-1] + [f"mean_vs_{target_coord}"])
         r2_var = "/".join([s if s != mse_coord else r2_coord for s in name_pieces])
-        ds[r2_var] = 1.0 - (ds[rmse_var] / ds[std_var]) 
+        ds[r2_var] = 1.0 - (ds[rmse_var] / ds[std_var])
     return ds
 
 
@@ -290,7 +290,7 @@ def _bias(da_target: xr.DataArray, da_pred: xr.DataArray,) -> xr.DataArray:
 def _mse(
     da_target: xr.DataArray, da_pred: xr.DataArray,
 ):
-    return(da_target - da_pred) ** 2
+    return (da_target - da_pred) ** 2
 
 
 def _weighted_average(
