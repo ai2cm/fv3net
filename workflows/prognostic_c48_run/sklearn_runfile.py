@@ -113,13 +113,42 @@ def predict(model: RenamingAdapter, state: State) -> State:
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
+def apply_isochoric_temperature_update(
+    temperature: xr.DataArray, temperature_difference_isobaric: xr.DataArray
+) -> xr.DataArray:
+    """Apply an isobaric temperature update to the non-hydrostatic model
+
+    This formula is approximate and assumes the specific heats are
+    represented by their dry values.
+
+    When run in non-hydrostatic mode, FV3 implicitly uses the isochoric
+    version of the first law::
+
+        cv dT_isochoric = Q1
+
+    However, both the nudged-to-obs, fine-resolution, and baseline physics
+    packages compute temperature tendencies that are nearly isobaric::
+
+        cp dT_isobaric = Q1
+
+    Therefore, to apply an isobaric temperature tendency in the
+    non-hydrostatic model, we need to multiple by cp/cv.
+    """
+
+    cp = 1004
+    R = 287
+    cv = cp - R
+
+    return temperature + temperature_difference_isobaric * cp / cv
+
+
 def apply(state: State, tendency: State, dt: float) -> State:
     """Given state and tendency prediction, return updated state.
     Returned state only includes variables updated by ML model."""
     with xr.set_options(keep_attrs=True):
         updated = {
             SPHUM: state[SPHUM] + tendency["dQ2"] * dt,
-            TEMP: state[TEMP] + tendency["dQ1"] * dt,
+            TEMP: apply_isochoric_temperature_update(state[TEMP], tendency["dQ1"] * dt),
         }
     return updated  # type: ignore
 
