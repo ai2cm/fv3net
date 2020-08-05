@@ -8,10 +8,14 @@ then
     exit 1
 fi
 
-SLEEP_TIME=60
+SLEEP_TIME=30
 
 function getJob {
-    argo get $1 -n $2 -o json
+    argo get $1 -n $2
+}
+
+function getPhase {
+    argo get $1 -n $2 -o json | jq -r .status.phase
 }
 
 function waitForComplete {
@@ -19,17 +23,17 @@ function waitForComplete {
     jobName=$1
     NAMESPACE=$2
     timeout=$(date -ud "30 minutes" +%s)
-    job_phase=$(getJob $jobName $NAMESPACE | jq -r .status.phase)
-    echo "$job_phase"
+    job_phase=$(getPhase $jobName $NAMESPACE)
     while [[ $(date +%s) -le $timeout ]] && [[ $job_phase == Running ]]
     do
+        echo "$(getJob $jobName $NAMESPACE)"
         echo "$(date '+%Y-%m-%d %H:%M')" Job active: "$jobName" ... sleeping ${SLEEP_TIME}s
         sleep $SLEEP_TIME
-        job_phase=$(getJob $jobName $NAMESPACE | jq -r .status.phase)
+        job_phase=$(getPhase $jobName $NAMESPACE)
     done
 
     # Check job phase
-    job_phase=$(getJob $jobName $NAMESPACE | jq -r .status.phase)
+    job_phase=$(getPhase $jobName $NAMESPACE)
     if [[ $job_phase == Succeeded ]]
     then
         echo Job successful: "$jobName"
