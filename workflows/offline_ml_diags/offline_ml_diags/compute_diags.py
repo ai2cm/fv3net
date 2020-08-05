@@ -1,7 +1,6 @@
 import argparse
 import intake
 import logging
-import joblib
 import json
 import numpy as np
 import os
@@ -15,8 +14,8 @@ import diagnostics_utils as utils
 import loaders
 from vcm import safe
 from vcm.cloud import get_fs
-from ._mapper import SklearnPredictionMapper
 from ._metrics import calc_metrics
+from . import _model_loaders as model_loaders
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -168,10 +167,14 @@ if __name__ == "__main__":
         config["data_path"], **config.get("mapping_kwargs", {})
     )
 
-    fs_model = get_fs(args.model_path)
-    with fs_model.open(args.model_path, "rb") as f:
-        model = joblib.load(f)
-    pred_mapper = SklearnPredictionMapper(
+    model_loader = getattr(
+        model_loaders, config.get("model_loader", "load_sklearn_model")
+    )
+    model, prediction_mapper = model_loader(
+        args.model_path, **config.get("model_loader_kwargs", {})
+    )
+
+    pred_mapper = prediction_mapper(
         base_mapper, model, grid=grid, **config.get("model_mapper_kwargs", {})
     )
 
