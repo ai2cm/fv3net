@@ -1,4 +1,18 @@
-root: gs://vcm-ml-scratch/oliwm/test-end-to-end-integration
+root: $GCS_OUTPUT_URL
+image-tag: $VERSION
+restart-pvc: nudging-read-only
+initial-condition: "20160801.003000"
+reference-restarts: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
+nudging-times: |
+  [
+    "20160801.001500",
+    "20160801.004500"
+  ]
+train-times: |
+  [
+    "20160801.003000",
+    "20160801.010000"
+  ]
 nudging-config: | 
   base_version: v0.5
   forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
@@ -26,7 +40,6 @@ nudging-config: |
       do_sat_adj: false
     gfdl_cloud_microphysics_nml:
       fast_sat_adj: false
-restart-pvc: nudging-read-only
 training-config: | 
   model_type: sklearn_random_forest
   hyperparameters:
@@ -58,16 +71,3 @@ prognostic-run-config: |
       do_sat_adj: false
     gfdl_cloud_microphysics_nml:
       fast_sat_adj: false
-image-tag: ${VERSION}
-initial-condition: "20160801.003000"
-reference-restarts: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
-nudging-times: |
-  [
-    "20160801.001500",
-    "20160801.004500"
-  ]
-train-times: |
-  [
-    "20160801.003000",
-    "20160801.010000"
-  ]
