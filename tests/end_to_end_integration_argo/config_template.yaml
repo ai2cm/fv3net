@@ -15,7 +15,7 @@ train-times: |
   ]
 nudging-config: | 
   base_version: v0.4
-  forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+  forcing: gs://vcm-fv3config/data/base_forcing/v1.0/
   initial_conditions: /mnt/input/coarsen_restarts/20160801.001500/
   nudging:
     restarts_path: /mnt/input/coarsen_restarts/
