@@ -8,6 +8,9 @@ from pytz import timezone
 PACIFIC_TZ = "US/Pacific"
 NOW_FORMAT = "%Y-%m-%d %H:%M:%S %Z"
 
+Metadata = Mapping[str, Union[str, float, int, bool]]
+Metrics = Mapping[str, Mapping[str, str]]
+
 HTML_TEMPLATE = Template(
     """
     <html>
@@ -81,11 +84,21 @@ def resolve_plot(obj):
         return obj
 
 
-def _save_figure(fig, filename: str, section_dir: str, output_dir: str = None):
+def _save_figure(fig, filepath_relative_to_report: str, output_dir: str = None):
+    """Saves figures into the directory structure expected by the report.
+
+    Args:
+        fig: matplotlib figure to save
+        filepath_relative_to_report: path to save figure to, relative to
+            where the report is saved (top level of output_dir if provided).
+        output_dir: Directory that contains the report at the top level.
+            If default None, everything is saved in working dir.
+    """
     output_dir = output_dir or ""
+    section_dir = os.path.dirname(filepath_relative_to_report.strip("/"))
     if not os.path.exists(os.path.join(output_dir, section_dir)):
         os.makedirs(os.path.join(output_dir, section_dir))
-    fig.savefig(os.path.join(output_dir or "", filename))
+    fig.savefig(os.path.join(output_dir or "", filepath_relative_to_report))
 
 
 def insert_report_figure(
@@ -95,7 +108,8 @@ def insert_report_figure(
     section_name: str,
     output_dir: str = None,
 ):
-    """[summary]
+    """Saves figure into directory section_name in top level of output_dir
+    and enters it into the report.
 
     Args:
         sections: Dict with section name keys and list of filenames
@@ -106,17 +120,17 @@ def insert_report_figure(
             
     """
     section_dir = section_name.replace(" ", "_")
-    filename = os.path.join(section_dir, filename)
-    _save_figure(fig, filename, section_dir, output_dir)
+    filepath_relative_to_report = os.path.join(section_dir, filename)
+    _save_figure(fig, filepath_relative_to_report, section_dir, output_dir)
     sections.setdefault(section_name, []).append(filename)
 
 
 def create_html(
     sections: Mapping[str, Sequence[str]],
     title: str,
-    metadata: Mapping[str, Union[str, float, int, bool]] = None,
+    metadata: Metadata = None,
     html_header: str = None,
-    metrics: Mapping[str, Mapping[str, Union[str, float]]] = None,
+    metrics: Metrics = None,
 ) -> str:
     """Return html report of figures described in sections.
 

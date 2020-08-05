@@ -2,30 +2,34 @@ import fsspec
 import json
 import os
 import shutil
-from typing import Mapping, Union, Sequence
+from typing import Mapping, Sequence
 import xarray as xr
 
-from report import create_html
+import report
 from vcm.cloud import gsutil
 
 
-def _write_report(
+def write_report(
     output_dir: str,
     title: str,
     sections: Mapping[str, Sequence[str]],
-    metadata: Mapping[str, Union[str, float, int, bool]] = None,
-    metrics: Mapping[str, Mapping[str, Union[str, float]]] = None,
+    metadata: report.Metadata = None,
+    report_metrics: report.Metrics = None,
     html_header: str = None,
 ):
     filename = title.replace(" ", "_") + ".html"
-    html_report = create_html(
-        sections, title, metadata=metadata, metrics=metrics, html_header=html_header
+    html_report = report.create_html(
+        sections,
+        title,
+        metadata=metadata,
+        metrics=report_metrics,
+        html_header=html_header,
     )
     with open(os.path.join(output_dir, filename), "w") as f:
         f.write(html_report)
 
 
-def _open_diagnostics_outputs(
+def open_diagnostics_outputs(
     data_dir, diagnostics_nc_name: str, diurnal_nc_name: str, metrics_json_name: str,
 ):
     with fsspec.open(os.path.join(data_dir, diagnostics_nc_name), "rb") as f:
@@ -37,14 +41,14 @@ def _open_diagnostics_outputs(
     return ds_diags, ds_diurnal, metrics
 
 
-def _copy_outputs(temp_dir, output_dir):
+def copy_outputs(temp_dir, output_dir):
     if output_dir.startswith("gs://"):
         gsutil.copy(temp_dir, output_dir)
     else:
         shutil.copytree(temp_dir, output_dir)
 
 
-def _tidy_title(var: str):
+def tidy_title(var: str):
     title = (
         var.strip("pressure_level")
         .strip("predict_vs_target")
@@ -54,7 +58,7 @@ def _tidy_title(var: str):
     return title[0].upper() + title[1:]
 
 
-def _get_metric_string(
+def get_metric_string(
     metrics: Mapping[str, Mapping[str, float]],
     metric_name: str,
     var: str,
@@ -69,3 +73,18 @@ def _get_metric_string(
         "std"
     ]
     return f"{value:.{precision}f} +/- {std:.{precision}f}"
+
+
+def units_from_Q_name(var):
+    if "q1" in var.lower():
+        if "column_integrated" in var:
+            return "[W/m^2]"
+        else:
+            return "[K/s]"
+    elif "q2" in var.lower():
+        if "column_integrated" in var:
+            return "[mm/day]"
+        else:
+            return "[kg/kg/s]"
+    else:
+        return None

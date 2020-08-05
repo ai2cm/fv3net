@@ -4,7 +4,7 @@ from typing import Sequence, Union
 import xarray as xr
 
 import fv3viz as visualize
-from .utils import units_from_var
+from .utils import _units_from_Q_name
 
 # grid info for the plot_cube function
 MAPPABLE_VAR_KWARGS = {
@@ -48,7 +48,7 @@ def plot_profile_var(
         else:
             ax.set_xlim(xlim or [-1e-7, 1e-7])
             ax.set_xticks(xticks or np.arange(-1e-7, 1.1e-7, 5e-8))
-        ax.set_xlabel(f"{var} {units_from_var(var)}")
+        ax.set_xlabel(f"{var} {_units_from_Q_name(var)}")
     f.set_size_inches([17, 3.5])
     f.set_dpi(dpi)
     f.suptitle(var.replace("_", " "))
@@ -99,7 +99,7 @@ def plot_diurnal_cycles(
     for ax in axes.flatten():
         ax.grid(axis="y")
         ax.set_xlabel("local_time [hrs]")
-        ax.set_ylabel(units_from_var(vars[0]))
+        ax.set_ylabel(_units_from_Q_name(vars[0]))
         ax.set_xlim([0, 23])
         ax.set_xticks(np.linspace(0, 24, 13))
     f.set_size_inches([12, 4 * len(vars)])
@@ -124,7 +124,7 @@ def _plot_generic_data_array(
         plt.xlim(xlim)
     if ylim:
         plt.ylim(ylim)
-    units = units_from_var(da.name) or ""
+    units = _units_from_Q_name(da.name) or ""
     ylabel = ylabel or units
     title = title or " ".join([da.name.replace("_", " ").replace("-", ",")])
     plt.ylabel(ylabel)

@@ -6,13 +6,13 @@ import tempfile
 
 from report import insert_report_figure
 import diagnostics_utils.plot as diagplot
-from diagnostics_utils import units_from_var
 from ._helpers import (
-    _get_metric_string,
-    _write_report,
-    _open_diagnostics_outputs,
-    _copy_outputs,
-    _tidy_title,
+    get_metric_string,
+    write_report,
+    open_diagnostics_outputs,
+    copy_outputs,
+    tidy_title,
+    units_from_Q_name,
 )
 
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     temp_output_dir = tempfile.TemporaryDirectory()
     atexit.register(_cleanup_temp_dir, temp_output_dir)
 
-    ds_diags, ds_diurnal, metrics = _open_diagnostics_outputs(
+    ds_diags, ds_diurnal, metrics = open_diagnostics_outputs(
         args.input_path,
         diagnostics_nc_name=NC_FILE_DIAGS,
         diurnal_nc_name=NC_FILE_DIURNAL,
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     for var in PRESSURE_LEVEL_METRICS_VARS:
         ylim = (0, 1) if "r2" in var.lower() else None
         fig = diagplot._plot_generic_data_array(
-            ds_diags[var], xlabel="pressure [Pa]", ylim=ylim, title=_tidy_title(var)
+            ds_diags[var], xlabel="pressure [Pa]", ylim=ylim, title=tidy_title(var)
         )
         insert_report_figure(
             report_sections,
@@ -158,20 +158,20 @@ if __name__ == "__main__":
     metrics_formatted = {}
     for var in COLUMN_INTEGRATED_VARS:
         metrics_formatted[var.replace("_", " ")] = {
-            "r2": _get_metric_string(metrics, "r2", var),
+            "r2": get_metric_string(metrics, "r2", var),
             "bias": " ".join(
-                [_get_metric_string(metrics, "bias", var), units_from_var(var)]
+                [get_metric_string(metrics, "bias", var), units_from_Q_name(var)]
             ),
         }
 
-    _write_report(
+    write_report(
         output_dir=temp_output_dir.name,
         title="ML offline diagnostics",
         sections=report_sections,
         metrics=metrics_formatted,
     )
 
-    _copy_outputs(temp_output_dir.name, args.output_path)
+    copy_outputs(temp_output_dir.name, args.output_path)
     logger.info(f"Save report to {args.output_path}")
 
     # Explicitly call .close() or xarray raises errors atexit
