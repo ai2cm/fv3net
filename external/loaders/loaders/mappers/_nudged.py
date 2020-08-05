@@ -492,9 +492,10 @@ def open_merged_nudge_to_obs(
     consolidated: bool = False,
 ) -> Mapping[str, xr.Dataset]:
     """
-    Load nudging data mapper for use with training.  Currently merges the
-    two files after_physics and nudging_tendencies, which are required inputs
-    for the training
+    Load nudging data mapper for use with training. Currently merges the
+    two files after_physics and nudging_tendencies. Since the nudge-to-obs run does
+    nudging within the physics routines, the nudging increments are subtracted from
+    the after_physics state in order to provide the actual "before nudging" state.
 
     Args:
         url: Path to directory with nudging output
@@ -511,6 +512,7 @@ def open_merged_nudge_to_obs(
             nudging tendencies. Defaults to
             {"air_temperature": "dQ1", "specific_humidity": "dQ2"}
         timestep_physics_seconds: model physics timestep in seconds. Defaults to 900.
+            Required in order to subtract the nudging increment from the state.
         consolidated: if true, open the underlying zarr stores with the consolidated
             flag to xr.open_zarr.
     """
@@ -555,7 +557,10 @@ def open_merged_nudge_to_obs_full_tendencies(
     consolidated: bool = False,
 ) -> Mapping[str, xr.Dataset]:
     """
-    Load mapper to nudge-to-obs dataset containing both dQ and pQ tendency terms
+    Load mapper to nudge-to-obs dataset containing both dQ and pQ tendency terms.
+    Since the nudge-to-obs run does nudging within the physics routines, the physics
+    tendency is equal to the difference between the after_dynamics and after_physics
+    checkpoints minus the nudging tendency.
 
     Args:
         nudging_url: Path to directory with nudging output
