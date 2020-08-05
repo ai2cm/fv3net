@@ -46,7 +46,6 @@ class Model(abc.ABC):
     datasets, and is trained on sequences of such datasets.
     """
 
-    @abc.abstractmethod
     def __init__(
         self,
         sample_dim_name: str,
@@ -68,7 +67,9 @@ class Model(abc.ABC):
                 "Model base class received unexpected keyword arguments: "
                 f"{list(hyperparameters.keys())}"
             )
-        super().__init__()
+        self.input_variables = input_variables
+        self.output_variables = output_variables
+        self.sample_dim_name = sample_dim_name
 
     @abc.abstractmethod
     def fit(self, batches: Sequence[xr.Dataset]) -> None:
