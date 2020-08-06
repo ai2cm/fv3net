@@ -14,9 +14,13 @@ from loaders.mappers._nudged import (
     GroupByTime,
     SubsetTimes,
     NudgedFullTendencies,
+    SubtractNudgingIncrement,
+    SubtractNudgingTendency,
     open_merged_nudged,
+    open_merged_nudge_to_obs,
     _open_nudging_checkpoints,
     open_merged_nudged_full_tendencies,
+    open_merged_nudge_to_obs_full_tendencies,
 )
 
 NTIMES = 12
@@ -200,36 +204,9 @@ class MockMergeNudgedMapper:
 
 @pytest.fixture
 def nudged_source():
-    example_da = xr.DataArray(
-        np.full((4, 1), 10.0),
-        {
-            "time": xr.DataArray(
-                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
-            ),
-            "x": xr.DataArray([0], dims=["x"]),
-        },
-        ["time", "x"],
-    )
-    air_temperature = xr.DataArray(
-        np.full((4, 1), 270.0),
-        {
-            "time": xr.DataArray(
-                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
-            ),
-            "x": xr.DataArray([0], dims=["x"]),
-        },
-        ["time", "x"],
-    )
-    specific_humidity = xr.DataArray(
-        np.full((4, 1), 0.01),
-        {
-            "time": xr.DataArray(
-                [f"2020050{i + 1}.000000" for i in range(4)], dims=["time"]
-            ),
-            "x": xr.DataArray([0], dims=["x"]),
-        },
-        ["time", "x"],
-    )
+    example_da = value_to_xr_darray(10.0)
+    air_temperature = value_to_xr_darray(270.0)
+    specific_humidity = value_to_xr_darray(0.01)
 
     net_term_vars = [
         "total_sky_downward_longwave_flux_at_surface",
@@ -254,8 +231,36 @@ def nudged_source():
 
 
 @pytest.fixture
+def merged_source(nudged_source):
+    additional_vars = {
+        "dQ1": value_to_xr_darray(1.0),
+        "dQ2": value_to_xr_darray(0.1),
+    }
+    return nudged_source.assign(additional_vars)
+
+
+@pytest.fixture
+def full_tendency_source(merged_source):
+    additional_vars = {
+        "pQ1": value_to_xr_darray(5.0),
+        "pQ2": value_to_xr_darray(0.5),
+    }
+    return merged_source.assign(additional_vars)
+
+
+@pytest.fixture
 def nudged_mapper(nudged_source):
     return MockMergeNudgedMapper(nudged_source)
+
+
+@pytest.fixture
+def merged_mapper(merged_source):
+    return MockMergeNudgedMapper(merged_source)
+
+
+@pytest.fixture
+def full_tendency_mapper(full_tendency_source):
+    return MockMergeNudgedMapper(full_tendency_source)
 
 
 class MockCheckpointMapper:
@@ -271,6 +276,12 @@ class MockCheckpointMapper:
 def nudged_checkpoint_mapper_param(request, nudged_source):
     source_map = {request.param[0]: nudged_source, request.param[1]: nudged_source}
     return MockCheckpointMapper(source_map)
+
+
+@pytest.fixture
+def constant_checkpoint_mapper(nudged_source):
+    map_sources = {"after_dynamics": nudged_source, "after_physics": nudged_source}
+    return MockCheckpointMapper(map_sources)
 
 
 @pytest.mark.parametrize(
@@ -355,25 +366,12 @@ def checkpoints():
     return ("after_dynamics", "after_physics")
 
 
-def air_temperature(value):
+def value_to_xr_darray(value):
     return xr.DataArray(
         np.full((4, 1), value),
         {
             "time": xr.DataArray(
-                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
-            ),
-            "x": xr.DataArray([0], dims=["x"]),
-        },
-        ["time", "x"],
-    )
-
-
-def specific_humidity(value):
-    return xr.DataArray(
-        np.full((4, 1), value),
-        {
-            "time": xr.DataArray(
-                [f"2020050{i}.000000" for i in range(4)], dims=["time"]
+                [f"2020050{i}.000000" for i in range(1, 5)], dims=["time"]
             ),
             "x": xr.DataArray([0], dims=["x"]),
         },
@@ -383,20 +381,20 @@ def specific_humidity(value):
 
 nudged_source_1 = xr.Dataset(
     {
-        "air_temperature": air_temperature(270.0),
-        "specific_humidity": specific_humidity(0.01),
+        "air_temperature": value_to_xr_darray(270.0),
+        "specific_humidity": value_to_xr_darray(0.01),
     }
 )
 nudged_source_2 = xr.Dataset(
     {
-        "air_temperature": air_temperature(272.0),
-        "specific_humidity": specific_humidity(0.005),
+        "air_temperature": value_to_xr_darray(272.0),
+        "specific_humidity": value_to_xr_darray(0.005),
     }
 )
 nudged_source_3 = xr.Dataset(
     {
-        "air_temperature": air_temperature(272.0),
-        "specific_humidity": specific_humidity(np.nan),
+        "air_temperature": value_to_xr_darray(272.0),
+        "specific_humidity": value_to_xr_darray(np.nan),
     }
 )
 
@@ -475,6 +473,41 @@ def test__physics_tendencies(
         )
 
 
+def test_SubtractNudgingIncrement(merged_mapper):
+    nudging_variables = {"air_temperature": "dQ1", "specific_humidity": "dQ2"}
+    dt = 10
+    adjusted_mapper = SubtractNudgingIncrement(merged_mapper, nudging_variables, dt)
+
+    assert len(adjusted_mapper) == 4
+    key = list(adjusted_mapper.keys())[0]
+    output_ds = adjusted_mapper[key]
+    source_ds = merged_mapper[key]
+    for var in source_ds:
+        assert var in output_ds
+    for var, tendency in nudging_variables.items():
+        xr.testing.assert_allclose(
+            output_ds[var], source_ds[var] - dt * source_ds[tendency],
+        )
+
+
+def test_SubtractNudgingTendency(full_tendency_mapper):
+    nudging_to_physics_tendency = {"dQ1": "pQ1", "dQ2": "pQ2"}
+    subtracted_tendency_mapper = SubtractNudgingTendency(
+        full_tendency_mapper, nudging_to_physics_tendency,
+    )
+
+    assert len(subtracted_tendency_mapper) == 4
+    key = list(subtracted_tendency_mapper.keys())[0]
+    output_ds = subtracted_tendency_mapper[key]
+    source_ds = full_tendency_mapper[key]
+    for var in source_ds:
+        assert var in output_ds
+    for term in ["1", "2"]:
+        xr.testing.assert_allclose(
+            output_ds[f"pQ{term}"], source_ds[f"pQ{term}"] - source_ds[f"dQ{term}"],
+        )
+
+
 @pytest.mark.regression
 def test_open_merged_nudged(nudged_data_dir):
 
@@ -483,6 +516,30 @@ def test_open_merged_nudged(nudged_data_dir):
         nudged_data_dir, merge_files=merge_files, i_start=4, n_times=6,
     )
 
+    assert len(mapper) == 6
+
+
+@pytest.mark.regression
+def test_open_merged_nudge_to_obs(nudged_data_dir):
+
+    merge_files = ("after_physics.zarr", "nudging_tendencies.zarr")
+    rename_vars = {
+        "air_temperature_tendency_due_to_nudging": "dQ1",
+        "specific_humidity_tendency_due_to_nudging": "dQ2",
+    }
+    mapper = open_merged_nudge_to_obs(
+        nudged_data_dir,
+        merge_files=merge_files,
+        i_start=4,
+        n_times=6,
+        rename_vars=rename_vars,
+    )
+
+    key = list(mapper.keys())[0]
+    mapper[key]["air_temperature"]
+    mapper[key]["specific_humidity"]
+    mapper[key]["dQ1"]
+    mapper[key]["dQ2"]
     assert len(mapper) == 6
 
 
@@ -504,6 +561,28 @@ def test_open_merged_nudged_full_tendencies(nudged_data_dir):
         nudged_data_dir, open_merged_nudged_kwargs=open_merged_nudged_kwargs,
     )
 
+    assert len(mapper) == 6
+
+
+@pytest.mark.regression
+def test_open_merged_nudge_to_obs_full_tendencies(nudged_data_dir):
+
+    open_kwargs = {
+        "n_times": 6,
+        "rename_vars": {
+            "air_temperature_tendency_due_to_nudging": "dQ1",
+            "specific_humidity_tendency_due_to_nudging": "dQ2",
+        },
+    }
+
+    mapper = open_merged_nudge_to_obs_full_tendencies(
+        nudged_data_dir, open_merged_nudge_to_obs_kwargs=open_kwargs,
+    )
+
+    key = list(mapper.keys())[0]
+    vars_to_check_existence_of = ["dQ1", "dQ2", "pQ1", "pQ2", "net_heating"]
+    for var in vars_to_check_existence_of:
+        mapper[key][var]
     assert len(mapper) == 6
 
 
