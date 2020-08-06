@@ -43,8 +43,6 @@ spec:
             batch_function: batches_from_geodata
             batch_kwargs:
               timesteps_per_batch: {{inputs.parameters.timesteps-per-batch}}
-              # to use cos_zenith_angle, this option must be equal to "time"
-              init_time_dim_name: "time"
               mapping_function: open_fine_resolution_nudging_hybrid
               mapping_kwargs:
                 nudging:
