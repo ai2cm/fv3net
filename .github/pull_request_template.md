@@ -16,7 +16,7 @@ Requirement changes:
 
 - [ ] Tests added
 
-Resolves <github issues>
+Resolves #<github issues> [JIRA-TAG]
 
 (Delete this for the commit message)
 You are encouraged to check the PR against the [Code Review Checklist](https://paper.dropbox.com/doc/Code-Review-Checklist--A4lKrs~xg7w5Gsb39N6JLNQoAg-IlsYffZgTwyKEylty7NhY).
