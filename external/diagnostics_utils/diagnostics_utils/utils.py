@@ -280,7 +280,7 @@ def snap_mask_to_type(
     return types
 
 
-def _units_from_var(var):
+def _units_from_Q_name(var):
     if "q1" in var.lower():
         if "column_integrated" in var:
             return "[W/m^2]"
