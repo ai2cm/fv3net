@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: fine-res-budget
+spec:
+  volumes:
+    - name: gcp-credentials-user-gcp-sa
+      secret:
+        secretName: gcp-key
+  containers:
+    - name: main
+      image: us.gcr.io/vcm-ml/fv3net:2541b882cc74f94734d02b7aee0d2936494c95d0
+      command: ["bash", "-x", "-c"]
+      env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
+        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+          value: /secret/gcp-credentials/key.json
+      volumeMounts:
+        - mountPath: /secret/gcp-credentials
+          name: gcp-credentials-user-gcp-sa
+      args:
+        - |
+          C384_ATMOS="gs://vcm-ml-raw/2020-05-27-40-day-X-SHiELD-simulation-C384-diagnostics/atmos_15min_coarse_ave.zarr"
+          C384_RESTARTS="gs://vcm-ml-experiments/2020-06-02-fine-res/2020-05-27-40-day-X-SHiELD-simulation-C384-restart-files.zarr"
+          OUTPUT='gs://vcm-ml-experiments/2020-07-30-fine-res/'
+
+          rand=$(openssl rand -hex 6)
+
+          ./dataflow.sh submit  \
+              -m budget \
+              $C384_ATMOS \
+              $C384_RESTARTS \
+              $OUTPUT \
+              --job_name fine-res-budget-$rand \
+              --project vcm-ml \
+              --region us-central1 \
+              --runner DataFlow \
+              --temp_location gs://vcm-ml-scratch/tmp_dataflow \
+              --num_workers 64 \
+              --autoscaling_algorithm=NONE \
+              --worker_machine_type n1-highmem-2
+      resources:
+        limits:
+          memory: 2Gi
+          cpu: "1000m"
+        requests:
+          memory: 1Gi
+          cpu: "1000m"
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
+  restartPolicy: Never
