@@ -44,7 +44,7 @@ def calc_metrics(
     toa_pressure: float = TOA_PRESSURE,
     vertical_profile_mean_dims: Sequence[str] = VERTICAL_PROFILE_MEAN_DIMS,
 ) -> xr.Dataset:
-    """Routine for computing ML prediction metrics (_bias, _rmse]) on a dataset of
+    """Routine for computing ML prediction metrics (_bias, _mse]) on a dataset of
     variables, assumed to include variables in
     {SCALAR_METRIC_VARS, VERTICAL_METRIC_VARS} as well as area and delp
     """
@@ -98,8 +98,7 @@ def calc_metrics(
             pressure_level_metrics,
         ]
     )
-    _insert_r2(ds)
-    return ds
+    return ds.pipe(_insert_r2).pipe(_mse_to_rmse)
 
 
 def _regrid_dataset_zdim(
@@ -166,7 +165,7 @@ def _calc_same_dims_metrics(
     )
     metrics = xr.Dataset()
     for var in vars:
-        for metric_func in (_bias, _rmse):
+        for metric_func in (_bias, _mse):
             for comparison in metric_comparison_coords:
                 metric = _calc_metric(
                     ds,
@@ -183,21 +182,31 @@ def _calc_same_dims_metrics(
 
 def _insert_r2(
     ds: xr.Dataset,
-    rmse_coord: str = "rmse",
+    mse_coord: str = "mse",
     r2_coord: str = "r2",
     predict_coord: str = "predict",
     target_coord: str = "target",
 ):
-    rmse_vars = [
+    mse_vars = [
         var
         for var in ds.data_vars
-        if (var.endswith(f"{predict_coord}_vs_{target_coord}") and rmse_coord in var)
+        if (var.endswith(f"{predict_coord}_vs_{target_coord}") and mse_coord in var)
     ]
-    for rmse_var in rmse_vars:
-        name_pieces = rmse_var.split("/")
+    for mse_var in mse_vars:
+        name_pieces = mse_var.split("/")
         std_var = "/".join(name_pieces[:-1] + [f"mean_vs_{target_coord}"])
-        r2_var = "/".join([s if s != rmse_coord else r2_coord for s in name_pieces])
-        ds[r2_var] = 1.0 - (ds[rmse_var] / ds[std_var]) ** 2
+        r2_var = "/".join([s if s != mse_coord else r2_coord for s in name_pieces])
+        ds[r2_var] = 1.0 - ds[mse_var] / (ds[std_var] ** 2)
+    return ds
+
+
+def _mse_to_rmse(ds: xr.Dataset):
+    # replaces MSE variables with RMSE after the weighted avg is calculated
+    mse_vars = [var for var in ds.data_vars if "mse" in var]
+    for mse_var in mse_vars:
+        rmse_var = mse_var.replace("mse", "rmse")
+        ds[rmse_var] = np.sqrt(ds[mse_var])
+    return ds.drop(mse_vars)
 
 
 def _insert_weights(
@@ -252,7 +261,7 @@ def _calc_metric(
             should have a DERIVATION dim with coords denoting the sets for comparison,
             e.g. "prediction", TARGET_COORD
         metric_func: metric calculation function.
-            One of {_rmse, _biase}.
+            One of {_mse, _biase}.
         var: Variable name to calculate metric for
         target_coord: derivation coord for TARGET_COORD values in metric comparison.
         predict_coord: derivation coord for "prediction".
@@ -278,10 +287,10 @@ def _bias(da_target: xr.DataArray, da_pred: xr.DataArray,) -> xr.DataArray:
     return da_pred - da_target
 
 
-def _rmse(
+def _mse(
     da_target: xr.DataArray, da_pred: xr.DataArray,
 ):
-    return np.sqrt((da_target - da_pred) ** 2)
+    return (da_target - da_pred) ** 2
 
 
 def _weighted_average(
