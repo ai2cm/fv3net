@@ -4,6 +4,7 @@ kind: WorkflowTemplate
 metadata:
   name: prognostic-run
 spec:
+  entrypoint: prognostic-run
   templates:
     # This is the same template as from the previous example
     - name: prognostic-run
