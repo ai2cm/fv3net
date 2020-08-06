@@ -48,6 +48,7 @@ spec:
                 nudging:
                   offset_seconds: -900
                   nudging_url: {{inputs.parameters.nudging}}
+                  consolidated: true
                 fine_res:
                   offset_seconds: 450
                   fine_res_url: {{inputs.parameters.fine-res}}
