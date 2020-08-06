@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from typing import Sequence, Callable, Union, Mapping
+from typing import Sequence, Callable, Union
 import xarray as xr
 
 from vcm import safe
@@ -296,27 +296,3 @@ def _weighted_average(
     for weight in weights:
         data *= weight
     return data.mean(dim=mean_dims, skipna=True)
-
-
-def _get_r2_string(
-    metrics: Mapping[str, Mapping[str, float]],
-    var: str,
-    predict_coord: str = "predict",
-    target_coord: str = "target",
-    precision=2,
-):
-    value = metrics[f"scalar/r2/{var}/{predict_coord}_vs_{target_coord}"]["mean"]
-    std = metrics[f"scalar/r2/{var}/{predict_coord}_vs_{target_coord}"]["std"]
-    return f"{value:.{precision}f} +/- {std:.{precision}f}"
-
-
-def _get_bias_string(
-    metrics: Mapping[str, Mapping[str, float]],
-    var: str,
-    predict_coord: str = "predict",
-    target_coord: str = "target",
-    precision=2,
-):
-    value = metrics[f"scalar/bias/{var}/{predict_coord}_vs_{target_coord}"]["mean"]
-    std = metrics[f"scalar/bias/{var}/{predict_coord}_vs_{target_coord}"]["std"]
-    return f"{value:.{precision}f} +/- {std:.{precision}f}"

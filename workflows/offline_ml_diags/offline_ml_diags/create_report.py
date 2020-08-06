@@ -1,20 +1,34 @@
 import argparse
 import atexit
-import fsspec
-import json
 import logging
-import os
-import shutil
 import sys
 import tempfile
-import xarray as xr
-from vcm.cloud import gsutil
+
+from report import insert_report_figure
 import diagnostics_utils.plot as diagplot
-from ._metrics import _get_r2_string, _get_bias_string
+from ._helpers import (
+    get_metric_string,
+    write_report,
+    open_diagnostics_outputs,
+    copy_outputs,
+    tidy_title,
+    units_from_Q_name,
+)
+
 
 DERIVATION_DIM = "derivation"
 DOMAIN_DIM = "domain"
 
+PRESSURE_LEVEL_METRICS_VARS = [
+    "pressure_level-bias-dQ1-predict_vs_target",
+    "pressure_level-bias-Q1-predict_vs_target",
+    "pressure_level-bias-dQ2-predict_vs_target",
+    "pressure_level-bias-Q2-predict_vs_target",
+    "pressure_level-r2-dQ1-predict_vs_target",
+    "pressure_level-r2-dQ2-predict_vs_target",
+    "pressure_level-r2-Q1-predict_vs_target",
+    "pressure_level-r2-Q2-predict_vs_target",
+]
 PROFILE_VARS = ["dQ1", "Q1", "dQ2", "Q2"]
 COLUMN_INTEGRATED_VARS = [
     "column_integrated_dQ1",
@@ -27,15 +41,6 @@ NC_FILE_DIAGS = "offline_diagnostics.nc"
 NC_FILE_DIURNAL = "diurnal_cycle.nc"
 JSON_FILE_METRICS = "scalar_metrics.json"
 
-GLOBAL_MEAN_VARS = [
-    "column_integrated_dQ1_global_mean",
-    "column_integrated_pQ1_global_mean",
-    "column_integrated_Q1_global_mean",
-    "column_integrated_dQ2_global_mean",
-    "column_integrated_pQ2_global_mean",
-    "column_integrated_Q2_global_mean",
-]
-
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
     logging.Formatter("%(name)s %(asctime)s: %(module)s/L%(lineno)d %(message)s")
@@ -43,6 +48,11 @@ handler.setFormatter(
 handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags_report")
+
+
+def _cleanup_temp_dir(temp_dir):
+    logger.info(f"Cleaning up temp dir {temp_dir.name}")
+    temp_dir.cleanup()
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -67,33 +77,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser.parse_args()
 
 
-def _cleanup_temp_dir(temp_dir):
-    logger.info(f"Cleaning up temp dir {temp_dir.name}")
-    temp_dir.cleanup()
-
-
-def _open_diagnostics_outputs(
-    data_dir,
-    diagnostics_nc_name: str = NC_FILE_DIAGS,
-    diurnal_nc_name: str = NC_FILE_DIURNAL,
-    metrics_json_name: str = JSON_FILE_METRICS,
-):
-    with fsspec.open(os.path.join(data_dir, diagnostics_nc_name), "rb") as f:
-        ds_diags = xr.open_dataset(f).load()
-    with fsspec.open(os.path.join(data_dir, diurnal_nc_name), "rb") as f:
-        ds_diurnal = xr.open_dataset(f).load()
-    with fsspec.open(os.path.join(data_dir, metrics_json_name), "r") as f:
-        metrics = json.load(f)
-    return ds_diags, ds_diurnal, metrics
-
-
-def _copy_outputs(temp_dir, output_dir):
-    if output_dir.startswith("gs://"):
-        gsutil.copy(temp_dir, output_dir)
-    else:
-        shutil.copytree(temp_dir, output_dir)
-
-
 if __name__ == "__main__":
 
     logger.info("Starting diagnostics routine.")
@@ -102,61 +85,94 @@ if __name__ == "__main__":
     temp_output_dir = tempfile.TemporaryDirectory()
     atexit.register(_cleanup_temp_dir, temp_output_dir)
 
-    ds_diags, ds_diurnal, metrics = _open_diagnostics_outputs(args.input_path)
+    ds_diags, ds_diurnal, metrics = open_diagnostics_outputs(
+        args.input_path,
+        diagnostics_nc_name=NC_FILE_DIAGS,
+        diurnal_nc_name=NC_FILE_DIURNAL,
+        metrics_json_name=JSON_FILE_METRICS,
+    )
 
-    # TODO: the .savefig is temporary to this PR, when adding the report HTML write
-    # I'll have a decorator to save and register filenames under a report section
+    report_sections = {}
+
+    # vertical profiles of bias and R2
+    for var in PRESSURE_LEVEL_METRICS_VARS:
+        ylim = (0, 1) if "r2" in var.lower() else None
+        fig = diagplot._plot_generic_data_array(
+            ds_diags[var], xlabel="pressure [Pa]", ylim=ylim, title=tidy_title(var)
+        )
+        insert_report_figure(
+            report_sections,
+            fig,
+            filename=f"{var}.png",
+            section_name="Pressure level metrics",
+            output_dir=temp_output_dir.name,
+        )
 
     # time averaged quantity vertical profiles over land/sea, pos/neg net precip
     for var in PROFILE_VARS:
-        diagplot.plot_profile_var(
+        fig = diagplot.plot_profile_var(
             ds_diags, var, derivation_dim=DERIVATION_DIM, domain_dim=DOMAIN_DIM,
-        ).savefig(os.path.join(temp_output_dir.name, f"{var}_profile_plot.png"))
+        )
+        insert_report_figure(
+            report_sections,
+            fig,
+            filename=f"{var}.png",
+            section_name="Vertical profiles of predicted variables",
+            output_dir=temp_output_dir.name,
+        )
 
     # time averaged column integrated quantity maps
     for var in COLUMN_INTEGRATED_VARS:
-        diagplot.plot_column_integrated_var(
+        fig = diagplot.plot_column_integrated_var(
             ds_diags,
             var,
             derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
-        ).savefig(os.path.join(temp_output_dir.name, f"{var}_map.png"))
+        )
+        insert_report_figure(
+            report_sections,
+            fig,
+            filename=f"{var}.png",
+            section_name="Time averaged maps",
+            output_dir=temp_output_dir.name,
+        )
 
     # column integrated quantity diurnal cycles
     for tag, var_group in {
         "Q1_components": ["column_integrated_dQ1", "column_integrated_Q1"],
         "Q2_components": ["column_integrated_dQ2", "column_integrated_Q2"],
     }.items():
-        diagplot.plot_diurnal_cycles(
+        fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
             vars=var_group,
             derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
-        ).savefig(os.path.join(temp_output_dir.name, f"{tag}_diurnal_cycle.png"))
+        )
+        insert_report_figure(
+            report_sections,
+            fig,
+            filename=f"{tag}.png",
+            section_name="Diurnal cycles of column integrated quantities",
+            output_dir=temp_output_dir.name,
+        )
 
-    # vertical profiles of bias and RMSE
-    pressure_lvl_metrics = [
-        var for var in ds_diags.data_vars if "pressure" in ds_diags[var].dims
-    ]
-    for var in pressure_lvl_metrics:
-        ylim = (0, 1.0) if "r2" in var.lower() else None
-        diagplot._plot_generic_data_array(
-            ds_diags[var], xlabel="pressure [Pa]", ylim=ylim,
-        ).savefig(os.path.join(temp_output_dir.name, f"{var}.png"))
-
-    # TODO: following PR will add this to the report in separate tables.
-    # For now, this will dump the jsons so they can be read
-    r2, biases = {}, {}
+    # scalar metrics for RMSE and bias
+    metrics_formatted = {}
     for var in COLUMN_INTEGRATED_VARS:
-        r2[var] = _get_r2_string(metrics, var)
-        biases[var] = _get_bias_string(metrics, var)
-    json.dump(r2, open(os.path.join(temp_output_dir.name, "r2.json"), "w"))
-    json.dump(biases, open(os.path.join(temp_output_dir.name, "biases.json"), "w"))
+        metrics_formatted[var.replace("_", " ")] = {
+            "r2": get_metric_string(metrics, "r2", var),
+            "bias": " ".join(
+                [get_metric_string(metrics, "bias", var), units_from_Q_name(var)]
+            ),
+        }
 
-    _copy_outputs(temp_output_dir.name, args.output_path)
+    write_report(
+        output_dir=temp_output_dir.name,
+        title="ML offline diagnostics",
+        sections=report_sections,
+        metrics=metrics_formatted,
+    )
+
+    copy_outputs(temp_output_dir.name, args.output_path)
     logger.info(f"Save report to {args.output_path}")
-
-    # TODO: following PR will add the report saving.
-    # Separated that out as I want to make some additions to report,
-    # which are getting out of scope.
 
     # Explicitly call .close() or xarray raises errors atexit
     # described in https://github.com/shoyer/h5netcdf/issues/50
