@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: train-and-run
+  name: train-and-run
 spec:
   serviceAccountName: integration-tests
   tolerations:
