@@ -574,9 +574,8 @@ def open_merged_nudge_to_obs_full_tendencies(
         physics_tendency_variables (optional): mapping of tendency term names to
             variable names; defaults to
             {'air_temperature': 'pQ1', 'specific_humidity': 'pQ2'}
-        nudging_tendency_variables (optional): mapping of variable names to renamed
-            nudging tendency variable names; defaults to
-            {'air_temperature': 'dQ1', 'specific_humidity': 'dQ2'}
+        nudging_to_physics_tendency (optional): mapping of renamed nudging tendency
+            names to physics tendency names; defaults to {'dQ1': 'pQ1, 'dQ2': 'pQ2'}
         timestep_physics_seconds (optional): physics timestep in seconds;
             defaults to 900
         consolidated (optional): if true, open the underlying zarr stores with the
