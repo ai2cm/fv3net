@@ -63,7 +63,7 @@ spec:
             echo "Configuration:"
             cat config.yaml
     
-            python -m fv3net.regression.sklearn \
+            python -m fv3fit.sklearn \
               "ignored-argument" \
               config.yaml \
               {{inputs.parameters.output}} \
