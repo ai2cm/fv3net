@@ -253,29 +253,17 @@ class SubtractNudgingIncrement(GeoMapper):
         return self._derived_ds(time)
 
     def _derived_ds(self, time: Time):
-        before_nudging_state = self._before_nudging_state(
-            time,
-            self._nudged_mapper,
-            self._nudging_tendency_variables,
-            self._physics_timestep_seconds,
-        )
+        before_nudging_state = self._before_nudging_state(time,)
         return self._nudged_mapper[time].assign(before_nudging_state)
 
-    @staticmethod
-    def _before_nudging_state(
-        time: Time,
-        nudged_mapper: Mapping[str, xr.Dataset],
-        nudging_tendency_variables: Mapping[str, str],
-        physics_timestep_seconds: Union[int, float],
-    ) -> Mapping[str, xr.DataArray]:
-
+    def _before_nudging_state(self, time: Time) -> Mapping[str, xr.DataArray]:
         before_nudging_state = {}
-        for variable_name, nudging_tendency_name in nudging_tendency_variables.items():
+        for variable_name, nudging_name in self._nudging_tendency_variables.items():
             before_nudging_state[variable_name] = (
-                nudged_mapper[time][variable_name]
-                - nudged_mapper[time][nudging_tendency_name] * physics_timestep_seconds
+                self._nudged_mapper[time][variable_name]
+                - self._physics_timestep_seconds
+                * self._nudged_mapper[time][nudging_name]
             )
-
         return before_nudging_state
 
 
@@ -297,22 +285,15 @@ class SubtractNudgingTendency(GeoMapper):
         return self._derived_ds(time)
 
     def _derived_ds(self, time: Time):
-        differenced_physics_tendency = self._subtract_nudging_tendency(
-            time, self._nudged_mapper, self._nudging_to_physics_tendency,
-        )
+        differenced_physics_tendency = self._subtract_nudging_tendency(time)
         return self._nudged_mapper[time].assign(differenced_physics_tendency)
 
-    @staticmethod
-    def _subtract_nudging_tendency(
-        time: Time,
-        nudged_mapper: Mapping[str, xr.Dataset],
-        nudging_to_physics_tendency: Mapping[str, str],
-    ) -> Mapping[str, xr.DataArray]:
-
+    def _subtract_nudging_tendency(self, time: Time) -> Mapping[str, xr.DataArray]:
         differenced_physics_tendency = {}
-        for nudging_name, physics_name in nudging_to_physics_tendency.items():
+        for nudging_name, physics_name in self._nudging_to_physics_tendency.items():
             differenced_physics_tendency[physics_name] = (
-                nudged_mapper[time][physics_name] - nudged_mapper[time][nudging_name]
+                self._nudged_mapper[time][physics_name]
+                - self._nudged_mapper[time][nudging_name]
             )
         return differenced_physics_tendency
 
