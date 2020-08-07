@@ -98,6 +98,7 @@ def _save_figure(fig, filepath_relative_to_report: str, output_dir: str = None):
     section_dir = os.path.dirname(filepath_relative_to_report.strip("/"))
     if not os.path.exists(os.path.join(output_dir, section_dir)):
         os.makedirs(os.path.join(output_dir, section_dir))
+    print(os.path.join(output_dir or "", filepath_relative_to_report))
     fig.savefig(os.path.join(output_dir or "", filepath_relative_to_report))
 
 
@@ -122,7 +123,7 @@ def insert_report_figure(
     section_dir = section_name.replace(" ", "_")
     filepath_relative_to_report = os.path.join(section_dir, filename)
     _save_figure(fig, filepath_relative_to_report, output_dir)
-    sections.setdefault(section_name, []).append(filename)
+    sections.setdefault(section_name, []).append(filepath_relative_to_report)
 
 
 def create_html(
