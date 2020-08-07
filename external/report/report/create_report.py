@@ -98,7 +98,6 @@ def _save_figure(fig, filepath_relative_to_report: str, output_dir: str = None):
     section_dir = os.path.dirname(filepath_relative_to_report.strip("/"))
     if not os.path.exists(os.path.join(output_dir, section_dir)):
         os.makedirs(os.path.join(output_dir, section_dir))
-    print(os.path.join(output_dir or "", filepath_relative_to_report))
     fig.savefig(os.path.join(output_dir or "", filepath_relative_to_report))
 
 
