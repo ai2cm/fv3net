@@ -2,7 +2,7 @@ import fsspec
 import json
 import os
 import shutil
-from typing import Any, Mapping, Sequence
+from typing import Mapping, Sequence
 import xarray as xr
 
 import report
