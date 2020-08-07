@@ -15,23 +15,38 @@ python -m offline_ml_diags.compute_diags \
     --timesteps-file $TIMESTEP_LIST_JSON
 ```
 
+The cosine zenith angle feature is a special case of a feature variable that is not
+present in the dataset and must be derived after the mapper reads the data. To include it
+as a feature, provide the `model_mapper_kwarg` mapping `cos_z_var: <name of cosine z feature>`
+in the configuration. An example is below.
+
+
 Example config:
 ```
-data_path: gs://vcm-ml-scratch/andrep/test-nudging-workflow/nudging
-rename_variables:
-  air_temperature_tendency_due_to_nudging: dQ1
-  specific_humidity_tendency_due_to_nudging: dQ2
 variables:
   - air_temperature
   - specific_humidity
   - dQ1
   - dQ2
+  - pQ1
+  - pQ2
   - pressure_thickness_of_atmospheric_layer
-mapping_function: open_nudged
+  - land_sea_mask
+  - surface_geopotential
+model_mapper_kwargs:
+  cos_z_var: cos_zenith_angle
+mapping_function: open_fine_resolution_nudging_hybrid
 mapping_kwargs:
-  initial_time_skip_hr: 0
+  nudging:
+    shield_diags_url: gs://vcm-ml-experiments/2020-06-17-triad-round-1/coarsen-c384-diagnostics/coarsen_diagnostics/gfsphysics_15min_coarse.zarr
+    offset_seconds: -900
+    nudging_url: gs://vcm-ml-experiments/2020-06-30-triad-round-2/hybrid/nudging
+  fine_res:
+    offset_seconds: 450
+    fine_res_url: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget      
 batch_kwargs:
-  timesteps_per_batch: 5
+  timesteps_per_batch: 10
+data_path: this_isnt_used
 ```
 
 
