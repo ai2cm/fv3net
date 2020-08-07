@@ -1,0 +1,44 @@
+root: gs://vcm-ml-experiments/2020-08-06-nudge-to-obs-proper-input
+image-tag: cb44ce519874af445f235f50036f5ab8b2fa15ab
+training-input: gs://vcm-ml-experiments/2020-07-14-nudge-to-obs/nudge-to-obs-run
+initial-condition: "20160805.000000"
+reference-restarts: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
+training-config: | 
+  model_type: sklearn_random_forest
+  hyperparameters:
+    max_depth: 13
+    n_estimators: 1
+  input_variables:
+    - air_temperature
+    - specific_humidity
+  output_variables:
+    - dQ1
+    - dQ2
+  batch_function: batches_from_geodata
+  batch_kwargs:
+    timesteps_per_batch: 10
+    mapping_function: open_merged_nudge_to_obs
+    mapping_kwargs:
+      rename_vars:
+        t_dt_nudge: dQ1
+        q_dt_nudge: dQ2
+        grid_xt: x
+        grid_yt: y
+        pfull: z
+      consolidated: true
+      merge_files:
+        - after_physics.zarr
+        - nudging_tendencies.zarr
+train-times: |
+  # will be inserted when submitted from Makefile
+prognostic-run-config: |
+  base_version: v0.5
+  namelist:
+    coupler_nml:
+      days: 35
+      hours: 0
+      minutes: 0
+    fv_core_nml:
+      do_sat_adj: false
+    gfdl_cloud_microphysics_nml:
+      fast_sat_adj: false
