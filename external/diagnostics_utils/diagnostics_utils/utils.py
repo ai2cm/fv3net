@@ -52,6 +52,8 @@ def reduce_to_diagnostic(
 
     grid = grid.drop_vars(names=uninformative_coords, errors="ignore")
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
+    if net_precipitation is None:
+        domains = [category for category in domains if "net_precipitation" not in category]
     if any(["net_precipitation" in category for category in domains]):
         net_precipitation_type_array = snap_net_precipitation_to_type(net_precipitation)
         net_precipitation_type_array = net_precipitation_type_array.drop_vars(
@@ -160,7 +162,7 @@ def insert_net_terms_as_Qs(
 
     shield_data = {}
     for var_source_name, var_target_name in var_mapping.items():
-        if var_target_name in ds.data_vars:
+        if var_source_name in ds.data_vars:
             if "Q1" in var_target_name:
                 shield_data[var_target_name] = ds[var_source_name].sel(
                     {derivation_dim: [shield_coord]}

@@ -40,7 +40,6 @@ def test_insert_figure(tmpdir):
     assert report_sections == {section_name: [filepath_relative_to_report]}
 
 
-
 def test__save_figure(tmpdir):
     fig = MockFig()
     output_dir = tmpdir
@@ -49,3 +48,4 @@ def test__save_figure(tmpdir):
     with open(os.path.join(output_dir, filepath_relative_to_report), "r") as f:
         saved_data = f.read()
     assert saved_data.replace('\n', '') == fig.content
+    
