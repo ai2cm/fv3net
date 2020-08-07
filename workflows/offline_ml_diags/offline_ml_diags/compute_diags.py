@@ -17,6 +17,7 @@ from vcm import safe
 from vcm.cloud import get_fs
 from ._mapper import SklearnPredictionMapper
 from ._metrics import calc_metrics
+from ._helpers import shield_data_included
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -37,6 +38,7 @@ DIURNAL_VARS = [
     "column_integrated_Q1",
     "column_integrated_Q2",
 ]
+SHIELD_COLUMN_INTEGRATED_VARS = ["net_precipitation", "net_heating"]
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 
@@ -158,6 +160,12 @@ if __name__ == "__main__":
     land_sea_mask = cat["landseamask/c48"].read()
     grid = grid.assign({utils.VARNAMES["surface_type"]: land_sea_mask["land_sea_mask"]})
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
+
+    # if SHiELD data is loaded through mapper, add SHiELD variables to vars to include
+    if shield_data_included(config):
+        config["variables"] += SHIELD_COLUMN_INTEGRATED_VARS
+        print(config["variables"])
+
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
