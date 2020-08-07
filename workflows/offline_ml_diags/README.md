@@ -20,6 +20,8 @@ present in the dataset and must be derived after the mapper reads the data. To i
 as a feature, provide the `model_mapper_kwarg` mapping `cos_z_var: <name of cosine z feature>`
 in the configuration. An example is below.
 
+If the SHiELD diagnostics are loaded via the model mapper, the variables `net_heating` and
+`net_precipitation` should be included in the `variables` list.
 
 Example config:
 ```
@@ -33,6 +35,8 @@ variables:
   - pressure_thickness_of_atmospheric_layer
   - land_sea_mask
   - surface_geopotential
+  - net_precipitation
+  - net_heating
 model_mapper_kwargs:
   cos_z_var: cos_zenith_angle
 mapping_function: open_fine_resolution_nudging_hybrid
@@ -46,7 +50,7 @@ mapping_kwargs:
     fine_res_url: gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget      
 batch_kwargs:
   timesteps_per_batch: 10
-data_path: this_isnt_used
+data_path: this_isnt_used_for_hybrid_mapper
 ```
 
 
