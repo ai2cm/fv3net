@@ -90,12 +90,24 @@ def units_from_Q_name(var):
         return None
 
 
+def _shorten_coordinate_label(coord: str):
+    # shortens and formats labels that get too long to display
+    # in multi panel figures
+    return coord \
+        .replace("_", " ") \
+        .replace("average", "avg") \
+        .replace("precipitation", "precip") \
+        .replace("positive", "> 0") \
+        .replace("negative", "< 0")
+
+
 def add_net_precip_domain_info(ds: xr.Dataset, domain_source: str):
     # adds information about which data was used to determine pos/neg precip
     new_domain_coords = []
     for coord in ds["domain"].values:
         if "net_precip" in coord:
-            new_domain_coords.append(coord + f" ({domain_source})")
+            new_domain_coords.append(
+                _shorten_coordinate_label(coord) + f" ({domain_source})")
         else:
-            new_domain_coords.append(coord)
+            new_domain_coords.append(_shorten_coordinate_label(coord))
     ds.coords["domain"] = new_domain_coords
