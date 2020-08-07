@@ -9,4 +9,4 @@ services:
       target: bld
     volumes:
       - ../../external:/fv3net/external
-      - .:/fv3net/workflows/prognostic_c48_run
+      - ./:/fv3net/workflows/prognostic_c48_run

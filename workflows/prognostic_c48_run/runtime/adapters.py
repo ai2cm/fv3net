@@ -1,11 +1,14 @@
-from typing import Mapping, Set, Any, Sequence, Hashable
+from typing import Mapping, Set, Any, Sequence, Hashable, Union
+import abc
 
 from sklearn.utils import parallel_backend
 import xarray as xr
 
-from ._wrapper import SklearnWrapper
+from fv3fit.sklearn import SklearnWrapper
+from fv3fit.keras import Model as KerasModel
 
 NameDict = Mapping[Hashable, Hashable]
+Model = Union[SklearnWrapper, KerasModel]
 
 
 def _invert_dict(d: Mapping) -> Mapping:
@@ -16,7 +19,7 @@ class RenamingAdapter:
     """Adapter object for renaming
 
     Attributes:
-        model: a sklearn model to wrap
+        model: a model to wrap
         rename_in: mapping from standard names to input names of model
         rename_out: mapping from standard names to the output names of model
     
@@ -49,9 +52,9 @@ class RenamingAdapter:
         return self._rename(ds, _invert_dict(self.rename_out))
 
     @property
-    def input_vars_(self) -> Set[str]:
+    def input_variables(self) -> Set[str]:
         invert_rename_in = _invert_dict(self.rename_in)
-        return {invert_rename_in.get(var, var) for var in self.model.input_vars_}
+        return {invert_rename_in.get(var, var) for var in self.model.input_variables}
 
     def predict(self, arg: xr.Dataset) -> xr.Dataset:
         input_ = self._rename_inputs(arg)
@@ -59,17 +62,44 @@ class RenamingAdapter:
         return self._rename_outputs(prediction)
 
 
-class StackingAdapter:
-    """Wrap a SklearnWrapper model to work with unstacked inputs
+class StackingAdapter(abc.ABC):
+    """Base class to wrap a model to work with unstacked inputs
     """
 
-    def __init__(self, model: SklearnWrapper, sample_dims: Sequence[str]):
+    def __init__(self, model: Model, sample_dims: Sequence[str]):
         self.model = model
         self.sample_dims = sample_dims
 
+    @abc.abstractmethod
+    def input_variables(self) -> Set[str]:
+        pass
+
+    @abc.abstractmethod
+    def predict(self, ds: xr.Dataset) -> xr.Dataset:
+        pass
+
+
+class SklearnStackingAdapter(StackingAdapter):
+    def __init__(self, model: SklearnWrapper, sample_dims: Sequence[str]):
+        super().__init__(model, sample_dims)
+
     @property
-    def input_vars_(self) -> Set[str]:
+    def input_variables(self) -> Set[str]:
         return set(self.model.input_vars_)
+
+    def predict(self, ds: xr.Dataset) -> xr.Dataset:
+        with parallel_backend("threading", n_jobs=1):
+            stacked = ds.stack(sample=self.sample_dims)
+            return self.model.predict(stacked, "sample").unstack("sample")
+
+
+class KerasStackingAdapter(StackingAdapter):
+    def __init__(self, model: KerasModel, sample_dims: Sequence[str]):
+        super().__init__(model, sample_dims)
+
+    @property
+    def input_variables(self) -> Set[str]:
+        return set(self.model.input_variables)
 
     def predict(self, ds: xr.Dataset) -> xr.Dataset:
         with parallel_backend("threading", n_jobs=1):

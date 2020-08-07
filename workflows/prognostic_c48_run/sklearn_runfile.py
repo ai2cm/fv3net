@@ -10,6 +10,7 @@ from typing import (
     List,
     Sequence,
 )
+import os
 
 import fsspec
 import xarray as xr
@@ -18,7 +19,7 @@ from sklearn.externals import joblib
 
 import fv3gfs
 import runtime
-from fv3fit.sklearn import RenamingAdapter, StackingAdapter
+from fv3fit import keras as fv3fit_keras
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -97,16 +98,40 @@ def precipitation_sum(
 
 def open_model(config):
     # Load the model
+    loader_name = config.get("model_loader", "load_sklearn_model")
+    if loader_name == "load_sklearn_model":
+        return load_sklearn_model(config)
+    elif loader_name == "load_keras_model":
+        return load_keras_model(
+            config["model"], **config.get("model_loader_kwargs", {})
+        )
+    else:
+        raise ValueError(
+            "Valid model loader values include 'load_sklearn_model' and "
+            f"'load_keras_model'; received {loader_name}."
+        )
+
+
+def load_sklearn_model(config):
     rename_in = config.get("input_standard_names", {})
     rename_out = config.get("output_standard_names", {})
     with fsspec.open(config["model"], "rb") as f:
         model = joblib.load(f)
+    stacked_predictor = runtime.SklearnStackingAdapter(model, sample_dims=["y", "x"])
+    return runtime.RenamingAdapter(stacked_predictor, rename_in, rename_out)
 
-    stacked_predictor = StackingAdapter(model, sample_dims=["y", "x"])
-    return RenamingAdapter(stacked_predictor, rename_in, rename_out)
+
+def load_keras_model(
+    model_path, model_type="DenseModel", model_datadir_name="model_data"
+):
+    rename_in = config.get("input_standard_names", {})
+    rename_out = config.get("output_standard_names", {})
+    model_class = fv3fit_keras.get_model_class(model_type)
+    model = model_class.load(os.path.join(model_path, model_datadir_name))
+    return runtime.RenamingAdapter(model, rename_in, rename_out)
 
 
-def predict(model: RenamingAdapter, state: State) -> State:
+def predict(model: runtime.RenamingAdapter, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
     ds = xr.Dataset(state)  # type: ignore
     output = model.predict(ds)
@@ -168,12 +193,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
 
         # download the scikit-learn model
         self._log_info("Downloading Sklearn Model")
-        if comm.rank == 0:
-            model = open_model(args["scikit_learn"])
-        else:
-            model = None
-        model = comm.bcast(model, root=0)
-        self._model = model
+        self._model = open_model(args["scikit_learn"])
         self._log_info("Model Downloaded")
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -198,7 +218,10 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         return {}
 
     def _step_python(self) -> Diagnostics:
-        variables: List[Hashable] = list(self._model.input_vars_ | REQUIRED_VARIABLES)
+
+        variables: List[Hashable] = list(
+            self._model.input_variables | REQUIRED_VARIABLES
+        )
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
 
