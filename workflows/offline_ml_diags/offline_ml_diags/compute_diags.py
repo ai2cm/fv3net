@@ -89,7 +89,9 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
 
 
 def _compute_diags_over_batches(
-    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset, shield_data_included: bool=False
+    ds_batches: Sequence[xr.Dataset],
+    grid: xr.Dataset,
+    shield_data_included: bool = False,
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
@@ -112,9 +114,7 @@ def _compute_diags_over_batches(
         else:
             net_precip_domains = None
         ds_summary = utils.reduce_to_diagnostic(
-            ds,
-            grid,
-            net_precipitation=net_precip_domains,
+            ds, grid, net_precipitation=net_precip_domains,
         )
         # ...compute diurnal cycles
         ds_diurnal = utils.create_diurnal_cycle_dataset(
@@ -169,7 +169,7 @@ if __name__ == "__main__":
     shield_data_present = shield_data_included(config)
     if shield_data_present:
         config["variables"] += SHIELD_COLUMN_INTEGRATED_VARS
-        
+
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)

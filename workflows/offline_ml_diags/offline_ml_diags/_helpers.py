@@ -90,7 +90,9 @@ def units_from_Q_name(var):
         return None
 
 
-def shield_data_included(config: Mapping[str, Any], shield_kwarg: str = "shield_diags_url"):
+def shield_data_included(
+    config: Mapping[str, Any], shield_kwarg: str = "shield_diags_url"
+):
     # checks all keys because this arg could be in config.mapping_kwargs top level
     # or in a deeper kwargs dict within that level
     def recursive_items(dictionary):
@@ -101,4 +103,5 @@ def shield_data_included(config: Mapping[str, Any], shield_kwarg: str = "shield_
                 yield from recursive_items(value)
             else:
                 yield (key)
+
     return shield_kwarg in recursive_items(config)

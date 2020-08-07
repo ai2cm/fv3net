@@ -17,22 +17,20 @@ def test_create_html():
 class MockFig:
     # use this so that the package doesnt require matplotlib
     # dependency just for testing
-    def __init__(
-            self,
-            content: str = "This is a test."):
+    def __init__(self, content: str = "This is a test."):
         self.content = content
 
     def savefig(self, path):
         with open(path, "w") as f:
             print(self.content, file=f)
-        
+
 
 def test_insert_figure(tmpdir):
     fig = MockFig()
     report_sections = {}
     section_name = "Awesome Results Section"
     filename = "test.txt"
-    
+
     insert_report_figure(
         report_sections, fig, filename, section_name, output_dir=tmpdir
     )
@@ -47,5 +45,4 @@ def test__save_figure(tmpdir):
     _save_figure(fig, filepath_relative_to_report, output_dir)
     with open(os.path.join(output_dir, filepath_relative_to_report), "r") as f:
         saved_data = f.read()
-    assert saved_data.replace('\n', '') == fig.content
-    
+    assert saved_data.replace("\n", "") == fig.content
