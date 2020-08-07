@@ -14,6 +14,7 @@ class ModelTrainingConfig:
     output_variables: Iterable[str]
     batch_function: str
     batch_kwargs: dict
+    target_transform: str = None
 
 
 def load_model_training_config(config_path: str) -> ModelTrainingConfig:
