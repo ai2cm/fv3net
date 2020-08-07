@@ -118,7 +118,7 @@ def _compute_diags_over_batches(
                 derivation=net_precip_domain_coord
             ),
         )
-        add_net_precip_domain_info(ds, net_precip_domain_coord)
+        add_net_precip_domain_info(ds_summary, net_precip_domain_coord)
 
         # ...compute diurnal cycles
         ds_diurnal = utils.create_diurnal_cycle_dataset(
