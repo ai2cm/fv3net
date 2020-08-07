@@ -121,7 +121,7 @@ def insert_report_figure(
     """
     section_dir = section_name.replace(" ", "_")
     filepath_relative_to_report = os.path.join(section_dir, filename)
-    _save_figure(fig, filepath_relative_to_report, section_dir, output_dir)
+    _save_figure(fig, filepath_relative_to_report, output_dir)
     sections.setdefault(section_name, []).append(filename)
 
 
