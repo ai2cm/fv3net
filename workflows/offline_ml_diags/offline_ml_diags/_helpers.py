@@ -90,18 +90,12 @@ def units_from_Q_name(var):
         return None
 
 
-def shield_data_included(
-    config: Mapping[str, Any], shield_kwarg: str = "shield_diags_url"
-):
-    # checks all keys because this arg could be in config.mapping_kwargs top level
-    # or in a deeper kwargs dict within that level
-    def recursive_items(dictionary):
-        # https://stackoverflow.com/questions/39233973/get-all-keys-of-a-nested-dictionary
-        for key, value in dictionary.items():
-            if type(value) is dict:
-                yield (key)
-                yield from recursive_items(value)
-            else:
-                yield (key)
-
-    return shield_kwarg in recursive_items(config)
+def add_net_precip_domain_info(ds: xr.Dataset, domain_source: str):
+    # adds information about which data was used to determine pos/neg precip
+    new_domain_coords = []
+    for coord in ds["domain"].values:
+        if "net_precip" in coord:
+            new_domain_coords.append(coord + f" ({domain_source})")
+        else:
+            new_domain_coords.append(coord)
+    ds.coords["domain"] = new_domain_coords

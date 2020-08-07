@@ -18,7 +18,7 @@ def reduce_to_diagnostic(
     grid: xr.Dataset,
     domains: Sequence[str] = DOMAINS,
     primary_vars: Sequence[str] = PRIMARY_VARS,
-    net_precipitation: xr.DataArray,
+    net_precipitation: xr.DataArray = None,
     time_dim: str = "time",
     derivation_dim: str = "derivation",
     uninformative_coords: Sequence[str] = ["tile", "z", "y", "x"],
@@ -35,7 +35,7 @@ def reduce_to_diagnostic(
         primary_vars: sequence of variables for which to compute column integrals
             and composite means; optional, defaults to dQs, pQs and Qs
         net_precipitation: xr.DataArray of net_precipitation values for computing
-            composites, typically supplied by SHiELD net_precipitation
+            composites, typically supplied by SHiELD net_precipitation; optional
         time_dim: name of the dataset time dimension to average over; optional,
             defaults to 'time'
         derivation_dim: name of the dataset derivation dimension containing coords
@@ -52,7 +52,6 @@ def reduce_to_diagnostic(
 
     grid = grid.drop_vars(names=uninformative_coords, errors="ignore")
     surface_type_array = snap_mask_to_type(grid[VARNAMES["surface_type"]])
-
     if any(["net_precipitation" in category for category in domains]):
         net_precipitation_type_array = snap_net_precipitation_to_type(net_precipitation)
         net_precipitation_type_array = net_precipitation_type_array.drop_vars(
@@ -161,15 +160,14 @@ def insert_net_terms_as_Qs(
 
     shield_data = {}
     for var_source_name, var_target_name in var_mapping.items():
-        if var_source_name in ds.data_vars:
-            if "Q1" in var_target_name:
-                shield_data[var_target_name] = ds[var_source_name].sel(
-                    {derivation_dim: [shield_coord]}
-                )
-            elif "Q2" in var_target_name:
-                shield_data[var_target_name] = -ds[var_source_name].sel(
-                    {derivation_dim: [shield_coord]}
-                )
+        if "Q1" in var_target_name:
+            shield_data[var_target_name] = ds[var_source_name].sel(
+                {derivation_dim: [shield_coord]}
+            )
+        elif "Q2" in var_target_name:
+            shield_data[var_target_name] = -ds[var_source_name].sel(
+                {derivation_dim: [shield_coord]}
+            )
 
     return ds_new.merge(shield_data)
 
