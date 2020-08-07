@@ -20,7 +20,6 @@ from ._metrics import calc_metrics
 from ._helpers import add_net_precip_domain_info
 
 
-
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
     logging.Formatter("%(name)s %(asctime)s: %(module)s/L%(lineno)d %(message)s")
@@ -91,8 +90,7 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
 
 
 def _compute_diags_over_batches(
-    ds_batches: Sequence[xr.Dataset],
-    grid: xr.Dataset,
+    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset,
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
@@ -114,7 +112,9 @@ def _compute_diags_over_batches(
             net_precip_domain_coord = "target"
 
         ds_summary = utils.reduce_to_diagnostic(
-            ds, grid, net_precipitation=ds["column_integrated_Q2"].sel(
+            ds,
+            grid,
+            net_precipitation=ds["column_integrated_Q2"].sel(
                 derivation=net_precip_domain_coord
             ),
         )

@@ -124,7 +124,7 @@ if __name__ == "__main__":
     # time averaged column integrated quantity maps
     for var in COLUMN_INTEGRATED_VARS:
         fig = diagplot.plot_column_integrated_var(
-            ds_diags, var, derivation_plot_coords=ds_diags.derivation.values,
+            ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM].values,
         )
         insert_report_figure(
             report_sections,
@@ -140,7 +140,9 @@ if __name__ == "__main__":
         "Q2_components": ["column_integrated_dQ2", "column_integrated_Q2"],
     }.items():
         fig = diagplot.plot_diurnal_cycles(
-            ds_diurnal, vars=var_group, derivation_plot_coords=["target", "predict"],
+            ds_diurnal,
+            vars=var_group,
+            derivation_plot_coords=ds_diurnal[DERIVATION_DIM].values,
         )
         insert_report_figure(
             report_sections,
