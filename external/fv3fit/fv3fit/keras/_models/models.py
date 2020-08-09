@@ -320,3 +320,33 @@ class DenseModel(PackedKerasModel):
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
         model.compile(optimizer="sgd", loss=self.loss)
         return model
+
+
+class DummyModel(PackedKerasModel):
+    """
+    A dummy neural network model for testing, which simply returns zeros for all
+    model features
+    """
+
+    def __init__(
+        self,
+        sample_dim_name: str,
+        input_variables: Iterable[str],
+        output_variables: Iterable[str],
+    ):
+        """Initialize the DummyModel.
+
+        Args:
+            sample_dim_name: name of the sample dimension in datasets used as
+                inputs and outputs.
+            input_variables: names of input variables
+            output_variables: names of output variables
+        """
+        super().__init__(sample_dim_name, input_variables, output_variables)
+
+    def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
+        inputs = tf.keras.Input(n_features_in)
+        outputs = tf.keras.layers.Lambda(lambda x: x * 0.0)(inputs)
+        model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        model.compile()
+        return model

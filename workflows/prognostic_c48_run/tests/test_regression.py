@@ -428,7 +428,7 @@ def get_prognostic_config(model_type, model_path):
 def _model_dataset():
 
     nz = 63
-    arr = np.ones((1, nz))
+    arr = np.zeros((1, nz))
     dims = ["sample", "z"]
 
     data = xr.Dataset(
@@ -459,31 +459,16 @@ def _save_mock_sklearn_model(tmpdir):
 
 def _save_mock_keras_model(tmpdir):
 
-    hyperparameters = {"width": 1, "depth": 1}
     input_variables = ["air_temperature", "specific_humidity"]
     output_variables = ["dQ1", "dQ2"]
 
     model = fv3fit_keras.get_model(
-        "DenseModel", "sample", input_variables, output_variables, **hyperparameters
+        "DummyModel", "sample", input_variables, output_variables
     )
-
     model.fit([_model_dataset()])
     model.dump(str(tmpdir.join("model_data")))
 
     return str(tmpdir)
-
-
-# @pytest.fixture(params=['sklearn', 'keras'], scope="module")
-# def model_type(request):
-#     return request.param
-
-# @pytest.fixture(scope='module')
-# def saved_model(tmpdir_factory, model_type):
-#     tmpdir = tmpdir_factory.mktemp("model")
-#     if model_type == 'sklearn':
-#         return _save_mock_sklearn_model(tmpdir)
-#     elif model_type == 'keras':
-#         return _save_mock_keras_model(tmpdir)
 
 
 @pytest.fixture(scope="module")
@@ -553,8 +538,22 @@ def test_keras_fv3run_checksum_restarts(completed_keras_rundir):
         )
 
 
-def test_fv3run_diagnostic_outputs(completed_rundir):
-    diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
+def test_sklearn_fv3run_diagnostic_outputs(completed_sklearn_rundir):
+    diagnostics = xr.open_zarr(str(completed_sklearn_rundir.join("diags.zarr")))
+    dims = ("time", "tile", "y", "x")
+
+    for variable in [
+        "net_heating",
+        "net_moistening",
+        "physics_precip",
+        "water_vapor_path",
+    ]:
+        assert diagnostics[variable].dims == dims
+        assert np.sum(np.isnan(diagnostics[variable].values)) == 0
+
+
+def test_keras_fv3run_diagnostic_outputs(completed_keras_rundir):
+    diagnostics = xr.open_zarr(str(completed_keras_rundir.join("diags.zarr")))
     dims = ("time", "tile", "y", "x")
 
     for variable in [

@@ -99,36 +99,36 @@ def precipitation_sum(
 def open_model(config):
     # Load the model
     loader_name = config.get("model_loader", "load_sklearn_model")
-    if loader_name == "load_sklearn_model":
-        return load_sklearn_model(config)
-    elif loader_name == "load_keras_model":
-        return load_keras_model(
-            config["model"], **config.get("model_loader_kwargs", {})
-        )
-    else:
+    try:
+        model_loader = {
+            "load_sklearn_model": load_sklearn_model,
+            "load_keras_model": load_keras_model,
+        }[loader_name]
+    except KeyError:
         raise ValueError(
             "Valid model loader values include 'load_sklearn_model' and "
             f"'load_keras_model'; received {loader_name}."
         )
-
-
-def load_sklearn_model(config):
+    stacked_predictor = model_loader(
+        config["model"], **config.get("model_loader_kwargs", {})
+    )
     rename_in = config.get("input_standard_names", {})
     rename_out = config.get("output_standard_names", {})
-    with fsspec.open(config["model"], "rb") as f:
-        model = joblib.load(f)
-    stacked_predictor = runtime.SklearnStackingAdapter(model, sample_dims=["y", "x"])
     return runtime.RenamingAdapter(stacked_predictor, rename_in, rename_out)
+
+
+def load_sklearn_model(model_path):
+    with fsspec.open(model_path, "rb") as f:
+        model = joblib.load(f)
+    return runtime.SklearnStackingAdapter(model, sample_dims=["y", "x"])
 
 
 def load_keras_model(
     model_path, model_type="DenseModel", model_datadir_name="model_data"
 ):
-    rename_in = config.get("input_standard_names", {})
-    rename_out = config.get("output_standard_names", {})
     model_class = fv3fit_keras.get_model_class(model_type)
     model = model_class.load(os.path.join(model_path, model_datadir_name))
-    return runtime.RenamingAdapter(model, rename_in, rename_out)
+    return runtime.KerasStackingAdapter(model, sample_dims=["y", "x"])
 
 
 def predict(model: runtime.RenamingAdapter, state: State) -> State:

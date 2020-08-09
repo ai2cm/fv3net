@@ -4,6 +4,7 @@ import abc
 from sklearn.utils import parallel_backend
 import xarray as xr
 
+from vcm import safe
 from fv3fit.sklearn import SklearnWrapper
 from fv3fit.keras import Model as KerasModel
 
@@ -103,5 +104,14 @@ class KerasStackingAdapter(StackingAdapter):
 
     def predict(self, ds: xr.Dataset) -> xr.Dataset:
         with parallel_backend("threading", n_jobs=1):
-            stacked = ds.stack(sample=self.sample_dims)
-            return self.model.predict(stacked, "sample").unstack("sample")
+            ds_stacked = safe.stack_once(
+                ds, "sample", self.sample_dims, allowed_broadcast_dims=["z"],
+            )
+            ds_stacked = ds_stacked.transpose("sample", "z")
+            sample_multiindex = ds_stacked["sample"]
+            ds_pred = (
+                self.model.predict(ds_stacked)
+                .assign_coords({"sample": sample_multiindex})
+                .unstack()
+            )
+        return ds_pred
