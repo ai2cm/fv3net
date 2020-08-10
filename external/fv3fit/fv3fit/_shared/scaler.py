@@ -1,6 +1,6 @@
 import abc
 import numpy as np
-from typing import Sequence, Mapping, Union, BinaryIO
+from typing import Sequence, Mapping, BinaryIO
 
 
 class NormalizeTransform(abc.ABC):
@@ -80,8 +80,8 @@ class MassScaler(NormalizeTransform):
             delp_weights: 1D array of pressure thicknesses for each model level, used to
                 scale weights by the levels' relative masses.
             variable_scale_factors: Optional mapping of variable names to scale factors
-                by which their weights will be multiplied when normalizing. This allows the mass
-                weighted outputs to be scaled to the same order of magnitude.
+                by which their weights will be multiplied when normalizing. This allows
+                 the mass weighted outputs to be scaled to the same order of magnitude.
                 Default of None will target dQ2 features by a factor of 1000.
             sqrt_weights: If True, will square root the weights returned by
                 _create_weight_array. Useful if this is used as a target transform
