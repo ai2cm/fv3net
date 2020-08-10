@@ -4,24 +4,21 @@ from typing import Sequence, Mapping, BinaryIO
 
 
 class NormalizeTransform(abc.ABC):
-    def fit():
+    @abc.abstractmethod
+    def normalize(self, y: np.ndarray):
         pass
 
     @abc.abstractmethod
-    def normalize(y: np.ndarray):
+    def denormalize(self, y: np.ndarray):
         pass
 
     @abc.abstractmethod
-    def denormalize(y: np.ndarray):
-        pass
-
-    @abc.abstractmethod
-    def dump(f: BinaryIO):
+    def dump(self, f: BinaryIO):
         pass
 
     @classmethod
     @abc.abstractmethod
-    def load(f: BinaryIO):
+    def load(cls, f: BinaryIO):
         pass
 
 
