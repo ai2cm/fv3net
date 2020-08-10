@@ -48,7 +48,8 @@ def test_normalize_then_denormalize_on_reloaded_scaler(n_samples, n_features):
 
 
 @pytest.mark.parametrize(
-    "output_var_order, output_values, delp_weights, variable_scale_factors, sqrt_weights, expected",
+    "output_var_order, output_values, delp_weights, \
+        variable_scale_factors, sqrt_weights, expected",
     [
         pytest.param(
             ["y0", "y1"],
@@ -111,7 +112,8 @@ def test_mass_scaler_normalize(
 
 
 @pytest.mark.parametrize(
-    "output_var_order, output_values, delp_weights, variable_scale_factors, sqrt_weights, expected",
+    "output_var_order, output_values, delp_weights \
+        variable_scale_factors, sqrt_weights, expected",
     [
         pytest.param(
             ["y0", "y1"],
