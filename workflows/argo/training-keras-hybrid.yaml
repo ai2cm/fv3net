@@ -2,14 +2,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: training-keras
+  name: training-keras-hybrid
 spec:
   templates:
-    - name: training-keras
+    - name: training-keras-hybrid
       inputs:
         parameters:
           - name: image
-          - name: input
+          - name: fine-res
+          - name: nudging
           - name: config
           - name: times
           - name: output
@@ -39,7 +40,7 @@ spec:
             cat config.yaml
     
             python -m fv3fit.keras \
-              {{inputs.parameters.input}} \
+              None \
               config.yaml \
               {{inputs.parameters.output}} \
               --timesteps-file times.json \
