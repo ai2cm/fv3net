@@ -97,7 +97,7 @@ spec:
           cp diag_table_nudge_to_obs /mnt/data/diag_table
           cp chunks.yaml /mnt/data/chunks.yaml
           echo "{{inputs.parameters.nudging-config}}" > config.yaml
-          python prepare_config.py config.yaml /mnt/data > /mnt/data/fv3config.yaml
+          python prepare_config.py config.yaml > /mnt/data/fv3config.yaml
         volumeMounts:
           - name: output-data
             mountPath: /mnt/data

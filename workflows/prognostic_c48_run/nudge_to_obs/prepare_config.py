@@ -14,10 +14,6 @@ def parse_args():
         description="prepare fv3config yaml file for nudge-to-obs run"
     )
     parser.add_argument("config", type=str, help="base yaml file to configure")
-    parser.add_argument(
-        "config_url", type=str, help="location to save temporary config files"
-    )
-
     return parser.parse_args()
 
 
