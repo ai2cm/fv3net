@@ -106,7 +106,7 @@ class MassScaler(NormalizeTransform):
         for var in output_var_order:
             n_features = output_var_feature_count[var]
             if n_features == n_levels:
-                var_weights = delp_weights
+                var_weights = np.array(delp_weights)
             elif n_features == 1:
                 var_weights = np.array([1.])
             else:
@@ -116,7 +116,7 @@ class MassScaler(NormalizeTransform):
             if var in self._variable_scale_factors:
                 # want to multiply by scale factor when dividing by weights
                 var_weights /= self._variable_scale_factors[var]
-            np.append(weights, var_weights)
+            weights = np.append(weights, var_weights)
         return weights
     
     def normalize(self, y: np.ndarray):
