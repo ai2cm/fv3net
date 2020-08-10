@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta
-import os
 import numpy as np
 from typing import List, Mapping
 
-import fsspec
 import fv3config
+import vcm
 
 # this module assumes that analysis files are at 00Z, 06Z, 12Z and 18Z
 SECONDS_IN_HOUR = 60 * 60
@@ -74,7 +73,9 @@ def _get_input_fname_list_asset(config: Mapping, filename: str) -> Mapping:
     )
 
 
-def enable_nudge_to_observations(config: Mapping) -> Mapping:
+def enable_nudge_to_observations(
+    config: Mapping, file_list_path="nudging_file_list"
+) -> Mapping:
     """Return an configuration dictionary with nudging to observations enabled
 
     Accepts and returns an fv3config dictionary
@@ -82,20 +83,28 @@ def enable_nudge_to_observations(config: Mapping) -> Mapping:
     Note:
         This function appends to patch_files and alters the namelist
     """
-    input_fname_list = "nudging_file_list"
-    config = _assoc_nudging_namelist_options(config, input_fname_list=input_fname_list)
-    fname_list_asset = _get_input_fname_list_asset(config, input_fname_list)
+
+    # set the default if not present
+    config.setdefault(
+        "gfs_analysis_data",
+        {
+            "url": "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
+            "filename_pattern": "%Y%m%d_%HZ_T85LR.nc",
+        },
+    )
+
+    config = _assoc_nudging_namelist_options(config, input_fname_list=file_list_path)
+    fname_list_asset = _get_input_fname_list_asset(config, file_list_path)
 
     patch_files = config.setdefault("patch_files", [])
     patch_files.append(fname_list_asset)
-    patch_files.append(_get_nudge_files_asset_list(config))
+    patch_files.extend(_get_nudge_files_asset_list(config))
 
     return config
 
 
 def _assoc_nudging_namelist_options(
     config,
-    gfs_analysis_url="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
     input_fname_list="nudging_file_list",
     tau_ps=21600.0,
     tau_virt=21600.0,
@@ -106,10 +115,6 @@ def _assoc_nudging_namelist_options(
 
     # TODO Oli, please indicate which options below are unrelated to nudging
     namelist_overlay = {
-        "gfs_analysis_data": {
-            "url": gfs_analysis_url,
-            "filename_pattern": "%Y%m%d_%HZ_T85LR.nc",
-        },
         "namelist": {
             "atmos_model_nml": {"fhout": 2.0, "fhmax": 10000},
             "fv_core_nml": {"nudge": True},

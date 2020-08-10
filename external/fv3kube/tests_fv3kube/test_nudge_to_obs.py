@@ -2,6 +2,7 @@ import pytest
 from datetime import datetime
 
 from fv3kube import nudge_to_obs
+import fv3kube
 
 
 @pytest.mark.parametrize(
@@ -55,3 +56,36 @@ def test__get_nudge_time_list(
     assert len(nudge_file_list) == expected_length
     assert nudge_file_list[0] == expected_first_datetime
     assert nudge_file_list[-1] == expected_last_datetime
+
+
+def test_enable_nudge_to_observations_no_overwrite():
+    config = {
+        "namelist": {
+            "coupler_nml": {"current_date": [2016, 1, 2, 1, 0, 0], "days": 10},
+            "fv_core_nml": {"dont": "overwrite me"},
+        }
+    }
+
+    output = fv3kube.enable_nudge_to_observations(config)
+    assert output["namelist"]["fv_core_nml"]["dont"] == "overwrite me"
+
+
+def test_enable_nudge_to_observations_adds_filelist_asset():
+    config = {
+        "namelist": {
+            "coupler_nml": {"current_date": [2016, 1, 2, 1, 0, 0], "days": 10},
+        }
+    }
+
+    file_list_path = "asdf"
+
+    output = fv3kube.enable_nudge_to_observations(config, file_list_path)
+
+    # check patch files
+    patch_files = output["patch_files"]
+    # search for filelist asset
+    for asset in patch_files:
+        if asset["target_name"] == file_list_path:
+            found = asset
+
+    assert "bytes" in found
