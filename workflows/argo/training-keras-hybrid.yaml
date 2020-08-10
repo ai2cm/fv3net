@@ -9,8 +9,6 @@ spec:
       inputs:
         parameters:
           - name: image
-          - name: fine-res
-          - name: nudging
           - name: config
           - name: times
           - name: output
