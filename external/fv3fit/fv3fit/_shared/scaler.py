@@ -3,8 +3,8 @@ import numpy as np
 from typing import Sequence, Mapping, Union, BinaryIO
 
 
+
 class NormalizeTransform(abc.ABC):
-    @abc.abstractmethod
     def fit():
         pass
 
@@ -17,11 +17,12 @@ class NormalizeTransform(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def dump():
+    def dump(f: BinaryIO):
         pass
 
     @abc.abstractmethod
-    def load():
+    @classmethod
+    def load(f: BinaryIO):
         pass
 
 
