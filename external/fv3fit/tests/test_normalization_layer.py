@@ -73,20 +73,6 @@ def test_scaler_normalize_then_denormalize_layer(scaler, n_samples, n_features):
 
 
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
-def test_normalize_then_denormalize_on_reloaded_scaler(scaler, n_samples, n_features):
-    scaler = LayerStandardScaler()
-    X = np.random.uniform(0, 10, size=[n_samples, n_features])
-    scaler.fit(X)
-    result = scaler.normalize(X)
-    with tempfile.NamedTemporaryFile() as f_write:
-        scaler.dump(f_write)
-        with open(f_write.name, "rb") as f_read:
-            scaler = scaler.load(f_read)
-    result = scaler.denormalize(result)
-    np.testing.assert_almost_equal(result, X)
-
-
-@pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
 def test_scaler_normalize_then_denormalize_layer_on_reloaded_scaler(
     scaler, n_samples, n_features
 ):

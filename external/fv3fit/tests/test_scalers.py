@@ -5,7 +5,6 @@ import tempfile
 from fv3fit._shared import StandardScaler, MassScaler
 
 
-
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
 def test_standard_scaler_normalize_then_denormalize(
         n_samples, n_features):
@@ -94,9 +93,12 @@ def test_mass_scaler_denormalize(
     np.testing.assert_almost_equal(result, expected)
 
 
-def test_mass_scaler_normalize_then_denormalize():
+def test_mass_scaler_normalize_then_denormalize_on_reloaded_scaler():
+    output_var_order = ["y0", "y1", "y2"]
     output_var_feature_count = {"y0": 3, "y1": 3, "y2": 1}
-    y = np.array(range(7))
+    y = np.random.uniform(0, 10, 7)
+    delp_weights = np.random.uniform(0, 10, size=3)
+    variable_scale_factors = {var: np.random.uniform(0, 10) for var in output_var_order}
     scaler = MassScaler()
     scaler.fit(
         output_var_order,
@@ -104,3 +106,10 @@ def test_mass_scaler_normalize_then_denormalize():
         delp_weights,
         variable_scale_factors,
     )
+    result = scaler.normalize(y)
+    with tempfile.NamedTemporaryFile() as f_write:
+        scaler.dump(f_write)
+        with open(f_write.name, "rb") as f_read:
+            scaler = scaler.load(f_read)
+    result = scaler.denormalize(result)
+    np.testing.assert_almost_equal(result, y)
