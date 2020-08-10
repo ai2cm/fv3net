@@ -112,7 +112,7 @@ def test_mass_scaler_normalize(
 
 
 @pytest.mark.parametrize(
-    "output_var_order, output_values, delp_weights \
+    "output_var_order, output_values, delp_weights, \
         variable_scale_factors, sqrt_weights, expected",
     [
         pytest.param(
