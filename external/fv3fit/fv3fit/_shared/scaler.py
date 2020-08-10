@@ -3,7 +3,6 @@ import numpy as np
 from typing import Sequence, Mapping, Union, BinaryIO
 
 
-
 class NormalizeTransform(abc.ABC):
     def fit():
         pass
@@ -11,7 +10,7 @@ class NormalizeTransform(abc.ABC):
     @abc.abstractmethod
     def normalize(y: np.ndarray):
         pass
-    
+
     @abc.abstractmethod
     def denormalize(y: np.ndarray):
         pass
@@ -20,8 +19,8 @@ class NormalizeTransform(abc.ABC):
     def dump(f: BinaryIO):
         pass
 
-    @abc.abstractmethod
     @classmethod
+    @abc.abstractmethod
     def load(f: BinaryIO):
         pass
 
@@ -63,12 +62,12 @@ class MassScaler(NormalizeTransform):
         self.weights = None
 
     def fit(
-            self,
-            output_var_order: Sequence[str],
-            output_var_feature_count: Mapping[str, int],
-            delp_weights: np.ndarray,
-            variable_scale_factors: Mapping[str, float] = None,
-            sqrt_weights: bool = False
+        self,
+        output_var_order: Sequence[str],
+        output_var_feature_count: Mapping[str, int],
+        delp_weights: np.ndarray,
+        variable_scale_factors: Mapping[str, float] = None,
+        sqrt_weights: bool = False,
     ):
         """Weights vertical variables by their relative masses (via delp)
         and upscales variables by optional scale factors.
@@ -91,17 +90,19 @@ class MassScaler(NormalizeTransform):
                 weights in the target transform, the MSE loss function terms will be
                 approximately weighted to the layer mass.
         """
-        self._variable_scale_factors = variable_scale_factors or {"dQ2": 1000.}
+        self._variable_scale_factors = variable_scale_factors or {"dQ2": 1000.0}
         self.weights = self._create_weight_array(
-            delp_weights, output_var_order, output_var_feature_count)
+            delp_weights, output_var_order, output_var_feature_count
+        )
         if sqrt_weights:
             self.weights = np.sqrt(self.weights)
 
     def _create_weight_array(
-            self,
-            delp_weights: np.ndarray,
-            output_var_order: Sequence[str],
-            output_var_feature_count: Mapping[str, int]):
+        self,
+        delp_weights: np.ndarray,
+        output_var_order: Sequence[str],
+        output_var_feature_count: Mapping[str, int],
+    ):
         n_levels = len(delp_weights)
         weights = np.array([])
         for var in output_var_order:
@@ -109,17 +110,18 @@ class MassScaler(NormalizeTransform):
             if n_features == n_levels:
                 var_weights = np.array(delp_weights)
             elif n_features == 1:
-                var_weights = np.array([1.])
+                var_weights = np.array([1.0])
             else:
                 raise ValueError(
                     f"Output variable {var} has {n_features} features > 1 "
-                    f"but not equal to number of vertical levels {n_levels}.")
+                    f"but not equal to number of vertical levels {n_levels}."
+                )
             if var in self._variable_scale_factors:
                 # want to multiply by scale factor when dividing by weights
                 var_weights /= self._variable_scale_factors[var]
             weights = np.append(weights, var_weights)
         return weights
-    
+
     def normalize(self, y: np.ndarray):
         return y / self.weights
 
@@ -138,6 +140,3 @@ class MassScaler(NormalizeTransform):
         scaler = cls()
         scaler.weights = data.get("weights")
         return scaler
-    
-
-        
