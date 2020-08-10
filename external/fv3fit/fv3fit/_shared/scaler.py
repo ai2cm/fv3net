@@ -64,7 +64,6 @@ class MassScaler(NormalizeTransform):
         output_var_feature_count: Mapping[str, int],
         delp_weights: np.ndarray,
         variable_scale_factors: Mapping[str, float] = None,
-        sqrt_weights: bool = False,
     ):
         """Weights vertical variables by their relative masses (via delp)
         and upscales variables by optional scale factors.
@@ -80,19 +79,11 @@ class MassScaler(NormalizeTransform):
                 by which their weights will be multiplied when normalizing. This allows
                  the mass weighted outputs to be scaled to the same order of magnitude.
                 Default of None will target dQ2 features by a factor of 1000.
-            sqrt_weights: If True, will square root the weights returned by
-                _create_weight_array. Useful if this is used as a target transform
-                regressor in fv3fit.sklearn with a MSE loss, as there is no current way
-                to directly weight the loss function terms. If set to take sqrt of
-                weights in the target transform, the MSE loss function terms will be
-                approximately weighted to the layer mass.
         """
         self._variable_scale_factors = variable_scale_factors or {"dQ2": 1000.0}
         self.weights = self._create_weight_array(
             delp_weights, output_var_order, output_var_feature_count
         )
-        if sqrt_weights:
-            self.weights = np.sqrt(self.weights)
 
     def _create_weight_array(
         self,
