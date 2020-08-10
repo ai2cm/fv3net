@@ -55,6 +55,9 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Remote url to a trained sklearn model.",
     )
     parser.add_argument(
+        "--nudge-to-observations", action="store_true", help="Nudge to observations",
+    )
+    parser.add_argument(
         "--image-tag", type=str, default=None, help="tag to apply to all default images"
     )
     parser.add_argument(
@@ -129,6 +132,11 @@ if __name__ == "__main__":
         )
 
     model_config["scikit_learn"] = scikit_learn_config
+
+    if args.nudge_to_observations:
+        model_config = fv3kube.enable_nudge_to_observations(model_config)
+
+    # submission scripts
     kube_opts = get_kube_opts(prog_config_update, args.image_tag)
     pod_spec = fv3kube.containers.post_processed_fv3_pod_spec(
         model_config, args.output_url, **kube_opts
