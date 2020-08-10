@@ -114,7 +114,7 @@ def _assoc_nudging_namelist_options(
     """assoc is a common name for adding new items to a dictionary without mutation"""
 
     # TODO Oli, please indicate which options below are unrelated to nudging
-    namelist_overlay = {
+    overlay = {
         "namelist": {
             "atmos_model_nml": {"fhout": 2.0, "fhmax": 10000},
             "fv_core_nml": {"nudge": True},
@@ -150,6 +150,4 @@ def _assoc_nudging_namelist_options(
             },
         },
     }
-
-    fv3config_overlay = {"namelist": namelist_overlay}
-    return vcm.update_nested_dict(config, fv3config_overlay)
+    return vcm.update_nested_dict(config, overlay)

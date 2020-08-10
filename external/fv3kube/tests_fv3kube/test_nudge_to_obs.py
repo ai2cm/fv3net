@@ -70,6 +70,21 @@ def test_enable_nudge_to_observations_no_overwrite():
     assert output["namelist"]["fv_core_nml"]["dont"] == "overwrite me"
 
 
+def test_enable_nudge_to_observations_namelist_options():
+    """Test that the nudging namelist options are added
+
+    This test doesn't comprehensively cover all the options. It ensures that
+    some options are correctly set, which can detect implementation problems.
+    """
+    config = {
+        "namelist": {
+            "coupler_nml": {"current_date": [2016, 1, 2, 1, 0, 0], "days": 10},
+        }
+    }
+    output = fv3kube.enable_nudge_to_observations(config)
+    assert output["namelist"]["fv_core_nml"]["nudge"]
+
+
 def test_enable_nudge_to_observations_adds_filelist_asset():
     config = {
         "namelist": {
