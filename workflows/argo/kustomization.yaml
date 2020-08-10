@@ -3,4 +3,5 @@ resources:
   - nudging/nudging.yaml
   - prognostic-run.yaml
   - training-rf.yaml
+  - training-keras.yaml
   - nudge_to_obs/workflow.yaml
