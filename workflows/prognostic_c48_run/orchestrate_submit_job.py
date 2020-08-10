@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 PWD = Path(os.path.abspath(__file__)).parent
 RUNFILE = os.path.join(PWD, "sklearn_runfile.py")
 CONFIG_FILENAME = "fv3config.yml"
-MODEL_FILENAME = "sklearn_model.pkl"
 
 
 def get_kube_opts(config_update, image_tag=None):
@@ -85,6 +84,55 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _update_config_for_ml(
+    model_config: dict,
+    model_url: str,
+    diagnostic_ml: bool,
+    keras_dirname: str = "model_data",
+) -> None:
+    """update various entries needed to ML, helper function refactored from __main__
+    """
+
+    # TODO rename hardcoded references to sklearn?
+
+    scikit_learn_config = model_config.get("scikit_learn", {})
+    scikit_learn_config["zarr_output"] = "diags.zarr"
+
+    if model_url is not None:
+        # insert the model asset
+        model_type = scikit_learn_config.get("model_type", "scikit_learn")
+        if model_type == "scikit_learn":
+            _update_sklearn_config(model_config, model_url)
+        elif model_type == "keras":
+            _update_keras_config(model_config, model_url)
+        else:
+            raise ValueError(
+                "Available model types are scikit_learn and keras; received type:"
+                f" {model_type}."
+            )
+        model_config["scikit_learn"].update(diagnostic_ml=args.diagnostic_ml)
+
+
+def _update_sklearn_config(
+    model_config: dict, model_url: str, sklearn_filename: str = "sklearn_model.pkl"
+) -> None:
+    model_asset = fv3config.get_asset_dict(
+        model_url, sklearn_filename, target_name=sklearn_filename
+    )
+    model_config.setdefault("patch_files", []).append(model_asset)
+    model_config["scikit_learn"].update(model=sklearn_filename)
+
+
+def _update_keras_config(
+    model_config: dict, model_url: str, keras_dirname: str = "model_data"
+) -> None:
+    model_asset_list = fv3config.asset_list_from_path(
+        os.path.join(args.model_url, keras_dirname), target_location=keras_dirname
+    )
+    model_config.setdefault("patch_files", []).extend(model_asset_list)
+    model_config["scikit_learn"].update(model=keras_dirname)
+
+
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
@@ -112,23 +160,9 @@ if __name__ == "__main__":
         "diag_table"
     ] = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
 
-    # Add scikit learn ML model config section
-    scikit_learn_config = model_config.get("scikit_learn", {})
-    scikit_learn_config["zarr_output"] = "diags.zarr"
-    if args.model_url:
+    # Add ML model config section
+    _update_config_for_ml(model_config, args.model_url, args.diagnostic_ml)
 
-        # insert the model asset
-        model_url = os.path.join(args.model_url, MODEL_FILENAME)
-        model_asset = fv3config.get_asset_dict(
-            args.model_url, MODEL_FILENAME, target_name="model.pkl"
-        )
-        model_config.setdefault("patch_files", []).append(model_asset)
-
-        scikit_learn_config.update(
-            model="model.pkl", diagnostic_ml=args.diagnostic_ml,
-        )
-
-    model_config["scikit_learn"] = scikit_learn_config
     kube_opts = get_kube_opts(prog_config_update, args.image_tag)
     pod_spec = fv3kube.containers.post_processed_fv3_pod_spec(
         model_config, args.output_url, **kube_opts
