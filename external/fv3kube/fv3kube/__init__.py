@@ -14,7 +14,7 @@ from .utils import (
     get_alphanumeric_unique_tag,
 )
 
-from .nudge_to_obs import update_config_for_nudging
+from .nudge_to_obs import enable_nudge_to_observations
 
 from . import containers
 

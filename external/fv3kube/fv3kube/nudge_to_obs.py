@@ -6,7 +6,6 @@ from typing import List, Mapping
 import fsspec
 import fv3config
 
-
 # this module assumes that analysis files are at 00Z, 06Z, 12Z and 18Z
 SECONDS_IN_HOUR = 60 * 60
 NUDGE_HOURS = np.array([0, 6, 12, 18])  # hours at which analysis data is available
@@ -67,36 +66,85 @@ def _get_nudge_files_description_asset(config: Mapping, config_url: str) -> Mapp
     return fv3config.get_asset_dict(config_url, fname_list_filename)
 
 
-def _write_nudge_files_description(config: Mapping, url: str):
-    """Write a text file with list of all nudging files (which the
-    model requires to know what the nudging files are called)."""
+def _get_input_fname_list_asset(config: Mapping, filename: str) -> Mapping:
     fname_list_contents = "\n".join(_get_nudge_filename_list(config))
-    with fsspec.open(url, "w") as f:
-        f.write(fname_list_contents)
-
-
-def update_config_for_nudging(config: Mapping, config_url: str) -> Mapping:
-    """Add assets to config for all nudging files and for the text file listing
-    nudging files. This text file will be written to config_url.
-
-    Args:
-        config: an fv3config configuration dictionary
-        config_url: path where text file describing nudging files will be written.
-            File will be written to {config_url}/{input_fname_list} where
-            input_fname_list is a namelist parameter in the fv_nwp_nudge_nml namelist
-            of config.
-
-    Returns:
-        config dict updated to include all required nudging files
-    """
-    nudge_files_description = _get_nudge_files_description_asset(config, config_url)
-    nudge_files_description_url = os.path.join(
-        nudge_files_description["source_location"],
-        nudge_files_description["source_name"],
+    data = fname_list_contents.encode()
+    return fv3config.get_bytes_asset_dict(
+        data, target_location="", target_name=filename
     )
-    _write_nudge_files_description(config, nudge_files_description_url)
-    if "patch_files" not in config:
-        config["patch_files"] = []
-    config["patch_files"].append(nudge_files_description)
-    config["patch_files"].extend(_get_nudge_files_asset_list(config))
+
+
+def enable_nudge_to_observations(config: Mapping) -> Mapping:
+    """Return an configuration dictionary with nudging to observations enabled
+
+    Accepts and returns an fv3config dictionary
+
+    Note:
+        This function appends to patch_files and alters the namelist
+    """
+    input_fname_list = "nudging_file_list"
+    config = _assoc_nudging_namelist_options(config, input_fname_list=input_fname_list)
+    fname_list_asset = _get_input_fname_list_asset(config, input_fname_list)
+
+    patch_files = config.setdefault("patch_files", [])
+    patch_files.append(fname_list_asset)
+    patch_files.append(_get_nudge_files_asset_list(config))
+
     return config
+
+
+def _assoc_nudging_namelist_options(
+    config,
+    gfs_analysis_url="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
+    input_fname_list="nudging_file_list",
+    tau_ps=21600.0,
+    tau_virt=21600.0,
+    tau_winds=21600.0,
+    tau_q=21600.0,
+) -> Mapping:
+    """assoc is a common name for adding new items to a dictionary without mutation"""
+
+    # TODO Oli, please indicate which options below are unrelated to nudging
+    namelist_overlay = {
+        "gfs_analysis_data": {
+            "url": gfs_analysis_url,
+            "filename_pattern": "%Y%m%d_%HZ_T85LR.nc",
+        },
+        "namelist": {
+            "atmos_model_nml": {"fhout": 2.0, "fhmax": 10000},
+            "fv_core_nml": {"nudge": True},
+            "gfs_physics_nml": {"fhzero": 2.0, "use_analysis_sst": True},
+            "fv_nwp_nudge_nml": {
+                "add_bg_wind": False,
+                "do_ps_bias": False,
+                "ibtrack": True,
+                "input_fname_list": input_fname_list,
+                "k_breed": 10,
+                "kbot_winds": 0,
+                "mask_fac": 0.2,
+                "nf_ps": 3,
+                "nf_t": 3,
+                "nudge_debug": True,
+                "nudge_hght": False,
+                "nudge_ps": True,
+                "nudge_virt": True,
+                "nudge_winds": True,
+                "nudge_q": True,
+                "r_hi": 5.0,
+                "r_lo": 3.0,
+                "r_min": 225000.0,
+                "t_is_tv": False,
+                "tau_ps": tau_ps,
+                "tau_virt": tau_virt,
+                "tau_winds": tau_winds,
+                "tau_q": tau_q,
+                "tc_mask": True,
+                "time_varying": False,
+                "track_file_name": "No_File_specified",
+                "use_high_top": True,
+            },
+        },
+    }
+
+    fv3config_overlay = {"namelist": namelist_overlay}
+    return vcm.update_nested_dict(config, fv3config_overlay)
