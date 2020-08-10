@@ -124,9 +124,7 @@ if __name__ == "__main__":
     # time averaged column integrated quantity maps
     for var in COLUMN_INTEGRATED_VARS:
         fig = diagplot.plot_column_integrated_var(
-            ds_diags,
-            var,
-            derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
+            ds_diags, var, derivation_plot_coords=ds_diags[DERIVATION_DIM].values,
         )
         insert_report_figure(
             report_sections,
@@ -144,7 +142,7 @@ if __name__ == "__main__":
         fig = diagplot.plot_diurnal_cycles(
             ds_diurnal,
             vars=var_group,
-            derivation_plot_coords=["target", "predict", "coarsened_SHiELD"],
+            derivation_plot_coords=ds_diurnal[DERIVATION_DIM].values,
         )
         insert_report_figure(
             report_sections,
@@ -168,7 +166,7 @@ if __name__ == "__main__":
         output_dir=temp_output_dir.name,
         title="ML offline diagnostics",
         sections=report_sections,
-        metrics=metrics_formatted,
+        report_metrics=metrics_formatted,
     )
 
     copy_outputs(temp_output_dir.name, args.output_path)
