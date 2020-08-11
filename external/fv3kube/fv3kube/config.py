@@ -1,7 +1,7 @@
 import os
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Sequence, Mapping
+from typing import Any, Sequence, Mapping, Optional
 import fsspec
 import yaml
 
