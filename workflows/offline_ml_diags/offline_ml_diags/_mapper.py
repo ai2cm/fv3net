@@ -86,7 +86,7 @@ class SklearnPredictionMapper(PredictionMapper):
     ):
         self._model = sklearn_wrapped_model
 
-        super().__init__(base_mapper, z_dim, cos_z_var, grid, rename_vars)
+        super().__init__(base_mapper, z_dim, rename_vars, cos_z_var, grid)
 
     def _predict(self, ds: xr.Dataset) -> xr.Dataset:
         if set(self._model.input_vars_).issubset(ds.data_vars) is False:
@@ -122,7 +122,7 @@ class KerasPredictionMapper(PredictionMapper):
     ):
         self._model = keras_model
 
-        super().__init__(base_mapper, z_dim, cos_z_var, grid, rename_vars)
+        super().__init__(base_mapper, z_dim, rename_vars, cos_z_var, grid)
 
     def _predict(self, ds: xr.Dataset) -> xr.Dataset:
         if set(self._model.input_variables).issubset(ds.data_vars) is False:
