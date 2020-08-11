@@ -122,7 +122,7 @@ if __name__ == "__main__":
     # so this could be done as one vcm.update_nested_dict call
     # updated_nested_dict just needs to know how to merge patch_files fields
     config = vcm.update_nested_dict(
-        fv3kube.get_base_fv3config(config_update.get("base_version", DEFAULT_BASE_VERSION)),
+        fv3kube.get_base_fv3config(config_update.get("base_version")),
         fv3kube.c48_initial_conditions_overlay(ic_url, ic_timestep),
         {"diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"},
     )

@@ -30,10 +30,11 @@ FV_CORE_ASSET = fv3config.get_asset_dict(
 FV3Config = Mapping[str, Any]
 
 
-def get_base_fv3config(version_key: str) -> FV3Config:
+def get_base_fv3config(version_key: Optional[str] = None) -> FV3Config:
     """
     Get base configuration dictionary labeled by version_key.
     """
+    version_key = version_key or DEFAULT_BASE_VERSION
     config_path = BASE_FV3CONFIG_BY_VERSION[version_key]
     with fsspec.open(config_path) as f:
         base_yaml = yaml.safe_load(f)
