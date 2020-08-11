@@ -128,8 +128,12 @@ if __name__ == "__main__":
         {"diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"},
     )
     insert_sklearn_settings(config, args.model_url)
+
+    if args.nudge_to_observations:
+        config = fv3kube.enable_nudge_to_observations(config)
+
     model_config = vcm.update_nested_dict(
-        fv3kube.enable_nudge_to_observations(config),
+        config,
         # User settings override previous ones
         user_config,
     )
