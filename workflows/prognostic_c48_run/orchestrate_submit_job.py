@@ -88,37 +88,11 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-if __name__ == "__main__":
-
-    logging.basicConfig(level=logging.INFO)
-    parser = _create_arg_parser()
-    args = parser.parse_args()
-
-    # Get model config with prognostic run updates
-    with open(args.prog_config_yml, "r") as f:
-        prog_config_update = yaml.safe_load(f)
-    config_dir = os.path.join(args.output_url, "job_config")
-    job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
-
-    short_id = fv3kube.get_alphanumeric_unique_tag(8)
-    job_label = {
-        "orchestrator-jobs": f"prognostic-group-{short_id}",
-        # needed to use pod-disruption budget
-        "app": "end-to-end",
-    }
-    model_config = fv3kube.get_full_config(
-        prog_config_update, args.initial_condition_url, args.ic_timestep
-    )
-
-    # hard-code the diag_table
-    model_config[
-        "diag_table"
-    ] = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
-
+def insert_sklearn_settings(model_config, model_url):
     # Add scikit learn ML model config section
     scikit_learn_config = model_config.get("scikit_learn", {})
     scikit_learn_config["zarr_output"] = "diags.zarr"
-    if args.model_url:
+    if model_url:
 
         # insert the model asset
         model_url = os.path.join(args.model_url, MODEL_FILENAME)
@@ -133,10 +107,33 @@ if __name__ == "__main__":
 
     model_config["scikit_learn"] = scikit_learn_config
 
-    if args.nudge_to_observations:
-        model_config = fv3kube.enable_nudge_to_observations(model_config)
+
+if __name__ == "__main__":
+
+    logging.basicConfig(level=logging.INFO)
+    parser = _create_arg_parser()
+    args = parser.parse_args()
+
+    # Get model config with prognostic run updates
+    with open(args.prog_config_yml, "r") as f:
+        prog_config_update = yaml.safe_load(f)
+
+    config = vcm.update_nested_dict(
+        get_base_fv3config(config_update.get("base_version", DEFAULT_BASE_VERSION)),
+        c48_initial_conditions_overlay(ic_url, ic_timestep),
+        {"diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"},
+        config_update,
+    )
+    insert_sklearn_settings(config, args.model_url)
+    model_config = fv3kube.enable_nudge_to_observations(config)
 
     # submission scripts
+    short_id = fv3kube.get_alphanumeric_unique_tag(8)
+    job_label = {
+        "orchestrator-jobs": f"prognostic-group-{short_id}",
+        # needed to use pod-disruption budget
+        "app": "end-to-end",
+    }
     kube_opts = get_kube_opts(prog_config_update, args.image_tag)
     pod_spec = fv3kube.containers.post_processed_fv3_pod_spec(
         model_config, args.output_url, **kube_opts
