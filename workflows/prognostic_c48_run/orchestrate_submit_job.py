@@ -85,10 +85,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
 
 def _update_config_for_ml(
-    model_config: dict,
-    model_url: str,
-    diagnostic_ml: bool,
-    keras_dirname: str = "model_data",
+    model_config: dict, model_url: str, diagnostic_ml: bool
 ) -> None:
     """update various entries needed to ML, helper function refactored from __main__
     """
@@ -111,7 +108,7 @@ def _update_config_for_ml(
                 "Available model types are scikit_learn and keras; received type:"
                 f" {model_type}."
             )
-        model_config["scikit_learn"].update(diagnostic_ml=args.diagnostic_ml)
+        model_config["scikit_learn"].update(diagnostic_ml=diagnostic_ml)
 
 
 def _update_sklearn_config(
