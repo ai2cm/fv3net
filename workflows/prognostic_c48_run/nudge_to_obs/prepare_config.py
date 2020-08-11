@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     config = fv3kube.get_base_fv3config(user_config["base_version"])
     if user_config["namelist"]["fv_core_nml"].get("nudge", False):
-       config = fv3kube.enable_nudge_to_observations(config)
+        config = fv3kube.enable_nudge_to_observations(config)
 
     config = vcm.update_nested_dict(
         config,
