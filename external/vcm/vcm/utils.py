@@ -1,7 +1,8 @@
+from functools import reduce
 from typing import Mapping
 
 
-def update_nested_dict(source: Mapping, update: Mapping) -> Mapping:
+def _update_nested_dict_once(source: Mapping, update: Mapping) -> Mapping:
     """Recursively update a mapping with new values.
 
     Args:
@@ -23,3 +24,13 @@ def update_nested_dict(source: Mapping, update: Mapping) -> Mapping:
         else:
             source[key] = update[key]
     return source
+
+
+def update_nested_dict(*mappings) -> Mapping:
+    """Recursive merge dictionaries updating from left to right. 
+
+    For example, the rightmost mapping will override the proceeding ones. """
+    out, rest = mappings[0], mappings[1:]
+    for mapping in rest:
+        out = _update_nested_dict_once(out, mapping)
+    return out

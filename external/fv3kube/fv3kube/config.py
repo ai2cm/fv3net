@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Sequence, Mapping
 import fsspec
@@ -99,20 +100,29 @@ def get_full_config(
         fv3config Mapping
     """
     base_version = config_update.get("base_version", DEFAULT_BASE_VERSION)
-    base_config = get_base_fv3config(base_version)
-    full_config = vcm.update_nested_dict(base_config, config_update)
-    full_config["initial_conditions"] = update_tiled_asset_names(
-        source_url=os.path.join(ic_url, ic_timestep),
+    return vcm.update_nested_dict(
+        get_base_fv3config(base_version),
+        c48_initial_conditions_overlay(ic_url, ic_timestep),
+        config_update,
+    )
+
+
+def c48_initial_conditions_overlay(url: str, timestep: str) -> Mapping:
+    """An overlay containing initial conditions namelist settings
+    """
+    overlay = {}
+    overlay["initial_conditions"] = update_tiled_asset_names(
+        source_url=os.path.join(url, timestep),
         source_filename="{timestep}.{category}.tile{tile}.nc",
         target_url="INPUT",
         target_filename="{category}.tile{tile}.nc",
-        timestep=ic_timestep,
+        timestep=timestep,
     )
-    full_config["initial_conditions"].append(FV_CORE_ASSET)
-    full_config["namelist"]["coupler_nml"].update(
-        {
-            "current_date": vcm.parse_current_date_from_str(ic_timestep),
-            "force_date_from_namelist": True,
-        }
-    )
-    return full_config
+    overlay["initial_conditions"].append(FV_CORE_ASSET)
+    overlay["namelist"] = {}
+    overlay["namelist"]["coupler_nml"] = {
+        "current_date": vcm.parse_current_date_from_str(timestep),
+        "force_date_from_namelist": True,
+    }
+
+    return overlay
