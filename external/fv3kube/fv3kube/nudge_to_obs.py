@@ -1,6 +1,7 @@
+from copy import deepcopy
 from datetime import datetime, timedelta
 import numpy as np
-from typing import List, Mapping
+from typing import List, Mapping, Optional
 
 import fv3config
 import vcm
@@ -74,15 +75,35 @@ def _get_input_fname_list_asset(config: Mapping, filename: str) -> Mapping:
 
 
 def enable_nudge_to_observations(
-    config: Mapping, file_list_path="nudging_file_list"
+    config: Mapping,
+    file_list_path="nudging_file_list",
+    timescale_hours: Optional[Mapping[str, int]] = None,
 ) -> Mapping:
-    """Return an configuration dictionary with nudging to observations enabled
+    """Enable a nudged to observation run
 
-    Accepts and returns an fv3config dictionary
+    This sets background namelist options and adds the necessary analysis
+    data files to the patch_files. To actually include nudging, the user must
+    enable the nudging for each field and set the coresponding timescale.
+    
+    For example, this can be done using the following user configuration::
+  
+        namelist:
+            fv_nwp_nudge_nml:
+            nudge_hght: false
+            nudge_ps: true
+            nudge_virt: true
+            nudge_winds: true
+            nudge_q: true
+            tau_ps: 21600.0
+            tau_virt: 21600.0
+            tau_winds: 21600.0
+            tau_q: 21600.0
+
 
     Note:
         This function appends to patch_files and alters the namelist
     """
+    config = deepcopy(config)
 
     # set the default if not present
     config.setdefault(
@@ -104,15 +125,8 @@ def enable_nudge_to_observations(
 
 
 def _assoc_nudging_namelist_options(
-    config,
-    input_fname_list="nudging_file_list",
-    tau_ps=21600.0,
-    tau_virt=21600.0,
-    tau_winds=21600.0,
-    tau_q=21600.0,
+    config, input_fname_list="nudging_file_list",
 ) -> Mapping:
-    """assoc is a common name for adding new items to a dictionary without mutation"""
-
     overlay = {
         "namelist": {
             "fv_core_nml": {"nudge": True},
@@ -128,19 +142,10 @@ def _assoc_nudging_namelist_options(
                 "nf_ps": 3,
                 "nf_t": 3,
                 "nudge_debug": True,
-                "nudge_hght": False,
-                "nudge_ps": True,
-                "nudge_virt": True,
-                "nudge_winds": True,
-                "nudge_q": True,
                 "r_hi": 5.0,
                 "r_lo": 3.0,
                 "r_min": 225000.0,
                 "t_is_tv": False,
-                "tau_ps": tau_ps,
-                "tau_virt": tau_virt,
-                "tau_winds": tau_winds,
-                "tau_q": tau_q,
                 "tc_mask": True,
                 "time_varying": False,
                 "track_file_name": "No_File_specified",
