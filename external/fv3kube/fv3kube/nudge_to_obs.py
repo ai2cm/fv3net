@@ -105,16 +105,19 @@ def enable_nudge_to_observations(
     """
     config = deepcopy(config)
 
-    # set the default if not present
-    config.setdefault(
-        "gfs_analysis_data",
-        {
+    default_analysis_overlay = {
+        "gfs_analysis_data": {
             "url": "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
             "filename_pattern": "%Y%m%d_%HZ_T85LR.nc",
-        },
+        }
+    }
+
+    config = vcm.update_nested_dict(
+        default_analysis_overlay,
+        config,
+        _namelist_overlay(input_fname_list=file_list_path),
     )
 
-    config = _assoc_nudging_namelist_options(config, input_fname_list=file_list_path)
     fname_list_asset = _get_input_fname_list_asset(config, file_list_path)
 
     patch_files = config.setdefault("patch_files", [])
@@ -124,10 +127,8 @@ def enable_nudge_to_observations(
     return config
 
 
-def _assoc_nudging_namelist_options(
-    config, input_fname_list="nudging_file_list",
-) -> Mapping:
-    overlay = {
+def _namelist_overlay(input_fname_list="nudging_file_list",) -> Mapping:
+    return {
         "namelist": {
             "fv_core_nml": {"nudge": True},
             "gfs_physics_nml": {"use_analysis_sst": True},
@@ -153,4 +154,3 @@ def _assoc_nudging_namelist_options(
             },
         },
     }
-    return vcm.update_nested_dict(config, overlay)
