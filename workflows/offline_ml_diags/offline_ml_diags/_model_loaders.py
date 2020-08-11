@@ -19,9 +19,9 @@ def load_sklearn_model(
 
 def load_keras_model(
     model_path: str,
-    model_type: str = "DenseModel",
+    keras_model_type: str = "DenseModel",
     model_datadir_name: str = "model_data",
 ) -> Tuple[keras.Model, PredictionMapper]:
-    model_class = keras.get_model_class(model_type)
+    model_class = keras.get_model_class(keras_model_type)
     model = model_class.load(os.path.join(model_path, model_datadir_name))
     return model, KerasPredictionMapper
