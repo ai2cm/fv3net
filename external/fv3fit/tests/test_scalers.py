@@ -10,6 +10,7 @@ from fv3fit._shared.packer import ArrayPacker
 SAMPLE_DIM = "sample"
 FEATURE_DIM = "z"
 
+
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
 def test_standard_scaler_normalize_then_denormalize(n_samples, n_features):
     scaler = StandardScaler()
@@ -104,22 +105,16 @@ def _dataset_from_mapping(mapping: Mapping[str, Sequence[float]]):
     ],
 )
 def test_mass_scaler_normalize(
-    output_values,
-    delp_weights,
-    variable_scale_factors,
-    sqrt_weights,
-    expected,
+    output_values, delp_weights, variable_scale_factors, sqrt_weights, expected,
 ):
     ds = _dataset_from_mapping(output_values)
     packer = ArrayPacker(
-        sample_dim_name=SAMPLE_DIM, pack_names=sorted(list(ds.data_vars)))
+        sample_dim_name=SAMPLE_DIM, pack_names=sorted(list(ds.data_vars))
+    )
     y = packer.to_array(ds)
     scaler = MassScaler()
     scaler.fit(
-        packer,
-        delp_weights,
-        variable_scale_factors,
-        sqrt_weights,
+        packer, delp_weights, variable_scale_factors, sqrt_weights,
     )
     result = scaler.normalize(y)
     np.testing.assert_almost_equal(result, expected)
@@ -164,22 +159,16 @@ def test_mass_scaler_normalize(
     ],
 )
 def test_mass_scaler_denormalize(
-    output_values,
-    delp_weights,
-    variable_scale_factors,
-    sqrt_weights,
-    expected,
+    output_values, delp_weights, variable_scale_factors, sqrt_weights, expected,
 ):
     ds = _dataset_from_mapping(output_values)
     packer = ArrayPacker(
-        sample_dim_name=SAMPLE_DIM, pack_names=sorted(list(ds.data_vars)))
+        sample_dim_name=SAMPLE_DIM, pack_names=sorted(list(ds.data_vars))
+    )
     y = packer.to_array(ds)
     scaler = MassScaler()
     scaler.fit(
-        packer,
-        delp_weights,
-        variable_scale_factors,
-        sqrt_weights,
+        packer, delp_weights, variable_scale_factors, sqrt_weights,
     )
     result = scaler.denormalize(y)
     np.testing.assert_almost_equal(result, expected)
@@ -189,20 +178,20 @@ def test_mass_scaler_normalize_then_denormalize_on_reloaded_scaler():
     n_vertical_levels = 3
     output_values = {
         "y0": np.random.uniform(0, 10, n_vertical_levels),
-        "y1": np.random.uniform(0, 10, n_vertical_levels), 
-        "y2": np.random.uniform(0, 10, 1)}
+        "y1": np.random.uniform(0, 10, n_vertical_levels),
+        "y2": np.random.uniform(0, 10, 1),
+    }
     ds = _dataset_from_mapping(output_values)
     packer = ArrayPacker(
-        sample_dim_name=SAMPLE_DIM, pack_names=sorted(list(ds.data_vars)))
+        sample_dim_name=SAMPLE_DIM, pack_names=sorted(list(ds.data_vars))
+    )
     y = packer.to_array(ds)
-   
+
     delp_weights = np.random.uniform(0, 10, n_vertical_levels)
     variable_scale_factors = {var: np.random.uniform(0, 10) for var in output_values}
     scaler = MassScaler()
     scaler.fit(
-        packer,
-        delp_weights,
-        variable_scale_factors,
+        packer, delp_weights, variable_scale_factors,
     )
     result = scaler.normalize(y)
     with tempfile.NamedTemporaryFile() as f_write:

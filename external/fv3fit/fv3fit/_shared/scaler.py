@@ -1,10 +1,11 @@
 import abc
 from copy import copy
 import numpy as np
-from typing import Sequence, Mapping, BinaryIO
+from typing import Mapping, BinaryIO
 import xarray as xr
 
 from .packer import ArrayPacker
+
 
 class NormalizeTransform(abc.ABC):
     @abc.abstractmethod
@@ -92,17 +93,11 @@ class MassScaler(NormalizeTransform):
         if len(packer.feature_counts) == 0:
             raise ValueError(
                 "Packer's feature count information is empty. Make sure the packer has "
-                "been packed at least once so that dimension lengths are known.")
-        self.weights = self._create_weight_array(
-            delp_weights,
-            packer
-        )
+                "been packed at least once so that dimension lengths are known."
+            )
+        self.weights = self._create_weight_array(delp_weights, packer)
 
-    def _create_weight_array(
-        self,
-        delp_weights: np.ndarray,
-        packer: ArrayPacker
-    ):
+    def _create_weight_array(self, delp_weights: np.ndarray, packer: ArrayPacker):
         n_vertical_levels = len(delp_weights)
         weights = {}
         for var in packer.pack_names:
@@ -110,7 +105,7 @@ class MassScaler(NormalizeTransform):
                 array = np.reshape(copy(delp_weights), (1, -1))
                 dims = [packer.sample_dim_name, f"{var}_feature"]
             elif packer.feature_counts[var] == 1:
-                array = np.array([1.])
+                array = np.array([1.0])
                 dims = [packer.sample_dim_name]
             else:
                 raise ValueError(
@@ -122,7 +117,7 @@ class MassScaler(NormalizeTransform):
                 # want to multiply by scale factor when dividing by weights
                 array /= self._variable_scale_factors[var]
             weights[var] = (dims, array)
-        return packer.to_array(xr.Dataset(weights))
+        return packer.to_array(xr.Dataset(weights))  # type: ignore
 
     def normalize(self, y: np.ndarray):
         return y / self.weights
