@@ -8,7 +8,8 @@ diagnostic function arguments.
 """
 
 import logging
-from typing import Sequence
+from typing import Sequence, Tuple
+import xarray as xr
 
 import vcm
 from constants import HORIZONTAL_DIMS, DiagArg
@@ -97,8 +98,29 @@ def resample_time(freq_label: str, arg: DiagArg, time_slice=slice(None, -1)) -> 
     prognostic = prognostic.resample(time=freq_label, label="right").nearest()
     prognostic = prognostic.isel(time=time_slice)
     if "time" in verification:  # verification might be an empty dataset
-        verification = verification.sel(time=prognostic.time)
+        prognostic, verification = _inner_join_time(prognostic, verification)
     return prognostic, verification, grid
+
+
+def _inner_join_time(
+    prognostic: xr.Dataset, verification: xr.Dataset
+) -> Tuple[xr.Dataset, xr.Dataset]:
+    """ Subset times within the prognostic data to be within the verification data,
+    as necessary and vice versa, and return the subset datasets
+    """
+
+    inner_join_time = xr.merge(
+        [
+            prognostic.time.rename("prognostic_time"),
+            verification.time.rename("verification_time"),
+        ],
+        join="inner",
+    )
+
+    return (
+        prognostic.sel(time=inner_join_time.prognostic_time),
+        verification.sel(time=inner_join_time.verification_time),
+    )
 
 
 def _mask_vars_with_horiz_dims(ds, surface_type, mask_var_name):
