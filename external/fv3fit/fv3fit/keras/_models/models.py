@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional
+from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any
 import xarray as xr
 import logging
 import abc
@@ -333,6 +333,7 @@ class DummyModel(PackedKerasModel):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
+        **kwargs: Mapping[str, Any],
     ):
         """Initialize the DummyModel.
 
@@ -341,8 +342,9 @@ class DummyModel(PackedKerasModel):
                 inputs and outputs.
             input_variables: names of input variables
             output_variables: names of output variables
+            kwargs: variables to be passed to parent class
         """
-        super().__init__(sample_dim_name, input_variables, output_variables)
+        super().__init__(sample_dim_name, input_variables, output_variables, **kwargs)
 
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         inputs = tf.keras.Input(n_features_in)

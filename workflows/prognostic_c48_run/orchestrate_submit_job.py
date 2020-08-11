@@ -97,6 +97,7 @@ def _update_config_for_ml(
 
     scikit_learn_config = model_config.get("scikit_learn", {})
     scikit_learn_config["zarr_output"] = "diags.zarr"
+    model_config.update(scikit_learn=scikit_learn_config)
 
     if model_url is not None:
         # insert the model asset
