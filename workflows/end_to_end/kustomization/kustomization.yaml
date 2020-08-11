@@ -20,7 +20,6 @@ configMapGenerator:
       - one_step_jobs.yml
       - prognostic_run.yml
       - train_sklearn_model.yml
-      - diag_table_prognostic
       - end_to_end.yaml
 images:
   # fv3net image is changed here
