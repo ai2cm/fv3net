@@ -65,8 +65,8 @@ build_ci_image:
 
 
 # run integration tests
-run_argo_integration_tests:
-	./tests/end_to_end_integration_argo/run_test.sh $(VERSION)
+run_integration_tests:
+	./tests/end_to_end_integration/run_test.sh $(VERSION)
 
 test:
 	pytest external tests
