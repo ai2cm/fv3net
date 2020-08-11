@@ -117,13 +117,13 @@ if __name__ == "__main__":
 
     # Get model config with prognostic run updates
     with open(args.prog_config_yml, "r") as f:
-        config_update = yaml.safe_load(f)
+        user_config = yaml.safe_load(f)
 
     # It should be possible to implement all configurations as overlays
     # so this could be done as one vcm.update_nested_dict call
     # updated_nested_dict just needs to know how to merge patch_files fields
     config = vcm.update_nested_dict(
-        fv3kube.get_base_fv3config(config_update.get("base_version")),
+        fv3kube.get_base_fv3config(user_config.get("base_version")),
         fv3kube.c48_initial_conditions_overlay(args.ic_url, args.ic_timestep),
         {"diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"},
     )
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     model_config = vcm.update_nested_dict(
         fv3kube.enable_nudge_to_observations(config),
         # User settings override previous ones
-        config_update,
+        user_config,
     )
 
     # submission scripts
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         # needed to use pod-disruption budget
         "app": "end-to-end",
     }
-    kube_opts = get_kube_opts(config_update, args.image_tag)
+    kube_opts = get_kube_opts(user_config, args.image_tag)
     pod_spec = fv3kube.containers.post_processed_fv3_pod_spec(
         model_config, args.output_url, **kube_opts
     )
