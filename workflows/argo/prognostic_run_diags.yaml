@@ -28,6 +28,8 @@ spec:
       - name: movie-step
         withParam: "{{workflow.parameters.runs}}"
         template: movie
+        continueOn:
+          failed: true
         arguments:
           parameters:
             - name: run
