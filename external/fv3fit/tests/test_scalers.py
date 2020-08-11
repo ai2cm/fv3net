@@ -78,7 +78,11 @@ def test_normalize_then_denormalize_on_reloaded_scaler(n_samples, n_features):
     ],
 )
 def test_mass_scaler_normalize(
-    output_var_order, output_values, delp_weights, variable_scale_factors, expected,
+    output_var_order,
+    output_values,
+    delp_weights,
+    variable_scale_factors,
+    expected,
 ):
     output_var_feature_count = {var: len(output_values[var]) for var in output_values}
     y = np.concatenate([output_values[var] for var in output_var_order]).ravel()
@@ -124,7 +128,11 @@ def test_mass_scaler_normalize(
     ],
 )
 def test_mass_scaler_denormalize(
-    output_var_order, output_values, delp_weights, variable_scale_factors, expected,
+    output_var_order,
+    output_values,
+    delp_weights,
+    variable_scale_factors,
+    expected,
 ):
     output_var_feature_count = {var: len(output_values[var]) for var in output_values}
     y = np.concatenate([output_values[var] for var in output_var_order]).ravel()
