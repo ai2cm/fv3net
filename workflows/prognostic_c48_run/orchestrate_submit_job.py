@@ -7,6 +7,7 @@ import copy
 
 import fv3config
 import fv3kube
+import vcm
 
 logger = logging.getLogger(__name__)
 PWD = Path(os.path.abspath(__file__)).parent
@@ -123,7 +124,7 @@ if __name__ == "__main__":
     # updated_nested_dict just needs to know how to merge patch_files fields
     config = vcm.update_nested_dict(
         fv3kube.get_base_fv3config(config_update.get("base_version")),
-        fv3kube.c48_initial_conditions_overlay(ic_url, ic_timestep),
+        fv3kube.c48_initial_conditions_overlay(args.ic_url, args.ic_timestep),
         {"diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"},
     )
     insert_sklearn_settings(config, args.model_url)
