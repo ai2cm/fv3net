@@ -5,7 +5,6 @@ base_version: v0.4
 scikit_learn:
   input_standard_names:
     total_sky_downward_shortwave_flux_at_top_of_atmosphere: DSWRFtoa_train
-diag_table: /etc/config/diag_table_prognostic
 namelist:
   coupler_nml:
     days: 10 # total length
