@@ -88,11 +88,10 @@ class MassScaler(NormalizeTransform):
                 approximately weighted to the layer mass.
         """
         self._variable_scale_factors = variable_scale_factors or {"dQ2": 1000.0}
+        delp_weights = np.sqrt(delp_weights) if sqrt_weights is True else delp_weights
         self.weights = self._create_weight_array(
             delp_weights, output_var_order, output_var_feature_count
         )
-        if sqrt_weights:
-            self.weights = np.sqrt(self.weights)
 
     def _create_weight_array(
         self,
