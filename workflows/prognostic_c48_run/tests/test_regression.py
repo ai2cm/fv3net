@@ -413,8 +413,7 @@ def get_prognostic_config(model_type, model_path):
     sklearn_config = {"model": model_path, "zarr_output": "diags.zarr"}
     if model_type == "keras":
         sklearn_config.update(
-            model_loader="load_keras_model",
-            model_loader_kwargs={"model_type": "DummyModel"},
+            model_type="keras", model_loader_kwargs={"keras_model_type": "DummyModel"},
         )
     config["scikit_learn"] = sklearn_config
     # use local paths in prognostic_run image. fv3config

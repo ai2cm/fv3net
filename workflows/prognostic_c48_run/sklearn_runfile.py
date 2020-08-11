@@ -99,7 +99,6 @@ def precipitation_sum(
 def open_model(config):
     # Load the model
     model_type = config.get("model_type", "scikit_learn")
-    print(model_type)
     try:
         model_loader = {"scikit_learn": load_sklearn_model, "keras": load_keras_model}[
             model_type
@@ -109,7 +108,6 @@ def open_model(config):
             "Valid model type values include 'scikit_learn' and "
             f"'keras'; received {model_type}."
         )
-    print(model_loader)
     stacked_predictor = model_loader(
         config["model"], **config.get("model_loader_kwargs", {})
     )
