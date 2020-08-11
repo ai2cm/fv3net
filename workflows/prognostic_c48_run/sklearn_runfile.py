@@ -99,6 +99,7 @@ def precipitation_sum(
 def open_model(config):
     # Load the model
     model_type = config.get("model_type", "scikit_learn")
+    print(model_type)
     try:
         model_loader = {"scikit_learn": load_sklearn_model, "keras": load_keras_model}[
             model_type
@@ -108,6 +109,7 @@ def open_model(config):
             "Valid model type values include 'scikit_learn' and "
             f"'keras'; received {model_type}."
         )
+    print(model_loader)
     stacked_predictor = model_loader(
         config["model"], **config.get("model_loader_kwargs", {})
     )
@@ -123,9 +125,9 @@ def load_sklearn_model(model_path):
 
 
 def load_keras_model(
-    model_path, model_type="DenseModel", model_datadir_name="model_data"
+    model_path, keras_model_type="DenseModel", model_datadir_name="model_data"
 ):
-    model_class = fv3fit_keras.get_model_class(model_type)
+    model_class = fv3fit_keras.get_model_class(keras_model_type)
     model = model_class.load(os.path.join(model_path, model_datadir_name))
     return runtime.KerasStackingAdapter(model, sample_dims=["y", "x"])
 
