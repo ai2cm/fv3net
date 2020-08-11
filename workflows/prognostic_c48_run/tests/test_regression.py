@@ -465,7 +465,7 @@ def _save_mock_keras_model(tmpdir):
         "DummyModel", "sample", input_variables, output_variables
     )
     model.fit([_model_dataset()])
-    model.dump(str(tmpdir.join("model_data")))
+    model.dump(str(tmpdir))
 
     return str(tmpdir)
 

@@ -10,7 +10,6 @@ from typing import (
     List,
     Sequence,
 )
-import os
 
 import fsspec
 import xarray as xr
@@ -122,11 +121,9 @@ def load_sklearn_model(model_path):
     return runtime.SklearnStackingAdapter(model, sample_dims=["y", "x"])
 
 
-def load_keras_model(
-    model_path, keras_model_type="DenseModel", model_datadir_name="model_data"
-):
+def load_keras_model(model_path, keras_model_type="DenseModel"):
     model_class = fv3fit_keras.get_model_class(keras_model_type)
-    model = model_class.load(os.path.join(model_path, model_datadir_name))
+    model = model_class.load(model_path)
     return runtime.KerasStackingAdapter(model, sample_dims=["y", "x"])
 
 
