@@ -113,12 +113,10 @@ def _assoc_nudging_namelist_options(
 ) -> Mapping:
     """assoc is a common name for adding new items to a dictionary without mutation"""
 
-    # TODO Oli, please indicate which options below are unrelated to nudging
     overlay = {
         "namelist": {
-            "atmos_model_nml": {"fhout": 2.0, "fhmax": 10000},
             "fv_core_nml": {"nudge": True},
-            "gfs_physics_nml": {"fhzero": 2.0, "use_analysis_sst": True},
+            "gfs_physics_nml": {"use_analysis_sst": True},
             "fv_nwp_nudge_nml": {
                 "add_bg_wind": False,
                 "do_ps_bias": False,
