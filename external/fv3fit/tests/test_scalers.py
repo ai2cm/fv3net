@@ -49,13 +49,14 @@ def test_normalize_then_denormalize_on_reloaded_scaler(n_samples, n_features):
 
 @pytest.mark.parametrize(
     "output_var_order, output_values, delp_weights, \
-        variable_scale_factors, expected",
+        variable_scale_factors, sqrt_weights, expected",
     [
         pytest.param(
             ["y0", "y1"],
             {"y0": [0.0, 1], "y1": [2.0, 3]},
             [1.0, 2.0],
             {"y0": 100},
+            False,
             [0, 50.0, 2.0, 1.5],
             id="all vertical features, with scale factor",
         ),
@@ -64,6 +65,7 @@ def test_normalize_then_denormalize_on_reloaded_scaler(n_samples, n_features):
             {"y0": [0.0, 1], "y1": [2]},
             [1.0, 2.0],
             None,
+            False,
             [0.0, 0.5, 2.0],
             id="one scalar feature",
         ),
@@ -72,8 +74,18 @@ def test_normalize_then_denormalize_on_reloaded_scaler(n_samples, n_features):
             {"y0": [0.0], "y1": [2]},
             [1.0, 2.0],
             None,
+            False,
             [0.0, 2.0],
             id="all scalar features",
+        ),
+        pytest.param(
+            ["y0", "y1"],
+            {"y0": [0.0, 6.0], "y1": [4.0, 18.0]},
+            [4.0, 9.0],
+            None,
+            True,
+            [0.0, 2.0, 2.0, 6.0],
+            id="sqrt weights",
         ),
     ],
 )
@@ -82,6 +94,7 @@ def test_mass_scaler_normalize(
     output_values,
     delp_weights,
     variable_scale_factors,
+    sqrt_weights,
     expected,
 ):
     output_var_feature_count = {var: len(output_values[var]) for var in output_values}
@@ -92,6 +105,7 @@ def test_mass_scaler_normalize(
         output_var_feature_count,
         delp_weights,
         variable_scale_factors,
+        sqrt_weights,
     )
     result = scaler.normalize(y)
     np.testing.assert_almost_equal(result, expected)
@@ -99,13 +113,14 @@ def test_mass_scaler_normalize(
 
 @pytest.mark.parametrize(
     "output_var_order, output_values, delp_weights, \
-        variable_scale_factors, expected",
+        variable_scale_factors, sqrt_weights, expected",
     [
         pytest.param(
             ["y0", "y1"],
             {"y0": [0, 50], "y1": [2.0, 1.5]},
             [1.0, 2.0],
             {"y0": 100},
+            False,
             [0.0, 1.0, 2.0, 3.0],
             id="all vertical features, with scale factor",
         ),
@@ -114,6 +129,7 @@ def test_mass_scaler_normalize(
             {"y0": [0.0, 0.5], "y1": [2]},
             [1.0, 2.0],
             None,
+            False,
             [0.0, 1.0, 2.0],
             id="one scalar feature",
         ),
@@ -122,8 +138,18 @@ def test_mass_scaler_normalize(
             {"y0": [0.0], "y1": [2]},
             [1.0, 2.0],
             None,
+            False,
             [0.0, 2.0],
             id="all scalar features",
+        ),
+        pytest.param(
+            ["y0", "y1"],
+            {"y0": [0.0, 2.0], "y1": [2.0, 6.0]},
+            [4.0, 9.0],
+            None,
+            True,
+            [0.0, 6.0, 4.0, 18.0],
+            id="sqrt weights",
         ),
     ],
 )
@@ -132,6 +158,7 @@ def test_mass_scaler_denormalize(
     output_values,
     delp_weights,
     variable_scale_factors,
+    sqrt_weights,
     expected,
 ):
     output_var_feature_count = {var: len(output_values[var]) for var in output_values}
@@ -142,6 +169,7 @@ def test_mass_scaler_denormalize(
         output_var_feature_count,
         delp_weights,
         variable_scale_factors,
+        sqrt_weights,
     )
     result = scaler.denormalize(y)
     np.testing.assert_almost_equal(result, expected)
