@@ -3,7 +3,7 @@ from typing import Mapping
 import xarray as xr
 
 from ._base import GeoMapper
-from ._nudged import open_merged_nudged_full_tendencies
+from ._nudged import open_merged_nudged_full_tendencies, open_merged_nudge_to_obs_full_tendencies
 from ._fine_resolution_budget import (
     FineResolutionSources,
     open_fine_res_apparent_sources,
@@ -58,3 +58,30 @@ def open_fine_resolution_nudging_hybrid(
     nudged = open_merged_nudged_full_tendencies(**nudging)
     fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res)
     return FineResolutionResidual(nudged, fine_res)
+
+
+def open_fine_resolution_nudging_to_obs_hybrid(
+    _, nudging_to_obs: Mapping, fine_res: Mapping,
+) -> FineResolutionResidual:
+    """
+    Fine resolution nudging_hybrid mapper for merging with nudged to
+    observations datasets.
+
+    Args:
+        _: The training routines currently assume the first argument is a
+            path to a particular dataset. However, this mapper merges two such
+            datasets, so it doesn't make sense to give one special treatment.
+            Therefore, this argument should be ignored.
+        nudging_to_obs: keyword arguments passed to
+            :py:func:`open_merged_nudge_to_obs_full_tendencies`
+        fine_res: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
+
+    Returns:
+        a mapper
+    """
+
+    offset_seconds = fine_res.pop("offset_seconds", 450)
+
+    nudged_to_obs = open_merged_nudge_to_obs_full_tendencies(**nudging_to_obs)
+    fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res)
+    return FineResolutionResidual(nudged_to_obs, fine_res)
