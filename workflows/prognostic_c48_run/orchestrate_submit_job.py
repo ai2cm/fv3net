@@ -124,7 +124,7 @@ def _update_sklearn_config(
 def _update_keras_config(
     model_config: dict, model_url: str, keras_dirname: str = "model_data"
 ) -> None:
-    model_asset_list = fv3config.asset_list_from_path(
+    model_asset_list = fv3config._asset_list.asset_list_from_path(
         os.path.join(args.model_url, keras_dirname), target_location=keras_dirname
     )
     model_config.setdefault("patch_files", []).extend(model_asset_list)
