@@ -57,7 +57,7 @@ kubectl apply -f workflows/argo/training-rf.yaml
 kubectl apply -f workflows/argo/prognostic-run.yaml
 kubectl apply -f workflows/argo/nudging/nudging.yaml
 
-cd tests/end_to_end_integration_argo
+cd tests/end_to_end_integration
 
 envsubst < "config_template.yaml" > "config.yaml"
 
