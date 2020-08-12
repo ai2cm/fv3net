@@ -196,9 +196,9 @@ jobs:
             chmod +x argo-linux-amd64
             mv ./argo-linux-amd64 /usr/local/bin/argo
       - run:
-          name: Submit argo integration tests
+          name: Submit integration tests
           command: |
-            make run_argo_integration_tests VERSION=$CIRCLE_SHA1
+            make run_integration_tests VERSION=$CIRCLE_SHA1
       - run:
           name: Firewall rule deletion
           when: always
