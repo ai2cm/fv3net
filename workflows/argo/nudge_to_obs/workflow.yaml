@@ -53,17 +53,20 @@ spec:
                 value: "{{workflow.parameters.output-url}}"
               - name: nudging-config
                 value: "{{workflow.parameters.nudging-config}}"
+              - name: fv3gfs-cpu
+                value: "{{workflow.parameters.fv3gfs-cpu}}"
+              - name: fv3gfs-memory
+                value: "{{workflow.parameters.fv3gfs-memory}}"
     - name: nudge-to-obs
       inputs:
         parameters:
           - name: nudging-config
           - name: output-url
           - name: fv3gfs-image
-            value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
           - name: fv3net-image
-            value: us.gcr.io/vcm-ml/fv3net:31e801284164325f6c80079517cd5aaf88081aa8
           - name: post-process-image
-            value: us.gcr.io/vcm-ml/post_process_run:31e801284164325f6c80079517cd5aaf88081aa8
+          - name: fv3gfs-cpu
+          - name: fv3gfs-memory
       steps:
         - - template: prepare-config
             name: prepare-config
@@ -76,6 +79,8 @@ spec:
             arguments:
               parameters:
                 - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
+                - {name: cpu, value: "{{inputs.parameters.fv3gfs-cpu}}"}
+                - {name: memory, value: "{{inputs.parameters.fv3gfs-memory}}"}
         - - name: upload-outputs
             template: post-process
             arguments:
@@ -134,6 +139,8 @@ spec:
       inputs:
         parameters:
           - {name: fv3gfs-image}
+          - {name: cpu}
+          - {name: memory}
       tolerations:
       - key: "dedicated"
         operator: "Equal"
@@ -156,11 +163,11 @@ spec:
         imagePullPolicy: Always
         resources:
           limits:
-            cpu: "{workflow.parameters.fv3gfs-cpu}"
-            memory: "{workflow.parameters.fv3gfs-memory}"
+            cpu: "{inputs.parameters.cpu}"
+            memory: "{inputs.parameters.memory}"
           requests:
-            cpu: "{workflow.parameters.fv3gfs-cpu}"
-            memory: "{workflow.parameters.fv3gfs-memory}"
+            cpu: "{inputs.parameters.cpu}"
+            memory: "{inputs.parameters.memory}"
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
