@@ -7,6 +7,8 @@ spec:
     parameters:
     - name: runs
     - name: docker-image
+    - name: make-movies
+      value: "true"
   entrypoint: all
   volumes:
   - name: gcp-credentials-user-gcp-sa
@@ -26,6 +28,7 @@ spec:
             - name: output
               value: "gs://vcm-ml-public/argo/{{workflow.name}}/{{item.name}}/"
       - name: movie-step
+        when: "{{workflow.parameters.make-movies}} == true"
         withParam: "{{workflow.parameters.runs}}"
         template: movie
         continueOn:
@@ -54,12 +57,11 @@ spec:
       - $(OUTPUT)
       workingDir: /home/jovyan/fv3net/workflows/prognostic_run_diags
       env:
-      - name: GOOGLE_APPLICATION_CREDENTIALS
+      - name: GOOGLE_APPLICATION_CREDENTIALS 
         value: /secret/gcp-credentials/key.json
       - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
         value: /secret/gcp-credentials/key.json
       - name: OUTPUT
-        # value: "{{workflow.parameters.output}}"
         value: "gs://vcm-ml-public/argo/{{workflow.name}}/index.html"
       - name: INPUT
         value: "gs://vcm-ml-public/argo/{{workflow.name}}"
