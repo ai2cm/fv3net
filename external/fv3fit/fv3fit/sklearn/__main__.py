@@ -28,8 +28,7 @@ def _save_config_output(output_url, config):
 def _save_timesteps_used(
     path: str, times: Sequence[Union[np.datetime64, datetime, str]]
 ) -> None:
-    """Given path to output directory and times used, create all plots required
-    for html report"""
+    """Given path to output directory and times used, save those times in a yml file"""
     times = [vcm.cast_to_datetime(time) for time in times]
     with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME), "w") as f:
         yaml.safe_dump(times, f)
