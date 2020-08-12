@@ -1,4 +1,4 @@
-from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional, Any
+from typing import Sequence, Tuple, Iterable, Mapping, Union, Optional
 import xarray as xr
 import logging
 import abc
@@ -333,18 +333,18 @@ class DummyModel(PackedKerasModel):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        **kwargs: Mapping[str, Any],
+        normalize_loss: bool = False,
     ):
-        """Initialize the DummyModel.
-
+        """Initialize the DummyModel
         Args:
             sample_dim_name: name of the sample dimension in datasets used as
                 inputs and outputs.
             input_variables: names of input variables
             output_variables: names of output variables
-            kwargs: variables to be passed to parent class
+            normalize_loss: unused; this is here because the inherited load method
+                initializes with this argument; TODO: overwrite load method to avoid
         """
-        super().__init__(sample_dim_name, input_variables, output_variables, **kwargs)
+        super().__init__(sample_dim_name, input_variables, output_variables)
 
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         inputs = tf.keras.Input(n_features_in)
