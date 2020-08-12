@@ -136,8 +136,7 @@ You could create a kubernetes yaml file which runs such a command on a
 `fv3gfs-python` docker image, and submit it manually. However, `fv3config` also
 supplies a `run_kubernetes` function to do this for you. See the
 [`fv3config`](https://github.com/VulcanClimateModeling/fv3config) documentation for
-more complete details, or the `one_step_jobs` workflow for a more complex example of
-using the function to prepare and submit many jobs.
+more complete details.
 
 The basic structure of the command is
 
