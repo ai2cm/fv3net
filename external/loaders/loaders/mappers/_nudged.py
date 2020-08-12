@@ -527,72 +527,32 @@ def open_merged_nudge_to_obs(
     return nudged_mapper
 
 
-def open_merged_nudge_to_obs_full_tendencies(
-    nudging_url: str,
-    open_merged_nudge_to_obs_kwargs: Mapping[str, Any] = {},
-    open_checkpoints_kwargs: Mapping[str, Any] = {},
-    difference_checkpoints: Sequence[str] = ("after_dynamics", "after_physics"),
-    physics_tendency_variables: Mapping[str, str] = None,
-    nudging_to_physics_tendency: Mapping[str, str] = None,
-    timestep_physics_seconds: int = 900,
-    consolidated: bool = False,
+def open_nudged_to_obs_prognostic(
+        url: str,
+        nudging_to_physics_tendency: Mapping[str, str] = None,
+        rename_vars: Mapping[str, str] = None,
+        timestep_physics_seconds: int = 900,
+        consolidated: bool = False,
 ) -> Mapping[str, xr.Dataset]:
-    """
-    Load mapper to nudge-to-obs dataset containing both dQ and pQ tendency terms.
-    Since the nudge-to-obs run does nudging within the physics routines, the physics
-    tendency is equal to the difference between the after_dynamics and after_physics
-    checkpoints minus the nudging tendency.
-
-    Args:
-        nudging_url: Path to directory with nudging output
-        open_merged_nudge_to_obs_kwargs (optional): kwargs mapping to be passed to
-            open_merged_nudge_to_obs
-        open_checkpoints_kwargs (optional): kwargs mapping to be passed to
-            open_nudging_checkpoints
-        difference_checkpoints (optional): len-2 sequence of checkpoint names
-            for computing physics tendencies, with first checkpoint subtracted
-            from second; defaults to ('after_dynamics', 'after_physics')
-        physics_tendency_variables (optional): mapping of tendency term names to
-            variable names; defaults to
-            {'air_temperature': 'pQ1', 'specific_humidity': 'pQ2'}
-        nudging_to_physics_tendency (optional): mapping of renamed nudging tendency
-            names to physics tendency names; defaults to {'dQ1': 'pQ1, 'dQ2': 'pQ2'}
-        timestep_physics_seconds (optional): physics timestep in seconds;
-            defaults to 900
-        consolidated (optional): if true, open the underlying zarr stores with the
-            consolidated flag to xr.open_zarr. Defaults to false.
-
-    Returns
-        mapper of timestamps to datasets containing full tendency terms
-    """
-
-    physics_tendency_variables = physics_tendency_variables or {
-        "pQ1": "air_temperature",
-        "pQ2": "specific_humidity",
+    rename_vars = rename_vars or {
+        "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
+        "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+        "air_temperature_tendency_due_to_nudging": "dQ1",
+        "specific_humidity_tendency_due_to_nudging": "dQ2",
     }
-
     nudging_to_physics_tendency = nudging_to_physics_tendency or {
         "dQ1": "pQ1",
         "dQ2": "pQ2",
     }
-
-    nudged_mapper = open_merged_nudge_to_obs(
-        nudging_url, consolidated=consolidated, **open_merged_nudge_to_obs_kwargs
-    )
-    checkpoint_mapper = _open_nudging_checkpoints(
-        nudging_url, consolidated=consolidated, **open_checkpoints_kwargs
-    )
-
-    full_tendencies_mapper = NudgedFullTendencies(
-        nudged_mapper,
-        checkpoint_mapper,
-        difference_checkpoints,
-        physics_tendency_variables,
-        timestep_physics_seconds,
+    mapper = fsspec.get_mapper(url)
+    ds = xr.open_zarr(
+        zstore.LRUStoreCache(mapper, 1024),
+        consolidated=consolidated,
+        mask_and_scale=False,
+    ).rename(rename_vars)
+    mapper = LongRunMapper(ds)
+    return SubtractNudgingTendency(
+        mapper, nudging_to_physics_tendency
     )
 
-    full_tendencies_mapper = SubtractNudgingTendency(
-        full_tendencies_mapper, nudging_to_physics_tendency
-    )
 
-    return full_tendencies_mapper
