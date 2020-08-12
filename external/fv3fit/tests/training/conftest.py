@@ -2,7 +2,6 @@ from typing import Iterable, Sequence
 from synth import (  # noqa: F401
     dataset_fixtures_dir,
     data_source_name,
-    one_step_dataset_path,
     nudging_dataset_path,
     fine_res_dataset_path,
     data_source_path,
@@ -32,13 +31,7 @@ def batch_function(model_type: str) -> str:
 
 @pytest.fixture()
 def batch_kwargs(data_source_name: str) -> dict:  # noqa: F811
-    if data_source_name == "one_step_tendencies":
-        return {
-            "timesteps_per_batch": 1,
-            "mapping_function": "open_one_step",
-            "timesteps": ["20160801.001500", "20160801.003000"],
-        }
-    elif data_source_name == "nudging_tendencies":
+    if data_source_name == "nudging_tendencies":
         return {
             "timesteps_per_batch": 1,
             "mapping_function": "open_merged_nudged",
