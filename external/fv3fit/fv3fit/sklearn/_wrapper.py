@@ -18,10 +18,10 @@ class AppendPrincipalComponents:
             random_state: random state or seed
         """
         self.base_regressor = base_regressor
-        self.pca = PCA(n_components=n_components, random_state=random_state)
+        self.pca: PCA = PCA(n_components=n_components, random_state=random_state)
         self._is_fit = False
 
-    def fit(self, features: np.ndarray, outputs: np.ndarray):
+    def fit(self, features: np.ndarray, outputs: np.ndarray) -> None:
         if not self._is_fit:
             self.pca.fit(features)
             self._is_fit = True
@@ -33,7 +33,7 @@ class AppendPrincipalComponents:
         return self.base_regressor.predict(features)
 
     @property
-    def n_estimators(self):
+    def n_estimators(self) -> int:
         return self.base_regressor.n_estimators
 
     def _append_principal_components(self, features: np.ndarray) -> np.ndarray:
