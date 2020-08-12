@@ -146,6 +146,16 @@ spec:
         operator: "Equal"
         value: "climate-sim-pool"
         effect: "NoSchedule"
+      podSpecPatch: |
+        containers:
+          - name: main
+            resources:
+              limits:
+                cpu: "{{inputs.parameters.cpu}}"
+                memory: "{{inputs.parameters.memory}}"
+              requests:
+                cpu: "{{inputs.parameters.cpu}}"
+                memory: "{{inputs.parameters.memory}}"
       container:
         command:
           - python
@@ -161,13 +171,6 @@ spec:
             value: /secret/gcp-credentials/key.json
         image: '{{inputs.parameters.fv3gfs-image}}'
         imagePullPolicy: Always
-        resources:
-          limits:
-            cpu: "{inputs.parameters.cpu}"
-            memory: "{inputs.parameters.memory}"
-          requests:
-            cpu: "{inputs.parameters.cpu}"
-            memory: "{inputs.parameters.memory}"
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
