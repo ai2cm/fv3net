@@ -18,11 +18,20 @@ def model_type(request) -> str:
 
 
 @pytest.fixture
-def hyperparameters(model_type) -> dict:
+def hyperparameters(model_type, append_principal_components) -> dict:
     if model_type == "sklearn_random_forest":
-        return {"max_depth": 4, "n_estimators": 2}
+        return {
+            "max_depth": 4,
+            "n_estimators": 2,
+            "append_principal_components": append_principal_components,
+        }
     else:
         raise NotImplementedError(model_type)
+
+
+@pytest.fixture(params=[0, 5])
+def append_principal_components(request) -> int:
+    return request.param
 
 
 @pytest.mark.regression

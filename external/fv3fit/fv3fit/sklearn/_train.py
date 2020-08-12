@@ -6,7 +6,7 @@ import xarray as xr
 from .._shared import ModelTrainingConfig
 from typing import Sequence
 
-from ._wrapper import SklearnWrapper, RegressorEnsemble
+from ._wrapper import SklearnWrapper, RegressorEnsemble, AppendPrincipalComponents
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
@@ -45,11 +45,13 @@ def _get_regressor(train_config: ModelTrainingConfig):
 
 
 def _get_transformed_batch_regressor(train_config):
+    n_components = train_config.hyperparameters.pop("append_principal_components", 0)
     base_regressor = _get_regressor(train_config)
     target_transformer = StandardScaler()
     transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
-    batch_regressor = RegressorEnsemble(transform_regressor)
-    model_wrapper = SklearnWrapper(batch_regressor)
+    regressor = RegressorEnsemble(transform_regressor)
+    regressor = AppendPrincipalComponents(regressor, n_components=n_components)
+    model_wrapper = SklearnWrapper(regressor)
     return model_wrapper
 
 

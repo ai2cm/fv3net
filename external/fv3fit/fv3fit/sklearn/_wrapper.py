@@ -3,7 +3,53 @@ from copy import copy
 import numpy as np
 import xarray as xr
 from sklearn.base import BaseEstimator
+from sklearn.decomposition import PCA
 from .._shared import pack, unpack
+
+
+class AppendPrincipalComponents:
+    def __init__(self, base_regressor, n_components: int = None, random_state=None):
+        """Initialize an AppendPrincipalComponents
+
+        Args:
+            base_regressor: regressor being wrapped
+            n_components: number of principal components to append, by default
+                append all components
+            random_state: random state or seed
+        """
+        self.base_regressor = base_regressor
+        self.pca = PCA(n_components=n_components, random_state=random_state)
+        self._is_fit = False
+
+    def fit(self, features: np.ndarray, outputs: np.ndarray):
+        if not self._is_fit:
+            self.pca.fit(features)
+            self._is_fit = True
+        features = self._append_principal_components(features)
+        self.base_regressor.fit(features, outputs)
+
+    def predict(self, features: np.ndarray) -> np.ndarray:
+        features = self._append_principal_components(features)
+        return self.base_regressor.predict(features)
+
+    @property
+    def n_estimators(self):
+        return self.base_regressor.n_estimators
+
+    def _append_principal_components(self, features: np.ndarray) -> np.ndarray:
+        """Appends the principal components as new features.
+
+        Args:
+            features: 2d numpy array [samples, features] to predict on
+
+        Returns:
+            features: input array with new principal component features appended
+        """
+        if self.pca.n_components > 0:
+            principal_components = self.pca.transform(features)
+            return np.concatenate([features, principal_components], axis=1)
+        else:
+            return features
 
 
 class RegressorEnsemble:
