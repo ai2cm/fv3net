@@ -3,7 +3,7 @@ from typing import Mapping
 import xarray as xr
 
 from ._base import GeoMapper
-from ._nudged import open_merged_nudged_full_tendencies, open_merged_nudge_to_obs_full_tendencies
+from ._nudged import open_merged_nudged_full_tendencies, open_nudged_to_obs_prognostic
 from ._fine_resolution_budget import (
     FineResolutionSources,
     open_fine_res_apparent_sources,
@@ -61,11 +61,13 @@ def open_fine_resolution_nudging_hybrid(
 
 
 def open_fine_resolution_nudging_to_obs_hybrid(
-    _, nudging_to_obs: Mapping, fine_res: Mapping,
+    _, prognostic_kwargs: Mapping, fine_res_kwargs: Mapping,
 ) -> FineResolutionResidual:
     """
-    Fine resolution nudging_hybrid mapper for merging with nudged to
-    observations datasets.
+    Fine resolution nudging_hybrid mapper for merging with prognostic nudged to
+    observations datasets. This differs from the existin fine res / nudging hybrid
+    because the prognostic run data already has the tendency difference from the
+    physics step saved. This 
 
     Args:
         _: The training routines currently assume the first argument is a
@@ -80,8 +82,8 @@ def open_fine_resolution_nudging_to_obs_hybrid(
         a mapper
     """
 
-    offset_seconds = fine_res.pop("offset_seconds", 450)
+    offset_seconds = fine_res_kwargs.pop("offset_seconds", 450)
 
-    nudged_to_obs = open_merged_nudge_to_obs_full_tendencies(**nudging_to_obs)
-    fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res)
+    nudged_to_obs = open_nudged_to_obs_prognostic(**prognostic_kwargs)
+    fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res_kwargs)
     return FineResolutionResidual(nudged_to_obs, fine_res)
