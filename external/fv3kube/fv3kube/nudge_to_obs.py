@@ -89,15 +89,15 @@ def enable_nudge_to_observations(
   
         namelist:
             fv_nwp_nudge_nml:
-            nudge_hght: false
-            nudge_ps: true
-            nudge_virt: true
-            nudge_winds: true
-            nudge_q: true
-            tau_ps: 21600.0
-            tau_virt: 21600.0
-            tau_winds: 21600.0
-            tau_q: 21600.0
+                nudge_hght: false
+                nudge_ps: true
+                nudge_virt: true
+                nudge_winds: true
+                nudge_q: true
+                tau_ps: 21600.0
+                tau_virt: 21600.0
+                tau_winds: 21600.0
+                tau_q: 21600.0
 
 
     Note:
