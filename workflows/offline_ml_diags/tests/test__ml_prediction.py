@@ -1,13 +1,17 @@
 import xarray as xr
+import numpy as np
 import pytest
 
 from loaders import SAMPLE_DIM_NAME
 from offline_ml_diags._mapper import (
     SklearnPredictionMapper,
+    KerasPredictionMapper,
     PREDICT_COORD,
     TARGET_COORD,
     DERIVATION_DIM,
 )
+from fv3fit import keras as fv3fit_keras
+from vcm import safe
 
 
 def mock_predict_function(feature_data_arrays):
@@ -85,7 +89,9 @@ def mock_model(request):
     ],
     indirect=True,
 )
-def test_ml_predict_wrapper_insert_prediction(mock_model, base_mapper, gridded_dataset):
+def test_sklearn_predict_wrapper_insert_prediction(
+    mock_model, base_mapper, gridded_dataset
+):
     mapper = SklearnPredictionMapper(base_mapper, mock_model, z_dim="z",)
     for key in mapper.keys():
         mapper_output = mapper[key]
@@ -104,7 +110,7 @@ def test_ml_predict_wrapper_insert_prediction(mock_model, base_mapper, gridded_d
     ],
     indirect=True,
 )
-def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
+def test_sklearn_predict_wrapper(mock_model, base_mapper, gridded_dataset):
     mapper = SklearnPredictionMapper(base_mapper, mock_model, z_dim="z",)
     for key in mapper.keys():
         mapper_output = mapper[key]
@@ -124,8 +130,92 @@ def test_ml_predict_wrapper(mock_model, base_mapper, gridded_dataset):
     [([], ["pred0"]), (["feature0", "feature10"], ["pred0"])],
     indirect=True,
 )
-def test_ml_predict_wrapper_invalid_usage(mock_model, base_mapper, gridded_dataset):
+def test_sklearn_predict_wrapper_invalid_usage(
+    mock_model, base_mapper, gridded_dataset
+):
     mapper = SklearnPredictionMapper(base_mapper, mock_model, z_dim="z",)
     with pytest.raises(Exception):
         for key in mapper.keys():
             mapper[key]
+
+
+def _sample_dataset():
+
+    nz = 63
+    arr = np.zeros((1, nz))
+    dims = ["time", "z"]
+
+    data = xr.Dataset(
+        {
+            "specific_humidity": (dims, arr),
+            "air_temperature": (dims, arr),
+            "dQ1": (dims, arr),
+            "dQ2": (dims, arr),
+        }
+    )
+
+    return data
+
+
+@pytest.fixture
+def sample_mapper():
+    return MockBaseMapper(_sample_dataset())
+
+
+@pytest.fixture
+def mock_keras_model():
+
+    input_variables = ["air_temperature", "specific_humidity"]
+    output_variables = ["dQ1", "dQ2"]
+
+    model = fv3fit_keras.get_model(
+        "DummyModel", "sample", input_variables, output_variables
+    )
+
+    ds = _sample_dataset()
+    ds_stacked = [
+        safe.stack_once(ds, "sample", [dim for dim in ds.dims if dim != "z"]).transpose(
+            "sample", "z"
+        )
+    ]
+    model.fit(ds_stacked)
+
+    return model
+
+
+@pytest.fixture
+def keras_prediction_mapper(sample_mapper, mock_keras_model):
+    mapper = KerasPredictionMapper(sample_mapper, mock_keras_model, z_dim="z",)
+    return mapper
+
+
+def test_keras_predict_wrapper_insert_prediction(
+    mock_keras_model, keras_prediction_mapper
+):
+    for key in keras_prediction_mapper.keys():
+        mapper_output = keras_prediction_mapper[key]
+        for var in mock_keras_model.output_variables:
+            assert set(mapper_output[var][DERIVATION_DIM].values) == {
+                TARGET_COORD,
+                PREDICT_COORD,
+            }
+
+
+def test_keras_predict_wrapper(
+    sample_mapper, mock_keras_model, keras_prediction_mapper
+):
+    for key in keras_prediction_mapper.keys():
+        mapper_output = keras_prediction_mapper[key]
+        target = xr.Dataset(
+            {
+                output_var: xr.zeros_like(sample_mapper[key][output_var])
+                for output_var in mock_keras_model.output_variables
+            }
+        )
+        for var in mock_keras_model.output_variables:
+            assert sum(
+                (
+                    mapper_output[var].sel({DERIVATION_DIM: PREDICT_COORD})
+                    - target[var]
+                ).values
+            ) == pytest.approx(0)

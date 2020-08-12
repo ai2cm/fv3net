@@ -1,1 +1,1 @@
-from .models import DenseModel
+from .models import DenseModel, DummyModel
