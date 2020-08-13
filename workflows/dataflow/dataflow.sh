@@ -4,11 +4,13 @@ set -e
 
 # TODO need to generate sdists with setup.py files with no requirements
 
+ROOT=../..
+
 vcmPackages=(
-  $(pwd)
-  $(pwd)/external/vcm 
-  $(pwd)/external/vcm/external/mappm
-  $(pwd)/workflows/fine_res_budget
+  "${ROOT}/workflows/dataflow"
+  "${ROOT}/external/vcm"
+  "${ROOT}/external/vcm/external/mappm"
+  "${ROOT}/workflows/fine_res_budget"
 )
 
 function buildSdist {

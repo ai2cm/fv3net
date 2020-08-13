@@ -1,7 +1,7 @@
 import subprocess
 
 submission = """
-bash -x dataflow.sh submit $(pwd)/tests/simple_dataflow.py  \
+bash -x dataflow.sh submit $(pwd)/tests/integration/simple_dataflow.py  \
     --save_main_session \
     --job_name test-$(uuid) \
     --project vcm-ml \

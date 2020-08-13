@@ -15,18 +15,13 @@ dependencies = [
     "zarr==2.4.0",
     "numba==0.48.0",
     "cftime==1.1.1.2",
+    "vcm"
 ]
 
-
-packages = find_packages() + find_packages("../external/vcm", exclude="tests")
-package_dir = {"vcm": f"../external/vcm/vcm/", "fv3net": "fv3net"}
-
-print(f"Found packages: {packages}")
 setup(
-    name="fv3net",
-    packages=packages,
+    name="fv3net-dataflow",
+    packages=find_packages(),
     install_requires=dependencies,
-    package_dir=package_dir,
     version="0.2.3",
     description="Improving the GFDL FV3 model physics with machine learning",
     author="Vulcan Inc.",
