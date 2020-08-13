@@ -9,12 +9,12 @@ logger = logging.getLogger(__file__)
 class Predictor(abc.ABC):
     """
     Abstract base class for a predictor object, which has a `predict` method
-    that takes in an xarray dataset containing variables defined the class's
-    `input_variables` attribute, and returns predictions for the class's
-    `output_variables` attribute. Also implements 'dump' and 'load' methods.
-    Base class for model classes which implement a `fit` method as well, but allows
-    creation of predictor classes to be used in (non-training) diagnostic and
-    prognostic settings.
+    that takes in a stacked xarray dataset containing variables defined the class's
+    `input_variables` attribute with the first dimension being the `sample_dim_name`
+    attribute, and returns predictions for the class's `output_variables` attribute.
+    Also implements `load` method. Base class for model classes which implement a
+    `fit` method as well, but allows creation of predictor classes to be used in
+    (non-training) diagnostic and prognostic settings.
     """
 
     def __init__(
@@ -42,11 +42,7 @@ class Predictor(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def dump(self, path: str) -> None:
-        """Serialize the model to a directory."""
-        pass
-
-    @abc.abstractmethod
-    def load(self, path: str) -> object:
+    @classmethod
+    def load(cls, path: str) -> object:
         """Load a serialized model from a directory."""
         pass

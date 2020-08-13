@@ -1,7 +1,11 @@
 from dataclasses import dataclass
+import abc
 from copy import copy
 import numpy as np
 import xarray as xr
+import fsspec
+import os
+import joblib
 from sklearn.base import BaseEstimator
 from .._shared import pack, unpack, Predictor
 
@@ -56,7 +60,9 @@ class RegressorEnsemble:
 
 @dataclass
 class BaseXarrayEstimator(Predictor):
-    """Abstract base class for an estimator wich works with xarray datasets
+    """Abstract base class for an estimator wich works with xarray datasets.
+    Subclasses Predictor abstract base class but adds `fit` method taking in
+    xarray dataset.
     """
 
     def __init__(
@@ -73,6 +79,7 @@ class BaseXarrayEstimator(Predictor):
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
 
+    @abc.abstractmethod
     def fit(self, data: xr.Dataset) -> None:
         """
         Args:
@@ -82,25 +89,12 @@ class BaseXarrayEstimator(Predictor):
         raise NotImplementedError
 
 
-#     def predict(self, data: xr.Dataset, sample_dim: str) -> xr.Dataset:
-#         """
-#         Make a prediction
-
-#         Args:
-#             data: xarray Dataset with the same feature dimensions as trained
-#               data
-#             sample_dim: dimension along which "samples" are defined. This could be
-#               inferred, but explicity is not terrible.
-#         Returns:
-#             prediction:
-#         """
-#         raise NotImplementedError
-
-
 class SklearnWrapper(BaseXarrayEstimator):
     """Wrap a SkLearn model for use with xarray
 
     """
+
+    _MODEL_FILENAME = "sklearn_model.pkl"
 
     def __init__(
         self,
@@ -137,3 +131,12 @@ class SklearnWrapper(BaseXarrayEstimator):
         y = self.model.predict(x)
         ds = unpack(y, self.sample_dim_name, self.output_features_)
         return ds.assign_coords({self.sample_dim_name: data[self.sample_dim_name]})
+
+    @classmethod
+    def load(cls, path: str) -> Predictor:
+        """Load a model saved in the directory specified by `path`"""
+        model_path = os.path.join(path, cls._MODEL_FILENAME)
+        fs = fsspec.get_fs(model_path)
+        with fs.open(model_path, "rb") as f:
+            model = joblib.load(f)
+        return model
