@@ -156,22 +156,6 @@ should be set to 'gcp_key'. Additional arguments are
 available for configuring the kubernetes job and documented in the `run_kubernetes`
 docstring.
 
-## Adding new model types
-
-*This interface is a work in progress. It might be better to define a class
-based interface. Let's defer that to when we have more than one model type*
-
-To add a new model type one needs to create two new files
-```
-fv3net.models.{model_type}/train.py
-fv3net.models.{model_type}/test.py
-```
-
-The training script should take in a yaml file of options with this command line interface
-```
-python -m fv3net.models.{model_type}.train --options options.yaml output.pkl
-```
-
 # Code linting checks
 
 This python code in this project is autoformated using the
