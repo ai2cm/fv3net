@@ -44,7 +44,7 @@ class Model(Predictor):
     """
     Abstract base class for a machine learning model which operates on xarray
     datasets, and is trained on sequences of such datasets. Extends the predictor
-    base class by implementing a `fit` method
+    base class by defining `fit` and `dump` methods
     """
 
     @abc.abstractmethod
@@ -72,6 +72,10 @@ class Model(Predictor):
 
     @abc.abstractmethod
     def fit(self, batches: Sequence[xr.Dataset]) -> None:
+        pass
+
+    @abc.abstractmethod
+    def dump(self, path: str) -> None:
         pass
 
 
@@ -137,15 +141,6 @@ class PackedKerasModel(Model):
 
     def predict_array(self, X: np.ndarray) -> np.ndarray:
         return self.model.predict(X)
-
-    @abc.abstractmethod
-    def dump(self, path: str) -> None:
-        pass
-
-    @abc.abstractmethod
-    @classmethod
-    def load(cls, path: str) -> Model:
-        pass
 
 
 class DenseModel(PackedKerasModel):

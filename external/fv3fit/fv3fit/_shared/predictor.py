@@ -42,7 +42,6 @@ class Predictor(abc.ABC):
         pass
 
     @abc.abstractmethod
-    @classmethod
     def load(cls, path: str) -> object:
         """Load a serialized model from a directory."""
         pass

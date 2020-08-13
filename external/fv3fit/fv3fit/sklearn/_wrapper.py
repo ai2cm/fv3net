@@ -112,8 +112,10 @@ class SklearnWrapper(BaseXarrayEstimator):
             output_variables: list of output variables
             model: a scikit learn regression model
         """
-        super().__init__(sample_dim_name, input_variables, output_variables)
-        self.model = model
+        self._sample_dim_name = sample_dim_name
+        self._input_variables = input_variables
+        self._output_variables = output_variables
+        self._model = model
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
@@ -124,19 +126,47 @@ class SklearnWrapper(BaseXarrayEstimator):
         y, self.output_features_ = pack(
             data[self.output_variables], self.sample_dim_name
         )
-        self.model.fit(x, y)
+        self._model.fit(x, y)
 
     def predict(self, data):
         x, _ = pack(data[self.input_variables], self.sample_dim_name)
-        y = self.model.predict(x)
+        y = self._model.predict(x)
         ds = unpack(y, self.sample_dim_name, self.output_features_)
         return ds.assign_coords({self.sample_dim_name: data[self.sample_dim_name]})
 
     @classmethod
     def load(cls, path: str) -> Predictor:
-        """Load a model saved in the directory specified by `path`"""
+        """Load a wrapped model saved in the directory specified by `path`"""
+        fs, _, _ = fsspec.get_fs_token_paths(path)
         model_path = os.path.join(path, cls._MODEL_FILENAME)
-        fs = fsspec.get_fs(model_path)
         with fs.open(model_path, "rb") as f:
-            model = joblib.load(f)
-        return model
+            wrapped_model = joblib.load(f)
+        return wrapped_model
+
+    # these are here for backward compatibility with pre-unified API attribute names
+    @property
+    def input_variables(self):
+        if hasattr(self, "_input_variables"):
+            return self._input_variables
+        elif hasattr(self, "input_vars_"):
+            return self.input_vars_
+        else:
+            raise ValueError("Wrapped model version without input variables attribute.")
+
+    @property
+    def output_variables(self):
+        if hasattr(self, "_input_variables"):
+            return self._output_variables
+        elif hasattr(self, "input_vars_"):
+            return self.output_vars_
+        else:
+            raise ValueError(
+                "Wrapped model version without output variables attribute."
+            )
+
+    @property
+    def sample_dim_name(self):
+        if hasattr(self, "_sample_dim_name"):
+            return self._sample_dim_name
+        else:
+            return "sample"
