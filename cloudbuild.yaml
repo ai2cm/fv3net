@@ -1,4 +1,4 @@
 steps:
 - name: 'docker'
-  args: ['build', '-t', 'gcr.io/vcm-ml/prognostic_run', '.', '-f', 'docker/prognostic_run/Dockerfile']
-images: ['gcr.io/vcm-ml/prognostic_run']
+  args: ['build', '-t', 'us.gcr.io/vcm-ml/prognostic_run', '.', '-f', 'docker/prognostic_run/Dockerfile', '--cache-from', 'us.gcr.io/vcm-ml/prognostic_run:latest']
+images: ['us.gcr.io/vcm-ml/prognostic_run']
