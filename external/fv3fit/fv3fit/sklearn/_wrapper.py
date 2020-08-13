@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import abc
 from copy import copy
 import numpy as np
@@ -58,7 +57,6 @@ class RegressorEnsemble:
         return np.mean(predictions, axis=0)
 
 
-@dataclass
 class BaseXarrayEstimator(Predictor):
     """Abstract base class for an estimator wich works with xarray datasets.
     Subclasses Predictor abstract base class but adds `fit` method taking in

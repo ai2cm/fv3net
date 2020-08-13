@@ -298,6 +298,11 @@ class DummyModel(PackedKerasModel):
     and which simply returns zeros for all output variable features
     """
 
+    # these should only be used in the dump/load routines for this class
+    _MODEL_FILENAME = "model.tf"
+    _X_PACKER_FILENAME = "X_packer.json"
+    _Y_PACKER_FILENAME = "y_packer.json"
+
     def __init__(
         self,
         sample_dim_name: str,
