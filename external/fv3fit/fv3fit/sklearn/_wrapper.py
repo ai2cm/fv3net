@@ -115,7 +115,7 @@ class SklearnWrapper(BaseXarrayEstimator):
         self._sample_dim_name = sample_dim_name
         self._input_variables = input_variables
         self._output_variables = output_variables
-        self._model = model
+        self.model = model
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
@@ -126,11 +126,11 @@ class SklearnWrapper(BaseXarrayEstimator):
         y, self.output_features_ = pack(
             data[self.output_variables], self.sample_dim_name
         )
-        self._model.fit(x, y)
+        self.model.fit(x, y)
 
     def predict(self, data):
         x, _ = pack(data[self.input_variables], self.sample_dim_name)
-        y = self._model.predict(x)
+        y = self.model.predict(x)
         ds = unpack(y, self.sample_dim_name, self.output_features_)
         return ds.assign_coords({self.sample_dim_name: data[self.sample_dim_name]})
 
