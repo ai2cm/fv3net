@@ -196,13 +196,7 @@ jobs:
             chmod +x argo-linux-amd64
             mv ./argo-linux-amd64 /usr/local/bin/argo
       - run:
-          name: Submit argo integration tests
-          command: |
-            make run_argo_integration_tests VERSION=$CIRCLE_SHA1
-      - run:
           name: Submit integration tests
-          # Note that 'end_to_end_configuration.yml' in k8s image used for orchestration was
-          # during the build job above
           command: |
             make run_integration_tests VERSION=$CIRCLE_SHA1
       - run:

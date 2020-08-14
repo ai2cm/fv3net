@@ -21,10 +21,7 @@ Project Organization
     ├── workflows                     <-- Job submission scripts and description for pieces of data pipeline
     │   ├── coarsen_c384_diagnostics  <-- Coarsen FV3GFS C384 diagnostic files
     │   ├── coarsen_restarts          <-- Coarsen FV3GFS restart timesteps to desired resolution
-    │   ├── create_training_data      <-- Create training data batches from Fv3GFS step simulations
     │   ├── extract_tars              <-- Dig yourself out of a tarpit using Dataflow
-    │   ├── end_to_end                <-- Run end-to-end pre-processing, training, and prognostic run
-    │   ├── one_step_jobs             <-- Submit one-step kubernetes jobs using fv3run
     │   ├── prognostic_c48_run        <-- Run a prognostic Fv3GFS simulation with an embedded ML model
     │   ├── single_fv3gfs_run         <-- Submit a one off free or nudged fv3gfs simulation
     │   ├── fregrid_cube_netcdfs      <-- Regrid cubed-sphere to lat/lon and other grids data with fregrid
@@ -139,8 +136,7 @@ You could create a kubernetes yaml file which runs such a command on a
 `fv3gfs-python` docker image, and submit it manually. However, `fv3config` also
 supplies a `run_kubernetes` function to do this for you. See the
 [`fv3config`](https://github.com/VulcanClimateModeling/fv3config) documentation for
-more complete details, or the `one_step_jobs` workflow for a more complex example of
-using the function to prepare and submit many jobs.
+more complete details.
 
 The basic structure of the command is
 
