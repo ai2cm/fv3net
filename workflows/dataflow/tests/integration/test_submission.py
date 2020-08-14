@@ -1,8 +1,11 @@
+import pathlib
 import subprocess
 
-submission = """
-bash -x workflows/dataflow/dataflow.sh submit \
-    workflows/dataflow/tests/integration/simple_dataflow.py  \
+DATAFLOW_ROOT = pathlib.Path(__file__).parent.parent.absolute()
+
+submission = f"""
+bash -x {DATAFLOW_ROOT}/dataflow.sh submit \
+    {DATAFLOW_ROOT}/tests/integration/simple_dataflow.py  \
     --save_main_session \
     --job_name test-$(uuid) \
     --project vcm-ml \
