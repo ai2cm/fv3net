@@ -87,6 +87,10 @@ optional arguments:
 
 The prognostic run will grab the fv3config.yml file residing at the `initial_condition_url` and update it with any values specified in `prog_config_yml`, which can also include a `kubernetes`-key section to pass pod resource requests to `fv3run` (example shown below).  The prognostic-run ML configuration section "scikit_learn" is added (or updated if it already exists) to use the ML model specified as a command-line argument to `orchestrate_submit_job.py`.
 
+The optional `diagnostics` entry in the prognostic run configuration can be used to save a subset of variables at set frequency or times.
+If using this option to save the tendencies across the physics time step, also add a `physics_tendency_vars` entry to the `scikit_learn` configuration
+option to specify these. An example is given below.
+
 ### `prog_config_yml` example
 
 ```yaml
@@ -99,4 +103,18 @@ namelist:
     hours: 0
     minutes: 60
     seconds: 0
+scikit_learn:
+  physics_tendency_vars: 
+    - air_temperature
+    - specific_humidity
+diagnostics:
+  -
+    name: physics_step_data.zarr
+    times:
+      frequency: 7200
+      kind: interval
+    variables:
+      - tendency_of_air_temperature_due_to_fv3_physics
+      - tendency_of_specific_humidity_due_to_fv3_physics
+
 ```
