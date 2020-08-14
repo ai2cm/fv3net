@@ -8,10 +8,10 @@ import logging
 import vcm
 
 # some fv3net.pipelines imports
-from fv3net.pipelines.common import list_timesteps
+from fv3net.pipelines.common import list_timesteps  # noqa: F401
 
 # a relative import
-from .common import FunctionSource
+from .common import FunctionSource  # noqa: F401
 
 
 def get_package_info():
