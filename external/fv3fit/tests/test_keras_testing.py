@@ -1,5 +1,4 @@
 import xarray as xr
-import numpy as np
 import pytest
 from fv3fit.keras import DummyModel
 from vcm import safe
@@ -31,32 +30,35 @@ def gridded_dataset():
 
 @pytest.fixture
 def dummy_model(request):
-    return DummyModel('sample', request.param[0], request.param[1])
+    return DummyModel("sample", request.param[0], request.param[1])
+
 
 def dummy_model_func(output_array):
     return xr.zeros_like(output_array)
+
 
 @pytest.mark.parametrize(
     "dummy_model",
     [
         pytest.param((["feature0", "feature1"], ["pred0"]), id="2_1"),
-        pytest.param(
-            (["feature0", "feature1"], ["pred0", "pred1"]), id="2_2"
-        ),
+        pytest.param((["feature0", "feature1"], ["pred0", "pred1"]), id="2_2"),
     ],
     indirect=True,
 )
 def test_dummy_model(dummy_model, gridded_dataset):
-    
-    ds_stacked = safe.stack_once(gridded_dataset, "sample", [dim for dim in gridded_dataset.dims if dim != "z"]).transpose("sample", "z")
-    
+
+    ds_stacked = safe.stack_once(
+        gridded_dataset, "sample", [dim for dim in gridded_dataset.dims if dim != "z"]
+    ).transpose("sample", "z")
+
     dummy_model.fit([ds_stacked])
     ds_pred = dummy_model.predict(ds_stacked)
-    
-    ds_target = xr.Dataset({
-        output_var: dummy_model_func(ds_stacked[output_var]) for output_var in dummy_model.output_variables
-    })
-    
+
+    ds_target = xr.Dataset(
+        {
+            output_var: dummy_model_func(ds_stacked[output_var])
+            for output_var in dummy_model.output_variables
+        }
+    )
+
     xr.testing.assert_allclose(ds_pred, ds_target)
-
-
