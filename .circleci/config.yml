@@ -151,7 +151,7 @@ jobs:
 
   integration_tests:
     docker:
-      - image: google/cloud-sdk:303.0.0
+      - image: google/cloud-sdk
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       CLUSTER_NAME: ml-cluster-dev
