@@ -106,6 +106,13 @@ class PackedKerasModel(Model):
         normalize_loss: bool = True,
     ):
         """Initialize the model.
+        
+        Loss is computed on normalized outputs only if `normalized_loss` is True
+        (default). This allows you to provide weights that will be proportional
+        to the importance of that feature within the loss. If `normalized_loss`
+        is False, you should consider scaling your weights to decrease the importance
+        of features that are orders of magnitude larger than other features.
+        
         Args:
             sample_dim_name: name of the sample dimension in datasets used as
                 inputs and outputs.
