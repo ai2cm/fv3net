@@ -32,11 +32,9 @@ class PredictionMapper(GeoMapper):
         self.rename_vars = rename_vars or {}
 
     def _predict(self, ds: xr.Dataset) -> xr.Dataset:
-        if set(self._model.input_variables).issubset(ds.data_vars) is False:
+        if not set(self._model.input_variables).issubset(ds.data_vars):
             missing_vars = [
-                var
-                for var in set(self._model.input_variables) ^ set(ds.data_vars)
-                if var in self._model.input_variables
+                var for var in set(self._model.input_variables) - set(ds.data_vars)
             ]
             raise KeyError(
                 f"Model feature variables {missing_vars}  not present in dataset."

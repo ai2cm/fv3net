@@ -7,11 +7,7 @@ def load_sklearn_model(model_path: str) -> SklearnWrapper:
     return SklearnWrapper.load(model_path)
 
 
-def load_keras_model(
-    model_path: str,
-    keras_model_type: str = "DenseModel",
-    model_datadir_name: str = "model_data",
-) -> Model:
+def load_keras_model(model_path: str, keras_model_type: str = "DenseModel") -> Model:
     model_class = get_model_class(keras_model_type)
-    model = model_class.load(os.path.join(model_path, model_datadir_name))
+    model = model_class.load(os.path.join(model_path))
     return model

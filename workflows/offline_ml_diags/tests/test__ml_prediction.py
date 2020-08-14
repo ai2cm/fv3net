@@ -138,9 +138,7 @@ def mock_model(request, gridded_dataset):
     ],
     indirect=True,
 )
-def test_sklearn_predict_wrapper_insert_prediction(
-    mock_model, base_mapper, gridded_dataset
-):
+def test_ml_predict_mapper_insert_prediction(mock_model, base_mapper, gridded_dataset):
     mapper = PredictionMapper(base_mapper, mock_model, z_dim="z",)
     for key in mapper.keys():
         mapper_output = mapper[key]
@@ -167,7 +165,7 @@ def test_sklearn_predict_wrapper_insert_prediction(
     ],
     indirect=True,
 )
-def test_sklearn_predict_wrapper(mock_model, base_mapper, gridded_dataset):
+def test_ml_predict_mapper(mock_model, base_mapper, gridded_dataset):
     mapper = PredictionMapper(base_mapper, mock_model, z_dim="z",)
     for key in mapper.keys():
         mapper_output = mapper[key]
