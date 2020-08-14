@@ -39,6 +39,7 @@ class Predictor(abc.ABC):
 
     @abc.abstractmethod
     def predict(self, X: xr.Dataset) -> xr.Dataset:
+        """Predict an output xarray dataset from an input xarray dataset."""
         pass
 
     @abc.abstractmethod

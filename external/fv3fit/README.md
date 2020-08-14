@@ -14,4 +14,4 @@ of the `input_variables`, `output_variables`, and `sample_dim_name` attributes a
 as the `load` and `predict` methods. This provides a unified public API for users
 of this package to make predictions in a diagnostic or prognostic setting. Internally,
 the `fit` and `dump` methods, among others, will presumably be defined as part of
-trainign routines but that is not enforced.
+training routines, but that is not enforced by the Predictor class. 

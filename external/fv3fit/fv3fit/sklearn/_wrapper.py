@@ -164,7 +164,4 @@ class SklearnWrapper(BaseXarrayEstimator):
 
     @property
     def sample_dim_name(self):
-        if hasattr(self, "_sample_dim_name"):
-            return self._sample_dim_name
-        else:
-            return "sample"
+        return getattr(self, "_sample_dim_name", "sample")
