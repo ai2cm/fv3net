@@ -4,42 +4,6 @@ fv3net
 
 Improving the GFDL FV3 model physics with machine learning
 
-Project Organization
-------------
-
-    ├── assets              <-- Useful files for restart directory creation? 
-    ├── configurations      <-- Files for ML model configuration and general configuration
-    ├── data                <-- Intermediate data store
-    ├── docker 
-    ├── external            <-- Package dependencies that will be spun off into their own repo
-    │   └── vcm                 <-- General VCM tools package 
-    ├── fv3net              <-- Main package source for ML pipelines and model code
-    │   ├── models
-    │   ├── pipelines           <-- Cloud data pipelines
-    │   ├── visualization
-    ├── tests
-    ├── workflows                     <-- Job submission scripts and description for pieces of data pipeline
-    │   ├── coarsen_c384_diagnostics  <-- Coarsen FV3GFS C384 diagnostic files
-    │   ├── coarsen_restarts          <-- Coarsen FV3GFS restart timesteps to desired resolution
-    │   ├── extract_tars              <-- Dig yourself out of a tarpit using Dataflow
-    │   ├── prognostic_c48_run        <-- Run a prognostic Fv3GFS simulation with an embedded ML model
-    │   ├── single_fv3gfs_run         <-- Submit a one off free or nudged fv3gfs simulation
-    │   ├── fregrid_cube_netcdfs      <-- Regrid cubed-sphere to lat/lon and other grids data with fregrid
-    │   ├── scale-snakemake           <-- Coarsening operation with kubernetes and snakemake (Deprecated)
-    │   └── sklearn_regression        <-- Train an ML model
-    ├── Dockerfile
-    ├── LICENSE
-    ├── Makefile
-    ├── README.md
-    ├── catalog.yml         <-- Intake list of datasets 
-    ├── environment.yml
-    ├── pytest.ini
-    ├── regression_tests.sh
-    ├── requirements.txt
-    └── setup.py
-
---------
-
 # Setting up the environment
 
 This computational environment can be challenging to install because it require
@@ -86,32 +50,6 @@ The workflows use a pair of common images:
 
 These images can be built and pushed to GCR using `make build_images` and
 `make push_images`, respectively.
-
-## Dataflow
-
-Dataflow jobs run in a "serverless" style where data is piped between workers who
-execute a single function.  This workflow type is good for pure python operations
-that are easily parallelizable.  Dataflow handles resource provision and worker
-scaling making it a somewhat straightforward option.
-
-For a dataflow pipeline, jobs can be tested locally using a DirectRunner, e.g., 
-
-    python -m fv3net.pipelines.extract_tars test_tars test_output_dir --runner DirectRunner
-
-Remote dataflow jobs should be submitted with the `dataflow.sh` script in the
-root directory. Other forms of dataflow submission are not reproducible, and
-are strongly discouraged. This script is tested by CI and handles the
-difficult task of bundling VCM private packages, and specifying all the
-combined dependencies that are not pre-installed in dataflow workers (see
-[this
-webpage](https://cloud.google.com/dataflow/docs/concepts/sdk-worker-dependencies)).
-
-### Troubleshooting
-
-If you get an error `Could not create workflow; user does not have write
-access to project` upon trying to submit the dataflow job, do `gcloud auth
-application-default login` first and then retry.
-
 
 ## Running fv3gfs with Kubernetes
 
