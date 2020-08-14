@@ -10,7 +10,9 @@ dependencies:
   - pip
   - pip:
     - apache_beam[gcp]
+    - google-cloud-storage
     - ../../external/vcm/external/mappm
     - ../../external/vcm
+    - ../../external/synth
     - .
 
