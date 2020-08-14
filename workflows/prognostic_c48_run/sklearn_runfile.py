@@ -198,7 +198,9 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         return {}
 
     def _step_python(self) -> Diagnostics:
-        variables: List[Hashable] = list(self._model.input_vars_ | REQUIRED_VARIABLES)
+        variables: List[Hashable] = list(
+            self._model.input_variables | REQUIRED_VARIABLES
+        )
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
 
