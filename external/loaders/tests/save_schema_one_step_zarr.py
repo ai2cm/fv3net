@@ -9,8 +9,10 @@ logging.basicConfig(level=logging.INFO)
 # NOTE: this script was used for one-time generation of reference schema
 # and is not maintained
 
-url = "gs://vcm-ml-scratch/annak/2020-08-12-hybrid-nudge-to-obs/initial-run/prognostic_run/data.zarr/"
+url = "gs://vcm-ml-scratch/annak/temp_data/test/20160907.003000.zarr"
 mapper = fsspec.get_mapper(url)
 group = zarr.open_group(mapper)
-schema = synth.read_schema_from_zarr(group, coords=("time", "tile", "z", "y", "x"))
+schema = synth.read_schema_from_zarr(
+    group, coords=("initial_time", "tile", "x", "y", "x_interface", "y_interface")
+)
 synth.dump(schema, sys.stdout)

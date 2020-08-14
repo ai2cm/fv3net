@@ -76,7 +76,8 @@ def open_fine_resolution_nudging_to_obs_hybrid(
             Therefore, this argument should be ignored.
         prog_nudge_kwargs: keyword arguments passed to
             :py:func:`open_merged_nudge_to_obs_full_tendencies`
-        fine_res_kwargs: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
+        fine_res_kwargs: keyword arguments passed to :py:func:
+            `open_fine_res_apparent_sources`
 
     Returns:
         a mapper

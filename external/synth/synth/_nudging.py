@@ -24,7 +24,7 @@ def _generate(
         ("after_physics.zarr", after_physics_schema),
         ("nudging_tendencies.zarr", tendencies_schema),
         ("after_nudging.zarr", tendencies_schema),
-        ("prognostic_diags.zarr", prognostic_diags_schema)
+        ("prognostic_diags.zarr", prognostic_diags_schema),
     ]:
         outpath = os.path.join(directory, relpath)
         (generate(schema).assign_coords(time=times).to_zarr(outpath, consolidated=True))

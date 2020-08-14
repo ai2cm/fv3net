@@ -1,4 +1,7 @@
-from loaders.mappers import open_fine_resolution_nudging_hybrid, open_fine_resolution_nudging_to_obs_hybrid
+from loaders.mappers import (
+    open_fine_resolution_nudging_hybrid,
+    open_fine_resolution_nudging_to_obs_hybrid,
+)
 import synth
 import numpy as np
 
@@ -60,11 +63,11 @@ def test_open_fine_resolution_nudging_to_obs_hybrid(tmpdir):
         "grid_yt": "y",
         "pfull": "z",
     }
-    
+
     prog_nudge_kwargs = {
-        "url": nudging_url, 
+        "url": nudging_url,
         "merge_files": ("prognostic_diags.zarr", "nudging_tendencies.zarr"),
-        "rename_vars": rename_prog_nudge
+        "rename_vars": rename_prog_nudge,
     }
     # test opener
     data = open_fine_resolution_nudging_to_obs_hybrid(
