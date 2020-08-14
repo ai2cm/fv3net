@@ -137,7 +137,11 @@ class PackedKerasModel(Model):
         return self.model.fit(X)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
-        return self.y_packer.to_dataset(self.predict_array(self.X_packer.to_array(X)))
+        feature_index = X[self.sample_dim_name]
+        ds_pred = self.y_packer.to_dataset(
+            self.predict_array(self.X_packer.to_array(X))
+        )
+        return ds_pred.assign_coords({self.sample_dim_name: feature_index})
 
     def predict_array(self, X: np.ndarray) -> np.ndarray:
         return self.model.predict(X)
