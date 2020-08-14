@@ -1,0 +1,16 @@
+name: dataflow
+channels:
+  - defaults
+dependencies:
+  - dask
+  - zarr
+  - xarray
+  - toolz
+  - numba
+  - pip
+  - pip:
+    - apache_beam[gcp]
+    - ../../external/vcm/external/mappm
+    - ../../external/vcm
+    - .
+
