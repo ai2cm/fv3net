@@ -6,6 +6,7 @@ from ._nudged import (
     open_merged_nudged,
     open_merged_nudged_full_tendencies,
     open_merged_nudge_to_obs,
+    open_merged_nudge_to_obs_full_tendencies,
     open_nudged_to_obs_prognostic,
 )
 from ._transformations import ValMap, KeyMap
