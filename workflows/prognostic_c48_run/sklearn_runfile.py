@@ -257,8 +257,7 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
             / self._timestep
             for key in self._variables
         }
-        before_physics = {key: before[key] for key in self._variables}
-        return {**tendency, **before_physics}
+        return tendency
 
 
 if __name__ == "__main__":
