@@ -4,7 +4,9 @@ set -e
 
 # TODO need to generate sdists with setup.py files with no requirements
 
-ROOT=../..
+DATAFLOW_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+ROOT=$DATAFLOW_ROOT/../..
 
 vcmPackages=(
   "${ROOT}/workflows/dataflow"
