@@ -49,7 +49,7 @@ class RenamingAdapter:
         return self._rename(ds, _invert_dict(self.rename_out))
 
     @property
-    def input_vars_(self) -> Set[str]:
+    def input_variables(self) -> Set[str]:
         invert_rename_in = _invert_dict(self.rename_in)
         return {invert_rename_in.get(var, var) for var in self.model.input_variables}
 

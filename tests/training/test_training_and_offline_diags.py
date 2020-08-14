@@ -11,7 +11,7 @@ import diagnostics_utils as utils
 import synth
 from fv3fit import _shared as shared
 from fv3fit.sklearn._train import train_model
-from offline_ml_diags._mapper import SklearnPredictionMapper
+from offline_ml_diags._mapper import PredictionMapper
 from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags.compute_diags import (
     _average_metrics_dict,
@@ -221,13 +221,14 @@ def mock_predict_function(feature_data_arrays):
 
 class MockSklearnWrappedModel:
     def __init__(self, input_vars, output_vars):
-        self.input_vars_ = input_vars
-        self.output_vars_ = output_vars
+        self.input_variables = input_vars
+        self.output_variables = output_vars
+        self.sample_dim_name = "sample"
 
     def predict(self, ds_stacked, sample_dim=SAMPLE_DIM_NAME):
         ds_pred = xr.Dataset()
-        for output_var in self.output_vars_:
-            feature_vars = [ds_stacked[var] for var in self.input_vars_]
+        for output_var in self.output_variables:
+            feature_vars = [ds_stacked[var] for var in self.input_variables]
             mock_prediction = mock_predict_function(feature_vars)
             ds_pred[output_var] = mock_prediction
         return ds_pred
@@ -282,7 +283,7 @@ def prediction_mapper(
         data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
     )
 
-    prediction_mapper = SklearnPredictionMapper(base_mapper, mock_model)
+    prediction_mapper = PredictionMapper(base_mapper, mock_model)
 
     return prediction_mapper
 

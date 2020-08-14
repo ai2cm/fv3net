@@ -16,6 +16,7 @@ from vcm import safe
 from vcm.cloud import get_fs
 from ._metrics import calc_metrics
 from . import _model_loaders as model_loaders
+from ._mapper import PredictionMapper
 from ._helpers import add_net_precip_domain_info
 
 
@@ -181,11 +182,9 @@ if __name__ == "__main__":
     model_loader = getattr(
         model_loaders, config.get("model_loader", "load_sklearn_model")
     )
-    model, prediction_mapper = model_loader(
-        args.model_path, **config.get("model_loader_kwargs", {})
-    )
+    model = model_loader(args.model_path, **config.get("model_loader_kwargs", {}))
 
-    pred_mapper = prediction_mapper(
+    pred_mapper = PredictionMapper(
         base_mapper, model, grid=grid, **config.get("model_mapper_kwargs", {})
     )
 
