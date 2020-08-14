@@ -26,4 +26,5 @@ jobs:
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           MERGE_COMMIT_MESSAGE: pull-request-title-and-description
+          MERGE_METHOD: squash
 
