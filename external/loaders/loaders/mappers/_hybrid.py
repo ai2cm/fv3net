@@ -84,6 +84,20 @@ def open_fine_resolution_nudging_to_obs_hybrid(
     """
 
     offset_seconds = fine_res_kwargs.pop("offset_seconds", 450)
+    # keep the nudging tendencies' original names (don't rename to dQ)
+    if "rename_vars" not in prog_nudge_kwargs:
+        prog_nudge_kwargs["rename_vars"] = {
+            "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
+            "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+            "grid_xt": "x",
+            "grid_yt": "y",
+            "pfull": "z",
+        }
+    if "nudging_to_physics_tendency" not in prog_nudge_kwargs:
+        prog_nudge_kwargs["nudging_to_physics_tendency"] = {
+            "t_dt_nudge": "pQ1",
+            "q_dt_nudge": "pQ2",
+        }
 
     nudged_to_obs = open_nudged_to_obs_prognostic(**prog_nudge_kwargs)
     fine_res = open_fine_res_apparent_sources(
