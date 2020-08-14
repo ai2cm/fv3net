@@ -507,7 +507,6 @@ def open_merged_nudge_to_obs(
         "air_temperature": "dQ1",
         "specific_humidity": "dQ2",
     }
-
     datasets = []
     for source in merge_files:
         mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
@@ -528,31 +527,74 @@ def open_merged_nudge_to_obs(
 
 
 def open_nudged_to_obs_prognostic(
-        url: str,
-        nudging_to_physics_tendency: Mapping[str, str] = None,
+        url=str,
+        merge_files: Tuple[str] = ("data.zarr", "nudging_tendencies.zarr"),
+        nudging_tendency_variables: Mapping[str, str] = None,
         rename_vars: Mapping[str, str] = None,
-        timestep_physics_seconds: int = 900,
         consolidated: bool = False,
 ) -> Mapping[str, xr.Dataset]:
+    """Load nudging data mapper for use with training. Merges the
+    data variables saved in the diagnostics files (fv3config[diagnostics][variables])
+    and nudging_tendencies. Since the nudge-to-obs run does
+    nudging within the physics routines, the nudging tendencies are subtracted from
+    the tendencies across the physics step to obtain the tendencies from
+    model physics.
+
+    Note the difference between this function and open_merged_nudge_to_obs:
+    in the prognostic nudge to obs data, the tendency across the physics step
+    is already calculated, so we use SubtractNudgingTendency instead of
+    SubtractNudgingIncrement.
+
+    Args:
+        url: Path to directory containing merge_files. Defaults to str.
+        merge_files: zarrs to merge. Expecting one to contain nudging tendencies
+            and the other to contain the tendencies across the physics step.
+            Defaults to ("data.zarr", "nudging_tendencies.zarr").
+        nudging_tendency_variables: mapping of variables to their renamed
+            nudging tendencies. Defaults to {
+            "air_temperature": "dQ1",
+            "specific_humidity": "dQ2"}
+        rename_vars: mapping of variables to be renamed. Defaults to {
+            "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
+            "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+            "t_dt_nudge": "dQ1",
+            "q_dt_nudge": "dQ2",
+            "grid_xt": "x",
+            "grid_yt": "y",
+            "pfull": "z"}
+        consolidated: if true, open the underlying zarr stores with the consolidated
+            flag to xr.open_zarr. Defaults to False.
+
+    Returns:
+        Mapper that has the pQ's from only model physics.
+    """
+    
     rename_vars = rename_vars or {
         "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
         "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
-        "air_temperature_tendency_due_to_nudging": "dQ1",
-        "specific_humidity_tendency_due_to_nudging": "dQ2",
+        "t_dt_nudge": "dQ1",
+        "q_dt_nudge": "dQ2",
+        "grid_xt": "x",
+        "grid_yt": "y",
+        "pfull": "z",
     }
-    nudging_to_physics_tendency = nudging_to_physics_tendency or {
-        "dQ1": "pQ1",
-        "dQ2": "pQ2",
+    nudging_tendency_variables = nudging_tendency_variables or {
+        "air_temperature": "dQ1",
+        "specific_humidity": "dQ2",
     }
     mapper = fsspec.get_mapper(url)
-    ds = xr.open_zarr(
-        zstore.LRUStoreCache(mapper, 1024),
-        consolidated=consolidated,
-        mask_and_scale=False,
-    ).rename(rename_vars)
-    mapper = LongRunMapper(ds)
+    datasets = []
+    for source in merge_files:
+        mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
+        ds = xr.open_zarr(
+            zstore.LRUStoreCache(mapper, 1024),
+            consolidated=consolidated,
+            mask_and_scale=False,
+        )
+        datasets.append(ds)
+    nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
     return SubtractNudgingTendency(
-        mapper, nudging_to_physics_tendency
+        nudged_mapper, nudging_tendency_variables
     )
 
 
