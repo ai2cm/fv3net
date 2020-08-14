@@ -65,9 +65,9 @@ def open_fine_resolution_nudging_to_obs_hybrid(
 ) -> FineResolutionResidual:
     """
     Fine resolution nudging_hybrid mapper for merging with prognostic nudged to
-    observations datasets. This differs from the existin fine res / nudging hybrid
+    observations datasets. This differs from the existing fine res / nudging hybrid
     because the prognostic run data already has the tendency difference from the
-    physics step saved. This 
+    physics step saved.
 
     Args:
         _: The training routines currently assume the first argument is a
