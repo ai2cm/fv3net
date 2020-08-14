@@ -15,12 +15,12 @@ dependencies = [
     "zarr==2.4.0",
     "numba",
     "cftime==1.1.1.2",
-    "vcm"
+    "vcm",
 ]
 
 setup(
     name="fv3net-dataflow",
-    packages=find_namespace_packages(include=['fv3net.*']),
+    packages=find_namespace_packages(include=["fv3net.*"]),
     install_requires=dependencies,
     version="0.2.3",
     description="Improving the GFDL FV3 model physics with machine learning",
