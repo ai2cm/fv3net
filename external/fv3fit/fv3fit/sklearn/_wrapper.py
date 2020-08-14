@@ -3,7 +3,6 @@ from copy import copy
 import numpy as np
 import xarray as xr
 import fsspec
-import os
 import joblib
 from sklearn.base import BaseEstimator
 from .._shared import pack, unpack, Predictor
@@ -134,10 +133,9 @@ class SklearnWrapper(BaseXarrayEstimator):
 
     @classmethod
     def load(cls, path: str) -> Predictor:
-        """Load a wrapped model saved in the directory specified by `path`"""
+        """Load a wrapped model saved as a .pkl file specified by `path`"""
         fs, _, _ = fsspec.get_fs_token_paths(path)
-        model_path = os.path.join(path, cls._MODEL_FILENAME)
-        with fs.open(model_path, "rb") as f:
+        with fs.open(path, "rb") as f:
             wrapped_model = joblib.load(f)
         return wrapped_model
 
