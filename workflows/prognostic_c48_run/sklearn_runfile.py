@@ -45,6 +45,8 @@ def compute_diagnostics(state, diags):
     physics_precip = state[PRECIP_RATE]
 
     return dict(
+        air_temperature=state[TEMP],
+        specific_humidity=state[SPHUM],
         net_moistening=(net_moistening)
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(description="column integrated ML model moisture tendency"),
@@ -255,7 +257,10 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
             / self._timestep
             for key in self._variables
         }
-        return tendency
+        before_physics = {
+            key: before[key] for key in self._variables
+        }
+        return {**tendency, **before_physics}
 
 
 if __name__ == "__main__":
