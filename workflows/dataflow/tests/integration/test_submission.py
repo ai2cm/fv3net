@@ -1,9 +1,13 @@
+import pathlib
 import subprocess
+import uuid
+
 
 submission = """
-bash -x dataflow.sh submit $(pwd)/tests/simple_dataflow.py  \
+bash -x {root}/dataflow.sh submit \
+    -m fv3net.pipelines.dataflow_test_job \
     --save_main_session \
-    --job_name test-$(uuid) \
+    --job_name test-{uuid} \
     --project vcm-ml \
     --region us-central1 \
     --runner DataFlow \
@@ -16,4 +20,7 @@ bash -x dataflow.sh submit $(pwd)/tests/simple_dataflow.py  \
 
 
 def test_submit_dataflow():
-    subprocess.check_call([submission], shell=True)
+    DATAFLOW_ROOT = pathlib.Path(__file__).parent.parent.parent.absolute()
+    subprocess.check_call(
+        [submission.format(root=DATAFLOW_ROOT, uuid=uuid.uuid1().hex)], shell=True
+    )
