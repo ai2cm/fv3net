@@ -8,7 +8,7 @@ from offline_ml_diags._mapper import (
     TARGET_COORD,
     DERIVATION_DIM,
 )
-from fv3fit import keras as fv3fit_keras
+from fv3fit.keras import DummyModel
 from vcm import safe
 
 
@@ -94,9 +94,7 @@ def get_mock_sklearn_model(input_variables, output_variables, ds):
 
 def get_mock_keras_model(input_variables, output_variables, ds):
 
-    model = fv3fit_keras.get_model(
-        "DummyModel", "sample", input_variables, output_variables
-    )
+    model = DummyModel("sample", input_variables, output_variables)
 
     ds_stacked = [
         safe.stack_once(ds, "sample", [dim for dim in ds.dims if dim != "z"]).transpose(
