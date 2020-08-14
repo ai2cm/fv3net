@@ -5,7 +5,7 @@ import uuid
 
 submission = """
 bash -x {root}/dataflow.sh submit \
-    -m fv3net.pipelines.dataflow_test \
+    -m fv3net.pipelines.dataflow_test_job \
     --save_main_session \
     --job_name test-{uuid} \
     --project vcm-ml \
