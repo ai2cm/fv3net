@@ -598,7 +598,7 @@ def open_merged_nudge_to_obs_full_tendencies(
 def open_nudged_to_obs_prognostic(
     url=str,
     merge_files: Tuple[str] = ("data.zarr", "nudging_tendencies.zarr"),
-    nudging_tendency_variables: Mapping[str, str] = None,
+    nudging_to_physics_tendency: Mapping[str, str] = None,
     rename_vars: Mapping[str, str] = None,
     consolidated: bool = False,
 ) -> Mapping[str, xr.Dataset]:
@@ -618,11 +618,9 @@ def open_nudged_to_obs_prognostic(
         merge_files: zarrs to merge. Expecting one to contain nudging tendencies
             and the other to contain the tendencies across the physics step.
             Defaults to ("data.zarr", "nudging_tendencies.zarr").
-        nudging_tendency_variables: mapping of variables to their renamed
-            nudging tendencies. Defaults to {
-            "air_temperature": "dQ1",
-            "specific_humidity": "dQ2"}
-        rename_vars: mapping of variables to be renamed. Defaults to {
+        nudging_to_physics_tendency: Mapping of renamed nudging tendency
+            names to physics tendency names; defaults to {'dQ1': 'pQ1, 'dQ2': 'pQ2'}
+        rename_vars: Mapping of variables to be renamed. Defaults to {
             "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
             "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
             "t_dt_nudge": "dQ1",
@@ -646,9 +644,9 @@ def open_nudged_to_obs_prognostic(
         "grid_yt": "y",
         "pfull": "z",
     }
-    nudging_tendency_variables = nudging_tendency_variables or {
-        "air_temperature": "dQ1",
-        "specific_humidity": "dQ2",
+    nudging_to_physics_tendency = nudging_to_physics_tendency or {
+        "dQ1": "pQ1",
+        "dQ2": "pQ2",
     }
     mapper = fsspec.get_mapper(url)
     datasets = []
@@ -661,4 +659,4 @@ def open_nudged_to_obs_prognostic(
         )
         datasets.append(ds)
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
-    return SubtractNudgingTendency(nudged_mapper, nudging_tendency_variables)
+    return SubtractNudgingTendency(nudged_mapper, nudging_to_physics_tendency)

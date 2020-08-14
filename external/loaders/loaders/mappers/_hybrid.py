@@ -61,7 +61,7 @@ def open_fine_resolution_nudging_hybrid(
 
 
 def open_fine_resolution_nudging_to_obs_hybrid(
-    _, prognostic_kwargs: Mapping, fine_res_kwargs: Mapping,
+    _, prog_nudge_kwargs: Mapping, fine_res_kwargs: Mapping,
 ) -> FineResolutionResidual:
     """
     Fine resolution nudging_hybrid mapper for merging with prognostic nudged to
@@ -74,9 +74,9 @@ def open_fine_resolution_nudging_to_obs_hybrid(
             path to a particular dataset. However, this mapper merges two such
             datasets, so it doesn't make sense to give one special treatment.
             Therefore, this argument should be ignored.
-        nudging_to_obs: keyword arguments passed to
+        prog_nudge_kwargs: keyword arguments passed to
             :py:func:`open_merged_nudge_to_obs_full_tendencies`
-        fine_res: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
+        fine_res_kwargs: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
 
     Returns:
         a mapper
@@ -84,7 +84,7 @@ def open_fine_resolution_nudging_to_obs_hybrid(
 
     offset_seconds = fine_res_kwargs.pop("offset_seconds", 450)
 
-    nudged_to_obs = open_nudged_to_obs_prognostic(**prognostic_kwargs)
+    nudged_to_obs = open_nudged_to_obs_prognostic(**prog_nudge_kwargs)
     fine_res = open_fine_res_apparent_sources(
         offset_seconds=offset_seconds, **fine_res_kwargs
     )

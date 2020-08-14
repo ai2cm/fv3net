@@ -570,15 +570,15 @@ def test_open_nudged_to_obs_prognostic(nudged_data_dir):
         "grid_yt": "y",
         "pfull": "z",
     }
-    nudging_tendency_variables = {
-        "air_temperature": "dQ1",
-        "specific_humidity": "dQ2",
+    nudging_to_physics_tendency = {
+        "dQ1": "pQ1",
+        "dQ2": "pQ2",
     }
     mapper = open_nudged_to_obs_prognostic(
         nudged_data_dir,
         merge_files=merge_files,
         rename_vars=rename_vars,
-        nudging_tendency_variables=nudging_tendency_variables,
+        nudging_to_physics_tendency=nudging_to_physics_tendency,
     )
 
     key = list(mapper.keys())[0]
