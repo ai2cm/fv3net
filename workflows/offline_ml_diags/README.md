@@ -4,9 +4,10 @@ for usage with xarray dataset inputs and outputs (the `SklearnWrapper` class
 found in `fv3fit.sklearn.wrapper`.) 
 
 The script takes in a configuration YAML file (which contains the input data path), 
-a trained ML model, and the output path. An optional json file containing a list 
-of timesteps to use can also be provided. If not provided, the workflow will use 
-all timesteps present in the data.
+a trained ML model (for sklearn the user must include the .pkl file in the model path;
+for keras the model path is the directory containing the various model files), and the
+output path. An optional json file containing a list of timesteps to use can also be
+provided. If not provided, the workflow will use all timesteps present in the data.
 ```
 python -m offline_ml_diags.compute_diags \
     $CONFIG_YAML \
@@ -37,6 +38,7 @@ variables:
   - surface_geopotential
   - net_precipitation
   - net_heating
+model_loader: load_sklearn_model
 model_mapper_kwargs:
   cos_z_var: cos_zenith_angle
 mapping_function: open_fine_resolution_nudging_hybrid
@@ -53,12 +55,26 @@ batch_kwargs:
 data_path: this_isnt_used_for_hybrid_mapper
 ```
 
+For keras models, the model loader config line should be:
+```
+model_loader: load_keras_model
+```
 
-Example usage (from top level of `fv3net`): 
+
+Example sklearn usage (from top level of `fv3net`): 
 ```
 python -m offline_ml_diags.compute_diags \
     workflows/offline_ml_diags/tests/config.yml \
     gs://vcm-ml-scratch/andrep/test-nudging-workflow/train_sklearn_model/sklearn_model.pkl \
+    gs://vcm-ml-scratch/annak/test-offline-validation-workflow \
+    --timesteps-file workflows/offline_ml_diags/tests/times.json
+```
+
+Example keras usage (from top level of `fv3net`): 
+```
+python -m offline_ml_diags.compute_diags \
+    workflows/offline_ml_diags/tests/config.yml \
+    gs://vcm-ml-scratch/brianh/train-keras-model-testing/fv3fit-unified/model_data \
     gs://vcm-ml-scratch/annak/test-offline-validation-workflow \
     --timesteps-file workflows/offline_ml_diags/tests/times.json
 ```
