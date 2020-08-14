@@ -7,6 +7,12 @@ import logging
 
 import vcm
 
+# some fv3net.pipelines imports
+from fv3net.pipelines.common import list_timesteps
+
+# a relative import
+from .common import FunctionSource
+
 
 def get_package_info():
     return subprocess.check_output(["pip", "freeze"]).decode("UTF-8")
