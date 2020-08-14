@@ -596,11 +596,11 @@ def open_merged_nudge_to_obs_full_tendencies(
 
 
 def open_nudged_to_obs_prognostic(
-        url=str,
-        merge_files: Tuple[str] = ("data.zarr", "nudging_tendencies.zarr"),
-        nudging_tendency_variables: Mapping[str, str] = None,
-        rename_vars: Mapping[str, str] = None,
-        consolidated: bool = False,
+    url=str,
+    merge_files: Tuple[str] = ("data.zarr", "nudging_tendencies.zarr"),
+    nudging_tendency_variables: Mapping[str, str] = None,
+    rename_vars: Mapping[str, str] = None,
+    consolidated: bool = False,
 ) -> Mapping[str, xr.Dataset]:
     """Load nudging data mapper for use with training. Merges the
     data variables saved in the diagnostics files (fv3config[diagnostics][variables])
@@ -661,8 +661,4 @@ def open_nudged_to_obs_prognostic(
         )
         datasets.append(ds)
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
-    return SubtractNudgingTendency(
-        nudged_mapper, nudging_tendency_variables
-    )
-
-
+    return SubtractNudgingTendency(nudged_mapper, nudging_tendency_variables)

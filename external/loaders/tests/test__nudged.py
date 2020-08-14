@@ -21,10 +21,11 @@ from loaders.mappers._nudged import (
     _open_nudging_checkpoints,
     open_merged_nudged_full_tendencies,
     open_merged_nudge_to_obs_full_tendencies,
-    open_nudged_to_obs_prognostic
+    open_nudged_to_obs_prognostic,
 )
 
 NTIMES = 12
+
 
 @pytest.fixture(scope="module")
 def prognostic_diags(datadir_module):
@@ -87,7 +88,8 @@ def nudged_checkpoints(general_nudge_schema):
 
 @pytest.fixture(scope="module")
 def nudged_data_dir(
-    datadir_module, nudged_checkpoints, nudge_tendencies, prognostic_diags):
+    datadir_module, nudged_checkpoints, nudge_tendencies, prognostic_diags
+):
     all_data = dict(**nudged_checkpoints)
     all_data.update({"nudging_tendencies": nudge_tendencies})
     all_data.update({"prognostic_diags": prognostic_diags})
@@ -560,13 +562,14 @@ def test_open_nudged_to_obs_prognostic(nudged_data_dir):
 
     merge_files = ("prognostic_diags.zarr", "nudging_tendencies.zarr")
     rename_vars = {
-            "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
-            "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
-            "air_temperature_tendency_due_to_nudging": "dQ1",
-            "specific_humidity_tendency_due_to_nudging": "dQ2",
-            "grid_xt": "x",
-            "grid_yt": "y",
-            "pfull": "z"}
+        "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
+        "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+        "air_temperature_tendency_due_to_nudging": "dQ1",
+        "specific_humidity_tendency_due_to_nudging": "dQ2",
+        "grid_xt": "x",
+        "grid_yt": "y",
+        "pfull": "z",
+    }
     nudging_tendency_variables = {
         "air_temperature": "dQ1",
         "specific_humidity": "dQ2",
@@ -575,7 +578,7 @@ def test_open_nudged_to_obs_prognostic(nudged_data_dir):
         nudged_data_dir,
         merge_files=merge_files,
         rename_vars=rename_vars,
-        nudging_tendency_variables=nudging_tendency_variables
+        nudging_tendency_variables=nudging_tendency_variables,
     )
 
     key = list(mapper.keys())[0]

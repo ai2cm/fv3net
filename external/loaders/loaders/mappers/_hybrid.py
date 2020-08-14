@@ -85,5 +85,7 @@ def open_fine_resolution_nudging_to_obs_hybrid(
     offset_seconds = fine_res_kwargs.pop("offset_seconds", 450)
 
     nudged_to_obs = open_nudged_to_obs_prognostic(**prognostic_kwargs)
-    fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res_kwargs)
+    fine_res = open_fine_res_apparent_sources(
+        offset_seconds=offset_seconds, **fine_res_kwargs
+    )
     return FineResolutionResidual(nudged_to_obs, fine_res)
