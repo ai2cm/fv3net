@@ -37,7 +37,7 @@ ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
 COPY external $FV3NET/external
 COPY fv3net $FV3NET/fv3net
 COPY workflows $FV3NET/workflows
-COPY catalog.yml dataflow.sh $FV3NET/
+COPY catalog.yml workflows/dataflow/dataflow.sh $FV3NET/
 
 # pin scipy version to prevent other dependencies from installing 1.4.1 version with regression 
 # https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-pkgs.html#preventing-packages-from-updating-pinning
