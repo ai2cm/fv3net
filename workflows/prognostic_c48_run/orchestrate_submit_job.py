@@ -159,10 +159,6 @@ if __name__ == "__main__":
         user_config,
     )
 
-    print(model_config["diagnostics"])
-    import sys
-    sys.exit()
-
     # submission scripts
     short_id = fv3kube.get_alphanumeric_unique_tag(8)
     job_label = {
