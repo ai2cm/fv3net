@@ -42,6 +42,7 @@ def dummy_model_func(output_array):
     [
         pytest.param((["feature0", "feature1"], ["pred0"]), id="2_1"),
         pytest.param((["feature0", "feature1"], ["pred0", "pred1"]), id="2_2"),
+        pytest.param((["feature0"], ["pred0", "pred1"]), id="1_2"),
     ],
     indirect=True,
 )
