@@ -127,12 +127,14 @@ def mock_model(request, gridded_dataset):
         pytest.param(
             ("keras", ["feature0", "feature1"], ["pred0", "pred1"]), id="keras_2_2"
         ),
+        pytest.param(("keras", ["feature0"], ["pred0", "pred1"]), id="keras_1_2"),
         pytest.param(
             ("sklearn", ["feature0", "feature1"], ["pred0"]), id="sklearn_2_1"
         ),
         pytest.param(
             ("sklearn", ["feature0", "feature1"], ["pred0", "pred1"]), id="sklearn_2_2"
         ),
+        pytest.param(("sklearn", ["feature0"], ["pred0", "pred1"]), id="sklearn_1_2"),
     ],
     indirect=True,
 )
