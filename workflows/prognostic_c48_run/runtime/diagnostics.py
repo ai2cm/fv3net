@@ -170,10 +170,8 @@ def get_diagnostic_files(
                 "net_heating",
                 "net_heating_diagnostic",
                 "water_vapor_path",
-                "physics_precip"],
-            "times": {
-                "kind": "interval",
-                "frequency": 900,
-            }
+                "physics_precip",
+            ],
+            "times": {"kind": "interval", "frequency": 900},
         }
         return [_config_to_diagnostic_file(default_config, partitioner, comm)]
