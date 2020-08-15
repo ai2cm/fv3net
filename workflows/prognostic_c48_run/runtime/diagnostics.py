@@ -162,5 +162,18 @@ def get_diagnostic_files(
     else:
         # Keep old behavior for backwards compatiblity
         output_name = config["scikit_learn"]["zarr_output"]
-        default_config = {"name": output_name, "times": {}, "variables": All()}
+        default_config = {
+            "name": output_name,
+            "variables": [
+                "net_moistening",
+                "net_moistening_diagnostic",
+                "net_heating",
+                "net_heating_diagnostic",
+                "water_vapor_path",
+                "physics_precip"],
+            "times": {
+                "kind": "interval",
+                "frequency": 900,
+            }
+        }
         return [_config_to_diagnostic_file(default_config, partitioner, comm)]

@@ -89,24 +89,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def insert_default_diagnostics(model_config):
-    # default to of saving original 2d diagnostics on 15 min frequency
-    model_config["diagnostics"] = [{
-        "name": "diags.zarr",
-        "variables": [
-            "net_moistening",
-            "net_moistening_diagnostic",
-            "net_heating",
-            "net_heating_diagnostic",
-            "water_vapor_path",
-            "physics_precip"],
-        "times": {
-            "kind": "interval",
-            "frequency": 900,
-        }
-    }]
-
-
 def insert_sklearn_settings(model_config, model_url):
     # Add scikit learn ML model config section
     scikit_learn_config = model_config.get("scikit_learn", {})
@@ -148,7 +130,6 @@ if __name__ == "__main__":
         {"diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"},
     )
     insert_sklearn_settings(config, args.model_url)
-    insert_default_diagnostics(config)
 
     if args.nudge_to_observations:
         config = fv3kube.enable_nudge_to_observations(config)
