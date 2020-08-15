@@ -170,15 +170,18 @@ if __name__ == "__main__":
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
 
     if args.timesteps_file:
+        logger.info("Reading timesteps file")
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
         config["batch_kwargs"]["timesteps"] = timesteps
 
+    logger.info("Opening base mapper")
     base_mapping_function = getattr(loaders.mappers, config["mapping_function"])
     base_mapper = base_mapping_function(
         config["data_path"], **config.get("mapping_kwargs", {})
     )
 
+    logger.info("Opening ML model")
     fs_model = get_fs(args.model_path)
     with fs_model.open(args.model_path, "rb") as f:
         model = joblib.load(f)
