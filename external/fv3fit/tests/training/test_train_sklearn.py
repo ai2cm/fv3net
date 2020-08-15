@@ -34,7 +34,7 @@ def test_training(
     model = train_model(training_batches, train_config)
     assert model.model.n_estimators == 2
     batch_dataset = training_batches[0]
-    result = model.predict(batch_dataset, "sample")
+    result = model.predict(batch_dataset)
     missing_names = set(output_variables).difference(result.data_vars.keys())
     assert len(missing_names) == 0
     for varname in output_variables:

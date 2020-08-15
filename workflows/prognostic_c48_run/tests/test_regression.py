@@ -433,8 +433,10 @@ def _save_mock_model(tmpdir):
         }
     )
     estimator = DummyRegressor(strategy="constant", constant=np.zeros(2 * nz))
-    model = SklearnWrapper(estimator)
-    model.fit(["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], "sample", data)
+    model = SklearnWrapper(
+        "sample", ["air_temperature", "specific_humidity"], ["dQ1", "dQ2"], estimator
+    )
+    model.fit(data)
 
     path = str(tmpdir.join("model.pkl"))
     joblib.dump(model, path)
