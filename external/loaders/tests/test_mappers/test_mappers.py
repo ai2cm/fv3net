@@ -11,7 +11,6 @@ from loaders.mappers._nudged import (
     SubsetTimes,
     NudgedFullTendencies,
 )
-from loaders.mappers._one_step import TimestepMapper
 from loaders.mappers._merged import MergeOverlappingData
 from loaders._utils import get_sample_dataset
 from vcm import cast_to_datetime
@@ -28,7 +27,6 @@ geo_mapper_subclasses = [
     NudgedStateCheckpoints,
     SubsetTimes,
     NudgedFullTendencies,
-    TimestepMapper,
     MergeOverlappingData,
 ]
 

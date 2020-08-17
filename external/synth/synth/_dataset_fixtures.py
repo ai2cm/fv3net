@@ -37,34 +37,9 @@ def dataset_fixtures_dir(tmpdir_factory, request):
     return tmpdir
 
 
-@pytest.fixture(
-    params=["one_step_tendencies", "nudging_tendencies", "fine_res_apparent_sources"]
-)
+@pytest.fixture(params=["nudging_tendencies", "fine_res_apparent_sources"])
 def data_source_name(request):
     return request.param
-
-
-@pytest.fixture(scope="module")
-def one_step_dataset_path(dataset_fixtures_dir):
-
-    with tempfile.TemporaryDirectory() as one_step_dir:
-        _generate_one_step_dataset(dataset_fixtures_dir, one_step_dir)
-        yield one_step_dir
-
-
-def _generate_one_step_dataset(datadir, one_step_dir):
-
-    with open(str(datadir.join("one_step.json"))) as f:
-        one_step_schema = load(f)
-    one_step_dataset = generate(one_step_schema)
-    one_step_dataset_1 = one_step_dataset.assign_coords({"initial_time": [timestep1]})
-    one_step_dataset_2 = one_step_dataset.assign_coords({"initial_time": [timestep2]})
-    one_step_dataset_1.to_zarr(
-        os.path.join(one_step_dir, f"{timestep1}.zarr"), consolidated=True,
-    )
-    one_step_dataset_2.to_zarr(
-        os.path.join(one_step_dir, f"{timestep2}.zarr"), consolidated=True,
-    )
 
 
 @pytest.fixture(scope="module")
@@ -84,9 +59,7 @@ def fine_res_dataset_path():
 @pytest.fixture
 def data_source_path(dataset_fixtures_dir, data_source_name):
     with tempfile.TemporaryDirectory() as data_dir:
-        if data_source_name == "one_step_tendencies":
-            _generate_one_step_dataset(dataset_fixtures_dir, data_dir)
-        elif data_source_name == "nudging_tendencies":
+        if data_source_name == "nudging_tendencies":
             generate_nudging(data_dir, times_numpy)
         elif data_source_name == "fine_res_apparent_sources":
             generate_fine_res(data_dir, times_centered_str)

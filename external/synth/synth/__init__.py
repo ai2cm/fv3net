@@ -6,7 +6,6 @@ from ._dataset_fixtures import (
     fine_res_dataset_path,
     grid_dataset,
     nudging_dataset_path,
-    one_step_dataset_path,
 )
 from ._fine_res import generate_fine_res
 from ._nudging import generate_nudging
