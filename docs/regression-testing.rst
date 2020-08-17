@@ -102,30 +102,29 @@ only be triggered if the fv3net unit tests succeed.
 Examples
 --------
 
-The "create training data" workflow currently is tested using this framework.
-See test `here <https://github.com/VulcanClimateModeling/fv3net/blob/be447a44725d7fb766bbe35685862246f06f37f9/tests/create_training_data/test_integration.py#L1>`_.
+The "offline ML diagnostics" workflow currently is tested using this framework.
+See test `here <https://github.com/VulcanClimateModeling/fv3net/blob/a15c67e127f6e0622643e27bbc8f97727ea2087d/tests/training/test_training_and_offline_diags.py#L1>`_.
 
 
 Pytest dataset fixtures
 -----------------------
 
-The package contains fixtures for three datasets used for ML training in fv3net: one-step
-tendenciecs, nudging tendencies, and fine-res apparent sources. The fixtures in 
+The package contains fixtures for two datasets used for ML training in fv3net: nudging tendencies, 
+and fine-res apparent sources. The fixtures in 
 ``synth._dataset_fixtures`` may be imported into a ``conftest.py`` file and then
 used in testing mappers and other functions that load or use these data::
     from synth import (
         dataset_fixtures_dir,
         data_source_name,
-        one_step_dataset_path,
         nudging_dataset_path,
         fine_res_dataset_path,
         data_source_path,
         grid_dataset,
     )
 
-Fixtures exist for each invidiual dataset (e.g, ``one_step_dataset_path``), returning its path in a
+Fixtures exist for each invididual dataset (e.g, ``nudging_dataset_path``), returning its path in a
 temporary testing directory, and for a parametrized fixture (``data_source_path``) that will
-sequentially return the paths of all three datasets.
+sequentially return the paths of all datasets.
 
 
 Existing tools
