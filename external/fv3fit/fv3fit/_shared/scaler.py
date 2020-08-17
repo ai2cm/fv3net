@@ -92,7 +92,8 @@ def get_mass_scaler(
     layer mass. Additional specified variables may be scaled by optional scale factors.
     When variables are normalized using the returned scaler, their resulting loss
     function terms scale as (variable_scale_factor / delp) for 3D variables,
-    or (variable_scale_factor) for 2D variables.
+    or (variable_scale_factor) for 2D variables. Unless specified otherwise,
+    variable scale factors default to 1.
 
         Args:
             packer: ArrayPacker object that contains information a
@@ -128,7 +129,8 @@ def _create_scaling_array(
     by a specified input set of scales and specified variables are optionally scaled
     by the given scale factors. The resulting scale terms go as
     (variable_scale_factor * vertical_scale) for 3D variables,
-    or (variable_scale_factor) for 2D variables.
+    or (variable_scale_factor) for 2D variables. Unless specified otherwise,
+    variable scale factors default to 1.
 
         Args:
             packer: ArrayPacker object that contains information a
