@@ -84,7 +84,7 @@ class ManualScaler(NormalizeTransform):
 
 def get_mass_scaler(
     packer: ArrayPacker,
-    delp_scales: np.ndarray,
+    delp: np.ndarray,
     variable_scale_factors: Mapping[str, float] = None,
     sqrt_scales: bool = False,
 ) -> ManualScaler:
@@ -97,22 +97,22 @@ def get_mass_scaler(
 
         Args:
             packer: ArrayPacker object that contains information a
-            delp_scales: 1D array of pressure thickness used to mass weight model
+            delp: 1D array of pressure thickness used to mass weight model
                 levels. When normalizing, will **DIVIDE** by these values.
             variable_scale_factors: Optional mapping of variable names to scale factors
                 by which their weights will be multiplied when normalizing. This allows
                 the weighted outputs to be scaled to the same order of magnitude.
                 Default of None will target dQ2 features by a factor of 1000. All
                 other variables have an implicit scale factor of 1.
-            sqrt_scales: If True, will square root the scale values returned by
-                this function. Useful if this is used as a target transform
+            sqrt_scales: If True, will square root the scale values used by the
+                returned ManualScaler. Useful if this is used as a target transform
                 regressor in fv3fit.sklearn with a MSE loss, as there is no current way
                 to directly weight the loss function terms. If set to take sqrt of
                 scales in the target transform, the MSE loss function terms will be
                 approximately weighted to the desired weights.
     """
     # weight by inverse of layer mass
-    vertical_scales = 1.0 / delp_scales
+    vertical_scales = 1.0 / delp
     scales = _create_scaling_array(
         packer, vertical_scales, variable_scale_factors, sqrt_scales
     )
@@ -123,14 +123,15 @@ def _create_scaling_array(
     packer: ArrayPacker,
     vertical_scales: np.ndarray,
     variable_scale_factors: Mapping[str, float] = None,
-    sqrt_scales: bool = False,
+    sqrt_scales: bool = True,
 ) -> np.ndarray:
     """Creates a set of scale values, such that vertical variables are scaled
     by a specified input set of scales and specified variables are optionally scaled
     by the given scale factors. The resulting scale terms go as
-    (variable_scale_factor * vertical_scale) for 3D variables,
-    or (variable_scale_factor) for 2D variables. Unless specified otherwise,
-    variable scale factors default to 1.
+    (variable_scale_factor * vertical_scale / sum(vertical_scales)) for 3D variables,
+    or (variable_scale_factor) for 2D variables, such that 2D scalars and 3D vectors
+    with the same variable_scale_factor have the same total importance.
+    Unless specified otherwise, variable scale factors default to 1.
 
         Args:
             packer: ArrayPacker object that contains information a
@@ -153,6 +154,7 @@ def _create_scaling_array(
             "been packed at least once so that dimension lengths are known."
         )
     variable_scale_factors = variable_scale_factors or {"dQ2": 1000.0}
+    vertical_scales = vertical_scales / vertical_scales.sum()
     n_vertical_levels = len(vertical_scales)
     scales = {}
     for var in packer.pack_names:

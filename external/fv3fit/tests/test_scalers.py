@@ -80,7 +80,7 @@ def _dataset_from_mapping(mapping: Mapping[str, Sequence[float]]):
             np.array([1.0, 2.0]),
             {"y0": 100},
             False,
-            [[100, 200, 1.0, 2.0]],
+            [[100 / 3, 200 / 3, 1.0 / 3, 2.0 / 3]],
             id="all vertical features, with scale factor",
         ),
         pytest.param(
@@ -88,7 +88,7 @@ def _dataset_from_mapping(mapping: Mapping[str, Sequence[float]]):
             np.array([1.0, 2.0]),
             None,
             False,
-            [[1.0, 2.0, 1.0]],
+            [[1.0 / 3.0, 2.0 / 3.0, 1.0]],
             id="one scalar feature",
         ),
         pytest.param(
@@ -104,7 +104,14 @@ def _dataset_from_mapping(mapping: Mapping[str, Sequence[float]]):
             np.array([4.0, 9.0]),
             {"y0": 100},
             True,
-            [[20, 30, 2.0, 3.0]],
+            [
+                [
+                    20 / np.sqrt(13),
+                    30 / np.sqrt(13),
+                    2.0 / np.sqrt(13),
+                    3.0 / np.sqrt(13),
+                ]
+            ],
             id="sqrt delp, but not scale factors",
         ),
     ],
@@ -161,6 +168,8 @@ def test_get_mass_scaler():
     delp = np.array([1.0, 4.0])
     scale_factors = {"y0": 100}
     scaler = get_mass_scaler(packer, delp, scale_factors, True,)
-    expected_normalized = [[0.0, 15.0, 2.0, 3.0]]
+    expected_normalized = [
+        [0.0, 15 / np.sqrt(1.25), 2 / np.sqrt(1.25), 3 / np.sqrt(1.25)]
+    ]
     normalized = scaler.normalize(y)
     np.testing.assert_almost_equal(normalized, expected_normalized)
