@@ -62,7 +62,6 @@ def test_training_integration(
         ]
     )
     required_names = [
-        "timesteps_used.yml",
         "sklearn_model.pkl",
         "training_config.yml",
     ]

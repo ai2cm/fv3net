@@ -1,12 +1,8 @@
-from typing import Union, Sequence
-from datetime import datetime
 import argparse
 import os
-import fsspec
 import yaml
 import logging
 import vcm
-import numpy as np
 from . import _train as train
 from .. import _shared as shared
 
@@ -23,15 +19,6 @@ def _save_config_output(output_url, config):
 
     with fs.open(config_url, "w") as f:
         yaml.dump(config, f)
-
-
-def _save_timesteps_used(
-    path: str, times: Sequence[Union[np.datetime64, datetime, str]]
-) -> None:
-    """Given path to output directory and times used, save those times in a yml file"""
-    times = [vcm.cast_to_datetime(time) for time in times]
-    with fsspec.open(os.path.join(path, TIMESTEPS_USED_FILENAME), "w") as f:
-        yaml.safe_dump(times, f)
 
 
 def parse_args():
@@ -86,4 +73,3 @@ if __name__ == "__main__":
 
     model = train.train_model(batched_data, train_config)
     train.save_model(args.output_data_path, model, MODEL_FILENAME)
-    _save_timesteps_used(args.output_data_path, batched_data.attrs["times"])
