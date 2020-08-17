@@ -5,7 +5,11 @@ from typing import Mapping, Sequence
 import xarray as xr
 
 from fv3fit._shared.scaler import (
-    StandardScaler, ManualScaler, _create_scaling_array, get_mass_scaler)
+    StandardScaler,
+    ManualScaler,
+    _create_scaling_array,
+    get_mass_scaler,
+)
 from fv3fit._shared.packer import ArrayPacker
 
 SAMPLE_DIM = "sample"
@@ -149,19 +153,14 @@ def test_weight_scaler_normalize_then_denormalize_on_reloaded_scaler():
 
 
 def test_get_mass_scaler():
-    ds = _dataset_from_mapping( {"y0": [[0., 3.]], "y1": [[2., 6.]]})
+    ds = _dataset_from_mapping({"y0": [[0.0, 3.0]], "y1": [[2.0, 6.0]]})
     packer = ArrayPacker(
         sample_dim_name=SAMPLE_DIM, pack_names=sorted(list(ds.data_vars))
     )
     y = packer.to_array(ds)
-    delp = np.array([1., 4.])
+    delp = np.array([1.0, 4.0])
     scale_factors = {"y0": 100}
-    scaler = get_mass_scaler(
-        packer,
-        delp,
-        scale_factors,
-        True,
-    )
-    expected_normalized = [[0., 15., 2., 3.]]
+    scaler = get_mass_scaler(packer, delp, scale_factors, True,)
+    expected_normalized = [[0.0, 15.0, 2.0, 3.0]]
     normalized = scaler.normalize(y)
     np.testing.assert_almost_equal(normalized, expected_normalized)
