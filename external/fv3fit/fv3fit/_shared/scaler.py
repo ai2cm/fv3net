@@ -88,23 +88,23 @@ def create_weight_array(
     variable_scale_factors: Mapping[str, float] = None,
     sqrt_weights: bool = False,
 ) -> np.ndarray:
-    """Weights vertical variables by their relative masses (via delp)
-        and upscales variables by optional scale factors.
+    """Weights vertical variables by a specified set of weights
+    and upscales variables by optional scale factors.
 
         Args:
             packer: ArrayPacker object that contains information a
-            delp_weights: 1D array of pressure thicknesses for each model level, used to
-                scale weights by the levels' relative masses.
+            vertical_weights: 1D array of weights for each model level, used to
+                scale weights (normalize will divide by the weight)
             variable_scale_factors: Optional mapping of variable names to scale factors
                 by which their weights will be multiplied when normalizing. This allows
-                 the mass weighted outputs to be scaled to the same order of magnitude.
+                 the weighted outputs to be scaled to the same order of magnitude.
                 Default of None will target dQ2 features by a factor of 1000.
             sqrt_weights: If True, will square root the weights returned by
-                _create_weight_array. Useful if this is used as a target transform
+                this function. Useful if this is used as a target transform
                 regressor in fv3fit.sklearn with a MSE loss, as there is no current way
                 to directly weight the loss function terms. If set to take sqrt of
                 weights in the target transform, the MSE loss function terms will be
-                approximately weighted to the layer mass.
+                approximately weighted to the desired weights.
     """
     if len(packer.feature_counts) == 0:
         raise ValueError(
@@ -112,9 +112,6 @@ def create_weight_array(
             "been packed at least once so that dimension lengths are known."
         )
     variable_scale_factors = variable_scale_factors or {"dQ2": 1000.0}
-    vertical_weights = (
-        np.sqrt(vertical_weights) if sqrt_weights is True else vertical_weights
-    )
     n_vertical_levels = len(vertical_weights)
     weights = {}
     for var in packer.pack_names:
@@ -134,4 +131,8 @@ def create_weight_array(
             # want to multiply by scale factor when dividing by weights
             array /= variable_scale_factors[var]
         weights[var] = (dims, array)
-    return packer.to_array(xr.Dataset(weights))  # type: ignore
+    weights_array = packer.to_array(xr.Dataset(weights))
+    weights_array = (
+        np.sqrt(weights_array) if sqrt_weights is True else weights_array
+    )
+    return weights_array  # type: ignore

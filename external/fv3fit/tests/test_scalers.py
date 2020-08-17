@@ -99,7 +99,7 @@ def _dataset_from_mapping(mapping: Mapping[str, Sequence[float]]):
             np.array([4.0, 9.0]),
             {"y0": 100},
             True,
-            [[0.02, 0.03, 2.0, 3.0]],
+            [[0.2, 0.3, 2.0, 3.0]],
             id="sqrt delp, but not scale factors",
         ),
     ],
