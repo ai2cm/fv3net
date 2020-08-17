@@ -97,8 +97,6 @@ jobs:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       IMAGE: <<parameters.image>>
     steps:
-      - gcp-gcr/gcr-auth:
-          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - checkout
       - add_ssh_keys:
           fingerprints:
@@ -112,6 +110,8 @@ jobs:
           name: Build fv3net images
           command: |
             make build_image_$IMAGE
+      - gcp-gcr/gcr-auth:
+          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - run:
           name: Push fv3net images
           command: |
