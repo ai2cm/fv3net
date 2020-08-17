@@ -131,8 +131,6 @@ def create_weight_array(
             # want to multiply by scale factor when dividing by weights
             array /= variable_scale_factors[var]
         weights[var] = (dims, array)
-    weights_array = packer.to_array(xr.Dataset(weights))
-    weights_array = (
-        np.sqrt(weights_array) if sqrt_weights is True else weights_array
-    )
-    return weights_array  # type: ignore
+    weights_array = packer.to_array(xr.Dataset(weights))  # type: ignore
+    weights_array = np.sqrt(weights_array) if sqrt_weights is True else weights_array
+    return weights_array
