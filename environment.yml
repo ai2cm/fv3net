@@ -2,7 +2,6 @@ channels:
   - defaults
   - conda-forge
 dependencies:
-  - tensorflow=2.2
   - python=3.7
   - backoff
   - cartopy
