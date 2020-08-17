@@ -207,5 +207,10 @@ if __name__ == "__main__":
     fs = get_fs(args.output_path)
     with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
         json.dump(metrics, f, indent=4)
+
+    # write out config used to generate diagnostics, including model path
+    config["model_path"] = args.model_path
+    with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
+        yaml.safe_dump(config, f)
+
     logger.info(f"Finished processing dataset diagnostics and metrics.")
-    logger.info(f"Finished processing dataset metrics.")

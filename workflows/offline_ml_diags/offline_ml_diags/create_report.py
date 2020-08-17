@@ -4,7 +4,9 @@ import logging
 import sys
 import tempfile
 
+import fv3viz
 from report import insert_report_figure
+import vcm
 import diagnostics_utils.plot as diagplot
 from ._helpers import (
     get_metric_string,
@@ -79,20 +81,35 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
 if __name__ == "__main__":
 
-    logger.info("Starting diagnostics routine.")
+    logger.info("Starting create report routine.")
     args = _create_arg_parser()
 
     temp_output_dir = tempfile.TemporaryDirectory()
     atexit.register(_cleanup_temp_dir, temp_output_dir)
 
-    ds_diags, ds_diurnal, metrics = open_diagnostics_outputs(
+    ds_diags, ds_diurnal, metrics, config = open_diagnostics_outputs(
         args.input_path,
         diagnostics_nc_name=NC_FILE_DIAGS,
         diurnal_nc_name=NC_FILE_DIURNAL,
         metrics_json_name=JSON_FILE_METRICS,
+        config_name="config.yaml",
     )
+    timesteps = config["batch_kwargs"].pop("timesteps")
+    timesteps = [
+        vcm.cast_to_datetime(vcm.parse_datetime_from_str(t)) for t in timesteps
+    ]
 
     report_sections = {}
+
+    # histogram of timesteps used for testing
+    fig = fv3viz.plot_daily_and_hourly_hist(timesteps)
+    insert_report_figure(
+        report_sections,
+        fig,
+        filename="timesteps_used.png",
+        section_name="Timesteps used for testing",
+        output_dir=temp_output_dir.name,
+    )
 
     # vertical profiles of bias and R2
     for var in PRESSURE_LEVEL_METRICS_VARS:
@@ -163,9 +180,10 @@ if __name__ == "__main__":
         }
 
     write_report(
-        output_dir=temp_output_dir.name,
-        title="ML offline diagnostics",
-        sections=report_sections,
+        temp_output_dir.name,
+        "ML offline diagnostics",
+        report_sections,
+        metadata=config,
         report_metrics=metrics_formatted,
     )
 
