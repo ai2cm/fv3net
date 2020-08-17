@@ -1,7 +1,6 @@
 import argparse
 import intake
 import logging
-import joblib
 import json
 import numpy as np
 import os
@@ -15,8 +14,10 @@ import diagnostics_utils as utils
 import loaders
 from vcm import safe
 from vcm.cloud import get_fs
-from ._mapper import SklearnPredictionMapper
 from ._metrics import calc_metrics
+from . import _model_loaders as model_loaders
+from ._mapper import PredictionMapper
+from ._helpers import add_net_precip_domain_info
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -37,6 +38,8 @@ DIURNAL_VARS = [
     "column_integrated_Q1",
     "column_integrated_Q2",
 ]
+SHIELD_DERIVATION_COORD = "coarsened_SHiELD"
+
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 
@@ -87,7 +90,7 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
 
 
 def _compute_diags_over_batches(
-    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset
+    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset,
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
@@ -103,13 +106,20 @@ def _compute_diags_over_batches(
             .load()
         )
         # ...reduce to diagnostic variables
+        if SHIELD_DERIVATION_COORD in ds["derivation"].values:
+            net_precip_domain_coord = SHIELD_DERIVATION_COORD
+        else:
+            net_precip_domain_coord = "target"
+
         ds_summary = utils.reduce_to_diagnostic(
             ds,
             grid,
             net_precipitation=ds["column_integrated_Q2"].sel(
-                derivation="coarsened_SHiELD"
+                derivation=net_precip_domain_coord
             ),
         )
+        add_net_precip_domain_info(ds_summary, net_precip_domain_coord)
+
         # ...compute diurnal cycles
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
@@ -158,6 +168,7 @@ if __name__ == "__main__":
     land_sea_mask = cat["landseamask/c48"].read()
     grid = grid.assign({utils.VARNAMES["surface_type"]: land_sea_mask["land_sea_mask"]})
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
+
     if args.timesteps_file:
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
@@ -168,10 +179,12 @@ if __name__ == "__main__":
         config["data_path"], **config.get("mapping_kwargs", {})
     )
 
-    fs_model = get_fs(args.model_path)
-    with fs_model.open(args.model_path, "rb") as f:
-        model = joblib.load(f)
-    pred_mapper = SklearnPredictionMapper(
+    model_loader = getattr(
+        model_loaders, config.get("model_loader", "load_sklearn_model")
+    )
+    model = model_loader(args.model_path, **config.get("model_loader_kwargs", {}))
+
+    pred_mapper = PredictionMapper(
         base_mapper, model, grid=grid, **config.get("model_mapper_kwargs", {})
     )
 
