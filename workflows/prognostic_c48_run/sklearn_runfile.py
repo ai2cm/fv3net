@@ -18,7 +18,7 @@ from sklearn.externals import joblib
 
 import fv3gfs
 import runtime
-from fv3fit.sklearn import RenamingAdapter, StackingAdapter
+from fv3fit import keras as fv3fit_keras
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -97,16 +97,37 @@ def precipitation_sum(
 
 def open_model(config):
     # Load the model
+    model_type = config.get("model_type", "scikit_learn")
+    try:
+        model_loader = {"scikit_learn": load_sklearn_model, "keras": load_keras_model}[
+            model_type
+        ]
+    except KeyError:
+        raise ValueError(
+            "Valid model type values include 'scikit_learn' and "
+            f"'keras'; received {model_type}."
+        )
+    stacked_predictor = model_loader(
+        config["model"], **config.get("model_loader_kwargs", {})
+    )
     rename_in = config.get("input_standard_names", {})
     rename_out = config.get("output_standard_names", {})
-    with fsspec.open(config["model"], "rb") as f:
+    return runtime.RenamingAdapter(stacked_predictor, rename_in, rename_out)
+
+
+def load_sklearn_model(model_path):
+    with fsspec.open(model_path, "rb") as f:
         model = joblib.load(f)
-
-    stacked_predictor = StackingAdapter(model, sample_dims=["y", "x"])
-    return RenamingAdapter(stacked_predictor, rename_in, rename_out)
+    return runtime.SklearnStackingAdapter(model, sample_dims=["y", "x"])
 
 
-def predict(model: RenamingAdapter, state: State) -> State:
+def load_keras_model(model_path, keras_model_type="DenseModel"):
+    model_class = fv3fit_keras.get_model_class(keras_model_type)
+    model = model_class.load(model_path)
+    return runtime.KerasStackingAdapter(model, sample_dims=["y", "x"])
+
+
+def predict(model: runtime.RenamingAdapter, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
     ds = xr.Dataset(state)  # type: ignore
     output = model.predict(ds)
@@ -168,12 +189,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
 
         # download the scikit-learn model
         self._log_info("Downloading Sklearn Model")
-        if comm.rank == 0:
-            model = open_model(args["scikit_learn"])
-        else:
-            model = None
-        model = comm.bcast(model, root=0)
-        self._model = model
+        self._model = open_model(args["scikit_learn"])
         self._log_info("Model Downloaded")
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -198,6 +214,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         return {}
 
     def _step_python(self) -> Diagnostics:
+
         variables: List[Hashable] = list(
             self._model.input_variables | REQUIRED_VARIABLES
         )

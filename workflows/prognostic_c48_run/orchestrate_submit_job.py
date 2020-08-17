@@ -7,13 +7,11 @@ import copy
 
 import fv3config
 import fv3kube
-import vcm
 
 logger = logging.getLogger(__name__)
 PWD = Path(os.path.abspath(__file__)).parent
 RUNFILE = os.path.join(PWD, "sklearn_runfile.py")
 CONFIG_FILENAME = "fv3config.yml"
-MODEL_FILENAME = "sklearn_model.pkl"
 
 
 def get_kube_opts(config_update, image_tag=None):
@@ -56,9 +54,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Remote url to a trained sklearn model.",
     )
     parser.add_argument(
-        "--nudge-to-observations", action="store_true", help="Nudge to observations",
-    )
-    parser.add_argument(
         "--image-tag", type=str, default=None, help="tag to apply to all default images"
     )
     parser.add_argument(
@@ -89,24 +84,51 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def insert_sklearn_settings(model_config, model_url):
-    # Add scikit learn ML model config section
+def _update_config_for_ml(
+    model_config: dict, model_url: str, diagnostic_ml: bool
+) -> None:
+    """update various entries needed to ML, helper function refactored from __main__
+    """
+
+    # TODO rename hardcoded references to sklearn?
+
     scikit_learn_config = model_config.get("scikit_learn", {})
     scikit_learn_config["zarr_output"] = "diags.zarr"
-    if model_url:
+    model_config.update(scikit_learn=scikit_learn_config)
 
+    if model_url is not None:
         # insert the model asset
-        model_url = os.path.join(args.model_url, MODEL_FILENAME)
-        model_asset = fv3config.get_asset_dict(
-            args.model_url, MODEL_FILENAME, target_name="model.pkl"
-        )
-        model_config.setdefault("patch_files", []).append(model_asset)
+        model_type = scikit_learn_config.get("model_type", "scikit_learn")
+        if model_type == "scikit_learn":
+            _update_sklearn_config(model_config, model_url)
+        elif model_type == "keras":
+            _update_keras_config(model_config, model_url)
+        else:
+            raise ValueError(
+                "Available model types are scikit_learn and keras; received type:"
+                f" {model_type}."
+            )
+        model_config["scikit_learn"].update(diagnostic_ml=diagnostic_ml)
 
-        scikit_learn_config.update(
-            model="model.pkl", diagnostic_ml=args.diagnostic_ml,
-        )
 
-    model_config["scikit_learn"] = scikit_learn_config
+def _update_sklearn_config(
+    model_config: dict, model_url: str, sklearn_filename: str = "sklearn_model.pkl"
+) -> None:
+    model_asset = fv3config.get_asset_dict(
+        model_url, sklearn_filename, target_name=sklearn_filename
+    )
+    model_config.setdefault("patch_files", []).append(model_asset)
+    model_config["scikit_learn"].update(model=sklearn_filename)
+
+
+def _update_keras_config(
+    model_config: dict, model_url: str, keras_dirname: str = "model_data"
+) -> None:
+    model_asset_list = fv3config._asset_list.asset_list_from_path(
+        os.path.join(args.model_url, keras_dirname), target_location=keras_dirname
+    )
+    model_config.setdefault("patch_files", []).extend(model_asset_list)
+    model_config["scikit_learn"].update(model=keras_dirname)
 
 
 if __name__ == "__main__":
@@ -117,37 +139,29 @@ if __name__ == "__main__":
 
     # Get model config with prognostic run updates
     with open(args.prog_config_yml, "r") as f:
-        user_config = yaml.safe_load(f)
+        prog_config_update = yaml.safe_load(f)
+    config_dir = os.path.join(args.output_url, "job_config")
+    job_config_path = os.path.join(config_dir, CONFIG_FILENAME)
 
-    # It should be possible to implement all configurations as overlays
-    # so this could be done as one vcm.update_nested_dict call
-    # updated_nested_dict just needs to know how to merge patch_files fields
-    config = vcm.update_nested_dict(
-        fv3kube.get_base_fv3config(user_config.get("base_version")),
-        fv3kube.c48_initial_conditions_overlay(
-            args.initial_condition_url, args.ic_timestep
-        ),
-        {"diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"},
-    )
-    insert_sklearn_settings(config, args.model_url)
-
-    if args.nudge_to_observations:
-        config = fv3kube.enable_nudge_to_observations(config)
-
-    model_config = vcm.update_nested_dict(
-        config,
-        # User settings override previous ones
-        user_config,
-    )
-
-    # submission scripts
     short_id = fv3kube.get_alphanumeric_unique_tag(8)
     job_label = {
         "orchestrator-jobs": f"prognostic-group-{short_id}",
         # needed to use pod-disruption budget
         "app": "end-to-end",
     }
-    kube_opts = get_kube_opts(user_config, args.image_tag)
+    model_config = fv3kube.get_full_config(
+        prog_config_update, args.initial_condition_url, args.ic_timestep
+    )
+
+    # hard-code the diag_table
+    model_config[
+        "diag_table"
+    ] = "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
+
+    # Add ML model config section
+    _update_config_for_ml(model_config, args.model_url, args.diagnostic_ml)
+
+    kube_opts = get_kube_opts(prog_config_update, args.image_tag)
     pod_spec = fv3kube.containers.post_processed_fv3_pod_spec(
         model_config, args.output_url, **kube_opts
     )

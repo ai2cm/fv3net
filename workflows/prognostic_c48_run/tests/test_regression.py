@@ -11,6 +11,7 @@ from datetime import timedelta, datetime
 from sklearn.dummy import DummyRegressor
 
 from fv3fit.sklearn import SklearnWrapper
+from fv3fit import keras as fv3fit_keras
 import subprocess
 
 #  Importing fv3gfs causes a call to MPI_Init but not MPI_Finalize. When the
@@ -407,9 +408,14 @@ def test_nudge_run(tmp_restart_dir):
     fv3config.run_native(config, tmpdir, capture_output=True, runfile=NUDGE_RUNFILE)
 
 
-def get_prognostic_config(model):
+def get_prognostic_config(model_type, model_path):
     config = yaml.safe_load(default_fv3config)
-    config["scikit_learn"] = {"model": model, "zarr_output": "diags.zarr"}
+    sklearn_config = {"model": model_path, "zarr_output": "diags.zarr"}
+    if model_type == "keras":
+        sklearn_config.update(
+            model_type="keras", model_loader_kwargs={"keras_model_type": "DummyModel"},
+        )
+    config["scikit_learn"] = sklearn_config
     # use local paths in prognostic_run image. fv3config
     # downloads data. We should change this once the fixes in
     # https://github.com/VulcanClimateModeling/fv3gfs-python/pull/78 propagates
@@ -418,10 +424,10 @@ def get_prognostic_config(model):
     return config
 
 
-def _save_mock_model(tmpdir):
-    nz = 63
+def _model_dataset():
 
-    arr = np.ones((1, nz))
+    nz = 63
+    arr = np.zeros((1, nz))
     dims = ["sample", "z"]
 
     data = xr.Dataset(
@@ -432,40 +438,85 @@ def _save_mock_model(tmpdir):
             "dQ2": (dims, arr),
         }
     )
-    estimator = DummyRegressor(strategy="constant", constant=np.zeros(2 * nz))
-    model = SklearnWrapper(
-        "sample", ["air_temperature", "specific_humidity"], ["dQ1", "dQ2"], estimator
+
+    return data
+
+
+def _save_mock_sklearn_model(tmpdir):
+
+    data = _model_dataset()
+    estimator = DummyRegressor(
+        strategy="constant", constant=np.zeros(2 * data.sizes["z"])
     )
-    model.fit(data)
+    model = SklearnWrapper(estimator)
+    model.fit(["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], "sample", data)
 
     path = str(tmpdir.join("model.pkl"))
     joblib.dump(model, path)
     return path
 
 
+def _save_mock_keras_model(tmpdir):
+
+    input_variables = ["air_temperature", "specific_humidity"]
+    output_variables = ["dQ1", "dQ2"]
+
+    model = fv3fit_keras.get_model(
+        "DummyModel", "sample", input_variables, output_variables
+    )
+    model.fit([_model_dataset()])
+    model.dump(str(tmpdir))
+
+    return str(tmpdir)
+
+
 @pytest.fixture(scope="module")
-def completed_rundir(tmpdir_factory):
+def saved_sklearn_model(tmpdir_factory):
+    tmpdir = tmpdir_factory.mktemp("sklearn_model")
+    return _save_mock_sklearn_model(tmpdir)
+
+
+@pytest.fixture(scope="module")
+def saved_keras_model(tmpdir_factory):
+    tmpdir = tmpdir_factory.mktemp("keras_model")
+    return _save_mock_keras_model(tmpdir)
+
+
+@pytest.fixture(scope="module")
+def completed_sklearn_rundir(tmpdir_factory, saved_sklearn_model):
     if not FV3GFS_INSTALLED:
         pytest.skip("fv3gfs not installed")
 
     tmpdir = tmpdir_factory.mktemp("rundir")
-    saved_model = _save_mock_model(tmpdir)
 
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
-    config = get_prognostic_config(saved_model)
+    config = get_prognostic_config("sklearn", saved_sklearn_model)
     fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=False)
     return tmpdir
 
 
-def test_fv3run_checksum_restarts(completed_rundir):
+@pytest.fixture(scope="module")
+def completed_keras_rundir(tmpdir_factory, saved_keras_model):
+    if not FV3GFS_INSTALLED:
+        pytest.skip("fv3gfs not installed")
+
+    tmpdir = tmpdir_factory.mktemp("rundir")
+
+    runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
+    config = get_prognostic_config("keras", saved_keras_model)
+    fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=False)
+    return tmpdir
+
+
+def test_sklearn_fv3run_checksum_restarts(completed_sklearn_rundir):
     # TODO: The checksum currently changes with new commits/updates. Figure out why
     # This checksum can be updated if checksum is expected to change
     # perhaps if an external library is updated.
-    excepted_checksum = "dc024d7e6f4d165878ff2925c25a99df"
-    fv_core = completed_rundir.join("RESTART").join("fv_core.res.tile1.nc")
+    expected_checksum = "dc024d7e6f4d165878ff2925c25a99df"
+    fv_core = completed_sklearn_rundir.join("RESTART").join("fv_core.res.tile1.nc")
 
     try:
-        assert excepted_checksum == fv_core.computehash()
+        assert expected_checksum == fv_core.computehash()
     except AssertionError as e:
         warnings.warn(
             "Prognostic fv3gfs ran successfully but failed the "
@@ -473,8 +524,35 @@ def test_fv3run_checksum_restarts(completed_rundir):
         )
 
 
-def test_fv3run_diagnostic_outputs(completed_rundir):
-    diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
+def test_keras_fv3run_checksum_restarts(completed_keras_rundir):
+    expected_checksum = "dc024d7e6f4d165878ff2925c25a99df"
+    fv_core = completed_keras_rundir.join("RESTART").join("fv_core.res.tile1.nc")
+
+    try:
+        assert expected_checksum == fv_core.computehash()
+    except AssertionError as e:
+        warnings.warn(
+            "Prognostic fv3gfs ran successfully but failed the "
+            f"fv_core.res.tile1.nc checksum: {e}"
+        )
+
+
+def test_sklearn_fv3run_diagnostic_outputs(completed_sklearn_rundir):
+    diagnostics = xr.open_zarr(str(completed_sklearn_rundir.join("diags.zarr")))
+    dims = ("time", "tile", "y", "x")
+
+    for variable in [
+        "net_heating",
+        "net_moistening",
+        "physics_precip",
+        "water_vapor_path",
+    ]:
+        assert diagnostics[variable].dims == dims
+        assert np.sum(np.isnan(diagnostics[variable].values)) == 0
+
+
+def test_keras_fv3run_diagnostic_outputs(completed_keras_rundir):
+    diagnostics = xr.open_zarr(str(completed_keras_rundir.join("diags.zarr")))
     dims = ("time", "tile", "y", "x")
 
     for variable in [
