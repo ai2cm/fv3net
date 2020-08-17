@@ -103,6 +103,7 @@ if __name__ == "__main__":
 
     # histogram of timesteps used for testing
     fig = fv3viz.plot_daily_and_hourly_hist(timesteps)
+    fig.set_size_inches(10, 3)
     insert_report_figure(
         report_sections,
         fig,
