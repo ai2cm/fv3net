@@ -57,8 +57,8 @@ def test_open_fine_resolution_nudging_to_obs_hybrid(tmpdir):
     rename_prog_nudge = {
         "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
         "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
-        "air_temperature_tendency_due_to_nudging": "dQ1",
-        "specific_humidity_tendency_due_to_nudging": "dQ2",
+        "air_temperature_tendency_due_to_nudging": "t_dt_nudge",
+        "specific_humidity_tendency_due_to_nudging": "q_dt_nudge",
         "grid_xt": "x",
         "grid_yt": "y",
         "pfull": "z",
