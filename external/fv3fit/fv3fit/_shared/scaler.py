@@ -83,10 +83,11 @@ class WeightScaler(NormalizeTransform):
 
 
 def create_weight_array(
-        packer: ArrayPacker,
-        vertical_weights: np.ndarray,
-        variable_scale_factors: Mapping[str, float] = None,
-        sqrt_weights: bool = False,) -> np.ndarray:
+    packer: ArrayPacker,
+    vertical_weights: np.ndarray,
+    variable_scale_factors: Mapping[str, float] = None,
+    sqrt_weights: bool = False,
+) -> np.ndarray:
     """Weights vertical variables by their relative masses (via delp)
         and upscales variables by optional scale factors.
 
@@ -111,7 +112,9 @@ def create_weight_array(
             "been packed at least once so that dimension lengths are known."
         )
     variable_scale_factors = variable_scale_factors or {"dQ2": 1000.0}
-    vertical_weights = np.sqrt(vertical_weights) if sqrt_weights is True else vertical_weights
+    vertical_weights = (
+        np.sqrt(vertical_weights) if sqrt_weights is True else vertical_weights
+    )
     n_vertical_levels = len(vertical_weights)
     weights = {}
     for var in packer.pack_names:
@@ -131,4 +134,4 @@ def create_weight_array(
             # want to multiply by scale factor when dividing by weights
             array /= variable_scale_factors[var]
         weights[var] = (dims, array)
-    return packer.to_array(xr.Dataset(weights))
+    return packer.to_array(xr.Dataset(weights))  # type: ignore

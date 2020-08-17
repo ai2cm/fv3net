@@ -75,7 +75,7 @@ def _dataset_from_mapping(mapping: Mapping[str, Sequence[float]]):
             np.array([1.0, 2.0]),
             {"y0": 100},
             False,
-            [[0.01, 0.02, 1., 2.]],
+            [[0.01, 0.02, 1.0, 2.0]],
             id="all vertical features, with scale factor",
         ),
         pytest.param(
@@ -83,7 +83,7 @@ def _dataset_from_mapping(mapping: Mapping[str, Sequence[float]]):
             np.array([1.0, 2.0]),
             None,
             False,
-            [[1., 2., 1.]],
+            [[1.0, 2.0, 1.0]],
             id="one scalar feature",
         ),
         pytest.param(
@@ -91,7 +91,7 @@ def _dataset_from_mapping(mapping: Mapping[str, Sequence[float]]):
             np.array([1.0, 2.0]),
             None,
             False,
-            [[1., 1.]],
+            [[1.0, 1.0]],
             id="all scalar features",
         ),
         pytest.param(
@@ -99,14 +99,14 @@ def _dataset_from_mapping(mapping: Mapping[str, Sequence[float]]):
             np.array([4.0, 9.0]),
             {"y0": 100},
             True,
-            [[0.02, 0.03, 2., 3.]],
+            [[0.02, 0.03, 2.0, 3.0]],
             id="sqrt delp, but not scale factors",
         ),
     ],
 )
 def test_create_weight_array(
-        output_values, delp_weights, variable_scale_factors,
-        sqrt_weights, expected_weights):
+    output_values, delp_weights, variable_scale_factors, sqrt_weights, expected_weights
+):
     ds = _dataset_from_mapping(output_values)
     packer = ArrayPacker(
         sample_dim_name=SAMPLE_DIM, pack_names=sorted(list(ds.data_vars))
@@ -119,19 +119,19 @@ def test_create_weight_array(
 
 
 def test_weight_scaler_normalize():
-    y = np.array([[0., 1., 2., 3.]])
-    weights = np.array([[1., 100., 1., 2.]])
+    y = np.array([[0.0, 1.0, 2.0, 3.0]])
+    weights = np.array([[1.0, 100.0, 1.0, 2.0]])
     scaler = WeightScaler(weights)
     result = scaler.normalize(y)
-    np.testing.assert_almost_equal(result, [[0., 0.01, 2., 1.5]])
+    np.testing.assert_almost_equal(result, [[0.0, 0.01, 2.0, 1.5]])
 
 
 def test_weight_scaler_denormalize():
-    y = np.array([[0., 0.01, 2., 1.5]])
-    weights = np.array([[1., 100., 1., 2.]])
+    y = np.array([[0.0, 0.01, 2.0, 1.5]])
+    weights = np.array([[1.0, 100.0, 1.0, 2.0]])
     scaler = WeightScaler(weights)
     result = scaler.denormalize(y)
-    np.testing.assert_almost_equal(result, [[0., 1., 2., 3.]])
+    np.testing.assert_almost_equal(result, [[0.0, 1.0, 2.0, 3.0]])
 
 
 def test_weight_scaler_normalize_then_denormalize_on_reloaded_scaler():
