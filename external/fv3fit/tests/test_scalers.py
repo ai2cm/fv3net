@@ -4,7 +4,8 @@ import tempfile
 from typing import Mapping, Sequence
 import xarray as xr
 
-from fv3fit._shared import StandardScaler, WeightScaler, create_weight_array
+from fv3fit._shared.scaler import (
+    StandardScaler, ManualScaler, _create_scaling_array, get_mass_scaler)
 from fv3fit._shared.packer import ArrayPacker
 
 SAMPLE_DIM = "sample"
@@ -75,7 +76,7 @@ def _dataset_from_mapping(mapping: Mapping[str, Sequence[float]]):
             np.array([1.0, 2.0]),
             {"y0": 100},
             False,
-            [[0.01, 0.02, 1.0, 2.0]],
+            [[100, 200, 1.0, 2.0]],
             id="all vertical features, with scale factor",
         ),
         pytest.param(
@@ -99,12 +100,12 @@ def _dataset_from_mapping(mapping: Mapping[str, Sequence[float]]):
             np.array([4.0, 9.0]),
             {"y0": 100},
             True,
-            [[0.2, 0.3, 2.0, 3.0]],
+            [[20, 30, 2.0, 3.0]],
             id="sqrt delp, but not scale factors",
         ),
     ],
 )
-def test_create_weight_array(
+def test__create_scaling_array(
     output_values, delp_weights, variable_scale_factors, sqrt_weights, expected_weights
 ):
     ds = _dataset_from_mapping(output_values)
@@ -112,32 +113,32 @@ def test_create_weight_array(
         sample_dim_name=SAMPLE_DIM, pack_names=sorted(list(ds.data_vars))
     )
     _ = packer.to_array(ds)
-    weights = create_weight_array(
+    weights = _create_scaling_array(
         packer, delp_weights, variable_scale_factors, sqrt_weights,
     )
     np.testing.assert_almost_equal(weights, expected_weights)
 
 
-def test_weight_scaler_normalize():
+def test_weight_scaler_denormalize():
     y = np.array([[0.0, 1.0, 2.0, 3.0]])
     weights = np.array([[1.0, 100.0, 1.0, 2.0]])
-    scaler = WeightScaler(weights)
-    result = scaler.normalize(y)
+    scaler = ManualScaler(weights)
+    result = scaler.denormalize(y)
     np.testing.assert_almost_equal(result, [[0.0, 0.01, 2.0, 1.5]])
 
 
-def test_weight_scaler_denormalize():
+def test_weight_scaler_normalize():
     y = np.array([[0.0, 0.01, 2.0, 1.5]])
     weights = np.array([[1.0, 100.0, 1.0, 2.0]])
-    scaler = WeightScaler(weights)
-    result = scaler.denormalize(y)
+    scaler = ManualScaler(weights)
+    result = scaler.normalize(y)
     np.testing.assert_almost_equal(result, [[0.0, 1.0, 2.0, 3.0]])
 
 
 def test_weight_scaler_normalize_then_denormalize_on_reloaded_scaler():
     y = np.random.uniform(0, 10, 10)
     weights = np.random.uniform(0, 100, 10)
-    scaler = WeightScaler(weights)
+    scaler = ManualScaler(weights)
     result = scaler.normalize(y)
     with tempfile.NamedTemporaryFile() as f_write:
         scaler.dump(f_write)
@@ -145,3 +146,22 @@ def test_weight_scaler_normalize_then_denormalize_on_reloaded_scaler():
             scaler = scaler.load(f_read)
     result = scaler.denormalize(result)
     np.testing.assert_almost_equal(result, y)
+
+
+def test_get_mass_scaler():
+    ds = _dataset_from_mapping( {"y0": [[0., 3.]], "y1": [[2., 6.]]})
+    packer = ArrayPacker(
+        sample_dim_name=SAMPLE_DIM, pack_names=sorted(list(ds.data_vars))
+    )
+    y = packer.to_array(ds)
+    delp = np.array([1., 4.])
+    scale_factors = {"y0": 100}
+    scaler = get_mass_scaler(
+        packer,
+        delp,
+        scale_factors,
+        True,
+    )
+    expected_normalized = [[0., 15., 2., 3.]]
+    normalized = scaler.normalize(y)
+    np.testing.assert_almost_equal(normalized, expected_normalized)
