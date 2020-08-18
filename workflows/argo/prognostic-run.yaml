@@ -14,7 +14,7 @@ spec:
           - {name: config}
           - {name: reference-restarts}
           - {name: trained-ml}
-          - {name: optional-args, value: ""}
+          - {name: store-true-args, value: ""}
           - {name: output}
       container:
         image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
@@ -41,7 +41,7 @@ spec:
               $C48_RESTARTS \
               $IC \
               {{inputs.parameters.output}} \
-              {{inputs.parameters.optional-args}} 
+              {{inputs.parameters.store-true-args}} 
         resources:
           requests:
             memory: "500Mi"
