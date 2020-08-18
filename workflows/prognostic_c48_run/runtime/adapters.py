@@ -15,7 +15,7 @@ def _invert_dict(d: Mapping) -> Mapping:
 
 
 class RenamingAdapter:
-    """Adapter object for renaming Model variables
+    """Adapter object for renaming model variables
 
     Attributes:
         model: a model to wrap, must subclass the fv3fit base class Predictor
@@ -59,7 +59,7 @@ class RenamingAdapter:
 
 
 class StackingAdapter:
-    """Wrap a Model to work with unstacked inputs
+    """Wrap a model to work with unstacked inputs
     
     Attributes
         model: a model to wrap, must subclass the fv3fit base class Predictor
