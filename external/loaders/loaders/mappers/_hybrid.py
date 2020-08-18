@@ -75,7 +75,7 @@ def open_fine_resolution_nudging_to_obs_hybrid(
             datasets, so it doesn't make sense to give one special treatment.
             Therefore, this argument should be ignored.
         prog_nudge_kwargs: keyword arguments passed to
-            :py:func:`open_merged_nudge_to_obs_full_tendencies`
+            :py:func:`open_nudged_to_obs_prognostic`
         fine_res_kwargs: keyword arguments passed to :py:func:
             `open_fine_res_apparent_sources`
 

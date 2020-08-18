@@ -130,7 +130,7 @@ def insert_default_diagnostics(model_config):
                 "water_vapor_path",
                 "physics_precip",
             ],
-            "times": {"kind": "interval", "frequency": 900,},
+            "times": {"kind": "interval", "frequency": 900},
         }
     ]
 
