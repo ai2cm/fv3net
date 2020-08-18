@@ -156,7 +156,7 @@ def _create_scaling_array(
             "Packer's feature count information is empty. Make sure the packer has "
             "been packed at least once so that dimension lengths are known."
         )
-    variable_scale_factors = variable_scale_factors or {"dQ2": 1000000.}
+    variable_scale_factors = variable_scale_factors or {"dQ2": 1000000.0}
     vertical_scales = vertical_scales / vertical_scales.sum()
     n_vertical_levels = len(vertical_scales)
     scales = {}
