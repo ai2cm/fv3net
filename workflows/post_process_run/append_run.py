@@ -1,13 +1,14 @@
-import glob
+from glob import glob
 import os
 import json
 import re
 import shutil
-from typing import Union
+from typing import Union, Sequence
 
 import click
 import fsspec
 import xarray as xr
+import zarr
 
 from post_process import (
     authenticate,
@@ -19,35 +20,57 @@ from post_process import (
 )
 
 
-def increment_zarray_item(var_path, ax, increment, item):
+def _update_zarray_shape(var_path, ax, increment):
     zarray_path = os.path.join(var_path, ".zarray")
     with open(zarray_path) as f:
         zarray = json.load(f)
-    zarray[item][ax] += increment
+    zarray["shape"][ax] += increment
     with open(zarray_path, "w") as f:
         json.dump(zarray, f)
 
 
-def _shift_chunks(path: str, dim: str, n: int, consolidated=True):
-    """Shift local zarr store at path by n chunks along dim"""
-    ds = xr.open_zarr(path, consolidated=consolidated)
+def _assert_chunks_valid(array: zarr.array, ax: str, n_shift: int):
+    """Ensure chunk size evenly divides array length along ax and evenly divides
+    n_shift"""
+    chunk_size = array.chunks[ax]
+    if array.shape[ax] % chunk_size != 0:
+        raise ValueError(f"Chunks are not uniform along axis {ax} for {array}")
+    if n_shift % chunk_size != 0:
+        raise ValueError(
+            f"Desired shift must be a multiple of chunk size along {ax}. Got shift "
+            f"{n_shift} and chunk size {chunk_size} for {array}."
+        )
 
-    if "dim" in ds.coords:
-        increment_zarray_item(os.path.join(path, dim), 0, 4, "shape")
-        increment_zarray_item(os.path.join(path, dim), 0, 4, "chunks")
 
-    for var in ds.data_vars:
-        da = ds[var]
-        var_path = os.path.join(path, var)
-        ax = da.get_axis_num(dim)
-        increment_zarray_item(var_path, ax, n * da.chunks[ax][0], "shape")
-        chunk_glob_str = ".".join("*" * len(da.sizes))
-        for chunk_path in glob.glob(os.path.join(var_path, chunk_glob_str)):
-            head, tail = os.path.split(chunk_path)
-            chunk_positions = re.findall(r"[0-9]+", tail)
-            chunk_positions[ax] = str(int(chunk_positions[ax]) + n)
-            new_chunk_path = os.path.join(head, ".".join(chunk_positions))
-            shutil.move(chunk_path, new_chunk_path)
+def _shift_store(path: str, dim: str, n_shift: int):
+    """Shift consolidated local zarr store by n_shift along dim. Chunk size must be
+    uniform for each variable and it must evenly divide n_shift."""
+    store = zarr.open_consolidated(path)
+    for variable, array in store.items():
+        if dim in array.attrs["_ARRAY_DIMENSIONS"]:
+            ax = array.attrs["_ARRAY_DIMENSIONS"].index(dim)
+            _shift_array(path, array, ax, n_shift)
+
+
+def _shift_array(store_path: str, array: zarr.array, ax: int, n_shift: int):
+    _assert_chunks_valid(array, ax, n_shift)
+    array_path = os.path.join(store_path, array.path)
+    _update_zarray_shape(array_path, ax, n_shift)
+    generic_chunk_filename = _chunk_filename("*" * array.ndim)
+    for chunk_path in glob(os.path.join(array_path, generic_chunk_filename)):
+        _move_chunk(chunk_path, ax, n_shift, array.chunks[ax])
+
+
+def _move_chunk(chunk_path, ax, n_shift, chunk_size):
+    head, tail = os.path.split(chunk_path)
+    chunk_indices = re.findall(r"[0-9]+", tail)
+    chunk_indices[ax] = str(int(chunk_indices[ax]) + n_shift // chunk_size)
+    new_chunk_path = os.path.join(head, _chunk_filename(chunk_indices))
+    shutil.move(chunk_path, new_chunk_path)
+
+
+def _chunk_filename(chunk_indices: Union[str, Sequence[str]]):
+    return ".".join(chunk_indices)
 
 
 def append_item(
@@ -62,7 +85,9 @@ def append_item(
         chunks = chunks.get(relpath, CHUNKS_2D)
         if "time" in chunks:
             if item.sizes["time"] % chunks["time"] != 0:
-                raise ValueError("Time chunk size must evenly divide total length")
+                raise ValueError(
+                    "Desired time chunk size must evenly divide total length"
+                )
         clear_encoding(item)
         chunked = rechunk(item, chunks)
         dest = os.path.join(d_out, relpath)

@@ -20,11 +20,13 @@ def copytree(src, dst):
 
 @pytest.mark.parametrize("with_coords", [True, False])
 def test_appending_shifted_zarr_gives_expected_ds(tmpdir, with_coords):
-    da = xr.DataArray(np.arange(20).reshape((4, 5)), dims=["time", "x"])
-    ds = xr.Dataset({"var1": da.chunk({"time": 2})})
+    n_time = 6
+    chunk_time = 2
+    da = xr.DataArray(np.arange(5 * n_time).reshape((n_time, 5)), dims=["time", "x"])
+    ds = xr.Dataset({"var1": da.chunk({"time": chunk_time})})
     if with_coords:
-        coord1 = [datetime(2000, 1, d) for d in range(1, 5)]
-        coord2 = [datetime(2000, 1, d) for d in range(5, 9)]
+        coord1 = [datetime(2000, 1, d) for d in range(1, 1 + n_time)]
+        coord2 = [datetime(2000, 1, d) for d in range(1 + n_time, 1 + 2 * n_time)]
         ds1 = ds.assign_coords(time=coord1)
         ds2 = ds.assign_coords(time=coord2)
     else:
@@ -35,15 +37,18 @@ def test_appending_shifted_zarr_gives_expected_ds(tmpdir, with_coords):
     path2 = str(tmpdir.join("ds2.zarr"))
 
     ds1.to_zarr(path1, consolidated=True)
+    if with_coords:
+        ds1_from_disk = xr.open_zarr(path1, consolidated=True)
+        for item in ["units", "calendar"]:
+            ds2["time"].encoding[item] = ds1_from_disk.time.encoding[item]
     ds2.to_zarr(path2, consolidated=True)
 
-    append_run._shift_chunks(path2, "time", 2)
+    append_run._shift_store(path2, "time", n_time)
 
     copytree(path2, path1)
     zarr.consolidate_metadata(path1)
 
-    appended_ds = xr.open_zarr(path1, consolidated=True)
+    manually_appended_ds = xr.open_zarr(path1, consolidated=True)
+    expected_ds = xr.concat([ds1, ds2], dim="time")
 
-    assert appended_ds.sizes["time"] == 2 * ds.sizes["time"]
-    if with_coords:
-        assert (appended_ds.time.values == coord1 + coord2).all()
+    xr.testing.assert_allclose(manually_appended_ds, expected_ds)
