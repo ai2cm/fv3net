@@ -7,7 +7,7 @@ from ..._shared import ArrayPacker, Predictor
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
-from .normalizer import StandardScaler
+from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse
 import yaml
 
@@ -134,8 +134,8 @@ class PackedKerasModel(Model):
         self.y_packer = ArrayPacker(
             sample_dim_name=sample_dim_name, pack_names=output_variables
         )
-        self.X_scaler = StandardScaler()
-        self.y_scaler = StandardScaler()
+        self.X_scaler = LayerStandardScaler()
+        self.y_scaler = LayerStandardScaler()
         if weights is None:
             self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
         else:
@@ -224,9 +224,9 @@ class PackedKerasModel(Model):
             with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:
                 y_packer = ArrayPacker.load(f)
             with open(os.path.join(path, cls._X_SCALER_FILENAME), "rb") as f_binary:
-                X_scaler = StandardScaler.load(f_binary)
+                X_scaler = LayerStandardScaler.load(f_binary)
             with open(os.path.join(path, cls._Y_SCALER_FILENAME), "rb") as f_binary:
-                y_scaler = StandardScaler.load(f_binary)
+                y_scaler = LayerStandardScaler.load(f_binary)
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
             obj = cls(
