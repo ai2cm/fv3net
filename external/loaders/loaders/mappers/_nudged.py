@@ -332,16 +332,7 @@ def open_merged_nudged(
         "specific_humidity_tendency_due_to_nudging": "dQ2",
     }
 
-    datasets = []
-    for source in merge_files:
-        mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
-        ds = xr.open_zarr(
-            zstore.LRUStoreCache(mapper, 1024),
-            consolidated=consolidated,
-            mask_and_scale=False,
-        )
-        datasets.append(ds)
-
+    datasets = _get_source_datasets(url, merge_files, consolidated)
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
     nudged_mapper = SubsetTimes(i_start, n_times, nudged_mapper)
 
@@ -507,16 +498,7 @@ def open_merged_nudge_to_obs(
         "air_temperature": "dQ1",
         "specific_humidity": "dQ2",
     }
-    datasets = []
-    for source in merge_files:
-        mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
-        ds = xr.open_zarr(
-            zstore.LRUStoreCache(mapper, 1024),
-            consolidated=consolidated,
-            mask_and_scale=False,
-        )
-        datasets.append(ds)
-
+    datasets = _get_source_datasets(url, merge_files, consolidated)
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
     nudged_mapper = SubtractNudgingIncrement(
         nudged_mapper, nudging_tendency_variables, timestep_physics_seconds
@@ -648,9 +630,16 @@ def open_nudged_to_obs_prognostic(
         "dQ1": "pQ1",
         "dQ2": "pQ2",
     }
-    mapper = fsspec.get_mapper(url)
+    datasets = _get_source_datasets(url, merge_files, consolidated)
+    nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
+    return SubtractNudgingTendency(nudged_mapper, nudging_to_physics_tendency)
+
+
+def _get_source_datasets(
+    url: str, sources: Sequence[str], consolidated: bool = False
+) -> Sequence[xr.Dataset]:
     datasets = []
-    for source in merge_files:
+    for source in sources:
         mapper = fsspec.get_mapper(os.path.join(url, f"{source}"))
         ds = xr.open_zarr(
             zstore.LRUStoreCache(mapper, 1024),
@@ -658,5 +647,4 @@ def open_nudged_to_obs_prognostic(
             mask_and_scale=False,
         )
         datasets.append(ds)
-    nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
-    return SubtractNudgingTendency(nudged_mapper, nudging_to_physics_tendency)
+    return datasets
