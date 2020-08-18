@@ -38,10 +38,10 @@ spec:
               --image-tag {{inputs.parameters.image-tag}} \
               --model_url {{inputs.parameters.trained-ml}} \
               --prog_config_yml config.yaml \
-              {{ inputs.parameters.optional-args }} \
               $C48_RESTARTS \
               $IC \
-              {{inputs.parameters.output}}
+              {{inputs.parameters.output}} \
+              {{inputs.parameters.optional-args}} 
         resources:
           requests:
             memory: "500Mi"
