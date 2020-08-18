@@ -6,12 +6,21 @@ import fsspec
 import joblib
 from sklearn.base import BaseEstimator
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 from .._shared import pack, unpack, Predictor
 
 from typing import Iterable
 
 
 class AppendPrincipalComponents:
+    """
+    An adaptor which appends principal components to feature arrays.
+    """
+
+    pca: PCA
+    scaler: StandardScaler
+
     def __init__(self, base_regressor, n_components: int = None, random_state=None):
         """Initialize an AppendPrincipalComponents
 
@@ -22,12 +31,16 @@ class AppendPrincipalComponents:
             random_state: random state or seed
         """
         self.base_regressor = base_regressor
-        self.pca: PCA = PCA(n_components=n_components, random_state=random_state)
+        self.scaler = StandardScaler()
+        self.pca = PCA(n_components=n_components, random_state=random_state)
+        self._pipeline: Pipeline = Pipeline(
+            [("scaling", self.scaler), ("pca", self.pca)]
+        )
         self._is_fit = False
 
     def fit(self, features: np.ndarray, outputs: np.ndarray) -> None:
         if not self._is_fit:
-            self.pca.fit(features)
+            self._pipeline.fit(features)
             self._is_fit = True
         features = self._append_principal_components(features)
         self.base_regressor.fit(features, outputs)
@@ -50,7 +63,7 @@ class AppendPrincipalComponents:
             features: input array with new principal component features appended
         """
         if self.pca.n_components > 0:
-            principal_components = self.pca.transform(features)
+            principal_components = self._pipeline.transform(features)
             return np.concatenate([features, principal_components], axis=1)
         else:
             return features
