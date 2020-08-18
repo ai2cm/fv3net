@@ -176,8 +176,8 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
             "diagnostic_ml", False
         )
 
-        # download the scikit-learn model
-        self._log_info("Downloading Sklearn Model")
+        # download the model
+        self._log_info("Downloading ML Model")
         self._model = open_model(args["scikit_learn"])
         self._log_info("Model Downloaded")
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
