@@ -34,15 +34,25 @@ development bash shell, run
     make dev
 
 
-Configure the scikit-learn run
+Configure the machine learning model (optional)
 ------------------------------------------
 
-The scikit-learn model and location for zarr output can be configured using `fv3config.yml`. To do this, simply add/modify the `scikit_learn` entry of the yaml file as follows:
+The ML model and location for zarr output can be configured using `fv3config.yml`. Add/modify the `scikit_learn` entry of the yaml file as follows (here to use a model from fv3fit.sklearn):
 ```
 scikit_learn:
-  model: gs://vcm-ml-data/test-annak/ml-pipeline-output/2020-01-17_rf_40d_run.pkl
+  model: gs://vcm-ml-data/test-annak/ml-pipeline-output
+  model_type: scikit_learn
   zarr_output: diags.zarr
 ```
+Or to use a model from fv3fit.keras:
+```
+scikit_learn:
+  model: gs://vcm-ml-scratch/brianh/train-keras-model-testing/fv3fit-unified
+  model_type: keras
+  zarr_output: diags.zarr
+```
+
+Alternatively, the model path can also be specified via the 
 
 If some variables names used for input variables in the scikit-learn model are inconsistent with the variable names used by the python wrapper, this can be handled by the optional `input_variable_standard_names` entry in the `scikit_learn` entry of the config yaml:
 ```
@@ -54,38 +64,9 @@ scikit_learn:
 Prognostic Run in End-to-End Workflow
 -------------------------------------
 
-The prognostic run is included in the end-to-end workflow orchestration by `orchestrate_submit_job.py`.  This script takes command-line arguments:
+The prognostic run is included in the end-to-end workflow orchestration by `orchestrate_submit_job.py`. See `python orchestrate_submit_job.py -h` for current usage.
 
-```
-usage: orchestrate_submit_job.py [-h] [--model_url MODEL_URL]
-                                 [--prog_config_yml PROG_CONFIG_YML]
-                                 [--diagnostic_ml] [-d]
-                                 initial_condition_url ic_timestep
-                                 docker_image output_url
-
-positional arguments:
-  initial_condition_url
-                        Remote url to directory holding timesteps with model
-                        initial conditions.
-  ic_timestep           Time step to grab from the initial conditions url.
-  docker_image          Docker image to pull for the prognostic run kubernetes
-                        pod.
-  output_url            Remote storage location for prognostic run output.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --model_url MODEL_URL
-                        Remote url to a trained sklearn model.
-  --prog_config_yml PROG_CONFIG_YML
-                        Path to a config update YAML file specifying the
-                        changes from the basefv3config (e.g. diag_table,
-                        runtime, ...) for the prognostic run.
-  --diagnostic_ml       Compute and save ML predictions but do not apply them
-                        to model state.
-  -d, --detach          Do not wait for the k8s job to complete.
-```
-
-The prognostic run will grab the fv3config.yml file residing at the `initial_condition_url` and update it with any values specified in `prog_config_yml`, which can also include a `kubernetes`-key section to pass pod resource requests to `fv3run` (example shown below).  The prognostic-run ML configuration section "scikit_learn" is added (or updated if it already exists) to use the ML model specified as a command-line argument to `orchestrate_submit_job.py`.
+The prognostic run will grab the fv3config.yml file residing at the `initial_condition_url` argument and update it with any values specified in `prog_config_yml` argument, which can also include a `kubernetes`-key section to pass pod resource requests to `fv3run` (example shown below).  The prognostic-run ML configuration section "scikit_learn" is added (or updated if it already exists) to use the ML model specified as a command-line argument to `orchestrate_submit_job.py`.
 
 ### `prog_config_yml` example
 
