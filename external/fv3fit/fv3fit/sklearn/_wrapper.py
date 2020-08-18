@@ -1,9 +1,13 @@
-from dataclasses import dataclass
+import abc
 from copy import copy
 import numpy as np
 import xarray as xr
+import fsspec
+import joblib
 from sklearn.base import BaseEstimator
-from .._shared import pack, unpack
+from .._shared import pack, unpack, Predictor
+
+from typing import Iterable
 
 
 class RegressorEnsemble:
@@ -52,34 +56,32 @@ class RegressorEnsemble:
         return np.mean(predictions, axis=0)
 
 
-@dataclass
-class BaseXarrayEstimator:
-    def fit(
-        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
+class BaseXarrayEstimator(Predictor):
+    """Abstract base class for an estimator wich works with xarray datasets.
+    Subclasses Predictor abstract base class but adds `fit` method taking in
+    xarray dataset.
+    """
+
+    def __init__(
+        self,
+        sample_dim_name: str,
+        input_variables: Iterable[str],
+        output_variables: Iterable[str],
     ):
         """
         Args:
-            input_vars: list of input variables
-            output_vars: list of output_variables
-            sample_dim: dimension over which samples are taken
+            sample_dim_name: dimension over which samples are taken
+            input_variables: list of input variables
+            output_variables: list of output variables
+        """
+        super().__init__(sample_dim_name, input_variables, output_variables)
+
+    @abc.abstractmethod
+    def fit(self, data: xr.Dataset) -> None:
+        """
+        Args:
             data: xarray Dataset with dimensions (sample_dim, *)
 
-        Returns:
-            fitted model
-        """
-        raise NotImplementedError
-
-    def predict(self, data: xr.Dataset, sample_dim: str) -> xr.Dataset:
-        """
-        Make a prediction
-
-        Args:
-            data: xarray Dataset with the same feature dimensions as trained
-              data
-            sample_dim: dimension along which "samples" are defined. This could be
-              inferred, but explicity is not terrible.
-        Returns:
-            prediction:
         """
         raise NotImplementedError
 
@@ -89,30 +91,75 @@ class SklearnWrapper(BaseXarrayEstimator):
 
     """
 
-    def __init__(self, model: BaseEstimator):
+    _MODEL_FILENAME = "sklearn_model.pkl"
+
+    def __init__(
+        self,
+        sample_dim_name: str,
+        input_variables: tuple,
+        output_variables: tuple,
+        model: BaseEstimator,
+    ):
         """
+        Initialize the wrapper
 
         Args:
+            sample_dim_name: dimension over which samples are taken
+            input_variables: list of input variables
+            output_variables: list of output variables
             model: a scikit learn regression model
         """
+        self._sample_dim_name = sample_dim_name
+        self._input_variables = input_variables
+        self._output_variables = output_variables
         self.model = model
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
-    def fit(
-        self, input_vars: tuple, output_vars: tuple, sample_dim: str, data: xr.Dataset
-    ):
+    def fit(self, data: xr.Dataset):
         # TODO the sample_dim can change so best to use feature dim to flatten
-        self.input_vars_ = input_vars
-        self.output_vars_ = output_vars
-        x, _ = pack(data[input_vars], sample_dim)
-        y, self.output_features_ = pack(data[output_vars], sample_dim)
+        x, _ = pack(data[self.input_variables], self.sample_dim_name)
+        y, self.output_features_ = pack(
+            data[self.output_variables], self.sample_dim_name
+        )
         self.model.fit(x, y)
-        return self
 
-    def predict(self, data, sample_dim):
-        x, _ = pack(data[self.input_vars_], sample_dim)
+    def predict(self, data):
+        x, _ = pack(data[self.input_variables], self.sample_dim_name)
         y = self.model.predict(x)
-        ds = unpack(y, sample_dim, self.output_features_)
-        return ds.assign_coords({sample_dim: data[sample_dim]})
+        ds = unpack(y, self.sample_dim_name, self.output_features_)
+        return ds.assign_coords({self.sample_dim_name: data[self.sample_dim_name]})
+
+    @classmethod
+    def load(cls, path: str) -> Predictor:
+        """Load a wrapped model saved as a .pkl file specified by `path`"""
+        fs, _, _ = fsspec.get_fs_token_paths(path)
+        with fs.open(path, "rb") as f:
+            wrapped_model = joblib.load(f)
+        return wrapped_model
+
+    # these are here for backward compatibility with pre-unified API attribute names
+    @property
+    def input_variables(self):
+        if hasattr(self, "_input_variables"):
+            return self._input_variables
+        elif hasattr(self, "input_vars_"):
+            return self.input_vars_
+        else:
+            raise ValueError("Wrapped model version without input variables attribute.")
+
+    @property
+    def output_variables(self):
+        if hasattr(self, "_input_variables"):
+            return self._output_variables
+        elif hasattr(self, "input_vars_"):
+            return self.output_vars_
+        else:
+            raise ValueError(
+                "Wrapped model version without output variables attribute."
+            )
+
+    @property
+    def sample_dim_name(self):
+        return getattr(self, "_sample_dim_name", "sample")

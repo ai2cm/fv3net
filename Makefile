@@ -81,7 +81,7 @@ test_regression:
 	coverage run -m pytest -vv -m regression -s
 
 test_dataflow:
-	coverage run -m pytest -vv tests/dataflow/ -s
+	coverage run -m pytest -vv workflows/dataflow/tests/integration -s
 
 coverage_report:
 	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3util/**.py'
