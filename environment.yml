@@ -39,7 +39,7 @@ dependencies:
   - scikit-learn==0.22.1
   - scipy >= 1.5.0
   - toolz
-  - xarray>=0.14
+  - xarray==0.15.0
   - jupyterlab
   - xgcm>=0.2
   - jupyterlab
