@@ -49,10 +49,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Remote storage location for prognostic run output.",
     )
     parser.add_argument(
-        "--model_url",
-        type=str,
-        default=None,
-        help="Remote url to a trained sklearn model.",
+        "--model_url", type=str, default=None, help="Remote url to a trained ML model.",
     )
     parser.add_argument(
         "--nudge-to-observations", action="store_true", help="Nudge to observations",
@@ -88,7 +85,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def insert_sklearn_settings(model_config, model_url, diagnostic_ml):
+def insert_ml_settings(model_config, model_url, diagnostic_ml):
 
     # Add scikit learn ML model config section
     scikit_learn_config = model_config.get("scikit_learn", {})
@@ -110,7 +107,9 @@ def insert_sklearn_settings(model_config, model_url, diagnostic_ml):
         model_config["scikit_learn"].update(diagnostic_ml=diagnostic_ml)
 
 
-def _update_sklearn_config(model_config, model_url, sklearn_filename):
+def _update_sklearn_config(
+    model_config, model_url, sklearn_filename="sklearn_model.pkl"
+):
     model_asset = fv3config.get_asset_dict(
         model_url, sklearn_filename, target_name=sklearn_filename
     )
@@ -119,7 +118,7 @@ def _update_sklearn_config(model_config, model_url, sklearn_filename):
 
 
 def _update_keras_config(model_config, model_url, keras_dirname="model_data"):
-    model_asset_list = fv3config._asset_list_from_path(
+    model_asset_list = fv3config.asset_list_from_path(
         os.path.join(args.model_url, keras_dirname), target_location=keras_dirname
     )
     model_config.setdefault("patch_files", []).extend(model_asset_list)
@@ -146,10 +145,11 @@ if __name__ == "__main__":
         ),
         {"diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"},
     )
-    insert_sklearn_settings(config, args.model_url, args.diagnostic_ml)
 
     if args.nudge_to_observations:
         config = fv3kube.enable_nudge_to_observations(config)
+
+    insert_ml_settings(user_config, args.model_url, args.diagnostic_ml)
 
     model_config = vcm.update_nested_dict(
         config,
