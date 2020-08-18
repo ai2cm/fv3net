@@ -11,7 +11,7 @@ import diagnostics_utils as utils
 import synth
 from fv3fit import _shared as shared
 from fv3fit.sklearn._train import train_model
-from offline_ml_diags._mapper import SklearnPredictionMapper
+from offline_ml_diags._mapper import PredictionMapper
 from loaders import SAMPLE_DIM_NAME, batches, mappers
 from offline_ml_diags.compute_diags import (
     _average_metrics_dict,
@@ -59,19 +59,12 @@ def get_data_source_training_diags_config(config, data_source_name):
 @pytest.mark.regression
 def test_compute_training_diags(
     training_diags_reference_schema,
-    one_step_dataset_path,
     nudging_dataset_path,
     fine_res_dataset_path,
     training_data_diags_config,
     C48_SHiELD_diags_dataset_path,
     grid_dataset,
 ):
-    physics_off_config = get_data_source_training_diags_config(
-        training_data_diags_config, "one_step_physics-off"
-    )
-    clouds_off_config = get_data_source_training_diags_config(
-        training_data_diags_config, "one_step_clouds-off"
-    )
     nudging_config = get_data_source_training_diags_config(
         training_data_diags_config, "nudging_tendencies"
     )
@@ -84,8 +77,6 @@ def test_compute_training_diags(
     ] = C48_SHiELD_diags_dataset_path
 
     data_config_mapping = {
-        "one_step_physics-off": (one_step_dataset_path, physics_off_config),
-        "one_step_clouds-off": (one_step_dataset_path, clouds_off_config),
         "nudging_tendencies": (nudging_dataset_path, nudging_config),
         "fine_res_apparent_sources": (fine_res_dataset_path, fine_res_config),
     }
@@ -141,19 +132,6 @@ def test_compute_training_diags(
     assert training_diags_reference_schema == diags_output_schema
 
 
-def _one_step_train_config(datadir_module):
-    with open(
-        os.path.join(str(datadir_module), "train_sklearn_model_onestep_source.yml"), "r"
-    ) as f:
-        config = yaml.safe_load(f)
-    return shared.ModelTrainingConfig(**config)
-
-
-@pytest.fixture
-def one_step_train_config(datadir_module):
-    return _one_step_train_config(datadir_module)
-
-
 def _nudging_train_config(datadir_module):
     with open(
         os.path.join(str(datadir_module), "train_sklearn_model_nudged_source.yml"), "r"
@@ -182,9 +160,7 @@ def fine_res_train_config(datadir_module):
 
 @pytest.fixture
 def data_source_train_config(data_source_name, datadir_module):
-    if data_source_name == "one_step_tendencies":
-        data_source_train_config = _one_step_train_config(datadir_module)
-    elif data_source_name == "nudging_tendencies":
+    if data_source_name == "nudging_tendencies":
         data_source_train_config = _nudging_train_config(datadir_module)
     elif data_source_name == "fine_res_apparent_sources":
         data_source_train_config = _fine_res_train_config(datadir_module)
@@ -221,13 +197,14 @@ def mock_predict_function(feature_data_arrays):
 
 class MockSklearnWrappedModel:
     def __init__(self, input_vars, output_vars):
-        self.input_vars_ = input_vars
-        self.output_vars_ = output_vars
+        self.input_variables = input_vars
+        self.output_variables = output_vars
+        self.sample_dim_name = "sample"
 
     def predict(self, ds_stacked, sample_dim=SAMPLE_DIM_NAME):
         ds_pred = xr.Dataset()
-        for output_var in self.output_vars_:
-            feature_vars = [ds_stacked[var] for var in self.input_vars_]
+        for output_var in self.output_variables:
+            feature_vars = [ds_stacked[var] for var in self.input_variables]
             mock_prediction = mock_predict_function(feature_vars)
             ds_pred[output_var] = mock_prediction
         return ds_pred
@@ -246,12 +223,7 @@ def mock_model():
 def data_source_offline_config(
     data_source_name, datadir_module, C48_SHiELD_diags_dataset_path
 ):
-    if data_source_name == "one_step_tendencies":
-        with open(
-            os.path.join(str(datadir_module), "offline_one_step_config.yml"), "r"
-        ) as f:
-            return yaml.safe_load(f)
-    elif data_source_name == "nudging_tendencies":
+    if data_source_name == "nudging_tendencies":
         with open(
             os.path.join(str(datadir_module), "offline_nudging_config.yml"), "r"
         ) as f:
@@ -282,7 +254,7 @@ def prediction_mapper(
         data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
     )
 
-    prediction_mapper = SklearnPredictionMapper(base_mapper, mock_model)
+    prediction_mapper = PredictionMapper(base_mapper, mock_model)
 
     return prediction_mapper
 

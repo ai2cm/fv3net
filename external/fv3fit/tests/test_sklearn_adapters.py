@@ -18,8 +18,8 @@ class MockPredictor:
     dims to make this object work.
     """
 
-    input_vars_ = ["renamed_input"]
-    output_vars_ = ["rename_output"]
+    input_variables = ["renamed_input"]
+    output_variables = ["rename_output"]
 
     def predict(self, x):
         in_ = x["renamed_input"]
@@ -29,10 +29,10 @@ class MockPredictor:
 class MockSklearnWrapper:
     """A mock with the same interface as SklearnWrapper"""
 
-    input_vars_ = ["in"]
-    output_vars_ = ["out"]
+    input_variables = ["in"]
+    output_variables = ["out"]
 
-    def predict(self, x, dim):
+    def predict(self, x):
         assert x["in"].ndim == 2
         return x.rename({"in": "out"})
 
@@ -60,22 +60,22 @@ def test_RenamingAdapter_predict_renames_dims_correctly(
     original_dims, rename_dims, expected
 ):
     m = MockPredictor()
-    ds = xr.Dataset({m.input_vars_[0]: (original_dims, np.ones((5, 10)))})
+    ds = xr.Dataset({m.input_variables[0]: (original_dims, np.ones((5, 10)))})
     model = RenamingAdapter(m, rename_dims)
     out = model.predict(ds)
-    output_array = out[m.output_vars_[0]]
+    output_array = out[m.output_variables[0]]
     assert list(output_array.dims) == expected
 
 
 def test_RenamingAdapter_input_vars_():
     model = RenamingAdapter(MockPredictor(), {"x": "renamed_input"})
-    assert model.input_vars_ == {"x"}
+    assert model.input_variables == {"x"}
 
 
 def test_StackingAdapter_input_vars_():
     model = MockSklearnWrapper()
     wrapper = StackingAdapter(model, sample_dims=())
-    assert set(wrapper.input_vars_) == set(model.input_vars_)
+    assert set(wrapper.input_variables) == set(model.input_variables)
 
 
 def test_StackingAdapter_predict():
