@@ -139,8 +139,11 @@ def _create_scaling_array(
             variable_scale_factors: Optional mapping of variable names to scale factors
                 by which their scales will be multiplied. This allows
                 the scaled outputs to be of the same order of magnitude.
-                Default of None will target dQ2 features by a factor of 1000. All
-                other variables have an implicit scale factor of 1.
+                Default of None will scale target dQ2 features by a factor of 1e6; this
+                is chosen such that the features values are of the same order as dQ1
+                values when used in the sklearn training (which uses sqrt_scales=True
+                and applies the transform to the target variables).
+                All other variables have an implicit scale factor of 1.
             sqrt_scales: If True, will square root the scales returned by
                 this function. Useful if this is used as a target transform
                 regressor in fv3fit.sklearn with a MSE loss, as there is no current way
@@ -153,7 +156,7 @@ def _create_scaling_array(
             "Packer's feature count information is empty. Make sure the packer has "
             "been packed at least once so that dimension lengths are known."
         )
-    variable_scale_factors = variable_scale_factors or {"dQ2": 1000.0}
+    variable_scale_factors = variable_scale_factors or {"dQ2": 1000000.}
     vertical_scales = vertical_scales / vertical_scales.sum()
     n_vertical_levels = len(vertical_scales)
     scales = {}
