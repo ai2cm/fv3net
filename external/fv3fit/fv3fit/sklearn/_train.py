@@ -49,7 +49,12 @@ def _get_transformed_batch_regressor(train_config):
     target_transformer = StandardScaler()
     transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
     batch_regressor = RegressorEnsemble(transform_regressor)
-    model_wrapper = SklearnWrapper(batch_regressor)
+    model_wrapper = SklearnWrapper(
+        "sample",
+        train_config.input_variables,
+        train_config.output_variables,
+        batch_regressor,
+    )
     return model_wrapper
 
 
@@ -66,12 +71,7 @@ def train_model(
     model_wrapper = _get_transformed_batch_regressor(train_config)
     for i, batch in enumerate(batched_data):
         logger.info(f"Fitting batch {i}/{len(batched_data)}")
-        model_wrapper.fit(
-            input_vars=train_config.input_variables,
-            output_vars=train_config.output_variables,
-            sample_dim="sample",
-            data=batch,
-        )
+        model_wrapper.fit(data=batch)
         logger.info(f"Batch {i} done fitting.")
 
     return model_wrapper
