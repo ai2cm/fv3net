@@ -89,8 +89,8 @@ The prognostic run will grab the fv3config.yml file residing at the `initial_con
 
 The optional `diagnostics` entry in the prognostic run configuration can be used to save a subset of variables at set frequency or times.
 If using this option to save the tendencies across the physics time step, also add a `physics_tendency_vars` entry to the `scikit_learn` configuration
-option to specify these. An example is given below. If no `diagnostics` entry is included, the default behavior is to save the 2D diagnostics every 15
-minutes to `diags.zarr`.
+option to specify these. An example is given below. If no `diagnostics` entry is included, the default behavior for the sklearn runfile
+is to save the 2D diagnostics every 15 minutes to `diags.zarr`.
 
 ### `prog_config_yml` example
 
