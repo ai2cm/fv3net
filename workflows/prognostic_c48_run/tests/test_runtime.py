@@ -3,8 +3,7 @@ import xarray as xr
 import numpy as np
 import pytest
 
-    
-    
+
 class MockPredictor:
     """A predictor that expects these inputs::
 

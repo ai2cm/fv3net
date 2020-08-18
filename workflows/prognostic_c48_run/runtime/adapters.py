@@ -24,7 +24,9 @@ class RenamingAdapter:
     
     """
 
-    def __init__(self, model: Predictor, rename_in: NameDict, rename_out: NameDict = None):
+    def __init__(
+        self, model: Predictor, rename_in: NameDict, rename_out: NameDict = None
+    ):
         self.model = model
         self.rename_in = rename_in
         self.rename_out = {} if rename_out is None else rename_out
