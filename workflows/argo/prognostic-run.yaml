@@ -14,6 +14,7 @@ spec:
           - {name: config}
           - {name: reference-restarts}
           - {name: trained-ml}
+          - {name: optional-args, value: ""}
           - {name: output}
       container:
         image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
@@ -37,6 +38,7 @@ spec:
               --image-tag {{inputs.parameters.image-tag}} \
               --model_url {{inputs.parameters.trained-ml}} \
               --prog_config_yml config.yaml \
+              {{ inputs.parameters.optional-args }} \
               $C48_RESTARTS \
               $IC \
               {{inputs.parameters.output}}
