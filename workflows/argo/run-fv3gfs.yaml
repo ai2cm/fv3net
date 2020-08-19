@@ -113,13 +113,12 @@ spec:
             arguments:
               parameters:
                 - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
-                - {name: output-url, value: "{{inputs.parameters.output-url}"}
+                - {name: output-url, value: "{{inputs.parameters.output-url}}"}
         - - name: update-config
             template: update-config
             arguments:
               parameters:
-                - name: restarts-url
-                  value: "{{inputs.parameters.output-url}}/segments/{{inputs.parameters.step}}/RESTART"
+                - {name: restarts-url, value: "/mnt/data/rundir/RESTART"}
     - name: run-model
       inputs:
         parameters:
@@ -178,7 +177,9 @@ spec:
         command: ["/bin/bash", "-c"]
         args:
         - |
-          append_run.py /mnt/data/rundir {{inputs.parameters.output-url}}
+          post_process.py /mnt/data/rundir /tmp/processed_rundir
+          append_run.py /tmp/processed_rundir {{inputs.parameters.output-url}}
+          rm -r /tmp/processed_rundir
         volumeMounts:
           - name: output-data
             mountPath: /mnt/data
