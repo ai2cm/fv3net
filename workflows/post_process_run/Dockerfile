@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y google-cloud-sdk
 RUN gcloud config set project vcm-ml
 
 COPY post_process.py /usr/local/bin/
+COPY append_run.py /usr/local/bin/
 RUN chmod +x /usr/local/bin/post_process.py
+RUN chmod +x /usr/local/bin/append_run.py
 
 ENTRYPOINT ["post_process.py"]
