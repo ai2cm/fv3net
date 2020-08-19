@@ -34,7 +34,7 @@ def get_chunks(user_chunks: ChunkSpec) -> ChunkSpec:
 
 
 def upload_dir(d, dest):
-    subprocess.check_call(["gsutil", "-m", "rsync", "-r", d, dest])
+    subprocess.check_call(["gsutil", "-m", "rsync", "-r", "-e", d, dest])
 
 
 def download_directory(dir_, dest):
