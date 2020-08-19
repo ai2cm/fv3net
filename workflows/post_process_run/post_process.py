@@ -28,6 +28,7 @@ def get_chunks(user_chunks: ChunkSpec) -> ChunkSpec:
         "atmos_dt_atmos.zarr": CHUNKS_2D,
         "sfc_dt_atmos.zarr": CHUNKS_2D,
         "atmos_8xdaily.zarr": CHUNKS_3D,
+        "nudging_tendencies.zarr": CHUNKS_3D,
     }
     CHUNKS.update(user_chunks)
     return CHUNKS
