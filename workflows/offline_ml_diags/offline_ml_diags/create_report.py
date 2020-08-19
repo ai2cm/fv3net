@@ -95,6 +95,7 @@ if __name__ == "__main__":
         config_name="config.yaml",
     )
     timesteps = config["batch_kwargs"].pop("timesteps")
+    config.pop("mapping_kwargs", None)  # this item clutters the report
     timesteps = [
         vcm.cast_to_datetime(vcm.parse_datetime_from_str(t)) for t in timesteps
     ]
