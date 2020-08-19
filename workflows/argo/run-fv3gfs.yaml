@@ -113,7 +113,7 @@ spec:
             arguments:
               parameters:
                 - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
-                - {name: upload-url, value: "{{inputs.parameters.output-url}}/segments/{{inputs.parameters.step}}"}
+                - {name: output-url, value: "{{inputs.parameters.output-url}"}
         - - name: update-config
             template: update-config
             arguments:
@@ -167,7 +167,7 @@ spec:
       inputs:
         parameters:
           - name: post-process-image
-          - name: upload-url
+          - name: output-url
       tolerations:
       - key: "dedicated"
         operator: "Equal"
@@ -175,12 +175,10 @@ spec:
         effect: "NoSchedule"
       container:
         image: "{{inputs.parameters.post-process-image}}"
-        args: [
-          "--chunks", 
-          "/mnt/data/chunks.yaml", 
-          "/mnt/data/rundir", 
-          "{{inputs.parameters.upload-url}}"
-        ]
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          append_run.py /mnt/data/rundir {{inputs.parameters.output-url}}
         volumeMounts:
           - name: output-data
             mountPath: /mnt/data
