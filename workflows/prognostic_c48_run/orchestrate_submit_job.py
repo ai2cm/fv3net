@@ -109,6 +109,32 @@ def insert_sklearn_settings(model_config, model_url):
     model_config["scikit_learn"] = scikit_learn_config
 
 
+def insert_default_diagnostics(model_config):
+    """ Inserts default diagnostics save configuration into base config,
+    which is overwritten by user-provided config if diagnostics entry is present.
+    Defaults to of saving original 2d diagnostics on 15 min frequency.
+    If variables in this list does not exist, e.g. *_diagnostic vars only exist
+    if --diagnostic_ml flag is set, they are skipped.
+
+    Args:
+        model_config: Prognostic run configuration dict
+    """
+    model_config["diagnostics"] = [
+        {
+            "name": "diags.zarr",
+            "variables": [
+                "net_moistening",
+                "net_moistening_diagnostic",
+                "net_heating",
+                "net_heating_diagnostic",
+                "water_vapor_path",
+                "physics_precip",
+            ],
+            "times": {"kind": "interval", "frequency": 900},
+        }
+    ]
+
+
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
@@ -130,6 +156,7 @@ if __name__ == "__main__":
         {"diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"},
     )
     insert_sklearn_settings(config, args.model_url)
+    insert_default_diagnostics(config)
 
     if args.nudge_to_observations:
         config = fv3kube.enable_nudge_to_observations(config)

@@ -189,7 +189,7 @@ def read_schema_from_dataset(dataset: xr.Dataset) -> DatasetSchema:
 
 def dump(schema: DatasetSchema, fp):
     output = {"version": SCHEMA_VERSION, "schema": asdict(schema)}
-    json.dump(output, fp, cls=_Encoder)
+    json.dump(output, fp, cls=_Encoder, indent=4)
 
 
 def dumps(schema: DatasetSchema):
