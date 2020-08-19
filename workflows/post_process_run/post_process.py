@@ -164,7 +164,7 @@ def process_item(
 def post_process(rundir: str, destination: str, chunks: str):
     """Post-process the fv3gfs output located RUNDIR and save to DESTINATION
 
-    Both RUNDIR and DESTINATION are URLs in GCS.
+    RUNDIR and DESTINATION may be local or GCS paths.
 
     This script rechunks the python zarr output and converts the netCDF
     outputs to zarr.
@@ -186,12 +186,16 @@ def post_process(rundir: str, destination: str, chunks: str):
         else:
             d_in = rundir
 
+        if not destination.startswith("gs://"):
+            d_out = destination
+
         tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
 
         for item in chain(open_tiles(tiles, d_in, chunks), open_zarrs(zarrs), other):
             process_item(item, d_in, d_out, chunks)
 
-        upload_dir(d_out, destination)
+        if destination.startswith("gs://"):
+            upload_dir(d_out, destination)
 
 
 if __name__ == "__main__":
