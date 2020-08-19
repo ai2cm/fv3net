@@ -1,3 +1,4 @@
+from datetime import datetime
 from glob import glob
 import os
 import json
@@ -13,20 +14,12 @@ import numpy as np
 import xarray as xr
 import zarr
 
-from post_process import (
-    authenticate,
-    parse_rundir,
-    post_process,
-    ChunkSpec,
-    get_chunks,
-    upload_dir,
-    cast_time,
-    open_tiles,
-    open_zarrs,
-)
+from post_process import authenticate, upload_dir
 
 logger = logging.getLogger(__file__)
 logging.basicConfig(level=logging.INFO)
+
+TIMESTAMP_FORMAT = "%Y%m%d.%H%M%S"
 
 
 def encode_time_units_like(source_path: str, target_path: str):
@@ -103,38 +96,52 @@ def _chunk_filename(chunk_indices: Union[str, Sequence[str]]):
     return ".".join(chunk_indices)
 
 
+def _get_initial_timestamp(rundir: str) -> str:
+    with open(os.path.join(rundir, "time_stamp.out")) as f:
+        lines = f.readlines()
+    start_date = datetime(*[int(d) for d in re.findall(r"\d+", lines[0])])
+    return start_date.strftime(TIMESTAMP_FORMAT)
+
+
 @click.command()
 @click.argument("rundir")
 @click.argument("destination")
-@click.argument("step", type=int)
-def append_run(rundir: str, destination: str, step: int):
-    """Given post-processed fv3gfs output located at local path RUNDIR,
-    append to possibly existing GCS url DESTINATION"""
+@click.option("--segment_label", help="Defaults to timestamp of start of segment.")
+def append_run(rundir: str, destination: str, segment_label: str):
+    """Given post-processed fv3gfs output located at local path RUNDIR, append to
+    possibly existing GCS url DESTINATION. Zarr's will be appended to in place, while
+    all other files will be saved to DESTINATION/artifacts/SEGMENT_LABEL."""
     logger.info(f"Appending {rundir} to {destination}")
     authenticate()
 
-    items = os.listdir(rundir)
-    os.makedirs(os.path.join(rundir, "artifacts", str(step)), exist_ok=True)
+    if not segment_label:
+        segment_label = _get_initial_timestamp(rundir)
 
-    zarrs = []
-    rundir_abs = os.path.abspath(rundir)
+    fs, _, _ = fsspec.get_fs_token_paths(destination)
+
+    rundir = os.path.abspath(rundir)
+    items = os.listdir(rundir)
+    artifacts_dir = os.path.join(rundir, "artifacts", segment_label)
+    os.makedirs(artifacts_dir, exist_ok=True)
+
+    zarrs_to_consolidate = []
     for item in items:
-        item_fullpath = os.path.join(rundir_abs, item)
+        rundir_item = os.path.join(rundir, item)
         if item.endswith(".zarr"):
-            zarrs.append(item)
-            ds = xr.open_zarr(item_fullpath, consolidated=True)
-            if step != 0:
-                encode_time_units_like(item_fullpath, os.path.join(destination, item))
-            # alternatively, could check size of zarr in destination and shift appropriately.
-            # would eliminate requirement of all steps being of equal size.
-            shift_store(item_fullpath, "time", step * ds.sizes["time"])
+            destination_item = os.path.join(destination, item)
+            if fs.exists(destination_item):
+                encode_time_units_like(rundir_item, destination_item)
+                mapper = fsspec.get_mapper(destination_item)
+                shift = xr.open_zarr(mapper, consolidated=True).sizes["time"]
+                shift_store(rundir_item, "time", shift)
+            zarrs_to_consolidate.append(item)
         else:
-            renamed_path = os.path.join(rundir_abs, "artifacts", str(step), item)
-            os.rename(item_fullpath, renamed_path)
+            renamed_item = os.path.join(artifacts_dir, item)
+            os.rename(rundir_item, renamed_item)
 
     upload_dir(rundir, destination)
 
-    for item in zarrs:
+    for item in zarrs_to_consolidate:
         mapper = fsspec.get_mapper(os.path.join(destination, item))
         zarr.consolidate_metadata(mapper)
 

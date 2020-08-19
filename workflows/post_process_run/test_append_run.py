@@ -50,3 +50,10 @@ def test_appending_shifted_zarr_gives_expected_ds(tmpdir, with_coords):
     expected_ds = xr.concat([ds1, ds2], dim="time")
 
     xr.testing.assert_allclose(manually_appended_ds, expected_ds)
+
+
+def test__get_initial_timestamp(tmpdir):
+    tmpdir.join("time_stamp.out").write("2016 8 1 3 0 0")
+    timestamp = append_run._get_initial_timestamp(tmpdir)
+    expected_timestamp = "20160801.030000"
+    assert timestamp == expected_timestamp
