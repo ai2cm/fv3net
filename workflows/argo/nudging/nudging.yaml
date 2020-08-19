@@ -6,8 +6,6 @@ metadata:
 spec:
   arguments:
     parameters:
-      - name: restart-pvc
-        value: nudging-read-only
       - name: nudging-config
       - name: output-url
       - name: fv3gfs-image
@@ -26,9 +24,6 @@ spec:
           requests:
             storage: 1333Gi
   volumes:
-    - name: restart-data
-      persistentVolumeClaim:
-        claimName: '{{workflow.parameters.restart-pvc}}'
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -51,15 +46,11 @@ spec:
               - name: nudging-config
                 value: "{{workflow.parameters.nudging-config}}"
               # do not need templates
-              - name: restart-volume
-                value: restart-data
               - name: working-volume
                 value: output-data
     - name: nudging
       inputs:
         parameters:
-          - name: restart-volume
-            value: restart-data
           - name: nudging-config
           - name: times
           - name: working-volume
@@ -82,7 +73,6 @@ spec:
             arguments:
               parameters:
                 - {name: working-volume, value: "{{inputs.parameters.working-volume}}"}
-                - {name: restart-volume, value: "{{inputs.parameters.restart-volume}}"}
                 - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
         - - name: upload-outputs
             template: upload-data
@@ -165,7 +155,6 @@ spec:
       inputs:
         parameters:
           - {name: working-volume}
-          - {name: restart-volume}
           - {name: fv3gfs-image}
       tolerations:
       - key: "dedicated"
@@ -196,8 +185,6 @@ spec:
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
-          - name: "{{inputs.parameters.restart-volume}}"
-            mountPath: /mnt/input
           - name: "{{inputs.parameters.working-volume}}"
             mountPath: /mnt/data
           - name: gcp-key-secret
