@@ -2,7 +2,8 @@ FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND="noninteractive"
 
-RUN  apt-get update && apt-get install -y python3-yaml python3-xarray python3-click python3-toolz
+RUN  apt-get update && apt-get install -y python3-yaml python3-xarray python3-click python3-toolz python3-fsspec python3-pip
+RUN pip3 install gcsfs
 
 # install gcloud
 RUN apt-get update && apt-get install -y  apt-transport-https ca-certificates gnupg curl gettext
