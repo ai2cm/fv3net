@@ -37,13 +37,11 @@ def test_appending_shifted_zarr_gives_expected_ds(tmpdir, with_coords):
     path2 = str(tmpdir.join("ds2.zarr"))
 
     ds1.to_zarr(path1, consolidated=True)
-    if with_coords:
-        ds1_from_disk = xr.open_zarr(path1, consolidated=True)
-        for item in ["units", "calendar"]:
-            ds2["time"].encoding[item] = ds1_from_disk.time.encoding[item]
     ds2.to_zarr(path2, consolidated=True)
 
-    append_run._shift_store(path2, "time", n_time)
+    if with_coords:
+        append_run.encode_time_units_like(path2, path1)
+    append_run.shift_store(path2, "time", n_time)
 
     copytree(path2, path1)
     zarr.consolidate_metadata(path1)

@@ -1,12 +1,15 @@
 from glob import glob
 import os
 import json
+import logging
 import re
 import shutil
 from typing import Union, Sequence
 
+import cftime
 import click
 import fsspec
+import numpy as np
 import xarray as xr
 import zarr
 
@@ -17,7 +20,34 @@ from post_process import (
     ChunkSpec,
     get_chunks,
     upload_dir,
+    cast_time,
+    open_tiles,
+    open_zarrs,
 )
+
+logger = logging.getLogger(__file__)
+logging.basicConfig(level=logging.INFO)
+
+
+def encode_time_units_like(source_path: str, target_path: str):
+    source_store = zarr.open(source_path, mode="r+")
+    target_store = zarr.open_consolidated(fsspec.get_mapper(target_path))
+    if source_store["time"].attrs["calendar"] != target_store["time"].attrs["calendar"]:
+        raise ValueError("Calendars must be the same to encode same time units.")
+    source_store["time"][:] = rebase_times(
+        source_store["time"][:],
+        source_store["time"].attrs["units"],
+        target_store["time"].attrs["calendar"],
+        target_store["time"].attrs["units"],
+    )
+    source_store["time"].attrs["units"] = target_store["time"].attrs["units"]
+
+
+def rebase_times(
+    values: np.ndarray, input_units: str, calendar: str, output_units: str
+) -> np.ndarray:
+    dates = cftime.num2date(values, input_units, calendar)
+    return cftime.date2num(dates, output_units, calendar)
 
 
 def _update_zarray_shape(var_path, ax, increment):
@@ -42,7 +72,7 @@ def _assert_chunks_valid(array: zarr.array, ax: str, n_shift: int):
         )
 
 
-def _shift_store(path: str, dim: str, n_shift: int):
+def shift_store(path: str, dim: str, n_shift: int):
     """Shift consolidated local zarr store by n_shift along dim. Chunk size must be
     uniform for each variable and it must evenly divide n_shift."""
     store = zarr.open_consolidated(path)
@@ -58,84 +88,55 @@ def _shift_array(store_path: str, array: zarr.array, ax: int, n_shift: int):
     _update_zarray_shape(array_path, ax, n_shift)
     generic_chunk_filename = _chunk_filename("*" * array.ndim)
     for chunk_path in glob(os.path.join(array_path, generic_chunk_filename)):
-        _move_chunk(chunk_path, ax, n_shift, array.chunks[ax])
+        _rename_chunk(chunk_path, ax, n_shift, array.chunks[ax])
 
 
-def _move_chunk(chunk_path, ax, n_shift, chunk_size):
+def _rename_chunk(chunk_path, ax, n_shift, chunk_size):
     head, tail = os.path.split(chunk_path)
     chunk_indices = re.findall(r"[0-9]+", tail)
     chunk_indices[ax] = str(int(chunk_indices[ax]) + n_shift // chunk_size)
     new_chunk_path = os.path.join(head, _chunk_filename(chunk_indices))
-    shutil.move(chunk_path, new_chunk_path)
+    os.rename(chunk_path, new_chunk_path)
 
 
 def _chunk_filename(chunk_indices: Union[str, Sequence[str]]):
     return ".".join(chunk_indices)
 
 
-def append_item(
-    item: Union[xr.Dataset, str], d_in: str, d_out: str, chunks: ChunkSpec, step: str
-):
-    logger.info(f"Processing {item}")
-    try:
-        dest = os.path.join(d_out, os.path.relpath(item, d_in), step)  # type: ignore
-    except TypeError:
-        # is an xarray
-        relpath = os.path.relpath(item.path, d_in)  # type: ignore
-        chunks = chunks.get(relpath, CHUNKS_2D)
-        if "time" in chunks:
-            if item.sizes["time"] % chunks["time"] != 0:
-                raise ValueError(
-                    "Desired time chunk size must evenly divide total length"
-                )
-        clear_encoding(item)
-        chunked = rechunk(item, chunks)
-        dest = os.path.join(d_out, relpath)
-        chunked = cast_time(chunked)
-        chunked.to_zarr(dest, mode="w", consolidated=True)
-        num_time_chunks = int(chunked.sizes["time"] / chunked.chunks["time"])
-        _shift_chunks(dest, "time", num_time_chunks * step)
-    else:
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-        try:
-            shutil.copy(item, dest)  # type: ignore
-        except FileNotFoundError:
-            logger.warning(f"{item} not found. Possibly a broken symlink.")
-
-
 @click.command()
 @click.argument("rundir")
 @click.argument("destination")
 @click.argument("step", type=int)
-@click.option(
-    "--chunks", type=click.Path(), help="path to yaml file containing chunk information"
-)
-def append_run(rundir: str, destination: str, chunks: str):
-    """Post-process the fv3gfs output located at RUNDIR and append to possibly
-    existing DESTINATION"""
-    logger.info("Post-processing and appending the run")
+def append_run(rundir: str, destination: str, step: int):
+    """Given post-processed fv3gfs output located at local path RUNDIR,
+    append to possibly existing GCS url DESTINATION"""
+    logger.info(f"Appending {rundir} to {destination}")
     authenticate()
 
-    if chunks:
-        with open(chunks) as f:
-            user_chunks = yaml.safe_load(f)
-    else:
-        user_chunks = {}
-    chunks = get_chunks(user_chunks)
+    items = os.listdir(rundir)
+    os.makedirs(os.path.join(rundir, "artifacts", str(step)), exist_ok=True)
 
-    with tempfile.TemporaryDirectory() as d_in, tempfile.TemporaryDirectory() as d_out:
-
-        if rundir.startswith("gs://"):
-            download_directory(rundir, d_in)
+    zarrs = []
+    rundir_abs = os.path.abspath(rundir)
+    for item in items:
+        item_fullpath = os.path.join(rundir_abs, item)
+        if item.endswith(".zarr"):
+            zarrs.append(item)
+            ds = xr.open_zarr(item_fullpath, consolidated=True)
+            if step != 0:
+                encode_time_units_like(item_fullpath, os.path.join(destination, item))
+            # alternatively, could check size of zarr in destination and shift appropriately.
+            # would eliminate requirement of all steps being of equal size.
+            shift_store(item_fullpath, "time", step * ds.sizes["time"])
         else:
-            d_in = rundir
+            renamed_path = os.path.join(rundir_abs, "artifacts", str(step), item)
+            os.rename(item_fullpath, renamed_path)
 
-        tiles, zarrs, other = parse_rundir(os.walk(d_in, topdown=True))
+    upload_dir(rundir, destination)
 
-        for item in chain(open_tiles(tiles, d_in, chunks), open_zarrs(zarrs), other):
-            append_item(item, d_in, d_out, chunks)
-
-        upload_dir(d_out, destination)
+    for item in zarrs:
+        mapper = fsspec.get_mapper(os.path.join(destination, item))
+        zarr.consolidate_metadata(mapper)
 
 
 if __name__ == "__main__":
