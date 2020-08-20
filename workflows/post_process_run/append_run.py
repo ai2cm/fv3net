@@ -22,21 +22,44 @@ logging.basicConfig(level=logging.INFO)
 TIMESTAMP_FORMAT = "%Y%m%d.%H%M%S"
 
 
-def encode_time_units_like(source_path: str, target_path: str):
-    source_store = zarr.open(source_path, mode="r+")
-    target_store = zarr.open_consolidated(fsspec.get_mapper(target_path))
-    if source_store["time"].attrs["calendar"] != target_store["time"].attrs["calendar"]:
-        raise ValueError("Calendars must be the same to encode same time units.")
-    source_store["time"][:] = rebase_times(
-        source_store["time"][:],
-        source_store["time"].attrs["units"],
-        target_store["time"].attrs["calendar"],
-        target_store["time"].attrs["units"],
+def set_time_units_like(source_store: zarr.Group, target_store: zarr.Group):
+    """Modify all time-like variables in source_store to use same units as
+    corresponding variable in target_store. The provided source_store must be
+    opened in a mode such that it can be modified (e.g. mode='r+')"""
+    for variable, source_array in source_store.items():
+        target_array = target_store[variable]
+        if "units" in source_array.attrs and "since" in source_array.attrs["units"]:
+            _set_array_time_units_like(source_array, target_array)
+
+
+def _set_array_time_units_like(source_array: zarr.Array, target_array: zarr.Array):
+    _assert_calendars_same(source_array, target_array)
+    source_array[:] = _rebase_times(
+        source_array[:],
+        source_array.attrs["units"],
+        source_array.attrs["calendar"],
+        target_array.attrs["units"],
     )
-    source_store["time"].attrs["units"] = target_store["time"].attrs["units"]
+    source_array.attrs["units"] = target_array.attrs["units"]
 
 
-def rebase_times(
+def _assert_calendars_same(source_array: zarr.Array, target_array: zarr.Array):
+    if "calendar" not in source_array.attrs:
+        raise AttributeError(
+            f"Source array {source_array} missing calendar. Cannot rebase times."
+        )
+    if "calendar" not in target_array.attrs:
+        raise AttributeError(
+            f"Target array {target_array} missing calendar. Cannot rebase times."
+        )
+    if source_array.attrs["calendar"] != target_array.attrs["calendar"]:
+        raise ValueError(
+            "Calendars must be the same between source and target arrays to set "
+            "time units to be the same."
+        )
+
+
+def _rebase_times(
     values: np.ndarray, input_units: str, calendar: str, output_units: str
 ) -> np.ndarray:
     dates = cftime.num2date(values, input_units, calendar)
@@ -128,12 +151,12 @@ def append_run(rundir: str, destination: str, segment_label: str):
     for item in items:
         rundir_item = os.path.join(rundir, item)
         if item.endswith(".zarr"):
-            destination_item = os.path.join(destination, item)
-            if fs.exists(destination_item):
-                encode_time_units_like(rundir_item, destination_item)
-                mapper = fsspec.get_mapper(destination_item)
-                shift = xr.open_zarr(mapper, consolidated=True).sizes["time"]
-                shift_store(rundir_item, "time", shift)
+            dest_item = os.path.join(destination, item)
+            if fs.exists(dest_item):
+                source_store = zarr.open(rundir_item, mode="r+")
+                target_store = zarr.open_consolidated(fsspec.get_mapper(dest_item))
+                set_time_units_like(source_store, target_store)
+                shift_store(rundir_item, "time", target_store["time"].size)
             zarrs_to_consolidate.append(item)
         else:
             renamed_item = os.path.join(artifacts_dir, item)
