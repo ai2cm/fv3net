@@ -1,10 +1,9 @@
-from typing import BinaryIO
 import tensorflow.keras.layers as layers
 import tensorflow as tf
-import numpy as np
+from ..._shared import StandardScaler
 
 
-class Normalize(layers.Layer):
+class StandardNormalize(layers.Layer):
     """x -> (x - mean) / std"""
 
     def __init__(self, *, mean, std):
@@ -26,7 +25,7 @@ class Normalize(layers.Layer):
         }
 
 
-class Denormalize(layers.Layer):
+class StandardDenormalize(layers.Layer):
     """x -> x * std + mean"""
 
     def __init__(self, *, mean, std):
@@ -46,47 +45,20 @@ class Denormalize(layers.Layer):
         }
 
 
-class StandardScaler:
+class LayerStandardScaler(StandardScaler):
     def __init__(self):
-        self.mean = None
-        self.std = None
+        super().__init__()
         self._normalize_layer = None
         self._denormalize_layer = None
-
-    def fit(self, X):
-        self.mean = X.mean(axis=0).astype(np.float32)
-        self.std = X.std(axis=0).astype(np.float32)
-
-    def normalize(self, X):
-        return (X - self.mean) / self.std
-
-    def denormalize(self, X):
-        return X * self.std + self.mean
 
     @property
     def normalize_layer(self) -> layers.Layer:
         if self._normalize_layer is None:
-            self._normalize_layer = Normalize(mean=self.mean, std=self.std)
+            self._normalize_layer = StandardNormalize(mean=self.mean, std=self.std)
         return self._normalize_layer
 
     @property
     def denormalize_layer(self) -> layers.Layer:
         if self._denormalize_layer is None:
-            self._denormalize_layer = Denormalize(mean=self.mean, std=self.std)
+            self._denormalize_layer = StandardDenormalize(mean=self.mean, std=self.std)
         return self._denormalize_layer
-
-    def dump(self, f: BinaryIO):
-        data = {}
-        if self.mean is not None:
-            data["mean"] = self.mean
-        if self.std is not None:
-            data["std"] = self.std
-        return np.savez(f, **data)
-
-    @classmethod
-    def load(cls, f: BinaryIO):
-        data = np.load(f)
-        scaler = cls()
-        scaler.mean = data.get("mean")
-        scaler.std = data.get("std")
-        return scaler
