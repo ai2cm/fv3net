@@ -1,8 +1,23 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: train-diags-prog-steps-
+  name: train-diags-prog-steps
 spec:
+  arguments:
+    parameters:
+      - name: image-tag
+      - name: root
+      - name: training-input
+      - name: training-config
+      - name: train-times
+      - name: initial-condition
+      - name: prognostic-run-config
+      - name: reference-restarts
+      - name: store-true-args
+        value: ""
+      - name: offline-diags-config
+      - name: test-times
+      - name: public-report-output
   serviceAccountName: integration-tests
   tolerations:
     - effect: NoSchedule
