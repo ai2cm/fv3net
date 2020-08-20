@@ -494,7 +494,11 @@ def completed_rundir(request, tmpdir_factory):
     [pytest.param("keras", id="keras"), pytest.param("sklearn", id="sklearn")],
     indirect=True,
 )
-def test_checksum_restarts(completed_rundir):
+def test_fv3fun_checksum_restarts(completed_rundir):
+    """Please do not add more test cases here as this test slows image build time.
+    Additional Predictor model types and configurations should be tested against
+    the base class in the fv3fit test suite.
+    """
     # TODO: The checksum currently changes with new commits/updates. Figure out why
     # This checksum can be updated if checksum is expected to change
     # perhaps if an external library is updated.
@@ -516,6 +520,10 @@ def test_checksum_restarts(completed_rundir):
     indirect=True,
 )
 def test_fv3run_diagnostic_outputs(completed_rundir):
+    """Please do not add more test cases here as this test slows image build time.
+    Additional Predictor model types and configurations should be tested against
+    the base class in the fv3fit test suite.
+    """
     diagnostics = xr.open_zarr(str(completed_rundir.join("diags.zarr")))
     dims = ("time", "tile", "y", "x")
 
