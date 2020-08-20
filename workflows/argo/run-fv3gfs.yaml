@@ -118,7 +118,7 @@ spec:
             template: update-config
             arguments:
               parameters:
-                - {name: restarts-url, value: "/tmp/RESTART"}
+                - {name: restarts-url, value: "/mnt/data/RESTART"}
     - name: run-model
       inputs:
         parameters:
@@ -179,7 +179,7 @@ spec:
         - |
           post_process.py /mnt/data/rundir /tmp/processed_rundir
           append_run.py /tmp/processed_rundir {{inputs.parameters.output-url}}
-          cp -r /mnt/data/rundir/RESTART /tmp/RESTART
+          cp -r /mnt/data/rundir/RESTART /mnt/data/RESTART
           rm -r /mnt/data/rundir
           rm -r /tmp/processed_rundir
         volumeMounts:
