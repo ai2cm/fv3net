@@ -494,7 +494,7 @@ def completed_rundir(request, tmpdir_factory):
     [pytest.param("keras", id="keras"), pytest.param("sklearn", id="sklearn")],
     indirect=True,
 )
-def test_fv3fun_checksum_restarts(completed_rundir):
+def test_fv3run_checksum_restarts(completed_rundir):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
     the base class in the fv3fit test suite.

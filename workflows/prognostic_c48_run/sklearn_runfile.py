@@ -16,8 +16,7 @@ from mpi4py import MPI
 
 import fv3gfs
 import runtime
-from fv3fit.keras import get_model_class
-from fv3fit.sklearn import SklearnWrapper
+
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -97,21 +96,8 @@ def precipitation_sum(
 
 
 def open_model(config):
-    # Load the model
-    model_type = config.get("model_type", "scikit_learn")
-    if model_type == "keras":
-        keras_model_type = config.get("model_loader_kwargs", {}).get(
-            "keras_model_type", "DenseModel"
-        )
-        model_class = get_model_class(keras_model_type)
-        model = model_class.load(config["model"])
-    elif model_type == "scikit_learn":
-        model = SklearnWrapper.load(config["model"])
-    else:
-        raise ValueError(
-            "Valid model type values include 'scikit_learn' and "
-            f"'keras'; received {model_type}."
-        )
+    model_class = runtime.get_ml_model_class(config)
+    model = model_class.load(config["model"])
     stacked_predictor = runtime.StackingAdapter(model, sample_dims=["y", "x"])
     rename_in = config.get("input_standard_names", {})
     rename_out = config.get("output_standard_names", {})
