@@ -1,0 +1,59 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: offline-diags
+spec:
+  templates:
+    - name: offline-diags
+      inputs:
+        parameters:
+          - name: image-tag
+          - name: ml-model
+          # argo submit yaml is processed beforehand to have config and times fed in as string parameters
+          - name: config  
+          - name: times  
+          - name: offline-diags-output
+          - name: report-output
+      container:
+        image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
+        command: ["bash", "-c", "-x"]
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        volumeMounts:
+          - mountPath: /secret/gcp-credentials
+            name: gcp-key-secret
+        args:
+          - |
+
+            cat <<EOF >config.yaml
+            {{inputs.parameters.config}}
+            EOF
+            
+            cat << EOF > times.json
+            {{inputs.parameters.times}}
+            EOF
+
+            echo "Configuration:"
+            cat config.yaml
+    
+            python -m offline_ml_diags.compute_diags \
+              config.yaml \
+              {{inputs.parameters.ml-model}} \
+              {{inputs.parameters.offline-diags-output}} \
+              --timesteps-file times.json \
+              --no-train-subdir-append
+
+            python -m offline_ml_diags.create_report \
+              {{inputs.parameters.offline-diags-output}} \
+              {{inputs.parameters.report-output}} \
+
+        resources:
+          requests:
+            memory: "6Gi"
+            cpu: "1000m"
+          limits:
+            memory: "6Gi"
+            cpu: "1000m"
