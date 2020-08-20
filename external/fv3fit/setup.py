@@ -18,10 +18,8 @@ requirements = [
     "loaders",
     "fsspec>=0.6.2",
     "pyyaml>=5.1.2",
-    "report",  # sklearn uses these to save reports
-    "gallery",
     "vcm",
-    "tensorflow>=2.0",
+    "tensorflow>=2.2.0",
 ]
 
 setup_requirements = []
