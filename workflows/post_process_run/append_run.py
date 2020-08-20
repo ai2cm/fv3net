@@ -5,6 +5,8 @@ import os
 import json
 import logging
 import re
+import shutil
+import tempfile
 from typing import Union, Sequence
 
 import cftime
@@ -141,29 +143,30 @@ def append_run(rundir: str, destination: str, segment_label: str):
 
     fs, _, _ = fsspec.get_fs_token_paths(destination)
 
-    rundir = os.path.abspath(rundir)
-    items = os.listdir(rundir)
-    artifacts_dir = os.path.join(rundir, "artifacts", segment_label)
-    os.makedirs(artifacts_dir, exist_ok=True)
+    with tempfile.TemporaryDirectory() as d_in:
+        rundir = shutil.copytree(rundir, os.path.join(d_in, "rundir"))
+        items = os.listdir(rundir)
+        artifacts_dir = os.path.join(rundir, "artifacts", segment_label)
+        os.makedirs(artifacts_dir, exist_ok=True)
 
-    zarrs_to_consolidate = []
-    for item in items:
-        rundir_item = os.path.join(rundir, item)
-        logger.info(f"Processing {rundir_item}")
-        if item.endswith(".zarr"):
-            dest_item = os.path.join(destination, item)
-            if fs.exists(dest_item):
-                source_store = zarr.open(rundir_item, mode="r+")
-                target_store = zarr.open_consolidated(fsspec.get_mapper(dest_item))
-                set_time_units_like(source_store, target_store)
-                shift_store(rundir_item, "time", target_store["time"].size)
-            zarrs_to_consolidate.append(dest_item)
-        else:
-            renamed_item = os.path.join(artifacts_dir, item)
-            os.rename(rundir_item, renamed_item)
+        zarrs_to_consolidate = []
+        for item in items:
+            rundir_item = os.path.join(rundir, item)
+            logger.info(f"Processing {rundir_item}")
+            if item.endswith(".zarr"):
+                dest_item = os.path.join(destination, item)
+                if fs.exists(dest_item):
+                    source_store = zarr.open(rundir_item, mode="r+")
+                    target_store = zarr.open_consolidated(fsspec.get_mapper(dest_item))
+                    set_time_units_like(source_store, target_store)
+                    shift_store(rundir_item, "time", target_store["time"].size)
+                    zarrs_to_consolidate.append(dest_item)
+            else:
+                renamed_item = os.path.join(artifacts_dir, item)
+                os.rename(rundir_item, renamed_item)
 
-    logger.info(f"Uploading {rundir} to {destination}")
-    upload_dir(rundir, destination)
+        logger.info(f"Uploading {rundir} to {destination}")
+        upload_dir(rundir, destination)
 
     for item in zarrs_to_consolidate:
         logger.info(f"Consolidating metadata for {item}")
