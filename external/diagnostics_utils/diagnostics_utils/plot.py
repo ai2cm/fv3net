@@ -42,13 +42,9 @@ def plot_profile_var(
     for ax in facet_grid.axes.flatten():
         ax.invert_yaxis()
         ax.plot([0, 0], [1, 79], "k-")
-        if "1" in var:
-            ax.set_xlim(xlim or [-0.0001, 0.0001])
-            ax.set_xticks(xticks or np.arange(-1e-4, 1.1e-4, 5e-5))
-        else:
-            ax.set_xlim(xlim or [-1e-7, 1e-7])
-            ax.set_xticks(xticks or np.arange(-1e-7, 1.1e-7, 5e-8))
         ax.set_xlabel(f"{var} {_units_from_Q_name(var)}")
+        if xlim:
+            ax.set_xlim(xlim)
     f.set_size_inches([17, 3.5])
     f.set_dpi(dpi)
     f.suptitle(var.replace("_", " "))
@@ -71,7 +67,7 @@ def plot_column_integrated_var(
         ),
         col=derivation_dim,
         row=data_source_dim,
-        vmax=vmax or (1000 if "1" in var else 10),
+        vmax=vmax,
     )
     facet_grid.set_titles(template="{value}", maxchar=40)
     f.set_size_inches([14, 3.5])
