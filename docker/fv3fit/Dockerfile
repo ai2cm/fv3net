@@ -9,7 +9,8 @@ COPY external/synth /external/synth
 COPY external/fv3fit/ /fv3fit/
 
 COPY docker/fv3fit/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && /entrypoint.sh
+RUN chmod +x /entrypoint.sh && \
+    /entrypoint.sh
 
 WORKDIR /fv3fit
 ENTRYPOINT [ "/entrypoint.sh" ]
