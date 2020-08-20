@@ -11,7 +11,6 @@ import cftime
 import click
 import fsspec
 import numpy as np
-import xarray as xr
 import zarr
 
 from post_process import authenticate, upload_dir
