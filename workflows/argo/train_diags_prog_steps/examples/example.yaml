@@ -1,4 +1,5 @@
-root: gs://vcm-ml-experiments/2020-08-17-hybrid-nudge-to-obs/iter-1
+root: gs://vcm-ml-scratch/annak/2020-08-17-hybrid-nudge-to-obs/iter-1
+public-report-output: gs://vcm-ml-public/annak/2020-08-20-test-argo-templates
 image-tag: b9aa2addafe8d601fb099a60ef4146e3107f0afb
 training-input: "notused"
 initial-condition: "20160801.001500"

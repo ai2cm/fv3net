@@ -1,5 +1,5 @@
 apiVersion: argoproj.io/v1alpha1
-kind: Workflow
+kind: WorkflowTemplate
 metadata:
   name: train-diags-prog-steps
 spec:
@@ -14,7 +14,7 @@ spec:
       - name: prognostic-run-config
       - name: reference-restarts
       - name: store-true-args
-        value: ""
+        value: " "
       - name: offline-diags-config
       - name: test-times
       - name: public-report-output
