@@ -1,3 +1,7 @@
+
+build:
+	docker-compose build fv3fit
+
 dev:
 	docker-compose run fv3fit bash
 
