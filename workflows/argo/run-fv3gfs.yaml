@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  name: run-fv3gfs
+  generateName: run-fv3gfs-
 spec:
   arguments:
     parameters:
       - name: fv3config
       - name: runfile
       - name: chunks
-      - name: fv3gfs-image  # can be prognostic_run or fv3gfs-python
+      - name: fv3gfs-image  # any image with fv3gfs-wrapper and fv3config installed
       - name: output-url
       - name: post-process-image
       - {name: cpu, value: "6"}
@@ -22,7 +22,7 @@ spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: 500Gi
+            storage: 100Gi  # output from a single segment should be less than this
   volumes:
     - name: gcp-key-secret
       secret:
@@ -118,7 +118,7 @@ spec:
             template: update-config
             arguments:
               parameters:
-                - {name: restarts-url, value: "/mnt/data/rundir/RESTART"}
+                - {name: restarts-url, value: "/tmp/RESTART"}
     - name: run-model
       inputs:
         parameters:
@@ -179,6 +179,8 @@ spec:
         - |
           post_process.py /mnt/data/rundir /tmp/processed_rundir
           append_run.py /tmp/processed_rundir {{inputs.parameters.output-url}}
+          cp -r /mnt/data/rundir/RESTART /tmp/RESTART
+          rm -r /mnt/data/rundir
           rm -r /tmp/processed_rundir
         volumeMounts:
           - name: output-data
