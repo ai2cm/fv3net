@@ -17,7 +17,7 @@ spec:
   entrypoint: run-fv3gfs
   volumeClaimTemplates:
     - metadata:
-        name: output-data
+        name: workdir
       spec:
         accessModes: ["ReadWriteOnce"]
         resources:
@@ -68,7 +68,7 @@ spec:
       container:
         image: ubuntu:latest
         volumeMounts:
-          - name: output-data
+          - name: workdir
             mountPath: /mnt/data
         command: ["/bin/bash", "-c", "-x"]
         args:
@@ -168,7 +168,7 @@ spec:
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
         volumeMounts:
-          - name: output-data
+          - name: workdir
             mountPath: /mnt/data
           - name: gcp-key-secret
             mountPath: /secret/gcp-credentials
@@ -194,7 +194,7 @@ spec:
           rm -r /mnt/data/rundir
           rm -r /tmp/processed_rundir
         volumeMounts:
-          - name: output-data
+          - name: workdir
             mountPath: /mnt/data
           - name: gcp-key-secret
             mountPath: /secret/gcp-credentials
@@ -223,5 +223,5 @@ spec:
           yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.na_init 0
           yq w -i /mnt/data/fv3config.yaml namelist.coupler_nml.force_date_from_namelist false
         volumeMounts:
-          - name: output-data
+          - name: workdir
             mountPath: /mnt/data
