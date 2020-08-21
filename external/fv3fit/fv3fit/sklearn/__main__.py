@@ -1,14 +1,8 @@
-from typing import Union, Sequence, Mapping
-from datetime import datetime
 import argparse
 import os
-import fsspec
 import yaml
 import logging
-import report
-import fv3viz as viz
 import vcm
-import numpy as np
 from . import _train as train
 from .. import _shared as shared
 
@@ -16,8 +10,6 @@ from .. import _shared as shared
 MODEL_FILENAME = "sklearn_model.pkl"
 MODEL_CONFIG_FILENAME = "training_config.yml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
-REPORT_TITLE = "ML model training report"
-TRAINING_FIG_FILENAME = "count_of_training_times_used.png"
 
 
 def _save_config_output(output_url, config):
@@ -27,24 +19,6 @@ def _save_config_output(output_url, config):
 
     with fs.open(config_url, "w") as f:
         yaml.dump(config, f)
-
-
-def _create_report_plots(
-    path: str, times: Sequence[Union[np.datetime64, datetime, str]]
-) -> Mapping[str, Sequence[str]]:
-    """Given path to output directory and times used, create all plots required
-    for html report"""
-    times = [vcm.cast_to_datetime(time) for time in times]
-    with fsspec.open(os.path.join(path, TRAINING_FIG_FILENAME), "wb") as f:
-        viz.plot_daily_and_hourly_hist(times).savefig(f, dpi=90)
-    return {"Time distribution of training samples": [TRAINING_FIG_FILENAME]}
-
-
-def _write_report(output_dir, sections, metadata, title):
-    filename = title.replace(" ", "_") + ".html"
-    html_report = report.create_html(sections, title, metadata=metadata)
-    with fsspec.open(os.path.join(output_dir, filename), "w") as f:
-        f.write(html_report)
 
 
 def parse_args():
@@ -99,8 +73,3 @@ if __name__ == "__main__":
 
     model = train.train_model(batched_data, train_config)
     train.save_model(args.output_data_path, model, MODEL_FILENAME)
-    report_metadata = {**vars(args), **vars(train_config)}
-    report_sections = _create_report_plots(
-        args.output_data_path, batched_data.attrs["times"],
-    )
-    _write_report(args.output_data_path, report_sections, report_metadata, REPORT_TITLE)
