@@ -18,9 +18,6 @@ spec:
           requests:
             storage: 20Gi
   volumes:
-    - name: restart-data
-      persistentVolumeClaim:
-        claimName: '{{workflow.parameters.restart-pvc}}'
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -37,12 +34,10 @@ spec:
           parameters:
           - name: fv3net-image
             value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
+          - name: post-process-image
+            value: "us.gcr.io/vcm-ml/post_process_run:{{workflow.parameters.image-tag}}"
           - name: times
             value: "{{workflow.parameters.nudging-times}}"
-          - name: restart-volume
-            value: restart-data
-          - name: working-volume
-            value: output-data
           - name: output-url
             value: "{{workflow.parameters.root}}/nudging"
           - name: nudging-config

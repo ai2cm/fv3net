@@ -12,6 +12,7 @@ spec:
         value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
       - name: fv3net-image
         value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
+      - name: post-process-image
       - name: times
         value: ""
   entrypoint: main
@@ -31,6 +32,8 @@ spec:
                 value: "{{workflow.parameters.fv3net-image}}"
               - name: fv3gfs-image
                 value: "{{workflow.parameters.fv3gfs-image}}"
+              - name: post-process-image
+                value: "{{workflow.parameters.post-process-image}}"
               - name: times
                 value: "{{workflow.parameters.times}}"
               - name: output-url
@@ -47,6 +50,7 @@ spec:
             value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
           - name: fv3net-image
             value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
+          - name: post-process-image
       steps:
         - - template: prepare-config
             name: prepare-config
@@ -66,6 +70,7 @@ spec:
                 - {name: chunks, value: "{{steps.prepare-config.outputs.parameters.chunks}}"}
                 - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
                 - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+                - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
     - name: prepare-config
       inputs:
         parameters:
@@ -75,13 +80,13 @@ spec:
       outputs:
         parameters:
           - {name: fv3config, valueFrom: {path: /tmp/fv3config.yaml}}
-          - {name: runfile, valueFrom: {path: nudging_runfile.py}}
-          - {name: chunks, valueFrom: {path: nudging_chunks.yaml}}
+          - name: runfile
+            valueFrom:
+              path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_runfile.py
+          - name: chunks
+            valueFrom:
+              path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging/nudging_chunks.yaml
       container:
-        # need to run as root to read the mounted PVC
-        securityContext:
-          allowPrivilegeEscalation: false
-          runAsUser: 0
         image: "{{inputs.parameters.fv3net-image}}"
         command: ["/bin/bash", "-c"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudging

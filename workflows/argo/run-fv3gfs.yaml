@@ -14,7 +14,7 @@ spec:
       - {name: cpu, value: "6"}
       - {name: memory, value: 8Gi}
       - {name: submission-count, value: "1"}
-  entrypoint: main
+  entrypoint: run-fv3gfs
   volumeClaimTemplates:
     - metadata:
         name: output-data
@@ -22,32 +22,43 @@ spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: 100Gi  # output from a single segment should be less than this
+            storage: 100Gi  # output from a single segment must be less than this
   volumes:
     - name: gcp-key-secret
       secret:
         defaultMode: 420
         secretName: gcp-key
   templates:
-    - name: main
+    - name: run-fv3gfs
+      inputs:
+        parameters:
+          - name: fv3config
+          - name: runfile
+          - name: chunks
+          - name: fv3gfs-image
+          - name: output-url
+          - name: post-process-image
+          - {name: cpu, value: "6"}
+          - {name: memory, value: 8Gi}
+          - {name: submission-count, value: "1"}
       steps:
         - - name: write-configs
             template: write-configs
             arguments:
               parameters:
-              - {name: fv3config, value: "{{workflow.parameters.fv3config}}"}
-              - {name: runfile, value: "{{workflow.parameters.runfile}}"}
-              - {name: chunks, value: "{{workflow.parameters.chunks}}"}
-        - - name: run-fv3gfs
-            template: run-fv3gfs
+              - {name: fv3config, value: "{{inputs.parameters.fv3config}}"}
+              - {name: runfile, value: "{{inputs.parameters.runfile}}"}
+              - {name: chunks, value: "{{inputs.parameters.chunks}}"}
+        - - name: run-all-segments
+            template: run-all-segments
             arguments:
               parameters:
-              - {name: fv3gfs-image, value: "{{workflow.parameters.fv3gfs-image}}"}
-              - {name: post-process-image, value: "{{workflow.parameters.post-process-image}}"}
-              - {name: output-url, value: "{{workflow.parameters.output-url}}"}
-              - {name: cpu, value: "{{workflow.parameters.cpu}}"}
-              - {name: memory, value: "{{workflow.parameters.memory}}"}
-              - {name: submission-count, value: "{{workflow.parameters.submission-count}}"}
+              - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
+              - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
+              - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+              - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+              - {name: memory, value: "{{inputs.parameters.memory}}"}
+              - {name: submission-count, value: "{{inputs.parameters.submission-count}}"}
     - name: write-configs
       inputs:
         parameters:
@@ -68,7 +79,7 @@ spec:
           EOFRUNFILE
           cat /mnt/data/runfile.py
           echo "{{inputs.parameters.chunks}}" > /mnt/data/chunks.yaml
-    - name: run-fv3gfs
+    - name: run-all-segments
       parallelism: 1
       inputs:
         parameters:

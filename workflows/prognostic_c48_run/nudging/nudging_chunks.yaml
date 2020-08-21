@@ -10,7 +10,3 @@ reference.zarr:
   time: 1
 nudging_tendencies.zarr:
   time: 1
-sfc_dt_atmos.zarr:
-  time: 96
-atmos_dt_atmos.zarr:
-  time: 96

@@ -53,9 +53,7 @@ name=integration-test-$random
 export VERSION=$1
 export GCS_OUTPUT_URL=gs://vcm-ml-scratch/test-end-to-end-integration/$name
 
-kubectl apply -f workflows/argo/training-rf.yaml
-kubectl apply -f workflows/argo/prognostic-run.yaml
-kubectl apply -f workflows/argo/nudging/nudging.yaml
+kubectl apply -k workflows/argo
 
 cd tests/end_to_end_integration
 
