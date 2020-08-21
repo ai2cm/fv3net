@@ -1,3 +1,6 @@
+all: submit_extra_vars_long
+
+
 submit_physicson_hybrid: config_physicson.json templates
 	argo submit argo.yaml -f $<
 
