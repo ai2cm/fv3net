@@ -11,6 +11,7 @@ spec:
       - name: fv3gfs-image  # any image with fv3gfs-wrapper and fv3config installed
       - name: output-url
       - name: post-process-image
+      - name: persistent-volume  # a pre-existing volume claim, e.g. for access to nudging reference data
       - {name: cpu, value: "6"}
       - {name: memory, value: 8Gi}
       - {name: submission-count, value: "1"}
@@ -28,6 +29,9 @@ spec:
       secret:
         defaultMode: 420
         secretName: gcp-key
+    - name: persistent-volume
+      persistentVolumeClaim:
+        claimName: "{{workflow.parameters.persistent-volume}}"
   templates:
     - name: run-fv3gfs
       inputs:
@@ -170,6 +174,8 @@ spec:
         volumeMounts:
           - name: workdir
             mountPath: /mnt/data
+          - name: persistent-volume
+            mountPath: /mnt/input
           - name: gcp-key-secret
             mountPath: /secret/gcp-credentials
             readOnly: true

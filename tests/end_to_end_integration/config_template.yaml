@@ -1,6 +1,5 @@
 root: $GCS_OUTPUT_URL  # substituted by envsubst in run_test.sh
 image-tag: $VERSION  # substituted by envsubst in run_test.sh
-restart-pvc: nudging-read-only
 initial-condition: "20160801.003000"
 reference-restarts: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
 nudging-times: |

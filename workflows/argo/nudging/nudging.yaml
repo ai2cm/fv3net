@@ -6,6 +6,8 @@ metadata:
 spec:
   arguments:
     parameters:
+      - name: restart-pvc
+        value: nudging-read-only
       - name: nudging-config
       - name: output-url
       - name: fv3gfs-image
@@ -40,9 +42,12 @@ spec:
                 value: "{{workflow.parameters.output-url}}"
               - name: nudging-config
                 value: "{{workflow.parameters.nudging-config}}"
+              - name: restart-pvc
+                value: "{{workflow.parameters.restart-pvc}}"
     - name: nudging
       inputs:
         parameters:
+          - {name: restart-pvc, value: nudging-read-only}
           - name: nudging-config
           - name: times
           - name: output-url
@@ -71,6 +76,7 @@ spec:
                 - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
                 - {name: output-url, value: "{{inputs.parameters.output-url}}"}
                 - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
+                - {name: persistent-volume, value: "{{inputs.parameters.restart-pvc}}"}
     - name: prepare-config
       inputs:
         parameters:
