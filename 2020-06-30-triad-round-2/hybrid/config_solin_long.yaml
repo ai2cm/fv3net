@@ -3,7 +3,7 @@ prognostic-run-config: |
   base_version: v0.4
   namelist:
     coupler_nml:
-      days: 40
+      days: 35
       hours: 0
       minutes: 0
       seconds: 0
@@ -17,9 +17,9 @@ prognostic-run-config: |
       do_only_clearsky_rad: true
       shal_cnv: false
 # use fv3net master
-image-tag: 995a667d7d0a5be0fa903dfa2f580dc9ebfa0e00
+image-tag: e16c32a5b530d4441ca1976172c996626ba50fbe
 initial-condition: "20160805.000000"
 reference-restarts: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
 input-variables: |
     ["air_temperature", "specific_humidity", "cos_zenith_angle", "surface_geopotential", "land_sea_mask"]
-trained-model: gs://vcm-ml-experiments/2020-06-30-triad-round-2/hybrid-SOLIN-PHIS-SLIMASK/trained-model
+trained-model: gs://vcm-ml-experiments/2020-08-06-hybrid-correct-cvcp/trained-model
