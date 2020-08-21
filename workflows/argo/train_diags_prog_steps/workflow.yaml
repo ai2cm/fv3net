@@ -65,7 +65,7 @@ spec:
               - name: reference-restarts
                 value: "{{workflow.parameters.reference-restarts}}"
               - name: trained-ml
-                value: "{{workflow.parameters.root}}/trained_model"
+                value: "{{workflow.parameters.root}}/trained_model/sklearn_model.pkl"
               - name: output
                 value: "{{workflow.parameters.root}}/prognostic_run"
               - name: store-true-args
