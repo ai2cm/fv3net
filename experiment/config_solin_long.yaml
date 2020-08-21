@@ -17,7 +17,7 @@ prognostic-run-config: |
       do_only_clearsky_rad: true
       shal_cnv: false
 # use fv3net master
-image-tag: e16c32a5b530d4441ca1976172c996626ba50fbe
+image-tag: 8613e2d8446ba29e24431b5a6618a19d10a7e1c1
 initial-condition: "20160805.000000"
 reference-restarts: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
 input-variables: |
