@@ -29,7 +29,7 @@ argo submit --from workflowtemplate/prognostic-run-diags \
     --name <name>
 ```
 
-You can also use submit by supplying a file containing the parameters, e.g.
+You can also use submit by supplying a file containing the parameters with the `--parameter-file` or `-f` flag, e.g.
 ```
 argo submit --from workflowtemplate/train-diags-prog --parameter-file config.json
 ```
