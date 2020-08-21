@@ -60,6 +60,38 @@ def test__get_initial_timestamp(tmpdir):
     assert timestamp == expected_timestamp
 
 
+@pytest.mark.parametrize(
+    "shape, chunks, ax, shift, raises_value_error",
+    [
+        ((8,), (2,), 0, 4, False),
+        ((8, 4), (2, 1), 0, 8, False),
+        ((8, 4), (2, 2), 0, 8, False),
+        ((8, 4), (2, 1), 0, 16, False),
+        ((8, 4), (2, 1), 1, 1, False),
+        ((8, 4), (2, 1), 1, 2, False),
+        ((8, 4), (3, 1), 0, 8, True),
+        ((8, 4), (2, 1), 0, 7, True),
+    ],
+)
+def test__shift_array(tmpdir, shape, chunks, ax, shift, raises_value_error):
+    path = str(tmpdir.join("test.zarr"))
+    z1 = zarr.open(path, mode="w", shape=shape, chunks=chunks)
+    z1[:] = np.zeros(shape)
+    if raises_value_error:
+        with pytest.raises(ValueError):
+            append_run._shift_array(z1, ax, shift)
+    else:
+        items_before = os.listdir(path)
+        append_run._shift_array(z1, ax, shift)
+        items_after = os.listdir(path)
+        assert len(items_before) == len(items_after)
+        for item in items_before:
+            if item != ".zarray":
+                chunk_indices = item.split(".")
+                chunk_indices[ax] = str(int(chunk_indices[ax]) + shift // chunks[ax])
+                assert ".".join(chunk_indices) in items_after
+
+
 @pytest.mark.parametrize("with_coords", [True, False])
 def test_appending_shifted_zarr_gives_expected_ds(tmpdir, with_coords):
     n_time = 6
@@ -81,9 +113,8 @@ def test_appending_shifted_zarr_gives_expected_ds(tmpdir, with_coords):
     ds1.to_zarr(path1, consolidated=True)
     ds2.to_zarr(path2, consolidated=True)
 
-    if with_coords:
-        append_run.set_time_units_like(zarr.open(path1, mode="r+"), zarr.open(path2))
-    append_run.shift_store(path2, "time", n_time)
+    append_run.set_time_units_like(zarr.open(path1, mode="r+"), zarr.open(path2))
+    append_run.shift_store(zarr.open(path2), "time", n_time)
 
     _copytree(path2, path1)
     zarr.consolidate_metadata(path1)
