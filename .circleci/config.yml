@@ -88,15 +88,16 @@ jobs:
         default: fv3net
         type: enum
         enum: ["prognostic_run", "post_process_run", "fv3net"]
-    machine:
-      docker_layer_caching: true
-      image: google/cloud-sdk
+    docker:
+      - image: google/cloud-sdk
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       IMAGE: <<parameters.image>>
     steps:
+      - setup_remote_docker:
+          docker_layer_caching: true
       - run:
           name: Authenticate docker with GCR
           command: |
