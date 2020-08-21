@@ -26,8 +26,5 @@ def ml_config(request):
     indirect=["ml_config"],
 )
 def test_get_ml_model_class(ml_config, expected):
-    print(ml_config)
-    print(expected)
     model_class = get_ml_model_class(ml_config)
-    print(model_class)
     assert model_class == expected
