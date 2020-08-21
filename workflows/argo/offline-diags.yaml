@@ -43,9 +43,8 @@ spec:
               config.yaml \
               {{inputs.parameters.ml-model}} \
               {{inputs.parameters.offline-diags-output}} \
-              --timesteps-file times.json \
-              --no-train-subdir-append
-
+              --timesteps-file times.json
+              
             python -m offline_ml_diags.create_report \
               {{inputs.parameters.offline-diags-output}} \
               {{inputs.parameters.report-output}} \
