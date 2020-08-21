@@ -1,6 +1,6 @@
 root: gs://vcm-ml-experiments/2020-08-20-hybrid-all-vars-mass-fix
 prognostic-run-config: |
-  base_version: v0.4
+  base_version: v0.5
   namelist:
     coupler_nml:
       days: 35
