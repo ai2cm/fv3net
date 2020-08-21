@@ -108,7 +108,7 @@ jobs:
       - add_ssh_keys:
           fingerprints:
             - "c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39"
-      - run: sudo apt-get install -y make jq
+      - run: apt-get install -y make jq
       - run:
           name: "Pull submodules"
           command: |
