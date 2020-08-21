@@ -7,7 +7,6 @@ import logging
 import re
 import shutil
 import tempfile
-from typing import Union, Sequence
 
 import cftime
 import click
