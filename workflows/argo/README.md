@@ -37,6 +37,50 @@ This job can be monitored by running
 Moreover, the templates within this workflows can be used by other workflows.
 
 
+### Running fv3gfs with argo
+
+The `run-fv3gfs` template is a general purpose workflow to do fv3gfs simulations on the
+cloud. It does post-processing on the fly and the workflow can run the model in
+sequential segments to increase reliability and reduce the memory requirement for
+the post-processing step. See the nudging workflow at
+`workflows/argo/nudging/nudging.yaml` for an example usage of the `run-fv3gfs`
+template. The template can also be called directly from the command line:
+
+```
+argo submit --from workflowtemplate/run-fv3gfs \
+    -p fv3config="$(< fv3config.yaml)" \
+    -p runfile="$(< runfile.py)" \
+    -p chunks="$(< chunks.yaml)" \
+    -p output-url=<gcs-output-url> \
+    -p fv3gfs-image=<fv3gfs-docker-image> \ 
+    -p post-process-image=<post-process-docker-image> \
+    -p cpu="6" \
+    -p memory="8Gi" \
+    -p submission-count="2"
+```
+The `cpu`, `memory` and `submission-count` arguments are optional. Defaults are defined 
+in the workflow template.
+
+#### Running multiple segments
+
+The workflow will submit `submission-count` model segments in sequence. The diagnostic 
+outputs from each segment will automatically be appended to the previous segment's at
+`output-url`. All other outputs (restart files, logging, etc.) will be saved to
+`output-url/artifacts/{timestamp}` where `timestamp` corresponds to the start time of
+each segment. The duration of each segment is defined by the `fv3config` object passed
+to the workflow.
+
+#### Post-processing and chunking
+
+The post-processing can convert netCDF diagnostic outputs of the form `name.tile?.nc`
+to zarr with user-specified chunks and rechunk zarrs output by fv3gfs-wrapper. To
+specify that a set of netCDF outputs should be converted to zarr, their chunking must be
+given in the provided `chunks.yaml`. See post-processing script at
+`workflows/post_process_run` for more details.
+
+WARNING: if `submission-count` is greater than 1, the chunk size in time must evenly
+divide the length of the time dimension for each diagnostic output.
+
 ### Prognostic run report
 
 The `prognostic-run-diags` workflow template will generate reports for
