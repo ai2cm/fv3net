@@ -87,9 +87,9 @@ jobs:
       image:
         default: fv3net
         type: enum
-        enum: ["prognostic_run", "post_process_run", "fv3net"]
     docker:
       - image: google/cloud-sdk
+        enum: ["prognostic_run", "post_process_run", "fv3net", "fv3fit"]
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
@@ -117,6 +117,8 @@ jobs:
           name: Build fv3net images
           command: |
             make build_image_$IMAGE
+      - gcp-gcr/gcr-auth:
+          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - run:
           name: Push fv3net images
           command: |
@@ -236,7 +238,7 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image: ["prognostic_run", "fv3net", "post_process_run", "fv3fit"]
       - integration_tests:
           requires:
             - build_default
@@ -257,7 +259,7 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image: ["prognostic_run", "fv3net", "post_process_run", "fv3fit"]
           filters:
             tags:
               only: /^v.*/
