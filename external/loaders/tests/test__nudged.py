@@ -21,14 +21,26 @@ from loaders.mappers._nudged import (
     _open_nudging_checkpoints,
     open_merged_nudged_full_tendencies,
     open_merged_nudge_to_obs_full_tendencies,
+    open_nudged_to_obs_prognostic,
 )
 
 NTIMES = 12
 
 
 @pytest.fixture(scope="module")
-def nudge_tendencies(datadir_module):
+def prognostic_diags(datadir_module):
+    # output saved from fv3config.diagnostics option
+    tendency_data_schema = datadir_module.join("prognostic_diags.json")
+    with open(tendency_data_schema) as f:
+        schema = synth.load(f)
+    nudging_tend = synth.generate(schema)
+    nudging_tend = _int64_to_datetime(nudging_tend)
 
+    return nudging_tend.isel({TIME_NAME: slice(0, NTIMES)})
+
+
+@pytest.fixture(scope="module")
+def nudge_tendencies(datadir_module):
     tendency_data_schema = datadir_module.join("nudging_tendencies.json")
     with open(tendency_data_schema) as f:
         schema = synth.load(f)
@@ -75,10 +87,12 @@ def nudged_checkpoints(general_nudge_schema):
 
 
 @pytest.fixture(scope="module")
-def nudged_data_dir(datadir_module, nudged_checkpoints, nudge_tendencies):
-
+def nudged_data_dir(
+    datadir_module, nudged_checkpoints, nudge_tendencies, prognostic_diags
+):
     all_data = dict(**nudged_checkpoints)
     all_data.update({"nudging_tendencies": nudge_tendencies})
+    all_data.update({"prognostic_diags": prognostic_diags})
 
     for filestem, ds in all_data.items():
         filepath = os.path.join(datadir_module, f"{filestem}.zarr")
@@ -541,6 +555,39 @@ def test_open_merged_nudge_to_obs(nudged_data_dir):
     mapper[key]["dQ1"]
     mapper[key]["dQ2"]
     assert len(mapper) == 6
+
+
+@pytest.mark.regression
+def test_open_nudged_to_obs_prognostic(nudged_data_dir):
+
+    merge_files = ("prognostic_diags.zarr", "nudging_tendencies.zarr")
+    rename_vars = {
+        "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
+        "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+        "air_temperature_tendency_due_to_nudging": "dQ1",
+        "specific_humidity_tendency_due_to_nudging": "dQ2",
+        "grid_xt": "x",
+        "grid_yt": "y",
+        "pfull": "z",
+    }
+    nudging_to_physics_tendency = {
+        "dQ1": "pQ1",
+        "dQ2": "pQ2",
+    }
+    mapper = open_nudged_to_obs_prognostic(
+        nudged_data_dir,
+        merge_files=merge_files,
+        rename_vars=rename_vars,
+        nudging_to_physics_tendency=nudging_to_physics_tendency,
+    )
+
+    key = list(mapper.keys())[0]
+    mapper[key]["air_temperature"]
+    mapper[key]["specific_humidity"]
+    mapper[key]["dQ1"]
+    mapper[key]["dQ2"]
+    mapper[key]["pQ1"]
+    mapper[key]["pQ2"]
 
 
 @pytest.mark.regression

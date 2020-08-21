@@ -14,6 +14,10 @@ function getJob {
     argo get $1 -n $2
 }
 
+function terminateJob {
+    argo terminate $1 -n $2
+}
+
 function getPhase {
     argo get $1 -n $2 -o json | jq -r .status.phase
 }
@@ -43,6 +47,7 @@ function waitForComplete {
         exit 1
     else
         echo Job timed out or success ambiguous: "$jobName"
+        $(terminateJob $jobName $NAMESPACE)
         exit 1
     fi
 }
@@ -61,6 +66,6 @@ envsubst < "config_template.yaml" > "config.yaml"
 
 argo submit argo.yaml -f config.yaml --name $name
 
-trap "argo logs \"$name\"" EXIT
+trap "argo logs \"$name\" | tail -n 100" EXIT
 # argo's wait/watch features are buggy, so roll our own
 waitForComplete $name default

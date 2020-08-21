@@ -145,6 +145,10 @@ def get_diagnostic_files(
     config: Mapping, partitioner: fv3util.CubedSpherePartitioner, comm
 ) -> List[DiagnosticFile]:
     """Initialize a list of diagnostic file objects from a configuration dictionary
+    Note- the default here is to save all the variables in the diagnostics.
+    The default set of variables can be overwritten by inserting a default diagnostics
+    config entry for each runfile, e.g. ../orchestrate_submit_jobs.py does this for
+    the sklearn runfile.
 
     Args:
         config: A loaded "fv3config" dictionary with a "diagnostics" section
