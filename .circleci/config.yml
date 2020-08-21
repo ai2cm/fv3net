@@ -90,15 +90,18 @@ jobs:
         enum: ["prognostic_run", "post_process_run", "fv3net"]
     machine:
       docker_layer_caching: true
-      image: ubuntu-1604:201903-01
+      image: google/cloud-sdk
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       IMAGE: <<parameters.image>>
     steps:
-      - gcp-gcr/gcr-auth:
-          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
+      - run:
+          name: Authenticate docker with GCR
+          command: |
+            gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
+            gcloud auth configure-docker
       - checkout
       - add_ssh_keys:
           fingerprints:
