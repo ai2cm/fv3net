@@ -7,11 +7,11 @@ import pytest
 # to ensure that they subclass the required Predictor abstract base class
 
 
-@pytest.mark.parametrize("model_class_name", [("DenseModel"), ("DummyModel")])
+@pytest.mark.parametrize("model_class_name", ["DenseModel", "DummyModel"])
 def test_keras_public_Predictors(model_class_name):
     assert issubclass(get_model_class(model_class_name), Predictor)
 
 
-@pytest.mark.parametrize("model_class", [(SklearnWrapper)])
+@pytest.mark.parametrize("model_class", [SklearnWrapper])
 def test_sklearn_public_Predictors(model_class):
     assert issubclass(model_class, Predictor)
