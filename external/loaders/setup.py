@@ -15,7 +15,6 @@ setup(
         "numpy>=1.18.4",
         "pyyaml>=5.3.0",
         "toolz>=0.10.0",
-        "typing>=3.7.4",
         "xarray>=0.15.1",
         "zarr>=2.4.0",
         "vcm",

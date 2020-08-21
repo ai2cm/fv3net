@@ -87,23 +87,28 @@ jobs:
       image:
         default: fv3net
         type: enum
-        enum: ["prognostic_run", "post_process_run", "fv3net"]
-    machine:
-      docker_layer_caching: true
-      image: ubuntu-1604:201903-01
+        enum: ["prognostic_run", "post_process_run", "fv3net", "fv3fit"]
+    docker:
+      - image: google/cloud-sdk
     environment:
       GOOGLE_PROJECT_ID: vcm-ml
       GOOGLE_COMPUTE_ZONE: us-central1
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       IMAGE: <<parameters.image>>
     steps:
-      - gcp-gcr/gcr-auth:
-          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Authenticate docker with GCR
+          command: |
+            echo "$ENCODED_GOOGLE_CREDENTIALS" | base64 -d > "$GOOGLE_APPLICATION_CREDENTIALS"
+            gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
+            gcloud auth configure-docker
       - checkout
       - add_ssh_keys:
           fingerprints:
             - "c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39"
-      - run: sudo apt-get install -y make jq
+      - run: apt-get install -y make jq
       - run:
           name: "Pull submodules"
           command: |
@@ -231,7 +236,7 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image: ["prognostic_run", "fv3net", "post_process_run", "fv3fit"]
       - integration_tests:
           requires:
             - build_default
@@ -252,7 +257,7 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image: ["prognostic_run", "fv3net", "post_process_run", "fv3fit"]
           filters:
             tags:
               only: /^v.*/
