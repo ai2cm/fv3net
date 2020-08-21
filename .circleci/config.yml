@@ -87,7 +87,7 @@ jobs:
       image:
         default: fv3net
         type: enum
-        enum: ["prognostic_run", "post_process_run", "fv3net"]
+        enum: ["prognostic_run", "post_process_run", "fv3net", "fv3fit"]
     machine:
       docker_layer_caching: true
       image: ubuntu-1604:201903-01
@@ -97,8 +97,6 @@ jobs:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
       IMAGE: <<parameters.image>>
     steps:
-      - gcp-gcr/gcr-auth:
-          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - checkout
       - add_ssh_keys:
           fingerprints:
@@ -112,6 +110,8 @@ jobs:
           name: Build fv3net images
           command: |
             make build_image_$IMAGE
+      - gcp-gcr/gcr-auth:
+          gcloud-service-key: DECODED_GOOGLE_CREDENTIALS
       - run:
           name: Push fv3net images
           command: |
@@ -231,7 +231,7 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image: ["prognostic_run", "fv3net", "post_process_run", "fv3fit"]
       - integration_tests:
           requires:
             - build_default
@@ -252,7 +252,7 @@ workflows:
       - build_default:
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run"]
+              image: ["prognostic_run", "fv3net", "post_process_run", "fv3fit"]
           filters:
             tags:
               only: /^v.*/

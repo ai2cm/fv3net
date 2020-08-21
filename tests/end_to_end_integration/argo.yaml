@@ -55,7 +55,7 @@ spec:
         arguments:
           parameters:
             - name: image
-              value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
+              value: "us.gcr.io/vcm-ml/fv3fit:{{workflow.parameters.image-tag}}"
             - name: input
               value: "{{workflow.parameters.root}}/nudging"
             - name: config
