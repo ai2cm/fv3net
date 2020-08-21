@@ -4,3 +4,4 @@ resources:
   - prognostic-run.yaml
   - training-rf.yaml
   - nudge_to_obs/workflow.yaml
+  - run-fv3gfs.yaml
