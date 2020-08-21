@@ -116,7 +116,7 @@ jobs:
       - run:
           name: Build fv3net images
           command: |
-            docker images --no-trunc --format '{{.ID}}' | xargs docker rmi
+            docker images --no-trunc --format '{{.ID}}' | xargs docker rmi -f
             make build_image_$IMAGE
       - run:
           name: Push fv3net images
