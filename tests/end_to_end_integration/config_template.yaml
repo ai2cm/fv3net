@@ -16,7 +16,7 @@ nudging-config: |
   base_version: v0.5
   forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
   nudging:
-    restarts_path: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
+    restarts_path: /mnt/input/coarsen_restarts
     timescale_hours:
       air_temperature: 3
       specific_humidity: 3

@@ -11,13 +11,16 @@ spec:
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
-        name: output-data
+        name: workdir
       spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: 20Gi
+            storage: 5Gi
   volumes:
+    - name: restart-data
+      persistentVolumeClaim:
+        claimName: nudging-read-only
     - name: gcp-key-secret
       secret:
         defaultMode: 420

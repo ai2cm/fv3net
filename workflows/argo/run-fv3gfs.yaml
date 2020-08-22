@@ -11,223 +11,211 @@ spec:
       - name: fv3gfs-image  # any image with fv3gfs-wrapper and fv3config installed
       - name: output-url
       - name: post-process-image
-      - name: persistent-volume  # a pre-existing volume claim, e.g. for access to nudging reference data
       - {name: cpu, value: "6"}
       - {name: memory, value: 8Gi}
       - {name: submission-count, value: "1"}
   entrypoint: run-fv3gfs
-  volumeClaimTemplates:
-    - metadata:
-        name: workdir
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 100Gi  # output from a single segment must be less than this
   volumes:
     - name: gcp-key-secret
       secret:
         defaultMode: 420
         secretName: gcp-key
-    - name: persistent-volume
-      persistentVolumeClaim:
-        claimName: "{{workflow.parameters.persistent-volume}}"
   templates:
-    - name: run-fv3gfs
-      inputs:
-        parameters:
-          - name: fv3config
-          - name: runfile
-          - name: chunks
-          - name: fv3gfs-image
-          - name: output-url
-          - name: post-process-image
-          - {name: cpu, value: "6"}
-          - {name: memory, value: 8Gi}
-          - {name: submission-count, value: "1"}
-      steps:
-        - - name: write-configs
-            template: write-configs
-            arguments:
-              parameters:
-              - {name: fv3config, value: "{{inputs.parameters.fv3config}}"}
-              - {name: runfile, value: "{{inputs.parameters.runfile}}"}
-              - {name: chunks, value: "{{inputs.parameters.chunks}}"}
-        - - name: run-all-segments
-            template: run-all-segments
-            arguments:
-              parameters:
+  - name: run-fv3gfs
+    inputs:
+      parameters:
+        - name: fv3config
+        - name: runfile
+        - name: chunks
+        - name: fv3gfs-image
+        - name: output-url
+        - name: post-process-image
+        - {name: cpu, value: "6"}
+        - {name: memory, value: 8Gi}
+        - {name: submission-count, value: "1"}
+    steps:
+      - - name: write-configs
+          template: write-configs
+          arguments:
+            parameters:
+            - {name: fv3config, value: "{{inputs.parameters.fv3config}}"}
+            - {name: runfile, value: "{{inputs.parameters.runfile}}"}
+            - {name: chunks, value: "{{inputs.parameters.chunks}}"}
+      - - name: run-all-segments
+          template: run-all-segments
+          arguments:
+            parameters:
+            - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
+            - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
+            - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+            - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+            - {name: memory, value: "{{inputs.parameters.memory}}"}
+            - {name: submission-count, value: "{{inputs.parameters.submission-count}}"}
+  - name: write-configs
+    inputs:
+      parameters:
+        - name: fv3config
+        - name: runfile
+        - name: chunks
+    container:
+      image: ubuntu:latest
+      volumeMounts:
+        - name: workdir
+          mountPath: /mnt/data
+      command: ["/bin/bash", "-c", "-x"]
+      args:
+      - |
+        echo "{{inputs.parameters.fv3config}}" > /mnt/data/fv3config.yaml
+        cat << EOFRUNFILE > /mnt/data/runfile.py
+        {{inputs.parameters.runfile}}
+        EOFRUNFILE
+        cat /mnt/data/runfile.py
+        echo "{{inputs.parameters.chunks}}" > /mnt/data/chunks.yaml
+  - name: run-all-segments
+    parallelism: 1
+    inputs:
+      parameters:
+        - name: fv3gfs-image
+        - name: post-process-image
+        - name: output-url
+        - name: cpu
+        - name: memory
+        - name: submission-count
+    steps:
+      - - template: run-segment
+          name: run-segment
+          withSequence:
+            count: "{{inputs.parameters.submission-count}}"
+          arguments:
+            parameters:
+            - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
+            - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
+            - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+            - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+            - {name: memory, value: "{{inputs.parameters.memory}}"}
+            - {name: step, value: "{{item}}"}
+  - name: run-segment
+    inputs:
+      parameters:
+        - name: fv3gfs-image
+        - name: post-process-image
+        - name: output-url
+        - name: cpu
+        - name: memory
+        - name: step
+    steps:
+      - - name: run-model
+          template: run-model
+          arguments:
+            parameters:
               - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
-              - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
-              - {name: output-url, value: "{{inputs.parameters.output-url}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
-              - {name: submission-count, value: "{{inputs.parameters.submission-count}}"}
-    - name: write-configs
-      inputs:
-        parameters:
-          - name: fv3config
-          - name: runfile
-          - name: chunks
-      container:
-        image: ubuntu:latest
-        volumeMounts:
-          - name: workdir
-            mountPath: /mnt/data
-        command: ["/bin/bash", "-c", "-x"]
-        args:
-        - |
-          echo "{{inputs.parameters.fv3config}}" > /mnt/data/fv3config.yaml
-          cat << EOFRUNFILE > /mnt/data/runfile.py
-          {{inputs.parameters.runfile}}
-          EOFRUNFILE
-          cat /mnt/data/runfile.py
-          echo "{{inputs.parameters.chunks}}" > /mnt/data/chunks.yaml
-    - name: run-all-segments
-      parallelism: 1
-      inputs:
-        parameters:
-          - name: fv3gfs-image
-          - name: post-process-image
-          - name: output-url
-          - name: cpu
-          - name: memory
-          - name: submission-count
-      steps:
-        - - template: run-segment
-            name: run-segment
-            withSequence:
-              count: "{{inputs.parameters.submission-count}}"
-            arguments:
-              parameters:
-              - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
+      - - name: upload-outputs
+          template: post-process
+          arguments:
+            parameters:
               - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
               - {name: output-url, value: "{{inputs.parameters.output-url}}"}
-              - {name: cpu, value: "{{inputs.parameters.cpu}}"}
-              - {name: memory, value: "{{inputs.parameters.memory}}"}
-              - {name: step, value: "{{item}}"}
-    - name: run-segment
-      inputs:
-        parameters:
-          - name: fv3gfs-image
-          - name: post-process-image
-          - name: output-url
-          - name: cpu
-          - name: memory
-          - name: step
-      steps:
-        - - name: run-model
-            template: run-model
-            arguments:
-              parameters:
-                - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
-                - {name: cpu, value: "{{inputs.parameters.cpu}}"}
-                - {name: memory, value: "{{inputs.parameters.memory}}"}
-        - - name: upload-outputs
-            template: post-process
-            arguments:
-              parameters:
-                - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
-                - {name: output-url, value: "{{inputs.parameters.output-url}}"}
-        - - name: update-config
-            template: update-config
-            arguments:
-              parameters:
-                - {name: restarts-url, value: "/mnt/data/RESTART"}
-    - name: run-model
-      inputs:
-        parameters:
-          - name: fv3gfs-image
-          - name: cpu
-          - name: memory
-      tolerations:
-      - key: "dedicated"
-        operator: "Equal"
-        value: "climate-sim-pool"
-        effect: "NoSchedule"
-      podSpecPatch: |
-        containers:
-          - name: main
-            resources:
-              limits:
-                cpu: "{{inputs.parameters.cpu}}"
-                memory: "{{inputs.parameters.memory}}"
-              requests:
-                cpu: "{{inputs.parameters.cpu}}"
-                memory: "{{inputs.parameters.memory}}"
-      container:
-        image: '{{inputs.parameters.fv3gfs-image}}'
-        command:
-          - python
-          - -m
-          - fv3config.fv3run._native_main
-          - '[["/mnt/data/fv3config.yaml", "/mnt/data/rundir"],
-            {"runfile": "/mnt/data/runfile.py", "capture_output": false}]'
-        env:
-          - name: GOOGLE_APPLICATION_CREDENTIALS
-            value: /secret/gcp-credentials/key.json
-          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
-            value: /secret/gcp-credentials/key.json
-        imagePullPolicy: Always
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        volumeMounts:
-          - name: workdir
-            mountPath: /mnt/data
-          - name: persistent-volume
-            mountPath: /mnt/input
-          - name: gcp-key-secret
-            mountPath: /secret/gcp-credentials
-            readOnly: true
-    - name: post-process
-      inputs:
-        parameters:
-          - name: post-process-image
-          - name: output-url
-      tolerations:
-      - key: "dedicated"
-        operator: "Equal"
-        value: "climate-sim-pool"
-        effect: "NoSchedule"
-      container:
-        image: "{{inputs.parameters.post-process-image}}"
-        command: ["/bin/bash", "-c"]
-        args:
-        - |
-          post_process.py /mnt/data/rundir /tmp/processed_rundir
-          append_run.py /tmp/processed_rundir {{inputs.parameters.output-url}}
-          cp -r /mnt/data/rundir/RESTART /mnt/data/RESTART
-          rm -r /mnt/data/rundir
-          rm -r /tmp/processed_rundir
-        volumeMounts:
-          - name: workdir
-            mountPath: /mnt/data
-          - name: gcp-key-secret
-            mountPath: /secret/gcp-credentials
-            readOnly: true
-        resources:
-          limits:
-            memory: 8Gi
-          requests:
-            cpu: "6"
-            memory: 8Gi
-    - name: update-config
-      inputs:
-        parameters:
-          - name: restarts-url
-      container:
-        image: mikefarah/yq:3.3.2
-        command: ["/bin/sh", "-c"]
-        args: 
-        - | 
-          yq w -i /mnt/data/fv3config.yaml initial_conditions "{{inputs.parameters.restarts-url}}"
-          yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.external_ic false
-          yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.nggps_ic false
-          yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.make_nh false
-          yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.mountain true
-          yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.warm_start true
-          yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.na_init 0
-          yq w -i /mnt/data/fv3config.yaml namelist.coupler_nml.force_date_from_namelist false
-        volumeMounts:
-          - name: workdir
-            mountPath: /mnt/data
+      - - name: update-config
+          template: update-config
+          arguments:
+            parameters:
+              - {name: restarts-url, value: "/mnt/data/RESTART"}
+  - name: run-model
+    inputs:
+      parameters:
+        - name: fv3gfs-image
+        - name: cpu
+        - name: memory
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "climate-sim-pool"
+      effect: "NoSchedule"
+    podSpecPatch: |
+      containers:
+        - name: main
+          resources:
+            limits:
+              cpu: "{{inputs.parameters.cpu}}"
+              memory: "{{inputs.parameters.memory}}"
+            requests:
+              cpu: "{{inputs.parameters.cpu}}"
+              memory: "{{inputs.parameters.memory}}"
+    container:
+      image: '{{inputs.parameters.fv3gfs-image}}'
+      command:
+        - python
+        - -m
+        - fv3config.fv3run._native_main
+        - '[["/mnt/data/fv3config.yaml", "/mnt/data/rundir"],
+          {"runfile": "/mnt/data/runfile.py", "capture_output": false}]'
+      env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /secret/gcp-credentials/key.json
+        - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+          value: /secret/gcp-credentials/key.json
+      imagePullPolicy: Always
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
+      volumeMounts:
+        - name: workdir
+          mountPath: /mnt/data
+        - name: restart-data
+          mountPath: /mnt/input
+        - name: gcp-key-secret
+          mountPath: /secret/gcp-credentials
+          readOnly: true
+  - name: post-process
+    inputs:
+      parameters:
+        - name: post-process-image
+        - name: output-url
+    tolerations:
+    - key: "dedicated"
+      operator: "Equal"
+      value: "climate-sim-pool"
+      effect: "NoSchedule"
+    container:
+      image: "{{inputs.parameters.post-process-image}}"
+      command: ["/bin/bash", "-c"]
+      args:
+      - |
+        post_process.py /mnt/data/rundir /tmp/processed_rundir
+        append_run.py /tmp/processed_rundir {{inputs.parameters.output-url}}
+        cp -r /mnt/data/rundir/RESTART /mnt/data/RESTART
+        rm -r /mnt/data/rundir
+        rm -r /tmp/processed_rundir
+      volumeMounts:
+        - name: workdir
+          mountPath: /mnt/data
+        - name: gcp-key-secret
+          mountPath: /secret/gcp-credentials
+          readOnly: true
+      resources:
+        limits:
+          memory: 8Gi
+        requests:
+          cpu: "6"
+          memory: 8Gi
+  - name: update-config
+    inputs:
+      parameters:
+        - name: restarts-url
+    container:
+      image: mikefarah/yq:3.3.2
+      command: ["/bin/sh", "-c"]
+      args: 
+      - | 
+        yq w -i /mnt/data/fv3config.yaml initial_conditions "{{inputs.parameters.restarts-url}}"
+        yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.external_ic false
+        yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.nggps_ic false
+        yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.make_nh false
+        yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.mountain true
+        yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.warm_start true
+        yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.na_init 0
+        yq w -i /mnt/data/fv3config.yaml namelist.coupler_nml.force_date_from_namelist false
+      volumeMounts:
+        - name: workdir
+          mountPath: /mnt/data
