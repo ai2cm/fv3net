@@ -50,7 +50,7 @@ spec:
             - name: output
               value: "{{workflow.parameters.root}}/trained_model"
       - name: prognostic-run
-        dependencies: [train-model]
+        dependencies: [train-model-keras]
         templateRef:
           name: prognostic-run
           template: prognostic-run
@@ -71,7 +71,7 @@ spec:
               - name: store-true-args
                 value: "{{workflow.parameters.store-true-args}}"
       - name: offline-diags
-        dependencies: [train-model]
+        dependencies: [train-model-keras]
         templateRef:
           name: offline-diags
           template: offline-diags
