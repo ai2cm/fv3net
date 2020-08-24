@@ -5,7 +5,6 @@ metadata:
   name: prognostic-run
 spec:
   templates:
-    # This is the same template as from the previous example
     - name: prognostic-run
       inputs:
         parameters:
@@ -16,6 +15,46 @@ spec:
           - {name: trained-ml}
           - {name: store-true-args, value: ""}
           - {name: output}
+      steps:
+      - - name: prepare-config
+          template: prepare-config
+          arguments:
+            parameters:
+              - {name: image-tag, value: "{{inputs.parameters.image-tag}}"}
+              - {name: initial-condition, value: "{{inputs.parameters.initial-condition}}"}
+              - {name: config, value: "{{inputs.parameters.config}}"}
+              - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
+              - {name: trained-ml, value: "{{inputs.parameters.trained-ml}}"}
+              - {name: store-true-args, value: "{{inputs.parameters.store-true-args}}"}
+      - - name: run-model
+          templateRef:
+            name: run-fv3gfs
+            template: run-fv3gfs
+          arguments:
+            parameters:
+              - {name: fv3config, value: "{{steps.prepare-config.outputs.parameters.fv3config}}"}
+              - {name: runfile, value: "{{steps.prepare-config.outputs.parameters.runfile}}"}
+              - {name: chunks, values: ""}  # will force use of default chunks
+              - name: fv3gfs-image
+                value: "us.gcr.io/vcm-ml/prognostic_run:{{inputs.parameters.image-tag}}"
+              - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+              - name: post-process-image
+                value: "us.gcr.io/vcm-ml/post_process_run:{{inputs.parameters.image-tag}}"
+    - name: prepare-config
+      inputs:
+        parameters:
+          - name: image-tag
+          - name: initial-condition
+          - name: config
+          - name: reference-restarts
+          - name: trained-ml
+          - name: store-true-args
+      outputs:
+        parameters:
+          - {name: fv3config, valueFrom: {path: /tmp/fv3config.yaml}}
+          - name: runfile
+            valueFrom:
+              path: ~/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
       container:
         image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
         env:
@@ -26,26 +65,15 @@ spec:
         command: ["bash", "-c", "-x"]
         args:
           - |
-            FV3NET=~/fv3net
-            IC={{workflow.parameters.initial-condition}}
-            C48_RESTARTS={{workflow.parameters.reference-restarts}}
-
             cat << EOF > config.yaml
             {{inputs.parameters.config}}
             EOF
 
-            python $FV3NET/workflows/prognostic_c48_run/orchestrate_submit_job.py \
-              --image-tag {{inputs.parameters.image-tag}} \
+            python ~/fv3net/workflows/prognostic_c48_run/prepare_config.py \
               --model_url {{inputs.parameters.trained-ml}} \
               --prog_config_yml config.yaml \
-              $C48_RESTARTS \
-              $IC \
+              {{inputs.parameters.reference-restarts}} \
+              {{workflow.parameters.initial-condition}} \
               {{inputs.parameters.output}} \
-              {{inputs.parameters.store-true-args}} 
-        resources:
-          requests:
-            memory: "500Mi"
-            cpu: "250m"
-          limits:
-            memory: "2Gi"
-            cpu: "1000m"
+              {{inputs.parameters.store-true-args}} \
+              > /tmp/fv3config.yaml
