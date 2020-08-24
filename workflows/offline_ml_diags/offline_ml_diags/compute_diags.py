@@ -1,7 +1,6 @@
 import argparse
 import intake
 import logging
-import joblib
 import json
 import numpy as np
 import os
@@ -15,8 +14,9 @@ import diagnostics_utils as utils
 import loaders
 from vcm import safe
 from vcm.cloud import get_fs
-from ._mapper import SklearnPredictionMapper
 from ._metrics import calc_metrics
+from . import _model_loaders as model_loaders
+from ._mapper import PredictionMapper
 from ._helpers import add_net_precip_domain_info
 
 
@@ -170,19 +170,24 @@ if __name__ == "__main__":
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
 
     if args.timesteps_file:
+        logger.info("Reading timesteps file")
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
         config["batch_kwargs"]["timesteps"] = timesteps
 
+    logger.info("Opening base mapper")
     base_mapping_function = getattr(loaders.mappers, config["mapping_function"])
     base_mapper = base_mapping_function(
         config["data_path"], **config.get("mapping_kwargs", {})
     )
 
-    fs_model = get_fs(args.model_path)
-    with fs_model.open(args.model_path, "rb") as f:
-        model = joblib.load(f)
-    pred_mapper = SklearnPredictionMapper(
+    logger.info("Opening ML model")
+    model_loader = getattr(
+        model_loaders, config.get("model_loader", "load_sklearn_model")
+    )
+    model = model_loader(args.model_path, **config.get("model_loader_kwargs", {}))
+
+    pred_mapper = PredictionMapper(
         base_mapper, model, grid=grid, **config.get("model_mapper_kwargs", {})
     )
 
@@ -204,5 +209,10 @@ if __name__ == "__main__":
     fs = get_fs(args.output_path)
     with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
         json.dump(metrics, f, indent=4)
+
+    # write out config used to generate diagnostics, including model path
+    config["model_path"] = args.model_path
+    with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
+        yaml.safe_dump(config, f)
+
     logger.info(f"Finished processing dataset diagnostics and metrics.")
-    logger.info(f"Finished processing dataset metrics.")

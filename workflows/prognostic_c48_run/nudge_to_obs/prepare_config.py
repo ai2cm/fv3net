@@ -14,10 +14,6 @@ def parse_args():
         description="prepare fv3config yaml file for nudge-to-obs run"
     )
     parser.add_argument("config", type=str, help="base yaml file to configure")
-    parser.add_argument(
-        "config_url", type=str, help="location to save temporary config files"
-    )
-
     return parser.parse_args()
 
 
@@ -61,11 +57,18 @@ if __name__ == "__main__":
     args = parse_args()
 
     with open(args.config, "r") as f:
-        config_update = yaml.safe_load(f)
+        user_config = yaml.safe_load(f)
 
-    base_config = fv3kube.get_base_fv3config(config_update["base_version"])
-    config = vcm.update_nested_dict(base_config, config_update)
+    config = fv3kube.get_base_fv3config(user_config["base_version"])
+
+    config = vcm.update_nested_dict(
+        config,
+        {"runfile_output": {"output_times": get_output_times(config)}},
+        # user config takes precedence
+        user_config,
+    )
+
     if config["namelist"]["fv_core_nml"].get("nudge", False):
-        config = fv3kube.update_config_for_nudging(config, args.config_url)
-    config["runfile_output"] = {"output_times": get_output_times(config)}
+        config = fv3kube.enable_nudge_to_observations(config)
+
     print(yaml.dump(config))

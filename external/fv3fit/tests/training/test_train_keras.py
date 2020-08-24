@@ -42,7 +42,6 @@ def model(
     )
 
 
-@pytest.mark.regression
 def test_training(
     model: fv3fit.keras.Model,
     training_batches: Sequence[xr.Dataset],
@@ -54,7 +53,6 @@ def test_training(
     validate_dataset_result(result, batch_dataset, output_variables)
 
 
-@pytest.mark.regression
 def test_dump_and_load_before_training(
     model: fv3fit.keras.Model,
     training_batches: Sequence[xr.Dataset],
@@ -84,7 +82,6 @@ def validate_dataset_result(
         assert np.sum(np.isnan(result[varname].values)) == 0
 
 
-@pytest.mark.regression
 def test_dump_and_load_maintains_prediction(
     model: fv3fit.keras.Model,
     training_batches: Sequence[xr.Dataset],
@@ -101,7 +98,6 @@ def test_dump_and_load_maintains_prediction(
     xr.testing.assert_equal(loaded_result, original_result)
 
 
-@pytest.mark.regression
 def test_training_integration(
     data_source_path: str,
     train_config_filename: str,

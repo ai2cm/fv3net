@@ -49,9 +49,9 @@ class RenamingAdapter:
         return self._rename(ds, _invert_dict(self.rename_out))
 
     @property
-    def input_vars_(self) -> Set[str]:
+    def input_variables(self) -> Set[str]:
         invert_rename_in = _invert_dict(self.rename_in)
-        return {invert_rename_in.get(var, var) for var in self.model.input_vars_}
+        return {invert_rename_in.get(var, var) for var in self.model.input_variables}
 
     def predict(self, arg: xr.Dataset) -> xr.Dataset:
         input_ = self._rename_inputs(arg)
@@ -68,10 +68,10 @@ class StackingAdapter:
         self.sample_dims = sample_dims
 
     @property
-    def input_vars_(self) -> Set[str]:
-        return set(self.model.input_vars_)
+    def input_variables(self) -> Set[str]:
+        return set(self.model.input_variables)
 
     def predict(self, ds: xr.Dataset) -> xr.Dataset:
         with parallel_backend("threading", n_jobs=1):
             stacked = ds.stack(sample=self.sample_dims)
-            return self.model.predict(stacked, "sample").unstack("sample")
+            return self.model.predict(stacked).unstack("sample")

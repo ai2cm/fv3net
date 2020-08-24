@@ -3,11 +3,11 @@ import xarray as xr
 import logging
 import abc
 import tensorflow as tf
-from ..._shared import ArrayPacker
+from ..._shared import ArrayPacker, Predictor
 import numpy as np
 import os
 from ._filesystem import get_dir, put_dir
-from .normalizer import StandardScaler
+from .normalizer import LayerStandardScaler
 from .loss import get_weighted_mse
 import yaml
 
@@ -40,10 +40,11 @@ class _XyArraySequence(tf.keras.utils.Sequence):
         return X, y
 
 
-class Model(abc.ABC):
+class Model(Predictor):
     """
     Abstract base class for a machine learning model which operates on xarray
-    datasets, and is trained on sequences of such datasets.
+    datasets, and is trained on sequences of such datasets. Extends the predictor
+    base class by defining `fit` and `dump` methods
     """
 
     @abc.abstractmethod
@@ -55,7 +56,6 @@ class Model(abc.ABC):
         **hyperparameters,
     ):
         """Initialize the model.
-
         Args:
             sample_dim_name: name of the sample dimension in datasets used as
                 inputs and outputs.
@@ -68,24 +68,14 @@ class Model(abc.ABC):
                 "Model base class received unexpected keyword arguments: "
                 f"{list(hyperparameters.keys())}"
             )
-        super().__init__()
+        super().__init__(sample_dim_name, input_variables, output_variables)
 
     @abc.abstractmethod
     def fit(self, batches: Sequence[xr.Dataset]) -> None:
         pass
 
     @abc.abstractmethod
-    def predict(self, X: xr.Dataset) -> xr.Dataset:
-        pass
-
-    @abc.abstractmethod
     def dump(self, path: str) -> None:
-        """Serialize the model to a directory."""
-        pass
-
-    @abc.abstractmethod
-    def load(self, path: str) -> object:
-        """Load a serialized model from a directory."""
         pass
 
 
@@ -116,13 +106,13 @@ class PackedKerasModel(Model):
         normalize_loss: bool = True,
     ):
         """Initialize the model.
-
+        
         Loss is computed on normalized outputs only if `normalized_loss` is True
         (default). This allows you to provide weights that will be proportional
         to the importance of that feature within the loss. If `normalized_loss`
         is False, you should consider scaling your weights to decrease the importance
         of features that are orders of magnitude larger than other features.
-
+        
         Args:
             sample_dim_name: name of the sample dimension in datasets used as
                 inputs and outputs.
@@ -144,8 +134,8 @@ class PackedKerasModel(Model):
         self.y_packer = ArrayPacker(
             sample_dim_name=sample_dim_name, pack_names=output_variables
         )
-        self.X_scaler = StandardScaler()
-        self.y_scaler = StandardScaler()
+        self.X_scaler = LayerStandardScaler()
+        self.y_scaler = LayerStandardScaler()
         if weights is None:
             self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
         else:
@@ -165,11 +155,9 @@ class PackedKerasModel(Model):
     @abc.abstractmethod
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         """Returns a Keras model to use as the underlying predictive model.
-
         Args:
             n_features_in: the number of input features
             n_features_out: the number of output features
-
         Returns:
             model: a Keras model whose input shape is [n_samples, n_features_in] and
                 output shape is [n_samples, features_out]
@@ -189,7 +177,11 @@ class PackedKerasModel(Model):
         return self.model.fit(X)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
-        return self.y_packer.to_dataset(self.predict_array(self.X_packer.to_array(X)))
+        sample_coord = X[self.sample_dim_name]
+        ds_pred = self.y_packer.to_dataset(
+            self.predict_array(self.X_packer.to_array(X))
+        )
+        return ds_pred.assign_coords({self.sample_dim_name: sample_coord})
 
     def predict_array(self, X: np.ndarray) -> np.ndarray:
         return self.model.predict(X)
@@ -232,9 +224,9 @@ class PackedKerasModel(Model):
             with open(os.path.join(path, cls._Y_PACKER_FILENAME), "r") as f:
                 y_packer = ArrayPacker.load(f)
             with open(os.path.join(path, cls._X_SCALER_FILENAME), "rb") as f_binary:
-                X_scaler = StandardScaler.load(f_binary)
+                X_scaler = LayerStandardScaler.load(f_binary)
             with open(os.path.join(path, cls._Y_SCALER_FILENAME), "rb") as f_binary:
-                y_scaler = StandardScaler.load(f_binary)
+                y_scaler = LayerStandardScaler.load(f_binary)
             with open(os.path.join(path, cls._OPTIONS_FILENAME), "r") as f:
                 options = yaml.safe_load(f)
             obj = cls(
@@ -295,8 +287,8 @@ class DenseModel(PackedKerasModel):
             width: number of neurons to use on layers between the input and output
                 layer. Default is 16.
         """
-        self._width = width
         self._depth = depth
+        self._width = width
         super().__init__(
             sample_dim_name,
             input_variables,
