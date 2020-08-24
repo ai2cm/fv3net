@@ -34,10 +34,10 @@ spec:
             parameters:
               - {name: fv3config, value: "{{steps.prepare-config.outputs.parameters.fv3config}}"}
               - {name: runfile, value: "{{steps.prepare-config.outputs.parameters.runfile}}"}
-              - {name: chunks, values: ""}  # will force use of default chunks
+              - {name: chunks, value: ""}  # will force use of default chunks
               - name: fv3gfs-image
                 value: "us.gcr.io/vcm-ml/prognostic_run:{{inputs.parameters.image-tag}}"
-              - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+              - {name: output-url, value: "{{inputs.parameters.output}}"}
               - name: post-process-image
                 value: "us.gcr.io/vcm-ml/post_process_run:{{inputs.parameters.image-tag}}"
     - name: prepare-config
