@@ -104,6 +104,8 @@ class PackedKerasModel(Model):
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
+        optimizer: str = "Adam",
+        learning_rate: float = None,
     ):
         """Initialize the model.
         
@@ -125,6 +127,9 @@ class PackedKerasModel(Model):
                 for each variable.
             normalize_loss: if True (default), normalize outputs by their standard
                 deviation before computing the loss function
+            optimizer: name of the tf.keras.optimizers algorithm to be used in
+                gradient descent
+            learning_rate: gradient descent parameter
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
@@ -141,6 +146,8 @@ class PackedKerasModel(Model):
         else:
             self.weights = weights
         self._normalize_loss = normalize_loss
+        self._optimizer = optimizer
+        self._learning_rate = learning_rate
 
     @property
     def model(self) -> tf.keras.Model:
@@ -164,17 +171,36 @@ class PackedKerasModel(Model):
         """
         pass
 
-    def fit(self, batches: Sequence[xr.Dataset]) -> None:
+    def fit(
+        self, batches: Sequence[xr.Dataset], batch_size: int = None, epochs: int = None
+    ) -> None:
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
         if self._model is None:
             X, y = Xy[0]
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]
             self._fit_normalization(X, y)
-            self._model = self.get_model(n_features_in, n_features_out)
-        self.fit_array(Xy)
+            self._model = self.get_model(n_features_in, n_features_out, self._optimizer)
+        if batch_size is not None:
+            self._fit_loop(Xy, batch_size, epochs)
+        else:
+            self._fit_array(Xy, epochs)
 
-    def fit_array(self, X: Sequence[Tuple[np.ndarray, np.ndarray]]) -> None:
-        return self.model.fit(X)
+    def _fit_loop(
+        self,
+        Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
+        batch_size: int = None,
+        epochs: int = None,
+    ) -> None:
+        for j in range(epochs):
+            #             logger.info(f"Fitting epoch {j} of {epochs}...")
+            for i, (X, y) in enumerate(Xy):
+                logger.info(f"Fitting on timestep {i} of {len(Xy)}, of epoch {j}...")
+                self.model.fit(X, y, batch_size=batch_size)
+
+    def _fit_array(
+        self, X: Sequence[Tuple[np.ndarray, np.ndarray]], epochs: int = None
+    ) -> None:
+        return self.model.fit(X, epochs=epochs)
 
     def predict(self, X: xr.Dataset) -> xr.Dataset:
         sample_coord = X[self.sample_dim_name]
@@ -259,6 +285,8 @@ class DenseModel(PackedKerasModel):
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
+        optimizer: str = "Adam",
+        learning_rate: float = None,
         depth: int = 3,
         width: int = 16,
     ):
@@ -282,6 +310,9 @@ class DenseModel(PackedKerasModel):
                 for each variable.
             normalize_loss: if True (default), normalize outputs by their standard
                 deviation before computing the loss function
+            optimizer: name of the tf.keras.optimizers algorithm to be used in
+                gradient descent
+            learning_rate: gradient descent parameter
             depth: number of dense layers to use between the input and output layer.
                 The number of hidden layers will be (depth - 1). Default is 3.
             width: number of neurons to use on layers between the input and output
@@ -295,19 +326,30 @@ class DenseModel(PackedKerasModel):
             output_variables,
             weights=weights,
             normalize_loss=normalize_loss,
+            optimizer=optimizer,
+            learning_rate=learning_rate,
         )
 
-    def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
+    def get_model(
+        self,
+        n_features_in: int,
+        n_features_out: int,
+        optimizer: tf.keras.optimizers.Optimizer,
+    ) -> tf.keras.Model:
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
         for i in range(self._depth - 1):
             x = tf.keras.layers.Dense(
                 self._width, activation=tf.keras.activations.relu
             )(x)
-        x = tf.keras.layers.Dense(n_features_out, activation=tf.keras.activations.relu)(
-            x
-        )
+        x = tf.keras.layers.Dense(n_features_out)(x)
         outputs = self.y_scaler.denormalize_layer(x)
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
-        model.compile(optimizer="sgd", loss=self.loss)
+        optimizer_class = getattr(tf.keras.optimizers, self._optimizer)
+        optimizer = (
+            optimizer_class(learning_rate=self._learning_rate)
+            if self._learning_rate is not None
+            else optimizer_class()
+        )
+        model.compile(optimizer=optimizer, loss=self.loss)
         return model
