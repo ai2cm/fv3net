@@ -1,11 +1,13 @@
-from typing import Mapping, Set, Any, Sequence, Hashable
+from typing import Mapping, Set, Sequence, Hashable, Union
 
 from sklearn.utils import parallel_backend
 import xarray as xr
 
-from ._wrapper import SklearnWrapper
+from fv3fit.sklearn import SklearnWrapper
+from fv3fit.keras import Model
 
 NameDict = Mapping[Hashable, Hashable]
+WrappedModel = Union[SklearnWrapper, Model]
 
 
 def _invert_dict(d: Mapping) -> Mapping:
@@ -13,21 +15,18 @@ def _invert_dict(d: Mapping) -> Mapping:
 
 
 class RenamingAdapter:
-    """Adapter object for renaming
+    """Adapter object for renaming model variables
 
     Attributes:
-        model: a sklearn model to wrap
+        model: a model to rename, must subclass the fv3fit base class Predictor
         rename_in: mapping from standard names to input names of model
         rename_out: mapping from standard names to the output names of model
     
     """
 
-    def __init__(self, model: Any, rename_in: NameDict, rename_out: NameDict = None):
-        # unforunately have to use Any with model to avoid dependency on fv3net
-        # regression. We could also upgraded to python 3.8 to get access to the
-        # Protocol [1] object which allows duck-typed types
-        #
-        # [1]: https://www.python.org/dev/peps/pep-0544/
+    def __init__(
+        self, model: WrappedModel, rename_in: NameDict, rename_out: NameDict = None
+    ):
         self.model = model
         self.rename_in = rename_in
         self.rename_out = {} if rename_out is None else rename_out
@@ -60,10 +59,15 @@ class RenamingAdapter:
 
 
 class StackingAdapter:
-    """Wrap a SklearnWrapper model to work with unstacked inputs
+    """Wrap a model to work with unstacked inputs
+    
+    Attributes
+        model: a model to stack, must subclass the fv3fit base class Predictor
+        sample_dims: sample dimension name of the resulting stacked array
+    
     """
 
-    def __init__(self, model: SklearnWrapper, sample_dims: Sequence[str]):
+    def __init__(self, model: WrappedModel, sample_dims: Sequence[str]):
         self.model = model
         self.sample_dims = sample_dims
 
