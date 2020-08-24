@@ -7,3 +7,4 @@ resources:
   - nudge_to_obs/workflow.yaml
   - offline-diags.yaml
   - train_diags_prog_steps/workflow.yaml
+  - train_diags_prog_steps/workflow-keras.yaml
