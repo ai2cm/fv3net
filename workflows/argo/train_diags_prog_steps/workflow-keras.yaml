@@ -18,7 +18,7 @@ spec:
       - name: offline-diags-config
       - name: test-times
       - name: public-report-output
-  serviceAccountName: integration-tests
+  serviceAccountName: brian-vm-sa
   tolerations:
     - effect: NoSchedule
       key: dedicated
