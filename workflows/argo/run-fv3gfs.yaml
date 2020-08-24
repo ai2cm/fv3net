@@ -7,10 +7,10 @@ spec:
     parameters:
       - name: fv3config
       - name: runfile
-      - name: chunks
       - name: fv3gfs-image  # any image with fv3gfs-wrapper and fv3config installed
       - name: output-url
       - name: post-process-image
+      - {name: chunks, value: "{}"}
       - {name: cpu, value: "6"}
       - {name: memory, value: 8Gi}
       - {name: submission-count, value: "1"}

@@ -63,15 +63,15 @@ template. The template can also be called directly from the command line:
 argo submit --from workflowtemplate/run-fv3gfs \
     -p fv3config="$(< fv3config.yaml)" \
     -p runfile="$(< runfile.py)" \
-    -p chunks="$(< chunks.yaml)" \
     -p output-url=<gcs-output-url> \
     -p fv3gfs-image=<fv3gfs-docker-image> \ 
     -p post-process-image=<post-process-docker-image> \
+    -p chunks="$(< chunks.yaml)" \
     -p cpu="6" \
     -p memory="8Gi" \
     -p submission-count="2"
 ```
-The `cpu`, `memory` and `submission-count` arguments are optional. Defaults are defined 
+The `chunks`, `cpu`, `memory` and `submission-count` arguments are optional. Defaults are defined 
 in the workflow template.
 
 #### Running multiple segments
