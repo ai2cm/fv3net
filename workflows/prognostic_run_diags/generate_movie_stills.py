@@ -73,7 +73,7 @@ def _save_heating_moistening_fig(arg: MovieArg):
     )
     _six_panel_heating_moistening(ds, axes)
     fig.suptitle(ds.time.values.item())
-    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    plt.subplots_adjust(left=0.01, right=0.91, bottom=0.05, wspace=0.32)
     with fsspec.open(fig_filename, "wb") as fig_file:
         fig.savefig(fig_file, dpi=100)
     plt.close(fig)
