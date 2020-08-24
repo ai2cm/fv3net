@@ -2,8 +2,6 @@ import argparse
 import os
 import yaml
 import logging
-from pathlib import Path
-import copy
 
 import fv3config
 import fv3kube
