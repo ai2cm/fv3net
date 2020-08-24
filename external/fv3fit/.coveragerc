@@ -1,0 +1,2 @@
+[run]
+omit = tests/* setup.py fv3fit/sklearn/__main__.py fv3fit/keras/__main__.py

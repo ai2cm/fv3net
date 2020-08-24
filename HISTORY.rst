@@ -4,6 +4,16 @@ History
 
 latest
 ------
+* Unified :code:`fv3fit` API between keras and sklearn subpackages; offline ml diagnostics enabled for keras models
+* Delete workflows/end_to_end
+* Delete workflows/one_step_jobs
+* Delete workflows/one_step_diags
+* Delete loaders/mappers/_one_step.py
+* Delete fv3net/pipelines/create_training_data
+* Delete workflows/create_training_data
+* Delete tests/end_to_end_integration
+* Rename tests/end_to_end_integration_argo to tests/end_to_end_integration
+* Delete run_argo_integration_tests rule from fv3net Makefile
 * Add new end-to-end integration test that uses nudged-to-shield run to generate training data and argo for orchestration
 * Move code in fv3net.regression to new package `fv3fit`, except for SklearnPredictionMapper which is moved to `workflows/offline_ml_diags`
 * Add -<dQ2> to physics precipitation within prognostic run runfile.

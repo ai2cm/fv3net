@@ -1,6 +1,0 @@
-GLOBAL_MEAN_2D_VARS:
-    evaporation:
-        var_type:
-            - states
-        scale:
-            - null

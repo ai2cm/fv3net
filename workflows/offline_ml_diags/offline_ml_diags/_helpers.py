@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 from typing import Mapping, Sequence
+import yaml
 import xarray as xr
 
 import report
@@ -30,7 +31,11 @@ def write_report(
 
 
 def open_diagnostics_outputs(
-    data_dir, diagnostics_nc_name: str, diurnal_nc_name: str, metrics_json_name: str,
+    data_dir,
+    diagnostics_nc_name: str,
+    diurnal_nc_name: str,
+    metrics_json_name: str,
+    config_name: str,
 ):
     with fsspec.open(os.path.join(data_dir, diagnostics_nc_name), "rb") as f:
         ds_diags = xr.open_dataset(f).load()
@@ -38,7 +43,9 @@ def open_diagnostics_outputs(
         ds_diurnal = xr.open_dataset(f).load()
     with fsspec.open(os.path.join(data_dir, metrics_json_name), "r") as f:
         metrics = json.load(f)
-    return ds_diags, ds_diurnal, metrics
+    with fsspec.open(os.path.join(data_dir, config_name), "r") as f:
+        config = yaml.safe_load(f)
+    return ds_diags, ds_diurnal, metrics, config
 
 
 def copy_outputs(temp_dir, output_dir):
@@ -88,3 +95,28 @@ def units_from_Q_name(var):
             return "[kg/kg/s]"
     else:
         return None
+
+
+def _shorten_coordinate_label(coord: str):
+    # shortens and formats labels that get too long to display
+    # in multi panel figures
+    return (
+        coord.replace("_", " ")
+        .replace("average", "avg")
+        .replace("precipitation", "precip")
+        .replace("positive", "> 0")
+        .replace("negative", "< 0")
+    )
+
+
+def add_net_precip_domain_info(ds: xr.Dataset, domain_source: str):
+    # adds information about which data was used to determine pos/neg precip
+    new_domain_coords = []
+    for coord in ds["domain"].values:
+        if "net_precip" in coord:
+            new_domain_coords.append(
+                _shorten_coordinate_label(coord) + f" ({domain_source})"
+            )
+        else:
+            new_domain_coords.append(_shorten_coordinate_label(coord))
+    ds.coords["domain"] = new_domain_coords

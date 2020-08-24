@@ -194,9 +194,9 @@ def _insert_r2(
     ]
     for mse_var in mse_vars:
         name_pieces = mse_var.split("/")
-        std_var = "/".join(name_pieces[:-1] + [f"mean_vs_{target_coord}"])
+        variance = "/".join(name_pieces[:-1] + [f"mean_vs_{target_coord}"])
         r2_var = "/".join([s if s != mse_coord else r2_coord for s in name_pieces])
-        ds[r2_var] = 1.0 - ds[mse_var] / (ds[std_var] ** 2)
+        ds[r2_var] = 1.0 - ds[mse_var] / ds[variance]
     return ds
 
 

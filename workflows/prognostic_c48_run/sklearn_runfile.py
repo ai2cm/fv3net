@@ -45,6 +45,8 @@ def compute_diagnostics(state, diags):
     physics_precip = state[PRECIP_RATE]
 
     return dict(
+        air_temperature=state[TEMP],
+        specific_humidity=state[SPHUM],
         net_moistening=(net_moistening)
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(description="column integrated ML model moisture tendency"),
@@ -198,7 +200,9 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         return {}
 
     def _step_python(self) -> Diagnostics:
-        variables: List[Hashable] = list(self._model.input_vars_ | REQUIRED_VARIABLES)
+        variables: List[Hashable] = list(
+            self._model.input_variables | REQUIRED_VARIABLES
+        )
         self._log_debug(f"Getting state variables: {variables}")
         state = {name: self._state[name] for name in variables}
 

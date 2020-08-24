@@ -5,7 +5,6 @@ from loaders import mappers
 training_mapper_names = [
     "FineResolutionSources",
     "SubsetTimes",
-    "TimestepMapper",
 ]
 
 
@@ -16,14 +15,9 @@ def training_mapper_name(request):
 
 @pytest.fixture
 def training_mapper_data_source_path(
-    training_mapper_name,
-    one_step_dataset_path,
-    nudging_dataset_path,
-    fine_res_dataset_path,
+    training_mapper_name, nudging_dataset_path, fine_res_dataset_path,
 ):
-    if training_mapper_name == "TimestepMapper":
-        return one_step_dataset_path
-    elif training_mapper_name == "SubsetTimes":
+    if training_mapper_name == "SubsetTimes":
         return nudging_dataset_path
     elif training_mapper_name == "FineResolutionSources":
         return fine_res_dataset_path
@@ -37,9 +31,7 @@ def training_mapper(
 ):
     path = training_mapper_data_source_path
 
-    if training_mapper_name == "TimestepMapper":
-        return mappers.open_one_step(path)
-    elif training_mapper_name == "SubsetTimes":
+    if training_mapper_name == "SubsetTimes":
         return mappers.open_merged_nudged(path)
     elif training_mapper_name == "NudgedFullTendencies":
         return mappers.open_merged_nudged_full_tendencies(

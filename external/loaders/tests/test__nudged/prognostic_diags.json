@@ -1,0 +1,137 @@
+{
+    "version": "v3",
+    "schema": {
+        "coords": {
+            "time": {
+                "name": "time",
+                "dims": [
+                    "time"
+                ],
+                "value": [1470011400000000000, 1470012300000000000, 1470013200000000000, 1470014100000000000, 1470015000000000000, 1470015900000000000, 1470016800000000000, 1470017700000000000, 1470018600000000000, 1470019500000000000, 1470020400000000000, 1470021300000000000, 1470022200000000000, 1470023100000000000],
+                "attrs": {}
+            }
+        },
+        "variables": {
+            "air_temperature": {
+                "name": "air_temperature",
+                "dims": [
+                    "time",
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        14,
+                        6,
+                        79,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        14,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "units": "degK"
+                }
+            },
+            "specific_humidity": {
+                "name": "specific_humidity",
+                "dims": [
+                    "time",
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        14,
+                        6,
+                        79,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        14,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "units": "kg/kg"
+                }
+            },
+            "tendency_of_air_temperature_due_to_fv3_physics": {
+                "name": "tendency_of_air_temperature_due_to_fv3_physics",
+                "dims": [
+                    "time",
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        14,
+                        6,
+                        79,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        14,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "units": "unknown"
+                }
+            },
+            "tendency_of_specific_humidity_due_to_fv3_physics": {
+                "name": "tendency_of_specific_humidity_due_to_fv3_physics",
+                "dims": [
+                    "time",
+                    "tile",
+                    "z",
+                    "y",
+                    "x"
+                ],
+                "array": {
+                    "shape": [
+                        14,
+                        6,
+                        79,
+                        48,
+                        48
+                    ],
+                    "dtype": "<f8",
+                    "chunks": [
+                        14,
+                        6,
+                        79,
+                        48,
+                        48
+                    ]
+                },
+                "attrs": {
+                    "units": "unknown"
+                }
+            }
+        }
+    }
+}
