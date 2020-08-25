@@ -35,7 +35,7 @@ class FineResolutionResidual(GeoMapper):
 
 
 def open_fine_resolution_nudging_hybrid(
-    data_paths: List[str], nudging: Mapping, fine_res: Mapping,
+    data_paths: List[str], nudging: Mapping = None, fine_res: Mapping = None,
 ) -> FineResolutionResidual:
     """
     Open the fine resolution nudging_hybrid mapper
@@ -51,6 +51,8 @@ def open_fine_resolution_nudging_hybrid(
     Returns:
         a mapper
     """
+    nudging = nudging or {}
+    fine_res = fine_res or {}
     offset_seconds = fine_res.pop("offset_seconds", 450)
     if isinstance(data_paths, List) and len(data_paths) == 2:
         nudging["nudging_url"] = data_paths[0]
@@ -70,7 +72,7 @@ def open_fine_resolution_nudging_hybrid(
 
 
 def open_fine_resolution_nudging_to_obs_hybrid(
-    data_paths, prog_nudge_kwargs: Mapping, fine_res_kwargs: Mapping,
+    data_paths, prog_nudge_kwargs: Mapping = None, fine_res_kwargs: Mapping = None,
 ) -> FineResolutionResidual:
     """
     Fine resolution nudging_hybrid mapper for merging with prognostic nudged to
@@ -90,9 +92,10 @@ def open_fine_resolution_nudging_to_obs_hybrid(
     Returns:
         a mapper
     """
+    prog_nudge_kwargs = prog_nudge_kwargs or {}
+    fine_res_kwargs = fine_res_kwargs or {}
 
     offset_seconds = fine_res_kwargs.pop("offset_seconds", 450)
-
     if isinstance(data_paths, List) and len(data_paths) == 2:
         prog_nudge_kwargs["nudging_url"] = data_paths[0]
         fine_res_kwargs["fine_res_url"] = data_paths[1]
