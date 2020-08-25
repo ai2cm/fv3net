@@ -1,7 +1,6 @@
 import argparse
 import intake
 import logging
-import joblib
 import json
 import numpy as np
 import os
@@ -15,8 +14,10 @@ import diagnostics_utils as utils
 import loaders
 from vcm import safe
 from vcm.cloud import get_fs
-from ._mapper import SklearnPredictionMapper
 from ._metrics import calc_metrics
+from . import _model_loaders as model_loaders
+from ._mapper import PredictionMapper
+from ._helpers import add_net_precip_domain_info
 
 
 handler = logging.StreamHandler(sys.stdout)
@@ -37,6 +38,8 @@ DIURNAL_VARS = [
     "column_integrated_Q1",
     "column_integrated_Q2",
 ]
+SHIELD_DERIVATION_COORD = "coarsened_SHiELD"
+
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 
@@ -87,7 +90,7 @@ def _average_metrics_dict(ds_metrics: xr.Dataset) -> Mapping:
 
 
 def _compute_diags_over_batches(
-    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset
+    ds_batches: Sequence[xr.Dataset], grid: xr.Dataset,
 ) -> Tuple[xr.Dataset, xr.Dataset, xr.Dataset]:
     """Return a set of diagnostic datasets from a sequence of batched data"""
 
@@ -102,15 +105,21 @@ def _compute_diags_over_batches(
             .pipe(utils.insert_net_terms_as_Qs)
             .load()
         )
-
         # ...reduce to diagnostic variables
+        if SHIELD_DERIVATION_COORD in ds["derivation"].values:
+            net_precip_domain_coord = SHIELD_DERIVATION_COORD
+        else:
+            net_precip_domain_coord = "target"
+
         ds_summary = utils.reduce_to_diagnostic(
             ds,
             grid,
             net_precipitation=ds["column_integrated_Q2"].sel(
-                derivation="coarsened_SHiELD"
+                derivation=net_precip_domain_coord
             ),
         )
+        add_net_precip_domain_info(ds_summary, net_precip_domain_coord)
+
         # ...compute diurnal cycles
         ds_diurnal = utils.create_diurnal_cycle_dataset(
             ds, grid["lon"], grid["land_sea_mask"], DIURNAL_VARS,
@@ -124,7 +133,7 @@ def _compute_diags_over_batches(
         logger.info(f"Processed batch {i} diagnostics netcdf output.")
 
     # then average over the batches for each output
-    ds_summary = xr.concat(batches_summary, dim="batch").mean(dim="batch")
+    ds_summary = xr.concat(batches_summary, dim="batch")
     ds_diurnal = xr.concat(batches_diurnal, dim="batch").mean(dim="batch")
     ds_metrics = xr.concat(batches_metrics, dim="batch")
 
@@ -132,11 +141,11 @@ def _compute_diags_over_batches(
         ds_summary, ds_metrics
     )
 
-    return ds_diagnostics, ds_diurnal, ds_scalar_metrics
+    return ds_diagnostics.mean("batch"), ds_diurnal, ds_scalar_metrics
 
 
 def _consolidate_dimensioned_data(ds_summary, ds_metrics):
-    # moves dimensined quantities into final diags dataset so they're saved as netcdf
+    # moves dimensioned quantities into final diags dataset so they're saved as netcdf
     metrics_arrays_vars = [var for var in ds_metrics.data_vars if "scalar" not in var]
     ds_metrics_arrays = safe.get_variables(ds_metrics, metrics_arrays_vars)
     ds_diagnostics = ds_summary.merge(ds_metrics_arrays).rename(
@@ -159,20 +168,26 @@ if __name__ == "__main__":
     land_sea_mask = cat["landseamask/c48"].read()
     grid = grid.assign({utils.VARNAMES["surface_type"]: land_sea_mask["land_sea_mask"]})
     grid = grid.drop(labels=["y_interface", "y", "x_interface", "x"])
+
     if args.timesteps_file:
+        logger.info("Reading timesteps file")
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
         config["batch_kwargs"]["timesteps"] = timesteps
 
+    logger.info("Opening base mapper")
     base_mapping_function = getattr(loaders.mappers, config["mapping_function"])
     base_mapper = base_mapping_function(
         config["data_path"], **config.get("mapping_kwargs", {})
     )
 
-    fs_model = get_fs(args.model_path)
-    with fs_model.open(args.model_path, "rb") as f:
-        model = joblib.load(f)
-    pred_mapper = SklearnPredictionMapper(
+    logger.info("Opening ML model")
+    model_loader = getattr(
+        model_loaders, config.get("model_loader", "load_sklearn_model")
+    )
+    model = model_loader(args.model_path, **config.get("model_loader_kwargs", {}))
+
+    pred_mapper = PredictionMapper(
         base_mapper, model, grid=grid, **config.get("model_mapper_kwargs", {})
     )
 
@@ -194,5 +209,10 @@ if __name__ == "__main__":
     fs = get_fs(args.output_path)
     with fs.open(os.path.join(args.output_path, METRICS_JSON_NAME), "w") as f:
         json.dump(metrics, f, indent=4)
+
+    # write out config used to generate diagnostics, including model path
+    config["model_path"] = args.model_path
+    with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
+        yaml.safe_dump(config, f)
+
     logger.info(f"Finished processing dataset diagnostics and metrics.")
-    logger.info(f"Finished processing dataset metrics.")

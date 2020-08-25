@@ -160,14 +160,15 @@ def insert_net_terms_as_Qs(
 
     shield_data = {}
     for var_source_name, var_target_name in var_mapping.items():
-        if "Q1" in var_target_name:
-            shield_data[var_target_name] = ds[var_source_name].sel(
-                {derivation_dim: [shield_coord]}
-            )
-        elif "Q2" in var_target_name:
-            shield_data[var_target_name] = -ds[var_source_name].sel(
-                {derivation_dim: [shield_coord]}
-            )
+        if var_source_name in ds.data_vars:
+            if "Q1" in var_target_name:
+                shield_data[var_target_name] = ds[var_source_name].sel(
+                    {derivation_dim: [shield_coord]}
+                )
+            elif "Q2" in var_target_name:
+                shield_data[var_target_name] = -ds[var_source_name].sel(
+                    {derivation_dim: [shield_coord]}
+                )
 
     return ds_new.merge(shield_data)
 
@@ -278,6 +279,23 @@ def snap_mask_to_type(
     types = xr.DataArray(types, float_mask.coords, float_mask.dims)
 
     return types
+
+
+def _units_from_Q_name(var):
+    if "r2" in var.lower():
+        return ""
+    if "q1" in var.lower():
+        if "column_integrated" in var:
+            return "[W/m^2]"
+        else:
+            return "[K/s]"
+    elif "q2" in var.lower():
+        if "column_integrated" in var:
+            return "[mm/day]"
+        else:
+            return "[kg/kg/s]"
+    else:
+        return None
 
 
 def snap_net_precipitation_to_type(

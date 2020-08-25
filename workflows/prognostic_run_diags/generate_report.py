@@ -13,6 +13,7 @@ from report import create_html
 from report.holoviews import HVPlot, get_html_header
 
 hv.extension("bokeh")
+PUBLIC_GCS_DOMAIN = "https://storage.googleapis.com"
 
 
 def upload(html: str, url: str, content_type: str = "text/html"):
@@ -124,6 +125,23 @@ def load_metrics(bucket, rundirs):
             metrics[rundir] = json.load(f)
 
     return metrics
+
+
+def get_movie_links(bucket, rundirs, fs, domain=PUBLIC_GCS_DOMAIN):
+    movie_links = {}
+    for rundir in rundirs:
+        movie_paths = fs.glob(os.path.join(bucket, rundir, "*.mp4"))
+        for gcs_path in movie_paths:
+            movie_name = os.path.basename(gcs_path)
+            if movie_name not in movie_links:
+                movie_links[movie_name] = ""
+            public_url = os.path.join(domain, gcs_path)
+            movie_links[movie_name] += " " + _html_link(public_url, rundir)
+    return movie_links
+
+
+def _html_link(url, tag):
+    return f"<a href='{url}'>{tag}</a>"
 
 
 def holomap_filter(time_series, varfilter, run_attr_name="run"):
@@ -303,10 +321,11 @@ def main():
 
     # get metadata
     run_urls = {key: ds.attrs["url"] for key, ds in diags.items()}
+    movie_links = get_movie_links(bucket, rundirs, fs)
 
     html = create_html(
         title="Prognostic run report",
-        metadata=run_urls,
+        metadata={**run_urls, **movie_links},
         sections=sections,
         html_header=get_html_header(),
     )

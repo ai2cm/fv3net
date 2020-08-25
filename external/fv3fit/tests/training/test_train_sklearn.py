@@ -25,7 +25,6 @@ def hyperparameters(model_type) -> dict:
         raise NotImplementedError(model_type)
 
 
-@pytest.mark.regression
 def test_training(
     training_batches: Sequence[xr.Dataset],
     output_variables: Iterable[str],
@@ -34,7 +33,7 @@ def test_training(
     model = train_model(training_batches, train_config)
     assert model.model.n_estimators == 2
     batch_dataset = training_batches[0]
-    result = model.predict(batch_dataset, "sample")
+    result = model.predict(batch_dataset)
     missing_names = set(output_variables).difference(result.data_vars.keys())
     assert len(missing_names) == 0
     for varname in output_variables:
@@ -42,7 +41,6 @@ def test_training(
         assert np.sum(np.isnan(result[varname].values)) == 0
 
 
-@pytest.mark.regression
 def test_training_integration(
     data_source_path: str,
     train_config_filename: str,
@@ -64,8 +62,6 @@ def test_training_integration(
         ]
     )
     required_names = [
-        "ML_model_training_report.html",
-        "count_of_training_times_used.png",
         "sklearn_model.pkl",
         "training_config.yml",
     ]
