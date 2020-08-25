@@ -21,6 +21,19 @@ workflow, but uses the `--from` flag instead. For example,
     argo submit --from workflowtemplate/<templatename> ...
 
 
+Workflow parameters can be passed via the command line, e.g.
+```
+argo submit --from workflowtemplate/prognostic-run-diags \
+    -p runs="$(< rundirs.json)" \
+    -p docker-image=<dockerimage> \
+    --name <name>
+```
+
+You can also use submit by supplying a file containing the parameters with the `--parameter-file` or `-f` flag, e.g.
+```
+argo submit --from workflowtemplate/train-diags-prog --parameter-file config.json
+```
+
 This command will make output like this:
 
     Name:                prognostic-run-diags-sps8h
@@ -77,10 +90,13 @@ argo submit --from workflowtemplate/prognostic-run-diags \
     --name <name>
 ```
 
-If succesful, the completed report will be available at
+
+If successful, the completed report will be available at
 `gs://vcm-ml-public/argo/<name>/index.html`. This can be accessed from a web browser using this link:
 
     http://storage.googleapis.com/vcm-ml-public/argo/<name>/index.html 
 
+If you wish to generate movies of column-integrated heating and moistening along with the report, 
+add the parameter `-p make-movies="true"`. By default, the movies will not be created.
 
 [1]: http://storage.googleapis.com/vcm-ml-public/experiments-2020-03/prognostic_run_diags/combined.html

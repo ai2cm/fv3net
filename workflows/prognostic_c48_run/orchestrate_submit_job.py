@@ -174,9 +174,6 @@ if __name__ == "__main__":
 
     insert_default_diagnostics(config)
 
-    if args.nudge_to_observations:
-        config = fv3kube.enable_nudge_to_observations(config)
-
     insert_ml_settings(user_config, args.model_url, args.diagnostic_ml)
 
     model_config = vcm.update_nested_dict(
@@ -184,6 +181,9 @@ if __name__ == "__main__":
         # User settings override previous ones
         user_config,
     )
+
+    if args.nudge_to_observations:
+        model_config = fv3kube.enable_nudge_to_observations(model_config)
 
     # submission scripts
     short_id = fv3kube.get_alphanumeric_unique_tag(8)

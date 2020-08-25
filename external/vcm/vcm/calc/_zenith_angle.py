@@ -32,7 +32,7 @@ OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGEN
 OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 OF THE POSSIBILITY OF SUCH DAMAGE.
 """
-
+import cftime
 import datetime
 import numpy as np
 from typing import Union
@@ -42,7 +42,7 @@ RAD_PER_DEG = np.pi / 180.0
 
 
 def cos_zenith_angle(
-    model_time: np.ndarray,
+    model_time: Union[np.ndarray, datetime.datetime, cftime.DatetimeJulian],
     lon: Union[float, xr.DataArray, np.ndarray],
     lat: Union[float, xr.DataArray, np.ndarray],
 ) -> np.ndarray:
@@ -59,7 +59,13 @@ def cos_zenith_angle(
 def _days_from_2000(model_time):
     """Get the days since year 2000.
     """
-    return _total_days(model_time - datetime.datetime(2000, 1, 1, 12, 0))
+    date_type = type(np.asarray(model_time).ravel()[0])
+    if date_type not in [datetime.datetime, cftime.DatetimeJulian]:
+        raise ValueError(
+            f"model_time has an invalid date type. It must be either "
+            f"datetime.datetime or cftime.DatetimeJulian. Got {date_type}."
+        )
+    return _total_days(model_time - date_type(2000, 1, 1, 12, 0))
 
 
 def _total_days(time_diff):
