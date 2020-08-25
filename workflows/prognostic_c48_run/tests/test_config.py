@@ -1,4 +1,4 @@
-from runtime import get_ml_model_class
+from runtime.config import _get_ml_model_class
 from fv3fit.keras._models import DenseModel, DummyModel
 from fv3fit.sklearn import SklearnWrapper
 import pytest
@@ -25,6 +25,6 @@ def ml_config(request):
     ],
     indirect=["ml_config"],
 )
-def test_get_ml_model_class(ml_config, expected):
-    model_class = get_ml_model_class(ml_config)
+def test__get_ml_model_class(ml_config, expected):
+    model_class = _get_ml_model_class(ml_config)
     assert model_class == expected

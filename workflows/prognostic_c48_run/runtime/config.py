@@ -3,6 +3,7 @@ import yaml
 import f90nml
 from fv3fit.keras import get_model_class
 from fv3fit.sklearn import SklearnWrapper
+from fv3fit._shared import Predictor
 
 FV3CONFIG_FILENAME = "fv3config.yml"
 
@@ -17,7 +18,12 @@ def get_namelist() -> f90nml.Namelist:
     return f90nml.read("input.nml")
 
 
-def get_ml_model_class(config):
+def get_ml_model(config: Dict) -> Predictor:
+    model_class = _get_ml_model_class(config)
+    return model_class.load(config["model"])
+
+
+def _get_ml_model_class(config):
     model_type = config.get("model_type", "scikit_learn")
     if model_type == "keras":
         keras_model_type = config.get("model_loader_kwargs", {}).get(

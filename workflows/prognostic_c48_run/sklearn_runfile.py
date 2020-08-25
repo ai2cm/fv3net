@@ -96,8 +96,7 @@ def precipitation_sum(
 
 
 def open_model(config):
-    model_class = runtime.get_ml_model_class(config)
-    model = model_class.load(config["model"])
+    model = runtime.get_ml_model(config)
     stacked_predictor = runtime.StackingAdapter(model, sample_dims=["y", "x"])
     rename_in = config.get("input_standard_names", {})
     rename_out = config.get("output_standard_names", {})
