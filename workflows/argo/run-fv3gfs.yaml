@@ -13,7 +13,7 @@ spec:
       - {name: chunks, value: "{}"}
       - {name: cpu, value: "6"}
       - {name: memory, value: 4Gi}
-      - {name: submission-count, value: "1"}
+      - {name: segment-count, value: "1"}
       - {name: work-volume-name, value: work-volume}
       - {name: external-volume-name, value: external-volume}
   entrypoint: run-fv3gfs
@@ -34,7 +34,7 @@ spec:
         - {name: chunks, value: "{}"}
         - {name: cpu, value: "6"}
         - {name: memory, value: 8Gi}
-        - {name: submission-count, value: "1"}
+        - {name: segment-count, value: "1"}
         - {name: work-volume-name, value: work-volume}
         - {name: external-volume-name, value: external-volume}
     steps:
@@ -55,8 +55,8 @@ spec:
             - {name: output-url, value: "{{inputs.parameters.output-url}}"}
             - {name: cpu, value: "{{inputs.parameters.cpu}}"}
             - {name: memory, value: "{{inputs.parameters.memory}}"}
-            - {name: submission-count, value: "{{inputs.parameters.submission-count}}"}
-            - {name: step, value: 0}
+            - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
+            - {name: segment, value: 0}
             - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
             - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
   - name: write-configs
@@ -88,8 +88,8 @@ spec:
         - name: output-url
         - name: cpu
         - name: memory
-        - name: submission-count
-        - name: step
+        - name: segment-count
+        - name: segment
         - name: work-volume-name
         - name: external-volume-name
     steps:
@@ -104,14 +104,14 @@ spec:
             - {name: memory, value: "{{inputs.parameters.memory}}"}
             - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
             - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
-      - - name: increment-step
-          template: increment-step
+      - - name: increment-segment
+          template: increment-segment
           arguments:
             parameters:
-              - {name: step, value: "{{inputs.parameters.step}}"}
+              - {name: segment, value: "{{inputs.parameters.segment}}"}
       - - name: run-next-segment
           template: run-all-segments
-          when: "{{inputs.parameters.step}} < {{inputs.parameters.submission-count}} - 1"
+          when: "{{steps.increment-segment.outputs.result}} < {{inputs.parameters.segment-count}}"
           arguments:
             parameters:
             - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
@@ -119,8 +119,8 @@ spec:
             - {name: output-url, value: "{{inputs.parameters.output-url}}"}
             - {name: cpu, value: "{{inputs.parameters.cpu}}"}
             - {name: memory, value: "{{inputs.parameters.memory}}"}
-            - {name: submission-count, value: "{{inputs.parameters.submission-count}}"}
-            - {name: step, value: "{{steps.increment-step.outputs.result}}"}
+            - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
+            - {name: segment, value: "{{steps.increment-segment.outputs.result}}"}
             - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
             - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
   - name: run-segment
@@ -257,12 +257,12 @@ spec:
       volumeMounts:
         - name: "{{inputs.parameters.work-volume-name}}"
           mountPath: /mnt/data
-  - name: increment-step
+  - name: increment-segment
     inputs:
       parameters:
-        - name: step
+        - name: segment
     script:
       image: python:alpine3.6
       command: [python]
       source: |
-        print({{inputs.parameters.step}} + 1)
+        print({{inputs.parameters.segment}} + 1)

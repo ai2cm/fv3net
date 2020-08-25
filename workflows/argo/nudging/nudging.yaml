@@ -15,7 +15,7 @@ spec:
       - name: post-process-image
       - name: times
         value: ""
-      - {name: submission-count, value: "1"}
+      - {name: segment-count, value: "1"}
       - {name: cpu, value: "6"}
       - {name: memory, value: 8Gi}
       - {name: work-volume-name, value: work-volume}
@@ -57,7 +57,7 @@ spec:
                 value: "{{workflow.parameters.output-url}}"
               - name: nudging-config
                 value: "{{workflow.parameters.nudging-config}}"
-              - {name: submission-count, value: "{{workflow.parameters.submission-count}}"}
+              - {name: segment-count, value: "{{workflow.parameters.segment-count}}"}
               - {name: cpu, value: "{{workflow.parameters.cpu}}"}
               - {name: memory, value: "{{workflow.parameters.memory}}"}
               - {name: work-volume-name, value: "{{workflow.parameters.work-volume-name}}"}
@@ -73,7 +73,7 @@ spec:
           - name: fv3net-image
             value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
           - name: post-process-image
-          - {name: submission-count, value: "1"}
+          - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 8Gi}
           - {name: work-volume-name, value: work-volume}
@@ -98,7 +98,7 @@ spec:
                 - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
                 - {name: output-url, value: "{{inputs.parameters.output-url}}"}
                 - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
-                - {name: submission-count, value: "{{inputs.parameters.submission-count}}"}
+                - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
                 - {name: cpu, value: "{{inputs.parameters.cpu}}"}
                 - {name: memory, value: "{{inputs.parameters.memory}}"}
                 - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
