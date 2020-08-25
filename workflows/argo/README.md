@@ -69,10 +69,12 @@ argo submit --from workflowtemplate/run-fv3gfs \
     -p chunks="$(< chunks.yaml)" \
     -p cpu="6" \
     -p memory="8Gi" \
-    -p submission-count="2"
+    -p submission-count="2" \
+    -p workdir-name="my-workdir" \
+    -p pvc-name="restarts-volume"
 ```
-The `chunks`, `cpu`, `memory` and `submission-count` arguments are optional. Defaults are defined 
-in the workflow template.
+The `chunks`, `cpu`, `memory`, `submission-count`, `workdir-name` and `pvc-name` 
+arguments are optional. Defaults are defined in the workflow template.
 
 #### Running multiple segments
 
@@ -93,6 +95,14 @@ given in the provided `chunks.yaml`. See post-processing script at
 
 WARNING: if `submission-count` is greater than 1, the chunk size in time must evenly
 divide the length of the time dimension for each diagnostic output.
+
+#### Volumes used by run-fv3gfs template
+
+Due to some limitations of argo, it is necessary that the entrypoint workflow makes a
+claim for volumes that are ultimately mounted and used by `run-fv3gfs`. The name of these
+volume can be passed to the `run-fv3gfs` template. See the end-to-end test workflow at
+`tests/end_to_end_integration/argo.yaml` for an example of the volume claims necessary
+to use `run-fv3gfs`.
 
 ### Prognostic run report
 
