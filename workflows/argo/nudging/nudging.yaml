@@ -18,8 +18,21 @@ spec:
       - {name: submission-count, value: "1"}
       - {name: cpu, value: "6"}
       - {name: memory, value: 8Gi}
+      - {name: workdir-name, value: workdir}
+      - {name: pvc-name, value: restart-data}
   entrypoint: main
+  volumeClaimTemplates:
+    - metadata:
+        name: "{{workflow.parameters.workdir-name}}"
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 100Gi
   volumes:
+    - name: "{{workflow.parameters.pvc-name}}"
+      persistentVolumeClaim:
+        claimName: nudging-read-only
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -46,6 +59,8 @@ spec:
               - {name: submission-count, value: "{{workflow.parameters.submission-count}}"}
               - {name: cpu, value: "{{workflow.parameters.cpu}}"}
               - {name: memory, value: "{{workflow.parameters.memory}}"}
+              - {name: workdir-name, value: "{{workflow.parameters.workdir-name}}"}
+              - {name: pvc-name, value: "{{workflow.parameters.pvc-name}}"}
     - name: nudging
       inputs:
         parameters:
@@ -60,6 +75,8 @@ spec:
           - {name: submission-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 8Gi}
+          - {name: workdir-name, value: workdir}
+          - {name: pvc-name, value: restart-data}
       steps:
         - - template: prepare-config
             name: prepare-config
@@ -83,6 +100,8 @@ spec:
                 - {name: submission-count, value: "{{inputs.parameters.submission-count}}"}
                 - {name: cpu, value: "{{inputs.parameters.cpu}}"}
                 - {name: memory, value: "{{inputs.parameters.memory}}"}
+                - {name: workdir-name, value: "{{inputs.parameters.workdir-name}}"}
+                - {name: pvc-name, value: "{{inputs.parameters.pvc-name}}"}
     - name: prepare-config
       inputs:
         parameters:

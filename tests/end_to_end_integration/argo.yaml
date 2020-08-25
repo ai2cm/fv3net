@@ -45,6 +45,8 @@ spec:
             value: "{{workflow.parameters.root}}/nudging"
           - name: nudging-config
             value: "{{workflow.parameters.nudging-config}}"
+          - {name: workdir-name, value: workdir}
+          - {name: pvc-name, value: restart-data}
       - name: train-model
         dependencies: [nudging-run]
         templateRef:
