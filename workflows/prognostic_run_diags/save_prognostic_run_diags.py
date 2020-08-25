@@ -223,8 +223,8 @@ def global_biases_physics(resampled, verification, grid):
 @add_to_diags("dycore")
 @diag_finalizer("global_mean_bias")
 @transform.apply("resample_time", "3H")
-def global_biases_physics(resampled, verification, grid):
-    logger.info("Preparing global average biases for physics variables")
+def global_biases_dycore(resampled, verification, grid):
+    logger.info("Preparing global average biases for dynamics variables")
     bias_errors = bias(verification, resampled, grid.area, HORIZONTAL_DIMS)
 
     return bias_errors

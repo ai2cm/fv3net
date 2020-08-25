@@ -112,6 +112,6 @@ def _total_precip(ds: xr.Dataset) -> xr.DataArray:
     total_precip = ds.PRATEsfc * SECONDS_PER_DAY - _column_dq2(ds)
     total_precip.attrs = {
         "long_name": "P - <dQ2> total precipitation",
-        "units": "mm/day"
+        "units": "mm/day",
     }
     return total_precip.rename("total_precip")

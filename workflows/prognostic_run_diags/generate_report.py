@@ -238,7 +238,7 @@ def global_avg_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
 
 
 @diag_plot_manager.register
-def global_avg_physics_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
+def global_avg_bias_plots(time_series: Iterable[xr.Dataset]) -> HVPlot:
     return time_series_plot(time_series, varfilter="global_mean_bias")
 
 
