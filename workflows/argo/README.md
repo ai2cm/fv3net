@@ -57,8 +57,7 @@ cloud. It does post-processing on the fly and the workflow can run the model in
 sequential segments to increase reliability and reduce the memory requirement for
 the post-processing step. See the nudging workflow at
 `workflows/argo/nudging/nudging.yaml` for an example usage of the `run-fv3gfs`
-template. Although it is typically called from another workflow, when installed into the cluster, the template can also be called directly from the command line. Its parameters
-are described below
+template.
 
 |Parameter| Description|
 |-------- |-------------|
@@ -67,12 +66,12 @@ are described below
 | output-url | GCS url for outputs |
 | fv3gfs-image | Docker image used to run model. Must have fv3gfs-wrapper and fv3config installed. |
 | post-process-image | Docker image used to post-process and upload outputs |
-| chunks | String describing desired chunking of diagnostics |
-| cpu | (optional) requested cpu for run-model step |
-| memory | (optional) requested memory for run-model step |
-| segment-count | (optional) number of segments to run |
-| working-volume-name | (optional) name of volume for temporary work. Volume claim must be made prior to start of run-fv3gfs workflow. |
-| external-volume-name | (optional) name of volume for external data required for model run. E.g. for restart data in a nudged run. |
+| chunks | (optional) String describing desired chunking of diagnostics |
+| cpu | (optional) Requested cpu for run-model step |
+| memory | (optional) Requested memory for run-model step |
+| segment-count | (optional) Number of segments to run |
+| working-volume-name | (optional) Name of volume for temporary work. Volume claim must be made prior to start of run-fv3gfs workflow. |
+| external-volume-name | (optional) Name of volume with external data required for model run. E.g. for restart data in a nudged run. |
 
 Defaults for optional parameters can be found in the workflow.
 
@@ -101,7 +100,7 @@ sfc_dt_atmos.zarr:
 ```
 
 Some diagnostics have default chunking. See post-processing script at 
-`workflows/post_process_run` for more details.
+`workflows/post_process_run/post_process.py` for more details.
 
 WARNING: if `segment-count` is greater than 1, the chunk size in time must evenly
 divide the length of the time dimension for each diagnostic output.
