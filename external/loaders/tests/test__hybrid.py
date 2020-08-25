@@ -44,21 +44,15 @@ def test_open_fine_resolution_nudging_hybrid(nudging_url, fine_url):
 
 def test_open_fine_resolution_nudging_hybrid_data_path(nudging_url, fine_url):
     # passes the urls as data_paths
-    data = open_fine_resolution_nudging_hybrid(
-        [nudging_url, fine_url], {}, {}
-    )
+    data = open_fine_resolution_nudging_hybrid([nudging_url, fine_url], {}, {})
     data[timestep1_end]
 
 
 def test_open_fine_resolution_nudging_hybrid_no_urls(nudging_url, fine_url):
     with pytest.raises(ValueError):
-        data = open_fine_resolution_nudging_hybrid(
-            None, {}, {}
-        )
+        open_fine_resolution_nudging_hybrid(None, {}, {})
     with pytest.raises(ValueError):
-        data = open_fine_resolution_nudging_hybrid(
-            [nudging_url], {}, {}
-        )
+        open_fine_resolution_nudging_hybrid([nudging_url], {}, {})
 
 
 def test_open_fine_resolution_nudging_to_obs_hybrid(nudging_url, fine_url):
@@ -121,10 +115,6 @@ def test_open_fine_resolution_nudging_to_obs_hybrid_no_urls(nudging_url, fine_ur
         "rename_vars": rename_prog_nudge,
     }
     with pytest.raises(ValueError):
-        data = open_fine_resolution_nudging_to_obs_hybrid(
-            None, prog_nudge_kwargs, {}
-        )
+        open_fine_resolution_nudging_to_obs_hybrid(None, prog_nudge_kwargs, {})
     with pytest.raises(ValueError):
-        data = open_fine_resolution_nudging_to_obs_hybrid(
-            [nudging_url], prog_nudge_kwargs, {}
-        )
+        open_fine_resolution_nudging_to_obs_hybrid([nudging_url], prog_nudge_kwargs, {})

@@ -63,10 +63,11 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--data_path",
         type=str,
-        nargs='+',
+        nargs="+",
         help=(
             "Data path(s) for opening mappers. Will be passed to mapper function as a "
-            "list if >1 arg provided, else will pass value as string."),
+            "list if >1 arg provided, else will pass value as string."
+        ),
     )
     parser.add_argument(
         "--timesteps-file",
@@ -166,7 +167,8 @@ def _consolidate_dimensioned_data(ds_summary, ds_metrics):
 def _get_base_mapper(config: Mapping):
     logger.info("Creating base mapper")
     base_mapping_function = getattr(
-        loaders.mappers, config["batch_kwargs"]["mapping_function"])
+        loaders.mappers, config["batch_kwargs"]["mapping_function"]
+    )
     data_path = args.data_path or config.get("data_path", None)
     if isinstance(data_path, List) and len(data_path) == 1:
         data_path = data_path[0]
@@ -210,11 +212,11 @@ if __name__ == "__main__":
         config["batch_kwargs"]["timesteps"] = timesteps
 
     pred_mapper = _get_prediction_mapper(config)
-    
+
     variables = config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS
     del config["batch_kwargs"]["mapping_function"]
     del config["batch_kwargs"]["mapping_kwargs"]
-    
+
     ds_batches = loaders.batches.diagnostic_batches_from_mapper(
         pred_mapper, variables, **config["batch_kwargs"],
     )

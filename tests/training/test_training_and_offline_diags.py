@@ -225,17 +225,23 @@ def data_source_offline_config(
 ):
     if data_source_name == "nudging_tendencies":
         with open(
-            os.path.join(str(datadir_module), "train_sklearn_model_nudged_source.yml"), "r"
+            os.path.join(str(datadir_module), "train_sklearn_model_nudged_source.yml"),
+            "r",
         ) as f:
             config = yaml.safe_load(f)
-            config["batch_kwargs"]["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
+            config["batch_kwargs"]["mapping_kwargs"][
+                "shield_diags_url"
+            ] = C48_SHiELD_diags_dataset_path
         return config
     elif data_source_name == "fine_res_apparent_sources":
         with open(
-            os.path.join(str(datadir_module), "train_sklearn_model_fineres_source.yml"), "r"
+            os.path.join(str(datadir_module), "train_sklearn_model_fineres_source.yml"),
+            "r",
         ) as f:
             config = yaml.safe_load(f)
-            config["batch_kwargs"]["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
+            config["batch_kwargs"]["mapping_kwargs"][
+                "shield_diags_url"
+            ] = C48_SHiELD_diags_dataset_path
             return config
     else:
         raise NotImplementedError()
@@ -250,7 +256,8 @@ def prediction_mapper(
         mappers, data_source_offline_config["batch_kwargs"]["mapping_function"]
     )
     base_mapper = base_mapping_function(
-        data_source_path, **data_source_offline_config["batch_kwargs"].get("mapping_kwargs", {})
+        data_source_path,
+        **data_source_offline_config["batch_kwargs"].get("mapping_kwargs", {}),
     )
 
     prediction_mapper = PredictionMapper(base_mapper, mock_model)

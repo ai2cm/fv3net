@@ -1,5 +1,4 @@
-from typing import Mapping, List, Union
-
+from typing import Mapping, List
 import xarray as xr
 
 from ._base import GeoMapper
@@ -64,7 +63,7 @@ def open_fine_resolution_nudging_hybrid(
                 "Urls for nudging and fine res must be provided as either "
                 "i) data_paths list arg of len 2, or ii) keys in nudging kwargs and "
                 "fine res kwargs."
-                )
+            )
 
     nudged = open_merged_nudged_full_tendencies(**nudging)
     fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res)
@@ -101,12 +100,15 @@ def open_fine_resolution_nudging_to_obs_hybrid(
         fine_res_kwargs["fine_res_url"] = data_paths[1]
     else:
         # if not provided through data_paths, must be in kwargs dicts
-        if "nudging_url" not in prog_nudge_kwargs and "fine_res_url" not in fine_res_kwargs:
+        if (
+            "nudging_url" not in prog_nudge_kwargs
+            and "fine_res_url" not in fine_res_kwargs
+        ):
             raise ValueError(
                 "Urls for nudging and fine res must be provided as either "
                 "i) data_paths list arg of len 2, or ii) keys in nudging kwargs and "
                 "fine res kwargs."
-                )
+            )
 
     # keep the nudging tendencies' original names (don't rename to dQ)
     if "rename_vars" not in prog_nudge_kwargs:
