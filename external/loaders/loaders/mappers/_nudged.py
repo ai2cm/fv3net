@@ -299,7 +299,7 @@ class SubtractNudgingTendency(GeoMapper):
 
 
 def open_merged_nudged(
-    url: str,
+    nudging_url: str,
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
     i_start: int = 0,
     n_times: int = None,
@@ -332,7 +332,7 @@ def open_merged_nudged(
         "specific_humidity_tendency_due_to_nudging": "dQ2",
     }
 
-    datasets = _get_source_datasets(url, merge_files, consolidated)
+    datasets = _get_source_datasets(nudging_url, merge_files, consolidated)
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
     nudged_mapper = SubsetTimes(i_start, n_times, nudged_mapper)
 
@@ -454,7 +454,7 @@ def open_merged_nudged_full_tendencies(
 
 
 def open_merged_nudge_to_obs(
-    url: str,
+    nudging_url: str,
     merge_files: Tuple[str] = ("after_physics.zarr", "nudging_tendencies.zarr"),
     i_start: int = 0,
     n_times: int = None,
@@ -470,7 +470,7 @@ def open_merged_nudge_to_obs(
     the after_physics state in order to provide the actual "before nudging" state.
 
     Args:
-        url: Path to directory with nudging output
+        nudging_url: Path to directory with nudging output
         merge_files (optional): underlying nudging zarr datasets to combine
             into a MergeNudged mapper
         i_start (optional): Index of sorted timesteps at which to start including
@@ -498,7 +498,7 @@ def open_merged_nudge_to_obs(
         "air_temperature": "dQ1",
         "specific_humidity": "dQ2",
     }
-    datasets = _get_source_datasets(url, merge_files, consolidated)
+    datasets = _get_source_datasets(nudging_url, merge_files, consolidated)
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
     nudged_mapper = SubtractNudgingIncrement(
         nudged_mapper, nudging_tendency_variables, timestep_physics_seconds
@@ -578,7 +578,7 @@ def open_merged_nudge_to_obs_full_tendencies(
 
 
 def open_nudged_to_obs_prognostic(
-    url=str,
+    nudging_url=str,
     merge_files: Tuple[str] = ("data.zarr", "nudging_tendencies.zarr"),
     nudging_to_physics_tendency: Mapping[str, str] = None,
     rename_vars: Mapping[str, str] = None,
@@ -596,7 +596,7 @@ def open_nudged_to_obs_prognostic(
     is already calculated.
 
     Args:
-        url: Path to directory containing merge_files. Defaults to str.
+        nudging_url: Path to directory containing merge_files. Defaults to str.
         merge_files: zarrs to merge. Expecting one to contain nudging tendencies
             and the other to contain the tendencies across the physics step.
             Defaults to ("data.zarr", "nudging_tendencies.zarr").
@@ -630,7 +630,7 @@ def open_nudged_to_obs_prognostic(
         "dQ1": "pQ1",
         "dQ2": "pQ2",
     }
-    datasets = _get_source_datasets(url, merge_files, consolidated)
+    datasets = _get_source_datasets(nudging_url, merge_files, consolidated)
     nudged_mapper = MergeNudged(*datasets, rename_vars=rename_vars)
     return SubtractNudgingTendency(nudged_mapper, nudging_to_physics_tendency)
 

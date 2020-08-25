@@ -1,4 +1,4 @@
-from typing import Mapping
+from typing import Mapping, List, Union
 
 import xarray as xr
 
@@ -35,16 +35,15 @@ class FineResolutionResidual(GeoMapper):
 
 
 def open_fine_resolution_nudging_hybrid(
-    _, nudging: Mapping, fine_res: Mapping,
+    data_paths: List[str], nudging: Mapping, fine_res: Mapping,
 ) -> FineResolutionResidual:
     """
     Open the fine resolution nudging_hybrid mapper
 
     Args:
-        _: The training routines currently assume the first argument is a
-            path to a particular dataset. However, this mapper merges two such
-            datasets, so it doesn't make sense to give one special treatment.
-            Therefore, this argument should be ignored.
+        data_paths: If list of urls is provided, the first is used as the nudging
+            data url and second is used as fine res. If string or None, the paths must
+            be provided in each mapper's kwargs.
         nudging: keyword arguments passed to
             :py:func:`open_merged_nudging_full_tendencies`
         fine_res: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
@@ -52,8 +51,18 @@ def open_fine_resolution_nudging_hybrid(
     Returns:
         a mapper
     """
-
     offset_seconds = fine_res.pop("offset_seconds", 450)
+    if isinstance(data_paths, List):
+        nudging["nudging_url"] = data_paths[0]
+        fine_res["fine_res_url"] = data_paths[1]
+    else:
+        # if not provided through data_paths, must be in kwargs dicts
+        if "nudging_url" not in nudging and "fine_res_url" not in fine_res:
+            raise ValueError(
+                "Urls for nudging and fine res must be provided as either "
+                "i) data_paths list arg, or ii) keys in nudging kwargs and "
+                "fine res kwargs."
+                )
 
     nudged = open_merged_nudged_full_tendencies(**nudging)
     fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res)
@@ -61,7 +70,7 @@ def open_fine_resolution_nudging_hybrid(
 
 
 def open_fine_resolution_nudging_to_obs_hybrid(
-    _, prog_nudge_kwargs: Mapping, fine_res_kwargs: Mapping,
+    data_paths, prog_nudge_kwargs: Mapping, fine_res_kwargs: Mapping,
 ) -> FineResolutionResidual:
     """
     Fine resolution nudging_hybrid mapper for merging with prognostic nudged to
@@ -70,10 +79,9 @@ def open_fine_resolution_nudging_to_obs_hybrid(
     physics step saved.
 
     Args:
-        _: The training routines currently assume the first argument is a
-            path to a particular dataset. However, this mapper merges two such
-            datasets, so it doesn't make sense to give one special treatment.
-            Therefore, this argument should be ignored.
+        data_paths: If list of urls is provided, the first is used as the nudging
+            data url and second is used as fine res. If string or None, the paths must
+            be provided in each mapper's kwargs.
         prog_nudge_kwargs: keyword arguments passed to
             :py:func:`open_nudged_to_obs_prognostic`
         fine_res_kwargs: keyword arguments passed to :py:func:
@@ -84,6 +92,19 @@ def open_fine_resolution_nudging_to_obs_hybrid(
     """
 
     offset_seconds = fine_res_kwargs.pop("offset_seconds", 450)
+
+    if isinstance(data_paths, List):
+        prog_nudge_kwargs["nudging_url"] = data_paths[0]
+        fine_res_kwargs["fine_res_url"] = data_paths[1]
+    else:
+        # if not provided through data_paths, must be in kwargs dicts
+        if "nudging_url" not in prog_nudge_kwargs and "fine_res_url" not in fine_res_kwargs:
+            raise ValueError(
+                "Urls for nudging and fine res must be provided as either "
+                "i) data_paths list arg, or ii) keys in nudging kwargs and "
+                "fine res kwargs."
+                )
+
     # keep the nudging tendencies' original names (don't rename to dQ)
     if "rename_vars" not in prog_nudge_kwargs:
         prog_nudge_kwargs["rename_vars"] = {
