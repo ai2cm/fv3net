@@ -9,14 +9,6 @@ spec:
       key: dedicated
       value: climate-sim-pool
   entrypoint: main
-  volumeClaimTemplates:
-    - metadata:
-        name: workdir
-      spec:
-        accessModes: ["ReadWriteOnce"]
-        resources:
-          requests:
-            storage: 5Gi
   volumes:
     - name: restart-data
       persistentVolumeClaim:
@@ -45,6 +37,7 @@ spec:
             value: "{{workflow.parameters.root}}/nudging"
           - name: nudging-config
             value: "{{workflow.parameters.nudging-config}}"
+          - {name: workdir-size, value: 5Gi}  # use a small workdir volume for e2e test
       - name: train-model
         dependencies: [nudging-run]
         templateRef:
