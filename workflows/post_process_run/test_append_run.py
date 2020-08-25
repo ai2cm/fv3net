@@ -122,4 +122,4 @@ def test_appending_shifted_zarr_gives_expected_ds(tmpdir, with_coords):
     manually_appended_ds = xr.open_zarr(path1, consolidated=True)
     expected_ds = xr.concat([ds1, ds2], dim="time")
 
-    xr.testing.assert_allclose(manually_appended_ds, expected_ds)
+    xr.testing.assert_identical(manually_appended_ds, expected_ds)

@@ -17,11 +17,6 @@ spec:
       - {name: work-volume-name, value: work-volume}
       - {name: external-volume-name, value: external-volume}
   entrypoint: run-fv3gfs
-  volumes:
-    - name: gcp-key-secret
-      secret:
-        defaultMode: 420
-        secretName: gcp-key
   templates:
   - name: run-fv3gfs
     inputs:

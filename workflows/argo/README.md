@@ -110,8 +110,8 @@ divide the length of the time dimension for each diagnostic output.
 Due to some limitations of argo, it is necessary that the entrypoint workflow makes a
 claim for volumes that are ultimately mounted and used by `run-fv3gfs`. The name of these
 volumes can be passed to the `run-fv3gfs` template. See the end-to-end test workflow at
-`tests/end_to_end_integration/argo.yaml` for an example of the volume claims necessary
-to use `run-fv3gfs`.
+`tests/end_to_end_integration/argo.yaml` for an example of the volume claims (including 
+`gcp-secret-key`) necessary to use `run-fv3gfs` .
 
 ### Prognostic run report
 
