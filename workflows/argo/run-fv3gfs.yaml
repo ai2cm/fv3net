@@ -12,7 +12,7 @@ spec:
       - name: post-process-image
       - {name: chunks, value: "{}"}
       - {name: cpu, value: "6"}
-      - {name: memory, value: 8Gi}
+      - {name: memory, value: 4Gi}
       - {name: submission-count, value: "1"}
   entrypoint: run-fv3gfs
   volumes:
@@ -41,7 +41,7 @@ spec:
             - {name: fv3config, value: "{{inputs.parameters.fv3config}}"}
             - {name: runfile, value: "{{inputs.parameters.runfile}}"}
             - {name: chunks, value: "{{inputs.parameters.chunks}}"}
-      - - name: run-all-segments
+      - - name: run-first-segment
           template: run-all-segments
           arguments:
             parameters:
@@ -51,6 +51,7 @@ spec:
             - {name: cpu, value: "{{inputs.parameters.cpu}}"}
             - {name: memory, value: "{{inputs.parameters.memory}}"}
             - {name: submission-count, value: "{{inputs.parameters.submission-count}}"}
+            - {name: step, value: 0}
   - name: write-configs
     inputs:
       parameters:
@@ -72,7 +73,6 @@ spec:
         cat /mnt/data/runfile.py
         echo "{{inputs.parameters.chunks}}" > /mnt/data/chunks.yaml
   - name: run-all-segments
-    parallelism: 1
     inputs:
       parameters:
         - name: fv3gfs-image
@@ -81,11 +81,10 @@ spec:
         - name: cpu
         - name: memory
         - name: submission-count
+        - name: step
     steps:
       - - template: run-segment
           name: run-segment
-          withSequence:
-            count: "{{inputs.parameters.submission-count}}"
           arguments:
             parameters:
             - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
@@ -93,7 +92,23 @@ spec:
             - {name: output-url, value: "{{inputs.parameters.output-url}}"}
             - {name: cpu, value: "{{inputs.parameters.cpu}}"}
             - {name: memory, value: "{{inputs.parameters.memory}}"}
-            - {name: step, value: "{{item}}"}
+      - - name: increment-step
+          template: increment-step
+          arguments:
+            parameters:
+              - {name: step, value: "{{inputs.parameters.step}}"}
+      - - name: run-next-segment
+          template: run-all-segments
+          when: "{{inputs.parameters.step}} < {{inputs.parameters.submission-count}} - 1"
+          arguments:
+            parameters:
+            - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
+            - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
+            - {name: output-url, value: "{{inputs.parameters.output-url}}"}
+            - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+            - {name: memory, value: "{{inputs.parameters.memory}}"}
+            - {name: submission-count, value: "{{inputs.parameters.submission-count}}"}
+            - {name: step, value: "{{steps.increment-step.outputs.result}}"}
   - name: run-segment
     inputs:
       parameters:
@@ -102,7 +117,6 @@ spec:
         - name: output-url
         - name: cpu
         - name: memory
-        - name: step
     steps:
       - - name: run-model
           template: run-model
@@ -219,3 +233,12 @@ spec:
       volumeMounts:
         - name: workdir
           mountPath: /mnt/data
+  - name: increment-step
+    inputs:
+      parameters:
+        - name: step
+    script:
+      image: python:alpine3.6
+      command: [python]
+      source: |
+        print({{inputs.parameters.step}} + 1)
