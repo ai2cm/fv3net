@@ -18,12 +18,8 @@ spec:
       - {name: submission-count, value: "1"}
       - {name: cpu, value: "6"}
       - {name: memory, value: 8Gi}
-      - {name: workdir-size, value: 100Gi}
   entrypoint: main
   volumes:
-    - name: restart-data
-      persistentVolumeClaim:
-        claimName: nudging-read-only
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -50,7 +46,6 @@ spec:
               - {name: submission-count, value: "{{workflow.parameters.submission-count}}"}
               - {name: cpu, value: "{{workflow.parameters.cpu}}"}
               - {name: memory, value: "{{workflow.parameters.memory}}"}
-              - {name: workdir-size, value: "{{workflow.parameters.workdir-size}}"}
     - name: nudging
       inputs:
         parameters:
@@ -65,7 +60,6 @@ spec:
           - {name: submission-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 8Gi}
-          - {name: workdir-size, value: 100Gi}
       steps:
         - - template: prepare-config
             name: prepare-config
