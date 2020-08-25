@@ -57,7 +57,7 @@ cloud. It does post-processing on the fly and the workflow can run the model in
 sequential segments to increase reliability and reduce the memory requirement for
 the post-processing step. See the nudging workflow at
 `workflows/argo/nudging/nudging.yaml` for an example usage of the `run-fv3gfs`
-template. The template can also be called directly from the command line:
+template. When installed into the cluster, the template can also be called directly from the command line:
 
 ```
 argo submit --from workflowtemplate/run-fv3gfs \
@@ -78,7 +78,7 @@ arguments are optional. Defaults are defined in the workflow template.
 
 #### Running multiple segments
 
-The workflow will submit `submission-count` model segments in sequence. The diagnostic 
+The workflow will submit `submission-count` model segments in sequence. The post-processed diagnostic 
 outputs from each segment will automatically be appended to the previous segment's at
 `output-url`. All other outputs (restart files, logging, etc.) will be saved to
 `output-url/artifacts/{timestamp}` where `timestamp` corresponds to the start time of
@@ -100,7 +100,7 @@ divide the length of the time dimension for each diagnostic output.
 
 Due to some limitations of argo, it is necessary that the entrypoint workflow makes a
 claim for volumes that are ultimately mounted and used by `run-fv3gfs`. The name of these
-volume can be passed to the `run-fv3gfs` template. See the end-to-end test workflow at
+volumes can be passed to the `run-fv3gfs` template. See the end-to-end test workflow at
 `tests/end_to_end_integration/argo.yaml` for an example of the volume claims necessary
 to use `run-fv3gfs`.
 

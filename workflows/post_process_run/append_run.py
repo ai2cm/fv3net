@@ -91,7 +91,8 @@ def _assert_chunks_valid(array: zarr.array, ax: str, n_shift: int):
 def shift_store(group: zarr.Group, dim: str, n_shift: int):
     """Shift local zarr store which represents an xarray dataset by n_shift along dim.
     Chunk size must be uniform for each variable and it must evenly divide n_shift.
-    Note that the zarr store represented by group will no longer be valid after this
+    Note:
+        The zarr store represented by group will no longer be valid after this
     function is called since its chunks will not be listed starting at 0. It is
     intended that the output of this function be copied into another zarr store as a
     method of appending.
