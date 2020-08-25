@@ -8,7 +8,7 @@ import sys
 from tempfile import NamedTemporaryFile
 import xarray as xr
 import yaml
-from typing import Mapping, Sequence, Tuple
+from typing import Mapping, Sequence, Tuple, List
 
 import diagnostics_utils as utils
 import loaders
@@ -28,6 +28,8 @@ handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
+# variables in addition to features that are needed
+ADDITIONAL_VARS = ["pressure_thickness_of_atmospheric_layer"]
 PRIMARY_VARS = ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
 DIURNAL_VARS = [
@@ -58,6 +60,12 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "output_path",
         type=str,
         help=("Local or remote path where diagnostic dataset will be written."),
+    )
+    parser.add_argument(
+        "--data_paths",
+        type=str,
+        nargs='+',
+        help=("Data path(s)"),
     )
     parser.add_argument(
         "--timesteps-file",
@@ -154,8 +162,33 @@ def _consolidate_dimensioned_data(ds_summary, ds_metrics):
     return ds_diagnostics, ds_metrics.drop(metrics_arrays_vars)
 
 
-if __name__ == "__main__":
+def _get_base_mapper(config: Mapping):
+    logger.info("Creating base mapper")
+    base_mapping_function = getattr(
+        loaders.mappers, config["batch_kwargs"]["mapping_function"])
+    data_path = args.data_path or config["data_path"]
+    if isinstance(data_path, List) and len(data_path) == 1:
+        data_path = data_path[0]
+    return base_mapping_function(
+        data_path, **config["batch_kwargs"].get("mapping_kwargs", {})
+    )
 
+
+def _get_prediction_mapper(config: Mapping):
+    base_mapper = _get_base_mapper(config)
+    logger.info("Opening ML model")
+    model_loader = getattr(
+        model_loaders, config.get("model_loader", "load_sklearn_model")
+    )
+    model = model_loader(args.model_path, **config.get("model_loader_kwargs", {}))
+    model_mapper_kwargs = config.get("model_mapper_kwargs", {})
+    if "cos_zenith_angle" in config["input_variables"]:
+        model_mapper_kwargs["cos_z_var"] = "cos_zenith_angle"
+    logger.info("Creating prediction mapper")
+    return PredictionMapper(base_mapper, model, grid=grid, **model_mapper_kwargs)
+
+
+if __name__ == "__main__":
     logger.info("Starting diagnostics routine.")
     args = _create_arg_parser()
 
@@ -175,24 +208,10 @@ if __name__ == "__main__":
             timesteps = yaml.safe_load(f)
         config["batch_kwargs"]["timesteps"] = timesteps
 
-    logger.info("Opening base mapper")
-    base_mapping_function = getattr(loaders.mappers, config["mapping_function"])
-    base_mapper = base_mapping_function(
-        config["data_path"], **config.get("mapping_kwargs", {})
-    )
-
-    logger.info("Opening ML model")
-    model_loader = getattr(
-        model_loaders, config.get("model_loader", "load_sklearn_model")
-    )
-    model = model_loader(args.model_path, **config.get("model_loader_kwargs", {}))
-
-    pred_mapper = PredictionMapper(
-        base_mapper, model, grid=grid, **config.get("model_mapper_kwargs", {})
-    )
-
+    pred_mapper = _get_prediction_mapper(config)
+    variables = config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS
     ds_batches = loaders.batches.diagnostic_batches_from_mapper(
-        pred_mapper, config["variables"], **config["batch_kwargs"],
+        pred_mapper, variables, **config["batch_kwargs"],
     )
 
     # compute diags
