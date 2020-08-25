@@ -57,28 +57,28 @@ cloud. It does post-processing on the fly and the workflow can run the model in
 sequential segments to increase reliability and reduce the memory requirement for
 the post-processing step. See the nudging workflow at
 `workflows/argo/nudging/nudging.yaml` for an example usage of the `run-fv3gfs`
-template. When installed into the cluster, the template can also be called directly from the command line:
+template. Although it is typically called from another workflow, when installed into the cluster, the template can also be called directly from the command line. Its parameters
+are described below
 
-```
-argo submit --from workflowtemplate/run-fv3gfs \
-    -p fv3config="$(< fv3config.yaml)" \
-    -p runfile="$(< runfile.py)" \
-    -p output-url=<gcs-output-url> \
-    -p fv3gfs-image=<fv3gfs-docker-image> \ 
-    -p post-process-image=<post-process-docker-image> \
-    -p chunks="$(< chunks.yaml)" \
-    -p cpu="6" \
-    -p memory="8Gi" \
-    -p submission-count="2" \
-    -p workdir-name="my-workdir" \
-    -p pvc-name="restarts-volume"
-```
-The `chunks`, `cpu`, `memory`, `submission-count`, `workdir-name` and `pvc-name` 
-arguments are optional. Defaults are defined in the workflow template.
+|Parameter| Description|
+|-------- |-------------|
+| fv3config | String representation of an fv3config object |
+| runfile | String representation of an fv3gfs runfile |
+| output-url | GCS url for outputs |
+| fv3gfs-image | Docker image used to run model. Must have fv3gfs-wrapper and fv3config installed. |
+| post-process-image | Docker image used to post-process and upload outputs |
+| chunks | String describing desired chunking of diagnostics |
+| cpu | (optional) requested cpu for run-model step |
+| memory | (optional) requested memory for run-model step |
+| segment-count | (optional) number of segments to run |
+| working-volume-name | (optional) name of volume for temporary work. Volume claim must be made prior to start of run-fv3gfs workflow. |
+| external-volume-name | (optional) name of volume for external data required for model run. E.g. for restart data in a nudged run. |
+
+Defaults for optional parameters can be found in the workflow.
 
 #### Running multiple segments
 
-The workflow will submit `submission-count` model segments in sequence. The post-processed diagnostic 
+The workflow will submit `segment-count` model segments in sequence. The post-processed diagnostic 
 outputs from each segment will automatically be appended to the previous segment's at
 `output-url`. All other outputs (restart files, logging, etc.) will be saved to
 `output-url/artifacts/{timestamp}` where `timestamp` corresponds to the start time of
@@ -90,10 +90,20 @@ to the workflow.
 The post-processing can convert netCDF diagnostic outputs of the form `name.tile?.nc`
 to zarr with user-specified chunks and rechunk zarrs output by fv3gfs-wrapper. To
 specify that a set of netCDF outputs should be converted to zarr, their chunking must be
-given in the provided `chunks.yaml`. See post-processing script at
+defined in the given `chunks` parameter. For example:
+```yaml
+atmos_8xdaily.zarr:
+  time: 8
+nudging_tendencies.zarr:
+  time: 1
+sfc_dt_atmos.zarr:
+  time: 96
+```
+
+Some diagnostics have default chunking. See post-processing script at 
 `workflows/post_process_run` for more details.
 
-WARNING: if `submission-count` is greater than 1, the chunk size in time must evenly
+WARNING: if `segment-count` is greater than 1, the chunk size in time must evenly
 divide the length of the time dimension for each diagnostic output.
 
 #### Volumes used by run-fv3gfs template

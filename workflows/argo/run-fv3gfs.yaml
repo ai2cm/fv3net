@@ -14,8 +14,8 @@ spec:
       - {name: cpu, value: "6"}
       - {name: memory, value: 4Gi}
       - {name: submission-count, value: "1"}
-      - {name: workdir-name, value: workdir}
-      - {name: pvc-name, value: restart-data}
+      - {name: working-volume-name, value: working-volume}
+      - {name: external-volume-name, value: external-volume}
   entrypoint: run-fv3gfs
   volumes:
     - name: gcp-key-secret
@@ -35,8 +35,8 @@ spec:
         - {name: cpu, value: "6"}
         - {name: memory, value: 8Gi}
         - {name: submission-count, value: "1"}
-        - {name: workdir-name, value: workdir}
-        - {name: pvc-name, value: restart-data}
+        - {name: working-volume-name, value: working-volume}
+        - {name: external-volume-name, value: external-volume}
     steps:
       - - name: write-configs
           template: write-configs
@@ -45,7 +45,7 @@ spec:
             - {name: fv3config, value: "{{inputs.parameters.fv3config}}"}
             - {name: runfile, value: "{{inputs.parameters.runfile}}"}
             - {name: chunks, value: "{{inputs.parameters.chunks}}"}
-            - {name: workdir-name, value: "{{inputs.parameters.workdir-name}}"}
+            - {name: working-volume-name, value: "{{inputs.parameters.working-volume-name}}"}
       - - name: run-first-segment
           template: run-all-segments
           arguments:
@@ -57,19 +57,19 @@ spec:
             - {name: memory, value: "{{inputs.parameters.memory}}"}
             - {name: submission-count, value: "{{inputs.parameters.submission-count}}"}
             - {name: step, value: 0}
-            - {name: workdir-name, value: "{{inputs.parameters.workdir-name}}"}
-            - {name: pvc-name, value: "{{inputs.parameters.pvc-name}}"}
+            - {name: working-volume-name, value: "{{inputs.parameters.working-volume-name}}"}
+            - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
   - name: write-configs
     inputs:
       parameters:
         - name: fv3config
         - name: runfile
         - name: chunks
-        - name: workdir-name
+        - name: working-volume-name
     container:
       image: ubuntu:latest
       volumeMounts:
-        - name: "{{inputs.parameters.workdir-name}}"
+        - name: "{{inputs.parameters.working-volume-name}}"
           mountPath: /mnt/data
       command: ["/bin/bash", "-c", "-x"]
       args:
@@ -90,8 +90,8 @@ spec:
         - name: memory
         - name: submission-count
         - name: step
-        - name: workdir-name
-        - name: pvc-name
+        - name: working-volume-name
+        - name: external-volume-name
     steps:
       - - template: run-segment
           name: run-segment
@@ -102,8 +102,8 @@ spec:
             - {name: output-url, value: "{{inputs.parameters.output-url}}"}
             - {name: cpu, value: "{{inputs.parameters.cpu}}"}
             - {name: memory, value: "{{inputs.parameters.memory}}"}
-            - {name: workdir-name, value: "{{inputs.parameters.workdir-name}}"}
-            - {name: pvc-name, value: "{{inputs.parameters.pvc-name}}"}
+            - {name: working-volume-name, value: "{{inputs.parameters.working-volume-name}}"}
+            - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
       - - name: increment-step
           template: increment-step
           arguments:
@@ -121,8 +121,8 @@ spec:
             - {name: memory, value: "{{inputs.parameters.memory}}"}
             - {name: submission-count, value: "{{inputs.parameters.submission-count}}"}
             - {name: step, value: "{{steps.increment-step.outputs.result}}"}
-            - {name: workdir-name, value: "{{inputs.parameters.workdir-name}}"}
-            - {name: pvc-name, value: "{{inputs.parameters.pvc-name}}"}
+            - {name: working-volume-name, value: "{{inputs.parameters.working-volume-name}}"}
+            - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
   - name: run-segment
     inputs:
       parameters:
@@ -131,8 +131,8 @@ spec:
         - name: output-url
         - name: cpu
         - name: memory
-        - name: workdir-name
-        - name: pvc-name
+        - name: working-volume-name
+        - name: external-volume-name
     steps:
       - - name: run-model
           template: run-model
@@ -141,29 +141,29 @@ spec:
               - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
               - {name: cpu, value: "{{inputs.parameters.cpu}}"}
               - {name: memory, value: "{{inputs.parameters.memory}}"}
-              - {name: workdir-name, value: "{{inputs.parameters.workdir-name}}"}
-              - {name: pvc-name, value: "{{inputs.parameters.pvc-name}}"}
+              - {name: working-volume-name, value: "{{inputs.parameters.working-volume-name}}"}
+              - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
       - - name: upload-outputs
           template: post-process
           arguments:
             parameters:
               - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
               - {name: output-url, value: "{{inputs.parameters.output-url}}"}
-              - {name: workdir-name, value: "{{inputs.parameters.workdir-name}}"}
+              - {name: working-volume-name, value: "{{inputs.parameters.working-volume-name}}"}
       - - name: update-config
           template: update-config
           arguments:
             parameters:
               - {name: restarts-url, value: "/mnt/data/RESTART"}
-              - {name: workdir-name, value: "{{inputs.parameters.workdir-name}}"}
+              - {name: working-volume-name, value: "{{inputs.parameters.working-volume-name}}"}
   - name: run-model
     inputs:
       parameters:
         - name: fv3gfs-image
         - name: cpu
         - name: memory
-        - name: workdir-name
-        - name: pvc-name
+        - name: working-volume-name
+        - name: external-volume-name
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -196,9 +196,9 @@ spec:
       terminationMessagePath: /dev/termination-log
       terminationMessagePolicy: File
       volumeMounts:
-        - name: "{{inputs.parameters.workdir-name}}"
+        - name: "{{inputs.parameters.working-volume-name}}"
           mountPath: /mnt/data
-        - name: "{{inputs.parameters.pvc-name}}"
+        - name: "{{inputs.parameters.external-volume-name}}"
           mountPath: /mnt/input
         - name: gcp-key-secret
           mountPath: /secret/gcp-credentials
@@ -208,7 +208,7 @@ spec:
       parameters:
         - name: post-process-image
         - name: output-url
-        - name: workdir-name
+        - name: working-volume-name
     tolerations:
     - key: "dedicated"
       operator: "Equal"
@@ -225,7 +225,7 @@ spec:
         rm -r /mnt/data/rundir
         rm -r /tmp/processed_rundir
       volumeMounts:
-        - name: "{{inputs.parameters.workdir-name}}"
+        - name: "{{inputs.parameters.working-volume-name}}"
           mountPath: /mnt/data
         - name: gcp-key-secret
           mountPath: /secret/gcp-credentials
@@ -240,7 +240,7 @@ spec:
     inputs:
       parameters:
         - name: restarts-url
-        - name: workdir-name
+        - name: working-volume-name
     container:
       image: mikefarah/yq:3.3.2
       command: ["/bin/sh", "-c"]
@@ -255,7 +255,7 @@ spec:
         yq w -i /mnt/data/fv3config.yaml namelist.fv_core_nml.na_init 0
         yq w -i /mnt/data/fv3config.yaml namelist.coupler_nml.force_date_from_namelist false
       volumeMounts:
-        - name: "{{inputs.parameters.workdir-name}}"
+        - name: "{{inputs.parameters.working-volume-name}}"
           mountPath: /mnt/data
   - name: increment-step
     inputs:

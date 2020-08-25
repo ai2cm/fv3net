@@ -11,7 +11,7 @@ spec:
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
-        name: workdir
+        name: working-volume
       spec:
         accessModes: ["ReadWriteOnce"]
         resources:
@@ -45,8 +45,8 @@ spec:
             value: "{{workflow.parameters.root}}/nudging"
           - name: nudging-config
             value: "{{workflow.parameters.nudging-config}}"
-          - {name: workdir-name, value: workdir}
-          - {name: pvc-name, value: restart-data}
+          - {name: working-volume-name, value: working-volume}
+          - {name: external-volume-name, value: restart-data}
       - name: train-model
         dependencies: [nudging-run]
         templateRef:
