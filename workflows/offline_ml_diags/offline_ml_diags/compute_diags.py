@@ -28,9 +28,8 @@ handler.setLevel(logging.INFO)
 logging.basicConfig(handlers=[handler], level=logging.INFO)
 logger = logging.getLogger("offline_diags")
 
-# variables in addition to features that are needed
-ADDITIONAL_VARS = ["pressure_thickness_of_atmospheric_layer"]
-PRIMARY_VARS = ["dQ1", "dQ2", "pQ1", "pQ2", "Q1", "Q2"]
+# variables that are needed in addition to the model features
+ADDITIONAL_VARS = ["pressure_thickness_of_atmospheric_layer", "pQ1", "pQ2"]
 DIAGS_NC_NAME = "offline_diagnostics.nc"
 DIURNAL_VARS = [
     "column_integrated_dQ1",
