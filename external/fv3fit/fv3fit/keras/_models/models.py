@@ -71,7 +71,12 @@ class Model(Predictor):
         super().__init__(sample_dim_name, input_variables, output_variables)
 
     @abc.abstractmethod
-    def fit(self, batches: Sequence[xr.Dataset]) -> None:
+    def fit(
+        self,
+        batches: Sequence[xr.Dataset],
+        batch_size: Optional[int] = None,
+        epochs: int = 1,
+    ) -> None:
         pass
 
     @abc.abstractmethod
@@ -172,33 +177,33 @@ class PackedKerasModel(Model):
         pass
 
     def fit(
-        self, batches: Sequence[xr.Dataset], batch_size: int = None, epochs: int = None
+        self,
+        batches: Sequence[xr.Dataset],
+        batch_size: Optional[int] = None,
+        epochs: int = 1,
     ) -> None:
+        epochs = epochs if epochs is not None else 1
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
         if self._model is None:
             X, y = Xy[0]
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]
             self._fit_normalization(X, y)
-            self._model = self.get_model(n_features_in, n_features_out, self._optimizer)
+            self._model = self.get_model(n_features_in, n_features_out)
         if batch_size is not None:
             self._fit_loop(Xy, batch_size, epochs)
         else:
             self._fit_array(Xy, epochs)
 
     def _fit_loop(
-        self,
-        Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
-        batch_size: int = None,
-        epochs: int = None,
+        self, Xy: Sequence[Tuple[np.ndarray, np.ndarray]], batch_size: int, epochs: int,
     ) -> None:
         for j in range(epochs):
-            #             logger.info(f"Fitting epoch {j} of {epochs}...")
             for i, (X, y) in enumerate(Xy):
                 logger.info(f"Fitting on timestep {i} of {len(Xy)}, of epoch {j}...")
                 self.model.fit(X, y, batch_size=batch_size)
 
     def _fit_array(
-        self, X: Sequence[Tuple[np.ndarray, np.ndarray]], epochs: int = None
+        self, X: Sequence[Tuple[np.ndarray, np.ndarray]], epochs: int
     ) -> None:
         return self.model.fit(X, epochs=epochs)
 
@@ -330,12 +335,7 @@ class DenseModel(PackedKerasModel):
             learning_rate=learning_rate,
         )
 
-    def get_model(
-        self,
-        n_features_in: int,
-        n_features_out: int,
-        optimizer: tf.keras.optimizers.Optimizer,
-    ) -> tf.keras.Model:
+    def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
         inputs = tf.keras.Input(n_features_in)
         x = self.X_scaler.normalize_layer(inputs)
         for i in range(self._depth - 1):

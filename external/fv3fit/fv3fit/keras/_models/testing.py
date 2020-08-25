@@ -1,4 +1,4 @@
-from typing import Iterable, Sequence
+from typing import Iterable, Sequence, Optional
 import logging
 import os
 import xarray as xr
@@ -42,7 +42,12 @@ class DummyModel(Model):
             sample_dim_name=sample_dim_name, pack_names=output_variables
         )
 
-    def fit(self, batches: Sequence[xr.Dataset]) -> None:
+    def fit(
+        self,
+        batches: Sequence[xr.Dataset],
+        batch_size: Optional[int] = None,
+        epochs: Optional[int] = None,
+    ) -> None:
         # this is all we need to do to learn n output feature
         _, _ = _XyArraySequence(self.X_packer, self.y_packer, batches)[0]
 
