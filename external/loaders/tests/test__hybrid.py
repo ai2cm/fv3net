@@ -42,6 +42,25 @@ def test_open_fine_resolution_nudging_hybrid(nudging_url, fine_url):
     data[timestep1_end]
 
 
+def test_open_fine_resolution_nudging_hybrid_data_path(nudging_url, fine_url):
+    # passes the urls as data_paths
+    data = open_fine_resolution_nudging_hybrid(
+        [nudging_url, fine_url], {}, {}
+    )
+    data[timestep1_end]
+
+
+def test_open_fine_resolution_nudging_hybrid_no_urls(nudging_url, fine_url):
+    with pytest.raises(ValueError):
+        data = open_fine_resolution_nudging_hybrid(
+            None, {}, {}
+        )
+    with pytest.raises(ValueError):
+        data = open_fine_resolution_nudging_hybrid(
+            [nudging_url], {}, {}
+        )
+
+
 def test_open_fine_resolution_nudging_to_obs_hybrid(nudging_url, fine_url):
     # passes the urls as mapper kwargs
     rename_prog_nudge = {
@@ -61,14 +80,6 @@ def test_open_fine_resolution_nudging_to_obs_hybrid(nudging_url, fine_url):
     # test opener with paths provided through kwargs
     data = open_fine_resolution_nudging_to_obs_hybrid(
         None, prog_nudge_kwargs, {"fine_res_url": fine_url}
-    )
-    data[timestep1_end]
-
-
-def test_open_fine_resolution_nudging_hybrid_data_path(nudging_url, fine_url):
-    # passes the urls as data_paths
-    data = open_fine_resolution_nudging_hybrid(
-        [nudging_url, fine_url], {}, {}
     )
     data[timestep1_end]
 
@@ -93,4 +104,27 @@ def test_open_fine_resolution_nudging_to_obs_hybrid_data_path(nudging_url, fine_
         [nudging_url, fine_url], prog_nudge_kwargs, {}
     )
     data[timestep1_end]
-    
+
+
+def test_open_fine_resolution_nudging_to_obs_hybrid_no_urls(nudging_url, fine_url):
+    rename_prog_nudge = {
+        "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
+        "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
+        "air_temperature_tendency_due_to_nudging": "t_dt_nudge",
+        "specific_humidity_tendency_due_to_nudging": "q_dt_nudge",
+        "grid_xt": "x",
+        "grid_yt": "y",
+        "pfull": "z",
+    }
+    prog_nudge_kwargs = {
+        "merge_files": ("prognostic_diags.zarr", "nudging_tendencies.zarr"),
+        "rename_vars": rename_prog_nudge,
+    }
+    with pytest.raises(ValueError):
+        data = open_fine_resolution_nudging_to_obs_hybrid(
+            None, prog_nudge_kwargs, {}
+        )
+    with pytest.raises(ValueError):
+        data = open_fine_resolution_nudging_to_obs_hybrid(
+            [nudging_url], prog_nudge_kwargs, {}
+        )
