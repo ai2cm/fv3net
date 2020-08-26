@@ -476,7 +476,7 @@ def _save_mock_keras_model(tmpdir):
     return str(tmpdir)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", params=["keras", "sklearn"])
 def completed_rundir(request, tmpdir_factory):
 
     if not FV3GFS_INSTALLED:
@@ -495,11 +495,6 @@ def completed_rundir(request, tmpdir_factory):
     return tmpdir
 
 
-@pytest.mark.parametrize(
-    "completed_rundir",
-    [pytest.param("keras", id="keras"), pytest.param("sklearn", id="sklearn")],
-    indirect=True,
-)
 def test_fv3run_checksum_restarts(completed_rundir):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
@@ -520,11 +515,6 @@ def test_fv3run_checksum_restarts(completed_rundir):
         )
 
 
-@pytest.mark.parametrize(
-    "completed_rundir",
-    [pytest.param("keras", id="keras"), pytest.param("sklearn", id="sklearn")],
-    indirect=True,
-)
 def test_fv3run_diagnostic_outputs(completed_rundir):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
@@ -543,11 +533,6 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
         assert np.sum(np.isnan(diagnostics[variable].values)) == 0
 
 
-@pytest.mark.parametrize(
-    "completed_rundir",
-    [pytest.param("keras", id="keras"), pytest.param("sklearn", id="sklearn")],
-    indirect=True,
-)
 def test_fv3run_python_mass_conserving(completed_rundir):
     data_lines = []
 
