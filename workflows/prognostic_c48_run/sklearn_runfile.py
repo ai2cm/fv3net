@@ -11,6 +11,8 @@ from typing import (
     Sequence,
 )
 
+from toolz import curry
+
 import fsspec
 import xarray as xr
 from mpi4py import MPI
@@ -33,6 +35,7 @@ SPHUM = "specific_humidity"
 DELP = "pressure_thickness_of_atmospheric_layer"
 PRECIP_RATE = "surface_precipitation_rate"
 TOTAL_PRECIP = "total_precipitation"  # has units of m
+AREA = "area_of_grid_cell"
 REQUIRED_VARIABLES = {TEMP, SPHUM, DELP, PRECIP_RATE, TOTAL_PRECIP}
 
 cp = 1004
@@ -238,6 +241,38 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         self._fv3gfs.cleanup()
 
 
+@curry
+def monitor_func(name, func):
+    def _step_physics(self) -> Mapping[str, xr.DataArray]:
+        area = self._state[AREA]
+        before = {key: self._state[key] for key in self._variables + [DELP]}
+        mass_before = comm.reduce((area * before[DELP]).sum().item(), root=0)
+        vapor_mass_before = comm.reduce((area * before[DELP] * self._state[SPHUM]).sum().item(), root=0)
+        func(self)
+        after = {key: self._state[key] for key in self._variables + [DELP]}
+        mass_after = comm.reduce((area* after[DELP]).sum().item(), root=0)
+        vapor_mass_after = comm.reduce((area * after[DELP] * self._state[SPHUM]).sum().item(), root=0)
+        area_all = comm.reduce(area.sum().item(), root=0)
+
+
+        tendency = {
+            f"tendency_of_{key}_due_to_{name}": (after[key] - before[key])
+            / self._timestep
+            for key in self._variables
+        }
+
+        if comm.rank == 0:
+            mass_difference = (mass_after - mass_before)/area_all
+            vapor_mass_difference = (vapor_mass_after - vapor_mass_before)/area_all
+            logger.info(f"total_mass_change_{name}: {mass_difference} Pa")
+            logger.info(f"vapor_mass_change_{name}: {vapor_mass_difference} Pa")
+
+
+        return tendency
+
+    return _step_physics
+
+
 class MonitoredPhysicsTimeLoop(TimeLoop):
     def __init__(self, tendency_variables: Sequence[str], *args, **kwargs):
         """
@@ -248,20 +283,15 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
                 
         """
         super().__init__(*args, **kwargs)
-        self._variables = tendency_variables
+        self._variables = list(tendency_variables)
 
+    @monitor_func("fv3_physics")
     def _step_physics(self) -> Mapping[str, xr.DataArray]:
-        before = {key: self._state[key] for key in self._variables}
         super()._step_physics()
-        after = {key: self._state[key] for key in self._variables}
 
-        tendency = {
-            f"tendency_of_{key}_due_to_fv3_physics": (after[key] - before[key])
-            / self._timestep
-            for key in self._variables
-        }
-        return tendency
-
+    @monitor_func("python")
+    def _step_python(self) -> Mapping[str, xr.DataArray]:
+        super()._step_python()
 
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD
