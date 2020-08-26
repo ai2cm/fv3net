@@ -170,7 +170,9 @@ def _get_base_mapper(args, config: Mapping):
         loaders.mappers, config["batch_kwargs"]["mapping_function"]
     )
     if not args.data_path:
-        raise ValueError("Must provide at least one command line argument to --data-path")
+        raise ValueError(
+            "Must provide at least one command line argument to --data-path"
+        )
     data_path = args.data_path
     if isinstance(data_path, List) and len(data_path) == 1:
         data_path = data_path[0]
