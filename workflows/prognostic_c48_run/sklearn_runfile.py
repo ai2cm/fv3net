@@ -46,6 +46,7 @@ def compute_diagnostics(state, diags):
     return dict(
         air_temperature=state[TEMP],
         specific_humidity=state[SPHUM],
+        pressure_thickness_of_atmospheric_layer=state[DELP],
         net_moistening=(net_moistening)
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(description="column integrated ML model moisture tendency"),
