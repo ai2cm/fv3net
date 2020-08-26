@@ -178,7 +178,7 @@ def append_zarr_along_time(
 @click.argument("rundir")
 @click.argument("destination")
 @click.option("--segment_label", help="Defaults to timestamp of start of segment.")
-def append_segment(rundir: str, destination: str, run_label: str):
+def append_segment(rundir: str, destination: str, segment_label: str):
     """Append local RUNDIR to possibly existing output at DESTINATION
     
     Zarr's will be appended to in place, while all other files will be saved to
