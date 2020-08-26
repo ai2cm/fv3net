@@ -2,7 +2,6 @@ from datetime import datetime
 import json
 import logging
 from typing import (
-    Callable,
     Hashable,
     Iterable,
     Mapping,
@@ -233,65 +232,59 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         self._fv3gfs.cleanup()
 
 
-class monitor:
+def monitor(name: str, func):
     """Decorator to add tendency monitoring to an update function
 
     This will add `tendency_of_air_temperature_due_to_{name}` to the
-    diagnostics and print mass conservation diagnostics of the following form
-    to the python logs::
+    diagnostics and print mass conservation diagnostics to the logs.
 
-    Attrs:
+    Args:
         name: the name to tag the tendency diagnostics with
+        func: a stepping function, usually a bound method of TimeLoop
 
+    Returns:
+        monitored function. Same as func, but with tendency and mass change
+        diagnostics.
     """
 
-    def __init__(self, name: str):
-        self.name = name
+    def step(self) -> Mapping[str, xr.DataArray]:
+        area = self._state[AREA]
+        before = {key: self._state[key] for key in self._variables + [DELP]}
+        mass_before = comm.reduce((area * before[DELP]).sum().item(), root=0)
+        vapor_mass_before = comm.reduce(
+            (area * before[DELP] * self._state[SPHUM]).sum().item(), root=0
+        )
+        diags = func(self)
+        after = {key: self._state[key] for key in self._variables + [DELP]}
+        mass_after = comm.reduce((area * after[DELP]).sum().item(), root=0)
+        vapor_mass_after = comm.reduce(
+            (area * after[DELP] * self._state[SPHUM]).sum().item(), root=0
+        )
+        area_all = comm.reduce(area.sum().item(), root=0)
 
-    def __call__(
-        self, func: Callable[[TimeLoop], Diagnostics]
-    ) -> Callable[[TimeLoop], Diagnostics]:
+        tendency = {
+            f"tendency_of_{key}_due_to_{name}": (after[key] - before[key])
+            / self._timestep
+            for key in self._variables
+        }
 
-        name = self.name
-
-        def _step_physics(self) -> Mapping[str, xr.DataArray]:
-            area = self._state[AREA]
-            before = {key: self._state[key] for key in self._variables + [DELP]}
-            mass_before = comm.reduce((area * before[DELP]).sum().item(), root=0)
-            vapor_mass_before = comm.reduce(
-                (area * before[DELP] * self._state[SPHUM]).sum().item(), root=0
-            )
-            diags = func(self)
-            after = {key: self._state[key] for key in self._variables + [DELP]}
-            mass_after = comm.reduce((area * after[DELP]).sum().item(), root=0)
-            vapor_mass_after = comm.reduce(
-                (area * after[DELP] * self._state[SPHUM]).sum().item(), root=0
-            )
-            area_all = comm.reduce(area.sum().item(), root=0)
-
-            tendency = {
-                f"tendency_of_{key}_due_to_{name}": (after[key] - before[key])
-                / self._timestep
-                for key in self._variables
+        if comm.rank == 0:
+            output = {
+                "total_mass_change": {
+                    "value": (mass_after - mass_before) / area_all,
+                    "units": "Pa",
+                },
+                "vapor_mass_change": {
+                    "value": (vapor_mass_after - vapor_mass_before) / area_all,
+                    "units": "Pa",
+                },
             }
 
-            if comm.rank == 0:
-                output = {
-                    "total_mass_change": {
-                        "value": (mass_after - mass_before) / area_all,
-                        "units": "Pa",
-                    },
-                    "vapor_mass_change": {
-                        "value": (vapor_mass_after - vapor_mass_before) / area_all,
-                        "units": "Pa",
-                    },
-                }
+            logging.info(f"{name}:{json.dumps(output)}")
 
-                logging.info(f"{name}:{json.dumps(output)}")
+        return {**diags, **tendency}
 
-            return {**diags, **tendency}
-
-        return _step_physics
+    return step
 
 
 class MonitoredPhysicsTimeLoop(TimeLoop):
@@ -306,13 +299,11 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         super().__init__(*args, **kwargs)
         self._variables = list(tendency_variables)
 
-    @monitor("fv3_physics")
     def _step_physics(self) -> Mapping[str, xr.DataArray]:
-        return super()._step_physics()
+        return monitor("fv3_physics", super()._step_physics)(self)
 
-    @monitor("python")
     def _step_python(self) -> Mapping[str, xr.DataArray]:
-        return super()._step_python()
+        return monitor("python", super()._step_python)(self)
 
 
 if __name__ == "__main__":
