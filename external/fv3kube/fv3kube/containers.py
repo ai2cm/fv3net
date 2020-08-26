@@ -221,7 +221,13 @@ def post_processed_fv3_pod_spec(
         ],
         containers=[
             post_process_container(
-                "rundir", output_url, empty_vol, secret_vol, image=post_process_image, cpu=cpu_post_process, memory=memory_post_process
+                "rundir",
+                output_url,
+                empty_vol,
+                secret_vol,
+                image=post_process_image,
+                cpu=cpu_post_process,
+                memory=memory_post_process,
             )
         ],
         volumes=[empty_vol, secret_vol],
