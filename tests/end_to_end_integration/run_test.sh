@@ -48,7 +48,7 @@ function waitForComplete {
     else
         echo "$(getJob $jobName $NAMESPACE)"
         echo Job timed out or success ambiguous: "$jobName"
-        $(terminateJob $jobName $NAMESPACE)
+        echo "$(terminateJob $jobName $NAMESPACE)"
         exit 1
     fi
 }
