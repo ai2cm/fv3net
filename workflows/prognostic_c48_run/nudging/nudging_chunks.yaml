@@ -10,3 +10,7 @@ reference.zarr:
   time: 1
 nudging_tendencies.zarr:
   time: 1
+atmos_output.zarr:
+  time: 1
+physics_output.zarr:
+  time: 1
