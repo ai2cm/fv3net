@@ -299,11 +299,8 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
         super().__init__(*args, **kwargs)
         self._variables = list(tendency_variables)
 
-    def _step_physics(self) -> Mapping[str, xr.DataArray]:
-        return monitor("fv3_physics", super()._step_physics)(self)
-
-    def _step_python(self) -> Mapping[str, xr.DataArray]:
-        return monitor("python", super()._step_python)(self)
+    _step_physics = monitor("fv3_physics", TimeLoop._step_physics)
+    _step_python = monitor("python", TimeLoop._step_python)
 
 
 if __name__ == "__main__":
