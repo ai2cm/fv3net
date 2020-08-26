@@ -187,15 +187,15 @@ def append_segment(rundir: str, destination: str, segment_label: str):
     logger.info(f"Appending {rundir} to {destination}")
     authenticate()
 
-    if not run_label:
-        run_label = _get_initial_timestamp(rundir)
+    if not segment_label:
+        segment_label = _get_initial_timestamp(rundir)
 
     fs, _, _ = fsspec.get_fs_token_paths(destination)
 
     with tempfile.TemporaryDirectory() as d_in:
         rundir = shutil.copytree(rundir, os.path.join(d_in, "rundir"))
         files = os.listdir(rundir)
-        artifacts_dir = os.path.join(rundir, "artifacts", run_label)
+        artifacts_dir = os.path.join(rundir, "artifacts", segment_label)
         os.makedirs(artifacts_dir, exist_ok=True)
 
         for file_ in files:
