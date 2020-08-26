@@ -69,7 +69,9 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "--image-tag", type=str, default=None, help="tag to apply to all default images"
     )
     parser.add_argument(
-        "--diag-table", type=str, default="/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"
+        "--diag-table",
+        type=str,
+        default="/fv3net/workflows/prognostic_c48_run/diag_table_prognostic",
     )
     parser.add_argument(
         "--diagnostic_ml",
@@ -148,18 +150,17 @@ if __name__ == "__main__":
     with open(args.prog_config_yml, "r") as f:
         user_config = yaml.safe_load(f)
 
-
-    ic_timestep = args.ic_timestep or user_config['initial-condition']
-    initial_condition_url = args.initial_condition_url or user_config['reference-restarts']
+    ic_timestep = args.ic_timestep or user_config["initial-condition"]
+    initial_condition_url = (
+        args.initial_condition_url or user_config["reference-restarts"]
+    )
 
     # It should be possible to implement all configurations as overlays
     # so this could be done as one vcm.update_nested_dict call
     # updated_nested_dict just needs to know how to merge patch_files fields
     config = vcm.update_nested_dict(
         fv3kube.get_base_fv3config(user_config.get("base_version")),
-        fv3kube.c48_initial_conditions_overlay(
-            initial_condition_url, ic_timestep
-        ),
+        fv3kube.c48_initial_conditions_overlay(initial_condition_url, ic_timestep),
         {"diag_table": args.diag_table},
     )
     insert_sklearn_settings(config, args.model_url)

@@ -248,13 +248,16 @@ def monitor_func(name, func):
         area = self._state[AREA]
         before = {key: self._state[key] for key in self._variables + [DELP]}
         mass_before = comm.reduce((area * before[DELP]).sum().item(), root=0)
-        vapor_mass_before = comm.reduce((area * before[DELP] * self._state[SPHUM]).sum().item(), root=0)
-        func(self)
+        vapor_mass_before = comm.reduce(
+            (area * before[DELP] * self._state[SPHUM]).sum().item(), root=0
+        )
+        diags = func(self)
         after = {key: self._state[key] for key in self._variables + [DELP]}
-        mass_after = comm.reduce((area* after[DELP]).sum().item(), root=0)
-        vapor_mass_after = comm.reduce((area * after[DELP] * self._state[SPHUM]).sum().item(), root=0)
+        mass_after = comm.reduce((area * after[DELP]).sum().item(), root=0)
+        vapor_mass_after = comm.reduce(
+            (area * after[DELP] * self._state[SPHUM]).sum().item(), root=0
+        )
         area_all = comm.reduce(area.sum().item(), root=0)
-
 
         tendency = {
             f"tendency_of_{key}_due_to_{name}": (after[key] - before[key])
@@ -264,19 +267,19 @@ def monitor_func(name, func):
 
         if comm.rank == 0:
             output = {
-                "total_mass_change" : {
-                    "value": (mass_after - mass_before)/area_all
-                    ,"units": "Pa"
+                "total_mass_change": {
+                    "value": (mass_after - mass_before) / area_all,
+                    "units": "Pa",
                 },
-                "vapor_mass_change" : {
-                    "value": (vapor_mass_after - vapor_mass_before)/area_all
-                    ,"units": "Pa"
+                "vapor_mass_change": {
+                    "value": (vapor_mass_after - vapor_mass_before) / area_all,
+                    "units": "Pa",
                 },
             }
 
             logging.info(f"{name}:{json.dumps(output)}")
 
-        return tendency
+        return {**diags, **tendency}
 
     return _step_physics
 
@@ -295,11 +298,12 @@ class MonitoredPhysicsTimeLoop(TimeLoop):
 
     @monitor_func("fv3_physics")
     def _step_physics(self) -> Mapping[str, xr.DataArray]:
-        super()._step_physics()
+        return super()._step_physics()
 
     @monitor_func("python")
     def _step_python(self) -> Mapping[str, xr.DataArray]:
-        super()._step_python()
+        return super()._step_python()
+
 
 if __name__ == "__main__":
     comm = MPI.COMM_WORLD

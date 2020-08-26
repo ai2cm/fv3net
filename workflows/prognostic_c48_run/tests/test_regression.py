@@ -1,5 +1,6 @@
 from pathlib import Path
 import warnings
+import json
 
 import fv3config
 import joblib
@@ -432,7 +433,12 @@ def _save_mock_model(tmpdir):
             "dQ2": (dims, arr),
         }
     )
-    estimator = DummyRegressor(strategy="constant", constant=np.zeros(2 * nz))
+
+    heating_constant_K_per_s = np.zeros(nz)
+    # include nonzero moistening to test for mass conservation
+    moistening_constant_per_s = -np.full(nz, 1e-4 / 86400)
+    constant = np.concatenate([heating_constant_K_per_s, moistening_constant_per_s])
+    estimator = DummyRegressor(strategy="constant", constant=constant)
     model = SklearnWrapper(
         "sample", ["air_temperature", "specific_humidity"], ["dQ1", "dQ2"], estimator
     )
@@ -453,7 +459,7 @@ def completed_rundir(tmpdir_factory):
 
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
     config = get_prognostic_config(saved_model)
-    fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=False)
+    fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=True)
     return tmpdir
 
 
@@ -485,3 +491,23 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
     ]:
         assert diagnostics[variable].dims == dims
         assert np.sum(np.isnan(diagnostics[variable].values)) == 0
+
+
+def test_fv3run_python_mass_conserving(completed_rundir):
+    data_lines = []
+
+    path = str(completed_rundir.join("stdout.log"))
+
+    # read python mass conservation info
+    with open(path) as f:
+        for line in f:
+            start = "INFO:root:python:"
+            if line.startswith(start):
+                data_lines.append(json.loads(line[len(start) :]))
+
+    for metric in data_lines:
+        np.testing.assert_allclose(
+            metric["vapor_mass_change"]["value"],
+            metric["total_mass_change"]["value"],
+            atol=1e-2,
+        )
