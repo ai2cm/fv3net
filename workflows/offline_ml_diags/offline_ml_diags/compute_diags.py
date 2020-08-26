@@ -164,7 +164,7 @@ def _consolidate_dimensioned_data(ds_summary, ds_metrics):
     return ds_diagnostics, ds_metrics.drop(metrics_arrays_vars)
 
 
-def _get_base_mapper(config: Mapping):
+def _get_base_mapper(args, config: Mapping):
     logger.info("Creating base mapper")
     base_mapping_function = getattr(
         loaders.mappers, config["batch_kwargs"]["mapping_function"]
@@ -177,8 +177,8 @@ def _get_base_mapper(config: Mapping):
     )
 
 
-def _get_prediction_mapper(config: Mapping):
-    base_mapper = _get_base_mapper(config)
+def _get_prediction_mapper(args, config: Mapping):
+    base_mapper = _get_base_mapper(args, config)
     logger.info("Opening ML model")
     model_loader = getattr(
         model_loaders, config.get("model_loader", "load_sklearn_model")
@@ -211,9 +211,10 @@ if __name__ == "__main__":
             timesteps = yaml.safe_load(f)
         config["batch_kwargs"]["timesteps"] = timesteps
 
-    pred_mapper = _get_prediction_mapper(config)
+    pred_mapper = _get_prediction_mapper(args, config)
 
-    variables = config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS
+    variables = list(set(
+        config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS))
     del config["batch_kwargs"]["mapping_function"]
     del config["batch_kwargs"]["mapping_kwargs"]
 

@@ -53,12 +53,12 @@ def open_fine_resolution_nudging_hybrid(
     nudging = nudging or {}
     fine_res = fine_res or {}
     offset_seconds = fine_res.pop("offset_seconds", 450)
-    if isinstance(data_paths, List) and len(data_paths) == 2:
-        nudging["nudging_url"] = data_paths[0]
+    if isinstance(data_paths, (tuple, List)) and len(data_paths) == 2:
+        nudging["url"] = data_paths[0]
         fine_res["fine_res_url"] = data_paths[1]
     else:
         # if not provided through data_paths, must be in kwargs dicts
-        if "nudging_url" not in nudging and "fine_res_url" not in fine_res:
+        if "url" not in nudging and "fine_res_url" not in fine_res:
             raise ValueError(
                 "Urls for nudging and fine res must be provided as either "
                 "i) data_paths list arg of len 2, or ii) keys in nudging kwargs and "
@@ -95,13 +95,13 @@ def open_fine_resolution_nudging_to_obs_hybrid(
     fine_res_kwargs = fine_res_kwargs or {}
 
     offset_seconds = fine_res_kwargs.pop("offset_seconds", 450)
-    if isinstance(data_paths, List) and len(data_paths) == 2:
-        prog_nudge_kwargs["nudging_url"] = data_paths[0]
+    if isinstance(data_paths, (tuple, List)) and len(data_paths) == 2:
+        prog_nudge_kwargs["url"] = data_paths[0]
         fine_res_kwargs["fine_res_url"] = data_paths[1]
     else:
         # if not provided through data_paths, must be in kwargs dicts
         if (
-            "nudging_url" not in prog_nudge_kwargs
+            "url" not in prog_nudge_kwargs
             and "fine_res_url" not in fine_res_kwargs
         ):
             raise ValueError(

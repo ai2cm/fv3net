@@ -37,7 +37,7 @@ def fine_url(tmpdir):
 def test_open_fine_resolution_nudging_hybrid(nudging_url, fine_url):
     # test opener
     data = open_fine_resolution_nudging_hybrid(
-        None, {"nudging_url": nudging_url}, {"fine_res_url": fine_url}
+        None, {"url": nudging_url}, {"fine_res_url": fine_url}
     )
     data[timestep1_end]
 
@@ -67,7 +67,7 @@ def test_open_fine_resolution_nudging_to_obs_hybrid(nudging_url, fine_url):
         "pfull": "z",
     }
     prog_nudge_kwargs = {
-        "nudging_url": nudging_url,
+        "url": nudging_url,
         "merge_files": ("prognostic_diags.zarr", "nudging_tendencies.zarr"),
         "rename_vars": rename_prog_nudge,
     }
