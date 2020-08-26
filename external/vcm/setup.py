@@ -27,6 +27,7 @@ install_requirements = [
     "pytest",
     "pytest-regtest",
     "h5netcdf>=0.8",
+    "docrep<0.3.0,>=0.2.0,
 ]
 
 
