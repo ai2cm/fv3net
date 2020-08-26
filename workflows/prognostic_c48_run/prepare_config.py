@@ -24,11 +24,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Time step to grab from the initial conditions url.",
     )
     parser.add_argument(
-        "output_url",
-        type=str,
-        help="Remote storage location for prognostic run output.",
-    )
-    parser.add_argument(
         "--model_url", type=str, default=None, help="Remote url to a trained ML model.",
     )
     parser.add_argument(
