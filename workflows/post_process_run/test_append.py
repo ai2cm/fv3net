@@ -1,7 +1,7 @@
 import fsspec
 import numpy as np
 import xarray as xr
-import append_run
+import append
 import os
 import shutil
 import zarr
@@ -43,20 +43,20 @@ def test__assert_calendars_same(source_attr, target_attr, expected_error):
     for k, v in target_attr.items():
         target_array.attrs[k] = v
     with pytest.raises(expected_error):
-        append_run._assert_calendars_same(source_array, target_array)
+        append._assert_calendars_same(source_array, target_array)
 
 
 def test__set_array_time_units_like():
     source_array = _time_array(3, "days since 2016-08-08")
     target_array = _time_array(3, "days since 2016-08-05")
-    append_run._set_array_time_units_like(source_array, target_array)
+    append._set_array_time_units_like(source_array, target_array)
     assert source_array.attrs["units"] == target_array.attrs["units"]
     np.testing.assert_allclose(source_array[:], np.arange(3, 6))
 
 
 def test__get_initial_timestamp(tmpdir):
     tmpdir.join("time_stamp.out").write("2016 8 1 3 0 0")
-    timestamp = append_run._get_initial_timestamp(tmpdir)
+    timestamp = append._get_initial_timestamp(tmpdir)
     expected_timestamp = "20160801.030000"
     assert timestamp == expected_timestamp
 
@@ -80,10 +80,10 @@ def test__shift_array(tmpdir, shape, chunks, ax, shift, raises_value_error):
     z1[:] = np.zeros(shape)
     if raises_value_error:
         with pytest.raises(ValueError):
-            append_run._shift_array(z1, ax, shift)
+            append._shift_array(z1, ax, shift)
     else:
         items_before = os.listdir(path)
-        append_run._shift_array(z1, ax, shift)
+        append._shift_array(z1, ax, shift)
         items_after = os.listdir(path)
         assert len(items_before) == len(items_after)
         for item in items_before:
@@ -124,9 +124,9 @@ def test_append_zarr_along_time(
 
     if raises_value_error:
         with pytest.raises(ValueError):
-            append_run.append_zarr_along_time(path2, path1, fsspec.filesystem("file"))
+            append.append_zarr_along_time(path2, path1, fsspec.filesystem("file"))
     else:
-        append_run.append_zarr_along_time(path2, path1, fsspec.filesystem("file"))
+        append.append_zarr_along_time(path2, path1, fsspec.filesystem("file"))
         manually_appended_ds = xr.open_zarr(path1, consolidated=True)
         expected_ds = xr.concat([ds1, ds2], dim="time")
         xr.testing.assert_identical(manually_appended_ds, expected_ds)
