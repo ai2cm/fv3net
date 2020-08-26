@@ -543,6 +543,11 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
         assert np.sum(np.isnan(diagnostics[variable].values)) == 0
 
 
+@pytest.mark.parametrize(
+    "completed_rundir",
+    pytest.param("sklearn", id="sklearn")],
+    indirect=True,
+)
 def test_fv3run_python_mass_conserving(completed_rundir):
     data_lines = []
 

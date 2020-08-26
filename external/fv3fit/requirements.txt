@@ -75,3 +75,4 @@ zipp==0.6.0
 xgcm==0.2.0
 pytest-regtest==1.4.4
 cftime==1.2.1
+docrep==0.2.7
