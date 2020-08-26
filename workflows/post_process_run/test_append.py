@@ -9,16 +9,6 @@ from datetime import datetime
 import pytest
 
 
-def _copytree(src, dst):
-    for item in os.listdir(src):
-        s = os.path.join(src, item)
-        d = os.path.join(dst, item)
-        if os.path.isdir(s):
-            _copytree(s, d)
-        else:
-            shutil.copy(s, d)
-
-
 def _time_array(n, units):
     array = zarr.zeros((n))
     array[:] = np.arange(n)
