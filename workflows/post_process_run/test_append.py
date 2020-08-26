@@ -3,7 +3,6 @@ import numpy as np
 import xarray as xr
 import append
 import os
-import shutil
 import zarr
 from datetime import datetime
 import pytest
