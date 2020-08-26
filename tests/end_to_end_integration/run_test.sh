@@ -46,8 +46,9 @@ function waitForComplete {
         echo Job failed: "$jobName"
         exit 1
     else
+        echo "$(getJob $jobName $NAMESPACE)"
         echo Job timed out or success ambiguous: "$jobName"
-        $(terminateJob $jobName $NAMESPACE)
+        echo "$(terminateJob $jobName $NAMESPACE)"
         exit 1
     fi
 }
@@ -58,9 +59,7 @@ name=integration-test-$random
 export VERSION=$1
 export GCS_OUTPUT_URL=gs://vcm-ml-scratch/test-end-to-end-integration/$name
 
-kubectl apply -f workflows/argo/training-rf.yaml
-kubectl apply -f workflows/argo/prognostic-run.yaml
-kubectl apply -f workflows/argo/nudging/nudging.yaml
+kubectl apply -k workflows/argo
 
 cd tests/end_to_end_integration
 
