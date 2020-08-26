@@ -213,8 +213,9 @@ if __name__ == "__main__":
 
     pred_mapper = _get_prediction_mapper(args, config)
 
-    variables = list(set(
-        config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS))
+    variables = list(
+        set(config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS)
+    )
     del config["batch_kwargs"]["mapping_function"]
     del config["batch_kwargs"]["mapping_kwargs"]
 

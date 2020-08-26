@@ -100,10 +100,7 @@ def open_fine_resolution_nudging_to_obs_hybrid(
         fine_res_kwargs["fine_res_url"] = data_paths[1]
     else:
         # if not provided through data_paths, must be in kwargs dicts
-        if (
-            "url" not in prog_nudge_kwargs
-            and "fine_res_url" not in fine_res_kwargs
-        ):
+        if "url" not in prog_nudge_kwargs and "fine_res_url" not in fine_res_kwargs:
             raise ValueError(
                 "Urls for nudging and fine res must be provided as either "
                 "i) data_paths list arg of len 2, or ii) keys in nudging kwargs and "
