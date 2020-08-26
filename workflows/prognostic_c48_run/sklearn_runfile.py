@@ -15,6 +15,7 @@ import xarray as xr
 from mpi4py import MPI
 
 import fv3gfs
+import fv3util
 import runtime
 
 
@@ -258,7 +259,7 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
     config = runtime.get_config()
-    partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
+    partitioner = fv3util.CubedSpherePartitioner.from_namelist(config["namelist"])
     diag_files = runtime.get_diagnostic_files(config, partitioner, comm)
 
     loop = MonitoredPhysicsTimeLoop(
