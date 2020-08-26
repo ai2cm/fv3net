@@ -545,7 +545,7 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
 
 @pytest.mark.parametrize(
     "completed_rundir",
-    pytest.param("sklearn", id="sklearn")],
+    [pytest.param("keras", id="keras"), pytest.param("sklearn", id="sklearn")],
     indirect=True,
 )
 def test_fv3run_python_mass_conserving(completed_rundir):
