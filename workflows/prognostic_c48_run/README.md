@@ -77,8 +77,10 @@ is to save the 2D diagnostics every 15 minutes to `diags.zarr`.
 
 ```yaml
 kubernetes:
-  cpu_count: 6
-  memory_gb: 3.6
+  cpu: 6
+  memory: 10Gi
+  cpu_post_process: 6
+  memory_post_process: 10Gi
 diag_table: workflows/prognostic_c48_run/diag_table_prognostic
 namelist:
   coupler_nml:
