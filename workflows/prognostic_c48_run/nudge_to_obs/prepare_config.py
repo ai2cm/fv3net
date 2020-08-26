@@ -60,8 +60,6 @@ if __name__ == "__main__":
         user_config = yaml.safe_load(f)
 
     config = fv3kube.get_base_fv3config(user_config["base_version"])
-    if user_config["namelist"]["fv_core_nml"].get("nudge", False):
-        config = fv3kube.enable_nudge_to_observations(config)
 
     config = vcm.update_nested_dict(
         config,
@@ -69,4 +67,8 @@ if __name__ == "__main__":
         # user config takes precedence
         user_config,
     )
+
+    if config["namelist"]["fv_core_nml"].get("nudge", False):
+        config = fv3kube.enable_nudge_to_observations(config)
+
     print(yaml.dump(config))

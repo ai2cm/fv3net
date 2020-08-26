@@ -89,6 +89,9 @@ class ArrayPacker:
             )
             for name in self.pack_names:
                 self._dims[name] = cast(Tuple[str], dataset[name].dims)
+        for var in self.pack_names:
+            if dataset[var].dims[0] != self.sample_dim_name:
+                dataset[var] = dataset[var].transpose()
         array = to_array(dataset, self.pack_names, self.feature_counts)
         return array
 
