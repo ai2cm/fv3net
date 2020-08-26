@@ -20,9 +20,10 @@ logger = logging.getLogger(__file__)
 logging.basicConfig(level=logging.INFO)
 
 TIMESTAMP_FORMAT = "%Y%m%d.%H%M%S"
+XARRAY_DIM_NAMES_ATTR = "_ARRAY_DIMENSIONS"
 
 
-def set_time_units_like(source_store: zarr.Group, target_store: zarr.Group):
+def _set_time_units_like(source_store: zarr.Group, target_store: zarr.Group):
     """Modify all time-like variables in source_store to use same units as
     corresponding variable in target_store. The provided source_store must be
     opened in a mode such that it can be modified (e.g. mode='r+')"""
@@ -66,65 +67,74 @@ def _rebase_times(
     return cftime.date2num(dates, output_units, calendar)
 
 
-def _update_zarray_shape(var_path, ax, increment):
+def _update_zarray_shape(var_path, axis, increment):
     zarray_path = os.path.join(var_path, ".zarray")
     with open(zarray_path) as f:
         zarray = json.load(f)
-    zarray["shape"][ax] += increment
+    zarray["shape"][axis] += increment
     with open(zarray_path, "w") as f:
         json.dump(zarray, f)
 
 
-def _assert_chunks_valid(array: zarr.array, ax: str, n_shift: int):
-    """Ensure chunk size evenly divides array length along ax and evenly divides
+def _assert_chunks_valid(array: zarr.array, axis: str, n_shift: int):
+    """Ensure chunk size evenly divides array length along axis and evenly divides
     n_shift"""
-    chunk_size = array.chunks[ax]
-    if array.shape[ax] % chunk_size != 0:
-        raise ValueError(f"Chunks are not uniform along axis {ax} for {array}")
+    chunk_size = array.chunks[axis]
+    if array.shape[axis] % chunk_size != 0:
+        raise ValueError(f"Chunks are not uniform along axis {axis} for {array}")
     if n_shift % chunk_size != 0:
         raise ValueError(
-            f"Desired shift must be a multiple of chunk size along {ax}. Got shift "
+            f"Desired shift must be a multiple of chunk size along {axis}. Got shift "
             f"{n_shift} and chunk size {chunk_size} for {array}."
         )
 
 
-def shift_store(group: zarr.Group, dim: str, n_shift: int):
-    """Shift local zarr store which represents an xarray dataset by n_shift along dim.
-    Chunk size must be uniform for each variable and it must evenly divide n_shift.
-    Note:
-        The zarr store represented by group will no longer be valid after this
-    function is called since its chunks will not be listed starting at 0. It is
-    intended that the output of this function be copied into another zarr store as a
-    method of appending.
+def _get_dim_size(group: zarr.Group, dim: str):
+    """Get length of dim, assuming it is same for all arrays that contain it"""
+    for array in group.values():
+        if dim in array.attrs[XARRAY_DIM_NAMES_ATTR]:
+            axis = array.attrs[XARRAY_DIM_NAMES_ATTR].index(dim)
+            return array.shape[axis]
+
+
+def _shift_store(group: zarr.Group, dim: str, n_shift: int):
+    """Shift local zarr store which represents an xarray dataset by n_shift along dim
     
     Args:
         group: zarr Group for an xarray dataset backed by a DirectoryStore
         dim: name of dimension of xarray dataset along which to shift zarr
-        n_shift: how far to shift
+        n_shift: how far to shift. The chunk size along dim of every array in group
+            must evenly divide n_shift.
+
+    Note:
+        The zarr store represented by group will no longer be valid after this
+        function is called since its chunks will not be listed starting at 0. It is
+        intended that the output of this function be copied into another zarr store as
+        a method of appending.
     """
     for array in group.values():
-        if dim in array.attrs["_ARRAY_DIMENSIONS"]:
-            ax = array.attrs["_ARRAY_DIMENSIONS"].index(dim)
-            _shift_array(array, ax, n_shift)
+        if dim in array.attrs[XARRAY_DIM_NAMES_ATTR]:
+            axis = array.attrs[XARRAY_DIM_NAMES_ATTR].index(dim)
+            _shift_array(array, axis, n_shift)
 
 
-def _shift_array(array: zarr.Array, ax: int, n_shift: int):
+def _shift_array(array: zarr.Array, axis: int, n_shift: int):
     """Rename files within array backed by DirectoryStore: e.g. 0.0 -> 1.0 if n_shift
-    equals chunks[ax] and ax=0"""
-    _assert_chunks_valid(array, ax, n_shift)
+    equals chunks[axis] and axis=0"""
+    _assert_chunks_valid(array, axis, n_shift)
     array_path = os.path.join(array.store.dir_path(), array.path)
-    _update_zarray_shape(array_path, ax, n_shift)
+    _update_zarray_shape(array_path, axis, n_shift)
     generic_chunk_filename = ".".join("*" * array.ndim)
     chunk_paths = glob(os.path.join(array_path, generic_chunk_filename))
     # go in reverse order to not overwrite existing chunks
     for chunk_path in sorted(chunk_paths, reverse=True):
-        _rename_chunk(chunk_path, ax, n_shift, array.chunks[ax])
+        _rename_chunk(chunk_path, axis, n_shift, array.chunks[axis])
 
 
-def _rename_chunk(chunk_path: str, ax: int, n_shift: int, chunk_size: int):
+def _rename_chunk(chunk_path: str, axis: int, n_shift: int, chunk_size: int):
     head, tail = os.path.split(chunk_path)
     chunk_indices = tail.split(".")
-    chunk_indices[ax] = str(int(chunk_indices[ax]) + n_shift // chunk_size)
+    chunk_indices[axis] = str(int(chunk_indices[axis]) + n_shift // chunk_size)
     new_chunk_path = os.path.join(head, ".".join(chunk_indices))
     os.rename(chunk_path, new_chunk_path)
 
@@ -136,50 +146,72 @@ def _get_initial_timestamp(rundir: str) -> str:
     return start_date.strftime(TIMESTAMP_FORMAT)
 
 
+def append_zarr_along_time(
+    source_path: str, target_path: str, fs: fsspec.AbstractFileSystem
+):
+    """Append local zarr store at source_path to zarr store at target_path along time.
+    
+    Args:
+        source_path: Local path to zarr store that represents an xarray dataset.
+        target_path: Local or remote url for zarr store to be appended to.
+        fs: Filesystem for target_path.
+
+    Raises:
+        ValueError: If the chunk size in time does not evenly divide length of time
+            dimension for zarr stores at source_path.
+    """
+    consolidate = False
+    if fs.exists(target_path):
+        consolidate = True
+        source_store = zarr.open(source_path, mode="r+")
+        target_store = zarr.open_consolidated(fsspec.get_mapper(target_path))
+        _set_time_units_like(source_store, target_store)
+        _shift_store(source_store, "time", _get_dim_size(target_store, "time"))
+
+    upload_dir(source_path, target_path)
+
+    if consolidate:
+        zarr.consolidate_metadata(fsspec.get_mapper(target_path))
+
+
 @click.command()
 @click.argument("rundir")
 @click.argument("destination")
-@click.option("--segment_label", help="Defaults to timestamp of start of segment.")
-def append_run(rundir: str, destination: str, segment_label: str):
-    """Given post-processed fv3gfs output located at local path RUNDIR, append to
-    possibly existing GCS url DESTINATION. Zarr's will be appended to in place, while
-    all other files will be saved to DESTINATION/artifacts/SEGMENT_LABEL."""
+@click.option("--run_label", help="Defaults to timestamp of start of run.")
+def append_run(rundir: str, destination: str, run_label: str):
+    """Append local RUNDIR to possibly existing output at DESTINATION
+    
+    Zarr's will be appended to in place, while all other files will be saved to 
+    DESTINATION/artifacts/RUN_LABEL.
+    """
     logger.info(f"Appending {rundir} to {destination}")
     authenticate()
 
-    if not segment_label:
-        segment_label = _get_initial_timestamp(rundir)
+    if not run_label:
+        run_label = _get_initial_timestamp(rundir)
 
     fs, _, _ = fsspec.get_fs_token_paths(destination)
 
     with tempfile.TemporaryDirectory() as d_in:
         rundir = shutil.copytree(rundir, os.path.join(d_in, "rundir"))
-        items = os.listdir(rundir)
-        artifacts_dir = os.path.join(rundir, "artifacts", segment_label)
+        files = os.listdir(rundir)
+        artifacts_dir = os.path.join(rundir, "artifacts", run_label)
         os.makedirs(artifacts_dir, exist_ok=True)
 
-        zarrs_to_consolidate = []
-        for item in items:
-            rundir_item = os.path.join(rundir, item)
-            logger.info(f"Processing {rundir_item}")
-            if item.endswith(".zarr"):
-                dest_item = os.path.join(destination, item)
-                if fs.exists(dest_item):
-                    source_store = zarr.open(rundir_item, mode="r+")
-                    target_store = zarr.open_consolidated(fsspec.get_mapper(dest_item))
-                    set_time_units_like(source_store, target_store)
-                    shift_store(source_store, "time", target_store["time"].size)
-                    zarrs_to_consolidate.append(dest_item)
+        for file_ in files:
+            rundir_file = os.path.join(rundir, file_)
+            logger.info(f"Processing {rundir_file}")
+            if file_.endswith(".zarr"):
+                destination_file = os.path.join(destination, file_)
+                logger.info(f"Appending {rundir_file} to {destination_file}")
+                append_zarr_along_time(rundir_file, destination_file, fs)
+                shutil.rmtree(rundir_file)  # remove local copy so not uploaded twice
             else:
-                renamed_item = os.path.join(artifacts_dir, item)
-                os.rename(rundir_item, renamed_item)
+                renamed_file = os.path.join(artifacts_dir, file_)
+                os.rename(rundir_file, renamed_file)
 
-        logger.info(f"Uploading {rundir} to {destination}")
+        logger.info(f"Uploading non-zarr files from {rundir} to {destination}")
         upload_dir(rundir, destination)
-
-    for item in zarrs_to_consolidate:
-        logger.info(f"Consolidating metadata for {item}")
-        zarr.consolidate_metadata(fsspec.get_mapper(item))
 
 
 if __name__ == "__main__":

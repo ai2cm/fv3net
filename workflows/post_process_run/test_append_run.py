@@ -1,3 +1,4 @@
+import fsspec
 import numpy as np
 import xarray as xr
 import append_run
@@ -92,10 +93,19 @@ def test__shift_array(tmpdir, shape, chunks, ax, shift, raises_value_error):
                 assert ".".join(chunk_indices) in items_after
 
 
-@pytest.mark.parametrize("with_coords", [True, False])
-def test_appending_shifted_zarr_gives_expected_ds(tmpdir, with_coords):
-    n_time = 6
-    chunk_time = 2
+@pytest.mark.parametrize(
+    "with_coords, n_time, chunk_time, raises_value_error",
+    [
+        (True, 6, 2, False),
+        (False, 6, 2, False),
+        (True, 6, 1, False),
+        (True, 6, 6, False),
+        (True, 6, 4, True),
+    ],
+)
+def test_append_zarr_along_time(
+    tmpdir, with_coords, n_time, chunk_time, raises_value_error
+):
     da = xr.DataArray(np.arange(5 * n_time).reshape((n_time, 5)), dims=["time", "x"])
     ds = xr.Dataset({"var1": da.chunk({"time": chunk_time})})
     if with_coords:
@@ -109,17 +119,14 @@ def test_appending_shifted_zarr_gives_expected_ds(tmpdir, with_coords):
 
     path1 = str(tmpdir.join("ds1.zarr"))
     path2 = str(tmpdir.join("ds2.zarr"))
-
     ds1.to_zarr(path1, consolidated=True)
     ds2.to_zarr(path2, consolidated=True)
 
-    append_run.set_time_units_like(zarr.open(path1, mode="r+"), zarr.open(path2))
-    append_run.shift_store(zarr.open(path2), "time", n_time)
-
-    _copytree(path2, path1)
-    zarr.consolidate_metadata(path1)
-
-    manually_appended_ds = xr.open_zarr(path1, consolidated=True)
-    expected_ds = xr.concat([ds1, ds2], dim="time")
-
-    xr.testing.assert_identical(manually_appended_ds, expected_ds)
+    if raises_value_error:
+        with pytest.raises(ValueError):
+            append_run.append_zarr_along_time(path2, path1, fsspec.filesystem("file"))
+    else:
+        append_run.append_zarr_along_time(path2, path1, fsspec.filesystem("file"))
+        manually_appended_ds = xr.open_zarr(path1, consolidated=True)
+        expected_ds = xr.concat([ds1, ds2], dim="time")
+        xr.testing.assert_identical(manually_appended_ds, expected_ds)
