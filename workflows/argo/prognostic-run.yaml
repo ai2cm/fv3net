@@ -15,6 +15,11 @@ spec:
           - {name: trained-ml}
           - {name: store-true-args, value: ""}
           - {name: output}
+          - {name: segment-count, value: "1"}
+          - {name: cpu, value: "6"}
+          - {name: memory, value: 6Gi}
+          - {name: work-volume-name, value: work-volume}
+          - {name: external-volume-name, value: external-volume}
       steps:
       - - name: prepare-config
           template: prepare-config
@@ -34,12 +39,17 @@ spec:
             parameters:
               - {name: fv3config, value: "{{steps.prepare-config.outputs.parameters.fv3config}}"}
               - {name: runfile, value: "{{steps.prepare-config.outputs.parameters.runfile}}"}
-              - {name: chunks, value: ""}  # will force use of default chunks
+              - {name: chunks, value: ""}  # by default use chunks specified in post_process.py
               - name: fv3gfs-image
                 value: "us.gcr.io/vcm-ml/prognostic_run:{{inputs.parameters.image-tag}}"
               - {name: output-url, value: "{{inputs.parameters.output}}"}
               - name: post-process-image
                 value: "us.gcr.io/vcm-ml/post_process_run:{{inputs.parameters.image-tag}}"
+              - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
+              - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+              - {name: memory, value: "{{inputs.parameters.memory}}"}
+              - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+              - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
     - name: prepare-config
       inputs:
         parameters:
@@ -54,22 +64,18 @@ spec:
           - {name: fv3config, valueFrom: {path: /tmp/fv3config.yaml}}
           - name: runfile
             valueFrom:
-              path: ~/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
+              path: /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
       container:
         image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
-        env:
-          - name: GOOGLE_APPLICATION_CREDENTIALS
-            value: /secret/gcp-credentials/key.json
-          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
-            value: /secret/gcp-credentials/key.json
         command: ["bash", "-c", "-x"]
+        workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run
         args:
           - |
             cat << EOF > config.yaml
             {{inputs.parameters.config}}
             EOF
 
-            python ~/fv3net/workflows/prognostic_c48_run/prepare_config.py \
+            python prepare_config.py \
               --model_url {{inputs.parameters.trained-ml}} \
               --prog_config_yml config.yaml \
               {{inputs.parameters.reference-restarts}} \
