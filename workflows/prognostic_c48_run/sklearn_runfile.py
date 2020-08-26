@@ -12,7 +12,6 @@ from typing import (
     Sequence,
 )
 
-import fsspec
 from toolz import curry
 import xarray as xr
 from mpi4py import MPI
