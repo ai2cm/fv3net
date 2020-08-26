@@ -14,6 +14,7 @@ spec:
           - name: times  
           - name: offline-diags-output
           - name: report-output
+          - name: data-path
       container:
         image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
         command: ["bash", "-c", "-x"]
@@ -43,7 +44,8 @@ spec:
               config.yaml \
               {{inputs.parameters.ml-model}} \
               {{inputs.parameters.offline-diags-output}} \
-              --timesteps-file times.json
+              --timesteps-file times.json \
+              --data-path {{inputs.parameters.data-path}}
               
             python -m offline_ml_diags.create_report \
               {{inputs.parameters.offline-diags-output}} \

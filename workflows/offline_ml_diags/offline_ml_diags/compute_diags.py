@@ -66,7 +66,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         nargs="+",
         help=(
             "Data path(s) for opening mappers. Will be passed to mapper function as a "
-            "list if >1 arg provided, else will pass value as string."
+            "list if > 1 arg provided, else will pass value as string."
         ),
     )
     parser.add_argument(
@@ -169,7 +169,9 @@ def _get_base_mapper(args, config: Mapping):
     base_mapping_function = getattr(
         loaders.mappers, config["batch_kwargs"]["mapping_function"]
     )
-    data_path = args.data_path or config.get("data_path", None)
+    if not args.data_path:
+        raise ValueError("Must provide at least one command line argument to --data-path")
+    data_path = args.data_path
     if isinstance(data_path, List) and len(data_path) == 1:
         data_path = data_path[0]
     return base_mapping_function(

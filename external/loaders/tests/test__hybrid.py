@@ -93,7 +93,7 @@ def test_open_fine_resolution_nudging_to_obs_hybrid_data_path(nudging_url, fine_
         "merge_files": ("prognostic_diags.zarr", "nudging_tendencies.zarr"),
         "rename_vars": rename_prog_nudge,
     }
-    # test opener with paths provided through kwargs
+    # test opener with paths provided through data_path
     data = open_fine_resolution_nudging_to_obs_hybrid(
         [nudging_url, fine_url], prog_nudge_kwargs, {}
     )

@@ -7,7 +7,7 @@ spec:
     parameters:
       - name: image-tag
       - name: root
-      - name: training-input
+      - name: train-test-data
       - name: training-config
       - name: train-times
       - name: initial-condition
@@ -42,7 +42,7 @@ spec:
             - name: image
               value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
             - name: input
-              value: "{{workflow.parameters.training-input}}"
+              value: "{{workflow.parameters.train-test-data}}"
             - name: config
               value: "{{workflow.parameters.training-config}}"
             - name: times
@@ -89,3 +89,5 @@ spec:
                 value: "{{workflow.parameters.root}}/offline_diags"
               - name: report-output
                 value: "{{workflow.parameters.public-report-output}}"
+              - name: data-path
+                value: "{{workflow.parameters.train-test-data}}"
