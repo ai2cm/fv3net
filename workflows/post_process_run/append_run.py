@@ -181,7 +181,7 @@ def append_zarr_along_time(
 def append_run(rundir: str, destination: str, run_label: str):
     """Append local RUNDIR to possibly existing output at DESTINATION
     
-    Zarr's will be appended to in place, while all other files will be saved to 
+    Zarr's will be appended to in place, while all other files will be saved to
     DESTINATION/artifacts/RUN_LABEL.
     """
     logger.info(f"Appending {rundir} to {destination}")
