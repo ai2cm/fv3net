@@ -91,10 +91,12 @@ argo submit --from workflowtemplate/prognostic-run-diags \
 ```
 
 
-If succesful, the completed report will be available at
+If successful, the completed report will be available at
 `gs://vcm-ml-public/argo/<name>/index.html`. This can be accessed from a web browser using this link:
 
     http://storage.googleapis.com/vcm-ml-public/argo/<name>/index.html 
 
+If you wish to generate movies of column-integrated heating and moistening along with the report, 
+add the parameter `-p make-movies="true"`. By default, the movies will not be created.
 
 [1]: http://storage.googleapis.com/vcm-ml-public/experiments-2020-03/prognostic_run_diags/combined.html
