@@ -28,7 +28,8 @@ function waitForComplete {
     NAMESPACE=$2
     timeout=$(date -ud "30 minutes" +%s)
     job_phase=$(getPhase $jobName $NAMESPACE)
-    while [[ $(date +%s) -le $timeout ]] && [[ $job_phase == Running ]]
+    continue_phases="Running Pending null"  # job phase may be Pending or null initially
+    while [[ $(date +%s) -le $timeout && "$(grep $job_phase <<< $continue_phases )" ]]
     do
         echo "$(getJob $jobName $NAMESPACE)"
         echo "$(date '+%Y-%m-%d %H:%M')" Job active: "$jobName" ... sleeping ${SLEEP_TIME}s
