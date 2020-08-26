@@ -217,7 +217,7 @@ spec:
       args:
       - |
         post_process.py --chunks /mnt/data/chunks.yaml /mnt/data/rundir /tmp/processed_rundir
-        append_run.py /tmp/processed_rundir {{inputs.parameters.output-url}}
+        append.py /tmp/processed_rundir {{inputs.parameters.output-url}}
         cp -r /mnt/data/rundir/RESTART /mnt/data/RESTART
         rm -r /mnt/data/rundir
         rm -r /tmp/processed_rundir

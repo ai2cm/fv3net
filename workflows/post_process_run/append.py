@@ -177,12 +177,12 @@ def append_zarr_along_time(
 @click.command()
 @click.argument("rundir")
 @click.argument("destination")
-@click.option("--run_label", help="Defaults to timestamp of start of run.")
-def append_run(rundir: str, destination: str, run_label: str):
+@click.option("--segment_label", help="Defaults to timestamp of start of segment.")
+def append_segment(rundir: str, destination: str, run_label: str):
     """Append local RUNDIR to possibly existing output at DESTINATION
     
     Zarr's will be appended to in place, while all other files will be saved to
-    DESTINATION/artifacts/RUN_LABEL.
+    DESTINATION/artifacts/SEGMENT_LABEL.
     """
     logger.info(f"Appending {rundir} to {destination}")
     authenticate()
@@ -215,4 +215,4 @@ def append_run(rundir: str, destination: str, run_label: str):
 
 
 if __name__ == "__main__":
-    append_run()
+    append_segment()
