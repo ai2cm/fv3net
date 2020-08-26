@@ -59,19 +59,19 @@ the post-processing step. See the nudging workflow at
 `workflows/argo/nudging/nudging.yaml` for an example usage of the `run-fv3gfs`
 template.
 
-|Parameter| Description|
-|-------- |-------------|
-| fv3config | String representation of an fv3config object |
-| runfile | String representation of an fv3gfs runfile |
-| output-url | GCS url for outputs |
-| fv3gfs-image | Docker image used to run model. Must have fv3gfs-wrapper and fv3config installed. |
-| post-process-image | Docker image used to post-process and upload outputs |
-| chunks | (optional) String describing desired chunking of diagnostics |
-| cpu | (optional) Requested cpu for run-model step |
-| memory | (optional) Requested memory for run-model step |
-| segment-count | (optional) Number of segments to run |
-| working-volume-name | (optional) Name of volume for temporary work. Volume claim must be made prior to start of run-fv3gfs workflow. |
-| external-volume-name | (optional) Name of volume with external data required for model run. E.g. for restart data in a nudged run. |
+| Parameter            | Description                                                                                           |
+|----------------------|-------------------------------------------------------------------------------------------------------|
+| fv3config            | String representation of an fv3config object                                                          |
+| runfile              | String representation of an fv3gfs runfile                                                            |
+| output-url           | GCS url for outputs                                                                                   |
+| fv3gfs-image         | Docker image used to run model. Must have fv3gfs-wrapper and fv3config installed.                     |
+| post-process-image   | Docker image used to post-process and upload outputs                                                  |
+| chunks               | (optional) String describing desired chunking of diagnostics                                          |
+| cpu                  | (optional) Requested cpu for run-model step                                                           |
+| memory               | (optional) Requested memory for run-model step                                                        |
+| segment-count        | (optional) Number of segments to run                                                                  |
+| working-volume-name  | (optional) Name of volume for temporary work. Volume claim must be made prior to run-fv3gfs workflow. |
+| external-volume-name | (optional) Name of volume with external data. E.g. for restart data in a nudged run.                  |
 
 Defaults for optional parameters can be found in the workflow.
 
@@ -118,10 +118,10 @@ volumes can be passed to the `run-fv3gfs` template. See the end-to-end test work
 The `prognostic-run-diags` workflow template will generate reports for
 prognostic runs. See this [example][1].
 
-|Parameter| Description|
-|-------- |-------------|
-| runs | A json-encoded list of {"name": ..., "url": ...} items |
-| docker-image | The docker image to use |
+| Parameter    | Description                                            |
+|--------------|--------------------------------------------------------|
+| runs         | A json-encoded list of {"name": ..., "url": ...} items |
+| docker-image | The docker image to use                                |
 
 - `runs`: If `runs` is `""`, then all the timesteps will be processed.
 
