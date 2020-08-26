@@ -1,7 +1,6 @@
-from fv3fit.sklearn._adapters import RenamingAdapter, StackingAdapter
+from runtime import RenamingAdapter, StackingAdapter
 import xarray as xr
 import numpy as np
-
 import pytest
 
 

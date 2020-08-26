@@ -4,6 +4,7 @@ History
 
 latest
 ------
+* Extended :code:`workflows/prognostic_c48_run` to run with :code:`fv3fit.keras` ML models
 * Unified :code:`fv3fit` API between keras and sklearn subpackages; offline ml diagnostics enabled for keras models
 * Delete workflows/end_to_end
 * Delete workflows/one_step_jobs
