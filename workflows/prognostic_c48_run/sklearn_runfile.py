@@ -1,5 +1,6 @@
-import logging
 from datetime import datetime
+import json
+import logging
 from typing import (
     Hashable,
     Iterable,
@@ -11,18 +12,15 @@ from typing import (
     Sequence,
 )
 
-from toolz import curry
-import json
-
 import fsspec
+from toolz import curry
 import xarray as xr
 from mpi4py import MPI
-from sklearn.externals import joblib
 
 import fv3gfs
 import fv3util
 import runtime
-from fv3fit.sklearn import RenamingAdapter, StackingAdapter
+
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -52,6 +50,7 @@ def compute_diagnostics(state, diags):
     return dict(
         air_temperature=state[TEMP],
         specific_humidity=state[SPHUM],
+        pressure_thickness_of_atmospheric_layer=state[DELP],
         net_moistening=(net_moistening)
         .assign_attrs(units="kg/m^2/s")
         .assign_attrs(description="column integrated ML model moisture tendency"),
@@ -103,17 +102,14 @@ def precipitation_sum(
 
 
 def open_model(config):
-    # Load the model
+    model = runtime.get_ml_model(config)
+    stacked_predictor = runtime.StackingAdapter(model, sample_dims=["y", "x"])
     rename_in = config.get("input_standard_names", {})
     rename_out = config.get("output_standard_names", {})
-    with fsspec.open(config["model"], "rb") as f:
-        model = joblib.load(f)
-
-    stacked_predictor = StackingAdapter(model, sample_dims=["y", "x"])
-    return RenamingAdapter(stacked_predictor, rename_in, rename_out)
+    return runtime.RenamingAdapter(stacked_predictor, rename_in, rename_out)
 
 
-def predict(model: RenamingAdapter, state: State) -> State:
+def predict(model: runtime.RenamingAdapter, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
     ds = xr.Dataset(state)  # type: ignore
     output = model.predict(ds)
@@ -173,14 +169,9 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
             "diagnostic_ml", False
         )
 
-        # download the scikit-learn model
-        self._log_info("Downloading Sklearn Model")
-        if comm.rank == 0:
-            model = open_model(args["scikit_learn"])
-        else:
-            model = None
-        model = comm.bcast(model, root=0)
-        self._model = model
+        # download the model
+        self._log_info("Downloading ML Model")
+        self._model = open_model(args["scikit_learn"])
         self._log_info("Model Downloaded")
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
 
@@ -205,6 +196,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         return {}
 
     def _step_python(self) -> Diagnostics:
+
         variables: List[Hashable] = list(
             self._model.input_variables | REQUIRED_VARIABLES
         )

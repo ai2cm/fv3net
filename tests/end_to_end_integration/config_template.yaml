@@ -1,6 +1,5 @@
 root: $GCS_OUTPUT_URL  # substituted by envsubst in run_test.sh
 image-tag: $VERSION  # substituted by envsubst in run_test.sh
-restart-pvc: nudging-read-only
 initial-condition: "20160801.003000"
 reference-restarts: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
 nudging-times: |
@@ -55,6 +54,7 @@ training-config: |
     timesteps_per_batch: 1
     mapping_function: open_merged_nudged
     mapping_kwargs:
+      consolidated: true
       rename_vars:
         air_temperature_tendency_due_to_nudging: dQ1
         specific_humidity_tendency_due_to_nudging: dQ2
