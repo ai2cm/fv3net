@@ -13,6 +13,7 @@ with open(sys.argv[1]) as f:
 
 for metric in data_lines:
     numpy.testing.assert_allclose(
-        metric["vapor_mass_change"]["value"], metric["total_mass_change"]["value"]
+        metric["vapor_mass_change"]["value"], metric["total_mass_change"]["value"],
+        atol=1e-2
     )
 
