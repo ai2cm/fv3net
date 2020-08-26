@@ -1,0 +1,12 @@
+before_dynamics.zarr:
+  time: 1
+after_dynamics.zarr:
+  time: 1
+after_physics.zarr:
+  time: 1
+after_nudging.zarr:
+  time: 1
+reference.zarr:
+  time: 1
+nudging_tendencies.zarr:
+  time: 1
