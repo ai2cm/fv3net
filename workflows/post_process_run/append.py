@@ -147,7 +147,7 @@ def _get_initial_timestamp(rundir: str) -> str:
 
 
 def append_zarr_along_time(
-    source_path: str, target_path: str, fs: fsspec.AbstractFileSystem
+    source_path: str, target_path: str, fs: fsspec.AbstractFileSystem, dim: str = "time"
 ):
     """Append local zarr store at source_path to zarr store at target_path along time.
     
@@ -155,10 +155,14 @@ def append_zarr_along_time(
         source_path: Local path to zarr store that represents an xarray dataset.
         target_path: Local or remote url for zarr store to be appended to.
         fs: Filesystem for target_path.
+        dim: (optional) name of time dimension. Defaults to "time".
 
     Raises:
         ValueError: If the chunk size in time does not evenly divide length of time
             dimension for zarr stores at source_path.
+
+    Warning:
+        The zarr store as source_path will be modified in place.
     """
     consolidate = False
     if fs.exists(target_path):
@@ -166,7 +170,7 @@ def append_zarr_along_time(
         source_store = zarr.open(source_path, mode="r+")
         target_store = zarr.open_consolidated(fsspec.get_mapper(target_path))
         _set_time_units_like(source_store, target_store)
-        _shift_store(source_store, "time", _get_dim_size(target_store, "time"))
+        _shift_store(source_store, dim, _get_dim_size(target_store, dim))
 
     upload_dir(source_path, target_path)
 
@@ -193,25 +197,26 @@ def append_segment(rundir: str, destination: str, segment_label: str):
     fs, _, _ = fsspec.get_fs_token_paths(destination)
 
     with tempfile.TemporaryDirectory() as d_in:
-        rundir = shutil.copytree(rundir, os.path.join(d_in, "rundir"))
-        files = os.listdir(rundir)
-        artifacts_dir = os.path.join(rundir, "artifacts", segment_label)
+        tmp_rundir = shutil.copytree(rundir, os.path.join(d_in, "rundir"))
+        files = os.listdir(tmp_rundir)
+        artifacts_dir = os.path.join(tmp_rundir, "artifacts", segment_label)
         os.makedirs(artifacts_dir, exist_ok=True)
 
         for file_ in files:
-            rundir_file = os.path.join(rundir, file_)
-            logger.info(f"Processing {rundir_file}")
+            tmp_rundir_file = os.path.join(tmp_rundir, file_)
+            logger.info(f"Processing {tmp_rundir_file}")
             if file_.endswith(".zarr"):
                 destination_file = os.path.join(destination, file_)
-                logger.info(f"Appending {rundir_file} to {destination_file}")
-                append_zarr_along_time(rundir_file, destination_file, fs)
-                shutil.rmtree(rundir_file)  # remove local copy so not uploaded twice
+                logger.info(f"Appending {tmp_rundir_file} to {destination_file}")
+                append_zarr_along_time(tmp_rundir_file, destination_file, fs)
+                # remove temporary local copy so not uploaded twice
+                shutil.rmtree(tmp_rundir_file)
             else:
                 renamed_file = os.path.join(artifacts_dir, file_)
-                os.rename(rundir_file, renamed_file)
+                os.rename(tmp_rundir_file, renamed_file)
 
-        logger.info(f"Uploading non-zarr files from {rundir} to {destination}")
-        upload_dir(rundir, destination)
+        logger.info(f"Uploading non-zarr files from {tmp_rundir} to {destination}")
+        upload_dir(tmp_rundir, destination)
 
 
 if __name__ == "__main__":
