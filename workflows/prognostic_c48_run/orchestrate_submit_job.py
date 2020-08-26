@@ -35,19 +35,12 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "prog_config_yml",
-        type=str,
-        default="prognostic_config.yml",
-        help="Path to a config update YAML file specifying the changes from the base"
-        "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
-    )
-    parser.add_argument(
-        "--initial_condition_url",
+        "initial_condition_url",
         type=str,
         help="Remote url to directory holding timesteps with model initial conditions.",
     )
     parser.add_argument(
-        "--ic_timestep",
+        "ic_timestep",
         type=str,
         help="Time step to grab from the initial conditions url.",
     )
@@ -69,9 +62,11 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "--image-tag", type=str, default=None, help="tag to apply to all default images"
     )
     parser.add_argument(
-        "--diag-table",
+        "--prog_config_yml",
         type=str,
-        default="/fv3net/workflows/prognostic_c48_run/diag_table_prognostic",
+        default="prognostic_config.yml",
+        help="Path to a config update YAML file specifying the changes from the base"
+        "fv3config (e.g. diag_table, runtime, ...) for the prognostic run.",
     )
     parser.add_argument(
         "--diagnostic_ml",
@@ -150,18 +145,15 @@ if __name__ == "__main__":
     with open(args.prog_config_yml, "r") as f:
         user_config = yaml.safe_load(f)
 
-    ic_timestep = args.ic_timestep or user_config["initial-condition"]
-    initial_condition_url = (
-        args.initial_condition_url or user_config["reference-restarts"]
-    )
-
     # It should be possible to implement all configurations as overlays
     # so this could be done as one vcm.update_nested_dict call
     # updated_nested_dict just needs to know how to merge patch_files fields
     config = vcm.update_nested_dict(
         fv3kube.get_base_fv3config(user_config.get("base_version")),
-        fv3kube.c48_initial_conditions_overlay(initial_condition_url, ic_timestep),
-        {"diag_table": args.diag_table},
+        fv3kube.c48_initial_conditions_overlay(
+            args.initial_condition_url, args.ic_timestep
+        ),
+        {"diag_table": "/fv3net/workflows/prognostic_c48_run/diag_table_prognostic"},
     )
     insert_sklearn_settings(config, args.model_url)
     insert_default_diagnostics(config)
@@ -175,27 +167,25 @@ if __name__ == "__main__":
         user_config,
     )
 
-    print(yaml.safe_dump(model_config))
+    # submission scripts
+    short_id = fv3kube.get_alphanumeric_unique_tag(8)
+    job_label = {
+        "orchestrator-jobs": f"prognostic-group-{short_id}",
+        # needed to use pod-disruption budget
+        "app": "end-to-end",
+    }
+    kube_opts = get_kube_opts(user_config, args.image_tag)
+    pod_spec = fv3kube.containers.post_processed_fv3_pod_spec(
+        model_config, args.output_url, **kube_opts
+    )
+    job = fv3kube.containers.pod_spec_to_job(
+        pod_spec, labels=job_label, generate_name="prognostic-run-"
+    )
 
-    # # submission scripts
-    # short_id = fv3kube.get_alphanumeric_unique_tag(8)
-    # job_label = {
-    #     "orchestrator-jobs": f"prognostic-group-{short_id}",
-    #     # needed to use pod-disruption budget
-    #     "app": "end-to-end",
-    # }
-    # kube_opts = get_kube_opts(user_config, args.image_tag)
-    # pod_spec = fv3kube.containers.post_processed_fv3_pod_spec(
-    #     model_config, args.output_url, **kube_opts
-    # )
-    # job = fv3kube.containers.pod_spec_to_job(
-    #     pod_spec, labels=job_label, generate_name="prognostic-run-"
-    # )
+    client = fv3kube.initialize_batch_client()
+    created_job = client.create_namespaced_job("default", job)
+    logger.info(f"Created job: {created_job.metadata.name}")
 
-    # client = fv3kube.initialize_batch_client()
-    # created_job = client.create_namespaced_job("default", job)
-    # logger.info(f"Created job: {created_job.metadata.name}")
-
-    # if not args.detach:
-    #     fv3kube.wait_for_complete(job_label, raise_on_fail=not args.allow_fail)
-    #     fv3kube.delete_completed_jobs(job_label)
+    if not args.detach:
+        fv3kube.wait_for_complete(job_label, raise_on_fail=not args.allow_fail)
+        fv3kube.delete_completed_jobs(job_label)
