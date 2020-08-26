@@ -1,5 +1,6 @@
 # execute from docker
-all: err
+test: err
+	python assert.py err
 
 log err: rundir
 	cd rundir && mpirun -np 6 \

@@ -12,6 +12,7 @@ from typing import (
 )
 
 from toolz import curry
+import json
 
 import fsspec
 import xarray as xr
@@ -262,11 +263,18 @@ def monitor_func(name, func):
         }
 
         if comm.rank == 0:
-            mass_difference = (mass_after - mass_before)/area_all
-            vapor_mass_difference = (vapor_mass_after - vapor_mass_before)/area_all
-            logger.info(f"total_mass_change_{name}: {mass_difference} Pa")
-            logger.info(f"vapor_mass_change_{name}: {vapor_mass_difference} Pa")
+            output = {
+                "total_mass_change" : {
+                    "value": (mass_after - mass_before)/area_all
+                    ,"units": "Pa"
+                },
+                "vapor_mass_change" : {
+                    "value": (vapor_mass_after - vapor_mass_before)/area_all
+                    ,"units": "Pa"
+                },
+            }
 
+            logging.info(f"{name}:{json.dumps(output)}")
 
         return tendency
 
