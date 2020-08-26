@@ -13,7 +13,6 @@ from typing import (
     Sequence,
 )
 
-from toolz import curry
 import xarray as xr
 from mpi4py import MPI
 
@@ -245,10 +244,13 @@ class monitor:
         name: the name to tag the tendency diagnostics with
 
     """
+
     def __init__(self, name: str):
         self.name = name
 
-    def __call__(self, func: Callable[[TimeLoop], Diagnostics]) -> Callable[[TimeLoop], Diagnostics]:
+    def __call__(
+        self, func: Callable[[TimeLoop], Diagnostics]
+    ) -> Callable[[TimeLoop], Diagnostics]:
 
         name = self.name
 
