@@ -1,6 +1,6 @@
 root: gs://vcm-ml-scratch/annak/2020-08-26-test-argo-templates
 public-report-output: gs://vcm-ml-public/annak/2020-08-26-test-argo-templates
-image-tag: 900cb053a4dea42a8cf101d658c7357389bb1851
+image-tag: de123a50edcd2119eeb6165323cef9f82ca66ea6
 train-test-data: 'gs://vcm-ml-experiments/2020-06-30-triad-round-2/hybrid/nudging  gs://vcm-ml-experiments/2020-07-30-fine-res'
 initial-condition: "20160801.001500"
 reference-restarts: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts

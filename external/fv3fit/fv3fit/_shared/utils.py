@@ -11,6 +11,8 @@ def parse_data_path(args):
         )
     if not args.no_train_subdir_append:
         data_path = [os.path.join(path, "train") for path in args.train_data_path]
+    else:
+        data_path = args.train_data_path
     if isinstance(args.train_data_path, List) and len(data_path) == 1:
         return data_path[0]
     else:
