@@ -50,15 +50,78 @@ This job can be monitored by running
 Moreover, the templates within this workflows can be used by other workflows.
 
 
+### Running fv3gfs with argo
+
+The `run-fv3gfs` template is a general purpose workflow to do fv3gfs simulations on the
+cloud. It does post-processing on the fly and the workflow can run the model in
+sequential segments to increase reliability and reduce the memory requirement for
+the post-processing step. See the nudging workflow at
+`workflows/argo/nudging/nudging.yaml` for an example usage of the `run-fv3gfs`
+template.
+
+| Parameter            | Description                                                                                           |
+|----------------------|-------------------------------------------------------------------------------------------------------|
+| fv3config            | String representation of an fv3config object                                                          |
+| runfile              | String representation of an fv3gfs runfile                                                            |
+| output-url           | GCS url for outputs                                                                                   |
+| fv3gfs-image         | Docker image used to run model. Must have fv3gfs-wrapper and fv3config installed.                     |
+| post-process-image   | Docker image used to post-process and upload outputs                                                  |
+| chunks               | (optional) String describing desired chunking of diagnostics                                          |
+| cpu                  | (optional) Requested cpu for run-model step                                                           |
+| memory               | (optional) Requested memory for run-model step                                                        |
+| segment-count        | (optional) Number of segments to run                                                                  |
+| working-volume-name  | (optional) Name of volume for temporary work. Volume claim must be made prior to run-fv3gfs workflow. |
+| external-volume-name | (optional) Name of volume with external data. E.g. for restart data in a nudged run.                  |
+
+Defaults for optional parameters can be found in the workflow.
+
+#### Running multiple segments
+
+The workflow will submit `segment-count` model segments in sequence. The post-processed diagnostic 
+outputs from each segment will automatically be appended to the previous segment's at
+`output-url`. All other outputs (restart files, logging, etc.) will be saved to
+`output-url/artifacts/{timestamp}` where `timestamp` corresponds to the start time of
+each segment. The duration of each segment is defined by the `fv3config` object passed
+to the workflow.
+
+#### Post-processing and chunking
+
+The post-processing can convert netCDF diagnostic outputs of the form `name.tile?.nc`
+to zarr with user-specified chunks and rechunk zarrs output by fv3gfs-wrapper. To
+specify that a set of netCDF outputs should be converted to zarr, their chunking must be
+defined in the given `chunks` parameter. For example:
+```yaml
+atmos_8xdaily.zarr:
+  time: 8
+nudging_tendencies.zarr:
+  time: 1
+sfc_dt_atmos.zarr:
+  time: 96
+```
+
+Some diagnostics have default chunking. See post-processing script at 
+`workflows/post_process_run/post_process.py` for more details.
+
+WARNING: if `segment-count` is greater than 1, the chunk size in time must evenly
+divide the length of the time dimension for each diagnostic output.
+
+#### Volumes used by run-fv3gfs template
+
+Due to some limitations of argo, it is necessary that the entrypoint workflow makes a
+claim for volumes that are ultimately mounted and used by `run-fv3gfs`. The name of these
+volumes can be passed to the `run-fv3gfs` template. See the end-to-end test workflow at
+`tests/end_to_end_integration/argo.yaml` for an example of the volume claims (including 
+`gcp-secret-key`) necessary to use `run-fv3gfs` .
+
 ### Prognostic run report
 
 The `prognostic-run-diags` workflow template will generate reports for
 prognostic runs. See this [example][1].
 
-|Parameter| Description|
-|-------- |-------------|
-| runs | A json-encoded list of {"name": ..., "url": ...} items |
-| docker-image | The docker image to use |
+| Parameter    | Description                                            |
+|--------------|--------------------------------------------------------|
+| runs         | A json-encoded list of {"name": ..., "url": ...} items |
+| docker-image | The docker image to use                                |
 
 - `runs`: If `runs` is `""`, then all the timesteps will be processed.
 
