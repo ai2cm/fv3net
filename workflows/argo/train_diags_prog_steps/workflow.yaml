@@ -79,7 +79,7 @@ spec:
               - name: image-tag
                 value: "{{workflow.parameters.image-tag}}"
               - name: ml-model
-                value: "{{workflow.parameters.root}}/trained_model"
+                value: "{{workflow.parameters.root}}/trained_model/sklearn_model.pkl"
               - name: config
                 value: "{{workflow.parameters.training-config}}"
               - name: times
