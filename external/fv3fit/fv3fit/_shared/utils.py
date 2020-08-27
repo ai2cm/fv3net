@@ -7,7 +7,8 @@ def parse_data_path(args):
     # which is useful for hybrid training data
     if not args.train_data_path:
         raise ValueError(
-            "Must provide at least one command line argument to --train-data-path")
+            "Must provide at least one command line argument to --train-data-path"
+        )
     if not args.no_train_subdir_append:
         data_path = [os.path.join(path, "train") for path in args.train_data_path]
     if isinstance(args.train_data_path, List) and len(data_path) == 1:

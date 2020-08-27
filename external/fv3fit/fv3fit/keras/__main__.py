@@ -15,7 +15,7 @@ MODEL_FILENAME = "model_data"
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument(
         "train_config_file",
         type=str,
@@ -31,7 +31,8 @@ def parse_args():
         help=(
             "Data path(s) for opening mappers. Will be passed to mapper function as a "
             "list if > 1 arg provided, else will pass value as string."
-        )
+        ),
+    )
     parser.add_argument(
         "--timesteps-file",
         type=str,
@@ -55,7 +56,6 @@ if __name__ == "__main__":
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
         train_config.batch_kwargs["timesteps"] = timesteps
-
 
     _save_config_output(args.output_data_path, train_config)
 

@@ -38,7 +38,8 @@ def parse_args():
         help=(
             "Data path(s) for opening mappers. Will be passed to mapper function as a "
             "list if > 1 arg provided, else will pass value as string."
-        )
+        ),
+    )
     parser.add_argument(
         "--delete-local-results-after-upload",
         type=bool,
