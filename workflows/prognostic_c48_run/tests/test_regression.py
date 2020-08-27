@@ -1,5 +1,6 @@
 from pathlib import Path
 import warnings
+import json
 
 import fv3config
 import joblib
@@ -445,9 +446,14 @@ def _model_dataset():
 def _save_mock_sklearn_model(tmpdir):
 
     data = _model_dataset()
-    estimator = DummyRegressor(
-        strategy="constant", constant=np.zeros(2 * data.sizes["z"])
-    )
+
+    nz = data.sizes["z"]
+    heating_constant_K_per_s = np.zeros(nz)
+    # include nonzero moistening to test for mass conservation
+    moistening_constant_per_s = -np.full(nz, 1e-4 / 86400)
+    constant = np.concatenate([heating_constant_K_per_s, moistening_constant_per_s])
+    estimator = DummyRegressor(strategy="constant", constant=constant)
+
     model = SklearnWrapper(
         "sample", ["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], estimator
     )
@@ -470,7 +476,7 @@ def _save_mock_keras_model(tmpdir):
     return str(tmpdir)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", params=["keras", "sklearn"])
 def completed_rundir(request, tmpdir_factory):
 
     if not FV3GFS_INSTALLED:
@@ -485,15 +491,10 @@ def completed_rundir(request, tmpdir_factory):
 
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
     config = get_prognostic_config(request.param, model_path)
-    fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=False)
+    fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=True)
     return tmpdir
 
 
-@pytest.mark.parametrize(
-    "completed_rundir",
-    [pytest.param("keras", id="keras"), pytest.param("sklearn", id="sklearn")],
-    indirect=True,
-)
 def test_fv3run_checksum_restarts(completed_rundir):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
@@ -514,11 +515,6 @@ def test_fv3run_checksum_restarts(completed_rundir):
         )
 
 
-@pytest.mark.parametrize(
-    "completed_rundir",
-    [pytest.param("keras", id="keras"), pytest.param("sklearn", id="sklearn")],
-    indirect=True,
-)
 def test_fv3run_diagnostic_outputs(completed_rundir):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
@@ -535,3 +531,23 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
     ]:
         assert diagnostics[variable].dims == dims
         assert np.sum(np.isnan(diagnostics[variable].values)) == 0
+
+
+def test_fv3run_python_mass_conserving(completed_rundir):
+    data_lines = []
+
+    path = str(completed_rundir.join("stdout.log"))
+
+    # read python mass conservation info
+    with open(path) as f:
+        for line in f:
+            start = "INFO:root:python:"
+            if line.startswith(start):
+                data_lines.append(json.loads(line[len(start) :]))
+
+    for metric in data_lines:
+        np.testing.assert_allclose(
+            metric["vapor_mass_change"]["value"],
+            metric["total_mass_change"]["value"],
+            atol=1e-2,
+        )

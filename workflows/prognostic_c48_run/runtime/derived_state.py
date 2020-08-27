@@ -70,7 +70,7 @@ class DerivedFV3State:
         
         Same as dict.update.
         """
-        self._getter.set_state(
+        self._getter.set_state_mass_conserving(
             {
                 key: fv3util.Quantity.from_data_array(value)
                 for key, value in items.items()
