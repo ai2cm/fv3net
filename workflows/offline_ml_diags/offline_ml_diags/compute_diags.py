@@ -61,7 +61,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help=("Local or remote path where diagnostic dataset will be written."),
     )
     parser.add_argument(
-        "--data_path",
+        "--data-path",
         type=str,
         nargs="+",
         help=(
