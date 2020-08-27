@@ -112,10 +112,11 @@ def test_training_integration(
             "python",
             "-m",
             "fv3fit.keras",
-            data_source_path,
             train_config_filename,
             tmp_path,
             "--no-train-subdir-append",
+            "--train-data-path",
+            data_source_path,
         ]
     )
     required_names = ["model_data", "training_config.yml"]
