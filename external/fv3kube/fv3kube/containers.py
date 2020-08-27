@@ -149,6 +149,8 @@ def post_process_container(
     data_vol: V1Volume,
     secret_vol: V1Volume,
     image: str = "us.gcr.io/vcm-ml/post_process_run:latest",
+    cpu: str = "6",
+    memory: str = "3600M",
 ) -> V1Container:
     """Container for post processing fv3 model output for cloud storage
 
@@ -170,7 +172,7 @@ def post_process_container(
     container.command = ["post_process.py", rundir, destination]
     # Suitable for C48 job
     container.resources = V1ResourceRequirements(
-        limits=dict(cpu="6", memory="3600M"), requests=dict(cpu="6", memory="3600M"),
+        limits=dict(cpu=cpu, memory=memory), requests=dict(cpu=cpu, memory=memory),
     )
 
     insert_gcp_secret(container, secret_vol)
@@ -187,6 +189,8 @@ def post_processed_fv3_pod_spec(
     gcp_secret_name: str = "gcp-key",
     cpu: str = "6",
     memory: str = "6Gi",
+    cpu_post_process: str = "6",
+    memory_post_process: str = "3600M",
 ) -> V1PodSpec:
     """A PodSpec for running the prognostic run
     
@@ -217,7 +221,13 @@ def post_processed_fv3_pod_spec(
         ],
         containers=[
             post_process_container(
-                "rundir", output_url, empty_vol, secret_vol, image=post_process_image
+                "rundir",
+                output_url,
+                empty_vol,
+                secret_vol,
+                image=post_process_image,
+                cpu=cpu_post_process,
+                memory=memory_post_process,
             )
         ],
         volumes=[empty_vol, secret_vol],
