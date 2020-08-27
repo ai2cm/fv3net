@@ -80,6 +80,6 @@ spec:
               --model_url {{inputs.parameters.trained-ml}} \
               --prog_config_yml config.yaml \
               {{inputs.parameters.reference-restarts}} \
-              {{workflow.parameters.initial-condition}} \
+              {{inputs.parameters.initial-condition}} \
               {{inputs.parameters.store-true-args}} \
               > /tmp/fv3config.yaml
