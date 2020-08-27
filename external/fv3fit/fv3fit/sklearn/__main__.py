@@ -56,9 +56,7 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    data_path = args.train_data_path
-    if not args.no_train_subdir_append:
-        data_path = os.path.join(data_path, "train")
+    data_path = shared.parse_data_path(args)
     train_config = shared.load_model_training_config(args.train_config_file)
 
     if args.timesteps_file:

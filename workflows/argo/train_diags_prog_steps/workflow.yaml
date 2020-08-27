@@ -15,7 +15,6 @@ spec:
       - name: reference-restarts
       - name: store-true-args
         value: " "
-      - name: offline-diags-config
       - name: test-times
       - name: public-report-output
   serviceAccountName: integration-tests
@@ -82,7 +81,7 @@ spec:
               - name: ml-model
                 value: "{{workflow.parameters.root}}/trained_model"
               - name: config
-                value: "{{workflow.parameters.offline-diags-config}}"
+                value: "{{workflow.parameters.training-config}}"
               - name: times
                 value: "{{workflow.parameters.test-times}}"
               - name: offline-diags-output

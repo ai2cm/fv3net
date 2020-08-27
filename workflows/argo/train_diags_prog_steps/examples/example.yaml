@@ -1,7 +1,7 @@
-root: gs://vcm-ml-scratch/annak/2020-08-20-test-argo-templates
-public-report-output: gs://vcm-ml-public/annak/2020-08-20-test-argo-templates
-image-tag: b9aa2addafe8d601fb099a60ef4146e3107f0afb
-training-input: "notused"
+root: gs://vcm-ml-scratch/annak/2020-08-26-test-argo-templates
+public-report-output: gs://vcm-ml-public/annak/2020-08-26-test-argo-templates
+image-tag: 2eb1165d7deb944bcaf1b56d9bfc40cc78f95cdd
+train-test-data: 'gs://vcm-ml-experiments/2020-06-30-triad-round-2/hybrid/nudging  gs://vcm-ml-experiments/2020-07-30-fine-res'
 initial-condition: "20160801.001500"
 reference-restarts: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
 training-config: | 
@@ -17,14 +17,12 @@ training-config: |
     - dQ2
   batch_function: batches_from_geodata
   batch_kwargs:
-    timesteps_per_batch: 10
+    timesteps_per_batch: 1
     mapping_function: open_fine_resolution_nudging_hybrid
     mapping_kwargs:
       nudging:
         offset_seconds: -900
-        nudging_url: gs://vcm-ml-experiments/2020-06-30-triad-round-2/hybrid/nudging
       fine_res:
-        fine_res_url: gs://vcm-ml-experiments/2020-07-30-fine-res
         offset_seconds: 450
         rename_vars:
           grid_xt: x
@@ -32,15 +30,21 @@ training-config: |
           delp: pressure_thickness_of_atmospheric_layer
           pfull: z
 train-times: |
-  # inserted from json file when submitted from Makefile
+  [
+    "20160801.001500", 
+    "20160801.003000"
+  ]
 test-times: |
-  # inserted from json file when submitted from Makefile
+  [
+    "20160801.001500", 
+    "20160801.003000"
+  ]
 prognostic-run-config: |
   base_version: v0.5
   namelist:
     coupler_nml:
       days: 0
-      hours: 12
+      hours: 6
       minutes: 0
       seconds: 0
     diag_manager_nml:
@@ -52,31 +56,3 @@ prognostic-run-config: |
       do_gfdl_mp_in_physics: false
       do_only_clearsky_rad: true
       shal_cnv: false
-offline-diags-config: |
-  data_path: notusedforthismapper
-  variables:
-    - air_temperature
-    - specific_humidity
-    - dQ1
-    - dQ2
-    - pQ1
-    - pQ2
-    - pressure_thickness_of_atmospheric_layer
-  mapping_function: open_fine_resolution_nudging_hybrid
-  mapping_kwargs:
-    nudging:
-      nudging_url: gs://vcm-ml-experiments/2020-06-17-triad-round-1/nudging/nudging/outdir-3h
-      open_checkpoints_kwargs:
-        checkpoint_files:
-          - after_dynamics.zarr
-          - after_physics.zarr
-    fine_res:
-      fine_res_url: gs://vcm-ml-experiments/2020-07-30-fine-res
-      offset_seconds: 450
-      rename_vars:
-        grid_xt: x
-        grid_yt: y
-        delp: pressure_thickness_of_atmospheric_layer
-        pfull: z
-  batch_kwargs:
-    timesteps_per_batch: 10

@@ -3,7 +3,7 @@ import functools
 import logging
 from numpy.random import RandomState
 import pandas as pd
-from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional
+from typing import Iterable, Sequence, Mapping, Any, Hashable, Optional, Union, List
 import xarray as xr
 from vcm import safe
 from toolz import partition_all, compose
@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 
 
 def batches_from_geodata(
-    data_path: str,
+    data_path: Union[str, List, tuple],
     variable_names: Iterable[str],
     mapping_function: str,
     mapping_kwargs: Optional[Mapping[str, Any]] = None,
@@ -128,7 +128,7 @@ def batches_from_mapper(
 
 
 def diagnostic_batches_from_geodata(
-    data_path: str,
+    data_path: Union[str, List, tuple],
     variable_names: Sequence[str],
     mapping_function: str,
     mapping_kwargs: Optional[Mapping[str, Any]] = None,
