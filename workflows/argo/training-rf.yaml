@@ -39,9 +39,9 @@ spec:
             cat config.yaml
     
             python -m fv3fit.sklearn \
-              {{inputs.parameters.input}} \
               config.yaml \
               {{inputs.parameters.output}} \
+              --train-data-path {{inputs.parameters.input}} \
               --timesteps-file times.json \
               --no-train-subdir-append
         resources:
