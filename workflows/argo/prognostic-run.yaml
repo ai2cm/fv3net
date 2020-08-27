@@ -15,6 +15,7 @@ spec:
           - {name: trained-ml}
           - {name: store-true-args, value: ""}
           - {name: output}
+          - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
           - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 6Gi}
@@ -39,7 +40,7 @@ spec:
             parameters:
               - {name: fv3config, value: "{{steps.prepare-config.outputs.parameters.fv3config}}"}
               - {name: runfile, value: "{{steps.prepare-config.outputs.parameters.runfile}}"}
-              - {name: chunks, value: ""}  # by default use chunks specified in post_process.py
+              - {name: chunks, value: "{{inputs.parameters.chunks}}"} 
               - name: fv3gfs-image
                 value: "us.gcr.io/vcm-ml/prognostic_run:{{inputs.parameters.image-tag}}"
               - {name: output-url, value: "{{inputs.parameters.output}}"}
