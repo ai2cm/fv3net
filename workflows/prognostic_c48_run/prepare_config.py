@@ -144,4 +144,4 @@ if __name__ == "__main__":
     if args.nudge_to_observations:
         model_config = fv3kube.enable_nudge_to_observations(model_config)
 
-    print(model_config)
+    print(yaml.dump(model_config))
