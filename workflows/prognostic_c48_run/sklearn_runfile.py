@@ -235,7 +235,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
 def monitor(name: str, func):
     """Decorator to add tendency monitoring to an update function
 
-    This will add `tendency_of_air_temperature_due_to_{name}` to the
+    This will add `tendency_of_{variable}_due_to_{name}` to the
     diagnostics and print mass conservation diagnostics to the logs.
 
     Args:
