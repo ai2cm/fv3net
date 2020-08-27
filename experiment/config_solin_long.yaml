@@ -16,7 +16,7 @@ prognostic-run-config: |
       do_gfdl_mp_in_physics: false
       do_only_clearsky_rad: true
       shal_cnv: false
-image-tag: e16c32a5b530d4441ca1976172c996626ba50fbe
+image-tag: c9730058cccf129913bf918a784217f76f110990
 initial-condition: "20160805.000000"
 reference-restarts: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
 input-variables: |
