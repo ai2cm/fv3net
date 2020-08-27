@@ -49,21 +49,16 @@ def _get_nudge_filename_list(config: Mapping) -> List[str]:
     return [time.strftime(nudge_filename_pattern) for time in time_list]
 
 
-def _get_nudge_files_asset_list(config: Mapping) -> List[Mapping]:
+def _get_nudge_files_asset_list(config: Mapping, copy_method: str) -> List[Mapping]:
     """Return list of fv3config assets for all nudging files required for a given
     model run configuration"""
     nudge_url = config["gfs_analysis_data"]["url"]
     return [
-        fv3config.get_asset_dict(nudge_url, file, target_location=NUDGE_FILE_TARGET)
+        fv3config.get_asset_dict(
+            nudge_url, file, target_location=NUDGE_FILE_TARGET, copy_method=copy_method
+        )
         for file in _get_nudge_filename_list(config)
     ]
-
-
-def _get_nudge_files_description_asset(config: Mapping, config_url: str) -> Mapping:
-    """Return an fv3config asset pointing to the text file that the
-    model requires to describe the list of nudging files."""
-    fname_list_filename = config["namelist"]["fv_nwp_nudge_nml"]["input_fname_list"]
-    return fv3config.get_asset_dict(config_url, fname_list_filename)
 
 
 def _get_input_fname_list_asset(config: Mapping, filename: str) -> Mapping:
@@ -75,9 +70,7 @@ def _get_input_fname_list_asset(config: Mapping, filename: str) -> Mapping:
 
 
 def enable_nudge_to_observations(
-    config: Mapping,
-    file_list_path="nudging_file_list",
-    timescale_hours: Optional[Mapping[str, int]] = None,
+    config: Mapping, file_list_path="nudging_file_list", copy_method="copy",
 ) -> Mapping:
     """Enable a nudged to observation run
 
@@ -120,9 +113,14 @@ def enable_nudge_to_observations(
 
     fname_list_asset = _get_input_fname_list_asset(config, file_list_path)
 
+    if config["gfs_analysis_data"]["url"].startswith("gs://") and copy_method == "link":
+        raise ValueError(
+            "Cannot link GFS analysis files if using GCS url. Use copy_method='copy'."
+        )
+
     patch_files = config.setdefault("patch_files", [])
     patch_files.append(fname_list_asset)
-    patch_files.extend(_get_nudge_files_asset_list(config))
+    patch_files.extend(_get_nudge_files_asset_list(config, copy_method))
 
     return config
 
