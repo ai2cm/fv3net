@@ -37,7 +37,7 @@ latest
 * Fix partitioning of timesteps in loaders.batches so that it uses all timesteps, allows last batch to be < timesteps_per_batch.
 * Add SHiELD and FV3GFS diagnostic variables such as :code:`net_heating` to the training data and offline ML diagnostics datasets, and compute composites over positive and negative :code:`net_precipitation` domains in these diagnostics
 * Can set cpu_post_process and memory_post_process in the prognostic run config's kubernetes field; these will be used by the post processing container
-
+* Prognostic and nudge-to-fine workflows now require fv3gfs-images at or after commit 46b1d8742ee220ebeb14942e0a0f43da963cc0cf of fv3gfs-wrapper.
 
 0.2.3 (2020-06-19)
 ------------------

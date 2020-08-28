@@ -15,8 +15,8 @@ from typing import (
 import xarray as xr
 from mpi4py import MPI
 
-import fv3gfs
-import fv3util
+import fv3gfs.wrapper
+import fv3gfs.util
 import runtime
 
 
@@ -146,7 +146,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         diagnostics.
     """
 
-    def __init__(self, comm=None, fv3gfs=fv3gfs):
+    def __init__(self, comm=None, fv3gfs=fv3gfs.wrapper):
 
         if comm is None:
             comm = MPI.COMM_WORLD
@@ -307,7 +307,7 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
 
     config = runtime.get_config()
-    partitioner = fv3util.CubedSpherePartitioner.from_namelist(config["namelist"])
+    partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
     diag_files = runtime.get_diagnostic_files(config, partitioner, comm)
 
     loop = MonitoredPhysicsTimeLoop(
