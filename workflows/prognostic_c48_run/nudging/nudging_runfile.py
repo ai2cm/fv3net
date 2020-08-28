@@ -6,14 +6,13 @@ import yaml
 import fsspec
 import logging
 import fv3gfs.util
+import fv3gfs.wrapper
 import xarray as xr
 import numpy as np
 
 if __name__ == "__main__":
-    import fv3gfs.wrapper
     from mpi4py import MPI
 else:
-    fv3gfs = None
     MPI = None
 
 logger = logging.getLogger(__name__)
