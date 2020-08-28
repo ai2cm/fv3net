@@ -4,6 +4,23 @@ kind: WorkflowTemplate
 metadata:
   name: prognostic-run
 spec:
+  entrypoint: prognostic-run
+  volumeClaimTemplates:
+    - metadata:
+        name: work-volume
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 100Gi
+  volumes:
+    - name: external-volume
+      persistentVolumeClaim:
+        claimName: nudging-read-only
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
   templates:
     - name: prognostic-run
       inputs:
