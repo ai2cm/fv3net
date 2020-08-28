@@ -24,16 +24,16 @@ spec:
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
-        name: "{{workflow.parameters.work-volume-name}}"
+        name: work-volume
       spec:
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
             storage: 100Gi
   volumes:
-    - name: "{{workflow.parameters.external-volume-name}}"
+    - name: restart-data
       persistentVolumeClaim:
-        claimName: "{{workflow.parameters.external-volume-claim}}"
+        claimName: nudging-read-only
     - name: gcp-key-secret
       secret:
         defaultMode: 420
