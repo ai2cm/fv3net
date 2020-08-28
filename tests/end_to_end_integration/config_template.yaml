@@ -39,6 +39,10 @@ nudging-config: |
       do_sat_adj: false
     gfdl_cloud_microphysics_nml:
       fast_sat_adj: false
+    gfs_physics_nml:
+      fhzero: 0.25
+    atmos_model_nml:
+      fhout: 0.25
 training-config: | 
   model_type: sklearn_random_forest
   hyperparameters:
