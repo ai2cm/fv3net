@@ -8,7 +8,7 @@ import sys
 from tempfile import NamedTemporaryFile
 import xarray as xr
 import yaml
-from typing import Mapping, Sequence, Tuple, List
+from typing import Mapping, Sequence, Tuple
 
 import diagnostics_utils as utils
 import loaders
@@ -47,11 +47,7 @@ METRICS_JSON_NAME = "scalar_metrics.json"
 
 def _create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "data_path",
-        nargs="*",
-        type=str,
-        help="Location of test data")
+    parser.add_argument("data_path", nargs="*", type=str, help="Location of test data")
     parser.add_argument(
         "config_yml",
         type=str,

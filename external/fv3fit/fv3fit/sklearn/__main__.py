@@ -24,10 +24,8 @@ def _save_config_output(output_url, config):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "train_data_path",
-        nargs="*",
-        type=str,
-        help="Location of training data")
+        "train_data_path", nargs="*", type=str, help="Location of training data"
+    )
     parser.add_argument(
         "train_config_file",
         type=str,
