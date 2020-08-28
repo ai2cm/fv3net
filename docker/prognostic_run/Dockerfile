@@ -1,6 +1,5 @@
 FROM us.gcr.io/vcm-ml/fv3gfs-python:8613e2d8446ba29e24431b5a6618a19d10a7e1c1 AS bld
 
-RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 RUN pip3 install wheel && pip3 install --upgrade pip && pip3 install -r /tmp/requirements.txt
 
