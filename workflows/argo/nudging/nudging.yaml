@@ -9,7 +9,7 @@ spec:
       - name: nudging-config
       - name: output-url
       - name: fv3gfs-image
-        value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
+        value: us.gcr.io/vcm-ml/fv3gfs-wrapper:f2a64ad81cf5b1c59eed012486471f3585daed4a
       - name: fv3net-image
         value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
       - name: post-process-image
@@ -69,7 +69,7 @@ spec:
           - name: times
           - name: output-url
           - name: fv3gfs-image
-            value: us.gcr.io/vcm-ml/fv3gfs-python:v0.4.3
+            value: us.gcr.io/vcm-ml/fv3gfs-wrapper:f2a64ad81cf5b1c59eed012486471f3585daed4a
           - name: fv3net-image
             value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
           - name: post-process-image
