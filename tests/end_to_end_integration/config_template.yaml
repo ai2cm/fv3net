@@ -15,6 +15,7 @@ train-times: |
 nudging-config: | 
   base_version: v0.5
   forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+  diag_table: gs://vcm-fv3config/config/diag_table/nudge_to_fine_dt/v1.0/diag_table
   nudging:
     restarts_path: /mnt/input/coarsen_restarts/
     timescale_hours:
