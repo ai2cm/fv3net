@@ -55,10 +55,9 @@ def test_training_integration(
             "python",
             "-m",
             "fv3fit.sklearn",
+            data_source_path,
             train_config_filename,
             tmp_path,
-            "--train-data-path",
-            data_source_path,
             "--no-train-subdir-append",
         ]
     )

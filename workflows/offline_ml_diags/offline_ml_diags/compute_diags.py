@@ -48,6 +48,11 @@ METRICS_JSON_NAME = "scalar_metrics.json"
 def _create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "data_path",
+        nargs="*",
+        type=str,
+        help="Location of test data")
+    parser.add_argument(
         "config_yml",
         type=str,
         help=("Config file with dataset and variable specifications"),
@@ -59,15 +64,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "output_path",
         type=str,
         help=("Local or remote path where diagnostic dataset will be written."),
-    )
-    parser.add_argument(
-        "--data-path",
-        type=str,
-        nargs="+",
-        help=(
-            "Data path(s) for opening mappers. Will be passed to mapper function as a "
-            "list if > 1 arg provided, else will pass value as string."
-        ),
     )
     parser.add_argument(
         "--timesteps-file",
@@ -169,12 +165,8 @@ def _get_base_mapper(args, config: Mapping):
     base_mapping_function = getattr(
         loaders.mappers, config["batch_kwargs"]["mapping_function"]
     )
-    if not args.data_path:
-        raise ValueError(
-            "Must provide at least one command line argument to --data-path"
-        )
     data_path = args.data_path
-    if isinstance(data_path, List) and len(data_path) == 1:
+    if len(data_path) == 1:
         data_path = data_path[0]
     return base_mapping_function(
         data_path, **config["batch_kwargs"].get("mapping_kwargs", {})

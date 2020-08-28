@@ -24,21 +24,17 @@ def _save_config_output(output_url, config):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "train_data_path",
+        nargs="*",
+        type=str,
+        help="Location of training data")
+    parser.add_argument(
         "train_config_file",
         type=str,
         help="Local path for training configuration yaml file",
     )
     parser.add_argument(
         "output_data_path", type=str, help="Location to save config and trained model."
-    )
-    parser.add_argument(
-        "--train-data-path",
-        type=str,
-        nargs="+",
-        help=(
-            "Data path(s) for opening mappers. Will be passed to mapper function as a "
-            "list if > 1 arg provided, else will pass value as string."
-        ),
     )
     parser.add_argument(
         "--delete-local-results-after-upload",
