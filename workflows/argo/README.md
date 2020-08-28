@@ -105,6 +105,10 @@ Some diagnostics have default chunking. See post-processing script at
 WARNING: if `segment-count` is greater than 1, the chunk size in time must evenly
 divide the length of the time dimension for each diagnostic output.
 
+As a rule of thumb, make sure the size of netCDF outputs is no larger than about
+1 GB per file. The size of output files can be controlled by output frequency, 
+number/dimensionality of variables in each diagnostic category, and segment length.
+
 #### Volumes used by run-fv3gfs template
 
 Due to some limitations of argo, it is necessary that the entrypoint workflow makes a

@@ -5,12 +5,12 @@ from datetime import datetime, timedelta
 import yaml
 import fsspec
 import logging
-import fv3util
+import fv3gfs.util as fv3util
 import xarray as xr
 import numpy as np
 
 if __name__ == "__main__":
-    import fv3gfs
+    import fv3gfs.wrapper as fv3gfs
     from mpi4py import MPI
 else:
     fv3gfs = None
@@ -48,6 +48,8 @@ STORE_NAMES = [
     "latent_heat_flux",
     "total_precipitation",
     "surface_precipitation_rate",
+    "eastward_wind",
+    "northward_wind",
 ] + RADIATION_NAMES
 
 TENDENCY_OUT_FILENAME = "tendencies.zarr"
