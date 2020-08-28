@@ -8,6 +8,7 @@ RUN mkdir -p /fv3net/external /fv3net/workflows
 
 COPY external/fv3config /fv3net/external/fv3config
 COPY external/fv3fit /fv3net/external/fv3fit
+COPY external/fv3kube /fv3net/external/fv3kube
 COPY external/vcm /fv3net/external/vcm
 COPY external/loaders /fv3net/external/loaders
 
