@@ -4,7 +4,7 @@ from typing import Mapping, Hashable, Callable
 import vcm
 import xarray as xr
 
-import fv3util
+import fv3gfs.util
 
 
 class DerivedFV3State:
@@ -60,7 +60,7 @@ class DerivedFV3State:
 
     def __setitem__(self, key: str, value: xr.DataArray):
         self._getter.set_state_mass_conserving(
-            {key: fv3util.Quantity.from_data_array(value)}
+            {key: fv3gfs.util.Quantity.from_data_array(value)}
         )
 
     def update(self, items: Mapping[Hashable, xr.DataArray]):
@@ -72,7 +72,7 @@ class DerivedFV3State:
         """
         self._getter.set_state_mass_conserving(
             {
-                key: fv3util.Quantity.from_data_array(value)
+                key: fv3gfs.util.Quantity.from_data_array(value)
                 for key, value in items.items()
             }
         )
