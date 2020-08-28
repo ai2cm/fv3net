@@ -18,7 +18,7 @@ import subprocess
 #  Importing fv3gfs causes a call to MPI_Init but not MPI_Finalize. When the
 #  subprocess subsequently calls MPI_Init from a process not managed by MPI,
 #  mpirun throws a fit. Use a subprocess as a workaround.
-FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs"]) == 0
+FV3GFS_INSTALLED = subprocess.call(["python", "-c", "import fv3gfs.wrapper"]) == 0
 
 
 BASE_FV3CONFIG_CACHE = Path(

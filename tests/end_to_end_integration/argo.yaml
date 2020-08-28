@@ -83,3 +83,5 @@ spec:
                 value: "{{workflow.parameters.root}}/trained_model"
               - name: output
                 value: "{{workflow.parameters.root}}/prognostic_run"
+              - {name: work-volume-name, value: work-volume}
+              - {name: external-volume-name, value: restart-data}

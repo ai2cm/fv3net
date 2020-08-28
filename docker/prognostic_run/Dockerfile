@@ -1,4 +1,4 @@
-FROM us.gcr.io/vcm-ml/fv3gfs-python:8613e2d8446ba29e24431b5a6618a19d10a7e1c1 AS bld
+FROM us.gcr.io/vcm-ml/fv3gfs-wrapper:46b1d8742ee220ebeb14942e0a0f43da963cc0cf AS bld
 
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 RUN pip3 install wheel && pip3 install --upgrade pip && pip3 install -r /tmp/requirements.txt
@@ -8,6 +8,7 @@ RUN mkdir -p /fv3net/external /fv3net/workflows
 
 COPY external/fv3config /fv3net/external/fv3config
 COPY external/fv3fit /fv3net/external/fv3fit
+COPY external/fv3kube /fv3net/external/fv3kube
 COPY external/vcm /fv3net/external/vcm
 COPY external/loaders /fv3net/external/loaders
 
