@@ -103,22 +103,22 @@ default_experiment
  "dynamics",  "area",          "area",      "physics_output",         "all",  .false.,  "none", 2,
  
  # Per-physics-component temperature tendency diagnostics
- "gfs_phys",  "tendency_of_air_temperature_due_to_longwave_heating", "tendency_of_air_temperature_due_to_longwave_heating", "physics_output",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_shortwave_heating", "tendency_of_air_temperature_due_to_shortwave_heating", "physics_output",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_turbulence", "tendency_of_air_temperature_due_to_turbulence", "physics_output",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_deep_convection", "tendency_of_air_temperature_due_to_deep_convection", "physics_output",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_shallow_convection", "tendency_of_air_temperature_due_to_shallow_convection", "physics_output",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_microphysics", "tendency_of_air_temperature_due_to_microphysics", "physics_output",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_dissipation_of_gravity_waves", "tendency_of_air_temperature_due_to_dissipation_of_gravity_waves", "physics_output",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky", "tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky", "physics_output",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky", "tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky", "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_air_temperature_due_to_longwave_heating"                      "tendency_of_air_temperature_due_to_longwave_heating"                      "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_air_temperature_due_to_shortwave_heating"                     "tendency_of_air_temperature_due_to_shortwave_heating"                     "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_air_temperature_due_to_turbulence"                            "tendency_of_air_temperature_due_to_turbulence"                            "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_air_temperature_due_to_deep_convection"                       "tendency_of_air_temperature_due_to_deep_convection"                       "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_air_temperature_due_to_shallow_convection"                    "tendency_of_air_temperature_due_to_shallow_convection"                    "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_air_temperature_due_to_microphysics"                          "tendency_of_air_temperature_due_to_microphysics"                          "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_air_temperature_due_to_dissipation_of_gravity_waves"          "tendency_of_air_temperature_due_to_dissipation_of_gravity_waves"          "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky"   "tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky"   "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky"  "tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky"  "physics_output",  "all",  .false.,  "none", 2,
  
 # Per-physics-component specific humidity tendency diagnostics
- "gfs_phys",  "tendency_of_specific_humidity_due_to_turbulence", "tendency_of_specific_humidity_due_to_turbulence", "physics_output",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_specific_humidity_due_to_deep_convection", "tendency_of_specific_humidity_due_to_deep_convection", "physics_output",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_specific_humidity_due_to_shallow_convection", "tendency_of_specific_humidity_due_to_shallow_convection", "physics_output",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_specific_humidity_due_to_microphysics", "tendency_of_specific_humidity_due_to_microphysics", "physics_output",  "all",  .false.,  "none", 2,
- "gfs_phys",  "tendency_of_specific_humidity_due_to_change_in_atmosphere_mass", "tendency_of_specific_humidity_due_to_change_in_atmosphere_mass", "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_specific_humidity_due_to_turbulence"                  "tendency_of_specific_humidity_due_to_turbulence"                 "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_specific_humidity_due_to_deep_convection"             "tendency_of_specific_humidity_due_to_deep_convection"            "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_specific_humidity_due_to_shallow_convection"          "tendency_of_specific_humidity_due_to_shallow_convection"         "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_specific_humidity_due_to_microphysics"                "tendency_of_specific_humidity_due_to_microphysics"               "physics_output",  "all",  .false.,  "none", 2,
+ "gfs_phys",  "tendency_of_specific_humidity_due_to_change_in_atmosphere_mass"   "tendency_of_specific_humidity_due_to_change_in_atmosphere_mass"  "physics_output",  "all",  .false.,  "none", 2,
 
  "gfs_phys",  "cnvprcp_ave"    "CPRATsfc"   "physics_output",         "all",  .false.,  "none",  2
  "gfs_phys",  "totprcp_ave"    "PRATEsfc"   "physics_output",         "all",  .false.,  "none",  2

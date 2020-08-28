@@ -41,6 +41,7 @@ nudging-config: |
       fast_sat_adj: false
     gfs_physics_nml:
       fhzero: 0.25
+      ldiag3d: true
     atmos_model_nml:
       fhout: 0.25
 training-config: | 
