@@ -1,6 +1,6 @@
 from nudging_runfile import implied_precipitation, total_precipitation
 from datetime import timedelta
-from fv3util import Quantity
+from fv3gfs.util import Quantity
 import pytest
 import xarray as xr
 import numpy as np

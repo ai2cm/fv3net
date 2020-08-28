@@ -1,6 +1,6 @@
 from typing import Any, Sequence, Container, Mapping, List, Union
 from datetime import datetime, timedelta
-import fv3util
+import fv3gfs.util
 
 import xarray as xr
 
@@ -72,7 +72,7 @@ class DiagnosticFile:
 
     def __init__(
         self,
-        monitor: fv3util.ZarrMonitor,
+        monitor: fv3gfs.util.ZarrMonitor,
         times: Container[datetime],
         variables: Container,
     ):
@@ -105,7 +105,7 @@ class DiagnosticFile:
         if time in self.times:
             quantities = {
                 # need units for from_data_array to work
-                key: fv3util.Quantity.from_data_array(
+                key: fv3gfs.util.Quantity.from_data_array(
                     _assign_units_if_none_present(diagnostics[key], "unknown")
                 )
                 for key in diagnostics
@@ -133,7 +133,9 @@ def _get_times(d) -> Container[datetime]:
 def _config_to_diagnostic_file(
     diag_file_config: Mapping, partitioner, comm
 ) -> DiagnosticFile:
-    monitor = fv3util.ZarrMonitor(diag_file_config["name"], partitioner, mpi_comm=comm)
+    monitor = fv3gfs.util.ZarrMonitor(
+        diag_file_config["name"], partitioner, mpi_comm=comm
+    )
     return DiagnosticFile(
         monitor=monitor,
         variables=diag_file_config.get("variables", All()),
@@ -142,7 +144,7 @@ def _config_to_diagnostic_file(
 
 
 def get_diagnostic_files(
-    config: Mapping, partitioner: fv3util.CubedSpherePartitioner, comm
+    config: Mapping, partitioner: fv3gfs.util.CubedSpherePartitioner, comm
 ) -> List[DiagnosticFile]:
     """Initialize a list of diagnostic file objects from a configuration dictionary
     Note- the default here is to save all the variables in the diagnostics.
