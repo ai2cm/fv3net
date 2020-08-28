@@ -1,5 +1,3 @@
-import pytest
-import subprocess
 import prepare_config
 
 MODEL_URL = "gs://ml-model"
