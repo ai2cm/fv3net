@@ -194,12 +194,6 @@ if __name__ == "__main__":
     with open(args.config_yml, "r") as f:
         config = yaml.safe_load(f)
 
-    # write out config used to generate diagnostics, including model path
-    config["model_path"] = args.model_path
-    fs = get_fs(args.output_path)
-    with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
-        yaml.safe_dump(config, f)
-
     logger.info("Reading grid...")
     cat = intake.open_catalog("catalog.yml")
     grid = cat["grid/c48"].read()
@@ -212,6 +206,12 @@ if __name__ == "__main__":
         with open(args.timesteps_file, "r") as f:
             timesteps = yaml.safe_load(f)
         config["batch_kwargs"]["timesteps"] = timesteps
+
+    # write out config used to generate diagnostics, including model path
+    config["model_path"] = args.model_path
+    fs = get_fs(args.output_path)
+    with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
+        yaml.safe_dump(config, f)
 
     pred_mapper = _get_prediction_mapper(args, config)
 
