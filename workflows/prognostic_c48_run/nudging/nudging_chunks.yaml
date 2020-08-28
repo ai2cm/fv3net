@@ -14,5 +14,5 @@ atmos_output.zarr:
   time: 24
 physics_output.zarr:
   time: 24
-physics_tendency_output.zarr:
+physics_tendency_components.zarr:
   time: 1
