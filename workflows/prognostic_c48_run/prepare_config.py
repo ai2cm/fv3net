@@ -110,12 +110,7 @@ def insert_default_diagnostics(model_config):
     ]
 
 
-if __name__ == "__main__":
-
-    logging.basicConfig(level=logging.INFO)
-    parser = _create_arg_parser()
-    args = parser.parse_args()
-
+def prepare_config(args):
     # Get model config with prognostic run updates
     with open(args.prog_config_yml, "r") as f:
         user_config = yaml.safe_load(f)
@@ -145,3 +140,11 @@ if __name__ == "__main__":
         model_config = fv3kube.enable_nudge_to_observations(model_config)
 
     print(yaml.dump(model_config))
+
+
+if __name__ == "__main__":
+
+    logging.basicConfig(level=logging.INFO)
+    parser = _create_arg_parser()
+    args = parser.parse_args()
+    prepare_config(args)
