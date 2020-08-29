@@ -23,7 +23,9 @@ def _save_config_output(output_url, config):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("train_data_path", type=str, help="Location of training data")
+    parser.add_argument(
+        "train_data_path", nargs="*", type=str, help="Location of training data"
+    )
     parser.add_argument(
         "train_config_file",
         type=str,
@@ -56,9 +58,7 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    data_path = args.train_data_path
-    if not args.no_train_subdir_append:
-        data_path = os.path.join(data_path, "train")
+    data_path = shared.parse_data_path(args)
     train_config = shared.load_model_training_config(args.train_config_file)
 
     if args.timesteps_file:

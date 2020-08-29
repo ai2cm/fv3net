@@ -7,7 +7,7 @@ spec:
     parameters:
       - name: image-tag
       - name: root
-      - name: training-input
+      - name: train-test-data
       - name: training-config
       - name: train-times
       - name: initial-condition
@@ -15,7 +15,6 @@ spec:
       - name: reference-restarts
       - name: store-true-args
         value: " "
-      - name: offline-diags-config
       - name: test-times
       - name: public-report-output
   serviceAccountName: integration-tests
@@ -42,7 +41,7 @@ spec:
             - name: image
               value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
             - name: input
-              value: "{{workflow.parameters.training-input}}"
+              value: "{{workflow.parameters.train-test-data}}"
             - name: config
               value: "{{workflow.parameters.training-config}}"
             - name: times
@@ -65,7 +64,7 @@ spec:
               - name: reference-restarts
                 value: "{{workflow.parameters.reference-restarts}}"
               - name: trained-ml
-                value: "{{workflow.parameters.root}}/trained_model/sklearn_model.pkl"
+                value: "{{workflow.parameters.root}}/trained_model"
               - name: output
                 value: "{{workflow.parameters.root}}/prognostic_run"
               - name: store-true-args
@@ -80,12 +79,14 @@ spec:
               - name: image-tag
                 value: "{{workflow.parameters.image-tag}}"
               - name: ml-model
-                value: "{{workflow.parameters.root}}/trained_model"
+                value: "{{workflow.parameters.root}}/trained_model/sklearn_model.pkl"
               - name: config
-                value: "{{workflow.parameters.offline-diags-config}}"
+                value: "{{workflow.parameters.training-config}}"
               - name: times
                 value: "{{workflow.parameters.test-times}}"
               - name: offline-diags-output
                 value: "{{workflow.parameters.root}}/offline_diags"
               - name: report-output
                 value: "{{workflow.parameters.public-report-output}}"
+              - name: data-path
+                value: "{{workflow.parameters.train-test-data}}"

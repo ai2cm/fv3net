@@ -225,18 +225,23 @@ def data_source_offline_config(
 ):
     if data_source_name == "nudging_tendencies":
         with open(
-            os.path.join(str(datadir_module), "offline_nudging_config.yml"), "r"
+            os.path.join(str(datadir_module), "train_sklearn_model_nudged_source.yml"),
+            "r",
         ) as f:
             config = yaml.safe_load(f)
-            config["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
+            config["batch_kwargs"]["mapping_kwargs"][
+                "shield_diags_url"
+            ] = C48_SHiELD_diags_dataset_path
         return config
     elif data_source_name == "fine_res_apparent_sources":
         with open(
-            os.path.join(str(datadir_module), "offline_fine_res_config.yml"), "r"
+            os.path.join(str(datadir_module), "train_sklearn_model_fineres_source.yml"),
+            "r",
         ) as f:
             config = yaml.safe_load(f)
-            del config["mapping_kwargs"]["offset_seconds"]
-            config["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
+            config["batch_kwargs"]["mapping_kwargs"][
+                "shield_diags_url"
+            ] = C48_SHiELD_diags_dataset_path
             return config
     else:
         raise NotImplementedError()
@@ -248,10 +253,11 @@ def prediction_mapper(
 ):
 
     base_mapping_function = getattr(
-        mappers, data_source_offline_config["mapping_function"]
+        mappers, data_source_offline_config["batch_kwargs"]["mapping_function"]
     )
     base_mapper = base_mapping_function(
-        data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
+        data_source_path,
+        **data_source_offline_config["batch_kwargs"].get("mapping_kwargs", {}),
     )
 
     prediction_mapper = PredictionMapper(base_mapper, mock_model)
@@ -278,6 +284,8 @@ def diagnostic_batches(prediction_mapper, data_source_offline_config):
 
     data_source_offline_config["batch_kwargs"]["timesteps"] = timesteps
     data_source_offline_config["variables"] = variables
+    del data_source_offline_config["batch_kwargs"]["mapping_function"]
+    del data_source_offline_config["batch_kwargs"]["mapping_kwargs"]
     diagnostic_batches = batches.diagnostic_batches_from_mapper(
         prediction_mapper,
         data_source_offline_config["variables"],
