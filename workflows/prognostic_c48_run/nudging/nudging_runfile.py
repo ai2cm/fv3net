@@ -1,8 +1,9 @@
 import os
 from typing import Sequence, Optional, MutableMapping
 import functools
-from datetime import datetime, timedelta
+from datetime import timedelta
 import yaml
+import cftime
 import fsspec
 import logging
 import fv3gfs.util as fv3util
@@ -75,7 +76,7 @@ def time_to_label(time):
 
 
 def test_time_to_label():
-    time, label = datetime(2015, 1, 20, 6, 30, 0), "20150120.063000"
+    time, label = cftime.DatetimeJulian(2015, 1, 20, 6, 30, 0), "20150120.063000"
     result = time_to_label(time)
     assert result == label
 
@@ -181,7 +182,7 @@ class StageWriter:
         self.partitioner = partitioner
         self.times = times
 
-    def store(self, time: datetime, state, stage: str):
+    def store(self, time: cftime.datetime, state, stage: str):
         monitor = self._get_monitor(stage)
         monitor.store(time, state)
 
@@ -218,13 +219,13 @@ class SubsetWriter:
         self.logger = logging.getLogger("SubsetStageWriter")
         self.logger.info(f"Saving stages at {self._times}")
 
-    def _output_current_time(self, time: datetime) -> bool:
+    def _output_current_time(self, time: cftime.datetime) -> bool:
         if self._times is None:
             return True
         else:
             return time.strftime("%Y%m%d.%H%M%S") in self._times
 
-    def store(self, time: datetime, state):
+    def store(self, time: cftime.datetime, state):
         if self._output_current_time(time):
             self.logger.debug(f"Storing time: {time}")
             self._monitor.store(state)
@@ -275,7 +276,6 @@ if __name__ == "__main__":
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
         state = fv3gfs.get_state(names=store_names)
-        start = datetime.utcnow()
         time = state["time"]
 
         # The fortran model labels diagnostics with the time at the end
