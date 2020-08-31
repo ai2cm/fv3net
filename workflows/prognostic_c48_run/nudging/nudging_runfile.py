@@ -277,6 +277,10 @@ if __name__ == "__main__":
         state = fv3gfs.get_state(names=store_names)
         start = datetime.utcnow()
         time = state["time"]
+
+        # The fortran model labels diagnostics with the time at the end
+        # of a step; this ensures this is the case for the wrapper
+        # diagnostics as well.
         store_time = time + timestep
 
         monitor.store(store_time, state, stage="before_dynamics")
