@@ -294,7 +294,7 @@ if __name__ == "__main__":
         tendencies = nudge(state, reference)
         monitor.store(store_time, reference, stage="reference")
         monitor.store(store_time, tendencies, stage="nudging_tendencies")
-        monitor.store(store_ime, state, stage="after_nudging")
+        monitor.store(store_time, state, stage="after_nudging")
 
         if "specific_humidity" in nudging_names:
             state[PRECIP_NAME].view[:] = implied_precipitation(
