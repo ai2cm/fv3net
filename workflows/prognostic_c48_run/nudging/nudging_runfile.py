@@ -277,21 +277,24 @@ if __name__ == "__main__":
         state = fv3gfs.get_state(names=store_names)
         start = datetime.utcnow()
         time = state["time"]
+        store_time = time + timestep
 
-        monitor.store(time, state, stage="before_dynamics")
+        monitor.store(store_time, state, stage="before_dynamics")
         fv3gfs.step_dynamics()
-        monitor.store(time, fv3gfs.get_state(names=store_names), stage="after_dynamics")
+        monitor.store(
+            store_time, fv3gfs.get_state(names=store_names), stage="after_dynamics"
+        )
         fv3gfs.step_physics()
         state = fv3gfs.get_state(names=store_names)
-        monitor.store(time, state, stage="after_physics")
+        monitor.store(store_time, state, stage="after_physics")
         fv3gfs.save_intermediate_restart_if_enabled()
         reference = get_reference_state(
             time, reference_dir, communicator, only_names=store_names
         )
         tendencies = nudge(state, reference)
-        monitor.store(time, reference, stage="reference")
-        monitor.store(time, tendencies, stage="nudging_tendencies")
-        monitor.store(time, state, stage="after_nudging")
+        monitor.store(store_time, reference, stage="reference")
+        monitor.store(store_time, tendencies, stage="nudging_tendencies")
+        monitor.store(store_ime, state, stage="after_nudging")
 
         if "specific_humidity" in nudging_names:
             state[PRECIP_NAME].view[:] = implied_precipitation(
