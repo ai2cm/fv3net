@@ -9,6 +9,15 @@ from ._fine_resolution_budget import (
 )
 
 
+CLOUDS_OFF_TEMP_TENDENCIES = [
+    "tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky",
+    "tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky",
+    "tendency_of_air_temperature_due_to_turbulence",
+    "tendency_of_air_temperature_due_to_dissipation_of_gravity_waves",
+]
+CLOUDS_OFF_SPHUM_TENDENCIES = ["tendency_of_specific_humidity_due_to_turbulence"]
+
+
 class ResidualMapper(GeoMapper):
     def __init__(self, physics_mapper: GeoMapper, fine_res: FineResolutionSources):
         self.physics_mapper = physics_mapper
@@ -35,18 +44,23 @@ class FineResolutionResidual(ResidualMapper):
         ).load()
 
 
+def _compute_clouds_off_pQ1(ds: xr.Dataset):
+    """Compute the clouds off tendency of temperature assuming clouds off."""
+    return sum([ds[variable] for variable in CLOUDS_OFF_TEMP_TENDENCIES])
+
+
+def _compute_clouds_off_pQ2(ds: xr.Dataset):
+    """Compute the clouds off tendency of specific humidity assuming clouds off."""
+    return sum([ds[variable] for variable in CLOUDS_OFF_TEMP_TENDENCIES])
+
+
 class FineResolutionResidualCloudsOff(ResidualMapper):
     def __getitem__(self, key: str) -> xr.Dataset:
         nudging = self.physics_mapper[key]
         fine_res = self.fine_res[key]
 
-        clouds_off_pQ1 = (
-            nudging.tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky
-            + nudging.tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky
-            + nudging.tendency_of_air_temperature_due_to_turbulence
-            + nudging.tendency_of_air_temperature_due_to_dissipation_of_gravity_waves
-        )
-        clouds_off_pQ2 = nudging.tendency_of_specific_humidity_due_to_turbulence
+        clouds_off_pQ1 = _compute_clouds_off_pQ1(nudging)
+        clouds_off_pQ2 = _compute_clouds_off_pQ2(nudging)
 
         return nudging.assign(
             pQ1=clouds_off_pQ1,
