@@ -47,6 +47,7 @@ dependencies:
   - pyquery>=1.4.0
   - holoviews
   - bokeh>=2.0
+  - docrep=0.2.7
   - backoff
   - mypy=0.770
   - coverage>=5
