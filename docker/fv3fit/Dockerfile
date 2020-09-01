@@ -1,7 +1,8 @@
 FROM python:3.7.8-stretch AS bld
 
+COPY constraints.txt /tmp/constraints.txt
 COPY external/fv3fit/requirements.txt fv3fit/requirements.txt
-RUN pip install -r fv3fit/requirements.txt
+RUN pip install -c /tmp/constraints.txt -r fv3fit/requirements.txt
 
 COPY external/vcm/ /external/vcm/
 COPY external/loaders/ /external/loaders/
