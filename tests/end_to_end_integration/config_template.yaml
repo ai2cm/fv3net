@@ -4,8 +4,8 @@ initial-condition: "20160801.003000"
 reference-restarts: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
 nudging-times: |
   [
-    "20160801.001500",
-    "20160801.004500"
+    "20160801.003000",
+    "20160801.010000",
   ]
 train-times: |
   [
