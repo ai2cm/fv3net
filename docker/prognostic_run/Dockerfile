@@ -1,7 +1,7 @@
 FROM us.gcr.io/vcm-ml/fv3gfs-wrapper:46b1d8742ee220ebeb14942e0a0f43da963cc0cf AS bld
 
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
-COPY docker/prognostic_run/constraints.txt /tmp/constraints.txt
+COPY constraints.txt /tmp/constraints.txt
 RUN pip3 install wheel && pip3 install --upgrade pip && pip3 install -c /tmp/constraints.txt -r /tmp/requirements.txt
 
 # cache external package installation
