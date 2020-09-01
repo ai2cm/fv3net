@@ -1,4 +1,4 @@
-from typing import Mapping, List
+from typing import Mapping, List, TypeVar
 import xarray as xr
 
 from ._base import GeoMapper
@@ -9,14 +9,19 @@ from ._fine_resolution_budget import (
 )
 
 
-class FineResolutionResidual(GeoMapper):
-    """Define the fine resolution dQ as a residual from the physics tendencies in
-    another mapper
-    """
-
+class ResidualMapper(GeoMapper):
     def __init__(self, physics_mapper: GeoMapper, fine_res: FineResolutionSources):
         self.physics_mapper = physics_mapper
         self.fine_res = fine_res
+
+    def keys(self):
+        return list(set(self.physics_mapper.keys()) & set(self.fine_res.keys()))
+
+
+class FineResolutionResidual(ResidualMapper):
+    """Define the fine resolution dQ as a residual from the physics tendencies in
+    another mapper
+    """
 
     def __getitem__(self, key: str) -> xr.Dataset:
         nudging = self.physics_mapper[key]
@@ -29,13 +34,37 @@ class FineResolutionResidual(GeoMapper):
             dQ2=fine_res.dQ2 - nudging.pQ2,
         ).load()
 
-    def keys(self):
-        return list(set(self.physics_mapper.keys()) & set(self.fine_res.keys()))
+
+class FineResolutionResidualCloudsOff(ResidualMapper):
+    def __getitem__(self, key: str) -> xr.Dataset:
+        nudging = self.physics_mapper[key]
+        fine_res = self.fine_res[key]
+
+        clouds_off_pQ1 = (
+            nudging.tendency_of_air_temperature_due_to_longwave_heating_assuming_clear_sky
+            + nudging.tendency_of_air_temperature_due_to_shortwave_heating_assuming_clear_sky
+            + nudging.tendency_of_air_temperature_due_to_turbulence
+            + nudging.tendency_of_air_temperature_due_to_dissipation_of_gravity_waves
+        )
+        clouds_off_pQ2 = nudging.tendency_of_specific_humidity_due_to_turbulence
+
+        return nudging.assign(
+            pQ1=clouds_off_pQ1,
+            pQ2=clouds_off_pQ2,
+            dQ1=fine_res.dQ1 - clouds_off_pQ1,
+            dQ2=fine_res.dQ2 - clouds_off_pQ2,
+        ).load()
 
 
-def open_fine_resolution_nudging_hybrid(
-    data_paths: List[str], nudging: Mapping = None, fine_res: Mapping = None,
-) -> FineResolutionResidual:
+T_Mapper = TypeVar("T_Mapper", FineResolutionResidual, FineResolutionResidualCloudsOff)
+
+
+def _open_fine_resolution_nudging_hybrid(
+    data_paths: List[str],
+    mapper: T_Mapper = FineResolutionResidual,
+    nudging: Mapping = None,
+    fine_res: Mapping = None,
+) -> T_Mapper:
     """
     Open the fine resolution nudging_hybrid mapper
 
@@ -43,6 +72,7 @@ def open_fine_resolution_nudging_hybrid(
         data_paths: If list of urls is provided, the first is used as the nudging
             data url and second is used as fine res. If string or None, the paths must
             be provided in each mapper's kwargs.
+        mapper: Hybrid mapper to use in opening the data
         nudging: keyword arguments passed to
             :py:func:`open_merged_nudging_full_tendencies`
         fine_res: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
@@ -67,7 +97,51 @@ def open_fine_resolution_nudging_hybrid(
 
     nudged = open_merged_nudged_full_tendencies(**nudging)
     fine_res = open_fine_res_apparent_sources(offset_seconds=offset_seconds, **fine_res)
-    return FineResolutionResidual(nudged, fine_res)
+    return mapper(nudged, fine_res)
+
+
+def open_fine_resolution_nudging_hybrid(
+    data_paths: List[str], nudging: Mapping = None, fine_res: Mapping = None,
+) -> FineResolutionResidual:
+    """
+    Open the fine resolution nudging_hybrid mapper
+
+    Args:
+        data_paths: If list of urls is provided, the first is used as the nudging
+            data url and second is used as fine res. If string or None, the paths must
+            be provided in each mapper's kwargs.
+        nudging: keyword arguments passed to
+            :py:func:`open_merged_nudging_full_tendencies`
+        fine_res: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
+
+    Returns:
+        a mapper
+    """
+    return _open_fine_resolution_nudging_hybrid(
+        data_paths, nudging=nudging, fine_res=fine_res
+    )
+
+
+def open_fine_resolution_nudging_hybrid_clouds_off(
+    data_paths: List[str], nudging: Mapping = None, fine_res: Mapping = None,
+) -> FineResolutionResidualCloudsOff:
+    """
+    Open the fine resolution nudging mapper with using clouds off physics tendencies.
+
+    Args:
+        data_paths: If list of urls is provided, the first is used as the nudging
+            data url and second is used as fine res. If string or None, the paths must
+            be provided in each mapper's kwargs.
+        nudging: keyword arguments passed to
+            :py:func:`open_merged_nudging_full_tendencies`
+        fine_res: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
+
+    Returns:
+        a mapper
+    """
+    return _open_fine_resolution_nudging_hybrid(
+        data_paths, FineResolutionResidualCloudsOff, nudging, fine_res
+    )
 
 
 def open_fine_resolution_nudging_to_obs_hybrid(
