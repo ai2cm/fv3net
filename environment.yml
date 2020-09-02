@@ -53,6 +53,7 @@ dependencies:
   - coverage>=5
   - six=1.12
   - pip
+  - docrep=0.2.7
   - pip:
     - apache-beam[gcp]
     - zarr>=2.4
