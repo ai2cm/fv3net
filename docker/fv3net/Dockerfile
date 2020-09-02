@@ -27,7 +27,7 @@ ENV PROJECT_NAME=fv3net
 WORKDIR $FV3NET
 
 ADD .environment-scripts $ENVIRONMENT_SCRIPTS
-ADD environment.yml  environment.yml
+COPY pip-requirements.txt conda-linux-64.lock ./
 
 RUN bash $ENVIRONMENT_SCRIPTS/build_environment.sh $PROJECT_NAME && conda clean -tpi
 ENV PATH=/opt/conda/envs/${PROJECT_NAME}/bin:$PATH
