@@ -13,6 +13,7 @@ Significant internal changes:
 
 Requirement changes:
 - Bulleted list, if relevant, of any changes to setup.py, requirement.txt, environment.yml, etc
+- Versions should only be pinned in `constraints.txt` or `environment.yml`.
 
 - [ ] Tests added
 
