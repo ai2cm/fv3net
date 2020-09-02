@@ -3,5 +3,18 @@
 CONDA_ENV=$1
 CONDA_BASE=$(conda info --base)
 
-conda env create -n $CONDA_ENV -f environment.yml || \
-	echo "Conda env already exists proceeding to VCM package installation"
+case $(uname) in
+    Darwin)
+        packages=conda-osx-64.lock
+        ;;
+    Linux)
+        packages=conda-linux-64.lock
+        ;;
+    *)
+        echo "$(uname) unsupported quiting"
+        exit 1
+        ;;
+esac
+
+conda create -n $CONDA_ENV --file $packages 
+pip install -c constraints.txt -r pip-requirements.txt
