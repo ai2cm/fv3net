@@ -3,10 +3,10 @@
 	url = git@github.com:VulcanClimateModeling/fv3net.git
 [submodule "2020-07-14-nudge-to-obs/fv3net"]
 	path = 2020-07-14-nudge-to-obs/fv3net
-	url = https://github.com/VulcanClimateModeling/fv3net.git
+	url = git@github.com:VulcanClimateModeling/fv3net.git
 [submodule "2020-08-06-nudge-to-obs-proper-input/fv3net"]
 	path = 2020-08-06-nudge-to-obs-proper-input/fv3net
-	url = https://github.com/VulcanClimateModeling/fv3net.git
+	url = git@github.com:VulcanClimateModeling/fv3net.git
 [submodule "2020-08-13-nudge-to-obs-january-2016/fv3net"]
 	path = 2020-08-13-nudge-to-obs-january-2016/fv3net
-	url = https://github.com/VulcanClimateModeling/fv3net.git
+	url = git@github.com:VulcanClimateModeling/fv3net.git
