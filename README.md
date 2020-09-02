@@ -36,7 +36,7 @@ use for pip packages. These constraints should then be whenenver `pip` is invoke
 ## The "fv3net" environment
 
 The package `conda-lock` is used to ensure deterministic builds anaconda
-builds. Therefore, adding or modifying a dependency is a two step procedure.
+builds. Therefore, adding or modifying a dependency involves a few steps:
 1. add any anaconda packages to the `environment.yml`
 1. add any pip packages to `pip-requirements.txt`
 1. run `make lock_deps` to create lock files `conda-<system>.lock` which explicitly list all the conda packages
