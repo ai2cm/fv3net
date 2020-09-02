@@ -1,5 +1,5 @@
 # platform: linux-64
-# env_hash: f1483fbed9230842748c1c5d302e184b89a1ccecd91d72b5cae61e0117978141
+# env_hash: ac414e3e0742683d4c33f913306eacbea496b9c9fa6d1268d989174355f4669c
 @EXPLICIT
 https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2#d7c89558ba9fa0495403155b64376d81
 https://repo.anaconda.com/pkgs/main/linux-64/_tflow_select-2.3.0-mkl.conda#bae8f1f0e1eea557cec5928eb603328d
@@ -27,7 +27,6 @@ https://conda.anaconda.org/conda-forge/linux-64/jpeg-9d-h516909a_0.tar.bz2#aa82d
 https://repo.anaconda.com/pkgs/main/linux-64/jxrlib-1.1-h7b6447c_2.conda#3cc305f3788177c8ea28088590ab75a1
 https://repo.anaconda.com/pkgs/main/linux-64/lame-3.100-h7b6447c_0.conda#477799f2a31e72dd949fa5c043a409de
 https://repo.anaconda.com/pkgs/main/linux-64/libaec-1.0.4-he6710b0_1.conda#95e3b23fe7c0108bce3b6826749bb94d
-https://conda.anaconda.org/conda-forge/linux-64/libcrc32c-1.1.1-he1b5a44_2.tar.bz2#d3cdb452dcfd53b404a4d2efae7cd014
 https://repo.anaconda.com/pkgs/main/linux-64/libffi-3.3-he6710b0_2.conda#88a54b8f50e351c650e16f4ee781440c
 https://conda.anaconda.org/conda-forge/linux-64/libiconv-1.16-h516909a_0.tar.bz2#5c0f338a513a2943c659ae619fca9211
 https://repo.anaconda.com/pkgs/main/linux-64/liblief-0.10.1-he6710b0_0.conda#e94229a88ed005d459840a76aebf1875
@@ -181,6 +180,7 @@ https://repo.anaconda.com/pkgs/main/noarch/dask-core-2.22.0-py_0.conda#290664743
 https://conda.anaconda.org/conda-forge/noarch/docrep-0.2.7-py_0.tar.bz2#7a8411a58c16dffe32424251e62e3149
 https://repo.anaconda.com/pkgs/main/noarch/fasteners-0.15-py_0.conda#732e64d083b6b8bcd8f974294c81e52d
 https://repo.anaconda.com/pkgs/main/noarch/google-pasta-0.2.0-py_0.conda#faa33798bab2e51cf74e55b21f49d25c
+https://repo.anaconda.com/pkgs/main/noarch/google-resumable-media-0.5.1-py_0.conda#0e7e1e5e139b987f0ac2bebc3fd79abf
 https://repo.anaconda.com/pkgs/main/noarch/hypothesis-5.29.0-py_0.conda#b0e84332cccc00bc1d269851e21189df
 https://repo.anaconda.com/pkgs/main/linux-64/importlib-metadata-1.7.0-py37_0.conda#14585850b45263ea860d08f634f5f021
 https://repo.anaconda.com/pkgs/main/linux-64/jedi-0.17.2-py37_0.conda#01af093d381a71881ba4b769577eab55
@@ -213,7 +213,6 @@ https://repo.anaconda.com/pkgs/main/linux-64/cryptography-3.1-py37h1ba5d50_0.con
 https://repo.anaconda.com/pkgs/main/linux-64/distributed-2.25.0-py37_0.conda#5cdfff18f8a59b6baa32348a81328f81
 https://repo.anaconda.com/pkgs/main/linux-64/flake8-3.7.9-py37_0.conda#6415b63ea04bc48c622ba38d46b69624
 https://repo.anaconda.com/pkgs/main/noarch/google-auth-1.21.0-py_0.conda#623abfebdb93af0d254d1948c978f90b
-https://conda.anaconda.org/conda-forge/linux-64/google-crc32c-1.0.0-py37h193935f_0.tar.bz2#f4e56df4054d4809aa313014892a4db2
 https://repo.anaconda.com/pkgs/main/linux-64/grpcio-1.31.0-py37hf8bcb03_0.conda#2ed81ca871e720a585392fbb8c6e72d3
 https://repo.anaconda.com/pkgs/main/noarch/importlib_metadata-1.7.0-0.conda#23f2c6fd9b40edc06aea0623a122fe1e
 https://repo.anaconda.com/pkgs/main/linux-64/isort-5.4.2-py37_0.conda#54b53d08b208863def7ca40af4f35a44
@@ -230,7 +229,6 @@ https://repo.anaconda.com/pkgs/main/noarch/pygments-2.6.1-py_0.conda#ccf82aceec9
 https://repo.anaconda.com/pkgs/main/noarch/tensorboard-plugin-wit-1.6.0-py_0.conda#12ab6d08eb7ae82913a81b9fc631a279
 https://repo.anaconda.com/pkgs/main/linux-64/yarl-1.5.1-py37h7b6447c_0.conda#bde4ec3812a762a1d200ef84d3372d22
 https://repo.anaconda.com/pkgs/main/linux-64/aiohttp-3.6.2-py37h7b6447c_0.conda#8fec640217bbee2adf2d51fa115680ab
-https://conda.anaconda.org/conda-forge/noarch/google-resumable-media-1.0.0-pyh9f0ad1d_0.tar.bz2#633651bc3657711af40255f343977624
 https://repo.anaconda.com/pkgs/main/linux-64/googleapis-common-protos-1.51.0-py37_2.conda#f6ead32a1f89c8f78de6c080191ee08e
 https://repo.anaconda.com/pkgs/main/linux-64/jsonschema-3.2.0-py37_1.conda#3935df4e0001b7cff9a77f4bbbed8220
 https://conda.anaconda.org/conda-forge/noarch/jupyter_client-6.1.7-py_0.tar.bz2#bcaa486602c05413da0808b82898f60a
@@ -262,7 +260,7 @@ https://conda.anaconda.org/conda-forge/noarch/google-cloud-core-1.4.1-pyh9f0ad1d
 https://repo.anaconda.com/pkgs/main/noarch/jupyterlab_server-1.2.0-py_0.conda#dbf166cd2dbf602281afc84feb4bae75
 https://conda.anaconda.org/conda-forge/linux-64/python-kubernetes-11.0.0-py37hc8dfbb8_0.tar.bz2#1599296dcc4a6cf403797b9f03ebdad2
 https://conda.anaconda.org/conda-forge/noarch/gcsfs-0.7.0-py_0.tar.bz2#823ba813598264f6d6cb1b817a6ebcc2
-https://conda.anaconda.org/conda-forge/noarch/google-cloud-storage-1.31.0-pyh9f0ad1d_0.tar.bz2#90f8f28178314ba6c8d03bd314a6701f
+https://repo.anaconda.com/pkgs/main/noarch/google-cloud-storage-1.28.1-py_0.conda#58e57b51ce0a5402c0316cab5dd93862
 https://repo.anaconda.com/pkgs/main/noarch/jupyterlab-2.2.6-py_0.conda#99a27c764f3c98279b02775edc7ce966
 https://conda.anaconda.org/conda-forge/linux-64/numba-0.51.1-py37h9fdb41a_0.tar.bz2#c66e98c54a51ac34180f2aea9ca2a366
 https://conda.anaconda.org/conda-forge/noarch/h5netcdf-0.8.1-py_0.tar.bz2#0181638a03dbead1e8b2ff3bdb54d24e

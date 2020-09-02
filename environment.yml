@@ -18,7 +18,7 @@ dependencies:
   - isort
   - flake8=3.7.9
   - gcsfs>=0.6.2
-  - google-cloud-storage
+  - google-cloud-storage=1.28
   - h5netcdf
   - h5py>=2.10
   - hypothesis
