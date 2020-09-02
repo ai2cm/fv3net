@@ -48,9 +48,12 @@ jobs:
       - run:
           name: "Install fv3net packages"
           command: make install_local_packages
-      - run: |
-          source activate fv3net
-          make <<parameters.kind>>
+      - run: 
+          name: "Run test"
+          no_output_timeout: 20m
+          command: |
+            source activate fv3net
+            make <<parameters.kind>>
       - run:
           name: "Coverage Report"
           command: |
