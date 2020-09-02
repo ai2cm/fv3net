@@ -116,7 +116,7 @@ def _compute_diags_over_batches(
         ds_summary = utils.reduce_to_diagnostic(
             ds,
             grid,
-            net_precipitation=ds["column_integrated_Q2"].sel(
+            net_precipitation=-ds["column_integrated_Q2"].sel(
                 derivation=net_precip_domain_coord
             ),
         )
