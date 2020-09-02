@@ -10,7 +10,7 @@ dependencies:
   - conda-build
   - cloudpickle
   - crcmod
-  - dask>=2.3
+  - dask=2.22.0
   - ffmpeg
   - fsspec
   - f90nml
