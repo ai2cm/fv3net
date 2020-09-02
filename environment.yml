@@ -52,7 +52,6 @@ dependencies:
   - mypy=0.770
   - coverage>=5
   - six=1.12
-  - docrep==0.2.7
   - pip
   - pip:
     - apache-beam[gcp]
