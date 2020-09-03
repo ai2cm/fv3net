@@ -189,7 +189,15 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
 
     def _step_physics(self) -> Diagnostics:
         self._log_debug(f"Physics Step")
+        temp_before = self._state[TEMP]
+        sphum_before = self._state[SPHUM]
+
         self._fv3gfs.step_physics()
+
+        # ignore the state updates for temperature and humidity
+        self._state[TEMP] = temp_before
+        self._state[SPHUM] = sphum_before
+
         # no diagnostics are computed by default
         return {}
 
