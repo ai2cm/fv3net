@@ -1,7 +1,9 @@
 import xarray as xr
+from vcm import safe
 import abc
-from typing import Iterable
+from typing import Iterable, Sequence, Hashable
 import logging
+
 
 logger = logging.getLogger(__file__)
 
@@ -28,7 +30,7 @@ class Predictor(abc.ABC):
         Args:
             sample_dim_name: name of sample dimension
             input_variables: names of input variables
-            outpiut_variables: names of output variables
+            output_variables: names of output variables
         
         """
 
@@ -46,3 +48,33 @@ class Predictor(abc.ABC):
     def load(cls, path: str) -> object:
         """Load a serialized model from a directory."""
         pass
+
+    def predict_columnwise(
+        self, X: xr.Dataset, sample_dims: Sequence[Hashable]
+    ) -> xr.Dataset:
+        """Predict on an unstacked xarray dataset
+
+        Args:
+            X: the input data
+            sample_dims: A list of dimensions over which samples? are taken
+
+        Returns:
+            the predictions defined on the same dimensions as X
+        """
+        coords = X.coords
+
+        inputs_ = safe.get_variables(X, self.input_variables)
+        stacked = (safe.stack_once(inputs_, "sample", dims=sample_dims).transpose("sample", ...))
+        ds_pred = self.predict(stacked)
+        output = self.predict(stacked).unstack("sample")
+
+        # ensure the output coords are the same
+        # stack/unstack adds coordinates if none exist before
+        for key in output.coords:
+            if key in coords:
+                output.coords[key] = coords[key]
+            else:
+                del output.coords[key]
+
+        # ensure dimension order is the same
+        return output.transpose(*X.dims)

@@ -99,6 +99,8 @@ class SklearnWrapper(BaseXarrayEstimator):
         input_variables: tuple,
         output_variables: tuple,
         model: BaseEstimator,
+        parallel_backend: str = "threading",
+        n_jobs: int = 1,
     ):
         """
         Initialize the wrapper
@@ -114,6 +116,9 @@ class SklearnWrapper(BaseXarrayEstimator):
         self._output_variables = output_variables
         self.model = model
 
+        self.n_jobs = n_jobs
+        self.parallel_backend = parallel_backend
+
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
 
@@ -127,7 +132,8 @@ class SklearnWrapper(BaseXarrayEstimator):
 
     def predict(self, data):
         x, _ = pack(data[self.input_variables], self.sample_dim_name)
-        y = self.model.predict(x)
+        with joblib.parallel_backend(self.parallel_backend, n_jobs=self.n_jobs):
+            y = self.model.predict(x)
         ds = unpack(y, self.sample_dim_name, self.output_features_)
         return ds.assign_coords({self.sample_dim_name: data[self.sample_dim_name]})
 
