@@ -1,7 +1,7 @@
 import xarray as xr
 from vcm import safe
 import abc
-from typing import Iterable, Sequence, Hashable, Set
+from typing import Iterable, Sequence, Hashable, Tuple
 import logging
 
 
@@ -92,7 +92,7 @@ class Predictor(abc.ABC):
         return output.transpose(*dim_order)
 
 
-def _infer_sample_dims(ds: xr.Dataset, feature_dim: Hashable) -> Set[Hashable]:
+def _infer_sample_dims(ds: xr.Dataset, feature_dim: Hashable) -> Tuple:
     dims_in_inputs = set.union(*[set(ds[variable].dims) for variable in ds])
     non_feature_dims = set(dim for dim in ds.dims if dim != feature_dim)
-    return dims_in_inputs.intersection(non_feature_dims)
+    return tuple(dims_in_inputs.intersection(non_feature_dims))
