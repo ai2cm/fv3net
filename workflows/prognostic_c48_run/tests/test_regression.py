@@ -457,7 +457,6 @@ def _save_mock_sklearn_model(tmpdir):
     model = SklearnWrapper(
         "sample", ["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], estimator
     )
-    model.fit(data)
 
     path = str(tmpdir.join("model.pkl"))
     joblib.dump(model, path)

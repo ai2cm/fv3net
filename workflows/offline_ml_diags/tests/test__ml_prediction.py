@@ -12,7 +12,6 @@ from offline_ml_diags._mapper import (
 from sklearn.dummy import DummyRegressor
 
 from fv3fit.keras import DummyModel
-from fv3fit import Predictor
 from fv3fit.sklearn import SklearnWrapper
 from vcm import safe
 
@@ -67,28 +66,6 @@ def base_mapper(gridded_dataset):
 
 def mock_predict_function(sizes):
     return xr.DataArray(np.zeros(list(sizes.values())), dims=[dim for dim in sizes])
-
-
-class MockSklearnWrappedModel(Predictor):
-    def __init__(self, input_variables, output_variables):
-        self.input_variables = input_variables
-        self.output_variables = output_variables
-        self.sample_dim_name = "sample"
-        self._output_sizes = {}
-
-    def fit(self, ds_stacked):
-        for var in self.output_variables:
-            self._output_sizes[var] = dict(ds_stacked[var].sizes)
-
-    def predict(self, ds_stacked):
-        ds_pred = xr.Dataset()
-        for output_var in self.output_variables:
-            mock_prediction = mock_predict_function(self._output_sizes[output_var])
-            ds_pred[output_var] = mock_prediction
-        return ds_pred
-
-    def load(self, *args, **kwargs):
-        pass
 
 
 def get_mock_sklearn_model(input_variables, output_variables, ds):

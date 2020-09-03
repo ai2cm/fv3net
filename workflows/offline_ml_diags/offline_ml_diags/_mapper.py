@@ -32,8 +32,7 @@ class PredictionMapper(GeoMapper):
         self.rename_vars = rename_vars or {}
 
     def _predict(self, ds: xr.Dataset) -> xr.Dataset:
-        sample_dims = [dim for dim in ds.dims if dim != self._z_dim]
-        output = self._model.predict_columnwise(ds, sample_dims)
+        output = self._model.predict_columnwise(ds, feature_dim=self._z_dim)
         return output.rename(self.rename_vars)
 
     def _insert_cos_zenith_angle(self, time_key: str, ds: xr.Dataset) -> xr.Dataset:

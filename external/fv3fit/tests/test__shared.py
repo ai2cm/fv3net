@@ -31,6 +31,13 @@ def test__Predictor_predict_columnwise_dims_same_order_2d_output():
     assert ans.b.dims == ("x", "y")
 
 
+def test__Predictor_predict_columnwise_dims_infers_feature_dim():
+    model = IdentityPredictor2D("sample", ["a"], ["a"])
+    X = xr.Dataset({"a": (["x", "y", "z"], np.ones((3, 4, 5)))})
+    ans = model.predict_columnwise(X, feature_dim=["z"])
+    assert ans.a.dims == X.a.dims
+
+
 nx, ny, nz = 3, 4, 5
 
 

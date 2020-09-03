@@ -1,7 +1,7 @@
 import xarray as xr
 from vcm import safe
 import abc
-from typing import Iterable, Sequence, Hashable
+from typing import Iterable, Sequence, Hashable, Set
 import logging
 
 
@@ -50,20 +50,31 @@ class Predictor(abc.ABC):
         pass
 
     def predict_columnwise(
-        self, X: xr.Dataset, sample_dims: Sequence[Hashable]
+        self,
+        X: xr.Dataset,
+        sample_dims: Sequence[Hashable] = (),
+        feature_dim: Hashable = None,
     ) -> xr.Dataset:
         """Predict on an unstacked xarray dataset
 
         Args:
             X: the input data
-            sample_dims: A list of dimensions over which samples? are taken
+            sample_dims: A list of dimensions over which samples are taken
+            feature_dim: If provided, the sample_dims will be inferred from this
+                value
+
 
         Returns:
             the predictions defined on the same dimensions as X
         """
+
         coords = X.coords
 
         inputs_ = safe.get_variables(X, self.input_variables)
+
+        if feature_dim is not None:
+            sample_dims = _infer_sample_dims(inputs_, feature_dim)
+
         stacked = safe.stack_once(inputs_, "sample", dims=sample_dims)
         transposed = stacked.transpose("sample", ...)
         output = self.predict(transposed).unstack("sample")
@@ -79,3 +90,9 @@ class Predictor(abc.ABC):
         # ensure dimension order is the same
         dim_order = [dim for dim in X.dims if dim in output.dims]
         return output.transpose(*dim_order)
+
+
+def _infer_sample_dims(ds: xr.Dataset, feature_dim: Hashable) -> Set[Hashable]:
+    dims_in_inputs = set.union(*[set(ds[variable].dims) for variable in ds])
+    non_feature_dims = set(dim for dim in ds.dims if dim != feature_dim)
+    return dims_in_inputs.intersection(non_feature_dims)

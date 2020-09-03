@@ -1,3 +1,4 @@
+import fv3fit
 from runtime import RenamingAdapter, StackingAdapter
 import xarray as xr
 import numpy as np
@@ -25,7 +26,7 @@ class MockPredictor:
         return xr.Dataset({"rename_output": in_})
 
 
-class MockSklearnWrapper:
+class MockSklearnWrapper(fv3fit.Predictor):
     """A mock with the same interface as SklearnWrapper"""
 
     input_variables = ["in"]
@@ -34,6 +35,9 @@ class MockSklearnWrapper:
     def predict(self, x):
         assert x["in"].ndim == 2
         return x.rename({"in": "out"})
+
+    def load(self, *args, **kwargs):
+        pass
 
 
 def test_RenamingAdapter_predict_inputs_and_outputs_renamed():
