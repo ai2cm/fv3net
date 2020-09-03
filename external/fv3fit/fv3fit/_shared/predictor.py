@@ -88,8 +88,20 @@ class Predictor(abc.ABC):
                 del output.coords[key]
 
         # ensure dimension order is the same
-        dim_order = [dim for dim in X.dims if dim in output.dims]
+        dim_order = [
+            dim for dim in _infer_dimension_order(inputs_) if dim in output.dims
+        ]
         return output.transpose(*dim_order)
+
+
+def _infer_dimension_order(ds: xr.Dataset) -> Tuple:
+    # add check here for cases when the dimension order is inconsistent between arrays?
+    dim_order = []
+    for variable in ds:
+        for dim in ds[variable].dims:
+            if dim not in dim_order:
+                dim_order.append(dim)
+    return tuple(dim_order)
 
 
 def _infer_sample_dims(ds: xr.Dataset, feature_dim: Hashable) -> Tuple:

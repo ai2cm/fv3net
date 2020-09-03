@@ -1,4 +1,4 @@
-from typing import Mapping, Set, Sequence, Hashable
+from typing import Mapping, Set, Hashable
 
 import xarray as xr
 
@@ -49,28 +49,7 @@ class RenamingAdapter:
         invert_rename_in = _invert_dict(self.rename_in)
         return {invert_rename_in.get(var, var) for var in self.model.input_variables}
 
-    def predict(self, arg: xr.Dataset) -> xr.Dataset:
+    def predict_columnwise(self, arg: xr.Dataset, sample_dims=None) -> xr.Dataset:
         input_ = self._rename_inputs(arg)
-        prediction = self.model.predict(input_)
+        prediction = self.model.predict_columnwise(input_, sample_dims=sample_dims)
         return self._rename_outputs(prediction)
-
-
-class StackingAdapter:
-    """Wrap a model to work with unstacked inputs
-    
-    Attributes
-        model: a model to stack
-        sample_dims: sample dimension name of the resulting stacked array
-    
-    """
-
-    def __init__(self, model: Predictor, sample_dims: Sequence[str]):
-        self.model = model
-        self.sample_dims = sample_dims
-
-    @property
-    def input_variables(self) -> Set[Hashable]:
-        return set(self.model.input_variables)
-
-    def predict(self, ds: xr.Dataset) -> xr.Dataset:
-        return self.model.predict_columnwise(ds, sample_dims=self.sample_dims)

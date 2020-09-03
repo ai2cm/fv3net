@@ -15,11 +15,37 @@ class IdentityPredictor2D(Predictor):
         pass
 
 
-def test__Predictor_predict_columnwise_dims_same_order():
+class InOutPredictor(Predictor):
+    input_variables = ["in"]
+    output_variables = ["out"]
+
+    @classmethod
+    def create(cls):
+        return cls("sample", cls.input_variables, cls.output_variables)
+
+    def predict(self, x):
+        assert x["in"].ndim == 2
+        return x.rename({"in": "out"})
+
+    def load(self, *args, **kwargs):
+        pass
+
+
+@pytest.mark.parametrize("sample_dims", [("x", "y"), ("y", "x")])
+def test__Predictor_predict_columnwise_dims_same_order(sample_dims,):
     model = IdentityPredictor2D("sample", ["a"], ["a"])
     X = xr.Dataset({"a": (["x", "y", "z"], np.ones((3, 4, 5)))})
-    ans = model.predict_columnwise(X, sample_dims=["x", "y"])
+    ans = model.predict_columnwise(X, sample_dims=sample_dims)
     assert ans.a.dims == ("x", "y", "z")
+
+
+@pytest.mark.parametrize("sample_dims", [("x", "y"), ("y", "x")])
+def test__Predictor_predict_columnwise_dims_same_order_InOutPredictor(sample_dims):
+    model = InOutPredictor.create()
+    shape = (3, 4, 5)
+    ds = xr.Dataset({"in": (["z", "y", "x"], np.ones(shape))})
+    output = model.predict_columnwise(ds, sample_dims=sample_dims)
+    assert output.out.dims == ("z", "y", "x")
 
 
 def test__Predictor_predict_columnwise_dims_same_order_2d_output():
