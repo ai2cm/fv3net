@@ -109,7 +109,7 @@ def open_model(config):
 def predict(model: runtime.RenamingAdapter, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
     ds = xr.Dataset(state)  # type: ignore
-    output = model.predict_columnwise(ds)
+    output = model.predict_columnwise(ds, feature_dim="z")
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 
