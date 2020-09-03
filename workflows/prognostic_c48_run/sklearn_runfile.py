@@ -221,9 +221,9 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         if self._do_only_diagnostic_ml:
             rename_diagnostics(diagnostics)
 
-        updated_state[TOTAL_PRECIP] = precipitation_sum(
-            state[TOTAL_PRECIP], diagnostics["net_moistening"], self._timestep
-        )
+        # updated_state[TOTAL_PRECIP] = precipitation_sum(
+        #     state[TOTAL_PRECIP], diagnostics["net_moistening"], self._timestep
+        # )
 
         self._log_debug("Setting Fortran State")
         self._state.update(updated_state)
