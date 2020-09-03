@@ -77,4 +77,5 @@ class Predictor(abc.ABC):
                 del output.coords[key]
 
         # ensure dimension order is the same
-        return output.transpose(*X.dims)
+        dim_order = [dim for dim in X.dims if dim in output.dims]
+        return output.transpose(*dim_order)

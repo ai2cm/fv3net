@@ -9,7 +9,7 @@ class IdentityPredictor2D(Predictor):
     def predict(self, X):
         for variable in X:
             assert X[variable].ndim <= 2
-        return X
+        return X[self.output_variables]
 
     def load(self, *args, **kwargs):
         pass
@@ -23,7 +23,7 @@ def test__Predictor_predict_columnwise_dims_same_order():
 
 
 def test__Predictor_predict_columnwise_dims_same_order_2d_output():
-    model = IdentityPredictor2D("sample", ["a"], ["b"])
+    model = IdentityPredictor2D("sample", ["a", "b"], ["b"])
     X = xr.Dataset(
         {"a": (["x", "y", "z"], np.ones((3, 4, 5))), "b": (["x", "y"], np.ones((3, 4)))}
     )
