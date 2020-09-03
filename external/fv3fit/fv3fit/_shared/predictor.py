@@ -64,9 +64,9 @@ class Predictor(abc.ABC):
         coords = X.coords
 
         inputs_ = safe.get_variables(X, self.input_variables)
-        stacked = (safe.stack_once(inputs_, "sample", dims=sample_dims).transpose("sample", ...))
-        ds_pred = self.predict(stacked)
-        output = self.predict(stacked).unstack("sample")
+        stacked = safe.stack_once(inputs_, "sample", dims=sample_dims)
+        transposed = stacked.transpose("sample", ...)
+        output = self.predict(transposed).unstack("sample")
 
         # ensure the output coords are the same
         # stack/unstack adds coordinates if none exist before

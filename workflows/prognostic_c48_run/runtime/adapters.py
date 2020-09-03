@@ -1,6 +1,5 @@
 from typing import Mapping, Set, Sequence, Hashable
 
-from sklearn.utils import parallel_backend
 import xarray as xr
 
 from fv3fit._shared import Predictor
@@ -74,6 +73,4 @@ class StackingAdapter:
         return set(self.model.input_variables)
 
     def predict(self, ds: xr.Dataset) -> xr.Dataset:
-        with parallel_backend("threading", n_jobs=1):
-            stacked = ds.stack(sample=self.sample_dims)
-            return self.model.predict(stacked).unstack("sample")
+        self.model.predict_columnwise(ds, sample_dims=self.sample_dims)
