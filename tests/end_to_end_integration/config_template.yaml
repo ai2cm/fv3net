@@ -62,10 +62,11 @@ training-config: |
     timesteps_per_batch: 1
     mapping_function: open_merged_nudged_full_tendencies
     mapping_kwargs:
-      consolidated: true
-      rename_vars:
-        air_temperature_tendency_due_to_nudging: dQ1
-        specific_humidity_tendency_due_to_nudging: dQ2
+      consolidated: True
+      open_merged_nudged_kwargs:
+        rename_vars:
+          air_temperature_tendency_due_to_nudging: dQ1
+          specific_humidity_tendency_due_to_nudging: dQ2
 prognostic-run-config: |
   base_version: v0.5
   namelist:
