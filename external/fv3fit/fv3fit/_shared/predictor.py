@@ -22,8 +22,8 @@ class Predictor(abc.ABC):
     def __init__(
         self,
         sample_dim_name: str,
-        input_variables: Iterable[str],
-        output_variables: Iterable[str],
+        input_variables: Iterable[Hashable],
+        output_variables: Iterable[Hashable],
     ):
         """Initialize the predictor
         

@@ -1,8 +1,8 @@
-from typing import cast, Sequence, Hashable
+from typing import cast, Sequence, Hashable, Iterable
 import xarray as xr
 
 
-def get_variables(ds: xr.Dataset, variables: Sequence[Hashable]) -> xr.Dataset:
+def get_variables(ds: xr.Dataset, variables: Iterable[Hashable]) -> xr.Dataset:
     """ds[...] is very confusing function from a typing perspective and should be
     avoided in long-running pipeline codes. This function introduces a type-stable
     alternative that works better with mypy.

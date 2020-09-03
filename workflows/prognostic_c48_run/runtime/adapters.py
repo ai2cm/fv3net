@@ -69,8 +69,8 @@ class StackingAdapter:
         self.sample_dims = sample_dims
 
     @property
-    def input_variables(self) -> Set[str]:
+    def input_variables(self) -> Set[Hashable]:
         return set(self.model.input_variables)
 
     def predict(self, ds: xr.Dataset) -> xr.Dataset:
-        self.model.predict_columnwise(ds, sample_dims=self.sample_dims)
+        return self.model.predict_columnwise(ds, sample_dims=self.sample_dims)
