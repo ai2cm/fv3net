@@ -1,0 +1,9 @@
+apache-beam[gcp]
+zarr
+poetry
+gsutil
+nc-time-axis
+bump2version
+yq
+pytest-regtest
+conda-lock

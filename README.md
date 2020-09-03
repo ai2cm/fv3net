@@ -4,19 +4,15 @@ fv3net
 
 Improving the GFDL FV3 model physics with machine learning
 
-# Setting up the environment
+# The default fv3net environment
 
-This computational environment can be challenging to install because it require
-both external packages as well as tools developed locally at Vulcan. The
-internal Vulcan dependencies are included as submodules in the `external`
-folder, while the external dependencies are managed using anaconda with an
-`environment.yml`. The Vulcan submodules can be download, if they aren't
-already, by running
+## Installing
+
+This project specifies a default "fv3net" environment containing the
+dependencies of all the non-containerized workflows. This environment uses
+the conda package manager. If that is installed then you can run
 
     make update_submodules
-
-Then, assuming anaconda is installed, the environment can be created by running
-
     make create_environment
 
 This creates an anaconda environment `fv3net` containing both Vulcan and
@@ -27,11 +23,29 @@ succesfully, the fv3net environment can be activated with
 
     conda activate fv3net
 
-The `build_environment.sh` script also outputs a list of all installed dependencies
-with their version under `.circleci/environment.lock`.  This file is used
-along with `environment.yml` as a key for caching the `fv3net` dependencies.  Whenver
-`make create_environment` or the build script is run, this file will be updated
-and committed to keep track of versions over time.
+# Updating dependencies
+
+# Pip
+
+To maintain deterministic builds, fv3net pins the versions of all pip and
+anaconda packages. The file `constraints.txt` contains a list of versions to
+use for pip packages. These constraints should then be whenenver `pip` is invoked like this:
+
+    pip install -c constraints.txt <other pip args>
+
+## The "fv3net" environment
+
+The package `conda-lock` is used to ensure deterministic builds anaconda
+builds. Therefore, adding or modifying a dependency involves a few steps:
+1. add any anaconda packages to the `environment.yml`
+1. add any pip packages to `pip-requirements.txt`
+1. run `make lock_deps` to create lock files `conda-<system>.lock` which explicitly list all the conda packages
+1. Commit the lock files and any other changes to git
+
+The `make create_environment` uses these lock files and
+`pip-requirements.txt` to install its dependencies. It does NOT directly
+install the `environment.yml` file since that can lead to non-deterministic
+builds, and difficult to debug errors in CI.
 
 # Deploying cloud data pipelines
 

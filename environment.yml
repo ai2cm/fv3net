@@ -18,7 +18,7 @@ dependencies:
   - isort
   - flake8=3.7.9
   - gcsfs>=0.6.2
-  - google-cloud-storage
+  - google-cloud-storage=1.28
   - h5netcdf
   - h5py>=2.10
   - hypothesis
@@ -53,14 +53,3 @@ dependencies:
   - coverage>=5
   - six=1.12
   - pip
-  - docrep=0.2.7
-  - pip:
-    - apache-beam[gcp]
-    - zarr>=2.4
-    - poetry
-    - gsutil
-    - nc-time-axis>=1.2.0
-    - gitpython
-    - bump2version>=0.5.11
-    - yq
-    - pytest-regtest
