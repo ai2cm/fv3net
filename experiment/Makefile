@@ -1,7 +1,5 @@
-all: submit_extra_vars_long
+all:
+	kubectl apply -k fv3net/workflows/argo
+	./run.sh
 
-submit_extra_vars_long: prog_run_template
-	argo submit prog_run_long.yaml -f config_solin_long.yaml
     
-prog_run_template:
-	kubectl apply -f workflow-templates/prognostic-run.yaml
