@@ -87,7 +87,7 @@ jobs:
       image:
         default: fv3net
         type: enum
-        enum: ["prognostic_run", "post_process_run", "fv3net", "fv3fit"]
+        enum: ["prognostic_run", "post_process_run", "fv3net", "fv3fit", "fv3gfs_fv3net"]
     docker:
       - image: google/cloud-sdk
     environment:
@@ -116,6 +116,64 @@ jobs:
       - run:
           name: Build fv3net images
           command: |
+            make build_image_$IMAGE
+      - run:
+          name: Push fv3net images
+          command: |
+            echo $CIRCLE_BRANCH
+            echo $CIRCLE_TAG
+            if [[ "$CIRCLE_BRANCH" == "master" ]]
+            then
+                echo "pushing untagged images as 'latest'"
+                make push_image_$IMAGE VERSION=latest
+            fi
+
+            if [[ ! -z "$CIRCLE_TAG" ]]
+            then
+              make push_image_$IMAGE VERSION=$CIRCLE_TAG
+            fi
+
+            # push all images with sha for testing later on
+            echo "pushing tagged images $CIRCLE_SHA1"
+            make push_image_$IMAGE VERSION=$CIRCLE_SHA1
+      - slack/status:
+          fail_only: true
+          mentions: "channel"
+  build_fv3gfs:
+    parameters:
+      image:
+        default: prognostic_run
+        type: enum
+        enum: ["prognostic_run"]
+    docker:
+      - image: google/cloud-sdk
+    environment:
+      GOOGLE_PROJECT_ID: vcm-ml
+      GOOGLE_COMPUTE_ZONE: us-central1
+      GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+      IMAGE: <<parameters.image>>
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Authenticate docker with GCR
+          command: |
+            echo "$ENCODED_GOOGLE_CREDENTIALS" | base64 -d > "$GOOGLE_APPLICATION_CREDENTIALS"
+            gcloud auth activate-service-account --key-file "$GOOGLE_APPLICATION_CREDENTIALS"
+            gcloud auth configure-docker
+      - checkout
+      - add_ssh_keys:
+          fingerprints:
+            - "c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39"
+      - run: apt-get install -y make jq
+      - run:
+          name: "Pull submodules"
+          command: |
+            git submodule update --init --recursive
+      - run:
+          name: Build fv3net images
+          command: |
+            make pull_image_fv3gfs_fv3net VERSION=$CIRCLE_SHA1
             make build_image_$IMAGE
       - run:
           name: Push fv3net images
@@ -234,12 +292,25 @@ workflows:
           requires:
             - hold
       - build_default:
+          name: build_fv3gfs_fv3net
           matrix:
             parameters:
-              image: ["prognostic_run", "fv3net", "post_process_run", "fv3fit"]
+              image: ["fv3gfs_fv3net"]
+      - build_default:
+          matrix:
+            parameters:
+              image: ["fv3net", "post_process_run", "fv3fit"]
+            alias: build_docker_images
+      - build_fv3gfs:
+          matrix:
+            parameters:
+              image: ["prognostic_run"]
+          requires:
+            - build_fv3gfs_fv3net
       - integration_tests:
           requires:
-            - build_default
+            - build_docker_images
+            - build_fv3gfs
             - hold
   master_tests:
     jobs:

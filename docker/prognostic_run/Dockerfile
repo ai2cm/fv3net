@@ -1,4 +1,6 @@
-FROM us.gcr.io/vcm-ml/fv3gfs-fv3net AS bld
+ARG VERSION=latest
+
+FROM us.gcr.io/vcm-ml/fv3gfs-fv3net:${VERSION} AS bld
 
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 RUN pip3 install wheel && pip3 install --upgrade pip && pip3 install -r /tmp/requirements.txt
