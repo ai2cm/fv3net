@@ -42,7 +42,7 @@ spec:
         - name: test-times
         - name: public-report-output
         - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
-        - {name: segment-count, value: "1"}
+        - {name: segment-count, value: "2"}
         - {name: cpu-prog, value: "6"}
         - {name: memory-prog, value: 6Gi}
         - {name: work-volume-name, value: work-volume}
