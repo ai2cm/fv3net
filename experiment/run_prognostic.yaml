@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: prognostic-run
+spec:
+  serviceAccountName: integration-tests
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
+  entrypoint: main
+  volumeClaimTemplates:
+    - metadata:
+        name: work-volume
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 100Gi
+  volumes:
+    - name: external-volume
+      persistentVolumeClaim:
+        claimName: nudging-read-only
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+      - name: main
+        steps:
+        - - name: prognostic-run
+            templateRef:
+              name: prognostic-run
+              template: prognostic-run
+            arguments:
+              parameters:
+                  - name: image-tag
+                    value: 336b0c34bf3c5d074efcdcb7eaaeb6601ee39a88
+                  - name: initial-condition
+                    value: "20160805.000000"
+                  - name: config
+                    value: |
+                        base_version: v0.5
+                        namelist:
+                          coupler_nml:
+                            days: 10
+                            hours: 0
+                            minutes: 0
+                            seconds: 0
+                          diag_manager_nml:
+                            flush_nc_files: true
+                          fv_core_nml:
+                            do_sat_adj: false
+                          gfdl_cloud_microphysics_nml:
+                            fast_sat_adj: false
+                  - name: reference-restarts
+                    value: gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts
+                  - name: trained-ml
+                    value: gs://vcm-ml-scratch/noah/sklearn/
+                  - name: output
+                    value: gs://vcm-ml-scratch/noah/prognostic_run/{{workflow.name}}
