@@ -46,7 +46,7 @@ argo submit \
     --from workflowtemplate/train-diags-prog \
     -p image-tag=336b0c34bf3c5d074efcdcb7eaaeb6601ee39a88 \
     -p root=gs://vcm-ml-experiments/$EXPERIMENT \
-    -p train-test-data=gs://vcm-ml-experiments/2020-06-02-fine-res/fine_res_budget \
+    -p train-test-data=gs://vcm-ml-experiments/2020-07-30-fine-res \
     -p training-config="$(< training-config.yaml)" \
     -p reference-restarts=gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts \
     -p initial-condition="20160805.000000" \
