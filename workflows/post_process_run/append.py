@@ -143,10 +143,10 @@ def _shift_store(group: zarr.Group, dim: str, n_shift: int):
     for array in group.values():
         if dim in array.attrs[XARRAY_DIM_NAMES_ATTR]:
             axis = array.attrs[XARRAY_DIM_NAMES_ATTR].index(dim)
-            _shift_array(array, axis, n_shift, dim)
+            _shift_array(array, axis, n_shift)
 
 
-def _shift_array(array: zarr.Array, axis: int, n_shift: int, dim: str):
+def _shift_array(array: zarr.Array, axis: int, n_shift: int):
     """Rename files within array backed by DirectoryStore: e.g. 0.0 -> 1.0 if n_shift
     equals chunks[axis] and axis=0"""
     _assert_chunks_valid(array, axis, n_shift)
