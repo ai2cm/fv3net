@@ -4,7 +4,7 @@ from typing import Mapping, Hashable, Callable
 import vcm
 import xarray as xr
 
-import fv3util
+import fv3gfs.util
 
 
 class DerivedFV3State:
@@ -16,7 +16,7 @@ class DerivedFV3State:
        DataArray and has time as an attribute (since this isn't a DataArray).
        This insulates runfiles from the details of Quantity
        
-    2. Register and computing derived variables transparently
+    2. Register and computing derived variables transparentlyfv
 
     """
 
@@ -59,7 +59,7 @@ class DerivedFV3State:
             return self._getter.get_state([key])[key].data_array
 
     def __setitem__(self, key: str, value: xr.DataArray):
-        self._getter.set_state({key: fv3util.Quantity.from_data_array(value)})
+        self._getter.set_state({key: fv3gfs.util.Quantity.from_data_array(value)})
 
     def update(self, items: Mapping[Hashable, xr.DataArray]):
         """Update state from another mapping
@@ -70,7 +70,7 @@ class DerivedFV3State:
         """
         self._getter.set_state(
             {
-                key: fv3util.Quantity.from_data_array(value)
+                key: fv3gfs.util.Quantity.from_data_array(value)
                 for key, value in items.items()
             }
         )

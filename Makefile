@@ -84,11 +84,11 @@ test_dataflow:
 	coverage run -m pytest -vv workflows/dataflow/tests/integration -s
 
 coverage_report:
-	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3util/**.py'
+	coverage report -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-util/**.py','external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
 
 htmlcov:
 	rm -rf $@
-	coverage html -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3util/**.py'
+	coverage html -i --omit='**/test_*.py',conftest.py,'external/fv3config/**.py','external/fv3gfs-util/**.py''external/fv3gfs-wrapper/**.py','external/fv3gfs-fortran/**.py'
 
 test_argo:
 	make -C workflows/argo/ test
