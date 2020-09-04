@@ -457,6 +457,8 @@ def _save_mock_sklearn_model(tmpdir):
     model = SklearnWrapper(
         "sample", ["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], estimator
     )
+
+    # needed to avoid sklearn.exceptions.NotFittedError
     model.fit(data)
 
     path = str(tmpdir.join("model.pkl"))
