@@ -115,6 +115,7 @@ install_deps:
 
 lock_deps:
 	conda-lock -f environment.yml
+	pip-compile external/vcm/setup.py docker/**/requirements.txt --output-file constraints.txt
 
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)

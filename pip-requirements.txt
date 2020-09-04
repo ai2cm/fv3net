@@ -7,3 +7,5 @@ bump2version
 yq
 pytest-regtest
 conda-lock
+pip-tools
+gcsfs!=0.7.0
