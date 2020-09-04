@@ -51,7 +51,7 @@ def _compute_clouds_off_pQ1(ds: xr.Dataset):
 
 def _compute_clouds_off_pQ2(ds: xr.Dataset):
     """Compute the clouds off tendency of specific humidity assuming clouds off."""
-    return sum([ds[variable] for variable in CLOUDS_OFF_TEMP_TENDENCIES])
+    return sum([ds[variable] for variable in CLOUDS_OFF_SPHUM_TENDENCIES])
 
 
 class FineResolutionResidualCloudsOff(ResidualMapper):
