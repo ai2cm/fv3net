@@ -1,4 +1,5 @@
 import logging
+import io
 import tempfile
 import os
 import shutil
@@ -11,6 +12,9 @@ from dask.delayed import delayed
 from vcm.cloud.fsspec import get_fs
 
 
+logger = logging.getLogger("vcm.xarray_loaders")
+
+
 def _read_metadata_remote(fs, url):
     logging.info("Reading metadata")
     with fs.open(url, "rb") as f:
@@ -18,8 +22,10 @@ def _read_metadata_remote(fs, url):
 
 
 def open_remote_nc(fs, url):
-    with fs.open(url, "rb") as f:
-        return xr.open_dataset(f).load()
+    logger.debug(f"Downloading {url}")
+    data = fs.cat(url)
+    f = io.BytesIO(data)
+    return xr.open_dataset(f).load()
 
 
 def open_tiles(url_prefix: str) -> xr.Dataset:
