@@ -36,9 +36,13 @@ class StandardScaler(NormalizeTransform):
         self.std = data.std(axis=0).astype(np.float32)
 
     def normalize(self, data):
+        if self.mean is None or self.std is None:
+            raise RuntimeError("StandardScaler.fit must be called before normalize.")
         return (data - self.mean) / self.std
 
     def denormalize(self, data):
+        if self.mean is None or self.std is None:
+            raise RuntimeError("StandardScaler.fit must be called before denormalize.")
         return data * self.std + self.mean
 
     def dump(self, f: BinaryIO):

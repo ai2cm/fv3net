@@ -4,15 +4,20 @@ import logging
 import os
 import xarray as xr
 from .._shared import ModelTrainingConfig
-from typing import Sequence
+from typing import Sequence, Union
 
+from .._shared import StandardScaler, ArrayPacker
 from ._wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
-from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 
 
 logger = logging.getLogger(__file__)
+
+
+# typed as union so that other allowed scalers can be added
+Scaler = Union[StandardScaler]
+SAMPLE_DIM = "sample"
 
 
 def _get_regressor(train_config: ModelTrainingConfig):
@@ -44,13 +49,33 @@ def _get_regressor(train_config: ModelTrainingConfig):
     return regressor
 
 
-def _get_transformed_batch_regressor(train_config):
+def _fit_target_scaler(
+        scaler: Scaler,
+        output_vars: Sequence[str],
+        ds: xr.Dataset):
+    packer = ArrayPacker(SAMPLE_DIM, output_vars)
+    data_array = packer.to_array(ds)
+    scaler.fit(data_array)
+   
+   
+def _get_transformed_batch_regressor(
+        train_config: ModelTrainingConfig,
+        norm_data: xr.Dataset):
     base_regressor = _get_regressor(train_config)
-    target_transformer = StandardScaler()
-    transform_regressor = TransformedTargetRegressor(base_regressor, target_transformer)
+
+    # this is hardcoded as StandardScaler for now but could be any other fv3fit scaler
+    target_scaler = StandardScaler()
+    _fit_target_scaler(target_scaler, train_config.output_variables, norm_data)
+    transform_regressor = TransformedTargetRegressor(
+        base_regressor,
+        func=target_scaler.normalize,
+        inverse_func=target_scaler.denormalize,
+        check_inverse=False
+        )
+
     batch_regressor = RegressorEnsemble(transform_regressor)
     model_wrapper = SklearnWrapper(
-        "sample",
+        SAMPLE_DIM,
         train_config.input_variables,
         train_config.output_variables,
         batch_regressor,
@@ -68,8 +93,10 @@ def train_model(
     Returns:
         trained sklearn model wrapper object
     """
-    model_wrapper = _get_transformed_batch_regressor(train_config)
     for i, batch in enumerate(batched_data):
+        if i == 0:
+            model_wrapper = _get_transformed_batch_regressor(train_config, batch)
+
         logger.info(f"Fitting batch {i}/{len(batched_data)}")
         model_wrapper.fit(data=batch)
         logger.info(f"Batch {i} done fitting.")
