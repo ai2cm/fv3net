@@ -101,16 +101,15 @@ def precipitation_sum(
 
 def open_model(config):
     model = runtime.get_ml_model(config)
-    stacked_predictor = runtime.StackingAdapter(model, sample_dims=["y", "x"])
     rename_in = config.get("input_standard_names", {})
     rename_out = config.get("output_standard_names", {})
-    return runtime.RenamingAdapter(stacked_predictor, rename_in, rename_out)
+    return runtime.RenamingAdapter(model, rename_in, rename_out)
 
 
 def predict(model: runtime.RenamingAdapter, state: State) -> State:
     """Given ML model and state, return tendency prediction."""
     ds = xr.Dataset(state)  # type: ignore
-    output = model.predict(ds)
+    output = model.predict_columnwise(ds, feature_dim="z")
     return {key: cast(xr.DataArray, output[key]) for key in output.data_vars}
 
 

@@ -1,4 +1,4 @@
-from runtime import RenamingAdapter, StackingAdapter
+from runtime import RenamingAdapter
 import xarray as xr
 import numpy as np
 import pytest
@@ -20,20 +20,9 @@ class MockPredictor:
     input_variables = ["renamed_input"]
     output_variables = ["rename_output"]
 
-    def predict(self, x):
+    def predict_columnwise(self, x, sample_dims=None):
         in_ = x["renamed_input"]
         return xr.Dataset({"rename_output": in_})
-
-
-class MockSklearnWrapper:
-    """A mock with the same interface as SklearnWrapper"""
-
-    input_variables = ["in"]
-    output_variables = ["out"]
-
-    def predict(self, x):
-        assert x["in"].ndim == 2
-        return x.rename({"in": "out"})
 
 
 def test_RenamingAdapter_predict_inputs_and_outputs_renamed():
@@ -43,7 +32,7 @@ def test_RenamingAdapter_predict_inputs_and_outputs_renamed():
     model = RenamingAdapter(
         MockPredictor(), {"x": "renamed_input"}, {"y": "rename_output"}
     )
-    out = model.predict(ds)
+    out = model.predict_columnwise(ds)
     assert "y" in out.data_vars
 
 
@@ -61,7 +50,7 @@ def test_RenamingAdapter_predict_renames_dims_correctly(
     m = MockPredictor()
     ds = xr.Dataset({m.input_variables[0]: (original_dims, np.ones((5, 10)))})
     model = RenamingAdapter(m, rename_dims)
-    out = model.predict(ds)
+    out = model.predict_columnwise(ds)
     output_array = out[m.output_variables[0]]
     assert list(output_array.dims) == expected
 
@@ -69,21 +58,3 @@ def test_RenamingAdapter_predict_renames_dims_correctly(
 def test_RenamingAdapter_input_vars_():
     model = RenamingAdapter(MockPredictor(), {"x": "renamed_input"})
     assert model.input_variables == {"x"}
-
-
-def test_StackingAdapter_input_vars_():
-    model = MockSklearnWrapper()
-    wrapper = StackingAdapter(model, sample_dims=())
-    assert set(wrapper.input_variables) == set(model.input_variables)
-
-
-def test_StackingAdapter_predict():
-    model = MockSklearnWrapper()
-    wrapper = StackingAdapter(model, sample_dims=["y", "x"])
-
-    shape = (3, 4, 5)
-
-    ds = xr.Dataset({"in": (["z", "y", "x"], np.ones(shape))})
-    output = wrapper.predict(ds)
-    assert set(output.out.dims) == {"z", "y", "x"}
-    assert output.out.shape == shape
