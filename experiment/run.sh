@@ -44,7 +44,7 @@ EOF
 
 argo submit \
     --from workflowtemplate/train-diags-prog \
-    -p image-tag=336b0c34bf3c5d074efcdcb7eaaeb6601ee39a88 \
+    -p image-tag=dbf8db14a939ea59f460345e65cbe46c03c2c1f6 \
     -p root=gs://vcm-ml-experiments/$EXPERIMENT \
     -p train-test-data=gs://vcm-ml-experiments/2020-07-30-fine-res \
     -p training-config="$(< training-config.yaml)" \
