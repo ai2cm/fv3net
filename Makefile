@@ -33,7 +33,7 @@ endif
 
 # pattern rule for building docker images
 build_image_%:
-	docker build . -f docker/$*/Dockerfile  -t $*
+	docker build . -f docker/$*/Dockerfile -t $*
 
 build_image_post_process_run:
 	docker build workflows/post_process_run -t post_process_run

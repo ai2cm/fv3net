@@ -220,7 +220,12 @@ RUN chmod -R 777 $FV3CONFIG_CACHE_DIR && \
     chmod -R 777 /outdir
 
 # copy the tests
-COPY tests /fv3gfs-wrapper/tests
+COPY /external/fv3gfs-wrapper/tests /fv3gfs-wrapper/tests
 
 # interactive shell by default
 CMD ["bash"]
+
+FROM fv3gfs-fv3net AS test
+
+RUN cd /fv3gfs-wrapper && \
+    make test
