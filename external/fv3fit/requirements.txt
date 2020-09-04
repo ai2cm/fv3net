@@ -6,6 +6,7 @@ pyyaml==5.1.2
 tensorflow==2.2.0
 pytest==5.4.3
 pytest-cov==2.10.0
+joblib==0.16
 
 # requirements from loaders or synth
 zarr==2.4.0
@@ -13,6 +14,23 @@ dask==2.15.0
 toolz==0.10.0
 f90nml==1.1.0
 h5netcdf==0.8.1
+
+# requirements for tensorflow
+
+absl-py==0.10.0
+astunparse==1.6.3
+gast==0.3.3
+google-pasta==0.2.0
+grpcio==1.31.0
+keras-preprocessing==1.1.2
+markdown==3.2.2
+opt-einsum==3.3.0
+tensorboard==2.2.2
+tensorboard-plugin-wit==1.7.0
+tensorflow-estimator==2.2.0
+termcolor==1.1.0
+werkzeug==1.0.1
+wrapt==1.12.1
 
 # requirements from vcm
 Click==7.0
@@ -75,3 +93,29 @@ zipp==0.6.0
 xgcm==0.2.0
 pytest-regtest==1.4.4
 cftime==1.2.1
+
+# requirements for other dependencies
+
+protobuf==3.13.0
+wrapt==1.12.1
+gast==0.3.3
+tensorflow-estimator==2.2.0
+termcolor==1.1.0
+google-pasta==0.2.0
+tensorboard==2.2.2
+grpcio==1.31.0
+absl_py==0.10.0
+astunparse==1.6.3
+opt-einsum==3.3.0
+h5py==2.10.0
+keras-preprocessing==1.1.2
+coverage==5.2.1
+asciitree==0.3.3
+fasteners==0.15
+numcodecs==0.6.4
+future==0.18.2
+docrep==0.2.7
+markdown==3.2.2
+werkzeug==1.0.1
+tensorboard-plugin-wit==1.7.0
+monotonic==1.5

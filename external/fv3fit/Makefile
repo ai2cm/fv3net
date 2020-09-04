@@ -8,4 +8,4 @@ dev:
 test:
 	docker-compose run fv3fit pytest
 
-.PHONY: dev test
+.PHONY: build dev test
