@@ -10,6 +10,7 @@ import yaml
 import diagnostics_utils as utils
 import synth
 from fv3fit import _shared as shared
+import fv3fit
 from fv3fit.sklearn._train import train_model
 from offline_ml_diags._mapper import PredictionMapper
 from loaders import SAMPLE_DIM_NAME, batches, mappers
@@ -191,11 +192,7 @@ def offline_diags_reference_schema(datadir_module):
         yield reference_output_schema
 
 
-def mock_predict_function(feature_data_arrays):
-    return sum(feature_data_arrays)
-
-
-class MockSklearnWrappedModel:
+class MockSklearnWrappedModel(fv3fit.Predictor):
     def __init__(self, input_vars, output_vars):
         self.input_variables = input_vars
         self.output_variables = output_vars
@@ -205,9 +202,12 @@ class MockSklearnWrappedModel:
         ds_pred = xr.Dataset()
         for output_var in self.output_variables:
             feature_vars = [ds_stacked[var] for var in self.input_variables]
-            mock_prediction = mock_predict_function(feature_vars)
+            mock_prediction = sum(feature_vars)
             ds_pred[output_var] = mock_prediction
         return ds_pred
+
+    def load(self, *args, **kwargs):
+        pass
 
 
 input_vars = ("air_temperature", "specific_humidity")
