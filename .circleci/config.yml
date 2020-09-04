@@ -24,6 +24,7 @@ jobs:
             - c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39
             - e2:b3:cd:50:62:39:92:db:fb:d5:2c:fc:d8:62:0d:b5  # fv3gfs-util
             - d5:ad:35:59:26:bd:d2:e9:64:76:e5:df:f4:42:fa:49  # fv3gfs-wrapper
+            - 0e:2b:68:27:f9:6e:17:ab:dd:68:56:65:47:bd:08:45  # fv3gfs-fortran
       - run: apt-get update && apt-get install -y uuid
       - run:
           name: "Save GCS for tests."
@@ -112,6 +113,7 @@ jobs:
             - c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39
             - e2:b3:cd:50:62:39:92:db:fb:d5:2c:fc:d8:62:0d:b5  # fv3gfs-util
             - d5:ad:35:59:26:bd:d2:e9:64:76:e5:df:f4:42:fa:49  # fv3gfs-wrapper
+            - 0e:2b:68:27:f9:6e:17:ab:dd:68:56:65:47:bd:08:45  # fv3gfs-fortran
       - run: apt-get install -y make jq
       - run:
           name: "Pull submodules"
@@ -171,6 +173,7 @@ jobs:
             - c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39
             - e2:b3:cd:50:62:39:92:db:fb:d5:2c:fc:d8:62:0d:b5  # fv3gfs-util
             - d5:ad:35:59:26:bd:d2:e9:64:76:e5:df:f4:42:fa:49  # fv3gfs-wrapper
+            - 0e:2b:68:27:f9:6e:17:ab:dd:68:56:65:47:bd:08:45  # fv3gfs-fortran
       - run: apt-get install -y make jq
       - run:
           name: "Pull submodules"
