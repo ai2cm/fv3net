@@ -20,7 +20,7 @@ chardet==3.0.4            # via -r docker/prognostic_run/requirements.txt, reque
 click==7.1.2              # via -r docker/prognostic_run/requirements.txt, vcm (external/vcm/setup.py)
 cloudpickle==1.6.0        # via dask
 cycler==0.10.0            # via -r docker/prognostic_run/requirements.txt, matplotlib
-cython==0.29.21           # via -r docker/prognostic_run/requirements.txt
+cython==0.29.10           # via -r docker/prognostic_run/requirements.txt
 dask[bag]==2.22.0         # via -r docker/learned_nudging_run/requirements.txt, -r docker/prognostic_run/requirements.txt, intake, vcm (external/vcm/setup.py), xgcm
 decorator==4.4.2          # via -r docker/prognostic_run/requirements.txt, gcsfs, networkx, traitlets
 docrep==0.2.7             # via -r docker/prognostic_run/requirements.txt, vcm (external/vcm/setup.py), xgcm

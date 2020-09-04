@@ -19,7 +19,7 @@ https://repo.anaconda.com/pkgs/main/win-64/mkl-2019.4-245.conda#297eabb115f51fcf
 https://conda.anaconda.org/conda-forge/win-64/vc-14.1-h869be7e_1.tar.bz2#4fae57303daa91367eca263374e4a638
 https://conda.anaconda.org/conda-forge/win-64/blas-1.0-mkl.tar.bz2#f621d7bbe874786272e62d72c5a7b4fc
 https://conda.anaconda.org/conda-forge/win-64/blosc-1.20.0-ha925a31_0.tar.bz2#8152c940e75f02a88004d068bc685442
-https://conda.anaconda.org/conda-forge/win-64/brotli-1.0.7-ha925a31_1004.tar.bz2#7fd7e7d48caa9fff89f7a5f5a9576216
+https://conda.anaconda.org/conda-forge/win-64/brotli-1.0.9-ha925a31_0.tar.bz2#fb2b281c1daafb72a7a9936852740e02
 https://conda.anaconda.org/conda-forge/win-64/bzip2-1.0.8-he774522_3.tar.bz2#1b9e3dd1a5163553f00d4093f5def1da
 https://conda.anaconda.org/conda-forge/win-64/cfitsio-3.470-hbbe6aef_6.tar.bz2#b8d11a4aac86a0d61cf692c063b95c94
 https://conda.anaconda.org/conda-forge/win-64/charls-2.1.0-he025d50_2.tar.bz2#6cfb006e97ef56b8453f87754ac310bc
@@ -245,7 +245,7 @@ https://conda.anaconda.org/conda-forge/win-64/glib-2.65.0-he4de6d7_0.tar.bz2#166
 https://conda.anaconda.org/conda-forge/noarch/google-auth-1.21.1-py_0.tar.bz2#7a3e2825cb3a217c64a53de66a4650eb
 https://conda.anaconda.org/conda-forge/win-64/grpcio-1.31.0-py37h554427f_0.tar.bz2#87228d6e73c926a3ad339766aab4a4f0
 https://conda.anaconda.org/conda-forge/noarch/h5netcdf-0.8.1-py_0.tar.bz2#0181638a03dbead1e8b2ff3bdb54d24e
-https://conda.anaconda.org/conda-forge/win-64/isort-5.5.0-py37hc8dfbb8_0.tar.bz2#f70bc544131a29dec51f63e3c34bfdad
+https://conda.anaconda.org/conda-forge/win-64/isort-5.5.1-py37hc8dfbb8_0.tar.bz2#eb9ca19a4acb57499f381908a9a40511
 https://conda.anaconda.org/conda-forge/noarch/jinja2-2.11.2-pyh9f0ad1d_0.tar.bz2#e8a5d614d1a27bdba00059ca062a0551
 https://conda.anaconda.org/conda-forge/noarch/joblib-0.16.0-py_0.tar.bz2#101f7628023ff2d43479ab66c73c3f72
 https://conda.anaconda.org/conda-forge/win-64/jsonschema-3.2.0-py37hc8dfbb8_1.tar.bz2#fc8098b181afa34a0c905190e5f5061f
@@ -264,7 +264,7 @@ https://conda.anaconda.org/conda-forge/win-64/protobuf-3.13.0-py37h1834ac0_0.tar
 https://conda.anaconda.org/conda-forge/noarch/pygments-2.6.1-py_0.tar.bz2#37736a64e169c430eac98a46ddc1ac4a
 https://conda.anaconda.org/conda-forge/noarch/pyjwt-1.7.1-py_0.tar.bz2#617ab4f8c5e481fdeabe55d7a1e14798
 https://conda.anaconda.org/conda-forge/win-64/pyopenssl-19.1.0-py37_0.tar.bz2#1192e585504c96d2857f3b222ab7f360
-https://conda.anaconda.org/conda-forge/noarch/tifffile-2020.8.25-py_0.tar.bz2#e7ee816ae254cc081f4e5ac18ddccd21
+https://conda.anaconda.org/conda-forge/noarch/tifffile-2020.9.3-py_0.tar.bz2#11ff3209d8c180ace0e3de4fd22ee0ec
 https://conda.anaconda.org/conda-forge/noarch/xarray-0.16.0-py_0.tar.bz2#a9d4fbd79e09a857acbce265a028dac7
 https://conda.anaconda.org/conda-forge/noarch/zarr-2.4.0-py_0.tar.bz2#57d5031b1a07f73f6a671fba6eccbd2a
 https://conda.anaconda.org/conda-forge/win-64/bokeh-2.2.1-py37hc8dfbb8_0.tar.bz2#c3e2507a36cf21e02e63ea8bf99d77b5
