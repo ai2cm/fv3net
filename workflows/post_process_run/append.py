@@ -32,17 +32,23 @@ def _rechunk_source_append_dim(source_path, dim):
     if os.path.exists(zarray_path):
         with open(zarray_path) as f:
             zarray = json.load(f)
-        if zarray["chunks"][0] != zarray["shape"][0]:
-            # bad diagnostics zarr time coordinate chunks can't be opened in zarr
-            # or manually modified, but can be opened in xarray and overwritten
+        if zarray["shape"][0] % zarray["chunks"][0] != 0:
+            # incorrect diagnostics zarr time coordinate chunks prevent accessing
+            # data in the array using zarr.open and manual modification of the
+            # .zarray doesn't fix this, but the array can be opened in xarray, and
+            # then it can be overwritten in the zarr store with correct chunking 
+            # TODO: fix the underlying zarr monitor time coordinate chunking issue
+            # in fv3gfs.util, so this isn't necessary
             dim_data_array = xr.open_zarr(source_path, decode_times=False)[dim]
             dim_zarr_array = zarr.array(
                 dim_data_array.values, chunks=(dim_data_array.sizes[dim])
             )
             source_store = zarr.open(source_path, mode="r+")
+            print(dim_attrs.asdict())
             dim_attrs = source_store[dim].attrs
             source_store[dim] = dim_zarr_array
             source_store[dim].attrs.update(dim_attrs)
+            print(source_store[dim].attrs.asdict())
             consolidate = True
     return consolidate
 
