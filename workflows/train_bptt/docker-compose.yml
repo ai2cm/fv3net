@@ -1,0 +1,14 @@
+# this is only for development purposes and integration with visual studio code
+version: '3.4'
+services:
+  train_bptt:
+    build:
+      context: "../../"
+      # dockerfile is relative to context
+      dockerfile: "./workflows/train_bptt/Dockerfile"
+      target: bld
+    volumes:
+      - ../../external/vcm:/external/vcm
+      - ../../external/loaders:/external/loaders
+      - ../../external/synth:/external/synth
+      - .:/train_bptt
