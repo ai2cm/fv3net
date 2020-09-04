@@ -21,13 +21,6 @@ future
 gcsfs
 gitdb
 GitPython
-google-api-core
-google-auth
-google-auth-oauthlib
-google-cloud-core
-google-cloud-storage
-google-resumable-media
-googleapis-common-protos
 h5netcdf
 h5py
 idna
