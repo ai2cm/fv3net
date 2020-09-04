@@ -12,6 +12,7 @@ import cftime
 import click
 import fsspec
 import numpy as np
+import xarray as xr
 import zarr
 
 from post_process import authenticate, upload_dir
@@ -21,6 +22,29 @@ logging.basicConfig(level=logging.INFO)
 
 TIMESTAMP_FORMAT = "%Y%m%d.%H%M%S"
 XARRAY_DIM_NAMES_ATTR = "_ARRAY_DIMENSIONS"
+
+
+def _rechunk_source_append_dim(source_path, dim):
+    """post-processed diags zarr has an apparently arbitrary time coordinate array
+    chunk size, so set it to the coordinate array length"""
+    zarray_path = os.path.join(source_path, dim, ".zarray")
+    consolidate = False
+    if os.path.exists(zarray_path):
+        with open(zarray_path) as f:
+            zarray = json.load(f)
+        if zarray["chunks"][0] != zarray["shape"][0]:
+            # bad diagnostics zarr time coordinate chunks can't be opened in zarr
+            # or manually modified, but can be opened in xarray and overwritten
+            dim_data_array = xr.open_zarr(source_path, decode_times=False)[dim]
+            dim_zarr_array = zarr.array(
+                dim_data_array.values, chunks=(dim_data_array.sizes[dim])
+            )
+            source_store = zarr.open(source_path, mode="r+")
+            dim_attrs = source_store[dim].attrs
+            source_store[dim] = dim_zarr_array
+            source_store[dim].attrs.update(dim_attrs)
+            consolidate = True
+    return consolidate
 
 
 def _set_time_units_like(source_store: zarr.Group, target_store: zarr.Group):
@@ -115,10 +139,10 @@ def _shift_store(group: zarr.Group, dim: str, n_shift: int):
     for array in group.values():
         if dim in array.attrs[XARRAY_DIM_NAMES_ATTR]:
             axis = array.attrs[XARRAY_DIM_NAMES_ATTR].index(dim)
-            _shift_array(array, axis, n_shift)
+            _shift_array(array, axis, n_shift, dim)
 
 
-def _shift_array(array: zarr.Array, axis: int, n_shift: int):
+def _shift_array(array: zarr.Array, axis: int, n_shift: int, dim: str):
     """Rename files within array backed by DirectoryStore: e.g. 0.0 -> 1.0 if n_shift
     equals chunks[axis] and axis=0"""
     _assert_chunks_valid(array, axis, n_shift)
@@ -164,13 +188,16 @@ def append_zarr_along_time(
     Warning:
         The zarr store as source_path will be modified in place.
     """
-    consolidate = False
+
+    consolidate = _rechunk_source_append_dim(source_path, dim)
     if fs.exists(target_path):
         consolidate = True
         source_store = zarr.open(source_path, mode="r+")
         target_store = zarr.open_consolidated(fsspec.get_mapper(target_path))
         _set_time_units_like(source_store, target_store)
         _shift_store(source_store, dim, _get_dim_size(target_store, dim))
+    elif fs.protocol == "file":
+        os.makedirs(target_path)
 
     upload_dir(source_path, target_path)
 
