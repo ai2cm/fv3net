@@ -69,7 +69,9 @@ if __name__ == "__main__":
     batched_data = shared.load_data_sequence(data_path, train_config)
     _save_config_output(args.output_data_path, train_config)
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger("fsspec").setLevel(logging.INFO)
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
     model = train.train_model(batched_data, train_config)
     train.save_model(args.output_data_path, model, MODEL_FILENAME)
