@@ -22,9 +22,7 @@ jobs:
       - add_ssh_keys:
           fingerprints:
             - c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39
-            - e2:b3:cd:50:62:39:92:db:fb:d5:2c:fc:d8:62:0d:b5  # fv3gfs-util
-            - 6e:e3:5f:3b:71:91:cb:86:0c:05:46:9c:eb:86:a1:7e  # fv3gfs-wrapper
-            - 0e:2b:68:27:f9:6e:17:ab:dd:68:56:65:47:bd:08:45  # fv3gfs-fortran
+            - 28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d  # mcgibbon user key
       - run: apt-get update && apt-get install -y uuid
       - run:
           name: "Save GCS for tests."
@@ -111,9 +109,7 @@ jobs:
       - add_ssh_keys:
           fingerprints:
             - c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39
-            - e2:b3:cd:50:62:39:92:db:fb:d5:2c:fc:d8:62:0d:b5  # fv3gfs-util
-            - 6e:e3:5f:3b:71:91:cb:86:0c:05:46:9c:eb:86:a1:7e  # fv3gfs-wrapper
-            - 0e:2b:68:27:f9:6e:17:ab:dd:68:56:65:47:bd:08:45  # fv3gfs-fortran
+            - 28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d  # mcgibbon user key
       - run: apt-get install -y make jq
       - run:
           name: "Pull submodules"
@@ -171,9 +167,7 @@ jobs:
       - add_ssh_keys:
           fingerprints:
             - c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39
-            - e2:b3:cd:50:62:39:92:db:fb:d5:2c:fc:d8:62:0d:b5  # fv3gfs-util
-            - 6e:e3:5f:3b:71:91:cb:86:0c:05:46:9c:eb:86:a1:7e  # fv3gfs-wrapper
-            - 0e:2b:68:27:f9:6e:17:ab:dd:68:56:65:47:bd:08:45  # fv3gfs-fortran
+            - 28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d  # mcgibbon user key
       - run: apt-get install -y make jq
       - run:
           name: "Pull submodules"
