@@ -102,7 +102,7 @@ spec:
         value: /secret/gcp-credentials/key.json
       volumeMounts:
       - mountPath: /secret/gcp-credentials
-        name: gcp-credentials-user-gcp-sa
+        name: gcp-key-secret
       resources:
         requests:
             memory: "9Gi"
@@ -135,7 +135,7 @@ spec:
         value: /secret/gcp-credentials/key.json
       volumeMounts:
       - mountPath: /secret/gcp-credentials
-        name: gcp-credentials-user-gcp-sa
+        name: gcp-key-secret
       resources:
         requests:
             memory: "8Gi"
