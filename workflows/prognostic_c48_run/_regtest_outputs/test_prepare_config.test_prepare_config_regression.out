@@ -690,5 +690,4 @@ patch_files:
 scikit_learn:
   diagnostic_ml: false
   model: sklearn_model.pkl
-  zarr_output: diags.zarr
 
