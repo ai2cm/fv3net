@@ -5,7 +5,6 @@ import append
 import os
 import zarr
 from datetime import datetime
-import cftime
 import pytest
 
 
@@ -120,24 +119,3 @@ def test_append_zarr_along_time(
         manually_appended_ds = xr.open_zarr(path1, consolidated=True)
         expected_ds = xr.concat([ds1, ds2], dim="time")
         xr.testing.assert_identical(manually_appended_ds, expected_ds)
-
-
-@pytest.mark.parametrize("datetime", [cftime.DatetimeJulian, datetime])
-def test_append_zarr_along_time_cftime(tmpdir, datetime):
-    ds = xr.Dataset(
-        {"a": (["time"], np.arange(2))},
-        coords={"time": [datetime(2000, 1, 1, 0), datetime(2000, 1, 1, 1)]},
-    )
-
-    path1 = str(tmpdir.join("ds1.zarr"))
-    path2 = str(tmpdir.join("ds2.zarr"))
-
-    ds.isel(time=slice(0, 1)).to_zarr(path1, consolidated=True)
-    ds.isel(time=slice(1, 2)).to_zarr(path2, consolidated=True)
-
-    append.append_zarr_along_time(path2, path1, fsspec.filesystem("file"), "time")
-
-    raw_dataset = xr.open_zarr(path2, decode_cf=False)
-
-    # this step will fail for metadata problems
-    xr.decode_cf(raw_dataset)

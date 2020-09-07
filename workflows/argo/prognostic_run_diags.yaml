@@ -11,7 +11,7 @@ spec:
       value: "false"
   entrypoint: all
   volumes:
-  - name: gcp-credentials-user-gcp-sa
+  - name: gcp-key-secret
     secret:
       secretName: gcp-key
   templates:
