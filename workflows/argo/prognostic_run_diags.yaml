@@ -80,13 +80,15 @@ spec:
       parameters:
       - name: run
       - name: output
+      - name: image
+        value: {{workflow.parameters.docker-image}}
     tolerations:
     - key: "dedicated"
       operator: "Equal"
       value: "climate-sim-pool"
       effect: "NoSchedule"
     container:
-      image: '{{workflow.parameters.docker-image}}'
+      image: '{{inputs.parameters.image}}'
       command: ["bash", "-x", "-e"]
       args:
       - entrypoint.sh
