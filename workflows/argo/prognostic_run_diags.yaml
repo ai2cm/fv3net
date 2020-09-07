@@ -67,7 +67,7 @@ spec:
         value: "gs://vcm-ml-public/argo/{{workflow.name}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
-        name: gcp-credentials-user-gcp-sa
+        name: gcp-key-secret
       resources:
         requests:
             memory: "6Gi"
