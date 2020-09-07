@@ -81,7 +81,7 @@ spec:
       - name: run
       - name: output
       - name: image
-        value: {{workflow.parameters.docker-image}}
+        value: '{{workflow.parameters.docker-image}}'
     tolerations:
     - key: "dedicated"
       operator: "Equal"
