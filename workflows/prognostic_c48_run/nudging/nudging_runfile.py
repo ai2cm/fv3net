@@ -5,12 +5,12 @@ from datetime import datetime, timedelta
 import yaml
 import fsspec
 import logging
-import fv3util
+import fv3gfs.util as fv3util
 import xarray as xr
 import numpy as np
 
 if __name__ == "__main__":
-    import fv3gfs
+    import fv3gfs.wrapper as fv3gfs
     from mpi4py import MPI
 else:
     fv3gfs = None
@@ -48,6 +48,8 @@ STORE_NAMES = [
     "latent_heat_flux",
     "total_precipitation",
     "surface_precipitation_rate",
+    "eastward_wind",
+    "northward_wind",
 ] + RADIATION_NAMES
 
 TENDENCY_OUT_FILENAME = "tendencies.zarr"
@@ -94,7 +96,7 @@ def get_reference_state(time, reference_dir, communicator, only_names):
 
 
 def nudge_to_reference(state, reference, timescales, timestep):
-    tendencies = fv3gfs.apply_nudging(state, reference, timescales, timestep)
+    tendencies = fv3util.apply_nudging(state, reference, timescales, timestep)
     tendencies = append_key_label(tendencies, "_tendency_due_to_nudging")
     tendencies["time"] = state["time"]
     return tendencies
@@ -251,8 +253,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     config = load_config("fv3config.yml")
     reference_dir = config["nudging"]["restarts_path"]
-    partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
-    communicator = fv3gfs.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
+    partitioner = fv3util.CubedSpherePartitioner.from_namelist(config["namelist"])
+    communicator = fv3util.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
     nudging_timescales = get_timescales_from_config(config)
     nudging_names = list(nudging_timescales.keys())
     updated_quantity_names = list(set(nudging_names + [PRECIP_NAME]))

@@ -17,6 +17,4 @@ from .utils import (
 
 from .nudge_to_obs import enable_nudge_to_observations
 
-from . import containers
-
 __version__ = "0.1.0"

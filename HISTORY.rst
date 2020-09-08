@@ -36,6 +36,10 @@ latest
 * add new `v0.5` base fv3config to cope with the modification to how fv3config handles the location of the orographic data
 * Fix partitioning of timesteps in loaders.batches so that it uses all timesteps, allows last batch to be < timesteps_per_batch.
 * Add SHiELD and FV3GFS diagnostic variables such as :code:`net_heating` to the training data and offline ML diagnostics datasets, and compute composites over positive and negative :code:`net_precipitation` domains in these diagnostics
+* Offline diagnostics report now uses the same config file as the training data.
+* Use run-fv3gfs workflow template to do prognostic run
+* Move orchestrate_submit_jobs.py to prepare_config.py and add regression test
+* Prognostic and nudge-to-fine workflows now require fv3gfs-images at or after commit 46b1d8742ee220ebeb14942e0a0f43da963cc0cf of fv3gfs-wrapper.
 
 0.2.3 (2020-06-19)
 ------------------

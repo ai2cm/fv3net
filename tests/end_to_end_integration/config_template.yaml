@@ -1,6 +1,5 @@
 root: $GCS_OUTPUT_URL  # substituted by envsubst in run_test.sh
 image-tag: $VERSION  # substituted by envsubst in run_test.sh
-restart-pvc: nudging-read-only
 initial-condition: "20160801.003000"
 reference-restarts: gs://vcm-ml-code-testing-data/c48-restarts-for-e2e
 nudging-times: |
@@ -13,9 +12,15 @@ train-times: |
     "20160801.003000",
     "20160801.010000"
   ]
+test-times: |
+  [
+    "20160801.003000",
+    "20160801.010000"
+  ]
 nudging-config: | 
   base_version: v0.5
   forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+  diag_table: gs://vcm-fv3config/config/diag_table/nudge_to_fine_dt/v1.0/diag_table
   nudging:
     restarts_path: /mnt/input/coarsen_restarts/
     timescale_hours:
@@ -39,6 +44,8 @@ nudging-config: |
       do_sat_adj: false
     gfdl_cloud_microphysics_nml:
       fast_sat_adj: false
+    gfs_physics_nml:
+      ldiag3d: true
 training-config: | 
   model_type: sklearn_random_forest
   hyperparameters:
@@ -53,11 +60,13 @@ training-config: |
   batch_function: batches_from_geodata
   batch_kwargs:
     timesteps_per_batch: 1
-    mapping_function: open_merged_nudged
+    mapping_function: open_merged_nudged_full_tendencies
     mapping_kwargs:
-      rename_vars:
-        air_temperature_tendency_due_to_nudging: dQ1
-        specific_humidity_tendency_due_to_nudging: dQ2
+      consolidated: True
+      open_merged_nudged_kwargs:
+        rename_vars:
+          air_temperature_tendency_due_to_nudging: dQ1
+          specific_humidity_tendency_due_to_nudging: dQ2
 prognostic-run-config: |
   base_version: v0.5
   namelist:
