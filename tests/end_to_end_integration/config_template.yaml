@@ -46,6 +46,7 @@ nudging-config: |
       fast_sat_adj: false
     gfs_physics_nml:
       ldiag3d: true
+nudging-segment-count: 2
 training-config: | 
   model_type: sklearn_random_forest
   hyperparameters:
@@ -79,3 +80,4 @@ prognostic-run-config: |
       do_sat_adj: false
     gfdl_cloud_microphysics_nml:
       fast_sat_adj: false
+prognostic-segment-count: 2

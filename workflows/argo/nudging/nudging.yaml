@@ -15,7 +15,7 @@ spec:
       - name: post-process-image
       - name: times
         value: ""
-      - {name: segment-count, value: "2"}
+      - {name: segment-count, value: "1"}
       - {name: cpu, value: "6"}
       - {name: memory, value: 8Gi}
       - {name: work-volume-name, value: work-volume}
@@ -73,7 +73,7 @@ spec:
           - name: fv3net-image
             value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
           - name: post-process-image
-          - name: segment-count
+          - {name: segment-count, value: "1"}
           - {name: cpu, value: "6"}
           - {name: memory, value: 8Gi}
           - {name: work-volume-name, value: work-volume}

@@ -45,6 +45,8 @@ spec:
             value: "{{workflow.parameters.root}}/nudging"
           - name: nudging-config
             value: "{{workflow.parameters.nudging-config}}"
+          - name: segment-count
+            value: "{{workflow.parameters.nudging-segment-count}}"
           - {name: work-volume-name, value: work-volume}
           - {name: external-volume-name, value: restart-data}
       - name: train-offline-diags-prognostic
@@ -72,6 +74,8 @@ spec:
             value: "{{workflow.parameters.reference-restarts}}"
           - name: store-true-args
             value: " "
+          - name: segment-count
+            value: "{{workflow.parameters.prognostic-segment-count}}"
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
