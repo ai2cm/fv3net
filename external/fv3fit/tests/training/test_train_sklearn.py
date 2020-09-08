@@ -82,7 +82,7 @@ def test_training_integration(
         ],
     ),
 )
-def test__get_transformed_target_regressor_standard(
+def test__get_transformed_target_regressor(
     scaler_type, scaler_kwargs, expected_y_normalized
 ):
     sample_dim = "sample"
