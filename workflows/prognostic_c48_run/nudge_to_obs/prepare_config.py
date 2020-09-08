@@ -68,7 +68,7 @@ if __name__ == "__main__":
     )
 
     if config["namelist"]["fv_core_nml"].get("nudge", False):
-        if nudge_url.startswith("gs://"):
+        if args.nudge_url.startswith("gs://"):
             copy_method = "copy"
         else:
             copy_method = "link"
