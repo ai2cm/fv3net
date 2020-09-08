@@ -20,7 +20,8 @@ def test__get_first_nudge_file_time(start_time, expected):
 
 
 @pytest.mark.parametrize(
-    "duration, current_date, expected_length, expected_first_datetime, expected_last_datetime",
+    "duration, current_date, expected_length, "
+    "expected_first_datetime, expected_last_datetime",
     [
         (
             timedelta(days=1),
