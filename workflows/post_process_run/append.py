@@ -44,7 +44,7 @@ def _rechunk_source_append_dim(source_path, dim):
                 dim_data_array.values, chunks=(dim_data_array.sizes[dim])
             )
             source_store = zarr.open(source_path, mode="r+")
-            dim_attrs = source_store[dim].attrs
+            dim_attrs = source_store[dim].attrs.asdict()
             source_store[dim] = dim_zarr_array
             source_store[dim].attrs.update(dim_attrs)
             consolidate = True
