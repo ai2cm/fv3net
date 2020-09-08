@@ -4,9 +4,9 @@ import logging
 import os
 import xarray as xr
 from .._shared import ModelTrainingConfig
-from typing import Sequence, Union
+from typing import Sequence, Union, Mapping
 
-from .._shared import StandardScaler, ArrayPacker
+from .._shared import StandardScaler, ManualScaler, ArrayPacker, get_mass_scaler
 from ._wrapper import SklearnWrapper, RegressorEnsemble
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.ensemble import RandomForestRegressor
@@ -15,9 +15,10 @@ from sklearn.ensemble import RandomForestRegressor
 logger = logging.getLogger(__file__)
 
 
-# typed as union so that other allowed scalers can be added
-Scaler = Union[StandardScaler]
+Scaler = Union[StandardScaler, ManualScaler]
+SklearnRegressor = Union[RandomForestRegressor]
 SAMPLE_DIM = "sample"
+DELP = "pressure_thickness_of_atmospheric_layer"
 
 
 def _get_regressor(train_config: ModelTrainingConfig):
@@ -49,30 +50,60 @@ def _get_regressor(train_config: ModelTrainingConfig):
     return regressor
 
 
-def _fit_target_scaler(
-        scaler: Scaler,
-        output_vars: Sequence[str],
-        ds: xr.Dataset):
+def _get_target_scaler(
+    scaler_type: str,
+    scaler_kwargs: Mapping,
+    norm_data: xr.Dataset,
+    output_vars: Sequence[str],
+):
+    # Defaults to StandardScaler if none specified in config
+    scaler_type = scaler_type or "standard"
     packer = ArrayPacker(SAMPLE_DIM, output_vars)
-    data_array = packer.to_array(ds)
-    scaler.fit(data_array)
-   
-   
-def _get_transformed_batch_regressor(
-        train_config: ModelTrainingConfig,
-        norm_data: xr.Dataset):
-    base_regressor = _get_regressor(train_config)
+    data_array = packer.to_array(norm_data)
+    if "standard" in scaler_type.lower():
+        target_scaler = StandardScaler()
+        target_scaler.fit(data_array)
+    elif "mass" in scaler_type.lower():
+        # use single column sample for delp scaling
+        delp = norm_data.isel({SAMPLE_DIM: 0})[DELP].values
+        print(f"scaler kwargs: {scaler_kwargs}")
+        target_scaler = get_mass_scaler(
+            packer, delp, scaler_kwargs.get("variable_scale_factors"), sqrt_scales=True
+        )
+        print(f"mass scales: {target_scaler.scales}")
+    return target_scaler
 
-    # this is hardcoded as StandardScaler for now but could be any other fv3fit scaler
-    target_scaler = StandardScaler()
-    _fit_target_scaler(target_scaler, train_config.output_variables, norm_data)
+
+def _get_transformed_target_regressor(
+    base_regressor: SklearnRegressor,
+    output_vars: Sequence[str],
+    norm_data: xr.Dataset,
+    scaler_type: str,
+    scaler_kwargs: Mapping = None,
+):
+    target_scaler = _get_target_scaler(
+        scaler_type, scaler_kwargs, norm_data, output_vars
+    )
     transform_regressor = TransformedTargetRegressor(
         base_regressor,
         func=target_scaler.normalize,
         inverse_func=target_scaler.denormalize,
-        check_inverse=False
-        )
+        check_inverse=False,
+    )
+    return transform_regressor
 
+
+def _get_transformed_batch_regressor(
+    train_config: ModelTrainingConfig, norm_data: xr.Dataset,
+):
+    base_regressor = _get_regressor(train_config)
+    transform_regressor = _get_transformed_target_regressor(
+        base_regressor,
+        train_config.output_variables,
+        norm_data,
+        train_config.scaler_type,
+        train_config.scaler_kwargs,
+    )
     batch_regressor = RegressorEnsemble(transform_regressor)
     model_wrapper = SklearnWrapper(
         SAMPLE_DIM,
@@ -96,7 +127,6 @@ def train_model(
     for i, batch in enumerate(batched_data):
         if i == 0:
             model_wrapper = _get_transformed_batch_regressor(train_config, batch)
-
         logger.info(f"Fitting batch {i}/{len(batched_data)}")
         model_wrapper.fit(data=batch)
         logger.info(f"Batch {i} done fitting.")

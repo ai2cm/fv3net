@@ -14,6 +14,9 @@ class ModelTrainingConfig:
     output_variables: Iterable[str]
     batch_function: str
     batch_kwargs: dict
+    scaler: str = None
+    scaler_kwargs: dict = None
+    additional_variables: Iterable[str] = None
 
 
 def load_model_training_config(config_path: str) -> ModelTrainingConfig:
