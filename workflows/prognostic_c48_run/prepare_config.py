@@ -153,7 +153,7 @@ def prepare_config(args):
         diagnostics_overlay(args.diagnostic_ml),
         ml_settings(model_type, args.model_url),
         user_config,
-    ] 
+    ]
 
     if args.nudge_to_observations:
         overlays.append(fv3kube.enable_nudge_to_observations(duration, current_date))
