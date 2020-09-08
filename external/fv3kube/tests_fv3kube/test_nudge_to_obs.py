@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fv3kube import nudge_to_obs
 import fv3kube
@@ -20,28 +20,32 @@ def test__get_first_nudge_file_time(start_time, expected):
 
 
 @pytest.mark.parametrize(
-    "coupler_nml, expected_length, expected_first_datetime, expected_last_datetime",
+    "duration, current_date, expected_length, expected_first_datetime, expected_last_datetime",
     [
         (
-            {"current_date": [2016, 1, 1, 0, 0, 0], "days": 1},
+            timedelta(days=1),
+            [2016, 1, 1, 0, 0, 0],
             4 + 1,
             datetime(2016, 1, 1),
             datetime(2016, 1, 2),
         ),
         (
-            {"current_date": [2016, 1, 1, 0, 0, 0], "days": 1, "hours": 5},
+            timedelta(days=1, hours=5),
+            [2016, 1, 1, 0, 0, 0],
             4 + 1 + 1,
             datetime(2016, 1, 1),
             datetime(2016, 1, 2, 6),
         ),
         (
-            {"current_date": [2016, 1, 1, 0, 0, 0], "days": 1, "hours": 7},
+            timedelta(days=1, hours=7),
+            [2016, 1, 1, 0, 0, 0],
             4 + 2 + 1,
             datetime(2016, 1, 1),
             datetime(2016, 1, 2, 12),
         ),
         (
-            {"current_date": [2016, 1, 2, 1, 0, 0], "days": 1},
+            timedelta(days=1),
+            [2016, 1, 2, 1, 0, 0],
             4 + 2,
             datetime(2016, 1, 2),
             datetime(2016, 1, 3, 6),
@@ -49,25 +53,16 @@ def test__get_first_nudge_file_time(start_time, expected):
     ],
 )
 def test__get_nudge_time_list(
-    coupler_nml, expected_length, expected_first_datetime, expected_last_datetime
+    duration,
+    current_date,
+    expected_length,
+    expected_first_datetime,
+    expected_last_datetime,
 ):
-    config = {"namelist": {"coupler_nml": coupler_nml}}
-    nudge_file_list = nudge_to_obs._get_nudge_time_list(config)
+    nudge_file_list = nudge_to_obs._get_nudge_time_list(duration, current_date)
     assert len(nudge_file_list) == expected_length
     assert nudge_file_list[0] == expected_first_datetime
     assert nudge_file_list[-1] == expected_last_datetime
-
-
-def test_enable_nudge_to_observations_no_overwrite():
-    config = {
-        "namelist": {
-            "coupler_nml": {"current_date": [2016, 1, 2, 1, 0, 0], "days": 10},
-            "fv_core_nml": {"dont": "overwrite me"},
-        }
-    }
-
-    output = fv3kube.enable_nudge_to_observations(config)
-    assert output["namelist"]["fv_core_nml"]["dont"] == "overwrite me"
 
 
 def test_enable_nudge_to_observations_namelist_options():
@@ -76,25 +71,21 @@ def test_enable_nudge_to_observations_namelist_options():
     This test doesn't comprehensively cover all the options. It ensures that
     some options are correctly set, which can detect implementation problems.
     """
-    config = {
-        "namelist": {
-            "coupler_nml": {"current_date": [2016, 1, 2, 1, 0, 0], "days": 10},
-        }
-    }
-    output = fv3kube.enable_nudge_to_observations(config)
+    current_date = [2016, 1, 2, 1, 0, 0]
+    duration = timedelta(days=10)
+    output = fv3kube.enable_nudge_to_observations(duration, current_date)
     assert output["namelist"]["fv_core_nml"]["nudge"]
 
 
 def test_enable_nudge_to_observations_adds_filelist_asset():
-    config = {
-        "namelist": {
-            "coupler_nml": {"current_date": [2016, 1, 2, 1, 0, 0], "days": 10},
-        }
-    }
+    current_date = [2016, 1, 2, 1, 0, 0]
+    duration = timedelta(days=10)
 
     file_list_path = "asdf"
 
-    output = fv3kube.enable_nudge_to_observations(config, file_list_path)
+    output = fv3kube.enable_nudge_to_observations(
+        duration, current_date, file_list_path=file_list_path
+    )
 
     # check patch files
     patch_files = output["patch_files"]

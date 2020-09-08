@@ -60,7 +60,7 @@ def enable_nudge_to_observations(
     nudge_filename_pattern="%Y%m%d_%HZ_T85LR.nc",
     nudge_url="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
     file_list_path="nudging_file_list",
-    timescale_hours: Optional[Mapping[str, int]] = None,
+    copy_method="copy",
 ) -> Mapping:
     """Enable a nudged to observation run
 
