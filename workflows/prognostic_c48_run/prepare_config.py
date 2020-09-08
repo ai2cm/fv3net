@@ -12,7 +12,7 @@ import vcm
 logger = logging.getLogger(__name__)
 
 
-def _merge_once(source: Mapping, update: Mapping) -> Mapping:
+def _merge_once(source, update):
     """Recursively update a mapping with new values.
 
     Args:
