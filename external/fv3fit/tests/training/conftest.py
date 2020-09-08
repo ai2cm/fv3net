@@ -96,7 +96,7 @@ def train_config(
         batch_kwargs=batch_kwargs,
         scaler_type=scaler_type,
         scaler_kwargs=scaler_kwargs,
-        additional_variables=additional_variables
+        additional_variables=additional_variables,
     )
 
 
@@ -123,7 +123,7 @@ def train_config_filename(
                 "batch_kwargs": batch_kwargs,
                 "scaler_type": scaler_type,
                 "scaler_kwargs": scaler_kwargs,
-                "additional_variables": additional_variables
+                "additional_variables": additional_variables,
             },
             f,
         )

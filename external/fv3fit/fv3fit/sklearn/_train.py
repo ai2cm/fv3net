@@ -4,7 +4,7 @@ import logging
 import os
 import xarray as xr
 from .._shared import ModelTrainingConfig
-from typing import Sequence, Union, Mapping
+from typing import Sequence, Union, Mapping, Iterable, Optional
 
 from .._shared import StandardScaler, ManualScaler, ArrayPacker, get_mass_scaler
 from ._wrapper import SklearnWrapper, RegressorEnsemble
@@ -51,13 +51,14 @@ def _get_regressor(train_config: ModelTrainingConfig):
 
 
 def _get_target_scaler(
-    scaler_type: str,
-    scaler_kwargs: Mapping,
+    scaler_type: Optional[str],
+    scaler_kwargs: Optional[Mapping],
     norm_data: xr.Dataset,
-    output_vars: Sequence[str],
-):
+    output_vars: Iterable[str],
+) -> Scaler:
     # Defaults to StandardScaler if none specified in config
     scaler_type = scaler_type or "standard"
+    scaler_kwargs = scaler_kwargs or {}
     packer = ArrayPacker(SAMPLE_DIM, output_vars)
     data_array = packer.to_array(norm_data)
     if "standard" in scaler_type.lower():
@@ -66,20 +67,23 @@ def _get_target_scaler(
     elif "mass" in scaler_type.lower():
         # use single column sample for delp scaling
         delp = norm_data.isel({SAMPLE_DIM: 0})[DELP].values
-        print(f"scaler kwargs: {scaler_kwargs}")
-        target_scaler = get_mass_scaler(
+        target_scaler = get_mass_scaler(  # type: ignore
             packer, delp, scaler_kwargs.get("variable_scale_factors"), sqrt_scales=True
         )
-        print(f"mass scales: {target_scaler.scales}")
+    else:
+        raise ValueError(
+            "Config variable scaler_type must be either 'standard' or 'mass' ."
+        )
+
     return target_scaler
 
 
 def _get_transformed_target_regressor(
     base_regressor: SklearnRegressor,
-    output_vars: Sequence[str],
+    output_vars: Iterable[str],
     norm_data: xr.Dataset,
-    scaler_type: str,
-    scaler_kwargs: Mapping = None,
+    scaler_type: Optional[str],
+    scaler_kwargs: Optional[Mapping],
 ):
     target_scaler = _get_target_scaler(
         scaler_type, scaler_kwargs, norm_data, output_vars
@@ -107,8 +111,8 @@ def _get_transformed_batch_regressor(
     batch_regressor = RegressorEnsemble(transform_regressor)
     model_wrapper = SklearnWrapper(
         SAMPLE_DIM,
-        train_config.input_variables,
-        train_config.output_variables,
+        train_config.input_variables,  # type: ignore
+        train_config.output_variables,  # type: ignore
         batch_regressor,
     )
     return model_wrapper

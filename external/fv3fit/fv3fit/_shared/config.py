@@ -1,6 +1,6 @@
 import yaml
 import dataclasses
-from typing import Iterable
+from typing import Iterable, Optional
 
 
 @dataclasses.dataclass
@@ -14,9 +14,9 @@ class ModelTrainingConfig:
     output_variables: Iterable[str]
     batch_function: str
     batch_kwargs: dict
-    scaler_type: str = None
-    scaler_kwargs: dict = None
-    additional_variables: Iterable[str] = None
+    scaler_type: Optional[str] = None
+    scaler_kwargs: Optional[dict] = None
+    additional_variables: Optional[Iterable[str]] = None
 
 
 def load_model_training_config(config_path: str) -> ModelTrainingConfig:
