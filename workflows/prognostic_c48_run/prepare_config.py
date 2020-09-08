@@ -12,7 +12,7 @@ import vcm
 logger = logging.getLogger(__name__)
 
 
-def _update_nested_dict_once(source: Mapping, update: Mapping) -> Mapping:
+def _merge_once(source: Mapping, update: Mapping) -> Mapping:
     """Recursively update a mapping with new values.
 
     Args:
@@ -32,19 +32,19 @@ def _update_nested_dict_once(source: Mapping, update: Mapping) -> Mapping:
             and isinstance(source[key], Mapping)
             and isinstance(update[key], Mapping)
         ):
-            update_nested_dict(source[key], update[key])
+            merge_fv3config_overlays(source[key], update[key])
         else:
             source[key] = update[key]
     return source
 
 
-def update_nested_dict(*mappings) -> Mapping:
+def merge_fv3config_overlays(*mappings) -> Mapping:
     """Recursive merge dictionaries updating from left to right.
 
     For example, the rightmost mapping will override the proceeding ones. """
     out, rest = mappings[0], mappings[1:]
     for mapping in rest:
-        out = _update_nested_dict_once(out, mapping)
+        out = _merge_once(out, mapping)
     return out
 
 
@@ -158,7 +158,7 @@ def prepare_config(args):
     if args.nudge_to_observations:
         overlays.append(fv3kube.enable_nudge_to_observations(duration, current_date))
 
-    config = update_nested_dict(*overlays)
+    config = merge_fv3config_overlays(*overlays)
     print(yaml.dump(config))
 
 
