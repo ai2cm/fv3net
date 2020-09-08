@@ -14,6 +14,21 @@ import tempfile
 import yaml
 
 
+@pytest.fixture()
+def scaler_type() -> str:
+    return "standard"
+
+
+@pytest.fixture()
+def scaler_kwargs() -> dict:
+    return {}
+
+
+@pytest.fixture()
+def additional_variables() -> Iterable[str]:
+    return ["pressure_thickness_of_atmospheric_layer"]
+
+
 @pytest.fixture
 def input_variables() -> Iterable[str]:
     return ["air_temperature", "specific_humidity"]
@@ -68,6 +83,9 @@ def train_config(
     output_variables: Iterable[str],
     batch_function: str,
     batch_kwargs: dict,
+    scaler_type: str,
+    scaler_kwargs: dict,
+    additional_variables: Iterable[str],
 ) -> ModelTrainingConfig:
     return ModelTrainingConfig(
         model_type=model_type,
@@ -76,6 +94,9 @@ def train_config(
         output_variables=output_variables,
         batch_function=batch_function,
         batch_kwargs=batch_kwargs,
+        scaler_type=scaler_type,
+        scaler_kwargs=scaler_kwargs,
+        additional_variables=additional_variables
     )
 
 
@@ -87,6 +108,9 @@ def train_config_filename(
     output_variables: Iterable[str],
     batch_function: str,
     batch_kwargs: dict,
+    scaler_type: str,
+    scaler_kwargs: dict,
+    additional_variables: Iterable[str],
 ) -> str:
     with tempfile.NamedTemporaryFile(mode="w") as f:
         yaml.dump(
@@ -97,6 +121,9 @@ def train_config_filename(
                 "output_variables": output_variables,
                 "batch_function": batch_function,
                 "batch_kwargs": batch_kwargs,
+                "scaler_type": scaler_type,
+                "scaler_kwargs": scaler_kwargs,
+                "additional_variables": additional_variables
             },
             f,
         )
