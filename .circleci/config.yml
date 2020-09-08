@@ -28,9 +28,9 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - e2:b3:cd:50:62:39:92:db:fb:d5:2c:fc:d8:62:0d:b5
-            - 6e:e3:5f:3b:71:91:cb:86:0c:05:46:9c:eb:86:a1:7e
-            - 0e:2b:68:27:f9:6e:17:ab:dd:68:56:65:47:bd:08:45
+            # - e2:b3:cd:50:62:39:92:db:fb:d5:2c:fc:d8:62:0d:b5
+            # - 6e:e3:5f:3b:71:91:cb:86:0c:05:46:9c:eb:86:a1:7e
+            # - 0e:2b:68:27:f9:6e:17:ab:dd:68:56:65:47:bd:08:45
             - 28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d  # mcgibbon user key
       - run: ssh-add -l
       - run:
