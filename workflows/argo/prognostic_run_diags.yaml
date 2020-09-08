@@ -11,7 +11,7 @@ spec:
       value: "false"
   entrypoint: all
   volumes:
-  - name: gcp-credentials-user-gcp-sa
+  - name: gcp-key-secret
     secret:
       secretName: gcp-key
   templates:
@@ -67,7 +67,7 @@ spec:
         value: "gs://vcm-ml-public/argo/{{workflow.name}}"
       volumeMounts:
       - mountPath: /secret/gcp-credentials
-        name: gcp-credentials-user-gcp-sa
+        name: gcp-key-secret
       resources:
         requests:
             memory: "6Gi"
@@ -80,13 +80,15 @@ spec:
       parameters:
       - name: run
       - name: output
+      - name: image
+        value: '{{workflow.parameters.docker-image}}'
     tolerations:
     - key: "dedicated"
       operator: "Equal"
       value: "climate-sim-pool"
       effect: "NoSchedule"
     container:
-      image: '{{workflow.parameters.docker-image}}'
+      image: '{{inputs.parameters.image}}'
       command: ["bash", "-x", "-e"]
       args:
       - entrypoint.sh
@@ -100,7 +102,7 @@ spec:
         value: /secret/gcp-credentials/key.json
       volumeMounts:
       - mountPath: /secret/gcp-credentials
-        name: gcp-credentials-user-gcp-sa
+        name: gcp-key-secret
       resources:
         requests:
             memory: "9Gi"
@@ -133,7 +135,7 @@ spec:
         value: /secret/gcp-credentials/key.json
       volumeMounts:
       - mountPath: /secret/gcp-credentials
-        name: gcp-credentials-user-gcp-sa
+        name: gcp-key-secret
       resources:
         requests:
             memory: "8Gi"
