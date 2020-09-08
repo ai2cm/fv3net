@@ -1,7 +1,7 @@
 from copy import deepcopy
 from datetime import datetime, timedelta
 import numpy as np
-from typing import List, Mapping, Optional
+from typing import List, Mapping
 
 import fv3config
 import vcm
