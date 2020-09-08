@@ -6,4 +6,4 @@ resources:
   - nudge_to_obs/workflow.yaml
   - run-fv3gfs.yaml
   - offline-diags.yaml
-  - train_diags_prog_steps/workflow.yaml
+  - train-diags-prog.yaml

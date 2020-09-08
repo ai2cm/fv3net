@@ -8,7 +8,11 @@ from offline_ml_diags._mapper import (
     TARGET_COORD,
     DERIVATION_DIM,
 )
+
+from sklearn.dummy import DummyRegressor
+
 from fv3fit.keras import DummyModel
+from fv3fit.sklearn import SklearnWrapper
 from vcm import safe
 
 
@@ -64,31 +68,14 @@ def mock_predict_function(sizes):
     return xr.DataArray(np.zeros(list(sizes.values())), dims=[dim for dim in sizes])
 
 
-class MockSklearnWrappedModel:
-    def __init__(self, input_variables, output_variables):
-        self.input_variables = input_variables
-        self.output_variables = output_variables
-        self.sample_dim_name = "sample"
-        self._output_sizes = {}
-
-    def fit(self, ds_stacked):
-        for var in self.output_variables:
-            self._output_sizes[var] = dict(ds_stacked[var].sizes)
-
-    def predict(self, ds_stacked):
-        ds_pred = xr.Dataset()
-        for output_var in self.output_variables:
-            mock_prediction = mock_predict_function(self._output_sizes[output_var])
-            ds_pred[output_var] = mock_prediction
-        return ds_pred
-
-
 def get_mock_sklearn_model(input_variables, output_variables, ds):
 
-    model_wrapper = MockSklearnWrappedModel(input_variables, output_variables)
-
-    model_wrapper.fit(ds)
-
+    dummy = DummyRegressor(strategy="mean")
+    model_wrapper = SklearnWrapper("sample", input_variables, output_variables, dummy)
+    ds_stacked = safe.stack_once(
+        ds, "sample", [dim for dim in ds.dims if dim != "z"]
+    ).transpose("sample", "z")
+    model_wrapper.fit(ds_stacked * 0)
     return model_wrapper
 
 
@@ -170,9 +157,14 @@ def test_ml_predict_mapper(mock_model, base_mapper, gridded_dataset):
     for key in mapper.keys():
         mapper_output = mapper[key]
         for var in mock_model.output_variables:
-            target = mock_predict_function(dict(base_mapper[key][var].sizes))
-            assert sum(
-                (
-                    mapper_output[var].sel({DERIVATION_DIM: PREDICT_COORD}) - target
-                ).values
-            ) == pytest.approx(0)
+            target = base_mapper[key][var]
+            truth = (
+                mapper_output[var].sel({DERIVATION_DIM: "target"}).drop(DERIVATION_DIM)
+            )
+            prediction = (
+                mapper_output[var].sel({DERIVATION_DIM: "predict"}).drop(DERIVATION_DIM)
+            )
+
+            xr.testing.assert_allclose(truth, target)
+            # assume the model outputs 0.0
+            xr.testing.assert_allclose(prediction, target * 0.0)

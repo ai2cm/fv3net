@@ -10,6 +10,7 @@ import yaml
 import diagnostics_utils as utils
 import synth
 from fv3fit import _shared as shared
+import fv3fit
 from fv3fit.sklearn._train import train_model
 from offline_ml_diags._mapper import PredictionMapper
 from loaders import SAMPLE_DIM_NAME, batches, mappers
@@ -191,11 +192,7 @@ def offline_diags_reference_schema(datadir_module):
         yield reference_output_schema
 
 
-def mock_predict_function(feature_data_arrays):
-    return sum(feature_data_arrays)
-
-
-class MockSklearnWrappedModel:
+class MockSklearnWrappedModel(fv3fit.Predictor):
     def __init__(self, input_vars, output_vars):
         self.input_variables = input_vars
         self.output_variables = output_vars
@@ -205,9 +202,12 @@ class MockSklearnWrappedModel:
         ds_pred = xr.Dataset()
         for output_var in self.output_variables:
             feature_vars = [ds_stacked[var] for var in self.input_variables]
-            mock_prediction = mock_predict_function(feature_vars)
+            mock_prediction = sum(feature_vars)
             ds_pred[output_var] = mock_prediction
         return ds_pred
+
+    def load(self, *args, **kwargs):
+        pass
 
 
 input_vars = ("air_temperature", "specific_humidity")
@@ -225,18 +225,23 @@ def data_source_offline_config(
 ):
     if data_source_name == "nudging_tendencies":
         with open(
-            os.path.join(str(datadir_module), "offline_nudging_config.yml"), "r"
+            os.path.join(str(datadir_module), "train_sklearn_model_nudged_source.yml"),
+            "r",
         ) as f:
             config = yaml.safe_load(f)
-            config["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
+            config["batch_kwargs"]["mapping_kwargs"][
+                "shield_diags_url"
+            ] = C48_SHiELD_diags_dataset_path
         return config
     elif data_source_name == "fine_res_apparent_sources":
         with open(
-            os.path.join(str(datadir_module), "offline_fine_res_config.yml"), "r"
+            os.path.join(str(datadir_module), "train_sklearn_model_fineres_source.yml"),
+            "r",
         ) as f:
             config = yaml.safe_load(f)
-            del config["mapping_kwargs"]["offset_seconds"]
-            config["mapping_kwargs"]["shield_diags_url"] = C48_SHiELD_diags_dataset_path
+            config["batch_kwargs"]["mapping_kwargs"][
+                "shield_diags_url"
+            ] = C48_SHiELD_diags_dataset_path
             return config
     else:
         raise NotImplementedError()
@@ -248,10 +253,11 @@ def prediction_mapper(
 ):
 
     base_mapping_function = getattr(
-        mappers, data_source_offline_config["mapping_function"]
+        mappers, data_source_offline_config["batch_kwargs"]["mapping_function"]
     )
     base_mapper = base_mapping_function(
-        data_source_path, **data_source_offline_config.get("mapping_kwargs", {})
+        data_source_path,
+        **data_source_offline_config["batch_kwargs"].get("mapping_kwargs", {}),
     )
 
     prediction_mapper = PredictionMapper(base_mapper, mock_model)
@@ -278,6 +284,8 @@ def diagnostic_batches(prediction_mapper, data_source_offline_config):
 
     data_source_offline_config["batch_kwargs"]["timesteps"] = timesteps
     data_source_offline_config["variables"] = variables
+    del data_source_offline_config["batch_kwargs"]["mapping_function"]
+    del data_source_offline_config["batch_kwargs"]["mapping_kwargs"]
     diagnostic_batches = batches.diagnostic_batches_from_mapper(
         prediction_mapper,
         data_source_offline_config["variables"],

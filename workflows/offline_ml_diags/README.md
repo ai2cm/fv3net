@@ -3,17 +3,22 @@ a trained ML model. Currently, the workflow only accepts models wrapped
 for usage with xarray dataset inputs and outputs (the `SklearnWrapper` class 
 found in `fv3fit.sklearn.wrapper`.) 
 
-The script takes in a configuration YAML file (which contains the input data path), 
+The script takes in the same configuration YAML file as the training step, 
 a trained ML model (for sklearn the user must include the .pkl file in the model path;
 for keras the model path is the directory containing the various model files), and the
 output path. An optional json file containing a list of timesteps to use can also be
 provided. If not provided, the workflow will use all timesteps present in the data.
+
+If the mapper requires >1 data source, provide these as a sequence to the `--data-path` arg.
+Note that the input(s) args to `--data-path` are actually required.
+
 ```
 python -m offline_ml_diags.compute_diags \
     $CONFIG_YAML \
     $MODEL \
     $OUTPUT \
-    --timesteps-file $TIMESTEP_LIST_JSON
+    --timesteps-file $TIMESTEP_LIST_JSON \
+    --data-path $TEST_DATA_0 ($TEST_DATA_1)
 ```
 
 The cosine zenith angle feature is a special case of a feature variable that is not
