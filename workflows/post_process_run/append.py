@@ -12,7 +12,6 @@ import cftime
 import click
 import fsspec
 import numpy as np
-import xarray as xr
 import zarr
 
 from post_process import authenticate, upload_dir
@@ -22,33 +21,6 @@ logging.basicConfig(level=logging.INFO)
 
 TIMESTAMP_FORMAT = "%Y%m%d.%H%M%S"
 XARRAY_DIM_NAMES_ATTR = "_ARRAY_DIMENSIONS"
-
-
-def _rechunk_source_append_dim(source_path, dim):
-    """post-processed diags zarr has an apparently arbitrary time coordinate array
-    chunk size, so set it to the coordinate array length"""
-    zarray_path = os.path.join(source_path, dim, ".zarray")
-    consolidate = False
-    if os.path.exists(zarray_path):
-        with open(zarray_path) as f:
-            zarray = json.load(f)
-        if zarray["shape"][0] % zarray["chunks"][0] != 0:
-            # incorrect diagnostics zarr time coordinate chunks prevent accessing
-            # data in the array using zarr.open and manual modification of the
-            # .zarray doesn't fix this, but the array can be opened in xarray, and
-            # then it can be overwritten in the zarr store with correct chunking
-            # TODO: fix the underlying zarr monitor time coordinate chunking issue
-            # in fv3gfs.util, so this isn't necessary
-            dim_data_array = xr.open_zarr(source_path, decode_times=False)[dim]
-            dim_zarr_array = zarr.array(
-                dim_data_array.values, chunks=(dim_data_array.sizes[dim])
-            )
-            source_store = zarr.open(source_path, mode="r+")
-            dim_attrs = source_store[dim].attrs.asdict()
-            source_store[dim] = dim_zarr_array
-            source_store[dim].attrs.update(dim_attrs)
-            consolidate = True
-    return consolidate
 
 
 def _set_time_units_like(source_store: zarr.Group, target_store: zarr.Group):
@@ -193,7 +165,7 @@ def append_zarr_along_time(
         The zarr store as source_path will be modified in place.
     """
 
-    consolidate = _rechunk_source_append_dim(source_path, dim)
+    consolidate = False
     if fs.exists(target_path):
         consolidate = True
         source_store = zarr.open(source_path, mode="r+")

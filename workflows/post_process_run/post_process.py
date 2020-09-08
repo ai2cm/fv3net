@@ -68,6 +68,10 @@ def clear_encoding(ds):
     ds.encoding = {}
     for variable in ds:
         ds[variable].encoding = {}
+    if "time" in ds.variables:
+        time_encoding = ds["time"].encoding
+        time_encoding.pop("chunks", None)
+        ds["time"].encoding = time_encoding
 
 
 def cast_time(ds):
