@@ -6,8 +6,9 @@ from fv3fit._shared import ModelTrainingConfig
 import numpy as np
 import subprocess
 import os
-from fv3fit.sklearn._train import train_model
-
+from fv3fit.sklearn._train import train_model, _get_transformed_target_regressor
+from fv3fit._shared import ArrayPacker
+from sklearn.dummy import DummyRegressor
 
 logger = logging.getLogger(__name__)
 
@@ -68,3 +69,49 @@ def test_training_integration(
     existing_names = os.listdir(tmp_path)
     missing_names = set(required_names).difference(existing_names)
     assert len(missing_names) == 0, existing_names
+
+
+@pytest.mark.parametrize(
+    "scaler_type, scaler_kwargs, expected_y_normalized",
+    (
+        ["standard", None, np.array([[-1.0, -1.0, 1.0], [1.0, 1.0, -1.0]])],
+        [
+            "mass",
+            {"variable_scale_factors": {"y0": 200}},
+            np.array([[10.0, 10.0, -1.0], [20.0, 20, -2.0]]),
+        ],
+    ),
+)
+def test__get_transformed_target_regressor_standard(
+    scaler_type, scaler_kwargs, expected_y_normalized
+):
+    sample_dim = "sample"
+    output_vars = ["y0", "y1"]
+    regressor = DummyRegressor(strategy="mean")
+    ds_y = xr.Dataset(
+        {
+            "y0": (["sample", "z"], np.array([[1.0, 1.0], [2.0, 2.0]])),
+            "y1": (["sample"], np.array([-1.0, -2.0])),
+            "pressure_thickness_of_atmospheric_layer": (
+                ["sample", "z"],
+                np.array([[2.0, 2.0], [2.0, 2.0]]),
+            ),
+        }
+    )
+    transformed_target_regressor = _get_transformed_target_regressor(
+        regressor,
+        output_vars,
+        ds_y,
+        scaler_type=scaler_type,
+        scaler_kwargs=scaler_kwargs,
+    )
+    packer = ArrayPacker(sample_dim, output_vars)
+    y = packer.to_array(ds_y)
+    # normalize
+    np.testing.assert_array_almost_equal(
+        transformed_target_regressor.func(y), expected_y_normalized
+    )
+    # denormalize
+    np.testing.assert_array_almost_equal(
+        transformed_target_regressor.inverse_func(expected_y_normalized), y
+    )
