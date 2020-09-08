@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 import numpy as np
-from typing import List, Mapping
+from typing import List, Mapping, Sequence
 
 import fv3config
 
@@ -55,14 +55,26 @@ def _get_input_fname_list_asset(nudge_filename_list, filename: str) -> Mapping:
 
 
 def enable_nudge_to_observations(
-    duration,
-    current_date,
-    nudge_filename_pattern="%Y%m%d_%HZ_T85LR.nc",
-    nudge_url="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
-    file_list_path="nudging_file_list",
-    copy_method="copy",
+    duration: timedelta,
+    current_date: Sequence[int],
+    nudge_filename_pattern: str = "%Y%m%d_%HZ_T85LR.nc",
+    nudge_url: str = "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
+    file_list_path: str = "nudging_file_list",
+    copy_method: str = "copy",
 ) -> Mapping:
-    """Enable a nudged to observation run
+    """Return config overlay for a nudged to observation run
+
+    Args:
+        duration: fv3gfs run duration
+        current_date: start time of run as sequence of 6 integers
+        nudge_filename_pattern: naming convention for GFS analysis files
+        nudge_url: location of GFS analysis files
+        file_list_path: name of text file used to list analysis files for model
+        copy_method: fv3config asset copy_method for analysis files
+
+    Returns:
+        fv3config overlay with default nudging options and assets for analysis files
+
 
     This sets background namelist options and adds the necessary analysis
     data files to the patch_files. To actually include nudging, the user must
@@ -81,10 +93,6 @@ def enable_nudge_to_observations(
                 tau_virt: 21600.0
                 tau_winds: 21600.0
                 tau_q: 21600.0
-
-
-    Note:
-        This function appends to patch_files and alters the namelist
     """
 
     nudge_file_list = _get_target_filename_list(
@@ -92,8 +100,10 @@ def enable_nudge_to_observations(
     )
     fname_list_asset = _get_input_fname_list_asset(nudge_file_list, file_list_path)
     nudging_assets = [
-        fv3config.get_asset_dict(nudge_url, file, target_location=NUDGE_FILE_TARGET)
-        for file in nudge_file_list
+        fv3config.get_asset_dict(
+            nudge_url, file_, target_location=NUDGE_FILE_TARGET, copy_method=copy_method
+        )
+        for file_ in nudge_file_list
     ]
 
     if nudge_url.startswith("gs://") and copy_method == "link":
