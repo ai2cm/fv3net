@@ -4,7 +4,7 @@ import logging
 import os
 import xarray as xr
 from .._shared import ModelTrainingConfig
-from typing import Sequence, Union, Mapping, Iterable, Optional
+from typing import Sequence, Union, Mapping, Iterable
 
 from .._shared import StandardScaler, ManualScaler, ArrayPacker, get_mass_scaler
 from ._wrapper import SklearnWrapper, RegressorEnsemble
