@@ -61,12 +61,6 @@ spec:
                   value: "{{workflow.parameters.pvc-name}}"
                 - name: size
                   value: "{{steps.get-gce-disk.outputs.parameters.capacity}}"
-        - - name: delete-pvc
-            template: delete-pvc
-            arguments:
-              parameters:
-                - name: pvc-name
-                  value: "{{steps.create-read-write-pvc.outputs.parameters.pvc-name}}"
     - name: create-read-write-pvc
       outputs:
         parameters:
@@ -209,17 +203,6 @@ spec:
         - name: data-volume
           persistentVolumeClaim:
             claimName: "{{inputs.parameters.pvc-name}}"
-    - name: delete-pvc
-      inputs:
-        parameters:
-          - name: pvc-name
-      resource:
-        action: delete
-        manifest: |
-          apiVersion: v1
-          kind: PersistentVolumeClaim
-          metadata:
-            name: {{inputs.parameters.pvc-name}}
     - name: get-pvc
       inputs:
         parameters:
