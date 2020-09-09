@@ -1,4 +1,4 @@
-# in a workflow. The resource template type accepts any k8s manifest
+#  in a workflow. The resource template type accepts any k8s manifest
 # (including CRDs) and can perform any kubectl action against it (e.g. create,
 # apply, delete, patch).
 apiVersion: argoproj.io/v1alpha1
@@ -9,10 +9,14 @@ spec:
   arguments:
     parameters:
       - name: size
-        value: 256Gi
+        value: 10Mi
       - name: pvc-name
         value: temp
-  entrypoint: pi-tmpl
+      - name: source
+        value: gs://vcm-ml-scratch/noah/hello.txt
+      - name: destination
+        value: hello.txt
+  entrypoint: main
   templates:
     - name: main
       steps:
@@ -20,6 +24,10 @@ spec:
             template: create-read-write-pvc
         - - name: copy-data-in
             template: copy-data-in
+            arguments:
+              parameters:
+                - name: pvc-name
+                  value: "{{steps.create-read-write-pvc.outputs.parameters.pvc-name}}"
         - - name: create-read-only-pvc
             template: create-read-only-pvc
             arguments:
@@ -49,6 +57,12 @@ spec:
           kind: PersistentVolumeClaim
           metadata:
             generateName: temp-claim-
+            ownerReferences:
+              - apiVersion: argoproj.io/v1alpha1
+                blockOwnerDeletion: true
+                kind: Workflow
+                name: "{{workflow.name}}"
+                uid: "{{workflow.uid}}"
           spec:
             accessModes:
               - ReadWriteOnce
@@ -89,6 +103,9 @@ spec:
               - ReadOnlyMany
             volumeName: {{inputs.parameters.volume-name}}
     - name: copy-data-in
+      inputs:
+        parameters:
+          - name: pvc-name
       container:
         image: google/cloud-sdk
         command: ["bash", "-e"]
@@ -109,14 +126,14 @@ spec:
             secretName: gcp-key
         - name: data-volume
           persistentVolumeClaim:
-            claimName: my-temp-claim
+            claimName: "{{inputs.parameters.pvc-name}}"
     - name: delete-pvc
       inputs:
         parameters:
           - name: pvc-name
       resource:
         action: delete
-        resource: |
+        manifest: |
           apiVersion: v1
           kind: PersistentVolumeClaim
           metadata:
