@@ -16,7 +16,6 @@ spec:
       - {name: memory, value: 8Gi}
       - {name: work-volume-name, value: work-volume}
       - {name: external-volume-name, value: gfs-analysis-data}
-      - {name: external-volume-claim, value: gfs-analysis-read-only}
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
@@ -29,7 +28,7 @@ spec:
   volumes:
     - name: gfs-analysis-data
       persistentVolumeClaim:
-        claimName: nudging-read-only
+        claimName: gfs-analysis-read-only
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -116,4 +115,5 @@ spec:
         args:
         - |
           echo "{{inputs.parameters.nudging-config}}" > config.yaml
-          python prepare_config.py --segment-count "{{inputs.parameters.segment-count}}" config.yaml > /tmp/fv3config.yaml
+          python prepare_config.py --segment-count "{{inputs.parameters.segment-count}}" \
+              --nudge-url /mnt/input/gfs-analysis-T85 config.yaml > /tmp/fv3config.yaml
