@@ -13,6 +13,11 @@ def parse_args():
         description="prepare fv3config yaml file for nudging run"
     )
     parser.add_argument("config", type=str, help="base yaml file to configure")
+    parser.add_argument(
+        "--timesteps",
+        type=str,
+        help="path to yaml-encoded list of YYYYMMDD.HHMMSS timesteps",
+    )
     return parser.parse_args()
 
 
