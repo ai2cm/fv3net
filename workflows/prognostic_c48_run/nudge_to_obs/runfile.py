@@ -39,6 +39,8 @@ STORE_NAMES = [
     "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
     "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
     "total_sky_upward_longwave_flux_at_top_of_atmosphere",
+    "latitude",
+    "longitude",
 ]
 
 RUN_DIR = os.path.dirname(os.path.realpath(__file__))
