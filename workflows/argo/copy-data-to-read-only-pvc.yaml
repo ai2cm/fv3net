@@ -188,6 +188,7 @@ spec:
         args:
           - |
             gcloud auth activate-service-account --key-file /secrets/key.json
+            mkdir -p /mnt/data/{{workflow.parameters.destination}}
             gsutil cp -r {{workflow.parameters.source}} /mnt/data/{{workflow.parameters.destination}}
         volumeMounts:
           - name: gcp-key-secret
