@@ -83,7 +83,7 @@ def test_training_integration(
 @pytest.mark.parametrize(
     "scaler_type, expected_type", (["standard", StandardScaler], ["mass", ManualScaler])
 )
-def test___get_target_scaler_type(scaler_type, expected_type):
+def test__get_target_scaler_type(scaler_type, expected_type):
     scaler = _get_target_scaler(
         scaler_type, scaler_kwargs={}, norm_data=norm_data, output_vars=["y0", "y1"]
     )
@@ -94,6 +94,8 @@ norm_data = xr.Dataset(
     {
         "y0": (["sample", "z"], np.array([[1.0, 1.0], [2.0, 2.0]])),
         "y1": (["sample"], np.array([-1.0, -2.0])),
+        "pressure_thickness_of_atmospheric_layer": (
+            ["sample", "z"], np.array([[1.0, 1.0], [2.0, 2.0]])),
     }
 )
 

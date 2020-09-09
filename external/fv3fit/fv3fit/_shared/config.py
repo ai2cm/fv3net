@@ -17,7 +17,7 @@ class ModelTrainingConfig:
     output_variables: Iterable[str]
     batch_function: str
     batch_kwargs: dict
-    scaler_type: str = "scaler"
+    scaler_type: str = "standard"
     scaler_kwargs: Optional[Mapping] = None
     additional_variables: Optional[Iterable[str]] = None
 
