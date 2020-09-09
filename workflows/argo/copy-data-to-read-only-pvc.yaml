@@ -20,6 +20,10 @@ spec:
             template: create-read-write-pvc
         - - name: copy-data-in
             template: copy-data-in
+            arguments:
+              parameters:
+                - name: pvc-name
+                  value: "{{steps.create-read-write-pvc.outputs.parameters.pvc-name}}"
         - - name: create-read-only-pvc
             template: create-read-only-pvc
             arguments:
@@ -49,6 +53,12 @@ spec:
           kind: PersistentVolumeClaim
           metadata:
             generateName: temp-claim-
+            ownerReferences:
+              - apiVersion: argoproj.io/v1alpha1
+                blockOwnerDeletion: true
+                kind: Workflow
+                name: "{{workflow.name}}"
+                uid: "{{workflow.uid}}"
           spec:
             accessModes:
               - ReadWriteOnce
@@ -89,6 +99,9 @@ spec:
               - ReadOnlyMany
             volumeName: {{inputs.parameters.volume-name}}
     - name: copy-data-in
+      arguments:
+        parameters:
+          - name: pvc-name
       container:
         image: google/cloud-sdk
         command: ["bash", "-e"]
@@ -109,7 +122,7 @@ spec:
             secretName: gcp-key
         - name: data-volume
           persistentVolumeClaim:
-            claimName: my-temp-claim
+            claimName: {{inputs.parameters.pvc-name}}
     - name: delete-pvc
       inputs:
         parameters:
