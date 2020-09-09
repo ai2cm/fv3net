@@ -78,12 +78,6 @@ def test_training_integration(
     assert len(missing_names) == 0, existing_names
 
 
-norm_data = xr.Dataset(
-    {
-        "y0": (["sample", "z"], np.array([[1.0, 1.0], [2.0, 2.0]])),
-        "y1": (["sample"], np.array([-1.0, -2.0])),
-    }
-)
 
 
 @pytest.mark.parametrize(
@@ -95,6 +89,13 @@ def test___get_target_scaler_type(scaler_type, expected_type):
     )
     assert isinstance(scaler, expected_type)
 
+
+norm_data = xr.Dataset(
+    {
+        "y0": (["sample", "z"], np.array([[1.0, 1.0], [2.0, 2.0]])),
+        "y1": (["sample"], np.array([-1.0, -2.0])),
+    }
+)
 
 @pytest.mark.parametrize(
     "scaler_type, scaler_kwargs, delp, expected_y_normalized,",
@@ -114,7 +115,6 @@ def test__get_transformed_target_regressor(
     sample_dim = "sample"
     output_vars = ["y0", "y1"]
     regressor = DummyRegressor(strategy="mean")
-    ds_y = norm_data
     if delp is not None:
         norm_data["pressure_thickness_of_atmospheric_layer"] = (
             ["sample", "z"],
@@ -123,12 +123,12 @@ def test__get_transformed_target_regressor(
     transformed_target_regressor = _get_transformed_target_regressor(
         regressor,
         output_vars,
-        ds_y,
+        norm_data,
         scaler_type=scaler_type,
         scaler_kwargs=scaler_kwargs,
     )
     packer = ArrayPacker(sample_dim, output_vars)
-    y = packer.to_array(ds_y)
+    y = packer.to_array(safe.get_variables(norm_data, output_vars))
     # normalize
     np.testing.assert_array_almost_equal(
         transformed_target_regressor.func(y), expected_y_normalized
