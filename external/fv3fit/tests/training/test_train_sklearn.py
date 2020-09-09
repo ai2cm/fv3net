@@ -6,8 +6,15 @@ from fv3fit._shared import ModelTrainingConfig
 import numpy as np
 import subprocess
 import os
-from fv3fit.sklearn._train import train_model, _get_transformed_target_regressor
-from fv3fit._shared import ArrayPacker
+from vcm import safe
+
+from fv3fit.sklearn._train import (
+    train_model,
+    _get_transformed_target_regressor,
+    _get_target_scaler,
+    _get_transformed_batch_regressor,
+)
+from fv3fit._shared import ArrayPacker, StandardScaler, ManualScaler
 from sklearn.dummy import DummyRegressor
 
 logger = logging.getLogger(__name__)
@@ -71,33 +78,48 @@ def test_training_integration(
     assert len(missing_names) == 0, existing_names
 
 
+norm_data = xr.Dataset(
+    {
+        "y0": (["sample", "z"], np.array([[1.0, 1.0], [2.0, 2.0]])),
+        "y1": (["sample"], np.array([-1.0, -2.0])),
+    }
+)
+
+
 @pytest.mark.parametrize(
-    "scaler_type, scaler_kwargs, expected_y_normalized",
+    "scaler_type, expected_type", (["standard", StandardScaler], ["mass", ManualScaler])
+)
+def test___get_target_scaler_type(scaler_type, expected_type):
+    scaler = _get_target_scaler(
+        scaler_type, scaler_kwargs={}, norm_data=norm_data, output_vars=["y0", "y1"]
+    )
+    assert isinstance(scaler, expected_type)
+
+
+@pytest.mark.parametrize(
+    "scaler_type, scaler_kwargs, delp, expected_y_normalized,",
     (
-        ["standard", None, np.array([[-1.0, -1.0, 1.0], [1.0, 1.0, -1.0]])],
+        ["standard", None, None, np.array([[-1.0, -1.0, 1.0], [1.0, 1.0, -1.0]])],
         [
             "mass",
             {"variable_scale_factors": {"y0": 200}},
+            np.array([2.0, 2.0]),
             np.array([[10.0, 10.0, -1.0], [20.0, 20, -2.0]]),
         ],
     ),
 )
 def test__get_transformed_target_regressor(
-    scaler_type, scaler_kwargs, expected_y_normalized
+    scaler_type, scaler_kwargs, delp, expected_y_normalized
 ):
     sample_dim = "sample"
     output_vars = ["y0", "y1"]
     regressor = DummyRegressor(strategy="mean")
-    ds_y = xr.Dataset(
-        {
-            "y0": (["sample", "z"], np.array([[1.0, 1.0], [2.0, 2.0]])),
-            "y1": (["sample"], np.array([-1.0, -2.0])),
-            "pressure_thickness_of_atmospheric_layer": (
-                ["sample", "z"],
-                np.array([[2.0, 2.0], [2.0, 2.0]]),
-            ),
-        }
-    )
+    ds_y = norm_data
+    if delp is not None:
+        norm_data["pressure_thickness_of_atmospheric_layer"] = (
+            ["sample", "z"],
+            np.array([delp, delp]),
+        )
     transformed_target_regressor = _get_transformed_target_regressor(
         regressor,
         output_vars,
@@ -114,4 +136,16 @@ def test__get_transformed_target_regressor(
     # denormalize
     np.testing.assert_array_almost_equal(
         transformed_target_regressor.inverse_func(expected_y_normalized), y
+    )
+
+
+def test_same_scaler_after_fitting(training_batches, train_config):
+    batch_0 = training_batches[0]
+    packer = ArrayPacker("sample", train_config.output_variables)
+    y = packer.to_array(safe.get_variables(batch_0, train_config.output_variables))
+    model_wrapper = _get_transformed_batch_regressor(train_config, batch_0)
+    normed_y = model_wrapper.model.base_regressor.func(y)
+    model_wrapper.fit(batch_0)
+    np.testing.assert_array_almost_equal(
+        model_wrapper.model.base_regressor.func(y), normed_y
     )

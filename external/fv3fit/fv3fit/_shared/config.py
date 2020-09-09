@@ -23,6 +23,7 @@ class ModelTrainingConfig:
 
     def __post_init__(self):
         self.additional_variables = self.additional_variables or []
+        self.scaler_kwargs = self.scaler_kwargs or {}
         if self.scaler_type == "mass":
             if DELP not in self.additional_variables:
                 self.additional_variables.append(DELP)

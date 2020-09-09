@@ -16,6 +16,14 @@ SAMPLE_DIM = "sample"
 FEATURE_DIM = "z"
 
 
+def test_standard_scaler_not_fit_before_call():
+    scaler = StandardScaler()
+    with pytest.raises(RuntimeError):
+        scaler.normalize(np.array([0.0, 1.0]))
+    with pytest.raises(RuntimeError):
+        scaler.denormalize(np.array([0.0, 1.0]))
+
+
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
 def test_standard_scaler_normalize_then_denormalize(n_samples, n_features):
     scaler = StandardScaler()

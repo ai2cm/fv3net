@@ -51,22 +51,19 @@ def _get_regressor(train_config: ModelTrainingConfig):
 
 
 def _get_target_scaler(
-    scaler_type: Optional[str],
-    scaler_kwargs: Optional[Mapping],
+    scaler_type: str,
+    scaler_kwargs: Mapping,
     norm_data: xr.Dataset,
     output_vars: Iterable[str],
 ) -> Scaler:
     # Defaults to StandardScaler if none specified in config
-    scaler_type = scaler_type or "standard"
-    scaler_kwargs = scaler_kwargs or {}
     packer = ArrayPacker(SAMPLE_DIM, output_vars)
     data_array = packer.to_array(norm_data)
     if "standard" in scaler_type.lower():
         target_scaler = StandardScaler()
         target_scaler.fit(data_array)
     elif "mass" in scaler_type.lower():
-        # use single column sample for delp scaling
-        delp = norm_data.isel({SAMPLE_DIM: 0})[DELP].values
+        delp = norm_data[DELP].mean(dim=SAMPLE_DIM).values
         target_scaler = get_mass_scaler(  # type: ignore
             packer, delp, scaler_kwargs.get("variable_scale_factors"), sqrt_scales=True
         )

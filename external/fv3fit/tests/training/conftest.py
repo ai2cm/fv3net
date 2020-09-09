@@ -78,7 +78,7 @@ def train_config(
         batch_kwargs=batch_kwargs,
         scaler_type="standard",
         scaler_kwargs={},
-        additional_variables=["pressure_thickness_of_atmospheric_layer"],
+        additional_variables=None,
     )
 
 
@@ -102,7 +102,7 @@ def train_config_filename(
                 "batch_kwargs": batch_kwargs,
                 "scaler_type": "standard",
                 "scaler_kwargs": {},
-                "additional_variables": ["pressure_thickness_of_atmospheric_layer"],
+                "additional_variables": None,
             },
             f,
         )

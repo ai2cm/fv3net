@@ -115,9 +115,7 @@ def get_mass_scaler(
                 scales in the target transform, the MSE loss function terms will be
                 approximately weighted to the desired weights.
     """
-    scales = _create_scaling_array(
-        packer, delp, variable_scale_factors, sqrt_scales
-    )
+    scales = _create_scaling_array(packer, delp, variable_scale_factors, sqrt_scales)
     return ManualScaler(scales)
 
 
