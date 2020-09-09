@@ -39,6 +39,13 @@ STORE_NAMES = [
     "total_sky_downward_shortwave_flux_at_top_of_atmosphere",
     "total_sky_upward_shortwave_flux_at_top_of_atmosphere",
     "total_sky_upward_longwave_flux_at_top_of_atmosphere",
+    "clear_sky_downward_shortwave_flux_at_surface",
+    "clear_sky_upward_shortwave_flux_at_surface",
+    "clear_sky_downward_longwave_flux_at_surface",
+    "clear_sky_upward_longwave_flux_at_surface",
+    "clear_sky_downward_shortwave_flux_at_top_of_atmosphere",
+    "clear_sky_upward_shortwave_flux_at_top_of_atmosphere",
+    "clear_sky_upward_longwave_flux_at_top_of_atmosphere",
     "latitude",
     "longitude",
 ]
