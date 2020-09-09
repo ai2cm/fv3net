@@ -1,0 +1,123 @@
+# in a workflow. The resource template type accepts any k8s manifest
+# (including CRDs) and can perform any kubectl action against it (e.g. create,
+# apply, delete, patch).
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: k8s-jobs-
+spec:
+  arguments:
+    parameters:
+      - name: size
+        value: 256Gi
+      - name: pvc-name
+        value: temp
+  entrypoint: pi-tmpl
+  templates:
+    - name: main
+      steps:
+        - - name: create-read-write-pvc
+            template: create-read-write-pvc
+        - - name: copy-data-in
+            template: copy-data-in
+        - - name: create-read-only-pvc
+            template: create-read-only-pvc
+            arguments:
+              parameters:
+                - name: pvc-name
+                  value: "{{workflow.parameters.pvc-name}}"
+                - name: volume-name
+                  value: "{{steps.create-read-write-pvc.outputs.parameters.volume-name}}"
+        - - name: delete-pvc
+            template: delete-pvc
+            arguments:
+              parameters:
+                - name: pvc-name
+                  value: "{{steps.create-read-write-pvc.outputs.parameters.pvc-name}}"
+    - name: create-read-write-pvc
+      resource: # indicates that this is a resource template
+        action: create # can be any kubectl action (e.g. create, delete, apply, patch)
+        # The successCondition and failureCondition are optional expressions.
+        # If failureCondition is true, the step is considered failed.
+        # If successCondition is true, the step is considered successful.
+        # They use kubernetes label selection syntax and can be applied against any field
+        # of the resource (not just labels). Multiple AND conditions can be represented by comma
+        # delimited expressions.
+        # For more details: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+        manifest: | #put your kubernetes spec here
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            generateName: temp-claim-
+          spec:
+            accessModes:
+              - ReadWriteOnce
+              - ReadOnlyMany
+            volumeMode: Filesystem
+            resources:
+              requests:
+                storage: {{workflow.parameters.size}}
+      outputs:
+        parameters:
+          - name: pvc-name
+            valueFrom:
+              jsonPath: '{.metadata.name}'
+          - name: volume-name
+            valueFrom:
+              jsonPath: '{.spec.volumeName}'
+    - name: create-read-only-pvc
+      inputs:
+        parameters:
+          - name: volume-name
+          - name: pvc-name
+      resource: # indicates that this is a resource template
+        action: create # can be any kubectl action (e.g. create, delete, apply, patch)
+        # The successCondition and failureCondition are optional expressions.
+        # If failureCondition is true, the step is considered failed.
+        # If successCondition is true, the step is considered successful.
+        # They use kubernetes label selection syntax and can be applied against any field
+        # of the resource (not just labels). Multiple AND conditions can be represented by comma
+        # delimited expressions.
+        # For more details: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+        manifest: | #put your kubernetes spec here
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: {{inputs.parameters.pvc-name}}
+          spec:
+            accessModes:
+              - ReadOnlyMany
+            volumeName: {{inputs.parameters.volume-name}}
+    - name: copy-data-in
+      container:
+        image: google/cloud-sdk
+        command: ["bash", "-e"]
+        args:
+          - |
+            gcloud auth activate-service-account --keyfile /secrets/key.json
+            gsutil rsync -r {{workflow.parameters.source}} /mnt/data/{{workflow.parameters.destination}}
+        volumeMounts:
+          - name: gcp-key-secret
+            mountPath: /secrets
+            readOnly: true
+          - name: data-volume
+            mountPath: /mnt/data
+      volumes:
+        - name: gcp-key-secret
+          secret:
+            defaultMode: 444
+            secretName: gcp-key
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: my-temp-claim
+    - name: delete-pvc
+      inputs:
+        parameters:
+          - name: pvc-name
+      resource:
+        action: delete
+        resource: |
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: {{inputs.parameters.pvc-name}}
