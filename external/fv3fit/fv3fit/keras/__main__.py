@@ -63,8 +63,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO)
 
-    batch_size = train_config.hyperparameters.pop("batch_size", None)
-    epochs = train_config.hyperparameters.pop("epochs", None)
+    fit_kwargs = train_config.hyperparameters.pop("fit_kwargs", {})
 
     model = get_model(
         train_config.model_type,
@@ -74,7 +73,7 @@ if __name__ == "__main__":
         **train_config.hyperparameters
     )
     batches = shared.load_data_sequence(data_path, train_config)
-    model.fit(batches, batch_size, epochs)
+    model.fit(batches, **fit_kwargs)
 
     model_output_path = os.path.join(args.output_data_path, MODEL_FILENAME)
     model.dump(model_output_path)
