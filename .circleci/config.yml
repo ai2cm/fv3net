@@ -127,7 +127,7 @@ jobs:
       - run:
           name: Build fv3net images
           command: |
-            make build_image_$IMAGE
+            DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain make build_image_$IMAGE
       - run:
           name: Push fv3net images
           command: |
@@ -185,7 +185,7 @@ jobs:
           name: Build fv3net images
           command: |
             make pull_image_fv3gfs_fv3net VERSION=$CIRCLE_SHA1
-            make build_image_$IMAGE
+            DOCKER_BUILDKIT=1 BUILDKIT_PROGRESS=plain make build_image_$IMAGE
       - run:
           name: Push fv3net images
           command: |
