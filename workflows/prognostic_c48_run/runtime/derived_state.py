@@ -59,7 +59,9 @@ class DerivedFV3State:
             return self._getter.get_state([key])[key].data_array
 
     def __setitem__(self, key: str, value: xr.DataArray):
-        self._getter.set_state({key: fv3gfs.util.Quantity.from_data_array(value)})
+        self._getter.set_state_mass_conserving(
+            {key: fv3gfs.util.Quantity.from_data_array(value)}
+        )
 
     def update(self, items: Mapping[Hashable, xr.DataArray]):
         """Update state from another mapping
@@ -68,7 +70,7 @@ class DerivedFV3State:
         
         Same as dict.update.
         """
-        self._getter.set_state(
+        self._getter.set_state_mass_conserving(
             {
                 key: fv3gfs.util.Quantity.from_data_array(value)
                 for key, value in items.items()

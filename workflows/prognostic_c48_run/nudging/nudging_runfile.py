@@ -48,6 +48,8 @@ STORE_NAMES = [
     "latent_heat_flux",
     "total_precipitation",
     "surface_precipitation_rate",
+    "eastward_wind",
+    "northward_wind",
 ] + RADIATION_NAMES
 
 TENDENCY_OUT_FILENAME = "tendencies.zarr"

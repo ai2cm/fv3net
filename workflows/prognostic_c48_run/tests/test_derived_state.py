@@ -29,7 +29,7 @@ class MockFV3GFS:
 
         return {name: state[name] for name in names}
 
-    def set_state(self, data):
+    def set_state_mass_conserving(self, data):
         self.set_state_called = True
         for key, value in data.items():
             assert isinstance(value, fv3gfs.util.Quantity)

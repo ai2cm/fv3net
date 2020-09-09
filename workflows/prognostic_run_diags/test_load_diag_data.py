@@ -106,10 +106,12 @@ def test_warn_on_overwrite_no_warning():
     old = {"key"}
     new = {"new_key"}
 
-    with pytest.warns(None) as record:
+    with pytest.warns(None) as records:
         load_diags.warn_on_overwrite(old, new)
 
-    assert len(record) == 0
+    # ignore deprecation warnings
+    for warning in records:
+        assert not isinstance(warning, UserWarning), warning
 
 
 def test__coarsen_keeps_attrs(xr_darray):

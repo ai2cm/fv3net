@@ -377,7 +377,7 @@ def _open_nudging_checkpoints(
 
 
 def open_merged_nudged_full_tendencies(
-    nudging_url: str,
+    url: str,
     shield_diags_url: str = None,
     open_merged_nudged_kwargs: Mapping[str, Any] = None,
     open_checkpoints_kwargs: Mapping[str, Any] = None,
@@ -391,7 +391,7 @@ def open_merged_nudged_full_tendencies(
     Load mapper to nudged dataset containing both dQ and pQ tendency terms
 
     Args:
-        nudging_url: Path to directory with nudging output (not including the timescale
+        url: Path to directory with nudging output (not including the timescale
             subdirectories, e.g., outdir-3h)
         shield_diags_url: path to directory containing a zarr store of SHiELD
             diagnostics coarsened to the nudged model resolution (optional)
@@ -423,10 +423,10 @@ def open_merged_nudged_full_tendencies(
     open_checkpoints_kwargs = open_checkpoints_kwargs or {}
 
     nudged_mapper = open_merged_nudged(
-        nudging_url, consolidated=consolidated, **open_merged_nudged_kwargs
+        url, consolidated=consolidated, **open_merged_nudged_kwargs
     )
     checkpoint_mapper = _open_nudging_checkpoints(
-        nudging_url, consolidated=consolidated, **open_checkpoints_kwargs
+        url, consolidated=consolidated, **open_checkpoints_kwargs
     )
 
     full_tendencies_mapper = NudgedFullTendencies(
@@ -509,7 +509,7 @@ def open_merged_nudge_to_obs(
 
 
 def open_merged_nudge_to_obs_full_tendencies(
-    nudging_url: str,
+    url: str,
     open_merged_nudge_to_obs_kwargs: Mapping[str, Any] = {},
     open_checkpoints_kwargs: Mapping[str, Any] = {},
     difference_checkpoints: Sequence[str] = ("after_dynamics", "after_physics"),
@@ -524,7 +524,7 @@ def open_merged_nudge_to_obs_full_tendencies(
     tendency is equal to the difference between the after_dynamics and after_physics
     checkpoints minus the nudging tendency.
     Args:
-        nudging_url: Path to directory with nudging output
+        url: Path to directory with nudging output
         open_merged_nudge_to_obs_kwargs (optional): kwargs mapping to be passed to
             open_merged_nudge_to_obs
         open_checkpoints_kwargs (optional): kwargs mapping to be passed to
@@ -556,10 +556,10 @@ def open_merged_nudge_to_obs_full_tendencies(
     }
 
     nudged_mapper = open_merged_nudge_to_obs(
-        nudging_url, consolidated=consolidated, **open_merged_nudge_to_obs_kwargs
+        url, consolidated=consolidated, **open_merged_nudge_to_obs_kwargs
     )
     checkpoint_mapper = _open_nudging_checkpoints(
-        nudging_url, consolidated=consolidated, **open_checkpoints_kwargs
+        url, consolidated=consolidated, **open_checkpoints_kwargs
     )
 
     full_tendencies_mapper = NudgedFullTendencies(
@@ -578,7 +578,7 @@ def open_merged_nudge_to_obs_full_tendencies(
 
 
 def open_nudged_to_obs_prognostic(
-    url=str,
+    url: str,
     merge_files: Tuple[str] = ("data.zarr", "nudging_tendencies.zarr"),
     nudging_to_physics_tendency: Mapping[str, str] = None,
     rename_vars: Mapping[str, str] = None,
