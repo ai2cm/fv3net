@@ -102,7 +102,7 @@ def get_mass_scaler(
         Args:
             packer: ArrayPacker object that contains information a
             delp: 1D array of pressure thickness used to mass weight model
-                levels. When normalizing, will **DIVIDE** by these values.
+                levels.
             variable_scale_factors: Optional mapping of variable names to scale factors
                 by which their weights will be multiplied when normalizing. This allows
                 the weighted outputs to be scaled to the same order of magnitude.
@@ -115,10 +115,8 @@ def get_mass_scaler(
                 scales in the target transform, the MSE loss function terms will be
                 approximately weighted to the desired weights.
     """
-    # weight by inverse of layer mass
-    vertical_scales = 1.0 / delp
     scales = _create_scaling_array(
-        packer, vertical_scales, variable_scale_factors, sqrt_scales
+        packer, delp, variable_scale_factors, sqrt_scales
     )
     return ManualScaler(scales)
 
@@ -141,7 +139,7 @@ def _create_scaling_array(
             packer: ArrayPacker object that contains information a
             vertical_scale: 1D array of scales for each model level.
             variable_scale_factors: Optional mapping of variable names to scale factors
-                by which their scales will be multiplied. This allows
+                by which their loss scales will be multiplied. This allows
                 the scaled outputs to be of the same order of magnitude.
                 Default of None will scale target dQ2 features by a factor of 1e6; this
                 is chosen such that the features values are of the same order as dQ1
