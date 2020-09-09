@@ -12,6 +12,7 @@ from .utils import (
     insert_net_terms_as_Qs,
 )
 from ._diurnal_cycle import bin_diurnal_cycle, create_diurnal_cycle_dataset
+from ._region import RegionOfInterest
 from . import plot
 
 
