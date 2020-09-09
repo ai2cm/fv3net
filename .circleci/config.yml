@@ -31,7 +31,7 @@ jobs:
       - run: make update_submodules
       - run:
           name: "Concatenate package dependency files"
-          command: cat environment.yml .circleci/environment.lock > combined_deps.txt
+          command: cat conda-linux-64.lock pip-requirements.txt > combined_deps.txt
       - restore_cache:
           keys:
             # change this string to invalidate cache
@@ -40,7 +40,6 @@ jobs:
           name: "Install fv3net dependencies"
           command: |
             make install_deps
-            cat .circleci/environment.lock
       - save_cache:
           key: v2-fv3net-env-{{ checksum "combined_deps.txt" }}
           paths:
