@@ -121,8 +121,6 @@ def test_append_zarr_along_time(
     else:
         append.append_zarr_along_time(path1, path0, fsspec.filesystem("file"))
         append.append_zarr_along_time(path2, path1, fsspec.filesystem("file"))
-        manually_appended_ds = xr.open_zarr(
-            path1, consolidated=True, mask_and_scale=False
-        )
+        manually_appended_ds = xr.open_zarr(path1, consolidated=True)
         expected_ds = xr.concat([ds1, ds2], dim="time")
         xr.testing.assert_identical(manually_appended_ds, expected_ds)
