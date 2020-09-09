@@ -73,7 +73,7 @@ class StageWriter:
                     os.path.join(self._root_dirname, stage_name + ".zarr")
                 )
             )()
-            monitor = wrapper.ZarrMonitor(
+            monitor = fv3gfs.util.ZarrMonitor(
                 store, self.partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
             )
             self._monitors[stage_name] = SubsetWriter(monitor, self.times)
@@ -84,7 +84,7 @@ class SubsetWriter:
     """Write only certain substeps"""
 
     def __init__(
-        self, monitor: wrapper.ZarrMonitor, times: Optional[Sequence[str]] = None
+        self, monitor: fv3gfs.util.ZarrMonitor, times: Optional[Sequence[str]] = None
     ):
         """
 
@@ -132,8 +132,8 @@ def load_config(filename):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     config = load_config("fv3config.yml")
-    partitioner = wrapper.CubedSpherePartitioner.from_namelist(config["namelist"])
-    communicator = wrapper.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
+    partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
+    communicator = fv3gfs.util.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
     timestep = get_timestep(config)
 
     monitor = StageWriter(
