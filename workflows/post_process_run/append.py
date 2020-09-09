@@ -164,6 +164,7 @@ def append_zarr_along_time(
     Warning:
         The zarr store as source_path will be modified in place.
     """
+
     consolidate = False
     if fs.exists(target_path):
         consolidate = True
@@ -171,6 +172,8 @@ def append_zarr_along_time(
         target_store = zarr.open_consolidated(fsspec.get_mapper(target_path))
         _set_time_units_like(source_store, target_store)
         _shift_store(source_store, dim, _get_dim_size(target_store, dim))
+    elif fs.protocol == "file":
+        os.makedirs(target_path)
 
     upload_dir(source_path, target_path)
 

@@ -4,7 +4,7 @@ import xarray as xr
 import append
 import os
 import zarr
-from datetime import datetime
+import cftime
 import pytest
 
 
@@ -98,14 +98,17 @@ def test_append_zarr_along_time(
     da = xr.DataArray(np.arange(5 * n_time).reshape((n_time, 5)), dims=["time", "x"])
     ds = xr.Dataset({"var1": da.chunk({"time": chunk_time})})
     if with_coords:
-        coord1 = [datetime(2000, 1, d) for d in range(1, 1 + n_time)]
-        coord2 = [datetime(2000, 1, d) for d in range(1 + n_time, 1 + 2 * n_time)]
+        coord1 = [cftime.DatetimeJulian(2000, 1, d) for d in range(1, 1 + n_time)]
+        coord2 = [
+            cftime.DatetimeJulian(2000, 1, d) for d in range(1 + n_time, 1 + 2 * n_time)
+        ]
         ds1 = ds.assign_coords(time=coord1)
         ds2 = ds.assign_coords(time=coord2)
     else:
         ds1 = ds.copy()
         ds2 = ds.copy()
 
+    path0 = str(tmpdir.join("ds0.zarr/"))  # zarr doesn't exist, used as segment=0 case
     path1 = str(tmpdir.join("ds1.zarr"))
     path2 = str(tmpdir.join("ds2.zarr"))
     ds1.to_zarr(path1, consolidated=True)
@@ -113,8 +116,10 @@ def test_append_zarr_along_time(
 
     if raises_value_error:
         with pytest.raises(ValueError):
+            append.append_zarr_along_time(path1, path0, fsspec.filesystem("file"))
             append.append_zarr_along_time(path2, path1, fsspec.filesystem("file"))
     else:
+        append.append_zarr_along_time(path1, path0, fsspec.filesystem("file"))
         append.append_zarr_along_time(path2, path1, fsspec.filesystem("file"))
         manually_appended_ds = xr.open_zarr(path1, consolidated=True)
         expected_ds = xr.concat([ds1, ds2], dim="time")
