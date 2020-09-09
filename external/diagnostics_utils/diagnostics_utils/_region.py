@@ -9,7 +9,7 @@ class RegionOfInterest:
     lon_bounds: Tuple[float]
 
     def average(self, dataset):
-        return _average(dataset, self.lat_bounds, self.lon_bounds)
+        return _roi_average(dataset, self.lat_bounds, self.lon_bounds)
 
 
 tropical_atlantic = RegionOfInterest(
@@ -23,7 +23,7 @@ equatorial_zone = RegionOfInterest(
 )
 
 
-def _average(
+def _roi_average(
     dataset: xr.Dataset,
     lat_bounds: Tuple[float],
     lon_bounds: Tuple[float],
