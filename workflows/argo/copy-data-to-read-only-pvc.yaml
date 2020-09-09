@@ -184,6 +184,13 @@ spec:
           - name: pvc-name
       container:
         image: google/cloud-sdk
+        resources:
+          requests:
+            memory: "3Gi"
+            cpu: "8"
+          limits:
+            memory: "3Gi"
+            cpu: "8"
         command: ["bash", "-ec"]
         args:
           - |
