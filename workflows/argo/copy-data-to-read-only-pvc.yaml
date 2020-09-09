@@ -15,7 +15,7 @@ spec:
       - name: source
         value: gs://vcm-ml-scratch/noah/hello.txt
       - name: destination
-        value: hello.txt
+        value: ""
   entrypoint: main
   templates:
     - name: main
@@ -28,14 +28,30 @@ spec:
               parameters:
                 - name: pvc-name
                   value: "{{steps.create-read-write-pvc.outputs.parameters.pvc-name}}"
+        - - name: get-gce-disk
+            template: get-gce-disk
+            arguments:
+              parameters:
+                - name: volumeName
+                  value: "{{steps.create-read-write-pvc.outputs.parameters.volume-name}}"
+        - - name: create-read-only-pv
+            template: create-read-only-pv
+            arguments:
+              parameters:
+                - name: pdName
+                  value: "{{steps.get-gce-disk.outputs.parameters.pdName}}"
+                - name: fsType
+                  value: "{{steps.get-gce-disk.outputs.parameters.fsType}}"
+                - name: capacity
+                  value: "{{steps.get-gce-disk.outputs.parameters.capacity}}"
         - - name: create-read-only-pvc
             template: create-read-only-pvc
             arguments:
               parameters:
                 - name: pvc-name
                   value: "{{workflow.parameters.pvc-name}}"
-                - name: volume-name
-                  value: "{{steps.create-read-write-pvc.outputs.parameters.volume-name}}"
+                - name: size
+                  value: "{{steps.get-gce-disk.outputs.parameters.capacity}}"
         - - name: delete-pvc
             template: delete-pvc
             arguments:
@@ -66,7 +82,6 @@ spec:
           spec:
             accessModes:
               - ReadWriteOnce
-              - ReadOnlyMany
             volumeMode: Filesystem
             resources:
               requests:
@@ -79,11 +94,67 @@ spec:
           - name: volume-name
             valueFrom:
               jsonPath: '{.spec.volumeName}'
-    - name: create-read-only-pvc
+    - name: get-gce-disk
+      inputs:
+        parameters:
+          - name: volumeName
+      resource:
+        action: get
+        manifest: |
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: {{inputs.parameters.volumeName}}
+      outputs:
+        - name: fsType
+          valueFrom:
+            jsonPath: '{.spec.gcePersistentDisk.fsType}'
+        - name: pdName
+          valueFrom:
+            jsonPath: '{.spec.gcePersistentDisk.pdName}'
+        - name: capacity
+          valueFrom:
+            jsonPath: '{.spec.capacity.storage}'
+    - name: create-read-only-pv
       inputs:
         parameters:
           - name: volume-name
           - name: pvc-name
+          - name: fsType
+          - name: pdName
+          - name: capacity
+      resource: # indicates that this is a resource template
+        action: create # can be any kubectl action (e.g. create, delete, apply, patch)
+        # The successCondition and failureCondition are optional expressions.
+        # If failureCondition is true, the step is considered failed.
+        # If successCondition is true, the step is considered successful.
+        # They use kubernetes label selection syntax and can be applied against any field
+        # of the resource (not just labels). Multiple AND conditions can be represented by comma
+        # delimited expressions.
+        # For more details: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+        manifest: | #put your kubernetes spec here
+            apiVersion: v1
+            kind: PersistentVolume
+            metadata:
+              generateName: pv-readmany-
+            spec:
+              storageClassName: ""
+              capacity:
+                storage: {{inputs.parameters.capacity}
+              accessModes:
+                - ReadOnlyMany
+              claimRef:
+                namespace: default
+                name: {{inputs.parameters.pvc-name}}
+              gcePersistentDisk:
+                pdName: {{inputs.parameters.pdName}}
+                fsType: {{inputs.parameters.fsType}}
+                readOnly: true
+    - name: create-read-only-pvc
+      inputs:
+        parameters:
+          - name: pvc-name
+          - name: size
       resource: # indicates that this is a resource template
         action: create # can be any kubectl action (e.g. create, delete, apply, patch)
         # The successCondition and failureCondition are optional expressions.
@@ -101,18 +172,20 @@ spec:
           spec:
             accessModes:
               - ReadOnlyMany
-            volumeName: {{inputs.parameters.volume-name}}
+            resources:
+              requests:
+                storage: {{inputs.parameters.size}}
     - name: copy-data-in
       inputs:
         parameters:
           - name: pvc-name
       container:
         image: google/cloud-sdk
-        command: ["bash", "-e"]
+        command: ["bash", "-ec"]
         args:
           - |
-            gcloud auth activate-service-account --keyfile /secrets/key.json
-            gsutil rsync -r {{workflow.parameters.source}} /mnt/data/{{workflow.parameters.destination}}
+            gcloud auth activate-service-account --key-file /secrets/key.json
+            gsutil cp -r {{workflow.parameters.source}} /mnt/data/{{workflow.parameters.destination}}
         volumeMounts:
           - name: gcp-key-secret
             mountPath: /secrets
