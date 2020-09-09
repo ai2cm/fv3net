@@ -1,6 +1,6 @@
 import yaml
 import dataclasses
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Mapping
 
 
 DELP = "pressure_thickness_of_atmospheric_layer"
@@ -17,8 +17,8 @@ class ModelTrainingConfig:
     output_variables: Iterable[str]
     batch_function: str
     batch_kwargs: dict
-    scaler_type: Optional[str] = "scaler"
-    scaler_kwargs: Optional[dict] = None
+    scaler_type: str = "scaler"
+    scaler_kwargs: Optional[Mapping] = None
     additional_variables: Optional[Iterable[str]] = None
 
     def __post_init__(self):

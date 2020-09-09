@@ -71,7 +71,6 @@ def _get_target_scaler(
         raise ValueError(
             "Config variable scaler_type must be either 'standard' or 'mass' ."
         )
-
     return target_scaler
 
 
@@ -79,8 +78,8 @@ def _get_transformed_target_regressor(
     base_regressor: SklearnRegressor,
     output_vars: Iterable[str],
     norm_data: xr.Dataset,
-    scaler_type: Optional[str],
-    scaler_kwargs: Optional[Mapping],
+    scaler_type: str,
+    scaler_kwargs: Mapping,
 ):
     target_scaler = _get_target_scaler(
         scaler_type, scaler_kwargs, norm_data, output_vars
@@ -103,7 +102,7 @@ def _get_transformed_batch_regressor(
         train_config.output_variables,
         norm_data,
         train_config.scaler_type,
-        train_config.scaler_kwargs,
+        train_config.scaler_kwargs,  # type: ignore
     )
     batch_regressor = RegressorEnsemble(transform_regressor)
     model_wrapper = SklearnWrapper(
