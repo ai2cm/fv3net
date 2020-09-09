@@ -74,8 +74,6 @@ spec:
             value: "{{workflow.parameters.reference-restarts}}"
           - name: store-true-args
             value: " "
-          - name: segment-count
-            value: "{{workflow.parameters.prognostic-segment-count}}"
           - name: test-times
             value: "{{workflow.parameters.test-times}}"
           - name: public-report-output
