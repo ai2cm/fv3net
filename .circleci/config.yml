@@ -21,7 +21,6 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39
             - 28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d  # mcgibbon user key
       - run: apt-get update && apt-get install -y uuid
       - run:
@@ -108,7 +107,6 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39
             - 28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d  # mcgibbon user key
       - run: apt-get install -y make jq
       - run:
@@ -166,7 +164,6 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - c0:ce:b5:cb:ea:78:dc:be:ce:b0:b4:02:9e:28:db:39
             - 28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d  # mcgibbon user key
       - run: apt-get install -y make jq
       - run:
