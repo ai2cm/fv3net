@@ -19,9 +19,7 @@ def load_data_sequence(
     batch_function = getattr(batches, train_config.batch_function)
     ds_batches = batch_function(
         data_path,
-        list(train_config.input_variables)
-        + list(train_config.output_variables)
-        + list(train_config.additional_variables or []),
+        list(train_config.input_variables) + list(train_config.output_variables),
         **train_config.batch_kwargs,
     )
     return ds_batches
