@@ -68,7 +68,7 @@ spec:
       volumeMounts:
         - name: "{{inputs.parameters.work-volume-name}}"
           mountPath: /mnt/data
-      command: ["/bin/bash", "-c", "-x"]
+      command: ["/bin/bash", "-c", "-x", "-e"]
       args:
       - |
         echo "{{inputs.parameters.fv3config}}" > /mnt/data/fv3config.yaml
@@ -213,12 +213,12 @@ spec:
       effect: "NoSchedule"
     container:
       image: "{{inputs.parameters.post-process-image}}"
-      command: ["/bin/bash", "-c"]
+      command: ["/bin/bash", "-c", "-e"]
       args:
       - |
         post_process.py --chunks /mnt/data/chunks.yaml /mnt/data/rundir /tmp/processed_rundir
         append.py /tmp/processed_rundir {{inputs.parameters.output-url}}
-        cp -r /mnt/data/rundir/RESTART /mnt/data/RESTART
+        rsync -r /mnt/data/rundir/RESTART/ /mnt/data/RESTART/
         rm -r /mnt/data/rundir
         rm -r /tmp/processed_rundir
       volumeMounts:
