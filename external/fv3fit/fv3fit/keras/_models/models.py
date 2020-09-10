@@ -110,8 +110,7 @@ class PackedKerasModel(Model):
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
-        optimizer: str = "Adam",
-        learning_rate: float = None,
+        optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
     ):
         """Initialize the model.
         
@@ -133,9 +132,8 @@ class PackedKerasModel(Model):
                 for each variable.
             normalize_loss: if True (default), normalize outputs by their standard
                 deviation before computing the loss function
-            optimizer: name of the tf.keras.optimizers algorithm to be used in
-                gradient descent
-            learning_rate: gradient descent parameter
+            optimizer: algorithm to be used in gradient descent, must subclass
+                tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
@@ -153,7 +151,6 @@ class PackedKerasModel(Model):
             self.weights = weights
         self._normalize_loss = normalize_loss
         self._optimizer = optimizer
-        self._learning_rate = learning_rate
 
     @property
     def model(self) -> tf.keras.Model:
@@ -310,8 +307,7 @@ class DenseModel(PackedKerasModel):
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         normalize_loss: bool = True,
-        optimizer: str = "Adam",
-        learning_rate: float = None,
+        optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
         depth: int = 3,
         width: int = 16,
     ):
@@ -335,9 +331,8 @@ class DenseModel(PackedKerasModel):
                 for each variable.
             normalize_loss: if True (default), normalize outputs by their standard
                 deviation before computing the loss function
-            optimizer: name of the tf.keras.optimizers algorithm to be used in
-                gradient descent
-            learning_rate: gradient descent parameter
+            optimizer: algorithm to be used in gradient descent, must subclass
+                tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
             depth: number of dense layers to use between the input and output layer.
                 The number of hidden layers will be (depth - 1). Default is 3.
             width: number of neurons to use on layers between the input and output
@@ -345,6 +340,7 @@ class DenseModel(PackedKerasModel):
         """
         self._depth = depth
         self._width = width
+        optimizer = optimizer or tf.keras.optimizers.Adam()
         super().__init__(
             sample_dim_name,
             input_variables,
@@ -352,7 +348,6 @@ class DenseModel(PackedKerasModel):
             weights=weights,
             normalize_loss=normalize_loss,
             optimizer=optimizer,
-            learning_rate=learning_rate,
         )
 
     def get_model(self, n_features_in: int, n_features_out: int) -> tf.keras.Model:
@@ -365,11 +360,5 @@ class DenseModel(PackedKerasModel):
         x = tf.keras.layers.Dense(n_features_out)(x)
         outputs = self.y_scaler.denormalize_layer(x)
         model = tf.keras.Model(inputs=inputs, outputs=outputs)
-        optimizer_class = getattr(tf.keras.optimizers, self._optimizer)
-        optimizer = (
-            optimizer_class(learning_rate=self._learning_rate)
-            if self._learning_rate is not None
-            else optimizer_class()
-        )
-        model.compile(optimizer=optimizer, loss=self.loss)
+        model.compile(optimizer=self._optimizer, loss=self.loss)
         return model
