@@ -150,7 +150,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         if comm is None:
             comm = MPI.COMM_WORLD
 
-        self._fv3gfs = fv3gfs.wrapper
+        self._fv3gfs = fv3gfs
         self._state: runtime.DerivedFV3State = runtime.DerivedFV3State(self._fv3gfs)
         self._comm = comm
 
