@@ -88,7 +88,7 @@ def get_reference_state(time, reference_dir, communicator, only_names):
     label = time_to_label(time)
     dirname = get_restart_directory(reference_dir, label)
     logger.debug(f"Restart dir: {dirname}")
-    state = fv3gfs.util.open_restart(
+    state = wrapper.open_restart(
         dirname, communicator, label=label, only_names=only_names
     )
     state["time"] = time
