@@ -81,12 +81,8 @@ class FineResolutionResidualCloudsOffWithNudging(ResidualMapper):
         return nudging.assign(
             pQ1=clouds_off_pQ1,
             pQ2=clouds_off_pQ2,
-            dQ1=fine_res.dQ1
-            - clouds_off_pQ1
-            + nudging.air_temperature_tendency_due_to_nudging,
-            dQ2=fine_res.dQ2
-            - clouds_off_pQ2
-            + nudging.specific_humidity_tendency_due_to_nudging,
+            dQ1=fine_res.dQ1 - clouds_off_pQ1 + nudging.dQ1,
+            dQ2=fine_res.dQ2 - clouds_off_pQ2 + nudging.dQ2,
         ).load()
 
 
