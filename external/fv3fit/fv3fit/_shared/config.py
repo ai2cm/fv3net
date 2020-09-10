@@ -28,6 +28,10 @@ class ModelTrainingConfig:
             if DELP not in self.additional_variables:
                 self.additional_variables.append(DELP)
 
+    def dump(self, f):
+        dict_ = dataclasses.asdict(self)
+        yaml.safe_dump(dict_, f)
+
 
 def load_model_training_config(config_path: str) -> ModelTrainingConfig:
     """
