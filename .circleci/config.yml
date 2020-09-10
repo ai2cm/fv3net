@@ -21,13 +21,22 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - 28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d  # mcgibbon user key
-      - run: apt-get update && apt-get install -y uuid
+            - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d"
+      - run: apt-get update && apt-get install -y uuid gnupg
       - run:
-          name: "Save GCS for tests."
+          name: "Setup google-cloud-sdk"
           command: |
+            # Install Google Cloud sdk
+            echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list &&\
+            curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+            apt-get update && apt-get install -y google-cloud-sdk
+            gcloud config set project vcm-ml
+
+            # Setup credentials
             echo $ENCODED_GOOGLE_CREDENTIALS | \
             base64 --decode > $GOOGLE_APPLICATION_CREDENTIALS
+
+
       - run: make update_submodules
       - run:
           name: "Concatenate package dependency files"
@@ -47,9 +56,12 @@ jobs:
       - run:
           name: "Install fv3net packages"
           command: make install_local_packages
-      - run: |
-          source activate fv3net
-          make <<parameters.kind>>
+      - run: 
+          name: "Run test"
+          no_output_timeout: 20m
+          command: |
+            source activate fv3net
+            make <<parameters.kind>>
       - run:
           name: "Coverage Report"
           command: |
@@ -106,7 +118,7 @@ jobs:
       - checkout
       - add_ssh_keys:
           fingerprints:
-            - 28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d  # mcgibbon user key
+            - "28:8a:c3:e4:58:e7:c0:11:2c:fc:62:84:85:91:1f:7d"
       - run: apt-get install -y make jq
       - run:
           name: "Pull submodules"
@@ -233,18 +245,12 @@ workflows:
           requires:
             - hold
       - build_default:
-          name: build_fv3gfs_fv3net
-          matrix:
-            parameters:
-              image: ["fv3gfs_fv3net"]
-      - build_default:
           matrix:
             parameters:
               image: ["prognostic_run", "fv3net", "post_process_run", "fv3fit"]
-            alias: build_docker_images
       - integration_tests:
           requires:
-            - build_docker_images
+            - build_default
             - hold
   master_tests:
     jobs:

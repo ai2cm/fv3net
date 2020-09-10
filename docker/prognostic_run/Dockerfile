@@ -1,9 +1,14 @@
+<<<<<<< HEAD
 ARG FMS_IMAGE=fv3gfs-fms-build
 ARG ESMF_IMAGE=fv3gfs-esmf-build
 ARG NCEPLIBS_IMAGE=fv3gfs-ncep-build
 
 FROM ubuntu:19.10 AS fv3gfs-environment
 
+=======
+FROM ubuntu:19.10 AS fv3gfs-environment
+
+>>>>>>> debug-fv3gfs-dockerfile
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
@@ -44,11 +49,46 @@ RUN mkdir -p /fv3config-cache/gs/vcm-fv3config && \
         /fv3config-cache/orographic_data/C384 \
         /fv3config-cache/base_forcing
 
+<<<<<<< HEAD
 ## Pull FMS and ESMF
 ##---------------------------------------------------------------------------------
 # these images are defined in fv3gfs-fortran
 FROM us.gcr.io/vcm-ml/fms-build@sha256:868e79a8ef4921f655a6f1fdd32c4eaa200d1157b076a4f85587689bb892e64c AS fv3gfs-fms
 FROM us.gcr.io/vcm-ml/esmf-build@sha256:d3154afc4f4b57f9c253be1d84c405b4a3ac508eebbfe5cd0a8c91f65a8287be AS fv3gfs-esmf
+=======
+
+## Build FMS
+##---------------------------------------------------------------------------------
+FROM fv3gfs-environment AS fv3gfs-fms
+
+ENV CC=mpicc
+ENV FC=mpifort
+ENV LDFLAGS="-L/usr/lib"
+ENV LOG_DRIVER_FLAGS="--comments"
+ENV CPPFLAGS="-I/usr/include -Duse_LARGEFILE -DMAXFIELDMETHODS_=500 -DGFS_PHYS"
+ENV FCFLAGS="-fcray-pointer -Waliasing -ffree-line-length-none -fno-range-check -fdefault-real-8 -fdefault-double-8 -fopenmp"
+
+COPY /external/fv3gfs-fortran/FMS /FMS
+RUN cd /FMS && autoreconf --install && ./configure && \
+    cd /FMS && make -j8 && \
+    mv /FMS/*/*.mod /FMS/*/*.o /FMS/*/*.h /FMS/
+
+## Build ESMF
+##---------------------------------------------------------------------------------
+FROM fv3gfs-environment AS fv3gfs-esmf
+
+ENV ESMF_DIR=/esmf
+ENV ESMF_INSTALL_PREFIX=/usr/local/esmf
+ENV ESMF_NETCDF_INCLUDE=/usr/include
+ENV ESMF_NETCDF_LIBS="-lnetcdf -lnetcdff"
+ENV ESMF_BOPT=O3
+
+RUN git clone -b ESMF_8_0_0 --depth 1 https://git.code.sf.net/p/esmf/esmf $ESMF_DIR && \
+    cd $ESMF_DIR && \
+    make lib -j8 && \
+    make install && \
+    make installcheck
+>>>>>>> debug-fv3gfs-dockerfile
 
 
 ## Build FV3 executable in its own image
@@ -108,6 +148,7 @@ RUN cd /FV3/atmos_cubed_sphere && make clean && cd /FV3 && make -j8
 FROM fv3gfs-environment as fv3gfs-wrapper-env
 
 COPY /external/fv3gfs-wrapper/requirements.txt /fv3gfs-wrapper/requirements.txt
+# TODO add constraints here
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
@@ -171,7 +212,7 @@ COPY /external/fv3gfs-wrapper/fv3gfs /fv3gfs-wrapper/fv3gfs
 RUN make -C /fv3gfs-wrapper build
 
 #-----------------------------------------------------------------------------
-FROM fv3gfs-wrapper-build AS fv3gfs-fv3net
+FROM fv3gfs-wrapper-build AS wrapper
 
 # copy and install dependency packages
 COPY /external/fv3config /external/fv3config
@@ -192,7 +233,7 @@ COPY /external/fv3gfs-wrapper/tests /fv3gfs-wrapper/tests
 # interactive shell by default
 CMD ["bash"]
 
-FROM fv3gfs-fv3net AS bld
+FROM wrapper AS bld
 
 COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
 COPY constraints.txt /tmp/constraints.txt
