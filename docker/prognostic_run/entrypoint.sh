@@ -6,7 +6,7 @@ do
     if [[ -f $package/setup.py ]]
     then
         echo "Setting up $package"
-        pip install -e "$package" --no-deps > /dev/null 2> /dev/null
+        pip install -e "$package" --no-deps # > /dev/null 2> /dev/null
     fi
 done
 
