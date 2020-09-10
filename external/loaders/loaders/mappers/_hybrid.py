@@ -70,7 +70,32 @@ class FineResolutionResidualCloudsOff(ResidualMapper):
         ).load()
 
 
-T_Mapper = TypeVar("T_Mapper", FineResolutionResidual, FineResolutionResidualCloudsOff)
+class FineResolutionResidualCloudsOffWithNudging(ResidualMapper):
+    def __getitem__(self, key: str) -> xr.Dataset:
+        nudging = self.physics_mapper[key]
+        fine_res = self.fine_res[key]
+
+        clouds_off_pQ1 = _compute_clouds_off_pQ1(nudging)
+        clouds_off_pQ2 = _compute_clouds_off_pQ2(nudging)
+
+        return nudging.assign(
+            pQ1=clouds_off_pQ1,
+            pQ2=clouds_off_pQ2,
+            dQ1=fine_res.dQ1
+            - clouds_off_pQ1
+            + nudging.air_temperature_tendency_due_to_nudging,
+            dQ2=fine_res.dQ2
+            - clouds_off_pQ2
+            + nudging.specific_humidity_tendency_due_to_nudging,
+        ).load()
+
+
+T_Mapper = TypeVar(
+    "T_Mapper",
+    FineResolutionResidual,
+    FineResolutionResidualCloudsOff,
+    FineResolutionResidualCloudsOffWithNudging,
+)
 
 
 def _open_fine_resolution_nudging_hybrid(
@@ -155,6 +180,28 @@ def open_fine_resolution_nudging_hybrid_clouds_off(
     """
     return _open_fine_resolution_nudging_hybrid(
         data_paths, FineResolutionResidualCloudsOff, nudging, fine_res
+    )
+
+
+def open_fine_resolution_nudging_hybrid_clouds_off_with_nudging(
+    data_paths: List[str], nudging: Mapping = None, fine_res: Mapping = None,
+) -> FineResolutionResidualCloudsOffWithNudging:
+    """
+    Open the fine resolution nudging mapper with using clouds off physics tendencies.
+
+    Args:
+        data_paths: If list of urls is provided, the first is used as the nudging
+            data url and second is used as fine res. If string or None, the paths must
+            be provided in each mapper's kwargs.
+        nudging: keyword arguments passed to
+            :py:func:`open_merged_nudging_full_tendencies`
+        fine_res: keyword arguments passed to :py:func:`open_fine_res_apparent_sources`
+
+    Returns:
+        a mapper
+    """
+    return _open_fine_resolution_nudging_hybrid(
+        data_paths, FineResolutionResidualCloudsOffWithNudging, nudging, fine_res
     )
 
 
