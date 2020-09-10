@@ -94,35 +94,24 @@ norm_data = xr.Dataset(
         "y1": (["sample"], np.array([-1.0, -2.0])),
         "pressure_thickness_of_atmospheric_layer": (
             ["sample", "z"],
-            np.array([[1.0, 1.0], [2.0, 2.0]]),
+            np.array([[1.0, 1.0], [1.0, 1.0]]),
         ),
     }
 )
 
 
 @pytest.mark.parametrize(
-    "scaler_type, scaler_kwargs, delp, expected_y_normalized,",
-    (
-        ["standard", None, None, np.array([[-1.0, -1.0, 1.0], [1.0, 1.0, -1.0]])],
-        [
-            "mass",
-            {"variable_scale_factors": {"y0": 200}},
-            np.array([2.0, 2.0]),
-            np.array([[10.0, 10.0, -1.0], [20.0, 20, -2.0]]),
-        ],
-    ),
+    "scaler_type, scaler_kwargs",
+    (["standard", None], ["mass", {"variable_scale_factors": {"y0": 200}}],),
 )
 def test__get_transformed_target_regressor(
-    scaler_type, scaler_kwargs, delp, expected_y_normalized
+    scaler_type, scaler_kwargs,
 ):
+    # tests that the func/inverse_func of the sklearn TransformedTargetRegressor
+    # correspond to the scaler's normalization
     sample_dim = "sample"
     output_vars = ["y0", "y1"]
     regressor = DummyRegressor(strategy="mean")
-    if delp is not None:
-        norm_data["pressure_thickness_of_atmospheric_layer"] = (
-            ["sample", "z"],
-            np.array([delp, delp]),
-        )
     transformed_target_regressor = _get_transformed_target_regressor(
         regressor,
         output_vars,
@@ -130,15 +119,18 @@ def test__get_transformed_target_regressor(
         scaler_type=scaler_type,
         scaler_kwargs=scaler_kwargs,
     )
+    scaler = _get_target_scaler(scaler_type, scaler_kwargs, norm_data, output_vars)
     packer = ArrayPacker(sample_dim, output_vars)
     y = packer.to_array(safe.get_variables(norm_data, output_vars))
+    y_normalized = scaler.normalize(y)
+
     # normalize
     np.testing.assert_array_almost_equal(
-        transformed_target_regressor.func(y), expected_y_normalized
+        transformed_target_regressor.func(y), y_normalized
     )
     # denormalize
     np.testing.assert_array_almost_equal(
-        transformed_target_regressor.inverse_func(expected_y_normalized), y
+        transformed_target_regressor.inverse_func(y_normalized), y
     )
 
 
