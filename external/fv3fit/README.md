@@ -19,7 +19,11 @@ training routines, but that is not enforced by the Predictor class.
 
 ### Configuration
 - model_type: "sklearn_random_forest" or "DenseModel" are currently supported
-- hyperparameters: dict of model hyperparameters
+- hyperparameters: dict of model hyperparameters; for keras models, the following are supported
+    as nested dicts within "hyperparameters":
+    - fit_kwargs: dict of arguments to the tf.keras.model.fit() method
+    - optimizer: dict of arguments to create an optimizer for use in training keras models,
+        e.g., "name" and "learning_rate"
 - input_variables: list of variables used as features
 - output_variables: list of variables to predict
 - additional_variables: optional list of variables that are needed (e.g. pressure thickness is needed for mass scaling)
