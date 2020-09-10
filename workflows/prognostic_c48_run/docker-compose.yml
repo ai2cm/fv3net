@@ -10,4 +10,3 @@ services:
     volumes:
       - ../../external:/fv3net/external
       - .:/fv3net/workflows/prognostic_c48_run
-      - ../../external/fv3gfs-wrapper:/fv3gfs-wrapper
