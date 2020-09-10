@@ -16,6 +16,7 @@ spec:
       - {name: memory, value: 8Gi}
       - {name: work-volume-name, value: work-volume}
       - {name: external-volume-name, value: gfs-analysis-data}
+      - {name: nudge-url, value: /mnt/input/gfs-analysis-T85/2019-12-02-year-2016-T85-nudging-data}
   entrypoint: main
   volumeClaimTemplates:
     - metadata:
@@ -55,6 +56,7 @@ spec:
               - {name: memory, value: "{{workflow.parameters.memory}}"}
               - {name: work-volume-name, value: "{{workflow.parameters.work-volume-name}}"}
               - {name: external-volume-name, value: "{{workflow.parameters.external-volume-name}}"}
+              - {name: nudge-url, value: "{{workflow.parameters.nudge-url}}"}
     - name: nudge-to-obs
       inputs:
         parameters:
@@ -68,6 +70,7 @@ spec:
           - {name: memory, value: 8Gi}
           - {name: work-volume-name, value: work-volume}
           - {name: external-volume-name, value: gfs-analysis-data}
+          - {name: nudge-url, value: /mnt/input/gfs-analysis-T85/2019-12-02-year-2016-T85-nudging-data}
       steps:
         - - template: prepare-config
             name: prepare-config
@@ -99,6 +102,7 @@ spec:
           - {name: fv3net-image}
           - {name: nudging-config}
           - {name: segment-count}
+          - {name: nudge-url}
       outputs:
         parameters:
           - {name: fv3config, valueFrom: {path: /tmp/fv3config.yaml}}
@@ -116,4 +120,4 @@ spec:
         - |
           echo "{{inputs.parameters.nudging-config}}" > config.yaml
           python prepare_config.py --segment-count "{{inputs.parameters.segment-count}}" \
-              --nudge-url /mnt/input/gfs-analysis-T85 config.yaml > /tmp/fv3config.yaml
+              --nudge-url "{{inputs.parameters.nudge-url}}" > /tmp/fv3config.yaml
