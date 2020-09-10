@@ -12,7 +12,7 @@ from .utils import (
     insert_net_terms_as_Qs,
 )
 from ._diurnal_cycle import bin_diurnal_cycle, create_diurnal_cycle_dataset
-from ._region import RegionOfInterest
+from . import region
 from . import plot
 
 
@@ -28,4 +28,5 @@ __all__ = [
     "insert_net_terms_as_Qs",
     "bin_diurnal_cycle",
     "create_diurnal_cycle_dataset",
+    "RegionOfInterest"
 ]

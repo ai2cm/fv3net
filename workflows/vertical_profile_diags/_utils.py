@@ -1,15 +1,24 @@
 from datetime import datetime
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import List
+import pandas as pd
+import shutil
+from typing import Sequence, List
 import xarray as xr
 import vcm
+from vcm.cloud import gsutil
 from vcm.convenience import round_time
 
 TIME_NAME = "time"
 TIME_FMT = "%Y%m%d.%H%M%S"
 
 
+def copy_outputs(temp_dir, output_dir):
+    if output_dir.startswith("gs://"):
+        gsutil.copy(temp_dir, output_dir)
+    else:
+        shutil.copytree(temp_dir, output_dir)
+        
 
 def time_series(
     da: xr.DataArray,

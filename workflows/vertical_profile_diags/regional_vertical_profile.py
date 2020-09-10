@@ -1,15 +1,22 @@
 import argparse
 from datetime import datetime
 import fsspec
+import intake
 import json
+import logging
+import os
+import pandas as pd
+import tempfile
 from typing import Sequence
 import xarray as xr
 import zarr.storage as zstore
 
-from diagnostics_utils import RegionOfInterest, equatorial_zone
-import ._utils as utils
+from diagnostics_utils.region import RegionOfInterest, equatorial_zone
+from loaders.mappers import open_fine_res_apparent_sources
+import _utils as utils
 
-
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("vertical_profile_plots")
 xr.set_options(keep_attrs=True)
 
 TIME_FMT = "%Y%m%d.%H%M%S"
@@ -34,7 +41,6 @@ DATA_VARS = [
 ]
 
 def _create_arg_parser() -> argparse.ArgumentParser:
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "run_data_path",
@@ -47,12 +53,12 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Location of reference fine res data."
     )
     parser.add_argument(
-        "output_path",
+        "output_dir",
         type=str,
         help=("Local or remote path where diagnostic dataset will be written."),
     )
     parser.add_argument(
-        "lat_bounds",
+        "--lat-bounds",
         nargs=2,
         type=float,
         help=(
@@ -60,7 +66,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
-        "lon_bounds",
+        "--lon-bounds",
         nargs=2,
         type=float,
         help=(
@@ -99,10 +105,13 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
 
 def _open_zarr(
-    url: str, time_bounds: Sequence[str], consolidated: bool = False
+    url: str, time_bounds: Sequence[str] = None, consolidated: bool = False
 ) :
     mapper = fsspec.get_mapper(url)
-    time_slice = slice(*[datetime.strptime(t, TIME_FMT) for t in time_bounds])
+    if time_bounds:
+        time_slice = slice(*[datetime.strptime(t, TIME_FMT) for t in time_bounds])
+    else:
+        time_slice = slice(None, None)
     ds = xr.open_zarr(
         zstore.LRUStoreCache(mapper, 1024),
         consolidated=consolidated,
@@ -119,11 +128,10 @@ def _open_zarr(
 
 def _fine_res_reference(
     fine_res_path: str,
-    times: Sequence[datetime.datetime]
+    times: Sequence[datetime]
 ):
-    mapper = open_fine_res_apparent_sources(fine_res_path)
-    times = [t.strftime(TIME_FMT) for t in times]
-    time_slice = slice(*[datetime.strptime(t, TIME_FMT) for t in time_bounds])
+    mapper = open_fine_res_apparent_sources(fine_res_path, offset_seconds=450)
+    times = [pd.to_datetime(t).strftime(TIME_FMT) for t in times]
     return utils.dataset_from_timesteps(
         mapper, times, ["air_temperature", "specific_humidity"])
 
@@ -134,18 +142,27 @@ if __name__ == "__main__":
     cat = intake.open_catalog(args.catalog_path)
     grid = cat["grid/c48"].to_dask()
 
-    if ".zarr" in args.data_path:
-        ds = _open_zarr(args.data_paths, args.time_bounds, args.consolidated,)
+    if ".zarr" in args.run_data_path:
+        ds = _open_zarr(args.run_data_path, args.time_bounds, args.consolidated,)
+    ds = xr.merge([ds, grid])
     fine_res = _fine_res_reference(args.fine_res_reference_path, ds.time.values)
     for var in ["air_temperature", "specific_humidity"]:
         ds[f"{var}_anomaly"] = ds[var] - fine_res[var]
 
-    ds = equatorial_zone.average(ds)
-    
-    for var in [
+    if args.lat_bounds and args.lon_bounds:
+        region = RegionOfInterest(tuple(args.lat_bounds), tuple(args.lon_bounds))
+    else:
+        region = equatorial_zone
+    ds = region.average(ds)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        for var in [
         "air_temperature_anomaly",
         "specific_humidity_anomaly", 
         "pQ1", 
         "pQ2", ]:
-        fig = utils.time_series(ds[var])
-        fig.save_fig(os.path.join(args.output_dir, f"{var}_profile_time_series.png"))
+            fig = utils.time_series(ds[var], grid)
+            outfile = os.path.join(tmpdir, f"{var}_profile_time_series.png")
+            fig.savefig(outfile)
+            logger.info("Saved figure {var} vertical profile.")
+
+        utils.copy_outputs(tmpdir, args.output_dir)
