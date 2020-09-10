@@ -6,12 +6,14 @@ from typing import Sequence
 import xarray as xr
 import zarr.storage as zstore
 
-from diagnostics_utils import RegionOfInterest
+from diagnostics_utils import RegionOfInterest, equatorial_zone
 import ._utils as utils
 
-TIME_FMT = "%Y%m%d.%H%M%S"
 
-rename_vars = {
+xr.set_options(keep_attrs=True)
+
+TIME_FMT = "%Y%m%d.%H%M%S"
+RENAME_VARS = {
     "grid_xt": "x",
     "grid_x": "x_interface",
     "grid_yt": "y",
@@ -23,7 +25,13 @@ rename_vars = {
     "tendency_of_air_temperature_due_to_fv3_physics": "pQ1",
     "tendency_of_specific_humidity_due_to_fv3_physics": "pQ2",
 }
-
+DATA_VARS = [
+    "pressure_thickness_of_atmospheric_layer",
+     "air_temperature",
+     "specific_humidity", 
+     "pQ1",
+     "pQ2"
+]
 
 def _create_arg_parser() -> argparse.ArgumentParser:
 
@@ -59,7 +67,6 @@ def _create_arg_parser() -> argparse.ArgumentParser:
             "Min, max longitude bounds"
         ),
     )
-
     parser.add_argument(
         "--consolidated",
         type=bool,
@@ -82,6 +89,12 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         type=json.loads,
         help="Optional, use if using a mapper to read training data."
     )
+    parser.add_argument(
+        "--catalog-path",
+        type=str,
+        default="catalog.yml",
+        help="Path to catalog from where script is executed"
+    )
     return parser.parse_args()
 
 
@@ -96,9 +109,9 @@ def _open_zarr(
         mask_and_scale=False,
     ) 
     renamed = {
-        key: value for key, value in rename_vars.items()
+        key: value for key, value in RENAME_VARS.items()
         if key in ds.data_vars}
-    ds = ds.rename(renamed) \
+    ds = ds.rename(renamed)[DATA_VARS] \
         .pipe(utils.standardize_zarr_time_coord) \
         .sel({"time": time_slice})
     return ds
@@ -117,8 +130,22 @@ def _fine_res_reference(
 
 if __name__ == "__main__":
     args = _create_arg_parser()
+
+    cat = intake.open_catalog(args.catalog_path)
+    grid = cat["grid/c48"].to_dask()
+
     if ".zarr" in args.data_path:
         ds = _open_zarr(args.data_paths, args.time_bounds, args.consolidated,)
-
     fine_res = _fine_res_reference(args.fine_res_reference_path, ds.time.values)
+    for var in ["air_temperature", "specific_humidity"]:
+        ds[f"{var}_anomaly"] = ds[var] - fine_res[var]
+
+    ds = equatorial_zone.average(ds)
     
+    for var in [
+        "air_temperature_anomaly",
+        "specific_humidity_anomaly", 
+        "pQ1", 
+        "pQ2", ]:
+        fig = utils.time_series(ds[var])
+        fig.save_fig(os.path.join(args.output_dir, f"{var}_profile_time_series.png"))

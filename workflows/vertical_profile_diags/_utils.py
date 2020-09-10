@@ -1,5 +1,6 @@
 from datetime import datetime
 import numpy as np
+import matplotlib.pyplot as plt
 from typing import List
 import xarray as xr
 import vcm
@@ -11,8 +12,8 @@ TIME_FMT = "%Y%m%d.%H%M%S"
 
 
 def time_series(
-    da,
-    grid,
+    da: xr.DataArray,
+    grid: xr.Dataset,
     title=None,
     units=None,
     vmin=None,
@@ -24,6 +25,7 @@ def time_series(
     title = title or f"{da.name} [{units}]"
     mean_dims = [dim for dim in ["tile", "x", "y"] if dim in da.dims]
     da = da.mean(mean_dims)
+    fig = plt.figure()
     if "z" in da.dims:
         da.plot(x="time", vmin=vmin or None, vmax=vmax or None, cmap=cmap or "RdBu_r")
         plt.ylabel("model level")
@@ -31,7 +33,7 @@ def time_series(
     else:
         da.plot()
     plt.title(title)
-    plt.show()
+    return fig
 
 
 def standardize_zarr_time_coord(ds: xr.Dataset) -> xr.Dataset:
