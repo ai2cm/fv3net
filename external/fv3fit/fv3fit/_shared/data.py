@@ -21,7 +21,7 @@ def load_data_sequence(
         data_path,
         list(train_config.input_variables)
         + list(train_config.output_variables)
-        + list(train_config.additional_variables),
+        + list(train_config.additional_variables),  # type: ignore
         **train_config.batch_kwargs,
     )
     return ds_batches
