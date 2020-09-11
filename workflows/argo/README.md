@@ -117,6 +117,16 @@ volumes can be passed to the `run-fv3gfs` template. See the end-to-end test work
 `tests/end_to_end_integration/argo.yaml` for an example of the volume claims (including 
 `gcp-secret-key`) necessary to use `run-fv3gfs` .
 
+
+### train-diags-prog workflow template
+
+This workflow template runs the model training, offline diagnostics, prognostic run,
+and online diagnostics steps, using the following workflow templates: `training`,
+`offline-diags`, and `prognostic-run`. Model training can be run with either `sklearn`
+or `keras` training routines using the `training-routine` input parameter and passing
+the appropriate `training-config` parameter.
+
+
 ### Prognostic run report
 
 The `prognostic-run-diags` workflow template will generate reports for
