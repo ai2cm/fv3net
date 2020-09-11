@@ -10,6 +10,11 @@ from toolz import partition_all, compose
 from ._sequences import FunctionOutputSequence
 from .._utils import stack_dropnan_shuffle, load_grid, add_cosine_zenith_angle
 from ..constants import TIME_FMT, TIME_NAME
+from ._serialized_phys import (
+    SerializedSequence,
+    FlattenDims,
+    open_serialized_physics_data,
+)
 import loaders
 
 logger = logging.getLogger(__name__)
@@ -224,3 +229,41 @@ def _load_batch(
     # If additional derived variable(s) added, refactor instead of adding if statements
     ds = safe.get_variables(ds, [var for var in data_vars if var != cos_z_var])
     return ds
+
+
+def batches_from_serialized(
+    path: str,
+    zarr_prefix: str = "phys",
+    sample_dims: Sequence[str] = ["savepoint", "rank", "horizontal_dimension"],
+    savepoints_per_batch: int = 1,
+    num_batches: Optional[int] = None,
+    shuffle: bool = True,
+    seed: int = 825
+) -> FunctionOutputSequence:
+    ds, in_vars, out_vars = open_serialized_physics_data(path, zarr_prefix=zarr_prefix)
+    seq = SerializedSequence(ds)
+    seq = FlattenDims(seq, sample_dims)
+
+    if savepoints_per_batch > 1:
+        batch_args = [
+            slice(start, start + savepoints_per_batch) 
+            for start in range(0, len(seq), savepoints_per_batch)
+        ]
+    else:
+        batch_args = list(range(len(seq)))
+
+    if shuffle:
+        random = RandomState(seed)
+        batch_args = random.choice(batch_args, size=len(seq), replace=False).tolist()
+
+    if num_batches is not None:
+        batch_args = batch_args[:num_batches]
+
+    def _load_item(item: Union[int, slice]):
+        return seq[item]
+
+    func_seq = FunctionOutputSequence(_load_item, batch_args)
+    func_seq.attrs["in_vars"] = in_vars
+    func_seq.attrs["out_vars"] = out_vars
+
+    return func_seq
