@@ -1,5 +1,8 @@
 import logging
+import os
+import fsspec
 import xarray as xr
+import numpy as np
 
 from typing import Sequence, Union
 
@@ -139,3 +142,84 @@ def _check_sample_first(ds, sample_dim):
             ds[var] = da
 
     return ds
+
+
+def open_serialized_physics_data(
+    path, zarr_prefix: str = "phys", drop_const: bool = True, consolidated=True
+) -> xr.Dataset:
+
+    """
+    Open xarray dataset of serialized physics component inputs and outputs from a
+    zarr file.
+
+    Args:
+    -----
+        path: Directory (remote or local) where zarr files are located
+        zarr_prefix: Prefix for the two expected zarr files <prefix>_in.zarr and
+                     <prefix>_out.zarr
+        drop_const: Drop variables from the dataset that appear to be constant
+                    from sampling a loaded chunk
+    """
+
+    z_phys_in = f"{zarr_prefix}_in.zarr"
+    z_phys_out = f"{zarr_prefix}_out.zarr"
+
+    ds_phys_in = xr.open_zarr(
+        fsspec.get_mapper(os.path.join(path, z_phys_in)), consolidated=consolidated
+    )
+    ds_phys_out = xr.open_zarr(
+        fsspec.get_mapper(os.path.join(path, z_phys_out)), consolidated=consolidated
+    )
+
+    ds_phys, in_varnames, out_varnames = _merge_phys_ds(ds_phys_in, ds_phys_out)
+
+    if drop_const:
+        ds_phys = _drop_const_vars(ds_phys)
+
+    return ds_phys
+
+
+def _merge_phys_ds(in_ds: xr.Dataset, out_ds: xr.Dataset):
+
+    in_ds, in_varnames = _add_var_suffix(in_ds, "input")
+    out_ds, out_varnames = _add_var_suffix(out_ds, "output")
+    merged = in_ds.merge(out_ds, join="outer")
+
+    return merged, in_varnames, out_varnames
+
+
+def _add_var_suffix(ds: xr.Dataset, suffix: str):
+
+    rename_map = {var: f"{var}_{suffix}" for var in ds.data_vars}
+    new_varnames = list(rename_map.values())
+    ds = ds.rename(rename_map)
+
+    return ds, new_varnames
+
+
+def _drop_const_vars(ds: xr.Dataset) -> xr.Dataset:
+
+    for var, da in ds.items():
+        sample = _load_sample_using_chunk(da)
+        eps = np.finfo(sample.dtype).eps
+        selection = {dim: 0 for dim in da.dims}
+        item = da.isel(**selection)
+        const = abs(da - item) < eps
+        if const.all():
+            logger.info(f"Removing constant-valued variable {var} from dataset.")
+            ds = ds.drop(var)
+
+    return ds
+
+
+def _load_sample_using_chunk(da: xr.DataArray) -> xr.DataArray:
+
+    try:
+        chunk = da.data.chunksize
+        select = {dim: slice(0, chunk[i]) for i, dim in enumerate(da.dims)}
+        sample = da.isel(**select).load()
+    except AttributeError:
+        logger.debug("No chunksize attribute. Data already loaded.")
+        sample = da
+
+    return sample
