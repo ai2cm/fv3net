@@ -217,10 +217,6 @@ ENV PYTHONPATH=/fv3net/workflows/prognostic_c48_run:${PYTHONPATH}
 WORKDIR /fv3net/workflows/prognostic_c48_run
 ENTRYPOINT [ "/entrypoint.sh" ]
 
-
 FROM bld AS test
 
 RUN pytest
-
-
-FROM bld
