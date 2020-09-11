@@ -9,7 +9,7 @@ spec:
       inputs:
         parameters:
           - name: image
-          - {name: routine, value: fv3fit.sklearn}
+          - name: routine
           - name: input
           - name: config
           - name: times
