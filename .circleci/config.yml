@@ -127,7 +127,7 @@ jobs:
       - run:
           name: Build fv3net images
           command: |
-            version=latest make pull_image_$IMAGE
+            VERSION=latest make pull_image_$IMAGE
             make build_image_$IMAGE
       - run:
           name: Push fv3net images
