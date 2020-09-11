@@ -16,7 +16,7 @@ class DerivedFV3State:
        DataArray and has time as an attribute (since this isn't a DataArray).
        This insulates runfiles from the details of Quantity
        
-    2. Register and computing derived variables transparentlyfv
+    2. Register and computing derived variables transparently
 
     """
 

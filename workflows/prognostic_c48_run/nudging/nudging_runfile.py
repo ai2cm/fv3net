@@ -287,11 +287,9 @@ if __name__ == "__main__":
         state = wrapper.get_state(names=store_names)
         monitor.store(time, state, stage="after_physics")
         wrapper.save_intermediate_restart_if_enabled()
-        assert "specific_humidity" in store_names, store_names
         reference = get_reference_state(
             time, reference_dir, communicator, only_names=store_names
         )
-        assert "specific_humidity" in reference, list(reference.keys())
         tendencies = nudge(state, reference)
         monitor.store(time, reference, stage="reference")
         monitor.store(time, tendencies, stage="nudging_tendencies")
