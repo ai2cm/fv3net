@@ -1,5 +1,5 @@
 import collections
-from typing import Callable, Sequence, Iterable, Mapping, TypeVar
+from typing import Callable, Sequence, MutableMapping, TypeVar, Hashable, Any
 
 T = TypeVar("T")
 
@@ -11,9 +11,9 @@ class FunctionOutputSequence(Sequence[T]):
         attrs: a dictionary of metadata.
     """
 
-    attrs: Mapping
+    attrs: MutableMapping[Hashable, Any]
 
-    def __init__(self, func: Callable[..., T], args_sequence: Sequence[Iterable]):
+    def __init__(self, func: Callable[..., T], args_sequence: Sequence[Any]):
         """
         Args:
             func: the function to call, which takes in one argument

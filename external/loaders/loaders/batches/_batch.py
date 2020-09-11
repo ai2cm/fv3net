@@ -238,7 +238,7 @@ def batches_from_serialized(
     savepoints_per_batch: int = 1,
     num_batches: Optional[int] = None,
     shuffle: bool = True,
-    seed: int = 825
+    seed: int = 825,
 ) -> FunctionOutputSequence:
     ds, in_vars, out_vars = open_serialized_physics_data(path, zarr_prefix=zarr_prefix)
     seq = SerializedSequence(ds)
@@ -246,7 +246,7 @@ def batches_from_serialized(
 
     if savepoints_per_batch > 1:
         batch_args = [
-            slice(start, start + savepoints_per_batch) 
+            slice(start, start + savepoints_per_batch)
             for start in range(0, len(seq), savepoints_per_batch)
         ]
     else:

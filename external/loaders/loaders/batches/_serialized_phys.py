@@ -4,7 +4,7 @@ import fsspec
 import xarray as xr
 import numpy as np
 
-from typing import Sequence, Union
+from typing import Sequence, Union, Tuple, List
 
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class FlattenDims(Sequence[xr.Dataset]):
         self.dims_to_stack = dims_to_stack
         self.sample_dim_name = dim_name
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: Union[int, slice]):
         ds = self.seq[item]
         return self._flatten(ds)
 
@@ -146,7 +146,7 @@ def _check_sample_first(ds, sample_dim):
 
 def open_serialized_physics_data(
     path, zarr_prefix: str = "phys", drop_const: bool = True, consolidated=True
-) -> xr.Dataset:
+) -> Tuple[xr.Dataset, Sequence[str], Sequence[str]]:
 
     """
     Open xarray dataset of serialized physics component inputs and outputs from a
@@ -176,10 +176,12 @@ def open_serialized_physics_data(
     if drop_const:
         ds_phys = _drop_const_vars(ds_phys)
 
-    return ds_phys
+    return ds_phys, in_varnames, out_varnames
 
 
-def _merge_phys_ds(in_ds: xr.Dataset, out_ds: xr.Dataset):
+def _merge_phys_ds(
+    in_ds: xr.Dataset, out_ds: xr.Dataset
+) -> Tuple[xr.Dataset, List[str], List[str]]:
 
     in_ds, in_varnames = _add_var_suffix(in_ds, "input")
     out_ds, out_varnames = _add_var_suffix(out_ds, "output")
@@ -188,7 +190,7 @@ def _merge_phys_ds(in_ds: xr.Dataset, out_ds: xr.Dataset):
     return merged, in_varnames, out_varnames
 
 
-def _add_var_suffix(ds: xr.Dataset, suffix: str):
+def _add_var_suffix(ds: xr.Dataset, suffix: str) -> Tuple[xr.Dataset, List[str]]:
 
     rename_map = {var: f"{var}_{suffix}" for var in ds.data_vars}
     new_varnames = list(rename_map.values())
@@ -214,7 +216,7 @@ def _drop_const_vars(ds: xr.Dataset) -> xr.Dataset:
             eps = np.finfo(dtype).eps
         else:
             eps = 0
-        
+
         # Drop if approximately constant
         selection = {dim: 0 for dim in da.dims}
         item = sample.isel(**selection)

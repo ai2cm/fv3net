@@ -115,7 +115,9 @@ def test__check_sample_first(tracer_dataset):
 def test__drop_const_vars():
     constant = np.ones((10,), dtype=np.float32)
     # diffs should be below threshold of 1.2e-7
-    equiv_constant = constant + np.random.uniform(low=-5e-8, high=5e-8, size=10).astype(np.float32)
+    equiv_constant = constant + np.random.uniform(low=-5e-8, high=5e-8, size=10).astype(
+        np.float32
+    )
     not_constant = np.arange(0, 10)
     non_numeric = np.array(list(string.ascii_letters[:10]))
 
@@ -124,7 +126,7 @@ def test__drop_const_vars():
             "contant": (["x"], constant),
             "equiv_constant": (["x"], equiv_constant),
             "not_constant": (["x"], not_constant),
-            "non_numeric": (["x"], non_numeric)
+            "non_numeric": (["x"], non_numeric),
         }
     )
 
