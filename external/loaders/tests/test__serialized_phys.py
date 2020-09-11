@@ -1,4 +1,5 @@
 import pytest
+import string
 import xarray as xr
 import numpy as np
 
@@ -83,7 +84,7 @@ def test__separate_by_extra_feature_dim_separated_var(tracer_dataset):
 
 def test_FlatSerialSeq(xr_data):
     seq = sp.SerializedSequence(xr_data, item_dim="savepoint")
-    flat_seq = sp.FlatSerialSeq(seq, ["savepoint", "horiz"], dim_name=SAMPLE_DIM_NAME)
+    flat_seq = sp.FlattenDims(seq, ["savepoint", "horiz"], dim_name=SAMPLE_DIM_NAME)
 
     assert len(flat_seq) == len(seq)
 
@@ -109,3 +110,26 @@ def test__check_sample_first(tracer_dataset):
     res = sp._check_sample_first(tracer_dataset, SAMPLE_DIM_NAME)
     for da in res.values():
         assert da.dims[0] == SAMPLE_DIM_NAME
+
+
+def test__drop_const_vars():
+    constant = np.ones((10,), dtype=np.float32)
+    # diffs should be below threshold of 1.2e-7
+    equiv_constant = constant + np.random.uniform(low=-5e-8, high=5e-8, size=10).astype(np.float32)
+    not_constant = np.arange(0, 10)
+    non_numeric = np.array(list(string.ascii_letters[:10]))
+
+    ds = xr.Dataset(
+        {
+            "contant": (["x"], constant),
+            "equiv_constant": (["x"], equiv_constant),
+            "not_constant": (["x"], not_constant),
+            "non_numeric": (["x"], non_numeric)
+        }
+    )
+
+    dropped = sp._drop_const_vars(ds)
+    assert "constant" not in dropped
+    assert "equiv_constant" not in dropped
+    assert "non_numeric" not in dropped
+    assert "not_constant" in dropped

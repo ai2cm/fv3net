@@ -34,7 +34,7 @@ class SerializedSequence(Sequence[xr.Dataset]):
         return self.data.sizes[self.item_dim]
 
 
-class FlatSerialSeq(Sequence[xr.Dataset]):
+class FlattenDims(Sequence[xr.Dataset]):
     """
     Flatten dimensions of sequence dataset item after retrieval
     """
@@ -59,7 +59,7 @@ class FlatSerialSeq(Sequence[xr.Dataset]):
     def _flatten(self, ds: xr.Dataset):
         # selection of single item removes sample dim from pool
         dims_to_stack = [dim for dim in self.dims_to_stack if dim in ds.dims]
-        logging.debug(
+        logger.debug(
             f"Stacking dimensions into {self.sample_dim_name}: {dims_to_stack}"
         )
 
@@ -200,11 +200,25 @@ def _add_var_suffix(ds: xr.Dataset, suffix: str):
 def _drop_const_vars(ds: xr.Dataset) -> xr.Dataset:
 
     for var, da in ds.items():
+        logger.debug(f"Checking for constant values in {var}")
         sample = _load_sample_using_chunk(da)
-        eps = np.finfo(sample.dtype).eps
+        dtype = sample.dtype
+
+        if not np.issubdtype(dtype, np.number):
+            logger.info(f"Removing non-numeric dtype variable {var}")
+            ds = ds.drop(var)
+            continue
+
+        # Grab zero threshold if numeric
+        if np.issubdtype(dtype, np.inexact):
+            eps = np.finfo(dtype).eps
+        else:
+            eps = 0
+        
+        # Drop if approximately constant
         selection = {dim: 0 for dim in da.dims}
-        item = da.isel(**selection)
-        const = abs(da - item) < eps
+        item = sample.isel(**selection)
+        const = abs(sample - item) < eps
         if const.all():
             logger.info(f"Removing constant-valued variable {var} from dataset.")
             ds = ds.drop(var)
