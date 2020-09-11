@@ -31,7 +31,7 @@ class SerializedSequence(Sequence[xr.Dataset]):
         return self.data.sizes[self.item_dim]
 
 
-class FlatSerialSeq(SerializedSequence):
+class FlatSerialSeq(Sequence[xr.Dataset]):
     """
     Flatten dimensions of sequence dataset item after retrieval
     """
@@ -49,6 +49,9 @@ class FlatSerialSeq(SerializedSequence):
     def __getitem__(self, item):
         ds = self.seq[item]
         return self._flatten(ds)
+
+    def __len__(self):
+        return len(self.seq)
 
     def _flatten(self, ds: xr.Dataset):
         # selection of single item removes sample dim from pool

@@ -85,6 +85,8 @@ def test_FlatSerialSeq(xr_data):
     seq = sp.SerializedSequence(xr_data, item_dim="savepoint")
     flat_seq = sp.FlatSerialSeq(seq, ["savepoint", "horiz"], dim_name=SAMPLE_DIM_NAME)
 
+    assert len(flat_seq) == len(seq)
+
     # single item
     dat = flat_seq[0]
     assert SAMPLE_DIM_NAME in dat.dims
