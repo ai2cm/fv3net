@@ -15,7 +15,7 @@ def parse_args():
     )
     parser.add_argument("config", type=str, help="base yaml file to configure")
     parser.add_argument(
-        "--segment-count", type=int, help="number of run-fv3gfs segmetns", default=1
+        "--segment-count", type=int, help="number of run-fv3gfs segments", default=1
     )
     parser.add_argument(
         "--nudge-url",
