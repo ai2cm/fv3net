@@ -21,13 +21,11 @@ RUN apt-get update && apt-get install -y \
     libopenmpi3 \
     bats
 
+COPY --from=fv3gfs-fortran-build /NCEPlibs /NCEPlibs
 
-# download and install NCEP libraries
-RUN git config --global http.sslverify false && \
-    git clone https://github.com/NCAR/NCEPlibs.git && \
+# install NCEP libraries
+RUN cd /NCEPlibs && \
     mkdir /opt/NCEPlibs && \
-    cd NCEPlibs && \
-    git checkout 3da51e139d5cd731c9fc27f39d88cb4e1328212b && \
     echo "y" | ./make_ncep_libs.sh -s linux -c gnu -d /opt/NCEPlibs -o 1
 
 ## Pull FMS and ESMF
