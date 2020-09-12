@@ -123,15 +123,18 @@ def test__drop_const_vars():
 
     ds = xr.Dataset(
         {
-            "contant": (["x"], constant),
+            "constant": (["x"], constant),
             "equiv_constant": (["x"], equiv_constant),
             "not_constant": (["x"], not_constant),
             "non_numeric": (["x"], non_numeric),
         }
     )
 
-    dropped = sp._drop_const_vars(ds)
-    assert "constant" not in dropped
-    assert "equiv_constant" not in dropped
-    assert "non_numeric" not in dropped
-    assert "not_constant" in dropped
+    dropped_ds, dropped_varnames = sp._drop_const_vars(ds)
+    assert "constant" not in dropped_ds
+    assert "equiv_constant" not in dropped_ds
+    assert "non_numeric" not in dropped_ds
+    assert "not_constant" in dropped_ds
+
+    expected_dropped = set(["constant", "equiv_constant", "non_numeric"])
+    assert dropped_varnames == set(expected_dropped)
