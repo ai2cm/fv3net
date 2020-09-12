@@ -7,6 +7,28 @@ import xarray as xr
 from .packer import ArrayPacker
 
 
+# Add handling of zero for scaling (e.g., std-dev = 0)
+# https://github.com/scikit-learn/scikit-learn/blob/0fb307bf39bbdacd6ed713c00724f8f871d60370/sklearn/preprocessing/_data.py#L63
+def _handle_zeros_in_std(scale, copy=True):
+    """ Makes sure that whenever scale is zero, we handle it correctly.
+    This happens in most scalers when we have constant features."""
+
+    # increase the order of magnitude to be safe
+    eps = np.finfo(np.float32).eps * 10
+
+    # if we are fitting on 1D arrays, scale might be a scalar
+    if np.isscalar(scale):
+        if scale < eps:
+            scale = 1.0
+        return scale
+    elif isinstance(scale, np.ndarray):
+        if copy:
+            # New array to avoid side-effects
+            scale = scale.copy()
+        scale[scale < eps] = 1.0
+        return scale
+
+
 class NormalizeTransform(abc.ABC):
     @abc.abstractmethod
     def normalize(self, y: np.ndarray):
@@ -33,7 +55,7 @@ class StandardScaler(NormalizeTransform):
 
     def fit(self, data: np.ndarray):
         self.mean = data.mean(axis=0).astype(np.float32)
-        self.std = data.std(axis=0).astype(np.float32)
+        self.std = _handle_zeros_in_std(data.std(axis=0).astype(np.float32))
 
     def normalize(self, data):
         if self.mean is None or self.std is None:
