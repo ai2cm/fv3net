@@ -52,20 +52,21 @@ RUN mkdir -p /fv3config-cache/gs/vcm-fv3config && \
 #-----------------------------------------------------------------------------
 FROM fv3gfs-environment as fv3gfs-wrapper-env
 
-COPY /external/fv3gfs-wrapper/requirements.txt /fv3gfs-wrapper/requirements.txt
-# TODO add constraints here
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     libpython3-dev \
-    libopenmpi3 \
     python3-dev \
     python3-setuptools \
     python3-pip \
-    cython3 && \
-    pip3 install wheel && \
+    cython3
+
+COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
+COPY constraints.txt /tmp/constraints.txt
+
+RUN pip3 install wheel && \
+    pip3 install --upgrade pip && \
+    pip3 install --no-cache-dir -c /tmp/constraints.txt -r /tmp/requirements.txt && \
     ln -s /bin/python3 /bin/python && \
-    pip3 install -r /fv3gfs-wrapper/requirements.txt && \
     ln -s /bin/pip3 /bin/pip
 
 #-----------------------------------------------------------------------------
@@ -139,10 +140,6 @@ COPY /external/fv3gfs-wrapper/tests /fv3gfs-wrapper/tests
 CMD ["bash"]
 
 FROM wrapper AS bld
-
-COPY docker/prognostic_run/requirements.txt /tmp/requirements.txt
-COPY constraints.txt /tmp/constraints.txt
-RUN pip3 install wheel && pip3 install --upgrade pip && pip3 install -c /tmp/constraints.txt -r /tmp/requirements.txt
 
 # cache external package installation
 RUN mkdir -p /fv3net/external /fv3net/workflows && \
