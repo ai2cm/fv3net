@@ -4,7 +4,7 @@ import fsspec
 import xarray as xr
 import numpy as np
 
-from typing import Sequence, Union, Tuple, List
+from typing import Sequence, Union, Tuple, List, MutableSet
 
 
 logger = logging.getLogger(__name__)
@@ -174,7 +174,12 @@ def open_serialized_physics_data(
     ds_phys, in_varnames, out_varnames = _merge_phys_ds(ds_phys_in, ds_phys_out)
 
     if drop_const:
-        ds_phys = _drop_const_vars(ds_phys)
+        ds_phys, dropped_vars = _drop_const_vars(ds_phys)
+        for dropped in dropped_vars:
+            if dropped in in_varnames:
+                in_varnames.remove(dropped)
+            elif dropped in out_varnames:
+                out_varnames.remove(dropped)
 
     return ds_phys, in_varnames, out_varnames
 
@@ -199,8 +204,9 @@ def _add_var_suffix(ds: xr.Dataset, suffix: str) -> Tuple[xr.Dataset, List[str]]
     return ds, new_varnames
 
 
-def _drop_const_vars(ds: xr.Dataset) -> xr.Dataset:
+def _drop_const_vars(ds: xr.Dataset) -> Tuple[xr.Dataset, MutableSet]:
 
+    dropped_vars = set()
     for var, da in ds.items():
         logger.debug(f"Checking for constant values in {var}")
         sample = _load_sample_using_chunk(da)
@@ -209,6 +215,7 @@ def _drop_const_vars(ds: xr.Dataset) -> xr.Dataset:
         if not np.issubdtype(dtype, np.number):
             logger.info(f"Removing non-numeric dtype variable {var}")
             ds = ds.drop(var)
+            dropped_vars.add(var)
             continue
 
         # Grab zero threshold if numeric
@@ -224,8 +231,9 @@ def _drop_const_vars(ds: xr.Dataset) -> xr.Dataset:
         if const.all():
             logger.info(f"Removing constant-valued variable {var} from dataset.")
             ds = ds.drop(var)
+            dropped_vars.add(var)
 
-    return ds
+    return ds, dropped_vars
 
 
 def _load_sample_using_chunk(da: xr.DataArray) -> xr.DataArray:
