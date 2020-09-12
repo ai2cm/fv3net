@@ -130,11 +130,9 @@ def test__drop_const_vars():
         }
     )
 
-    dropped_ds, dropped_varnames = sp._drop_const_vars(ds)
+    dropped_ds = sp._drop_const_vars(ds)
+    assert len(dropped_ds.data_vars) == 1
     assert "constant" not in dropped_ds
     assert "equiv_constant" not in dropped_ds
-    assert "non_numeric" not in dropped_ds
     assert "not_constant" in dropped_ds
-
-    expected_dropped = set(["constant", "equiv_constant", "non_numeric"])
-    assert dropped_varnames == set(expected_dropped)
+    assert "non_numeric" not in dropped_ds

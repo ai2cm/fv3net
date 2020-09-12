@@ -4,7 +4,7 @@ import fsspec
 import xarray as xr
 import numpy as np
 
-from typing import Sequence, Union, Tuple, List, MutableSet
+from typing import Sequence, Union
 
 
 logger = logging.getLogger(__name__)
@@ -146,7 +146,7 @@ def _check_sample_first(ds, sample_dim):
 
 def open_serialized_physics_data(
     path, zarr_prefix: str = "phys", drop_const: bool = True, consolidated=True
-) -> Tuple[xr.Dataset, Sequence[str], Sequence[str]]:
+) -> xr.Dataset:
 
     """
     Open xarray dataset of serialized physics component inputs and outputs from a
@@ -171,42 +171,31 @@ def open_serialized_physics_data(
         fsspec.get_mapper(os.path.join(path, z_phys_out)), consolidated=consolidated
     )
 
-    ds_phys, in_varnames, out_varnames = _merge_phys_ds(ds_phys_in, ds_phys_out)
+    ds_phys = _merge_phys_ds(ds_phys_in, ds_phys_out)
 
     if drop_const:
-        ds_phys, dropped_vars = _drop_const_vars(ds_phys)
-        for dropped in dropped_vars:
-            if dropped in in_varnames:
-                in_varnames.remove(dropped)
-            elif dropped in out_varnames:
-                out_varnames.remove(dropped)
+        ds_phys = _drop_const_vars(ds_phys)
 
-    return ds_phys, in_varnames, out_varnames
+    return ds_phys
 
 
-def _merge_phys_ds(
-    in_ds: xr.Dataset, out_ds: xr.Dataset
-) -> Tuple[xr.Dataset, List[str], List[str]]:
+def _merge_phys_ds(in_ds: xr.Dataset, out_ds: xr.Dataset) -> xr.Dataset:
 
-    in_ds, in_varnames = _add_var_suffix(in_ds, "input")
-    out_ds, out_varnames = _add_var_suffix(out_ds, "output")
+    in_ds = _add_var_suffix(in_ds, "input")
+    out_ds = _add_var_suffix(out_ds, "output")
     merged = in_ds.merge(out_ds, join="outer")
 
-    return merged, in_varnames, out_varnames
+    return merged
 
 
-def _add_var_suffix(ds: xr.Dataset, suffix: str) -> Tuple[xr.Dataset, List[str]]:
+def _add_var_suffix(ds: xr.Dataset, suffix: str) -> xr.Dataset:
 
     rename_map = {var: f"{var}_{suffix}" for var in ds.data_vars}
-    new_varnames = list(rename_map.values())
-    ds = ds.rename(rename_map)
-
-    return ds, new_varnames
+    return ds.rename(rename_map)
 
 
-def _drop_const_vars(ds: xr.Dataset) -> Tuple[xr.Dataset, MutableSet]:
+def _drop_const_vars(ds: xr.Dataset) -> xr.Dataset:
 
-    dropped_vars = set()
     for var, da in ds.items():
         logger.debug(f"Checking for constant values in {var}")
         sample = _load_sample_using_chunk(da)
@@ -215,7 +204,6 @@ def _drop_const_vars(ds: xr.Dataset) -> Tuple[xr.Dataset, MutableSet]:
         if not np.issubdtype(dtype, np.number):
             logger.info(f"Removing non-numeric dtype variable {var}")
             ds = ds.drop(var)
-            dropped_vars.add(var)
             continue
 
         # Grab zero threshold if numeric
@@ -231,9 +219,8 @@ def _drop_const_vars(ds: xr.Dataset) -> Tuple[xr.Dataset, MutableSet]:
         if const.all():
             logger.info(f"Removing constant-valued variable {var} from dataset.")
             ds = ds.drop(var)
-            dropped_vars.add(var)
 
-    return ds, dropped_vars
+    return ds
 
 
 def _load_sample_using_chunk(da: xr.DataArray) -> xr.DataArray:

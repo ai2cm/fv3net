@@ -240,7 +240,7 @@ def batches_from_serialized(
     shuffle: bool = True,
     seed: int = 825,
 ) -> FunctionOutputSequence:
-    ds, in_vars, out_vars = open_serialized_physics_data(path, zarr_prefix=zarr_prefix)
+    ds = open_serialized_physics_data(path, zarr_prefix=zarr_prefix)
     seq = SerializedSequence(ds)
     seq = FlattenDims(seq, sample_dims)
 
@@ -263,7 +263,5 @@ def batches_from_serialized(
         return seq[item]
 
     func_seq = FunctionOutputSequence(_load_item, batch_args)
-    func_seq.attrs["in_vars"] = in_vars
-    func_seq.attrs["out_vars"] = out_vars
 
     return func_seq
