@@ -236,9 +236,6 @@ def batches_from_serialized(
     zarr_prefix: str = "phys",
     sample_dims: Sequence[str] = ["savepoint", "rank", "horizontal_dimension"],
     savepoints_per_batch: int = 1,
-    num_batches: Optional[int] = None,
-    shuffle: bool = True,
-    seed: int = 825,
 ) -> FunctionOutputSequence:
     ds = open_serialized_physics_data(path, zarr_prefix=zarr_prefix)
     seq = SerializedSequence(ds)
@@ -251,13 +248,6 @@ def batches_from_serialized(
         ]
     else:
         batch_args = list(range(len(seq)))
-
-    if shuffle:
-        random = RandomState(seed)
-        batch_args = random.choice(batch_args, size=len(seq), replace=False).tolist()
-
-    if num_batches is not None:
-        batch_args = batch_args[:num_batches]
 
     def _load_item(item: Union[int, slice]):
         return seq[item]
