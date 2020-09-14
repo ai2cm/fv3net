@@ -60,9 +60,21 @@ class FunctionOutputSequence(Sequence[T]):
 def shuffle(
     sequence: Sequence[Any], seed: Optional[int] = None
 ) -> FunctionOutputSequence:
+    """
+    Shuffle a sequence by creating a new FunctionOutputSequence
+    with shuffled indices as arguments.  Preserves potentially lazy
+    operations on input sequence by only shuffling potential __getitem__
+    arguments.
+
+    Args:
+        sequence:  Input sequence to have access indices shuffled
+        seed: Seed for random number generator used for shuffling
+    Returns:
+        A new shuffled sequence
+    """
     random = RandomState(seed)
     seq_len = len(sequence)
-    shuffled = random.choice(seq_len, size=seq_len, replace=False)
+    shuffled = random.choice(seq_len, size=seq_len, replace=False).tolist()
     func = partial(_simple_getitem, sequence)
     return FunctionOutputSequence(func, shuffled)
 
