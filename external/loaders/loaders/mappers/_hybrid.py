@@ -200,7 +200,9 @@ def open_fine_resolution_nudging_hybrid_clouds_off_with_nudging(
     data_paths: List[str], nudging: Mapping = None, fine_res: Mapping = None,
 ) -> FineResolutionResidualCloudsOffWithNudging:
     """
-    Open the fine resolution nudging mapper with using clouds off physics tendencies.
+    Open the fine resolution nudging mapper with using clouds off physics tendencies,
+    with added nudging tendencies of temperature and specific humidity from the
+    nudged-to-fine resolution simulation.
 
     Args:
         data_paths: If list of urls is provided, the first is used as the nudging
@@ -222,7 +224,8 @@ def open_fine_resolution_nudging_hybrid_clouds_off_with_xshield_nudging(
     data_paths: List[str], nudging: Mapping = None, fine_res: Mapping = None,
 ) -> FineResolutionResidualCloudsOffWithXSHiELDNudging:
     """
-    Open the fine resolution nudging mapper with using clouds off physics tendencies.
+    Open the fine resolution nudging mapper with using clouds off physics tendencies,
+    with added temperature nudging tendency from the fine-resolution simulation.
 
     Args:
         data_paths: If list of urls is provided, the first is used as the nudging
