@@ -119,7 +119,6 @@ pexpect==4.8.0            # via poetry
 pillow==7.2.0             # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, imageio, scikit-image
 pint==0.15                # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, metpy
 pip-tools==5.3.1          # via -r pip-requirements.txt
-pkgconfig==1.5.1          # via -r docker/prognostic_run/requirements.txt
 pkginfo==1.5.0.1          # via poetry
 pluggy==0.13.1            # via -r docker/prognostic_run/requirements.txt, -r external/fv3fit/requirements.txt, pytest
 poetry==1.0.10            # via -r pip-requirements.txt
