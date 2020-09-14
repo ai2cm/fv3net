@@ -143,7 +143,7 @@ https://conda.anaconda.org/conda-forge/noarch/threadpoolctl-2.1.0-pyh5ca1d4c_0.t
 https://conda.anaconda.org/conda-forge/noarch/toml-0.10.1-pyh9f0ad1d_0.tar.bz2#ca47d0ef822fd23b7ec9771a36645e5e
 https://conda.anaconda.org/conda-forge/noarch/toolz-0.10.0-py_0.tar.bz2#9b38c091d24a308daf386f1e82d9d3a9
 https://conda.anaconda.org/conda-forge/win-64/tornado-6.0.4-py37hfa6e2cd_0.tar.bz2#644f5e65c825c835b45526f4550e9cd2
-https://conda.anaconda.org/conda-forge/noarch/tqdm-4.48.2-pyh9f0ad1d_0.tar.bz2#60a62ffca74a1f2f6e5b0767760c50bc
+https://conda.anaconda.org/conda-forge/noarch/tqdm-4.49.0-pyh9f0ad1d_0.tar.bz2#cf2c9845ec31ada2bbca8bfea1e33fcd
 https://conda.anaconda.org/conda-forge/win-64/typed-ast-1.4.1-py37hfa6e2cd_0.tar.bz2#826c5253c90caa8fee6673de282b5ead
 https://conda.anaconda.org/conda-forge/noarch/typing_extensions-3.7.4.2-py_0.tar.bz2#235133b5ac204ecadf84cd07bab4fbe3
 https://conda.anaconda.org/conda-forge/noarch/webencodings-0.5.1-py_1.tar.bz2#3563be4c5611a44210d9ba0c16113136
@@ -158,7 +158,7 @@ https://conda.anaconda.org/conda-forge/win-64/certifi-2020.6.20-py37hc8dfbb8_0.t
 https://conda.anaconda.org/conda-forge/win-64/cffi-1.14.1-py37h26f1ce3_0.tar.bz2#5bb3ab8642b78f75d39b569e3bb4f450
 https://conda.anaconda.org/conda-forge/win-64/chardet-3.0.4-py37hc8dfbb8_1006.tar.bz2#0df25d90a1c948bf4670e79a1d82fae8
 https://conda.anaconda.org/conda-forge/win-64/conda-package-handling-1.7.0-py37h4ab8f01_4.tar.bz2#dcc1d750f2019447c7efe2d7d2f00bb4
-https://conda.anaconda.org/conda-forge/win-64/coverage-5.2.1-py37h4ab8f01_0.tar.bz2#827f53882973073a870e0aec6ded852d
+https://conda.anaconda.org/conda-forge/win-64/coverage-5.3-py37h4ab8f01_0.tar.bz2#d0afd9b0a2f6c789d45042d12c5b81d5
 https://conda.anaconda.org/conda-forge/win-64/crcmod-1.7-py37hc8dfbb8_1003.tar.bz2#71435c4b16a72409008b97769ae79289
 https://conda.anaconda.org/conda-forge/win-64/curl-7.71.1-h4b64cdc_5.tar.bz2#5006b50d9f1b8e326654e7541b926de0
 https://conda.anaconda.org/conda-forge/noarch/cycler-0.10.0-py_2.tar.bz2#f6d7c7e6d8f42cbbec7e07a8d879f91c
@@ -200,7 +200,7 @@ https://conda.anaconda.org/conda-forge/noarch/pyasn1-modules-0.2.7-py_0.tar.bz2#
 https://conda.anaconda.org/conda-forge/win-64/pycosat-0.6.3-py37h8055547_1004.tar.bz2#9bd96f6d2334b38cdf2e6dbb626fb39a
 https://conda.anaconda.org/conda-forge/noarch/pyct-core-0.4.6-py_0.tar.bz2#55ec526f95e0959de3f68bc6289a20da
 https://conda.anaconda.org/conda-forge/win-64/pyqt-5.12.3-py37h6538335_1.tar.bz2#eb90e7d27860daa7388e8f2cea966817
-https://conda.anaconda.org/conda-forge/win-64/pyrsistent-0.17.2-py37h4ab8f01_0.tar.bz2#e6421d27241e5f54b9e36a8a6f6f43df
+https://conda.anaconda.org/conda-forge/win-64/pyrsistent-0.17.3-py37h4ab8f01_0.tar.bz2#bd2cad7ee0dbe40e78cfd132c1275e6e
 https://conda.anaconda.org/conda-forge/win-64/pysocks-1.7.1-py37hc8dfbb8_1.tar.bz2#01b77aece8f9fff0d11194a5b940e566
 https://conda.anaconda.org/conda-forge/noarch/python-dateutil-2.8.1-py_0.tar.bz2#0d0150ed9c2d25817f5324108d3f7571
 https://conda.anaconda.org/conda-forge/win-64/python-libarchive-c-2.9-py37_0.tar.bz2#727f6b5d0318fdb921e7d75d90230f43
@@ -271,7 +271,7 @@ https://conda.anaconda.org/conda-forge/noarch/pint-0.15-py_0.tar.bz2#43fa1edd9a2
 https://conda.anaconda.org/conda-forge/noarch/pip-20.2.3-py_0.tar.bz2#2a473e697f17443a8647c3d7d22043d3
 https://conda.anaconda.org/conda-forge/win-64/pluggy-0.13.1-py37hc8dfbb8_2.tar.bz2#f36a1f1d605e2e645a8c76f35877cdfd
 https://conda.anaconda.org/conda-forge/win-64/protobuf-3.13.0-py37h1834ac0_0.tar.bz2#dfa70d0ad385ca0681171ca4fe093278
-https://conda.anaconda.org/conda-forge/noarch/pygments-2.6.1-py_0.tar.bz2#37736a64e169c430eac98a46ddc1ac4a
+https://conda.anaconda.org/conda-forge/noarch/pygments-2.7.0-py_0.tar.bz2#4047a6e9bc29036439ed352a38077592
 https://conda.anaconda.org/conda-forge/noarch/pyjwt-1.7.1-py_0.tar.bz2#617ab4f8c5e481fdeabe55d7a1e14798
 https://conda.anaconda.org/conda-forge/noarch/pyopenssl-19.1.0-py_1.tar.bz2#ef3d970a6de9bc902d233e59f746b7cd
 https://conda.anaconda.org/conda-forge/noarch/tifffile-2020.9.3-py_0.tar.bz2#11ff3209d8c180ace0e3de4fd22ee0ec
@@ -284,7 +284,7 @@ https://conda.anaconda.org/conda-forge/noarch/jupyterlab_pygments-0.1.1-pyh9f0ad
 https://conda.anaconda.org/conda-forge/win-64/matplotlib-3.2.2-1.tar.bz2#4afbb1215fb046b444625bb6b8b4ddd9
 https://conda.anaconda.org/conda-forge/noarch/nbformat-5.0.7-py_0.tar.bz2#7f9984ee165126ac09d9eb678052783d
 https://conda.anaconda.org/conda-forge/noarch/oauthlib-3.0.1-py_0.tar.bz2#faaf2a8fd1cddecbf1818fcf0ed3a3b6
-https://conda.anaconda.org/conda-forge/win-64/pytest-6.0.1-py37hc8dfbb8_0.tar.bz2#fddcd6222e009caf43e2726d26ce5276
+https://conda.anaconda.org/conda-forge/win-64/pytest-6.0.2-py37hc8dfbb8_0.tar.bz2#8619107972b709af9e5d0d3946024f02
 https://conda.anaconda.org/conda-forge/win-64/scikit-image-0.17.2-py37h414f9d2_2.tar.bz2#dedf2c248bae1505d3f6ee7eaa2fe08f
 https://conda.anaconda.org/conda-forge/win-64/scikit-learn-0.23.2-py37hdc70db3_0.tar.bz2#cb5c93df901593626b4d97ba30e3444a
 https://repo.anaconda.com/pkgs/main/win-64/tensorflow-base-2.1.0-mkl_py37h230818c_0.conda#c94f08ab0af710798ca1c7a0cf5933ff
@@ -303,7 +303,7 @@ https://conda.anaconda.org/conda-forge/win-64/google-api-core-1.22.2-py37hc8dfbb
 https://conda.anaconda.org/conda-forge/noarch/intake-0.6.0-py_0.tar.bz2#1043778f4cd11dda4e7df45edfd12154
 https://conda.anaconda.org/conda-forge/win-64/ipython-7.18.1-py37hc6149b9_0.tar.bz2#3f60bd66429da1ad124ee281eb172212
 https://conda.anaconda.org/conda-forge/win-64/libgdal-3.1.2-h586bd2e_1.tar.bz2#21d1d87c041490442308754b3596ee61
-https://conda.anaconda.org/conda-forge/win-64/nbconvert-6.0.1-py37hc8dfbb8_0.tar.bz2#7c77e4db10855e915d89389e81881422
+https://conda.anaconda.org/conda-forge/win-64/nbconvert-6.0.2-py37hc8dfbb8_0.tar.bz2#4573420cbc88d481eddea2e7c9341d03
 https://conda.anaconda.org/conda-forge/noarch/owslib-0.20.0-py_0.tar.bz2#d9f1280ab8723862dd8b30f4f9c241e0
 https://conda.anaconda.org/conda-forge/noarch/pooch-1.1.1-py_0.tar.bz2#8f03395636c174d5e85c2c37fec932d8
 https://conda.anaconda.org/conda-forge/noarch/pyct-0.4.6-py_0.tar.bz2#42d91c89bc3993ec88681cffd3c0e326
@@ -327,4 +327,4 @@ https://conda.anaconda.org/conda-forge/noarch/holoviews-1.13.3-pyh9f0ad1d_0.tar.
 https://conda.anaconda.org/conda-forge/noarch/jupyterlab_server-1.2.0-py_0.tar.bz2#77d654573f19a836b326fb77ffd86860
 https://conda.anaconda.org/conda-forge/noarch/metpy-0.12.2-py_0.tar.bz2#21aab048b1bd2be3bab1012465b7b96d
 https://repo.anaconda.com/pkgs/main/win-64/tensorflow-2.1.0-mkl_py37ha977152_0.conda#87359c20d3f7c6e1c10996c18a7f5dd9
-https://conda.anaconda.org/conda-forge/noarch/jupyterlab-2.2.7-py_0.tar.bz2#5b91f512df1c1bc191c540df8a274c82
+https://conda.anaconda.org/conda-forge/noarch/jupyterlab-2.2.8-py_0.tar.bz2#6c8bc607ef541e7f2c72f8e1058bf799
