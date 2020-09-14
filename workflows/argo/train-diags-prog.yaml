@@ -49,6 +49,7 @@ spec:
         - {name: memory-prog, value: 6Gi}
         - {name: work-volume-name, value: work-volume}
         - {name: external-volume-name, value: external-volume}
+        - {name: memory-offline-diags, value: 8Gi}
     dag:
       tasks:
       - name: train-model
@@ -123,6 +124,8 @@ spec:
                 value: "{{inputs.parameters.public-report-output}}"
               - name: data-path
                 value: "{{inputs.parameters.train-test-data}}"
+              - name: memory
+                value: "{{inputs.parameters.memory-offline-diags}}"
       - name: online-diags
         dependencies: [prognostic-run]
         templateRef:
