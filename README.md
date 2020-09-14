@@ -4,19 +4,15 @@ fv3net
 
 Improving the GFDL FV3 model physics with machine learning
 
-# Setting up the environment
+# The default fv3net environment
 
-This computational environment can be challenging to install because it require
-both external packages as well as tools developed locally at Vulcan. The
-internal Vulcan dependencies are included as submodules in the `external`
-folder, while the external dependencies are managed using anaconda with an
-`environment.yml`. The Vulcan submodules can be download, if they aren't
-already, by running
+## Installing
+
+This project specifies a default "fv3net" environment containing the
+dependencies of all the non-containerized workflows. This environment uses
+the conda package manager. If that is installed then you can run
 
     make update_submodules
-
-Then, assuming anaconda is installed, the environment can be created by running
-
     make create_environment
 
 This creates an anaconda environment `fv3net` containing both Vulcan and
@@ -27,11 +23,50 @@ succesfully, the fv3net environment can be activated with
 
     conda activate fv3net
 
-The `build_environment.sh` script also outputs a list of all installed dependencies
-with their version under `.circleci/environment.lock`.  This file is used
-along with `environment.yml` as a key for caching the `fv3net` dependencies.  Whenver
-`make create_environment` or the build script is run, this file will be updated
-and committed to keep track of versions over time.
+# Updating dependencies
+
+To maintain deterministic builds, fv3net locks the versions of all pip and
+anaconda packages.
+
+# Pip
+
+Pip dependencies are specified in a variety of places. Mostly `setup.py`
+files and `requirements.txt` files for the dockerfiles. A package called
+`pip-tools` is used to ensure that these files do not conflict with one
+another. If they do not, the `make lock_deps` rule will generate a file
+`constraints.txt` containing a list of versions to use for pip packages.
+These constraints should then be whenenver `pip` is invoked like this:
+
+    pip install -c constraints.txt <other pip args>
+
+## Where to pin dependencies?
+
+Since `constraints.txt` is compiled automatically, it should not be manually
+edited. If you need to constrain or pin a dependency, you should do so in the
+`requirements.txt` used by the build process for the container where the
+problem occurs or in the root level `pip-requirements.txt` file. 
+
+For instance, suppose `fsspec` v0.7.0 breaks some aspect of the prognostic
+run image, then you could add something like the following to the
+`docker/prognostic_run/requirements.txt`:
+
+    fsspec!=0.7.0
+
+Then run `make lock_deps` to update the `constraints.txt` file.
+
+## The "fv3net" environment
+
+The package `conda-lock` is used to ensure deterministic builds anaconda
+builds. Therefore, adding or modifying a dependency involves a few steps:
+1. add any anaconda packages to the `environment.yml`
+1. add any pip packages to `pip-requirements.txt`
+1. run `make lock_deps` to create lock files `conda-<system>.lock` which explicitly list all the conda packages
+1. Commit the lock files and any other changes to git
+
+The `make create_environment` uses these lock files and
+`pip-requirements.txt` to install its dependencies. It does NOT directly
+install the `environment.yml` file since that can lead to non-deterministic
+builds, and difficult to debug errors in CI.
 
 # Deploying cloud data pipelines
 

@@ -1,6 +1,6 @@
 channels:
-  - defaults
   - conda-forge
+  - defaults
 dependencies:
   - tensorflow=2
   - python=3.7
@@ -10,15 +10,15 @@ dependencies:
   - conda-build
   - cloudpickle
   - crcmod
-  - dask>=2.3
+  - dask=2.22.0
   - ffmpeg
   - fsspec
   - f90nml
   - black=19.10b0
   - isort
   - flake8=3.7.9
-  - gcsfs>=0.6.2
-  - google-cloud-storage
+  - gcsfs>=0.6.2,!=0.7.0
+  - google-cloud-storage=1.28
   - h5netcdf
   - h5py>=2.10
   - hypothesis
@@ -43,22 +43,13 @@ dependencies:
   - jupyterlab
   - xgcm>=0.2
   - jupyterlab
-  - matplotlib>=3.1
+  - matplotlib=3.2.2
   - pyquery>=1.4.0
   - holoviews
   - bokeh>=2.0
+  - docrep=0.2.7
   - backoff
   - mypy=0.770
   - coverage>=5
   - six=1.12
   - pip
-  - pip:
-    - apache-beam[gcp]
-    - zarr>=2.4
-    - poetry
-    - gsutil
-    - nc-time-axis>=1.2.0
-    - gitpython
-    - bump2version>=0.5.11
-    - yq
-    - pytest-regtest
