@@ -45,31 +45,16 @@ def test_open_fine_resolution_nudging_hybrid(nudging_url, fine_url):
     data[timestep1_end]
 
 
-def test_open_fine_resolution_nudging_hybrid_clouds_off(nudging_url, fine_url):
-    open_merged_nudged_kwargs = {
-        "merge_files": (
-            "after_physics.zarr",
-            "nudging_tendencies.zarr",
-            "physics_tendency_components.zarr",
-        ),
-        "rename_vars": {
-            "air_temperature_tendency_due_to_nudging": "dQ1",
-            "specific_humidity_tendency_due_to_nudging": "dQ2",
-            "grid_xt": "x",
-            "grid_yt": "y",
-            "pfull": "z",
-        },
-    }
-    data = open_fine_resolution_nudging_hybrid_clouds_off(
-        None,
-        {"url": nudging_url, "open_merged_nudged_kwargs": open_merged_nudged_kwargs},
-        {"fine_res_url": fine_url},
-    )
-    data[timestep1_end]
-
-
-def test_open_fine_resolution_nudging_hybrid_clouds_off_with_nudging(
-    nudging_url, fine_url
+@pytest.mark.parametrize(
+    "mapper_opening_function",
+    [
+        open_fine_resolution_nudging_hybrid_clouds_off,
+        open_fine_resolution_nudging_hybrid_clouds_off_with_nudging,
+        open_fine_resolution_nudging_hybrid_clouds_off_with_xshield_nudging,
+    ],
+)
+def test_open_fine_resolution_nudging_hybrid_with_fortran_diagnostics(
+    nudging_url, fine_url, mapper_opening_function
 ):
     open_merged_nudged_kwargs = {
         "merge_files": (
@@ -85,32 +70,7 @@ def test_open_fine_resolution_nudging_hybrid_clouds_off_with_nudging(
             "pfull": "z",
         },
     }
-    data = open_fine_resolution_nudging_hybrid_clouds_off_with_nudging(
-        None,
-        {"url": nudging_url, "open_merged_nudged_kwargs": open_merged_nudged_kwargs},
-        {"fine_res_url": fine_url},
-    )
-    data[timestep1_end]
-
-
-def test_open_fine_resolution_nudging_hybrid_clouds_off_with_xshield_nudging(
-    nudging_url, fine_url
-):
-    open_merged_nudged_kwargs = {
-        "merge_files": (
-            "after_physics.zarr",
-            "nudging_tendencies.zarr",
-            "physics_tendency_components.zarr",
-        ),
-        "rename_vars": {
-            "air_temperature_tendency_due_to_nudging": "dQ1",
-            "specific_humidity_tendency_due_to_nudging": "dQ2",
-            "grid_xt": "x",
-            "grid_yt": "y",
-            "pfull": "z",
-        },
-    }
-    data = open_fine_resolution_nudging_hybrid_clouds_off_with_xshield_nudging(
+    data = mapper_opening_function(
         None,
         {"url": nudging_url, "open_merged_nudged_kwargs": open_merged_nudged_kwargs},
         {"fine_res_url": fine_url},
@@ -124,11 +84,21 @@ def test_open_fine_resolution_nudging_hybrid_data_path(nudging_url, fine_url):
     data[timestep1_end]
 
 
-def test_open_fine_resolution_nudging_hybrid_no_urls(nudging_url, fine_url):
+@pytest.mark.parametrize(
+    "mapper_opening_function",
+    [
+        open_fine_resolution_nudging_hybrid_clouds_off,
+        open_fine_resolution_nudging_hybrid_clouds_off_with_nudging,
+        open_fine_resolution_nudging_hybrid_clouds_off_with_xshield_nudging,
+    ],
+)
+def test_open_fine_resolution_nudging_hybrid_no_urls(
+    nudging_url, fine_url, mapper_opening_function
+):
     with pytest.raises(ValueError):
-        open_fine_resolution_nudging_hybrid(None, {}, {})
+        mapper_opening_function(None, {}, {})
     with pytest.raises(ValueError):
-        open_fine_resolution_nudging_hybrid([nudging_url], {}, {})
+        mapper_opening_function([nudging_url], {}, {})
 
 
 def test_open_fine_resolution_nudging_to_obs_hybrid(nudging_url, fine_url):
