@@ -113,16 +113,17 @@ update_submodules:
 install_deps:
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
 
+lock_deps:
+	conda-lock -f environment.yml
+	pip-compile pip-requirements.txt external/**/requirements.txt docker/**/requirements.txt --output-file constraints.txt
+
 install_local_packages:
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
 create_environment:
 	bash $(ENVIRONMENT_SCRIPTS)/build_environment.sh $(PROJECT_NAME)
-	$(MAKE) .circleci/environment.lock
 	bash $(ENVIRONMENT_SCRIPTS)/install_local_packages.sh $(PROJECT_NAME)
 
-.circleci/environment.lock: 
-	conda list -n $(PROJECT_NAME) > $@
 
 overwrite_baseline_images:
 	pytest tests/test_diagnostics_plots.py --mpl-generate-path tests/baseline_images
@@ -148,7 +149,6 @@ typecheck:
 	./check_types.sh
 
 lint: check_file_size
-	./tests/check_no_versions_in_requirements.sh
 	black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
 	flake8 $(PYTHON_FILES)
 	# ignore unused import error in __init__.py files

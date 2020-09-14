@@ -2,13 +2,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: training-rf
+  name: training
 spec:
   templates:
-    - name: training-rf
+    - name: training
       inputs:
         parameters:
           - name: image
+          - name: routine
           - name: input
           - name: config
           - name: times
@@ -37,8 +38,10 @@ spec:
 
             echo "Configuration:"
             cat config.yaml
+            
+            echo {{inputs.parameters.routine}}
     
-            python -m fv3fit.sklearn \
+            python -m {{inputs.parameters.routine}} \
               {{inputs.parameters.input}} \
               config.yaml \
               {{inputs.parameters.output}} \

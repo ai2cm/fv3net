@@ -32,25 +32,8 @@ class PredictionMapper(GeoMapper):
         self.rename_vars = rename_vars or {}
 
     def _predict(self, ds: xr.Dataset) -> xr.Dataset:
-        if not set(self._model.input_variables).issubset(ds.data_vars):
-            missing_vars = [
-                var for var in set(self._model.input_variables) - set(ds.data_vars)
-            ]
-            raise KeyError(
-                f"Model feature variables {missing_vars}  not present in dataset."
-            )
-
-        ds_ = safe.get_variables(ds, self._model.input_variables)
-        ds_stacked = safe.stack_once(
-            ds_,
-            self._model.sample_dim_name,
-            [dim for dim in ds_.dims if dim != self._z_dim],
-            allowed_broadcast_dims=[self._z_dim],
-        )
-        ds_stacked = ds_stacked.transpose(self._model.sample_dim_name, self._z_dim)
-        ds_pred = self._model.predict(ds_stacked)
-
-        return ds_pred.unstack().rename(self.rename_vars)
+        output = self._model.predict_columnwise(ds, feature_dim=self._z_dim)
+        return output.rename(self.rename_vars)
 
     def _insert_cos_zenith_angle(self, time_key: str, ds: xr.Dataset) -> xr.Dataset:
         time = cast_to_datetime(time_key)
