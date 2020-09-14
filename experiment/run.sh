@@ -23,6 +23,9 @@ batch_kwargs:
     offset_seconds: 450
     rename_vars:
       delp: pressure_thickness_of_atmospheric_layer
+      grid_xt: x
+      grid_yt: y
+      pfull: z
 EOF
 
 cat << EOF > prognostic-run.yaml
