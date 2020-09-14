@@ -46,6 +46,9 @@ build_image_prognostic_run:
 rebuild_image_fortran:
 	docker build . -f docker/prognostic_run/fortran.Dockerfile -t $(FORTRAN_IMAGE)
 
+push_image_fortran:
+	docker push $(FORTRAN_IMAGE)
+
 build_image_post_process_run:
 	docker build workflows/post_process_run -t post_process_run
 
