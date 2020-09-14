@@ -1,5 +1,6 @@
 import collections
 from copy import deepcopy
+from functools import partial
 from numpy.random import RandomState
 from typing import (
     Callable,
@@ -56,16 +57,15 @@ class FunctionOutputSequence(Sequence[T]):
         return len(self._args)
 
 
-class Shuffle(FunctionOutputSequence):
-    def __init__(self, sequence: Sequence[Any], seed: Optional[int] = None):
+def shuffle(
+    sequence: Sequence[Any], seed: Optional[int] = None
+) -> FunctionOutputSequence:
+    random = RandomState(seed)
+    seq_len = len(sequence)
+    shuffled = random.choice(seq_len, size=seq_len, replace=False)
+    func = partial(_simple_getitem, sequence)
+    return FunctionOutputSequence(func, shuffled)
 
-        self._random = RandomState(seed)
-        self._sequence = sequence
 
-        seq_len = len(sequence)
-        shuffled = self._random.choice(seq_len, size=seq_len, replace=False)
-
-        super().__init__(self._simple_load, shuffled)
-
-    def _simple_load(self, item: int):
-        return self._sequence[item]
+def _simple_getitem(sequence: Sequence[Any], item: Union[int, slice]):
+    return sequence[item]
