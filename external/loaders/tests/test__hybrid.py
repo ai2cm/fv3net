@@ -87,6 +87,7 @@ def test_open_fine_resolution_nudging_hybrid_data_path(nudging_url, fine_url):
 @pytest.mark.parametrize(
     "mapper_opening_function",
     [
+        open_fine_resolution_nudging_hybrid,
         open_fine_resolution_nudging_hybrid_clouds_off,
         open_fine_resolution_nudging_hybrid_clouds_off_with_nudging,
         open_fine_resolution_nudging_hybrid_clouds_off_with_xshield_nudging,
