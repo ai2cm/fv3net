@@ -21,6 +21,7 @@ spec:
     - name: restart-data
       persistentVolumeClaim:
         claimName: nudging-read-only
+        readOnly: true
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -45,6 +46,8 @@ spec:
             value: "{{workflow.parameters.root}}/nudging"
           - name: nudging-config
             value: "{{workflow.parameters.nudging-config}}"
+          - name: segment-count
+            value: "{{workflow.parameters.nudging-segment-count}}"
           - {name: work-volume-name, value: work-volume}
           - {name: external-volume-name, value: restart-data}
       - name: train-offline-diags-prognostic

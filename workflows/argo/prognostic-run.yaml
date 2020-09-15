@@ -17,6 +17,7 @@ spec:
     - name: external-volume
       persistentVolumeClaim:
         claimName: nudging-read-only
+        readOnly: true
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -85,7 +86,7 @@ spec:
               path: /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
       container:
         image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
-        command: ["bash", "-c", "-x"]
+        command: ["bash", "-c", "-x", "-e"]
         workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run
         args:
           - |

@@ -413,7 +413,8 @@ def open_fine_res_apparent_sources(
             "grid_xt": "x",
             "grid_yt": "y",
             "pfull": "z",
-            "delp": "pressure_thickness_of_atmospheric_layer"}
+            "delp": "pressure_thickness_of_atmospheric_layer",
+        }
 
     fine_resolution_sources_mapper = FineResolutionSources(
         open_fine_resolution_budget(fine_res_url),

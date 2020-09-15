@@ -2,7 +2,7 @@ resources:
   - prognostic_run_diags.yaml
   - nudging/nudging.yaml
   - prognostic-run.yaml
-  - training-rf.yaml
+  - training.yaml
   - nudge_to_obs/workflow.yaml
   - run-fv3gfs.yaml
   - offline-diags.yaml

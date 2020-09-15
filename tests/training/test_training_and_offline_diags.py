@@ -151,6 +151,7 @@ def _fine_res_train_config(datadir_module):
         os.path.join(str(datadir_module), "train_sklearn_model_fineres_source.yml"), "r"
     ) as f:
         config = yaml.safe_load(f)
+    print(shared.ModelTrainingConfig(**config))
     return shared.ModelTrainingConfig(**config)
 
 

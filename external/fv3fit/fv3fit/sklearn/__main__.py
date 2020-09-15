@@ -12,13 +12,13 @@ MODEL_CONFIG_FILENAME = "training_config.yml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 
 
-def _save_config_output(output_url, config):
+def _save_config_output(output_url: str, config: shared.ModelTrainingConfig):
     fs = vcm.cloud.fsspec.get_fs(output_url)
     fs.makedirs(output_url, exist_ok=True)
     config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
 
     with fs.open(config_url, "w") as f:
-        yaml.dump(config, f)
+        config.dump(f)
 
 
 def parse_args():
