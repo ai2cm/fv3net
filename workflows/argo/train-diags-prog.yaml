@@ -9,11 +9,6 @@ spec:
       key: dedicated
       value: climate-sim-pool
   entrypoint: train-diags-prog
-  volumes:
-    - name: gcp-key-secret
-      secret:
-        defaultMode: 420
-        secretName: gcp-key
   templates:
   - name: train-diags-prog
     inputs:
@@ -36,9 +31,6 @@ spec:
         - {name: segment-count, value: "1"}
         - {name: cpu-prog, value: "6"}
         - {name: memory-prog, value: 6Gi}
-        - {name: work-volume-name, value: work-volume}
-        - {name: external-volume-name, value: external-volume}
-        - {name: memory-offline-diags, value: 8Gi}
     dag:
       tasks:
       - name: train-model
