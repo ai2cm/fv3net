@@ -9,6 +9,7 @@ import pandas as pd
 import tempfile
 from typing import Sequence
 import xarray as xr
+import yaml
 import zarr.storage as zstore
 
 from diagnostics_utils.region import RegionOfInterest, equatorial_zone
@@ -39,6 +40,7 @@ DATA_VARS = [
      "pQ1",
      "pQ2"
 ]
+
 
 def _create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -86,14 +88,9 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="Optional, min/max time range. Should have format 'YYYYMMDD.HHMMSS'."
     )
     parser.add_argument(
-        "--mapper-function",
+        "--train-data-config",
         type=str,
         help="Optional, provide if reading vertical profiles from training data."
-    )
-    parser.add_argument(
-        "--mapper-kwargs",
-        type=json.loads,
-        help="Optional, use if using a mapper to read training data."
     )
     parser.add_argument(
         "--catalog-path",
@@ -136,6 +133,26 @@ def _fine_res_reference(
         mapper, times, ["air_temperature", "specific_humidity"])
 
 
+def _dataset_from_training_config(
+    data_paths,
+    config,
+    time_bounds
+):
+    mapper_func = getattr(
+        loaders.mappers, config["batch_kwargs"]["mapping_function"]
+    )
+    data_path = args.run_data_path
+    if len(data_path) == 1:
+        data_path = data_path[0]
+    mapper = mapper_func(
+        data_path, **config["batch_kwargs"].get("mapping_kwargs", {})
+    )    
+    times = list(mapper.keys()) if not time_bounds \
+        else utils.time_range_str_format(list(mapper.keys()), time_bounds)
+    return utils.dataset_from_timesteps(
+        mapper, times, ["air_temperature", "specific_humidity"])
+
+
 if __name__ == "__main__":
     args = _create_arg_parser()
 
@@ -144,6 +161,10 @@ if __name__ == "__main__":
 
     if ".zarr" in args.run_data_path:
         ds = _open_zarr(args.run_data_path, args.time_bounds, args.consolidated,)
+    elif args.train_data_config:
+        with open(args.train_data_config, "r") as f:
+            config = yaml.load(f)
+        ds = 
     ds = xr.merge([ds, grid])
     fine_res = _fine_res_reference(args.fine_res_reference_path, ds.time.values)
     for var in ["air_temperature", "specific_humidity"]:

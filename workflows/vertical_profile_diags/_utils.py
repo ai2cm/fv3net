@@ -13,6 +13,14 @@ TIME_NAME = "time"
 TIME_FMT = "%Y%m%d.%H%M%S"
 
 
+def time_range_str_format(
+    times: Sequence[str],
+    time_bounds: Sequence[str]
+):
+    tmin, tmax = float(time_bounds[0]), float(time_bounds[1])
+    return [t for t in times if float(t) > tmin and float(t) < tmax]
+
+
 def copy_outputs(temp_dir, output_dir):
     if output_dir.startswith("gs://"):
         gsutil.copy(temp_dir, output_dir)
