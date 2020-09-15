@@ -23,7 +23,6 @@ The tests can be run with
 
 	make test
 
-
 Development
 -----------
 
@@ -35,6 +34,13 @@ development bash shell, run
 
     make dev
 
+This command may take some time to run, as it needs to re-compile the Fortran and
+Cython sources you have on your local machine.
+
+If you change the base image (not the files which get bind-mounted), you will need
+to re-build the docker-compose image using
+
+    make build
 
 Configure the machine learning model (optional)
 ------------------------------------------

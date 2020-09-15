@@ -1,20 +1,20 @@
 import os
 from typing import Sequence, Optional, MutableMapping
 import functools
-from datetime import timedelta
+from datetime import datetime, timedelta
 import yaml
 import cftime
 import fsspec
 import logging
-import fv3gfs.util as fv3util
 import xarray as xr
 import numpy as np
+import fv3gfs.util
 
 if __name__ == "__main__":
-    import fv3gfs.wrapper as fv3gfs
+    import fv3gfs.wrapper as wrapper
     from mpi4py import MPI
 else:
-    fv3gfs = None
+    wrapper = None
     MPI = None
 
 logger = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ def get_reference_state(time, reference_dir, communicator, only_names):
     label = time_to_label(time)
     dirname = get_restart_directory(reference_dir, label)
     logger.debug(f"Restart dir: {dirname}")
-    state = fv3gfs.open_restart(
+    state = wrapper.open_restart(
         dirname, communicator, label=label, only_names=only_names
     )
     state["time"] = time
@@ -97,7 +97,7 @@ def get_reference_state(time, reference_dir, communicator, only_names):
 
 
 def nudge_to_reference(state, reference, timescales, timestep):
-    tendencies = fv3util.apply_nudging(state, reference, timescales, timestep)
+    tendencies = fv3gfs.util.apply_nudging(state, reference, timescales, timestep)
     tendencies = append_key_label(tendencies, "_tendency_due_to_nudging")
     tendencies["time"] = state["time"]
     return tendencies
@@ -152,9 +152,9 @@ def total_precipitation(
 
 
 def implied_precipitation(
-    model_precip: fv3util.Quantity,
-    pressure_thickness: fv3util.Quantity,
-    humidity_tendency: fv3util.Quantity,
+    model_precip: fv3gfs.util.Quantity,
+    pressure_thickness: fv3gfs.util.Quantity,
+    humidity_tendency: fv3gfs.util.Quantity,
     timestep: timedelta,
 ) -> np.ndarray:
     """Add column-integrated humidity tendency to precipitation and return
@@ -193,7 +193,7 @@ class StageWriter:
                     os.path.join(self._root_dirname, stage_name + ".zarr")
                 )
             )()
-            monitor = fv3util.ZarrMonitor(
+            monitor = fv3gfs.util.ZarrMonitor(
                 store, self.partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
             )
             self._monitors[stage_name] = SubsetWriter(monitor, self.times)
@@ -204,7 +204,7 @@ class SubsetWriter:
     """Write only certain substeps"""
 
     def __init__(
-        self, monitor: fv3util.ZarrMonitor, times: Optional[Sequence[str]] = None
+        self, monitor: fv3gfs.util.ZarrMonitor, times: Optional[Sequence[str]] = None
     ):
         """
 
@@ -254,8 +254,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     config = load_config("fv3config.yml")
     reference_dir = config["nudging"]["restarts_path"]
-    partitioner = fv3util.CubedSpherePartitioner.from_namelist(config["namelist"])
-    communicator = fv3util.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
+    partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
+    communicator = fv3gfs.util.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
     nudging_timescales = get_timescales_from_config(config)
     nudging_names = list(nudging_timescales.keys())
     updated_quantity_names = list(set(nudging_names + [PRECIP_NAME]))
@@ -273,9 +273,10 @@ if __name__ == "__main__":
         times=config["nudging"].get("output_times", None),
     )
 
-    fv3gfs.initialize()
-    for i in range(fv3gfs.get_step_count()):
-        state = fv3gfs.get_state(names=store_names)
+    wrapper.initialize()
+    for i in range(wrapper.get_step_count()):
+        state = wrapper.get_state(names=store_names)
+        start = datetime.utcnow()
         time = state["time"]
 
         # The fortran model labels diagnostics with the time at the end
@@ -284,14 +285,14 @@ if __name__ == "__main__":
         store_time = time + timestep
 
         monitor.store(store_time, state, stage="before_dynamics")
-        fv3gfs.step_dynamics()
+        wrapper.step_dynamics()
         monitor.store(
-            store_time, fv3gfs.get_state(names=store_names), stage="after_dynamics"
+            store_time, wrapper.get_state(names=store_names), stage="after_dynamics"
         )
-        fv3gfs.step_physics()
-        state = fv3gfs.get_state(names=store_names)
+        wrapper.step_physics()
+        state = wrapper.get_state(names=store_names)
         monitor.store(store_time, state, stage="after_physics")
-        fv3gfs.save_intermediate_restart_if_enabled()
+        wrapper.save_intermediate_restart_if_enabled()
         reference = get_reference_state(
             time, reference_dir, communicator, only_names=store_names
         )
@@ -308,5 +309,5 @@ if __name__ == "__main__":
                 timestep,
             )
         updated_state_members = {key: state[key] for key in updated_quantity_names}
-        fv3gfs.set_state(updated_state_members)
-    fv3gfs.cleanup()
+        wrapper.set_state(updated_state_members)
+    wrapper.cleanup()
