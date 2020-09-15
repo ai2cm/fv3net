@@ -1,9 +1,9 @@
 import logging
 import numpy as np
 
-import fv3gfs
+import fv3gfs.wrapper as wrapper
 import fv3config
-import fv3util
+import fv3gfs.util
 from mpi4py import MPI
 import runtime
 import fsspec
@@ -60,7 +60,7 @@ def load_mean_nudging_tendency(url, communicator, variables):
         ds_nudging = ds_nudging.rename(rename_dict)[variables].load()
         # convert to Quantities so we can use scatter_state
         mean_nudging_tendency = {
-            variable: fv3util.Quantity.from_data_array(ds_nudging[variable])
+            variable: fv3gfs.util.Quantity.from_data_array(ds_nudging[variable])
             for variable in variables
         }
     mean_nudging_tendency = communicator.tile.scatter_state(mean_nudging_tendency)
@@ -91,29 +91,29 @@ if __name__ == "__main__":
         nudging_zarr_url, communicator, variables_to_nudge
     )
     mean_nudging_time_coord = load_time(nudging_zarr_url)
-    fv3gfs.initialize()
-    for i in range(fv3gfs.get_step_count()):
+    wrapper.initialize()
+    for i in range(wrapper.get_step_count()):
         do_logging = rank == 0 and i % 10 == 0
 
         if do_logging:
             logger.info(f"Stepping dynamics for timestep {i}")
-        fv3gfs.step_dynamics()
+        wrapper.step_dynamics()
 
         if do_logging:
             logger.info(f"Computing physics routines for timestep {i}")
-        fv3gfs.compute_physics()
+        wrapper.compute_physics()
 
         if do_logging:
             logger.info(f"Adding nudging tendency for timestep {i}")
-        state = fv3gfs.get_state(names=["time"] + variables_to_nudge)
+        state = wrapper.get_state(names=["time"] + variables_to_nudge)
         current_tendency = get_current_nudging_tendency(
             mean_nudging_tendency, mean_nudging_time_coord, state["time"]
         )
         apply_nudging_tendency(state, current_tendency, dt)
-        fv3gfs.set_state(state)
+        wrapper.set_state(state)
 
         if do_logging:
             logger.info(f"Updating atmospheric prognostic state for timestep {i}")
-        fv3gfs.apply_physics()
+        wrapper.apply_physics()
 
-    fv3gfs.cleanup()
+    wrapper.cleanup()

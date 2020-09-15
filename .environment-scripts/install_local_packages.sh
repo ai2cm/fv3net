@@ -7,6 +7,7 @@ source activate $CONDA_ENV
 local_packages_to_install=( 
   external/vcm/external/mappm
   external/fv3fit
+  external/fv3gfs-util
 )
 for package  in "${local_packages_to_install[@]}"
 do
