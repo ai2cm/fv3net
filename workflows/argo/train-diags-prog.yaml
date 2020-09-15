@@ -9,6 +9,22 @@ spec:
       key: dedicated
       value: climate-sim-pool
   entrypoint: train-diags-prog
+  volumeClaimTemplates:
+    - metadata:
+        name: work-volume
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 100Gi
+  volumes:
+    - name: external-volume
+      persistentVolumeClaim:
+        claimName: nudging-read-only
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
   templates:
   - name: train-diags-prog
     inputs:
@@ -31,6 +47,8 @@ spec:
         - {name: segment-count, value: "1"}
         - {name: cpu-prog, value: "6"}
         - {name: memory-prog, value: 6Gi}
+        - {name: work-volume-name, value: work-volume}
+        - {name: external-volume-name, value: external-volume}
     dag:
       tasks:
       - name: train-model
@@ -80,10 +98,6 @@ spec:
                 value: "{{inputs.parameters.cpu-prog}}"
               - name: memory
                 value: "{{inputs.parameters.memory-prog}}"
-              - name: work-volume-name
-                value: "{{inputs.parameters.work-volume-name}}"
-              - name: external-volume-name
-                value: "{{inputs.parameters.external-volume-name}}"
       - name: offline-diags
         dependencies: [train-model]
         templateRef:
@@ -105,7 +119,7 @@ spec:
                 value: "{{inputs.parameters.public-report-output}}"
               - name: data-path
                 value: "{{inputs.parameters.train-test-data}}"
-       - name: online-diags
+      - name: online-diags
         dependencies: [prognostic-run]
         templateRef:
           name: prognostic-run-diags
