@@ -25,7 +25,6 @@ spec:
         volumeMounts:
           - mountPath: /secret/gcp-credentials
             name: gcp-key-secret
-            readOnly: true
         args:
           - |
 
