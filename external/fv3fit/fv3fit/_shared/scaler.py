@@ -38,9 +38,9 @@ class StandardScaler(NormalizeTransform):
 
     def _fix_constant_features(self):
         for i, std in enumerate(self.std):
-            if std == 0.:
-                self.std[i] = 1.
-                self.mean[i] = 0.
+            if std == 0.0:
+                self.std[i] = 1.0
+                self.mean[i] = 0.0
 
     def normalize(self, data):
         if self.mean is None or self.std is None:
