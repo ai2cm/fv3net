@@ -1,7 +1,8 @@
 FROM python:3.7.8-stretch AS bld
 
+COPY constraints.txt /fv3fit/constraints.txt
 COPY external/fv3fit/requirements.txt fv3fit/requirements.txt
-RUN pip install --no-deps -r fv3fit/requirements.txt
+RUN pip install -c /fv3fit/constraints.txt -r fv3fit/requirements.txt
 
 COPY external/vcm/ /external/vcm/
 COPY external/loaders/ /external/loaders/
@@ -23,5 +24,3 @@ RUN pytest \
         --cov-report term \
         --cov-report html:htmlcov \
         /fv3fit/tests
-
-FROM bld

@@ -3,6 +3,17 @@ kind: WorkflowTemplate
 metadata:
   name: offline-diags
 spec:
+  entrypoint: offline-diags
+  volumes:
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  serviceAccountName: integration-tests
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
   templates:
     - name: offline-diags
       inputs:
@@ -14,6 +25,7 @@ spec:
           - name: times  
           - name: offline-diags-output
           - name: report-output
+          - name: data-path
       container:
         image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
         command: ["bash", "-c", "-x"]
@@ -40,6 +52,7 @@ spec:
             cat config.yaml
     
             python -m offline_ml_diags.compute_diags \
+              {{inputs.parameters.data-path}} \
               config.yaml \
               {{inputs.parameters.ml-model}} \
               {{inputs.parameters.offline-diags-output}} \
@@ -54,5 +67,5 @@ spec:
             memory: "6Gi"
             cpu: "1000m"
           limits:
-            memory: "6Gi"
+            memory: "10Gi"
             cpu: "1000m"

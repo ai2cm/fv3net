@@ -4,8 +4,24 @@ kind: WorkflowTemplate
 metadata:
   name: prognostic-run
 spec:
+  entrypoint: prognostic-run
+  volumeClaimTemplates:
+    - metadata:
+        name: work-volume
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 100Gi
+  volumes:
+    - name: external-volume
+      persistentVolumeClaim:
+        claimName: nudging-read-only
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
   templates:
-    # This is the same template as from the previous example
     - name: prognostic-run
       inputs:
         parameters:
@@ -16,36 +32,71 @@ spec:
           - {name: trained-ml}
           - {name: store-true-args, value: ""}
           - {name: output}
+          - {name: chunks, value: "{}"}  # by default just use chunks defined in post_process.py
+          - {name: segment-count, value: "1"}
+          - {name: cpu, value: "6"}
+          - {name: memory, value: 6Gi}
+          - {name: work-volume-name, value: work-volume}
+          - {name: external-volume-name, value: external-volume}
+      steps:
+      - - name: prepare-config
+          template: prepare-config
+          arguments:
+            parameters:
+              - {name: image-tag, value: "{{inputs.parameters.image-tag}}"}
+              - {name: initial-condition, value: "{{inputs.parameters.initial-condition}}"}
+              - {name: config, value: "{{inputs.parameters.config}}"}
+              - {name: reference-restarts, value: "{{inputs.parameters.reference-restarts}}"}
+              - {name: trained-ml, value: "{{inputs.parameters.trained-ml}}"}
+              - {name: store-true-args, value: "{{inputs.parameters.store-true-args}}"}
+      - - name: run-model
+          templateRef:
+            name: run-fv3gfs
+            template: run-fv3gfs
+          arguments:
+            parameters:
+              - {name: fv3config, value: "{{steps.prepare-config.outputs.parameters.fv3config}}"}
+              - {name: runfile, value: "{{steps.prepare-config.outputs.parameters.runfile}}"}
+              - {name: chunks, value: "{{inputs.parameters.chunks}}"} 
+              - name: fv3gfs-image
+                value: "us.gcr.io/vcm-ml/prognostic_run:{{inputs.parameters.image-tag}}"
+              - {name: output-url, value: "{{inputs.parameters.output}}"}
+              - name: post-process-image
+                value: "us.gcr.io/vcm-ml/post_process_run:{{inputs.parameters.image-tag}}"
+              - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
+              - {name: cpu, value: "{{inputs.parameters.cpu}}"}
+              - {name: memory, value: "{{inputs.parameters.memory}}"}
+              - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+              - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
+    - name: prepare-config
+      inputs:
+        parameters:
+          - name: image-tag
+          - name: initial-condition
+          - name: config
+          - name: reference-restarts
+          - name: trained-ml
+          - name: store-true-args
+      outputs:
+        parameters:
+          - {name: fv3config, valueFrom: {path: /tmp/fv3config.yaml}}
+          - name: runfile
+            valueFrom:
+              path: /home/jovyan/fv3net/workflows/prognostic_c48_run/sklearn_runfile.py
       container:
         image: us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}
-        env:
-          - name: GOOGLE_APPLICATION_CREDENTIALS
-            value: /secret/gcp-credentials/key.json
-          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
-            value: /secret/gcp-credentials/key.json
-        command: ["bash", "-c", "-x"]
+        command: ["bash", "-c", "-x", "-e"]
+        workingDir: /home/jovyan/fv3net/workflows/prognostic_c48_run
         args:
           - |
-            FV3NET=~/fv3net
-            IC={{workflow.parameters.initial-condition}}
-            C48_RESTARTS={{workflow.parameters.reference-restarts}}
-
             cat << EOF > config.yaml
             {{inputs.parameters.config}}
             EOF
 
-            python $FV3NET/workflows/prognostic_c48_run/orchestrate_submit_job.py \
-              --image-tag {{inputs.parameters.image-tag}} \
+            python prepare_config.py \
               --model_url {{inputs.parameters.trained-ml}} \
               --prog_config_yml config.yaml \
-              $C48_RESTARTS \
-              $IC \
-              {{inputs.parameters.output}} \
-              {{inputs.parameters.store-true-args}} 
-        resources:
-          requests:
-            memory: "500Mi"
-            cpu: "250m"
-          limits:
-            memory: "2Gi"
-            cpu: "1000m"
+              {{inputs.parameters.reference-restarts}} \
+              {{inputs.parameters.initial-condition}} \
+              {{inputs.parameters.store-true-args}} \
+              > /tmp/fv3config.yaml

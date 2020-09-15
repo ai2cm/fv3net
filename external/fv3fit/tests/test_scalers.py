@@ -16,6 +16,14 @@ SAMPLE_DIM = "sample"
 FEATURE_DIM = "z"
 
 
+def test_standard_scaler_not_fit_before_call():
+    scaler = StandardScaler()
+    with pytest.raises(RuntimeError):
+        scaler.normalize(np.array([0.0, 1.0]))
+    with pytest.raises(RuntimeError):
+        scaler.denormalize(np.array([0.0, 1.0]))
+
+
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
 def test_standard_scaler_normalize_then_denormalize(n_samples, n_features):
     scaler = StandardScaler()
@@ -165,7 +173,7 @@ def test_get_mass_scaler():
         sample_dim_name=SAMPLE_DIM, pack_names=sorted(list(ds.data_vars))
     )
     y = packer.to_array(ds)
-    delp = np.array([1.0, 4.0])
+    delp = np.array([1.0, 0.25])
     scale_factors = {"y0": 100}
     scaler = get_mass_scaler(packer, delp, scale_factors, True,)
     expected_normalized = [

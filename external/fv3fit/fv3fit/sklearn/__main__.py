@@ -12,18 +12,20 @@ MODEL_CONFIG_FILENAME = "training_config.yml"
 TIMESTEPS_USED_FILENAME = "timesteps_used.yml"
 
 
-def _save_config_output(output_url, config):
+def _save_config_output(output_url: str, config: shared.ModelTrainingConfig):
     fs = vcm.cloud.fsspec.get_fs(output_url)
     fs.makedirs(output_url, exist_ok=True)
     config_url = os.path.join(output_url, MODEL_CONFIG_FILENAME)
 
     with fs.open(config_url, "w") as f:
-        yaml.dump(config, f)
+        config.dump(f)
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("train_data_path", type=str, help="Location of training data")
+    parser.add_argument(
+        "train_data_path", nargs="*", type=str, help="Location of training data"
+    )
     parser.add_argument(
         "train_config_file",
         type=str,
@@ -56,9 +58,7 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    data_path = args.train_data_path
-    if not args.no_train_subdir_append:
-        data_path = os.path.join(data_path, "train")
+    data_path = shared.parse_data_path(args)
     train_config = shared.load_model_training_config(args.train_config_file)
 
     if args.timesteps_file:
@@ -69,7 +69,9 @@ if __name__ == "__main__":
     batched_data = shared.load_data_sequence(data_path, train_config)
     _save_config_output(args.output_data_path, train_config)
 
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
+    logging.getLogger("fsspec").setLevel(logging.INFO)
+    logging.getLogger("urllib3.connectionpool").setLevel(logging.INFO)
 
     model = train.train_model(batched_data, train_config)
     train.save_model(args.output_data_path, model, MODEL_FILENAME)
