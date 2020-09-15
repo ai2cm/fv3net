@@ -2,7 +2,6 @@ import argparse
 from datetime import datetime
 import fsspec
 import intake
-import json
 import logging
 import os
 import pandas as pd
@@ -13,7 +12,8 @@ import yaml
 import zarr.storage as zstore
 
 from diagnostics_utils.region import RegionOfInterest, equatorial_zone
-from loaders.mappers import open_fine_res_apparent_sources
+import loaders
+from report import create_html
 import _utils as utils
 
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +46,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "run_data_path",
+        nargs="*",
         type=str,
         help="Location of run data."
     )
@@ -127,7 +128,7 @@ def _fine_res_reference(
     fine_res_path: str,
     times: Sequence[datetime]
 ):
-    mapper = open_fine_res_apparent_sources(fine_res_path, offset_seconds=450)
+    mapper = loaders.mappers.open_fine_res_apparent_sources(fine_res_path, offset_seconds=450)
     times = [pd.to_datetime(t).strftime(TIME_FMT) for t in times]
     return utils.dataset_from_timesteps(
         mapper, times, ["air_temperature", "specific_humidity"])
@@ -149,8 +150,7 @@ def _dataset_from_training_config(
     )    
     times = list(mapper.keys()) if not time_bounds \
         else utils.time_range_str_format(list(mapper.keys()), time_bounds)
-    return utils.dataset_from_timesteps(
-        mapper, times, ["air_temperature", "specific_humidity"])
+    return utils.dataset_from_timesteps(mapper, times, DATA_VARS).sortby("time")
 
 
 if __name__ == "__main__":
@@ -162,11 +162,13 @@ if __name__ == "__main__":
     if ".zarr" in args.run_data_path:
         ds = _open_zarr(args.run_data_path, args.time_bounds, args.consolidated,)
     elif args.train_data_config:
-        with open(args.train_data_config, "r") as f:
-            config = yaml.load(f)
-        ds = 
+        with fsspec.open(args.train_data_config, "r") as f:
+            config = yaml.safe_load(f)
+        ds = _dataset_from_training_config(args.run_data_path, config, args.time_bounds)
     ds = xr.merge([ds, grid])
+
     fine_res = _fine_res_reference(args.fine_res_reference_path, ds.time.values)
+    
     for var in ["air_temperature", "specific_humidity"]:
         ds[f"{var}_anomaly"] = ds[var] - fine_res[var]
 
@@ -175,15 +177,36 @@ if __name__ == "__main__":
     else:
         region = equatorial_zone
     ds = region.average(ds)
+    ds = utils.insert_pressure_level_temp(ds)
+
+    metadata = {
+        "run data": args.run_data_path,
+        "fine res data": args.fine_res_reference_path,
+        "lat bounds": region.lat_bounds,
+        "lon bounds": region.lon_bounds,
+        "time min/max": args.time_bounds
+    }
+    figure_paths = []
+
     with tempfile.TemporaryDirectory() as tmpdir:
         for var in [
-        "air_temperature_anomaly",
-        "specific_humidity_anomaly", 
-        "pQ1", 
-        "pQ2", ]:
+            "air_temperature_anomaly",
+            "specific_humidity_anomaly", 
+            "pQ1", 
+            "pQ2",
+            "T850",
+            "T200",
+            "T850-T200"
+        ]:
             fig = utils.time_series(ds[var], grid)
-            outfile = os.path.join(tmpdir, f"{var}_profile_time_series.png")
+            fig_name = f"{var}_profile_time_series.png"
+            figure_paths.append(fig_name)
+            outfile = os.path.join(tmpdir, fig_name)
             fig.savefig(outfile)
-            logger.info("Saved figure {var} vertical profile.")
-
+            logger.info(f"Saved figure {var} vertical profile.")
+        sections = {"Vertical profile time series": figure_paths}
+        html = create_html(sections, "", metadata)
+        with open(os.path.join(tmpdir, "vertical_profile_time_series.html"), "w") as f:
+            f.write(html)
         utils.copy_outputs(tmpdir, args.output_dir)
+    

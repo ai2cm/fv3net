@@ -8,9 +8,30 @@ import xarray as xr
 import vcm
 from vcm.cloud import gsutil
 from vcm.convenience import round_time
+from vcm.cubedsphere import regrid_to_common_pressure
+
+xr.set_options(keep_attrs=True)
 
 TIME_NAME = "time"
 TIME_FMT = "%Y%m%d.%H%M%S"
+AIR_TEMP = "air_temperature"
+DELP = "pressure_thickness_of_atmospheric_layer"
+
+
+def insert_pressure_level_temp(ds: xr.Dataset):
+    pressure_levels = [85000., 20000.]
+    da_T = ds[AIR_TEMP]
+    da_T_regrid = regrid_to_common_pressure(
+        da_T,
+        ds[DELP],
+        coord_z_center="z",
+        output_pressure=pressure_levels,
+        new_vertical_dim="pressure")
+    da_T.attrs["units"] = ds[AIR_TEMP].units
+    ds["T850"] = da_T_regrid.sel(pressure=85000.) 
+    ds["T200"] = da_T_regrid.sel(pressure=20000.)
+    ds["T850-T200"] = ds["T850"] - ds["T200"]
+    return ds
 
 
 def time_range_str_format(
