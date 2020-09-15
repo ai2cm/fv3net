@@ -31,12 +31,11 @@ def test_standard_scaler_constant_scaling():
     varying_feature = np.array([i for i in range(5)])
     y = np.vstack([varying_feature, constant_feature, constant_feature * 2.0]).T
     scaler.fit(y)
-    # both const features' columns should unchanged by scaler,
-    # even if later values are not the same as during fitting
-    normed_sample = scaler.normalize(np.array([3.0, const, const]))
-    assert (normed_sample[1:] == const).all()
-    denormed_sample = scaler.denormalize(np.array([3.0, const, const]))
-    assert (denormed_sample[1:] == const).all()
+    normed_sample = scaler.normalize(np.array([3.0, const, const * 2.0]))
+    assert (normed_sample[1:] == 0.0).all()
+    denormed_sample = scaler.denormalize(np.array([3.0, 0.0, 0.0]))
+    assert denormed_sample[1] == const
+    assert denormed_sample[2] == const * 2.0
 
 
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
