@@ -129,9 +129,10 @@ def _compute_diags_over_batches(
         # ...compute metrics
         ds_metrics = calc_metrics(xr.merge([ds, grid["area"]]))
 
-        batches_summary.append(ds_summary)
-        batches_diurnal.append(ds_diurnal)
-        batches_metrics.append(ds_metrics)
+        batches_summary.append(ds_summary.load())
+        batches_diurnal.append(ds_diurnal.load())
+        batches_metrics.append(ds_metrics.load())
+        del ds
         logger.info(f"Processed batch {i} diagnostics netcdf output.")
 
     # then average over the batches for each output
