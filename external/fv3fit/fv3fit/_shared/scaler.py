@@ -34,6 +34,13 @@ class StandardScaler(NormalizeTransform):
     def fit(self, data: np.ndarray):
         self.mean = data.mean(axis=0).astype(np.float32)
         self.std = data.std(axis=0).astype(np.float32)
+        self._fix_constant_features()
+
+    def _fix_constant_features(self):
+        for i, std in enumerate(self.std):
+            if std == 0.:
+                self.std[i] = 1.
+                self.mean[i] = 0.
 
     def normalize(self, data):
         if self.mean is None or self.std is None:

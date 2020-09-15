@@ -24,6 +24,19 @@ def test_standard_scaler_not_fit_before_call():
         scaler.denormalize(np.array([0.0, 1.0]))
 
 
+def test_standard_scaler_constant_scaling():
+    scaler = StandardScaler()
+    const = 10.
+    constant_feature = np.array([const for i in range(5)])
+    varying_feature = np.array([i for i in range(5)])
+    y = np.vstack([varying_feature, constant_feature, varying_feature]).T
+    scaler.fit(y)
+    normed_sample = scaler.normalize(np.array([3., const, 1]))
+    assert normed_sample[1] == const
+    denormed_sample = scaler.denormalize(np.array([3., const, 1]))
+    assert denormed_sample[1] == const
+
+
 @pytest.mark.parametrize("n_samples, n_features", [(10, 1), (10, 5)])
 def test_standard_scaler_normalize_then_denormalize(n_samples, n_features):
     scaler = StandardScaler()
