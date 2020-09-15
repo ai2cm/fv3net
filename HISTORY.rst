@@ -40,6 +40,7 @@ latest
 * Use run-fv3gfs workflow template to do prognostic run
 * Move orchestrate_submit_jobs.py to prepare_config.py and add regression test
 * Prognostic and nudge-to-fine workflows now require fv3gfs-images at or after commit 46b1d8742ee220ebeb14942e0a0f43da963cc0cf of fv3gfs-wrapper.
+* Make time labels of the wrapper diagnostics in the nudge-to-fine workflow consistent with the fortran diagnostics.
 
 0.2.3 (2020-06-19)
 ------------------

@@ -1,8 +1,9 @@
 import os
 from typing import Sequence, Optional, MutableMapping
 import functools
-from datetime import datetime, timedelta
+from datetime import timedelta
 import yaml
+import cftime
 import fsspec
 import logging
 import fv3gfs.util as fv3util
@@ -75,7 +76,7 @@ def time_to_label(time):
 
 
 def test_time_to_label():
-    time, label = datetime(2015, 1, 20, 6, 30, 0), "20150120.063000"
+    time, label = cftime.DatetimeJulian(2015, 1, 20, 6, 30, 0), "20150120.063000"
     result = time_to_label(time)
     assert result == label
 
@@ -181,7 +182,7 @@ class StageWriter:
         self.partitioner = partitioner
         self.times = times
 
-    def store(self, time: datetime, state, stage: str):
+    def store(self, time: cftime.datetime, state, stage: str):
         monitor = self._get_monitor(stage)
         monitor.store(time, state)
 
@@ -218,13 +219,13 @@ class SubsetWriter:
         self.logger = logging.getLogger("SubsetStageWriter")
         self.logger.info(f"Saving stages at {self._times}")
 
-    def _output_current_time(self, time: datetime) -> bool:
+    def _output_current_time(self, time: cftime.datetime) -> bool:
         if self._times is None:
             return True
         else:
             return time.strftime("%Y%m%d.%H%M%S") in self._times
 
-    def store(self, time: datetime, state):
+    def store(self, time: cftime.datetime, state):
         if self._output_current_time(time):
             self.logger.debug(f"Storing time: {time}")
             self._monitor.store(state)
@@ -275,23 +276,29 @@ if __name__ == "__main__":
     fv3gfs.initialize()
     for i in range(fv3gfs.get_step_count()):
         state = fv3gfs.get_state(names=store_names)
-        start = datetime.utcnow()
         time = state["time"]
 
-        monitor.store(time, state, stage="before_dynamics")
+        # The fortran model labels diagnostics with the time at the end
+        # of a step; this ensures this is the case for the wrapper
+        # diagnostics as well.
+        store_time = time + timestep
+
+        monitor.store(store_time, state, stage="before_dynamics")
         fv3gfs.step_dynamics()
-        monitor.store(time, fv3gfs.get_state(names=store_names), stage="after_dynamics")
+        monitor.store(
+            store_time, fv3gfs.get_state(names=store_names), stage="after_dynamics"
+        )
         fv3gfs.step_physics()
         state = fv3gfs.get_state(names=store_names)
-        monitor.store(time, state, stage="after_physics")
+        monitor.store(store_time, state, stage="after_physics")
         fv3gfs.save_intermediate_restart_if_enabled()
         reference = get_reference_state(
             time, reference_dir, communicator, only_names=store_names
         )
         tendencies = nudge(state, reference)
-        monitor.store(time, reference, stage="reference")
-        monitor.store(time, tendencies, stage="nudging_tendencies")
-        monitor.store(time, state, stage="after_nudging")
+        monitor.store(store_time, reference, stage="reference")
+        monitor.store(store_time, tendencies, stage="nudging_tendencies")
+        monitor.store(store_time, state, stage="after_nudging")
 
         if "specific_humidity" in nudging_names:
             state[PRECIP_NAME].view[:] = implied_precipitation(
