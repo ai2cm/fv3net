@@ -63,8 +63,8 @@ def shuffle(
     """
     Shuffle a sequence by creating a new FunctionOutputSequence
     with shuffled indices as arguments.  Preserves potentially lazy
-    operations on input sequence by only shuffling potential __getitem__
-    arguments.
+    operations on input sequence __getitem__ calls by shuffling
+    index arguments.
 
     Args:
         sequence:  Input sequence to have access indices shuffled
