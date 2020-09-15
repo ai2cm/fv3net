@@ -31,7 +31,9 @@ class ArrayPacker:
     Used for ML training/prediction.
     """
 
-    def __init__(self, sample_dim_name, pack_names: Iterable[str]):
+    def __init__(
+        self, sample_dim_name, pack_names: Iterable[str], feature_dim_slice=slice(None)
+    ):
         """Initialize the ArrayPacker.
 
         Args:
@@ -41,6 +43,7 @@ class ArrayPacker:
         self._pack_names = list(pack_names)
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
+        self._feature_dim_slice = feature_dim_slice
         self._dims: Dict[str, Iterable[str]] = {}
 
     @property
@@ -85,14 +88,21 @@ class ArrayPacker:
         """
         if len(self._n_features) == 0:
             self._n_features.update(
-                count_features(self.pack_names, dataset, self._sample_dim_name)
+                count_features(
+                    self.pack_names,
+                    dataset,
+                    self._sample_dim_name,
+                    self._feature_dim_slice,
+                )
             )
             for name in self.pack_names:
                 self._dims[name] = cast(Tuple[str], dataset[name].dims)
         for var in self.pack_names:
             if dataset[var].dims[0] != self.sample_dim_name:
                 dataset[var] = dataset[var].transpose()
-        array = to_array(dataset, self.pack_names, self.feature_counts)
+        array = to_array(
+            dataset, self.pack_names, self.feature_counts, self._feature_dim_slice
+        )
         return array
 
     def to_dataset(self, array: np.ndarray) -> xr.Dataset:
@@ -136,7 +146,10 @@ class ArrayPacker:
 
 
 def to_array(
-    dataset: xr.Dataset, pack_names: Sequence[str], feature_counts: Mapping[str, int]
+    dataset: xr.Dataset,
+    pack_names: Sequence[str],
+    feature_counts: Mapping[str, int],
+    feature_dim_slice: slice,
 ):
     """Convert dataset into a 2D array with [sample, feature] dimensions.
 
@@ -148,6 +161,8 @@ def to_array(
         dataset: dataset containing variables in self.pack_names to pack
         pack_names: names of variables to pack
         feature_counts: number of features for each variable
+        feature_dim_slice: slice object specifying data along the feature dimension
+            that should be included in the array
 
     Returns:
         array: 2D [sample, feature] array with data from the dataset
@@ -160,7 +175,9 @@ def to_array(
     for name in pack_names:
         n_features = feature_counts[name]
         if n_features > 1:
-            array[:, i_start : i_start + n_features] = dataset[name]
+            array[:, i_start : i_start + n_features] = dataset[name].isel(
+                {dataset[name].dims[1]: feature_dim_slice}
+            )
         else:
             array[:, i_start] = dataset[name]
         i_start += n_features
@@ -204,7 +221,10 @@ def to_dataset(
 
 
 def count_features(
-    quantity_names: Iterable[str], dataset: xr.Dataset, sample_dim_name: str
+    quantity_names: Iterable[str],
+    dataset: xr.Dataset,
+    sample_dim_name: str,
+    feature_dim_slice: slice,
 ) -> Mapping[str, int]:
     """Count the number of ML outputs corresponding to a set of quantities in a dataset.
 
@@ -216,6 +236,8 @@ def count_features(
         dataset: a dataset containing the indicated variables
         sample_dim_name: dimension to treat as the "sample" dimension, any other
             dimensions are treated as a "feature" dimension.
+        feature_dim_slice: slice object specifying data along the feature dimension
+            that should be considered in feature_counts
     """
 
     return_dict = {}
@@ -234,5 +256,5 @@ def count_features(
                 f"sample dimension ({sample_dim_name}), has dims {value.dims}"
             )
         else:
-            return_dict[name] = value.shape[1]
+            return_dict[name] = value.isel({value.dims[1]: feature_dim_slice}).shape[1]
     return return_dict

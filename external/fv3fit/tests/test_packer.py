@@ -34,8 +34,14 @@ def dims_list(request) -> Iterable[str]:
         ]
 
 
-def get_array(dims: Iterable[str], value: float) -> np.ndarray:
-    return np.zeros([DIM_LENGTHS[dim] for dim in dims]) + value
+def get_array(dims: Iterable[str], var_value: float) -> np.ndarray:
+    if FEATURE_DIM in dims:
+        array = np.zeros([DIM_LENGTHS[dim] for dim in dims]) + np.arange(
+            var_value, var_value + DIM_LENGTHS[FEATURE_DIM]
+        )
+    else:
+        array = np.zeros([DIM_LENGTHS[dim] for dim in dims]) + var_value
+    return array
 
 
 @pytest.fixture
@@ -54,7 +60,7 @@ def dataset(names: Iterable[str], dims_list: Iterable[str]) -> xr.Dataset:
 
 
 @pytest.fixture
-def array(names: Iterable[str], dims_list: Iterable[str]) -> np.ndarray:
+def array(dims_list: Iterable[str]) -> np.ndarray:
     array_list = []
     for i, dims in enumerate(dims_list):
         array = get_array(dims, i)
@@ -90,3 +96,46 @@ def test_repack_array(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarra
     packer.to_array(dataset)  # must pack first to know dimension lengths
     result = packer.to_array(packer.to_dataset(array))
     np.testing.assert_array_equal(result, array)
+
+
+@pytest.fixture(params=[None, "feature_dim_0_4", "feature_dim_4_end"])
+def feature_dim_slice(request) -> slice:
+    if request.param == "feature_dim_0_4":
+        feature_dim_slice = slice(None, 4)
+    elif request.param == "feature_dim_4_end":
+        feature_dim_slice = slice(4, None)
+    elif request.param is None:
+        feature_dim_slice = slice(None)
+    return feature_dim_slice
+
+
+@pytest.fixture
+def packer_with_feature_slice(
+    names: Iterable[str], feature_dim_slice: slice
+) -> ArrayPacker:
+    return ArrayPacker(SAMPLE_DIM, names, feature_dim_slice=feature_dim_slice)
+
+
+@pytest.fixture
+def array_with_feature_slice(
+    dims_list: Iterable[str], feature_dim_slice: slice
+) -> np.ndarray:
+    array_list = []
+    for i, dims in enumerate(dims_list):
+        array = get_array(dims, i)
+        if len(dims) == 1:
+            array = array[:, None]
+        elif len(dims) == 2:
+            array = array[:, feature_dim_slice]
+        array_list.append(array)
+    return np.concatenate(array_list, axis=1)
+
+
+def test_to_array_with_feature_slice(
+    feature_dim_slice: slice,
+    packer_with_feature_slice: ArrayPacker,
+    dataset: xr.Dataset,
+    array_with_feature_slice: np.ndarray,
+):
+    result = packer_with_feature_slice.to_array(dataset)
+    np.testing.assert_array_equal(result, array_with_feature_slice)
