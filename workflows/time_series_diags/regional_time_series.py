@@ -199,14 +199,14 @@ if __name__ == "__main__":
             "T850-T200"
         ]:
             fig = utils.time_series(ds[var], grid)
-            fig_name = f"{var}_profile_time_series.png"
+            fig_name = f"{var}_time_series.png"
             figure_paths.append(fig_name)
             outfile = os.path.join(tmpdir, fig_name)
             fig.savefig(outfile)
-            logger.info(f"Saved figure {var} vertical profile.")
-        sections = {"Vertical profile time series": figure_paths}
+            logger.info(f"Saved figure {var} time_series.")
+        sections = {"Time series": figure_paths}
         html = create_html(sections, "", metadata)
-        with open(os.path.join(tmpdir, "vertical_profile_time_series.html"), "w") as f:
+        with open(os.path.join(tmpdir, "time_series.html"), "w") as f:
             f.write(html)
         utils.copy_outputs(tmpdir, args.output_dir)
     

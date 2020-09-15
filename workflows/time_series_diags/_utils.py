@@ -27,7 +27,7 @@ def insert_pressure_level_temp(ds: xr.Dataset):
         coord_z_center="z",
         output_pressure=pressure_levels,
         new_vertical_dim="pressure")
-    da_T.attrs["units"] = ds[AIR_TEMP].units
+    da_T_regrid.attrs["units"] = ds[AIR_TEMP].units
     ds["T850"] = da_T_regrid.sel(pressure=85000.) 
     ds["T200"] = da_T_regrid.sel(pressure=20000.)
     ds["T850-T200"] = ds["T850"] - ds["T200"]
