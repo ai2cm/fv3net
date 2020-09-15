@@ -60,7 +60,7 @@ class StandardScaler(NormalizeTransform):
         return data * self.std + self.mean
 
     def dump(self, f: BinaryIO):
-        data = {}
+        data = {}  # type: ignore
         if self.mean is not None:
             data["mean"] = self.mean
         if self.std is not None:
