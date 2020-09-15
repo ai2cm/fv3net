@@ -5,12 +5,13 @@ from datetime import datetime, timedelta
 import yaml
 import fsspec
 import logging
+import fv3gfs.util
 
 if __name__ == "__main__":
-    import fv3gfs
+    import fv3gfs.wrapper as wrapper
     from mpi4py import MPI
 else:
-    fv3gfs = None
+    wrapper = None
     MPI = None
 
 STORE_NAMES = [
@@ -70,7 +71,7 @@ class StageWriter:
                     os.path.join(self._root_dirname, stage_name + ".zarr")
                 )
             )()
-            monitor = fv3gfs.ZarrMonitor(
+            monitor = fv3gfs.util.ZarrMonitor(
                 store, self.partitioner, mode=self._mode, mpi_comm=MPI.COMM_WORLD
             )
             self._monitors[stage_name] = SubsetWriter(monitor, self.times)
@@ -81,7 +82,7 @@ class SubsetWriter:
     """Write only certain substeps"""
 
     def __init__(
-        self, monitor: fv3gfs.ZarrMonitor, times: Optional[Sequence[str]] = None
+        self, monitor: fv3gfs.util.ZarrMonitor, times: Optional[Sequence[str]] = None
     ):
         """
 
@@ -129,8 +130,8 @@ def load_config(filename):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     config = load_config("fv3config.yml")
-    partitioner = fv3gfs.CubedSpherePartitioner.from_namelist(config["namelist"])
-    communicator = fv3gfs.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
+    partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
+    communicator = fv3gfs.util.CubedSphereCommunicator(MPI.COMM_WORLD, partitioner)
     timestep = get_timestep(config)
 
     monitor = StageWriter(
@@ -140,15 +141,17 @@ if __name__ == "__main__":
         times=config["runfile_output"].get("output_times", None),
     )
 
-    fv3gfs.initialize()
-    for i in range(fv3gfs.get_step_count()):
-        state = fv3gfs.get_state(names=STORE_NAMES)
+    wrapper.initialize()
+    for i in range(wrapper.get_step_count()):
+        state = wrapper.get_state(names=STORE_NAMES)
         state["time"] += timestep  # consistent with Fortran diagnostic output times
         time = state["time"]
         monitor.store(time, state, stage="before_dynamics")
-        fv3gfs.step_dynamics()
-        monitor.store(time, fv3gfs.get_state(names=STORE_NAMES), stage="after_dynamics")
-        fv3gfs.step_physics()
-        monitor.store(time, fv3gfs.get_state(names=STORE_NAMES), stage="after_physics")
+        wrapper.step_dynamics()
+        monitor.store(
+            time, wrapper.get_state(names=STORE_NAMES), stage="after_dynamics"
+        )
+        wrapper.step_physics()
+        monitor.store(time, wrapper.get_state(names=STORE_NAMES), stage="after_physics")
 
-    fv3gfs.cleanup()
+    wrapper.cleanup()
