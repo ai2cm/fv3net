@@ -98,6 +98,10 @@ spec:
                 value: "{{inputs.parameters.cpu-prog}}"
               - name: memory
                 value: "{{inputs.parameters.memory-prog}}"
+              - name: work-volume-name
+                value: "{{inputs.parameters.work-volume-name}}"
+              - name: external-volume-name
+                value: "{{inputs.parameters.external-volume-name}}"
       - name: offline-diags
         dependencies: [train-model]
         templateRef:
