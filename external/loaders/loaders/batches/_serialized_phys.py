@@ -150,7 +150,7 @@ def open_serialized_physics_data(
 
     """
     Open xarray dataset of serialized physics component inputs and outputs from a
-    zarr file.
+    zarr file.  Constant variables are dropped by default.
 
     Args:
     -----
