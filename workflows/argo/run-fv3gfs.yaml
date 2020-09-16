@@ -247,7 +247,7 @@ spec:
       # also update nudging assets for new segment (no effect if nudging not active).
       args: 
       - | 
-        enable_restart --initial_conditions "{{inputs.parameters.restarts-url}}" /mnt/data/fv3config.yaml
+        enable_restart --initial-conditions "{{inputs.parameters.restarts-url}}" /mnt/data/fv3config.yaml
         update_config_for_nudging /mnt/data/fv3config.yaml
         echo "fv3config file updated to:"
         cat /mnt/data/fv3config.yaml
