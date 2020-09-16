@@ -1,7 +1,3 @@
-import pytest
-from datetime import datetime, timedelta
-
-from fv3kube import nudge_to_obs
 import fv3kube
 
 

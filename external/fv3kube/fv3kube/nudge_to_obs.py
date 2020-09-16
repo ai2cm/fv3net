@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 import os
-import numpy as np
-from typing import List, Mapping, Sequence
+from typing import Mapping, Sequence
 
 import fv3config
 
