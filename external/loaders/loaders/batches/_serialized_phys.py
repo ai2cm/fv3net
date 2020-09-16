@@ -73,8 +73,9 @@ class FlattenDims(Sequence[xr.Dataset]):
 def _separate_by_extra_feature_dim(ds):
 
     """
-    The extra dimension is a tracer field.  Separate out into dataset vars.
-    Should only be called after sampling dims have been
+    Look for data variables with an extra feature dimension after the
+    sample dimension has been stacked.  If there is one, it is a tracer
+    field, and separate each tracer out into an individual data variable.
     """
 
     for var, da in ds.items():
