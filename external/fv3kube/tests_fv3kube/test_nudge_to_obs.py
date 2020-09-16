@@ -22,8 +22,6 @@ def test_enable_nudge_to_observations_adds_nudging_asset():
     url = "/path/to/nudging/files"
     pattern = "%Y%m%d_%HZ_T85LR.nc"
 
-    file_list_path = "asdf"
-
     output = fv3kube.enable_nudge_to_observations(
         duration, current_date, nudge_url=url, nudge_filename_pattern=pattern
     )
