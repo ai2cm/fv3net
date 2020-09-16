@@ -88,7 +88,9 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser.parse_args()
 
 
-def _dataset_from_zarr(url: str, time_bounds: Sequence[str] = None, consolidated: bool = False):
+def _dataset_from_zarr(
+    url: str, time_bounds: Sequence[str] = None, consolidated: bool = False
+):
     mapper = fsspec.get_mapper(url)
     if time_bounds:
         time_slice = slice(*[datetime.strptime(t, TIME_FMT) for t in time_bounds])
@@ -134,7 +136,9 @@ def _dataset_from_training_config(data_paths, config, time_bounds):
 
 def _open_dataset(args):
     if ".zarr" in args.run_data_path:
-        ds = _dataset_from_zarr(args.run_data_path, args.time_bounds, args.consolidated,)
+        ds = _dataset_from_zarr(
+            args.run_data_path, args.time_bounds, args.consolidated,
+        )
     elif args.train_data_config:
         with fsspec.open(args.train_data_config, "r") as f:
             config = yaml.safe_load(f)
@@ -143,7 +147,8 @@ def _open_dataset(args):
         raise ValueError(
             "Provide either i) a zarr as the arg run_data_path or "
             "ii) a training configuration file that has mapper information "
-            "for training data as --train-data-config.")
+            "for training data as --train-data-config."
+        )
     return ds
 
 
