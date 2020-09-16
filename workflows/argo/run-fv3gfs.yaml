@@ -197,6 +197,7 @@ spec:
           mountPath: /mnt/data
         - name: "{{inputs.parameters.external-volume-name}}"
           mountPath: /mnt/input
+          readOnly: true
         - name: gcp-key-secret
           mountPath: /secret/gcp-credentials
           readOnly: true
