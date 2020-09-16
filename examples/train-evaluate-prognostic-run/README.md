@@ -38,8 +38,8 @@ Once your configurations are ready, submit a testing run by running `make`. If
 that completes successfully, adjust the lines to point to the full list of
 timesteps:
 
-    -p train-times="$(<  ../train.json)" \
-    -p test-times="$(<  ../test.json)" \
+    -p train-times="$(<  ../../train.json)" \
+    -p test-times="$(<  ../../test.json)" \
 
 Delete any existing GCS outputs (or rename the output directory) and rerun
 with `make`.
