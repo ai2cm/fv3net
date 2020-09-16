@@ -29,10 +29,9 @@ def _pack_weights(y_packer: ArrayPacker, **weights):
         weight = weights[name]
         if isinstance(weight, np.ndarray):
             array = weight[None, :]
-            dims = [y_packer.sample_dim_name, f"{name}_feature"]
         else:
-            array = np.zeros([1]) + weight
-            dims = [y_packer.sample_dim_name]
+            array = np.zeros([1, y_packer.feature_counts[name]]) + weight
+        dims = [y_packer.sample_dim_name, f"{name}_feature"]
         data_vars[name] = (dims, array)
     return y_packer.to_array(xr.Dataset(data_vars))  # type: ignore
 

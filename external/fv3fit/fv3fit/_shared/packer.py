@@ -1,4 +1,14 @@
-from typing import Iterable, TextIO, List, Dict, Tuple, cast, Mapping, Sequence
+from typing import (
+    Iterable,
+    TextIO,
+    List,
+    Dict,
+    Tuple,
+    cast,
+    Mapping,
+    Sequence,
+    Optional,
+)
 import numpy as np
 import xarray as xr
 import yaml
@@ -32,18 +42,23 @@ class ArrayPacker:
     """
 
     def __init__(
-        self, sample_dim_name, pack_names: Iterable[str], feature_dim_slice=slice(None)
+        self,
+        sample_dim_name,
+        pack_names: Iterable[str],
+        feature_dim_slice: Iterable[Optional[int]] = (None,),
     ):
         """Initialize the ArrayPacker.
 
         Args:
             sample_dim_name: dimension name to treat as the sample dimension
             pack_names: variable pack_names to pack
+            feature_dim_slice: optional tuple representing slice arguments for
+                selecting data subset along the feature dimension of each variable
         """
         self._pack_names = list(pack_names)
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
-        self._feature_dim_slice = feature_dim_slice
+        self._feature_dim_slice = slice(*feature_dim_slice)
         self._dims: Dict[str, Iterable[str]] = {}
 
     @property
@@ -161,8 +176,8 @@ def to_array(
         dataset: dataset containing variables in self.pack_names to pack
         pack_names: names of variables to pack
         feature_counts: number of features for each variable
-        feature_dim_slice: slice object specifying data along the feature dimension
-            that should be included in the array
+        feature_dim_slice: slice object specifying data along the feature
+            dimension that should be included in the array
 
     Returns:
         array: 2D [sample, feature] array with data from the dataset

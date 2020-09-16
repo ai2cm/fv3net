@@ -1,5 +1,5 @@
 from fv3fit._shared import ArrayPacker
-from typing import Iterable
+from typing import Iterable, Optional
 import pytest
 import numpy as np
 import xarray as xr
@@ -99,26 +99,26 @@ def test_repack_array(packer: ArrayPacker, dataset: xr.Dataset, array: np.ndarra
 
 
 @pytest.fixture(params=[None, "feature_dim_0_4", "feature_dim_4_end"])
-def feature_dim_slice(request) -> slice:
+def feature_dim_slice_args(request) -> slice:
     if request.param == "feature_dim_0_4":
-        feature_dim_slice = slice(None, 4)
+        feature_dim_slice = (None, 4)
     elif request.param == "feature_dim_4_end":
-        feature_dim_slice = slice(4, None)
+        feature_dim_slice = (4, None)
     elif request.param is None:
-        feature_dim_slice = slice(None)
+        feature_dim_slice = (None,)
     return feature_dim_slice
 
 
 @pytest.fixture
 def packer_with_feature_slice(
-    names: Iterable[str], feature_dim_slice: slice
+    names: Iterable[str], feature_dim_slice_args: Iterable[Optional[int]]
 ) -> ArrayPacker:
-    return ArrayPacker(SAMPLE_DIM, names, feature_dim_slice=feature_dim_slice)
+    return ArrayPacker(SAMPLE_DIM, names, feature_dim_slice=feature_dim_slice_args)
 
 
 @pytest.fixture
 def array_with_feature_slice(
-    dims_list: Iterable[str], feature_dim_slice: slice
+    dims_list: Iterable[str], feature_dim_slice_args: Iterable[Optional[int]]
 ) -> np.ndarray:
     array_list = []
     for i, dims in enumerate(dims_list):
@@ -126,13 +126,12 @@ def array_with_feature_slice(
         if len(dims) == 1:
             array = array[:, None]
         elif len(dims) == 2:
-            array = array[:, feature_dim_slice]
+            array = array[:, slice(*feature_dim_slice_args)]
         array_list.append(array)
     return np.concatenate(array_list, axis=1)
 
 
 def test_to_array_with_feature_slice(
-    feature_dim_slice: slice,
     packer_with_feature_slice: ArrayPacker,
     dataset: xr.Dataset,
     array_with_feature_slice: np.ndarray,

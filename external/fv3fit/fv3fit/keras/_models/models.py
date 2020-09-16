@@ -109,6 +109,7 @@ class PackedKerasModel(Model):
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
+        input_feature_dim_slice: Iterable[Optional[int]] = (None,),
         normalize_loss: bool = True,
         optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
     ):
@@ -130,6 +131,9 @@ class PackedKerasModel(Model):
                 weight of the variable, or a vector referring to the weight for each
                 feature of the variable. Default is a total weight of 1
                 for each variable.
+            input_feature_dim_slice: slice object arguments specifying data along the
+                feature dimension of each input variable that should be included in
+                the input array; defaults to all data
             normalize_loss: if True (default), normalize outputs by their standard
                 deviation before computing the loss function
             optimizer: algorithm to be used in gradient descent, must subclass
@@ -138,7 +142,9 @@ class PackedKerasModel(Model):
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
         self.X_packer = ArrayPacker(
-            sample_dim_name=sample_dim_name, pack_names=input_variables
+            sample_dim_name=sample_dim_name,
+            pack_names=input_variables,
+            feature_dim_slice=input_feature_dim_slice,
         )
         self.y_packer = ArrayPacker(
             sample_dim_name=sample_dim_name, pack_names=output_variables
@@ -149,6 +155,7 @@ class PackedKerasModel(Model):
             self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
         else:
             self.weights = weights
+        self._input_feature_dim_slice = slice(*input_feature_dim_slice)
         self._normalize_loss = normalize_loss
         self._optimizer = optimizer
 
@@ -306,6 +313,7 @@ class DenseModel(PackedKerasModel):
         input_variables: Iterable[str],
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
+        input_feature_dim_slice: Iterable[Optional[int]] = (None,),
         normalize_loss: bool = True,
         optimizer: Optional[tf.keras.optimizers.Optimizer] = None,
         depth: int = 3,
@@ -329,6 +337,9 @@ class DenseModel(PackedKerasModel):
                 weight of the variable, or a vector referring to the weight for each
                 feature of the variable. Default is a total weight of 1
                 for each variable.
+            input_feature_dim_slice: slice object arguments specifying data along the
+                feature dimension of each input variable that should be included in
+                the input array; defaults to all data
             normalize_loss: if True (default), normalize outputs by their standard
                 deviation before computing the loss function
             optimizer: algorithm to be used in gradient descent, must subclass
@@ -346,6 +357,7 @@ class DenseModel(PackedKerasModel):
             input_variables,
             output_variables,
             weights=weights,
+            input_feature_dim_slice=input_feature_dim_slice,
             normalize_loss=normalize_loss,
             optimizer=optimizer,
         )
