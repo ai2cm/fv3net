@@ -12,15 +12,9 @@ class RegionOfInterest:
         return _roi_average(dataset, self.lat_bounds, self.lon_bounds)
 
 
-tropical_atlantic = RegionOfInterest(
-    lat_bounds=[0, 15],
-    lon_bounds=[-50, -20],
-)
+tropical_atlantic = RegionOfInterest(lat_bounds=[0, 15], lon_bounds=[-50, -20],)
 
-equatorial_zone = RegionOfInterest(
-    lat_bounds=[-10, 10],
-    lon_bounds=[0, 360]
-)
+equatorial_zone = RegionOfInterest(lat_bounds=[-10, 10], lon_bounds=[0, 360])
 
 
 def _roi_average(
@@ -41,7 +35,7 @@ def _roi_average(
 
     stacked = dataset.stack(space=dims)
     grid = stacked
-    lon_bounds_pos = [lon + 360. if lon < 0 else lon for lon in lon_bounds]
+    lon_bounds_pos = [lon + 360.0 if lon < 0 else lon for lon in lon_bounds]
     lat_mask = (grid.lat > lat_bounds[0]) & (grid.lat < lat_bounds[1])
     lon_mask = (grid.lon > lon_bounds_pos[0]) & (grid.lon < lon_bounds_pos[1])
 
@@ -52,5 +46,3 @@ def _roi_average(
         out[key].attrs.update(dataset[key].attrs)
     out.attrs.update(dataset.attrs)
     return out
-
-

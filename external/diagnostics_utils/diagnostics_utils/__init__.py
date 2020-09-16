@@ -28,5 +28,5 @@ __all__ = [
     "insert_net_terms_as_Qs",
     "bin_diurnal_cycle",
     "create_diurnal_cycle_dataset",
-    "RegionOfInterest"
+    "RegionOfInterest",
 ]

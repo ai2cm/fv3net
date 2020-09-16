@@ -19,25 +19,23 @@ DELP = "pressure_thickness_of_atmospheric_layer"
 
 
 def insert_pressure_level_temp(ds: xr.Dataset):
-    pressure_levels = [85000., 20000.]
+    pressure_levels = [85000.0, 20000.0]
     da_T = ds[AIR_TEMP]
     da_T_regrid = regrid_to_common_pressure(
         da_T,
         ds[DELP],
         coord_z_center="z",
         output_pressure=pressure_levels,
-        new_vertical_dim="pressure")
+        new_vertical_dim="pressure",
+    )
     da_T_regrid.attrs["units"] = ds[AIR_TEMP].units
-    ds["T850"] = da_T_regrid.sel(pressure=85000.) 
-    ds["T200"] = da_T_regrid.sel(pressure=20000.)
+    ds["T850"] = da_T_regrid.sel(pressure=85000.0)
+    ds["T200"] = da_T_regrid.sel(pressure=20000.0)
     ds["T850-T200"] = ds["T850"] - ds["T200"]
     return ds
 
 
-def time_range_str_format(
-    times: Sequence[str],
-    time_bounds: Sequence[str]
-):
+def time_range_str_format(times: Sequence[str], time_bounds: Sequence[str]):
     tmin, tmax = float(time_bounds[0]), float(time_bounds[1])
     return [t for t in times if float(t) > tmin and float(t) < tmax]
 
@@ -47,7 +45,7 @@ def copy_outputs(temp_dir, output_dir):
         gsutil.copy(temp_dir, output_dir)
     else:
         shutil.copytree(temp_dir, output_dir)
-        
+
 
 def time_series(
     da: xr.DataArray,
@@ -56,9 +54,9 @@ def time_series(
     units=None,
     vmin=None,
     vmax=None,
-    cmap=None
-):  
-    
+    cmap=None,
+):
+
     units = units or da.units or ""
     title = title or f"{da.name} [{units}]"
     mean_dims = [dim for dim in ["tile", "x", "y"] if dim in da.dims]
@@ -94,5 +92,7 @@ def standardize_zarr_time_coord(ds: xr.Dataset) -> xr.Dataset:
 
 def dataset_from_timesteps(mapper, keys: Sequence[str], vars: List[str]):
     time_coords = [datetime.strptime(key, TIME_FMT) for key in keys]
-    ds = xr.concat([mapper[key][vars] for key in keys], pd.Index(time_coords, name="time"))
+    ds = xr.concat(
+        [mapper[key][vars] for key in keys], pd.Index(time_coords, name="time")
+    )
     return ds
