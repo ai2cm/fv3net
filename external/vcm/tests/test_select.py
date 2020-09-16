@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
-from vcm.select import mask_to_surface_type, get_latlon_grid_coords
+from vcm.select import mask_to_surface_type, get_latlon_grid_coords, _roi_average
 
 
 @pytest.fixture()
@@ -85,3 +85,39 @@ def test_get_latlon_grid_coords(test_latlon_grid):
             max_search_width=3,
         )
         del test_no_match  # to placate linter
+
+
+@pytest.mark.parametrize(
+    "lat_bounds, lon_bounds, expected_avg",
+    [
+        pytest.param((1.0, 4.0), (1.0, 4.0), 2.0, id="test area averaging"),
+        pytest.param((0.0, 3.0), (0.0, 3.0), 1.0, id="test lat/lon selection"),
+    ],
+)
+def test__roi_average(lat_bounds, lon_bounds, expected_avg):
+    xrange, yrange = 5, 5
+    spike_value = 3
+    area = [
+        [3.0 if x == 3 and y == 3 else 1.0 for x in range(xrange)]
+        for y in range(yrange)
+    ]
+    var = [
+        [spike_value if x == 3 and y == 3 else 1.0 for x in range(xrange)]
+        for y in range(yrange)
+    ]
+    ds = xr.Dataset(
+        {
+            "lat": (
+                ["x", "y"],
+                np.array([[x for x in range(xrange)] for y in range(yrange)]),
+            ),
+            "lon": (
+                ["x", "y"],
+                np.array([[y for x in range(xrange)] for y in range(yrange)]),
+            ),
+            "var": (["x", "y"], var),
+            "area": (["x", "y"], area),
+        }
+    )
+
+    assert _roi_average(ds, lat_bounds, lon_bounds)["var"].values == expected_avg
