@@ -36,12 +36,39 @@ class FineResolutionResidual(ResidualMapper):
         ).load()
 
 
+def _compute_clouds_off_dQ1(
+    fine_res: xr.Dataset,
+    nudging: xr.Dataset,
+    clouds_off_pQ1: xr.DataArray,
+    add_nudge_to_fine_tendency: bool,
+    add_xshield_nudging_tendency: bool,
+) -> xr.DataArray:
+    dQ1 = fine_res.dQ1 - clouds_off_pQ1
+    if add_nudge_to_fine_tendency:
+        dQ1 = dQ1 + nudging.dQ1
+    if add_xshield_nudging_tendency:
+        dQ1 = dQ1 + fine_res.air_temperature_nudging
+    return dQ1
+
+
+def _compute_clouds_off_dQ2(
+    fine_res: xr.Dataset,
+    nudging: xr.Dataset,
+    clouds_off_pQ2: xr.DataArray,
+    add_nudge_to_fine_tendency: bool,
+) -> xr.DataArray:
+    dQ2 = fine_res.dQ2 - clouds_off_pQ2
+    if add_nudge_to_fine_tendency:
+        dQ2 = dQ2 + nudging.dQ2
+    return dQ2
+
+
 class FineResolutionResidualCloudsOff(ResidualMapper):
     def __init__(
         self,
         *args,
-        add_nudge_to_fine_tendency=False,
-        add_xshield_nudging_tendency=False
+        add_nudge_to_fine_tendency: bool = False,
+        add_xshield_nudging_tendency: bool = False
     ):
         super().__init__(*args)
         self.add_nudge_to_fine_tendency = add_nudge_to_fine_tendency
@@ -53,14 +80,16 @@ class FineResolutionResidualCloudsOff(ResidualMapper):
 
         clouds_off_pQ1 = compute_clouds_off_pQ1(nudging)
         clouds_off_pQ2 = compute_clouds_off_pQ2(nudging)
-        dQ1 = fine_res.dQ1 - clouds_off_pQ1
-        dQ2 = fine_res.dQ2 - clouds_off_pQ2
-
-        if self.add_nudge_to_fine_tendency:
-            dQ1 = dQ1 + nudging.dQ1
-            dQ2 = dQ2 + nudging.dQ2
-        if self.add_xshield_nudging_tendency:
-            dQ1 = dQ1 + fine_res.air_temperature_nudging
+        dQ1 = _compute_clouds_off_dQ1(
+            fine_res,
+            nudging,
+            clouds_off_pQ1,
+            add_nudge_to_fine_tendency,
+            add_xshield_nudging_tendency,
+        )
+        dQ2 = _compute_clouds_off_dQ2(
+            fine_res, nudging, clouds_off_pQ2, add_nudge_to_fine_tendency
+        )
 
         return nudging.assign(
             pQ1=clouds_off_pQ1, pQ2=clouds_off_pQ2, dQ1=dQ1, dQ2=dQ2
