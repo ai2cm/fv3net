@@ -11,10 +11,11 @@ import xarray as xr
 import yaml
 import zarr.storage as zstore
 
-from diagnostics_utils.region import RegionOfInterest, equatorial_zone
+import _utils as utils
 import loaders
 from report import create_html
-import _utils as utils
+from vcm import RegionOfInterest
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("vertical_profile_plots")
@@ -87,7 +88,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser.parse_args()
 
 
-def _open_zarr(url: str, time_bounds: Sequence[str] = None, consolidated: bool = False):
+def _dataset_from_zarr(url: str, time_bounds: Sequence[str] = None, consolidated: bool = False):
     mapper = fsspec.get_mapper(url)
     if time_bounds:
         time_slice = slice(*[datetime.strptime(t, TIME_FMT) for t in time_bounds])
@@ -131,20 +132,27 @@ def _dataset_from_training_config(data_paths, config, time_bounds):
     return utils.dataset_from_timesteps(mapper, times, DATA_VARS).sortby("time")
 
 
+def _open_dataset(args):
+    if ".zarr" in args.run_data_path:
+        ds = _dataset_from_zarr(args.run_data_path, args.time_bounds, args.consolidated,)
+    elif args.train_data_config:
+        with fsspec.open(args.train_data_config, "r") as f:
+            config = yaml.safe_load(f)
+        ds = _dataset_from_training_config(args.run_data_path, config, args.time_bounds)
+    else:
+        raise ValueError(
+            "Provide either i) a zarr as the arg run_data_path or "
+            "ii) a training configuration file that has mapper information "
+            "for training data as --train-data-config.")
+    return ds
+
+
 if __name__ == "__main__":
     args = _create_arg_parser()
 
     cat = intake.open_catalog(args.catalog_path)
     grid = cat["grid/c48"].to_dask()
-
-    if ".zarr" in args.run_data_path:
-        ds = _open_zarr(args.run_data_path, args.time_bounds, args.consolidated,)
-    elif args.train_data_config:
-        with fsspec.open(args.train_data_config, "r") as f:
-            config = yaml.safe_load(f)
-        ds = _dataset_from_training_config(args.run_data_path, config, args.time_bounds)
-    ds = xr.merge([ds, grid])
-
+    ds = _open_dataset(args).merge(grid)
     fine_res = _fine_res_reference(args.fine_res_reference_path, ds.time.values)
 
     for var in ["air_temperature", "specific_humidity"]:
@@ -153,7 +161,9 @@ if __name__ == "__main__":
     if args.lat_bounds and args.lon_bounds:
         region = RegionOfInterest(tuple(args.lat_bounds), tuple(args.lon_bounds))
     else:
-        region = equatorial_zone
+        # default to equatorial zone
+        region = RegionOfInterest(lat_bounds=[-10, 10], lon_bounds=[0, 360])
+
     ds = region.average(ds)
     ds = utils.insert_pressure_level_temp(ds)
 
