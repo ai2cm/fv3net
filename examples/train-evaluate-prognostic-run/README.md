@@ -27,8 +27,8 @@ First make a branch tagged with the date:
 Then, edit the configuration files in place. To ease development, `run.sh`
 currently points to shortend lists of training/testing times in these lines:
 
-    -p train-times="$(<  ../train_short.json)" \
-    -p test-times="$(<  ../test_short.json)" \
+    -p train-times="$(<  ../../train_short.json)" \
+    -p test-times="$(<  ../../test_short.json)" \
 
 
 Before proceeding to full experiments, you may want to open a PR to
