@@ -6,16 +6,11 @@ input_variables:
 - air_temperature
 - specific_humidity
 output_variables:
-- dQ1
-- dQ2
+- pQ1
+- pQ2
 batch_function: batches_from_geodata
 batch_kwargs:
   timesteps_per_batch: 10
-  mapping_function: open_fine_res_apparent_sources
+  mapping_function: open_merged_nudged_full_tendencies
   mapping_kwargs:
-    offset_seconds: 450
-    rename_vars:
-      delp: pressure_thickness_of_atmospheric_layer
-      grid_xt: x
-      grid_yt: y
-      pfull: z
+    consolidated: true

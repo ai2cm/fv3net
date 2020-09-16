@@ -1,0 +1,133 @@
+# vim: set ts=2 sw=2 sts=2:
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: serialize-for-emulation-
+spec:
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
+  entrypoint: main
+  arguments:
+    parameters:
+      - name: namelist
+      - name: remote-rundir-tar
+      - name: output-dir
+  volumeClaimTemplates:
+    - metadata:
+        name: output-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 2048Gi
+  volumes:
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  templates:
+    - name: main
+      steps:
+        - - name: fv3gfs
+            template: fv3gfs
+            arguments:
+              parameters:
+                - name: namelist
+                  value: "{{workflow.parameters.namelist}}"
+                - name: remote-rundir-tar
+                  value: "{{workflow.parameters.remote-rundir-tar}}"
+        - - name: to-zarr
+            template: to-zarr
+            arguments:
+              parameters:
+                - name: output-dir
+                  value: "{{workflow.parameters.output-dir}}"
+    - name: fv3gfs
+      inputs:
+        parameters: 
+          - name: namelist
+          - name: remote-rundir-tar
+      container:
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 0
+        image: us.gcr.io/vcm-ml/fv3gfs-compiled:ml-emulation-serialize
+        command: ["/bin/bash", "-c"]
+        args: 
+          - |
+            gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+            gsutil -m cp {{inputs.parameters.remote-rundir-tar}} /mnt/data/
+            cd /mnt/data
+            rundir_tar=$(basename {{inputs.parameters.remote-rundir-tar}})
+            tar -xvf $rundir_tar
+            cd rundir
+
+            cat << EOF > input.nml
+            {{inputs.parameters.namelist}}
+            EOF
+
+            export SER_ENV=TURB
+            ulimit -s unlimited
+            cp /FV3/fv3.exe ./fv3.exe
+            mpirun -np 6 --allow-run-as-root --mca btl_vader_single_copy_mechanism none --oversubscribe ./fv3.exe
+        volumeMounts:
+          - name: output-data
+            mountPath: /mnt/data
+          - name: gcp-key-secret
+            mountPath: /secret/gcp-credentials
+            readOnly: true
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        imagePullPolicy: Always
+        resources:
+          limits:
+            memory: 8Gi
+          requests:
+            cpu: "6"
+            memory: 4Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+    - name: to-zarr
+      inputs:
+        parameters: 
+          - name: output-dir
+      container:
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsUser: 0
+        image: us.gcr.io/vcm-ml/phys_standalone:ml-emulation
+        command: ["/bin/bash", "-c"]
+        args: 
+          - |
+            gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
+            cd /serial_convert
+            python serial_to_zarr.py /mnt/data/rundir turb_parameter_metadata.yaml /mnt/data/turb_phys
+            mkdir /mnt/data/turb_phys_rechunked
+            python rechunk.py /mnt/data/turb_phys /mnt/data/turb_phys_rechunked --chunksize_mb 5
+            gsutil -m cp -r /mnt/data/turb_phys_rechunked {{inputs.parameters.output-dir}}
+        volumeMounts:
+          - name: output-data
+            mountPath: /mnt/data
+          - name: gcp-key-secret
+            mountPath: /secret/gcp-credentials
+            readOnly: true
+        env:
+          - name: GOOGLE_APPLICATION_CREDENTIALS
+            value: /secret/gcp-credentials/key.json
+          - name: CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE
+            value: /secret/gcp-credentials/key.json
+        imagePullPolicy: Always
+        resources:
+          limits:
+            memory: 8Gi
+            cpu: "8"
+          requests:
+            cpu: "6"
+            memory: 6Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File

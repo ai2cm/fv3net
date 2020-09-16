@@ -7,8 +7,8 @@ EXPERIMENT=2020-09-03-ignore-physics
 argo submit \
     --from workflowtemplate/train-diags-prog \
     -p image-tag=bdafdfb3ee3c4a7e15849b01aefc28185c69defc \
-    -p root=gs://vcm-ml-experiments/$EXPERIMENT \
-    -p train-test-data=gs://vcm-ml-experiments/2020-07-30-fine-res \
+    -p root=gs://vcm-ml-scratch/noah/$EXPERIMENT \
+    -p train-test-data=gs://vcm-ml-experiments/2020-09-01-nudge-to-fine-phys-tend-diags \
     -p training-config="$(< training-config.yaml)" \
     -p reference-restarts=gs://vcm-ml-experiments/2020-06-02-fine-res/coarsen_restarts \
     -p initial-condition="20160805.000000" \
