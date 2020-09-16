@@ -15,7 +15,7 @@ from typing import (
 import xarray as xr
 from mpi4py import MPI
 
-import fv3gfs.wrapper
+import fv3gfs.wrapper as wrapper
 import fv3gfs.util
 import runtime
 
@@ -145,7 +145,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         diagnostics.
     """
 
-    def __init__(self, comm=None, fv3gfs=fv3gfs.wrapper):
+    def __init__(self, comm=None, fv3gfs=wrapper):
 
         if comm is None:
             comm = MPI.COMM_WORLD

@@ -30,6 +30,7 @@ spec:
     - name: gfs-analysis-data
       persistentVolumeClaim:
         claimName: gfs-analysis-read-only
+        readOnly: true
     - name: gcp-key-secret
       secret:
         defaultMode: 420

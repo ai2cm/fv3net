@@ -117,6 +117,37 @@ volumes can be passed to the `run-fv3gfs` template. See the end-to-end test work
 `tests/end_to_end_integration/argo.yaml` for an example of the volume claims (including 
 `gcp-secret-key`) necessary to use `run-fv3gfs` .
 
+
+### train-diags-prog workflow template
+
+This workflow template runs the model training, offline diagnostics, prognostic run,
+and online diagnostics steps, using the following workflow templates: `training`,
+`offline-diags`, and `prognostic-run`. Model training can be run with either `sklearn`
+or `keras` training routines using the `train-routine` input parameter and passing
+an appropriate `training-config` string.
+
+| Parameter             | Description                                                                |
+|-----------------------|----------------------------------------------------------------------------|
+| image-tag             | Tag for fv3net, prognostic-run, and post_process_run images                |
+| root                  | Local or remote root directory for the outputs from this workflow          |
+| train-routine         | Training routine to use: e.g., "sklearn" (default) or "keras"              |
+| train-test-data       | Location of data to be used in training and testing the model              |
+| training-config       | String representation of a training configuration YAML file                |
+| train-times           | List strings of timesteps to be used in model training                     |
+| test-times            | List strings of timesteps to be used in offline model testing              |
+| public-report-output  | Location to write HTML report of model's offline diagnostic performance    |
+| initial-condition     | String of initial time at which to begin the prognostic run                |
+| prognostic-run-config | String representation of a prognostic run configuration YAML file          |
+| reference-restarts    | Location of restart data for initializing the prognostic run               |
+| store-true-args       | (optional) String of store-true flags for prognostic run prepare_config.py |
+| chunks                | (optional) Custom dimension rechunking mapping for prognostic run outputs  |
+| segment-count         | (optional) Number of prognostic run segments; default 1                    |
+| cpu-prog              | (optional) Number of cpus for prognostic run nodes; default 6              |
+| memory-prog           | (optional) Memory for prognostic run nodes; default 6Gi                    |
+| work-volume-name      | (optional) Working volume name, prognostic run; default 'work-volume'      |
+| external-volume-name  | (optional) External volume name, prognostic run; default 'external-volume' |
+
+
 ### Prognostic run report
 
 The `prognostic-run-diags` workflow template will generate reports for
