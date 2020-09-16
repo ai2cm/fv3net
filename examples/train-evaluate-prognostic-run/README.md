@@ -43,3 +43,8 @@ timesteps:
 
 Delete any existing GCS outputs (or rename the output directory) and rerun
 with `make`.
+
+## Updating the fv3net submodule
+
+To take advantage of upstream bug-fixes to the argo workflows you can update
+the `fv3net` submodules in this folder.
