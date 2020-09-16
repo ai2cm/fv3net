@@ -4,8 +4,6 @@ set -e
 
 EXPERIMENT=2020-09-03-ignore-physics
 
-# https://github.com/VulcanClimateModeling/fv3net/pull/615
-
 argo submit \
     --from workflowtemplate/train-diags-prog \
     -p image-tag=bdafdfb3ee3c4a7e15849b01aefc28185c69defc \
