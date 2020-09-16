@@ -84,11 +84,11 @@ class FineResolutionResidualCloudsOff(ResidualMapper):
             fine_res,
             nudging,
             clouds_off_pQ1,
-            add_nudge_to_fine_tendency,
-            add_xshield_nudging_tendency,
+            self.add_nudge_to_fine_tendency,
+            self.add_xshield_nudging_tendency,
         )
         dQ2 = _compute_clouds_off_dQ2(
-            fine_res, nudging, clouds_off_pQ2, add_nudge_to_fine_tendency
+            fine_res, nudging, clouds_off_pQ2, self.add_nudge_to_fine_tendency
         )
 
         return nudging.assign(
