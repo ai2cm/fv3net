@@ -1,57 +1,9 @@
 from datetime import datetime, timedelta
+import os
 import numpy as np
 from typing import List, Mapping, Sequence
 
 import fv3config
-
-# this module assumes that analysis files are at 00Z, 06Z, 12Z and 18Z
-SECONDS_IN_HOUR = 60 * 60
-NUDGE_HOURS = np.array([0, 6, 12, 18])  # hours at which analysis data is available
-NUDGE_FILE_TARGET = "INPUT"  # where to put analysis files in rundir
-
-
-def _most_recent_nudge_time(start_time: datetime) -> datetime:
-    """Return datetime object for the last nudging time preceding or concurrent
-     with start_time"""
-    first_nudge_hour = _most_recent_hour(start_time.hour)
-    return datetime(start_time.year, start_time.month, start_time.day, first_nudge_hour)
-
-
-def _most_recent_hour(current_hour, hour_array=NUDGE_HOURS) -> int:
-    """Return latest hour in hour_array that precedes or is concurrent with
-    current_hour"""
-    first_nudge_hour = hour_array[np.argmax(hour_array > current_hour) - 1]
-    return first_nudge_hour
-
-
-def _get_nudge_time_list(run_duration, current_date) -> List[datetime]:
-    """Return list of datetime objects corresponding to times at which analysis files
-    are required for nudging for a given model run configuration"""
-    start_time = datetime(*current_date)
-    first_nudge_time = _most_recent_nudge_time(start_time)
-    nudge_duration = run_duration + (start_time - first_nudge_time)
-    nudge_duration_hours = int(
-        np.ceil(nudge_duration.total_seconds() / SECONDS_IN_HOUR)
-    )
-    nudge_interval = NUDGE_HOURS[1] - NUDGE_HOURS[0]
-    nudging_hours = range(0, nudge_duration_hours + nudge_interval, nudge_interval)
-    return [first_nudge_time + timedelta(hours=hour) for hour in nudging_hours]
-
-
-def _get_target_filename_list(
-    run_duration, current_date, nudge_filename_pattern
-) -> List[str]:
-    """Return list of filenames of all nudging files required"""
-    time_list = _get_nudge_time_list(run_duration, current_date)
-    return [time.strftime(nudge_filename_pattern) for time in time_list]
-
-
-def _get_input_fname_list_asset(nudge_filename_list, filename: str) -> Mapping:
-    fname_list_contents = "\n".join(nudge_filename_list)
-    data = fname_list_contents.encode()
-    return fv3config.get_bytes_asset_dict(
-        data, target_location="", target_name=filename
-    )
 
 
 def enable_nudge_to_observations(
@@ -59,7 +11,6 @@ def enable_nudge_to_observations(
     current_date: Sequence[int],
     nudge_filename_pattern: str = "%Y%m%d_%HZ_T85LR.nc",
     nudge_url: str = "gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
-    file_list_path: str = "nudging_file_list",
     copy_method: str = "copy",
 ) -> Mapping:
     """Return config overlay for a nudged to observation run
@@ -69,7 +20,6 @@ def enable_nudge_to_observations(
         current_date: start time of run as sequence of 6 integers
         nudge_filename_pattern: naming convention for GFS analysis files
         nudge_url: location of GFS analysis files
-        file_list_path: name of text file used to list analysis files for model
         copy_method: fv3config asset copy_method for analysis files
 
     Returns:
@@ -95,41 +45,39 @@ def enable_nudge_to_observations(
                 tau_q: 21600.0
     """
 
-    nudge_file_list = _get_target_filename_list(
-        duration, current_date, nudge_filename_pattern
+    nudging_assets = fv3config.get_nudging_assets(
+        duration,
+        current_date,
+        nudge_url,
+        nudge_filename_pattern=nudge_filename_pattern,
+        copy_method=copy_method,
     )
-    fname_list_asset = _get_input_fname_list_asset(nudge_file_list, file_list_path)
-    nudging_assets = [
-        fv3config.get_asset_dict(
-            nudge_url, file_, target_location=NUDGE_FILE_TARGET, copy_method=copy_method
-        )
-        for file_ in nudge_file_list
-    ]
 
-    if nudge_url.startswith("gs://") and copy_method == "link":
-        raise ValueError(
-            "Cannot link GFS analysis files if using GCS url. Use copy_method='copy'."
-        )
+    file_names = [
+        os.path.join(asset["target_location"], asset["target_name"])
+        for asset in nudging_assets
+    ]
 
     return {
         "gfs_analysis_data": {
             "url": nudge_url,
             "filename_pattern": nudge_filename_pattern,
+            "copy_method": copy_method,
         },
-        "namelist": _namelist(file_list_path),
-        "patch_files": [fname_list_asset] + nudging_assets,
+        "namelist": _namelist(file_names),
+        "patch_files": nudging_assets,
     }
 
 
-def _namelist(input_fname_list="nudging_file_list",) -> Mapping:
+def _namelist(file_names: Sequence[str]) -> Mapping:
     return {
         "fv_core_nml": {"nudge": True},
         "gfs_physics_nml": {"use_analysis_sst": True},
         "fv_nwp_nudge_nml": {
             "add_bg_wind": False,
             "do_ps_bias": False,
+            "file_names": file_names,
             "ibtrack": True,
-            "input_fname_list": input_fname_list,
             "k_breed": 10,
             "kbot_winds": 0,
             "mask_fac": 0.2,

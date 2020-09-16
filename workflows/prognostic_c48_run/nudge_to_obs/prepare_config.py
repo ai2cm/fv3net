@@ -15,9 +15,6 @@ def parse_args():
     )
     parser.add_argument("config", type=str, help="base yaml file to configure")
     parser.add_argument(
-        "--segment-count", type=int, help="number of run-fv3gfs segmetns", default=1
-    )
-    parser.add_argument(
         "--nudge-url",
         type=str,
         help="path to GFS analysis files",
@@ -60,7 +57,7 @@ if __name__ == "__main__":
 
     current_date = config["namelist"]["coupler_nml"]["current_date"]
     output_frequency = timedelta(hours=config["namelist"]["atmos_model_nml"]["fhout"])
-    total_run_duration = args.segment_count * fv3config.get_run_duration(config)
+    total_run_duration = fv3config.get_run_duration(config)
     output_times = get_output_times(current_date, total_run_duration, output_frequency)
 
     config = vcm.update_nested_dict(
