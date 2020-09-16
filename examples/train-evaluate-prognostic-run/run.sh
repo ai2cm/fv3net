@@ -15,5 +15,6 @@ argo submit \
     -p prognostic-run-config="$(< prognostic-run.yaml)" \
     -p train-times="$(<  ../../train.json)" \
     -p test-times="$(<  ../../test.json)" \
-    -p public-report-output=gs://vcm-ml-public/offline_ml_diags/$EXPERIMENT
+    -p public-report-output=gs://vcm-ml-public/offline_ml_diags/$EXPERIMENT \
+    -p segment-count=1
 
