@@ -45,8 +45,7 @@ spec:
               {{inputs.parameters.input}} \
               config.yaml \
               {{inputs.parameters.output}} \
-              --timesteps-file times.json \
-              --no-train-subdir-append
+              --timesteps-file times.json
         resources:
           requests:
             memory: "6Gi"

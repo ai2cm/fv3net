@@ -47,11 +47,6 @@ def parse_args():
         default=None,
         help="json file containing a list of timesteps in YYYYMMDD.HHMMSS format",
     )
-    parser.add_argument(
-        "--no-train-subdir-append",
-        action="store_true",
-        help="Omit the appending of 'train' to the input training data path",
-    )
     return parser.parse_args()
 
 
