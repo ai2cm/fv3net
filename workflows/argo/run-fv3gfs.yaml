@@ -132,6 +132,8 @@ spec:
         - name: external-volume-name
     steps:
       - - name: run-model
+          continueOn:
+            failed: true
           template: run-model
           arguments:
             parameters:
@@ -147,12 +149,20 @@ spec:
               - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
               - {name: output-url, value: "{{inputs.parameters.output-url}}"}
               - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+      - - name: exit-if-run-model-failed
+          template: exit
+          when: "{{steps.run-model.exitCode}} != 0"
       - - name: update-config
           template: update-config
           arguments:
             parameters:
               - {name: restarts-url, value: "/mnt/data/RESTART"}
               - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+  - name: exit
+    container:
+      image: alpine:latest
+      command: [sh, -c]
+      args: ["echo Model run crashed. Available outputs have been uploaded to specified output-url.; exit 1"]
   - name: run-model
     inputs:
       parameters:
