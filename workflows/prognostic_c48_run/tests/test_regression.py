@@ -29,6 +29,7 @@ IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
 )
 ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
 FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
+LOG_PATH = "logs.txt"
 
 default_fv3config = rf"""
 data_table: default
@@ -500,9 +501,7 @@ def completed_rundir(request, tmpdir_factory):
     with open(config_path, "w") as f:
         yaml.safe_dump(config, f)
 
-    subprocess.check_call(
-        [fv3_script], env=dict(CONFIG=config_path, RUNFILE=runfile, RUNDIR=str(tmpdir)),
-    )
+    subprocess.check_call([fv3_script, config_path, str(tmpdir), runfile])
     return tmpdir
 
 
@@ -527,7 +526,7 @@ def test_fv3run_checksum_restarts(completed_rundir):
 
 
 def test_fv3run_logs_present(completed_rundir):
-    assert completed_rundir.join("logs.txt").exists()
+    assert completed_rundir.join(LOG_PATH).exists()
 
 
 def test_fv3run_diagnostic_outputs(completed_rundir):
@@ -551,7 +550,7 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
 def test_fv3run_python_mass_conserving(completed_rundir):
     data_lines = []
 
-    path = str(completed_rundir.join("stdout.log"))
+    path = str(completed_rundir.join(LOG_PATH))
 
     # read python mass conservation info
     with open(path) as f:
