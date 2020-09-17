@@ -178,7 +178,7 @@ spec:
               memory: "{{inputs.parameters.memory}}"
     container:
       image: '{{inputs.parameters.fv3gfs-image}}'
-      args: [runfv3.sh, /mnt/data/fv3config.yaml, /mnt/data/rundir, /mnt/data/runfile.py]
+      command: [/usr/local/bin/runfv3.sh, /mnt/data/fv3config.yaml, /mnt/data/rundir, /mnt/data/runfile.py]
       env:
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /secret/gcp-credentials/key.json
