@@ -156,6 +156,10 @@ COPY workflows/prognostic_c48_run/ /fv3net/workflows/prognostic_c48_run
 COPY docker/prognostic_run/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Install fv3gfs run script
+COPY workflows/prognostic_c48_run/runfv3.sh /usr/local/bin/
+RUN chmod 755 /usr/local/bin/runfv3.sh
+
 # install the packages
 RUN /entrypoint.sh
 
@@ -168,6 +172,4 @@ FROM bld AS test
 RUN pytest
 
 FROM bld
-
-COPY workflows/prognostic_c48_run/runfv3.sh /usr/local/bin/
-RUN chmod 755 /usr/local/bin/runfv3.sh
+# Final empty stage for actual running (doesn't include any outputs from pytest)
