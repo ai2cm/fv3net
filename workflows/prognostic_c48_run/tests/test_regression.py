@@ -492,8 +492,17 @@ def completed_rundir(request, tmpdir_factory):
         model_path = _save_mock_keras_model(tmpdir)
 
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
+    fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
     config = get_prognostic_config(request.param, model_path)
-    fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=True)
+
+    config_path = str(tmpdir.join("fv3config.yaml"))
+
+    with open(config_path, "w") as f:
+        yaml.safe_dump(config, f)
+
+    subprocess.check_call(
+        [fv3_script], env=dict(CONFIG=config_path, RUNFILE=runfile, RUNDIR=str(tmpdir)),
+    )
     return tmpdir
 
 
@@ -515,6 +524,10 @@ def test_fv3run_checksum_restarts(completed_rundir):
             "Prognostic fv3gfs ran successfully but failed the "
             f"fv_core.res.tile1.nc checksum: {e}"
         )
+
+
+def test_fv3run_logs_present(completed_rundir):
+    assert completed_rundir.join("logs.txt").exists()
 
 
 def test_fv3run_diagnostic_outputs(completed_rundir):

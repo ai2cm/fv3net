@@ -166,3 +166,14 @@ ENTRYPOINT [ "/entrypoint.sh" ]
 FROM bld AS test
 
 RUN pytest
+
+FROM bld
+
+COPY workflows/prognostic_c48_run/runfv3.sh /usr/local/bin/
+RUN chmod 755 /usr/local/bin/runfv3.sh
+
+# Document important environmental variables
+ENV GOOGLE_APPLICATION_CREDIATIALS ""
+ENV CONFIG "/mnt/data/fv3config.yaml"
+ENV RUNFILE "/mnt/data/runfile.py"
+ENV RUNDIR "/mtn/data/rundir"
