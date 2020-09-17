@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 GRAVITY = 9.81
 PRECIP_NAME = "total_precipitation"
 SST_NAME = "surface_temperature"
-SFC_TYPE_NAME = "land_sea_mask"
 
 RADIATION_NAMES = [
     "total_sky_downward_shortwave_flux_at_surface",
@@ -120,7 +119,7 @@ def sst_from_reference(
     return xr.where(
         land_sea_mask == 0,
         reference_surface_temperature,
-        surface_temperature)
+        surface_temperature).values
 
 
 def column_integrated_moistening(
@@ -321,6 +320,7 @@ if __name__ == "__main__":
                 tendencies["specific_humidity_tendency_due_to_nudging"],
                 timestep,
             )
+
         state[SST_NAME].view[:] = sst_from_reference(
             reference[SST_NAME], state[SST_NAME], state["land_sea_mask"])
         updated_state_members = {key: state[key] for key in updated_quantity_names}
