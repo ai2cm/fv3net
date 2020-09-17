@@ -7,7 +7,7 @@ spec:
     parameters:
       - name: fv3config
       - name: runfile
-      - name: fv3gfs-image  # any image with fv3gfs-wrapper and fv3config installed
+      - name: fv3gfs-image
       - name: output-url
       - name: post-process-image
       - {name: chunks, value: "{}"}
