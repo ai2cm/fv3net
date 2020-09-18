@@ -249,7 +249,7 @@ def batches_from_serialized(
             zarr and {prefix}_out.zarr
         sample_dims: Sequence of dimensions to stack as a single sample dimension
         savepoints_per_batch: Number of serialized savepoints to include in a single
-            batc
+            batch
     
     Returns:
         A seqence of batched serialized data ready for model testing/training
