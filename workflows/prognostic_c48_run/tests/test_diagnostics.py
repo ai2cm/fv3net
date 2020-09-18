@@ -27,14 +27,18 @@ def test_SelectedTimes_not_in_list():
     assert time not in times
 
 
+august_1 = datetime(year=2016, month=8, day=1, hour=0, minute=0)
+august_2 = datetime(year=2016, month=8, day=2, hour=0, minute=0)
+
+
 @pytest.mark.parametrize(
     "frequency, time, initial_time, expected",
     [
-        (900, datetime(year=2016, month=8, day=1, hour=0, minute=15), None, True),
-        (900, datetime(year=2016, month=8, day=1, hour=0, minute=16), None, False),
-        (900, datetime(year=2016, month=8, day=1, hour=12, minute=45), None, True),
-        (86400, datetime(year=2016, month=8, day=1, hour=0, minute=0), None, True),
-        (86400, datetime(year=2016, month=8, day=2, hour=0, minute=0), None, True),
+        (900, datetime(year=2016, month=8, day=1, hour=0, minute=15), august_1, True),
+        (900, datetime(year=2016, month=8, day=1, hour=0, minute=16), august_1, False),
+        (900, datetime(year=2016, month=8, day=1, hour=12, minute=45), august_1, True),
+        (86400, datetime(year=2016, month=8, day=1, hour=0, minute=0), august_1, True),
+        (86400, datetime(year=2016, month=8, day=2, hour=0, minute=0), august_2, True),
         pytest.param(
             5 * 60 * 60,
             datetime(year=2016, month=8, day=2),
@@ -54,11 +58,6 @@ def test_SelectedTimes_not_in_list():
 def test_IntervalTimes(frequency, time, initial_time, expected):
     times = diagnostics.IntervalTimes(frequency, initial_time)
     assert (time in times) == expected
-
-
-def test_IntervalTimes_frequency_over_day_raises_error():
-    with pytest.raises(ValueError):
-        diagnostics.IntervalTimes(86401)
 
 
 def test_DiagnosticFile_time_selection():
