@@ -21,6 +21,7 @@ spec:
     - name: external-volume
       persistentVolumeClaim:
         claimName: nudging-read-only
+        readOnly: true
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -31,6 +32,8 @@ spec:
       parameters:
         - name: image-tag
         - name: root
+        - name: train-routine
+          value: sklearn
         - name: train-test-data
         - name: training-config
         - name: train-times
@@ -51,12 +54,14 @@ spec:
       tasks:
       - name: train-model
         templateRef:
-          name: training-rf
-          template: training-rf
+          name: training
+          template: training
         arguments:
           parameters:
             - name: image
               value: "us.gcr.io/vcm-ml/fv3net:{{inputs.parameters.image-tag}}"
+            - name: routine
+              value: "fv3fit.{{inputs.parameters.train-routine}}"
             - name: input
               value: "{{inputs.parameters.train-test-data}}"
             - name: config

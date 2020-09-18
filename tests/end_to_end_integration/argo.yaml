@@ -21,6 +21,7 @@ spec:
     - name: restart-data
       persistentVolumeClaim:
         claimName: nudging-read-only
+        readOnly: true
     - name: gcp-key-secret
       secret:
         defaultMode: 420
@@ -37,6 +38,8 @@ spec:
           parameters:
           - name: fv3net-image
             value: "us.gcr.io/vcm-ml/fv3net:{{workflow.parameters.image-tag}}"
+          - name: fv3gfs-image
+            value: "us.gcr.io/vcm-ml/prognostic_run:{{workflow.parameters.image-tag}}"
           - name: post-process-image
             value: "us.gcr.io/vcm-ml/post_process_run:{{workflow.parameters.image-tag}}"
           - name: times

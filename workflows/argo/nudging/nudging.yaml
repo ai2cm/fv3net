@@ -9,7 +9,6 @@ spec:
       - name: nudging-config
       - name: output-url
       - name: fv3gfs-image
-        value: us.gcr.io/vcm-ml/fv3gfs-wrapper:46b1d8742ee220ebeb14942e0a0f43da963cc0cf
       - name: fv3net-image
         value: us.gcr.io/vcm-ml/fv3net:5cd4db3971ca10276cb6b22cfe6c22f3ea8297e8
       - name: post-process-image
@@ -34,6 +33,7 @@ spec:
     - name: restart-data
       persistentVolumeClaim:
         claimName: nudging-read-only
+        readOnly: true
     - name: gcp-key-secret
       secret:
         defaultMode: 420

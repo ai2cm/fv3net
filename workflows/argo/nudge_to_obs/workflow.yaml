@@ -32,6 +32,7 @@ spec:
     - name: restart-data
       persistentVolumeClaim:
         claimName: '{{workflow.parameters.restart-pvc}}'
+        readOnly: true
     - name: gcp-key-secret
       secret:
         defaultMode: 420

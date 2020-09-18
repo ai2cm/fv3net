@@ -1,3 +1,5 @@
+external/vcm/external/mappm/mappm.*.so*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

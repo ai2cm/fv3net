@@ -24,5 +24,3 @@ RUN pytest \
         --cov-report term \
         --cov-report html:htmlcov \
         /fv3fit/tests
-
-FROM bld
