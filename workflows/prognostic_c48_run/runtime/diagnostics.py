@@ -1,4 +1,4 @@
-from typing import Any, Sequence, Container, Mapping, List, Union, Optional
+from typing import Any, Sequence, Container, Mapping, List, Union
 import datetime
 import cftime
 import fv3gfs.util
@@ -49,15 +49,13 @@ class SelectedTimes(Container[cftime.DatetimeJulian]):
 
 class IntervalTimes(Container[cftime.DatetimeJulian]):
     def __init__(
-        self,
-        frequency_seconds: Union[float, int],
-        initial_time: Optional[cftime.DatetimeJulian] = None,
+        self, frequency_seconds: Union[float, int], initial_time: cftime.DatetimeJulian,
     ):
         """
         Args:
             frequency_seconds: the output frequency from the initial time
-            initial_time: the initial time to start the period. midnight of
-                the day for each timestep is used by default.
+            initial_time: the initial time to start the period
+            
         """
         self._frequency_seconds = frequency_seconds
         self.initial_time = initial_time
@@ -71,9 +69,7 @@ class IntervalTimes(Container[cftime.DatetimeJulian]):
         return datetime.timedelta(seconds=self._frequency_seconds)
 
     def __contains__(self, time) -> bool:
-        midnight = time.replace(hour=0, minute=0, second=0, microsecond=0)
-        initial_time = self.initial_time or midnight
-        time_since_initial_time = time - initial_time
+        time_since_initial_time = time - self.initial_time
         quotient = time_since_initial_time % self.frequency
         return quotient == datetime.timedelta(seconds=0)
 
@@ -143,7 +139,7 @@ class DiagnosticFile:
 
 
 def _get_times(
-    d, initial_time: Optional[cftime.DatetimeJulian]
+    d, initial_time: cftime.DatetimeJulian
 ) -> Container[cftime.DatetimeJulian]:
     kind = d.get("kind", "every")
     if kind == "interval":
@@ -157,10 +153,7 @@ def _get_times(
 
 
 def _config_to_diagnostic_file(
-    diag_file_config: Mapping,
-    partitioner,
-    comm,
-    initial_time: Optional[cftime.DatetimeJulian],
+    diag_file_config: Mapping, partitioner, comm, initial_time: cftime.DatetimeJulian,
 ) -> DiagnosticFile:
     monitor = fv3gfs.util.ZarrMonitor(
         diag_file_config["name"], partitioner, mpi_comm=comm
@@ -176,7 +169,7 @@ def get_diagnostic_files(
     config: Mapping,
     partitioner: fv3gfs.util.CubedSpherePartitioner,
     comm,
-    initial_time: Optional[cftime.DatetimeJulian],
+    initial_time: cftime.DatetimeJulian,
 ) -> List[DiagnosticFile]:
     """Initialize a list of diagnostic file objects from a configuration dictionary
     Note- the default here is to save all the variables in the diagnostics.
