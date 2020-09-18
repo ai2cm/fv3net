@@ -3,8 +3,9 @@ import os
 import fsspec
 import xarray as xr
 import numpy as np
-
 from typing import Sequence, Union
+
+import vcm.safe as safe
 
 
 logger = logging.getLogger(__name__)
@@ -63,7 +64,7 @@ class FlattenDims(Sequence[xr.Dataset]):
             f"Stacking dimensions into {self.sample_dim_name}: {dims_to_stack}"
         )
 
-        stacked_sample_only = ds.stack({self.sample_dim_name: dims_to_stack})
+        stacked_sample_only = safe.stack_once(ds, self.sample_dim_name, dims_to_stack)
         flat_2d = _separate_by_extra_feature_dim(stacked_sample_only)
         flat_2d = _check_sample_first(flat_2d, self.sample_dim_name)
 
@@ -108,7 +109,7 @@ def _find_tracer_dim(dims):
         return tracer_dims[0]
 
 
-def _stack_extra_features(ds, sample_dim_name):
+def _stack_extra_features(ds: xr.Dataset, sample_dim_name: str) -> xr.Dataset:
 
     """
     Need 2D variables for ML, but serialized turbulence had a tracer dim after
