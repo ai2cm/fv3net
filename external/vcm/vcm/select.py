@@ -41,7 +41,7 @@ def _roi_average(
 
     stacked = dataset.stack(space=dims)
     grid = stacked
-    lon_bounds_pos = [lon + 360.0 if lon < 0 else lon for lon in lon_bounds]
+    lon_bounds_pos = [lon % 360.0 for lon in lon_bounds]
     lat_mask = (grid.lat > lat_bounds[0]) & (grid.lat < lat_bounds[1])
     lon_mask = (grid.lon > lon_bounds_pos[0]) & (grid.lon < lon_bounds_pos[1])
 
