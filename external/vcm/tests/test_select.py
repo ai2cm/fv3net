@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 from vcm.cubedsphere.constants import COORD_X_CENTER, COORD_Y_CENTER
-from vcm.select import mask_to_surface_type, get_latlon_grid_coords, _roi_average
+from vcm.select import mask_to_surface_type, get_latlon_grid_coords, RegionOfInterest
 
 
 @pytest.fixture()
@@ -94,7 +94,8 @@ def test_get_latlon_grid_coords(test_latlon_grid):
         pytest.param((0.0, 3.0), (0.0, 3.0), 1.0, id="test lat/lon selection"),
     ],
 )
-def test__roi_average(lat_bounds, lon_bounds, expected_avg):
+def test_roi_average(lat_bounds, lon_bounds, expected_avg):
+    roi = RegionOfInterest(lat_bounds, lon_bounds)
     xrange, yrange = 5, 5
     spike_value = 3
     area = [
@@ -119,5 +120,4 @@ def test__roi_average(lat_bounds, lon_bounds, expected_avg):
             "area": (["x", "y"], area),
         }
     )
-
-    assert _roi_average(ds, lat_bounds, lon_bounds)["var"].values == expected_avg
+    assert roi.average(ds)["var"].values == expected_avg
