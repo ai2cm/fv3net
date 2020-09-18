@@ -11,10 +11,11 @@ SAMPLE_DIM_NAME = "sample"
 @pytest.fixture
 def xr_data():
     data = np.random.randn(10, 15, 20, 8)
-    dims = ["savepoint", "horiz", "feature", "tracer"]
+    dims = ["savepoint", "horiz", "feature", "tracer_num"]
     reg = xr.DataArray(data=data[:, :, :, 0], dims=dims[:3])
     reg = reg.to_dataset(name="field")
     reg["field_with_tracer"] = xr.DataArray(data=data, dims=dims)
+
     return reg
 
 
@@ -52,8 +53,8 @@ def test__find_tracer_dim():
     with pytest.raises(ValueError):
         sp._find_tracer_dim(["tracer1", "tracer2"])
 
-    tracer_dim = sp._find_tracer_dim(["horiz", "tracer", "vert"])
-    assert tracer_dim == "tracer"
+    tracer_dim = sp._find_tracer_dim(["horiz", "tracer_num", "vert"])
+    assert tracer_dim == "tracer_num"
 
 
 @pytest.fixture()
@@ -72,14 +73,57 @@ def test__separate_by_extra_feature_dim_separated_var(tracer_dataset):
 
     flattened = sp._separate_by_extra_feature_dim(tracer_dataset)
 
-    for i in range(tracer_dataset.dims["tracer"]):
+    for i in range(tracer_dataset.dims["tracer_num"]):
         separated_var = f"field_with_tracer_{i}"
         assert separated_var in flattened
         xr.testing.assert_equal(
-            tracer_dataset["field_with_tracer"].isel(tracer=i), flattened[separated_var]
+            tracer_dataset["field_with_tracer"].isel(tracer_num=i),
+            flattened[separated_var],
         )
 
     assert "field_with_tracer" not in flattened
+
+
+def test__stack_extra_feature_dim(tracer_dataset):
+
+    flattened = sp._stack_extra_features(tracer_dataset, SAMPLE_DIM_NAME)
+
+    for da in flattened.values():
+        assert da.ndim <= 2
+
+
+def test__stack_extra_feature_dim_multi_feature():
+
+    more_data = np.random.randn(15, 21, 8, 4)
+    ds = xr.Dataset(
+        {
+            "three_features": (
+                [SAMPLE_DIM_NAME, "feature_plus_one", "tracer_num", "zy_extra_feature"],
+                more_data,
+            ),
+            "two_features": (
+                [SAMPLE_DIM_NAME, "feature_plus_one", "tracer_num"],
+                more_data[..., 0],
+            ),
+            "two_features_diff_dimsize": (
+                [SAMPLE_DIM_NAME, "feature", "tracer_num"],
+                more_data[:, :20, :, 1],
+            ),
+        }
+    )
+    flattened = sp._stack_extra_features(ds, SAMPLE_DIM_NAME)
+
+    for var in ds:
+        assert var in flattened
+        assert flattened[var].sizes[SAMPLE_DIM_NAME] == 15
+
+    # check contents of three features variable
+    # Note: extra dimensions other than
+    # sample are sorted for stack in _stack_extra_features, so in order to be
+    # equivalent to numpy flatten, the dims are specified in alphabetical order
+    np.testing.assert_equal(
+        flattened["three_features"].values, more_data.reshape(15, 21 * 8 * 4)
+    )
 
 
 def test_FlatSerialSeq(xr_data):
