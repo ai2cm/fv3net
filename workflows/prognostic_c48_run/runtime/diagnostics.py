@@ -1,5 +1,6 @@
 from typing import Any, Sequence, Container, Mapping, List, Union
-from datetime import datetime, timedelta
+import datetime
+import cftime
 import fv3gfs.util
 
 import xarray as xr
@@ -22,7 +23,7 @@ class All(Container):
         return True
 
 
-class SelectedTimes(Container[datetime]):
+class SelectedTimes(Container[cftime.DatetimeJulian]):
     TIME_FMT: str = r"%Y%m%d.%H%M%S"
 
     def __init__(self, times=Sequence[str]):
@@ -32,28 +33,45 @@ class SelectedTimes(Container[datetime]):
         self.times
 
     @property
-    def times(self) -> Sequence[datetime]:
-        return [datetime.strptime(time, self.TIME_FMT) for time in self._time_stamps]
+    def _times(self) -> Sequence[datetime.datetime]:
+        return [
+            datetime.datetime.strptime(time, self.TIME_FMT)
+            for time in self._time_stamps
+        ]
 
-    def __contains__(self, time) -> bool:
+    @property
+    def times(self) -> Sequence[cftime.DatetimeJulian]:
+        return [cftime.DatetimeJulian(*time.timetuple()) for time in self._times]
+
+    def __contains__(self, time: cftime.DatetimeJulian) -> bool:
         return time in self.times
 
 
-class IntervalTimes(Container[datetime]):
-    def __init__(self, frequency_seconds: Union[float, int]):
+class IntervalTimes(Container[cftime.DatetimeJulian]):
+    def __init__(
+        self, frequency_seconds: Union[float, int], initial_time: cftime.DatetimeJulian,
+    ):
+        """
+        Args:
+            frequency_seconds: the output frequency from the initial time
+            initial_time: the initial time to start the period
+            
+        """
         self._frequency_seconds = frequency_seconds
-        if self.frequency > timedelta(days=1.0):
-            raise ValueError("Minimum output frequency is daily.")
+        self.initial_time = initial_time
+        if self.frequency > datetime.timedelta(days=1.0) and initial_time is None:
+            raise ValueError(
+                "Minimum output frequency is daily when intial_time is not provided."
+            )
 
     @property
-    def frequency(self) -> timedelta:
-        return timedelta(seconds=self._frequency_seconds)
+    def frequency(self) -> datetime.timedelta:
+        return datetime.timedelta(seconds=self._frequency_seconds)
 
     def __contains__(self, time) -> bool:
-        midnight = time.replace(hour=0, minute=0, second=0, microsecond=0)
-        time_since_midnight = time - midnight
-        quotient = time_since_midnight % self.frequency
-        return quotient == timedelta(seconds=0)
+        time_since_initial_time = time - self.initial_time
+        quotient = time_since_initial_time % self.frequency
+        return quotient == datetime.timedelta(seconds=0)
 
 
 def _assign_units_if_none_present(array: xr.DataArray, units=None):
@@ -73,7 +91,7 @@ class DiagnosticFile:
     def __init__(
         self,
         monitor: fv3gfs.util.ZarrMonitor,
-        times: Container[datetime],
+        times: Container[cftime.DatetimeJulian],
         variables: Container,
     ):
         """
@@ -99,7 +117,9 @@ class DiagnosticFile:
         self.times = times
         self.variables = variables
 
-    def observe(self, time: datetime, diagnostics: Mapping[str, xr.DataArray]):
+    def observe(
+        self, time: cftime.DatetimeJulian, diagnostics: Mapping[str, xr.DataArray]
+    ):
         """Possibly store the data into the monitor
         """
         if time in self.times:
@@ -118,10 +138,12 @@ class DiagnosticFile:
             self._monitor.store(quantities)
 
 
-def _get_times(d) -> Container[datetime]:
+def _get_times(
+    d, initial_time: cftime.DatetimeJulian
+) -> Container[cftime.DatetimeJulian]:
     kind = d.get("kind", "every")
     if kind == "interval":
-        return IntervalTimes(d["frequency"])
+        return IntervalTimes(d["frequency"], initial_time)
     elif kind == "selected":
         return SelectedTimes(d["times"])
     elif kind == "every":
@@ -131,7 +153,7 @@ def _get_times(d) -> Container[datetime]:
 
 
 def _config_to_diagnostic_file(
-    diag_file_config: Mapping, partitioner, comm
+    diag_file_config: Mapping, partitioner, comm, initial_time: cftime.DatetimeJulian,
 ) -> DiagnosticFile:
     monitor = fv3gfs.util.ZarrMonitor(
         diag_file_config["name"], partitioner, mpi_comm=comm
@@ -139,12 +161,15 @@ def _config_to_diagnostic_file(
     return DiagnosticFile(
         monitor=monitor,
         variables=diag_file_config.get("variables", All()),
-        times=_get_times(diag_file_config.get("times", {})),
+        times=_get_times(diag_file_config.get("times", {}), initial_time),
     )
 
 
 def get_diagnostic_files(
-    config: Mapping, partitioner: fv3gfs.util.CubedSpherePartitioner, comm
+    config: Mapping,
+    partitioner: fv3gfs.util.CubedSpherePartitioner,
+    comm,
+    initial_time: cftime.DatetimeJulian,
 ) -> List[DiagnosticFile]:
     """Initialize a list of diagnostic file objects from a configuration dictionary
     Note- the default here is to save all the variables in the diagnostics.
@@ -157,16 +182,19 @@ def get_diagnostic_files(
         paritioner: a partioner object used for writing, maybe it would be
             cleaner to pass a factory
         comm: an MPI Comm object
+        initial_time: the initial time of the simulation.
 
     """
     diag_configs = config.get("diagnostics", [])
     if len(diag_configs) > 0:
         return [
-            _config_to_diagnostic_file(config, partitioner, comm)
+            _config_to_diagnostic_file(config, partitioner, comm, initial_time)
             for config in diag_configs
         ]
     else:
         # Keep old behavior for backwards compatiblity
         output_name = config["scikit_learn"]["zarr_output"]
         default_config = {"name": output_name, "times": {}, "variables": All()}
-        return [_config_to_diagnostic_file(default_config, partitioner, comm)]
+        return [
+            _config_to_diagnostic_file(default_config, partitioner, comm, initial_time)
+        ]
