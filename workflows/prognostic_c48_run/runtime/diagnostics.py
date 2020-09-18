@@ -1,5 +1,6 @@
-from typing import Any, Sequence, Container, Mapping, List, Union
-from datetime import datetime, timedelta
+from typing import Any, Sequence, Container, Mapping, List, Union, Optional
+from datetime import timedelta
+from cftime import DatetimeJulian as datetime
 import fv3gfs.util
 
 import xarray as xr
@@ -40,10 +41,23 @@ class SelectedTimes(Container[datetime]):
 
 
 class IntervalTimes(Container[datetime]):
-    def __init__(self, frequency_seconds: Union[float, int]):
+    def __init__(
+        self,
+        frequency_seconds: Union[float, int],
+        initial_time: Optional[datetime] = None,
+    ):
+        """
+        Args:
+            frequency_seconds: the output frequency from the initial time
+            initial_time: the initial time to start the period. midnight of
+                the day for each timestep is used by default.
+        """
         self._frequency_seconds = frequency_seconds
-        if self.frequency > timedelta(days=1.0):
-            raise ValueError("Minimum output frequency is daily.")
+        self.initial_time = initial_time
+        if self.frequency > timedelta(days=1.0) and initial_time is None:
+            raise ValueError(
+                "Minimum output frequency is daily when intial_time is not provided."
+            )
 
     @property
     def frequency(self) -> timedelta:
@@ -51,8 +65,9 @@ class IntervalTimes(Container[datetime]):
 
     def __contains__(self, time) -> bool:
         midnight = time.replace(hour=0, minute=0, second=0, microsecond=0)
-        time_since_midnight = time - midnight
-        quotient = time_since_midnight % self.frequency
+        initial_time = self.initial_time or midnight
+        time_since_initial_time = time - initial_time
+        quotient = time_since_initial_time % self.frequency
         return quotient == timedelta(seconds=0)
 
 
@@ -118,10 +133,10 @@ class DiagnosticFile:
             self._monitor.store(quantities)
 
 
-def _get_times(d) -> Container[datetime]:
+def _get_times(d, initial_time: Optional[datetime]) -> Container[datetime]:
     kind = d.get("kind", "every")
     if kind == "interval":
-        return IntervalTimes(d["frequency"])
+        return IntervalTimes(d["frequency"], initial_time)
     elif kind == "selected":
         return SelectedTimes(d["times"])
     elif kind == "every":
@@ -131,7 +146,7 @@ def _get_times(d) -> Container[datetime]:
 
 
 def _config_to_diagnostic_file(
-    diag_file_config: Mapping, partitioner, comm
+    diag_file_config: Mapping, partitioner, comm, initial_time: Optional[datetime]
 ) -> DiagnosticFile:
     monitor = fv3gfs.util.ZarrMonitor(
         diag_file_config["name"], partitioner, mpi_comm=comm
@@ -139,12 +154,15 @@ def _config_to_diagnostic_file(
     return DiagnosticFile(
         monitor=monitor,
         variables=diag_file_config.get("variables", All()),
-        times=_get_times(diag_file_config.get("times", {})),
+        times=_get_times(diag_file_config.get("times", {}), initial_time),
     )
 
 
 def get_diagnostic_files(
-    config: Mapping, partitioner: fv3gfs.util.CubedSpherePartitioner, comm
+    config: Mapping,
+    partitioner: fv3gfs.util.CubedSpherePartitioner,
+    comm,
+    initial_time: Optional[datetime],
 ) -> List[DiagnosticFile]:
     """Initialize a list of diagnostic file objects from a configuration dictionary
     Note- the default here is to save all the variables in the diagnostics.
@@ -157,16 +175,19 @@ def get_diagnostic_files(
         paritioner: a partioner object used for writing, maybe it would be
             cleaner to pass a factory
         comm: an MPI Comm object
+        initial_time: the initial time of the simulation.
 
     """
     diag_configs = config.get("diagnostics", [])
     if len(diag_configs) > 0:
         return [
-            _config_to_diagnostic_file(config, partitioner, comm)
+            _config_to_diagnostic_file(config, partitioner, comm, initial_time)
             for config in diag_configs
         ]
     else:
         # Keep old behavior for backwards compatiblity
         output_name = config["scikit_learn"]["zarr_output"]
         default_config = {"name": output_name, "times": {}, "variables": All()}
-        return [_config_to_diagnostic_file(default_config, partitioner, comm)]
+        return [
+            _config_to_diagnostic_file(default_config, partitioner, comm, initial_time)
+        ]
