@@ -229,10 +229,11 @@ def _load_sample_using_chunk(da: xr.DataArray) -> xr.DataArray:
 
     try:
         chunk = da.data.chunksize
-        select = {dim: slice(0, chunk[i]) for i, dim in enumerate(da.dims)}
-        sample = da.isel(**select).load()
     except AttributeError:
         logger.debug("No chunksize attribute. Data already loaded.")
         sample = da
+    else:
+        select = {dim: slice(0, chunk[i]) for i, dim in enumerate(da.dims)}
+        sample = da.isel(**select).load()
 
     return sample
