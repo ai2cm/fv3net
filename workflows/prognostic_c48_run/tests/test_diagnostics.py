@@ -1,4 +1,4 @@
-from datetime import datetime
+from cftime import DatetimeJulian as datetime
 from unittest.mock import Mock
 
 import pytest
@@ -28,17 +28,31 @@ def test_SelectedTimes_not_in_list():
 
 
 @pytest.mark.parametrize(
-    "frequency, time, expected",
+    "frequency, time, initial_time, expected",
     [
-        (900, datetime(year=2016, month=8, day=1, hour=0, minute=15), True),
-        (900, datetime(year=2016, month=8, day=1, hour=0, minute=16), False),
-        (900, datetime(year=2016, month=8, day=1, hour=12, minute=45), True),
-        (86400, datetime(year=2016, month=8, day=1, hour=0, minute=0), True),
-        (86400, datetime(year=2016, month=8, day=2, hour=0, minute=0), True),
+        (900, datetime(year=2016, month=8, day=1, hour=0, minute=15), None, True),
+        (900, datetime(year=2016, month=8, day=1, hour=0, minute=16), None, False),
+        (900, datetime(year=2016, month=8, day=1, hour=12, minute=45), None, True),
+        (86400, datetime(year=2016, month=8, day=1, hour=0, minute=0), None, True),
+        (86400, datetime(year=2016, month=8, day=2, hour=0, minute=0), None, True),
+        pytest.param(
+            5 * 60 * 60,
+            datetime(year=2016, month=8, day=2),
+            datetime(year=2016, month=8, day=1),
+            False,
+            id="5hourlyFalse",
+        ),
+        pytest.param(
+            5 * 60 * 60,
+            datetime(year=2016, month=8, day=2, hour=1),
+            datetime(year=2016, month=8, day=1),
+            True,
+            id="5hourlyTrue",
+        ),
     ],
 )
-def test_IntervalTimes(frequency, time, expected):
-    times = diagnostics.IntervalTimes(frequency)
+def test_IntervalTimes(frequency, time, initial_time, expected):
+    times = diagnostics.IntervalTimes(frequency, initial_time)
     assert (time in times) == expected
 
 
