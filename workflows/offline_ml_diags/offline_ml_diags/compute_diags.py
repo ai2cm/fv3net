@@ -173,9 +173,13 @@ def _get_base_mapper(args, config: Mapping):
 def _get_prediction_mapper(args, config: Mapping):
     base_mapper = _get_base_mapper(args, config)
     logger.info("Opening ML model")
-    model_loader = getattr(
-        model_loaders, config.get("model_loader", "load_sklearn_model")
+    model_type = config.get("model_type", "sklearn_random_forest")
+    model_loader_str = (
+        "load_sklearn_model"
+        if (("rf" in model_type) or ("randomforest" in model_type))
+        else "load_keras_model"
     )
+    model_loader = getattr(model_loaders, model_loader_str, "load_sklearn_model")
     model = model_loader(args.model_path, **config.get("model_loader_kwargs", {}))
     model_mapper_kwargs = config.get("model_mapper_kwargs", {})
     if "cos_zenith_angle" in config["input_variables"]:

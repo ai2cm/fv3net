@@ -66,20 +66,11 @@ model_loader: load_keras_model
 ```
 
 
-Example sklearn usage (from top level of `fv3net`): 
+Example usage (from top level of `fv3net`): 
 ```
 python -m offline_ml_diags.compute_diags \
     workflows/offline_ml_diags/tests/config.yml \
-    gs://vcm-ml-scratch/andrep/test-nudging-workflow/train_sklearn_model/sklearn_model.pkl \
-    gs://vcm-ml-scratch/annak/test-offline-validation-workflow \
-    --timesteps-file workflows/offline_ml_diags/tests/times.json
-```
-
-Example keras usage (from top level of `fv3net`): 
-```
-python -m offline_ml_diags.compute_diags \
-    workflows/offline_ml_diags/tests/config.yml \
-    gs://vcm-ml-scratch/brianh/train-keras-model-testing/fv3fit-unified/model_data \
+    gs://vcm-ml-scratch/andrep/test-nudging-workflow/train_sklearn_model \
     gs://vcm-ml-scratch/annak/test-offline-validation-workflow \
     --timesteps-file workflows/offline_ml_diags/tests/times.json
 ```
