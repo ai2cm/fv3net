@@ -7,7 +7,7 @@ spec:
     parameters:
       - name: fv3config
       - name: runfile
-      - name: fv3gfs-image  # any image with fv3gfs-wrapper and fv3config installed
+      - name: fv3gfs-image
       - name: output-url
       - name: post-process-image
       - {name: chunks, value: "{}"}
@@ -132,6 +132,8 @@ spec:
         - name: external-volume-name
     steps:
       - - name: run-model
+          continueOn:
+            failed: true
           template: run-model
           arguments:
             parameters:
@@ -147,12 +149,20 @@ spec:
               - {name: post-process-image, value: "{{inputs.parameters.post-process-image}}"}
               - {name: output-url, value: "{{inputs.parameters.output-url}}"}
               - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+      - - name: exit-if-run-model-failed
+          template: exit
+          when: "{{steps.run-model.exitCode}} != 0"
       - - name: update-config
           template: update-config
           arguments:
             parameters:
               - {name: restarts-url, value: "/mnt/data/RESTART"}
               - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
+  - name: exit
+    container:
+      image: alpine:latest
+      command: [sh, -c]
+      args: ["echo Model run crashed. Available outputs have been uploaded to specified output-url.; exit 1"]
   - name: run-model
     inputs:
       parameters:
@@ -178,12 +188,8 @@ spec:
               memory: "{{inputs.parameters.memory}}"
     container:
       image: '{{inputs.parameters.fv3gfs-image}}'
-      command:
-        - python
-        - -m
-        - fv3config.fv3run._native_main
-        - '[["/mnt/data/fv3config.yaml", "/mnt/data/rundir"],
-          {"runfile": "/mnt/data/runfile.py", "capture_output": false}]'
+      command: [runfv3.sh]
+      args: [/mnt/data/fv3config.yaml, /mnt/data/rundir, /mnt/data/runfile.py]
       env:
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /secret/gcp-credentials/key.json
