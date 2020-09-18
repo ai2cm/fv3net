@@ -29,6 +29,7 @@ IC_PATH = BASE_FV3CONFIG_CACHE.joinpath(
 )
 ORO_PATH = BASE_FV3CONFIG_CACHE.joinpath("orographic_data", "v1.0")
 FORCING_PATH = BASE_FV3CONFIG_CACHE.joinpath("base_forcing", "v1.1")
+LOG_PATH = "logs.txt"
 
 default_fv3config = rf"""
 data_table: default
@@ -492,8 +493,15 @@ def completed_rundir(request, tmpdir_factory):
         model_path = _save_mock_keras_model(tmpdir)
 
     runfile = Path(__file__).parent.parent.joinpath("sklearn_runfile.py").as_posix()
+    fv3_script = Path(__file__).parent.parent.joinpath("runfv3.sh").as_posix()
     config = get_prognostic_config(request.param, model_path)
-    fv3config.run_native(config, str(tmpdir), runfile=runfile, capture_output=True)
+
+    config_path = str(tmpdir.join("fv3config.yaml"))
+
+    with open(config_path, "w") as f:
+        yaml.safe_dump(config, f)
+
+    subprocess.check_call([fv3_script, config_path, str(tmpdir), runfile])
     return tmpdir
 
 
@@ -517,6 +525,10 @@ def test_fv3run_checksum_restarts(completed_rundir):
         )
 
 
+def test_fv3run_logs_present(completed_rundir):
+    assert completed_rundir.join(LOG_PATH).exists()
+
+
 def test_fv3run_diagnostic_outputs(completed_rundir):
     """Please do not add more test cases here as this test slows image build time.
     Additional Predictor model types and configurations should be tested against
@@ -538,7 +550,7 @@ def test_fv3run_diagnostic_outputs(completed_rundir):
 def test_fv3run_python_mass_conserving(completed_rundir):
     data_lines = []
 
-    path = str(completed_rundir.join("stdout.log"))
+    path = str(completed_rundir.join(LOG_PATH))
 
     # read python mass conservation info
     with open(path) as f:

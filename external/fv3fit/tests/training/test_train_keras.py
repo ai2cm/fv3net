@@ -115,7 +115,6 @@ def test_training_integration(
             data_source_path,
             train_config_filename,
             tmp_path,
-            "--no-train-subdir-append",
         ]
     )
     required_names = ["model_data", "training_config.yml"]
