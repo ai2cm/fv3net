@@ -35,13 +35,13 @@ def test_implied_precipitation(quantity, timestep):
     assert isinstance(output, np.ndarray)
 
 
-def test_sst_set_to_reference():
-    land_sea_mask = xr.DataArray(
-        np.array([0., 1., 2.]), dims=["x"])
-    reference_sfc_temp = xr.DataArray(
-        np.array([1., 1., 1.]), dims=["x"])
-    model_sfc_temp = xr.DataArray(
-        np.array([-1., -1., -1.]), dims=["x"])
+def test_sst_set_to_reference(quantity):
+    land_sea_mask = Quantity.from_data_array(xr.DataArray(
+        np.array([0., 1., 2.]), dims=["x"], attrs={"units": None}))
+    reference_sfc_temp = Quantity.from_data_array(xr.DataArray(
+        np.array([1., 1., 1.]), dims=["x"], attrs={"units": "degK"}))
+    model_sfc_temp = Quantity.from_data_array(xr.DataArray(
+        np.array([-1., -1., -1.]), dims=["x"], attrs={"units": "degK"}))
     assert np.allclose(
         sst_from_reference(reference_sfc_temp, model_sfc_temp, land_sea_mask),
         [1., -1., -1.]
