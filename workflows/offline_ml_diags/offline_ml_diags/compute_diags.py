@@ -170,17 +170,27 @@ def _get_base_mapper(args, config: Mapping):
     )
 
 
+def _get_model(config: Mapping):
+    model_type_str = config.get("model_type", "sklearn_random_forest")
+    model_routine = (
+        "sklearn"
+        if (("rf" in model_type_str) or ("randomforest" in model_type_str))
+        else "keras"
+    )
+    model_loader_str = (
+        "load_sklearn_model" if model_routine == "sklearn" else "load_keras_model"
+    )
+    model_loader = getattr(model_loaders, model_loader_str, "load_sklearn_model")
+    loader_kwargs = (
+        {"keras_model_type": model_type_str} if model_routine == "keras" else {}
+    )
+    return model_loader(args.model_path, **loader_kwargs)
+
+
 def _get_prediction_mapper(args, config: Mapping):
     base_mapper = _get_base_mapper(args, config)
     logger.info("Opening ML model")
-    model_type = config.get("model_type", "sklearn_random_forest")
-    model_loader_str = (
-        "load_sklearn_model"
-        if (("rf" in model_type) or ("randomforest" in model_type))
-        else "load_keras_model"
-    )
-    model_loader = getattr(model_loaders, model_loader_str, "load_sklearn_model")
-    model = model_loader(args.model_path, **config.get("model_loader_kwargs", {}))
+    model = _get_model(config)
     model_mapper_kwargs = config.get("model_mapper_kwargs", {})
     if "cos_zenith_angle" in config["input_variables"]:
         model_mapper_kwargs["cos_z_var"] = "cos_zenith_angle"

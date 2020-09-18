@@ -43,7 +43,7 @@ variables:
   - surface_geopotential
   - net_precipitation
   - net_heating
-model_loader: load_sklearn_model
+model_type: sklearn_random_forest
 model_mapper_kwargs:
   cos_z_var: cos_zenith_angle
 mapping_function: open_fine_resolution_nudging_hybrid
@@ -59,12 +59,6 @@ batch_kwargs:
   timesteps_per_batch: 10
 data_path: this_isnt_used_for_hybrid_mapper
 ```
-
-For keras models, the model loader config line should be:
-```
-model_loader: load_keras_model
-```
-
 
 Example usage (from top level of `fv3net`): 
 ```
