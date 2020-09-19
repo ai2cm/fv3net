@@ -40,7 +40,7 @@ DIURNAL_VARS = [
     "column_integrated_Q2",
 ]
 SHIELD_DERIVATION_COORD = "coarsened_SHiELD"
-
+KERAS_MODELS = ["DenseModel"]
 DIURNAL_NC_NAME = "diurnal_cycle.nc"
 METRICS_JSON_NAME = "scalar_metrics.json"
 
@@ -170,13 +170,33 @@ def _get_base_mapper(args, config: Mapping):
     )
 
 
+def _get_model_loader(config: Mapping):
+    model_type_str = (
+        config.get("model_type", "sklearn_random_forest")
+        .replace(" ", "")
+        .replace("_", "")
+    )
+    if ("rf" in model_type_str) or ("randomforest" in model_type_str):
+        model_routine = "sklearn"
+    elif model_type_str in KERAS_MODELS:
+        model_routine = "keras"
+    else:
+        raise (AttributeError(f"Invalid model_type: {model_type_str}"))
+    model_loader_str = (
+        "load_sklearn_model" if model_routine == "sklearn" else "load_keras_model"
+    )
+    model_loader = getattr(model_loaders, model_loader_str)
+    loader_kwargs = (
+        {"keras_model_type": model_type_str} if model_routine == "keras" else {}
+    )
+    return model_loader, loader_kwargs
+
+
 def _get_prediction_mapper(args, config: Mapping):
     base_mapper = _get_base_mapper(args, config)
     logger.info("Opening ML model")
-    model_loader = getattr(
-        model_loaders, config.get("model_loader", "load_sklearn_model")
-    )
-    model = model_loader(args.model_path, **config.get("model_loader_kwargs", {}))
+    model_loader, loader_kwargs = _get_model_loader(config)
+    model = model_loader(args.model_path, **loader_kwargs)
     model_mapper_kwargs = config.get("model_mapper_kwargs", {})
     if "cos_zenith_angle" in config["input_variables"]:
         model_mapper_kwargs["cos_z_var"] = "cos_zenith_angle"
