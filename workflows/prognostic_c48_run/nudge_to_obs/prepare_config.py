@@ -20,6 +20,12 @@ def parse_args():
         help="path to GFS analysis files",
         default="gs://vcm-ml-data/2019-12-02-year-2016-T85-nudging-data",
     )
+    parser.add_argument(
+        "--segment-count",
+        type=int,
+        help="number of segments for run-fv3gfs. Used for output times.",
+        default=1,
+    )
     return parser.parse_args()
 
 
@@ -57,8 +63,10 @@ if __name__ == "__main__":
 
     current_date = config["namelist"]["coupler_nml"]["current_date"]
     output_frequency = timedelta(hours=config["namelist"]["atmos_model_nml"]["fhout"])
-    total_run_duration = fv3config.get_run_duration(config)
-    output_times = get_output_times(current_date, total_run_duration, output_frequency)
+    run_duration = fv3config.get_run_duration(config)
+    output_times = get_output_times(
+        current_date, args.segment_count * run_duration, output_frequency
+    )
 
     config = vcm.update_nested_dict(
         config, {"runfile_output": {"output_times": output_times}},
@@ -71,7 +79,7 @@ if __name__ == "__main__":
             copy_method = "link"
 
         nudge_overlay = fv3kube.enable_nudge_to_observations(
-            total_run_duration,
+            run_duration,
             current_date,
             nudge_url=args.nudge_url,
             copy_method=copy_method,

@@ -80,6 +80,7 @@ spec:
                 - {name: fv3net-image, value: "{{inputs.parameters.fv3net-image}}"}
                 - {name: nudging-config, value: "{{inputs.parameters.nudging-config}}"}
                 - {name: nudge-url, value: "{{inputs.parameters.nudge-url}}"}
+                - {name: segment-count, value: "{{inputs.parameters.segment-count}}"}
         - - name: run-model
             templateRef:
               name: run-fv3gfs
@@ -103,6 +104,7 @@ spec:
           - {name: fv3net-image}
           - {name: nudging-config}
           - {name: nudge-url}
+          - name: segment-count
       outputs:
         parameters:
           - {name: fv3config, valueFrom: {path: /tmp/fv3config.yaml}}
@@ -120,4 +122,5 @@ spec:
         - |
           echo "{{inputs.parameters.nudging-config}}" > config.yaml
           python prepare_config.py --nudge-url "{{inputs.parameters.nudge-url}}" \
+              --segment-count "{{inputs.parameters.segment-count}}" \
               config.yaml > /tmp/fv3config.yaml
