@@ -45,20 +45,28 @@ class ArrayPacker:
         self,
         sample_dim_name,
         pack_names: Iterable[str],
-        feature_dim_slice: Iterable[Optional[int]] = (None,),
+        feature_dim_slices: Mapping[str, Iterable[Optional[int]]] = None,
     ):
         """Initialize the ArrayPacker.
 
         Args:
             sample_dim_name: dimension name to treat as the sample dimension
             pack_names: variable pack_names to pack
-            feature_dim_slice: optional tuple representing slice arguments for
-                selecting data subset along the feature dimension of each variable
+            feature_dim_slices: optional mapping between input variable names and
+                tuples representing slice arguments for selecting data subsets along
+                the feature dimension of each named variable
         """
         self._pack_names = list(pack_names)
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
-        self._feature_dim_slice = slice(*feature_dim_slice)
+        feature_dim_slices = feature_dim_slices or {}
+        self._feature_dim_slices = {name: slice(None) for name in pack_names}
+        self._feature_dim_slices.update(
+            {
+                variable_name: slice(*feature_dim_slice)
+                for variable_name, feature_dim_slice in feature_dim_slices.items()
+            }
+        )
         self._dims: Dict[str, Iterable[str]] = {}
 
     @property
@@ -107,7 +115,7 @@ class ArrayPacker:
                     self.pack_names,
                     dataset,
                     self._sample_dim_name,
-                    self._feature_dim_slice,
+                    self._feature_dim_slices,
                 )
             )
             for name in self.pack_names:
@@ -116,7 +124,7 @@ class ArrayPacker:
             if dataset[var].dims[0] != self.sample_dim_name:
                 dataset[var] = dataset[var].transpose()
         array = to_array(
-            dataset, self.pack_names, self.feature_counts, self._feature_dim_slice
+            dataset, self.pack_names, self.feature_counts, self._feature_dim_slices
         )
         return array
 
@@ -164,7 +172,7 @@ def to_array(
     dataset: xr.Dataset,
     pack_names: Sequence[str],
     feature_counts: Mapping[str, int],
-    feature_dim_slice: slice,
+    feature_dim_slices: Mapping[str, slice],
 ):
     """Convert dataset into a 2D array with [sample, feature] dimensions.
 
@@ -176,8 +184,9 @@ def to_array(
         dataset: dataset containing variables in self.pack_names to pack
         pack_names: names of variables to pack
         feature_counts: number of features for each variable
-        feature_dim_slice: slice object specifying data along the feature
-            dimension that should be included in the array
+        feature_dim_slices: mapping between input variable names and slice objects
+            specifying data along the feature dimension that should be considered
+            in feature_counts
 
     Returns:
         array: 2D [sample, feature] array with data from the dataset
@@ -191,7 +200,7 @@ def to_array(
         n_features = feature_counts[name]
         if n_features > 1:
             array[:, i_start : i_start + n_features] = dataset[name].isel(
-                {dataset[name].dims[1]: feature_dim_slice}
+                {dataset[name].dims[1]: feature_dim_slices[name]}
             )
         else:
             array[:, i_start] = dataset[name]
@@ -239,7 +248,7 @@ def count_features(
     quantity_names: Iterable[str],
     dataset: xr.Dataset,
     sample_dim_name: str,
-    feature_dim_slice: slice,
+    feature_dim_slices: Mapping[str, slice],
 ) -> Mapping[str, int]:
     """Count the number of ML outputs corresponding to a set of quantities in a dataset.
 
@@ -251,8 +260,9 @@ def count_features(
         dataset: a dataset containing the indicated variables
         sample_dim_name: dimension to treat as the "sample" dimension, any other
             dimensions are treated as a "feature" dimension.
-        feature_dim_slice: slice object specifying data along the feature dimension
-            that should be considered in feature_counts
+        feature_dim_slices: mapping between input variable names and slice objects
+            specifying data along the feature dimension that should be considered
+            in feature_counts
     """
 
     return_dict = {}
@@ -271,5 +281,7 @@ def count_features(
                 f"sample dimension ({sample_dim_name}), has dims {value.dims}"
             )
         else:
-            return_dict[name] = value.isel({value.dims[1]: feature_dim_slice}).shape[1]
+            return_dict[name] = value.isel(
+                {value.dims[1]: feature_dim_slices[name]}
+            ).shape[1]
     return return_dict
