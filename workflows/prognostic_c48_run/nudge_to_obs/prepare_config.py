@@ -29,22 +29,22 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_output_times(current_date, duration, frequency):
+def get_output_times(current_date, duration, interval):
     start_time = datetime(*current_date)
     output_times = []
-    current_time = start_time + frequency  # first output is after one interval
+    current_time = start_time + interval  # first output is after one interval
     while current_time <= start_time + duration:
         output_times.append(vcm.encode_time(current_time))
-        current_time += frequency
+        current_time += interval
     return output_times
 
 
 def test_get_output_times():
+    current_date = [2016, 8, 1, 0, 0, 0]
+    duration = timedelta(hours=3)
+    interval = timedelta(hours=1)
     expected = ["20160801.010000", "20160801.020000", "20160801.030000"]
-    assert (
-        get_output_times([2016, 8, 1, 0, 0, 0], timedelta(hours=3), timedelta(hours=1))
-        == expected
-    )
+    assert get_output_times(current_date, duration, interval) == expected
 
 
 FILE_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -62,10 +62,10 @@ if __name__ == "__main__":
     config = vcm.update_nested_dict(config, user_config)
 
     current_date = config["namelist"]["coupler_nml"]["current_date"]
-    output_frequency = timedelta(hours=config["namelist"]["atmos_model_nml"]["fhout"])
+    output_interval = timedelta(hours=config["namelist"]["atmos_model_nml"]["fhout"])
     run_duration = fv3config.get_run_duration(config)
     output_times = get_output_times(
-        current_date, args.segment_count * run_duration, output_frequency
+        current_date, args.segment_count * run_duration, output_interval
     )
 
     config = vcm.update_nested_dict(
