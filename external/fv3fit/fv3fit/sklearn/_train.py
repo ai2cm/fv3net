@@ -74,36 +74,29 @@ def _get_target_scaler(
     return target_scaler
 
 
-def _get_transformed_target_regressor(
-    base_regressor: SklearnRegressor,
-    output_vars: Iterable[str],
-    norm_data: xr.Dataset,
-    scaler_type: str,
-    scaler_kwargs: Mapping,
+def _get_transformed_batch_regressor(
+    train_config: ModelTrainingConfig, norm_data: xr.Dataset,
 ):
+    base_regressor = _get_regressor(train_config)
+
     target_scaler = _get_target_scaler(
-        scaler_type, scaler_kwargs, norm_data, output_vars
+        train_config.scaler_type,
+        train_config.scaler_kwargs,
+        norm_data,
+        train_config.output_variables,
     )
+
+    # not serializable currently because of target_scaler
     transform_regressor = TransformedTargetRegressor(
         base_regressor,
         func=target_scaler.normalize,
         inverse_func=target_scaler.denormalize,
         check_inverse=False,
     )
-    return transform_regressor
 
-
-def _get_transformed_batch_regressor(
-    train_config: ModelTrainingConfig, norm_data: xr.Dataset,
-):
-    base_regressor = _get_regressor(train_config)
-    transform_regressor = _get_transformed_target_regressor(
-        base_regressor,
-        train_config.output_variables,
-        norm_data,
-        train_config.scaler_type,
-        train_config.scaler_kwargs,  # type: ignore
-    )
+    # Neither of these is serializable
+    # RegressorEnsemble needs dump/load
+    # Need to override transformed target regressor as well
     batch_regressor = RegressorEnsemble(transform_regressor)
     model_wrapper = SklearnWrapper(
         SAMPLE_DIM,

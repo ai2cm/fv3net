@@ -18,12 +18,10 @@ class ModelTrainingConfig:
     batch_function: str
     batch_kwargs: dict
     scaler_type: str = "standard"
-    scaler_kwargs: Optional[Mapping] = None
-    additional_variables: Optional[Iterable[str]] = None
+    scaler_kwargs: Mapping = dataclasses.field(default_factory=dict)
+    additional_variables: Iterable[str] = dataclasses.field(default_factory=list)
 
     def __post_init__(self):
-        self.additional_variables = self.additional_variables or []
-        self.scaler_kwargs = self.scaler_kwargs or {}
         if self.scaler_type == "mass":
             if DELP not in self.additional_variables:
                 self.additional_variables.append(DELP)
