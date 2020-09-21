@@ -114,6 +114,7 @@ class PackedKerasModel(Model):
         ] = None,
         normalize_loss: bool = True,
         optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
+        eps: float = 1.0e-15,
     ):
         """Initialize the model.
         
@@ -141,6 +142,8 @@ class PackedKerasModel(Model):
                 deviation before computing the loss function
             optimizer: algorithm to be used in gradient descent, must subclass
                 tf.keras.optimizers.Optimizer; defaults to tf.keras.optimizers.Adam
+            eps: minimum scaler standard deviation before resetting the feature's
+                standard deviation to 1
         """
         super().__init__(sample_dim_name, input_variables, output_variables)
         self._model = None
@@ -155,8 +158,8 @@ class PackedKerasModel(Model):
         self.y_packer = ArrayPacker(
             sample_dim_name=sample_dim_name, pack_names=output_variables
         )
-        self.X_scaler = LayerStandardScaler()
-        self.y_scaler = LayerStandardScaler()
+        self.X_scaler = LayerStandardScaler(eps)
+        self.y_scaler = LayerStandardScaler(eps)
         if weights is None:
             self.weights: Mapping[str, Union[int, float, np.ndarray]] = {}
         else:
