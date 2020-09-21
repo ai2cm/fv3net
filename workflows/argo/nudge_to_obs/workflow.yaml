@@ -86,9 +86,10 @@ spec:
               name: run-fv3gfs
               template: run-fv3gfs
             arguments:
+              artifacts:
+                - {name: fv3config, from: "{{steps.prepare-config.outputs.artifacts.fv3config}}"}
+                - {name: runfile, from: "{{steps.prepare-config.outputs.artifacts.runfile}}"}
               parameters:
-                - {name: fv3config, value: "{{steps.prepare-config.outputs.parameters.fv3config}}"}
-                - {name: runfile, value: "{{steps.prepare-config.outputs.parameters.runfile}}"}
                 - {name: chunks, value: "{{steps.prepare-config.outputs.parameters.chunks}}"}
                 - {name: fv3gfs-image, value: "{{inputs.parameters.fv3gfs-image}}"}
                 - {name: output-url, value: "{{inputs.parameters.output-url}}"}
@@ -106,11 +107,11 @@ spec:
           - {name: nudge-url}
           - name: segment-count
       outputs:
-        parameters:
-          - {name: fv3config, valueFrom: {path: /tmp/fv3config.yaml}}
+        artifacts:
+          - {name: fv3config, path: /tmp/fv3config.yaml}
           - name: runfile
-            valueFrom:
-              path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudge_to_obs/runfile.py
+            path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudge_to_obs/runfile.py
+        parameters:
           - name: chunks
             valueFrom:
               path: /home/jovyan/fv3net/workflows/prognostic_c48_run/nudge_to_obs/chunks.yaml
