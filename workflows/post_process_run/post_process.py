@@ -152,6 +152,9 @@ def process_item(
         dest = os.path.join(d_out, relpath)
         chunked = cast_time(chunked)
         chunked.to_zarr(dest, mode="w", consolidated=True)
+    except ValueError:
+        # is an empty xarray, do nothing
+        pass
     else:
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         try:
