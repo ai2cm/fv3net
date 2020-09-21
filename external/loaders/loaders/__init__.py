@@ -1,4 +1,4 @@
 from .constants import TIME_NAME, SAMPLE_DIM_NAME, TIME_FMT, DERIVATION_DIM
 from . import batches
 from . import mappers
-from .batches._sequences import FunctionOutputSequence
+from .batches._sequences import FunctionOutputSequence, shuffle

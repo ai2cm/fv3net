@@ -3,26 +3,14 @@ kind: WorkflowTemplate
 metadata:
   name: run-fv3gfs
 spec:
-  arguments:
-    parameters:
-      - name: fv3config
-      - name: runfile
-      - name: fv3gfs-image
-      - name: output-url
-      - name: post-process-image
-      - {name: chunks, value: "{}"}
-      - {name: cpu, value: "6"}
-      - {name: memory, value: 4Gi}
-      - {name: segment-count, value: "1"}
-      - {name: work-volume-name, value: work-volume}
-      - {name: external-volume-name, value: external-volume}
   entrypoint: run-fv3gfs
   templates:
   - name: run-fv3gfs
     inputs:
-      parameters:
+      artifacts:
         - name: fv3config
         - name: runfile
+      parameters:
         - name: fv3gfs-image
         - name: output-url
         - name: post-process-image
@@ -36,9 +24,12 @@ spec:
       - - name: write-configs
           template: write-configs
           arguments:
+            artifacts:
+              - name: fv3config
+                from: "{{inputs.artifacts.fv3config}}"
+              - name: runfile
+                from: "{{inputs.artifacts.runfile}}"
             parameters:
-            - {name: fv3config, value: "{{inputs.parameters.fv3config}}"}
-            - {name: runfile, value: "{{inputs.parameters.runfile}}"}
             - {name: chunks, value: "{{inputs.parameters.chunks}}"}
             - {name: work-volume-name, value: "{{inputs.parameters.work-volume-name}}"}
       # loop over segments implemented through recursion so that a failed segment will
@@ -58,9 +49,12 @@ spec:
             - {name: external-volume-name, value: "{{inputs.parameters.external-volume-name}}"}
   - name: write-configs
     inputs:
-      parameters:
+      artifacts:
         - name: fv3config
+          path: /mnt/data/fv3config.yaml
         - name: runfile
+          path: /mnt/data/runfile.py
+      parameters:
         - name: chunks
         - name: work-volume-name
     container:
@@ -71,11 +65,10 @@ spec:
       command: ["/bin/bash", "-c", "-x", "-e"]
       args:
       - |
-        echo "{{inputs.parameters.fv3config}}" > /mnt/data/fv3config.yaml
-        cat << EOFRUNFILE > /mnt/data/runfile.py
-        {{inputs.parameters.runfile}}
-        EOFRUNFILE
+        echo "Using runfile:"
         cat /mnt/data/runfile.py
+        echo "Using fv3config:"
+        cat /mnt/data/fv3config.yaml
         echo "{{inputs.parameters.chunks}}" > /mnt/data/chunks.yaml
   - name: run-all-segments
     inputs:
