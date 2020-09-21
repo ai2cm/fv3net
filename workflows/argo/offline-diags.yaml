@@ -3,6 +3,17 @@ kind: WorkflowTemplate
 metadata:
   name: offline-diags
 spec:
+  entrypoint: offline-diags
+  volumes:
+    - name: gcp-key-secret
+      secret:
+        defaultMode: 420
+        secretName: gcp-key
+  serviceAccountName: integration-tests
+  tolerations:
+    - effect: NoSchedule
+      key: dedicated
+      value: climate-sim-pool
   templates:
     - name: offline-diags
       inputs:
@@ -56,5 +67,5 @@ spec:
             memory: "6Gi"
             cpu: "1000m"
           limits:
-            memory: "6Gi"
+            memory: "10Gi"
             cpu: "1000m"

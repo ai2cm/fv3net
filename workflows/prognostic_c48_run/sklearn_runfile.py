@@ -1,7 +1,8 @@
-from datetime import datetime
+import cftime
 import json
 import logging
 from typing import (
+    Any,
     Hashable,
     Iterable,
     Mapping,
@@ -15,7 +16,7 @@ from typing import (
 import xarray as xr
 from mpi4py import MPI
 
-import fv3gfs.wrapper
+import fv3gfs.wrapper as wrapper
 import fv3gfs.util
 import runtime
 
@@ -124,7 +125,7 @@ def apply(state: State, tendency: State, dt: float) -> State:
     return updated  # type: ignore
 
 
-class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
+class TimeLoop(Iterable[Tuple[cftime.DatetimeJulian, Diagnostics]]):
     """An iterable defining the master time loop of a prognostic simulation
 
     Yields (time, diagnostics) tuples, which can be saved using diagnostic routines.
@@ -145,7 +146,7 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         diagnostics.
     """
 
-    def __init__(self, comm=None, fv3gfs=fv3gfs.wrapper):
+    def __init__(self, comm: Any = None, fv3gfs=wrapper) -> None:
 
         if comm is None:
             comm = MPI.COMM_WORLD
@@ -171,6 +172,12 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         self._model = open_model(args["scikit_learn"])
         self._log_info("Model Downloaded")
         MPI.COMM_WORLD.barrier()  # wait for initialization to finish
+
+        self._fv3gfs.initialize()
+
+    @property
+    def time(self) -> cftime.DatetimeJulian:
+        return self._state.time
 
     def _log_debug(self, message: str):
         if self._comm.rank == 0:
@@ -221,7 +228,6 @@ class TimeLoop(Iterable[Tuple[datetime, Diagnostics]]):
         return diagnostics
 
     def __iter__(self):
-        self._fv3gfs.initialize()
         for i in range(self._fv3gfs.get_step_count()):
             diagnostics = {}
             diagnostics.update(self._step_dynamics())
@@ -307,13 +313,16 @@ if __name__ == "__main__":
 
     config = runtime.get_config()
     partitioner = fv3gfs.util.CubedSpherePartitioner.from_namelist(config["namelist"])
-    diag_files = runtime.get_diagnostic_files(config, partitioner, comm)
 
     loop = MonitoredPhysicsTimeLoop(
         tendency_variables=config.get("scikit_learn", {}).get(
             "physics_tendency_vars", []
         ),
         comm=comm,
+    )
+
+    diag_files = runtime.get_diagnostic_files(
+        config, partitioner, comm, initial_time=loop.time
     )
 
     for time, diagnostics in loop:

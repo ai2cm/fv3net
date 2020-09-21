@@ -27,13 +27,27 @@ class NormalizeTransform(abc.ABC):
 
 
 class StandardScaler(NormalizeTransform):
-    def __init__(self):
+    def __init__(self, std_threshold: float = 1e-12):
+        """Standard scaler normalizer: normalizes via (x-mean)/std
+
+        Args:
+            std_threshold: Features with standard deviations below
+                this threshold are treated as constants. Normalize/denormalize
+                will just subtract / add the mean. Defaults to 1e-12.
+        """
         self.mean = None
         self.std = None
+        self.std_threshold = std_threshold
 
     def fit(self, data: np.ndarray):
         self.mean = data.mean(axis=0).astype(np.float32)
         self.std = data.std(axis=0).astype(np.float32)
+        self._fix_constant_features()
+
+    def _fix_constant_features(self):
+        for i, std in enumerate(self.std):
+            if std < self.std_threshold:
+                self.std[i] = 1.0
 
     def normalize(self, data):
         if self.mean is None or self.std is None:
@@ -46,7 +60,7 @@ class StandardScaler(NormalizeTransform):
         return data * self.std + self.mean
 
     def dump(self, f: BinaryIO):
-        data = {}
+        data = {}  # type: ignore
         if self.mean is not None:
             data["mean"] = self.mean
         if self.std is not None:
