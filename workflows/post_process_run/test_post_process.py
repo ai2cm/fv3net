@@ -71,7 +71,6 @@ def test_process_item_dataset(tmpdir):
 
 def test_process_item_empty_dataset(tmpdir):
     d_in = str(tmpdir)
-    localpath = str(tmpdir.join("diags.zarr"))
     ds = xr.Dataset()
     with tempfile.TemporaryDirectory() as d_out:
         process_item(ds, d_in, d_out, TEST_CHUNKS)
