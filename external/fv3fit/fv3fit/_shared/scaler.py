@@ -27,13 +27,13 @@ class NormalizeTransform(abc.ABC):
 
 
 class StandardScaler(NormalizeTransform):
-    def __init__(self, std_threshold: float = 1e-12):
+    def __init__(self, std_threshold: float = 1e-15):
         """Standard scaler normalizer: normalizes via (x-mean)/std
 
         Args:
             std_threshold: Features with standard deviations below
                 this threshold are treated as constants. Normalize/denormalize
-                will just subtract / add the mean. Defaults to 1e-12.
+                will just subtract / add the mean. Defaults to 1e-15.
         """
         self.mean = None
         self.std = None
