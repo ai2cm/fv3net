@@ -6,8 +6,9 @@ import fsspec
 import joblib
 from sklearn.base import BaseEstimator
 from .._shared import pack, unpack, Predictor
+from .._shared.scaler import NormalizeTransform
 
-from typing import Iterable
+from typing import Sequence, Optional, Iterable
 
 
 class RegressorEnsemble:
@@ -96,9 +97,10 @@ class SklearnWrapper(BaseXarrayEstimator):
     def __init__(
         self,
         sample_dim_name: str,
-        input_variables: tuple,
-        output_variables: tuple,
+        input_variables: Iterable[str],
+        output_variables: Iterable[str],
         model: BaseEstimator,
+        target_scalar: Optional[NormalizeTransform] = None,
         parallel_backend: str = "threading",
         n_jobs: int = 1,
     ):
@@ -118,6 +120,7 @@ class SklearnWrapper(BaseXarrayEstimator):
 
         self.n_jobs = n_jobs
         self.parallel_backend = parallel_backend
+        self.target_scaler = target_scalar
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
@@ -128,12 +131,20 @@ class SklearnWrapper(BaseXarrayEstimator):
         y, self.output_features_ = pack(
             data[self.output_variables], self.sample_dim_name
         )
+
+        if self.target_scaler is not None:
+            y = self.target_scaler.normalize(y)
+
         self.model.fit(x, y)
 
     def predict(self, data):
         x, _ = pack(data[self.input_variables], self.sample_dim_name)
         with joblib.parallel_backend(self.parallel_backend, n_jobs=self.n_jobs):
             y = self.model.predict(x)
+
+            if self.target_scaler is not None:
+                y = self.target_scaler.denormalize(y)
+
         ds = unpack(y, self.sample_dim_name, self.output_features_)
         return ds.assign_coords({self.sample_dim_name: data[self.sample_dim_name]})
 

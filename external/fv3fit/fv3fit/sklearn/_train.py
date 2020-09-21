@@ -8,7 +8,6 @@ from typing import Sequence, Union, Mapping, Iterable
 
 from .._shared import StandardScaler, ManualScaler, ArrayPacker, get_mass_scaler
 from ._wrapper import SklearnWrapper, RegressorEnsemble
-from sklearn.compose import TransformedTargetRegressor
 from sklearn.ensemble import RandomForestRegressor
 
 
@@ -77,7 +76,6 @@ def _get_target_scaler(
 def _get_transformed_batch_regressor(
     train_config: ModelTrainingConfig, norm_data: xr.Dataset,
 ):
-    base_regressor = _get_regressor(train_config)
 
     target_scaler = _get_target_scaler(
         train_config.scaler_type,
@@ -86,23 +84,14 @@ def _get_transformed_batch_regressor(
         train_config.output_variables,
     )
 
-    # not serializable currently because of target_scaler
-    transform_regressor = TransformedTargetRegressor(
-        base_regressor,
-        func=target_scaler.normalize,
-        inverse_func=target_scaler.denormalize,
-        check_inverse=False,
-    )
-
-    # Neither of these is serializable
-    # RegressorEnsemble needs dump/load
-    # Need to override transformed target regressor as well
-    batch_regressor = RegressorEnsemble(transform_regressor)
+    base_regressor = _get_regressor(train_config)
+    batch_regressor = RegressorEnsemble(base_regressor)
     model_wrapper = SklearnWrapper(
         SAMPLE_DIM,
-        train_config.input_variables,  # type: ignore
-        train_config.output_variables,  # type: ignore
+        train_config.input_variables,
+        train_config.output_variables,
         batch_regressor,
+        target_scaler,
     )
     return model_wrapper
 

@@ -1,6 +1,6 @@
 import yaml
 import dataclasses
-from typing import Iterable, Optional, Mapping
+from typing import Iterable, Mapping
 
 
 DELP = "pressure_thickness_of_atmospheric_layer"
