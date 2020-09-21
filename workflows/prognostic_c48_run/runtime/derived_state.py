@@ -1,4 +1,4 @@
-from datetime import datetime
+import cftime
 from typing import Mapping, Hashable, Callable
 
 import vcm
@@ -46,7 +46,7 @@ class DerivedFV3State:
         return decorator
 
     @property
-    def time(self) -> datetime:
+    def time(self) -> cftime.DatetimeJulian:
         return self._getter.get_state(["time"])["time"]
 
     def __getitem__(self, key: Hashable) -> xr.DataArray:
