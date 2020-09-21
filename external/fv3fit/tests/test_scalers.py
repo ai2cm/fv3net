@@ -5,6 +5,8 @@ from typing import Mapping, Sequence
 import xarray as xr
 
 from fv3fit._shared.scaler import (
+    dumps,
+    loads,
     StandardScaler,
     ManualScaler,
     _create_scaling_array,
@@ -195,3 +197,14 @@ def test_get_mass_scaler():
     ]
     normalized = scaler.normalize(y)
     np.testing.assert_almost_equal(normalized, expected_normalized)
+
+
+def test_dump_load_manual_scaler():
+    scaler = ManualScaler(np.array([0.5]))
+
+    decoded = loads(dumps(scaler))
+    # ensure data is unchanged by testing behavior
+    in_ = np.array([10.0])
+    np.testing.assert_equal(decoded.normalize(in_), scaler.normalize(in_))
+    np.testing.assert_equal(decoded.denormalize(in_), scaler.denormalize(in_))
+

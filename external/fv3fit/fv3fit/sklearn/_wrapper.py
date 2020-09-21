@@ -10,6 +10,8 @@ from .._shared.scaler import NormalizeTransform
 
 from typing import Sequence, Optional, Iterable
 
+TARGET_SCALAR_FILENAME = "target_scaler.yaml"
+
 
 class RegressorEnsemble:
     """Ensemble of regressors that are incrementally trained in batches
