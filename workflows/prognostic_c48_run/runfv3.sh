@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -eo pipefail
 
 CONFIG="$1"
 RUNDIR="$2"
