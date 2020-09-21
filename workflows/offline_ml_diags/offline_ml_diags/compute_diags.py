@@ -192,7 +192,7 @@ def _get_model_loader(config: Mapping):
     return model_loader, loader_kwargs
 
 
-def _get_prediction_mapper(args, config: Mapping, grid: xr.Dataset):
+def _get_prediction_mapper(args, config: Mapping):
     base_mapper = _get_base_mapper(args, config)
     logger.info("Opening ML model")
     model_loader, loader_kwargs = _get_model_loader(config)
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     with fs.open(os.path.join(args.output_path, "config.yaml"), "w") as f:
         yaml.safe_dump(config, f)
 
-    pred_mapper = _get_prediction_mapper(args, config, grid)
+    pred_mapper = _get_prediction_mapper(args, config)
 
     variables = list(
         set(config["input_variables"] + config["output_variables"] + ADDITIONAL_VARS)
