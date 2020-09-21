@@ -1,4 +1,5 @@
 import prepare_config
+import pytest
 
 MODEL_URL = "gs://ml-model"
 IC_URL = "gs://ic-bucket"
@@ -23,3 +24,41 @@ def test_prepare_config_regression(regtest):
     args = parser.parse_args(get_args())
     with regtest:
         prepare_config.prepare_config(args)
+
+
+@pytest.mark.parametrize(
+    "mappings, expected",
+    (
+        [[{"a": 1}, {"a": 2}], {"a": 2}],
+        [[{"a": 1}, {"b": 3}], {"a": 1, "b": 3}],
+        [[{"a": 1}, {"b": 3}, {"a": 2}], {"a": 2, "b": 3}],
+        [[{"a": 1}, {"a": 2, "b": 3}], {"a": 2, "b": 3}],
+    ),
+)
+def test_merge_fv3config_overlays(mappings, expected):
+    output = prepare_config.merge_fv3config_overlays(*mappings)
+    assert output == expected
+
+
+@pytest.mark.parametrize(
+    "source, update, expected",
+    (
+        [{"a": 1}, {"a": 2}, {"a": 2}],
+        [{"a": 1}, {"a": {"b": 2}}, {"a": {"b": 2}}],
+        [{"a": 1}, {"a": 1, "b": 3}, {"a": 1, "b": 3}],
+        [{"a": 1}, {"a": 2, "b": 3}, {"a": 2, "b": 3}],
+        [
+            {"patch_files": ["one"]},
+            {"patch_files": ["two"]},
+            {"patch_files": ["one", "two"]},
+        ],
+        [
+            {"diagnostics": ["temp"]},
+            {"patch_files": ["one"], "diagnostics": ["sphum"]},
+            {"patch_files": ["one"], "diagnostics": ["temp", "sphum"]},
+        ],
+    ),
+)
+def test__merge_once(source, update, expected):
+    output = prepare_config._merge_once(source, update)
+    assert output == expected

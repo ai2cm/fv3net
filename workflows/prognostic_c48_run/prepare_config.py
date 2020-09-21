@@ -32,7 +32,7 @@ def _merge_once(source, update):
             and isinstance(source[key], Mapping)
             and isinstance(update[key], Mapping)
         ):
-            merge_fv3config_overlays(source[key], update[key])
+            _merge_once(source[key], update[key])
         else:
             source[key] = update[key]
     return source
