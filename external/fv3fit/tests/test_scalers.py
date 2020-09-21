@@ -199,9 +199,12 @@ def test_get_mass_scaler():
     np.testing.assert_almost_equal(normalized, expected_normalized)
 
 
-def test_dump_load_manual_scaler():
-    scaler = ManualScaler(np.array([0.5]))
+standard_scaler = StandardScaler()
+standard_scaler.fit(np.ones((10, 1)))
 
+
+@pytest.mark.parametrize("scaler", [ManualScaler(np.array([0.5])), standard_scaler])
+def test_dump_load_manual_scaler(scaler):
     decoded = loads(dumps(scaler))
     # ensure data is unchanged by testing behavior
     in_ = np.array([10.0])
