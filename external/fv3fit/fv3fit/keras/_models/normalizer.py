@@ -46,8 +46,8 @@ class StandardDenormalize(layers.Layer):
 
 
 class LayerStandardScaler(StandardScaler):
-    def __init__(self, eps):
-        super().__init__(eps)
+    def __init__(self):
+        super().__init__()
         self._normalize_layer = None
         self._denormalize_layer = None
 
