@@ -110,7 +110,7 @@ class PackedKerasModel(Model):
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         input_feature_dim_slices: Optional[
-            Mapping[str, Iterable[Optional[int]]]
+            Mapping[str, Sequence[Optional[int]]]
         ] = None,
         normalize_loss: bool = True,
         optimizer: tf.keras.optimizers.Optimizer = tf.keras.optimizers.Adam,
@@ -319,7 +319,7 @@ class DenseModel(PackedKerasModel):
         output_variables: Iterable[str],
         weights: Optional[Mapping[str, Union[int, float, np.ndarray]]] = None,
         input_feature_dim_slices: Optional[
-            Mapping[str, Iterable[Optional[int]]]
+            Mapping[str, Sequence[Optional[int]]]
         ] = None,
         normalize_loss: bool = True,
         optimizer: Optional[tf.keras.optimizers.Optimizer] = None,

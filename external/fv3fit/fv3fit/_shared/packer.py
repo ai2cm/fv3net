@@ -45,7 +45,7 @@ class ArrayPacker:
         self,
         sample_dim_name,
         pack_names: Iterable[str],
-        feature_dim_slices: Mapping[str, Iterable[Optional[int]]] = None,
+        feature_dim_slices: Optional[Mapping[str, Sequence[Optional[int]]]] = None,
     ):
         """Initialize the ArrayPacker.
 
@@ -59,11 +59,12 @@ class ArrayPacker:
         self._pack_names = list(pack_names)
         self._n_features: Dict[str, int] = {}
         self._sample_dim_name = sample_dim_name
-        feature_dim_slices = feature_dim_slices or {}
-        self._feature_dim_slices = {name: slice(None) for name in pack_names}
+        feature_dim_slices = {} if feature_dim_slices is None else feature_dim_slices
+        full_slice_args: Sequence[Optional[int]] = (None,)
+        self._feature_dim_slices = {name: full_slice_args for name in pack_names}
         self._feature_dim_slices.update(
             {
-                variable_name: slice(*feature_dim_slice)
+                variable_name: feature_dim_slice
                 for variable_name, feature_dim_slice in feature_dim_slices.items()
             }
         )
@@ -154,15 +155,27 @@ class ArrayPacker:
                 "n_features": self._n_features,
                 "pack_names": self._pack_names,
                 "sample_dim_name": self._sample_dim_name,
+                "feature_dim_slices": self._serializable_feature_dim_slices(),
                 "dims": self._dims,
             },
             f,
         )
 
+    def _serializable_feature_dim_slices(self) -> Mapping[str, Sequence[Optional[int]]]:
+        mapping = {}
+        for name, feature_dim_slice in self._feature_dim_slices.items():
+            if len(feature_dim_slice) > 1 or feature_dim_slice[0] is not None:
+                mapping[name] = list(feature_dim_slice)
+        return mapping
+
     @classmethod
     def load(cls, f: TextIO):
         data = yaml.safe_load(f.read())
-        packer = cls(data["sample_dim_name"], data["pack_names"])
+        packer = cls(
+            data["sample_dim_name"],
+            data["pack_names"],
+            feature_dim_slices=data["feature_dim_slices"],
+        )
         packer._n_features = data["n_features"]
         packer._dims = data["dims"]
         return packer
@@ -172,7 +185,7 @@ def to_array(
     dataset: xr.Dataset,
     pack_names: Sequence[str],
     feature_counts: Mapping[str, int],
-    feature_dim_slices: Mapping[str, slice],
+    feature_dim_slices: Mapping[str, Sequence[Optional[int]]],
 ):
     """Convert dataset into a 2D array with [sample, feature] dimensions.
 
@@ -184,7 +197,7 @@ def to_array(
         dataset: dataset containing variables in self.pack_names to pack
         pack_names: names of variables to pack
         feature_counts: number of features for each variable
-        feature_dim_slices: mapping between input variable names and slice objects
+        feature_dim_slices: mapping between input variable names and slice arguments
             specifying data along the feature dimension that should be considered
             in feature_counts
 
@@ -200,7 +213,7 @@ def to_array(
         n_features = feature_counts[name]
         if n_features > 1:
             array[:, i_start : i_start + n_features] = dataset[name].isel(
-                {dataset[name].dims[1]: feature_dim_slices[name]}
+                {dataset[name].dims[1]: slice(*feature_dim_slices[name])}
             )
         else:
             array[:, i_start] = dataset[name]
@@ -248,7 +261,7 @@ def count_features(
     quantity_names: Iterable[str],
     dataset: xr.Dataset,
     sample_dim_name: str,
-    feature_dim_slices: Mapping[str, slice],
+    feature_dim_slices: Mapping[str, Sequence[Optional[int]]],
 ) -> Mapping[str, int]:
     """Count the number of ML outputs corresponding to a set of quantities in a dataset.
 
@@ -282,6 +295,6 @@ def count_features(
             )
         else:
             return_dict[name] = value.isel(
-                {value.dims[1]: feature_dim_slices[name]}
+                {value.dims[1]: slice(*feature_dim_slices[name])}
             ).shape[1]
     return return_dict
