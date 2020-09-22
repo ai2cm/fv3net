@@ -1,5 +1,4 @@
 import abc
-import os
 import io
 from copy import copy
 import numpy as np
@@ -11,7 +10,7 @@ from .._shared import pack, unpack, Predictor
 from .._shared import scaler
 import sklearn.base
 
-from typing import Optional, Iterable, Sequence
+from typing import Optional, Iterable, Sequence, MutableMapping, Any
 import yaml
 
 # bump this version for incompatible changes
@@ -189,52 +188,42 @@ class SklearnWrapper(BaseXarrayEstimator):
         Args:
             path: a URL pointing to a directory
         """
-        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        root = os.path.join(path, SERIALIZATION_VERSION)
-        fs.makedirs(root, exist_ok=True)
-        with fs.open(os.path.join(root, PICKLE_FILENAME), "wb") as f:
-            f.write(self.model.dumps())
+        output: MutableMapping[str, Any] = {}
+        output["version"] = SERIALIZATION_VERSION
+        output["model"] = self.model.dumps()
+        if self.target_scaler is not None:
+            output["scaler"] = scaler.dumps(self.target_scaler)
 
-        with fs.open(os.path.join(root, TARGET_SCALAR_FILENAME), "w") as f:
-            if self.target_scaler is not None:
-                f.write(scaler.dumps(self.target_scaler))
+        output["metadata"] = [
+            self.sample_dim_name,
+            self.input_variables,
+            self.output_variables,
+            _multiindex_to_tuple(self.output_features_),
+        ]
 
-        with fs.open(os.path.join(root, METADATA_FILENAME), "w") as f:
-            yaml.safe_dump(
-                [
-                    self.sample_dim_name,
-                    self.input_variables,
-                    self.output_variables,
-                    _multiindex_to_tuple(self.output_features_),
-                ],
-                f,
-            )
+        with fsspec.open(path, "w") as f:
+            yaml.safe_dump(output, f)
 
     @classmethod
     def load(cls, path: str) -> Predictor:
         """Load a model from a remote path"""
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
-        root = os.path.join(path, SERIALIZATION_VERSION)
+        data = yaml.safe_load(fs.cat(path))
+        model = RegressorEnsemble.loads(data["model"])
 
-        with fs.open(os.path.join(root, PICKLE_FILENAME), "rb") as f:
-            model = RegressorEnsemble.loads(f.read())
-
-        scaler_str = fs.cat(os.path.join(root, TARGET_SCALAR_FILENAME))
-
+        scaler_str = data.get("scaler", "")
         scaler_obj: Optional[scaler.NormalizeTransform]
-
         if scaler_str:
             scaler_obj = scaler.loads(scaler_str)
         else:
             scaler_obj = None
-
-        meta_str = fs.cat(os.path.join(root, METADATA_FILENAME))
         (
             sample_dim_name,
             input_variables,
             output_variables,
             output_features_dict_,
-        ) = yaml.safe_load(meta_str)
+        ) = data["metadata"]
+
         output_features_ = _tuple_to_multiindex(output_features_dict_)
 
         obj = cls(

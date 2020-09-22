@@ -1,4 +1,5 @@
 import numpy as np
+import os
 from sklearn.linear_model import LinearRegression
 import unittest.mock
 import pytest
@@ -147,7 +148,11 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     wrapper.fit(data)
 
     # serialize/deserialize
-    wrapper.dump(tmpdir)
-    loaded = wrapper.load(tmpdir)
+    path = str(tmpdir.join("file.yaml"))
+    wrapper.dump(path)
 
+    # assert the dumped object is a single file
+    assert os.path.isfile(path)
+
+    loaded = wrapper.load(path)
     xr.testing.assert_equal(loaded.predict(data), wrapper.predict(data))
