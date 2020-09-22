@@ -1,5 +1,6 @@
 import abc
 import os
+import io
 from copy import copy
 import numpy as np
 import xarray as xr
@@ -21,9 +22,9 @@ class RegressorEnsemble:
 
     """
 
-    def __init__(self, base_regressor):
+    def __init__(self, base_regressor=None, regressors=None):
         self.base_regressor = base_regressor
-        self.regressors = []
+        self.regressors = regressors or []
 
     @property
     def n_estimators(self):
@@ -66,7 +67,8 @@ class RegressorEnsemble:
 
     @classmethod
     def loads(cls, b: bytes):
-        regressors = joblib.load(b)
+        f = io.BytesIO(b)
+        regressors = joblib.load(f)
         obj = cls(regressors[0])
         obj.regressors = regressors
         return regressors
@@ -171,14 +173,15 @@ class SklearnWrapper(BaseXarrayEstimator):
         """
         fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
         with fs.open(os.path.join(path, PICKLE_FILENAME), "wb") as f:
-            joblib.dump(self.model, f)
+            f.write(self.model.dumps())
 
         with fs.open(os.path.join(path, TARGET_SCALAR_FILENAME), "w") as f:
-            f.write(scaler.dumps(self.target_scaler))
+            if self.target_scaler is not None:
+                f.write(scaler.dumps(self.target_scaler))
 
         with fs.open(os.path.join(path, METADATA_FILENAME), "w") as f:
             yaml.safe_dump(
-                [self.sample_dim_name, self.input_variables, self.output_variables]
+                [self.sample_dim_name, self.input_variables, self.output_variables], f
             )
 
     @classmethod

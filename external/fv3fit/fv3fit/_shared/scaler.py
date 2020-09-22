@@ -1,7 +1,7 @@
 import abc
 from copy import copy
 import numpy as np
-from typing import Mapping, BinaryIO
+from typing import Mapping, BinaryIO, Type, Sequence
 import xarray as xr
 import io
 import yaml
@@ -10,6 +10,10 @@ from .packer import ArrayPacker
 
 
 class NormalizeTransform(abc.ABC):
+    @abc.abstractproperty
+    def kind(self) -> str:
+        pass
+
     @abc.abstractmethod
     def normalize(self, y: np.ndarray):
         pass
@@ -22,7 +26,7 @@ class NormalizeTransform(abc.ABC):
     def dump(self, f: BinaryIO):
         pass
 
-    def dumps(self) -> str:
+    def dumps(self) -> bytes:
         f = io.BytesIO()
         self.dump(f)
         return f.getvalue()
@@ -208,7 +212,7 @@ def _create_scaling_array(
     return scales_array
 
 
-scalers = [StandardScaler, ManualScaler]
+scalers: Sequence[Type[NormalizeTransform]] = [StandardScaler, ManualScaler]
 
 
 def dumps(scaler: NormalizeTransform) -> str:
