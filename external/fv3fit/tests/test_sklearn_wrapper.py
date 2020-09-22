@@ -1,10 +1,8 @@
-import io
 import numpy as np
 from sklearn.linear_model import LinearRegression
 import unittest.mock
 import pytest
 import xarray as xr
-import joblib
 
 from fv3fit.sklearn._wrapper import RegressorEnsemble, pack, SklearnWrapper
 from fv3fit._shared.scaler import ManualScaler
@@ -88,7 +86,7 @@ def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
         scaler = None
 
     return SklearnWrapper(
-        sample_dim_name="z",
+        sample_dim_name="sample",
         input_variables=["x"],
         output_variables=["y"],
         model=model,
@@ -111,7 +109,7 @@ def test_SklearnWrapper_fit_scaler_not_fitted():
     scaler = unittest.mock.Mock()
 
     wrapper = SklearnWrapper(
-        sample_dim_name="z",
+        sample_dim_name="sample",
         input_variables=["x"],
         output_variables=["y"],
         model=model,
@@ -136,7 +134,7 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
         scaler = None
     model = RegressorEnsemble(base_regressor=LinearRegression())
     wrapper = SklearnWrapper(
-        sample_dim_name="z",
+        sample_dim_name="sample",
         input_variables=["x"],
         output_variables=["y"],
         model=model,
@@ -153,4 +151,3 @@ def test_SklearnWrapper_serialize_predicts_the_same(tmpdir, scale_factor):
     loaded = wrapper.load(tmpdir)
 
     xr.testing.assert_equal(loaded.predict(data), wrapper.predict(data))
-

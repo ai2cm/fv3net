@@ -4,6 +4,7 @@ import io
 from copy import copy
 import numpy as np
 import xarray as xr
+import pandas as pd
 import fsspec
 import joblib
 from .._shared import pack, unpack, Predictor
@@ -18,6 +19,15 @@ SERIALIZATION_VERSION = "v0"
 TARGET_SCALAR_FILENAME = "target_scaler.yaml"
 PICKLE_FILENAME = "sklearn_model.pkl"
 METADATA_FILENAME = "metadata.yaml"
+
+
+def _multiindex_to_tuple(index: pd.MultiIndex) -> tuple:
+    return list(index.names), list(index.to_list())
+
+
+def _tuple_to_multiindex(d: tuple) -> pd.MultiIndex:
+    names, list_ = d
+    return pd.MultiIndex.from_tuples(list_, names=names)
 
 
 class RegressorEnsemble:
@@ -191,7 +201,13 @@ class SklearnWrapper(BaseXarrayEstimator):
 
         with fs.open(os.path.join(root, METADATA_FILENAME), "w") as f:
             yaml.safe_dump(
-                [self.sample_dim_name, self.input_variables, self.output_variables], f
+                [
+                    self.sample_dim_name,
+                    self.input_variables,
+                    self.output_variables,
+                    _multiindex_to_tuple(self.output_features_),
+                ],
+                f,
             )
 
     @classmethod
@@ -213,11 +229,20 @@ class SklearnWrapper(BaseXarrayEstimator):
             scaler_obj = None
 
         meta_str = fs.cat(os.path.join(root, METADATA_FILENAME))
-        sample_dim_name, input_variables, output_variables = yaml.safe_load(meta_str)
+        (
+            sample_dim_name,
+            input_variables,
+            output_variables,
+            output_features_dict_,
+        ) = yaml.safe_load(meta_str)
+        output_features_ = _tuple_to_multiindex(output_features_dict_)
 
-        return cls(
+        obj = cls(
             sample_dim_name, input_variables, output_variables, model, scaler_obj,
         )
+        obj.output_features_ = output_features_
+
+        return obj
 
     # these are here for backward compatibility with pre-unified API attribute names
     @property
