@@ -42,7 +42,7 @@ class _XyArraySequence(tf.keras.utils.Sequence):
         return X, y
 
 
-class _ThreadedXyArraySequence(tf.keras.utils.Sequence):
+class _ThreadedSequencePreLoader(tf.keras.utils.Sequence):
     """
     Wrapper object for using a threaded pre-load to provide
     items for a generator.
@@ -270,7 +270,7 @@ class PackedKerasModel(Model):
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
 
         if num_workers is not None:
-            Xy = _ThreadedXyArraySequence(
+            Xy = _ThreadedSequencePreLoader(
                 Xy, num_workers=num_workers, max_queue_size=max_queue_size
             )
 
