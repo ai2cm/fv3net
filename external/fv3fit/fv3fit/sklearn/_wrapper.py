@@ -8,8 +8,9 @@ import fsspec
 import joblib
 from .._shared import pack, unpack, Predictor
 from .._shared import scaler
+import sklearn.base
 
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Sequence
 import yaml
 
 TARGET_SCALAR_FILENAME = "target_scaler.yaml"
@@ -22,7 +23,11 @@ class RegressorEnsemble:
 
     """
 
-    def __init__(self, base_regressor=None, regressors=None):
+    def __init__(
+        self,
+        base_regressor=None,
+        regressors: Sequence[sklearn.base.BaseEstimator] = None,
+    ) -> None:
         self.base_regressor = base_regressor
         self.regressors = regressors or []
 
@@ -122,7 +127,7 @@ class SklearnWrapper(BaseXarrayEstimator):
         target_scaler: Optional[scaler.NormalizeTransform] = None,
         parallel_backend: str = "threading",
         n_jobs: int = 1,
-    ):
+    ) -> None:
         """
         Initialize the wrapper
 

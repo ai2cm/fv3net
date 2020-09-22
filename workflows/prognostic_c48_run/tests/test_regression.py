@@ -10,7 +10,7 @@ import yaml
 from datetime import timedelta, datetime
 from sklearn.dummy import DummyRegressor
 
-from fv3fit.sklearn import SklearnWrapper
+from fv3fit.sklearn import SklearnWrapper, RegressorEnsemble
 from fv3fit.keras import DummyModel
 import subprocess
 
@@ -443,7 +443,7 @@ def _model_dataset():
     return data
 
 
-def _save_mock_sklearn_model(tmpdir):
+def _save_mock_sklearn_model(tmpdir) -> str:
 
     data = _model_dataset()
 
@@ -452,8 +452,9 @@ def _save_mock_sklearn_model(tmpdir):
     # include nonzero moistening to test for mass conservation
     moistening_constant_per_s = -np.full(nz, 1e-4 / 86400)
     constant = np.concatenate([heating_constant_K_per_s, moistening_constant_per_s])
-    estimator = DummyRegressor(strategy="constant", constant=constant)
-
+    estimator = RegressorEnsemble(
+        regressors=[DummyRegressor(strategy="constant", constant=constant)]
+    )
     model = SklearnWrapper(
         "sample", ["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], estimator
     )
