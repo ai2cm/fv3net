@@ -11,6 +11,7 @@ from fv3fit.sklearn._train import (
     train_model,
     _get_target_scaler,
 )
+import fv3fit.sklearn
 from fv3fit._shared import StandardScaler, ManualScaler
 
 logger = logging.getLogger(__name__)
@@ -64,14 +65,10 @@ def test_training_integration(
             tmp_path,
         ]
     )
-    required_names = [
-        "sklearn_model.pkl",
-        "training_config.yml",
-    ]
-    existing_names = os.listdir(tmp_path)
-    missing_names = set(required_names).difference(existing_names)
-    assert len(missing_names) == 0, existing_names
 
+    fv3fit.sklearn.SklearnWrapper.load(tmp_path)
+
+    
 
 @pytest.mark.parametrize(
     "scaler_type, expected_type", (["standard", StandardScaler], ["mass", ManualScaler])
