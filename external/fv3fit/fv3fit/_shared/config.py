@@ -1,6 +1,6 @@
 import yaml
 import dataclasses
-from typing import Iterable, Mapping
+from typing import Iterable, Optional, Mapping
 
 
 DELP = "pressure_thickness_of_atmospheric_layer"
@@ -19,9 +19,11 @@ class ModelTrainingConfig:
     batch_kwargs: dict
     scaler_type: str = "standard"
     scaler_kwargs: Mapping = dataclasses.field(default_factory=dict)
-    additional_variables: Iterable[str] = dataclasses.field(default_factory=list)
+    additional_variables: Optional[Iterable[str]] = None
 
     def __post_init__(self):
+        self.additional_variables = self.additional_variables or []
+        self.scaler_kwargs = self.scaler_kwargs or {}
         if self.scaler_type == "mass":
             if DELP not in self.additional_variables:
                 self.additional_variables.append(DELP)
