@@ -103,18 +103,22 @@ def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
     assert pytest.approx(1 / scale) == output["y"].item()
 
 
-def test_SklearnWrapper_fit_scaler():
-    scale = 2.0
-    wrapper = _get_sklearn_wrapper(scale)
+def test_SklearnWrapper_fit_scaler_not_fitted():
+    model = unittest.mock.Mock()
+    scaler = unittest.mock.Mock()
+
+    wrapper = SklearnWrapper(
+        sample_dim_name="z",
+        input_variables=["x"],
+        output_variables=["y"],
+        model=model,
+        target_scaler=scaler,
+    )
+
     dims = ["sample", "z"]
     data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
     wrapper.fit(data)
-
-    model: unittest.mock.Mock = wrapper.model
-
-    x, y = model.fit.call_args[0]
-    np.testing.assert_allclose(x, data.x.values)
-    np.testing.assert_allclose(y, data.y.values * scale)
+    scaler.fit.assert_not_called()
 
 
 def test_SklearnWrapper_serialize(tmpdir):

@@ -6,14 +6,12 @@ from fv3fit._shared import ModelTrainingConfig
 import numpy as np
 import subprocess
 import os
-from vcm import safe
 
 from fv3fit.sklearn._train import (
     train_model,
     _get_target_scaler,
-    _get_transformed_batch_regressor,
 )
-from fv3fit._shared import ArrayPacker, StandardScaler, ManualScaler
+from fv3fit._shared import StandardScaler, ManualScaler
 
 logger = logging.getLogger(__name__)
 
@@ -95,15 +93,3 @@ norm_data = xr.Dataset(
         ),
     }
 )
-
-
-def test_same_scaler_after_fitting(training_batches, train_config):
-    batch_0 = training_batches[0]
-    packer = ArrayPacker("sample", train_config.output_variables)
-    y = packer.to_array(safe.get_variables(batch_0, train_config.output_variables))
-    model_wrapper = _get_transformed_batch_regressor(train_config, batch_0)
-    normed_y = model_wrapper.model.base_regressor.func(y)
-    model_wrapper.fit(batch_0)
-    np.testing.assert_array_almost_equal(
-        model_wrapper.model.base_regressor.func(y), normed_y
-    )
