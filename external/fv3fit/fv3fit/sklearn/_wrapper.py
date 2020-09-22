@@ -1,16 +1,19 @@
 import abc
+import os
 from copy import copy
 import numpy as np
 import xarray as xr
 import fsspec
 import joblib
-from sklearn.base import BaseEstimator
 from .._shared import pack, unpack, Predictor
-from .._shared.scaler import NormalizeTransform
+from .._shared import scaler
 
-from typing import Sequence, Optional, Iterable
+from typing import Optional, Iterable
+import yaml
 
 TARGET_SCALAR_FILENAME = "target_scaler.yaml"
+PICKLE_FILENAME = "sklearn_model.pkl"
+METADATA_FILENAME = "metadata.yaml"
 
 
 class RegressorEnsemble:
@@ -58,6 +61,16 @@ class RegressorEnsemble:
         )
         return np.mean(predictions, axis=0)
 
+    def dumps(self) -> bytes:
+        return joblib.dump(self.regressors)
+
+    @classmethod
+    def loads(cls, b: bytes):
+        regressors = joblib.load(b)
+        obj = cls(regressors[0])
+        obj.regressors = regressors
+        return regressors
+
 
 class BaseXarrayEstimator(Predictor):
     """Abstract base class for an estimator wich works with xarray datasets.
@@ -101,8 +114,8 @@ class SklearnWrapper(BaseXarrayEstimator):
         sample_dim_name: str,
         input_variables: Iterable[str],
         output_variables: Iterable[str],
-        model: BaseEstimator,
-        target_scalar: Optional[NormalizeTransform] = None,
+        model: RegressorEnsemble,
+        target_scaler: Optional[scaler.NormalizeTransform] = None,
         parallel_backend: str = "threading",
         n_jobs: int = 1,
     ):
@@ -122,7 +135,7 @@ class SklearnWrapper(BaseXarrayEstimator):
 
         self.n_jobs = n_jobs
         self.parallel_backend = parallel_backend
-        self.target_scaler = target_scalar
+        self.target_scaler = target_scaler
 
     def __repr__(self):
         return "SklearnWrapper(\n%s)" % repr(self.model)
@@ -150,13 +163,41 @@ class SklearnWrapper(BaseXarrayEstimator):
         ds = unpack(y, self.sample_dim_name, self.output_features_)
         return ds.assign_coords({self.sample_dim_name: data[self.sample_dim_name]})
 
+    def dump(self, path: str) -> None:
+        """Dump data to a directory
+
+        Args:
+            path: a URL pointing to a directory
+        """
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+        with fs.open(os.path.join(path, PICKLE_FILENAME), "wb") as f:
+            joblib.dump(self.model, f)
+
+        with fs.open(os.path.join(path, TARGET_SCALAR_FILENAME), "w") as f:
+            f.write(scaler.dumps(self.target_scaler))
+
+        with fs.open(os.path.join(path, METADATA_FILENAME), "w") as f:
+            yaml.safe_dump(
+                [self.sample_dim_name, self.input_variables, self.output_variables]
+            )
+
     @classmethod
     def load(cls, path: str) -> Predictor:
-        """Load a wrapped model saved as a .pkl file specified by `path`"""
-        fs, _, _ = fsspec.get_fs_token_paths(path)
-        with fs.open(path, "rb") as f:
-            wrapped_model = joblib.load(f)
-        return wrapped_model
+        """Load a model from a remote path"""
+        fs: fsspec.AbstractFileSystem = fsspec.get_fs_token_paths(path)[0]
+
+        with fs.open(os.path.join(path, PICKLE_FILENAME), "rb") as f:
+            model = RegressorEnsemble.loads(f.read())
+
+        scaler_str = fs.cat(os.path.join(path, TARGET_SCALAR_FILENAME))
+        scaler_obj = scaler.loads(scaler_str)
+
+        meta_str = fs.cat(os.path.join(path, METADATA_FILENAME))
+        sample_dim_name, input_variables, output_variables = yaml.safe_load(meta_str)
+
+        return cls(
+            sample_dim_name, input_variables, output_variables, model, scaler_obj,
+        )
 
     # these are here for backward compatibility with pre-unified API attribute names
     @property

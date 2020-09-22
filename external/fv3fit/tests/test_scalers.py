@@ -210,4 +210,3 @@ def test_dump_load_manual_scaler(scaler):
     in_ = np.array([10.0])
     np.testing.assert_equal(decoded.normalize(in_), scaler.normalize(in_))
     np.testing.assert_equal(decoded.denormalize(in_), scaler.denormalize(in_))
-

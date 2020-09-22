@@ -1,9 +1,11 @@
 import numpy as np
 from sklearn.linear_model import LinearRegression
+import unittest.mock
 import pytest
 import xarray as xr
 
-from fv3fit.sklearn._wrapper import RegressorEnsemble, pack
+from fv3fit.sklearn._wrapper import RegressorEnsemble, pack, SklearnWrapper
+from fv3fit._shared.scaler import ManualScaler
 
 
 def test_flatten():
@@ -70,3 +72,43 @@ def test_ensemble_fit(test_regressor_ensemble):
     assert regressor_ensemble.n_estimators == 4
     # test that new regressors are actually fit and not empty base regressor
     assert len(regressor_ensemble.regressors[-1].coef_) > 0
+
+
+def _get_sklearn_wrapper(scale_factor):
+    model = unittest.mock.Mock()
+    model.regressors = []
+    model.predict.return_value = np.array([[1.0]])
+
+    scaler = ManualScaler(np.array([scale_factor]))
+
+    return SklearnWrapper(
+        sample_dim_name="z",
+        input_variables=["x"],
+        output_variables=["y"],
+        model=model,
+        target_scaler=scaler,
+    )
+
+
+def test_SklearnWrapper_fit_predict_scaler(scale=2.0):
+    wrapper = _get_sklearn_wrapper(scale)
+    dims = ["sample", "z"]
+    data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
+    wrapper.fit(data)
+
+    output = wrapper.predict(data)
+    assert pytest.approx(1 / scale) == output["y"].item()
+
+
+def test_SklearnWrapper_fit_scaler():
+    scale = 2.0
+    wrapper = _get_sklearn_wrapper(scale)
+    dims = ["sample", "z"]
+    data = xr.Dataset({"x": (dims, np.ones((1, 1))), "y": (dims, np.ones((1, 1)))})
+    wrapper.fit(data)
+
+    model: unittest.mock.Mock = wrapper.model
+
+    x, y = model.fit.call_args[0]
+    np.testing.assert_allclose(x, data.x.values)
+    np.testing.assert_allclose(y, data.y.values * scale)

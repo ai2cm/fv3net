@@ -90,7 +90,7 @@ class ManualScaler(NormalizeTransform):
 
     kind: str = "manual"
 
-    def __init__(self, scales: np.ndarray):
+    def __init__(self, scales):
         self.scales = scales
 
     def normalize(self, y: np.ndarray):
@@ -227,4 +227,3 @@ def loads(b: str) -> NormalizeTransform:
             return scaler_cls.load(f)
 
     raise NotImplementedError(f"Cannot load {class_name} scaler")
-
