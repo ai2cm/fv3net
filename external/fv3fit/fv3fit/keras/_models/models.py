@@ -251,8 +251,6 @@ class PackedKerasModel(Model):
         batches: Sequence[xr.Dataset],
         epochs: int = 1,
         batch_size: Optional[int] = None,
-        num_workers: Optional[int] = None,
-        max_queue_size: int = 8,
         **fit_kwargs: Any,
     ) -> None:
         """Fits a model using data in the batches sequence
@@ -269,11 +267,6 @@ class PackedKerasModel(Model):
         epochs = epochs if epochs is not None else 1
         Xy = _XyArraySequence(self.X_packer, self.y_packer, batches)
 
-        if num_workers is not None:
-            Xy = _ThreadedSequencePreLoader(
-                Xy, num_workers=num_workers, max_queue_size=max_queue_size
-            )
-
         if self._model is None:
             X, y = Xy[0]
             n_features_in, n_features_out = X.shape[-1], y.shape[-1]
@@ -289,8 +282,16 @@ class PackedKerasModel(Model):
         Xy: Sequence[Tuple[np.ndarray, np.ndarray]],
         epochs: int,
         batch_size: int,
+        workers: Optional[int] = None,
+        max_queue_size: int = 8,
         **fit_kwargs: Any,
     ) -> None:
+
+        if workers is not None:
+            Xy = _ThreadedSequencePreLoader(
+                Xy, num_workers=workers, max_queue_size=max_queue_size
+            )
+
         for i_epoch in range(epochs):
             for i_batch, (X, y) in enumerate(Xy):
                 logger.info(
