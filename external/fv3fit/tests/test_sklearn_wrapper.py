@@ -76,13 +76,16 @@ def test_ensemble_fit(test_regressor_ensemble):
     assert len(regressor_ensemble.regressors[-1].coef_) > 0
 
 
-def _get_sklearn_wrapper(scale_factor, dumps_returns: bytes = b"HEY!"):
+def _get_sklearn_wrapper(scale_factor=None, dumps_returns: bytes = b"HEY!"):
     model = unittest.mock.Mock()
     model.regressors = []
     model.predict.return_value = np.array([[1.0]])
     model.dumps.return_value = dumps_returns
 
-    scaler = ManualScaler(np.array([scale_factor]))
+    if scale_factor:
+        scaler = ManualScaler(np.array([scale_factor]))
+    else:
+        scaler = None
 
     return SklearnWrapper(
         sample_dim_name="z",
@@ -121,11 +124,18 @@ def test_SklearnWrapper_fit_scaler_not_fitted():
     scaler.fit.assert_not_called()
 
 
-def test_SklearnWrapper_serialize(tmpdir):
-    f = io.BytesIO()
-    joblib.dump(["some", "list"], f)
-    token = f.getvalue()
+f = io.BytesIO()
+joblib.dump(["some", "list"], f)
+token = f.getvalue()
 
-    wrapper = _get_sklearn_wrapper(scale_factor=1.0, dumps_returns=token)
+
+@pytest.mark.parametrize(
+    "wrapper",
+    [
+        _get_sklearn_wrapper(scale_factor=1.0, dumps_returns=token),
+        _get_sklearn_wrapper(scale_factor=None, dumps_returns=token),
+    ],
+)
+def test_SklearnWrapper_serialize(tmpdir, wrapper):
     wrapper.dump(tmpdir)
     wrapper.load(tmpdir)
