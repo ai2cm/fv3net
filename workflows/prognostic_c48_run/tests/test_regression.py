@@ -455,7 +455,7 @@ def _save_mock_sklearn_model(tmpdir) -> str:
 
     single_regressor = DummyRegressor(strategy="constant", constant=constant)
 
-    estimator = RegressorEnsemble(regressors=[single_regressor])
+    estimator = RegressorEnsemble(single_regressor)
     model = SklearnWrapper(
         "sample", ["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], estimator
     )
