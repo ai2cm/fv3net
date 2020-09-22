@@ -459,8 +459,6 @@ def _save_mock_sklearn_model(tmpdir) -> str:
         "sample", ["specific_humidity", "air_temperature"], ["dQ1", "dQ2"], estimator
     )
 
-    # needed to avoid sklearn.exceptions.NotFittedError
-    model.fit(data)
     model.dump(str(tmpdir))
     return str(tmpdir)
 
