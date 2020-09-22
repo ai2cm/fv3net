@@ -3,7 +3,6 @@ import warnings
 import json
 
 import fv3config
-import joblib
 import numpy as np
 import pytest
 import xarray as xr
@@ -461,10 +460,8 @@ def _save_mock_sklearn_model(tmpdir):
 
     # needed to avoid sklearn.exceptions.NotFittedError
     model.fit(data)
-
-    path = str(tmpdir.join("model.pkl"))
-    joblib.dump(model, path)
-    return path
+    model.dump(str(tmpdir))
+    return str(tmpdir)
 
 
 def _save_mock_keras_model(tmpdir):
